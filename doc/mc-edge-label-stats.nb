@@ -1,0 +1,245 @@
+(************** Content-type: application/mathematica **************
+                     CreatedBy='Mathematica 5.0'
+
+                    Mathematica-Compatible Notebook
+
+This notebook can be used with any Mathematica-compatible
+application, such as Mathematica, MathReader or Publicon. The data
+for the notebook starts with the line containing stars above.
+
+To get the notebook into a Mathematica-compatible application, do
+one of the following:
+
+* Save the data starting with the line of stars above into a file
+  with a name ending in .nb, then open the file inside the
+  application;
+
+* Copy the data starting with the line of stars above to the
+  clipboard, then use the Paste menu command inside the application.
+
+Data for notebooks contains only printable 7-bit ASCII and can be
+sent directly in email or through ftp in text mode.  Newlines can be
+CR, LF or CRLF (Unix, Macintosh or MS-DOS style).
+
+NOTE: If you modify the data for this notebook not in a Mathematica-
+compatible application, you must delete the line below containing
+the word CacheID, otherwise Mathematica-compatible applications may
+try to use invalid cache data.
+
+For more information on notebooks and Mathematica-compatible 
+applications, contact Wolfram Research:
+  web: http://www.wolfram.com
+  email: info@wolfram.com
+  phone: +1-217-398-0700 (U.S.)
+
+Notebook reader applications are available free of charge from 
+Wolfram Research.
+*******************************************************************)
+
+(*CacheID: 232*)
+
+
+(*NotebookFileLineBreakTest
+NotebookFileLineBreakTest*)
+(*NotebookOptionsPosition[      6362,        170]*)
+(*NotebookOutlinePosition[      6993,        192]*)
+(*  CellTagsIndexPosition[      6949,        188]*)
+(*WindowFrame->Normal*)
+
+
+
+Notebook[{
+Cell[BoxData[
+    \(bits := \(\(-N[Log[2, #]]\) &\) /@ \((#/\((Plus @@ #)\))\) &\)], "Input"],
+
+Cell[BoxData[
+    \(sbits := \((Plus @@ \((#*bits[#])\))\) &\)], "Input"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(\({sbits[#], bits[#], 2*Plus @@ #, #} &\)[{98552, 7945, 7914, 
+          1980} + {20312, 4378, 4090, 1671} + {96113, 8497, 7641, 
+          2177} + {119790, 5137, 4610, 739} + {66640, 8232, 8834, 
+          2936}]\)], "Input"],
+
+Cell[BoxData[
+    \({412700.5511278153`, {0.2525121508700001`, 3.8059737955943085`, 
+        3.85315432947806`, 5.653051086800784`}, 
+      956376, {401407, 34189, 33089, 9503}}\)], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(\({sbits[#], bits[#], 2*Plus @@ #, #} &\)[{7939, 1078, 1488, 
+          364} + {4359, 1494, 1584, 813} + {7860, 1701, 2009, 563} + {5069, 
+          485, 536, 92} + {8437, 2201, 2537, 1078}]\)], "Input"],
+
+Cell[BoxData[
+    \({74758.34764754609`, {0.6185948585360398`, 2.8928495557549962`, 
+        2.6642216063397948`, 4.150710410032696`}, 
+      103374, {33664, 6959, 8154, 2910}}\)], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(\({sbits[#], bits[#], 2*Plus @@ #, #} &\)[{7299, 1615, 958, 
+          352} + {3776, 1649, 1200, 725} + {7569, 2003, 1292, 521} + {4392, 
+          644, 374, 99} + {8635, 2655, 1920, 1024}]\)], "Input"],
+
+Cell[BoxData[
+    \({70177.20579491333`, {0.6208185987048258`, 2.5072874370057607`, 
+        3.0838533650737516`, 4.161772157647124`}, 
+      97404, {31671, 8566, 5744, 2721}}\)], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(\({sbits[#], bits[#], 2*Plus @@ #, #} &\)[{3047, 1232, 878, 
+          879} + {1941, 1043, 867, 690} + {2890, 1057, 1058, 569} + {1012, 
+          221, 231, 89} + {3345, 1478, 1182, 858}]\)], "Input"],
+
+Cell[BoxData[
+    \({43769.69153666254`, {1.0057075922870875`, 2.2878045989683375`, 
+        2.5427749216166253`, 2.993379299217059`}, 
+      49134, {12235, 5031, 4216, 3085}}\)], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(\({sbits[#], bits[#], 3*Plus @@ #, #} &\)[{855, 212, 227, 71, 282, 101, 
+          118, 63} + {2166, 912, 932, 485, 1045, 652, 629, 418} + {1037, 300, 
+          307, 116, 343, 204, 161, 111} + {217, 44, 36, 13, 49, 26, 22, 
+          10} + {2980, 1172, 1207, 702, 1012, 539, 503, 287}]\)], "Input"],
+
+Cell[BoxData[
+    \({55250.430459906325`, {1.503213703659777`, 2.961651388368068`, 
+        2.924428924411869`, 3.890221530290281`, 2.9127600038485975`, 
+        3.7562209591103386`, 3.843150708351738`, 4.531933993784114`}, 
+      61698, {7255, 2640, 2709, 1387, 2731, 1522, 1433, 889}}\)], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(\({sbits[#], bits[#], 3*Plus @@ #, #} &\)[{271, 111, 102, 63, 111, 59, 
+          45, 30} + {980, 612, 529, 359, 461, 374, 396, 293} + {330, 138, 
+          168, 95, 130, 106, 78, 71} + {44, 21, 27, 10, 18, 16, 11, 
+          7} + {1067, 546, 514, 309, 410, 283, 259, 191}]\)], "Input"],
+
+Cell[BoxData[
+    \({27339.238626750695`, {1.8411028283261486`, 2.755785258907366`, 
+        2.847548237591331`, 3.528206390855583`, 3.0934584656339155`, 
+        3.524759089237114`, 3.6116840329230073`, 4.026112157307516`}, 
+      28935, {2692, 1428, 1340, 836, 1130, 838, 789, 592}}\)], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(\({sbits[#], bits[#], 3*Plus @@ #, #} &\)[{1005, 305, 321, 132, 274, 
+          152, 148, 86} + {2117, 1015, 949, 558, 900, 577, 601, 427} + {1287, 
+          360, 438, 15, 363, 161, 165, 107} + {197, 48, 38, 19, 46, 21, 15, 
+          13} + {3691, 1178, 1254, 478, 1111, 717, 592, 350}]\)], "Input"],
+
+Cell[BoxData[
+    \({58706.60191619342`, {1.421911154196016`, 2.9354662373841918`, 
+        2.8895384396337893`, 4.209064044305847`, 3.0447510895547296`, 
+        3.771400240750786`, 3.8694807872925363`, 4.499237618676452`}, 
+      66693, {8297, 2906, 3000, 1202, 2694, 1628, 1521, 983}}\)], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(\({sbits[#], bits[#], 3*Plus @@ #, #} &\)[{226, 105, 94, 68, 72, 46, 
+          48, 34} + {789, 521, 482, 342, 412, 306, 360, 301} + {317, 169, 
+          163, 108, 141, 87, 68, 53} + {42, 16, 12, 10, 14, 5, 8, 7} + {907, 
+          513, 460, 250, 391, 238, 256, 187}]\)], "Input"],
+
+Cell[BoxData[
+    \({24630.833064795686`, {1.9193597298483167`, 2.704123054353236`, 
+        2.8328273114661253`, 3.471184116174262`, 3.0663818390898734`, 
+        3.6611825321362814`, 3.543429000644142`, 3.8899351182521698`}, 
+      25884, {2281, 1324, 1211, 778, 1030, 682, 740, 582}}\)], "Output"]
+}, Open  ]]
+},
+FrontEndVersion->"5.0 for X",
+ScreenRectangle->{{0, 1600}, {0, 1200}},
+WindowSize->{520, 600},
+WindowMargins->{{150, Automatic}, {Automatic, 52}}
+]
+
+(*******************************************************************
+Cached data follows.  If you edit this Notebook file directly, not
+using Mathematica, you must remove the line containing CacheID at
+the top of  the file.  The cache data will then be recreated when
+you save this file from within Mathematica.
+*******************************************************************)
+
+(*CellTagsOutline
+CellTagsIndex->{}
+*)
+
+(*CellTagsIndex
+CellTagsIndex->{}
+*)
+
+(*NotebookFileOutline
+Notebook[{
+Cell[1754, 51, 93, 1, 27, "Input"],
+Cell[1850, 54, 73, 1, 27, "Input"],
+
+Cell[CellGroupData[{
+Cell[1948, 59, 246, 4, 75, "Input"],
+Cell[2197, 65, 191, 3, 43, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[2425, 73, 223, 3, 75, "Input"],
+Cell[2651, 78, 190, 3, 43, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[2878, 86, 222, 3, 75, "Input"],
+Cell[3103, 91, 189, 3, 43, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[3329, 99, 220, 3, 75, "Input"],
+Cell[3552, 104, 189, 3, 43, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[3778, 112, 319, 4, 107, "Input"],
+Cell[4100, 118, 300, 4, 59, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[4437, 127, 306, 4, 107, "Input"],
+Cell[4746, 133, 298, 4, 59, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[5081, 142, 320, 4, 107, "Input"],
+Cell[5404, 148, 301, 4, 59, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[5742, 157, 301, 4, 107, "Input"],
+Cell[6046, 163, 300, 4, 59, "Output"]
+}, Open  ]]
+}
+]
+*)
+
+
+
+(*******************************************************************
+End of Mathematica Notebook file.
+*******************************************************************)
+
