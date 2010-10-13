@@ -1,0 +1,864 @@
+\documentclass[11pt,letterpaper]{article}
+
+\pagestyle{headings}
+\bibliographystyle{alpha}
+
+\title{Ogg Daala Design Rationale}
+\author{Timothy B. Terriberry}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+
+The purpose of this document is to discuss some of the various design
+ trade-offs in creating a video codec, and the rationale behind each of the
+ decisions made for Ogg Daala.
+The goal of this document is to ensure that decisions are made in a consistent
+ and considered manner.
+
+\section{General Structure}
+
+The general structure of the video sequence is motion-compensated prediction
+ followed by some form of two-dimensional transform of the residual error.
+The final transform coefficients for each frame are quantized, and all data is
+ entropy encoded.
+This has been the basis for all of the most popular video codecs, such as
+ MPEG1, MPEG2, H.263, MPEG4 parts 2 and 10 (H.264), VC1, etc., as no other
+ strategy has proven as effective for eliminating temporal redundancy.
+In addition, much of the software for video encoding and playback has been
+ written with these codecs in mind.
+This means it often has built-in assumptions about the way codecs work that may
+ make interoperation with a new technique more difficult or impossible without
+ a redesign.
+
+This is not to say that things such as three-dimensional wavelets are being
+ discarded out-of-hand.
+In their current state, however, they are less efficient from both a
+ compression and an execution standpoint.
+They do offer temporal scalability.
+This feature, however, is not useful for many applications and can be achieved
+ in other ways with slightly less flexibility by utilizing P and B frames
+ properly.
+The cost of this scalability, however, is increased latency, and minimizing
+ latency \textit{is} strongly desirable for many applications.
+Until a convincing demonstration that this situation has changed is available,
+ the 2D+MC model is assumed.
+
+\subsection{Lossless Encoding}
+
+One of the biggest operational issues with many codecs today is that they are
+ fundamentally incapable of encoding a given video stream without quality
+ degredation, regardless of the number of bits that are thrown at it.
+A single encode may not degrade the video in a perceptible manner, but a
+ sequence is often encoded, transferred, edited and re-encoded repeatedly.
+Compounding the problem, many encoders also contain bugs which introduce
+ additional artifacts at any bit rate.
+Lossless encoding allows for simple detection of such bugs.
+Some extensions to the new H.264 codec have been proposed that would allow for
+ a lossless mode, but this is accomplished by switching between a PCM coding
+ mode that was included essentially to provide a theoretical upper bound on
+ bitrate.
+
+The argument against lossless encoding is simply that it consumes too much
+ space to be practical for most purposes.
+In fact, lossless codecs do exist and are used when it is known a priori that
+ additional editing and encoding are needed, and when these operations can be
+ done locally without transferring twenty gigabyte or larger files around.
+
+There is no way to progressively scale between the extreme of lossy encoding
+ and lossless.
+This is because the transforms used in current lossy codecs inherently
+ introduce loss, even before quantization is employed to reduce the bit rate.
+What makes this issue so exasperating is that there is no reason why this has
+ to be the case.
+The only stage of the encoding and decoding process which introduces loss by
+ design in order to reduce the bit rate is the quantization stage.
+
+Even worse, such loosely-defined transforms also lead to compatibility issues.
+IEEE standard 1180 was introduced to address this issue by ensuring that
+ implementations are sufficiently accurate.
+But many encoders or decoders are used that are not IEEE 1180 compliant, simply
+ because their implementations are much faster or do not require floating-point
+ hardware.
+Buggy encoders may produce video which slowly turns green or purple as it plays
+ due to consistent round-off errors, or "drift".
+Even if the encoder checks the output, the problem will likely go unnoticed, as
+ the decoder will probably use a similarly non-compliant transform, with
+ matching defects.
+
+One of the reasons for not specifying an exact transform definition was to
+ allow hardware and software designers additional flexibility to optimize it.
+However, the fastest known algorithm for an 8-point DCT is over a decade old
+ \cite{LLM89}.
+Hardware has also sufficiently advanced so that making a transform fast enough
+ is no longer the critical problem.
+
+This video codec, therefore, utilizes a transform that is exactly defined.
+As a consequence, it must consist of entirely integer operations, as the
+ floating-point processors on different hardware are not compatible.
+This is also useful for embedded devices, which may not have a floating-point
+ unit at all.
+
+The only other stage of the encoding and decoding process that could introduce
+ unneccessary loss is color conversion.
+This is mostly an application issue.
+As long as the codec can handle the most common color formats, there is no
+ reason for editing or encoding software to introduce additional color
+ conversions.
+
+\section{Bit Stream Format}
+
+This section summarizes the considerations that went into the design of the
+ bit stream format.
+This includes issues relating both to how symbols are compressed and to how
+ they are organized into packets.
+
+\subsection{Entropy Coder}
+
+Huffman coding has long been used for video codecs because of its extreme
+ simplicity and speed.
+It is also unemcumbered by patents.
+Unfortunately, more advanced techniques such as arithmetic coding produce
+ results that are far superior, as was demonstrated in research for the H.26L
+ codec.
+The obvious reason is that arithmetic coding allows symbols to be encoded with
+ a fractional number of bits, specifically less than one.
+The less obvious reason is that arithmetic coding allows much more flexible
+ probability models.
+
+Changing the probability distribution of the symbols being coded requires as
+ many as $O(n)$ operations to generate a new huffman table, since every symbol
+ in the alphabet may change.
+Arithmetic coding, by contrast, only requires the sums of probabilities of
+ the first $k$ symbols be known.
+Fast algorithms exist which can compute and update these sums in $O(\log n)$
+ time~\cite{Fen94,Fen95,Mof99}.
+This makes adapting the symbol probabilities after each decoded symbol
+ practical, which allows for the coder to adapt to non-stationary sources.
+
+Range coding was a technique published by an IBM researcher~\cite{Mar79} around
+ the same time that arithmetic coding was developed~\cite{Pas76}.
+The idea is extremely similar, except that range coding can process output in
+ chunks larger than a bit at a time.
+This allows byte-level implementations, which are more efficient.
+Also, it is believed that range coding is not encumbered by patents.
+Either way, it is not too much longer until the critical IBM patents on
+ arithmetic encoding expire.
+Thus, this codec uses a range coder for entropy encoding.
+
+\subsubsection{A Review of Arithmetic and Range Coding}
+
+In order to discuss further design decisions, a quick review of arithmetic and
+ range coding is helpful.
+
+Probabilities are modeled as integer frequency counts.
+Each symbol $s$ can be assigned an integer $f_s$ representing its relative
+ frequency.
+The sum of the counts of all the symbols up to and including $s$ in the
+ alphabet is denoted $F_s$.
+The sum of all of these integers is $t$, the total frequency.
+The alphabet size and symbol probabilities can be changed arbitrarily for each
+ encoded symbol, so long as the decoder can make the same changes given the
+ decoded information to that point.
+
+During encoding, an interval in the range $[0,1)$ is selected, based upon the
+ probabilities of the symbols being encoded.
+As each new symbol is encoded, the range is narrowed in proportion to the
+ estimated probability of the symbol, and offset according to the probabilities
+ of earlier symbols in the alphabet.
+At the end of the encoding, a number in the final interval is selected to
+ represent the entire encoded sequence.
+
+Practical implementations represent the interval as $[L,L+R)$, where $L$ and
+ $R$ are two fixed-length integers: the lower bound of the interval and its
+ range, respectively.
+A partition function, $f(c,t,R)$, where $c\in[0,t)$ is a frequency count,
+ carves up the range and offsets the lower bound as each symbol is encoded.
+The update formulas are
+\begin{eqnarray*}
+L'&=&L+f(F_{s-1},t,R)\\
+R'&=&f(F_s,t,R)-f(F_{s-1},t,R).
+\end{eqnarray*}
+
+Clearly, $R$ must be greater than $t$, or some symbols could potentially be
+ mapped to an empty interval.
+Whenever $R$ becomes too small, the interval--$R$ and $L$--is scaled by a power
+ of two, and one or more bits of $L$ are output.
+Allowing $R$ to become smaller before renormalizing requires fewer operations,
+ but reduces the accuracy of the partitioning operation and reduces the bits
+ available for the probability estimates.
+
+Because of the fixed bit-length of $R$, a similar restriction must be placed on
+ $t$.
+This means that only approximations of the true probabilities are used, and
+ this can be a source of compression inefficiency.
+This is not normally an issue, since the probabilities are usually estimated,
+ not exactly known.
+Range coding always outputs a byte at a time, however, making 8 fewer bits
+ available for frequency counts than with normal arithmetic coding.
+Various algorithms may place even greater restrictions on $t$, which could make
+ the effects significant.
+
+During decoding, the same interval is reconstructed by examining integer
+ output.
+A fixed-length integer, $V$, contains the bits of the output that correspond to
+ the current value of $L$.
+As $L$ is shifted during renormalization, $V$ is also shifted, and new bits are
+ read from the input to fill the bottom.
+Normally, only $D=V-L$ is actually computed and stored for efficiency.
+Then the partition function is inverted, computing a value $c$ for which
+ $D\in[f(c,t,R),f(c+1,t,R))$.
+The frequency counts are then searched for the symbol $s$ such that
+ $c\in[F_{s-1},F_s)$.
+This is the decoded symbol.
+Once this is known, the operations of the encoder can be mimiced.
+
+\subsubsection{Carry Propagation}
+
+Because the interval $[L,L+R)$ can straddle the value $1$ after
+ renormalization, the bits of $L$ shifted off the left end are not always the
+ final bits of the code word.
+Carry propagation can change an arbitrarily long sequence of one bits to zeros.
+For general purpose coders, this can be solved by bit stuffing, which
+ artificially clamps the current interval to be entirely above or below $1$.
+When the number of bits outstanding is kept as a simple 32-bit count, this
+ wastes at most one bit every four billion output bits.
+This adds increased complexity to the decoder, however, which must now mimic
+ these actions of the encoder so that it too can perform this bit stuffing at
+ the proper place.
+
+A range coder allows counting outstanding bits at the byte level, and so for
+ Daala's purposes it should be sufficient to restrict the size of a packet to
+ 4 GB, thus eliminating the need for bit stuffing.
+The 32-bit counter is only needed on the encoding side, and so embedded 16-bit
+ decoders can still use 16-bit arithmetic.
+
+\subsubsection{Binary Coding}
+
+Range coding can be further simplified by reducing the number of symbols to
+ two: 0 and 1.
+Every symbol to be encoded is first converted to some binary representation,
+ and then the bits of that representation are modeled and coded.
+This makes maintaining the probability estimates trivial, but requires
+ $O(\log n)$ bits to be encoded for every symbol.
+This still requires $O(\log n)$ operations to update the statistics.
+Computing the partition function $f$ and its inverse is usually more expensive
+ than updating the statistics.
+
+An alphabet of size $n$, however, usually utilizes $n-1$ free parameters in its
+ statisical model, compared to $\log(n)$ parameters for $\log(n)$ binary
+ models.
+Thus, the binary models require less storage, and also incur less overhead for
+ modeling errors, at least on a \textit{per-symbol} basis.
+They also require more symbols to be encoded, however.
+
+This is not to say that $n$-ary models could not be designed which required
+ fewer parameters.
+Indeed, in predicting items like motion vector lengths, there should be strong
+ correlations between neighboring symbols in the alphabet.
+Traditional models do not account for this in any way, i.e., the observance of
+ a value $k$ does not increase the probability that $k+1$ and $k-1$ might also
+ be observed.
+Binary-tree models actually make some such adjustments, but not across tree
+ branches.
+
+It is expected that the number of contexts with a relatively large alphabet
+ will be small, and in fact must be small to avoid context dilution, so the
+ increased memory overhead for the model parameters should be moderate.
+Hence larger alphabets are more flexible and potentially faster than binary
+ alphabets, and only require a moderate increase in implementation complexity.
+Therefore a restriction to a binary alphabet is not desired.
+The unrestricted version is called ``multialphabet" arithmetic coding in the
+ literature.
+
+\subsubsection{The Partition Function}
+
+The normal partition function for arithmetic coding is
+\begin{displaymath}
+ f(c,t,R)=(c\cdot R)//t,
+\end{displaymath}
+ where $//$ denotes integer division.
+Rounding instead of truncation in the division can increase the efficiency, but
+ at the cost of increased complexity of the decoder, which must properly invert
+ the operation.
+
+Moffat et al. propose the more efficient
+\begin{displaymath}
+ f(c,t,R)=\left\{
+ \begin{array}{ll}c\cdot(R//t)&{\rm if\ }c<t,\\R&{\rm otherwise},\end{array}
+ \right.
+\end{displaymath}
+ which has the advantage of only requiring one division per encoding operation,
+ regardless of how many times $f$ is evaluated \cite{MNW98}.
+
+Note that both of these are approximations to the optimal partition function,
+ which requires extended precision arithmetic.
+The compression inefficiency due to the latter is small when $t$ is much
+ smaller than $R$.
+Using 6 fewer bits for $t$, the loss is only $0.1\%$.
+
+There are several methods for designing a multiply-free partition function.
+Here, the term ``multiply" from the literature refers to scaling by the
+ estimated probability, $c/t$, and so includes the division step.
+Most methods restrict $R$ or the probabilities to a special form.
+Methods specific to binary coding use a small number of values for $R$ and
+ the frequency counts, and can be driven with lookup tables or shifts and adds
+ \cite{LR81, PMLA88, HV92, HV94, HM97}.
+These can be extended to multialphabet coding by using a small number of values
+ to approximate $R//t$ from Moffat's partition function instead
+ \cite{RM89, CKW91, PS93, Lei95, FP97}.
+This guarantees that no symbol gets allocated a zero-sized range, but care must
+ be taken to ensure that the approximate values of the partition function do
+ not exceed the real $R$.
+Many of these impose restrictions on the type of probability models that can be
+ used, whether or not they can be adaptive and how the adaptive ones are
+ updated.
+
+Stuiver and Moffat, however, take the approach of defining a new partition
+ function \cite{SM98}.
+The second function is highly inaccurate when $t$ approaches $R$, as the
+ truncation error increases and all the extra space is allocated to the last
+ symbol.
+They instead normalize $t$ to fall in $(R/2,R]$, which forces $R//t$ to be $1$,
+ and then evenly distribute the truncation errors with the function
+\begin{displaymath}
+ f(c,t,R)=\left\{
+ \begin{array}{ll}c&{\rm if\ }c<d,\\2c-d&{\rm otherwise},\end{array}
+ \right.
+\end{displaymath}
+ where $d=2t-R$.
+The value $d$ divides the frequency counts such that $d$ values in the range
+ $[0,t)$ are allocated single units in $R$, and $t-d$ are allocated double
+ units.
+
+This approach imposes no special form on $R$ or the probability estimates.
+The requirement that $t$ fall in $(R/2,R]$ can be handled by scaling $t$ and
+ the representative frequency counts by a power of two right before coding.
+This can be computed with a lookup table, or by using special hardware
+ instructions available on some processors to locate the high-order bit.
+Once the high-order bits are the same, one additional shift may be required to
+ bring $t$ into the proper range.
+
+The maximum error in the multiplication when using this function is a
+ factor of two, so the error is no more than one bit per symbol.
+If one assumes the probabilities being used as accurate and that the symbols
+ being encoded are independent of each other, this can be reduced to
+ $\log(2e^{-1}\log e)\approx 0.0861$.
+Values close to this are observed, even when these assumptions are grossly not
+ met \cite{SM98}.
+
+The partition function as given over-estimates symbol probabilities at the end
+ of the interval, and under-estimates symbol probabilities at the beginning of
+ the interval.
+It is more beneficial if the probabilties of more probable symbols are the ones
+ that are over-estimated, since the relative error is smaller.
+In most contexts, the smaller symbols have a larger probability of occurring.
+Therefore a partition function with the roles of the two piecewise segments
+ reversed is used:
+\begin{displaymath}
+ f(c,t,R)=\left\{
+ \begin{array}{ll}2c&{\rm if\ }c<d,\\c+d&{\rm otherwise},\end{array}
+ \right.
+\end{displaymath}
+ where $d=R-t$.
+ 
+\subsubsection{Word Size}
+
+For a word size $w$, $w-1$ bits are available for $R$ and $L$, since one bit is
+ used to simplify carry detection.
+Since range coding allows $R$ to shrink by up to 8 bits, $w-9$ bits are
+ available for frequency counts.
+%The number of symbols encoded in most contexts in a frame is relatively small.
+%Therefore a word size of 16 bits allows 7 bits to be used for frequency counts,
+% which should be sufficient, and allows fast operation on embedded processors. 
+%Note that if the second, more accurate, partition function were used, frequency
+% counts of 7 bits would incur an error near 1 bit per symbol, far higher than
+% the theoretic $0.0861$ bits per symbol incurred by the third function.
+
+\subsubsection{Probability Estimator}
+
+The $\frac{1}{b}$-biased $k$-array Dirichlet estimator provides probability
+ estimates for a stationary zero-order stochastic process with an inefficiency
+ of $O(\log n)$ bits, where $n$ is the number of symbols encoded
+ \cite{Sht87, STW95}.
+\begin{displaymath}
+P(s_i|S) = \frac{b\cdot {\rm occ}(s_i,S)+1}{bn+k}.
+\end{displaymath}
+Here, $s_i$ is the $i$th symbol in the alphabet, $S$ is the string of symbols
+ observed so far, ${\rm occ}(s_i,S)$ is the number of occurrences of $s_i$ in
+ $S$, $n$ is the length of $S$, $k$ is the size of the alphabet, and $b$ is the
+ bias parameter.
+When $b=2$ and $k=2$, this is also called the Krichevsky-Trofimov estimator
+ \cite{KT81}.
+
+The bias parameter controls how quickly the model adapts to observed symbols.
+In an actual implementation, the frequency count $f_s$ for each symbol is
+ simply initialized to $1$.
+Each time a symbol is observed, $b$ is added to its count.
+In order to prevent statistics from accumulating to be too large, and to allow
+ adaptation to non-stationary sources, the counts are scaled by a factor of
+ $1/2$, rounding up, when the total $t$ exceeds a threshold parameter.
+
+\subsubsection{Code Books}
+
+Unlike codebooks for non-adaptive codes, codebooks for range codes are not
+ actually required.
+They do provide several advantages, however.
+First, as the number of symbols encoded in most contexts in a frame is assumed
+ to be small, initial probabilities can be specified to reduce the time needed
+ for the model to adapt.
+Second, because different contexts fit the model of a stationary zero-order
+ source to different degrees, different bias and threshold parameters in the
+ estimator allow the models to adapt at different rates.
+
+Far more significant than the previous two, certain symbols may be given an
+ initial probability of zero.
+This prevents the symbol from ever being decoded.
+This allows the encoder to incur no bit rate penalty whatsoever for features of
+ the bitstream that it does not use.
+This can, for example, allow the encoder to selectively switch between half-pel
+ or quarter-pel motion vector resolution on a frame-by-frame basis.
+
+For these reasons, several codebooks can be defined in the codec setup headers
+ by the encoder for use in range coding.
+Codebooks are selected on a frame by frame basis, and the current codebook is
+ specified by index for each frame.
+Specifying both the initial probabilities and the update rate is sufficient to
+ eliminate the need for a custom threshold for each context, so the default of
+ $2^7$ is always used.
+This provides the maximum precision possible for rescaling operations.
+
+\subsection{Packetization}
+
+\subsubsection{Bit Rate Peeling}
+
+One of the features of the Ogg Vorbis codec is that audio packets can be
+ truncated at any point and still result in a valid, decodable stream.
+This feature is primarily useful for the specific application of real-time
+ video streaming.
+It does not make sense with a 2D+MC transform model, however.
+
+The reason is that the encoder uses the decoded output of previous frames for
+ the motion-compensated prediction, as this is the same information that will
+ be available to the decoder.
+Reducing the quality of these frames changes the prediction and thus the
+ error residual.
+This means that the encoded error residual of the predicted frames no longer
+ corresponds to the real error residual, introducing additional artifacts.
+These artifacts are then used to predict future frames, causing progressively
+ increasing error.
+
+It might be possible to include this feature in B frames, which are not used to
+ predict other frames.
+B frames make up only a small part of the total bit rate, however, and so do
+ not provide much rate flexibility.
+
+Bit rate peeling is therefore not considered.
+
+\section{Residual Coding}
+
+\subsection{Lapped Block Transforms}
+
+Lapped block transforms retain the advantages of block transforms--low
+ complexity and locality of reference--but eliminate one of the primary
+ disadvantages: blocking artifacts.
+Most current blocked-based transform codecs utilize a deblocking filter on the
+ decoding side, after the inverse transform is applied, to reduce blocking
+ artifacts.
+These filters have several disadvantages.
+
+In the face of severe quantization they are often not sufficient to overcome
+ blocking artifacts.
+Also, their effects are usually ignored during quantization in the encoder,
+ which can lead to artificial smoothing of real edges.
+To avoid such problems, adaptive filters are used which require conditional
+ checks that are expensive on modern CPUs with deep pipelines.
+In the case of H.264, it was estimated that the deblocking filter required over
+ one-third of the total decoding time.%TODO: Find reference.
+
+This brings about one of the primary advantages to an out-of-loop filter, like
+ that used by MPEG4 part 2, which is that slower systems can disable it to
+ reduce CPU utilization at the cost of visual quality.
+Both H.264 and Theora have gone the alternative route: using a loop-filter so
+ that the encoder can take advantage of the increased quality of the
+ reconstructed frames during prediction.
+Lapped block transforms, like loop filters, would also impose a fixed CPU cost
+ that could not be optionally disabled by slower CPUs, however unlike the
+ adaptive filter of H.264, their structure is regular.
+
+Lapped block transforms address the other problems by introducing a
+ complementary pre-filter, which is the exact inverse of the deblocking
+ post-filter.
+The pre-filter essentially lengthens the basis functions normally used by the
+ block transform and causes them to decay at the ends.
+These longer basis functions allow for increased decorrelation between blocks,
+ so that sharp discontinuities at their edges after pre-filtering no longer
+ lead to sharp discontinuities in the reconstructed signal after
+ post-filtering.
+Actual edges along block boundaries, on the other hand, now produce larger
+ high-frequency components, so that normal quantization procedures can take
+ them into account.
+
+\subsubsection{General Structure}
+
+A general structure is known for separable pre-/post-filter pairs which
+ guarantees perfect reconstruction, finite impulse response and linear-phase
+ \cite{Tra01a}.
+The structure is complete, such that all filters with these properties are
+ represented.
+The form of the pre-filter which allows increasing the length of the block
+ basis functions by a factor of two is
+\[
+{\mathbf P}=\frac{1}{2}
+ \left[
+ \begin{table}{cc}{\mathbf I}&{\mathbf J}\\{\mathbf J}&-{\mathbf I}\end{table}
+ \right]
+ \left[
+ \begin{table}{cc}{\mathbf U}&{\mathbf 0}\\{\mathbf 0}&{\mathbf V}\end{table}
+ \right]
+ \left[
+ \begin{table}{cc}{\mathbf I}&{\mathbf J}\\{\mathbf J}&-{\mathbf I}\end{table}
+ \right].
+\]
+Each of ${\mathbf I}$, ${\mathbf J}$, ${\mathbf U}$ and ${\mathbf V}$ are
+ equal-sized square matrices, at most half the size of the block transform.
+Here ${\mathbf I}$ is the identity matrix, ${\mathbf J}$ is an anti-diagonal
+ matrix of $1$'s, somtimes called the reversal matrix, and ${\mathbf U}$ and
+ ${\mathbf V}$ are aribtrary invertible matrices.
+Note that these matrices can be smaller than half the size of the block
+ transform.
+This allows increased blocking artifacts to be traded off against decreased
+ ringing.
+Longer basis functions are also possible by using additional filter stages.
+
+Restricting ${\mathbf U}$ and ${\mathbf V}$ to further be orthogonal produces
+ orthogonal transforms, which have nice error analysis properties, but usually
+ inferior energy-compaction abilities.
+The pre-filter is applied before the block transform, at an offset, such that
+ its support straddles two blocks, with one half taken from each.
+Boundary conditions are handled simply by not applying the filter when its
+ support would overlap the boundary.
+
+\subsubsection{Approximate Forms}
+
+The matrix ${\mathbf U}$ has very little effect on coding gain, and so can be
+ taken to be the identity to simplify the transform without much loss
+ \cite{Tra01a}.
+The matrix ${\mathbf V}$ may then be parameterized as a diagonal scale martix
+ surrounded by rotation matrices using the singular value decomposition.
+Tran notes that some of the rotation angles are always very small, and suggests a
+ two simpler forms with just one rotation matrix composed of only $K-1$ angles,
+ where $K$ is the size of ${\mathbf V}$ \cite{Tra01a}.
+He also suggests approximating the rotation by two lifting steps:
+ $x_{i+1}=x_{i+1}+px_i$ followed by $x_i=x_i+ux_{i+1}$.
+The Type-III transform arranges the rotations in the $x_{K-1}-x_{K-2},\ldots,
+ x_2-x_1,x_1-x0$ planes.
+The Type-IV transform splits the two lifting steps up so that first the steps
+ $x_1=x_1+p_0x_0,x_2=x_2+p_1x_1,\ldots,x_{K-1}=x_{K-1}+p_{K-2}x_{K-2}$ are
+ applied and then the steps $x_{K-2}=x_{K-2}+u_{K-2}x_{K-1},\ldots,
+ x_1=x_1+u_1x_2,x_0=x_0+u_0x_1$ are applied.
+
+An optimized $8\times 16$ filter with ${\mathbf U}={\mathbf I}$ can achieve a
+ coding gain of $9.6151$ dB.
+Using the Type-III approximation reduces this to $9.6115$ dB, and using the
+ Type-IV approximation still yields $9.6005$ dB.
+Forcing the transform to be orthogonal in any of these cases imposes
+ approximately a $0.2$ dB penalty \cite{Tra01b}.
+Thus the penalty for using either approximation is very small.
+In general, the structure of the Type-III tranform matches better with the
+ sizes of the coefficients, so that the smaller coefficients with larger
+ relative approximation error occur towards the end of the transform.
+The Type-IV transform still remains competitve in terms of coding gain,
+ however, and a special use for it will be seen shortly.
+
+\subsubsection{Regularity Constraints}
+
+The transforms can be made $\{1,2\}$-regular, so that with just the DC
+ coefficient of each block, smooth ramp signals may be reconstructed.
+These ramps match very well with the offset not coded in our motion
+ compensation scheme.
+Regularity is imposed with the additional constraint
+ ${\mathbf V}{\mathbf q}=M{\mathbf u}$.
+Here ${\mathbf q}=[1,3,\ldots,2K-1]^T$, ${\mathbf u}=[1,1,\ldots,1]^T$ and
+ $M\in\{2K,2K+1\}$ is the size of the block transform.
+For the Type-III transform, this is equivalent to the constraints
+\begin{eqnarray*}
+s_0    &=&M(1-u_0)\\
+s_i    &=&\frac{M}{2i+1}(1-u_i)-\frac{2i-1}{2i+1}s_{i-1}p_{i-1}\\
+       & &{\rm \ for\ }i=1,\ldots,K-2\\
+s_{K-1}&=&\frac{M}{M-1}-\frac{M-3}{M-1}s_{K-2}p_{K-2}
+\end{eqnarray*}
+ where $s_i$ is the scale factor for each row of ${\mathbf V}$.
+Similar constraints exist for the Type-IV transform:
+\begin{eqnarray*}
+s_0    &=&M(1-u_0)\\
+s_i    &=&\frac{M}{2i+1}(1-u_i-(1-u_{i-1})p_{i-1})\\
+       & &{\rm \ for\ }i=1,\ldots,K-2\\
+s_{K-1}&=&\frac{M}{M-1}(1-(1-u_{K-2})p_{K-2}).
+\end{eqnarray*}
+
+\subsubsection{Optimal Dyadic Rational Approximations}
+
+Finally, all the coefficients $u_i,p_i,s_i$ may be approximated by dyadic
+ rationals so that the transform may be implemented entirely with integer
+ operations.
+Because the scale factors of the post filter are $1/s_i$, and decoder speed is
+ more important, it would be desirable to approximate $1/s_i$ as a dyadic
+ rational instead of $s_i$, but this imposes severe restrictions on the $s_i$.
+For example, $1/s_0$ must be a power of two, or $M(1-u_0)$ would have a
+ denominator not divisible by two.
+Settling for $K$ integer divisions in the decoder allows transforms with much
+ higher coding gain.
+
+One can also see that the constraints for the Type-IV transform do not have the
+ same chain of dependencies on previous scale factors that those of the
+ Type-III transform do.
+This makes it much easier to satisfy these constraints, and so the best
+ approximation of the Type-IV transform to a given precision might actually be
+ better than that of the Type-III transform.
+This is in fact confirmed to be the case for $8\times 16$ filters.
+
+The transform with the optimal coding gain for a given number of bits of
+ precision in the dyadic rational approximations can be obtained by using
+ numeric methods to find the optimal point at some large precision, and then
+ performing a brute force search around this for parameters $u_i$ and $p_i$
+ which satisfy the constraints.
+This brute force search was done by searching the faces of an expanding
+ hyper-cube around the approximation of the optimal parameters.
+
+The coding gain function has a single local maximum and behaves very smoothly
+ near the critical point, justifying the use of simple numeric methods to find
+ the global optimum.
+In order to speed up the search, once the maximum value of the coding gain
+ function on a face of the cube falls below that of the best solution already
+ found, that face stops expanding, and need not be considered again.
+When all faces have stopped, the global optimum has been found.
+This method is exponential in the number of parameters, since it must examine
+ all dyadic rationals in a volume of parameter space.
+Two levels out in the 14-dimensional parameter space needed to optimize a
+ $16\times 32$ transform contains over 34 billion lattice points.
+Some shortcutting may be made by throwing out pieces of hyper-cube faces when
+ it can be shown that any one of the constraints is not satisfied over it, but
+ the computational complexity still grows very quickly.
+
+\subsubsection{Embedded Concerns}
+
+For hardware and embedded systems, it is desirable to keep the dynamic range
+ of all calculations within 16 bits.
+This is even desirable for modern 32-bit processors, many of which include SIMD
+ instruction sets that can operate on 4 16-bit operands at a time.
+However, residuals may already require 10 bits to represent.
+An additional two bits are required for the output of each of two
+ pre-filtering operations, one in the horizontal and one in the vertical
+ direction.
+This severely limits the size of the dyadic rationals that can be used when
+ computing the transform.
+
+Already, for a $8\times 16$ pre/post filter, a dyadic rational approximation
+ that fits within 16 bits incurs a $0.3$ dB loss in coding gain.
+This can be reduced in theory by altering the structure of the lifting steps to
+ reduce the dynamic range of critical values in the calculation, but this
+ introduces round-off errors.
+The optimization process described above assumes that round-off errors due to
+ lifting steps can be ignored, so that all transforms may be treated as linear.
+It is unknown which leads to a lower coding gain: using a less accurate
+ approximation of the transform coefficients or using a less accurate
+ representation of the values being transformed.
+However, as restructuring introduces errors earlier in the calculation, it will
+ likely cause the greater loss.
+
+Liang and Tran recommend implementing the multiplications by the dyadic
+ rationals only using right-shifts \cite{LT01}.
+Hence $\frac{3}{8}x$ would be implemented as
+ $\lfloor\frac{x}{4}\rfloor+\lfloor\frac{x}{8}\rfloor$.
+This introduces still further rounding errors, though it should be better than
+ simply using a less accurate approximation of the coefficient.
+The errors can be further reduced by left shifting where the room is available.
+This approach might have patent issues, however.
+
+This approach also does not solve the problem of multiplying by the scale
+ factors.
+Unlike normal lifting steps, this multiplication is not trivially invertible.
+Since the scale factors are always greater than or equal to one, inversion is
+ normally attained by adding one to a positive result on the encoder's side
+ and simply doing the normal division on the decoder's side.
+Whatever approximation scheme is used to reduce the dynamic range of this
+ operation, care must be taken that the decoder will be able to easily invert
+ the process.
+
+In light of all these considerations, considerable effort could be put forth to
+ design a transform with a small dynamic range that retains as many desirable
+ properties as possible.
+All of this effort can be avoided by simply using 32-bit arithmetic to perform
+ the transforms.
+Therefore, although all coefficients produced by lapped transforms considered
+ here will fit within a 16-bit signed integer, 32-bit operations will be
+ required for intermediate results.
+
+\subsubsection{Boundary Handling}
+
+It has already been said that pre/post filters which would overlap the boundary
+ of an image can simply be discarded.
+However, if the size of the image is not a multiple of the block size, special
+ handling still needs to be done in the region where a block is only partially
+ filled by the image.
+The usual method of handling this is to extend the signal to fill the block,
+ and then apply the transform.
+There are a number of ways to extend the signal, however.
+
+The most practical ways are to compute some simple function of the signal, such
+ as mirroring it or copying the last value into the empty region.
+In theory, it should be possible to choose values that guarantee that there are
+ as many trailing zeros output from the transform as there were added values.
+The actual values can be found by a straightforward method.
+Arbitrary values are assumed for the unknowns, the transform computed, and the
+ desired coefficients are set to zero.
+Then the inverse transform is computed, and the results of the inverse are used
+ for the unknowns.
+This is repeated until the process converges.
+
+This method will work when the inputs can be represented to arbitrary precision
+ and the transform is a linear one.
+It may not converge with bounded representations and lifting steps in the
+ transform which round or truncate values.
+Therefore, the bitstream syntax should not be required to produce these zero
+ terms, or lossless coding might be compromised.
+
+
+\section{Perceptual Coding}
+
+These factors influence only encoder design.
+They should have minimal to no effect on the bitstream format.
+
+Models which describe the sensitivity of the human visual system are
+ parameterized by the viewing environment.
+Thus, size is measured in degrees of arc spanned after projection, contrast is
+ relative to the surrounding lighting and background, etc.
+Either a ``standard" viewing environment must be assumed, or whatever
+ procedures that are used must take parameters which describe the salient
+ features of the environment.
+At a minimum these should include expected image size, viewing distance, and
+ background luminance.
+
+\subsection{Region of Interest Coding}
+
+Motion is empirically 5 times as important as any other factor when determining
+ regions of interest in a scene \cite{Osb99, NC96}.
+The other factors used by Osberger are contrast, size, shape, location, and
+ differentiation between foreground and background.
+When importance weightings were averaged over $16\times 16$ blocks, $50\%$ of
+ viewer attention was consistently located in the most important $10\%$ of the
+ image for still images.
+A study found that over $90\%$ of fixations occurred in less than $18\%$ of the
+ area any video scene, while Osberger's most important $20\%$ contained less
+ than $70\%$ of the attention, so there is still room for improvement in
+ identifying regions of interest.
+
+Humans get cues about their own motion from both visual clues and their inner
+ ear.
+Angular velocities around $0.7$ cycles/minute (6 deg/sec) mark the point where
+ visual cues and measurements in the inner ear are equally important.
+Above that the inner is more important, and below that visual cues are.
+This can be used as a threshold for determining which motions are too fast to
+ track and which are important.
+This corresponds well with empirical results by Osberger that suggest a value
+ of 5 deg/sec for the maximum sensitivity to motion \cite{Osb99}.
+There is typically a $0.1$ to $0.2$ second delay between the time a new object
+ appears in the visual field and the time the eye begins to track its motion.
+
+Most methods of region of interest coding require transmitting some sort of
+ side information that describes where the regions are.
+One method does this by transmitting model parameters for areas of expected
+ foveation.%TODO: \cite{}.
+This allows both the encoder and decoder to scale wavelet coefficients by the
+ same values, and then transmit or decode the bits in normal significance
+ order.
+This has the drawback of making the attention model part of the bitstream
+ format, so that future research cannot make drastic modifications to it, and
+ of restricting the use of more perceptually based quantization methods, e.g.
+ contrast-based methods.
+Viewing the example images in the paper also reveals the drastic dependence on
+ viewing conditions of the foveation model itself, as far too much information
+ is thrown away in ``unimportant" regions.
+Considering that ROI selection is only accurate half the time, this approach is
+ likely to do more harm than good.
+
+A more flexible method is simply to use adaptive quantization to control how
+ bits are distributed.
+This may require an increased amount of side information, but leaves control
+ of the model entirely up to the encoder.
+Because the encoder also has some control over the entropy encoding of the
+ quantization parameter, simple encoders which do not wish to use adaptive
+ quantization or use only a limited version of it can reduce or eliminate the
+ bit rate overhead altogether.
+
+\subsection{Supra-Threshold Quantization}
+
+For current codecs, it is usually the case that pre-processing images to
+ remove detail is more effective than adaptive quantization.
+This is because pre-processing can be done without introducing additional
+ artifacts such as blocking artifacts \cite{Osb99}.
+For a well-designed codec, this should not be the case.
+
+It is generally believed that the detection threshold for stimuli with
+ different orientations and frequencies is a non-linear Minkowski sum of the
+ detection threshold for each individual stimulus, though the exact exponent
+ varies depending on testing conditions.
+The exponents determined by experiments range from $\Beta=2.2$ to
+ $\Beta=\infty$ (no summation) for sine-wave and Gabor targets presented
+ against a uniform background or an unnatural masker.
+Experiments using natural images as a masker reveal that the summation is
+ approximately linear $\Beta=1$ \cite{CH02a}.
+The conclusion of this is that it is acceptable to optimize each channel of a
+ filter bank independently, without taking into account inter-channel
+ dependencies.
+
+The other important observation is that human sensitivity to relative changes
+ in quality above the threshold of detection does not proceed in a linear
+ fashion.
+This means that it is not valid to attempt to find quantizers which produce
+ equivalent distortions at sub-threshold levels, and then scale them linearly
+ to supra-threshold levels in order to save bits.
+Chandler and Hemami have performed experiments for quantizing various wavelet
+ channels, but their results rely on a specific viewing environment, including
+ a specific image size and level of wavelet decomposition \cite{CH02b}.
+It is not clear how to generalize their results to other viewing enviroments or
+ more adaptive transforms.
+
+%%CELT-style AVQ:
+%% Code L1 energy in (band, block?) with exponential codebook
+%% Code distribution of energy with PVQ codebook
+%%  Lattice spacing equal to energy quantizer
+%%  Distribution _not_ uniform
+%% Always use a predictor:
+%%  Inter predictor
+%%   MC, then forward transform
+%%  Intra predictor
+%%   Predict from neighboring post-transform coefficients
+%%   Use one or more linear predictors
+%%    Can build custom, optimal predictor for various texture orientations
+%%    Can we pick which predictor to use by classifying source coefficients?
+%%     Advantage: no side information
+%% Predictor gives predicted energy (code residual from prediction)
+%% Predictor gives predicted PVQ pulse vector
+%%  Scale predictor by change in energy
+%%  Code residual from predicted pulse distribution
+%%  Take advantage of lattice structure (at least one coefficient completely
+%%   determined by energy constraint)
+%%  Take advantage of non-uniform distribution (residual likely to be near 0)
+%%   SILK-style codebook training sufficient?
+%%   Scalar quantization with ranges restricted?
+%% Challenges:
+%%  Want PVQ codebook offset so no quantization need be applied to predictor
+%%  Want Energy codebook offset so predictor*1.0 is in codebook
+%%   Bit-exact exponential codebook requires O(N) multiplies to search (enc+dec)
+%%   Big look-up table of scale factors?
+%%    Doubles the number of muls needed for search by a no-table implementation.
+%%     Instead of e_{n+1}=e_n*s>>b, s_{n+1}=s_n*s_1>>b, e_{n+1}=e_0*s_{n+1}>>b.
+
+\bibliography{daala}
+
+\end{document}

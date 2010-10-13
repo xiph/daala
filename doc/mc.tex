@@ -1,0 +1,848 @@
+\documentclass[11pt,letterpaper]{article}
+%\usepackage[]{epsfig}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{amsxtra}
+\usepackage[pdfpagemode=None,pdfstartview=FitH,pdfview=FitH,colorlinks=true,
+ pdftitle=Adaptive\ Motion\ Compensation\ Without\ Blocking\ Artifacts,
+ pdfauthor=Timothy\ B.\ Terriberry]{hyperref}
+%Allow inclusion of EPS/PDF figures with TeX labels
+\newif\ifpdf
+\ifx\pdfoutput\undefined
+\pdffalse
+\else
+\pdfoutput=1
+\pdftrue
+\fi
+\ifpdf
+\pdfcompresslevel=9
+\providecommand{\figinput}[1]{\input{#1.pdftex_t}}
+\usepackage[pdftex]{graphicx}
+\DeclareGraphicsRule{.pdftex}{pdf}{.pdftex}{}
+\else
+\providecommand{\figinput}[1]{\input{#1.pstex_t}}
+\usepackage{graphicx}
+\DeclareGraphicsRule{.pstex}{eps}{.pstex}{}
+\fi
+\pagestyle{headings}
+\bibliographystyle{alpha}
+\DeclareMathOperator*{\argmin}{argmin}
+\newcommand{\w}[1]{\ensuremath{{w_{#1}}}}
+\newcommand{\s}[1]{\ensuremath{{s_{#1}}}}
+\newcommand{\m}[1]{\ensuremath{{\mathbf{m}_{#1}}}}
+
+\title{Adaptive Motion Compensation Without Blocking Artifacts}
+\author{Timothy B. Terriberry}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+We present a method for adaptive switching between CGI and OBMC that avoids
+ discontinuities along block boundaries.
+We extend the method to support adaptive subdivision of the control grid, as
+ well.
+Finally, we present a multiresolution blending method that improves the
+ sharpness of the predictor while reducing computational complexity.
+\end{abstract}
+
+\section{Introduction}
+
+Most modern video codecs still use straightforward Block Matching Algorithms
+ (BMA)~\cite{DM95} to perform motion compensation, despite their simplicity. 
+The blocking artifacts they produce coincide with similar blocking artifacts in
+ the transform stage, so there is little motivation to avoid them.
+However, as interest increases in lapped transforms or wavelets---which avoid
+ blocking artifacts in the transform stage---there is a need for motion
+ compensation methods that are themselves free from blocking artifacts.
+Historically, two of the main methods proposed have been Overlapped Block
+ Motion Compensation (OBMC) and Control Grid Interpolation (CGI).
+
+\subsection{Overlapped Block Motion Compensation}
+
+OBMC was introduced by Watanabe and Singhal expressly to improve prediction
+ near block boundaries~\cite{WS91}.
+It uses a piecewise constant motion model estimated over a regular grid, like
+ BMA.
+Blocking artifacts are avoided by weighting the predictions around each grid
+ point with a smoothly varying window function.
+The prediction gain is due to the blending of several samples of the reference
+ image, which is typically highly spatially correlated.
+This compensates for motion uncertainty away from the grid points, provided
+ there are no sharp edges~\cite{OS94,ZSNKI02}.
+The primary difficulty with OBMC is its tendency to blur sharp
+ features~\cite{Ish98}.
+
+Compared to normal half-pel BMA, Katto and Ohta report an $0.4$ dB
+ improvement in SNR of the prediction by simply utilizing motion vectors (MVs)
+ estimated by BMA~\cite{KO95}.
+Kuo and Kuo report improvements between $0.5$ and $0.8$ dB vs. whole-pel BMA,
+ and an additional $0.2$ to $0.5$ dB gain from local iterative refinement of
+ the MVs~\cite{KK97}.
+The different MV accuracies are important, as Girod points out that the
+ blending used in half-pel BMA has noise-reducing properties similar to those
+ of a multi-hypothesis prediction method like OBMC~\cite{Gir00}.
+
+\subsection{Control Grid Interpolation}
+
+CGI, introduced by Sullivan and Baker, moves the blending from the image domain
+ to the motion domain~\cite{SB91}.
+It interpolates the MVs between grid points to produce a single predictor,
+ which helps avoid the over-smoothing problems of OBMC.
+However, when the real motion is discontinuous, such as near an occluding edge,
+ gross warping errors can occur.
+Related methods use triangular patches~\cite{NH91} or content-adaptive
+ meshes~\cite{ATB95}, with affine or projective motion models~\cite{WL96} and
+ varying increases in computational requirements.
+In this work we focus on \textit{backwards-mapping} approaches, which use a
+ semi-regular control grid in the current frame.
+\textit{Forward-mapping} approaches, which allow arbitrary control point
+ placement, are not considered.
+
+Initially, CGI offered only subjective improvements, with little to no gain in
+ objective PSNR~\cite{SB91,AT98}.
+However, significant compression gains are to be had by improving the motion
+ estimation process.
+Chen and Willson report gains of $1.8$ to $2.4$ dB using iterative dynamic
+ programming instead of local refinement, while reducing the bits spent on
+ MVs by $25\%$ to $30\%$~\cite{CW00}.
+This is in stark contrast to OBMC, which only improved by $0.1$ to $0.2$ dB,
+ though with a similar bitrate reduction.
+Nosratinia proposes adapting the CGI interpolation kernel to reduce the
+ inter-block dependency when it would benefit PSNR.
+His kernels vary between bilinear at one extreme, and a step function at the
+ other, effectively switching between CGI and BMA, but he uses the same kernel
+ over an entire frame~\cite{Nos01}.
+
+\subsection{Adaptive Switching Algorithms}
+
+In fact, one of the primary drawbacks with BMA, OBMC, and CGI is that each uses
+ the same motion model over the entire image, while true motion fields are
+ better modeled as piecewise smooth, with isolated discontinuities.
+Many researchers have experimented with adaptively switching between various
+ methods on a block-by-block basis.
+Kuo and Kuo switch between BMA and OBMC to reduce encoder and decoder
+ complexity while maintaining the quality of OBMC~\cite{KK97}.
+Ishwar reports gains of $0.5$ to $0.9$ dB over OBMC alone, and similarly,
+ $0.5$ to $1.0$ dB gains over CGI alone by switching with BMA in each
+ case~\cite{Ish98}.
+Altunbasak and Tekalp report improvements at low bitrates by switching between
+ CGI with varying levels of mesh subdivision, OBMC, and BMA~\cite{AT98}.
+Heising et al. also use a wavelet coder to demonstrate that switching between
+ OBMC and CGI provides better performance than any one of the three approaches,
+ or any other pair of them~\cite{HMCP01}.
+The main drawback of all of these adaptive methods is the introduction of
+ blocking artifacts when switching between the models.
+Section~\ref{sec:switching} outlines an approach that avoids these artifacts.
+
+\subsection{Adaptive Subdivision}
+
+Another strategy for adapting to the true motion field is to vary the
+ resolution of the grid on which MVs are sampled~\cite{CYC90}.
+Lee showed that simultaneous rate-distortion optimization of the BMA block size
+ and the quantizers used to code the residual produced gains of up to $1.7$ dB
+ over a fixed $16\times 16$ block size at 64 kbit/s~\cite{Lee95}.
+
+Huang and Hsu proposed using variable block sizes for CGI and achieved a
+ $29\%$ savings in MV bitrate with a $0.2$ dB increase in PSNR compared to
+ triangle-based CGI~\cite{HH94}.
+In order to preserve continuity of the motion field, the MVs at vertices that
+ split the edge of a larger block are fixed at the value interpolated from that
+ edge's endpoints.
+Zhang \textit{et al.} used variable block sizes with OBMC and achieved
+ reductions of $0.2$ to $0.9$ dB in SNR over variable size BMA at 60
+ kbit/s~\cite{ZAS98}.
+To avoid blocking artifacts, they subdivide the blocks in the decoded quadtree
+ until none of the interpolation kernels overlap more than one adjacent block
+ in a given direction and then assign them all the same MV.
+These two schemes are incompatible with each other, but we present a unifying
+ method in Section~\ref{sec:subdiv} that is also compatible with our
+ artifact-free switching algorithm.
+
+\section{Continuous Switching Between OBMC and CGI}
+\label{sec:switching}
+
+In this section, we describe a method for switching between OBMC and CGI
+ without introducing artificial discontinuities along block boundaries.
+This is accomplished by labeling the block \textit{edges} with the type of
+ interpolation to use, instead of the block itself.
+Each edge labeled with a `V' for vector interpolation (CGI) or a `B' for
+ blending in the image domain (OBMC).
+Then all that is required are interpolation formulas for the block interior
+ that yield the desired edge interpolation types.
+
+We use bilinear interpolation for both OBMC and CGI.
+For OBMC, neither the raised cosine nor trapezoidal windows have been shown to
+ be consistently better~\cite{ZSNKI02}, and the bilinear window simplifies the
+ adaptive subdivision introduced in the next section.
+Orchard and Sullivan propose adapting the window function to a sequence to
+ optimize prediction gain, but when iterative motion estimation is used, the
+ advantage over a bilinear window is minimal~\cite{OS94}.
+
+For CGI, the bilinear motion model is substantially less complex than
+ projective or affine models, and has the advantage of being uniquely defined
+ over a quadrilateral domain, unlike the affine model.
+Nosratinia only applied his optimized kernels when motion estimation was
+ performed by BMA, and they performed between $0.2$ dB better and $1.5$ dB
+ worse than a bilinear kernel with iteratively refined MVs~\cite{Nos01}.
+However, encoders with strict complexity requirements would be better off
+ simply using OBMC, where motion estimation is less sensitive to the
+ interdependency between adjacent MVs.
+
+We use square blocks with an origin in the upper-left corner and $x$ and $y$
+ coordinates that vary between $0$ and $1$.
+The vertices and edges of the blocks are indexed in a clockwise manner, as
+ illustrated in Figure~\ref{fig:blockidx}.
+The bilinear weights for each vertex used in vector interpolation are $\w k$,
+ and those for blending the resulting predictors are $\s k$, defined as:
+\begin{align*}
+\w0 = \s0 & = (1-x)\cdot (1-y) \\
+\w1 = \s1 & = x\cdot (1-y) \\
+\w2 = \s2 & = x\cdot y \\
+\w3 = \s3 & = (1-x)\cdot y
+\end{align*}
+Although $\w k$ and $\s k$ are equivalent in this section, we will modify 
+ $\s k$ in the next section in order to perform adaptive subdivision.
+Therefore we make the distinction now.
+$I$ is the reference image, and for simplicity we denote the predictor
+ $I(x+m_x(x,y),y+m_y(x,y))$ for the pixel at $(x,y)$ with motion vector
+ $\m{}=(m_x(x,y),m_y(x,y))$ as simply $I(\m{})$.
+
+\begin{figure}[tb]
+\center
+\scalebox{0.99}{\figinput{blockidx}}
+\caption{Vertex and edge indices for a block.}
+\label{fig:blockidx}
+\end{figure}
+
+With this notation in hand, we give formulas for the sixteen possible edge
+ labelings.
+There are six unique cases; the others may be obtained by rotational symmetry.
+\setlength{\multlinegap}{0pt}
+\begin{description}
+\item[VVVV]
+\begin{multline}
+\label{eq:vvvv}
+I\left(\w0\m0+\w1\m1+
+ \w2\m2+\w3\m3\right)\hfill
+\end{multline}
+\item[BVVV]
+\begin{multline}
+\label{eq:bvvv}
+I\left((\w0+\w1)\m0+
+ \w2\m2+\w3\m3\right)\cdot \s0\,+ \hfill\\
+ I\left((\w0+\w1)\m1+
+ \w2\m2+\w3\m3\right)\cdot \s1\,+ \hfill\\
+ I\left(\w0\m0+\w1\m1+
+ \w2\m2+\w3\m3\right)\cdot\left(\s2+\s3\right)\hfill
+\end{multline}
+\item[BVBV]
+\begin{multline}
+\label{eq:bvbv}
+I\left((\w0+\w1)\m0+
+ (\w2+\w3)\m3\right)\cdot\left(\s3+\s0\right)\,+ \hfill\\
+ I\left((\w0+\w1)\m1+
+ (\w2+\w3)\m2\right)\cdot\left(\s1+\s2\right)\hfill
+\end{multline}
+\item[VVBB]
+\begin{multline}
+\label{eq:vvbb}
+I\left((1-\w1)\m0+\w1\m1\right)\cdot \s0\,+\,
+ I\left(\w1\m1+(1-\w1)\m2\right)\cdot \s2\,+ \hfill\\
+ I\left(\w0\m0+\w1\m1+\w2\m2+\w3\m3\right)\cdot \s1\,+\,
+ I\left(\m3\right)\cdot \s3\hfill
+\end{multline}
+\item[VBBB]
+\begin{multline}
+\label{eq:vbbb}
+I\left((1-\w1)\m0+\w1\m1\right)\cdot \s0\,+\,
+ I\left(\m2\right)\cdot \s2\,+ \hfill\\
+ I\left(\w0\m0+(1-\w0)\m1\right)\cdot \s1\,+\,
+ I\left(\m3\right)\cdot \s3\hfill
+\end{multline}
+\item[BBBB]
+\begin{multline}
+\label{eq:bbbb}
+I\left(\m0\right)\cdot \s0+
+ I\left(\m1\right)\cdot \s1+
+ I\left(\m2\right)\cdot \s2+
+ I\left(\m3\right)\cdot \s3\hfill
+\end{multline}
+\end{description}
+It is a straightforward exercise to verify that these give the desired behavior
+ along each edge.
+These formulas are not unique, but have been chosen to be compatible with the
+ adaptive subdivision introduced in the next section.
+Each associates a bilinearly interpolated vector with each vertex and then
+ bilinearly blends the resulting predictors.
+Using the same vector interpolation formula for multiple vertices makes the
+ prediction more like the CGI in~\eqref{eq:vvvv}.
+Using multiple copies of the same nodes within a particular interpolation
+ formula makes the prediction more like the OBMC in~\eqref{eq:bbbb}.
+A similar set of formulas exists for triangular meshes using barycentric
+ weights.
+
+\section{Adaptive Subdivision}
+\label{sec:subdiv}
+
+In order to extend our method to handle variable block sizes while maintaining
+ continuity along the edges, we borrow a data structure from the related
+ graphics problem of surface simplification, called the semi-regular 4-8
+ mesh~\cite{VG00,DWSMAM97}.
+This is normally used to represent a hierarchical triangle mesh, but we use it
+ for variable-sized quadrilaterals because its subdivision rules provide a
+ simple means of preserving continuity across block boundaries.
+
+The vertices in the 4-8 mesh are arranged in a quadtree, where subdivision
+ proceeds in two stages, as illustrated in Figure~\ref{fig:4-8sub}.
+In the first stage, a new vertex is added to the center of a quadrilateral.
+This subdivides the quadrilateral into four \textit{quadrants}, but does not
+ add any additional vertices to the edges.
+Such edges are called \textit{unsplit}.
+In the second stage, each of the quadrilateral's edges are split and connected
+ to the center vertex, forming four new quadrilaterals.
+One useful property of this dual-stage subdivision is that the number of
+ vertices in the mesh merely doubles after each stage, instead of quadrupling
+ as it would under normal quadtree subdivision.
+This provides more fine-grained control over the number of MVs transmitted.
+
+\begin{figure}[tb]
+\center
+\includegraphics[width=\columnwidth]{4-8sub}
+\caption{The first four subdivision levels in a 4-8 mesh.
+Solid dots indicate vertices with transmitted MVs.
+New vertices at each level have arrows pointing to their two parents.
+Vertices from the previous level have arrows from each of their four children.
+In both cases, some may lie in an adjacent block.}
+\label{fig:4-8sub}
+\end{figure}
+
+This is accomplished by assigning every vertex two parents in the tree, which
+ are the two adjacent nodes from the immediately preceding subdivision level.
+A vertex may not be added to the mesh until both of its parents are present.
+This ensures adjacent blocks never differ by more than one level of
+ subdivision.
+
+Therefore, we need only specify how to handle a block that has undergone stage
+ one subdivision, but still has one or more unsplit edges, as illustrated in
+ Figure~\ref{fig:vbunsplit}.
+Such a block is divided into quadrants, and each is interpolated separately
+ using the formulas from Section~\ref{sec:switching}, with some restrictions
+ and modifications.
+
+\begin{figure}[tb]
+\center
+\figinput{vbunsplit}
+\caption{Interpolation setup for a quadrant resulting from stage one
+ subdivision.
+The MVs used at each corner are labeled, as is the type of interpolation
+ performed along each edge.
+$c$ marks the exterior corner, which receives the extra blending weight along
+ the top edge.}
+\label{fig:vbunsplit}
+\end{figure}
+
+The first restriction we impose is that an interior edge perpendicular to an
+ unsplit edge must use the same interpolation type.
+It is actually well-defined to have an interior `B' edge adjacent to an unsplit
+ `V' edge, but having an interior `V' edge adjacent to an unsplit `B' edge
+ would require that the MV converge towards two values simultaneously, blended
+ in equal proportion.
+It might be possible to develop a scheme that would accomplish this, but it
+ would be overly complex, and the edge itself would not actually behave like
+ other true `V' edges.
+We don't expect either case to be useful in practice and so disallow them both.
+
+Hence, an unsplit `V' edge can be handled by simply averaging its two MVs
+ and using the result for that corner of the quadrilateral.
+An unsplit `B' edge is only slightly more complicated.
+The same two MVs are used along the edge as before, but we shift some of the
+ weight used for blending from the middle of the edge to the exterior corner.
+More precisely, the weights $\s k$ are replaced by modified weights $\s{k}'$.
+For example, if $c$ is the index of the vertex in the exterior corner,
+ $\oplus$ denotes addition modulo four, and $c\oplus 1$ is the index of the
+ corner bisecting the unsplit edge, then
+\begin{align*}
+\s{c}'         & = \s{c}+\frac{1}{2}\s{c\oplus 1} &
+\s{c\oplus 1}' & = \frac{1}{2}\s{c\oplus 1}\ .
+\end{align*}
+The remaining weights are unchanged.
+A similar modification is used if it is $c\oplus 3$ that lies on the unsplit
+ `B' edge.
+The modifications are cumulative.
+That is, if both $c\oplus 1$ and $c\oplus 3$ lie on unsplit `B' edges,
+\begin{align*}
+\s{c}'         & = \s{c}+\frac{1}{2}\s{c\oplus 1}+\frac{1}{2}\s{c\oplus 3} &
+\s{c\oplus 1}' & = \frac{1}{2}\s{c\oplus 1}\\
+\s{c\oplus 3}' & = \frac{1}{2}\s{c\oplus 3} &
+\s{c\oplus 2}' & = \s{c\oplus 2}\ .
+\end{align*}
+It is clear that this strategy matches an adjacent quadrilateral along an
+ unsplit edge, but careful examination will verify that it also matches other
+ quadrants along the interior edges.
+
+Each of the resulting weights can be evaluated with finite differences at the
+ cost of one addition per pixel, plus setup overhead.
+The blending can still be done with three multiplies per pixel, since the
+ weights always sum to one.
+%The blending now requires four multiplies\footnote{A three-multiply version is
+% still possible, but requires a much more complex inner loop}, however,
+% compared to the three required by an optimized version of the bilinear
+% blending kernel.
+The mesh itself may require more vertices than the unconstrained meshes of
+ previous work to achieve a given level of subdivision in a local area, but
+ requires fewer bits to encode the subdivision itself, simply because there are
+ fewer admissible meshes.
+As long as a $(0,0)$ MV residual can be efficiently encoded, the worst-case
+ rate of the 4-8 mesh should be close to that of a similar, unconstrained mesh.
+
+\section{Multiresolution Blending}
+\label{sec:blend}
+
+While the bilinear blending functions we have chosen ensure a gradual
+ transition from one block to the next, they can still produce unwanted
+ artifacts.
+For large image features, a structured color shift may still be visible, though
+ blurred, while small image features may appear doubled or superimposed.
+To solve this problem, Burt and Adelson proposed a multiresolution blending
+ procedure~\cite{BA83}.
+They decompose each image to be blended with a wavelet transform and then
+ perform the blending with a transition region commensurate with the scale of
+ each decomposition level.
+The coefficients from each level are then recomposed to form the blended image.
+
+Each $I(\cdot)$ term in our interpolation formulas forms a predictor image that
+ must be blended.
+For simplicity, we perform only one level of decomposition into $LL$, $HL$,
+ $LH$, and $HH$ bands using a Haar wavelet.
+This can be done in only a few additions and subtractions, since common scale
+ factors can be ignored.
+We assign the same weight to corresponding coefficients in all four bands,
+ given by $\s k$ evaluated at the center of the $2\times 2$ block of pixels
+ they represent.
+
+The $LL$ band is then bilinearly blended as normal.
+But in the $HL$, $LH$, and $HH$ bands, we choose the sample with the largest
+ weight and discard the others.
+In fact, because the shapes of the weight functions $\s k$ are regular, in
+ practice we need not ever compute the discarded samples.
+The Haar transform is then reversed to produce the final prediction.
+Because the bilinear blending occurs only in the $LL$ band, fully $\frac{3}{4}$
+ of the multiplications in this step are avoided.
+
+\section{Implementation and Motion Estimation}
+
+The algorithms in Sections~\ref{sec:switching},~\ref{sec:subdiv},
+ and~\ref{sec:blend} have been implemented in a (TODO: describe codec).
+To reduce aliasing, the reference frames are first upsampled by a factor of
+ two in each dimension using a Wiener filter~\cite{Wer96}.
+This corrects for aliasing at the half-pel locations, where errors are the
+ largest~\cite{WM03}.
+Samples at finer fractional displacements are bilinearly interpolated from the
+ upsampled image.
+
+Luma blocks are square with sizes ranging from $16\times 16$ to $4\times 4$.
+At the coarsest resolution, the control points are placed in the center of each
+ macroblock, and an extra ring of control points is added outside the image
+ with MVs fixed at $(0,0)$.
+This accomplishes several things.
+It makes the minimum number of transmitted MVs the same as in BMA, it aligns
+ the interpolation kernels with the piecewise-linear segments of any
+ $(1,2)$-regular subband filter, and it simplifies boundary cases when decoding
+ the adaptive mesh.
+In the chroma planes, color subsampling may produce smaller, rectangular
+ blocks.
+Multiresolution blending is disabled for chroma blocks if either dimension is
+ smaller than $4$.
+
+We perform rate-distortion (R-D) optimization during motion estimation to
+ balance the error attainable against the number of bits required to achieve
+ it~\cite{OR98}.
+These two metrics are related by a Lagrangian multiplier in the cost function
+\begin{align}
+J & = D+\lambda R
+\end{align}
+For a particular choice of $\lambda$, a minimal value of $J$ represents a point
+ on the optimal operational rate-distortion curve: i.e., the best achievable
+ distortion for a given rate, or vice versa.
+The value of $\lambda$ required to achieve a given rate can be found with a
+ bisection search, or a reasonable estimate may be obtained directly from the
+ target quantizer setting~\cite{SW98}.
+
+Since the residual errors after motion compensation are reasonably
+ well-approximated by an exponential distribution, we use the Sum of Absolute
+ Differences (SAD) in the luma plane as our distortion metric~\cite{SLH00}.
+We approximate the rate of each MV with the number of bits required to
+ represent the magnitude of each component in binary (after subtracting a
+ predictor), plus one bit for the sign.
+A magnitude of zero requires one bit to represent.
+The rate term for each vertex also includes a bit for each flag that indicates
+ the presence of a child (2 per vertex on average), and a bit for each edge
+ label (2 at level $0$, and 3 at levels $2$ and $4$).
+The real motion information is arithmetic encoded, so this approximation is used
+ to avoid having to update the rate term for every vertex every time one is
+ changed.
+
+We use a median-of-four predictor for almost every motion vector, as
+ illustrated in Figure~\ref{fig:mvpred}.
+The middle two values of each MV component are averaged, rounding towards even
+ values.
+The only exception is if a predictor lies inside a $16\times 16$ block that
+ comes after the current one in raster order, in which case we use the median
+ of the three remaining predictors.
+This occurs for the level $2$ and $4$ vertices on the right and bottom block
+ edges.
+Excluding this predictor allows the mesh to be encoded one block at a time,
+ instead of level-by-level.
+This permits lower latency in the encoder, and it increases cache coherency and
+ decreases memory footprint in the decoder.
+
+\begin{figure}[tb]
+\center
+\includegraphics[width=\columnwidth]{mvpred}
+\caption{The predictors used for the MVs at each level of the mesh.
+Except at level $0$, these are all ancestors of that MV, and thus are required
+ to be present.}
+\label{fig:mvpred}
+\end{figure}
+
+The number of combinations of subdivision levels, MVs, and edge labelings
+ available make finding a globally optimal set of parameters impractical.
+The problem of finding optimal subdivision levels alone is known to be
+ NP-hard~\cite{AS94}.
+The estimation procedure outlined here attempts to balance speed with
+ compression performance, though it could certainly be improved by future
+ research.
+It proceeds in several stages.
+
+\subsection{Initial Estimates}
+
+First, a EPZS${}^2$-style algorithm is used to produce an initial MV estimate
+ at each subdivision level using BMA~\cite{Tou02}.
+This algorithm computes several MV candidates using spatial and temporal
+ neighbors and assuming constant speed or acceleration.
+The candidates are ranked by reliability and the search terminates early if one
+ is found with a SAD below a dynamically chosen threshold.
+Otherwise, a local gradient search is performed using a square pattern around
+ the best candidate vector.
+An alternate version, dubbed simply EPZS, uses a small diamond pattern instead
+ of a square.
+However, because duplicated SAD checks are easy to eliminate, the complexity
+ savings are relatively small: $3$ or $5$ new candidates for the square vs.
+ $3$ new candidates for the diamond, per iteration.
+This makes the square pattern more attractive, as it produces slightly better
+ MVs.
+
+Tourapis does not use a Lagrangian cost function, relying solely on the
+ correlation among predictors and the termination thresholds to achieve
+ smoothly varying, easily compressible MVs.
+However, incorporating a rate term greatly improves the quality of the result.
+%TODO: Cite?
+Therefore we use $J$ to select the best candidate at each stage.
+We continue to perform threshold checks on the raw SAD values, however.
+The thresholds in EPZS${}^2$ also ensure extra computation time is spent only
+ on blocks whose predictor can reasonably be expected to improve.
+
+At level $0$, $16\times 16$ blocks centered on the control points are used,
+ which correspond to macroblocks.
+Levels $1$ and $2$ use $8\times 8$ blocks, while $3$ and $4$ use $4\times 4$
+ blocks.
+As the mesh is subdivided, existing vertices do not have their MVs re-estimated
+ with the smaller block sizes, even though the area that MV influences is
+ reduced.
+The larger support used by previous searches yields more reliable estimates,
+ and the accuracy of BMA is already highest at the block center~\cite{ZSNKI02}.
+All MVs are estimated only up to whole-pel accuracy at this stage.
+
+\subsection{Adaptive Subdivision}
+
+The second step fixes the mesh subdivision.
+During this stage, the SAD for each block is computed using the proposed
+ prediction method instead of BMA.
+Since MV interdependency has thus far been ignored, we use `B' labels for all
+ of the edges, as these dependencies have a less pronounced effect on the
+ prediction quality with OBMC.
+The MVs produced by the previous stage are held fixed in this one; only the
+ mesh subdivision level changes.
+
+The extra subdivision required to add a vertex to the 4-8 mesh is similar to
+ the implicit subdivision used by Zhang \textit{et al.} in their variable block
+ size OBMC scheme~\cite{ZAS98}.
+The difference is that we optimize over and encode such subdivision explicitly.
+We use a global R-D optimization strategy with general mesh decimations, as
+ proposed by Balmelli~\cite{Bal01}.
+This is a greedy approach that starts with a full mesh and successively
+ decimates vertices.
+Restricting decimation candidates to the leaves of the mesh often produces
+ sequences where the distortion goes \textit{down} as the rate is decreased,
+ clearly indicating that the previous rate allocation was not optimal.
+General mesh decimations, on the other hand, allow any vertex to be removed at
+ a given step, not just the leaves.
+If a non-leaf is decimated, all of its children are decimated as well.
+This helps smooth out non-monotonicities in the distortion measure during the
+ decimation process, especially at low rates.
+
+The following notation is needed to describe the algorithm.
+The current mesh is denoted by $M$, and $M_v$ is the \textit{merging domain} of
+ $v$ in $M$: the set of vertices in $M$ that must be removed to remove $v$.
+This includes $v$ and all of its undecimated children.
+Additionally, the variation $\Delta\underline{u}(M_v)$ contains the pairs
+ $(\Delta D(M_v),\Delta R(M_v))$: the change in distortion (SAD) and rate
+ caused by removing $M_v$ from $M$.
+We also refer to the change in SAD in a single block $b$ caused by removing a
+ single vertex $v$ as $\Delta D_b(v)$.
+Finally, $A_v$ is the set of ancestors of $v$ in $M$.
+Some minor additions to Balmelli's original algorithm are made to handle the
+ fact that distortion is measured over squares, not triangles.
+The steps of the algorithm are:
+\begin{enumerate}
+\item For all $v$, compute $\Delta\underline{u}(M_v)$.
+\item Do
+\begin{enumerate}
+\item $v^*\leftarrow\argmin_{v\in M} -\frac{\Delta D(M_v)}{\Delta R(M_v)}$
+\item If $-\frac{\Delta D(M_{v^*})}{\Delta R(M_{v^*})}>\lambda$, stop.
+\item For all $w\in M_v$, sorted by depth from deepest to shallowest:
+\begin{enumerate}
+\item For all $a\in A_w$, $\Delta\underline{u}(M_a)\leftarrow
+ \Delta\underline{u}(M_a)-\Delta\underline{u}(M_w)$
+\item Remove $w$ from the mesh.
+\item\label{step:deltad}
+If $w$ was on an even level, then for each adjacent block $b$ with a $w'\in M$
+ such that $w'$ lies on the same level as $w$:
+\begin{enumerate}
+\item $\delta D\leftarrow (\Delta D_b(w')$ for that block after decimating
+ $w)-(\Delta D_b(w')$ for that block before decimating $w)$
+\item\label{step:deltadupdate} For all $a\in \{w'\}\cup A_{w'}\setminus A_{w}$,
+ $\Delta D(M_a)\leftarrow\Delta D(M_a)+\delta D$
+\end{enumerate}
+\end{enumerate}
+\end{enumerate}
+\end{enumerate}
+
+These steps ensure that $\Delta\underline{u}(M_v)$ contains the up-to-date
+ changes in the global rate and distortion after each merging domain is
+ decimated.
+This update process properly accounts for overlapping merging domains due to an
+ inclusion-exclusion principle; see Balmelli for details~\cite{Bal01}.
+Step~\ref{step:deltad} handles the case of decimating one corner of a block,
+ $w$, when the opposite corner, $w'$, remains.
+This changes $\Delta D_b(w')$, the cost of decimating the opposite corner, and
+ that change must be propagated to each merging domain to which $w'$ belongs.
+No change needs to be made to the common ancestors of $w$ and $w'$ however:
+ once $\Delta D(M_{w'})$ is updated, the normal update process is sufficient.
+The addition of these extra steps does not affect the computational complexity
+ of the algorithm, which is $\Theta(n\log n)$, where $n$ is the size of the
+ initial mesh.
+
+The distortion measurements needed to initialize and update
+ $\Delta\underline{u}(M_v)$ can be computed once, in advance, by computing the
+ SAD value of each block in all sizes and with all possible combinations of
+ unsplit edges.
+All told, each pixel in the image is used in exactly nine SAD computations.
+Also, since the mesh only undergoes four levels of subdivision, there are only
+ a small number of unique merging domains and ancestor sets.
+These can be computed offline in advance to simplify the decimation process.
+To compute the set difference $A_{w'}\setminus A_{w}$, we note that $w$ and
+ $w'$ share a single common parent, $p$.
+The common ancestors of $w$ and $w'$ are now formed by the set
+ $\{p\}\cup A_{p}$, meaning one can add $\delta D$ to the nodes in $A_{w'}$ and
+ then subtract it from the nodes in $\{p\}\cup A_{p}$ to effect the set
+ difference in Step~\ref{step:deltadupdate}.
+Alternatively, one could simply use a larger set of lookup tables.
+
+\subsection{Iterative Refinement and Edge Labeling}
+
+The next stage uses the iterated dynamic programming (DP) proposed by Chen and
+ Willson to assign edge labels and refine the MVs, accounting for their
+ interdependencies~\cite{CW00}.
+In this scheme, a single row (resp. column) of MVs and edge labels is optimized
+ at a time using a Viterbi trellis~\cite{For73}, while the rest remain fixed.
+If there is no direct block edge between two consecutive MVs in a row (resp.
+ column) then the trellis stops, and a new one is started.
+This continues until the entire row (resp. column) has been examined.
+The process is then repeated until the total change in Lagrangian cost $J$
+ falls below a given threshold.
+
+Each vertex being examined has $h$ candidate MVs, and $2h$ trellis states, one
+ for each candidate and edge label.
+One state for each MV candidate uses a `B' label between that vertex and the
+ next vertex, and the other uses a `V' label.
+However, the edge label associated with the \textit{next} vertex does not
+ affect the SADs of the blocks around the current vertex.
+Therefore, we need only check $2h^2$ trellis edges between states, not $4h^2$.
+
+\subsubsection{Rate and Distortion Changes}
+
+We use the \textit{change} in rate and distortion to compute the cost of each
+ path in the trellis.
+A single MV can influence the distortion of as many as 12 neighboring blocks.
+Only the ones to the left (resp. above) are added to the current cost of each
+ path.
+When the following edge label and MV are chosen, an additional 2 to 8 blocks
+ may be added.
+If necessary, the blocks to the right (resp. below) are added after the last
+ MV in the trellis.
+%TODO: Figure.
+
+Unfortunately, the rate of a MV depends on the values of the MVs used to
+ predict it.
+Chen and Willson assume MVs use 1-D differential coding, as in MPEG-1, but
+ modern video codecs use a median of three or four neighboring MVs to predict
+ the current one.
+This means that several (not necessarily consecutive) MVs on the DP path may be
+ used to predict a given MV, and the corresponding change in rate is not known
+ until a MV has been chosen for all of them.
+
+If we were to consider all possible combinations of candidates for the
+ predictors, the number of trellis edges would increase by several orders of
+ magnitude.
+This seems excessively wasteful, since as long as the changes to the MVs are
+ small, the median operation ensures only one of them is likely to have any
+ influence on the predicted value in the first place.
+Instead, we immediately compute the rate change in each predicted
+ vector---excluding those that themselves lie further along the DP path, since
+ we do not yet know what MV will be encoded.
+We do this assuming all MVs not already considered by the DP remain fixed, and
+ add the change to the cost of the current path.
+If changing a subsequent MV on the path causes the rate of one of these
+ predicted MVs to change again, the new rate change is used from then on.
+
+Because we essentially discard a large number of trellis states of limited
+ utility, we might theoretically discard the path that does not change MVs or
+ edge labels, even though its true cost is lower than the ones we keep.
+Thus, as a safety precaution, we check the final cost of the best path, and do
+ not apply it if it is greater than zero.
+This does occur in practice, but very rarely.
+
+Other, simpler alternatives to this approach are also possible.
+For example, we tried only considering rate changes for MVs on the actual DP
+ path, which is much like Chen and Willson's approach.
+However, on frames with complex motion, we have seen dramatic improvements in
+ visual quality and motion field smoothness by properly accounting for
+ \textit{all} of the rate changes.
+This is because a level $0$ MV, for example, may be used to predict up to $20$
+ other MVs, only $6$ of which lie on a given DP path.
+In a dense mesh, the rate changes off the path may dominate the ones on it.
+
+Finally, there are the edge labels to consider.
+Optimizing them for compressibility now would bias them towards the default `B'
+ label used in earlier stages.
+Therefore we ignore the cost of labels during this stage.
+This is equivalent to our previous assumption that they will each be coded with
+ one bit.
+
+\subsubsection{Complexity Reduction}
+
+Chen and Willson showed that using a logarithmic search instead of an
+ exhaustive one for the DP resulted in an average PSNR loss of only $0.05$ dB
+ and an average MV bitrate increase of $55$ bits per frame.
+We take an even more aggressive approach, and replace the logarithmic search
+ with a diamond search~\cite{ZM00}.
+Because the complexity of a given DP chain increases as $O(h^2)$, reducing the
+ candidate count can give a substantial performance boost.
+
+The logarithmic search uses a $9$-candidate square pattern in each stage.
+The displacements used in the pattern shrink by a factor of two in each phase.
+Chen and Willson used a 3-phase search to achieve an effective search radius of
+ $\pm 7\times 7$ pixels.
+In our framework, this requires examining $3\times 2\times 9^2=486$ trellis
+ edges per MV for one full iteration.
+However, the large displacement patterns only alter a small number of MVs that
+ have usually been grossly mis-estimated.
+They are even likely to cause further mis-estimation in areas with repeated
+ structure or a lack of texture, which makes further refinement less effective.
+
+One alternative is to simply discard them, and only perform the square pattern
+ search with one-pixel displacements.
+The chance of being trapped in a local minimum is increased, but three times as
+ many iterations can be performed in the same amount of time.
+On the other hand, a small diamond search pattern has only $5$ candidates,
+ making it even more attractive.
+
+The diamond search (DS) algorithm has several problems when used for BMA.
+It fails to identify strong global motions, and at higher resolutions produces
+ non-smooth motion fields due to an increase in large, uniform areas.
+However, EPZS${}^2$ does an excellent job of identifying global motion, and the
+ use of a Lagrangian cost function helps ensure easily compressible MVs.
+Although the performance advantage of DS over a square search is slight in
+ BMA, in a DP context, the small diamond only requires examining
+ $2\times 5^2=50$ trellis edges per MV per iteration.
+This allows more than nine times as many iterations as the full logarithmic
+ search in the same amount of time.
+
+TODO: Initial results on coastguard suggest that the PSNR loss for using the
+ diamond pattern is only 0.0013 dB per frame!
+The speedup, however, is dramatic.
+%No quantization, small threshold, 100 frames:
+%On average, $3.70$ full logarithmic search iterations are needed per frame,
+% compared to $4.37$ diamond pattern iterations.
+%> 35 dB quantization, large threshold:
+On average, $2.02$ full logarithmic search iterations are needed per frame,
+ compared to $2.03$ diamond pattern iterations.
+This represents about $9.6$ times fewer trellis edges examined, with virtually
+ no quality loss.
+Of the 299 predicted frames, 150 have a slightly \textit{higher} PSNR when
+ using diamond search.
+This needs to be tested more thoroughly (more sequences, more $\lambda$
+ values), and the effect on bitrate also needs to be measured.
+
+Note that the computational complexity is still relatively high.
+In a single iteration, each of the four edges of a block are traversed exactly
+ once by a DP path, during which its SAD is evaluated $50$ times, for a total
+ of $200$ SAD calculations per block.
+This is nearly as many as full search BMA with a $\pm 7\times 7$ window, and
+ computing our interpolated, blended residuals has a much higher complexity.
+Thus it is not suitable for a real-time implementation.
+A DP solution for choosing edge labels alone, however, requires only $8$ SAD
+ calculations per block, and could feasibly be used in a real-time system.
+
+%TODO: Use thresholds to eliminate blocks from the DP.
+%Only examine vertices adjacent to a block above threshold.
+%How do we determine thresholds?
+%Because of the adaptive subdivision, we will not have the same set of
+% consecutive blocks in adjacent frames.
+
+%We instead mark each block whose SAD remains above its threshold, and consider
+% only MVs that affect those blocks in subsequent iterations of the DP.
+%This focuses extra computation time only on areas where the motion estimation
+% is performing poorly, as that is where we have the most to gain.
+%When used in DP, this is not the case.
+%TODO: Test! Does that actually make it better?
+
+\subsection{Sub-pel Refinement}
+
+The same small diamond-pattern search can be used to refine the motion vectors
+ to sub-pel precision.
+Our implementation supports half-, quarter-, or eighth-pel resolution MVs.
+First, the DP process is iterated with the small diamond and half-pel
+ displacements until the change in Lagrangian cost $J$ for an iteration falls
+ below a given threshold.
+%The first iteration is applied to all MVs in the mesh, not just those adjacent
+% to a block with a high SAD.
+%TODO: Optimize edge labels for compressibility.
+
+Finer resolutions are only used if they provide an overall R-D benefit, which
+ is tested on a frame-by-frame basis.
+First, iteration is done with quarter-pel displacements, followed, if
+ successful, by eighth-pel.
+If the decrease in SAD from the finer resolution MVs cannot balance the 2 bit
+ per MV increase in bitrate, then the coarser vectors are used instead.
+%TODO: Continue to allow edge labels to vary?
+
+\section{Results}
+
+The motion estimation algorithms described here were tested against several
+ standard sequences.
+Because the presence of coding errors can have a large impact on motion
+ estimation performance, each reference frame was produced by encoding the
+ residual error using DPCM with a uniform quantizer and simple 1-pixel error
+ diffusion.
+This was chosen because it is simple to implement---and thus easily
+ reproducible---and does not suffer from blocking artifacts.
+The resulting reference frames have a PSNR of greater than $35$ dB.
+
+\bibliography{daala}
+
+\end{document}

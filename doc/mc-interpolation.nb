@@ -1,0 +1,3332 @@
+(************** Content-type: application/mathematica **************
+                     CreatedBy='Mathematica 5.0'
+
+                    Mathematica-Compatible Notebook
+
+This notebook can be used with any Mathematica-compatible
+application, such as Mathematica, MathReader or Publicon. The data
+for the notebook starts with the line containing stars above.
+
+To get the notebook into a Mathematica-compatible application, do
+one of the following:
+
+* Save the data starting with the line of stars above into a file
+  with a name ending in .nb, then open the file inside the
+  application;
+
+* Copy the data starting with the line of stars above to the
+  clipboard, then use the Paste menu command inside the application.
+
+Data for notebooks contains only printable 7-bit ASCII and can be
+sent directly in email or through ftp in text mode.  Newlines can be
+CR, LF or CRLF (Unix, Macintosh or MS-DOS style).
+
+NOTE: If you modify the data for this notebook not in a Mathematica-
+compatible application, you must delete the line below containing
+the word CacheID, otherwise Mathematica-compatible applications may
+try to use invalid cache data.
+
+For more information on notebooks and Mathematica-compatible 
+applications, contact Wolfram Research:
+  web: http://www.wolfram.com
+  email: info@wolfram.com
+  phone: +1-217-398-0700 (U.S.)
+
+Notebook reader applications are available free of charge from 
+Wolfram Research.
+*******************************************************************)
+
+(*CacheID: 232*)
+
+
+(*NotebookFileLineBreakTest
+NotebookFileLineBreakTest*)
+(*NotebookOptionsPosition[     82788,       2784]*)
+(*NotebookOutlinePosition[     83419,       2806]*)
+(*  CellTagsIndexPosition[     83375,       2802]*)
+(*WindowFrame->Normal*)
+
+
+
+Notebook[{
+
+Cell[CellGroupData[{
+Cell["Rotations", "Subsubsection"],
+
+Cell[BoxData[
+    \(rotate[exp_, n_] := 
+      ReleaseHold[
+        Hold[exp] /. {w[k_] \[Rule] w[Mod[k + n, 4]], 
+            m[k_] \[Rule] m[Mod[k + n, 4]], 
+            u[k_] \[Rule] u[Mod[k + n, 4]]}]\)], "Input"],
+
+Cell[BoxData[
+    \(SetAttributes[rotate, HoldAll]\)], "Input"],
+
+Cell[BoxData[
+    \(Clear[u, w]\)], "Input"],
+
+Cell[BoxData[
+    \(rotations[exp_] := 
+      Simplify[{exp, rotate[exp, 1], rotate[exp, 2], 
+          rotate[exp, 3]}]\)], "Input"],
+
+Cell[BoxData[
+    \(SetAttributes[rotations, HoldAll]\)], "Input"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(Transpose[rotations[{w[0], w[1], w[2], w[3]}]] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(w[0]\), \(w[1]\), \(w[2]\), \(w[3]\)},
+            {\(w[1]\), \(w[2]\), \(w[3]\), \(w[0]\)},
+            {\(w[2]\), \(w[3]\), \(w[0]\), \(w[1]\)},
+            {\(w[3]\), \(w[0]\), \(w[1]\), \(w[2]\)}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(Transpose[rotations[{m[0], m[1], m[2], m[3]}]] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(m[0]\), \(m[1]\), \(m[2]\), \(m[3]\)},
+            {\(m[1]\), \(m[2]\), \(m[3]\), \(m[0]\)},
+            {\(m[2]\), \(m[3]\), \(m[0]\), \(m[1]\)},
+            {\(m[3]\), \(m[0]\), \(m[1]\), \(m[2]\)}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(Transpose[rotations[{u[0], u[1], u[2], u[3]}]] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(u[0]\), \(u[1]\), \(u[2]\), \(u[3]\)},
+            {\(u[1]\), \(u[2]\), \(u[3]\), \(u[0]\)},
+            {\(u[2]\), \(u[3]\), \(u[0]\), \(u[1]\)},
+            {\(u[3]\), \(u[0]\), \(u[1]\), \(u[2]\)}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[BoxData[
+    \(substs := {w[0] \[Rule] \((1 - i)\)*\((1 - j)\), 
+        w[1] \[Rule] i*\((1 - j)\), w[2] \[Rule] i*j, 
+        w[3] \[Rule] \((1 - i)\)*j, u[0] \[Rule] 1 - j, u[1] \[Rule] i, 
+        u[2] \[Rule] j, u[3] \[Rule] 1 - i}\)], "Input"],
+
+Cell[BoxData[
+    \(w[0] := \((1 - i)\)*\((1 - j)\)\)], "Input"],
+
+Cell[BoxData[
+    \(w[1] := i*\((1 - j)\)\)], "Input"],
+
+Cell[BoxData[
+    \(w[2] := i*j\)], "Input"],
+
+Cell[BoxData[
+    \(w[3] := \((1 - i)\)*j\)], "Input"],
+
+Cell[BoxData[
+    \(u[0] := 1 - j\)], "Input"],
+
+Cell[BoxData[
+    \(u[1] := i\)], "Input"],
+
+Cell[BoxData[
+    \(u[2] := j\)], "Input"],
+
+Cell[BoxData[
+    \(u[3] := 1 - i\)], "Input"],
+
+Cell[BoxData[
+    \(deltas[
+        exp_] := \({rotations[exp], \(D[#, i] &\) /@ 
+              rotations[exp], \(D[#, j] &\) /@ 
+              rotations[exp], \(D[#, i, j] &\) /@ rotations[exp]} /. 
+          i -> 0\) /. j -> 0\)], "Input"],
+
+Cell[BoxData[
+    \(SetAttributes[deltas, HoldAll]\)], "Input"],
+
+Cell[BoxData[
+    \(testedges := \(\((Simplify[
+                ExpandAll[{# /. j -> 0, # /. i -> 1, # /. j \[Rule] 1, # /. 
+                      i \[Rule] 0}]])\) &\)[Simplify[#]] &\)], "Input"],
+
+Cell["VVVV", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(testedges[src[w[0]*m[0] + w[1]*m[1] + w[2]*m[2] + w[3]*m[3]]] // 
+      MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    InterpretationBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(src[m[0] - i\ m[0] + i\ m[1]]\)},
+            {\(src[m[1] - j\ m[1] + j\ m[2]]\)},
+            {\(src[i\ m[2] + m[3] - i\ m[3]]\)},
+            {\(src[m[0] - j\ m[0] + j\ m[3]]\)}
+            }], "\[NoBreak]", ")"}],
+      MatrixForm[ {
+        src[ 
+          Plus[ 
+            m[ 0], 
+            Times[ -1, i, 
+              m[ 0]], 
+            Times[ i, 
+              m[ 1]]]], 
+        src[ 
+          Plus[ 
+            m[ 1], 
+            Times[ -1, j, 
+              m[ 1]], 
+            Times[ j, 
+              m[ 2]]]], 
+        src[ 
+          Plus[ 
+            Times[ i, 
+              m[ 2]], 
+            m[ 3], 
+            Times[ -1, i, 
+              m[ 3]]]], 
+        src[ 
+          Plus[ 
+            m[ 0], 
+            Times[ -1, j, 
+              m[ 0]], 
+            Times[ j, 
+              m[ 3]]]]}]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(deltas[w[0]*m[0] + w[1]*m[1] + w[2]*m[2] + w[3]*m[3]] // 
+      MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(m[0]\), \(m[0]\), \(m[0]\), \(m[0]\)},
+            {\(\(-m[0]\) + m[1]\), \(\(-m[0]\) + m[1]\), \(\(-m[0]\) + 
+                m[1]\), \(\(-m[0]\) + m[1]\)},
+            {\(\(-m[0]\) + m[3]\), \(\(-m[0]\) + m[3]\), \(\(-m[0]\) + 
+                m[3]\), \(\(-m[0]\) + m[3]\)},
+            {\(m[0] - m[1] + m[2] - m[3]\), \(m[0] - m[1] + m[2] - 
+                m[3]\), \(m[0] - m[1] + m[2] - m[3]\), \(m[0] - m[1] + m[2] - 
+                m[3]\)}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell["BVVV", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(testedges[
+        rotations[
+          src[u[0]*m[0] + w[2]*m[2] + w[3]*m[3]]*w[0] + 
+            src[u[0]*m[1] + w[2]*m[2] + w[3]*m[3]]*w[1] + 
+            src[w[0]*m[0] + w[1]*m[1] + w[2]*m[2] + w[3]*m[3]]*u[2]]] // 
+      MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(\(-\((\(-1\) + i)\)\)\ src[m[0]] + i\ src[m[1]]\), \(src[
+                m[0] - i\ m[0] + i\ m[1]]\), \(src[
+                m[0] - i\ m[0] + i\ m[1]]\), \(src[
+                m[0] - i\ m[0] + i\ m[1]]\)},
+            {\(src[
+                m[1] - j\ m[1] + 
+                  j\ m[2]]\), \(\(-\((\(-1\) + j)\)\)\ src[m[1]] + 
+                j\ src[m[2]]\), \(src[m[1] - j\ m[1] + j\ m[2]]\), \(src[
+                m[1] - j\ m[1] + j\ m[2]]\)},
+            {\(src[i\ m[2] + m[3] - i\ m[3]]\), \(src[
+                i\ m[2] + m[3] - 
+                  i\ m[3]]\), \(i\ src[m[2]] - \((\(-1\) + i)\)\ src[
+                    m[3]]\), \(src[i\ m[2] + m[3] - i\ m[3]]\)},
+            {\(src[m[0] - j\ m[0] + j\ m[3]]\), \(src[
+                m[0] - j\ m[0] + j\ m[3]]\), \(src[
+                m[0] - j\ m[0] + 
+                  j\ m[3]]\), \(\(-\((\(-1\) + j)\)\)\ src[m[0]] + 
+                j\ src[m[3]]\)}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(deltas[u[0]*m[0] + w[2]*m[2] + w[3]*m[3]] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(m[0]\), \(m[0]\), \(m[0]\), \(m[3]\)},
+            {
+              "0", \(\(-m[0]\) + m[1]\), \(\(-m[0]\) + m[1]\), \(m[1] - 
+                m[3]\)},
+            {\(\(-m[0]\) + m[3]\), \(\(-m[0]\) + m[3]\), \(\(-m[0]\) + m[2]\),
+               "0"},
+            {\(m[2] - m[3]\), \(m[0] - m[3]\), \(m[0] - m[1]\), \(\(-m[1]\) + 
+                m[2]\)}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(deltas[u[0]*m[1] + w[2]*m[2] + w[3]*m[3]] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(m[1]\), \(m[0]\), \(m[0]\), \(m[0]\)},
+            {
+              "0", \(\(-m[0]\) + m[2]\), \(\(-m[0]\) + m[1]\), \(\(-m[0]\) + 
+                m[1]\)},
+            {\(\(-m[1]\) + m[3]\), \(\(-m[0]\) + m[3]\), \(\(-m[0]\) + m[3]\),
+               "0"},
+            {\(m[2] - m[3]\), \(m[0] - m[3]\), \(m[0] - m[1]\), \(\(-m[1]\) + 
+                m[2]\)}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(deltas[w[0]*m[0] + w[1]*m[1] + w[2]*m[2] + w[3]*m[3]] // 
+      MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(m[0]\), \(m[0]\), \(m[0]\), \(m[0]\)},
+            {\(\(-m[0]\) + m[1]\), \(\(-m[0]\) + m[1]\), \(\(-m[0]\) + 
+                m[1]\), \(\(-m[0]\) + m[1]\)},
+            {\(\(-m[0]\) + m[3]\), \(\(-m[0]\) + m[3]\), \(\(-m[0]\) + 
+                m[3]\), \(\(-m[0]\) + m[3]\)},
+            {\(m[0] - m[1] + m[2] - m[3]\), \(m[0] - m[1] + m[2] - 
+                m[3]\), \(m[0] - m[1] + m[2] - m[3]\), \(m[0] - m[1] + m[2] - 
+                m[3]\)}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell["BVBV", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(testedges[
+        rotations[
+          src[u[0]*m[0] + u[2]*m[3]]*u[3] + 
+            src[u[0]*m[1] + u[2]*m[2]]*u[1]]] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(\(-\((\(-1\) + i)\)\)\ src[m[0]] + i\ src[m[1]]\), \(src[
+                m[0] - i\ m[0] + 
+                  i\ m[1]]\), \(\(-\((\(-1\) + i)\)\)\ src[m[0]] + 
+                i\ src[m[1]]\), \(src[m[0] - i\ m[0] + i\ m[1]]\)},
+            {\(src[
+                m[1] - j\ m[1] + 
+                  j\ m[2]]\), \(\(-\((\(-1\) + j)\)\)\ src[m[1]] + 
+                j\ src[m[2]]\), \(src[
+                m[1] - j\ m[1] + 
+                  j\ m[2]]\), \(\(-\((\(-1\) + j)\)\)\ src[m[1]] + 
+                j\ src[m[2]]\)},
+            {\(i\ src[m[2]] - \((\(-1\) + i)\)\ src[m[3]]\), \(src[
+                i\ m[2] + m[3] - 
+                  i\ m[3]]\), \(i\ src[m[2]] - \((\(-1\) + i)\)\ src[
+                    m[3]]\), \(src[i\ m[2] + m[3] - i\ m[3]]\)},
+            {\(src[
+                m[0] - j\ m[0] + 
+                  j\ m[3]]\), \(\(-\((\(-1\) + j)\)\)\ src[m[0]] + 
+                j\ src[m[3]]\), \(src[
+                m[0] - j\ m[0] + 
+                  j\ m[3]]\), \(\(-\((\(-1\) + j)\)\)\ src[m[0]] + 
+                j\ src[m[3]]\)}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(deltas[u[0]*m[0] + u[2]*m[3]] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(m[0]\), \(m[0]\), \(m[1]\), \(m[3]\)},
+            {"0", \(\(-m[0]\) + m[1]\), "0", \(m[2] - m[3]\)},
+            {\(\(-m[0]\) + m[3]\), "0", \(\(-m[1]\) + m[2]\), "0"},
+            {"0", "0", "0", "0"}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(deltas[u[0]*m[1] + u[2]*m[2]] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(m[1]\), \(m[3]\), \(m[0]\), \(m[0]\)},
+            {"0", \(m[2] - m[3]\), "0", \(\(-m[0]\) + m[1]\)},
+            {\(\(-m[1]\) + m[2]\), "0", \(\(-m[0]\) + m[3]\), "0"},
+            {"0", "0", "0", "0"}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell["VVBB", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(testedges[
+        rotations[
+          src[\((u[3] + w[2])\)*m[0] + w[1]*m[1]]*w[0] + 
+            src[w[0]*m[0] + w[1]*m[1] + w[2]*m[2] + w[3]*m[3]]*w[1] + 
+            src[w[1]*m[1] + \((u[2] + w[0])\)*m[2]]*w[2] + src[m[3]]*w[3]]] // 
+      MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(src[
+                m[0] - i\ m[0] + 
+                  i\ m[1]]\), \(\(-\((\(-1\) + i)\)\)\ src[m[0]] + 
+                i\ src[m[1]]\), \(\(-\((\(-1\) + i)\)\)\ src[m[0]] + 
+                i\ src[m[1]]\), \(src[m[0] - i\ m[0] + i\ m[1]]\)},
+            {\(src[m[1] - j\ m[1] + j\ m[2]]\), \(src[
+                m[1] - j\ m[1] + 
+                  j\ m[2]]\), \(\(-\((\(-1\) + j)\)\)\ src[m[1]] + 
+                j\ src[m[2]]\), \(\(-\((\(-1\) + j)\)\)\ src[m[1]] + 
+                j\ src[m[2]]\)},
+            {\(i\ src[m[2]] - \((\(-1\) + i)\)\ src[m[3]]\), \(src[
+                i\ m[2] + m[3] - i\ m[3]]\), \(src[
+                i\ m[2] + m[3] - 
+                  i\ m[3]]\), \(i\ src[m[2]] - \((\(-1\) + i)\)\ src[
+                    m[3]]\)},
+            {\(\(-\((\(-1\) + j)\)\)\ src[m[0]] + 
+                j\ src[m[3]]\), \(\(-\((\(-1\) + j)\)\)\ src[m[0]] + 
+                j\ src[m[3]]\), \(src[m[0] - j\ m[0] + j\ m[3]]\), \(src[
+                m[0] - j\ m[0] + j\ m[3]]\)}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(deltas[\((u[3] + w[2])\)*m[0] + w[1]*m[1]] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(m[0]\), \(m[1]\), \(m[2]\), \(m[0]\)},
+            {\(\(-m[0]\) + m[1]\), "0", "0", \(\(-m[0]\) + m[3]\)},
+            {"0", "0", \(\(-m[2]\) + m[3]\), \(\(-m[0]\) + m[3]\)},
+            {\(m[0] - m[1]\), \(\(-m[1]\) + m[2]\), \(m[2] - m[3]\), \(m[0] - 
+                m[3]\)}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(deltas[w[0]*m[0] + w[1]*m[1] + w[2]*m[2] + w[3]*m[3]] // 
+      MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(m[0]\), \(m[0]\), \(m[0]\), \(m[0]\)},
+            {\(\(-m[0]\) + m[1]\), \(\(-m[0]\) + m[1]\), \(\(-m[0]\) + 
+                m[1]\), \(\(-m[0]\) + m[1]\)},
+            {\(\(-m[0]\) + m[3]\), \(\(-m[0]\) + m[3]\), \(\(-m[0]\) + 
+                m[3]\), \(\(-m[0]\) + m[3]\)},
+            {\(m[0] - m[1] + m[2] - m[3]\), \(m[0] - m[1] + m[2] - 
+                m[3]\), \(m[0] - m[1] + m[2] - m[3]\), \(m[0] - m[1] + m[2] - 
+                m[3]\)}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(deltas[w[1]*m[1] + \((u[2] + w[0])\)*m[2]] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(m[2]\), \(m[3]\), \(m[0]\), \(m[0]\)},
+            {\(m[1] - m[2]\), "0", "0", \(\(-m[0]\) + m[1]\)},
+            {"0", "0", \(\(-m[0]\) + m[3]\), \(\(-m[0]\) + m[1]\)},
+            {\(\(-m[1]\) + m[2]\), \(m[2] - m[3]\), \(m[0] - m[3]\), \(m[0] - 
+                m[1]\)}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell["VBBB", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(testedges[
+        rotations[
+          src[\((u[3] + w[2])\)*m[0] + w[1]*m[1]]*w[0] + 
+            src[w[0]*m[0] + \((u[1] + w[3])\)*m[1]]*w[1] + src[m[2]]*w[2] + 
+            src[m[3]]*w[3]]] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(src[
+                m[0] - i\ m[0] + 
+                  i\ m[1]]\), \(\(-\((\(-1\) + i)\)\)\ src[m[0]] + 
+                i\ src[m[1]]\), \(\(-\((\(-1\) + i)\)\)\ src[m[0]] + 
+                i\ src[m[1]]\), \(\(-\((\(-1\) + i)\)\)\ src[m[0]] + 
+                i\ src[m[1]]\)},
+            {\(\(-\((\(-1\) + j)\)\)\ src[m[1]] + j\ src[m[2]]\), \(src[
+                m[1] - j\ m[1] + 
+                  j\ m[2]]\), \(\(-\((\(-1\) + j)\)\)\ src[m[1]] + 
+                j\ src[m[2]]\), \(\(-\((\(-1\) + j)\)\)\ src[m[1]] + 
+                j\ src[m[2]]\)},
+            {\(i\ src[m[2]] - \((\(-1\) + i)\)\ src[m[3]]\), \(i\ src[
+                    m[2]] - \((\(-1\) + i)\)\ src[m[3]]\), \(src[
+                i\ m[2] + m[3] - 
+                  i\ m[3]]\), \(i\ src[m[2]] - \((\(-1\) + i)\)\ src[
+                    m[3]]\)},
+            {\(\(-\((\(-1\) + j)\)\)\ src[m[0]] + 
+                j\ src[m[3]]\), \(\(-\((\(-1\) + j)\)\)\ src[m[0]] + 
+                j\ src[m[3]]\), \(\(-\((\(-1\) + j)\)\)\ src[m[0]] + 
+                j\ src[m[3]]\), \(src[m[0] - j\ m[0] + j\ m[3]]\)}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(deltas[\((w[0] + u[2])\)*m[0] + w[1]*m[1]] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(m[0]\), \(m[1]\), \(m[2]\), \(m[0]\)},
+            {\(\(-m[0]\) + m[1]\), "0", "0", \(\(-m[0]\) + m[3]\)},
+            {"0", "0", \(\(-m[2]\) + m[3]\), \(\(-m[0]\) + m[3]\)},
+            {\(m[0] - m[1]\), \(\(-m[1]\) + m[2]\), \(m[2] - m[3]\), \(m[0] - 
+                m[3]\)}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(deltas[w[0]*m[0] + \((w[1] + u[2])\)*m[1]] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(m[0]\), \(m[2]\), \(m[3]\), \(m[0]\)},
+            {\(\(-m[0]\) + m[1]\), \(m[1] - m[2]\), "0", "0"},
+            {\(\(-m[0]\) + m[1]\), "0", "0", \(\(-m[0]\) + m[3]\)},
+            {\(m[0] - m[1]\), \(\(-m[1]\) + m[2]\), \(m[2] - m[3]\), \(m[0] - 
+                m[3]\)}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell["BBBB", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(testedges[
+        src[m[0]]*w[0] + src[m[1]]*w[1] + src[m[2]]*w[2] + src[m[3]]*w[3]] // 
+      MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    InterpretationBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(\(-\((\(-1\) + i)\)\)\ src[m[0]] + i\ src[m[1]]\)},
+            {\(\(-\((\(-1\) + j)\)\)\ src[m[1]] + j\ src[m[2]]\)},
+            {\(i\ src[m[2]] - \((\(-1\) + i)\)\ src[m[3]]\)},
+            {\(\(-\((\(-1\) + j)\)\)\ src[m[0]] + j\ src[m[3]]\)}
+            }], "\[NoBreak]", ")"}],
+      MatrixForm[ {
+        Plus[ 
+          Times[ -1, 
+            Plus[ -1, i], 
+            src[ 
+              m[ 0]]], 
+          Times[ i, 
+            src[ 
+              m[ 1]]]], 
+        Plus[ 
+          Times[ -1, 
+            Plus[ -1, j], 
+            src[ 
+              m[ 1]]], 
+          Times[ j, 
+            src[ 
+              m[ 2]]]], 
+        Plus[ 
+          Times[ i, 
+            src[ 
+              m[ 2]]], 
+          Times[ -1, 
+            Plus[ -1, i], 
+            src[ 
+              m[ 3]]]], 
+        Plus[ 
+          Times[ -1, 
+            Plus[ -1, j], 
+            src[ 
+              m[ 0]]], 
+          Times[ j, 
+            src[ 
+              m[ 3]]]]}]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(deltas[w[0]] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {"1", "0", "0", "0"},
+            {\(-1\), "1", "0", "0"},
+            {\(-1\), "0", "0", "1"},
+            {"1", \(-1\), "1", \(-1\)}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell["\<\
+Splitting blocks: A new vertex can be added to the center of a BBBB block \
+without breaking continuity with neighboring blocks by adjusting vertex \
+weights as follows. This generalizes to all other block types by replacing \
+vectors along vector interpolated edges with the interpolated vector, and not \
+adjusting the vertex weights for that edge.\
+\>", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(Expand[
+        testedges[
+          src[m[0]]*\((w[0] + w[1]/2 + w[3]/2)\) + src[m[1]]*\((w[1]/2)\) + 
+            src[m[3]]*w[3]/2 + src[m[4]]*w[2]]] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    InterpretationBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(src[m[0]] - 1\/2\ i\ src[m[0]] + 1\/2\ i\ src[m[1]]\)},
+            {\(1\/2\ src[m[0]] - 1\/2\ j\ src[m[0]] + 1\/2\ src[m[1]] - 
+                1\/2\ j\ src[m[1]] + j\ src[m[4]]\)},
+            {\(1\/2\ src[m[0]] - 1\/2\ i\ src[m[0]] + 1\/2\ src[m[3]] - 
+                1\/2\ i\ src[m[3]] + i\ src[m[4]]\)},
+            {\(src[m[0]] - 1\/2\ j\ src[m[0]] + 1\/2\ j\ src[m[3]]\)}
+            }], "\[NoBreak]", ")"}],
+      MatrixForm[ {
+        Plus[ 
+          src[ 
+            m[ 0]], 
+          Times[ 
+            Rational[ -1, 2], i, 
+            src[ 
+              m[ 0]]], 
+          Times[ 
+            Rational[ 1, 2], i, 
+            src[ 
+              m[ 1]]]], 
+        Plus[ 
+          Times[ 
+            Rational[ 1, 2], 
+            src[ 
+              m[ 0]]], 
+          Times[ 
+            Rational[ -1, 2], j, 
+            src[ 
+              m[ 0]]], 
+          Times[ 
+            Rational[ 1, 2], 
+            src[ 
+              m[ 1]]], 
+          Times[ 
+            Rational[ -1, 2], j, 
+            src[ 
+              m[ 1]]], 
+          Times[ j, 
+            src[ 
+              m[ 4]]]], 
+        Plus[ 
+          Times[ 
+            Rational[ 1, 2], 
+            src[ 
+              m[ 0]]], 
+          Times[ 
+            Rational[ -1, 2], i, 
+            src[ 
+              m[ 0]]], 
+          Times[ 
+            Rational[ 1, 2], 
+            src[ 
+              m[ 3]]], 
+          Times[ 
+            Rational[ -1, 2], i, 
+            src[ 
+              m[ 3]]], 
+          Times[ i, 
+            src[ 
+              m[ 4]]]], 
+        Plus[ 
+          src[ 
+            m[ 0]], 
+          Times[ 
+            Rational[ -1, 2], j, 
+            src[ 
+              m[ 0]]], 
+          Times[ 
+            Rational[ 1, 2], j, 
+            src[ 
+              m[ 3]]]]}]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(Expand[
+        testedges[
+          src[m[0]]*w[0]/2 + src[m[1]]*\((w[1] + w[0]/2 + w[2]/2)\) + 
+            src[m[4]]*w[3] + src[m[2]]*w[2]/2]] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    InterpretationBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(1\/2\ src[m[0]] - 1\/2\ i\ src[m[0]] + 1\/2\ src[m[1]] + 
+                1\/2\ i\ src[m[1]]\)},
+            {\(src[m[1]] - 1\/2\ j\ src[m[1]] + 1\/2\ j\ src[m[2]]\)},
+            {\(1\/2\ i\ src[m[1]] + 1\/2\ i\ src[m[2]] + src[m[4]] - 
+                i\ src[m[4]]\)},
+            {\(1\/2\ src[m[0]] - 1\/2\ j\ src[m[0]] + 1\/2\ src[m[1]] - 
+                1\/2\ j\ src[m[1]] + j\ src[m[4]]\)}
+            }], "\[NoBreak]", ")"}],
+      MatrixForm[ {
+        Plus[ 
+          Times[ 
+            Rational[ 1, 2], 
+            src[ 
+              m[ 0]]], 
+          Times[ 
+            Rational[ -1, 2], i, 
+            src[ 
+              m[ 0]]], 
+          Times[ 
+            Rational[ 1, 2], 
+            src[ 
+              m[ 1]]], 
+          Times[ 
+            Rational[ 1, 2], i, 
+            src[ 
+              m[ 1]]]], 
+        Plus[ 
+          src[ 
+            m[ 1]], 
+          Times[ 
+            Rational[ -1, 2], j, 
+            src[ 
+              m[ 1]]], 
+          Times[ 
+            Rational[ 1, 2], j, 
+            src[ 
+              m[ 2]]]], 
+        Plus[ 
+          Times[ 
+            Rational[ 1, 2], i, 
+            src[ 
+              m[ 1]]], 
+          Times[ 
+            Rational[ 1, 2], i, 
+            src[ 
+              m[ 2]]], 
+          src[ 
+            m[ 4]], 
+          Times[ -1, i, 
+            src[ 
+              m[ 4]]]], 
+        Plus[ 
+          Times[ 
+            Rational[ 1, 2], 
+            src[ 
+              m[ 0]]], 
+          Times[ 
+            Rational[ -1, 2], j, 
+            src[ 
+              m[ 0]]], 
+          Times[ 
+            Rational[ 1, 2], 
+            src[ 
+              m[ 1]]], 
+          Times[ 
+            Rational[ -1, 2], j, 
+            src[ 
+              m[ 1]]], 
+          Times[ j, 
+            src[ 
+              m[ 4]]]]}]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(Expand[
+        testedges[
+          src[m[0]]*w[0]/2 + src[m[4]]*w[1] + 
+            src[m[3]]*\((w[3] + w[0]/2 + w[2]/2)\) + src[m[2]]*w[2]/2]] // 
+      MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    InterpretationBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(1\/2\ src[m[0]] - 1\/2\ i\ src[m[0]] + 1\/2\ src[m[3]] - 
+                1\/2\ i\ src[m[3]] + i\ src[m[4]]\)},
+            {\(1\/2\ j\ src[m[2]] + 1\/2\ j\ src[m[3]] + src[m[4]] - 
+                j\ src[m[4]]\)},
+            {\(1\/2\ i\ src[m[2]] + src[m[3]] - 1\/2\ i\ src[m[3]]\)},
+            {\(1\/2\ src[m[0]] - 1\/2\ j\ src[m[0]] + 1\/2\ src[m[3]] + 
+                1\/2\ j\ src[m[3]]\)}
+            }], "\[NoBreak]", ")"}],
+      MatrixForm[ {
+        Plus[ 
+          Times[ 
+            Rational[ 1, 2], 
+            src[ 
+              m[ 0]]], 
+          Times[ 
+            Rational[ -1, 2], i, 
+            src[ 
+              m[ 0]]], 
+          Times[ 
+            Rational[ 1, 2], 
+            src[ 
+              m[ 3]]], 
+          Times[ 
+            Rational[ -1, 2], i, 
+            src[ 
+              m[ 3]]], 
+          Times[ i, 
+            src[ 
+              m[ 4]]]], 
+        Plus[ 
+          Times[ 
+            Rational[ 1, 2], j, 
+            src[ 
+              m[ 2]]], 
+          Times[ 
+            Rational[ 1, 2], j, 
+            src[ 
+              m[ 3]]], 
+          src[ 
+            m[ 4]], 
+          Times[ -1, j, 
+            src[ 
+              m[ 4]]]], 
+        Plus[ 
+          Times[ 
+            Rational[ 1, 2], i, 
+            src[ 
+              m[ 2]]], 
+          src[ 
+            m[ 3]], 
+          Times[ 
+            Rational[ -1, 2], i, 
+            src[ 
+              m[ 3]]]], 
+        Plus[ 
+          Times[ 
+            Rational[ 1, 2], 
+            src[ 
+              m[ 0]]], 
+          Times[ 
+            Rational[ -1, 2], j, 
+            src[ 
+              m[ 0]]], 
+          Times[ 
+            Rational[ 1, 2], 
+            src[ 
+              m[ 3]]], 
+          Times[ 
+            Rational[ 1, 2], j, 
+            src[ 
+              m[ 3]]]]}]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(Expand[
+        testedges[
+          src[m[4]]*w[0] + src[m[1]]*w[1]/2 + src[m[3]]*w[3]/2 + 
+            src[m[2]]*\((w[2] + w[1]/2 + w[3]/2)\)]] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    InterpretationBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(1\/2\ i\ src[m[1]] + 1\/2\ i\ src[m[2]] + src[m[4]] - 
+                i\ src[m[4]]\)},
+            {\(1\/2\ src[m[1]] - 1\/2\ j\ src[m[1]] + 1\/2\ src[m[2]] + 
+                1\/2\ j\ src[m[2]]\)},
+            {\(1\/2\ src[m[2]] + 1\/2\ i\ src[m[2]] + 1\/2\ src[m[3]] - 
+                1\/2\ i\ src[m[3]]\)},
+            {\(1\/2\ j\ src[m[2]] + 1\/2\ j\ src[m[3]] + src[m[4]] - 
+                j\ src[m[4]]\)}
+            }], "\[NoBreak]", ")"}],
+      MatrixForm[ {
+        Plus[ 
+          Times[ 
+            Rational[ 1, 2], i, 
+            src[ 
+              m[ 1]]], 
+          Times[ 
+            Rational[ 1, 2], i, 
+            src[ 
+              m[ 2]]], 
+          src[ 
+            m[ 4]], 
+          Times[ -1, i, 
+            src[ 
+              m[ 4]]]], 
+        Plus[ 
+          Times[ 
+            Rational[ 1, 2], 
+            src[ 
+              m[ 1]]], 
+          Times[ 
+            Rational[ -1, 2], j, 
+            src[ 
+              m[ 1]]], 
+          Times[ 
+            Rational[ 1, 2], 
+            src[ 
+              m[ 2]]], 
+          Times[ 
+            Rational[ 1, 2], j, 
+            src[ 
+              m[ 2]]]], 
+        Plus[ 
+          Times[ 
+            Rational[ 1, 2], 
+            src[ 
+              m[ 2]]], 
+          Times[ 
+            Rational[ 1, 2], i, 
+            src[ 
+              m[ 2]]], 
+          Times[ 
+            Rational[ 1, 2], 
+            src[ 
+              m[ 3]]], 
+          Times[ 
+            Rational[ -1, 2], i, 
+            src[ 
+              m[ 3]]]], 
+        Plus[ 
+          Times[ 
+            Rational[ 1, 2], j, 
+            src[ 
+              m[ 2]]], 
+          Times[ 
+            Rational[ 1, 2], j, 
+            src[ 
+              m[ 3]]], 
+          src[ 
+            m[ 4]], 
+          Times[ -1, j, 
+            src[ 
+              m[ 4]]]]}]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(deltas[u[3]] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {"1", "1", "0", "0"},
+            {\(-1\), "0", "1", "0"},
+            {"0", \(-1\), "0", "1"},
+            {"0", "0", "0", "0"}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(deltas[u[3] + w[1]/2] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {"1", "1", "0", \(1\/2\)},
+            {\(-\(1\/2\)\), "0", "1", \(-\(1\/2\)\)},
+            {"0", \(-1\), \(1\/2\), \(1\/2\)},
+            {\(-\(1\/2\)\), \(1\/2\), \(-\(1\/2\)\), \(1\/2\)}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(deltas[u[3] + w[2]/2] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {"1", "1", \(1\/2\), "0"},
+            {\(-1\), "0", \(1\/2\), \(1\/2\)},
+            {"0", \(-\(1\/2\)\), \(-\(1\/2\)\), "1"},
+            {\(1\/2\), \(-\(1\/2\)\), \(1\/2\), \(-\(1\/2\)\)}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(deltas[u[3] - w[3]/2] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {"1", \(1\/2\), "0", "0"},
+            {\(-1\), \(1\/2\), \(1\/2\), "0"},
+            {\(-\(1\/2\)\), \(-\(1\/2\)\), "0", "1"},
+            {\(1\/2\), \(-\(1\/2\)\), \(1\/2\), \(-\(1\/2\)\)}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(deltas[u[3] - w[0]/2] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(1\/2\), "1", "0", "0"},
+            {\(-\(1\/2\)\), \(-\(1\/2\)\), "1", "0"},
+            {\(1\/2\), \(-1\), "0", \(1\/2\)},
+            {\(-\(1\/2\)\), \(1\/2\), \(-\(1\/2\)\), \(1\/2\)}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(deltas[u[1]] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {"0", "0", "1", "1"},
+            {"1", "0", \(-1\), "0"},
+            {"0", "1", "0", \(-1\)},
+            {"0", "0", "0", "0"}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(deltas[u[1] - w[1]/2] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {"0", "0", "1", \(1\/2\)},
+            {\(1\/2\), "0", \(-1\), \(1\/2\)},
+            {"0", "1", \(-\(1\/2\)\), \(-\(1\/2\)\)},
+            {\(1\/2\), \(-\(1\/2\)\), \(1\/2\), \(-\(1\/2\)\)}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(deltas[u[1] - w[2]/2] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {"0", "0", \(1\/2\), "1"},
+            {"1", "0", \(-\(1\/2\)\), \(-\(1\/2\)\)},
+            {"0", \(1\/2\), \(1\/2\), \(-1\)},
+            {\(-\(1\/2\)\), \(1\/2\), \(-\(1\/2\)\), \(1\/2\)}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(deltas[u[1] + w[3]/2] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {"0", \(1\/2\), "1", "1"},
+            {"1", \(-\(1\/2\)\), \(-\(1\/2\)\), "0"},
+            {\(1\/2\), \(1\/2\), "0", \(-1\)},
+            {\(-\(1\/2\)\), \(1\/2\), \(-\(1\/2\)\), \(1\/2\)}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(deltas[u[1] + w[0]/2] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(1\/2\), "0", "1", "1"},
+            {\(1\/2\), \(1\/2\), \(-1\), "0"},
+            {\(-\(1\/2\)\), "1", "0", \(-\(1\/2\)\)},
+            {\(1\/2\), \(-\(1\/2\)\), \(1\/2\), \(-\(1\/2\)\)}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(Table[\(({0, 1, 2, 
+                3}[\([Reverse[
+                  Ordering[{w[0], w[1], w[2], w[3]}]]]\)])\)[\([1]\)], {j, 
+          1/16, 15/16, 1/8}, {i, 1/16, 15/16, 1/8}] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {"0", "0", "0", "0", "1", "1", "1", "1"},
+            {"0", "0", "0", "0", "1", "1", "1", "1"},
+            {"0", "0", "0", "0", "1", "1", "1", "1"},
+            {"0", "0", "0", "0", "1", "1", "1", "1"},
+            {"3", "3", "3", "3", "2", "2", "2", "2"},
+            {"3", "3", "3", "3", "2", "2", "2", "2"},
+            {"3", "3", "3", "3", "2", "2", "2", "2"},
+            {"3", "3", "3", "3", "2", "2", "2", "2"}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell["\<\
+The index of which weight is largest for all dyadic block dimensions between \
+2 and 8 using the various modified blending weights. All assume the \
+upper-left corner is the exterior corner.\
+\>", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(Table[\(({0, 1, 2, 
+                3}[\([Reverse[
+                  Ordering[{w[0] + w[1]/2, w[1]/2, w[2], 
+                      w[3]}]]]\)])\)[\([1]\)], {j, 1/16, 15/16, 1/8}, {i, 
+          1/16, 15/16, 1/8}] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {"0", "0", "0", "0", "0", "0", "0", "0"},
+            {"0", "0", "0", "0", "0", "0", "0", "0"},
+            {"0", "0", "0", "0", "0", "0", "0", "0"},
+            {"0", "0", "0", "0", "0", "0", "2", "2"},
+            {"3", "3", "3", "0", "2", "2", "2", "2"},
+            {"3", "3", "3", "3", "2", "2", "2", "2"},
+            {"3", "3", "3", "3", "2", "2", "2", "2"},
+            {"3", "3", "3", "3", "2", "2", "2", "2"}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(Table[\(({0, 1, 2, 
+                3}[\([Reverse[
+                  Ordering[{w[0] + w[3]/2, w[1], w[2], 
+                      w[3]/2}]]]\)])\)[\([1]\)], {j, 1/16, 15/16, 1/8}, {i, 
+          1/16, 15/16, 1/8}] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {"0", "0", "0", "0", "1", "1", "1", "1"},
+            {"0", "0", "0", "0", "1", "1", "1", "1"},
+            {"0", "0", "0", "0", "1", "1", "1", "1"},
+            {"0", "0", "0", "0", "0", "1", "1", "1"},
+            {"0", "0", "0", "0", "2", "2", "2", "2"},
+            {"0", "0", "0", "0", "2", "2", "2", "2"},
+            {"0", "0", "0", "2", "2", "2", "2", "2"},
+            {"0", "0", "0", "2", "2", "2", "2", "2"}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(Table[\(({0, 1, 2, 
+                3}[\([Reverse[
+                  Ordering[{w[0] + w[1]/2 + w[3]/2, w[1]/2, w[2], 
+                      w[3]/2}]]]\)])\)[\([1]\)], {j, 1/16, 15/16, 1/8}, {i, 
+          1/16, 15/16, 1/8}] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {"0", "0", "0", "0", "0", "0", "0", "0"},
+            {"0", "0", "0", "0", "0", "0", "0", "0"},
+            {"0", "0", "0", "0", "0", "0", "0", "0"},
+            {"0", "0", "0", "0", "0", "0", "0", "2"},
+            {"0", "0", "0", "0", "0", "2", "2", "2"},
+            {"0", "0", "0", "0", "2", "2", "2", "2"},
+            {"0", "0", "0", "0", "2", "2", "2", "2"},
+            {"0", "0", "0", "2", "2", "2", "2", "2"}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(Table[\(({0, 1, 2, 
+                3}[\([Reverse[
+                  Ordering[{w[0] + w[1]/2, w[1]/2, w[2], 
+                      w[3]}]]]\)])\)[\([1]\)], {j, 1/8, 7/8, 1/4}, {i, 1/16, 
+          15/16, 1/8}] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {"0", "0", "0", "0", "0", "0", "0", "0"},
+            {"0", "0", "0", "0", "0", "0", "0", "2"},
+            {"3", "3", "3", "3", "2", "2", "2", "2"},
+            {"3", "3", "3", "3", "2", "2", "2", "2"}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(Table[\(({0, 1, 2, 
+                3}[\([Reverse[
+                  Ordering[{w[0] + w[3]/2, w[1], w[2], 
+                      w[3]/2}]]]\)])\)[\([1]\)], {j, 1/8, 7/8, 1/4}, {i, 
+          1/16, 15/16, 1/8}] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {"0", "0", "0", "0", "1", "1", "1", "1"},
+            {"0", "0", "0", "0", "0", "1", "1", "1"},
+            {"0", "0", "0", "0", "2", "2", "2", "2"},
+            {"0", "0", "0", "2", "2", "2", "2", "2"}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(Table[\(({0, 1, 2, 
+                3}[\([Reverse[
+                  Ordering[{w[0] + w[1]/2 + w[3]/2, w[1]/2, w[2], 
+                      w[3]/2}]]]\)])\)[\([1]\)], {j, 1/8, 7/8, 1/4}, {i, 
+          1/16, 15/16, 1/8}] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {"0", "0", "0", "0", "0", "0", "0", "0"},
+            {"0", "0", "0", "0", "0", "0", "0", "2"},
+            {"0", "0", "0", "0", "0", "2", "2", "2"},
+            {"0", "0", "0", "2", "2", "2", "2", "2"}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(Table[\(({0, 1, 2, 
+                3}[\([Reverse[
+                  Ordering[{w[0] + w[1]/2, w[1]/2, w[2], 
+                      w[3]}]]]\)])\)[\([1]\)], {j, 1/4, 3/4, 1/2}, {i, 1/16, 
+          15/16, 1/8}] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {"0", "0", "0", "0", "0", "0", "0", "0"},
+            {"3", "3", "3", "3", "2", "2", "2", "2"}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(Table[\(({0, 1, 2, 
+                3}[\([Reverse[
+                  Ordering[{w[0] + w[3]/2, w[1], w[2], 
+                      w[3]/2}]]]\)])\)[\([1]\)], {j, 1/4, 3/4, 1/2}, {i, 
+          1/16, 15/16, 1/8}] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {"0", "0", "0", "0", "1", "1", "1", "1"},
+            {"0", "0", "0", "0", "2", "2", "2", "2"}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(Table[\(({0, 1, 2, 
+                3}[\([Reverse[
+                  Ordering[{w[0] + w[1]/2 + w[3]/2, w[1]/2, w[2], 
+                      w[3]/2}]]]\)])\)[\([1]\)], {j, 1/4, 3/4, 1/2}, {i, 
+          1/16, 15/16, 1/8}] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {"0", "0", "0", "0", "0", "0", "0", "0"},
+            {"0", "0", "0", "0", "2", "2", "2", "2"}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(Table[\(({0, 1, 2, 
+                3}[\([Reverse[
+                  Ordering[{w[0] + w[1]/2, w[1]/2, w[2], 
+                      w[3]}]]]\)])\)[\([1]\)], {j, 1/16, 15/16, 1/8}, {i, 
+          1/8, 7/8, 1/4}] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {"0", "0", "0", "0"},
+            {"0", "0", "0", "0"},
+            {"0", "0", "0", "0"},
+            {"0", "0", "0", "2"},
+            {"3", "0", "2", "2"},
+            {"3", "3", "2", "2"},
+            {"3", "3", "2", "2"},
+            {"3", "3", "2", "2"}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(Table[\(({0, 1, 2, 
+                3}[\([Reverse[
+                  Ordering[{w[0] + w[3]/2, w[1], w[2], 
+                      w[3]/2}]]]\)])\)[\([1]\)], {j, 1/16, 15/16, 1/8}, {i, 
+          1/8, 7/8, 1/4}] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {"0", "0", "1", "1"},
+            {"0", "0", "1", "1"},
+            {"0", "0", "1", "1"},
+            {"0", "0", "1", "1"},
+            {"0", "0", "2", "2"},
+            {"0", "0", "2", "2"},
+            {"0", "0", "2", "2"},
+            {"0", "2", "2", "2"}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(Table[\(({0, 1, 2, 
+                3}[\([Reverse[
+                  Ordering[{w[0] + w[1]/2 + w[3]/2, w[1]/2, w[2], 
+                      w[3]/2}]]]\)])\)[\([1]\)], {j, 1/16, 15/16, 1/8}, {i, 
+          1/8, 7/8, 1/4}] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {"0", "0", "0", "0"},
+            {"0", "0", "0", "0"},
+            {"0", "0", "0", "0"},
+            {"0", "0", "0", "2"},
+            {"0", "0", "0", "2"},
+            {"0", "0", "2", "2"},
+            {"0", "0", "2", "2"},
+            {"0", "2", "2", "2"}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(Table[\(({0, 1, 2, 
+                3}[\([Reverse[
+                  Ordering[{w[0] + w[1]/2, w[1]/2, w[2], 
+                      w[3]}]]]\)])\)[\([1]\)], {j, 1/8, 7/8, 1/4}, {i, 1/8, 
+          7/8, 1/4}] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {"0", "0", "0", "0"},
+            {"0", "0", "0", "0"},
+            {"3", "3", "2", "2"},
+            {"3", "3", "2", "2"}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(Table[\(({0, 1, 2, 
+                3}[\([Reverse[
+                  Ordering[{w[0] + w[3]/2, w[1], w[2], 
+                      w[3]/2}]]]\)])\)[\([1]\)], {j, 1/8, 7/8, 1/4}, {i, 1/8, 
+          7/8, 1/4}] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {"0", "0", "1", "1"},
+            {"0", "0", "1", "1"},
+            {"0", "0", "2", "2"},
+            {"0", "0", "2", "2"}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(Table[\(({0, 1, 2, 
+                3}[\([Reverse[
+                  Ordering[{w[0] + w[1]/2 + w[3]/2, w[1]/2, w[2], 
+                      w[3]/2}]]]\)])\)[\([1]\)], {j, 1/8, 7/8, 1/4}, {i, 1/8, 
+          7/8, 1/4}] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {"0", "0", "0", "0"},
+            {"0", "0", "0", "0"},
+            {"0", "0", "2", "2"},
+            {"0", "0", "2", "2"}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(Table[\(({0, 1, 2, 
+                3}[\([Reverse[
+                  Ordering[{w[0] + w[1]/2, w[1]/2, w[2], 
+                      w[3]}]]]\)])\)[\([1]\)], {j, 1/4, 3/4, 1/2}, {i, 1/8, 
+          7/8, 1/4}] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {"0", "0", "0", "0"},
+            {"3", "3", "2", "2"}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(Table[\(({0, 1, 2, 
+                3}[\([Reverse[
+                  Ordering[{w[0] + w[3]/2, w[1], w[2], 
+                      w[3]/2}]]]\)])\)[\([1]\)], {j, 1/4, 3/4, 1/2}, {i, 1/8, 
+          7/8, 1/4}] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {"0", "0", "1", "1"},
+            {"0", "0", "2", "2"}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(Table[\(({0, 1, 2, 
+                3}[\([Reverse[
+                  Ordering[{w[0] + w[1]/2 + w[3]/2, w[1]/2, w[2], 
+                      w[3]/2}]]]\)])\)[\([1]\)], {j, 1/4, 3/4, 1/2}, {i, 1/8, 
+          7/8, 1/4}] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {"0", "0", "0", "0"},
+            {"0", "0", "2", "2"}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(Table[\(({0, 1, 2, 
+                3}[\([Reverse[
+                  Ordering[{w[0] + w[1]/2, w[1]/2, w[2], 
+                      w[3]}]]]\)])\)[\([1]\)], {j, 1/16, 15/16, 1/8}, {i, 
+          1/4, 3/4, 1/2}] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {"0", "0"},
+            {"0", "0"},
+            {"0", "0"},
+            {"0", "0"},
+            {"3", "2"},
+            {"3", "2"},
+            {"3", "2"},
+            {"3", "2"}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(Table[\(({0, 1, 2, 
+                3}[\([Reverse[
+                  Ordering[{w[0] + w[3]/2, w[1], w[2], 
+                      w[3]/2}]]]\)])\)[\([1]\)], {j, 1/16, 15/16, 1/8}, {i, 
+          1/4, 3/4, 1/2}] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {"0", "1"},
+            {"0", "1"},
+            {"0", "1"},
+            {"0", "1"},
+            {"0", "2"},
+            {"0", "2"},
+            {"0", "2"},
+            {"0", "2"}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(Table[\(({0, 1, 2, 
+                3}[\([Reverse[
+                  Ordering[{w[0] + w[1]/2 + w[3]/2, w[1]/2, w[2], 
+                      w[3]/2}]]]\)])\)[\([1]\)], {j, 1/16, 15/16, 1/8}, {i, 
+          1/4, 3/4, 1/2}] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {"0", "0"},
+            {"0", "0"},
+            {"0", "0"},
+            {"0", "0"},
+            {"0", "2"},
+            {"0", "2"},
+            {"0", "2"},
+            {"0", "2"}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(Table[\(({0, 1, 2, 
+                3}[\([Reverse[
+                  Ordering[{w[0] + w[1]/2, w[1]/2, w[2], 
+                      w[3]}]]]\)])\)[\([1]\)], {j, 1/8, 7/8, 1/4}, {i, 1/4, 
+          3/4, 1/2}] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {"0", "0"},
+            {"0", "0"},
+            {"3", "2"},
+            {"3", "2"}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(Table[\(({0, 1, 2, 
+                3}[\([Reverse[
+                  Ordering[{w[0] + w[3]/2, w[1], w[2], 
+                      w[3]/2}]]]\)])\)[\([1]\)], {j, 1/8, 7/8, 1/4}, {i, 1/4, 
+          3/4, 1/2}] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {"0", "1"},
+            {"0", "1"},
+            {"0", "2"},
+            {"0", "2"}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(Table[\(({0, 1, 2, 
+                3}[\([Reverse[
+                  Ordering[{w[0] + w[1]/2 + w[3]/2, w[1]/2, w[2], 
+                      w[3]/2}]]]\)])\)[\([1]\)], {j, 1/8, 7/8, 1/4}, {i, 1/4, 
+          3/4, 1/2}] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {"0", "0"},
+            {"0", "0"},
+            {"0", "2"},
+            {"0", "2"}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(Table[\(({0, 1, 2, 
+                3}[\([Reverse[
+                  Ordering[{w[0] + w[1]/2, w[1]/2, w[2], 
+                      w[3]}]]]\)])\)[\([1]\)], {j, 1/4, 3/4, 1/2}, {i, 1/4, 
+          3/4, 1/2}] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {"0", "0"},
+            {"3", "2"}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(Table[\(({0, 1, 2, 
+                3}[\([Reverse[
+                  Ordering[{w[0] + w[3]/2, w[1], w[2], 
+                      w[3]/2}]]]\)])\)[\([1]\)], {j, 1/4, 3/4, 1/2}, {i, 1/4, 
+          3/4, 1/2}] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {"0", "1"},
+            {"0", "2"}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(Table[\(({0, 1, 2, 
+                3}[\([Reverse[
+                  Ordering[{w[0] + w[1]/2 + w[3]/2, w[1]/2, w[2], 
+                      w[3]/2}]]]\)])\)[\([1]\)], {j, 1/4, 3/4, 1/2}, {i, 1/4, 
+          3/4, 1/2}] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {"0", "0"},
+            {"0", "2"}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["Reflections", "Subsubsection"],
+
+Cell[BoxData[
+    \(flip03[k_] := If[k \[Equal] 0, 3, If[k \[Equal] 3, 0, k]]\)], "Input"],
+
+Cell[BoxData[
+    \(flip12[k_] := If[k \[Equal] 1, 2, If[k \[Equal] 2, 1, k]]\)], "Input"],
+
+Cell[BoxData[
+    \(flipj[exp_] := 
+      ReleaseHold[
+        Hold[exp] /. {w[k_] \[Rule] w[Mod[k + 2, 4]], 
+            m[k_] \[Rule] m[Mod[k + 2, 4]], 
+            u[k_] \[Rule] u[flip03[k]]}]\)], "Input"],
+
+Cell[BoxData[
+    \(SetAttributes[flipj, HoldAll]\)], "Input"],
+
+Cell[BoxData[
+    \(Clear[u, w]\)], "Input"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(flipij[exp_] := 
+      ReleaseHold[
+        Hold[exp] /. {w[k_] \[Rule] w[flip12[k]], m[k_] \[Rule] m[flip12[k]], 
+            u[k_] \[Rule] u[Mod[k + 2, 4]]}]\)], "Input"],
+
+Cell[BoxData[
+    RowBox[{\(General::"spell1"\), \(\(:\)\(\ \)\), "\<\"Possible spelling \
+error: new symbol name \\\"\\!\\(flipij\\)\\\" is similar to existing symbol \
+\\\"\\!\\(flipj\\)\\\". \\!\\(\\*ButtonBox[\\\"More\[Ellipsis]\\\", \
+ButtonStyle->\\\"RefGuideLinkText\\\", ButtonFrame->None, \
+ButtonData:>\\\"General::spell1\\\"]\\)\"\>"}]], "Message"]
+}, Open  ]],
+
+Cell[BoxData[
+    \(SetAttributes[flipij, HoldAll]\)], "Input"],
+
+Cell[BoxData[
+    \(reflections[exp_] := 
+      Simplify[{exp, flipj[flipij[exp]], flipij[exp], flipj[exp]}]\)], "Input"],
+
+Cell[BoxData[
+    \(SetAttributes[reflections, HoldAll]\)], "Input"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(Transpose[reflections[{w[0], w[1], w[2], w[3]}]] // 
+      MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(w[0]\), \(w[1]\), \(w[0]\), \(w[2]\)},
+            {\(w[1]\), \(w[3]\), \(w[2]\), \(w[3]\)},
+            {\(w[2]\), \(w[0]\), \(w[1]\), \(w[0]\)},
+            {\(w[3]\), \(w[2]\), \(w[3]\), \(w[1]\)}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(Transpose[reflections[{m[0], m[1], m[2], m[3]}]] // 
+      MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(m[0]\), \(m[1]\), \(m[0]\), \(m[2]\)},
+            {\(m[1]\), \(m[3]\), \(m[2]\), \(m[3]\)},
+            {\(m[2]\), \(m[0]\), \(m[1]\), \(m[0]\)},
+            {\(m[3]\), \(m[2]\), \(m[3]\), \(m[1]\)}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(Transpose[reflections[{u[0], u[1], u[2], u[3]}]] // 
+      MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(u[0]\), \(u[1]\), \(u[2]\), \(u[3]\)},
+            {\(u[1]\), \(u[3]\), \(u[3]\), \(u[1]\)},
+            {\(u[2]\), \(u[0]\), \(u[0]\), \(u[2]\)},
+            {\(u[3]\), \(u[2]\), \(u[1]\), \(u[0]\)}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[BoxData[
+    \(substs := {w[0] \[Rule] \((1 - i)\)*\((1 - j)\), 
+        w[1] \[Rule] i*\((1 - j)\), w[2] \[Rule] \((1 - i)\)*j, 
+        w[3] \[Rule] i*j, u[0] \[Rule] 1 - j, u[1] \[Rule] i, 
+        u[2] \[Rule] 1 - i, u[3] \[Rule] j}\)], "Input"],
+
+Cell[BoxData[
+    \(w[0] := \((1 - i)\)*\((1 - j)\)\)], "Input"],
+
+Cell[BoxData[
+    \(w[1] := i*\((1 - j)\)\)], "Input"],
+
+Cell[BoxData[
+    \(w[2] := \((1 - i)\)*j\)], "Input"],
+
+Cell[BoxData[
+    \(w[3] := i*j\)], "Input"],
+
+Cell[BoxData[
+    \(u[0] := 1 - j\)], "Input"],
+
+Cell[BoxData[
+    \(u[1] := i\)], "Input"],
+
+Cell[BoxData[
+    \(u[2] := 1 - i\)], "Input"],
+
+Cell[BoxData[
+    \(u[3] := j\)], "Input"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(reflections[{m[0], m[1], m[3], m[2]}]\)], "Input"],
+
+Cell[BoxData[
+    \({{m[0], m[1], m[3], m[2]}, {m[1], m[3], m[2], m[0]}, {m[0], m[2], m[3], 
+        m[1]}, {m[2], m[3], m[1], m[0]}}\)], "Output"]
+}, Open  ]],
+
+Cell[BoxData[
+    \(deltas[
+        exp_] := \({reflections[exp], \(D[#, i] &\) /@ 
+              reflections[exp], \(D[#, j] &\) /@ 
+              reflections[exp], \(D[#, i, j] &\) /@ reflections[exp]} /. 
+          i -> 0\) /. j -> 0\)], "Input"],
+
+Cell[BoxData[
+    \(SetAttributes[deltas, HoldAll]\)], "Input"],
+
+Cell[BoxData[
+    \(testedges := \(\((Simplify[
+                Expand[{# /. j -> 0, # /. i -> 1, # /. i \[Rule] 0, # /. 
+                      j \[Rule] 1}]])\) &\)[Simplify[#]] &\)], "Input"],
+
+Cell["VVVV", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(testedges[src[m[0]*w[0] + m[1]*w[1] + m[2]*w[2] + m[3]*w[3]]] // 
+      MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    InterpretationBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(src[m[0] - i\ m[0] + i\ m[1]]\)},
+            {\(src[m[1] - j\ m[1] + j\ m[3]]\)},
+            {\(src[m[0] - j\ m[0] + j\ m[2]]\)},
+            {\(src[m[2] - i\ m[2] + i\ m[3]]\)}
+            }], "\[NoBreak]", ")"}],
+      MatrixForm[ {
+        src[ 
+          Plus[ 
+            m[ 0], 
+            Times[ -1, i, 
+              m[ 0]], 
+            Times[ i, 
+              m[ 1]]]], 
+        src[ 
+          Plus[ 
+            m[ 1], 
+            Times[ -1, j, 
+              m[ 1]], 
+            Times[ j, 
+              m[ 3]]]], 
+        src[ 
+          Plus[ 
+            m[ 0], 
+            Times[ -1, j, 
+              m[ 0]], 
+            Times[ j, 
+              m[ 2]]]], 
+        src[ 
+          Plus[ 
+            m[ 2], 
+            Times[ -1, i, 
+              m[ 2]], 
+            Times[ i, 
+              m[ 3]]]]}]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(deltas[m[0]*w[0] + m[1]*w[1] + m[2]*w[2] + m[3]*w[3]] // 
+      MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(m[0]\), \(m[0]\), \(m[0]\), \(m[0]\)},
+            {\(\(-m[0]\) + m[1]\), \(\(-m[0]\) + m[1]\), \(\(-m[0]\) + 
+                m[1]\), \(\(-m[0]\) + m[1]\)},
+            {\(\(-m[0]\) + m[2]\), \(\(-m[0]\) + m[2]\), \(\(-m[0]\) + 
+                m[2]\), \(\(-m[0]\) + m[2]\)},
+            {\(m[0] - m[1] - m[2] + m[3]\), \(m[0] - m[1] - m[2] + 
+                m[3]\), \(m[0] - m[1] - m[2] + m[3]\), \(m[0] - m[1] - m[2] + 
+                m[3]\)}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell["BVVV", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(testedges[
+        reflections[
+          src[u[0]*m[0] + w[2]*m[2] + w[3]*m[3]]*u[2] + 
+            src[u[0]*m[1] + w[2]*m[2] + w[3]*m[3]]*u[1]]] // 
+      MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(\(-\((\(-1\) + i)\)\)\ src[m[0]] + i\ src[m[1]]\), \(src[
+                m[0] - i\ m[0] + i\ m[1]]\), \(src[
+                m[0] - i\ m[0] + i\ m[1]]\), \(src[
+                m[0] - i\ m[0] + i\ m[1]]\)},
+            {\(src[
+                m[1] - j\ m[1] + 
+                  j\ m[3]]\), \(\(-\((\(-1\) + j)\)\)\ src[m[1]] + 
+                j\ src[m[3]]\), \(src[m[1] - j\ m[1] + j\ m[3]]\), \(src[
+                m[1] - j\ m[1] + j\ m[3]]\)},
+            {\(src[m[0] - j\ m[0] + j\ m[2]]\), \(src[
+                m[0] - j\ m[0] + 
+                  j\ m[2]]\), \(\(-\((\(-1\) + j)\)\)\ src[m[0]] + 
+                j\ src[m[2]]\), \(src[m[0] - j\ m[0] + j\ m[2]]\)},
+            {\(src[m[2] - i\ m[2] + i\ m[3]]\), \(src[
+                m[2] - i\ m[2] + i\ m[3]]\), \(src[
+                m[2] - i\ m[2] + 
+                  i\ m[3]]\), \(\(-\((\(-1\) + i)\)\)\ src[m[2]] + 
+                i\ src[m[3]]\)}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(deltas[u[0]*m[0] + w[2]*m[2] + w[3]*m[3]] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(m[0]\), \(m[0]\), \(m[0]\), \(m[0]\)},
+            {
+              "0", \(\(-m[0]\) + m[1]\), \(\(-m[0]\) + m[1]\), \(\(-m[0]\) + 
+                m[1]\)},
+            {\(\(-m[0]\) + m[2]\), \(\(-m[0]\) + m[2]\), 
+              "0", \(\(-m[0]\) + m[2]\)},
+            {\(\(-m[2]\) + m[3]\), \(m[0] - m[2]\), \(\(-m[1]\) + 
+                m[3]\), \(m[0] - m[1]\)}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(deltas[u[0]*m[1] + w[2]*m[2] + w[3]*m[3]] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(m[1]\), \(m[0]\), \(m[2]\), \(m[0]\)},
+            {
+              "0", \(\(-m[0]\) + m[3]\), \(m[1] - m[2]\), \(\(-m[0]\) + 
+                m[1]\)},
+            {\(\(-m[1]\) + m[2]\), \(\(-m[0]\) + m[2]\), 
+              "0", \(\(-m[0]\) + m[3]\)},
+            {\(\(-m[2]\) + m[3]\), \(m[0] - m[2]\), \(\(-m[1]\) + 
+                m[3]\), \(m[0] - m[1]\)}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell["BVVB", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(testedges[
+        reflections[
+          src[u[0]*m[0] + u[3]*m[2]]*u[2] + 
+            src[u[0]*m[1] + u[3]*m[3]]*u[1]]] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(\(-\((\(-1\) + i)\)\)\ src[m[0]] + i\ src[m[1]]\), \(src[
+                m[0] - i\ m[0] + i\ m[1]]\), \(src[
+                m[0] - i\ m[0] + 
+                  i\ m[1]]\), \(\(-\((\(-1\) + i)\)\)\ src[m[0]] + 
+                i\ src[m[1]]\)},
+            {\(src[
+                m[1] - j\ m[1] + 
+                  j\ m[3]]\), \(\(-\((\(-1\) + j)\)\)\ src[m[1]] + 
+                j\ src[m[3]]\), \(\(-\((\(-1\) + j)\)\)\ src[m[1]] + 
+                j\ src[m[3]]\), \(src[m[1] - j\ m[1] + j\ m[3]]\)},
+            {\(src[
+                m[0] - j\ m[0] + 
+                  j\ m[2]]\), \(\(-\((\(-1\) + j)\)\)\ src[m[0]] + 
+                j\ src[m[2]]\), \(\(-\((\(-1\) + j)\)\)\ src[m[0]] + 
+                j\ src[m[2]]\), \(src[m[0] - j\ m[0] + j\ m[2]]\)},
+            {\(\(-\((\(-1\) + i)\)\)\ src[m[2]] + i\ src[m[3]]\), \(src[
+                m[2] - i\ m[2] + i\ m[3]]\), \(src[
+                m[2] - i\ m[2] + 
+                  i\ m[3]]\), \(\(-\((\(-1\) + i)\)\)\ src[m[2]] + 
+                i\ src[m[3]]\)}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(deltas[u[0]*m[0] + u[3]*m[2]] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(m[0]\), \(m[0]\), \(m[0]\), \(m[0]\)},
+            {"0", \(\(-m[0]\) + m[1]\), \(\(-m[0]\) + m[1]\), "0"},
+            {\(\(-m[0]\) + m[2]\), "0", "0", \(\(-m[0]\) + m[2]\)},
+            {"0", "0", "0", "0"}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(deltas[u[0]*m[1] + u[3]*m[3]] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(m[1]\), \(m[2]\), \(m[2]\), \(m[1]\)},
+            {"0", \(\(-m[2]\) + m[3]\), \(\(-m[2]\) + m[3]\), "0"},
+            {\(\(-m[1]\) + m[3]\), "0", "0", \(\(-m[1]\) + m[3]\)},
+            {"0", "0", "0", "0"}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell["BVBV", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(testedges[
+        reflections[
+          src[m[0]]*w[0] + src[u[0]*m[1] + u[3]*m[3]]*w[1] + 
+            src[u[2]*m[2] + u[1]*m[3]]*w[2] + 
+            src[w[1]*m[1] + w[2]*m[2] + \((w[0] + w[3])\)*m[3]]*w[3]]] // 
+      MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(\(-\((\(-1\) + i)\)\)\ src[m[0]] + 
+                i\ src[m[1]]\), \(\(-\((\(-1\) + i)\)\)\ src[m[0]] + 
+                i\ src[m[1]]\), \(\(-\((\(-1\) + i)\)\)\ src[m[0]] + 
+                i\ src[m[1]]\), \(src[m[0] - i\ m[0] + i\ m[1]]\)},
+            {\(src[
+                m[1] - j\ m[1] + 
+                  j\ m[3]]\), \(\(-\((\(-1\) + j)\)\)\ src[m[1]] + 
+                j\ src[m[3]]\), \(src[m[1] - j\ m[1] + j\ m[3]]\), \(src[
+                m[1] - j\ m[1] + j\ m[3]]\)},
+            {\(\(-\((\(-1\) + j)\)\)\ src[m[0]] + j\ src[m[2]]\), \(src[
+                m[0] - j\ m[0] + 
+                  j\ m[2]]\), \(\(-\((\(-1\) + j)\)\)\ src[m[0]] + 
+                j\ src[m[2]]\), \(\(-\((\(-1\) + j)\)\)\ src[m[0]] + 
+                j\ src[m[2]]\)},
+            {\(src[m[2] - i\ m[2] + i\ m[3]]\), \(src[
+                m[2] - i\ m[2] + i\ m[3]]\), \(src[
+                m[2] - i\ m[2] + 
+                  i\ m[3]]\), \(\(-\((\(-1\) + i)\)\)\ src[m[2]] + 
+                i\ src[m[3]]\)}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(deltas[u[0]*m[1] + u[3]*m[3]] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(m[1]\), \(m[2]\), \(m[2]\), \(m[1]\)},
+            {"0", \(\(-m[2]\) + m[3]\), \(\(-m[2]\) + m[3]\), "0"},
+            {\(\(-m[1]\) + m[3]\), "0", "0", \(\(-m[1]\) + m[3]\)},
+            {"0", "0", "0", "0"}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(deltas[u[2]*m[2] + u[1]*m[3]] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(m[2]\), \(m[0]\), \(m[1]\), \(m[0]\)},
+            {\(\(-m[2]\) + m[3]\), "0", "0", \(\(-m[0]\) + m[1]\)},
+            {"0", \(\(-m[0]\) + m[2]\), \(\(-m[1]\) + m[3]\), "0"},
+            {"0", "0", "0", "0"}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(deltas[w[1]*m[1] + w[2]*m[2] + \((w[0] + w[3])\)*m[3]] // 
+      MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(m[3]\), \(m[0]\), \(m[3]\), \(m[0]\)},
+            {\(m[1] - m[3]\), \(\(-m[0]\) + m[2]\), \(m[1] - 
+                m[3]\), \(\(-m[0]\) + m[1]\)},
+            {\(m[2] - m[3]\), \(\(-m[0]\) + m[2]\), \(m[2] - 
+                m[3]\), \(\(-m[0]\) + m[1]\)},
+            {\(\(-m[1]\) - m[2] + 2\ m[3]\), \(m[0] - 2\ m[2] + 
+                m[3]\), \(\(-m[1]\) - m[2] + 2\ m[3]\), \(m[0] - 2\ m[1] + 
+                m[3]\)}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell["BBBV", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(testedges[
+        reflections[
+          src[m[0]]*w[0] + src[m[1]]*w[1] + 
+            src[u[2]*m[2] + u[1]*m[3]]*u[3]]] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(\(-\((\(-1\) + i)\)\)\ src[m[0]] + 
+                i\ src[m[1]]\), \(\(-\((\(-1\) + i)\)\)\ src[m[0]] + 
+                i\ src[m[1]]\), \(\(-\((\(-1\) + i)\)\)\ src[m[0]] + 
+                i\ src[m[1]]\), \(src[m[0] - i\ m[0] + i\ m[1]]\)},
+            {\(\(-\((\(-1\) + j)\)\)\ src[m[1]] + 
+                j\ src[m[3]]\), \(\(-\((\(-1\) + j)\)\)\ src[m[1]] + 
+                j\ src[m[3]]\), \(src[
+                m[1] - j\ m[1] + 
+                  j\ m[3]]\), \(\(-\((\(-1\) + j)\)\)\ src[m[1]] + 
+                j\ src[m[3]]\)},
+            {\(\(-\((\(-1\) + j)\)\)\ src[m[0]] + j\ src[m[2]]\), \(src[
+                m[0] - j\ m[0] + 
+                  j\ m[2]]\), \(\(-\((\(-1\) + j)\)\)\ src[m[0]] + 
+                j\ src[m[2]]\), \(\(-\((\(-1\) + j)\)\)\ src[m[0]] + 
+                j\ src[m[2]]\)},
+            {\(src[
+                m[2] - i\ m[2] + 
+                  i\ m[3]]\), \(\(-\((\(-1\) + i)\)\)\ src[m[2]] + 
+                i\ src[m[3]]\), \(\(-\((\(-1\) + i)\)\)\ src[m[2]] + 
+                i\ src[m[3]]\), \(\(-\((\(-1\) + i)\)\)\ src[m[2]] + 
+                i\ src[m[3]]\)}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(deltas[u[2]*m[2] + u[1]*m[3]] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(m[2]\), \(m[0]\), \(m[1]\), \(m[0]\)},
+            {\(\(-m[2]\) + m[3]\), "0", "0", \(\(-m[0]\) + m[1]\)},
+            {"0", \(\(-m[0]\) + m[2]\), \(\(-m[1]\) + m[3]\), "0"},
+            {"0", "0", "0", "0"}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell["BBBB", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(testedges[
+        src[m[0]]*w[0] + src[m[1]]*w[1] + src[m[2]]*w[2] + src[m[3]]*w[3]] // 
+      MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    InterpretationBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(\(-\((\(-1\) + i)\)\)\ src[m[0]] + i\ src[m[1]]\)},
+            {\(\(-\((\(-1\) + j)\)\)\ src[m[1]] + j\ src[m[3]]\)},
+            {\(\(-\((\(-1\) + j)\)\)\ src[m[0]] + j\ src[m[2]]\)},
+            {\(\(-\((\(-1\) + i)\)\)\ src[m[2]] + i\ src[m[3]]\)}
+            }], "\[NoBreak]", ")"}],
+      MatrixForm[ {
+        Plus[ 
+          Times[ -1, 
+            Plus[ -1, i], 
+            src[ 
+              m[ 0]]], 
+          Times[ i, 
+            src[ 
+              m[ 1]]]], 
+        Plus[ 
+          Times[ -1, 
+            Plus[ -1, j], 
+            src[ 
+              m[ 1]]], 
+          Times[ j, 
+            src[ 
+              m[ 3]]]], 
+        Plus[ 
+          Times[ -1, 
+            Plus[ -1, j], 
+            src[ 
+              m[ 0]]], 
+          Times[ j, 
+            src[ 
+              m[ 2]]]], 
+        Plus[ 
+          Times[ -1, 
+            Plus[ -1, i], 
+            src[ 
+              m[ 2]]], 
+          Times[ i, 
+            src[ 
+              m[ 3]]]]}]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(deltas[w[0]] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {"1", "0", "1", "0"},
+            {\(-1\), "1", \(-1\), "0"},
+            {\(-1\), "0", \(-1\), "1"},
+            {"1", \(-1\), "1", \(-1\)}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(deltas[w[1]] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {"0", "0", "0", "0"},
+            {"1", "0", "0", "0"},
+            {"0", "0", "1", "0"},
+            {\(-1\), "1", \(-1\), "1"}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(deltas[w[2]] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {"0", "1", "0", "1"},
+            {"0", \(-1\), "1", \(-1\)},
+            {"1", \(-1\), "0", \(-1\)},
+            {\(-1\), "1", \(-1\), "1"}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(deltas[w[3]] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    TagBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {"0", "0", "0", "0"},
+            {"0", "0", "0", "1"},
+            {"0", "1", "0", "0"},
+            {"1", \(-1\), "1", \(-1\)}
+            }], "\[NoBreak]", ")"}],
+      Function[ BoxForm`e$, 
+        MatrixForm[ BoxForm`e$]]]], "Output"]
+}, Open  ]],
+
+Cell["\<\
+Splitting blocks: A new vertex can be added to the center of a BBBB block \
+without breaking continuity with neighboring blocks by adjusting vertex \
+weights as follows. This generalizes to all other block types by replacing \
+vectors along vector interpolated edges with the interpolated vector, and not \
+adjusting the vertex weights for that edge.\
+\>", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(Expand[
+        testedges[
+          src[m[0]]*\((w[0] + w[1]/2 + w[2]/2)\) + src[m[1]]*\((w[1]/2)\) + 
+            src[m[2]]*w[2]/2 + src[m[4]]*w[3]]] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    InterpretationBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(src[m[0]] - 1\/2\ i\ src[m[0]] + 1\/2\ i\ src[m[1]]\)},
+            {\(1\/2\ src[m[0]] - 1\/2\ j\ src[m[0]] + 1\/2\ src[m[1]] - 
+                1\/2\ j\ src[m[1]] + j\ src[m[4]]\)},
+            {\(src[m[0]] - 1\/2\ j\ src[m[0]] + 1\/2\ j\ src[m[2]]\)},
+            {\(1\/2\ src[m[0]] - 1\/2\ i\ src[m[0]] + 1\/2\ src[m[2]] - 
+                1\/2\ i\ src[m[2]] + i\ src[m[4]]\)}
+            }], "\[NoBreak]", ")"}],
+      MatrixForm[ {
+        Plus[ 
+          src[ 
+            m[ 0]], 
+          Times[ 
+            Rational[ -1, 2], i, 
+            src[ 
+              m[ 0]]], 
+          Times[ 
+            Rational[ 1, 2], i, 
+            src[ 
+              m[ 1]]]], 
+        Plus[ 
+          Times[ 
+            Rational[ 1, 2], 
+            src[ 
+              m[ 0]]], 
+          Times[ 
+            Rational[ -1, 2], j, 
+            src[ 
+              m[ 0]]], 
+          Times[ 
+            Rational[ 1, 2], 
+            src[ 
+              m[ 1]]], 
+          Times[ 
+            Rational[ -1, 2], j, 
+            src[ 
+              m[ 1]]], 
+          Times[ j, 
+            src[ 
+              m[ 4]]]], 
+        Plus[ 
+          src[ 
+            m[ 0]], 
+          Times[ 
+            Rational[ -1, 2], j, 
+            src[ 
+              m[ 0]]], 
+          Times[ 
+            Rational[ 1, 2], j, 
+            src[ 
+              m[ 2]]]], 
+        Plus[ 
+          Times[ 
+            Rational[ 1, 2], 
+            src[ 
+              m[ 0]]], 
+          Times[ 
+            Rational[ -1, 2], i, 
+            src[ 
+              m[ 0]]], 
+          Times[ 
+            Rational[ 1, 2], 
+            src[ 
+              m[ 2]]], 
+          Times[ 
+            Rational[ -1, 2], i, 
+            src[ 
+              m[ 2]]], 
+          Times[ i, 
+            src[ 
+              m[ 4]]]]}]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(Expand[
+        testedges[
+          src[m[0]]*w[0]/2 + src[m[1]]*\((w[1] + w[0]/2 + w[3]/2)\) + 
+            src[m[4]]*w[2] + src[m[3]]*w[3]/2]] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    InterpretationBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(1\/2\ src[m[0]] - 1\/2\ i\ src[m[0]] + 1\/2\ src[m[1]] + 
+                1\/2\ i\ src[m[1]]\)},
+            {\(src[m[1]] - 1\/2\ j\ src[m[1]] + 1\/2\ j\ src[m[3]]\)},
+            {\(1\/2\ src[m[0]] - 1\/2\ j\ src[m[0]] + 1\/2\ src[m[1]] - 
+                1\/2\ j\ src[m[1]] + j\ src[m[4]]\)},
+            {\(1\/2\ i\ src[m[1]] + 1\/2\ i\ src[m[3]] + src[m[4]] - 
+                i\ src[m[4]]\)}
+            }], "\[NoBreak]", ")"}],
+      MatrixForm[ {
+        Plus[ 
+          Times[ 
+            Rational[ 1, 2], 
+            src[ 
+              m[ 0]]], 
+          Times[ 
+            Rational[ -1, 2], i, 
+            src[ 
+              m[ 0]]], 
+          Times[ 
+            Rational[ 1, 2], 
+            src[ 
+              m[ 1]]], 
+          Times[ 
+            Rational[ 1, 2], i, 
+            src[ 
+              m[ 1]]]], 
+        Plus[ 
+          src[ 
+            m[ 1]], 
+          Times[ 
+            Rational[ -1, 2], j, 
+            src[ 
+              m[ 1]]], 
+          Times[ 
+            Rational[ 1, 2], j, 
+            src[ 
+              m[ 3]]]], 
+        Plus[ 
+          Times[ 
+            Rational[ 1, 2], 
+            src[ 
+              m[ 0]]], 
+          Times[ 
+            Rational[ -1, 2], j, 
+            src[ 
+              m[ 0]]], 
+          Times[ 
+            Rational[ 1, 2], 
+            src[ 
+              m[ 1]]], 
+          Times[ 
+            Rational[ -1, 2], j, 
+            src[ 
+              m[ 1]]], 
+          Times[ j, 
+            src[ 
+              m[ 4]]]], 
+        Plus[ 
+          Times[ 
+            Rational[ 1, 2], i, 
+            src[ 
+              m[ 1]]], 
+          Times[ 
+            Rational[ 1, 2], i, 
+            src[ 
+              m[ 3]]], 
+          src[ 
+            m[ 4]], 
+          Times[ -1, i, 
+            src[ 
+              m[ 4]]]]}]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(Expand[
+        testedges[
+          src[m[0]]*w[0]/2 + src[m[4]]*w[1] + 
+            src[m[2]]*\((w[2] + w[0]/2 + w[3]/2)\) + src[m[3]]*w[3]/2]] // 
+      MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    InterpretationBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(1\/2\ src[m[0]] - 1\/2\ i\ src[m[0]] + 1\/2\ src[m[2]] - 
+                1\/2\ i\ src[m[2]] + i\ src[m[4]]\)},
+            {\(1\/2\ j\ src[m[2]] + 1\/2\ j\ src[m[3]] + src[m[4]] - 
+                j\ src[m[4]]\)},
+            {\(1\/2\ src[m[0]] - 1\/2\ j\ src[m[0]] + 1\/2\ src[m[2]] + 
+                1\/2\ j\ src[m[2]]\)},
+            {\(src[m[2]] - 1\/2\ i\ src[m[2]] + 1\/2\ i\ src[m[3]]\)}
+            }], "\[NoBreak]", ")"}],
+      MatrixForm[ {
+        Plus[ 
+          Times[ 
+            Rational[ 1, 2], 
+            src[ 
+              m[ 0]]], 
+          Times[ 
+            Rational[ -1, 2], i, 
+            src[ 
+              m[ 0]]], 
+          Times[ 
+            Rational[ 1, 2], 
+            src[ 
+              m[ 2]]], 
+          Times[ 
+            Rational[ -1, 2], i, 
+            src[ 
+              m[ 2]]], 
+          Times[ i, 
+            src[ 
+              m[ 4]]]], 
+        Plus[ 
+          Times[ 
+            Rational[ 1, 2], j, 
+            src[ 
+              m[ 2]]], 
+          Times[ 
+            Rational[ 1, 2], j, 
+            src[ 
+              m[ 3]]], 
+          src[ 
+            m[ 4]], 
+          Times[ -1, j, 
+            src[ 
+              m[ 4]]]], 
+        Plus[ 
+          Times[ 
+            Rational[ 1, 2], 
+            src[ 
+              m[ 0]]], 
+          Times[ 
+            Rational[ -1, 2], j, 
+            src[ 
+              m[ 0]]], 
+          Times[ 
+            Rational[ 1, 2], 
+            src[ 
+              m[ 2]]], 
+          Times[ 
+            Rational[ 1, 2], j, 
+            src[ 
+              m[ 2]]]], 
+        Plus[ 
+          src[ 
+            m[ 2]], 
+          Times[ 
+            Rational[ -1, 2], i, 
+            src[ 
+              m[ 2]]], 
+          Times[ 
+            Rational[ 1, 2], i, 
+            src[ 
+              m[ 3]]]]}]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    \(Expand[
+        testedges[
+          src[m[4]]*w[0] + src[m[1]]*w[1]/2 + src[m[2]]*w[2]/2 + 
+            src[m[3]]*\((w[3] + w[1]/2 + w[2]/2)\)]] // MatrixForm\)], "Input"],
+
+Cell[BoxData[
+    InterpretationBox[
+      RowBox[{"(", "\[NoBreak]", GridBox[{
+            {\(1\/2\ i\ src[m[1]] + 1\/2\ i\ src[m[3]] + src[m[4]] - 
+                i\ src[m[4]]\)},
+            {\(1\/2\ src[m[1]] - 1\/2\ j\ src[m[1]] + 1\/2\ src[m[3]] + 
+                1\/2\ j\ src[m[3]]\)},
+            {\(1\/2\ j\ src[m[2]] + 1\/2\ j\ src[m[3]] + src[m[4]] - 
+                j\ src[m[4]]\)},
+            {\(1\/2\ src[m[2]] - 1\/2\ i\ src[m[2]] + 1\/2\ src[m[3]] + 
+                1\/2\ i\ src[m[3]]\)}
+            }], "\[NoBreak]", ")"}],
+      MatrixForm[ {
+        Plus[ 
+          Times[ 
+            Rational[ 1, 2], i, 
+            src[ 
+              m[ 1]]], 
+          Times[ 
+            Rational[ 1, 2], i, 
+            src[ 
+              m[ 3]]], 
+          src[ 
+            m[ 4]], 
+          Times[ -1, i, 
+            src[ 
+              m[ 4]]]], 
+        Plus[ 
+          Times[ 
+            Rational[ 1, 2], 
+            src[ 
+              m[ 1]]], 
+          Times[ 
+            Rational[ -1, 2], j, 
+            src[ 
+              m[ 1]]], 
+          Times[ 
+            Rational[ 1, 2], 
+            src[ 
+              m[ 3]]], 
+          Times[ 
+            Rational[ 1, 2], j, 
+            src[ 
+              m[ 3]]]], 
+        Plus[ 
+          Times[ 
+            Rational[ 1, 2], j, 
+            src[ 
+              m[ 2]]], 
+          Times[ 
+            Rational[ 1, 2], j, 
+            src[ 
+              m[ 3]]], 
+          src[ 
+            m[ 4]], 
+          Times[ -1, j, 
+            src[ 
+              m[ 4]]]], 
+        Plus[ 
+          Times[ 
+            Rational[ 1, 2], 
+            src[ 
+              m[ 2]]], 
+          Times[ 
+            Rational[ -1, 2], i, 
+            src[ 
+              m[ 2]]], 
+          Times[ 
+            Rational[ 1, 2], 
+            src[ 
+              m[ 3]]], 
+          Times[ 
+            Rational[ 1, 2], i, 
+            src[ 
+              m[ 3]]]]}]]], "Output"]
+}, Open  ]]
+}, Open  ]]
+},
+FrontEndVersion->"5.0 for X",
+ScreenRectangle->{{0, 1600}, {0, 1200}},
+WindowSize->{502, 740},
+WindowMargins->{{47, Automatic}, {161, Automatic}}
+]
+
+(*******************************************************************
+Cached data follows.  If you edit this Notebook file directly, not
+using Mathematica, you must remove the line containing CacheID at
+the top of  the file.  The cache data will then be recreated when
+you save this file from within Mathematica.
+*******************************************************************)
+
+(*CellTagsOutline
+CellTagsIndex->{}
+*)
+
+(*CellTagsIndex
+CellTagsIndex->{}
+*)
+
+(*NotebookFileOutline
+Notebook[{
+
+Cell[CellGroupData[{
+Cell[1776, 53, 34, 0, 28, "Subsubsection"],
+Cell[1813, 55, 217, 5, 75, "Input"],
+Cell[2033, 62, 63, 1, 27, "Input"],
+Cell[2099, 65, 44, 1, 27, "Input"],
+Cell[2146, 68, 133, 3, 59, "Input"],
+Cell[2282, 73, 66, 1, 27, "Input"],
+
+Cell[CellGroupData[{
+Cell[2373, 78, 93, 1, 43, "Input"],
+Cell[2469, 81, 395, 9, 94, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[2901, 95, 93, 1, 43, "Input"],
+Cell[2997, 98, 395, 9, 94, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[3429, 112, 93, 1, 43, "Input"],
+Cell[3525, 115, 395, 9, 94, "Output"]
+}, Open  ]],
+Cell[3935, 127, 254, 4, 59, "Input"],
+Cell[4192, 133, 64, 1, 27, "Input"],
+Cell[4259, 136, 54, 1, 27, "Input"],
+Cell[4316, 139, 44, 1, 27, "Input"],
+Cell[4363, 142, 54, 1, 27, "Input"],
+Cell[4420, 145, 46, 1, 27, "Input"],
+Cell[4469, 148, 42, 1, 27, "Input"],
+Cell[4514, 151, 42, 1, 27, "Input"],
+Cell[4559, 154, 46, 1, 27, "Input"],
+Cell[4608, 157, 241, 5, 75, "Input"],
+Cell[4852, 164, 63, 1, 27, "Input"],
+Cell[4918, 167, 196, 3, 59, "Input"],
+Cell[5117, 172, 20, 0, 32, "Text"],
+
+Cell[CellGroupData[{
+Cell[5162, 176, 115, 2, 59, "Input"],
+Cell[5280, 180, 940, 36, 94, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[6257, 221, 107, 2, 43, "Input"],
+Cell[6367, 225, 643, 13, 94, "Output"]
+}, Open  ]],
+Cell[7025, 241, 20, 0, 32, "Text"],
+
+Cell[CellGroupData[{
+Cell[7070, 245, 269, 6, 107, "Input"],
+Cell[7342, 253, 1110, 23, 94, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[8489, 281, 88, 1, 43, "Input"],
+Cell[8580, 284, 549, 13, 94, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[9166, 302, 88, 1, 43, "Input"],
+Cell[9257, 305, 554, 13, 94, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[9848, 323, 107, 2, 43, "Input"],
+Cell[9958, 327, 643, 13, 94, "Output"]
+}, Open  ]],
+Cell[10616, 343, 20, 0, 32, "Text"],
+
+Cell[CellGroupData[{
+Cell[10661, 347, 167, 4, 59, "Input"],
+Cell[10831, 353, 1251, 27, 94, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[12119, 385, 76, 1, 27, "Input"],
+Cell[12198, 388, 398, 9, 94, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[12633, 402, 76, 1, 27, "Input"],
+Cell[12712, 405, 398, 9, 94, "Output"]
+}, Open  ]],
+Cell[13125, 417, 20, 0, 32, "Text"],
+
+Cell[CellGroupData[{
+Cell[13170, 421, 288, 6, 107, "Input"],
+Cell[13461, 429, 1194, 24, 94, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[14692, 458, 89, 1, 27, "Input"],
+Cell[14784, 461, 473, 10, 94, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[15294, 476, 107, 2, 43, "Input"],
+Cell[15404, 480, 643, 13, 94, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[16084, 498, 89, 1, 27, "Input"],
+Cell[16176, 501, 468, 10, 94, "Output"]
+}, Open  ]],
+Cell[16659, 514, 20, 0, 32, "Text"],
+
+Cell[CellGroupData[{
+Cell[16704, 518, 240, 5, 75, "Input"],
+Cell[16947, 525, 1282, 25, 94, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[18266, 555, 89, 1, 27, "Input"],
+Cell[18358, 558, 473, 10, 94, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[18868, 573, 89, 1, 27, "Input"],
+Cell[18960, 576, 468, 10, 94, "Output"]
+}, Open  ]],
+Cell[19443, 589, 20, 0, 32, "Text"],
+
+Cell[CellGroupData[{
+Cell[19488, 593, 139, 3, 43, "Input"],
+Cell[19630, 598, 1091, 40, 94, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[20758, 643, 59, 1, 27, "Input"],
+Cell[20820, 646, 327, 9, 94, "Output"]
+}, Open  ]],
+Cell[21162, 658, 374, 6, 104, "Text"],
+
+Cell[CellGroupData[{
+Cell[21561, 668, 198, 4, 75, "Input"],
+Cell[21762, 674, 1918, 72, 113, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[23717, 751, 192, 4, 91, "Input"],
+Cell[23912, 757, 1937, 73, 113, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[25886, 835, 199, 5, 75, "Input"],
+Cell[26088, 842, 1937, 73, 113, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[28062, 920, 192, 4, 91, "Input"],
+Cell[28257, 926, 1956, 74, 113, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[30250, 1005, 59, 1, 27, "Input"],
+Cell[30312, 1008, 321, 9, 81, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[30670, 1022, 68, 1, 27, "Input"],
+Cell[30741, 1025, 383, 9, 113, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[31161, 1039, 68, 1, 27, "Input"],
+Cell[31232, 1042, 383, 9, 113, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[31652, 1056, 68, 1, 27, "Input"],
+Cell[31723, 1059, 383, 9, 113, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[32143, 1073, 68, 1, 27, "Input"],
+Cell[32214, 1076, 383, 9, 113, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[32634, 1090, 59, 1, 27, "Input"],
+Cell[32696, 1093, 321, 9, 81, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[33054, 1107, 68, 1, 27, "Input"],
+Cell[33125, 1110, 383, 9, 113, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[33545, 1124, 68, 1, 27, "Input"],
+Cell[33616, 1127, 383, 9, 113, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[34036, 1141, 68, 1, 27, "Input"],
+Cell[34107, 1144, 383, 9, 113, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[34527, 1158, 68, 1, 27, "Input"],
+Cell[34598, 1161, 383, 9, 113, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[35018, 1175, 225, 4, 91, "Input"],
+Cell[35246, 1181, 611, 13, 166, "Output"]
+}, Open  ]],
+Cell[35872, 1197, 214, 4, 68, "Text"],
+
+Cell[CellGroupData[{
+Cell[36111, 1205, 259, 5, 91, "Input"],
+Cell[36373, 1212, 611, 13, 166, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[37021, 1230, 259, 5, 91, "Input"],
+Cell[37283, 1237, 611, 13, 166, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[37931, 1255, 270, 5, 107, "Input"],
+Cell[38204, 1262, 611, 13, 166, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[38852, 1280, 256, 5, 91, "Input"],
+Cell[39111, 1287, 395, 9, 94, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[39543, 1301, 256, 5, 91, "Input"],
+Cell[39802, 1308, 395, 9, 94, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[40234, 1322, 267, 5, 91, "Input"],
+Cell[40504, 1329, 395, 9, 94, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[40936, 1343, 256, 5, 91, "Input"],
+Cell[41195, 1350, 287, 7, 58, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[41519, 1362, 256, 5, 91, "Input"],
+Cell[41778, 1369, 287, 7, 58, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[42102, 1381, 267, 5, 91, "Input"],
+Cell[42372, 1388, 287, 7, 58, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[42696, 1400, 256, 5, 91, "Input"],
+Cell[42955, 1407, 451, 13, 166, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[43443, 1425, 256, 5, 91, "Input"],
+Cell[43702, 1432, 451, 13, 166, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[44190, 1450, 267, 5, 107, "Input"],
+Cell[44460, 1457, 451, 13, 166, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[44948, 1475, 253, 5, 91, "Input"],
+Cell[45204, 1482, 315, 9, 94, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[45556, 1496, 253, 5, 91, "Input"],
+Cell[45812, 1503, 315, 9, 94, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[46164, 1517, 264, 5, 91, "Input"],
+Cell[46431, 1524, 315, 9, 94, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[46783, 1538, 253, 5, 91, "Input"],
+Cell[47039, 1545, 247, 7, 58, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[47323, 1557, 253, 5, 91, "Input"],
+Cell[47579, 1564, 247, 7, 58, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[47863, 1576, 264, 5, 91, "Input"],
+Cell[48130, 1583, 247, 7, 58, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[48414, 1595, 256, 5, 91, "Input"],
+Cell[48673, 1602, 371, 13, 166, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[49081, 1620, 256, 5, 91, "Input"],
+Cell[49340, 1627, 371, 13, 166, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[49748, 1645, 267, 5, 107, "Input"],
+Cell[50018, 1652, 371, 13, 166, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[50426, 1670, 253, 5, 91, "Input"],
+Cell[50682, 1677, 275, 9, 94, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[50994, 1691, 253, 5, 91, "Input"],
+Cell[51250, 1698, 275, 9, 94, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[51562, 1712, 264, 5, 91, "Input"],
+Cell[51829, 1719, 275, 9, 94, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[52141, 1733, 253, 5, 91, "Input"],
+Cell[52397, 1740, 227, 7, 58, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[52661, 1752, 253, 5, 91, "Input"],
+Cell[52917, 1759, 227, 7, 58, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[53181, 1771, 264, 5, 91, "Input"],
+Cell[53448, 1778, 227, 7, 58, "Output"]
+}, Open  ]]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[53724, 1791, 36, 0, 28, "Subsubsection"],
+Cell[53763, 1793, 90, 1, 27, "Input"],
+Cell[53856, 1796, 90, 1, 27, "Input"],
+Cell[53949, 1799, 208, 5, 75, "Input"],
+Cell[54160, 1806, 62, 1, 27, "Input"],
+Cell[54225, 1809, 44, 1, 27, "Input"],
+
+Cell[CellGroupData[{
+Cell[54294, 1814, 192, 4, 75, "Input"],
+Cell[54489, 1820, 359, 5, 46, "Message"]
+}, Open  ]],
+Cell[54863, 1828, 63, 1, 27, "Input"],
+Cell[54929, 1831, 121, 2, 59, "Input"],
+Cell[55053, 1835, 68, 1, 27, "Input"],
+
+Cell[CellGroupData[{
+Cell[55146, 1840, 102, 2, 43, "Input"],
+Cell[55251, 1844, 395, 9, 81, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[55683, 1858, 102, 2, 43, "Input"],
+Cell[55788, 1862, 395, 9, 81, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[56220, 1876, 102, 2, 43, "Input"],
+Cell[56325, 1880, 395, 9, 81, "Output"]
+}, Open  ]],
+Cell[56735, 1892, 254, 4, 59, "Input"],
+Cell[56992, 1898, 64, 1, 27, "Input"],
+Cell[57059, 1901, 54, 1, 27, "Input"],
+Cell[57116, 1904, 54, 1, 27, "Input"],
+Cell[57173, 1907, 44, 1, 27, "Input"],
+Cell[57220, 1910, 46, 1, 27, "Input"],
+Cell[57269, 1913, 42, 1, 27, "Input"],
+Cell[57314, 1916, 46, 1, 27, "Input"],
+Cell[57363, 1919, 42, 1, 27, "Input"],
+
+Cell[CellGroupData[{
+Cell[57430, 1924, 70, 1, 27, "Input"],
+Cell[57503, 1927, 147, 2, 43, "Output"]
+}, Open  ]],
+Cell[57665, 1932, 249, 5, 75, "Input"],
+Cell[57917, 1939, 63, 1, 27, "Input"],
+Cell[57983, 1942, 193, 3, 59, "Input"],
+Cell[58179, 1947, 20, 0, 32, "Text"],
+
+Cell[CellGroupData[{
+Cell[58224, 1951, 115, 2, 59, "Input"],
+Cell[58342, 1955, 940, 36, 81, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[59319, 1996, 107, 2, 43, "Input"],
+Cell[59429, 2000, 643, 13, 81, "Output"]
+}, Open  ]],
+Cell[60087, 2016, 20, 0, 32, "Text"],
+
+Cell[CellGroupData[{
+Cell[60132, 2020, 200, 5, 91, "Input"],
+Cell[60335, 2027, 1111, 23, 81, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[61483, 2055, 88, 1, 43, "Input"],
+Cell[61574, 2058, 559, 13, 81, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[62170, 2076, 88, 1, 43, "Input"],
+Cell[62261, 2079, 554, 13, 81, "Output"]
+}, Open  ]],
+Cell[62830, 2095, 20, 0, 32, "Text"],
+
+Cell[CellGroupData[{
+Cell[62875, 2099, 169, 4, 59, "Input"],
+Cell[63047, 2105, 1219, 25, 81, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[64303, 2135, 76, 1, 27, "Input"],
+Cell[64382, 2138, 403, 9, 81, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[64822, 2152, 76, 1, 27, "Input"],
+Cell[64901, 2155, 403, 9, 81, "Output"]
+}, Open  ]],
+Cell[65319, 2167, 20, 0, 32, "Text"],
+
+Cell[CellGroupData[{
+Cell[65364, 2171, 265, 6, 107, "Input"],
+Cell[65632, 2179, 1200, 24, 81, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[66869, 2208, 76, 1, 27, "Input"],
+Cell[66948, 2211, 403, 9, 81, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[67388, 2225, 76, 1, 27, "Input"],
+Cell[67467, 2228, 403, 9, 81, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[67907, 2242, 108, 2, 43, "Input"],
+Cell[68018, 2246, 617, 13, 81, "Output"]
+}, Open  ]],
+Cell[68650, 2262, 20, 0, 32, "Text"],
+
+Cell[CellGroupData[{
+Cell[68695, 2266, 169, 4, 59, "Input"],
+Cell[68867, 2272, 1306, 26, 81, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[70210, 2303, 76, 1, 27, "Input"],
+Cell[70289, 2306, 403, 9, 81, "Output"]
+}, Open  ]],
+Cell[70707, 2318, 20, 0, 32, "Text"],
+
+Cell[CellGroupData[{
+Cell[70752, 2322, 139, 3, 43, "Input"],
+Cell[70894, 2327, 1096, 40, 81, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[72027, 2372, 59, 1, 27, "Input"],
+Cell[72089, 2375, 333, 9, 81, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[72459, 2389, 59, 1, 27, "Input"],
+Cell[72521, 2392, 321, 9, 81, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[72879, 2406, 59, 1, 27, "Input"],
+Cell[72941, 2409, 333, 9, 81, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[73311, 2423, 59, 1, 27, "Input"],
+Cell[73373, 2426, 321, 9, 81, "Output"]
+}, Open  ]],
+Cell[73709, 2438, 374, 6, 104, "Text"],
+
+Cell[CellGroupData[{
+Cell[74108, 2448, 198, 4, 75, "Input"],
+Cell[74309, 2454, 1918, 72, 113, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[76264, 2531, 192, 4, 91, "Input"],
+Cell[76459, 2537, 1937, 73, 113, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[78433, 2615, 199, 5, 75, "Input"],
+Cell[78635, 2622, 1937, 73, 113, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[80609, 2700, 192, 4, 91, "Input"],
+Cell[80804, 2706, 1956, 74, 113, "Output"]
+}, Open  ]]
+}, Open  ]]
+}
+]
+*)
+
+
+
+(*******************************************************************
+End of Mathematica Notebook file.
+*******************************************************************)
+
