@@ -176,6 +176,9 @@ ${PLAYER_EXAMPLE_TARGET}: ${PLAYER_EXAMPLE_OBJS} ${LIBDAALABASE_TARGET} \
 ALL_ASM := ${ALL_OBJS:%.o=%.s}
 asm: ${ALL_ASM}
 
+# check that build is complete
+check: all
+
 # Remove all targets.
 clean:
 	-rm ${ALL_ASM} ${ALL_OBJS} ${ALL_DEPS} ${ALL_TARGETS}
@@ -185,7 +188,7 @@ clean:
 ${ALL_ASM} ${ALL_OBJS} ${ALL_DEPS} ${ALL_TARGETS} : Makefile
 
 # Specify which targets are phony for GNU make
-.PHONY : all clean
+.PHONY : all clean check
 
 # Rules
 # These are set up to compile each library as a single unit, to allow gcc to do
