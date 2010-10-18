@@ -24,19 +24,27 @@ CFLAGS = -Wall -Wno-parentheses -fvisibility=hidden
 # You may get speed increases by including flags such as -O2 or -O3 or
 #  -ffast-math, or additional flags, depending on your system and compiler.
 # The -g flag will generally include debugging information.
-#CFLAGS += -g
-CFLAGS += -DOD_X86ASM
+CFLAGS += -g
 CFLAGS += -DOD_CHECKASM
 #CFLAGS += -DOD_DUMP_IMAGES
 #CFLAGS += -DOD_ANIMATE
-CFLAGS += -march=native
-CFLAGS += -O3 -funroll-loops -fforce-addr -msse3
 #CFLAGS += -flto
 #CFLAGS += -floop-interchange -floop-strip-mine -floop-block
 #CFLAGS += -ftree-vectorize -ftree-vectorizer-verbose=0
 CFLAGS += -fomit-frame-pointer
 CFLAGS += -fPIC
 CFLAGS += -std=c89 -pedantic
+# Set machine-specific flags
+HOST := $(shell uname -m)
+ifneq (,$(findstring 86,${HOST}))
+CFLAGS += -DOD_X86ASM
+CFLAGS += -march=native
+CFLAGS += -O3 -funroll-loops -fforce-addr -msse3
+else ifneq (,$(findstring arm,${HOST}))
+CFLAGS += -DOD_ARMASM
+#CFLAGS += -march=armv7
+endif
+
 # Libraries to link with, and the location of library files.
 # Add -lpng -lz if you want to use -DOD_DUMP_IMAGES.
 LIBS = -logg -lvorbis -lvorbisenc `sdl-config --libs`
