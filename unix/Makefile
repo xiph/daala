@@ -181,7 +181,8 @@ check: all
 
 # Remove all targets.
 clean:
-	-rm ${ALL_ASM} ${ALL_OBJS} ${ALL_DEPS} ${ALL_TARGETS}
+	${RM} ${ALL_ASM} ${ALL_OBJS} ${ALL_DEPS}
+	${RM} ${ALL_TARGETS}
 	-rmdir ${WORKDIR}/x86 ${WORKDIR}
 
 # Make everything depend on changes in the Makefile
