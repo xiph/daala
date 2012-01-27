@@ -50,6 +50,17 @@
 #if defined(__cplusplus)
 extern "C" {
 #endif
+
+/* define __GNUC_PREREQ() in case the compiler doesn't */
+# if !defined(__GNUC_PREREQ)
+#  if defined(__GNUC__)&&defined(__GNUC_MINOR__)
+#   define __GNUC_PREREQ(_maj,_min) \
+   ((__GNUC__<<16)+__GNUC_MINOR__>=((_maj)<<16)+(_min))
+#  else
+#   define __GNUC_PREREQ(_maj,_min) 0
+#  endif
+# endif
+
 #if __GNUC_PREREQ(4,0)
 # pragma GCC visibility push(default)
 #endif
