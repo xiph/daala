@@ -47,7 +47,7 @@ endif
 
 # Libraries to link with, and the location of library files.
 # Add -lpng -lz if you want to use -DOD_DUMP_IMAGES.
-LIBS = -logg -lvorbis -lvorbisenc `sdl-config --libs`
+LIBS = -logg -lvorbis -lvorbisenc `sdl-config --libs` -lm
 ifeq ($(findstring -DOD_DUMP_IMAGES,${CFLAGS}),-DOD_DUMP_IMAGES)
     LIBS += -lpng -lz
 endif
