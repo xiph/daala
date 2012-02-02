@@ -593,7 +593,7 @@ typedef void (*od_mc_block_copy_func)(unsigned char *_dst,int _dystride,
    but not when preparing a 32-bit offset to be used in an address.
   On x86-64, we need to sign-extend the offset, whereas on x86-32, we can't.*/
 #if defined(__amd64__)||defined(__x86_64__)
-# define MOVOA "movsxl"
+# define MOVOA "movslq"
 #else
 # define MOVOA "movl"
 #endif
