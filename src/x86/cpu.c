@@ -31,7 +31,6 @@
            "cpuid\n\t" \
            :[eax]"=a"(_eax),[ebx]"=b"(_ebx),[ecx]"=c"(_ecx),[edx]"=d"(_edx) \
            :"a"(_op) \
-           :"cc" \
           )
 # else
 /*On x86-32, not so much.*/
@@ -42,7 +41,6 @@
            "xchgl %%ebx,%[ebx]\n\t" \
            :[eax]"=a"(_eax),[ebx]"=r"(_ebx),[ecx]"=c"(_ecx),[edx]"=d"(_edx) \
            :"a"(_op) \
-           :"cc" \
           )
 # endif
 
