@@ -23,17 +23,28 @@
 #include "x86int.h"
 #if defined(OD_X86ASM)
 
-/*NOTE: We have to preserve the value of %%rbx/%%ebx to ensure that compiling
-   with -fPIC doesn't break.*/
-# define cpuid(_op,_eax,_ebx,_ecx,_edx) \
-  __asm__( \
-    "xchgl %%ebx,%[ebx]\n\t" \
-    "cpuid\n\t" \
-    "xchgl %%ebx,%[ebx]\n\t" \
-    :[eax]"=a"(_eax),[ebx]"=r"(_ebx),[ecx]"=c"(_ecx),[edx]"=d"(_edx) \
-    :"a"(_op) \
-    :"cc" \
-  )
+# if defined(__amd64__)||defined(__x86_64__)
+/*On x86-64, gcc seems to be able to figure out how to save %rbx for us when
+ *    compiling with -fPIC.*/
+#  define cpuid(_op,_eax,_ebx,_ecx,_edx) \
+    __asm__ __volatile__( \
+           "cpuid\n\t" \
+           :[eax]"=a"(_eax),[ebx]"=b"(_ebx),[ecx]"=c"(_ecx),[edx]"=d"(_edx) \
+           :"a"(_op) \
+           :"cc" \
+          )
+# else
+/*On x86-32, not so much.*/
+#  define cpuid(_op,_eax,_ebx,_ecx,_edx) \
+    __asm__ __volatile__( \
+           "xchgl %%ebx,%[ebx]\n\t" \
+           "cpuid\n\t" \
+           "xchgl %%ebx,%[ebx]\n\t" \
+           :[eax]"=a"(_eax),[ebx]"=r"(_ebx),[ecx]"=c"(_ecx),[edx]"=d"(_edx) \
+           :"a"(_op) \
+           :"cc" \
+          )
+# endif
 
 ogg_uint32_t od_cpu_flags_get(void){
   ogg_uint32_t eax;
