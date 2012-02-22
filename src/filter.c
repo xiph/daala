@@ -110,7 +110,7 @@
    acceptable solution found so far.
   The maximum denominator for all coefficients was allowed to be 64.*/
 
-#define TEST
+#undef TEST
 
 #if defined(TEST)
 extern int minv[32];
@@ -124,7 +124,7 @@ extern int maxv[32];
 
 
 
-void od_pre_filter4(ogg_int16_t _y[4],const ogg_int16_t _x[4]){
+void od_pre_filter4(od_coeff _y[4],const od_coeff _x[4]){
    /*Optimal coding gain without dyadic rational restrictions: 8.60382 dB.
      S={1.4688242104187466,1.4228174370096593},
      0={0.6327939473953134,-0.18276680703263349}
@@ -162,14 +162,14 @@ void od_pre_filter4(ogg_int16_t _y[4],const ogg_int16_t _x[4]){
    t[2]+=t[3]*11+8>>4;  /*u0= 0.632267*/
    /*More +1/-1 butterflies (required for FIR, PR, LP).*/
    t[0]+=t[3]>>1;
-   _y[0]=(ogg_int16_t)t[0];
+   _y[0]=(od_coeff)t[0];
    t[1]+=t[2]>>1;
-   _y[1]=(ogg_int16_t)t[1];
-   _y[2]=(ogg_int16_t)(t[1]-t[2]);
-   _y[3]=(ogg_int16_t)(t[0]-t[3]);
+   _y[1]=(od_coeff)t[1];
+   _y[2]=(od_coeff)(t[1]-t[2]);
+   _y[3]=(od_coeff)(t[0]-t[3]);
 }
 
-void od_post_filter4(ogg_int16_t _x[4],const ogg_int16_t _y[4]){
+void od_post_filter4(od_coeff _x[4],const od_coeff _y[4]){
    int t[4];
    t[3]=_y[0]-_y[3];
    t[2]=_y[1]-_y[2];
@@ -180,16 +180,16 @@ void od_post_filter4(ogg_int16_t _x[4],const ogg_int16_t _y[4]){
    t[3]=(t[3]<<4)/23;
    t[2]=(t[2]<<2)/5;
    t[0]+=t[3]>>1;
-   _x[0]=(ogg_int16_t)t[0];
+   _x[0]=(od_coeff)t[0];
    t[1]+=t[2]>>1;
-   _x[1]=(ogg_int16_t)t[1];
-   _x[2]=(ogg_int16_t)(t[1]-t[2]);
-   _x[3]=(ogg_int16_t)(t[0]-t[3]);
+   _x[1]=(od_coeff)t[1];
+   _x[2]=(od_coeff)(t[1]-t[2]);
+   _x[3]=(od_coeff)(t[0]-t[3]);
 }
 
 
 
-void od_pre_filter8(ogg_int16_t _y[8],const ogg_int16_t _x[8]){
+void od_pre_filter8(od_coeff _y[8],const od_coeff _x[8]){
    int t[8];
    /*+1/-1 butterflies (required for FIR, PR, LP).*/
    t[7]=_x[0]-_x[7];
@@ -267,22 +267,22 @@ void od_pre_filter8(ogg_int16_t _y[8],const ogg_int16_t _x[8]){
 #endif
    /*More +1/-1 butterflies (required for FIR, PR, LP).*/
    t[0]+=t[7]>>1;
-   _y[0]=(ogg_int16_t)t[0];
+   _y[0]=(od_coeff)t[0];
    t[1]+=t[6]>>1;
-   _y[1]=(ogg_int16_t)t[1];
+   _y[1]=(od_coeff)t[1];
    t[2]+=t[5]>>1;
-   _y[2]=(ogg_int16_t)t[2];
+   _y[2]=(od_coeff)t[2];
    t[3]+=t[4]>>1;
-   _y[3]=(ogg_int16_t)t[3];
-   _y[4]=(ogg_int16_t)(t[3]-t[4]);
-   _y[5]=(ogg_int16_t)(t[2]-t[5]);
-   _y[6]=(ogg_int16_t)(t[1]-t[6]);
-   _y[7]=(ogg_int16_t)(t[0]-t[7]);
+   _y[3]=(od_coeff)t[3];
+   _y[4]=(od_coeff)(t[3]-t[4]);
+   _y[5]=(od_coeff)(t[2]-t[5]);
+   _y[6]=(od_coeff)(t[1]-t[6]);
+   _y[7]=(od_coeff)(t[0]-t[7]);
 }
 
 
 
-void od_post_filter8(ogg_int16_t _x[8],const ogg_int16_t _y[8]){
+void od_post_filter8(od_coeff _x[8],const od_coeff _y[8]){
    int t[8];
    t[7]=_y[0]-_y[7];
    t[6]=_y[1]-_y[6];
@@ -308,22 +308,22 @@ void od_post_filter8(ogg_int16_t _x[8],const ogg_int16_t _y[8]){
    t[5]=(t[5]<<4)/19;   /* 1.21864*/
    t[4]=(t[4]<<2)/3;    /* 1.40617*/
    t[0]+=t[7]>>1;
-   _x[0]=(ogg_int16_t)t[0];
+   _x[0]=(od_coeff)t[0];
    t[1]+=t[6]>>1;
-   _x[1]=(ogg_int16_t)t[1];
+   _x[1]=(od_coeff)t[1];
    t[2]+=t[5]>>1;
-   _x[2]=(ogg_int16_t)t[2];
+   _x[2]=(od_coeff)t[2];
    t[3]+=t[4]>>1;
-   _x[3]=(ogg_int16_t)t[3];
-   _x[4]=(ogg_int16_t)(t[3]-t[4]);
-   _x[5]=(ogg_int16_t)(t[2]-t[5]);
-   _x[6]=(ogg_int16_t)(t[1]-t[6]);
-   _x[7]=(ogg_int16_t)(t[0]-t[7]);
+   _x[3]=(od_coeff)t[3];
+   _x[4]=(od_coeff)(t[3]-t[4]);
+   _x[5]=(od_coeff)(t[2]-t[5]);
+   _x[6]=(od_coeff)(t[1]-t[6]);
+   _x[7]=(od_coeff)(t[0]-t[7]);
 }
 
 
 
-void od_pre_filter16(ogg_int16_t _y[16],const ogg_int16_t _x[16]){
+void od_pre_filter16(od_coeff _y[16],const od_coeff _x[16]){
    int t[16];
    /*
 "Found: "{9.788267439364699, {3/2, 39/32, 77/64, 39/32, 19/16, 87/64, 35/32,`
@@ -394,32 +394,32 @@ Found: {9.791121179618907, {3/2, 39/32, 35/32, 37/32, 77/64, 87/64, 35/32,`
    t[8]+=t[9]*55+32>>6;   /*0.86*/
    /*More +1/-1 butterflies (required for FIR, PR, LP).*/
    t[0]+=t[15]>>1;
-   _y[0]=(ogg_int16_t)t[0];
+   _y[0]=(od_coeff)t[0];
    t[1]+=t[14]>>1;
-   _y[1]=(ogg_int16_t)t[1];
+   _y[1]=(od_coeff)t[1];
    t[2]+=t[13]>>1;
-   _y[2]=(ogg_int16_t)t[2];
+   _y[2]=(od_coeff)t[2];
    t[3]+=t[12]>>1;
-   _y[3]=(ogg_int16_t)t[3];
+   _y[3]=(od_coeff)t[3];
    t[4]+=t[11]>>1;
-   _y[4]=(ogg_int16_t)t[4];
+   _y[4]=(od_coeff)t[4];
    t[5]+=t[10]>>1;
-   _y[5]=(ogg_int16_t)t[5];
+   _y[5]=(od_coeff)t[5];
    t[6]+=t[9]>>1;
-   _y[6]=(ogg_int16_t)t[6];
+   _y[6]=(od_coeff)t[6];
    t[7]+=t[8]>>1;
-   _y[7]=(ogg_int16_t)t[7];
-   _y[8]=(ogg_int16_t)(t[7]-t[8]);
-   _y[9]=(ogg_int16_t)(t[6]-t[9]);
-   _y[10]=(ogg_int16_t)(t[5]-t[10]);
-   _y[11]=(ogg_int16_t)(t[4]-t[11]);
-   _y[12]=(ogg_int16_t)(t[3]-t[12]);
-   _y[13]=(ogg_int16_t)(t[2]-t[13]);
-   _y[14]=(ogg_int16_t)(t[1]-t[14]);
-   _y[15]=(ogg_int16_t)(t[0]-t[15]);
+   _y[7]=(od_coeff)t[7];
+   _y[8]=(od_coeff)(t[7]-t[8]);
+   _y[9]=(od_coeff)(t[6]-t[9]);
+   _y[10]=(od_coeff)(t[5]-t[10]);
+   _y[11]=(od_coeff)(t[4]-t[11]);
+   _y[12]=(od_coeff)(t[3]-t[12]);
+   _y[13]=(od_coeff)(t[2]-t[13]);
+   _y[14]=(od_coeff)(t[1]-t[14]);
+   _y[15]=(od_coeff)(t[0]-t[15]);
 }
 
-void od_post_filter16(ogg_int16_t _x[16],const ogg_int16_t _y[16]){
+void od_post_filter16(od_coeff _x[16],const od_coeff _y[16]){
    int t[16];
    t[15]=_y[0]-_y[15];
    t[14]=_y[1]-_y[14];
@@ -460,29 +460,29 @@ void od_post_filter16(ogg_int16_t _x[16],const ogg_int16_t _y[16]){
    t[9]=t[9]*29>>5;
    t[8]=t[8]*23>>5;
    t[0]+=t[15]>>1;
-   _x[0]=(ogg_int16_t)t[0];
+   _x[0]=(od_coeff)t[0];
    t[1]+=t[14]>>1;
-   _x[1]=(ogg_int16_t)t[1];
+   _x[1]=(od_coeff)t[1];
    t[2]+=t[13]>>1;
-   _x[2]=(ogg_int16_t)t[2];
+   _x[2]=(od_coeff)t[2];
    t[3]+=t[12]>>1;
-   _x[3]=(ogg_int16_t)t[3];
+   _x[3]=(od_coeff)t[3];
    t[4]+=t[11]>>1;
-   _x[4]=(ogg_int16_t)t[4];
+   _x[4]=(od_coeff)t[4];
    t[5]+=t[10]>>1;
-   _x[5]=(ogg_int16_t)t[5];
+   _x[5]=(od_coeff)t[5];
    t[6]+=t[9]>>1;
-   _x[6]=(ogg_int16_t)t[6];
+   _x[6]=(od_coeff)t[6];
    t[7]+=t[8]>>1;
-   _x[7]=(ogg_int16_t)t[7];
-   _x[8]=(ogg_int16_t)(t[7]-t[8]);
-   _x[9]=(ogg_int16_t)(t[6]-t[9]);
-   _x[10]=(ogg_int16_t)(t[5]-t[10]);
-   _x[11]=(ogg_int16_t)(t[4]-t[11]);
-   _x[12]=(ogg_int16_t)(t[3]-t[12]);
-   _x[13]=(ogg_int16_t)(t[2]-t[13]);
-   _x[14]=(ogg_int16_t)(t[1]-t[14]);
-   _x[15]=(ogg_int16_t)(t[0]-t[15]);
+   _x[7]=(od_coeff)t[7];
+   _x[8]=(od_coeff)(t[7]-t[8]);
+   _x[9]=(od_coeff)(t[6]-t[9]);
+   _x[10]=(od_coeff)(t[5]-t[10]);
+   _x[11]=(od_coeff)(t[4]-t[11]);
+   _x[12]=(od_coeff)(t[3]-t[12]);
+   _x[13]=(od_coeff)(t[2]-t[13]);
+   _x[14]=(od_coeff)(t[1]-t[14]);
+   _x[15]=(od_coeff)(t[0]-t[15]);
 }
 
 
@@ -501,7 +501,7 @@ int main(void){
    int         j;
    for(j=0;j<16;j++)min[j]=max[j]=mini[j]=maxi[j]=0;
    for(i=0;i<256;i++){
-      ogg_int16_t x[16];
+      od_coeff x[16];
       for(j=0;j<16;j++)x[j]=i>>j&1?1325:-1325;
       od_pre_filter8(x,x);
       /*for(j=0;j<16;j++){
