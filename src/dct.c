@@ -426,7 +426,7 @@ void od_bin_idct16(od_coeff _x[],const od_coeff _y[]){
 #endif
 
 #if !defined(M_SQRT2)
-# define M_SQRT1_2 (1.41421356237309504880168872420970)
+# define M_SQRT2 (1.41421356237309504880168872420970)
 #endif
 
 #if !defined(M_SQRT1_2)
@@ -437,7 +437,7 @@ void od_bin_idct16(od_coeff _x[],const od_coeff _y[]){
 
 /*The (1-D) scaling factors that make a true DCT approximation out of the
    integer transform.*/
-static const double DCT4_FSCALE[8]={
+static const double DCT4_FSCALE[4]={
   0.5,
   M_SQRT2/SIN_3PI_8,
   1,
@@ -446,7 +446,7 @@ static const double DCT4_FSCALE[8]={
 
 /*The (1-D) scaling factors that make a true iDCT approximation out of the
    integer transform.*/
-static const double DCT4_ISCALE[8]={
+static const double DCT4_ISCALE[4]={
   2,
   M_SQRT1_2*SIN_3PI_8,
   1,
