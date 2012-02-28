@@ -146,6 +146,8 @@ ALL_TARGETS:= ${LIBDAALABASE_TARGET} ${LIBDAALADEC_TARGET} \
 # Everything (default)
 all: ${ALL_TARGETS}
 
+check: all
+
 # libdaalabase
 ${LIBDAALABASE_TARGET}: ${LIBDAALABASE_OBJS}
 	mkdir -p ${TARGETLIBDIR}
