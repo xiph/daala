@@ -65,6 +65,9 @@
    not guaranteed by ANSI), and just as fast, since gcc (3.x and 4.x both)
    compile it into the right-shift anyway.*/
 #define OD_SIGNMASK(_a)     (-((_a)<0))
+/*Unlike copysign(), simply inverts the sign of _a if _b is negative.*/
+#define OD_FLIPSIGNI(_a,_b) ((_a)+OD_SIGNMASK(_b)^OD_SIGNMASK(_b))
+#define OD_COPYSIGNI(_a,_b) OD_FLIPSIGNI(abs(_a),_b)
 /*Clamps an integer into the given range.
   If _a>_c, then the lower bound _a is respected over the upper bound _c (this
    behavior is required to meet our documented API behavior).
