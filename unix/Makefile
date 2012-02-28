@@ -63,6 +63,7 @@ LIBDAALABASE_CSOURCES = \
 info.c \
 internal.c \
 mc.c \
+pvq.c \
 state.c \
 $(if $(findstring -DOD_X86ASM,${CFLAGS}), \
 x86/cpu.c \
@@ -74,6 +75,7 @@ LIBDAALABASE_CHEADERS = \
 internal.h \
 mc.h \
 odintrin.h \
+pvq.h \
 state.h \
 ../include/daala/codec.h \
 

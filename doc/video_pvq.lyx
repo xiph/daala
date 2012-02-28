@@ -1,0 +1,587 @@
+#LyX 2.0 created this file. For more info see http://www.lyx.org/
+\lyxformat 413
+\begin_document
+\begin_header
+\textclass article
+\use_default_options true
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman default
+\font_sans default
+\font_typewriter default
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100
+\font_tt_scale 100
+
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize default
+\use_hyperref false
+\papersize default
+\use_geometry false
+\use_amsmath 1
+\use_esint 1
+\use_mhchem 1
+\use_mathdots 1
+\cite_engine basic
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\use_refstyle 1
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\quotes_language english
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Title
+Energy Preservation in PVQ-Based Video Coding
+\end_layout
+
+\begin_layout Author
+Jean-Marc Valin
+\end_layout
+
+\begin_layout Section
+Introduction
+\end_layout
+
+\begin_layout Standard
+This mini-paper describes a proposal for adapting the CELT energy conservation
+ principle to video coding based on a pyramid vector quantizer (PVQ).
+ One potential advantage of conserving energy of the AC coefficients in
+ video coding is preserving textures rather than low-passing them.
+ Also, by introducing a fixed-resolution PVQ-type quantizer, we automatically
+ gain a simple activity masking model.
+\end_layout
+
+\begin_layout Standard
+The main challenge of adapting this scheme to video is that we have a good
+ prediction (the reference frame), so we are essentially starting from a
+ point that is already on the PVQ hyper-sphere, rather than at the origin
+ like in CELT.
+ Other challenges are the introduction of a quantization matrix and the
+ fact that we want the reference (motion predicted) data to perfectly correspond
+ to one of the entries in our codebook.
+\end_layout
+
+\begin_layout Section
+Encoder
+\end_layout
+
+\begin_layout Standard
+Let vector 
+\begin_inset Formula $\mathbf{x}_{d}$
+\end_inset
+
+ denote the (pre-normalization) DCT band to be coded in the current block
+ and vector 
+\begin_inset Formula $\mathbf{r}_{d}$
+\end_inset
+
+ denote the corresponding reference after motion compensation, the encoder
+ computes and encodes the 
+\begin_inset Quotes eld
+\end_inset
+
+band gain
+\begin_inset Quotes erd
+\end_inset
+
+
+\begin_inset Formula 
+\begin{equation}
+g=\sqrt{\mathbf{x}_{d}^{T}\mathbf{x}_{d}}\,.\label{eq:band-energy}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Let 
+\begin_inset Formula $\mathbf{Q}$
+\end_inset
+
+ be a diagonal matrix containing the quantization step size for each element
+ of 
+\begin_inset Formula $\mathbf{x}_{d}$
+\end_inset
+
+, the normalized band is computed as 
+\begin_inset Formula 
+\begin{equation}
+\mathbf{x}=\frac{\mathbf{Q}^{-1}\mathbf{x}_{d}}{\left\Vert \mathbf{Q}^{-1}\mathbf{x}_{d}\right\Vert }\,,\label{eq:normalized-x}
+\end{equation}
+
+\end_inset
+
+with the normalized reference 
+\begin_inset Formula $\mathbf{r}$
+\end_inset
+
+ similarly computed based on 
+\begin_inset Formula $\mathbf{r}_{d}$
+\end_inset
+
+.
+ The encoder then finds the position and sign of the maximum value in 
+\begin_inset Formula $\mathbf{r}$
+\end_inset
+
+
+\begin_inset Formula 
+\begin{align}
+m & =\underset{i}{\mathrm{argmax}}\left|r_{i}\right|\label{eq:reflection-argmax}\\
+s & =\mathrm{sgn}\left(r_{m}\right)\label{eq:reflection-sign}
+\end{align}
+
+\end_inset
+
+and computes the Householder reflection that reflects 
+\begin_inset Formula $\mathbf{r}$
+\end_inset
+
+ to 
+\begin_inset Formula $-s\mathbf{e}_{m}$
+\end_inset
+
+.
+ The reflection vector is given by
+\begin_inset Formula 
+\begin{equation}
+\mathbf{v}=\frac{\mathbf{r}+s\mathbf{e}_{m}}{\left\Vert \mathbf{r}+s\mathbf{e}_{m}\right\Vert }\,.\label{eq:reflection-vector}
+\end{equation}
+
+\end_inset
+
+The encoder reflects the normalized band to find
+\begin_inset Formula 
+\begin{equation}
+\mathbf{x}_{r}=\mathbf{x}-2\mathbf{v}\left(\mathbf{v}^{T}\mathbf{x}\right)\,.\label{eq:reflection}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Let 
+\begin_inset Formula $N$
+\end_inset
+
+ be the number of dimensions in 
+\begin_inset Formula $\mathbf{x}$
+\end_inset
+
+ and 
+\begin_inset Formula $K$
+\end_inset
+
+ be the number of pulses in our codebooks, we search for the codebook entry
+ 
+\begin_inset Formula 
+\begin{equation}
+q=\underset{i}{\mathrm{argmax}}\frac{\mathbf{p}_{i}^{T}\mathbf{x}_{r}}{\sqrt{\mathbf{p}_{i}^{T}\mathbf{p}_{i}}}\,,\label{eq:quantization}
+\end{equation}
+
+\end_inset
+
+where 
+\begin_inset Formula $\mathbf{p}_{i}$
+\end_inset
+
+ is the 
+\begin_inset Formula $i^{th}$
+\end_inset
+
+ combination of magnitudes and signs that satisfies 
+\begin_inset Formula $\left\Vert \mathbf{p}_{i}\right\Vert _{L1}=K$
+\end_inset
+
+.
+ 
+\end_layout
+
+\begin_layout Standard
+The encoder first transmits the magnitude and sign of any pulse at position
+ 
+\begin_inset Formula $m$
+\end_inset
+
+.
+ Assuming that prediction from the reference frame is good, the magnitude
+ should be close to 
+\begin_inset Formula $K$
+\end_inset
+
+ and the sign should be 
+\begin_inset Formula $-s$
+\end_inset
+
+, so entropy coding should be highly efficient for these values.
+ The remaining values can be coded as a PVQ vector of dimension 
+\begin_inset Formula $N-1$
+\end_inset
+
+.
+ It would seem like the best approach for coding 
+\begin_inset Formula $\mathbf{p}_{q}$
+\end_inset
+
+ would be from SILK-like recursive splitting of the vector (with entropy
+ coding), but this is made more difficult by the fact that we subtracted
+ one dimension.
+ One possible work around is to leave the extra dimension as a zero (or
+ leave a few bits from the magnitude encoding and code those on the second
+ step).
+ 
+\end_layout
+
+\begin_layout Standard
+By using a fixed 
+\begin_inset Formula $K$
+\end_inset
+
+, the codec will roughly optimise for SSIM in that each block will have
+ a near-constant SNR (not PSNR).
+ This may be a bit too extreme, so we probably want to allow some variation
+ on K.
+ In fact, some of that variation should probably be automatic, and based
+ on the gain value 
+\begin_inset Formula $g$
+\end_inset
+
+ for the band.
+ The higher the gain, the larger 
+\begin_inset Formula $K$
+\end_inset
+
+ should be, though 
+\begin_inset Formula $K$
+\end_inset
+
+ should probably not grow linearly as a function of 
+\begin_inset Formula $g$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Section
+Decoder
+\end_layout
+
+\begin_layout Standard
+The decoder starts by decoding the codebook entry 
+\begin_inset Formula $\mathbf{p}_{q}$
+\end_inset
+
+ and uses it to reconstruct the unit-norm reflected band as
+\begin_inset Formula 
+\begin{equation}
+\tilde{\mathbf{x}}_{r}=\frac{\mathbf{p}_{q}}{\sqrt{\mathbf{p}_{q}^{T}\mathbf{p}_{q}}}\,.\label{eq:reconstruct}
+\end{equation}
+
+\end_inset
+
+Because the decoder has access to exactly the same reference as the encoder,
+ it is able to apply 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:reflection-argmax"
+
+\end_inset
+
+-
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:reflection-vector"
+
+\end_inset
+
+ to obtain the same 
+\begin_inset Formula $\mathbf{v}$
+\end_inset
+
+ as used in the encoder.
+ The decoded normalized band is 
+\begin_inset Formula 
+\begin{equation}
+\tilde{\mathbf{x}}=\tilde{\mathbf{x}}_{r}-2\mathbf{v}\left(\mathbf{v}^{T}\tilde{\mathbf{x}}_{r}\right)\,.\label{eq:decoder-reflection}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The renormalized band is computed by taking into account the quantization
+ resolution:
+\begin_inset Formula 
+\begin{equation}
+\tilde{\mathbf{x}}_{d}=g\frac{\mathbf{Q}\tilde{\mathbf{x}}}{\left\Vert \mathbf{Q}\tilde{\mathbf{x}}\right\Vert }\,.\label{eq:decoded-band}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Bit Allocation and SSIM
+\end_layout
+
+\begin_layout Standard
+According to Wikipedia, the SSIM metric is defined as
+\begin_inset Formula 
+\[
+\mathrm{SSIM}\left(x,y\right)=\left(\frac{\mu_{x}\mu_{y}+c_{1}}{\mu_{x}^{2}+\mu_{y}^{2}+c_{1}}\right)\cdot\left(\frac{\sigma_{xy}+c_{2}}{\sigma_{x}^{2}+\sigma_{y}^{2}+c_{2}}\right)\,.
+\]
+
+\end_inset
+
+Where 
+\begin_inset Formula $\mu_{x}$
+\end_inset
+
+ and 
+\begin_inset Formula $\mu_{y}$
+\end_inset
+
+ are the DC of images 
+\begin_inset Formula $x$
+\end_inset
+
+ and 
+\begin_inset Formula $y$
+\end_inset
+
+ and 
+\begin_inset Formula $\sigma_{x}$
+\end_inset
+
+ and 
+\begin_inset Formula $\sigma_{y}$
+\end_inset
+
+ are the RMS value of the AC coefficients of images 
+\begin_inset Formula $x$
+\end_inset
+
+ and 
+\begin_inset Formula $y$
+\end_inset
+
+.
+ From now on, we will consider 
+\begin_inset Formula $x$
+\end_inset
+
+ to be the reference image and 
+\begin_inset Formula $y$
+\end_inset
+
+ to be the coded image.
+ Now, let's ignore the DC for now and define a Simplified SSIM metric as
+\begin_inset Formula 
+\[
+\mathrm{SSSIM}\left(x,y\right)=\frac{2\sigma_{xy}+c_{2}}{\sigma_{x}^{2}+\sigma_{y}^{2}+c_{2}}\,.
+\]
+
+\end_inset
+
+This is the metric we'll try optimizing here.
+ First, let 
+\begin_inset Formula $g=\sigma_{y}/\sigma_{x}$
+\end_inset
+
+ be gain that the codec causes on the AC coefficients and 
+\begin_inset Formula $\hat{y}=y/g$
+\end_inset
+
+.
+ Solving for 
+\begin_inset Formula 
+\[
+\frac{d}{dg}\mathrm{SSSIM}\left(x,y\right)=\frac{d}{dg}\frac{2g\sigma_{x\hat{y}}+c_{2}}{\sigma_{x}^{2}\left(1+g^{2}\right)+c_{2}}=0
+\]
+
+\end_inset
+
+we find that the optimal gain that maximizes SSSIM is 
+\begin_inset Formula $g_{max}\approx1-\frac{c_{2}}{2\sigma_{x}^{2}}\cdot\left(\frac{\sigma_{x}^{2}}{\sigma_{x\hat{y}}}-1\right)$
+\end_inset
+
+.
+ This means that conserving energy (
+\begin_inset Formula $g_{max}=1$
+\end_inset
+
+) is a good thing to do as long as the contrat is high enough (
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $\frac{c_{2}}{2\sigma_{x}^{2}}$
+\end_inset
+
+ is small) or the bit-rate is high enough (
+\begin_inset Formula $\frac{\sigma_{x}^{2}}{\sigma_{x\hat{y}}}$
+\end_inset
+
+ close to 1).
+\end_layout
+
+\begin_layout Standard
+Now, let's consider a spherical horse in simple harmonic motion...
+ or to be more exact, let's consider that the PVQ codebook is perfectly
+ uniform over the sphere and that 
+\begin_inset Formula $g_{max}=1$
+\end_inset
+
+.
+ We get 
+\begin_inset Formula 
+\[
+\mathrm{SSSIM}\left(x,y\right)=\frac{\sigma_{xy}+c_{2}/2}{\sigma_{x}^{2}+c_{2}/2}\,,
+\]
+
+\end_inset
+
+where 
+\begin_inset Formula $\sigma_{xy}/\sigma_{x}^{2}=\cos\theta$
+\end_inset
+
+ is the cosine distance between 
+\begin_inset Formula $x$
+\end_inset
+
+ and 
+\begin_inset Formula $y$
+\end_inset
+
+.
+ Assuming a uniform quantizer, we have 
+\begin_inset Formula 
+\[
+\theta\propto2^{-b/(N-1)}\,,
+\]
+
+\end_inset
+
+where 
+\begin_inset Formula $b$
+\end_inset
+
+ is the number of bits allocated and 
+\begin_inset Formula $N$
+\end_inset
+
+ is the number of AC coefficients.
+ Let 
+\begin_inset Formula $c'=c/(2\sigma_{x}^{2})$
+\end_inset
+
+...
+\end_layout
+
+\begin_layout Standard
+<FIXME: This needs to be cleaned up>
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+\mathrm{SSSIM}\left(x,y\right)=\frac{\cos\theta+c'}{1+c'}\approx\frac{1-\theta^{2}+c'}{1+c'}\,,
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Trying to make SSIM equal for two blocks:
+\begin_inset Formula 
+\[
+\frac{1+c_{1}'-2^{-2b_{1}/(N-1)}}{1+c_{1}'}=\frac{1+c_{2}'-2^{-2b_{2}/(N-1)}}{1+c_{2}'}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The optimal bit offset is 
+\begin_inset Formula 
+\[
+b=-\frac{N-1}{2}\log_{2}\left(1+2c_{2}/\sigma_{x}^{2}\right)
+\]
+
+\end_inset
+
+ From this (theoretically) optimal offset, we can encode only the deviation
+ from the optimal allocation.
+ In practice, 
+\begin_inset Formula $b$
+\end_inset
+
+ would not be an exact bit allocation like for CELT, but only the 
+\begin_inset Quotes eld
+\end_inset
+
+quantization step exponent
+\begin_inset Quotes erd
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Section
+Conclusion
+\end_layout
+
+\begin_layout Standard
+While it seems like a good idea, none of this has actually been tested yet.
+\end_layout
+
+\end_body
+\end_document
