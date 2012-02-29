@@ -25,8 +25,8 @@ CFLAGS = -Wall -Wno-parentheses -fvisibility=hidden
 #  -ffast-math, or additional flags, depending on your system and compiler.
 # The -g flag will generally include debugging information.
 CFLAGS += -g
-CFLAGS += -DOD_CHECKASM
-#CFLAGS += -DOD_DUMP_IMAGES
+#CFLAGS += -DOD_CHECKASM
+CFLAGS += -DOD_DUMP_IMAGES
 #CFLAGS += -DOD_ANIMATE
 #CFLAGS += -flto
 #CFLAGS += -floop-interchange -floop-strip-mine -floop-block
@@ -62,6 +62,8 @@ WORKDIR = objs
 LIBDAALABASE_CSOURCES = \
 info.c \
 internal.c \
+dct.c \
+filter.c \
 mc.c \
 pvq.c \
 state.c \

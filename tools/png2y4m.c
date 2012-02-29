@@ -166,7 +166,7 @@ static int32_t triangle_rand(kiss99_ctx *_kiss,int32_t _range){
   uint32_t r1;
   uint32_t r2;
   _range++;
-  m=UINT_MAX/_range*_range;
+  m=0xFFFFFFFF/_range*_range;
   do r1=kiss99_rand(_kiss);
   while(r1>=m);
   do r2=kiss99_rand(_kiss);
