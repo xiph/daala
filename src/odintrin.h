@@ -79,7 +79,7 @@
   This assumes a char is 8 bits.*/
 #define OD_CLAMP255(_x)     ((unsigned char)((((_x)<0)-1)&((_x)|-((_x)>255))))
 /*Divides a signed integer by a positive value with exact rounding.*/
-#define OD_DIV_ROUND(_x,_y)  (((_x)+OD_FLIPSIGNI(_y>>1,_x))/(_y))
+#define OD_DIV_ROUND(_x,_y)  (((_x)+OD_FLIPSIGNI((_y)>>1,_x))/(_y))
 /*Divides an integer by a power of two, truncating towards 0.
   _dividend: The integer to divide.
   _shift:    The non-negative power of two to divide by.
