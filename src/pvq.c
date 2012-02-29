@@ -6,6 +6,7 @@
 #define MAXN 256
 #define EPSILON 1e-15
 
+/* This is a "standard" pyramid vector quantizer search */
 static void pvq_search(float *x,int N2,int K,int *out){
   float L1;
   float g;
@@ -13,9 +14,10 @@ static void pvq_search(float *x,int N2,int K,int *out){
   int   j;
   int   left;
   int   s[MAXN];
-  float xy;
-  float yy;
+  float xy; /* sum(x*y) */
+  float yy; /* sum(y*y) */
 
+  /* Remove the sign and compute projection on the pyramid */
   L1=0;
   for (i=0;i<N2;i++){
     s[i]=x[i]>0?1:-1;
@@ -26,6 +28,7 @@ static void pvq_search(float *x,int N2,int K,int *out){
   left=K;
   xy=0;
   yy=0;
+  /* Find the first pulses based on the projection */
   for (i=0;i<N2;i++){
     out[i]=floor(g*x[i]);
     left-=out[i];
@@ -33,6 +36,7 @@ static void pvq_search(float *x,int N2,int K,int *out){
     yy+=out[i]*out[i];
   }
 
+  /* Find the remaining pulses "the long way" by maximizing xy^2/yy */
   for(i=0;i<left;i++){
     float best_num;
     float best_den;
@@ -47,6 +51,7 @@ static void pvq_search(float *x,int N2,int K,int *out){
       tmp_xy=xy+x[j];
       tmp_yy=yy+2*out[j];
       tmp_xy*=tmp_xy;
+      /* Trick to avoid having to divide by the denominators */
       if (tmp_xy*best_den > best_num*tmp_yy){
         best_num=tmp_xy;
         best_den=tmp_yy;
@@ -58,6 +63,7 @@ static void pvq_search(float *x,int N2,int K,int *out){
     out[best_id]++;
   }
 
+  /* Scale x to unit norm */
   g=1/(EPSILON+sqrt(yy));
   for(i=0;i<N2;i++){
     x[i]=s[i]*g*out[i];
@@ -69,14 +75,13 @@ int quant_pvq(ogg_int16_t *_x,const ogg_int16_t *_r,const int *_q,
      int *out,int N,int K){
   float L2x, L2r;
   float g;
-  float gr_1;
+  float gr;
   float x[MAXN];
   float r[MAXN];
   int   i;
   int   m;
   float s;
   float maxr=-1;
-  float v_norm;
   float proj;
 
   L2x=L2r=0;
@@ -88,12 +93,10 @@ int quant_pvq(ogg_int16_t *_x,const ogg_int16_t *_r,const int *_q,
   }
 
   g=sqrt(L2x);
-  gr_1=1./(EPSILON+sqrt(L2r));
+  gr=sqrt(L2r);
 
-  for(i=0;i<N;i++){
-    r[i]*=gr_1;
-  }
-
+  /* Pick component with largest magnitude. Not strictly
+   * necessary, but it helps numerical stability */
   m=0;
   for(i=0;i<N;i++){
     if(fabs(r[i])>maxr){
@@ -104,42 +107,33 @@ int quant_pvq(ogg_int16_t *_x,const ogg_int16_t *_r,const int *_q,
   /*printf("max r: %f %f %d\n", maxr, r[m], m);*/
   s=r[m]>0?1:-1;
 
-  r[m]+=s;
+  /* This turns r into a Householder reflection vector that would reflect
+   * the original r[] to e_m */
+  r[m]+=gr*s;
 
   L2r=0;
   for(i=0;i<N;i++){
     L2r+=r[i]*r[i];
   }
-  v_norm=1./(EPSILON+sqrt(L2r));
-  for(i=0;i<N;i++){
-    r[i]*=v_norm;
-  }
 
+  /* Apply Householder reflection */
   proj=0;
   for(i=0;i<N;i++){
     proj+=r[i]*x[i];
-    /*printf("%f ", x[i]);*/
   }
-  /*printf("\n");*/
-
+  proj/=EPSILON+L2r;
   for(i=0;i<N;i++){
     x[i]-=2*r[i]*proj;
-    /*printf("%f ", x[i]);*/
   }
-  /*printf("\n");*/
-
-  L2x=0;
-  for(i=0;i<N;i++){
-    L2x+=x[i]*x[i];
-  }
-  /*printf("L2 = %f\n", L2x);*/
 
   pvq_search(x, N, K, out);
 
+  /* Apply Householder reflection again to get the quantized coefficients */
   proj=0;
   for(i=0;i<N;i++){
     proj+=r[i]*x[i];
   }
+  proj/=EPSILON+L2r;
   for(i=0;i<N;i++){
     x[i]=g*(x[i]-2*r[i]*proj);
   }
