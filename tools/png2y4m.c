@@ -32,6 +32,7 @@
 #include <string.h>
 #include <errno.h>
 #include <dirent.h>
+#include <limits.h>
 #if !defined(_WIN32)
 # include <getopt.h>
 # include <unistd.h>
