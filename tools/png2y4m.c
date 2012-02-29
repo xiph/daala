@@ -60,12 +60,14 @@ enum{
   PIXEL_FMT_444
 };
 
+static const char *CHROMA_TAGS[4]={" C420jpeg",""," C422jpeg"," C444"};
+
 static const char *output_filename=NULL;
 static int fps_numerator=24;
 static int fps_denominator=1;
 static int aspect_numerator=0;
 static int aspect_denominator=0;
-static int chroma_format=PIXEL_FMT_420;
+static int pixel_format=PIXEL_FMT_420;
 
 static char *input_filter;
 
@@ -302,7 +304,7 @@ static void rgb_to_ycbcr(img_plane _ycbcr[3],png_bytep *_png){
   crstride=_ycbcr[2].stride;
   crdata=_ycbcr[2].data;
   kiss99_srand(&kiss,NULL,0);
-  if(chroma_format==PIXEL_FMT_420){
+  if(pixel_format==PIXEL_FMT_420){
     for(j=0;j<h;j+=2){
       j1=j+(j+1<h);
       for(i=0;i<w;i+=2){
@@ -344,7 +346,7 @@ static void rgb_to_ycbcr(img_plane _ycbcr[3],png_bytep *_png){
       }
     }
   }
-  else if(chroma_format=PIXEL_FMT_422){
+  else if(pixel_format==PIXEL_FMT_422){
     for(j=0;j<h;j++){
       for(i=0;i<w;i+=2){
         int32_t r0;
@@ -365,9 +367,9 @@ static void rgb_to_ycbcr(img_plane _ycbcr[3],png_bytep *_png){
         gsum=g0+g1;
         bsum=b0+b1;
         cb=OD_CLAMP255(
-         OD_DIV_ROUND(-119056*rsum-400512*gsum+519568*bsum,77828317440LL)+128);
+         OD_DIV_ROUND(-119056*rsum-400512*gsum+519568*bsum,608033730)+128);
         cr=OD_CLAMP255(
-         OD_DIV_ROUND(440944*rsum-400512*gsum-40432*bsum,77828317440LL)+128);
+         OD_DIV_ROUND(440944*rsum-400512*gsum-40432*bsum,516022590)+128);
         cbdata[j*cbstride+(i>>1)]=(unsigned char)cb;
         crdata[j*crstride+(i>>1)]=(unsigned char)cr;
         ydata[j*ystride+i]=calc_y(r0,g0,b0,cb,cr);
@@ -384,10 +386,8 @@ static void rgb_to_ycbcr(img_plane _ycbcr[3],png_bytep *_png){
         int     cb;
         int     cr;
         get_dithered_pixel(&kiss,&r,&g,&b,_png[j]+6*i);
-        cb=OD_CLAMP255(
-         OD_DIV_ROUND(-119056*r-400512*g+519568*b,77828317440LL)+128);
-        cr=OD_CLAMP255(
-         OD_DIV_ROUND(440944*r-400512*g-40432*b,77828317440LL)+128);
+        cb=OD_CLAMP255(OD_DIV_ROUND(-119056*r-400512*g+519568*b,304016865)+128);
+        cr=OD_CLAMP255(OD_DIV_ROUND(440944*r-400512*g-40432*b,258011295)+128);
         cbdata[j*cbstride+i]=(unsigned char)cb;
         crdata[j*crstride+i]=(unsigned char)cr;
         ydata[j*ystride+i]=calc_y(r,g,b,cb,cr);
@@ -487,8 +487,8 @@ static int read_png(img_plane _ycbcr[3],FILE *_fin){
       for(i=3*width;i-->0;)rows[j][2*i]=rows[j][2*i+1]=rows[j][i];
     }
   }
-  hshift=!(chroma_format&1);
-  vshift=!(chroma_format&2);
+  hshift=!(pixel_format&1);
+  vshift=!(pixel_format&2);
   if(_ycbcr[0].data==NULL){
     _ycbcr[0].width=(int)width;
     _ycbcr[0].height=(int)height;
@@ -572,8 +572,8 @@ int main(int _argc,char **_argv){
       case 'S':aspect_denominator=atol(optarg);break;
       case 'f':fps_numerator=atol(optarg);break;
       case 'F':fps_denominator=atol(optarg);break;
-      case '\5':chroma_format=PIXEL_FMT_444;break;
-      case '\6':chroma_format=PIXEL_FMT_422;break;
+      case '\5':pixel_format=PIXEL_FMT_444;break;
+      case '\6':pixel_format=PIXEL_FMT_422;break;
       default:{
         usage(_argv[0]);
         return EXIT_FAILURE;
@@ -626,9 +626,9 @@ int main(int _argc,char **_argv){
   fprintf(stderr,"%d frames, %dx%d\n",
    OD_MAXI(npng_files,1),ycbcr[0].width,ycbcr[0].height);
   /*Write the Y4M header.*/
-  fprintf(fout,"YUV4MPEG2 W%i H%i F%i:%i Ip A%i:%i\n",
+  fprintf(fout,"YUV4MPEG2 W%i H%i F%i:%i Ip A%i:%i%s\n",
    ycbcr[0].width,ycbcr[0].height,fps_numerator,fps_denominator,
-   aspect_numerator,aspect_denominator);
+   aspect_numerator,aspect_denominator,CHROMA_TAGS[pixel_format]);
   i=0;
   do{
     int pli;
