@@ -160,41 +160,18 @@ struct img_plane{
   unsigned char *data;
 };
 
-unsigned isqrt(uint32_t _val){
-  unsigned g;
-  unsigned b;
-  int      bshift;
-  g=0;
-  b=0x8000;
-  for(bshift=16;bshift-->0;){
-    uint32_t t;
-    t=((uint32_t)g<<1)+b<<bshift;
-    if(t<=_val){
-      g+=b;
-      _val-=t;
-    }
-    b>>=1;
-  }
-  return g;
-}
-
+/*Generate a triangular deviate with zero mean and range [-_range - _range].*/
 static int32_t triangle_rand(kiss99_ctx *_kiss,int32_t _range){
-  int32_t r;
-  do r=kiss99_rand(_kiss);
-  while(r==(int32_t)0x80000000);
-  if(r>0){
-    unsigned s;
-    s=isqrt(2*(uint32_t)r);
-    s=s*_range+0x8000>>16;
-    return s-_range;
-  }
-  else if(r<0){
-    unsigned s;
-    s=isqrt(2*(uint32_t)-r);
-    s=s*_range+0x8000>>16;
-    return _range-s;
-  }
-  else return 0;
+  uint32_t m;
+  uint32_t r1;
+  uint32_t r2;
+  _range++;
+  m=UINT_MAX/_range*_range;
+  do r1=kiss99_rand(_kiss);
+  while(r1>=m);
+  do r2=kiss99_rand(_kiss);
+  while(r2>=m);
+  return (int32_t)(r1%_range)-(int32_t)(r2%_range);
 }
 
 /*WARNING: The constants in the following code are hard-coded for the BT.709
@@ -609,7 +586,9 @@ int main(int _argc,char **_argv){
   else{
     /*Don't set npng_files to 1 to avoid trying to free a non-existant dirent
        later.*/
+    npng_files=0;
     png_files=NULL;
+    input_directory=NULL;
     fin=stdin;
   }
   if(output_filename==NULL){
