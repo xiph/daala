@@ -160,13 +160,13 @@ struct img_plane{
   unsigned char *data;
 };
 
-/*Generate a triangular deviate with zero mean and range [-_range - _range].*/
+/*Generate a triangular deviate with zero mean and range [-_range,_range].*/
 static int32_t triangle_rand(kiss99_ctx *_kiss,int32_t _range){
   uint32_t m;
   uint32_t r1;
   uint32_t r2;
   _range++;
-  m=0xFFFFFFFF/_range*_range;
+  m=0xFFFFFFFFU/_range*_range;
   do r1=kiss99_rand(_kiss);
   while(r1>=m);
   do r2=kiss99_rand(_kiss);
@@ -191,16 +191,16 @@ static void get_dithered_pixel(kiss99_ctx *_kiss,
   int32_t g;
   int32_t b;
   /*The size of the dither here is chosen to be the largest divisor of all the
-     corresponding coefficients in the transform that still fits in 16 bits.*/
-  yd=triangle_rand(_kiss,61166);
-  cbd=triangle_rand(_kiss,18761);
-  crd=triangle_rand(_kiss,38471);
+     corresponding coefficients in the transform that still fits in 31 bits.*/
+  yd=triangle_rand(_kiss,1223320000);
+  cbd=triangle_rand(_kiss,1479548743);
+  crd=triangle_rand(_kiss,1255654969);
   r=_rgb[0]*256+_rgb[1];
   g=_rgb[2]*256+_rgb[3];
   b=_rgb[4]*256+_rgb[5];
-  r+=(int32_t)OD_DIV_ROUND(40000*yd+97917*crd,8176000);
-  g+=(int32_t)OD_DIV_ROUND(47680000*yd+28469543*cbd+34695257*crd,9745792000LL);
-  b+=(int32_t)OD_DIV_ROUND(40000*yd+236589*crd,8176000);
+  r+=(int32_t)OD_DIV_ROUND(2*yd+3*crd,8176000);
+  g+=(int32_t)OD_DIV_ROUND(2384*yd+361*cbd+1063*crd,9745792000LL);
+  b+=(int32_t)OD_DIV_ROUND(2*yd+3*cbd,8176000);
   *_r=r;
   *_g=g;
   *_b=b;
@@ -270,8 +270,6 @@ static void rgb_to_ycbcr(img_plane _ycbcr[3],png_bytep *_png){
   int            h;
   int            i;
   int            j;
-  int            i1;
-  int            j1;
   w=_ycbcr[0].width;
   h=_ycbcr[0].height;
   ystride=_ycbcr[0].stride;
@@ -281,32 +279,50 @@ static void rgb_to_ycbcr(img_plane _ycbcr[3],png_bytep *_png){
   crstride=_ycbcr[2].stride;
   crdata=_ycbcr[2].data;
   kiss99_srand(&kiss,NULL,0);
-  if(pixel_format==PIXEL_FMT_420){
-    for(j=0;j<h;j+=2){
-      j1=j+(j+1<h);
-      for(i=0;i<w;i+=2){
-        int32_t r0;
-        int32_t g0;
-        int32_t b0;
-        int32_t r1;
-        int32_t g1;
-        int32_t b1;
-        int32_t r2;
-        int32_t g2;
-        int32_t b2;
-        int32_t r3;
-        int32_t g3;
-        int32_t b3;
-        int64_t rsum;
-        int64_t gsum;
-        int64_t bsum;
-        int     cb;
-        int     cr;
-        i1=i+(i+1<w);
-        get_dithered_pixel(&kiss,&r0,&g0,&b0,_png[j]+6*i);
-        get_dithered_pixel(&kiss,&r1,&g1,&b1,_png[j]+6*i1);
-        get_dithered_pixel(&kiss,&r2,&g2,&b2,_png[j1]+6*i);
-        get_dithered_pixel(&kiss,&r3,&g3,&b3,_png[j1]+6*i1);
+  for(j=0;j<h;j+=2){
+    for(i=0;i<w;i+=2){
+      int32_t r0;
+      int32_t g0;
+      int32_t b0;
+      int32_t r1;
+      int32_t g1;
+      int32_t b1;
+      int32_t r2;
+      int32_t g2;
+      int32_t b2;
+      int32_t r3;
+      int32_t g3;
+      int32_t b3;
+      int64_t rsum;
+      int64_t gsum;
+      int64_t bsum;
+      int     cb;
+      int     cr;
+      get_dithered_pixel(&kiss,&r0,&g0,&b0,_png[j]+6*i);
+      if(i+1<w)get_dithered_pixel(&kiss,&r1,&g1,&b1,_png[j]+6*(i+1));
+      else{
+        r1=r0;
+        g1=g0;
+        b1=b0;
+      }
+      if(j+1<h){
+        get_dithered_pixel(&kiss,&r2,&g2,&b2,_png[j+1]+6*i);
+        if(i+1<w)get_dithered_pixel(&kiss,&r3,&g3,&b3,_png[j+1]+6*(i+1));
+        else{
+          r3=r2;
+          g3=g2;
+          b3=b2;
+        }
+      }
+      else{
+        r2=r0;
+        g2=g0;
+        b2=b0;
+        r3=r1;
+        g3=g1;
+        b3=b1;
+      }
+      if(pixel_format==PIXEL_FMT_420){
         rsum=r0+r1+r2+r3;
         gsum=g0+g1+g2+g3;
         bsum=b0+b1+b2+b3;
@@ -317,29 +333,13 @@ static void rgb_to_ycbcr(img_plane _ycbcr[3],png_bytep *_png){
         cbdata[(j>>1)*cbstride+(i>>1)]=(unsigned char)cb;
         crdata[(j>>1)*crstride+(i>>1)]=(unsigned char)cr;
         ydata[j*ystride+i]=calc_y(r0,g0,b0,cb,cr);
-        ydata[j*ystride+i1]=calc_y(r1,g1,b1,cb,cr);
-        ydata[j1*ystride+i]=calc_y(r2,g2,b2,cb,cr);
-        ydata[j1*ystride+i1]=calc_y(r3,g3,b3,cb,cr);
+        if(i+1<w)ydata[j*ystride+i+1]=calc_y(r1,g1,b1,cb,cr);
+        if(j+1<h){
+          ydata[(j+1)*ystride+i]=calc_y(r2,g2,b2,cb,cr);
+          if(i+1<w)ydata[(j+1)*ystride+i+1]=calc_y(r3,g3,b3,cb,cr);
+        }
       }
-    }
-  }
-  else if(pixel_format==PIXEL_FMT_422){
-    for(j=0;j<h;j++){
-      for(i=0;i<w;i+=2){
-        int32_t r0;
-        int32_t g0;
-        int32_t b0;
-        int32_t r1;
-        int32_t g1;
-        int32_t b1;
-        int64_t rsum;
-        int64_t gsum;
-        int64_t bsum;
-        int     cb;
-        int     cr;
-        i1=i+(i+1<w);
-        get_dithered_pixel(&kiss,&r0,&g0,&b0,_png[j]+6*i);
-        get_dithered_pixel(&kiss,&r1,&g1,&b1,_png[j]+6*i1);
+      else if(pixel_format==PIXEL_FMT_422){
         rsum=r0+r1;
         gsum=g0+g1;
         bsum=b0+b1;
@@ -350,24 +350,68 @@ static void rgb_to_ycbcr(img_plane _ycbcr[3],png_bytep *_png){
         cbdata[j*cbstride+(i>>1)]=(unsigned char)cb;
         crdata[j*crstride+(i>>1)]=(unsigned char)cr;
         ydata[j*ystride+i]=calc_y(r0,g0,b0,cb,cr);
-        ydata[j*ystride+i1]=calc_y(r1,g1,b1,cb,cr);
+        if(i+1<w)ydata[j*ystride+i+1]=calc_y(r1,g1,b1,cb,cr);
+        if(j+1<h){
+          rsum=r2+r3;
+          gsum=g2+g3;
+          bsum=b2+b3;
+          cb=OD_CLAMP255(
+           OD_DIV_ROUND(-119056*rsum-400512*gsum+519568*bsum,608033730)+128);
+          cr=OD_CLAMP255(
+           OD_DIV_ROUND(440944*rsum-400512*gsum-40432*bsum,516022590)+128);
+          cbdata[(j+1)*cbstride+(i>>1)]=(unsigned char)cb;
+          crdata[(j+1)*crstride+(i>>1)]=(unsigned char)cr;
+          ydata[(j+1)*ystride+i]=calc_y(r2,g2,b2,cb,cr);
+          if(i+1<w)ydata[(j+1)*ystride+i+1]=calc_y(r3,g3,b3,cb,cr);
+        }
       }
-    }
-  }
-  else{
-    for(j=0;j<h;j++){
-      for(i=0;i<w;i++){
-        int32_t r;
-        int32_t g;
-        int32_t b;
-        int     cb;
-        int     cr;
-        get_dithered_pixel(&kiss,&r,&g,&b,_png[j]+6*i);
-        cb=OD_CLAMP255(OD_DIV_ROUND(-119056*r-400512*g+519568*b,304016865)+128);
-        cr=OD_CLAMP255(OD_DIV_ROUND(440944*r-400512*g-40432*b,258011295)+128);
+      else{
+        rsum=r0;
+        gsum=g0;
+        bsum=b0;
+        cb=OD_CLAMP255(
+         OD_DIV_ROUND(-119056*rsum-400512*gsum+519568*bsum,304016865)+128);
+        cr=OD_CLAMP255(
+         OD_DIV_ROUND(440944*rsum-400512*gsum-40432*bsum,258011295)+128);
         cbdata[j*cbstride+i]=(unsigned char)cb;
         crdata[j*crstride+i]=(unsigned char)cr;
-        ydata[j*ystride+i]=calc_y(r,g,b,cb,cr);
+        ydata[j*ystride+i]=calc_y(r0,g0,b0,cb,cr);
+        if(i+1<w){
+          rsum=r1;
+          gsum=g1;
+          bsum=b1;
+          cb=OD_CLAMP255(
+           OD_DIV_ROUND(-119056*rsum-400512*gsum+519568*bsum,304016865)+128);
+          cr=OD_CLAMP255(
+           OD_DIV_ROUND(440944*rsum-400512*gsum-40432*bsum,258011295)+128);
+          cbdata[j*cbstride+i+1]=(unsigned char)cb;
+          crdata[j*crstride+i+1]=(unsigned char)cr;
+          ydata[j*ystride+i+1]=calc_y(r1,g1,b1,cb,cr);
+        }
+        if(j+1<h){
+          rsum=r2;
+          gsum=g2;
+          bsum=b2;
+          cb=OD_CLAMP255(
+           OD_DIV_ROUND(-119056*rsum-400512*gsum+519568*bsum,304016865)+128);
+          cr=OD_CLAMP255(
+           OD_DIV_ROUND(440944*rsum-400512*gsum-40432*bsum,258011295)+128);
+          cbdata[(j+1)*cbstride+i]=(unsigned char)cb;
+          crdata[(j+1)*crstride+i]=(unsigned char)cr;
+          ydata[(j+1)*ystride+i]=calc_y(r2,g2,b2,cb,cr);
+          if(i+1<w){
+            rsum=r3;
+            gsum=g3;
+            bsum=b3;
+            cb=OD_CLAMP255(
+             OD_DIV_ROUND(-119056*rsum-400512*gsum+519568*bsum,304016865)+128);
+            cr=OD_CLAMP255(
+             OD_DIV_ROUND(440944*rsum-400512*gsum-40432*bsum,258011295)+128);
+            cbdata[(j+1)*cbstride+i+1]=(unsigned char)cb;
+            crdata[(j+1)*crstride+i+1]=(unsigned char)cr;
+            ydata[(j+1)*ystride+i+1]=calc_y(r3,g3,b3,cb,cr);
+          }
+        }
       }
     }
   }
