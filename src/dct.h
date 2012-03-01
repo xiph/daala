@@ -17,6 +17,21 @@
 #if !defined(_dct_H)
 # define _dct_H (1)
 # include "filter.h"
+
+#if !defined(M_PI)
+# define M_PI      (3.14159265358979323846264383832795)
+#endif
+
+#if !defined(M_SQRT2)
+# define M_SQRT2 (1.41421356237309504880168872420970)
+#endif
+
+#if !defined(M_SQRT1_2)
+# define M_SQRT1_2 (0.70710678118654752440084436210485)
+#endif
+
+#define SIN_3PI_8 (0.92387953251128675612818318939679)
+
 /*These are approximations of a true type-II DCT that can be computed entirely
    with integer operations.
   The integerization is done with lifting steps to allow perfect
@@ -53,6 +68,14 @@
    one more bit.
   The DC coefficient is always the sum of the input coefficients.*/
 
+/*The (1-D) scaling factors that make a true DCT approximation out of the
+   integer transform.*/
+static const double DCT4_FSCALE[4]={
+  0.5,
+  M_SQRT2/SIN_3PI_8,
+  1,
+  M_SQRT2*SIN_3PI_8
+};
 
 
 /*A perfect-reconstruction integerization of a 4-point type-II DCT.
@@ -68,6 +91,18 @@
      This may be the same as the source.
   x: The source vector (of size 4).*/
 void od_bin_fdct4(od_coeff _y[],const od_coeff _x[]);
+/*The (1-D) scaling factors that make a true DCT approximation out of the
+   integer transform.*/
+static const double DCT8_FSCALE[8]={
+  M_SQRT2,
+  M_SQRT1_2,
+  1/SIN_3PI_8,
+  1,
+  M_SQRT1_2,
+  1,
+  SIN_3PI_8,
+  M_SQRT1_2
+};
 /*A perfect-reconstruction integerization of an 8-point type-II DCT based on
    Loeffler's factorization.
   The final output should be scaled by
@@ -86,6 +121,26 @@ void od_bin_fdct4(od_coeff _y[],const od_coeff _x[]);
      This may be the same as the source.
   x: The source vector (of size 8).*/
 void od_bin_fdct8(od_coeff _y[],const od_coeff _x[]);
+/*The (1-D) scaling factors that make a true DCT approximation out of the
+   integer transform.*/
+static const double DCT16_FSCALE[16]={
+  1.0,
+  1.0,
+  1.0,
+  M_SQRT1_2/SIN_3PI_8,
+  M_SQRT1_2/SIN_3PI_8,
+  M_SQRT1_2*SIN_3PI_8,
+  M_SQRT1_2,
+  M_SQRT1_2,
+  1.0,
+  M_SQRT1_2,
+  M_SQRT1_2,
+  M_SQRT1_2/SIN_3PI_8,
+  M_SQRT1_2*SIN_3PI_8,
+  M_SQRT1_2*SIN_3PI_8,
+  1.0,
+  0.5
+};
 /*A perfect-reconstruction integerization of a 16-point type-II DCT based on
    Loeffler's factorization.
   The final output should be scaled by
@@ -111,8 +166,16 @@ void od_bin_fdct8(od_coeff _y[],const od_coeff _x[]);
   y: The destination vector (of size 16).
      This may be the same as the source.
   x: The source vector (of size 16).*/
-
 void od_bin_fdct16(od_coeff _y[],const od_coeff _x[]);
+
+/*The (1-D) scaling factors that make a true iDCT approximation out of the
+   integer transform.*/
+static const double DCT4_ISCALE[4]={
+  2,
+  M_SQRT1_2*SIN_3PI_8,
+  1,
+  M_SQRT1_2/SIN_3PI_8
+};
 /*An inverse of the perfect-reconstruction integerization of a 4-point type-II
    DCT above.
   The input should be scaled by
@@ -127,6 +190,18 @@ void od_bin_fdct16(od_coeff _y[],const od_coeff _x[]);
      This may be the same as the source.
   y: The source vector (of size 4).*/
 void od_bin_idct4(od_coeff _x[],const od_coeff _y[]);
+/*The (1-D) scaling factors that make a true iDCT approximation out of the
+   integer transform.*/
+static const double DCT8_ISCALE[8]={
+  M_SQRT1_2,
+  M_SQRT2,
+  SIN_3PI_8,
+  1,
+  M_SQRT2,
+  1,
+  1/SIN_3PI_8,
+  M_SQRT2
+};
 /*An inverse of the perfect-reconstruction integerization of an 8-point type-II
    DCT based on Loeffler's factorization above.
   The input should be scaled by
@@ -145,6 +220,26 @@ void od_bin_idct4(od_coeff _x[],const od_coeff _y[]);
      This may be the same as the source.
   y: The source vector (of size 8).*/
 void od_bin_idct8(od_coeff _x[],const od_coeff _y[]);
+/*The (1-D) scaling factors that make a true iDCT approximation out of the
+   integer transform.*/
+static const double DCT16_ISCALE[16]={
+  1,
+  1,
+  1,
+  M_SQRT2*SIN_3PI_8,
+  M_SQRT2*SIN_3PI_8,
+  M_SQRT2/SIN_3PI_8,
+  M_SQRT2,
+  M_SQRT2,
+  1,
+  M_SQRT2,
+  M_SQRT2,
+  M_SQRT2*SIN_3PI_8,
+  M_SQRT2/SIN_3PI_8,
+  M_SQRT2/SIN_3PI_8,
+  1,
+  2
+};
 /*An inverse of the perfect-reconstruction integerization of a 16-point type-II
    DCT based on Loeffler's factorization above.
   The input should be scaled by

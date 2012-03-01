@@ -105,13 +105,9 @@ void od_bin_fdct8(od_coeff _y[],const od_coeff _x[]){
 void od_bin_fdct16(od_coeff _y[],const od_coeff _x[]){
   int t[16];
   int c00;
-  int c01;
-  int c03;
   int c04;
-  int c07;
   int c08;
   int c12;
-  int c13;
   t[11]=_x[0]-_x[15];
   t[5]=_x[1]-_x[14];
   t[7]=_x[2]-_x[13];
@@ -319,14 +315,6 @@ void od_bin_idct8(od_coeff _x[],const od_coeff _y[]){
 
 void od_bin_idct16(od_coeff _x[],const od_coeff _y[]){
   int t[16];
-  int c00;
-  int c01;
-  int c03;
-  int c04;
-  int c07;
-  int c08;
-  int c12;
-  int c13;
   t[11]=_y[11]+(_y[5]*11+16>>5);
   t[5]=_y[5]-(t[11]*13+16>>5);
   t[1]=_y[1]+(_y[15]+1>>1);
@@ -421,64 +409,6 @@ void od_bin_idct16(od_coeff _x[],const od_coeff _y[]){
 #include <math.h>
 #include <string.h>
 
-#if !defined(M_PI)
-# define M_PI      (3.14159265358979323846264383832795)
-#endif
-
-#if !defined(M_SQRT2)
-# define M_SQRT2 (1.41421356237309504880168872420970)
-#endif
-
-#if !defined(M_SQRT1_2)
-# define M_SQRT1_2 (0.70710678118654752440084436210485)
-#endif
-
-#define SIN_3PI_8 (0.92387953251128675612818318939679)
-
-/*The (1-D) scaling factors that make a true DCT approximation out of the
-   integer transform.*/
-static const double DCT4_FSCALE[4]={
-  0.5,
-  M_SQRT2/SIN_3PI_8,
-  1,
-  M_SQRT2*SIN_3PI_8
-};
-
-/*The (1-D) scaling factors that make a true iDCT approximation out of the
-   integer transform.*/
-static const double DCT4_ISCALE[4]={
-  2,
-  M_SQRT1_2*SIN_3PI_8,
-  1,
-  M_SQRT1_2/SIN_3PI_8
-};
-
-/*The (1-D) scaling factors that make a true DCT approximation out of the
-   integer transform.*/
-static const double DCT8_FSCALE[8]={
-  M_SQRT2,
-  M_SQRT1_2,
-  1/SIN_3PI_8,
-  1,
-  M_SQRT1_2,
-  1,
-  SIN_3PI_8,
-  M_SQRT1_2
-};
-
-/*The (1-D) scaling factors that make a true iDCT approximation out of the
-   integer transform.*/
-static const double DCT8_ISCALE[8]={
-  M_SQRT1_2,
-  M_SQRT2,
-  SIN_3PI_8,
-  1,
-  M_SQRT2,
-  1,
-  1/SIN_3PI_8,
-  M_SQRT2
-};
-
 /*The (2-D) scaling factors that make a true DCT approximation out of the
    integer transform.*/
 static const double DCT8x8_FSCALE[8][8]={
@@ -547,47 +477,7 @@ static const double DCT8x8_ISCALE[8][8]={
   }
 };
 
-/*The (1-D) scaling factors that make a true DCT approximation out of the
-   integer transform.*/
-static const double DCT16_FSCALE[16]={
-  1.0,
-  1.0,
-  1.0,
-  M_SQRT1_2/SIN_3PI_8,
-  M_SQRT1_2/SIN_3PI_8,
-  M_SQRT1_2*SIN_3PI_8,
-  M_SQRT1_2,
-  M_SQRT1_2,
-  1.0,
-  M_SQRT1_2,
-  M_SQRT1_2,
-  M_SQRT1_2/SIN_3PI_8,
-  M_SQRT1_2*SIN_3PI_8,
-  M_SQRT1_2*SIN_3PI_8,
-  1.0,
-  0.5
-};
 
-/*The (1-D) scaling factors that make a true iDCT approximation out of the
-   integer transform.*/
-static const double DCT16_ISCALE[16]={
-  1,
-  1,
-  1,
-  M_SQRT2*SIN_3PI_8,
-  M_SQRT2*SIN_3PI_8,
-  M_SQRT2/SIN_3PI_8,
-  M_SQRT2,
-  M_SQRT2,
-  1,
-  M_SQRT2,
-  M_SQRT2,
-  M_SQRT2*SIN_3PI_8,
-  M_SQRT2/SIN_3PI_8,
-  M_SQRT2/SIN_3PI_8,
-  1,
-  2
-};
 
 /*The auto-correlation coefficent. 0.95 is a common value.*/
 #define INPUT_AUTOCORR (0.95)
