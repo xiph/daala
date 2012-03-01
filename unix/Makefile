@@ -60,6 +60,8 @@ WORKDIR = objs
 
 # C source file lists
 LIBDAALABASE_CSOURCES = \
+dct.c \
+filter.c \
 info.c \
 internal.c \
 mc.c \
