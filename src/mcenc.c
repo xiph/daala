@@ -4673,7 +4673,7 @@ void od_mv_subpel_refine(od_mv_est_ctx *_est,int _ref,int _cost_thresh){
   }
 }
 
-void od_mv_est(od_mv_est_ctx *_est,int _iref,int _ref,int _lambda){
+void od_mv_est(od_mv_est_ctx *_est,int _ref,int _lambda){
   od_state     *state;
   od_img_plane *iplane;
   ogg_int32_t   dcost;
@@ -4707,8 +4707,8 @@ void od_mv_est(od_mv_est_ctx *_est,int _iref,int _ref,int _lambda){
   _est->thresh2_offs[1]=_est->thresh1[1]>>1;
   _est->thresh2_offs[2]=_est->thresh1[2]>>1;
   /*Accelerated predictor weights.*/
-  _est->mvapw[_iref][0]=0x20000;
-  _est->mvapw[_iref][1]=0x10000;
+  _est->mvapw[_ref][0]=0x20000;
+  _est->mvapw[_ref][1]=0x10000;
   /*TODO: Constant velocity predictor weight.*/
 #if defined(OD_DUMP_IMAGES)&&defined(OD_ANIMATE)
   /*Set some initial state.
@@ -4731,7 +4731,7 @@ void od_mv_est(od_mv_est_ctx *_est,int _iref,int _ref,int _lambda){
     }
   }
 #endif
-  od_mv_est_init_mvs(_est,_iref);
+  od_mv_est_init_mvs(_est,_ref);
   od_mv_est_decimate(_est,_ref);
   /*This threshold is somewhat arbitrary.
     Chen and Willson use 6000 (with SSD as an error metric).

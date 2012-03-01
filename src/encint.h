@@ -52,7 +52,7 @@ struct daala_enc_ctx{
 
 od_mv_est_ctx *od_mv_est_alloc(od_enc_ctx *_enc);
 void           od_mv_est_free(od_mv_est_ctx *_est);
-void           od_mv_est(od_mv_est_ctx *_est,int _iref,int _ref,int _lambda);
+void           od_mv_est(od_mv_est_ctx *_est,int _ref,int _lambda);
 
 
 #endif
