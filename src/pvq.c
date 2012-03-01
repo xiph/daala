@@ -93,7 +93,7 @@ static void pvq_search(float *x,float *scale,float *scale_1,float g,int N,int K,
 
 
 int quant_pvq(ogg_int16_t *_x,const ogg_int16_t *_r,const int *_q,
-    ogg_int16_t *_scale,int *y,int N,int K){
+    ogg_int16_t *_scale,int *y,int N,int K,int paper_scaling){
   float L2x, L2r;
   float g;
   float gr;
@@ -119,9 +119,17 @@ int quant_pvq(ogg_int16_t *_x,const ogg_int16_t *_r,const int *_q,
     x[i]=_x[i];
     r[i]=_r[i];
     L2x+=x[i]*x[i];
-    L2r+=r[i]*r[i];
   }
 
+  if(paper_scaling){
+    for(i=0;i<N;i++){
+      x[i]*=scale_1[i];
+      r[i]*=scale_1[i];
+    }
+  }
+  for(i=0;i<N;i++){
+    L2r+=r[i]*r[i];
+  }
   g=sqrt(L2x);
   gr=sqrt(L2r);
 
@@ -134,14 +142,16 @@ int quant_pvq(ogg_int16_t *_x,const ogg_int16_t *_r,const int *_q,
       m=i;
     }
   }
-  /* FIXME: It's not clear whether we should use the smallest scaling factor, the largest,
-   * something in-between, something else, or just do the scaling before the Householder
-   * reflection. By reducing the scaling for m, we increase the resolution in the
-   * area of the prediction. Counter-intuitively, this *increases* the error, but at the
-   * same time it makes y[m] larger, which is easier to code. */
-  scale[m]=min_scale;
-  scale_1[m]=1./scale[m];
 
+  if(!paper_scaling){
+    /* FIXME: It's not clear whether we should use the smallest scaling factor, the largest,
+     * something in-between, something else, or just do the scaling before the Householder
+     * reflection. By reducing the scaling for m, we increase the resolution in the
+     * area of the prediction. Counter-intuitively, this *increases* the error, but at the
+     * same time it makes y[m] larger, which is easier to code. */
+    scale[m]=min_scale;
+    scale_1[m]=1./scale[m];
+  }
   /*printf("max r: %f %f %d\n", maxr, r[m], m);*/
   s=r[m]>0?1:-1;
 
@@ -164,8 +174,11 @@ int quant_pvq(ogg_int16_t *_x,const ogg_int16_t *_r,const int *_q,
     x[i]-=r[i]*proj;
   }
 
-  pvq_search(x,scale,scale_1,g,N,K,y);
-
+  if(paper_scaling){
+    pvq_search(x,NULL,NULL,g,N,K,y);
+  } else {
+    pvq_search(x,scale,scale_1,g,N,K,y);
+  }
   /* Apply Householder reflection again to get the quantized coefficients */
   proj=0;
   for(i=0;i<N;i++){
@@ -174,6 +187,18 @@ int quant_pvq(ogg_int16_t *_x,const ogg_int16_t *_r,const int *_q,
   proj*=2.F/(EPSILON+L2r);
   for(i=0;i<N;i++){
     x[i]-=r[i]*proj;
+  }
+
+  if(paper_scaling){
+    L2x=0;
+    for(i=0;i<N;i++){
+      float tmp=x[i]*scale[i];
+      L2x+=tmp*tmp;
+    }
+    g/=EPSILON+sqrt(L2x);
+    for(i=0;i<N;i++){
+      x[i]*=g*scale[i];
+    }
   }
 
   for(i=0;i<N;i++){
@@ -208,7 +233,7 @@ int main()
     printf("%d ",r[i]);
   }
   printf("\n");
-  quant_pvq(x,r,NULL,scale,out,64,64);
+  quant_pvq(x,r,NULL,scale,out,64,64, 1);
   printf("quantized x:\n");
   for(i=0;i<64;i++){
     printf("%d ",x[i]);
