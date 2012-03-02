@@ -19,7 +19,8 @@ MAKEDEPEND = gcc -MM
 #  not installed in a standard location.
 CINCLUDE = `sdl-config --cflags`
 # These are gcc-only, but not actually critical.
-CFLAGS = -Wall -Wno-parentheses -fvisibility=hidden
+CFLAGS = -Wall -Wno-parentheses -Wno-overlength-strings
+CFLAGS += -fvisibility=hidden
 # Extra compilation flags.
 # You may get speed increases by including flags such as -O2 or -O3 or
 #  -ffast-math, or additional flags, depending on your system and compiler.
