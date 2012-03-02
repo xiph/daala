@@ -2993,7 +2993,6 @@ static ogg_int32_t od_mv_est_refine_row(od_mv_est_ctx *_est,int _ref,int _vy,
   ogg_int32_t     dcost;
   int             nhmvbs;
   int             nvmvbs;
-  int             mv_res;
   int             level;
   int             log_mvb_sz;
   int             mvb_sz;
@@ -3009,7 +3008,6 @@ static ogg_int32_t od_mv_est_refine_row(od_mv_est_ctx *_est,int _ref,int _vy,
   nhmvbs=state->nhmbs+1<<2;
   nvmvbs=state->nvmbs+1<<2;
   labels_only=_vy<2||_vy>nvmvbs-2;
-  mv_res=OD_MINI(_log_dsz,2);
   grid=state->mv_grid[_vy];
   dcost=0;
   /*fprintf(stderr,"Refining row %i (%i)...\n",_vy,_vy-2<<2);*/
@@ -3661,7 +3659,6 @@ static ogg_int32_t od_mv_est_refine_col(od_mv_est_ctx *_est,int _ref,int _vx,
   ogg_int32_t      dcost;
   int              nhmvbs;
   int              nvmvbs;
-  int              mv_res;
   int              level;
   int              log_mvb_sz;
   int              mvb_sz;
@@ -3677,7 +3674,6 @@ static ogg_int32_t od_mv_est_refine_col(od_mv_est_ctx *_est,int _ref,int _vx,
   nhmvbs=state->nhmbs+1<<2;
   nvmvbs=state->nvmbs+1<<2;
   labels_only=_vx<2||_vx>nhmvbs-2;
-  mv_res=OD_MINI(_log_dsz,2);
   grid=state->mv_grid;
   dcost=0;
   /*fprintf(stderr,"Refining column %i (%i)...\n",_vx,_vx-2<<2);*/
