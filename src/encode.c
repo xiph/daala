@@ -176,18 +176,19 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
     ogg_int64_t  mc_sqerr;
     ogg_int64_t  enc_sqerr;
     ogg_uint32_t npixels;
-    int          err_accum;
     int          x;
     int          y;
     int          w;
     int          h;
+#if 0
+    int          err_accum = 0; /*Used by DPCM code below.*/
+#endif
     /*TODO: Use picture dimensions, not frame dimensions.*/
     w=_img->width>>_img->planes[pli].xdec;
     h=_img->height>>_img->planes[pli].ydec;
     mc_sqerr=0;
     enc_sqerr=0;
     npixels=w*h;
-    err_accum=0;
     for(y=0;y<h;y++){
       unsigned char *prev_rec_row;
       unsigned char *rec_row;
