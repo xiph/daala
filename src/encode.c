@@ -180,8 +180,8 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
     int          y;
     int          w;
     int          h;
-#if 0
-    int          err_accum = 0; /*Used by DPCM code below.*/
+#ifdef OD_DPCM
+    int          err_accum = 0;
 #endif
     /*TODO: Use picture dimensions, not frame dimensions.*/
     w=_img->width>>_img->planes[pli].xdec;
@@ -206,7 +206,7 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
         inp_val=*(inp_row+_img->planes[pli].xstride*x);
         diff=inp_val-rec_val;
         mc_sqerr+=diff*diff;
-#if 0
+#ifdef OD_DPCM
         {
           int pred_diff;
           int qdiff;
