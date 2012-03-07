@@ -182,25 +182,17 @@ static int32_t triangle_rand(kiss99_ctx *_kiss,int32_t _range){
   The dither has to be added in Y'CbCr space because that's where we're
    quantizing, but projecting it back allows us to measure error in the RGB
    space, which is especially useful for handling things like subsampling.*/
-static void get_dithered_pixel(kiss99_ctx *_kiss,
- int32_t *_r,int32_t *_g,int32_t *_b,png_bytep _rgb){
-  int64_t yd;
-  int64_t cbd;
-  int64_t crd;
+static void get_dithered_pixel(int32_t *_r,int32_t *_g,int32_t *_b,
+ const png_byte *_rgb,int64_t _yd,int64_t _cbd,int64_t _crd){
   int32_t r;
   int32_t g;
   int32_t b;
-  /*The size of the dither here is chosen to be the largest divisor of all the
-     corresponding coefficients in the transform that still fits in 31 bits.*/
-  yd=triangle_rand(_kiss,1223320000);
-  cbd=triangle_rand(_kiss,1479548743);
-  crd=triangle_rand(_kiss,1255654969);
   r=_rgb[0]*256+_rgb[1];
   g=_rgb[2]*256+_rgb[3];
   b=_rgb[4]*256+_rgb[5];
-  r+=(int32_t)OD_DIV_ROUND(2*yd+3*crd,8176000);
-  g+=(int32_t)OD_DIV_ROUND(2384*yd+361*cbd+1063*crd,9745792000LL);
-  b+=(int32_t)OD_DIV_ROUND(2*yd+3*cbd,8176000);
+  r+=(int32_t)OD_DIV_ROUND(2*_yd+3*_crd,8176000);
+  g+=(int32_t)OD_DIV_ROUND(2384*_yd+361*_cbd+1063*_crd,9745792000LL);
+  b+=(int32_t)OD_DIV_ROUND(2*_yd+3*_cbd,8176000);
   *_r=r;
   *_g=g;
   *_b=b;
@@ -222,16 +214,16 @@ static int calc_y(int32_t _r,int32_t _g,int32_t _b,int _cb,int _cr){
   int     y0;
   _cb-=128;
   _cr-=128;
-  chroma_r=4490222169144LL*_cb;
+  chroma_r=4490222169144LL*_cr;
   chroma_g=-534117096223LL*_cb-1334761232047LL*_cr;
-  chroma_b=5290866304968LL*_cr;
+  chroma_b=5290866304968LL*_cb;
   r_res=_r*9745792000LL-chroma_r+4096>>13;
   g_res=_g*9745792000LL-chroma_g+4096>>13;
   b_res=_b*9745792000LL-chroma_b+4096>>13;
   /*Take the floor here instead of rounding; we'll consider both possible
      values.*/
-  yn=77599*r_res+261048*g_res+26353*b_res;
-  y0=(int)((yn-(129941910546874LL&OD_SIGNMASK(yn)))/129941910546875LL);
+  yn=1063*r_res+3576*g_res+361*b_res;
+  y0=(int)((yn-(1780026171874LL&OD_SIGNMASK(yn)))/1780026171875LL);
   /*Clamp before adding the offset.
     We clamp to 238 instead of 239 to ensure we can always add one and stay in
      range.*/
@@ -258,6 +250,8 @@ static int calc_y(int32_t _r,int32_t _g,int32_t _b,int _cb,int _cr){
   return y0+16;
 }
 
+
+
 static void rgb_to_ycbcr(img_plane _ycbcr[3],png_bytep *_png){
   kiss99_ctx     kiss;
   unsigned char *ydata;
@@ -266,6 +260,8 @@ static void rgb_to_ycbcr(img_plane _ycbcr[3],png_bytep *_png){
   int            ystride;
   int            cbstride;
   int            crstride;
+  int            hstep;
+  int            vstep;
   int            w;
   int            h;
   int            i;
@@ -278,9 +274,14 @@ static void rgb_to_ycbcr(img_plane _ycbcr[3],png_bytep *_png){
   cbdata=_ycbcr[1].data;
   crstride=_ycbcr[2].stride;
   crdata=_ycbcr[2].data;
+  hstep=pixel_format&1;
+  vstep=pixel_format&2;
   kiss99_srand(&kiss,NULL,0);
   for(j=0;j<h;j+=2){
     for(i=0;i<w;i+=2){
+      int32_t yd[4];
+      int32_t cbd[4];
+      int32_t crd[4];
       int32_t r0;
       int32_t g0;
       int32_t b0;
@@ -296,18 +297,36 @@ static void rgb_to_ycbcr(img_plane _ycbcr[3],png_bytep *_png){
       int64_t rsum;
       int64_t gsum;
       int64_t bsum;
+      int     k;
       int     cb;
       int     cr;
-      get_dithered_pixel(&kiss,&r0,&g0,&b0,_png[j]+6*i);
-      if(i+1<w)get_dithered_pixel(&kiss,&r1,&g1,&b1,_png[j]+6*(i+1));
+      /*This often generates more dither values than we use, but keeps them in
+         sync for the luma plane across the different pixel formats.*/
+      for(k=0;k<4;k++){
+        /*The size of the dither here is chosen to be the largest divisor of
+           all the corresponding coefficients in the transform that still fits
+           in 31 bits.*/
+        yd[k]=triangle_rand(&kiss,1223320000);
+        cbd[k]=triangle_rand(&kiss,1479548743);
+        crd[k]=triangle_rand(&kiss,1255654969);
+      }
+      get_dithered_pixel(&r0,&g0,&b0,_png[j]+6*i,yd[0],cbd[0],crd[0]);
+      if(i+1<w){
+        get_dithered_pixel(&r1,&g1,&b1,_png[j]+6*(i+1),
+         yd[1],cbd[hstep],crd[hstep]);
+      }
       else{
         r1=r0;
         g1=g0;
         b1=b0;
       }
       if(j+1<h){
-        get_dithered_pixel(&kiss,&r2,&g2,&b2,_png[j+1]+6*i);
-        if(i+1<w)get_dithered_pixel(&kiss,&r3,&g3,&b3,_png[j+1]+6*(i+1));
+        get_dithered_pixel(&r2,&g2,&b2,_png[j+1]+6*i,
+         yd[2],cbd[vstep],crd[vstep]);
+        if(i+1<w){
+          get_dithered_pixel(&r3,&g3,&b3,_png[j+1]+6*(i+1),
+           yd[3],cbd[vstep+hstep],crd[vstep+hstep]);
+        }
         else{
           r3=r2;
           g3=g2;
@@ -327,9 +346,9 @@ static void rgb_to_ycbcr(img_plane _ycbcr[3],png_bytep *_png){
         gsum=g0+g1+g2+g3;
         bsum=b0+b1+b2+b3;
         cb=OD_CLAMP255(
-         OD_DIV_ROUND(-119056*rsum-400512*gsum+519568*bsum,1216067460)+128);
+         OD_DIV_ROUND(-29764*rsum-100128*gsum+129892*bsum,304016865)+128);
         cr=OD_CLAMP255(
-         OD_DIV_ROUND(440944*rsum-400512*gsum-40432*bsum,1032045180)+128);
+         OD_DIV_ROUND(110236*rsum-100128*gsum-10108*bsum,258011295)+128);
         cbdata[(j>>1)*cbstride+(i>>1)]=(unsigned char)cb;
         crdata[(j>>1)*crstride+(i>>1)]=(unsigned char)cr;
         ydata[j*ystride+i]=calc_y(r0,g0,b0,cb,cr);
@@ -344,9 +363,9 @@ static void rgb_to_ycbcr(img_plane _ycbcr[3],png_bytep *_png){
         gsum=g0+g1;
         bsum=b0+b1;
         cb=OD_CLAMP255(
-         OD_DIV_ROUND(-119056*rsum-400512*gsum+519568*bsum,608033730)+128);
+         OD_DIV_ROUND(-59528*rsum-200256*gsum+259784*bsum,304016865)+128);
         cr=OD_CLAMP255(
-         OD_DIV_ROUND(440944*rsum-400512*gsum-40432*bsum,516022590)+128);
+         OD_DIV_ROUND(220472*rsum-200256*gsum-20216*bsum,258011295)+128);
         cbdata[j*cbstride+(i>>1)]=(unsigned char)cb;
         crdata[j*crstride+(i>>1)]=(unsigned char)cr;
         ydata[j*ystride+i]=calc_y(r0,g0,b0,cb,cr);
@@ -356,9 +375,9 @@ static void rgb_to_ycbcr(img_plane _ycbcr[3],png_bytep *_png){
           gsum=g2+g3;
           bsum=b2+b3;
           cb=OD_CLAMP255(
-           OD_DIV_ROUND(-119056*rsum-400512*gsum+519568*bsum,608033730)+128);
+           OD_DIV_ROUND(-59528*rsum-200256*gsum+259784*bsum,304016865)+128);
           cr=OD_CLAMP255(
-           OD_DIV_ROUND(440944*rsum-400512*gsum-40432*bsum,516022590)+128);
+           OD_DIV_ROUND(220472*rsum-200256*gsum-20216*bsum,258011295)+128);
           cbdata[(j+1)*cbstride+(i>>1)]=(unsigned char)cb;
           crdata[(j+1)*crstride+(i>>1)]=(unsigned char)cr;
           ydata[(j+1)*ystride+i]=calc_y(r2,g2,b2,cb,cr);
@@ -660,6 +679,8 @@ int main(int _argc,char **_argv){
       fin=open_png_file(input_directory,png_files[i]->d_name);
       if(fin==NULL)return EXIT_FAILURE;
       fprintf(stderr,"%s\n",png_files[i]->d_name);
+      if(read_png(ycbcr,fin)<0)return EXIT_FAILURE;
+      if(fin!=stdin)fclose(fin);
     }
     else if(npng_files>0)fprintf(stderr,"%s\n",png_files[0]->d_name);
     fprintf(fout,"FRAME\n");
