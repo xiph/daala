@@ -87,8 +87,9 @@ struct option OPTIONS[]={
 static void usage(const char *_argv0){
   fprintf(stderr,
    "Usage: %s [options] <input>\n\n"
-   "The <input> argument uses C printf format to represent a list of files,\n"
-   "  i.e. file-%%05d.png to look for files file00001.png to file99999.png.\n\n"
+   "The <input> argument uses a C printf format string to represent a list of\n"
+   "files, i.e., file%%05d.png to look for files file00000.png to\n"
+   "file99999.png.\n\n"
    "Options: \n\n"
    "  -h --help                       Display this help and exit.\n"
    "  -o --output <filename.y4m>      Output file name (required).\n"
