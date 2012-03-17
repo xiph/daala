@@ -176,7 +176,7 @@ and computes the Householder reflection that reflects
  The reflection vector is given by
 \begin_inset Formula 
 \begin{equation}
-\mathbf{v}=\frac{\mathbf{r}+s\mathbf{e}_{m}}{\left\Vert \mathbf{r}+s\mathbf{e}_{m}\right\Vert }\,.\label{eq:reflection-vector}
+\mathbf{v}=\mathbf{r}+s\mathbf{e}_{m}\,.\label{eq:reflection-vector}
 \end{equation}
 
 \end_inset
@@ -184,7 +184,7 @@ and computes the Householder reflection that reflects
 The encoder reflects the normalized band to find
 \begin_inset Formula 
 \begin{equation}
-\mathbf{x}_{r}=\mathbf{x}-2\mathbf{v}\left(\mathbf{v}^{T}\mathbf{x}\right)\,.\label{eq:reflection}
+\mathbf{z}=\mathbf{x}-\frac{2}{\mathbf{v}^{T}\mathbf{v}}\mathbf{v}\left(\mathbf{v}^{T}\mathbf{x}\right)\,.\label{eq:reflection}
 \end{equation}
 
 \end_inset
@@ -193,6 +193,18 @@ The encoder reflects the normalized band to find
 \end_layout
 
 \begin_layout Standard
+The similarity between the current band and the reference band is represented
+ by the angle (assuming no quantization)
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+\theta=\arccos\frac{-sz_{m}}{\left\Vert \mathbf{z}\right\Vert }\ .
+\]
+
+\end_inset
+
 Let 
 \begin_inset Formula $N$
 \end_inset
@@ -209,7 +221,7 @@ Let
  
 \begin_inset Formula 
 \begin{equation}
-q=\underset{i}{\mathrm{argmax}}\frac{\mathbf{p}_{i}^{T}\mathbf{x}_{r}}{\sqrt{\mathbf{p}_{i}^{T}\mathbf{p}_{i}}}\,,\label{eq:quantization}
+q=\underset{i}{\mathrm{argmax}}\frac{\mathbf{p}_{i}^{T}\left(\mathbf{z}+sz_{m}\mathbf{e}_{m}\right)}{\sqrt{\mathbf{p}_{i}^{T}\mathbf{p}_{i}}}\,,\label{eq:quantization}
 \end{equation}
 
 \end_inset
@@ -227,72 +239,82 @@ where
 \end_inset
 
 .
- 
+ Let 
+\begin_inset Formula $\theta_{opt}$
+\end_inset
+
+ be the post-quantization optimal angle, the mean square error becomes
+\begin_inset Formula 
+\[
+E=\left(-s\cos\theta_{opt}\mathbf{e}_{m}+\sin\theta_{opt}\hat{\mathbf{p}}-\mathbf{z}\right)^{2}\ ,
+\]
+
+\end_inset
+
+where 
+\begin_inset Formula $\hat{\mathbf{p}}=\mathbf{p}_{q}/\sqrt{\mathbf{p}_{q}^{T}\mathbf{p}_{q}}$
+\end_inset
+
+Solving for 
+\begin_inset Formula $\frac{\partial E}{\partial\theta}=0$
+\end_inset
+
+ and knowing that 
+\begin_inset Formula $\hat{\mathbf{p}}^{T}\mathbf{e}_{m}=0$
+\end_inset
+
+, we have
 \end_layout
 
 \begin_layout Standard
-The encoder first transmits the magnitude and sign of any pulse at position
- 
-\begin_inset Formula $m$
+\begin_inset Formula 
+\begin{align*}
+\frac{\partial}{\partial\theta}\left(-s\cos\theta_{opt}\mathbf{e}_{m}+\sin\theta_{opt}\hat{\mathbf{p}}\right)\mathbf{z} & =0\\
+\left(s\sin\theta_{opt}\mathbf{e}_{m}+\cos\theta_{opt}\hat{\mathbf{p}}\right)\mathbf{z} & =0\\
+\sin\theta_{opt}\mathbf{e}_{m}\mathbf{z} & =-s\cos\theta_{opt}\hat{\mathbf{p}}\mathbf{z}\\
+\theta_{opt} & =-s\arctan\frac{\hat{\mathbf{p}}\mathbf{z}}{\mathbf{e}_{m}\mathbf{z}}\ .
+\end{align*}
+
 \end_inset
 
-.
- Assuming that prediction from the reference frame is good, the magnitude
- should be close to 
-\begin_inset Formula $K$
+
+\end_layout
+
+\begin_layout Standard
+The resolution of the gain and angle, as well as the number of pulses should
+ all be derived from a single quality parameter.
+ The encoder transmits the gain 
+\begin_inset Formula $g$
 \end_inset
 
- and the sign should be 
-\begin_inset Formula $-s$
+, the quantized angle 
+\begin_inset Formula $\hat{\theta}$
 \end_inset
 
-, so entropy coding should be highly efficient for these values.
- The remaining values can be coded as a PVQ vector of dimension 
-\begin_inset Formula $N-1$
-\end_inset
-
-.
- It would seem like the best approach for coding 
+, and the 
 \begin_inset Formula $\mathbf{p}_{q}$
 \end_inset
 
- would be from SILK-like recursive splitting of the vector (with entropy
- coding), but this is made more difficult by the fact that we subtracted
- one dimension.
- One possible work around is to leave the extra dimension as a zero (or
- leave a few bits from the magnitude encoding and code those on the second
- step).
+ vector.
+ Neither 
+\begin_inset Formula $s$
+\end_inset
+
+ nor 
+\begin_inset Formula $m$
+\end_inset
+
+ need to be transmitted since they can be obtained from the decoder.
+ Encoding 
+\begin_inset Formula $\mathbf{p}_{q}$
+\end_inset
+
+ should make use of the fact that 
+\begin_inset Formula $K$
+\end_inset
+
+ is known and is left as an exercise to the implementer.
  
-\end_layout
-
-\begin_layout Standard
-By using a fixed 
-\begin_inset Formula $K$
-\end_inset
-
-, the codec will roughly optimise for SSIM in that each block will have
- a near-constant SNR (not PSNR).
- This may be a bit too extreme, so we probably want to allow some variation
- on K.
- In fact, some of that variation should probably be automatic, and based
- on the gain value 
-\begin_inset Formula $g$
-\end_inset
-
- for the band.
- The higher the gain, the larger 
-\begin_inset Formula $K$
-\end_inset
-
- should be, though 
-\begin_inset Formula $K$
-\end_inset
-
- should probably not grow linearly as a function of 
-\begin_inset Formula $g$
-\end_inset
-
-.
 \end_layout
 
 \begin_layout Section
@@ -307,7 +329,7 @@ The decoder starts by decoding the codebook entry
  and uses it to reconstruct the unit-norm reflected band as
 \begin_inset Formula 
 \begin{equation}
-\tilde{\mathbf{x}}_{r}=\frac{\mathbf{p}_{q}}{\sqrt{\mathbf{p}_{q}^{T}\mathbf{p}_{q}}}\,.\label{eq:reconstruct}
+\hat{\mathbf{z}}=-s\cos\hat{\theta}\mathbf{e}_{m}+\sin\hat{\theta}\frac{\mathbf{p}_{q}}{\sqrt{\mathbf{p}_{q}^{T}\mathbf{p}_{q}}}\,.\label{eq:reconstruct}
 \end{equation}
 
 \end_inset
@@ -335,7 +357,7 @@ reference "eq:reflection-vector"
  The decoded normalized band is 
 \begin_inset Formula 
 \begin{equation}
-\tilde{\mathbf{x}}=\tilde{\mathbf{x}}_{r}-2\mathbf{v}\left(\mathbf{v}^{T}\tilde{\mathbf{x}}_{r}\right)\,.\label{eq:decoder-reflection}
+\hat{\mathbf{x}}=\hat{\mathbf{z}}-\frac{2}{\mathbf{v}^{T}\mathbf{v}}\mathbf{v}\left(\mathbf{v}^{T}\hat{\mathbf{x}}\right)\,.\label{eq:decoder-reflection}
 \end{equation}
 
 \end_inset
@@ -348,7 +370,7 @@ The renormalized band is computed by taking into account the quantization
  resolution:
 \begin_inset Formula 
 \begin{equation}
-\tilde{\mathbf{x}}_{d}=g\frac{\mathbf{Q}\tilde{\mathbf{x}}}{\left\Vert \mathbf{Q}\tilde{\mathbf{x}}\right\Vert }\,.\label{eq:decoded-band}
+\hat{\mathbf{x}}_{d}=\hat{g}\frac{\mathbf{Q}\hat{\mathbf{x}}}{\left\Vert \mathbf{Q}\hat{\mathbf{x}}\right\Vert }\,.\label{eq:decoded-band}
 \end{equation}
 
 \end_inset
@@ -357,7 +379,190 @@ The renormalized band is computed by taking into account the quantization
 \end_layout
 
 \begin_layout Section
-Bit Allocation and SSIM
+Coding Resolution
+\end_layout
+
+\begin_layout Standard
+It is desirable for a single quality parameter to control 
+\begin_inset Formula $K$
+\end_inset
+
+ and the resolution of gain and angle.
+ That quality parameter should also take into account activity masking to
+ some extent.
+ According to Jason Garrett-Glaser, x264's activity masking uses a resolution
+ proportional to the 
+\begin_inset Formula $g^{2\alpha}$
+\end_inset
+
+, with 
+\begin_inset Formula $\alpha=0.173$
+\end_inset
+
+.
+ We can derive a scalar quantizer that follows this resolution:
+\begin_inset Formula 
+\[
+\hat{g}=Q_{g}\gamma^{1+2\alpha}\ ,
+\]
+
+\end_inset
+
+where 
+\begin_inset Formula $\gamma$
+\end_inset
+
+ is the gain quantization index and 
+\begin_inset Formula $Q_{g}$
+\end_inset
+
+ is the gain resolution and 
+\begin_inset Quotes eld
+\end_inset
+
+master
+\begin_inset Quotes erd
+\end_inset
+
+ quality parameter.
+ If we assume that MSE is a good criterion, then the angle quantization
+ resolution should be (roughly) 
+\begin_inset Formula 
+\[
+Q_{\theta}=Q_{g}\left(1+2\alpha\right)\gamma^{2\alpha}\ .
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+To derive the optimal 
+\begin_inset Formula $K$
+\end_inset
+
+ we need to consider the cosine distance between adjacent codevectors 
+\begin_inset Formula $\mathbf{p}_{1}$
+\end_inset
+
+ and 
+\begin_inset Formula $\mathbf{p}_{2}$
+\end_inset
+
+ for two cases: 
+\begin_inset Formula $K<N$
+\end_inset
+
+ and 
+\begin_inset Formula $K>N$
+\end_inset
+
+.
+ For 
+\begin_inset Formula $K<N$
+\end_inset
+
+, the worst resolution occurs when no value in 
+\begin_inset Formula $\mathbf{p}_{q}$
+\end_inset
+
+ is larger than one.
+ In that case, the two closest codevectors have a cosine distance
+\begin_inset Formula 
+\begin{align*}
+\cos\tau & =\frac{\mathbf{p}_{1}^{T}\mathbf{p}_{2}}{\sqrt{\mathbf{p}_{2}^{T}\mathbf{p}_{2}}\sqrt{\mathbf{p}_{2}^{T}\mathbf{p}_{2}}}\\
+ & =\frac{K-1}{K}\\
+ & =1-\frac{1}{K}
+\end{align*}
+
+\end_inset
+
+By approximating the cosine, we then get
+\begin_inset Formula 
+\begin{align}
+1-\frac{1}{K} & =\cos\tau\approx1-\frac{\tau^{2}}{2}\nonumber \\
+K & \approx\frac{2}{\tau^{2}}\label{eq:small-K}
+\end{align}
+
+\end_inset
+
+For 
+\begin_inset Formula $K>N$
+\end_inset
+
+ the worst resolution happens when all values are equal to 
+\begin_inset Formula $K/N$
+\end_inset
+
+ in 
+\begin_inset Formula $\mathbf{p}_{1}$
+\end_inset
+
+ and 
+\begin_inset Formula $\mathbf{p}_{2}$
+\end_inset
+
+ differs by one pulse.
+ In that case
+\begin_inset Formula 
+\begin{align*}
+\cos\tau & =\frac{K^{2}/N}{\sqrt{\frac{K^{2}}{N}}\sqrt{\frac{K^{2}}{N}+2}}\\
+ & =\frac{1}{\sqrt{1+\frac{2N}{K^{2}}}}\\
+ & \approx1-\frac{N}{K^{2}}
+\end{align*}
+
+\end_inset
+
+By approximating the cosine, we get
+\begin_inset Formula 
+\begin{align}
+1-\frac{N}{K^{2}} & =\cos\tau\approx1-\frac{\tau^{2}}{2}\nonumber \\
+K & \approx\sqrt{\frac{2N}{\tau}}\ .\label{eq:large-K}
+\end{align}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+By combining 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:small-K"
+
+\end_inset
+
+ with 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:large-K"
+
+\end_inset
+
+, we have
+\begin_inset Formula 
+\[
+K\approx\min\left(\sqrt{\frac{2N}{\tau}},\frac{2}{\tau}\right)
+\]
+
+\end_inset
+
+The last step is to set 
+\begin_inset Formula 
+\[
+\tau=\sin\hat{\theta}
+\]
+
+\end_inset
+
+to account for the fact that the more the image differs from the reference,
+ the higher the resolution needs to be.
+\end_layout
+
+\begin_layout Section
+Theoretical Ramblings on SSIM
 \end_layout
 
 \begin_layout Standard
@@ -580,7 +785,7 @@ Conclusion
 \end_layout
 
 \begin_layout Standard
-While it seems like a good idea, none of this has actually been tested yet.
+While it seems like a good idea, we're still experimenting with the details.
 \end_layout
 
 \end_body
