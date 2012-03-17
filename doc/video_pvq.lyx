@@ -562,6 +562,72 @@ to account for the fact that the more the image differs from the reference,
 \end_layout
 
 \begin_layout Section
+Bi-Prediction
+\end_layout
+
+\begin_layout Standard
+We can use this scheme for bi-prediction by introducing a second 
+\begin_inset Formula $\theta$
+\end_inset
+
+ parameter.
+ For the case of two (normalized) reference frames 
+\begin_inset Formula $\mathbf{r}_{1}$
+\end_inset
+
+ and 
+\begin_inset Formula $\mathbf{r}_{2}$
+\end_inset
+
+, we introduce 
+\begin_inset Formula $\mathbf{s}_{1}=\left(\mathbf{r}_{1}+\mathbf{r}_{2}\right)/2$
+\end_inset
+
+ and 
+\begin_inset Formula $\mathbf{s}_{2}=\left(\mathbf{r}_{1}-\mathbf{r}_{2}\right)/2$
+\end_inset
+
+.
+ We start by using 
+\begin_inset Formula $\mathbf{s}_{1}$
+\end_inset
+
+ as a reference, apply the Householder reflection to both 
+\begin_inset Formula $\mathbf{x}$
+\end_inset
+
+ and 
+\begin_inset Formula $\mathbf{s}_{2}$
+\end_inset
+
+, and evaluate 
+\begin_inset Formula $\theta_{1}$
+\end_inset
+
+.
+ From there, we derive a second Householder reflection from the reflected
+ version of 
+\begin_inset Formula $\mathbf{s}_{2}$
+\end_inset
+
+ and apply it to 
+\begin_inset Formula $\mathbf{x}_{r}$
+\end_inset
+
+.
+ The result is that the 
+\begin_inset Formula $\theta_{2}$
+\end_inset
+
+ parameter controls how the current image compares to the two reference
+ images.
+ It should even be possible to use this in the case where the two references
+ are before the frame being encoded, i.e.
+ P frames based on two parents.
+ This would help for fades.
+\end_layout
+
+\begin_layout Section
 Theoretical Ramblings on SSIM
 \end_layout
 
