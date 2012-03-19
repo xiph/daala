@@ -2,7 +2,7 @@
 # define _pvq_H (1)
 # include "internal.h"
 
-int quant_pvq(ogg_int16_t *_x,const ogg_int16_t *_r,const int *_q,
-    ogg_int16_t *_scale,int *out,int N,int K,int paper_scaling);
+int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
+    ogg_int16_t *_scale,int *y,int N,int Q);
 
 #endif

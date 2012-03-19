@@ -4,7 +4,7 @@
 #include <stdio.h>
 
 #define MAXN 256
-#define EPSILON 1e-15
+#define EPSILON 1e-30
 
 /* This is a "standard" pyramid vector quantizer search */
 static void pvq_search(float *x,float *scale,float *scale_1,float g,int N,int K,int *y){
@@ -92,9 +92,13 @@ static void pvq_search(float *x,float *scale,float *scale_1,float g,int N,int K,
 }
 
 
-int quant_pvq(ogg_int16_t *_x,const ogg_int16_t *_r,const int *_q,
-    ogg_int16_t *_scale,int *y,int N,int K,int paper_scaling){
-  float L2x, L2r;
+
+#define GAIN_EXP (4./3.)
+#define GAIN_EXP_1 (1./GAIN_EXP)
+
+int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
+    ogg_int16_t *_scale,int *y,int N,int Q){
+  float L2x,L2r;
   float g;
   float gr;
   float x[MAXN];
@@ -106,33 +110,59 @@ int quant_pvq(ogg_int16_t *_x,const ogg_int16_t *_r,const int *_q,
   float s;
   float maxr=-1;
   float proj;
-  float min_scale=1e15;
+  float xm;
+  float L2_m;
+  float theta;
+  int qg, qt;
+  int theta_res;
+  float Qtheta;
+  int K;
 
   for(i=0;i<N;i++){
     scale[i]=_scale[i];
     scale_1[i]=1./scale[i];
-    if(scale[i]<min_scale)min_scale=scale[i];
   }
 
-  L2x=L2r=0;
+  L2x=0;
   for(i=0;i<N;i++){
     x[i]=_x[i];
     r[i]=_r[i];
     L2x+=x[i]*x[i];
   }
 
-  if(paper_scaling){
-    for(i=0;i<N;i++){
-      x[i]*=scale_1[i];
-      r[i]*=scale_1[i];
-    }
-  }
+  g=sqrt(L2x);
+  /*printf("%f\n", g);*/
+  /* Round towards zero as a slight bias */
+  qg = floor(pow(g/Q,GAIN_EXP_1));
+  g = Q*pow(qg, GAIN_EXP);
+  theta_res = floor(.5+ (M_PI/2)*qg/GAIN_EXP );
+  /*printf("%d %d ", qg, theta_res);*/
+
+  /*if (g>100000 && g0>100000)
+    printf("%f %f\n", g, g0);*/
+  /*for(i=0;i<N;i++){
+    x[i]*=scale_1[i];
+    r[i]*=scale_1[i];
+  }*/
+
+  L2r=0;
   for(i=0;i<N;i++){
     L2r+=r[i]*r[i];
   }
-  g=sqrt(L2x);
   gr=sqrt(L2r);
 
+  /* This is where we can skip */
+  /*
+  if (K<=0)
+  {
+    for(i=0;i<N;i++){
+      _x[i]=_r[i];
+    }
+    return 0;
+  }
+*/
+
+  /*printf("%f ", xc0);*/
   /* Pick component with largest magnitude. Not strictly
    * necessary, but it helps numerical stability */
   m=0;
@@ -143,15 +173,6 @@ int quant_pvq(ogg_int16_t *_x,const ogg_int16_t *_r,const int *_q,
     }
   }
 
-  if(!paper_scaling){
-    /* FIXME: It's not clear whether we should use the smallest scaling factor, the largest,
-     * something in-between, something else, or just do the scaling before the Householder
-     * reflection. By reducing the scaling for m, we increase the resolution in the
-     * area of the prediction. Counter-intuitively, this *increases* the error, but at the
-     * same time it makes y[m] larger, which is easier to code. */
-    scale[m]=min_scale;
-    scale_1[m]=1./scale[m];
-  }
   /*printf("max r: %f %f %d\n", maxr, r[m], m);*/
   s=r[m]>0?1:-1;
 
@@ -174,11 +195,46 @@ int quant_pvq(ogg_int16_t *_x,const ogg_int16_t *_r,const int *_q,
     x[i]-=r[i]*proj;
   }
 
-  if(paper_scaling){
-    pvq_search(x,NULL,NULL,g,N,K,y);
-  } else {
-    pvq_search(x,scale,scale_1,g,N,K,y);
+  xm=-x[m]*s;
+  x[m]=0;
+  L2_m=0;
+  for(i=0;i<N;i++){
+    L2_m+=x[i]*x[i];
   }
+  theta=atan2(sqrt(L2_m),xm);
+
+  /* Quantize theta and compute K */
+  if (theta_res>0){
+    Qtheta=(M_PI/2.)/theta_res;
+    /* Round towards zero as a slight bias */
+    qt = floor(theta/Qtheta);
+    theta = Qtheta*qt;
+    if (qt==0){
+      K=0;
+    }else{
+      int K_large;
+      float tau=Qtheta/sin(theta);
+      K=floor(.5+2./(tau*tau));
+      K_large = floor(.5+sqrt(2*(N-1))/tau);
+      if (K>K_large){
+        K=K_large;
+      }
+      if(K<1)
+        K=1;
+    }
+  }else{
+    theta=0;
+    K=0;
+  }
+  /*printf("%d %d\n", K, N);*/
+
+  pvq_search(x,NULL,NULL,1,N,K,y);
+
+  for(i=0;i<N;i++){
+    x[i]*=sin(theta);
+  }
+  x[m]=-s*cos(theta);
+
   /* Apply Householder reflection again to get the quantized coefficients */
   proj=0;
   for(i=0;i<N;i++){
@@ -189,25 +245,25 @@ int quant_pvq(ogg_int16_t *_x,const ogg_int16_t *_r,const int *_q,
     x[i]-=r[i]*proj;
   }
 
-  if(paper_scaling){
-    L2x=0;
-    for(i=0;i<N;i++){
-      float tmp=x[i]*scale[i];
-      L2x+=tmp*tmp;
-    }
-    g/=EPSILON+sqrt(L2x);
-    for(i=0;i<N;i++){
-      x[i]*=g*scale[i];
-    }
+  L2x=0;
+  for(i=0;i<N;i++){
+    float tmp=x[i]/* *scale[i]*/;
+    L2x+=tmp*tmp;
+  }
+  g/=EPSILON+sqrt(L2x);
+  for(i=0;i<N;i++){
+    x[i]*=g/* *scale[i]*/;
   }
 
   for(i=0;i<N;i++){
     _x[i]=floor(.5+x[i]);
   }
 
-  printf("y[m]=%d\n", y[m]);
+  /*printf("xc1=%f\n", xc1);*/
+  /*printf("y[m]=%d\n", y[m]);*/
   return m;
 }
+
 
 /*#define MAIN*/
 #ifdef MAIN

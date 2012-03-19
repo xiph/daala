@@ -199,9 +199,9 @@ The similarity between the current band and the reference band is represented
 
 \begin_layout Standard
 \begin_inset Formula 
-\[
-\theta=\arccos\frac{-sz_{m}}{\left\Vert \mathbf{z}\right\Vert }\ .
-\]
+\begin{equation}
+\theta=\arccos\frac{-sz_{m}}{\left\Vert \mathbf{z}\right\Vert }\ .\label{eq:unquant-theta}
+\end{equation}
 
 \end_inset
 
@@ -245,9 +245,9 @@ where
 
  be the post-quantization optimal angle, the mean square error becomes
 \begin_inset Formula 
-\[
-E=\left(-s\cos\theta_{opt}\mathbf{e}_{m}+\sin\theta_{opt}\hat{\mathbf{p}}-\mathbf{z}\right)^{2}\ ,
-\]
+\begin{equation}
+E=\left(-s\cos\theta_{opt}\mathbf{e}_{m}+\sin\theta_{opt}\hat{\mathbf{p}}-\mathbf{z}\right)^{2}\ ,\label{eq:error-theta}
+\end{equation}
 
 \end_inset
 
@@ -268,12 +268,12 @@ Solving for
 
 \begin_layout Standard
 \begin_inset Formula 
-\begin{align*}
-\frac{\partial}{\partial\theta}\left(-s\cos\theta_{opt}\mathbf{e}_{m}+\sin\theta_{opt}\hat{\mathbf{p}}\right)\mathbf{z} & =0\\
-\left(s\sin\theta_{opt}\mathbf{e}_{m}+\cos\theta_{opt}\hat{\mathbf{p}}\right)\mathbf{z} & =0\\
-\sin\theta_{opt}\mathbf{e}_{m}\mathbf{z} & =-s\cos\theta_{opt}\hat{\mathbf{p}}\mathbf{z}\\
-\theta_{opt} & =-s\arctan\frac{\hat{\mathbf{p}}\mathbf{z}}{\mathbf{e}_{m}\mathbf{z}}\ .
-\end{align*}
+\begin{align}
+\frac{\partial}{\partial\theta}\left(-s\cos\theta_{opt}\mathbf{e}_{m}+\sin\theta_{opt}\hat{\mathbf{p}}\right)\mathbf{z} & =0\nonumber \\
+\left(s\sin\theta_{opt}\mathbf{e}_{m}+\cos\theta_{opt}\hat{\mathbf{p}}\right)\mathbf{z} & =0\nonumber \\
+\sin\theta_{opt}\mathbf{e}_{m}\mathbf{z} & =-s\cos\theta_{opt}\hat{\mathbf{p}}\mathbf{z}\nonumber \\
+\theta_{opt} & =-s\arctan\frac{\hat{\mathbf{p}}\mathbf{z}}{\mathbf{e}_{m}\mathbf{z}}\ .\label{eq:theta-opt}
+\end{align}
 
 \end_inset
 
@@ -402,9 +402,9 @@ It is desirable for a single quality parameter to control
 .
  We can derive a scalar quantizer that follows this resolution:
 \begin_inset Formula 
-\[
-\hat{g}=Q_{g}\gamma^{1+2\alpha}\ ,
-\]
+\begin{equation}
+\hat{g}=Q_{g}\gamma^{1+2\alpha}\ ,\label{eq:gain-scalar-quantization}
+\end{equation}
 
 \end_inset
 
@@ -428,9 +428,9 @@ master
  If we assume that MSE is a good criterion, then the angle quantization
  resolution should be (roughly) 
 \begin_inset Formula 
-\[
-Q_{\theta}=Q_{g}\left(1+2\alpha\right)\gamma^{2\alpha}\ .
-\]
+\begin{equation}
+Q_{\theta}=\frac{d\hat{g}/d\gamma}{\hat{g}}=\frac{Q_{g}\left(1+2\alpha\right)\gamma^{2\alpha}}{Q_{g}\gamma^{1+2\alpha}}=\frac{\left(1+2\alpha\right)}{\gamma}\ .\label{eq:theta-quantization-step}
+\end{equation}
 
 \end_inset
 
@@ -518,7 +518,7 @@ By approximating the cosine, we get
 \begin_inset Formula 
 \begin{align}
 1-\frac{N}{K^{2}} & =\cos\tau\approx1-\frac{\tau^{2}}{2}\nonumber \\
-K & \approx\sqrt{\frac{2N}{\tau}}\ .\label{eq:large-K}
+K & \approx\frac{\sqrt{2N}}{\tau}\ .\label{eq:large-K}
 \end{align}
 
 \end_inset
@@ -543,17 +543,17 @@ reference "eq:large-K"
 
 , we have
 \begin_inset Formula 
-\[
-K\approx\min\left(\sqrt{\frac{2N}{\tau}},\frac{2}{\tau}\right)
-\]
+\begin{equation}
+K\approx\min\left(\frac{\sqrt{2N}}{\tau},\frac{2}{\tau^{2}}\right)\label{eq:pulse-allocation}
+\end{equation}
 
 \end_inset
 
 The last step is to set 
 \begin_inset Formula 
-\[
-\tau=\sin\hat{\theta}
-\]
+\begin{equation}
+\tau=Q_{\theta}/\sin\hat{\theta}\label{eq:tau-from-theta}
+\end{equation}
 
 \end_inset
 
@@ -624,7 +624,7 @@ We can use this scheme for bi-prediction by introducing a second
  It should even be possible to use this in the case where the two references
  are before the frame being encoded, i.e.
  P frames based on two parents.
- This would help for fades.
+ This might help for fades.
 \end_layout
 
 \begin_layout Section
