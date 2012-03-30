@@ -136,6 +136,7 @@ int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
   qg = floor(pow(g/Q,GAIN_EXP_1));
   g = Q*pow(qg, GAIN_EXP);
   theta_res = floor(.5+ (M_PI/2)*qg/GAIN_EXP );
+  /*if(N==16)printf("%d ", qg);*/
   /*printf("%d %d ", qg, theta_res);*/
 
   /*if (g>100000 && g0>100000)
@@ -229,6 +230,7 @@ int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
   /*printf("%d %d\n", K, N);*/
 
   pvq_search(x,NULL,NULL,1,N,K,y);
+  /*if (N==32)for(i=0;i<N;i++)printf("%d ", y[i]);printf("\n");*/
 
   for(i=0;i<N;i++){
     x[i]*=sin(theta);
@@ -265,6 +267,178 @@ int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
 }
 
 
+
+int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
+    ogg_int16_t *_scale,int *y,int N,int Q){
+  float L2x,L2r;
+  float g;
+  float gr;
+  float x[MAXN];
+  float r[MAXN];
+  float scale[MAXN];
+  float scale_1[MAXN];
+  int   i;
+  int   m;
+  float s;
+  float maxr=-1;
+  float proj;
+  int qg;
+  int K;
+
+  for(i=0;i<N;i++){
+    scale[i]=_scale[i];
+    scale_1[i]=1./scale[i];
+  }
+
+  L2x=0;
+  for(i=0;i<N;i++){
+    x[i]=_x[i];
+    r[i]=_r[i];
+    L2x+=x[i]*x[i];
+  }
+
+  g=sqrt(L2x);
+
+  L2r=0;
+  for(i=0;i<N;i++){
+    L2r+=r[i]*r[i];
+  }
+  gr=sqrt(L2r);
+
+  /*printf("%f\n", g);*/
+  float cg, cgr;
+  cg = pow(g/Q,GAIN_EXP_1);
+  cgr = pow(gr/Q,GAIN_EXP_1);
+
+  /* Round towards zero as a slight bias */
+  qg = floor(.5+cg-cgr);
+  cg = cgr+qg;
+  if (cg<0)cg=0;
+  g = Q*pow(cg, GAIN_EXP);
+  K = floor(.5+ 2.3*(M_PI/2)*(cg)/GAIN_EXP );
+  /*if(N==16)printf("%d ", qg);*/
+  /*printf("%d %d ", qg, theta_res);*/
+
+  /*if (g>100000 && g0>100000)
+    printf("%f %f\n", g, g0);*/
+  /*for(i=0;i<N;i++){
+    x[i]*=scale_1[i];
+    r[i]*=scale_1[i];
+  }*/
+
+  L2r=0;
+  for(i=0;i<N;i++){
+    L2r+=r[i]*r[i];
+  }
+  gr=sqrt(L2r);
+
+  /* This is where we can skip */
+  /*
+  if (K<=0)
+  {
+    for(i=0;i<N;i++){
+      _x[i]=_r[i];
+    }
+    return 0;
+  }
+*/
+
+  /*printf("%f ", xc0);*/
+  /* Pick component with largest magnitude. Not strictly
+   * necessary, but it helps numerical stability */
+  m=0;
+  for(i=0;i<N;i++){
+    if(fabs(r[i])>maxr){
+      maxr=fabs(r[i]);
+      m=i;
+    }
+  }
+
+  /*printf("max r: %f %f %d\n", maxr, r[m], m);*/
+  s=r[m]>0?1:-1;
+
+  /* This turns r into a Householder reflection vector that would reflect
+   * the original r[] to e_m */
+  r[m]+=gr*s;
+
+  L2r=0;
+  for(i=0;i<N;i++){
+    L2r+=r[i]*r[i];
+  }
+
+  /* Apply Householder reflection */
+  proj=0;
+  for(i=0;i<N;i++){
+    proj+=r[i]*x[i];
+  }
+  proj*=2.F/(EPSILON+L2r);
+  for(i=0;i<N;i++){
+    x[i]-=r[i]*proj;
+  }
+
+  /*printf("%d ", qt);*/
+  /*printf("%d %d\n", K, N);*/
+
+  pvq_search(x,NULL,NULL,1,N,K,y);
+  /*if (N==32)for(i=0;i<N;i++)printf("%d ", y[i]);printf("\n");*/
+
+  /*printf("%d %d\n", K-y[m], N);*/
+
+  /* Apply Householder reflection again to get the quantized coefficients */
+  proj=0;
+  for(i=0;i<N;i++){
+    proj+=r[i]*x[i];
+  }
+  proj*=2.F/(EPSILON+L2r);
+  for(i=0;i<N;i++){
+    x[i]-=r[i]*proj;
+  }
+
+  L2x=0;
+  for(i=0;i<N;i++){
+    float tmp=x[i]/* *scale[i]*/;
+    L2x+=tmp*tmp;
+  }
+  g/=EPSILON+sqrt(L2x);
+  for(i=0;i<N;i++){
+    x[i]*=g/* *scale[i]*/;
+  }
+
+  for(i=0;i<N;i++){
+    _x[i]=floor(.5+x[i]);
+  }
+
+  /*printf("xc1=%f\n", xc1);*/
+  /*printf("y[m]=%d\n", y[m]);*/
+  return m;
+}
+
+int quant_scalar(ogg_int32_t *_x,const ogg_int32_t *_r,
+    ogg_int16_t *_scale,int *y,int N,int Q){
+  int i;
+  float Q2, Q2_1;
+  int K;
+
+  K=0;
+  Q2=1.5*Q;
+  if (N==64)
+    Q2*=.8;
+  Q2_1=1./Q2;
+  for (i=0;i<N;i++)
+  {
+    int qi;
+    float tmp;
+    tmp=Q2_1*(_x[i]-_r[i]);
+    if (tmp<.8&&tmp>-.8)
+      qi=0;
+    else
+      qi=floor(.5+tmp);
+    K+=abs(qi);
+    _x[i]=_r[i]+Q2*qi;
+  }
+  printf("%d %d\n", K, N);
+  return 0;
+}
 /*#define MAIN*/
 #ifdef MAIN
 int main()
