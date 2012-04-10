@@ -7,7 +7,7 @@
 #define EPSILON 1e-30
 
 /* This is a "standard" pyramid vector quantizer search */
-static void pvq_search(float *x,float *scale,float *scale_1,float g,int N,int K,int *y){
+static void pvq_search(float *x,float *scale,float *scale_1,float g,int N,int K,int *y,int m,float lambda){
   float L1;
   float L2;
   float L1_proj;
@@ -17,6 +17,7 @@ static void pvq_search(float *x,float *scale,float *scale_1,float g,int N,int K,
   int   s[MAXN];
   float xy; /* sum(x*y) */
   float yy; /* sum(y*y) */
+  float xx;
 
   /* Apply inverse scaling */
   if (scale!=NULL){
@@ -26,9 +27,11 @@ static void pvq_search(float *x,float *scale,float *scale_1,float g,int N,int K,
   }
   /* Remove the sign and compute projection on the pyramid */
   L1=0;
+  xx=0;
   for (i=0;i<N;i++){
     s[i]=x[i]>0?1:-1;
     x[i]=fabs(x[i]);
+    xx += x[i]*x[i];
     L1+=x[i];
   }
   L1_proj=K/(EPSILON+L1);
@@ -48,20 +51,26 @@ static void pvq_search(float *x,float *scale,float *scale_1,float g,int N,int K,
     float best_num;
     float best_den;
     int   best_id;
+    float best_cost;
     best_num=-1;
-    best_den=0;
+    best_den=1e-15;
+    best_cost=0;
     yy+=1;
     best_id = 0;
     for(j=0;j<N;j++){
       float tmp_xy;
       float tmp_yy;
+      float cost;
       tmp_xy=xy+x[j];
       tmp_yy=yy+2*y[j];
       tmp_xy*=tmp_xy;
+      cost=(j==m)?0:lambda;
       /* Trick to avoid having to divide by the denominators */
       if (tmp_xy*best_den > best_num*tmp_yy){
+      /*if (tmp_xy/sqrt(xx*tmp_yy)+best_cost > best_num/sqrt(xx*best_den)+cost){*/
         best_num=tmp_xy;
         best_den=tmp_yy;
+        best_cost = cost;
         best_id=j;
       }
     }
@@ -88,6 +97,10 @@ static void pvq_search(float *x,float *scale,float *scale_1,float g,int N,int K,
     for(i=0;i<N;i++){
       x[i]=s[i]*g*y[i];
     }
+  }
+
+  for(i=0;i<N;i++){
+    y[i]*=s[i];
   }
 }
 
@@ -118,6 +131,8 @@ int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
   float Qtheta;
   int K;
 
+  Q *= .42;
+
   for(i=0;i<N;i++){
     scale[i]=_scale[i];
     scale_1[i]=1./scale[i];
@@ -131,10 +146,36 @@ int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
   }
 
   g=sqrt(L2x);
+
+#if 1
+  float cg, cgr;
+  L2r=0;
+  for(i=0;i<N;i++){
+    L2r+=r[i]*r[i];
+  }
+  gr=sqrt(L2r);
+
+  cg = pow(g/Q,GAIN_EXP_1)-1.;
+  if (cg<0)
+    cg=0;
+  cgr = pow(gr/Q,GAIN_EXP_1);
+
+  /* Round towards zero as a slight bias */
+  qg = floor(.5+cg-cgr);
+  /*printf("%d ", qg);*/
+  /*g = Q*pow(cg, GAIN_EXP);*/
+  cg = cgr+qg;
+  if (cg<0)cg=0;
+  g = Q*pow(cg, GAIN_EXP);
+  qg = floor(.5+cg);
+#else
   /*printf("%f\n", g);*/
   /* Round towards zero as a slight bias */
-  qg = floor(pow(g/Q,GAIN_EXP_1));
+  qg = floor(pow(g/Q,GAIN_EXP_1)-.5);
+  if (qg<0)
+    qg=0;
   g = Q*pow(qg, GAIN_EXP);
+#endif
   theta_res = floor(.5+ (M_PI/2)*qg/GAIN_EXP );
   /*if(N==16)printf("%d ", qg);*/
   /*printf("%d %d ", qg, theta_res);*/
@@ -205,23 +246,52 @@ int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
   theta=atan2(sqrt(L2_m),xm);
 
   /* Quantize theta and compute K */
-  if (theta_res>0){
-    Qtheta=(M_PI/2.)/theta_res;
-    /* Round towards zero as a slight bias */
-    qt = floor(theta/Qtheta);
-    theta = Qtheta*qt;
+  if (qg>0){
+    float beta;
+    float lambda;
+    float theta_mod;
+    int flip=0;
+
+    if (theta>M_PI/2){
+      flip=1;
+      theta=M_PI-theta;
+    }
+
+#if 1
+    lambda = 1./(qg*qg);
+    beta = 2*sin(theta)*sin(theta)-lambda;
+    if (beta<=0 /*|| theta<.5*M_PI/qg*/){
+      theta=0;
+    }else{
+      theta = theta-lambda*cos(theta)*sin(theta)/beta;
+      if (theta<0){
+        theta=0;
+      }
+    }
+
+#else
+    lambda=2;
+    beta = 1-lambda*cos(theta)/(qg*sin(theta));
+    if (beta>0)
+      beta = .5+.5*sqrt(beta);
+    else
+      beta = 0;
+#endif
+    theta_mod = theta/1.2389 - (theta/1.2389)*(theta/1.2389)/6.;
+    qt = floor(qg*theta_mod);
+    theta_mod = qt/(float)qg;
+    theta = 1.2389 * 3*(1-sqrt(1-theta_mod/1.5));
+    if (flip)
+      theta=M_PI-theta;
     if (qt==0){
       K=0;
     }else{
       int K_large;
-      float tau=Qtheta/sin(theta);
-      K=floor(.5+2./(tau*tau));
-      K_large = floor(.5+sqrt(2*(N-1))/tau);
+      K = qt*qt;
+      K_large = sqrt(qt*N);
       if (K>K_large){
         K=K_large;
       }
-      if(K<1)
-        K=1;
     }
   }else{
     theta=0;
@@ -229,7 +299,8 @@ int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
   }
   /*printf("%d %d\n", K, N);*/
 
-  pvq_search(x,NULL,NULL,1,N,K,y);
+  pvq_search(x,NULL,NULL,1,N,K,y,m,0);
+  /*for(i=0;i<N;i++)printf("%d ", y[i]);*/
   /*if (N==32)for(i=0;i<N;i++)printf("%d ", y[i]);printf("\n");*/
 
   for(i=0;i<N;i++){
@@ -284,7 +355,8 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   float proj;
   int qg;
   int K;
-
+  float cg, cgr;
+  Q*=.40;
   for(i=0;i<N;i++){
     scale[i]=_scale[i];
     scale_1[i]=1./scale[i];
@@ -306,16 +378,19 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   gr=sqrt(L2r);
 
   /*printf("%f\n", g);*/
-  float cg, cgr;
-  cg = pow(g/Q,GAIN_EXP_1);
+  cg = pow(g/Q,GAIN_EXP_1)-1.;
+  if (cg<0)
+    cg=0;
   cgr = pow(gr/Q,GAIN_EXP_1);
 
   /* Round towards zero as a slight bias */
   qg = floor(.5+cg-cgr);
+  /*printf("%d ", qg);*/
+  /*g = Q*pow(cg, GAIN_EXP);*/
   cg = cgr+qg;
   if (cg<0)cg=0;
   g = Q*pow(cg, GAIN_EXP);
-  K = floor(.5+ 2.3*(M_PI/2)*(cg)/GAIN_EXP );
+  K = floor(.5+ 1.3*(M_PI/2)*(cg)/GAIN_EXP );
   /*if(N==16)printf("%d ", qg);*/
   /*printf("%d %d ", qg, theta_res);*/
 
@@ -379,8 +454,9 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   /*printf("%d ", qt);*/
   /*printf("%d %d\n", K, N);*/
 
-  pvq_search(x,NULL,NULL,1,N,K,y);
-  /*if (N==32)for(i=0;i<N;i++)printf("%d ", y[i]);printf("\n");*/
+  pvq_search(x,NULL,NULL,1,N,K,y,m,.4/(cg*cg));
+  /*printf("%d ", K-abs(y[m]));*/
+  /*for(i=0;i<N;i++)printf("%d ", (m==i)?0:y[i]);*/
 
   /*printf("%d %d\n", K-y[m], N);*/
 
