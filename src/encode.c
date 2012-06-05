@@ -25,12 +25,16 @@
 #include <math.h>
 #include <string.h>
 #include "encint.h"
+#include "filter.h"
+#include "dct.h"
 
 static int od_enc_init(od_enc_ctx *_enc,const daala_info *_info){
   int ret;
   ret=od_state_init(&_enc->state,_info);
   if(ret<0)return ret;
   oggbyte_writeinit(&_enc->obb);
+  _enc->max_packet=1024*1024*10;
+  _enc->packet=(unsigned char*)_ogg_malloc(_enc->max_packet);
   _enc->packet_state=OD_PACKET_INFO_HDR;
   _enc->mvest=od_mv_est_alloc(_enc);
   return 0;
@@ -55,6 +59,7 @@ daala_enc_ctx *daala_encode_alloc(const daala_info *_info){
 
 void daala_encode_free(daala_enc_ctx *_enc){
   if(_enc!=NULL){
+    _ogg_free(_enc->packet);
     od_enc_clear(_enc);
     _ogg_free(_enc);
   }
@@ -138,6 +143,8 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
       return OD_EINVAL;
     }
   }
+  /*Init entropy coder*/
+  ec_enc_init(&_enc->ec, _enc->packet, _enc->max_packet);
   /*Update buffer state.*/
   if(_enc->state.ref_imgi[OD_FRAME_SELF]>=0){
     _enc->state.ref_imgi[OD_FRAME_PREV]=
@@ -162,11 +169,13 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
 #endif
     fprintf(stderr,"Predicting frame %i:\n",
      (int)daala_granule_basetime(_enc,_enc->state.cur_time));
+#if 0
     od_mv_est(_enc->mvest,OD_FRAME_PREV,452/*118*/);
+#endif
     od_state_mc_predict(&_enc->state,OD_FRAME_PREV);
 #if defined(OD_DUMP_IMAGES)
     /*Dump reconstructed frame.*/
-    od_state_dump_img(&_enc->state,&_enc->state.rec_img,"rec");
+/*    od_state_dump_img(&_enc->state,&_enc->state.rec_img,"rec");*/
     od_state_fill_vis(&_enc->state);
     od_state_dump_img(&_enc->state,&_enc->state.vis_img,"vis");
 #endif
@@ -176,6 +185,7 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
     ogg_int64_t  mc_sqerr;
     ogg_int64_t  enc_sqerr;
     ogg_uint32_t npixels;
+    od_coeff     *ctmp;
     int          x;
     int          y;
     int          w;
@@ -189,6 +199,83 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
     mc_sqerr=0;
     enc_sqerr=0;
     npixels=w*h;
+    ctmp=calloc(npixels,sizeof(od_coeff));
+    for(y=0;y<h;y++)for(x=0;x<_img->width>>_img->planes[pli].xdec;x++){
+      ctmp[y*w+x]=*(_img->planes[pli].data+_img->planes[pli].ystride*y+_img->planes[pli].xstride*x)-128;
+    }
+#if 1
+    for(y=2;y<h-2;y+=4){
+      for(x=0;x<_img->width>>_img->planes[pli].xdec;x++){
+        unsigned char *recimg;
+        int j;
+        od_coeff p[4];
+        for(j=0;j<4;j++){
+          p[j]=ctmp[(y+j)*w+x];
+        }
+        od_pre_filter4(p,p);
+        for(j=0;j<4;j++){
+          ctmp[(y+j)*w+x]=p[j];
+        }
+      }
+    }
+    for(y=0;y<h;y++){
+      for(x=2;x<(_img->width>>_img->planes[pli].xdec)-2;x+=4){
+        od_pre_filter4(&ctmp[y*w+x],&ctmp[y*w+x]);
+      }
+    }
+#endif
+    /*FDCT 4x4 blocks*/
+    for(y=0;y<h;y+=4){
+      for(x=0;x<(_img->width>>_img->planes[pli].xdec);x+=4){
+        int j;
+        for(j=0;j<4;j++)od_bin_fdct4(&ctmp[(y+j)*w+x],&ctmp[(y+j)*w+x]);
+        for(j=0;j<4;j++){
+          od_coeff p[4];
+          int k;
+          for(k=0;k<4;k++)p[k]=ctmp[(y+k)*w+x+j];
+          od_bin_fdct4(p,p);
+          for(k=0;k<4;k++)ctmp[(y+k)*w+x+j]=OD_DIV_ROUND(p[k],32)*32;
+        }
+      }
+    }
+    /*iDCT 4x4 blocks*/
+    for(y=0;y<h;y+=4){
+      for(x=0;x<(_img->width>>_img->planes[pli].xdec);x+=4){
+        int j;
+        for(j=0;j<4;j++){
+          od_coeff p[4];
+          int k;
+          for(k=0;k<4;k++)p[k]=ctmp[(y+k)*w+x+j];
+          od_bin_idct4(p,p);
+          for(k=0;k<4;k++)ctmp[(y+k)*w+x+j]=p[k];
+        }
+        for(j=0;j<4;j++)od_bin_idct4(&ctmp[(y+j)*w+x],&ctmp[(y+j)*w+x]);
+      }
+    }
+
+#if 1
+    for(y=0;y<h;y++){
+      for(x=2;x<(_img->width>>_img->planes[pli].xdec)-2;x+=4){
+        od_post_filter4(&ctmp[y*w+x],&ctmp[y*w+x]);
+      }
+    }
+    for(y=2;y<h-2;y+=4){
+      for(x=0;x<_img->width>>_img->planes[pli].xdec;x++){
+        unsigned char *recimg;
+        int j;
+        od_coeff p[4];
+        for(j=0;j<4;j++)p[j]=ctmp[(y+j)*w+x];
+        od_post_filter4(p,p);
+        for(j=0;j<4;j++)ctmp[(y+j)*w+x]=p[j];
+      }
+    }
+#endif
+    for(y=0;y<h;y++)for(x=0;x<_img->width>>_img->planes[pli].xdec;x++){
+       unsigned char *recimg;
+       recimg=_enc->state.rec_img.planes[pli].data+_enc->state.rec_img.planes[pli].ystride*y+x;
+       *recimg=OD_CLAMP255(ctmp[y*w+x]+128);
+    }
+    free(ctmp);
     for(y=0;y<h;y++){
       unsigned char *prev_rec_row;
       unsigned char *rec_row;
@@ -206,6 +293,7 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
         inp_val=*(inp_row+_img->planes[pli].xstride*x);
         diff=inp_val-rec_val;
         mc_sqerr+=diff*diff;
+        ec_enc_uint(&_enc->ec,inp_val+128,256);
 #ifdef OD_DPCM
         {
           int pred_diff;
@@ -235,7 +323,7 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
           rec_row[x]=OD_CLAMP255(rec_val+qdiff);
         }
 #else
-        rec_row[x]=inp_val;
+/*        rec_row[x]=inp_val;*/
 #endif
         diff=inp_val-rec_row[x];
         enc_sqerr+=diff*diff;
@@ -253,8 +341,7 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
      "Encoded Plane %i, Squared Error: %12lli  Pixels: %6u  PSNR:  %5.2f\n",
      pli,(long long)enc_sqerr,npixels,10*log10(255*255.0*npixels/enc_sqerr));
   }
-  /*For now, dump an empty packet so the encoder picks up the e_o_s flag.*/
-  oggbyte_reset(&_enc->obb);
+  od_state_dump_img(&_enc->state,&_enc->state.rec_img,"rec");
   _enc->packet_state=OD_PACKET_READY;
   od_state_upsample8(&_enc->state,
    _enc->state.ref_imgs+_enc->state.ref_imgi[OD_FRAME_SELF],
@@ -272,8 +359,10 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
 int daala_encode_packet_out(daala_enc_ctx *_enc,int _last,ogg_packet *_op){
   if(_enc==NULL||_op==NULL)return OD_EFAULT;
   else if(_enc->packet_state<=0||_enc->packet_state==OD_PACKET_DONE)return 0;
-  _op->packet=oggbyte_get_buffer(&_enc->obb);
-  _op->bytes=oggbyte_bytes(&_enc->obb);
+  ec_enc_done(&_enc->ec);
+  _op->bytes=OD_MINI((ec_tell(&_enc->ec)+7)>>3,_enc->max_packet);
+  ec_enc_shrink(&_enc->ec,_op->bytes);
+  _op->packet=_enc->packet;
   _op->b_o_s=0;
   _op->e_o_s=_last;
   _op->packetno=0;

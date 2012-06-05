@@ -26,7 +26,6 @@
 # include "odintrin.h"
 
 
-
 # define OD_VERSION_MAJOR (0)
 # define OD_VERSION_MINOR (0)
 # define OD_VERSION_SUB   (0)

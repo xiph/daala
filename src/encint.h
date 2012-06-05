@@ -23,8 +23,7 @@
 # define _encint_H (1)
 # include "../include/daala/daalaenc.h"
 # include "state.h"
-
-
+# include "entenc.h"
 
 typedef struct daala_enc_ctx od_enc_ctx;
 typedef struct od_mv_est_ctx od_mv_est_ctx;
@@ -46,6 +45,9 @@ typedef struct od_mv_est_ctx od_mv_est_ctx;
 struct daala_enc_ctx{
   od_state        state;
   oggbyte_buffer  obb;
+  ec_enc          ec;
+  unsigned char  *packet;
+  int             max_packet;
   int             packet_state;
   od_mv_est_ctx  *mvest;
 };

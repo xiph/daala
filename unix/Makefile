@@ -26,8 +26,8 @@ CFLAGS += -fvisibility=hidden
 #  -ffast-math, or additional flags, depending on your system and compiler.
 # The -g flag will generally include debugging information.
 CFLAGS += -g
-CFLAGS += -DOD_CHECKASM
-#CFLAGS += -DOD_DUMP_IMAGES
+#CFLAGS += -DOD_CHECKASM
+CFLAGS += -DOD_DUMP_IMAGES
 #CFLAGS += -DOD_ANIMATE
 #CFLAGS += -flto
 #CFLAGS += -floop-interchange -floop-strip-mine -floop-block
@@ -40,7 +40,7 @@ HOST := $(shell uname -m)
 ifneq (,$(findstring 86,${HOST}))
 CFLAGS += -DOD_X86ASM
 CFLAGS += -march=native
-CFLAGS += -O3 -funroll-loops -fforce-addr -msse3
+CFLAGS += -O3 -funroll-loops -fforce-addr -msse3 -Dinline=
 else ifneq (,$(findstring arm,${HOST}))
 CFLAGS += -DOD_ARMASM
 #CFLAGS += -march=armv7
@@ -61,7 +61,10 @@ WORKDIR = objs
 
 # C source file lists
 LIBDAALABASE_CSOURCES = \
-dct.c \
+newdct.c \
+entcode.c \
+entdec.c \
+entenc.c \
 filter.c \
 info.c \
 internal.c \
@@ -77,6 +80,11 @@ x86/x86state.c \
 LIBDAALABASE_CHEADERS = \
 internal.h \
 mc.h \
+entcode.h \
+entdec.h \
+entenc.h \
+mfrngcod.h \
+ecintrin.h \
 odintrin.h \
 pvq.h \
 state.h \
