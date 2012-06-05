@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "internal.h"
+#include "entenc.h"
 
 double bits_used=0;
 
@@ -28,7 +29,7 @@ extern const unsigned short icdf_table[][16];
 extern const unsigned short expectA[];
 
 
-void laplace_encode(int x, int Ex)
+void laplace_encode(ec_enc *enc, int x, int Ex, int K)
 {
   int j;
   int shift;
@@ -40,7 +41,7 @@ void laplace_encode(int x, int Ex)
   shift=od_ilog(Ex)-11;
   if(shift<0)
     shift=0;
-  Ex>>=shift;
+  Ex=(Ex+(1<<shift>>1))>>shift;
   xs=(x+(1<<shift>>1))>>shift;
   icdf0=icdf_table[Ex>>4];
   icdf1=icdf_table[(Ex>>4)+1];
@@ -51,15 +52,18 @@ void laplace_encode(int x, int Ex)
   if (sym>15)
     sym=15;
 
-  /*ec_enc_icdf(enc, sym, icdf);*/
-  bits_used += sym==0 ? -log2((32768-icdf[sym])/32768.) : -log2((icdf[sym-1]-icdf[sym])/32768.);
+  ec_enc_icdf16(enc, sym, icdf, 15);
+  float tmp = 32768;
+  if (K<15)
+    tmp = 32768-icdf[K];
+  bits_used += sym==0 ? -log2((32768-icdf[sym])/tmp) : -log2((icdf[sym-1]-icdf[sym])/tmp);
 
   if (shift)
   {
     int special;
     /* There's something special around zero after shift because of the rounding */
     special=(xs==0);
-    /*ec_enc_bits(enc, x-(xs<<shift), shift-special);*/
+    ec_enc_bits(enc, x-(xs<<shift), shift-special);
     bits_used += shift-special;
   }
 
@@ -70,44 +74,90 @@ void laplace_encode(int x, int Ex)
   }
 }
 
-void pvq_encoder(const int *y,int N,int K,int expQ8)
+void pvq_encoder1(ec_enc *enc, const int *y,int N,int expQ8)
+{
+
+  /*ec_enc_bits(enc, y[i]<0, 1);*/
+  bits_used += 1;
+}
+
+void pvq_encoder(ec_enc *enc, const int *y,int N,int K,int *num, int *den)
 {
   int i;
+  int sumEx;
+  int Kn;
+  sumEx=0;
+  Kn=K;
+  int expQ8;
+
+  expQ8 = floor(.5+*num/(1+*den/256));
 
   for(i=0;i<N;i++){
     int Ex;
     int x;
-    if (K==0)
+    if (Kn==0)
       break;
     x = abs(y[i]);
     /* Expected value of x (round-to-nearest) */
-    Ex=(2*expQ8*K+(N-i))/(2*(N-i));
+#if 1
+    Ex=(2*expQ8*Kn+(N-i))/(2*(N-i));
+    if (Ex>Kn*256)
+      Ex=Kn*256;
+    sumEx += (2*256*Kn+(N-i))/(2*(N-i));
+#else
+    //printf("%d %d ", K, Ex);
+    float r = 1-3.05/128;
+    Ex = 256*K*(1-r)/(1-pow(r, N-i));
+    //printf("%d\n", Ex);
+#endif
     /*fprintf(stderr, "%d %d %d\n", K, N-i, Ex);*/
-    laplace_encode(x, Ex);
+    /* no need to encode the magnitude for the last bin */
+    if (i!=N-1){
+      laplace_encode(enc, x, Ex, Kn);
+    }
     if (x!=0)
     {
-      /*ec_enc_bits(enc, y[i]<0, 1);*/
+      ec_enc_bits(enc, y[i]<0, 1);
       bits_used += 1;
     }
-    K-=x;
+    Kn-=x;
+  }
+  if (K!=0)
+  {
+    *num += 256*K - (*num>>4);
+    *den += sumEx - (*den>>4);
   }
 }
 
 int main()
 {
   int i, j;
+  int num, den;
+  ec_enc enc;
+  unsigned char buf[1<<22];
+
+  num = 650*4;
+  den = 256*4;
+  ec_enc_init(&enc, buf, 1<<22);
   for (i=0;i<213840;i++)
   {
     int K;
     int y[128];
     K=0;
+    if (i%400==0)
+    {
+      num=650*4;
+      den=256*4;
+    }
     for (j=0;j<128;j++)
     {
       scanf("%d ", y+j);
       K += abs(y[j]);
     }
-    pvq_encoder(y, 128, K, 650);
+    pvq_encoder(&enc, y, 128, K, &num, &den);
   }
-  printf("total bits = %f\n", bits_used);
+  ec_enc_done(&enc);
+  printf("average bits = %f\n", bits_used/213840.);
+  printf("tell()'s average = %f\n", ec_tell(&enc)/213840.);
   return 0;
 }
