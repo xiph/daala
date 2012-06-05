@@ -193,6 +193,27 @@ int ec_dec_icdf(ec_dec *_this,const unsigned char *_icdf,unsigned _ftb){
   return ret;
 }
 
+int ec_dec_icdf16(ec_dec *_this,const unsigned short *_icdf,unsigned _ftb){
+  ogg_uint32_t r;
+  ogg_uint32_t d;
+  ogg_uint32_t s;
+  ogg_uint32_t t;
+  int         ret;
+  s=_this->rng;
+  d=_this->val;
+  r=s>>_ftb;
+  ret=-1;
+  do{
+    t=s;
+    s=IMUL32(r,_icdf[++ret]);
+  }
+  while(d<s);
+  _this->val=d-s;
+  _this->rng=t-s;
+  ec_dec_normalize(_this);
+  return ret;
+}
+
 ogg_uint32_t ec_dec_uint(ec_dec *_this,ogg_uint32_t _ft){
   unsigned ft;
   unsigned s;
