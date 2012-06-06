@@ -190,7 +190,6 @@ void pvq_encoder(ec_enc *enc, const int *y,int N,int K,int *num, int *den, int *
 }
 
 #ifdef PVQ_MAIN
-
 int main()
 {
   int i, j;
@@ -248,5 +247,4 @@ int main()
   printf("tell()'s average = %f\n", ec_tell(&enc)/213840.);
   return 0;
 }
-
 #endif

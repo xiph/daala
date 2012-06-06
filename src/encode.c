@@ -28,6 +28,9 @@
 #include "filter.h"
 #include "dct.h"
 
+void pvq_encoder(ec_enc *enc, const int *y,int N,int K,int *num, int *den);
+
+
 static int od_enc_init(od_enc_ctx *_enc,const daala_info *_info){
   int ret;
   ret=od_state_init(&_enc->state,_info);
@@ -125,9 +128,55 @@ void od_state_mc_predict(od_state *_state,int _ref){
   }
 }
 
+#if 0
+/*The true forward 4-point type-II DCT basis, to 32-digit (100 bit) precision.
+  The inverse is merely the transpose.*/
+static const double DCT4_BASIS[4][4]={
+  {
+     0.5,                                 0.5,
+     0.5,                                 0.5
+  },
+  {
+     0.65328148243818826392832158671359,  0.27059805007309849219986160268319,
+    -0.27059805007309849219986160268319, -0.65328148243818826392832158671359
+  },
+  {
+     0.5,                                -0.5,
+    -0.5,                                 0.5
+  },
+  {
+     0.27059805007309849219986160268319, -0.65328148243818826392832158671359,
+     0.65328148243818826392832158671359, -0.27059805007309849219986160268319
+  },
+};
+
+void idct4(od_coeff _x[],const od_coeff _y[]){
+  double t[8];
+  int    i;
+  int    j;
+  for(j=0;j<4;j++){
+    t[j]=0;
+    for(i=0;i<4;i++)t[j]+=DCT4_BASIS[i][j]*_y[i];
+  }
+  for(j=0;j<4;j++)_x[j]=t[j];
+}
+
+void fdct4(od_coeff _x[],const od_coeff _y[]){
+  double t[8];
+  int    i;
+  int    j;
+  for(j=0;j<4;j++){
+    t[j]=0;
+    for(i=0;i<4;i++)t[j]+=DCT4_BASIS[j][i]*_y[i];
+  }
+  for(j=0;j<4;j++)_x[j]=t[j];
+}
+#endif
+
 int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
   int refi;
   int pli;
+  int scale;
   if(_enc==NULL||_img==NULL)return OD_EFAULT;
   if(_enc->packet_state==OD_PACKET_DONE)return OD_EINVAL;
   /*Check the input image dimensions to make sure they match the declared video
@@ -180,6 +229,7 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
     od_state_dump_img(&_enc->state,&_enc->state.vis_img,"vis");
 #endif
   }
+  scale=32;/*atoi(getenv("QUANT"));*/
   /*TODO: Encode image.*/
   for(pli=0;pli<_img->nplanes;pli++){
     ogg_int64_t  mc_sqerr;
@@ -193,6 +243,8 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
 #ifdef OD_DPCM
     int          err_accum = 0;
 #endif
+    int anum = 650*4;
+    int aden = 256*4;
     /*TODO: Use picture dimensions, not frame dimensions.*/
     w=_img->width>>_img->planes[pli].xdec;
     h=_img->height>>_img->planes[pli].ydec;
@@ -201,12 +253,11 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
     npixels=w*h;
     ctmp=calloc(npixels,sizeof(od_coeff));
     for(y=0;y<h;y++)for(x=0;x<_img->width>>_img->planes[pli].xdec;x++){
-      ctmp[y*w+x]=*(_img->planes[pli].data+_img->planes[pli].ystride*y+_img->planes[pli].xstride*x)-128;
+      ctmp[y*w+x]=(*(_img->planes[pli].data+_img->planes[pli].ystride*y+_img->planes[pli].xstride*x)-128);
     }
 #if 1
     for(y=2;y<h-2;y+=4){
       for(x=0;x<_img->width>>_img->planes[pli].xdec;x++){
-        unsigned char *recimg;
         int j;
         od_coeff p[4];
         for(j=0;j<4;j++){
@@ -224,18 +275,34 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
       }
     }
 #endif
+
     /*FDCT 4x4 blocks*/
     for(y=0;y<h;y+=4){
       for(x=0;x<(_img->width>>_img->planes[pli].xdec);x+=4){
+        int cblock[16];
         int j;
+        int vk;
+        vk=0;
         for(j=0;j<4;j++)od_bin_fdct4(&ctmp[(y+j)*w+x],&ctmp[(y+j)*w+x]);
         for(j=0;j<4;j++){
           od_coeff p[4];
           int k;
           for(k=0;k<4;k++)p[k]=ctmp[(y+k)*w+x+j];
           od_bin_fdct4(p,p);
-          for(k=0;k<4;k++)ctmp[(y+k)*w+x+j]=OD_DIV_ROUND(p[k],32)*32;
+          for(k=0;k<4;k++){
+            int pred[3];
+            /*Placeholder dc prediction*/
+            if(j==0&&k==0&&x>0&&y>0){pred[0]=ctmp[(y+k)*w+x+j-4];pred[1]=ctmp[(y+k-4)*w+x+j];pred[2]=ctmp[(y+k-4)*w+x+j-4];
+            pred[1]=(pred[0]+pred[1]+pred[2])/3;
+            } else if(j==0&&k==0&&x>0){pred[1]=ctmp[(y+k)*w+x+j-4];}
+            else if(j==0&&k==0&&y>0){pred[1]=ctmp[(y+k-4)*w+x+j];}
+            else {pred[1]=0;}
+            cblock[od_zig4[k*4+j]]=(p[k]-pred[1])/scale;/*OD_DIV_ROUND((p[k]-pred[1]),scale);*/
+            vk+=abs(cblock[od_zig4[k*4+j]]);
+            ctmp[(y+k)*w+x+j]=cblock[od_zig4[k*4+j]]*scale+pred[1];
+          }
         }
+        pvq_encoder(&_enc->ec,cblock,16,vk,&anum,&aden);
       }
     }
     /*iDCT 4x4 blocks*/
@@ -261,7 +328,6 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
     }
     for(y=2;y<h-2;y+=4){
       for(x=0;x<_img->width>>_img->planes[pli].xdec;x++){
-        unsigned char *recimg;
         int j;
         od_coeff p[4];
         for(j=0;j<4;j++)p[j]=ctmp[(y+j)*w+x];
@@ -293,7 +359,7 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
         inp_val=*(inp_row+_img->planes[pli].xstride*x);
         diff=inp_val-rec_val;
         mc_sqerr+=diff*diff;
-        ec_enc_uint(&_enc->ec,inp_val+128,256);
+/*        ec_enc_uint(&_enc->ec,inp_val+128,256);*/
 #ifdef OD_DPCM
         {
           int pred_diff;
@@ -341,7 +407,9 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
      "Encoded Plane %i, Squared Error: %12lli  Pixels: %6u  PSNR:  %5.2f\n",
      pli,(long long)enc_sqerr,npixels,10*log10(255*255.0*npixels/enc_sqerr));
   }
-  od_state_dump_img(&_enc->state,&_enc->state.rec_img,"rec");
+
+  /*Dump YUV*/
+  od_state_dump_yuv(&_enc->state,&_enc->state.rec_img,"out");
   _enc->packet_state=OD_PACKET_READY;
   od_state_upsample8(&_enc->state,
    _enc->state.ref_imgs+_enc->state.ref_imgi[OD_FRAME_SELF],
@@ -361,6 +429,8 @@ int daala_encode_packet_out(daala_enc_ctx *_enc,int _last,ogg_packet *_op){
   else if(_enc->packet_state<=0||_enc->packet_state==OD_PACKET_DONE)return 0;
   ec_enc_done(&_enc->ec);
   _op->bytes=OD_MINI((ec_tell(&_enc->ec)+7)>>3,_enc->max_packet);
+
+  fprintf(stderr,"::Bytes: %ld\n",_op->bytes);
   ec_enc_shrink(&_enc->ec,_op->bytes);
   _op->packet=_enc->packet;
   _op->b_o_s=0;

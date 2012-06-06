@@ -266,4 +266,7 @@ static const double DCT16_ISCALE[16]={
      This may be the same as the source.
   y: The source vector (of size 16).*/
 void od_bin_idct16(od_coeff _x[],const od_coeff _y[]);
+
+static const unsigned char od_zig4[16]={0,1,5,6,2,4,7,12,3,8,11,13,9,10,14,15};
+
 #endif

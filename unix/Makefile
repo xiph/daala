@@ -27,7 +27,7 @@ CFLAGS += -fvisibility=hidden
 # The -g flag will generally include debugging information.
 CFLAGS += -g
 #CFLAGS += -DOD_CHECKASM
-CFLAGS += -DOD_DUMP_IMAGES
+#CFLAGS += -DOD_DUMP_IMAGES
 #CFLAGS += -DOD_ANIMATE
 #CFLAGS += -flto
 #CFLAGS += -floop-interchange -floop-strip-mine -floop-block
@@ -65,6 +65,8 @@ newdct.c \
 entcode.c \
 entdec.c \
 entenc.c \
+icdf_table.c \
+pvq_encoder.c \
 filter.c \
 info.c \
 internal.c \

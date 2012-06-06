@@ -122,7 +122,7 @@ extern int maxv[32];
 #define _Check(_val,_idx)
 #endif
 
-#if 0
+#if 1
 /*optimal cg*/
 void od_pre_filter4(od_coeff _y[4],const od_coeff _x[4]){
    /*Optimal coding gain without dyadic rational restrictions: 8.60382 dB.
@@ -251,7 +251,7 @@ void od_post_filter4(od_coeff _x[4],const od_coeff _y[4]){
    _x[2]=(od_coeff)(t[1]-t[2]);
    _x[3]=(od_coeff)(t[0]-t[3]);
 }
-#elif 0
+#elif 1
 /*optimal cg no-ramp false*/
 void od_pre_filter4(od_coeff _y[4],const od_coeff _x[4]){
    /*Optimal coding gain without dyadic rational restrictions: 8.60382 dB.
