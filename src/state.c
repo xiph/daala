@@ -538,7 +538,7 @@ int od_state_dump_yuv(od_state *_state,od_img *_img,const char *_suf){
   int            y;
   int            pli;
   static const char *CHROMA_TAGS[4]={" C420jpeg",""," C422jpeg"," C444"};
-  sprintf(fname,"%08i%s.png",
+  sprintf(fname,"%08i%s.y4m",
    (int)daala_granule_basetime(_state,_state->cur_time),_suf);
   fp=fopen(fname,"wb");
   fprintf(fp,"YUV4MPEG2 W%i H%i F%i:%i Ip A%i:%i%s\n",

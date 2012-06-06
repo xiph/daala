@@ -27,9 +27,7 @@
 #include "encint.h"
 #include "filter.h"
 #include "dct.h"
-
-void pvq_encoder(ec_enc *enc, const int *y,int N,int K,int *num, int *den);
-
+#include "pvq_code.h"
 
 static int od_enc_init(od_enc_ctx *_enc,const daala_info *_info){
   int ret;
@@ -245,6 +243,7 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
 #endif
     int anum = 650*4;
     int aden = 256*4;
+    int au = 30<<4;
     /*TODO: Use picture dimensions, not frame dimensions.*/
     w=_img->width>>_img->planes[pli].xdec;
     h=_img->height>>_img->planes[pli].ydec;
@@ -252,8 +251,10 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
     enc_sqerr=0;
     npixels=w*h;
     ctmp=calloc(npixels,sizeof(od_coeff));
-    for(y=0;y<h;y++)for(x=0;x<_img->width>>_img->planes[pli].xdec;x++){
-      ctmp[y*w+x]=(*(_img->planes[pli].data+_img->planes[pli].ystride*y+_img->planes[pli].xstride*x)-128);
+    for(y=0;y<h;y++){
+      for(x=0;x<w;x++){
+        ctmp[y*w+x]=(*(_img->planes[pli].data+_img->planes[pli].ystride*y+_img->planes[pli].xstride*x)-128);
+      }
     }
 #if 1
     for(y=2;y<h-2;y+=4){
@@ -302,7 +303,7 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
             ctmp[(y+k)*w+x+j]=cblock[od_zig4[k*4+j]]*scale+pred[1];
           }
         }
-        pvq_encoder(&_enc->ec,cblock,16,vk,&anum,&aden);
+        pvq_encoder(&_enc->ec,cblock,16,vk,&anum,&aden,&au);
       }
     }
     /*iDCT 4x4 blocks*/
