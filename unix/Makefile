@@ -71,6 +71,8 @@ pvq_encoder.c \
 filter.c \
 info.c \
 internal.c \
+intra.c \
+intradata.c \
 mc.c \
 pvq.c \
 state.c \
