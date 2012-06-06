@@ -150,9 +150,9 @@ unsigned ec_decode_bin(ec_dec *_this,unsigned _bits){
 
 void ec_dec_update(ec_dec *_this,unsigned _fl,unsigned _fh,unsigned _ft){
   ogg_uint32_t s;
-  s=IMUL32(_this->ext,_ft-_fh);
+  s=_this->ext*_ft-_fh;
   _this->val-=s;
-  _this->rng=_fl>0?IMUL32(_this->ext,_fh-_fl):_this->rng-s;
+  _this->rng=_fl>0?_this->ext*_fh-_fl:_this->rng-s;
   ec_dec_normalize(_this);
 }
 
@@ -184,7 +184,7 @@ int ec_dec_icdf(ec_dec *_this,const unsigned char *_icdf,unsigned _ftb){
   ret=-1;
   do{
     t=s;
-    s=IMUL32(r,_icdf[++ret]);
+    s=r*_icdf[++ret];
   }
   while(d<s);
   _this->val=d-s;
@@ -205,7 +205,7 @@ int ec_dec_icdf16(ec_dec *_this,const unsigned short *_icdf,unsigned _ftb){
   ret=-1;
   do{
     t=s;
-    s=IMUL32(r,_icdf[++ret]);
+    s=r*_icdf[++ret];
   }
   while(d<s);
   _this->val=d-s;
@@ -219,7 +219,7 @@ ogg_uint32_t ec_dec_uint(ec_dec *_this,ogg_uint32_t _ft){
   unsigned s;
   int      ftb;
   /*In order to optimize EC_ILOG(), it is undefined for the value 0.*/
-  celt_assert(_ft>1);
+  /*assert(_ft>1);*/
   _ft--;
   ftb=EC_ILOG(_ft);
   if(ftb>EC_UINT_BITS){
