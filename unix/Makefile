@@ -32,7 +32,7 @@ CFLAGS += -g
 #CFLAGS += -flto
 #CFLAGS += -floop-interchange -floop-strip-mine -floop-block
 #CFLAGS += -ftree-vectorize -ftree-vectorizer-verbose=0
-CFLAGS += -fomit-frame-pointer
+#CFLAGS += -fomit-frame-pointer
 CFLAGS += -fPIC
 CFLAGS += -std=c89 -pedantic
 # Set machine-specific flags
@@ -40,7 +40,8 @@ HOST := $(shell uname -m)
 ifneq (,$(findstring 86,${HOST}))
 CFLAGS += -DOD_X86ASM
 CFLAGS += -march=native
-CFLAGS += -O3 -funroll-loops -fforce-addr -msse3 -Dinline=
+#CFLAGS += -O3 -funroll-loops -fforce-addr -msse3 -Dinline=
+CFLAGS += -O1 -Dinline=
 else ifneq (,$(findstring arm,${HOST}))
 CFLAGS += -DOD_ARMASM
 #CFLAGS += -march=armv7
