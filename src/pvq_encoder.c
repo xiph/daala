@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include "internal.h"
 #include "entenc.h"
+#include "entcode.h"
 
 double bits_used=0;
 
@@ -69,19 +70,79 @@ void laplace_encode(ec_enc *enc, int x, int Ex, int K)
 
   if (xs>=15)
   {
-    int a=expectA[(Ex+8)>>4];
+    int a;
+    unsigned decay;
+    unsigned short decay16_icdf[2];
+    a=expectA[(Ex+8)>>4];
+    decay = 256*exp(-256./a);
+    if (decay>255)
+      decay=255;
+    decay*=decay;
+    decay=decay*decay>>16;
+    decay=decay*decay>>16;
+    decay=decay*decay>>16;
+    if (decay<2)
+      decay=2;
+    decay16_icdf[0]=decay>>1;
+    decay16_icdf[1]=0;
+    while (xs>30)
+    {
+      ec_enc_icdf16(enc, 1, decay16_icdf, 15);
+      xs-=16;
+    }
+    ec_enc_icdf16(enc, 0, decay16_icdf, 15);
+    ec_enc_bits(enc, xs-15, 4);
     bits_used += log2(1-exp(-256./a)) + (xs-15)*log2(exp(-256./a));
   }
 }
 
-void pvq_encoder1(ec_enc *enc, const int *y,int N,int expQ8)
+void pvq_encoder1(ec_enc *enc, const int *y,int N,int *u)
 {
+  int pos;
+  int i;
+  unsigned decay;
+  unsigned short decay16_icdf[2];
 
-  /*ec_enc_bits(enc, y[i]<0, 1);*/
+  pos=0;
+  for(i=0;i<N;i++)
+  {
+    if (y[i]!=0)
+    {
+      pos=i;
+      break;
+    }
+  }
+
+  decay = 256 - 4096 / *u; /* Approximates 256*exp(-16./ *u); */
+  *u += pos - (*u>>4);
+  if (*u<32)
+    *u=32;
+  if (decay>255)
+    decay=255;
+  decay*=decay;
+  decay=decay*decay>>16;
+  decay=decay*decay>>16;
+  decay=decay*decay>>16;
+  if (decay<2)
+    decay=2;
+  decay16_icdf[0]=decay>>1;
+  decay16_icdf[1]=0;
+  while (pos>15)
+  {
+    ec_enc_icdf16(enc, 1, decay16_icdf, 15);
+    pos-=16;
+    bits_used += -log2(decay16_icdf[0]/32768.);
+  }
+  bits_used += -log2(1-decay16_icdf[0]/32768.);
+  ec_enc_icdf16(enc, 0, decay16_icdf, 15);
+  ec_enc_bits(enc, pos, 4);
+  bits_used += 4;
+
+  ec_enc_bits(enc, y[pos]<0, 1);
   bits_used += 1;
 }
 
-void pvq_encoder(ec_enc *enc, const int *y,int N,int K,int *num, int *den)
+void pvq_encoder(ec_enc *enc, const int *y,int N,int K,int *num, int *den, int *u)
 {
   int i;
   int sumEx;
@@ -90,6 +151,11 @@ void pvq_encoder(ec_enc *enc, const int *y,int N,int K,int *num, int *den)
   Kn=K;
   int expQ8;
 
+  if (K==1)
+  {
+    pvq_encoder1(enc, y, N, u);
+    return;
+  }
   expQ8 = floor(.5+*num/(1+*den/256));
 
   for(i=0;i<N;i++){
@@ -105,10 +171,8 @@ void pvq_encoder(ec_enc *enc, const int *y,int N,int K,int *num, int *den)
       Ex=Kn*256;
     sumEx += (2*256*Kn+(N-i))/(2*(N-i));
 #else
-    //printf("%d %d ", K, Ex);
     float r = 1-3.05/128;
     Ex = 256*K*(1-r)/(1-pow(r, N-i));
-    //printf("%d\n", Ex);
 #endif
     /*fprintf(stderr, "%d %d %d\n", K, N-i, Ex);*/
     /* no need to encode the magnitude for the last bin */
@@ -132,12 +196,13 @@ void pvq_encoder(ec_enc *enc, const int *y,int N,int K,int *num, int *den)
 int main()
 {
   int i, j;
-  int num, den;
+  int num, den,u;
   ec_enc enc;
   unsigned char buf[1<<22];
 
   num = 650*4;
   den = 256*4;
+  u = 30<<4;
   ec_enc_init(&enc, buf, 1<<22);
   for (i=0;i<213840;i++)
   {
@@ -154,7 +219,7 @@ int main()
       scanf("%d ", y+j);
       K += abs(y[j]);
     }
-    pvq_encoder(&enc, y, 128, K, &num, &den);
+    pvq_encoder(&enc, y, 128, K, &num, &den, &u);
   }
   ec_enc_done(&enc);
   printf("average bits = %f\n", bits_used/213840.);
