@@ -39,7 +39,7 @@ CFLAGS += -std=c89 -pedantic
 HOST := $(shell uname -m)
 ifneq (,$(findstring 86,${HOST}))
 CFLAGS += -DOD_X86ASM
-CFLAGS += -march=native
+#CFLAGS += -march=native
 #CFLAGS += -O3 -funroll-loops -fforce-addr -msse3 -Dinline=
 CFLAGS += -O1 -Dinline=
 else ifneq (,$(findstring arm,${HOST}))
