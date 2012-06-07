@@ -41,7 +41,7 @@ ifneq (,$(findstring 86,${HOST}))
 CFLAGS += -DOD_X86ASM
 #CFLAGS += -march=native
 #CFLAGS += -O3 -funroll-loops -fforce-addr -msse3 -Dinline=
-CFLAGS += -O1 -Dinline=
+CFLAGS += -O0 -Dinline=
 else ifneq (,$(findstring arm,${HOST}))
 CFLAGS += -DOD_ARMASM
 #CFLAGS += -march=armv7

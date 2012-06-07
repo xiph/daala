@@ -28,6 +28,7 @@
 #include "filter.h"
 #include "dct.h"
 #include "pvq_code.h"
+#include "intra.h"
 
 static int od_enc_init(od_enc_ctx *_enc,const daala_info *_info){
   int ret;
@@ -281,6 +282,7 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
     for(y=0;y<h;y+=4){
       for(x=0;x<(_img->width>>_img->planes[pli].xdec);x+=4){
         int cblock[16];
+        int mode;
         int j;
         int vk;
         vk=0;
@@ -290,20 +292,27 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
           int k;
           for(k=0;k<4;k++)p[k]=ctmp[(y+k)*w+x+j];
           od_bin_fdct4(p,p);
+          for(k=0;k<4;k++)ctmp[(y+k)*w+x+j]=p[k];
+        }
+        if(x>0&&y>0)mode=od_intra_pred4x4_apply(&ctmp[y*w+x],w);
+        /*Quantize*/
+        for(j=0;j<4;j++){
+          int k;
           for(k=0;k<4;k++){
-            int pred[3];
-            /*Placeholder dc prediction*/
-            if(j==0&&k==0&&x>0&&y>0){pred[0]=ctmp[(y+k)*w+x+j-4];pred[1]=ctmp[(y+k-4)*w+x+j];pred[2]=ctmp[(y+k-4)*w+x+j-4];
-            pred[1]=(pred[0]+pred[1]+pred[2])/3;
-            } else if(j==0&&k==0&&x>0){pred[1]=ctmp[(y+k)*w+x+j-4];}
-            else if(j==0&&k==0&&y>0){pred[1]=ctmp[(y+k-4)*w+x+j];}
-            else {pred[1]=0;}
-            cblock[od_zig4[k*4+j]]=(p[k]-pred[1])/scale;/*OD_DIV_ROUND((p[k]-pred[1]),scale);*/
+            ctmp[(y+k)*w+x+j]=cblock[od_zig4[k*4+j]]=ctmp[(y+k)*w+x+j]/scale;/*OD_DIV_ROUND((p[k]-pred[1]),scale);*/
             vk+=abs(cblock[od_zig4[k*4+j]]);
-            ctmp[(y+k)*w+x+j]=cblock[od_zig4[k*4+j]]*scale+pred[1];
           }
         }
         pvq_encoder(&_enc->ec,cblock,16,vk,&anum,&aden,&au);
+        /*Dequantize*/
+        for(j=0;j<4;j++){
+          int k;
+          for(k=0;k<4;k++){
+            ctmp[(y+k)*w+x+j]=ctmp[(y+k)*w+x+j]*scale;
+          }
+        }
+        printf("mode: %d\n",mode);
+        if(x>0&&y>0)od_intra_pred4x4_unapply(&ctmp[y*w+x],w,mode);
       }
     }
     /*iDCT 4x4 blocks*/

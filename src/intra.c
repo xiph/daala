@@ -47,7 +47,7 @@ int od_intra_pred4x4_apply(od_coeff *_c,int _stride){
       *(_c+_stride*i+j)-=phat[best_mode][i][j];
     }
   }
-  return mode;
+  return best_mode;
 }
 
 void od_intra_pred4x4_unapply(od_coeff *_c,int _stride,int _mode){
