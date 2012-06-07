@@ -235,6 +235,7 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
     ogg_int64_t  enc_sqerr;
     ogg_uint32_t npixels;
     od_coeff     *ctmp;
+    char         *modes;
     int          x;
     int          y;
     int          w;
@@ -251,7 +252,8 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
     mc_sqerr=0;
     enc_sqerr=0;
     npixels=w*h;
-    ctmp=calloc(npixels,sizeof(od_coeff));
+    ctmp=calloc((w+15>>4<<4)*(h+15>>4<<4),sizeof(od_coeff));
+    modes=calloc((w>>2)*(h>>2),sizeof(char));
     for(y=0;y<h;y++){
       for(x=0;x<w;x++){
         ctmp[y*w+x]=(*(_img->planes[pli].data+_img->planes[pli].ystride*y+_img->planes[pli].xstride*x)-128);
@@ -294,7 +296,10 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
           od_bin_fdct4(p,p);
           for(k=0;k<4;k++)ctmp[(y+k)*w+x+j]=p[k];
         }
-        if(x>0&&y>0)mode=od_intra_pred4x4_apply(&ctmp[y*w+x],w);
+        if(x>0&&y>0){
+          modes[(y>>2)*(w>>2)+(x>>2)]=od_intra_pred4x4_apply(&ctmp[y*w+x],w);
+/*          printf("modes: %d %d %d\n",modes[((y>>2)-1)*(w>>2)+(x>>2)],modes[(y>>2)*(w>>2)+((x>>2)-1)],modes[(y>>2)*(w>>2)+(x>>2)]);*/
+        }
         /*Quantize*/
         for(j=0;j<4;j++){
           int k;
@@ -303,6 +308,7 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
             vk+=abs(cblock[od_zig4[k*4+j]]);
           }
         }
+        /*printf("vk: %d\n",vk);*/
         pvq_encoder(&_enc->ec,cblock,16,vk,&anum,&aden,&au);
         /*Dequantize*/
         for(j=0;j<4;j++){
@@ -311,8 +317,8 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
             ctmp[(y+k)*w+x+j]=ctmp[(y+k)*w+x+j]*scale;
           }
         }
-        printf("mode: %d\n",mode);
-        if(x>0&&y>0)od_intra_pred4x4_unapply(&ctmp[y*w+x],w,mode);
+/*        printf("mode: %d\n",modes[(y>>2)*(w>>2)+(x>>2)]);*/
+        if(x>0&&y>0)od_intra_pred4x4_unapply(&ctmp[y*w+x],w,modes[(y>>2)*(w>>2)+(x>>2)]);
       }
     }
     /*iDCT 4x4 blocks*/
@@ -352,6 +358,7 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
        *recimg=OD_CLAMP255(ctmp[y*w+x]+128);
     }
     free(ctmp);
+    free(modes);
     for(y=0;y<h;y++){
       unsigned char *prev_rec_row;
       unsigned char *rec_row;

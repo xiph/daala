@@ -166,12 +166,10 @@ static void od_state_opt_vtbl_init(od_state *_state){
 int od_state_init(od_state *_state,const daala_info *_info){
   /*First validate the parameters.*/
   if(_info==NULL)return OD_EFAULT;
-  /*The width and height of the encoded frame must be multiples of 16.*/
-  if((_info->frame_width&0xF)||(_info->frame_height&0xF))return OD_EINVAL;
   memset(_state,0,sizeof(*_state));
   memcpy(&_state->info,_info,sizeof(*_info));
-  _state->nhmbs=_info->frame_width>>4;
-  _state->nvmbs=_info->frame_height>>4;
+  _state->nhmbs=_info->frame_width+15>>4;
+  _state->nvmbs=_info->frame_height+15>>4;
   od_state_opt_vtbl_init(_state);
   od_state_ref_imgs_init(_state);
   od_state_mvs_init(_state);

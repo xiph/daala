@@ -179,8 +179,8 @@ static void id_y4m_file(av_input *_avin,const char *_file,FILE *_test){
     (double)_avin->video_fps_n/_avin->video_fps_d,_avin->video_chroma_type);
   /*Allocate buffers for the image data.*/
   /*Pad the frame size to a multiple of 16.*/
-  _avin->video_frame_w=_avin->video_pic_w+15&~15;
-  _avin->video_frame_h=_avin->video_pic_h+15&~15;
+  _avin->video_frame_w=_avin->video_pic_w/*+15&~15*/;
+  _avin->video_frame_h=_avin->video_pic_h/*+15&~15*/;
   /*Center the picture region in the frame.
     These will be adjusted based on the chroma sampling type to avoid changing
      how the chroma samples are interpreted.*/
@@ -275,8 +275,8 @@ static void id_y4m_file(av_input *_avin,const char *_file,FILE *_test){
       There's no need to actually allocate buffer space for this padding, or to
        fill it in.
       libdaala simply requires that the pointers be set up as if it existed.*/
-    iplane->data-=(_avin->video_pic_y>>iplane->ydec)*iplane->ystride+
-     (_avin->video_pic_x>>iplane->xdec);
+/*    iplane->data-=(_avin->video_pic_y>>iplane->ydec)*iplane->ystride+
+     (_avin->video_pic_x>>iplane->xdec);*/
   }
 }
 
@@ -410,8 +410,8 @@ int fetch_and_process_video(av_input *_avin,ogg_page *_page,
         iplane=img->planes+pli;
         plane_sz=(_avin->video_pic_w+(1<<iplane->xdec)-1>>iplane->xdec)*
          (_avin->video_pic_h+(1<<iplane->ydec)-1>>iplane->ydec);
-        ret=fread(iplane->data+(_avin->video_pic_y>>iplane->ydec)*iplane->ystride+
-         (_avin->video_pic_x>>iplane->xdec),1,plane_sz,_avin->video_infile);
+        ret=fread(iplane->data/*+(_avin->video_pic_y>>iplane->ydec)*iplane->ystride+
+         (_avin->video_pic_x>>iplane->xdec)*/,1,plane_sz,_avin->video_infile);
         if(ret!=plane_sz){
           fprintf(stderr,"Error reading YUV frame data.\n");
           exit(1);
