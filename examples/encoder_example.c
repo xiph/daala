@@ -178,9 +178,8 @@ static void id_y4m_file(av_input *_avin,const char *_file,FILE *_test){
    _file,_avin->video_pic_w,_avin->video_pic_h,
     (double)_avin->video_fps_n/_avin->video_fps_d,_avin->video_chroma_type);
   /*Allocate buffers for the image data.*/
-  /*Pad the frame size to a multiple of 16.*/
-  _avin->video_frame_w=_avin->video_pic_w/*+15&~15*/;
-  _avin->video_frame_h=_avin->video_pic_h/*+15&~15*/;
+  _avin->video_frame_w=_avin->video_pic_w;
+  _avin->video_frame_h=_avin->video_pic_h;
   /*Center the picture region in the frame.
     These will be adjusted based on the chroma sampling type to avoid changing
      how the chroma samples are interpreted.*/
@@ -271,12 +270,6 @@ static void id_y4m_file(av_input *_avin,const char *_file,FILE *_test){
     iplane->ystride=_avin->video_pic_w+(1<<iplane->xdec)-1>>iplane->xdec;
     iplane->data=_ogg_malloc(iplane->ystride*
      (_avin->video_pic_h+(1<<iplane->ydec)-1>>iplane->ydec));
-    /*Shift the origin of the data to correspond to our padding.
-      There's no need to actually allocate buffer space for this padding, or to
-       fill it in.
-      libdaala simply requires that the pointers be set up as if it existed.*/
-/*    iplane->data-=(_avin->video_pic_y>>iplane->ydec)*iplane->ystride+
-     (_avin->video_pic_x>>iplane->xdec);*/
   }
 }
 
@@ -610,13 +603,12 @@ int main(int _argc,char **_argv){
   }
   /*Assume anything following the options must be a file name.*/
   for(;optind<_argc;optind++)id_file(&avin,_argv[optind]);
-  srand(time(NULL));
-  ogg_stream_init(&vo,rand());
-  ogg_stream_init(&ao,rand());
   if(!avin.has_video){
     fprintf(stderr,"No video files submitted for compression.\n");
     exit(1);
   }
+  srand(time(NULL));
+  ogg_stream_init(&vo,rand());
   if(avin.has_video){
     daala_info_init(&di);
     di.frame_width=avin.video_frame_w;
@@ -639,6 +631,7 @@ int main(int _argc,char **_argv){
     /*TODO: Set up encoder.*/
   }
   if(avin.has_audio){
+    ogg_stream_init(&ao,rand());
     vorbis_info_init(&vi);
     if(audio_q>-99){
       ret=vorbis_encode_init_vbr(&vi,avin.audio_ch,avin.audio_hz,audio_q);
@@ -773,11 +766,18 @@ int main(int _argc,char **_argv){
     vorbis_info_clear(&vi);
   }
   if(avin.has_video){
+    int pli;
     ogg_stream_clear(&vo);
     daala_encode_free(dd);
     daala_comment_clear(&dc);
+    for(pli=0;pli<avin.video_img.nplanes;pli++){
+      _ogg_free(avin.video_img.planes[pli].data);
+    }
   }
   if(outfile!=NULL&&outfile!=stdout)fclose(outfile);
   fprintf(stderr,"\r    \ndone.\n\r");
+  if(avin.video_infile!=NULL&&avin.video_infile!=stdin){
+    fclose(avin.video_infile);
+  }
   return 0;
 }
