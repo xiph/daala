@@ -253,7 +253,7 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
     enc_sqerr=0;
     npixels=w*h;
     ctmp=calloc((w+15>>4<<4)*(h+15>>4<<4),sizeof(od_coeff));
-    modes=calloc((w>>2)*(h>>2),sizeof(char));
+    modes=calloc((w+15>>2)*(h+15>>2),sizeof(char));
     for(y=0;y<h;y++){
       for(x=0;x<w;x++){
         ctmp[y*w+x]=(*(_img->planes[pli].data+_img->planes[pli].ystride*y+_img->planes[pli].xstride*x)-128);
