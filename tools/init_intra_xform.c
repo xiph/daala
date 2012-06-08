@@ -327,10 +327,10 @@ static void intra_xform_update_block(void *_ctx,const unsigned char *_data,
         p=0;
         for(k=0;k<2*B_SZ;k++){
           for(l=0;l<2*B_SZ;l++){
-            p+=beta[k*2*B_SZ+l]*buf2[2*B_SZ*k+l];
+            p+=beta[2*B_SZ*k+l]*buf2[2*B_SZ*k+l];
           }
         }
-        satd+=abs(buf[2*B_SZ*i+j]-(od_coeff)floor(p+0.5));
+        satd+=abs(buf[2*B_SZ*(i+B_SZ)+j+B_SZ]-(od_coeff)floor(p+0.5));
       }
     }
     if(satd<best_satd){
