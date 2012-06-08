@@ -48,7 +48,7 @@ static int intra_xform_train_plane_start(void *_ctx,const char *_name,
 #define APPLY_PREFILTER (1)
 #define APPLY_DCT (1)
 
-static void xform_blocks(od_coeff _buf[3*B_SZ*3*B_SZ],
+static od_coeff *xform_blocks(od_coeff _buf[3*B_SZ*3*B_SZ],
  const unsigned char *_data,int _stride){
   od_coeff            *buf2;
   od_coeff             col[B_SZ];
@@ -102,6 +102,7 @@ static void xform_blocks(od_coeff _buf[3*B_SZ*3*B_SZ],
     }
   }
 #endif
+  return buf2;
 }
 
 static void intra_xform_train_block(void *_ctx,const unsigned char *_data,
@@ -117,8 +118,7 @@ static void intra_xform_train_block(void *_ctx,const unsigned char *_data,
   int                  i;
   int                  k;
   int                  l;
-  xform_blocks(buf,_data,_stride);
-  buf2=buf+3*B_SZ*(B_SZ>>1)+(B_SZ>>1);
+  buf2=xform_blocks(buf,_data,_stride);
   ctx=(intra_xform_ctx *)_ctx;
   mode=ctx->map[_bj*ctx->nxblocks+_bi];
   n=ctx->r_n[mode]++;
@@ -299,7 +299,7 @@ static void intra_xform_update_block(void *_ctx,const unsigned char *_data,
  int _stride,int _bi,int _bj){
   intra_xform_ctx *ctx;
   od_coeff         buf[3*B_SZ*3*B_SZ];
-  od_coeff         buf2[2*B_SZ*2*B_SZ];
+  od_coeff        *buf2;
   unsigned         satd;
   unsigned         best_satd;
   int              mode;
@@ -308,29 +308,24 @@ static void intra_xform_update_block(void *_ctx,const unsigned char *_data,
   int              i;
   int              k;
   int              l;
-  xform_blocks(buf,_data,_stride);
+  buf2=xform_blocks(buf,_data,_stride);
   ctx=(intra_xform_ctx *)_ctx;
   best_satd=UINT_MAX;
   best_mode=0;
   for(mode=0;mode<OD_INTRA_NMODES;mode++){
-    for(k=0;k<2*B_SZ;k++){
-      for(l=0;l<2*B_SZ;l++){
-        buf2[2*B_SZ*k+l]=buf[3*B_SZ*(k+(B_SZ>>1))+l+(B_SZ>>1)];
-      }
-    }
     satd=0;
     for(i=0;i<B_SZ;i++){
       for(j=0;j<B_SZ;j++){
         const double *beta;
         double        p;
-        beta=ctx->beta[mode][i*B_SZ+j];
+        beta=ctx->beta[mode][B_SZ*i+j];
         p=0;
         for(k=0;k<2*B_SZ;k++){
           for(l=0;l<2*B_SZ;l++){
-            p+=beta[2*B_SZ*k+l]*buf2[2*B_SZ*k+l];
+            p+=beta[2*B_SZ*k+l]*buf2[3*B_SZ*k+l];
           }
         }
-        satd+=abs(buf[2*B_SZ*(i+B_SZ)+j+B_SZ]-(od_coeff)floor(p+0.5));
+        satd+=abs(buf2[3*B_SZ*(i+B_SZ)+j+B_SZ]-(od_coeff)floor(p+0.5));
       }
     }
     if(satd<best_satd){
