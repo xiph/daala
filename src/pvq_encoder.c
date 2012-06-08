@@ -36,12 +36,18 @@ void laplace_encode_special(ec_enc *enc, int pos, unsigned decay)
   unsigned short decay_icdf[2];
   if (decay>255)
     decay=255;
-  if (decay==0)
-    decay=1;
   decay2=decay*decay;
   decay4=decay2*decay2>>16;
   decay8=decay4*decay4>>16;
   decay16=decay8*decay8>>16;
+  if (decay<2)
+    decay=2;
+  if (decay2<2)
+    decay2=2;
+  if (decay4<2)
+    decay4=2;
+  if (decay8<2)
+    decay8=2;
   if (decay16<2)
     decay16=2;
   decay_icdf[0]=decay16>>1;
@@ -250,7 +256,7 @@ int main()
     pvq_encoder(&enc, y, SIZE, K, &num, &den, &u);
   }
   ec_enc_done(&enc);
-#if 1
+#if 0
   printf("DECODE\n");
   num = 650*4;
   den = 256*4;

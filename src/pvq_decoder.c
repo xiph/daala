@@ -40,6 +40,14 @@ int laplace_decode_special(ec_dec *dec, unsigned decay)
   decay4=decay2*decay2>>16;
   decay8=decay4*decay4>>16;
   decay16=decay8*decay8>>16;
+  if (decay<2)
+    decay=2;
+  if (decay2<2)
+    decay2=2;
+  if (decay4<2)
+    decay4=2;
+  if (decay8<2)
+    decay8=2;
   if (decay16<2)
     decay16=2;
   decay_icdf[0]=decay16>>1;
