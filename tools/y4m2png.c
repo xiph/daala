@@ -23,6 +23,9 @@
 #if !defined(_FILE_OFFSET_BITS)
 # define _FILE_OFFSET_BITS 64
 #endif
+#if !defined(_BSD_SOURCE)
+# define _BSD_SOURCE
+#endif
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -56,8 +59,6 @@ enum{
 };
 
 static const char *output_filename=NULL;
-
-static char *input_filter;
 
 const char *OPTSTRING="o:hs:S:f:F:\5\6";
 struct option OPTIONS[]={

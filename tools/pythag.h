@@ -3,7 +3,8 @@
 # include <math.h>
 
 /*Computes the sqrt(a*a+b*b) without destructive underflow.*/
-# if defined(__GNUC__)
+# if defined(__GNUC__)&& \
+ (defined(__USE_MISC)||defined(__USE_XOPEN)||defined(__USE_ISOC99))
 #  define pythag hypot
 # else
 static double pythag(double _a,double _b){

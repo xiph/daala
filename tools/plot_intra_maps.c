@@ -128,8 +128,8 @@ int main(int _argc,const char **_argv){
     if(mapi_max>1){
       int dhue;
       dhue=HUE_MAX/(mapi_max-1);
-      for(mapi=0;mapi<mapi_max;mapi++){
-        rgba16_from_hue(colors[mapi+1],dhue*mapi);
+      for(mapi=1;mapi<mapi_max;mapi++){
+        rgba16_from_hue(colors[mapi],dhue*(mapi-1));
       }
     }
     od_rgba16_image_init(&image,nxblocks,nyblocks);

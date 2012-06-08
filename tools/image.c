@@ -55,8 +55,6 @@ int od_rgba16_image_read_png(od_rgba16_image *_this,FILE *_fin){
   int              interlace_type;
   int              compression_type;
   int              filter_method;
-  int              hshift;
-  int              vshift;
   png_uint_32      i;
   png_uint_32      j;
   if(fread(header,8,1,_fin)<1){
