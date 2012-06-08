@@ -118,18 +118,25 @@ int main(int _argc,const char **_argv){
     }
     mapi_max++;
     colors=(od_rgba16_pixel *)_ogg_malloc(mapi_max*sizeof(*colors));
-    /*The first mode is always DC mode; use gray.*/
-    colors[0][0]=(unsigned short)0x8080U;
-    colors[0][1]=(unsigned short)0x8080U;
-    colors[0][2]=(unsigned short)0x8080U;
+    /*The first mode is always DC mode; use black.*/
+    colors[0][0]=(unsigned short)0x0000U;
+    colors[0][1]=(unsigned short)0x0000U;
+    colors[0][2]=(unsigned short)0x0000U;
     colors[0][3]=(unsigned short)0xFFFFU;
-    /*Pull out fully saturated colors from the color wheel for all the
-       directional modes.*/
     if(mapi_max>1){
-      int dhue;
-      dhue=HUE_MAX/(mapi_max-1);
-      for(mapi=1;mapi<mapi_max;mapi++){
-        rgba16_from_hue(colors[mapi],dhue*(mapi-1));
+      /*The second mode is the "True Motion" mode; use white.*/
+      colors[1][0]=(unsigned short)0xFFFFU;
+      colors[1][1]=(unsigned short)0xFFFFU;
+      colors[1][2]=(unsigned short)0xFFFFU;
+      colors[1][3]=(unsigned short)0xFFFFU;
+      /*Pull out fully saturated colors from the color wheel for all the
+         directional modes.*/
+      if(mapi_max>2){
+        int dhue;
+        dhue=HUE_MAX/(mapi_max-2);
+        for(mapi=2;mapi<mapi_max;mapi++){
+          rgba16_from_hue(colors[mapi],dhue*(mapi-2));
+        }
       }
     }
     od_rgba16_image_init(&image,nxblocks,nyblocks);
