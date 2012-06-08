@@ -356,7 +356,7 @@ int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
 
 
 int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
-    ogg_int16_t *_scale,int *y,int N,int Q){
+    ogg_int16_t *_scale,int *y,int N,int Q,int *qg){
   float L2x,L2r;
   float g;
   float gr;
@@ -369,10 +369,9 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   float s;
   float maxr=-1;
   float proj;
-  int qg;
-  int K;
+  int K,ym;
   float cg, cgr;
-  Q*=.40;
+  Q*=.50;
   for(i=0;i<N;i++){
     scale[i]=_scale[i];
     scale_1[i]=1./scale[i];
@@ -400,13 +399,26 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   cgr = pow(gr/Q,GAIN_EXP_1);
 
   /* Round towards zero as a slight bias */
-  qg = floor(.5+cg-cgr);
+  *qg = floor(.5+cg-cgr);
   /*printf("%d ", qg);*/
   /*g = Q*pow(cg, GAIN_EXP);*/
-  cg = cgr+qg;
+  cg = cgr+*qg;
   if (cg<0)cg=0;
   g = Q*pow(cg, GAIN_EXP);
+#if 0
   K = floor(.5+ 1.3*(M_PI/2)*(cg)/GAIN_EXP );
+#else
+  if (cg==0){
+    K=0;
+  }else{
+    int K_large;
+    K = cg*cg;
+    K_large = sqrt(cg*N);
+    if (K>K_large){
+      K=K_large;
+    }
+  }
+#endif
   /*if(N==16)printf("%d ", qg);*/
 
   /*if (g>100000 && g0>100000)
@@ -499,6 +511,13 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
     _x[i]=floor(.5+x[i]);
   }
 
+  /* Move y[m] to the front */
+  ym = y[m];
+  for (i=m;i>=1;i--)
+    y[i] = y[i-1];
+  y[0] = ym;
+
+  /*printf("%d ", *qg);*/
   /*printf("xc1=%f\n", xc1);*/
   /*printf("y[m]=%d\n", y[m]);*/
   return m;
