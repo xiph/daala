@@ -31,27 +31,38 @@ extern const unsigned short expectA[];
 
 int laplace_decode_special(ec_dec *dec, unsigned decay)
 {
+  unsigned decay2, decay4, decay8, decay16;
   int pos;
-  unsigned short decay16_icdf[2];
+  unsigned short decay_icdf[2];
   if (decay>255)
     decay=255;
-  decay*=decay;
-  decay=decay*decay>>16;
-  decay=decay*decay>>16;
-  decay=decay*decay>>16;
-  if (decay<2)
-    decay=2;
-  decay16_icdf[0]=decay>>1;
-  decay16_icdf[1]=0;
+  decay2=decay*decay;
+  decay4=decay2*decay2>>16;
+  decay8=decay4*decay4>>16;
+  decay16=decay8*decay8>>16;
+  if (decay16<2)
+    decay16=2;
+  decay_icdf[0]=decay16>>1;
+  decay_icdf[1]=0;
   pos = 0;
-  while (ec_dec_icdf16(dec, decay16_icdf, 15)==1)
+  while (ec_dec_icdf16(dec, decay_icdf, 15)==1)
   {
     pos+=16;
-    //bits_used += -log2(decay16_icdf[0]/32768.);
   }
-  //bits_used += -log2(1-decay16_icdf[0]/32768.);
+#if 0
   pos += ec_dec_bits(dec, 4);
-  //bits_used += 4;
+#else
+  //printf("0x%x ", dec->rng);
+  decay_icdf[0]=decay8>>1;
+  pos += 8*ec_dec_icdf16(dec, decay_icdf, 15);
+  decay_icdf[0]=decay4>>1;
+  pos += 4*ec_dec_icdf16(dec, decay_icdf, 15);
+  decay_icdf[0]=decay2>>1;
+  pos += 2*ec_dec_icdf16(dec, decay_icdf, 15);
+  decay_icdf[0]=decay<<7;
+  pos += ec_dec_icdf16(dec, decay_icdf, 15);
+  //printf("0x%x\n", dec->rng);
+#endif
   return pos;
 }
 
@@ -74,19 +85,18 @@ int laplace_decode(ec_dec *dec, int Ex, int K)
   for(j=0;j<16;j++)
     icdf[j]=((Ex&0xF)*icdf1[j]+(16-(Ex&0xF))*icdf0[j]+8)>>4;
 
+  if (K<15){
+    /* Simple way of truncating the pdf when we have a bound */
+    for (j=0;j<=K;j++)
+      icdf[j]-=icdf[K];
+  }
   sym = ec_dec_icdf16(dec, icdf, 15);
-  /*float tmp = 32768;
-  if (K<15)
-    tmp = 32768-icdf[K];
-  bits_used += sym==0 ? -log2((32768-icdf[sym])/tmp) : -log2((icdf[sym-1]-icdf[sym])/tmp);
-*/
   if (shift)
   {
     int special;
     /* There's something special around zero after shift because of the rounding */
     special=(sym==0);
-    lsb = ec_dec_bits(dec, shift-special);
-    //bits_used += shift-special;
+    lsb = ec_dec_bits(dec, shift-special)-!special;
   }
 
   if (sym==15)
@@ -98,7 +108,6 @@ int laplace_decode(ec_dec *dec, int Ex, int K)
 
     sym += laplace_decode_special(dec, decay);
 
-    //bits_used += log2(1-exp(-256./a)) + (xs-15)*log2(exp(-256./a));
   }
 
   return (sym<<shift)+lsb;
@@ -122,8 +131,8 @@ static void pvq_decoder1(ec_dec *dec, int *y,int N,int *u)
   else
     y[pos]=1;
   *u += pos - (*u>>4);
-  if (*u<32)
-    *u=32;
+  if (*u<N/8)
+    *u=N/8;
   //bits_used += 1;
 }
 

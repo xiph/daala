@@ -32,27 +32,41 @@ extern const unsigned short expectA[];
 
 void laplace_encode_special(ec_enc *enc, int pos, unsigned decay)
 {
-  unsigned short decay16_icdf[2];
+  unsigned decay2, decay4, decay8, decay16;
+  unsigned short decay_icdf[2];
   if (decay>255)
     decay=255;
-  decay*=decay;
-  decay=decay*decay>>16;
-  decay=decay*decay>>16;
-  decay=decay*decay>>16;
-  if (decay<2)
-    decay=2;
-  decay16_icdf[0]=decay>>1;
-  decay16_icdf[1]=0;
+  if (decay==0)
+    decay=1;
+  decay2=decay*decay;
+  decay4=decay2*decay2>>16;
+  decay8=decay4*decay4>>16;
+  decay16=decay8*decay8>>16;
+  if (decay16<2)
+    decay16=2;
+  decay_icdf[0]=decay16>>1;
+  decay_icdf[1]=0;
   while (pos>15)
   {
-    ec_enc_icdf16(enc, 1, decay16_icdf, 15);
+    ec_enc_icdf16(enc, 1, decay_icdf, 15);
     pos-=16;
-    bits_used += -log2(decay16_icdf[0]/32768.);
+    bits_used += -log2(decay_icdf[0]/32768.);
   }
-  bits_used += -log2(1-decay16_icdf[0]/32768.);
-  ec_enc_icdf16(enc, 0, decay16_icdf, 15);
+  bits_used += -log2(1-decay_icdf[0]/32768.);
+  ec_enc_icdf16(enc, 0, decay_icdf, 15);
+#if 0
   ec_enc_bits(enc, pos, 4);
-  bits_used += 4;
+#else
+  decay_icdf[0]=decay8>>1;
+  ec_enc_icdf16(enc, (pos&0x8)!=0, decay_icdf, 15);
+  decay_icdf[0]=decay4>>1;
+  ec_enc_icdf16(enc, (pos&0x4)!=0, decay_icdf, 15);
+  decay_icdf[0]=decay2>>1;
+  ec_enc_icdf16(enc, (pos&0x2)!=0, decay_icdf, 15);
+  decay_icdf[0]=decay<<7;
+  ec_enc_icdf16(enc, (pos&0x1)!=0, decay_icdf, 15);
+#endif
+  bits_used += -log2(1-decay/256.)-(pos%16)*log2(decay/256.);
 
 }
 
@@ -80,18 +94,23 @@ void laplace_encode(ec_enc *enc, int x, int Ex, int K)
   if (sym>15)
     sym=15;
 
-  ec_enc_icdf16(enc, sym, icdf, 15);
   float tmp = 32768;
   if (K<15)
     tmp = 32768-icdf[K];
   bits_used += sym==0 ? -log2((32768-icdf[sym])/tmp) : -log2((icdf[sym-1]-icdf[sym])/tmp);
+  if (K<15){
+    /* Simple way of truncating the pdf when we have a bound */
+    for (j=0;j<=K;j++)
+      icdf[j]-=icdf[K];
+  }
+  ec_enc_icdf16(enc, sym, icdf, 15);
 
   if (shift)
   {
     int special;
     /* There's something special around zero after shift because of the rounding */
     special=(xs==0);
-    ec_enc_bits(enc, x-(xs<<shift), shift-special);
+    ec_enc_bits(enc, x-(xs<<shift)+!special, shift-special);
     bits_used += shift-special;
   }
 
@@ -128,8 +147,8 @@ static void pvq_encoder1(ec_enc *enc, const int *y,int N,int *u)
 
   decay = 256 - 4096 / *u; /* Approximates 256*exp(-16./ *u); */
   *u += pos - (*u>>4);
-  if (*u<32)
-    *u=32;
+  if (*u<N/8)
+    *u=N/8;
 
   laplace_encode_special(enc, pos, decay);
 
@@ -190,61 +209,70 @@ void pvq_encoder(ec_enc *enc, const int *y,int N,int K,int *num, int *den, int *
 }
 
 #ifdef PVQ_MAIN
+
+#if 1
+#define SIZE 16
+#define NB_VECTORS 60000
+#else
+#define SIZE 128
+#define NB_VECTORS 213840
+#endif
+
 int main()
 {
   int i, j;
   int num, den,u;
   ec_enc enc;
   ec_dec dec;
-  int Ki[213840];
+  int Ki[NB_VECTORS];
   unsigned char buf[1<<22];
 
   num = 650*4;
   den = 256*4;
   u = 30<<4;
   ec_enc_init(&enc, buf, 1<<22);
-  for (i=0;i<213840;i++)
+  for (i=0;i<NB_VECTORS;i++)
   {
     int K;
-    int y[128];
+    int y[SIZE];
     K=0;
-    if (i%400==0)
+    /*if (i%400==0)
     {
       num=650*4;
       den=256*4;
-    }
-    for (j=0;j<128;j++)
+    }*/
+    for (j=0;j<SIZE;j++)
     {
       scanf("%d ", y+j);
       K += abs(y[j]);
     }
     Ki[i] = K;
-    pvq_encoder(&enc, y, 128, K, &num, &den, &u);
+    pvq_encoder(&enc, y, SIZE, K, &num, &den, &u);
   }
   ec_enc_done(&enc);
-
+#if 1
   printf("DECODE\n");
   num = 650*4;
   den = 256*4;
   u = 30<<4;
   ec_dec_init(&dec, buf, 1<<22);
-  for (i=0;i<213840;i++)
+  for (i=0;i<NB_VECTORS;i++)
   {
-    int y[128];
-    if (i%400==0)
+    int y[SIZE];
+    /*if (i%400==0)
     {
       num=650*4;
       den=256*4;
-    }
-    pvq_decoder(&dec, y, 128, Ki[i], &num, &den, &u);
-    for (j=0;j<128;j++)
+    }*/
+    pvq_decoder(&dec, y, SIZE, Ki[i], &num, &den, &u);
+    for (j=0;j<SIZE;j++)
       printf("%d ", y[j]);
     printf("\n");
   }
+#endif
 
-
-  printf("average bits = %f\n", bits_used/213840.);
-  printf("tell()'s average = %f\n", ec_tell(&enc)/213840.);
+  printf("average bits = %f\n", bits_used/(float)NB_VECTORS);
+  printf("tell()'s average = %f\n", ec_tell(&enc)/(float)NB_VECTORS);
   return 0;
 }
 #endif
