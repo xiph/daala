@@ -366,7 +366,7 @@ static void intra_xform_update_block(void *_ctx,const unsigned char *_data,
       best_satd=satd;
       best_mode=mode;
     }
-    else if(satd==best_satd)next_best_satd=satd;
+    else if(satd<next_best_satd)next_best_satd=satd;
   }
   ctx->satd_avg+=(best_satd-ctx->satd_avg)/++(ctx->n);
   ctx->map[_bj*ctx->nxblocks+_bi]=best_mode;

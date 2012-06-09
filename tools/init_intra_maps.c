@@ -526,7 +526,7 @@ static void init_intra_block(void *_ctx,const unsigned char *_data,int _stride,
       best_satd=satd;
       best_mode=mode;
     }
-    else if(satd==best_satd)next_best_satd=satd;
+    else if(satd<next_best_satd)next_best_satd=satd;
   }
   ctx->map[_bj*ctx->nxblocks+_bi]=(unsigned char)best_mode;
   ctx->weights[_bj*ctx->nxblocks+_bi]=next_best_satd-best_satd;
