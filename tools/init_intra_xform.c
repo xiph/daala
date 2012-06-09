@@ -274,12 +274,15 @@ static void update_intra_xforms(intra_xform_ctx *_ctx){
         int     k;
         int     l;
         nxi=3*B_SZ*B_SZ;
+#if 1
+        /*Include coefficients for the current block*/
         for(k=0;k<=i;k++){
           for(l=0;l<=j;l++){
             xi[nxi++]=2*B_SZ*(B_SZ+k)+B_SZ+l;
           }
         }
         nxi--;
+#endif
         yi=2*B_SZ*(B_SZ+i)+B_SZ+j;
         for(xii=0;xii<nxi;xii++){
           for(xij=0;xij<nxi;xij++){
