@@ -370,7 +370,7 @@ static void intra_xform_update_block(void *_ctx,const unsigned char *_data,
   }
   ctx->satd_avg+=(best_satd-ctx->satd_avg)/++(ctx->n);
   ctx->map[_bj*ctx->nxblocks+_bi]=best_mode;
-  ctx->weights[_bj*ctx->nxblocks+_bi]=next_best_satd=best_satd;
+  ctx->weights[_bj*ctx->nxblocks+_bi]=next_best_satd-best_satd;
 }
 
 static int intra_xform_update_plane_finish(void *_ctx){
