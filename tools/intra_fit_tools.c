@@ -33,6 +33,19 @@ char *get_map_filename(const char *_name,int _pli,int _nxblocks,int _nyblocks){
   return ret;
 }
 
+char *get_weights_filename(const char *_name,
+ int _pli,int _nxblocks,int _nyblocks){
+  char  *ret;
+  char   fname[8192];
+  size_t fname_len;
+  sprintf(fname,"%s-pli%i-%i-%ix%i.intra.weights",
+   _name,_pli,B_SZ,_nxblocks,_nyblocks);
+  fname_len=strlen(fname);
+  ret=(char *)malloc(fname_len+1);
+  memcpy(ret,fname,fname_len+1);
+  return ret;
+}
+
 
 int apply_to_blocks(void *_ctx,plane_start_func _start,block_func _block,
  plane_finish_func _finish,int _argc,const char **_argv){

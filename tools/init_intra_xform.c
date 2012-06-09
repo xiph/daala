@@ -11,9 +11,11 @@ typedef struct intra_xform_ctx intra_xform_ctx;
 struct intra_xform_ctx{
   char          *map_filename;
   unsigned char *map;
+  char          *weights_filename;
+  unsigned      *weights;
   int            nxblocks;
   int            nyblocks;
-  long long      r_n[OD_INTRA_NMODES];
+  double         r_w[OD_INTRA_NMODES];
   double         r_x[OD_INTRA_NMODES][2*B_SZ*2*B_SZ];
   double         r_xx[OD_INTRA_NMODES][2*B_SZ*2*B_SZ][2*B_SZ*2*B_SZ];
   double         scale[OD_INTRA_NMODES][2*B_SZ*2*B_SZ];
@@ -27,7 +29,10 @@ static int intra_xform_train_plane_start(void *_ctx,const char *_name,
   intra_xform_ctx *ctx;
   FILE            *map_file;
   char            *map_filename;
+  FILE            *weights_file;
+  char            *weights_filename;
   ctx=(intra_xform_ctx *)_ctx;
+  ctx->map=(unsigned char *)malloc(_nxblocks*(size_t)_nyblocks);
   map_filename=get_map_filename(_name,_pli,_nxblocks,_nyblocks);
   map_file=fopen(map_filename,"rb");
   if(map_file==NULL){
@@ -35,11 +40,26 @@ static int intra_xform_train_plane_start(void *_ctx,const char *_name,
     return EXIT_FAILURE;
   }
   ctx->map_filename=map_filename;
-  ctx->map=(unsigned char *)malloc(_nxblocks*(size_t)_nyblocks);
   if(fread(ctx->map,_nxblocks*(size_t)_nyblocks,1,map_file)<1){
     fprintf(stderr,"Error reading from input file '%s'.\n",map_filename);
     return EXIT_FAILURE;
   }
+  fclose(map_file);
+  ctx->weights=(unsigned *)malloc(
+   _nxblocks*(size_t)_nyblocks*sizeof(*ctx->weights));
+  weights_filename=get_weights_filename(_name,_pli,_nxblocks,_nyblocks);
+  weights_file=fopen(weights_filename,"rb");
+  if(weights_file==NULL){
+    fprintf(stderr,"Error opening input file '%s'.\n",weights_filename);
+    return EXIT_FAILURE;
+  }
+  ctx->weights_filename=weights_filename;
+  if(fread(ctx->weights,
+   _nxblocks*(size_t)_nyblocks*sizeof(*ctx->weights),1,weights_file)<1){
+    fprintf(stderr,"Error reading from input file '%s'.\n",weights_filename);
+    return EXIT_FAILURE;
+  }
+  fclose(weights_file);
   ctx->nxblocks=_nxblocks;
   ctx->nyblocks=_nyblocks;
   return EXIT_SUCCESS;
@@ -113,16 +133,20 @@ static void intra_xform_train_block(void *_ctx,const unsigned char *_data,
   od_coeff             buf[3*B_SZ*3*B_SZ];
   od_coeff            *buf2;
   int                  mode;
-  long long            n;
+  double               w;
+  unsigned             wb;
   int                  j;
   int                  i;
   int                  k;
   int                  l;
-  buf2=xform_blocks(buf,_data,_stride);
   ctx=(intra_xform_ctx *)_ctx;
+  wb=ctx->weights[_bj*ctx->nxblocks+_bi];
+  if(wb<=0)return;
+  buf2=xform_blocks(buf,_data,_stride);
   mode=ctx->map[_bj*ctx->nxblocks+_bi];
-  n=ctx->r_n[mode]++;
-  dw=1.0/(n+1);
+  w=ctx->r_w[mode];
+  ctx->r_w[mode]+=wb;
+  dw=wb/(w+wb);
   for(i=0;i<2*B_SZ;i++){
     for(j=0;j<2*B_SZ;j++){
       int    ci;
@@ -139,7 +163,7 @@ static void intra_xform_train_block(void *_ctx,const unsigned char *_data,
         for(l=0;l<2*B_SZ;l++){
           int cj;
           cj=2*B_SZ*k+l;
-          ctx->r_xx[mode][ci][cj]+=n*dw*delta[ci]*delta[cj];
+          ctx->r_xx[mode][ci][cj]+=w*dw*delta[ci]*delta[cj];
         }
       }
     }
@@ -149,6 +173,8 @@ static void intra_xform_train_block(void *_ctx,const unsigned char *_data,
 static int intra_xform_train_plane_finish(void *_ctx){
   intra_xform_ctx *ctx;
   ctx=(intra_xform_ctx *)_ctx;
+  free(ctx->weights_filename);
+  free(ctx->weights);
   free(ctx->map_filename);
   free(ctx->map);
   return EXIT_SUCCESS;
@@ -194,17 +220,16 @@ static void update_intra_xforms(intra_xform_ctx *_ctx){
     int        nxi;
     int        i;
     int        j;
-    long long  r_n;
     double    *r_x;
     r_xx_row  *r_xx;
     double    *scale;
-    r_n=_ctx->r_n[mode];
     r_x=_ctx->r_x[mode];
     r_xx=_ctx->r_xx[mode];
     scale=_ctx->scale[mode];
     printf("  {\n");
     for(i=0;i<2*B_SZ*2*B_SZ;i++){
       scale[i]=sqrt(r_xx[i][i]);
+      if(scale[i]<=0)scale[i]=1;
     }
     for(i=0;i<2*B_SZ*2*B_SZ;i++){
       for(j=0;j<2*B_SZ*2*B_SZ;j++){
@@ -289,7 +314,10 @@ static int intra_xform_update_plane_start(void *_ctx,const char *_name,
   intra_xform_ctx *ctx;
   ctx=(intra_xform_ctx *)_ctx;
   ctx->map_filename=get_map_filename(_name,_pli,_nxblocks,_nyblocks);
+  ctx->weights_filename=get_weights_filename(_name,_pli,_nxblocks,_nyblocks);
   ctx->map=(unsigned char *)malloc(_nxblocks*(size_t)_nyblocks);
+  ctx->weights=(unsigned *)malloc(
+   _nxblocks*(size_t)_nyblocks*sizeof(*ctx->weights));
   ctx->nxblocks=_nxblocks;
   ctx->nyblocks=_nyblocks;
   return EXIT_SUCCESS;
@@ -300,24 +328,26 @@ static void intra_xform_update_block(void *_ctx,const unsigned char *_data,
   intra_xform_ctx *ctx;
   od_coeff         buf[3*B_SZ*3*B_SZ];
   od_coeff        *buf2;
-  unsigned         satd;
   unsigned         best_satd;
+  unsigned         next_best_satd;
   int              mode;
   int              best_mode;
-  int              j;
-  int              i;
-  int              k;
-  int              l;
   buf2=xform_blocks(buf,_data,_stride);
   ctx=(intra_xform_ctx *)_ctx;
-  best_satd=UINT_MAX;
   best_mode=0;
+  best_satd=UINT_MAX;
+  next_best_satd=UINT_MAX;
   for(mode=0;mode<OD_INTRA_NMODES;mode++){
+    unsigned satd;
+    int      i;
+    int      j;
     satd=0;
     for(i=0;i<B_SZ;i++){
       for(j=0;j<B_SZ;j++){
         const double *beta;
         double        p;
+        int           k;
+        int           l;
         beta=ctx->beta[mode][B_SZ*i+j];
         p=0;
         for(k=0;k<2*B_SZ;k++){
@@ -329,17 +359,21 @@ static void intra_xform_update_block(void *_ctx,const unsigned char *_data,
       }
     }
     if(satd<best_satd){
+      next_best_satd=best_satd;
       best_satd=satd;
       best_mode=mode;
     }
+    else if(satd==best_satd)next_best_satd=satd;
   }
   ctx->satd_avg+=(best_satd-ctx->satd_avg)/++(ctx->n);
   ctx->map[_bj*ctx->nxblocks+_bi]=best_mode;
+  ctx->weights[_bj*ctx->nxblocks+_bi]=next_best_satd=best_satd;
 }
 
 static int intra_xform_update_plane_finish(void *_ctx){
   intra_xform_ctx *ctx;
   FILE            *map_file;
+  FILE            *weights_file;
   ctx=(intra_xform_ctx *)_ctx;
   map_file=fopen(ctx->map_filename,"wb");
   if(map_file==NULL){
@@ -350,6 +384,20 @@ static int intra_xform_update_plane_finish(void *_ctx){
     fprintf(stderr,"Error writing to output file '%s'.\n",ctx->map_filename);
     return EXIT_FAILURE;
   }
+  fclose(map_file);
+  weights_file=fopen(ctx->weights_filename,"wb");
+  if(weights_file==NULL){
+    fprintf(stderr,"Error opening output file '%s'.\n",ctx->weights_filename);
+    return EXIT_FAILURE;
+  }
+  if(fwrite(ctx->weights,
+   ctx->nxblocks*(size_t)ctx->nyblocks*sizeof(*ctx->weights),1,
+   weights_file)<1){
+    fprintf(stderr,"Error writing to output file '%s'.\n",
+     ctx->weights_filename);
+    return EXIT_FAILURE;
+  }
+  fclose(weights_file);
   printf("Average SATD: %G\n",ctx->satd_avg);
   return intra_xform_train_plane_finish(_ctx);
 }

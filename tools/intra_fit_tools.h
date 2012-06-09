@@ -34,6 +34,8 @@ void get_intra_dims(const th_info *_ti,int _pli,
  int *_x0,int *_y0,int *_nxblocks,int *_nyblocks);
 
 char *get_map_filename(const char *_name,int _pli,int _nxblocks,int _nyblocks);
+char *get_weights_filename(const char *_name,
+ int _pli,int _nxblocks,int _nyblocks);
 
 int apply_to_blocks(void *_ctx,plane_start_func _start,block_func _block,
  plane_finish_func _finish,int _argc,const char **_argv);

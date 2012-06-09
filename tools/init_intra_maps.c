@@ -470,9 +470,10 @@ typedef struct init_intra_maps_ctx init_intra_maps_ctx;
 
 
 struct init_intra_maps_ctx{
-  FILE          *map_file;
-  char          *map_filename;
+  const char    *name;
   unsigned char *map;
+  unsigned      *weights;
+  int            pli;
   int            nxblocks;
   int            nyblocks;
 };
@@ -482,18 +483,12 @@ struct init_intra_maps_ctx{
 static int init_intra_plane_start(void *_ctx,const char *_name,
  const th_info *_ti,int _pli,int _nxblocks,int _nyblocks){
   init_intra_maps_ctx *ctx;
-  FILE                *map_file;
-  char                *map_filename;
   ctx=(init_intra_maps_ctx *)_ctx;
-  map_filename=get_map_filename(_name,_pli,_nxblocks,_nyblocks);
-  map_file=fopen(map_filename,"wb");
-  if(map_file==NULL){
-    fprintf(stderr,"Error opening output file '%s'.\n",map_filename);
-    return EXIT_FAILURE;
-  }
-  ctx->map_file=map_file;
-  ctx->map_filename=map_filename;
+  ctx->name=_name;
   ctx->map=(unsigned char *)malloc(_nxblocks*(size_t)_nyblocks);
+  ctx->weights=(unsigned *)malloc(
+   _nxblocks*(size_t)_nyblocks*sizeof(*ctx->weights));
+  ctx->pli=_pli;
   ctx->nxblocks=_nxblocks;
   ctx->nyblocks=_nyblocks;
   return EXIT_SUCCESS;
@@ -502,12 +497,14 @@ static int init_intra_plane_start(void *_ctx,const char *_name,
 static void init_intra_block(void *_ctx,const unsigned char *_data,int _stride,
  int _bi,int _bj){
   init_intra_maps_ctx *ctx;
-  int                  mode;
   unsigned             best_satd;
+  unsigned             next_best_satd;
+  int                  mode;
   int                  best_mode;
   ctx=(init_intra_maps_ctx *)_ctx;
   best_mode=0;
   best_satd=UINT_MAX;
+  next_best_satd=UINT_MAX;
   for(mode=0;mode<10;mode++){
     unsigned char        block[B_SZ*B_SZ];
     unsigned             satd;
@@ -525,23 +522,53 @@ static void init_intra_block(void *_ctx,const unsigned char *_data,int _stride,
 #endif
     satd=od_satd(block,B_SZ,_data,_stride);
     if(satd<best_satd){
+      next_best_satd=best_satd;
       best_satd=satd;
       best_mode=mode;
     }
+    else if(satd==best_satd)next_best_satd=satd;
   }
   ctx->map[_bj*ctx->nxblocks+_bi]=(unsigned char)best_mode;
+  ctx->weights[_bj*ctx->nxblocks+_bi]=next_best_satd-best_satd;
 }
 
 static int init_intra_plane_finish(void *_ctx){
   init_intra_maps_ctx *ctx;
+  FILE                *map_file;
+  char                *map_filename;
+  FILE                *weights_file;
+  char                *weights_filename;
   ctx=(init_intra_maps_ctx *)_ctx;
-  if(fwrite(ctx->map,ctx->nxblocks*(size_t)ctx->nyblocks,1,ctx->map_file)<1){
-    fprintf(stderr,"Error writing to output file '%s'.\n",ctx->map_filename);
+  map_filename=get_map_filename(ctx->name,
+   ctx->pli,ctx->nxblocks,ctx->nyblocks);
+  map_file=fopen(map_filename,"wb");
+  if(map_file==NULL){
+    fprintf(stderr,"Error opening output file '%s'.\n",map_filename);
     return EXIT_FAILURE;
   }
-  fclose(ctx->map_file);
+  if(fwrite(ctx->map,ctx->nxblocks*(size_t)ctx->nyblocks,1,map_file)<1){
+    fprintf(stderr,"Error writing to output file '%s'.\n",map_filename);
+    return EXIT_FAILURE;
+  }
+  fclose(map_file);
+  free(map_filename);
+  weights_filename=get_weights_filename(ctx->name,
+   ctx->pli,ctx->nxblocks,ctx->nyblocks);
+  weights_file=fopen(weights_filename,"wb");
+  if(weights_file==NULL){
+    fprintf(stderr,"Error opening output file '%s'.\n",weights_filename);
+    return EXIT_FAILURE;
+  }
+  if(fwrite(ctx->weights,
+   ctx->nxblocks*(size_t)ctx->nyblocks*sizeof(*ctx->weights),1,
+   weights_file)<1){
+    fprintf(stderr,"Error writing to output file '%s'.\n",weights_filename);
+    return EXIT_FAILURE;
+  }
+  fclose(weights_file);
+  free(weights_filename);
+  free(ctx->weights);
   free(ctx->map);
-  free(ctx->map_filename);
   return EXIT_SUCCESS;
 }
 
