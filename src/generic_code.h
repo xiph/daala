@@ -18,17 +18,20 @@
 
 */
 
-#ifndef PVQ_CODE_H_
-#define PVQ_CODE_H_
+#ifndef GENERIC_ENCODER_H_
+#define GENERIC_ENCODER_H_
 
 #include "entenc.h"
 #include "entdec.h"
 
-void laplace_encode_special(ec_enc *enc, int pos, unsigned decay);
-int laplace_decode_special(ec_dec *dec, unsigned decay);
+#define GENERIC_TABLES 12
 
-void pvq_encoder(ec_enc *enc, const int *y,int N,int K,int *num, int *den, int *u);
-void pvq_decoder(ec_dec *dec, int *y,int N,int K,int *num, int *den, int *u);
+typedef struct {
+  unsigned char icdf[GENERIC_TABLES][16];
+  unsigned char tot[GENERIC_TABLES];
+  int increment;
+} GenericEncoder;
 
+int generic_decode(ec_dec *dec, GenericEncoder *model, int *ExQ4);
 
 #endif

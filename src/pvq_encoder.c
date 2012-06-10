@@ -217,8 +217,8 @@ void pvq_encoder(ec_enc *enc, const int *y,int N,int K,int *num, int *den, int *
 #ifdef PVQ_MAIN
 
 #if 1
-#define SIZE 16
-#define NB_VECTORS 60000
+#define SIZE 14
+#define NB_VECTORS 34994
 #else
 #define SIZE 128
 #define NB_VECTORS 213840

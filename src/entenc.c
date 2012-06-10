@@ -171,6 +171,17 @@ void ec_enc_icdf(ec_enc *_this,int _s,const unsigned char *_icdf,unsigned _ftb){
   ec_enc_normalize(_this);
 }
 
+void ec_enc_icdf_ft(ec_enc *_this,int _s,const unsigned char *_icdf,unsigned _ft){
+  ogg_uint32_t r;
+  r=_this->rng/_ft;
+  if(_s>0){
+    _this->val+=_this->rng-r*_icdf[_s-1];
+    _this->rng=r*(_icdf[_s-1]-_icdf[_s]);
+  }
+  else _this->rng-=r*_icdf[_s];
+  ec_enc_normalize(_this);
+}
+
 void ec_enc_icdf16(ec_enc *_this,int _s,const unsigned short *_icdf,unsigned _ftb){
   ogg_uint32_t r;
   r=_this->rng>>_ftb;
