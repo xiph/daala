@@ -90,7 +90,6 @@ void generic_encode(ec_enc *enc, GenericEncoder *model, int x, int *ExQ4)
     int special;
     /* There's something special around zero after shift because of the rounding */
     special=(xs==0);
-    printf("encbits: %d %d %d %d\n", x, xs, x-(xs<<shift)+!special, shift-special);
     ec_enc_bits(enc, x-(xs<<shift)+!special, shift-special);
     /*bits_used += shift-special;*/
   }
@@ -138,6 +137,7 @@ int main(void)
     nb_vectors++;
     generic_encode(&enc, &gen, K, &ExQ4);
   }
+  ec_enc_done(&enc);
   printf("DECODE\n");
   /*for (i=0;i<GENERIC_TABLES;i++)
   {

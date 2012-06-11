@@ -67,14 +67,11 @@ int generic_decode(ec_dec *dec, GenericEncoder *model, int *ExQ4)
 
   if (shift!=0)
   {
-    printf("shift=%d: %d %f ", shift, xs, *ExQ4/16.);
     int special;
     /* There's something special around zero after shift because of the rounding */
     special=(xs==0);
     lsb = ec_dec_bits(dec, shift-special);
-    printf("%d ", lsb);
     lsb -= !special;
-    printf("%d\n", lsb);
     /*bits_used += shift-special;*/
   }
   /* Renormalize if we cannot add increment */
