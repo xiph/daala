@@ -25,9 +25,7 @@
 #include "odintrin.h"
 #include "pvq_code.h"
 
-extern const unsigned short expectA[];
-
-int generic_decode(ec_dec *dec, GenericEncoder *model, int *ExQ4)
+int generic_decode(ec_dec *dec, GenericEncoder *model, int *ExQ16, int integration)
 {
   int lgQ1;
   int shift;
@@ -39,31 +37,22 @@ int generic_decode(ec_dec *dec, GenericEncoder *model, int *ExQ4)
   int lsb=0;
   int x;
 
-  lgQ1 = OD_MAXI(0, od_ilog(*ExQ4**ExQ4)-8);
+  lgQ1 = logEx(*ExQ16);
 
   shift = OD_MAXI(0, (lgQ1-5)>>1);
 
   id = OD_MINI(GENERIC_TABLES-1, lgQ1);
   icdf = model->icdf[id];
 
-  /* FIXME: need to have an adaptive ft, not 2^15 */
-  /*for (i=0;i<16;i++)printf("%d ", icdf[i]);printf("(%d %d %d %d)\n", (int)(model->tot[id]), x, *ExQ4, id);*/
   xs = ec_dec_icdf_ft(dec, icdf, model->tot[id]);
 
   if (xs == 15)
   {
-    int a;
     unsigned decay;
-    /* FIXME: Check the bounds here */
-    /*fprintf(stderr, "xs15: %d %d\n", *ExQ4, shift);*/
-    a=expectA[(*ExQ4+(1<<shift>>1))>>shift];
-    decay = 256*exp(-256./a);
+    /* Bounds should be OK as long as shift is consistent with Ex */
+    decay=decayE[((*ExQ16>>12)+(1<<shift>>1))>>shift];
 
-    //printf("%x ", dec->rng);
     xs += laplace_decode_special(dec, decay);
-
-    //printf("dec15 %d %d %d %x\n", xs, a, decay, dec->rng);
-    /*printf("xs>15: %d %d %f\n", x, xs, *ExQ4/16.);*/
   }
 
   if (shift!=0)
@@ -73,7 +62,6 @@ int generic_decode(ec_dec *dec, GenericEncoder *model, int *ExQ4)
     special=(xs==0);
     lsb = ec_dec_bits(dec, shift-special);
     lsb -= !special<<(shift-1);
-    /*bits_used += shift-special;*/
   }
   /* Renormalize if we cannot add increment */
   if (model->tot[id]>255-model->increment)
@@ -94,8 +82,7 @@ int generic_decode(ec_dec *dec, GenericEncoder *model, int *ExQ4)
   model->tot[id] += model->increment;
 
   x = (xs<<shift)+lsb;
-  *ExQ4 += 1 + x - (*ExQ4>>4);
-  *ExQ4 = OD_MINI(32767, *ExQ4);
+  *ExQ16 += (x<<(16-integration)) - (*ExQ16>>integration);
 
   /*printf("dec: %d %d %d %d %d %x\n", *ExQ4, x, shift, id, xs, dec->rng);*/
   return x;

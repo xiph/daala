@@ -37,7 +37,7 @@ int main(int argc, char **argv)
 
   N=atoi(argv[1]);
   shift=atoi(argv[2]);
-
+  printf("/* This file is auto-generated using gen_icdf.c */\n\n");
   printf("const unsigned short icdf_table[%d][16] = {\n", N+1);
   printf("{15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0},\n");
   aN[0]=1;
@@ -51,7 +51,7 @@ int main(int argc, char **argv)
     Ex=(float)i/(1<<shift);
     gamma = (sqrt(1+4*Ex*Ex)-1)/(2*Ex);
     a=-.5/log(gamma);
-    aN[i] = floor(.5+a*256);
+    aN[i] = floor(.5+256*exp(-1./a));
     /*printf("%f %f ", Ex, a);*/
     p[0]=1-exp(-.5/a);
     for(j=1;j<15;j++)
@@ -89,7 +89,7 @@ int main(int argc, char **argv)
   }
   printf("};\n");
   printf("\n\n");
-  printf("const unsigned short expectA[%d] = {\n", N+1);
+  printf("const unsigned char decayE[%d] = {\n", N+1);
   for(i=0;i<=N;i++)
     printf("%d,\n", aN[i]);
   printf("};\n");

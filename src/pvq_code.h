@@ -24,6 +24,9 @@
 #include "entenc.h"
 #include "entdec.h"
 
+extern const unsigned short icdf_table[][16];
+extern const unsigned char decayE[];
+
 void laplace_encode_special(ec_enc *enc, int pos, unsigned decay);
 int laplace_decode_special(ec_dec *dec, unsigned decay);
 

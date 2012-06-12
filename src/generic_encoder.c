@@ -26,9 +26,6 @@
 #include "odintrin.h"
 #include "pvq_code.h"
 
-extern const unsigned short expectA[];
-
-double generic_bits=0;
 
 void generic_model_init(GenericEncoder *model)
 {
@@ -45,7 +42,7 @@ void generic_model_init(GenericEncoder *model)
   }
 }
 
-void generic_encode(ec_enc *enc, GenericEncoder *model, int x, int *ExQ4)
+void generic_encode(ec_enc *enc, GenericEncoder *model, int x, int *ExQ16, int integration)
 {
   int lgQ1;
   int shift;
@@ -55,8 +52,9 @@ void generic_encode(ec_enc *enc, GenericEncoder *model, int x, int *ExQ4)
   int xenc;
   int i;
 
-  lgQ1 = OD_MAXI(0, od_ilog(*ExQ4**ExQ4)-8);
+  lgQ1 = logEx(*ExQ16);
 
+  /*printf("%d %d ", *ExQ4, lgQ1);*/
   shift = OD_MAXI(0, (lgQ1-5)>>1);
 
   id = OD_MINI(GENERIC_TABLES-1, lgQ1);
@@ -65,33 +63,23 @@ void generic_encode(ec_enc *enc, GenericEncoder *model, int x, int *ExQ4)
   xs = (x+(1<<shift>>1))>>shift;
   xenc = OD_MINI(15, xs);
 
-  /* FIXME: need to have an adaptive ft, not 2^15 */
-  /*for (i=0;i<16;i++)printf("%d ", icdf[i]);printf("(%d %d %d %d)\n", (int)(model->tot[id]), x, *ExQ4, id);*/
   ec_enc_icdf_ft(enc, xenc, icdf, model->tot[id]);
 
   if (xs >= 15)
   {
-    int a;
     unsigned decay;
-    /* FIXME: Check the bounds here */
-    a=expectA[(*ExQ4+(1<<shift>>1))>>shift];
-    decay = 256*exp(-256./a);
+    /* Bounds should be OK as long as shift is consistent with Ex */
+    decay=decayE[((*ExQ16>>12)+(1<<shift>>1))>>shift];
 
-    //printf ("%d %x ", x, enc->rng);
     laplace_encode_special(enc, xs-15, decay);
-    //printf("enc15 %d %d %d %x\n", xs, a, decay, enc->rng);
-
-    /*printf("xs>15: %d %d %f\n", x, xs, *ExQ4/16.);*/
   }
 
   if (shift!=0)
   {
-    /*printf("shift=%d: %d %d %f\n", shift, x, xs, *ExQ4/16.);*/
     int special;
     /* There's something special around zero after shift because of the rounding */
     special=(xs==0);
     ec_enc_bits(enc, x-(xs<<shift)+(!special<<(shift-1)), shift-special);
-    /*bits_used += shift-special;*/
   }
   /* Renormalize if we cannot add increment */
   if (model->tot[id]>255-model->increment)
@@ -111,8 +99,7 @@ void generic_encode(ec_enc *enc, GenericEncoder *model, int x, int *ExQ4)
     icdf[i]+=model->increment;
   model->tot[id] += model->increment;
 
-  *ExQ4 += 1 + x - (*ExQ4>>4);
-  *ExQ4 = OD_MINI(32767, *ExQ4);
+  *ExQ16 += (x<<(16-integration)) - (*ExQ16>>integration);
 
   /*printf("enc: %d %d %d %d %d %x\n", *ExQ4, x, shift, id, xs, enc->rng);*/
 }
@@ -126,7 +113,7 @@ int main(void)
   ec_dec dec;
   unsigned char buf[1<<22];
   int nb_vectors=0;
-  int ExQ4=64;
+  int ExQ16=65536;
   GenericEncoder gen;
 
   ec_enc_init(&enc, buf, 1<<22);
@@ -138,8 +125,8 @@ int main(void)
     if (feof(stdin))
       break;
     nb_vectors++;
-    generic_encode(&enc, &gen, K, &ExQ4);
-    printf("%d %d\n", ExQ4, K);
+    generic_encode(&enc, &gen, K, &ExQ16, 3);
+    /*printf("%d %d\n", ExQ4, K);*/
   }
   ec_enc_done(&enc);
   printf("DECODE\n");
@@ -151,15 +138,14 @@ int main(void)
       printf("%d ", gen.icdf[i][j]);
     printf("\n");
   }*/
-  ExQ4=64;
+  ExQ16=65536;
   ec_dec_init(&dec, buf, 1<<22);
   generic_model_init(&gen);
   for (i=0;i<nb_vectors;i++)
   {
-    int K = generic_decode(&dec, &gen, &ExQ4);
-    /*printf ("%d\n", K);*/
+    int K = generic_decode(&dec, &gen, &ExQ16, 3);
+    printf ("%d\n", K);
   }
-  printf("average bits = %f\n", generic_bits/(float)nb_vectors);
   printf("tell()'s average = %f\n", ec_tell(&enc)/(float)nb_vectors);
   return 0;
 }

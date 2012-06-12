@@ -25,11 +25,6 @@
 #include "entcode.h"
 #include "pvq_code.h"
 
-double bits_used=0;
-
-extern const unsigned short icdf_table[][16];
-extern const unsigned short expectA[];
-
 void laplace_encode_special(ec_enc *enc, int pos, unsigned decay)
 {
   unsigned decay2, decay4, decay8, decay16;
@@ -56,9 +51,7 @@ void laplace_encode_special(ec_enc *enc, int pos, unsigned decay)
   {
     ec_enc_icdf16(enc, 1, decay_icdf, 15);
     pos-=16;
-    bits_used += -log2(decay_icdf[0]/32768.);
   }
-  bits_used += -log2(1-decay_icdf[0]/32768.);
   ec_enc_icdf16(enc, 0, decay_icdf, 15);
 #if 0
   ec_enc_bits(enc, pos, 4);
@@ -72,7 +65,6 @@ void laplace_encode_special(ec_enc *enc, int pos, unsigned decay)
   decay_icdf[0]=decay<<7;
   ec_enc_icdf16(enc, (pos&0x1)!=0, decay_icdf, 15);
 #endif
-  bits_used += -log2(1-decay/256.)-(pos%16)*log2(decay/256.);
 
 }
 
@@ -100,10 +92,6 @@ void laplace_encode(ec_enc *enc, int x, int Ex, int K)
   if (sym>15)
     sym=15;
 
-  float tmp = 32768;
-  if (K<15)
-    tmp = 32768-icdf[K];
-  bits_used += sym==0 ? -log2((32768-icdf[sym])/tmp) : -log2((icdf[sym-1]-icdf[sym])/tmp);
   if (K<15){
     /* Simple way of truncating the pdf when we have a bound */
     for (j=0;j<=K;j++)
@@ -117,19 +105,14 @@ void laplace_encode(ec_enc *enc, int x, int Ex, int K)
     /* There's something special around zero after shift because of the rounding */
     special=(xs==0);
     ec_enc_bits(enc, x-(xs<<shift)+!special, shift-special);
-    bits_used += shift-special;
   }
 
   if (xs>=15)
   {
-    int a;
     unsigned decay;
-    a=expectA[(Ex+8)>>4];
-    decay = 256*exp(-256./a);
+    decay=decayE[(Ex+8)>>4];
 
     laplace_encode_special(enc, xs-15, decay);
-
-    bits_used += log2(1-exp(-256./a)) + (xs-15)*log2(exp(-256./a));
   }
 }
 
@@ -159,7 +142,6 @@ static void pvq_encoder1(ec_enc *enc, const int *y,int N,int *u)
   laplace_encode_special(enc, pos, decay);
 
   ec_enc_bits(enc, sign, 1);
-  bits_used += 1;
 }
 
 void pvq_encoder(ec_enc *enc, const int *y,int N,int K,int *num, int *den, int *u)
@@ -167,9 +149,9 @@ void pvq_encoder(ec_enc *enc, const int *y,int N,int K,int *num, int *den, int *
   int i;
   int sumEx;
   int Kn;
+  int expQ8;
   sumEx=0;
   Kn=K;
-  int expQ8;
 
   if (K==1)
   {
@@ -203,7 +185,6 @@ void pvq_encoder(ec_enc *enc, const int *y,int N,int K,int *num, int *den, int *
     if (x!=0)
     {
       ec_enc_bits(enc, y[i]<0, 1);
-      bits_used += 1;
     }
     Kn-=x;
   }
@@ -216,7 +197,7 @@ void pvq_encoder(ec_enc *enc, const int *y,int N,int K,int *num, int *den, int *
 
 #ifdef PVQ_MAIN
 
-#if 1
+#if 0
 #define SIZE 14
 #define NB_VECTORS 34994
 #else
@@ -256,7 +237,7 @@ int main()
     pvq_encoder(&enc, y, SIZE, K, &num, &den, &u);
   }
   ec_enc_done(&enc);
-#if 0
+#if 1
   printf("DECODE\n");
   num = 650*4;
   den = 256*4;
@@ -277,7 +258,6 @@ int main()
   }
 #endif
 
-  printf("average bits = %f\n", bits_used/(float)NB_VECTORS);
   printf("tell()'s average = %f\n", ec_tell(&enc)/(float)NB_VECTORS);
   return 0;
 }

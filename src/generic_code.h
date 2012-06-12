@@ -32,6 +32,26 @@ typedef struct {
   int increment;
 } GenericEncoder;
 
-int generic_decode(ec_dec *dec, GenericEncoder *model, int *ExQ4);
+void generic_encode(ec_enc *enc, GenericEncoder *model, int x, int *ExQ16, int integration);
+
+int generic_decode(ec_dec *dec, GenericEncoder *model, int *ExQ16, int integration);
+
+static inline int logEx(int ExQ16)
+{
+  int lg;
+  int lgQ1;
+  int odd;
+
+  lg = od_ilog(ExQ16);
+  if (lg<15)
+  {
+    odd = ExQ16*ExQ16 > 2<<2*lg;
+  } else {
+    int tmp=ExQ16>>(lg-8);
+    odd = tmp*tmp > (1<<15);
+  }
+  lgQ1 = OD_MAXI(0,2*lg - 33 + odd);
+  return lgQ1;
+}
 
 #endif

@@ -25,9 +25,6 @@
 #include "entcode.h"
 #include "pvq_code.h"
 
-extern const unsigned short icdf_table[][16];
-extern const unsigned short expectA[];
-
 
 int laplace_decode_special(ec_dec *dec, unsigned decay)
 {
@@ -60,7 +57,6 @@ int laplace_decode_special(ec_dec *dec, unsigned decay)
 #if 0
   pos += ec_dec_bits(dec, 4);
 #else
-  //printf("0x%x ", dec->rng);
   decay_icdf[0]=decay8>>1;
   pos += 8*ec_dec_icdf16(dec, decay_icdf, 15);
   decay_icdf[0]=decay4>>1;
@@ -69,7 +65,6 @@ int laplace_decode_special(ec_dec *dec, unsigned decay)
   pos += 2*ec_dec_icdf16(dec, decay_icdf, 15);
   decay_icdf[0]=decay<<7;
   pos += ec_dec_icdf16(dec, decay_icdf, 15);
-  //printf("0x%x\n", dec->rng);
 #endif
   return pos;
 }
@@ -109,10 +104,8 @@ int laplace_decode(ec_dec *dec, int Ex, int K)
 
   if (sym==15)
   {
-    int a;
     unsigned decay;
-    a=expectA[(Ex+8)>>4];
-    decay = 256*exp(-256./a);
+    decay=decayE[(Ex+8)>>4];
 
     sym += laplace_decode_special(dec, decay);
 
@@ -141,7 +134,6 @@ static void pvq_decoder1(ec_dec *dec, int *y,int N,int *u)
   *u += pos - (*u>>4);
   if (*u<N/8)
     *u=N/8;
-  //bits_used += 1;
 }
 
 void pvq_decoder(ec_dec *dec, int *y,int N,int K,int *num, int *den, int *u)
@@ -175,8 +167,6 @@ void pvq_decoder(ec_dec *dec, int *y,int N,int K,int *num, int *den, int *u)
     float r = 1-3.05/128;
     Ex = 256*K*(1-r)/(1-pow(r, N-i));
 #endif
-    /*printf("(%d %d %d 0x%x)\n", Kn, Ex, expQ8, dec->rng);*/
-    /*fprintf(stderr, "%d %d %d\n", K, N-i, Ex);*/
     /* no need to encode the magnitude for the last bin */
     if (i!=N-1){
       x = laplace_decode(dec, Ex, Kn);
@@ -187,7 +177,6 @@ void pvq_decoder(ec_dec *dec, int *y,int N,int K,int *num, int *den, int *u)
     {
       if (ec_dec_bits(dec, 1))
         x=-x;
-      //bits_used += 1;
     }
     y[i] = x;
     Kn-=abs(x);
