@@ -55,6 +55,7 @@ int generic_decode(ec_dec *dec, GenericEncoder *model, int *ExQ4)
     int a;
     unsigned decay;
     /* FIXME: Check the bounds here */
+    /*fprintf(stderr, "xs15: %d %d\n", *ExQ4, shift);*/
     a=expectA[(*ExQ4+(1<<shift>>1))>>shift];
     decay = 256*exp(-256./a);
 
@@ -71,7 +72,7 @@ int generic_decode(ec_dec *dec, GenericEncoder *model, int *ExQ4)
     /* There's something special around zero after shift because of the rounding */
     special=(xs==0);
     lsb = ec_dec_bits(dec, shift-special);
-    lsb -= !special;
+    lsb -= !special<<(shift-1);
     /*bits_used += shift-special;*/
   }
   /* Renormalize if we cannot add increment */
@@ -93,8 +94,9 @@ int generic_decode(ec_dec *dec, GenericEncoder *model, int *ExQ4)
   model->tot[id] += model->increment;
 
   x = (xs<<shift)+lsb;
-  *ExQ4 += x - (*ExQ4>>4);
+  *ExQ4 += 1 + x - (*ExQ4>>4);
+  *ExQ4 = OD_MINI(32767, *ExQ4);
 
-  //printf("%d %d %d\n", *ExQ4, x, dec->rng);
+  /*printf("dec: %d %d %d %d %d %x\n", *ExQ4, x, shift, id, xs, dec->rng);*/
   return x;
 }

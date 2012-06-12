@@ -33,15 +33,15 @@ double generic_bits=0;
 void generic_model_init(GenericEncoder *model)
 {
   int i, j;
-  model->increment = 2;
+  model->increment = 1;
   for (i=0;i<GENERIC_TABLES;i++)
   {
     for(j=0;j<16;j++)
     {
       /* FIXME: Come on, we can do better than that! */
-      model->icdf[i][j] = (15-j)<<3;
+      model->icdf[i][j] = (15-j);
     }
-    model->tot[i] = 128;
+    model->tot[i] = 16;
   }
 }
 
@@ -90,7 +90,7 @@ void generic_encode(ec_enc *enc, GenericEncoder *model, int x, int *ExQ4)
     int special;
     /* There's something special around zero after shift because of the rounding */
     special=(xs==0);
-    ec_enc_bits(enc, x-(xs<<shift)+!special, shift-special);
+    ec_enc_bits(enc, x-(xs<<shift)+(!special<<(shift-1)), shift-special);
     /*bits_used += shift-special;*/
   }
   /* Renormalize if we cannot add increment */
@@ -111,10 +111,13 @@ void generic_encode(ec_enc *enc, GenericEncoder *model, int x, int *ExQ4)
     icdf[i]+=model->increment;
   model->tot[id] += model->increment;
 
-  *ExQ4 += x - (*ExQ4>>4);
-  //printf("%d %d %d\n", *ExQ4, x, enc->rng);
+  *ExQ4 += 1 + x - (*ExQ4>>4);
+  *ExQ4 = OD_MINI(32767, *ExQ4);
+
+  /*printf("enc: %d %d %d %d %d %x\n", *ExQ4, x, shift, id, xs, enc->rng);*/
 }
 
+#ifdef GENERIC_MAIN
 
 int main(void)
 {
@@ -123,7 +126,7 @@ int main(void)
   ec_dec dec;
   unsigned char buf[1<<22];
   int nb_vectors=0;
-  int ExQ4=16;
+  int ExQ4=64;
   GenericEncoder gen;
 
   ec_enc_init(&enc, buf, 1<<22);
@@ -136,6 +139,7 @@ int main(void)
       break;
     nb_vectors++;
     generic_encode(&enc, &gen, K, &ExQ4);
+    printf("%d %d\n", ExQ4, K);
   }
   ec_enc_done(&enc);
   printf("DECODE\n");
@@ -147,15 +151,17 @@ int main(void)
       printf("%d ", gen.icdf[i][j]);
     printf("\n");
   }*/
-  ExQ4=16;
+  ExQ4=64;
   ec_dec_init(&dec, buf, 1<<22);
   generic_model_init(&gen);
   for (i=0;i<nb_vectors;i++)
   {
     int K = generic_decode(&dec, &gen, &ExQ4);
-    printf ("%d\n", K);
+    /*printf ("%d\n", K);*/
   }
   printf("average bits = %f\n", generic_bits/(float)nb_vectors);
   printf("tell()'s average = %f\n", ec_tell(&enc)/(float)nb_vectors);
   return 0;
 }
+
+#endif
