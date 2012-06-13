@@ -52,54 +52,50 @@ void generic_encode(ec_enc *enc, GenericEncoder *model, int x, int *ExQ16, int i
   int xenc;
   int i;
 
-  lgQ1 = logEx(*ExQ16);
+  lgQ1=logEx(*ExQ16);
 
   /*printf("%d %d ", *ExQ4, lgQ1);*/
-  shift = OD_MAXI(0, (lgQ1-5)>>1);
+  shift=OD_MAXI(0,(lgQ1-5)>>1);
 
-  id = OD_MINI(GENERIC_TABLES-1, lgQ1);
-  icdf = model->icdf[id];
+  id=OD_MINI(GENERIC_TABLES-1,lgQ1);
+  icdf=model->icdf[id];
 
-  xs = (x+(1<<shift>>1))>>shift;
-  xenc = OD_MINI(15, xs);
+  xs=(x+(1<<shift>>1))>>shift;
+  xenc=OD_MINI(15,xs);
 
-  ec_enc_icdf_ft(enc, xenc, icdf, model->tot[id]);
+  ec_enc_icdf_ft(enc,xenc,icdf,model->tot[id]);
 
-  if (xs >= 15)
-  {
+  if (xs>=15){
     unsigned decay;
     /* Bounds should be OK as long as shift is consistent with Ex */
     decay=decayE[((*ExQ16>>12)+(1<<shift>>1))>>shift];
 
-    laplace_encode_special(enc, xs-15, decay);
+    laplace_encode_special(enc,xs-15,decay);
   }
 
-  if (shift!=0)
-  {
+  if (shift!=0){
     int special;
     /* There's something special around zero after shift because of the rounding */
     special=(xs==0);
-    ec_enc_bits(enc, x-(xs<<shift)+(!special<<(shift-1)), shift-special);
+    ec_enc_bits(enc,x-(xs<<shift)+(!special<<(shift-1)),shift-special);
   }
   /* Renormalize if we cannot add increment */
-  if (model->tot[id]>255-model->increment)
-  {
-    for (i=0;i<16;i++)
-    {
+  if (model->tot[id]>255-model->increment){
+    for (i=0;i<16;i++){
       /* Second term ensures that the pdf is non-null */
-      icdf[i]=(icdf[i]>>1) + (15-i);
+      icdf[i]=(icdf[i]>>1)+(15-i);
     }
     model->tot[id]=model->tot[id]/2+16;
   }
 
   /* Update freq count */
-  xenc = OD_MINI(15, xs);
+  xenc=OD_MINI(15,xs);
   /* This can be easily vectorized */
   for (i=0;i<xenc;i++)
     icdf[i]+=model->increment;
-  model->tot[id] += model->increment;
+  model->tot[id]+=model->increment;
 
-  *ExQ16 += (x<<(16-integration)) - (*ExQ16>>integration);
+  *ExQ16+=(x<<(16-integration))-(*ExQ16>>integration);
 
   /*printf("enc: %d %d %d %d %d %x\n", *ExQ4, x, shift, id, xs, enc->rng);*/
 }

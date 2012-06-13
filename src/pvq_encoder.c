@@ -47,23 +47,22 @@ void laplace_encode_special(ec_enc *enc, int pos, unsigned decay)
     decay16=2;
   decay_icdf[0]=decay16>>1;
   decay_icdf[1]=0;
-  while (pos>15)
-  {
-    ec_enc_icdf16(enc, 1, decay_icdf, 15);
+  while(pos>15){
+    ec_enc_icdf16(enc,1,decay_icdf,15);
     pos-=16;
   }
-  ec_enc_icdf16(enc, 0, decay_icdf, 15);
+  ec_enc_icdf16(enc,0,decay_icdf,15);
 #if 0
   ec_enc_bits(enc, pos, 4);
 #else
   decay_icdf[0]=decay8>>1;
-  ec_enc_icdf16(enc, (pos&0x8)!=0, decay_icdf, 15);
+  ec_enc_icdf16(enc, (pos&0x8)!=0,decay_icdf,15);
   decay_icdf[0]=decay4>>1;
-  ec_enc_icdf16(enc, (pos&0x4)!=0, decay_icdf, 15);
+  ec_enc_icdf16(enc, (pos&0x4)!=0,decay_icdf,15);
   decay_icdf[0]=decay2>>1;
-  ec_enc_icdf16(enc, (pos&0x2)!=0, decay_icdf, 15);
+  ec_enc_icdf16(enc, (pos&0x2)!=0,decay_icdf,15);
   decay_icdf[0]=decay<<7;
-  ec_enc_icdf16(enc, (pos&0x1)!=0, decay_icdf, 15);
+  ec_enc_icdf16(enc, (pos&0x1)!=0,decay_icdf,15);
 #endif
 
 }
@@ -99,20 +98,18 @@ void laplace_encode(ec_enc *enc, int x, int Ex, int K)
   }
   ec_enc_icdf16(enc, sym, icdf, 15);
 
-  if (shift)
-  {
+  if(shift){
     int special;
     /* There's something special around zero after shift because of the rounding */
     special=(xs==0);
-    ec_enc_bits(enc, x-(xs<<shift)+!special, shift-special);
+    ec_enc_bits(enc,x-(xs<<shift)+!special,shift-special);
   }
 
-  if (xs>=15)
-  {
+  if(xs>=15){
     unsigned decay;
     decay=decayE[(Ex+8)>>4];
 
-    laplace_encode_special(enc, xs-15, decay);
+    laplace_encode_special(enc,xs-15,decay);
   }
 }
 
@@ -124,24 +121,22 @@ static void pvq_encoder1(ec_enc *enc, const int *y,int N,int *u)
   int sign;
 
   pos=0;
-  for(i=0;i<N;i++)
-  {
-    if (y[i]!=0)
-    {
+  for(i=0;i<N;i++){
+    if(y[i]!=0){
       pos=i;
       break;
     }
   }
-  sign = y[pos]<0;
+  sign=y[pos]<0;
 
-  decay = 256 - 4096 / *u; /* Approximates 256*exp(-16./ *u); */
-  *u += pos - (*u>>4);
+  decay=256-4096/ *u; /* Approximates 256*exp(-16./ *u); */
+  *u+=pos-(*u>>4);
   if (*u<N/8)
     *u=N/8;
 
-  laplace_encode_special(enc, pos, decay);
+  laplace_encode_special(enc,pos,decay);
 
-  ec_enc_bits(enc, sign, 1);
+  ec_enc_bits(enc,sign,1);
 }
 
 void pvq_encoder(ec_enc *enc, const int *y,int N,int K,int *num, int *den, int *u)
@@ -150,49 +145,43 @@ void pvq_encoder(ec_enc *enc, const int *y,int N,int K,int *num, int *den, int *
   int sumEx;
   int Kn;
   int expQ8;
+
+  if(K==0)
+    return;
   sumEx=0;
   Kn=K;
 
-  if (K==1)
-  {
-    pvq_encoder1(enc, y, N, u);
+  if(K==1){
+    pvq_encoder1(enc,y,N,u);
     return;
   }
-  expQ8 = floor(.5+*num/(1+*den/256));
+  od_assert(*num < 1<<23);
+  expQ8=256**num/(1+*den);
 
   for(i=0;i<N;i++){
     int Ex;
     int x;
-    if (Kn==0)
+    if(Kn==0)
       break;
-    x = abs(y[i]);
+    x=abs(y[i]);
     /* Expected value of x (round-to-nearest) */
-#if 1
     Ex=(2*expQ8*Kn+(N-i))/(2*(N-i));
-    if (Ex>Kn*256)
+    if(Ex>Kn*256)
       Ex=Kn*256;
-    sumEx += (2*256*Kn+(N-i))/(2*(N-i));
-#else
-    float r = 1-3.05/128;
-    Ex = 256*K*(1-r)/(1-pow(r, N-i));
-#endif
-    /*printf("(%d %d %d 0x%x)\n", Kn, Ex, expQ8, enc->rng);*/
-    /*fprintf(stderr, "%d %d %d\n", K, N-i, Ex);*/
+    sumEx+=(2*256*Kn+(N-i))/(2*(N-i));
+
     /* no need to encode the magnitude for the last bin */
-    if (i!=N-1){
-      laplace_encode(enc, x, Ex, Kn);
+    if(i!=N-1){
+      laplace_encode(enc,x,Ex,Kn);
     }
-    if (x!=0)
-    {
-      ec_enc_bits(enc, y[i]<0, 1);
+    if(x!=0){
+      ec_enc_bits(enc,y[i]<0,1);
     }
     Kn-=x;
   }
-  if (K!=0)
-  {
-    *num += 256*K - (*num>>4);
-    *den += sumEx - (*den>>4);
-  }
+
+  *num+=256*K-(*num>>4);
+  *den+=sumEx-(*den>>4);
 }
 
 #ifdef PVQ_MAIN

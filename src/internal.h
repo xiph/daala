@@ -44,6 +44,26 @@
 #define OD_PACKET_DONE        (INT_MAX)
 
 
+#define od_fatal(str) _od_fatal(str, __FILE__, __LINE__);
+#ifdef ENABLE_ASSERTIONS
+#include <stdio.h>
+#include <stdlib.h>
+#ifdef __GNUC__
+__attribute__((noreturn))
+#endif
+static inline void _od_fatal(const char *str, const char *file, int line)
+{
+   fprintf (stderr, "Fatal (internal) error in %s, line %d: %s\n", file, line, str);
+   abort();
+}
+#define od_assert(cond) {if (!(cond)) {od_fatal("assertion failed: " #cond);}}
+#define od_assert2(cond, message) {if (!(cond)) {od_fatal("assertion failed: " #cond "\n" message);}}
+#else
+#define od_assert(cond)
+#define od_assert2(cond, message)
+#endif
+
+
 
 #if 1
 /*Currently this structure is only in Tremor, and is read-only.*/

@@ -37,39 +37,35 @@ int generic_decode(ec_dec *dec, GenericEncoder *model, int *ExQ16, int integrati
   int lsb=0;
   int x;
 
-  lgQ1 = logEx(*ExQ16);
+  lgQ1=logEx(*ExQ16);
 
-  shift = OD_MAXI(0, (lgQ1-5)>>1);
+  shift=OD_MAXI(0,(lgQ1-5)>>1);
 
-  id = OD_MINI(GENERIC_TABLES-1, lgQ1);
-  icdf = model->icdf[id];
+  id=OD_MINI(GENERIC_TABLES-1,lgQ1);
+  icdf=model->icdf[id];
 
-  xs = ec_dec_icdf_ft(dec, icdf, model->tot[id]);
+  xs=ec_dec_icdf_ft(dec,icdf,model->tot[id]);
 
-  if (xs == 15)
-  {
+  if(xs==15){
     unsigned decay;
     /* Bounds should be OK as long as shift is consistent with Ex */
     decay=decayE[((*ExQ16>>12)+(1<<shift>>1))>>shift];
 
-    xs += laplace_decode_special(dec, decay);
+    xs+=laplace_decode_special(dec, decay);
   }
 
-  if (shift!=0)
-  {
+  if(shift!=0){
     int special;
     /* There's something special around zero after shift because of the rounding */
     special=(xs==0);
-    lsb = ec_dec_bits(dec, shift-special);
-    lsb -= !special<<(shift-1);
+    lsb=ec_dec_bits(dec,shift-special);
+    lsb-=!special<<(shift-1);
   }
   /* Renormalize if we cannot add increment */
-  if (model->tot[id]>255-model->increment)
-  {
-    for (i=0;i<16;i++)
-    {
+  if (model->tot[id]>255-model->increment){
+    for (i=0;i<16;i++){
       /* Second term ensures that the pdf is non-null */
-      icdf[i]=(icdf[i]>>1) + (15-i);
+      icdf[i]=(icdf[i]>>1)+(15-i);
     }
     model->tot[id]=model->tot[id]/2+16;
   }
@@ -82,7 +78,7 @@ int generic_decode(ec_dec *dec, GenericEncoder *model, int *ExQ16, int integrati
   model->tot[id] += model->increment;
 
   x = (xs<<shift)+lsb;
-  *ExQ16 += (x<<(16-integration)) - (*ExQ16>>integration);
+  *ExQ16+=(x<<(16-integration))-(*ExQ16>>integration);
 
   /*printf("dec: %d %d %d %d %d %x\n", *ExQ4, x, shift, id, xs, dec->rng);*/
   return x;
