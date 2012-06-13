@@ -129,12 +129,14 @@ static void pvq_encoder1(ec_enc *enc, const int *y,int N,int *u)
   }
   sign=y[pos]<0;
 
-  decay=256-4096/ *u; /* Approximates 256*exp(-16./ *u); */
-  *u+=pos-(*u>>4);
-  if (*u<N/8)
-    *u=N/8;
+  if(N>1){
+    decay=256-4096/ *u; /* Approximates 256*exp(-16./ *u); */
+    *u+=pos-(*u>>4);
+    if (*u<N/8)
+      *u=N/8;
 
-  laplace_encode_special(enc,pos,decay);
+    laplace_encode_special(enc,pos,decay);
+  }
 
   ec_enc_bits(enc,sign,1);
 }
@@ -184,71 +186,3 @@ void pvq_encoder(ec_enc *enc, const int *y,int N,int K,int *num, int *den, int *
   *num+=256*K-(*num>>4);
   *den+=sumEx-(*den>>4);
 }
-
-#ifdef PVQ_MAIN
-
-#if 0
-#define SIZE 14
-#define NB_VECTORS 34994
-#else
-#define SIZE 128
-#define NB_VECTORS 213840
-#endif
-
-int main()
-{
-  int i, j;
-  int num, den,u;
-  ec_enc enc;
-  ec_dec dec;
-  int Ki[NB_VECTORS];
-  unsigned char buf[1<<22];
-
-  num = 650*4;
-  den = 256*4;
-  u = 30<<4;
-  ec_enc_init(&enc, buf, 1<<22);
-  for (i=0;i<NB_VECTORS;i++)
-  {
-    int K;
-    int y[SIZE];
-    K=0;
-    /*if (i%400==0)
-    {
-      num=650*4;
-      den=256*4;
-    }*/
-    for (j=0;j<SIZE;j++)
-    {
-      scanf("%d ", y+j);
-      K += abs(y[j]);
-    }
-    Ki[i] = K;
-    pvq_encoder(&enc, y, SIZE, K, &num, &den, &u);
-  }
-  ec_enc_done(&enc);
-#if 1
-  printf("DECODE\n");
-  num = 650*4;
-  den = 256*4;
-  u = 30<<4;
-  ec_dec_init(&dec, buf, 1<<22);
-  for (i=0;i<NB_VECTORS;i++)
-  {
-    int y[SIZE];
-    /*if (i%400==0)
-    {
-      num=650*4;
-      den=256*4;
-    }*/
-    pvq_decoder(&dec, y, SIZE, Ki[i], &num, &den, &u);
-    for (j=0;j<SIZE;j++)
-      printf("%d ", y[j]);
-    printf("\n");
-  }
-#endif
-
-  printf("tell()'s average = %f\n", ec_tell(&enc)/(float)NB_VECTORS);
-  return 0;
-}
-#endif

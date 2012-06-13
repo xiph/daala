@@ -119,10 +119,14 @@ static void pvq_decoder1(ec_dec *dec, int *y,int N,int *u)
 
   for(j=0;j<N;j++)
     y[j]=0;
-  decay=256-4096 / *u; /* Approximates 256*exp(-16./ *u); */
 
-  pos=laplace_decode_special(dec,decay);
+  if(N>1){
+    decay=256-4096 / *u; /* Approximates 256*exp(-16./ *u); */
 
+    pos=laplace_decode_special(dec,decay);
+  } else {
+    pos=0;
+  }
   if(ec_dec_bits(dec,1))
     y[pos]=-1;
   else
