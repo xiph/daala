@@ -126,7 +126,7 @@ void test_pvq_sequence(int len,int N,float std)
 
   bits = run_pvq(X,len,N);
 
-  printf("tell()'s average for %d dim, std=%f is %f bits/sample (%f bits/vector)\n",N,std,bits/(float)len/N,bits/(float)len);
+  fprintf(stderr, "tell()'s average for %d dim, std=%f is %f bits/sample (%f bits/vector)\n",N,std,bits/(float)len/N,bits/(float)len);
 
   free(X);
 }
@@ -148,7 +148,7 @@ int main(int argc, char **argv){
       for(j=0;j<N;j++)
         fscanf(file,"%d ",&X[i*N+j]);
     bits = run_pvq(X,len,N);
-    printf("encoded with %f bits/sample (%f bits/vector)\n",bits/(float)len/N,bits/(float)len);
+    fprintf(stderr, "encoded with %f bits/sample (%f bits/vector)\n",bits/(float)len/N,bits/(float)len);
     fclose(file);
     free(X);
   } else {

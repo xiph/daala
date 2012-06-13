@@ -29,23 +29,13 @@ void laplace_encode_special(ec_enc *enc, int pos, unsigned decay)
 {
   unsigned decay2, decay4, decay8, decay16;
   unsigned short decay_icdf[2];
-  if (decay>255)
-    decay=255;
+  unsigned char decay_icdf2[2];
+  decay = OD_MINI(255,decay);
   decay2=decay*decay;
   decay4=decay2*decay2>>16;
   decay8=decay4*decay4>>16;
   decay16=decay8*decay8>>16;
-  if (decay<2)
-    decay=2;
-  if (decay2<2)
-    decay2=2;
-  if (decay4<2)
-    decay4=2;
-  if (decay8<2)
-    decay8=2;
-  if (decay16<2)
-    decay16=2;
-  decay_icdf[0]=decay16>>1;
+  decay_icdf[0]=OD_MAXI(1,decay16>>1);
   decay_icdf[1]=0;
   while(pos>15){
     ec_enc_icdf16(enc,1,decay_icdf,15);
@@ -55,14 +45,15 @@ void laplace_encode_special(ec_enc *enc, int pos, unsigned decay)
 #if 0
   ec_enc_bits(enc, pos, 4);
 #else
-  decay_icdf[0]=decay8>>1;
-  ec_enc_icdf16(enc, (pos&0x8)!=0,decay_icdf,15);
-  decay_icdf[0]=decay4>>1;
-  ec_enc_icdf16(enc, (pos&0x4)!=0,decay_icdf,15);
-  decay_icdf[0]=decay2>>1;
-  ec_enc_icdf16(enc, (pos&0x2)!=0,decay_icdf,15);
-  decay_icdf[0]=decay<<7;
-  ec_enc_icdf16(enc, (pos&0x1)!=0,decay_icdf,15);
+  decay_icdf2[1]=0;
+  decay_icdf2[0]=OD_MAXI(1,decay8>>9);
+  ec_enc_icdf_ft(enc, (pos&0x8)!=0,decay_icdf2,decay_icdf2[0]+128);
+  decay_icdf2[0]=OD_MAXI(1,decay4>>9);
+  ec_enc_icdf_ft(enc, (pos&0x4)!=0,decay_icdf2,decay_icdf2[0]+128);
+  decay_icdf2[0]=OD_MAXI(1,decay2>>9);
+  ec_enc_icdf_ft(enc, (pos&0x2)!=0,decay_icdf2,decay_icdf2[0]+128);
+  decay_icdf2[0]=OD_MAXI(1,decay>>1);
+  ec_enc_icdf_ft(enc, (pos&0x1)!=0,decay_icdf2,decay_icdf2[0]+128);
 #endif
 
 }
