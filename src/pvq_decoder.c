@@ -97,7 +97,7 @@ int laplace_decode(ec_dec *dec, int Ex, int K)
     int special;
     /* There's something special around zero after shift because of the rounding */
     special=(sym==0);
-    lsb=ec_dec_bits(dec,shift-special)-!special;
+    lsb=ec_dec_bits(dec,shift-special)-(!special<<(shift-1));
   }
 
   if(sym==15){
@@ -151,7 +151,10 @@ void pvq_decoder(ec_dec *dec, int *y,int N,int K,int *num, int *den, int *u)
     pvq_decoder1(dec,y,N,u);
     return;
   }
-  expQ8=256**num/(1+*den);
+  if (*num < 1<<23)
+    expQ8=256**num/(1+*den);
+  else
+    expQ8=*num/(1+(*den>>8));
 
   for(i=0;i<N;i++){
     int Ex;

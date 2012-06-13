@@ -102,7 +102,7 @@ void laplace_encode(ec_enc *enc, int x, int Ex, int K)
     int special;
     /* There's something special around zero after shift because of the rounding */
     special=(xs==0);
-    ec_enc_bits(enc,x-(xs<<shift)+!special,shift-special);
+    ec_enc_bits(enc,x-(xs<<shift)+(!special<<(shift-1)),shift-special);
   }
 
   if(xs>=15){
@@ -155,8 +155,10 @@ void pvq_encoder(ec_enc *enc, const int *y,int N,int K,int *num, int *den, int *
     pvq_encoder1(enc,y,N,u);
     return;
   }
-  od_assert(*num < 1<<23);
-  expQ8=256**num/(1+*den);
+  if (*num < 1<<23)
+    expQ8=256**num/(1+*den);
+  else
+    expQ8=*num/(1+(*den>>8));
 
   for(i=0;i<N;i++){
     int Ex;
@@ -179,7 +181,6 @@ void pvq_encoder(ec_enc *enc, const int *y,int N,int K,int *num, int *den, int *
     }
     Kn-=x;
   }
-
   *num+=256*K-(*num>>4);
   *den+=sumEx-(*den>>4);
 }

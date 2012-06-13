@@ -63,12 +63,11 @@ void test_pvq_sequence(int len,int N,float std){
     for (j=0;j<N;j++)
       K += abs(X[i*N+j]);
     Ki[i] = K;
-    /*if (i==5748)
+    pvq_encoder(&enc,&X[i*N],N,K,&num,&den,&u);
+    /*if (i==0)
     {
-      int k;
       fprintf(stderr, "enc: K[%d]=%d, num=%d, den=%d, u=%d\n", i, Ki[i], num, den, u);
     }*/
-    pvq_encoder(&enc,&X[i*N],N,K,&num,&den,&u);
     od_assert(!ec_get_error(&enc));
     od_assert(ec_tell(&enc)<EC_BUF_SIZE<<3);
   }
@@ -109,11 +108,27 @@ void test_pvq_sequence(int len,int N,float std){
 }
 
 int main(void){
-  test_pvq_sequence(10000,128,.02);
-  test_pvq_sequence(10000,128,.2);
+  test_pvq_sequence(10000,128,.03);
+  test_pvq_sequence(10000,128,.1);
+  test_pvq_sequence(10000,128,.3);
   test_pvq_sequence(10000,128,1.);
-  test_pvq_sequence(1000,128,3);
-  test_pvq_sequence(1000,128,10);
-  test_pvq_sequence(300,128,30);
+  test_pvq_sequence(10000,128,3);
+  test_pvq_sequence(10000,128,10);
+  test_pvq_sequence(10000,128,30);
+  test_pvq_sequence(10000,128,100);
+  test_pvq_sequence(10000,128,300);
+  test_pvq_sequence(10000,128,1000);
+
+  test_pvq_sequence(10000,16,.03);
+  test_pvq_sequence(10000,16,.1);
+  test_pvq_sequence(10000,16,.3);
+  test_pvq_sequence(10000,16,1.);
+  test_pvq_sequence(10000,16,3);
+  test_pvq_sequence(10000,16,10);
+  test_pvq_sequence(10000,16,30);
+  test_pvq_sequence(10000,16,100);
+  test_pvq_sequence(10000,16,300);
+  test_pvq_sequence(10000,16,1000);
+
   return 0;
 }
