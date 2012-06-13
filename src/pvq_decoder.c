@@ -142,6 +142,7 @@ void pvq_decoder(ec_dec *dec, int *y,int N,int K,int *num, int *den, int *u)
   if(K==0){
     for(i=0;i<N;i++)
       y[i]=0;
+    return;
   }
   sumEx=0;
   Kn=K;
