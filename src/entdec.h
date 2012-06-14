@@ -87,6 +87,16 @@ int ec_dec_icdf_ft(ec_dec *_this,const unsigned char *_icdf,unsigned _ft);
           [s>0?ft-_icdf[s-1]:0,ft-_icdf[s]), where ft=1<<_ftb.
          The values must be monotonically non-increasing, and the last value
           must be 0.
+  _ft: The total of the cumulative distribution.
+  Return: The decoded symbol s.*/
+int ec_dec_icdf16_ft(ec_dec *_this,const unsigned short *_icdf,unsigned _ft);
+
+/*Decodes a symbol given an "inverse" CDF table.
+  No call to ec_dec_update() is necessary after this call.
+  _icdf: The "inverse" CDF, such that symbol s falls in the range
+          [s>0?ft-_icdf[s-1]:0,ft-_icdf[s]), where ft=1<<_ftb.
+         The values must be monotonically non-increasing, and the last value
+          must be 0.
   _ftb: The number of bits of precision in the cumulative distribution.
   Return: The decoded symbol s.*/
 int ec_dec_icdf(ec_dec *_this,const unsigned char *_icdf,unsigned _ftb);

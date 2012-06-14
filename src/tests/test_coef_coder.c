@@ -62,8 +62,11 @@ int run_pvq(int *X,int len,int N){
     {
       fprintf(stderr, "enc: K[%d]=%d, num=%d, den=%d, u=%d\n", i, Ki[i], num, den, u);
     }*/
+    if(ec_tell(&enc)>=EC_BUF_SIZE<<3){
+      fprintf(stderr,"bits used: %d\n", ec_tell(&enc));
+    }
+    od_assert2(ec_tell(&enc)<EC_BUF_SIZE<<3,"used too many bits");
     od_assert(!ec_get_error(&enc));
-    od_assert(ec_tell(&enc)<EC_BUF_SIZE<<3);
   }
   ec_enc_done(&enc);
 
@@ -143,7 +146,7 @@ int main(int argc, char **argv){
     N=atoi(argv[2]);
     X=malloc(sizeof(*X)*len*N);
     file=fopen(argv[3],"r");
-    od_assert(file!=NULL);
+    od_assert2(file!=NULL, "cannot open input file");
     for(i=0;i<len;i++)
       for(j=0;j<N;j++)
         fscanf(file,"%d ",&X[i*N+j]);
@@ -162,6 +165,8 @@ int main(int argc, char **argv){
     test_pvq_sequence(10000,128,100);
     test_pvq_sequence(10000,128,300);
     test_pvq_sequence(10000,128,1000);
+    test_pvq_sequence(10000,128,3000);
+    test_pvq_sequence(10000,128,6000);
 
     test_pvq_sequence(10000,16,.03);
     test_pvq_sequence(10000,16,.1);
@@ -173,6 +178,9 @@ int main(int argc, char **argv){
     test_pvq_sequence(10000,16,100);
     test_pvq_sequence(10000,16,300);
     test_pvq_sequence(10000,16,1000);
+    test_pvq_sequence(10000,16,3000);
+    test_pvq_sequence(10000,16,10000);
+    test_pvq_sequence(10000,16,30000);
   }
   return 0;
 }

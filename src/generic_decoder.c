@@ -30,7 +30,7 @@ int generic_decode(ec_dec *dec, GenericEncoder *model, int *ExQ16, int integrati
   int lgQ1;
   int shift;
   int id;
-  unsigned char *icdf;
+  unsigned short *icdf;
   int xs;
   int xdec;
   int i;
@@ -44,7 +44,7 @@ int generic_decode(ec_dec *dec, GenericEncoder *model, int *ExQ16, int integrati
   id=OD_MINI(GENERIC_TABLES-1,lgQ1);
   icdf=model->icdf[id];
 
-  xs=ec_dec_icdf_ft(dec,icdf,model->tot[id]);
+  xs=ec_dec_icdf16_ft(dec,icdf,model->tot[id]);
 
   if(xs==15){
     unsigned decay;
@@ -62,7 +62,7 @@ int generic_decode(ec_dec *dec, GenericEncoder *model, int *ExQ16, int integrati
     lsb-=!special<<(shift-1);
   }
   /* Renormalize if we cannot add increment */
-  if (model->tot[id]>255-model->increment){
+  if (model->tot[id]>65535-model->increment){
     for (i=0;i<16;i++){
       /* Second term ensures that the pdf is non-null */
       icdf[i]=(icdf[i]>>1)+(15-i);

@@ -70,6 +70,15 @@ void ec_enc_icdf_ft(ec_enc *_this,int _s,const unsigned char *_icdf,unsigned _ft
           [_s>0?ft-_icdf[_s-1]:0,ft-_icdf[_s]), where ft=1<<_ftb.
          The values must be monotonically non-increasing, and the last value
           must be 0.
+  _ft: The total of the cumulative distribution.*/
+void ec_enc_icdf16_ft(ec_enc *_this,int _s,const unsigned short *_icdf,unsigned _ft);
+
+/*Encodes a symbol given an "inverse" CDF table.
+  _s:    The index of the symbol to encode.
+  _icdf: The "inverse" CDF, such that symbol _s falls in the range
+          [_s>0?ft-_icdf[_s-1]:0,ft-_icdf[_s]), where ft=1<<_ftb.
+         The values must be monotonically non-increasing, and the last value
+          must be 0.
   _ftb: The number of bits of precision in the cumulative distribution.*/
 void ec_enc_icdf(ec_enc *_this,int _s,const unsigned char *_icdf,unsigned _ftb);
 

@@ -30,7 +30,7 @@
 void generic_model_init(GenericEncoder *model)
 {
   int i, j;
-  model->increment = 1;
+  model->increment = 64;
   for (i=0;i<GENERIC_TABLES;i++)
   {
     for(j=0;j<16;j++)
@@ -47,7 +47,7 @@ void generic_encode(ec_enc *enc, GenericEncoder *model, int x, int *ExQ16, int i
   int lgQ1;
   int shift;
   int id;
-  unsigned char *icdf;
+  unsigned short *icdf;
   int xs;
   int xenc;
   int i;
@@ -63,7 +63,7 @@ void generic_encode(ec_enc *enc, GenericEncoder *model, int x, int *ExQ16, int i
   xs=(x+(1<<shift>>1))>>shift;
   xenc=OD_MINI(15,xs);
 
-  ec_enc_icdf_ft(enc,xenc,icdf,model->tot[id]);
+  ec_enc_icdf16_ft(enc,xenc,icdf,model->tot[id]);
 
   if (xs>=15){
     unsigned decay;
@@ -80,7 +80,7 @@ void generic_encode(ec_enc *enc, GenericEncoder *model, int x, int *ExQ16, int i
     ec_enc_bits(enc,x-(xs<<shift)+(!special<<(shift-1)),shift-special);
   }
   /* Renormalize if we cannot add increment */
-  if (model->tot[id]>255-model->increment){
+  if (model->tot[id]>65535-model->increment){
     for (i=0;i<16;i++){
       /* Second term ensures that the pdf is non-null */
       icdf[i]=(icdf[i]>>1)+(15-i);

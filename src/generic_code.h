@@ -27,8 +27,8 @@
 #define GENERIC_TABLES 12
 
 typedef struct {
-  unsigned char icdf[GENERIC_TABLES][16];
-  unsigned char tot[GENERIC_TABLES];
+  unsigned short icdf[GENERIC_TABLES][16];
+  unsigned short tot[GENERIC_TABLES];
   int increment;
 } GenericEncoder;
 
