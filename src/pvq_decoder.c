@@ -26,7 +26,7 @@
 #include "pvq_code.h"
 
 
-int laplace_decode_special(ec_dec *dec, unsigned decay)
+int laplace_decode_special(ec_dec *dec,unsigned decay,int max)
 {
   int pos;
   unsigned decay2, decay4, decay8, decay16;
@@ -39,22 +39,36 @@ int laplace_decode_special(ec_dec *dec, unsigned decay)
   decay16=decay8*decay8>>16;
   decay_icdf[0]=OD_MAXI(1,decay16>>1);
   decay_icdf[1]=0;
+  if(max<0)
+    max=0x7FFFFFFF;
   pos=0;
-  while(ec_dec_icdf16(dec,decay_icdf,15)==1){
+  while(max>=16&&ec_dec_icdf16(dec,decay_icdf,15)==1){
     pos+=16;
+    max-=16;
   }
 #if 0
   pos += ec_dec_bits(dec, 4);
 #else
   decay_icdf2[1]=0;
-  decay_icdf2[0]=OD_MAXI(1,decay8>>9);
-  pos += 8*ec_dec_icdf_ft(dec,decay_icdf2,decay_icdf2[0]+128);
-  decay_icdf2[0]=OD_MAXI(1,decay4>>9);
-  pos += 4*ec_dec_icdf_ft(dec,decay_icdf2,decay_icdf2[0]+128);
-  decay_icdf2[0]=OD_MAXI(1,decay2>>9);
-  pos += 2*ec_dec_icdf_ft(dec,decay_icdf2,decay_icdf2[0]+128);
-  decay_icdf2[0]=OD_MAXI(1,decay>>1);
-  pos += ec_dec_icdf_ft(dec,decay_icdf2,decay_icdf2[0]+128);
+  if (max>=8){
+    decay_icdf2[0]=OD_MAXI(1,decay8>>9);
+    pos += 8*ec_dec_icdf_ft(dec,decay_icdf2,decay_icdf2[0]+128);
+    max-=8;
+  }
+  if (max>=4){
+    decay_icdf2[0]=OD_MAXI(1,decay4>>9);
+    pos += 4*ec_dec_icdf_ft(dec,decay_icdf2,decay_icdf2[0]+128);
+    max-=4;
+  }
+  if (max>=2){
+    decay_icdf2[0]=OD_MAXI(1,decay2>>9);
+    pos += 2*ec_dec_icdf_ft(dec,decay_icdf2,decay_icdf2[0]+128);
+    max-=2;
+  }
+  if (max>=1){
+    decay_icdf2[0]=OD_MAXI(1,decay>>1);
+    pos += ec_dec_icdf_ft(dec,decay_icdf2,decay_icdf2[0]+128);
+  }
 #endif
   return pos;
 }
@@ -73,6 +87,7 @@ int laplace_decode(ec_dec *dec, int Ex, int K)
   if(shift<0)
     shift=0;
   Ex=(Ex+(1<<shift>>1))>>shift;
+  K=(K+(1<<shift>>1))>>shift;
   icdf0=icdf_table[Ex>>4];
   icdf1=icdf_table[(Ex>>4)+1];
   for(j=0;j<16;j++)
@@ -95,7 +110,7 @@ int laplace_decode(ec_dec *dec, int Ex, int K)
     unsigned decay;
     decay=decayE[(Ex+8)>>4];
 
-    sym+=laplace_decode_special(dec,decay);
+    sym+=laplace_decode_special(dec,decay,K);
   }
 
   return (sym<<shift)+lsb;
@@ -114,7 +129,7 @@ static void pvq_decoder1(ec_dec *dec, int *y,int N,int *u)
   if(N>1){
     decay=256-4096 / *u; /* Approximates 256*exp(-16./ *u); */
 
-    pos=laplace_decode_special(dec,decay);
+    pos=laplace_decode_special(dec,decay,N-1);
   } else {
     pos=0;
   }

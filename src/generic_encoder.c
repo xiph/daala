@@ -49,8 +49,6 @@ void generic_encode(ec_enc *enc, GenericEncoder *model, int x, int *ExQ16, int i
   int id;
   unsigned short *icdf;
   int xs;
-  int xenc;
-  int i;
 
   lgQ1=logEx(*ExQ16);
 
@@ -61,16 +59,15 @@ void generic_encode(ec_enc *enc, GenericEncoder *model, int x, int *ExQ16, int i
   icdf=model->icdf[id];
 
   xs=(x+(1<<shift>>1))>>shift;
-  xenc=OD_MINI(15,xs);
 
-  ec_enc_icdf16_ft(enc,xenc,icdf,model->tot[id]);
+  ec_enc_icdf16_ft(enc,OD_MINI(15,xs),icdf,model->tot[id]);
 
   if (xs>=15){
     unsigned decay;
     /* Bounds should be OK as long as shift is consistent with Ex */
     decay=decayE[((*ExQ16>>12)+(1<<shift>>1))>>shift];
 
-    laplace_encode_special(enc,xs-15,decay);
+    laplace_encode_special(enc,xs-15,decay,-1);
   }
 
   if (shift!=0){
@@ -79,24 +76,8 @@ void generic_encode(ec_enc *enc, GenericEncoder *model, int x, int *ExQ16, int i
     special=(xs==0);
     ec_enc_bits(enc,x-(xs<<shift)+(!special<<(shift-1)),shift-special);
   }
-  /* Renormalize if we cannot add increment */
-  if (model->tot[id]>65535-model->increment){
-    for (i=0;i<16;i++){
-      /* Second term ensures that the pdf is non-null */
-      icdf[i]=(icdf[i]>>1)+(15-i);
-    }
-    model->tot[id]=model->tot[id]/2+16;
-  }
 
-  /* Update freq count */
-  xenc=OD_MINI(15,xs);
-  /* This can be easily vectorized */
-  for (i=0;i<xenc;i++)
-    icdf[i]+=model->increment;
-  model->tot[id]+=model->increment;
-
-  *ExQ16+=(x<<(16-integration))-(*ExQ16>>integration);
-
+  generic_model_update(model,ExQ16,x,xs,id,integration);
   /*printf("enc: %d %d %d %d %d %x\n", *ExQ4, x, shift, id, xs, enc->rng);*/
 }
 

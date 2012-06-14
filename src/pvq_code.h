@@ -27,11 +27,11 @@
 extern const unsigned short icdf_table[][16];
 extern const unsigned char decayE[];
 
-void laplace_encode_special(ec_enc *enc, int pos, unsigned decay);
-int laplace_decode_special(ec_dec *dec, unsigned decay);
+void laplace_encode_special(ec_enc *enc,int pos,unsigned decay,int max);
+int laplace_decode_special(ec_dec *dec,unsigned decay,int max);
 
-void pvq_encoder(ec_enc *enc, const int *y,int N,int K,int *num, int *den, int *u);
-void pvq_decoder(ec_dec *dec, int *y,int N,int K,int *num, int *den, int *u);
+void pvq_encoder(ec_enc *enc,const int *y,int N,int K,int *num,int *den,int *u);
+void pvq_decoder(ec_dec *dec,int *y,int N,int K,int *num,int *den,int *u);
 
 
 #endif

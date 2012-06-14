@@ -54,4 +54,30 @@ static inline int logEx(int ExQ16)
   return lgQ1;
 }
 
+static inline void generic_model_update(GenericEncoder *model,int *ExQ16,int x,int xs,int id,int integration)
+{
+  int i;
+  int xenc;
+  unsigned short *icdf;
+
+  icdf=model->icdf[id];
+  /* Renormalize if we cannot add increment */
+  if (model->tot[id]>65535-model->increment){
+    for (i=0;i<16;i++){
+      /* Second term ensures that the pdf is non-null */
+      icdf[i]=(icdf[i]>>1)+(15-i);
+    }
+    model->tot[id]=model->tot[id]/2+16;
+  }
+
+  /* Update freq count */
+  xenc=OD_MINI(15,xs);
+  /* This can be easily vectorized */
+  for (i=0;i<xenc;i++)
+    icdf[i]+=model->increment;
+  model->tot[id]+=model->increment;
+
+  *ExQ16+=(x<<(16-integration))-(*ExQ16>>integration);
+}
+
 #endif

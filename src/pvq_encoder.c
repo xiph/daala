@@ -25,7 +25,7 @@
 #include "entcode.h"
 #include "pvq_code.h"
 
-void laplace_encode_special(ec_enc *enc, int pos, unsigned decay)
+void laplace_encode_special(ec_enc *enc,int pos,unsigned decay,int max)
 {
   unsigned decay2, decay4, decay8, decay16;
   unsigned short decay_icdf[2];
@@ -37,23 +37,38 @@ void laplace_encode_special(ec_enc *enc, int pos, unsigned decay)
   decay16=decay8*decay8>>16;
   decay_icdf[0]=OD_MAXI(1,decay16>>1);
   decay_icdf[1]=0;
-  while(pos>15){
+  if(max<0)
+    max=0x7FFFFFFF;
+  while(pos>15 && max>=16){
     ec_enc_icdf16(enc,1,decay_icdf,15);
     pos-=16;
+    max-=16;
   }
-  ec_enc_icdf16(enc,0,decay_icdf,15);
+  if(max>=16)
+    ec_enc_icdf16(enc,0,decay_icdf,15);
 #if 0
   ec_enc_bits(enc, pos, 4);
 #else
   decay_icdf2[1]=0;
-  decay_icdf2[0]=OD_MAXI(1,decay8>>9);
-  ec_enc_icdf_ft(enc, (pos&0x8)!=0,decay_icdf2,decay_icdf2[0]+128);
-  decay_icdf2[0]=OD_MAXI(1,decay4>>9);
-  ec_enc_icdf_ft(enc, (pos&0x4)!=0,decay_icdf2,decay_icdf2[0]+128);
-  decay_icdf2[0]=OD_MAXI(1,decay2>>9);
-  ec_enc_icdf_ft(enc, (pos&0x2)!=0,decay_icdf2,decay_icdf2[0]+128);
-  decay_icdf2[0]=OD_MAXI(1,decay>>1);
-  ec_enc_icdf_ft(enc, (pos&0x1)!=0,decay_icdf2,decay_icdf2[0]+128);
+  if(max>=8){
+    decay_icdf2[0]=OD_MAXI(1,decay8>>9);
+    ec_enc_icdf_ft(enc, (pos&0x8)!=0,decay_icdf2,decay_icdf2[0]+128);
+    max-=8;
+  }
+  if(max>=4){
+    decay_icdf2[0]=OD_MAXI(1,decay4>>9);
+    ec_enc_icdf_ft(enc, (pos&0x4)!=0,decay_icdf2,decay_icdf2[0]+128);
+    max-=4;
+  }
+  if(max>=2){
+    decay_icdf2[0]=OD_MAXI(1,decay2>>9);
+    ec_enc_icdf_ft(enc, (pos&0x2)!=0,decay_icdf2,decay_icdf2[0]+128);
+    max-=2;
+  }
+  if(max>=1){
+    decay_icdf2[0]=OD_MAXI(1,decay>>1);
+    ec_enc_icdf_ft(enc, (pos&0x1)!=0,decay_icdf2,decay_icdf2[0]+128);
+  }
 #endif
 
 }
@@ -72,6 +87,7 @@ void laplace_encode(ec_enc *enc, int x, int Ex, int K)
   if(shift<0)
     shift=0;
   Ex=(Ex+(1<<shift>>1))>>shift;
+  K=(K+(1<<shift>>1))>>shift;
   xs=(x+(1<<shift>>1))>>shift;
   icdf0=icdf_table[Ex>>4];
   icdf1=icdf_table[(Ex>>4)+1];
@@ -100,7 +116,7 @@ void laplace_encode(ec_enc *enc, int x, int Ex, int K)
     unsigned decay;
     decay=decayE[(Ex+8)>>4];
 
-    laplace_encode_special(enc,xs-15,decay);
+    laplace_encode_special(enc,xs-15,decay,K);
   }
 }
 
@@ -126,7 +142,7 @@ static void pvq_encoder1(ec_enc *enc, const int *y,int N,int *u)
     if (*u<N/8)
       *u=N/8;
 
-    laplace_encode_special(enc,pos,decay);
+    laplace_encode_special(enc,pos,decay,N-1);
   }
 
   ec_enc_bits(enc,sign,1);
