@@ -47,8 +47,12 @@ int generic_decode(ec_dec *dec, GenericEncoder *model, int *ExQ16, int integrati
 
   lgQ1=logEx(*ExQ16);
 
+  /* If expectation is too large, shift x to ensure that
+     all we have past xs=15 is the exponentially decaying tail
+     of the distribution */
   shift=OD_MAXI(0,(lgQ1-5)>>1);
 
+  /* Choose the icdf to use: we have two per "octave" of ExQ16 */
   id=OD_MINI(GENERIC_TABLES-1,lgQ1);
   icdf=model->icdf[id];
 
@@ -56,7 +60,9 @@ int generic_decode(ec_dec *dec, GenericEncoder *model, int *ExQ16, int integrati
 
   if(xs==15){
     unsigned decay;
-    /* Bounds should be OK as long as shift is consistent with Ex */
+    /* Look up the decay based on the expectancy. This is approximate
+       because we don't necessarily have a Laplace-distributed variable.
+       Bounds should be OK as long as shift is consistent with Ex */
     decay=decayE[((*ExQ16>>12)+(1<<shift>>1))>>shift];
 
     xs+=laplace_decode_special(dec,decay,-1);
@@ -64,7 +70,7 @@ int generic_decode(ec_dec *dec, GenericEncoder *model, int *ExQ16, int integrati
 
   if(shift!=0){
     int special;
-    /* There's something special around zero after shift because of the rounding */
+    /* Because of the rounding, there's only half the number of possibilities for xs=0 */
     special=(xs==0);
     lsb=ec_dec_bits(dec,shift-special);
     lsb-=!special<<(shift-1);

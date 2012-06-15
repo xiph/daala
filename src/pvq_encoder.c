@@ -92,10 +92,10 @@ void laplace_encode_special(ec_enc *enc,int x,unsigned decay,int max)
  *
  * @param [in,out] enc  range encoder
  * @param [in]     x    variable to encode (including sign)
- * @param [in]     Ex   expectation of the absolute value of x
+ * @param [in]     ExQ8 expectation of the absolute value of x in Q8
  * @param [in]     K    maximum value of |x|
  */
-void laplace_encode(ec_enc *enc, int x, int Ex, int K)
+static void laplace_encode(ec_enc *enc, int x, int ExQ8, int K)
 {
   int j;
   int shift;
@@ -104,16 +104,21 @@ void laplace_encode(ec_enc *enc, int x, int Ex, int K)
   const unsigned short *icdf0, *icdf1;
   int sym;
 
-  shift=od_ilog(Ex)-11;
+  /* shift down x if expectation is too high */
+  shift=od_ilog(ExQ8)-11;
   if(shift<0)
     shift=0;
-  Ex=(Ex+(1<<shift>>1))>>shift;
+
+  /* Apply the shift with rounding to Ex, K and xs */
+  ExQ8=(ExQ8+(1<<shift>>1))>>shift;
   K=(K+(1<<shift>>1))>>shift;
   xs=(x+(1<<shift>>1))>>shift;
-  icdf0=icdf_table[Ex>>4];
-  icdf1=icdf_table[(Ex>>4)+1];
+
+  /* Interpolate pre-computed icdfs based on Ex */
+  icdf0=icdf_table[ExQ8>>4];
+  icdf1=icdf_table[(ExQ8>>4)+1];
   for(j=0;j<16;j++)
-    icdf[j]=((Ex&0xF)*icdf1[j]+(16-(Ex&0xF))*icdf0[j]+8)>>4;
+    icdf[j]=((ExQ8&0xF)*icdf1[j]+(16-(ExQ8&0xF))*icdf0[j]+8)>>4;
 
   sym=xs;
   if (sym>15)
@@ -128,15 +133,16 @@ void laplace_encode(ec_enc *enc, int x, int Ex, int K)
 
   if(shift){
     int special;
-    /* There's something special around zero after shift because of the rounding */
+    /* Because of the rounding, there's only half the number of possibilities for xs=0 */
     special=(xs==0);
     ec_enc_bits(enc,x-(xs<<shift)+(!special<<(shift-1)),shift-special);
   }
 
   if(xs>=15){
     unsigned decay;
-    decay=decayE[(Ex+8)>>4];
+    decay=decayE[(ExQ8+8)>>4];
 
+    /* Handle the exponentially-decaying tail of the distribution */
     laplace_encode_special(enc,xs-15,decay,K);
   }
 }
@@ -166,7 +172,9 @@ static void pvq_encoder1(ec_enc *enc, const int *y,int N,int *u)
   sign=y[pos]<0;
 
   if(N>1){
+    /* Compute decay */
     decay=256-4096/ *u; /* Approximates 256*exp(-16./ *u); */
+    /* Update mean position */
     *u+=pos-(*u>>4);
     if (*u<N/8)
       *u=N/8;
@@ -200,10 +208,12 @@ void pvq_encoder(ec_enc *enc, const int *y,int N,int K,int *num, int *den, int *
   sumEx=0;
   Kn=K;
 
+  /* Special K==1 case to save CPU (should be roughly equivalent in terms of coding efficiency) */
   if(K==1){
     pvq_encoder1(enc,y,N,u);
     return;
   }
+  /* Estimates the factor relating pulses_left and positions_left to E(|x|) */
   if (*num < 1<<23)
     expQ8=256**num/(1+*den);
   else
@@ -215,7 +225,7 @@ void pvq_encoder(ec_enc *enc, const int *y,int N,int K,int *num, int *den, int *
     if(Kn==0)
       break;
     x=abs(y[i]);
-    /* Expected value of x (round-to-nearest) */
+    /* Expected value of x (round-to-nearest) is expQ8*pulses_left/positions_left */
     Ex=(2*expQ8*Kn+(N-i))/(2*(N-i));
     if(Ex>Kn*256)
       Ex=Kn*256;
@@ -230,6 +240,7 @@ void pvq_encoder(ec_enc *enc, const int *y,int N,int K,int *num, int *den, int *
     }
     Kn-=x;
   }
+  /* Adapting the estimates for expQ8 */
   *num+=256*K-(*num>>4);
   *den+=sumEx-(*den>>4);
 }

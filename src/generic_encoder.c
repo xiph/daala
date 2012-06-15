@@ -38,7 +38,7 @@ void generic_model_init(GenericEncoder *model)
   {
     for(j=0;j<16;j++)
     {
-      /* FIXME: Come on, we can do better than that! */
+      /* FIXME: Come on, we can do better than flat initialization! */
       model->icdf[i][j] = (15-j);
     }
     model->tot[i] = 16;
@@ -65,8 +65,12 @@ void generic_encode(ec_enc *enc, GenericEncoder *model, int x, int *ExQ16, int i
   lgQ1=logEx(*ExQ16);
 
   /*printf("%d %d ", *ExQ4, lgQ1);*/
+  /* If expectation is too large, shift x to ensure that
+     all we have past xs=15 is the exponentially decaying tail
+     of the distribution */
   shift=OD_MAXI(0,(lgQ1-5)>>1);
 
+  /* Choose the icdf to use: we have two per "octave" of ExQ16 */
   id=OD_MINI(GENERIC_TABLES-1,lgQ1);
   icdf=model->icdf[id];
 
@@ -76,15 +80,18 @@ void generic_encode(ec_enc *enc, GenericEncoder *model, int x, int *ExQ16, int i
 
   if (xs>=15){
     unsigned decay;
-    /* Bounds should be OK as long as shift is consistent with Ex */
+    /* Look up the decay based on the expectancy. This is approximate
+       because we don't necessarily have a Laplace-distributed variable.
+       Bounds should be OK as long as shift is consistent with Ex */
     decay=decayE[((*ExQ16>>12)+(1<<shift>>1))>>shift];
 
+    /* Encode the tail of the distribution assuming exponential decay */
     laplace_encode_special(enc,xs-15,decay,-1);
   }
 
   if (shift!=0){
     int special;
-    /* There's something special around zero after shift because of the rounding */
+    /* Because of the rounding, there's only half the number of possibilities for xs=0 */
     special=(xs==0);
     ec_enc_bits(enc,x-(xs<<shift)+(!special<<(shift-1)),shift-special);
   }

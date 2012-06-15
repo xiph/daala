@@ -91,13 +91,12 @@ int laplace_decode_special(ec_dec *dec,unsigned decay,int max)
 /** Decodes a Laplace-distributed variable for use in PVQ
  *
  * @param [in,out] dec  range decoder
- * @param [in]     Ex   expectation of the absolute value of x
+ * @param [in]     ExQ8 expectation of the absolute value of x
  * @param [in]     K    maximum value of |x|
  *
  * @retval decoded variable (including sign)
  */
-
-int laplace_decode(ec_dec *dec, int Ex, int K)
+static int laplace_decode(ec_dec *dec, int ExQ8, int K)
 {
   int j;
   int shift;
@@ -106,15 +105,20 @@ int laplace_decode(ec_dec *dec, int Ex, int K)
   int sym;
   int lsb=0;
 
-  shift=od_ilog(Ex)-11;
+  /* shift down x if expectation is too high */
+  shift=od_ilog(ExQ8)-11;
   if(shift<0)
     shift=0;
-  Ex=(Ex+(1<<shift>>1))>>shift;
+
+  /* Apply the shift with rounding to Ex, K and xs */
+  ExQ8=(ExQ8+(1<<shift>>1))>>shift;
   K=(K+(1<<shift>>1))>>shift;
-  icdf0=icdf_table[Ex>>4];
-  icdf1=icdf_table[(Ex>>4)+1];
+
+  /* Interpolate pre-computed icdfs based on Ex */
+  icdf0=icdf_table[ExQ8>>4];
+  icdf1=icdf_table[(ExQ8>>4)+1];
   for(j=0;j<16;j++)
-    icdf[j]=((Ex&0xF)*icdf1[j]+(16-(Ex&0xF))*icdf0[j]+8)>>4;
+    icdf[j]=((ExQ8&0xF)*icdf1[j]+(16-(ExQ8&0xF))*icdf0[j]+8)>>4;
 
   if(K<15){
     /* Simple way of truncating the pdf when we have a bound */
@@ -124,15 +128,16 @@ int laplace_decode(ec_dec *dec, int Ex, int K)
   sym=ec_dec_icdf16(dec,icdf,15);
   if(shift){
     int special;
-    /* There's something special around zero after shift because of the rounding */
+    /* Because of the rounding, there's only half the number of possibilities for xs=0 */
     special=(sym==0);
     lsb=ec_dec_bits(dec,shift-special)-(!special<<(shift-1));
   }
 
   if(sym==15){
     unsigned decay;
-    decay=decayE[(Ex+8)>>4];
+    decay=decayE[(ExQ8+8)>>4];
 
+    /* Handle the exponentially-decaying tail of the distribution */
     sym+=laplace_decode_special(dec,decay,K);
   }
 
@@ -158,9 +163,15 @@ static void pvq_decoder1(ec_dec *dec, int *y,int N,int *u)
     y[j]=0;
 
   if(N>1){
+    /* Compute decay */
     decay=256-4096 / *u; /* Approximates 256*exp(-16./ *u); */
 
     pos=laplace_decode_special(dec,decay,N-1);
+
+    /* Update mean position */
+    *u+=pos-(*u>>4);
+    if(*u<N/8)
+      *u=N/8;
   } else {
     pos=0;
   }
@@ -168,9 +179,6 @@ static void pvq_decoder1(ec_dec *dec, int *y,int N,int *u)
     y[pos]=-1;
   else
     y[pos]=1;
-  *u+=pos-(*u>>4);
-  if(*u<N/8)
-    *u=N/8;
 }
 
 /** Decodes a vector of integers assumed to come from rounding a sequence of
@@ -199,10 +207,12 @@ void pvq_decoder(ec_dec *dec, int *y,int N,int K,int *num, int *den, int *u)
   sumEx=0;
   Kn=K;
 
+  /* Special K==1 case to save CPU (should be roughly equivalent in terms of coding efficiency) */
   if(K==1){
     pvq_decoder1(dec,y,N,u);
     return;
   }
+  /* Estimates the factor relating pulses_left and positions_left to E(|x|) */
   if (*num < 1<<23)
     expQ8=256**num/(1+*den);
   else
@@ -213,7 +223,7 @@ void pvq_decoder(ec_dec *dec, int *y,int N,int K,int *num, int *den, int *u)
     int x;
     if(Kn==0)
       break;
-    /* Expected value of x (round-to-nearest) */
+    /* Expected value of x (round-to-nearest) is expQ8*pulses_left/positions_left */
     Ex=(2*expQ8*Kn+(N-i))/(2*(N-i));
     if(Ex>Kn*256)
       Ex=Kn*256;
@@ -232,6 +242,7 @@ void pvq_decoder(ec_dec *dec, int *y,int N,int K,int *num, int *den, int *u)
     y[i]=x;
     Kn-=abs(x);
   }
+  /* Adapting the estimates for expQ8 */
   *num+= 256*K-(*num>>4);
   *den+= sumEx-(*den>>4);
   for(;i<N;i++)
