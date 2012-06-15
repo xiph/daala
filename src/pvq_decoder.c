@@ -26,6 +26,15 @@
 #include "pvq_code.h"
 
 
+/** Decodes the tail of a Laplace-distributed variable, i.e. it doesn't
+ * do anything special for the zero case.
+ *
+ * @param [dec] range decoder
+ * @param [decay] decay factor of the distribution, i.e. pdf ~= decay^x
+ * @param [max] maximum possible value of x (used to truncate the pdf)
+ *
+ * @retval decoded variable x
+ */
 int laplace_decode_special(ec_dec *dec,unsigned decay,int max)
 {
   int pos;
@@ -33,6 +42,7 @@ int laplace_decode_special(ec_dec *dec,unsigned decay,int max)
   unsigned short decay_icdf[2];
   unsigned char decay_icdf2[2];
   decay = OD_MINI(255,decay);
+  /* powers of decay */
   decay2=decay*decay;
   decay4=decay2*decay2>>16;
   decay8=decay4*decay4>>16;
@@ -42,6 +52,7 @@ int laplace_decode_special(ec_dec *dec,unsigned decay,int max)
   if(max<0)
     max=0x7FFFFFFF;
   pos=0;
+  /* Decoding jumps of 16 with probability decay^16 */
   while(max>=16&&ec_dec_icdf16(dec,decay_icdf,15)==1){
     pos+=16;
     max-=16;
@@ -51,21 +62,25 @@ int laplace_decode_special(ec_dec *dec,unsigned decay,int max)
 #else
   decay_icdf2[1]=0;
   if (max>=8){
+    /* p(x%16>=8) = decay^8/(decay^8+1) */
     decay_icdf2[0]=OD_MAXI(1,decay8>>9);
     pos += 8*ec_dec_icdf_ft(dec,decay_icdf2,decay_icdf2[0]+128);
     max-=8;
   }
   if (max>=4){
+    /* p(x%8>=4) = decay^4/(decay^4+1) */
     decay_icdf2[0]=OD_MAXI(1,decay4>>9);
     pos += 4*ec_dec_icdf_ft(dec,decay_icdf2,decay_icdf2[0]+128);
     max-=4;
   }
   if (max>=2){
+    /* p(x%4>=2) = decay^2/(decay^2+1) */
     decay_icdf2[0]=OD_MAXI(1,decay2>>9);
     pos += 2*ec_dec_icdf_ft(dec,decay_icdf2,decay_icdf2[0]+128);
     max-=2;
   }
   if (max>=1){
+    /* p(x%2>=1) = decay/(decay+1) */
     decay_icdf2[0]=OD_MAXI(1,decay>>1);
     pos += ec_dec_icdf_ft(dec,decay_icdf2,decay_icdf2[0]+128);
   }
@@ -73,6 +88,14 @@ int laplace_decode_special(ec_dec *dec,unsigned decay,int max)
   return pos;
 }
 
+/** Decodes a Laplace-distributed variable for use in PVQ
+ *
+ * @param [in,out] dec  range decoder
+ * @param [in]     Ex   expectation of the absolute value of x
+ * @param [in]     K    maximum value of |x|
+ *
+ * @retval decoded variable (including sign)
+ */
 
 int laplace_decode(ec_dec *dec, int Ex, int K)
 {
@@ -117,6 +140,14 @@ int laplace_decode(ec_dec *dec, int Ex, int K)
 }
 
 
+/** Decodes the position and sign of a single pulse in a vector of N.
+ * The position is assumed to be Laplace-distributed.
+ *
+ * @param [in,out] dec range decoder
+ * @param [in]     y   decoded vector
+ * @param [in]     N   dimension of the vector
+ * @param [in,out] u   mean position of the pulse (adapted)
+ */
 static void pvq_decoder1(ec_dec *dec, int *y,int N,int *u)
 {
   int j;
@@ -142,6 +173,17 @@ static void pvq_decoder1(ec_dec *dec, int *y,int N,int *u)
     *u=N/8;
 }
 
+/** Decodes a vector of integers assumed to come from rounding a sequence of
+ * Laplace-distributed real values in decreasing order of variance.
+ *
+ * @param [in,out] dec range decoder
+ * @param [in]     y   decoded vector
+ * @param [in]     N   dimension of the vector
+ * @param [in]     K   sum of the absolute value of components of y
+ * @param [in,out] num mean value of K (adapted)
+ * @param [in,out] den mean value of remaining pulses/(N-i) (adapted)
+ * @param [in,out] u   mean position of single-pulse sequences (adapted)
+ */
 void pvq_decoder(ec_dec *dec, int *y,int N,int K,int *num, int *den, int *u)
 {
   int i;

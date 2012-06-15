@@ -26,7 +26,10 @@
 #include "odintrin.h"
 #include "pvq_code.h"
 
-
+/** Initializes the icdfs and freq counts for a model
+ *
+ * @param [out] model model being initialized
+ */
 void generic_model_init(GenericEncoder *model)
 {
   int i, j;
@@ -42,6 +45,15 @@ void generic_model_init(GenericEncoder *model)
   }
 }
 
+/** Encodes a random variable using a "generic" model, assuming that the distribution is
+ * one-sided (zero and up), has a single mode, and decays exponentially passed the mode
+ *
+ * @param [in,out] enc   range encoder
+ * @param [in,out] model generic probability model
+ * @param [in]     x     variable being encoded
+ * @param [in,out] ExQ16 expectation of x (adapted)
+ * @param [in]     integration integration period of ExQ16 (leaky average over 1<<integration samples)
+ */
 void generic_encode(ec_enc *enc, GenericEncoder *model, int x, int *ExQ16, int integration)
 {
   int lgQ1;

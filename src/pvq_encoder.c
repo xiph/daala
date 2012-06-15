@@ -25,12 +25,22 @@
 #include "entcode.h"
 #include "pvq_code.h"
 
-void laplace_encode_special(ec_enc *enc,int pos,unsigned decay,int max)
+/** Encodes the tail of a Laplace-distributed variable, i.e. it doesn't
+ * do anything special for the zero case.
+ *
+ * @param [in,out] enc     range encoder
+ * @param [in]     x       variable to encode (has to be positive)
+ * @param [in]     decay   decay factor of the distribution in Q8 format, i.e. pdf ~= decay^x
+ * @param [in]     max     maximum possible value of x (used to truncate the pdf)
+ *
+ */
+void laplace_encode_special(ec_enc *enc,int x,unsigned decay,int max)
 {
   unsigned decay2, decay4, decay8, decay16;
   unsigned short decay_icdf[2];
   unsigned char decay_icdf2[2];
   decay = OD_MINI(255,decay);
+  /* powers of decay */
   decay2=decay*decay;
   decay4=decay2*decay2>>16;
   decay8=decay4*decay4>>16;
@@ -39,41 +49,52 @@ void laplace_encode_special(ec_enc *enc,int pos,unsigned decay,int max)
   decay_icdf[1]=0;
   if(max<0)
     max=0x7FFFFFFF;
-  while(pos>15 && max>=16){
+  /* Encoding jumps of 16 with probability decay^16 */
+  while(x>15 && max>=16){
     ec_enc_icdf16(enc,1,decay_icdf,15);
-    pos-=16;
+    x-=16;
     max-=16;
   }
   if(max>=16)
     ec_enc_icdf16(enc,0,decay_icdf,15);
 #if 0
-  ec_enc_bits(enc, pos, 4);
+  ec_enc_bits(enc, x, 4);
 #else
   decay_icdf2[1]=0;
   if(max>=8){
+    /* p(x%16>8) = decay^8/(decay^8+1) */
     decay_icdf2[0]=OD_MAXI(1,decay8>>9);
-    ec_enc_icdf_ft(enc, (pos&0x8)!=0,decay_icdf2,decay_icdf2[0]+128);
+    ec_enc_icdf_ft(enc, (x&0x8)!=0,decay_icdf2,decay_icdf2[0]+128);
     max-=8;
   }
   if(max>=4){
+    /* p(x%8>4) = decay^4/(decay^4+1) */
     decay_icdf2[0]=OD_MAXI(1,decay4>>9);
-    ec_enc_icdf_ft(enc, (pos&0x4)!=0,decay_icdf2,decay_icdf2[0]+128);
+    ec_enc_icdf_ft(enc, (x&0x4)!=0,decay_icdf2,decay_icdf2[0]+128);
     max-=4;
   }
   if(max>=2){
+    /* p(x%4>2) = decay^2/(decay^2+1) */
     decay_icdf2[0]=OD_MAXI(1,decay2>>9);
-    ec_enc_icdf_ft(enc, (pos&0x2)!=0,decay_icdf2,decay_icdf2[0]+128);
+    ec_enc_icdf_ft(enc, (x&0x2)!=0,decay_icdf2,decay_icdf2[0]+128);
     max-=2;
   }
   if(max>=1){
+    /* p(x%2>1) = decay/(decay+1) */
     decay_icdf2[0]=OD_MAXI(1,decay>>1);
-    ec_enc_icdf_ft(enc, (pos&0x1)!=0,decay_icdf2,decay_icdf2[0]+128);
+    ec_enc_icdf_ft(enc, (x&0x1)!=0,decay_icdf2,decay_icdf2[0]+128);
   }
 #endif
 
 }
 
-
+/** Encodes a Laplace-distributed variable for use in PVQ
+ *
+ * @param [in,out] enc  range encoder
+ * @param [in]     x    variable to encode (including sign)
+ * @param [in]     Ex   expectation of the absolute value of x
+ * @param [in]     K    maximum value of |x|
+ */
 void laplace_encode(ec_enc *enc, int x, int Ex, int K)
 {
   int j;
@@ -120,6 +141,14 @@ void laplace_encode(ec_enc *enc, int x, int Ex, int K)
   }
 }
 
+/** Encodes the position and sign of a single pulse in a vector of N.
+ * The position is assumed to be Laplace-distributed.
+ *
+ * @param [in,out] enc range encoder
+ * @param [in]     y   vector to encode
+ * @param [in]     N   dimension of the vector
+ * @param [in,out] u   mean position of the pulse (adapted)
+ */
 static void pvq_encoder1(ec_enc *enc, const int *y,int N,int *u)
 {
   int pos;
@@ -148,6 +177,17 @@ static void pvq_encoder1(ec_enc *enc, const int *y,int N,int *u)
   ec_enc_bits(enc,sign,1);
 }
 
+/** Encodes a vector of integers assumed to come from rounding a sequence of
+ * Laplace-distributed real values in decreasing order of variance.
+ *
+ * @param [in,out] enc range encoder
+ * @param [in]     y   vector to encode
+ * @param [in]     N   dimension of the vector
+ * @param [in]     K   sum of the absolute value of components of y
+ * @param [in,out] num mean value of K (adapted)
+ * @param [in,out] den mean value of remaining pulses/(N-i) (adapted)
+ * @param [in,out] u   mean position of single-pulse sequences (adapted)
+ */
 void pvq_encoder(ec_enc *enc, const int *y,int N,int K,int *num, int *den, int *u)
 {
   int i;

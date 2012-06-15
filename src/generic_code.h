@@ -27,15 +27,21 @@
 #define GENERIC_TABLES 12
 
 typedef struct {
-  unsigned short icdf[GENERIC_TABLES][16];
-  unsigned short tot[GENERIC_TABLES];
-  int increment;
+  unsigned short icdf[GENERIC_TABLES][16]; /**< "inverse" cdf for multiple expectations of x */
+  unsigned short tot[GENERIC_TABLES]; /**< total frequency for each icdf */
+  int increment; /**< Frequency increment for learning the icdfs */
 } GenericEncoder;
 
 void generic_encode(ec_enc *enc, GenericEncoder *model, int x, int *ExQ16, int integration);
 
 int generic_decode(ec_dec *dec, GenericEncoder *model, int *ExQ16, int integration);
 
+/** Takes the base-2 log of E(x)
+ *
+ * @param [in] ExQ16 expectation of x in Q16
+ *
+ * @retval 2*log2(ExQ16/2^16)
+ */
 static inline int logEx(int ExQ16)
 {
   int lg;
@@ -54,6 +60,16 @@ static inline int logEx(int ExQ16)
   return lgQ1;
 }
 
+/** Updates the probability model based on the encoded/decoded value
+ *
+ * @param [in,out] model generic prob model
+ * @param [in,out] ExQ16 expectation of x
+ * @param [in]     x     variable encoded/decoded (used for ExQ16)
+ * @param [in]     xs    variable x after shift (used for the model)
+ * @param [in]     id    id of the icdf to adapt
+ * @param [in]     integration integration period of ExQ16 (leaky average over 1<<integration samples)
+ *
+ */
 static inline void generic_model_update(GenericEncoder *model,int *ExQ16,int x,int xs,int id,int integration)
 {
   int i;
