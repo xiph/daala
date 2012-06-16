@@ -18,14 +18,14 @@
 
 */
 
-#include "pvq_encoder.c"
-#include "generic_encoder.c"
-#include "pvq_decoder.c"
-#include "generic_decoder.c"
-#include "entenc.c"
-#include "entdec.c"
-#include "icdf_table.c"
-#include "internal.c"
+#include "../pvq_encoder.c"
+#include "../generic_encoder.c"
+#include "../pvq_decoder.c"
+#include "../generic_decoder.c"
+#include "../entenc.c"
+#include "../entdec.c"
+#include "../icdf_table.c"
+#include "../internal.c"
 #include <stdlib.h>
 #include <math.h>
 
