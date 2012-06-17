@@ -533,7 +533,6 @@ int quant_pvq_noref(ogg_int32_t *_x,float gr,
   float scale[MAXN];
   float scale_1[MAXN];
   int   i;
-  int   m;
   int K;
   float cg, cgr;
   int qg;
@@ -567,7 +566,7 @@ int quant_pvq_noref(ogg_int32_t *_x,float gr,
   qg = floor(.5+cg);
 
   K = floor(.5+cg*cg);
-  pvq_search(x,NULL,NULL,1,N,K,y,m,0);
+  pvq_search(x,NULL,NULL,1,N,K,y,0,0);
 
   L2x=0;
   for(i=0;i<N;i++){
@@ -610,41 +609,5 @@ int quant_scalar(ogg_int32_t *_x,const ogg_int32_t *_r,
     K+=abs(qi);
     _x[i]=_r[i]+Q2*qi;
   }
-  printf("%d %d\n", K, N);
   return 0;
 }
-/*#define MAIN*/
-#ifdef MAIN
-int main()
-{
-  int i;
-  ogg_int16_t x[256], r[256];
-  ogg_int16_t scale[256];
-  int out[256];
-  for(i=0;i<64;i++){
-    scale[i]=32+64-i;
-  }
-  printf("original x:\n");
-  for(i=0;i<64;i++){
-    r[i]=rand()%255-127;
-    x[i]=r[i]+(rand()%65-31);
-    /*r[i]=0;*/
-    printf("%d ",x[i]);
-  }
-  printf("\n");
-  printf("original r:\n");
-  for(i=0;i<64;i++){
-    printf("%d ",r[i]);
-  }
-  printf("\n");
-  quant_pvq(x,r,NULL,scale,out,64,64, 1);
-  printf("quantized x:\n");
-  for(i=0;i<64;i++){
-    printf("%d ",x[i]);
-  }
-  printf("\n");
-  return 0;
-}
-#endif
-
-
