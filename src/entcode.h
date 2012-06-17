@@ -34,7 +34,7 @@
 
 /*OPT: ec_window must be at least 32 bits, but if you have fast arithmetic on a
    larger type, you can speed up the decoder by using it here.*/
-typedef ogg_uint32_t           ec_window;
+typedef ogg_uint32_t          ec_window;
 typedef struct ec_ctx         ec_ctx;
 typedef struct ec_ctx         ec_enc;
 typedef struct ec_ctx         ec_dec;
@@ -82,17 +82,14 @@ struct ec_ctx{
    int            error;
 };
 
-static inline ogg_uint32_t ec_range_bytes(ec_ctx *_this){
-  return _this->offs;
-}
+#define ec_range_bytes(/*ec_ctx **/_this) \
+ ((_this)->offs)
 
-static inline unsigned char *ec_get_buffer(ec_ctx *_this){
-  return _this->buf;
-}
+#define ec_get_buffer(/*ec_ctx **/_this) \
+  ((_this)->buf)
 
-static inline int ec_get_error(ec_ctx *_this){
-  return _this->error;
-}
+#define ec_get_error(/*ec_ctx **/_this) \
+ ((_this)->error)
 
 /*Returns the number of bits "used" by the encoded or decoded symbols so far.
   This same number can be computed in either the encoder or the decoder, and is
@@ -100,9 +97,8 @@ static inline int ec_get_error(ec_ctx *_this){
   Return: The number of bits.
           This will always be slightly larger than the exact value (e.g., all
            rounding error is in the positive direction).*/
-static inline int ec_tell(ec_ctx *_this){
-  return _this->nbits_total-EC_ILOG(_this->rng);
-}
+#define ec_tell(/*ec_ctx **/_this) \
+  ((_this)->nbits_total-EC_ILOG((_this)->rng))
 
 /*Returns the number of bits "used" by the encoded or decoded symbols so far.
   This same number can be computed in either the encoder or the decoder, and is

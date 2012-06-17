@@ -22,7 +22,7 @@ MAKEDEPEND = gcc -MM
 #  not installed in a standard location.
 CINCLUDE = `sdl-config --cflags`
 # These are gcc-only, but not actually critical.
-CFLAGS = -Wall -Wno-parentheses -Wno-overlength-strings
+CFLAGS = -Wall -Wno-parentheses -Wno-long-long -Wno-overlength-strings
 CFLAGS += -fvisibility=hidden
 # Extra compilation flags.
 # You may get speed increases by including flags such as -O2 or -O3 or
@@ -43,8 +43,8 @@ HOST := $(shell uname -m)
 ifneq (,$(findstring 86,${HOST}))
 CFLAGS += -DOD_X86ASM
 #CFLAGS += -march=native
-#CFLAGS += -O3 -funroll-loops -fforce-addr -msse3 -Dinline=
-CFLAGS += -O0 -Dinline=
+#CFLAGS += -O3 -funroll-loops -fforce-addr -msse3
+CFLAGS += -O0
 else ifneq (,$(findstring arm,${HOST}))
 CFLAGS += -DOD_ARMASM
 #CFLAGS += -march=armv7
@@ -141,7 +141,7 @@ PLAYER_EXAMPLE_OBJS:= ${PLAYER_EXAMPLE_CSOURCES:%.c=${WORKDIR}/%.o}
 TEST_COEF_CODER_OBJS:= ${TEST_COEF_CODER_CSOURCES:%.c=${WORKDIR}/%.o}
 ALL_OBJS:= ${LIBDAALABASE_OBJS} ${LIBDAALADEC_OBJS} ${LIBDAALAENC_OBJS} \
  ${DUMP_VIDEO_OBJS} ${ENCODER_EXAMPLE_OBJS} ${PLAYER_EXAMPLE_OBJS} \
- ${TEST_COEF_CODER}
+ ${TEST_COEF_CODER_OBJS}
 # Create the dependency file list
 ALL_DEPS:= ${ALL_OBJS:%.o=%.d}
 # Prepend source path to file names.
@@ -229,7 +229,7 @@ check: all
 clean:
 	${RM} ${ALL_ASM} ${ALL_OBJS} ${ALL_DEPS}
 	${RM} ${ALL_TARGETS}
-	-rmdir ${WORKDIR}/x86 ${WORKDIR}
+	-rmdir ${TESTBINDIR} ${WORKDIR}/tests ${WORKDIR}/x86 ${WORKDIR}
 
 # Make everything depend on changes in the Makefile
 ${ALL_ASM} ${ALL_OBJS} ${ALL_DEPS} ${ALL_TARGETS} : Makefile

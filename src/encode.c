@@ -284,7 +284,6 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
     for(y=0;y<h;y+=4){
       for(x=0;x<(_img->width>>_img->planes[pli].xdec);x+=4){
         int cblock[16];
-        int mode;
         int j;
         int vk;
         vk=0;

@@ -24,6 +24,15 @@
 #include <string.h>
 #include "internal.h"
 
+
+#if defined(OD_ENABLE_ASSERTIONS)
+void od_fatal_impl(const char *_str,const char *_file,int _line){
+  fprintf(stderr,"Fatal (internal) error in %s, line %d: %s\n",
+   _file,_line,_str);
+  abort();
+}
+#endif
+
 int od_ilog(ogg_uint32_t _v){
 #if defined(OD_CLZ)
   return OD_CLZ0-OD_CLZ(_v)&-!!_v;

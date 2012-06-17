@@ -25,6 +25,15 @@
 #if !defined(_odintrin_H)
 # define _odintrin_H (1)
 
+# if !defined(__GNUC_PREREQ)
+#  if defined(__GNUC__)&&defined(__GNUC_MINOR__)
+#   define __GNUC_PREREQ(_maj,_min) \
+  ((__GNUC__<<16)+__GNUC_MINOR__>=((_maj)<<16)+(_min))
+#  else
+#   define __GNUC_PREREQ(_maj,_min) 0
+#  endif
+# endif
+
 /*Some specific platforms may have optimized intrinsic or inline assembly
    versions of these functions which can substantially improve performance.
   We define macros for them to allow easy incorporation of these non-ANSI

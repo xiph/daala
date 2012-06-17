@@ -146,7 +146,6 @@ int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
   float L2_m;
   float theta;
   int qg, qt;
-  float Qtheta;
   int K;
 
   Q *= .42;
@@ -166,26 +165,28 @@ int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
   g=sqrt(L2x);
 
 #if 1
-  float cg, cgr;
-  L2r=0;
-  for(i=0;i<N;i++){
-    L2r+=r[i]*r[i];
+  {
+    float cg, cgr;
+    L2r=0;
+    for(i=0;i<N;i++){
+      L2r+=r[i]*r[i];
+    }
+    gr=sqrt(L2r);
+
+    cg = pow(g/Q,GAIN_EXP_1)-1.;
+    if (cg<0)
+      cg=0;
+    cgr = pow(gr/Q,GAIN_EXP_1);
+
+    /* Round towards zero as a slight bias */
+    qg = floor(.5+cg-cgr);
+    /*printf("%d ", qg);*/
+    /*g = Q*pow(cg, GAIN_EXP);*/
+    cg = cgr+qg;
+    if (cg<0)cg=0;
+    g = Q*pow(cg, GAIN_EXP);
+    qg = floor(.5+cg);
   }
-  gr=sqrt(L2r);
-
-  cg = pow(g/Q,GAIN_EXP_1)-1.;
-  if (cg<0)
-    cg=0;
-  cgr = pow(gr/Q,GAIN_EXP_1);
-
-  /* Round towards zero as a slight bias */
-  qg = floor(.5+cg-cgr);
-  /*printf("%d ", qg);*/
-  /*g = Q*pow(cg, GAIN_EXP);*/
-  cg = cgr+qg;
-  if (cg<0)cg=0;
-  g = Q*pow(cg, GAIN_EXP);
-  qg = floor(.5+cg);
 #else
   /*printf("%f\n", g);*/
   /* Round towards zero as a slight bias */
