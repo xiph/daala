@@ -150,9 +150,9 @@ unsigned ec_decode_bin(ec_dec *_this,unsigned _bits){
 
 void ec_dec_update(ec_dec *_this,unsigned _fl,unsigned _fh,unsigned _ft){
   ogg_uint32_t s;
-  s=_this->ext*_ft-_fh;
+  s=_this->ext*(_ft-_fh);
   _this->val-=s;
-  _this->rng=_fl>0?_this->ext*_fh-_fl:_this->rng-s;
+  _this->rng=_fl>0?_this->ext*(_fh-_fl):_this->rng-s;
   ec_dec_normalize(_this);
 }
 
