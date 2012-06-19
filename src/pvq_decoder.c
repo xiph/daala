@@ -249,7 +249,7 @@ void pvq_decoder(od_ec_dec *dec, int *y,int N,int K,int *num, int *den, int *u)
     y[i]=0;
 }
 
-void pvq_decode_delta(ec_dec *dec, int *y,int N,int K,int *num, int *den)
+void pvq_decode_delta(od_ec_dec *dec, int *y,int N,int K,int *num, int *den)
 {
   int i;
   int prev=0;
@@ -270,7 +270,7 @@ void pvq_decode_delta(ec_dec *dec, int *y,int N,int K,int *num, int *den)
     sumC+=count*K;
     pos += count;
     if (y[pos]==0)
-      sign = ec_dec_bits(dec,1);
+      sign = od_ec_dec_bits(dec,1);
     y[pos]+=sign?-1:1;
     prev=pos;
     K--;

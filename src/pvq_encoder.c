@@ -277,7 +277,7 @@ float cwrs_table16[] = {
     55.824451, 56.347271, 56.858002, 57.357180, 57.845307, 58.322854, 58.790263, 59.247948,
     59.696300, 60.135686, 60.566454,};
 
-void pvq_encoder2(ec_enc *enc, const int *y,int N0,int K,int *num, int *den, int *u)
+void pvq_encoder2(od_ec_enc *enc, const int *y,int N0,int K,int *num, int *den, int *u)
 {
   int i;
   int sumEx;
@@ -341,7 +341,7 @@ void pvq_encoder2(ec_enc *enc, const int *y,int N0,int K,int *num, int *den, int
 #endif
 
 #if 0
-void pvq_encoder3(ec_enc *enc, const int *_y,int N,int K,int *num, int *den, int *u)
+void pvq_encoder3(od_ec_enc *enc, const int *_y,int N,int K,int *num, int *den, int *u)
 {
   int i;
   int count=0;
@@ -362,7 +362,7 @@ void pvq_encoder3(ec_enc *enc, const int *_y,int N,int K,int *num, int *den, int
       sumEx += 256*(N-prev);
       sumC += count*K;
       if (!conseq)
-        ec_enc_bits(enc, _y[i]<0, 1);
+        od_ec_enc_bits(enc, _y[i]<0, 1);
       y[i]--;
       K--;
       conseq=1;
@@ -381,7 +381,8 @@ void pvq_encoder3(ec_enc *enc, const int *_y,int N,int K,int *num, int *den, int
 #endif
 
 
-void pvq_encode_delta(ec_enc *enc, const int *y,int N,int K,int *num, int *den)
+void pvq_encode_delta(od_ec_enc *enc, const int *y,int N,int K,int *num,
+ int *den)
 {
   int i;
   int prev=0;
@@ -399,7 +400,7 @@ void pvq_encode_delta(ec_enc *enc, const int *y,int N,int K,int *num, int *den)
       laplace_encode(enc, count, coef*(N-prev)/K, N-prev-1);
       sumEx+=256*(N-prev)+256*(mag-1)*(N-i);
       sumC+=count*K;
-      ec_enc_bits(enc,y[i]<0,1);
+      od_ec_enc_bits(enc,y[i]<0,1);
       for(j=0;j<mag-1;j++)
         laplace_encode(enc,0,coef*(N-i)/(K-1-j),N-i-1);
       K-=mag;
