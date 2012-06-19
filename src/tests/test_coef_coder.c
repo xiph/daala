@@ -36,7 +36,7 @@
 
 int run_pvq(int *X,int len,int N){
   int i, j;
-  int num, den,u;
+  int num, den,u,num2,den2;
   ec_enc enc;
   ec_dec dec;
   unsigned char *buf;
@@ -49,6 +49,8 @@ int run_pvq(int *X,int len,int N){
   buf = malloc(sizeof(*buf)*EC_BUF_SIZE);
   num = 650*4;
   den = 256*4;
+  num2 = 100*4;
+  den2 = 256*4;
   u = 30<<4;
   ec_enc_init(&enc, buf, EC_BUF_SIZE);
   generic_model_init(&model);
@@ -58,7 +60,11 @@ int run_pvq(int *X,int len,int N){
       K += abs(X[i*N+j]);
     Ki[i] = K;
     generic_encode(&enc, &model, K, &EK, 4);
-    pvq_encoder(&enc,&X[i*N],N,K,&num,&den,&u);
+    if (0)
+      pvq_encode_delta(&enc,&X[i*N],N,K,&num2,&den2);
+    else
+      pvq_encoder(&enc,&X[i*N],N,K,&num,&den,&u);
+
     /*if (i==0)
     {
       fprintf(stderr, "enc: K[%d]=%d, num=%d, den=%d, u=%d\n", i, Ki[i], num, den, u);
@@ -75,6 +81,8 @@ int run_pvq(int *X,int len,int N){
 
   num = 650*4;
   den = 256*4;
+  num2 = 100*4;
+  den2 = 256*4;
   u = 30<<4;
   ec_dec_init(&dec, buf, EC_BUF_SIZE);
   generic_model_init(&model);
@@ -88,7 +96,10 @@ int run_pvq(int *X,int len,int N){
     if (K!=Ki[i]){
       fprintf(stderr, "mismatch for K of vector %d (N=%d)\n", i, N);
     }
-    pvq_decoder(&dec, y, N, Ki[i], &num, &den, &u);
+    if (0)
+      pvq_decode_delta(&dec, y, N, Ki[i], &num2, &den2);
+    else
+      pvq_decoder(&dec, y, N, Ki[i], &num, &den, &u);
     for (j=0;j<N;j++){
       if(y[j]!=X[i*N+j]){
         int k;

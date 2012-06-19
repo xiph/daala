@@ -64,7 +64,7 @@ void generic_encode(ec_enc *enc, GenericEncoder *model, int x, int *ExQ16, int i
 
   lgQ1=logEx(*ExQ16);
 
-  /*printf("%d %d ", *ExQ4, lgQ1);*/
+  /*printf("%d %d\n", *ExQ16, lgQ1);*/
   /* If expectation is too large, shift x to ensure that
      all we have past xs=15 is the exponentially decaying tail
      of the distribution */

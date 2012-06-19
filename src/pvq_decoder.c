@@ -248,3 +248,36 @@ void pvq_decoder(ec_dec *dec, int *y,int N,int K,int *num, int *den, int *u)
   for(;i<N;i++)
     y[i]=0;
 }
+
+void pvq_decode_delta(ec_dec *dec, int *y,int N,int K,int *num, int *den)
+{
+  int i;
+  int prev=0;
+  int sumEx=0;
+  int sumC=0;
+  int coef = 256**num/ *den;
+  int pos=0;
+  int K0;
+  int sign=0;
+  for(i=0;i<N;i++)
+    y[i]=0;
+  K0=K;
+  for(i=0;i<K0;i++){
+    int count;
+
+    count = laplace_decode(dec, coef*(N-prev)/K, N-prev-1);
+    sumEx+=256*(N-prev);
+    sumC+=count*K;
+    pos += count;
+    if (y[pos]==0)
+      sign = ec_dec_bits(dec,1);
+    y[pos]+=sign?-1:1;
+    prev=pos;
+    K--;
+    if (K==0)
+      break;
+  }
+
+  *num+=256*sumC-(*num>>6);
+  *den+=sumEx-(*den>>6);
+}

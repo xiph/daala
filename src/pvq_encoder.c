@@ -244,3 +244,171 @@ void pvq_encoder(ec_enc *enc, const int *y,int N,int K,int *num, int *den, int *
   *num+=256*K-(*num>>4);
   *den+=sumEx-(*den>>4);
 }
+
+
+#if 0
+
+GenericEncoder model;
+int init=0;
+int ExQ16=65536;
+
+float cwrs_table8[] = {
+    0.0000000, 4.000000, 7.000000, 9.426265, 11.459432, 13.202124, 14.721099, 16.063058,
+    17.262095, 18.343810, 19.327833, 20.229476, 21.060865, 21.831734, 22.549995, 23.222151,
+    23.853602, 24.448876, 25.011801, 25.545641, 26.053199, 26.536899, 26.998848, 27.440890,
+    27.864649, 28.271557, 28.662890, 29.039782, 29.403252, 29.754214, 30.093492, 30.421834,
+    30.739917, 31.048359, 31.347722, 31.638523, 31.921234, 32.196291, 32.464096, 32.725019,
+    32.979403, 33.227566, 33.469804, 33.706393, 33.937588, 34.163629, 34.384740, 34.601131,
+    34.812998, 35.020526, 35.223889,};
+float cwrs_table4[] = {
+    0.0000000, 3.000000, 5.000000, 6.459432, 7.584963, 8.491853, 9.247928, 9.894818,
+    10.459432, 10.960002, 11.409391, 11.816984, 12.189825, 12.533330, 12.851749, 13.148477,
+    13.426265, 13.687376, 13.933691, 14.166791, 14.388017, 14.598518, 14.799282, 14.991168,
+    15.174926, 15.351215, 15.520619, 15.683653, 15.840778, 15.992407, 16.138912, 16.280626,
+    16.417853, 16.550867, 16.679920, 16.805240, 16.927037, 17.045504, 17.160817, 17.273140,
+    17.382624, 17.489409, 17.593625, 17.695391, 17.794822, 17.892021, 17.987086, 18.080110,
+    18.171177, 18.260368, 18.347760,};
+float cwrs_table16[] = {
+    0.0000000, 5.000000, 9.000000, 12.417853, 15.426265, 18.121048, 20.563673, 22.797199,
+    24.853602, 26.757622, 28.528982, 30.183768, 31.735318, 33.194854, 34.571911, 35.874671,
+    37.110202, 38.284657, 39.403416, 40.471212, 41.492224, 42.470163, 43.408332, 44.309685,
+    45.176872, 46.012277, 46.818052, 47.596148, 48.348332, 49.076215, 49.781267, 50.464831,
+    51.128140, 51.772326, 52.398430, 53.007415, 53.600167, 54.177511, 54.740209, 55.288969,
+    55.824451, 56.347271, 56.858002, 57.357180, 57.845307, 58.322854, 58.790263, 59.247948,
+    59.696300, 60.135686, 60.566454,};
+
+void pvq_encoder2(ec_enc *enc, const int *y,int N0,int K,int *num, int *den, int *u)
+{
+  int i;
+  int sumEx;
+  int Kn;
+  int expQ8;
+  int N;
+  int M=8;
+
+  if(K==0)
+    return;
+  sumEx=0;
+  Kn=K;
+
+  /* Special K==1 case to save CPU (should be roughly equivalent in terms of coding efficiency) */
+  if(K==1){
+    pvq_encoder1(enc,y,N0,u);
+    return;
+  }
+  N = N0/M;
+  /* Estimates the factor relating pulses_left and positions_left to E(|x|) */
+  if (*num < 1<<23)
+    expQ8=256**num/(1+*den);
+  else
+    expQ8=*num/(1+(*den>>8));
+
+  for(i=0;i<N;i++){
+    int j;
+    int Ex;
+    int x;
+    if(Kn==0)
+      break;
+    x=0;
+    for(j=0;j<M;j++)
+      x+=abs(y[M*i+j]);
+    /* Expected value of x (round-to-nearest) is expQ8*pulses_left/positions_left */
+    Ex=(2*expQ8*Kn+(N-i))/(2*(N-i));
+    if(Ex>Kn*256)
+      Ex=Kn*256;
+    sumEx+=(2*256*Kn+(N-i))/(2*(N-i));
+
+    /* no need to encode the magnitude for the last bin */
+    if(i!=N-1){
+      if (!init)
+      {
+        init=1;
+        generic_model_init(&model);
+      }
+      ExQ16 = Ex*256;
+      if (Ex>=256)
+        generic_encode(enc, &model, x, &ExQ16, 4);
+      else
+        laplace_encode(enc,x,Ex,Kn);
+      printf("%f\n", cwrs_table8[x]);
+    }
+    Kn-=x;
+  }
+  /* Adapting the estimates for expQ8 */
+  *num+=256*K-(*num>>4);
+  *den+=sumEx-(*den>>4);
+}
+#endif
+
+#if 0
+void pvq_encoder3(ec_enc *enc, const int *_y,int N,int K,int *num, int *den, int *u)
+{
+  int i;
+  int count=0;
+  int conseq=0;
+  int prev=0;
+  int y[1024];
+  int sumEx=0;
+  int sumC=0;
+  for (i=0;i<N;i++)
+    y[i]=abs(_y[i]);
+  i=0;
+  while(K!=0)
+  {
+    if (y[i]!=0)
+    {
+      //printf("%d %f %d %d %d\n", count, (N-prev)/(float)K, conseq, K, i);
+      laplace_encode(enc, count, *num/(float)*den*256*(N-prev)/K, N-prev);
+      sumEx += 256*(N-prev);
+      sumC += count*K;
+      if (!conseq)
+        ec_enc_bits(enc, _y[i]<0, 1);
+      y[i]--;
+      K--;
+      conseq=1;
+      count=0;
+      prev=i;
+    } else {
+      i++;
+      count++;
+      conseq=0;
+    }
+  }
+  *num += 256*sumC-(*num>>6);
+  *den += sumEx-(*den>>6);
+  //printf("%f\n", *num/(float)*den);
+}
+#endif
+
+
+void pvq_encode_delta(ec_enc *enc, const int *y,int N,int K,int *num, int *den)
+{
+  int i;
+  int prev=0;
+  int sumEx=0;
+  int sumC=0;
+  int coef = 256**num/ *den;
+  for(i=0;i<N;i++){
+    if(y[i]!=0){
+      int j;
+      int count;
+      int mag;
+
+      mag = abs(y[i]);
+      count = i-prev;
+      laplace_encode(enc, count, coef*(N-prev)/K, N-prev-1);
+      sumEx+=256*(N-prev)+256*(mag-1)*(N-i);
+      sumC+=count*K;
+      ec_enc_bits(enc,y[i]<0,1);
+      for(j=0;j<mag-1;j++)
+        laplace_encode(enc,0,coef*(N-i)/(K-1-j),N-i-1);
+      K-=mag;
+      prev=i;
+      if (K==0)
+        break;
+    }
+  }
+
+  *num+=256*sumC-(*num>>6);
+  *den+=sumEx-(*den>>6);
+}

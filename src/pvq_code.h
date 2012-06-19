@@ -33,5 +33,7 @@ int laplace_decode_special(ec_dec *dec,unsigned decay,int max);
 void pvq_encoder(ec_enc *enc,const int *y,int N,int K,int *num,int *den,int *u);
 void pvq_decoder(ec_dec *dec,int *y,int N,int K,int *num,int *den,int *u);
 
+void pvq_encode_delta(ec_enc *enc, const int *y,int N,int K,int *num, int *den);
+void pvq_decode_delta(ec_dec *dec, int *y,int N,int K,int *num, int *den);
 
 #endif

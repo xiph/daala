@@ -32,6 +32,8 @@ typedef struct {
   int increment; /**< Frequency increment for learning the icdfs */
 } GenericEncoder;
 
+void generic_model_init(GenericEncoder *model);
+
 void generic_encode(ec_enc *enc, GenericEncoder *model, int x, int *ExQ16, int integration);
 
 int generic_decode(ec_dec *dec, GenericEncoder *model, int *ExQ16, int integration);
