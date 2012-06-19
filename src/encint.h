@@ -45,7 +45,7 @@ typedef struct od_mv_est_ctx od_mv_est_ctx;
 struct daala_enc_ctx{
   od_state        state;
   oggbyte_buffer  obb;
-  ec_enc          ec;
+  od_ec_enc       ec;
   unsigned char  *packet;
   int             max_packet;
   int             packet_state;

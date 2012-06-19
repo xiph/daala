@@ -35,7 +35,7 @@
  *
  * @retval decoded variable x
  */
-int generic_decode(ec_dec *dec, GenericEncoder *model, int *ExQ16, int integration)
+int generic_decode(od_ec_dec *dec, GenericEncoder *model, int *ExQ16, int integration)
 {
   int lgQ1;
   int shift;
@@ -56,7 +56,7 @@ int generic_decode(ec_dec *dec, GenericEncoder *model, int *ExQ16, int integrati
   id=OD_MINI(GENERIC_TABLES-1,lgQ1);
   icdf=model->icdf[id];
 
-  xs=ec_dec_icdf16_ft(dec,icdf,model->tot[id]);
+  xs=od_ec_dec_icdf16_ft(dec,icdf,model->tot[id]);
 
   if(xs==15){
     unsigned decay;
@@ -72,7 +72,7 @@ int generic_decode(ec_dec *dec, GenericEncoder *model, int *ExQ16, int integrati
     int special;
     /* Because of the rounding, there's only half the number of possibilities for xs=0 */
     special=(xs==0);
-    lsb=ec_dec_bits(dec,shift-special);
+    lsb=od_ec_dec_bits(dec,shift-special);
     lsb-=!special<<(shift-1);
   }
   x = (xs<<shift)+lsb;

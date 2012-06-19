@@ -54,7 +54,7 @@ void generic_model_init(GenericEncoder *model)
  * @param [in,out] ExQ16 expectation of x (adapted)
  * @param [in]     integration integration period of ExQ16 (leaky average over 1<<integration samples)
  */
-void generic_encode(ec_enc *enc, GenericEncoder *model, int x, int *ExQ16, int integration)
+void generic_encode(od_ec_enc *enc, GenericEncoder *model, int x, int *ExQ16, int integration)
 {
   int lgQ1;
   int shift;
@@ -76,7 +76,7 @@ void generic_encode(ec_enc *enc, GenericEncoder *model, int x, int *ExQ16, int i
 
   xs=(x+(1<<shift>>1))>>shift;
 
-  ec_enc_icdf16_ft(enc,OD_MINI(15,xs),icdf,model->tot[id]);
+  od_ec_enc_icdf16_ft(enc,OD_MINI(15,xs),icdf,model->tot[id]);
 
   if (xs>=15){
     unsigned decay;
@@ -93,7 +93,7 @@ void generic_encode(ec_enc *enc, GenericEncoder *model, int x, int *ExQ16, int i
     int special;
     /* Because of the rounding, there's only half the number of possibilities for xs=0 */
     special=(xs==0);
-    ec_enc_bits(enc,x-(xs<<shift)+(!special<<(shift-1)),shift-special);
+    od_ec_enc_bits(enc,x-(xs<<shift)+(!special<<(shift-1)),shift-special);
   }
 
   generic_model_update(model,ExQ16,x,xs,id,integration);

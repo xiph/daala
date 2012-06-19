@@ -33,7 +33,8 @@
 /*Initializes the encoder.
   _buf:  The buffer to store output bytes in.
   _size: The size of the buffer, in chars.*/
-void ec_enc_init(ec_enc *_this,unsigned char *_buf,ogg_uint32_t _size);
+void od_ec_enc_init(od_ec_enc *_this,unsigned char *_buf,ogg_uint32_t _size);
+
 /*Encodes a symbol given its frequency information.
   The frequency information must be discernable by the decoder, assuming it
    has read only the previous symbols from the stream.
@@ -47,13 +48,14 @@ void ec_enc_init(ec_enc *_this,unsigned char *_buf,ogg_uint32_t _size);
        Together with _fl, this defines the range [_fl,_fh) in which the
         decoded value will fall.
   _ft: The sum of the frequencies of all the symbols*/
-void ec_encode(ec_enc *_this,unsigned _fl,unsigned _fh,unsigned _ft);
+void od_ec_encode(od_ec_enc *_this,unsigned _fl,unsigned _fh,unsigned _ft);
 
-/*Equivalent to ec_encode() with _ft==1<<_bits.*/
-void ec_encode_bin(ec_enc *_this,unsigned _fl,unsigned _fh,unsigned _bits);
+/*Equivalent to od_ec_encode() with _ft==1<<_bits.*/
+void od_ec_encode_bin(od_ec_enc *_this,
+ unsigned _fl,unsigned _fh,unsigned _bits);
 
 /* Encode a bit that has a 1/(1<<_logp) probability of being a one */
-void ec_enc_bit_logp(ec_enc *_this,int _val,unsigned _logp);
+void od_ec_enc_bit_logp(od_ec_enc *_this,int _val,unsigned _logp);
 
 /*Encodes a symbol given an "inverse" CDF table.
   _s:    The index of the symbol to encode.
@@ -62,7 +64,8 @@ void ec_enc_bit_logp(ec_enc *_this,int _val,unsigned _logp);
          The values must be monotonically non-increasing, and the last value
           must be 0.
   _ft: The total of the cumulative distribution.*/
-void ec_enc_icdf_ft(ec_enc *_this,int _s,const unsigned char *_icdf,unsigned _ft);
+void od_ec_enc_icdf_ft(od_ec_enc *_this,int _s,
+ const unsigned char *_icdf,unsigned _ft);
 
 /*Encodes a symbol given an "inverse" CDF table.
   _s:    The index of the symbol to encode.
@@ -71,7 +74,8 @@ void ec_enc_icdf_ft(ec_enc *_this,int _s,const unsigned char *_icdf,unsigned _ft
          The values must be monotonically non-increasing, and the last value
           must be 0.
   _ft: The total of the cumulative distribution.*/
-void ec_enc_icdf16_ft(ec_enc *_this,int _s,const unsigned short *_icdf,unsigned _ft);
+void od_ec_enc_icdf16_ft(od_ec_enc *_this,int _s,
+ const unsigned short *_icdf,unsigned _ft);
 
 /*Encodes a symbol given an "inverse" CDF table.
   _s:    The index of the symbol to encode.
@@ -80,7 +84,8 @@ void ec_enc_icdf16_ft(ec_enc *_this,int _s,const unsigned short *_icdf,unsigned 
          The values must be monotonically non-increasing, and the last value
           must be 0.
   _ftb: The number of bits of precision in the cumulative distribution.*/
-void ec_enc_icdf(ec_enc *_this,int _s,const unsigned char *_icdf,unsigned _ftb);
+void od_ec_enc_icdf(od_ec_enc *_this,int _s,
+ const unsigned char *_icdf,unsigned _ftb);
 
 /*Encodes a symbol given an "inverse" CDF table.
   _s:    The index of the symbol to encode.
@@ -89,19 +94,20 @@ void ec_enc_icdf(ec_enc *_this,int _s,const unsigned char *_icdf,unsigned _ftb);
          The values must be monotonically non-increasing, and the last value
           must be 0.
   _ftb: The number of bits of precision in the cumulative distribution.*/
-void ec_enc_icdf16(ec_enc *_this,int _s,const unsigned short *_icdf,unsigned _ftb);
+void od_ec_enc_icdf16(od_ec_enc *_this,int _s,
+ const unsigned short *_icdf,unsigned _ftb);
 
 /*Encodes a raw unsigned integer in the stream.
   _fl: The integer to encode.
   _ft: The number of integers that can be encoded (one more than the max).
        This must be at least one, and no more than 2**32-1.*/
-void ec_enc_uint(ec_enc *_this,ogg_uint32_t _fl,ogg_uint32_t _ft);
+void od_ec_enc_uint(od_ec_enc *_this,ogg_uint32_t _fl,ogg_uint32_t _ft);
 
 /*Encodes a sequence of raw bits in the stream.
   _fl:  The bits to encode.
   _ftb: The number of bits to encode.
         This must be between 1 and 25, inclusive.*/
-void ec_enc_bits(ec_enc *_this,ogg_uint32_t _fl,unsigned _ftb);
+void od_ec_enc_bits(od_ec_enc *_this,ogg_uint32_t _fl,unsigned _ftb);
 
 /*Overwrites a few bits at the very start of an existing stream, after they
    have already been encoded.
@@ -117,7 +123,8 @@ void ec_enc_bits(ec_enc *_this,ogg_uint32_t _fl,unsigned _ftb);
           They will be decoded in order from most-significant to least.
   _nbits: The number of bits to overwrite.
           This must be no more than 8.*/
-void ec_enc_patch_initial_bits(ec_enc *_this,unsigned _val,unsigned _nbits);
+void od_ec_enc_patch_initial_bits(od_ec_enc *_this,
+ unsigned _val,unsigned _nbits);
 
 /*Compacts the data to fit in the target size.
   This moves up the raw bits at the end of the current buffer so they are at
@@ -127,11 +134,11 @@ void ec_enc_patch_initial_bits(ec_enc *_this,unsigned _val,unsigned _nbits);
   _size: The number of bytes in the new buffer.
          This must be large enough to contain the bits already written, and
           must be no larger than the existing size.*/
-void ec_enc_shrink(ec_enc *_this,ogg_uint32_t _size);
+void od_ec_enc_shrink(od_ec_enc *_this,ogg_uint32_t _size);
 
 /*Indicates that there are no more symbols to encode.
   All reamining output bytes are flushed to the output buffer.
-  ec_enc_init() must be called before the encoder can be used again.*/
-void ec_enc_done(ec_enc *_this);
+  od_ec_enc_init() must be called before the encoder can be used again.*/
+void od_ec_enc_done(od_ec_enc *_this);
 
 #endif

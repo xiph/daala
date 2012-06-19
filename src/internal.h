@@ -52,27 +52,27 @@ __attribute__((noreturn))
 #  endif
 void od_fatal_impl(const char *_str,const char *_file,int _line);
 
-#  define od_fatal(_str) (od_fatal_impl(_str,__FILE__,__LINE__))
+#  define OD_FATAL(_str) (od_fatal_impl(_str,__FILE__,__LINE__))
 
-#  define od_assert(_cond) \
+#  define OD_ASSERT(_cond) \
   do{ \
     if(!(_cond)){ \
-      od_fatal("assertion failed: " #_cond); \
+      OD_FATAL("assertion failed: " #_cond); \
     } \
   } \
   while(0)
 
-#  define od_assert2(_cond,_message) \
+#  define OD_ASSERT2(_cond,_message) \
   do{ \
     if(!(_cond)){ \
-      od_fatal("assertion failed: " #_cond "\n" _message); \
+      OD_FATAL("assertion failed: " #_cond "\n" _message); \
     } \
   } \
   while(0)
 
 # else
-#  define od_assert(_cond)
-#  define od_assert2(_cond,_message)
+#  define OD_ASSERT(_cond)
+#  define OD_ASSERT2(_cond,_message)
 # endif
 
 

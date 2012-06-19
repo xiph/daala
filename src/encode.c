@@ -192,7 +192,7 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
     }
   }
   /*Init entropy coder*/
-  ec_enc_init(&_enc->ec, _enc->packet, _enc->max_packet);
+  od_ec_enc_init(&_enc->ec,_enc->packet,_enc->max_packet);
   /*Update buffer state.*/
   if(_enc->state.ref_imgi[OD_FRAME_SELF]>=0){
     _enc->state.ref_imgi[OD_FRAME_PREV]=
@@ -375,7 +375,7 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
         inp_val=*(inp_row+_img->planes[pli].xstride*x);
         diff=inp_val-rec_val;
         mc_sqerr+=diff*diff;
-/*        ec_enc_uint(&_enc->ec,inp_val+128,256);*/
+/*        od_ec_enc_uint(&_enc->ec,inp_val+128,256);*/
 #ifdef OD_DPCM
         {
           int pred_diff;
@@ -441,13 +441,15 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
 }
 
 int daala_encode_packet_out(daala_enc_ctx *_enc,int _last,ogg_packet *_op){
+  int tell;
   if(_enc==NULL||_op==NULL)return OD_EFAULT;
   else if(_enc->packet_state<=0||_enc->packet_state==OD_PACKET_DONE)return 0;
-  ec_enc_done(&_enc->ec);
-  _op->bytes=OD_MINI((ec_tell(&_enc->ec)+7)>>3,_enc->max_packet);
+  od_ec_enc_done(&_enc->ec);
+  tell=od_ec_tell(&_enc->ec);
+  _op->bytes=OD_MINI(tell+7>>3,_enc->max_packet);
 
   fprintf(stderr,"::Bytes: %ld\n",_op->bytes);
-  ec_enc_shrink(&_enc->ec,_op->bytes);
+  od_ec_enc_shrink(&_enc->ec,_op->bytes);
   _op->packet=_enc->packet;
   _op->b_o_s=0;
   _op->e_o_s=_last;

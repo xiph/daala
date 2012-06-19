@@ -37,8 +37,8 @@
 int run_pvq(int *X,int len,int N){
   int i, j;
   int num, den,u,num2,den2;
-  ec_enc enc;
-  ec_dec dec;
+  od_ec_enc enc;
+  od_ec_dec dec;
   unsigned char *buf;
   int *Ki;
   GenericEncoder model;
@@ -52,7 +52,7 @@ int run_pvq(int *X,int len,int N){
   num2 = 100*4;
   den2 = 256*4;
   u = 30<<4;
-  ec_enc_init(&enc, buf, EC_BUF_SIZE);
+  od_ec_enc_init(&enc, buf, EC_BUF_SIZE);
   generic_model_init(&model);
   for(i=0;i<len;i++){
     int K=0;
@@ -69,22 +69,22 @@ int run_pvq(int *X,int len,int N){
     {
       fprintf(stderr, "enc: K[%d]=%d, num=%d, den=%d, u=%d\n", i, Ki[i], num, den, u);
     }*/
-    if(ec_tell(&enc)>=EC_BUF_SIZE<<3){
-      fprintf(stderr,"bits used: %d\n", ec_tell(&enc));
+    if(od_ec_tell(&enc)>=EC_BUF_SIZE<<3){
+      fprintf(stderr,"bits used: %d\n", od_ec_tell(&enc));
     }
-    od_assert2(ec_tell(&enc)<EC_BUF_SIZE<<3,"used too many bits");
-    od_assert(!ec_get_error(&enc));
+    OD_ASSERT2(od_ec_tell(&enc)<EC_BUF_SIZE<<3,"used too many bits");
+    OD_ASSERT(!od_ec_get_error(&enc));
   }
-  ec_enc_done(&enc);
+  od_ec_enc_done(&enc);
 
-  bits_used = ec_tell(&enc);
+  bits_used = od_ec_tell(&enc);
 
   num = 650*4;
   den = 256*4;
   num2 = 100*4;
   den2 = 256*4;
   u = 30<<4;
-  ec_dec_init(&dec, buf, EC_BUF_SIZE);
+  od_ec_dec_init(&dec, buf, EC_BUF_SIZE);
   generic_model_init(&model);
   EK=65536;
 
@@ -158,7 +158,7 @@ int main(int argc, char **argv){
     N=atoi(argv[2]);
     X=malloc(sizeof(*X)*len*N);
     file=fopen(argv[3],"r");
-    od_assert2(file!=NULL, "cannot open input file");
+    OD_ASSERT2(file!=NULL, "cannot open input file");
     for(i=0;i<len;i++)
       for(j=0;j<N;j++)
         fscanf(file,"%d ",&X[i*N+j]);

@@ -24,14 +24,7 @@
    NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
-#include <stddef.h>
 #include "entdec.h"
-#include "mfrngcod.h"
 
 /*A range decoder.
   This is an entropy decoder based upon \cite{Mar79}, which is itself a
@@ -54,7 +47,7 @@
   End of stream is handled by writing out the smallest number of bits that
    ensures that the stream will be correctly decoded regardless of the value of
    any subsequent bits.
-  ec_tell() can be used to determine how many bits were needed to decode
+  od_ec_tell() can be used to determine how many bits were needed to decode
    all the symbols thus far; other data can be packed in the remaining bits of
    the input buffer.
   @PHDTHESIS{Pas76,
@@ -86,98 +79,99 @@
    URL="http://www.stanford.edu/class/ee398/handouts/papers/Moffat98ArithmCoding.pdf"
   }*/
 
-static int ec_read_byte(ec_dec *_this){
+static int od_ec_read_byte(od_ec_dec *_this){
   return _this->offs<_this->storage?_this->buf[_this->offs++]:0;
 }
 
-static int ec_read_byte_from_end(ec_dec *_this){
+static int od_ec_read_byte_from_end(od_ec_dec *_this){
   return _this->end_offs<_this->storage?
    _this->buf[_this->storage-++(_this->end_offs)]:0;
 }
 
 /*Normalizes the contents of val and rng so that rng lies entirely in the
    high-order symbol.*/
-static void ec_dec_normalize(ec_dec *_this){
+static void od_ec_dec_normalize(od_ec_dec *_this){
   /*If the range is too small, rescale it and input some bits.*/
-  while(_this->rng<=EC_CODE_BOT){
+  while(_this->rng<=0x800000){
     int sym;
-    _this->nbits_total+=EC_SYM_BITS;
-    _this->rng<<=EC_SYM_BITS;
+    _this->nbits_total+=8;
+    _this->rng<<=8;
     /*Use up the remaining bits from our last symbol.*/
     sym=_this->rem;
     /*Read the next value from the input.*/
-    _this->rem=ec_read_byte(_this);
+    _this->rem=od_ec_read_byte(_this);
     /*Take the rest of the bits we need from this new symbol.*/
-    sym=(sym<<EC_SYM_BITS|_this->rem)>>(EC_SYM_BITS-EC_CODE_EXTRA);
-    /*And subtract them from val, capped to be less than EC_CODE_TOP.*/
-    _this->val=((_this->val<<EC_SYM_BITS)+(EC_SYM_MAX&~sym))&(EC_CODE_TOP-1);
+    sym=(sym<<8|_this->rem)>>1;
+    /*And subtract them from val, capped to be less than 0x80000000.*/
+    _this->val=(_this->val<<8)+(255&~sym)&0x7FFFFFFF;
   }
 }
 
-void ec_dec_init(ec_dec *_this,unsigned char *_buf,ogg_uint32_t _storage){
+void od_ec_dec_init(od_ec_dec *_this,
+ unsigned char *_buf,ogg_uint32_t _storage){
   _this->buf=_buf;
   _this->storage=_storage;
   _this->end_offs=0;
   _this->end_window=0;
   _this->nend_bits=0;
-  /*This is the offset from which ec_tell() will subtract partial bits.
-    The final value after the ec_dec_normalize() call will be the same as in
+  /*This is the offset from which od_ec_tell() will subtract partial bits.
+    The final value after the od_ec_dec_normalize() call will be the same as in
      the encoder, but we have to compensate for the bits that are added there.*/
-  _this->nbits_total=EC_CODE_BITS+1
-   -((EC_CODE_BITS-EC_CODE_EXTRA)/EC_SYM_BITS)*EC_SYM_BITS;
+  _this->nbits_total=9;
   _this->offs=0;
-  _this->rng=1U<<EC_CODE_EXTRA;
-  _this->rem=ec_read_byte(_this);
-  _this->val=_this->rng-1-(_this->rem>>(EC_SYM_BITS-EC_CODE_EXTRA));
+  _this->rng=0x80;
+  _this->rem=od_ec_read_byte(_this);
+  _this->val=_this->rng-1-(_this->rem>>1);
   _this->error=0;
   /*Normalize the interval.*/
-  ec_dec_normalize(_this);
+  od_ec_dec_normalize(_this);
 }
 
-unsigned ec_decode(ec_dec *_this,unsigned _ft){
+unsigned od_ec_decode(od_ec_dec *_this,unsigned _ft){
   unsigned s;
   _this->ext=_this->rng/_ft;
   s=(unsigned)(_this->val/_this->ext);
-  return _ft-EC_MINI(s+1,_ft);
+  return _ft-OD_MINI(s+1,_ft);
 }
 
-unsigned ec_decode_bin(ec_dec *_this,unsigned _bits){
+unsigned od_ec_decode_bin(od_ec_dec *_this,unsigned _bits){
    unsigned s;
    _this->ext=_this->rng>>_bits;
    s=(unsigned)(_this->val/_this->ext);
-   return (1U<<_bits)-EC_MINI(s+1U,1U<<_bits);
+   return (1U<<_bits)-OD_MINI(s+1U,1U<<_bits);
 }
 
-void ec_dec_update(ec_dec *_this,unsigned _fl,unsigned _fh,unsigned _ft){
+void od_ec_dec_update(od_ec_dec *_this,unsigned _fl,unsigned _fh,unsigned _ft){
   ogg_uint32_t s;
   s=_this->ext*(_ft-_fh);
   _this->val-=s;
   _this->rng=_fl>0?_this->ext*(_fh-_fl):_this->rng-s;
-  ec_dec_normalize(_this);
+  od_ec_dec_normalize(_this);
 }
 
 /*The probability of having a "one" is 1/(1<<_logp).*/
-int ec_dec_bit_logp(ec_dec *_this,unsigned _logp){
+int od_ec_dec_bit_logp(od_ec_dec *_this,unsigned _logp){
   ogg_uint32_t r;
   ogg_uint32_t d;
   ogg_uint32_t s;
-  int         ret;
+  int          ret;
   r=_this->rng;
   d=_this->val;
   s=r>>_logp;
   ret=d<s;
   if(!ret)_this->val=d-s;
   _this->rng=ret?s:r-s;
-  ec_dec_normalize(_this);
+  od_ec_dec_normalize(_this);
   return ret;
 }
 
-int ec_dec_icdf_ft(ec_dec *_this,const unsigned char *_icdf,unsigned _ft){
+int od_ec_dec_icdf_ft(od_ec_dec *_this,
+ const unsigned char *_icdf,unsigned _ft){
   ogg_uint32_t r;
   ogg_uint32_t d;
   ogg_uint32_t s;
   ogg_uint32_t t;
-  int         ret;
+  int          ret;
   s=_this->rng;
   d=_this->val;
   r=s/_ft;
@@ -189,16 +183,17 @@ int ec_dec_icdf_ft(ec_dec *_this,const unsigned char *_icdf,unsigned _ft){
   while(d<s);
   _this->val=d-s;
   _this->rng=t-s;
-  ec_dec_normalize(_this);
+  od_ec_dec_normalize(_this);
   return ret;
 }
 
-int ec_dec_icdf16_ft(ec_dec *_this,const unsigned short *_icdf,unsigned _ft){
+int od_ec_dec_icdf16_ft(od_ec_dec *_this,
+ const unsigned short *_icdf,unsigned _ft){
   ogg_uint32_t r;
   ogg_uint32_t d;
   ogg_uint32_t s;
   ogg_uint32_t t;
-  int         ret;
+  int          ret;
   s=_this->rng;
   d=_this->val;
   r=s/_ft;
@@ -210,16 +205,16 @@ int ec_dec_icdf16_ft(ec_dec *_this,const unsigned short *_icdf,unsigned _ft){
   while(d<s);
   _this->val=d-s;
   _this->rng=t-s;
-  ec_dec_normalize(_this);
+  od_ec_dec_normalize(_this);
   return ret;
 }
 
-int ec_dec_icdf(ec_dec *_this,const unsigned char *_icdf,unsigned _ftb){
+int od_ec_dec_icdf(od_ec_dec *_this,const unsigned char *_icdf,unsigned _ftb){
   ogg_uint32_t r;
   ogg_uint32_t d;
   ogg_uint32_t s;
   ogg_uint32_t t;
-  int         ret;
+  int          ret;
   s=_this->rng;
   d=_this->val;
   r=s>>_ftb;
@@ -231,16 +226,17 @@ int ec_dec_icdf(ec_dec *_this,const unsigned char *_icdf,unsigned _ftb){
   while(d<s);
   _this->val=d-s;
   _this->rng=t-s;
-  ec_dec_normalize(_this);
+  od_ec_dec_normalize(_this);
   return ret;
 }
 
-int ec_dec_icdf16(ec_dec *_this,const unsigned short *_icdf,unsigned _ftb){
+int od_ec_dec_icdf16(od_ec_dec *_this,
+ const unsigned short *_icdf,unsigned _ftb){
   ogg_uint32_t r;
   ogg_uint32_t d;
   ogg_uint32_t s;
   ogg_uint32_t t;
-  int         ret;
+  int          ret;
   s=_this->rng;
   d=_this->val;
   r=s>>_ftb;
@@ -252,51 +248,47 @@ int ec_dec_icdf16(ec_dec *_this,const unsigned short *_icdf,unsigned _ftb){
   while(d<s);
   _this->val=d-s;
   _this->rng=t-s;
-  ec_dec_normalize(_this);
+  od_ec_dec_normalize(_this);
   return ret;
 }
 
-ogg_uint32_t ec_dec_uint(ec_dec *_this,ogg_uint32_t _ft){
+ogg_uint32_t od_ec_dec_uint(od_ec_dec *_this,ogg_uint32_t _ft){
   unsigned ft;
   unsigned s;
   int      ftb;
-  /*In order to optimize EC_ILOG(), it is undefined for the value 0.*/
-  /*assert(_ft>1);*/
-  _ft--;
-  ftb=EC_ILOG(_ft);
-  if(ftb>EC_UINT_BITS){
+  if(_ft>1U<<OD_EC_UINT_BITS){
     ogg_uint32_t t;
-    ftb-=EC_UINT_BITS;
+    _ft--;
+    ftb=OD_ILOG_NZ(_ft)-OD_EC_UINT_BITS;
     ft=(unsigned)(_ft>>ftb)+1;
-    s=ec_decode(_this,ft);
-    ec_dec_update(_this,s,s+1,ft);
-    t=(ogg_uint32_t)s<<ftb|ec_dec_bits(_this,ftb);
+    s=od_ec_decode(_this,ft);
+    od_ec_dec_update(_this,s,s+1,ft);
+    t=(ogg_uint32_t)s<<ftb|od_ec_dec_bits(_this,ftb);
     if(t<=_ft)return t;
     _this->error=1;
     return _ft;
   }
   else{
-    _ft++;
-    s=ec_decode(_this,(unsigned)_ft);
-    ec_dec_update(_this,s,s+1,(unsigned)_ft);
+    s=od_ec_decode(_this,(unsigned)_ft);
+    od_ec_dec_update(_this,s,s+1,(unsigned)_ft);
     return s;
   }
 }
 
-ogg_uint32_t ec_dec_bits(ec_dec *_this,unsigned _bits){
-  ec_window   window;
-  int         available;
+ogg_uint32_t od_ec_dec_bits(od_ec_dec *_this,unsigned _bits){
+  od_ec_window window;
+  int          available;
   ogg_uint32_t ret;
   window=_this->end_window;
   available=_this->nend_bits;
   if((unsigned)available<_bits){
     do{
-      window|=(ec_window)ec_read_byte_from_end(_this)<<available;
-      available+=EC_SYM_BITS;
+      window|=(od_ec_window)od_ec_read_byte_from_end(_this)<<available;
+      available+=8;
     }
-    while(available<=EC_WINDOW_SIZE-EC_SYM_BITS);
+    while(available<=OD_EC_WINDOW_SIZE-8);
   }
-  ret=(ogg_uint32_t)window&(((ogg_uint32_t)1<<_bits)-1U);
+  ret=(ogg_uint32_t)window&((ogg_uint32_t)1<<_bits)-1U;
   window>>=_bits;
   available-=_bits;
   _this->end_window=window;

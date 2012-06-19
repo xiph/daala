@@ -35,7 +35,7 @@
  *
  * @retval decoded variable x
  */
-int laplace_decode_special(ec_dec *dec,unsigned decay,int max)
+int laplace_decode_special(od_ec_dec *dec,unsigned decay,int max)
 {
   int pos;
   unsigned decay2, decay4, decay8, decay16;
@@ -53,36 +53,36 @@ int laplace_decode_special(ec_dec *dec,unsigned decay,int max)
     max=0x7FFFFFFF;
   pos=0;
   /* Decoding jumps of 16 with probability decay^16 */
-  while(max>=16&&ec_dec_icdf16(dec,decay_icdf,15)==1){
+  while(max>=16&&od_ec_dec_icdf16(dec,decay_icdf,15)==1){
     pos+=16;
     max-=16;
   }
 #if 0
-  pos += ec_dec_bits(dec, 4);
+  pos += od_ec_dec_bits(dec, 4);
 #else
   decay_icdf2[1]=0;
   if (max>=8){
     /* p(x%16>=8) = decay^8/(decay^8+1) */
     decay_icdf2[0]=OD_MAXI(1,decay8>>9);
-    pos += 8*ec_dec_icdf_ft(dec,decay_icdf2,decay_icdf2[0]+128);
+    pos += 8*od_ec_dec_icdf_ft(dec,decay_icdf2,decay_icdf2[0]+128);
     max-=8;
   }
   if (max>=4){
     /* p(x%8>=4) = decay^4/(decay^4+1) */
     decay_icdf2[0]=OD_MAXI(1,decay4>>9);
-    pos += 4*ec_dec_icdf_ft(dec,decay_icdf2,decay_icdf2[0]+128);
+    pos += 4*od_ec_dec_icdf_ft(dec,decay_icdf2,decay_icdf2[0]+128);
     max-=4;
   }
   if (max>=2){
     /* p(x%4>=2) = decay^2/(decay^2+1) */
     decay_icdf2[0]=OD_MAXI(1,decay2>>9);
-    pos += 2*ec_dec_icdf_ft(dec,decay_icdf2,decay_icdf2[0]+128);
+    pos += 2*od_ec_dec_icdf_ft(dec,decay_icdf2,decay_icdf2[0]+128);
     max-=2;
   }
   if (max>=1){
     /* p(x%2>=1) = decay/(decay+1) */
     decay_icdf2[0]=OD_MAXI(1,decay>>1);
-    pos += ec_dec_icdf_ft(dec,decay_icdf2,decay_icdf2[0]+128);
+    pos += od_ec_dec_icdf_ft(dec,decay_icdf2,decay_icdf2[0]+128);
   }
 #endif
   return pos;
@@ -96,7 +96,7 @@ int laplace_decode_special(ec_dec *dec,unsigned decay,int max)
  *
  * @retval decoded variable (including sign)
  */
-static int laplace_decode(ec_dec *dec, int ExQ8, int K)
+static int laplace_decode(od_ec_dec *dec, int ExQ8, int K)
 {
   int j;
   int shift;
@@ -125,12 +125,12 @@ static int laplace_decode(ec_dec *dec, int ExQ8, int K)
     for (j=0;j<=K;j++)
       icdf[j]-=icdf[K];
   }
-  sym=ec_dec_icdf16(dec,icdf,15);
+  sym=od_ec_dec_icdf16(dec,icdf,15);
   if(shift){
     int special;
     /* Because of the rounding, there's only half the number of possibilities for xs=0 */
     special=(sym==0);
-    lsb=ec_dec_bits(dec,shift-special)-(!special<<(shift-1));
+    lsb=od_ec_dec_bits(dec,shift-special)-(!special<<(shift-1));
   }
 
   if(sym==15){
@@ -153,7 +153,7 @@ static int laplace_decode(ec_dec *dec, int ExQ8, int K)
  * @param [in]     N   dimension of the vector
  * @param [in,out] u   mean position of the pulse (adapted)
  */
-static void pvq_decoder1(ec_dec *dec, int *y,int N,int *u)
+static void pvq_decoder1(od_ec_dec *dec, int *y,int N,int *u)
 {
   int j;
   int pos;
@@ -175,7 +175,7 @@ static void pvq_decoder1(ec_dec *dec, int *y,int N,int *u)
   } else {
     pos=0;
   }
-  if(ec_dec_bits(dec,1))
+  if(od_ec_dec_bits(dec,1))
     y[pos]=-1;
   else
     y[pos]=1;
@@ -192,7 +192,7 @@ static void pvq_decoder1(ec_dec *dec, int *y,int N,int *u)
  * @param [in,out] den mean value of remaining pulses/(N-i) (adapted)
  * @param [in,out] u   mean position of single-pulse sequences (adapted)
  */
-void pvq_decoder(ec_dec *dec, int *y,int N,int K,int *num, int *den, int *u)
+void pvq_decoder(od_ec_dec *dec, int *y,int N,int K,int *num, int *den, int *u)
 {
   int i;
   int sumEx;
@@ -236,7 +236,7 @@ void pvq_decoder(ec_dec *dec, int *y,int N,int K,int *num, int *den, int *u)
     }
     if(x!=0)
     {
-      if(ec_dec_bits(dec, 1))
+      if(od_ec_dec_bits(dec, 1))
         x=-x;
     }
     y[i]=x;

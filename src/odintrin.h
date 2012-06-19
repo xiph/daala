@@ -117,27 +117,41 @@
 /*Count leading zeros.
   This macro should only be used for implementing od_ilog(), if it is defined.
   All other code should use OD_ILOG() instead.*/
-#if defined(__GNUC__)
-# if __GNUC_PREREQ(3,4)
-#  if INT_MAX>=2147483647
-#   define OD_CLZ0 sizeof(unsigned)*CHAR_BIT
-#   define OD_CLZ(_x) (__builtin_clz(_x))
-#  elif LONG_MAX>=2147483647L
-#   define OD_CLZ0 sizeof(unsigned long)*CHAR_BIT
-#   define OD_CLZ(_x) (__builtin_clzl(_x))
-#  endif
+#if defined(_MSC_VER)
+# include <intrin.h>
+/*In _DEBUG mode this is not an intrinsic by default.*/
+# pragma intrinsic(_BitScanReverse)
+
+static __inline int od_bsr(unsigned long _x){
+  unsigned long ret;
+  _BitScanReverse(&ret,_x);
+  return (int)ret;
+}
+# define OD_CLZ0    (1)
+# define OD_CLZ(_x) (-od_bsr(_x))
+#elif defined(ENABLE_TI_DSPLIB)
+# include "dsplib.h"
+# define OD_CLZ0    (31)
+# define OD_CLZ(_x) (_lnorm(_x))
+#elif __GNUC_PREREQ(3,4)
+# if INT_MAX>=2147483647
+#  define OD_CLZ0    ((int)sizeof(unsigned)*CHAR_BIT)
+#  define OD_CLZ(_x) (__builtin_clz(_x))
+# elif LONG_MAX>=2147483647L
+#  define OD_CLZ0    ((int)sizeof(unsigned long)*CHAR_BIT)
+#  define OD_CLZ(_x) (__builtin_clzl(_x))
 # endif
 #endif
 #if defined(OD_CLZ)
-# define OD_ILOG(_x)  (OD_CLZ0-OD_CLZ(_x))
+# define OD_ILOG_NZ(_x)  (OD_CLZ0-OD_CLZ(_x))
 /*Note that __builtin_clz is not defined when _x==0, according to the gcc
    documentation (and that of the x86 BSR instruction that implements it), so
    we have to special-case it.
   We define a special version of the macro to use when _x can be zero.*/
-# define OD_ILOG0(_x) (OD_ILOG(_x)&-!!(_x))
+# define OD_ILOG(_x)     (OD_ILOG_NZ(_x)&-!!(_x))
 #else
-# define OD_ILOG(_x)  (od_ilog(_x))
-# define OD_ILOG0(_x) (od_ilog(_x))
+# define OD_ILOG_NZ(_x) (od_ilog(_x))
+# define OD_ILOG(_x)    (od_ilog(_x))
 #endif
 
 /*Swaps two integers _a and _b if _a>_b.*/

@@ -34,9 +34,9 @@ typedef struct {
 
 void generic_model_init(GenericEncoder *model);
 
-void generic_encode(ec_enc *enc, GenericEncoder *model, int x, int *ExQ16, int integration);
+void generic_encode(od_ec_enc *enc, GenericEncoder *model, int x, int *ExQ16, int integration);
 
-int generic_decode(ec_dec *dec, GenericEncoder *model, int *ExQ16, int integration);
+int generic_decode(od_ec_dec *dec, GenericEncoder *model, int *ExQ16, int integration);
 
 /** Takes the base-2 log of E(x)
  *
