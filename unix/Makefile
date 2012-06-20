@@ -96,7 +96,6 @@ entcode.h \
 entdec.h \
 entenc.h \
 mfrngcod.h \
-ecintrin.h \
 odintrin.h \
 pvq.h \
 state.h \
