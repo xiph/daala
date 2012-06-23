@@ -30,10 +30,31 @@
 # include <stddef.h>
 # include "entcode.h"
 
+
+
+typedef struct od_ec_enc od_ec_enc;
+
+
+
+struct od_ec_enc{
+  /*The common encoder/decoder state.*/
+  od_ec_ctx     base;
+  /*A buffer for output bytes with their associated carry flags.*/
+  ogg_uint16_t *precarry_buf;
+  /*The size of the pre-carry buffer.*/
+  ogg_uint32_t  precarry_storage;
+};
+
+
 /*Initializes the encoder.
-  _buf:  The buffer to store output bytes in.
-  _size: The size of the buffer, in chars.*/
-void od_ec_enc_init(od_ec_enc *_this,unsigned char *_buf,ogg_uint32_t _size);
+  _size: The initial size of the buffer, in bytes.*/
+void od_ec_enc_init(od_ec_enc *_this,ogg_uint32_t _size);
+
+/*Frees the buffers used by the encoder.*/
+void od_ec_enc_clear(od_ec_enc *_this);
+
+/*Reinitializes the encoder.*/
+void od_ec_enc_reset(od_ec_enc *_this);
 
 /*Encodes a symbol given its frequency information.
   The frequency information must be discernable by the decoder, assuming it
@@ -47,14 +68,19 @@ void od_ec_enc_init(od_ec_enc *_this,unsigned char *_buf,ogg_uint32_t _size);
         be encoded.
        Together with _fl, this defines the range [_fl,_fh) in which the
         decoded value will fall.
-  _ft: The sum of the frequencies of all the symbols*/
+  _ft: The sum of the frequencies of all the symbols.
+       This must be no more than 32767.*/
 void od_ec_encode(od_ec_enc *_this,unsigned _fl,unsigned _fh,unsigned _ft);
 
-/*Equivalent to od_ec_encode() with _ft==1<<_bits.*/
+/*Equivalent to od_ec_encode() with _ft==1<<_ftb, except that _ftb may be as
+   large as 15.*/
 void od_ec_encode_bin(od_ec_enc *_this,
- unsigned _fl,unsigned _fh,unsigned _bits);
+ unsigned _fl,unsigned _fh,unsigned _ftb);
 
-/* Encode a bit that has a 1/(1<<_logp) probability of being a one */
+/*Encode a bit that has a 1/(1<<_logp) probability of being a one.
+  _val:  The value to encode (0 or 1).
+  _logp: The negative base-2 log of the probability of being a one.
+         This must be no more than 15.*/
 void od_ec_enc_bit_logp(od_ec_enc *_this,int _val,unsigned _logp);
 
 /*Encodes a symbol given an "inverse" CDF table.
@@ -63,7 +89,8 @@ void od_ec_enc_bit_logp(od_ec_enc *_this,int _val,unsigned _logp);
           [_s>0?ft-_icdf[_s-1]:0,ft-_icdf[_s]), where ft=1<<_ftb.
          The values must be monotonically non-increasing, and the last value
           must be 0.
-  _ft: The total of the cumulative distribution.*/
+  _ft: The total of the cumulative distribution.
+       This must be no more than 32767.*/
 void od_ec_enc_icdf_ft(od_ec_enc *_this,int _s,
  const unsigned char *_icdf,unsigned _ft);
 
@@ -73,9 +100,10 @@ void od_ec_enc_icdf_ft(od_ec_enc *_this,int _s,
           [_s>0?ft-_icdf[_s-1]:0,ft-_icdf[_s]), where ft=1<<_ftb.
          The values must be monotonically non-increasing, and the last value
           must be 0.
-  _ft: The total of the cumulative distribution.*/
+  _ft: The total of the cumulative distribution.
+       This must be no more than 32767.*/
 void od_ec_enc_icdf16_ft(od_ec_enc *_this,int _s,
- const unsigned short *_icdf,unsigned _ft);
+ const ogg_uint16_t *_icdf,unsigned _ft);
 
 /*Encodes a symbol given an "inverse" CDF table.
   _s:    The index of the symbol to encode.
@@ -83,7 +111,8 @@ void od_ec_enc_icdf16_ft(od_ec_enc *_this,int _s,
           [_s>0?ft-_icdf[_s-1]:0,ft-_icdf[_s]), where ft=1<<_ftb.
          The values must be monotonically non-increasing, and the last value
           must be 0.
-  _ftb: The number of bits of precision in the cumulative distribution.*/
+  _ftb: The number of bits of precision in the cumulative distribution.
+        This must be no more than 15.*/
 void od_ec_enc_icdf(od_ec_enc *_this,int _s,
  const unsigned char *_icdf,unsigned _ftb);
 
@@ -93,9 +122,10 @@ void od_ec_enc_icdf(od_ec_enc *_this,int _s,
           [_s>0?ft-_icdf[_s-1]:0,ft-_icdf[_s]), where ft=1<<_ftb.
          The values must be monotonically non-increasing, and the last value
           must be 0.
-  _ftb: The number of bits of precision in the cumulative distribution.*/
+  _ftb: The number of bits of precision in the cumulative distribution.
+        This must be no more than 15.*/
 void od_ec_enc_icdf16(od_ec_enc *_this,int _s,
- const unsigned short *_icdf,unsigned _ftb);
+ const ogg_uint16_t *_icdf,unsigned _ftb);
 
 /*Encodes a raw unsigned integer in the stream.
   _fl: The integer to encode.
@@ -126,19 +156,12 @@ void od_ec_enc_bits(od_ec_enc *_this,ogg_uint32_t _fl,unsigned _ftb);
 void od_ec_enc_patch_initial_bits(od_ec_enc *_this,
  unsigned _val,unsigned _nbits);
 
-/*Compacts the data to fit in the target size.
-  This moves up the raw bits at the end of the current buffer so they are at
-   the end of the new buffer size.
-  The caller must ensure that the amount of data that's already been written
-   will fit in the new size.
-  _size: The number of bytes in the new buffer.
-         This must be large enough to contain the bits already written, and
-          must be no larger than the existing size.*/
-void od_ec_enc_shrink(od_ec_enc *_this,ogg_uint32_t _size);
-
 /*Indicates that there are no more symbols to encode.
-  All reamining output bytes are flushed to the output buffer.
-  od_ec_enc_init() must be called before the encoder can be used again.*/
-void od_ec_enc_done(od_ec_enc *_this);
+  All remaining output bytes are flushed to the output buffer.
+  od_ec_enc_reset() must be called before the encoder can be used again.
+  _bytes: Returns the size of the encoded data in the returned buffer.
+  Return: A pointer to the start of the final buffer, or NULL if there was an
+           encoding error.*/
+unsigned char *od_ec_enc_done(od_ec_enc *_this,ogg_uint32_t *_nbytes);
 
 #endif

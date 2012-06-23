@@ -35,8 +35,7 @@ static int od_enc_init(od_enc_ctx *_enc,const daala_info *_info){
   ret=od_state_init(&_enc->state,_info);
   if(ret<0)return ret;
   oggbyte_writeinit(&_enc->obb);
-  _enc->max_packet=1024*1024*10;
-  _enc->packet=(unsigned char*)_ogg_malloc(_enc->max_packet);
+  od_ec_enc_init(&_enc->ec,65025);
   _enc->packet_state=OD_PACKET_INFO_HDR;
   _enc->mvest=od_mv_est_alloc(_enc);
   return 0;
@@ -44,6 +43,7 @@ static int od_enc_init(od_enc_ctx *_enc,const daala_info *_info){
 
 static void od_enc_clear(od_enc_ctx *_enc){
   od_mv_est_free(_enc->mvest);
+  od_ec_enc_clear(&_enc->ec);
   oggbyte_writeclear(&_enc->obb);
   od_state_clear(&_enc->state);
 }
@@ -61,7 +61,6 @@ daala_enc_ctx *daala_encode_alloc(const daala_info *_info){
 
 void daala_encode_free(daala_enc_ctx *_enc){
   if(_enc!=NULL){
-    _ogg_free(_enc->packet);
     od_enc_clear(_enc);
     _ogg_free(_enc);
   }
@@ -192,7 +191,7 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
     }
   }
   /*Init entropy coder*/
-  od_ec_enc_init(&_enc->ec,_enc->packet,_enc->max_packet);
+  od_ec_enc_reset(&_enc->ec);
   /*Update buffer state.*/
   if(_enc->state.ref_imgi[OD_FRAME_SELF]>=0){
     _enc->state.ref_imgi[OD_FRAME_PREV]=
@@ -441,16 +440,12 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
 }
 
 int daala_encode_packet_out(daala_enc_ctx *_enc,int _last,ogg_packet *_op){
-  int tell;
+  ogg_uint32_t nbytes;
   if(_enc==NULL||_op==NULL)return OD_EFAULT;
   else if(_enc->packet_state<=0||_enc->packet_state==OD_PACKET_DONE)return 0;
-  od_ec_enc_done(&_enc->ec);
-  tell=od_ec_tell(&_enc->ec);
-  _op->bytes=OD_MINI(tell+7>>3,_enc->max_packet);
-
+  _op->packet=od_ec_enc_done(&_enc->ec,&nbytes);
+  _op->bytes=nbytes;
   fprintf(stderr,"::Bytes: %ld\n",_op->bytes);
-  od_ec_enc_shrink(&_enc->ec,_op->bytes);
-  _op->packet=_enc->packet;
   _op->b_o_s=0;
   _op->e_o_s=_last;
   _op->packetno=0;

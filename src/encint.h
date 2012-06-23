@@ -46,8 +46,6 @@ struct daala_enc_ctx{
   od_state        state;
   oggbyte_buffer  obb;
   od_ec_enc       ec;
-  unsigned char  *packet;
-  int             max_packet;
   int             packet_state;
   od_mv_est_ctx  *mvest;
 };

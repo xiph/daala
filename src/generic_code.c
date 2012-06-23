@@ -62,7 +62,7 @@ void generic_model_update(GenericEncoder *model,int *ExQ16,int x,int xs,int id,i
 
   icdf=model->icdf[id];
   /* Renormalize if we cannot add increment */
-  if (model->tot[id]>65535-model->increment){
+  if (model->tot[id]+model->increment>32767){
     for (i=0;i<16;i++){
       /* Second term ensures that the pdf is non-null */
       icdf[i]=(icdf[i]>>1)+(15-i);

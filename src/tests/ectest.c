@@ -27,6 +27,7 @@ int main(int _argc,char **_argv){
   unsigned int   sym;
   unsigned int   seed;
   unsigned char *ptr;
+  ogg_uint32_t   ptr_sz;
   const char    *env_seed;
   ret=EXIT_SUCCESS;
   entropy=0;
@@ -39,8 +40,7 @@ int main(int _argc,char **_argv){
   else if(env_seed)seed=atoi(env_seed);
   else seed=time(NULL);
   /*Testing encoding of raw bit values.*/
-  ptr=(unsigned char *)malloc(DATA_SIZE);
-  od_ec_enc_init(&enc,ptr,DATA_SIZE);
+  od_ec_enc_init(&enc,DATA_SIZE);
   for(ft=2;ft<1024;ft++){
     for(i=0;i<ft;i++){
       entropy+=log(ft)*M_LOG2E;
@@ -61,13 +61,13 @@ int main(int _argc,char **_argv){
       }
     }
   }
-  nbits=od_ec_tell_frac(&enc);
-  od_ec_enc_done(&enc);
+  nbits=od_ec_tell_frac(&enc.base);
+  ptr=od_ec_enc_done(&enc,&ptr_sz);
   fprintf(stderr,
    "Encoded %0.2f bits of entropy to %0.2f bits (%0.3f%% wasted).\n",
    entropy,ldexp(nbits,-3),100*(nbits-ldexp(entropy,3))/nbits);
-  fprintf(stderr,"Packed to %li bytes.\n",(long)od_ec_range_bytes(&enc));
-  od_ec_dec_init(&dec,ptr,DATA_SIZE);
+  fprintf(stderr,"Packed to %li bytes.\n",(long)ptr_sz);
+  od_ec_dec_init(&dec,ptr,ptr_sz);
   for(ft=2;ft<1024;ft++){
     for(i=0;i<ft;i++){
       sym=od_ec_dec_uint(&dec,ft);
@@ -93,37 +93,6 @@ int main(int _argc,char **_argv){
      ldexp(nbits2,-3),ldexp(nbits,-3));
     ret=EXIT_FAILURE;
   }
-  /*Testing an encoder bust prefers range coder data over raw bits.
-    This isn't a general guarantee, will only work for data that is buffered in
-     the encoder state and not yet stored in the user buffer, and should never
-     get used in practice.
-    It's mostly here for code coverage completeness.*/
-  /*Start with a 16-bit buffer.*/
-  od_ec_enc_init(&enc,ptr,2);
-  /*Write 7 raw bits.*/
-  od_ec_enc_bits(&enc,0x55,7);
-  /*Write 12.3 bits of range coder data.*/
-  od_ec_enc_uint(&enc,1,2);
-  od_ec_enc_uint(&enc,1,3);
-  od_ec_enc_uint(&enc,1,4);
-  od_ec_enc_uint(&enc,1,5);
-  od_ec_enc_uint(&enc,2,6);
-  od_ec_enc_uint(&enc,6,7);
-  od_ec_enc_done(&enc);
-  od_ec_dec_init(&dec,ptr,2);
-  if(!enc.error
-   /*The raw bits should have been overwritten by the range coder data.*/
-   ||od_ec_dec_bits(&dec,7)!=0x05
-   /*And all the range coder data should have been encoded correctly.*/
-   ||od_ec_dec_uint(&dec,2)!=1
-   ||od_ec_dec_uint(&dec,3)!=1
-   ||od_ec_dec_uint(&dec,4)!=1
-   ||od_ec_dec_uint(&dec,5)!=1
-   ||od_ec_dec_uint(&dec,6)!=2
-   ||od_ec_dec_uint(&dec,7)!=6){
-    fprintf(stderr,"Encoder bust overwrote range coder data with raw bits.\n");
-    ret=EXIT_FAILURE;
-  }
   srand(seed);
   fprintf(stderr,"Testing random streams... Random seed: %u (%.4X).\n",
    seed,rand()&65535);
@@ -137,33 +106,33 @@ int main(int _argc,char **_argv){
     sz=rand()/((RAND_MAX>>(rand()%9U))+1U);
     data=(unsigned *)malloc(sz*sizeof(*data));
     tell=(unsigned *)malloc((sz+1)*sizeof(*tell));
-    od_ec_enc_init(&enc,ptr,DATA_SIZE2);
+    od_ec_enc_reset(&enc);
     zeros=rand()%13==0;
-    tell[0]=od_ec_tell_frac(&enc);
+    tell[0]=od_ec_tell_frac(&enc.base);
     for(j=0;j<sz;j++){
       if(zeros)data[j]=0;
       else data[j]=rand()%ft;
       od_ec_enc_uint(&enc,data[j],ft);
-      tell[j+1]=od_ec_tell_frac(&enc);
+      tell[j+1]=od_ec_tell_frac(&enc.base);
     }
     if(!(rand()&1)){
       while(od_ec_tell(&enc)&7)od_ec_enc_uint(&enc,rand()&1,2);
     }
     tell_bits=od_ec_tell(&enc);
-    od_ec_enc_done(&enc);
+    ptr=od_ec_enc_done(&enc,&ptr_sz);
     if(tell_bits!=(unsigned)od_ec_tell(&enc)){
       fprintf(stderr,"od_ec_tell() changed after od_ec_enc_done(): "
        "%u instead of %u (Random seed: %u).\n",
        (unsigned)od_ec_tell(&enc),tell_bits,seed);
       ret=EXIT_FAILURE;
     }
-    if(tell_bits+7>>3<od_ec_range_bytes(&enc)){
+    if(tell_bits+7>>3<ptr_sz){
       fprintf(stderr,"od_ec_tell() lied: "
        "there's %i bytes instead of %i (Random seed: %u).\n",
-       od_ec_range_bytes(&enc),tell_bits+7>>3,seed);
+       ptr_sz,tell_bits+7>>3,seed);
       ret=EXIT_FAILURE;
     }
-    od_ec_dec_init(&dec,ptr,DATA_SIZE2);
+    od_ec_dec_init(&dec,ptr,ptr_sz);
     if(od_ec_tell_frac(&dec)!=tell[0]){
       fprintf(stderr,"od_ec_tell() mismatch between encoder and decoder "
        "at symbol %i: %u instead of %u (Random seed: %u).\n",
@@ -198,8 +167,8 @@ int main(int _argc,char **_argv){
     data=(unsigned *)malloc(sz*sizeof(*data));
     tell=(unsigned *)malloc((sz+1)*sizeof(*tell));
     enc_method=(unsigned *)malloc(sz*sizeof(*enc_method));
-    od_ec_enc_init(&enc,ptr,DATA_SIZE2);
-    tell[0]=od_ec_tell_frac(&enc);
+    od_ec_enc_reset(&enc);
+    tell[0]=od_ec_tell_frac(&enc.base);
     for(j=0;j<sz;j++){
       data[j]=rand()/((RAND_MAX>>1)+1);
       logp1[j]=(rand()%15)+1;
@@ -223,16 +192,16 @@ int main(int _argc,char **_argv){
           od_ec_enc_icdf(&enc,data[j],icdf,logp1[j]);
         }break;
       }
-      tell[j+1]=od_ec_tell_frac(&enc);
+      tell[j+1]=od_ec_tell_frac(&enc.base);
     }
-    od_ec_enc_done(&enc);
-    if(od_ec_tell(&enc)+7U>>3<od_ec_range_bytes(&enc)){
+    ptr=od_ec_enc_done(&enc,&ptr_sz);
+    if(od_ec_tell(&enc)+7U>>3<ptr_sz){
       fprintf(stderr,"od_ec_tell() lied: "
        "there's %i bytes instead of %i (Random seed: %u).\n",
-       od_ec_range_bytes(&enc),od_ec_tell(&enc)+7>>3,seed);
+       ptr_sz,od_ec_tell(&enc)+7>>3,seed);
       ret=EXIT_FAILURE;
     }
-    od_ec_dec_init(&dec,ptr,DATA_SIZE2);
+    od_ec_dec_init(&dec,ptr,ptr_sz);
     if(od_ec_tell_frac(&dec)!=tell[0]){
       fprintf(stderr,"od_ec_tell() mismatch between encoder and decoder "
        "at symbol %i: %u instead of %u (Random seed: %u).\n",
@@ -284,64 +253,39 @@ int main(int _argc,char **_argv){
     free(data);
     free(logp1);
   }
-  od_ec_enc_init(&enc,ptr,DATA_SIZE2);
+  od_ec_enc_reset(&enc);
   od_ec_enc_bit_logp(&enc,0,1);
   od_ec_enc_bit_logp(&enc,0,1);
   od_ec_enc_bit_logp(&enc,0,1);
   od_ec_enc_bit_logp(&enc,0,1);
   od_ec_enc_bit_logp(&enc,0,2);
   od_ec_enc_patch_initial_bits(&enc,3,2);
-  if(enc.error){
+  if(enc.base.error){
     fprintf(stderr,"od_ec_enc_patch_initial_bits() failed.\n");
     ret=EXIT_FAILURE;
   }
   od_ec_enc_patch_initial_bits(&enc,0,5);
-  if(!enc.error){
+  if(!enc.base.error){
     fprintf(stderr,
      "od_ec_enc_patch_initial_bits() didn't fail when it should have.\n");
     ret=EXIT_FAILURE;
   }
-  od_ec_enc_done(&enc);
-  if(od_ec_range_bytes(&enc)!=1||ptr[0]!=192){
-    fprintf(stderr,
-     "Got %i when expecting 192 for od_ec_enc_patch_initial_bits().\n",ptr[0]);
-    ret=EXIT_FAILURE;
-  }
-  od_ec_enc_init(&enc,ptr,DATA_SIZE2);
+  od_ec_enc_reset(&enc);
   od_ec_enc_bit_logp(&enc,0,1);
   od_ec_enc_bit_logp(&enc,0,1);
   od_ec_enc_bit_logp(&enc,1,6);
   od_ec_enc_bit_logp(&enc,0,2);
   od_ec_enc_patch_initial_bits(&enc,0,2);
-  if(enc.error){
+  if(enc.base.error){
     fprintf(stderr,"od_ec_enc_patch_initial_bits() failed.\n");
     ret=EXIT_FAILURE;
   }
-  od_ec_enc_done(&enc);
-  if(od_ec_range_bytes(&enc)!=2||ptr[0]!=63){
+  ptr=od_ec_enc_done(&enc,&ptr_sz);
+  if(ptr_sz!=2||ptr[0]!=63){
     fprintf(stderr,
      "Got %i when expecting 63 for od_ec_enc_patch_initial_bits().\n",ptr[0]);
     ret=EXIT_FAILURE;
   }
-  od_ec_enc_init(&enc,ptr,2);
-  od_ec_enc_bit_logp(&enc,0,2);
-  for(i=0;i<48;i++){
-    od_ec_enc_bits(&enc,0,1);
-  }
-  od_ec_enc_done(&enc);
-  if(!enc.error){
-    fprintf(stderr,"Raw bits overfill didn't fail when it should have.\n");
-    ret=EXIT_FAILURE;
-  }
-  od_ec_enc_init(&enc,ptr,2);
-  for(i=0;i<17;i++){
-    od_ec_enc_bits(&enc,0,1);
-  }
-  od_ec_enc_done(&enc);
-  if(!enc.error){
-    fprintf(stderr,"17 raw bits encoded in two bytes.\n");
-    ret=EXIT_FAILURE;
-  }
-  free(ptr);
+  od_ec_enc_clear(&enc);
   return ret;
 }

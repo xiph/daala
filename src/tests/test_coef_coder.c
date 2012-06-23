@@ -40,19 +40,19 @@ int run_pvq(int *X,int len,int N){
   od_ec_enc enc;
   od_ec_dec dec;
   unsigned char *buf;
+  ogg_uint32_t   buf_sz;
   int *Ki;
   GenericEncoder model;
   int EK=65536;
   int bits_used;
 
   Ki = malloc(sizeof(*Ki)*len);
-  buf = malloc(sizeof(*buf)*EC_BUF_SIZE);
   num = 650*4;
   den = 256*4;
   num2 = 100*4;
   den2 = 256*4;
   u = 30<<4;
-  od_ec_enc_init(&enc, buf, EC_BUF_SIZE);
+  od_ec_enc_init(&enc, EC_BUF_SIZE);
   generic_model_init(&model);
   for(i=0;i<len;i++){
     int K=0;
@@ -75,7 +75,7 @@ int run_pvq(int *X,int len,int N){
     OD_ASSERT2(od_ec_tell(&enc)<EC_BUF_SIZE<<3,"used too many bits");
     OD_ASSERT(!od_ec_get_error(&enc));
   }
-  od_ec_enc_done(&enc);
+  buf = od_ec_enc_done(&enc, &buf_sz);
 
   bits_used = od_ec_tell(&enc);
 
@@ -84,7 +84,7 @@ int run_pvq(int *X,int len,int N){
   num2 = 100*4;
   den2 = 256*4;
   u = 30<<4;
-  od_ec_dec_init(&dec, buf, EC_BUF_SIZE);
+  od_ec_dec_init(&dec, buf, buf_sz);
   generic_model_init(&model);
   EK=65536;
 
@@ -119,7 +119,7 @@ int run_pvq(int *X,int len,int N){
   }
 
   free(Ki);
-  free(buf);
+  od_ec_enc_clear(&enc);
   return bits_used;
 }
 

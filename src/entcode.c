@@ -29,8 +29,8 @@
 ogg_uint32_t od_ec_tell_frac(od_ec_ctx *_this){
   ogg_uint32_t nbits;
   ogg_uint32_t r;
-  int         l;
-  int         i;
+  int          l;
+  int          i;
   /*To handle the non-integral number of bits still left in the encoder/decoder
      state, we compute the worst-case number of bits of val that must be
      encoded to ensure that the value is inside the range for any possible
@@ -44,8 +44,8 @@ ogg_uint32_t od_ec_tell_frac(od_ec_ctx *_this){
     This may help explain the surprising result that a newly initialized
      encoder or decoder claims to have used 1 bit.*/
   nbits=_this->nbits_total<<OD_BITRES;
-  l=OD_ILOG_NZ(_this->rng);
-  r=_this->rng>>(l-16);
+  l=0;
+  r=_this->rng;
   for(i=OD_BITRES;i-->0;){
     int b;
     r=r*r>>15;
