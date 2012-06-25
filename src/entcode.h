@@ -98,12 +98,10 @@ struct od_ec_ctx{
 #define od_ec_tell(/*od_ec_ctx **/_this) \
   (((od_ec_ctx *)(_this))->nbits_total)
 
-/*Returns the number of bits "used" by the encoded or decoded symbols so far.
-  This same number can be computed in either the encoder or the decoder, and is
-   suitable for making coding decisions.
-  Return: The number of bits scaled by 2**OD_BITRES.
-          This will always be slightly larger than the exact value (e.g., all
-           rounding error is in the positive direction).*/
+
+/*See entcode.c for further documentation.*/
+
+
 ogg_uint32_t od_ec_tell_frac(od_ec_ctx *_this);
 
 #endif

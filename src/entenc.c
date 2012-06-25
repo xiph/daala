@@ -54,6 +54,11 @@
 
 
 
+/*Takes updated low and range values, renormalizes them so that
+   32768<=rng<65536 (flushing bytes from low to the pre-carry buffer if
+   necessary), and stores them back in the encoder context.
+  _low: The new value of low.
+  _rng: The new value of the range.*/
 static void od_ec_enc_normalize(od_ec_enc *_this,
  od_ec_window _low,unsigned _rng){
   int nbits_total;
@@ -108,6 +113,8 @@ static void od_ec_enc_normalize(od_ec_enc *_this,
 }
 
 
+/*Initializes the encoder.
+  _size: The initial size of the buffer, in bytes.*/
 void od_ec_enc_init(od_ec_enc *_this,ogg_uint32_t _size){
   od_ec_enc_reset(_this);
   _this->base.buf=(unsigned char *)_ogg_malloc(_size*sizeof(*_this->base.buf));
@@ -125,12 +132,7 @@ void od_ec_enc_init(od_ec_enc *_this,ogg_uint32_t _size){
   }
 }
 
-void od_ec_enc_clear(od_ec_enc *_this){
-  _ogg_free(_this->precarry_buf);
-  _ogg_free(_this->base.buf);
-}
-
-
+/*Reinitializes the encoder.*/
 void od_ec_enc_reset(od_ec_enc *_this){
   _this->base.end_offs=0;
   _this->base.end_window=0;
@@ -144,6 +146,27 @@ void od_ec_enc_reset(od_ec_enc *_this){
   _this->base.error=0;
 }
 
+/*Frees the buffers used by the encoder.*/
+void od_ec_enc_clear(od_ec_enc *_this){
+  _ogg_free(_this->precarry_buf);
+  _ogg_free(_this->base.buf);
+}
+
+
+/*Encodes a symbol given its scaled frequency information.
+  The frequency information must be discernable by the decoder, assuming it
+   has read only the previous symbols from the stream.
+  You can change the frequency information, or even the entire source alphabet,
+   so long as the decoder can tell from the context of the previously encoded
+   information that it is supposed to do so as well.
+  _fl: The cumulative frequency of all symbols that come before the one to be
+        encoded.
+  _fh: The cumulative frequency of all symbols up to and including the one to
+        be encoded.
+       Together with _fl, this defines the range [_fl,_fh) in which the
+        decoded value will fall.
+  _ft: The sum of the frequencies of all the symbols.
+       This must be at least 16384, and no more than 32767.*/
 void od_ec_encode_normalized(od_ec_enc *_this,
  unsigned _fl,unsigned _fh,unsigned _ft){
   od_ec_window l;
@@ -166,6 +189,15 @@ void od_ec_encode_normalized(od_ec_enc *_this,
   od_ec_enc_normalize(_this,l,r);
 }
 
+/*Encodes a symbol given its frequency information with an arbitrary scale.
+  This operates just like od_ec_encode_normalized(), but does not require that
+   _ft be at least 16384.
+  _fl: The cumulative frequency of all symbols that come before the one to be
+        encoded.
+  _fh: The cumulative frequency of all symbols up to and including the one to
+        be encoded.
+  _ft: The sum of the frequencies of all the symbols.
+       This must be no more than 32767.*/
 void od_ec_encode(od_ec_enc *_this,unsigned _fl,unsigned _fh,unsigned _ft){
   int s;
   OD_ASSERT(_ft>=2);
@@ -173,6 +205,12 @@ void od_ec_encode(od_ec_enc *_this,unsigned _fl,unsigned _fh,unsigned _ft){
   od_ec_encode_normalized(_this,_fl<<s,_fh<<s,_ft<<s);
 }
 
+/*Equivalent to od_ec_encode_normalized() with _ft==32768 (which is normally
+   disallowed due to possible 16-bit int overflow).
+  _fl: The cumulative frequency of all symbols that come before the one to be
+        encoded.
+  _fh: The cumulative frequency of all symbols up to and including the one to
+        be encoded.*/
 void od_ec_encode_bin_normalized(od_ec_enc *_this,unsigned _fl,unsigned _fh){
   od_ec_window l;
   unsigned     r;
@@ -189,12 +227,23 @@ void od_ec_encode_bin_normalized(od_ec_enc *_this,unsigned _fl,unsigned _fh){
   od_ec_enc_normalize(_this,l,r);
 }
 
+/*Equivalent to od_ec_encode() with _ft==1<<_ftb (except that _ftb may be as
+   large as 15).
+  _fl:  The cumulative frequency of all symbols that come before the one to be
+         encoded.
+  _fh:  The cumulative frequency of all symbols up to and including the one to
+         be encoded.
+  _ftb: The number of bits of precision in the cumulative distribution.
+        This must be no more than 15.*/
 void od_ec_encode_bin(od_ec_enc *_this,
  unsigned _fl,unsigned _fh,unsigned _ftb){
   od_ec_encode_bin_normalized(_this,_fl<<15-_ftb,_fh<<15-_ftb);
 }
 
-/*The probability of having a "one" is 1/(1<<_logp).*/
+/*Encode a bit that has a 1/(1<<_logp) probability of being a one.
+  _val:  The value to encode (0 or 1).
+  _logp: The negative base-2 log of the probability of being a one.
+         This must be no more than 15.*/
 void od_ec_enc_bit_logp(od_ec_enc *_this,int _val,unsigned _logp){
   od_ec_window l;
   unsigned     r;
@@ -208,6 +257,14 @@ void od_ec_enc_bit_logp(od_ec_enc *_this,int _val,unsigned _logp){
   od_ec_enc_normalize(_this,l,r);
 }
 
+/*Encodes a symbol given an "inverse" CDF table.
+  _s:    The index of the symbol to encode.
+  _icdf: The "inverse" CDF, such that symbol _s falls in the range
+          [_s>0?ft-_icdf[_s-1]:0,ft-_icdf[_s]), where ft=1<<_ftb.
+         The values must be monotonically non-increasing, and the last value
+          must be 0.
+  _ftb: The number of bits of precision in the cumulative distribution.
+        This must be no more than 15.*/
 void od_ec_enc_icdf(od_ec_enc *_this,int _s,
  const unsigned char *_icdf,unsigned _ftb){
   if(_s>0){
@@ -226,11 +283,27 @@ void od_ec_enc_icdf(od_ec_enc *_this,int _s,
   }
 }
 
+/*Encodes a symbol given an "inverse" CDF table.
+  _s:    The index of the symbol to encode.
+  _icdf: The "inverse" CDF, such that symbol _s falls in the range
+          [_s>0?ft-_icdf[_s-1]:0,ft-_icdf[_s]), where ft=1<<_ftb.
+         The values must be monotonically non-increasing, and the last value
+          must be 0.
+  _ft: The total of the cumulative distribution.
+       This must be no more than 32767.*/
 void od_ec_enc_icdf_ft(od_ec_enc *_this,int _s,
  const unsigned char *_icdf,unsigned _ft){
   od_ec_encode(_this,_s>0?_ft-_icdf[_s-1]:0,_ft-_icdf[_s],_ft);
 }
 
+/*Encodes a symbol given an "inverse" CDF table.
+  _s:    The index of the symbol to encode.
+  _icdf: The "inverse" CDF, such that symbol _s falls in the range
+          [_s>0?ft-_icdf[_s-1]:0,ft-_icdf[_s]), where ft=1<<_ftb.
+         The values must be monotonically non-increasing, and the last value
+          must be 0.
+  _ftb: The number of bits of precision in the cumulative distribution.
+        This must be no more than 15.*/
 void od_ec_enc_icdf16(od_ec_enc *_this,int _s,
  const ogg_uint16_t *_icdf,unsigned _ftb){
   if(_s>0){
@@ -249,11 +322,23 @@ void od_ec_enc_icdf16(od_ec_enc *_this,int _s,
   }
 }
 
+/*Encodes a symbol given an "inverse" CDF table.
+  _s:    The index of the symbol to encode.
+  _icdf: The "inverse" CDF, such that symbol _s falls in the range
+          [_s>0?ft-_icdf[_s-1]:0,ft-_icdf[_s]), where ft=1<<_ftb.
+         The values must be monotonically non-increasing, and the last value
+          must be 0.
+  _ft: The total of the cumulative distribution.
+       This must be no more than 32767.*/
 void od_ec_enc_icdf16_ft(od_ec_enc *_this,int _s,
  const ogg_uint16_t *_icdf,unsigned _ft){
   od_ec_encode(_this,_s>0?_ft-_icdf[_s-1]:0,_ft-_icdf[_s],_ft);
 }
 
+/*Encodes a raw unsigned integer in the stream.
+  _fl: The integer to encode.
+  _ft: The number of integers that can be encoded (one more than the max).
+       This must be at least one, and no more than 2**32-1.*/
 void od_ec_enc_uint(od_ec_enc *_this,ogg_uint32_t _fl,ogg_uint32_t _ft){
   if(_ft>1U<<OD_EC_UINT_BITS){
     unsigned ft;
@@ -269,6 +354,10 @@ void od_ec_enc_uint(od_ec_enc *_this,ogg_uint32_t _fl,ogg_uint32_t _ft){
   else od_ec_encode(_this,_fl,_fl+1,_ft);
 }
 
+/*Encodes a sequence of raw bits in the stream.
+  _fl:  The bits to encode.
+  _ftb: The number of bits to encode.
+        This must be between 1 and 25, inclusive.*/
 void od_ec_enc_bits(od_ec_enc *_this,ogg_uint32_t _fl,unsigned _bits){
   od_ec_window end_window;
   int          nend_bits;
@@ -313,6 +402,20 @@ void od_ec_enc_bits(od_ec_enc *_this,ogg_uint32_t _fl,unsigned _bits){
   _this->base.nbits_total+=_bits;
 }
 
+/*Overwrites a few bits at the very start of an existing stream, after they
+   have already been encoded.
+  This makes it possible to have a few flags up front, where it is easy for
+   decoders to access them without parsing the whole stream, even if their
+   values are not determined until late in the encoding process, without having
+   to buffer all the intermediate symbols in the encoder.
+  In order for this to work, at least _nbits bits must have already been
+   encoded using probabilities that are an exact power of two.
+  The encoder can verify the number of encoded bits is sufficient, but cannot
+   check this latter condition.
+  _val:   The bits to encode (in the least _nbits significant bits).
+          They will be decoded in order from most-significant to least.
+  _nbits: The number of bits to overwrite.
+          This must be no more than 8.*/
 void od_ec_enc_patch_initial_bits(od_ec_enc *_this,
  unsigned _val,unsigned _nbits){
   int      shift;
@@ -334,6 +437,12 @@ void od_ec_enc_patch_initial_bits(od_ec_enc *_this,
   else _this->base.error=-1;
 }
 
+/*Indicates that there are no more symbols to encode.
+  All remaining output bytes are flushed to the output buffer.
+  od_ec_enc_reset() should be called before using the encoder again.
+  _bytes: Returns the size of the encoded data in the returned buffer.
+  Return: A pointer to the start of the final buffer, or NULL if there was an
+           encoding error.*/
 unsigned char *od_ec_enc_done(od_ec_enc *_this,ogg_uint32_t *_nbytes){
   unsigned char *out;
   ogg_uint32_t   storage;
@@ -424,5 +533,11 @@ unsigned char *od_ec_enc_done(od_ec_enc *_this,ogg_uint32_t *_nbytes){
   /*Add any remaining raw bits to the last byte.
     There is guaranteed to be enough room, because nend_bits<=s.*/
   if(nend_bits>0)out[end_offs-1]|=(unsigned char)e;
+  /*Note: Unless there's an allocation error, if you keep encoding into the
+     current buffer and call this function again later, everything will work
+     just fine (you won't get a new packet out, but you will get a single
+     buffer with the new data appended to the old).
+    However, this function is O(N) where N is the amount of data coded so far,
+     so calling it more than once for a given packet is a bad idea.*/
   return out;
 }

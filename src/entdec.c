@@ -88,6 +88,14 @@
 
 
 
+/*Takes updated dif and range values, renormalizes them so that
+   32768<=rng<65536 (reading more bytes from the stream into dif if necessary),
+   and stores them back in the decoder context.
+  _dif: The new value of dif.
+  _rng: The new value of the range.
+  _ret: The value to return.
+  Return: _ret.
+          This allows the compiler to jump to this function via a tail-call.*/
 static int od_ec_dec_normalize(od_ec_dec *_this,
  od_ec_window _dif,unsigned _rng,int _ret){
   int nbits_total;
@@ -125,6 +133,9 @@ static int od_ec_dec_normalize(od_ec_dec *_this,
 }
 
 
+/*Initializes the decoder.
+  _buf: The input buffer to use.
+  Return: 0 on success, or a negative value on error.*/
 void od_ec_dec_init(od_ec_dec *_this,
  unsigned char *_buf,ogg_uint32_t _storage){
   od_ec_window dif;
@@ -157,6 +168,21 @@ void od_ec_dec_init(od_ec_dec *_this,
   _this->error=0;
 }
 
+/*Calculates the scaled cumulative frequency for the next symbol given the
+   total frequency count.
+  This can then be fed into the probability model to determine what that
+   symbol is, and the additional frequency information required to advance to
+   the next symbol.
+  This function cannot be called more than once without a corresponding call to
+   od_ec_dec_update(), or decoding will not proceed correctly.
+  _ft: The total frequency of the symbols in the alphabet the next symbol was
+        encoded with.
+       This must be at least 16384 and no more than 32767.
+  Return: A cumulative frequency representing the encoded symbol.
+          If the cumulative frequency of all the symbols before the one that
+           was encoded was fl, and the cumulative frequency of all the symbols
+           up to and including the one encoded is fh, then the returned value
+           will fall in the range [fl,fh).*/
 unsigned od_ec_decode_normalized(od_ec_dec *_this,unsigned _ft){
   unsigned dif;
   unsigned r;
@@ -171,6 +197,14 @@ unsigned od_ec_decode_normalized(od_ec_dec *_this,unsigned _ft){
   return OD_MAXI((int)(dif>>1),(int)(dif-d))>>s;
 }
 
+/*Calculates the cumulative frequency for the next symbol given a total
+   frequency count with an arbitrary scale.
+  This function cannot be called more than once without a corresponding call to
+   od_ec_dec_update(), or decoding will not proceed correctly.
+  _ft: The total frequency of the symbols in the alphabet the next symbol was
+        encoded with.
+       This must be no more than 32767.
+  Return: A cumulative frequency representing the encoded symbol.*/
 unsigned od_ec_decode(od_ec_dec *_this,unsigned _ft){
   unsigned dif;
   unsigned r;
@@ -189,6 +223,11 @@ unsigned od_ec_decode(od_ec_dec *_this,unsigned _ft){
   return OD_MAXI((int)(dif>>1),(int)(dif-d))>>s;
 }
 
+/*Equivalent to od_ec_decode_normalized() with _ft==32768 (which is normally
+   disallowed due to possible 16-bit int overflow).
+  This function cannot be called more than once without a corresponding call to
+   od_ec_dec_update(), or decoding will not proceed correctly.
+  Return: A cumulative frequency representing the encoded symbol.*/
 unsigned od_ec_decode_bin_normalized(od_ec_dec *_this){
   unsigned dif;
   unsigned r;
@@ -200,6 +239,11 @@ unsigned od_ec_decode_bin_normalized(od_ec_dec *_this){
   return OD_MAXI((int)(dif>>1),(int)(dif-d));
 }
 
+/*Equivalent to od_ec_decode() with _ft==1<<_ftb (except that _ftb may be as
+   large as 15).
+  This function cannot be called more than once without a corresponding call to
+   od_ec_dec_update(), or decoding will not proceed correctly.
+  Return: A cumulative frequency representing the encoded symbol.*/
 unsigned od_ec_decode_bin(od_ec_dec *_this,unsigned _ftb){
   unsigned dif;
   unsigned r;
@@ -213,6 +257,21 @@ unsigned od_ec_decode_bin(od_ec_dec *_this,unsigned _ftb){
   return OD_MAXI((int)(dif>>1),(int)(dif-d))>>s;
 }
 
+/*Advance the decoder past the next symbol using the frequency information the
+   symbol was encoded with.
+  Exactly one call to od_ec_decode() must have been made so that all necessary
+   intermediate calculations are performed.
+  _fl:  The cumulative frequency of all symbols that come before the symbol
+         decoded.
+  _fh:  The cumulative frequency of all symbols up to and including the symbol
+         decoded.
+        Together with _fl, this defines the range [_fl,_fh) in which the value
+         returned above must fall.
+  _ft:  The total frequency of the symbols in the alphabet the symbol decoded
+         was encoded in.
+        This must be the same as passed to the preceding call to
+         od_ec_decode() (or the equivalent of what would have been passed, if
+         another variant of that function was used).*/
 void od_ec_dec_update(od_ec_dec *_this,unsigned _fl,unsigned _fh,unsigned _ft){
   od_ec_window dif;
   unsigned     r;
@@ -234,7 +293,11 @@ void od_ec_dec_update(od_ec_dec *_this,unsigned _fl,unsigned _fh,unsigned _ft){
   od_ec_dec_normalize(_this,dif,r,0);
 }
 
-/*The probability of having a "one" is 1/(1<<_logp).*/
+/*Decode a bit that has a 1/(1<<_logp) probability of being a one.
+  No corresponding call to od_ec_dec_update() is necessary after this call.
+  _logp: The negative base-2 log of the probability of being a one.
+         This must be no more than 15.
+  Return: The value decoded (0 or 1).*/
 int od_ec_dec_bit_logp(od_ec_dec *_this,unsigned _logp){
   od_ec_window dif;
   od_ec_window vw;
@@ -252,6 +315,15 @@ int od_ec_dec_bit_logp(od_ec_dec *_this,unsigned _logp){
   return od_ec_dec_normalize(_this,dif,r,ret);
 }
 
+/*Decodes a symbol given an "inverse" CDF table.
+  No corresponding call to od_ec_dec_update() is necessary after this call.
+  _icdf: The "inverse" CDF, such that symbol s falls in the range
+          [s>0?ft-_icdf[s-1]:0,ft-_icdf[s]), where ft=1<<_ftb.
+         The values must be monotonically non-increasing, and the last value
+          must be 0.
+  _ft: The total of the cumulative distribution.
+       This must be no more than 32767.
+  Return: The decoded symbol s.*/
 int od_ec_dec_icdf_ft(od_ec_dec *_this,
  const unsigned char *_icdf,unsigned _ft){
   od_ec_window dif;
@@ -288,8 +360,17 @@ int od_ec_dec_icdf_ft(od_ec_dec *_this,
   return od_ec_dec_normalize(_this,dif,r,ret);
 }
 
+/*Decodes a symbol given an "inverse" CDF table.
+  No corresponding call to od_ec_dec_update() is necessary after this call.
+  _icdf: The "inverse" CDF, such that symbol s falls in the range
+          [s>0?ft-_icdf[s-1]:0,ft-_icdf[s]), where ft=1<<_ftb.
+         The values must be monotonically non-increasing, and the last value
+          must be 0.
+  _ft: The total of the cumulative distribution.
+       This must be no more than 32767.
+  Return: The decoded symbol s.*/
 int od_ec_dec_icdf16_ft(od_ec_dec *_this,
- const unsigned short *_icdf,unsigned _ft){
+ const ogg_uint16_t *_icdf,unsigned _ft){
   od_ec_window dif;
   unsigned     r;
   unsigned     d;
@@ -324,6 +405,15 @@ int od_ec_dec_icdf16_ft(od_ec_dec *_this,
   return od_ec_dec_normalize(_this,dif,r,ret);
 }
 
+/*Decodes a symbol given an "inverse" CDF table.
+  No corresponding call to od_ec_dec_update() is necessary after this call.
+  _icdf: The "inverse" CDF, such that symbol s falls in the range
+          [s>0?ft-_icdf[s-1]:0,ft-_icdf[s]), where ft=1<<_ftb.
+         The values must be monotonically non-increasing, and the last value
+          must be 0.
+  _ftb: The number of bits of precision in the cumulative distribution.
+        This must be no more than 15.
+  Return: The decoded symbol s.*/
 int od_ec_dec_icdf(od_ec_dec *_this,const unsigned char *_icdf,unsigned _ftb){
   od_ec_window dif;
   unsigned     r;
@@ -353,8 +443,16 @@ int od_ec_dec_icdf(od_ec_dec *_this,const unsigned char *_icdf,unsigned _ftb){
   return od_ec_dec_normalize(_this,dif,r,ret);
 }
 
-int od_ec_dec_icdf16(od_ec_dec *_this,
- const unsigned short *_icdf,unsigned _ftb){
+/*Decodes a symbol given an "inverse" CDF table.
+  No corresponding call to od_ec_dec_update() is necessary after this call.
+  _icdf: The "inverse" CDF, such that symbol s falls in the range
+          [s>0?ft-_icdf[s-1]:0,ft-_icdf[s]), where ft=1<<_ftb.
+         The values must be monotonically non-increasing, and the last value
+          must be 0.
+  _ftb: The number of bits of precision in the cumulative distribution.
+        This must be no more than 15.
+  Return: The decoded symbol s.*/
+int od_ec_dec_icdf16(od_ec_dec *_this,const ogg_uint16_t *_icdf,unsigned _ftb){
   od_ec_window dif;
   unsigned     r;
   unsigned     d;
@@ -383,6 +481,12 @@ int od_ec_dec_icdf16(od_ec_dec *_this,
   return od_ec_dec_normalize(_this,dif,r,ret);
 }
 
+/*Extracts a raw unsigned integer with a non-power-of-2 range from the stream.
+  The integer must have been encoded with od_ec_enc_uint().
+  No corresponding call to od_ec_dec_update() is necessary after this call.
+  _ft: The number of integers that can be decoded (one more than the max).
+       This must be at least one, and no more than 2**32-1.
+  Return: The decoded bits.*/
 ogg_uint32_t od_ec_dec_uint(od_ec_dec *_this,ogg_uint32_t _ft){
   unsigned fs;
   if(_ft>1U<<OD_EC_UINT_BITS){
@@ -406,6 +510,12 @@ ogg_uint32_t od_ec_dec_uint(od_ec_dec *_this,ogg_uint32_t _ft){
   }
 }
 
+/*Extracts a sequence of raw bits from the stream.
+  The bits must have been encoded with od_ec_enc_bits().
+  No corresponding call to od_ec_dec_update() is necessary after this call.
+  _ftb: The number of bits to extract.
+        This must be between 0 and 25, inclusive.
+  Return: The decoded bits.*/
 ogg_uint32_t od_ec_dec_bits(od_ec_dec *_this,unsigned _bits){
   od_ec_window window;
   int          available;
