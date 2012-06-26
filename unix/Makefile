@@ -22,8 +22,9 @@ MAKEDEPEND = gcc -MM
 # Modify these to point to your Ogg and Vorbis include directories if they are
 #  not installed in a standard location.
 CINCLUDE = `sdl-config --cflags`
+CFLAGS += -Wall
 # These are gcc-only, but not actually critical.
-CFLAGS = -Wall -Wno-parentheses -Wno-long-long -Wno-overlength-strings
+CFLAGS += -Wextra -Wno-sign-compare -Wno-parentheses -Wno-long-long -Wno-overlength-strings
 CFLAGS += -fvisibility=hidden
 # Extra compilation flags.
 # You may get speed increases by including flags such as -O2 or -O3 or
