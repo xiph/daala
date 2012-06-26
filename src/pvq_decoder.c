@@ -130,7 +130,9 @@ static int laplace_decode(od_ec_dec *dec, int ExQ8, int K)
     int special;
     /* Because of the rounding, there's only half the number of possibilities for xs=0 */
     special=(sym==0);
-    lsb=od_ec_dec_bits(dec,shift-special)-(!special<<(shift-1));
+    if (shift-special>0)
+      lsb=od_ec_dec_bits(dec,shift-special);
+    lsb-=(!special<<(shift-1));
   }
 
   if(sym==15){

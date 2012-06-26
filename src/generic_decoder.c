@@ -72,7 +72,8 @@ int generic_decode(od_ec_dec *dec, GenericEncoder *model, int *ExQ16, int integr
     int special;
     /* Because of the rounding, there's only half the number of possibilities for xs=0 */
     special=(xs==0);
-    lsb=od_ec_dec_bits(dec,shift-special);
+    if (shift-special>0)
+      lsb=od_ec_dec_bits(dec,shift-special);
     lsb-=!special<<(shift-1);
   }
   x = (xs<<shift)+lsb;

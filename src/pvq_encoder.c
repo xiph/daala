@@ -135,7 +135,8 @@ static void laplace_encode(od_ec_enc *enc, int x, int ExQ8, int K)
     int special;
     /* Because of the rounding, there's only half the number of possibilities for xs=0 */
     special=(xs==0);
-    od_ec_enc_bits(enc,x-(xs<<shift)+(!special<<(shift-1)),shift-special);
+    if (shift-special>0)
+      od_ec_enc_bits(enc,x-(xs<<shift)+(!special<<(shift-1)),shift-special);
   }
 
   if(xs>=15){

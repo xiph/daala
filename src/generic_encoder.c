@@ -93,7 +93,8 @@ void generic_encode(od_ec_enc *enc, GenericEncoder *model, int x, int *ExQ16, in
     int special;
     /* Because of the rounding, there's only half the number of possibilities for xs=0 */
     special=(xs==0);
-    od_ec_enc_bits(enc,x-(xs<<shift)+(!special<<(shift-1)),shift-special);
+    if (shift-special>0)
+      od_ec_enc_bits(enc,x-(xs<<shift)+(!special<<(shift-1)),shift-special);
   }
 
   generic_model_update(model,ExQ16,x,xs,id,integration);

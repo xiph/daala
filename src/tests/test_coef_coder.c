@@ -60,7 +60,7 @@ int run_pvq(int *X,int len,int N){
       K += abs(X[i*N+j]);
     Ki[i] = K;
     generic_encode(&enc, &model, K, &EK, 4);
-    if (0)
+    if (K<15)
       pvq_encode_delta(&enc,&X[i*N],N,K,&num2,&den2);
     else
       pvq_encoder(&enc,&X[i*N],N,K,&num,&den,&u);
@@ -96,7 +96,7 @@ int run_pvq(int *X,int len,int N){
     if (K!=Ki[i]){
       fprintf(stderr, "mismatch for K of vector %d (N=%d)\n", i, N);
     }
-    if (0)
+    if (Ki[i]<15)
       pvq_decode_delta(&dec, y, N, Ki[i], &num2, &den2);
     else
       pvq_decoder(&dec, y, N, Ki[i], &num, &den, &u);
