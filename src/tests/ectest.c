@@ -52,9 +52,9 @@ int main(int _argc,char **_argv){
   for(ftb=1;ftb<16;ftb++){
     for(i=0;i<(1<<ftb);i++){
       entropy+=ftb;
-      nbits=od_ec_tell(&enc);
+      nbits=od_ec_enc_tell(&enc);
       od_ec_enc_bits(&enc,i,ftb);
-      nbits2=od_ec_tell(&enc);
+      nbits2=od_ec_enc_tell(&enc);
       if(nbits2-nbits!=ftb){
         fprintf(stderr,"Used %li bits to encode %i bits directly.\n",
          nbits2-nbits,ftb);
@@ -62,7 +62,7 @@ int main(int _argc,char **_argv){
       }
     }
   }
-  nbits=od_ec_tell_frac(&enc.base);
+  nbits=od_ec_enc_tell_frac(&enc);
   ptr=od_ec_enc_done(&enc,&ptr_sz);
   fprintf(stderr,
    "Encoded %0.2f bits of entropy to %0.2f bits (%0.3f%% wasted).\n",
@@ -87,7 +87,7 @@ int main(int _argc,char **_argv){
       }
     }
   }
-  nbits2=od_ec_tell_frac(&dec);
+  nbits2=od_ec_dec_tell_frac(&dec);
   if(nbits!=nbits2){
     fprintf(stderr,
      "Reported number of bits used was %0.2f, should be %0.2f.\n",
@@ -109,35 +109,35 @@ int main(int _argc,char **_argv){
     tell=(unsigned *)malloc((sz+1)*sizeof(*tell));
     od_ec_enc_reset(&enc);
     zeros=rand()%13==0;
-    tell[0]=od_ec_tell_frac(&enc.base);
+    tell[0]=od_ec_enc_tell_frac(&enc);
     for(j=0;j<sz;j++){
       if(zeros)data[j]=0;
       else data[j]=rand()%ft;
       od_ec_enc_uint(&enc,data[j],ft);
-      tell[j+1]=od_ec_tell_frac(&enc.base);
+      tell[j+1]=od_ec_enc_tell_frac(&enc);
     }
     if(!(rand()&1)){
-      while(od_ec_tell(&enc)&7)od_ec_enc_uint(&enc,rand()&1,2);
+      while(od_ec_enc_tell(&enc)&7)od_ec_enc_uint(&enc,rand()&1,2);
     }
-    tell_bits=od_ec_tell(&enc);
+    tell_bits=od_ec_enc_tell(&enc);
     ptr=od_ec_enc_done(&enc,&ptr_sz);
-    if(tell_bits!=(unsigned)od_ec_tell(&enc)){
-      fprintf(stderr,"od_ec_tell() changed after od_ec_enc_done(): "
+    if(tell_bits!=(unsigned)od_ec_enc_tell(&enc)){
+      fprintf(stderr,"od_ec_enc_tell() changed after od_ec_enc_done(): "
        "%u instead of %u (Random seed: %u).\n",
-       (unsigned)od_ec_tell(&enc),tell_bits,seed);
+       (unsigned)od_ec_enc_tell(&enc),tell_bits,seed);
       ret=EXIT_FAILURE;
     }
     if(tell_bits+7>>3<ptr_sz){
-      fprintf(stderr,"od_ec_tell() lied: "
+      fprintf(stderr,"od_ec_enc_tell() lied: "
        "there's %i bytes instead of %i (Random seed: %u).\n",
        ptr_sz,tell_bits+7>>3,seed);
       ret=EXIT_FAILURE;
     }
     od_ec_dec_init(&dec,ptr,ptr_sz);
-    if(od_ec_tell_frac(&dec)!=tell[0]){
-      fprintf(stderr,"od_ec_tell() mismatch between encoder and decoder "
+    if(od_ec_dec_tell_frac(&dec)!=tell[0]){
+      fprintf(stderr,"od_ec_dec_tell() mismatch between encoder and decoder "
        "at symbol %i: %u instead of %u (Random seed: %u).\n",
-       0,(unsigned)od_ec_tell_frac(&dec),tell[0],seed);
+       0,(unsigned)od_ec_dec_tell_frac(&dec),tell[0],seed);
     }
     for(j=0;j<sz;j++){
       sym=od_ec_dec_uint(&dec,ft);
@@ -147,10 +147,10 @@ int main(int _argc,char **_argv){
          sym,data[j],ft,j,sz,seed);
         ret=EXIT_FAILURE;
       }
-      if(od_ec_tell_frac(&dec)!=tell[j+1]){
-        fprintf(stderr,"od_ec_tell() mismatch between encoder and decoder "
+      if(od_ec_dec_tell_frac(&dec)!=tell[j+1]){
+        fprintf(stderr,"od_ec_dec_tell() mismatch between encoder and decoder "
          "at symbol %i: %u instead of %u (Random seed: %u).\n",
-         j+1,(unsigned)od_ec_tell_frac(&dec),tell[j+1],seed);
+         j+1,(unsigned)od_ec_dec_tell_frac(&dec),tell[j+1],seed);
       }
     }
     free(tell);
@@ -171,7 +171,7 @@ int main(int _argc,char **_argv){
     tell=(unsigned *)malloc((sz+1)*sizeof(*tell));
     enc_method=(unsigned *)malloc(sz*sizeof(*enc_method));
     od_ec_enc_reset(&enc);
-    tell[0]=od_ec_tell_frac(&enc.base);
+    tell[0]=od_ec_enc_tell_frac(&enc);
     for(j=0;j<sz;j++){
       data[j]=rand()/((RAND_MAX>>1)+1);
       ftb[j]=(rand()%15)+1;
@@ -197,20 +197,20 @@ int main(int _argc,char **_argv){
           od_ec_enc_icdf16(&enc,data[j],icdf,ftb[j]);
         }break;
       }
-      tell[j+1]=od_ec_tell_frac(&enc.base);
+      tell[j+1]=od_ec_enc_tell_frac(&enc);
     }
     ptr=od_ec_enc_done(&enc,&ptr_sz);
-    if(od_ec_tell(&enc)+7U>>3<ptr_sz){
-      fprintf(stderr,"od_ec_tell() lied: "
+    if(od_ec_enc_tell(&enc)+7U>>3<ptr_sz){
+      fprintf(stderr,"od_ec_enc_tell() lied: "
        "there's %i bytes instead of %i (Random seed: %u).\n",
-       ptr_sz,od_ec_tell(&enc)+7>>3,seed);
+       ptr_sz,od_ec_enc_tell(&enc)+7>>3,seed);
       ret=EXIT_FAILURE;
     }
     od_ec_dec_init(&dec,ptr,ptr_sz);
-    if(od_ec_tell_frac(&dec)!=tell[0]){
-      fprintf(stderr,"od_ec_tell() mismatch between encoder and decoder "
+    if(od_ec_dec_tell_frac(&dec)!=tell[0]){
+      fprintf(stderr,"od_ec_dec_tell() mismatch between encoder and decoder "
        "at symbol %i: %u instead of %u (Random seed: %u).\n",
-       0,(unsigned)od_ec_tell_frac(&dec),tell[0],seed);
+       0,(unsigned)od_ec_dec_tell_frac(&dec),tell[0],seed);
     }
     for(j=0;j<sz;j++){
       unsigned fs;
@@ -247,10 +247,10 @@ int main(int _argc,char **_argv){
          enc_method[j],dec_method);
         ret=EXIT_FAILURE;
       }
-      if(od_ec_tell_frac(&dec)!=tell[j+1]){
-        fprintf(stderr,"od_ec_tell() mismatch between encoder and decoder "
+      if(od_ec_dec_tell_frac(&dec)!=tell[j+1]){
+        fprintf(stderr,"od_ec_dec_tell() mismatch between encoder and decoder "
          "at symbol %i: %u instead of %u (Random seed: %u).\n",
-         j+1,(unsigned)od_ec_tell_frac(&dec),tell[j+1],seed);
+         j+1,(unsigned)od_ec_dec_tell_frac(&dec),tell[j+1],seed);
       }
     }
     free(enc_method);
@@ -266,12 +266,12 @@ int main(int _argc,char **_argv){
   od_ec_enc_bool(&enc,0,16384);
   od_ec_enc_bool(&enc,0,24576);
   od_ec_enc_patch_initial_bits(&enc,3,2);
-  if(enc.base.error){
+  if(enc.error){
     fprintf(stderr,"od_ec_enc_patch_initial_bits() failed.\n");
     ret=EXIT_FAILURE;
   }
   od_ec_enc_patch_initial_bits(&enc,0,5);
-  if(!enc.base.error){
+  if(!enc.error){
     fprintf(stderr,
      "od_ec_enc_patch_initial_bits() didn't fail when it should have.\n");
     ret=EXIT_FAILURE;
@@ -282,7 +282,7 @@ int main(int _argc,char **_argv){
   od_ec_enc_bool(&enc,1,32256);
   od_ec_enc_bool(&enc,0,24576);
   od_ec_enc_patch_initial_bits(&enc,0,2);
-  if(enc.base.error){
+  if(enc.error){
     fprintf(stderr,"od_ec_enc_patch_initial_bits() failed.\n");
     ret=EXIT_FAILURE;
   }

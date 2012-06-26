@@ -61,12 +61,10 @@
   _rng: The new value of the range.*/
 static void od_ec_enc_normalize(od_ec_enc *_this,
  od_ec_window _low,unsigned _rng){
-  int nbits_total;
   int d;
   int c;
   int s;
-  nbits_total=_this->base.nbits_total;
-  c=_this->base.cnt;
+  c=_this->cnt;
   OD_ASSERT(_rng<=65535U);
   d=16-OD_ILOG_NZ(_rng);
   s=c+d;
@@ -82,13 +80,13 @@ static void od_ec_enc_normalize(od_ec_enc *_this,
     unsigned      m;
     buf=_this->precarry_buf;
     storage=_this->precarry_storage;
-    offs=_this->base.offs;
+    offs=_this->offs;
     if(offs>=storage){
       storage=2*storage+2;
       buf=_ogg_realloc(buf,storage*sizeof(*buf));
       if(buf==NULL){
-        _this->base.error=-1;
-        _this->base.offs=0;
+        _this->error=-1;
+        _this->offs=0;
         return;
       }
       _this->precarry_buf=buf;
@@ -107,12 +105,11 @@ static void od_ec_enc_normalize(od_ec_enc *_this,
     buf[offs++]=(ogg_uint16_t)(_low>>c);
     s=c+d-24;
     _low&=m;
-    _this->base.offs=offs;
+    _this->offs=offs;
   }
-  _this->base.nbits_total=nbits_total+d;
-  _this->base.val=_low<<d;
-  _this->base.rng=_rng<<d;
-  _this->base.cnt=s;
+  _this->low=_low<<d;
+  _this->rng=_rng<<d;
+  _this->cnt=s;
 }
 
 
@@ -120,39 +117,39 @@ static void od_ec_enc_normalize(od_ec_enc *_this,
   _size: The initial size of the buffer, in bytes.*/
 void od_ec_enc_init(od_ec_enc *_this,ogg_uint32_t _size){
   od_ec_enc_reset(_this);
-  _this->base.buf=(unsigned char *)_ogg_malloc(_size*sizeof(*_this->base.buf));
-  _this->base.storage=_size;
-  if(_size>0&&_this->base.buf==NULL){
-    _this->base.storage=0;
-    _this->base.error=-1;
+  _this->buf=(unsigned char *)_ogg_malloc(_size*sizeof(*_this->buf));
+  _this->storage=_size;
+  if(_size>0&&_this->buf==NULL){
+    _this->storage=0;
+    _this->error=-1;
   }
   _this->precarry_buf=
    (ogg_uint16_t *)_ogg_malloc(_size*sizeof(*_this->precarry_buf));
   _this->precarry_storage=_size;
   if(_size>0&&_this->precarry_buf==NULL){
     _this->precarry_storage=0;
-    _this->base.error=-1;
+    _this->error=-1;
   }
 }
 
 /*Reinitializes the encoder.*/
 void od_ec_enc_reset(od_ec_enc *_this){
-  _this->base.end_offs=0;
-  _this->base.end_window=0;
-  _this->base.nend_bits=0;
-  /*We reserve one bit for termination.*/
-  _this->base.nbits_total=1;
-  _this->base.offs=0;
-  _this->base.rng=0x8000;
-  _this->base.cnt=-9;
-  _this->base.val=0;
-  _this->base.error=0;
+  _this->end_offs=0;
+  _this->end_window=0;
+  _this->nend_bits=0;
+  _this->offs=0;
+  _this->low=0;
+  _this->rng=0x8000;
+  /*This is initialized to -9 so that it crosses zero after we've accumulated
+     one byte + one carry bit.*/
+  _this->cnt=-9;
+  _this->error=0;
 }
 
 /*Frees the buffers used by the encoder.*/
 void od_ec_enc_clear(od_ec_enc *_this){
   _ogg_free(_this->precarry_buf);
-  _ogg_free(_this->base.buf);
+  _ogg_free(_this->buf);
 }
 
 
@@ -182,8 +179,8 @@ void od_ec_encode_normalized(od_ec_enc *_this,
   OD_ASSERT(_fh<=_ft);
   OD_ASSERT(16384<=_ft);
   OD_ASSERT(_ft<=32768U);
-  l=_this->base.val;
-  r=_this->base.rng;
+  l=_this->low;
+  r=_this->rng;
   s=r-_ft>=_ft;
   _ft<<=s;
   _fl<<=s;
@@ -230,8 +227,8 @@ void od_ec_encode_bin_normalized(od_ec_enc *_this,unsigned _fl,unsigned _fh){
   unsigned     v;
   OD_ASSERT(_fl<_fh);
   OD_ASSERT(_fh<=32768U);
-  l=_this->base.val;
-  r=_this->base.rng;
+  l=_this->low;
+  r=_this->rng;
   OD_ASSERT(32768U<=r);
   d=r-32768U;
   OD_ASSERT(d<32768U);
@@ -263,8 +260,8 @@ void od_ec_enc_bool(od_ec_enc *_this,int _val,unsigned _fz){
   unsigned     v;
   OD_ASSERT(0<_fz);
   OD_ASSERT(_fz<32768U);
-  l=_this->base.val;
-  r=_this->base.rng;
+  l=_this->low;
+  r=_this->rng;
   OD_ASSERT(32768U<=r);
   v=_fz+OD_MINI(_fz,r-32768U);
   if(_val)l+=v;
@@ -294,8 +291,8 @@ void od_ec_enc_icdf(od_ec_enc *_this,int _s,
     od_ec_window l;
     unsigned     r;
     unsigned     d;
-    l=_this->base.val;
-    r=_this->base.rng;
+    l=_this->low;
+    r=_this->rng;
     d=32768U-(_icdf[0]<<15-_ftb);
     OD_ASSERT(32768U<=r);
     r=d+OD_MINI(d,r-32768U);
@@ -341,8 +338,8 @@ void od_ec_enc_icdf16(od_ec_enc *_this,int _s,
     od_ec_window l;
     unsigned     r;
     unsigned     d;
-    l=_this->base.val;
-    r=_this->base.rng;
+    l=_this->low;
+    r=_this->rng;
     d=32768U-(_icdf[0]<<15-_ftb);
     OD_ASSERT(32768U<=r);
     r=d+OD_MINI(d,r-32768U);
@@ -396,31 +393,31 @@ void od_ec_enc_bits(od_ec_enc *_this,ogg_uint32_t _fl,unsigned _ftb){
   int          nend_bits;
   OD_ASSERT(_ftb<=25);
   OD_ASSERT(_fl<(ogg_uint32_t)1<<_ftb);
-  end_window=_this->base.end_window;
-  nend_bits=_this->base.nend_bits;
+  end_window=_this->end_window;
+  nend_bits=_this->nend_bits;
   if(nend_bits+_ftb>OD_EC_WINDOW_SIZE){
     unsigned char *buf;
     ogg_uint32_t   storage;
     ogg_uint32_t   end_offs;
-    buf=_this->base.buf;
-    storage=_this->base.storage;
-    end_offs=_this->base.end_offs;
+    buf=_this->buf;
+    storage=_this->storage;
+    end_offs=_this->end_offs;
     if(end_offs+(OD_EC_WINDOW_SIZE>>3)>=storage){
       unsigned char *new_buf;
       ogg_uint32_t   new_storage;
       new_storage=2*storage+(OD_EC_WINDOW_SIZE>>3);
       new_buf=(unsigned char *)_ogg_malloc(new_storage*sizeof(*new_buf));
       if(new_buf==NULL){
-        _this->base.error=-1;
-        _this->base.end_offs=0;
+        _this->error=-1;
+        _this->end_offs=0;
         return;
       }
       memcpy(new_buf+new_storage-end_offs,buf+storage-end_offs,
        end_offs*sizeof(*new_buf));
       storage=new_storage;
       _ogg_free(buf);
-      _this->base.buf=new_buf;
-      _this->base.storage=storage;
+      _this->buf=new_buf;
+      _this->storage=storage;
     }
     do{
       OD_ASSERT(end_offs<storage);
@@ -429,14 +426,13 @@ void od_ec_enc_bits(od_ec_enc *_this,ogg_uint32_t _fl,unsigned _ftb){
       nend_bits-=8;
     }
     while(nend_bits>=8);
-    _this->base.end_offs=end_offs;
+    _this->end_offs=end_offs;
   }
   OD_ASSERT(nend_bits+_ftb<=OD_EC_WINDOW_SIZE);
   end_window|=(od_ec_window)_fl<<nend_bits;
   nend_bits+=_ftb;
-  _this->base.end_window=end_window;
-  _this->base.nend_bits=nend_bits;
-  _this->base.nbits_total+=_ftb;
+  _this->end_window=end_window;
+  _this->nend_bits=nend_bits;
 }
 
 /*Overwrites a few bits at the very start of an existing stream, after they
@@ -461,18 +457,18 @@ void od_ec_enc_patch_initial_bits(od_ec_enc *_this,unsigned _val,int _nbits){
   OD_ASSERT(_val<1U<<_nbits);
   shift=8-_nbits;
   mask=(1U<<_nbits)-1<<shift;
-  if(_this->base.offs>0){
+  if(_this->offs>0){
     /*The first byte has been finalized.*/
     _this->precarry_buf[0]=
      (ogg_uint16_t)(_this->precarry_buf[0]&~mask|_val<<shift);
   }
-  else if(9+_this->base.cnt+(_this->base.rng==0x8000)>_nbits){
+  else if(9+_this->cnt+(_this->rng==0x8000)>_nbits){
     /*The first byte has yet to be output.*/
-    _this->base.val=(_this->base.val&~((od_ec_window)mask<<16+_this->base.cnt))|
-     (od_ec_window)_val<<16+_this->base.cnt+shift;
+    _this->low=(_this->low&~((od_ec_window)mask<<16+_this->cnt))|
+     (od_ec_window)_val<<16+_this->cnt+shift;
   }
   /*The encoder hasn't even encoded _nbits of data yet.*/
-  else _this->base.error=-1;
+  else _this->error=-1;
 }
 
 /*Indicates that there are no more symbols to encode.
@@ -494,12 +490,12 @@ unsigned char *od_ec_enc_done(od_ec_enc *_this,ogg_uint32_t *_nbytes){
   unsigned       r;
   int            c;
   int            s;
-  if(_this->base.error)return NULL;
+  if(_this->error)return NULL;
   /*We output the minimum number of bits that ensures that the symbols encoded
      thus far will be decoded correctly regardless of the bits that follow.*/
-  l=_this->base.val;
-  r=_this->base.rng;
-  c=_this->base.cnt;
+  l=_this->low;
+  r=_this->rng;
+  c=_this->cnt;
   s=9;
   m=0x7FFF;
   e=l+m&~m;
@@ -509,7 +505,7 @@ unsigned char *od_ec_enc_done(od_ec_enc *_this,ogg_uint32_t *_nbytes){
     e=l+m&~m;
   }
   s+=c;
-  offs=_this->base.offs;
+  offs=_this->offs;
   buf=_this->precarry_buf;
   if(s>0){
     unsigned m;
@@ -518,7 +514,7 @@ unsigned char *od_ec_enc_done(od_ec_enc *_this,ogg_uint32_t *_nbytes){
       storage=storage*2+2;
       buf=(ogg_uint16_t *)_ogg_realloc(buf,storage*sizeof(*buf));
       if(buf==NULL){
-        _this->base.error=-1;
+        _this->error=-1;
         return NULL;
       }
       _this->precarry_buf=buf;
@@ -535,23 +531,23 @@ unsigned char *od_ec_enc_done(od_ec_enc *_this,ogg_uint32_t *_nbytes){
     }
     while(s>0);
   }
-  /*Make sure there's enough room for the range-coder bits and the raw bits.*/
-  out=_this->base.buf;
-  storage=_this->base.storage;
-  end_offs=_this->base.end_offs;
-  e=_this->base.end_window;
-  nend_bits=_this->base.nend_bits;
+  /*Make sure there's enough room for the entropy-coded bits and the raw bits.*/
+  out=_this->buf;
+  storage=_this->storage;
+  end_offs=_this->end_offs;
+  e=_this->end_window;
+  nend_bits=_this->nend_bits;
   s=-s;
   c=OD_MAXI(nend_bits-s>>3,0);
   if(offs+end_offs+c>storage){
     storage=offs+end_offs+c;
     out=(unsigned char *)_ogg_realloc(out,storage*sizeof(*out));
     if(out==NULL){
-      _this->base.error=-1;
+      _this->error=-1;
       return NULL;
     }
-    _this->base.buf=out;
-    _this->base.storage=storage;
+    _this->buf=out;
+    _this->storage=storage;
   }
   /*If we have buffered raw bits, flush them as well.*/
   while(nend_bits>s){
@@ -582,4 +578,26 @@ unsigned char *od_ec_enc_done(od_ec_enc *_this,ogg_uint32_t *_nbytes){
     However, this function is O(N) where N is the amount of data coded so far,
      so calling it more than once for a given packet is a bad idea.*/
   return out;
+}
+
+/*Returns the number of bits "used" by the encoded symbols so far.
+  This same number can be computed in either the encoder or the decoder, and is
+   suitable for making coding decisions.
+  Return: The number of bits.
+          This will always be slightly larger than the exact value (e.g., all
+           rounding error is in the positive direction).*/
+int od_ec_enc_tell(od_ec_enc *_this){
+  /*The 10 here counteracts the offset of -9 baked into cnt, and adds 1 extra
+     bit, which we reserve for terminating the stream.*/
+  return (_this->offs+_this->end_offs)*8+_this->cnt+_this->nend_bits+10;
+}
+
+/*Returns the number of bits "used" by the encoded symbols so far.
+  This same number can be computed in either the encoder or the decoder, and is
+   suitable for making coding decisions.
+  Return: The number of bits scaled by 2**OD_BITRES.
+          This will always be slightly larger than the exact value (e.g., all
+           rounding error is in the positive direction).*/
+ogg_uint32_t od_ec_enc_tell_frac(od_ec_enc *_this){
+  return od_ec_tell_frac(od_ec_enc_tell(_this),_this->rng);
 }

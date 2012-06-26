@@ -26,15 +26,18 @@
 */
 #include "entcode.h"
 
-/*Returns the number of bits "used" by the encoded or decoded symbols so far.
-  This same number can be computed in either the encoder or the decoder, and is
-   suitable for making coding decisions.
+/*Given the current total integer number of bits used and the current value of
+   rng, computes the fraction number of bits used to OD_BITRES precision.
+  This is used by od_ec_enc_tell_frac() and od_ec_dec_tell_frac().
+  _nbits_total: The number of whole bits currently used, i.e., the value
+                 returned by od_ec_enc_tell() or od_ec_dec_tell().
+  _rng:         The current value of rng from either the encoder or decoder
+                 state.
   Return: The number of bits scaled by 2**OD_BITRES.
           This will always be slightly larger than the exact value (e.g., all
            rounding error is in the positive direction).*/
-ogg_uint32_t od_ec_tell_frac(od_ec_ctx *_this){
+ogg_uint32_t od_ec_tell_frac(ogg_uint32_t _nbits_total,ogg_uint32_t _rng){
   ogg_uint32_t nbits;
-  ogg_uint32_t r;
   int          l;
   int          i;
   /*To handle the non-integral number of bits still left in the encoder/decoder
@@ -49,15 +52,14 @@ ogg_uint32_t od_ec_tell_frac(od_ec_ctx *_this){
      probability of 1/(1<<n) might sometimes appear to use more than n bits.
     This may help explain the surprising result that a newly initialized
      encoder or decoder claims to have used 1 bit.*/
-  nbits=_this->nbits_total<<OD_BITRES;
+  nbits=_nbits_total<<OD_BITRES;
   l=0;
-  r=_this->rng;
   for(i=OD_BITRES;i-->0;){
     int b;
-    r=r*r>>15;
-    b=(int)(r>>16);
+    _rng=_rng*_rng>>15;
+    b=(int)(_rng>>16);
     l=l<<1|b;
-    r>>=b;
+    _rng>>=b;
   }
   return nbits-l;
 }

@@ -31,7 +31,42 @@
 
 
 
-typedef struct od_ec_ctx od_ec_dec;
+typedef struct od_ec_dec od_ec_dec;
+
+
+
+/*The entropy decoder context.*/
+struct od_ec_dec{
+  /*The start of the current input buffer.*/
+  const unsigned char *buf;
+  /*The read pointer for the raw bits.*/
+  const unsigned char *eptr;
+  /*Bits that will be read from/written at the end.*/
+  od_ec_window         end_window;
+  /*Number of valid bits in end_window.*/
+  int                  nend_bits;
+  /*An offset used to keep track of tell after reaching the end of the stream.
+    This is constant throughout most of the decoding process, but becomes
+     important once we hit the end of the buffer and stop incrementing pointers
+     (and instead pretend cnt/nend_bits have lots of bits).*/
+  ogg_int32_t          tell_offs;
+  /*The end of the current input buffer.*/
+  const unsigned char *end;
+  /*The read pointer for the entropy-coded bits.*/
+  const unsigned char *bptr;
+  /*The difference between the coded value and the low end of the current
+     range.*/
+  od_ec_window         dif;
+  /*The number of values in the current range.*/
+  ogg_uint16_t         rng;
+  /*The number of bits of data in the current value.*/
+  ogg_int16_t          cnt;
+  /*The saved normalization factor from od_ec_decode().*/
+  ogg_uint32_t         ext;
+  /*Nonzero if an error occurred.*/
+  int                  error;
+};
+
 
 
 
@@ -39,7 +74,7 @@ typedef struct od_ec_ctx od_ec_dec;
 
 
 void od_ec_dec_init(od_ec_dec *_this,
- unsigned char *_buf,ogg_uint32_t _storage);
+ const unsigned char *_buf,ogg_uint32_t _storage);
 
 unsigned od_ec_decode(od_ec_dec *_this,unsigned _ft);
 unsigned od_ec_decode_bin(od_ec_dec *_this,unsigned _ftb);
@@ -57,5 +92,8 @@ int od_ec_dec_icdf16(od_ec_dec *_this,const ogg_uint16_t *_icdf,unsigned _ftb);
 ogg_uint32_t od_ec_dec_uint(od_ec_dec *_this,ogg_uint32_t _ft);
 
 ogg_uint32_t od_ec_dec_bits(od_ec_dec *_this,unsigned _ftb);
+
+int od_ec_dec_tell(od_ec_dec *_this);
+ogg_uint32_t od_ec_dec_tell_frac(od_ec_dec *_this);
 
 #endif

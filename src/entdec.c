@@ -47,7 +47,7 @@
   End of stream is handled by writing out the smallest number of bits that
    ensures that the stream will be correctly decoded regardless of the value of
    any subsequent bits.
-  od_ec_tell() can be used to determine how many bits were needed to decode
+  od_ec_dec_tell() can be used to determine how many bits were needed to decode
    all the symbols thus far; other data can be packed in the remaining bits of
    the input buffer.
   @PHDTHESIS{Pas76,
@@ -98,37 +98,33 @@
           This allows the compiler to jump to this function via a tail-call.*/
 static int od_ec_dec_normalize(od_ec_dec *_this,
  od_ec_window _dif,unsigned _rng,int _ret){
-  int nbits_total;
   int d;
   int c;
   int s;
-  nbits_total=_this->nbits_total;
   c=_this->cnt;
   OD_ASSERT(_rng<=65535U);
   d=16-OD_ILOG_NZ(_rng);
   c-=d;
   _dif<<=d;
   if(c<0){
-    const unsigned char *buf;
-    ogg_uint32_t         storage;
-    ogg_uint32_t         offs;
-    buf=_this->buf;
-    storage=_this->storage;
-    offs=_this->offs;
+    const unsigned char *end;
+    const unsigned char *bptr;
+    end=_this->end;
+    bptr=_this->bptr;
     for(s=OD_EC_WINDOW_SIZE-9-(c+15);s>=0;){
       OD_ASSERT(s<=OD_EC_WINDOW_SIZE-8);
-      if(offs>=storage){
+      if(bptr>=end){
+        _this->tell_offs+=OD_EC_LOTS_OF_BITS-c;
         c=OD_EC_LOTS_OF_BITS;
         break;
       }
-      _dif|=(od_ec_window)buf[offs++]<<s;
+      _dif|=(od_ec_window)*bptr++<<s;
       c+=8;
       s-=8;
     }
-    _this->offs=offs;
+    _this->bptr=bptr;
   }
-  _this->nbits_total=nbits_total+d;
-  _this->val=_dif;
+  _this->dif=_dif;
   _this->rng=_rng<<d;
   _this->cnt=c;
   return _ret;
@@ -139,16 +135,19 @@ static int od_ec_dec_normalize(od_ec_dec *_this,
   _buf: The input buffer to use.
   Return: 0 on success, or a negative value on error.*/
 void od_ec_dec_init(od_ec_dec *_this,
- unsigned char *_buf,ogg_uint32_t _storage){
+ const unsigned char *_buf,ogg_uint32_t _storage){
   od_ec_window dif;
   ogg_uint32_t offs;
+  ogg_int32_t  tell_offs;
   int          c;
   int          s;
+  tell_offs=10-(OD_EC_WINDOW_SIZE-8);
   offs=0;
   dif=0;
   c=-15;
   for(s=OD_EC_WINDOW_SIZE-9;s>=0;){
     if(offs>=_storage){
+      tell_offs+=OD_EC_LOTS_OF_BITS-c;
       c=OD_EC_LOTS_OF_BITS;
       break;
     }
@@ -157,16 +156,15 @@ void od_ec_dec_init(od_ec_dec *_this,
     s-=8;
   }
   _this->buf=_buf;
-  _this->storage=_storage;
-  _this->end_offs=0;
+  _this->eptr=_buf+_storage;
   _this->end_window=0;
   _this->nend_bits=0;
-  /*We reserve one bit for termination.*/
-  _this->nbits_total=1;
-  _this->offs=offs;
+  _this->tell_offs=tell_offs;
+  _this->end=_buf+_storage;
+  _this->bptr=_buf+offs;
+  _this->dif=dif;
   _this->rng=0x8000;
   _this->cnt=c;
-  _this->val=dif;
   _this->error=0;
 }
 
@@ -192,7 +190,7 @@ unsigned od_ec_decode_normalized(od_ec_dec *_this,unsigned _ft){
   int      s;
   OD_ASSERT(16384<=_ft);
   OD_ASSERT(_ft<=32768U);
-  dif=(unsigned)(_this->val>>OD_EC_WINDOW_SIZE-16);
+  dif=(unsigned)(_this->dif>>OD_EC_WINDOW_SIZE-16);
   r=_this->rng;
   OD_ASSERT(dif<r);
   OD_ASSERT(_ft<=r);
@@ -219,7 +217,7 @@ unsigned od_ec_decode(od_ec_dec *_this,unsigned _ft){
   int      s;
   OD_ASSERT(2<=_ft);
   OD_ASSERT(_ft<=32768U);
-  dif=(unsigned)(_this->val>>OD_EC_WINDOW_SIZE-16);
+  dif=(unsigned)(_this->dif>>OD_EC_WINDOW_SIZE-16);
   r=_this->rng;
   OD_ASSERT(dif<r);
   s=15-OD_ILOG_NZ(_ft-1);
@@ -244,7 +242,7 @@ unsigned od_ec_decode_bin_normalized(od_ec_dec *_this){
   unsigned dif;
   unsigned r;
   unsigned d;
-  dif=(unsigned)(_this->val>>OD_EC_WINDOW_SIZE-16);
+  dif=(unsigned)(_this->dif>>OD_EC_WINDOW_SIZE-16);
   r=_this->rng;
   OD_ASSERT(dif<r);
   OD_ASSERT(32768U<=r);
@@ -264,7 +262,7 @@ unsigned od_ec_decode_bin(od_ec_dec *_this,unsigned _ftb){
   unsigned r;
   unsigned d;
   int      s;
-  dif=(unsigned)(_this->val>>OD_EC_WINDOW_SIZE-16);
+  dif=(unsigned)(_this->dif>>OD_EC_WINDOW_SIZE-16);
   r=_this->rng;
   OD_ASSERT(dif<r);
   OD_ASSERT(32768U<=r);
@@ -302,7 +300,7 @@ void od_ec_dec_update(od_ec_dec *_this,unsigned _fl,unsigned _fh,unsigned _ft){
   OD_ASSERT(_fh<=_ft);
   OD_ASSERT(0<_ft);
   OD_ASSERT(_ft<=32768U);
-  dif=_this->val;
+  dif=_this->dif;
   r=_this->rng;
   OD_ASSERT(dif>>OD_EC_WINDOW_SIZE-16<r);
   s=(int)_this->ext;
@@ -337,7 +335,7 @@ int od_ec_dec_bool(od_ec_dec *_this,unsigned _fz){
   int          ret;
   OD_ASSERT(0<_fz);
   OD_ASSERT(_fz<32768U);
-  dif=_this->val;
+  dif=_this->dif;
   r=_this->rng;
   OD_ASSERT(dif>>OD_EC_WINDOW_SIZE-16<r);
   OD_ASSERT(32768U<=r);
@@ -371,7 +369,7 @@ int od_ec_dec_icdf_ft(od_ec_dec *_this,
   unsigned     fh;
   unsigned     ft;
   int          ret;
-  dif=_this->val;
+  dif=_this->dif;
   r=_this->rng;
   OD_ASSERT(dif>>OD_EC_WINDOW_SIZE-16<r);
   OD_ASSERT(2<=_ft);
@@ -423,7 +421,7 @@ int od_ec_dec_icdf16_ft(od_ec_dec *_this,
   unsigned     fh;
   unsigned     ft;
   int          ret;
-  dif=_this->val;
+  dif=_this->dif;
   r=_this->rng;
   OD_ASSERT(dif>>OD_EC_WINDOW_SIZE-16<r);
   OD_ASSERT(2<=_ft);
@@ -473,7 +471,7 @@ int od_ec_dec_icdf(od_ec_dec *_this,const unsigned char *_icdf,unsigned _ftb){
   unsigned     fl;
   unsigned     fh;
   int          ret;
-  dif=_this->val;
+  dif=_this->dif;
   r=_this->rng;
   OD_ASSERT(dif>>OD_EC_WINDOW_SIZE-16<r);
   OD_ASSERT(_ftb<=15);
@@ -517,7 +515,7 @@ int od_ec_dec_icdf16(od_ec_dec *_this,const ogg_uint16_t *_icdf,unsigned _ftb){
   unsigned     fl;
   unsigned     fh;
   int          ret;
-  dif=_this->val;
+  dif=_this->dif;
   r=_this->rng;
   OD_ASSERT(dif>>OD_EC_WINDOW_SIZE-16<r);
   OD_ASSERT(_ftb<=15);
@@ -586,28 +584,46 @@ ogg_uint32_t od_ec_dec_bits(od_ec_dec *_this,unsigned _ftb){
   available=_this->nend_bits;
   if((unsigned)available<_ftb){
     const unsigned char *buf;
-    ogg_uint32_t         end_offs;
-    ogg_uint32_t         storage;
+    const unsigned char *eptr;
     buf=_this->buf;
-    end_offs=_this->end_offs;
-    storage=_this->storage;
+    eptr=_this->eptr;
     OD_ASSERT(available<=OD_EC_WINDOW_SIZE-8);
     do{
-      if(end_offs>=storage){
+      if(eptr<=buf){
+        _this->tell_offs+=OD_EC_LOTS_OF_BITS-available;
         available=OD_EC_LOTS_OF_BITS;
         break;
       }
-      window|=buf[storage-++end_offs]<<available;
+      window|=*--eptr<<available;
       available+=8;
     }
     while(available<=OD_EC_WINDOW_SIZE-8);
-    _this->end_offs=end_offs;
+    _this->eptr=eptr;
   }
   ret=(ogg_uint32_t)window&((ogg_uint32_t)1<<_ftb)-1U;
   window>>=_ftb;
   available-=_ftb;
   _this->end_window=window;
   _this->nend_bits=available;
-  _this->nbits_total+=_ftb;
   return ret;
+}
+
+/*Returns the number of bits "used" by the decoded symbols so far.
+  This same number can be computed in either the encoder or the decoder, and is
+   suitable for making coding decisions.
+  Return: The number of bits.
+          This will always be slightly larger than the exact value (e.g., all
+           rounding error is in the positive direction).*/
+int od_ec_dec_tell(od_ec_dec *_this){
+  return ((_this->end-_this->eptr)+(_this->bptr-_this->buf))*8-_this->cnt-_this->nend_bits+_this->tell_offs;
+}
+
+/*Returns the number of bits "used" by the decoded symbols so far.
+  This same number can be computed in either the encoder or the decoder, and is
+   suitable for making coding decisions.
+  Return: The number of bits scaled by 2**OD_BITRES.
+          This will always be slightly larger than the exact value (e.g., all
+           rounding error is in the positive direction).*/
+ogg_uint32_t od_ec_dec_tell_frac(od_ec_dec *_this){
+  return od_ec_tell_frac(od_ec_dec_tell(_this),_this->rng);
 }

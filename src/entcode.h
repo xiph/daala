@@ -35,7 +35,6 @@
 /*OPT: od_ec_window must be at least 32 bits, but if you have fast arithmetic
    on a larger type, you can speed up the decoder by using it here.*/
 typedef ogg_uint32_t     od_ec_window;
-typedef struct od_ec_ctx od_ec_ctx;
 
 
 
@@ -50,58 +49,9 @@ typedef struct od_ec_ctx od_ec_ctx;
 
 
 
-/*The entropy encoder/decoder context.
-  This serves both as a decoder context and as the base for an encoder context,
-   so that common functions like od_ec_tell() can be used on either one.*/
-struct od_ec_ctx{
-   /*Buffered input/output.*/
-   unsigned char *buf;
-   /*The size of the buffer.*/
-   ogg_uint32_t   storage;
-   /*The offset at which the last byte containing raw bits was read/written.*/
-   ogg_uint32_t   end_offs;
-   /*Bits that will be read from/written at the end.*/
-   od_ec_window   end_window;
-   /*Number of valid bits in end_window.*/
-   int            nend_bits;
-   /*The total number of whole bits read/written.
-     This does not include partial bits currently in the range coder.*/
-   int            nbits_total;
-   /*The offset at which the next range coder byte will be read/written.*/
-   ogg_uint32_t   offs;
-   /*In the decoder: the difference between the top of the current range and
-      the input value, minus one.
-     In the encoder: the low end of the current range.*/
-   od_ec_window   val;
-   /*The number of values in the current range.*/
-   ogg_uint16_t   rng;
-   /*The number of bits of data in the current value.*/
-   ogg_int16_t    cnt;
-   /*Decoder-only: the saved normalization factor from od_ec_decode().*/
-   ogg_uint32_t   ext;
-   /*Nonzero if an error occurred.*/
-   int            error;
-};
-
-#define od_ec_range_bytes(/*od_ec_ctx **/_this) \
- (((od_ec_ctx *)(_this))->offs)
-
-#define od_ec_get_error(/*od_ec_ctx **/_this) \
- (((od_ec_ctx *)(_this))->error)
-
-/*Returns the number of bits "used" by the encoded or decoded symbols so far.
-  This same number can be computed in either the encoder or the decoder, and is
-   suitable for making coding decisions.
-  Return: The number of bits.
-          This will always be slightly larger than the exact value (e.g., all
-           rounding error is in the positive direction).*/
-#define od_ec_tell(/*od_ec_ctx **/_this) \
-  (((od_ec_ctx *)(_this))->nbits_total)
-
-
 /*See entcode.c for further documentation.*/
 
 
-ogg_uint32_t od_ec_tell_frac(od_ec_ctx *_this);
+ogg_uint32_t od_ec_tell_frac(ogg_uint32_t _nbits_total,ogg_uint32_t _rng);
 
 #endif

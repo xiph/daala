@@ -25,6 +25,7 @@
 #include "../generic_decoder.c"
 #include "../entenc.c"
 #include "../entdec.c"
+#include "../entcode.c"
 #include "../icdf_table.c"
 #include "../internal.c"
 #include <stdlib.h>
@@ -69,15 +70,15 @@ int run_pvq(int *X,int len,int N){
     {
       fprintf(stderr, "enc: K[%d]=%d, num=%d, den=%d, u=%d\n", i, Ki[i], num, den, u);
     }*/
-    if(od_ec_tell(&enc)>=EC_BUF_SIZE<<3){
-      fprintf(stderr,"bits used: %d\n", od_ec_tell(&enc));
+    if(od_ec_enc_tell(&enc)>=EC_BUF_SIZE<<3){
+      fprintf(stderr,"bits used: %d\n", od_ec_enc_tell(&enc));
     }
-    OD_ASSERT2(od_ec_tell(&enc)<EC_BUF_SIZE<<3,"used too many bits");
-    OD_ASSERT(!od_ec_get_error(&enc));
+    OD_ASSERT2(od_ec_enc_tell(&enc)<EC_BUF_SIZE<<3,"used too many bits");
+    OD_ASSERT(!enc.error);
   }
   buf = od_ec_enc_done(&enc, &buf_sz);
 
-  bits_used = od_ec_tell(&enc);
+  bits_used = od_ec_enc_tell(&enc);
 
   num = 650*4;
   den = 256*4;
