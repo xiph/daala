@@ -24,7 +24,7 @@ MAKEDEPEND = gcc -MM
 CINCLUDE = `sdl-config --cflags`
 CFLAGS += -Wall
 # These are gcc-only, but not actually critical.
-CFLAGS += -Wextra -Wno-sign-compare -Wno-parentheses -Wno-long-long -Wno-overlength-strings
+CFLAGS += -Wextra -Wno-parentheses -Wno-long-long -Wno-overlength-strings
 CFLAGS += -fvisibility=hidden
 # Extra compilation flags.
 # You may get speed increases by including flags such as -O2 or -O3 or

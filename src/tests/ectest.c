@@ -213,8 +213,8 @@ int main(int _argc,char **_argv){
        0,(unsigned)od_ec_tell_frac(&dec),tell[0],seed);
     }
     for(j=0;j<sz;j++){
-      int fs;
-      int dec_method;
+      unsigned fs;
+      int      dec_method;
       dec_method=rand()/((RAND_MAX>>2)+1);
       switch(dec_method){
         case 0:{

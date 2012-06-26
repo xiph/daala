@@ -453,14 +453,14 @@ void od_ec_enc_bits(od_ec_enc *_this,ogg_uint32_t _fl,unsigned _ftb){
           They will be decoded in order from most-significant to least.
   _nbits: The number of bits to overwrite.
           This must be no more than 8.*/
-void od_ec_enc_patch_initial_bits(od_ec_enc *_this,
- unsigned _val,unsigned _nbits){
+void od_ec_enc_patch_initial_bits(od_ec_enc *_this,unsigned _val,int _nbits){
   int      shift;
   unsigned mask;
+  OD_ASSERT(_nbits>=0);
   OD_ASSERT(_nbits<=8);
   OD_ASSERT(_val<1U<<_nbits);
   shift=8-_nbits;
-  mask=(1<<_nbits)-1<<shift;
+  mask=(1U<<_nbits)-1<<shift;
   if(_this->base.offs>0){
     /*The first byte has been finalized.*/
     _this->precarry_buf[0]=

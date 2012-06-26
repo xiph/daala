@@ -122,8 +122,8 @@ struct od_img_plane{
 struct od_img{
   od_img_plane *planes;
   int           nplanes;
-  int           width;
-  int           height;
+  ogg_int32_t   width;
+  ogg_int32_t   height;
 };
 
 struct daala_comp{
@@ -135,18 +135,18 @@ struct daala_info{
   unsigned char  version_major;
   unsigned char  version_minor;
   unsigned char  version_sub;
-  ogg_uint32_t   frame_width;
-  ogg_uint32_t   frame_height;
-  ogg_uint32_t   pic_x;
-  ogg_uint32_t   pic_y;
-  ogg_uint32_t   pic_width;
-  ogg_uint32_t   pic_height;
+  ogg_int32_t    frame_width;
+  ogg_int32_t    frame_height;
+  ogg_int32_t    pic_x;
+  ogg_int32_t    pic_y;
+  ogg_int32_t    pic_width;
+  ogg_int32_t    pic_height;
   ogg_uint32_t   pixel_aspect_numerator;
   ogg_uint32_t   pixel_aspect_denominator;
   ogg_uint32_t   timebase_numerator;
   ogg_uint32_t   timebase_denominator;
   ogg_uint32_t   frame_duration;
-  unsigned       keyframe_granule_shift;
+  int            keyframe_granule_shift;
   int            ncomps;
   daala_comp    *comps;
 };

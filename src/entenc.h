@@ -69,8 +69,7 @@ void od_ec_enc_uint(od_ec_enc *_this,ogg_uint32_t _fl,ogg_uint32_t _ft);
 
 void od_ec_enc_bits(od_ec_enc *_this,ogg_uint32_t _fl,unsigned _ftb);
 
-void od_ec_enc_patch_initial_bits(od_ec_enc *_this,
- unsigned _val,unsigned _nbits);
+void od_ec_enc_patch_initial_bits(od_ec_enc *_this,unsigned _val,int _nbits);
 unsigned char *od_ec_enc_done(od_ec_enc *_this,ogg_uint32_t *_nbytes);
 
 #endif

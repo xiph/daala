@@ -314,9 +314,9 @@ void od_ec_dec_update(od_ec_dec *_this,unsigned _fl,unsigned _fh,unsigned _ft){
   OD_ASSERT(_ft<=r);
   d=r-_ft;
   OD_ASSERT(d<_ft);
-  OD_ASSERT(_fl<=OD_MAXI((int)(dif>>OD_EC_WINDOW_SIZE-15),
+  OD_ASSERT(_fl<=(unsigned)OD_MAXI((int)(dif>>OD_EC_WINDOW_SIZE-15),
    (int)((dif>>OD_EC_WINDOW_SIZE-16)-d)));
-  OD_ASSERT(OD_MAXI((int)(dif>>OD_EC_WINDOW_SIZE-15),
+  OD_ASSERT((unsigned)OD_MAXI((int)(dif>>OD_EC_WINDOW_SIZE-15),
    (int)((dif>>OD_EC_WINDOW_SIZE-16)-d))<_fh);
   u=_fl+OD_MINI(_fl,d);
   v=_fh+OD_MINI(_fh,d);
