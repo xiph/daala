@@ -580,8 +580,8 @@ ogg_uint32_t od_ec_dec_uint(od_ec_dec *_this,ogg_uint32_t _ft){
 ogg_uint32_t od_ec_dec_bits(od_ec_dec *_this,unsigned _ftb){
   od_ec_window window;
   int          available;
-  OD_ASSERT(_ftb<=25);
   ogg_uint32_t ret;
+  OD_ASSERT(_ftb<=25);
   window=_this->end_window;
   available=_this->nend_bits;
   if((unsigned)available<_ftb){
