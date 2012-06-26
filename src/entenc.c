@@ -67,6 +67,7 @@ static void od_ec_enc_normalize(od_ec_enc *_this,
   int s;
   nbits_total=_this->base.nbits_total;
   c=_this->base.cnt;
+  OD_ASSERT(_rng<=65535U);
   d=16-OD_ILOG_NZ(_rng);
   s=c+d;
   /*TODO: Right now we flush every time we have at least one byte available.
@@ -96,11 +97,13 @@ static void od_ec_enc_normalize(od_ec_enc *_this,
     c+=16;
     m=(1<<c)-1;
     if(s>=8){
+      OD_ASSERT(offs<storage);
       buf[offs++]=(ogg_uint16_t)(_low>>c);
       _low&=m;
       c-=8;
       m>>=8;
     }
+    OD_ASSERT(offs<storage);
     buf[offs++]=(ogg_uint16_t)(_low>>c);
     s=c+d-24;
     _low&=m;
@@ -166,7 +169,7 @@ void od_ec_enc_clear(od_ec_enc *_this){
        Together with _fl, this defines the range [_fl,_fh) in which the
         decoded value will fall.
   _ft: The sum of the frequencies of all the symbols.
-       This must be at least 16384, and no more than 32767.*/
+       This must be at least 16384, and no more than 32768.*/
 void od_ec_encode_normalized(od_ec_enc *_this,
  unsigned _fl,unsigned _fh,unsigned _ft){
   od_ec_window l;
@@ -175,13 +178,19 @@ void od_ec_encode_normalized(od_ec_enc *_this,
   unsigned     d;
   unsigned     u;
   unsigned     v;
+  OD_ASSERT(_fl<_fh);
+  OD_ASSERT(_fh<=_ft);
+  OD_ASSERT(16384<=_ft);
+  OD_ASSERT(_ft<=32768U);
   l=_this->base.val;
   r=_this->base.rng;
-  s=r>=_ft<<1;
+  s=r-_ft>=_ft;
   _ft<<=s;
   _fl<<=s;
   _fh<<=s;
+  OD_ASSERT(_ft<=r);
   d=r-_ft;
+  OD_ASSERT(d<_ft);
   u=_fl+OD_MINI(_fl,d);
   v=_fh+OD_MINI(_fh,d);
   r=v-u;
@@ -197,16 +206,18 @@ void od_ec_encode_normalized(od_ec_enc *_this,
   _fh: The cumulative frequency of all symbols up to and including the one to
         be encoded.
   _ft: The sum of the frequencies of all the symbols.
-       This must be no more than 32767.*/
+       This must be at least 2 and no more than 32768.*/
 void od_ec_encode(od_ec_enc *_this,unsigned _fl,unsigned _fh,unsigned _ft){
   int s;
-  OD_ASSERT(_ft>=2);
+  OD_ASSERT(_fl<_fh);
+  OD_ASSERT(_fh<=_ft);
+  OD_ASSERT(2<=_ft);
+  OD_ASSERT(_ft<=32768U);
   s=15-OD_ILOG_NZ(_ft-1);
   od_ec_encode_normalized(_this,_fl<<s,_fh<<s,_ft<<s);
 }
 
-/*Equivalent to od_ec_encode_normalized() with _ft==32768 (which is normally
-   disallowed due to possible 16-bit int overflow).
+/*Equivalent to od_ec_encode_normalized() with _ft==32768.
   _fl: The cumulative frequency of all symbols that come before the one to be
         encoded.
   _fh: The cumulative frequency of all symbols up to and including the one to
@@ -217,9 +228,13 @@ void od_ec_encode_bin_normalized(od_ec_enc *_this,unsigned _fl,unsigned _fh){
   unsigned     d;
   unsigned     u;
   unsigned     v;
+  OD_ASSERT(_fl<_fh);
+  OD_ASSERT(_fh<=32768U);
   l=_this->base.val;
   r=_this->base.rng;
+  OD_ASSERT(32768U<=r);
   d=r-32768U;
+  OD_ASSERT(d<32768U);
   u=_fl+OD_MINI(_fl,d);
   v=_fh+OD_MINI(_fh,d);
   r=v-u;
@@ -227,8 +242,7 @@ void od_ec_encode_bin_normalized(od_ec_enc *_this,unsigned _fl,unsigned _fh){
   od_ec_enc_normalize(_this,l,r);
 }
 
-/*Equivalent to od_ec_encode() with _ft==1<<_ftb (except that _ftb may be as
-   large as 15).
+/*Equivalent to od_ec_encode() with _ft==1<<_ftb.
   _fl:  The cumulative frequency of all symbols that come before the one to be
          encoded.
   _fh:  The cumulative frequency of all symbols up to and including the one to
@@ -248,9 +262,11 @@ void od_ec_enc_bit_logp(od_ec_enc *_this,int _val,unsigned _logp){
   od_ec_window l;
   unsigned     r;
   unsigned     v;
+  OD_ASSERT(_logp<=15);
   l=_this->base.val;
   r=_this->base.rng;
   v=32768U-(1<<15-_logp);
+  OD_ASSERT(32768U<=r);
   v+=OD_MINI(v,r-32768U);
   if(_val)l+=v;
   r=_val?r-v:v;
@@ -267,7 +283,11 @@ void od_ec_enc_bit_logp(od_ec_enc *_this,int _val,unsigned _logp){
         This must be no more than 15.*/
 void od_ec_enc_icdf(od_ec_enc *_this,int _s,
  const unsigned char *_icdf,unsigned _ftb){
+  OD_ASSERT(_s>=0);
+  OD_ASSERT(_ftb<=15);
+  OD_ASSERT(_icdf[_s]<=1<<_ftb);
   if(_s>0){
+    OD_ASSERT(_icdf[_s-1]<=1<<_ftb);
     od_ec_encode_bin_normalized(_this,32768U-(_icdf[_s-1]<<15-_ftb),
      32768U-(_icdf[_s]<<15-_ftb));
   }
@@ -278,6 +298,7 @@ void od_ec_enc_icdf(od_ec_enc *_this,int _s,
     l=_this->base.val;
     r=_this->base.rng;
     d=32768U-(_icdf[0]<<15-_ftb);
+    OD_ASSERT(32768U<=r);
     r=d+OD_MINI(d,r-32768U);
     od_ec_enc_normalize(_this,l,r);
   }
@@ -290,9 +311,12 @@ void od_ec_enc_icdf(od_ec_enc *_this,int _s,
          The values must be monotonically non-increasing, and the last value
           must be 0.
   _ft: The total of the cumulative distribution.
-       This must be no more than 32767.*/
+       This must be no more than 32768.*/
 void od_ec_enc_icdf_ft(od_ec_enc *_this,int _s,
  const unsigned char *_icdf,unsigned _ft){
+  OD_ASSERT(_s>=0);
+  OD_ASSERT(_s==0||_icdf[_s-1]<=_ft);
+  OD_ASSERT(_icdf[_s]<=_ft);
   od_ec_encode(_this,_s>0?_ft-_icdf[_s-1]:0,_ft-_icdf[_s],_ft);
 }
 
@@ -306,7 +330,11 @@ void od_ec_enc_icdf_ft(od_ec_enc *_this,int _s,
         This must be no more than 15.*/
 void od_ec_enc_icdf16(od_ec_enc *_this,int _s,
  const ogg_uint16_t *_icdf,unsigned _ftb){
+  OD_ASSERT(_s>=0);
+  OD_ASSERT(_ftb<=15);
+  OD_ASSERT(_icdf[_s]<=1<<_ftb);
   if(_s>0){
+    OD_ASSERT(_icdf[_s-1]<=1<<_ftb);
     od_ec_encode_bin_normalized(_this,32768U-(_icdf[_s-1]<<15-_ftb),
      32768U-(_icdf[_s]<<15-_ftb));
   }
@@ -317,6 +345,7 @@ void od_ec_enc_icdf16(od_ec_enc *_this,int _s,
     l=_this->base.val;
     r=_this->base.rng;
     d=32768U-(_icdf[0]<<15-_ftb);
+    OD_ASSERT(32768U<=r);
     r=d+OD_MINI(d,r-32768U);
     od_ec_enc_normalize(_this,l,r);
   }
@@ -329,17 +358,22 @@ void od_ec_enc_icdf16(od_ec_enc *_this,int _s,
          The values must be monotonically non-increasing, and the last value
           must be 0.
   _ft: The total of the cumulative distribution.
-       This must be no more than 32767.*/
+       This must be no more than 32768.*/
 void od_ec_enc_icdf16_ft(od_ec_enc *_this,int _s,
  const ogg_uint16_t *_icdf,unsigned _ft){
+  OD_ASSERT(_s>=0);
+  OD_ASSERT(_s==0||_icdf[_s-1]<=_ft);
+  OD_ASSERT(_icdf[_s]<=_ft);
   od_ec_encode(_this,_s>0?_ft-_icdf[_s-1]:0,_ft-_icdf[_s],_ft);
 }
 
 /*Encodes a raw unsigned integer in the stream.
   _fl: The integer to encode.
   _ft: The number of integers that can be encoded (one more than the max).
-       This must be at least one, and no more than 2**32-1.*/
+       This must be at least 2, and no more than 2**32-1.*/
 void od_ec_enc_uint(od_ec_enc *_this,ogg_uint32_t _fl,ogg_uint32_t _ft){
+  OD_ASSERT(_ft>0);
+  OD_ASSERT(_fl<_ft);
   if(_ft>1U<<OD_EC_UINT_BITS){
     unsigned ft;
     unsigned fl;
@@ -357,14 +391,15 @@ void od_ec_enc_uint(od_ec_enc *_this,ogg_uint32_t _fl,ogg_uint32_t _ft){
 /*Encodes a sequence of raw bits in the stream.
   _fl:  The bits to encode.
   _ftb: The number of bits to encode.
-        This must be between 1 and 25, inclusive.*/
-void od_ec_enc_bits(od_ec_enc *_this,ogg_uint32_t _fl,unsigned _bits){
+        This must be between 0 and 25, inclusive.*/
+void od_ec_enc_bits(od_ec_enc *_this,ogg_uint32_t _fl,unsigned _ftb){
   od_ec_window end_window;
   int          nend_bits;
+  OD_ASSERT(_ftb<=25);
+  OD_ASSERT(_fl<(ogg_uint32_t)1<<_ftb);
   end_window=_this->base.end_window;
   nend_bits=_this->base.nend_bits;
-  OD_ASSERT(_bits>0);
-  if(nend_bits+_bits>OD_EC_WINDOW_SIZE){
+  if(nend_bits+_ftb>OD_EC_WINDOW_SIZE){
     unsigned char *buf;
     ogg_uint32_t   storage;
     ogg_uint32_t   end_offs;
@@ -383,11 +418,13 @@ void od_ec_enc_bits(od_ec_enc *_this,ogg_uint32_t _fl,unsigned _bits){
       }
       memcpy(new_buf+new_storage-end_offs,buf+storage-end_offs,
        end_offs*sizeof(*new_buf));
+      storage=new_storage;
       _ogg_free(buf);
       _this->base.buf=new_buf;
-      _this->base.storage=new_storage;
+      _this->base.storage=storage;
     }
     do{
+      OD_ASSERT(end_offs<storage);
       buf[storage-++(end_offs)]=(unsigned char)end_window;
       end_window>>=8;
       nend_bits-=8;
@@ -395,11 +432,12 @@ void od_ec_enc_bits(od_ec_enc *_this,ogg_uint32_t _fl,unsigned _bits){
     while(nend_bits>=8);
     _this->base.end_offs=end_offs;
   }
+  OD_ASSERT(nend_bits+_ftb<=OD_EC_WINDOW_SIZE);
   end_window|=(od_ec_window)_fl<<nend_bits;
-  nend_bits+=_bits;
+  nend_bits+=_ftb;
   _this->base.end_window=end_window;
   _this->base.nend_bits=nend_bits;
-  _this->base.nbits_total+=_bits;
+  _this->base.nbits_total+=_ftb;
 }
 
 /*Overwrites a few bits at the very start of an existing stream, after they
@@ -421,6 +459,7 @@ void od_ec_enc_patch_initial_bits(od_ec_enc *_this,
   int      shift;
   unsigned mask;
   OD_ASSERT(_nbits<=8);
+  OD_ASSERT(_val<1U<<_nbits);
   shift=8-_nbits;
   mask=(1<<_nbits)-1<<shift;
   if(_this->base.offs>0){
@@ -488,6 +527,7 @@ unsigned char *od_ec_enc_done(od_ec_enc *_this,ogg_uint32_t *_nbytes){
     }
     m=(1<<c+16)-1;
     do{
+      OD_ASSERT(offs<storage);
       buf[offs++]=(ogg_uint16_t)(e>>c+16);
       e&=m;
       s-=8;
@@ -516,12 +556,14 @@ unsigned char *od_ec_enc_done(od_ec_enc *_this,ogg_uint32_t *_nbytes){
   }
   /*If we have buffered raw bits, flush them as well.*/
   while(nend_bits>s){
+    OD_ASSERT(end_offs<storage);
     out[storage-++(end_offs)]=(unsigned char)e;
     e>>=8;
     nend_bits-=8;
   }
   *_nbytes=offs+end_offs;
   /*Perform carry propagation.*/
+  OD_ASSERT(offs+end_offs<storage);
   out=out+storage-(offs+end_offs);
   c=0;
   end_offs=offs;
@@ -532,6 +574,7 @@ unsigned char *od_ec_enc_done(od_ec_enc *_this,ogg_uint32_t *_nbytes){
   }
   /*Add any remaining raw bits to the last byte.
     There is guaranteed to be enough room, because nend_bits<=s.*/
+  OD_ASSERT(nend_bits==0||end_offs>0);
   if(nend_bits>0)out[end_offs-1]|=(unsigned char)e;
   /*Note: Unless there's an allocation error, if you keep encoding into the
      current buffer and call this function again later, everything will work

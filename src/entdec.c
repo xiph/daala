@@ -104,6 +104,7 @@ static int od_ec_dec_normalize(od_ec_dec *_this,
   int s;
   nbits_total=_this->nbits_total;
   c=_this->cnt;
+  OD_ASSERT(_rng<=65535U);
   d=16-OD_ILOG_NZ(_rng);
   c-=d;
   _dif<<=d;
@@ -115,6 +116,7 @@ static int od_ec_dec_normalize(od_ec_dec *_this,
     storage=_this->storage;
     offs=_this->offs;
     for(s=OD_EC_WINDOW_SIZE-9-(c+15);s>=0;){
+      OD_ASSERT(s<=OD_EC_WINDOW_SIZE-8);
       if(offs>=storage){
         c=OD_EC_LOTS_OF_BITS;
         break;
@@ -177,7 +179,7 @@ void od_ec_dec_init(od_ec_dec *_this,
    od_ec_dec_update(), or decoding will not proceed correctly.
   _ft: The total frequency of the symbols in the alphabet the next symbol was
         encoded with.
-       This must be at least 16384 and no more than 32767.
+       This must be at least 16384 and no more than 32768.
   Return: A cumulative frequency representing the encoded symbol.
           If the cumulative frequency of all the symbols before the one that
            was encoded was fl, and the cumulative frequency of all the symbols
@@ -188,11 +190,16 @@ unsigned od_ec_decode_normalized(od_ec_dec *_this,unsigned _ft){
   unsigned r;
   unsigned d;
   int      s;
+  OD_ASSERT(16384<=_ft);
+  OD_ASSERT(_ft<=32768U);
   dif=(unsigned)(_this->val>>OD_EC_WINDOW_SIZE-16);
   r=_this->rng;
-  s=r>=_ft<<1;
+  OD_ASSERT(dif<r);
+  OD_ASSERT(_ft<=r);
+  s=r-_ft>=_ft;
   _ft<<=s;
   d=r-_ft;
+  OD_ASSERT(d<_ft);
   _this->ext=s;
   return OD_MAXI((int)(dif>>1),(int)(dif-d))>>s;
 }
@@ -203,22 +210,27 @@ unsigned od_ec_decode_normalized(od_ec_dec *_this,unsigned _ft){
    od_ec_dec_update(), or decoding will not proceed correctly.
   _ft: The total frequency of the symbols in the alphabet the next symbol was
         encoded with.
-       This must be no more than 32767.
+       This must be at least 2, and no more than 32768.
   Return: A cumulative frequency representing the encoded symbol.*/
 unsigned od_ec_decode(od_ec_dec *_this,unsigned _ft){
   unsigned dif;
   unsigned r;
   unsigned d;
   int      s;
+  OD_ASSERT(2<=_ft);
+  OD_ASSERT(_ft<=32768U);
   dif=(unsigned)(_this->val>>OD_EC_WINDOW_SIZE-16);
   r=_this->rng;
+  OD_ASSERT(dif<r);
   s=15-OD_ILOG_NZ(_ft-1);
   _ft<<=s;
-  if(r>=_ft<<1){
+  OD_ASSERT(_ft<=r);
+  if(r-_ft>=_ft){
     _ft<<=1;
     s++;
   }
   d=r-_ft;
+  OD_ASSERT(d<_ft);
   _this->ext=s;
   return OD_MAXI((int)(dif>>1),(int)(dif-d))>>s;
 }
@@ -234,7 +246,10 @@ unsigned od_ec_decode_bin_normalized(od_ec_dec *_this){
   unsigned d;
   dif=(unsigned)(_this->val>>OD_EC_WINDOW_SIZE-16);
   r=_this->rng;
+  OD_ASSERT(dif<r);
+  OD_ASSERT(32768U<=r);
   d=r-32768U;
+  OD_ASSERT(d<32768U);
   _this->ext=0;
   return OD_MAXI((int)(dif>>1),(int)(dif-d));
 }
@@ -251,7 +266,11 @@ unsigned od_ec_decode_bin(od_ec_dec *_this,unsigned _ftb){
   int      s;
   dif=(unsigned)(_this->val>>OD_EC_WINDOW_SIZE-16);
   r=_this->rng;
+  OD_ASSERT(dif<r);
+  OD_ASSERT(32768U<=r);
   d=r-32768U;
+  OD_ASSERT(d<32768U);
+  OD_ASSERT(_ftb<=15);
   s=15-_ftb;
   _this->ext=s;
   return OD_MAXI((int)(dif>>1),(int)(dif-d))>>s;
@@ -279,13 +298,26 @@ void od_ec_dec_update(od_ec_dec *_this,unsigned _fl,unsigned _fh,unsigned _ft){
   unsigned     u;
   unsigned     v;
   int          s;
+  OD_ASSERT(_fl<_fh);
+  OD_ASSERT(_fh<=_ft);
+  OD_ASSERT(0<_ft);
+  OD_ASSERT(_ft<=32768U);
   dif=_this->val;
   r=_this->rng;
+  OD_ASSERT(dif>>OD_EC_WINDOW_SIZE-16<r);
   s=(int)_this->ext;
   _fl<<=s;
   _fh<<=s;
   _ft<<=s;
+  OD_ASSERT(16384<=_ft);
+  OD_ASSERT(_ft<=32768U);
+  OD_ASSERT(_ft<=r);
   d=r-_ft;
+  OD_ASSERT(d<_ft);
+  OD_ASSERT(_fl<=OD_MAXI((int)(dif>>OD_EC_WINDOW_SIZE-15),
+   (int)((dif>>OD_EC_WINDOW_SIZE-16)-d)));
+  OD_ASSERT(OD_MAXI((int)(dif>>OD_EC_WINDOW_SIZE-15),
+   (int)((dif>>OD_EC_WINDOW_SIZE-16)-d))<_fh);
   u=_fl+OD_MINI(_fl,d);
   v=_fh+OD_MINI(_fh,d);
   r=v-u;
@@ -306,7 +338,9 @@ int od_ec_dec_bit_logp(od_ec_dec *_this,unsigned _logp){
   int          ret;
   dif=_this->val;
   r=_this->rng;
+  OD_ASSERT(dif>>OD_EC_WINDOW_SIZE-16<r);
   v=32768U-(1<<15-_logp);
+  OD_ASSERT(32768U<=r);
   v+=OD_MINI(v,r-32768U);
   vw=(od_ec_window)v<<OD_EC_WINDOW_SIZE-16;
   ret=dif>=vw;
@@ -322,7 +356,7 @@ int od_ec_dec_bit_logp(od_ec_dec *_this,unsigned _logp){
          The values must be monotonically non-increasing, and the last value
           must be 0.
   _ft: The total of the cumulative distribution.
-       This must be no more than 32767.
+       This must be at least 2 and no more than 32768.
   Return: The decoded symbol s.*/
 int od_ec_dec_icdf_ft(od_ec_dec *_this,
  const unsigned char *_icdf,unsigned _ft){
@@ -339,18 +373,25 @@ int od_ec_dec_icdf_ft(od_ec_dec *_this,
   int          ret;
   dif=_this->val;
   r=_this->rng;
+  OD_ASSERT(dif>>OD_EC_WINDOW_SIZE-16<r);
+  OD_ASSERT(2<=_ft);
+  OD_ASSERT(_ft<=32768U);
   s=15-OD_ILOG_NZ(_ft-1);
   ft=_ft<<s;
-  if(r>=ft<<1){
+  OD_ASSERT(ft<=r);
+  if(r-ft>=ft){
     ft<<=1;
     s++;
   }
   d=r-ft;
+  OD_ASSERT(d<ft);
   q=OD_MAXI((int)(dif>>OD_EC_WINDOW_SIZE-15),
    (int)((dif>>OD_EC_WINDOW_SIZE-16)-d))>>s;
+  OD_ASSERT(q<_ft);
   q=_ft-q;
   fl=_ft;
   for(ret=0;_icdf[ret]>=q;ret++)fl=_icdf[ret];
+  OD_ASSERT(fl<=_ft);
   fl=_ft-fl<<s;
   fh=_ft-_icdf[ret]<<s;
   u=fl+OD_MINI(fl,d);
@@ -367,7 +408,7 @@ int od_ec_dec_icdf_ft(od_ec_dec *_this,
          The values must be monotonically non-increasing, and the last value
           must be 0.
   _ft: The total of the cumulative distribution.
-       This must be no more than 32767.
+       This must be at least 2 and no more than 32768.
   Return: The decoded symbol s.*/
 int od_ec_dec_icdf16_ft(od_ec_dec *_this,
  const ogg_uint16_t *_icdf,unsigned _ft){
@@ -384,18 +425,25 @@ int od_ec_dec_icdf16_ft(od_ec_dec *_this,
   int          ret;
   dif=_this->val;
   r=_this->rng;
+  OD_ASSERT(dif>>OD_EC_WINDOW_SIZE-16<r);
+  OD_ASSERT(2<=_ft);
+  OD_ASSERT(_ft<=32768U);
   s=15-OD_ILOG_NZ(_ft-1);
   ft=_ft<<s;
-  if(r>=ft<<1){
+  OD_ASSERT(ft<=r);
+  if(r-ft>=ft){
     ft<<=1;
     s++;
   }
   d=r-ft;
+  OD_ASSERT(d<ft);
   q=OD_MAXI((int)(dif>>OD_EC_WINDOW_SIZE-15),
    (int)((dif>>OD_EC_WINDOW_SIZE-16)-d))>>s;
+  OD_ASSERT(q<_ft);
   q=_ft-q;
   fl=_ft;
   for(ret=0;_icdf[ret]>=q;ret++)fl=_icdf[ret];
+  OD_ASSERT(fl<=_ft);
   fl=_ft-fl<<s;
   fh=_ft-_icdf[ret]<<s;
   u=fl+OD_MINI(fl,d);
@@ -427,13 +475,19 @@ int od_ec_dec_icdf(od_ec_dec *_this,const unsigned char *_icdf,unsigned _ftb){
   int          ret;
   dif=_this->val;
   r=_this->rng;
+  OD_ASSERT(dif>>OD_EC_WINDOW_SIZE-16<r);
+  OD_ASSERT(_ftb<=15);
   s=15-_ftb;
+  OD_ASSERT(32768U<=r);
   d=r-32768U;
+  OD_ASSERT(d<32768U);
   q=OD_MAXI((int)(dif>>OD_EC_WINDOW_SIZE-15),
    (int)((dif>>OD_EC_WINDOW_SIZE-16)-d))>>s;
-  fl=(1U<<_ftb);
+  fl=1U<<_ftb;
+  OD_ASSERT(q<fl);
   q=fl-q;
   for(ret=0;_icdf[ret]>=q;ret++)fl=_icdf[ret];
+  OD_ASSERT(fl<=1U<<_ftb);
   fl=32768U-(fl<<s);
   fh=32768U-(_icdf[ret]<<s);
   u=fl+OD_MINI(fl,d);
@@ -465,13 +519,19 @@ int od_ec_dec_icdf16(od_ec_dec *_this,const ogg_uint16_t *_icdf,unsigned _ftb){
   int          ret;
   dif=_this->val;
   r=_this->rng;
+  OD_ASSERT(dif>>OD_EC_WINDOW_SIZE-16<r);
+  OD_ASSERT(_ftb<=15);
   s=15-_ftb;
+  OD_ASSERT(32768U<=r);
   d=r-32768U;
+  OD_ASSERT(d<32768U);
   q=OD_MAXI((int)(dif>>OD_EC_WINDOW_SIZE-15),
    (int)((dif>>OD_EC_WINDOW_SIZE-16)-d))>>s;
-  fl=(1U<<_ftb);
+  fl=1U<<_ftb;
+  OD_ASSERT(q<fl);
   q=fl-q;
   for(ret=0;_icdf[ret]>=q;ret++)fl=_icdf[ret];
+  OD_ASSERT(fl<=1U<<_ftb);
   fl=32768U-(fl<<s);
   fh=32768U-(_icdf[ret]<<s);
   u=fl+OD_MINI(fl,d);
@@ -485,10 +545,11 @@ int od_ec_dec_icdf16(od_ec_dec *_this,const ogg_uint16_t *_icdf,unsigned _ftb){
   The integer must have been encoded with od_ec_enc_uint().
   No corresponding call to od_ec_dec_update() is necessary after this call.
   _ft: The number of integers that can be decoded (one more than the max).
-       This must be at least one, and no more than 2**32-1.
+       This must be at least 2, and no more than 2**32-1.
   Return: The decoded bits.*/
 ogg_uint32_t od_ec_dec_uint(od_ec_dec *_this,ogg_uint32_t _ft){
   unsigned fs;
+  OD_ASSERT(_ft>0);
   if(_ft>1U<<OD_EC_UINT_BITS){
     ogg_uint32_t t;
     unsigned     ft;
@@ -516,19 +577,21 @@ ogg_uint32_t od_ec_dec_uint(od_ec_dec *_this,ogg_uint32_t _ft){
   _ftb: The number of bits to extract.
         This must be between 0 and 25, inclusive.
   Return: The decoded bits.*/
-ogg_uint32_t od_ec_dec_bits(od_ec_dec *_this,unsigned _bits){
+ogg_uint32_t od_ec_dec_bits(od_ec_dec *_this,unsigned _ftb){
   od_ec_window window;
   int          available;
+  OD_ASSERT(_ftb<=25);
   ogg_uint32_t ret;
   window=_this->end_window;
   available=_this->nend_bits;
-  if((unsigned)available<_bits){
+  if((unsigned)available<_ftb){
     const unsigned char *buf;
     ogg_uint32_t         end_offs;
     ogg_uint32_t         storage;
     buf=_this->buf;
     end_offs=_this->end_offs;
     storage=_this->storage;
+    OD_ASSERT(available<=OD_EC_WINDOW_SIZE-8);
     do{
       if(end_offs>=storage){
         available=OD_EC_LOTS_OF_BITS;
@@ -540,11 +603,11 @@ ogg_uint32_t od_ec_dec_bits(od_ec_dec *_this,unsigned _bits){
     while(available<=OD_EC_WINDOW_SIZE-8);
     _this->end_offs=end_offs;
   }
-  ret=(ogg_uint32_t)window&((ogg_uint32_t)1<<_bits)-1U;
-  window>>=_bits;
-  available-=_bits;
+  ret=(ogg_uint32_t)window&((ogg_uint32_t)1<<_ftb)-1U;
+  window>>=_ftb;
+  available-=_ftb;
   _this->end_window=window;
   _this->nend_bits=available;
-  _this->nbits_total+=_bits;
+  _this->nbits_total+=_ftb;
   return ret;
 }

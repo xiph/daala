@@ -3,6 +3,7 @@
 #include <math.h>
 #include <string.h>
 #include <time.h>
+#include "../internal.c"
 #include "../entcode.c"
 #include "../entdec.c"
 #include "../entenc.c"

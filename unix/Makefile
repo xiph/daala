@@ -30,6 +30,7 @@ CFLAGS += -fvisibility=hidden
 #  -ffast-math, or additional flags, depending on your system and compiler.
 # The -g flag will generally include debugging information.
 CFLAGS += -g
+CFLAGS += -DOD_ENABLE_ASSERTIONS
 #CFLAGS += -DOD_CHECKASM
 #CFLAGS += -DOD_DUMP_IMAGES
 #CFLAGS += -DOD_ANIMATE
