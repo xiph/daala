@@ -158,13 +158,15 @@ int main(int _argc,char **_argv){
   }
   /*Test compatibility between multiple different encode/decode routines.*/
   for(i=0;i<409600;i++){
-    unsigned *logp1;
+    unsigned *fz;
+    unsigned *ftb;
     unsigned *data;
     unsigned *tell;
     unsigned *enc_method;
     int       j;
     sz=rand()/((RAND_MAX>>(rand()%9U))+1U);
-    logp1=(unsigned *)malloc(sz*sizeof(*logp1));
+    fz=(unsigned *)malloc(sz*sizeof(*fz));
+    ftb=(unsigned *)malloc(sz*sizeof(*ftb));
     data=(unsigned *)malloc(sz*sizeof(*data));
     tell=(unsigned *)malloc((sz+1)*sizeof(*tell));
     enc_method=(unsigned *)malloc(sz*sizeof(*enc_method));
@@ -172,25 +174,27 @@ int main(int _argc,char **_argv){
     tell[0]=od_ec_tell_frac(&enc.base);
     for(j=0;j<sz;j++){
       data[j]=rand()/((RAND_MAX>>1)+1);
-      logp1[j]=(rand()%15)+1;
+      ftb[j]=(rand()%15)+1;
+      fz[j]=rand()%32766>>15-ftb[j];
+      fz[j]=OD_MAXI(fz[j],1);
       enc_method[j]=rand()/((RAND_MAX>>2)+1);
       switch(enc_method[j]){
         case 0:{
-          od_ec_encode(&enc,data[j]?(1<<logp1[j])-1:0,
-           (1<<logp1[j])-(data[j]?0:1),1<<logp1[j]);
+          od_ec_encode(&enc,data[j]?fz[j]:0,
+           data[j]?1U<<ftb[j]:fz[j],1U<<ftb[j]);
         }break;
         case 1:{
-          od_ec_encode_bin(&enc,data[j]?(1<<logp1[j])-1:0,
-           (1<<logp1[j])-(data[j]?0:1),logp1[j]);
+          od_ec_encode_bin(&enc,data[j]?fz[j]:0,
+           data[j]?1U<<ftb[j]:fz[j],ftb[j]);
         }break;
         case 2:{
-          od_ec_enc_bit_logp(&enc,data[j],logp1[j]);
+          od_ec_enc_bool(&enc,data[j],fz[j]<<15-ftb[j]);
         }break;
         case 3:{
-          unsigned char icdf[2];
-          icdf[0]=1;
+          ogg_uint16_t icdf[2];
+          icdf[0]=(1U<<ftb[j])-fz[j];
           icdf[1]=0;
-          od_ec_enc_icdf(&enc,data[j],icdf,logp1[j]);
+          od_ec_enc_icdf16(&enc,data[j],icdf,ftb[j]);
         }break;
       }
       tell[j+1]=od_ec_tell_frac(&enc.base);
@@ -214,31 +218,31 @@ int main(int _argc,char **_argv){
       dec_method=rand()/((RAND_MAX>>2)+1);
       switch(dec_method){
         case 0:{
-          fs=od_ec_decode(&dec,1<<logp1[j]);
-          sym=fs>=(1<<logp1[j])-1;
-          od_ec_dec_update(&dec,sym?(1<<logp1[j])-1:0,
-           (1<<logp1[j])-(sym?0:1),1<<logp1[j]);
+          fs=od_ec_decode(&dec,1U<<ftb[j]);
+          sym=fs>=fz[j];
+          od_ec_dec_update(&dec,sym?fz[j]:0,
+           sym?1U<<ftb[j]:fz[j],1U<<ftb[j]);
         }break;
         case 1:{
-          fs=od_ec_decode_bin(&dec,logp1[j]);
-          sym=fs>=(1<<logp1[j])-1;
-          od_ec_dec_update(&dec,sym?(1<<logp1[j])-1:0,
-           (1<<logp1[j])-(sym?0:1),1<<logp1[j]);
+          fs=od_ec_decode_bin(&dec,ftb[j]);
+          sym=fs>=fz[j];
+          od_ec_dec_update(&dec,sym?fz[j]:0,
+           sym?1U<<ftb[j]:fz[j],1U<<ftb[j]);
         }break;
         case 2:{
-          sym=od_ec_dec_bit_logp(&dec,logp1[j]);
+          sym=od_ec_dec_bool(&dec,fz[j]<<15-ftb[j]);
         }break;
         case 3:{
-          unsigned char icdf[2];
-          icdf[0]=1;
+          ogg_uint16_t icdf[2];
+          icdf[0]=(1U<<ftb[j])-fz[j];
           icdf[1]=0;
-          sym=od_ec_dec_icdf(&dec,icdf,logp1[j]);
+          sym=od_ec_dec_icdf16(&dec,icdf,ftb[j]);
         }break;
       }
       if(sym!=data[j]){
-        fprintf(stderr,"Decoded %i instead of %i with logp1 of %i "
+        fprintf(stderr,"Decoded %i instead of %i with fz=%i and ftb=%i "
          "at position %i of %i (Random seed: %u).\n",
-         sym,data[j],logp1[j],j,sz,seed);
+         sym,data[j],fz[j],ftb[j],j,sz,seed);
         fprintf(stderr,"Encoding method: %i, decoding method: %i\n",
          enc_method[j],dec_method);
         ret=EXIT_FAILURE;
@@ -252,14 +256,15 @@ int main(int _argc,char **_argv){
     free(enc_method);
     free(tell);
     free(data);
-    free(logp1);
+    free(ftb);
+    free(fz);
   }
   od_ec_enc_reset(&enc);
-  od_ec_enc_bit_logp(&enc,0,1);
-  od_ec_enc_bit_logp(&enc,0,1);
-  od_ec_enc_bit_logp(&enc,0,1);
-  od_ec_enc_bit_logp(&enc,0,1);
-  od_ec_enc_bit_logp(&enc,0,2);
+  od_ec_enc_bool(&enc,0,16384);
+  od_ec_enc_bool(&enc,0,16384);
+  od_ec_enc_bool(&enc,0,16384);
+  od_ec_enc_bool(&enc,0,16384);
+  od_ec_enc_bool(&enc,0,24576);
   od_ec_enc_patch_initial_bits(&enc,3,2);
   if(enc.base.error){
     fprintf(stderr,"od_ec_enc_patch_initial_bits() failed.\n");
@@ -272,10 +277,10 @@ int main(int _argc,char **_argv){
     ret=EXIT_FAILURE;
   }
   od_ec_enc_reset(&enc);
-  od_ec_enc_bit_logp(&enc,0,1);
-  od_ec_enc_bit_logp(&enc,0,1);
-  od_ec_enc_bit_logp(&enc,1,6);
-  od_ec_enc_bit_logp(&enc,0,2);
+  od_ec_enc_bool(&enc,0,16384);
+  od_ec_enc_bool(&enc,0,16384);
+  od_ec_enc_bool(&enc,1,32256);
+  od_ec_enc_bool(&enc,0,24576);
   od_ec_enc_patch_initial_bits(&enc,0,2);
   if(enc.base.error){
     fprintf(stderr,"od_ec_enc_patch_initial_bits() failed.\n");

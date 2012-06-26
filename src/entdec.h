@@ -46,7 +46,7 @@ unsigned od_ec_decode_bin(od_ec_dec *_this,unsigned _ftb);
 
 void od_ec_dec_update(od_ec_dec *_this,unsigned _fl,unsigned _fh,unsigned _ft);
 
-int od_ec_dec_bit_logp(od_ec_dec *_this,unsigned _logp);
+int od_ec_dec_bool(od_ec_dec *_this,unsigned _fz);
 int od_ec_dec_icdf_ft(od_ec_dec *_this,
  const unsigned char *_icdf,unsigned _ft);
 int od_ec_dec_icdf16_ft(od_ec_dec *_this,

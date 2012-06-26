@@ -254,20 +254,19 @@ void od_ec_encode_bin(od_ec_enc *_this,
   od_ec_encode_bin_normalized(_this,_fl<<15-_ftb,_fh<<15-_ftb);
 }
 
-/*Encode a bit that has a 1/(1<<_logp) probability of being a one.
+/*Encode a bit that has an _fz/32768 probability of being a zero.
   _val:  The value to encode (0 or 1).
-  _logp: The negative base-2 log of the probability of being a one.
-         This must be no more than 15.*/
-void od_ec_enc_bit_logp(od_ec_enc *_this,int _val,unsigned _logp){
+  _fz:   The probability that _val is zero, scaled by 32768.*/
+void od_ec_enc_bool(od_ec_enc *_this,int _val,unsigned _fz){
   od_ec_window l;
   unsigned     r;
   unsigned     v;
-  OD_ASSERT(_logp<=15);
+  OD_ASSERT(0<_fz);
+  OD_ASSERT(_fz<32768U);
   l=_this->base.val;
   r=_this->base.rng;
-  v=32768U-(1<<15-_logp);
   OD_ASSERT(32768U<=r);
-  v+=OD_MINI(v,r-32768U);
+  v=_fz+OD_MINI(_fz,r-32768U);
   if(_val)l+=v;
   r=_val?r-v:v;
   od_ec_enc_normalize(_this,l,r);

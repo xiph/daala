@@ -325,23 +325,23 @@ void od_ec_dec_update(od_ec_dec *_this,unsigned _fl,unsigned _fh,unsigned _ft){
   od_ec_dec_normalize(_this,dif,r,0);
 }
 
-/*Decode a bit that has a 1/(1<<_logp) probability of being a one.
+/*Decode a bit that has an _fz/32768 probability of being a zero.
   No corresponding call to od_ec_dec_update() is necessary after this call.
-  _logp: The negative base-2 log of the probability of being a one.
-         This must be no more than 15.
+  _fz: The probability that the bit is zero, scaled by 32768.
   Return: The value decoded (0 or 1).*/
-int od_ec_dec_bit_logp(od_ec_dec *_this,unsigned _logp){
+int od_ec_dec_bool(od_ec_dec *_this,unsigned _fz){
   od_ec_window dif;
   od_ec_window vw;
   unsigned     r;
   unsigned     v;
   int          ret;
+  OD_ASSERT(0<_fz);
+  OD_ASSERT(_fz<32768U);
   dif=_this->val;
   r=_this->rng;
   OD_ASSERT(dif>>OD_EC_WINDOW_SIZE-16<r);
-  v=32768U-(1<<15-_logp);
   OD_ASSERT(32768U<=r);
-  v+=OD_MINI(v,r-32768U);
+  v=_fz+OD_MINI(_fz,r-32768U);
   vw=(od_ec_window)v<<OD_EC_WINDOW_SIZE-16;
   ret=dif>=vw;
   if(ret)dif-=vw;
