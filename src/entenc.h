@@ -75,17 +75,21 @@ void od_ec_enc_reset(od_ec_enc *_this);
 void od_ec_enc_clear(od_ec_enc *_this);
 
 void od_ec_encode(od_ec_enc *_this,unsigned _fl,unsigned _fh,unsigned _ft);
-void od_ec_encode_bin(od_ec_enc *_this,
+void od_ec_encode_q15(od_ec_enc *_this,unsigned _fl,unsigned _fh);
+void od_ec_encode_unscaled(od_ec_enc *_this,
+ unsigned _fl,unsigned _fh,unsigned _ft);
+void od_ec_encode_unscaled_dyadic(od_ec_enc *_this,
  unsigned _fl,unsigned _fh,unsigned _ftb);
-void od_ec_enc_bool(od_ec_enc *_this,int _val,unsigned _fz);
-void od_ec_enc_icdf_ft(od_ec_enc *_this,int _s,
- const unsigned char *_icdf,unsigned _ft);
-void od_ec_enc_icdf(od_ec_enc *_this,int _s,
- const unsigned char *_icdf,unsigned _ftb);
-void od_ec_enc_icdf16(od_ec_enc *_this,int _s,
- const ogg_uint16_t *_icdf,unsigned _ftb);
-void od_ec_enc_icdf16_ft(od_ec_enc *_this,int _s,
- const ogg_uint16_t *_icdf,unsigned _ft);
+void od_ec_encode_bool(od_ec_enc *_this,int _val,unsigned _fz,unsigned _ft);
+void od_ec_encode_bool_q15(od_ec_enc *_this,int _val,unsigned _fz_q15);
+void od_ec_encode_cdf(od_ec_enc *_this,int _s,
+ const ogg_uint16_t *_cdf,int _nsyms);
+void od_ec_encode_cdf_q15(od_ec_enc *_this,int _s,
+ const ogg_uint16_t *_cdf,int _nsyms);
+void od_ec_encode_cdf_unscaled(od_ec_enc *_this,int _s,
+ const ogg_uint16_t *_cdf,int _nsyms);
+void od_ec_encode_cdf_unscaled_dyadic(od_ec_enc *_this,int _s,
+ const ogg_uint16_t *_cdf,int _nsyms,unsigned _ftb);
 
 void od_ec_enc_uint(od_ec_enc *_this,ogg_uint32_t _fl,ogg_uint32_t _ft);
 

@@ -167,8 +167,7 @@ void od_ec_enc_clear(od_ec_enc *_this){
         decoded value will fall.
   _ft: The sum of the frequencies of all the symbols.
        This must be at least 16384, and no more than 32768.*/
-void od_ec_encode_normalized(od_ec_enc *_this,
- unsigned _fl,unsigned _fh,unsigned _ft){
+void od_ec_encode(od_ec_enc *_this,unsigned _fl,unsigned _fh,unsigned _ft){
   od_ec_window l;
   unsigned     r;
   int          s;
@@ -181,11 +180,11 @@ void od_ec_encode_normalized(od_ec_enc *_this,
   OD_ASSERT(_ft<=32768U);
   l=_this->low;
   r=_this->rng;
+  OD_ASSERT(_ft<=r);
   s=r-_ft>=_ft;
   _ft<<=s;
   _fl<<=s;
   _fh<<=s;
-  OD_ASSERT(_ft<=r);
   d=r-_ft;
   OD_ASSERT(d<_ft);
   u=_fl+OD_MINI(_fl,d);
@@ -195,31 +194,12 @@ void od_ec_encode_normalized(od_ec_enc *_this,
   od_ec_enc_normalize(_this,l,r);
 }
 
-/*Encodes a symbol given its frequency information with an arbitrary scale.
-  This operates just like od_ec_encode_normalized(), but does not require that
-   _ft be at least 16384.
-  _fl: The cumulative frequency of all symbols that come before the one to be
-        encoded.
-  _fh: The cumulative frequency of all symbols up to and including the one to
-        be encoded.
-  _ft: The sum of the frequencies of all the symbols.
-       This must be at least 2 and no more than 32768.*/
-void od_ec_encode(od_ec_enc *_this,unsigned _fl,unsigned _fh,unsigned _ft){
-  int s;
-  OD_ASSERT(_fl<_fh);
-  OD_ASSERT(_fh<=_ft);
-  OD_ASSERT(2<=_ft);
-  OD_ASSERT(_ft<=32768U);
-  s=15-OD_ILOG_NZ(_ft-1);
-  od_ec_encode_normalized(_this,_fl<<s,_fh<<s,_ft<<s);
-}
-
-/*Equivalent to od_ec_encode_normalized() with _ft==32768.
+/*Equivalent to od_ec_encode() with _ft==32768.
   _fl: The cumulative frequency of all symbols that come before the one to be
         encoded.
   _fh: The cumulative frequency of all symbols up to and including the one to
         be encoded.*/
-void od_ec_encode_bin_normalized(od_ec_enc *_this,unsigned _fl,unsigned _fh){
+void od_ec_encode_q15(od_ec_enc *_this,unsigned _fl,unsigned _fh){
   od_ec_window l;
   unsigned     r;
   unsigned     d;
@@ -239,22 +219,69 @@ void od_ec_encode_bin_normalized(od_ec_enc *_this,unsigned _fl,unsigned _fh){
   od_ec_enc_normalize(_this,l,r);
 }
 
-/*Equivalent to od_ec_encode() with _ft==1<<_ftb.
+/*Encodes a symbol given its frequency information with an arbitrary scale.
+  This operates just like od_ec_encode(), but does not require that _ft be at
+   least 16384.
+  _fl: The cumulative frequency of all symbols that come before the one to be
+        encoded.
+  _fh: The cumulative frequency of all symbols up to and including the one to
+        be encoded.
+  _ft: The sum of the frequencies of all the symbols.
+       This must be at least 2 and no more than 32768.*/
+void od_ec_encode_unscaled(od_ec_enc *_this,
+ unsigned _fl,unsigned _fh,unsigned _ft){
+  int s;
+  OD_ASSERT(_fl<_fh);
+  OD_ASSERT(_fh<=_ft);
+  OD_ASSERT(2<=_ft);
+  OD_ASSERT(_ft<=32768U);
+  s=15-OD_ILOG_NZ(_ft-1);
+  od_ec_encode(_this,_fl<<s,_fh<<s,_ft<<s);
+}
+
+/*Equivalent to od_ec_encode_unscaled() with _ft==1<<_ftb.
   _fl:  The cumulative frequency of all symbols that come before the one to be
          encoded.
   _fh:  The cumulative frequency of all symbols up to and including the one to
          be encoded.
   _ftb: The number of bits of precision in the cumulative distribution.
         This must be no more than 15.*/
-void od_ec_encode_bin(od_ec_enc *_this,
+void od_ec_encode_unscaled_dyadic(od_ec_enc *_this,
  unsigned _fl,unsigned _fh,unsigned _ftb){
-  od_ec_encode_bin_normalized(_this,_fl<<15-_ftb,_fh<<15-_ftb);
+  od_ec_encode_q15(_this,_fl<<15-_ftb,_fh<<15-_ftb);
 }
 
-/*Encode a bit that has an _fz/32768 probability of being a zero.
+/*Encode a bit that has an _fz/_ft probability of being a zero.
+  _val:  The value to encode (0 or 1).
+  _fz:   The probability that _val is zero, scaled by _ft.
+  _ft:   The total probability.
+         This must be at least 16384 and no more than 32768.*/
+void od_ec_encode_bool(od_ec_enc *_this,int _val,unsigned _fz,unsigned _ft){
+  od_ec_window l;
+  unsigned     r;
+  int          s;
+  unsigned     v;
+  OD_ASSERT(0<_fz);
+  OD_ASSERT(_fz<_ft);
+  OD_ASSERT(16384<=_ft);
+  OD_ASSERT(_ft<=32768U);
+  l=_this->low;
+  r=_this->rng;
+  OD_ASSERT(_ft<=r);
+  s=r-_ft>=_ft;
+  _ft<<=s;
+  _fz<<=s;
+  OD_ASSERT(r-_ft<_ft);
+  v=_fz+OD_MINI(_fz,r-_ft);
+  if(_val)l+=v;
+  r=_val?r-v:v;
+  od_ec_enc_normalize(_this,l,r);
+}
+
+/*Equivalent to od_ec_encode_bool() with _ft==32768.
   _val:  The value to encode (0 or 1).
   _fz:   The probability that _val is zero, scaled by 32768.*/
-void od_ec_enc_bool(od_ec_enc *_this,int _val,unsigned _fz){
+void od_ec_encode_bool_q15(od_ec_enc *_this,int _val,unsigned _fz){
   od_ec_window l;
   unsigned     r;
   unsigned     v;
@@ -269,98 +296,69 @@ void od_ec_enc_bool(od_ec_enc *_this,int _val,unsigned _fz){
   od_ec_enc_normalize(_this,l,r);
 }
 
-/*Encodes a symbol given an "inverse" CDF table.
-  _s:    The index of the symbol to encode.
-  _icdf: The "inverse" CDF, such that symbol _s falls in the range
-          [_s>0?ft-_icdf[_s-1]:0,ft-_icdf[_s]), where ft=1<<_ftb.
-         The values must be monotonically non-increasing, and the last value
-          must be 0.
-  _ftb: The number of bits of precision in the cumulative distribution.
-        This must be no more than 15.*/
-void od_ec_enc_icdf(od_ec_enc *_this,int _s,
- const unsigned char *_icdf,unsigned _ftb){
+/*Encodes a symbol given a cumulative distribution function (CDF) table.
+  _s:     The index of the symbol to encode.
+  _cdf:   The CDF, such that symbol _s falls in the range
+           [_s>0?_cdf[_s-1]:0,_cdf[_s]).
+          The values must be monotonically non-decreasing, and the last value
+           must be at least 16384, and no more than 32768.
+  _nsyms: The number of symbols in the alphabet.
+          This should be at most 16.*/
+void od_ec_encode_cdf(od_ec_enc *_this,int _s,
+ const ogg_uint16_t *_cdf,int _nsyms){
   OD_ASSERT(_s>=0);
+  OD_ASSERT(_s<_nsyms);
+  od_ec_encode(_this,_s>0?_cdf[_s-1]:0,_cdf[_s],_cdf[_nsyms-1]);
+}
+
+/*Equivalent to od_ec_encode_cdf() with _cdf[_nsyms-1]==32768U.
+  _s:     The index of the symbol to encode.
+  _cdf:   The CDF, such that symbol _s falls in the range
+           [_s>0?_cdf[_s-1]:0,_cdf[_s]).
+          The values must be monotonically non-decreasing, and the last value
+           must be exactly 32768.
+  _nsyms: The number of symbols in the alphabet.
+          This should be at most 16.*/
+void od_ec_encode_cdf_q15(od_ec_enc *_this,int _s,
+ const ogg_uint16_t *_cdf,int _nsyms){
+  OD_ASSERT(_s>=0);
+  OD_ASSERT(_s<_nsyms);
+  OD_ASSERT(_cdf[_nsyms-1]==32768U);
+  od_ec_encode_q15(_this,_s>0?_cdf[_s-1]:0,_cdf[_s]);
+}
+
+/*Encodes a symbol given a cumulative distribution function (CDF) table.
+  _s:     The index of the symbol to encode.
+  _cdf:   The CDF, such that symbol _s falls in the range
+           [_s>0?_cdf[_s-1]:0,_cdf[_s]).
+          The values must be monotonically non-decreasing, and the last value
+           must be at least 2, and no more than 32768.
+  _nsyms: The number of symbols in the alphabet.
+          This should be at most 16.*/
+void od_ec_encode_cdf_unscaled(od_ec_enc *_this,int _s,
+ const ogg_uint16_t *_cdf,int _nsyms){
+  OD_ASSERT(_s>=0);
+  OD_ASSERT(_s<_nsyms);
+  od_ec_encode_unscaled(_this,_s>0?_cdf[_s-1]:0,_cdf[_s],_cdf[_nsyms-1]);
+}
+
+/*Equivalent to od_ec_encode_cdf() with _cdf[_nsyms-1]==1<<_ftb.
+  _s:     The index of the symbol to encode.
+  _cdf:   The CDF, such that symbol _s falls in the range
+           [_s>0?_cdf[_s-1]:0,_cdf[_s]).
+          The values must be monotonically non-decreasing, and the last value
+           must be exactly 1<<_ftb.
+  _nsyms: The number of symbols in the alphabet.
+          This should be at most 16.
+  _ftb:   The number of bits of precision in the cumulative distribution.
+          This must be no more than 15.*/
+void od_ec_encode_cdf_unscaled_dyadic(od_ec_enc *_this,int _s,
+ const ogg_uint16_t *_cdf,int _nsyms,unsigned _ftb){
+  OD_ASSERT(_s>=0);
+  OD_ASSERT(_s<_nsyms);
   OD_ASSERT(_ftb<=15);
-  OD_ASSERT(_icdf[_s]<=1<<_ftb);
-  if(_s>0){
-    OD_ASSERT(_icdf[_s-1]<=1<<_ftb);
-    od_ec_encode_bin_normalized(_this,32768U-(_icdf[_s-1]<<15-_ftb),
-     32768U-(_icdf[_s]<<15-_ftb));
-  }
-  else{
-    od_ec_window l;
-    unsigned     r;
-    unsigned     d;
-    l=_this->low;
-    r=_this->rng;
-    d=32768U-(_icdf[0]<<15-_ftb);
-    OD_ASSERT(32768U<=r);
-    r=d+OD_MINI(d,r-32768U);
-    od_ec_enc_normalize(_this,l,r);
-  }
-}
-
-/*Encodes a symbol given an "inverse" CDF table.
-  _s:    The index of the symbol to encode.
-  _icdf: The "inverse" CDF, such that symbol _s falls in the range
-          [_s>0?ft-_icdf[_s-1]:0,ft-_icdf[_s]), where ft=1<<_ftb.
-         The values must be monotonically non-increasing, and the last value
-          must be 0.
-  _ft: The total of the cumulative distribution.
-       This must be no more than 32768.*/
-void od_ec_enc_icdf_ft(od_ec_enc *_this,int _s,
- const unsigned char *_icdf,unsigned _ft){
-  OD_ASSERT(_s>=0);
-  OD_ASSERT(_s==0||_icdf[_s-1]<=_ft);
-  OD_ASSERT(_icdf[_s]<=_ft);
-  od_ec_encode(_this,_s>0?_ft-_icdf[_s-1]:0,_ft-_icdf[_s],_ft);
-}
-
-/*Encodes a symbol given an "inverse" CDF table.
-  _s:    The index of the symbol to encode.
-  _icdf: The "inverse" CDF, such that symbol _s falls in the range
-          [_s>0?ft-_icdf[_s-1]:0,ft-_icdf[_s]), where ft=1<<_ftb.
-         The values must be monotonically non-increasing, and the last value
-          must be 0.
-  _ftb: The number of bits of precision in the cumulative distribution.
-        This must be no more than 15.*/
-void od_ec_enc_icdf16(od_ec_enc *_this,int _s,
- const ogg_uint16_t *_icdf,unsigned _ftb){
-  OD_ASSERT(_s>=0);
-  OD_ASSERT(_ftb<=15);
-  OD_ASSERT(_icdf[_s]<=1<<_ftb);
-  if(_s>0){
-    OD_ASSERT(_icdf[_s-1]<=1<<_ftb);
-    od_ec_encode_bin_normalized(_this,32768U-(_icdf[_s-1]<<15-_ftb),
-     32768U-(_icdf[_s]<<15-_ftb));
-  }
-  else{
-    od_ec_window l;
-    unsigned     r;
-    unsigned     d;
-    l=_this->low;
-    r=_this->rng;
-    d=32768U-(_icdf[0]<<15-_ftb);
-    OD_ASSERT(32768U<=r);
-    r=d+OD_MINI(d,r-32768U);
-    od_ec_enc_normalize(_this,l,r);
-  }
-}
-
-/*Encodes a symbol given an "inverse" CDF table.
-  _s:    The index of the symbol to encode.
-  _icdf: The "inverse" CDF, such that symbol _s falls in the range
-          [_s>0?ft-_icdf[_s-1]:0,ft-_icdf[_s]), where ft=1<<_ftb.
-         The values must be monotonically non-increasing, and the last value
-          must be 0.
-  _ft: The total of the cumulative distribution.
-       This must be no more than 32768.*/
-void od_ec_enc_icdf16_ft(od_ec_enc *_this,int _s,
- const ogg_uint16_t *_icdf,unsigned _ft){
-  OD_ASSERT(_s>=0);
-  OD_ASSERT(_s==0||_icdf[_s-1]<=_ft);
-  OD_ASSERT(_icdf[_s]<=_ft);
-  od_ec_encode(_this,_s>0?_ft-_icdf[_s-1]:0,_ft-_icdf[_s],_ft);
+  OD_ASSERT(_cdf[_nsyms-1]==1U<<_ftb);
+  od_ec_encode_q15(_this,_s>0?_cdf[_s-1]<<15-_ftb:0,_cdf[_s]<<15-_ftb);
 }
 
 /*Encodes a raw unsigned integer in the stream.
@@ -378,10 +376,10 @@ void od_ec_enc_uint(od_ec_enc *_this,ogg_uint32_t _fl,ogg_uint32_t _ft){
     ftb=OD_ILOG_NZ(_ft)-OD_EC_UINT_BITS;
     ft=(_ft>>ftb)+1<<15-OD_EC_UINT_BITS;
     fl=(unsigned)(_fl>>ftb)<<15-OD_EC_UINT_BITS;
-    od_ec_encode_normalized(_this,fl,fl+(1<<15-OD_EC_UINT_BITS),ft);
+    od_ec_encode(_this,fl,fl+(1<<15-OD_EC_UINT_BITS),ft);
     od_ec_enc_bits(_this,_fl&((ogg_uint32_t)1<<ftb)-1U,ftb);
   }
-  else od_ec_encode(_this,_fl,_fl+1,_ft);
+  else od_ec_encode_unscaled(_this,_fl,_fl+1,_ft);
 }
 
 /*Encodes a sequence of raw bits in the stream.
@@ -583,6 +581,9 @@ unsigned char *od_ec_enc_done(od_ec_enc *_this,ogg_uint32_t *_nbytes){
 /*Returns the number of bits "used" by the encoded symbols so far.
   This same number can be computed in either the encoder or the decoder, and is
    suitable for making coding decisions.
+  Warning: The value returned by this function can decrease compared to an
+   earlier call, even after encoding more data, if there is an encoding error
+   (i.e., a failure to allocate enough space for the output buffer).
   Return: The number of bits.
           This will always be slightly larger than the exact value (e.g., all
            rounding error is in the positive direction).*/
@@ -595,6 +596,9 @@ int od_ec_enc_tell(od_ec_enc *_this){
 /*Returns the number of bits "used" by the encoded symbols so far.
   This same number can be computed in either the encoder or the decoder, and is
    suitable for making coding decisions.
+  Warning: The value returned by this function can decrease compared to an
+   earlier call, even after encoding more data, if there is an encoding error
+   (i.e., a failure to allocate enough space for the output buffer).
   Return: The number of bits scaled by 2**OD_BITRES.
           This will always be slightly larger than the exact value (e.g., all
            rounding error is in the positive direction).*/

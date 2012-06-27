@@ -58,24 +58,22 @@ void generic_model_update(GenericEncoder *model,int *ExQ16,int x,int xs,int id,i
 {
   int i;
   int xenc;
-  unsigned short *icdf;
+  ogg_uint16_t *cdf;
 
-  icdf=model->icdf[id];
+  cdf=model->cdf[id];
   /* Renormalize if we cannot add increment */
-  if (model->tot[id]+model->increment>32767){
+  if (cdf[15]+model->increment>32767){
     for (i=0;i<16;i++){
       /* Second term ensures that the pdf is non-null */
-      icdf[i]=(icdf[i]>>1)+(15-i);
+      cdf[i]=(cdf[i]>>1)+i+1;
     }
-    model->tot[id]=model->tot[id]/2+16;
   }
 
   /* Update freq count */
   xenc=OD_MINI(15,xs);
   /* This can be easily vectorized */
-  for (i=0;i<xenc;i++)
-    icdf[i]+=model->increment;
-  model->tot[id]+=model->increment;
+  for (i=xenc;i<16;i++)
+    cdf[i]+=model->increment;
 
   *ExQ16+=(x<<(16-integration))-(*ExQ16>>integration);
 }

@@ -40,7 +40,7 @@ int generic_decode(od_ec_dec *dec, GenericEncoder *model, int *ExQ16, int integr
   int lgQ1;
   int shift;
   int id;
-  unsigned short *icdf;
+  ogg_uint16_t *cdf;
   int xs;
   int lsb=0;
   int x;
@@ -52,11 +52,11 @@ int generic_decode(od_ec_dec *dec, GenericEncoder *model, int *ExQ16, int integr
      of the distribution */
   shift=OD_MAXI(0,(lgQ1-5)>>1);
 
-  /* Choose the icdf to use: we have two per "octave" of ExQ16 */
+  /* Choose the cdf to use: we have two per "octave" of ExQ16 */
   id=OD_MINI(GENERIC_TABLES-1,lgQ1);
-  icdf=model->icdf[id];
+  cdf=model->cdf[id];
 
-  xs=od_ec_dec_icdf16_ft(dec,icdf,model->tot[id]);
+  xs=od_ec_decode_cdf(dec,cdf,16);
 
   if(xs==15){
     unsigned decay;

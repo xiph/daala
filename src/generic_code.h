@@ -27,9 +27,8 @@
 #define GENERIC_TABLES 12
 
 typedef struct {
-  unsigned short icdf[GENERIC_TABLES][16]; /**< "inverse" cdf for multiple expectations of x */
-  unsigned short tot[GENERIC_TABLES]; /**< total frequency for each icdf */
-  int increment; /**< Frequency increment for learning the icdfs */
+  ogg_uint16_t cdf[GENERIC_TABLES][16]; /**< cdf for multiple expectations of x */
+  int increment; /**< Frequency increment for learning the cdfs */
 } GenericEncoder;
 
 void generic_model_init(GenericEncoder *model);

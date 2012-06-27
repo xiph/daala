@@ -75,7 +75,7 @@ newdct.c \
 entcode.c \
 entdec.c \
 entenc.c \
-icdf_table.c \
+cdf_table.c \
 pvq_encoder.c \
 filter.c \
 info.c \

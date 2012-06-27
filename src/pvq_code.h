@@ -24,7 +24,7 @@
 #include "entenc.h"
 #include "entdec.h"
 
-extern const unsigned short icdf_table[][16];
+extern const ogg_uint16_t cdf_table[][16];
 extern const unsigned char decayE[];
 
 void laplace_encode_special(od_ec_enc *enc,int pos,unsigned decay,int max);

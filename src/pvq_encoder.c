@@ -37,52 +37,49 @@
 void laplace_encode_special(od_ec_enc *enc,int x,unsigned decay,int max)
 {
   unsigned decay2, decay4, decay8, decay16;
-  unsigned short decay_icdf[2];
-  unsigned char decay_icdf2[2];
+  unsigned decay_f;
   decay = OD_MINI(255,decay);
   /* powers of decay */
   decay2=decay*decay;
   decay4=decay2*decay2>>16;
   decay8=decay4*decay4>>16;
   decay16=decay8*decay8>>16;
-  decay_icdf[0]=OD_MAXI(1,decay16>>1);
-  decay_icdf[1]=0;
+  decay_f=32768U-OD_MAXI(1,decay16>>1);
   if(max<0)
     max=0x7FFFFFFF;
   /* Encoding jumps of 16 with probability decay^16 */
   while(x>15 && max>=16){
-    od_ec_enc_icdf16(enc,1,decay_icdf,15);
+    od_ec_encode_bool_q15(enc,1,decay_f);
     x-=16;
     max-=16;
   }
   if(max>=16)
-    od_ec_enc_icdf16(enc,0,decay_icdf,15);
+    od_ec_encode_bool_q15(enc,0,decay_f);
 #if 0
   od_ec_enc_bits(enc, x, 4);
 #else
-  decay_icdf2[1]=0;
   if(max>=8){
     /* p(x%16>8) = decay^8/(decay^8+1) */
-    decay_icdf2[0]=OD_MAXI(1,decay8>>9);
-    od_ec_enc_icdf_ft(enc, (x&0x8)!=0,decay_icdf2,decay_icdf2[0]+128);
+    decay_f=OD_MAXI(1,decay8>>2);
+    od_ec_encode_bool(enc, (x&0x8)!=0,16384,16384+decay_f);
     max-=8;
   }
   if(max>=4){
     /* p(x%8>4) = decay^4/(decay^4+1) */
-    decay_icdf2[0]=OD_MAXI(1,decay4>>9);
-    od_ec_enc_icdf_ft(enc, (x&0x4)!=0,decay_icdf2,decay_icdf2[0]+128);
+    decay_f=OD_MAXI(1,decay4>>2);
+    od_ec_encode_bool(enc, (x&0x4)!=0,16384,16384+decay_f);
     max-=4;
   }
   if(max>=2){
     /* p(x%4>2) = decay^2/(decay^2+1) */
-    decay_icdf2[0]=OD_MAXI(1,decay2>>9);
-    od_ec_enc_icdf_ft(enc, (x&0x2)!=0,decay_icdf2,decay_icdf2[0]+128);
+    decay_f=OD_MAXI(1,decay2>>2);
+    od_ec_encode_bool(enc, (x&0x2)!=0,16384,16384+decay_f);
     max-=2;
   }
   if(max>=1){
     /* p(x%2>1) = decay/(decay+1) */
-    decay_icdf2[0]=OD_MAXI(1,decay>>1);
-    od_ec_enc_icdf_ft(enc, (x&0x1)!=0,decay_icdf2,decay_icdf2[0]+128);
+    decay_f=OD_MAXI(1,decay<<6);
+    od_ec_encode_bool(enc, (x&0x1)!=0,16384,16384+decay_f);
   }
 #endif
 
@@ -100,8 +97,8 @@ static void laplace_encode(od_ec_enc *enc, int x, int ExQ8, int K)
   int j;
   int shift;
   int xs;
-  unsigned short icdf[16];
-  const unsigned short *icdf0, *icdf1;
+  ogg_uint16_t cdf[16];
+  const ogg_uint16_t *cdf0, *cdf1;
   int sym;
 
   /* shift down x if expectation is too high */
@@ -114,11 +111,11 @@ static void laplace_encode(od_ec_enc *enc, int x, int ExQ8, int K)
   K=(K+(1<<shift>>1))>>shift;
   xs=(x+(1<<shift>>1))>>shift;
 
-  /* Interpolate pre-computed icdfs based on Ex */
-  icdf0=icdf_table[ExQ8>>4];
-  icdf1=icdf_table[(ExQ8>>4)+1];
+  /* Interpolate pre-computed cdfs based on Ex */
+  cdf0=cdf_table[ExQ8>>4];
+  cdf1=cdf_table[(ExQ8>>4)+1];
   for(j=0;j<16;j++)
-    icdf[j]=((ExQ8&0xF)*icdf1[j]+(16-(ExQ8&0xF))*icdf0[j]+8)>>4;
+    cdf[j]=((ExQ8&0xF)*cdf1[j]+(16-(ExQ8&0xF))*cdf0[j]+8)>>4;
 
   sym=xs;
   if (sym>15)
@@ -126,10 +123,9 @@ static void laplace_encode(od_ec_enc *enc, int x, int ExQ8, int K)
 
   if (K<15){
     /* Simple way of truncating the pdf when we have a bound */
-    for (j=0;j<=K;j++)
-      icdf[j]-=icdf[K];
+    od_ec_encode_cdf_unscaled(enc, sym, cdf, K+1);
   }
-  od_ec_enc_icdf16(enc, sym, icdf, 15);
+  od_ec_encode_cdf_q15(enc, sym, cdf, 16);
 
   if(shift){
     int special;

@@ -37,15 +37,21 @@ int main(int argc, char **argv)
 
   N=atoi(argv[1]);
   shift=atoi(argv[2]);
-  printf("/* This file is auto-generated using gen_icdf.c */\n\n");
-  printf("const unsigned short icdf_table[%d][16] = {\n", N+1);
-  printf("{15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0},\n");
+  printf("/* This file is auto-generated using \"gen_cdf %d %d\" */\n\n",
+   N, shift);
+  printf("#include \"pvq_code.h\"\n\n");
+  printf("const ogg_uint16_t cdf_table[%d][16] = {\n", N+1);
+  printf("  {");
+  for(j=0;j<16;j++){
+    printf("%5d%s",32768U-15+j,j+1<16?",":"");
+  }
+  printf("},\n");
   aN[0]=1;
   for (i=1;i<=N;i++){
     float Ex;
     float gamma;
     float a;
-    int icdf;
+    int cdf;
     float maxp;
     int maxj;
     Ex=(float)i/(1<<shift);
@@ -76,22 +82,21 @@ int main(int argc, char **argv)
     pi[maxj] += 32768-sum;
 
 
-    icdf = 32768;
-    printf("{");
+    cdf = 0;
+    printf("  {");
     for(j=0;j<16;j++)
     {
-      icdf -= pi[j];
-      printf("%d,", icdf);
-      /*printf("%d ", icdf);*/
+      cdf += pi[j];
+      printf("%5d%s", cdf, j+1<16?",":"");
     }
-    printf("},\n");
+    printf("}%s\n",i+1<=N?",":"");
     /*printf("\n");*/
   }
   printf("};\n");
   printf("\n\n");
   printf("const unsigned char decayE[%d] = {\n", N+1);
   for(i=0;i<=N;i++)
-    printf("%d,\n", aN[i]);
+    printf("  %d%s\n", aN[i], i+1<=N?",":"");
   printf("};\n");
   return 0;
 }

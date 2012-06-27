@@ -180,21 +180,21 @@ int main(int _argc,char **_argv){
       enc_method[j]=rand()/((RAND_MAX>>2)+1);
       switch(enc_method[j]){
         case 0:{
-          od_ec_encode(&enc,data[j]?fz[j]:0,
+          od_ec_encode_unscaled(&enc,data[j]?fz[j]:0,
            data[j]?1U<<ftb[j]:fz[j],1U<<ftb[j]);
         }break;
         case 1:{
-          od_ec_encode_bin(&enc,data[j]?fz[j]:0,
+          od_ec_encode_unscaled_dyadic(&enc,data[j]?fz[j]:0,
            data[j]?1U<<ftb[j]:fz[j],ftb[j]);
         }break;
         case 2:{
-          od_ec_enc_bool(&enc,data[j],fz[j]<<15-ftb[j]);
+          od_ec_encode_bool_q15(&enc,data[j],fz[j]<<15-ftb[j]);
         }break;
         case 3:{
-          ogg_uint16_t icdf[2];
-          icdf[0]=(1U<<ftb[j])-fz[j];
-          icdf[1]=0;
-          od_ec_enc_icdf16(&enc,data[j],icdf,ftb[j]);
+          ogg_uint16_t cdf[2];
+          cdf[0]=fz[j];
+          cdf[1]=1U<<ftb[j];
+          od_ec_encode_cdf_unscaled_dyadic(&enc,data[j],cdf,2,ftb[j]);
         }break;
       }
       tell[j+1]=od_ec_enc_tell_frac(&enc);
@@ -218,25 +218,25 @@ int main(int _argc,char **_argv){
       dec_method=rand()/((RAND_MAX>>2)+1);
       switch(dec_method){
         case 0:{
-          fs=od_ec_decode(&dec,1U<<ftb[j]);
+          fs=od_ec_decode_unscaled(&dec,1U<<ftb[j]);
           sym=fs>=fz[j];
           od_ec_dec_update(&dec,sym?fz[j]:0,
            sym?1U<<ftb[j]:fz[j],1U<<ftb[j]);
         }break;
         case 1:{
-          fs=od_ec_decode_bin(&dec,ftb[j]);
+          fs=od_ec_decode_unscaled_dyadic(&dec,ftb[j]);
           sym=fs>=fz[j];
           od_ec_dec_update(&dec,sym?fz[j]:0,
            sym?1U<<ftb[j]:fz[j],1U<<ftb[j]);
         }break;
         case 2:{
-          sym=od_ec_dec_bool(&dec,fz[j]<<15-ftb[j]);
+          sym=od_ec_decode_bool_q15(&dec,fz[j]<<15-ftb[j]);
         }break;
         case 3:{
-          ogg_uint16_t icdf[2];
-          icdf[0]=(1U<<ftb[j])-fz[j];
-          icdf[1]=0;
-          sym=od_ec_dec_icdf16(&dec,icdf,ftb[j]);
+          ogg_uint16_t cdf[2];
+          cdf[0]=fz[j];
+          cdf[1]=1U<<ftb[j];
+          sym=od_ec_decode_cdf_unscaled_dyadic(&dec,cdf,2,ftb[j]);
         }break;
       }
       if(sym!=data[j]){
@@ -260,11 +260,11 @@ int main(int _argc,char **_argv){
     free(fz);
   }
   od_ec_enc_reset(&enc);
-  od_ec_enc_bool(&enc,0,16384);
-  od_ec_enc_bool(&enc,0,16384);
-  od_ec_enc_bool(&enc,0,16384);
-  od_ec_enc_bool(&enc,0,16384);
-  od_ec_enc_bool(&enc,0,24576);
+  od_ec_encode_bool_q15(&enc,0,16384);
+  od_ec_encode_bool_q15(&enc,0,16384);
+  od_ec_encode_bool_q15(&enc,0,16384);
+  od_ec_encode_bool_q15(&enc,0,16384);
+  od_ec_encode_bool_q15(&enc,0,24576);
   od_ec_enc_patch_initial_bits(&enc,3,2);
   if(enc.error){
     fprintf(stderr,"od_ec_enc_patch_initial_bits() failed.\n");
@@ -277,10 +277,10 @@ int main(int _argc,char **_argv){
     ret=EXIT_FAILURE;
   }
   od_ec_enc_reset(&enc);
-  od_ec_enc_bool(&enc,0,16384);
-  od_ec_enc_bool(&enc,0,16384);
-  od_ec_enc_bool(&enc,1,32256);
-  od_ec_enc_bool(&enc,0,24576);
+  od_ec_encode_bool_q15(&enc,0,16384);
+  od_ec_encode_bool_q15(&enc,0,16384);
+  od_ec_encode_bool_q15(&enc,1,32256);
+  od_ec_encode_bool_q15(&enc,0,24576);
   od_ec_enc_patch_initial_bits(&enc,0,2);
   if(enc.error){
     fprintf(stderr,"od_ec_enc_patch_initial_bits() failed.\n");

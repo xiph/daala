@@ -168,6 +168,7 @@ void od_ec_dec_init(od_ec_dec *_this,
   _this->error=0;
 }
 
+
 /*Calculates the scaled cumulative frequency for the next symbol given the
    total frequency count.
   This can then be fed into the probability model to determine what that
@@ -183,7 +184,7 @@ void od_ec_dec_init(od_ec_dec *_this,
            was encoded was fl, and the cumulative frequency of all the symbols
            up to and including the one encoded is fh, then the returned value
            will fall in the range [fl,fh).*/
-unsigned od_ec_decode_normalized(od_ec_dec *_this,unsigned _ft){
+unsigned od_ec_decode(od_ec_dec *_this,unsigned _ft){
   unsigned dif;
   unsigned r;
   unsigned d;
@@ -202,6 +203,24 @@ unsigned od_ec_decode_normalized(od_ec_dec *_this,unsigned _ft){
   return OD_MAXI((int)(dif>>1),(int)(dif-d))>>s;
 }
 
+/*Equivalent to od_ec_decode() with _ft==32768.
+  This function cannot be called more than once without a corresponding call to
+   od_ec_dec_update(), or decoding will not proceed correctly.
+  Return: A cumulative frequency representing the encoded symbol.*/
+unsigned od_ec_decode_q15(od_ec_dec *_this){
+  unsigned dif;
+  unsigned r;
+  unsigned d;
+  dif=(unsigned)(_this->dif>>OD_EC_WINDOW_SIZE-16);
+  r=_this->rng;
+  OD_ASSERT(dif<r);
+  OD_ASSERT(32768U<=r);
+  d=r-32768U;
+  OD_ASSERT(d<32768U);
+  _this->ext=0;
+  return OD_MAXI((int)(dif>>1),(int)(dif-d));
+}
+
 /*Calculates the cumulative frequency for the next symbol given a total
    frequency count with an arbitrary scale.
   This function cannot be called more than once without a corresponding call to
@@ -210,7 +229,7 @@ unsigned od_ec_decode_normalized(od_ec_dec *_this,unsigned _ft){
         encoded with.
        This must be at least 2, and no more than 32768.
   Return: A cumulative frequency representing the encoded symbol.*/
-unsigned od_ec_decode(od_ec_dec *_this,unsigned _ft){
+unsigned od_ec_decode_unscaled(od_ec_dec *_this,unsigned _ft){
   unsigned dif;
   unsigned r;
   unsigned d;
@@ -233,31 +252,14 @@ unsigned od_ec_decode(od_ec_dec *_this,unsigned _ft){
   return OD_MAXI((int)(dif>>1),(int)(dif-d))>>s;
 }
 
-/*Equivalent to od_ec_decode_normalized() with _ft==32768 (which is normally
-   disallowed due to possible 16-bit int overflow).
+/*Equivalent to od_ec_decode_unscaled() with _ft==1<<_ftb.
   This function cannot be called more than once without a corresponding call to
    od_ec_dec_update(), or decoding will not proceed correctly.
+  _ftb: The base-2 logarithm of the total frequency of the symbols in the
+         alphabet the next symbol was encoded with.
+        This must be no more than 15.
   Return: A cumulative frequency representing the encoded symbol.*/
-unsigned od_ec_decode_bin_normalized(od_ec_dec *_this){
-  unsigned dif;
-  unsigned r;
-  unsigned d;
-  dif=(unsigned)(_this->dif>>OD_EC_WINDOW_SIZE-16);
-  r=_this->rng;
-  OD_ASSERT(dif<r);
-  OD_ASSERT(32768U<=r);
-  d=r-32768U;
-  OD_ASSERT(d<32768U);
-  _this->ext=0;
-  return OD_MAXI((int)(dif>>1),(int)(dif-d));
-}
-
-/*Equivalent to od_ec_decode() with _ft==1<<_ftb (except that _ftb may be as
-   large as 15).
-  This function cannot be called more than once without a corresponding call to
-   od_ec_dec_update(), or decoding will not proceed correctly.
-  Return: A cumulative frequency representing the encoded symbol.*/
-unsigned od_ec_decode_bin(od_ec_dec *_this,unsigned _ftb){
+unsigned od_ec_decode_unscaled_dyadic(od_ec_dec *_this,unsigned _ftb){
   unsigned dif;
   unsigned r;
   unsigned d;
@@ -287,8 +289,9 @@ unsigned od_ec_decode_bin(od_ec_dec *_this,unsigned _ftb){
   _ft:  The total frequency of the symbols in the alphabet the symbol decoded
          was encoded in.
         This must be the same as passed to the preceding call to
-         od_ec_decode() (or the equivalent of what would have been passed, if
-         another variant of that function was used).*/
+         od_ec_decode() or od_ec_decode_unscaled() (or the equivalent of what
+         would have been passed, if another variant of that function was
+         used).*/
 void od_ec_dec_update(od_ec_dec *_this,unsigned _fl,unsigned _fh,unsigned _ft){
   od_ec_window dif;
   unsigned     r;
@@ -323,11 +326,44 @@ void od_ec_dec_update(od_ec_dec *_this,unsigned _fl,unsigned _fh,unsigned _ft){
   od_ec_dec_normalize(_this,dif,r,0);
 }
 
-/*Decode a bit that has an _fz/32768 probability of being a zero.
+/*Decode a bit that has an _fz/_ft probability of being a zero.
+  No corresponding call to od_ec_dec_update() is necessary after this call.
+  _fz: The probability that the bit is zero, scaled by _ft.
+  _ft:   The total probability.
+         This must be at least 16384 and no more than 32768.
+  Return: The value decoded (0 or 1).*/
+int od_ec_decode_bool(od_ec_dec *_this,unsigned _fz,unsigned _ft){
+  od_ec_window dif;
+  od_ec_window vw;
+  unsigned     r;
+  int          s;
+  unsigned     v;
+  int          ret;
+  OD_ASSERT(0<_fz);
+  OD_ASSERT(_fz<_ft);
+  OD_ASSERT(16384<=_ft);
+  OD_ASSERT(_ft<=32768U);
+  dif=_this->dif;
+  r=_this->rng;
+  OD_ASSERT(dif>>OD_EC_WINDOW_SIZE-16<r);
+  OD_ASSERT(_ft<=r);
+  s=r-_ft>=_ft;
+  _ft<<=s;
+  _fz<<=s;
+  OD_ASSERT(r-_ft<_ft);
+  v=_fz+OD_MINI(_fz,r-_ft);
+  vw=(od_ec_window)v<<OD_EC_WINDOW_SIZE-16;
+  ret=dif>=vw;
+  if(ret)dif-=vw;
+  r=ret?r-v:v;
+  return od_ec_dec_normalize(_this,dif,r,ret);
+}
+
+/*Equivalent to od_ec_decode_bool() with _ft==32768.
   No corresponding call to od_ec_dec_update() is necessary after this call.
   _fz: The probability that the bit is zero, scaled by 32768.
   Return: The value decoded (0 or 1).*/
-int od_ec_dec_bool(od_ec_dec *_this,unsigned _fz){
+int od_ec_decode_bool_q15(od_ec_dec *_this,unsigned _fz){
   od_ec_window dif;
   od_ec_window vw;
   unsigned     r;
@@ -347,17 +383,16 @@ int od_ec_dec_bool(od_ec_dec *_this,unsigned _fz){
   return od_ec_dec_normalize(_this,dif,r,ret);
 }
 
-/*Decodes a symbol given an "inverse" CDF table.
+/*Decodes a symbol given a cumulative distribution function (CDF) table.
   No corresponding call to od_ec_dec_update() is necessary after this call.
-  _icdf: The "inverse" CDF, such that symbol s falls in the range
-          [s>0?ft-_icdf[s-1]:0,ft-_icdf[s]), where ft=1<<_ftb.
-         The values must be monotonically non-increasing, and the last value
-          must be 0.
-  _ft: The total of the cumulative distribution.
-       This must be at least 2 and no more than 32768.
+  _cdf:   The CDF, such that symbol s falls in the range
+           [s>0?_cdf[s-1]:0,_cdf[s]).
+          The values must be monotonically non-increasing, and _cdf[_nsyms-1]
+           must be at least 16384, and no more than 32768.
+  _nsyms: The number of symbols in the alphabet.
+          This should be at most 16.
   Return: The decoded symbol s.*/
-int od_ec_dec_icdf_ft(od_ec_dec *_this,
- const unsigned char *_icdf,unsigned _ft){
+int od_ec_decode_cdf(od_ec_dec *_this,const ogg_uint16_t *_cdf,int _nsyms){
   od_ec_window dif;
   unsigned     r;
   unsigned     d;
@@ -372,26 +407,24 @@ int od_ec_dec_icdf_ft(od_ec_dec *_this,
   dif=_this->dif;
   r=_this->rng;
   OD_ASSERT(dif>>OD_EC_WINDOW_SIZE-16<r);
-  OD_ASSERT(2<=_ft);
-  OD_ASSERT(_ft<=32768U);
-  s=15-OD_ILOG_NZ(_ft-1);
-  ft=_ft<<s;
+  OD_ASSERT(_nsyms>0);
+  ft=_cdf[_nsyms-1];
+  OD_ASSERT(16384<=ft);
+  OD_ASSERT(ft<=32768U);
   OD_ASSERT(ft<=r);
-  if(r-ft>=ft){
-    ft<<=1;
-    s++;
-  }
+  s=r-ft>=ft;
+  ft<<=s;
   d=r-ft;
   OD_ASSERT(d<ft);
   q=OD_MAXI((int)(dif>>OD_EC_WINDOW_SIZE-15),
    (int)((dif>>OD_EC_WINDOW_SIZE-16)-d))>>s;
-  OD_ASSERT(q<_ft);
-  q=_ft-q;
-  fl=_ft;
-  for(ret=0;_icdf[ret]>=q;ret++)fl=_icdf[ret];
-  OD_ASSERT(fl<=_ft);
-  fl=_ft-fl<<s;
-  fh=_ft-_icdf[ret]<<s;
+  OD_ASSERT(q<ft>>s);
+  fl=0;
+  ret=0;
+  for(fh=_cdf[ret];fh<=q;fh=_cdf[++ret])fl=fh;
+  OD_ASSERT(fh<=ft>>s);
+  fl<<=s;
+  fh<<=s;
   u=fl+OD_MINI(fl,d);
   v=fh+OD_MINI(fh,d);
   r=v-u;
@@ -399,17 +432,58 @@ int od_ec_dec_icdf_ft(od_ec_dec *_this,
   return od_ec_dec_normalize(_this,dif,r,ret);
 }
 
-/*Decodes a symbol given an "inverse" CDF table.
+/*Decodes a symbol given a cumulative distribution function (CDF) table.
   No corresponding call to od_ec_dec_update() is necessary after this call.
-  _icdf: The "inverse" CDF, such that symbol s falls in the range
-          [s>0?ft-_icdf[s-1]:0,ft-_icdf[s]), where ft=1<<_ftb.
-         The values must be monotonically non-increasing, and the last value
-          must be 0.
-  _ft: The total of the cumulative distribution.
-       This must be at least 2 and no more than 32768.
+  _cdf:   The CDF, such that symbol s falls in the range
+           [s>0?_cdf[s-1]:0,_cdf[s]).
+          The values must be monotonically non-increasing, and _cdf[_nsyms-1]
+           must be 32768.
+  _nsyms: The number of symbols in the alphabet.
+          This should be at most 16.
   Return: The decoded symbol s.*/
-int od_ec_dec_icdf16_ft(od_ec_dec *_this,
- const ogg_uint16_t *_icdf,unsigned _ft){
+int od_ec_decode_cdf_q15(od_ec_dec *_this,const ogg_uint16_t *_cdf,int _nsyms){
+  od_ec_window dif;
+  unsigned     r;
+  unsigned     d;
+  unsigned     u;
+  unsigned     v;
+  unsigned     q;
+  unsigned     fl;
+  unsigned     fh;
+  int          ret;
+  dif=_this->dif;
+  r=_this->rng;
+  OD_ASSERT(dif>>OD_EC_WINDOW_SIZE-16<r);
+  OD_ASSERT(_nsyms>0);
+  OD_ASSERT(_cdf[_nsyms-1]==32768U);
+  OD_ASSERT(32768U<=r);
+  d=r-32768U;
+  OD_ASSERT(d<32768U);
+  q=OD_MAXI((int)(dif>>OD_EC_WINDOW_SIZE-15),
+   (int)((dif>>OD_EC_WINDOW_SIZE-16)-d));
+  OD_ASSERT(q<32768U);
+  fl=0;
+  ret=0;
+  for(fh=_cdf[ret];fh<=q;fh=_cdf[++ret])fl=fh;
+  OD_ASSERT(fh<=32768U);
+  u=fl+OD_MINI(fl,d);
+  v=fh+OD_MINI(fh,d);
+  r=v-u;
+  dif-=(od_ec_window)u<<OD_EC_WINDOW_SIZE-16;
+  return od_ec_dec_normalize(_this,dif,r,ret);
+}
+
+/*Decodes a symbol given a cumulative distribution function (CDF) table.
+  No corresponding call to od_ec_dec_update() is necessary after this call.
+  _cdf:   The CDF, such that symbol s falls in the range
+           [s>0?_cdf[s-1]:0,_cdf[s]).
+          The values must be monotonically non-increasing, and _cdf[_nsyms-1]
+           must be at least 2, and no more than 32768.
+  _nsyms: The number of symbols in the alphabet.
+          This should be at most 16.
+  Return: The decoded symbol s.*/
+int od_ec_decode_cdf_unscaled(od_ec_dec *_this,
+ const ogg_uint16_t *_cdf,int _nsyms){
   od_ec_window dif;
   unsigned     r;
   unsigned     d;
@@ -424,10 +498,12 @@ int od_ec_dec_icdf16_ft(od_ec_dec *_this,
   dif=_this->dif;
   r=_this->rng;
   OD_ASSERT(dif>>OD_EC_WINDOW_SIZE-16<r);
-  OD_ASSERT(2<=_ft);
-  OD_ASSERT(_ft<=32768U);
-  s=15-OD_ILOG_NZ(_ft-1);
-  ft=_ft<<s;
+  OD_ASSERT(_nsyms>0);
+  ft=_cdf[_nsyms-1];
+  OD_ASSERT(2<=ft);
+  OD_ASSERT(ft<=32768U);
+  s=15-OD_ILOG_NZ(ft-1);
+  ft<<=s;
   OD_ASSERT(ft<=r);
   if(r-ft>=ft){
     ft<<=1;
@@ -437,13 +513,13 @@ int od_ec_dec_icdf16_ft(od_ec_dec *_this,
   OD_ASSERT(d<ft);
   q=OD_MAXI((int)(dif>>OD_EC_WINDOW_SIZE-15),
    (int)((dif>>OD_EC_WINDOW_SIZE-16)-d))>>s;
-  OD_ASSERT(q<_ft);
-  q=_ft-q;
-  fl=_ft;
-  for(ret=0;_icdf[ret]>=q;ret++)fl=_icdf[ret];
-  OD_ASSERT(fl<=_ft);
-  fl=_ft-fl<<s;
-  fh=_ft-_icdf[ret]<<s;
+  OD_ASSERT(q<ft>>s);
+  fl=0;
+  ret=0;
+  for(fh=_cdf[ret];fh<=q;fh=_cdf[++ret])fl=fh;
+  OD_ASSERT(fh<=ft>>s);
+  fl<<=s;
+  fh<<=s;
   u=fl+OD_MINI(fl,d);
   v=fh+OD_MINI(fh,d);
   r=v-u;
@@ -451,16 +527,19 @@ int od_ec_dec_icdf16_ft(od_ec_dec *_this,
   return od_ec_dec_normalize(_this,dif,r,ret);
 }
 
-/*Decodes a symbol given an "inverse" CDF table.
+/*Decodes a symbol given a cumulative distribution function (CDF) table.
   No corresponding call to od_ec_dec_update() is necessary after this call.
-  _icdf: The "inverse" CDF, such that symbol s falls in the range
-          [s>0?ft-_icdf[s-1]:0,ft-_icdf[s]), where ft=1<<_ftb.
-         The values must be monotonically non-increasing, and the last value
-          must be 0.
-  _ftb: The number of bits of precision in the cumulative distribution.
-        This must be no more than 15.
+  _cdf:   The CDF, such that symbol s falls in the range
+           [s>0?_cdf[s-1]:0,_cdf[s]).
+          The values must be monotonically non-increasing, and _cdf[_nsyms-1]
+           must be exactly 1<<_ftb.
+  _nsyms: The number of symbols in the alphabet.
+          This should be at most 16.
+  _ftb:   The number of bits of precision in the cumulative distribution.
+          This must be no more than 15.
   Return: The decoded symbol s.*/
-int od_ec_dec_icdf(od_ec_dec *_this,const unsigned char *_icdf,unsigned _ftb){
+int od_ec_decode_cdf_unscaled_dyadic(od_ec_dec *_this,
+ const ogg_uint16_t *_cdf,int _nsyms,unsigned _ftb){
   od_ec_window dif;
   unsigned     r;
   unsigned     d;
@@ -475,63 +554,20 @@ int od_ec_dec_icdf(od_ec_dec *_this,const unsigned char *_icdf,unsigned _ftb){
   r=_this->rng;
   OD_ASSERT(dif>>OD_EC_WINDOW_SIZE-16<r);
   OD_ASSERT(_ftb<=15);
+  OD_ASSERT(_cdf[_nsyms-1]==1U<<_ftb);
   s=15-_ftb;
   OD_ASSERT(32768U<=r);
   d=r-32768U;
   OD_ASSERT(d<32768U);
   q=OD_MAXI((int)(dif>>OD_EC_WINDOW_SIZE-15),
    (int)((dif>>OD_EC_WINDOW_SIZE-16)-d))>>s;
-  fl=1U<<_ftb;
-  OD_ASSERT(q<fl);
-  q=fl-q;
-  for(ret=0;_icdf[ret]>=q;ret++)fl=_icdf[ret];
-  OD_ASSERT(fl<=1U<<_ftb);
-  fl=32768U-(fl<<s);
-  fh=32768U-(_icdf[ret]<<s);
-  u=fl+OD_MINI(fl,d);
-  v=fh+OD_MINI(fh,d);
-  r=v-u;
-  dif-=(od_ec_window)u<<OD_EC_WINDOW_SIZE-16;
-  return od_ec_dec_normalize(_this,dif,r,ret);
-}
-
-/*Decodes a symbol given an "inverse" CDF table.
-  No corresponding call to od_ec_dec_update() is necessary after this call.
-  _icdf: The "inverse" CDF, such that symbol s falls in the range
-          [s>0?ft-_icdf[s-1]:0,ft-_icdf[s]), where ft=1<<_ftb.
-         The values must be monotonically non-increasing, and the last value
-          must be 0.
-  _ftb: The number of bits of precision in the cumulative distribution.
-        This must be no more than 15.
-  Return: The decoded symbol s.*/
-int od_ec_dec_icdf16(od_ec_dec *_this,const ogg_uint16_t *_icdf,unsigned _ftb){
-  od_ec_window dif;
-  unsigned     r;
-  unsigned     d;
-  int          s;
-  unsigned     u;
-  unsigned     v;
-  unsigned     q;
-  unsigned     fl;
-  unsigned     fh;
-  int          ret;
-  dif=_this->dif;
-  r=_this->rng;
-  OD_ASSERT(dif>>OD_EC_WINDOW_SIZE-16<r);
-  OD_ASSERT(_ftb<=15);
-  s=15-_ftb;
-  OD_ASSERT(32768U<=r);
-  d=r-32768U;
-  OD_ASSERT(d<32768U);
-  q=OD_MAXI((int)(dif>>OD_EC_WINDOW_SIZE-15),
-   (int)((dif>>OD_EC_WINDOW_SIZE-16)-d))>>s;
-  fl=1U<<_ftb;
-  OD_ASSERT(q<fl);
-  q=fl-q;
-  for(ret=0;_icdf[ret]>=q;ret++)fl=_icdf[ret];
-  OD_ASSERT(fl<=1U<<_ftb);
-  fl=32768U-(fl<<s);
-  fh=32768U-(_icdf[ret]<<s);
+  OD_ASSERT(q<1U<<_ftb);
+  fl=0;
+  ret=0;
+  for(fh=_cdf[ret];fh<=q;fh=_cdf[++ret])fl=fh;
+  OD_ASSERT(fh<=1U<<_ftb);
+  fl<<=s;
+  fh<<=s;
   u=fl+OD_MINI(fl,d);
   v=fh+OD_MINI(fh,d);
   r=v-u;
@@ -555,7 +591,7 @@ ogg_uint32_t od_ec_dec_uint(od_ec_dec *_this,ogg_uint32_t _ft){
     _ft--;
     ftb=OD_ILOG_NZ(_ft)-OD_EC_UINT_BITS;
     ft=(unsigned)(_ft>>ftb)+1<<15-OD_EC_UINT_BITS;
-    fs=od_ec_decode_normalized(_this,ft)&~((1<<15-OD_EC_UINT_BITS)-1);
+    fs=od_ec_decode(_this,ft)&~((1<<15-OD_EC_UINT_BITS)-1);
     od_ec_dec_update(_this,fs,fs+(1<<15-OD_EC_UINT_BITS),ft);
     t=(ogg_uint32_t)(fs>>15-OD_EC_UINT_BITS)<<ftb|od_ec_dec_bits(_this,ftb);
     if(t<=_ft)return t;
@@ -563,7 +599,7 @@ ogg_uint32_t od_ec_dec_uint(od_ec_dec *_this,ogg_uint32_t _ft){
     return _ft;
   }
   else{
-    fs=od_ec_decode(_this,_ft);
+    fs=od_ec_decode_unscaled(_this,_ft);
     od_ec_dec_update(_this,fs,fs+1,_ft);
     return fs;
   }
@@ -615,7 +651,8 @@ ogg_uint32_t od_ec_dec_bits(od_ec_dec *_this,unsigned _ftb){
           This will always be slightly larger than the exact value (e.g., all
            rounding error is in the positive direction).*/
 int od_ec_dec_tell(od_ec_dec *_this){
-  return ((_this->end-_this->eptr)+(_this->bptr-_this->buf))*8-_this->cnt-_this->nend_bits+_this->tell_offs;
+  return ((_this->end-_this->eptr)+(_this->bptr-_this->buf))*8
+   -_this->cnt-_this->nend_bits+_this->tell_offs;
 }
 
 /*Returns the number of bits "used" by the decoded symbols so far.

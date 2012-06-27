@@ -26,7 +26,7 @@
 #include "odintrin.h"
 #include "pvq_code.h"
 
-/** Initializes the icdfs and freq counts for a model
+/** Initializes the cdfs and freq counts for a model
  *
  * @param [out] model model being initialized
  */
@@ -39,9 +39,8 @@ void generic_model_init(GenericEncoder *model)
     for(j=0;j<16;j++)
     {
       /* FIXME: Come on, we can do better than flat initialization! */
-      model->icdf[i][j] = (15-j);
+      model->cdf[i][j] = (j+1)<<10;
     }
-    model->tot[i] = 16;
   }
 }
 
@@ -59,7 +58,7 @@ void generic_encode(od_ec_enc *enc, GenericEncoder *model, int x, int *ExQ16, in
   int lgQ1;
   int shift;
   int id;
-  unsigned short *icdf;
+  ogg_uint16_t *cdf;
   int xs;
 
   lgQ1=logEx(*ExQ16);
@@ -70,13 +69,13 @@ void generic_encode(od_ec_enc *enc, GenericEncoder *model, int x, int *ExQ16, in
      of the distribution */
   shift=OD_MAXI(0,(lgQ1-5)>>1);
 
-  /* Choose the icdf to use: we have two per "octave" of ExQ16 */
+  /* Choose the cdf to use: we have two per "octave" of ExQ16 */
   id=OD_MINI(GENERIC_TABLES-1,lgQ1);
-  icdf=model->icdf[id];
+  cdf=model->cdf[id];
 
   xs=(x+(1<<shift>>1))>>shift;
 
-  od_ec_enc_icdf16_ft(enc,OD_MINI(15,xs),icdf,model->tot[id]);
+  od_ec_encode_cdf(enc,OD_MINI(15,xs),cdf,16);
 
   if (xs>=15){
     unsigned decay;

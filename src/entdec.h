@@ -77,17 +77,20 @@ void od_ec_dec_init(od_ec_dec *_this,
  const unsigned char *_buf,ogg_uint32_t _storage);
 
 unsigned od_ec_decode(od_ec_dec *_this,unsigned _ft);
-unsigned od_ec_decode_bin(od_ec_dec *_this,unsigned _ftb);
+unsigned od_ec_decode_q15(od_ec_dec *_this);
+unsigned od_ec_decode_unscaled(od_ec_dec *_this,unsigned _ft);
+unsigned od_ec_decode_unscaled_dyadic(od_ec_dec *_this,unsigned _ftb);
 
 void od_ec_dec_update(od_ec_dec *_this,unsigned _fl,unsigned _fh,unsigned _ft);
 
-int od_ec_dec_bool(od_ec_dec *_this,unsigned _fz);
-int od_ec_dec_icdf_ft(od_ec_dec *_this,
- const unsigned char *_icdf,unsigned _ft);
-int od_ec_dec_icdf16_ft(od_ec_dec *_this,
- const ogg_uint16_t *_icdf,unsigned _ft);
-int od_ec_dec_icdf(od_ec_dec *_this,const unsigned char *_icdf,unsigned _ftb);
-int od_ec_dec_icdf16(od_ec_dec *_this,const ogg_uint16_t *_icdf,unsigned _ftb);
+int od_ec_decode_bool(od_ec_dec *_this,unsigned _fz,unsigned _ft);
+int od_ec_decode_bool_q15(od_ec_dec *_this,unsigned _fz);
+int od_ec_decode_cdf(od_ec_dec *_this,const ogg_uint16_t *_cdf,int _nsyms);
+int od_ec_decode_cdf_q15(od_ec_dec *_this,const ogg_uint16_t *_cdf,int _nsyms);
+int od_ec_decode_cdf_unscaled(od_ec_dec *_this,
+ const ogg_uint16_t *_cdf,int _nsyms);
+int od_ec_decode_cdf_unscaled_dyadic(od_ec_dec *_this,
+ const ogg_uint16_t *_cdf,int _nsyms,unsigned _ftb);
 
 ogg_uint32_t od_ec_dec_uint(od_ec_dec *_this,ogg_uint32_t _ft);
 
