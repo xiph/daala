@@ -48,6 +48,14 @@ typedef ogg_uint32_t     od_ec_window;
 # define OD_BITRES         (3)
 
 
+extern const ogg_uint16_t OD_UNIFORM_CDFS_Q15[135];
+
+/*Returns a Q15 CDF for a uniform probability distribution of the given size.
+  _n: The size of the distribution.
+      This must be at least 2, and no more than 16.*/
+#define OD_UNIFORM_CDF_Q15(_n) \
+  (OD_UNIFORM_CDFS_Q15+((_n)*((_n)-1)>>1)-1)
+
 
 /*See entcode.c for further documentation.*/
 

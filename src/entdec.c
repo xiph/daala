@@ -582,27 +582,21 @@ int od_ec_decode_cdf_unscaled_dyadic(od_ec_dec *_this,
        This must be at least 2, and no more than 2**32-1.
   Return: The decoded bits.*/
 ogg_uint32_t od_ec_dec_uint(od_ec_dec *_this,ogg_uint32_t _ft){
-  unsigned fs;
-  OD_ASSERT(_ft>0);
+  OD_ASSERT(_ft>=2);
   if(_ft>1U<<OD_EC_UINT_BITS){
     ogg_uint32_t t;
-    unsigned     ft;
+    int          ft;
     int          ftb;
     _ft--;
     ftb=OD_ILOG_NZ(_ft)-OD_EC_UINT_BITS;
-    ft=(unsigned)(_ft>>ftb)+1<<15-OD_EC_UINT_BITS;
-    fs=od_ec_decode(_this,ft)&~((1<<15-OD_EC_UINT_BITS)-1);
-    od_ec_dec_update(_this,fs,fs+(1<<15-OD_EC_UINT_BITS),ft);
-    t=(ogg_uint32_t)(fs>>15-OD_EC_UINT_BITS)<<ftb|od_ec_dec_bits(_this,ftb);
+    ft=(int)(_ft>>ftb)+1;
+    t=od_ec_decode_cdf_q15(_this,OD_UNIFORM_CDF_Q15(ft),ft);
+    t=t<<ftb|od_ec_dec_bits(_this,ftb);
     if(t<=_ft)return t;
     _this->error=1;
     return _ft;
   }
-  else{
-    fs=od_ec_decode_unscaled(_this,_ft);
-    od_ec_dec_update(_this,fs,fs+1,_ft);
-    return fs;
-  }
+  return od_ec_decode_cdf_q15(_this,OD_UNIFORM_CDF_Q15(_ft),(int)_ft);
 }
 
 /*Extracts a sequence of raw bits from the stream.

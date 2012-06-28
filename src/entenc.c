@@ -366,20 +366,18 @@ void od_ec_encode_cdf_unscaled_dyadic(od_ec_enc *_this,int _s,
   _ft: The number of integers that can be encoded (one more than the max).
        This must be at least 2, and no more than 2**32-1.*/
 void od_ec_enc_uint(od_ec_enc *_this,ogg_uint32_t _fl,ogg_uint32_t _ft){
-  OD_ASSERT(_ft>0);
+  OD_ASSERT(_ft>=2);
   OD_ASSERT(_fl<_ft);
   if(_ft>1U<<OD_EC_UINT_BITS){
-    unsigned ft;
-    unsigned fl;
-    int      ftb;
+    int ft;
+    int ftb;
     _ft--;
     ftb=OD_ILOG_NZ(_ft)-OD_EC_UINT_BITS;
-    ft=(_ft>>ftb)+1<<15-OD_EC_UINT_BITS;
-    fl=(unsigned)(_fl>>ftb)<<15-OD_EC_UINT_BITS;
-    od_ec_encode(_this,fl,fl+(1<<15-OD_EC_UINT_BITS),ft);
+    ft=(int)(_ft>>ftb)+1;
+    od_ec_encode_cdf_q15(_this,(int)(_fl>>ftb),OD_UNIFORM_CDF_Q15(ft),ft);
     od_ec_enc_bits(_this,_fl&((ogg_uint32_t)1<<ftb)-1U,ftb);
   }
-  else od_ec_encode_unscaled(_this,_fl,_fl+1,_ft);
+  else od_ec_encode_cdf_q15(_this,(int)_fl,OD_UNIFORM_CDF_Q15(_ft),(int)_ft);
 }
 
 /*Encodes a sequence of raw bits in the stream.
