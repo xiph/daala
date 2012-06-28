@@ -22,34 +22,28 @@ MAKEDEPEND = gcc -MM
 # Modify these to point to your Ogg and Vorbis include directories if they are
 #  not installed in a standard location.
 CINCLUDE = `sdl-config --cflags`
-CFLAGS += -Wall
+CFLAGS := -Wall $(CFLAGS)
 # These are gcc-only, but not actually critical.
-CFLAGS += -Wextra -Wno-parentheses -Wno-long-long -Wno-overlength-strings
-CFLAGS += -fvisibility=hidden
+CFLAGS := -Wextra -Wno-parentheses -Wno-long-long -Wno-overlength-strings $(CFLAGS)
+CFLAGS := -fvisibility=hidden $(CFLAGS)
 # Extra compilation flags.
 # You may get speed increases by including flags such as -O2 or -O3 or
 #  -ffast-math, or additional flags, depending on your system and compiler.
 # The -g flag will generally include debugging information.
-CFLAGS += -g
-CFLAGS += -DOD_ENABLE_ASSERTIONS
-#CFLAGS += -DOD_CHECKASM
-#CFLAGS += -DOD_DUMP_IMAGES
-#CFLAGS += -DOD_ANIMATE
-#CFLAGS += -flto
-#CFLAGS += -floop-interchange -floop-strip-mine -floop-block
-#CFLAGS += -ftree-vectorize -ftree-vectorizer-verbose=0
-#CFLAGS += -fomit-frame-pointer
-CFLAGS += -fPIC
-CFLAGS += -std=c89 -pedantic
+CFLAGS := -g $(CFLAGS)
+CFLAGS := -DOD_ENABLE_ASSERTIONS $(CFLAGS)
+#CFLAGS := -DOD_CHECKASM $(CFLAGS)
+#CFLAGS := -DOD_DUMP_IMAGES $(CFLAGS)
+#CFLAGS := -DOD_ANIMATE $(CFLAGS)
+CFLAGS := -fPIC $(CFLAGS)
+CFLAGS := -std=c89 -pedantic $(CFLAGS)
 # Set machine-specific flags
 HOST := $(shell uname -m)
 ifneq (,$(findstring 86,${HOST}))
-CFLAGS += -DOD_X86ASM
-#CFLAGS += -march=native
-#CFLAGS += -O3 -funroll-loops -fforce-addr -msse3
+CFLAGS := -DOD_X86ASM $(CFLAGS)
 else ifneq (,$(findstring arm,${HOST}))
-CFLAGS += -DOD_ARMASM
-#CFLAGS += -march=armv7
+CFLAGS := -DOD_ARMASM $(CFLAGS)
+#CFLAGS := -march=armv7 $(CFLAGS)
 endif
 
 # Libraries to link with, and the location of library files.
