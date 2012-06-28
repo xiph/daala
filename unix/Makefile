@@ -22,10 +22,7 @@ MAKEDEPEND = gcc -MM
 # Modify these to point to your Ogg and Vorbis include directories if they are
 #  not installed in a standard location.
 CINCLUDE = `sdl-config --cflags`
-CFLAGS := -Wall $(CFLAGS)
 # These are gcc-only, but not actually critical.
-CFLAGS := -Wextra -Wno-parentheses -Wno-long-long -Wno-overlength-strings $(CFLAGS)
-CFLAGS := -fvisibility=hidden $(CFLAGS)
 # Extra compilation flags.
 # You may get speed increases by including flags such as -O2 or -O3 or
 #  -ffast-math, or additional flags, depending on your system and compiler.
@@ -37,6 +34,9 @@ CFLAGS := -DOD_ENABLE_ASSERTIONS $(CFLAGS)
 #CFLAGS := -DOD_ANIMATE $(CFLAGS)
 CFLAGS := -fPIC $(CFLAGS)
 CFLAGS := -std=c89 -pedantic $(CFLAGS)
+CFLAGS := -fvisibility=hidden $(CFLAGS)
+CFLAGS := -Wextra -Wno-parentheses -Wno-long-long -Wno-overlength-strings $(CFLAGS)
+CFLAGS := -Wall $(CFLAGS)
 # Set machine-specific flags
 HOST := $(shell uname -m)
 ifneq (,$(findstring 86,${HOST}))
