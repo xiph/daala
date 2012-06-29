@@ -119,9 +119,10 @@ static int laplace_decode(od_ec_dec *dec, int ExQ8, int K)
 
   if(K<15){
     /* Simple way of truncating the pdf when we have a bound */
-    od_ec_decode_cdf_unscaled(dec,cdf,K+1);
+    sym=od_ec_decode_cdf_unscaled(dec,cdf,K+1);
+  } else {
+    sym=od_ec_decode_cdf_q15(dec,cdf,16);
   }
-  sym=od_ec_decode_cdf_q15(dec,cdf,16);
   if(shift){
     int special;
     /* Because of the rounding, there's only half the number of possibilities for xs=0 */

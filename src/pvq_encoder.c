@@ -124,9 +124,9 @@ static void laplace_encode(od_ec_enc *enc, int x, int ExQ8, int K)
   if (K<15){
     /* Simple way of truncating the pdf when we have a bound */
     od_ec_encode_cdf_unscaled(enc, sym, cdf, K+1);
+  } else {
+    od_ec_encode_cdf_q15(enc, sym, cdf, 16);
   }
-  od_ec_encode_cdf_q15(enc, sym, cdf, 16);
-
   if(shift){
     int special;
     /* Because of the rounding, there's only half the number of possibilities for xs=0 */
