@@ -167,7 +167,7 @@ void od_ec_enc_clear(od_ec_enc *_this){
         decoded value will fall.
   _ft: The sum of the frequencies of all the symbols.
        This must be at least 16384, and no more than 32768.*/
-void od_ec_encode(od_ec_enc *_this,unsigned _fl,unsigned _fh,unsigned _ft){
+static void od_ec_encode(od_ec_enc *_this,unsigned _fl,unsigned _fh,unsigned _ft){
   od_ec_window l;
   unsigned     r;
   int          s;
@@ -199,7 +199,7 @@ void od_ec_encode(od_ec_enc *_this,unsigned _fl,unsigned _fh,unsigned _ft){
         encoded.
   _fh: The cumulative frequency of all symbols up to and including the one to
         be encoded.*/
-void od_ec_encode_q15(od_ec_enc *_this,unsigned _fl,unsigned _fh){
+static void od_ec_encode_q15(od_ec_enc *_this,unsigned _fl,unsigned _fh){
   od_ec_window l;
   unsigned     r;
   unsigned     d;
@@ -228,7 +228,7 @@ void od_ec_encode_q15(od_ec_enc *_this,unsigned _fl,unsigned _fh){
         be encoded.
   _ft: The sum of the frequencies of all the symbols.
        This must be at least 2 and no more than 32768.*/
-void od_ec_encode_unscaled(od_ec_enc *_this,
+static void od_ec_encode_unscaled(od_ec_enc *_this,
  unsigned _fl,unsigned _fh,unsigned _ft){
   int s;
   OD_ASSERT(_fl<_fh);
@@ -237,18 +237,6 @@ void od_ec_encode_unscaled(od_ec_enc *_this,
   OD_ASSERT(_ft<=32768U);
   s=15-OD_ILOG_NZ(_ft-1);
   od_ec_encode(_this,_fl<<s,_fh<<s,_ft<<s);
-}
-
-/*Equivalent to od_ec_encode_unscaled() with _ft==1<<_ftb.
-  _fl:  The cumulative frequency of all symbols that come before the one to be
-         encoded.
-  _fh:  The cumulative frequency of all symbols up to and including the one to
-         be encoded.
-  _ftb: The number of bits of precision in the cumulative distribution.
-        This must be no more than 15.*/
-void od_ec_encode_unscaled_dyadic(od_ec_enc *_this,
- unsigned _fl,unsigned _fh,unsigned _ftb){
-  od_ec_encode_q15(_this,_fl<<15-_ftb,_fh<<15-_ftb);
 }
 
 /*Encode a bit that has an _fz/_ft probability of being a zero.

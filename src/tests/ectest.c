@@ -177,20 +177,12 @@ int main(int _argc,char **_argv){
       ftb[j]=(rand()%15)+1;
       fz[j]=rand()%32766>>15-ftb[j];
       fz[j]=OD_MAXI(fz[j],1);
-      enc_method[j]=rand()/((RAND_MAX>>2)+1);
+      enc_method[j]=rand()&1;
       switch(enc_method[j]){
         case 0:{
-          od_ec_encode_unscaled(&enc,data[j]?fz[j]:0,
-           data[j]?1U<<ftb[j]:fz[j],1U<<ftb[j]);
-        }break;
-        case 1:{
-          od_ec_encode_unscaled_dyadic(&enc,data[j]?fz[j]:0,
-           data[j]?1U<<ftb[j]:fz[j],ftb[j]);
-        }break;
-        case 2:{
           od_ec_encode_bool_q15(&enc,data[j],fz[j]<<15-ftb[j]);
         }break;
-        case 3:{
+        case 1:{
           ogg_uint16_t cdf[2];
           cdf[0]=fz[j];
           cdf[1]=1U<<ftb[j];
@@ -213,26 +205,13 @@ int main(int _argc,char **_argv){
        0,(unsigned)od_ec_dec_tell_frac(&dec),tell[0],seed);
     }
     for(j=0;j<sz;j++){
-      unsigned fs;
       int      dec_method;
-      dec_method=rand()/((RAND_MAX>>2)+1);
+      dec_method=rand()&1;
       switch(dec_method){
         case 0:{
-          fs=od_ec_decode_unscaled(&dec,1U<<ftb[j]);
-          sym=fs>=fz[j];
-          od_ec_dec_update(&dec,sym?fz[j]:0,
-           sym?1U<<ftb[j]:fz[j],1U<<ftb[j]);
-        }break;
-        case 1:{
-          fs=od_ec_decode_unscaled_dyadic(&dec,ftb[j]);
-          sym=fs>=fz[j];
-          od_ec_dec_update(&dec,sym?fz[j]:0,
-           sym?1U<<ftb[j]:fz[j],1U<<ftb[j]);
-        }break;
-        case 2:{
           sym=od_ec_decode_bool_q15(&dec,fz[j]<<15-ftb[j]);
         }break;
-        case 3:{
+        case 1:{
           ogg_uint16_t cdf[2];
           cdf[0]=fz[j];
           cdf[1]=1U<<ftb[j];

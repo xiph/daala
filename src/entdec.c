@@ -168,166 +168,7 @@ void od_ec_dec_init(od_ec_dec *_this,
   _this->error=0;
 }
 
-
-/*Calculates the scaled cumulative frequency for the next symbol given the
-   total frequency count.
-  This can then be fed into the probability model to determine what that
-   symbol is, and the additional frequency information required to advance to
-   the next symbol.
-  This function cannot be called more than once without a corresponding call to
-   od_ec_dec_update(), or decoding will not proceed correctly.
-  _ft: The total frequency of the symbols in the alphabet the next symbol was
-        encoded with.
-       This must be at least 16384 and no more than 32768.
-  Return: A cumulative frequency representing the encoded symbol.
-          If the cumulative frequency of all the symbols before the one that
-           was encoded was fl, and the cumulative frequency of all the symbols
-           up to and including the one encoded is fh, then the returned value
-           will fall in the range [fl,fh).*/
-unsigned od_ec_decode(od_ec_dec *_this,unsigned _ft){
-  unsigned dif;
-  unsigned r;
-  unsigned d;
-  int      s;
-  OD_ASSERT(16384<=_ft);
-  OD_ASSERT(_ft<=32768U);
-  dif=(unsigned)(_this->dif>>OD_EC_WINDOW_SIZE-16);
-  r=_this->rng;
-  OD_ASSERT(dif<r);
-  OD_ASSERT(_ft<=r);
-  s=r-_ft>=_ft;
-  _ft<<=s;
-  d=r-_ft;
-  OD_ASSERT(d<_ft);
-  _this->ext=s;
-  return OD_MAXI((int)(dif>>1),(int)(dif-d))>>s;
-}
-
-/*Equivalent to od_ec_decode() with _ft==32768.
-  This function cannot be called more than once without a corresponding call to
-   od_ec_dec_update(), or decoding will not proceed correctly.
-  Return: A cumulative frequency representing the encoded symbol.*/
-unsigned od_ec_decode_q15(od_ec_dec *_this){
-  unsigned dif;
-  unsigned r;
-  unsigned d;
-  dif=(unsigned)(_this->dif>>OD_EC_WINDOW_SIZE-16);
-  r=_this->rng;
-  OD_ASSERT(dif<r);
-  OD_ASSERT(32768U<=r);
-  d=r-32768U;
-  OD_ASSERT(d<32768U);
-  _this->ext=0;
-  return OD_MAXI((int)(dif>>1),(int)(dif-d));
-}
-
-/*Calculates the cumulative frequency for the next symbol given a total
-   frequency count with an arbitrary scale.
-  This function cannot be called more than once without a corresponding call to
-   od_ec_dec_update(), or decoding will not proceed correctly.
-  _ft: The total frequency of the symbols in the alphabet the next symbol was
-        encoded with.
-       This must be at least 2, and no more than 32768.
-  Return: A cumulative frequency representing the encoded symbol.*/
-unsigned od_ec_decode_unscaled(od_ec_dec *_this,unsigned _ft){
-  unsigned dif;
-  unsigned r;
-  unsigned d;
-  int      s;
-  OD_ASSERT(2<=_ft);
-  OD_ASSERT(_ft<=32768U);
-  dif=(unsigned)(_this->dif>>OD_EC_WINDOW_SIZE-16);
-  r=_this->rng;
-  OD_ASSERT(dif<r);
-  s=15-OD_ILOG_NZ(_ft-1);
-  _ft<<=s;
-  OD_ASSERT(_ft<=r);
-  if(r-_ft>=_ft){
-    _ft<<=1;
-    s++;
-  }
-  d=r-_ft;
-  OD_ASSERT(d<_ft);
-  _this->ext=s;
-  return OD_MAXI((int)(dif>>1),(int)(dif-d))>>s;
-}
-
-/*Equivalent to od_ec_decode_unscaled() with _ft==1<<_ftb.
-  This function cannot be called more than once without a corresponding call to
-   od_ec_dec_update(), or decoding will not proceed correctly.
-  _ftb: The base-2 logarithm of the total frequency of the symbols in the
-         alphabet the next symbol was encoded with.
-        This must be no more than 15.
-  Return: A cumulative frequency representing the encoded symbol.*/
-unsigned od_ec_decode_unscaled_dyadic(od_ec_dec *_this,unsigned _ftb){
-  unsigned dif;
-  unsigned r;
-  unsigned d;
-  int      s;
-  dif=(unsigned)(_this->dif>>OD_EC_WINDOW_SIZE-16);
-  r=_this->rng;
-  OD_ASSERT(dif<r);
-  OD_ASSERT(32768U<=r);
-  d=r-32768U;
-  OD_ASSERT(d<32768U);
-  OD_ASSERT(_ftb<=15);
-  s=15-_ftb;
-  _this->ext=s;
-  return OD_MAXI((int)(dif>>1),(int)(dif-d))>>s;
-}
-
-/*Advance the decoder past the next symbol using the frequency information the
-   symbol was encoded with.
-  Exactly one call to od_ec_decode() must have been made so that all necessary
-   intermediate calculations are performed.
-  _fl:  The cumulative frequency of all symbols that come before the symbol
-         decoded.
-  _fh:  The cumulative frequency of all symbols up to and including the symbol
-         decoded.
-        Together with _fl, this defines the range [_fl,_fh) in which the value
-         returned above must fall.
-  _ft:  The total frequency of the symbols in the alphabet the symbol decoded
-         was encoded in.
-        This must be the same as passed to the preceding call to
-         od_ec_decode() or od_ec_decode_unscaled() (or the equivalent of what
-         would have been passed, if another variant of that function was
-         used).*/
-void od_ec_dec_update(od_ec_dec *_this,unsigned _fl,unsigned _fh,unsigned _ft){
-  od_ec_window dif;
-  unsigned     r;
-  unsigned     d;
-  unsigned     u;
-  unsigned     v;
-  int          s;
-  OD_ASSERT(_fl<_fh);
-  OD_ASSERT(_fh<=_ft);
-  OD_ASSERT(0<_ft);
-  OD_ASSERT(_ft<=32768U);
-  dif=_this->dif;
-  r=_this->rng;
-  OD_ASSERT(dif>>OD_EC_WINDOW_SIZE-16<r);
-  s=(int)_this->ext;
-  _fl<<=s;
-  _fh<<=s;
-  _ft<<=s;
-  OD_ASSERT(16384<=_ft);
-  OD_ASSERT(_ft<=32768U);
-  OD_ASSERT(_ft<=r);
-  d=r-_ft;
-  OD_ASSERT(d<_ft);
-  OD_ASSERT(_fl<=(unsigned)OD_MAXI((int)(dif>>OD_EC_WINDOW_SIZE-15),
-   (int)((dif>>OD_EC_WINDOW_SIZE-16)-d)));
-  OD_ASSERT((unsigned)OD_MAXI((int)(dif>>OD_EC_WINDOW_SIZE-15),
-   (int)((dif>>OD_EC_WINDOW_SIZE-16)-d))<_fh);
-  u=_fl+OD_MINI(_fl,d);
-  v=_fh+OD_MINI(_fh,d);
-  r=v-u;
-  dif-=(od_ec_window)(u<<OD_EC_WINDOW_SIZE-16);
-  od_ec_dec_normalize(_this,dif,r,0);
-}
-
 /*Decode a bit that has an _fz/_ft probability of being a zero.
-  No corresponding call to od_ec_dec_update() is necessary after this call.
   _fz: The probability that the bit is zero, scaled by _ft.
   _ft:   The total probability.
          This must be at least 16384 and no more than 32768.
@@ -360,7 +201,6 @@ int od_ec_decode_bool(od_ec_dec *_this,unsigned _fz,unsigned _ft){
 }
 
 /*Equivalent to od_ec_decode_bool() with _ft==32768.
-  No corresponding call to od_ec_dec_update() is necessary after this call.
   _fz: The probability that the bit is zero, scaled by 32768.
   Return: The value decoded (0 or 1).*/
 int od_ec_decode_bool_q15(od_ec_dec *_this,unsigned _fz){
@@ -384,7 +224,6 @@ int od_ec_decode_bool_q15(od_ec_dec *_this,unsigned _fz){
 }
 
 /*Decodes a symbol given a cumulative distribution function (CDF) table.
-  No corresponding call to od_ec_dec_update() is necessary after this call.
   _cdf:   The CDF, such that symbol s falls in the range
            [s>0?_cdf[s-1]:0,_cdf[s]).
           The values must be monotonically non-increasing, and _cdf[_nsyms-1]
@@ -433,7 +272,6 @@ int od_ec_decode_cdf(od_ec_dec *_this,const ogg_uint16_t *_cdf,int _nsyms){
 }
 
 /*Decodes a symbol given a cumulative distribution function (CDF) table.
-  No corresponding call to od_ec_dec_update() is necessary after this call.
   _cdf:   The CDF, such that symbol s falls in the range
            [s>0?_cdf[s-1]:0,_cdf[s]).
           The values must be monotonically non-increasing, and _cdf[_nsyms-1]
@@ -474,7 +312,6 @@ int od_ec_decode_cdf_q15(od_ec_dec *_this,const ogg_uint16_t *_cdf,int _nsyms){
 }
 
 /*Decodes a symbol given a cumulative distribution function (CDF) table.
-  No corresponding call to od_ec_dec_update() is necessary after this call.
   _cdf:   The CDF, such that symbol s falls in the range
            [s>0?_cdf[s-1]:0,_cdf[s]).
           The values must be monotonically non-increasing, and _cdf[_nsyms-1]
@@ -528,7 +365,6 @@ int od_ec_decode_cdf_unscaled(od_ec_dec *_this,
 }
 
 /*Decodes a symbol given a cumulative distribution function (CDF) table.
-  No corresponding call to od_ec_dec_update() is necessary after this call.
   _cdf:   The CDF, such that symbol s falls in the range
            [s>0?_cdf[s-1]:0,_cdf[s]).
           The values must be monotonically non-increasing, and _cdf[_nsyms-1]
@@ -577,7 +413,6 @@ int od_ec_decode_cdf_unscaled_dyadic(od_ec_dec *_this,
 
 /*Extracts a raw unsigned integer with a non-power-of-2 range from the stream.
   The integer must have been encoded with od_ec_enc_uint().
-  No corresponding call to od_ec_dec_update() is necessary after this call.
   _ft: The number of integers that can be decoded (one more than the max).
        This must be at least 2, and no more than 2**32-1.
   Return: The decoded bits.*/
@@ -601,7 +436,6 @@ ogg_uint32_t od_ec_dec_uint(od_ec_dec *_this,ogg_uint32_t _ft){
 
 /*Extracts a sequence of raw bits from the stream.
   The bits must have been encoded with od_ec_enc_bits().
-  No corresponding call to od_ec_dec_update() is necessary after this call.
   _ftb: The number of bits to extract.
         This must be between 0 and 25, inclusive.
   Return: The decoded bits.*/

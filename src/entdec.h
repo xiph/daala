@@ -76,13 +76,6 @@ struct od_ec_dec{
 void od_ec_dec_init(od_ec_dec *_this,
  const unsigned char *_buf,ogg_uint32_t _storage);
 
-unsigned od_ec_decode(od_ec_dec *_this,unsigned _ft);
-unsigned od_ec_decode_q15(od_ec_dec *_this);
-unsigned od_ec_decode_unscaled(od_ec_dec *_this,unsigned _ft);
-unsigned od_ec_decode_unscaled_dyadic(od_ec_dec *_this,unsigned _ftb);
-
-void od_ec_dec_update(od_ec_dec *_this,unsigned _fl,unsigned _fh,unsigned _ft);
-
 int od_ec_decode_bool(od_ec_dec *_this,unsigned _fz,unsigned _ft);
 int od_ec_decode_bool_q15(od_ec_dec *_this,unsigned _fz);
 int od_ec_decode_cdf(od_ec_dec *_this,const ogg_uint16_t *_cdf,int _nsyms);

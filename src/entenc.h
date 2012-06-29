@@ -74,12 +74,6 @@ void od_ec_enc_init(od_ec_enc *_this,ogg_uint32_t _size);
 void od_ec_enc_reset(od_ec_enc *_this);
 void od_ec_enc_clear(od_ec_enc *_this);
 
-void od_ec_encode(od_ec_enc *_this,unsigned _fl,unsigned _fh,unsigned _ft);
-void od_ec_encode_q15(od_ec_enc *_this,unsigned _fl,unsigned _fh);
-void od_ec_encode_unscaled(od_ec_enc *_this,
- unsigned _fl,unsigned _fh,unsigned _ft);
-void od_ec_encode_unscaled_dyadic(od_ec_enc *_this,
- unsigned _fl,unsigned _fh,unsigned _ftb);
 void od_ec_encode_bool(od_ec_enc *_this,int _val,unsigned _fz,unsigned _ft);
 void od_ec_encode_bool_q15(od_ec_enc *_this,int _val,unsigned _fz_q15);
 void od_ec_encode_cdf(od_ec_enc *_this,int _s,
