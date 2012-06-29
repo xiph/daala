@@ -147,6 +147,7 @@ int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
   float theta;
   int qg, qt;
   int K;
+  OD_ASSERT(N>1);
 
   Q *= .42;
 
@@ -372,6 +373,7 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   float proj;
   int K,ym;
   float cg, cgr;
+  OD_ASSERT(N>1);
   Q*=.50;
   for(i=0;i<N;i++){
     scale[i]=_scale[i];
@@ -536,6 +538,7 @@ int quant_pvq_noref(ogg_int32_t *_x,float gr,
   int K;
   float cg, cgr;
   int qg;
+  OD_ASSERT(N>1);
 
   Q *= 1.52;
 
@@ -591,6 +594,7 @@ int quant_scalar(ogg_int32_t *_x,const ogg_int32_t *_r,
   int i;
   float Q2, Q2_1;
   int K;
+  OD_ASSERT(N>0);
 
   K=0;
   Q2=1.5*Q;
