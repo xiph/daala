@@ -60,6 +60,6 @@ extern const ogg_uint16_t OD_UNIFORM_CDFS_Q15[135];
 /*See entcode.c for further documentation.*/
 
 
-ogg_uint32_t od_ec_tell_frac(ogg_uint32_t _nbits_total,ogg_uint32_t _rng);
+OD_WARN_UNUSED_RESULT ogg_uint32_t od_ec_tell_frac(ogg_uint32_t _nbits_total,ogg_uint32_t _rng);
 
 #endif

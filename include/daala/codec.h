@@ -65,6 +65,18 @@ extern "C" {
 # pragma GCC visibility push(default)
 #endif
 
+#if __GNUC_PREREQ(3, 4)
+# define OD_WARN_UNUSED_RESULT __attribute__ ((__warn_unused_result__))
+#else
+# define OD_WARN_UNUSED_RESULT
+#endif
+
+#if __GNUC_PREREQ(3, 4)
+# define OD_ARG_NONNULL(_x)  __attribute__ ((__nonnull__(_x)))
+#else
+# define OD_ARG_NONNULL(_x)
+#endif
+
 /*TODO: remove this ugliness*/
 # if defined(_MSC_VER)
 #  pragma warning(disable:4100 4115 4125 4127 4152 4505 4554 4711)
