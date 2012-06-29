@@ -4,7 +4,7 @@
 #include <png.h>
 #include <zlib.h>
 #include <ogg/os_types.h>
-
+#include <limits.h>
 
 
 static void **od_malloc_2d(size_t _height,size_t _width,size_t _sz){
