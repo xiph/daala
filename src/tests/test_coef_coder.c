@@ -156,10 +156,26 @@ int main(int argc, char **argv){
     int bits;
     FILE *file;
     len=atoi(argv[1]);
+    if(len<1){
+      fprintf(stderr, "len must be at least 1\n");
+      return 1;
+    }
     N=atoi(argv[2]);
+    if(N<2){
+      fprintf(stderr, "N must be at least 2\n");
+      return 1;
+    }
     X=malloc(sizeof(*X)*len*N);
+    if(X==NULL){
+      fprintf(stderr, "cannot allocate buffer\n");
+      return 1;
+    }
     file=fopen(argv[3],"r");
-    OD_ASSERT2(file!=NULL, "cannot open input file");
+    if(file==NULL){
+      fprintf(stderr, "cannot open input file\n");
+      free(X);
+      return 1;
+    }
     for(i=0;i<len;i++)
       for(j=0;j<N;j++)
         fscanf(file,"%d ",&X[i*N+j]);
