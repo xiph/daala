@@ -72,20 +72,28 @@ struct od_ec_dec{
 
 
 void od_ec_dec_init(od_ec_dec *_this,
- const unsigned char *_buf,ogg_uint32_t _storage) OD_ARG_NONNULL(1) OD_ARG_NONNULL(2);
+ const unsigned char *_buf,ogg_uint32_t _storage)
+ OD_ARG_NONNULL(1) OD_ARG_NONNULL(2);
 
-OD_WARN_UNUSED_RESULT int od_ec_decode_bool(od_ec_dec *_this,unsigned _fz,unsigned _ft) OD_ARG_NONNULL(1);
-OD_WARN_UNUSED_RESULT int od_ec_decode_bool_q15(od_ec_dec *_this,unsigned _fz) OD_ARG_NONNULL(1);
-OD_WARN_UNUSED_RESULT int od_ec_decode_cdf(od_ec_dec *_this,const ogg_uint16_t *_cdf,int _nsyms) OD_ARG_NONNULL(1) OD_ARG_NONNULL(2);
-OD_WARN_UNUSED_RESULT int od_ec_decode_cdf_q15(od_ec_dec *_this,const ogg_uint16_t *_cdf,int _nsyms) OD_ARG_NONNULL(1) OD_ARG_NONNULL(2);
+OD_WARN_UNUSED_RESULT int od_ec_decode_bool(od_ec_dec *_this,unsigned _fz,
+ unsigned _ft) OD_ARG_NONNULL(1);
+OD_WARN_UNUSED_RESULT int od_ec_decode_bool_q15(od_ec_dec *_this,unsigned _fz)
+ OD_ARG_NONNULL(1);
+OD_WARN_UNUSED_RESULT int od_ec_decode_cdf(od_ec_dec *_this,
+ const ogg_uint16_t *_cdf, int _nsyms) OD_ARG_NONNULL(1) OD_ARG_NONNULL(2);
+OD_WARN_UNUSED_RESULT int od_ec_decode_cdf_q15(od_ec_dec *_this,
+ const ogg_uint16_t *_cdf,int _nsyms) OD_ARG_NONNULL(1) OD_ARG_NONNULL(2);
 OD_WARN_UNUSED_RESULT int od_ec_decode_cdf_unscaled(od_ec_dec *_this,
  const ogg_uint16_t *_cdf,int _nsyms) OD_ARG_NONNULL(1) OD_ARG_NONNULL(2);
 OD_WARN_UNUSED_RESULT int od_ec_decode_cdf_unscaled_dyadic(od_ec_dec *_this,
- const ogg_uint16_t *_cdf,int _nsyms,unsigned _ftb) OD_ARG_NONNULL(1) OD_ARG_NONNULL(2);
+ const ogg_uint16_t *_cdf,int _nsyms,unsigned _ftb)
+ OD_ARG_NONNULL(1) OD_ARG_NONNULL(2);
 
-OD_WARN_UNUSED_RESULT ogg_uint32_t od_ec_dec_uint(od_ec_dec *_this,ogg_uint32_t _ft) OD_ARG_NONNULL(1);
+OD_WARN_UNUSED_RESULT ogg_uint32_t od_ec_dec_uint(od_ec_dec *_this,
+ ogg_uint32_t _ft) OD_ARG_NONNULL(1);
 
-OD_WARN_UNUSED_RESULT ogg_uint32_t od_ec_dec_bits(od_ec_dec *_this,unsigned _ftb) OD_ARG_NONNULL(1);
+OD_WARN_UNUSED_RESULT ogg_uint32_t od_ec_dec_bits(od_ec_dec *_this,
+ unsigned _ftb) OD_ARG_NONNULL(1);
 
 OD_WARN_UNUSED_RESULT int od_ec_dec_tell(od_ec_dec *_this) OD_ARG_NONNULL(1);
 ogg_uint32_t od_ec_dec_tell_frac(od_ec_dec *_this) OD_ARG_NONNULL(1);
