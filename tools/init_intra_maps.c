@@ -3,6 +3,8 @@
 #include <limits.h>
 #include <string.h>
 #include "intra_fit_tools.h"
+#include "../src/newdct.c"
+#include "../src/internal.c"
 
 /*For validation purposes only.
   Copied from libvpx.*/
@@ -388,6 +390,9 @@ static void vp8_intra_predict(unsigned char *_dst,int _dst_stride,
   }
 }
 
+#define USE_DCT_SATD (0)
+
+#if !(USE_DCT_SATD&&B==4)
 static void od_diff_hadamard(short _buf[B_SZ*B_SZ],
  const unsigned char *_src,int _src_stride,
  const unsigned char *_ref,int _ref_stride){
@@ -463,6 +468,35 @@ static unsigned od_satd(const unsigned char *_src,int _src_stride,
   od_diff_hadamard(buf,_src,_src_stride,_ref,_ref_stride);
   return od_hadamard_sad(buf);
 }
+#else
+
+/*Computes the SATD using the actual DCT, instead of the Hadamard transform.
+  This is useful for comparing SATD numbers to the frequency domain techniques
+   without having to worry about scaling.*/
+static unsigned od_satd(const unsigned char *_src,int _src_stride,
+ const unsigned char *_ref,int _ref_stride){
+  od_coeff buf[B_SZ*B_SZ];
+  unsigned satd;
+  int      i;
+  int      j;
+  OD_ASSERT(B_SZ==4);
+  for(i=0;i<B_SZ;i++){
+    for(j=0;j<B_SZ;j++){
+      buf[B_SZ*i+j]=(_src+_src_stride*i)[j]-128;
+    }
+    od_bin_fdct4(buf+B_SZ*i,buf+B_SZ*i);
+  }
+  satd=0;
+  for(j=0;j<B_SZ;j++){
+    od_coeff col[B_SZ];
+    for(i=0;i<B_SZ;i++)col[i]=buf[B_SZ*i+j];
+    od_bin_fdct4(col,col);
+    for(i=0;i<B_SZ;i++)satd+=abs(col[i]);
+  }
+  return satd;
+}
+#endif
+
 
 
 typedef struct init_intra_maps_ctx init_intra_maps_ctx;
@@ -476,6 +510,8 @@ struct init_intra_maps_ctx{
   int            pli;
   int            nxblocks;
   int            nyblocks;
+  long long      n;
+  double         satd_avg;
 };
 
 
@@ -528,6 +564,7 @@ static void init_intra_block(void *_ctx,const unsigned char *_data,int _stride,
     }
     else if(satd<next_best_satd)next_best_satd=satd;
   }
+  ctx->satd_avg+=(best_satd-ctx->satd_avg)/++(ctx->n);
   ctx->map[_bj*ctx->nxblocks+_bi]=(unsigned char)best_mode;
   ctx->weights[_bj*ctx->nxblocks+_bi]=next_best_satd-best_satd;
 }
@@ -569,11 +606,14 @@ static int init_intra_plane_finish(void *_ctx){
   free(weights_filename);
   free(ctx->weights);
   free(ctx->map);
+  printf("Average SATD: %G\n",ctx->satd_avg);
   return EXIT_SUCCESS;
 }
 
 int main(int _argc,const char **_argv){
   init_intra_maps_ctx ctx;
+  ctx.n=0;
+  ctx.satd_avg=0;
   return apply_to_blocks(&ctx,init_intra_plane_start,init_intra_block,
    init_intra_plane_finish,_argc,_argv);
 }
