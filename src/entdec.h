@@ -61,8 +61,6 @@ struct od_ec_dec{
   ogg_uint16_t         rng;
   /*The number of bits of data in the current value.*/
   ogg_int16_t          cnt;
-  /*The saved normalization factor from od_ec_decode().*/
-  ogg_uint32_t         ext;
   /*Nonzero if an error occurred.*/
   int                  error;
 };
