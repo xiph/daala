@@ -81,7 +81,7 @@ static void od_ec_enc_normalize(od_ec_enc *_this,
     buf=_this->precarry_buf;
     storage=_this->precarry_storage;
     offs=_this->offs;
-    if(offs+2>=storage){
+    if(offs+2>storage){
       storage=2*storage+2;
       buf=_ogg_realloc(buf,storage*sizeof(*buf));
       if(buf==NULL){
@@ -494,7 +494,7 @@ unsigned char *od_ec_enc_done(od_ec_enc *_this,ogg_uint32_t *_nbytes){
   if(s>0){
     unsigned m;
     storage=_this->precarry_storage;
-    if(offs+(s+7>>3)>=storage){
+    if(offs+(s+7>>3)>storage){
       storage=storage*2+(s+7>>3);
       buf=(ogg_uint16_t *)_ogg_realloc(buf,storage*sizeof(*buf));
       if(buf==NULL){
@@ -530,7 +530,8 @@ unsigned char *od_ec_enc_done(od_ec_enc *_this,ogg_uint32_t *_nbytes){
       _this->error=-1;
       return NULL;
     }
-    memmove(out+storage-end_offs,out+_this->storage-end_offs,end_offs*sizeof(*out));
+    memmove(out+storage-end_offs,out+_this->storage-end_offs,
+     end_offs*sizeof(*out));
     _this->buf=out;
     _this->storage=storage;
   }
