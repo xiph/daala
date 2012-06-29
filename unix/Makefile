@@ -13,8 +13,6 @@ PLAYER_EXAMPLE_TARGET = player_example
 # Test targets
 ECTEST_TARGET = ectest
 TEST_COEF_CODER_TARGET = test_coef_coder
-# The compiler to use
-CC = gcc
 # The command to use to generate dependency information
 MAKEDEPEND = gcc -MM
 #MAKEDEPEND = makedepend -f- -Y --
