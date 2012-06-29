@@ -392,7 +392,7 @@ static void vp8_intra_predict(unsigned char *_dst,int _dst_stride,
 
 #define USE_DCT_SATD (0)
 
-#if !(USE_DCT_SATD&&B==4)
+#if !(USE_DCT_SATD&&B_SZ==4)
 static void od_diff_hadamard(short _buf[B_SZ*B_SZ],
  const unsigned char *_src,int _src_stride,
  const unsigned char *_ref,int _ref_stride){
