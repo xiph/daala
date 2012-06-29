@@ -31,7 +31,7 @@
 #include <stdlib.h>
 #include <math.h>
 
-#define EC_BUF_SIZE (1<<24)
+#define EC_BUF_SIZE (32)
 #define MAX_VECTORS 10000
 #define MAXN 256
 
@@ -70,10 +70,6 @@ int run_pvq(int *X,int len,int N){
     {
       fprintf(stderr, "enc: K[%d]=%d, num=%d, den=%d, u=%d\n", i, Ki[i], num, den, u);
     }*/
-    if(od_ec_enc_tell(&enc)>=EC_BUF_SIZE<<3){
-      fprintf(stderr,"bits used: %d\n", od_ec_enc_tell(&enc));
-    }
-    OD_ASSERT2(od_ec_enc_tell(&enc)<EC_BUF_SIZE<<3,"used too many bits");
     OD_ASSERT(!enc.error);
   }
   buf = od_ec_enc_done(&enc, &buf_sz);

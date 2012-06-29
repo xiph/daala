@@ -81,7 +81,7 @@ static void od_ec_enc_normalize(od_ec_enc *_this,
     buf=_this->precarry_buf;
     storage=_this->precarry_storage;
     offs=_this->offs;
-    if(offs>=storage){
+    if(offs+2>=storage){
       storage=2*storage+2;
       buf=_ogg_realloc(buf,storage*sizeof(*buf));
       if(buf==NULL){
@@ -400,7 +400,7 @@ void od_ec_enc_bits(od_ec_enc *_this,ogg_uint32_t _fl,unsigned _ftb){
        end_offs*sizeof(*new_buf));
       storage=new_storage;
       _ogg_free(buf);
-      _this->buf=new_buf;
+      _this->buf=buf=new_buf;
       _this->storage=storage;
     }
     do{
@@ -494,8 +494,8 @@ unsigned char *od_ec_enc_done(od_ec_enc *_this,ogg_uint32_t *_nbytes){
   if(s>0){
     unsigned m;
     storage=_this->precarry_storage;
-    if(offs>=storage){
-      storage=storage*2+2;
+    if(offs+(s+7>>3)>=storage){
+      storage=storage*2+(s+7>>3);
       buf=(ogg_uint16_t *)_ogg_realloc(buf,storage*sizeof(*buf));
       if(buf==NULL){
         _this->error=-1;
@@ -522,7 +522,7 @@ unsigned char *od_ec_enc_done(od_ec_enc *_this,ogg_uint32_t *_nbytes){
   e=_this->end_window;
   nend_bits=_this->nend_bits;
   s=-s;
-  c=OD_MAXI(nend_bits-s>>3,0);
+  c=OD_MAXI(nend_bits-s+7>>3,0);
   if(offs+end_offs+c>storage){
     storage=offs+end_offs+c;
     out=(unsigned char *)_ogg_realloc(out,storage*sizeof(*out));
@@ -530,6 +530,7 @@ unsigned char *od_ec_enc_done(od_ec_enc *_this,ogg_uint32_t *_nbytes){
       _this->error=-1;
       return NULL;
     }
+    memmove(out+storage-end_offs,out+_this->storage-end_offs,end_offs*sizeof(*out));
     _this->buf=out;
     _this->storage=storage;
   }
@@ -542,7 +543,7 @@ unsigned char *od_ec_enc_done(od_ec_enc *_this,ogg_uint32_t *_nbytes){
   }
   *_nbytes=offs+end_offs;
   /*Perform carry propagation.*/
-  OD_ASSERT(offs+end_offs<storage);
+  OD_ASSERT(offs+end_offs<=storage);
   out=out+storage-(offs+end_offs);
   c=0;
   end_offs=offs;
