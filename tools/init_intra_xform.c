@@ -10,15 +10,24 @@
 /* #define INTRA_NO_RDO */
 
 long long hist[B_SZ*B_SZ][8192];
-#define NB_CONTEXTS 8
 #define P0_COEF 0.002
 
 /* These weight are estimated from the entropy of the residual (in one older run) on subset1-y4m */
 const float satd_weights[16] =
 {0.027602, 0.100551, 0.255518, 0.342399, 0.097165, 0.162053, 0.340471, 0.427589,
  0.225212, 0.320962, 0.523734, 0.608046, 0.294722, 0.389122, 0.593447, 0.651656, };
+/* Less extreme weighting -- sqrt of the weights above */
+const float satd_weights2[16] =
+{0.150132, 0.304899, 0.486806, 0.584237, 0.297611, 0.401207, 0.580133, 0.646780,
+ 0.465428, 0.558581, 0.720019, 0.779307, 0.536564, 0.612284, 0.764042, 0.806180, };
 
+#if 1
+#define NB_CONTEXTS 8
 #define GET_CONTEXT(modes,pos,m,width) (((modes)[(pos)-1]==(m))*4 + ((modes)[(pos)-(width)-1]==(m))*2 + ((modes)[(pos)-(width)]==(m))*1)
+#else
+#define NB_CONTEXTS 1000
+#define GET_CONTEXT(modes,pos,m,width) (((modes)[(pos)-1])*100 + ((modes)[(pos)-(width)-1])*10 + ((modes)[(pos)-(width)]==(m))*1)
+#endif
 
 typedef struct intra_xform_ctx intra_xform_ctx;
 
@@ -84,7 +93,7 @@ static int intra_xform_train_plane_start(void *_ctx,const char *_name,
   ctx->nxblocks=_nxblocks;
   ctx->nyblocks=_nyblocks;
   for(i=0;i<OD_INTRA_NMODES;i++)
-    ctx->p0[i]=.1;
+    ctx->p0[i]=ctx->freq[i][0][1]/(float)ctx->freq[i][0][0];
   return EXIT_SUCCESS;
 }
 
@@ -380,14 +389,62 @@ static void intra_xform_update_block(void *_ctx,const unsigned char *_data,
   int              best_mode;
   int              c0[OD_INTRA_NMODES]={0};
   double           bits=0;
-  buf2=xform_blocks(buf,_data,_stride);
+  float sum=0;
+  float maxP=0;
+  int maxM=0;
+  unsigned char *modes;
+  int pos;
+  int m;
+  int width;
+  float p[OD_INTRA_NMODES];
   ctx=(intra_xform_ctx *)_ctx;
+  modes=ctx->map;
+  pos = _bj*ctx->nxblocks+_bi;
+  width=ctx->nxblocks;
+
+  buf2=xform_blocks(buf,_data,_stride);
   best_mode=0;
   best_satd=UINT_MAX;
   best_rlsatd=UINT_MAX;
   best_bits=0;
   next_best_satd=UINT_MAX;
   next_best_rlsatd=UINT_MAX;
+  for(m=0;m<OD_INTRA_NMODES;m++)
+  {
+    int c;
+    if (_bi>0 && _bj>0)
+      c=GET_CONTEXT(modes,pos,m,width);
+    else if (_bj>0)
+#if 1
+      c=(modes[pos-width]==m);
+#else
+    c=(modes[pos-width]);
+#endif
+    else if (_bi>0)
+#if 1
+      c=(modes[pos-1]==m)*4;
+#else
+    c=(modes[pos-1])*100;
+#endif
+    else
+      c=0;
+    p[m] = ctx->freq[m][c][1]/(float)ctx->freq[m][c][0];
+    /*p[m] = p[m]/(1.2-p[m]);*/
+    p[m]+=1.e-5;
+    if (p[m]<ctx->p0[m]) p[m]=ctx->p0[m];
+    if (c==0)
+    {
+      ctx->p0[m]*=(1-P0_COEF);
+      c0[m]=1;
+    }
+    sum += p[m];
+    if (p[m]>maxP)
+    {
+      maxP=p[m];
+      maxM=m;
+    }
+  }
+
   for(mode=0;mode<OD_INTRA_NMODES;mode++){
     double satd;
     double rlsatd;
@@ -415,57 +472,21 @@ static void intra_xform_update_block(void *_ctx,const unsigned char *_data,
         /* Simulates quantization with dead zone (without the annoying quantization effects) */
         diff = fabs(buf2[3*B_SZ*(i+B_SZ)+j+B_SZ]-(od_coeff)floor(p+0.5)) - 1;
         if (diff<0)diff=0;
-        satd+=satd_weights[i*B_SZ+j]*diff;
+        satd+=satd_weights2[i*B_SZ+j]*diff;
 #endif
         hist[i*B_SZ+j][4096+(buf2[3*B_SZ*(i+B_SZ)+j+B_SZ]-(od_coeff)floor(p+0.5))]++;
       }
     }
     rlsatd=satd;
-    if (_bj>0){
-      float p[OD_INTRA_NMODES];
-      unsigned char *modes;
-      int pos;
-      int m;
-      int width;
-      float sum=0;
-      float maxP=0;
-      int maxM=0;
-      modes=ctx->map;
-      pos = _bj*ctx->nxblocks+_bi;
-      width=ctx->nxblocks;
-      for(m=0;m<OD_INTRA_NMODES;m++)
-      {
-        int c;
-        if (_bi>0)
-          c=GET_CONTEXT(modes,pos,m,width);
-        else
-          c=0;
-        p[m] = ctx->freq[m][c][1]/(float)ctx->freq[m][c][0];
-        /*p[m] = p[m]/(1.2-p[m]);*/
-        p[m]+=1.e-5;
-        if (p[m]<ctx->p0[m]) p[m]=ctx->p0[m];
-        if (c==0 && _bi>0)
-        {
-          ctx->p0[m]*=(1-P0_COEF);
-          c0[m]=1;
-        }
-        sum += p[m];
-        if (p[m]>maxP)
-        {
-          maxP=p[m];
-          maxM=m;
-        }
-      }
-      /* Normalize all probabilities except the max */
-      /*bits = -log(p[mode]/sum)/log(2);*/
-      /* Normalize all probabilities except the max */
-      bits = (mode==maxM) ? -log(p[mode])/log(2) : -log(p[mode]*(1-maxP)/(sum-maxP))/log(2);
+    /* Normalize all probabilities except the max */
+    /*bits = -log(p[mode]/sum)/log(2);*/
+    /* Normalize all probabilities except the max */
+    bits = (mode==maxM) ? -log(p[mode])/log(2) : -log(p[mode]*(1-maxP)/(sum-maxP))/log(2);
 #ifndef INTRA_NO_RDO
-      satd += .5*bits;
+    satd += 1.3*bits;
 #endif
-      /* Bias towards DC mode */
-      /*if (mode==0)satd-=.5;*/
-    }
+    /* Bias towards DC mode */
+    /*if (mode==0)satd-=.5;*/
     if(satd<best_satd){
       next_best_satd=best_satd;
       next_best_rlsatd=best_rlsatd;
