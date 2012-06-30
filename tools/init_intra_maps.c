@@ -482,9 +482,11 @@ static unsigned od_satd(const unsigned char *_src,int _src_stride,
   OD_ASSERT(B_SZ==4);
   for(i=0;i<B_SZ;i++){
     for(j=0;j<B_SZ;j++){
-      buf[B_SZ*i+j]=(_src+_src_stride*i)[j]-128;
+      buf[B_SZ*i+j]=_src[j]-_ref[j];
     }
     od_bin_fdct4(buf+B_SZ*i,buf+B_SZ*i);
+    _src+=_src_stride;
+    _ref+=_ref_stride;
   }
   satd=0;
   for(j=0;j<B_SZ;j++){
