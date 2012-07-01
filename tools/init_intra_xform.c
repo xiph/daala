@@ -390,6 +390,7 @@ static void intra_xform_update_block(void *_ctx,const unsigned char *_data,
   int              c0[OD_INTRA_NMODES]={0};
   double           bits=0;
   float sum=0;
+  float sum2=0;
   float maxP=0;
   int maxM=0;
   unsigned char *modes;
@@ -444,6 +445,11 @@ static void intra_xform_update_block(void *_ctx,const unsigned char *_data,
       maxM=m;
     }
   }
+  for(m=0;m<OD_INTRA_NMODES;m++)
+  {
+    p[m] *= (sum-p[m])/(1-p[m]);
+    sum2+=p[m];
+  }
 
   for(mode=0;mode<OD_INTRA_NMODES;mode++){
     double satd;
@@ -481,9 +487,11 @@ static void intra_xform_update_block(void *_ctx,const unsigned char *_data,
     /* Normalize all probabilities except the max */
     /*bits = -log(p[mode]/sum)/log(2);*/
     /* Normalize all probabilities except the max */
-    bits = (mode==maxM) ? -log(p[mode])/log(2) : -log(p[mode]*(1-maxP)/(sum-maxP))/log(2);
+    /*bits = (mode==maxM) ? -log(p[mode])/log(2) : -log(p[mode]*(1-maxP)/(sum-maxP))/log(2);*/
+
+    bits = -log(p[mode]/sum2)/log(2);
 #ifndef INTRA_NO_RDO
-    satd += 1.3*bits;
+    satd += 1.1*bits;
 #endif
     /* Bias towards DC mode */
     /*if (mode==0)satd-=.5;*/
