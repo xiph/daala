@@ -165,7 +165,7 @@ public class Intra {
 			}
 		});
 		for (File file : inputFiles) {
-			System.out.println("path="+file.getPath());
+			System.out.println("Processing "+file.getPath());
 			BufferedReader br=new BufferedReader(new FileReader(file));
 			// 3 color planes, YUV
 			for (int pli=0;pli<1;pli++) {
@@ -227,7 +227,7 @@ public class Intra {
 					//rmsePrint(mode,mults);
 				}
 				double rmseEnd=Math.sqrt(md.rmseTotal/(B_SZ*B_SZ));
-				System.out.print(mode+" "+rmseEnd+" "+(rmseStart-rmseEnd));
+				System.out.print(mode+" "+rmseEnd+" "+(rmseEnd-rmseStart));
 				for (int i=0;i<B_SZ*B_SZ;i++) {
 					System.out.print(" "+(3*B_SZ*B_SZ-md.numMasked[i]));
 				}

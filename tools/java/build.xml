@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="daala" default="compile">
+
+	<property file="etc/build.properties"/>
+
+	<path id="libs.classpath">
+		<fileset dir="lib">
+			<include name="*.jar"/>
+		</fileset>
+		<pathelement location="bin/classes"/>
+	</path>
+
+	<target name="clean">
+		<delete quiet="true" includeemptydirs="true">
+			<fileset dir="bin"/>
+		</delete>
+	</target>
+
+	<target name="compile" unless="compile.unnecessary">
+		<mkdir dir="bin/classes"/>
+		<javac srcdir="src" destdir="bin/classes"
+			debug="${compile.debug}"
+			deprecation="${compile.deprecation}"
+			optimize="${compile.optimize}"
+			source="${compile.source}"
+			target="${compile.target}"
+			classpathref="libs.classpath"/>
+	</target>
+
+	<target name="run" depends="compile">
+		<java classname="intra.Intra">
+			<classpath>
+				<path refid="libs.classpath"/>
+			</classpath>
+		</java>
+	</target>
+
+</project>

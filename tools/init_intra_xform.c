@@ -52,6 +52,7 @@ struct intra_xform_ctx{
   double         total_count;
 };
 
+#define PRINT_BLOCKS (0)
 
 static int intra_xform_train_plane_start(void *_ctx,const char *_name,
  const th_info *_ti,int _pli,int _nxblocks,int _nyblocks){
@@ -159,8 +160,6 @@ static od_coeff *xform_blocks(od_coeff _buf[3*B_SZ*3*B_SZ],
 #endif
   return buf2;
 }
-
-#define PRINT_BLOCKS (0)
 
 static void intra_xform_train_block(void *_ctx,const unsigned char *_data,
  int _stride,int _bi,int _bj){
