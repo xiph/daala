@@ -90,6 +90,9 @@ static int intra_xform_train_plane_start(void *_ctx,const char *_name,
     return EXIT_FAILURE;
   }
   fclose(weights_file);
+#if PRINT_BLOCKS
+  fprintf(stderr,"%i %i\n",_nxblocks,_nyblocks);
+#endif
   ctx->nxblocks=_nxblocks;
   ctx->nyblocks=_nyblocks;
   for(i=0;i<OD_INTRA_NMODES;i++)
@@ -157,6 +160,8 @@ static od_coeff *xform_blocks(od_coeff _buf[3*B_SZ*3*B_SZ],
   return buf2;
 }
 
+#define PRINT_BLOCKS (0)
+
 static void intra_xform_train_block(void *_ctx,const unsigned char *_data,
  int _stride,int _bi,int _bj){
   intra_xform_ctx     *ctx;
@@ -172,10 +177,19 @@ static void intra_xform_train_block(void *_ctx,const unsigned char *_data,
   int                  k;
   int                  l;
   ctx=(intra_xform_ctx *)_ctx;
-  wb=ctx->weights[_bj*ctx->nxblocks+_bi];
-  if(wb<=0)return;
   buf2=xform_blocks(buf,_data,_stride);
   mode=ctx->map[_bj*ctx->nxblocks+_bi];
+#if PRINT_BLOCKS
+  fprintf(stderr,"%i",mode);
+  for (i=0;i<2*B_SZ;i++) {
+    for (j=0;j<2*B_SZ;j++) {
+      fprintf(stderr," %i",buf2[3*B_SZ*i+j]);
+    }
+  }
+  fprintf(stderr,"\n");
+#endif
+  wb=ctx->weights[_bj*ctx->nxblocks+_bi];
+  if(wb<=0)return;
   w=ctx->r_w[mode];
   ctx->r_w[mode]+=wb;
   dw=wb/(w+wb);
