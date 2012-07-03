@@ -9,17 +9,29 @@
 
 /* #define INTRA_NO_RDO */
 
-long long hist[B_SZ*B_SZ][8192];
+int ExCount[3];
+double Ex[3][B_SZ*B_SZ];
 #define P0_COEF 0.002
 
 /* These weight are estimated from the entropy of the residual (in one older run) on subset1-y4m */
-const float satd_weights[16] =
-{0.027602, 0.100551, 0.255518, 0.342399, 0.097165, 0.162053, 0.340471, 0.427589,
- 0.225212, 0.320962, 0.523734, 0.608046, 0.294722, 0.389122, 0.593447, 0.651656, };
+const float satd_weights[3][16] =
+{{0.053046, 0.108601, 0.208930, 0.267489, 0.099610, 0.151836, 0.276093, 0.333044,
+  0.180490, 0.256407, 0.420637, 0.485639, 0.224520, 0.295232, 0.464384, 0.519662,},
+ {0.209979, 0.381558, 0.657913, 0.793790, 0.362177, 0.505781, 0.821064, 0.926135,
+  0.603069, 0.779381, 1.078780, 1.151472, 0.725735, 0.864047, 1.135539, 1.175140,},
+ {0.231557, 0.398671, 0.687661, 0.820069, 0.379319, 0.542037, 0.865300, 0.967672,
+  0.643793, 0.824554, 1.124411, 1.191774, 0.760804, 0.909100, 1.181837, 1.223243,}
+};
+
 /* Less extreme weighting -- sqrt of the weights above */
-const float satd_weights2[16] =
-{0.150132, 0.304899, 0.486806, 0.584237, 0.297611, 0.401207, 0.580133, 0.646780,
- 0.465428, 0.558581, 0.720019, 0.779307, 0.536564, 0.612284, 0.764042, 0.806180, };
+const float satd_weights2[3][16] =
+{{0.230317, 0.329547, 0.457088, 0.517193, 0.315611, 0.389662, 0.525445, 0.577099,
+  0.424841, 0.506366, 0.648566, 0.696878, 0.473835, 0.543352, 0.681457, 0.720876,},
+ {0.458235, 0.617704, 0.811118, 0.890949, 0.601811, 0.711183, 0.906126, 0.962359,
+  0.776575, 0.882826, 1.038644, 1.073067, 0.851901, 0.929541, 1.065617, 1.084039,},
+ {0.481204, 0.631404, 0.829253, 0.905577, 0.615889, 0.736232, 0.930215, 0.983703,
+  0.802367, 0.908049, 1.060383, 1.091684, 0.872241, 0.953467, 1.087123, 1.106003,}
+};
 
 #if 1
 #define NB_CONTEXTS 8
@@ -38,6 +50,7 @@ struct intra_xform_ctx{
   unsigned      *weights;
   int            nxblocks;
   int            nyblocks;
+  int            pli;
   double         r_w[OD_INTRA_NMODES];
   double         r_x[OD_INTRA_NMODES][2*B_SZ*2*B_SZ];
   double         r_xx[OD_INTRA_NMODES][2*B_SZ*2*B_SZ][2*B_SZ*2*B_SZ];
@@ -385,6 +398,7 @@ static int intra_xform_update_plane_start(void *_ctx,const char *_name,
    _nxblocks*(size_t)_nyblocks*sizeof(*ctx->weights));
   ctx->nxblocks=_nxblocks;
   ctx->nyblocks=_nyblocks;
+  ctx->pli=_pli;
   return EXIT_SUCCESS;
 }
 
@@ -398,14 +412,15 @@ static void intra_xform_update_block(void *_ctx,const unsigned char *_data,
   double           best_bits;
   double           next_best_satd;
   double           next_best_rlsatd;
+  double           best_error[B_SZ*B_SZ]={0};
+  double           error[B_SZ*B_SZ];
   int              mode;
   int              best_mode;
   int              c0[OD_INTRA_NMODES]={0};
   double           bits=0;
+  int              i;
   float sum=0;
   float sum2=0;
-  float maxP=0;
-  int maxM=0;
   unsigned char *modes;
   int pos;
   int m;
@@ -452,11 +467,6 @@ static void intra_xform_update_block(void *_ctx,const unsigned char *_data,
       c0[m]=1;
     }
     sum += p[m];
-    if (p[m]>maxP)
-    {
-      maxP=p[m];
-      maxM=m;
-    }
   }
   for(m=0;m<OD_INTRA_NMODES;m++)
   {
@@ -468,7 +478,6 @@ static void intra_xform_update_block(void *_ctx,const unsigned char *_data,
     double satd;
     double rlsatd;
     double diff;
-    int      i;
     int      j;
     satd=0;
     for(i=0;i<B_SZ;i++){
@@ -489,11 +498,12 @@ static void intra_xform_update_block(void *_ctx,const unsigned char *_data,
         satd+=diff;
 #else
         /* Simulates quantization with dead zone (without the annoying quantization effects) */
-        diff = fabs(buf2[3*B_SZ*(i+B_SZ)+j+B_SZ]-(od_coeff)floor(p+0.5)) - 1;
+        diff = fabs(buf2[3*B_SZ*(i+B_SZ)+j+B_SZ]-p) - 1;
         if (diff<0)diff=0;
-        satd+=satd_weights2[i*B_SZ+j]*diff;
+        /*satd+=satd_weights2[i*B_SZ+j]*diff;*/
+        satd+=satd_weights2[ctx->pli][i*B_SZ+j]*diff;
 #endif
-        hist[i*B_SZ+j][4096+(buf2[3*B_SZ*(i+B_SZ)+j+B_SZ]-(od_coeff)floor(p+0.5))]++;
+        error[i*B_SZ+j]=buf2[3*B_SZ*(i+B_SZ)+j+B_SZ]-p;
       }
     }
     rlsatd=satd;
@@ -515,9 +525,14 @@ static void intra_xform_update_block(void *_ctx,const unsigned char *_data,
       best_rlsatd=rlsatd;
       best_mode=mode;
       best_bits=bits;
+      for (i=0;i<B_SZ*B_SZ;i++)
+        best_error[i]=error[i];
     }
     else if(satd<next_best_satd){next_best_satd=satd;next_best_rlsatd=rlsatd;}
   }
+  for (i=0;i<B_SZ*B_SZ;i++)
+    Ex[ctx->pli][i]+=fabs(best_error[i]);
+  ExCount[ctx->pli]++;
   if (c0[best_mode])
     ctx->p0[best_mode] += P0_COEF;
   /*fprintf(stderr,"%f\n", best_bits);*/
@@ -568,6 +583,7 @@ int main(int _argc,const char **_argv){
   static intra_xform_ctx ctx;
   int                    ret;
   int                    i;
+  int                    pli;
   for(i=0;i<OD_INTRA_NMODES;i++)
   {
     int j;
@@ -595,13 +611,14 @@ int main(int _argc,const char **_argv){
       printf("%f ", ctx.freq[i][j][1]/(float)ctx.freq[i][j][0]);
     printf("\n");
   }
-#if 0
-  for(i=0;i<B_SZ*B_SZ;i++)
+#if 1
+  for (pli=0;pli<3;pli++)
   {
-    int j;
-    printf("hist: ");
-    for(j=0;j<8192;j++)
-      printf("%lli ", hist[i][j]);
+    printf("Ex: ");
+    for(i=0;i<B_SZ*B_SZ;i++)
+    {
+      printf("%f ", Ex[pli][i]/ExCount[pli]);
+    }
     printf("\n");
   }
 #endif
