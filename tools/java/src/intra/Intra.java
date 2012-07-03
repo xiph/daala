@@ -19,8 +19,6 @@ public class Intra {
 
 	public static final int B_SZ=4;
 
-	public static final int LEN=(2*B_SZ)*(2*B_SZ);
-
 	public static final int MAX_MULTS=4*B_SZ*B_SZ;
 
 	public static final int[] MODE_COLORS={
@@ -40,25 +38,33 @@ public class Intra {
 
 		protected long numBlocks;
 
-		protected double[] mean=new double[LEN];
+		protected double[] mean=new double[2*B_SZ*2*B_SZ];
 
-		protected double[][] covariance=new double[LEN][LEN];
+		protected double[][] covariance=new double[2*B_SZ*2*B_SZ][2*B_SZ*2*B_SZ];
+
+		protected double[] scale=new double[2*B_SZ*2*B_SZ];
 
 		protected int[] numMasked=new int[B_SZ*B_SZ];
 
 		protected boolean[][] mask=new boolean[3*B_SZ*B_SZ][B_SZ*B_SZ];
 
-		protected double[][] rmseMasked=new double[3*B_SZ*B_SZ][B_SZ*B_SZ];
+		protected double[][] sseMasked=new double[3*B_SZ*B_SZ][B_SZ*B_SZ];
 
-		protected double[] rmse=new double[B_SZ*B_SZ];
+		protected double[] sse=new double[B_SZ*B_SZ];
 
-		protected double rmseTotal;
+		protected double sseTotal;
+
+		protected double[][] beta=new double[3*B_SZ*B_SZ][B_SZ*B_SZ];
 
 	};
 
 	protected static ModeData[] modeData=new ModeData[MODES];
 
-	protected static double rmse(int _mode,int _y) {
+	protected static double sse(int _mode,int _y) {
+		return(sse(_mode,_y,false));
+	}
+
+	protected static double sse(int _mode,int _y,boolean _saveBeta) {
 		ModeData md=modeData[_mode];
 		double yty=md.covariance[3*B_SZ*B_SZ+_y][3*B_SZ*B_SZ+_y];
 		double ytxb=0;
@@ -82,10 +88,24 @@ public class Intra {
 			DenseMatrix64F beta=new DenseMatrix64F(xsize,1);
 			solver.setA(xtx);
 			solver.solve(xty,beta);
+			// compute y^T * x * beta
 			for (int ii=0,i=0;i<3*B_SZ*B_SZ;i++) {
 				if (!md.mask[i][_y]) {
 					ytxb+=md.covariance[3*B_SZ*B_SZ+_y][i]*beta.get(ii,0);
 					ii++;
+				}
+			}
+			// save beta for use with classification
+			if (_saveBeta) {
+				for (int ii=0,i=0;i<3*B_SZ*B_SZ;i++) {
+					if (!md.mask[i][_y]) {
+						// beta' = Sx^-1 * beta * Sy -> beta = Sx * beta' * Sy^-1
+						md.beta[i][_y]=beta.get(ii,0)*md.scale[3*B_SZ*B_SZ+_y]/md.scale[i];
+						ii++;
+					}
+					else {
+						md.beta[i][_y]=0;
+					}
 				}
 			}
 		}
@@ -93,13 +113,13 @@ public class Intra {
 	}
 
 	// compute the RMSE for a given y coefficient
-	protected static void rmseUpdate(int _mode,int _y) {
+	protected static void sseUpdate(int _mode,int _y) {
 		ModeData md=modeData[_mode];
 		for (int i=0;i<3*B_SZ*B_SZ;i++) {
 			if (!md.mask[i][_y]) {
 				md.mask[i][_y]=true;
 				md.numMasked[_y]++;
-				md.rmseMasked[i][_y]=rmse(_mode,_y);
+				md.sseMasked[i][_y]=sse(_mode,_y);
 				md.mask[i][_y]=false;
 				md.numMasked[_y]--;
 			 }
@@ -108,14 +128,14 @@ public class Intra {
 
 	protected static void rmsePrint(int _mode,int _mults) {
 		ModeData md=modeData[_mode];
-		System.out.print("mults["+_mode+"]="+_mults+" rmse["+_mode+"]="+md.rmseTotal);
+		System.out.print("mults["+_mode+"]="+_mults+" rmse["+_mode+"]="+md.sseTotal);
 		for (int y=0;y<B_SZ*B_SZ;y++) {
-			System.out.print(" "+md.rmse[y]);
+			System.out.print(" "+md.sse[y]);
 		}
 		System.out.println();
 	}
 
-	protected static int rmseDrop(int _mode) {
+	protected static int sseDrop(int _mode) {
 		ModeData md=modeData[_mode];
 		double delta=Double.MAX_VALUE;
 		int y=-1;
@@ -123,18 +143,14 @@ public class Intra {
 		for (int j=0;j<3*B_SZ*B_SZ;j++) {
 			for (int i=0;i<B_SZ*B_SZ;i++) {
 				if (!md.mask[j][i]) {
-					if (md.rmseMasked[j][i]-md.rmse[i]<0) {
-						System.out.println("y="+i+" c="+j+" old rmse="+md.rmse[i]+" new rmse="+md.rmseMasked[j][i]);
-					}
-					if (md.rmseMasked[j][i]-md.rmse[i]<delta) {
-						delta=md.rmseMasked[j][i]-md.rmse[i];
+					if (md.sseMasked[j][i]-md.sse[i]<delta) {
+						delta=md.sseMasked[j][i]-md.sse[i];
 						y=i;
 						c=j;
 					}
 				}
 			}
 		}
-		//System.out.println("delta="+delta);
 		md.mask[c][y]=true;
 		return(y);
 	}
@@ -146,8 +162,7 @@ public class Intra {
 
 		// index the coefficients in block order
 		int[] index=new int[4*B_SZ*B_SZ];
-		int tmp=0;
-		for (int j=0;j<B_SZ;j++) {
+		for (int tmp=0,j=0;j<B_SZ;j++) {
 			for (int i=0;i<B_SZ;i++) {
 				index[tmp+0*B_SZ*B_SZ]=2*B_SZ*j+i;
 				index[tmp+1*B_SZ*B_SZ]=2*B_SZ*j+(B_SZ+i);
@@ -165,7 +180,7 @@ public class Intra {
 			}
 		});
 		for (File file : inputFiles) {
-			System.out.println("Processing "+file.getPath());
+			System.out.println(file.getPath());
 			BufferedReader br=new BufferedReader(new FileReader(file));
 			// 3 color planes, YUV
 			for (int pli=0;pli<1;pli++) {
@@ -175,20 +190,20 @@ public class Intra {
 				int ny=Integer.parseInt(data[1]);
 
 				int[] rgb=new int[nx*ny];
-				double[] delta=new double[LEN];
+				double[] delta=new double[2*B_SZ*2*B_SZ];
 				for (int block=0;block<nx*ny;block++) {
 					data=br.readLine().split(" ");
 					int mode=Integer.parseInt(data[0]);
 					rgb[block]=MODE_COLORS[mode];
 					modeData[mode].numBlocks++;
 					// online update of the mean
-					for (int i=0;i<LEN;i++) {
+					for (int i=0;i<2*B_SZ*2*B_SZ;i++) {
 						delta[i]=Integer.parseInt(data[index[i]+1])-modeData[mode].mean[i];
 						modeData[mode].mean[i]+=delta[i]/modeData[mode].numBlocks;
 					}
 					// online update of the covariance
-					for (int j=0;j<LEN;j++) {
-						for (int i=0;i<LEN;i++) {
+					for (int j=0;j<2*B_SZ*2*B_SZ;j++) {
+						for (int i=0;i<2*B_SZ*2*B_SZ;i++) {
 							modeData[mode].covariance[j][i]+=delta[j]*delta[i]*(modeData[mode].numBlocks-1)/modeData[mode].numBlocks;
 						}
 					}
@@ -204,35 +219,45 @@ public class Intra {
 			// for each mode
 			for (int mode=0;mode<MODES;mode++) {
 				ModeData md=modeData[mode];
-				// initialize the rmse based on completely unmasked
-				md.rmseTotal=0;
+				for (int i=0;i<2*B_SZ*2*B_SZ;i++) {
+					md.scale[i]=Math.sqrt(md.covariance[i][i]);
+				}
+				// compute C' = Sx * C * Sx
+				for (int j=0;j<2*B_SZ*2*B_SZ;j++) {
+					for (int i=0;i<2*B_SZ*2*B_SZ;i++) {
+						md.covariance[j][i]/=md.scale[j]*md.scale[i];
+					}
+				}
+				// initialize the sse based on completely unmasked
+				md.sseTotal=0;
 				for (int y=0;y<B_SZ*B_SZ;y++) {
-					md.rmse[y]=rmse(mode,y);
-					md.rmseTotal+=md.rmse[y];
+					md.sse[y]=sse(mode,y,true);
+					md.sseTotal+=md.sse[y];
 				}
 				for (int y=0;y<B_SZ*B_SZ;y++) {
-					rmseUpdate(mode,y);
+					sseUpdate(mode,y);
 				}
-				// print the current rmse
 				int mults=(3*B_SZ*B_SZ)*(B_SZ*B_SZ);
 				//rmsePrint(mode,mults);
-				double rmseStart=Math.sqrt(md.rmseTotal/(B_SZ*B_SZ));
+				double rmseStart=Math.sqrt(md.sseTotal/(B_SZ*B_SZ));
 				for (;mults-->MAX_MULTS;) {
-					int y=rmseDrop(mode);
-					md.rmseTotal-=md.rmse[y];
-					md.rmse[y]=rmse(mode,y);
-					md.rmseTotal+=md.rmse[y];
+					int y=sseDrop(mode);
+					md.sseTotal-=md.sse[y];
+					md.sse[y]=sse(mode,y,true);
+					md.sseTotal+=md.sse[y];
 					md.numMasked[y]++;
-					rmseUpdate(mode,y);
+					sseUpdate(mode,y);
 					//rmsePrint(mode,mults);
 				}
-				double rmseEnd=Math.sqrt(md.rmseTotal/(B_SZ*B_SZ));
+				double rmseEnd=Math.sqrt(md.sseTotal/(B_SZ*B_SZ));
 				System.out.print(mode+" "+rmseEnd+" "+(rmseEnd-rmseStart));
 				for (int i=0;i<B_SZ*B_SZ;i++) {
 					System.out.print(" "+(3*B_SZ*B_SZ-md.numMasked[i]));
 				}
 				System.out.println();
 			}
+
+			// re-classify the blocks based on the computed beta's
 		}
 	}
 
