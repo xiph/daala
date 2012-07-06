@@ -34,9 +34,28 @@ public class Intra {
 		0xFFFF00C0,
 	};
 
+	public static final int[] INDEX;
+
+	static {
+		// index the coefficients in block order
+		INDEX=new int[4*B_SZ*B_SZ];
+		for (int tmp=0,j=0;j<B_SZ;j++) {
+			for (int i=0;i<B_SZ;i++) {
+				INDEX[tmp+0*B_SZ*B_SZ]=2*B_SZ*j+i;
+				INDEX[tmp+1*B_SZ*B_SZ]=2*B_SZ*j+(B_SZ+i);
+				INDEX[tmp+2*B_SZ*B_SZ]=2*B_SZ*(B_SZ+j)+i;
+				INDEX[tmp+3*B_SZ*B_SZ]=2*B_SZ*(B_SZ+j)+(B_SZ+i);
+				tmp++;
+			}
+		}
+
+
+	}
 	static class ModeData {
 
 		protected long numBlocks;
+
+		protected double weightTotal;
 
 		protected double[] mean=new double[2*B_SZ*2*B_SZ];
 
@@ -44,15 +63,15 @@ public class Intra {
 
 		protected double[] scale=new double[2*B_SZ*2*B_SZ];
 
-		protected int[] numMasked=new int[B_SZ*B_SZ];
+		protected int[] numMults=new int[B_SZ*B_SZ];
 
-		protected boolean[][] mask=new boolean[3*B_SZ*B_SZ][B_SZ*B_SZ];
+		protected boolean[][] mult=new boolean[3*B_SZ*B_SZ][B_SZ*B_SZ];
 
-		protected double[][] sseMasked=new double[3*B_SZ*B_SZ][B_SZ*B_SZ];
+		protected double[][] mseMasked=new double[3*B_SZ*B_SZ][B_SZ*B_SZ];
 
-		protected double[] sse=new double[B_SZ*B_SZ];
+		protected double[] mse=new double[B_SZ*B_SZ];
 
-		protected double sseTotal;
+		protected double mseTotal;
 
 		protected double[][] beta=new double[3*B_SZ*B_SZ][B_SZ*B_SZ];
 
@@ -60,47 +79,57 @@ public class Intra {
 
 	protected static ModeData[] modeData=new ModeData[MODES];
 
-	protected static double sse(int _mode,int _y) {
-		return(sse(_mode,_y,false));
+	protected static double mse(int _mode,int _y) {
+		return(mse(_mode,_y,false));
 	}
 
-	protected static double sse(int _mode,int _y,boolean _saveBeta) {
+	protected static LinearSolver<DenseMatrix64F> solver=new SolvePseudoInverseSvd();
+
+	protected static DenseMatrix64F[] xtx=new DenseMatrix64F[3*B_SZ*B_SZ];
+
+	protected static DenseMatrix64F[] xty=new DenseMatrix64F[3*B_SZ*B_SZ];
+
+	protected static DenseMatrix64F[] beta=new DenseMatrix64F[3*B_SZ*B_SZ];
+
+	protected static double mse(int _mode,int _y,boolean _saveBeta) {
 		ModeData md=modeData[_mode];
 		double yty=md.covariance[3*B_SZ*B_SZ+_y][3*B_SZ*B_SZ+_y];
 		double ytxb=0;
-		int xsize=3*B_SZ*B_SZ-md.numMasked[_y];
+		int xsize=md.numMults[_y];
 		if (xsize>0) {
-			DenseMatrix64F xtx=new DenseMatrix64F(xsize,xsize);
-			DenseMatrix64F xty=new DenseMatrix64F(xsize,1);
+			if (xtx[xsize-1]==null) {
+				xty[xsize-1]=new DenseMatrix64F(xsize,1);
+				beta[xsize-1]=new DenseMatrix64F(xsize,1);
+			}
+			xtx[xsize-1]=new DenseMatrix64F(xsize,xsize);
 			for (int ji=0,j=0;j<3*B_SZ*B_SZ;j++) {
-				if (!md.mask[j][_y]) {
+				if (md.mult[j][_y]) {
 					for (int ii=0,i=0;i<3*B_SZ*B_SZ;i++) {
-						if (!md.mask[i][_y]) {
-							xtx.set(ji,ii,md.covariance[j][i]);
+						if (md.mult[i][_y]) {
+							xtx[xsize-1].set(ji,ii,md.covariance[j][i]);
 							ii++;
 						}
 					}
-					xty.set(ji,0,md.covariance[j][3*B_SZ*B_SZ+_y]);
+					xty[xsize-1].set(ji,0,md.covariance[j][3*B_SZ*B_SZ+_y]);
 					ji++;
 				}
 			}
-			LinearSolver<DenseMatrix64F> solver=new SolvePseudoInverseSvd();
-			DenseMatrix64F beta=new DenseMatrix64F(xsize,1);
-			solver.setA(xtx);
-			solver.solve(xty,beta);
+
+			solver.setA(xtx[xsize-1]);
+			solver.solve(xty[xsize-1],beta[xsize-1]);
 			// compute y^T * x * beta
 			for (int ii=0,i=0;i<3*B_SZ*B_SZ;i++) {
-				if (!md.mask[i][_y]) {
-					ytxb+=md.covariance[3*B_SZ*B_SZ+_y][i]*beta.get(ii,0);
+				if (md.mult[i][_y]) {
+					ytxb+=md.covariance[3*B_SZ*B_SZ+_y][i]*beta[xsize-1].get(ii,0);
 					ii++;
 				}
 			}
 			// save beta for use with classification
 			if (_saveBeta) {
 				for (int ii=0,i=0;i<3*B_SZ*B_SZ;i++) {
-					if (!md.mask[i][_y]) {
+					if (md.mult[i][_y]) {
 						// beta' = Sx^-1 * beta * Sy -> beta = Sx * beta' * Sy^-1
-						md.beta[i][_y]=beta.get(ii,0)*md.scale[3*B_SZ*B_SZ+_y]/md.scale[i];
+						md.beta[i][_y]=beta[xsize-1].get(ii,0)*md.scale[3*B_SZ*B_SZ+_y]/md.scale[i];
 						ii++;
 					}
 					else {
@@ -109,67 +138,64 @@ public class Intra {
 				}
 			}
 		}
-		return((yty-ytxb)/md.numBlocks);
+		return(yty-ytxb);
 	}
 
-	// compute the RMSE for a given y coefficient
-	protected static void sseUpdate(int _mode,int _y) {
+	// compute the MSE for a given y coefficient
+	protected static void mseUpdate(int _mode,int _y) {
 		ModeData md=modeData[_mode];
 		for (int i=0;i<3*B_SZ*B_SZ;i++) {
-			if (!md.mask[i][_y]) {
-				md.mask[i][_y]=true;
-				md.numMasked[_y]++;
-				md.sseMasked[i][_y]=sse(_mode,_y);
-				md.mask[i][_y]=false;
-				md.numMasked[_y]--;
+			if (md.mult[i][_y]) {
+				md.mult[i][_y]=false;
+				md.numMults[_y]--;
+				md.mseMasked[i][_y]=mse(_mode,_y);
+				md.mult[i][_y]=true;
+				md.numMults[_y]++;
 			 }
 		 }
 	}
 
-	protected static void rmsePrint(int _mode,int _mults) {
-		ModeData md=modeData[_mode];
-		System.out.print("mults["+_mode+"]="+_mults+" rmse["+_mode+"]="+md.sseTotal);
-		for (int y=0;y<B_SZ*B_SZ;y++) {
-			System.out.print(" "+md.sse[y]);
-		}
-		System.out.println();
-	}
-
-	protected static int sseDrop(int _mode) {
+	protected static int mseDrop(int _mode) {
 		ModeData md=modeData[_mode];
 		double delta=Double.MAX_VALUE;
 		int y=-1;
 		int c=-1;
 		for (int j=0;j<3*B_SZ*B_SZ;j++) {
 			for (int i=0;i<B_SZ*B_SZ;i++) {
-				if (!md.mask[j][i]) {
-					if (md.sseMasked[j][i]-md.sse[i]<delta) {
-						delta=md.sseMasked[j][i]-md.sse[i];
+				if (md.mult[j][i]) {
+					if (md.mseMasked[j][i]-md.mse[i]<delta) {
+						delta=md.mseMasked[j][i]-md.mse[i];
 						y=i;
 						c=j;
 					}
 				}
 			}
 		}
-		md.mask[c][y]=true;
+		md.mult[c][y]=false;
 		return(y);
 	}
 
+	protected static void addBlock(int _mode,double _weight,String[] _data) {
+		double[] delta=new double[2*B_SZ*2*B_SZ];
+		modeData[_mode].numBlocks++;
+		modeData[_mode].weightTotal+=_weight;
+		// online update of the mean
+		for (int i=0;i<2*B_SZ*2*B_SZ;i++) {
+			delta[i]=Integer.parseInt(_data[INDEX[i]+1])-modeData[_mode].mean[i];
+			modeData[_mode].mean[i]+=delta[i]*_weight/modeData[_mode].weightTotal;
+		}
+		// online update of the covariance
+		for (int j=0;j<2*B_SZ*2*B_SZ;j++) {
+			for (int i=0;i<2*B_SZ*2*B_SZ;i++) {
+				modeData[_mode].covariance[j][i]+=delta[j]*delta[i]*_weight*(modeData[_mode].weightTotal-_weight)/modeData[_mode].weightTotal;
+			}
+		}
+	}
+
 	public static void main(String[] _args) throws IOException {
+		// initialize the modes
 		for (int i=0;i<MODES;i++) {
 			modeData[i]=new ModeData();
-		}
-
-		// index the coefficients in block order
-		int[] index=new int[4*B_SZ*B_SZ];
-		for (int tmp=0,j=0;j<B_SZ;j++) {
-			for (int i=0;i<B_SZ;i++) {
-				index[tmp+0*B_SZ*B_SZ]=2*B_SZ*j+i;
-				index[tmp+1*B_SZ*B_SZ]=2*B_SZ*j+(B_SZ+i);
-				index[tmp+2*B_SZ*B_SZ]=2*B_SZ*(B_SZ+j)+i;
-				index[tmp+3*B_SZ*B_SZ]=2*B_SZ*(B_SZ+j)+(B_SZ+i);
-				tmp++;
-			}
 		}
 
 		// for each pass of k-means load the data
@@ -190,32 +216,23 @@ public class Intra {
 				int ny=Integer.parseInt(data[1]);
 
 				int[] rgb=new int[nx*ny];
-				double[] delta=new double[2*B_SZ*2*B_SZ];
 				for (int block=0;block<nx*ny;block++) {
 					data=br.readLine().split(" ");
 					int mode=Integer.parseInt(data[0]);
+					addBlock(mode,1,data);
 					rgb[block]=MODE_COLORS[mode];
-					modeData[mode].numBlocks++;
-					// online update of the mean
-					for (int i=0;i<2*B_SZ*2*B_SZ;i++) {
-						delta[i]=Integer.parseInt(data[index[i]+1])-modeData[mode].mean[i];
-						modeData[mode].mean[i]+=delta[i]/modeData[mode].numBlocks;
-					}
-					// online update of the covariance
-					for (int j=0;j<2*B_SZ*2*B_SZ;j++) {
-						for (int i=0;i<2*B_SZ*2*B_SZ;i++) {
-							modeData[mode].covariance[j][i]+=delta[j]*delta[i]*(modeData[mode].numBlocks-1)/modeData[mode].numBlocks;
-						}
-					}
 				}
 
 				BufferedImage bi=new BufferedImage(nx,ny,BufferedImage.TYPE_INT_ARGB);
 				bi.setRGB(0,0,nx,ny,rgb,0,nx);
-				ImageIO.write(bi,"PNG",new File(file.getPath()+".png"));
+				ImageIO.write(bi,"PNG",new File(file.getPath()+".step0.png"));
 			}
 		}
 
-		for (int step=1;step<=1;step++) {
+		long last=System.currentTimeMillis();
+		// 16*44=704=768-64
+		for (int step=1;step<=44;step++) {
+			long modeStart=System.currentTimeMillis();
 			// for each mode
 			for (int mode=0;mode<MODES;mode++) {
 				ModeData md=modeData[mode];
@@ -228,36 +245,109 @@ public class Intra {
 						md.covariance[j][i]/=md.scale[j]*md.scale[i];
 					}
 				}
-				// initialize the sse based on completely unmasked
-				md.sseTotal=0;
+				// compute MSE based on completely unmasked
+				md.mseTotal=0;
 				for (int y=0;y<B_SZ*B_SZ;y++) {
-					md.sse[y]=sse(mode,y,true);
-					md.sseTotal+=md.sse[y];
+					md.numMults[y]=3*B_SZ*B_SZ;
+					for (int i=0;i<3*B_SZ*B_SZ;i++) {
+						md.mult[i][y]=true;
+					}
+					md.mse[y]=mse(mode,y,true);
+					md.mseTotal+=md.mse[y];
+					mseUpdate(mode,y);
 				}
-				for (int y=0;y<B_SZ*B_SZ;y++) {
-					sseUpdate(mode,y);
+
+				System.out.println("before="+(System.currentTimeMillis()-modeStart));
+				double rmseStart=Math.sqrt(md.mseTotal/(B_SZ*B_SZ));
+				for (int drops=0;drops<step*16;drops++) {
+					int y=mseDrop(mode);
+					md.mseTotal-=md.mse[y];
+					md.mse[y]=mse(mode,y,true);
+					md.mseTotal+=md.mse[y];
+					md.numMults[y]--;
+					mseUpdate(mode,y);
 				}
-				int mults=(3*B_SZ*B_SZ)*(B_SZ*B_SZ);
-				//rmsePrint(mode,mults);
-				double rmseStart=Math.sqrt(md.sseTotal/(B_SZ*B_SZ));
-				for (;mults-->MAX_MULTS;) {
-					int y=sseDrop(mode);
-					md.sseTotal-=md.sse[y];
-					md.sse[y]=sse(mode,y,true);
-					md.sseTotal+=md.sse[y];
-					md.numMasked[y]++;
-					sseUpdate(mode,y);
-					//rmsePrint(mode,mults);
+				System.out.println("after="+(System.currentTimeMillis()-modeStart));
+				double rmseEnd=Math.sqrt(md.mseTotal/(B_SZ*B_SZ));
+				long modeEnd=System.currentTimeMillis();
+				System.out.println(mode+" "+rmseEnd+" "+(rmseEnd-rmseStart)+" took "+(modeEnd-modeStart)/1000.0);
+				modeStart=modeEnd;
+				for (int j=0;j<B_SZ;j++) {
+					String prefix="    ";
+					for (int i=0;i<B_SZ;i++) {
+						System.out.print(prefix+(md.numMults[j*B_SZ+i]));
+						prefix=" ";
+					}
+					prefix="    ";
+					for (int i=0;i<B_SZ;i++) {
+						System.out.print(prefix+md.mse[j*B_SZ+i]);
+						prefix=" ";
+					}
+					System.out.println();
 				}
-				double rmseEnd=Math.sqrt(md.sseTotal/(B_SZ*B_SZ));
-				System.out.print(mode+" "+rmseEnd+" "+(rmseEnd-rmseStart));
-				for (int i=0;i<B_SZ*B_SZ;i++) {
-					System.out.print(" "+(3*B_SZ*B_SZ-md.numMasked[i]));
+			}
+
+			// reset the mode data
+			for (ModeData md : modeData) {
+				md.numBlocks=0;
+				md.weightTotal=0;
+				for (int j=0;j<2*B_SZ*2*B_SZ;j++) {
+					md.mean[j]=0;
+					for (int i=0;i<2*B_SZ*2*B_SZ;i++) {
+						md.covariance[j][i]=0;
+					}
 				}
-				System.out.println();
 			}
 
 			// re-classify the blocks based on the computed beta's
+			double satdTotal=0;
+			double blocksTotal=0;
+			for (File file : inputFiles) {
+				System.out.println(file.getPath());
+				BufferedReader br=new BufferedReader(new FileReader(file));
+				// 3 color planes, YUV
+				for (int pli=0;pli<1;pli++) {
+					// read the plane size
+					String[] data=br.readLine().split(" ");
+					int nx=Integer.parseInt(data[0]);
+					int ny=Integer.parseInt(data[1]);
+
+					int[] rgb=new int[nx*ny];
+					for (int block=0;block<nx*ny;block++) {
+						data=br.readLine().split(" ");
+						double best=Double.MAX_VALUE;
+						int mode=-1;
+						double nextBest=0;
+						for (int j=0;j<MODES;j++) {
+							double satd=0;
+							// compute |y-x*B| the SATD (or L1-norm)
+							for (int y=0;y<B_SZ*B_SZ;y++) {
+								double pred=0;
+								for (int i=0;i<3*B_SZ*B_SZ;i++) {
+									pred+=Integer.parseInt(data[INDEX[i]+1])*modeData[j].beta[i][y];
+								}
+								satd+=Math.abs(Integer.parseInt(data[INDEX[3*B_SZ*B_SZ+y]+1])-pred);
+							}
+							if (satd<best) {
+								nextBest=best;
+								best=satd;
+								mode=j;
+							}
+						}
+						satdTotal+=best;
+						addBlock(mode,mode==0?1:nextBest-best,data);
+						rgb[block]=MODE_COLORS[mode];
+					}
+					blocksTotal+=nx*ny;
+
+					BufferedImage bi=new BufferedImage(nx,ny,BufferedImage.TYPE_INT_ARGB);
+					bi.setRGB(0,0,nx,ny,rgb,0,nx);
+					ImageIO.write(bi,"PNG",new File(file.getPath()+".step"+(step<10?"0"+step:step)+".png"));
+				}
+			}
+			long now=System.currentTimeMillis();
+			System.out.println("Step "+step+" took "+(now-last)/1000.0);
+			System.out.println("Average SATD: "+(satdTotal/blocksTotal));
 		}
 	}
 
