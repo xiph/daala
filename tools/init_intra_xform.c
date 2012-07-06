@@ -1,11 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <math.h>
 #include <string.h>
 #include "intra_fit_tools.h"
-#include "../src/dct.h"
 #include "svd.h"
-#include <math.h>
+#include "../src/dct.h"
 #include "../src/intra.h"
 
 /* #define INTRA_NO_RDO */
@@ -14,8 +14,9 @@ int ExCount[3];
 double Ex[3][B_SZ*B_SZ];
 #define P0_COEF 0.002
 
+#if !INTRA_NO_RDO
 /* These weight are estimated from the entropy of the residual (in one older run) on subset1-y4m */
-const float satd_weights[3][16] =
+const float satd_weights[3][B_SZ*B_SZ] =
 {{0.053046, 0.108601, 0.208930, 0.267489, 0.099610, 0.151836, 0.276093, 0.333044,
   0.180490, 0.256407, 0.420637, 0.485639, 0.224520, 0.295232, 0.464384, 0.519662,},
  {0.209979, 0.381558, 0.657913, 0.793790, 0.362177, 0.505781, 0.821064, 0.926135,
@@ -24,8 +25,9 @@ const float satd_weights[3][16] =
   0.643793, 0.824554, 1.124411, 1.191774, 0.760804, 0.909100, 1.181837, 1.223243,}
 };
 
+# if B_SZ==4
 /* Less extreme weighting -- sqrt of the weights above */
-const float satd_weights2[3][16] =
+const float satd_weights2[3][B_SZ*B_SZ] =
 {{0.230317, 0.329547, 0.457088, 0.517193, 0.315611, 0.389662, 0.525445, 0.577099,
   0.424841, 0.506366, 0.648566, 0.696878, 0.473835, 0.543352, 0.681457, 0.720876,},
  {0.458235, 0.617704, 0.811118, 0.890949, 0.601811, 0.711183, 0.906126, 0.962359,
@@ -33,6 +35,10 @@ const float satd_weights2[3][16] =
  {0.481204, 0.631404, 0.829253, 0.905577, 0.615889, 0.736232, 0.930215, 0.983703,
   0.802367, 0.908049, 1.060383, 1.091684, 0.872241, 0.953467, 1.087123, 1.106003,}
 };
+# else
+#  error "No weights for B_SZ!=4 yet. #define INTRA_NO_RDO and try again."
+# endif
+#endif
 
 #if 1
 #define NB_CONTEXTS 8
