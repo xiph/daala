@@ -356,12 +356,30 @@ int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
 }
 
 
-
+/** PVQ quantizer based on a reference
+ *
+ * This function computes a Householder reflection that causes the reference
+ * to have a single non-zero value. The reflection is then applied to x, and
+ * the result is PVQ-quantized. If the prediction is good, then most of the
+ * PVQ "pulses" end up at the same position as the non-zero value in the
+ * reflected reference. This is probably a good way to quantize intra blocks
+ * with intra prediction.
+ *
+ * @param [in,out] _x     coefficients being quantized (output is the quantized values)
+ * @param [in]     _r     reference
+ * @param [in]     _scale quantization matrix (unused for now)
+ * @param [out]    _y     quantization output (to be encoded)
+ * @param [in]     N      length of vectors _x, _y, and _scale
+ * @param [in]     Q      quantization resolution (lower means higher quality)
+ * @param [out]    qg     quantized gain (to be encoded)
+ *
+ * @retval position that should have the most pulses in _y
+ */
 int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
     ogg_int16_t *_scale,int *y,int N,int Q,int *qg){
   float L2x,L2r;
-  float g;
-  float gr;
+  float g;               /* L2-norm of x */
+  float gr;              /* L2-norm of r */
   float x[MAXN];
   float r[MAXN];
   float scale[MAXN];
@@ -371,10 +389,14 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   float s;
   float maxr=-1;
   float proj;
-  int K,ym;
-  float cg, cgr;
+  int   K,ym;
+  float cg;              /* Companded gain of x*/
+  float cgr;             /* Companded gain of r*/
   OD_ASSERT(N>1);
+
+  /* Just some calibration -- should eventually go away */
   Q*=.50;
+
   for(i=0;i<N;i++){
     scale[i]=_scale[i];
     scale_1[i]=1./scale[i];
@@ -396,18 +418,22 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   gr=sqrt(L2r);
 
   /*printf("%f\n", g);*/
+  /* compand gain of x and subtract a constant for "pseudo-RDO" purposes */
   cg = pow(g/Q,GAIN_EXP_1)-1.;
   if (cg<0)
     cg=0;
   cgr = pow(gr/Q,GAIN_EXP_1);
 
-  /* Round towards zero as a slight bias */
+  /* Gain quantization. Round to nearest because we've already reduced cg.
+     Maybe we should have a dead zone */
   *qg = floor(.5+cg-cgr);
-  /*printf("%d ", qg);*/
-  /*g = Q*pow(cg, GAIN_EXP);*/
   cg = cgr+*qg;
   if (cg<0)cg=0;
+  /* This is the actual gain the decoder will apply */
   g = Q*pow(cg, GAIN_EXP);
+
+  /* Compute the number of pulses K based on the quantized gain -- still work
+     to do here */
 #if 0
   K = floor(.5+ 1.3*(M_PI/2)*(cg)/GAIN_EXP );
 #else
@@ -526,7 +552,19 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   return m;
 }
 
-
+/** PVQ quantizer with no reference
+ *
+ * This quantizer just applies companding on the gain and does the PVQ search
+ *
+ * @param [in,out] _x     coefficients being quantized (output is the quantized values)
+ * @param [in]     gr     reference gain (i.e. predicted valud of the gain)
+ * @param [in]     _scale quantization matrix (unused for now)
+ * @param [out]    _y     quantization output (to be encoded)
+ * @param [in]     N      length of vectors _x, _y, and _scale
+ * @param [in]     Q      quantization resolution (lower means higher quality)
+ *
+ * @retval quantized gain (to be encoded)
+ */
 int quant_pvq_noref(ogg_int32_t *_x,float gr,
     ogg_int16_t *_scale,int *y,int N,int Q){
   float L2x;
@@ -561,7 +599,6 @@ int quant_pvq_noref(ogg_int32_t *_x,float gr,
     cg=0;
   cgr = pow(gr/Q,GAIN_EXP_1);
 
-  /* Round towards zero as a slight bias */
   qg = floor(.5+cg-cgr);
   cg = cgr+qg;
   if (cg<0)cg=0;
