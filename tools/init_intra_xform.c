@@ -6,6 +6,7 @@
 #include "../src/dct.h"
 #include "svd.h"
 #include <math.h>
+#include "../src/intra.h"
 
 /* #define INTRA_NO_RDO */
 
@@ -56,7 +57,7 @@ struct intra_xform_ctx{
   double         r_xx[OD_INTRA_NMODES][2*B_SZ*2*B_SZ][2*B_SZ*2*B_SZ];
   double         scale[OD_INTRA_NMODES][2*B_SZ*2*B_SZ];
   double         beta[OD_INTRA_NMODES][B_SZ*B_SZ][2*B_SZ*2*B_SZ];
-  double         freq[OD_INTRA_NMODES][NB_CONTEXTS][2];
+  double         freq[3][OD_INTRA_NMODES][NB_CONTEXTS][2];
   double         p0[OD_INTRA_NMODES];
   long long      n;
   double         satd_avg;
@@ -74,7 +75,6 @@ static int intra_xform_train_plane_start(void *_ctx,const char *_name,
   char            *map_filename;
   FILE            *weights_file;
   char            *weights_filename;
-  int              i;
   ctx=(intra_xform_ctx *)_ctx;
   ctx->map=(unsigned char *)malloc(_nxblocks*(size_t)_nyblocks);
   map_filename=get_map_filename(_name,_pli,_nxblocks,_nyblocks);
@@ -109,8 +109,7 @@ static int intra_xform_train_plane_start(void *_ctx,const char *_name,
 #endif
   ctx->nxblocks=_nxblocks;
   ctx->nyblocks=_nyblocks;
-  for(i=0;i<OD_INTRA_NMODES;i++)
-    ctx->p0[i]=ctx->freq[i][0][1]/(float)ctx->freq[i][0][0];
+  ctx->pli=_pli;
   return EXIT_SUCCESS;
 }
 
@@ -239,8 +238,8 @@ static void intra_xform_train_block(void *_ctx,const unsigned char *_data,
     {
       int c;
       c = GET_CONTEXT(modes,pos,m,width);
-      ctx->freq[m][c][0]+=1;
-      ctx->freq[m][c][1] += (mode==m);
+      ctx->freq[ctx->pli][m][c][0]+=1;
+      ctx->freq[ctx->pli][m][c][1] += (mode==m);
     }
   }
 }
@@ -284,7 +283,10 @@ typedef double r_xx_row[2*B_SZ*2*B_SZ];
 
 static void update_intra_xforms(intra_xform_ctx *_ctx){
   int mode;
+  int pli;
   /*Update the model for each coefficient in each mode.*/
+  printf("/* This file is generated automatically by init_intra_xform */");
+
   printf("#include \"intra.h\"\n");
   printf("\n");
   printf("double OD_INTRA_PRED_WEIGHTS_%ix%i"
@@ -383,13 +385,31 @@ static void update_intra_xforms(intra_xform_ctx *_ctx){
     }
     printf("  }%s\n",mode<OD_INTRA_NMODES-1?",":"");
   }
-  printf("};\n");
+  printf("};\n\n");
+
+  printf("unsigned char intra_probs[3][OD_INTRA_NMODES][OD_INTRA_NCONTEXTS]={\n");
+  for(pli=0;pli<3;pli++)
+  {
+    int i;
+    printf("{");
+    for(i=0;i<OD_INTRA_NMODES;i++)
+    {
+      int j;
+      printf("{");
+      for(j=0;j<NB_CONTEXTS;j++)
+        printf("%d, ", (int)floor(.5+256.*_ctx->freq[pli][i][j][1]/(float)_ctx->freq[pli][i][j][0]));
+      printf("},\n");
+    }
+    printf("},\n");
+  }
+  printf("};\n\n");
 }
 
 
 static int intra_xform_update_plane_start(void *_ctx,const char *_name,
  const th_info *_ti,int _pli,int _nxblocks,int _nyblocks){
   intra_xform_ctx *ctx;
+  int i;
   ctx=(intra_xform_ctx *)_ctx;
   ctx->map_filename=get_map_filename(_name,_pli,_nxblocks,_nyblocks);
   ctx->weights_filename=get_weights_filename(_name,_pli,_nxblocks,_nyblocks);
@@ -399,6 +419,8 @@ static int intra_xform_update_plane_start(void *_ctx,const char *_name,
   ctx->nxblocks=_nxblocks;
   ctx->nyblocks=_nyblocks;
   ctx->pli=_pli;
+  for(i=0;i<OD_INTRA_NMODES;i++)
+    ctx->p0[i]=ctx->freq[ctx->pli][i][0][1]/(float)ctx->freq[ctx->pli][i][0][0];
   return EXIT_SUCCESS;
 }
 
@@ -426,6 +448,10 @@ static void intra_xform_update_block(void *_ctx,const unsigned char *_data,
   int m;
   int width;
   float p[OD_INTRA_NMODES];
+  ogg_uint16_t cdf[OD_INTRA_NMODES];
+  ogg_uint16_t p0[OD_INTRA_NMODES];
+  ogg_uint16_t wsatd[OD_INTRA_NMODES];
+
   ctx=(intra_xform_ctx *)_ctx;
   modes=ctx->map;
   pos = _bj*ctx->nxblocks+_bi;
@@ -438,6 +464,24 @@ static void intra_xform_update_block(void *_ctx,const unsigned char *_data,
   best_bits=0;
   next_best_satd=UINT_MAX;
   next_best_rlsatd=UINT_MAX;
+
+  {
+    int c;
+    unsigned char probs[OD_INTRA_NMODES][OD_INTRA_NCONTEXTS];
+    int left;
+    int upleft;
+    int up;
+
+    left=(_bi==0)?0:modes[pos-1];
+    up=(_bj==0)?0:modes[pos-width];
+    upleft=(_bi==0||_bj==0)?0:modes[pos-width-1];
+    for (m=0;m<OD_INTRA_NMODES;m++)
+      for(c=0;c<OD_INTRA_NCONTEXTS;c++)
+        probs[m][c] = 256.*ctx->freq[ctx->pli][m][c][1]/(float)ctx->freq[ctx->pli][m][c][0];
+    for (m=0;m<OD_INTRA_NMODES;m++)
+      p0[m] = 65536*ctx->p0[m];
+    od_intra_pred_cdf(cdf,probs,p0,left,upleft,up);
+  }
   for(m=0;m<OD_INTRA_NMODES;m++)
   {
     int c;
@@ -445,20 +489,19 @@ static void intra_xform_update_block(void *_ctx,const unsigned char *_data,
       c=GET_CONTEXT(modes,pos,m,width);
     else if (_bj>0)
 #if 1
-      c=(modes[pos-width]==m);
+      c=(modes[pos-width]==m)+6*(m==0);
 #else
     c=(modes[pos-width]);
 #endif
     else if (_bi>0)
 #if 1
-      c=(modes[pos-1]==m)*4;
+      c=(modes[pos-1]==m)*4+3*(m==0);
 #else
     c=(modes[pos-1])*100;
 #endif
     else
-      c=0;
-    p[m] = ctx->freq[m][c][1]/(float)ctx->freq[m][c][0];
-    /*p[m] = p[m]/(1.2-p[m]);*/
+      c=15*(m==0);
+    p[m] = ctx->freq[ctx->pli][m][c][1]/(float)ctx->freq[ctx->pli][m][c][0];
     p[m]+=1.e-5;
     if (p[m]<ctx->p0[m]) p[m]=ctx->p0[m];
     if (c==0)
@@ -506,6 +549,7 @@ static void intra_xform_update_block(void *_ctx,const unsigned char *_data,
         error[i*B_SZ+j]=buf2[3*B_SZ*(i+B_SZ)+j+B_SZ]-p;
       }
     }
+    wsatd[mode] = satd*64;
     rlsatd=satd;
     /* Normalize all probabilities except the max */
     /*bits = -log(p[mode]/sum)/log(2);*/
@@ -513,9 +557,12 @@ static void intra_xform_update_block(void *_ctx,const unsigned char *_data,
     /*bits = (mode==maxM) ? -log(p[mode])/log(2) : -log(p[mode]*(1-maxP)/(sum-maxP))/log(2);*/
 
     bits = -log(p[mode]/sum2)/log(2);
+    /*printf("{%f+l*%f= ", satd , bits);*/
+
 #ifndef INTRA_NO_RDO
     satd += 1.1*bits;
 #endif
+    /*printf("%f} ", satd);*/
     /* Bias towards DC mode */
     /*if (mode==0)satd-=.5;*/
     if(satd<best_satd){
@@ -529,6 +576,21 @@ static void intra_xform_update_block(void *_ctx,const unsigned char *_data,
         best_error[i]=error[i];
     }
     else if(satd<next_best_satd){next_best_satd=satd;next_best_rlsatd=rlsatd;}
+  }
+  /*printf("\n");*/
+  {
+    int bmode;
+    int left, up, upleft;
+
+    left=(_bi==0)?0:modes[pos-1];
+    up=(_bj==0)?0:modes[pos-width];
+    upleft=(_bi==0||_bj==0)?0:modes[pos-width-1];
+    bmode=od_intra_pred_search(p0,cdf,wsatd,64*1.1,left,upleft,up);
+    /*if (bmode==best_mode)
+      printf("+");
+    else
+      printf("-");
+    printf("%d %d\n", bmode, best_mode);*/
   }
   for (i=0;i<B_SZ*B_SZ;i++)
     Ex[ctx->pli][i]+=fabs(best_error[i]);
@@ -574,7 +636,7 @@ static int intra_xform_update_plane_finish(void *_ctx){
     return EXIT_FAILURE;
   }
   fclose(weights_file);
-  printf("Average SATD: %G\n",ctx->satd_avg);
+  /*printf("Average SATD: %G\n",ctx->satd_avg);*/
   return intra_xform_train_plane_finish(_ctx);
 }
 
@@ -584,13 +646,16 @@ int main(int _argc,const char **_argv){
   int                    ret;
   int                    i;
   int                    pli;
-  for(i=0;i<OD_INTRA_NMODES;i++)
+  for(pli=0;pli<3;pli++)
   {
-    int j;
-    for(j=0;j<NB_CONTEXTS;j++)
+    for(i=0;i<OD_INTRA_NMODES;i++)
     {
-      ctx.freq[i][j][0]=2;
-      ctx.freq[i][j][1]=1;
+      int j;
+      for(j=0;j<NB_CONTEXTS;j++)
+      {
+        ctx.freq[pli][i][j][0]=2;
+        ctx.freq[pli][i][j][1]=1;
+      }
     }
   }
   ctx.total_bits=0;
@@ -604,14 +669,7 @@ int main(int _argc,const char **_argv){
     ret=apply_to_blocks(&ctx,intra_xform_update_plane_start,
      intra_xform_update_block,intra_xform_update_plane_finish,_argc,_argv);
   }
-  for(i=0;i<OD_INTRA_NMODES;i++)
-  {
-    int j;
-    for(j=0;j<NB_CONTEXTS;j++)
-      printf("%f ", ctx.freq[i][j][1]/(float)ctx.freq[i][j][0]);
-    printf("\n");
-  }
-#if 1
+#if 0
   for (pli=0;pli<3;pli++)
   {
     printf("Ex: ");

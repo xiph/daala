@@ -82,7 +82,9 @@ vidinput.c
 
 IIX_LIB_CSOURCES = \
 filter.c \
-newdct.c
+newdct.c \
+intra.c \
+intradata.c
 
 IIX_LDFLAGS = -ltheoradec -logg -lpng -lz -lm
 
