@@ -143,7 +143,7 @@ static int laplace_decode(od_ec_dec *dec, int ExQ8, int K)
   return (sym<<shift)+lsb;
 }
 
-
+#ifndef DISABLE_PVQ_CODE1
 /** Decodes the position and sign of a single pulse in a vector of N.
  * The position is assumed to be Laplace-distributed.
  *
@@ -179,6 +179,7 @@ static void pvq_decoder1(od_ec_dec *dec, int *y,int N,int *u)
   else
     y[pos]=1;
 }
+#endif
 
 /** Decodes a vector of integers assumed to come from rounding a sequence of
  * Laplace-distributed real values in decreasing order of variance.
@@ -206,11 +207,14 @@ void pvq_decoder(od_ec_dec *dec, int *y,int N,int K,int *num, int *den, int *u)
   sumEx=0;
   Kn=K;
 
+#ifndef DISABLE_PVQ_CODE1
   /* Special K==1 case to save CPU (should be roughly equivalent in terms of coding efficiency) */
   if(K==1){
     pvq_decoder1(dec,y,N,u);
     return;
   }
+#endif
+
   /* Estimates the factor relating pulses_left and positions_left to E(|x|) */
   if (*num < 1<<23)
     expQ8=256**num/(1+*den);

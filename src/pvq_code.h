@@ -24,6 +24,8 @@
 #include "entenc.h"
 #include "entdec.h"
 
+#define DISABLE_PVQ_CODE1
+
 extern const ogg_uint16_t cdf_table[][16];
 extern const unsigned char decayE[];
 
