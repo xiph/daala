@@ -295,7 +295,7 @@ static void update_intra_xforms(intra_xform_ctx *_ctx){
 
   printf("#include \"intra.h\"\n");
   printf("\n");
-  printf("double OD_INTRA_PRED_WEIGHTS_%ix%i"
+  printf("const double OD_INTRA_PRED_WEIGHTS_%ix%i"
    "[OD_INTRA_NMODES][%i][%i][2*%i][2*%i]={\n",
    B_SZ,B_SZ,B_SZ,B_SZ,B_SZ,B_SZ);
   for(mode=0;mode<OD_INTRA_NMODES;mode++){
@@ -393,7 +393,7 @@ static void update_intra_xforms(intra_xform_ctx *_ctx){
   }
   printf("};\n\n");
 
-  printf("unsigned char intra_probs[3][OD_INTRA_NMODES][OD_INTRA_NCONTEXTS]={\n");
+  printf("const unsigned char OD_INTRA_PRED_PROB_%dx%d[3][OD_INTRA_NMODES][OD_INTRA_NCONTEXTS]={\n",B_SZ,B_SZ);
   for(pli=0;pli<3;pli++)
   {
     int i;

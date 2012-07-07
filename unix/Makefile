@@ -76,6 +76,9 @@ intra.c \
 intradata.c \
 mc.c \
 pvq.c \
+generic_encoder.c \
+generic_decoder.c \
+generic_code.c \
 state.c \
 $(if $(findstring -DOD_X86ASM,${CFLAGS}), \
 x86/cpu.c \

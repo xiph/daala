@@ -25,9 +25,11 @@
 #include <math.h>
 #include <string.h>
 #include "encint.h"
+#include "generic_code.h"
 #include "filter.h"
 #include "dct.h"
 #include "pvq_code.h"
+#include "pvq.h"
 #include "intra.h"
 
 static int od_enc_init(od_enc_ctx *_enc,const daala_info *_info){
@@ -172,6 +174,9 @@ void fdct4(od_coeff _x[],const od_coeff _y[]){
 #endif
 
 int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
+  GenericEncoder model_dc;
+  GenericEncoder model_g;
+  GenericEncoder model_k;
   int refi;
   int pli;
   int scale;
@@ -228,13 +233,18 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
 #endif
   }
   scale=32;/*atoi(getenv("QUANT"));*/
+  generic_model_init(&model_dc);
+  generic_model_init(&model_g);
+  generic_model_init(&model_k);
   /*TODO: Encode image.*/
   for(pli=0;pli<_img->nplanes;pli++){
+    ogg_uint16_t mode_p0[OD_INTRA_NMODES];
     ogg_int64_t  mc_sqerr;
     ogg_int64_t  enc_sqerr;
     ogg_uint32_t npixels;
     od_coeff     *ctmp;
     char         *modes;
+    int          i;
     int          x;
     int          y;
     int          w;
@@ -242,6 +252,9 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
 #ifdef OD_DPCM
     int          err_accum = 0;
 #endif
+    int ex_dc = pli>0?8:32768;
+    int ex_g = 8;
+    int ex_k = 8;
     int anum = 650*4;
     int aden = 256*4;
     int au = 30<<4;
@@ -253,6 +266,7 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
     npixels=w*h;
     ctmp=calloc((w+15>>4<<4)*(h+15>>4<<4),sizeof(od_coeff));
     modes=calloc((w+15>>2)*(h+15>>2),sizeof(char));
+    for(i=0;i<OD_INTRA_NMODES;i++)mode_p0[i]=32768/OD_INTRA_NMODES;
     for(y=0;y<h;y++){
       for(x=0;x<w;x++){
         ctmp[y*w+x]=(*(_img->planes[pli].data+_img->planes[pli].ystride*y+_img->planes[pli].xstride*x)-128);
@@ -282,6 +296,11 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
     /*FDCT 4x4 blocks*/
     for(y=0;y<h;y+=4){
       for(x=0;x<(_img->width>>_img->planes[pli].xdec);x+=4){
+        od_coeff pred[4*4];
+        od_coeff predt[4*4];
+        ogg_int16_t pvq_scale[4*4];
+        int sgn;
+        int qg;
         int cblock[16];
         int j;
         int vk;
@@ -294,29 +313,57 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
           od_bin_fdct4(p,p);
           for(k=0;k<4;k++)ctmp[(y+k)*w+x+j]=p[k];
         }
+        for(j=0;j<16;j++)pvq_scale[j]=0;
         if(x>0&&y>0){
-          modes[(y>>2)*(w>>2)+(x>>2)]=od_intra_pred4x4_apply(&ctmp[y*w+x],w);
-/*          printf("modes: %d %d %d\n",modes[((y>>2)-1)*(w>>2)+(x>>2)],modes[(y>>2)*(w>>2)+((x>>2)-1)],modes[(y>>2)*(w>>2)+(x>>2)]);*/
+          ogg_uint16_t mode_cdf[OD_INTRA_NMODES];
+          od_coeff mode_dist[OD_INTRA_NMODES];
+          int m_l, m_ul, m_u, mode;
+          m_l  = modes[(y>>2)*(w>>2)+((x>>2)-1)];
+          m_ul = modes[((y>>2)-1)*(w>>2)+((x>>2)-1)];
+          m_u = modes[((y>>2)-1)*(w>>2)+(x>>2)];
+          od_intra_pred_cdf(mode_cdf,OD_INTRA_PRED_PROB_4x4[pli],mode_p0,m_l,m_ul,m_u);
+          od_intra_pred4x4_dist(mode_dist,&ctmp[y*w+x],w,pli);
+          /*Lambda = 1*/
+          mode=od_intra_pred_search(mode_p0,mode_cdf,mode_dist,128,m_l,m_ul,m_u);
+          od_intra_pred4x4_get(pred,&ctmp[y*w+x],w,mode);
+          od_ec_encode_cdf_unscaled(&_enc->ec,mode,mode_cdf,OD_INTRA_NMODES);
+          modes[(y>>2)*(w>>2)+(x>>2)]=mode;
+        }else{
+          for(j=0;j<16;j++)pred[j]=0;
+          if(x>0)pred[0]=ctmp[y*w+x-4];
+          else if(y>0)pred[0]=ctmp[(y-4)*w+x];
+          else pred[0]=0;
+          modes[(y>>2)*(w>>2)+(x>>2)]=0;
         }
         /*Quantize*/
         for(j=0;j<4;j++){
           int k;
           for(k=0;k<4;k++){
-            ctmp[(y+k)*w+x+j]=cblock[od_zig4[k*4+j]]=ctmp[(y+k)*w+x+j]/scale;/*OD_DIV_ROUND((p[k]-pred[1]),scale);*/
-            vk+=abs(cblock[od_zig4[k*4+j]]);
+            ctmp[(y+k)*w+x+j]=cblock[od_zig4[k*4+j]]=ctmp[(y+k)*w+x+j];/*/scale;*//*OD_DIV_ROUND((p[k]-pred[1]),scale);*/
+            predt[od_zig4[k*4+j]]=pred[k*4+j];
           }
         }
-        /*printf("vk: %d\n",vk);*/
-        pvq_encoder(&_enc->ec,cblock,16,vk,&anum,&aden,&au);
+        sgn=(cblock[0]-predt[0])<0;
+        cblock[0]=floor(pow(fabs(cblock[0]-predt[0])/(scale/2.),3/4.));
+        generic_encode(&_enc->ec,&model_dc,cblock[0],&ex_dc,0);
+        if(cblock[0])od_ec_enc_bits(&_enc->ec,sgn,1);
+        quant_pvq(&cblock[1],&predt[1],pvq_scale,&pred[1],15,scale,&qg);
+        generic_encode(&_enc->ec,&model_g,abs(qg),&ex_g,0);
+        if(qg)od_ec_enc_bits(&_enc->ec,qg<0,1);
+        vk=0;
+        for(j=0;j<15;j++)vk+=abs(pred[j+1]);
+        generic_encode(&_enc->ec,&model_k,vk,&ex_k,0);
+        cblock[0]=pow(cblock[0],4/3.)*16.;
+        cblock[0]*=sgn?-1:1;
+        cblock[0]+=predt[0];
+        pvq_encoder(&_enc->ec,&pred[1],15,vk,&anum,&aden,&au);
         /*Dequantize*/
         for(j=0;j<4;j++){
           int k;
           for(k=0;k<4;k++){
-            ctmp[(y+k)*w+x+j]=ctmp[(y+k)*w+x+j]*scale;
+            ctmp[(y+k)*w+x+j]=cblock[od_zig4[k*4+j]];
           }
         }
-/*        printf("mode: %d\n",modes[(y>>2)*(w>>2)+(x>>2)]);*/
-        if(x>0&&y>0)od_intra_pred4x4_unapply(&ctmp[y*w+x],w,modes[(y>>2)*(w>>2)+(x>>2)]);
       }
     }
     /*iDCT 4x4 blocks*/
@@ -374,7 +421,6 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
         inp_val=*(inp_row+_img->planes[pli].xstride*x);
         diff=inp_val-rec_val;
         mc_sqerr+=diff*diff;
-/*        od_ec_enc_uint(&_enc->ec,inp_val+128,256);*/
 #ifdef OD_DPCM
         {
           int pred_diff;
@@ -413,6 +459,7 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
       _enc->state.ref_line_buf[0]=_enc->state.ref_line_buf[1];
       _enc->state.ref_line_buf[1]=prev_rec_row;
     }
+    /*printf("Bytes: %d  ex_dc: %d ex_g: %d ex_k: %d\n",(od_ec_enc_tell(&_enc->ec)+7)>>3,ex_dc,ex_g,ex_k);*/
     if(_enc->state.ref_imgi[OD_FRAME_PREV]>=0){
       fprintf(stderr,
        "Plane %i, Squared Error: %12lli  Pixels: %6u  PSNR:  %5.2f\n",
@@ -445,7 +492,7 @@ int daala_encode_packet_out(daala_enc_ctx *_enc,int _last,ogg_packet *_op){
   else if(_enc->packet_state<=0||_enc->packet_state==OD_PACKET_DONE)return 0;
   _op->packet=od_ec_enc_done(&_enc->ec,&nbytes);
   _op->bytes=nbytes;
-  fprintf(stderr,"::Bytes: %ld\n",_op->bytes);
+  fprintf(stderr,"Output Bytes: %ld\n",_op->bytes);
   _op->b_o_s=0;
   _op->e_o_s=_last;
   _op->packetno=0;

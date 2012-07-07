@@ -8,8 +8,8 @@
 
 # define OD_INTRA_NCONTEXTS (8)
 
-extern double OD_INTRA_PRED_WEIGHTS_4x4[OD_INTRA_NMODES][4][4][2*4][2*4];
-
+extern const double OD_INTRA_PRED_WEIGHTS_4x4[OD_INTRA_NMODES][4][4][2*4][2*4];
+extern const unsigned char OD_INTRA_PRED_PROB_4x4[3][OD_INTRA_NMODES][OD_INTRA_NCONTEXTS];
 
 
 /*Applies intra prediction to a 4x4 block of coefficients at _c, using
@@ -24,6 +24,21 @@ extern double OD_INTRA_PRED_WEIGHTS_4x4[OD_INTRA_NMODES][4][4][2*4][2*4];
     the input coefficients with the prediction subtracted.
   Return: The intra prediction mode used (0...OD_INTRA_NMODES-1).*/
 int od_intra_pred4x4_apply(od_coeff *_c,int _stride);
+
+/*Fetches intra prediction to a 4x4 block of coefficients at _c, using
+   UL, U, and L blocks of reconstructed 4x4 coefficients.
+  On input:
+   {{_c[0],_c[1],_c[2],_c[3]},{_c[_stride],_c[stride+1],...}} contains
+    original coefficients (before quantization).
+   The other blocks contain reconstructed (post quantization and unprediction)
+    coefficients.
+   The _mode parameter contains the target mode.
+  On output:
+   {{_out[0],_out[1],_out[2],_out[3]},{_out[4],_out[4+1],...}} contains
+    the input coefficients with the prediction subtracted.*/
+void od_intra_pred4x4_get(od_coeff *_out,od_coeff *_c,int _stride, int _mode);
+
+void od_intra_pred4x4_dist(od_coeff *_dist, od_coeff *_c,int _stride, int _pli);
 
 /*Unapplies intra prediction to a 4x4 block of coefficients at _c, using
    UL, U, and L blocks of reconstructed 4x4 coefficients.
@@ -44,7 +59,7 @@ void od_intra_pred_cdf(ogg_uint16_t cdf[OD_INTRA_NMODES],
 
 int od_intra_pred_search(ogg_uint16_t p0[OD_INTRA_NMODES],
     const ogg_uint16_t cdf[OD_INTRA_NMODES],
-    const ogg_uint16_t dist[OD_INTRA_NMODES], ogg_uint16_t lambda, int left,
+    const od_coeff dist[OD_INTRA_NMODES], ogg_uint16_t lambda, int left,
     int upleft, int up);
 
 #endif
