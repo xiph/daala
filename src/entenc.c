@@ -555,7 +555,7 @@ unsigned char *od_ec_enc_done(od_ec_enc *_this,ogg_uint32_t *_nbytes){
   }
   /*Add any remaining raw bits to the last byte.
     There is guaranteed to be enough room, because nend_bits<=s.*/
-  OD_ASSERT(nend_bits==0||end_offs>0);
+  OD_ASSERT(nend_bits<=0||end_offs>0);
   if(nend_bits>0)out[end_offs-1]|=(unsigned char)e;
   /*Note: Unless there's an allocation error, if you keep encoding into the
      current buffer and call this function again later, everything will work

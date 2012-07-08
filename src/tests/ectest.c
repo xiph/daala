@@ -11,8 +11,6 @@
 #if !defined(M_LOG2E)
 # define M_LOG2E (1.4426950408889634074)
 #endif
-#define DATA_SIZE  (10000000)
-#define DATA_SIZE2 (10000)
 
 int main(int _argc,char **_argv){
   od_ec_enc      enc;
@@ -40,13 +38,82 @@ int main(int _argc,char **_argv){
   if(_argc>1)seed=atoi(_argv[1]);
   else if(env_seed)seed=atoi(env_seed);
   else seed=time(NULL);
-  /*Testing encoding of raw bit values.*/
-  od_ec_enc_init(&enc,DATA_SIZE);
+  /*Trigger resize during termination.*/
+  for(ft=2;ft<1024;ft++){
+    for(i=0;i<ft;i++){
+      od_ec_enc_init(&enc,ft+i&1);
+      od_ec_enc_uint(&enc,i,ft);
+      nbits=od_ec_enc_tell_frac(&enc);
+      ptr=od_ec_enc_done(&enc,&ptr_sz);
+      od_ec_dec_init(&dec,ptr,ptr_sz);
+      sym=od_ec_dec_uint(&dec,ft);
+      if(sym!=(unsigned)i){
+        fprintf(stderr,"Decoded %i instead of %i with ft of %i.\n",sym,i,ft);
+        ret=EXIT_FAILURE;
+      }
+      nbits2=od_ec_dec_tell_frac(&dec);
+      if(nbits!=nbits2){
+        fprintf(stderr,"enc_tell_frac == %li, dec_tell_frac == %li\n",
+         nbits,nbits2);
+        ret=EXIT_FAILURE;
+      }
+      if(dec.error){
+        fprintf(stderr,"uint error decoding %i with ft of %i.\n",i,ft);
+        ret=EXIT_FAILURE;
+      }
+      od_ec_enc_clear(&enc);
+    }
+  }
+  /*Raw bits only w/ resize*/
+  for(ftb=1;ftb<17;ftb++){
+    for(i=0;i<(1<<ftb);i++){
+      od_ec_enc_init(&enc,ftb+i&1);
+      od_ec_enc_bits(&enc,i,ftb);
+      ptr=od_ec_enc_done(&enc,&ptr_sz);
+      if(ptr_sz!=(unsigned)ftb+7>>3){
+        fprintf(stderr,"Used %li bytes to encode %i bits directly.\n",
+         (long)ptr_sz,ftb);
+        ret=EXIT_FAILURE;
+      }
+      od_ec_dec_init(&dec,ptr,ptr_sz);
+      sym=od_ec_dec_bits(&dec,ftb);
+      if(sym!=(unsigned)i){
+        fprintf(stderr,"Decoded %i instead of %i with ftb of %i.\n",sym,i,ftb);
+        ret=EXIT_FAILURE;
+      }
+      od_ec_enc_clear(&enc);
+    }
+  }
+  /*Testing unsigned integer corruption*/
+  od_ec_enc_init(&enc,2);
+  od_ec_enc_uint(&enc,128,129);
+  ptr=od_ec_enc_done(&enc,&ptr_sz);
+  if(ptr_sz!=1){
+    fprintf(stderr,"Incorrect output size %li.\n",(long)ptr_sz);
+    ret=EXIT_FAILURE;
+  }
+  for(i=0;i<256;i++){
+    ptr[ptr_sz-1]=i;
+    od_ec_dec_init(&dec,ptr,ptr_sz);
+    sym=od_ec_dec_uint(&dec,129);
+    if(i>=228 && i!=240 && !dec.error){
+      fprintf(stderr,"Failed to detect uint error with %i.\n",i);
+      ret=EXIT_FAILURE;
+    }
+    if(sym>=255){
+      fprintf(stderr,"Corrupt uint out of range %i>=255 for %d.\n",sym,i);
+      ret=EXIT_FAILURE;
+    }
+  }
+  od_ec_enc_clear(&enc);
+  /*Testing encoding of unsigned integers.*/
+  od_ec_enc_init(&enc,1);
   for(ft=2;ft<1024;ft++){
     for(i=0;i<ft;i++){
       entropy+=log(ft)*M_LOG2E;
       od_ec_enc_uint(&enc,i,ft);
     }
+    if(ft==512)ptr=od_ec_enc_done(&enc,&ptr_sz);
   }
   /*Testing encoding of raw bit values.*/
   for(ftb=1;ftb<16;ftb++){
