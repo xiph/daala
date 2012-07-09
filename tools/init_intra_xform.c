@@ -1,14 +1,16 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <float.h>
 #include <limits.h>
 #include <math.h>
 #include <string.h>
 #include "intra_fit_tools.h"
 #include "svd.h"
+#include "cholesky.h"
 #include "../src/dct.h"
 #include "../src/intra.h"
 
-/* #define INTRA_NO_RDO */
+/*#define INTRA_NO_RDO (1)*/
 
 int ExCount[3];
 double Ex[3][B_SZ*B_SZ];
@@ -346,10 +348,7 @@ static void update_intra_xforms(intra_xform_ctx *_ctx){
     for(i=0;i<B_SZ;i++){
       printf("    {\n");
       for(j=0;j<B_SZ;j++){
-        double  xtx[2*2*B_SZ*2*B_SZ][2*B_SZ*2*B_SZ];
-        double *xtxp[2*2*B_SZ*2*B_SZ];
         double  xty[2*B_SZ*2*B_SZ];
-        double  s[2*B_SZ*2*B_SZ];
         double *beta;
         int     xii;
         int     xij;
@@ -367,24 +366,51 @@ static void update_intra_xforms(intra_xform_ctx *_ctx){
         nxi--;
 #endif
         yi=2*B_SZ*(B_SZ+i)+B_SZ+j;
-        for(xii=0;xii<nxi;xii++){
-          for(xij=0;xij<nxi;xij++){
-            xtx[xii][xij]=r_xx[xi[xii]][xi[xij]];
-          }
-          xty[xii]=r_xx[xi[xii]][yi];
-        }
-        for(xii=0;xii<2*nxi;xii++)xtxp[xii]=xtx[xii];
-        svd_pseudoinverse(xtxp,s,nxi,nxi);
+        for(xii=0;xii<nxi;xii++)xty[xii]=r_xx[xi[xii]][yi];
         beta=_ctx->beta[mode][B_SZ*i+j];
         memset(beta,0,2*B_SZ*2*B_SZ*sizeof(*beta));
-        /*beta[yi]=r_x[yi];*/
-        for(xii=0;xii<nxi;xii++){
-          double beta_i;
-          beta_i=0;
-          for(xij=0;xij<nxi;xij++)beta_i+=xtx[xij][xii]*xty[xij];
-          beta[xi[xii]]=beta_i*scale[yi]/scale[xi[xii]];
-          /*beta[yi]-=beta_i*r_x[xi[xii]];*/
+#if defined(OD_USE_SVD)
+        {
+          double  xtx[2*2*B_SZ*2*B_SZ][2*B_SZ*2*B_SZ];
+          double *xtxp[2*2*B_SZ*2*B_SZ];
+          double  s[2*B_SZ*2*B_SZ];
+          for(xii=0;xii<nxi;xii++){
+            for(xij=0;xij<nxi;xij++){
+              xtx[xii][xij]=r_xx[xi[xii]][xi[xij]];
+            }
+          }
+          for(xii=0;xii<2*nxi;xii++)xtxp[xii]=xtx[xii];
+          svd_pseudoinverse(xtxp,s,nxi,nxi);
+          /*beta[yi]=r_x[yi];*/
+          for(xii=0;xii<nxi;xii++){
+            double beta_i;
+            beta_i=0;
+            for(xij=0;xij<nxi;xij++)beta_i+=xtx[xij][xii]*xty[xij];
+            beta[xi[xii]]=beta_i*scale[yi]/scale[xi[xii]];
+            /*beta[yi]-=beta_i*r_x[xi[xii]];*/
+          }
         }
+#else
+        {
+          double  xtx[UT_SZ(2*B_SZ*2*B_SZ,2*B_SZ*2*B_SZ)];
+          double  tau[2*B_SZ*2*B_SZ];
+          double  work[2*B_SZ*2*B_SZ];
+          int     pivot[2*B_SZ*2*B_SZ];
+          int     rank;
+          for(xii=0;xii<nxi;xii++){
+            for(xij=xii;xij<nxi;xij++){
+              xtx[UT_IDX(xii,xij,nxi)]=r_xx[xi[xii]][xi[xij]];
+            }
+          }
+          rank=cholesky(xtx,pivot,DBL_EPSILON,nxi);
+          chdecomp(xtx,tau,rank,nxi);
+          chsolve(xtx,pivot,tau,xty,xty,work,rank,nxi);
+          for(xii=0;xii<nxi;xii++){
+            beta[xi[xii]]=xty[xii]*scale[yi]/scale[xi[xii]];
+            /*beta[yi]-=beta_i*r_x[xi[xii]];*/
+          }
+        }
+#endif
         print_beta(mode,i,j,beta);
       }
       printf("    }%s\n",i<B_SZ-1?",":"");

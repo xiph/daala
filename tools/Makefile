@@ -60,7 +60,6 @@ PIM_TARGET:=plot_intra_maps
 IIM_LOCAL_CSOURCES = \
 init_intra_maps.c \
 intra_fit_tools.c \
-svd.c \
 vidinput.c
 
 IIM_LIB_CSOURCES =
@@ -75,6 +74,7 @@ IIM_TARGET:=init_intra_maps
 
 #init_intra_xform
 IIX_LOCAL_CSOURCES = \
+cholesky.c \
 init_intra_xform.c \
 intra_fit_tools.c \
 svd.c \
@@ -175,3 +175,6 @@ ${WORKDIR}/%.s: %.c
 ${WORKDIR}/%.o: %.c
 	mkdir -p ${dir $@}
 	${CC} ${CINCLUDE} ${CFLAGS} -c -o $@ $<
+
+# Include header file dependencies
+include ${ALL_DEPS}
