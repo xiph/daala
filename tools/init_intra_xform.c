@@ -456,7 +456,7 @@ static void intra_xform_update_block(void *_ctx,const unsigned char *_data,
   float p[OD_INTRA_NMODES];
   ogg_uint16_t cdf[OD_INTRA_NMODES];
   ogg_uint16_t p0[OD_INTRA_NMODES];
-  ogg_uint16_t wsatd[OD_INTRA_NMODES];
+  od_coeff     wsatd[OD_INTRA_NMODES];
 
   ctx=(intra_xform_ctx *)_ctx;
   modes=ctx->map;
