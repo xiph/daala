@@ -21,7 +21,7 @@
 /*This version relies on a smart compiler:*/
 #define OD_UNBIASED_RSHIFT(_a,_b) ((_a)/(1<<(_b)))
 
-#if 1
+#if 0
 # define OD_DCT_RSHIFT(_a,_b) OD_DIV_POW2_RE(_a,_b)
 #elif 1
 # define OD_DCT_RSHIFT(_a,_b) OD_UNBIASED_RSHIFT(_a,_b)
@@ -131,6 +131,7 @@ void od_bin_idct4(od_coeff _x[],const od_coeff _y[]){
 }
 #endif
 
+#if 0
 void od_bin_fdct8(od_coeff _y[],const od_coeff _x[]){
   /*29 adds, 11 shifts, 11 "muls".*/
   int t0;
@@ -254,7 +255,154 @@ void od_bin_idct8(od_coeff _y[],const od_coeff _x[]){
   _y[7]=t1;
 }
 
-#if 0
+#else
+void od_bin_fdct8(od_coeff _y[],const od_coeff _x[]){
+  /*29 adds, 6 shifts, 11 "muls".*/
+  int t0;
+  int t1;
+  int t2;
+  int t3;
+  int t4;
+  int t4h;
+  int t5;
+  int t6;
+  int t7;
+  int t;
+  /*+1/-1 butterflies and initial permutation:*/
+  t0=_x[0]+_x[7];
+  t4=_x[1]+_x[6];
+  t2=_x[2]+_x[5];
+  t6=_x[3]+_x[4];
+  t7=OD_DCT_RSHIFT(t6,1)-_x[4];
+  t3=OD_DCT_RSHIFT(t2,1)-_x[5];
+  t5=OD_DCT_RSHIFT(t4,1)-_x[6];
+  t1=OD_DCT_RSHIFT(t0,1)-_x[7];
+  /*+ Embedded 4-point type-II DCT.*/
+  t6=t0-t6;
+  t4+=t2;
+  t4h=OD_DCT_RSHIFT(t4,1);
+  t2=t4h-t2;
+  t0-=OD_DCT_RSHIFT(t6,1);
+  /*|-+ Embedded 2-point type-II DCT.*/
+  t0+=t4h;
+  t4=t0-t4;
+  /*|-+ Embedded 2-point type-IV DST.*/
+  /*45/64~=4*sin(\frac{\pi}{8})-2*tan(\frac{\pi}{8})~=
+     0.70230660471416898931046248770220*/
+  t6-=t2*45+32>>6;
+  /*21/32~=\sqrt{1/2}*cos(\frac{\pi}{8}))~=0.65328148243818826392832158671359*/
+  t2+=t6*21+16>>5;
+  /*71/64~=4*sin(\frac{\pi}{8})-tan(\frac{\pi}{8})~=
+     1.1165201670872640381121512119119*/
+  t6-=t2*71+32>>6;
+  /*+ Embedded 4-point type-IV DST.*/
+  /*19/64~=\frac{1-cos(\frac{3\pi}{16})}{sin(\frac{3\pi}{16})}~=
+     0.30334668360734239167588394694130*/
+  t7+=t1*19+32>>6;
+  /*9/16~=sin(\frac{3\pi}{16})~=0.55557023301960222474283081394853*/
+  t1-=t7*9+8>>4;
+  /*19/64~=\frac{1-cos(\frac{3\pi}{16})}{sin(\frac{3\pi}{16})}~=
+     0.30334668360734239167588394694130*/
+  t7+=t1*19+32>>6;
+  /*3/32~=\frac{1-cos(\frac{\pi}{16})}{sin(\frac{\pi}{16})}~=
+     0.098491403357164253077197521291327*/
+  t3+=t5*3+16>>5;
+  /*3/16~=sin(\frac{\pi}{16})~=0.19509032201612826784828486847702*/
+  t5-=t3*3+8>>4;
+  /*3/32~=\frac{1-cos(\frac{\pi}{16})}{sin(\frac{\pi}{16})}~=
+     0.098491403357164253077197521291327*/
+  t3+=t5*3+16>>5;
+  t=t7;
+  t7+=t5;
+  t5=t-t5;
+  t=t1;
+  t1+=t3;
+  t3=t-t3;
+  /*91/64~=\sqrt{2}~=1.4142135623730950488016887242097*/
+  t5=(t5*91>>6)+(t5>0);
+  /*91/64~=\sqrt{2}~=1.4142135623730950488016887242097*/
+  t3=(t3*91>>6)+(t3>0);
+  t=t1;
+  t1+=t7;
+  t7=t-t7;
+  _y[0]=(od_coeff)t0;
+  _y[1]=(od_coeff)t1;
+  _y[2]=(od_coeff)t2;
+  _y[3]=(od_coeff)t3;
+  _y[4]=(od_coeff)t4;
+  _y[5]=(od_coeff)t5;
+  _y[6]=(od_coeff)t6;
+  _y[7]=(od_coeff)t7;
+}
+
+void od_bin_idct8(od_coeff _y[],const od_coeff _x[]){
+  int t0;
+  int t1;
+  int t2;
+  int t3;
+  int t4;
+  int t4h;
+  int t5;
+  int t6;
+  int t7;
+  /*We have several choices for the reconstruction here.
+    I believe using all #if 1's below with OD_UNBIASED_RSHIFT leads to the best
+     overall bias in all categories (round-trip, Q=8, and Q=7), but it's
+     probably in the measurement noise.*/
+#if 1
+  t7=OD_DCT_RSHIFT(_x[1]-_x[7],1);
+  t1=_x[1]-t7;
+#else
+  t1=OD_DCT_RSHIFT(_x[1]+_x[7],1);
+  t7=t1-_x[7];
+#endif
+  t3=(_x[3]<<6)/91;
+#if 1
+  t3=OD_DCT_RSHIFT(t1-t3,1);
+  t1-=t3;
+#else
+  t1=OD_DCT_RSHIFT(t1+t3,1);
+  t3=t1-t3;
+#endif
+  t5=(_x[5]<<6)/91;
+#if 1
+  t5=OD_DCT_RSHIFT(t7-t5,1);
+  t7-=t5;
+#else
+  t7=OD_DCT_RSHIFT(t7+t5,1);
+  t5=t7-t5;
+#endif
+  t3-=t5*3+16>>5;
+  t5+=t3*3+8>>4;
+  t3-=t5*3+16>>5;
+  t7-=t1*19+32>>6;
+  t1+=t7*9+8>>4;
+  t7-=t1*19+32>>6;
+  t6=_x[6]+(_x[2]*71+32>>6);
+  t2=_x[2]-(t6*21+16>>5);
+  t6+=t2*45+32>>6;
+  t4=_x[0]-_x[4];
+  t4h=OD_DCT_RSHIFT(t4,1);
+  t0=_x[0]-t4h+OD_DCT_RSHIFT(t6,1);
+  t6=t0-t6;
+  t2=t4h-t2;
+  t4-=t2;
+  t7=OD_DCT_RSHIFT(t6,1)-t7;
+  t3=OD_DCT_RSHIFT(t2,1)-t3;
+  t5=OD_DCT_RSHIFT(t4,1)-t5;
+  t1=OD_DCT_RSHIFT(t0,1)-t1;
+  _y[0]=t0-t1;
+  _y[1]=t4-t5;
+  _y[2]=t2-t3;
+  _y[3]=t6-t7;
+  _y[4]=t7;
+  _y[5]=t3;
+  _y[6]=t5;
+  _y[7]=t1;
+}
+#endif
+
+#if OD_DCT_TEST
 /*Test code.*/
 #include <stdio.h>
 #include <math.h>
