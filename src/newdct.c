@@ -402,6 +402,351 @@ void od_bin_idct8(od_coeff _y[],const od_coeff _x[]){
 }
 #endif
 
+void od_bin_fdct16(od_coeff _y[],const od_coeff _x[]){
+  /*83 adds, 17 shifts, 32 "muls".*/
+  /*The minimum theoretical number of multiplies is 26~\cite{DH87}, but the
+     best practical algorithm I know is 31~\cite{LLM89}.
+    This is a modification of the Loeffler et al. factorization that allows us
+     to have a reversible integer transform with true orthonormal scaling.
+    This required some major reworking of the odd quarter of the even half
+     (the 4-point Type IV DST), and added two multiplies in order to implement
+     two rotations by \frac{\pi}{2} with lifting steps (requiring 3 multiplies
+     instead of the normal 2).
+    However, we also get one multiply back because the constant involved is
+     approximately 0.5054, which is 1/2 up to 6-bit precision.
+    @INPROCEEDINGS{DH87,
+      author={Pierre Duhamel and Hedi H'Mida},
+      title="New 2^n {DCT} Algorithms Suitable for {VLSI} Implementation",
+      booktitle="Proc. $12^\textrm{th}$ International Conference on Acoustics,
+       Speech, and Signal Processing (ICASSP'87)",
+      volume=12,
+      pages="1805--1808",
+      address="Issy-les-Moulineaux, France",
+      month=Apr,
+      year=1987
+    }
+    @INPROCEEDINGS{LLM89,
+      author="Christoph Loeffler and Adriaan Lightenberg and
+       George S. Moschytz",
+      title="Practical Fast {1-D} {DCT} Algorithms with 11 Multiplications",
+      booktitle="Proc. $14^\textrm{th}$ International Conferenceon Acoustics,
+       Speech, and Signal Processing (ICASSP'89)",
+      volume=2,
+      pages="988--991",
+      address="Zhurich, Switzerland",
+      month=May,
+      year=1989
+    }*/
+  int t0;
+  int t1;
+  int t1h;
+  int t2;
+  int t2h;
+  int t3;
+  int t4;
+  int t5;
+  int t6;
+  int t7;
+  int t8;
+  int t8h;
+  int t9;
+  int ta;
+  int tah;
+  int tb;
+  int tbh;
+  int tc;
+  int tch;
+  int td;
+  int tdh;
+  int te;
+  int tf;
+  int tfh;
+  /*+1/-1 butterflies and initial permutation:*/
+  t5=_x[0]-_x[15];
+  t8=_x[1]+_x[14];
+  t7=_x[2]-_x[13];
+  tc=_x[3]+_x[12];
+  tf=_x[4]-_x[11];
+  ta=_x[5]+_x[10];
+  td=_x[6]-_x[9];
+  t2=_x[7]+_x[8];
+  t0=_x[0]-OD_DCT_RSHIFT(t5,1);
+  t8h=OD_DCT_RSHIFT(t8,1);
+  tb=t8h-_x[14];
+  t4=_x[2]-OD_DCT_RSHIFT(t7,1);
+  tch=OD_DCT_RSHIFT(tc,1);
+  t1=tch-_x[12];
+  te=_x[4]-OD_DCT_RSHIFT(tf,1);
+  tah=OD_DCT_RSHIFT(ta,1);
+  t9=tah-_x[10];
+  t6=_x[6]-OD_DCT_RSHIFT(td,1);
+  t2h=OD_DCT_RSHIFT(t2,1);
+  t3=t2h-_x[8];
+  /*+ Embedded 8-point type-II DCT.*/
+  t0+=t2h;
+  t6=t8h-t6;
+  t4+=tah;
+  te=tch-te;
+  t2=t0-t2;
+  t8-=t6;
+  ta=t4-ta;
+  tc-=te;
+  /*|-+ Embedded 4-point type-II DCT.*/
+  tc=t0-tc;
+  t8+=t4;
+  t8h=OD_DCT_RSHIFT(t8,1);
+  t4=t8h-t4;
+  t0-=OD_DCT_RSHIFT(tc,1);
+  /*|-|-+ Embedded 2-point type-II DCT.*/
+  t0+=t8h;
+  t8=t0-t8;
+  /*|-|-+ Embedded 2-point type-IV DST.*/
+  /*45/64~=4*sin(\frac{\pi}{8})-2*tan(\frac{\pi}{8})
+     ~=0.70230660471416898931046248770220*/
+  tc-=t4*45+32>>6;
+  /*21/32~=\sqrt{1/2}*cos(\frac{\pi}{8}))~=0.65328148243818826392832158671359*/
+  t4+=tc*21+16>>5;
+  /*71/64~=4*sin(\frac{\pi}{8})-tan(\frac{\pi}{8})
+     ~=1.1165201670872640381121512119119*/
+  tc-=t4*71+32>>6;
+  /*|-+ Embedded 4-point type-IV DST.*/
+  /*27/64~=\sqrt{2}-1~=0.41421356237309504880168872420970*/
+  t6+=ta*27+32>>6;
+  /*45/64~=\sqrt{\frac{1}{2}}~=0.70710678118654752440084436210485*/
+  ta-=t6*45+32>>6;
+  /*27/64~=\sqrt{2}-1~=0.41421356237309504880168872420970*/
+  t6+=ta*27+32>>6;
+  ta+=te;
+  t2+=t6;
+  te=OD_DCT_RSHIFT(ta,1)-te;
+  t6=OD_DCT_RSHIFT(t2,1)-t6;
+  /*71/64~=\frac{\sqrt{2}-cos(\frac{\pi}{16})}{2sin(\frac{\pi}{16})}
+     ~=1.1108400393486273201524536919723*/
+  te+=t2*71+32>>6;
+  /*9/32~=\sqrt{2}sin(\frac{\pi}{16})~=0.27589937928294301233595756366937*/
+  t2-=te*9+16>>5;
+  /*45/32~=\frac{cos(\frac{\pi}{16})-\sqrt{\frac{1}{2}}}{sin(\frac{\pi}{16})}
+     ~=1.4028297067142967321050338435598*/
+  te-=t2*45+16>>5;
+  /*17/32~=\frac{\sqrt{2}-cos(\frac{3\pi}{16})}{2sin(\frac{3\pi}{16})}
+     ~=0.52445569924008942966043945081053*/
+  t6-=ta*17+16>>5;
+  /*25/32~=\sqrt{2}sin(\frac{3\pi}{16})~=0.78569495838710218127789736765722*/
+  ta+=t6*25+16>>5;
+  /*7/32~=\frac{cos(\frac{3\pi}{16})-\sqrt{\frac{1}{2}}}{sin(\frac{3\pi}{16})}
+     ~=0.22384718209265507914012811666071*/
+  t6+=ta*7+16>>5;
+  /*+ Embedded 8-point type-IV DST.*/
+  /*1/2~=\frac{\sqrt{2}-cos(\frac{7\pi}{32})}{2sin(\frac{7\pi}{32})}
+     ~=0.50536719493782972897642806316664*/
+  t3+=OD_DCT_RSHIFT(t5,1);
+  /*57/64~=\sqrt{2}sin(\frac{7\pi}{32})~=0.89716758634263628425064138922084*/
+  t5-=t3*57+32>>6;
+  /*7/64~=\frac{cos(\frac{7\pi}{32})-\sqrt{\frac{1}{2}}}{sin(\frac{7\pi}{32}}
+    ~=0.10388456785615844342131055214354*/
+  t3-=t5*7+32>>6;
+  /*17/32~=\frac{\sqrt{2}-cos(\frac{11\pi}{32})}{2sin(\frac{11\pi}{32})}
+     ~=0.53452437516842143578098634302964*/
+  tb+=td*17+16>>5;
+  /*5/4~=\sqrt{2}sin(\frac{11\pi}{32})~=1.2472250129866712325719902627977*/
+  td-=tb*5+2>>2;
+  /*17/64
+     ~=\frac{\sqrt{\frac{1}{2}}-cos(\frac{11\pi}{32})}{sin(\frac{11\pi}{32})}
+     ~=0.26726880719302561523614336238196*/
+  tb+=td*17+32>>6;
+  /*25/32~=\frac{\sqrt{2}-cos(\frac{3\pi}{32})}{2sin(\frac{3\pi}{32})}
+     ~=0.78762894232967441973847776796517*/
+  t9+=t7*25+16>>5;
+  /*13/32~=\sqrt{2}sin(\frac{3\pi}{32})~=0.41052452752235738115636923775513*/
+  t7-=t9*13+16>>5;
+  /*55/64~=\frac{cos(\frac{3\pi}{32})-\sqrt{\frac{1}{2}}}{sin(\frac{3\pi}{32})}
+     ~=0.86065016213948579370059934044795*/
+  t9-=t7*55+32>>6;
+  /*21/32~=\frac{\sqrt{2}-cos(\frac{15\pi}{32})}{2sin(\frac{15\pi}{32})}
+     ~=0.66128246684651710406296283785232*/
+  t1+=tf*21+16>>5;
+  /*45/32~=\sqrt{2}sin(\frac{15\pi}{32})~=1.4074037375263824590260782229840*/
+  tf-=t1*45+16>>5;
+  /*39/64
+    ~=\frac{\sqrt{\frac{1}{2}}-cos(\frac{15\pi}{32})}{sin(\frac{15\pi}{32})}
+    ~=0.61203676516793497752436407720666*/
+  t1+=tf*39+32>>6;
+  tf=t3-tf;
+  td+=t9;
+  tfh=OD_DCT_RSHIFT(tf,1);
+  t3-=tfh;
+  tdh=OD_DCT_RSHIFT(td,1);
+  t9=tdh-t9;
+  t1+=t5;
+  tb=t7-tb;
+  t1h=OD_DCT_RSHIFT(t1,1);
+  t5=t1h-t5;
+  tbh=OD_DCT_RSHIFT(tb,1);
+  t7-=tbh;
+  t3+=tbh;
+  t5=tdh-t5;
+  t9+=tfh;
+  t7=t1h-t7;
+  tb-=t3;
+  td-=t5;
+  tf=t9-tf;
+  t1-=t7;
+  /*43/64~=\frac{1-cos(\frac{3\pi}{8})}{sin(\frac{3\pi}{8})}
+     ~=0.66817863791929891999775768652308*/
+  t5-=tb*43+32>>6;
+  /*59/64~=sin(\frac{3\pi}{8})~=0.92387953251128675612818318939679*/
+  tb+=t5*59+32>>6;
+  /*43/64~=\frac{1-cos(\frac{3\pi}{8})}{sin(\frac{3\pi}{8})}
+     ~=0.66817863791929891999775768652308*/
+  t5-=tb*43+32>>6;
+  /*43/64~=\frac{1-cos(\frac{3\pi}{8})}{sin(\frac{3\pi}{8})}
+     ~=0.66817863791929891999775768652308*/
+  td+=t3*43+32>>6;
+  /*59/64~=sin(\frac{3\pi}{8})~=0.92387953251128675612818318939679*/
+  t3-=td*59+32>>6;
+  /*43/64~=\frac{1-cos(\frac{3\pi}{8})}{sin(\frac{3\pi}{8})}
+     ~=0.66817863791929891999775768652308*/
+  td+=t3*43+32>>6;
+  /*27/64~=\sqrt{2}-1~=0.41421356237309504880168872420970*/
+  t1-=tf*27+32>>6;
+  /*45/64~=\sqrt{\frac{1}{2}}~=0.70710678118654752440084436210485*/
+  tf+=t1*45+32>>6;
+  /*27/64~=\sqrt{2}-1~=0.41421356237309504880168872420970*/
+  t1-=tf*27+32>>6;
+  _y[0]=(od_coeff)t0;
+  _y[1]=(od_coeff)t1;
+  _y[2]=(od_coeff)t2;
+  _y[3]=(od_coeff)t3;
+  _y[4]=(od_coeff)t4;
+  _y[5]=(od_coeff)t5;
+  _y[6]=(od_coeff)t6;
+  _y[7]=(od_coeff)t7;
+  _y[8]=(od_coeff)t8;
+  _y[9]=(od_coeff)t9;
+  _y[10]=(od_coeff)ta;
+  _y[11]=(od_coeff)tb;
+  _y[12]=(od_coeff)tc;
+  _y[13]=(od_coeff)td;
+  _y[14]=(od_coeff)te;
+  _y[15]=(od_coeff)tf;
+}
+
+void od_bin_idct16(od_coeff _y[],const od_coeff _x[]){
+  int t0;
+  int t1;
+  int t1h;
+  int t2;
+  int t2h;
+  int t3;
+  int t4;
+  int t5;
+  int t6;
+  int t7;
+  int t8;
+  int t8h;
+  int t9;
+  int ta;
+  int tah;
+  int tb;
+  int tbh;
+  int tc;
+  int tch;
+  int td;
+  int tdh;
+  int te;
+  int tf;
+  int tfh;
+  t1=_x[1]+(_x[15]*27+32>>6);
+  tf=_x[15]-(t1*45+32>>6);
+  t1+=(tf*27+32>>6)+_x[7];
+  td=_x[13]-(_x[3]*43+32>>6);
+  t3=_x[3]+(td*59+32>>6);
+  t5=_x[5]+(_x[11]*43+32>>6);
+  tb=_x[11]-(t5*59+32>>6);
+  t5+=tb*43+32>>6;
+  td+=t5-(t3*43+32>>6);
+  tf=_x[9]-tf;
+  tb+=t3;
+  tfh=OD_DCT_RSHIFT(tf,1);
+  t9=_x[9]-tfh;
+  tbh=OD_DCT_RSHIFT(tb,1);
+  t3+=tfh-tbh;
+  t1h=OD_DCT_RSHIFT(t1,1);
+  t7=t1h-_x[7]+tbh;
+  tdh=OD_DCT_RSHIFT(td,1);
+  t5+=t1h-tdh;
+  t9=tdh-t9;
+  td-=t9;
+  tf=t3-tf;
+  t1-=t5+(tf*39+32>>6);
+  tf+=t1*45+16>>5;
+  t1-=tf*21+16>>5;
+  tb=t7-tb;
+  t9+=t7*55+32>>6;
+  t7+=t9*13+16>>5;
+  t9-=t7*25+16>>5;
+  tb-=td*17+32>>6;
+  td+=tb*5+2>>2;
+  tb-=td*17+16>>5;
+  t3+=t5*7+32>>6;
+  t5+=t3*57+32>>6;
+  t3-=OD_DCT_RSHIFT(t5,1);
+  t6=_x[6]-(_x[10]*7+16>>5);
+  ta=_x[10]-(t6*25+16>>5);
+  te=_x[14]+(_x[2]*45+16>>5);
+  t2=_x[2]+(te*9+16>>5);
+  t6=OD_DCT_RSHIFT(t2,1)-t6-(ta*17+16>>5);
+  te=OD_DCT_RSHIFT(ta,1)-te+(t2*71+32>>6);
+  t2-=t6;
+  ta-=te;
+  t6-=ta*27+32>>6;
+  ta+=t6*45+32>>6;
+  t6-=ta*27+32>>6;
+  tc=_x[12]+(_x[4]*71+32>>6);
+  t4=_x[4]-(tc*21+16>>5);
+  tc+=t4*45+32>>6;
+  t8=_x[0]-_x[8];
+  t8h=OD_DCT_RSHIFT(t8,1);
+  t0=_x[0]-t8h+OD_DCT_RSHIFT(tc,1);
+  t4=t8h-t4;
+  t8+=t6-t4;
+  tc=t0-tc+te;
+  ta=t4-ta;
+  t2=t0-t2;
+  tch=OD_DCT_RSHIFT(tc,1);
+  te=tch-te;
+  tah=OD_DCT_RSHIFT(ta,1);
+  t4-=tah;
+  t8h=OD_DCT_RSHIFT(t8,1);
+  t6=t8h-t6;
+  t2h=OD_DCT_RSHIFT(t2,1);
+  t0-=t2h;
+  t3=t2h-t3;
+  t6+=OD_DCT_RSHIFT(td,1);
+  t9=tah-t9;
+  te+=OD_DCT_RSHIFT(tf,1);
+  t1=tch-t1;
+  t4+=OD_DCT_RSHIFT(t7,1);
+  tb=t8h-tb;
+  t0+=OD_DCT_RSHIFT(t5,1);
+  _y[0]=(od_coeff)t0;
+  _y[1]=(od_coeff)(t8-tb);
+  _y[2]=(od_coeff)t4;
+  _y[3]=(od_coeff)(tc-t1);
+  _y[4]=(od_coeff)te;
+  _y[5]=(od_coeff)(ta-t9);
+  _y[6]=(od_coeff)t6;
+  _y[7]=(od_coeff)(t2-t3);
+  _y[8]=(od_coeff)t3;
+  _y[9]=(od_coeff)(t6-td);
+  _y[10]=(od_coeff)t9;
+  _y[11]=(od_coeff)(te-tf);
+  _y[12]=(od_coeff)t1;
+  _y[13]=(od_coeff)(t4-t7);
+  _y[14]=(od_coeff)tb;
+  _y[15]=(od_coeff)(t0-t5);
+}
+
 #if OD_DCT_TEST
 /*Test code.*/
 #include <stdio.h>
@@ -1412,9 +1757,632 @@ static void check8(void){
 }
 
 
+/*The (1-D) scaling factors that make a true iDCT approximation out of the
+   integer transform.*/
+static const double DCT16_ISCALE[16]={
+  1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+};
+
+/*The true forward 8-point type-II DCT basis, to 32-digit (100 bit) precision.
+  The inverse is merely the transpose.*/
+static const double DCT16_BASIS[16][16]={
+  {
+     0.25,                                0.25,
+     0.25,                                0.25,
+     0.25,                                0.25,
+     0.25,                                0.25,
+     0.25,                                0.25,
+     0.25,                                0.25,
+     0.25,                                0.25,
+     0.25,                                0.25
+  },{
+     0.35185093438159561475651955574599,  0.33832950029358816956728612239141,
+     0.31180625324666780814299756569942,  0.27330046675043937205975812924953,
+     0.22429189658565907106266034730521,  0.16666391461943662432490137779072,
+     0.10263113188058934528909230943878,  0.034654292299772865648933749133244,
+    -0.034654292299772865648933749133244,-0.10263113188058934528909230943878,
+    -0.16666391461943662432490137779072, -0.22429189658565907106266034730521,
+    -0.27330046675043937205975812924953, -0.31180625324666780814299756569942,
+    -0.33832950029358816956728612239141, -0.35185093438159561475651955574599
+  },{
+     0.34675996133053686545540479789161,  0.29396890060483967924361677615282,
+     0.19642373959677554531947434191430,  0.068974844820735753083989390917343,
+    -0.068974844820735753083989390917343,-0.19642373959677554531947434191430,
+    -0.29396890060483967924361677615282, -0.34675996133053686545540479789161,
+    -0.34675996133053686545540479789161, -0.29396890060483967924361677615282,
+    -0.19642373959677554531947434191430, -0.068974844820735753083989390917343,
+     0.068974844820735753083989390917343, 0.19642373959677554531947434191430,
+     0.29396890060483967924361677615282,  0.34675996133053686545540479789161
+  },{
+     0.33832950029358816956728612239141,  0.22429189658565907106266034730521,
+     0.034654292299772865648933749133244,-0.16666391461943662432490137779072,
+    -0.31180625324666780814299756569942, -0.35185093438159561475651955574599,
+    -0.27330046675043937205975812924953, -0.10263113188058934528909230943878,
+     0.10263113188058934528909230943878,  0.27330046675043937205975812924953,
+     0.35185093438159561475651955574599,  0.31180625324666780814299756569942,
+     0.16666391461943662432490137779072, -0.034654292299772865648933749133244,
+    -0.22429189658565907106266034730521, -0.33832950029358816956728612239141
+  },{
+     0.32664074121909413196416079335680,  0.13529902503654924609993080134160,
+    -0.13529902503654924609993080134160, -0.32664074121909413196416079335680,
+    -0.32664074121909413196416079335680, -0.13529902503654924609993080134160,
+     0.13529902503654924609993080134160,  0.32664074121909413196416079335680,
+     0.32664074121909413196416079335680,  0.13529902503654924609993080134160,
+    -0.13529902503654924609993080134160, -0.32664074121909413196416079335680,
+    -0.32664074121909413196416079335680, -0.13529902503654924609993080134160,
+     0.13529902503654924609993080134160,  0.32664074121909413196416079335680
+  },{
+     0.31180625324666780814299756569942,  0.034654292299772865648933749133244,
+    -0.27330046675043937205975812924953, -0.33832950029358816956728612239141,
+    -0.10263113188058934528909230943878,  0.22429189658565907106266034730521,
+     0.35185093438159561475651955574599,  0.16666391461943662432490137779072,
+    -0.16666391461943662432490137779072, -0.35185093438159561475651955574599,
+    -0.22429189658565907106266034730521,  0.10263113188058934528909230943878,
+     0.33832950029358816956728612239141,  0.27330046675043937205975812924953,
+    -0.034654292299772865648933749133244,-0.31180625324666780814299756569942
+  },{
+     0.29396890060483967924361677615282, -0.068974844820735753083989390917343,
+    -0.34675996133053686545540479789161, -0.19642373959677554531947434191430,
+     0.19642373959677554531947434191430,  0.34675996133053686545540479789161,
+     0.068974844820735753083989390917343,-0.29396890060483967924361677615282,
+    -0.29396890060483967924361677615282,  0.068974844820735753083989390917343,
+     0.34675996133053686545540479789161,  0.19642373959677554531947434191430,
+    -0.19642373959677554531947434191430, -0.34675996133053686545540479789161,
+    -0.068974844820735753083989390917343, 0.29396890060483967924361677615282
+  },{
+     0.27330046675043937205975812924953, -0.16666391461943662432490137779072,
+    -0.33832950029358816956728612239141,  0.034654292299772865648933749133244,
+     0.35185093438159561475651955574599,  0.10263113188058934528909230943878,
+    -0.31180625324666780814299756569942, -0.22429189658565907106266034730521,
+     0.22429189658565907106266034730521,  0.31180625324666780814299756569942,
+    -0.10263113188058934528909230943878, -0.35185093438159561475651955574599,
+    -0.034654292299772865648933749133244, 0.33832950029358816956728612239141,
+     0.16666391461943662432490137779072, -0.27330046675043937205975812924953
+  },{
+     0.25,                               -0.25,
+    -0.25,                                0.25,
+     0.25,                               -0.25,
+    -0.25,                                0.25,
+     0.25,                               -0.25,
+    -0.25,                                0.25,
+     0.25,                               -0.25,
+    -0.25,                                0.25
+  },{
+     0.22429189658565907106266034730521, -0.31180625324666780814299756569942,
+    -0.10263113188058934528909230943878,  0.35185093438159561475651955574599,
+    -0.034654292299772865648933749133244,-0.33832950029358816956728612239141,
+     0.16666391461943662432490137779072,  0.27330046675043937205975812924953,
+    -0.27330046675043937205975812924953, -0.16666391461943662432490137779072,
+     0.33832950029358816956728612239141,  0.034654292299772865648933749133244,
+    -0.35185093438159561475651955574599,  0.10263113188058934528909230943878,
+     0.31180625324666780814299756569942, -0.22429189658565907106266034730521
+  },{
+     0.19642373959677554531947434191430, -0.34675996133053686545540479789161,
+     0.068974844820735753083989390917343, 0.29396890060483967924361677615282,
+    -0.29396890060483967924361677615282, -0.068974844820735753083989390917343,
+     0.34675996133053686545540479789161, -0.19642373959677554531947434191430,
+    -0.19642373959677554531947434191430,  0.34675996133053686545540479789161,
+    -0.068974844820735753083989390917343,-0.29396890060483967924361677615282,
+     0.29396890060483967924361677615282,  0.068974844820735753083989390917343,
+    -0.34675996133053686545540479789161,  0.19642373959677554531947434191430
+  },{
+     0.16666391461943662432490137779072, -0.35185093438159561475651955574599,
+     0.22429189658565907106266034730521,  0.10263113188058934528909230943878,
+    -0.33832950029358816956728612239141,  0.27330046675043937205975812924953,
+     0.034654292299772865648933749133244,-0.31180625324666780814299756569942,
+     0.31180625324666780814299756569942, -0.034654292299772865648933749133244,
+    -0.27330046675043937205975812924953,  0.33832950029358816956728612239141,
+    -0.10263113188058934528909230943878, -0.22429189658565907106266034730521,
+     0.35185093438159561475651955574599, -0.16666391461943662432490137779072
+  },{
+     0.13529902503654924609993080134160, -0.32664074121909413196416079335680,
+     0.32664074121909413196416079335680, -0.13529902503654924609993080134160,
+    -0.13529902503654924609993080134160,  0.32664074121909413196416079335680,
+    -0.32664074121909413196416079335680,  0.13529902503654924609993080134160,
+     0.13529902503654924609993080134160, -0.32664074121909413196416079335680,
+     0.32664074121909413196416079335680, -0.13529902503654924609993080134160,
+    -0.13529902503654924609993080134160,  0.32664074121909413196416079335680,
+    -0.32664074121909413196416079335680,  0.13529902503654924609993080134160
+  },{
+     0.10263113188058934528909230943878, -0.27330046675043937205975812924953,
+     0.35185093438159561475651955574599, -0.31180625324666780814299756569942,
+     0.16666391461943662432490137779072,  0.034654292299772865648933749133244,
+    -0.22429189658565907106266034730521,  0.33832950029358816956728612239141,
+    -0.33832950029358816956728612239141,  0.22429189658565907106266034730521,
+    -0.034654292299772865648933749133244,-0.16666391461943662432490137779072,
+     0.31180625324666780814299756569942, -0.35185093438159561475651955574599,
+     0.27330046675043937205975812924953, -0.10263113188058934528909230943878
+  },{
+     0.068974844820735753083989390917343,-0.19642373959677554531947434191430,
+     0.29396890060483967924361677615282, -0.34675996133053686545540479789161,
+     0.34675996133053686545540479789161, -0.29396890060483967924361677615282,
+     0.19642373959677554531947434191430, -0.068974844820735753083989390917343,
+    -0.068974844820735753083989390917343, 0.19642373959677554531947434191430,
+    -0.29396890060483967924361677615282,  0.34675996133053686545540479789161,
+    -0.34675996133053686545540479789161,  0.29396890060483967924361677615282,
+    -0.19642373959677554531947434191430,  0.068974844820735753083989390917343
+  },{
+     0.034654292299772865648933749133244,-0.10263113188058934528909230943878,
+     0.16666391461943662432490137779072, -0.22429189658565907106266034730521,
+     0.27330046675043937205975812924953, -0.31180625324666780814299756569942,
+     0.33832950029358816956728612239141, -0.35185093438159561475651955574599,
+     0.35185093438159561475651955574599, -0.33832950029358816956728612239141,
+     0.31180625324666780814299756569942, -0.27330046675043937205975812924953,
+     0.22429189658565907106266034730521, -0.16666391461943662432490137779072,
+     0.10263113188058934528909230943878, -0.034654292299772865648933749133244
+  }
+};
+
+void idct16(double _x[],const double _y[]){
+  double t[16];
+  int    i;
+  int    j;
+  for(j=0;j<16;j++){
+    t[j]=0;
+    for(i=0;i<16;i++)t[j]+=DCT16_BASIS[i][j]*_y[i];
+  }
+  for(j=0;j<16;j++)_x[j]=t[j];
+}
+
+static void ieee1180_print_results16(long _sumerrs[16][16],
+ long _sumsqerrs[16][16],int _maxerr[16][16],int _l,int _h,int _sign){
+  double max;
+  double total;
+  int    m;
+  int    i;
+  int    j;
+  printf("IEEE1180-1990 test results:\n");
+  printf("Input range: [%i,%i]\n",-_l,_h);
+  printf("Sign: %i\n",_sign);
+  printf("Iterations: %i\n\n",IEEE1180_NBLOCKS);
+  printf("Peak absolute values of errors:\n");
+  for(i=0,m=0;i<16;i++){
+    for(j=0;j<16;j++){
+      if(_maxerr[i][j]>m)m=_maxerr[i][j];
+      printf("%4i",_maxerr[i][j]);
+    }
+    printf("\n");
+  }
+  printf("Worst peak error = %i (%s spec limit 1)\n\n",m,
+   ieee1180_meets((double)m,1.0));
+  printf("Mean square errors:\n");
+  max=total=0;
+  for(i=0;i<16;i++){
+    for(j=0;j<16;j++){
+      double err;
+      err=_sumsqerrs[i][j]/(double)IEEE1180_NBLOCKS;
+      printf(" %8.4f",err);
+      total+=_sumsqerrs[i][j];
+      if(max<err)max=err;
+    }
+    printf("\n");
+  }
+  printf("Worst pmse = %.6f (%s spec limit 0.06)\n",max,
+   ieee1180_meets(max,0.06));
+  total/=16*16*(double)IEEE1180_NBLOCKS;
+  printf("Overall mse = %.6f (%s spec limit 0.02)\n\n",total,
+   ieee1180_meets(total,0.02));
+  printf("Mean errors:\n");
+  max=total=0;
+  for(i=0;i<16;i++){
+    for(j=0;j<16;j++){
+      double err;
+      err=_sumerrs[i][j]/(double)IEEE1180_NBLOCKS;
+      printf(" %8.4f",err);
+      total+=_sumerrs[i][j];
+      if(err<0)err=-err;
+      if(max<err)max=err;
+    }
+    printf("\n");
+  }
+  total/=16*16*(double)IEEE1180_NBLOCKS;
+  printf("Worst mean error = %.6f (%s spec limit 0.015)\n",max,
+   ieee1180_meets(max,0.015));
+  printf("Overall mean error = %.6f (%s spec limit 0.0015)\n\n",total,
+   ieee1180_meets(total,0.0015));
+}
+
+static void ieee1180_test_block16(long _sumerrs[16][16],
+ long _sumsqerrs[16][16],int _maxerr[16][16],int _l,int _h,int _sign){
+  od_coeff block[16][16];
+  od_coeff refcoefs[16][16];
+  od_coeff refout[16][16];
+  od_coeff testout[16][16];
+  double   floatcoefs[16][16];
+  int      maxerr;
+  int      i;
+  int      j;
+  for(i=0;i<16;i++)for(j=0;j<16;j++)block[i][j]=ieee1180_rand(_l,_h)*_sign;
+  /*Modification of IEEE1180: use our integerized DCT, not a true DCT.*/
+  for(i=0;i<16;i++)od_bin_fdct16(refcoefs[i],block[i]);
+  for(j=0;j<16;j++){
+    od_coeff x[16];
+    for(i=0;i<16;i++)x[i]=refcoefs[i][j];
+    od_bin_fdct16(x,x);
+    for(i=0;i<16;i++)refcoefs[i][j]=x[i];
+  }
+  /*Modification of IEEE1180: no rounding or range clipping (coefficients
+     are always in range with our integerized DCT).*/
+  for(i=0;i<16;i++)for(j=0;j<16;j++){
+    /*Modification of IEEE1180: inputs to reference iDCT are scaled to match
+       the scaling factors introduced by the forward integer transform.*/
+    floatcoefs[i][j]=refcoefs[i][j]/(DCT16_ISCALE[i]*DCT16_ISCALE[j]);
+  }
+  for(i=0;i<16;i++)idct16(floatcoefs[i],floatcoefs[i]);
+  for(j=0;j<16;j++){
+    double x[16];
+    for(i=0;i<16;i++)x[i]=floatcoefs[i][j];
+    idct16(x,x);
+    for(i=0;i<16;i++)floatcoefs[i][j]=x[i];
+  }
+  for(i=0;i<16;i++)for(j=0;j<16;j++){
+    refout[i][j]=(od_coeff)(floatcoefs[i][j]+0.5);
+    if(refout[i][j]>255)refout[i][j]=255;
+    else if(refout[i][j]<-256)refout[i][j]=-256;
+  }
+  for(j=0;j<16;j++){
+    od_coeff x[16];
+    for(i=0;i<16;i++)x[i]=refcoefs[i][j];
+    od_bin_idct16(x,x);
+    for(i=0;i<16;i++)testout[i][j]=x[i];
+  }
+  for(i=0;i<16;i++){
+    od_bin_idct16(testout[i],testout[i]);
+    for(j=0;j<16;j++){
+      if(testout[i][j]>255)testout[i][j]=255;
+      else if(testout[i][j]<-256)testout[i][j]=-256;
+    }
+  }
+  for(i=0;i<16;i++)for(j=0;j<16;j++){
+    int err;
+    err=testout[i][j]-refout[i][j];
+    _sumerrs[i][j]+=err;
+    _sumsqerrs[i][j]+=err*err;
+    if(err<0)err=-err;
+    if(_maxerr[i][j]<err)_maxerr[i][j]=err;
+  }
+  for(i=0,maxerr=0;i<16;i++)for(j=0;j<16;j++){
+    int err;
+    err=testout[i][j]-refout[i][j];
+    if(err<0)err=-err;
+    if(err>maxerr)maxerr=err;
+  }
+  /*if(maxerr>1){
+    int u;
+    int v;
+    printf("Excessive peak error: %i\n",maxerr);
+    printf("Input:\n");
+    for(u=0;u<16;u++){
+      for(v=0;v<16;v++){
+        printf("%5i",block[u][v]);
+      }
+      printf("\n");
+    }
+    printf("Forward transform coefficients:\n");
+    for(u=0;u<16;u++){
+      for(v=0;v<16;v++){
+        printf("%5i",refcoefs[u][v]);
+      }
+      printf("\n");
+    }
+    printf("Reference inverse:\n");
+    for(u=0;u<16;u++){
+      for(v=0;v<16;v++){
+        printf("%5i",refout[u][v]);
+      }
+      printf("\n");
+    }
+    printf("Integerized inverse:\n");
+    for(u=0;u<16;u++){
+      for(v=0;v<16;v++){
+        printf("%5i",testout[u][v]);
+      }
+      printf("\n");
+    }
+  }*/
+}
+
+static void ieee1180_test16(void){
+  long sumerrs[16][16];
+  long sumsqerrs[16][16];
+  int  maxerr[16][16];
+  int  i;
+  int  j;
+  ieee1180_srand(1);
+  for(i=0;i<IEEE1180_NRANGES;i++){
+    memset(sumerrs,0,sizeof(sumerrs));
+    memset(sumsqerrs,0,sizeof(sumsqerrs));
+    memset(maxerr,0,sizeof(maxerr));
+    for(j=0;j<IEEE1180_NBLOCKS;j++){
+      ieee1180_test_block16(sumerrs,sumsqerrs,maxerr,IEEE1180_L[i],
+       IEEE1180_H[i],1);
+    }
+    ieee1180_print_results16(sumerrs,sumsqerrs,maxerr,IEEE1180_L[i],
+     IEEE1180_H[i],1);
+  }
+  ieee1180_srand(1);
+  for(i=0;i<IEEE1180_NRANGES;i++){
+    memset(sumerrs,0,sizeof(sumerrs));
+    memset(sumsqerrs,0,sizeof(sumsqerrs));
+    memset(maxerr,0,sizeof(maxerr));
+    for(j=0;j<IEEE1180_NBLOCKS;j++){
+      ieee1180_test_block16(sumerrs,sumsqerrs,maxerr,IEEE1180_L[i],
+       IEEE1180_H[i],-1);
+    }
+    ieee1180_print_results16(sumerrs,sumsqerrs,maxerr,IEEE1180_L[i],
+     IEEE1180_H[i],-1);
+  }
+}
+
+static void print_basis16(double _basis[16][16]){
+  int i;
+  int j;
+  for(i=0;i<16;i++){
+    for(j=0;j<16;j++){
+      printf("%8.5lf%c",_basis[i][j],j==16-1?'\n':' ');
+    }
+  }
+}
+
+static void compute_fbasis16(double _basis[16][16]){
+  int i;
+  int j;
+  for(i=0;i<16;i++){
+    od_coeff x[16];
+    for(j=0;j<16;j++)x[j]=(i==j)*256;
+    od_bin_fdct16(x,x);
+    for(j=0;j<16;j++)_basis[j][i]=x[j]/256.0;
+  }
+}
+
+static void compute_ibasis16(double _basis[16][16]){
+  int i;
+  int j;
+  for(i=0;i<16;i++){
+    od_coeff x[16];
+    for(j=0;j<16;j++)x[j]=(i==j)*256;
+    od_bin_idct16(x,x);
+    for(j=0;j<16;j++)_basis[j][i]=x[j]/256.0;
+  }
+}
+
+static void compute_ftrue_basis16(double _basis[16][16]){
+  int i;
+  int j;
+  for(j=0;j<16;j++){
+    for(i=0;i<16;i++){
+      _basis[j][i]=sqrt(2.0/16)*cos((i+0.5)*j*M_PI/16)*DCT16_ISCALE[j];
+      if(j==0)_basis[j][i]*=M_SQRT1_2;
+    }
+  }
+}
+
+static void compute_itrue_basis16(double _basis[16][16]){
+  int i;
+  int j;
+  for(i=0;i<16;i++){
+    double x[16];
+    for(j=0;j<16;j++)x[j]=(i==j);
+    idct16(x,x);
+    for(j=0;j<16;j++)_basis[j][i]=x[j]/DCT16_ISCALE[i];
+  }
+}
+
+static double compute_mse16(double _basis[16][16],double _tbasis[16][16]){
+  double e[16][16];
+  double ret;
+  int    i;
+  int    j;
+  int    k;
+  for(i=0;i<16;i++){
+    for(j=0;j<16;j++){
+      e[i][j]=0;
+      for(k=0;k<16;k++){
+        e[i][j]+=(_basis[i][k]-_tbasis[i][k])*AUTOCORR[k-j+15];
+      }
+    }
+  }
+  ret=0;
+  for(i=0;i<16;i++){
+    for(j=0;j<16;j++){
+      ret+=e[i][j]*(_basis[i][j]-_tbasis[i][j]);
+    }
+  }
+  return ret/16;
+}
+
+static void check_bias16(){
+  double rtacc[16];
+  double facc[16];
+  double q8acc[16];
+  double q7acc[16];
+  int    i;
+  int    j;
+  for(j=0;j<16;j++)q7acc[j]=q8acc[j]=facc[j]=rtacc[j]=0;
+  ieee1180_srand(1);
+  for(i=0;i<10000000;i++){
+    od_coeff x[16];
+    od_coeff x2[16];
+    od_coeff y[16];
+    od_coeff y2[16];
+    for(j=0;j<16;j++)x[j]=ieee1180_rand(255,255);
+    od_bin_fdct16(y,x);
+    for(j=0;j<16;j++)facc[j]+=y[j];
+    od_bin_idct16(x2,y);
+    for(j=0;j<16;j++)if(x[j]!=x2[j]){
+      printf("Mismatch:\n");
+      printf("in:    ");
+      for(j=0;j<16;j++)printf(" %i",x[j]);
+      printf("\nxform: ");
+      for(j=0;j<16;j++)printf(" %i",y[j]);
+      printf("\nout:   ");
+      for(j=0;j<16;j++)printf(" %i",x2[j]);
+      printf("\n\n");
+      break;
+    }
+    for(j=0;j<16;j++)y2[j]=y[j]+ieee1180_rand(1,1);
+    od_bin_idct16(x2,y2);
+    for(j=0;j<16;j++)rtacc[j]+=x2[j]-x[j];
+    for(j=0;j<16;j++)y2[j]=y[j]/8<<3;
+    od_bin_idct16(x2,y2);
+    for(j=0;j<16;j++)q8acc[j]+=x2[j]-x[j];
+    for(j=0;j<16;j++)y2[j]=y[j]/7*7;
+    od_bin_idct16(x2,y2);
+    for(j=0;j<16;j++)q7acc[j]+=x2[j]-x[j];
+  }
+  printf("1-D Forward Bias:\n");
+  for(j=0;j<16;j++)printf("% -18.15G%s",facc[j]/i,(j&3)==3?"\n":"  ");
+  printf("\n");
+  printf("1-D Round-Trip Bias:\n");
+  for(j=0;j<16;j++)printf("% -18.15G%s",rtacc[j]/i,(j&3)==3?"\n":"  ");
+  printf("\n");
+  printf("1-D Q=8 Bias:\n");
+  for(j=0;j<16;j++)printf("% -18.15G%s",q8acc[j]/i,(j&3)==3?"\n":"  ");
+  printf("\n");
+  printf("1-D Q=7 Bias:\n");
+  for(j=0;j<16;j++)printf("% -18.15G%s",q7acc[j]/i,(j&3)==3?"\n":"  ");
+  printf("\n");
+}
+
+#if 0
+static void bin_fxform_2d16(od_coeff _x[16*2][16*2]){
+  od_coeff y[16*2];
+  int      u;
+  int      v;
+  /*Perform pre-filtering.*/
+  for(u=0;u<16*2;u++){
+    od_pre_filter16(_x[u],_x[u]);
+    od_pre_filter16(_x[u]+16,_x[u]+16);
+  }
+  for(v=0;v<16*2;v++){
+    for(u=0;u<16*2;u++)y[u]=_x[u][v];
+    od_pre_filter16(y,y);
+    od_pre_filter16(y+16,y+16);
+    for(u=0;u<16*2;u++)_x[u][v]=y[u];
+  }
+  /*Perform DCT.*/
+  for(u=16/2;u<16*3/2;u++)od_bin_fdct16(_x[u]+16/2,_x[u]+16/2);
+  for(v=16/2;v<16*3/2;v++){
+    for(u=16/2;u<16*3/2;u++)y[u]=_x[u][v];
+    od_bin_fdct16(y+16/2,y+16/2);
+    for(u=16/2;u<16*3/2;u++)_x[u][v]=y[u];
+  }
+}
+
+static void dynamic_range16(void){
+  double   basis2[16][16][16*2][16*2];
+  od_coeff min2[16][16];
+  od_coeff max2[16][16];
+  int      i;
+  int      j;
+  int      u;
+  int      v;
+  for(i=0;i<16*2;i++){
+    for(j=0;j<16*2;j++){
+      od_coeff x[16*2][16*2];
+      /*Generate impulse.*/
+      for(u=0;u<16*2;u++){
+        for(v=0;v<16*2;v++){
+          x[u][v]=(u==i&&v==j)*256;
+        }
+      }
+      bin_fxform_2d16(x);
+      /*Retrieve basis elements.*/
+      for(u=0;u<16;u++){
+        for(v=0;v<16;v++){
+          basis2[u][v][i][j]=x[u+16/2][v+16/2]/256.0;
+        }
+      }
+    }
+  }
+  for(u=0;u<16;u++){
+    for(v=0;v<16;v++){
+      od_coeff x[16*2][16*2];
+      for(i=0;i<16*2;i++){
+        for(j=0;j<16*2;j++){
+          x[i][j]=basis2[u][v][i][j]<0?-255:255;
+        }
+      }
+      bin_fxform_2d16(x);
+      max2[u][v]=x[u+16/2][v+16/2];
+      for(i=0;i<16*2;i++){
+        for(j=0;j<16*2;j++){
+          x[i][j]=basis2[u][v][i][j]>0?-255:255;
+        }
+      }
+      bin_fxform_2d16(x);
+      min2[u][v]=x[u+16/2][v+16/2];
+    }
+  }
+  printf("2-D ranges:\n");
+  for(u=0;u<16;u++){
+    printf("Min %2i:",u);
+    for(v=0;v<16;v++)printf(" %6i",min2[u][v]);
+    printf("\nMax %2i:",u);
+    for(v=0;v<16;v++)printf(" %6i",max2[u][v]);
+    printf("\n");
+  }
+}
+#endif
+
+static void check16(void){
+  od_coeff min[16];
+  od_coeff max[16];
+  double   basis[16][16];
+  double   tbasis[16][16];
+  int      i;
+  int      j;
+  /*dynamic_range16();*/
+  for(j=0;j<16;j++)min[j]=max[j]=0;
+  for(i=0;i<1<<16;i++){
+    od_coeff x[16];
+    od_coeff y[16];
+    od_coeff x2[16];
+    for(j=0;j<16;j++)x[j]=(i>>j&1)?255:-256;
+    od_bin_fdct16(y,x);
+    od_bin_idct16(x2,y);
+    for(j=0;j<16;j++){
+      if(y[j]<min[j])min[j]=y[j];
+      else if(y[j]>max[j])max[j]=y[j];
+    }
+    for(j=0;j<16;j++)if(x[j]!=x2[j]){
+      printf("Mismatch:\n");
+      printf("in:    ");
+      for(j=0;j<16;j++)printf(" %i",x[j]);
+      printf("\nxform: ");
+      for(j=0;j<16;j++)printf(" %i",y[j]);
+      printf("\nout:   ");
+      for(j=0;j<16;j++)printf(" %i",x2[j]);
+      printf("\n\n");
+      break;
+    }
+  }
+  printf("Min:");
+  for(j=0;j<16;j++)printf(" %5i",min[j]);
+  printf("\nMax:");
+  for(j=0;j<16;j++)printf(" %5i",max[j]);
+  printf("\nod_bin_idct16 basis:\n");
+  compute_ibasis16(basis);
+  print_basis16(basis);
+  printf("Scaled type-II iDCT basis:\n");
+  compute_itrue_basis16(tbasis);
+  print_basis16(tbasis);
+  printf("\nod_bin_fdct16 basis:\n");
+  compute_fbasis16(basis);
+  print_basis16(basis);
+  printf("Scaled type-II DCT basis:\n");
+  compute_ftrue_basis16(tbasis);
+  print_basis16(tbasis);
+  printf("MSE: %.32lg\n\n",compute_mse16(basis,tbasis));
+  ieee1180_test16();
+  check_bias16();
+}
+
+
 int main(void){
   check4();
   check8();
+  check16();
   return 0;
 }
 #endif
