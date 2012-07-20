@@ -1,11 +1,17 @@
 package intra;
 
 import java.awt.image.BufferedImage;
-import java.io.BufferedReader;
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileReader;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Scanner;
 
 import javax.imageio.ImageIO;
 
@@ -18,6 +24,8 @@ public class Intra {
 	public static final int MODES=10;
 
 	public static final int B_SZ=4;
+
+	public static final boolean DROP_MULTS=false;
 
 	public static final int MAX_MULTS=4*B_SZ*B_SZ;
 
@@ -36,6 +44,8 @@ public class Intra {
 
 	public static final int[] INDEX;
 
+	public static final int DISK_BLOCK_SIZE=4096;
+
 	static {
 		// index the coefficients in block order
 		INDEX=new int[4*B_SZ*B_SZ];
@@ -48,9 +58,8 @@ public class Intra {
 				tmp++;
 			}
 		}
-
-
 	}
+
 	static class ModeData {
 
 		protected long numBlocks;
@@ -175,13 +184,13 @@ public class Intra {
 		return(y);
 	}
 
-	protected static void addBlock(int _mode,double _weight,String[] _data) {
+	protected static void addBlock(int _mode,double _weight,int[] _data) {
 		double[] delta=new double[2*B_SZ*2*B_SZ];
 		modeData[_mode].numBlocks++;
 		modeData[_mode].weightTotal+=_weight;
 		// online update of the mean
 		for (int i=0;i<2*B_SZ*2*B_SZ;i++) {
-			delta[i]=Integer.parseInt(_data[INDEX[i]+1])-modeData[_mode].mean[i];
+			delta[i]=_data[INDEX[i]]-modeData[_mode].mean[i];
 			modeData[_mode].mean[i]+=delta[i]*_weight/modeData[_mode].weightTotal;
 		}
 		// online update of the covariance
@@ -200,25 +209,48 @@ public class Intra {
 
 		// for each pass of k-means load the data
 		File folder=new File("data");
-		File[] inputFiles=folder.listFiles(new FilenameFilter() {
+		File[] coeffFiles=folder.listFiles(new FilenameFilter() {
 			public boolean accept(File _file,String _filename) {
 				return(_filename.endsWith(".coeffs"));
 			}
 		});
-		for (File file : inputFiles) {
+		if (coeffFiles==null) {
+			System.out.println("No .coeffs files found in data/ folder.  Enable the PRINT_BLOCKS ifdef and run:");
+			System.out.println("  for f in subset1-y4m/*.y4m; do ./init_intra_maps $f && ./init_intra_xform $f 2> $f.coeffs; done");
+			System.out.println("Move the *.coeffs files to tools/java/data");
+			System.exit(0);
+		}
+		Arrays.sort(coeffFiles);
+		File[] binFiles=new File[coeffFiles.length];
+		for (int i=0;i<coeffFiles.length;i++) {
+			binFiles[i]=new File(coeffFiles[i].getPath()+".bin");
+			if (!binFiles[i].exists()) {
+				System.out.println("Converting "+coeffFiles[i].getPath()+" to "+binFiles[i].getPath());
+				Scanner s=new Scanner(new BufferedInputStream(new FileInputStream(coeffFiles[i]),DISK_BLOCK_SIZE));
+				DataOutputStream dos=new DataOutputStream(new BufferedOutputStream(new FileOutputStream(binFiles[i]),DISK_BLOCK_SIZE));
+				while (s.hasNextShort()) {
+					dos.writeShort(s.nextShort());
+				}
+				s.close();
+				dos.close();
+			}
+		}
+		for (File file : binFiles) {
 			System.out.println(file.getPath());
-			BufferedReader br=new BufferedReader(new FileReader(file));
+			DataInputStream dis=new DataInputStream(new BufferedInputStream(new FileInputStream(file),DISK_BLOCK_SIZE));
 			// 3 color planes, YUV
 			for (int pli=0;pli<1;pli++) {
 				// read the plane size
-				String[] data=br.readLine().split(" ");
-				int nx=Integer.parseInt(data[0]);
-				int ny=Integer.parseInt(data[1]);
+				int nx=dis.readShort();
+				int ny=dis.readShort();
 
 				int[] rgb=new int[nx*ny];
 				for (int block=0;block<nx*ny;block++) {
-					data=br.readLine().split(" ");
-					int mode=Integer.parseInt(data[0]);
+					int mode=dis.readShort();
+					int[] data=new int[2*B_SZ*2*B_SZ];
+					for (int i=0;i<2*B_SZ*2*B_SZ;i++) {
+						data[i]=dis.readShort();
+					}
 					addBlock(mode,1,data);
 					rgb[block]=MODE_COLORS[mode];
 				}
@@ -227,11 +259,11 @@ public class Intra {
 				bi.setRGB(0,0,nx,ny,rgb,0,nx);
 				ImageIO.write(bi,"PNG",new File(file.getPath()+".step0.png"));
 			}
+			dis.close();
 		}
 
 		long last=System.currentTimeMillis();
-		// 16*44=704=768-64
-		for (int step=1;step<=44;step++) {
+		for (int step=1;step<=30;step++) {
 			long modeStart=System.currentTimeMillis();
 			// for each mode
 			for (int mode=0;mode<MODES;mode++) {
@@ -254,37 +286,42 @@ public class Intra {
 					}
 					md.mse[y]=mse(mode,y,true);
 					md.mseTotal+=md.mse[y];
-					mseUpdate(mode,y);
+					if (DROP_MULTS) {
+						mseUpdate(mode,y);
+					}
 				}
 
-				System.out.println("before="+(System.currentTimeMillis()-modeStart));
-				double rmseStart=Math.sqrt(md.mseTotal/(B_SZ*B_SZ));
-				for (int drops=0;drops<step*16;drops++) {
-					int y=mseDrop(mode);
-					md.mseTotal-=md.mse[y];
-					md.mse[y]=mse(mode,y,true);
-					md.mseTotal+=md.mse[y];
-					md.numMults[y]--;
-					mseUpdate(mode,y);
+				//System.out.println("before="+(System.currentTimeMillis()-modeStart));
+				int mults=(3*B_SZ*B_SZ)*(B_SZ*B_SZ);
+				if (DROP_MULTS) {
+					double rmseStart=Math.sqrt(md.mseTotal/(B_SZ*B_SZ));
+					for (;mults-->MAX_MULTS;) {
+						int y=mseDrop(mode);
+						md.mseTotal-=md.mse[y];
+						md.mse[y]=mse(mode,y,true);
+						md.mseTotal+=md.mse[y];
+						md.numMults[y]--;
+						mseUpdate(mode,y);
+					}
+					double rmseEnd=Math.sqrt(md.mseTotal/(B_SZ*B_SZ));
+					/*System.out.println(mode+" "+rmseEnd+" "+(rmseEnd-rmseStart)+" took "+(modeEnd-modeStart)/1000.0);
+					for (int j=0;j<B_SZ;j++) {
+						String prefix="    ";
+						for (int i=0;i<B_SZ;i++) {
+							System.out.print(prefix+(md.numMults[j*B_SZ+i]));
+							prefix=" ";
+						}
+						prefix="    ";
+						for (int i=0;i<B_SZ;i++) {
+							System.out.print(prefix+md.mse[j*B_SZ+i]);
+							prefix=" ";
+						}
+						System.out.println();
+					}*/
 				}
-				System.out.println("after="+(System.currentTimeMillis()-modeStart));
-				double rmseEnd=Math.sqrt(md.mseTotal/(B_SZ*B_SZ));
+				//System.out.println("after="+(System.currentTimeMillis()-modeStart));
 				long modeEnd=System.currentTimeMillis();
-				System.out.println(mode+" "+rmseEnd+" "+(rmseEnd-rmseStart)+" took "+(modeEnd-modeStart)/1000.0);
 				modeStart=modeEnd;
-				for (int j=0;j<B_SZ;j++) {
-					String prefix="    ";
-					for (int i=0;i<B_SZ;i++) {
-						System.out.print(prefix+(md.numMults[j*B_SZ+i]));
-						prefix=" ";
-					}
-					prefix="    ";
-					for (int i=0;i<B_SZ;i++) {
-						System.out.print(prefix+md.mse[j*B_SZ+i]);
-						prefix=" ";
-					}
-					System.out.println();
-				}
 			}
 
 			// reset the mode data
@@ -302,48 +339,60 @@ public class Intra {
 			// re-classify the blocks based on the computed beta's
 			double satdTotal=0;
 			double blocksTotal=0;
-			for (File file : inputFiles) {
-				System.out.println(file.getPath());
-				BufferedReader br=new BufferedReader(new FileReader(file));
+			for (File file : binFiles) {
+				System.out.print(file.getPath());
+				DataInputStream dis=new DataInputStream(new BufferedInputStream(new FileInputStream(file),DISK_BLOCK_SIZE));
 				// 3 color planes, YUV
 				for (int pli=0;pli<1;pli++) {
 					// read the plane size
-					String[] data=br.readLine().split(" ");
-					int nx=Integer.parseInt(data[0]);
-					int ny=Integer.parseInt(data[1]);
+					int nx=dis.readShort();
+					int ny=dis.readShort();
 
+					double satdImage=0;
 					int[] rgb=new int[nx*ny];
 					for (int block=0;block<nx*ny;block++) {
-						data=br.readLine().split(" ");
+						int mode=dis.readShort();
+						int[] data=new int[2*B_SZ*2*B_SZ];
+						for (int i=0;i<2*B_SZ*2*B_SZ;i++) {
+							data[i]=dis.readShort();
+						}
 						double best=Double.MAX_VALUE;
-						int mode=-1;
-						double nextBest=0;
+						double nextBest=Double.MAX_VALUE;
 						for (int j=0;j<MODES;j++) {
 							double satd=0;
 							// compute |y-x*B| the SATD (or L1-norm)
 							for (int y=0;y<B_SZ*B_SZ;y++) {
 								double pred=0;
 								for (int i=0;i<3*B_SZ*B_SZ;i++) {
-									pred+=Integer.parseInt(data[INDEX[i]+1])*modeData[j].beta[i][y];
+									pred+=data[INDEX[i]]*modeData[j].beta[i][y];
 								}
-								satd+=Math.abs(Integer.parseInt(data[INDEX[3*B_SZ*B_SZ+y]+1])-pred);
+								satd+=Math.abs(data[INDEX[3*B_SZ*B_SZ+y]]-pred);
 							}
 							if (satd<best) {
 								nextBest=best;
 								best=satd;
 								mode=j;
 							}
+							else {
+								if (satd<nextBest) {
+									nextBest=satd;
+								}
+							}
 						}
-						satdTotal+=best;
+						//System.out.println(block+" "+best+" "+mode+" "+nextBest);
+						satdImage+=best;
 						addBlock(mode,mode==0?1:nextBest-best,data);
 						rgb[block]=MODE_COLORS[mode];
 					}
+					System.out.println(" Average SATD: "+(satdImage/(nx*ny)));
+					satdTotal+=satdImage;
 					blocksTotal+=nx*ny;
 
 					BufferedImage bi=new BufferedImage(nx,ny,BufferedImage.TYPE_INT_ARGB);
 					bi.setRGB(0,0,nx,ny,rgb,0,nx);
-					ImageIO.write(bi,"PNG",new File(file.getPath()+".step"+(step<10?"0"+step:step)+".png"));
+					ImageIO.write(bi,"PNG",new File(file.getPath()+".step"+step+".png"));
 				}
+				dis.close();
 			}
 			long now=System.currentTimeMillis();
 			System.out.println("Step "+step+" took "+(now-last)/1000.0);
