@@ -142,7 +142,15 @@ static od_coeff *xform_blocks(od_coeff _buf[3*B_SZ*3*B_SZ],
         x=B_SZ*bx+j;
 #if APPLY_PREFILTER
         for(i=0;i<B_SZ;i++)col[i]=origin[_stride*(B_SZ*by+i)+x]-128;
+#if B_SZ==4
         od_pre_filter4(col,col);
+#elif B_SZ==8
+        od_pre_filter8(col,col);
+#elif B_SZ==16
+        od_pre_filter16(col,col);
+#else
+# error "Need a prefilter implementation for this block size."
+#endif
         for(i=0;i<B_SZ;i++)_buf[3*B_SZ*(B_SZ*by+i)+x]=col[i];
 #else
         for(i=0;i<B_SZ;i++){
@@ -157,7 +165,13 @@ static od_coeff *xform_blocks(od_coeff _buf[3*B_SZ*3*B_SZ],
     for(bx=0;bx<3;bx++){
       for(i=0;i<B_SZ;i++){
         row=_buf+3*B_SZ*(B_SZ*by+i)+B_SZ*bx;
+#if B_SZ==4
         od_pre_filter4(row,row);
+#elif B_SZ==8
+        od_pre_filter8(row,row);
+#elif B_SZ==16
+        od_pre_filter16(row,row);
+#endif
       }
     }
   }
@@ -168,11 +182,25 @@ static od_coeff *xform_blocks(od_coeff _buf[3*B_SZ*3*B_SZ],
     for(bx=0;bx<2;bx++){
       for(i=0;i<B_SZ;i++){
         row=buf2+3*B_SZ*(B_SZ*by+i)+B_SZ*bx;
+#if B_SZ==4
         od_bin_fdct4(row,row);
+#elif B_SZ==8
+        od_bin_fdct8(row,row);
+#elif B_SZ==16
+        od_bin_fdct16(row,row);
+#else
+# error "Need an fDCT implementation for this block size."
+#endif
       }
       for(j=0;j<B_SZ;j++){
         for(i=0;i<B_SZ;i++)col[i]=buf2[3*B_SZ*(B_SZ*by+i)+B_SZ*bx+j];
+#if B_SZ==4
         od_bin_fdct4(col,col);
+#elif B_SZ==8
+        od_bin_fdct8(col,col);
+#elif B_SZ==16
+        od_bin_fdct16(col,col);
+#endif
         for(i=0;i<B_SZ;i++)buf2[3*B_SZ*(B_SZ*by+i)+B_SZ*bx+j]=col[i];
       }
     }
