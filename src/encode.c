@@ -353,7 +353,7 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
         vk=0;
         for(j=0;j<15;j++)vk+=abs(pred[j+1]);
         generic_encode(&_enc->ec,&model_k,vk,&ex_k,0);
-        cblock[0]=pow(cblock[0],4/3.)*16.;
+        cblock[0]=pow(cblock[0],4/3.)*(scale/2.);
         cblock[0]*=sgn?-1:1;
         cblock[0]+=predt[0];
         pvq_encoder(&_enc->ec,&pred[1],15,vk,&anum,&aden,&au);
