@@ -376,13 +376,14 @@ int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
  * @retval position that should have the most pulses in _y
  */
 int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
-    ogg_int16_t *_scale,int *y,int N,int Q,int *qg){
+    ogg_int16_t *_scale,int *y,int N,int _Q,int *qg){
   float L2x,L2r;
   float g;               /* L2-norm of x */
   float gr;              /* L2-norm of r */
   float x[MAXN];
   float r[MAXN];
   float scale[MAXN];
+  float Q;
   float scale_1[MAXN];
   int   i;
   int   m;
@@ -391,11 +392,12 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   float proj;
   int   K,ym;
   float cg;              /* Companded gain of x*/
+  float cgq;
   float cgr;             /* Companded gain of r*/
   OD_ASSERT(N>1);
 
   /* Just some calibration -- should eventually go away */
-  Q*=.50;
+  Q=_Q*1.3;
 
   for(i=0;i<N;i++){
     scale[i]=_scale[i];
@@ -419,14 +421,28 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
 
   /*printf("%f\n", g);*/
   /* compand gain of x and subtract a constant for "pseudo-RDO" purposes */
-  cg = pow(g/Q,GAIN_EXP_1)-1.;
+  cg = pow(g/Q,GAIN_EXP_1);
   if (cg<0)
     cg=0;
-  cgr = pow(gr/Q,GAIN_EXP_1);
+  /* FIXME: Make that 0.2 adaptive */
+  cgr = pow(gr/Q,GAIN_EXP_1)+.2;
 
   /* Gain quantization. Round to nearest because we've already reduced cg.
      Maybe we should have a dead zone */
+#if 0
   *qg = floor(.5+cg-cgr);
+#else
+  /* Doing some RDO on the gain, start by rounding down */
+  *qg = floor(cg-cgr);
+  cgq = cgr+*qg;
+  if (cgq<1e-15) cgq=1e-15;
+  /* Cost difference between rounding up or down */
+  if ( 2*(cgq-cg)+1 + 0.1*(2. + (N-1)*log2(1+1./(cgq)))  < 0)
+  {
+    (*qg)++;
+    cgq = cgr+*qg;
+  }
+#endif
   cg = cgr+*qg;
   if (cg<0)cg=0;
   /* This is the actual gain the decoder will apply */
@@ -435,19 +451,24 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   /* Compute the number of pulses K based on the quantized gain -- still work
      to do here */
 #if 0
-  K = floor(.5+ 1.3*(M_PI/2)*(cg)/GAIN_EXP );
+  K = floor(.5+ 1.*(M_PI/2)*(cg)/GAIN_EXP );
 #else
   if (cg==0){
     K=0;
   }else{
     int K_large;
-    K = cg*cg;
-    K_large = sqrt(cg*N);
+    K = floor(.5+0.6*cg*cg);
+    K_large = floor(.5+1.5*cg*sqrt(N/2));
     if (K>K_large){
       K=K_large;
     }
   }
 #endif
+  if (K==0)
+  {
+    g=0;
+    cg=0;
+  }
   /*if(N==16)printf("%d ", qg);*/
 
   /*if (g>100000 && g0>100000)

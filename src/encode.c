@@ -173,6 +173,8 @@ void fdct4(od_coeff _x[],const od_coeff _y[]){
 }
 #endif
 
+double mode_bits=0;
+double mode_count=0;
 int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
   GenericEncoder model_dc;
   GenericEncoder model_g;
@@ -232,7 +234,7 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
     od_state_dump_img(&_enc->state,&_enc->state.vis_img,"vis");
 #endif
   }
-  scale=32;/*atoi(getenv("QUANT"));*/
+  scale=10;/*atoi(getenv("QUANT"));*/
   generic_model_init(&model_dc);
   generic_model_init(&model_g);
   generic_model_init(&model_k);
@@ -327,6 +329,8 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
           mode=od_intra_pred_search(mode_p0,mode_cdf,mode_dist,128,m_l,m_ul,m_u);
           od_intra_pred4x4_get(pred,&ctmp[y*w+x],w,mode);
           od_ec_encode_cdf_unscaled(&_enc->ec,mode,mode_cdf,OD_INTRA_NMODES);
+          mode_bits -= log((mode_cdf[mode]-(mode==0?0:mode_cdf[mode-1]))/(float)mode_cdf[OD_INTRA_NMODES-1])/log(2);
+          mode_count++;
           modes[(y>>2)*(w>>2)+(x>>2)]=mode;
         }else{
           for(j=0;j<16;j++)pred[j]=0;
@@ -344,7 +348,7 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
           }
         }
         sgn=(cblock[0]-predt[0])<0;
-        cblock[0]=floor(pow(fabs(cblock[0]-predt[0])/(scale/2.),3/4.));
+        cblock[0]=floor(pow(fabs(cblock[0]-predt[0])/(scale),3/4.));
         generic_encode(&_enc->ec,&model_dc,cblock[0],&ex_dc,0);
         if(cblock[0])od_ec_enc_bits(&_enc->ec,sgn,1);
         quant_pvq(&cblock[1],&predt[1],pvq_scale,&pred[1],15,scale,&qg);
@@ -353,7 +357,7 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
         vk=0;
         for(j=0;j<15;j++)vk+=abs(pred[j+1]);
         generic_encode(&_enc->ec,&model_k,vk,&ex_k,0);
-        cblock[0]=pow(cblock[0],4/3.)*(scale/2.);
+        cblock[0]=pow(cblock[0],4/3.)*(scale);
         cblock[0]*=sgn?-1:1;
         cblock[0]+=predt[0];
         pvq_encoder(&_enc->ec,&pred[1],15,vk,&anum,&aden,&au);
@@ -470,6 +474,7 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
      pli,(long long)enc_sqerr,npixels,10*log10(255*255.0*npixels/enc_sqerr));
   }
 
+  fprintf(stderr, "mode bits: %f/%f=%f\n", mode_bits,mode_count,mode_bits/mode_count);
   /*Dump YUV*/
   od_state_dump_yuv(&_enc->state,&_enc->state.rec_img,"out");
   _enc->packet_state=OD_PACKET_READY;
