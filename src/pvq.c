@@ -40,6 +40,43 @@ static int compare(const RDOEntry *a, const RDOEntry *b)
     return 0;
 }
 
+#define SWAP(x,a,b) do{RDOEntry tmp=x[b];x[b]=x[a];x[a]=tmp;}while(0);
+static void find_nbest(RDOEntry *x, int n, int len)
+{
+  int begin, end;
+  begin=0;
+  end=len;
+  if (n<=0)
+    return;
+  while(1) {
+    int i;
+    int index;
+    int pivot;
+    float pval;
+    pivot=(end+begin)/2;
+    pval = x[pivot].rd;
+    index = begin;
+    SWAP(x,pivot,end-1);
+    for (i=begin;i<end-1;i++)
+    {
+      if (x[i].rd<pval)
+      {
+        SWAP(x,i,index);
+        index++;
+      }
+    }
+    SWAP(x,index,end-1);
+    if (index<n-1)
+    {
+      begin=index+1;
+    } else if (index>n)
+    {
+      end=index;
+    } else {
+      break;
+    }
+  };
+}
 
 /* This is a "standard" pyramid vector quantizer search */
 static void pvq_search_rdo(float *x,float *scale,float *scale_1,float g,int N,int K,int *y,int m,float lambda){
@@ -98,10 +135,14 @@ static void pvq_search_rdo(float *x,float *scale,float *scale_1,float g,int N,in
   }
 
   rd[m].rd-=1.5*lambda*i;
-  qsort(rd, N-1, sizeof(RDOEntry), compare);
 #if 0
+  qsort(rd, N-1, sizeof(RDOEntry), compare);
+#else
+  find_nbest(rd,left-1,N);
+#endif
+#if 1
   i=0;
-  while(left>4)
+  while(left>1)
   {
     int ii=rd[i].i;
     y[ii]++;
@@ -679,7 +720,7 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   /*printf("%d ", qt);*/
   /*printf("%d %d\n", K, N);*/
 
-  pvq_search(x,NULL,NULL,1,N,K,y,m,.4/(cg*cg));
+  pvq_search_rdo(x,NULL,NULL,1,N,K,y,m,.0/(cg*cg));
   /*printf("%d ", K-abs(y[m]));*/
   /*for(i=0;i<N;i++)printf("%d ", (m==i)?0:y[i]);*/
 
