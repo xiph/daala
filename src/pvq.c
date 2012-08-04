@@ -25,6 +25,154 @@
 #define MAXN 256
 #define EPSILON 1e-30
 
+typedef struct {
+  int i;
+  float rd;
+} RDOEntry;
+
+static int compare(const RDOEntry *a, const RDOEntry *b)
+{
+  if (a->rd<b->rd)
+    return -1;
+  else if (a->rd>b->rd)
+    return 1;
+  else
+    return 0;
+}
+
+
+/* This is a "standard" pyramid vector quantizer search */
+static void pvq_search_rdo(float *x,float *scale,float *scale_1,float g,int N,int K,int *y,int m,float lambda){
+  float L1;
+  float L2;
+  float L1_proj;
+  float dist_scale;
+  int   i;
+  int   j;
+  int   left;
+  int   s[MAXN];
+  float xy; /* sum(x*y) */
+  float yy; /* sum(y*y) */
+  float xx;
+  float p[MAXN];
+  RDOEntry rd[MAXN];
+
+  /* Apply inverse scaling */
+  if (scale!=NULL){
+    for (i=0;i<N;i++){
+      x[i]*=scale_1[i];
+    }
+  }
+  /* Remove the sign and compute projection on the pyramid */
+  L1=0;
+  xx=0;
+  for (i=0;i<N;i++){
+    s[i]=x[i]>0?1:-1;
+    x[i]=fabs(x[i]);
+    xx += x[i]*x[i];
+    L1+=x[i];
+  }
+  {
+    float rescale = 1./sqrt(1e-15+xx);
+    for (i=0;i<N;i++){
+      x[i] *= rescale;
+    }
+    L1 *= rescale;
+    xx=1;
+  }
+  dist_scale = 1.f/(1e-15+L1*L1);
+  L1_proj=K/(EPSILON+L1);
+  left=K;
+  xy=0;
+  yy=0;
+  /* Find the first pulses based on the projection */
+  for (i=0;i<N;i++){
+    p[i]=L1_proj*x[i];
+    y[i]=floor(p[i]);
+    p[i] -= y[i];
+    rd[i].rd = dist_scale*(1-2*p[i]) +.4*lambda*i ;
+    rd[i].i = i;
+    left-=y[i];
+    xy+=x[i]*y[i];
+    yy+=y[i]*y[i];
+  }
+
+  rd[m].rd-=1.5*lambda*i;
+  qsort(rd, N-1, sizeof(RDOEntry), compare);
+#if 0
+  i=0;
+  while(left>4)
+  {
+    int ii=rd[i].i;
+    y[ii]++;
+    left--;
+    xy+=x[ii];
+    yy+=2*y[ii]-1;
+    i++;
+  }
+#endif
+  /* Find the remaining pulses "the long way" by maximizing xy^2/yy */
+  for(i=0;i<left;i++){
+    float best_num;
+    float best_den;
+    int   best_id;
+    float best_cost;
+    best_num=-1e5;
+    best_den=1e-15;
+    best_cost=0;
+    yy+=1;
+    best_id = 0;
+    for(j=0;j<N;j++){
+      float tmp_xy;
+      float tmp_yy;
+      float cost;
+      tmp_xy=xy+x[j];
+      tmp_yy=yy+2*y[j];
+      /*tmp_xy*=tmp_xy;*/
+      cost=(j==m)?0:lambda;
+      /* Trick to avoid having to divide by the denominators */
+      cost = 2*tmp_xy/sqrt(tmp_yy)-.4*lambda*j;
+      if (j==m)
+        cost+=1.5*lambda;
+      if (cost > best_cost){
+      /*if (tmp_xy*best_den > best_num*tmp_yy){*/
+      /*if (tmp_xy/sqrt(xx*tmp_yy)+best_cost > best_num/sqrt(xx*best_den)+cost){*/
+        best_num=tmp_xy;
+        best_den=tmp_yy;
+        best_cost = cost;
+        best_id=j;
+      }
+    }
+    xy+=x[best_id];
+    yy+=2*y[best_id];
+    y[best_id]++;
+  }
+
+  if (scale!=NULL){
+    L2=0;
+    for(i=0;i<N;i++){
+      float tmp;
+      tmp=scale[i]*y[i];
+      L2+=tmp*tmp;
+    }
+    /* Scale x to unit norm (with scaling) */
+    g/=(EPSILON+sqrt(L2));
+    for(i=0;i<N;i++){
+      x[i]=s[i]*g*scale[i]*y[i];
+    }
+  } else {
+    /* Scale x to unit norm (without scaling) */
+    g/=(EPSILON+sqrt(yy));
+    for(i=0;i<N;i++){
+      x[i]=s[i]*g*y[i];
+    }
+  }
+
+  for(i=0;i<N;i++){
+    y[i]*=s[i];
+  }
+}
+
 /* This is a "standard" pyramid vector quantizer search */
 static void pvq_search(float *x,float *scale,float *scale_1,float g,int N,int K,int *y,int m,float lambda){
   float L1;
