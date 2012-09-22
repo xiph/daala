@@ -338,13 +338,17 @@ public class Intra {
 
 				// compute MSE based on completely unmasked
 
-				double metric=0;
+				double mse=0;
+				double cg=0;
 				for (int y=0;y<B_SZ*B_SZ;y++) {
 					md.mse[y]=md.mse(y,true);
-					metric+=USE_CG?-10*Math.log10(md.mse[y]):md.mse[y];
+					cg+=-10*Math.log10(md.mse[y]);
+					mse+=md.mse[y];
 				}
 
-				System.out.println("step="+step+" mode="+mode+" metric="+metric);
+				System.out.println("  "+mode+": blocks="+md.numBlocks+"\tMSE="+mse+"\tCG="+cg);
+
+				double metric=USE_CG?cg:mse;
 
 				//System.out.println("before="+(System.currentTimeMillis()-modeStart));
 				int mults=(3*B_SZ*B_SZ)*(B_SZ*B_SZ);
@@ -405,6 +409,9 @@ public class Intra {
 					int nx=dis.readShort();
 					int ny=dis.readShort();
 
+					int[] to=new int[MODES];
+					int[] from=new int[MODES];
+
 					double[] image_satd=new double[MODES];
 					int[] image_blocks=new int[MODES];
 
@@ -418,7 +425,7 @@ public class Intra {
 						for (int i=0;i<2*B_SZ*2*B_SZ;i++) {
 							data[i]=dis.readShort();
 						}
-						System.out.println("+++ block="+block+" mode="+mode+" weight="+weight);
+						//System.out.println("+++ block="+block+" mode="+mode+" weight="+weight);
 						if (weight>0) {
 							double[] errors=new double[MODES];
 							double[] bits=new double[MODES];
@@ -429,7 +436,7 @@ public class Intra {
 									errors[j]+=error;
 									//int tmpWeight=j==0?1:weight;
 									bits[j]+=-10*Math.log10(md.mse[y]/md.mseUpdate(error,y,j==oldMode?-weight:weight));
-									System.out.println("mode="+j+" y="+y);
+									/*System.out.println("mode="+j+" y="+y);
 									System.out.println("  old mse="+md.mse[y]);
 									double oldBits=-10*Math.log10(md.mse[y]);
 									System.out.println("  old bits="+oldBits);
@@ -439,11 +446,11 @@ public class Intra {
 									double newBits=-10*Math.log10(mse);
 									System.out.println("  new bits="+newBits);
 									double delta_bits=-10*Math.log10(md.mse[y]/mse);
-									System.out.println("  delta bits="+delta_bits);
+									System.out.println("  delta bits="+delta_bits);*/
 								}
 							}
-							double best=Double.MIN_VALUE;
-							double nextBest=Double.MIN_VALUE;
+							double best=-Double.MAX_VALUE;
+							double nextBest=-Double.MAX_VALUE;
 							for (int j=0;j<MODES;j++) {
 								double metric=0;
 								if (USE_CG) {
@@ -486,24 +493,35 @@ public class Intra {
 									}
 								}
 							}
-							System.out.println("block="+block+" best="+best+" new_mode="+mode+" nextBest="+nextBest);
+							//System.out.println("block="+block+" best="+best+" new_mode="+mode+" nextBest="+nextBest);
 							image_satd[mode]+=errors[mode];
 							image_blocks[mode]++;
 
-							//modeData[mode].addBlock(mode==0?1:nextBest-best,data);
+							if (mode!=oldMode) {
+								to[mode]++;
+								from[oldMode]++;
+							}
+							modeData[mode].addBlock(mode==0?1:best-nextBest,data);
 							//modeData[mode].addBlock(mode==0?1:weight,data);
-							modeData[mode].addBlock(weight,data);
+							//modeData[mode].addBlock(weight,data);
 						}
 						dos.writeShort(mode);
 						rgb[block]=MODE_COLORS[mode];
 					}
 					System.out.println("Image Average SATD");
+					int total_to=0;
+					int total_from=0;
+					int blocks=0;
 					for (int mode=0;mode<MODES;mode++) {
-						System.out.println("  "+mode+": "+image_satd[mode]/image_blocks[mode]);
+						System.out.println("  "+mode+": "+image_satd[mode]/image_blocks[mode]+"\t"+image_blocks[mode]+"\t-"+from[mode]+"\t+"+to[mode]);
 						total_satd+=image_satd[mode];
-						total_blocks+=image_blocks[mode];
+						total_to+=to[mode];
+						total_from+=from[mode];
+						blocks+=image_blocks[mode];
 					}
-					//total_blocks+=nx*ny;
+					System.out.println("\t\t\t"+blocks+"\t-"+total_from+"\t+"+total_to);
+					//total_blocks+=blocks;
+					total_blocks+=nx*ny;
 					BufferedImage bi=new BufferedImage(nx,ny,BufferedImage.TYPE_INT_ARGB);
 					bi.setRGB(0,0,nx,ny,rgb,0,nx);
 					ImageIO.write(bi,"PNG",new File(file.getPath()+".step"+(step<10?"0"+step:step)+".png"));
