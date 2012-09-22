@@ -78,21 +78,153 @@ public class Intra {
 
 		protected boolean[][] mult=new boolean[3*B_SZ*B_SZ][B_SZ*B_SZ];
 
-		protected double[][] metricMasked=new double[3*B_SZ*B_SZ][B_SZ*B_SZ];
+		protected double[][] mseMasked=new double[3*B_SZ*B_SZ][B_SZ*B_SZ];
 
-		protected double[] metric=new double[B_SZ*B_SZ];
-
-		protected double total;
+		protected double[] mse=new double[B_SZ*B_SZ];
 
 		protected double[][] beta=new double[3*B_SZ*B_SZ][B_SZ*B_SZ];
 
+		protected double satd;
+
+		protected ModeData() {
+			for (int y=0;y<B_SZ*B_SZ;y++) {
+				numMults[y]=3*B_SZ*B_SZ;
+				for (int i=0;i<3*B_SZ*B_SZ;i++) {
+					mult[i][y]=true;
+				}
+			}
+		}
+
+		protected void addBlock(double _weight,int[] _data) {
+			double[] delta=new double[2*B_SZ*2*B_SZ];
+			numBlocks++;
+			weightTotal+=_weight;
+			// online update of the mean
+			for (int i=0;i<2*B_SZ*2*B_SZ;i++) {
+				delta[i]=_data[INDEX[i]]-mean[i];
+				mean[i]+=delta[i]*_weight/weightTotal;
+			}
+			// online update of the covariance
+			for (int j=0;j<2*B_SZ*2*B_SZ;j++) {
+				for (int i=0;i<2*B_SZ*2*B_SZ;i++) {
+					covariance[j][i]+=delta[j]*delta[i]*_weight*(weightTotal-_weight)/weightTotal;
+				}
+			}
+		}
+
+		protected void normalize() {
+			for (int i=0;i<2*B_SZ*2*B_SZ;i++) {
+				scale[i]=Math.sqrt(covariance[i][i]);
+			}
+			// compute C' = Sx * C * Sx
+			for (int j=0;j<2*B_SZ*2*B_SZ;j++) {
+				for (int i=0;i<2*B_SZ*2*B_SZ;i++) {
+					covariance[j][i]/=scale[j]*scale[i];
+				}
+			}
+		}
+
+		protected int coeffDrop() {
+			double delta=Double.MAX_VALUE;
+			int y=-1;
+			int c=-1;
+			for (int j=0;j<3*B_SZ*B_SZ;j++) {
+				for (int i=0;i<B_SZ*B_SZ;i++) {
+					if (mult[j][i]) {
+						if (mseMasked[j][i]-mse[i]<delta) {
+							delta=mseMasked[j][i]-mse[i];
+							y=i;
+							c=j;
+						}
+					}
+				}
+			}
+			mult[c][y]=false;
+			return(y);
+		}
+
+		protected double mse(int _y) {
+			return(mse(_y,false));
+		}
+
+		protected double mse(int _y,boolean _saveBeta) {
+			double yty=covariance[3*B_SZ*B_SZ+_y][3*B_SZ*B_SZ+_y];
+			double ytxb=0;
+			int xsize=numMults[_y];
+			if (xsize>0) {
+				if (xtx[xsize-1]==null) {
+					xty[xsize-1]=new DenseMatrix64F(xsize,1);
+					b[xsize-1]=new DenseMatrix64F(xsize,1);
+				}
+				xtx[xsize-1]=new DenseMatrix64F(xsize,xsize);
+				for (int ji=0,j=0;j<3*B_SZ*B_SZ;j++) {
+					if (mult[j][_y]) {
+						for (int ii=0,i=0;i<3*B_SZ*B_SZ;i++) {
+							if (mult[i][_y]) {
+								xtx[xsize-1].set(ji,ii,covariance[j][i]);
+								ii++;
+							}
+						}
+						xty[xsize-1].set(ji,0,covariance[j][3*B_SZ*B_SZ+_y]);
+						ji++;
+					}
+				}
+
+				solver.setA(xtx[xsize-1]);
+				solver.solve(xty[xsize-1],b[xsize-1]);
+				// compute y^T * x * beta
+				for (int ii=0,i=0;i<3*B_SZ*B_SZ;i++) {
+					if (mult[i][_y]) {
+						ytxb+=covariance[3*B_SZ*B_SZ+_y][i]*b[xsize-1].get(ii,0);
+						ii++;
+					}
+				}
+				// save beta for use with classification
+				if (_saveBeta) {
+					for (int ii=0,i=0;i<3*B_SZ*B_SZ;i++) {
+						if (mult[i][_y]) {
+							// beta' = Sx^-1 * beta * Sy -> beta = Sx * beta' * Sy^-1 
+							beta[i][_y]=b[xsize-1].get(ii,0)*scale[3*B_SZ*B_SZ+_y]/scale[i];
+							ii++;
+						}
+						else {
+							beta[i][_y]=0;
+						}
+					}
+				}
+			}
+			return(yty-ytxb);
+		}
+
+		// compute the masked MSE's for a given y coefficient
+		protected void updateMasked(int _y) {
+			for (int i=0;i<3*B_SZ*B_SZ;i++) {
+				if (mult[i][_y]) {
+					mult[i][_y]=false;
+					numMults[_y]--;
+					mseMasked[i][_y]=mse(_y);
+					mult[i][_y]=true;
+					numMults[_y]++;
+				 }
+			 }
+		}
+
+		protected double predError(int[] _data,int _y) {
+			double pred=0;
+			for (int i=0;i<3*B_SZ*B_SZ;i++) {
+				pred+=_data[INDEX[i]]*beta[i][_y];
+			}
+			return(Math.abs(_data[INDEX[3*B_SZ*B_SZ+_y]]-pred));
+		}
+
+		protected double mseUpdate(double _error,int _y,int _weight) {
+			double se=_error*_error;
+			double wt=weightTotal+_weight;
+			double delta=se-mse[_y];
+			return(mse[_y]+delta*_weight/wt);
+		}
+
 	};
-
-	protected static ModeData[] modeData=new ModeData[MODES];
-
-	protected static double mse(int _mode,int _y) {
-		return(mse(_mode,_y,false));
-	}
 
 	protected static LinearSolver<DenseMatrix64F> solver=new SolvePseudoInverseSvd();
 
@@ -100,115 +232,16 @@ public class Intra {
 
 	protected static DenseMatrix64F[] xty=new DenseMatrix64F[3*B_SZ*B_SZ];
 
-	protected static DenseMatrix64F[] beta=new DenseMatrix64F[3*B_SZ*B_SZ];
+	protected static DenseMatrix64F[] b=new DenseMatrix64F[3*B_SZ*B_SZ];
 
-	protected static double mse(int _mode,int _y,boolean _saveBeta) {
-		ModeData md=modeData[_mode];
-		double yty=md.covariance[3*B_SZ*B_SZ+_y][3*B_SZ*B_SZ+_y];
-		double ytxb=0;
-		int xsize=md.numMults[_y];
-		if (xsize>0) {
-			if (xtx[xsize-1]==null) {
-				xty[xsize-1]=new DenseMatrix64F(xsize,1);
-				beta[xsize-1]=new DenseMatrix64F(xsize,1);
-			}
-			xtx[xsize-1]=new DenseMatrix64F(xsize,xsize);
-			for (int ji=0,j=0;j<3*B_SZ*B_SZ;j++) {
-				if (md.mult[j][_y]) {
-					for (int ii=0,i=0;i<3*B_SZ*B_SZ;i++) {
-						if (md.mult[i][_y]) {
-							xtx[xsize-1].set(ji,ii,md.covariance[j][i]);
-							ii++;
-						}
-					}
-					xty[xsize-1].set(ji,0,md.covariance[j][3*B_SZ*B_SZ+_y]);
-					ji++;
-				}
-			}
-
-			solver.setA(xtx[xsize-1]);
-			solver.solve(xty[xsize-1],beta[xsize-1]);
-			// compute y^T * x * beta
-			for (int ii=0,i=0;i<3*B_SZ*B_SZ;i++) {
-				if (md.mult[i][_y]) {
-					ytxb+=md.covariance[3*B_SZ*B_SZ+_y][i]*beta[xsize-1].get(ii,0);
-					ii++;
-				}
-			}
-			// save beta for use with classification
-			if (_saveBeta) {
-				for (int ii=0,i=0;i<3*B_SZ*B_SZ;i++) {
-					if (md.mult[i][_y]) {
-						// beta' = Sx^-1 * beta * Sy -> beta = Sx * beta' * Sy^-1 
-						md.beta[i][_y]=beta[xsize-1].get(ii,0)*md.scale[3*B_SZ*B_SZ+_y]/md.scale[i];
-						ii++;
-					}
-					else {
-						md.beta[i][_y]=0;
-					}
-				}
-			}
-		}
-		return(yty-ytxb);
-	}
-
-	// compute the MSE for a given y coefficient
-	protected static void mseUpdate(int _mode,int _y) {
-		ModeData md=modeData[_mode];
-		for (int i=0;i<3*B_SZ*B_SZ;i++) {
-			if (md.mult[i][_y]) {
-				md.mult[i][_y]=false;
-				md.numMults[_y]--;
-				if (!USE_CG) {
-					md.metricMasked[i][_y]=mse(_mode,_y);
-				}
-				else {
-					md.metricMasked[i][_y]=10*Math.log10(mse(_mode,_y));
-				}
-				md.mult[i][_y]=true;
-				md.numMults[_y]++;
-			 }
-		 }
-	}
-
-	protected static int coeffDrop(int _mode) {
-		ModeData md=modeData[_mode];
-		double delta=Double.MAX_VALUE;
-		int y=-1;
-		int c=-1;
-		for (int j=0;j<3*B_SZ*B_SZ;j++) {
-			for (int i=0;i<B_SZ*B_SZ;i++) {
-				if (md.mult[j][i]) {
-					if (md.metricMasked[j][i]-md.metric[i]<delta) {
-						delta=md.metricMasked[j][i]-md.metric[i];
-						y=i;
-						c=j;
-					}
-				}
-			}
-		}
-		md.mult[c][y]=false;
-		return(y);
-	}
-
-	protected static void addBlock(int _mode,double _weight,int[] _data) {
-		double[] delta=new double[2*B_SZ*2*B_SZ];
-		modeData[_mode].numBlocks++;
-		modeData[_mode].weightTotal+=_weight;
-		// online update of the mean
-		for (int i=0;i<2*B_SZ*2*B_SZ;i++) {
-			delta[i]=_data[INDEX[i]]-modeData[_mode].mean[i];
-			modeData[_mode].mean[i]+=delta[i]*_weight/modeData[_mode].weightTotal;
-		}
-		// online update of the covariance
-		for (int j=0;j<2*B_SZ*2*B_SZ;j++) {
-			for (int i=0;i<2*B_SZ*2*B_SZ;i++) {
-				modeData[_mode].covariance[j][i]+=delta[j]*delta[i]*_weight*(modeData[_mode].weightTotal-_weight)/modeData[_mode].weightTotal;
-			}
-		}
+	protected static double satdAverage(ModeData[] _modes) {
+		// compute online update of mean
+		return(0);
 	}
 
 	public static void main(String[] _args) throws IOException {
+		ModeData[] modeData=new ModeData[MODES];
+
 		// initialize the modes
 		for (int i=0;i<MODES;i++) {
 			modeData[i]=new ModeData();
@@ -246,6 +279,7 @@ public class Intra {
 		for (File file : binFiles) {
 			System.out.println(file.getPath());
 			DataInputStream dis=new DataInputStream(new BufferedInputStream(new FileInputStream(file),DISK_BLOCK_SIZE));
+			DataOutputStream dos=new DataOutputStream(new BufferedOutputStream(new FileOutputStream(file.getPath()+".step00.mode"),DISK_BLOCK_SIZE));
 			// 3 color planes, YUV
 			for (int pli=0;pli<1;pli++) {
 				// read the plane size
@@ -257,77 +291,77 @@ public class Intra {
 				for (int block=0;block<nx*ny;block++) {
 					int mode=dis.readShort();
 					int weight=dis.readShort();
-					System.out.println("mode="+mode+" weight="+weight);
+					//System.out.println("mode="+mode+" weight="+weight);
+					dos.writeShort(mode);
+					//dos.writeShort(weight);
 					int[] data=new int[2*B_SZ*2*B_SZ];
 					for (int i=0;i<2*B_SZ*2*B_SZ;i++) {
 						data[i]=dis.readShort();
-						//System.out.println("i="+i+" data["+i+"]="+data[i]);
 					}
 					if (weight>0) {
-						addBlock(mode,weight,data);
+						//modeData[mode].addBlock(mode==0?1:weight,data);
+						modeData[mode].addBlock(weight,data);
 					}
 					rgb[block]=MODE_COLORS[mode];
 				}
 
 				BufferedImage bi=new BufferedImage(nx,ny,BufferedImage.TYPE_INT_ARGB);
 				bi.setRGB(0,0,nx,ny,rgb,0,nx);
-				ImageIO.write(bi,"PNG",new File(file.getPath()+".step0.png"));
+				ImageIO.write(bi,"PNG",new File(file.getPath()+".step00.png"));
 			}
+			dos.close();
 			dis.close();
 		}
 
+		/*System.out.println("numBlocks="+modeData[0].numBlocks);
+		for (int i=0;i<3*B_SZ*B_SZ;i++) {
+			System.out.println(i+": "+modeData[0].mean[i]);
+		}
+		System.exit(0);*/
+
 		long last=System.currentTimeMillis();
 		for (int step=1;step<=30;step++) {
+			System.out.println("*** Starting step "+step);
+
+			// phase 1:
+			//   normalize
+			//   compute the metric (MSE or CG)
+			//   sparsify (optional)
+			//   compute beta
+
 			long modeStart=System.currentTimeMillis();
 			// for each mode
 			for (int mode=0;mode<MODES;mode++) {
 				ModeData md=modeData[mode];
-				for (int i=0;i<2*B_SZ*2*B_SZ;i++) {
-					md.scale[i]=Math.sqrt(md.covariance[i][i]);
-				}
-				// compute C' = Sx * C * Sx
-				for (int j=0;j<2*B_SZ*2*B_SZ;j++) {
-					for (int i=0;i<2*B_SZ*2*B_SZ;i++) {
-						md.covariance[j][i]/=md.scale[j]*md.scale[i];
-					}
-				}
+
+				md.normalize();
+
 				// compute MSE based on completely unmasked
-				md.total=0;
+
+				double metric=0;
 				for (int y=0;y<B_SZ*B_SZ;y++) {
-					md.numMults[y]=3*B_SZ*B_SZ;
-					for (int i=0;i<3*B_SZ*B_SZ;i++) {
-						md.mult[i][y]=true;
-					}
-					if (!USE_CG) {
-						md.metric[y]=mse(mode,y,true);
-					}
-					else {
-						md.metric[y]=10*Math.log10(mse(mode,y,true));
-					}
-					md.total+=md.metric[y];
-					if (DROP_MULTS) {
-						mseUpdate(mode,y);
-					}
+					md.mse[y]=md.mse(y,true);
+					metric+=USE_CG?-10*Math.log10(md.mse[y]):md.mse[y];
 				}
+
+				System.out.println("step="+step+" mode="+mode+" metric="+metric);
 
 				//System.out.println("before="+(System.currentTimeMillis()-modeStart));
 				int mults=(3*B_SZ*B_SZ)*(B_SZ*B_SZ);
 				if (DROP_MULTS) {
-					double rmseStart=Math.sqrt(md.total/(B_SZ*B_SZ));
-					for (;mults-->MAX_MULTS;) {
-						int y=coeffDrop(mode);
-						md.total-=md.metric[y];
-						if (!USE_CG) {
-							md.metric[y]=mse(mode,y,true);
-						}
-						else {
-							md.metric[y]=10*Math.log10(mse(mode,y,true));
-						}
-						md.total+=md.metric[y];
-						md.numMults[y]--;
-						mseUpdate(mode,y);
+					for (int y=0;y<B_SZ*B_SZ;y++) {
+						md.updateMasked(y);
 					}
-					double rmseEnd=Math.sqrt(md.total/(B_SZ*B_SZ));
+					//double rmseStart=Math.sqrt(md.total/(B_SZ*B_SZ));
+					for (;mults-->MAX_MULTS;) {
+						int y=modeData[mode].coeffDrop();
+						metric-=USE_CG?-10*Math.log10(md.mse[y]):md.mse[y];
+						md.mse[y]=md.mse(y,true);
+						metric+=USE_CG?-10*Math.log10(md.mse[y]):md.mse[y];
+						md.numMults[y]--;
+						md.updateMasked(y);
+					}
+					//double rmseEnd=Math.sqrt(md.total/(B_SZ*B_SZ));
 					/*System.out.println(mode+" "+rmseEnd+" "+(rmseEnd-rmseStart)+" took "+(modeEnd-modeStart)/1000.0);
 					for (int j=0;j<B_SZ;j++) {
 						String prefix="    ";
@@ -348,56 +382,88 @@ public class Intra {
 				modeStart=modeEnd;
 			}
 
+			ModeData[] oldModeData=modeData;
+
 			// reset the mode data
-			for (ModeData md : modeData) {
-				md.numBlocks=0;
-				md.weightTotal=0;
-				for (int j=0;j<2*B_SZ*2*B_SZ;j++) {
-					md.mean[j]=0;
-					for (int i=0;i<2*B_SZ*2*B_SZ;i++) {
-						md.covariance[j][i]=0;
-					}
-				}
+			modeData=new ModeData[MODES];
+			for (int i=0;i<MODES;i++) {
+				modeData[i]=new ModeData();
 			}
 
+			double total_satd=0;
+			int total_blocks=0;
+
 			// re-classify the blocks based on the computed beta's
-			double satdTotal=0;
-			double blocksTotal=0;
 			for (File file : binFiles) {
-				System.out.print(file.getPath());
+				//System.out.print(file.getPath());
 				DataInputStream dis=new DataInputStream(new BufferedInputStream(new FileInputStream(file),DISK_BLOCK_SIZE));
+				DataInputStream dis2=new DataInputStream(new BufferedInputStream(new FileInputStream(file.getPath()+".step"+(step-1<10?"0"+(step-1):step-1)+".mode"),DISK_BLOCK_SIZE));
+				DataOutputStream dos=new DataOutputStream(new BufferedOutputStream(new FileOutputStream(file.getPath()+".step"+(step<10?"0"+step:step)+".mode"),DISK_BLOCK_SIZE));
 				// 3 color planes, YUV
 				for (int pli=0;pli<1;pli++) {
 					// read the plane size
 					int nx=dis.readShort();
 					int ny=dis.readShort();
 
-					double satdImage=0;
+					double[] image_satd=new double[MODES];
+					int[] image_blocks=new int[MODES];
+
 					int[] rgb=new int[nx*ny];
 					for (int block=0;block<nx*ny;block++) {
+						// load the data
 						int mode=dis.readShort();
 						int weight=dis.readShort();
+						int oldMode=dis2.readShort();
 						int[] data=new int[2*B_SZ*2*B_SZ];
 						for (int i=0;i<2*B_SZ*2*B_SZ;i++) {
 							data[i]=dis.readShort();
 						}
+						System.out.println("+++ block="+block+" mode="+mode+" weight="+weight);
 						if (weight>0) {
-							double best=Double.MAX_VALUE;
-							double nextBest=Double.MAX_VALUE;
+							double[] errors=new double[MODES];
+							double[] bits=new double[MODES];
+							for (int j=0;j<MODES;j++) {
+								ModeData md=oldModeData[j];
+								for (int y=0;y<B_SZ*B_SZ;y++) {
+									double error=md.predError(data,y);
+									errors[j]+=error;
+									//int tmpWeight=j==0?1:weight;
+									bits[j]+=-10*Math.log10(md.mse[y]/md.mseUpdate(error,y,j==oldMode?-weight:weight));
+									System.out.println("mode="+j+" y="+y);
+									System.out.println("  old mse="+md.mse[y]);
+									double oldBits=-10*Math.log10(md.mse[y]);
+									System.out.println("  old bits="+oldBits);
+									System.out.println("  error="+error);
+									double mse=md.mseUpdate(error,y,-weight);
+									System.out.println("  new mse="+mse);
+									double newBits=-10*Math.log10(mse);
+									System.out.println("  new bits="+newBits);
+									double delta_bits=-10*Math.log10(md.mse[y]/mse);
+									System.out.println("  delta bits="+delta_bits);
+								}
+							}
+							double best=Double.MIN_VALUE;
+							double nextBest=Double.MIN_VALUE;
 							for (int j=0;j<MODES;j++) {
 								double metric=0;
-								if (!USE_CG) {
-									// compute |y-x*B| the SATD (or L1-norm)
-									for (int y=0;y<B_SZ*B_SZ;y++) {
-										double pred=0;
-										for (int i=0;i<3*B_SZ*B_SZ;i++) {
-											pred+=data[INDEX[i]]*modeData[j].beta[i][y];
-										}
-										metric+=Math.abs(data[INDEX[3*B_SZ*B_SZ+y]]-pred);
+								if (USE_CG) {
+									if (oldMode!=j) {
+										// greater CG is better
+										metric=bits[oldMode]+bits[j];
 									}
 								}
 								else {
-									// TODO add the code to back out the block from the mode cov
+									// lower SATD is better
+									metric=errors[oldMode]-errors[j];
+								}
+								/*for (int y=0;y<B_SZ*B_SZ;y++) {
+									// compute |y-x*B| the SATD (or L1-norm)
+									double error=md.predError(data,y);
+									metric+=USE_CG?-10*Math.log10(md.mse[y]/md.mseUpdate(error,y,weight)):error;
+								}
+								//System.out.println("mode="+j+" metric="+metric);
+								if (USE_CG) {
+									metric=-(mode_bits+metric);
 								}
 								if (metric<best) {
 									nextBest=best;
@@ -408,28 +474,49 @@ public class Intra {
 									if (metric<nextBest) {
 										nextBest=metric;
 									}
+								}*/
+								if (metric>best) {
+									nextBest=best;
+									best=metric;
+									mode=j;
+								}
+								else {
+									if (metric>nextBest) {
+										nextBest=metric;
+									}
 								}
 							}
-							//System.out.println(block+" "+best+" "+mode+" "+nextBest);
-							satdImage+=best;
-							addBlock(mode,mode==0?1:nextBest-best,data);
-							//addBlock(mode,mode==0?1:nextBest-best,data);
+							System.out.println("block="+block+" best="+best+" new_mode="+mode+" nextBest="+nextBest);
+							image_satd[mode]+=errors[mode];
+							image_blocks[mode]++;
+
+							//modeData[mode].addBlock(mode==0?1:nextBest-best,data);
+							//modeData[mode].addBlock(mode==0?1:weight,data);
+							modeData[mode].addBlock(weight,data);
 						}
+						dos.writeShort(mode);
 						rgb[block]=MODE_COLORS[mode];
 					}
-					System.out.println(" Average SATD: "+(satdImage/(nx*ny)));
-					satdTotal+=satdImage;
-					blocksTotal+=nx*ny;
-
+					System.out.println("Image Average SATD");
+					for (int mode=0;mode<MODES;mode++) {
+						System.out.println("  "+mode+": "+image_satd[mode]/image_blocks[mode]);
+						total_satd+=image_satd[mode];
+						total_blocks+=image_blocks[mode];
+					}
+					//total_blocks+=nx*ny;
 					BufferedImage bi=new BufferedImage(nx,ny,BufferedImage.TYPE_INT_ARGB);
 					bi.setRGB(0,0,nx,ny,rgb,0,nx);
 					ImageIO.write(bi,"PNG",new File(file.getPath()+".step"+(step<10?"0"+step:step)+".png"));
 				}
 				dis.close();
+				dis2.close();
+				dos.close();
 			}
+
 			long now=System.currentTimeMillis();
-			System.out.println("Step "+step+" took "+(now-last)/1000.0);
-			System.out.println("Average SATD: "+(satdTotal/blocksTotal));
+			System.out.println("*** Ending step "+step+" took "+(now-last)/1000.0);
+			//System.out.println("Step "+step+" took "+(now-last)/1000.0);
+			System.out.println("Average SATD: "+(total_satd/total_blocks));
 		}
 	}
 

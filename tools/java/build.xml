@@ -27,8 +27,16 @@
 			classpathref="libs.classpath"/>
 	</target>
 
-	<target name="run" depends="compile">
+	<target name="intra" depends="compile">
 		<java classname="intra.Intra">
+			<classpath>
+				<path refid="libs.classpath"/>
+			</classpath>
+		</java>
+	</target>
+
+	<target name="trans" depends="compile">
+		<java classname="trans.Trans">
 			<classpath>
 				<path refid="libs.classpath"/>
 			</classpath>
