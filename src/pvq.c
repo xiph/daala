@@ -93,6 +93,9 @@ static void pvq_search_rdo(float *x,float *scale,float *scale_1,float g,int N,in
   float xx;
   float p[MAXN];
   RDOEntry rd[MAXN];
+  /* Some simple RDO constants that should eventually depend on the state of the pvq encoders */
+  const float rate_ym = .3; /* Cost advantage of y[m] compared to y[0] */
+  const float rate_lin = .1; /* Cost penalty of y[n+1] compared to y[n] */
 
   /* Apply inverse scaling */
   if (scale!=NULL){
@@ -127,14 +130,14 @@ static void pvq_search_rdo(float *x,float *scale,float *scale_1,float g,int N,in
     p[i]=L1_proj*x[i];
     y[i]=floor(p[i]);
     p[i] -= y[i];
-    rd[i].rd = dist_scale*(1-2*p[i]) +.4*lambda*i ;
+    rd[i].rd = dist_scale*(1-2*p[i]) + rate_lin*lambda*i ;
     rd[i].i = i;
     left-=y[i];
     xy+=x[i]*y[i];
     yy+=y[i]*y[i];
   }
-
-  rd[m].rd-=1.5*lambda*i;
+  /* Revert the rate cost of m and replace by the special case cost */
+  rd[m].rd -= rate_ym*lambda + rate_lin*lambda*m;
 #if 0
   qsort(rd, N-1, sizeof(RDOEntry), compare);
 #else
@@ -152,34 +155,25 @@ static void pvq_search_rdo(float *x,float *scale,float *scale_1,float g,int N,in
     i++;
   }
 #endif
-  /* Find the remaining pulses "the long way" by maximizing xy^2/yy */
+  /* Find the remaining pulses "the long way" by minimizing the RDO cost function */
   for(i=0;i<left;i++){
-    float best_num;
-    float best_den;
     int   best_id;
-    float best_cost;
-    best_num=-1e5;
-    best_den=1e-15;
+    float best_cost; /* cost has reversed sign */
     best_cost=0;
     yy+=1;
     best_id = 0;
     for(j=0;j<N;j++){
       float tmp_xy;
       float tmp_yy;
-      float cost;
+      float cost; /* cost has reversed sign */
       tmp_xy=xy+x[j];
       tmp_yy=yy+2*y[j];
-      /*tmp_xy*=tmp_xy;*/
-      cost=(j==m)?0:lambda;
-      /* Trick to avoid having to divide by the denominators */
-      cost = 2*tmp_xy/sqrt(tmp_yy)-.4*lambda*j;
+      /* RDO cost function (reversed sign) */
+      cost = 2*tmp_xy/sqrt(tmp_yy)-rate_lin*lambda*j;
+      /* Revert the rate cost of m and replace by the special case cost */
       if (j==m)
-        cost+=1.5*lambda;
+        cost+=rate_ym*lambda+rate_lin*lambda*m;
       if (cost > best_cost){
-      /*if (tmp_xy*best_den > best_num*tmp_yy){*/
-      /*if (tmp_xy/sqrt(xx*tmp_yy)+best_cost > best_num/sqrt(xx*best_den)+cost){*/
-        best_num=tmp_xy;
-        best_den=tmp_yy;
         best_cost = cost;
         best_id=j;
       }
@@ -583,10 +577,14 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   float cg;              /* Companded gain of x*/
   float cgq;
   float cgr;             /* Companded gain of r*/
+  float lambda;
   OD_ASSERT(N>1);
 
   /* Just some calibration -- should eventually go away */
-  Q=_Q*1.3;
+  Q=pow(_Q*1.3,GAIN_EXP_1); /* Converts Q to the "companded domain" */
+  /* High rate predicts that the constant should be log(2)/6 = 0.115, but in
+     practice, it should be lower. */
+  lambda = 0.10*Q*Q;
 
   for(i=0;i<N;i++){
     scale[i]=_scale[i];
@@ -610,11 +608,11 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
 
   /*printf("%f\n", g);*/
   /* compand gain of x and subtract a constant for "pseudo-RDO" purposes */
-  cg = pow(g/Q,GAIN_EXP_1);
+  cg = pow(g,GAIN_EXP_1)/Q;
   if (cg<0)
     cg=0;
   /* FIXME: Make that 0.2 adaptive */
-  cgr = pow(gr/Q,GAIN_EXP_1)+.2;
+  cgr = pow(gr,GAIN_EXP_1)/Q+.2;
 
   /* Gain quantization. Round to nearest because we've already reduced cg.
      Maybe we should have a dead zone */
@@ -626,7 +624,7 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   cgq = cgr+*qg;
   if (cgq<1e-15) cgq=1e-15;
   /* Cost difference between rounding up or down */
-  if ( 2*(cgq-cg)+1 + 0.1*(2. + (N-1)*log2(1+1./(cgq)))  < 0)
+  if ( 2*(cgq-cg)+1 + (lambda/(Q*Q))*(2. + (N-1)*log2(1+1./(cgq)))  < 0)
   {
     (*qg)++;
     cgq = cgr+*qg;
@@ -635,7 +633,7 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   cg = cgr+*qg;
   if (cg<0)cg=0;
   /* This is the actual gain the decoder will apply */
-  g = Q*pow(cg, GAIN_EXP);
+  g = pow(Q*cg, GAIN_EXP);
 
   /* Compute the number of pulses K based on the quantized gain -- still work
      to do here */
@@ -720,7 +718,9 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   /*printf("%d ", qt);*/
   /*printf("%d %d\n", K, N);*/
 
-  pvq_search_rdo(x,NULL,NULL,1,N,K,y,m,.0/(cg*cg));
+  /* Normalize lambda for quantizing on the unit circle */
+  /* FIXME: See if we can avoid setting lambda to zero! */
+  pvq_search_rdo(x,NULL,NULL,1,N,K,y,m,.0*lambda/(cg*cg));
   /*printf("%d ", K-abs(y[m]));*/
   /*for(i=0;i<N;i++)printf("%d ", (m==i)?0:y[i]);*/
 
