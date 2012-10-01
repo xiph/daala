@@ -754,7 +754,8 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   ym = y[m];
   for (i=m;i>=1;i--)
     y[i] = y[i-1];
-  y[0] = ym;
+  /* Make y[0] positive when prediction is good  */
+  y[0] = -ym*s;
 
   /*printf("%d ", *qg);*/
   /*printf("xc1=%f\n", xc1);*/
