@@ -178,7 +178,6 @@ double mode_count=0;
 int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
   GenericEncoder model_dc;
   GenericEncoder model_g;
-  GenericEncoder model_k;
   GenericEncoder model_ym;
   int refi;
   int pli;
@@ -238,7 +237,6 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
   scale=10;/*atoi(getenv("QUANT"));*/
   generic_model_init(&model_dc);
   generic_model_init(&model_g);
-  generic_model_init(&model_k);
   generic_model_init(&model_ym);
   /*TODO: Encode image.*/
   for(pli=0;pli<_img->nplanes;pli++){
@@ -258,7 +256,6 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
 #endif
     int ex_dc = pli>0?8:32768;
     int ex_g = 8;
-    int ex_k = 8;
     int ex_ym = 8;
     int anum = 650*4;
     int aden = 256*4;
@@ -359,7 +356,7 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
         if(qg)od_ec_enc_bits(&_enc->ec,qg<0,1);
         vk=0;
         for(j=0;j<15;j++)vk+=abs(pred[j+1]);
-        generic_encode(&_enc->ec,&model_k,vk,&ex_k,0);
+        /* No need to code vk because we can get it from qg */
         cblock[0]=pow(cblock[0],4/3.)*(scale);
         cblock[0]*=sgn?-1:1;
         cblock[0]+=predt[0];
