@@ -179,6 +179,7 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
   GenericEncoder model_dc;
   GenericEncoder model_g;
   GenericEncoder model_k;
+  GenericEncoder model_ym;
   int refi;
   int pli;
   int scale;
@@ -238,6 +239,7 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
   generic_model_init(&model_dc);
   generic_model_init(&model_g);
   generic_model_init(&model_k);
+  generic_model_init(&model_ym);
   /*TODO: Encode image.*/
   for(pli=0;pli<_img->nplanes;pli++){
     ogg_uint16_t mode_p0[OD_INTRA_NMODES];
@@ -257,6 +259,7 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
     int ex_dc = pli>0?8:32768;
     int ex_g = 8;
     int ex_k = 8;
+    int ex_ym = 8;
     int anum = 650*4;
     int aden = 256*4;
     int au = 30<<4;
@@ -360,7 +363,16 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
         cblock[0]=pow(cblock[0],4/3.)*(scale);
         cblock[0]*=sgn?-1:1;
         cblock[0]+=predt[0];
+#if 1
+        /* Expectation is that half the pulses will go in y[m] */
+        ex_ym = 65536*vk/2;
+        if (vk!=0)
+          generic_encode(&_enc->ec,&model_ym,vk-pred[1],&ex_ym,0);
+        pvq_encoder(&_enc->ec,&pred[2],14,vk-abs(pred[1]),&anum,&aden,&au);
+#else
+        /* Treat first component (y[m]) like all others */
         pvq_encoder(&_enc->ec,&pred[1],15,vk,&anum,&aden,&au);
+#endif
         /*Dequantize*/
         for(j=0;j<4;j++){
           int k;
