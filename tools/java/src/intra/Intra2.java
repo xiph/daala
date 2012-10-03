@@ -27,8 +27,6 @@ public class Intra2 {
 
 	public static final int STEPS=30;
 
-	public static final int DC_WEIGHT=10;
-
 	public static final int BITS_PER_COEFF=6;
 
 	public static final double MAX_CG=BITS_PER_COEFF*-10*Math.log10(0.5);
@@ -36,6 +34,8 @@ public class Intra2 {
 	public static final boolean USE_CG=true;
 
 	public static final boolean UPDATE_WEIGHT=false;
+
+	public static double DC_WEIGHT=66.07307086571254;
 
 	public static final int[] MODE_COLORS={
 		0xFF000000,
@@ -144,9 +144,9 @@ public class Intra2 {
 			double total_cg=0;
 			for (int j=0;j<B_SZ*B_SZ;j++) {
 				double cg=-10*Math.log10(_mse[j]/(covariance[3*B_SZ*B_SZ+j][3*B_SZ*B_SZ+j]/weightTotal));
-				if (cg>=MAX_CG) {
+				/*if (cg>=MAX_CG) {
 					cg=MAX_CG;
-				}
+				}*/
 				total_cg+=cg;
 			}
 			return(total_cg/(B_SZ*B_SZ));
@@ -176,12 +176,12 @@ public class Intra2 {
 
 		protected double deltaBits(int[] _data,double _weight) {
 			double old_cg=cgPerCoeff(mse);
-			double[] mse=new double[B_SZ*B_SZ];
-			mseUpdateHelper(_data,_weight,mse);
+			double[] tmp_mse=new double[B_SZ*B_SZ];
+			mseUpdateHelper(_data,_weight,tmp_mse);
 			update(_weight,_data);
-			double cg=cgPerCoeff(mse);
+			double cg=cgPerCoeff(tmp_mse);
 			update(-_weight,_data);
-			return((cg-old_cg)*(weightTotal+_weight));
+			return((weightTotal+_weight)*cg-weightTotal*old_cg);
 		}
 
 	};
@@ -236,41 +236,52 @@ public class Intra2 {
 			modeData[i]=new ModeData();
 		}
 
+		double weight_sum=0;
+		long block_sum=0;
+
 		for (File file : _files) {
 			System.out.println("Loading "+file.getPath());
 			DataInputStream dis=new DataInputStream(new BufferedInputStream(new FileInputStream(file),DISK_BLOCK_SIZE));
 			DataOutputStream dos=new DataOutputStream(new BufferedOutputStream(new FileOutputStream(file.getPath()+".step00.mode"),DISK_BLOCK_SIZE));
-			// 3 color planes, YUV
-			for (int pli=0;pli<1;pli++) {
-				// read the plane size
-				int nx=dis.readShort();
-				int ny=dis.readShort();
 
-				int[] rgb=new int[nx*ny];
-				for (int block=0;block<nx*ny;block++) {
-					int mode=dis.readShort();
-					int weight=dis.readShort();
-					//System.out.println("mode="+mode+" weight="+weight);
-					dos.writeShort(mode);
-					dos.writeDouble(weight);
-					int[] data=new int[2*B_SZ*2*B_SZ];
-					for (int i=0;i<2*B_SZ*2*B_SZ;i++) {
-						data[i]=dis.readShort();
-					}
-					if (weight>0) {
-						modeData[mode].addBlock(mode==0?DC_WEIGHT:weight,data);
-						//modeData[mode].addBlock(weight,data);
-					}
-					rgb[block]=MODE_COLORS[mode];
+			// read the plane size
+			int nx=dis.readShort();
+			int ny=dis.readShort();
+
+			int[] rgb=new int[nx*ny];
+			for (int block=0;block<nx*ny;block++) {
+				int mode=dis.readShort();
+				double weight=dis.readShort();
+				//System.out.println("mode="+mode+" weight="+weight);
+				int[] data=new int[2*B_SZ*2*B_SZ];
+				for (int i=0;i<2*B_SZ*2*B_SZ;i++) {
+					data[i]=dis.readShort();
 				}
-
-				BufferedImage bi=new BufferedImage(nx,ny,BufferedImage.TYPE_INT_ARGB);
-				bi.setRGB(0,0,nx,ny,rgb,0,nx);
-				ImageIO.write(bi,"PNG",new File(file.getPath()+".step00.png"));
+				if (weight>0) {
+					weight_sum+=weight;
+					block_sum++;
+					if (mode==0) {
+						weight=DC_WEIGHT;
+					}
+					modeData[mode].addBlock(weight,data);
+				}
+				dos.writeShort(mode);
+				dos.writeDouble(weight);
+				rgb[block]=MODE_COLORS[mode];
 			}
+
+			BufferedImage bi=new BufferedImage(nx,ny,BufferedImage.TYPE_INT_ARGB);
+			bi.setRGB(0,0,nx,ny,rgb,0,nx);
+			ImageIO.write(bi,"PNG",new File(file.getPath()+".step00.png"));
+
 			dos.close();
 			dis.close();
 		}
+
+		DC_WEIGHT=weight_sum/block_sum;
+		System.out.println("DC_WEIGHT="+DC_WEIGHT);
+
+		// correct the DC to use DC_WEIGHT
 
 		return(modeData);
 	}
@@ -278,15 +289,15 @@ public class Intra2 {
 	protected void fitData(ModeData[] _modeData) {
 		// compute betas and MSE
 		for (int i=0;i<MODES;i++) {
-			/*System.out.println("mode "+i);
+			System.out.println("mode "+i);
 			double[] old_mse=new double[B_SZ*B_SZ];
 			for (int j=0;j<B_SZ*B_SZ;j++) {
 				old_mse[j]=_modeData[i].mse[j];
-			}*/
+			}
 			_modeData[i].computeBetas();
-			/*for (int j=0;j<B_SZ*B_SZ;j++) {
+			for (int j=0;j<B_SZ*B_SZ;j++) {
 				System.out.println("  "+j+": "+old_mse[j]+"\t"+_modeData[i].mse[j]+"\t"+(_modeData[i].mse[j]-old_mse[j]));
-			}*/
+			}
 		}
 	}
 
@@ -304,8 +315,23 @@ public class Intra2 {
 			cg_sum+=_modeData[i].weightTotal*cg;
 			weight+=_modeData[i].weightTotal;
 		}
+		System.out.println("Total Weight "+weight);
 		System.out.println("Average MSE "+mse_sum/weight);
 		System.out.println("Average CG  "+cg_sum/weight);
+
+		// make a "heat map" using the normalized beta_1
+		/*int w=SPACE+(2*B_SZ+SPACE)*B_SZ*B_SZ;
+		int h=SPACE+(2*B_SZ+SPACE)*MODES;
+		int[] rgb=new int[w*h];
+
+		for (int i=0;i<MODES;i++) {
+			int yoff=SPACE+i*(2*B_SZ+SPACE);
+			int xoff=SPACE;
+			for (int j=0;j<B_SZ*B_SZ;j++) {
+
+				rgb[w*(yoff+i)+xoff];
+			}
+		}*/
 	}
 
 	protected void processData(int step,ModeData[] _modeData,File[] _files) throws IOException {
@@ -335,6 +361,10 @@ public class Intra2 {
 				int lastMode=dis2.readShort();
 				double lastWeight=dis2.readDouble();
 				if (weight>0) {
+					if (mode==0) {
+						weight=DC_WEIGHT;
+						lastWeight=DC_WEIGHT;
+					}
 					// compute error
 					double[] error=new double[MODES];
 					double[] cg=new double[MODES];
@@ -343,7 +373,7 @@ public class Intra2 {
 							error[i]+=_modeData[i].predError(data,j);
 						}
 						if (USE_CG) {
-							cg[i]=_modeData[i].deltaBits(data,(lastMode==i?-1:1)*(i==0?DC_WEIGHT:weight));
+							cg[i]=_modeData[i].deltaBits(data,lastMode==i?-weight:weight);
 						}
 					}
 					double best=-Double.MAX_VALUE;
@@ -370,13 +400,15 @@ public class Intra2 {
 						weight=best-nextBest;
 					}
 					if (USE_CG) {
-						_modeData[lastMode].mseUpdate(data,lastMode==0?-DC_WEIGHT:-lastWeight);
-						_modeData[mode].mseUpdate(data,mode==0?DC_WEIGHT:weight);
+						_modeData[lastMode].mseUpdate(data,-lastWeight);
+						_modeData[mode].mseUpdate(data,weight);
 					}
-					_modeData[lastMode].removeBlock(lastMode==0?DC_WEIGHT:lastWeight,data);
-					_modeData[lastMode].computeBetas();
-					_modeData[mode].addBlock(mode==0?DC_WEIGHT:weight,data);
-					_modeData[mode].computeBetas();
+					_modeData[lastMode].removeBlock(lastWeight,data);
+					_modeData[mode].addBlock(weight,data);
+					/*if (USE_CG) {
+						_modeData[lastMode].computeBetas();
+						_modeData[mode].computeBetas();
+					}*/
 				}
 				dos.writeShort(mode);
 				dos.writeDouble(weight);
@@ -422,7 +454,7 @@ public class Intra2 {
 	}
 
 	public static void main(String[] _args) throws Exception {
-		Intra2 intra=new Intra2(4,"data");
+		Intra2 intra=new Intra2(4,"data2");
 		intra.run();
 	}
 
