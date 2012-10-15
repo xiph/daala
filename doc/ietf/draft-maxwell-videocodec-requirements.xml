@@ -1,0 +1,519 @@
+<?xml version='1.0'?>
+<!DOCTYPE rfc SYSTEM 'rfc2629.dtd'>
+<?rfc toc="yes" symrefs="yes" ?>
+
+<rfc ipr="trust200902" category="info" docName="draft-maxwell-videocodec-requirements-00">
+
+<front>
+<title abbrev="Video Codec Requirements">Requirements for an Internet Video Codec</title>
+
+<author initials="GM" surname="Maxwell" fullname="Gregory Maxwell">
+<organization>Xiph.Org</organization>
+<address>
+<email>greg@xiph.org</email>
+</address>
+</author>
+
+<author initials="K." surname="Walsh" fullname="Kat Walsh">
+<organization></organization>
+<address>
+<postal>
+<street></street>
+<city></city>
+<region></region>
+<code></code>
+<country></country>
+</postal>
+<email>kat@mindspillage.org</email>
+</address>
+</author>
+
+
+<date day="15" month="October" year="2012" />
+
+<area>RAI</area>
+
+<keyword>video codec</keyword>
+<keyword>Internet-Draft</keyword>
+
+<abstract>
+<t>
+This document provides specific requirements for an Internet video codec.
+These requirements address quality, bit-rate, loss robustness,
+application suitability, as well as other desirable properties.
+</t>
+</abstract>
+</front>
+
+<middle>
+
+<section anchor="Introduction" title="Introduction">
+
+<t>
+This document provides requirements for a video codec designed specifically
+for use over the Internet.
+The requirements attempt to address the needs
+of the most common Internet video transmission applications and
+to ensure good quality when operating in conditions that are typical for the
+Internet.
+These requirements address quality, bit-rate, and loss robustness.
+Other desirable codec properties are considered as well.
+</t>
+</section>
+
+<section anchor="definitions" title="Definitions">
+
+<t>
+Codec bit-rates in bits per second (b/s) will be considered without counting any
+overhead (IP/UDP/RTP headers, padding, ...).
+</t>
+
+</section>
+
+<section anchor="applications" title="Applications">
+
+<t>
+The following applications should be considered for Internet video codecs,
+along with their requirements:
+<list style="symbols">
+<t>Live video streaming</t>
+<t>Video on demand</t>
+<t>Point to point video calls</t>
+<t>Video Conferencing</t>
+<t>Telepresence</t>
+<t>Teleoperation</t>
+<t>Remote software services</t>
+<t>Other applications</t>
+</list>
+</t>
+
+<section title="Point to point video calls">
+<t>
+Point to point calls are calls from two "standard" (fixed
+or mobile) phones, desktop, portable computers, or tablets, and implemented in
+hardware or software.
+</t>
+</section>
+
+<section title="Video Conferencing">
+<t>
+Video Conferencing applications (which support multi-party calls) have additional
+requirements on top of the requirements for point-to-point calls.
+Conferencing systems often have greater network bandwidth available.
+The ability to vary the bit-rate (VBR) is a desirable feature for the codec.
+This not only saves bandwidth "on average", but it can also help conference servers
+make more efficient use of the available bandwidth by using more bandwidth for
+important video streams and less bandwidth for less important ones.
+</t>
+
+</section>
+
+<section title="Telepresence">
+<t>
+Most telepresence applications can be considered to be essentially very
+high quality video conferencing environments, so all of the conferencing
+requirements also apply to telepresence.
+</t>
+
+</section>
+
+<section title="Teleoperation and Remote Software Services">
+<t>
+Teleoperation applications are similar to telepresence, with the exception that
+they involve remote physical interactions.
+For example, the user may be
+controlling a robot while receiving a real-time video feed from that robot.
+The other requirements
+of telepresence apply to teleoperation as well.
+</t>
+
+<t>
+The requirements for remote software services are similar to those of teleoperation.
+These applications include remote desktop applications, remote virtualization, and
+interactive media applications being rendered remotely (e.g. video games rendered
+on central servers).
+</t>
+</section>
+
+<section title="Other applications">
+<t>
+The above list is by no means a complete list of all applications involving
+interactive video transmission on the Internet.
+However, it is believed that meeting the needs of all these different
+applications should be sufficient to ensure that most applications not listed will also be met.
+</t>
+</section>
+
+</section>
+
+<section anchor="constraints" title="Constraints Imposed by the Internet on the
+Codec">
+
+<t>The bandwidth requirements of video are a significant obstacle for
+Internet deployment.
+A substantial portion of the hosts on the Internet have
+connectivity sufficient to carry perceptually lossless audio, even in
+inefficient uncompressed form.
+However, a much smaller portion of hosts have connectivity
+sufficient for the 200+ megabits per second required for uncompressed 30fps
+standard definition video, and expected resolutions for Internet video are
+increasing.
+Even the highest resolutions widely used off the Internet, where wide-area
+bandwidth is not a constraint, have not yet reached perceptual losslessness.
+In addition to increases in
+resolution, operating models which are less broadcast-oriented (including video
+on demand and video conferencing) limit the traffic mitigation effectiveness of
+CDNs and multicast, though support for these technologies remains essential.
+Because there are a few applications where increases in bandwidth efficiency are not
+important and many where improved efficiency is essential--such as delivering
+HD video to bandwidth-constrained network edges--it is important that the codec
+deliver competitive quality per bitrate and support a wide range of bandwidths.
+</t>
+
+<t>Packet losses are inevitable on the Internet and dealing with them is one of
+requirements for an Internet video codec.
+Efficient video compression typically
+uses very high gain backward prediction, which can result in infinite error
+propagation in the worst case if measures are not taken to mitigate it.
+Error propagation is usually mitigated in traditional file- and broadcast-oriented
+codecs through key-frames, periodic intra refresh, and constrained
+back-reference structure.
+While these techniques are important, and also enable random access, a codec
+designed for the Internet should also be able to take advantage of bidirectional
+communication to reduce the impact of loss when possible.
+</t>
+
+<t>In many high-latency and non-realtime applications, however, the relevant
+transport is lossless.
+While random access still is important, general error
+tolerance is not, and the codec may support modes which have very low error
+tolerance--including ones which prevent packet decode in the presence of loss,
+if it results in efficiency gains for non-realtime applications.</t>
+
+<t>For interactive applications latency is an important codec performance metric
+and many common input and output devices add frames of latency.
+To avoid adding further delays the codec must support operating in a mode that
+adds no more delay than that from processing a single frame at a time.
+Modes which permit sub-frame encoding may be useful but are hampered by the lack
+of subframe support in existing input and output devices.</t>
+
+<t>
+Another important property of the Internet is that it is mostly a best-effort
+network,
+with no guaranteed bandwidth.
+This means that the codec has to be able to vary its
+output bit-rate dynamically (in real-time), without requiring an out-of-band
+signaling mechanism, and without causing artifacts at the bit-rate
+change boundaries.
+Because the complete range of useful bit-rates may not be
+achievable at a single resolution the codec may need to support changing
+resolutions on the fly.
+
+Additional desirable features are:
+
+<list style="symbols">
+<t>Having the possibility to use smooth bit-rate changes with high bit-rate resolution;</t>
+<t>Making it possible for a codec to adapt its bit-rate based on the source
+signal being encoded (source-controlled VBR) to maximize the quality for a
+certain <spanx style="emph">average</spanx> bit-rate.</t>
+</list>
+
+Because the Internet transmits data in bytes, a codec should produce
+compressed data in integer numbers of bytes.
+In general, the codec design should take into consideration explicit congestion
+notification (ECN) and multicast and may include features that would improve the
+quality of an ECN or multicast enabled deployment.
+</t>
+
+<t>
+The IETF has defined a set of application-layer protocols to be used for
+transmitting real-time transport of multimedia data, including video.
+It
+is thus important for the resulting codec to be easy to use with these
+protocols.
+For example, it must be possible to create an <xref target="RTP"/> payload
+format that conforms to BCP 36 <xref target="PAYLOADS"/>.
+If any codec parameters need to be
+negotiated between end-points, the negotiation should be as easy as
+possible to carry over SIP <xref target="RFC3261"/>/SDP <xref target="RFC4566"/> or
+alternatively over XMPP <xref target="RFC6120"/>/Jingle <xref target="XEP-0167"/>.
+</t>
+
+</section>
+
+
+<section title="Detailed Basic Requirements">
+<t>
+This section summarizes all the constraints imposed by the target applications
+and by the Internet into a set of actual requirements for codec development.
+</t>
+
+<section title="Quality and bit-rate">
+<t>
+The quality of a codec is directly linked to the bit-rate, so these
+two must be considered jointly.
+When comparing the bit-rate of codecs, the
+overhead of IP/UDP/RTP headers should not be considered, but any additional
+bits required in the RTP payload format after the header (e.g. required
+signaling) should  be considered.
+In terms of quality vs bit-rate, the codec
+to be developed must be better than the following codecs, that are generally
+considered as royalty-free:
+<list style="symbols">
+<t>VP8</t>
+<t>Theora</t>
+</list>
+</t>
+
+<t>It is desirable for the codecs to support source-controlled variable
+bit-rate (VBR) to take advantage from the fact that different inputs require
+a different bitrate to achieve the same quality.</t>
+</section>
+
+<section anchor="implementation" title="Computational resources">
+<t>
+The resulting codec should be implementable on a wide range of devices, and
+should not have a design which gratuitously complicates low power ASIC
+implementations.
+While the codec must not depend on special hardware features
+or instructions, the codec design should allow implementations to take full
+advantage of hardware accelerators and vector instructions where available.
+Complexity should generally scale with resolution, and it is also desirable to
+support multiple encoder and decoder complexity levels via mechanisms other than
+resolution, in order to achieve the best possible bitrate/quality trade-off
+available across many kinds of devices without unduly constraining resolution.
+The codec should also be able to take advantages of advances in computer speed
+and the deployment of hardware accelerators which would allow the use of higher
+complexity modes in a broader set of applications.
+</t>
+
+<t>
+In addition to computational complexity, dynamic memory for reference storage
+is a significant resource constraint for video codecs.
+It is desirable that the
+codec support different memory usage tradeoffs to fit on more devices, and that
+the codec not require implementations to utilize more memory without reasonable
+efficiency gains.
+</t>
+</section>
+
+</section>
+
+
+<section title="Additional considerations">
+
+<t>
+There are additional features or characteristics that may be desirable under
+some circumstances, but should not be part of the strict requirements.
+The  benefit of meeting these considerations should be weighted against the
+associated cost.
+</t>
+
+</section>
+
+<section title="Encoder side potential for improvement">
+<t>
+In most video codecs, it is possible to improve the quality by improving the encoder
+without breaking compatibility (i.e. without changing the decoder).
+Potential for improvement varies from one codec to another.
+All things being equal, being able to improve a codec after the bit-stream is a desirable
+property.
+However, this should not be done at the expense of quality in a
+straight-forward encoder.
+</t>
+</section>
+
+<section title="Bit error robustness">
+<t>
+The vast majority of Internet-based applications do not need to be robust to bit
+errors because packets
+either arrive unaltered, or do not arrive at all.
+Considering that, the emphasis should be on packet loss robustness and packet loss concealment.
+That being said, it is often the case that extra robustness to bit errors can be achieved
+at no cost at all (i.e. no increase in size, complexity or bit-rate, no decrease
+in quality or packet loss robustness, ...).
+In those cases then it is useful to
+make a change that increases the robustness to bit errors.
+This can be useful for
+applications that use UDP Lite transmission (e.g. over a wireless LAN).
+Robustness to packet loss should <spanx style="strong">never</spanx> be
+sacrificed to achieve higher bit error robustness.
+</t>
+</section>
+
+<section title="Legacy compatibility">
+<t>
+In order to create the best possible codec for the Internet, there is no
+general requirement for compatibility with legacy Internet codecs.
+However, compatibility with commonly used video color formats is desirable.
+</t>
+
+</section>
+
+
+<section anchor="Security Considerations" title="Security Considerations">
+<t>
+Although this document itself does not have security considerations,
+this section describes the security requirements for the codec.
+</t>
+
+<t>
+Just like for any protocol to be used over the Internet, security is a
+very important aspect to consider.
+This goes beyond the obvious
+considerations of preventing buffer overflows and similar attacks that
+can lead to denial-of-service or remote code execution.
+One very important
+security aspect is to make sure that the decoders have a bounded and reasonable
+worst case complexity.
+This prevents an attacker from causing a
+DoS by sending packets that are specially crafted to take a very long (or
+infinite) time to decode.
+</t>
+
+</section>
+
+
+<section title="IANA Considerations ">
+<t>
+This document has no actions for IANA.
+</t>
+</section>
+
+</middle>
+
+<back>
+
+
+<references title="Informative References">
+
+<reference anchor='RFC3261'>
+
+<front>
+<title>SIP: Session Initiation Protocol</title>
+<author initials='J.' surname='Rosenberg' fullname='J. Rosenberg'>
+<organization /></author>
+<author initials='H.' surname='Schulzrinne' fullname='H. Schulzrinne'>
+<organization /></author>
+<author initials='G.' surname='Camarillo' fullname='G. Camarillo'>
+<organization /></author>
+<author initials='A.' surname='Johnston' fullname='A. Johnston'>
+<organization /></author>
+<author initials='J.' surname='Peterson' fullname='J. Peterson'>
+<organization /></author>
+<author initials='R.' surname='Sparks' fullname='R. Sparks'>
+<organization /></author>
+<author initials='M.' surname='Handley' fullname='M. Handley'>
+<organization /></author>
+<author initials='E.' surname='Schooler' fullname='E. Schooler'>
+<organization /></author>
+<date year='2002' month='June' />
+<abstract>
+<t>This document describes Session Initiation Protocol (SIP), an application-layer control (signaling) protocol for creating, modifying, and terminating sessions with one or more participants. These sessions include Internet telephone calls, multimedia distribution, and multimedia conferences. [STANDARDS-TRACK]</t></abstract></front>
+
+<seriesInfo name='RFC' value='3261' />
+<format type='TXT' octets='647976' target='http://www.rfc-editor.org/rfc/rfc3261.txt' />
+</reference>
+
+
+<reference anchor='RFC4566'>
+
+<front>
+<title>SDP: Session Description Protocol</title>
+<author initials='M.' surname='Handley' fullname='M. Handley'>
+<organization /></author>
+<author initials='V.' surname='Jacobson' fullname='V. Jacobson'>
+<organization /></author>
+<author initials='C.' surname='Perkins' fullname='C. Perkins'>
+<organization /></author>
+<date year='2006' month='July' />
+<abstract>
+<t>This memo defines the Session Description Protocol (SDP).  SDP is intended for describing multimedia sessions for the purposes of session announcement, session invitation, and other forms of multimedia session initiation. [STANDARDS-TRACK]</t></abstract></front>
+
+<seriesInfo name='RFC' value='4566' />
+<format type='TXT' octets='108820' target='http://www.rfc-editor.org/rfc/rfc4566.txt' />
+</reference>
+
+
+<reference anchor='RFC6120'>
+
+<front>
+<title>Extensible Messaging and Presence Protocol (XMPP): Core</title>
+<author initials='P.' surname='Saint-Andre' fullname='P. Saint-Andre'>
+<organization /></author>
+<date year='2011' month='March' />
+<abstract>
+<t>The Extensible Messaging and Presence Protocol (XMPP) is an application profile of the Extensible Markup Language (XML) that enables the near-real-time exchange of structured yet extensible data between any two or more network entities.  This document defines XMPP's core protocol methods: setup and teardown of XML streams, channel encryption, authentication, error handling, and communication primitives for messaging, network availability ("presence"), and request-response interactions.  This document obsoletes RFC 3920. [STANDARDS-TRACK]</t></abstract></front>
+
+<seriesInfo name='RFC' value='6120' />
+<format type='TXT' octets='451942' target='http://www.rfc-editor.org/rfc/rfc6120.txt' />
+</reference>
+
+
+<reference anchor="XEP-0167">
+  <front>
+    <title>Jingle RTP Sessions</title>
+    <author initials="S." surname="Ludwig" fullname="Scott Ludwig">
+      <organization/>
+      <address>
+        <email>scottlu@google.com</email>
+      </address>
+    </author>
+    <author initials="P." surname="Saint-Andre" fullname="Peter Saint-Andre">
+      <organization/>
+      <address>
+        <email>stpeter@jabber.org</email>
+      </address>
+    </author>
+    <author initials="S." surname="Egan" fullname="Sean Egan">
+      <organization/>
+      <address>
+        <email>seanegan@google.com</email>
+      </address>
+    </author>
+    <author initials="R." surname="McQueen" fullname="Robert McQueen">
+      <organization/>
+      <address>
+        <email>robert.mcqueen@collabora.co.uk</email>
+      </address>
+    </author>
+    <author initials="D." surname="Cionoiu" fullname="Diana Cionoiu">
+      <organization/>
+      <address>
+        <email>diana@null.ro</email>
+      </address>
+    </author>
+    <date day="23" month="December" year="2009"/>
+  </front>
+  <seriesInfo name="XSF XEP" value="0167"/>
+  <format type="HTML" target="http://xmpp.org/extensions/xep-0167.html"/>
+</reference>
+
+<reference anchor="PAYLOADS">
+<front>
+<title>Guidelines for Writers of RTP Payload Format Specifications</title>
+<author initials="M." surname="Handley" fullname="Mark Handley">
+<organization/></author>
+<author initials="C." surname="Perkins" fullname="Colin Perkins">
+<organization/></author>
+</front>
+<seriesInfo name="RFC" value="2736" />
+<seriesInfo name="BCP" value="36" />
+</reference>
+
+<reference anchor="RTP">
+<front>
+<title>RTP: A Transport Protocol for real-time applications</title>
+<author initials="H." surname="Schulzrinne" fullname="Henning Schulzrinne"><organization/></author>
+<author initials="S." surname="Casner" fullname="Stephen L. Casner"><organization/></author>
+<author initials="R." surname="Frederick" fullname="Ron Frederick"><organization/></author>
+<author initials="V." surname="Jacobson" fullname="Van Jacobson"><organization/></author>
+</front>
+<seriesInfo name="RFC" value="3550" />
+</reference>
+
+</references>
+
+</back>
+
+</rfc>
