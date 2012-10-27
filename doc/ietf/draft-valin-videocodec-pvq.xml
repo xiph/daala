@@ -1,0 +1,376 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<!DOCTYPE rfc SYSTEM "rfc2629.dtd">
+<?rfc toc="yes"?>
+<?rfc tocompact="yes"?>
+<?rfc tocdepth="3"?>
+<?rfc tocindent="yes"?>
+<?rfc symrefs="yes"?>
+<?rfc sortrefs="yes"?>
+<?rfc comments="yes"?>
+<?rfc inline="yes"?>
+<?rfc compact="yes"?>
+<?rfc subcompact="no"?>
+<rfc category="std" docName="draft-valin-videocodec-pvq-00"
+     ipr="noDerivativesTrust200902">
+  <front>
+    <title abbrev="Video PVQ">Pyramid Vector Quantization for Video Coding</title>
+
+ <author initials="JM." surname="Valin" fullname="Jean-Marc Valin">
+   <organization>Mozilla</organization>
+   <address>
+     <postal>
+       <street>650 Castro Street</street>
+       <city>Mountain View</city>
+       <region>CA</region>
+       <code>94041</code>
+       <country>USA</country>
+     </postal>
+     <email>jmvalin@jmvalin.ca</email>
+   </address>
+ </author>
+ 
+
+    <date day="15" month="October" year="2012" />
+
+    <abstract>
+      <t>This proposes applying pyramid vector quantization (PVQ) to video coding.</t>
+    </abstract>
+  </front>
+
+  <middle>
+    <section title="Introduction">
+      <t>
+      This draft describes a proposal for adapting the Opus <xref
+      target="RFC6716">RFC 6716</xref> energy conservation
+      principle to video coding based on a pyramid vector quantizer (PVQ)
+      <xref target="PVQ"/>.
+      One potential advantage of conserving energy of the AC coefficients in
+      video coding is preserving textures rather than low-passing them.
+      Also, by introducing a fixed-resolution PVQ-type quantizer, we
+      automatically gain a simple activity masking model.</t>
+
+      <t>The main challenge of adapting this scheme to video is that we have a
+      good prediction (the reference frame), so we are essentially starting
+      from a point that is already on the PVQ hyper-sphere,
+      rather than at the origin like in CELT.
+      Other challenges are the introduction of a quantization matrix and the
+      fact that we want the reference (motion predicted) data to perfectly
+      correspond to one of the entries in our codebook.
+      </t>
+    </section>
+
+    <section title="Terminology">
+      <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+      "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+      document are to be interpreted as described in <xref
+      target="RFC2119">RFC 2119</xref>.</t>
+    </section>
+
+    <section title="Gain-Shape Coding and Activity Masking">
+      <t>The main idea behind the proposed video coding scheme is to code
+      groups of DCT coefficient as a scalar gain and a unit-norm "shape" vector.
+      A block's AC coefficients may all be part of the same group, or may be
+      divided by frequency (e.g. by octave) and/or by directionality (horizontal
+      vs vertical). 
+      </t>
+      <t>It is desirable for a single quality parameter to control the resolution
+      of both the gain and the shape. 
+      Ideally, that quality parameter should also take into account activity
+      masking, that is, the fact that the eye is less sensitive to regions of
+      an image that have more details.
+      According to Jason Garrett-Glaser, the perceptual analysis in the x264
+      encoder uses a resolution proportional to the variance of the AC
+      coefficients raised to the power a, with a=0.173.
+      For gain-shape quantization, this is equivalent to using a resolution
+      of g^(2a), where g is the gain.
+      We can derive a scalar quantizer that follows this resolution:
+<figure align="center">
+<artwork align="center"><![CDATA[
+                 1+2a
+      g=Q_g gamma     ,
+]]></artwork>
+</figure>
+      where gamma is the gain quantization index and Q_g is the gain resolution
+      and main quality parameter.
+      </t>
+      <t>An important aspect of the current proposal is the use of prediction.
+      In the case of the gain, there is usually a significant correlation
+      with the gain of neighboring blocks.
+      One way to predict the gain of a block is to compute the gain of the
+      coefficients obtained through intra or inter prediction.
+      Another way is to use the encoded gain of the neighboring blocks to
+      explicitly predict the gain of the current block. 
+      </t>
+    </section>
+
+
+
+    <section title="Householder Reflection">
+      <t>Let vector x_d denote the (pre-normalization) DCT band to be coded in
+      the current block and vector r_d denote the corresponding reference
+      (based on intra prediction or motion compensation), the encoder 
+      computes and encodes the "band gain" g = sqrt(x_d^T x_d). 
+      The normalized band is computed as
+<figure align="center">
+<artwork align="center"><![CDATA[
+             x_d
+      x = --------- ,
+          || x_d ||
+]]></artwork>
+</figure>
+      with the normalized reference r similarly computed based on r_d.
+      The encoder then finds the position and sign of the maximum value in r:
+<figure align="center">
+<artwork align="center"><![CDATA[
+      m = argmax_i | r_i |
+      s = sign(r_m)
+]]></artwork>
+</figure>
+      and computes the Householder reflection that reflects r to -s e_m.
+      The reflection vector is given by
+<figure align="center">
+<artwork align="center"><![CDATA[
+      v = r + s e_m .
+]]></artwork>
+</figure>
+      The encoder reflects the normalized band to find the unit-norm vector
+<figure align="center">
+<artwork align="center"><![CDATA[
+                v^T x
+      z = x - 2 -----  v .
+                v^T v
+]]></artwork>
+</figure> 
+      </t>
+
+      <t>The closer the current band is from the reference band, the closer
+      z is from -s e_m. 
+      This can be represented either as an angle, or as a coordinate on a
+      projected pyramid.
+      </t>
+    </section>
+
+
+
+    <section title="Angle-Based Encoding">
+      <t>Assuming no quantization, the similarity can be represented by the angle
+<figure align="center">
+<artwork align="center"><![CDATA[
+      theta = arccos(-s z_m) .
+]]></artwork>
+</figure>
+      If theta is quantized and transmitted to the decoder, then z can be
+      reconstructed as
+<figure align="center">
+<artwork align="center"><![CDATA[
+      z = -s cos(theta) e_m + sin(theta) z_r ,
+]]></artwork>
+</figure>
+      where z_r is a unit vector based on z that excludes dimension m.
+      </t>
+
+      <t>
+      The vector z_r can be quantized using PVQ.
+      Let y be a vector of integers that satisfies
+<figure align="center">
+<artwork align="center"><![CDATA[
+      sum_i(|y[i]|) = K ,
+]]></artwork>
+</figure>
+      with K determined in advance, then the PVQ search finds the vector y
+      that maximizes y^T z_r / (y^T y) . The quantized version of z_r is
+<figure align="center">
+<artwork align="center"><![CDATA[
+                y
+      z_rq = ------- .
+             || y ||
+]]></artwork>
+</figure>
+      </t>
+      
+      <t>If we assume that MSE is a good criterion for optimizing the resolution,
+      then the angle quantization resolution should be (roughly) 
+<figure align="center">
+<artwork align="center"><![CDATA[
+                   dg       1      1+2a
+      Q_theta = ---------*----- = ------ .
+                 d(gamma)   g      gamma
+]]></artwork>
+</figure>
+      To derive the optimal K we need to consider the cosine distance between 
+      adjacent codevectors y_1 and y_2 for two cases: K&lt;N and K&gt;N. For
+      K&lt;N, the worst resolution occurs when no value in y is larger than one.
+      In that case, the two closest codevectors have a cosine distance
+<figure align="center">
+<artwork align="center"><![CDATA[
+                      1
+      cos(tau) = 1 - --- .
+                      K
+(derivation left as an exercise for the reader)
+]]></artwork>
+</figure>
+      By approximating cos(tau) as 1 - tau^2, we get
+<figure align="center">
+<artwork align="center"><![CDATA[
+           2
+      K = --- .
+          tau
+]]></artwork>
+</figure>
+      </t>
+      <t>For K&gt;N the worst resolution happens when all values are equal to
+      K/N in y_1, and y_2 differs by one pulse. In that case
+<figure align="center">
+<artwork align="center"><![CDATA[
+                      N
+      cos(tau) = 1 - --- .
+                     K^2
+(also left as an exercise for the reader)
+]]></artwork>
+</figure>
+      which gives the approximation
+<figure align="center">
+<artwork align="center"><![CDATA[
+             _____
+           \/ 2 N '
+      K =  -------  .
+             tau
+]]></artwork>
+</figure>
+      </t>
+      <t>By combining the two cases, we have
+<figure align="center">
+<artwork align="center"><![CDATA[
+                   _____
+              /  \/ 2 N '      2    \
+      K = min|   -------  ,  -----   | .
+              \    tau       tau^2  /
+]]></artwork>
+</figure>
+      </t>
+      <t>To achieve uniform resolution in all dimensions,
+<figure align="center">
+<artwork align="center"><![CDATA[
+             Q_theta
+      tau = ---------- .
+            sin(theta)
+]]></artwork>
+</figure>
+      </t>
+      
+      <t>The value of K does not need to be coded because all the variables it
+      depends on are known to the decoder.
+      However, because Q_theta depends on the gain, this can lead to
+      unacceptable loss propagation behavior in the case where inter prediction
+      is used for the gain.
+      This problem can be worked around by making the approximation
+      sin(theta)~=theta.
+      With this approximation, then tau is equal to the inverse of the theta
+      quantization index, with no dependency on the gain.
+      Alternatively, instead of quantizing theta, we can quantize sin(theta)
+      which also removes the dependency on the gain.
+      In the general case, we quantize f(theta) and then assume that 
+      sin(theta)~=f(theta). A possible choice of f(theta) is a quadratic
+      function of the form:
+<figure align="center">
+<artwork align="center"><![CDATA[
+                                    2
+      f(theta) = a1 theta - a2 theta.
+]]></artwork>
+</figure>
+      where a1 and a2 are two constants satisfying the constraint that
+      f(pi/2)=pi/2. 
+      The value of f(theta) can also be predicted, but in case where we care
+      about error propagation, it should only be predicted from information
+      coded in the current frame.
+      </t>
+    </section>
+      
+
+    <section title="Pyramid-Based Encoding">
+      <t>Instead of explicitly encoding an angle, it is also possible to
+      apply PVQ directly on z. 
+      In that case, the angle is replaced by v = K + s y[m],
+      with 0 &le; v &le; 2K, with smaller values more likely (assuming the
+      predictor is good). Based on calculations similar to those for the
+      angle-based encoding, the value of K is set to
+<figure align="center">
+<artwork align="center"><![CDATA[
+                          ___
+      K = min( c1 gamma \/ N ' ,  c2 gamma^2 ) ,
+]]></artwork>
+</figure>
+      where c1 and c2 are empirical constants.
+      </t>
+
+      <t>As is the case for angle-based encoding, K does not need to be coded.
+      However, if the gain parameter gamma is predicted from a different frame,
+      then this would lead to unacceptable error propagation behavior.
+      To reduce the error propagation, instead of coding v we can code
+      v'=K-|y[m]|, along with the sign of s*y[m].
+      In this way, any error in the gain will lead to the wrong value of K,
+      but will not cause a desynchronization of the range coder as would
+      happen when decoding the wrong number of symbols.
+      </t>
+    </section>
+
+    <section title="Bi-prediction">
+      <t>We can use this scheme for bi-prediction by introducing a second theta
+      parameter. 
+      For the case of two (normalized) reference frames r1 and r2,
+      we introduce s1=(r1+r2)/2 and s2=(r1-r2)/2.
+      We start by using s1 as a reference, apply the Householder reflection to
+      both x and s2, and evaluate theta1.
+      From there, we derive a second Householder reflection from the reflected
+      version of s2 and apply it to z. The result is that the theta2 parameter
+      controls how the current image compares to the two reference images.
+      It should even be possible to use this in the case of fades, using two
+      references that are before the frame being encoded.
+      </t>
+    </section>
+
+
+    <section title="Development Repository">
+      <t>The algorithms in this proposal are being developed as part of
+      Xiph.Org's Daala project.
+      The code is available in the Daala git repository at 
+	<eref target="https://git.xiph.org/daala.git"/>. See <eref target="https://xiph.org/daala/"/> for more
+      information.
+      </t>
+    </section>
+
+    <section anchor="IANA" title="IANA Considerations">
+      <t>This document makes no request of IANA.</t>
+    </section>
+
+    <section anchor="Security" title="Security Considerations">
+      <t>This draft has no security considerations.</t>
+    </section>
+
+    <section anchor="Acknowledgements" title="Acknowledgements">
+      <t>Thanks to Jason Garrett-Glaser, Timothy Terriberry, Greg Maxwell, and
+      Nathan Egge for their contribution to this document.</t>
+    </section>
+  </middle>
+
+  <back>
+    <references title="Normative References">
+      <?rfc include="http://xml.resource.org/public/rfc/bibxml/reference.RFC.2119.xml"?>
+
+    </references>
+
+    <references title="Informative References">
+      <?rfc include="http://xml.resource.org/public/rfc/bibxml/reference.RFC.6716.xml"?>
+
+    <reference anchor="PVQ">
+      <front>
+        <title>A Pyramid Vector Quantizer</title>
+        <author initials="T." surname="Fischer" fullname=""><organization/></author>
+        <date month="July" year="1986" />
+      </front>
+      <seriesInfo name="IEEE Trans. on Information Theory, Vol. 32" value="pp. 568-583" />
+    </reference>
+
+    </references>
+</back>
+</rfc>
