@@ -316,8 +316,8 @@ associated cost.
 In most video codecs, it is possible to improve the quality by improving the encoder
 without breaking compatibility (i.e. without changing the decoder).
 Potential for improvement varies from one codec to another.
-All things being equal, being able to improve a codec after the bit-stream is a desirable
-property.
+All things being equal, being able to improve a codec after the bit-stream
+is frozen is a desirable property.
 However, this should not be done at the expense of quality in a
 straight-forward encoder.
 </t>
