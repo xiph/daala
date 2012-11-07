@@ -21,8 +21,19 @@ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
+#include "dct.h"
 
-#include "filter.h"
+const od_dct_func OD_FDCT_2D[OD_NBSIZES]={
+  od_bin_fdct4x4,
+  od_bin_fdct8x8,
+  od_bin_fdct16x16
+};
+
+const od_dct_func OD_IDCT_2D[OD_NBSIZES]={
+  od_bin_idct4x4,
+  od_bin_idct8x8,
+  od_bin_idct16x16
+};
 
 /*This should translate directly to 3 or 4 instructions for a constant _b:
 #define OD_UNBIASED_RSHIFT(_a,_b) ((_a)+(((1<<(_b))-1)&-((_a)<0))>>(_b))*/
@@ -38,18 +49,22 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #endif
 
 #if 0
-void od_bin_fdct4(
-od_coeff _y[],const od_coeff _x[]){
+void od_bin_fdct4(od_coeff _y[4],const od_coeff *_x,int _xstride){
   /*9 adds, 4 shifts, 3 "muls".*/
   int t0;
   int t1;
   int t2;
   int t3;
-  /*+1/-1 butterflies and initial permutation:*/
-  t0=_x[0]+_x[3];
-  t2=_x[1]+_x[2];
-  t3=t2-(_x[2]<<1);
-  t1=t0-(_x[3]<<1);
+  /*Initial permutation:*/
+  t0=*(_x+0*_xstride);
+  t2=*(_x+1*_xstride);
+  t3=*(_x+2*_xstride);
+  t1=*(_x+3*_xstride);
+  /*+1/-1 butterflies:*/
+  t0+=t1;
+  t2+=t3;
+  t3=t2-(t3<<1);
+  t1=t0-(t1<<1);
   /*69/64~=2\sqrt{2}*sin(\frac{\pi}{8})~=1.0823922002923939687994464107328*/
   t3=(t3*69>>6)+(t3>0);
   /*21/16~=\sqrt{2}*cos(\frac{\pi}{8})~=1.3065629648763765278566431734272*/
@@ -70,37 +85,46 @@ od_coeff _y[],const od_coeff _x[]){
   _y[3]=(od_coeff)t3;
 }
 
-void od_bin_idct4(od_coeff _x[],const od_coeff _y[]){
+void od_bin_idct4(od_coeff *_x,int _xstride,const od_coeff _y[4]){
   int t0;
   int t1;
   int t2;
   int t3;
-  t3=_y[1]-(_y[3]+_y[1]<<6)/91;
-  t1=(_y[1]-(OD_DCT_RSHIFT(t3,1))<<4)/21;
-  t2=OD_DCT_RSHIFT(_y[0]-_y[2],1);
-  t0=_y[0]-t2;
+  t0=_y[0];
+  t1=_y[1];
+  t2=_y[2];
+  t3=_y[3];
+  t3=t1-(t3+t1<<6)/91;
+  t1=(t1-OD_DCT_RSHIFT(t3,1)<<4)/21;
+  t2=OD_DCT_RSHIFT(t0-t2,1);
+  t0-=t2;
   t1=OD_DCT_RSHIFT(t0-t1,1);
   t3=OD_DCT_RSHIFT(t2-(t3<<6)/69,1);
-  _x[3]=(od_coeff)t1;
-  _x[2]=(od_coeff)t3;
-  _x[1]=(od_coeff)(t2-t3);
-  _x[0]=(od_coeff)(t0-t1);
+  *(_x+0*_xstride)=(od_coeff)(t0-t1);
+  *(_x+1*_xstride)=(od_coeff)(t2-t3);
+  *(_x+2*_xstride)=(od_coeff)t3;
+  *(_x+3*_xstride)=(od_coeff)t1;
 }
 #else
 
-void od_bin_fdct4(od_coeff _y[],const od_coeff _x[]){
+void od_bin_fdct4(od_coeff _y[4],const od_coeff *_x,int _xstride){
   /*9 adds, 2 shifts, 3 "muls".*/
   int t0;
   int t1;
   int t2;
   int t2h;
   int t3;
-  /*+1/-1 butterflies and initial permutation:*/
-  t3=_x[0]-_x[3];
-  t2=_x[1]+_x[2];
+  /*Initial permutation:*/
+  t0=*(_x+0*_xstride);
+  t2=*(_x+1*_xstride);
+  t1=*(_x+2*_xstride);
+  t3=*(_x+3*_xstride);
+  /*+1/-1 butterflies:*/
+  t3=t0-t3;
+  t2+=t1;
   t2h=OD_DCT_RSHIFT(t2,1);
-  t1=t2h-_x[2];
-  t0=_x[0]-OD_DCT_RSHIFT(t3,1);
+  t1=t2h-t1;
+  t0-=OD_DCT_RSHIFT(t3,1);
   /*+ Embedded 2-point type-II DCT.*/
   t0+=t2h;
   t2=t0-t2;
@@ -119,28 +143,47 @@ void od_bin_fdct4(od_coeff _y[],const od_coeff _x[]){
   _y[3]=(od_coeff)t3;
 }
 
-void od_bin_idct4(od_coeff _x[],const od_coeff _y[]){
+void od_bin_idct4(od_coeff *_x,int _xstride,const od_coeff _y[4]){
   int t0;
   int t1;
   int t2;
   int t2h;
   int t3;
-  t3=_y[3]+(_y[1]*71+32>>6);
-  t1=_y[1]-(t3*21+16>>5);
+  t0=_y[0];
+  t1=_y[1];
+  t2=_y[2];
+  t3=_y[3];
+  t3+=t1*71+32>>6;
+  t1-=t3*21+16>>5;
   t3+=t1*45+32>>6;
-  t2=_y[0]-_y[2];
+  t2=t0-t2;
   t2h=OD_DCT_RSHIFT(t2,1);
-  t0=_y[0]-t2h+OD_DCT_RSHIFT(t3,1);
+  t0-=t2h-OD_DCT_RSHIFT(t3,1);
   t1=t2h-t1;
-  _x[0]=(od_coeff)t0;
-  _x[1]=(od_coeff)(t2-t1);
-  _x[2]=(od_coeff)t1;
-  _x[3]=(od_coeff)(t0-t3);
+  *(_x+0*_xstride)=(od_coeff)t0;
+  *(_x+1*_xstride)=(od_coeff)(t2-t1);
+  *(_x+2*_xstride)=(od_coeff)t1;
+  *(_x+3*_xstride)=(od_coeff)(t0-t3);
 }
 #endif
 
+void od_bin_fdct4x4(od_coeff *_y,int _ystride,const od_coeff *_x,int _xstride){
+  od_coeff z[4*4];
+  int      i;
+  for(i=0;i<4;i++)od_bin_fdct4(z+4*i,_x+i,_xstride);
+  for(i=0;i<4;i++)od_bin_fdct4(_y+_ystride*i,z+i,4);
+}
+
+void od_bin_idct4x4(od_coeff *_x,int _xstride,const od_coeff *_y,int _ystride){
+  od_coeff z[4*4];
+  int      i;
+  for(i=0;i<4;i++)od_bin_idct4(z+i,4,_y+_ystride*i);
+  for(i=0;i<4;i++)od_bin_idct4(_x+i,_xstride,z+4*i);
+}
+
+
 #if 0
-void od_bin_fdct8(od_coeff _y[],const od_coeff _x[]){
+void od_bin_fdct8(od_coeff _y[8],const od_coeff *_x,int _xstride){
   /*29 adds, 11 shifts, 11 "muls".*/
   int t0;
   int t1;
@@ -151,15 +194,24 @@ void od_bin_fdct8(od_coeff _y[],const od_coeff _x[]){
   int t5;
   int t6;
   int t7;
-  /*+1/-1 butterflies and initial permutation:*/
-  t0=_x[0]+_x[7];
-  t4=_x[1]+_x[6];
-  t2=_x[2]+_x[5];
-  t6=_x[3]+_x[4];
-  t3=_x[4]-OD_DCT_RSHIFT(t6,1);
-  t7=OD_DCT_RSHIFT(t2,1)-_x[5];
-  t5=OD_DCT_RSHIFT(t4,1)-_x[6];
-  t1=OD_DCT_RSHIFT(t0,1)-_x[7];
+  /*Initial permutation:*/
+  t0=*(_x+0*_xstride);
+  t4=*(_x+1*_xstride);
+  t2=*(_x+2*_xstride);
+  t6=*(_x+3*_xstride);
+  t3=*(_x+4*_xstride);
+  t7=*(_x+5*_xstride);
+  t5=*(_x+6*_xstride);
+  t1=*(_x+7*_xstride);
+  /*+1/-1 butterflies:*/
+  t0+=t1;
+  t4+=t5;
+  t2+=t7;
+  t6+=t3;
+  t3-=OD_DCT_RSHIFT(t6,1);
+  t7=OD_DCT_RSHIFT(t2,1)-t7;
+  t5=OD_DCT_RSHIFT(t4,1)-t5;
+  t1=OD_DCT_RSHIFT(t0,1)-t1;
   /*25/16~=8*sin(\frac{\pi}{16})~=1.5607225761290261427862789478162*/
   t3=(t3*25>>4)+(t3>0);
   /*71/64~=2*sin(\frac{3\pi}{16})~=1.1111404660392044494856616278971*/
@@ -220,7 +272,7 @@ void od_bin_fdct8(od_coeff _y[],const od_coeff _x[]){
   _y[7]=(od_coeff)t7;
 }
 
-void od_bin_idct8(od_coeff _y[],const od_coeff _x[]){
+void od_bin_idct8(od_coeff *_x,int _xstride,const od_coeff _y[16]){
   int t0;
   int t1;
   int t2;
@@ -230,22 +282,30 @@ void od_bin_idct8(od_coeff _y[],const od_coeff _x[]){
   int t5;
   int t6;
   int t7;
-  t7=_x[7]+_x[1];
-  t5=_x[5]+_x[3];
+  t0=_y[0];
+  t1=_y[1];
+  t2=_y[2];
+  t3=_y[3];
+  t4=_y[4];
+  t5=_y[5];
+  t6=_y[6];
+  t7=_y[7];
+  t7+=t1;
+  t5+=t3;
   t7=(t7+t5<<6)/91;
-  t3=_x[3]+_x[1]+t7;
-  t1=(_x[1]<<6)/91+OD_DCT_RSHIFT(t5,1);
+  t3+=t1+t7;
+  t1=(t1<<6)/91+OD_DCT_RSHIFT(t5,1);
   t5=t1-t5;
   t7=OD_DCT_RSHIFT(t5,1)-(OD_DCT_RSHIFT(t3,1)-t7<<6)/69;
   t3=(t3<<4)/21-(t1<<1);
   t5=(t5-t7<<5)/53;
   t1=(t1+OD_DCT_RSHIFT(t3,2)<<5)/63;
-  t6=_x[6]+(_x[2]*71+32>>6);
-  t2=_x[2]-(t6*21+16>>5);
+  t6+=t2*71+32>>6;
+  t2-=t6*21+16>>5;
   t6+=t2*45+32>>6;
-  t4=_x[0]-_x[4];
+  t4=t0-t4;
   t4h=OD_DCT_RSHIFT(t4,1);
-  t0=_x[0]-t4h+OD_DCT_RSHIFT(t6,1);
+  t0-=t4h-OD_DCT_RSHIFT(t6,1);
   t6=t0-t6;
   t2=t4h-t2;
   t4-=t2;
@@ -253,18 +313,18 @@ void od_bin_idct8(od_coeff _y[],const od_coeff _x[]){
   t7=OD_DCT_RSHIFT(t2,1)-(t7<<6)/71;
   t5=OD_DCT_RSHIFT(t4,1)-t5;
   t1=OD_DCT_RSHIFT(t0,1)-t1;
-  _y[0]=t0-t1;
-  _y[1]=t4-t5;
-  _y[2]=t2-t7;
-  _y[3]=t6-t3;
-  _y[4]=t3;
-  _y[5]=t7;
-  _y[6]=t5;
-  _y[7]=t1;
+  *(_x+0*_xstride)=t0-t1;
+  *(_x+1*_xstride)=t4-t5;
+  *(_x+2*_xstride)=t2-t7;
+  *(_x+3*_xstride)=t6-t3;
+  *(_x+4*_xstride)=t3;
+  *(_x+5*_xstride)=t7;
+  *(_x+6*_xstride)=t5;
+  *(_x+7*_xstride)=t1;
 }
 
 #else
-void od_bin_fdct8(od_coeff _y[],const od_coeff _x[]){
+void od_bin_fdct8(od_coeff _y[8],const od_coeff *_x,int _xstride){
   /*29 adds, 6 shifts, 11 "muls".*/
   int t0;
   int t1;
@@ -276,15 +336,24 @@ void od_bin_fdct8(od_coeff _y[],const od_coeff _x[]){
   int t6;
   int t7;
   int t;
-  /*+1/-1 butterflies and initial permutation:*/
-  t0=_x[0]+_x[7];
-  t4=_x[1]+_x[6];
-  t2=_x[2]+_x[5];
-  t6=_x[3]+_x[4];
-  t7=OD_DCT_RSHIFT(t6,1)-_x[4];
-  t3=OD_DCT_RSHIFT(t2,1)-_x[5];
-  t5=OD_DCT_RSHIFT(t4,1)-_x[6];
-  t1=OD_DCT_RSHIFT(t0,1)-_x[7];
+  /*Initial permutation:*/
+  t0=*(_x+0*_xstride);
+  t4=*(_x+1*_xstride);
+  t2=*(_x+2*_xstride);
+  t6=*(_x+3*_xstride);
+  t7=*(_x+4*_xstride);
+  t3=*(_x+5*_xstride);
+  t5=*(_x+6*_xstride);
+  t1=*(_x+7*_xstride);
+  /*+1/-1 butterflies:*/
+  t0+=t1;
+  t4+=t5;
+  t2+=t3;
+  t6+=t7;
+  t7=OD_DCT_RSHIFT(t6,1)-t7;
+  t3=OD_DCT_RSHIFT(t2,1)-t3;
+  t5=OD_DCT_RSHIFT(t4,1)-t5;
+  t1=OD_DCT_RSHIFT(t0,1)-t1;
   /*+ Embedded 4-point type-II DCT.*/
   t6=t0-t6;
   t4+=t2;
@@ -343,7 +412,7 @@ void od_bin_fdct8(od_coeff _y[],const od_coeff _x[]){
   _y[7]=(od_coeff)t7;
 }
 
-void od_bin_idct8(od_coeff _y[],const od_coeff _x[]){
+void od_bin_idct8(od_coeff *_x,int _xstride,const od_coeff _y[16]){
   int t0;
   int t1;
   int t2;
@@ -353,18 +422,26 @@ void od_bin_idct8(od_coeff _y[],const od_coeff _x[]){
   int t5;
   int t6;
   int t7;
+  t0=_y[0];
+  t1=_y[1];
+  t2=_y[2];
+  t3=_y[3];
+  t4=_y[4];
+  t5=_y[5];
+  t6=_y[6];
+  t7=_y[7];
   /*We have several choices for the reconstruction here.
     I believe using all #if 1's below with OD_UNBIASED_RSHIFT leads to the best
      overall bias in all categories (round-trip, Q=8, and Q=7), but it's
      probably in the measurement noise.*/
 #if 1
-  t7=OD_DCT_RSHIFT(_x[1]-_x[7],1);
-  t1=_x[1]-t7;
+  t7=OD_DCT_RSHIFT(t1-t7,1);
+  t1-=t7;
 #else
-  t1=OD_DCT_RSHIFT(_x[1]+_x[7],1);
-  t7=t1-_x[7];
+  t1=OD_DCT_RSHIFT(t1+t7,1);
+  t7=t1-t7;
 #endif
-  t3=(_x[3]<<6)/91;
+  t3=(t3<<6)/91;
 #if 1
   t3=OD_DCT_RSHIFT(t1-t3,1);
   t1-=t3;
@@ -372,7 +449,7 @@ void od_bin_idct8(od_coeff _y[],const od_coeff _x[]){
   t1=OD_DCT_RSHIFT(t1+t3,1);
   t3=t1-t3;
 #endif
-  t5=(_x[5]<<6)/91;
+  t5=(t5<<6)/91;
 #if 1
   t5=OD_DCT_RSHIFT(t7-t5,1);
   t7-=t5;
@@ -386,12 +463,12 @@ void od_bin_idct8(od_coeff _y[],const od_coeff _x[]){
   t7-=t1*19+32>>6;
   t1+=t7*9+8>>4;
   t7-=t1*19+32>>6;
-  t6=_x[6]+(_x[2]*71+32>>6);
-  t2=_x[2]-(t6*21+16>>5);
+  t6+=t2*71+32>>6;
+  t2-=t6*21+16>>5;
   t6+=t2*45+32>>6;
-  t4=_x[0]-_x[4];
+  t4=t0-t4;
   t4h=OD_DCT_RSHIFT(t4,1);
-  t0=_x[0]-t4h+OD_DCT_RSHIFT(t6,1);
+  t0-=t4h-OD_DCT_RSHIFT(t6,1);
   t6=t0-t6;
   t2=t4h-t2;
   t4-=t2;
@@ -399,18 +476,32 @@ void od_bin_idct8(od_coeff _y[],const od_coeff _x[]){
   t3=OD_DCT_RSHIFT(t2,1)-t3;
   t5=OD_DCT_RSHIFT(t4,1)-t5;
   t1=OD_DCT_RSHIFT(t0,1)-t1;
-  _y[0]=t0-t1;
-  _y[1]=t4-t5;
-  _y[2]=t2-t3;
-  _y[3]=t6-t7;
-  _y[4]=t7;
-  _y[5]=t3;
-  _y[6]=t5;
-  _y[7]=t1;
+  *(_x+0*_xstride)=t0-t1;
+  *(_x+1*_xstride)=t4-t5;
+  *(_x+2*_xstride)=t2-t3;
+  *(_x+3*_xstride)=t6-t7;
+  *(_x+4*_xstride)=t7;
+  *(_x+5*_xstride)=t3;
+  *(_x+6*_xstride)=t5;
+  *(_x+7*_xstride)=t1;
 }
 #endif
 
-void od_bin_fdct16(od_coeff _y[],const od_coeff _x[]){
+void od_bin_fdct8x8(od_coeff *_y,int _ystride,const od_coeff *_x,int _xstride){
+  od_coeff z[8*8];
+  int      i;
+  for(i=0;i<8;i++)od_bin_fdct8(z+8*i,_x+i,_xstride);
+  for(i=0;i<8;i++)od_bin_fdct8(_y+_ystride*i,z+i,8);
+}
+
+void od_bin_idct8x8(od_coeff *_x,int _xstride,const od_coeff *_y,int _ystride){
+  od_coeff z[8*8];
+  int      i;
+  for(i=0;i<8;i++)od_bin_idct8(z+i,8,_y+_ystride*i);
+  for(i=0;i<8;i++)od_bin_idct8(_x+i,_xstride,z+8*i);
+}
+
+void od_bin_fdct16(od_coeff _y[16],const od_coeff *_x,int _xstride){
   /*83 adds, 17 shifts, 32 "muls".*/
   /*The minimum theoretical number of multiplies is 26~\cite{DH87}, but the
      best practical algorithm I know is 31~\cite{LLM89}.
@@ -469,27 +560,44 @@ void od_bin_fdct16(od_coeff _y[],const od_coeff _x[]){
   int te;
   int tf;
   int tfh;
-  /*+1/-1 butterflies and initial permutation:*/
-  t5=_x[0]-_x[15];
-  t8=_x[1]+_x[14];
-  t7=_x[2]-_x[13];
-  tc=_x[3]+_x[12];
-  tf=_x[4]-_x[11];
-  ta=_x[5]+_x[10];
-  td=_x[6]-_x[9];
-  t2=_x[7]+_x[8];
-  t0=_x[0]-OD_DCT_RSHIFT(t5,1);
+  /*Initial permutation:*/
+  t0=*(_x+0*_xstride);
+  t8=*(_x+1*_xstride);
+  t4=*(_x+2*_xstride);
+  tc=*(_x+3*_xstride);
+  te=*(_x+4*_xstride);
+  ta=*(_x+5*_xstride);
+  t6=*(_x+6*_xstride);
+  t2=*(_x+7*_xstride);
+  t3=*(_x+8*_xstride);
+  td=*(_x+9*_xstride);
+  t9=*(_x+10*_xstride);
+  tf=*(_x+11*_xstride);
+  t1=*(_x+12*_xstride);
+  t7=*(_x+13*_xstride);
+  tb=*(_x+14*_xstride);
+  t5=*(_x+15*_xstride);
+  /*+1/-1 butterflies:*/
+  t5=t0-t5;
+  t8+=tb;
+  t7=t4-t7;
+  tc+=t1;
+  tf=te-tf;
+  ta+=t9;
+  td=t6-td;
+  t2+=t3;
+  t0-=OD_DCT_RSHIFT(t5,1);
   t8h=OD_DCT_RSHIFT(t8,1);
-  tb=t8h-_x[14];
-  t4=_x[2]-OD_DCT_RSHIFT(t7,1);
+  tb=t8h-tb;
+  t4-=OD_DCT_RSHIFT(t7,1);
   tch=OD_DCT_RSHIFT(tc,1);
-  t1=tch-_x[12];
-  te=_x[4]-OD_DCT_RSHIFT(tf,1);
+  t1=tch-t1;
+  te-=OD_DCT_RSHIFT(tf,1);
   tah=OD_DCT_RSHIFT(ta,1);
-  t9=tah-_x[10];
-  t6=_x[6]-OD_DCT_RSHIFT(td,1);
+  t9=tah-t9;
+  t6-=OD_DCT_RSHIFT(td,1);
   t2h=OD_DCT_RSHIFT(t2,1);
-  t3=t2h-_x[8];
+  t3=t2h-t3;
   /*+ Embedded 8-point type-II DCT.*/
   t0+=t2h;
   t6=t8h-t6;
@@ -639,7 +747,7 @@ void od_bin_fdct16(od_coeff _y[],const od_coeff _x[]){
   _y[15]=(od_coeff)tf;
 }
 
-void od_bin_idct16(od_coeff _y[],const od_coeff _x[]){
+void od_bin_idct16(od_coeff *_x,int _xstride,const od_coeff _y[16]){
   int t0;
   int t1;
   int t1h;
@@ -664,23 +772,39 @@ void od_bin_idct16(od_coeff _y[],const od_coeff _x[]){
   int te;
   int tf;
   int tfh;
-  t1=_x[1]+(_x[15]*27+32>>6);
-  tf=_x[15]-(t1*45+32>>6);
-  t1+=(tf*27+32>>6)+_x[7];
-  td=_x[13]-(_x[3]*43+32>>6);
-  t3=_x[3]+(td*59+32>>6);
-  t5=_x[5]+(_x[11]*43+32>>6);
-  tb=_x[11]-(t5*59+32>>6);
+  t0=_y[0];
+  t1=_y[1];
+  t2=_y[2];
+  t3=_y[3];
+  t4=_y[4];
+  t5=_y[5];
+  t6=_y[6];
+  t7=_y[7];
+  t8=_y[8];
+  t9=_y[9];
+  ta=_y[10];
+  tb=_y[11];
+  tc=_y[12];
+  td=_y[13];
+  te=_y[14];
+  tf=_y[15];
+  t1+=tf*27+32>>6;
+  tf-=t1*45+32>>6;
+  t1+=(tf*27+32>>6)+t7;
+  td-=t3*43+32>>6;
+  t3+=td*59+32>>6;
+  t5+=tb*43+32>>6;
+  tb-=t5*59+32>>6;
   t5+=tb*43+32>>6;
   td+=t5-(t3*43+32>>6);
-  tf=_x[9]-tf;
+  tf=t9-tf;
   tb+=t3;
   tfh=OD_DCT_RSHIFT(tf,1);
-  t9=_x[9]-tfh;
+  t9-=tfh;
   tbh=OD_DCT_RSHIFT(tb,1);
   t3+=tfh-tbh;
   t1h=OD_DCT_RSHIFT(t1,1);
-  t7=t1h-_x[7]+tbh;
+  t7=t1h-t7+tbh;
   tdh=OD_DCT_RSHIFT(td,1);
   t5+=t1h-tdh;
   t9=tdh-t9;
@@ -699,10 +823,10 @@ void od_bin_idct16(od_coeff _y[],const od_coeff _x[]){
   t3+=t5*7+32>>6;
   t5+=t3*57+32>>6;
   t3-=OD_DCT_RSHIFT(t5,1);
-  t6=_x[6]-(_x[10]*7+16>>5);
-  ta=_x[10]-(t6*25+16>>5);
-  te=_x[14]+(_x[2]*45+16>>5);
-  t2=_x[2]+(te*9+16>>5);
+  t6-=ta*7+16>>5;
+  ta-=t6*25+16>>5;
+  te+=t2*45+16>>5;
+  t2+=te*9+16>>5;
   t6=OD_DCT_RSHIFT(t2,1)-t6-(ta*17+16>>5);
   te=OD_DCT_RSHIFT(ta,1)-te+(t2*71+32>>6);
   t2-=t6;
@@ -710,12 +834,12 @@ void od_bin_idct16(od_coeff _y[],const od_coeff _x[]){
   t6-=ta*27+32>>6;
   ta+=t6*45+32>>6;
   t6-=ta*27+32>>6;
-  tc=_x[12]+(_x[4]*71+32>>6);
-  t4=_x[4]-(tc*21+16>>5);
+  tc+=t4*71+32>>6;
+  t4-=tc*21+16>>5;
   tc+=t4*45+32>>6;
-  t8=_x[0]-_x[8];
+  t8=t0-t8;
   t8h=OD_DCT_RSHIFT(t8,1);
-  t0=_x[0]-t8h+OD_DCT_RSHIFT(tc,1);
+  t0-=t8h-OD_DCT_RSHIFT(tc,1);
   t4=t8h-t4;
   t8+=t6-t4;
   tc=t0-tc+te;
@@ -737,22 +861,38 @@ void od_bin_idct16(od_coeff _y[],const od_coeff _x[]){
   t4+=OD_DCT_RSHIFT(t7,1);
   tb=t8h-tb;
   t0+=OD_DCT_RSHIFT(t5,1);
-  _y[0]=(od_coeff)t0;
-  _y[1]=(od_coeff)(t8-tb);
-  _y[2]=(od_coeff)t4;
-  _y[3]=(od_coeff)(tc-t1);
-  _y[4]=(od_coeff)te;
-  _y[5]=(od_coeff)(ta-t9);
-  _y[6]=(od_coeff)t6;
-  _y[7]=(od_coeff)(t2-t3);
-  _y[8]=(od_coeff)t3;
-  _y[9]=(od_coeff)(t6-td);
-  _y[10]=(od_coeff)t9;
-  _y[11]=(od_coeff)(te-tf);
-  _y[12]=(od_coeff)t1;
-  _y[13]=(od_coeff)(t4-t7);
-  _y[14]=(od_coeff)tb;
-  _y[15]=(od_coeff)(t0-t5);
+  *(_x+0*_xstride)=(od_coeff)t0;
+  *(_x+1*_xstride)=(od_coeff)(t8-tb);
+  *(_x+2*_xstride)=(od_coeff)t4;
+  *(_x+3*_xstride)=(od_coeff)(tc-t1);
+  *(_x+4*_xstride)=(od_coeff)te;
+  *(_x+5*_xstride)=(od_coeff)(ta-t9);
+  *(_x+6*_xstride)=(od_coeff)t6;
+  *(_x+7*_xstride)=(od_coeff)(t2-t3);
+  *(_x+8*_xstride)=(od_coeff)t3;
+  *(_x+9*_xstride)=(od_coeff)(t6-td);
+  *(_x+10*_xstride)=(od_coeff)t9;
+  *(_x+11*_xstride)=(od_coeff)(te-tf);
+  *(_x+12*_xstride)=(od_coeff)t1;
+  *(_x+13*_xstride)=(od_coeff)(t4-t7);
+  *(_x+14*_xstride)=(od_coeff)tb;
+  *(_x+15*_xstride)=(od_coeff)(t0-t5);
+}
+
+void od_bin_fdct16x16(od_coeff *_y,int _ystride,
+ const od_coeff *_x,int _xstride){
+  od_coeff z[16*16];
+  int      i;
+  for(i=0;i<16;i++)od_bin_fdct16(z+16*i,_x+i,_xstride);
+  for(i=0;i<16;i++)od_bin_fdct16(_y+_ystride*i,z+i,16);
+}
+
+void od_bin_idct16x16(od_coeff *_x,int _xstride,
+ const od_coeff *_y,int _ystride){
+  od_coeff z[16*16];
+  int      i;
+  for(i=0;i<16;i++)od_bin_idct16(z+i,16,_y+_ystride*i);
+  for(i=0;i<16;i++)od_bin_idct16(_x+i,_xstride,z+16*i);
 }
 
 #if OD_DCT_TEST
@@ -963,13 +1103,7 @@ static void ieee1180_test_block4(long _sumerrs[4][4],long _sumsqerrs[4][4],
   int      j;
   for(i=0;i<4;i++)for(j=0;j<4;j++)block[i][j]=ieee1180_rand(_l,_h)*_sign;
   /*Modification of IEEE1180: use our integerized DCT, not a true DCT.*/
-  for(i=0;i<4;i++)od_bin_fdct4(refcoefs[i],block[i]);
-  for(j=0;j<4;j++){
-    od_coeff x[4];
-    for(i=0;i<4;i++)x[i]=refcoefs[i][j];
-    od_bin_fdct4(x,x);
-    for(i=0;i<4;i++)refcoefs[i][j]=x[i];
-  }
+  od_bin_fdct4x4(refcoefs[0],4,block[0],4);
   /*Modification of IEEE1180: no rounding or range clipping (coefficients
      are always in range with our integerized DCT).*/
   for(i=0;i<4;i++)for(j=0;j<4;j++){
@@ -989,15 +1123,32 @@ static void ieee1180_test_block4(long _sumerrs[4][4],long _sumsqerrs[4][4],
     if(refout[i][j]>255)refout[i][j]=255;
     else if(refout[i][j]<-256)refout[i][j]=-256;
   }
-  for(j=0;j<4;j++){
-    od_coeff x[4];
-    for(i=0;i<4;i++)x[i]=refcoefs[i][j];
-    od_bin_idct4(x,x);
-    for(i=0;i<4;i++)testout[i][j]=x[i];
-  }
+  od_bin_idct4x4(testout[0],4,refcoefs[0],4);
   for(i=0;i<4;i++){
-    od_bin_idct4(testout[i],testout[i]);
     for(j=0;j<4;j++){
+      if(testout[i][j]!=block[i][j]){
+        printf("Mismatch:\n");
+        printf("in:\n");
+        for(i=0;i<4;i++){
+          printf("       ");
+          for(j=0;j<4;j++)printf(" %i",block[i][j]);
+          printf("\n");
+        }
+        printf("xform:\n");
+        for(i=0;i<4;i++){
+          printf("       ");
+          for(j=0;j<4;j++)printf(" %i",refcoefs[i][j]);
+          printf("\n");
+        }
+        printf("out:\n");
+        for(i=0;i<4;i++){
+          printf("       ");
+          for(j=0;j<4;j++)printf(" %i",testout[i][j]);
+          printf("\n");
+        }
+        printf("\n");
+        return;
+      }
       if(testout[i][j]>255)testout[i][j]=255;
       else if(testout[i][j]<-256)testout[i][j]=-256;
     }
@@ -1101,7 +1252,7 @@ static void compute_fbasis4(double _basis[4][4]){
   for(i=0;i<4;i++){
     od_coeff x[4];
     for(j=0;j<4;j++)x[j]=(i==j)<<8;
-    od_bin_fdct4(x,x);
+    od_bin_fdct4(x,x,1);
     for(j=0;j<4;j++)_basis[j][i]=x[j]/256.0;
   }
 }
@@ -1155,9 +1306,9 @@ static void check_bias4(){
     od_coeff y[4];
     od_coeff y2[4];
     for(j=0;j<4;j++)x[j]=ieee1180_rand(255,255);
-    od_bin_fdct4(y,x);
+    od_bin_fdct4(y,x,1);
     for(j=0;j<4;j++)facc[j]+=y[j];
-    od_bin_idct4(x2,y);
+    od_bin_idct4(x2,1,y);
     for(j=0;j<4;j++)if(x[j]!=x2[j]){
       printf("Mismatch:\n");
       printf("in:    ");
@@ -1170,13 +1321,13 @@ static void check_bias4(){
       break;
     }
     for(j=0;j<4;j++)y2[j]=y[j]+ieee1180_rand(1,1);
-    od_bin_idct4(x2,y2);
+    od_bin_idct4(x2,1,y2);
     for(j=0;j<4;j++)rtacc[j]+=x2[j]-x[j];
     for(j=0;j<4;j++)y2[j]=y[j]/8<<3;
-    od_bin_idct4(x2,y2);
+    od_bin_idct4(x2,1,y2);
     for(j=0;j<4;j++)q8acc[j]+=x2[j]-x[j];
     for(j=0;j<4;j++)y2[j]=y[j]/7*7;
-    od_bin_idct4(x2,y2);
+    od_bin_idct4(x2,1,y2);
     for(j=0;j<4;j++)q7acc[j]+=x2[j]-x[j];
   }
   printf("1-D Forward Bias:\n");
@@ -1206,8 +1357,8 @@ static void check4(void){
     od_coeff y[4];
     od_coeff x2[4];
     for(j=0;j<4;j++)x[j]=(i>>j&1)?255:-256;
-    od_bin_fdct4(y,x);
-    od_bin_idct4(x2,y);
+    od_bin_fdct4(y,x,1);
+    od_bin_idct4(x2,1,y);
     for(j=0;j<4;j++){
       if(y[j]<min[j])min[j]=y[j];
       else if(y[j]>max[j])max[j]=y[j];
@@ -1380,13 +1531,7 @@ static void ieee1180_test_block8(long _sumerrs[8][8],long _sumsqerrs[8][8],
   int      j;
   for(i=0;i<8;i++)for(j=0;j<8;j++)block[i][j]=ieee1180_rand(_l,_h)*_sign;
   /*Modification of IEEE1180: use our integerized DCT, not a true DCT.*/
-  for(i=0;i<8;i++)od_bin_fdct8(refcoefs[i],block[i]);
-  for(j=0;j<8;j++){
-    od_coeff x[8];
-    for(i=0;i<8;i++)x[i]=refcoefs[i][j];
-    od_bin_fdct8(x,x);
-    for(i=0;i<8;i++)refcoefs[i][j]=x[i];
-  }
+  od_bin_fdct8x8(refcoefs[0],8,block[0],8);
   /*Modification of IEEE1180: no rounding or range clipping (coefficients
      are always in range with our integerized DCT).*/
   for(i=0;i<8;i++)for(j=0;j<8;j++){
@@ -1406,15 +1551,32 @@ static void ieee1180_test_block8(long _sumerrs[8][8],long _sumsqerrs[8][8],
     if(refout[i][j]>255)refout[i][j]=255;
     else if(refout[i][j]<-256)refout[i][j]=-256;
   }
-  for(j=0;j<8;j++){
-    od_coeff x[8];
-    for(i=0;i<8;i++)x[i]=refcoefs[i][j];
-    od_bin_idct8(x,x);
-    for(i=0;i<8;i++)testout[i][j]=x[i];
-  }
+  od_bin_idct8x8(testout[0],8,refcoefs[0],8);
   for(i=0;i<8;i++){
-    od_bin_idct8(testout[i],testout[i]);
     for(j=0;j<8;j++){
+      if(testout[i][j]!=block[i][j]){
+        printf("Mismatch:\n");
+        printf("in:\n");
+        for(i=0;i<8;i++){
+          printf("       ");
+          for(j=0;j<8;j++)printf(" %i",block[i][j]);
+          printf("\n");
+        }
+        printf("xform:\n");
+        for(i=0;i<8;i++){
+          printf("       ");
+          for(j=0;j<8;j++)printf(" %i",refcoefs[i][j]);
+          printf("\n");
+        }
+        printf("out:\n");
+        for(i=0;i<8;i++){
+          printf("       ");
+          for(j=0;j<8;j++)printf(" %i",testout[i][j]);
+          printf("\n");
+        }
+        printf("\n");
+        return;
+      }
       if(testout[i][j]>255)testout[i][j]=255;
       else if(testout[i][j]<-256)testout[i][j]=-256;
     }
@@ -1516,7 +1678,7 @@ static void compute_fbasis8(double _basis[8][8]){
   for(i=0;i<8;i++){
     od_coeff x[8];
     for(j=0;j<8;j++)x[j]=(i==j)*256;
-    od_bin_fdct8(x,x);
+    od_bin_fdct8(x,x,1);
     for(j=0;j<8;j++)_basis[j][i]=x[j]/256.0;
   }
 }
@@ -1527,7 +1689,7 @@ static void compute_ibasis8(double _basis[8][8]){
   for(i=0;i<8;i++){
     od_coeff x[8];
     for(j=0;j<8;j++)x[j]=(i==j)*256;
-    od_bin_idct8(x,x);
+    od_bin_idct8(x,1,x);
     for(j=0;j<8;j++)_basis[j][i]=x[j]/256.0;
   }
 }
@@ -1592,9 +1754,9 @@ static void check_bias8(){
     od_coeff y[8];
     od_coeff y2[8];
     for(j=0;j<8;j++)x[j]=ieee1180_rand(255,255);
-    od_bin_fdct8(y,x);
+    od_bin_fdct8(y,x,1);
     for(j=0;j<8;j++)facc[j]+=y[j];
-    od_bin_idct8(x2,y);
+    od_bin_idct8(x2,1,y);
     for(j=0;j<8;j++)if(x[j]!=x2[j]){
       printf("Mismatch:\n");
       printf("in:    ");
@@ -1607,13 +1769,13 @@ static void check_bias8(){
       break;
     }
     for(j=0;j<8;j++)y2[j]=y[j]+ieee1180_rand(1,1);
-    od_bin_idct8(x2,y2);
+    od_bin_idct8(x2,1,y2);
     for(j=0;j<8;j++)rtacc[j]+=x2[j]-x[j];
     for(j=0;j<8;j++)y2[j]=y[j]/8<<3;
-    od_bin_idct8(x2,y2);
+    od_bin_idct8(x2,1,y2);
     for(j=0;j<8;j++)q8acc[j]+=x2[j]-x[j];
     for(j=0;j<8;j++)y2[j]=y[j]/7*7;
-    od_bin_idct8(x2,y2);
+    od_bin_idct8(x2,1,y2);
     for(j=0;j<8;j++)q7acc[j]+=x2[j]-x[j];
   }
   printf("1-D Forward Bias:\n");
@@ -1647,10 +1809,10 @@ static void bin_fxform_2d8(od_coeff _x[8*2][8*2]){
     for(u=0;u<8*2;u++)_x[u][v]=y[u];
   }
   /*Perform DCT.*/
-  for(u=8/2;u<8*3/2;u++)od_bin_fdct8(_x[u]+8/2,_x[u]+8/2);
+  for(u=8/2;u<8*3/2;u++)od_bin_fdct8(_x[u]+8/2,_x[u]+8/2,1);
   for(v=8/2;v<8*3/2;v++){
     for(u=8/2;u<8*3/2;u++)y[u]=_x[u][v];
-    od_bin_fdct8(y+8/2,y+8/2);
+    od_bin_fdct8(y+8/2,y+8/2,1);
     for(u=8/2;u<8*3/2;u++)_x[u][v]=y[u];
   }
 }
@@ -1725,8 +1887,8 @@ static void check8(void){
     od_coeff y[8];
     od_coeff x2[8];
     for(j=0;j<8;j++)x[j]=(i>>j&1)?255:-256;
-    od_bin_fdct8(y,x);
-    od_bin_idct8(x2,y);
+    od_bin_fdct8(y,x,1);
+    od_bin_idct8(x2,1,y);
     for(j=0;j<8;j++){
       if(y[j]<min[j])min[j]=y[j];
       else if(y[j]>max[j])max[j]=y[j];
@@ -2002,13 +2164,7 @@ static void ieee1180_test_block16(long _sumerrs[16][16],
   int      j;
   for(i=0;i<16;i++)for(j=0;j<16;j++)block[i][j]=ieee1180_rand(_l,_h)*_sign;
   /*Modification of IEEE1180: use our integerized DCT, not a true DCT.*/
-  for(i=0;i<16;i++)od_bin_fdct16(refcoefs[i],block[i]);
-  for(j=0;j<16;j++){
-    od_coeff x[16];
-    for(i=0;i<16;i++)x[i]=refcoefs[i][j];
-    od_bin_fdct16(x,x);
-    for(i=0;i<16;i++)refcoefs[i][j]=x[i];
-  }
+  od_bin_fdct16x16(refcoefs[0],16,block[0],16);
   /*Modification of IEEE1180: no rounding or range clipping (coefficients
      are always in range with our integerized DCT).*/
   for(i=0;i<16;i++)for(j=0;j<16;j++){
@@ -2028,15 +2184,32 @@ static void ieee1180_test_block16(long _sumerrs[16][16],
     if(refout[i][j]>255)refout[i][j]=255;
     else if(refout[i][j]<-256)refout[i][j]=-256;
   }
-  for(j=0;j<16;j++){
-    od_coeff x[16];
-    for(i=0;i<16;i++)x[i]=refcoefs[i][j];
-    od_bin_idct16(x,x);
-    for(i=0;i<16;i++)testout[i][j]=x[i];
-  }
+  od_bin_idct16x16(testout[0],16,refcoefs[0],16);
   for(i=0;i<16;i++){
-    od_bin_idct16(testout[i],testout[i]);
     for(j=0;j<16;j++){
+      if(testout[i][j]!=block[i][j]){
+        printf("Mismatch:\n");
+        printf("in:\n");
+        for(i=0;i<16;i++){
+          printf("       ");
+          for(j=0;j<16;j++)printf(" %i",block[i][j]);
+          printf("\n");
+        }
+        printf("xform:\n");
+        for(i=0;i<16;i++){
+          printf("       ");
+          for(j=0;j<16;j++)printf(" %i",refcoefs[i][j]);
+          printf("\n");
+        }
+        printf("out:\n");
+        for(i=0;i<16;i++){
+          printf("       ");
+          for(j=0;j<16;j++)printf(" %i",testout[i][j]);
+          printf("\n");
+        }
+        printf("\n");
+        return;
+      }
       if(testout[i][j]>255)testout[i][j]=255;
       else if(testout[i][j]<-256)testout[i][j]=-256;
     }
@@ -2138,7 +2311,7 @@ static void compute_fbasis16(double _basis[16][16]){
   for(i=0;i<16;i++){
     od_coeff x[16];
     for(j=0;j<16;j++)x[j]=(i==j)*256;
-    od_bin_fdct16(x,x);
+    od_bin_fdct16(x,x,1);
     for(j=0;j<16;j++)_basis[j][i]=x[j]/256.0;
   }
 }
@@ -2149,7 +2322,7 @@ static void compute_ibasis16(double _basis[16][16]){
   for(i=0;i<16;i++){
     od_coeff x[16];
     for(j=0;j<16;j++)x[j]=(i==j)*256;
-    od_bin_idct16(x,x);
+    od_bin_idct16(x,1,x);
     for(j=0;j<16;j++)_basis[j][i]=x[j]/256.0;
   }
 }
@@ -2214,9 +2387,9 @@ static void check_bias16(){
     od_coeff y[16];
     od_coeff y2[16];
     for(j=0;j<16;j++)x[j]=ieee1180_rand(255,255);
-    od_bin_fdct16(y,x);
+    od_bin_fdct16(y,x,1);
     for(j=0;j<16;j++)facc[j]+=y[j];
-    od_bin_idct16(x2,y);
+    od_bin_idct16(x2,1,y);
     for(j=0;j<16;j++)if(x[j]!=x2[j]){
       printf("Mismatch:\n");
       printf("in:    ");
@@ -2229,13 +2402,13 @@ static void check_bias16(){
       break;
     }
     for(j=0;j<16;j++)y2[j]=y[j]+ieee1180_rand(1,1);
-    od_bin_idct16(x2,y2);
+    od_bin_idct16(x2,1,y2);
     for(j=0;j<16;j++)rtacc[j]+=x2[j]-x[j];
     for(j=0;j<16;j++)y2[j]=y[j]/8<<3;
-    od_bin_idct16(x2,y2);
+    od_bin_idct16(x2,1,y2);
     for(j=0;j<16;j++)q8acc[j]+=x2[j]-x[j];
     for(j=0;j<16;j++)y2[j]=y[j]/7*7;
-    od_bin_idct16(x2,y2);
+    od_bin_idct16(x2,1,y2);
     for(j=0;j<16;j++)q7acc[j]+=x2[j]-x[j];
   }
   printf("1-D Forward Bias:\n");
@@ -2269,10 +2442,10 @@ static void bin_fxform_2d16(od_coeff _x[16*2][16*2]){
     for(u=0;u<16*2;u++)_x[u][v]=y[u];
   }
   /*Perform DCT.*/
-  for(u=16/2;u<16*3/2;u++)od_bin_fdct16(_x[u]+16/2,_x[u]+16/2);
+  for(u=16/2;u<16*3/2;u++)od_bin_fdct16(_x[u]+16/2,_x[u]+16/2,1);
   for(v=16/2;v<16*3/2;v++){
     for(u=16/2;u<16*3/2;u++)y[u]=_x[u][v];
-    od_bin_fdct16(y+16/2,y+16/2);
+    od_bin_fdct16(y+16/2,y+16/2,1);
     for(u=16/2;u<16*3/2;u++)_x[u][v]=y[u];
   }
 }
@@ -2347,8 +2520,8 @@ static void check16(void){
     od_coeff y[16];
     od_coeff x2[16];
     for(j=0;j<16;j++)x[j]=(i>>j&1)?255:-256;
-    od_bin_fdct16(y,x);
-    od_bin_idct16(x2,y);
+    od_bin_fdct16(y,x,1);
+    od_bin_idct16(x2,1,y);
     for(j=0;j<16;j++){
       if(y[j]<min[j])min[j]=y[j];
       else if(y[j]>max[j])max[j]=y[j];

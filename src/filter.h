@@ -28,6 +28,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 typedef ogg_int32_t od_coeff;
 
+typedef void (*od_filter_func)(od_coeff _out[],const od_coeff _in[]);
+
+extern const od_filter_func OD_PRE_FILTER[OD_NBSIZES];
+extern const od_filter_func OD_POST_FILTER[OD_NBSIZES];
+
 /*These are the pre/post filtering functions used by Daala.
   The idea is to pre/post filter in the spatial domain (the time domain in
    signal processing terms) to improve the energy compaction as well as reduce

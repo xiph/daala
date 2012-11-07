@@ -508,16 +508,17 @@ static unsigned od_satd(const unsigned char *_src,int _src_stride,
     for(j=0;j<B_SZ;j++){
       buf[B_SZ*i+j]=_src[j]-_ref[j];
     }
-    od_bin_fdct4(buf+B_SZ*i,buf+B_SZ*i);
     _src+=_src_stride;
     _ref+=_ref_stride;
   }
+#if B_SZ_LOG>=OD_LOG_BSIZE0&&B_SZ_LOG<OD_LOG_BSIZE0+OD_NBSIZES
+  (*OD_FDCT_2D[B_SZ_LOG-OD_LOG_BSIZE0])(buf,B_SZ,buf,B_SZ);
+#else
+# error "Need an fDCT implementation for this block size."
+#endif
   satd=0;
-  for(j=0;j<B_SZ;j++){
-    od_coeff col[B_SZ];
-    for(i=0;i<B_SZ;i++)col[i]=buf[B_SZ*i+j];
-    od_bin_fdct4(col,col);
-    for(i=0;i<B_SZ;i++)satd+=abs(col[i]);
+  for(i=0;i<B_SZ;i++){
+    for(j=0;j<B_SZ;j++)satd+=abs(buf[B_SZ*i+j]);
   }
   return satd;
 }

@@ -24,6 +24,7 @@
 
 CC = gcc
 MAKEDEPEND = gcc -MM
+CINCLUDE = `pkg-config theoradec ogg libpng --cflags`
 CFLAGS = -Wall -Wno-parentheses -Wno-overlength-strings -Wno-long-long
 CFLAGS += -std=c89 -pedantic
 CFLAGS += -O3
@@ -40,7 +41,7 @@ png2y4m.c
 
 P2Y_LIB_CSOURCES =
 
-P2Y_LDFLAGS = -ltheoradec -logg -lpng -lz
+P2Y_LDFLAGS = `pkg-config theoradec ogg libpng --libs`
 
 P2Y_OBJS:=${P2Y_LOCAL_CSOURCES} ${P2Y_LIB_CSOURCES}
 P2Y_OBJS:=${P2Y_OBJS:%.c=${WORKDIR}/%.o}
@@ -55,7 +56,7 @@ y4m2png.c
 
 Y2P_LIB_CSOURCES =
 
-Y2P_LDFLAGS = -ltheoradec -logg -lpng -lz
+Y2P_LDFLAGS = `pkg-config theoradec ogg libpng --libs`
 
 Y2P_OBJS:=${Y2P_LOCAL_CSOURCES} ${Y2P_LIB_CSOURCES}
 Y2P_OBJS:=${Y2P_OBJS:%.c=${WORKDIR}/%.o}
@@ -72,7 +73,7 @@ vidinput.c
 
 PIM_LIB_CSOURCES =
 
-PIM_LDFLAGS = -ltheoradec -logg -lpng -lz -lm
+PIM_LDFLAGS = `pkg-config theoradec ogg libpng --libs` -lm
 
 PIM_OBJS:=${PIM_LOCAL_CSOURCES} ${PIM_LIB_CSOURCES}
 PIM_OBJS:=${PIM_OBJS:%.c=${WORKDIR}/%.o}
@@ -88,7 +89,7 @@ vidinput.c
 
 IIM_LIB_CSOURCES =
 
-IIM_LDFLAGS = -ltheoradec -logg -lpng -lz -lm
+IIM_LDFLAGS = `pkg-config theoradec ogg libpng --libs` -lm
 
 IIM_OBJS:=${IIM_LOCAL_CSOURCES} ${IIM_LIB_CSOURCES}
 IIM_OBJS:=${IIM_OBJS:%.c=${WORKDIR}/%.o}
@@ -110,7 +111,7 @@ newdct.c \
 intra.c \
 intradata.c
 
-IIX_LDFLAGS = -ltheoradec -logg -lpng -lz -lm
+IIX_LDFLAGS = `pkg-config theoradec ogg libpng --libs` -lm
 
 IIX_OBJS:=${IIX_LOCAL_CSOURCES} ${IIX_LIB_CSOURCES}
 IIX_OBJS:=${IIX_OBJS:%.c=${WORKDIR}/%.o}

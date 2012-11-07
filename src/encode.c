@@ -131,53 +131,9 @@ void od_state_mc_predict(od_state *_state,int _ref){
   }
 }
 
-#if 0
-/*The true forward 4-point type-II DCT basis, to 32-digit (100 bit) precision.
-  The inverse is merely the transpose.*/
-static const double DCT4_BASIS[4][4]={
-  {
-     0.5,                                 0.5,
-     0.5,                                 0.5
-  },
-  {
-     0.65328148243818826392832158671359,  0.27059805007309849219986160268319,
-    -0.27059805007309849219986160268319, -0.65328148243818826392832158671359
-  },
-  {
-     0.5,                                -0.5,
-    -0.5,                                 0.5
-  },
-  {
-     0.27059805007309849219986160268319, -0.65328148243818826392832158671359,
-     0.65328148243818826392832158671359, -0.27059805007309849219986160268319
-  },
-};
+static double mode_bits=0;
+static double mode_count=0;
 
-void idct4(od_coeff _x[],const od_coeff _y[]){
-  double t[8];
-  int    i;
-  int    j;
-  for(j=0;j<4;j++){
-    t[j]=0;
-    for(i=0;i<4;i++)t[j]+=DCT4_BASIS[i][j]*_y[i];
-  }
-  for(j=0;j<4;j++)_x[j]=t[j];
-}
-
-void fdct4(od_coeff _x[],const od_coeff _y[]){
-  double t[8];
-  int    i;
-  int    j;
-  for(j=0;j<4;j++){
-    t[j]=0;
-    for(i=0;i<4;i++)t[j]+=DCT4_BASIS[j][i]*_y[i];
-  }
-  for(j=0;j<4;j++)_x[j]=t[j];
-}
-#endif
-
-double mode_bits=0;
-double mode_count=0;
 int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
   GenericEncoder model_dc;
   GenericEncoder model_g;
@@ -310,14 +266,7 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
         int j;
         int vk;
         vk=0;
-        for(j=0;j<4;j++)od_bin_fdct4(&ctmp[(y+j)*w+x],&ctmp[(y+j)*w+x]);
-        for(j=0;j<4;j++){
-          od_coeff p[4];
-          int k;
-          for(k=0;k<4;k++)p[k]=ctmp[(y+k)*w+x+j];
-          od_bin_fdct4(p,p);
-          for(k=0;k<4;k++)ctmp[(y+k)*w+x+j]=p[k];
-        }
+        od_bin_fdct4x4(&ctmp[pli]+y*w+x,w,&ctmp[pli]+y*w+x,w);
         for(j=0;j<16;j++)pvq_scale[j]=0;
         if(x>0&&y>0){
           ogg_uint16_t mode_cdf[OD_INTRA_NMODES];
@@ -385,15 +334,7 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
     /*iDCT 4x4 blocks*/
     for(y=0;y<h;y+=4){
       for(x=0;x<(_img->width>>_img->planes[pli].xdec);x+=4){
-        int j;
-        for(j=0;j<4;j++){
-          od_coeff p[4];
-          int k;
-          for(k=0;k<4;k++)p[k]=ctmp[(y+k)*w+x+j];
-          od_bin_idct4(p,p);
-          for(k=0;k<4;k++)ctmp[(y+k)*w+x+j]=p[k];
-        }
-        for(j=0;j<4;j++)od_bin_idct4(&ctmp[(y+j)*w+x],&ctmp[(y+j)*w+x]);
+        od_bin_idct4x4(&ctmp[pli]+y*w+x,w,&ctmp[pli]+y*w+x,w);
       }
     }
 

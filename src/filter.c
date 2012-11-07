@@ -113,6 +113,22 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
    acceptable solution found so far.
   The maximum denominator for all coefficients was allowed to be 64.*/
 
+
+
+const od_filter_func OD_PRE_FILTER[OD_NBSIZES]={
+  od_pre_filter4,
+  od_pre_filter8,
+  od_pre_filter16
+};
+
+const od_filter_func OD_POST_FILTER[OD_NBSIZES]={
+  od_post_filter4,
+  od_post_filter8,
+  od_post_filter16
+};
+
+
+
 #if defined(TEST)
 extern int minv[32];
 extern int maxv[32];
