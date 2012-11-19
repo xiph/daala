@@ -318,7 +318,7 @@ static void update_intra_xforms(intra_xform_ctx *_ctx){
   int mode;
   int pli;
   /*Update the model for each coefficient in each mode.*/
-  printf("/* This file is generated automatically by init_intra_xform */");
+  printf("/* This file is generated automatically by init_intra_xform */\n");
 
   printf("#include \"intra.h\"\n");
   printf("\n");
@@ -381,7 +381,7 @@ static void update_intra_xforms(intra_xform_ctx *_ctx){
         int     k;
         int     l;
         nxi=3*B_SZ*B_SZ;
-#if 1
+#if 0
         /*Include coefficients for the current block*/
         for(k=0;k<=i;k++){
           for(l=0;l<=j;l++){
