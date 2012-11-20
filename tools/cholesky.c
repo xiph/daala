@@ -23,10 +23,11 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <float.h>
 #include <math.h>
+#include <string.h>
 #include "cholesky.h"
-#include "pythag.h"
 
 /*Implements several Cholesky factorization routines, including an unpivoted
    routine (for well-conditioned positive definite matrices), a basic diagonal
@@ -54,20 +55,6 @@ static void ch_update(double *_rr,double _alpha,int _k,int _n){
     t=_rr[UT_IDX(_k,i,_n)];
     for(j=i;j<_n;j++)_rr[UT_IDX(i,j,_n)]-=t*_rr[UT_IDX(_k,j,_n)];
   }
-}
-
-/*Shrink the factorization, converting the last row back to input form.*/
-static void ch_downdate(double *_rr,int _k,int _n){
-  double alpha;
-  int    i;
-  int    j;
-  alpha=_rr[UT_IDX(_k,_k,_n)];
-  for(i=_k+1;i<_n;i++){
-    double t;
-    t=_rr[UT_IDX(_k,i,_n)];
-    for(j=i;j<_n;j++)_rr[UT_IDX(i,j,_n)]+=t*_rr[UT_IDX(_k,j,_n)];
-  }
-  for(i=_k;i<_n;i++)_rr[UT_IDX(_k,i,_n)]*=alpha;
 }
 
 static int cholesky_unpivoted(double *_rr,double _tol,int _n){
@@ -131,7 +118,6 @@ int cholesky(double *_rr,int *_pivot,double _tol,int _n){
   /*Initialize the pivot list.*/
   for(k=0;k<_n;k++)_pivot[k]=k;
   for(k=0;pi>=0;k++){
-    double t;
     if(pi!=k)ch_pivot(_rr,NULL,_pivot,k,pi,_n);
     ch_update(_rr,sqrt(akk),k,_n);
     /*Find the next pivot element.*/
