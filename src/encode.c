@@ -249,7 +249,7 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
     }
     for(y=0;y<h;y++){
       for(x=2;x<(_img->width>>_img->planes[pli].xdec)-2;x+=4){
-        od_pre_filter4(&ctmp[y*w+x],&ctmp[y*w+x]);
+        od_pre_filter4(ctmp+y*w+x,ctmp+y*w+x);
       }
     }
 #endif
@@ -266,7 +266,7 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
         int j;
         int vk;
         vk=0;
-        od_bin_fdct4x4(&ctmp[pli]+y*w+x,w,&ctmp[pli]+y*w+x,w);
+        od_bin_fdct4x4(ctmp+y*w+x,w,ctmp+y*w+x,w);
         for(j=0;j<16;j++)pvq_scale[j]=0;
         if(x>0&&y>0){
           ogg_uint16_t mode_cdf[OD_INTRA_NMODES];
@@ -276,10 +276,10 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
           m_ul = modes[((y>>2)-1)*(w>>2)+((x>>2)-1)];
           m_u = modes[((y>>2)-1)*(w>>2)+(x>>2)];
           od_intra_pred_cdf(mode_cdf,OD_INTRA_PRED_PROB_4x4[pli],mode_p0,m_l,m_ul,m_u);
-          od_intra_pred4x4_dist(mode_dist,&ctmp[y*w+x],w,pli);
+          od_intra_pred4x4_dist(mode_dist,ctmp+y*w+x,w,pli);
           /*Lambda = 1*/
           mode=od_intra_pred_search(mode_p0,mode_cdf,mode_dist,128,m_l,m_ul,m_u);
-          od_intra_pred4x4_get(pred,&ctmp[y*w+x],w,mode);
+          od_intra_pred4x4_get(pred,ctmp+y*w+x,w,mode);
           od_ec_encode_cdf_unscaled(&_enc->ec,mode,mode_cdf,OD_INTRA_NMODES);
           mode_bits -= log((mode_cdf[mode]-(mode==0?0:mode_cdf[mode-1]))/(float)mode_cdf[OD_INTRA_NMODES-1])/log(2);
           mode_count++;
@@ -334,14 +334,14 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
     /*iDCT 4x4 blocks*/
     for(y=0;y<h;y+=4){
       for(x=0;x<(_img->width>>_img->planes[pli].xdec);x+=4){
-        od_bin_idct4x4(&ctmp[pli]+y*w+x,w,&ctmp[pli]+y*w+x,w);
+        od_bin_idct4x4(ctmp+y*w+x,w,ctmp+y*w+x,w);
       }
     }
 
 #if 1
     for(y=0;y<h;y++){
       for(x=2;x<(_img->width>>_img->planes[pli].xdec)-2;x+=4){
-        od_post_filter4(&ctmp[y*w+x],&ctmp[y*w+x]);
+        od_post_filter4(ctmp+y*w+x,ctmp+y*w+x);
       }
     }
     for(y=2;y<h-2;y+=4){
