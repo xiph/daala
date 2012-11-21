@@ -40,7 +40,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
    outside the image boundary.
   If chroma is decimated in either direction, the padding is reduced by an
    appropriate factor on the appropriate sides.*/
-static void od_state_ref_imgs_init(od_state *_state){
+static void od_state_ref_imgs_init(od_state *_state,int _nrefs,int _nio){
   daala_info    *info;
   od_img        *img;
   od_img_plane  *iplane;
@@ -48,35 +48,37 @@ static void od_state_ref_imgs_init(od_state *_state){
   size_t         data_sz;
   int            plane_buf_width;
   int            plane_buf_height;
-  int            refi;
+  int            imgi;
   int            pli;
   int            y;
+  OD_ASSERT(_nrefs>=3);
+  OD_ASSERT(_nrefs<=4);
+  OD_ASSERT(_nio==2);
   info=&_state->info;
   data_sz=0;
   /*TODO: Check for overflow before allocating.*/
-  /*Reserve space for the image plane info for 6 images.*/
   for(pli=0;pli<info->nplanes;pli++){
-    /*Reserve space for this plane in 4 reference images.*/
+    /*Reserve space for this plane in _nrefs reference images.*/
     plane_buf_width=(info->frame_width+(OD_UMV_PADDING<<1)<<1)
      >>info->plane_info[pli].xdec;
     plane_buf_height=(info->frame_height+(OD_UMV_PADDING<<1)<<1)
      >>info->plane_info[pli].ydec;
-    data_sz+=plane_buf_width*plane_buf_height*4;
+    data_sz+=plane_buf_width*plane_buf_height*_nrefs;
 #if defined(OD_DUMP_IMAGES)
     /*Reserve space for this plane in 1 visualization image.*/
     data_sz+=plane_buf_width*plane_buf_height;
 #endif
-    /*Reserve space for this plane in 1 reconstruction image.*/
+    /*Reserve space for this plane in _nio input/output images.*/
     plane_buf_width=info->frame_width>>info->plane_info[pli].xdec;
     plane_buf_height=info->frame_height>>info->plane_info[pli].ydec;
-    data_sz+=plane_buf_width*plane_buf_height;
+    data_sz+=plane_buf_width*plane_buf_height*_nio;
   }
   /*Reserve space for the line buffer in the up-sampler.*/
   data_sz+=(info->frame_width+(OD_UMV_PADDING<<1)<<1)*8;
   _state->ref_img_data=ref_img_data=(unsigned char *)_ogg_malloc(data_sz);
   /*Fill in the reference image structures.*/
-  for(refi=0;refi<4;refi++){
-    img=_state->ref_imgs+refi;
+  for(imgi=0;imgi<_nrefs;imgi++){
+    img=_state->ref_imgs+imgi;
     img->nplanes=info->nplanes;
     img->width=info->frame_width<<1;
     img->height=info->frame_height<<1;
@@ -97,20 +99,22 @@ static void od_state_ref_imgs_init(od_state *_state){
     }
   }
   /*Fill in the reconstruction image structure.*/
-  img=&_state->rec_img;
-  img->nplanes=info->nplanes;
-  img->width=info->frame_width;
-  img->height=info->frame_height;
-  for(pli=0;pli<img->nplanes;pli++){
-    plane_buf_width=info->frame_width>>info->plane_info[pli].xdec;
-    plane_buf_height=info->frame_height>>info->plane_info[pli].ydec;
-    iplane=img->planes+pli;
-    iplane->data=ref_img_data;
-    ref_img_data+=plane_buf_width*plane_buf_height;
-    iplane->xdec=info->plane_info[pli].xdec;
-    iplane->ydec=info->plane_info[pli].ydec;
-    iplane->xstride=1;
-    iplane->ystride=plane_buf_width;
+  for(imgi=0;imgi<_nio;imgi++){
+    img=_state->io_imgs+imgi;
+    img->nplanes=info->nplanes;
+    img->width=info->frame_width;
+    img->height=info->frame_height;
+    for(pli=0;pli<img->nplanes;pli++){
+      plane_buf_width=info->frame_width>>info->plane_info[pli].xdec;
+      plane_buf_height=info->frame_height>>info->plane_info[pli].ydec;
+      iplane=img->planes+pli;
+      iplane->data=ref_img_data;
+      ref_img_data+=plane_buf_width*plane_buf_height;
+      iplane->xdec=info->plane_info[pli].xdec;
+      iplane->ydec=info->plane_info[pli].ydec;
+      iplane->xstride=1;
+      iplane->ystride=plane_buf_width;
+    }
   }
   /*Fill in the line buffers.*/
   for(y=0;y<8;y++){
@@ -118,10 +122,7 @@ static void od_state_ref_imgs_init(od_state *_state){
     ref_img_data+=info->frame_width+(OD_UMV_PADDING<<1)<<1;
   }
   /*Mark all of the reference image buffers available.*/
-  _state->ref_imgi[OD_FRAME_GOLD]=-1;
-  _state->ref_imgi[OD_FRAME_PREV]=-1;
-  _state->ref_imgi[OD_FRAME_NEXT]=-1;
-  _state->ref_imgi[OD_FRAME_SELF]=-1;
+  for(imgi=0;imgi<_nrefs;imgi++)_state->ref_imgi[imgi]=-1;
 #if defined(OD_DUMP_IMAGES)
   /*Fill in the visualization image structure.*/
   img=&_state->vis_img;
@@ -175,7 +176,7 @@ int od_state_init(od_state *_state,const daala_info *_info){
   _state->nhmbs=_info->frame_width+15>>4;
   _state->nvmbs=_info->frame_height+15>>4;
   od_state_opt_vtbl_init(_state);
-  od_state_ref_imgs_init(_state);
+  od_state_ref_imgs_init(_state,4,2);
   od_state_mvs_init(_state);
   return 0;
 }
@@ -190,7 +191,7 @@ void od_state_clear(od_state *_state){
   TODO: Pipeline with reconstruction.*/
 void od_state_upsample8(od_state *_state,int _refi){
   int pli;
-  for(pli=0;pli<_state->rec_img.nplanes;pli++){
+  for(pli=0;pli<_state->io_imgs[OD_FRAME_REC].nplanes;pli++){
     od_img_plane  *siplane;
     od_img_plane  *diplane;
     unsigned char *src;
@@ -201,12 +202,12 @@ void od_state_upsample8(od_state *_state,int _refi){
     int            h;
     int            x;
     int            y;
-    siplane=_state->rec_img.planes+pli;
+    siplane=_state->io_imgs[OD_FRAME_REC].planes+pli;
     diplane=_state->ref_imgs[_refi].planes+pli;
     xpad=OD_UMV_PADDING>>siplane->xdec;
     ypad=OD_UMV_PADDING>>siplane->ydec;
-    w=_state->rec_img.width>>siplane->xdec;
-    h=_state->rec_img.height>>siplane->ydec;
+    w=_state->io_imgs[OD_FRAME_REC].width>>siplane->xdec;
+    h=_state->io_imgs[OD_FRAME_REC].height>>siplane->ydec;
     src=siplane->data;
     dst=diplane->data-(diplane->ystride<<1)*ypad;
     for(y=-ypad;y<h+ypad+2;y++){
@@ -292,7 +293,7 @@ void od_state_upsample8(od_state *_state,int _refi){
   TODO: Pipeline with reconstruction.*/
 void od_state_upsample8(od_state *_state,od_img *_dst,const od_img *_src){
   int pli;
-  for(pli=0;pli<_state->rec_img.nplanes;pli++){
+  for(pli=0;pli<_state->io_imgs[OD_FRAME_REC].nplanes;pli++){
     const od_img_plane  *siplane;
     od_img_plane        *diplane;
     const unsigned char *src;
@@ -813,7 +814,7 @@ void od_state_fill_vis(od_state *_state){
     img->planes[pli].data+=(OD_UMV_PADDING<<1>>img->planes[pli].xdec)+
      img->planes[pli].ystride*(OD_UMV_PADDING<<1>>img->planes[pli].ydec);
   }
-  od_state_upsample8(_state,img,&_state->rec_img);
+  od_state_upsample8(_state,img,_state->io_imgs+OD_FRAME_REC);
   /*Upsample the input image, as well, and subtract it to get a difference
      image.*/
   ref_img=_state->ref_imgs+_state->ref_imgi[OD_FRAME_SELF];

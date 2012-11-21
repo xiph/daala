@@ -40,7 +40,10 @@ typedef struct od_state          od_state;
 /*The current frame.*/
 #define OD_FRAME_SELF (3)
 
-
+/*The reconstructed I/O frame.*/
+#define OD_FRAME_REC   (0)
+/*The input I/O frame.*/
+#define OD_FRAME_INPUT (1)
 
 extern const int        OD_VERT_D[];
 /*The vector offsets in the X direction for each motion comepnsation block
@@ -84,7 +87,7 @@ struct od_state{
   od_img              input;
   int                 ref_imgi[4];
   od_img              ref_imgs[4];
-  od_img              rec_img;
+  od_img              io_imgs[2];
   unsigned char      *ref_line_buf[8];
   unsigned char      *ref_img_data;
   ogg_int64_t         cur_time;
