@@ -121,49 +121,52 @@ extern "C" {
 #define OD_CS_NSPACES       (5)
 /*@}*/
 
-typedef struct od_img_plane od_img_plane;
-typedef struct od_img       od_img;
-typedef struct daala_comp   daala_comp;
-typedef struct daala_info   daala_info;
+/**The maximum number of color planes allowed in a single frame.*/
+#define OD_NPLANES_MAX (4)
+
+typedef struct od_img_plane     od_img_plane;
+typedef struct od_img           od_img;
+typedef struct daala_plane_info daala_plane_info;
+typedef struct daala_info       daala_info;
 
 struct od_img_plane{
   unsigned char *data;
-  char           xdec;
-  char           ydec;
-  char           xstride;
+  unsigned char  xdec;
+  unsigned char  ydec;
+  int            xstride;
   int            ystride;
 };
 
 struct od_img{
-  od_img_plane *planes;
-  int           nplanes;
-  ogg_int32_t   width;
-  ogg_int32_t   height;
+  od_img_plane planes[OD_NPLANES_MAX];
+  int          nplanes;
+  ogg_int32_t  width;
+  ogg_int32_t  height;
 };
 
-struct daala_comp{
-  int xdec;
-  int ydec;
+struct daala_plane_info{
+  unsigned char xdec;
+  unsigned char ydec;
 };
 
 struct daala_info{
-  unsigned char  version_major;
-  unsigned char  version_minor;
-  unsigned char  version_sub;
-  ogg_int32_t    frame_width;
-  ogg_int32_t    frame_height;
-  ogg_int32_t    pic_x;
-  ogg_int32_t    pic_y;
-  ogg_int32_t    pic_width;
-  ogg_int32_t    pic_height;
-  ogg_uint32_t   pixel_aspect_numerator;
-  ogg_uint32_t   pixel_aspect_denominator;
-  ogg_uint32_t   timebase_numerator;
-  ogg_uint32_t   timebase_denominator;
-  ogg_uint32_t   frame_duration;
-  int            keyframe_granule_shift;
-  int            ncomps;
-  daala_comp    *comps;
+  unsigned char    version_major;
+  unsigned char    version_minor;
+  unsigned char    version_sub;
+  ogg_int32_t      frame_width;
+  ogg_int32_t      frame_height;
+  ogg_int32_t      pic_x;
+  ogg_int32_t      pic_y;
+  ogg_int32_t      pic_width;
+  ogg_int32_t      pic_height;
+  ogg_uint32_t     pixel_aspect_numerator;
+  ogg_uint32_t     pixel_aspect_denominator;
+  ogg_uint32_t     timebase_numerator;
+  ogg_uint32_t     timebase_denominator;
+  ogg_uint32_t     frame_duration;
+  int              keyframe_granule_shift;
+  int              nplanes;
+  daala_plane_info plane_info[OD_NPLANES_MAX];
 };
 
 void daala_info_init(daala_info *_info);

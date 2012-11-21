@@ -46,29 +46,28 @@ typedef struct av_input av_input;
 
 
 struct av_input{
-  int          has_video;
-  FILE        *video_infile;
-  int          video_frame_w;
-  int          video_frame_h;
-  int          video_pic_x;
-  int          video_pic_y;
-  int          video_pic_w;
-  int          video_pic_h;
-  int          video_fps_n;
-  int          video_fps_d;
-  int          video_par_n;
-  int          video_par_d;
-  int          video_interlacing;
-  char         video_chroma_type[16];
-  int          video_ncomps;
-  daala_comp   video_comps[4];
-  od_img       video_img;
-  od_img_plane video_img_planes[4];
-  int          video_cur_img;
-  int          has_audio;
-  FILE        *audio_infile;
-  int          audio_ch;
-  int          audio_hz;
+  int               has_video;
+  FILE             *video_infile;
+  int               video_frame_w;
+  int               video_frame_h;
+  int               video_pic_x;
+  int               video_pic_y;
+  int               video_pic_w;
+  int               video_pic_h;
+  int               video_fps_n;
+  int               video_fps_d;
+  int               video_par_n;
+  int               video_par_d;
+  int               video_interlacing;
+  char              video_chroma_type[16];
+  int               video_nplanes;
+  daala_plane_info  video_plane_info[OD_NPLANES_MAX];
+  od_img            video_img;
+  int               video_cur_img;
+  int               has_audio;
+  FILE             *audio_infile;
+  int               audio_ch;
+  int               audio_hz;
 };
 
 
@@ -189,70 +188,70 @@ static void id_y4m_file(av_input *_avin,const char *_file,FILE *_test){
   _avin->video_pic_x=_avin->video_frame_w-_avin->video_pic_w>>1;
   _avin->video_pic_y=_avin->video_frame_h-_avin->video_pic_h>>1;
   /*TODO: Specify chroma offsets.*/
-  _avin->video_comps[0].xdec=0;
-  _avin->video_comps[0].ydec=0;
+  _avin->video_plane_info[0].xdec=0;
+  _avin->video_plane_info[0].ydec=0;
   if(strcmp(_avin->video_chroma_type,"444")==0){
-    _avin->video_ncomps=3;
-    _avin->video_comps[1].xdec=0;
-    _avin->video_comps[1].ydec=0;
-    _avin->video_comps[2].xdec=0;
-    _avin->video_comps[2].ydec=0;
+    _avin->video_nplanes=3;
+    _avin->video_plane_info[1].xdec=0;
+    _avin->video_plane_info[1].ydec=0;
+    _avin->video_plane_info[2].xdec=0;
+    _avin->video_plane_info[2].ydec=0;
   }
   else if(strcmp(_avin->video_chroma_type,"444alpha")==0){
-    _avin->video_ncomps=4;
-    _avin->video_comps[1].xdec=0;
-    _avin->video_comps[1].ydec=0;
-    _avin->video_comps[2].xdec=0;
-    _avin->video_comps[2].ydec=0;
-    _avin->video_comps[3].xdec=0;
-    _avin->video_comps[3].ydec=0;
+    _avin->video_nplanes=4;
+    _avin->video_plane_info[1].xdec=0;
+    _avin->video_plane_info[1].ydec=0;
+    _avin->video_plane_info[2].xdec=0;
+    _avin->video_plane_info[2].ydec=0;
+    _avin->video_plane_info[3].xdec=0;
+    _avin->video_plane_info[3].ydec=0;
   }
   else if(strcmp(_avin->video_chroma_type,"422")==0){
-    _avin->video_ncomps=3;
-    _avin->video_comps[1].xdec=1;
-    _avin->video_comps[1].ydec=0;
-    _avin->video_comps[2].xdec=1;
-    _avin->video_comps[2].ydec=0;
+    _avin->video_nplanes=3;
+    _avin->video_plane_info[1].xdec=1;
+    _avin->video_plane_info[1].ydec=0;
+    _avin->video_plane_info[2].xdec=1;
+    _avin->video_plane_info[2].ydec=0;
     _avin->video_pic_x&=~1;
   }
   else if(strcmp(_avin->video_chroma_type,"411")==0){
-    _avin->video_ncomps=3;
-    _avin->video_comps[1].xdec=2;
-    _avin->video_comps[1].ydec=0;
-    _avin->video_comps[2].xdec=2;
-    _avin->video_comps[2].ydec=0;
+    _avin->video_nplanes=3;
+    _avin->video_plane_info[1].xdec=2;
+    _avin->video_plane_info[1].ydec=0;
+    _avin->video_plane_info[2].xdec=2;
+    _avin->video_plane_info[2].ydec=0;
     _avin->video_pic_x&=~3;
   }
   else if(strcmp(_avin->video_chroma_type,"420")==0||
    strcmp(_avin->video_chroma_type,"420jpeg")==0){
-    _avin->video_ncomps=3;
-    _avin->video_comps[1].xdec=1;
-    _avin->video_comps[1].ydec=1;
-    _avin->video_comps[2].xdec=1;
-    _avin->video_comps[2].ydec=1;
+    _avin->video_nplanes=3;
+    _avin->video_plane_info[1].xdec=1;
+    _avin->video_plane_info[1].ydec=1;
+    _avin->video_plane_info[2].xdec=1;
+    _avin->video_plane_info[2].ydec=1;
     _avin->video_pic_x&=~1;
     _avin->video_pic_y&=~1;
   }
   else if(strcmp(_avin->video_chroma_type,"420mpeg2")==0){
-    _avin->video_ncomps=3;
-    _avin->video_comps[1].xdec=1;
-    _avin->video_comps[1].ydec=1;
-    _avin->video_comps[2].xdec=1;
-    _avin->video_comps[2].ydec=1;
+    _avin->video_nplanes=3;
+    _avin->video_plane_info[1].xdec=1;
+    _avin->video_plane_info[1].ydec=1;
+    _avin->video_plane_info[2].xdec=1;
+    _avin->video_plane_info[2].ydec=1;
     _avin->video_pic_x&=~1;
     _avin->video_pic_y&=~1;
   }
   else if(strcmp(_avin->video_chroma_type,"420paldv")==0){
-    _avin->video_ncomps=3;
-    _avin->video_comps[1].xdec=1;
-    _avin->video_comps[1].ydec=1;
-    _avin->video_comps[2].xdec=1;
-    _avin->video_comps[2].ydec=1;
+    _avin->video_nplanes=3;
+    _avin->video_plane_info[1].xdec=1;
+    _avin->video_plane_info[1].ydec=1;
+    _avin->video_plane_info[2].xdec=1;
+    _avin->video_plane_info[2].ydec=1;
     _avin->video_pic_x&=~1;
     _avin->video_pic_y&=~1;
   }
   else if(strcmp(_avin->video_chroma_type,"mono")==0){
-    _avin->video_ncomps=1;
+    _avin->video_nplanes=1;
   }
   else{
     fprintf(stderr,"Unknown chroma sampling type: '%s'.\n",
@@ -260,15 +259,14 @@ static void id_y4m_file(av_input *_avin,const char *_file,FILE *_test){
     exit(1);
   }
   img=&_avin->video_img;
-  img->planes=_avin->video_img_planes;
-  img->nplanes=_avin->video_ncomps;
+  img->nplanes=_avin->video_nplanes;
   img->width=_avin->video_frame_w;
   img->height=_avin->video_frame_h;
   for(pli=0;pli<img->nplanes;pli++){
     od_img_plane *iplane;
     iplane=img->planes+pli;
-    iplane->xdec=_avin->video_comps[pli].xdec;
-    iplane->ydec=_avin->video_comps[pli].ydec;
+    iplane->xdec=_avin->video_plane_info[pli].xdec;
+    iplane->ydec=_avin->video_plane_info[pli].ydec;
     iplane->xstride=1;
     iplane->ystride=_avin->video_pic_w+(1<<iplane->xdec)-1>>iplane->xdec;
     iplane->data=_ogg_malloc(iplane->ystride*
@@ -625,8 +623,9 @@ int main(int _argc,char **_argv){
     di.frame_duration=1;
     di.pixel_aspect_numerator=avin.video_par_n;
     di.pixel_aspect_denominator=avin.video_par_d;
-    di.ncomps=avin.video_ncomps;
-    di.comps=avin.video_comps;
+    di.nplanes=avin.video_nplanes;
+    memcpy(di.plane_info,avin.video_plane_info,
+     di.nplanes*sizeof(*di.plane_info));
     /*TODO: Other crap.*/
     dd=daala_encode_alloc(&di);
     daala_info_clear(&di);

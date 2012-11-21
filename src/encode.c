@@ -147,12 +147,12 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
      size.*/
   if(_img->width!=_enc->state.info.frame_width||
    _img->height!=_enc->state.info.frame_height||
-   _img->nplanes!=_enc->state.info.ncomps){
+   _img->nplanes!=_enc->state.info.nplanes){
     return OD_EINVAL;
   }
   for(pli=0;pli<_img->nplanes;pli++){
-    if(_img->planes[pli].xdec!=_enc->state.info.comps[pli].xdec||
-     _img->planes[pli].ydec!=_enc->state.info.comps[pli].ydec){
+    if(_img->planes[pli].xdec!=_enc->state.info.plane_info[pli].xdec||
+     _img->planes[pli].ydec!=_enc->state.info.plane_info[pli].ydec){
       return OD_EINVAL;
     }
   }
