@@ -129,6 +129,8 @@ typedef struct od_img           od_img;
 typedef struct daala_plane_info daala_plane_info;
 typedef struct daala_info       daala_info;
 
+const char *daala_version_string(void);
+
 struct od_img_plane{
   unsigned char *data;
   unsigned char  xdec;

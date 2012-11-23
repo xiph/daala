@@ -37,9 +37,25 @@ int daala_encode_flush_header(daala_enc_ctx *_enc,daala_comment *_dc,
       _op->b_o_s=1;
     }break;
     case OD_PACKET_COMMENT_HDR:{
+      const char   *vendor;
+      ogg_uint32_t  vendor_len;
+      int           ci;
       oggbyte_reset(&_enc->obb);
       oggbyte_write1(&_enc->obb,0x81);
       oggbyte_writecopy(&_enc->obb,"daala",5);
+      vendor=daala_version_string();
+      vendor_len=strlen(vendor);
+      oggbyte_write4(&_enc->obb,vendor_len);
+      oggbyte_writecopy(&_enc->obb,vendor,vendor_len);
+      oggbyte_write4(&_enc->obb,_dc->comments);
+      for(ci=0;ci<_dc->comments;ci++){
+        if(_dc->user_comments[ci]!=NULL){
+          oggbyte_write4(&_enc->obb,_dc->comment_lengths[ci]);
+          oggbyte_writecopy(&_enc->obb,_dc->user_comments[ci],
+           _dc->comment_lengths[ci]);
+        }
+        else oggbyte_write4(&_enc->obb,0);
+      }
       _op->b_o_s=0;
     }break;
     case OD_PACKET_SETUP_HDR:{

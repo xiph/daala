@@ -153,7 +153,7 @@ void oggbyte_write4(oggbyte_buffer *_b,ogg_uint32_t _value){
   *(_b->ptr++)=(unsigned char)_value;
 }
 
-void oggbyte_writecopy(oggbyte_buffer *_b,void *_source,long _bytes){
+void oggbyte_writecopy(oggbyte_buffer *_b,const void *_source,long _bytes){
   ptrdiff_t endbyte;
   endbyte=_b->ptr-_b->buf;
   if(endbyte+_bytes>_b->storage){

@@ -104,7 +104,7 @@ void oggbyte_writeinit(oggbyte_buffer *_b);
 void oggbyte_writetrunc(oggbyte_buffer *_b,long _bytes);
 void oggbyte_write1(oggbyte_buffer *_b,unsigned _value);
 void oggbyte_write4(oggbyte_buffer *_b,ogg_uint32_t _value);
-void oggbyte_writecopy(oggbyte_buffer *_b,void *_source,long _bytes);
+void oggbyte_writecopy(oggbyte_buffer *_b,const void *_source,long _bytes);
 void oggbyte_writeclear(oggbyte_buffer *_b);
 /*Decoding functions.*/
 void oggbyte_readinit(oggbyte_buffer *_b,unsigned char *_buf,long _bytes);
