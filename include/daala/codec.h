@@ -54,28 +54,25 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 extern "C" {
 #endif
 
-/* define __GNUC_PREREQ() in case the compiler doesn't */
-# if !defined(__GNUC_PREREQ)
-#  if defined(__GNUC__)&&defined(__GNUC_MINOR__)
-#   define __GNUC_PREREQ(_maj,_min) \
-   ((__GNUC__<<16)+__GNUC_MINOR__>=((_maj)<<16)+(_min))
-#  else
-#   define __GNUC_PREREQ(_maj,_min) 0
-#  endif
+# if defined(__GNUC__)&&defined(__GNUC_MINOR__)
+#  define OD_GNUC_PREREQ(_maj,_min) \
+  ((__GNUC__<<16)+__GNUC_MINOR__>=((_maj)<<16)+(_min))
+# else
+#  define OD_GNUC_PREREQ(_maj,_min) 0
 # endif
 
-#if __GNUC_PREREQ(4,0)
+#if OD_GNUC_PREREQ(4,0)
 # pragma GCC visibility push(default)
 #endif
 
-#if __GNUC_PREREQ(3, 4)
-# define OD_WARN_UNUSED_RESULT __attribute__ ((__warn_unused_result__))
+#if OD_GNUC_PREREQ(3, 4)
+# define OD_WARN_UNUSED_RESULT __attribute__((__warn_unused_result__))
 #else
 # define OD_WARN_UNUSED_RESULT
 #endif
 
-#if __GNUC_PREREQ(3, 4)
-# define OD_ARG_NONNULL(_x)  __attribute__ ((__nonnull__(_x)))
+#if OD_GNUC_PREREQ(3, 4)
+# define OD_ARG_NONNULL(_x) __attribute__((__nonnull__(_x)))
 #else
 # define OD_ARG_NONNULL(_x)
 #endif

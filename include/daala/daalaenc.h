@@ -31,7 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #if defined(__cplusplus)
 extern "C" {
 #endif
-#if __GNUC_PREREQ(4,0)
+#if OD_GNUC_PREREQ(4,0)
 # pragma GCC visibility push(default)
 #endif
 
@@ -141,7 +141,7 @@ extern void daala_encode_free(daala_enc_ctx *_enc);
 /*@}*/
 /*@}*/
 
-#if __GNUC_PREREQ(4,0)
+#if OD_GNUC_PREREQ(4,0)
 # pragma GCC visibility pop
 #endif
 #if defined(__cplusplus)
