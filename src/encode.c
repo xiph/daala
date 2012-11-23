@@ -72,6 +72,9 @@ void daala_encode_free(daala_enc_ctx *_enc){
 }
 
 int daala_encode_ctl(daala_enc_ctx *_enc,int _req,void *_buf,size_t _buf_sz){
+  (void)_enc;
+  (void)_buf;
+  (void)_buf_sz;
   switch(_req){
     default:return OD_EIMPL;
   }

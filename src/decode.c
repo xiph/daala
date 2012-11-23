@@ -32,6 +32,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 static int od_dec_init(od_dec_ctx *_dec,const daala_info *_info,
  const daala_setup_info *_setup){
   int ret;
+  (void)_setup;
   ret=od_state_init(&_dec->state,_info);
   if(ret<0)return ret;
   _dec->packet_state=OD_PACKET_INFO_HDR;
@@ -63,6 +64,9 @@ void daala_decode_free(daala_dec_ctx *_dec){
 
 int daala_decode_ctl(daala_dec_ctx *_dec,int _req,void *_buf,
  size_t _buf_sz){
+  (void)_dec;
+  (void)_buf;
+  (void)_buf_sz;
   switch(_req){
     default:return OD_EIMPL;
   }
