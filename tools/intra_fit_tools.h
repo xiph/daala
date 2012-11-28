@@ -54,7 +54,7 @@ typedef int (*plane_finish_func)(void *_ctx);
 
 /*Computes the starting offset and number of blocks which can be intra
    predicted with full context (i.e., all of their neighbors) available.*/
-void get_intra_dims(const th_info *_ti,int _pli,
+void get_intra_dims(const th_info *_ti,int _pli,int _padding,
  int *_x0,int *_y0,int *_nxblocks,int *_nyblocks);
 
 char *get_map_filename(const char *_name,int _pli,int _nxblocks,int _nyblocks);
@@ -63,5 +63,11 @@ char *get_weights_filename(const char *_name,
 
 int apply_to_blocks(void *_ctx,plane_start_func _start,block_func _block,
  plane_finish_func _finish,int _argc,const char **_argv);
+int apply_to_blocks2(void *_ctx,int _padding,plane_start_func _start,
+ const block_func *_blocks,int _nfuncs,plane_finish_func _finish,int _plmask,
+ int _argc,const char **_argv);
+
+void vp8_intra_predict(unsigned char *_dst,int _dst_stride,
+ const unsigned char *_src,int _src_stride,int _mode);
 
 #endif

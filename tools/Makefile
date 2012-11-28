@@ -28,7 +28,7 @@ CINCLUDE = `pkg-config theoradec ogg libpng --cflags`
 CFLAGS = -Wall -Wno-parentheses -Wno-overlength-strings -Wno-long-long
 CFLAGS += -std=c89 -pedantic
 CFLAGS += -O3
-#CFLAGS += -g
+CFLAGS += -g
 
 LIBSRCDIR=../src
 WORKDIR=build
@@ -97,6 +97,27 @@ IIM_CSOURCES:=${IIM_LOCAL_CSOURCES} ${IIM_LOCAL_CSOURCES:%=${LIBSRCDIR}/%}
 IIM_TARGET:=init_intra_maps
 
 
+#intra_stats
+IS_LOCAL_CSOURCES = \
+intra_stats.c \
+intra_fit_tools.c \
+vidinput.c \
+image.c
+
+IS_LIB_CSOURCES = \
+filter.c \
+newdct.c \
+intra.c \
+intradata.c
+
+IS_LDFLAGS = `pkg-config theoradec ogg libpng --libs` -lm
+
+IS_OBJS:=${IS_LOCAL_CSOURCES} ${IS_LIB_CSOURCES}
+IS_OBJS:=${IS_OBJS:%.c=${WORKDIR}/%.o}
+IS_CSOURCES:=${IS_LOCAL_CSOURCES} ${IS_LOCAL_CSOURCES:%=${LIBSRCDIR}/%}
+IS_TARGET:=intra_stats
+
+
 #init_intra_xform
 IIX_LOCAL_CSOURCES = \
 cholesky.c \
@@ -135,14 +156,15 @@ GEN_CDF_TARGET:=gen_cdf
 
 
 ALL_OBJS:=${P2Y_OBJS} ${Y2P_OBJS} ${PIM_OBJS} ${IIM_OBJS} ${IIX_OBJS} \
- ${GEN_CDF_OBJS}
+ ${GEN_CDF_OBJS} ${IS_OBJS}
 
 ALL_ASMS:=${ALL_OBJS:%.o=%.s}
 
 ALL_DEPS:=${ALL_OBJS:%.o=%.d}
 
 ALL_TARGETS:=${P2Y_TARGET} ${Y2P_TARGET} \
- ${PIM_TARGET} ${IIM_TARGET} ${IIX_TARGET} ${GEN_CDF_TARGET}
+ ${PIM_TARGET} ${IIM_TARGET} ${IIX_TARGET} ${GEN_CDF_TARGET} \
+ ${IS_TARGET} 
 
 all: ${ALL_TARGETS}
 
@@ -166,6 +188,9 @@ ${PIM_TARGET}: ${PIM_OBJS}
 
 ${IIM_TARGET}: ${IIM_OBJS}
 	${CC} ${CFLAGS} ${IIM_OBJS} ${IIM_LDFLAGS} -o $@
+
+${IS_TARGET}: ${IS_OBJS}
+	${CC} ${CFLAGS} ${IS_OBJS} ${IS_LDFLAGS} -o $@
 
 ${IIX_TARGET}: ${IIX_OBJS}
 	${CC} ${CFLAGS} ${IIX_OBJS} ${IIX_LDFLAGS} -o $@

@@ -23,16 +23,28 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "dct.h"
 
-const od_dct_func OD_FDCT_2D[OD_NBSIZES]={
+const od_dct_func_2d OD_FDCT_2D[OD_NBSIZES]={
   od_bin_fdct4x4,
   od_bin_fdct8x8,
   od_bin_fdct16x16
 };
 
-const od_dct_func OD_IDCT_2D[OD_NBSIZES]={
+const od_dct_func_2d OD_IDCT_2D[OD_NBSIZES]={
   od_bin_idct4x4,
   od_bin_idct8x8,
   od_bin_idct16x16
+};
+
+const od_fdct_func_1d OD_FDCT_1D[OD_NBSIZES]={
+  od_bin_fdct4,
+  od_bin_fdct8,
+  od_bin_fdct16
+};
+
+const od_idct_func_1d OD_IDCT_1D[OD_NBSIZES]={
+  od_bin_idct4,
+  od_bin_idct8,
+  od_bin_idct16
 };
 
 /*This should translate directly to 3 or 4 instructions for a constant _b:

@@ -35,6 +35,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 extern const double OD_INTRA_PRED_WEIGHTS_4x4[OD_INTRA_NMODES][4][4][2*4][2*4];
 extern const unsigned char OD_INTRA_PRED_PROB_4x4[3][OD_INTRA_NMODES][OD_INTRA_NCONTEXTS];
 
+void od_intra_pred4x4_mult(const od_coeff *_c,int _stride,int _mode,double *_p);
 
 /*Applies intra prediction to a 4x4 block of coefficients at _c, using
    UL, U, and L blocks of reconstructed 4x4 coefficients.

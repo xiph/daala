@@ -69,11 +69,21 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
    inputs in the range [-256,255) will produce outputs in the range
    [-1024,1023).*/
 
-typedef void (*od_dct_func)(od_coeff *_out,int _out_stride,
+typedef void (*od_dct_func_2d)(od_coeff *_out,int _out_stride,
  const od_coeff *_in,int _in_stride);
 
-extern const od_dct_func OD_FDCT_2D[OD_NBSIZES];
-extern const od_dct_func OD_IDCT_2D[OD_NBSIZES];
+typedef void (*od_fdct_func_1d)(od_coeff *_out,const od_coeff *_in,
+ int _in_stride);
+
+typedef void (*od_idct_func_1d)(od_coeff *_out,int _out_stride,
+ const od_coeff *_in);
+
+extern const od_dct_func_2d OD_FDCT_2D[OD_NBSIZES];
+extern const od_dct_func_2d OD_IDCT_2D[OD_NBSIZES];
+
+extern const od_fdct_func_1d OD_FDCT_1D[OD_NBSIZES];
+
+extern const od_idct_func_1d OD_IDCT_1D[OD_NBSIZES];
 
 static const unsigned char od_zig4[16]={0,1,5,6,2,4,7,12,3,8,11,13,9,10,14,15};
 
@@ -90,7 +100,7 @@ void od_bin_fdct4(od_coeff _y[4],const od_coeff *_x,int _xstride);
             This may be the same as the source.
   _xstride: The stride of the destination.
   _y:       The source vector (of size 4).*/
-void od_bin_idct4(od_coeff _x[4],int _xstride,const od_coeff _y[]);
+void od_bin_idct4(od_coeff *_x,int _xstride,const od_coeff _y[4]);
 
 void od_bin_fdct4x4(od_coeff *_y,int _ystride,const od_coeff *_x,int _xstride);
 void od_bin_idct4x4(od_coeff *_x,int _xstride,const od_coeff *_y,int _ystride);

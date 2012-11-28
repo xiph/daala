@@ -331,3 +331,78 @@ void od_rgba16_image_draw_line(od_rgba16_image *_this,
 void od_rgba16_image_clear(od_rgba16_image *_this){
   _ogg_free(_this->data);
 }
+
+void od_rgba16_from_hue(od_rgba16_pixel _color,int _hue){
+  int            h;
+  int            i;
+  int            f;
+  int            y;
+  h=_hue%HUE_MAX;
+  if(h<0)h+=HUE_MAX;
+  i=h/0xFFFF;
+  f=h-i*0xFFFF;
+  y=(0xFFFFU*f+0x7FFFU)/0xFFFFU;
+  switch(i){
+    case 0:{
+      _color[0]=(unsigned short)0xFFFFU;
+      _color[1]=(unsigned short)y;
+      _color[2]=0;
+      _color[3]=(unsigned short)0xFFFFU;
+    }break;
+    case 1:{
+      _color[0]=(unsigned short)(0xFFFFU-y);
+      _color[1]=(unsigned short)0xFFFFU;
+      _color[2]=0;
+      _color[3]=(unsigned short)0xFFFFU;
+    }break;
+    case 2:{
+      _color[0]=0;
+      _color[1]=(unsigned short)0xFFFFU;
+      _color[2]=(unsigned short)y;
+      _color[3]=(unsigned short)0xFFFFU;
+    }break;
+    case 3:{
+      _color[0]=0;
+      _color[1]=(unsigned short)(0xFFFFU-y);
+      _color[2]=(unsigned short)0xFFFFU;
+      _color[3]=(unsigned short)0xFFFFU;
+    }break;
+    case 4:{
+      _color[0]=(unsigned short)y;
+      _color[1]=0;
+      _color[2]=(unsigned short)0xFFFFU;
+      _color[3]=(unsigned short)0xFFFFU;
+    }break;
+    default:{
+      _color[0]=(unsigned short)0xFFFFU;
+      _color[1]=0;
+      _color[2]=(unsigned short)(0xFFFFU-y);
+      _color[3]=(unsigned short)0xFFFFU;
+    }break;
+  }
+}
+
+void intra_map_colors(od_rgba16_pixel *_colors,int _mapi_max){
+  /*The first mode is always DC mode; use black.*/
+  _colors[0][0]=(unsigned short)0x0000U;
+  _colors[0][1]=(unsigned short)0x0000U;
+  _colors[0][2]=(unsigned short)0x0000U;
+  _colors[0][3]=(unsigned short)0xFFFFU;
+  if(_mapi_max>1){
+    /*The second mode is the "True Motion" mode; use white.*/
+    _colors[1][0]=(unsigned short)0xFFFFU;
+    _colors[1][1]=(unsigned short)0xFFFFU;
+    _colors[1][2]=(unsigned short)0xFFFFU;
+    _colors[1][3]=(unsigned short)0xFFFFU;
+    /*Pull out fully saturated colors from the color wheel for all the
+       directional modes.*/
+    if(_mapi_max>2){
+      int dhue;
+      int mapi;
+      dhue=HUE_MAX/(_mapi_max-2);
+      for(mapi=2;mapi<_mapi_max;mapi++){
+        od_rgba16_from_hue(_colors[mapi],dhue*(mapi-2));
+      }
+    }
+  }
+}

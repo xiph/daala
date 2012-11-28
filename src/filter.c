@@ -139,21 +139,28 @@ extern int maxv[32];
 #define _Check(_val,_idx)
 #endif
 
-#if 1
-/*optimal cg*/
+/*Optimal coding gain without dyadic rational restrictions: 8.60382 dB.
+  S={1.4688242104187466,1.4228174370096593},
+  0={0.6327939473953134,-0.18276680703263349}
+  8-bit coding gain: 8.59848 dB
+  S={47/32,357/256}, 0={81/128,-1/8}
+  7-bit coding gain: same as 6-bit
+  6-bit coding gain: 8.59689 dB
+  S={23/16,93/64}, 0={41/64,-1/4}
+  5-bit coding gain: 8.55956 dB
+  S={13/8,47/32}, 0={19/32,-1/4}
+  4-bit coding gain: 8.53007 dB
+  S={5/4,23/16}, 0={11/16,-1/4}
+		
+		Magic gmaxwell values: S={112,90} 0={-8,36}/64*/
+
+/*R=f
+  6-bit s0=1.42175, s1=1.328125, p0=-0.171875, u0=0.5625
+  Cg = 8.63473 dB, SBA = 22.0331*/
+static const int OD_FILTER_PARAMS4[4]={91,85,-11,36};
+static const int OD_FILTER_PARAMS4_RAMP[4]={92,93,-16,41};
+
 void od_pre_filter4(od_coeff _y[4],const od_coeff _x[4]){
-   /*Optimal coding gain without dyadic rational restrictions: 8.60382 dB.
-     S={1.4688242104187466,1.4228174370096593},
-     0={0.6327939473953134,-0.18276680703263349}
-     8-bit coding gain: 8.59848 dB
-     S={47/32,357/256}, 0={81/128,-1/8}
-     7-bit coding gain: same as 6-bit
-     6-bit coding gain: 8.59689 dB
-     S={23/16,93/64}, 0={41/64,-1/4}
-     5-bit coding gain: 8.55956 dB
-     S={13/8,47/32}, 0={19/32,-1/4}
-     4-bit coding gain: 8.53007 dB
-     S={5/4,23/16}, 0={11/16,-1/4}*/
    int t[4];
    /*+1/-1 butterflies (required for FIR, PR, LP).*/
    t[3]=_x[0]-_x[3];
@@ -167,16 +174,20 @@ void od_pre_filter4(od_coeff _y[4],const od_coeff _x[4]){
      This step ensures that the scaling is trivially invertible on the decoder's
       side, with perfect reconstruction.*/
    _Check(t[2],0);
-   t[2]=t[2]*5>>2;      /*s0= 1.47093*/
+   /*s0*/
+   t[2]=t[2]*OD_FILTER_PARAMS4[0]>>6;
    t[2]+=-t[2]>>15&1;
    _Check(t[3],1);
-   t[3]=t[3]*23>>4;     /*s1= 1.42128*/
+   /*s1*/
+   t[3]=t[3]*OD_FILTER_PARAMS4[1]>>6;
    t[3]+=-t[3]>>15&1;
    /*Rotation:*/
    _Check(t[2],2);
-   t[3]-=t[2]+2>>2;     /*p0=-0.179364*/
+   /*p0*/
+   t[3]+=t[2]*OD_FILTER_PARAMS4[2]+32>>6;
    _Check(t[3],3);
-   t[2]+=t[3]*11+8>>4;  /*u0= 0.632267*/
+   /*u0*/
+   t[2]+=t[3]*OD_FILTER_PARAMS4[3]+32>>6;
    /*More +1/-1 butterflies (required for FIR, PR, LP).*/
    t[0]+=t[3]>>1;
    _y[0]=(od_coeff)t[0];
@@ -186,16 +197,17 @@ void od_pre_filter4(od_coeff _y[4],const od_coeff _x[4]){
    _y[3]=(od_coeff)(t[0]-t[3]);
 }
 
+/* p=-44/64 q=16/64 s=92/64 s1=80/64 */
 void od_post_filter4(od_coeff _x[4],const od_coeff _y[4]){
    int t[4];
    t[3]=_y[0]-_y[3];
    t[2]=_y[1]-_y[2];
    t[1]=_y[1]-(t[2]>>1);
    t[0]=_y[0]-(t[3]>>1);
-   t[2]-=t[3]*11+8>>4;
-   t[3]+=t[2]+2>>2;
-   t[3]=(t[3]<<4)/23;
-   t[2]=(t[2]<<2)/5;
+   t[2]-=t[3]*OD_FILTER_PARAMS4[3]+32>>6;
+   t[3]-=t[2]*OD_FILTER_PARAMS4[2]+32>>6;
+   t[3]=(t[3]<<6)/OD_FILTER_PARAMS4[1];
+   t[2]=(t[2]<<6)/OD_FILTER_PARAMS4[0];
    t[0]+=t[3]>>1;
    _x[0]=(od_coeff)t[0];
    t[1]+=t[2]>>1;
@@ -203,203 +215,6 @@ void od_post_filter4(od_coeff _x[4],const od_coeff _y[4]){
    _x[2]=(od_coeff)(t[1]-t[2]);
    _x[3]=(od_coeff)(t[0]-t[3]);
 }
-#elif 0
-/*optimal sba*/
-void od_pre_filter4(od_coeff _y[4],const od_coeff _x[4]){
-   /*Optimal coding gain without dyadic rational restrictions: 8.60382 dB.
-     S={1.4688242104187466,1.4228174370096593},
-     0={0.6327939473953134,-0.18276680703263349}
-     8-bit coding gain: 8.59848 dB
-     S={47/32,357/256}, 0={81/128,-1/8}
-     7-bit coding gain: same as 6-bit
-     6-bit coding gain: 8.59689 dB
-     S={23/16,93/64}, 0={41/64,-1/4}
-     5-bit coding gain: 8.55956 dB
-     S={13/8,47/32}, 0={19/32,-1/4}
-     4-bit coding gain: 8.53007 dB
-     S={5/4,23/16}, 0={11/16,-1/4}*/
-   int t[4];
-   /*+1/-1 butterflies (required for FIR, PR, LP).*/
-   t[3]=_x[0]-_x[3];
-   t[2]=_x[1]-_x[2];
-   t[1]=_x[1]-(t[2]>>1);
-   t[0]=_x[0]-(t[3]>>1);
-   /*U filter (arbitrary invertible, omitted).*/
-   /*V filter (arbitrary invertible).*/
-   /*Scaling factors: the biorthogonal part.*/
-   /*Note: t[i]+=t[i]>>15&1 is equivalent to: if(t[i]>0)t[i]++
-     This step ensures that the scaling is trivially invertible on the decoder's
-      side, with perfect reconstruction.*/
-   _Check(t[2],0);
-   t[2]=t[2]*17>>3;      /*s0= 136/64*/
-   t[2]+=-t[2]>>15&1;
-   _Check(t[3],1);
-   t[3]=t[3]*91>>6;     /*s1= 91/64*/
-   t[3]+=-t[3]>>15&1;
-   /*Rotation:*/
-   _Check(t[2],2);
-   t[3]-=t[2]+4>>3;     /*p0=-8/64*/
-   _Check(t[3],3);
-   t[2]+=t[3]*15+16>>5;  /*u0=30/64*/
-   /*More +1/-1 butterflies (required for FIR, PR, LP).*/
-   t[0]+=t[3]>>1;
-   _y[0]=(od_coeff)t[0];
-   t[1]+=t[2]>>1;
-   _y[1]=(od_coeff)t[1];
-   _y[2]=(od_coeff)(t[1]-t[2]);
-   _y[3]=(od_coeff)(t[0]-t[3]);
-}
-
-
-void od_post_filter4(od_coeff _x[4],const od_coeff _y[4]){
-   int t[4];
-   t[3]=_y[0]-_y[3];
-   t[2]=_y[1]-_y[2];
-   t[1]=_y[1]-(t[2]>>1);
-   t[0]=_y[0]-(t[3]>>1);
-   t[2]-=t[3]*15+16>>5;
-   t[3]+=t[2]+4>>3;
-   t[3]=(t[3]<<6)/91;
-   t[2]=(t[2]<<3)/17;
-   t[0]+=t[3]>>1;
-   _x[0]=(od_coeff)t[0];
-   t[1]+=t[2]>>1;
-   _x[1]=(od_coeff)t[1];
-   _x[2]=(od_coeff)(t[1]-t[2]);
-   _x[3]=(od_coeff)(t[0]-t[3]);
-}
-#elif 1
-/*optimal cg no-ramp false*/
-void od_pre_filter4(od_coeff _y[4],const od_coeff _x[4]){
-   /*Optimal coding gain without dyadic rational restrictions: 8.60382 dB.
-     S={1.4688242104187466,1.4228174370096593},
-     0={0.6327939473953134,-0.18276680703263349}
-     8-bit coding gain: 8.59848 dB
-     S={47/32,357/256}, 0={81/128,-1/8}
-     7-bit coding gain: same as 6-bit
-     6-bit coding gain: 8.59689 dB
-     S={23/16,93/64}, 0={41/64,-1/4}
-     5-bit coding gain: 8.55956 dB
-     S={13/8,47/32}, 0={19/32,-1/4}
-     4-bit coding gain: 8.53007 dB
-     S={5/4,23/16}, 0={11/16,-1/4}*/
-   int t[4];
-   /*+1/-1 butterflies (required for FIR, PR, LP).*/
-   t[3]=_x[0]-_x[3];
-   t[2]=_x[1]-_x[2];
-   t[1]=_x[1]-(t[2]>>1);
-   t[0]=_x[0]-(t[3]>>1);
-   /*U filter (arbitrary invertible, omitted).*/
-   /*V filter (arbitrary invertible).*/
-   /*Scaling factors: the biorthogonal part.*/
-   /*Note: t[i]+=t[i]>>15&1 is equivalent to: if(t[i]>0)t[i]++
-     This step ensures that the scaling is trivially invertible on the decoder's
-      side, with perfect reconstruction.*/
-   _Check(t[2],0);
-   t[2]=t[2]*91>>6;      /*s0= 91/64*/
-   t[2]+=-t[2]>>15&1;
-   _Check(t[3],1);
-   t[3]=t[3]*85>>6;     /*s1= 85/64*/
-   t[3]+=-t[3]>>15&1;
-   /*Rotation:*/
-   _Check(t[2],2);
-   t[3]-=t[2]*11+32>>6;     /*p0=-11/64*/
-   _Check(t[3],3);
-   t[2]+=t[3]*9+8>>4;  /*u0=36/64*/
-   /*More +1/-1 butterflies (required for FIR, PR, LP).*/
-   t[0]+=t[3]>>1;
-   _y[0]=(od_coeff)t[0];
-   t[1]+=t[2]>>1;
-   _y[1]=(od_coeff)t[1];
-   _y[2]=(od_coeff)(t[1]-t[2]);
-   _y[3]=(od_coeff)(t[0]-t[3]);
-}
-
-void od_post_filter4(od_coeff _x[4],const od_coeff _y[4]){
-   int t[4];
-   t[3]=_y[0]-_y[3];
-   t[2]=_y[1]-_y[2];
-   t[1]=_y[1]-(t[2]>>1);
-   t[0]=_y[0]-(t[3]>>1);
-   t[2]-=t[3]*9+8>>4;
-   t[3]+=t[2]*11+32>>6;
-   t[3]=(t[3]<<6)/85;
-   t[2]=(t[2]<<6)/91;
-   t[0]+=t[3]>>1;
-   _x[0]=(od_coeff)t[0];
-   t[1]+=t[2]>>1;
-   _x[1]=(od_coeff)t[1];
-   _x[2]=(od_coeff)(t[1]-t[2]);
-   _x[3]=(od_coeff)(t[0]-t[3]);
-}
-#else
-/* -8,36*/
-void od_pre_filter4(od_coeff _y[4],const od_coeff _x[4]){
-   /*Optimal coding gain without dyadic rational restrictions: 8.60382 dB.
-     S={1.4688242104187466,1.4228174370096593},
-     0={0.6327939473953134,-0.18276680703263349}
-     8-bit coding gain: 8.59848 dB
-     S={47/32,357/256}, 0={81/128,-1/8}
-     7-bit coding gain: same as 6-bit
-     6-bit coding gain: 8.59689 dB
-     S={23/16,93/64}, 0={41/64,-1/4}
-     5-bit coding gain: 8.55956 dB
-     S={13/8,47/32}, 0={19/32,-1/4}
-     4-bit coding gain: 8.53007 dB
-     S={5/4,23/16}, 0={11/16,-1/4}*/
-   int t[4];
-   /*+1/-1 butterflies (required for FIR, PR, LP).*/
-   t[3]=_x[0]-_x[3];
-   t[2]=_x[1]-_x[2];
-   t[1]=_x[1]-(t[2]>>1);
-   t[0]=_x[0]-(t[3]>>1);
-   /*U filter (arbitrary invertible, omitted).*/
-   /*V filter (arbitrary invertible).*/
-   /*Scaling factors: the biorthogonal part.*/
-   /*Note: t[i]+=t[i]>>15&1 is equivalent to: if(t[i]>0)t[i]++
-     This step ensures that the scaling is trivially invertible on the decoder's
-      side, with perfect reconstruction.*/
-   _Check(t[2],0);
-   t[2]=t[2]*7>>2;      /*s0= 112/64*/
-   t[2]+=-t[2]>>15&1;
-   _Check(t[3],1);
-   t[3]=t[3]*45>>5;     /*s1= 90/64*/
-   t[3]+=-t[3]>>15&1;
-   /*Rotation:*/
-   _Check(t[2],2);
-   t[3]-=t[2]+4>>3;     /*p0=-8/64*/
-   _Check(t[3],3);
-   t[2]+=t[3]*9+8>>4;  /*u0=36/64*/
-   /*More +1/-1 butterflies (required for FIR, PR, LP).*/
-   t[0]+=t[3]>>1;
-   _y[0]=(od_coeff)t[0];
-   t[1]+=t[2]>>1;
-   _y[1]=(od_coeff)t[1];
-   _y[2]=(od_coeff)(t[1]-t[2]);
-   _y[3]=(od_coeff)(t[0]-t[3]);
-}
-
-
-void od_post_filter4(od_coeff _x[4],const od_coeff _y[4]){
-   int t[4];
-   t[3]=_y[0]-_y[3];
-   t[2]=_y[1]-_y[2];
-   t[1]=_y[1]-(t[2]>>1);
-   t[0]=_y[0]-(t[3]>>1);
-   t[2]-=t[3]*9+8>>4;
-   t[3]+=t[2]+4>>3;
-   t[3]=(t[3]<<5)/45;
-   t[2]=(t[2]<<2)/7;
-   t[0]+=t[3]>>1;
-   _x[0]=(od_coeff)t[0];
-   t[1]+=t[2]>>1;
-   _x[1]=(od_coeff)t[1];
-   _x[2]=(od_coeff)(t[1]-t[2]);
-   _x[3]=(od_coeff)(t[0]-t[3]);
-}
-
-#endif
-
 
 void od_pre_filter8(od_coeff _y[8],const od_coeff _x[8]){
    int t[8];

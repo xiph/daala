@@ -61,4 +61,10 @@ int od_rgba16_image_write_png(const od_rgba16_image *_this,FILE *_fout);
 
 void od_rgba16_image_clear(od_rgba16_image *_this);
 
+#define HUE_MAX (0xFFFF*6)
+
+void od_rgba16_from_hue(od_rgba16_pixel _color,int _hue);
+
+void intra_map_colors(od_rgba16_pixel *_colors,int _mapi_max);
+
 #endif

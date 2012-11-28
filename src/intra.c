@@ -27,7 +27,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "filter.h"
 #include "intra.h"
 
-static void od_intra_pred4x4_mult(od_coeff *_c,int _stride,int _mode,double *_p) {
+void od_intra_pred4x4_mult(const od_coeff *_c,int _stride,int _mode,double *_p){
   int i;
   int j;
   int k;
@@ -37,7 +37,8 @@ static void od_intra_pred4x4_mult(od_coeff *_c,int _stride,int _mode,double *_p)
       _p[4*i+j]=0;
       for(k=0;k<2*4;k++){
         for(l=0;l<2*4;l++){
-          _p[4*i+j]+=_c[_stride*(k-4)+l-4]*OD_INTRA_PRED_WEIGHTS_4x4[_mode][i][j][k][l];
+          _p[4*i+j]+=
+	   _c[_stride*(k-4)+l-4]*OD_INTRA_PRED_WEIGHTS_4x4[_mode][i][j][k][l];
         }
       }
     }

@@ -28,58 +28,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <ogg/os_types.h>
 #include "image.h"
 
-#define HUE_MAX (0xFFFF*6)
-
-static void rgba16_from_hue(od_rgba16_pixel _color,int _hue){
-  int            h;
-  int            i;
-  int            f;
-  int            y;
-  h=_hue%HUE_MAX;
-  if(h<0)h+=HUE_MAX;
-  i=h/0xFFFF;
-  f=h-i*0xFFFF;
-  y=(0xFFFFU*f+0x7FFFU)/0xFFFFU;
-  switch(i){
-    case 0:{
-      _color[0]=(unsigned short)0xFFFFU;
-      _color[1]=(unsigned short)y;
-      _color[2]=0;
-      _color[3]=(unsigned short)0xFFFFU;
-    }break;
-    case 1:{
-      _color[0]=(unsigned short)(0xFFFFU-y);
-      _color[1]=(unsigned short)0xFFFFU;
-      _color[2]=0;
-      _color[3]=(unsigned short)0xFFFFU;
-    }break;
-    case 2:{
-      _color[0]=0;
-      _color[1]=(unsigned short)0xFFFFU;
-      _color[2]=(unsigned short)y;
-      _color[3]=(unsigned short)0xFFFFU;
-    }break;
-    case 3:{
-      _color[0]=0;
-      _color[1]=(unsigned short)(0xFFFFU-y);
-      _color[2]=(unsigned short)0xFFFFU;
-      _color[3]=(unsigned short)0xFFFFU;
-    }break;
-    case 4:{
-      _color[0]=(unsigned short)y;
-      _color[1]=0;
-      _color[2]=(unsigned short)0xFFFFU;
-      _color[3]=(unsigned short)0xFFFFU;
-    }break;
-    default:{
-      _color[0]=(unsigned short)0xFFFFU;
-      _color[1]=0;
-      _color[2]=(unsigned short)(0xFFFFU-y);
-      _color[3]=(unsigned short)0xFFFFU;
-    }break;
-  }
-}
-
 static int get_dimensions_from_filename(int *_nxblocks,int *_nyblocks,
  const char *_fin_name){
   const char *p;
@@ -114,7 +62,6 @@ int main(int _argc,const char **_argv){
     int              nxblocks;
     int              nyblocks;
     int              mapi_max;
-    int              mapi;
     int              bi;
     int              bj;
     /*Try to extract the map size from the file name.*/
@@ -142,27 +89,7 @@ int main(int _argc,const char **_argv){
     }
     mapi_max++;
     colors=(od_rgba16_pixel *)_ogg_malloc(mapi_max*sizeof(*colors));
-    /*The first mode is always DC mode; use black.*/
-    colors[0][0]=(unsigned short)0x0000U;
-    colors[0][1]=(unsigned short)0x0000U;
-    colors[0][2]=(unsigned short)0x0000U;
-    colors[0][3]=(unsigned short)0xFFFFU;
-    if(mapi_max>1){
-      /*The second mode is the "True Motion" mode; use white.*/
-      colors[1][0]=(unsigned short)0xFFFFU;
-      colors[1][1]=(unsigned short)0xFFFFU;
-      colors[1][2]=(unsigned short)0xFFFFU;
-      colors[1][3]=(unsigned short)0xFFFFU;
-      /*Pull out fully saturated colors from the color wheel for all the
-         directional modes.*/
-      if(mapi_max>2){
-        int dhue;
-        dhue=HUE_MAX/(mapi_max-2);
-        for(mapi=2;mapi<mapi_max;mapi++){
-          rgba16_from_hue(colors[mapi],dhue*(mapi-2));
-        }
-      }
-    }
+    intra_map_colors(colors,mapi_max);
     od_rgba16_image_init(&image,nxblocks,nyblocks);
     for(bj=0;bj<nyblocks;bj++){
       for(bi=0;bi<nxblocks;bi++){
