@@ -633,7 +633,7 @@ static void od_prefilter(od_coeff *_out,int _out_stride,od_coeff *_in,
   }
 }
 
-#if WRITE_BLOCKS
+#if WRITE_IMAGES
 static void od_postfilter(od_coeff *_out,int _out_stride,od_coeff *_in,
  int _in_stride,int _bx,int _by){
   int bx;
