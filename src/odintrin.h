@@ -37,6 +37,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #  endif
 # endif
 
+# if !defined(M_LOG2E)
+#  define M_LOG2E (1.4426950408889634073599246810019)
+# endif
+
 /*Some specific platforms may have optimized intrinsic or inline assembly
    versions of these functions which can substantially improve performance.
   We define macros for them to allow easy incorporation of these non-ANSI
