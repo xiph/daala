@@ -101,6 +101,7 @@ IIM_TARGET:=init_intra_maps
 IS_LOCAL_CSOURCES = \
 intra_stats.c \
 intra_fit_tools.c \
+stats_tools.c \
 vidinput.c \
 image.c
 

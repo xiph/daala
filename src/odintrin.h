@@ -161,6 +161,8 @@ static __inline int od_bsr(unsigned long _x){
 # define OD_ILOG(_x)    (od_ilog(_x))
 #endif
 
+#define OD_LOG2(_x)     (M_LOG2E*log(_x))
+
 /*Swaps two integers _a and _b if _a>_b.*/
 /*#define OD_SORT2I(_a,_b)\
   if((_a)>(_b)){\
