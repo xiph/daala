@@ -2,6 +2,7 @@
 # define _tools_stats_tools_H (1)
 
 #include "intra_fit_tools.h"
+#include "image.h"
 #include "../src/intra.h"
 
 #define INPUT_SCALE (16)
@@ -46,13 +47,35 @@ extern double OD_SCALE[B_SZ];
 void vp8_scale_init(double _vp8_scale[B_SZ]);
 void od_scale_init(double _od_scale[B_SZ]);
 
+int vp8_select_mode(const unsigned char *_data,int _stride,int *_next_best);
+
+extern od_rgba16_pixel COLORS[OD_INTRA_NMODES];
+
+void image_draw_block(od_rgba16_image *_image,int _x,int _y,
+ const unsigned char *_block,int _stride);
+int image_write_png(od_rgba16_image *_image,const char *_name);
+
+typedef struct image_files image_files;
+
+struct image_files{
+  od_rgba16_image raw;
+  od_rgba16_image map;
+  od_rgba16_image pred;
+  od_rgba16_image res;
+};
+
+void image_files_init(image_files *_this,int _nxblocks,int _nyblocks);
+void image_files_clear(image_files *_this);
+
+void image_files_write(image_files *_this,const char *_name,const char *_suf);
+
 typedef struct image_data image_data;
 
 struct image_data{
   const char      *name;
   int              nxblocks;
   int              nyblocks;
-  int             *mode;
+  unsigned char   *mode;
   od_coeff        *pre;
   int              pre_stride;
   od_coeff        *fdct;
@@ -74,7 +97,20 @@ void image_data_pre_block(image_data *_this,const unsigned char *_data,
 void image_data_fdct_block(image_data *_this,int _bi,int _bj);
 void image_data_mode_block(image_data *_this,int _bi,int _bj);
 void image_data_pred_block(image_data *_this,int _bi,int _bj);
+void image_data_stats_block(image_data *_this,const unsigned char *_data,
+ int _stride,int _bi,int _bj,intra_stats *_stats);
 void image_data_idct_block(image_data *_this,int _bi,int _bj);
 void image_data_post_block(image_data *_this,int _bi,int _bj);
+void image_data_files_block(image_data *_this,const unsigned char *_data,
+ int _stride,int _bi,int _bj,image_files *_files);
+
+int image_data_save_map(image_data *_this);
+int image_data_load_map(image_data *_this);
+
+extern double NE_PRED_OFFSETS_4x4[OD_INTRA_NMODES][4][4];
+extern double NE_PRED_WEIGHTS_4x4[OD_INTRA_NMODES][4][4][5][4][4];
+
+void ne_intra_pred4x4_mult(const od_coeff *_c,int _stride,int _mode,double *_p);
+void print_betas();
 
 #endif

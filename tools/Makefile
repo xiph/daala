@@ -119,6 +119,29 @@ IS_CSOURCES:=${IS_LOCAL_CSOURCES} ${IS_LOCAL_CSOURCES:%=${LIBSRCDIR}/%}
 IS_TARGET:=intra_stats
 
 
+#intra_pred
+IP_LOCAL_CSOURCES = \
+intra_pred.c \
+intra_fit_tools.c \
+stats_tools.c \
+vidinput.c \
+image.c \
+svd.c
+
+IP_LIB_CSOURCES = \
+filter.c \
+newdct.c \
+intra.c \
+intradata.c
+
+IP_LDFLAGS = `pkg-config theoradec ogg libpng --libs` -lm
+
+IP_OBJS:=${IP_LOCAL_CSOURCES} ${IP_LIB_CSOURCES}
+IP_OBJS:=${IP_OBJS:%.c=${WORKDIR}/%.o}
+IP_CSOURCES:=${IP_LOCAL_CSOURCES} ${IP_LOCAL_CSOURCES:%=${LIBSRCDIR}/%}
+IP_TARGET:=intra_pred
+
+
 #init_intra_xform
 IIX_LOCAL_CSOURCES = \
 cholesky.c \
@@ -165,7 +188,7 @@ ALL_DEPS:=${ALL_OBJS:%.o=%.d}
 
 ALL_TARGETS:=${P2Y_TARGET} ${Y2P_TARGET} \
  ${PIM_TARGET} ${IIM_TARGET} ${IIX_TARGET} ${GEN_CDF_TARGET} \
- ${IS_TARGET} 
+ ${IS_TARGET} ${IP_TARGET}
 
 all: ${ALL_TARGETS}
 
@@ -192,6 +215,9 @@ ${IIM_TARGET}: ${IIM_OBJS}
 
 ${IS_TARGET}: ${IS_OBJS}
 	${CC} ${CFLAGS} ${IS_OBJS} ${IS_LDFLAGS} -o $@
+
+${IP_TARGET}: ${IP_OBJS}
+	${CC} ${CFLAGS} ${IP_OBJS} ${IP_LDFLAGS} -o $@
 
 ${IIX_TARGET}: ${IIX_OBJS}
 	${CC} ${CFLAGS} ${IIX_OBJS} ${IIX_LDFLAGS} -o $@

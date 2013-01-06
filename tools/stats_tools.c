@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 #include "stats_tools.h"
 #include "../src/dct.h"
 #include "../src/intra.h"
@@ -369,6 +370,126 @@ static void od_idct_blocks(od_coeff *_out,int _out_stride,od_coeff *_in,
   }
 }
 
+#define SCALE_SATD (1)
+
+/* find the best vp8 mode */
+int vp8_select_mode(const unsigned char *_data,int _stride,int *_next_best){
+  double best_satd;
+  double next_best_satd;
+  int    mode;
+  int    best_mode;
+  int    next_best_mode;
+  best_mode=0;
+  best_satd=UINT_MAX;
+  next_best_mode=best_mode;
+  next_best_satd=best_satd;
+  for(mode=0;mode<OD_INTRA_NMODES;mode++){
+    unsigned char block[B_SZ*B_SZ];
+    od_coeff      buf[B_SZ*B_SZ];
+    int           j;
+    int           i;
+    double        satd;
+
+    memset(block,0,B_SZ*B_SZ);
+    vp8_intra_predict(block,B_SZ,_data,_stride,mode);
+    for(j=0;j<B_SZ;j++){
+      for(i=0;i<B_SZ;i++){
+        buf[B_SZ*j+i]=block[B_SZ*j+i]-_data[_stride*j+i];
+      }
+    }
+
+#if B_SZ_LOG>=OD_LOG_BSIZE0&&B_SZ_LOG<OD_LOG_BSIZE0+OD_NBSIZES
+    (*OD_FDCT_2D[B_SZ_LOG-OD_LOG_BSIZE0])(buf,B_SZ,buf,B_SZ);
+#else
+# error "Need an fDCT implementation for this block size."
+#endif
+
+    satd=0;
+    for(j=0;j<B_SZ;j++){
+      for(i=0;i<B_SZ;i++){
+#if SCALE_SATD
+        satd+=sqrt(VP8_SCALE[j]*VP8_SCALE[i])*abs(buf[B_SZ*j+i]);
+#else
+        satd+=abs(buf[B_SZ*j+i]);
+#endif
+      }
+    }
+    if(satd<best_satd){
+      next_best_satd=best_satd;
+      next_best_mode=best_mode;
+      best_satd=satd;
+      best_mode=mode;
+    }
+    else{
+      if(satd<next_best_satd){
+        next_best_satd=satd;
+        next_best_mode=mode;
+      }
+    }
+  }
+
+  if(_next_best!=NULL){
+    *_next_best=next_best_mode;
+  }
+  return best_mode;
+}
+
+od_rgba16_pixel COLORS[OD_INTRA_NMODES];
+
+void image_draw_block(od_rgba16_image *_image,int _x,int _y,
+ const unsigned char *_block,int _stride){
+  od_rgba16_pixel color;
+  int             i;
+  int             j;
+  color[3]=(unsigned short)0xFFFFU;
+  for(i=0;i<B_SZ;i++){
+    for(j=0;j<B_SZ;j++){
+      color[0]=color[1]=color[2]=_block[_stride*i+j]<<8;
+      od_rgba16_image_draw_point(_image,_x+j,_y+i,color);
+    }
+  }
+}
+
+int image_write_png(od_rgba16_image *_image,const char *_name){
+  char  fout_name[8192];
+  FILE *fout;
+  sprintf(fout_name,"%s.png",_name);
+  fout=fopen(fout_name,"wb");
+  if(fout==NULL){
+    fprintf(stderr,"Could not open '%s' for reading.\n",fout_name);
+    return EXIT_FAILURE;
+  }
+  od_rgba16_image_write_png(_image,fout);
+  fclose(fout);
+  return EXIT_SUCCESS;
+}
+
+void image_files_init(image_files *_this,int _nxblocks,int _nyblocks){
+  od_rgba16_image_init(&_this->raw,B_SZ*_nxblocks,B_SZ*_nyblocks);
+  od_rgba16_image_init(&_this->map,_nxblocks,_nyblocks);
+  od_rgba16_image_init(&_this->pred,B_SZ*_nxblocks,B_SZ*_nyblocks);
+  od_rgba16_image_init(&_this->res,B_SZ*_nxblocks,B_SZ*_nyblocks);
+}
+
+void image_files_clear(image_files *_this){
+  od_rgba16_image_clear(&_this->raw);
+  od_rgba16_image_clear(&_this->map);
+  od_rgba16_image_clear(&_this->pred);
+  od_rgba16_image_clear(&_this->res);
+}
+
+void image_files_write(image_files *_this,const char *_name,const char *_suf){
+  char name[8192];
+  sprintf(name,"%s-raw%s",_name,_suf==NULL?"":_suf);
+  image_write_png(&_this->raw,name);
+  sprintf(name,"%s-map%s",_name,_suf==NULL?"":_suf);
+  image_write_png(&_this->map,name);
+  sprintf(name,"%s-pred%s",_name,_suf==NULL?"":_suf);
+  image_write_png(&_this->pred,name);
+  sprintf(name,"%s-res%s",_name,_suf==NULL?"":_suf);
+  image_write_png(&_this->res,name);
+}
+
 void image_data_init(image_data *_this,const char *_name,int _nxblocks,
  int _nyblocks){
   int w;
@@ -376,7 +497,7 @@ void image_data_init(image_data *_this,const char *_name,int _nxblocks,
   _this->name=_name;
   _this->nxblocks=_nxblocks;
   _this->nyblocks=_nyblocks;
-  _this->mode=(int *)malloc(sizeof(*_this->mode)*_nxblocks*_nyblocks);
+  _this->mode=(unsigned char *)malloc(sizeof(*_this->mode)*_nxblocks*_nyblocks);
   w=B_SZ*(_nxblocks+3);
   h=B_SZ*(_nyblocks+3);
   _this->pre=(od_coeff *)malloc(sizeof(*_this->pre)*w*h);
@@ -484,8 +605,6 @@ void image_data_fdct_block(image_data *_this,int _bi,int _bj){
    &_this->pre[y0*_this->pre_stride+x0],_this->pre_stride,bx,by);
 }
 
-#define SCALE_SATD (1)
-
 void image_data_mode_block(image_data *_this,int _bi,int _bj){
   od_coeff *block;
   int       best_mode;
@@ -495,11 +614,15 @@ void image_data_mode_block(image_data *_this,int _bi,int _bj){
   best_mode=0;
   best_satd=UINT_MAX;
   for(mode=0;mode<OD_INTRA_NMODES;mode++){
-    double    p[B_SZ*B_SZ];
-    double    satd;
-    int       i;
-    int       j;
+    double p[B_SZ*B_SZ];
+    double satd;
+    int    i;
+    int    j;
+#if 0
     od_intra_pred4x4_mult(block,_this->fdct_stride,mode,p);
+#else
+    ne_intra_pred4x4_mult(block,_this->fdct_stride,mode,p);
+#endif
     satd=0;
     for(j=0;j<B_SZ;j++){
       for(i=0;i<B_SZ;i++){
@@ -529,11 +652,67 @@ void image_data_pred_block(image_data *_this,int _bi,int _bj){
   int       i;
   mode=_this->mode[_this->nxblocks*_bj+_bi];
   block=&_this->fdct[_this->fdct_stride*B_SZ*(_bj+1)+B_SZ*(_bi+1)];
+#if 0
   od_intra_pred4x4_mult(block,_this->fdct_stride,mode,p);
+#else
+  ne_intra_pred4x4_mult(block,_this->fdct_stride,mode,p);
+#endif
   pred=&_this->pred[_this->pred_stride*B_SZ*_bj+B_SZ*_bi];
   for(j=0;j<B_SZ;j++){
     for(i=0;i<B_SZ;i++){
       pred[_this->pred_stride*j+i]=(od_coeff)floor(p[B_SZ*j+i]+0.5);
+    }
+  }
+}
+
+void image_data_stats_block(image_data *_this,const unsigned char *_data,
+ int _stride,int _bi,int _bj,intra_stats *_stats){
+  int        mode;
+  mode_data *fr;
+  mode_data *md;
+  od_coeff  *pred;
+  od_coeff  *block;
+  int        j;
+  int        i;
+  od_coeff   buf[B_SZ*B_SZ];
+
+  mode=_this->mode[_bj*_this->nxblocks+_bi];
+
+  fr=&_stats->fr;
+  md=&_stats->md[mode];
+
+  fr->n++;
+  md->n++;
+
+  /* update the input mean and variance */
+  mode_data_add_input(fr,_data,_stride);
+  mode_data_add_input(md,_data,_stride);
+
+  /* update the daala reference mean and covariance */
+  block=&_this->fdct[_this->fdct_stride*B_SZ*(_bj+1)+B_SZ*(_bi+1)];
+
+  mode_data_add_block(fr,block,_this->fdct_stride,1);
+  mode_data_add_block(md,block,_this->fdct_stride,1);
+
+  /* update the daala predicted mean and covariance */
+  pred=&_this->pred[_this->pred_stride*B_SZ*_bj+B_SZ*_bi];
+
+  for(j=0;j<B_SZ;j++){
+    for(i=0;i<B_SZ;i++){
+      buf[B_SZ*j+i]=block[_this->fdct_stride*j+i]-pred[_this->pred_stride*j+i];
+    }
+  }
+
+  mode_data_add_block(fr,buf,B_SZ,0);
+  mode_data_add_block(md,buf,B_SZ,0);
+
+  /* update the daala satd */
+  for(j=0;j<B_SZ;j++){
+    for(i=0;i<B_SZ;i++){
+      double satd;
+      satd=abs(buf[B_SZ*j+i]);
+      md->satd_avg[B_SZ*j+i]+=(satd-md->satd_avg[B_SZ*j+i])/md->n;
+      fr->satd_avg[B_SZ*j+i]+=(satd-fr->satd_avg[B_SZ*j+i])/fr->n;
     }
   }
 }
@@ -595,4 +774,155 @@ void image_data_post_block(image_data *_this,int _bi,int _bj){
   }
   od_postfilter(&_this->post[_this->post_stride*y+x],_this->post_stride,
    &_this->idct[_this->idct_stride*y0+x0],_this->idct_stride,bx,by);
+}
+
+void image_data_files_block(image_data *_this,const unsigned char *_data,
+ int _stride,int _bi,int _bj,image_files *_files){
+  int            mode;
+  od_coeff      *p;
+  int            j;
+  int            i;
+  od_coeff       v;
+  unsigned char  buf[B_SZ*B_SZ];
+
+  mode=_this->mode[_bj*_this->nxblocks+_bi];
+
+  od_rgba16_image_draw_point(&_files->map,_bi,_bj,COLORS[mode]);
+
+  p=&_this->pre[_this->pre_stride*(B_SZ*_bj+(3*B_SZ>>1))+B_SZ*_bi+(3*B_SZ>>1)];
+  for(j=0;j<B_SZ;j++){
+    for(i=0;i<B_SZ;i++){
+      v=(p[_this->pre_stride*j+i]+INPUT_SCALE*128+INPUT_SCALE/2)/INPUT_SCALE;
+      buf[B_SZ*j+i]=OD_CLAMPI(0,v,255);
+    }
+  }
+  image_draw_block(&_files->raw,B_SZ*_bi,B_SZ*_bj,buf,B_SZ);
+
+  p=&_this->post[_this->post_stride*(B_SZ*_bj+(B_SZ>>1))+B_SZ*_bi+(B_SZ>>1)];
+  for(j=0;j<B_SZ;j++){
+    for(i=0;i<B_SZ;i++){
+      v=(p[_this->post_stride*j+i]+INPUT_SCALE*128+INPUT_SCALE/2)/INPUT_SCALE;
+      buf[B_SZ*j+i]=OD_CLAMPI(0,v,255);
+    }
+  }
+  image_draw_block(&_files->pred,B_SZ*_bi,B_SZ*_bj,buf,B_SZ);
+
+  for(j=0;j<B_SZ;j++){
+    for(i=0;i<B_SZ;i++){
+      buf[B_SZ*j+i]=abs(_data[_stride*j+i]-buf[B_SZ*j+i]);
+    }
+  }
+  image_draw_block(&_files->res,B_SZ*_bi,B_SZ*_bj,buf,B_SZ);
+}
+
+int image_data_save_map(image_data *_this){
+  char  name[8196];
+  int   eos;
+  FILE *fout;
+  strcpy(name,_this->name);
+  eos=strlen(name)-4;
+  sprintf(&name[eos],".map");
+  fout=fopen(name,"wb");
+  if(fout==NULL){
+    fprintf(stderr,"Error opening output file '%s'.\n",name);
+    return EXIT_FAILURE;
+  }
+  if(fwrite(_this->mode,_this->nxblocks*(size_t)_this->nyblocks,1,fout)<1){
+    fprintf(stderr,"Error writing to output file '%s'.\n",name);
+    return EXIT_FAILURE;
+  }
+  fclose(fout);
+  return EXIT_SUCCESS;
+}
+
+int image_data_load_map(image_data *_this){
+  char  name[8196];
+  int   eos;
+  FILE *fin;
+  strcpy(name,_this->name);
+  eos=strlen(name)-4;
+  sprintf(&name[eos],".map");
+  fin=fopen(name,"rb");
+  if(fin==NULL){
+    fprintf(stderr,"Error opening input file '%s'.\n",name);
+    return EXIT_FAILURE;
+  }
+  if(fread(_this->mode,_this->nxblocks*(size_t)_this->nyblocks,1,fin)<1) {
+    fprintf(stderr,"Error reading from input file '%s'.\n",name);
+    return EXIT_FAILURE;
+  }
+  fclose(fin);
+  return EXIT_SUCCESS;
+}
+
+double NE_PRED_OFFSETS_4x4[OD_INTRA_NMODES][4][4];
+double NE_PRED_WEIGHTS_4x4[OD_INTRA_NMODES][4][4][5][4][4];
+
+void ne_intra_pred4x4_mult(const od_coeff *_c,int _stride,int _mode,double *_p){
+  int j;
+  int i;
+  int by;
+  int bx;
+  int k;
+  int l;
+  for(j=0;j<4;j++){
+    for(i=0;i<4;i++){
+      _p[4*j+i]=NE_PRED_OFFSETS_4x4[_mode][j][i];
+      for(by=0;by<=1;by++){
+        for(bx=0;bx<=2;bx++){
+	  const od_coeff *b;
+          if(by==1&&bx==2){
+            break;
+          }
+	  b=&_c[_stride*4*(by-1)+4*(bx-1)];
+          for(k=0;k<4;k++){
+            for(l=0;l<4;l++){
+              _p[4*j+i]+=
+               b[_stride*k+l]*NE_PRED_WEIGHTS_4x4[_mode][j][i][3*by+bx][k][l];
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+void print_betas(){
+  int m;
+  int i;
+  int j;
+  int k;
+  int l;
+  int bx;
+  int by;
+  for(m=0;m<OD_INTRA_NMODES;m++){
+    fprintf(stderr,"/* Mode %i */\n{\n",m);
+    for(j=0;j<B_SZ;j++){
+      for(i=0;i<B_SZ;i++){
+        fprintf(stderr,"%- 24.18G",NE_PRED_OFFSETS_4x4[m][j][i]);
+      }
+    }
+    fprintf(stderr,"}\n");
+    for(j=0;j<B_SZ;j++){
+      for(i=0;i<B_SZ;i++){
+        fprintf(stderr,"/* Mode %i (%i,%i) */\n{\n",m,i,j);
+        for(by=0;by<=1;by++){
+          for(k=0;k<B_SZ;k++){
+            fprintf(stderr,"  {");
+            for(bx=0;bx<=2;bx++){
+              if(by==1&&bx==2){
+                break;
+              }
+              for(l=0;l<B_SZ;l++){
+                fprintf(stderr,"%- 24.18G",NE_PRED_WEIGHTS_4x4[j][i][m][3*by+bx][k][l]);
+              }
+              fprintf(stderr,"   ");
+            }
+            fprintf(stderr,"}\n");
+          }
+        }
+      }
+    }
+    fprintf(stderr,"\n");
+  }
 }
