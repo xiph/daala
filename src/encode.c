@@ -315,37 +315,35 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
   generic_model_init(&model_ym);
   /*TODO: Encode image.*/
   for(pli=0;pli<nplanes;pli++){
-    ogg_uint16_t   mode_p0[OD_INTRA_NMODES];
-    ogg_int64_t    mc_sqerr;
-    ogg_int64_t    enc_sqerr;
-    ogg_uint32_t   npixels;
-    od_coeff      *ctmp;
-    unsigned char *data;
-    char          *modes;
-    int            ystride;
-    int            xdec;
-    int            ydec;
-    int            i;
-    int            x;
-    int            y;
-    int            w;
-    int            h;
-    int            ex_dc;
-    int            ex_g;
-    int            ex_ym;
-    int            anum;
-    int            aden;
-    int            au;
+    od_pvq_adapt_ctx *pvq_adapt_row;
+    ogg_uint16_t      mode_p0[OD_INTRA_NMODES];
+    ogg_int64_t       mc_sqerr;
+    ogg_int64_t       enc_sqerr;
+    ogg_uint32_t      npixels;
+    od_coeff         *ctmp;
+    unsigned char    *data;
+    char             *modes;
+    int               ystride;
+    int               xdec;
+    int               ydec;
+    int               nhbs;
+    int               bj;
+    int               i;
+    int               x;
+    int               y;
+    int               w;
+    int               h;
+    int               ex_dc;
+    int               ex_g;
+    int               ex_ym;
 #ifdef OD_DPCM
-    int            err_accum;
+    int               err_accum;
     err_accum=0;
 #endif
     ex_dc=pli>0?8:32768;
     ex_g=8;
     ex_ym=8;
-    anum=650*4;
-    aden=256*4;
-    au=30<<4;
+    pvq_adapt_row=_enc->state.pvq_adapt_row[pli];
     /*TODO: Use picture dimensions, not frame dimensions.*/
     xdec=_enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
     ydec=_enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
@@ -380,27 +378,46 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
       }
     }
 #endif
+    nhbs=frame_width>>xdec+2;
+    for(bj=0;bj<nhbs;bj++){
+      pvq_adapt_row[bj].mean_k_q8=OD_K_ROW_INIT_Q8;
+      pvq_adapt_row[bj].mean_sum_ex_q8=OD_SUM_EX_ROW_INIT_Q8;
+#if !defined(OD_DISABLE_PVQ_CODE1)
+      pvq_adapt_row[bj].mean_pos_q4=OD_POS_ROW_INIT_Q4;
+#endif
+    }
     /*FDCT 4x4 blocks*/
     for(y=0;y<h;y+=4){
-      for(x=0;x<w;x+=4){
-        od_coeff pred[4*4];
-        od_coeff predt[4*4];
-        ogg_int16_t pvq_scale[4*4];
+      int hmean_k_q7;
+      int hmean_sum_ex_q7;
+#if !defined(OD_DISABLE_PVQ_CODE1)
+      int hmean_pos_q3;
+#endif
+      hmean_k_q7=OD_K_INIT_Q7;
+      hmean_sum_ex_q7=OD_SUM_EX_INIT_Q7;
+#if !defined(OD_DISABLE_PVQ_CODE1)
+      hmean_pos_q3=OD_POS_INIT_Q3;
+#endif
+      for(bj=0;bj<nhbs;bj++){
+        od_pvq_adapt_ctx pvq_adapt;
+        od_coeff         pred[4*4];
+        od_coeff         predt[4*4];
+        ogg_int16_t      pvq_scale[4*4];
         int sgn;
         int qg;
         int cblock[16];
         int j;
         int vk;
-        vk=0;
+        x=bj<<2;
         od_bin_fdct4x4(ctmp+y*w+x,w,ctmp+y*w+x,w);
         for(j=0;j<16;j++)pvq_scale[j]=0;
         if(x>0&&y>0){
           ogg_uint16_t mode_cdf[OD_INTRA_NMODES];
           od_coeff mode_dist[OD_INTRA_NMODES];
           int m_l, m_ul, m_u, mode;
-          m_l  = modes[(y>>2)*(w>>2)+((x>>2)-1)];
-          m_ul = modes[((y>>2)-1)*(w>>2)+((x>>2)-1)];
-          m_u = modes[((y>>2)-1)*(w>>2)+(x>>2)];
+          m_l=modes[(y>>2)*(w>>2)+(bj-1)];
+          m_ul=modes[((y>>2)-1)*(w>>2)+(bj-1)];
+          m_u=modes[((y>>2)-1)*(w>>2)+bj];
           od_intra_pred_cdf(mode_cdf,OD_INTRA_PRED_PROB_4x4[pli],mode_p0,m_l,m_ul,m_u);
           od_intra_pred4x4_dist(mode_dist,ctmp+y*w+x,w,pli);
           /*Lambda = 1*/
@@ -409,13 +426,14 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
           od_ec_encode_cdf_unscaled(&_enc->ec,mode,mode_cdf,OD_INTRA_NMODES);
           mode_bits -= log((mode_cdf[mode]-(mode==0?0:mode_cdf[mode-1]))/(float)mode_cdf[OD_INTRA_NMODES-1])/log(2);
           mode_count++;
-          modes[(y>>2)*(w>>2)+(x>>2)]=mode;
-        }else{
+          modes[(y>>2)*(w>>2)+bj]=mode;
+        }
+        else{
           for(j=0;j<16;j++)pred[j]=0;
           if(x>0)pred[0]=ctmp[y*w+x-4];
           else if(y>0)pred[0]=ctmp[(y-4)*w+x];
           else pred[0]=0;
-          modes[(y>>2)*(w>>2)+(x>>2)]=0;
+          modes[(y>>2)*(w>>2)+bj]=0;
         }
         /*Quantize*/
         for(j=0;j<4;j++){
@@ -438,15 +456,46 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
         cblock[0]=pow(cblock[0],4/3.)*(scale);
         cblock[0]*=sgn?-1:1;
         cblock[0]+=predt[0];
+        pvq_adapt.mean_k_q8=(hmean_k_q7>>OD_K_ADAPT_SPEED)
+         +pvq_adapt_row[bj].mean_k_q8;
+        pvq_adapt.mean_sum_ex_q8=(hmean_sum_ex_q7>>OD_SUM_EX_ADAPT_SPEED)
+         +pvq_adapt_row[bj].mean_sum_ex_q8;
+#if !defined(OD_DISABLE_PVQ_CODE1)
+        pvq_adapt.mean_pos_q4=OD_MAXI((hmean_pos_q3>>OD_POS_ADAPT_SPEED)
+         +pvq_adapt_row[bj].mean_pos_q4,1);
+#endif
 #if 1
         /* Expectation is that half the pulses will go in y[m] */
         ex_ym = 65536*vk/2;
         if (vk!=0)
           generic_encode(&_enc->ec,&model_ym,vk-pred[1],&ex_ym,0);
-        pvq_encoder(&_enc->ec,&pred[2],14,vk-abs(pred[1]),&anum,&aden,&au);
+        pvq_encoder(&_enc->ec,&pred[2],14,vk-abs(pred[1]),&pvq_adapt);
 #else
         /* Treat first component (y[m]) like all others */
-        pvq_encoder(&_enc->ec,&pred[1],15,vk,&anum,&aden,&au);
+        pvq_encoder(&_enc->ec,&pred[1],15,vk,&pvq_adapt);
+#endif
+        if(pvq_adapt.k>=0){
+          hmean_k_q7+=(pvq_adapt.k<<7)-hmean_k_q7>>OD_K_ADAPT_SPEED;
+          pvq_adapt_row[bj].mean_k_q8+=
+           hmean_k_q7-pvq_adapt_row[bj].mean_k_q8>>OD_K_ADAPT_SPEED;
+        }
+        if(pvq_adapt.sum_ex_q8>=0){
+          hmean_sum_ex_q7+=(pvq_adapt.sum_ex_q8>>OD_SUM_EX_ADAPT_SPEED+1)
+           -(hmean_sum_ex_q7>>OD_SUM_EX_ADAPT_SPEED);
+          pvq_adapt_row[bj].mean_sum_ex_q8+=hmean_sum_ex_q7
+           -pvq_adapt_row[bj].mean_sum_ex_q8>>OD_SUM_EX_ADAPT_SPEED;
+        }
+#if !defined(OD_DISABLE_PVQ_CODE1)
+        if(pvq_adapt.pos>=0){
+          hmean_pos_q3+=(pvq_adapt.pos<<3)-hmean_pos_q3>>OD_POS_ADAPT_SPEED;
+          pvq_adapt_row[bj].mean_pos_q4+=
+           hmean_pos_q3-pvq_adapt_row[bj].mean_pos_q4>>OD_POS_ADAPT_SPEED;
+        }
+#endif
+        pvq_adapt_row[bj].k=pvq_adapt.k;
+        pvq_adapt_row[bj].sum_ex_q8=pvq_adapt.sum_ex_q8;
+#if !defined(OD_DISABLE_PVQ_CODE1)
+        pvq_adapt_row[bj].pos=pvq_adapt.pos;
 #endif
         /*Dequantize*/
         for(j=0;j<4;j++){
@@ -455,6 +504,34 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
             ctmp[(y+k)*w+x+j]=cblock[od_zig4[k*4+j]];
           }
         }
+      }
+      hmean_k_q7=OD_K_INIT_Q7;
+      hmean_sum_ex_q7=OD_SUM_EX_INIT_Q7;
+#if !defined(OD_DISABLE_PVQ_CODE1)
+      hmean_pos_q3=OD_POS_INIT_Q3;
+#endif
+      for(bj=nhbs;bj-->0;){
+        if(pvq_adapt_row[bj].k>=0){
+          pvq_adapt_row[bj].mean_k_q8+=
+           (hmean_k_q7>>OD_K_ADAPT_SPEED)-(hmean_k_q7>>2*OD_K_ADAPT_SPEED);
+          hmean_k_q7+=(pvq_adapt_row[bj].k<<7)-hmean_k_q7>>OD_K_ADAPT_SPEED;
+        }
+        if(pvq_adapt_row[bj].sum_ex_q8>=0){
+          pvq_adapt_row[bj].mean_sum_ex_q8+=
+           (hmean_sum_ex_q7>>OD_SUM_EX_ADAPT_SPEED)
+           -(hmean_sum_ex_q7>>2*OD_SUM_EX_ADAPT_SPEED);
+          hmean_sum_ex_q7+=
+           (pvq_adapt_row[bj].sum_ex_q8>>OD_SUM_EX_ADAPT_SPEED+1)
+           -(hmean_sum_ex_q7>>OD_SUM_EX_ADAPT_SPEED);
+        }
+#if !defined(OD_DISABLE_PVQ_CODE1)
+        if(pvq_adapt_row[bj].pos>=0){
+          pvq_adapt_row[bj].mean_pos_q4+=(hmean_pos_q3>>OD_POS_ADAPT_SPEED)
+           -(hmean_pos_q3>>2*OD_POS_ADAPT_SPEED);
+          hmean_pos_q3+=(pvq_adapt_row[bj].pos<<3)
+           -hmean_pos_q3>>OD_POS_ADAPT_SPEED;
+        }
+#endif
       }
     }
     /*iDCT 4x4 blocks*/
@@ -556,7 +633,6 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
      "Encoded Plane %i, Squared Error: %12lli  Pixels: %6u  PSNR:  %5.2f\n",
      pli,(long long)enc_sqerr,npixels,10*log10(255*255.0*npixels/enc_sqerr));
   }
-
   fprintf(stderr, "mode bits: %f/%f=%f\n", mode_bits,mode_count,mode_bits/mode_count);
   /*Dump YUV*/
   od_state_dump_yuv(&_enc->state,_enc->state.io_imgs+OD_FRAME_REC,"out");

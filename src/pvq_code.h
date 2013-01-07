@@ -27,8 +27,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #include "entenc.h"
 #include "entdec.h"
-
-#define DISABLE_PVQ_CODE1
+#include "pvq.h"
 
 extern const ogg_uint16_t cdf_table[][16];
 extern const unsigned char decayE[];
@@ -36,8 +35,9 @@ extern const unsigned char decayE[];
 void laplace_encode_special(od_ec_enc *enc,int pos,unsigned decay,int max);
 int laplace_decode_special(od_ec_dec *dec,unsigned decay,int max);
 
-void pvq_encoder(od_ec_enc *enc,const int *y,int N,int K,int *num,int *den,int *u);
-void pvq_decoder(od_ec_dec *dec,int *y,int N,int K,int *num,int *den,int *u);
+void pvq_encoder(od_ec_enc *enc,const int *y,int N,int K,
+ od_pvq_adapt_ctx *_adapt);
+void pvq_decoder(od_ec_dec *dec,int *y,int N,int K,od_pvq_adapt_ctx *_adapt);
 
 void pvq_encode_delta(od_ec_enc *enc, const int *y,int N,int K,int *num, int *den);
 void pvq_decode_delta(od_ec_dec *dec, int *y,int N,int K,int *num, int *den);

@@ -168,9 +168,12 @@ static void od_state_opt_vtbl_init(od_state *_state){
 }
 
 int od_state_init(od_state *_state,const daala_info *_info){
+  int nplanes;
+  int pli;
   /*First validate the parameters.*/
   if(_info==NULL)return OD_EFAULT;
-  if(_info->nplanes<=0||_info->nplanes>OD_NPLANES_MAX)return OD_EINVAL;
+  nplanes=_info->nplanes;
+  if(nplanes<=0||nplanes>OD_NPLANES_MAX)return OD_EINVAL;
   memset(_state,0,sizeof(*_state));
   memcpy(&_state->info,_info,sizeof(*_info));
   _state->nhmbs=_info->frame_width+15>>4;
@@ -178,10 +181,19 @@ int od_state_init(od_state *_state,const daala_info *_info){
   od_state_opt_vtbl_init(_state);
   od_state_ref_imgs_init(_state,4,2);
   od_state_mvs_init(_state);
+  for(pli=0;pli<nplanes;pli++){
+    _state->pvq_adapt_row[pli]=(od_pvq_adapt_ctx *)_ogg_malloc(
+     4*_state->nhmbs*sizeof(*_state->pvq_adapt_row[pli])>>
+     _info->plane_info[pli].xdec);
+  }
   return 0;
 }
 
 void od_state_clear(od_state *_state){
+  int nplanes;
+  int pli;
+  nplanes=_state->info.nplanes;
+  for(pli=nplanes;pli-->0;)_ogg_free(_state->pvq_adapt_row[pli]);
   od_free_2d(_state->mv_grid);
   _ogg_free(_state->ref_img_data);
 }

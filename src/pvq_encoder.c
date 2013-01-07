@@ -148,17 +148,17 @@ static void laplace_encode(od_ec_enc *enc, int x, int ExQ8, int K)
   }
 }
 
-#ifndef DISABLE_PVQ_CODE1
+#if !defined(OD_DISABLE_PVQ_CODE1)
 /** Encodes the position and sign of a single pulse in a vector of N.
  * The position is assumed to be Laplace-distributed.
  *
  * @param [in,out] enc range encoder
  * @param [in]     y   vector to encode
  * @param [in]     N   dimension of the vector
- * @param [in,out] u   mean position of the pulse (adapted)
+ * @param [in,out] _adapt Adaptation context (used for mean pulse position).
  */
-static void pvq_encoder1(od_ec_enc *enc, const int *y,int N,int *u)
-{
+static void pvq_encoder1(od_ec_enc *enc, const int *y,int N,
+ od_pvq_adapt_ctx *_adapt){
   int pos;
   int i;
   unsigned decay;
@@ -174,16 +174,19 @@ static void pvq_encoder1(od_ec_enc *enc, const int *y,int N,int *u)
   sign=y[pos]<0;
 
   if(N>1){
-    /* Compute decay */
-    decay=256-4096/ *u; /* Approximates 256*exp(-16./ *u); */
-    /* Update mean position */
-    *u+=pos-(*u>>4);
-    if (*u<N/8)
-      *u=N/8;
-
+    /*Compute decay: approximates 256*exp(-16./mean_pos_q4).*/
+    decay=256-4096/_adapt->mean_pos_q4;
+    /*Update mean position.*/
+    _adapt->k=1;
+    _adapt->sum_ex_q8=-1;
+    _adapt->pos=pos;
     laplace_encode_special(enc,pos,decay,N-1);
   }
-
+  else{
+    _adapt->k=-1;
+    _adapt->sum_ex_q8=-1;
+    _adapt->pos=-1;
+  }
   od_ec_enc_bits(enc,sign,1);
 }
 #endif
@@ -195,35 +198,38 @@ static void pvq_encoder1(od_ec_enc *enc, const int *y,int N,int *u)
  * @param [in]     y   vector to encode
  * @param [in]     N   dimension of the vector
  * @param [in]     K   sum of the absolute value of components of y
- * @param [in,out] num mean value of K (adapted)
- * @param [in,out] den mean value of remaining pulses/(N-i) (adapted)
- * @param [in,out] u   mean position of single-pulse sequences (adapted)
+ * @param [in,out] _adapt Adaptation context.
  */
-void pvq_encoder(od_ec_enc *enc, const int *y,int N,int K,int *num, int *den, int *u)
-{
+void pvq_encoder(od_ec_enc *enc, const int *y,int N,int K,
+ od_pvq_adapt_ctx *_adapt){
   int i;
   int sumEx;
   int Kn;
   int expQ8;
-
-  if(K==0)
+  int mean_k_q8;
+  int mean_sum_ex_q8;
+  if(K==0){
+    _adapt->k=0;
+    _adapt->sum_ex_q8=0;
+#if !defined(OD_DISABLE_PVQ_CODE1)
+    _adapt->pos=-1;
+#endif
     return;
+  }
   sumEx=0;
   Kn=K;
-
-#ifndef DISABLE_PVQ_CODE1
+#if !defined(OD_DISABLE_PVQ_CODE1)
   /* Special K==1 case to save CPU (should be roughly equivalent in terms of coding efficiency) */
   if(K==1){
-    pvq_encoder1(enc,y,N,u);
+    pvq_encoder1(enc,y,N,_adapt);
     return;
   }
 #endif
   /* Estimates the factor relating pulses_left and positions_left to E(|x|) */
-  if (*num < 1<<23)
-    expQ8=256**num/(1+*den);
-  else
-    expQ8=*num/(1+(*den>>8));
-
+  mean_k_q8=_adapt->mean_k_q8;
+  mean_sum_ex_q8=_adapt->mean_sum_ex_q8;
+  if(mean_k_q8<1<<23)expQ8=256*mean_k_q8/(1+mean_sum_ex_q8);
+  else expQ8=mean_k_q8/(1+(mean_sum_ex_q8>>8));
   for(i=0;i<N;i++){
     int Ex;
     int x;
@@ -246,8 +252,11 @@ void pvq_encoder(od_ec_enc *enc, const int *y,int N,int K,int *num, int *den, in
     Kn-=x;
   }
   /* Adapting the estimates for expQ8 */
-  *num+=256*K-(*num>>4);
-  *den+=sumEx-(*den>>4);
+  _adapt->k=K;
+  _adapt->sum_ex_q8=sumEx;
+#if !defined(OD_DISABLE_PVQ_CODE1)
+  _adapt->pos=-1;
+#endif
 }
 
 
