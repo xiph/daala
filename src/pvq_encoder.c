@@ -177,14 +177,14 @@ static void pvq_encoder1(od_ec_enc *enc, const int *y,int N,
     /*Compute decay: approximates 256*exp(-16./mean_pos_q4).*/
     decay=256-4096/_adapt->mean_pos_q4;
     /*Update mean position.*/
-    _adapt->k=1;
-    _adapt->sum_ex_q8=-1;
+    _adapt->k=0;
+    _adapt->sum_ex_q8=0;
     _adapt->pos=pos;
     laplace_encode_special(enc,pos,decay,N-1);
   }
   else{
-    _adapt->k=-1;
-    _adapt->sum_ex_q8=-1;
+    _adapt->k=0;
+    _adapt->sum_ex_q8=0;
     _adapt->pos=-1;
   }
   od_ec_enc_bits(enc,sign,1);

@@ -478,8 +478,6 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
           hmean_k_q7+=(pvq_adapt.k<<7)-hmean_k_q7>>OD_K_ADAPT_SPEED;
           pvq_adapt_row[bj].mean_k_q8+=
            hmean_k_q7-pvq_adapt_row[bj].mean_k_q8>>OD_K_ADAPT_SPEED;
-        }
-        if(pvq_adapt.sum_ex_q8>=0){
           hmean_sum_ex_q7+=(pvq_adapt.sum_ex_q8>>OD_SUM_EX_ADAPT_SPEED+1)
            -(hmean_sum_ex_q7>>OD_SUM_EX_ADAPT_SPEED);
           pvq_adapt_row[bj].mean_sum_ex_q8+=hmean_sum_ex_q7
@@ -515,8 +513,6 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
           pvq_adapt_row[bj].mean_k_q8+=
            (hmean_k_q7>>OD_K_ADAPT_SPEED)-(hmean_k_q7>>2*OD_K_ADAPT_SPEED);
           hmean_k_q7+=(pvq_adapt_row[bj].k<<7)-hmean_k_q7>>OD_K_ADAPT_SPEED;
-        }
-        if(pvq_adapt_row[bj].sum_ex_q8>=0){
           pvq_adapt_row[bj].mean_sum_ex_q8+=
            (hmean_sum_ex_q7>>OD_SUM_EX_ADAPT_SPEED)
            -(hmean_sum_ex_q7>>2*OD_SUM_EX_ADAPT_SPEED);

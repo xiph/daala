@@ -170,13 +170,13 @@ static void pvq_decoder1(od_ec_dec *dec, int *y,int N,
     decay=256-4096/_adapt->mean_pos_q4;
     pos=laplace_decode_special(dec,decay,N-1);
     /*Update mean position.*/
-    _adapt->k=1;
-    _adapt->sum_ex_q8=-1;
+    _adapt->k=0;
+    _adapt->sum_ex_q8=0;
     _adapt->pos=pos;
   }
   else{
-    _adapt->k=-1;
-    _adapt->sum_ex_q8=-1;
+    _adapt->k=0;
+    _adapt->sum_ex_q8=0;
     _adapt->pos=-1;
     pos=0;
   }
