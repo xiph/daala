@@ -30,7 +30,7 @@ typedef struct od_state          od_state;
 
 # include "internal.h"
 # include "mc.h"
-# include "pvq.h"
+# include "pvq_code.h"
 
 /*The golden reference frame.*/
 #define OD_FRAME_GOLD (0)
