@@ -27,10 +27,57 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #include "entenc.h"
 #include "entdec.h"
-#include "pvq.h"
 
 extern const ogg_uint16_t cdf_table[][16];
 extern const unsigned char decayE[];
+
+typedef struct od_pvq_adapt_ctx od_pvq_adapt_ctx;
+
+# define OD_DISABLE_PVQ_CODE1 (1)
+
+/*TODO: These should be adapted based on target quality/bitrate.*/
+# define OD_K_INIT_Q7 (2031)
+# if !defined(OD_DISABLE_PVQ_CODE1)
+#  define OD_SUM_EX_INIT_Q7 (216)
+#  define OD_POS_INIT_Q3 (13)
+
+#  define OD_K_ADAPT_SPEED (5)
+#  define OD_SUM_EX_ADAPT_SPEED (5)
+#  define OD_POS_ADAPT_SPEED (1)
+# else
+#  define OD_SUM_EX_INIT_Q7 (194)
+
+#  define OD_K_ADAPT_SPEED (4)
+#  define OD_SUM_EX_ADAPT_SPEED (4)
+# endif
+
+/*The scaling for the row contexts is different.*/
+# define OD_K_ROW_INIT_Q8 (2*OD_K_INIT_Q7-(OD_K_INIT_Q7>>OD_K_ADAPT_SPEED))
+# define OD_SUM_EX_ROW_INIT_Q8 \
+ (2*OD_SUM_EX_INIT_Q7-(OD_SUM_EX_INIT_Q7>>OD_SUM_EX_ADAPT_SPEED))
+# define OD_POS_ROW_INIT_Q4 \
+ (2*OD_POS_INIT_Q3-(OD_POS_INIT_Q3>>OD_POS_ADAPT_SPEED+1))
+
+struct od_pvq_adapt_ctx{
+  /*Mean value of K.*/
+  int mean_k_q8;
+  /*Mean value of the sum of (pulses left)/(positions left) for all
+     positions.*/
+  int mean_sum_ex_q8;
+# if !defined(OD_DISABLE_PVQ_CODE1)
+  /*Mean pulse position for the case of a single pulse (K==1).*/
+  int mean_pos_q4;
+# endif
+  /*Actual value of K for this context.*/
+  int k;
+  /*Actual sum of (pulses left)/(positions left) for all positions for this
+     context.*/
+  int sum_ex_q8;
+# if !defined(OD_DISABLE_PVQ_CODE1)
+  /*Actual pulse position for the case of a single pulse for this context.*/
+  int pos;
+# endif
+};
 
 void laplace_encode_special(od_ec_enc *enc,int pos,unsigned decay,int max);
 int laplace_decode_special(od_ec_dec *dec,unsigned decay,int max);
