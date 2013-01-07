@@ -52,7 +52,7 @@ int run_pvq(int *X,int len,int N){
   adapt.mean_k_q8=163;
   adapt.mean_sum_ex_q8=64;
 #if !defined(OD_DISABLE_PVQ_CODE1)
-  adapt.pos_q4=30<<4;
+  adapt.mean_pos_q4=30<<4;
 #endif
   num = 100*4;
   den = 256*4;
@@ -95,7 +95,7 @@ int run_pvq(int *X,int len,int N){
   adapt.mean_k_q8=163;
   adapt.mean_sum_ex_q8=64;
 #if !defined(OD_DISABLE_PVQ_CODE1)
-  adapt.pos_q4=30<<4;
+  adapt.mean_pos_q4=30<<4;
 #endif
   num = 100*4;
   den = 256*4;
