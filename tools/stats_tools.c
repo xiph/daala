@@ -201,6 +201,9 @@ void vp8_scale_init(double _vp8_scale[B_SZ]){
 #endif
 }
 
+#define APPLY_PREFILTER (1)
+#define APPLY_POSTFILTER (1)
+
 void od_scale_init(double _od_scale[B_SZ]){
   int i;
   int j;
@@ -214,11 +217,13 @@ void od_scale_init(double _od_scale[B_SZ]){
 #else
 # error "Need an iDCT implementation for this block size."
 #endif
+#if APPLY_POSTFILTER
 #if B_SZ_LOG>=OD_LOG_BSIZE0&&B_SZ_LOG<OD_LOG_BSIZE0+OD_NBSIZES
     (*OD_POST_FILTER[B_SZ_LOG-OD_LOG_BSIZE0])(buf,buf);
     (*OD_POST_FILTER[B_SZ_LOG-OD_LOG_BSIZE0])(&buf[B_SZ],&buf[B_SZ]);
 #else
 # error "Need a postfilter implementation for this block size."
+#endif
 #endif
     _od_scale[i]=0;
     for(j=0;j<2*B_SZ;j++){
@@ -233,9 +238,6 @@ void od_scale_init(double _od_scale[B_SZ]){
   printf("\n");
 #endif
 }
-
-#define APPLY_PREFILTER (1)
-#define APPLY_POSTFILTER (1)
 
 static void od_prefilter(od_coeff *_out,int _out_stride,od_coeff *_in,
  int _in_stride,int _bx,int _by){
@@ -325,9 +327,9 @@ static void od_postfilter(od_coeff *_out,int _out_stride,od_coeff *_in,
           _out[_out_stride*(j+y)+x+i]=col[j];
         }
       }
+#endif
     }
   }
-#endif
 }
 
 static void od_fdct_blocks(od_coeff *_out,int _out_stride,od_coeff *_in,
