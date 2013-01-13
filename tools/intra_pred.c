@@ -5,9 +5,9 @@
 #include "image.h"
 #include "svd.h"
 
-#define PRINT_PROGRESS (1)
+#define PRINT_PROGRESS (0)
 #define PRINT_BLOCKS (0)
-#define WRITE_IMAGES (1)
+#define WRITE_IMAGES (0)
 
 typedef struct pred_data pred_data;
 
@@ -333,6 +333,7 @@ static int pred_start(void *_ctx,const char *_name,const th_info *_ti,int _pli,
 #endif
   fprintf(stdout,"%s\n",_name);
   ctx=(intra_pred_ctx *)_ctx;
+  intra_stats_init(&ctx->stats);
   image_data_init(&ctx->img,_name,_nxblocks,_nyblocks);
 #if WRITE_IMAGES
   image_files_init(&ctx->files,_nxblocks,_nyblocks);
@@ -483,8 +484,8 @@ int main(int _argc,const char *_argv[]){
   ret=apply_to_blocks2(&ctx,PADDING,init_start,INIT,NINIT,init_finish,0x1,
    _argc,_argv);
   /* each k-means step uses Daala SATD mode selection */
-  for(s=1;s<=1;s++){
-    printf("Step %02i\n",s);
+  for(s=1;s<=10;s++){
+    printf("Starting Step %02i\n",s);
     ctx.step=s;
     /* update the intra predictors model */
     intra_pred_ctx_update(&ctx);
@@ -492,6 +493,7 @@ int main(int _argc,const char *_argv[]){
     /*print_betas();*/
     ret=apply_to_blocks2(&ctx,PADDING,pred_start,KMEANS,NKMEANS,pred_finish,0x1,
      _argc,_argv);
+    printf("Finished Step %02i\n",s);
     intra_stats_correct(&ctx.gb);
     intra_stats_print(&ctx.gb,"Daala Intra Predictors",OD_SCALE);
   }
