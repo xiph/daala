@@ -37,6 +37,10 @@ typedef struct od_pvq_adapt_ctx od_pvq_adapt_ctx;
 
 /*TODO: These should be adapted based on target quality/bitrate.*/
 # define OD_K_INIT_Q7 (2031)
+
+#define OD_COUNT_INIT_Q7 (208)
+#define OD_COUNT_EX_INIT_Q7 (256)
+
 # if !defined(OD_DISABLE_PVQ_CODE1)
 #  define OD_SUM_EX_INIT_Q7 (216)
 #  define OD_POS_INIT_Q3 (13)
@@ -45,10 +49,12 @@ typedef struct od_pvq_adapt_ctx od_pvq_adapt_ctx;
 #  define OD_SUM_EX_ADAPT_SPEED (5)
 #  define OD_POS_ADAPT_SPEED (1)
 # else
-#  define OD_SUM_EX_INIT_Q7 (194)
+#  define OD_SUM_EX_INIT_Q7 (216)
 
-#  define OD_K_ADAPT_SPEED (4)
-#  define OD_SUM_EX_ADAPT_SPEED (4)
+#  define OD_K_ADAPT_SPEED (5)
+#  define OD_SUM_EX_ADAPT_SPEED (5)
+
+#  define OD_DELTA_ADAPT_SPEED (1)
 # endif
 
 /*The scaling for the row contexts is different.*/
@@ -64,15 +70,24 @@ struct od_pvq_adapt_ctx{
   /*Mean value of the sum of (pulses left)/(positions left) for all
      positions.*/
   int mean_sum_ex_q8;
+
+  /* For the delta version */
+  int mean_count_q8;
+  int mean_count_ex_q8;
 # if !defined(OD_DISABLE_PVQ_CODE1)
   /*Mean pulse position for the case of a single pulse (K==1).*/
   int mean_pos_q4;
 # endif
+
   /*Actual value of K for this context.*/
   int k;
   /*Actual sum of (pulses left)/(positions left) for all positions for this
      context.*/
   int sum_ex_q8;
+
+  int count_q8;
+  int count_ex_q8;
+
 # if !defined(OD_DISABLE_PVQ_CODE1)
   /*Actual pulse position for the case of a single pulse for this context.*/
   int pos;
@@ -86,7 +101,9 @@ void pvq_encoder(od_ec_enc *enc,const int *y,int N,int K,
  od_pvq_adapt_ctx *_adapt);
 void pvq_decoder(od_ec_dec *dec,int *y,int N,int K,od_pvq_adapt_ctx *_adapt);
 
-void pvq_encode_delta(od_ec_enc *enc, const int *y,int N,int K,int *num, int *den);
-void pvq_decode_delta(od_ec_dec *dec, int *y,int N,int K,int *num, int *den);
+void pvq_encode_delta(od_ec_enc *enc, const int *y,int N,int K,
+ od_pvq_adapt_ctx *_adapt);
+void pvq_decode_delta(od_ec_dec *dec, int *y,int N,int K,
+ od_pvq_adapt_ctx *_adapt);
 
 #endif

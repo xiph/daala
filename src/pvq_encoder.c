@@ -208,6 +208,13 @@ void pvq_encoder(od_ec_enc *enc, const int *y,int N,int K,
   int expQ8;
   int mean_k_q8;
   int mean_sum_ex_q8;
+  _adapt->count_q8=-1;
+  _adapt->count_ex_q8=0;
+  if (K<=1)
+  {
+    pvq_encode_delta(enc, y, N, K, _adapt);
+    return;
+  }
   if(K==0){
     _adapt->k=0;
     _adapt->sum_ex_q8=0;
@@ -235,6 +242,11 @@ void pvq_encoder(od_ec_enc *enc, const int *y,int N,int K,
     int x;
     if(Kn==0)
       break;
+    if (Kn<=1&&i!=N-1){
+      pvq_encode_delta(enc, y+i, N-i, Kn, _adapt);
+      i=N;
+      break;
+    }
     x=abs(y[i]);
     /* Expected value of x (round-to-nearest) is expQ8*pulses_left/positions_left */
     Ex=(2*expQ8*Kn+(N-i))/(2*(N-i));
@@ -252,7 +264,7 @@ void pvq_encoder(od_ec_enc *enc, const int *y,int N,int K,
     Kn-=x;
   }
   /* Adapting the estimates for expQ8 */
-  _adapt->k=K;
+  _adapt->k=K-Kn;
   _adapt->sum_ex_q8=sumEx;
 #if !defined(OD_DISABLE_PVQ_CODE1)
   _adapt->pos=-1;
@@ -395,14 +407,17 @@ void pvq_encoder3(od_ec_enc *enc, const int *_y,int N,int K,int *num, int *den, 
 #endif
 
 
-void pvq_encode_delta(od_ec_enc *enc, const int *y,int N,int K,int *num,
- int *den)
+void pvq_encode_delta(od_ec_enc *enc, const int *y,int N,int _K,
+ od_pvq_adapt_ctx *_adapt)
 {
   int i;
   int prev=0;
   int sumEx=0;
   int sumC=0;
-  int coef = 256**num/ *den;
+  int first = 1;
+  int K=_K;
+  int coef = 256*_adapt->mean_count_q8/(1+_adapt->mean_count_ex_q8);
+  coef=OD_MAXI(coef,1);
   for(i=0;i<N;i++){
     if(y[i]!=0){
       int j;
@@ -411,12 +426,25 @@ void pvq_encode_delta(od_ec_enc *enc, const int *y,int N,int K,int *num,
 
       mag = abs(y[i]);
       count = i-prev;
-      laplace_encode(enc, count, coef*(N-prev)/K, N-prev-1);
-      sumEx+=256*(N-prev)+256*(mag-1)*(N-i);
+      if(first)
+      {
+        int decay;
+        int X = coef*(N-prev)/K;
+        decay = OD_MINI(255,(int)((256*X/(X+256) + 8*X*X/(256*(N+1)*(N-1)*(N-1)))));
+        /*Update mean position.*/
+        laplace_encode_special(enc,count,decay,N-1);
+        first = 0;
+      } else {
+        laplace_encode(enc, count, coef*(N-prev)/K, N-prev-1);
+      }
+      sumEx+=256*(N-prev);
       sumC+=count*K;
       od_ec_enc_bits(enc,y[i]<0,1);
       for(j=0;j<mag-1;j++)
+      {
         laplace_encode(enc,0,coef*(N-i)/(K-1-j),N-i-1);
+        sumEx += 256*(N-i);
+      }
       K-=mag;
       prev=i;
       if (K==0)
@@ -424,6 +452,14 @@ void pvq_encode_delta(od_ec_enc *enc, const int *y,int N,int K,int *num,
     }
   }
 
-  *num+=256*sumC-(*num>>6);
-  *den+=sumEx-(*den>>6);
+  if (_K>0)
+  {
+    _adapt->count_q8=256*sumC;
+    _adapt->count_ex_q8=sumEx;
+  } else {
+    _adapt->count_q8=-1;
+    _adapt->count_ex_q8=0;
+  }
+  _adapt->k=0;
+  _adapt->sum_ex_q8=0;
 }

@@ -204,6 +204,13 @@ void pvq_decoder(od_ec_dec *dec, int *y,int N,int K,od_pvq_adapt_ctx *_adapt)
   int expQ8;
   int mean_k_q8;
   int mean_sum_ex_q8;
+  _adapt->count_q8=-1;
+  _adapt->count_ex_q8=0;
+  if(K<=1)
+  {
+    pvq_decode_delta(dec, y, N, K, _adapt);
+    return;
+  }
   if(K==0){
     _adapt->k=0;
     _adapt->sum_ex_q8=0;
@@ -235,13 +242,18 @@ void pvq_decoder(od_ec_dec *dec, int *y,int N,int K,od_pvq_adapt_ctx *_adapt)
     int x;
     if(Kn==0)
       break;
+    if(Kn<=1&&i!=N-1){
+      pvq_decode_delta(dec, y+i, N-i, Kn, _adapt);
+      i=N;
+      break;
+    }
     /* Expected value of x (round-to-nearest) is expQ8*pulses_left/positions_left */
     Ex=(2*expQ8*Kn+(N-i))/(2*(N-i));
     if(Ex>Kn*256)
       Ex=Kn*256;
     sumEx+=(2*256*Kn+(N-i))/(2*(N-i));
     /* no need to encode the magnitude for the last bin */
-    if (i!=N-1){
+    if(i!=N-1){
       x=laplace_decode(dec, Ex, Kn);
     } else {
       x=Kn;
@@ -255,7 +267,7 @@ void pvq_decoder(od_ec_dec *dec, int *y,int N,int K,od_pvq_adapt_ctx *_adapt)
     Kn-=abs(x);
   }
   /* Adapting the estimates for expQ8 */
-  _adapt->k=K;
+  _adapt->k=K-Kn;
   _adapt->sum_ex_q8=sumEx;
 #if !defined(OD_DISABLE_PVQ_CODE1)
   _adapt->pos=-1;
@@ -264,23 +276,38 @@ void pvq_decoder(od_ec_dec *dec, int *y,int N,int K,od_pvq_adapt_ctx *_adapt)
     y[i]=0;
 }
 
-void pvq_decode_delta(od_ec_dec *dec, int *y,int N,int K,int *num, int *den)
+void pvq_decode_delta(od_ec_dec *dec, int *y,int N,int _K,
+ od_pvq_adapt_ctx *_adapt)
 {
   int i;
   int prev=0;
   int sumEx=0;
   int sumC=0;
-  int coef = 256**num/ *den;
+  int coef = 256*_adapt->mean_count_q8/(1+_adapt->mean_count_ex_q8);
   int pos=0;
   int K0;
   int sign=0;
+  int first = 1;
+  int K=_K;
+
   for(i=0;i<N;i++)
     y[i]=0;
   K0=K;
+  coef=OD_MAXI(coef,1);
   for(i=0;i<K0;i++){
     int count;
 
-    count = laplace_decode(dec, coef*(N-prev)/K, N-prev-1);
+    if(first)
+    {
+      int decay;
+      int X = coef*(N-prev)/K;
+      decay = OD_MINI(255,(int)((256*X/(X+256) + 8*X*X/(256*(N+1)*(N-1)*(N-1)))));
+      /*Update mean position.*/
+      count = laplace_decode_special(dec,decay,N-1);
+      first = 0;
+    } else {
+      count = laplace_decode(dec, coef*(N-prev)/K, N-prev-1);
+    }
     sumEx+=256*(N-prev);
     sumC+=count*K;
     pos += count;
@@ -289,10 +316,18 @@ void pvq_decode_delta(od_ec_dec *dec, int *y,int N,int K,int *num, int *den)
     y[pos]+=sign?-1:1;
     prev=pos;
     K--;
-    if (K==0)
+    if(K==0)
       break;
   }
 
-  *num+=256*sumC-(*num>>6);
-  *den+=sumEx-(*den>>6);
+  if (_K>0)
+  {
+    _adapt->count_q8=256*sumC;
+    _adapt->count_ex_q8=sumEx;
+  } else {
+    _adapt->count_q8=-1;
+    _adapt->count_ex_q8=0;
+  }
+  _adapt->k=0;
+  _adapt->sum_ex_q8=0;
 }
