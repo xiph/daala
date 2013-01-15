@@ -66,19 +66,19 @@ void laplace_encode_special(od_ec_enc *enc,int x,unsigned decay,int max)
     /* p(x%16>8) = decay^8/(decay^8+1) */
     decay_f=OD_MAXI(1,decay8>>2);
     od_ec_encode_bool(enc, (x&0x8)!=0,16384,16384+decay_f);
-    max-=8;
+    if(x&0x8)max-=8;
   }
   if(max>=4){
     /* p(x%8>4) = decay^4/(decay^4+1) */
     decay_f=OD_MAXI(1,decay4>>2);
     od_ec_encode_bool(enc, (x&0x4)!=0,16384,16384+decay_f);
-    max-=4;
+    if(x&0x4)max-=4;
   }
   if(max>=2){
     /* p(x%4>2) = decay^2/(decay^2+1) */
     decay_f=OD_MAXI(1,decay2>>2);
     od_ec_encode_bool(enc, (x&0x2)!=0,16384,16384+decay_f);
-    max-=2;
+    if (x&0x2)max-=2;
   }
   if(max>=1){
     /* p(x%2>1) = decay/(decay+1) */
