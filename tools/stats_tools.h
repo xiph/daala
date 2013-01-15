@@ -108,6 +108,11 @@ void image_data_files_block(image_data *_this,const unsigned char *_data,
 int image_data_save_map(image_data *_this);
 int image_data_load_map(image_data *_this);
 
+extern int NE_FILTER_PARAMS4[4];
+
+extern const od_filter_func NE_PRE_FILTER[OD_NBSIZES];
+extern const od_filter_func NE_POST_FILTER[OD_NBSIZES];
+
 extern double NE_PRED_OFFSETS_4x4[OD_INTRA_NMODES][4][4];
 extern double NE_PRED_WEIGHTS_4x4[OD_INTRA_NMODES][4][4][2*4][3*4];
 

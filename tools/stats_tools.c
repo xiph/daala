@@ -239,7 +239,7 @@ void od_scale_init(double _od_scale[B_SZ]){
 #endif
 }
 
-static void od_prefilter(od_coeff *_out,int _out_stride,od_coeff *_in,
+static void ne_pre_filter(od_coeff *_out,int _out_stride,od_coeff *_in,
  int _in_stride,int _bx,int _by){
   int bx;
   int by;
@@ -258,7 +258,11 @@ static void od_prefilter(od_coeff *_out,int _out_stride,od_coeff *_in,
           col[i]=_in[_in_stride*(y+i)+x+j];
         }
 #if B_SZ_LOG>=OD_LOG_BSIZE0&&B_SZ_LOG<OD_LOG_BSIZE0+OD_NBSIZES
+#if 0
         (*OD_PRE_FILTER[B_SZ_LOG-OD_LOG_BSIZE0])(col,col);
+#else
+        (*NE_PRE_FILTER[B_SZ_LOG-OD_LOG_BSIZE0])(col,col);
+#endif
 #else
 # error "Need a prefilter implementation for this block size."
 #endif
@@ -276,7 +280,11 @@ static void od_prefilter(od_coeff *_out,int _out_stride,od_coeff *_in,
         od_coeff *row;
         row=&_out[_out_stride*(y+j)+x];
 #if B_SZ_LOG>=OD_LOG_BSIZE0&&B_SZ_LOG<OD_LOG_BSIZE0+OD_NBSIZES
+#if 0
         (*OD_PRE_FILTER[B_SZ_LOG-OD_LOG_BSIZE0])(row,row);
+#else
+        (*NE_PRE_FILTER[B_SZ_LOG-OD_LOG_BSIZE0])(row,row);
+#endif
 #else
 # error "Need a prefilter implementation for this block size."
 #endif
@@ -286,7 +294,7 @@ static void od_prefilter(od_coeff *_out,int _out_stride,od_coeff *_in,
   }
 }
 
-static void od_postfilter(od_coeff *_out,int _out_stride,od_coeff *_in,
+static void ne_post_filter(od_coeff *_out,int _out_stride,od_coeff *_in,
  int _in_stride,int _bx,int _by){
   int bx;
   int by;
@@ -306,7 +314,12 @@ static void od_postfilter(od_coeff *_out,int _out_stride,od_coeff *_in,
 #if APPLY_POSTFILTER
         row=&_out[_out_stride*(y+j)+x];
 #if B_SZ_LOG>=OD_LOG_BSIZE0&&B_SZ_LOG<OD_LOG_BSIZE0+OD_NBSIZES
+#if 0
         (*OD_POST_FILTER[B_SZ_LOG-OD_LOG_BSIZE0])(row,row);
+#else
+        (*NE_POST_FILTER[B_SZ_LOG-OD_LOG_BSIZE0])(row,row);
+
+#endif
 #else
 # error "Need a postfilter implementation for this block size."
 #endif
@@ -319,7 +332,11 @@ static void od_postfilter(od_coeff *_out,int _out_stride,od_coeff *_in,
           col[j]=_out[_out_stride*(y+j)+x+i];
         }
 #if B_SZ_LOG>=OD_LOG_BSIZE0&&B_SZ_LOG<OD_LOG_BSIZE0+OD_NBSIZES
+#if 0
         (*OD_POST_FILTER[B_SZ_LOG-OD_LOG_BSIZE0])(col,col);
+#else
+        (*NE_POST_FILTER[B_SZ_LOG-OD_LOG_BSIZE0])(col,col);
+#endif
 #else
 # error "Need a postfilter implementation for this block size."
 #endif
@@ -623,7 +640,7 @@ void image_data_pre_block(image_data *_this,const unsigned char *_data,
            (_data[_stride*(y0+B_SZ*bj+j)+x0+B_SZ*bi+i]-128)*INPUT_SCALE;
         }
       }
-      od_prefilter(&_this->pre[_this->pre_stride*(y+B_SZ*bj)+x+B_SZ*bi],
+      ne_pre_filter(&_this->pre[_this->pre_stride*(y+B_SZ*bj)+x+B_SZ*bi],
        _this->pre_stride,buf,B_SZ,1,1);
     }
   }
@@ -788,7 +805,7 @@ void image_data_post_block(image_data *_this,int _bi,int _bj){
   if(_bj==_this->nyblocks-1){
     by++;
   }
-  od_postfilter(&_this->post[_this->post_stride*y+x],_this->post_stride,
+  ne_post_filter(&_this->post[_this->post_stride*y+x],_this->post_stride,
    &_this->idct[_this->idct_stride*y0+x0],_this->idct_stride,bx,by);
 }
 
@@ -882,6 +899,58 @@ int image_data_load_map(image_data *_this){
   fclose(fin);
   return EXIT_SUCCESS;
 }
+
+int NE_FILTER_PARAMS4[4]={91,85,-11,36};
+
+void ne_pre_filter4(od_coeff _y[4],const od_coeff _x[4]){
+  int t[4];
+  t[3]=_x[0]-_x[3];
+  t[2]=_x[1]-_x[2];
+  t[1]=_x[1]-(t[2]>>1);
+  t[0]=_x[0]-(t[3]>>1);
+  t[2]=t[2]*NE_FILTER_PARAMS4[0]>>6;
+  t[2]+=-t[2]>>15&1;
+  t[3]=t[3]*NE_FILTER_PARAMS4[1]>>6;
+  t[3]+=-t[3]>>15&1;
+  t[3]+=t[2]*NE_FILTER_PARAMS4[2]+32>>6;
+  t[2]+=t[3]*NE_FILTER_PARAMS4[3]+32>>6;
+  t[0]+=t[3]>>1;
+  _y[0]=(od_coeff)t[0];
+  t[1]+=t[2]>>1;
+  _y[1]=(od_coeff)t[1];
+  _y[2]=(od_coeff)(t[1]-t[2]);
+  _y[3]=(od_coeff)(t[0]-t[3]);
+}
+
+void ne_post_filter4(od_coeff _x[4],const od_coeff _y[4]){
+  int t[4];
+  t[3]=_y[0]-_y[3];
+  t[2]=_y[1]-_y[2];
+  t[1]=_y[1]-(t[2]>>1);
+  t[0]=_y[0]-(t[3]>>1);
+  t[2]-=t[3]*NE_FILTER_PARAMS4[3]+32>>6;
+  t[3]-=t[2]*NE_FILTER_PARAMS4[2]+32>>6;
+  t[3]=(t[3]<<6)/NE_FILTER_PARAMS4[1];
+  t[2]=(t[2]<<6)/NE_FILTER_PARAMS4[0];
+  t[0]+=t[3]>>1;
+  _x[0]=(od_coeff)t[0];
+  t[1]+=t[2]>>1;
+  _x[1]=(od_coeff)t[1];
+  _x[2]=(od_coeff)(t[1]-t[2]);
+  _x[3]=(od_coeff)(t[0]-t[3]);
+}
+
+const od_filter_func NE_PRE_FILTER[OD_NBSIZES]={
+  ne_pre_filter4,
+  od_pre_filter8,
+  od_pre_filter16
+};
+
+const od_filter_func NE_POST_FILTER[OD_NBSIZES]={
+  ne_post_filter4,
+  od_post_filter8,
+  od_post_filter16
+};
 
 void ne_intra_pred4x4_mult(const od_coeff *_c,int _stride,int _mode,double *_p){
   int j;
