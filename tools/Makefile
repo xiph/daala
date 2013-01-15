@@ -102,6 +102,7 @@ IS_LOCAL_CSOURCES = \
 intra_stats.c \
 intra_fit_tools.c \
 stats_tools.c \
+stats_data.c \
 vidinput.c \
 image.c
 
@@ -124,6 +125,7 @@ IP_LOCAL_CSOURCES = \
 intra_pred.c \
 intra_fit_tools.c \
 stats_tools.c \
+stats_data.c \
 vidinput.c \
 image.c \
 svd.c
@@ -180,7 +182,7 @@ GEN_CDF_TARGET:=gen_cdf
 
 
 ALL_OBJS:=${P2Y_OBJS} ${Y2P_OBJS} ${PIM_OBJS} ${IIM_OBJS} ${IIX_OBJS} \
- ${GEN_CDF_OBJS} ${IS_OBJS}
+ ${GEN_CDF_OBJS} ${IS_OBJS} ${IP_OBJS}
 
 ALL_ASMS:=${ALL_OBJS:%.o=%.s}
 

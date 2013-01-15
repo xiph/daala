@@ -8,11 +8,13 @@
 #define PRINT_PROGRESS (0)
 #define PRINT_BLOCKS (0)
 #define WRITE_IMAGES (0)
+#define PRINT_BETAS (0)
+#define WEIGHT_BLOCKS (0)
 
 typedef struct pred_data pred_data;
 
 struct pred_data{
-  int    n;
+  double w;
   double mean[5*B_SZ*B_SZ];
   double cov[5*B_SZ*B_SZ][5*B_SZ*B_SZ];
 };
@@ -20,7 +22,7 @@ struct pred_data{
 static void pred_data_init(pred_data *_this){
   int i;
   int j;
-  _this->n=0;
+  _this->w=0;
   for(i=0;i<5*B_SZ*B_SZ;i++){
     _this->mean[i]=0;
     for(j=0;j<5*B_SZ*B_SZ;j++){
@@ -30,12 +32,13 @@ static void pred_data_init(pred_data *_this){
 }
 
 static void pred_data_add_block(pred_data *_this,const od_coeff *_block,
- int _stride){
+ int _stride,double _w){
   double delta[5*B_SZ*B_SZ];
   int    by;
   int    bx;
   int    j;
   int    i;
+  _this->w+=_w;
   for(by=0;by<=1;by++){
     for(bx=0;bx<=2;bx++){
       int             bo;
@@ -48,14 +51,14 @@ static void pred_data_add_block(pred_data *_this,const od_coeff *_block,
       for(j=0;j<B_SZ;j++){
         for(i=0;i<B_SZ;i++){
           delta[bo+B_SZ*j+i]=block[_stride*j+i]-_this->mean[bo+B_SZ*j+i];
-          _this->mean[bo+B_SZ*j+i]+=delta[bo+B_SZ*j+i]/_this->n;
+          _this->mean[bo+B_SZ*j+i]+=delta[bo+B_SZ*j+i]*_w/_this->w;
         }
       }
     }
   }
   for(j=0;j<5*B_SZ*B_SZ;j++){
     for(i=0;i<5*B_SZ*B_SZ;i++){
-      _this->cov[i][j]+=delta[i]*delta[j]*(_this->n-1)/_this->n;
+      _this->cov[i][j]+=delta[i]*delta[j]*_w*(_this->w-_w)/_this->w;
     }
   }
 }
@@ -164,18 +167,39 @@ static void pred_data_update(pred_data *_this,int _mode){
     x=i%B_SZ;
 #if B_SZ==4
     NE_PRED_OFFSETS_4x4[_mode][y][x]=beta_0[i];
+#elif B_SZ==8
+    NE_PRED_OFFSETS_8x8[_mode][y][x]=beta_0[i];
+#elif B_SZ==16
+    NE_PRED_OFFSETS_16x16[_mode][y][x]=beta_0[i];
 #else
-# error "Need a predictors for this block size."
+# error "Need predictors for this block size."
 #endif
     for(j=0;j<B_SZ*B_SZ;j++){
       int v;
       int u;
       v=j/B_SZ;
       u=j%B_SZ;
-      for(k=0;k<4;k++){
-        NE_PRED_WEIGHTS_4x4[_mode][y][x][k][v][u]=beta_1[k*B_SZ*B_SZ+j][i];
-      }
-      NE_PRED_WEIGHTS_4x4[_mode][y][x][4][v][u]=0;
+#if B_SZ==4
+      NE_PRED_WEIGHTS_4x4[_mode][y][x][0*B_SZ+v][0*B_SZ+u]=beta_1[0*B_SZ*B_SZ+j][i];
+      NE_PRED_WEIGHTS_4x4[_mode][y][x][0*B_SZ+v][1*B_SZ+u]=beta_1[1*B_SZ*B_SZ+j][i];
+      NE_PRED_WEIGHTS_4x4[_mode][y][x][0*B_SZ+v][2*B_SZ+u]=beta_1[2*B_SZ*B_SZ+j][i];
+      NE_PRED_WEIGHTS_4x4[_mode][y][x][1*B_SZ+v][0*B_SZ+u]=beta_1[3*B_SZ*B_SZ+j][i];
+      NE_PRED_WEIGHTS_4x4[_mode][y][x][1*B_SZ+v][1*B_SZ+u]=0;
+#elif B_SZ==8
+      NE_PRED_WEIGHTS_8x8[_mode][y][x][0*B_SZ+v][0*B_SZ+u]=beta_1[0*B_SZ*B_SZ+j][i];
+      NE_PRED_WEIGHTS_8x8[_mode][y][x][0*B_SZ+v][1*B_SZ+u]=beta_1[1*B_SZ*B_SZ+j][i];
+      NE_PRED_WEIGHTS_8x8[_mode][y][x][0*B_SZ+v][2*B_SZ+u]=beta_1[2*B_SZ*B_SZ+j][i];
+      NE_PRED_WEIGHTS_8x8[_mode][y][x][1*B_SZ+v][0*B_SZ+u]=beta_1[3*B_SZ*B_SZ+j][i];
+      NE_PRED_WEIGHTS_8x8[_mode][y][x][1*B_SZ+v][1*B_SZ+u]=0;
+#elif B_SZ==16
+      NE_PRED_WEIGHTS_16x16[_mode][y][x][0*B_SZ+v][0*B_SZ+u]=beta_1[0*B_SZ*B_SZ+j][i];
+      NE_PRED_WEIGHTS_16x16[_mode][y][x][0*B_SZ+v][1*B_SZ+u]=beta_1[1*B_SZ*B_SZ+j][i];
+      NE_PRED_WEIGHTS_16x16[_mode][y][x][0*B_SZ+v][2*B_SZ+u]=beta_1[2*B_SZ*B_SZ+j][i];
+      NE_PRED_WEIGHTS_16x16[_mode][y][x][1*B_SZ+v][0*B_SZ+u]=beta_1[3*B_SZ*B_SZ+j][i];
+      NE_PRED_WEIGHTS_16x16[_mode][y][x][1*B_SZ+v][1*B_SZ+u]=0;
+#else
+# error "Need predictors for this block size."
+#endif
     }
   }
 }
@@ -216,6 +240,7 @@ static int init_start(void *_ctx,const char *_name,const th_info *_ti,int _pli,
   printf("in init_start\n");
 #endif
   fprintf(stdout,"%s\n",_name);
+  fflush(stdout);
   ctx=(intra_pred_ctx *)_ctx;
   image_data_init(&ctx->img,_name,_nxblocks,_nyblocks);
   return EXIT_SUCCESS;
@@ -266,7 +291,11 @@ static void ip_init_mode(void *_ctx,const unsigned char *_data,int _stride,
   }
 #endif
   ctx=(intra_pred_ctx *)_ctx;
-  ctx->img.mode[_bj*ctx->img.nxblocks+_bi]=vp8_select_mode(_data,_stride,NULL);
+  ctx->img.mode[ctx->img.nxblocks*_bj+_bi]=
+   vp8_select_mode(_data,_stride,&ctx->img.weight[ctx->img.nxblocks*_bj+_bi]);
+#if !WEIGHT_BLOCKS
+  ctx->img.weight[ctx->img.nxblocks*_bj+_bi]=1;
+#endif
 }
 
 static void ip_print_blocks(void *_ctx,const unsigned char *_data,int _stride,
@@ -304,25 +333,26 @@ static void ip_print_blocks(void *_ctx,const unsigned char *_data,int _stride,
   fprintf(stderr,"\n");
 }
 
-static void ip_pred_data(void *_ctx,const unsigned char *_data,int _stride,
+static void ip_update_pred(void *_ctx,const unsigned char *_data,int _stride,
  int _bi,int _bj){
   intra_pred_ctx *ctx;
   image_data     *img;
   od_coeff       *block;
   int             mode;
+  double          weight;
 #if PRINT_PROGRESS
   if(_bi==0&&_bj==0){
-    printf("in ip_pred_data\n");
+    printf("in ip_update_pred\n");
   }
 #endif
   ctx=(intra_pred_ctx *)_ctx;
   img=&ctx->img;
-
-  mode=img->mode[_bj*img->nxblocks+_bi];
   block=&img->fdct[img->fdct_stride*B_SZ*(_bj+1)+B_SZ*(_bi+1)];
 
-  ctx->pd[mode].n++;
-  pred_data_add_block(&ctx->pd[mode],block,img->fdct_stride);
+  mode=img->mode[img->nxblocks*_bj+_bi];
+  weight=img->weight[img->nxblocks*_bj+_bi];
+
+  pred_data_add_block(&ctx->pd[mode],block,img->fdct_stride,weight);
 }
 
 static int pred_start(void *_ctx,const char *_name,const th_info *_ti,int _pli,
@@ -367,13 +397,21 @@ static int pred_finish(void *_ctx){
 static void ip_pred_mode(void *_ctx,const unsigned char *_data,int _stride,
  int _bi,int _bj){
   intra_pred_ctx *ctx;
+  image_data     *img;
+  od_coeff       *block;
 #if PRINT_PROGRESS
   if(_bi==0&&_bj==0){
     printf("in ip_pred_mode\n");
   }
 #endif
   ctx=(intra_pred_ctx *)_ctx;
-  image_data_mode_block(&ctx->img,_bi,_bj);
+  img=&ctx->img;
+  block=&img->fdct[img->fdct_stride*B_SZ*(_bj+1)+B_SZ*(_bi+1)];
+  img->mode[img->nxblocks*_bj+_bi]=
+   od_select_mode(block,img->fdct_stride,&img->weight[img->nxblocks*_bj+_bi]);
+#if !WEIGHT_BLOCKS
+  img->weight[img->nxblocks*_bj+_bi]=1;
+#endif
 }
 
 static void ip_pred_block(void *_ctx,const unsigned char *_data,int _stride,
@@ -445,7 +483,7 @@ const block_func INIT[]={
 #if PRINT_BLOCKS
   ip_print_blocks,
 #endif
-  ip_pred_data
+  ip_update_pred
 };
 
 const int NINIT=sizeof(INIT)/sizeof(*INIT);
@@ -454,7 +492,7 @@ const block_func KMEANS[]={
   ip_pre_block,
   ip_fdct_block,
   ip_pred_mode,
-  ip_pred_data,
+  ip_update_pred,
   ip_pred_block,
   ip_stats_block,
   ip_idct_block,
@@ -472,7 +510,7 @@ const int NKMEANS=sizeof(KMEANS)/sizeof(*KMEANS);
 #endif
 
 int main(int _argc,const char *_argv[]){
-  intra_pred_ctx ctx;
+  static intra_pred_ctx ctx;
   int            ret;
   int            s;
   /* initialize some constants */
@@ -490,12 +528,14 @@ int main(int _argc,const char *_argv[]){
     /* update the intra predictors model */
     intra_pred_ctx_update(&ctx);
     intra_pred_ctx_init(&ctx);
-    /*print_betas();*/
     ret=apply_to_blocks2(&ctx,PADDING,pred_start,KMEANS,NKMEANS,pred_finish,0x1,
      _argc,_argv);
     printf("Finished Step %02i\n",s);
     intra_stats_correct(&ctx.gb);
     intra_stats_print(&ctx.gb,"Daala Intra Predictors",OD_SCALE);
   }
+#if PRINT_BETAS
+  print_betas(stderr);
+#endif
   return ret;
 }

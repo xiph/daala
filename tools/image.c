@@ -260,7 +260,7 @@ int od_rgba16_image_write_png(const od_rgba16_image *_this,FILE *_fout){
     }
   }
   png_set_write_fn(png,_fout,png_write,png_flush);
-  png_set_compression_level(png,Z_BEST_COMPRESSION);
+  png_set_compression_level(png,Z_DEFAULT_COMPRESSION);
   png_set_IHDR(png,info,width,height,16,PNG_COLOR_TYPE_RGBA,
    PNG_INTERLACE_NONE,PNG_COMPRESSION_TYPE_DEFAULT,PNG_FILTER_TYPE_DEFAULT);
   png_set_rows(png,info,image);

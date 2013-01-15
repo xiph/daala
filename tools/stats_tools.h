@@ -47,7 +47,8 @@ extern double OD_SCALE[B_SZ];
 void vp8_scale_init(double _vp8_scale[B_SZ]);
 void od_scale_init(double _od_scale[B_SZ]);
 
-int vp8_select_mode(const unsigned char *_data,int _stride,int *_next_best);
+int vp8_select_mode(const unsigned char *_data,int _stride,double *_weight);
+int od_select_mode(const od_coeff *_block,int _stride,double *_weight); 
 
 extern od_rgba16_pixel COLORS[OD_INTRA_NMODES];
 
@@ -76,6 +77,7 @@ struct image_data{
   int              nxblocks;
   int              nyblocks;
   unsigned char   *mode;
+  double          *weight;
   od_coeff        *pre;
   int              pre_stride;
   od_coeff        *fdct;
@@ -95,7 +97,6 @@ void image_data_clear(image_data *_this);
 void image_data_pre_block(image_data *_this,const unsigned char *_data,
  int _stride,int _bi,int _bj);
 void image_data_fdct_block(image_data *_this,int _bi,int _bj);
-void image_data_mode_block(image_data *_this,int _bi,int _bj);
 void image_data_pred_block(image_data *_this,int _bi,int _bj);
 void image_data_stats_block(image_data *_this,const unsigned char *_data,
  int _stride,int _bi,int _bj,intra_stats *_stats);
@@ -108,9 +109,15 @@ int image_data_save_map(image_data *_this);
 int image_data_load_map(image_data *_this);
 
 extern double NE_PRED_OFFSETS_4x4[OD_INTRA_NMODES][4][4];
-extern double NE_PRED_WEIGHTS_4x4[OD_INTRA_NMODES][4][4][5][4][4];
+extern double NE_PRED_WEIGHTS_4x4[OD_INTRA_NMODES][4][4][2*4][3*4];
+
+extern double NE_PRED_OFFSETS_8x8[OD_INTRA_NMODES][8][8];
+extern double NE_PRED_WEIGHTS_8x8[OD_INTRA_NMODES][8][8][2*8][3*8];
+
+extern double NE_PRED_OFFSETS_16x16[OD_INTRA_NMODES][16][16];
+extern double NE_PRED_WEIGHTS_16x16[OD_INTRA_NMODES][16][16][2*16][3*16];
 
 void ne_intra_pred4x4_mult(const od_coeff *_c,int _stride,int _mode,double *_p);
-void print_betas();
+void print_betas(FILE *_fp);
 
 #endif

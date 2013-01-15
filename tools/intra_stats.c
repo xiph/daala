@@ -99,9 +99,9 @@ static void vp8_update_stats(intra_stats_image *_img,const unsigned char *_data,
   mode_data_add_input(md,_data,_stride);
 
   /* update the vp8 reference mean and covariance */
-  for(i=0;i<B_SZ;i++){
-    for(j=0;j<B_SZ;j++){
-      buf[B_SZ*i+j]=(_data[_stride*i+j]-128)*INPUT_SCALE;
+  for(j=0;j<B_SZ;j++){
+    for(i=0;i<B_SZ;i++){
+      buf[B_SZ*j+i]=(_data[_stride*j+i]-128)*INPUT_SCALE;
     }
   }
 
@@ -191,13 +191,17 @@ static void od_fdct_block(void *_ctx,const unsigned char *_data,int _stride,
 static void od_mode_block(void *_ctx,const unsigned char *_data,int _stride,
  int _bi,int _bj){
   intra_stats_ctx *ctx;
+  image_data      *img;
+  od_coeff        *block;
 #if PRINT_PROGRESS
   if(_bi==0&&_bj==0){
     printf("in od_mode_block\n");
   }
 #endif
   ctx=(intra_stats_ctx *)_ctx;
-  image_data_mode_block(&ctx->img.img_data,_bi,_bj);
+  img=&ctx->img.img_data;
+  block=&img->fdct[img->fdct_stride*B_SZ*(_bj+1)+B_SZ*(_bi+1)];
+  img->mode[img->nxblocks*_bj+_bi]=od_select_mode(block,img->fdct_stride,NULL);
 }
 
 static void od_pred_block(void *_ctx,const unsigned char *_data,int _stride,
@@ -324,7 +328,7 @@ const int NBLOCKS=sizeof(BLOCKS)/sizeof(*BLOCKS);
 #endif
 
 int main(int _argc,const char **_argv){
-  intra_stats_ctx ctx;
+  static intra_stats_ctx ctx;
   int ret;
 #if WRITE_IMAGES
   intra_map_colors(COLORS,OD_INTRA_NMODES);

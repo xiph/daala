@@ -375,7 +375,7 @@ static void od_idct_blocks(od_coeff *_out,int _out_stride,od_coeff *_in,
 #define SCALE_SATD (1)
 
 /* find the best vp8 mode */
-int vp8_select_mode(const unsigned char *_data,int _stride,int *_next_best){
+int vp8_select_mode(const unsigned char *_data,int _stride,double *_weight){
   double best_satd;
   double next_best_satd;
   int    mode;
@@ -430,8 +430,58 @@ int vp8_select_mode(const unsigned char *_data,int _stride,int *_next_best){
     }
   }
 
-  if(_next_best!=NULL){
-    *_next_best=next_best_mode;
+  if(_weight!=NULL){
+    *_weight=best_mode!=0?next_best_satd-best_satd:1;
+  }
+  return best_mode;
+}
+
+int od_select_mode(const od_coeff *_block,int _stride,double *_weight){
+  int    best_mode;
+  double best_satd;
+  int    next_best_mode;
+  double next_best_satd;
+  int    mode;
+  best_mode=0;
+  best_satd=UINT_MAX;
+  next_best_mode=best_mode;
+  next_best_satd=best_satd;
+  for(mode=0;mode<OD_INTRA_NMODES;mode++){
+    double p[B_SZ*B_SZ];
+    double satd;
+    int    i;
+    int    j;
+#if 0
+    od_intra_pred4x4_mult(_block,_stride,mode,p);
+#else
+    ne_intra_pred4x4_mult(_block,_stride,mode,p);
+#endif
+    satd=0;
+    for(j=0;j<B_SZ;j++){
+      for(i=0;i<B_SZ;i++){
+#if SCALE_SATD
+        satd+=sqrt(OD_SCALE[j]*OD_SCALE[i])*
+         abs(_block[_stride*j+i]-(od_coeff)floor(p[B_SZ*j+i]+0.5));
+#else
+        satd+=abs(_block[_stride*j+i]-(od_coeff)floor(p[B_SZ*j+i]+0.5));
+#endif
+      }
+    }
+    if(satd<best_satd){
+      next_best_mode=best_mode;
+      next_best_satd=best_satd;
+      best_mode=mode;
+      best_satd=satd;
+    }
+    else{
+      if(satd<next_best_satd){
+        next_best_mode=mode;
+        next_best_satd=satd;
+      }
+    }
+  }
+  if(_weight!=NULL){
+    *_weight=best_mode!=0?next_best_satd-best_satd:1;
   }
   return best_mode;
 }
@@ -500,6 +550,7 @@ void image_data_init(image_data *_this,const char *_name,int _nxblocks,
   _this->nxblocks=_nxblocks;
   _this->nyblocks=_nyblocks;
   _this->mode=(unsigned char *)malloc(sizeof(*_this->mode)*_nxblocks*_nyblocks);
+  _this->weight=(double *)malloc(sizeof(*_this->weight)*_nxblocks*_nyblocks);
   w=B_SZ*(_nxblocks+3);
   h=B_SZ*(_nyblocks+3);
   _this->pre=(od_coeff *)malloc(sizeof(*_this->pre)*w*h);
@@ -524,6 +575,7 @@ void image_data_init(image_data *_this,const char *_name,int _nxblocks,
 
 void image_data_clear(image_data *_this){
   free(_this->mode);
+  free(_this->weight);
   free(_this->pre);
   free(_this->fdct);
   free(_this->pred);
@@ -605,44 +657,6 @@ void image_data_fdct_block(image_data *_this,int _bi,int _bj){
   y=y0-(B_SZ>>1);
   od_fdct_blocks(&_this->fdct[y*_this->fdct_stride+x],_this->fdct_stride,
    &_this->pre[y0*_this->pre_stride+x0],_this->pre_stride,bx,by);
-}
-
-void image_data_mode_block(image_data *_this,int _bi,int _bj){
-  od_coeff *block;
-  int       best_mode;
-  double    best_satd;
-  int       mode;
-  block=&_this->fdct[_this->fdct_stride*B_SZ*(_bj+1)+B_SZ*(_bi+1)];
-  best_mode=0;
-  best_satd=UINT_MAX;
-  for(mode=0;mode<OD_INTRA_NMODES;mode++){
-    double p[B_SZ*B_SZ];
-    double satd;
-    int    i;
-    int    j;
-#if 0
-    od_intra_pred4x4_mult(block,_this->fdct_stride,mode,p);
-#else
-    ne_intra_pred4x4_mult(block,_this->fdct_stride,mode,p);
-#endif
-    satd=0;
-    for(j=0;j<B_SZ;j++){
-      for(i=0;i<B_SZ;i++){
-#if SCALE_SATD
-        satd+=sqrt(OD_SCALE[j]*OD_SCALE[i])*
-         abs(block[_this->fdct_stride*j+i]-(od_coeff)floor(p[B_SZ*j+i]+0.5));
-#else
-        satd+=
-         abs(block[_this->fdct_stride*j+i]-(od_coeff)floor(p[B_SZ*j+i]+0.5));
-#endif
-      }
-    }
-    if(satd<best_satd){
-      best_mode=mode;
-      best_satd=satd;
-    }
-  }
-  _this->mode[_bj*_this->nxblocks+_bi]=best_mode;
 }
 
 void image_data_pred_block(image_data *_this,int _bi,int _bj){
@@ -829,7 +843,13 @@ int image_data_save_map(image_data *_this){
     fprintf(stderr,"Error opening output file '%s'.\n",name);
     return EXIT_FAILURE;
   }
-  if(fwrite(_this->mode,_this->nxblocks*(size_t)_this->nyblocks,1,fout)<1){
+  if(fwrite(_this->mode,
+   _this->nxblocks*(size_t)_this->nyblocks*sizeof(*_this->mode),1,fout)<1){
+    fprintf(stderr,"Error writing to output file '%s'.\n",name);
+    return EXIT_FAILURE;
+  }
+  if(fwrite(_this->weight,
+   _this->nxblocks*(size_t)_this->nyblocks*sizeof(*_this->weight),1,fout)<1){
     fprintf(stderr,"Error writing to output file '%s'.\n",name);
     return EXIT_FAILURE;
   }
@@ -849,16 +869,19 @@ int image_data_load_map(image_data *_this){
     fprintf(stderr,"Error opening input file '%s'.\n",name);
     return EXIT_FAILURE;
   }
-  if(fread(_this->mode,_this->nxblocks*(size_t)_this->nyblocks,1,fin)<1) {
+  if(fread(_this->mode,
+   _this->nxblocks*(size_t)_this->nyblocks*sizeof(*_this->mode),1,fin)<1) {
+    fprintf(stderr,"Error reading from input file '%s'.\n",name);
+    return EXIT_FAILURE;
+  }
+  if(fread(_this->weight,
+   _this->nxblocks*(size_t)_this->nyblocks*sizeof(*_this->weight),1,fin)<1) {
     fprintf(stderr,"Error reading from input file '%s'.\n",name);
     return EXIT_FAILURE;
   }
   fclose(fin);
   return EXIT_SUCCESS;
 }
-
-double NE_PRED_OFFSETS_4x4[OD_INTRA_NMODES][4][4];
-double NE_PRED_WEIGHTS_4x4[OD_INTRA_NMODES][4][4][5][4][4];
 
 void ne_intra_pred4x4_mult(const od_coeff *_c,int _stride,int _mode,double *_p){
   int j;
@@ -880,7 +903,7 @@ void ne_intra_pred4x4_mult(const od_coeff *_c,int _stride,int _mode,double *_p){
           for(k=0;k<4;k++){
             for(l=0;l<4;l++){
               _p[4*j+i]+=
-               b[_stride*k+l]*NE_PRED_WEIGHTS_4x4[_mode][j][i][3*by+bx][k][l];
+               b[_stride*k+l]*NE_PRED_WEIGHTS_4x4[_mode][j][i][by*4+k][bx*4+l];
             }
           }
         }
@@ -889,7 +912,7 @@ void ne_intra_pred4x4_mult(const od_coeff *_c,int _stride,int _mode,double *_p){
   }
 }
 
-void print_betas(){
+void print_betas(FILE *_fp){
   int m;
   int i;
   int j;
@@ -897,34 +920,77 @@ void print_betas(){
   int l;
   int bx;
   int by;
+#if B_SZ==4
+  fprintf(_fp,"double NE_PRED_OFFSETS_4x4[OD_INTRA_NMODES][4][4]={\n");
+#elif B_SZ==8
+  fprintf(_fp,"double NE_PRED_OFFSETS_8x8[OD_INTRA_NMODES][8][8]={\n");
+#elif B_SZ==16
+  fprintf(_fp,"double NE_PRED_OFFSETS_16x16[OD_INTRA_NMODES][16][16]={\n");
+#else
+# error "Unsupported block size."
+#endif
   for(m=0;m<OD_INTRA_NMODES;m++){
-    fprintf(stderr,"/* Mode %i */\n{\n",m);
+    fprintf(_fp,"/* Mode %i */\n  {\n",m);
     for(j=0;j<B_SZ;j++){
+      fprintf(_fp,"    {");
       for(i=0;i<B_SZ;i++){
-        fprintf(stderr,"%- 24.18G",NE_PRED_OFFSETS_4x4[m][j][i]);
+#if B_SZ==4
+        fprintf(_fp,"%s  %- 24.18G",i>0?",":"",NE_PRED_OFFSETS_4x4[m][j][i]);
+#elif B_SZ==8
+        fprintf(_fp,"%s  %- 24.18G",i>0?",":"",NE_PRED_OFFSETS_8x8[m][j][i]);
+#elif B_SZ==16
+        fprintf(_fp,"%s  %- 24.18G",i>0?",":"",NE_PRED_OFFSETS_16x16[m][j][i]);
+#else
+# error "Unsupported block size."
+#endif
       }
+      fprintf(_fp,"  }%s\n",j<B_SZ-1?",":"");
     }
-    fprintf(stderr,"}\n");
+    fprintf(_fp,"  }%s\n",m<OD_INTRA_NMODES-1?",":"");
+  }
+  fprintf(_fp,"};\n");
+#if B_SZ==4
+  fprintf(_fp,"double NE_PRED_WEIGHTS_4x4[OD_INTRA_NMODES][4][4][2*4][3*4]={\n");
+#elif B_SZ==8
+  fprintf(_fp,"double NE_PRED_WEIGHTS_8x8[OD_INTRA_NMODES][8][8][2*8][3*8]={\n");
+#elif B_SZ==16
+  fprintf(_fp,"double NE_PRED_WEIGHTS_16x16[OD_INTRA_NMODES][16][16][2*16][3*16]={\n");
+#else
+# error "Unsupported block size."
+#endif
+  for(m=0;m<OD_INTRA_NMODES;m++){
+    fprintf(_fp,"  {\n");
     for(j=0;j<B_SZ;j++){
+      fprintf(_fp,"    {\n");
       for(i=0;i<B_SZ;i++){
-        fprintf(stderr,"/* Mode %i (%i,%i) */\n{\n",m,i,j);
+        fprintf(_fp,"/* Mode %i (%i,%i) */\n      {\n",m,j,i);
         for(by=0;by<=1;by++){
           for(k=0;k<B_SZ;k++){
-            fprintf(stderr,"  {");
+            fprintf(_fp,"        {");
             for(bx=0;bx<=2;bx++){
               if(by==1&&bx==2){
                 break;
               }
               for(l=0;l<B_SZ;l++){
-                fprintf(stderr,"%- 24.18G",NE_PRED_WEIGHTS_4x4[j][i][m][3*by+bx][k][l]);
+#if B_SZ==4
+                fprintf(_fp,"%s  %- 24.18G",bx>0||l>0?",":"",NE_PRED_WEIGHTS_4x4[m][j][i][B_SZ*by+k][B_SZ*bx+l]);
+#elif B_SZ==8
+                fprintf(_fp,"%s  %- 24.18G",bx>0||l>0?",":"",NE_PRED_WEIGHTS_8x8[m][j][i][B_SZ*by+k][B_SZ*bx+l]);
+#elif B_SZ==16
+                fprintf(_fp,"%s  %- 24.18G",bx>0||l>0?",":"",NE_PRED_WEIGHTS_16x16[m][j][i][B_SZ*by+k][B_SZ*bx+l]);
+#else
+# error "Unsupported block size."
+#endif
               }
-              fprintf(stderr,"   ");
             }
-            fprintf(stderr,"}\n");
+            fprintf(_fp,"  }%s\n",by<1||k<B_SZ-1?",":"");
           }
         }
+        fprintf(_fp,"      }%s\n",i<B_SZ-1?",":"");
       }
+      fprintf(_fp,"    }%s\n",j<B_SZ-1?",":"");
     }
-    fprintf(stderr,"\n");
+    fprintf(_fp,"  }%s\n",m<OD_INTRA_NMODES-1?",":"");
   }
+  fprintf(_fp,"};\n");
 }
