@@ -959,7 +959,7 @@ int image_data_load_map(image_data *_this){
 
 int NE_FILTER_PARAMS4[4]={91,85,-11,36};
 
-void ne_pre_filter4(od_coeff _y[4],const od_coeff _x[4]){
+static void ne_pre_filter4(od_coeff _y[4],const od_coeff _x[4]){
   int t[4];
   t[3]=_x[0]-_x[3];
   t[2]=_x[1]-_x[2];
@@ -979,7 +979,7 @@ void ne_pre_filter4(od_coeff _y[4],const od_coeff _x[4]){
   _y[3]=(od_coeff)(t[0]-t[3]);
 }
 
-void ne_post_filter4(od_coeff _x[4],const od_coeff _y[4]){
+static void ne_post_filter4(od_coeff _x[4],const od_coeff _y[4]){
   int t[4];
   t[3]=_y[0]-_y[3];
   t[2]=_y[1]-_y[2];

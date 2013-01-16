@@ -144,6 +144,22 @@ IP_CSOURCES:=${IP_LOCAL_CSOURCES} ${IP_LOCAL_CSOURCES:%=${LIBSRCDIR}/%}
 IP_TARGET:=intra_pred
 
 
+#trans
+T_LOCAL_CSOURCES = \
+trans.c \
+intra_fit_tools.c \
+vidinput.c
+
+T_LIB_CSOURCES =
+
+T_LDFLAGS = `pkg-config theoradec ogg libpng --libs` -lm
+
+T_OBJS:=${T_LOCAL_CSOURCES} ${T_LIB_CSOURCES}
+T_OBJS:=${T_OBJS:%.c=${WORKDIR}/%.o}
+T_CSOURCES:=${T_LOCAL_CSOURCES} ${T_LOCAL_CSOURCES:%=${LIBSRCDIR}/%}
+T_TARGET:=trans
+
+
 #init_intra_xform
 IIX_LOCAL_CSOURCES = \
 cholesky.c \
@@ -182,7 +198,7 @@ GEN_CDF_TARGET:=gen_cdf
 
 
 ALL_OBJS:=${P2Y_OBJS} ${Y2P_OBJS} ${PIM_OBJS} ${IIM_OBJS} ${IIX_OBJS} \
- ${GEN_CDF_OBJS} ${IS_OBJS} ${IP_OBJS}
+ ${GEN_CDF_OBJS} ${IS_OBJS} ${IP_OBJS} ${T_OBJS}
 
 ALL_ASMS:=${ALL_OBJS:%.o=%.s}
 
@@ -190,7 +206,7 @@ ALL_DEPS:=${ALL_OBJS:%.o=%.d}
 
 ALL_TARGETS:=${P2Y_TARGET} ${Y2P_TARGET} \
  ${PIM_TARGET} ${IIM_TARGET} ${IIX_TARGET} ${GEN_CDF_TARGET} \
- ${IS_TARGET} ${IP_TARGET}
+ ${IS_TARGET} ${IP_TARGET} ${T_TARGET}
 
 all: ${ALL_TARGETS}
 
@@ -220,6 +236,9 @@ ${IS_TARGET}: ${IS_OBJS}
 
 ${IP_TARGET}: ${IP_OBJS}
 	${CC} ${CFLAGS} ${IP_OBJS} ${IP_LDFLAGS} -o $@
+
+${T_TARGET}: ${T_OBJS}
+	${CC} ${CFLAGS} ${T_OBJS} ${T_LDFLAGS} -o $@
 
 ${IIX_TARGET}: ${IIX_OBJS}
 	${CC} ${CFLAGS} ${IIX_OBJS} ${IIX_LDFLAGS} -o $@
