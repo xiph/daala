@@ -453,12 +453,7 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
         cblock[0]=floor(pow(fabs(cblock[0]-predt[0])/(scale),3/4.));
         generic_encode(&_enc->ec,&model_dc,cblock[0],&ex_dc,0);
         if(cblock[0])od_ec_enc_bits(&_enc->ec,sgn,1);
-        quant_pvq(&cblock[1],&predt[1],pvq_scale,&pred[1],15,scale,&qg);
-        generic_encode(&_enc->ec,&model_g,abs(qg),&ex_g,0);
-        if(qg)od_ec_enc_bits(&_enc->ec,qg<0,1);
-        vk=0;
-        for(j=0;j<15;j++)vk+=abs(pred[j+1]);
-        /* No need to code vk because we can get it from qg */
+
         cblock[0]=pow(cblock[0],4/3.)*(scale);
         cblock[0]*=sgn?-1:1;
         cblock[0]+=predt[0];
@@ -474,13 +469,25 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
         pvq_adapt.mean_pos_q4=OD_MAXI((hmean_pos_q3>>OD_POS_ADAPT_SPEED)
          +pvq_adapt_row[bj].mean_pos_q4,1);
 #endif
+
 #if 1
+        quant_pvq(&cblock[1],&predt[1],pvq_scale,&pred[1],15,scale,&qg);
+        generic_encode(&_enc->ec,&model_g,abs(qg),&ex_g,0);
+        if(qg)od_ec_enc_bits(&_enc->ec,qg<0,1);
+        vk=0;
+        for(j=0;j<15;j++)vk+=abs(pred[j+1]);
+        /* No need to code vk because we can get it from qg */
         /* Expectation is that half the pulses will go in y[m] */
         ex_ym = 65536*vk/2;
         if (vk!=0)
           generic_encode(&_enc->ec,&model_ym,vk-pred[1],&ex_ym,0);
         pvq_encoder(&_enc->ec,&pred[2],14,vk-abs(pred[1]),&pvq_adapt);
 #else
+        vk = quant_scalar(&cblock[1],&predt[1],pvq_scale,&pred[1],15,11,&pvq_adapt);
+        {
+          static int ex_k = 32768;
+          generic_encode(&_enc->ec,&model_ym,vk,&ex_k,4);
+        }
         /* Treat first component (y[m]) like all others */
         pvq_encoder(&_enc->ec,&pred[1],15,vk,&pvq_adapt);
 #endif

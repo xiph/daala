@@ -840,30 +840,124 @@ int quant_pvq_noref(ogg_int32_t *_x,float gr,
   return qg;
 }
 
-
 int quant_scalar(ogg_int32_t *_x,const ogg_int32_t *_r,
-    ogg_int16_t *_scale,int *y,int N,int Q){
+    ogg_int16_t *_scale,int *y,int N,int Q, od_pvq_adapt_ctx *_adapt){
   int i;
   float Q2, Q2_1;
   int K;
+  float lambda;
+  int mean_k_q8;
+  int mean_sum_ex_q8;
+  int expQ8;
+  int Kn;
   OD_ASSERT(N>0);
 
   K=0;
-  Q2=1.5*Q;
-  if (N==64)
-    Q2*=.8;
+  Q2=1.4*Q;
+  lambda = .115;
   Q2_1=1./Q2;
   for (i=0;i<N;i++)
   {
-    int qi;
     float tmp;
-    tmp=Q2_1*(_x[i]-_r[i]);
-    if (tmp<.8&&tmp>-.8)
-      qi=0;
-    else
-      qi=floor(.5+tmp);
-    K+=abs(qi);
-    _x[i]=_r[i]+Q2*qi;
+    _x[i] -= _r[i];
+    tmp=Q2_1*_x[i];
+    y[i]=floor(.5+tmp);
+    K+=abs(y[i]);
   }
-  return 0;
+
+
+#if 0
+  /* Attempt at modelling the rate more accurately -- doesn't work for now */
+  mean_k_q8=_adapt->mean_k_q8;
+  mean_sum_ex_q8=_adapt->mean_sum_ex_q8;
+  if(mean_k_q8<1<<23)expQ8=256*mean_k_q8/(1+mean_sum_ex_q8);
+  else expQ8=mean_k_q8/(1+(mean_sum_ex_q8>>8));
+
+  Kn=0;
+  for (i=N-1;i>=0;i--)
+  {
+    float e;
+    int Ex;
+    int decay;
+    float rate0, rate_1;
+    float cost0,cost_1;
+    float ay;
+
+    ay=abs(y[i]);
+    if (y[i]==0)
+      continue;
+    e = Q2_1*_x[i]-y[i];
+
+    Kn += abs(y[i]);
+    Ex=(2*expQ8*Kn+(N-i))/(2*(N-i));
+    if(Ex>Kn*128)
+      Ex=Kn*128;
+
+    decay = OD_MINI(255,(int)((256*Ex/(Ex+256) + 8*Ex*Ex/(256*(Kn+2)*(Kn)*(Kn)))));
+    /*printf("(%d %d %d %d ", expQ8, Kn, Ex, decay);*/
+    rate0 = -log2(pow(decay/256.,ay)*(1-decay/256.)/(1-pow(decay/256.,Kn+1)));
+    if(Kn==1){
+      rate_1=0;
+    } else {
+      Ex=(2*expQ8*(Kn-1)+(N-i))/(2*(N-i));
+      if(Ex>(Kn-1)*256)
+        Ex=(Kn-1)*256;
+
+      decay = OD_MINI(255,(int)((256*Ex/(Ex+256) + 8*Ex*Ex/(256*(Kn+1)*(Kn-1)*(Kn-1)))));
+      /*printf("%d ", decay);*/
+      rate_1 = -log2(pow(decay/256.,ay-1)*(1-decay/256.)/(1-pow(decay/256.,Kn)));
+    }
+
+    cost0 = e*e + lambda*rate0;
+    cost_1 = (e+1)*(e+1) + lambda*rate_1;
+    /*printf("%f %f %f %f) ", e*e, (e+1)*(e+1), rate0, rate_1);*/
+    if (cost_1<cost0)
+    {
+      if (y[i]>0)
+        y[i]--;
+      else
+        y[i]++;
+      Kn--;
+    }
+  }
+  /*printf("\n");*/
+#else
+  if (K!=0) {
+    float alpha;
+    float r, r_1;
+    float E0;
+    float bias;
+    alpha = (float)_adapt->mean_k_q8/(float)_adapt->mean_sum_ex_q8;
+    if(alpha<1)
+      alpha=1;
+    r = 1-alpha/N;
+    if (r>.1)
+      r = .1;
+    E0 = alpha*K/N;
+    r_1 = 1./r;
+    bias = -lambda/E0;
+    if (bias<-.49)
+      bias=-.49;
+    K=0;
+    for (i=0;i<N;i++)
+    {
+      float tmp;
+      tmp=Q2_1*_x[i];
+      if (tmp>0)
+        tmp+=bias;
+      else
+        tmp-=bias;
+      y[i]=floor(.5+tmp);
+      K+=abs(y[i]);
+      bias *= r_1;
+      if (bias<-.49)
+        bias=-.49;
+    }
+  }
+  Kn=K;
+#endif
+
+  for (i=0;i<N;i++)
+    _x[i]=_r[i]+Q2*y[i];
+  return Kn;
 }
