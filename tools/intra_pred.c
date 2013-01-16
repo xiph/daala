@@ -41,12 +41,9 @@ static void pred_data_add_block(pred_data *_this,const od_coeff *_block,
   int    i;
   _this->w+=_w;
   for(by=0;by<=1;by++){
-    for(bx=0;bx<=2;bx++){
+    for(bx=0;bx<=2-by;bx++){
       int             bo;
       const od_coeff *block;
-      if(by==1&&bx==2){
-        continue;
-      }
       bo=B_SZ*B_SZ*(3*by+bx);
       block=&_block[_stride*B_SZ*(by-1)+B_SZ*(bx-1)];
       for(j=0;j<B_SZ;j++){
@@ -70,13 +67,13 @@ static void pred_data_update(pred_data *_this,int _mode){
   int     i;
   int     j;
   int     k;
-  double  scale[5*B_SZ*B_SZ];
-  double  xtx[2*4*B_SZ*B_SZ][4*B_SZ*B_SZ];
-  double  xty[4*B_SZ*B_SZ][B_SZ*B_SZ];
-  double *xtxp[2*4*B_SZ*B_SZ];
-  double  s[4*B_SZ*B_SZ];
-  double  beta_0[B_SZ*B_SZ];
-  double  beta_1[4*B_SZ*B_SZ][B_SZ*B_SZ];
+  static double  scale[5*B_SZ*B_SZ];
+  static double  xtx[2*4*B_SZ*B_SZ][4*B_SZ*B_SZ];
+  static double  xty[4*B_SZ*B_SZ][B_SZ*B_SZ];
+  static double *xtxp[2*4*B_SZ*B_SZ];
+  static double  s[4*B_SZ*B_SZ];
+  static double  beta_0[B_SZ*B_SZ];
+  static double  beta_1[4*B_SZ*B_SZ][B_SZ*B_SZ];
 
   /* compute the scale factors */
   for(i=0;i<5*B_SZ*B_SZ;i++){
@@ -321,10 +318,7 @@ static void ip_print_blocks(void *_ctx,const unsigned char *_data,int _stride,
   mode=img->mode[_bj*img->nxblocks+_bi];
   fprintf(stderr,"%i",mode);
   for(by=0;by<=1;by++){
-    for(bx=0;bx<=2;bx++){
-      if(by==1&&bx==2){
-        continue;
-      }
+    for(bx=0;bx<=2-by;bx++){
       block=&img->fdct[img->fdct_stride*B_SZ*(_bj+by)+B_SZ*(_bi+bx)];
       for(j=0;j<B_SZ;j++){
         for(i=0;i<B_SZ;i++){

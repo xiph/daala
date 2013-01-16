@@ -27,6 +27,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "filter.h"
 #include "intra.h"
 
+const od_intra_mult_func OD_INTRA_MULT[OD_NBSIZES]={
+  od_intra_pred4x4_mult,
+  NULL,
+  NULL
+};
+
 void od_intra_pred4x4_mult(const od_coeff *_c,int _stride,int _mode,double *_p){
   int i;
   int j;

@@ -32,6 +32,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 # define OD_INTRA_NCONTEXTS (8)
 
+typedef void (*od_intra_mult_func)(const od_coeff *_c,int _stride,int _mode,
+ double *_p);
+
+extern const od_intra_mult_func OD_INTRA_MULT[OD_NBSIZES];
+
 extern const double OD_INTRA_PRED_WEIGHTS_4x4[OD_INTRA_NMODES][4][4][2*4][2*4];
 extern const unsigned char OD_INTRA_PRED_PROB_4x4[3][OD_INTRA_NMODES][OD_INTRA_NCONTEXTS];
 

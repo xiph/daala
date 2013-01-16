@@ -479,10 +479,14 @@ int od_select_mode_bits(const od_coeff *_block,int _stride,double *_weight,
     double bits;
     int    j;
     int    i;
+#if B_SZ_LOG>=OD_LOG_BSIZE0&&B_SZ_LOG<OD_LOG_BSIZE0+OD_NBSIZES
 #if 0
-    od_intra_pred4x4_mult(_block,_stride,mode,p);
+    (*OD_INTRA_MULT[B_SZ_LOG-OD_LOG_BSIZE0])(_block,_stride,mode,p);
 #else
-    ne_intra_pred4x4_mult(_block,_stride,mode,p);
+    (*NE_INTRA_MULT[B_SZ_LOG-OD_LOG_BSIZE0])(_block,_stride,mode,p);
+#endif
+#else
+# error "Need a predictor implementation for this block size."
 #endif
     bits=0;
     for(j=0;j<B_SZ;j++){
@@ -525,10 +529,14 @@ int od_select_mode_satd(const od_coeff *_block,int _stride,double *_weight){
     double satd;
     int    j;
     int    i;
+#if B_SZ_LOG>=OD_LOG_BSIZE0&&B_SZ_LOG<OD_LOG_BSIZE0+OD_NBSIZES
 #if 0
-    od_intra_pred4x4_mult(_block,_stride,mode,p);
+    (*OD_INTRA_MULT[B_SZ_LOG-OD_LOG_BSIZE0])(_block,_stride,mode,p);
 #else
-    ne_intra_pred4x4_mult(_block,_stride,mode,p);
+    (*NE_INTRA_MULT[B_SZ_LOG-OD_LOG_BSIZE0])(_block,_stride,mode,p);
+#endif
+#else
+# error "Need a predictor implementation for this block size."
 #endif
     satd=0;
     for(j=0;j<B_SZ;j++){
@@ -742,10 +750,14 @@ void image_data_pred_block(image_data *_this,int _bi,int _bj){
   int       i;
   mode=_this->mode[_this->nxblocks*_bj+_bi];
   block=&_this->fdct[_this->fdct_stride*B_SZ*(_bj+1)+B_SZ*(_bi+1)];
+#if B_SZ_LOG>=OD_LOG_BSIZE0&&B_SZ_LOG<OD_LOG_BSIZE0+OD_NBSIZES
 #if 0
-  od_intra_pred4x4_mult(block,_this->fdct_stride,mode,p);
+    (*OD_INTRA_MULT[B_SZ_LOG-OD_LOG_BSIZE0])(block,_this->fdct_stride,mode,p);
 #else
-  ne_intra_pred4x4_mult(block,_this->fdct_stride,mode,p);
+    (*NE_INTRA_MULT[B_SZ_LOG-OD_LOG_BSIZE0])(block,_this->fdct_stride,mode,p);
+#endif
+#else
+# error "Need a predictor implementation for this block size."
 #endif
   pred=&_this->pred[_this->pred_stride*B_SZ*_bj+B_SZ*_bi];
   for(j=0;j<B_SZ;j++){
@@ -1020,12 +1032,9 @@ void ne_intra_pred4x4_mult(const od_coeff *_c,int _stride,int _mode,double *_p){
     for(i=0;i<4;i++){
       _p[4*j+i]=NE_PRED_OFFSETS_4x4[_mode][j][i];
       for(by=0;by<=1;by++){
-        for(bx=0;bx<=2;bx++){
-	  const od_coeff *b;
-          if(by==1&&bx==2){
-            break;
-          }
-	  b=&_c[_stride*4*(by-1)+4*(bx-1)];
+        for(bx=0;bx<=2-by;bx++){
+          const od_coeff *b;
+          b=&_c[_stride*4*(by-1)+4*(bx-1)];
           for(k=0;k<4;k++){
             for(l=0;l<4;l++){
               _p[4*j+i]+=
@@ -1037,6 +1046,64 @@ void ne_intra_pred4x4_mult(const od_coeff *_c,int _stride,int _mode,double *_p){
     }
   }
 }
+
+void ne_intra_pred8x8_mult(const od_coeff *_c,int _stride,int _mode,double *_p){
+  int j;
+  int i;
+  int by;
+  int bx;
+  int k;
+  int l;
+  for(j=0;j<8;j++){
+    for(i=0;i<8;i++){
+      _p[8*j+i]=NE_PRED_OFFSETS_8x8[_mode][j][i];
+      for(by=0;by<=1;by++){
+        for(bx=0;bx<=2-by;bx++){
+          const od_coeff *b;
+          b=&_c[_stride*8*(by-1)+8*(bx-1)];
+          for(k=0;k<8;k++){
+            for(l=0;l<8;l++){
+              _p[8*j+i]+=
+               b[_stride*k+l]*NE_PRED_WEIGHTS_8x8[_mode][j][i][by*8+k][bx*8+l];
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+void ne_intra_pred16x16_mult(const od_coeff *_c,int _stride,int _mode,double *_p){
+  int j;
+  int i;
+  int by;
+  int bx;
+  int k;
+  int l;
+  for(j=0;j<16;j++){
+    for(i=0;i<16;i++){
+      _p[16*j+i]=NE_PRED_OFFSETS_16x16[_mode][j][i];
+      for(by=0;by<=1;by++){
+        for(bx=0;bx<=2-by;bx++){
+          const od_coeff *b;
+          b=&_c[_stride*16*(by-1)+8*(bx-1)];
+          for(k=0;k<16;k++){
+            for(l=0;l<16;l++){
+              _p[16*j+i]+=
+               b[_stride*k+l]*NE_PRED_WEIGHTS_16x16[_mode][j][i][by*16+k][bx*16+l];
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+const od_intra_mult_func NE_INTRA_MULT[OD_NBSIZES]={
+  ne_intra_pred4x4_mult,
+  ne_intra_pred8x8_mult,
+  ne_intra_pred16x16_mult
+};
 
 void print_betas(FILE *_fp){
   int m;
@@ -1093,10 +1160,7 @@ void print_betas(FILE *_fp){
         for(by=0;by<=1;by++){
           for(k=0;k<B_SZ;k++){
             fprintf(_fp,"        {");
-            for(bx=0;bx<=2;bx++){
-              if(by==1&&bx==2){
-                break;
-              }
+            for(bx=0;bx<=2-by;bx++){
               for(l=0;l<B_SZ;l++){
 #if B_SZ==4
                 fprintf(_fp,"%s  %- 24.18G",bx>0||l>0?",":"",NE_PRED_WEIGHTS_4x4[m][j][i][B_SZ*by+k][B_SZ*bx+l]);

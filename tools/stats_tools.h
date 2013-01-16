@@ -116,6 +116,8 @@ extern int NE_FILTER_PARAMS4[4];
 extern const od_filter_func NE_PRE_FILTER[OD_NBSIZES];
 extern const od_filter_func NE_POST_FILTER[OD_NBSIZES];
 
+extern const od_intra_mult_func NE_INTRA_MULT[OD_NBSIZES];
+
 extern double NE_PRED_OFFSETS_4x4[OD_INTRA_NMODES][4][4];
 extern double NE_PRED_WEIGHTS_4x4[OD_INTRA_NMODES][4][4][2*4][3*4];
 

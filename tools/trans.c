@@ -342,8 +342,6 @@ static void trans_ctx_search(trans_ctx *_this){
       }
     }
   }
-#else
-# error
 #endif
 
   fprintf(stdout,"cg=%G\n",coding_gain(r));
