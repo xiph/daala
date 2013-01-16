@@ -382,6 +382,8 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
     for(bj=0;bj<nhbs;bj++){
       pvq_adapt_row[bj].mean_k_q8=OD_K_ROW_INIT_Q8;
       pvq_adapt_row[bj].mean_sum_ex_q8=OD_SUM_EX_ROW_INIT_Q8;
+      pvq_adapt_row[bj].mean_count_q8=OD_COUNT_INIT_Q7;
+      pvq_adapt_row[bj].mean_count_ex_q8=OD_COUNT_EX_INIT_Q7;
 #if !defined(OD_DISABLE_PVQ_CODE1)
       pvq_adapt_row[bj].mean_pos_q4=OD_POS_ROW_INIT_Q4;
 #endif
@@ -509,6 +511,8 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
 #endif
         pvq_adapt_row[bj].k=pvq_adapt.k;
         pvq_adapt_row[bj].sum_ex_q8=pvq_adapt.sum_ex_q8;
+        pvq_adapt_row[bj].count_q8=pvq_adapt.count_q8;
+        pvq_adapt_row[bj].count_ex_q8=pvq_adapt.count_ex_q8;
 #if !defined(OD_DISABLE_PVQ_CODE1)
         pvq_adapt_row[bj].pos=pvq_adapt.pos;
 #endif
