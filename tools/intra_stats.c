@@ -201,7 +201,8 @@ static void od_mode_block(void *_ctx,const unsigned char *_data,int _stride,
   ctx=(intra_stats_ctx *)_ctx;
   img=&ctx->img.img_data;
   block=&img->fdct[img->fdct_stride*B_SZ*(_bj+1)+B_SZ*(_bi+1)];
-  img->mode[img->nxblocks*_bj+_bi]=od_select_mode(block,img->fdct_stride,NULL);
+  img->mode[img->nxblocks*_bj+_bi]=
+   od_select_mode_satd(block,img->fdct_stride,NULL);
 }
 
 static void od_pred_block(void *_ctx,const unsigned char *_data,int _stride,

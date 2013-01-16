@@ -131,6 +131,16 @@ void mode_data_print(mode_data *_md,const char *_label,double *_scale){
    _label,_md->n,satd_avg,bits_avg,_md->mean,_md->var,cg_ref,cg_pred,pg);
 }
 
+void mode_data_params(mode_data *_this,double _b[B_SZ*B_SZ],double *_scale){
+  int j;
+  int i;
+  for(j=0;j<B_SZ;j++){
+    for(i=0;i<B_SZ;i++){
+      _b[j*B_SZ+i]=sqrt(_scale[j]*_scale[i]*_this->pred_cov[j*B_SZ+i][j*B_SZ+i]/2);
+    }
+  }
+}
+
 void intra_stats_init(intra_stats *_this){
   int mode;
   mode_data_init(&_this->fr);
@@ -453,7 +463,54 @@ int vp8_select_mode(const unsigned char *_data,int _stride,double *_weight){
   return best_mode;
 }
 
-int od_select_mode(const od_coeff *_block,int _stride,double *_weight){
+int od_select_mode_bits(const od_coeff *_block,int _stride,double *_weight,
+ double _b[OD_INTRA_NMODES][B_SZ*B_SZ]){
+  int    best_mode;
+  double best_bits;
+  int    next_best_mode;
+  double next_best_bits;
+  int    mode;
+  best_mode=0;
+  best_bits=UINT_MAX;
+  next_best_mode=best_mode;
+  next_best_bits=best_bits;
+  for(mode=0;mode<OD_INTRA_NMODES;mode++){
+    double p[B_SZ*B_SZ];
+    double bits;
+    int    j;
+    int    i;
+#if 0
+    od_intra_pred4x4_mult(_block,_stride,mode,p);
+#else
+    ne_intra_pred4x4_mult(_block,_stride,mode,p);
+#endif
+    bits=0;
+    for(j=0;j<B_SZ;j++){
+      for(i=0;i<B_SZ;i++){
+        bits+=1+OD_LOG2(_b[mode][j*B_SZ+i])+M_LOG2E/_b[mode][j*B_SZ+i]*
+         abs(_block[_stride*j+i]-(od_coeff)floor(p[B_SZ*j+i]+0.5));
+      }
+    }
+    if(bits<best_bits){
+      next_best_mode=best_mode;
+      next_best_bits=best_bits;
+      best_mode=mode;
+      best_bits=bits;
+    }
+    else{
+      if(bits<next_best_bits){
+        next_best_mode=mode;
+        next_best_bits=bits;
+      }
+    }
+  }
+  if(_weight!=NULL){
+    *_weight=best_mode!=0?next_best_bits-best_bits:1;
+  }
+  return best_mode;
+}
+
+int od_select_mode_satd(const od_coeff *_block,int _stride,double *_weight){
   int    best_mode;
   double best_satd;
   int    next_best_mode;
@@ -466,8 +523,8 @@ int od_select_mode(const od_coeff *_block,int _stride,double *_weight){
   for(mode=0;mode<OD_INTRA_NMODES;mode++){
     double p[B_SZ*B_SZ];
     double satd;
-    int    i;
     int    j;
+    int    i;
 #if 0
     od_intra_pred4x4_mult(_block,_stride,mode,p);
 #else

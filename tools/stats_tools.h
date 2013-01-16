@@ -27,6 +27,7 @@ void mode_data_add_block(mode_data *_md,const od_coeff *_block,int _stride,
 void mode_data_correct(mode_data *_md);
 void mode_data_print(mode_data *_md,const char *_label,double *_scale);
 void mode_data_combine(mode_data *_a,const mode_data *_b);
+void mode_data_params(mode_data *_this,double _b[B_SZ*B_SZ],double *_scale);
 
 typedef struct intra_stats intra_stats;
 
@@ -48,7 +49,9 @@ void vp8_scale_init(double _vp8_scale[B_SZ]);
 void od_scale_init(double _od_scale[B_SZ]);
 
 int vp8_select_mode(const unsigned char *_data,int _stride,double *_weight);
-int od_select_mode(const od_coeff *_block,int _stride,double *_weight); 
+int od_select_mode_satd(const od_coeff *_block,int _stride,double *_weight); 
+int od_select_mode_bits(const od_coeff *_block,int _stride,double *_weight,
+ double _b[OD_INTRA_NMODES][B_SZ*B_SZ]);
 
 extern od_rgba16_pixel COLORS[OD_INTRA_NMODES];
 

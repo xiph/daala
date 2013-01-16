@@ -10,6 +10,7 @@
 #define WRITE_IMAGES (0)
 #define PRINT_BETAS (0)
 #define WEIGHT_BLOCKS (0)
+#define BITS_SELECT (0)
 
 typedef struct pred_data pred_data;
 
@@ -211,6 +212,7 @@ struct intra_pred_ctx{
   intra_stats stats;
   intra_stats gb;
   pred_data   pd[OD_INTRA_NMODES];
+  double      b[OD_INTRA_NMODES][B_SZ*B_SZ];
   image_data  img;
 #if WRITE_IMAGES
   image_files files;
@@ -229,6 +231,7 @@ static void intra_pred_ctx_init(intra_pred_ctx *_this){
 static void intra_pred_ctx_update(intra_pred_ctx *_this){
   int i;
   for(i=0;i<OD_INTRA_NMODES;i++){
+    mode_data_params(&_this->gb.md[i],_this->b[i],OD_SCALE);
     pred_data_update(&_this->pd[i],i);
   }
 }
@@ -399,6 +402,7 @@ static void ip_pred_mode(void *_ctx,const unsigned char *_data,int _stride,
   intra_pred_ctx *ctx;
   image_data     *img;
   od_coeff       *block;
+  double         *weight;
 #if PRINT_PROGRESS
   if(_bi==0&&_bj==0){
     printf("in ip_pred_mode\n");
@@ -407,8 +411,21 @@ static void ip_pred_mode(void *_ctx,const unsigned char *_data,int _stride,
   ctx=(intra_pred_ctx *)_ctx;
   img=&ctx->img;
   block=&img->fdct[img->fdct_stride*B_SZ*(_bj+1)+B_SZ*(_bi+1)];
+  weight=&img->weight[img->nxblocks*_bj+_bi];
+#if BITS_SELECT
+  /* use satd on first step since we don't have daala statistics yet*/
+  if(ctx->step==1){
+    img->mode[img->nxblocks*_bj+_bi]=
+     od_select_mode_satd(block,img->fdct_stride,weight);
+  }
+  else{
+    img->mode[img->nxblocks*_bj+_bi]=
+     od_select_mode_bits(block,img->fdct_stride,weight,ctx->b);
+  }
+#else
   img->mode[img->nxblocks*_bj+_bi]=
-   od_select_mode(block,img->fdct_stride,&img->weight[img->nxblocks*_bj+_bi]);
+   od_select_mode_satd(block,img->fdct_stride,weight);
+#endif
 #if !WEIGHT_BLOCKS
   img->weight[img->nxblocks*_bj+_bi]=1;
 #endif
