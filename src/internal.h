@@ -93,9 +93,6 @@ void od_fatal_impl(const char *_str,const char *_file,int _line);
 #  define OD_ASSERT2(_cond,_message)
 # endif
 
-
-
-#if 1
 /*Currently this structure is only in Tremor, and is read-only.*/
 typedef struct oggbyte_buffer oggbyte_buffer;
 
@@ -126,11 +123,19 @@ void oggbyte_reset(oggbyte_buffer *_b);
 long oggbyte_bytes(oggbyte_buffer *_b);
 unsigned char *oggbyte_get_buffer(oggbyte_buffer *_b);
 
-#endif
-
 int od_ilog(ogg_uint32_t _v);
 void **od_malloc_2d(size_t _height,size_t _width,size_t _sz);
 void **od_calloc_2d(size_t _height,size_t _width,size_t _sz);
 void od_free_2d(void *_ptr);
+
+# define OD_DIVU_DMAX (32)
+
+extern ogg_uint32_t OD_DIVU_SMALL_CONSTS[OD_DIVU_DMAX][2];
+
+/*Translate unsigned division by small divisors into multiplications.*/
+# define OD_DIVU_SMALL(_x,_d) \
+  ((ogg_uint32_t)(OD_DIVU_SMALL_CONSTS[(_d)-1][0]* \
+  (unsigned long long)(_x)+OD_DIVU_SMALL_CONSTS[(_d)-1][1]>>32)>> \
+  OD_ILOG(_d)-1)
 
 #endif

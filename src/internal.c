@@ -27,6 +27,52 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <string.h>
 #include "internal.h"
 
+/*Constants for use with OD_DIVU_SMALL().
+  See \cite{Rob05} for details on computing these constants.
+  @INPROCEEDINGS{Rob05,
+    author="Arch D. Robison",
+    title="{N}-bit Unsigned Division via {N}-bit Multiply-Add",
+    booktitle="Proc. of the 17th IEEE Symposium on Computer Arithmetic
+     (ARITH'05)",
+    pages="131--139",
+    address="Cape Cod, MA",
+    month=Jun,
+    year=2005
+  }*/
+ogg_uint32_t OD_DIVU_SMALL_CONSTS[OD_DIVU_DMAX][2]={
+  {0xFFFFFFFF,0xFFFFFFFF},
+  {0xFFFFFFFF,0xFFFFFFFF},
+  {0xAAAAAAAB,         0},
+  {0xFFFFFFFF,0xFFFFFFFF},
+  {0xCCCCCCCD,         0},
+  {0xAAAAAAAB,         0},
+  {0x92492492,0x92492492},
+  {0xFFFFFFFF,0xFFFFFFFF},
+  {0xE38E38E4,         0},
+  {0xCCCCCCCD,         0},
+  {0xBA2E8BA3,         0},
+  {0xAAAAAAAB,         0},
+  {0x9D89D89E,         0},
+  {0x92492492,0x92492492},
+  {0x88888889,         0},
+  {0xFFFFFFFF,0xFFFFFFFF},
+  {0xF0F0F0F1,         0},
+  {0xE38E38E4,         0},
+  {0xD79435E5,0xD79435E5},
+  {0xCCCCCCCD,         0},
+  {0xC30C30C3,0xC30C30C3},
+  {0xBA2E8BA3,         0},
+  {0xB21642C9,         0},
+  {0xAAAAAAAB,         0},
+  {0xA3D70A3E,         0},
+  {0x9D89D89E,         0},
+  {0x97B425ED,0x97B425ED},
+  {0x92492492,0x92492492},
+  {0x8D3DCB09,         0},
+  {0x88888889,         0},
+  {0x84210842,0x84210842},
+  {0xFFFFFFFF,0xFFFFFFFF}
+};
 
 #if defined(OD_ENABLE_ASSERTIONS)
 void od_fatal_impl(const char *_str,const char *_file,int _line){
