@@ -229,8 +229,8 @@ void od_scale_init(double _od_scale[B_SZ]){
 #endif
 #if APPLY_POSTFILTER
 #if B_SZ_LOG>=OD_LOG_BSIZE0&&B_SZ_LOG<OD_LOG_BSIZE0+OD_NBSIZES
-    (*OD_POST_FILTER[B_SZ_LOG-OD_LOG_BSIZE0])(buf,buf);
-    (*OD_POST_FILTER[B_SZ_LOG-OD_LOG_BSIZE0])(&buf[B_SZ],&buf[B_SZ]);
+    (*NE_POST_FILTER[B_SZ_LOG-OD_LOG_BSIZE0])(buf,buf);
+    (*NE_POST_FILTER[B_SZ_LOG-OD_LOG_BSIZE0])(&buf[B_SZ],&buf[B_SZ]);
 #else
 # error "Need a postfilter implementation for this block size."
 #endif
@@ -328,7 +328,6 @@ static void ne_post_filter(od_coeff *_out,int _out_stride,od_coeff *_in,
         (*OD_POST_FILTER[B_SZ_LOG-OD_LOG_BSIZE0])(row,row);
 #else
         (*NE_POST_FILTER[B_SZ_LOG-OD_LOG_BSIZE0])(row,row);
-
 #endif
 #else
 # error "Need a postfilter implementation for this block size."
