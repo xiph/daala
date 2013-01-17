@@ -38,29 +38,33 @@ typedef struct od_pvq_adapt_ctx od_pvq_adapt_ctx;
 /*TODO: These should be adapted based on target quality/bitrate.*/
 # define OD_K_INIT_Q7 (2031)
 
-#define OD_COUNT_INIT_Q7 (208)
-#define OD_COUNT_EX_INIT_Q7 (256)
+# define OD_COUNT_INIT_Q7 (104)
+# define OD_COUNT_EX_INIT_Q7 (128)
 
 # if !defined(OD_DISABLE_PVQ_CODE1)
 #  define OD_SUM_EX_INIT_Q7 (216)
 #  define OD_POS_INIT_Q3 (13)
 
-#  define OD_K_ADAPT_SPEED (5)
-#  define OD_SUM_EX_ADAPT_SPEED (5)
+#  define OD_K_ADAPT_SPEED (2)
+#  define OD_SUM_EX_ADAPT_SPEED (2)
 #  define OD_POS_ADAPT_SPEED (1)
 # else
 #  define OD_SUM_EX_INIT_Q7 (216)
 
-#  define OD_K_ADAPT_SPEED (5)
-#  define OD_SUM_EX_ADAPT_SPEED (5)
-
-#  define OD_DELTA_ADAPT_SPEED (1)
+#  define OD_K_ADAPT_SPEED (2)
+#  define OD_SUM_EX_ADAPT_SPEED (2)
 # endif
+
+# define OD_DELTA_ADAPT_SPEED (1)
 
 /*The scaling for the row contexts is different.*/
 # define OD_K_ROW_INIT_Q8 (2*OD_K_INIT_Q7-(OD_K_INIT_Q7>>OD_K_ADAPT_SPEED))
 # define OD_SUM_EX_ROW_INIT_Q8 \
  (2*OD_SUM_EX_INIT_Q7-(OD_SUM_EX_INIT_Q7>>OD_SUM_EX_ADAPT_SPEED))
+# define OD_COUNT_ROW_INIT_Q8 \
+ (2*OD_COUNT_INIT_Q7-(OD_COUNT_INIT_Q7>>OD_DELTA_ADAPT_SPEED))
+# define OD_COUNT_EX_ROW_INIT_Q8 \
+ (2*OD_COUNT_EX_INIT_Q7-(OD_COUNT_EX_INIT_Q7>>OD_DELTA_ADAPT_SPEED))
 # define OD_POS_ROW_INIT_Q4 \
  (2*OD_POS_INIT_Q3-(OD_POS_INIT_Q3>>OD_POS_ADAPT_SPEED+1))
 
@@ -70,24 +74,20 @@ struct od_pvq_adapt_ctx{
   /*Mean value of the sum of (pulses left)/(positions left) for all
      positions.*/
   int mean_sum_ex_q8;
-
-  /* For the delta version */
+  /*For the delta version.*/
   int mean_count_q8;
   int mean_count_ex_q8;
 # if !defined(OD_DISABLE_PVQ_CODE1)
   /*Mean pulse position for the case of a single pulse (K==1).*/
   int mean_pos_q4;
 # endif
-
   /*Actual value of K for this context.*/
   int k;
   /*Actual sum of (pulses left)/(positions left) for all positions for this
      context.*/
   int sum_ex_q8;
-
   int count_q8;
   int count_ex_q8;
-
 # if !defined(OD_DISABLE_PVQ_CODE1)
   /*Actual pulse position for the case of a single pulse for this context.*/
   int pos;

@@ -184,8 +184,7 @@ int od_state_init(od_state *_state,const daala_info *_info){
   od_state_mvs_init(_state);
   for(pli=0;pli<nplanes;pli++){
     _state->pvq_adapt_row[pli]=(od_pvq_adapt_ctx *)_ogg_malloc(
-     4*_state->nhmbs*sizeof(*_state->pvq_adapt_row[pli])>>
-     _info->plane_info[pli].xdec);
+     _state->nhmbs*sizeof(*_state->pvq_adapt_row[pli]));
   }
   return 0;
 }

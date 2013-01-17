@@ -85,7 +85,7 @@ extern const od_fdct_func_1d OD_FDCT_1D[OD_NBSIZES];
 
 extern const od_idct_func_1d OD_IDCT_1D[OD_NBSIZES];
 
-static const unsigned char od_zig4[16]={0,1,5,6,2,4,7,12,3,8,11,13,9,10,14,15};
+static const unsigned char OD_ZIG4[16]={0,1,5,6,2,4,7,12,3,8,11,13,9,10,14,15};
 
 /*A reversible integer approximation of a 4-point type-II DCT.
   _y:       The destination vector (of size 4).

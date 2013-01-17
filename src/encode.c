@@ -213,9 +213,6 @@ static double mode_bits=0;
 static double mode_count=0;
 
 int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
-  GenericEncoder model_dc;
-  GenericEncoder model_g;
-  GenericEncoder model_ym;
   int refi;
   int nplanes;
   int pli;
@@ -272,9 +269,9 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
      frame_width>>plane.xdec,frame_height>>plane.ydec,
      &plane,plane_x,plane_y,plane_width,plane_height);
   }
-  /*Init entropy coder*/
+  /*Initialize the entropy coder.*/
   od_ec_enc_reset(&_enc->ec);
-  /*Update buffer state.*/
+  /*Update the buffer state.*/
   if(_enc->state.ref_imgi[OD_FRAME_SELF]>=0){
     _enc->state.ref_imgi[OD_FRAME_PREV]=
      _enc->state.ref_imgi[OD_FRAME_SELF];
@@ -310,300 +307,400 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
 #endif
   }
   scale=10;/*atoi(getenv("QUANT"));*/
-  generic_model_init(&model_dc);
-  generic_model_init(&model_g);
-  generic_model_init(&model_ym);
   /*TODO: Encode image.*/
+  {
+    GenericEncoder model_dc[OD_NPLANES_MAX];
+    GenericEncoder model_g[OD_NPLANES_MAX];
+    GenericEncoder model_ym[OD_NPLANES_MAX];
+    ogg_uint16_t   mode_p0[OD_NPLANES_MAX][OD_INTRA_NMODES];
+    int            ex_dc[OD_NPLANES_MAX];
+    int            ex_g[OD_NPLANES_MAX];
+    od_coeff      *ctmp[OD_NPLANES_MAX];
+    od_coeff      *dtmp[OD_NPLANES_MAX];
+    signed char   *modes[OD_NPLANES_MAX];
+    int            xdec;
+    int            ydec;
+    int            nvmbs;
+    int            nhmbs;
+    int            mby;
+    int            mbx;
+    int            iyfill;
+    int            oyfill;
+    int            h;
+    int            w;
+    int            y;
+    int            x;
+    nhmbs=_enc->state.nhmbs;
+    nvmbs=_enc->state.nvmbs;
+    /*Initialize the data needed for each plane.*/
+    for(pli=0;pli<nplanes;pli++){
+      od_pvq_adapt_ctx *pvq_adapt_row;
+      int               mi;
+      generic_model_init(model_dc+pli);
+      generic_model_init(model_g+pli);
+      generic_model_init(model_ym+pli);
+      ex_dc[pli]=pli>0?8:32768;
+      ex_g[pli]=8;
+      xdec=_enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
+      ydec=_enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
+      w=frame_width>>xdec;
+      h=frame_height>>ydec;
+      ctmp[pli]=_ogg_calloc(w*h,sizeof(*ctmp[pli]));
+      dtmp[pli]=_ogg_calloc(w*h,sizeof(*dtmp[pli]));
+      modes[pli]=_ogg_calloc((w>>2)*(h>>2),sizeof(*modes[pli]));
+      for(mi=0;mi<OD_INTRA_NMODES;mi++)mode_p0[pli][mi]=32768/OD_INTRA_NMODES;
+      pvq_adapt_row=_enc->state.pvq_adapt_row[pli];
+      for(mbx=0;mbx<nhmbs;mbx++){
+        pvq_adapt_row[mbx].mean_k_q8=OD_K_ROW_INIT_Q8;
+        pvq_adapt_row[mbx].mean_sum_ex_q8=OD_SUM_EX_ROW_INIT_Q8;
+        pvq_adapt_row[mbx].mean_count_q8=OD_COUNT_ROW_INIT_Q8;
+        pvq_adapt_row[mbx].mean_count_ex_q8=OD_COUNT_EX_ROW_INIT_Q8;
+#if !defined(OD_DISABLE_PVQ_CODE1)
+        pvq_adapt_row[mbx].mean_pos_q4=OD_POS_ROW_INIT_Q4;
+#endif
+      }
+    }
+    iyfill=0;
+    oyfill=0;
+    for(mby=0;mby<nvmbs;mby++){
+      int next_iyfill;
+      int next_oyfill;
+      int ixfill;
+      int oxfill;
+      int hmean_k_q7[OD_NPLANES_MAX];
+      int hmean_sum_ex_q7[OD_NPLANES_MAX];
+      int hmean_count_q7[OD_NPLANES_MAX];
+      int hmean_count_ex_q7[OD_NPLANES_MAX];
+#if !defined(OD_DISABLE_PVQ_CODE1)
+      int hmean_pos_q3[OD_NPLANES_MAX];
+#endif
+      for(pli=0;pli<nplanes;pli++){
+        hmean_k_q7[pli]=OD_K_INIT_Q7;
+        hmean_sum_ex_q7[pli]=OD_SUM_EX_INIT_Q7;
+        hmean_count_q7[pli]=OD_COUNT_INIT_Q7;
+        hmean_count_ex_q7[pli]=OD_COUNT_EX_INIT_Q7;
+#if !defined(OD_DISABLE_PVQ_CODE1)
+        hmean_pos_q3[pli]=OD_POS_INIT_Q3;
+#endif
+      }
+      next_iyfill=mby+1<nvmbs?(mby+1<<4)+8:frame_height;
+      next_oyfill=mby+1<nvmbs?(mby+1<<4)-8:frame_height;
+      ixfill=0;
+      oxfill=0;
+      for(mbx=0;mbx<nhmbs;mbx++){
+        int next_ixfill;
+        int next_oxfill;
+        next_ixfill=mbx+1<nhmbs?(mbx+1<<4)+8:frame_width;
+        next_oxfill=mbx+1<nhmbs?(mbx+1<<4)-8:frame_width;
+        for(pli=0;pli<nplanes;pli++){
+          od_pvq_adapt_ctx *pvq_adapt_row;
+          od_pvq_adapt_ctx  pvq_adapt;
+          od_coeff         *c;
+          od_coeff         *d;
+          unsigned char    *data;
+          int               ystride;
+          int               by;
+          int               bx;
+          int               nk;
+          int               k_total;
+          int               sum_ex_total_q8;
+          int               ncount;
+          int               count_total_q8;
+          int               count_ex_total_q8;
+#if !defined(OD_DISABLE_PVQ_CODE1)
+          int               npos;
+          int               pos_total;
+#endif
+          /*Collect the image data needed for this macro block.*/
+          c=ctmp[pli];
+          d=dtmp[pli];
+          data=_enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].data;
+          ystride=_enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ystride;
+          xdec=_enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
+          ydec=_enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
+          w=frame_width>>xdec;
+          h=frame_height>>ydec;
+          for(y=iyfill>>ydec;y<next_iyfill>>ydec;y++){
+            for(x=ixfill>>xdec;x<next_ixfill>>xdec;x++){
+              c[y*w+x]=data[ystride*y+x]-128;
+            }
+          }
+          /*Apply the prefilter across the bottom block edges.*/
+          for(by=mby<<2-ydec;by<(mby+1<<2-ydec)-(mby+1>=nvmbs);by++){
+            for(x=ixfill>>xdec;x<next_ixfill>>xdec;x++){
+              od_coeff p[4];
+              for(y=0;y<4;y++)p[y]=c[((by<<2)+y+2)*w+x];
+              od_pre_filter4(p,p);
+              for(y=0;y<4;y++)c[((by<<2)+y+2)*w+x]=p[y];
+            }
+          }
+          /*Apply the prefilter across the right block edges.*/
+          for(y=iyfill>>ydec;y<next_iyfill>>ydec;y++){
+            for(bx=mbx<<2-xdec;bx<(mbx+1<<2-xdec)-(mbx+1>=nhmbs);bx++){
+              od_pre_filter4(c+y*w+(bx<<2)+2,c+y*w+(bx<<2)+2);
+            }
+          }
+          pvq_adapt_row=_enc->state.pvq_adapt_row[pli]+mbx;
+          pvq_adapt.mean_k_q8=(hmean_k_q7[pli]>>OD_K_ADAPT_SPEED)
+           +pvq_adapt_row->mean_k_q8;
+          pvq_adapt.mean_sum_ex_q8=
+           (hmean_sum_ex_q7[pli]>>OD_SUM_EX_ADAPT_SPEED)
+           +pvq_adapt_row->mean_sum_ex_q8;
+          nk=k_total=sum_ex_total_q8=0;
+          pvq_adapt.mean_count_q8=(hmean_count_q7[pli]>>OD_DELTA_ADAPT_SPEED)
+           +pvq_adapt_row->mean_count_q8;
+          pvq_adapt.mean_count_ex_q8=
+           (hmean_count_ex_q7[pli]>>OD_DELTA_ADAPT_SPEED)
+           +pvq_adapt_row->mean_count_ex_q8;
+          ncount=count_total_q8=count_ex_total_q8=0;
+#if !defined(OD_DISABLE_PVQ_CODE1)
+          pvq_adapt.mean_pos_q4=OD_MAXI((hmean_pos_q3>>OD_POS_ADAPT_SPEED)
+           +pvq_adapt_row->mean_pos_q4,1);
+          npos=pos_total=0;
+#endif
+          for(by=mby<<2-ydec;by<mby+1<<2-ydec;by++){
+            for(bx=mbx<<2-xdec;bx<mbx+1<<2-xdec;bx++){
+              od_coeff pred[4*4];
+              od_coeff predt[4*4];
+              ogg_int16_t pvq_scale[4*4];
+              int sgn;
+              int qg;
+              int cblock[16];
+              int zzi;
+              int vk;
+              vk=0;
+              /*fDCT a 4x4 block.*/
+              od_bin_fdct4x4(d+(by<<2)*w+(bx<<2),w,c+(by<<2)*w+(bx<<2),w);
+              for(zzi=0;zzi<16;zzi++)pvq_scale[zzi]=0;
+              if(bx>0&&by>0){
+                ogg_uint16_t mode_cdf[OD_INTRA_NMODES];
+                od_coeff mode_dist[OD_INTRA_NMODES];
+                int m_l;
+                int m_ul;
+                int m_u;
+                int mode;
+                m_l=modes[pli][by*(w>>2)+bx-1];
+                m_ul=modes[pli][(by-1)*(w>>2)+bx-1];
+                m_u=modes[pli][(by-1)*(w>>2)+bx];
+                od_intra_pred_cdf(mode_cdf,OD_INTRA_PRED_PROB_4x4[pli],
+                 mode_p0[pli],m_l,m_ul,m_u);
+                od_intra_pred4x4_dist(mode_dist,d+(by<<2)*w+(bx<<2),w,pli);
+                /*Lambda = 1*/
+                mode=od_intra_pred_search(mode_p0[pli],mode_cdf,mode_dist,128,
+                 m_l,m_ul,m_u);
+                od_intra_pred4x4_get(pred,d+(by<<2)*w+(bx<<2),w,mode);
+                od_ec_encode_cdf_unscaled(&_enc->ec,mode,mode_cdf,
+                 OD_INTRA_NMODES);
+                mode_bits-=M_LOG2E*log(
+                 (mode_cdf[mode]-(mode==0?0:mode_cdf[mode-1]))/
+                 (float)mode_cdf[OD_INTRA_NMODES-1]);
+                mode_count++;
+                modes[pli][by*(w>>2)+bx]=mode;
+              }
+              else{
+                for(zzi=0;zzi<16;zzi++)pred[zzi]=0;
+                if(bx>0)pred[0]=d[(by<<2)*w+(bx-1<<2)];
+                else if(by>0)pred[0]=d[(by-1<<2)*w+(bx<<2)];
+                modes[pli][by*(w>>2)+bx]=0;
+              }
+              /*Quantize*/
+              for(y=0;y<4;y++){
+                for(x=0;x<4;x++){
+                  d[((by<<2)+y)*w+(bx<<2)+x]=cblock[OD_ZIG4[y*4+x]]=
+                   d[((by<<2)+y)*w+(bx<<2)+x];
+                   /*/scale;*//*OD_DIV_ROUND((p[k]-pred[1]),scale);*/
+                  predt[OD_ZIG4[y*4+x]]=pred[y*4+x];
+                }
+              }
+              sgn=(cblock[0]-predt[0])<0;
+              cblock[0]=(int)floor(pow(fabs(cblock[0]-predt[0])/scale,0.75));
+              generic_encode(&_enc->ec,model_dc+pli,cblock[0],ex_dc+pli,0);
+              if(cblock[0])od_ec_enc_bits(&_enc->ec,sgn,1);
+              cblock[0]=(int)(pow(cblock[0],4.0/3)*scale);
+              cblock[0]*=sgn?-1:1;
+              cblock[0]+=predt[0];
+#if 1
+              quant_pvq(cblock+1,predt+1,pvq_scale,pred+1,15,scale,&qg);
+              generic_encode(&_enc->ec,model_g+pli,abs(qg),ex_g+pli,0);
+              if(qg)od_ec_enc_bits(&_enc->ec,qg<0,1);
+              vk=0;
+              for(zzi=0;zzi<15;zzi++)vk+=abs(pred[zzi+1]);
+              /*No need to code vk because we can get it from qg.*/
+              /*Expectation is that half the pulses will go in y[m].*/
+              if(vk!=0){
+                int ex_ym;
+                ex_ym=(65536/2)*vk;
+                generic_encode(&_enc->ec,model_ym+pli,vk-pred[1],&ex_ym,0);
+              }
+              pvq_encoder(&_enc->ec,pred+2,14,vk-abs(pred[1]),&pvq_adapt);
+#else
+              vk=quant_scalar(cblock+1,predt+1,pvq_scale,pred+1,15,11,
+               &pvq_adapt);
+              {
+                /*This stupid crap is jmspeex's fault.
+                  Don't ever enable this code.*/
+                static int ex_k=32768;
+                generic_encode(&_enc->ec,&model_ym,&ex_k,4);
+              }
+              /*Treat first component (y[m]) like all others.*/
+              pvq_encoder(&_enc->ec,pred+1,15,vk,&pvq_adapt);
+#endif
+              if(pvq_adapt.k>=0){
+                nk++;
+                k_total+=pvq_adapt.k;
+                sum_ex_total_q8+=pvq_adapt.sum_ex_q8;
+              }
+              if(pvq_adapt.count_q8>=0){
+                ncount++;
+                count_total_q8+=pvq_adapt.count_q8;
+                count_ex_total_q8+=pvq_adapt.count_ex_q8;
+              }
+#if !defined(OD_DISABLE_PVQ_CODE1)
+              if(pvq_adapt.pos>=0){
+                npos++;
+                pos_total+=pvq_adapt.pos;
+              }
+#endif
+              /*Dequantize*/
+              for(y=0;y<4;y++){
+                for(x=0;x<4;x++){
+                  d[((by<<2)+y)*w+(bx<<2)+x]=cblock[OD_ZIG4[y*4+x]];
+                }
+              }
+              /*iDCT the 4x4 block.*/
+              od_bin_idct4x4(c+(by<<2)*w+(bx<<2),w,d+(by<<2)*w+(bx<<2),w);
+            }
+          }
+          if(nk>0){
+            pvq_adapt_row->k=OD_DIVU_SMALL(k_total<<7,nk);
+            hmean_k_q7[pli]+=
+             pvq_adapt_row->k-hmean_k_q7[pli]>>OD_K_ADAPT_SPEED;
+            pvq_adapt_row->mean_k_q8+=
+             hmean_k_q7[pli]-pvq_adapt_row->mean_k_q8>>OD_SUM_EX_ADAPT_SPEED;
+            pvq_adapt_row->sum_ex_q8=OD_DIVU_SMALL(sum_ex_total_q8,nk)>>1;
+            hmean_sum_ex_q7[pli]+=pvq_adapt_row->sum_ex_q8
+             -hmean_sum_ex_q7[pli]>>OD_SUM_EX_ADAPT_SPEED;
+            pvq_adapt_row->mean_sum_ex_q8+=hmean_sum_ex_q7[pli]
+             -pvq_adapt_row->mean_sum_ex_q8>>OD_K_ADAPT_SPEED;
+          }
+          else pvq_adapt_row->sum_ex_q8=pvq_adapt_row->k=-1;
+          if(ncount>0){
+            pvq_adapt_row->count_q8=
+             OD_DIVU_SMALL(count_total_q8,ncount)>>1;
+            hmean_count_q7[pli]+=pvq_adapt_row->count_q8
+             -hmean_count_q7[pli]>>OD_DELTA_ADAPT_SPEED;
+            pvq_adapt_row->mean_count_q8+=hmean_count_q7[pli]
+             -pvq_adapt_row->mean_count_q8>>OD_DELTA_ADAPT_SPEED;
+            pvq_adapt_row->count_ex_q8=
+             OD_DIVU_SMALL(count_ex_total_q8,ncount)>>1;
+            hmean_count_ex_q7[pli]+=pvq_adapt_row->count_ex_q8
+             -hmean_count_ex_q7[pli]>>OD_DELTA_ADAPT_SPEED;
+            pvq_adapt_row->mean_count_ex_q8+=hmean_count_ex_q7[pli]
+             -pvq_adapt_row->mean_count_ex_q8>>OD_DELTA_ADAPT_SPEED;
+          }
+          else pvq_adapt_row->count_ex_q8=pvq_adapt_row->count_q8=-1;
+#if !defined(OD_DISABLE_PVQ_CODE1)
+          if(npos>0){
+            pvq_adapt_row->pos=OD_DIVU_SMALL(pos_total<<3,npos);
+            hmean_pos_q3[pli]+=
+             pvq_adapt_row->pos-hmean_pos_q3[pli]>>OD_POS_ADAPT_SPEED;
+            pvq_adapt_row->mean_pos_q4+=
+             hmean_pos_q3[pli]-pvq_adapt_row->mean_pos_q4>>OD_POS_ADAPT_SPEED;
+          }
+          else pvq_adapt_row->pos=-1;
+#endif
+          /*Apply the postfilter across the left block edges.*/
+          for(y=oyfill>>ydec;y<next_oyfill>>ydec;y++){
+            for(bx=(mbx<<2-xdec)+(mbx<=0);bx<mbx+1<<2-xdec;bx++){
+              od_post_filter4(c+y*w+(bx<<2)-2,c+y*w+(bx<<2)-2);
+            }
+          }
+          /*Apply the postfilter across the top block edges.*/
+          for(by=(mby<<2-ydec)+(mby<=0);by<mby+1<<2-ydec;by++){
+            for(x=oxfill>>xdec;x<next_oxfill>>xdec;x++){
+              od_coeff p[4];
+              for(y=0;y<4;y++)p[y]=c[((by<<2)+y-2)*w+x];
+              od_post_filter4(p,p);
+              for(y=0;y<4;y++)c[((by<<2)+y-2)*w+x]=p[y];
+            }
+          }
+          data=_enc->state.io_imgs[OD_FRAME_REC].planes[pli].data;
+          for(y=oyfill>>ydec;y<next_oyfill>>ydec;y++){
+            for(x=oxfill>>xdec;x<next_oxfill>>xdec;x++){
+              data[ystride*y+x]=OD_CLAMP255(c[y*w+x]+128);
+            }
+          }
+        }
+        ixfill=next_ixfill;
+        oxfill=next_oxfill;
+      }
+      for(pli=0;pli<nplanes;pli++){
+        od_pvq_adapt_ctx *pvq_adapt_row;
+        pvq_adapt_row=_enc->state.pvq_adapt_row[pli];
+        hmean_k_q7[pli]=OD_K_INIT_Q7;
+        hmean_sum_ex_q7[pli]=OD_SUM_EX_INIT_Q7;
+        hmean_count_q7[pli]=OD_COUNT_INIT_Q7;
+        hmean_count_ex_q7[pli]=OD_COUNT_EX_INIT_Q7;
+#if !defined(OD_DISABLE_PVQ_CODE1)
+        hmean_pos_q3[pli]=OD_POS_INIT_Q3;
+#endif
+        for(mbx=nhmbs;mbx-->0;){
+          if(pvq_adapt_row[mbx].k>=0){
+            pvq_adapt_row[mbx].mean_k_q8+=(hmean_k_q7[pli]>>OD_K_ADAPT_SPEED)
+             -(hmean_k_q7[pli]>>2*OD_K_ADAPT_SPEED);
+            hmean_k_q7[pli]+=
+             pvq_adapt_row[mbx].k-hmean_k_q7[pli]>>OD_K_ADAPT_SPEED;
+            pvq_adapt_row[mbx].mean_sum_ex_q8+=
+             (hmean_sum_ex_q7[pli]>>OD_SUM_EX_ADAPT_SPEED)
+             -(hmean_sum_ex_q7[pli]>>2*OD_SUM_EX_ADAPT_SPEED);
+            hmean_sum_ex_q7[pli]+=pvq_adapt_row[mbx].sum_ex_q8
+             -hmean_sum_ex_q7[pli]>>OD_SUM_EX_ADAPT_SPEED;
+          }
+#if !defined(OD_DISABLE_PVQ_CODE1)
+          if(pvq_adapt_row[mbx].pos>=0){
+            pvq_adapt_row[mbx].mean_pos_q4+=
+             (hmean_pos_q3[pli]>>OD_POS_ADAPT_SPEED)
+             -(hmean_pos_q3[pli]>>2*OD_POS_ADAPT_SPEED);
+            hmean_pos_q3[pli]+=
+             pvq_adapt_row[mbx].pos-hmean_pos_q3[pli]>>OD_POS_ADAPT_SPEED;
+          }
+#endif
+        }
+      }
+      iyfill=next_iyfill;
+      oyfill=next_oyfill;
+    }
+    for(pli=nplanes;pli-->0;){
+      _ogg_free(modes[pli]);
+      _ogg_free(dtmp[pli]);
+      _ogg_free(ctmp[pli]);
+    }
+  }
   for(pli=0;pli<nplanes;pli++){
-    od_pvq_adapt_ctx *pvq_adapt_row;
-    ogg_uint16_t      mode_p0[OD_INTRA_NMODES];
-    ogg_int64_t       mc_sqerr;
-    ogg_int64_t       enc_sqerr;
-    ogg_uint32_t      npixels;
-    od_coeff         *ctmp;
-    unsigned char    *data;
-    char             *modes;
-    int               ystride;
-    int               xdec;
-    int               ydec;
-    int               nhbs;
-    int               bj;
-    int               i;
-    int               x;
-    int               y;
-    int               w;
-    int               h;
-    int               ex_dc;
-    int               ex_g;
-    int               ex_ym;
+    unsigned char *data;
+    ogg_int64_t    mc_sqerr;
+    ogg_int64_t    enc_sqerr;
+    ogg_uint32_t   npixels;
+    int            ystride;
+    int            xdec;
+    int            ydec;
+    int            w;
+    int            h;
+    int            x;
+    int            y;
 #ifdef OD_DPCM
-    int               err_accum;
+    int            err_accum;
     err_accum=0;
 #endif
-    ex_dc=pli>0?8:32768;
-    ex_g=8;
-    ex_ym=8;
-    pvq_adapt_row=_enc->state.pvq_adapt_row[pli];
-    /*TODO: Use picture dimensions, not frame dimensions.*/
-    xdec=_enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
-    ydec=_enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
-    data=_enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].data;
-    ystride=_enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ystride;
-    w=frame_width>>xdec;
-    h=frame_height>>ydec;
     mc_sqerr=0;
     enc_sqerr=0;
+    data=_enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].data;
+    ystride=_enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ystride;
+    xdec=_enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
+    ydec=_enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
+    w=frame_width>>xdec;
+    h=frame_height>>ydec;
     npixels=w*h;
-    ctmp=calloc((w+15>>4<<4)*(h+15>>4<<4),sizeof(od_coeff));
-    modes=calloc((w+15>>2)*(h+15>>2),sizeof(char));
-    for(i=0;i<OD_INTRA_NMODES;i++)mode_p0[i]=32768/OD_INTRA_NMODES;
-    for(y=0;y<h;y++)for(x=0;x<w;x++)ctmp[y*w+x]=*(data+ystride*y+x)-128;
-#if 1
-    for(y=2;y<h-2;y+=4){
-      for(x=0;x<w;x++){
-        int j;
-        od_coeff p[4];
-        for(j=0;j<4;j++){
-          p[j]=ctmp[(y+j)*w+x];
-        }
-        od_pre_filter4(p,p);
-        for(j=0;j<4;j++){
-          ctmp[(y+j)*w+x]=p[j];
-        }
-      }
-    }
-    for(y=0;y<h;y++){
-      for(x=2;x<w-2;x+=4){
-        od_pre_filter4(ctmp+y*w+x,ctmp+y*w+x);
-      }
-    }
-#endif
-    nhbs=frame_width>>xdec+2;
-    for(bj=0;bj<nhbs;bj++){
-      pvq_adapt_row[bj].mean_k_q8=OD_K_ROW_INIT_Q8;
-      pvq_adapt_row[bj].mean_sum_ex_q8=OD_SUM_EX_ROW_INIT_Q8;
-      pvq_adapt_row[bj].mean_count_q8=OD_COUNT_INIT_Q7;
-      pvq_adapt_row[bj].mean_count_ex_q8=OD_COUNT_EX_INIT_Q7;
-#if !defined(OD_DISABLE_PVQ_CODE1)
-      pvq_adapt_row[bj].mean_pos_q4=OD_POS_ROW_INIT_Q4;
-#endif
-    }
-    /*FDCT 4x4 blocks*/
-    for(y=0;y<h;y+=4){
-      int hmean_k_q7;
-      int hmean_sum_ex_q7;
-      int hmean_count_q7;
-      int hmean_count_ex_q7;
-#if !defined(OD_DISABLE_PVQ_CODE1)
-      int hmean_pos_q3;
-#endif
-      hmean_k_q7=OD_K_INIT_Q7;
-      hmean_sum_ex_q7=OD_SUM_EX_INIT_Q7;
-      hmean_count_q7=OD_COUNT_INIT_Q7;
-      hmean_count_ex_q7=OD_COUNT_EX_INIT_Q7;
-#if !defined(OD_DISABLE_PVQ_CODE1)
-      hmean_pos_q3=OD_POS_INIT_Q3;
-#endif
-      for(bj=0;bj<nhbs;bj++){
-        od_pvq_adapt_ctx pvq_adapt;
-        od_coeff         pred[4*4];
-        od_coeff         predt[4*4];
-        ogg_int16_t      pvq_scale[4*4];
-        int sgn;
-        int qg;
-        int cblock[16];
-        int j;
-        int vk;
-        x=bj<<2;
-        od_bin_fdct4x4(ctmp+y*w+x,w,ctmp+y*w+x,w);
-        for(j=0;j<16;j++)pvq_scale[j]=0;
-        if(x>0&&y>0){
-          ogg_uint16_t mode_cdf[OD_INTRA_NMODES];
-          od_coeff mode_dist[OD_INTRA_NMODES];
-          int m_l, m_ul, m_u, mode;
-          m_l=modes[(y>>2)*(w>>2)+(bj-1)];
-          m_ul=modes[((y>>2)-1)*(w>>2)+(bj-1)];
-          m_u=modes[((y>>2)-1)*(w>>2)+bj];
-          od_intra_pred_cdf(mode_cdf,OD_INTRA_PRED_PROB_4x4[pli],mode_p0,m_l,m_ul,m_u);
-          od_intra_pred4x4_dist(mode_dist,ctmp+y*w+x,w,pli);
-          /*Lambda = 1*/
-          mode=od_intra_pred_search(mode_p0,mode_cdf,mode_dist,128,m_l,m_ul,m_u);
-          od_intra_pred4x4_get(pred,ctmp+y*w+x,w,mode);
-          od_ec_encode_cdf_unscaled(&_enc->ec,mode,mode_cdf,OD_INTRA_NMODES);
-          mode_bits -= log((mode_cdf[mode]-(mode==0?0:mode_cdf[mode-1]))/(float)mode_cdf[OD_INTRA_NMODES-1])/log(2);
-          mode_count++;
-          modes[(y>>2)*(w>>2)+bj]=mode;
-        }
-        else{
-          for(j=0;j<16;j++)pred[j]=0;
-          if(x>0)pred[0]=ctmp[y*w+x-4];
-          else if(y>0)pred[0]=ctmp[(y-4)*w+x];
-          else pred[0]=0;
-          modes[(y>>2)*(w>>2)+bj]=0;
-        }
-        /*Quantize*/
-        for(j=0;j<4;j++){
-          int k;
-          for(k=0;k<4;k++){
-            ctmp[(y+k)*w+x+j]=cblock[od_zig4[k*4+j]]=ctmp[(y+k)*w+x+j];/*/scale;*//*OD_DIV_ROUND((p[k]-pred[1]),scale);*/
-            predt[od_zig4[k*4+j]]=pred[k*4+j];
-          }
-        }
-        sgn=(cblock[0]-predt[0])<0;
-        cblock[0]=floor(pow(fabs(cblock[0]-predt[0])/(scale),3/4.));
-        generic_encode(&_enc->ec,&model_dc,cblock[0],&ex_dc,0);
-        if(cblock[0])od_ec_enc_bits(&_enc->ec,sgn,1);
-
-        cblock[0]=pow(cblock[0],4/3.)*(scale);
-        cblock[0]*=sgn?-1:1;
-        cblock[0]+=predt[0];
-        pvq_adapt.mean_k_q8=(hmean_k_q7>>OD_K_ADAPT_SPEED)
-         +pvq_adapt_row[bj].mean_k_q8;
-        pvq_adapt.mean_sum_ex_q8=(hmean_sum_ex_q7>>OD_SUM_EX_ADAPT_SPEED)
-         +pvq_adapt_row[bj].mean_sum_ex_q8;
-        pvq_adapt.mean_count_q8=(hmean_count_q7>>OD_K_ADAPT_SPEED)
-         +pvq_adapt_row[bj].mean_count_q8;
-        pvq_adapt.mean_count_ex_q8=(hmean_count_ex_q7>>OD_SUM_EX_ADAPT_SPEED)
-         +pvq_adapt_row[bj].mean_count_ex_q8;
-#if !defined(OD_DISABLE_PVQ_CODE1)
-        pvq_adapt.mean_pos_q4=OD_MAXI((hmean_pos_q3>>OD_POS_ADAPT_SPEED)
-         +pvq_adapt_row[bj].mean_pos_q4,1);
-#endif
-
-#if 1
-        quant_pvq(&cblock[1],&predt[1],pvq_scale,&pred[1],15,scale,&qg);
-        generic_encode(&_enc->ec,&model_g,abs(qg),&ex_g,0);
-        if(qg)od_ec_enc_bits(&_enc->ec,qg<0,1);
-        vk=0;
-        for(j=0;j<15;j++)vk+=abs(pred[j+1]);
-        /* No need to code vk because we can get it from qg */
-        /* Expectation is that half the pulses will go in y[m] */
-        ex_ym = 65536*vk/2;
-        if (vk!=0)
-          generic_encode(&_enc->ec,&model_ym,vk-pred[1],&ex_ym,0);
-        pvq_encoder(&_enc->ec,&pred[2],14,vk-abs(pred[1]),&pvq_adapt);
-#else
-        vk = quant_scalar(&cblock[1],&predt[1],pvq_scale,&pred[1],15,11,&pvq_adapt);
-        {
-          static int ex_k = 32768;
-          generic_encode(&_enc->ec,&model_ym,vk,&ex_k,4);
-        }
-        /* Treat first component (y[m]) like all others */
-        pvq_encoder(&_enc->ec,&pred[1],15,vk,&pvq_adapt);
-#endif
-        if(pvq_adapt.k>=0){
-          hmean_k_q7+=(pvq_adapt.k<<7)-hmean_k_q7>>OD_K_ADAPT_SPEED;
-          pvq_adapt_row[bj].mean_k_q8+=
-           hmean_k_q7-pvq_adapt_row[bj].mean_k_q8>>OD_K_ADAPT_SPEED;
-          hmean_sum_ex_q7+=(pvq_adapt.sum_ex_q8>>OD_SUM_EX_ADAPT_SPEED+1)
-           -(hmean_sum_ex_q7>>OD_SUM_EX_ADAPT_SPEED);
-          pvq_adapt_row[bj].mean_sum_ex_q8+=hmean_sum_ex_q7
-           -pvq_adapt_row[bj].mean_sum_ex_q8>>OD_SUM_EX_ADAPT_SPEED;
-        }
-        if (pvq_adapt.count_q8>=0){
-          hmean_count_q7+=(pvq_adapt.count_q8)-hmean_count_q7>>OD_DELTA_ADAPT_SPEED;
-          pvq_adapt_row[bj].mean_count_q8+=
-           hmean_count_q7-pvq_adapt_row[bj].mean_count_q8>>OD_DELTA_ADAPT_SPEED;
-          hmean_count_ex_q7+=(pvq_adapt.count_ex_q8>>OD_DELTA_ADAPT_SPEED+1)
-           -(hmean_count_ex_q7>>OD_DELTA_ADAPT_SPEED);
-          pvq_adapt_row[bj].mean_count_ex_q8+=hmean_count_ex_q7
-           -pvq_adapt_row[bj].mean_count_ex_q8>>OD_DELTA_ADAPT_SPEED;
-        }
-#if !defined(OD_DISABLE_PVQ_CODE1)
-        if(pvq_adapt.pos>=0){
-          hmean_pos_q3+=(pvq_adapt.pos<<3)-hmean_pos_q3>>OD_POS_ADAPT_SPEED;
-          pvq_adapt_row[bj].mean_pos_q4+=
-           hmean_pos_q3-pvq_adapt_row[bj].mean_pos_q4>>OD_POS_ADAPT_SPEED;
-        }
-#endif
-        pvq_adapt_row[bj].k=pvq_adapt.k;
-        pvq_adapt_row[bj].sum_ex_q8=pvq_adapt.sum_ex_q8;
-        pvq_adapt_row[bj].count_q8=pvq_adapt.count_q8;
-        pvq_adapt_row[bj].count_ex_q8=pvq_adapt.count_ex_q8;
-#if !defined(OD_DISABLE_PVQ_CODE1)
-        pvq_adapt_row[bj].pos=pvq_adapt.pos;
-#endif
-        /*Dequantize*/
-        for(j=0;j<4;j++){
-          int k;
-          for(k=0;k<4;k++){
-            ctmp[(y+k)*w+x+j]=cblock[od_zig4[k*4+j]];
-          }
-        }
-      }
-      hmean_k_q7=OD_K_INIT_Q7;
-      hmean_sum_ex_q7=OD_SUM_EX_INIT_Q7;
-      hmean_count_q7=OD_COUNT_INIT_Q7;
-      hmean_count_ex_q7=OD_COUNT_EX_INIT_Q7;
-#if !defined(OD_DISABLE_PVQ_CODE1)
-      hmean_pos_q3=OD_POS_INIT_Q3;
-#endif
-      for(bj=nhbs;bj-->0;){
-        if(pvq_adapt_row[bj].k>=0){
-          pvq_adapt_row[bj].mean_k_q8+=
-           (hmean_k_q7>>OD_K_ADAPT_SPEED)-(hmean_k_q7>>2*OD_K_ADAPT_SPEED);
-          hmean_k_q7+=(pvq_adapt_row[bj].k<<7)-hmean_k_q7>>OD_K_ADAPT_SPEED;
-          pvq_adapt_row[bj].mean_sum_ex_q8+=
-           (hmean_sum_ex_q7>>OD_SUM_EX_ADAPT_SPEED)
-           -(hmean_sum_ex_q7>>2*OD_SUM_EX_ADAPT_SPEED);
-          hmean_sum_ex_q7+=
-           (pvq_adapt_row[bj].sum_ex_q8>>OD_SUM_EX_ADAPT_SPEED+1)
-           -(hmean_sum_ex_q7>>OD_SUM_EX_ADAPT_SPEED);
-        }
-        if(pvq_adapt_row[bj].count_q8>=0){
-          pvq_adapt_row[bj].mean_count_q8+=
-           (hmean_count_q7>>OD_DELTA_ADAPT_SPEED)-(hmean_count_q7>>2*OD_DELTA_ADAPT_SPEED);
-          hmean_count_q7+=(pvq_adapt_row[bj].count_q8)-hmean_count_q7>>OD_DELTA_ADAPT_SPEED;
-          pvq_adapt_row[bj].mean_count_ex_q8+=
-           (hmean_count_ex_q7>>OD_DELTA_ADAPT_SPEED)
-           -(hmean_count_ex_q7>>2*OD_DELTA_ADAPT_SPEED);
-          hmean_count_ex_q7+=
-           (pvq_adapt_row[bj].count_ex_q8>>OD_DELTA_ADAPT_SPEED+1)
-           -(hmean_count_ex_q7>>OD_DELTA_ADAPT_SPEED);
-        }
-#if !defined(OD_DISABLE_PVQ_CODE1)
-        if(pvq_adapt_row[bj].pos>=0){
-          pvq_adapt_row[bj].mean_pos_q4+=(hmean_pos_q3>>OD_POS_ADAPT_SPEED)
-           -(hmean_pos_q3>>2*OD_POS_ADAPT_SPEED);
-          hmean_pos_q3+=(pvq_adapt_row[bj].pos<<3)
-           -hmean_pos_q3>>OD_POS_ADAPT_SPEED;
-        }
-#endif
-      }
-    }
-    /*iDCT 4x4 blocks*/
-    for(y=0;y<h;y+=4){
-      for(x=0;x<w;x+=4){
-        od_bin_idct4x4(ctmp+y*w+x,w,ctmp+y*w+x,w);
-      }
-    }
-
-#if 1
-    for(y=0;y<h;y++){
-      for(x=2;x<w-2;x+=4){
-        od_post_filter4(ctmp+y*w+x,ctmp+y*w+x);
-      }
-    }
-    for(y=2;y<h-2;y+=4){
-      for(x=0;x<w;x++){
-        int j;
-        od_coeff p[4];
-        for(j=0;j<4;j++)p[j]=ctmp[(y+j)*w+x];
-        od_post_filter4(p,p);
-        for(j=0;j<4;j++)ctmp[(y+j)*w+x]=p[j];
-      }
-    }
-#endif
-    for(y=0;y<h;y++){
-      for(x=0;x<w;x++){
-        unsigned char *recimg;
-        recimg=_enc->state.io_imgs[OD_FRAME_REC].planes[pli].data
-         +_enc->state.io_imgs[OD_FRAME_REC].planes[pli].ystride*y+x;
-        *recimg=OD_CLAMP255(ctmp[y*w+x]+128);
-      }
-    }
-    free(ctmp);
-    free(modes);
     for(y=0;y<h;y++){
       unsigned char *prev_rec_row;
       unsigned char *rec_row;
