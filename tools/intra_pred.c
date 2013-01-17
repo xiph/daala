@@ -1,5 +1,7 @@
+#include <float.h>
 #include <stdlib.h>
 #include <string.h>
+#include "cholesky.h"
 #include "intra_fit_tools.h"
 #include "stats_tools.h"
 #include "image.h"
@@ -11,6 +13,7 @@
 #define PRINT_BETAS (0)
 #define WEIGHT_BLOCKS (0)
 #define BITS_SELECT (0)
+#define USE_SVD (0)
 
 typedef struct pred_data pred_data;
 
@@ -64,14 +67,11 @@ static void pred_data_add_block(pred_data *_this,const od_coeff *_block,
 #define PRINT_COMP (0)
 
 static void pred_data_update(pred_data *_this,int _mode){
-  int     i;
-  int     j;
-  int     k;
+  int            i;
+  int            j;
   static double  scale[5*B_SZ*B_SZ];
   static double  xtx[2*4*B_SZ*B_SZ][4*B_SZ*B_SZ];
   static double  xty[4*B_SZ*B_SZ][B_SZ*B_SZ];
-  static double *xtxp[2*4*B_SZ*B_SZ];
-  static double  s[4*B_SZ*B_SZ];
   static double  beta_0[B_SZ*B_SZ];
   static double  beta_1[4*B_SZ*B_SZ][B_SZ*B_SZ];
 
@@ -110,35 +110,61 @@ static void pred_data_update(pred_data *_this,int _mode){
   fprintf(stderr,"];\n");
 #endif
 
-  /* compute the pseudo-inverse of X^T*X */
-  for(i=0;i<2*4*B_SZ*B_SZ;i++){
-    xtxp[i]=xtx[i];
-  }
-  svd_pseudoinverse(xtxp,s,4*B_SZ*B_SZ,4*B_SZ*B_SZ);
+#if USE_SVD
+  {
+    static double *xtxp[2*4*B_SZ*B_SZ];
+    static double  s[4*B_SZ*B_SZ];
+    int            k;
 
-#if PRINT_COMP
-  fprintf(stderr,"xtxi=[");
-  for(j=0;j<4*B_SZ*B_SZ;j++){
-    fprintf(stderr,"%s",j!=0?";":"");
-    for(i=0;i<4*B_SZ*B_SZ;i++){
-      fprintf(stderr,"%s%- 24.18G",i!=0?",":"",xtx[j][i]);
+    /* compute the pseudo-inverse of X^T*X */
+    for(i=0;i<2*4*B_SZ*B_SZ;i++){
+      xtxp[i]=xtx[i];
     }
-  }
-  fprintf(stderr,"];\n");
-#endif
+    svd_pseudoinverse(xtxp,s,4*B_SZ*B_SZ,4*B_SZ*B_SZ);
 
-  /* compute beta_1 = (X^T*X)^-1 * X^T*Y and beta_0 = Ym - Xm * beta_1 */
-  for(i=0;i<B_SZ*B_SZ;i++){
-    beta_0[i]=_this->mean[4*B_SZ*B_SZ+i];
-    for(j=0;j<4*B_SZ*B_SZ;j++){
-      beta_1[j][i]=0;
-      for(k=0;k<4*B_SZ*B_SZ;k++){
-        beta_1[j][i]+=xtx[j][k]*xty[k][i];
+    /* compute beta_1 = (X^T*X)^-1 * X^T*Y and beta_0 = Ym - Xm * beta_1 */
+    for(i=0;i<B_SZ*B_SZ;i++){
+      beta_0[i]=_this->mean[4*B_SZ*B_SZ+i];
+      for(j=0;j<4*B_SZ*B_SZ;j++){
+        beta_1[j][i]=0;
+        for(k=0;k<4*B_SZ*B_SZ;k++){
+          beta_1[j][i]+=xtx[j][k]*xty[k][i];
+        }
+        beta_1[j][i]*=scale[4*B_SZ*B_SZ+i]/scale[j];
+        beta_0[i]-=_this->mean[j]*beta_1[j][i];
       }
-      beta_1[j][i]*=scale[4*B_SZ*B_SZ+i]/scale[j];
-      beta_0[i]-=_this->mean[j]*beta_1[j][i];
     }
   }
+#else
+  {
+    static double r[UT_SZ(4*B_SZ*B_SZ,4*B_SZ*B_SZ)];
+    static int    pivot[4*B_SZ*B_SZ];
+    int           rank;
+    static double tau[4*B_SZ*B_SZ];
+    static double b[4*B_SZ*B_SZ];
+    static double work[4*B_SZ*B_SZ];
+
+    for(j=0;j<4*B_SZ*B_SZ;j++){
+      for(i=j;i<4*B_SZ*B_SZ;i++){
+        r[UT_IDX(j,i,4*B_SZ*B_SZ)]=xtx[j][i];
+      }
+    }
+
+    rank=cholesky(r,pivot,DBL_EPSILON,4*B_SZ*B_SZ);
+    chdecomp(r,tau,rank,4*B_SZ*B_SZ);
+    for(i=0;i<B_SZ*B_SZ;i++){
+      beta_0[i]=_this->mean[4*B_SZ*B_SZ+i];
+      for(j=0;j<4*B_SZ*B_SZ;j++){
+        b[j]=xty[j][i];
+      }
+      chsolve(r,pivot,tau,b,b,work,rank,4*B_SZ*B_SZ);
+      for(j=0;j<4*B_SZ*B_SZ;j++){
+        beta_1[j][i]=scale[4*B_SZ*B_SZ+i]/scale[j]*b[j];
+	beta_0[i]-=_this->mean[j]*beta_1[j][i];
+      }
+    }
+  }
+#endif
 
 #if PRINT_COMP
   fprintf(stderr,"beta_1=[");

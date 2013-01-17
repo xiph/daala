@@ -128,7 +128,8 @@ stats_tools.c \
 stats_data.c \
 vidinput.c \
 image.c \
-svd.c
+svd.c \
+cholesky.c
 
 IP_LIB_CSOURCES = \
 filter.c \

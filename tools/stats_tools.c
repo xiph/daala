@@ -1086,7 +1086,7 @@ void ne_intra_pred16x16_mult(const od_coeff *_c,int _stride,int _mode,double *_p
       for(by=0;by<=1;by++){
         for(bx=0;bx<=2-by;bx++){
           const od_coeff *b;
-          b=&_c[_stride*16*(by-1)+8*(bx-1)];
+          b=&_c[_stride*16*(by-1)+16*(bx-1)];
           for(k=0;k<16;k++){
             for(l=0;l<16;l++){
               _p[16*j+i]+=
