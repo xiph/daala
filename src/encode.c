@@ -163,7 +163,7 @@ static void od_img_plane_copy_pad8(od_img_plane *_dst,
     dst_data=_dst->data;
     src_data=_src->data;
     dst=dst_data+dstride*_pic_y+_pic_x;
-    src=src_data+systride*_pic_y+_pic_x;
+    src=src_data;
     for(y=0;y<_pic_height;y++){
       if(sxstride==1)memcpy(dst,src,_pic_width);
       else for(x=0;x<_pic_width;x++)dst[x]=*(src+sxstride*x);
@@ -228,7 +228,7 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
   int pic_height;
   if(_enc==NULL||_img==NULL)return OD_EFAULT;
   if(_enc->packet_state==OD_PACKET_DONE)return OD_EINVAL;
-  /*Check the input image dimensions to make sure their compatible with the
+  /*Check the input image dimensions to make sure they're compatible with the
      declared video size.*/
   nplanes=_enc->state.info.nplanes;
   if(_img->nplanes!=nplanes)return OD_EINVAL;
@@ -264,9 +264,9 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
     plane_y=pic_y>>plane.ydec;
     plane_width=(pic_x+pic_width+(1<<plane.xdec)-1>>plane.xdec)-plane_x;
     plane_height=(pic_y+pic_height+(1<<plane.ydec)-1>>plane.ydec)-plane_y;
-    if(_img->width!=frame_width||_img->height!=frame_height){
-      plane.data-=(ptrdiff_t)plane.ystride*plane_y
-       +(ptrdiff_t)plane.xstride*plane_x;
+    if(_img->width==frame_width&&_img->height==frame_height){
+      plane.data-=plane.ystride*(ptrdiff_t)plane_y
+       +plane.xstride*(ptrdiff_t)plane_x;
     }
     od_img_plane_copy_pad8(_enc->state.io_imgs[OD_FRAME_INPUT].planes+pli,
      frame_width>>plane.xdec,frame_height>>plane.ydec,

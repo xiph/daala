@@ -180,8 +180,8 @@ static void id_y4m_file(av_input *_avin,const char *_file,FILE *_test){
    _file,_avin->video_pic_w,_avin->video_pic_h,
     (double)_avin->video_fps_n/_avin->video_fps_d,_avin->video_chroma_type);
   /*Allocate buffers for the image data.*/
-  _avin->video_frame_w=_avin->video_pic_w;
-  _avin->video_frame_h=_avin->video_pic_h;
+  _avin->video_frame_w=_avin->video_pic_w+15&~15;
+  _avin->video_frame_h=_avin->video_pic_h+15&~15;
   /*Center the picture region in the frame.
     These will be adjusted based on the chroma sampling type to avoid changing
      how the chroma samples are interpreted.*/
@@ -260,8 +260,8 @@ static void id_y4m_file(av_input *_avin,const char *_file,FILE *_test){
   }
   img=&_avin->video_img;
   img->nplanes=_avin->video_nplanes;
-  img->width=_avin->video_frame_w;
-  img->height=_avin->video_frame_h;
+  img->width=_avin->video_pic_w;
+  img->height=_avin->video_pic_h;
   for(pli=0;pli<img->nplanes;pli++){
     od_img_plane *iplane;
     iplane=img->planes+pli;
