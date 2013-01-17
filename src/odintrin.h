@@ -28,12 +28,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #if !defined(_odintrin_H)
 # define _odintrin_H (1)
 
-# if !defined(__GNUC_PREREQ)
+# if !defined(OD_GNUC_PREREQ)
 #  if defined(__GNUC__)&&defined(__GNUC_MINOR__)
-#   define __GNUC_PREREQ(_maj,_min) \
+#   define OD_GNUC_PREREQ(_maj,_min) \
   ((__GNUC__<<16)+__GNUC_MINOR__>=((_maj)<<16)+(_min))
 #  else
-#   define __GNUC_PREREQ(_maj,_min) 0
+#   define OD_GNUC_PREREQ(_maj,_min) 0
 #  endif
 # endif
 
@@ -140,7 +140,7 @@ static __inline int od_bsr(unsigned long _x){
 # include "dsplib.h"
 # define OD_CLZ0    (31)
 # define OD_CLZ(_x) (_lnorm(_x))
-#elif __GNUC_PREREQ(3,4)
+#elif OD_GNUC_PREREQ(3,4)
 # if INT_MAX>=2147483647
 #  define OD_CLZ0    ((int)sizeof(unsigned)*CHAR_BIT)
 #  define OD_CLZ(_x) (__builtin_clz(_x))

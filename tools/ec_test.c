@@ -31,8 +31,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #define EC_MINI(_a,_b) ((_a)<(_b)?(_a):(_b))
 #define EC_MAXI(_a,_b) ((_a)>(_b)?(_a):(_b))
 
-# ifdef __GNUC_PREREQ
-#  if __GNUC_PREREQ(3,4)
+# ifdef OD_GNUC_PREREQ
+#  if OD_GNUC_PREREQ(3,4)
 /*Note the casts to (int) below: this prevents EC_CLZ{32|64}_OFFS from
    "upgrading" the type of an entire expression to an (unsigned) size_t.*/
 #   if INT_MAX>=2147483647

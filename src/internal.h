@@ -65,7 +65,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # if defined(OD_ENABLE_ASSERTIONS)
 #  include <stdio.h>
 #  include <stdlib.h>
-#  if __GNUC_PREREQ(2,5)
+#  if OD_GNUC_PREREQ(2,5)
 __attribute__((noreturn))
 #  endif
 void od_fatal_impl(const char *_str,const char *_file,int _line);

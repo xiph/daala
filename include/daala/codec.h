@@ -211,7 +211,7 @@ void daala_comment_clear(daala_comment *_dc);
 ogg_int64_t daala_granule_basetime(void *_encdec,ogg_int64_t _granpos);
 double      daala_granule_time(void *_encdec,ogg_int64_t _granpos);
 
-#if __GNUC_PREREQ(4,0)
+#if OD_GNUC_PREREQ(4,0)
 # pragma GCC visibility pop
 #endif
 #if defined(__cplusplus)
