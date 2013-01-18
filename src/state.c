@@ -1,5 +1,5 @@
 /*Daala video codec
-Copyright (c) 2006-2010 Daala project contributors.  All rights reserved.
+Copyright (c) 2006-2013 Daala project contributors.  All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -548,24 +548,39 @@ void od_state_pred_block(od_state *_state,unsigned char *_buf,int _ystride,
 }
 
 int od_state_dump_yuv(od_state *_state,od_img *_img,const char *_suf){
-  char           fname[128];
-  FILE          *fp;
-  int            y;
-  int            pli;
+  char  fname[128];
+  FILE *fp;
+  int   pic_x;
+  int   pic_y;
+  int   pic_width;
+  int   pic_height;
+  int   y;
+  int   pli;
   static const char *CHROMA_TAGS[4]={" C420jpeg",""," C422jpeg"," C444"};
   sprintf(fname,"%08i%s.y4m",
    (int)daala_granule_basetime(_state,_state->cur_time),_suf);
   fp=fopen(fname,"wb");
+  pic_x=_state->info.pic_x;
+  pic_y=_state->info.pic_y;
+  pic_width=_state->info.pic_width;
+  pic_height=_state->info.pic_height;
+  OD_ASSERT(_img->nplanes>=3);
   fprintf(fp,"YUV4MPEG2 W%i H%i F%i:%i Ip A%i:%i%s\n",
-   _img->width,_img->height,1,1,
-   0,0,CHROMA_TAGS[(_img->planes[1].xdec==0)+(_img->planes[1].ydec==0)*2]);
+   pic_width,pic_height,1,1,0,0,
+   CHROMA_TAGS[(_img->planes[1].xdec==0)+(_img->planes[1].ydec==0)*2]);
   fprintf(fp,"FRAME\n");
   for(pli=0;pli<3;pli++){
-    for(y=0;y<_img->height>>_img->planes[pli].ydec;y++){
-      if(fwrite(_img->planes[pli].data+_img->planes[pli].ystride*y,
-         _img->width>>_img->planes[pli].xdec,1,fp)<1){
-           fprintf(stderr,"Error writing to \"%s\".\n","fixme");
-           return EXIT_FAILURE;
+    int xdec;
+    int ydec;
+    int ystride;
+    xdec=_img->planes[pli].xdec;
+    ydec=_img->planes[pli].ydec;
+    ystride=_img->planes[pli].ystride;
+    for(y=pic_y>>ydec;y<pic_y+pic_height+ydec>>ydec;y++){
+      if(fwrite(_img->planes[pli].data+ystride*y+(pic_x>>xdec),
+       (pic_x+pic_width+xdec>>xdec)-(pic_x>>xdec),1,fp)<1){
+        fprintf(stderr,"Error writing to \"%s\".\n","fixme");
+        return EXIT_FAILURE;
       }
     }
   }
