@@ -1,5 +1,5 @@
 /*Daala video codec
-Copyright (c) 2006-2010 Daala project contributors.  All rights reserved.
+Copyright (c) 2006-2013 Daala project contributors.  All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -31,9 +31,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "generic_code.h"
 #include "filter.h"
 #include "dct.h"
-#include "pvq_code.h"
-#include "pvq.h"
 #include "intra.h"
+#include "pvq.h"
+#include "pvq_code.h"
+#include "tf.h"
 
 static int od_enc_init(od_enc_ctx *_enc,const daala_info *_info){
   int ret;
@@ -209,6 +210,18 @@ static void od_img_plane_copy_pad8(od_img_plane *_dst,
   }
 }
 
+static void od_resample_luma_coeffs(od_coeff *_l,int _lstride,
+ const od_coeff *_c,int _cstride,int _xdec,int _ydec,int _n){
+  if(_xdec){
+    if(_ydec)od_tf_up_hv_lp(_l,_lstride,_c,_cstride,_n,_n,_n);
+    else od_tf_up_h_lp(_l,_lstride,_c,_cstride,_n,_n);
+  }
+  else{
+    OD_ASSERT(_ydec);
+    if(_ydec)od_tf_up_v_lp(_l,_lstride,_c,_cstride,_n,_n);
+  }
+}
+
 static double mode_bits=0;
 static double mode_count=0;
 
@@ -312,12 +325,14 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
     GenericEncoder model_dc[OD_NPLANES_MAX];
     GenericEncoder model_g[OD_NPLANES_MAX];
     GenericEncoder model_ym[OD_NPLANES_MAX];
-    ogg_uint16_t   mode_p0[OD_NPLANES_MAX][OD_INTRA_NMODES];
+    ogg_uint16_t   mode_p0[OD_INTRA_NMODES];
     int            ex_dc[OD_NPLANES_MAX];
     int            ex_g[OD_NPLANES_MAX];
     od_coeff      *ctmp[OD_NPLANES_MAX];
     od_coeff      *dtmp[OD_NPLANES_MAX];
-    signed char   *modes[OD_NPLANES_MAX];
+    od_coeff      *ltmp[OD_NPLANES_MAX];
+    od_coeff      *lbuf[OD_NPLANES_MAX];
+    signed char   *modes;
     int            xdec;
     int            ydec;
     int            nvmbs;
@@ -333,6 +348,8 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
     nhmbs=_enc->state.nhmbs;
     nvmbs=_enc->state.nvmbs;
     /*Initialize the data needed for each plane.*/
+    modes=_ogg_calloc((frame_width>>2)*(frame_height>>2),sizeof(*modes));
+    for(mi=0;mi<OD_INTRA_NMODES;mi++)mode_p0[mi]=32768/(OD_INTRA_NMODES);
     for(pli=0;pli<nplanes;pli++){
       od_pvq_adapt_ctx *pvq_adapt_row;
       int               mi;
@@ -347,8 +364,28 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
       h=frame_height>>ydec;
       ctmp[pli]=_ogg_calloc(w*h,sizeof(*ctmp[pli]));
       dtmp[pli]=_ogg_calloc(w*h,sizeof(*dtmp[pli]));
-      modes[pli]=_ogg_calloc((w>>2)*(h>>2),sizeof(*modes[pli]));
-      for(mi=0;mi<OD_INTRA_NMODES;mi++)mode_p0[pli][mi]=32768/OD_INTRA_NMODES;
+      /*We predict chroma planes from the luma plane.
+        Since chroma can be subsampled, we cache subsampled versions of the
+         luma plane in the frequency domain.
+        We can share buffers with the same subsampling.*/
+      if(pli>0){
+        int plj;
+        if(xdec||ydec){
+          for(plj=1;plj<pli;plj++){
+            if(xdec==_enc->state.io_imgs[OD_FRAME_INPUT].planes[plj].xdec
+             &&ydec==_enc->state.io_imgs[OD_FRAME_INPUT].planes[plj].ydec){
+              ltmp[pli]=NULL;
+              lbuf[pli]=ltmp[plj];
+            }
+          }
+          if(plj>=pli)lbuf[pli]=ltmp[pli]=_ogg_calloc(w*h,sizeof(*ltmp));
+        }
+        else{
+          ltmp[pli]=NULL;
+          lbuf[pli]=ctmp[pli];
+        }
+      }
+      else lbuf[pli]=ltmp[pli]=NULL;
       pvq_adapt_row=_enc->state.pvq_adapt_row[pli];
       for(mbx=0;mbx<nhmbs;mbx++){
         pvq_adapt_row[mbx].mean_k_q8=OD_K_ROW_INIT_Q8;
@@ -388,8 +425,8 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
       ixfill=0;
       oxfill=0;
       for(mbx=0;mbx<nhmbs;mbx++){
-        int next_ixfill;
-        int next_oxfill;
+        int      next_ixfill;
+        int      next_oxfill;
         next_ixfill=mbx+1<nhmbs?(mbx+1<<4)+8:frame_width;
         next_oxfill=mbx+1<nhmbs?(mbx+1<<4)-8:frame_width;
         for(pli=0;pli<nplanes;pli++){
@@ -397,10 +434,12 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
           od_pvq_adapt_ctx  pvq_adapt;
           od_coeff         *c;
           od_coeff         *d;
+          od_coeff         *l;
           unsigned char    *data;
           int               ystride;
           int               by;
           int               bx;
+          int               nmodes;
           int               nk;
           int               k_total;
           int               sum_ex_total_q8;
@@ -411,15 +450,28 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
           int               npos;
           int               pos_total;
 #endif
-          /*Collect the image data needed for this macro block.*/
           c=ctmp[pli];
           d=dtmp[pli];
-          data=_enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].data;
-          ystride=_enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ystride;
+          l=lbuf[pli];
           xdec=_enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
           ydec=_enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
           w=frame_width>>xdec;
           h=frame_height>>ydec;
+          /*Construct the luma predictors for chroma planes.*/
+          if(ltmp[pli]!=NULL){
+            OD_ASSERT(pli>0);
+            OD_ASSERT(l==ltmp[pli]);
+            for(by=mby<<2-ydec;by<mby+1<<2-ydec;by++){
+              for(bx=mbx<<2-xdec;bx<mbx+1<<2-xdec;bx++){
+                od_resample_luma_coeffs(l+(by<<2)*w+(bx<<2),w,
+                 dtmp[0]+(by<<2+ydec)*frame_width+(bx<<2+xdec),frame_width,
+                 xdec,ydec,4);
+              }
+            }
+          }
+          /*Collect the image data needed for this macro block.*/
+          data=_enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].data;
+          ystride=_enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ystride;
           for(y=iyfill>>ydec;y<next_iyfill>>ydec;y++){
             for(x=ixfill>>xdec;x<next_ixfill>>xdec;x++){
               c[y*w+x]=data[ystride*y+x]-128;
@@ -473,35 +525,58 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
               od_bin_fdct4x4(d+(by<<2)*w+(bx<<2),w,c+(by<<2)*w+(bx<<2),w);
               for(zzi=0;zzi<16;zzi++)pvq_scale[zzi]=0;
               if(bx>0&&by>0){
-                ogg_uint16_t mode_cdf[OD_INTRA_NMODES];
-                od_coeff mode_dist[OD_INTRA_NMODES];
-                int m_l;
-                int m_ul;
-                int m_u;
-                int mode;
-                m_l=modes[pli][by*(w>>2)+bx-1];
-                m_ul=modes[pli][(by-1)*(w>>2)+bx-1];
-                m_u=modes[pli][(by-1)*(w>>2)+bx];
-                od_intra_pred_cdf(mode_cdf,OD_INTRA_PRED_PROB_4x4[pli],
-                 mode_p0[pli],m_l,m_ul,m_u);
-                od_intra_pred4x4_dist(mode_dist,d+(by<<2)*w+(bx<<2),w,pli);
-                /*Lambda = 1*/
-                mode=od_intra_pred_search(mode_p0[pli],mode_cdf,mode_dist,128,
-                 m_l,m_ul,m_u);
-                od_intra_pred4x4_get(pred,d+(by<<2)*w+(bx<<2),w,mode);
-                od_ec_encode_cdf_unscaled(&_enc->ec,mode,mode_cdf,
-                 OD_INTRA_NMODES);
-                mode_bits-=M_LOG2E*log(
-                 (mode_cdf[mode]-(mode==0?0:mode_cdf[mode-1]))/
-                 (float)mode_cdf[OD_INTRA_NMODES-1]);
-                mode_count++;
-                modes[pli][by*(w>>2)+bx]=mode;
+                if(pli==0){
+                  ogg_uint16_t mode_cdf[OD_INTRA_NMODES];
+                  ogg_uint32_t mode_dist[OD_INTRA_NMODES];
+                  int          m_l;
+                  int          m_ul;
+                  int          m_u;
+                  int          mode;
+                  m_l=modes[by*(w>>2)+bx-1];
+                  m_ul=modes[(by-1)*(w>>2)+bx-1];
+                  m_u=modes[(by-1)*(w>>2)+bx];
+                  od_intra_pred_cdf(mode_cdf,OD_INTRA_PRED_PROB_4x4[pli],
+                   mode_p0,OD_INTRA_NMODES,m_l,m_ul,m_u);
+                  od_intra_pred4x4_dist(mode_dist,d+(by<<2)*w+(bx<<2),w,pli);
+                  /*Lambda = 1*/
+                  mode=od_intra_pred_search(mode_p0,mode_cdf,mode_dist,
+                   OD_INTRA_NMODES,128,m_l,m_ul,m_u);
+                  od_intra_pred4x4_get(pred,d+(by<<2)*w+(bx<<2),w,mode);
+                  od_ec_encode_cdf_unscaled(&_enc->ec,mode,mode_cdf,nmodes);
+                  mode_bits-=M_LOG2E*log(
+                   (mode_cdf[mode]-(mode==0?0:mode_cdf[mode-1]))/
+                   (float)mode_cdf[nmodes-1]);
+                  mode_count++;
+                  modes[by*(w>>2)+bx]=mode;
+                }
+                else{
+                  int chroma_weights_q8[3];
+                  mode=modes[(by<<ydec)*(frame_width>>2)+(bx<<xdec)];
+                  chroma_weights_q8[0]=OD_INTRA_CHROMA_WEIGHTS_Q6[mode][0];
+                  chroma_weights_q8[1]=OD_INTRA_CHROMA_WEIGHTS_Q6[mode][1];
+                  chroma_weights_q8[2]=OD_INTRA_CHROMA_WEIGHTS_Q6[mode][2];
+                  mode=modes[(by<<ydec)*(frame_width>>2)+(bx+xdec<<xdec)];
+                  chroma_weights_q8[0]+=OD_INTRA_CHROMA_WEIGHTS_Q6[mode][0];
+                  chroma_weights_q8[1]+=OD_INTRA_CHROMA_WEIGHTS_Q6[mode][1];
+                  chroma_weights_q8[2]+=OD_INTRA_CHROMA_WEIGHTS_Q6[mode][2];
+                  mode=modes[(by+ydec<<ydec)*(frame_width>>2)+(bx<<xdec)];
+                  chroma_weights_q8[0]+=OD_INTRA_CHROMA_WEIGHTS_Q6[mode][0];
+                  chroma_weights_q8[1]+=OD_INTRA_CHROMA_WEIGHTS_Q6[mode][1];
+                  chroma_weights_q8[2]+=OD_INTRA_CHROMA_WEIGHTS_Q6[mode][2];
+                  mode=modes[(by+ydec<<ydec)*(frame_width>>2)
+                   +(bx+xdec<<xdec)];
+                  chroma_weights_q8[0]+=OD_INTRA_CHROMA_WEIGHTS_Q6[mode][0];
+                  chroma_weights_q8[1]+=OD_INTRA_CHROMA_WEIGHTS_Q6[mode][1];
+                  chroma_weights_q8[2]+=OD_INTRA_CHROMA_WEIGHTS_Q6[mode][2];
+                  od_chroma_pred4x4(pred,d+(by<<2)*w+(bx<<2),
+                   l+(by<<2)*w+(bx<<2),w,chroma_weights_q8);
+                }
               }
               else{
                 for(zzi=0;zzi<16;zzi++)pred[zzi]=0;
                 if(bx>0)pred[0]=d[(by<<2)*w+(bx-1<<2)];
                 else if(by>0)pred[0]=d[(by-1<<2)*w+(bx<<2)];
-                modes[pli][by*(w>>2)+bx]=0;
+                if(pli==0)modes[by*(w>>2)+bx]=0;
               }
               /*Quantize*/
               for(y=0;y<4;y++){
@@ -671,10 +746,11 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
       oyfill=next_oyfill;
     }
     for(pli=nplanes;pli-->0;){
-      _ogg_free(modes[pli]);
+      _ogg_free(ltmp[pli]);
       _ogg_free(dtmp[pli]);
       _ogg_free(ctmp[pli]);
     }
+    _ogg_free(modes);
   }
   for(pli=0;pli<nplanes;pli++){
     unsigned char *data;

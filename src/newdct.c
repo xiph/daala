@@ -47,19 +47,6 @@ const od_idct_func_1d OD_IDCT_1D[OD_NBSIZES]={
   od_bin_idct16
 };
 
-/*This should translate directly to 3 or 4 instructions for a constant _b:
-#define OD_UNBIASED_RSHIFT(_a,_b) ((_a)+(((1<<(_b))-1)&-((_a)<0))>>(_b))*/
-/*This version relies on a smart compiler:*/
-#define OD_UNBIASED_RSHIFT(_a,_b) ((_a)/(1<<(_b)))
-
-#if 0
-# define OD_DCT_RSHIFT(_a,_b) OD_DIV_POW2_RE(_a,_b)
-#elif 1
-# define OD_DCT_RSHIFT(_a,_b) OD_UNBIASED_RSHIFT(_a,_b)
-#else
-# define OD_DCT_RSHIFT(_a,_b) ((_a)>>(_b))
-#endif
-
 #if 0
 void od_bin_fdct4(od_coeff _y[4],const od_coeff *_x,int _xstride){
   /*9 adds, 4 shifts, 3 "muls".*/

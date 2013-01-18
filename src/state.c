@@ -172,9 +172,11 @@ int od_state_init(od_state *_state,const daala_info *_info){
   int pli;
   /*First validate the parameters.*/
   if(_info==NULL)return OD_EFAULT;
+  if((_info->frame_width&15)||(_info->frame_height&15))return OD_EINVAL;
   nplanes=_info->nplanes;
   if(nplanes<=0||nplanes>OD_NPLANES_MAX)return OD_EINVAL;
-  if((_info->frame_width&15)||(_info->frame_height&15))return OD_EINVAL;
+  /*The first plane (the luma plane) must not be subsampled.*/
+  if(_info->plane_info[0].xdec||_info->plane_info[0].ydec)return OD_EINVAL;
   memset(_state,0,sizeof(*_state));
   memcpy(&_state->info,_info,sizeof(*_info));
   _state->nhmbs=_info->frame_width+15>>4;

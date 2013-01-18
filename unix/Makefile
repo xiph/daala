@@ -1,5 +1,5 @@
 #Daala video codec
-#Copyright (c) 2002-2012 Daala project contributors.  All rights reserved.
+#Copyright (c) 2002-2013 Daala project contributors.  All rights reserved.
 #
 #Redistribution and use in source and binary forms, with or without
 #modification, are permitted provided that the following conditions are met:
@@ -87,23 +87,24 @@ WORKDIR = objs
 
 # C source file lists
 LIBDAALABASE_CSOURCES = \
-newdct.c \
+cdf_table.c \
 entcode.c \
 entdec.c \
 entenc.c \
-cdf_table.c \
-pvq_encoder.c \
 filter.c \
+generic_code.c \
+generic_decoder.c \
+generic_encoder.c \
 info.c \
 internal.c \
 intra.c \
 intradata.c \
 mc.c \
+newdct.c \
 pvq.c \
-generic_encoder.c \
-generic_decoder.c \
-generic_code.c \
+pvq_encoder.c \
 state.c \
+tf.c \
 $(if $(findstring -DOD_X86ASM,${CFLAGS}), \
 x86/cpu.c \
 x86/sse2mc.c \
