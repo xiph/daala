@@ -341,6 +341,7 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
     int            mbx;
     int            iyfill;
     int            oyfill;
+    int            mi;
     int            h;
     int            w;
     int            y;
@@ -349,10 +350,9 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
     nvmbs=_enc->state.nvmbs;
     /*Initialize the data needed for each plane.*/
     modes=_ogg_calloc((frame_width>>2)*(frame_height>>2),sizeof(*modes));
-    for(mi=0;mi<OD_INTRA_NMODES;mi++)mode_p0[mi]=32768/(OD_INTRA_NMODES);
+    for(mi=0;mi<OD_INTRA_NMODES;mi++)mode_p0[mi]=32768/OD_INTRA_NMODES;
     for(pli=0;pli<nplanes;pli++){
       od_pvq_adapt_ctx *pvq_adapt_row;
-      int               mi;
       generic_model_init(model_dc+pli);
       generic_model_init(model_g+pli);
       generic_model_init(model_ym+pli);
@@ -439,7 +439,6 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
           int               ystride;
           int               by;
           int               bx;
-          int               nmodes;
           int               nk;
           int               k_total;
           int               sum_ex_total_q8;
@@ -542,15 +541,17 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
                   mode=od_intra_pred_search(mode_p0,mode_cdf,mode_dist,
                    OD_INTRA_NMODES,128,m_l,m_ul,m_u);
                   od_intra_pred4x4_get(pred,d+(by<<2)*w+(bx<<2),w,mode);
-                  od_ec_encode_cdf_unscaled(&_enc->ec,mode,mode_cdf,nmodes);
+                  od_ec_encode_cdf_unscaled(&_enc->ec,mode,mode_cdf,
+                   OD_INTRA_NMODES);
                   mode_bits-=M_LOG2E*log(
                    (mode_cdf[mode]-(mode==0?0:mode_cdf[mode-1]))/
-                   (float)mode_cdf[nmodes-1]);
+                   (float)mode_cdf[OD_INTRA_NMODES-1]);
                   mode_count++;
                   modes[by*(w>>2)+bx]=mode;
                 }
                 else{
                   int chroma_weights_q8[3];
+                  int mode;
                   mode=modes[(by<<ydec)*(frame_width>>2)+(bx<<xdec)];
                   chroma_weights_q8[0]=OD_INTRA_CHROMA_WEIGHTS_Q6[mode][0];
                   chroma_weights_q8[1]=OD_INTRA_CHROMA_WEIGHTS_Q6[mode][1];

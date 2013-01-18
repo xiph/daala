@@ -480,9 +480,9 @@ int od_select_mode_bits(const od_coeff *_block,int _stride,double *_weight,
     int    i;
 #if B_SZ_LOG>=OD_LOG_BSIZE0&&B_SZ_LOG<OD_LOG_BSIZE0+OD_NBSIZES
 #if 0
-    (*OD_INTRA_MULT[B_SZ_LOG-OD_LOG_BSIZE0])(_block,_stride,mode,p);
+    (*OD_INTRA_MULT[B_SZ_LOG-OD_LOG_BSIZE0])(p,_block,_stride,mode);
 #else
-    (*NE_INTRA_MULT[B_SZ_LOG-OD_LOG_BSIZE0])(_block,_stride,mode,p);
+    (*NE_INTRA_MULT[B_SZ_LOG-OD_LOG_BSIZE0])(p,_block,_stride,mode);
 #endif
 #else
 # error "Need a predictor implementation for this block size."
@@ -530,9 +530,9 @@ int od_select_mode_satd(const od_coeff *_block,int _stride,double *_weight){
     int    i;
 #if B_SZ_LOG>=OD_LOG_BSIZE0&&B_SZ_LOG<OD_LOG_BSIZE0+OD_NBSIZES
 #if 0
-    (*OD_INTRA_MULT[B_SZ_LOG-OD_LOG_BSIZE0])(_block,_stride,mode,p);
+    (*OD_INTRA_MULT[B_SZ_LOG-OD_LOG_BSIZE0])(p,_block,_stride,mode);
 #else
-    (*NE_INTRA_MULT[B_SZ_LOG-OD_LOG_BSIZE0])(_block,_stride,mode,p);
+    (*NE_INTRA_MULT[B_SZ_LOG-OD_LOG_BSIZE0])(p,_block,_stride,mode);
 #endif
 #else
 # error "Need a predictor implementation for this block size."
@@ -751,9 +751,9 @@ void image_data_pred_block(image_data *_this,int _bi,int _bj){
   block=&_this->fdct[_this->fdct_stride*B_SZ*(_bj+1)+B_SZ*(_bi+1)];
 #if B_SZ_LOG>=OD_LOG_BSIZE0&&B_SZ_LOG<OD_LOG_BSIZE0+OD_NBSIZES
 #if 0
-    (*OD_INTRA_MULT[B_SZ_LOG-OD_LOG_BSIZE0])(block,_this->fdct_stride,mode,p);
+    (*OD_INTRA_MULT[B_SZ_LOG-OD_LOG_BSIZE0])(p,block,_this->fdct_stride,mode);
 #else
-    (*NE_INTRA_MULT[B_SZ_LOG-OD_LOG_BSIZE0])(block,_this->fdct_stride,mode,p);
+    (*NE_INTRA_MULT[B_SZ_LOG-OD_LOG_BSIZE0])(p,block,_this->fdct_stride,mode);
 #endif
 #else
 # error "Need a predictor implementation for this block size."
@@ -1020,7 +1020,7 @@ const od_filter_func NE_POST_FILTER[OD_NBSIZES]={
   od_post_filter16
 };
 
-void ne_intra_pred4x4_mult(const od_coeff *_c,int _stride,int _mode,double *_p){
+void ne_intra_pred4x4_mult(double *_p,const od_coeff *_c,int _stride,int _mode){
   int j;
   int i;
   int by;
@@ -1046,7 +1046,7 @@ void ne_intra_pred4x4_mult(const od_coeff *_c,int _stride,int _mode,double *_p){
   }
 }
 
-void ne_intra_pred8x8_mult(const od_coeff *_c,int _stride,int _mode,double *_p){
+void ne_intra_pred8x8_mult(double *_p,const od_coeff *_c,int _stride,int _mode){
   int j;
   int i;
   int by;
@@ -1072,7 +1072,7 @@ void ne_intra_pred8x8_mult(const od_coeff *_c,int _stride,int _mode,double *_p){
   }
 }
 
-void ne_intra_pred16x16_mult(const od_coeff *_c,int _stride,int _mode,double *_p){
+void ne_intra_pred16x16_mult(double *_p,const od_coeff *_c,int _stride,int _mode){
   int j;
   int i;
   int by;

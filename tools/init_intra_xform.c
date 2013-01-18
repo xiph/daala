@@ -378,17 +378,19 @@ static void update_intra_xforms(intra_xform_ctx *_ctx){
         int     xii;
         int     xij;
         int     yi;
-        int     k;
-        int     l;
         nxi=3*B_SZ*B_SZ;
 #if 0
         /*Include coefficients for the current block*/
-        for(k=0;k<=i;k++){
-          for(l=0;l<=j;l++){
-            xi[nxi++]=2*B_SZ*(B_SZ+k)+B_SZ+l;
+        {
+          int k;
+          int l;
+          for(k=0;k<=i;k++){
+            for(l=0;l<=j;l++){
+              xi[nxi++]=2*B_SZ*(B_SZ+k)+B_SZ+l;
+            }
           }
+          nxi--;
         }
-        nxi--;
 #endif
         yi=2*B_SZ*(B_SZ+i)+B_SZ+j;
         for(xii=0;xii<nxi;xii++)xty[xii]=r_xx[xi[xii]][yi];
@@ -507,7 +509,7 @@ static void intra_xform_update_block(void *_ctx,const unsigned char *_data,
   float p[OD_INTRA_NMODES];
   ogg_uint16_t cdf[OD_INTRA_NMODES];
   ogg_uint16_t p0[OD_INTRA_NMODES];
-  od_coeff     wsatd[OD_INTRA_NMODES];
+  ogg_uint32_t wsatd[OD_INTRA_NMODES];
 
   ctx=(intra_xform_ctx *)_ctx;
   modes=ctx->map;
@@ -537,7 +539,7 @@ static void intra_xform_update_block(void *_ctx,const unsigned char *_data,
         probs[m][c] = 256.*ctx->freq[ctx->pli][m][c][1]/(float)ctx->freq[ctx->pli][m][c][0];
     for (m=0;m<OD_INTRA_NMODES;m++)
       p0[m] = 65536*ctx->p0[m];
-    od_intra_pred_cdf(cdf,probs,p0,left,upleft,up);
+    od_intra_pred_cdf(cdf,probs,p0,OD_INTRA_NMODES,left,upleft,up);
   }
   for(m=0;m<OD_INTRA_NMODES;m++)
   {
@@ -642,7 +644,8 @@ static void intra_xform_update_block(void *_ctx,const unsigned char *_data,
     left=(_bi==0)?0:modes[pos-1];
     up=(_bj==0)?0:modes[pos-width];
     upleft=(_bi==0||_bj==0)?0:modes[pos-width-1];
-    bmode=od_intra_pred_search(p0,cdf,wsatd,64*1.1,left,upleft,up);
+    bmode=od_intra_pred_search(p0,cdf,wsatd,OD_INTRA_NMODES,
+     64*1.1,left,upleft,up);
     /*if (bmode==best_mode)
       printf("+");
     else

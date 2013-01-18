@@ -127,7 +127,7 @@ extern double NE_PRED_WEIGHTS_8x8[OD_INTRA_NMODES][8][8][2*8][3*8];
 extern double NE_PRED_OFFSETS_16x16[OD_INTRA_NMODES][16][16];
 extern double NE_PRED_WEIGHTS_16x16[OD_INTRA_NMODES][16][16][2*16][3*16];
 
-void ne_intra_pred4x4_mult(const od_coeff *_c,int _stride,int _mode,double *_p);
+void ne_intra_pred4x4_mult(double *_p,const od_coeff *_c,int _stride,int _mode);
 void print_betas(FILE *_fp);
 
 #endif
