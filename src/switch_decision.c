@@ -1,5 +1,6 @@
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <math.h>
 #include "switch_decision.h"
 
@@ -12,9 +13,64 @@
 #define CG16 9.81
 #define CG32 9.93
 
+void od_switch_init(od_switch_decision_state *st, int w)
+{
+  st->vstride = (w/2)+32;
+  /* Need 32 microblock lines, plus space for one superblock on each side */
+  st->var = malloc(32*st->vstride*sizeof(st->var[0]));
+  st->var_1 = malloc(32*st->vstride*sizeof(st->var_1[0]));
+}
+
+void od_switch_free(od_switch_decision_state *st)
+{
+  free(st->var);
+  free(st->var_1);
+}
+
+void od_switch_process_superblock(od_switch_decision_state *st, const unsigned char *img, int id, int s, int blocksize[4][4])
+{
+  int i, j;
+  int vs;
+  int voffset;
+  int ioffset;
+  ogg_int32_t (*Sxx)[17], (*Sx)[17];
+  ogg_int16_t *var, *var_1;
+  vs = st->vstride;
+
+  Sxx = st->Sxx;
+  Sx = st->Sx;
+  /* Compute variances needed for this superblock */
+  ioffset = 16*s+16;
+  for(i=0;i<17;i++){
+    for(j=0;j<17;j++){
+      const unsigned char *x = img+ioffset+2*i*s+2*j;
+      st->Sxx[i][j]=SQUARE(x[0])+SQUARE(x[1])+SQUARE(x[s])+SQUARE(x[s+1]);
+      st->Sx[i][j]=x[0]+x[1]+x[s]+x[s+1];
+    }
+  }
+
+  /* Here we assume that var is calculated up to the middle of the superblock because of lapping with the previous superblocks */
+  voffset = 8*vs + (id+1)*16;
+  for(i=0;i<16;i++){
+    for(j=0;j<16;j++){
+      ogg_int32_t sum_x;
+      ogg_int32_t sum_xx;
+      ogg_int16_t var_floor;
+      sum_x=Sx[i][j]+Sx[i][j+1]+Sx[i+1][j]+Sx[i+1][j+1];
+      sum_xx=Sxx[i][j]+Sxx[i][j+1]+Sxx[i+1][j]+Sxx[i+1][j+1];
+      /*var[i][j]=(sum_xx-(SQUARE(sum_x)>>4))>>5;
+      var_floor = 4+(sum_x>>6);
+      if (var[i][j]<var_floor)var[i][j]=var_floor;
+      var_1[i][j] = 16384/var[i][j];*/
+      st->var[voffset+i*vs+j] = 0;
+    }
+  }
+}
+
+
 /* Fudge factor giving more importance to NMR compared to coding gain.
    Partially compensates for the fact that edges have a lower coding gain */
-#define fudge 1.5
+#define fudge 1.0
 
 int switch_decision(const unsigned char *img, int w, int h, int stride)
 {
@@ -61,7 +117,7 @@ int switch_decision(const unsigned char *img, int w, int h, int stride)
       sum_x=Sx[i][j]+Sx[i][j+1]+Sx[i+1][j]+Sx[i+1][j+1];
       sum_xx=Sxx[i][j]+Sxx[i][j+1]+Sxx[i+1][j]+Sxx[i+1][j+1];
       var[i][j]=(sum_xx-(SQUARE(sum_x)>>4))>>5;
-      var_floor = 4+(sum_x>>6);
+      var_floor = 2+(sum_x>>9);
       if (var[i][j]<var_floor)var[i][j]=var_floor;
       /*printf("%d ", var[i][j]);*/
       var_1[i][j] = 16384/var[i][j];
