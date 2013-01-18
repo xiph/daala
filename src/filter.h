@@ -51,6 +51,7 @@ extern const od_filter_func OD_POST_FILTER[OD_NBSIZES];
    signal processing terms) to improve the energy compaction as well as reduce
    or eliminate blocking artifacts.*/
 
+extern const int OD_FILTER_PARAMS4[4];
 void od_pre_filter4(od_coeff _y[4],const od_coeff _x[4]);
 void od_post_filter4(od_coeff _x[4],const od_coeff _y[4]);
 void od_pre_filter8(od_coeff _y[8],const od_coeff _x[8]);

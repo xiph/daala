@@ -128,7 +128,6 @@ const od_filter_func OD_POST_FILTER[OD_NBSIZES]={
 };
 
 
-
 #if defined(TEST)
 extern int minv[32];
 extern int maxv[32];
@@ -139,26 +138,21 @@ extern int maxv[32];
 #define _Check(_val,_idx)
 #endif
 
-/*Optimal coding gain without dyadic rational restrictions: 8.60382 dB.
-  S={1.4688242104187466,1.4228174370096593},
-  0={0.6327939473953134,-0.18276680703263349}
-  8-bit coding gain: 8.59848 dB
-  S={47/32,357/256}, 0={81/128,-1/8}
-  7-bit coding gain: same as 6-bit
-  6-bit coding gain: 8.59689 dB
-  S={23/16,93/64}, 0={41/64,-1/4}
-  5-bit coding gain: 8.55956 dB
-  S={13/8,47/32}, 0={19/32,-1/4}
-  4-bit coding gain: 8.53007 dB
-  S={5/4,23/16}, 0={11/16,-1/4}
-		
-		Magic gmaxwell values: S={112,90} 0={-8,36}/64*/
+/*Filter parameters for the pre/post filters.
+  When changing these the intra-predictors in
+  initdata.c must be updated.*/
+
+/*R=f
+  6-bit s0=1.328125, s1=1.171875, p0=-0.234375, u0=0.515625
+  Ar95_Cg = 8.55232 dB, SBA = 23.3660, Width = 4.6896
+  BiOrth = 0.004968, Subset1_Cg = 9.62133 */
+const int OD_FILTER_PARAMS4[4]={85,75,-15,33};
 
 /*R=f
   6-bit s0=1.42175, s1=1.328125, p0=-0.171875, u0=0.5625
-  Cg = 8.63473 dB, SBA = 22.0331*/
-static const int OD_FILTER_PARAMS4[4]={91,85,-11,36};
-static const int OD_FILTER_PARAMS4_RAMP[4]={92,93,-16,41};
+  Ar95 Cg = 8.63473 dB, SBA = 22.0331, Width = 4.8436
+  BiOrth = 0.010085, Subset1_Cg = 9.67283 */
+/*const int OD_FILTER_PARAMS4[4]={91,85,-11,36};*/
 
 void od_pre_filter4(od_coeff _y[4],const od_coeff _x[4]){
    int t[4];

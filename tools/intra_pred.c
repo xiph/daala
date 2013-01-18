@@ -551,6 +551,7 @@ int main(int _argc,const char *_argv[]){
   int            ret;
   int            s;
   /* initialize some constants */
+  ne_prefilter_init(OD_FILTER_PARAMS4);
   vp8_scale_init(VP8_SCALE);
   od_scale_init(OD_SCALE);
   intra_map_colors(COLORS,OD_INTRA_NMODES);

@@ -249,6 +249,11 @@ void od_scale_init(double _od_scale[B_SZ]){
 #endif
 }
 
+void ne_prefilter_init(const int *_x){
+  int i;
+  for(i=0;i<4;i++)NE_FILTER_PARAMS4[i]=_x[i];
+}
+
 static void ne_pre_filter(od_coeff *_out,int _out_stride,od_coeff *_in,
  int _in_stride,int _bx,int _by){
   int bx;
@@ -968,7 +973,7 @@ int image_data_load_map(image_data *_this){
   return EXIT_SUCCESS;
 }
 
-int NE_FILTER_PARAMS4[4]={91,85,-11,36};
+int NE_FILTER_PARAMS4[4];
 
 static void ne_pre_filter4(od_coeff _y[4],const od_coeff _x[4]){
   int t[4];

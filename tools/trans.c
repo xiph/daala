@@ -99,7 +99,7 @@ static void trans_ctx_image(trans_ctx *_this,const char *_name,int _nxblocks,
   _this->nyblocks=_nyblocks;
 }
 
-int NE_FILTER_PARAMS4[4]={91,85,-11,36};
+int NE_FILTER_PARAMS4[4];
 
 static void ne_pre_filter4(double _y[4],const double _x[4]){
   double t[4];

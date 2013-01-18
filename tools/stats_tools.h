@@ -36,6 +36,8 @@ struct intra_stats{
   mode_data md[OD_INTRA_NMODES];
 };
 
+void ne_prefilter_init(const int *_x);
+
 void intra_stats_init(intra_stats *_this);
 void intra_stats_correct(intra_stats *_this);
 void intra_stats_print(intra_stats *_this,const char *_label,double *_scale);
