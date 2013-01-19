@@ -78,7 +78,7 @@ void od_switch_process_superblock(od_switch_decision_state *st, const unsigned c
 
 #define PSY_LAMBDA 1.0
 
-int switch_decision(const unsigned char *img, int w, int h, int stride)
+int switch_decision(unsigned char *img, int w, int h, int stride)
 {
   int i,j;
   int h4, w4,h8,w8,h16,w16,h32,w32;
@@ -296,6 +296,43 @@ int switch_decision(const unsigned char *img, int w, int h, int stride)
       putc(dec8[i>>3][j>>3], stdout);
     }
   }
+#endif
+#if 1
+  for(i=4;i<h8-4;i++){
+    for(j=4;j<w8-4;j++){
+      if ((i&3)==0 && (j&3)==0){
+        int k;
+        for(k=0;k<32;k++)
+          img[i*stride*8+j*8+k] = 0;
+        for(k=0;k<32;k++)
+          img[(8*i+k)*stride+j*8] = 0;
+      }
+      if ((i&1)==0 && (j&1)==0 && dec8[i][j]==2){
+        int k;
+        for(k=0;k<16;k++)
+          img[i*stride*8+j*8+k] = 0;
+        for(k=0;k<16;k++)
+          img[(8*i+k)*stride+j*8] = 0;
+      }
+      if (dec8[i][j]<=1){
+        int k;
+        for(k=0;k<8;k++)
+          img[i*stride*8+j*8+k] = 0;
+        for(k=0;k<8;k++)
+          img[(8*i+k)*stride+j*8] = 0;
+        if (dec8[i][j]==0){
+          img[(8*i+3)*stride+j*8+3] = 0;
+          img[(8*i+3)*stride+j*8+4] = 0;
+          img[(8*i+4)*stride+j*8+3] = 0;
+          img[(8*i+4)*stride+j*8+4] = 0;
+        }
+      }
+    }
+  }
+  for (i=32;i<(w32-1)*32;i++)
+    img[(h32-1)*32*stride+i]=0;
+  for (i=32;i<(h32-1)*32;i++)
+    img[i*stride+(w32-1)*32]=0;
 #endif
   return 0;
 }

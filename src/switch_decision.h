@@ -25,4 +25,4 @@ void od_switch_start_line(od_switch_decision_state *st);
 /* Computes switching decision for macro block pointed to by img, returns a decision for each 8x8 block in the superblock */
 void od_switch_process_superblock(od_switch_decision_state *st, const unsigned char *img, int id, int s, int blocksize[4][4]);
 
-int switch_decision(const unsigned char *img, int w, int h, int stride);
+int switch_decision(unsigned char *img, int w, int h, int stride);
