@@ -8,10 +8,10 @@
 #define MAX_VAR_BLOCKS 1024
 #define SQUARE(x) ((int)(x)*(int)(x))
 
-#define CG4 8.6
-#define CG8 9.57
-#define CG16 9.81
-#define CG32 9.93
+#define CG4 (8.6*2/6)
+#define CG8 (9.57*2/6)
+#define CG16 (9.81*2/6)
+#define CG32 (9.93*2/6)
 
 void od_switch_init(od_switch_decision_state *st, int w)
 {
@@ -164,8 +164,8 @@ int switch_decision(const unsigned char *img, int w, int h, int stride)
       nmr8[i][j] = (float)sum_var*(float)sum_var_1/(7*7*7*7);
       nmr4_avg = .25f*(nmr4[2*i][2*j]+nmr4[2*i][2*j+1]+nmr4[2*i+1][2*j]+nmr4[2*i+1][2*j+1]);
       //if (nmr4_avg>nmr8[i][j])nmr4_avg=nmr8[i][j];
-      cgs = CG4/6. - fudge*.5*log2(nmr4_avg);
-      cgl = CG8/6. - fudge*.5*log2(nmr8[i][j]);
+      cgs = CG4 - fudge*.5*log2(nmr4_avg);
+      cgl = CG8 - fudge*.5*log2(nmr8[i][j]);
       if (cgl>=cgs)
       {
         dec8[i][j] = 1;
@@ -205,8 +205,8 @@ int switch_decision(const unsigned char *img, int w, int h, int stride)
       nmr8_avg = .25f*(nmr8[2*i][2*j]+nmr8[2*i][2*j+1]+nmr8[2*i+1][2*j]+nmr8[2*i+1][2*j+1]);
       //if (nmr8_avg>nmr16[i][j])nmr8_avg=nmr16[i][j];
       cg16[i][j] = .25*(cg8[2*i][2*j] + cg8[2*i][2*j+1] + cg8[2*i+1][2*j] + cg8[2*i+1][2*j+1]);
-      cgs = cg16[i][j]/6 - fudge*.5*log2(nmr8_avg);
-      cgl = CG16/6 - fudge*.5*log2(nmr16[i][j]);
+      cgs = cg16[i][j] - fudge*.5*log2(nmr8_avg);
+      cgl = CG16 - fudge*.5*log2(nmr16[i][j]);
       if (cgl+bias>=cgs)
       {
         dec8[2*i][2*j] = 2;
@@ -248,8 +248,8 @@ int switch_decision(const unsigned char *img, int w, int h, int stride)
       nmr16_avg = .25f*(nmr16[2*i][2*j]+nmr16[2*i][2*j+1]+nmr16[2*i+1][2*j]+nmr16[2*i+1][2*j+1]);
       //if (nmr16_avg>nmr32[i][j])nmr16_avg=nmr32[i][j];
       cg32[i][j] = .25*(cg16[2*i][2*j] + cg16[2*i][2*j+1] + cg16[2*i+1][2*j] + cg16[2*i+1][2*j+1]);
-      cgs = cg32[i][j]/6 - fudge*.5*log2(nmr16_avg);
-      cgl = CG32/6 - fudge*.5*log2(nmr32[i][j]);
+      cgs = cg32[i][j] - fudge*.5*log2(nmr16_avg);
+      cgl = CG32 - fudge*.5*log2(nmr32[i][j]);
       if (cgl+bias>=cgs)
       {
         for(k=0;k<4;k++){
