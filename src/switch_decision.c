@@ -321,10 +321,11 @@ int switch_decision(unsigned char *img, int w, int h, int stride)
         for(k=0;k<8;k++)
           img[(8*i+k)*stride+j*8] = 0;
         if (dec8[i][j]==0){
-          img[(8*i+3)*stride+j*8+3] = 0;
-          img[(8*i+3)*stride+j*8+4] = 0;
           img[(8*i+4)*stride+j*8+3] = 0;
           img[(8*i+4)*stride+j*8+4] = 0;
+          img[(8*i+4)*stride+j*8+5] = 0;
+          img[(8*i+3)*stride+j*8+4] = 0;
+          img[(8*i+5)*stride+j*8+4] = 0;
         }
       }
     }
