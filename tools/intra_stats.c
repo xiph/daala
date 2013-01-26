@@ -330,14 +330,21 @@ const int NBLOCKS=sizeof(BLOCKS)/sizeof(*BLOCKS);
 
 int main(int _argc,const char **_argv){
   static intra_stats_ctx ctx;
-  int ret;
+  int                    ret;
+#if B_SZ==4
+  ne_filter_params4_init(OD_FILTER_PARAMS4);
+#elif B_SZ==8
+  ne_filter_params8_init(OD_FILTER_PARAMS8);
+#elif B_SZ==16
+  ne_filter_params16_init(OD_FILTER_PARAMS16);
+#else
+# error "Need filter params for this block size."
+#endif
+  vp8_scale_init(VP8_SCALE);
+  od_scale_init(OD_SCALE);
 #if WRITE_IMAGES
   intra_map_colors(COLORS,OD_INTRA_NMODES);
 #endif
-  ne_prefilter_init(OD_FILTER_PARAMS4);
-  vp8_scale_init(VP8_SCALE);
-  od_scale_init(OD_SCALE);
-  intra_map_colors(COLORS,OD_INTRA_NMODES);
   intra_stats_ctx_init(&ctx);
   ret=apply_to_blocks2(&ctx,PADDING,stats_start,BLOCKS,NBLOCKS,stats_finish,0x1,
    _argc,_argv);

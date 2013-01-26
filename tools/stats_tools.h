@@ -36,8 +36,6 @@ struct intra_stats{
   mode_data md[OD_INTRA_NMODES];
 };
 
-void ne_prefilter_init(const int *_x);
-
 void intra_stats_init(intra_stats *_this);
 void intra_stats_correct(intra_stats *_this);
 void intra_stats_print(intra_stats *_this,const char *_label,double *_scale);
@@ -114,6 +112,12 @@ int image_data_save_map(image_data *_this);
 int image_data_load_map(image_data *_this);
 
 extern int NE_FILTER_PARAMS4[4];
+extern int NE_FILTER_PARAMS8[8];
+extern int NE_FILTER_PARAMS16[16];
+
+void ne_filter_params4_init(const int *_x);
+void ne_filter_params8_init(const int *_x);
+void ne_filter_params16_init(const int *_x);
 
 extern const od_filter_func NE_PRE_FILTER[OD_NBSIZES];
 extern const od_filter_func NE_POST_FILTER[OD_NBSIZES];

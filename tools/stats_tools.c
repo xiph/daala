@@ -4,6 +4,8 @@
 #include "../src/dct.h"
 #include "../src/intra.h"
 
+#define PRINT_SCALE (0)
+
 void mode_data_init(mode_data *_md){
   int i;
   int j;
@@ -182,7 +184,6 @@ double VP8_SCALE[B_SZ];
 double OD_SCALE[B_SZ];
 
 #define SCALE_BITS (14)
-#define PRINT_SCALE (0)
 
 void vp8_scale_init(double _vp8_scale[B_SZ]){
   int j;
@@ -203,7 +204,7 @@ void vp8_scale_init(double _vp8_scale[B_SZ]){
       _vp8_scale[i]+=c*c;
     }
 #if PRINT_SCALE
-    printf("%s%G",i==0?"":" ",_vp8_scale[i]);
+    printf("%s%- 24.18G",i==0?"":" ",_vp8_scale[i]);
 #endif
   }
 #if PRINT_SCALE
@@ -241,17 +242,12 @@ void od_scale_init(double _od_scale[B_SZ]){
       _od_scale[i]+=c*c;
     }
 #if PRINT_SCALE
-    printf("%s%G",i==0?"":" ",_od_scale[i]);
+    printf("%s%- 24.18G",i==0?"":" ",_od_scale[i]);
 #endif
   }
 #if PRINT_SCALE
   printf("\n");
 #endif
-}
-
-void ne_prefilter_init(const int *_x){
-  int i;
-  for(i=0;i<4;i++)NE_FILTER_PARAMS4[i]=_x[i];
 }
 
 static void ne_pre_filter(od_coeff *_out,int _out_stride,od_coeff *_in,
@@ -974,6 +970,29 @@ int image_data_load_map(image_data *_this){
 }
 
 int NE_FILTER_PARAMS4[4];
+int NE_FILTER_PARAMS8[8];
+int NE_FILTER_PARAMS16[16];
+
+void ne_filter_params4_init(const int *_x){
+  int i;
+  for(i=0;i<4;i++){
+    NE_FILTER_PARAMS4[i]=_x[i];
+  }
+}
+
+void ne_filter_params8_init(const int *_x){
+  int i;
+  for(i=0;i<8;i++){
+    NE_FILTER_PARAMS8[i]=_x[i];
+  }
+}
+
+void ne_filter_params16_init(const int *_x){
+  int i;
+  for(i=0;i<16;i++){
+    NE_FILTER_PARAMS16[i]=_x[i];
+  }
+}
 
 static void ne_pre_filter4(od_coeff _y[4],const od_coeff _x[4]){
   int t[4];
@@ -1036,7 +1055,7 @@ void ne_intra_pred4x4_mult(double *_p,const od_coeff *_c,int _stride,int _mode){
     for(i=0;i<4;i++){
       _p[4*j+i]=NE_PRED_OFFSETS_4x4[_mode][j][i];
       for(by=0;by<=1;by++){
-        for(bx=0;bx<=2-by;bx++){
+        for(bx=0;bx<=(1-by)<<1;bx++){
           const od_coeff *b;
           b=&_c[_stride*4*(by-1)+4*(bx-1)];
           for(k=0;k<4;k++){
@@ -1062,7 +1081,7 @@ void ne_intra_pred8x8_mult(double *_p,const od_coeff *_c,int _stride,int _mode){
     for(i=0;i<8;i++){
       _p[8*j+i]=NE_PRED_OFFSETS_8x8[_mode][j][i];
       for(by=0;by<=1;by++){
-        for(bx=0;bx<=2-by;bx++){
+        for(bx=0;bx<=(1-by)<<1;bx++){
           const od_coeff *b;
           b=&_c[_stride*8*(by-1)+8*(bx-1)];
           for(k=0;k<8;k++){
@@ -1088,7 +1107,7 @@ void ne_intra_pred16x16_mult(double *_p,const od_coeff *_c,int _stride,int _mode
     for(i=0;i<16;i++){
       _p[16*j+i]=NE_PRED_OFFSETS_16x16[_mode][j][i];
       for(by=0;by<=1;by++){
-        for(bx=0;bx<=2-by;bx++){
+        for(bx=0;bx<=(1-by)<<1;bx++){
           const od_coeff *b;
           b=&_c[_stride*16*(by-1)+16*(bx-1)];
           for(k=0;k<16;k++){
