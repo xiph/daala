@@ -63,6 +63,23 @@ Y2P_OBJS:=${Y2P_OBJS:%.c=${WORKDIR}/%.o}
 Y2P_CSOURCES:=${Y2P_LOCAL_CSOURCES} ${Y2P_LOCAL_CSOURCES:%=${LIBSRCDIR}/%}
 Y2P_TARGET:=y4m2png
 
+#block_size_analysis
+BSIZE_LOCAL_CSOURCES = \
+block_size_analysis.c \
+vidinput.c \
+newdct.c \
+filter.c
+
+
+BSIZE_LIB_CSOURCES =
+
+BSIZE_LDFLAGS = `pkg-config theoradec ogg libpng --libs` -lm
+
+BSIZE_OBJS:=${BSIZE_LOCAL_CSOURCES} ${BSIZE_LIB_CSOURCES}
+BSIZE_OBJS:=${BSIZE_OBJS:%.c=${WORKDIR}/%.o}
+BSIZE_CSOURCES:=${BSIZE_LOCAL_CSOURCES} ${BSIZE_LOCAL_CSOURCES:%=${LIBSRCDIR}/%}
+BSIZE_TARGET:=block_size_analysis
+
 
 #plot_intra_maps
 PIM_LOCAL_CSOURCES = \
@@ -207,7 +224,7 @@ ALL_DEPS:=${ALL_OBJS:%.o=%.d}
 
 ALL_TARGETS:=${P2Y_TARGET} ${Y2P_TARGET} \
  ${PIM_TARGET} ${IIM_TARGET} ${IIX_TARGET} ${GEN_CDF_TARGET} \
- ${IS_TARGET} ${IP_TARGET} ${T_TARGET}
+ ${IS_TARGET} ${IP_TARGET} ${T_TARGET} ${BSIZE_TARGET}
 
 all: ${ALL_TARGETS}
 
@@ -219,6 +236,9 @@ clean:
 	${RM} ${ALL_ASM} ${ALL_OBJS} ${ALL_DEPS}
 	${RM} ${ALL_TARGETS}
 	-rmdir ${WORKDIR}
+
+${BSIZE_TARGET}: ${BSIZE_OBJS}
+	${CC} ${CFLAGS} ${BSIZE_OBJS} ${BSIZE_LDFLAGS} -o $@
 
 ${P2Y_TARGET}: ${P2Y_OBJS}
 	${CC} ${CFLAGS} ${P2Y_OBJS} ${P2Y_LDFLAGS} -o $@

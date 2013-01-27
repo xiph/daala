@@ -1,0 +1,807 @@
+/*  Daala video codec
+    Copyright (C) 2002-2012 Daala project contributors
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License along
+    with this program; if not, write to the Free Software Foundation, Inc.,
+    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA. */
+
+/* gcc -O3 -g -Wall -Wextra -Wno-parentheses -o y4mpvqtest y4mpvqtest.c ../src/dct.c ../src/filter.c ../src/pvq.c vidinput.c -lm -logg -ltheoradec */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "../src/odintrin.h"
+#include "vidinput.h"
+#include "../src/filter.h"
+#include "../src/dct.h"
+#include "../src/pvq.h"
+#if defined(_WIN32)
+#include <io.h>
+#include <fcntl.h>
+#endif
+#include "getopt.h"
+#include <math.h>
+
+static void usage(char **_argv){
+  fprintf(stderr,"Usage: %s [options] <input> <output>\n"
+   "    <reference> and <input> may be either YUV4MPEG or Ogg Theora files.\n\n"
+   "    Options:\n"
+   "      --intra    Intraframes only.\n"
+   "      --limit N  Only read N frames from input.\n"
+   "      --ext   N  Encode the final frame N more times.\n"
+   "      --fps   N  Override output fps.\n"
+   "      --ref   N  Reference stream.\n"
+   "      --pvqk  N  PVQ K parameter.\n",_argv[0]);
+}
+
+static const char *CHROMA_TAGS[4]={" C420jpeg",""," C422jpeg"," C444"};
+
+
+/* Warning, this will fail for images larger than 2024 x 2024 */
+#define MAX_VAR_BLOCKS 1024
+#define SQUARE(x) ((int)(x)*(int)(x))
+
+#define CG4 (8.6*2/6)
+#define CG8 (9.57*2/6)
+#define CG16 (9.81*2/6)
+#define CG32 (9.93*2/6)
+
+#define OFF8   (2)
+#define OFF16  (4)
+#define OFF32  (4)
+
+#define COUNT8   (3+2*OFF8)
+#define COUNT16  (7+2*OFF16)
+#define COUNT32 (15+2*OFF32)
+
+
+#define PSY_LAMBDA 1.0
+
+
+int switch_decision(unsigned char *img, int w, int h, int stride)
+{
+  int i,j;
+  int h4, w4,h8,w8,h16,w16,h32,w32;
+  static int Sx[MAX_VAR_BLOCKS][MAX_VAR_BLOCKS];
+  static int Sxx[MAX_VAR_BLOCKS][MAX_VAR_BLOCKS];
+  static int var[MAX_VAR_BLOCKS][MAX_VAR_BLOCKS];
+  static int var_1[MAX_VAR_BLOCKS][MAX_VAR_BLOCKS];
+  static float nmr4[MAX_VAR_BLOCKS>>1][MAX_VAR_BLOCKS>>1];
+  static float nmr8[MAX_VAR_BLOCKS>>2][MAX_VAR_BLOCKS>>2];
+  static float cg8[MAX_VAR_BLOCKS>>2][MAX_VAR_BLOCKS>>2];
+  static float nmr16[MAX_VAR_BLOCKS>>3][MAX_VAR_BLOCKS>>3];
+  static float cg16[MAX_VAR_BLOCKS>>3][MAX_VAR_BLOCKS>>3];
+  static float nmr32[MAX_VAR_BLOCKS>>4][MAX_VAR_BLOCKS>>4];
+  static float cg32[MAX_VAR_BLOCKS>>4][MAX_VAR_BLOCKS>>4];
+
+  static int dec8[MAX_VAR_BLOCKS>>2][MAX_VAR_BLOCKS>>2];
+  const unsigned char *x;
+  w>>=1;
+  h>>=1;
+  w4 = w>>1;
+  h4 = h>>1;
+  w8 = w>>2;
+  h8 = h>>2;
+  w16 = w>>3;
+  h16 = h>>3;
+  w32 = w>>4;
+  h32 = h>>4;
+  x = img;
+  for(i=0;i<h;i++){
+    for(j=0;j<w;j++){
+      Sx[i][j]=x[2*j]+x[2*j+1]+x[stride+2*j]+x[stride+2*j+1];
+      Sxx[i][j]=SQUARE(x[2*j])+SQUARE(x[2*j+1])+SQUARE(x[stride+2*j])+SQUARE(x[stride+2*j+1]);
+    }
+    x+=2*stride;
+  }
+
+  for(i=0;i<h-1;i++){
+    for(j=0;j<w-1;j++){
+      int sum_x;
+      int sum_xx;
+      int var_floor;
+      sum_x=Sx[i][j]+Sx[i][j+1]+Sx[i+1][j]+Sx[i+1][j+1];
+      sum_xx=Sxx[i][j]+Sxx[i][j+1]+Sxx[i+1][j]+Sxx[i+1][j+1];
+      var[i][j]=(sum_xx-(SQUARE(sum_x)>>4))>>5;
+      var_floor = 4+(sum_x>>8);
+      if (var[i][j]<var_floor)var[i][j]=var_floor;
+      /*printf("%d ", var[i][j]);*/
+      var_1[i][j] = 16384/var[i][j];
+    }
+    /*printf("\n");*/
+  }
+
+  for(i=1;i<h4-1;i++){
+    for(j=1;j<w4-1;j++){
+      int k,m;
+      int sum_var=0;
+      int sum_var_1=0;
+      float psy=0;
+      float noise;
+      for(k=0;k<3;k++){
+        for(m=0;m<3;m++){
+          sum_var+=var[2*i-1+k][2*j-1+m];
+        }
+      }
+      noise = sum_var/(3*3);
+      for(k=0;k<3;k++){
+        for(m=0;m<3;m++){
+          psy += OD_LOG2(1+noise*var_1[2*i-1+k][2*j-1+m]/16384.);
+        }
+      }
+      psy /= (3*3);
+      nmr4[i][j] = psy;
+      /*printf("%f ", nmr4[i][j]);*/
+    }
+    /*printf("\n");*/
+  }
+
+  for(i=1;i<h8-1;i++){
+    for(j=1;j<w8-1;j++){
+      int k,m;
+      int sum_var=0;
+      int sum_var_1=0;
+      float nmr4_avg;
+      float cgl, cgs;
+      float noise;
+      float psy;
+      for(k=0;k<COUNT8;k++){
+        for(m=0;m<COUNT8;m++){
+          sum_var  +=var[4*i-OFF8+k][4*j-OFF8+m];
+        }
+      }
+      noise = sum_var/(COUNT8*COUNT8);
+      psy=0;
+      for(k=0;k<COUNT8;k++){
+        for(m=0;m<COUNT8;m++){
+          psy += OD_LOG2(1+noise*var_1[4*i-OFF8+k][4*j-OFF8+m]/16384.);
+        }
+      }
+      psy /= (COUNT8*COUNT8);
+      nmr8[i][j] = psy;
+      nmr4_avg = .25f*(nmr4[2*i][2*j]+nmr4[2*i][2*j+1]+nmr4[2*i+1][2*j]+nmr4[2*i+1][2*j+1]);
+      cgs = CG4 - PSY_LAMBDA*(nmr4_avg);
+      cgl = CG8 - PSY_LAMBDA*(nmr8[i][j]);
+      if (cgl>=cgs)
+      {
+        dec8[i][j] = 1;
+        cg8[i][j] = CG8;
+      } else {
+        nmr8[i][j] = nmr4_avg;
+        dec8[i][j] = 0;
+        cg8[i][j] = CG4;
+      }
+      /*printf("%d ", dec8[i][j]);*/
+    }
+    /*printf("\n");*/
+  }
+
+  for(i=1;i<h16-1;i++){
+    for(j=1;j<w16-1;j++){
+      int k,m;
+      int sum_var=0;
+      int sum_var_1=0;
+      float nmr8_avg;
+      float cgl,cgs;
+      float noise;
+      float psy;
+      for(k=0;k<COUNT16;k++){
+        for(m=0;m<COUNT16;m++){
+          sum_var+=var[8*i-OFF16+k][8*j-OFF16+m];
+        }
+      }
+      noise = sum_var/(float)(COUNT16*COUNT16);
+      psy=0;
+      for(k=0;k<COUNT16;k++){
+        for(m=0;m<COUNT16;m++){
+          psy += OD_LOG2(1+noise*var_1[8*i-OFF16+k][8*j-OFF16+m]/16384.);
+        }
+      }
+      psy /= (COUNT16*COUNT16);
+      nmr16[i][j] = psy;
+      nmr8_avg = .25f*(nmr8[2*i][2*j]+nmr8[2*i][2*j+1]+nmr8[2*i+1][2*j]+nmr8[2*i+1][2*j+1]);
+      cg16[i][j] = .25*(cg8[2*i][2*j] + cg8[2*i][2*j+1] + cg8[2*i+1][2*j] + cg8[2*i+1][2*j+1]);
+      cgs = cg16[i][j] - PSY_LAMBDA*(nmr8_avg);
+      cgl = CG16 - PSY_LAMBDA*(nmr16[i][j]);
+      /*printf("%f ", psy);*/
+      if (cgl>=cgs)
+      {
+        dec8[2*i][2*j] = 2;
+        dec8[2*i][2*j+1] = 2;
+        dec8[2*i+1][2*j] = 2;
+        dec8[2*i+1][2*j+1] = 2;
+        cg16[i][j] = CG16;
+      } else {
+        nmr16[i][j] = nmr8_avg;
+      }
+    }
+    /*printf("\n");*/
+  }
+
+#if 1
+  for(i=1;i<h32-1;i++){
+    for(j=1;j<w32-1;j++){
+      int k,m;
+      int sum_var=0;
+      int sum_var_1=0;
+      float nmr16_avg;
+      float cgl,cgs;
+      float noise, psy;
+      for(k=0;k<COUNT32;k++){
+        for(m=0;m<COUNT32;m++){
+          sum_var  +=var[16*i-OFF32+k][16*j-OFF32+m];
+        }
+      }
+      noise = sum_var/(float)(COUNT32*COUNT32);
+      psy=0;
+      for(k=0;k<COUNT32;k++){
+        for(m=0;m<COUNT32;m++){
+          psy += OD_LOG2(1.+noise*var_1[16*i-OFF32+k][16*j-OFF32+m]/16384.);
+        }
+      }
+      psy /= (COUNT32*COUNT32);
+      nmr32[i][j] = psy;
+      nmr16_avg = .25f*(nmr16[2*i][2*j]+nmr16[2*i][2*j+1]+nmr16[2*i+1][2*j]+nmr16[2*i+1][2*j+1]);
+      cg32[i][j] = .25*(cg16[2*i][2*j] + cg16[2*i][2*j+1] + cg16[2*i+1][2*j] + cg16[2*i+1][2*j+1]);
+      cgs = cg32[i][j] - PSY_LAMBDA*(nmr16_avg);
+      cgl = CG32 - PSY_LAMBDA*(nmr32[i][j]);
+      /*printf("%f ", nmr32[i][j]);*/
+      if (cgl>=cgs)
+      {
+        for(k=0;k<4;k++){
+          for(m=0;m<4;m++){
+            dec8[4*i+k][4*j+m]=3;
+          }
+        }
+        cg32[i][j] = CG32;
+      } else {
+        nmr32[i][j] = nmr16_avg;
+      }
+    }
+    /*printf("\n");*/
+  }
+#endif
+#if 1
+  for(i=4;i<h8-4;i++){
+    for(j=4;j<w8-4;j++){
+      printf("%d ", dec8[i][j]);
+    }
+    printf("\n");
+  }
+#endif
+#if 0
+  fprintf(stderr, "size : %dx%d\n", (w<<1), (h<<1));
+  for(i=0;i<(h<<1);i++){
+    for(j=0;j<1296;j++){
+      putc(dec8[i>>3][j>>3], stdout);
+    }
+  }
+#endif
+#if 1
+  for(i=4;i<h8-4;i++){
+    for(j=4;j<w8-4;j++){
+      if ((i&3)==0 && (j&3)==0){
+        int k;
+        for(k=0;k<32;k++)
+          img[i*stride*8+j*8+k] = 0;
+        for(k=0;k<32;k++)
+          img[(8*i+k)*stride+j*8] = 0;
+      }
+      if ((i&1)==0 && (j&1)==0 && dec8[i][j]==2){
+        int k;
+        for(k=0;k<16;k++)
+          img[i*stride*8+j*8+k] = 0;
+        for(k=0;k<16;k++)
+          img[(8*i+k)*stride+j*8] = 0;
+      }
+      if (dec8[i][j]<=1){
+        int k;
+        for(k=0;k<8;k++)
+          img[i*stride*8+j*8+k] = 0;
+        for(k=0;k<8;k++)
+          img[(8*i+k)*stride+j*8] = 0;
+        if (dec8[i][j]==0){
+          img[(8*i+4)*stride+j*8+3] = 0;
+          img[(8*i+4)*stride+j*8+4] = 0;
+          img[(8*i+4)*stride+j*8+5] = 0;
+          img[(8*i+3)*stride+j*8+4] = 0;
+          img[(8*i+5)*stride+j*8+4] = 0;
+        }
+      }
+    }
+  }
+  for (i=32;i<(w32-1)*32;i++)
+    img[(h32-1)*32*stride+i]=0;
+  for (i=32;i<(h32-1)*32;i++)
+    img[i*stride+(w32-1)*32]=0;
+#endif
+  return 0;
+}
+
+/*Applies vert then horiz prefilters of size _n.*/
+void prefilter_image(od_coeff *_img, int _w, int _h, int _n){
+  int x,y,j;
+  /*Pre-filter*/
+  switch(_n){
+    case 4:
+      for(y=0;y<_h;y++){
+        for(x=2;x<_w-2;x+=4){
+          od_pre_filter4(&_img[y*_w+x],&_img[y*_w+x]);
+        }
+      }
+      for(y=2;y<_h-2;y+=4){
+        for(x=0;x<_w;x++){
+          od_coeff tmp[4];
+          for(j=0;j<4;j++)tmp[j]=_img[(y+j)*_w+x];
+          od_pre_filter4(tmp,tmp);
+          for(j=0;j<4;j++)_img[(y+j)*_w+x]=tmp[j];
+        }
+      }
+      break;
+    case 8:
+      for(y=0;y<_h;y++){
+        for(x=4;x<_w-4;x+=8){
+          od_pre_filter8(&_img[y*_w+x],&_img[y*_w+x]);
+        }
+      }
+      for(y=4;y<_h-4;y+=8){
+        for(x=0;x<_w;x++){
+          od_coeff tmp[16];
+          for(j=0;j<8;j++)tmp[j]=_img[(y+j)*_w+x];
+          od_pre_filter8(tmp,tmp);
+          for(j=0;j<8;j++)_img[(y+j)*_w+x]=tmp[j];
+        }
+      }
+      break;
+    case 16:
+      for(y=0;y<_h;y++){
+        for(x=8;x<_w-8;x+=16){
+          od_pre_filter16(&_img[y*_w+x],&_img[y*_w+x]);
+        }
+      }
+      for(y=8;y<_h-8;y+=16){
+        for(x=0;x<_w;x++){
+          od_coeff tmp[16];
+          for(j=0;j<16;j++)tmp[j]=_img[(y+j)*_w+x];
+          od_pre_filter16(tmp,tmp);
+          for(j=0;j<16;j++)_img[(y+j)*_w+x]=tmp[j];
+        }
+      }
+      break;
+    default:
+      break;
+  }
+}
+
+/*Applies horiz then vert postfilters of size _n.*/
+void postfilter_image(od_coeff *_img, int _w, int _h, int _n){
+  int x,y,j;
+  /*Pre-filter*/
+  switch(_n){
+    case 4:
+      for(y=2;y<_h-2;y+=4){
+        for(x=0;x<_w;x++){
+          od_coeff tmp[4];
+          for(j=0;j<4;j++)tmp[j]=_img[(y+j)*_w+x];
+          od_post_filter4(tmp,tmp);
+          for(j=0;j<4;j++)_img[(y+j)*_w+x]=tmp[j];
+        }
+      }
+      for(y=0;y<_h;y++){
+        for(x=2;x<_w-2;x+=4){
+          od_post_filter4(&_img[y*_w+x],&_img[y*_w+x]);
+        }
+      }
+      break;
+    case 8:
+      for(y=4;y<_h-4;y+=8){
+        for(x=0;x<_w;x++){
+          od_coeff tmp[16];
+          for(j=0;j<8;j++)tmp[j]=_img[(y+j)*_w+x];
+          od_post_filter8(tmp,tmp);
+          for(j=0;j<8;j++)_img[(y+j)*_w+x]=tmp[j];
+        }
+      }
+      for(y=0;y<_h;y++){
+        for(x=4;x<_w-4;x+=8){
+          od_post_filter8(&_img[y*_w+x],&_img[y*_w+x]);
+        }
+      }
+      break;
+    case 16:
+      for(y=8;y<_h-8;y+=16){
+        for(x=0;x<_w;x++){
+          od_coeff tmp[16];
+          for(j=0;j<16;j++)tmp[j]=_img[(y+j)*_w+x];
+          od_post_filter16(tmp,tmp);
+          for(j=0;j<16;j++)_img[(y+j)*_w+x]=tmp[j];
+        }
+      }
+      for(y=0;y<_h;y++){
+        for(x=8;x<_w-8;x+=16){
+          od_post_filter16(&_img[y*_w+x],&_img[y*_w+x]);
+        }
+      }
+      break;
+    default:
+      break;
+  }
+}
+
+/*static const int fzig16[256] = {0,16,1,2,17,32,48,33,18,3,4,19,34,49,64,80,65,50,35,20,5,6,21,36,51,66,81,96,112,97,82,67,52,37,22,7,8,23,38,53,68,83,98,113,128,144,129,114,99,84,69,54,39,24,9,10,25,40,55,70,85,100,115,130,145,160,176,161,146,131,116,101,86,71,56,41,26,11,12,27,42,57,72,87,102,117,132,147,162,177,192,208,193,178,163,148,133,118,103,88,73,58,43,28,13,14,29,44,59,74,89,104,119,134,149,164,179,194,209,224,240,225,210,195,180,165,150,135,120,105,90,75,60,45,30,15,31,46,61,76,91,106,121,136,151,166,181,196,211,226,241,242,227,212,197,182,167,152,137,122,107,92,77,62,47,63,78,93,108,123,138,153,168,183,198,213,228,243,244,229,214,199,184,169,154,139,124,109,94,79,95,110,125,140,155,170,185,200,215,230,245,246,231,216,201,186,171,156,141,126,111,127,142,157,172,187,202,217,232,247,248,233,218,203,188,173,158,143,159,174,189,204,219,234,249,250,235,220,205,190,175,191,206,221,236,251,252,237,222,207,223,238,253,254,239,255};
+static const int izig16[256] = {0,2,3,9,10,20,21,35,36,54,55,77,78,104,105,135,1,4,8,11,19,22,34,37,53,56,76,79,103,106,134,136,5,7,12,18,23,33,38,52,57,75,80,102,107,133,137,164,6,13,17,24,32,39,51,58,74,81,101,108,132,138,163,165,14,16,25,31,40,50,59,73,82,100,109,131,139,162,166,189,15,26,30,41,49,60,72,83,99,110,130,140,161,167,188,190,27,29,42,48,61,71,84,98,111,129,141,160,168,187,191,210,28,43,47,62,70,85,97,112,128,142,159,169,186,192,209,211,44,46,63,69,86,96,113,127,143,158,170,185,193,208,212,227,45,64,68,87,95,114,126,144,157,171,184,194,207,213,226,228,65,67,88,94,115,125,145,156,172,183,195,206,214,225,229,240,66,89,93,116,124,146,155,173,182,196,205,215,224,230,239,241,90,92,117,123,147,154,174,181,197,204,216,223,231,238,242,249,91,118,122,148,153,175,180,198,203,217,222,232,237,243,248,250,119,121,149,152,176,179,199,202,218,221,233,236,244,247,251,254,120,150,151,177,178,200,201,219,220,234,235,245,246,252,253,255};
+*/
+
+#define ROUNDUP_32(x) (((x)+31)&~31)
+
+
+
+#define MAXB 16
+#define SQUARE(x) ((int)(x)*(int)(x))
+
+int oc_ilog32(unsigned _v){
+  int ret;
+  static const unsigned char OC_DEBRUIJN_IDX32[32]={
+     0, 1,28, 2,29,14,24, 3,30,22,20,15,25,17, 4, 8,
+    31,27,13,23,21,19,16, 7,26,12,18, 6,11, 5,10, 9};
+  _v|=_v>>1;
+  _v|=_v>>2;
+  _v|=_v>>4;
+  _v|=_v>>8;
+  _v|=_v>>16;
+  ret=_v&1;
+  _v=(_v>>1)+1;
+  ret+=OC_DEBRUIJN_IDX32[_v*0x77CB531U>>27&0x1F];
+  return ret;
+
+}
+
+
+
+void quant_scalar_gain(ogg_int32_t *_x,ogg_int16_t *_scale,int *y,int N,int Q){
+  float gain0, gain1;
+  float Q_1;
+  int i;
+
+  Q*=15;
+  Q_1 = 1.f/Q;
+  gain0=0;
+  gain1=0;
+  for (i=0;i<N;i++)
+  {
+    int qx;
+    float s = _x[i]*Q_1;
+    float bias = s>0?-.49:.49;
+    gain0 += s*s;
+    qx = (int)floor(.5+s+bias);
+    y[i] = qx;
+    gain1 += qx*qx;
+    _x[i] = Q*qx;
+  }
+  gain0 = sqrt(gain0/(1e-15+gain1));
+  for (i=0;i<N;i++)
+    _x[i] *= gain0;
+}
+
+
+static void process_plane(od_coeff *_img, od_coeff *_refi, int _w, int _h, int _pli, int _pvq_k){
+  int x;
+  int y;
+  int j;
+  int i;
+  int k;
+  int free_ref;
+  _w = ROUNDUP_32(_w);
+  _h = ROUNDUP_32(_h);
+  if(!_refi){
+    _refi=calloc(ROUNDUP_32(_w)*ROUNDUP_32(_h),sizeof(od_coeff));
+    free_ref=1;
+  }else free_ref=0;
+  static int count=0;
+
+  prefilter_image(_img,_w,_h,16);
+
+
+  /*for (i=0;i<1000000;i++){
+    int tmp[16];
+    for(j=0;j<16;j++)
+      tmp[j] = rand()%255-127;
+    od_bin_idct16(tmp, tmp);
+    for(j=0;j<16;j++)printf("%d ", tmp[j]);
+    printf("\n");
+  }
+  exit(0);*/
+  /*Block processing.*/
+  for(y=0;y<_h;y+=16){
+    for(x=0;x<_w;x+=16){
+      od_coeff coeffs[256];
+      ogg_int32_t zi[256];
+      ogg_int16_t scale[256];
+      int         out[256];
+      unsigned char block[256];
+      int qg;
+
+      od_bin_fdct16x16(coeffs,16,&_img[(y)*_w+x],_w);
+
+      for(j=0;j<256;j++)scale[j]=1;
+      for(i=0;i<16;i++){
+        for(j=0;j<16;j++){
+          zi[16*i+j]=floor(.5+coeffs[16*i+j]);
+        }
+      }
+      if (_pli==-1){
+        int foo[256];
+        ogg_int32_t x[256];
+        /*quant_scalar_gain(&zi[1],NULL,foo,255,200);*/
+#if 1
+        extract(&zi[4], x, 2, 4, 16);
+        quant_scalar_gain(x,NULL,foo,8,200);
+        interleave(x, &zi[4], 2, 4, 16);
+
+        extract(&zi[64], x, 4, 2, 16);
+        quant_scalar_gain(x,NULL,foo,8,200);
+        interleave(x, &zi[64], 4, 2, 16);
+
+        extract(&zi[64+2], x, 4, 6, 16);
+        extract(&zi[32+4], x+24, 2, 4, 16);
+        quant_scalar_gain(x,NULL,foo,32,600);
+        interleave(x, &zi[64+2], 4, 6, 16);
+        interleave(x+24, &zi[32+4], 2, 4, 16);
+#endif
+#if 1
+        extract(&zi[8], x, 4, 8, 16);
+        /*quant_pvq(x, r, scale, out, 32, 1200./f, &qg);*/
+        quant_scalar_gain(x,NULL,foo,32,600);
+        interleave(x, &zi[8], 4, 8, 16);
+
+        extract(&zi[128], x, 8, 4, 16);
+        /*quant_pvq(x, r, scale, out, 32, 1200./f, &qg);*/
+        quant_scalar_gain(x,NULL,foo,32,600);
+        interleave(x, &zi[128], 8, 4, 16);
+
+        extract(&zi[128+4], x, 8, 12, 16);
+        extract(&zi[64+8], x+96, 4, 8, 16);
+        /*quant_pvq(x, r, scale, out, 128, 1200./f, &qg);*/
+        quant_scalar_gain(x,NULL,foo,128,1200);
+        interleave(x, &zi[128+4], 8, 12, 16);
+        interleave(x+96, &zi[64+8], 4, 8, 16);
+#endif
+      }
+      /*for(j=0;j<256;j++)coeffs[j]=zi[j];*/
+      for(i=0;i<16;i++){
+        for(j=0;j<16;j++){
+          coeffs[16*i+j]=floor(.5+zi[16*i+j]);
+        }
+      }
+      od_bin_idct16x16(&_img[(y)*_w+x],_w,coeffs,16);
+    }
+    /*printf("\n");*/
+  }
+  postfilter_image(_img,_w,_h,16);
+  if(free_ref)free(_refi);
+  count++;
+}
+
+int main(int _argc,char **_argv){
+  const char *optstring = "hv?";
+  const struct option long_options[]={
+    {"ref",required_argument,NULL,0},
+    {"limit",required_argument,NULL,0},
+    {"fps",required_argument,NULL,0},
+    {"ext",required_argument,NULL,0},
+    {"pvqk",required_argument,NULL,0},
+    {"intra",no_argument,NULL,0},
+    {NULL,0,NULL,0}
+  };
+  FILE        *fin;
+  FILE        *fout;
+  video_input  vid1;
+  th_info      ti1;
+  video_input  vid2;
+  th_info      ti2;
+  int          frameno;
+  int          pli;
+  char        *outline;
+  od_coeff    *refi[3];
+  od_coeff    *iimg[3];
+  int          xdec[3];
+  int          ydec[3];
+  int          w[3];
+  int          h[3];
+  int          pvq_k;
+  int          fps;
+  int          extend;
+  int          limit;
+  int          intra;
+  char         refname[1024];
+  int          ref_in;
+  int          long_option_index;
+  int          c;
+  pvq_k=32;
+  fps=-1;
+  ref_in=0;
+  limit=0;
+  extend=0;
+  intra=0;
+  while((c=getopt_long(_argc,_argv,optstring,long_options,&long_option_index))!=EOF){
+    switch(c){
+      case 0:
+        if(strcmp(long_options[long_option_index].name,"ref")==0){
+          ref_in=1;
+          strncpy(refname,optarg,1023);
+        } else if (strcmp(long_options[long_option_index].name,"pvqk")==0){
+          pvq_k=atoi(optarg);
+        } else if (strcmp(long_options[long_option_index].name,"limit")==0){
+          limit=atoi(optarg);
+        } else if (strcmp(long_options[long_option_index].name,"ext")==0){
+          extend=atoi(optarg);
+        } else if (strcmp(long_options[long_option_index].name,"intra")==0){
+          intra=1;
+        } else if (strcmp(long_options[long_option_index].name,"fps")==0){
+          fps=atoi(optarg);
+        }
+      break;
+      case 'v':
+      case '?':
+      case 'h':
+      default:{
+        usage(_argv);
+        exit(EXIT_FAILURE);
+      }break;
+    }
+  }
+  if(optind+2!=_argc){
+    usage(_argv);
+    exit(EXIT_FAILURE);
+  }
+  fin=strcmp(_argv[optind],"-")==0?stdin:fopen(_argv[optind],"rb");
+  if(fin==NULL){
+    fprintf(stderr,"Unable to open '%s' for extraction.\n",_argv[optind]);
+    exit(EXIT_FAILURE);
+  }
+  fprintf(stderr,"Opening %s as input%s...\n",_argv[optind],ref_in?"":" and reference");
+  if(video_input_open(&vid1,fin)<0)exit(EXIT_FAILURE);
+  video_input_get_info(&vid1,&ti1);
+  if(ref_in){
+    fin=fopen(refname,"rb");
+    if(fin==NULL){
+      fprintf(stderr,"Unable to open '%s' for extraction.\n",refname);
+      exit(EXIT_FAILURE);
+    }
+    fprintf(stderr,"Opening %s as reference...\n",refname);
+    if(video_input_open(&vid2,fin)<0)exit(EXIT_FAILURE);
+    video_input_get_info(&vid2,&ti2);
+    /*Check to make sure these videos are compatible.*/
+    if(ti1.pic_width!=ti2.pic_width||ti1.pic_height!=ti2.pic_height){
+      fprintf(stderr,"Video resolution does not match.\n");
+      exit(EXIT_FAILURE);
+    }
+    if(ti1.pixel_fmt!=ti2.pixel_fmt){
+      fprintf(stderr,"Pixel formats do not match.\n");
+      exit(EXIT_FAILURE);
+    }
+    if((ti1.pic_x&!(ti1.pixel_fmt&1))!=(ti2.pic_x&!(ti2.pixel_fmt&1))||
+     (ti1.pic_y&!(ti1.pixel_fmt&2))!=(ti2.pic_y&!(ti2.pixel_fmt&2))){
+      fprintf(stderr,"Chroma subsampling offsets do not match.\n");
+      exit(EXIT_FAILURE);
+    }
+    if(ti1.fps_numerator*(ogg_int64_t)ti2.fps_denominator!=
+     ti2.fps_numerator*(ogg_int64_t)ti1.fps_denominator){
+      fprintf(stderr,"Warning: framerates do not match.\n");
+    }
+    if(ti1.aspect_numerator*(ogg_int64_t)ti2.aspect_denominator!=
+     ti2.aspect_numerator*(ogg_int64_t)ti1.aspect_denominator){
+     fprintf(stderr,"Warning: aspect ratios do not match.\n");
+    }
+  }
+  for(pli=0;pli<3;pli++){
+    /*Planes padded up to a multiple of 32px*/
+    xdec[pli]=pli&&!(ti1.pixel_fmt&1);
+    ydec[pli]=pli&&!(ti1.pixel_fmt&2);
+    h[pli]=ROUNDUP_32(ti1.pic_height>>ydec[pli]);
+    w[pli]=ROUNDUP_32( ti1.pic_width>>xdec[pli]);
+    refi[pli]=malloc(w[pli]*h[pli]*sizeof(od_coeff));
+    iimg[pli]=malloc(w[pli]*h[pli]*sizeof(od_coeff));
+  }
+  outline=malloc(ti1.pic_width*sizeof(char));
+  fout=strcmp(_argv[optind+1],"-")==0?stdout:fopen(_argv[optind+1],"wb");
+  if(fout==NULL){
+    fprintf(stderr,"Error opening output file \"%s\".\n",_argv[optind+1]);
+    return 1;
+  }
+  fprintf(fout,"YUV4MPEG2 W%i H%i F%i:%i Ip A%i:%i%s\n",
+   ti1.pic_width,ti1.pic_height,fps>0?(unsigned)fps:ti1.fps_numerator,fps>0?1U:ti1.fps_denominator,
+   ti1.aspect_numerator,ti1.aspect_denominator,CHROMA_TAGS[ydec[1]?xdec[1]?0:2:3]);
+  for(frameno=0;;frameno++){
+    th_ycbcr_buffer in;
+    th_ycbcr_buffer ref;
+    int             ret1=0;
+    int             ret2=0;
+    char            tag1[5];
+    char            tag2[5];
+    if(!limit||frameno<limit){
+      ret1=video_input_fetch_frame(&vid1,in,tag1);
+      if(ref_in)ret2=video_input_fetch_frame(&vid2,ref,tag2);
+    }
+    if(ret1==0){
+      if(extend<1)break;
+      extend--;
+      /*If we're extending, keep feeding back the output to the reference input.*/
+      for(pli=0;pli<3;pli++){
+        int x;
+        int y;
+        for(y=0;y<h[pli];y++){
+          for(x=0;x<w[pli];x++){
+            refi[pli][y*w[pli]+x]=iimg[pli][y*w[pli]+x];
+          }
+        }
+      }
+    }
+    if(ref_in&&ret1!=0&&ret2==0){
+      fprintf(stderr,"Warning: Reference ended before input!\n");
+      break;
+    }
+    for(pli=0;pli<3;pli++){
+      int x;
+      int y;
+      if (pli==0)
+        switch_decision(in[pli].data, w[pli], h[pli], in[pli].stride);
+
+      for(y=0;y<h[pli];y++){
+        for(x=0;x<w[pli];x++){
+          int cy=OD_MINI(y+(int)(ti1.pic_y>>ydec[pli]),(int)ti1.pic_height>>ydec[pli]);
+          int cx=OD_MINI(x+(int)(ti1.pic_x>>xdec[pli]),(int)ti1.pic_width>>xdec[pli]);
+          iimg[pli][y*w[pli]+x]=128*(in[pli].data[cy*in[pli].stride+cx]-128);
+        }
+      }
+      if(ref_in&&ret2!=0){
+        for(y=0;y<h[pli];y++){
+          for(x=0;x<w[pli];x++){
+            int cy=OD_MINI(y+(int)(ti1.pic_y>>ydec[pli]),(int)ti1.pic_height>>ydec[pli]);
+            int cx=OD_MINI(x+(int)(ti1.pic_x>>xdec[pli]),(int)ti1.pic_width>>xdec[pli]);
+            refi[pli][y*w[pli]+x]=128*(ref[pli].data[cy*in[pli].stride+cx]-128);
+          }
+        }
+      }
+      process_plane(iimg[pli],(ref_in||frameno>0)&&!intra?refi[pli]:NULL,ti1.pic_width>>xdec[pli],ti1.pic_height>>ydec[pli],pli,pvq_k);
+      if(!ref_in){
+        for(y=0;y<h[pli];y++){
+          for(x=0;x<w[pli];x++){
+            refi[pli][y*w[pli]+x]=iimg[pli][y*w[pli]+x];
+          }
+        }
+      }
+    }
+    fprintf(fout,"FRAME\n");
+    for(pli=0;pli<3;pli++){
+      int x;
+      int y;
+      for(y=0;y<(int)ti1.pic_height>>ydec[pli];y++){
+        for(x=0;x<(int)ti1.pic_width>>xdec[pli];x++)outline[x]=OD_CLAMP255((int)floor(.5+(1./128)*iimg[pli][y*w[pli]+x])+128);
+        if(fwrite(outline,
+         (ti1.pic_width>>xdec[pli]),1,fout)<1){
+          fprintf(stderr,"Error writing to output.\n");
+          return EXIT_FAILURE;
+        }
+      }
+    }
+    fprintf(stderr, "Completed frame %d.\n",frameno);
+  }
+  video_input_close(&vid1);
+  if(ref_in)video_input_close(&vid2);
+  if(fout!=stdout)fclose(fout);
+  free(outline);
+  for(pli=0;pli<3;pli++)free(refi[pli]);
+  for(pli=0;pli<3;pli++)free(iimg[pli]);
+  return EXIT_SUCCESS;
+}
