@@ -74,7 +74,7 @@ static const char *CHROMA_TAGS[4]={" C420jpeg",""," C422jpeg"," C444"};
 #define PSY_LAMBDA 1.0
 
 
-int switch_decision(unsigned char *img, int w, int h, int stride)
+int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh)
 {
   int i,j;
   int h4, w4,h8,w8,h16,w16,h32,w32;
@@ -290,6 +290,22 @@ int switch_decision(unsigned char *img, int w, int h, int stride)
   for(i=0;i<(h<<1);i++){
     for(j=0;j<1296;j++){
       putc(dec8[i>>3][j>>3], stdout);
+    }
+  }
+#endif
+#if 0
+  {
+    /*Raw mode data with offsets to match the 4x8 training tool's padding.*/
+    int wn=(ow-16)>>2;
+    int hn=(oh-16)>>2;
+    fprintf(stderr, "size : %dx%d\n", wn, hn);
+    for(i=0;i<hn;i++){
+      for(j=0;j<wn;j++){
+        int posi=(i>>1)+1;
+        int posj=(j>>1)+1;
+        if(posi>=4 && posi<(h8-4) &&posj>=4 && posj<(w8-4))putc(dec8[posi][posj], stdout);
+        else putc(0, stdout);
+      }
     }
   }
 #endif
@@ -761,7 +777,7 @@ int main(int _argc,char **_argv){
       int x;
       int y;
       if (pli==0)
-        switch_decision(in[pli].data, w[pli], h[pli], in[pli].stride);
+        switch_decision(in[pli].data, w[pli], h[pli], in[pli].stride, ti1.pic_width, ti1.pic_height);
 
       for(y=0;y<h[pli];y++){
         for(x=0;x<w[pli];x++){
