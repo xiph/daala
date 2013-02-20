@@ -12,7 +12,7 @@
 #include <fcntl.h>
 #endif
 #include "getopt.h"
-#include "dct.h"
+#include "../src/dct.h"
 
 
 const char *optstring = "frsy";
