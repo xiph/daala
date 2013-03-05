@@ -556,16 +556,16 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
                   chroma_weights_q8[0]=OD_INTRA_CHROMA_WEIGHTS_Q6[mode][0];
                   chroma_weights_q8[1]=OD_INTRA_CHROMA_WEIGHTS_Q6[mode][1];
                   chroma_weights_q8[2]=OD_INTRA_CHROMA_WEIGHTS_Q6[mode][2];
-                  mode=modes[(by<<ydec)*(frame_width>>2)+(bx+xdec<<xdec)];
+                  mode=modes[(by<<ydec)*(frame_width>>2)+((bx<<xdec)+xdec)];
                   chroma_weights_q8[0]+=OD_INTRA_CHROMA_WEIGHTS_Q6[mode][0];
                   chroma_weights_q8[1]+=OD_INTRA_CHROMA_WEIGHTS_Q6[mode][1];
                   chroma_weights_q8[2]+=OD_INTRA_CHROMA_WEIGHTS_Q6[mode][2];
-                  mode=modes[(by+ydec<<ydec)*(frame_width>>2)+(bx<<xdec)];
+                  mode=modes[((by<<ydec)+ydec)*(frame_width>>2)+(bx<<xdec)];
                   chroma_weights_q8[0]+=OD_INTRA_CHROMA_WEIGHTS_Q6[mode][0];
                   chroma_weights_q8[1]+=OD_INTRA_CHROMA_WEIGHTS_Q6[mode][1];
                   chroma_weights_q8[2]+=OD_INTRA_CHROMA_WEIGHTS_Q6[mode][2];
-                  mode=modes[(by+ydec<<ydec)*(frame_width>>2)
-                   +(bx+xdec<<xdec)];
+                  mode=modes[((by<<ydec)+ydec)*(frame_width>>2)
+                   +((bx<<xdec)+xdec)];
                   chroma_weights_q8[0]+=OD_INTRA_CHROMA_WEIGHTS_Q6[mode][0];
                   chroma_weights_q8[1]+=OD_INTRA_CHROMA_WEIGHTS_Q6[mode][1];
                   chroma_weights_q8[2]+=OD_INTRA_CHROMA_WEIGHTS_Q6[mode][2];
