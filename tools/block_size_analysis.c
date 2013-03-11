@@ -57,21 +57,29 @@ static const char *CHROMA_TAGS[4]={" C420jpeg",""," C422jpeg"," C444"};
 #define MAX_VAR_BLOCKS 1024
 #define SQUARE(x) ((int)(x)*(int)(x))
 
-#define CG4 (8.6*2/6)
-#define CG8 (9.57*2/6)
-#define CG16 (9.81*2/6)
-#define CG32 (9.93*2/6)
+/* Actual 2D coding gains of lapped transforms (the 32x32 one is made-up). We divide by 6 to get bits. */
+#define CG4 (15.943/6)
+#define CG8 (16.7836/6)
+#define CG16 (16.9986/6)
+#define CG32 (17.1/6)
 
-#define OFF8   (2)
-#define OFF16  (4)
-#define OFF32  (4)
+
+#define OFF8   (1)
+#define OFF16  (2)
+#define OFF32  (2)
+
+#define OFF16_8  (1)
+#define OFF32_8  (1)
 
 #define COUNT8   (3+2*OFF8)
 #define COUNT16  (7+2*OFF16)
 #define COUNT32 (15+2*OFF32)
 
+#define COUNT16_8  (3+2*OFF16_8)
+#define COUNT32_8  (7+2*OFF32_8)
 
-#define PSY_LAMBDA 1.0
+
+#define PSY_LAMBDA .65
 
 
 int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh)
@@ -80,8 +88,13 @@ int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh
   int h4, w4,h8,w8,h16,w16,h32,w32;
   static int Sx[MAX_VAR_BLOCKS][MAX_VAR_BLOCKS];
   static int Sxx[MAX_VAR_BLOCKS][MAX_VAR_BLOCKS];
+  static int Sx4[MAX_VAR_BLOCKS>>1][MAX_VAR_BLOCKS>>1];
+  static int Sxx4[MAX_VAR_BLOCKS>>1][MAX_VAR_BLOCKS>>1];
+
   static int var[MAX_VAR_BLOCKS][MAX_VAR_BLOCKS];
   static int var_1[MAX_VAR_BLOCKS][MAX_VAR_BLOCKS];
+  static int var8[MAX_VAR_BLOCKS>>1][MAX_VAR_BLOCKS>>1];
+  static int var8_1[MAX_VAR_BLOCKS>>1][MAX_VAR_BLOCKS>>1];
   static float nmr4[MAX_VAR_BLOCKS>>1][MAX_VAR_BLOCKS>>1];
   static float nmr8[MAX_VAR_BLOCKS>>2][MAX_VAR_BLOCKS>>2];
   static float cg8[MAX_VAR_BLOCKS>>2][MAX_VAR_BLOCKS>>2];
@@ -110,6 +123,12 @@ int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh
     }
     x+=2*stride;
   }
+  for(i=0;i<h4;i++){
+    for(j=0;j<w4;j++){
+      Sxx4[i][j] = Sxx[2*i][2*j] + Sxx[2*i][2*j+1] + Sxx[2*i+1][2*j] + Sxx[2*i+1][2*j+1];
+      Sx4[i][j]  = Sx [2*i][2*j] + Sx [2*i][2*j+1] + Sx [2*i+1][2*j] + Sx [2*i+1][2*j+1];
+    }
+  }
 
   for(i=0;i<h-1;i++){
     for(j=0;j<w-1;j++){
@@ -123,6 +142,22 @@ int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh
       if (var[i][j]<var_floor)var[i][j]=var_floor;
       /*printf("%d ", var[i][j]);*/
       var_1[i][j] = 16384/var[i][j];
+    }
+    /*printf("\n");*/
+  }
+
+  for(i=0;i<h4-1;i++){
+    for(j=0;j<w4-1;j++){
+      int sum_x;
+      int sum_xx;
+      int var_floor;
+      sum_x =Sx4 [i][j]+Sx4 [i][j+1]+Sx4 [i+1][j]+Sx4 [i+1][j+1];
+      sum_xx=Sxx4[i][j]+Sxx4[i][j+1]+Sxx4[i+1][j]+Sxx4[i+1][j+1];
+      var8[i][j]=(sum_xx-(SQUARE(sum_x)>>6))>>5;
+      var_floor = 4+(sum_x>>8);
+      if (var8[i][j]<var_floor)var8[i][j]=var_floor;
+      /*printf("%d ", var8[i][j]);*/
+      var8_1[i][j] = 16384/var8[i][j];
     }
     /*printf("\n");*/
   }
@@ -146,6 +181,7 @@ int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh
         }
       }
       psy /= (3*3);
+      psy -= 1;
       nmr4[i][j] = psy;
       /*printf("%f ", nmr4[i][j]);*/
     }
@@ -174,6 +210,7 @@ int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh
         }
       }
       psy /= (COUNT8*COUNT8);
+      psy -= 1;
       nmr8[i][j] = psy;
       nmr4_avg = .25f*(nmr4[2*i][2*j]+nmr4[2*i][2*j+1]+nmr4[2*i+1][2*j]+nmr4[2*i+1][2*j+1]);
       cgs = CG4 - PSY_LAMBDA*(nmr4_avg);
@@ -196,17 +233,26 @@ int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh
     for(j=1;j<w16-1;j++){
       int k,m;
       int sum_var=0;
+      int sum_var8=0;
       int sum_var_1=0;
       float nmr8_avg;
       float cgl,cgs;
       float noise;
+      float noise8;
       float psy;
+      float psy8;
       for(k=0;k<COUNT16;k++){
         for(m=0;m<COUNT16;m++){
           sum_var+=var[8*i-OFF16+k][8*j-OFF16+m];
         }
       }
       noise = sum_var/(float)(COUNT16*COUNT16);
+      for(k=0;k<COUNT16_8;k++){
+        for(m=0;m<COUNT16_8;m++){
+          sum_var8+=var8[4*i-OFF16_8+k][4*j-OFF16_8+m];
+        }
+      }
+      noise8 = sum_var8/(float)(COUNT16_8*COUNT16_8);
       psy=0;
       for(k=0;k<COUNT16;k++){
         for(m=0;m<COUNT16;m++){
@@ -214,6 +260,17 @@ int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh
         }
       }
       psy /= (COUNT16*COUNT16);
+      psy -= 1;
+      psy8=0;
+      for(k=0;k<COUNT16_8;k++){
+        for(m=0;m<COUNT16_8;m++){
+          psy8 += OD_LOG2(1+noise8*var8_1[4*i-OFF16_8+k][4*j-OFF16_8+m]/16384.);
+        }
+      }
+      psy8 /= (COUNT16_8*COUNT16_8);
+      psy8 -= 1;
+      psy = OD_MAXF(psy, .25*psy8);
+      /*psy = .5*(psy+psy8);*/
       nmr16[i][j] = psy;
       nmr8_avg = .25f*(nmr8[2*i][2*j]+nmr8[2*i][2*j+1]+nmr8[2*i+1][2*j]+nmr8[2*i+1][2*j+1]);
       cg16[i][j] = .25*(cg8[2*i][2*j] + cg8[2*i][2*j+1] + cg8[2*i+1][2*j] + cg8[2*i+1][2*j+1]);
@@ -240,15 +297,23 @@ int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh
       int k,m;
       int sum_var=0;
       int sum_var_1=0;
+      int sum_var8=0;
       float nmr16_avg;
       float cgl,cgs;
       float noise, psy;
+      float noise8, psy8;
       for(k=0;k<COUNT32;k++){
         for(m=0;m<COUNT32;m++){
           sum_var  +=var[16*i-OFF32+k][16*j-OFF32+m];
         }
       }
       noise = sum_var/(float)(COUNT32*COUNT32);
+      for(k=0;k<COUNT32_8;k++){
+        for(m=0;m<COUNT32_8;m++){
+          sum_var8+=var8[8*i-OFF32_8+k][8*j-OFF32_8+m];
+        }
+      }
+      noise8 = sum_var8/(float)(COUNT32_8*COUNT32_8);
       psy=0;
       for(k=0;k<COUNT32;k++){
         for(m=0;m<COUNT32;m++){
@@ -256,12 +321,24 @@ int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh
         }
       }
       psy /= (COUNT32*COUNT32);
+      psy -= 1;
+      psy8=0;
+      for(k=0;k<COUNT32_8;k++){
+        for(m=0;m<COUNT32_8;m++){
+          psy8 += OD_LOG2(1+noise8*var8_1[8*i-OFF32_8+k][8*j-OFF32_8+m]/16384.);
+        }
+      }
+      psy8 /= (COUNT32_8*COUNT32_8);
+      psy8 -= 1;
+      psy = OD_MAXF(psy, .25*psy8);
+      /*psy = .5*(psy+psy8);*/
+     /*psy += psy8;*/
       nmr32[i][j] = psy;
       nmr16_avg = .25f*(nmr16[2*i][2*j]+nmr16[2*i][2*j+1]+nmr16[2*i+1][2*j]+nmr16[2*i+1][2*j+1]);
       cg32[i][j] = .25*(cg16[2*i][2*j] + cg16[2*i][2*j+1] + cg16[2*i+1][2*j] + cg16[2*i+1][2*j+1]);
       cgs = cg32[i][j] - PSY_LAMBDA*(nmr16_avg);
       cgl = CG32 - PSY_LAMBDA*(nmr32[i][j]);
-      /*printf("%f ", nmr32[i][j]);*/
+      /*printf("%f ", psy8);*/
       if (cgl>=cgs)
       {
         for(k=0;k<4;k++){
@@ -277,7 +354,8 @@ int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh
     /*printf("\n");*/
   }
 #endif
-#if 1
+
+#if 0
   for(i=4;i<h8-4;i++){
     for(j=4;j<w8-4;j++){
       printf("%d ", dec8[i][j]);
@@ -285,6 +363,7 @@ int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh
     printf("\n");
   }
 #endif
+
 #if 0
   fprintf(stderr, "size : %dx%d\n", (w<<1), (h<<1));
   for(i=0;i<(h<<1);i++){
@@ -347,6 +426,52 @@ int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh
   for (i=32;i<(h32-1)*32;i++)
     img[i*stride+(w32-1)*32]=0;
 #endif
+
+#if 0 /* 32x32 decision data */
+  for(i=2;i<h32-2;i++){
+    for(j=2;j<w32-2;j++){
+      int i8, j8;
+      int k;
+      i8 = 4*i-1;
+      j8 = 4*j-1;
+      for(k=0;k<5;k++)
+        printf("%d ", dec8[i8+k][j8]);
+      for(k=1;k<5;k++)
+        printf("%d ", dec8[i8][j8+k]);
+      printf("%d\n", dec8[i8+1][j8+1]);
+    }
+  }
+#endif
+
+#if 0 /* 16x16 decision data */
+  for(i=4;i<h16-4;i++){
+    for(j=4;j<w16-4;j++){
+      int i8, j8;
+      int k;
+      i8 = 2*i-1;
+      j8 = 2*j-1;
+      if (dec8[i8+1][j8+1]==3)
+        continue;
+      for(k=0;k<3;k++)
+        printf("%d ", dec8[i8+k][j8]);
+      for(k=1;k<3;k++)
+        printf("%d ", dec8[i8][j8+k]);
+      printf("%d\n", dec8[i8+1][j8+1]);
+    }
+  }
+#endif
+
+#if 0 /* 8x8 decision data */
+  for(i=8;i<h8-8;i++){
+    for(j=8;j<w8-8;j++){
+      if (dec8[i][j]<=1)
+      {
+        printf("%d %d %d %d\n", dec8[i-1][j-1], dec8[i-1][j], dec8[i][j-1], dec8[i][j]);
+      }
+    }
+  }
+#endif
+
   return 0;
 }
 
