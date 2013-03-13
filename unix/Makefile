@@ -87,6 +87,7 @@ WORKDIR = objs
 
 # C source file lists
 LIBDAALABASE_CSOURCES = \
+block_size.c \
 cdf_table.c \
 entcode.c \
 entdec.c \
