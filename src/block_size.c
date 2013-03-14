@@ -24,6 +24,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #include "block_size.h"
 #include <string.h>
+#include "internal.h"
 
 /* Actual 2D coding gains of lapped transforms (the 32x32 one is made-up).
    We divide by 6 to get bits from dB. */
@@ -35,6 +36,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 /* Tuning parameter for block decision (higher values results in smaller blocks) */
 #define PSY_LAMBDA .65
 
+/* FIXME: Not quite sure why psy8 is much larger than the 4x4 psy. */
+#define PSY8_FUDGE .25f
+
 /* This advanced macro computes the product of x by itself, otherwise known as
    raising to the power of two, squaring, or inverse square-root. It can be
    used to square integers, floats, but not circles. */
@@ -44,6 +48,7 @@ void compute_stats(const unsigned char *img,int stride,BlockStats *stats)
 {
   const unsigned char *x;
   int i, j;
+  int off8;
   ogg_int32_t (*Sx2)[SIZE2_SUMS];
   ogg_int32_t (*Sxx2)[SIZE2_SUMS];
   ogg_int32_t (*Sx4)[SIZE4_SUMS];
@@ -82,10 +87,14 @@ void compute_stats(const unsigned char *img,int stride,BlockStats *stats)
     }
   }
 
+  off8 = OFF32-2*OFF8_32;
+  OD_ASSERT(off8>=0);
   for(i=0;i<SIZE8_SUMS;i++){
     for(j=0;j<SIZE8_SUMS;j++){
-      Sx8 [i][j]=Sx4 [2*i][2*j]+Sx4 [2*i][2*j+2]+Sx4 [2*i+2][2*j]+Sx4 [2*i+2][2*j+2];
-      Sxx8[i][j]=Sxx4[2*i][2*j]+Sxx4[2*i][2*j+2]+Sxx4[2*i+2][2*j]+Sxx4[2*i+2][2*j+2];
+      Sx8 [i][j]=Sx4 [2*i+  off8][2*j+off8]+Sx4 [2*i+  off8][2*j+2+off8]
+                +Sx4 [2*i+2+off8][2*j+off8]+Sx4 [2*i+2+off8][2*j+2+off8];
+      Sxx8[i][j]=Sxx4[2*i+  off8][2*j+off8]+Sxx4[2*i+  off8][2*j+2+off8]
+                +Sxx4[2*i+2+off8][2*j+off8]+Sxx4[2*i+2+off8][2*j+2+off8];
     }
   }
 
@@ -138,6 +147,8 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
       int k,m;
       ogg_int32_t sum_var=0;
       float psy=0;
+
+      /* Masking based on 4x4 variances */
       for(k=0;k<3;k++)
       {
         for(m=0;m<3;m++)
@@ -168,6 +179,8 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
       float psy4_avg;
       ogg_int32_t sum_var=0;
       float psy=0;
+
+      /* Masking based on 4x4 variances */
       for(k=0;k<COUNT8;k++)
       {
         for(m=0;m<COUNT8;m++)
@@ -209,6 +222,9 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
       float gain8_avg;
       ogg_int32_t sum_var=0;
       float psy=0;
+      float psy8=0;
+
+      /* Masking based on 4x4 variances */
       for(k=0;k<COUNT16;k++)
       {
         for(m=0;m<COUNT16;m++)
@@ -225,6 +241,25 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
         }
       }
       bs->psy16[i][j] = psy/(COUNT16*COUNT16)-1.;
+
+      /* Use 8x8 variances */
+      for(k=0;k<COUNT8_16;k++)
+      {
+        for(m=0;m<COUNT8_16;m++)
+        {
+          sum_var += bs->img_stats.Var8[4*i+k+OFF8_32-OFF8_16][4*j+m+OFF8_32-OFF8_16];
+        }
+      }
+      bs->noise8_16[i][j] = sum_var/(COUNT8_16*COUNT8_16);
+      for(k=0;k<COUNT8_16;k++)
+      {
+        for(m=0;m<COUNT8_16;m++)
+        {
+          psy8 += OD_LOG2(1+bs->noise8_16[i][j]*bs->img_stats.invVar8[4*i+k+OFF8_32-OFF8_16][4*j+m+OFF8_32-OFF8_16]/16384.);
+        }
+      }
+      bs->psy16[i][j] = OD_MAXF(bs->psy16[i][j], PSY8_FUDGE*psy8/(COUNT8_16*COUNT8_16)-1.);
+
       gain8_avg = .25*(bs->dec_gain8[2*i][2*j]+bs->dec_gain8[2*i][2*j+1]+bs->dec_gain8[2*i+1][2*j]+bs->dec_gain8[2*i+1][2*j+1]);
       gain16 = CG16 - PSY_LAMBDA*(bs->psy16[i][j]);
       if (gain16>=gain8_avg)
@@ -245,6 +280,9 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
     float gain16_avg;
     ogg_int32_t sum_var=0;
     float psy=0;
+    float psy8=0;
+
+    /* Masking based on 4x4 variances */
     for(k=0;k<COUNT32;k++)
     {
       for(m=0;m<COUNT32;m++)
@@ -261,6 +299,26 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
       }
     }
     bs->psy32 = psy/(COUNT32*COUNT32)-1.;
+
+    /* Use 8x8 variances */
+    for(k=0;k<COUNT8_32;k++)
+    {
+      for(m=0;m<COUNT8_32;m++)
+      {
+        sum_var += bs->img_stats.Var8[k][m];
+      }
+    }
+    bs->noise8_32 = sum_var/(COUNT8_32*COUNT8_32);
+    for(k=0;k<COUNT8_32;k++)
+    {
+      for(m=0;m<COUNT8_32;m++)
+      {
+        psy8 += OD_LOG2(1+bs->noise8_32*bs->img_stats.invVar8[k][m]/16384.);
+      }
+    }
+    bs->psy32 = OD_MAXF(bs->psy32, PSY8_FUDGE*psy8/(COUNT8_32*COUNT8_32)-1.);
+
+
     gain16_avg = .25*(bs->dec_gain16[0][0]+bs->dec_gain16[0][1]+bs->dec_gain16[1][0]+bs->dec_gain16[1][1]);
     gain32 = CG32 - PSY_LAMBDA*(bs->psy32);
     if (gain32>=gain16_avg)
