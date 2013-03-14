@@ -36,12 +36,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 /* Tuning parameter for block decision (higher values results in smaller blocks) */
 #define PSY_LAMBDA .65
 
-/* FIXME: Not quite sure why psy8 is much larger than the 4x4 psy. */
-#define PSY8_FUDGE .25f
+/* Weighting of the 8x8 masking compared to 4x4 */
+#define PSY8_FUDGE .5f
 
 /* This advanced macro computes the product of x by itself, otherwise known as
    raising to the power of two, squaring, or inverse square-root. It can be
-   used to square integers, floats, but not circles. */
+   used to square integers, but not circles. */
 #define SQUARE(x) ((int)(x)*(int)(x))
 
 void compute_stats(const unsigned char *img,int stride,BlockStats *stats)
@@ -242,6 +242,7 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
       }
       bs->psy16[i][j] = psy/(COUNT16*COUNT16)-1.;
 
+      sum_var = 0;
       /* Use 8x8 variances */
       for(k=0;k<COUNT8_16;k++)
       {
@@ -258,7 +259,7 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
           psy8 += OD_LOG2(1+bs->noise8_16[i][j]*bs->img_stats.invVar8[4*i+k+OFF8_32-OFF8_16][4*j+m+OFF8_32-OFF8_16]/16384.);
         }
       }
-      bs->psy16[i][j] = OD_MAXF(bs->psy16[i][j], PSY8_FUDGE*psy8/(COUNT8_16*COUNT8_16)-1.);
+      bs->psy16[i][j] = OD_MAXF(bs->psy16[i][j], PSY8_FUDGE*(psy8/(COUNT8_16*COUNT8_16)-1.));
 
       gain8_avg = .25*(bs->dec_gain8[2*i][2*j]+bs->dec_gain8[2*i][2*j+1]+bs->dec_gain8[2*i+1][2*j]+bs->dec_gain8[2*i+1][2*j+1]);
       gain16 = CG16 - PSY_LAMBDA*(bs->psy16[i][j]);
@@ -300,6 +301,7 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
     }
     bs->psy32 = psy/(COUNT32*COUNT32)-1.;
 
+    sum_var = 0;
     /* Use 8x8 variances */
     for(k=0;k<COUNT8_32;k++)
     {
@@ -316,7 +318,7 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
         psy8 += OD_LOG2(1+bs->noise8_32*bs->img_stats.invVar8[k][m]/16384.);
       }
     }
-    bs->psy32 = OD_MAXF(bs->psy32, PSY8_FUDGE*psy8/(COUNT8_32*COUNT8_32)-1.);
+    bs->psy32 = OD_MAXF(bs->psy32, PSY8_FUDGE*(psy8/(COUNT8_32*COUNT8_32)-1.));
 
 
     gain16_avg = .25*(bs->dec_gain16[0][0]+bs->dec_gain16[0][1]+bs->dec_gain16[1][0]+bs->dec_gain16[1][1]);

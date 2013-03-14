@@ -360,7 +360,7 @@ int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh
 #endif
 
   /* Replace decision with the one from process_block_size32() */
-  if (0)
+  if (1)
   {
     BlockSizeComp bs;
 
