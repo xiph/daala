@@ -36,6 +36,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <fcntl.h>
 #endif
 #include "getopt.h"
+#include "../src/block_size.h"
 #include <math.h>
 
 static void usage(char **_argv){
@@ -90,6 +91,9 @@ int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh
   static int Sxx[MAX_VAR_BLOCKS][MAX_VAR_BLOCKS];
   static int Sx4[MAX_VAR_BLOCKS>>1][MAX_VAR_BLOCKS>>1];
   static int Sxx4[MAX_VAR_BLOCKS>>1][MAX_VAR_BLOCKS>>1];
+
+  static float dummy[MAX_VAR_BLOCKS][MAX_VAR_BLOCKS];
+  static float dummy8[MAX_VAR_BLOCKS][MAX_VAR_BLOCKS];
 
   static int var[MAX_VAR_BLOCKS][MAX_VAR_BLOCKS];
   static int var_1[MAX_VAR_BLOCKS][MAX_VAR_BLOCKS];
@@ -352,6 +356,78 @@ int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh
       }
     }
     /*printf("\n");*/
+  }
+#endif
+
+  /* Replace decision with the one from process_block_size32() */
+  if (0)
+  {
+    BlockSizeComp bs;
+
+    for(i=1;i<h32-1;i++){
+      for(j=1;j<w32-1;j++){
+        int k,m;
+        int dec[4][4];
+        process_block_size32(&bs, img+32*stride*i+32*j, img+32*stride*i+32*j, stride, dec);
+        for(k=0;k<4;k++)
+          for(m=0;m<4;m++)
+            dec8[4*i+k][4*j+m]=dec[k][m];
+        for(k=0;k<16;k++)
+        {
+          for(m=0;m<16;m++)
+          {
+            var[16*i+k][16*j+m]=bs.img_stats.Var4[k+3][m+3];
+            var_1[16*i+k][16*j+m]=bs.img_stats.invVar4[k+3][m+3];
+          }
+        }
+        for(k=0;k<8;k++)
+        {
+          for(m=0;m<8;m++)
+          {
+            dummy[8*i+k][8*j+m]=bs.psy4[k][m];
+          }
+        }
+        for(k=0;k<4;k++)
+        {
+          for(m=0;m<4;m++)
+          {
+            dummy8[4*i+k][4*j+m]=bs.psy8[k][m];
+          }
+        }
+        for(k=0;k<8;k++)
+        {
+          for(m=0;m<8;m++)
+          {
+            var8[8*i+k][8*j+m]=bs.img_stats.Var8[k+2][m+2];
+            var8_1[8*i+k][8*j+m]=bs.img_stats.invVar8[k+2][m+2];
+          }
+        }
+      }
+    }
+  }
+
+#if 0
+  for(i=0;i<h;i++){
+    for(j=0;j<w;j++){
+      printf("%d ", var[i][j]);
+    }
+    printf("\n");
+  }
+#endif
+#if 0
+  for(i=8;i<h4-8;i++){
+    for(j=8;j<w4-8;j++){
+      printf("%f ", dummy[i][j]);
+    }
+    printf("\n");
+  }
+#endif
+#if 0
+  for(i=4;i<h8-4;i++){
+    for(j=4;j<w8-4;j++){
+      printf("%f ", dummy8[i][j]);
+    }
+    printf("\n");
   }
 #endif
 
