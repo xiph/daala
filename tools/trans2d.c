@@ -13,7 +13,7 @@
 #define USE_SUBSET1 (0)
 #define USE_SUBSET3 (0)
 
-static void coding_gain_search(const double _r[2*B_SZ]){
+static void coding_gain_search(const double _r[2*B_SZ*2*B_SZ]){
 #if CG_SEARCH
 #if B_SZ==4
   {
@@ -32,7 +32,7 @@ static void coding_gain_search(const double _r[2*B_SZ]){
           NE_FILTER_PARAMS4[0]=s0;
           for(s1=(1<<NE_BITS);s1<=2*(1<<NE_BITS);s1++){
             NE_FILTER_PARAMS4[1]=s1;
-            cg=coding_gain_1d_collapsed(_r);
+            cg=coding_gain_2d_collapsed(_r);
             if(cg>best_cg){
               best_cg=cg;
               fprintf(stdout,"%i %i %i %i %G\n",p0,q0,s0,s1,cg);
@@ -44,7 +44,7 @@ static void coding_gain_search(const double _r[2*B_SZ]){
   }
 #endif
 #else
-  fprintf(stdout,"cg=%-24.18G\n",coding_gain_1d_collapsed(_r));
+  fprintf(stdout,"cg=%-24.18G\n",coding_gain_2d_collapsed(_r));
 #endif
 }
 
@@ -63,24 +63,17 @@ static void t_load_data(void *_ctx,const unsigned char *_data,int _stride,
   trans_ctx *ctx;
   ctx=(trans_ctx *)_ctx;
   if(_bi==0&&_bj==0){
-    int           x;
     int           y;
-    int           z;
-    unsigned char buf[2*B_SZ];
-    /* add the rows */
-    for(y=0;y<ctx->img.nyblocks*B_SZ;y++){
-      for(x=0;x<ctx->img.nxblocks*B_SZ-(2*B_SZ-1);x++){
-        for(z=0;z<2*B_SZ;z++){
-          buf[z]=_data[y*_stride+(x+z)];
-        }
-        trans_data_add(&ctx->td,buf);
-      }
-    }
-    /* add the columns */
+    int           x;
+    int           j;
+    int           i;
+    unsigned char buf[2*B_SZ*2*B_SZ];
     for(y=0;y<ctx->img.nyblocks*B_SZ-(2*B_SZ-1);y++){
-      for(x=0;x<ctx->img.nxblocks*B_SZ;x++){
-        for(z=0;z<2*B_SZ;z++){
-          buf[z]=_data[(y+z)*_stride+x];
+      for(x=0;x<ctx->img.nxblocks*B_SZ-(2*B_SZ-1);x++){
+        for(j=0;j<2*B_SZ;j++){
+          for(i=0;i<2*B_SZ;i++){
+            buf[j*2*B_SZ+i]=_data[(y+j)*_stride+(x+i)];
+          }
         }
         trans_data_add(&ctx->td,buf);
       }
@@ -99,7 +92,7 @@ const int NBLOCKS=sizeof(BLOCKS)/sizeof(*BLOCKS);
 int main(int _argc,const char *_argv[]){
   trans_ctx     ctx[NUM_PROCS];
   int           i;
-  double        r[2*B_SZ];
+  double        r[2*B_SZ*2*B_SZ];
   const double *cov;
 #if B_SZ==4
   ne_filter_params4_init(OD_FILTER_PARAMS4);
@@ -111,12 +104,12 @@ int main(int _argc,const char *_argv[]){
 # error "Need filter params for this block size."
 #endif
   for(i=0;i<NUM_PROCS;i++){
-    trans_data_init(&ctx[i].td,2*B_SZ);
- }
+    trans_data_init(&ctx[i].td,2*B_SZ*2*B_SZ);
+  }
   cov=r;
 #if USE_FILES
   omp_set_num_threads(NUM_PROCS);
-  ne_apply_to_blocks(ctx,sizeof(*ctx),0x1,PADDING,t_start,NBLOCKS,BLOCKS,NULL,
+  ne_apply_to_blocks(&ctx,sizeof(*ctx),0x1,PADDING,t_start,NBLOCKS,BLOCKS,NULL,
    _argc,_argv);
   for(i=1;i<NUM_PROCS;i++){
     trans_data_combine(&ctx[0].td,&ctx[i].td);
@@ -125,22 +118,22 @@ int main(int _argc,const char *_argv[]){
 #if PRINT_COV
   trans_data_print(&ctx[0].td,stderr);
 #endif
-  fprintf(stdout,"original cg=%- 24.16G\n",coding_gain_1d(ctx[0].td.cov));
-  trans_data_collapse(&ctx[0].td,1,r);
-  fprintf(stdout,"collapse cg=%- 24.16G\n",coding_gain_1d_collapsed(r));
-  trans_data_expand(&ctx[0].td,1,r);
-  fprintf(stdout,"expanded cg=%- 24.16G\n",coding_gain_1d(ctx[0].td.cov));
+  fprintf(stdout,"original cg=%- 24.16G\n",coding_gain_2d(ctx[0].td.cov));
+  trans_data_collapse(&ctx[0].td,2*B_SZ,r);
+  fprintf(stdout,"collapse cg=%- 24.16G\n",coding_gain_2d_collapsed(r));
+  trans_data_expand(&ctx[0].td,2*B_SZ,r);
+  /*fprintf(stdout,"expanded cg=%- 24.16G\n",coding_gain_2d(ctx[1].td.cov));*/
 #elif USE_AR95
-  auto_regressive_collapsed(r,2*B_SZ,1,0.95);
+  auto_regressive_collapsed(r,2*B_SZ*2*B_SZ,2*B_SZ,0.95);
 #elif USE_SUBSET1
 #if B_SZ_LOG>=OD_LOG_BSIZE0&&B_SZ_LOG<OD_LOG_BSIZE0+OD_NBSIZES
-  cov=SUBSET1_1D[B_SZ_LOG-OD_LOG_BSIZE0];
+  cov=SUBSET1_2D[B_SZ_LOG-OD_LOG_BSIZE0];
 #else
 # error "Need auto-correlation matrix for subset1 for this block size."
 #endif
 #elif USE_SUBSET3
 #if B_SZ_LOG>=OD_LOG_BSIZE0&&B_SZ_LOG<OD_LOG_BSIZE0+OD_NBSIZES
-  cov=SUBSET3_1D[B_SZ_LOG-OD_LOG_BSIZE0];
+  cov=SUBSET3_2D[B_SZ_LOG-OD_LOG_BSIZE0];
 #else
 # error "Need auto-correlation matrix for subset3 for this block size."
 #endif

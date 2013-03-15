@@ -1,3 +1,4 @@
+#include <omp.h>
 #include <stdlib.h>
 #include <string.h>
 #include "stats_tools.h"
@@ -969,9 +970,80 @@ int image_data_load_map(image_data *_this){
   return EXIT_SUCCESS;
 }
 
+int ne_apply_to_blocks(void *_ctx,int _ctx_sz,int _plmask,int _padding,
+ plane_start_func _start,int _nfuncs,const block_func *_funcs,
+ plane_finish_func _finish,int _argc,const char *_argv[]){
+  int ai;
+#pragma omp parallel for schedule(dynamic)
+  for(ai=1;ai<_argc;ai++){
+    FILE            *fin;
+    video_input      vid;
+    th_info          ti;
+    th_ycbcr_buffer  ycbcr;
+    int              pli;
+    int              tid;
+    unsigned char   *ctx;
+    fin=fopen(_argv[ai],"rb");
+    if(fin==NULL){
+      fprintf(stderr,"Could not open '%s' for reading.\n",_argv[ai]);
+      continue;
+    }
+    if(video_input_open(&vid,fin)<0){
+      fprintf(stderr,"Error reading video info from '%s'.\n",_argv[ai]);
+      continue;
+    }
+    video_input_get_info(&vid,&ti);
+    if(video_input_fetch_frame(&vid,ycbcr,NULL)<0){
+      fprintf(stderr,"Error reading first frame from '%s'.\n",_argv[ai]);
+      continue;
+    }
+    tid=omp_get_thread_num();
+    ctx=((unsigned char *)_ctx)+tid*_ctx_sz;
+    for(pli=0;pli<3;pli++){
+      if(_plmask&1<<pli){
+        int x0;
+        int y0;
+        int nxblocks;
+        int nyblocks;
+        get_intra_dims(&ti,pli,_padding,&x0,&y0,&nxblocks,&nyblocks);
+        if(_start!=NULL){
+          (*_start)(ctx,_argv[ai],&ti,pli,nxblocks,nyblocks);
+        }
+        if(_funcs!=NULL){
+          int f;
+          for(f=0;f<_nfuncs;f++){
+            if(_funcs[f]!=NULL){
+              const unsigned char *data;
+              int                  stride;
+              int                  bj;
+              int                  bi;
+              data=ycbcr[pli].data;
+              stride=ycbcr[pli].stride;
+              for(bj=0;bj<nyblocks;bj++){
+                int y;
+                y=y0+B_SZ*bj;
+                for(bi=0;bi<nxblocks;bi++){
+                  int x;
+                  x=x0+B_SZ*bi;
+                  (*_funcs[f])(ctx,&data[stride*y+x],stride,bi,bj);
+                }
+              }
+            }
+          }
+        }
+        if(_finish!=NULL){
+          (*_finish)(ctx);
+        }
+      }
+    }
+    video_input_close(&vid);
+  }
+  return EXIT_SUCCESS;
+}
+
 int NE_FILTER_PARAMS4[4];
-int NE_FILTER_PARAMS8[8];
-int NE_FILTER_PARAMS16[16];
+int NE_FILTER_PARAMS8[10];
+int NE_FILTER_PARAMS16[22];
 
 void ne_filter_params4_init(const int *_x){
   int i;
@@ -982,14 +1054,14 @@ void ne_filter_params4_init(const int *_x){
 
 void ne_filter_params8_init(const int *_x){
   int i;
-  for(i=0;i<8;i++){
+  for(i=0;i<10;i++){
     NE_FILTER_PARAMS8[i]=_x[i];
   }
 }
 
 void ne_filter_params16_init(const int *_x){
   int i;
-  for(i=0;i<16;i++){
+  for(i=0;i<22;i++){
     NE_FILTER_PARAMS16[i]=_x[i];
   }
 }

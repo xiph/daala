@@ -210,6 +210,11 @@ void od_post_filter4(od_coeff _x[4],const od_coeff _y[4]){
    _x[3]=(od_coeff)(t[0]-t[3]);
 }
 
+/*R=f
+  6-bit
+  Ar95_Cg = 9.60021 */
+const int OD_FILTER_PARAMS8[10]={90,73,72,75,-23,-18,-6,48,34,20};
+
 void od_pre_filter8(od_coeff _y[8],const od_coeff _x[8]){
    int t[8];
    /*+1/-1 butterflies (required for FIR, PR, LP).*/
@@ -342,7 +347,14 @@ void od_post_filter8(od_coeff _x[8],const od_coeff _y[8]){
    _x[7]=(od_coeff)(t[0]-t[7]);
 }
 
-
+/*R=f
+  6-bit
+  Ar95_Cg = 9.89338 */
+const int OD_FILTER_PARAMS16[22]={
+   90, 74, 73, 71, 67, 67, 67, 72,
+  -24,-23,-17,-12,-14,-13, -7,
+   50, 40, 31, 22, 18, 16, 11
+};
 
 void od_pre_filter16(od_coeff _y[16],const od_coeff _x[16]){
    int t[16];

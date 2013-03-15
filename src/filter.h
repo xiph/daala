@@ -52,6 +52,9 @@ extern const od_filter_func OD_POST_FILTER[OD_NBSIZES];
    or eliminate blocking artifacts.*/
 
 extern const int OD_FILTER_PARAMS4[4];
+extern const int OD_FILTER_PARAMS8[10];
+extern const int OD_FILTER_PARAMS16[22];
+
 void od_pre_filter4(od_coeff _y[4],const od_coeff _x[4]);
 void od_post_filter4(od_coeff _x[4],const od_coeff _y[4]);
 void od_pre_filter8(od_coeff _y[8],const od_coeff _x[8]);

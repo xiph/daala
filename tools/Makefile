@@ -26,7 +26,7 @@ CC = gcc
 MAKEDEPEND = gcc -MM
 CINCLUDE = `pkg-config theoradec ogg libpng --cflags`
 CFLAGS = -Wall -Wno-parentheses -Wno-overlength-strings -Wno-long-long
-CFLAGS += -std=c89 -pedantic
+CFLAGS += -std=c89 -pedantic -fopenmp
 CFLAGS += -O3
 CFLAGS += -g
 
@@ -182,9 +182,20 @@ IP_TARGET:=intra_pred
 T_LOCAL_CSOURCES = \
 trans.c \
 intra_fit_tools.c \
-vidinput.c
+vidinput.c \
+stats_tools.c \
+stats_data.c \
+trans_tools.c \
+trans_data.c \
+image.c \
+svd.c \
+cholesky.c
 
-T_LIB_CSOURCES =
+T_LIB_CSOURCES = \
+filter.c \
+newdct.c \
+intra.c \
+intradata.c
 
 T_LDFLAGS = `pkg-config theoradec ogg libpng --libs` -lm
 
@@ -192,6 +203,33 @@ T_OBJS:=${T_LOCAL_CSOURCES} ${T_LIB_CSOURCES}
 T_OBJS:=${T_OBJS:%.c=${WORKDIR}/%.o}
 T_CSOURCES:=${T_LOCAL_CSOURCES} ${T_LOCAL_CSOURCES:%=${LIBSRCDIR}/%}
 T_TARGET:=trans
+
+
+#trans2d
+T2D_LOCAL_CSOURCES = \
+trans2d.c \
+intra_fit_tools.c \
+vidinput.c \
+stats_tools.c \
+stats_data.c \
+trans_tools.c \
+trans_data.c \
+image.c \
+svd.c \
+cholesky.c
+
+T2D_LIB_CSOURCES = \
+filter.c \
+newdct.c \
+intra.c \
+intradata.c
+
+T2D_LDFLAGS = `pkg-config theoradec ogg libpng --libs` -lm
+
+T2D_OBJS:=${T2D_LOCAL_CSOURCES} ${T2D_LIB_CSOURCES}
+T2D_OBJS:=${T2D_OBJS:%.c=${WORKDIR}/%.o}
+T2D_CSOURCES:=${T2D_LOCAL_CSOURCES} ${T2D_LOCAL_CSOURCES:%=${LIBSRCDIR}/%}
+T2D_TARGET:=trans2d
 
 
 #init_intra_xform
@@ -232,7 +270,7 @@ GEN_CDF_TARGET:=gen_cdf
 
 
 ALL_OBJS:=${P2Y_OBJS} ${Y2P_OBJS} ${PSNRHVS_OBJS} ${PIM_OBJS} ${IIM_OBJS} ${IIX_OBJS} \
- ${GEN_CDF_OBJS} ${IS_OBJS} ${IP_OBJS} ${T_OBJS}
+ ${GEN_CDF_OBJS} ${IS_OBJS} ${IP_OBJS} ${T_OBJS} ${T2D_OBJS} ${BSIZE_OBJS}
 
 ALL_ASMS:=${ALL_OBJS:%.o=%.s}
 
@@ -240,7 +278,8 @@ ALL_DEPS:=${ALL_OBJS:%.o=%.d}
 
 ALL_TARGETS:=${P2Y_TARGET} ${Y2P_TARGET} ${PSNRHVS_TARGET} \
  ${PIM_TARGET} ${IIM_TARGET} ${IIX_TARGET} ${GEN_CDF_TARGET} \
- ${IS_TARGET} ${IP_TARGET} ${T_TARGET} ${BSIZE_TARGET}
+ ${IS_TARGET} ${IP_TARGET} ${T_TARGET} ${T2D_TARGET} \
+ ${BSIZE_TARGET}
 
 all: ${ALL_TARGETS}
 
@@ -279,6 +318,9 @@ ${IP_TARGET}: ${IP_OBJS}
 
 ${T_TARGET}: ${T_OBJS}
 	${CC} ${CFLAGS} ${T_OBJS} ${T_LDFLAGS} -o $@
+
+${T2D_TARGET}: ${T2D_OBJS}
+	${CC} ${CFLAGS} ${T2D_OBJS} ${T2D_LDFLAGS} -o $@
 
 ${IIX_TARGET}: ${IIX_OBJS}
 	${CC} ${CFLAGS} ${IIX_OBJS} ${IIX_LDFLAGS} -o $@

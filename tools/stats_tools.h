@@ -111,9 +111,13 @@ void image_data_files_block(image_data *_this,const unsigned char *_data,
 int image_data_save_map(image_data *_this);
 int image_data_load_map(image_data *_this);
 
+int ne_apply_to_blocks(void *_ctx,int _ctx_sz,int _plmask,int _padding,
+ plane_start_func _start,int _nfuncs,const block_func *_funcs,
+ plane_finish_func _finish,int _argc,const char *_argv[]);
+
 extern int NE_FILTER_PARAMS4[4];
-extern int NE_FILTER_PARAMS8[8];
-extern int NE_FILTER_PARAMS16[16];
+extern int NE_FILTER_PARAMS8[10];
+extern int NE_FILTER_PARAMS16[22];
 
 void ne_filter_params4_init(const int *_x);
 void ne_filter_params8_init(const int *_x);
