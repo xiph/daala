@@ -24,6 +24,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #if !defined(_dct_H)
 # define _dct_H (1)
+# include <math.h>
 # include "filter.h"
 
 #if !defined(M_PI)
