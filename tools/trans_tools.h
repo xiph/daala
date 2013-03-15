@@ -64,7 +64,7 @@ struct param_data{
   double bo;
 };
 
-typedef void (*ne_filter_func_double)(double _out[],const double _in[]);
+typedef void (*ne_filter_func_double)(double _out[],const double _in[],const int _f[]);
 
 extern const ne_filter_func_double NE_PRE_FILTER_DOUBLE[OD_NBSIZES];
 extern const ne_filter_func_double NE_POST_FILTER_DOUBLE[OD_NBSIZES];
@@ -72,14 +72,14 @@ extern const ne_filter_func_double NE_POST_FILTER_DOUBLE[OD_NBSIZES];
 void auto_regressive_collapsed(double *_out,int _sz,int _n,double _r);
 
 void analysis(double *_out,int _out_stride,const double *_in,int _in_stride,
- int _n);
+ int _n,const int *_f);
 void synthesis(double *_out,int _out_stride,const double *_in,int _in_stride,
- int _n);
+ int _n,const int *_f);
 
-double coding_gain_1d(const double _r[2*B_SZ*2*B_SZ]);
-double coding_gain_1d_collapsed(const double _r[2*B_SZ]);
-double coding_gain_2d(const double _r[2*B_SZ*2*B_SZ*2*B_SZ*2*B_SZ]);
-double coding_gain_2d_collapsed(const double _r[2*B_SZ*2*B_SZ]);
+double coding_gain_1d(const double _r[2*B_SZ*2*B_SZ],const int *_f);
+double coding_gain_1d_collapsed(const double _r[2*B_SZ],const int *_f);
+double coding_gain_2d(const double _r[2*B_SZ*2*B_SZ*2*B_SZ*2*B_SZ],const int *_f);
+double coding_gain_2d_collapsed(const double _r[2*B_SZ*2*B_SZ],const int *_f);
 
 extern const double *SUBSET1_1D[OD_NBSIZES];
 extern const double *SUBSET3_1D[OD_NBSIZES];

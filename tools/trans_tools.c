@@ -198,16 +198,16 @@ void covariance_expand(double *_cov,int _sz,int _n,const double *_r){
   }
 }
 
-static void ne_pre_filter4(double _y[4],const double _x[4]){
+static void ne_pre_filter4(double _y[4],const double _x[4],const int _f4[4]){
   double t[4];
   t[3]=_x[0]-_x[3];
   t[2]=_x[1]-_x[2];
   t[1]=_x[1]-(t[2]/2);
   t[0]=_x[0]-(t[3]/2);
-  t[2]=t[2]*NE_FILTER_PARAMS4[0]/(1<<NE_BITS);
-  t[3]=t[3]*NE_FILTER_PARAMS4[1]/(1<<NE_BITS);
-  t[3]+=t[2]*NE_FILTER_PARAMS4[2]/(1<<NE_BITS);
-  t[2]+=t[3]*NE_FILTER_PARAMS4[3]/(1<<NE_BITS);
+  t[2]=t[2]*_f4[0]/(1<<NE_BITS);
+  t[3]=t[3]*_f4[1]/(1<<NE_BITS);
+  t[3]+=t[2]*_f4[2]/(1<<NE_BITS);
+  t[2]+=t[3]*_f4[3]/(1<<NE_BITS);
   t[0]+=t[3]/2;
   _y[0]=t[0];
   t[1]+=t[2]/2;
@@ -216,16 +216,16 @@ static void ne_pre_filter4(double _y[4],const double _x[4]){
   _y[3]=(t[0]-t[3]);
 }
 
-static void ne_post_filter4(double _x[4],const double _y[4]){
+static void ne_post_filter4(double _x[4],const double _y[4],const int _f4[4]){
   double t[4];
   t[3]=_y[0]-_y[3];
   t[2]=_y[1]-_y[2];
   t[1]=_y[1]-(t[2]/2);
   t[0]=_y[0]-(t[3]/2);
-  t[2]-=t[3]*NE_FILTER_PARAMS4[3]/(1<<NE_BITS);
-  t[3]-=t[2]*NE_FILTER_PARAMS4[2]/(1<<NE_BITS);
-  t[3]=(t[3]*(1<<NE_BITS))/NE_FILTER_PARAMS4[1];
-  t[2]=(t[2]*(1<<NE_BITS))/NE_FILTER_PARAMS4[0];
+  t[2]-=t[3]*_f4[3]/(1<<NE_BITS);
+  t[3]-=t[2]*_f4[2]/(1<<NE_BITS);
+  t[3]=(t[3]*(1<<NE_BITS))/_f4[1];
+  t[2]=(t[2]*(1<<NE_BITS))/_f4[0];
   t[0]+=t[3]/2;
   _x[0]=t[0];
   t[1]+=t[2]/2;
@@ -234,7 +234,7 @@ static void ne_post_filter4(double _x[4],const double _y[4]){
   _x[3]=(t[0]-t[3]);
 }
 
-static void ne_pre_filter8(double _y[8],const double _x[8]){
+static void ne_pre_filter8(double _y[8],const double _x[8],const int _f8[10]){
   double t[8];
   t[7]=_x[0]-_x[7];
   t[6]=_x[1]-_x[6];
@@ -244,16 +244,16 @@ static void ne_pre_filter8(double _y[8],const double _x[8]){
   t[2]=_x[2]-(t[5]/2);
   t[1]=_x[1]-(t[6]/2);
   t[0]=_x[0]-(t[7]/2);
-  t[4]=t[4]*NE_FILTER_PARAMS8[0]/(1<<NE_BITS);
-  t[5]=t[5]*NE_FILTER_PARAMS8[1]/(1<<NE_BITS);
-  t[6]=t[6]*NE_FILTER_PARAMS8[2]/(1<<NE_BITS);
-  t[7]=t[7]*NE_FILTER_PARAMS8[3]/(1<<NE_BITS);
-  t[5]+=t[4]*NE_FILTER_PARAMS8[4]/(1<<NE_BITS);
-  t[6]+=t[5]*NE_FILTER_PARAMS8[5]/(1<<NE_BITS);
-  t[7]+=t[6]*NE_FILTER_PARAMS8[6]/(1<<NE_BITS);
-  t[6]+=t[7]*NE_FILTER_PARAMS8[9]/(1<<NE_BITS);
-  t[5]+=t[6]*NE_FILTER_PARAMS8[8]/(1<<NE_BITS);
-  t[4]+=t[5]*NE_FILTER_PARAMS8[7]/(1<<NE_BITS);
+  t[4]=t[4]*_f8[0]/(1<<NE_BITS);
+  t[5]=t[5]*_f8[1]/(1<<NE_BITS);
+  t[6]=t[6]*_f8[2]/(1<<NE_BITS);
+  t[7]=t[7]*_f8[3]/(1<<NE_BITS);
+  t[5]+=t[4]*_f8[4]/(1<<NE_BITS);
+  t[6]+=t[5]*_f8[5]/(1<<NE_BITS);
+  t[7]+=t[6]*_f8[6]/(1<<NE_BITS);
+  t[6]+=t[7]*_f8[9]/(1<<NE_BITS);
+  t[5]+=t[6]*_f8[8]/(1<<NE_BITS);
+  t[4]+=t[5]*_f8[7]/(1<<NE_BITS);
   t[0]+=t[7]/2;
   _y[0]=t[0];
   t[1]+=t[6]/2;
@@ -268,7 +268,7 @@ static void ne_pre_filter8(double _y[8],const double _x[8]){
   _y[7]=(t[0]-t[7]);
 }
 
-static void ne_post_filter8(double _x[8],const double _y[8]){
+static void ne_post_filter8(double _x[8],const double _y[8],const int _f8[10]){
   double t[8];
   t[7]=_y[0]-_y[7];
   t[6]=_y[1]-_y[6];
@@ -278,16 +278,16 @@ static void ne_post_filter8(double _x[8],const double _y[8]){
   t[2]=_y[2]-(t[5]/2);
   t[1]=_y[1]-(t[6]/2);
   t[0]=_y[0]-(t[7]/2);
-  t[4]-=t[5]*NE_FILTER_PARAMS8[7]/(1<<NE_BITS);
-  t[5]-=t[6]*NE_FILTER_PARAMS8[8]/(1<<NE_BITS);
-  t[6]-=t[7]*NE_FILTER_PARAMS8[9]/(1<<NE_BITS);
-  t[7]-=t[6]*NE_FILTER_PARAMS8[6]/(1<<NE_BITS);
-  t[6]-=t[5]*NE_FILTER_PARAMS8[5]/(1<<NE_BITS);
-  t[5]-=t[4]*NE_FILTER_PARAMS8[4]/(1<<NE_BITS);
-  t[7]=(t[7]*(1<<NE_BITS))/NE_FILTER_PARAMS8[3];
-  t[6]=(t[6]*(1<<NE_BITS))/NE_FILTER_PARAMS8[2];
-  t[5]=(t[5]*(1<<NE_BITS))/NE_FILTER_PARAMS8[1];
-  t[4]=(t[4]*(1<<NE_BITS))/NE_FILTER_PARAMS8[0];
+  t[4]-=t[5]*_f8[7]/(1<<NE_BITS);
+  t[5]-=t[6]*_f8[8]/(1<<NE_BITS);
+  t[6]-=t[7]*_f8[9]/(1<<NE_BITS);
+  t[7]-=t[6]*_f8[6]/(1<<NE_BITS);
+  t[6]-=t[5]*_f8[5]/(1<<NE_BITS);
+  t[5]-=t[4]*_f8[4]/(1<<NE_BITS);
+  t[7]=(t[7]*(1<<NE_BITS))/_f8[3];
+  t[6]=(t[6]*(1<<NE_BITS))/_f8[2];
+  t[5]=(t[5]*(1<<NE_BITS))/_f8[1];
+  t[4]=(t[4]*(1<<NE_BITS))/_f8[0];
   t[0]+=t[7]/2;
   _x[0]=t[0];
   t[1]+=t[6]/2;
@@ -302,7 +302,7 @@ static void ne_post_filter8(double _x[8],const double _y[8]){
   _x[7]=(t[0]-t[7]);
 }
 
-static void ne_pre_filter16(double _y[16],const double _x[16]){
+static void ne_pre_filter16(double _y[16],const double _x[16],const int _f16[22]){
   double t[16];
   t[15]=_x[0]-_x[15];
   t[14]=_x[1]-_x[14];
@@ -320,28 +320,28 @@ static void ne_pre_filter16(double _y[16],const double _x[16]){
   t[2]=_x[2]-(t[13]/2);
   t[1]=_x[1]-(t[14]/2);
   t[0]=_x[0]-(t[15]/2);
-  t[8]=t[8]*NE_FILTER_PARAMS16[0]/(1<<NE_BITS);
-  t[9]=t[9]*NE_FILTER_PARAMS16[1]/(1<<NE_BITS);
-  t[10]=t[10]*NE_FILTER_PARAMS16[2]/(1<<NE_BITS);
-  t[11]=t[11]*NE_FILTER_PARAMS16[3]/(1<<NE_BITS);
-  t[12]=t[12]*NE_FILTER_PARAMS16[4]/(1<<NE_BITS);
-  t[13]=t[13]*NE_FILTER_PARAMS16[5]/(1<<NE_BITS);
-  t[14]=t[14]*NE_FILTER_PARAMS16[6]/(1<<NE_BITS);
-  t[15]=t[15]*NE_FILTER_PARAMS16[7]/(1<<NE_BITS);
-  t[9]+=t[8]*NE_FILTER_PARAMS16[8]/(1<<NE_BITS);
-  t[10]+=t[9]*NE_FILTER_PARAMS16[9]/(1<<NE_BITS);
-  t[11]+=t[10]*NE_FILTER_PARAMS16[10]/(1<<NE_BITS);
-  t[12]+=t[11]*NE_FILTER_PARAMS16[11]/(1<<NE_BITS);
-  t[13]+=t[12]*NE_FILTER_PARAMS16[12]/(1<<NE_BITS);
-  t[14]+=t[13]*NE_FILTER_PARAMS16[13]/(1<<NE_BITS);
-  t[15]+=t[14]*NE_FILTER_PARAMS16[14]/(1<<NE_BITS);
-  t[14]+=t[15]*NE_FILTER_PARAMS16[21]/(1<<NE_BITS);
-  t[13]+=t[14]*NE_FILTER_PARAMS16[20]/(1<<NE_BITS);
-  t[12]+=t[13]*NE_FILTER_PARAMS16[19]/(1<<NE_BITS);
-  t[11]+=t[12]*NE_FILTER_PARAMS16[18]/(1<<NE_BITS);
-  t[10]+=t[11]*NE_FILTER_PARAMS16[17]/(1<<NE_BITS);
-  t[9]+=t[10]*NE_FILTER_PARAMS16[16]/(1<<NE_BITS);
-  t[8]+=t[9]*NE_FILTER_PARAMS16[15]/(1<<NE_BITS);
+  t[8]=t[8]*_f16[0]/(1<<NE_BITS);
+  t[9]=t[9]*_f16[1]/(1<<NE_BITS);
+  t[10]=t[10]*_f16[2]/(1<<NE_BITS);
+  t[11]=t[11]*_f16[3]/(1<<NE_BITS);
+  t[12]=t[12]*_f16[4]/(1<<NE_BITS);
+  t[13]=t[13]*_f16[5]/(1<<NE_BITS);
+  t[14]=t[14]*_f16[6]/(1<<NE_BITS);
+  t[15]=t[15]*_f16[7]/(1<<NE_BITS);
+  t[9]+=t[8]*_f16[8]/(1<<NE_BITS);
+  t[10]+=t[9]*_f16[9]/(1<<NE_BITS);
+  t[11]+=t[10]*_f16[10]/(1<<NE_BITS);
+  t[12]+=t[11]*_f16[11]/(1<<NE_BITS);
+  t[13]+=t[12]*_f16[12]/(1<<NE_BITS);
+  t[14]+=t[13]*_f16[13]/(1<<NE_BITS);
+  t[15]+=t[14]*_f16[14]/(1<<NE_BITS);
+  t[14]+=t[15]*_f16[21]/(1<<NE_BITS);
+  t[13]+=t[14]*_f16[20]/(1<<NE_BITS);
+  t[12]+=t[13]*_f16[19]/(1<<NE_BITS);
+  t[11]+=t[12]*_f16[18]/(1<<NE_BITS);
+  t[10]+=t[11]*_f16[17]/(1<<NE_BITS);
+  t[9]+=t[10]*_f16[16]/(1<<NE_BITS);
+  t[8]+=t[9]*_f16[15]/(1<<NE_BITS);
   t[0]+=t[15]/2;
   _y[0]=t[0];
   t[1]+=t[14]/2;
@@ -368,7 +368,7 @@ static void ne_pre_filter16(double _y[16],const double _x[16]){
   _y[15]=(t[0]-t[15]);
 }
 
-static void ne_post_filter16(double _x[16],const double _y[16]){
+static void ne_post_filter16(double _x[16],const double _y[16],const int _f16[22]){
   double t[16];
   t[15]=_y[0]-_y[15];
   t[14]=_y[1]-_y[14];
@@ -386,28 +386,28 @@ static void ne_post_filter16(double _x[16],const double _y[16]){
   t[2]=_y[2]-(t[13]/2);
   t[1]=_y[1]-(t[14]/2);
   t[0]=_y[0]-(t[15]/2);
-  t[8]-=t[9]*NE_FILTER_PARAMS16[15]/(1<<NE_BITS);
-  t[9]-=t[10]*NE_FILTER_PARAMS16[16]/(1<<NE_BITS);
-  t[10]-=t[11]*NE_FILTER_PARAMS16[17]/(1<<NE_BITS);
-  t[11]-=t[12]*NE_FILTER_PARAMS16[18]/(1<<NE_BITS);
-  t[12]-=t[13]*NE_FILTER_PARAMS16[19]/(1<<NE_BITS);
-  t[13]-=t[14]*NE_FILTER_PARAMS16[20]/(1<<NE_BITS);
-  t[14]-=t[15]*NE_FILTER_PARAMS16[21]/(1<<NE_BITS);
-  t[15]-=t[14]*NE_FILTER_PARAMS16[14]/(1<<NE_BITS);
-  t[14]-=t[13]*NE_FILTER_PARAMS16[13]/(1<<NE_BITS);
-  t[13]-=t[12]*NE_FILTER_PARAMS16[12]/(1<<NE_BITS);
-  t[12]-=t[11]*NE_FILTER_PARAMS16[11]/(1<<NE_BITS);
-  t[11]-=t[10]*NE_FILTER_PARAMS16[10]/(1<<NE_BITS);
-  t[10]-=t[9]*NE_FILTER_PARAMS16[9]/(1<<NE_BITS);
-  t[9]-=t[8]*NE_FILTER_PARAMS16[8]/(1<<NE_BITS);
-  t[15]=(t[15]*(1<<NE_BITS))/NE_FILTER_PARAMS16[7];
-  t[14]=(t[14]*(1<<NE_BITS))/NE_FILTER_PARAMS16[6];
-  t[13]=(t[13]*(1<<NE_BITS))/NE_FILTER_PARAMS16[5];
-  t[12]=(t[12]*(1<<NE_BITS))/NE_FILTER_PARAMS16[4];
-  t[11]=(t[11]*(1<<NE_BITS))/NE_FILTER_PARAMS16[3];
-  t[10]=(t[10]*(1<<NE_BITS))/NE_FILTER_PARAMS16[2];
-  t[9]=(t[9]*(1<<NE_BITS))/NE_FILTER_PARAMS16[1];
-  t[8]=(t[8]*(1<<NE_BITS))/NE_FILTER_PARAMS16[0];
+  t[8]-=t[9]*_f16[15]/(1<<NE_BITS);
+  t[9]-=t[10]*_f16[16]/(1<<NE_BITS);
+  t[10]-=t[11]*_f16[17]/(1<<NE_BITS);
+  t[11]-=t[12]*_f16[18]/(1<<NE_BITS);
+  t[12]-=t[13]*_f16[19]/(1<<NE_BITS);
+  t[13]-=t[14]*_f16[20]/(1<<NE_BITS);
+  t[14]-=t[15]*_f16[21]/(1<<NE_BITS);
+  t[15]-=t[14]*_f16[14]/(1<<NE_BITS);
+  t[14]-=t[13]*_f16[13]/(1<<NE_BITS);
+  t[13]-=t[12]*_f16[12]/(1<<NE_BITS);
+  t[12]-=t[11]*_f16[11]/(1<<NE_BITS);
+  t[11]-=t[10]*_f16[10]/(1<<NE_BITS);
+  t[10]-=t[9]*_f16[9]/(1<<NE_BITS);
+  t[9]-=t[8]*_f16[8]/(1<<NE_BITS);
+  t[15]=(t[15]*(1<<NE_BITS))/_f16[7];
+  t[14]=(t[14]*(1<<NE_BITS))/_f16[6];
+  t[13]=(t[13]*(1<<NE_BITS))/_f16[5];
+  t[12]=(t[12]*(1<<NE_BITS))/_f16[4];
+  t[11]=(t[11]*(1<<NE_BITS))/_f16[3];
+  t[10]=(t[10]*(1<<NE_BITS))/_f16[2];
+  t[9]=(t[9]*(1<<NE_BITS))/_f16[1];
+  t[8]=(t[8]*(1<<NE_BITS))/_f16[0];
   t[0]+=t[15]/2;
   _x[0]=t[0];
   t[1]+=t[14]/2;
@@ -790,7 +790,7 @@ void auto_regressive_collapsed(double *_out,int _sz,int _n,double _r){
 }
 
 void analysis(double *_out,int _out_stride,const double *_in,int _in_stride,
- int _n){
+ int _n,const int *_f){
   int    i;
   int    j;
   double t[2*B_SZ];
@@ -800,8 +800,8 @@ void analysis(double *_out,int _out_stride,const double *_in,int _in_stride,
     }
 #if !NE_DISABLE_FILTER
 #if B_SZ_LOG>=OD_LOG_BSIZE0&&B_SZ_LOG<OD_LOG_BSIZE0+OD_NBSIZES
-    (*NE_PRE_FILTER_DOUBLE[B_SZ_LOG-OD_LOG_BSIZE0])(&t[0],&t[0]);
-    (*NE_PRE_FILTER_DOUBLE[B_SZ_LOG-OD_LOG_BSIZE0])(&t[B_SZ],&t[B_SZ]);
+    (*NE_PRE_FILTER_DOUBLE[B_SZ_LOG-OD_LOG_BSIZE0])(&t[0],&t[0],_f);
+    (*NE_PRE_FILTER_DOUBLE[B_SZ_LOG-OD_LOG_BSIZE0])(&t[B_SZ],&t[B_SZ],_f);
 #else
 # error "Need a prefilter implementation for this block size."
 #endif
@@ -818,7 +818,7 @@ void analysis(double *_out,int _out_stride,const double *_in,int _in_stride,
 }
 
 void synthesis(double *_out,int _out_stride,const double *_in,int _in_stride,
- int _n){
+ int _n,const int *_f){
   int    i;
   int    j;
   double t[2*B_SZ];
@@ -836,8 +836,8 @@ void synthesis(double *_out,int _out_stride,const double *_in,int _in_stride,
 #endif
 #if !NE_DISABLE_FILTER
 #if B_SZ_LOG>=OD_LOG_BSIZE0&&B_SZ_LOG<OD_LOG_BSIZE0+OD_NBSIZES
-    (*NE_POST_FILTER_DOUBLE[B_SZ_LOG-OD_LOG_BSIZE0])(&t[0],&t[0]);
-    (*NE_POST_FILTER_DOUBLE[B_SZ_LOG-OD_LOG_BSIZE0])(&t[B_SZ],&t[B_SZ]);
+    (*NE_POST_FILTER_DOUBLE[B_SZ_LOG-OD_LOG_BSIZE0])(&t[0],&t[0],_f);
+    (*NE_POST_FILTER_DOUBLE[B_SZ_LOG-OD_LOG_BSIZE0])(&t[B_SZ],&t[B_SZ],_f);
 #else
 # error "Need a postfilter implementation for this block size."
 #endif
@@ -863,7 +863,7 @@ static void print_matrix(FILE *_fp,const char *_label,const double *_mat,
 }
 #endif
 
-double coding_gain_1d(const double _r[2*B_SZ*2*B_SZ]){
+double coding_gain_1d(const double _r[2*B_SZ*2*B_SZ],const int *_f){
   int    j;
   int    i;
   double r[B_SZ];
@@ -872,13 +872,13 @@ double coding_gain_1d(const double _r[2*B_SZ*2*B_SZ]){
   double cg;
   /* R*G^T */ 
   for(j=0;j<2*B_SZ;j++){
-    analysis(&rgt[j*B_SZ],1,&_r[2*B_SZ*j],1,1);
+    analysis(&rgt[j*B_SZ],1,&_r[2*B_SZ*j],1,1,_f);
   }
 #if PRINT_CG_MATH
   print_matrix(stdout,"rgt",rgt,B_SZ,2*B_SZ,B_SZ);
 #endif
   /* G*R*G^T */
-  analysis(grgt,B_SZ,rgt,B_SZ,B_SZ);
+  analysis(grgt,B_SZ,rgt,B_SZ,B_SZ,_f);
 #if PRINT_CG_MATH
   print_matrix(stdout,"grgt",grgt,B_SZ,B_SZ,B_SZ);
 #endif
@@ -887,7 +887,7 @@ double coding_gain_1d(const double _r[2*B_SZ*2*B_SZ]){
     for(i=0;i<B_SZ;i++){
       r[i]=i==j?1:0;
     }
-    synthesis(&rgt[j],B_SZ,r,1,1);
+    synthesis(&rgt[j],B_SZ,r,1,1,_f);
   }
 #if PRINT_CG_MATH
   print_matrix(stdout,"hi",rgt,B_SZ,2*B_SZ,B_SZ);
@@ -909,7 +909,7 @@ double coding_gain_1d(const double _r[2*B_SZ*2*B_SZ]){
   return cg/B_SZ;
 }
 
-double coding_gain_1d_collapsed(const double _r[2*B_SZ]){
+double coding_gain_1d_collapsed(const double _r[2*B_SZ],const int *_f){
   int    j;
   int    i;
   double r[2*B_SZ];
@@ -921,13 +921,13 @@ double coding_gain_1d_collapsed(const double _r[2*B_SZ]){
     for(i=0;i<2*B_SZ;i++){
       r[i]=_r[abs(i-j)];
     }
-    analysis(&rgt[j*B_SZ],1,r,1,1);
+    analysis(&rgt[j*B_SZ],1,r,1,1,_f);
   }
 #if PRINT_CG_MATH
   print_matrix(stdout,"rgt",rgt,B_SZ,2*B_SZ,B_SZ);
 #endif
   /* G*R*G^T */
-  analysis(grgt,B_SZ,rgt,B_SZ,B_SZ);
+  analysis(grgt,B_SZ,rgt,B_SZ,B_SZ,_f);
 #if PRINT_CG_MATH
   print_matrix(stdout,"grgt",grgt,B_SZ,B_SZ,B_SZ);
 #endif
@@ -936,7 +936,7 @@ double coding_gain_1d_collapsed(const double _r[2*B_SZ]){
     for(i=0;i<B_SZ;i++){
       r[i]=i==j?1:0;
     }
-    synthesis(&rgt[j],B_SZ,r,1,1);
+    synthesis(&rgt[j],B_SZ,r,1,1,_f);
   }
 #if PRINT_CG_MATH
   print_matrix(stdout,"hi",rgt,B_SZ,2*B_SZ,B_SZ);
@@ -958,7 +958,7 @@ double coding_gain_1d_collapsed(const double _r[2*B_SZ]){
   return cg/B_SZ;
 }
 
-double coding_gain_2d(const double _r[2*B_SZ*2*B_SZ*2*B_SZ*2*B_SZ]){
+double coding_gain_2d(const double _r[2*B_SZ*2*B_SZ*2*B_SZ*2*B_SZ],const int *_f){
   int    v;
   int    u;
   int    j;
@@ -972,9 +972,9 @@ double coding_gain_2d(const double _r[2*B_SZ*2*B_SZ*2*B_SZ*2*B_SZ]){
   for(v=0;v<2*B_SZ;v++){
     for(j=0;j<2*B_SZ;j++){
       for(u=0;u<2*B_SZ;u++){
-        analysis(&s[u*B_SZ],1,&_r[2*B_SZ*2*B_SZ*2*B_SZ*u+2*B_SZ*v+j],2*B_SZ*2*B_SZ,1);
+        analysis(&s[u*B_SZ],1,&_r[2*B_SZ*2*B_SZ*2*B_SZ*u+2*B_SZ*v+j],2*B_SZ*2*B_SZ,1,_f);
       }
-      analysis(&rggt[(v*2*B_SZ+j)*B_SZ*B_SZ],B_SZ,s,B_SZ,B_SZ);
+      analysis(&rggt[(v*2*B_SZ+j)*B_SZ*B_SZ],B_SZ,s,B_SZ,B_SZ,_f);
     }
   }
 #if PRINT_CG_MATH
@@ -984,9 +984,9 @@ double coding_gain_2d(const double _r[2*B_SZ*2*B_SZ*2*B_SZ*2*B_SZ]){
   for(v=0;v<B_SZ;v++){
     for(j=0;j<B_SZ;j++){
       for(u=0;u<2*B_SZ;u++){
-        analysis(&s[u*B_SZ],1,&rggt[2*B_SZ*B_SZ*B_SZ*u+v*B_SZ+j],B_SZ*B_SZ,1);
+        analysis(&s[u*B_SZ],1,&rggt[2*B_SZ*B_SZ*B_SZ*u+v*B_SZ+j],B_SZ*B_SZ,1,_f);
       }
-      analysis(&ggrggt[(v*B_SZ+j)*B_SZ*B_SZ],B_SZ,s,B_SZ,B_SZ);
+      analysis(&ggrggt[(v*B_SZ+j)*B_SZ*B_SZ],B_SZ,s,B_SZ,B_SZ,_f);
     }
   }
 #if PRINT_CG_MATH
@@ -997,7 +997,7 @@ double coding_gain_2d(const double _r[2*B_SZ*2*B_SZ*2*B_SZ*2*B_SZ]){
     for(i=0;i<B_SZ;i++){
       r[i]=i==j?1:0;
     }
-    synthesis(&s[j],B_SZ,r,1,1);
+    synthesis(&s[j],B_SZ,r,1,1,_f);
   }
 #if PRINT_CG_MATH
   print_matrix(stdout,"hi",s,B_SZ,2*B_SZ,B_SZ);
@@ -1011,7 +1011,7 @@ double coding_gain_2d(const double _r[2*B_SZ*2*B_SZ*2*B_SZ*2*B_SZ]){
       r[B_SZ]=s[B_SZ*u+j];
       r[B_SZ+1]=s[B_SZ*(u+B_SZ)+j];
       for(i=0;i<B_SZ/2;i++){
-        synthesis(&rggt[B_SZ*B_SZ/2*u*2*B_SZ+j+i*B_SZ],B_SZ*B_SZ/2,&r[B_SZ-2*i],1,1);
+        synthesis(&rggt[B_SZ*B_SZ/2*u*2*B_SZ+j+i*B_SZ],B_SZ*B_SZ/2,&r[B_SZ-2*i],1,1,_f);
       }
     }
   }
@@ -1036,7 +1036,7 @@ double coding_gain_2d(const double _r[2*B_SZ*2*B_SZ*2*B_SZ*2*B_SZ]){
   return cg/(B_SZ*B_SZ);
 }
 
-double coding_gain_2d_collapsed(const double _r[2*B_SZ*2*B_SZ]){
+double coding_gain_2d_collapsed(const double _r[2*B_SZ*2*B_SZ], const int *_f){
   int    v;
   int    u;
   int    j;
@@ -1053,9 +1053,9 @@ double coding_gain_2d_collapsed(const double _r[2*B_SZ*2*B_SZ]){
         for(i=0;i<2*B_SZ;i++){
           r[i]=_r[abs(u-v)*2*B_SZ+abs(i-j)];
         }
-        analysis(&s[u*B_SZ],1,r,1,1);
+        analysis(&s[u*B_SZ],1,r,1,1,_f);
       }
-      analysis(&rggt[(v*2*B_SZ+j)*B_SZ*B_SZ],B_SZ,s,B_SZ,B_SZ);
+      analysis(&rggt[(v*2*B_SZ+j)*B_SZ*B_SZ],B_SZ,s,B_SZ,B_SZ,_f);
     }
   }
 #if PRINT_CG_MATH
@@ -1065,9 +1065,9 @@ double coding_gain_2d_collapsed(const double _r[2*B_SZ*2*B_SZ]){
   for(v=0;v<B_SZ;v++){
     for(j=0;j<B_SZ;j++){
       for(u=0;u<2*B_SZ;u++){
-        analysis(&s[u*B_SZ],1,&rggt[2*B_SZ*B_SZ*B_SZ*u+v*B_SZ+j],B_SZ*B_SZ,1);
+        analysis(&s[u*B_SZ],1,&rggt[2*B_SZ*B_SZ*B_SZ*u+v*B_SZ+j],B_SZ*B_SZ,1,_f);
       }
-      analysis(&ggrggt[(v*B_SZ+j)*B_SZ*B_SZ],B_SZ,s,B_SZ,B_SZ);
+      analysis(&ggrggt[(v*B_SZ+j)*B_SZ*B_SZ],B_SZ,s,B_SZ,B_SZ,_f);
     }
   }
 #if PRINT_CG_MATH
@@ -1078,7 +1078,7 @@ double coding_gain_2d_collapsed(const double _r[2*B_SZ*2*B_SZ]){
     for(i=0;i<B_SZ;i++){
       r[i]=i==j?1:0;
     }
-    synthesis(&s[j],B_SZ,r,1,1);
+    synthesis(&s[j],B_SZ,r,1,1,_f);
   }
 #if PRINT_CG_MATH
   print_matrix(stdout,"hi",s,B_SZ,2*B_SZ,B_SZ);
@@ -1092,7 +1092,7 @@ double coding_gain_2d_collapsed(const double _r[2*B_SZ*2*B_SZ]){
       r[B_SZ]=s[B_SZ*u+j];
       r[B_SZ+1]=s[B_SZ*(u+B_SZ)+j];
       for(i=0;i<B_SZ/2;i++){
-        synthesis(&rggt[B_SZ*B_SZ/2*u*2*B_SZ+j+i*B_SZ],B_SZ*B_SZ/2,&r[B_SZ-2*i],1,1);
+        synthesis(&rggt[B_SZ*B_SZ/2*u*2*B_SZ+j+i*B_SZ],B_SZ*B_SZ/2,&r[B_SZ-2*i],1,1,_f);
       }
     }
   }

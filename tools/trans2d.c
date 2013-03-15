@@ -13,10 +13,11 @@
 #define USE_SUBSET1 (0)
 #define USE_SUBSET3 (0)
 
-static void coding_gain_search(const double _r[2*B_SZ*2*B_SZ]){
+static void coding_gain_search(const double _r[2*B_SZ*2*B_SZ],const int *_f){
 #if CG_SEARCH
 #if B_SZ==4
   {
+    int    filt[4];
     int    p0;
     int    q0;
     int    s0;
@@ -25,14 +26,14 @@ static void coding_gain_search(const double _r[2*B_SZ*2*B_SZ]){
     double best_cg;
     best_cg=0;
     for(p0=-(1<<NE_BITS);p0<=(1<<NE_BITS);p0++){
-      NE_FILTER_PARAMS4[2]=p0;
+      filt[2]=p0;
       for(q0=(1<<NE_BITS);q0>=-(1<<NE_BITS);q0--){
-        NE_FILTER_PARAMS4[3]=q0;
+        filt[3]=q0;
         for(s0=(1<<NE_BITS);s0<=2*(1<<NE_BITS);s0++){
-          NE_FILTER_PARAMS4[0]=s0;
+          filt[0]=s0;
           for(s1=(1<<NE_BITS);s1<=2*(1<<NE_BITS);s1++){
-            NE_FILTER_PARAMS4[1]=s1;
-            cg=coding_gain_2d_collapsed(_r);
+            filt[1]=s1;
+            cg=coding_gain_2d_collapsed(_r,filt);
             if(cg>best_cg){
               best_cg=cg;
               fprintf(stdout,"%i %i %i %i %G\n",p0,q0,s0,s1,cg);
@@ -44,7 +45,7 @@ static void coding_gain_search(const double _r[2*B_SZ*2*B_SZ]){
   }
 #endif
 #else
-  fprintf(stdout,"cg=%-24.18G\n",coding_gain_2d_collapsed(_r));
+  fprintf(stdout,"cg=%-24.18G\n",coding_gain_2d_collapsed(_r,_f));
 #endif
 }
 
@@ -91,15 +92,16 @@ const int NBLOCKS=sizeof(BLOCKS)/sizeof(*BLOCKS);
 
 int main(int _argc,const char *_argv[]){
   trans_ctx     ctx[NUM_PROCS];
+  const int    *filter;
   int           i;
   double        r[2*B_SZ*2*B_SZ];
   const double *cov;
 #if B_SZ==4
-  ne_filter_params4_init(OD_FILTER_PARAMS4);
+  filter=OD_FILTER_PARAMS4;
 #elif B_SZ==8
-  ne_filter_params8_init(OD_FILTER_PARAMS8);
+  filter=OD_FILTER_PARAMS8;
 #elif B_SZ==16
-  ne_filter_params16_init(OD_FILTER_PARAMS16);
+  filter=OD_FILTER_PARAMS16;
 #else
 # error "Need filter params for this block size."
 #endif
@@ -118,11 +120,11 @@ int main(int _argc,const char *_argv[]){
 #if PRINT_COV
   trans_data_print(&ctx[0].td,stderr);
 #endif
-  fprintf(stdout,"original cg=%- 24.16G\n",coding_gain_2d(ctx[0].td.cov));
+  fprintf(stdout,"original cg=%- 24.16G\n",coding_gain_2d(ctx[0].td.cov,filter));
   trans_data_collapse(&ctx[0].td,2*B_SZ,r);
-  fprintf(stdout,"collapse cg=%- 24.16G\n",coding_gain_2d_collapsed(r));
+  fprintf(stdout,"collapse cg=%- 24.16G\n",coding_gain_2d_collapsed(r,filter));
   trans_data_expand(&ctx[0].td,2*B_SZ,r);
-  /*fprintf(stdout,"expanded cg=%- 24.16G\n",coding_gain_2d(ctx[1].td.cov));*/
+  /*fprintf(stdout,"expanded cg=%- 24.16G\n",coding_gain_2d(ctx[1].td.cov,filter));*/
 #elif USE_AR95
   auto_regressive_collapsed(r,2*B_SZ*2*B_SZ,2*B_SZ,0.95);
 #elif USE_SUBSET1
@@ -138,7 +140,7 @@ int main(int _argc,const char *_argv[]){
 # error "Need auto-correlation matrix for subset3 for this block size."
 #endif
 #endif
-  coding_gain_search(cov);
+  coding_gain_search(cov,filter);
   for(i=0;i<NUM_PROCS;i++){
     trans_data_clear(&ctx[i].td);
   }
