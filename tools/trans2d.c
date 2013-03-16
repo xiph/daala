@@ -3,6 +3,8 @@
 #include "intra_fit_tools.h"
 #include "stats_tools.h"
 #include "trans_tools.h"
+#include "int_search.h"
+#include "kiss99.h"
 
 #define NUM_PROCS (4)
 #define CG_SEARCH (0)
@@ -15,7 +17,7 @@
 
 static void coding_gain_search(const double _r[2*B_SZ*2*B_SZ],const int *_f){
 #if CG_SEARCH
-#if B_SZ==4
+# if B_SZ==4
   {
     int    filt[4];
     int    p0;
@@ -43,7 +45,56 @@ static void coding_gain_search(const double _r[2*B_SZ*2*B_SZ],const int *_f){
       }
     }
   }
-#endif
+# else
+  {
+    int         i;
+    kiss99_ctx  ks[NUM_PROCS];
+    int         lb[22];
+    int         ub[22];
+#   if B_SZ==4
+    int dims=4;
+#   elif B_SZ==8
+    int dims=10;
+#   elif B_SZ==16
+    int dims=22;
+#   endif
+    OD_ASSERT(dims<=22);
+    for(i=0;i<dims;i++){
+      lb[i]=i<2?(1<<NE_BITS):-(1<<NE_BITS);
+      ub[i]=i<2?2*(1<<NE_BITS):(1<<NE_BITS);
+    }
+    for(i=0;i<NUM_PROCS;i++){
+      uint32_t srand;
+      srand=i*16843009; /*Broadcast char to 4xchar*/
+      kiss99_srand(&ks[i],(unsigned char*)&srand,sizeof(int));
+    }
+    #pragma omp parallel for schedule(dynamic)
+    for(i=0;i<128;i++){
+      int rsol[22];
+      double cg;
+      int j;
+      int tid;
+      tid=omp_get_thread_num();
+      for(j=0;j<dims;j++){
+        int range;
+        int rng;
+        range=ub[j]-lb[j];
+        if(!range||i==0){
+          rsol[j]=_f[j];
+        }else{
+          int mask;
+          mask=(1<<OD_ILOG_NZ(range))-1;
+          do{rng=((int)kiss99_rand(&ks[tid]))&mask;}while(rng>range);
+          rsol[j]=lb[j]+rng;
+        }
+      }
+      j=int_simplex_max(&cg,dims,coding_gain_2d_collapsed,_r,lb,ub,rsol);
+      fprintf(stdout,"obj=%-24.18G steps=%4d params={",cg,j);
+      for(j=0;j<dims;j++)fprintf(stdout,"%3d%c",rsol[j],j==dims-1?'}':',');
+      fprintf(stdout,"\n");
+    }
+  }
+# endif
 #else
   fprintf(stdout,"cg=%-24.18G\n",coding_gain_2d_collapsed(_r,_f));
 #endif

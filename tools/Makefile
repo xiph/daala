@@ -211,13 +211,16 @@ T_TARGET:=trans
 #trans2d
 T2D_LOCAL_CSOURCES = \
 trans2d.c \
+internal.c \
 intra_fit_tools.c \
 vidinput.c \
 od_covmat.c \
 stats_tools.c \
 stats_data.c \
 trans_tools.c \
+int_search.c \
 trans_data.c \
+kiss99.c \
 image.c \
 svd.c \
 cholesky.c
