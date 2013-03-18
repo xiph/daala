@@ -316,13 +316,14 @@ static void pvq_search(float *x,float *scale,float *scale_1,float g,int N,int K,
 #define GAIN_EXP_1 (1./GAIN_EXP)
 
 int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
-    ogg_int16_t *_scale,int *y,int N,int Q){
+    ogg_int16_t *_scale,int *y,int N,int _Q, int *qg){
   float L2x,L2r;
   float g;
   float gr;
   float x[MAXN];
   float r[MAXN];
   float scale[MAXN];
+  float Q;
   float scale_1[MAXN];
   int   i;
   int   m;
@@ -332,11 +333,20 @@ int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
   float xm;
   float L2_m;
   float theta;
-  int qg, qt;
+  float cg;              /* Companded gain of x*/
+  float cgq;
+  float cgr;             /* Companded gain of r*/
+  int qt;
   int K;
+  float lambda;
   OD_ASSERT(N>1);
 
-  Q *= .42;
+  /* Just some calibration -- should eventually go away */
+  Q=pow(_Q*1.3,GAIN_EXP_1); /* Converts Q to the "companded domain" */
+
+  /* High rate predicts that the constant should be log(2)/6 = 0.115, but in
+     practice, it should be lower. */
+  lambda = 0.10*Q*Q;
 
   for(i=0;i<N;i++){
     scale[i]=_scale[i];
@@ -352,62 +362,31 @@ int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
 
   g=sqrt(L2x);
 
-#if 1
-  {
-    float cg, cgr;
-    L2r=0;
-    for(i=0;i<N;i++){
-      L2r+=r[i]*r[i];
-    }
-    gr=sqrt(L2r);
-
-    cg = pow(g/Q,GAIN_EXP_1)-1.;
-    if (cg<0)
-      cg=0;
-    cgr = pow(gr/Q,GAIN_EXP_1);
-
-    /* Round towards zero as a slight bias */
-    qg = floor(.5+cg-cgr);
-    /*printf("%d ", qg);*/
-    /*g = Q*pow(cg, GAIN_EXP);*/
-    cg = cgr+qg;
-    if (cg<0)cg=0;
-    g = Q*pow(cg, GAIN_EXP);
-    qg = floor(.5+cg);
-  }
-#else
-  /*printf("%f\n", g);*/
-  /* Round towards zero as a slight bias */
-  qg = floor(pow(g/Q,GAIN_EXP_1)-.5);
-  if (qg<0)
-    qg=0;
-  g = Q*pow(qg, GAIN_EXP);
-#endif
-  /*if(N==16)printf("%d ", qg);*/
-
-  /*if (g>100000 && g0>100000)
-    printf("%f %f\n", g, g0);*/
-  /*for(i=0;i<N;i++){
-    x[i]*=scale_1[i];
-    r[i]*=scale_1[i];
-  }*/
-
   L2r=0;
   for(i=0;i<N;i++){
     L2r+=r[i]*r[i];
   }
   gr=sqrt(L2r);
 
-  /* This is where we can skip */
-  /*
-  if (K<=0)
+  /* compand gains */
+  cg = pow(g,GAIN_EXP_1)/Q;
+  cgr = pow(gr,GAIN_EXP_1)/Q;
+
+  /* Doing some RDO on the gain, start by rounding down */
+  *qg = floor(cg-cgr);
+  cgq = cgr+*qg;
+  if (cgq<1e-15) cgq=1e-15;
+  /* Cost difference between rounding up or down */
+  if ( 2*(cgq-cg)+1 + (lambda/(Q*Q))*(2. + (N-1)*log2(1+1./(cgq)))  < 0)
   {
-    for(i=0;i<N;i++){
-      _x[i]=_r[i];
-    }
-    return 0;
+    (*qg)++;
+    cgq = cgr+*qg;
   }
-*/
+
+  cg = cgr+*qg;
+  if (cg<0)cg=0;
+  /* This is the actual gain the decoder will apply */
+  g = pow(Q*cg, GAIN_EXP);
 
   /*printf("%f ", xc0);*/
   /* Pick component with largest magnitude. Not strictly
@@ -451,7 +430,7 @@ int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
   theta=atan2(sqrt(L2_m),xm);
 
   /* Quantize theta and compute K */
-  if (qg>0){
+  if (cg>0){
     float beta;
     float lambda;
     float theta_mod;
@@ -463,7 +442,7 @@ int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
     }
 
 #if 1
-    lambda = 1./(qg*qg);
+    lambda = 1./(cg*cg);
     beta = 2*sin(theta)*sin(theta)-lambda;
     if (beta<=0 /*|| theta<.5*M_PI/qg*/){
       theta=0;
@@ -483,8 +462,8 @@ int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
       beta = 0;
 #endif
     theta_mod = theta/1.2389 - (theta/1.2389)*(theta/1.2389)/6.;
-    qt = floor(qg*theta_mod);
-    theta_mod = qt/(float)qg;
+    qt = floor(cg*theta_mod);
+    theta_mod = qt/(float)cg;
     theta = 1.2389 * 3*(1-sqrt(1-theta_mod/1.5));
     if (flip)
       theta=M_PI-theta;
@@ -504,7 +483,9 @@ int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
   }
   /*printf("%d %d\n", K, N);*/
 
-  pvq_search(x,NULL,NULL,1,N,K,y,m,0);
+  /*pvq_search(x,NULL,NULL,1,N,K,y,m,0);*/
+  pvq_search_rdo(x,NULL,NULL,1,N,K,y,m,.0*lambda/(cg*cg));
+
   /*for(i=0;i<N;i++)printf("%d ", y[i]);*/
   /*if (N==32)for(i=0;i<N;i++)printf("%d ", y[i]);printf("\n");*/
 
