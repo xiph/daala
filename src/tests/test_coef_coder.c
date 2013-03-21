@@ -36,7 +36,8 @@
 #define MAXN 256
 
 int run_pvq(int *X,int len,int N){
-  od_pvq_adapt_ctx adapt;
+  od_pvq_adapt_ctx pvq_adapt;
+  od_adapt_ctx adapt;
   int i, j;
   od_ec_enc enc;
   od_ec_dec dec;
@@ -48,12 +49,12 @@ int run_pvq(int *X,int len,int N){
   int bits_used;
 
   Ki = malloc(sizeof(*Ki)*len);
-  adapt.mean_k_q8=163;
-  adapt.mean_sum_ex_q8=64;
-  adapt.mean_count_q8=100*4;
-  adapt.mean_count_ex_q8=256*4;
+  pvq_adapt.mean_k_q8=163;
+  pvq_adapt.mean_sum_ex_q8=64;
+  pvq_adapt.mean_count_q8=100*4;
+  pvq_adapt.mean_count_ex_q8=256*4;
 #if !defined(OD_DISABLE_PVQ_CODE1)
-  adapt.mean_pos_q4=30<<4;
+  pvq_adapt.mean_pos_q4=30<<4;
 #endif
   od_ec_enc_init(&enc, EC_BUF_SIZE);
   generic_model_init(&model);
@@ -63,22 +64,30 @@ int run_pvq(int *X,int len,int N){
       K += abs(X[i*N+j]);
     Ki[i] = K;
     generic_encode(&enc, &model, K, &EK, 4);
+    adapt.mean[OD_ADAPT_K_Q8] = pvq_adapt.mean_k_q8;
+    adapt.mean[OD_ADAPT_SUM_EX_Q8] = pvq_adapt.mean_sum_ex_q8;
+    adapt.mean[OD_ADAPT_COUNT_Q8] = pvq_adapt.mean_count_q8;
+    adapt.mean[OD_ADAPT_COUNT_EX_Q8] = pvq_adapt.mean_count_ex_q8;
     pvq_encoder(&enc,&X[i*N],N,K,&adapt);
+    pvq_adapt.k = adapt.curr[OD_ADAPT_K_Q8];
+    pvq_adapt.sum_ex_q8 = adapt.curr[OD_ADAPT_SUM_EX_Q8];
+    pvq_adapt.count_q8 = adapt.curr[OD_ADAPT_COUNT_Q8];
+    pvq_adapt.count_ex_q8 = adapt.curr[OD_ADAPT_COUNT_EX_Q8];
 #if !defined(OD_DISABLE_PVQ_CODE1)
-    if(adapt.pos>=0){
-      adapt.mean_pos_q4=OD_MAXI(adapt.mean_pos_q4+
-          ((adapt.pos<<4)-adapt.mean_pos_q4>>OD_POS_ADAPT_SPEED),N/8);
+    if(pvq_adapt.pos>=0){
+      pvq_adapt.mean_pos_q4=OD_MAXI(pvq_adapt.mean_pos_q4+
+          ((pvq_adapt.pos<<4)-pvq_adapt.mean_pos_q4>>OD_POS_ADAPT_SPEED),N/8);
     }
 #endif
-    if(adapt.k>=0){
-      adapt.mean_k_q8+=(adapt.k<<8)-adapt.mean_k_q8>>OD_K_ADAPT_SPEED;
-      adapt.mean_sum_ex_q8+=
-       adapt.sum_ex_q8-adapt.mean_sum_ex_q8>>OD_SUM_EX_ADAPT_SPEED;
+    if(pvq_adapt.k>=0){
+      pvq_adapt.mean_k_q8+=(pvq_adapt.k<<8)-pvq_adapt.mean_k_q8>>OD_K_ADAPT_SPEED;
+      pvq_adapt.mean_sum_ex_q8+=
+       pvq_adapt.sum_ex_q8-pvq_adapt.mean_sum_ex_q8>>OD_SUM_EX_ADAPT_SPEED;
     }
-    if(adapt.count_q8>=0){
-      adapt.mean_count_q8+=(adapt.count_q8<<8)-adapt.mean_count_q8>>OD_DELTA_ADAPT_SPEED;
-      adapt.mean_count_ex_q8+=
-       adapt.count_ex_q8-adapt.mean_count_ex_q8>>OD_DELTA_ADAPT_SPEED;
+    if(pvq_adapt.count_q8>=0){
+      pvq_adapt.mean_count_q8+=(pvq_adapt.count_q8<<8)-pvq_adapt.mean_count_q8>>OD_DELTA_ADAPT_SPEED;
+      pvq_adapt.mean_count_ex_q8+=
+       pvq_adapt.count_ex_q8-pvq_adapt.mean_count_ex_q8>>OD_DELTA_ADAPT_SPEED;
     }
     /*if (i==0)
     {
@@ -90,12 +99,12 @@ int run_pvq(int *X,int len,int N){
 
   bits_used = od_ec_enc_tell(&enc);
 
-  adapt.mean_k_q8=163;
-  adapt.mean_sum_ex_q8=64;
-  adapt.mean_count_q8=100*4;
-  adapt.mean_count_ex_q8=256*4;
+  pvq_adapt.mean_k_q8=163;
+  pvq_adapt.mean_sum_ex_q8=64;
+  pvq_adapt.mean_count_q8=100*4;
+  pvq_adapt.mean_count_ex_q8=256*4;
 #if !defined(OD_DISABLE_PVQ_CODE1)
-  adapt.mean_pos_q4=30<<4;
+  pvq_adapt.mean_pos_q4=30<<4;
 #endif
   od_ec_dec_init(&dec, buf, buf_sz);
   generic_model_init(&model);
@@ -109,22 +118,30 @@ int run_pvq(int *X,int len,int N){
     if (K!=Ki[i]){
       fprintf(stderr, "mismatch for K of vector %d (N=%d)\n", i, N);
     }
+    adapt.mean[OD_ADAPT_K_Q8] = pvq_adapt.mean_k_q8;
+    adapt.mean[OD_ADAPT_SUM_EX_Q8] = pvq_adapt.mean_sum_ex_q8;
+    adapt.mean[OD_ADAPT_COUNT_Q8] = pvq_adapt.mean_count_q8;
+    adapt.mean[OD_ADAPT_COUNT_EX_Q8] = pvq_adapt.mean_count_ex_q8;
     pvq_decoder(&dec, y, N, Ki[i], &adapt);
+    pvq_adapt.k = adapt.curr[OD_ADAPT_K_Q8];
+    pvq_adapt.sum_ex_q8 = adapt.curr[OD_ADAPT_SUM_EX_Q8];
+    pvq_adapt.count_q8 = adapt.curr[OD_ADAPT_COUNT_Q8];
+    pvq_adapt.count_ex_q8 = adapt.curr[OD_ADAPT_COUNT_EX_Q8];
 #if !defined(OD_DISABLE_PVQ_CODE1)
-    if(adapt.pos>=0){
-      adapt.mean_pos_q4=OD_MAXI(adapt.mean_pos_q4+
-          ((adapt.pos<<4)-adapt.mean_pos_q4>>OD_POS_ADAPT_SPEED),N/8);
+    if(pvq_adapt.pos>=0){
+      pvq_adapt.mean_pos_q4=OD_MAXI(pvq_adapt.mean_pos_q4+
+          ((pvq_adapt.pos<<4)-pvq_adapt.mean_pos_q4>>OD_POS_ADAPT_SPEED),N/8);
     }
 #endif
-    if(adapt.k>=0){
-      adapt.mean_k_q8+=(adapt.k<<8)-adapt.mean_k_q8>>OD_K_ADAPT_SPEED;
-      adapt.mean_sum_ex_q8+=
-       adapt.sum_ex_q8-adapt.mean_sum_ex_q8>>OD_SUM_EX_ADAPT_SPEED;
+    if(pvq_adapt.k>=0){
+      pvq_adapt.mean_k_q8+=(pvq_adapt.k<<8)-pvq_adapt.mean_k_q8>>OD_K_ADAPT_SPEED;
+      pvq_adapt.mean_sum_ex_q8+=
+       pvq_adapt.sum_ex_q8-pvq_adapt.mean_sum_ex_q8>>OD_SUM_EX_ADAPT_SPEED;
     }
-    if(adapt.count_q8>=0){
-      adapt.mean_count_q8+=(adapt.count_q8<<8)-adapt.mean_count_q8>>OD_DELTA_ADAPT_SPEED;
-      adapt.mean_count_ex_q8+=
-       adapt.count_ex_q8-adapt.mean_count_ex_q8>>OD_DELTA_ADAPT_SPEED;
+    if(pvq_adapt.count_q8>=0){
+      pvq_adapt.mean_count_q8+=(pvq_adapt.count_q8<<8)-pvq_adapt.mean_count_q8>>OD_DELTA_ADAPT_SPEED;
+      pvq_adapt.mean_count_ex_q8+=
+       pvq_adapt.count_ex_q8-pvq_adapt.mean_count_ex_q8>>OD_DELTA_ADAPT_SPEED;
     }
     for (j=0;j<N;j++){
       if(y[j]!=X[i*N+j]){
@@ -140,10 +157,10 @@ int run_pvq(int *X,int len,int N){
         fprintf(stderr,"\n");
 #if !defined(OD_DISABLE_PVQ_CODE1)
         fprintf(stderr, "K[%d]=%d, num=%d, den=%d, u=%d\n", i, Ki[i],
-         adapt.mean_k_q8, adapt.mean_sum_ex_q8, adapt.mean_pos_q4);
+         pvq_adapt.mean_k_q8, pvq_adapt.mean_sum_ex_q8, pvq_adapt.mean_pos_q4);
 #else
         fprintf(stderr, "K[%d]=%d, num=%d, den=%d\n", i, Ki[i],
-         adapt.mean_k_q8, adapt.mean_sum_ex_q8);
+         pvq_adapt.mean_k_q8, pvq_adapt.mean_sum_ex_q8);
 #endif
         abort();
       }

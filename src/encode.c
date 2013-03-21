@@ -615,7 +615,7 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
                 ex_ym=(65536/2)*vk;
                 generic_encode(&_enc->ec,model_ym+pli,vk-pred[1],&ex_ym,0);
               }
-              pvq_encoder(&_enc->ec,pred+2,14,vk-abs(pred[1]),&pvq_adapt);
+              pvq_encoder(&_enc->ec,pred+2,14,vk-abs(pred[1]),&adapt);
 #else
               vk=quant_scalar(cblock+1,predt+1,pvq_scale,pred+1,15,11,
                &pvq_adapt);
@@ -628,15 +628,15 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
               /*Treat first component (y[m]) like all others.*/
               pvq_encoder(&_enc->ec,pred+1,15,vk,&pvq_adapt);
 #endif
-              if(pvq_adapt.k>=0){
+              if(adapt.curr[OD_ADAPT_K_Q8]>=0){
                 nk++;
-                k_total+=pvq_adapt.k;
-                sum_ex_total_q8+=pvq_adapt.sum_ex_q8;
+                k_total+=adapt.curr[OD_ADAPT_K_Q8];
+                sum_ex_total_q8+=adapt.curr[OD_ADAPT_SUM_EX_Q8];
               }
-              if(pvq_adapt.count_q8>=0){
+              if(adapt.curr[OD_ADAPT_COUNT_Q8]>=0){
                 ncount++;
-                count_total_q8+=pvq_adapt.count_q8;
-                count_ex_total_q8+=pvq_adapt.count_ex_q8;
+                count_total_q8+=adapt.curr[OD_ADAPT_COUNT_Q8];
+                count_ex_total_q8+=adapt.curr[OD_ADAPT_COUNT_EX_Q8];
               }
 #if !defined(OD_DISABLE_PVQ_CODE1)
               if(pvq_adapt.pos>=0){

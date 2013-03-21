@@ -28,6 +28,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "entenc.h"
 #include "entcode.h"
 #include "pvq_code.h"
+#include "adapt.h"
 
 /** Encodes the tail of a Laplace-distributed variable, i.e. it doesn't
  * do anything special for the zero case.
@@ -201,23 +202,23 @@ static void pvq_encoder1(od_ec_enc *enc, const int *y,int N,
  * @param [in,out] _adapt Adaptation context.
  */
 void pvq_encoder(od_ec_enc *enc, const int *y,int N,int K,
- od_pvq_adapt_ctx *_adapt){
+ od_adapt_ctx *_adapt){
   int i;
   int sumEx;
   int Kn;
   int expQ8;
   int mean_k_q8;
   int mean_sum_ex_q8;
-  _adapt->count_q8=-1;
-  _adapt->count_ex_q8=0;
+  _adapt->curr[OD_ADAPT_COUNT_Q8] = OD_ADAPT_NO_VALUE;
+  _adapt->curr[OD_ADAPT_COUNT_EX_Q8] = OD_ADAPT_NO_VALUE;
   if (K<=1)
   {
     pvq_encode_delta(enc, y, N, K, _adapt);
     return;
   }
   if(K==0){
-    _adapt->k=0;
-    _adapt->sum_ex_q8=0;
+    _adapt->curr[OD_ADAPT_K_Q8]=0;
+    _adapt->curr[OD_ADAPT_SUM_EX_Q8]=0;
 #if !defined(OD_DISABLE_PVQ_CODE1)
     _adapt->pos=-1;
 #endif
@@ -233,8 +234,8 @@ void pvq_encoder(od_ec_enc *enc, const int *y,int N,int K,
   }
 #endif
   /* Estimates the factor relating pulses_left and positions_left to E(|x|) */
-  mean_k_q8=_adapt->mean_k_q8;
-  mean_sum_ex_q8=_adapt->mean_sum_ex_q8;
+  mean_k_q8=_adapt->mean[OD_ADAPT_K_Q8];
+  mean_sum_ex_q8=_adapt->mean[OD_ADAPT_SUM_EX_Q8];
   if(mean_k_q8<1<<23)expQ8=256*mean_k_q8/(1+mean_sum_ex_q8);
   else expQ8=mean_k_q8/(1+(mean_sum_ex_q8>>8));
   for(i=0;i<N;i++){
@@ -264,8 +265,8 @@ void pvq_encoder(od_ec_enc *enc, const int *y,int N,int K,
     Kn-=x;
   }
   /* Adapting the estimates for expQ8 */
-  _adapt->k=K-Kn;
-  _adapt->sum_ex_q8=sumEx;
+  _adapt->curr[OD_ADAPT_K_Q8]=K-Kn;
+  _adapt->curr[OD_ADAPT_SUM_EX_Q8]=sumEx;
 #if !defined(OD_DISABLE_PVQ_CODE1)
   _adapt->pos=-1;
 #endif
@@ -408,7 +409,7 @@ void pvq_encoder3(od_ec_enc *enc, const int *_y,int N,int K,int *num, int *den, 
 
 
 void pvq_encode_delta(od_ec_enc *enc, const int *y,int N,int _K,
- od_pvq_adapt_ctx *_adapt)
+ od_adapt_ctx *_adapt)
 {
   int i;
   int prev=0;
@@ -416,7 +417,7 @@ void pvq_encode_delta(od_ec_enc *enc, const int *y,int N,int _K,
   int sumC=0;
   int first = 1;
   int K=_K;
-  int coef = 256*_adapt->mean_count_q8/(1+_adapt->mean_count_ex_q8);
+  int coef = 256*_adapt->mean[OD_ADAPT_COUNT_Q8]/(1+_adapt->mean[OD_ADAPT_COUNT_EX_Q8]);
   coef=OD_MAXI(coef,1);
   for(i=0;i<N;i++){
     if(y[i]!=0){
@@ -454,12 +455,12 @@ void pvq_encode_delta(od_ec_enc *enc, const int *y,int N,int _K,
 
   if (_K>0)
   {
-    _adapt->count_q8=256*sumC;
-    _adapt->count_ex_q8=sumEx;
+    _adapt->curr[OD_ADAPT_COUNT_Q8]=256*sumC;
+    _adapt->curr[OD_ADAPT_COUNT_EX_Q8]=sumEx;
   } else {
-    _adapt->count_q8=-1;
-    _adapt->count_ex_q8=0;
+    _adapt->curr[OD_ADAPT_COUNT_Q8] = OD_ADAPT_NO_VALUE;
+    _adapt->curr[OD_ADAPT_COUNT_EX_Q8] = OD_ADAPT_NO_VALUE;
   }
-  _adapt->k=0;
-  _adapt->sum_ex_q8=0;
+  _adapt->curr[OD_ADAPT_K_Q8]=0;
+  _adapt->curr[OD_ADAPT_SUM_EX_Q8]=0;
 }
