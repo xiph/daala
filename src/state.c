@@ -185,8 +185,6 @@ int od_state_init(od_state *_state,const daala_info *_info){
   od_state_ref_imgs_init(_state,4,2);
   od_state_mvs_init(_state);
   for(pli=0;pli<nplanes;pli++){
-    _state->pvq_adapt_row[pli]=(od_pvq_adapt_ctx *)_ogg_malloc(
-     _state->nhmbs*sizeof(*_state->pvq_adapt_row[pli]));
     _state->adapt_row[pli].ctx=(od_adapt_ctx *)_ogg_malloc(
      _state->nhmbs*sizeof(*_state->adapt_row[pli].ctx));
     _state->adapt_row[pli].nhmbs = _state->nhmbs;
@@ -198,7 +196,7 @@ void od_state_clear(od_state *_state){
   int nplanes;
   int pli;
   nplanes=_state->info.nplanes;
-  for(pli=nplanes;pli-->0;)_ogg_free(_state->pvq_adapt_row[pli]);
+  for(pli=nplanes;pli-->0;)_ogg_free(_state->adapt_row[pli].ctx);
   od_free_2d(_state->mv_grid);
   _ogg_free(_state->ref_img_data);
 }

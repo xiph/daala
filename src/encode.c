@@ -352,7 +352,6 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
     modes=_ogg_calloc((frame_width>>2)*(frame_height>>2),sizeof(*modes));
     for(mi=0;mi<OD_INTRA_NMODES;mi++)mode_p0[mi]=32768/OD_INTRA_NMODES;
     for(pli=0;pli<nplanes;pli++){
-      od_pvq_adapt_ctx *pvq_adapt_row;
       generic_model_init(model_dc+pli);
       generic_model_init(model_g+pli);
       generic_model_init(model_ym+pli);
@@ -386,16 +385,6 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
         }
       }
       else lbuf[pli]=ltmp[pli]=NULL;
-      pvq_adapt_row=_enc->state.pvq_adapt_row[pli];
-      for(mbx=0;mbx<nhmbs;mbx++){
-        pvq_adapt_row[mbx].mean_k_q8=OD_K_ROW_INIT_Q8;
-        pvq_adapt_row[mbx].mean_sum_ex_q8=OD_SUM_EX_ROW_INIT_Q8;
-        pvq_adapt_row[mbx].mean_count_q8=OD_COUNT_ROW_INIT_Q8;
-        pvq_adapt_row[mbx].mean_count_ex_q8=OD_COUNT_EX_ROW_INIT_Q8;
-#if !defined(OD_DISABLE_PVQ_CODE1)
-        pvq_adapt_row[mbx].mean_pos_q4=OD_POS_ROW_INIT_Q4;
-#endif
-      }
       od_adapt_row_init(&_enc->state.adapt_row[pli]);
     }
     iyfill=0;
@@ -406,21 +395,7 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
       int ixfill;
       int oxfill;
       od_adapt_ctx adapt_hmean[OD_NPLANES_MAX];
-      int hmean_k_q7[OD_NPLANES_MAX];
-      int hmean_sum_ex_q7[OD_NPLANES_MAX];
-      int hmean_count_q7[OD_NPLANES_MAX];
-      int hmean_count_ex_q7[OD_NPLANES_MAX];
-#if !defined(OD_DISABLE_PVQ_CODE1)
-      int hmean_pos_q3[OD_NPLANES_MAX];
-#endif
       for(pli=0;pli<nplanes;pli++){
-        hmean_k_q7[pli]=OD_K_INIT_Q7;
-        hmean_sum_ex_q7[pli]=OD_SUM_EX_INIT_Q7;
-        hmean_count_q7[pli]=OD_COUNT_INIT_Q7;
-        hmean_count_ex_q7[pli]=OD_COUNT_EX_INIT_Q7;
-#if !defined(OD_DISABLE_PVQ_CODE1)
-        hmean_pos_q3[pli]=OD_POS_INIT_Q3;
-#endif
         od_adapt_hmean_init(&adapt_hmean[pli]);
       }
       next_iyfill=mby+1<nvmbs?(mby+1<<4)+8:frame_height;
@@ -433,8 +408,6 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
         next_ixfill=mbx+1<nhmbs?(mbx+1<<4)+8:frame_width;
         next_oxfill=mbx+1<nhmbs?(mbx+1<<4)-8:frame_width;
         for(pli=0;pli<nplanes;pli++){
-          od_pvq_adapt_ctx *pvq_adapt_row;
-          od_pvq_adapt_ctx  pvq_adapt;
           od_adapt_row_ctx *adapt_row;
           od_adapt_ctx      adapt;
           od_coeff         *c;
@@ -450,10 +423,6 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
           int               ncount;
           int               count_total_q8;
           int               count_ex_total_q8;
-#if !defined(OD_DISABLE_PVQ_CODE1)
-          int               npos;
-          int               pos_total;
-#endif
           c=ctmp[pli];
           d=dtmp[pli];
           l=lbuf[pli];
@@ -496,24 +465,8 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
               od_pre_filter4(c+y*w+(bx<<2)+2,c+y*w+(bx<<2)+2);
             }
           }
-          pvq_adapt_row=_enc->state.pvq_adapt_row[pli]+mbx;
-          pvq_adapt.mean_k_q8=(hmean_k_q7[pli]>>OD_K_ADAPT_SPEED)
-           +pvq_adapt_row->mean_k_q8;
-          pvq_adapt.mean_sum_ex_q8=
-           (hmean_sum_ex_q7[pli]>>OD_SUM_EX_ADAPT_SPEED)
-           +pvq_adapt_row->mean_sum_ex_q8;
           nk=k_total=sum_ex_total_q8=0;
-          pvq_adapt.mean_count_q8=(hmean_count_q7[pli]>>OD_DELTA_ADAPT_SPEED)
-           +pvq_adapt_row->mean_count_q8;
-          pvq_adapt.mean_count_ex_q8=
-           (hmean_count_ex_q7[pli]>>OD_DELTA_ADAPT_SPEED)
-           +pvq_adapt_row->mean_count_ex_q8;
           ncount=count_total_q8=count_ex_total_q8=0;
-#if !defined(OD_DISABLE_PVQ_CODE1)
-          pvq_adapt.mean_pos_q4=OD_MAXI((hmean_pos_q3>>OD_POS_ADAPT_SPEED)
-           +pvq_adapt_row->mean_pos_q4,1);
-          npos=pos_total=0;
-#endif
           adapt_row=&_enc->state.adapt_row[pli];
           od_adapt_update_stats(adapt_row, mbx, &adapt_hmean[pli], &adapt);
           for(by=mby<<2-ydec;by<mby+1<<2-ydec;by++){
@@ -638,12 +591,6 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
                 count_total_q8+=adapt.curr[OD_ADAPT_COUNT_Q8];
                 count_ex_total_q8+=adapt.curr[OD_ADAPT_COUNT_EX_Q8];
               }
-#if !defined(OD_DISABLE_PVQ_CODE1)
-              if(pvq_adapt.pos>=0){
-                npos++;
-                pos_total+=pvq_adapt.pos;
-              }
-#endif
               /*Dequantize*/
               for(y=0;y<4;y++){
                 for(x=0;x<4;x++){
@@ -654,44 +601,6 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
               od_bin_idct4x4(c+(by<<2)*w+(bx<<2),w,d+(by<<2)*w+(bx<<2),w);
             }
           }
-          if(nk>0){
-            pvq_adapt_row->k=OD_DIVU_SMALL(k_total<<7,nk);
-            hmean_k_q7[pli]+=
-             pvq_adapt_row->k-hmean_k_q7[pli]>>OD_K_ADAPT_SPEED;
-            pvq_adapt_row->mean_k_q8+=
-             hmean_k_q7[pli]-pvq_adapt_row->mean_k_q8>>OD_SUM_EX_ADAPT_SPEED;
-            pvq_adapt_row->sum_ex_q8=OD_DIVU_SMALL(sum_ex_total_q8,nk)>>1;
-            hmean_sum_ex_q7[pli]+=pvq_adapt_row->sum_ex_q8
-             -hmean_sum_ex_q7[pli]>>OD_SUM_EX_ADAPT_SPEED;
-            pvq_adapt_row->mean_sum_ex_q8+=hmean_sum_ex_q7[pli]
-             -pvq_adapt_row->mean_sum_ex_q8>>OD_K_ADAPT_SPEED;
-          }
-          else pvq_adapt_row->sum_ex_q8=pvq_adapt_row->k=-1;
-          if(ncount>0){
-            pvq_adapt_row->count_q8=
-             OD_DIVU_SMALL(count_total_q8,ncount)>>1;
-            hmean_count_q7[pli]+=pvq_adapt_row->count_q8
-             -hmean_count_q7[pli]>>OD_DELTA_ADAPT_SPEED;
-            pvq_adapt_row->mean_count_q8+=hmean_count_q7[pli]
-             -pvq_adapt_row->mean_count_q8>>OD_DELTA_ADAPT_SPEED;
-            pvq_adapt_row->count_ex_q8=
-             OD_DIVU_SMALL(count_ex_total_q8,ncount)>>1;
-            hmean_count_ex_q7[pli]+=pvq_adapt_row->count_ex_q8
-             -hmean_count_ex_q7[pli]>>OD_DELTA_ADAPT_SPEED;
-            pvq_adapt_row->mean_count_ex_q8+=hmean_count_ex_q7[pli]
-             -pvq_adapt_row->mean_count_ex_q8>>OD_DELTA_ADAPT_SPEED;
-          }
-          else pvq_adapt_row->count_ex_q8=pvq_adapt_row->count_q8=-1;
-#if !defined(OD_DISABLE_PVQ_CODE1)
-          if(npos>0){
-            pvq_adapt_row->pos=OD_DIVU_SMALL(pos_total<<3,npos);
-            hmean_pos_q3[pli]+=
-             pvq_adapt_row->pos-hmean_pos_q3[pli]>>OD_POS_ADAPT_SPEED;
-            pvq_adapt_row->mean_pos_q4+=
-             hmean_pos_q3[pli]-pvq_adapt_row->mean_pos_q4>>OD_POS_ADAPT_SPEED;
-          }
-          else pvq_adapt_row->pos=-1;
-#endif
           if(nk>0){
             adapt.curr[OD_ADAPT_K_Q8] = OD_DIVU_SMALL(k_total<<8,nk);
             adapt.curr[OD_ADAPT_SUM_EX_Q8] = OD_DIVU_SMALL(sum_ex_total_q8,nk);
@@ -735,48 +644,6 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
         oxfill=next_oxfill;
       }
       for(pli=0;pli<nplanes;pli++){
-        od_pvq_adapt_ctx *pvq_adapt_row;
-        pvq_adapt_row=_enc->state.pvq_adapt_row[pli];
-        hmean_k_q7[pli]=OD_K_INIT_Q7;
-        hmean_sum_ex_q7[pli]=OD_SUM_EX_INIT_Q7;
-        hmean_count_q7[pli]=OD_COUNT_INIT_Q7;
-        hmean_count_ex_q7[pli]=OD_COUNT_EX_INIT_Q7;
-#if !defined(OD_DISABLE_PVQ_CODE1)
-        hmean_pos_q3[pli]=OD_POS_INIT_Q3;
-#endif
-        for(mbx=nhmbs;mbx-->0;){
-          if(pvq_adapt_row[mbx].k>=0){
-            pvq_adapt_row[mbx].mean_k_q8+=(hmean_k_q7[pli]>>OD_K_ADAPT_SPEED)
-             -(hmean_k_q7[pli]>>2*OD_K_ADAPT_SPEED);
-            hmean_k_q7[pli]+=
-             pvq_adapt_row[mbx].k-hmean_k_q7[pli]>>OD_K_ADAPT_SPEED;
-            pvq_adapt_row[mbx].mean_sum_ex_q8+=
-             (hmean_sum_ex_q7[pli]>>OD_SUM_EX_ADAPT_SPEED)
-             -(hmean_sum_ex_q7[pli]>>2*OD_SUM_EX_ADAPT_SPEED);
-            hmean_sum_ex_q7[pli]+=pvq_adapt_row[mbx].sum_ex_q8
-             -hmean_sum_ex_q7[pli]>>OD_SUM_EX_ADAPT_SPEED;
-          }
-          if(pvq_adapt_row[mbx].count_q8>=0){
-            pvq_adapt_row[mbx].mean_count_q8+=(hmean_count_q7[pli]>>OD_DELTA_ADAPT_SPEED)
-             -(hmean_count_q7[pli]>>2*OD_DELTA_ADAPT_SPEED);
-            hmean_count_q7[pli]+=
-             pvq_adapt_row[mbx].count_q8-hmean_count_q7[pli]>>OD_DELTA_ADAPT_SPEED;
-            pvq_adapt_row[mbx].mean_count_ex_q8+=
-             (hmean_count_ex_q7[pli]>>OD_DELTA_ADAPT_SPEED)
-             -(hmean_count_ex_q7[pli]>>2*OD_DELTA_ADAPT_SPEED);
-            hmean_count_ex_q7[pli]+=pvq_adapt_row[mbx].count_ex_q8
-             -hmean_count_ex_q7[pli]>>OD_DELTA_ADAPT_SPEED;
-          }
-#if !defined(OD_DISABLE_PVQ_CODE1)
-          if(pvq_adapt_row[mbx].pos>=0){
-            pvq_adapt_row[mbx].mean_pos_q4+=
-             (hmean_pos_q3[pli]>>OD_POS_ADAPT_SPEED)
-             -(hmean_pos_q3[pli]>>2*OD_POS_ADAPT_SPEED);
-            hmean_pos_q3[pli]+=
-             pvq_adapt_row[mbx].pos-hmean_pos_q3[pli]>>OD_POS_ADAPT_SPEED;
-          }
-#endif
-        }
         od_adapt_row(&_enc->state.adapt_row[pli], &adapt_hmean[pli]);
       }
       iyfill=next_iyfill;

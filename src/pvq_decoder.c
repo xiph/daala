@@ -147,46 +147,6 @@ static int laplace_decode(od_ec_dec *dec, int ExQ8, int K)
   return (sym<<shift)+lsb;
 }
 
-#if !defined(OD_DISABLE_PVQ_CODE1)
-/** Decodes the position and sign of a single pulse in a vector of N.
- * The position is assumed to be Laplace-distributed.
- *
- * @param [in,out] dec range decoder
- * @param [in]     y   decoded vector
- * @param [in]     N   dimension of the vector
- * @param [in,out] _adapt Adaptation context (used for mean pulse position).
- */
-static void pvq_decoder1(od_ec_dec *dec, int *y,int N,
- od_pvq_adapt_ctx *_adapt){
-  int j;
-  int pos;
-  unsigned decay;
-
-  for(j=0;j<N;j++)
-    y[j]=0;
-
-  if(N>1){
-    /*Compute decay: approximates 256*exp(-16./mean_pos_q4).*/
-    decay=256-4096/_adapt->mean_pos_q4;
-    pos=laplace_decode_special(dec,decay,N-1);
-    /*Update mean position.*/
-    _adapt->k=0;
-    _adapt->sum_ex_q8=0;
-    _adapt->pos=pos;
-  }
-  else{
-    _adapt->k=0;
-    _adapt->sum_ex_q8=0;
-    _adapt->pos=-1;
-    pos=0;
-  }
-  if(od_ec_dec_bits(dec,1))
-    y[pos]=-1;
-  else
-    y[pos]=1;
-}
-#endif
-
 /** Decodes a vector of integers assumed to come from rounding a sequence of
  * Laplace-distributed real values in decreasing order of variance.
  *
@@ -214,23 +174,12 @@ void pvq_decoder(od_ec_dec *dec, int *y,int N,int K,od_adapt_ctx *_adapt)
   if(K==0){
     _adapt->curr[OD_ADAPT_K_Q8]=0;
     _adapt->curr[OD_ADAPT_SUM_EX_Q8]=0;
-#if !defined(OD_DISABLE_PVQ_CODE1)
-    _adapt->pos=-1;
-#endif
     for(i=0;i<N;i++)
       y[i]=0;
     return;
   }
   sumEx=0;
   Kn=K;
-
-#if !defined(OD_DISABLE_PVQ_CODE1)
-  /* Special K==1 case to save CPU (should be roughly equivalent in terms of coding efficiency) */
-  if(K==1){
-    pvq_decoder1(dec,y,N,_adapt);
-    return;
-  }
-#endif
 
   /* Estimates the factor relating pulses_left and positions_left to E(|x|) */
   mean_k_q8=_adapt->mean[OD_ADAPT_K_Q8];
@@ -269,9 +218,6 @@ void pvq_decoder(od_ec_dec *dec, int *y,int N,int K,od_adapt_ctx *_adapt)
   /* Adapting the estimates for expQ8 */
   _adapt->curr[OD_ADAPT_K_Q8]=K-Kn;
   _adapt->curr[OD_ADAPT_SUM_EX_Q8]=sumEx;
-#if !defined(OD_DISABLE_PVQ_CODE1)
-  _adapt->pos=-1;
-#endif
   for(;i<N;i++)
     y[i]=0;
 }
