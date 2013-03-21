@@ -187,6 +187,9 @@ int od_state_init(od_state *_state,const daala_info *_info){
   for(pli=0;pli<nplanes;pli++){
     _state->pvq_adapt_row[pli]=(od_pvq_adapt_ctx *)_ogg_malloc(
      _state->nhmbs*sizeof(*_state->pvq_adapt_row[pli]));
+    _state->adapt_row[pli].ctx=(od_adapt_ctx *)_ogg_malloc(
+     _state->nhmbs*sizeof(*_state->adapt_row[pli].ctx));
+    _state->adapt_row[pli].nhmbs = _state->nhmbs;
   }
   return 0;
 }
@@ -591,7 +594,8 @@ int od_state_dump_yuv(od_state *_state,od_img *_img,const char *_suf){
 }
 
 #if defined(OD_DUMP_IMAGES)
-# include "png.h"
+# include <png.h>
+#include <zlib.h>
 
 /*State visualization.
   None of this is particularly fast.*/

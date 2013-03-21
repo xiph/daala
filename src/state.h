@@ -31,6 +31,7 @@ typedef struct od_state          od_state;
 # include "internal.h"
 # include "mc.h"
 # include "pvq_code.h"
+#include "adapt.h"
 
 /*The golden reference frame.*/
 #define OD_FRAME_GOLD (0)
@@ -93,6 +94,7 @@ struct od_state{
   unsigned char      *ref_img_data;
   ogg_int64_t         cur_time;
   od_mv_grid_pt     **mv_grid;
+  od_adapt_row_ctx    adapt_row[OD_NPLANES_MAX];
   od_pvq_adapt_ctx   *pvq_adapt_row[OD_NPLANES_MAX];
   int                 nhmbs;
   int                 nvmbs;

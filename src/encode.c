@@ -396,6 +396,7 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
         pvq_adapt_row[mbx].mean_pos_q4=OD_POS_ROW_INIT_Q4;
 #endif
       }
+      od_adapt_row_init(&_enc->state.adapt_row[pli]);
     }
     iyfill=0;
     oyfill=0;
@@ -404,6 +405,7 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
       int next_oyfill;
       int ixfill;
       int oxfill;
+      od_adapt_ctx adapt_hmean[OD_NPLANES_MAX];
       int hmean_k_q7[OD_NPLANES_MAX];
       int hmean_sum_ex_q7[OD_NPLANES_MAX];
       int hmean_count_q7[OD_NPLANES_MAX];
@@ -419,6 +421,7 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
 #if !defined(OD_DISABLE_PVQ_CODE1)
         hmean_pos_q3[pli]=OD_POS_INIT_Q3;
 #endif
+        od_adapt_hmean_init(&adapt_hmean[pli]);
       }
       next_iyfill=mby+1<nvmbs?(mby+1<<4)+8:frame_height;
       next_oyfill=mby+1<nvmbs?(mby+1<<4)-8:frame_height;
@@ -432,6 +435,8 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
         for(pli=0;pli<nplanes;pli++){
           od_pvq_adapt_ctx *pvq_adapt_row;
           od_pvq_adapt_ctx  pvq_adapt;
+          od_adapt_row_ctx *adapt_row;
+          od_adapt_ctx      adapt;
           od_coeff         *c;
           od_coeff         *d;
           od_coeff         *l;
@@ -509,6 +514,8 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
            +pvq_adapt_row->mean_pos_q4,1);
           npos=pos_total=0;
 #endif
+          adapt_row=&_enc->state.adapt_row[pli];
+          od_adapt_update_stats(adapt_row, mbx, &adapt_hmean[pli], &adapt);
           for(by=mby<<2-ydec;by<mby+1<<2-ydec;by++){
             for(bx=mbx<<2-xdec;bx<mbx+1<<2-xdec;bx++){
               od_coeff pred[4*4];
@@ -685,6 +692,23 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
           }
           else pvq_adapt_row->pos=-1;
 #endif
+          if(nk>0){
+            adapt.curr[OD_ADAPT_K_Q8] = OD_DIVU_SMALL(k_total<<8,nk);
+            adapt.curr[OD_ADAPT_SUM_EX_Q8] = OD_DIVU_SMALL(sum_ex_total_q8,nk);
+          } else {
+            adapt.curr[OD_ADAPT_K_Q8] = OD_ADAPT_NO_VALUE;
+            adapt.curr[OD_ADAPT_SUM_EX_Q8] = OD_ADAPT_NO_VALUE;
+          }
+          if (ncount>0)
+          {
+            adapt.curr[OD_ADAPT_COUNT_Q8] = OD_DIVU_SMALL(count_total_q8,ncount);
+            adapt.curr[OD_ADAPT_COUNT_EX_Q8] = OD_DIVU_SMALL(count_ex_total_q8,ncount);
+          } else {
+            adapt.curr[OD_ADAPT_COUNT_Q8] = OD_ADAPT_NO_VALUE;
+            adapt.curr[OD_ADAPT_COUNT_EX_Q8] = OD_ADAPT_NO_VALUE;
+          }
+          od_adapt_mb(adapt_row, mbx, &adapt_hmean[pli], &adapt);
+
           /*Apply the postfilter across the left block edges.*/
           for(y=oyfill>>ydec;y<next_oyfill>>ydec;y++){
             for(bx=(mbx<<2-xdec)+(mbx<=0);bx<mbx+1<<2-xdec;bx++){
@@ -732,6 +756,17 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
             hmean_sum_ex_q7[pli]+=pvq_adapt_row[mbx].sum_ex_q8
              -hmean_sum_ex_q7[pli]>>OD_SUM_EX_ADAPT_SPEED;
           }
+          if(pvq_adapt_row[mbx].count_q8>=0){
+            pvq_adapt_row[mbx].mean_count_q8+=(hmean_count_q7[pli]>>OD_DELTA_ADAPT_SPEED)
+             -(hmean_count_q7[pli]>>2*OD_DELTA_ADAPT_SPEED);
+            hmean_count_q7[pli]+=
+             pvq_adapt_row[mbx].count_q8-hmean_count_q7[pli]>>OD_DELTA_ADAPT_SPEED;
+            pvq_adapt_row[mbx].mean_count_ex_q8+=
+             (hmean_count_ex_q7[pli]>>OD_DELTA_ADAPT_SPEED)
+             -(hmean_count_ex_q7[pli]>>2*OD_DELTA_ADAPT_SPEED);
+            hmean_count_ex_q7[pli]+=pvq_adapt_row[mbx].count_ex_q8
+             -hmean_count_ex_q7[pli]>>OD_DELTA_ADAPT_SPEED;
+          }
 #if !defined(OD_DISABLE_PVQ_CODE1)
           if(pvq_adapt_row[mbx].pos>=0){
             pvq_adapt_row[mbx].mean_pos_q4+=
@@ -742,6 +777,7 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
           }
 #endif
         }
+        od_adapt_row(&_enc->state.adapt_row[pli], &adapt_hmean[pli]);
       }
       iyfill=next_iyfill;
       oyfill=next_oyfill;
