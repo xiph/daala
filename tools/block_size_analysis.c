@@ -528,12 +528,30 @@ int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh
       j8 = 2*j-1;
       if (dec8[i8+1][j8+1]==3)
         continue;
-      for(k=0;k<3;k++)
-        printf("%d ", dec8[i8+k][j8]);
-      for(k=1;k<3;k++)
-        printf("%d ", dec8[i8][j8+k]);
-      printf("%d\n", dec8[i8+1][j8+1]);
+      if (1)
+      {
+        int sum=0;
+        /*for(k=0;k<3;k++)
+          printf("%d ", dec8[i8+k][j8]);
+        for(k=1;k<3;k++)
+          printf("%d ", dec8[i8][j8+k]);*/
+        for(k=0;k<3;k++)
+          sum += dec8[i8+k][j8];
+        for(k=1;k<3;k++)
+          sum += dec8[i8][j8+k];
+        printf("%d ", sum);
+      } else {
+        int up, left;
+        up = (dec8[i8][j8+1]>=2) ? 2+dec8[i8][j8+1] : dec8[i8][j8+1]*2+dec8[i8][j8+2];
+        left = (dec8[i8+1][j8]>=2) ? 2+dec8[i8+1][j8] : dec8[i8+1][j8]*2+dec8[i8+2][j8];
+        printf("%d ", dec8[i8][j8]*36+up*6+left);
+      }
+      if (dec8[i8+1][j8+1]==2)
+        printf("16\n");
+      else
+        printf("%d\n", 8*dec8[i8+1][j8+1]+4*dec8[i8+1][j8+2]+2*dec8[i8+2][j8+1]+dec8[i8+2][j8+2]);
     }
+    printf("\n");
   }
 #endif
 
