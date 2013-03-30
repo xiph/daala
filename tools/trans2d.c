@@ -8,8 +8,8 @@
 #define CG_SEARCH (0)
 #define PRINT_COV (0)
 
-#define USE_FILES   (0)
-#define USE_AR95    (1)
+#define USE_FILES   (1)
+#define USE_AR95    (0)
 #define USE_SUBSET1 (0)
 #define USE_SUBSET3 (0)
 

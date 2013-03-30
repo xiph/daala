@@ -4,23 +4,23 @@
 #include "intra_fit_tools.h"
 #include "image.h"
 #include "../src/intra.h"
+#include "od_covmat.h"
 
 #define INPUT_SCALE (16)
 
 typedef struct mode_data mode_data;
 
 struct mode_data{
-  int    n;
-  double satd_avg[B_SZ*B_SZ];
-  double mean;
-  double var;
-  double ref_mean[B_SZ*B_SZ];
-  double ref_cov[B_SZ*B_SZ][B_SZ*B_SZ];
-  double pred_mean[B_SZ*B_SZ];
-  double pred_cov[B_SZ*B_SZ][B_SZ*B_SZ];
+  int       n;
+  double    satd_avg[B_SZ*B_SZ];
+  double    mean;
+  double    var;
+  od_covmat ref;
+  od_covmat pred;
 };
 
 void mode_data_init(mode_data *_md);
+void mode_data_clear(mode_data *_md);
 void mode_data_add_input(mode_data *_md,const unsigned char *_data,int _stride);
 void mode_data_add_block(mode_data *_md,const od_coeff *_block,int _stride,
  int _ref);
@@ -37,6 +37,11 @@ struct intra_stats{
 };
 
 void intra_stats_init(intra_stats *_this);
+void intra_stats_clear(intra_stats *_this);
+void intra_stats_reset(intra_stats *_this);
+void intra_stats_update(intra_stats *_this,const unsigned char *_data,
+ int _stride,int _mode,const od_coeff *_ref,int _ref_stride,
+ const od_coeff *_pred,int _pred_stride);
 void intra_stats_correct(intra_stats *_this);
 void intra_stats_print(intra_stats *_this,const char *_label,double *_scale);
 void intra_stats_combine(intra_stats *_this,const intra_stats *_that);
@@ -70,7 +75,6 @@ struct image_files{
 
 void image_files_init(image_files *_this,int _nxblocks,int _nyblocks);
 void image_files_clear(image_files *_this);
-
 void image_files_write(image_files *_this,const char *_name,const char *_suf);
 
 typedef struct image_data image_data;
@@ -96,10 +100,10 @@ struct image_data{
 void image_data_init(image_data *_this,const char *_name,int _nxblocks,
  int _nyblocks);
 void image_data_clear(image_data *_this);
-
 void image_data_pre_block(image_data *_this,const unsigned char *_data,
  int _stride,int _bi,int _bj);
 void image_data_fdct_block(image_data *_this,int _bi,int _bj);
+void image_data_print_block(image_data *_this,int _bi,int _bj,FILE *_fp);
 void image_data_pred_block(image_data *_this,int _bi,int _bj);
 void image_data_stats_block(image_data *_this,const unsigned char *_data,
  int _stride,int _bi,int _bj,intra_stats *_stats);
@@ -129,15 +133,26 @@ extern const od_filter_func NE_POST_FILTER[OD_NBSIZES];
 extern const od_intra_mult_func NE_INTRA_MULT[OD_NBSIZES];
 
 extern double NE_PRED_OFFSETS_4x4[OD_INTRA_NMODES][4][4];
-extern double NE_PRED_WEIGHTS_4x4[OD_INTRA_NMODES][4][4][2*4][3*4];
+extern double NE_PRED_WEIGHTS_4x4[OD_INTRA_NMODES][4][4][4*4*4];
+
+extern int NE_PRED_MULTS_4x4[OD_INTRA_NMODES][4][4];
+extern int NE_PRED_PARAMX_4x4[OD_INTRA_NMODES][4][4][4*4*4];
+extern int NE_PRED_PARAMY_4x4[OD_INTRA_NMODES][4][4][4*4*4];
 
 extern double NE_PRED_OFFSETS_8x8[OD_INTRA_NMODES][8][8];
-extern double NE_PRED_WEIGHTS_8x8[OD_INTRA_NMODES][8][8][2*8][3*8];
+extern double NE_PRED_WEIGHTS_8x8[OD_INTRA_NMODES][8][8][4*8*8];
+
+extern int NE_PRED_MULTS_8x8[OD_INTRA_NMODES][8][8];
+extern int NE_PRED_PARAMX_8x8[OD_INTRA_NMODES][8][8][4*8*8];
+extern int NE_PRED_PARAMY_8x8[OD_INTRA_NMODES][8][8][4*8*8];
 
 extern double NE_PRED_OFFSETS_16x16[OD_INTRA_NMODES][16][16];
-extern double NE_PRED_WEIGHTS_16x16[OD_INTRA_NMODES][16][16][2*16][3*16];
+extern double NE_PRED_WEIGHTS_16x16[OD_INTRA_NMODES][16][16][4*16*16];
 
-void ne_intra_pred4x4_mult(double *_p,const od_coeff *_c,int _stride,int _mode);
+extern int NE_PRED_MULTS_16x16[OD_INTRA_NMODES][16][16];
+extern int NE_PRED_PARAMX_16x16[OD_INTRA_NMODES][16][16][4*16*16];
+extern int NE_PRED_PARAMY_16x16[OD_INTRA_NMODES][16][16][4*16*16];
+
 void print_betas(FILE *_fp);
 
 #endif

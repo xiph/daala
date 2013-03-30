@@ -9,19 +9,31 @@
 
 void mode_data_init(mode_data *_md){
   int i;
-  int j;
   _md->n=0;
   _md->mean=0;
   _md->var=0;
   for(i=0;i<B_SZ*B_SZ;i++){
     _md->satd_avg[i]=0;
-    _md->ref_mean[i]=0;
-    _md->pred_mean[i]=0;
-    for(j=0;j<B_SZ*B_SZ;j++){
-      _md->ref_cov[i][j]=0;
-      _md->pred_cov[i][j]=0;
-    }
   }
+  od_covmat_init(&_md->ref,B_SZ*B_SZ);
+  od_covmat_init(&_md->pred,B_SZ*B_SZ);
+}
+
+void mode_data_clear(mode_data *_md){
+  od_covmat_clear(&_md->ref);
+  od_covmat_clear(&_md->pred);
+}
+
+void mode_data_reset(mode_data *_md){
+  int i;
+  _md->n=0;
+  _md->mean=0;
+  _md->var=0;
+  for(i=0;i<B_SZ*B_SZ;i++){
+    _md->satd_avg[i]=0;
+  }
+  od_covmat_reset(&_md->ref);
+  od_covmat_reset(&_md->pred);
 }
 
 /* update the input mean and variance */
@@ -29,37 +41,36 @@ void mode_data_add_input(mode_data *_md,const unsigned char *_data,int _stride){
   int n;
   int i;
   int j;
-  n=(_md->n-1)*B_SZ*B_SZ;
-  for(i=0;i<B_SZ;i++){
-    for(j=0;j<B_SZ;j++){
+  n=_md->n*B_SZ*B_SZ;
+  for(j=0;j<B_SZ;j++){
+    for(i=0;i<B_SZ;i++){
       double delta;
+      double s;
       n++;
-      delta=_data[_stride*i+j]*INPUT_SCALE-_md->mean;
-      _md->mean+=delta/n;
-      _md->var+=delta*delta*(n-1)/n;
+      s=1.0/n;
+      delta=_data[_stride*j+i]*INPUT_SCALE-_md->mean;
+      _md->mean+=delta*s;
+      _md->var+=delta*delta*(n-1)*s;
     }
   }
+  _md->n++;
 }
 
 void mode_data_add_block(mode_data *_md,const od_coeff *_block,int _stride,
  int _ref){
-  double *mean;
-  double(*cov)[B_SZ*B_SZ];
-  double  delta[B_SZ*B_SZ];
-  int     i;
-  int     j;
-  mean=_ref?_md->ref_mean:_md->pred_mean;
-  cov=_ref?_md->ref_cov:_md->pred_cov;
+  int    j;
+  int    i;
+  double buf[B_SZ*B_SZ];
   for(j=0;j<B_SZ;j++){
     for(i=0;i<B_SZ;i++){
-      delta[B_SZ*j+i]=_block[_stride*j+i]-mean[B_SZ*j+i];
-      mean[B_SZ*j+i]+=delta[B_SZ*j+i]/_md->n;
+      buf[B_SZ*j+i]=_block[_stride*j+i];
     }
   }
-  for(i=0;i<B_SZ*B_SZ;i++){
-    for(j=0;j<B_SZ*B_SZ;j++){
-      cov[i][j]+=delta[i]*delta[j]*(_md->n-1)/_md->n;
-    }
+  if(_ref){
+    od_covmat_add(&_md->ref,buf,1);
+  }
+  else{
+    od_covmat_add(&_md->pred,buf,1);
   }
 }
 
@@ -67,48 +78,34 @@ void mode_data_combine(mode_data *_a,const mode_data *_b){
   double s;
   double delta;
   int    i;
-  int    j;
-  double delta_ref[B_SZ*B_SZ];
-  double delta_pred[B_SZ*B_SZ];
+  if(_b->n==0){
+    return;
+  }
   s=((double)_b->n)/(_a->n+_b->n);
   delta=_b->mean-_a->mean;
   _a->mean+=delta*s;
   for(i=0;i<B_SZ*B_SZ;i++){
     _a->satd_avg[i]+=(_b->satd_avg[i]-_a->satd_avg[i])*s;
-    delta_ref[i]=_b->ref_mean[i]-_a->ref_mean[i];
-    _a->ref_mean[i]+=delta_ref[i]*s;
-    delta_pred[i]=_b->pred_mean[i]-_a->pred_mean[i];
-    _a->pred_mean[i]+=delta_pred[i]*s;
   }
   s*=_a->n;
   _a->var+=_b->var+delta*s;
-  for(i=0;i<B_SZ*B_SZ;i++){
-    for(j=0;j<B_SZ*B_SZ;j++){
-      _a->ref_cov[i][j]+=_b->ref_cov[i][j]+delta_ref[i]*delta_ref[j]*s;
-      _a->pred_cov[i][j]+=_b->pred_cov[i][j]+delta_pred[i]*delta_pred[j]*s;
-    }
-  }
+  od_covmat_combine(&_a->ref,&_b->ref);
+  od_covmat_combine(&_a->pred,&_b->pred);
   _a->n+=_b->n;
 }
 
 void mode_data_correct(mode_data *_md){
-  int i;
-  int j;
   _md->var/=_md->n*B_SZ*B_SZ;
-  for(i=0;i<B_SZ*B_SZ;i++){
-    for(j=0;j<B_SZ*B_SZ;j++){
-      _md->ref_cov[i][j]/=_md->n;
-      _md->pred_cov[i][j]/=_md->n;
-    }
-  }
+  od_covmat_correct(&_md->ref);
+  od_covmat_correct(&_md->pred);
 }
 
 void mode_data_print(mode_data *_md,const char *_label,double *_scale){
   double     cg_ref;
   double     cg_pred;
   double     pg;
-  int        j;
-  int        i;
+  int        v;
+  int        u;
   double     satd_avg;
   double     bits_avg;
   cg_ref=10*log10(_md->var);
@@ -116,18 +113,20 @@ void mode_data_print(mode_data *_md,const char *_label,double *_scale){
   pg=0;
   satd_avg=0;
   bits_avg=0;
-  for(j=0;j<B_SZ;j++){
-    for(i=0;i<B_SZ;i++){
-      int    x;
+  for(v=0;v<B_SZ;v++){
+    for(u=0;u<B_SZ;u++){
+      int    i;
+      int    ii;
       double b;
-      x=B_SZ*j+i;
-      cg_ref-=10*log10(_md->ref_cov[x][x]*_scale[j]*_scale[i])/(B_SZ*B_SZ);
-      cg_pred-=10*log10(_md->pred_cov[x][x]*_scale[j]*_scale[i])/(B_SZ*B_SZ);
+      i=B_SZ*v+u;
+      ii=B_SZ*B_SZ*i+i;
+      cg_ref-=10*log10(_md->ref.cov[ii]*_scale[v]*_scale[u])/(B_SZ*B_SZ);
+      cg_pred-=10*log10(_md->pred.cov[ii]*_scale[v]*_scale[u])/(B_SZ*B_SZ);
       /* compute prediction gain 10*log10(prod_j(ref_cov[j]/pred_cov[j])) */
-      pg+=10*log10(_md->ref_cov[x][x]/_md->pred_cov[x][x])/(B_SZ*B_SZ);
-      satd_avg+=sqrt(_scale[i]*_scale[j])*_md->satd_avg[x];
-      b=sqrt(_scale[j]*_scale[i]*_md->pred_cov[x][x]/2);
-      bits_avg+=1+OD_LOG2(b)+M_LOG2E/b*_md->satd_avg[x];
+      pg+=10*log10(_md->ref.cov[ii]/_md->pred.cov[ii])/(B_SZ*B_SZ);
+      satd_avg+=sqrt(_scale[v]*_scale[u])*_md->satd_avg[i];
+      b=sqrt(_scale[v]*_scale[u]*_md->pred.cov[ii]/2);
+      bits_avg+=1+OD_LOG2(b)+M_LOG2E/b*_md->satd_avg[i];
     }
   }
   printf("%s Blocks %5i SATD %G Bits %G Mean %G Var %G CgRef %G CgPred %G Pg %G\n",
@@ -135,11 +134,15 @@ void mode_data_print(mode_data *_md,const char *_label,double *_scale){
 }
 
 void mode_data_params(mode_data *_this,double _b[B_SZ*B_SZ],double *_scale){
-  int j;
+  int v;
+  int u;
   int i;
-  for(j=0;j<B_SZ;j++){
-    for(i=0;i<B_SZ;i++){
-      _b[j*B_SZ+i]=sqrt(_scale[j]*_scale[i]*_this->pred_cov[j*B_SZ+i][j*B_SZ+i]/2);
+  int ii;
+  for(v=0;v<B_SZ;v++){
+    for(u=0;u<B_SZ;u++){
+      i=(v*B_SZ+u);
+      ii=B_SZ*B_SZ*i+i;
+      _b[i]=sqrt(_scale[v]*_scale[u]*_this->pred.cov[ii]/2);
     }
   }
 }
@@ -149,6 +152,67 @@ void intra_stats_init(intra_stats *_this){
   mode_data_init(&_this->fr);
   for(mode=0;mode<OD_INTRA_NMODES;mode++){
     mode_data_init(&_this->md[mode]);
+  }
+}
+
+void intra_stats_clear(intra_stats *_this){
+  int i;
+  mode_data_clear(&_this->fr);
+  for(i=0;i<OD_INTRA_NMODES;i++){
+    mode_data_clear(&_this->md[i]);
+  }
+}
+
+void intra_stats_reset(intra_stats *_this){
+  int i;
+  mode_data_reset(&_this->fr);
+  for(i=0;i<OD_INTRA_NMODES;i++){
+    mode_data_reset(&_this->md[i]);
+  }
+}
+
+void intra_stats_update(intra_stats *_this,const unsigned char *_data,
+ int _stride,int _mode,const od_coeff *_ref,int _ref_stride,
+ const od_coeff *_pred,int _pred_stride){
+  mode_data *fr;
+  mode_data *md;
+  int        j;
+  int        i;
+  double     buf[B_SZ*B_SZ];
+
+  fr=&_this->fr;
+  md=&_this->md[_mode];
+
+  /* update the input mean and variance */
+  mode_data_add_input(fr,_data,_stride);
+  mode_data_add_input(md,_data,_stride);
+
+  /* update the reference mean and covariance */
+  for(j=0;j<B_SZ;j++){
+    for(i=0;i<B_SZ;i++){
+      buf[B_SZ*j+i]=_ref[_ref_stride*j+i];
+    }
+  }
+  od_covmat_add(&fr->ref,buf,1);
+  od_covmat_add(&md->ref,buf,1);
+
+  /* update the prediction mean and covariance */
+  for(j=0;j<B_SZ;j++){
+    for(i=0;i<B_SZ;i++){
+      buf[B_SZ*j+i]=_pred[_pred_stride*j+i];
+    }
+  }
+  od_covmat_add(&fr->pred,buf,1);
+  od_covmat_add(&md->pred,buf,1);
+
+  /* update the average satd */
+  for(j=0;j<B_SZ;j++){
+    for(i=0;i<B_SZ;i++){
+      double satd;
+      satd=abs(buf[B_SZ*j+i]);
+      fr->satd_avg[B_SZ*j+i]+=(satd-fr->satd_avg[B_SZ*j+i])/fr->n;
+      md->satd_avg[B_SZ*j+i]+=(satd-md->satd_avg[B_SZ*j+i])/md->n;
+    }
   }
 }
 
@@ -251,10 +315,10 @@ void od_scale_init(double _od_scale[B_SZ]){
 #endif
 }
 
-static void ne_pre_filter(od_coeff *_out,int _out_stride,od_coeff *_in,
+static void od_pre_blocks(od_coeff *_out,int _out_stride,od_coeff *_in,
  int _in_stride,int _bx,int _by){
-  int bx;
   int by;
+  int bx;
   int j;
   int i;
   for(by=0;by<_by;by++){
@@ -263,27 +327,23 @@ static void ne_pre_filter(od_coeff *_out,int _out_stride,od_coeff *_in,
     for(bx=0;bx<_bx;bx++){
       int x;
       x=B_SZ*bx;
-      for(j=0;j<B_SZ;j++){
+      for(i=0;i<B_SZ;i++){
         od_coeff col[B_SZ];
 #if APPLY_PREFILTER
-        for(i=0;i<B_SZ;i++){
-          col[i]=_in[_in_stride*(y+i)+x+j];
+        for(j=0;j<B_SZ;j++){
+          col[j]=_in[_in_stride*(y+j)+x+i];
         }
 #if B_SZ_LOG>=OD_LOG_BSIZE0&&B_SZ_LOG<OD_LOG_BSIZE0+OD_NBSIZES
-#if 0
-        (*OD_PRE_FILTER[B_SZ_LOG-OD_LOG_BSIZE0])(col,col);
-#else
         (*NE_PRE_FILTER[B_SZ_LOG-OD_LOG_BSIZE0])(col,col);
-#endif
 #else
 # error "Need a prefilter implementation for this block size."
 #endif
-        for(i=0;i<B_SZ;i++){
-          _out[_out_stride*(y+i)+x+j]=col[i];
+        for(j=0;j<B_SZ;j++){
+          _out[_out_stride*(y+j)+x+i]=col[j];
         }
 #else
-        for(i=0;i<B_SZ;i++){
-          _out[_out_stride*(y+i)+x+j]=_in[_in_stride*(y+i)+x+j];
+        for(j=0;j<B_SZ;j++){
+          _out[_out_stride*(y+j)+x+i]=_in[_in_stride*(y+j)+x+i];
         }
 #endif
       }
@@ -292,11 +352,7 @@ static void ne_pre_filter(od_coeff *_out,int _out_stride,od_coeff *_in,
         od_coeff *row;
         row=&_out[_out_stride*(y+j)+x];
 #if B_SZ_LOG>=OD_LOG_BSIZE0&&B_SZ_LOG<OD_LOG_BSIZE0+OD_NBSIZES
-#if 0
-        (*OD_PRE_FILTER[B_SZ_LOG-OD_LOG_BSIZE0])(row,row);
-#else
         (*NE_PRE_FILTER[B_SZ_LOG-OD_LOG_BSIZE0])(row,row);
-#endif
 #else
 # error "Need a prefilter implementation for this block size."
 #endif
@@ -306,7 +362,7 @@ static void ne_pre_filter(od_coeff *_out,int _out_stride,od_coeff *_in,
   }
 }
 
-static void ne_post_filter(od_coeff *_out,int _out_stride,od_coeff *_in,
+static void od_post_blocks(od_coeff *_out,int _out_stride,od_coeff *_in,
  int _in_stride,int _bx,int _by){
   int bx;
   int by;
@@ -326,11 +382,7 @@ static void ne_post_filter(od_coeff *_out,int _out_stride,od_coeff *_in,
 #if APPLY_POSTFILTER
         row=&_out[_out_stride*(y+j)+x];
 #if B_SZ_LOG>=OD_LOG_BSIZE0&&B_SZ_LOG<OD_LOG_BSIZE0+OD_NBSIZES
-#if 0
-        (*OD_POST_FILTER[B_SZ_LOG-OD_LOG_BSIZE0])(row,row);
-#else
         (*NE_POST_FILTER[B_SZ_LOG-OD_LOG_BSIZE0])(row,row);
-#endif
 #else
 # error "Need a postfilter implementation for this block size."
 #endif
@@ -343,11 +395,7 @@ static void ne_post_filter(od_coeff *_out,int _out_stride,od_coeff *_in,
           col[j]=_out[_out_stride*(y+j)+x+i];
         }
 #if B_SZ_LOG>=OD_LOG_BSIZE0&&B_SZ_LOG<OD_LOG_BSIZE0+OD_NBSIZES
-#if 0
-        (*OD_POST_FILTER[B_SZ_LOG-OD_LOG_BSIZE0])(col,col);
-#else
         (*NE_POST_FILTER[B_SZ_LOG-OD_LOG_BSIZE0])(col,col);
-#endif
 #else
 # error "Need a postfilter implementation for this block size."
 #endif
@@ -642,8 +690,8 @@ void image_data_init(image_data *_this,const char *_name,int _nxblocks,
   h=B_SZ*(_nyblocks+2);
   _this->fdct=(od_coeff *)malloc(sizeof(*_this->fdct)*w*h);
   _this->fdct_stride=w;
-  w=B_SZ*_nxblocks;
-  h=B_SZ*_nyblocks;
+  w=B_SZ*(_nxblocks+0);
+  h=B_SZ*(_nyblocks+0);
   _this->pred=(od_coeff *)malloc(sizeof(*_this->pred)*w*h);
   _this->pred_stride=w;
   w=B_SZ*(_nxblocks+2);
@@ -668,16 +716,16 @@ void image_data_clear(image_data *_this){
 
 void image_data_pre_block(image_data *_this,const unsigned char *_data,
  int _stride,int _bi,int _bj){
-  int      x0;
-  int      y0;
-  int      bx;
-  int      by;
-  int      x;
-  int      y;
-  int      bi;
-  int      bj;
-  int      i;
-  int      j;
+  int x0;
+  int y0;
+  int bx;
+  int by;
+  int x;
+  int y;
+  int bi;
+  int bj;
+  int i;
+  int j;
   od_coeff buf[B_SZ*B_SZ];
   x0=-(B_SZ>>1);
   y0=-(B_SZ>>1);
@@ -696,8 +744,8 @@ void image_data_pre_block(image_data *_this,const unsigned char *_data,
   if(_bj==_this->nyblocks-1){
     by+=2;
   }
-  x=x0+B_SZ*_bi+(3*B_SZ>>1);
-  y=y0+B_SZ*_bj+(3*B_SZ>>1);
+  x=x0+_bi*B_SZ+(3*B_SZ>>1);
+  y=y0+_bj*B_SZ+(3*B_SZ>>1);
   for(bj=0;bj<by;bj++){
     for(bi=0;bi<bx;bi++){
       for(j=0;j<B_SZ;j++){
@@ -706,7 +754,7 @@ void image_data_pre_block(image_data *_this,const unsigned char *_data,
            (_data[_stride*(y0+B_SZ*bj+j)+x0+B_SZ*bi+i]-128)*INPUT_SCALE;
         }
       }
-      ne_pre_filter(&_this->pre[_this->pre_stride*(y+B_SZ*bj)+x+B_SZ*bi],
+      od_pre_blocks(&_this->pre[_this->pre_stride*(y+B_SZ*bj)+x+B_SZ*bi],
        _this->pre_stride,buf,B_SZ,1,1);
     }
   }
@@ -738,8 +786,29 @@ void image_data_fdct_block(image_data *_this,int _bi,int _bj){
   }
   x=x0-(B_SZ>>1);
   y=y0-(B_SZ>>1);
-  od_fdct_blocks(&_this->fdct[y*_this->fdct_stride+x],_this->fdct_stride,
-   &_this->pre[y0*_this->pre_stride+x0],_this->pre_stride,bx,by);
+  od_fdct_blocks(&_this->fdct[_this->fdct_stride*y+x],_this->fdct_stride,
+   &_this->pre[_this->pre_stride*y0+x0],_this->pre_stride,bx,by);
+}
+
+void image_data_print_block(image_data *_this,int _bi,int _bj,FILE *_fp){
+  int by;
+  int bx;
+  int j;
+  int i;
+  fprintf(_fp,"%i",_this->mode[_this->nxblocks*_bj+_bi]);
+  for(by=0;by<=1;by++){
+    for(bx=0;bx<=2-by;bx++){
+      od_coeff *block;
+      block=&_this->fdct[_this->fdct_stride*B_SZ*(_bj+by)+B_SZ*(_bi+bx)];
+      for(j=0;j<B_SZ;j++){
+        for(i=0;i<B_SZ;i++){
+          fprintf(_fp," %i",block[_this->fdct_stride*j+i]);
+        }
+      }
+    }
+  }
+  fprintf(_fp,"\n");
+  fflush(_fp);
 }
 
 void image_data_pred_block(image_data *_this,int _bi,int _bj){
@@ -752,11 +821,7 @@ void image_data_pred_block(image_data *_this,int _bi,int _bj){
   mode=_this->mode[_this->nxblocks*_bj+_bi];
   block=&_this->fdct[_this->fdct_stride*B_SZ*(_bj+1)+B_SZ*(_bi+1)];
 #if B_SZ_LOG>=OD_LOG_BSIZE0&&B_SZ_LOG<OD_LOG_BSIZE0+OD_NBSIZES
-#if 0
-    (*OD_INTRA_MULT[B_SZ_LOG-OD_LOG_BSIZE0])(p,block,_this->fdct_stride,mode);
-#else
-    (*NE_INTRA_MULT[B_SZ_LOG-OD_LOG_BSIZE0])(p,block,_this->fdct_stride,mode);
-#endif
+  (*NE_INTRA_MULT[B_SZ_LOG-OD_LOG_BSIZE0])(p,block,_this->fdct_stride,mode);
 #else
 # error "Need a predictor implementation for this block size."
 #endif
@@ -770,54 +835,21 @@ void image_data_pred_block(image_data *_this,int _bi,int _bj){
 
 void image_data_stats_block(image_data *_this,const unsigned char *_data,
  int _stride,int _bi,int _bj,intra_stats *_stats){
-  int        mode;
-  mode_data *fr;
-  mode_data *md;
-  od_coeff  *pred;
-  od_coeff  *block;
-  int        j;
-  int        i;
-  od_coeff   buf[B_SZ*B_SZ];
-
-  mode=_this->mode[_bj*_this->nxblocks+_bi];
-
-  fr=&_stats->fr;
-  md=&_stats->md[mode];
-
-  fr->n++;
-  md->n++;
-
-  /* update the input mean and variance */
-  mode_data_add_input(fr,_data,_stride);
-  mode_data_add_input(md,_data,_stride);
-
-  /* update the daala reference mean and covariance */
-  block=&_this->fdct[_this->fdct_stride*B_SZ*(_bj+1)+B_SZ*(_bi+1)];
-
-  mode_data_add_block(fr,block,_this->fdct_stride,1);
-  mode_data_add_block(md,block,_this->fdct_stride,1);
-
-  /* update the daala predicted mean and covariance */
+  int       mode;
+  od_coeff *ref;
+  od_coeff *pred;
+  int       j;
+  int       i;
+  od_coeff  buf[B_SZ*B_SZ];
+  mode=_this->mode[_this->nxblocks*_bj+_bi];
+  ref=&_this->fdct[_this->fdct_stride*B_SZ*(_bj+1)+B_SZ*(_bi+1)];
   pred=&_this->pred[_this->pred_stride*B_SZ*_bj+B_SZ*_bi];
-
   for(j=0;j<B_SZ;j++){
     for(i=0;i<B_SZ;i++){
-      buf[B_SZ*j+i]=block[_this->fdct_stride*j+i]-pred[_this->pred_stride*j+i];
+      buf[B_SZ*j+i]=ref[_this->fdct_stride*j+i]-pred[_this->pred_stride*j+i];
     }
   }
-
-  mode_data_add_block(fr,buf,B_SZ,0);
-  mode_data_add_block(md,buf,B_SZ,0);
-
-  /* update the daala satd */
-  for(j=0;j<B_SZ;j++){
-    for(i=0;i<B_SZ;i++){
-      double satd;
-      satd=abs(buf[B_SZ*j+i]);
-      md->satd_avg[B_SZ*j+i]+=(satd-md->satd_avg[B_SZ*j+i])/md->n;
-      fr->satd_avg[B_SZ*j+i]+=(satd-fr->satd_avg[B_SZ*j+i])/fr->n;
-    }
-  }
+  intra_stats_update(_stats,_data,_stride,mode,ref,_this->fdct_stride,buf,B_SZ);
 }
 
 void image_data_idct_block(image_data *_this,int _bi,int _bj){
@@ -875,7 +907,7 @@ void image_data_post_block(image_data *_this,int _bi,int _bj){
   if(_bj==_this->nyblocks-1){
     by++;
   }
-  ne_post_filter(&_this->post[_this->post_stride*y+x],_this->post_stride,
+  od_post_blocks(&_this->post[_this->post_stride*y+x],_this->post_stride,
    &_this->idct[_this->idct_stride*y0+x0],_this->idct_stride,bx,by);
 }
 
@@ -912,7 +944,7 @@ void image_data_files_block(image_data *_this,const unsigned char *_data,
 
   for(j=0;j<B_SZ;j++){
     for(i=0;i<B_SZ;i++){
-      buf[B_SZ*j+i]=abs(_data[_stride*j+i]-buf[B_SZ*j+i]);
+      buf[B_SZ*j+i]=OD_CLAMPI(0,_data[_stride*j+i]-buf[B_SZ*j+i]+128,255);
     }
   }
   image_draw_block(&_files->res,B_SZ*_bi,B_SZ*_bj,buf,B_SZ);
@@ -1068,16 +1100,20 @@ void ne_filter_params16_init(const int *_x){
 
 static void ne_pre_filter4(od_coeff _y[4],const od_coeff _x[4]){
   int t[4];
+  /*+1/-1 butterflies (required for FIR, PR, LP).*/
   t[3]=_x[0]-_x[3];
   t[2]=_x[1]-_x[2];
   t[1]=_x[1]-(t[2]>>1);
   t[0]=_x[0]-(t[3]>>1);
+  /*Scaling factors: the biorthogonal part.*/
   t[2]=t[2]*NE_FILTER_PARAMS4[0]>>6;
   t[2]+=-t[2]>>15&1;
   t[3]=t[3]*NE_FILTER_PARAMS4[1]>>6;
   t[3]+=-t[3]>>15&1;
+  /*Rotations*/
   t[3]+=t[2]*NE_FILTER_PARAMS4[2]+32>>6;
   t[2]+=t[3]*NE_FILTER_PARAMS4[3]+32>>6;
+  /*More +1/-1 butterflies (required for FIR, PR, LP).*/
   t[0]+=t[3]>>1;
   _y[0]=(od_coeff)t[0];
   t[1]+=t[2]>>1;
@@ -1092,10 +1128,13 @@ static void ne_post_filter4(od_coeff _x[4],const od_coeff _y[4]){
   t[2]=_y[1]-_y[2];
   t[1]=_y[1]-(t[2]>>1);
   t[0]=_y[0]-(t[3]>>1);
+
   t[2]-=t[3]*NE_FILTER_PARAMS4[3]+32>>6;
   t[3]-=t[2]*NE_FILTER_PARAMS4[2]+32>>6;
+
   t[3]=(t[3]<<6)/NE_FILTER_PARAMS4[1];
   t[2]=(t[2]<<6)/NE_FILTER_PARAMS4[0];
+
   t[0]+=t[3]>>1;
   _x[0]=(od_coeff)t[0];
   t[1]+=t[2]>>1;
@@ -1104,91 +1143,297 @@ static void ne_post_filter4(od_coeff _x[4],const od_coeff _y[4]){
   _x[3]=(od_coeff)(t[0]-t[3]);
 }
 
+static void ne_pre_filter8(od_coeff _y[8],const od_coeff _x[8]){
+  int t[8];
+  /*+1/-1 butterflies (required for FIR, PR, LP).*/
+  t[7]=_x[0]-_x[7];
+  t[6]=_x[1]-_x[6];
+  t[5]=_x[2]-_x[5];
+  t[4]=_x[3]-_x[4];
+  t[3]=_x[3]-(t[4]>>1);
+  t[2]=_x[2]-(t[5]>>1);
+  t[1]=_x[1]-(t[6]>>1);
+  t[0]=_x[0]-(t[7]>>1);
+  /*Scaling factors: the biorthogonal part.*/
+  t[4]=t[4]*NE_FILTER_PARAMS8[0]>>6;
+  t[4]+=-t[4]>>15&1;
+  t[5]=t[5]*NE_FILTER_PARAMS8[1]>>6;
+  t[5]+=-t[5]>>15&1;
+  t[6]=t[6]*NE_FILTER_PARAMS8[2]>>6;
+  t[6]+=-t[6]>>15&1;
+  t[7]=t[7]*NE_FILTER_PARAMS8[3]>>6;
+  t[7]+=-t[7]>>15&1;
+  /*Rotations*/
+  t[5]+=t[4]*NE_FILTER_PARAMS8[4]+32>>6;
+  t[6]+=t[5]*NE_FILTER_PARAMS8[5]+32>>6;
+  t[7]+=t[6]*NE_FILTER_PARAMS8[6]+32>>6;
+  t[6]+=t[7]*NE_FILTER_PARAMS8[9]+32>>6;
+  t[5]+=t[6]*NE_FILTER_PARAMS8[8]+32>>6;
+  t[4]+=t[5]*NE_FILTER_PARAMS8[7]+32>>6;
+  /*More +1/-1 butterflies (required for FIR, PR, LP).*/
+  t[0]+=t[7]>>1;
+  _y[0]=(od_coeff)t[0];
+  t[1]+=t[6]>>1;
+  _y[1]=(od_coeff)t[1];
+  t[2]+=t[5]>>1;
+  _y[2]=(od_coeff)t[2];
+  t[3]+=t[4]>>1;
+  _y[3]=(od_coeff)t[3];
+  _y[4]=(od_coeff)(t[3]-t[4]);
+  _y[5]=(od_coeff)(t[2]-t[5]);
+  _y[6]=(od_coeff)(t[1]-t[6]);
+  _y[7]=(od_coeff)(t[0]-t[7]);
+}
+
+static void ne_post_filter8(od_coeff _x[8],const od_coeff _y[8]){
+  int t[8];
+  t[7]=_y[0]-_y[7];
+  t[6]=_y[1]-_y[6];
+  t[5]=_y[2]-_y[5];
+  t[4]=_y[3]-_y[4];
+  t[3]=_y[3]-(t[4]>>1);
+  t[2]=_y[2]-(t[5]>>1);
+  t[1]=_y[1]-(t[6]>>1);
+  t[0]=_y[0]-(t[7]>>1);
+
+  t[4]-=t[5]*NE_FILTER_PARAMS8[7]+32>>6;
+  t[5]-=t[6]*NE_FILTER_PARAMS8[8]+32>>6;
+  t[6]-=t[7]*NE_FILTER_PARAMS8[9]+32>>6;
+  t[7]-=t[6]*NE_FILTER_PARAMS8[6]+32>>6;
+  t[6]-=t[5]*NE_FILTER_PARAMS8[5]+32>>6;
+  t[5]-=t[4]*NE_FILTER_PARAMS8[4]+32>>6;
+
+  t[7]=(t[7]<<6)/NE_FILTER_PARAMS8[3];
+  t[6]=(t[6]<<6)/NE_FILTER_PARAMS8[2];
+  t[5]=(t[5]<<6)/NE_FILTER_PARAMS8[1];
+  t[4]=(t[4]<<6)/NE_FILTER_PARAMS8[0];
+
+  t[0]+=t[7]>>1;
+  _x[0]=(od_coeff)t[0];
+  t[1]+=t[6]>>1;
+  _x[1]=(od_coeff)t[1];
+  t[2]+=t[5]>>1;
+  _x[2]=(od_coeff)t[2];
+  t[3]+=t[4]>>1;
+  _x[3]=(od_coeff)t[3];
+  _x[4]=(od_coeff)(t[3]-t[4]);
+  _x[5]=(od_coeff)(t[2]-t[5]);
+  _x[6]=(od_coeff)(t[1]-t[6]);
+  _x[7]=(od_coeff)(t[0]-t[7]);
+}
+
+static void ne_pre_filter16(od_coeff _y[16],const od_coeff _x[16]){
+  int t[16];
+  /*+1/-1 butterflies (required for FIR, PR, LP).*/
+  t[15]=_x[0]-_x[15];
+  t[14]=_x[1]-_x[14];
+  t[13]=_x[2]-_x[13];
+  t[12]=_x[3]-_x[12];
+  t[11]=_x[4]-_x[11];
+  t[10]=_x[5]-_x[10];
+  t[9]=_x[6]-_x[9];
+  t[8]=_x[7]-_x[8];
+  t[7]=_x[7]-(t[8]>>1);
+  t[6]=_x[6]-(t[9]>>1);
+  t[5]=_x[5]-(t[10]>>1);
+  t[4]=_x[4]-(t[11]>>1);
+  t[3]=_x[3]-(t[12]>>1);
+  t[2]=_x[2]-(t[13]>>1);
+  t[1]=_x[1]-(t[14]>>1);
+  t[0]=_x[0]-(t[15]>>1);
+  /*Scaling factors: the biorthogonal part.*/
+  t[8]=t[8]*NE_FILTER_PARAMS16[0]>>6;
+  t[8]+=-t[8]>>15&1;
+  t[9]=t[9]*NE_FILTER_PARAMS16[1]>>6;
+  t[9]+=-t[9]>>15&1;
+  t[10]=t[10]*NE_FILTER_PARAMS16[2]>>6;
+  t[10]+=-t[10]>>15&1;
+  t[11]=t[11]*NE_FILTER_PARAMS16[3]>>6;
+  t[11]+=-t[11]>>15&1;
+  t[12]=t[12]*NE_FILTER_PARAMS16[4]>>6;
+  t[12]+=-t[12]>>15&1;
+  t[13]=t[13]*NE_FILTER_PARAMS16[5]>>6;
+  t[13]+=-t[13]>>15&1;
+  t[14]=t[14]*NE_FILTER_PARAMS16[6]>>6;
+  t[14]+=-t[14]>>15&1;
+  t[15]=t[15]*NE_FILTER_PARAMS16[7]>>6;
+  t[15]+=-t[15]>>15&1;
+  /*Rotations*/
+  t[9]+=t[8]*NE_FILTER_PARAMS16[8]+32>>6;
+  t[10]+=t[9]*NE_FILTER_PARAMS16[9]+32>>6;
+  t[11]+=t[10]*NE_FILTER_PARAMS16[10]+32>>6;
+  t[12]+=t[11]*NE_FILTER_PARAMS16[11]+32>>6;
+  t[13]+=t[12]*NE_FILTER_PARAMS16[12]+32>>6;
+  t[14]+=t[13]*NE_FILTER_PARAMS16[13]+32>>6;
+  t[15]+=t[14]*NE_FILTER_PARAMS16[14]+32>>6;
+  t[14]+=t[15]*NE_FILTER_PARAMS16[21]+32>>6;
+  t[13]+=t[14]*NE_FILTER_PARAMS16[20]+32>>6;
+  t[12]+=t[13]*NE_FILTER_PARAMS16[19]+32>>6;
+  t[11]+=t[12]*NE_FILTER_PARAMS16[18]+32>>6;
+  t[10]+=t[11]*NE_FILTER_PARAMS16[17]+32>>6;
+  t[9]+=t[10]*NE_FILTER_PARAMS16[16]+32>>6;
+  t[8]+=t[9]*NE_FILTER_PARAMS16[15]+32>>6;
+  /*More +1/-1 butterflies (required for FIR, PR, LP).*/
+  t[0]+=t[15]>>1;
+  _y[0]=(od_coeff)t[0];
+  t[1]+=t[14]>>1;
+  _y[1]=(od_coeff)t[1];
+  t[2]+=t[13]>>1;
+  _y[2]=(od_coeff)t[2];
+  t[3]+=t[12]>>1;
+  _y[3]=(od_coeff)t[3];
+  t[4]+=t[11]>>1;
+  _y[4]=(od_coeff)t[4];
+  t[5]+=t[10]>>1;
+  _y[5]=(od_coeff)t[5];
+  t[6]+=t[9]>>1;
+  _y[6]=(od_coeff)t[6];
+  t[7]+=t[8]>>1;
+  _y[7]=(od_coeff)t[7];
+  _y[8]=(od_coeff)(t[7]-t[8]);
+  _y[9]=(od_coeff)(t[6]-t[9]);
+  _y[10]=(od_coeff)(t[5]-t[10]);
+  _y[11]=(od_coeff)(t[4]-t[11]);
+  _y[12]=(od_coeff)(t[3]-t[12]);
+  _y[13]=(od_coeff)(t[2]-t[13]);
+  _y[14]=(od_coeff)(t[1]-t[14]);
+  _y[15]=(od_coeff)(t[0]-t[15]);
+}
+
+static void ne_post_filter16(od_coeff _x[16],const od_coeff _y[16]){
+  int t[16];
+  t[15]=_y[0]-_y[15];
+  t[14]=_y[1]-_y[14];
+  t[13]=_y[2]-_y[13];
+  t[12]=_y[3]-_y[12];
+  t[11]=_y[4]-_y[11];
+  t[10]=_y[5]-_y[10];
+  t[9]=_y[6]-_y[9];
+  t[8]=_y[7]-_y[8];
+  t[7]=_y[7]-(t[8]>>1);
+  t[6]=_y[6]-(t[9]>>1);
+  t[5]=_y[5]-(t[10]>>1);
+  t[4]=_y[4]-(t[11]>>1);
+  t[3]=_y[3]-(t[12]>>1);
+  t[2]=_y[2]-(t[13]>>1);
+  t[1]=_y[1]-(t[14]>>1);
+  t[0]=_y[0]-(t[15]>>1);
+
+  t[8]-=t[9]*NE_FILTER_PARAMS16[15]+32>>6;
+  t[9]-=t[10]*NE_FILTER_PARAMS16[16]+32>>6;
+  t[10]-=t[11]*NE_FILTER_PARAMS16[17]+32>>6;
+  t[11]-=t[12]*NE_FILTER_PARAMS16[18]+32>>6;
+  t[12]-=t[13]*NE_FILTER_PARAMS16[19]+32>>6;
+  t[13]-=t[14]*NE_FILTER_PARAMS16[20]+32>>6;
+  t[14]-=t[15]*NE_FILTER_PARAMS16[21]+32>>6;
+  t[15]-=t[14]*NE_FILTER_PARAMS16[14]+32>>6;
+  t[14]-=t[13]*NE_FILTER_PARAMS16[13]+32>>6;
+  t[13]-=t[12]*NE_FILTER_PARAMS16[12]+32>>6;
+  t[12]-=t[11]*NE_FILTER_PARAMS16[11]+32>>6;
+  t[11]-=t[10]*NE_FILTER_PARAMS16[10]+32>>6;
+  t[10]-=t[9]*NE_FILTER_PARAMS16[9]+32>>6;
+  t[9]-=t[8]*NE_FILTER_PARAMS16[8]+32>>6;
+
+  t[15]=(t[15]<<6)/NE_FILTER_PARAMS16[7];
+  t[14]=(t[14]<<6)/NE_FILTER_PARAMS16[6];
+  t[13]=(t[13]<<6)/NE_FILTER_PARAMS16[5];
+  t[12]=(t[12]<<6)/NE_FILTER_PARAMS16[4];
+  t[11]=(t[11]<<6)/NE_FILTER_PARAMS16[3];
+  t[10]=(t[10]<<6)/NE_FILTER_PARAMS16[2];
+  t[9]=(t[9]<<6)/NE_FILTER_PARAMS16[1];
+  t[8]=(t[8]<<6)/NE_FILTER_PARAMS16[0];
+
+  t[0]+=t[15]>>1;
+  _x[0]=(od_coeff)t[0];
+  t[1]+=t[14]>>1;
+  _x[1]=(od_coeff)t[1];
+  t[2]+=t[13]>>1;
+  _x[2]=(od_coeff)t[2];
+  t[3]+=t[12]>>1;
+  _x[3]=(od_coeff)t[3];
+  t[4]+=t[11]>>1;
+  _x[4]=(od_coeff)t[4];
+  t[5]+=t[10]>>1;
+  _x[5]=(od_coeff)t[5];
+  t[6]+=t[9]>>1;
+  _x[6]=(od_coeff)t[6];
+  t[7]+=t[8]>>1;
+  _x[7]=(od_coeff)t[7];
+  _x[8]=(od_coeff)(t[7]-t[8]);
+  _x[9]=(od_coeff)(t[6]-t[9]);
+  _x[10]=(od_coeff)(t[5]-t[10]);
+  _x[11]=(od_coeff)(t[4]-t[11]);
+  _x[12]=(od_coeff)(t[3]-t[12]);
+  _x[13]=(od_coeff)(t[2]-t[13]);
+  _x[14]=(od_coeff)(t[1]-t[14]);
+  _x[15]=(od_coeff)(t[0]-t[15]);
+}
+
 const od_filter_func NE_PRE_FILTER[OD_NBSIZES]={
   ne_pre_filter4,
-  od_pre_filter8,
-  od_pre_filter16
+  ne_pre_filter8,
+  ne_pre_filter16
 };
 
 const od_filter_func NE_POST_FILTER[OD_NBSIZES]={
   ne_post_filter4,
-  od_post_filter8,
-  od_post_filter16
+  ne_post_filter8,
+  ne_post_filter16
 };
 
-void ne_intra_pred4x4_mult(double *_p,const od_coeff *_c,int _stride,int _mode){
+static void ne_intra_pred4x4_mult(double *_p,const od_coeff *_c,int _stride,
+ int _mode){
   int j;
   int i;
-  int by;
-  int bx;
   int k;
-  int l;
+  int x;
+  int y;
   for(j=0;j<4;j++){
     for(i=0;i<4;i++){
       _p[4*j+i]=NE_PRED_OFFSETS_4x4[_mode][j][i];
-      for(by=0;by<=1;by++){
-        for(bx=0;bx<=(1-by)<<1;bx++){
-          const od_coeff *b;
-          b=&_c[_stride*4*(by-1)+4*(bx-1)];
-          for(k=0;k<4;k++){
-            for(l=0;l<4;l++){
-              _p[4*j+i]+=
-               b[_stride*k+l]*NE_PRED_WEIGHTS_4x4[_mode][j][i][by*4+k][bx*4+l];
-            }
-          }
-        }
+      for(k=0;k<NE_PRED_MULTS_4x4[_mode][j][i];k++){
+        x=NE_PRED_PARAMX_4x4[_mode][j][i][k];
+        y=NE_PRED_PARAMY_4x4[_mode][j][i][k];
+        _p[4*j+i]+=_c[_stride*(y-4)+(x-4)]*NE_PRED_WEIGHTS_4x4[_mode][j][i][k];
       }
     }
   }
 }
 
-void ne_intra_pred8x8_mult(double *_p,const od_coeff *_c,int _stride,int _mode){
+static void ne_intra_pred8x8_mult(double *_p,const od_coeff *_c,int _stride,
+ int _mode){
   int j;
   int i;
-  int by;
-  int bx;
   int k;
-  int l;
+  int x;
+  int y;
   for(j=0;j<8;j++){
     for(i=0;i<8;i++){
       _p[8*j+i]=NE_PRED_OFFSETS_8x8[_mode][j][i];
-      for(by=0;by<=1;by++){
-        for(bx=0;bx<=(1-by)<<1;bx++){
-          const od_coeff *b;
-          b=&_c[_stride*8*(by-1)+8*(bx-1)];
-          for(k=0;k<8;k++){
-            for(l=0;l<8;l++){
-              _p[8*j+i]+=
-               b[_stride*k+l]*NE_PRED_WEIGHTS_8x8[_mode][j][i][by*8+k][bx*8+l];
-            }
-          }
-        }
+      for(k=0;k<NE_PRED_MULTS_8x8[_mode][j][i];k++){
+        x=NE_PRED_PARAMX_8x8[_mode][j][i][k];
+        y=NE_PRED_PARAMY_8x8[_mode][j][i][k];
+        _p[8*j+i]+=_c[_stride*(y-8)+(x-8)]*NE_PRED_WEIGHTS_8x8[_mode][j][i][k];
       }
     }
   }
 }
 
-void ne_intra_pred16x16_mult(double *_p,const od_coeff *_c,int _stride,int _mode){
+static void ne_intra_pred16x16_mult(double *_p,const od_coeff *_c,int _stride,
+ int _mode){
   int j;
   int i;
-  int by;
-  int bx;
   int k;
-  int l;
+  int x;
+  int y;
   for(j=0;j<16;j++){
     for(i=0;i<16;i++){
       _p[16*j+i]=NE_PRED_OFFSETS_16x16[_mode][j][i];
-      for(by=0;by<=1;by++){
-        for(bx=0;bx<=(1-by)<<1;bx++){
-          const od_coeff *b;
-          b=&_c[_stride*16*(by-1)+16*(bx-1)];
-          for(k=0;k<16;k++){
-            for(l=0;l<16;l++){
-              _p[16*j+i]+=
-               b[_stride*k+l]*NE_PRED_WEIGHTS_16x16[_mode][j][i][by*16+k][bx*16+l];
-            }
-          }
-        }
+      for(k=0;k<NE_PRED_MULTS_16x16[_mode][j][i];k++){
+        x=NE_PRED_PARAMX_16x16[_mode][j][i][k];
+        y=NE_PRED_PARAMY_16x16[_mode][j][i][k];
+        _p[16*j+i]+=
+         _c[_stride*(y-16)+(x-16)]*NE_PRED_WEIGHTS_16x16[_mode][j][i][k];
       }
     }
   }
@@ -1202,12 +1447,9 @@ const od_intra_mult_func NE_INTRA_MULT[OD_NBSIZES]={
 
 void print_betas(FILE *_fp){
   int m;
-  int i;
   int j;
+  int i;
   int k;
-  int l;
-  int bx;
-  int by;
 #if B_SZ==4
   fprintf(_fp,"double NE_PRED_OFFSETS_4x4[OD_INTRA_NMODES][4][4]={\n");
 #elif B_SZ==8
@@ -1223,59 +1465,163 @@ void print_betas(FILE *_fp){
       fprintf(_fp,"    {");
       for(i=0;i<B_SZ;i++){
 #if B_SZ==4
-        fprintf(_fp,"%s  %- 24.18G",i>0?",":"",NE_PRED_OFFSETS_4x4[m][j][i]);
+        fprintf(_fp,"%s%- 24.18G",i>0?",":" ",NE_PRED_OFFSETS_4x4[m][j][i]);
 #elif B_SZ==8
-        fprintf(_fp,"%s  %- 24.18G",i>0?",":"",NE_PRED_OFFSETS_8x8[m][j][i]);
+        fprintf(_fp,"%s%- 24.18G",i>0?",":"",NE_PRED_OFFSETS_8x8[m][j][i]);
 #elif B_SZ==16
-        fprintf(_fp,"%s  %- 24.18G",i>0?",":"",NE_PRED_OFFSETS_16x16[m][j][i]);
+        fprintf(_fp,"%s%- 24.18G",i>0?",":"",NE_PRED_OFFSETS_16x16[m][j][i]);
 #else
 # error "Unsupported block size."
 #endif
       }
-      fprintf(_fp,"  }%s\n",j<B_SZ-1?",":"");
+      fprintf(_fp," }%s\n",j<B_SZ-1?",":"");
     }
     fprintf(_fp,"  }%s\n",m<OD_INTRA_NMODES-1?",":"");
   }
   fprintf(_fp,"};\n");
 #if B_SZ==4
-  fprintf(_fp,"double NE_PRED_WEIGHTS_4x4[OD_INTRA_NMODES][4][4][2*4][3*4]={\n");
+  fprintf(_fp,"int NE_PRED_MULTS_4x4[OD_INTRA_NMODES][4][4]={\n");
 #elif B_SZ==8
-  fprintf(_fp,"double NE_PRED_WEIGHTS_8x8[OD_INTRA_NMODES][8][8][2*8][3*8]={\n");
+  fprintf(_fp,"int NE_PRED_MULTS_8x8[OD_INTRA_NMODES][8][8]={\n");
 #elif B_SZ==16
-  fprintf(_fp,"double NE_PRED_WEIGHTS_16x16[OD_INTRA_NMODES][16][16][2*16][3*16]={\n");
+  fprintf(_fp,"int NE_PRED_MULTS_16x16[OD_INTRA_NMODES][16][16]={\n");
 #else
 # error "Unsupported block size."
 #endif
   for(m=0;m<OD_INTRA_NMODES;m++){
-    fprintf(_fp,"  {\n");
+    fprintf(_fp,"/* Mode %i */\n  {\n",m);
     for(j=0;j<B_SZ;j++){
-      fprintf(_fp,"    {\n");
+      fprintf(_fp,"    {");
       for(i=0;i<B_SZ;i++){
-        fprintf(_fp,"/* Mode %i (%i,%i) */\n      {\n",m,j,i);
-        for(by=0;by<=1;by++){
-          for(k=0;k<B_SZ;k++){
-            fprintf(_fp,"        {");
-            for(bx=0;bx<=2-by;bx++){
-              for(l=0;l<B_SZ;l++){
 #if B_SZ==4
-                fprintf(_fp,"%s  %- 24.18G",bx>0||l>0?",":"",NE_PRED_WEIGHTS_4x4[m][j][i][B_SZ*by+k][B_SZ*bx+l]);
+        fprintf(_fp,"%s%4i",i>0?",":"",NE_PRED_MULTS_4x4[m][j][i]);
 #elif B_SZ==8
-                fprintf(_fp,"%s  %- 24.18G",bx>0||l>0?",":"",NE_PRED_WEIGHTS_8x8[m][j][i][B_SZ*by+k][B_SZ*bx+l]);
+        fprintf(_fp,"%s%4i",i>0?",":"",NE_PRED_MULTS_8x8[m][j][i]);
 #elif B_SZ==16
-                fprintf(_fp,"%s  %- 24.18G",bx>0||l>0?",":"",NE_PRED_WEIGHTS_16x16[m][j][i][B_SZ*by+k][B_SZ*bx+l]);
+        fprintf(_fp,"%s%4i",i>0?",":"",NE_PRED_MULTS_16x16[m][j][i]);
 #else
 # error "Unsupported block size."
 #endif
-              }
-            }
-            fprintf(_fp,"  }%s\n",by<1||k<B_SZ-1?",":"");
-          }
+      }
+      fprintf(_fp,"   }%s\n",j<B_SZ-1?",":"");
+    }
+    fprintf(_fp,"  }%s\n",m<OD_INTRA_NMODES-1?",":"");
+  }
+  fprintf(_fp,"};\n");
+#if B_SZ==4
+  fprintf(_fp,"double NE_PRED_WEIGHTS_4x4[OD_INTRA_NMODES][4][4][4*4*4]={\n");
+#elif B_SZ==8
+  fprintf(_fp,"double NE_PRED_WEIGHTS_8x8[OD_INTRA_NMODES][8][8][4*8*8]={\n");
+#elif B_SZ==16
+  fprintf(_fp,
+   "double NE_PRED_WEIGHTS_16x16[OD_INTRA_NMODES][16][16][4*16*16]={\n");
+#else
+# error "Unsupported block size."
+#endif
+  for(m=0;m<OD_INTRA_NMODES;m++){
+    fprintf(_fp,"/* Mode %i */\n  {\n",m);
+    for(j=0;j<B_SZ;j++){
+      fprintf(_fp,"    {\n");
+      for(i=0;i<B_SZ;i++){
+        fprintf(_fp,"      {");
+#if B_SZ==4
+        for(k=0;k<NE_PRED_MULTS_4x4[m][j][i];k++){
+          fprintf(_fp,"%s%s%- 24.18G",k>0?",":" ",k>0&&k%8==0?"\n        ":"",
+           NE_PRED_WEIGHTS_4x4[m][j][i][k]);
         }
-        fprintf(_fp,"      }%s\n",i<B_SZ-1?",":"");
+#elif B_SZ==8
+        for(k=0;k<NE_PRED_MULTS_8x8[m][j][i];k++){
+          fprintf(_fp,"%s%s%- 24.18G",k>0?",":" ",k>0&&k%8==0?"\n        ":"",
+           NE_PRED_WEIGHTS_8x8[m][j][i][k]);
+        }
+#elif B_SZ==16
+        for(k=0;k<NE_PRED_MULTS_16x16[m][j][i];k++){
+          fprintf(_fp,"%s%s%- 24.18G",k>0?",":" ",k>0&&k%8==0?"\n        ":"",
+           NE_PRED_WEIGHTS_16x16[m][j][i][k]);
+        }
+#else
+# error "Unsupported block size."
+#endif
+        fprintf(_fp,"%s}%s\n",k==0?"  0  ":"",i<B_SZ-1?",":"");
       }
       fprintf(_fp,"    }%s\n",j<B_SZ-1?",":"");
     }
     fprintf(_fp,"  }%s\n",m<OD_INTRA_NMODES-1?",":"");
   }
   fprintf(_fp,"};\n");
+#if B_SZ==4
+  fprintf(_fp,"int NE_PRED_PARAMX_4x4[OD_INTRA_NMODES][4][4][4*4*4]={\n");
+#elif B_SZ==8
+  fprintf(_fp,"int NE_PRED_PARAMX_8x8[OD_INTRA_NMODES][8][8][4*8*8]={\n");
+#elif B_SZ==16
+  fprintf(_fp,"int NE_PRED_PARAMX_16x16[OD_INTRA_NMODES][16][16][4*16*16]={\n");
+#else
+# error "Unsupported block size."
+#endif
+  for(m=0;m<OD_INTRA_NMODES;m++){
+    fprintf(_fp,"/* Mode %i */\n  {\n",m);
+    for(j=0;j<B_SZ;j++){
+      fprintf(_fp,"    {\n");
+      for(i=0;i<B_SZ;i++){
+        fprintf(_fp,"      {");
+#if B_SZ==4
+        for(k=0;k<NE_PRED_MULTS_4x4[m][j][i];k++){
+          fprintf(_fp,"%s%3i",k>0?",":"",NE_PRED_PARAMX_4x4[m][j][i][k]);
+        }
+#elif B_SZ==8
+        for(k=0;k<NE_PRED_MULTS_8x8[m][j][i];k++){
+          fprintf(_fp,"%s%3i",k>0?",":"",NE_PRED_PARAMX_8x8[m][j][i][k]);
+        }
+#elif B_SZ==16
+        for(k=0;k<NE_PRED_MULTS_16x16[m][j][i];k++){
+          fprintf(_fp,"%s%3i",k>0?",":"",NE_PRED_PARAMX_16x16[m][j][i][k]);
+        }
+#else
+# error "Unsupported block size."
+#endif
+        fprintf(_fp,"%s   }%s\n",k==0?"  0":"",i<B_SZ-1?",":"");
+      }
+      fprintf(_fp,"    }%s\n",j<B_SZ-1?",":"");
+    }
+    fprintf(_fp,"  }%s\n",m<OD_INTRA_NMODES-1?",":"");
+  }
+  fprintf(_fp,"};\n");
+#if B_SZ==4
+  fprintf(_fp,"int NE_PRED_PARAMY_4x4[OD_INTRA_NMODES][4][4][4*4*4]={\n");
+#elif B_SZ==8
+  fprintf(_fp,"int NE_PRED_PARAMY_8x8[OD_INTRA_NMODES][8][8][4*8*8]={\n");
+#elif B_SZ==16
+  fprintf(_fp,"int NE_PRED_PARAMY_16x16[OD_INTRA_NMODES][16][16][4*16*16]={\n");
+#else
+# error "Unsupported block size."
+#endif
+  for(m=0;m<OD_INTRA_NMODES;m++){
+    fprintf(_fp,"/* Mode %i */\n  {\n",m);
+    for(j=0;j<B_SZ;j++){
+      fprintf(_fp,"    {\n");
+      for(i=0;i<B_SZ;i++){
+        fprintf(_fp,"      {");
+#if B_SZ==4
+        for(k=0;k<NE_PRED_MULTS_4x4[m][j][i];k++){
+          fprintf(_fp,"%s%3i",k>0?",":"",NE_PRED_PARAMY_4x4[m][j][i][k]);
+        }
+#elif B_SZ==8
+        for(k=0;k<NE_PRED_MULTS_8x8[m][j][i];k++){
+          fprintf(_fp,"%s%3i",k>0?",":"",NE_PRED_PARAMY_8x8[m][j][i][k]);
+        }
+#elif B_SZ==16
+        for(k=0;k<NE_PRED_MULTS_16x16[m][j][i];k++){
+          fprintf(_fp,"%s%3i",k>0?",":"",NE_PRED_PARAMY_16x16[m][j][i][k]);
+        }
+#else
+# error "Unsupported block size."
+#endif
+        fprintf(_fp,"%s   }%s\n",k==0?"  0":"",i<B_SZ-1?",":"");
+      }
+      fprintf(_fp,"    }%s\n",j<B_SZ-1?",":"");
+    }
+    fprintf(_fp,"  }%s\n",m<OD_INTRA_NMODES-1?",":"");
+  }
+  fprintf(_fp,"};\n");
+  fflush(_fp);
 }
