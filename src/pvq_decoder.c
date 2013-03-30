@@ -42,6 +42,48 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 int laplace_decode_special(od_ec_dec *dec,unsigned decay,int max)
 {
   int pos;
+#if 1
+  int shift;
+  int xs;
+  int ms;
+  int sym;
+  const ogg_uint16_t *cdf;
+  shift=0;
+  /* We don't want a large decay value because that would require too many symbols.
+     However, it's OK if the max is below 15. */
+  while ( ((max>>shift)>=15||max==-1) && decay>235)
+  {
+    decay=(decay*decay+128)>>8;
+    shift++;
+  }
+  decay = OD_MINI(decay, 254);
+  decay = OD_MAXI(decay, 2);
+  ms=max>>shift;
+  cdf = exp_cdf_table[(decay+1)>>1];
+  /*printf("decay = %d\n", decay);*/
+  xs=0;
+  do {
+    sym = OD_MINI(xs, 15);
+    /*{int i; printf("%d %d %d %d %d\n", x, xs, shift, sym, max);
+    for (i=0;i<16;i++)
+      printf("%d ", cdf[i]);
+    printf("\n");}*/
+    if (ms>0 && ms<15){
+      /* Simple way of truncating the pdf when we have a bound */
+      sym = od_ec_decode_cdf_unscaled(dec, cdf, ms+1);
+    } else {
+      sym = od_ec_decode_cdf_q15(dec, cdf, 16);
+    }
+
+    xs += sym;
+    ms -= 15;
+  } while (sym>=15);
+  if (shift)
+    pos = (xs<<shift) + od_ec_dec_bits(dec, shift);
+  else
+    pos = xs;
+
+#else
   unsigned decay2, decay4, decay8, decay16;
   unsigned decay_f;
   decay = OD_MINI(255,decay);
@@ -85,6 +127,7 @@ int laplace_decode_special(od_ec_dec *dec,unsigned decay,int max)
     decay_f=OD_MAXI(1,decay<<6);
     pos += od_ec_decode_bool(dec,16384,16384+decay_f);
   }
+#endif
 #endif
   return pos;
 }

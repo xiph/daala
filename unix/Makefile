@@ -101,6 +101,7 @@ info.c \
 internal.c \
 intra.c \
 intradata.c \
+laplace_tables.c \
 mc.c \
 newdct.c \
 pvq.c \

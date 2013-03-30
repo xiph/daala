@@ -41,6 +41,45 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
  */
 void laplace_encode_special(od_ec_enc *enc,int x,unsigned decay,int max)
 {
+#if 1
+  int shift;
+  int xs;
+  int ms;
+  int sym;
+  const ogg_uint16_t *cdf;
+  shift=0;
+  /* We don't want a large decay value because that would require too many symbols.
+     However, it's OK if the max is below 15. */
+  while ( ((max>>shift)>=15||max==-1) && decay>235)
+  {
+    decay=(decay*decay+128)>>8;
+    shift++;
+  }
+  decay = OD_MINI(decay, 254);
+  decay = OD_MAXI(decay, 2);
+  xs=x>>shift;
+  ms=max>>shift;
+  cdf = exp_cdf_table[(decay+1)>>1];
+  /*printf("decay = %d\n", decay);*/
+  do {
+    sym = OD_MINI(xs, 15);
+    /*{int i; printf("%d %d %d %d %d\n", x, xs, shift, sym, max);
+    for (i=0;i<16;i++)
+      printf("%d ", cdf[i]);
+    printf("\n");}*/
+    if (ms>0 && ms<15){
+      /* Simple way of truncating the pdf when we have a bound */
+      od_ec_encode_cdf_unscaled(enc, sym, cdf, ms+1);
+    } else {
+      od_ec_encode_cdf_q15(enc, sym, cdf, 16);
+    }
+
+    xs -= 15;
+    ms -= 15;
+  } while (sym>=15);
+  if (shift)
+    od_ec_enc_bits(enc, x&((1<<shift)-1), shift);
+#else
   unsigned decay2, decay4, decay8, decay16;
   unsigned decay_f;
   decay = OD_MINI(255,decay);
@@ -87,7 +126,7 @@ void laplace_encode_special(od_ec_enc *enc,int x,unsigned decay,int max)
     od_ec_encode_bool(enc, (x&0x1)!=0,16384,16384+decay_f);
   }
 #endif
-
+#endif
 }
 
 /** Encodes a Laplace-distributed variable for use in PVQ
