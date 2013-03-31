@@ -148,6 +148,8 @@ static int laplace_decode(od_ec_dec *dec, int ExQ8, int K)
   const ogg_uint16_t *cdf0, *cdf1;
   int sym;
   int lsb=0;
+  int decay;
+  int offset;
 
   /* shift down x if expectation is too high */
   shift=od_ilog(ExQ8)-11;
@@ -158,18 +160,23 @@ static int laplace_decode(od_ec_dec *dec, int ExQ8, int K)
   ExQ8=(ExQ8+(1<<shift>>1))>>shift;
   K=(K+(1<<shift>>1))>>shift;
 
+  decay = OD_MINI(254,256*ExQ8/(ExQ8+256));
+#if 1
+  offset = laplace_offset[(decay+1)>>1];
+  for(j=0;j<16;j++)
+  {
+    cdf[j]=exp_cdf_table[(decay+1)>>1][j]-offset;
+  }
+#else
   /* Interpolate pre-computed icdfs based on Ex */
   cdf0=cdf_table[ExQ8>>4];
   cdf1=cdf_table[(ExQ8>>4)+1];
   for(j=0;j<16;j++)
     cdf[j]=((ExQ8&0xF)*cdf1[j]+(16-(ExQ8&0xF))*cdf0[j]+8)>>4;
+#endif
 
-  if(K<15){
-    /* Simple way of truncating the pdf when we have a bound */
-    sym=od_ec_decode_cdf_unscaled(dec,cdf,K+1);
-  } else {
-    sym=od_ec_decode_cdf_q15(dec,cdf,16);
-  }
+  /* Simple way of truncating the pdf when we have a bound */
+  sym=od_ec_decode_cdf_unscaled(dec,cdf,OD_MINI(K+1,16));
   if(shift){
     int special;
     /* Because of the rounding, there's only half the number of possibilities for xs=0 */
@@ -179,13 +186,9 @@ static int laplace_decode(od_ec_dec *dec, int ExQ8, int K)
     lsb-=(!special<<(shift-1));
   }
 
-  if(sym==15){
-    unsigned decay;
-    decay=decayE[(ExQ8+8)>>4];
-
-    /* Handle the exponentially-decaying tail of the distribution */
-    sym+=laplace_decode_special(dec,decay,K);
-  }
+  /* Handle the exponentially-decaying tail of the distribution */
+  if(sym==15)
+    sym+=laplace_decode_special(dec,decay,K-15);
 
   return (sym<<shift)+lsb;
 }
