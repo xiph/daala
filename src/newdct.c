@@ -322,7 +322,7 @@ void od_bin_idct8(od_coeff *_x,int _xstride,const od_coeff _y[16]){
   *(_x+7*_xstride)=t1;
 }
 
-#else
+#elif 0
 void od_bin_fdct8(od_coeff _y[8],const od_coeff *_x,int _xstride){
   /*29 adds, 6 shifts, 11 "muls".*/
   int t0;
@@ -484,6 +484,342 @@ void od_bin_idct8(od_coeff *_x,int _xstride,const od_coeff _y[16]){
   *(_x+6*_xstride)=t5;
   *(_x+7*_xstride)=t1;
 }
+
+#elif 0
+void od_bin_fdct8(od_coeff _y[8],const od_coeff *_x,int _xstride){
+  /*31 adds, 5 shifts, 15 "muls".*/
+  /*The minimum theoretical number of multiplies for a uniformly-scaled 8-point
+     transform is 11, but the best I've been able to come up with for a
+     reversible version with orthonormal scaling is 15.
+    We pick up 3 multiplies when computing the DC, since we have an odd number
+     of summation stages, leaving no chance to cancel the asymmetry in the last
+     one.
+    Instead, we have to implement it as a rotation by \frac{\pi}{4} using
+     lifting steps.
+    We pick up one more multiply when computing the Type IV DCT in the odd
+     half.
+    This comes from using 3 lifting steps to implement another rotation by
+     \frac{\pi}{4} (with asymmetrically scaled inputs and outputs) instead of
+     simply scaling two values by \sqrt{2}.*/
+  int t0;
+  int t1;
+  int t1h;
+  int t2;
+  int t3;
+  int t4;
+  int t4h;
+  int t5;
+  int t6;
+  int t6h;
+  int t7;
+  int t;
+  /*Initial permutation:*/
+  t0=*(_x+0*_xstride);
+  t4=*(_x+1*_xstride);
+  t2=*(_x+2*_xstride);
+  t6=*(_x+3*_xstride);
+  t7=*(_x+4*_xstride);
+  t5=*(_x+5*_xstride);
+  t3=*(_x+6*_xstride);
+  t1=*(_x+7*_xstride);
+  /*+1/-1 butterflies:*/
+  t1=t0-t1;
+  t1h=OD_DCT_RSHIFT(t1,1);
+  t0-=t1h;
+  t4+=t3;
+  t4h=OD_DCT_RSHIFT(t4,1);
+  t3=t4h-t3;
+  t5=t2-t5;
+  t2-=OD_DCT_RSHIFT(t5,1);
+  t6+=t7;
+  t6h=OD_DCT_RSHIFT(t6,1);
+  t7=t6h-t7;
+  /*+ Embedded 4-point type-II DCT.*/
+  t0+=t6h;
+  t6=t0-t6;
+  t2=t4h-t2;
+  t4=t2-t4;
+  /*|-+ Embedded 2-point type-II DCT.*/
+  /*27/64~=\sqrt{2}-1~=0.41421356237309504880168872420970*/
+  t0-=t4*27+32>>6;
+  /*45/64~=\sqrt{\frac{1}{2}}~=0.70710678118654752440084436210485*/
+  t4+=t0*45+32>>6;
+  /*27/64~=\sqrt{2}-1~=0.41421356237309504880168872420970*/
+  t0-=t4*27+32>>6;
+  /*|-+ Embedded 2-point type-IV DST.*/
+  /*43/64~=\frac{1-cos(\frac{3\pi}{8})}{\sin(\frac{3\pi}{8})}~=
+     0.66817863791929891999775768652308*/
+  t6-=t2*43+32>>6;
+  /*59/64~=sin(\frac{3\pi}{8})~=0.92387953251128675612818318939679*/
+  t2+=t6*59+32>>6;
+  /*43/64~=\frac{1-cos(\frac{3\pi}{8})}{\sin(\frac{3\pi}{8})}~=
+     0.66817863791929891999775768652308*/
+  t6-=t2*43+32>>6;
+  /*+ Embedded 4-point type-IV DST.*/
+  /*13/64~=\sqrt{\frac{1}{2}}-\frac{1}{2}~=0.20710678118654752440084436210485*/
+  t3+=t5*13+32>>6;
+  /*91/64~=\sqrt{2}~=1.4142135623730950488016887242097*/
+  t5-=t3*91+32>>6;
+  /*13/64~=\sqrt{\frac{1}{2}}-\frac{1}{2}~=0.20710678118654752440084436210485*/
+  t3+=t5*13+32>>6;
+  t7=OD_DCT_RSHIFT(t5,1)-t7;
+  t5-=t7;
+  t3=t1h-t3;
+  t1-=t3;
+  /*3/32~=\frac{1-cos(\frac{\pi}{16})}{sin(\frac{\pi}{16})}~=
+     0.098491403357164253077197521291327*/
+  t7+=t1*3+16>>5;
+  /*3/16~=sin(\frac{\pi}{16})~=0.19509032201612826784828486847702*/
+  t1-=t7*3+8>>4;
+  /*3/32~=\frac{1-cos(\frac{\pi}{16})}{sin(\frac{\pi}{16})}~=
+     0.098491403357164253077197521291327*/
+  t7+=t1*3+16>>5;
+  /*19/64~=\frac{1-cos(\frac{3\pi}{16})}{sin(\frac{3\pi}{16})}~=
+     0.30334668360734239167588394694130*/
+  t5+=t3*19+32>>6;
+  /*9/16~=sin(\frac{3\pi}{16})~=0.55557023301960222474283081394853*/
+  t3-=t5*9+8>>4;
+  /*19/64~=\frac{1-cos(\frac{3\pi}{16})}{sin(\frac{3\pi}{16})}~=
+     0.30334668360734239167588394694130*/
+  t5+=t3*19+32>>6;
+  _y[0]=(od_coeff)t0;
+  _y[1]=(od_coeff)t1;
+  _y[2]=(od_coeff)t2;
+  _y[3]=(od_coeff)t3;
+  _y[4]=(od_coeff)t4;
+  _y[5]=(od_coeff)t5;
+  _y[6]=(od_coeff)t6;
+  _y[7]=(od_coeff)t7;
+}
+
+void od_bin_idct8(od_coeff *_x,int _xstride,const od_coeff _y[16]){
+  int t0;
+  int t1;
+  int t1h;
+  int t2;
+  int t3;
+  int t4;
+  int t4h;
+  int t5;
+  int t6;
+  int t6h;
+  int t7;
+  t0=_y[0];
+  t1=_y[1];
+  t2=_y[2];
+  t3=_y[3];
+  t4=_y[4];
+  t5=_y[5];
+  t6=_y[6];
+  t7=_y[7];
+  t5-=t3*19+32>>6;
+  t3+=t5*9+8>>4;
+  t5-=t3*19+32>>6;
+  t7-=t1*3+16>>5;
+  t1+=t7*3+8>>4;
+  t7-=t1*3+16>>5;
+  t1+=t3;
+  t1h=OD_DCT_RSHIFT(t1,1);
+  t3=t1h-t3;
+  t5+=t7;
+  t7=OD_DCT_RSHIFT(t5,1)-t7;
+  t3-=t5*13+32>>6;
+  t5+=t3*91+32>>6;
+  t3-=t5*13+32>>6;
+  t6+=t2*43+32>>6;
+  t2-=t6*59+32>>6;
+  t6+=t2*43+32>>6;
+  t0+=t4*27+32>>6;
+  t4-=t0*45+32>>6;
+  t0+=t4*27+32>>6;
+  t4=t2-t4;
+  t4h=OD_DCT_RSHIFT(t4,1);
+  t2=t4h-t2;
+  t6=t0-t6;
+  t6h=OD_DCT_RSHIFT(t6,1);
+  t0-=t6h;
+  t7=t6h-t7;
+  t6-=t7;
+  t2+=OD_DCT_RSHIFT(t5,1);
+  t5=t2-t5;
+  t3=t4h-t3;
+  t4-=t3;
+  t0+=t1h;
+  t1=t0-t1;
+  *(_x+0*_xstride)=(od_coeff)t0;
+  *(_x+1*_xstride)=(od_coeff)t4;
+  *(_x+2*_xstride)=(od_coeff)t2;
+  *(_x+3*_xstride)=(od_coeff)t6;
+  *(_x+4*_xstride)=(od_coeff)t7;
+  *(_x+5*_xstride)=(od_coeff)t5;
+  *(_x+6*_xstride)=(od_coeff)t3;
+  *(_x+7*_xstride)=(od_coeff)t1;
+}
+
+#else
+void od_bin_fdct8(od_coeff _y[8],const od_coeff *_x,int _xstride){
+  /*31 adds, 5 shifts, 15 "muls".*/
+  /*Another version with orthonormal scaling.
+    This uses a slightly different formulation of the first rotation in the
+     Type IV DCT in the odd half, such that the largest constant is less than
+     one and the smaller constants are somewhat larger.
+    Although this appears to provide a small accuracy improvement, it comes
+     from swapping the lines to which those lifting steps are applied, not from
+     the changes to the constants.*/
+  int t0;
+  int t1;
+  int t1h;
+  int t2;
+  int t3;
+  int t4;
+  int t4h;
+  int t5;
+  int t6;
+  int t6h;
+  int t7;
+  int t;
+  /*Initial permutation:*/
+  t0=*(_x+0*_xstride);
+  t4=*(_x+1*_xstride);
+  t2=*(_x+2*_xstride);
+  t6=*(_x+3*_xstride);
+  t7=*(_x+4*_xstride);
+  t3=*(_x+5*_xstride);
+  t5=*(_x+6*_xstride);
+  t1=*(_x+7*_xstride);
+  /*+1/-1 butterflies:*/
+  t1=t0-t1;
+  t1h=OD_DCT_RSHIFT(t1,1);
+  t0-=t1h;
+  t4+=t5;
+  t4h=OD_DCT_RSHIFT(t4,1);
+  t5-=t4h;
+  t3=t2-t3;
+  t2-=OD_DCT_RSHIFT(t3,1);
+  t6+=t7;
+  t6h=OD_DCT_RSHIFT(t6,1);
+  t7=t6h-t7;
+  /*+ Embedded 4-point type-II DCT.*/
+  t0+=t6h;
+  t6=t0-t6;
+  t2=t4h-t2;
+  t4=t2-t4;
+  /*|-+ Embedded 2-point type-II DCT.*/
+  /*27/64~=\sqrt{2}-1~=0.41421356237309504880168872420970*/
+  t0-=t4*27+32>>6;
+  /*45/64~=\sqrt{\frac{1}{2}}~=0.70710678118654752440084436210485*/
+  t4+=t0*45+32>>6;
+  /*27/64~=\sqrt{2}-1~=0.41421356237309504880168872420970*/
+  t0-=t4*27+32>>6;
+  /*|-+ Embedded 2-point type-IV DST.*/
+  /*43/64~=\frac{1-cos(\frac{3\pi}{8})}{\sin(\frac{3\pi}{8})}~=
+     0.66817863791929891999775768652308*/
+  t6-=t2*43+32>>6;
+  /*59/64~=sin(\frac{3\pi}{8})~=0.92387953251128675612818318939679*/
+  t2+=t6*59+32>>6;
+  /*43/64~=\frac{1-cos(\frac{3\pi}{8})}{\sin(\frac{3\pi}{8})}~=
+     0.66817863791929891999775768652308*/
+  t6-=t2*43+32>>6;
+  /*+ Embedded 4-point type-IV DST.*/
+  /*37/64~=2-\sqrt{2}~=0.58578643762690495119831127579030*/
+  t3+=t5*37+32>>6;
+  /*45/64~=\sqrt{\frac{1}{2}}~=0.70710678118654752440084436210485*/
+  t5+=t3*45+32>>6;
+  /*59/64~=\sqrt{2}-\frac{1}{2}~=0.91421356237309504880168872420970*/
+  t3-=t5*59+32>>6;
+  t7=OD_DCT_RSHIFT(t5,1)-t7;
+  t5-=t7;
+  t3=t1h-t3;
+  t1-=t3;
+  /*3/32~=\frac{1-cos(\frac{\pi}{16})}{sin(\frac{\pi}{16})}~=
+     0.098491403357164253077197521291327*/
+  t7+=t1*3+16>>5;
+  /*3/16~=sin(\frac{\pi}{16})~=0.19509032201612826784828486847702*/
+  t1-=t7*3+8>>4;
+  /*3/32~=\frac{1-cos(\frac{\pi}{16})}{sin(\frac{\pi}{16})}~=
+     0.098491403357164253077197521291327*/
+  t7+=t1*3+16>>5;
+  /*19/64~=\frac{1-cos(\frac{3\pi}{16})}{sin(\frac{3\pi}{16})}~=
+     0.30334668360734239167588394694130*/
+  t5+=t3*19+32>>6;
+  /*9/16~=sin(\frac{3\pi}{16})~=0.55557023301960222474283081394853*/
+  t3-=t5*9+8>>4;
+  /*19/64~=\frac{1-cos(\frac{3\pi}{16})}{sin(\frac{3\pi}{16})}~=
+     0.30334668360734239167588394694130*/
+  t5+=t3*19+32>>6;
+  _y[0]=(od_coeff)t0;
+  _y[1]=(od_coeff)t1;
+  _y[2]=(od_coeff)t2;
+  _y[3]=(od_coeff)t3;
+  _y[4]=(od_coeff)t4;
+  _y[5]=(od_coeff)t5;
+  _y[6]=(od_coeff)t6;
+  _y[7]=(od_coeff)t7;
+}
+
+void od_bin_idct8(od_coeff *_x,int _xstride,const od_coeff _y[16]){
+  int t0;
+  int t1;
+  int t1h;
+  int t2;
+  int t3;
+  int t4;
+  int t4h;
+  int t5;
+  int t6;
+  int t6h;
+  int t7;
+  t0=_y[0];
+  t1=_y[1];
+  t2=_y[2];
+  t3=_y[3];
+  t4=_y[4];
+  t5=_y[5];
+  t6=_y[6];
+  t7=_y[7];
+  t5-=t3*19+32>>6;
+  t3+=t5*9+8>>4;
+  t5-=t3*19+32>>6;
+  t7-=t1*3+16>>5;
+  t1+=t7*3+8>>4;
+  t7-=t1*3+16>>5;
+  t1+=t3;
+  t1h=OD_DCT_RSHIFT(t1,1);
+  t3=t1h-t3;
+  t5+=t7;
+  t7=OD_DCT_RSHIFT(t5,1)-t7;
+  t3+=t5*59+32>>6;
+  t5-=t3*45+32>>6;
+  t3-=t5*37+32>>6;
+  t6+=t2*43+32>>6;
+  t2-=t6*59+32>>6;
+  t6+=t2*43+32>>6;
+  t0+=t4*27+32>>6;
+  t4-=t0*45+32>>6;
+  t0+=t4*27+32>>6;
+  t4=t2-t4;
+  t4h=OD_DCT_RSHIFT(t4,1);
+  t2=t4h-t2;
+  t6=t0-t6;
+  t6h=OD_DCT_RSHIFT(t6,1);
+  t0-=t6h;
+  t7=t6h-t7;
+  t6-=t7;
+  t2+=OD_DCT_RSHIFT(t3,1);
+  t3=t2-t3;
+  t5+=t4h;
+  t4-=t5;
+  t0+=t1h;
+  t1=t0-t1;
+  *(_x+0*_xstride)=(od_coeff)t0;
+  *(_x+1*_xstride)=(od_coeff)t4;
+  *(_x+2*_xstride)=(od_coeff)t2;
+  *(_x+3*_xstride)=(od_coeff)t6;
+  *(_x+4*_xstride)=(od_coeff)t7;
+  *(_x+5*_xstride)=(od_coeff)t3;
+  *(_x+6*_xstride)=(od_coeff)t5;
+  *(_x+7*_xstride)=(od_coeff)t1;
+}
 #endif
 
 void od_bin_fdct8x8(od_coeff *_y,int _ystride,const od_coeff *_x,int _xstride){
@@ -508,7 +844,7 @@ void od_bin_fdct16(od_coeff _y[16],const od_coeff *_x,int _xstride){
      to have a reversible integer transform with true orthonormal scaling.
     This required some major reworking of the odd quarter of the even half
      (the 4-point Type IV DST), and added two multiplies in order to implement
-     two rotations by \frac{\pi}{2} with lifting steps (requiring 3 multiplies
+     two rotations by \frac{\pi}{4} with lifting steps (requiring 3 multiplies
      instead of the normal 2).
     However, we also get one multiply back because the constant involved is
      approximately 0.5054, which is 1/2 up to 6-bit precision.
@@ -1393,7 +1729,7 @@ static void check4(void){
 /*The (1-D) scaling factors that make a true iDCT approximation out of the
    integer transform.*/
 static const double DCT8_ISCALE[8]={
-  M_SQRT2,M_SQRT2,M_SQRT2,M_SQRT2,M_SQRT2,M_SQRT2,M_SQRT2,M_SQRT2
+  1,1,1,1,1,1,1,1
 };
 
 /*The true forward 8-point type-II DCT basis, to 32-digit (100 bit) precision.
@@ -1932,7 +2268,7 @@ static const double DCT16_ISCALE[16]={
   1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
 };
 
-/*The true forward 8-point type-II DCT basis, to 32-digit (100 bit) precision.
+/*The true forward 16-point type-II DCT basis, to 32-digit (100 bit) precision.
   The inverse is merely the transpose.*/
 static const double DCT16_BASIS[16][16]={
   {
