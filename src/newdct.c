@@ -306,7 +306,7 @@ void od_bin_idct8x8(od_coeff *_x,int _xstride,const od_coeff *_y,int _ystride){
 }
 
 void od_bin_fdct16(od_coeff _y[16],const od_coeff *_x,int _xstride){
-  /*83 adds, 17 shifts, 32 "muls".*/
+  /*83 adds, 17 shifts, 33 "muls".*/
   /*The minimum theoretical number of multiplies is 26~\cite{DH87}, but the
      best practical algorithm I know is 31~\cite{LLM89}.
     This is a modification of the Loeffler et al. factorization that allows us
@@ -315,8 +315,6 @@ void od_bin_fdct16(od_coeff _y[16],const od_coeff *_x,int _xstride){
      (the 4-point Type IV DST), and added two multiplies in order to implement
      two rotations by \frac{\pi}{4} with lifting steps (requiring 3 multiplies
      instead of the normal 2).
-    However, we also get one multiply back because the constant involved is
-     approximately 0.5054, which is 1/2 up to 6-bit precision.
     @INPROCEEDINGS{DH87,
       author={Pierre Duhamel and Hedi H'Mida},
       title="New 2^n {DCT} Algorithms Suitable for {VLSI} Implementation",
