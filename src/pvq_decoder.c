@@ -42,7 +42,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 int laplace_decode_special(od_ec_dec *dec,unsigned decay,int max)
 {
   int pos;
-#if 1
   int shift;
   int xs;
   int ms;
@@ -83,52 +82,6 @@ int laplace_decode_special(od_ec_dec *dec,unsigned decay,int max)
   else
     pos = xs;
 
-#else
-  unsigned decay2, decay4, decay8, decay16;
-  unsigned decay_f;
-  decay = OD_MINI(255,decay);
-  /* powers of decay */
-  decay2=decay*decay;
-  decay4=decay2*decay2>>16;
-  decay8=decay4*decay4>>16;
-  decay16=decay8*decay8>>16;
-  decay_f=32768U-OD_MAXI(1,decay16>>1);
-  if(max<0)
-    max=0x7FFFFFFF;
-  pos=0;
-  /* Decoding jumps of 16 with probability decay^16 */
-  while(max>=16&&od_ec_decode_bool_q15(dec,decay_f)){
-    pos+=16;
-    max-=16;
-  }
-#if 0
-  pos += od_ec_dec_bits(dec, 4);
-#else
-  if (max>=8){
-    /* p(x%16>=8) = decay^8/(decay^8+1) */
-    decay_f=OD_MAXI(1,decay8>>2);
-    pos += 8*od_ec_decode_bool(dec,16384,16384+decay_f);
-    if(pos&0x8)max-=8;
-  }
-  if (max>=4){
-    /* p(x%8>=4) = decay^4/(decay^4+1) */
-    decay_f=OD_MAXI(1,decay4>>2);
-    pos += 4*od_ec_decode_bool(dec,16384,16384+decay_f);
-    if(pos&0x4)max-=4;
-  }
-  if (max>=2){
-    /* p(x%4>=2) = decay^2/(decay^2+1) */
-    decay_f=OD_MAXI(1,decay2>>2);
-    pos += 2*od_ec_decode_bool(dec,16384,16384+decay_f);
-    if(pos&0x2)max-=2;
-  }
-  if (max>=1){
-    /* p(x%2>=1) = decay/(decay+1) */
-    decay_f=OD_MAXI(1,decay<<6);
-    pos += od_ec_decode_bool(dec,16384,16384+decay_f);
-  }
-#endif
-#endif
   return pos;
 }
 
@@ -145,7 +98,6 @@ static int laplace_decode(od_ec_dec *dec, int ExQ8, int K)
   int j;
   int shift;
   ogg_uint16_t cdf[16];
-  const ogg_uint16_t *cdf0, *cdf1;
   int sym;
   int lsb=0;
   int decay;
@@ -161,19 +113,11 @@ static int laplace_decode(od_ec_dec *dec, int ExQ8, int K)
   K=(K+(1<<shift>>1))>>shift;
 
   decay = OD_MINI(254,256*ExQ8/(ExQ8+256));
-#if 1
   offset = laplace_offset[(decay+1)>>1];
   for(j=0;j<16;j++)
   {
     cdf[j]=exp_cdf_table[(decay+1)>>1][j]-offset;
   }
-#else
-  /* Interpolate pre-computed icdfs based on Ex */
-  cdf0=cdf_table[ExQ8>>4];
-  cdf1=cdf_table[(ExQ8>>4)+1];
-  for(j=0;j<16;j++)
-    cdf[j]=((ExQ8&0xF)*cdf1[j]+(16-(ExQ8&0xF))*cdf0[j]+8)>>4;
-#endif
 
   /* Simple way of truncating the pdf when we have a bound */
   sym=od_ec_decode_cdf_unscaled(dec,cdf,OD_MINI(K+1,16));

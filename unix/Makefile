@@ -89,7 +89,6 @@ WORKDIR = objs
 LIBDAALABASE_CSOURCES = \
 adapt.c \
 block_size.c \
-cdf_table.c \
 entcode.c \
 entdec.c \
 entenc.c \

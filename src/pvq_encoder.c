@@ -41,7 +41,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
  */
 void laplace_encode_special(od_ec_enc *enc,int x,unsigned decay,int max)
 {
-#if 1
   int shift;
   int xs;
   int ms;
@@ -79,54 +78,6 @@ void laplace_encode_special(od_ec_enc *enc,int x,unsigned decay,int max)
   } while (sym>=15);
   if (shift)
     od_ec_enc_bits(enc, x&((1<<shift)-1), shift);
-#else
-  unsigned decay2, decay4, decay8, decay16;
-  unsigned decay_f;
-  decay = OD_MINI(255,decay);
-  /* powers of decay */
-  decay2=decay*decay;
-  decay4=decay2*decay2>>16;
-  decay8=decay4*decay4>>16;
-  decay16=decay8*decay8>>16;
-  decay_f=32768U-OD_MAXI(1,decay16>>1);
-  if(max<0)
-    max=0x7FFFFFFF;
-  /* Encoding jumps of 16 with probability decay^16 */
-  while(x>15 && max>=16){
-    od_ec_encode_bool_q15(enc,1,decay_f);
-    x-=16;
-    max-=16;
-  }
-  if(max>=16)
-    od_ec_encode_bool_q15(enc,0,decay_f);
-#if 0
-  od_ec_enc_bits(enc, x, 4);
-#else
-  if(max>=8){
-    /* p(x%16>8) = decay^8/(decay^8+1) */
-    decay_f=OD_MAXI(1,decay8>>2);
-    od_ec_encode_bool(enc, (x&0x8)!=0,16384,16384+decay_f);
-    if(x&0x8)max-=8;
-  }
-  if(max>=4){
-    /* p(x%8>4) = decay^4/(decay^4+1) */
-    decay_f=OD_MAXI(1,decay4>>2);
-    od_ec_encode_bool(enc, (x&0x4)!=0,16384,16384+decay_f);
-    if(x&0x4)max-=4;
-  }
-  if(max>=2){
-    /* p(x%4>2) = decay^2/(decay^2+1) */
-    decay_f=OD_MAXI(1,decay2>>2);
-    od_ec_encode_bool(enc, (x&0x2)!=0,16384,16384+decay_f);
-    if (x&0x2)max-=2;
-  }
-  if(max>=1){
-    /* p(x%2>1) = decay/(decay+1) */
-    decay_f=OD_MAXI(1,decay<<6);
-    od_ec_encode_bool(enc, (x&0x1)!=0,16384,16384+decay_f);
-  }
-#endif
-#endif
 }
 
 /** Encodes a Laplace-distributed variable for use in PVQ
@@ -142,7 +93,6 @@ static void laplace_encode(od_ec_enc *enc, int x, int ExQ8, int K)
   int shift;
   int xs;
   ogg_uint16_t cdf[16];
-  const ogg_uint16_t *cdf0, *cdf1;
   int sym;
   int decay;
   int offset;
@@ -158,19 +108,11 @@ static void laplace_encode(od_ec_enc *enc, int x, int ExQ8, int K)
   xs=(x+(1<<shift>>1))>>shift;
 
   decay = OD_MINI(254,256*ExQ8/(ExQ8+256));
-#if 1
     offset = laplace_offset[(decay+1)>>1];
     for(j=0;j<16;j++)
     {
       cdf[j]=exp_cdf_table[(decay+1)>>1][j]-offset;
     }
-#else
-  /* Interpolate pre-computed cdfs based on Ex */
-  cdf0=cdf_table[ExQ8>>4];
-  cdf1=cdf_table[(ExQ8>>4)+1];
-  for(j=0;j<16;j++)
-    cdf[j]=((ExQ8&0xF)*cdf1[j]+(16-(ExQ8&0xF))*cdf0[j]+8)>>4;
-#endif
 
   sym=xs;
   if (sym>15)

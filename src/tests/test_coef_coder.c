@@ -26,7 +26,6 @@
 #include "../entenc.c"
 #include "../entdec.c"
 #include "../entcode.c"
-#include "../cdf_table.c"
 #include "../laplace_tables.c"
 #include "../internal.c"
 #include <stdlib.h>
