@@ -79,5 +79,7 @@ void generic_model_update(GenericEncoder *model,int *ExQ16,int x,int xs,int id,i
   for (i=xenc;i<16;i++)
     cdf[i]+=model->increment;
 
+  /* We could have saturated ExQ16 directly, but this is safe and simpler */
+  x = OD_MINI(x, 32767);
   *ExQ16+=(x<<(16-integration))-(*ExQ16>>integration);
 }

@@ -63,11 +63,12 @@ int generic_decode(od_ec_dec *dec, GenericEncoder *model, int *ExQ16, int integr
   xs=od_ec_decode_cdf(dec,cdf,16);
 
   if(xs==15){
+    int E;
     unsigned decay;
-    /* Look up the decay based on the expectancy. This is approximate
-       because we don't necessarily have a Laplace-distributed variable.
-       Bounds should be OK as long as shift is consistent with Ex */
-    decay=decayE[((*ExQ16>>12)+(1<<shift>>1))>>shift];
+    /* Estimate decay based on the assumption that the distribution is close to Laplacian for large values.
+       We should probably have an adaptive estimate instead. */
+    E = ((*ExQ16>>8)+(1<<shift>>1))>>shift;
+    decay = OD_MAXI(2,OD_MINI(254,256*E/(E+256)));
 
     xs+=laplace_decode_special(dec,decay,-1);
   }
