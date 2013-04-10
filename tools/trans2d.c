@@ -60,8 +60,8 @@ static void coding_gain_search(const double _r[2*B_SZ*2*B_SZ],const int *_f){
 #   endif
     OD_ASSERT(dims<=22);
     for(i=0;i<dims;i++){
-      lb[i]=i<2?(1<<NE_BITS):-(1<<NE_BITS);
-      ub[i]=i<2?2*(1<<NE_BITS):(1<<NE_BITS);
+      lb[i]=i<(B_SZ>>1)?(1<<NE_BITS):-(1<<NE_BITS);
+      ub[i]=i<(B_SZ>>1)?2*(1<<NE_BITS):(1<<NE_BITS);
     }
     for(i=0;i<NUM_PROCS;i++){
       uint32_t srand;
