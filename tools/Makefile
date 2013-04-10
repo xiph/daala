@@ -29,6 +29,7 @@ CFLAGS = -Wall -Wno-parentheses -Wno-overlength-strings -Wno-long-long
 CFLAGS += -std=c89 -pedantic -fopenmp
 CFLAGS += -O3
 CFLAGS += -g
+CFLAGS += -DOD_ENABLE_ASSERTIONS
 
 LIBSRCDIR=../src
 WORKDIR=build

@@ -147,7 +147,6 @@ void od_bin_fdct8(od_coeff _y[8],const od_coeff *_x,int _xstride){
   int t6;
   int t6h;
   int t7;
-  int t;
   /*Initial permutation:*/
   t0=*(_x+0*_xstride);
   t4=*(_x+1*_xstride);

@@ -34,7 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "../src/dct.h"
 #include "../src/intra.h"
 
-/*#define INTRA_NO_RDO (1)*/
+#define INTRA_NO_RDO (1)
 
 int ExCount[3];
 double Ex[3][B_SZ*B_SZ];
