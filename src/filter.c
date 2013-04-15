@@ -213,7 +213,15 @@ void od_post_filter4(od_coeff _x[4],const od_coeff _y[4]){
 /*R=f
   6-bit
   Ar95_Cg = 9.60021 */
-const int OD_FILTER_PARAMS8[10]={90,73,72,75,-23,-18,-6,48,34,20};
+/*const int OD_FILTER_PARAMS8[10]={90,73,72,75,-23,-18,-6,48,34,20};*/
+
+/*R=f
+  6-bit
+        Ar95_Cg =  9.48639
+     Subset1_Cg = 10.78521
+     Ar95_2d_Cg = 18.97228
+  Subset1_2d_Cg = 13.98122*/
+const int OD_FILTER_PARAMS8[10]={ 84, 68, 67, 68,-24,-19, -8, 38, 24, 13};
 
 void od_pre_filter8(od_coeff _y[8],const od_coeff _x[8]){
    int t[8];
@@ -264,7 +272,7 @@ void od_pre_filter8(od_coeff _y[8],const od_coeff _x[8]){
    t[5]+=t[6]*5+4>>3;   /* 0.62298*/
    t[5]-=t[4]+1>>1;     /*-0.45021*/
    t[4]+=t[5]*13+8>>4;  /* 0.82512*/
-#else
+#elif 0
    /*Optimal (1,2) regular coding gain with aribtrary precision: 9.56126 dB,
      6-bit (1,2) regular type-IV coding gain: 9.56051 dB
      S={11/8,75/64,19/16,19/16}, 0={53/64,-3/8}, 1={5/8,-5/16}, 2={3/8,-1/16}
@@ -290,6 +298,26 @@ void od_pre_filter8(od_coeff _y[8],const od_coeff _x[8]){
    t[6]+=t[7]*3+4>>3;   /* 0.37100*/
    t[5]+=t[6]*5+4>>3;   /* 0.61773*/
    t[4]+=t[5]*13+8>>4;  /* 0.82423*/
+#else
+   /*Scaling factors: the biorthogonal part.*/
+   /*Note: t[i]+=t[i]>>15&1; is equivalent to: if(t[i]>0)t[i]++;
+     This step ensures that the scaling is trivially invertible on the
+      decoder's side, with perfect reconstruction.*/
+   t[4]=t[4]*OD_FILTER_PARAMS8[0]>>6;
+   t[4]+=-t[4]>>15&1;
+   t[5]=t[5]*OD_FILTER_PARAMS8[1]>>6;
+   t[5]+=-t[5]>>15&1;
+   t[6]=t[6]*OD_FILTER_PARAMS8[2]>>6;
+   t[6]+=-t[6]>>15&1;
+   t[7]=t[7]*OD_FILTER_PARAMS8[3]>>6;
+   t[7]+=-t[7]>>15&1;
+   /*Rotations:*/
+   t[5]+=t[4]*OD_FILTER_PARAMS8[4]+32>>6;
+   t[6]+=t[5]*OD_FILTER_PARAMS8[5]+32>>6;
+   t[7]+=t[6]*OD_FILTER_PARAMS8[6]+32>>6;
+   t[6]+=t[7]*OD_FILTER_PARAMS8[7]+32>>6;
+   t[5]+=t[6]*OD_FILTER_PARAMS8[8]+32>>6;
+   t[4]+=t[5]*OD_FILTER_PARAMS8[9]+32>>6;
 #endif
    /*More +1/-1 butterflies (required for FIR, PR, LP).*/
    t[0]+=t[7]>>1;
@@ -323,6 +351,7 @@ void od_post_filter8(od_coeff _x[8],const od_coeff _y[8]){
      S={11/8,75/64,19/16,19/16}, 0={53/64,-3/8}, 1={5/8,-5/16}, 2={3/8,-1/16}
      4-bit (1,2) regular type-IV coding gain: 9.55846 dB
      S={3/2,19/16,19/16,19/16}, 0={13/16,-3/8}, 1={5/8,-5/16}, 2={3/8,-1/16}*/
+#if 0
    t[4]-=t[5]*13+8>>4;  /* 0.82423*/
    t[5]-=t[6]*5+4>>3;   /* 0.61773*/
    t[6]-=t[7]*3+4>>3;   /* 0.37100*/
@@ -333,6 +362,18 @@ void od_post_filter8(od_coeff _x[8],const od_coeff _y[8]){
    t[6]=(t[6]<<4)/19;   /* 1.19258*/
    t[5]=(t[5]<<4)/19;   /* 1.21864*/
    t[4]=(t[4]<<2)/3;    /* 1.40617*/
+#else
+   t[4]-=t[5]*OD_FILTER_PARAMS8[9]+32>>6;
+   t[5]-=t[6]*OD_FILTER_PARAMS8[8]+32>>6;
+   t[6]-=t[7]*OD_FILTER_PARAMS8[7]+32>>6;
+   t[7]-=t[6]*OD_FILTER_PARAMS8[6]+32>>6;
+   t[6]-=t[5]*OD_FILTER_PARAMS8[5]+32>>6;
+   t[5]-=t[4]*OD_FILTER_PARAMS8[4]+32>>6;
+   t[7]=(t[7]<<6)/OD_FILTER_PARAMS8[3];
+   t[6]=(t[6]<<6)/OD_FILTER_PARAMS8[2];
+   t[5]=(t[5]<<6)/OD_FILTER_PARAMS8[1];
+   t[4]=(t[4]<<6)/OD_FILTER_PARAMS8[0];
+#endif
    t[0]+=t[7]>>1;
    _x[0]=(od_coeff)t[0];
    t[1]+=t[6]>>1;
