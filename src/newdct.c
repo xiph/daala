@@ -305,7 +305,7 @@ void od_bin_idct8x8(od_coeff *_x,int _xstride,const od_coeff *_y,int _ystride){
 }
 
 void od_bin_fdct16(od_coeff _y[16],const od_coeff *_x,int _xstride){
-  /*83 adds, 17 shifts, 33 "muls".*/
+  /*83 adds, 16 shifts, 33 "muls".*/
   /*The minimum theoretical number of multiplies is 26~\cite{DH87}, but the
      best practical algorithm I know is 31~\cite{LLM89}.
     This is a modification of the Loeffler et al. factorization that allows us
@@ -329,7 +329,7 @@ void od_bin_fdct16(od_coeff _y[16],const od_coeff *_x,int _xstride){
       author="Christoph Loeffler and Adriaan Lightenberg and
        George S. Moschytz",
       title="Practical Fast {1-D} {DCT} Algorithms with 11 Multiplications",
-      booktitle="Proc. $14^\textrm{th}$ International Conferenceon Acoustics,
+      booktitle="Proc. $14^\textrm{th}$ International Conference on Acoustics,
        Speech, and Signal Processing (ICASSP'89)",
       volume=2,
       pages="988--991",
