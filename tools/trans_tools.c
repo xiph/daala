@@ -6,6 +6,8 @@
 #define PRINT_COLLAPSE (0)
 #define PRINT_CG_MATH (0)
 
+#define USE_TYPE3 (0)
+
 void image_ctx_init(image_ctx *_this,const char *_name,int _nxblocks,
  int _nyblocks){
   _this->name=_name;
@@ -248,12 +250,21 @@ static void ne_pre_filter8(double _y[8],const double _x[8],const int _f8[10]){
   t[5]=t[5]*_f8[1]/(1<<NE_BITS);
   t[6]=t[6]*_f8[2]/(1<<NE_BITS);
   t[7]=t[7]*_f8[3]/(1<<NE_BITS);
+#if USE_TYPE3
+  t[7]+=t[6]*_f8[6]/(1<<NE_BITS);
+  t[6]+=t[7]*_f8[9]/(1<<NE_BITS);
+  t[6]+=t[5]*_f8[5]/(1<<NE_BITS);
+  t[5]+=t[6]*_f8[8]/(1<<NE_BITS);
+  t[5]+=t[4]*_f8[4]/(1<<NE_BITS);
+  t[4]+=t[5]*_f8[7]/(1<<NE_BITS);
+#else
   t[5]+=t[4]*_f8[4]/(1<<NE_BITS);
   t[6]+=t[5]*_f8[5]/(1<<NE_BITS);
   t[7]+=t[6]*_f8[6]/(1<<NE_BITS);
   t[6]+=t[7]*_f8[9]/(1<<NE_BITS);
   t[5]+=t[6]*_f8[8]/(1<<NE_BITS);
   t[4]+=t[5]*_f8[7]/(1<<NE_BITS);
+#endif
   t[0]+=t[7]/2;
   _y[0]=t[0];
   t[1]+=t[6]/2;
@@ -278,12 +289,21 @@ static void ne_post_filter8(double _x[8],const double _y[8],const int _f8[10]){
   t[2]=_y[2]-(t[5]/2);
   t[1]=_y[1]-(t[6]/2);
   t[0]=_y[0]-(t[7]/2);
+#if USE_TYPE3
+  t[4]-=t[5]*_f8[7]/(1<<NE_BITS);
+  t[5]-=t[4]*_f8[4]/(1<<NE_BITS);
+  t[5]-=t[6]*_f8[8]/(1<<NE_BITS);
+  t[6]-=t[5]*_f8[5]/(1<<NE_BITS);
+  t[6]-=t[7]*_f8[9]/(1<<NE_BITS);
+  t[7]-=t[6]*_f8[6]/(1<<NE_BITS);
+#else
   t[4]-=t[5]*_f8[7]/(1<<NE_BITS);
   t[5]-=t[6]*_f8[8]/(1<<NE_BITS);
   t[6]-=t[7]*_f8[9]/(1<<NE_BITS);
   t[7]-=t[6]*_f8[6]/(1<<NE_BITS);
   t[6]-=t[5]*_f8[5]/(1<<NE_BITS);
   t[5]-=t[4]*_f8[4]/(1<<NE_BITS);
+#endif
   t[7]=(t[7]*(1<<NE_BITS))/_f8[3];
   t[6]=(t[6]*(1<<NE_BITS))/_f8[2];
   t[5]=(t[5]*(1<<NE_BITS))/_f8[1];
@@ -328,6 +348,22 @@ static void ne_pre_filter16(double _y[16],const double _x[16],const int _f16[22]
   t[13]=t[13]*_f16[5]/(1<<NE_BITS);
   t[14]=t[14]*_f16[6]/(1<<NE_BITS);
   t[15]=t[15]*_f16[7]/(1<<NE_BITS);
+#if USE_TYPE3
+  t[15]+=t[14]*_f16[14]/(1<<NE_BITS);
+  t[14]+=t[15]*_f16[21]/(1<<NE_BITS);
+  t[14]+=t[13]*_f16[13]/(1<<NE_BITS);
+  t[13]+=t[14]*_f16[20]/(1<<NE_BITS);
+  t[13]+=t[12]*_f16[12]/(1<<NE_BITS);
+  t[12]+=t[13]*_f16[19]/(1<<NE_BITS);
+  t[12]+=t[11]*_f16[11]/(1<<NE_BITS);
+  t[11]+=t[12]*_f16[18]/(1<<NE_BITS);
+  t[11]+=t[10]*_f16[10]/(1<<NE_BITS);
+  t[10]+=t[11]*_f16[17]/(1<<NE_BITS);
+  t[10]+=t[9]*_f16[9]/(1<<NE_BITS);
+  t[9]+=t[10]*_f16[16]/(1<<NE_BITS);
+  t[9]+=t[8]*_f16[8]/(1<<NE_BITS);
+  t[8]+=t[9]*_f16[15]/(1<<NE_BITS);
+#else
   t[9]+=t[8]*_f16[8]/(1<<NE_BITS);
   t[10]+=t[9]*_f16[9]/(1<<NE_BITS);
   t[11]+=t[10]*_f16[10]/(1<<NE_BITS);
@@ -342,6 +378,7 @@ static void ne_pre_filter16(double _y[16],const double _x[16],const int _f16[22]
   t[10]+=t[11]*_f16[17]/(1<<NE_BITS);
   t[9]+=t[10]*_f16[16]/(1<<NE_BITS);
   t[8]+=t[9]*_f16[15]/(1<<NE_BITS);
+#endif
   t[0]+=t[15]/2;
   _y[0]=t[0];
   t[1]+=t[14]/2;
@@ -386,6 +423,22 @@ static void ne_post_filter16(double _x[16],const double _y[16],const int _f16[22
   t[2]=_y[2]-(t[13]/2);
   t[1]=_y[1]-(t[14]/2);
   t[0]=_y[0]-(t[15]/2);
+#if USE_TYPE3
+  t[8]-=t[9]*_f16[15]/(1<<NE_BITS);
+  t[9]-=t[8]*_f16[8]/(1<<NE_BITS);
+  t[9]-=t[10]*_f16[16]/(1<<NE_BITS);
+  t[10]-=t[9]*_f16[9]/(1<<NE_BITS);
+  t[10]-=t[11]*_f16[17]/(1<<NE_BITS);
+  t[11]-=t[10]*_f16[10]/(1<<NE_BITS);
+  t[11]-=t[12]*_f16[18]/(1<<NE_BITS);
+  t[12]-=t[11]*_f16[11]/(1<<NE_BITS);
+  t[12]-=t[13]*_f16[19]/(1<<NE_BITS);
+  t[13]-=t[12]*_f16[12]/(1<<NE_BITS);
+  t[13]-=t[14]*_f16[20]/(1<<NE_BITS);
+  t[14]-=t[13]*_f16[13]/(1<<NE_BITS);
+  t[14]-=t[15]*_f16[21]/(1<<NE_BITS);
+  t[15]-=t[14]*_f16[14]/(1<<NE_BITS);
+#else
   t[8]-=t[9]*_f16[15]/(1<<NE_BITS);
   t[9]-=t[10]*_f16[16]/(1<<NE_BITS);
   t[10]-=t[11]*_f16[17]/(1<<NE_BITS);
@@ -400,6 +453,7 @@ static void ne_post_filter16(double _x[16],const double _y[16],const int _f16[22
   t[11]-=t[10]*_f16[10]/(1<<NE_BITS);
   t[10]-=t[9]*_f16[9]/(1<<NE_BITS);
   t[9]-=t[8]*_f16[8]/(1<<NE_BITS);
+#endif
   t[15]=(t[15]*(1<<NE_BITS))/_f16[7];
   t[14]=(t[14]*(1<<NE_BITS))/_f16[6];
   t[13]=(t[13]*(1<<NE_BITS))/_f16[5];
