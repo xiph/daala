@@ -46,7 +46,7 @@ static void coding_gain_search(const double _r[2*B_SZ*2*B_SZ],const int *_f){
            */
           s1=(1<<2*NE_BITS)-s0*p0;
           if(s1>=(1<<NE_BITS)*(3<<NE_BITS-2)&&s1%(3<<NE_BITS-2)==0){
-            f[1]=s1/48;
+            f[1]=s1/(3<<NE_BITS-2);
             cg=coding_gain_2d_collapsed(_r,f);
             if(cg>best_cg){
               best_cg=cg;
@@ -112,7 +112,7 @@ static void coding_gain_search(const double _r[2*B_SZ*2*B_SZ],const int *_f){
             t1=(1<<NE_BITS)-q1;
             s1=(1<<NE_BITS)*t1-s0*p0;
             if(s1>=(1<<NE_BITS)*(3<<NE_BITS-3)&&s1%(3<<NE_BITS-3)==0){
-              f[1]=s1/24;
+              f[1]=s1/(3<<NE_BITS-3);
               for(p1=-(1<<NE_BITS);p1<=(1<<NE_BITS);p1++){
                 f[5]=p1;
                 for(q2=(1<<NE_BITS);q2>=-(1<<NE_BITS);q2--){
@@ -124,7 +124,7 @@ static void coding_gain_search(const double _r[2*B_SZ*2*B_SZ],const int *_f){
                   t2=(1<<NE_BITS)-q2;
                   s2=(1<<NE_BITS)*t2-t1*p1;
                   if(s2>=(1<<NE_BITS)*(5<<NE_BITS-3)&&s2%(5<<NE_BITS-3)==0){
-                    f[2]=s2/40;
+                    f[2]=s2/(5<<NE_BITS-3);
                     for(p2=-(1<<NE_BITS);p2<=(1<<NE_BITS);p2++){
                       f[6]=p2;
                       /* S3 = 8/7*(1-(1-q2/64)*p2/64)
@@ -133,7 +133,7 @@ static void coding_gain_search(const double _r[2*B_SZ*2*B_SZ],const int *_f){
                        */
                       s3=(1<<2*NE_BITS)-t2*p2;
                       if(s3>=(1<<NE_BITS)*(7<<NE_BITS-3)&&s3%(7<<NE_BITS-3)==0){
-                        f[3]=s3/56;
+                        f[3]=s3/(7<<NE_BITS-3);
                         cg=coding_gain_2d_collapsed(_r,f);
                         if(cg>best_cg){
                           best_cg=cg;
