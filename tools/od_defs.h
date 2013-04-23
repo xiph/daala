@@ -22,30 +22,22 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
-#if !defined(_od_covmat_H)
-# define _od_covmat_H (0)
+#if !defined(_od_defs_H)
+# define _od_defs_H (0)
 
-#include <stdio.h>
+#include "intra_fit_tools.h"
+#include "../src/filter.h"
 
-typedef struct od_covmat od_covmat;
+#define NUM_PROCS (4)
+#define FAST_MATH (1)
 
-struct od_covmat{
-  int     sz;
-  double  w;
-  double *mean;
-  double *cov;
-  double *work;
-};
+#define FILTER_BITS (6)
 
-void od_covmat_init(od_covmat *_this,int _sz);
-void od_covmat_clear(od_covmat *_this);
-void od_covmat_reset(od_covmat *_this);
-void od_covmat_add(od_covmat *_this,const double *_data,double _w);
-void od_covmat_combine(od_covmat *_a,const od_covmat *_b);
-void od_covmat_correct(od_covmat *_this);
-void od_covmat_normalize(od_covmat *_this);
-void od_covmat_collapse(od_covmat *_this,int _n,double *_r);
-void od_covmat_expand(od_covmat *_this,int _n,const double *_r);
-void od_covmat_print(od_covmat *_this,FILE *_fp);
+#define USE_TYPE3 (0)
+
+#define APPLY_FILTER (1)
+#define APPLY_DCT    (1)
+#define APPLY_PRED   (1)
+#define APPLY_PCA    (1)
 
 #endif

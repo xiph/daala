@@ -22,30 +22,24 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
-#if !defined(_od_covmat_H)
-# define _od_covmat_H (0)
+#if !defined(_od_filter_H)
+# define _od_filter_H (0)
 
-#include <stdio.h>
+#include "od_defs.h"
 
-typedef struct od_covmat od_covmat;
+extern int NE_FILTER_PARAMS4[4];
+extern int NE_FILTER_PARAMS8[10];
+extern int NE_FILTER_PARAMS16[22];
 
-struct od_covmat{
-  int     sz;
-  double  w;
-  double *mean;
-  double *cov;
-  double *work;
-};
+void ne_filter_params_init();
 
-void od_covmat_init(od_covmat *_this,int _sz);
-void od_covmat_clear(od_covmat *_this);
-void od_covmat_reset(od_covmat *_this);
-void od_covmat_add(od_covmat *_this,const double *_data,double _w);
-void od_covmat_combine(od_covmat *_a,const od_covmat *_b);
-void od_covmat_correct(od_covmat *_this);
-void od_covmat_normalize(od_covmat *_this);
-void od_covmat_collapse(od_covmat *_this,int _n,double *_r);
-void od_covmat_expand(od_covmat *_this,int _n,const double *_r);
-void od_covmat_print(od_covmat *_this,FILE *_fp);
+extern const od_filter_func NE_PRE_FILTER[OD_NBSIZES];
+extern const od_filter_func NE_POST_FILTER[OD_NBSIZES];
+
+typedef void (*ne_filter_func_double)(double _out[],const double _in[],
+ const int _f[]);
+
+extern const ne_filter_func_double NE_PRE_FILTER_DOUBLE[OD_NBSIZES];
+extern const ne_filter_func_double NE_POST_FILTER_DOUBLE[OD_NBSIZES];
 
 #endif

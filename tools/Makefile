@@ -136,6 +136,7 @@ IS_LOCAL_CSOURCES = \
 intra_stats.c \
 intra_fit_tools.c \
 od_covmat.c \
+od_filter.c \
 stats_tools.c \
 stats_data.c \
 vidinput.c \
@@ -160,6 +161,7 @@ IP_LOCAL_CSOURCES = \
 intra_pred.c \
 intra_fit_tools.c \
 od_covmat.c \
+od_filter.c \
 stats_tools.c \
 stats_data.c \
 vidinput.c \
@@ -184,13 +186,17 @@ IP_TARGET:=intra_pred
 #trans
 T_LOCAL_CSOURCES = \
 trans.c \
+internal.c \
 intra_fit_tools.c \
 vidinput.c \
 od_covmat.c \
+od_filter.c \
 stats_tools.c \
 stats_data.c \
 trans_tools.c \
+int_search.c \
 trans_data.c \
+kiss99.c \
 image.c \
 svd.c \
 cholesky.c
@@ -216,6 +222,7 @@ internal.c \
 intra_fit_tools.c \
 vidinput.c \
 od_covmat.c \
+od_filter.c \
 stats_tools.c \
 stats_data.c \
 trans_tools.c \

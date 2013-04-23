@@ -1,12 +1,35 @@
+/*Daala video codec
+Copyright (c) 2013 Daala project contributors.  All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+- Redistributions of source code must retain the above copyright notice, this
+  list of conditions and the following disclaimer.
+
+- Redistributions in binary form must reproduce the above copyright notice,
+  this list of conditions and the following disclaimer in the documentation
+  and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS “AS IS”
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
+
 #include <stdlib.h>
+#include "od_defs.h"
+#include "od_filter.h"
 #include "stats_tools.h"
 #include "trans_tools.h"
 
-#define FAST_MATH (1)
 #define PRINT_COLLAPSE (0)
 #define PRINT_CG_MATH (0)
-
-#define USE_TYPE3 (0)
 
 void image_ctx_init(image_ctx *_this,const char *_name,int _nxblocks,
  int _nyblocks){
@@ -199,306 +222,6 @@ void covariance_expand(double *_cov,int _sz,int _n,const double *_r){
     }
   }
 }
-
-static void ne_pre_filter4(double _y[4],const double _x[4],const int _f4[4]){
-  double t[4];
-  t[3]=_x[0]-_x[3];
-  t[2]=_x[1]-_x[2];
-  t[1]=_x[1]-(t[2]/2);
-  t[0]=_x[0]-(t[3]/2);
-  t[2]=t[2]*_f4[0]/(1<<NE_BITS);
-  t[3]=t[3]*_f4[1]/(1<<NE_BITS);
-  t[3]+=t[2]*_f4[2]/(1<<NE_BITS);
-  t[2]+=t[3]*_f4[3]/(1<<NE_BITS);
-  t[0]+=t[3]/2;
-  _y[0]=t[0];
-  t[1]+=t[2]/2;
-  _y[1]=t[1];
-  _y[2]=(t[1]-t[2]);
-  _y[3]=(t[0]-t[3]);
-}
-
-static void ne_post_filter4(double _x[4],const double _y[4],const int _f4[4]){
-  double t[4];
-  t[3]=_y[0]-_y[3];
-  t[2]=_y[1]-_y[2];
-  t[1]=_y[1]-(t[2]/2);
-  t[0]=_y[0]-(t[3]/2);
-  t[2]-=t[3]*_f4[3]/(1<<NE_BITS);
-  t[3]-=t[2]*_f4[2]/(1<<NE_BITS);
-  t[3]=(t[3]*(1<<NE_BITS))/_f4[1];
-  t[2]=(t[2]*(1<<NE_BITS))/_f4[0];
-  t[0]+=t[3]/2;
-  _x[0]=t[0];
-  t[1]+=t[2]/2;
-  _x[1]=t[1];
-  _x[2]=(t[1]-t[2]);
-  _x[3]=(t[0]-t[3]);
-}
-
-static void ne_pre_filter8(double _y[8],const double _x[8],const int _f8[10]){
-  double t[8];
-  t[7]=_x[0]-_x[7];
-  t[6]=_x[1]-_x[6];
-  t[5]=_x[2]-_x[5];
-  t[4]=_x[3]-_x[4];
-  t[3]=_x[3]-(t[4]/2);
-  t[2]=_x[2]-(t[5]/2);
-  t[1]=_x[1]-(t[6]/2);
-  t[0]=_x[0]-(t[7]/2);
-  t[4]=t[4]*_f8[0]/(1<<NE_BITS);
-  t[5]=t[5]*_f8[1]/(1<<NE_BITS);
-  t[6]=t[6]*_f8[2]/(1<<NE_BITS);
-  t[7]=t[7]*_f8[3]/(1<<NE_BITS);
-#if USE_TYPE3
-  t[7]+=t[6]*_f8[6]/(1<<NE_BITS);
-  t[6]+=t[7]*_f8[9]/(1<<NE_BITS);
-  t[6]+=t[5]*_f8[5]/(1<<NE_BITS);
-  t[5]+=t[6]*_f8[8]/(1<<NE_BITS);
-  t[5]+=t[4]*_f8[4]/(1<<NE_BITS);
-  t[4]+=t[5]*_f8[7]/(1<<NE_BITS);
-#else
-  t[5]+=t[4]*_f8[4]/(1<<NE_BITS);
-  t[6]+=t[5]*_f8[5]/(1<<NE_BITS);
-  t[7]+=t[6]*_f8[6]/(1<<NE_BITS);
-  t[6]+=t[7]*_f8[9]/(1<<NE_BITS);
-  t[5]+=t[6]*_f8[8]/(1<<NE_BITS);
-  t[4]+=t[5]*_f8[7]/(1<<NE_BITS);
-#endif
-  t[0]+=t[7]/2;
-  _y[0]=t[0];
-  t[1]+=t[6]/2;
-  _y[1]=t[1];
-  t[2]+=t[5]/2;
-  _y[2]=t[2];
-  t[3]+=t[4]/2;
-  _y[3]=t[3];
-  _y[4]=(t[3]-t[4]);
-  _y[5]=(t[2]-t[5]);
-  _y[6]=(t[1]-t[6]);
-  _y[7]=(t[0]-t[7]);
-}
-
-static void ne_post_filter8(double _x[8],const double _y[8],const int _f8[10]){
-  double t[8];
-  t[7]=_y[0]-_y[7];
-  t[6]=_y[1]-_y[6];
-  t[5]=_y[2]-_y[5];
-  t[4]=_y[3]-_y[4];
-  t[3]=_y[3]-(t[4]/2);
-  t[2]=_y[2]-(t[5]/2);
-  t[1]=_y[1]-(t[6]/2);
-  t[0]=_y[0]-(t[7]/2);
-#if USE_TYPE3
-  t[4]-=t[5]*_f8[7]/(1<<NE_BITS);
-  t[5]-=t[4]*_f8[4]/(1<<NE_BITS);
-  t[5]-=t[6]*_f8[8]/(1<<NE_BITS);
-  t[6]-=t[5]*_f8[5]/(1<<NE_BITS);
-  t[6]-=t[7]*_f8[9]/(1<<NE_BITS);
-  t[7]-=t[6]*_f8[6]/(1<<NE_BITS);
-#else
-  t[4]-=t[5]*_f8[7]/(1<<NE_BITS);
-  t[5]-=t[6]*_f8[8]/(1<<NE_BITS);
-  t[6]-=t[7]*_f8[9]/(1<<NE_BITS);
-  t[7]-=t[6]*_f8[6]/(1<<NE_BITS);
-  t[6]-=t[5]*_f8[5]/(1<<NE_BITS);
-  t[5]-=t[4]*_f8[4]/(1<<NE_BITS);
-#endif
-  t[7]=(t[7]*(1<<NE_BITS))/_f8[3];
-  t[6]=(t[6]*(1<<NE_BITS))/_f8[2];
-  t[5]=(t[5]*(1<<NE_BITS))/_f8[1];
-  t[4]=(t[4]*(1<<NE_BITS))/_f8[0];
-  t[0]+=t[7]/2;
-  _x[0]=t[0];
-  t[1]+=t[6]/2;
-  _x[1]=t[1];
-  t[2]+=t[5]/2;
-  _x[2]=t[2];
-  t[3]+=t[4]/2;
-  _x[3]=t[3];
-  _x[4]=(t[3]-t[4]);
-  _x[5]=(t[2]-t[5]);
-  _x[6]=(t[1]-t[6]);
-  _x[7]=(t[0]-t[7]);
-}
-
-static void ne_pre_filter16(double _y[16],const double _x[16],const int _f16[22]){
-  double t[16];
-  t[15]=_x[0]-_x[15];
-  t[14]=_x[1]-_x[14];
-  t[13]=_x[2]-_x[13];
-  t[12]=_x[3]-_x[12];
-  t[11]=_x[4]-_x[11];
-  t[10]=_x[5]-_x[10];
-  t[9]=_x[6]-_x[9];
-  t[8]=_x[7]-_x[8];
-  t[7]=_x[7]-(t[8]/2);
-  t[6]=_x[6]-(t[9]/2);
-  t[5]=_x[5]-(t[10]/2);
-  t[4]=_x[4]-(t[11]/2);
-  t[3]=_x[3]-(t[12]/2);
-  t[2]=_x[2]-(t[13]/2);
-  t[1]=_x[1]-(t[14]/2);
-  t[0]=_x[0]-(t[15]/2);
-  t[8]=t[8]*_f16[0]/(1<<NE_BITS);
-  t[9]=t[9]*_f16[1]/(1<<NE_BITS);
-  t[10]=t[10]*_f16[2]/(1<<NE_BITS);
-  t[11]=t[11]*_f16[3]/(1<<NE_BITS);
-  t[12]=t[12]*_f16[4]/(1<<NE_BITS);
-  t[13]=t[13]*_f16[5]/(1<<NE_BITS);
-  t[14]=t[14]*_f16[6]/(1<<NE_BITS);
-  t[15]=t[15]*_f16[7]/(1<<NE_BITS);
-#if USE_TYPE3
-  t[15]+=t[14]*_f16[14]/(1<<NE_BITS);
-  t[14]+=t[15]*_f16[21]/(1<<NE_BITS);
-  t[14]+=t[13]*_f16[13]/(1<<NE_BITS);
-  t[13]+=t[14]*_f16[20]/(1<<NE_BITS);
-  t[13]+=t[12]*_f16[12]/(1<<NE_BITS);
-  t[12]+=t[13]*_f16[19]/(1<<NE_BITS);
-  t[12]+=t[11]*_f16[11]/(1<<NE_BITS);
-  t[11]+=t[12]*_f16[18]/(1<<NE_BITS);
-  t[11]+=t[10]*_f16[10]/(1<<NE_BITS);
-  t[10]+=t[11]*_f16[17]/(1<<NE_BITS);
-  t[10]+=t[9]*_f16[9]/(1<<NE_BITS);
-  t[9]+=t[10]*_f16[16]/(1<<NE_BITS);
-  t[9]+=t[8]*_f16[8]/(1<<NE_BITS);
-  t[8]+=t[9]*_f16[15]/(1<<NE_BITS);
-#else
-  t[9]+=t[8]*_f16[8]/(1<<NE_BITS);
-  t[10]+=t[9]*_f16[9]/(1<<NE_BITS);
-  t[11]+=t[10]*_f16[10]/(1<<NE_BITS);
-  t[12]+=t[11]*_f16[11]/(1<<NE_BITS);
-  t[13]+=t[12]*_f16[12]/(1<<NE_BITS);
-  t[14]+=t[13]*_f16[13]/(1<<NE_BITS);
-  t[15]+=t[14]*_f16[14]/(1<<NE_BITS);
-  t[14]+=t[15]*_f16[21]/(1<<NE_BITS);
-  t[13]+=t[14]*_f16[20]/(1<<NE_BITS);
-  t[12]+=t[13]*_f16[19]/(1<<NE_BITS);
-  t[11]+=t[12]*_f16[18]/(1<<NE_BITS);
-  t[10]+=t[11]*_f16[17]/(1<<NE_BITS);
-  t[9]+=t[10]*_f16[16]/(1<<NE_BITS);
-  t[8]+=t[9]*_f16[15]/(1<<NE_BITS);
-#endif
-  t[0]+=t[15]/2;
-  _y[0]=t[0];
-  t[1]+=t[14]/2;
-  _y[1]=t[1];
-  t[2]+=t[13]/2;
-  _y[2]=t[2];
-  t[3]+=t[12]/2;
-  _y[3]=t[3];
-  t[4]+=t[11]/2;
-  _y[4]=t[4];
-  t[5]+=t[10]/2;
-  _y[5]=t[5];
-  t[6]+=t[9]/2;
-  _y[6]=t[6];
-  t[7]+=t[8]/2;
-  _y[7]=t[7];
-  _y[8]=(t[7]-t[8]);
-  _y[9]=(t[6]-t[9]);
-  _y[10]=(t[5]-t[10]);
-  _y[11]=(t[4]-t[11]);
-  _y[12]=(t[3]-t[12]);
-  _y[13]=(t[2]-t[13]);
-  _y[14]=(t[1]-t[14]);
-  _y[15]=(t[0]-t[15]);
-}
-
-static void ne_post_filter16(double _x[16],const double _y[16],const int _f16[22]){
-  double t[16];
-  t[15]=_y[0]-_y[15];
-  t[14]=_y[1]-_y[14];
-  t[13]=_y[2]-_y[13];
-  t[12]=_y[3]-_y[12];
-  t[11]=_y[4]-_y[11];
-  t[10]=_y[5]-_y[10];
-  t[9]=_y[6]-_y[9];
-  t[8]=_y[7]-_y[8];
-  t[7]=_y[7]-(t[8]/2);
-  t[6]=_y[6]-(t[9]/2);
-  t[5]=_y[5]-(t[10]/2);
-  t[4]=_y[4]-(t[11]/2);
-  t[3]=_y[3]-(t[12]/2);
-  t[2]=_y[2]-(t[13]/2);
-  t[1]=_y[1]-(t[14]/2);
-  t[0]=_y[0]-(t[15]/2);
-#if USE_TYPE3
-  t[8]-=t[9]*_f16[15]/(1<<NE_BITS);
-  t[9]-=t[8]*_f16[8]/(1<<NE_BITS);
-  t[9]-=t[10]*_f16[16]/(1<<NE_BITS);
-  t[10]-=t[9]*_f16[9]/(1<<NE_BITS);
-  t[10]-=t[11]*_f16[17]/(1<<NE_BITS);
-  t[11]-=t[10]*_f16[10]/(1<<NE_BITS);
-  t[11]-=t[12]*_f16[18]/(1<<NE_BITS);
-  t[12]-=t[11]*_f16[11]/(1<<NE_BITS);
-  t[12]-=t[13]*_f16[19]/(1<<NE_BITS);
-  t[13]-=t[12]*_f16[12]/(1<<NE_BITS);
-  t[13]-=t[14]*_f16[20]/(1<<NE_BITS);
-  t[14]-=t[13]*_f16[13]/(1<<NE_BITS);
-  t[14]-=t[15]*_f16[21]/(1<<NE_BITS);
-  t[15]-=t[14]*_f16[14]/(1<<NE_BITS);
-#else
-  t[8]-=t[9]*_f16[15]/(1<<NE_BITS);
-  t[9]-=t[10]*_f16[16]/(1<<NE_BITS);
-  t[10]-=t[11]*_f16[17]/(1<<NE_BITS);
-  t[11]-=t[12]*_f16[18]/(1<<NE_BITS);
-  t[12]-=t[13]*_f16[19]/(1<<NE_BITS);
-  t[13]-=t[14]*_f16[20]/(1<<NE_BITS);
-  t[14]-=t[15]*_f16[21]/(1<<NE_BITS);
-  t[15]-=t[14]*_f16[14]/(1<<NE_BITS);
-  t[14]-=t[13]*_f16[13]/(1<<NE_BITS);
-  t[13]-=t[12]*_f16[12]/(1<<NE_BITS);
-  t[12]-=t[11]*_f16[11]/(1<<NE_BITS);
-  t[11]-=t[10]*_f16[10]/(1<<NE_BITS);
-  t[10]-=t[9]*_f16[9]/(1<<NE_BITS);
-  t[9]-=t[8]*_f16[8]/(1<<NE_BITS);
-#endif
-  t[15]=(t[15]*(1<<NE_BITS))/_f16[7];
-  t[14]=(t[14]*(1<<NE_BITS))/_f16[6];
-  t[13]=(t[13]*(1<<NE_BITS))/_f16[5];
-  t[12]=(t[12]*(1<<NE_BITS))/_f16[4];
-  t[11]=(t[11]*(1<<NE_BITS))/_f16[3];
-  t[10]=(t[10]*(1<<NE_BITS))/_f16[2];
-  t[9]=(t[9]*(1<<NE_BITS))/_f16[1];
-  t[8]=(t[8]*(1<<NE_BITS))/_f16[0];
-  t[0]+=t[15]/2;
-  _x[0]=t[0];
-  t[1]+=t[14]/2;
-  _x[1]=t[1];
-  t[2]+=t[13]/2;
-  _x[2]=t[2];
-  t[3]+=t[12]/2;
-  _x[3]=t[3];
-  t[4]+=t[11]/2;
-  _x[4]=t[4];
-  t[5]+=t[10]/2;
-  _x[5]=t[5];
-  t[6]+=t[9]/2;
-  _x[6]=t[6];
-  t[7]+=t[8]/2;
-  _x[7]=t[7];
-  _x[8]=(t[7]-t[8]);
-  _x[9]=(t[6]-t[9]);
-  _x[10]=(t[5]-t[10]);
-  _x[11]=(t[4]-t[11]);
-  _x[12]=(t[3]-t[12]);
-  _x[13]=(t[2]-t[13]);
-  _x[14]=(t[1]-t[14]);
-  _x[15]=(t[0]-t[15]);
-}
-
-const ne_filter_func_double NE_PRE_FILTER_DOUBLE[OD_NBSIZES]={
-  ne_pre_filter4,
-  ne_pre_filter8,
-  ne_pre_filter16
-};
-
-const ne_filter_func_double NE_POST_FILTER_DOUBLE[OD_NBSIZES]={
-  ne_post_filter4,
-  ne_post_filter8,
-  ne_post_filter16
-};
 
 /*The true forward 4-point type-II DCT basis, to 32-digit (100 bit) precision.
   The inverse is merely the transpose.*/
@@ -1090,7 +813,7 @@ double coding_gain_2d(const double _r[2*B_SZ*2*B_SZ*2*B_SZ*2*B_SZ],const int *_f
   return cg/(B_SZ*B_SZ);
 }
 
-double coding_gain_2d_collapsed(const double _r[2*B_SZ*2*B_SZ], const int *_f){
+double coding_gain_2d_collapsed(const double _r[2*B_SZ*2*B_SZ],const int *_f){
   int    v;
   int    u;
   int    j;

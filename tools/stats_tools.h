@@ -1,3 +1,27 @@
+/*Daala video codec
+Copyright (c) 2013 Daala project contributors.  All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+- Redistributions of source code must retain the above copyright notice, this
+  list of conditions and the following disclaimer.
+
+- Redistributions in binary form must reproduce the above copyright notice,
+  this list of conditions and the following disclaimer in the documentation
+  and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS “AS IS”
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
+
 #if !defined(_tools_stats_tools_H)
 # define _tools_stats_tools_H (1)
 
@@ -118,17 +142,6 @@ int image_data_load_map(image_data *_this);
 int ne_apply_to_blocks(void *_ctx,int _ctx_sz,int _plmask,int _padding,
  plane_start_func _start,int _nfuncs,const block_func *_funcs,
  plane_finish_func _finish,int _argc,const char *_argv[]);
-
-extern int NE_FILTER_PARAMS4[4];
-extern int NE_FILTER_PARAMS8[10];
-extern int NE_FILTER_PARAMS16[22];
-
-void ne_filter_params4_init(const int *_x);
-void ne_filter_params8_init(const int *_x);
-void ne_filter_params16_init(const int *_x);
-
-extern const od_filter_func NE_PRE_FILTER[OD_NBSIZES];
-extern const od_filter_func NE_POST_FILTER[OD_NBSIZES];
 
 extern const od_intra_mult_func NE_INTRA_MULT[OD_NBSIZES];
 

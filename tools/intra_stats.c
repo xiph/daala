@@ -1,7 +1,8 @@
 #include <omp.h>
 #include <stdlib.h>
 #include <string.h>
-#include "intra_fit_tools.h"
+#include "od_defs.h"
+#include "od_filter.h"
 #include "stats_tools.h"
 #include "image.h"
 #include "../src/dct.h"
@@ -315,15 +316,7 @@ const int NBLOCKS=sizeof(BLOCKS)/sizeof(*BLOCKS);
 int main(int _argc,const char *_argv[]){
   intra_stats_ctx ctx[NUM_PROCS];
   int             i;
-#if B_SZ==4
-  ne_filter_params4_init(OD_FILTER_PARAMS4);
-#elif B_SZ==8
-  ne_filter_params8_init(OD_FILTER_PARAMS8);
-#elif B_SZ==16
-  ne_filter_params16_init(OD_FILTER_PARAMS16);
-#else
-# error "Need filter params for this block size."
-#endif
+  ne_filter_params_init();
   vp8_scale_init(VP8_SCALE);
   od_scale_init(OD_SCALE);
 #if WRITE_IMAGES

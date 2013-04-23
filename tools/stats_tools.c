@@ -1,7 +1,32 @@
+/*Daala video codec
+Copyright (c) 2013 Daala project contributors.  All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+- Redistributions of source code must retain the above copyright notice, this
+  list of conditions and the following disclaimer.
+
+- Redistributions in binary form must reproduce the above copyright notice,
+  this list of conditions and the following disclaimer in the documentation
+  and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS “AS IS”
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
+
 #include <omp.h>
 #include <stdlib.h>
 #include <string.h>
 #include "stats_tools.h"
+#include "od_filter.h"
 #include "../src/dct.h"
 #include "../src/intra.h"
 
@@ -1072,314 +1097,6 @@ int ne_apply_to_blocks(void *_ctx,int _ctx_sz,int _plmask,int _padding,
   }
   return EXIT_SUCCESS;
 }
-
-int NE_FILTER_PARAMS4[4];
-int NE_FILTER_PARAMS8[10];
-int NE_FILTER_PARAMS16[22];
-
-void ne_filter_params4_init(const int *_x){
-  int i;
-  for(i=0;i<4;i++){
-    NE_FILTER_PARAMS4[i]=_x[i];
-  }
-}
-
-void ne_filter_params8_init(const int *_x){
-  int i;
-  for(i=0;i<10;i++){
-    NE_FILTER_PARAMS8[i]=_x[i];
-  }
-}
-
-void ne_filter_params16_init(const int *_x){
-  int i;
-  for(i=0;i<22;i++){
-    NE_FILTER_PARAMS16[i]=_x[i];
-  }
-}
-
-static void ne_pre_filter4(od_coeff _y[4],const od_coeff _x[4]){
-  int t[4];
-  /*+1/-1 butterflies (required for FIR, PR, LP).*/
-  t[3]=_x[0]-_x[3];
-  t[2]=_x[1]-_x[2];
-  t[1]=_x[1]-(t[2]>>1);
-  t[0]=_x[0]-(t[3]>>1);
-  /*Scaling factors: the biorthogonal part.*/
-  t[2]=t[2]*NE_FILTER_PARAMS4[0]>>6;
-  t[2]+=-t[2]>>15&1;
-  t[3]=t[3]*NE_FILTER_PARAMS4[1]>>6;
-  t[3]+=-t[3]>>15&1;
-  /*Rotations*/
-  t[3]+=t[2]*NE_FILTER_PARAMS4[2]+32>>6;
-  t[2]+=t[3]*NE_FILTER_PARAMS4[3]+32>>6;
-  /*More +1/-1 butterflies (required for FIR, PR, LP).*/
-  t[0]+=t[3]>>1;
-  _y[0]=(od_coeff)t[0];
-  t[1]+=t[2]>>1;
-  _y[1]=(od_coeff)t[1];
-  _y[2]=(od_coeff)(t[1]-t[2]);
-  _y[3]=(od_coeff)(t[0]-t[3]);
-}
-
-static void ne_post_filter4(od_coeff _x[4],const od_coeff _y[4]){
-  int t[4];
-  t[3]=_y[0]-_y[3];
-  t[2]=_y[1]-_y[2];
-  t[1]=_y[1]-(t[2]>>1);
-  t[0]=_y[0]-(t[3]>>1);
-
-  t[2]-=t[3]*NE_FILTER_PARAMS4[3]+32>>6;
-  t[3]-=t[2]*NE_FILTER_PARAMS4[2]+32>>6;
-
-  t[3]=(t[3]<<6)/NE_FILTER_PARAMS4[1];
-  t[2]=(t[2]<<6)/NE_FILTER_PARAMS4[0];
-
-  t[0]+=t[3]>>1;
-  _x[0]=(od_coeff)t[0];
-  t[1]+=t[2]>>1;
-  _x[1]=(od_coeff)t[1];
-  _x[2]=(od_coeff)(t[1]-t[2]);
-  _x[3]=(od_coeff)(t[0]-t[3]);
-}
-
-static void ne_pre_filter8(od_coeff _y[8],const od_coeff _x[8]){
-  int t[8];
-  /*+1/-1 butterflies (required for FIR, PR, LP).*/
-  t[7]=_x[0]-_x[7];
-  t[6]=_x[1]-_x[6];
-  t[5]=_x[2]-_x[5];
-  t[4]=_x[3]-_x[4];
-  t[3]=_x[3]-(t[4]>>1);
-  t[2]=_x[2]-(t[5]>>1);
-  t[1]=_x[1]-(t[6]>>1);
-  t[0]=_x[0]-(t[7]>>1);
-  /*Scaling factors: the biorthogonal part.*/
-  t[4]=t[4]*NE_FILTER_PARAMS8[0]>>6;
-  t[4]+=-t[4]>>15&1;
-  t[5]=t[5]*NE_FILTER_PARAMS8[1]>>6;
-  t[5]+=-t[5]>>15&1;
-  t[6]=t[6]*NE_FILTER_PARAMS8[2]>>6;
-  t[6]+=-t[6]>>15&1;
-  t[7]=t[7]*NE_FILTER_PARAMS8[3]>>6;
-  t[7]+=-t[7]>>15&1;
-  /*Rotations*/
-  t[5]+=t[4]*NE_FILTER_PARAMS8[4]+32>>6;
-  t[6]+=t[5]*NE_FILTER_PARAMS8[5]+32>>6;
-  t[7]+=t[6]*NE_FILTER_PARAMS8[6]+32>>6;
-  t[6]+=t[7]*NE_FILTER_PARAMS8[9]+32>>6;
-  t[5]+=t[6]*NE_FILTER_PARAMS8[8]+32>>6;
-  t[4]+=t[5]*NE_FILTER_PARAMS8[7]+32>>6;
-  /*More +1/-1 butterflies (required for FIR, PR, LP).*/
-  t[0]+=t[7]>>1;
-  _y[0]=(od_coeff)t[0];
-  t[1]+=t[6]>>1;
-  _y[1]=(od_coeff)t[1];
-  t[2]+=t[5]>>1;
-  _y[2]=(od_coeff)t[2];
-  t[3]+=t[4]>>1;
-  _y[3]=(od_coeff)t[3];
-  _y[4]=(od_coeff)(t[3]-t[4]);
-  _y[5]=(od_coeff)(t[2]-t[5]);
-  _y[6]=(od_coeff)(t[1]-t[6]);
-  _y[7]=(od_coeff)(t[0]-t[7]);
-}
-
-static void ne_post_filter8(od_coeff _x[8],const od_coeff _y[8]){
-  int t[8];
-  t[7]=_y[0]-_y[7];
-  t[6]=_y[1]-_y[6];
-  t[5]=_y[2]-_y[5];
-  t[4]=_y[3]-_y[4];
-  t[3]=_y[3]-(t[4]>>1);
-  t[2]=_y[2]-(t[5]>>1);
-  t[1]=_y[1]-(t[6]>>1);
-  t[0]=_y[0]-(t[7]>>1);
-
-  t[4]-=t[5]*NE_FILTER_PARAMS8[7]+32>>6;
-  t[5]-=t[6]*NE_FILTER_PARAMS8[8]+32>>6;
-  t[6]-=t[7]*NE_FILTER_PARAMS8[9]+32>>6;
-  t[7]-=t[6]*NE_FILTER_PARAMS8[6]+32>>6;
-  t[6]-=t[5]*NE_FILTER_PARAMS8[5]+32>>6;
-  t[5]-=t[4]*NE_FILTER_PARAMS8[4]+32>>6;
-
-  t[7]=(t[7]<<6)/NE_FILTER_PARAMS8[3];
-  t[6]=(t[6]<<6)/NE_FILTER_PARAMS8[2];
-  t[5]=(t[5]<<6)/NE_FILTER_PARAMS8[1];
-  t[4]=(t[4]<<6)/NE_FILTER_PARAMS8[0];
-
-  t[0]+=t[7]>>1;
-  _x[0]=(od_coeff)t[0];
-  t[1]+=t[6]>>1;
-  _x[1]=(od_coeff)t[1];
-  t[2]+=t[5]>>1;
-  _x[2]=(od_coeff)t[2];
-  t[3]+=t[4]>>1;
-  _x[3]=(od_coeff)t[3];
-  _x[4]=(od_coeff)(t[3]-t[4]);
-  _x[5]=(od_coeff)(t[2]-t[5]);
-  _x[6]=(od_coeff)(t[1]-t[6]);
-  _x[7]=(od_coeff)(t[0]-t[7]);
-}
-
-static void ne_pre_filter16(od_coeff _y[16],const od_coeff _x[16]){
-  int t[16];
-  /*+1/-1 butterflies (required for FIR, PR, LP).*/
-  t[15]=_x[0]-_x[15];
-  t[14]=_x[1]-_x[14];
-  t[13]=_x[2]-_x[13];
-  t[12]=_x[3]-_x[12];
-  t[11]=_x[4]-_x[11];
-  t[10]=_x[5]-_x[10];
-  t[9]=_x[6]-_x[9];
-  t[8]=_x[7]-_x[8];
-  t[7]=_x[7]-(t[8]>>1);
-  t[6]=_x[6]-(t[9]>>1);
-  t[5]=_x[5]-(t[10]>>1);
-  t[4]=_x[4]-(t[11]>>1);
-  t[3]=_x[3]-(t[12]>>1);
-  t[2]=_x[2]-(t[13]>>1);
-  t[1]=_x[1]-(t[14]>>1);
-  t[0]=_x[0]-(t[15]>>1);
-  /*Scaling factors: the biorthogonal part.*/
-  t[8]=t[8]*NE_FILTER_PARAMS16[0]>>6;
-  t[8]+=-t[8]>>15&1;
-  t[9]=t[9]*NE_FILTER_PARAMS16[1]>>6;
-  t[9]+=-t[9]>>15&1;
-  t[10]=t[10]*NE_FILTER_PARAMS16[2]>>6;
-  t[10]+=-t[10]>>15&1;
-  t[11]=t[11]*NE_FILTER_PARAMS16[3]>>6;
-  t[11]+=-t[11]>>15&1;
-  t[12]=t[12]*NE_FILTER_PARAMS16[4]>>6;
-  t[12]+=-t[12]>>15&1;
-  t[13]=t[13]*NE_FILTER_PARAMS16[5]>>6;
-  t[13]+=-t[13]>>15&1;
-  t[14]=t[14]*NE_FILTER_PARAMS16[6]>>6;
-  t[14]+=-t[14]>>15&1;
-  t[15]=t[15]*NE_FILTER_PARAMS16[7]>>6;
-  t[15]+=-t[15]>>15&1;
-  /*Rotations*/
-  t[9]+=t[8]*NE_FILTER_PARAMS16[8]+32>>6;
-  t[10]+=t[9]*NE_FILTER_PARAMS16[9]+32>>6;
-  t[11]+=t[10]*NE_FILTER_PARAMS16[10]+32>>6;
-  t[12]+=t[11]*NE_FILTER_PARAMS16[11]+32>>6;
-  t[13]+=t[12]*NE_FILTER_PARAMS16[12]+32>>6;
-  t[14]+=t[13]*NE_FILTER_PARAMS16[13]+32>>6;
-  t[15]+=t[14]*NE_FILTER_PARAMS16[14]+32>>6;
-  t[14]+=t[15]*NE_FILTER_PARAMS16[21]+32>>6;
-  t[13]+=t[14]*NE_FILTER_PARAMS16[20]+32>>6;
-  t[12]+=t[13]*NE_FILTER_PARAMS16[19]+32>>6;
-  t[11]+=t[12]*NE_FILTER_PARAMS16[18]+32>>6;
-  t[10]+=t[11]*NE_FILTER_PARAMS16[17]+32>>6;
-  t[9]+=t[10]*NE_FILTER_PARAMS16[16]+32>>6;
-  t[8]+=t[9]*NE_FILTER_PARAMS16[15]+32>>6;
-  /*More +1/-1 butterflies (required for FIR, PR, LP).*/
-  t[0]+=t[15]>>1;
-  _y[0]=(od_coeff)t[0];
-  t[1]+=t[14]>>1;
-  _y[1]=(od_coeff)t[1];
-  t[2]+=t[13]>>1;
-  _y[2]=(od_coeff)t[2];
-  t[3]+=t[12]>>1;
-  _y[3]=(od_coeff)t[3];
-  t[4]+=t[11]>>1;
-  _y[4]=(od_coeff)t[4];
-  t[5]+=t[10]>>1;
-  _y[5]=(od_coeff)t[5];
-  t[6]+=t[9]>>1;
-  _y[6]=(od_coeff)t[6];
-  t[7]+=t[8]>>1;
-  _y[7]=(od_coeff)t[7];
-  _y[8]=(od_coeff)(t[7]-t[8]);
-  _y[9]=(od_coeff)(t[6]-t[9]);
-  _y[10]=(od_coeff)(t[5]-t[10]);
-  _y[11]=(od_coeff)(t[4]-t[11]);
-  _y[12]=(od_coeff)(t[3]-t[12]);
-  _y[13]=(od_coeff)(t[2]-t[13]);
-  _y[14]=(od_coeff)(t[1]-t[14]);
-  _y[15]=(od_coeff)(t[0]-t[15]);
-}
-
-static void ne_post_filter16(od_coeff _x[16],const od_coeff _y[16]){
-  int t[16];
-  t[15]=_y[0]-_y[15];
-  t[14]=_y[1]-_y[14];
-  t[13]=_y[2]-_y[13];
-  t[12]=_y[3]-_y[12];
-  t[11]=_y[4]-_y[11];
-  t[10]=_y[5]-_y[10];
-  t[9]=_y[6]-_y[9];
-  t[8]=_y[7]-_y[8];
-  t[7]=_y[7]-(t[8]>>1);
-  t[6]=_y[6]-(t[9]>>1);
-  t[5]=_y[5]-(t[10]>>1);
-  t[4]=_y[4]-(t[11]>>1);
-  t[3]=_y[3]-(t[12]>>1);
-  t[2]=_y[2]-(t[13]>>1);
-  t[1]=_y[1]-(t[14]>>1);
-  t[0]=_y[0]-(t[15]>>1);
-
-  t[8]-=t[9]*NE_FILTER_PARAMS16[15]+32>>6;
-  t[9]-=t[10]*NE_FILTER_PARAMS16[16]+32>>6;
-  t[10]-=t[11]*NE_FILTER_PARAMS16[17]+32>>6;
-  t[11]-=t[12]*NE_FILTER_PARAMS16[18]+32>>6;
-  t[12]-=t[13]*NE_FILTER_PARAMS16[19]+32>>6;
-  t[13]-=t[14]*NE_FILTER_PARAMS16[20]+32>>6;
-  t[14]-=t[15]*NE_FILTER_PARAMS16[21]+32>>6;
-  t[15]-=t[14]*NE_FILTER_PARAMS16[14]+32>>6;
-  t[14]-=t[13]*NE_FILTER_PARAMS16[13]+32>>6;
-  t[13]-=t[12]*NE_FILTER_PARAMS16[12]+32>>6;
-  t[12]-=t[11]*NE_FILTER_PARAMS16[11]+32>>6;
-  t[11]-=t[10]*NE_FILTER_PARAMS16[10]+32>>6;
-  t[10]-=t[9]*NE_FILTER_PARAMS16[9]+32>>6;
-  t[9]-=t[8]*NE_FILTER_PARAMS16[8]+32>>6;
-
-  t[15]=(t[15]<<6)/NE_FILTER_PARAMS16[7];
-  t[14]=(t[14]<<6)/NE_FILTER_PARAMS16[6];
-  t[13]=(t[13]<<6)/NE_FILTER_PARAMS16[5];
-  t[12]=(t[12]<<6)/NE_FILTER_PARAMS16[4];
-  t[11]=(t[11]<<6)/NE_FILTER_PARAMS16[3];
-  t[10]=(t[10]<<6)/NE_FILTER_PARAMS16[2];
-  t[9]=(t[9]<<6)/NE_FILTER_PARAMS16[1];
-  t[8]=(t[8]<<6)/NE_FILTER_PARAMS16[0];
-
-  t[0]+=t[15]>>1;
-  _x[0]=(od_coeff)t[0];
-  t[1]+=t[14]>>1;
-  _x[1]=(od_coeff)t[1];
-  t[2]+=t[13]>>1;
-  _x[2]=(od_coeff)t[2];
-  t[3]+=t[12]>>1;
-  _x[3]=(od_coeff)t[3];
-  t[4]+=t[11]>>1;
-  _x[4]=(od_coeff)t[4];
-  t[5]+=t[10]>>1;
-  _x[5]=(od_coeff)t[5];
-  t[6]+=t[9]>>1;
-  _x[6]=(od_coeff)t[6];
-  t[7]+=t[8]>>1;
-  _x[7]=(od_coeff)t[7];
-  _x[8]=(od_coeff)(t[7]-t[8]);
-  _x[9]=(od_coeff)(t[6]-t[9]);
-  _x[10]=(od_coeff)(t[5]-t[10]);
-  _x[11]=(od_coeff)(t[4]-t[11]);
-  _x[12]=(od_coeff)(t[3]-t[12]);
-  _x[13]=(od_coeff)(t[2]-t[13]);
-  _x[14]=(od_coeff)(t[1]-t[14]);
-  _x[15]=(od_coeff)(t[0]-t[15]);
-}
-
-const od_filter_func NE_PRE_FILTER[OD_NBSIZES]={
-  ne_pre_filter4,
-  ne_pre_filter8,
-  ne_pre_filter16
-};
-
-const od_filter_func NE_POST_FILTER[OD_NBSIZES]={
-  ne_post_filter4,
-  ne_post_filter8,
-  ne_post_filter16
-};
 
 static void ne_intra_pred4x4_mult(double *_p,const od_coeff *_c,int _stride,
  int _mode){
