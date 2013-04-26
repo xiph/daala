@@ -79,7 +79,9 @@ void od_tf_up_hv_lp(od_coeff *_dst,int _dstride,
     for(x=0;x<_n>>1;x++){
       od_coeff ll;
       od_coeff lh;
+      od_coeff lh_2;
       od_coeff hl;
+      od_coeff hl_2;
       od_coeff hh;
       int      hswap;
       ll=_src[y*_sstride+x];
@@ -87,18 +89,105 @@ void od_tf_up_hv_lp(od_coeff *_dst,int _dstride,
       hl=_src[(y+_dy)*_sstride+x];
       hh=_src[(y+_dy)*_sstride+x+_dx];
       hl=ll-hl;
-      hh=lh-hh;
-      ll-=OD_DCT_RSHIFT(hl,1);
-      lh-=OD_DCT_RSHIFT(hh,1);
+      lh+=hh;
+      hl_2=OD_DCT_RSHIFT(hl,1);
+      lh_2=OD_DCT_RSHIFT(lh,1);
+      ll-=hl_2;
+      hh=lh_2-hh;
+      ll+=lh_2;
+      hh=hl_2-hh;
       lh=ll-lh;
-      hh=hl-hh;
-      ll-=OD_DCT_RSHIFT(lh,1);
-      hl-=OD_DCT_RSHIFT(hh,1);
+      hl-=hh;
       hswap=x&1;
       _dst[(2*y+vswap)*_dstride+2*x+hswap]=ll;
       _dst[(2*y+vswap)*_dstride+2*x+1-hswap]=lh;
       _dst[(2*y+1-vswap)*_dstride+2*x+hswap]=hl;
       _dst[(2*y+1-vswap)*_dstride+2*x+1-hswap]=hh;
+    }
+  }
+}
+
+/*Increase horizontal and vertical frequency resolution of a 2x2 group of
+   blocks, combining them into a single block.*/
+void od_tf_up_hv(od_coeff *_dst,int _dstride,
+ const od_coeff *_src,int _sstride,int _n){
+  int x;
+  int y;
+  for(y=0;y<_n;y++){
+    int vswap;
+    vswap=y&1;
+    for(x=0;x<_n;x++){
+      od_coeff ll;
+      od_coeff lh;
+      od_coeff lh_2;
+      od_coeff hl;
+      od_coeff hl_2;
+      od_coeff hh;
+      int      hswap;
+      ll=_src[y*_sstride+x];
+      lh=_src[y*_sstride+x+_n];
+      hl=_src[(y+_n)*_sstride+x];
+      hh=_src[(y+_n)*_sstride+x+_n];
+      /*This kernel is identical to that of od_tf_down_hv with the roles of
+         hl and lh swapped.*/
+      hl=ll-hl;
+      lh+=hh;
+      hl_2=OD_DCT_RSHIFT(hl,1);
+      lh_2=OD_DCT_RSHIFT(lh,1);
+      ll-=hl_2;
+      hh=lh_2-hh;
+      ll+=lh_2;
+      hh=hl_2-hh;
+      lh=ll-lh;
+      hl-=hh;
+      hswap=x&1;
+      _dst[(2*y+vswap)*_dstride+2*x+hswap]=ll;
+      _dst[(2*y+vswap)*_dstride+2*x+1-hswap]=lh;
+      _dst[(2*y+1-vswap)*_dstride+2*x+hswap]=hl;
+      _dst[(2*y+1-vswap)*_dstride+2*x+1-hswap]=hh;
+    }
+  }
+}
+
+/*Increase horizontal and vertical time resolution of a block, splitting it
+   into a 2x2 group of blocks.*/
+void od_tf_down_hv(od_coeff *_dst,int _dstride,
+ const od_coeff *_src,int _sstride,int _n){
+  int x;
+  int y;
+  OD_ASSERT(!(_n&1));
+  for(y=0;y<_n>>1;y++){
+    int vswap;
+    vswap=y&1;
+    for(x=0;x<_n>>1;x++){
+      od_coeff ll;
+      od_coeff lh;
+      od_coeff lh_2;
+      od_coeff hl;
+      od_coeff hl_2;
+      od_coeff hh;
+      int      hswap;
+      hswap=x&1;
+      ll=_src[(2*y+vswap)*_sstride+2*x+hswap];
+      lh=_src[(2*y+vswap)*_sstride+2*x+1-hswap];
+      hl=_src[(2*y+1-vswap)*_sstride+2*x+hswap];
+      hh=_src[(2*y+1-vswap)*_sstride+2*x+1-hswap];
+      /*This kernel is identical to that of od_tf_up_hv with the roles of
+         hl and lh swapped.*/
+      lh=ll-lh;
+      hl+=hh;
+      lh_2=OD_DCT_RSHIFT(lh,1);
+      hl_2=OD_DCT_RSHIFT(hl,1);
+      ll-=lh_2;
+      hh=hl_2-hh;
+      ll+=hl_2;
+      hh=lh_2-hh;
+      hl=ll-hl;
+      lh-=hh;
+      _dst[y*_dstride+x]=ll;
+      _dst[y*_dstride+x+_n]=lh;
+      _dst[(y+_n)*_dstride+x]=hl;
+      _dst[(y+_n)*_dstride+x+_n]=hh;
     }
   }
 }

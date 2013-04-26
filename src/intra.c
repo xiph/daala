@@ -183,7 +183,7 @@ void od_chroma_pred4x4(od_coeff *_p,const od_coeff *_c,
   }
   xx-=lc_sum_q8*(ogg_int64_t)lc_sum_q8+128>>8;
   xy-=cc_sum_q8*(ogg_int64_t)lc_sum_q8+128>>8;
-  if(abs(xx)>abs(xy)>>2)alpha_q8=(xy<<8)/xx;
+  if(abs(xx)>abs(xy)>>1)alpha_q8=(xy<<8)/xx;
   else alpha_q8=0;
   beta_q8=cc_sum_q8-(alpha_q8*lc_sum_q8+128>>8);
   _p[0]=_l[0]*alpha_q8+beta_q8+128>>8;
