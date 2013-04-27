@@ -759,7 +759,7 @@ int main(int _argc,const char *_argv[]){
     }
     for(i=0;i<OD_INTRA_NMODES;i++){
       for(j=0;j<B_SZ*B_SZ*4*B_SZ*B_SZ;j++){
-        mask[i][j]=0;
+        mask[i][j]=1;
       }
     }
     ftime(&start);
