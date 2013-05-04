@@ -61,16 +61,16 @@ void cov_update(double *_mean,double *_cov,double *_work,double *_weight,int _n,
   int j;
   int i;
   (*_weight)+=_w;
-  s=1/(*_weight);
+  s=_w/(*_weight);
   for(i=0;i<_n;i++){
     _work[i]=_data[i]-_mean[i];
 #if FAST_MATH
     _mean[i]+=_work[i]*s;
 #else
-    _mean[i]+=_work[i]/_w;
+    _mean[i]+=_work[i]*_w/(*_weight);
 #endif
   }
-  s=((*_weight)-_w)/(*_weight);
+  s*=(*_weight)-_w;
   for(j=0;j<_n;j++){
     for(i=0;i<_n;i++){
 #if FAST_MATH
@@ -91,16 +91,16 @@ void od_covmat_add(od_covmat *_this,const double *_data,double _w){
   int    i;
   int    j;
   _this->w+=_w;
-  s=1/_this->w;
+  s=_w/_this->w;
   for(i=0;i<_this->sz;i++){
     _this->work[i]=_data[i]-_this->mean[i];
 #if FAST_MATH
     _this->mean[i]+=_this->work[i]*s;
 #else
-    _this->mean[i]+=_this->work[i]/_this->w;
+    _this->mean[i]+=_this->work[i]*_w/_this->w;
 #endif
   }
-  s=(_this->w-_w)/_this->w;
+  s*=_this->w-_w;
   for(j=0;j<_this->sz;j++){
     for(i=0;i<_this->sz;i++){
 #if FAST_MATH
