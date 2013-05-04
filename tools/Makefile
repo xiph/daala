@@ -183,6 +183,32 @@ IP_CSOURCES:=${IP_LOCAL_CSOURCES} ${IP_LOCAL_CSOURCES:%=${LIBSRCDIR}/%}
 IP_TARGET:=intra_pred
 
 
+#intra_trace
+IT_LOCAL_CSOURCES = \
+intra_trace.c \
+intra_fit_tools.c \
+od_covmat.c \
+od_filter.c \
+stats_tools.c \
+stats_data.c \
+trans_tools.c \
+vidinput.c \
+image.c
+
+IT_LIB_CSOURCES = \
+filter.c \
+newdct.c \
+intra.c \
+intradata.c
+
+IT_LDFLAGS = `pkg-config theoradec ogg libpng --libs` -lm
+
+IT_OBJS:=${IT_LOCAL_CSOURCES} ${IT_LIB_CSOURCES}
+IT_OBJS:=${IT_OBJS:%.c=${WORKDIR}/%.o}
+IT_CSOURCES:=${IT_LOCAL_CSOURCES} ${IT_LOCAL_CSOURCES:%=${LIBSRCDIR}/%}
+IT_TARGET:=intra_trace
+
+
 #trans
 T_LOCAL_CSOURCES = \
 trans.c \
@@ -299,7 +325,7 @@ GEN_LAPLACE_TABLES_TARGET:=gen_laplace_tables
 
 
 ALL_OBJS:=${P2Y_OBJS} ${Y2P_OBJS} ${PSNRHVS_OBJS} ${PIM_OBJS} ${IIM_OBJS} ${IIX_OBJS} \
- ${GEN_CDF_OBJS} ${GEN_LAPLACE_TABLES_OBJS} ${IS_OBJS} ${IP_OBJS} ${T_OBJS} ${T2D_OBJS} ${BSIZE_OBJS}
+ ${GEN_CDF_OBJS} ${GEN_LAPLACE_TABLES_OBJS} ${IS_OBJS} ${IP_OBJS} ${IT_OBJS} ${T_OBJS} ${T2D_OBJS} ${BSIZE_OBJS}
 
 ALL_ASMS:=${ALL_OBJS:%.o=%.s}
 
@@ -307,8 +333,8 @@ ALL_DEPS:=${ALL_OBJS:%.o=%.d}
 
 ALL_TARGETS:=${P2Y_TARGET} ${Y2P_TARGET} ${PSNRHVS_TARGET} \
  ${PIM_TARGET} ${IIM_TARGET} ${IIX_TARGET} ${GEN_CDF_TARGET} \
- ${GEN_LAPLACE_TABLES_TARGET} ${IS_TARGET} ${IP_TARGET} ${T_TARGET} ${T2D_TARGET} \
- ${BSIZE_TARGET}
+ ${GEN_LAPLACE_TABLES_TARGET} ${IS_TARGET} ${IP_TARGET} ${IT_TARGET} \
+ ${T_TARGET} ${T2D_TARGET} ${BSIZE_TARGET}
 
 all: ${ALL_TARGETS}
 
@@ -344,6 +370,9 @@ ${IS_TARGET}: ${IS_OBJS}
 
 ${IP_TARGET}: ${IP_OBJS}
 	${CC} ${CFLAGS} ${IP_OBJS} ${IP_LDFLAGS} -o $@
+
+${IT_TARGET}: ${IT_OBJS}
+	${CC} ${CFLAGS} ${IT_OBJS} ${IT_LDFLAGS} -o $@
 
 ${T_TARGET}: ${T_OBJS}
 	${CC} ${CFLAGS} ${T_OBJS} ${T_LDFLAGS} -o $@
