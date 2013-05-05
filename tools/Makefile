@@ -137,8 +137,9 @@ intra_stats.c \
 intra_fit_tools.c \
 od_covmat.c \
 od_filter.c \
+od_intra.c \
+od_intra_data.c \
 stats_tools.c \
-stats_data.c \
 vidinput.c \
 image.c
 
@@ -162,8 +163,9 @@ intra_pred.c \
 intra_fit_tools.c \
 od_covmat.c \
 od_filter.c \
+od_intra.c \
+od_intra_data.c \
 stats_tools.c \
-stats_data.c \
 vidinput.c \
 image.c \
 svd.c \
@@ -189,8 +191,9 @@ intra_trace.c \
 intra_fit_tools.c \
 od_covmat.c \
 od_filter.c \
+od_intra.c \
+od_intra_data.c \
 stats_tools.c \
-stats_data.c \
 trans_tools.c \
 vidinput.c \
 image.c
@@ -217,8 +220,9 @@ intra_fit_tools.c \
 vidinput.c \
 od_covmat.c \
 od_filter.c \
+od_intra.c \
+od_intra_data.c \
 stats_tools.c \
-stats_data.c \
 trans_tools.c \
 int_search.c \
 trans_data.c \
@@ -249,8 +253,9 @@ intra_fit_tools.c \
 vidinput.c \
 od_covmat.c \
 od_filter.c \
+od_intra.c \
+od_intra_data.c \
 stats_tools.c \
-stats_data.c \
 trans_tools.c \
 int_search.c \
 trans_data.c \

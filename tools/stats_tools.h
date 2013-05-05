@@ -143,29 +143,4 @@ int ne_apply_to_blocks(void *_ctx,int _ctx_sz,int _plmask,int _padding,
  plane_start_func _start,int _nfuncs,const block_func *_funcs,
  plane_finish_func _finish,int _argc,const char *_argv[]);
 
-extern const od_intra_mult_func NE_INTRA_MULT[OD_NBSIZES];
-
-extern double NE_PRED_OFFSETS_4x4[OD_INTRA_NMODES][4][4];
-extern double NE_PRED_WEIGHTS_4x4[OD_INTRA_NMODES][4][4][4*4*4];
-
-extern int NE_PRED_MULTS_4x4[OD_INTRA_NMODES][4][4];
-extern int NE_PRED_PARAMX_4x4[OD_INTRA_NMODES][4][4][4*4*4];
-extern int NE_PRED_PARAMY_4x4[OD_INTRA_NMODES][4][4][4*4*4];
-
-extern double NE_PRED_OFFSETS_8x8[OD_INTRA_NMODES][8][8];
-extern double NE_PRED_WEIGHTS_8x8[OD_INTRA_NMODES][8][8][4*8*8];
-
-extern int NE_PRED_MULTS_8x8[OD_INTRA_NMODES][8][8];
-extern int NE_PRED_PARAMX_8x8[OD_INTRA_NMODES][8][8][4*8*8];
-extern int NE_PRED_PARAMY_8x8[OD_INTRA_NMODES][8][8][4*8*8];
-
-extern double NE_PRED_OFFSETS_16x16[OD_INTRA_NMODES][16][16];
-extern double NE_PRED_WEIGHTS_16x16[OD_INTRA_NMODES][16][16][4*16*16];
-
-extern int NE_PRED_MULTS_16x16[OD_INTRA_NMODES][16][16];
-extern int NE_PRED_PARAMX_16x16[OD_INTRA_NMODES][16][16][4*16*16];
-extern int NE_PRED_PARAMY_16x16[OD_INTRA_NMODES][16][16][4*16*16];
-
-void print_betas(FILE *_fp);
-
 #endif

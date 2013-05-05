@@ -6,6 +6,7 @@
 #include "od_defs.h"
 #include "od_covmat.h"
 #include "od_filter.h"
+#include "od_intra.h"
 #include "stats_tools.h"
 #include "svd.h"
 
