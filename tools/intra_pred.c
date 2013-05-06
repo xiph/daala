@@ -14,6 +14,7 @@
 #define NUM_PROCS   (4)
 #define USE_SVD     (0)
 #define USE_WEIGHTS (0)
+#define SUBTRACT_DC (0)
 
 #define WRITE_IMAGES   (0)
 #define PRINT_PROGRESS (0)
@@ -279,6 +280,15 @@ static int comp_delta_pg(const prob_ctx *_prob,solve_ctx _sol[NUM_PROCS],int _y,
     delta_pg[i]=comp_error(_prob,&_sol[tid],_y,mask[tid])*s;
     mask[tid][mi[i]]=1;
   }
+#if SUBTRACT_DC
+  if(_y==0) {
+    for(i=0;i<nmi;i++){
+      if(mi[i]%(B_SZ*B_SZ)==0){
+        delta_pg[i]=UINT_MAX;
+      }
+    }
+  }
+#endif
   j=-1;
   for(i=0;i<nmi;i++){
     if(j==-1||delta_pg[i]<delta_pg[j]){
@@ -470,6 +480,11 @@ static void ip_add_block(void *_ctx,const unsigned char *_data,int _stride,
       }
     }
   }
+#if SUBTRACT_DC
+  for(i=0;i<4;i++){
+    buf[4*B_SZ*B_SZ]-=0.25*buf[i*B_SZ*B_SZ];
+  }
+#endif
   mode=ctx->img.mode[ctx->img.nxblocks*_bj+_bi];
   weight=ctx->img.weight[ctx->img.nxblocks*_bj+_bi];
   od_covmat_add(&ctx->pd[mode],buf,weight);
@@ -726,6 +741,12 @@ int main(int _argc,const char *_argv[]){
         }
 #endif
         comp_predictors(&prob,sol,drops,mask[j]);
+#if SUBTRACT_DC
+        for(i=0;i<4;i++){
+          OD_ASSERT(mask[j][i*B_SZ*B_SZ]);
+          sol->beta_1[i*B_SZ*B_SZ]+=0.25;
+        }
+#endif
         update_predictors(j,sol->beta_0,sol->beta_1,mask[j]);
       }
       /* reset the prediction data */

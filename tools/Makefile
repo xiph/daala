@@ -177,7 +177,8 @@ IP_LIB_CSOURCES = \
 filter.c \
 newdct.c \
 intra.c \
-intradata.c
+intradata.c \
+internal.c
 
 IP_LDFLAGS = `pkg-config theoradec ogg libpng --libs` -lm
 
