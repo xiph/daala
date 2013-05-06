@@ -26,6 +26,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <stdlib.h>
 #include <string.h>
 #include "stats_tools.h"
+#include "od_defs.h"
 #include "od_filter.h"
 #include "od_intra.h"
 #include "../src/dct.h"
@@ -42,12 +43,12 @@ void mode_data_init(mode_data *_md){
     _md->satd_avg[i]=0;
   }
   od_covmat_init(&_md->ref,B_SZ*B_SZ);
-  od_covmat_init(&_md->pred,B_SZ*B_SZ);
+  od_covmat_init(&_md->res,B_SZ*B_SZ);
 }
 
 void mode_data_clear(mode_data *_md){
   od_covmat_clear(&_md->ref);
-  od_covmat_clear(&_md->pred);
+  od_covmat_clear(&_md->res);
 }
 
 void mode_data_reset(mode_data *_md){
@@ -59,7 +60,7 @@ void mode_data_reset(mode_data *_md){
     _md->satd_avg[i]=0;
   }
   od_covmat_reset(&_md->ref);
-  od_covmat_reset(&_md->pred);
+  od_covmat_reset(&_md->res);
 }
 
 /* update the input mean and variance */
@@ -96,7 +97,7 @@ void mode_data_add_block(mode_data *_md,const od_coeff *_block,int _stride,
     od_covmat_add(&_md->ref,buf,1);
   }
   else{
-    od_covmat_add(&_md->pred,buf,1);
+    od_covmat_add(&_md->res,buf,1);
   }
 }
 
@@ -116,27 +117,25 @@ void mode_data_combine(mode_data *_a,const mode_data *_b){
   s*=_a->n;
   _a->var+=_b->var+delta*s;
   od_covmat_combine(&_a->ref,&_b->ref);
-  od_covmat_combine(&_a->pred,&_b->pred);
+  od_covmat_combine(&_a->res,&_b->res);
   _a->n+=_b->n;
 }
 
 void mode_data_correct(mode_data *_md){
   _md->var/=_md->n*B_SZ*B_SZ;
   od_covmat_correct(&_md->ref);
-  od_covmat_correct(&_md->pred);
+  od_covmat_correct(&_md->res);
 }
 
 void mode_data_print(mode_data *_md,const char *_label,double *_scale){
   double     cg_ref;
   double     cg_pred;
-  double     pg;
   int        v;
   int        u;
   double     satd_avg;
   double     bits_avg;
   cg_ref=10*log10(_md->var);
   cg_pred=10*log10(_md->var);
-  pg=0;
   satd_avg=0;
   bits_avg=0;
   for(v=0;v<B_SZ;v++){
@@ -147,16 +146,14 @@ void mode_data_print(mode_data *_md,const char *_label,double *_scale){
       i=B_SZ*v+u;
       ii=B_SZ*B_SZ*i+i;
       cg_ref-=10*log10(_md->ref.cov[ii]*_scale[v]*_scale[u])/(B_SZ*B_SZ);
-      cg_pred-=10*log10(_md->pred.cov[ii]*_scale[v]*_scale[u])/(B_SZ*B_SZ);
-      /* compute prediction gain 10*log10(prod_j(ref_cov[j]/pred_cov[j])) */
-      pg+=10*log10(_md->ref.cov[ii]/_md->pred.cov[ii])/(B_SZ*B_SZ);
+      cg_pred-=10*log10(_md->res.cov[ii]*_scale[v]*_scale[u])/(B_SZ*B_SZ);
       satd_avg+=sqrt(_scale[v]*_scale[u])*_md->satd_avg[i];
-      b=sqrt(_scale[v]*_scale[u]*_md->pred.cov[ii]/2);
+      b=sqrt(_scale[v]*_scale[u]*_md->res.cov[ii]/2);
       bits_avg+=1+OD_LOG2(b)+M_LOG2E/b*_md->satd_avg[i];
     }
   }
   printf("%s Blocks %5i SATD %G Bits %G Mean %G Var %G CgRef %G CgPred %G Pg %G\n",
-   _label,_md->n,satd_avg,bits_avg,_md->mean,_md->var,cg_ref,cg_pred,pg);
+   _label,_md->n,satd_avg,bits_avg,_md->mean,_md->var,cg_ref,cg_pred,cg_pred-cg_ref);
 }
 
 void mode_data_params(mode_data *_this,double _b[B_SZ*B_SZ],double *_scale){
@@ -168,7 +165,7 @@ void mode_data_params(mode_data *_this,double _b[B_SZ*B_SZ],double *_scale){
     for(u=0;u<B_SZ;u++){
       i=(v*B_SZ+u);
       ii=B_SZ*B_SZ*i+i;
-      _b[i]=sqrt(_scale[v]*_scale[u]*_this->pred.cov[ii]/2);
+      _b[i]=sqrt(_scale[v]*_scale[u]*_this->res.cov[ii]/2);
     }
   }
 }
@@ -199,7 +196,7 @@ void intra_stats_reset(intra_stats *_this){
 
 void intra_stats_update(intra_stats *_this,const unsigned char *_data,
  int _stride,int _mode,const od_coeff *_ref,int _ref_stride,
- const double *_pred,int _pred_stride){
+ const double *_res,int _res_stride){
   mode_data *fr;
   mode_data *md;
   int        j;
@@ -209,11 +206,11 @@ void intra_stats_update(intra_stats *_this,const unsigned char *_data,
   fr=&_this->fr;
   md=&_this->md[_mode];
 
-  /* update the input mean and variance */
+  /* Update the input mean and variance. */
   mode_data_add_input(fr,_data,_stride);
   mode_data_add_input(md,_data,_stride);
 
-  /* update the reference mean and covariance */
+  /* Update the reference mean and covariance. */
   for(j=0;j<B_SZ;j++){
     for(i=0;i<B_SZ;i++){
       buf[B_SZ*j+i]=_ref[_ref_stride*j+i];
@@ -222,16 +219,16 @@ void intra_stats_update(intra_stats *_this,const unsigned char *_data,
   od_covmat_add(&fr->ref,buf,1);
   od_covmat_add(&md->ref,buf,1);
 
-  /* update the prediction mean and covariance */
+  /* Update the residual mean and covariance. */
   for(j=0;j<B_SZ;j++){
     for(i=0;i<B_SZ;i++){
-      buf[B_SZ*j+i]=_pred[_pred_stride*j+i];
+      buf[B_SZ*j+i]=_res[_res_stride*j+i];
     }
   }
-  od_covmat_add(&fr->pred,buf,1);
-  od_covmat_add(&md->pred,buf,1);
+  od_covmat_add(&fr->res,buf,1);
+  od_covmat_add(&md->res,buf,1);
 
-  /* update the average satd */
+  /* Update the average SATD. */
   for(j=0;j<B_SZ;j++){
     for(i=0;i<B_SZ;i++){
       double satd;
