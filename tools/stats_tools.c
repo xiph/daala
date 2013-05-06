@@ -129,13 +129,13 @@ void mode_data_correct(mode_data *_md){
 
 void mode_data_print(mode_data *_md,const char *_label,double *_scale){
   double     cg_ref;
-  double     cg_pred;
+  double     cg_res;
   int        v;
   int        u;
   double     satd_avg;
   double     bits_avg;
   cg_ref=10*log10(_md->var);
-  cg_pred=10*log10(_md->var);
+  cg_res=10*log10(_md->var);
   satd_avg=0;
   bits_avg=0;
   for(v=0;v<B_SZ;v++){
@@ -146,14 +146,14 @@ void mode_data_print(mode_data *_md,const char *_label,double *_scale){
       i=B_SZ*v+u;
       ii=B_SZ*B_SZ*i+i;
       cg_ref-=10*log10(_md->ref.cov[ii]*_scale[v]*_scale[u])/(B_SZ*B_SZ);
-      cg_pred-=10*log10(_md->res.cov[ii]*_scale[v]*_scale[u])/(B_SZ*B_SZ);
+      cg_res-=10*log10(_md->res.cov[ii]*_scale[v]*_scale[u])/(B_SZ*B_SZ);
       satd_avg+=sqrt(_scale[v]*_scale[u])*_md->satd_avg[i];
       b=sqrt(_scale[v]*_scale[u]*_md->res.cov[ii]/2);
       bits_avg+=1+OD_LOG2(b)+M_LOG2E/b*_md->satd_avg[i];
     }
   }
-  printf("%s Blocks %5i SATD %G Bits %G Mean %G Var %G CgRef %G CgPred %G Pg %G\n",
-   _label,_md->n,satd_avg,bits_avg,_md->mean,_md->var,cg_ref,cg_pred,cg_pred-cg_ref);
+  printf("%s Blocks %5i SATD %G Bits %G Mean %G Var %G CgRef %G CgRes %G Pg %G\n",
+   _label,_md->n,satd_avg,bits_avg,_md->mean,_md->var,cg_ref,cg_res,cg_res-cg_ref);
 }
 
 void mode_data_params(mode_data *_this,double _b[B_SZ*B_SZ],double *_scale){
