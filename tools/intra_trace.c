@@ -156,7 +156,7 @@ static void draw_point(od_rgba16_image *_image,int _m,int _x,int _y,
   y0=(SPACE_SZ+BLOCK_SZ)*(_m/5+1);
   n=BLOCK_SZ/(2*B_SZ);
   c[3]=(unsigned short)0xFFFFU;
-  c[0]=c[1]=c[2]=_v<<8;
+  c[0]=c[1]=c[2]=_v*0x101;
   for(j=0;j<n;j++){
     for(i=0;i<n;i++){
       od_rgba16_image_draw_point(_image,x0+n*_x+i,y0+n*_y+j,c);

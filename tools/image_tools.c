@@ -39,7 +39,7 @@ void image_draw_block(od_rgba16_image *_image,int _x,int _y,
   color[3]=(unsigned short)0xFFFFU;
   for(i=0;i<B_SZ;i++){
     for(j=0;j<B_SZ;j++){
-      color[0]=color[1]=color[2]=_block[_stride*i+j]<<8;
+      color[0]=color[1]=color[2]=_block[_stride*i+j]*0x101;
       od_rgba16_image_draw_point(_image,_x+j,_y+i,color);
     }
   }
@@ -496,11 +496,18 @@ void image_data_files_block(image_data *_this,const unsigned char *_data,
 }
 
 int image_data_save_map(image_data *_this){
-  char  name[8196];
+  char  name[8192];
+  char *pos;
   int   eos;
   FILE *fout;
   strcpy(name,_this->name);
-  eos=strlen(name)-4;
+  pos=strrchr(name,'.');
+  if(!pos){
+    eos=strlen(name);
+  }
+  else{
+    eos=pos-name;
+  }
   sprintf(&name[eos],".map");
   fout=fopen(name,"wb");
   if(fout==NULL){
@@ -522,11 +529,18 @@ int image_data_save_map(image_data *_this){
 }
 
 int image_data_load_map(image_data *_this){
-  char  name[8196];
+  char  name[8192];
+  char *pos;
   int   eos;
   FILE *fin;
   strcpy(name,_this->name);
-  eos=strlen(name)-4;
+  pos=strrchr(name,'.');
+  if(!pos){
+    eos=strlen(name);
+  }
+  else{
+    eos=pos-name;
+  }
   sprintf(&name[eos],".map");
   fin=fopen(name,"rb");
   if(fin==NULL){
