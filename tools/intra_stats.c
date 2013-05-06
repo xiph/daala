@@ -8,8 +8,6 @@
 #include "../src/dct.h"
 #include "../src/intra.h"
 
-#define NUM_PROCS (4)
-
 #define WRITE_IMAGES   (0)
 #define PRINT_PROGRESS (0)
 #define PRINT_BLOCKS   (0)

@@ -30,8 +30,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "image.h"
 #include "../src/intra.h"
 
-#define INPUT_SCALE (16)
-
 typedef struct mode_data mode_data;
 
 struct mode_data{

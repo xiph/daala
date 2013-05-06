@@ -11,7 +11,6 @@
 #include "stats_tools.h"
 #include "svd.h"
 
-#define NUM_PROCS   (4)
 #define USE_SVD     (0)
 #define USE_WEIGHTS (0)
 #define SUBTRACT_DC (0)
