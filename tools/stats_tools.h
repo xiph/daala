@@ -65,7 +65,7 @@ void intra_stats_clear(intra_stats *_this);
 void intra_stats_reset(intra_stats *_this);
 void intra_stats_update(intra_stats *_this,const unsigned char *_data,
  int _stride,int _mode,const od_coeff *_ref,int _ref_stride,
- const od_coeff *_pred,int _pred_stride);
+ const double *_pred,int _pred_stride);
 void intra_stats_correct(intra_stats *_this);
 void intra_stats_print(intra_stats *_this,const char *_label,double *_scale);
 void intra_stats_combine(intra_stats *_this,const intra_stats *_that);

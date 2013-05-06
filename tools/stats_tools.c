@@ -199,7 +199,7 @@ void intra_stats_reset(intra_stats *_this){
 
 void intra_stats_update(intra_stats *_this,const unsigned char *_data,
  int _stride,int _mode,const od_coeff *_ref,int _ref_stride,
- const od_coeff *_pred,int _pred_stride){
+ const double *_pred,int _pred_stride){
   mode_data *fr;
   mode_data *md;
   int        j;
@@ -425,7 +425,7 @@ int od_select_mode_bits(const od_coeff *_block,int _stride,double *_weight,
 #if 0
     (*OD_INTRA_MULT[B_SZ_LOG-OD_LOG_BSIZE0])(p,_block,_stride,mode);
 #else
-    (*NE_INTRA_MULT[B_SZ_LOG-OD_LOG_BSIZE0])(p,_block,_stride,mode);
+    (*NE_INTRA_MULT[B_SZ_LOG-OD_LOG_BSIZE0])(p,B_SZ,_block,_stride,mode);
 #endif
 #else
 # error "Need a predictor implementation for this block size."
@@ -475,7 +475,7 @@ int od_select_mode_satd(const od_coeff *_block,int _stride,double *_weight){
 #if 0
     (*OD_INTRA_MULT[B_SZ_LOG-OD_LOG_BSIZE0])(p,_block,_stride,mode);
 #else
-    (*NE_INTRA_MULT[B_SZ_LOG-OD_LOG_BSIZE0])(p,_block,_stride,mode);
+    (*NE_INTRA_MULT[B_SZ_LOG-OD_LOG_BSIZE0])(p,B_SZ,_block,_stride,mode);
 #endif
 #else
 # error "Need a predictor implementation for this block size."

@@ -237,7 +237,7 @@ void image_data_init(image_data *_this,const char *_name,int _nxblocks,
   _this->fdct_stride=w;
   w=B_SZ*(_nxblocks+0);
   h=B_SZ*(_nyblocks+0);
-  _this->pred=(od_coeff *)malloc(sizeof(*_this->pred)*w*h);
+  _this->pred=(double *)malloc(sizeof(*_this->pred)*w*h);
   _this->pred_stride=w;
   w=B_SZ*(_nxblocks+2);
   h=B_SZ*(_nyblocks+2);
@@ -357,35 +357,28 @@ void image_data_print_block(image_data *_this,int _bi,int _bj,FILE *_fp){
 }
 
 void image_data_pred_block(image_data *_this,int _bi,int _bj){
+  double   *pred;
+  od_coeff *fdct;
   int       mode;
-  od_coeff *block;
-  double    p[B_SZ*B_SZ];
-  od_coeff *pred;
-  int       j;
-  int       i;
+  pred=&_this->pred[_this->pred_stride*B_SZ*_bj+B_SZ*_bi];
+  fdct=&_this->fdct[_this->fdct_stride*B_SZ*(_bj+1)+B_SZ*(_bi+1)];
   mode=_this->mode[_this->nxblocks*_bj+_bi];
-  block=&_this->fdct[_this->fdct_stride*B_SZ*(_bj+1)+B_SZ*(_bi+1)];
 #if B_SZ_LOG>=OD_LOG_BSIZE0&&B_SZ_LOG<OD_LOG_BSIZE0+OD_NBSIZES
-  (*NE_INTRA_MULT[B_SZ_LOG-OD_LOG_BSIZE0])(p,block,_this->fdct_stride,mode);
+  (*NE_INTRA_MULT[B_SZ_LOG-OD_LOG_BSIZE0])(pred,_this->pred_stride,fdct,
+   _this->fdct_stride,mode);
 #else
 # error "Need a predictor implementation for this block size."
 #endif
-  pred=&_this->pred[_this->pred_stride*B_SZ*_bj+B_SZ*_bi];
-  for(j=0;j<B_SZ;j++){
-    for(i=0;i<B_SZ;i++){
-      pred[_this->pred_stride*j+i]=(od_coeff)floor(p[B_SZ*j+i]+0.5);
-    }
-  }
 }
 
 void image_data_stats_block(image_data *_this,const unsigned char *_data,
  int _stride,int _bi,int _bj,intra_stats *_stats){
   int       mode;
   od_coeff *ref;
-  od_coeff *pred;
+  double   *pred;
   int       j;
   int       i;
-  od_coeff  buf[B_SZ*B_SZ];
+  double    buf[B_SZ*B_SZ];
   mode=_this->mode[_this->nxblocks*_bj+_bi];
   ref=&_this->fdct[_this->fdct_stride*B_SZ*(_bj+1)+B_SZ*(_bi+1)];
   pred=&_this->pred[_this->pred_stride*B_SZ*_bj+B_SZ*_bi];
@@ -398,12 +391,16 @@ void image_data_stats_block(image_data *_this,const unsigned char *_data,
 }
 
 void image_data_idct_block(image_data *_this,int _bi,int _bj){
-  int x0;
-  int y0;
-  int x;
-  int y;
-  int bx;
-  int by;
+  int      x0;
+  int      y0;
+  int      x;
+  int      y;
+  int      bx;
+  int      by;
+  int      j;
+  int      i;
+  double  *p;
+  od_coeff buf[B_SZ*B_SZ];
   x0=B_SZ*_bi;
   y0=B_SZ*_bj;
   x=x0+B_SZ;
@@ -428,10 +425,16 @@ void image_data_idct_block(image_data *_this,int _bi,int _bj){
     od_idct_blocks(&_this->idct[_this->idct_stride*y+x],_this->idct_stride,
      &_this->fdct[_this->fdct_stride*y+x],_this->fdct_stride,bx,by);
   }
+  p=&_this->pred[_this->pred_stride*y0+x0];
+  for(j=0;j<B_SZ;j++){
+    for(i=0;i<B_SZ;i++){
+      buf[j*B_SZ+i]=(od_coeff)floor(p[_this->pred_stride*j+i]+0.5);
+    }
+  }
   x=x0+B_SZ;
   y=y0+B_SZ;
   od_idct_blocks(&_this->idct[_this->idct_stride*y+x],_this->idct_stride,
-   &_this->pred[_this->pred_stride*y0+x0],_this->pred_stride,1,1);
+   buf,B_SZ,1,1);
 }
 
 void image_data_post_block(image_data *_this,int _bi,int _bj){

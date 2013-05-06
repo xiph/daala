@@ -27,9 +27,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #include <stdio.h>
 #include "od_defs.h"
-#include "../src/intra.h"
 
-extern const od_intra_mult_func NE_INTRA_MULT[OD_NBSIZES];
+typedef void (*ne_intra_mult_func)(double *_pred,int _pred_stride,
+ const od_coeff *_coeff,int _coeff_stride,int _mode);
+
+extern const ne_intra_mult_func NE_INTRA_MULT[OD_NBSIZES];
 
 extern double NE_PRED_OFFSETS_4x4[OD_INTRA_NMODES][4][4];
 extern double NE_PRED_WEIGHTS_4x4[OD_INTRA_NMODES][4][4][4*4*4];

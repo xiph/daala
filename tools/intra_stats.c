@@ -5,7 +5,6 @@
 #include "od_filter.h"
 #include "image_tools.h"
 #include "stats_tools.h"
-#include "image.h"
 #include "../src/dct.h"
 #include "../src/intra.h"
 
@@ -79,7 +78,9 @@ static void vp8_stats_block(intra_stats_ctx *_ctx,const unsigned char *_data,
   int      j;
   int      i;
   od_coeff ref[B_SZ*B_SZ];
-  od_coeff pred[B_SZ*B_SZ];
+  od_coeff buf[B_SZ*B_SZ];
+  double   res[B_SZ*B_SZ];
+  /* Compute reference transform coefficients. */
   for(j=0;j<B_SZ;j++){
     for(i=0;i<B_SZ;i++){
       ref[B_SZ*j+i]=(_data[_stride*j+i]-128)*INPUT_SCALE;
@@ -90,17 +91,23 @@ static void vp8_stats_block(intra_stats_ctx *_ctx,const unsigned char *_data,
 #else
 # error "Need an fDCT implementation for this block size."
 #endif
+  /* Compute residual transform coefficients. */
   for(j=0;j<B_SZ;j++){
     for(i=0;i<B_SZ;i++){
-      pred[B_SZ*j+i]=(_data[_stride*j+i]-_pred[B_SZ*j+i])*INPUT_SCALE;
+      buf[B_SZ*j+i]=(_data[_stride*j+i]-_pred[B_SZ*j+i])*INPUT_SCALE;
     }
   }
 #if B_SZ_LOG>=OD_LOG_BSIZE0&&B_SZ_LOG<OD_LOG_BSIZE0+OD_NBSIZES
-  (*OD_FDCT_2D[B_SZ_LOG-OD_LOG_BSIZE0])(pred,B_SZ,pred,B_SZ);
+  (*OD_FDCT_2D[B_SZ_LOG-OD_LOG_BSIZE0])(buf,B_SZ,buf,B_SZ);
 #else
 # error "Need an fDCT implementation for this block size."
 #endif
-  intra_stats_update(&_ctx->st_vp8,_data,_stride,_mode,ref,B_SZ,pred,B_SZ);
+  for(j=0;j<B_SZ;j++){
+    for(i=0;i<B_SZ;i++){
+      res[B_SZ*j+i]=buf[B_SZ*j+i];
+    }
+  }
+  intra_stats_update(&_ctx->st_vp8,_data,_stride,_mode,ref,B_SZ,res,B_SZ);
 }
 
 #if WRITE_IMAGES

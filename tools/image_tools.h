@@ -61,7 +61,7 @@ struct image_data{
   int              pre_stride;
   od_coeff        *fdct;
   int              fdct_stride;
-  od_coeff        *pred;
+  double          *pred;
   int              pred_stride;
   od_coeff        *idct;
   int              idct_stride;
