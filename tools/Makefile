@@ -139,6 +139,7 @@ od_covmat.c \
 od_filter.c \
 od_intra.c \
 od_intra_data.c \
+image_tools.c \
 stats_tools.c \
 vidinput.c \
 image.c
@@ -165,6 +166,7 @@ od_covmat.c \
 od_filter.c \
 od_intra.c \
 od_intra_data.c \
+image_tools.c \
 stats_tools.c \
 vidinput.c \
 image.c \
@@ -193,6 +195,7 @@ od_covmat.c \
 od_filter.c \
 od_intra.c \
 od_intra_data.c \
+image_tools.c \
 stats_tools.c \
 trans_tools.c \
 vidinput.c \

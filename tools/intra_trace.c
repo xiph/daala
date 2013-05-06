@@ -2,6 +2,7 @@
 #include <string.h>
 #include "od_defs.h"
 #include "od_filter.h"
+#include "image_tools.h"
 #include "stats_tools.h"
 #include "trans_tools.h"
 

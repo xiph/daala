@@ -25,10 +25,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #if !defined(_tools_stats_tools_H)
 # define _tools_stats_tools_H (1)
 
-#include "intra_fit_tools.h"
+#include "od_defs.h"
+#include "od_covmat.h"
 #include "image.h"
 #include "../src/intra.h"
-#include "od_covmat.h"
 
 #define INPUT_SCALE (16)
 
@@ -81,63 +81,6 @@ int vp8_select_mode(const unsigned char *_data,int _stride,double *_weight);
 int od_select_mode_satd(const od_coeff *_block,int _stride,double *_weight); 
 int od_select_mode_bits(const od_coeff *_block,int _stride,double *_weight,
  double _b[OD_INTRA_NMODES][B_SZ*B_SZ]);
-
-extern od_rgba16_pixel COLORS[OD_INTRA_NMODES];
-
-void image_draw_block(od_rgba16_image *_image,int _x,int _y,
- const unsigned char *_block,int _stride);
-int image_write_png(od_rgba16_image *_image,const char *_name);
-
-typedef struct image_files image_files;
-
-struct image_files{
-  od_rgba16_image raw;
-  od_rgba16_image map;
-  od_rgba16_image pred;
-  od_rgba16_image res;
-};
-
-void image_files_init(image_files *_this,int _nxblocks,int _nyblocks);
-void image_files_clear(image_files *_this);
-void image_files_write(image_files *_this,const char *_name,const char *_suf);
-
-typedef struct image_data image_data;
-
-struct image_data{
-  const char      *name;
-  int              nxblocks;
-  int              nyblocks;
-  unsigned char   *mode;
-  double          *weight;
-  od_coeff        *pre;
-  int              pre_stride;
-  od_coeff        *fdct;
-  int              fdct_stride;
-  od_coeff        *pred;
-  int              pred_stride;
-  od_coeff        *idct;
-  int              idct_stride;
-  od_coeff        *post;
-  int              post_stride;
-};
-
-void image_data_init(image_data *_this,const char *_name,int _nxblocks,
- int _nyblocks);
-void image_data_clear(image_data *_this);
-void image_data_pre_block(image_data *_this,const unsigned char *_data,
- int _stride,int _bi,int _bj);
-void image_data_fdct_block(image_data *_this,int _bi,int _bj);
-void image_data_print_block(image_data *_this,int _bi,int _bj,FILE *_fp);
-void image_data_pred_block(image_data *_this,int _bi,int _bj);
-void image_data_stats_block(image_data *_this,const unsigned char *_data,
- int _stride,int _bi,int _bj,intra_stats *_stats);
-void image_data_idct_block(image_data *_this,int _bi,int _bj);
-void image_data_post_block(image_data *_this,int _bi,int _bj);
-void image_data_files_block(image_data *_this,const unsigned char *_data,
- int _stride,int _bi,int _bj,image_files *_files);
-
-int image_data_save_map(image_data *_this);
-int image_data_load_map(image_data *_this);
 
 int ne_apply_to_blocks(void *_ctx,int _ctx_sz,int _plmask,int _padding,
  plane_start_func _start,int _nfuncs,const block_func *_funcs,
