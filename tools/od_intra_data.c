@@ -1,4 +1,5 @@
-#include "stats_tools.h"
+#include "od_defs.h"
+#include "od_intra.h"
 
 double NE_PRED_OFFSETS_4x4[OD_INTRA_NMODES][4][4]={
 /* Mode 0 */

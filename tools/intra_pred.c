@@ -371,70 +371,6 @@ static void comp_predictors(const prob_ctx *_prob,solve_ctx _sol[NUM_PROCS],
 #endif
 }
 
-static void update_predictors(int _mode,double *_beta_0,double *_beta_1,
- int _mask[B_SZ*B_SZ*4*B_SZ*B_SZ]){
-  int i;
-  int j;
-  for(i=0;i<B_SZ*B_SZ;i++){
-    int y;
-    int x;
-    int by;
-    int bx;
-    int n;
-    y=i/B_SZ;
-    x=i%B_SZ;
-#if B_SZ==4
-    NE_PRED_OFFSETS_4x4[_mode][y][x]=_beta_0[i];
-#elif B_SZ==8
-    NE_PRED_OFFSETS_8x8[_mode][y][x]=_beta_0[i];
-#elif B_SZ==16
-    NE_PRED_OFFSETS_16x16[_mode][y][x]=_beta_0[i];
-#else
-# error "Need predictors for this block size."
-#endif
-    n=0;
-    for(by=0;by<=1;by++){
-      for(bx=0;bx<=(1-by)<<1;bx++){
-        for(j=0;j<B_SZ*B_SZ;j++){
-          int v;
-          int u;
-          int ij;
-          v=j/B_SZ;
-          u=j%B_SZ;
-	  ij=4*B_SZ*B_SZ*i+(3*by+bx)*B_SZ*B_SZ+j;
-          if(_mask[ij]){
-#if B_SZ==4
-            NE_PRED_WEIGHTS_4x4[_mode][y][x][n]=_beta_1[ij];
-            NE_PRED_PARAMX_4x4[_mode][y][x][n]=B_SZ*bx+u;
-            NE_PRED_PARAMY_4x4[_mode][y][x][n]=B_SZ*by+v;
-#elif B_SZ==8
-            NE_PRED_WEIGHTS_8x8[_mode][y][x][n]=_beta_1[ij];
-            NE_PRED_PARAMX_8x8[_mode][y][x][n]=B_SZ*bx+u;
-            NE_PRED_PARAMY_8x8[_mode][y][x][n]=B_SZ*by+v;
-#elif B_SZ==16
-            NE_PRED_WEIGHTS_16x16[_mode][y][x][n]=_beta_1[ij];
-            NE_PRED_PARAMX_16x16[_mode][y][x][n]=B_SZ*bx+u;
-            NE_PRED_PARAMY_16x16[_mode][y][x][n]=B_SZ*by+v;
-#else
-# error "Need predictors for this block size."
-#endif
-            n++;
-          }
-        }
-      }
-    }
-#if B_SZ==4
-    NE_PRED_MULTS_4x4[_mode][y][x]=n;
-#elif B_SZ==8
-    NE_PRED_MULTS_8x8[_mode][y][x]=n;
-#elif B_SZ==16
-    NE_PRED_MULTS_16x16[_mode][y][x]=n;
-#else
-# error "Need predictors for this block size."
-#endif
-  }
-}
-
 #if PRINT_PROGRESS
 static void print_progress(FILE *_fp,const char *_proc){
   int tid;
@@ -814,7 +750,7 @@ int main(int _argc,const char *_argv[]){
       solve_ctx_clear(&sol[i]);
     }
 #if PRINT_BETAS
-    print_betas(stderr);
+    print_predictors(stderr);
 #endif
   }
   for(i=0;i<NUM_PROCS;i++){

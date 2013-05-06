@@ -192,7 +192,7 @@ static void intra_trace_ctx_step(intra_trace_ctx *_ctx,od_rgba16_image *_image,
     for(j=0;j<2*B_SZ;j++){
       for(i=0;i<2*B_SZ;i++){
         od_coeff v;
-	v=(_ctx->img.post[2*B_SZ*j+i]+INPUT_SCALE*128+INPUT_SCALE/2)/INPUT_SCALE;
+        v=(_ctx->img.post[2*B_SZ*j+i]+INPUT_SCALE*128+INPUT_SCALE/2)/INPUT_SCALE;
         if(_ctx->min[m]>v){
           _ctx->min[m]=v;
         }

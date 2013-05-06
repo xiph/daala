@@ -54,6 +54,9 @@ extern int NE_PRED_MULTS_16x16[OD_INTRA_NMODES][16][16];
 extern int NE_PRED_PARAMX_16x16[OD_INTRA_NMODES][16][16][4*16*16];
 extern int NE_PRED_PARAMY_16x16[OD_INTRA_NMODES][16][16][4*16*16];
 
-void print_betas(FILE *_fp);
+void update_predictors(int _mode,double *_beta_0,double *_beta_1,
+ int _mask[B_SZ*B_SZ*4*B_SZ*B_SZ]);
+void print_predictors(FILE *_fp);
+void print_predictors_nonsparse(FILE *_fp);
 
 #endif
