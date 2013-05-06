@@ -93,15 +93,8 @@ void print_betas(FILE *_fp){
   int j;
   int i;
   int k;
-#if B_SZ==4
-  fprintf(_fp,"double NE_PRED_OFFSETS_4x4[OD_INTRA_NMODES][4][4]={\n");
-#elif B_SZ==8
-  fprintf(_fp,"double NE_PRED_OFFSETS_8x8[OD_INTRA_NMODES][8][8]={\n");
-#elif B_SZ==16
-  fprintf(_fp,"double NE_PRED_OFFSETS_16x16[OD_INTRA_NMODES][16][16]={\n");
-#else
-# error "Unsupported block size."
-#endif
+  fprintf(_fp,"double NE_PRED_OFFSETS_%ix%i[OD_INTRA_NMODES][%i][%i]={\n",
+   B_SZ,B_SZ,B_SZ,B_SZ);
   for(m=0;m<OD_INTRA_NMODES;m++){
     fprintf(_fp,"/* Mode %i */\n  {\n",m);
     for(j=0;j<B_SZ;j++){
@@ -122,15 +115,8 @@ void print_betas(FILE *_fp){
     fprintf(_fp,"  }%s\n",m<OD_INTRA_NMODES-1?",":"");
   }
   fprintf(_fp,"};\n");
-#if B_SZ==4
-  fprintf(_fp,"int NE_PRED_MULTS_4x4[OD_INTRA_NMODES][4][4]={\n");
-#elif B_SZ==8
-  fprintf(_fp,"int NE_PRED_MULTS_8x8[OD_INTRA_NMODES][8][8]={\n");
-#elif B_SZ==16
-  fprintf(_fp,"int NE_PRED_MULTS_16x16[OD_INTRA_NMODES][16][16]={\n");
-#else
-# error "Unsupported block size."
-#endif
+  fprintf(_fp,"int NE_PRED_MULTS_%ix%i[OD_INTRA_NMODES][%i][%i]={\n",
+   B_SZ,B_SZ,B_SZ,B_SZ);
   for(m=0;m<OD_INTRA_NMODES;m++){
     fprintf(_fp,"/* Mode %i */\n  {\n",m);
     for(j=0;j<B_SZ;j++){
@@ -151,16 +137,9 @@ void print_betas(FILE *_fp){
     fprintf(_fp,"  }%s\n",m<OD_INTRA_NMODES-1?",":"");
   }
   fprintf(_fp,"};\n");
-#if B_SZ==4
-  fprintf(_fp,"double NE_PRED_WEIGHTS_4x4[OD_INTRA_NMODES][4][4][4*4*4]={\n");
-#elif B_SZ==8
-  fprintf(_fp,"double NE_PRED_WEIGHTS_8x8[OD_INTRA_NMODES][8][8][4*8*8]={\n");
-#elif B_SZ==16
   fprintf(_fp,
-   "double NE_PRED_WEIGHTS_16x16[OD_INTRA_NMODES][16][16][4*16*16]={\n");
-#else
-# error "Unsupported block size."
-#endif
+   "double NE_PRED_WEIGHTS_%ix%i[OD_INTRA_NMODES][%i][%i][4*%i*%i]={\n",
+   B_SZ,B_SZ,B_SZ,B_SZ,B_SZ,B_SZ);
   for(m=0;m<OD_INTRA_NMODES;m++){
     fprintf(_fp,"/* Mode %i */\n  {\n",m);
     for(j=0;j<B_SZ;j++){
@@ -192,15 +171,8 @@ void print_betas(FILE *_fp){
     fprintf(_fp,"  }%s\n",m<OD_INTRA_NMODES-1?",":"");
   }
   fprintf(_fp,"};\n");
-#if B_SZ==4
-  fprintf(_fp,"int NE_PRED_PARAMX_4x4[OD_INTRA_NMODES][4][4][4*4*4]={\n");
-#elif B_SZ==8
-  fprintf(_fp,"int NE_PRED_PARAMX_8x8[OD_INTRA_NMODES][8][8][4*8*8]={\n");
-#elif B_SZ==16
-  fprintf(_fp,"int NE_PRED_PARAMX_16x16[OD_INTRA_NMODES][16][16][4*16*16]={\n");
-#else
-# error "Unsupported block size."
-#endif
+  fprintf(_fp,"int NE_PRED_PARAMX_%ix%i[OD_INTRA_NMODES][%i][%i][4*%i*%i]={\n",
+   B_SZ,B_SZ,B_SZ,B_SZ,B_SZ,B_SZ);
   for(m=0;m<OD_INTRA_NMODES;m++){
     fprintf(_fp,"/* Mode %i */\n  {\n",m);
     for(j=0;j<B_SZ;j++){
@@ -229,15 +201,8 @@ void print_betas(FILE *_fp){
     fprintf(_fp,"  }%s\n",m<OD_INTRA_NMODES-1?",":"");
   }
   fprintf(_fp,"};\n");
-#if B_SZ==4
-  fprintf(_fp,"int NE_PRED_PARAMY_4x4[OD_INTRA_NMODES][4][4][4*4*4]={\n");
-#elif B_SZ==8
-  fprintf(_fp,"int NE_PRED_PARAMY_8x8[OD_INTRA_NMODES][8][8][4*8*8]={\n");
-#elif B_SZ==16
-  fprintf(_fp,"int NE_PRED_PARAMY_16x16[OD_INTRA_NMODES][16][16][4*16*16]={\n");
-#else
-# error "Unsupported block size."
-#endif
+  fprintf(_fp,"int NE_PRED_PARAMY_%ix%i[OD_INTRA_NMODES][%i][%i][4*%i*%i]={\n",
+   B_SZ,B_SZ,B_SZ,B_SZ,B_SZ,B_SZ);
   for(m=0;m<OD_INTRA_NMODES;m++){
     fprintf(_fp,"/* Mode %i */\n  {\n",m);
     for(j=0;j<B_SZ;j++){
