@@ -60,6 +60,9 @@ void cov_update(double *_mean,double *_cov,double *_work,double *_weight,int _n,
   double s;
   int j;
   int i;
+  if(_w==0){
+    return;
+  }
   (*_weight)+=_w;
   s=_w/(*_weight);
   for(i=0;i<_n;i++){
@@ -90,6 +93,9 @@ void od_covmat_add(od_covmat *_this,const double *_data,double _w){
   double s;
   int    i;
   int    j;
+  if(_w==0){
+    return;
+  }
   _this->w+=_w;
   s=_w/_this->w;
   for(i=0;i<_this->sz;i++){
