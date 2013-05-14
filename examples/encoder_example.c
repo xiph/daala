@@ -28,7 +28,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <string.h>
 #include <time.h>
 #include <getopt.h>
-#include <vorbis/vorbisenc.h>
 #include "../include/daala/daalaenc.h"
 #if defined(_WIN32)
 # include <fcntl.h>
@@ -64,10 +63,6 @@ struct av_input{
   daala_plane_info  video_plane_info[OD_NPLANES_MAX];
   od_img            video_img;
   int               video_cur_img;
-  int               has_audio;
-  FILE             *audio_infile;
-  int               audio_ch;
-  int               audio_hz;
 };
 
 
@@ -274,53 +269,6 @@ static void id_y4m_file(av_input *_avin,const char *_file,FILE *_test){
   }
 }
 
-static void id_riff_file(av_input *_avin,const char *_file,FILE *_test){
-  unsigned char buf[32];
-  int           ret;
-  ret=fread(buf,1,4,_test);
-  ret=fread(buf,1,4,_test);
-  if(ret<4)return;
-  if(!memcmp(buf,"WAVE",4)){
-    while(!feof(_test)){
-      ret=fread(buf,1,4,_test);
-      if(ret<4)return;
-      if(!memcmp("fmt",buf,3)){
-        /*This is the audio specs chunk.*/
-        ret=fread(buf,1,20,_test);
-        if(ret<20)return;
-        if(memcmp(buf+4,"\001\000",2)){
-          fprintf(stderr,
-           "The WAV file '%s' is in a compressed format, and can't be read.\n",
-           _file);
-          exit(1);
-        }
-        _avin->audio_infile=_test;
-        _avin->audio_ch=buf[6]|buf[7]<<8;
-        _avin->audio_hz=buf[8]|buf[9]<<8|buf[10]<<16|buf[11]<<24;
-        if((buf[18]|buf[19]<<8)!=16){
-          fprintf(stderr,"Can only read 16 bit WAV files.\n");
-          exit(1);
-        }
-        /*Scan until we reach the start of the data chunk.*/
-        while(!feof(_test)){
-          ret=fread(buf,1,4,_test);
-          if(ret<4)return;
-          if(!memcmp("data",buf,4)){
-            /*Ignore the declared size.*/
-            ret=fread(buf,1,4,_test);
-            if(ret<4)return;
-            fprintf(stderr,
-             "File '%s' is 16 bit %i channel %i Hz RIFF WAV audio.\n",
-             _file,_avin->audio_ch,_avin->audio_hz);
-            _avin->has_audio=1;
-            return;
-          }
-        }
-      }
-    }
-  }
-}
-
 static void id_file(av_input *_avin,const char *_file){
   unsigned char  buf[4];
   FILE          *test;
@@ -347,18 +295,6 @@ static void id_file(av_input *_avin,const char *_file){
     id_y4m_file(_avin,_file,test);
     if(!_avin->has_video){
       fprintf(stderr,"Error parsing YUV4MPEG2 file.\n");
-      exit(1);
-    }
-  }
-  else if(!memcmp(buf,"RIFF",4)){
-    if(_avin->has_audio){
-      fprintf(stderr,
-       "Multiple RIFF WAVE files specified on the command line.\n");
-      exit(1);
-    }
-    id_riff_file(_avin,_file,test);
-    if(!_avin->has_audio){
-      fprintf(stderr,"Error parsing RIFF file, or no WAVE data found.\n");
       exit(1);
     }
   }
@@ -424,53 +360,12 @@ int fetch_and_process_video(av_input *_avin,ogg_page *_page,
   return _video_ready;
 }
 
-int fetch_and_process_audio(av_input *_avin,ogg_page *_page,
- ogg_stream_state *_ao,vorbis_dsp_state *_vd,vorbis_block *_vb,
- int _audio_ready){
-  ogg_packet op;
-  while(!_audio_ready){
-    char buf[4096];
-    int  nread;
-    if(ogg_stream_pageout(_ao,_page)>0)return 1;
-    else if(ogg_stream_eos(_ao))return 0;
-    nread=fread(buf,2*_avin->audio_ch,(sizeof(buf)/(2*_avin->audio_ch)),
-     _avin->audio_infile);
-    /*Tell the library we're at the end of the stream so that it can handle
-       the last frame and mark the end of stream in the output properly.*/
-    if(nread<=0)vorbis_analysis_wrote(_vd,0);
-    else{
-      float **vorbis_buf;
-      int     bi;
-      int     si;
-      int     chi;
-      vorbis_buf=vorbis_analysis_buffer(_vd,nread);
-      /*Deinterleave samples.*/
-      for(si=bi=0;si<nread;si++){
-        for(chi=0;chi<_avin->audio_ch;chi++,bi+=2){
-          vorbis_buf[chi][si]=(buf[bi+1]<<8|0xFF&buf[bi])*(1.F/32768.F);
-        }
-      }
-      vorbis_analysis_wrote(_vd,nread);
-    }
-    while(vorbis_analysis_blockout(_vd,_vb)==1){
-      /*Analysis, assume we want to use bitrate management.*/
-      vorbis_analysis(_vb,NULL);
-      vorbis_bitrate_addblock(_vb);
-      /*Flush complete packets into the bitstream.*/
-      while(vorbis_bitrate_flushpacket(_vd,&op))ogg_stream_packetin(_ao,&op);
-    }
-  }
-  return _audio_ready;
-}
-
 static const char *OPTSTRING="o:a:A:v:V:s:S:f:F:h";
 
 static const struct option OPTIONS[]={
   {"output",required_argument,NULL,'o'},
   {"video-quality",required_argument,NULL,'v'},
   {"video-rate-target",required_argument,NULL,'V'},
-  {"audio-qualty",required_argument,NULL,'a'},
-  {"audio-rate-target",required_argument,NULL,'A'},
   {"aspect-numerator",optional_argument,NULL,'s'},
   {"aspect-denominator",optional_argument,NULL,'S'},
   {"framerate-numerator",optional_argument,NULL,'f'},
@@ -481,7 +376,7 @@ static const struct option OPTIONS[]={
 
 static void usage(void){
   fprintf(stderr,
-   "Usage: encoder_example [options] [audio_file] video_file\n\n"
+   "Usage: encoder_example [options] video_file\n\n"
    "Options:\n\n"
    "  -o --output <filename.ogg>     file name for encoded output;\n"
    "                                 If this option is not given, the\n"
@@ -494,17 +389,7 @@ static void usage(void){
    "                                 use -v and not -V if at all possible,\n"
    "                                 as -v gives higher quality for a given\n"
    "                                 bitrate.\n\n"
-   "  -a --audio-quality <n>         Vorbis quality selector from -1 to 10.\n"
-   "                                 -1 yields the smallest files, but\n"
-   "                                 lowest fidelity; 10 yields the highest\n"
-   "                                 fidelity, but large files. 2 is a\n"
-   "                                 reasonable default.\n\n"
-   "  -A --audio-rate-target <n>     bitrate target for Vorbis audio;\n"
-   "                                 use -a and not -A if at all possible,\n"
-   "                                 as -a gives higher quality for a given\n"
-   "                                 bitrate.\n\n"
-   "encoder_example accepts only uncompressed RIFF WAV format audio and\n"
-   "uncompressed YUV4MPEG2 video.\n\n");
+   " encoder_example accepts only uncompressed YUV4MPEG2 video.\n\n");
   exit(1);
 }
 
@@ -518,24 +403,15 @@ int main(int _argc,char **_argv){
   daala_enc_ctx    *dd;
   daala_info        di;
   daala_comment     dc;
-  vorbis_dsp_state  vd;
-  vorbis_block      vb;
-  vorbis_info       vi;
-  vorbis_comment    vc;
   ogg_int64_t       video_bytesout;
-  ogg_int64_t       audio_bytesout;
   double            time_base;
   int               c;
   int               loi;
   int               ret;
   int               video_kbps;
-  int               audio_kbps;
   int               video_q;
-  float             audio_q;
   int               video_r;
-  int               audio_r;
   int               video_ready;
-  int               audio_ready;
 #if defined(_WIN32)
   _setmode(_fileno(stdin),_O_BINARY);
   _setmode(_fileno(stdout),_O_BINARY);
@@ -548,12 +424,8 @@ int main(int _argc,char **_argv){
   avin.video_par_d=-1;
   video_q=48;
   video_r=-1;
-  audio_q=0.1F;
-  audio_r=-1;
   video_bytesout=0;
-  audio_bytesout=0;
   video_kbps=0;
-  audio_kbps=0;
   while((c=getopt_long(_argc,_argv,OPTSTRING,OPTIONS,&loi))!=EOF){
     switch(c){
       case 'o':{
@@ -579,22 +451,6 @@ int main(int _argc,char **_argv){
           exit(1);
         }
         video_q=0;
-      }break;
-      case 'a':{
-        audio_q=(float)(atof(optarg)*0.99);
-        if(audio_q<-.1||audio_q>1){
-          fprintf(stderr,"Illegal audio qualty (use -1 through 10)\n");
-          exit(1);
-        }
-        audio_r=-1;
-      }break;
-      case 'A':{
-        audio_r=(int)rint(atof(optarg)*1000);
-        if(audio_r<0){
-          fprintf(stderr,"Illegal audio rate (use a value >= 0)\n");
-          exit(1);
-        }
-        audio_q=-99;
       }break;
       case 'h':
       default:{
@@ -632,23 +488,6 @@ int main(int _argc,char **_argv){
     daala_comment_init(&dc);
     /*TODO: Set up encoder.*/
   }
-  if(avin.has_audio){
-    ogg_stream_init(&ao,rand());
-    vorbis_info_init(&vi);
-    if(audio_q>-99){
-      ret=vorbis_encode_init_vbr(&vi,avin.audio_ch,avin.audio_hz,audio_q);
-    }
-    else ret=vorbis_encode_init(&vi,avin.audio_ch,avin.audio_hz,-1,audio_r,-1);
-    if(ret){
-      fprintf(stderr,
-       "The Vorbis encoder could not set up a mode according to\n"
-       "the requested quality or bitrate.\n");
-      exit(1);
-    }
-    vorbis_comment_init(&vc);
-    vorbis_analysis_init(&vd,&vi);
-    vorbis_block_init(&vd,&vb);
-  }
   /*Write the bitstream header packets with proper page interleave.*/
   /*The first packet for each logical stream will get its own page
      automatically.*/
@@ -675,22 +514,6 @@ int main(int _argc,char **_argv){
       ogg_stream_packetin(&vo,&op);
     }
   }
-  if(avin.has_audio){
-    ogg_packet header;
-    ogg_packet header_comm;
-    ogg_packet header_code;
-    vorbis_analysis_headerout(&vd,&vc,&header,&header_comm,&header_code);
-    ogg_stream_packetin(&ao,&header);
-    if(ogg_stream_pageout(&ao,&og)!=1){
-      fprintf(stderr,"Internal Ogg library error.\n");
-      exit(1);
-    }
-    fwrite(og.header,1,og.header_len,outfile);
-    fwrite(og.body,1,og.body_len,outfile);
-    /*Buffer the remaining Vorbis header packets.*/
-    ogg_stream_packetin(&ao,&header_comm);
-    ogg_stream_packetin(&ao,&header_code);
-  }
   if(avin.has_video){
     for(;;){
       ret=ogg_stream_flush(&vo,&og);
@@ -703,69 +526,31 @@ int main(int _argc,char **_argv){
       fwrite(og.body,1,og.body_len,outfile);
     }
   }
-  if(avin.has_audio){
-    for(;;){
-      ret=ogg_stream_flush(&ao,&og);
-      if(ret<0){
-        fprintf(stderr,"Internal Ogg library error.\n");
-        exit(1);
-      }
-      else if(!ret)break;
-      fwrite(og.header,1,og.header_len,outfile);
-      fwrite(og.body,1,og.body_len,outfile);
-    }
-  }
   /*Setup complete.
     Main compression loop.*/
   fprintf(stderr,"Compressing...\n");
-  audio_ready=video_ready=0;
   for(;;){
-    ogg_page audio_page;
     ogg_page video_page;
-    double   audio_time;
     double   video_time;
     if(avin.has_video){
       video_ready=fetch_and_process_video(&avin,&video_page,
        &vo,dd,video_ready);
     }
-    if(avin.has_audio){
-      audio_ready=fetch_and_process_audio(&avin,&audio_page,
-       &ao,&vd,&vb,audio_ready);
-    }
     /*TODO: Fetch the next video page.*/
     /*If no more pages are available, we've hit the end of the stream.*/
-    if(!video_ready&&!audio_ready)break;
+    if(!video_ready)break;
     video_time=video_ready?
      daala_granule_time(dd,ogg_page_granulepos(&video_page)):-1;
-    audio_time=audio_ready?
-     vorbis_granule_time(&vd,ogg_page_granulepos(&audio_page)):-1;
-    if(!audio_ready||video_time<audio_time){
-      video_bytesout+=
-       fwrite(video_page.header,1,video_page.header_len,outfile);
-      video_bytesout+=fwrite(video_page.body,1,video_page.body_len,outfile);
-      video_ready=0;
-      video_kbps=(int)rint(video_bytesout*8*0.001/video_time);
-      time_base=video_time;
-    }
-    else{
-      audio_bytesout+=
-       fwrite(audio_page.header,1,audio_page.header_len,outfile);
-      audio_bytesout+=fwrite(audio_page.body,1,audio_page.body_len,outfile);
-      audio_ready=0;
-      audio_kbps=(int)rint(audio_bytesout*8*0.001/audio_time);
-      time_base=audio_time;
-    }
+    video_bytesout+=
+     fwrite(video_page.header,1,video_page.header_len,outfile);
+    video_bytesout+=fwrite(video_page.body,1,video_page.body_len,outfile);
+    video_ready=0;
+    video_kbps=(int)rint(video_bytesout*8*0.001/video_time);
+    time_base=video_time;
     fprintf(stderr,
-     "\r     %i:%02i:%02i.%02i audio %ikbps video: %ikbps          ",
+     "\r     %i:%02i:%02i.%02i video: %ikbps          ",
      (int)time_base/3600,((int)time_base/60)%60,(int)time_base%60,
-     (int)(time_base*100-(long)time_base*100),audio_kbps,video_kbps);
-  }
-  if(avin.has_audio){
-    ogg_stream_clear(&ao);
-    vorbis_block_clear(&vb);
-    vorbis_dsp_clear(&vd);
-    vorbis_comment_clear(&vc);
-    vorbis_info_clear(&vi);
+     (int)(time_base*100-(long)time_base*100),video_kbps);
   }
   if(avin.has_video){
     int pli;
