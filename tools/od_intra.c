@@ -33,7 +33,11 @@ static void ne_intra_pred4x4_mult(double *_pred,int _pred_stride,
   int y;
   for(j=0;j<4;j++){
     for(i=0;i<4;i++){
+#if ZERO_MEAN
+      _pred[_pred_stride*j+i]=0;
+#else
       _pred[_pred_stride*j+i]=NE_PRED_OFFSETS_4x4[_mode][j][i];
+#endif
       for(k=0;k<NE_PRED_MULTS_4x4[_mode][j][i];k++){
         x=NE_PRED_PARAMX_4x4[_mode][j][i][k];
         y=NE_PRED_PARAMY_4x4[_mode][j][i][k];
@@ -53,7 +57,11 @@ static void ne_intra_pred8x8_mult(double *_pred,int _pred_stride,
   int y;
   for(j=0;j<8;j++){
     for(i=0;i<8;i++){
+#if ZERO_MEAN
+      _pred[_pred_stride*j+i]=0;
+#else
       _pred[_pred_stride*j+i]=NE_PRED_OFFSETS_8x8[_mode][j][i];
+#endif
       for(k=0;k<NE_PRED_MULTS_8x8[_mode][j][i];k++){
         x=NE_PRED_PARAMX_8x8[_mode][j][i][k];
         y=NE_PRED_PARAMY_8x8[_mode][j][i][k];
@@ -73,7 +81,11 @@ static void ne_intra_pred16x16_mult(double *_pred,int _pred_stride,
   int y;
   for(j=0;j<16;j++){
     for(i=0;i<16;i++){
+#if ZERO_MEAN
+      _pred[_pred_stride*j+i]=0;
+#else
       _pred[_pred_stride*j+i]=NE_PRED_OFFSETS_16x16[_mode][j][i];
+#endif
       for(k=0;k<NE_PRED_MULTS_16x16[_mode][j][i];k++){
         x=NE_PRED_PARAMX_16x16[_mode][j][i][k];
         y=NE_PRED_PARAMY_16x16[_mode][j][i][k];

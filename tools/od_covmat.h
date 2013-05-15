@@ -42,6 +42,8 @@ void od_covmat_clear(od_covmat *_this);
 void od_covmat_reset(od_covmat *_this);
 void od_covmat_add(od_covmat *_this,const double *_data,double _w);
 void od_covmat_combine(od_covmat *_a,const od_covmat *_b);
+void od_covmat_update(od_covmat *_this,const double *_cov,const double *_mean,
+ double _w);
 void od_covmat_correct(od_covmat *_this);
 void od_covmat_normalize(od_covmat *_this);
 void od_covmat_collapse(od_covmat *_this,int _n,double *_r);

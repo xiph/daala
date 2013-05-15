@@ -121,33 +121,39 @@ void od_covmat_add(od_covmat *_this,const double *_data,double _w){
 }
 
 void od_covmat_combine(od_covmat *_a,const od_covmat *_b){
+  od_covmat_update(_a,_b->cov,_b->mean,_b->w);
+}
+
+void od_covmat_update(od_covmat *_this,const double *_cov,const double *_mean,
+ double _w){
   double s;
   int    i;
   int    j;
-  if(_b->w==0){
+  if(_w==0){
     return;
   }
-  s=((double)_b->w)/(_a->w+_b->w);
-  for(i=0;i<_a->sz;i++){
-    _a->work[i]=_b->mean[i]-_a->mean[i];
+  s=_w/(_this->w+_w);
+  for(i=0;i<_this->sz;i++){
+    _this->work[i]=_mean[i]-_this->mean[i];
 #if FAST_MATH
-    _a->mean[i]+=_a->work[i]*s;
+    _this->mean[i]+=_this->work[i]*s;
 #else
-    _a->mean[i]+=_a->work[i]*_b->w/(_a->w+_b->w);
+    _this->mean[i]+=_this->work[i]*_w/(_this->w+_w);
 #endif
   }
-  s*=_a->w;
-  for(i=0;i<_a->sz;i++){
-    for(j=0;j<_a->sz;j++){
+  s*=_this->w;
+  for(i=0;i<_this->sz;i++){
+    for(j=0;j<_this->sz;j++){
 #if FAST_MATH
-      _a->cov[_a->sz*i+j]+=_b->cov[_a->sz*i+j]+_a->work[i]*_a->work[j]*s;
+      _this->cov[_this->sz*i+j]+=_cov[_this->sz*i+j]+
+       _this->work[i]*_this->work[j]*s;
 #else
-      _a->cov[_a->sz*i+j]+=
-       _b->cov[_a->sz*i+j]+_a->work[i]*_a->work[j]*_a->w*_b->w/(_a->w+_b->w);
+      _this->cov[_this->sz*i+j]+=_cov[_this->sz*i+j]+
+       _this->work[i]*_this->work[j]*_this->w*_w/(_this->w+_w);
 #endif
     }
   }
-  _a->w+=_b->w;
+  _this->w+=_w;
 }
 
 void od_covmat_correct(od_covmat *_this){

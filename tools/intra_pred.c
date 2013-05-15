@@ -12,8 +12,10 @@
 #include "svd.h"
 
 #define USE_SVD     (0)
+#define BITS_SELECT (0)
 #define USE_WEIGHTS (0)
 #define SUBTRACT_DC (0)
+#define POOLED_COV  (1)
 
 #define WRITE_IMAGES   (0)
 #define PRINT_PROGRESS (0)
@@ -33,6 +35,7 @@ struct classify_ctx{
 #if WRITE_IMAGES
   image_files files;
 #endif
+  double      bits;
 };
 
 static void classify_ctx_init(classify_ctx *_this){
@@ -61,6 +64,7 @@ static void classify_ctx_reset(classify_ctx *_this){
   for(i=0;i<OD_INTRA_NMODES;i++){
     od_covmat_reset(&_this->pd[i]);
   }
+  _this->bits=0;
 }
 
 static void classify_ctx_set_image(classify_ctx *_this,const char *_name,
@@ -88,6 +92,7 @@ struct prob_ctx{
         double *xty;
   const double *mean;
   const double *cov;
+        double *ete;
 };
 
 static void prob_ctx_init(prob_ctx *_this){
@@ -96,6 +101,7 @@ static void prob_ctx_init(prob_ctx *_this){
   _this->xty=(double *)malloc(sizeof(*_this->xty)*4*B_SZ*B_SZ*B_SZ*B_SZ);
   _this->mean=NULL;
   _this->cov=NULL;
+  _this->ete=(double *)malloc(sizeof(*_this->ete)*B_SZ*B_SZ*B_SZ*B_SZ);
 }
 
 static void prob_ctx_clear(prob_ctx *_this){
@@ -104,6 +110,7 @@ static void prob_ctx_clear(prob_ctx *_this){
   free(_this->xty);
   _this->mean=NULL;
   _this->cov=NULL;
+  free(_this->ete);
 }
 
 static void prob_ctx_load(prob_ctx *_this,od_covmat *_mat){
@@ -126,6 +133,50 @@ static void prob_ctx_load(prob_ctx *_this,od_covmat *_mat){
   }
   _this->mean=_mat->mean;
   _this->cov=_mat->cov;
+}
+
+static void prob_ctx_comp_error(prob_ctx *_this,od_covmat *_mat,double *_beta_1){
+  int j;
+  int i;
+  for(j=0;j<B_SZ*B_SZ;j++){
+    for(i=0;i<B_SZ*B_SZ;i++){
+      int ji;
+      int l;
+      int k;
+      ji=B_SZ*B_SZ*j+i;
+      l=5*B_SZ*B_SZ*(4*B_SZ*B_SZ+j);
+      /* E^T*E = Y^T*Y - Y^T*X * beta_1 */
+      _this->ete[ji]=_mat->cov[l+4*B_SZ*B_SZ+i];
+      for(k=0;k<4*B_SZ*B_SZ;k++){
+        _this->ete[ji]-=_mat->cov[l+k]*_beta_1[4*B_SZ*B_SZ*i+k];
+      }
+    }
+  }
+#if PRINT_COMP
+  fprintf(stderr,"ete=[");
+  for(j=0;j<B_SZ*B_SZ;j++){
+    fprintf(stderr,"%s",j!=0?";":"");
+    for(i=0;i<B_SZ*B_SZ;i++){
+      fprintf(stderr,"%s%- 24.18G",i!=0?",":"",_this->ete[B_SZ*B_SZ*j+i]);
+    }
+  }
+  fprintf(stderr,"];\n");
+#endif
+}
+
+static void update_diversity(const double *_ete,double _b[B_SZ*B_SZ],
+ const double *_scale){
+  int v;
+  int u;
+  for(v=0;v<B_SZ;v++){
+    for(u=0;u<B_SZ;u++){
+      int i;
+      int ii;
+      i=B_SZ*v+u;
+      ii=B_SZ*B_SZ*i+i;
+      _b[i]=sqrt(_scale[v]*_scale[u]*_ete[ii]/2);
+    }
+  }
 }
 
 typedef struct solve_ctx solve_ctx;
@@ -412,46 +463,6 @@ static void ip_fdct_block(void *_ctx,const unsigned char *_data,int _stride,
   image_data_fdct_block(&ctx->img,_bi,_bj);
 }
 
-static void vp8_mode_block(void *_ctx,const unsigned char *_data,int _stride,
- int _bi,int _bj){
-  classify_ctx *ctx;
-#if PRINT_PROGRESS
-  if(_bi==0&&_bj==0){
-    print_progress(stdout,"ip_vp8_mode_block");
-  }
-#endif
-  ctx=(classify_ctx *)_ctx;
-  ctx->img.mode[ctx->img.nxblocks*_bj+_bi]=
-   vp8_select_mode(_data,_stride,&ctx->img.weight[ctx->img.nxblocks*_bj+_bi]);
-#if !USE_WEIGHTS
-  ctx->img.weight[ctx->img.nxblocks*_bj+_bi]=1;
-#endif
-}
-
-static void od_mode_block(void *_ctx,const unsigned char *_data,int _stride,
- int _bi,int _bj){
-  classify_ctx *ctx;
-  od_coeff     *block;
-  double       *weight;
-#if PRINT_PROGRESS
-  if(_bi==0&&_bj==0){
-    print_progress("od_mode_block");
-  }
-#endif
-  ctx=(classify_ctx *)_ctx;
-  block=&ctx->img.fdct[ctx->img.fdct_stride*B_SZ*(_bj+1)+B_SZ*(_bi+1)];
-  weight=&ctx->img.weight[ctx->img.nxblocks*_bj+_bi];
-#if BITS_SELECT
-/* need to know what step we are on */
-#else
-  ctx->img.mode[ctx->img.nxblocks*_bj+_bi]=
-   od_select_mode_satd(block,ctx->img.fdct_stride,weight);
-#endif
-#if !USE_WEIGHTS
-  ctx->img.weight[ctx->img.nxblocks*_bj+_bi]=1;
-#endif
-}
-
 static void ip_add_block(void *_ctx,const unsigned char *_data,int _stride,
  int _bi,int _bj){
   classify_ctx *ctx;
@@ -539,6 +550,8 @@ static void ip_post_block(void *_ctx,const unsigned char *_data,int _stride,
   image_data_post_block(&ctx->img,_bi,_bj);
 }
 
+double b[OD_INTRA_NMODES][B_SZ*B_SZ];
+
 static void ip_stats_block(void *_ctx,const unsigned char *_data,int _stride,
  int _bi,int _bj){
   classify_ctx *ctx;
@@ -549,6 +562,23 @@ static void ip_stats_block(void *_ctx,const unsigned char *_data,int _stride,
 #endif
   ctx=(classify_ctx *)_ctx;
   image_data_stats_block(&ctx->img,_data,_stride,_bi,_bj,&ctx->st);
+  {
+    od_coeff *block;
+    double   *pred;
+    int       mode;
+    int       j;
+    int       i;
+    block=&ctx->img.fdct[ctx->img.fdct_stride*B_SZ*(_bj+1)+B_SZ*(_bi+1)];
+    pred=&ctx->img.pred[ctx->img.pred_stride*B_SZ*_bj+B_SZ*_bi];
+    mode=ctx->img.mode[ctx->img.nxblocks*_bj+_bi];
+    for(j=0;j<B_SZ;j++){
+      for(i=0;i<B_SZ;i++){
+        double res;
+        res=sqrt(OD_SCALE[j]*OD_SCALE[i])*abs(block[ctx->img.fdct_stride*j+i]-(od_coeff)floor(pred[ctx->img.pred_stride*j+i]+0.5));
+        ctx->bits+=1+OD_LOG2(b[mode][j*B_SZ+i])+M_LOG2E/b[mode][j*B_SZ+i]*res;
+      }
+    }
+  }
 }
 
 #if WRITE_IMAGES
@@ -564,6 +594,65 @@ static void ip_files_block(void *_ctx,const unsigned char *_data,int _stride,
   image_data_files_block(&ctx->img,_data,_stride,_bi,_bj,&ctx->files);
 }
 #endif
+
+int    step;
+
+static void vp8_mode_block(void *_ctx,const unsigned char *_data,int _stride,
+ int _bi,int _bj){
+  classify_ctx  *ctx;
+  unsigned char *mode;
+  double        *weight;
+#if PRINT_PROGRESS
+  if(_bi==0&&_bj==0){
+    print_progress(stdout,"ip_vp8_mode_block");
+  }
+#endif
+  ctx=(classify_ctx *)_ctx;
+  mode=&ctx->img.mode[ctx->img.nxblocks*_bj+_bi];
+  weight=&ctx->img.weight[ctx->img.nxblocks*_bj+_bi];
+  *mode=vp8_select_mode(_data,_stride,weight);
+#if USE_WEIGHTS
+  if(*mode==0){
+    *weight=1;
+  }
+#else
+  *weight=1;
+#endif
+}
+
+static void od_mode_block(void *_ctx,const unsigned char *_data,int _stride,
+ int _bi,int _bj){
+  classify_ctx  *ctx;
+  unsigned char *mode;
+  od_coeff      *block;
+  double        *weight;
+#if PRINT_PROGRESS
+  if(_bi==0&&_bj==0){
+    print_progress("od_mode_block");
+  }
+#endif
+  ctx=(classify_ctx *)_ctx;
+  mode=&ctx->img.mode[ctx->img.nxblocks*_bj+_bi];
+  block=&ctx->img.fdct[ctx->img.fdct_stride*B_SZ*(_bj+1)+B_SZ*(_bi+1)];
+  weight=&ctx->img.weight[ctx->img.nxblocks*_bj+_bi];
+#if BITS_SELECT
+  if(step==1){
+    *mode=od_select_mode_satd(block,ctx->img.fdct_stride,weight);
+  }
+  else{
+    *mode=od_select_mode_bits(block,ctx->img.fdct_stride,weight,b);
+  }
+#else
+  *mode=od_select_mode_satd(block,ctx->img.fdct_stride,weight);
+#endif
+#if USE_WEIGHTS
+  if(*mode==0){
+    *weight=1;
+  }
+#else
+  *weight=1;
+#endif
+}
 
 static int init_start(void *_ctx,const char *_name,const th_info *_ti,int _pli,
  int _nxblocks,int _nyblocks){
@@ -605,10 +694,6 @@ const block_func INIT[]={
 };
 
 const int NINIT=sizeof(INIT)/sizeof(*INIT);
-
-int step;
-
-int mask[OD_INTRA_NMODES][B_SZ*B_SZ*4*B_SZ*B_SZ];
 
 static int pred_start(void *_ctx,const char *_name,const th_info *_ti,int _pli,
  int _nxblocks,int _nyblocks){
@@ -694,7 +779,7 @@ int main(int _argc,const char *_argv[]){
     classify_ctx_init(&cls[i]);
   }
   omp_set_num_threads(NUM_PROCS);
-  /* first pass across images uses VP8 SATD mode selection */
+  /* First pass across images uses VP8 mode selection. */
   ne_apply_to_blocks(cls,sizeof(*cls),0x1,PADDING,init_start,NINIT,INIT,
    init_finish,_argc,_argv);
   for(i=1;i<NUM_PROCS;i++){
@@ -703,19 +788,22 @@ int main(int _argc,const char *_argv[]){
   if(cls[0].n>0){
     prob_ctx      prob;
     solve_ctx     sol[NUM_PROCS];
+    od_covmat     ete;
+    int           mask[OD_INTRA_NMODES][B_SZ*B_SZ*4*B_SZ*B_SZ];
     struct timeb  start;
     struct timeb  stop;
     prob_ctx_init(&prob);
     for(i=0;i<NUM_PROCS;i++){
       solve_ctx_init(&sol[i]);
     }
+    od_covmat_init(&ete,B_SZ*B_SZ);
     for(i=0;i<OD_INTRA_NMODES;i++){
       for(j=0;j<B_SZ*B_SZ*4*B_SZ*B_SZ;j++){
         mask[i][j]=1;
       }
     }
     ftime(&start);
-    /* each k-means step uses Daala SATD mode selection */
+    /* Each k-means step uses Daala mode selection. */
     for(step=1;step<=INIT_STEPS+DROP_STEPS;step++){
       int mults;
       int drops;
@@ -727,12 +815,12 @@ int main(int _argc,const char *_argv[]){
       }
       printf("Starting Step %02i (%i mults / block)\n",step,mults);
       for(j=0;j<OD_INTRA_NMODES;j++){
-        /* combine the gathered prediction data */
+        /* Combine the gathered prediction data. */
         for(i=1;i<NUM_PROCS;i++){
           od_covmat_combine(&cls[0].pd[j],&cls[i].pd[j]);
         }
         prob_ctx_load(&prob,&cls[0].pd[j]);
-        /* update predictor model based on mults and drops */
+        /* Update predictor model based on mults and drops. */
 #if PRINT_DROPS
         if(drops>0){
           printf("Mode %i\n",j);
@@ -740,6 +828,24 @@ int main(int _argc,const char *_argv[]){
         }
 #endif
         comp_predictors(&prob,sol,drops,mask[j]);
+        /* Compute residual covariance for each mode. */
+        prob_ctx_comp_error(&prob,&cls[0].pd[j],sol->beta_1);
+#if ZERO_MEAN
+        {
+          double mean[B_SZ*B_SZ];
+          for(i=0;i<B_SZ*B_SZ;i++){
+            mean[i]=0;
+          }
+          od_covmat_update(&ete,prob.ete,mean,cls[0].pd[j].w);
+        }
+#else
+        od_covmat_update(&ete,prob.ete,sol->beta_0,cls[0].pd[j].w);
+#endif
+#if !POOLED_COV
+        od_covmat_correct(&ete);
+        update_diversity(ete.cov,b[j],OD_SCALE);
+        od_covmat_reset(&ete);
+#endif
 #if SUBTRACT_DC
         for(i=0;i<4;i++){
           OD_ASSERT(mask[j][i*B_SZ*B_SZ]);
@@ -748,20 +854,29 @@ int main(int _argc,const char *_argv[]){
 #endif
         update_predictors(j,sol->beta_0,sol->beta_1,mask[j]);
       }
-      /* reset the prediction data */
+#if POOLED_COV
+      od_covmat_correct(&ete);
+      for(j=0;j<OD_INTRA_NMODES;j++){
+        update_diversity(ete.cov,b[j],OD_SCALE);
+      }
+      od_covmat_reset(&ete);
+#endif
+      /* Reset the prediction data. */
       for(i=0;i<NUM_PROCS;i++){
         classify_ctx_reset(&cls[i]);
       }
-      /* reclassify based on the new model */
+      /* Reclassify based on the new model. */
       ne_apply_to_blocks(cls,sizeof(*cls),0x1,PADDING,pred_start,NPRED,PRED,
        pred_finish,_argc,_argv);
       ftime(&stop);
       printf("Finished Step %02i (%lims)\n",step,timing(&start,&stop));
       start=stop;
-      /* combine the gathered intra stats */
+      /* Combine the gathered intra stats. */
       for(i=1;i<NUM_PROCS;i++){
         intra_stats_combine(&cls[0].gb,&cls[i].gb);
+        cls[0].bits+=cls[i].bits;
       }
+      printf("Step %02i Total Bits %-24.18G\n",step,cls[0].bits);
       intra_stats_correct(&cls[0].gb);
       intra_stats_print(&cls[0].gb,"Daala Intra Predictors",OD_SCALE);
     }
@@ -769,6 +884,7 @@ int main(int _argc,const char *_argv[]){
     for(i=0;i<NUM_PROCS;i++){
       solve_ctx_clear(&sol[i]);
     }
+    od_covmat_clear(&ete);
 #if PRINT_BETAS
     print_predictors(stderr);
 #endif

@@ -430,8 +430,10 @@ int od_select_mode_bits(const od_coeff *_block,int _stride,double *_weight,
     bits=0;
     for(j=0;j<B_SZ;j++){
       for(i=0;i<B_SZ;i++){
-        bits+=1+OD_LOG2(_b[mode][j*B_SZ+i])+M_LOG2E/_b[mode][j*B_SZ+i]*
+        double res;
+        res=sqrt(OD_SCALE[j]*OD_SCALE[i])*
          abs(_block[_stride*j+i]-(od_coeff)floor(p[B_SZ*j+i]+0.5));
+        bits+=1+OD_LOG2(_b[mode][j*B_SZ+i])+M_LOG2E/_b[mode][j*B_SZ+i]*res;
       }
     }
     if(bits<best_bits){
