@@ -1,0 +1,399 @@
+#LyX 2.0 created this file. For more info see http://www.lyx.org/
+\lyxformat 413
+\begin_document
+\begin_header
+\textclass article
+\use_default_options true
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman default
+\font_sans default
+\font_typewriter default
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100
+\font_tt_scale 100
+
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize default
+\use_hyperref false
+\papersize default
+\use_geometry false
+\use_amsmath 1
+\use_esint 1
+\use_mhchem 1
+\use_mathdots 1
+\cite_engine basic
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\use_refstyle 1
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\quotes_language english
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Title
+PVQ Encoding with Non-Uniform Distribution
+\end_layout
+
+\begin_layout Section
+Introduction
+\end_layout
+
+\begin_layout Section
+PVQ Codebook
+\end_layout
+
+\begin_layout Standard
+The PVQ codebook is defined
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+S\left(N,K\right)=\left\{ \mathbf{y}\in\mathbb{Z^{N}}:\sum_{i=0}^{N-1}\left|y_{i}\right|=K\right\} \ ,
+\]
+
+\end_inset
+
+the set of all integer vectors in 
+\begin_inset Formula $N$
+\end_inset
+
+ dimensions for which the sum of absolute values equals 
+\begin_inset Formula $K$
+\end_inset
+
+.
+ When all codevectors are considered to have equal probability, several
+ methods [Fischer, FPC] exist to convert between any codevector and an index
+ 
+\begin_inset Formula $J$
+\end_inset
+
+ in the range 
+\begin_inset Formula $[0,\, V(N,K)-1]$
+\end_inset
+
+, where 
+\begin_inset Formula $V(N,K)$
+\end_inset
+
+ is the number of elements in 
+\begin_inset Formula $S(N,K)$
+\end_inset
+
+.
+ The index is then easily coded in a bit-stream, possibly with the use of
+ a range coder [CELT] to allow for fractional bits since 
+\begin_inset Formula $V(N,K)$
+\end_inset
+
+ is generally not a power of two.
+\end_layout
+
+\begin_layout Section
+Non-Uniform Distribution
+\end_layout
+
+\begin_layout Standard
+When the codevectors do not have a uniform probability distribution, it
+ becomes necessary to build a probability model.
+ For any codebook of reasonable size, modelling the distribution of 
+\begin_inset Formula $J$
+\end_inset
+
+ itself is impractical.
+ Instead, we parametric models for the distribution of 
+\begin_inset Formula $\left|y_{i}\right|$
+\end_inset
+
+ as a function of 
+\begin_inset Formula $i$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Subsection
+Coefficient Model
+\end_layout
+
+\begin_layout Standard
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:Coefficient-model"
+
+\end_inset
+
+A first model is based on the expected absolute value of the coefficient
+ 
+\begin_inset Formula $i$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+\sigma_{i}=E\left\{ \left|y_{i}\right|\right\} =\sum_{k=0}^{\infty}p_{i}(k)\ ,
+\]
+
+\end_inset
+
+where 
+\begin_inset Formula $p_{i}\left(k\right)$
+\end_inset
+
+ is the probability that 
+\begin_inset Formula $\left|y_{i}\right|=k$
+\end_inset
+
+.
+ We assume that 
+\begin_inset Formula $y$
+\end_inset
+
+ is the result of quantizing 
+\begin_inset Formula $x$
+\end_inset
+
+ to the nearest integer, where 
+\begin_inset Formula $x$
+\end_inset
+
+ follows a Laplace distribution
+\begin_inset Formula 
+\[
+p\left(x\right)=r^{-\left|x\right|}\ .
+\]
+
+\end_inset
+
+Assuming the positive quantization thresholds are 
+\begin_inset Formula $\theta+k,\, k\in\mathbb{N}$
+\end_inset
+
+, we have
+\begin_inset Formula 
+\[
+p\left(k\right)=\left\{ \begin{array}{ll}
+1-r^{\theta} & ,k=0\\
+r^{\theta}\left(1-r\right)r^{k-1}\quad & ,k\neq0
+\end{array}\right.\ .
+\]
+
+\end_inset
+
+The value of 
+\begin_inset Formula $r$
+\end_inset
+
+ is obtained by modelling 
+\begin_inset Formula $\sigma_{i}$
+\end_inset
+
+.
+ By assuming 
+\begin_inset Formula $\theta=1$
+\end_inset
+
+, we can have a simple relation for 
+\begin_inset Formula $r$
+\end_inset
+
+ 
+\begin_inset Formula 
+\begin{equation}
+r=\frac{\sigma_{i}}{1+\sigma_{i}}\ .\label{eq:r-vs-sigma}
+\end{equation}
+
+\end_inset
+
+We can still use a more typical 
+\begin_inset Formula $\theta=1/2$
+\end_inset
+
+ to model 
+\begin_inset Formula $p\left(k\right)$
+\end_inset
+
+ itself, in which case 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:r-vs-sigma"
+
+\end_inset
+
+ becomes an approximation.
+\end_layout
+
+\begin_layout Standard
+If all values 
+\begin_inset Formula $y_{i}$
+\end_inset
+
+ are identically distributed, then all expectiations 
+\begin_inset Formula $\sigma_{i}$
+\end_inset
+
+ are equal and simply 
+\begin_inset Formula $\sigma_{i}=K/N$
+\end_inset
+
+.
+ In practice, we assume that the values 
+\begin_inset Formula $y_{i}$
+\end_inset
+
+ are in decreasing order of expected value and make the approximation 
+\begin_inset Formula 
+\[
+\sigma_{0}=\alpha K/N
+\]
+
+\end_inset
+
+where 
+\begin_inset Formula $\alpha$
+\end_inset
+
+ represents how uneven the distributions are (
+\begin_inset Formula $\alpha=1$
+\end_inset
+
+ corresponds to ideical distributions).
+ Knowing 
+\begin_inset Formula $\alpha$
+\end_inset
+
+, we can obtain 
+\begin_inset Formula $\sigma_{0}$
+\end_inset
+
+, 
+\begin_inset Formula $r_{0}$
+\end_inset
+
+ and thus 
+\begin_inset Formula $p_{0}\left(k\right)$
+\end_inset
+
+, making it possible to encode (and decode using the same process) 
+\begin_inset Formula $y_{0}$
+\end_inset
+
+.
+ Knowing the value of 
+\begin_inset Formula $y_{0}$
+\end_inset
+
+, we can encode 
+\begin_inset Formula $y_{1}$
+\end_inset
+
+ using
+\begin_inset Formula 
+\begin{align*}
+N^{\left(1\right)} & =N-1\\
+K^{\left(1\right)} & =K-\left|y_{0}\right|\ .
+\end{align*}
+
+\end_inset
+
+The process can be applied recursively until 
+\begin_inset Formula $K=0$
+\end_inset
+
+ or 
+\begin_inset Formula $N=1$
+\end_inset
+
+.
+ The coefficient 
+\begin_inset Formula $\alpha$
+\end_inset
+
+ is assumed constant and adapted based on the data being encoded.
+ 
+\end_layout
+
+\begin_layout Standard
+The total number of symbols coded with this approach is equal to the position
+ 
+\begin_inset Formula $i_{last}$
+\end_inset
+
+ of the last non-zero component of 
+\begin_inset Formula $\mathbf{y}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Subsection
+Run-Length Model
+\end_layout
+
+\begin_layout Standard
+For long sparse vectors, the method in Section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Coefficient-model"
+
+\end_inset
+
+ is inefficient in terms of symbols coded.
+ In those cases we propose modelling 
+\begin_inset Formula $q(i)$
+\end_inset
+
+, the probability of 
+\begin_inset Formula $y_{i}$
+\end_inset
+
+ being the first non-zero coefficient in 
+\begin_inset Formula $\mathbf{y}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Subsection
+Coding K
+\end_layout
+
+\begin_layout Section
+Conclusion
+\end_layout
+
+\end_body
+\end_document
