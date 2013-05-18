@@ -529,6 +529,7 @@ int main(int _argc,char **_argv){
   /*Setup complete.
     Main compression loop.*/
   fprintf(stderr,"Compressing...\n");
+  video_ready=0;
   for(;;){
     ogg_page video_page;
     double   video_time;
