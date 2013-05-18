@@ -79,10 +79,9 @@ void od_tf_up_hv_lp(od_coeff *_dst,int _dstride,
     for(x=0;x<_n>>1;x++){
       od_coeff ll;
       od_coeff lh;
-      od_coeff lh_2;
       od_coeff hl;
-      od_coeff hl_2;
       od_coeff hh;
+      od_coeff lhmhl_2;
       int      hswap;
       ll=_src[y*_sstride+x];
       lh=_src[y*_sstride+x+_dx];
@@ -90,12 +89,9 @@ void od_tf_up_hv_lp(od_coeff *_dst,int _dstride,
       hh=_src[(y+_dy)*_sstride+x+_dx];
       hl=ll-hl;
       lh+=hh;
-      hl_2=OD_DCT_RSHIFT(hl,1);
-      lh_2=OD_DCT_RSHIFT(lh,1);
-      ll-=hl_2;
-      hh=lh_2-hh;
-      ll+=lh_2;
-      hh=hl_2-hh;
+      lhmhl_2=OD_DCT_RSHIFT(lh-hl,1);
+      ll+=lhmhl_2;
+      hh-=lhmhl_2;
       lh=ll-lh;
       hl-=hh;
       hswap=x&1;
@@ -119,10 +115,9 @@ void od_tf_up_hv(od_coeff *_dst,int _dstride,
     for(x=0;x<_n;x++){
       od_coeff ll;
       od_coeff lh;
-      od_coeff lh_2;
       od_coeff hl;
-      od_coeff hl_2;
       od_coeff hh;
+      od_coeff lhmhl_2;
       int      hswap;
       ll=_src[y*_sstride+x];
       lh=_src[y*_sstride+x+_n];
@@ -132,12 +127,9 @@ void od_tf_up_hv(od_coeff *_dst,int _dstride,
          hl and lh swapped.*/
       hl=ll-hl;
       lh+=hh;
-      hl_2=OD_DCT_RSHIFT(hl,1);
-      lh_2=OD_DCT_RSHIFT(lh,1);
-      ll-=hl_2;
-      hh=lh_2-hh;
-      ll+=lh_2;
-      hh=hl_2-hh;
+      lhmhl_2=OD_DCT_RSHIFT(lh-hl,1);
+      ll+=lhmhl_2;
+      hh-=lhmhl_2;
       lh=ll-lh;
       hl-=hh;
       hswap=x&1;
@@ -162,10 +154,9 @@ void od_tf_down_hv(od_coeff *_dst,int _dstride,
     for(x=0;x<_n>>1;x++){
       od_coeff ll;
       od_coeff lh;
-      od_coeff lh_2;
       od_coeff hl;
-      od_coeff hl_2;
       od_coeff hh;
+      od_coeff lhmhl_2;
       int      hswap;
       hswap=x&1;
       ll=_src[(2*y+vswap)*_sstride+2*x+hswap];
@@ -176,12 +167,9 @@ void od_tf_down_hv(od_coeff *_dst,int _dstride,
          hl and lh swapped.*/
       lh=ll-lh;
       hl+=hh;
-      lh_2=OD_DCT_RSHIFT(lh,1);
-      hl_2=OD_DCT_RSHIFT(hl,1);
-      ll-=lh_2;
-      hh=hl_2-hh;
-      ll+=hl_2;
-      hh=lh_2-hh;
+      lhmhl_2=OD_DCT_RSHIFT(lh-hl,1);
+      ll-=lhmhl_2;
+      hh+=lhmhl_2;
       hl=ll-hl;
       lh-=hh;
       _dst[y*_dstride+x]=ll;
