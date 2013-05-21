@@ -373,18 +373,81 @@ reference "sub:Coefficient-model"
 
  is inefficient in terms of symbols coded.
  In those cases we propose modelling 
-\begin_inset Formula $q(i)$
+\begin_inset Formula $q(n)$
 \end_inset
 
 , the probability of 
-\begin_inset Formula $y_{i}$
+\begin_inset Formula $y_{n}$
 \end_inset
 
  being the first non-zero coefficient in 
 \begin_inset Formula $\mathbf{y}$
 \end_inset
 
-.
+, as an exponential distribution
+\begin_inset Formula 
+\[
+q(n)=r^{-n}\ .
+\]
+
+\end_inset
+
+We then model the expected value of 
+\begin_inset Formula $q(n)$
+\end_inset
+
+ as 
+\begin_inset Formula 
+\[
+E\left[q\left(n\right)\right]=\beta\cdot\frac{N}{K}\ ,
+\]
+
+\end_inset
+
+where 
+\begin_inset Formula $\beta=1$
+\end_inset
+
+ represents the case where non-zero coefficients are distributed evenly
+ in the vector (typically, 
+\begin_inset Formula $\beta<1$
+\end_inset
+
+).
+ Once the position 
+\begin_inset Formula $n$
+\end_inset
+
+ of the first non-zero coefficient is coded, one pulse is subtracted from
+ that position and the process is restarted with
+\begin_inset Formula 
+\begin{align*}
+N^{(1)} & =N-n\\
+K^{(1)} & =K-1\ .
+\end{align*}
+
+\end_inset
+
+If multiple pulses are present at a certain position, then we encode a position
+ of zero for each pulse that follows the first pulse.
+ 
+\end_layout
+
+\begin_layout Standard
+Because the sign is fixed once  a pulse is already present at a certain
+ position, the probability of adding a pulse is divided by two.
+ The distribution then becomes
+\begin_inset Formula 
+\[
+q(n)=\left\{ \begin{array}{ll}
+1/2\quad & ,\ n=0\\
+r^{-n} & ,\ n\neq0
+\end{array}\right..
+\]
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Subsection
