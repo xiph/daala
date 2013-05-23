@@ -1,0 +1,418 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=utf-8">
+<META NAME="Author" CONTENT="tterribe">
+<META NAME="Generator" CONTENT="vim">
+<TITLE>Daala Coding Style</TITLE>
+</HEAD>
+<BODY>
+<H1>Daala Coding Style</H1>
+<H2>Overview</H2>
+<P>
+This document defines the coding style of the Daala project.
+In general, Daala tries to conform to C89, and avoid features which are not
+ available in C89 in portable code.
+We try to minimize our dependence on libc (e.g., using macros around memory
+ allocation functions).
+</P>
+
+<H2>General Rules</H2>
+<H3>License Block</H3>
+<P>
+The top of each file should contain the following license header:
+</P>
+<PRE>
+/*Daala video codec
+Copyright (c) 2001-2013 Daala project contributors.  All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+- Redistributions of source code must retain the above copyright notice, this
+  list of conditions and the following disclaimer.
+
+- Redistributions in binary form must reproduce the above copyright notice,
+  this list of conditions and the following disclaimer in the documentation
+  and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
+</PRE>
+<P>
+Make sure the copyright years are up to date.
+</P>
+<P>
+In general, it is not necessary to list invididual copyright holders in each
+ file (beyond "Daala project contributors").
+Xiph does not require assignment of copyright.
+</P>
+<H3>Globals</H3>
+<P>
+Non-const global variables in portable code are not allowed.
+They make it impossible to write re-entrant code without introducing a
+ dependency on a threading library.
+</P>
+<H3>Naming</H3>
+<P>
+All functions and types use the canonical C naming scheme: all lowercase with
+ underscores for separators.
+<CODE>#define</CODE>s and global const variables use all uppercase with
+ underscores for separators.
+</P>
+<P>
+All functions and types begin with an <CODE>od_</CODE> prefix.
+All <CODE>#define</CODE>s and global const variables begin with an
+ <CODE>OD_</CODE> prefix.
+</P>
+<P>
+Do not prefix names with single letters indicating their role (m for member
+ variables, k for constants, g for globals, etc.).
+</P>
+<P>
+Do not use leading or trailing underscores in regular code.
+</P>
+<P>
+Macro definitions which need to declare local variables should append two
+ trailing underscores to their name to avoid conflicts with regular code.
+</P>
+<H3>Constructors/Destructors</H3>
+<P>
+Initialization and deinitialization routines for type <CODE>od_foo</CODE> are
+ named <CODE>od_foo_init()</CODE> and <CODE>od_foo_clear()</CODE>.
+These should take an already-allocated pointer to an object of the appropriate
+ type.
+If allocating versions of these functions are desired, they should be named
+ <CODE>od_foo_create()</CODE> and <CODE>od_foo_free()</CODE>, and dispatch to
+ <CODE>od_foo_init()</CODE> and <CODE>od_foo_clear()</CODE> respectively.
+</P>
+
+<H2>Formatting</H2>
+<H3>Tabs</H3>
+<P>
+There are no tabs in source code.
+Do not use them, ever.
+</P>
+<H3>Trailing Whitespace</H3>
+<P>
+Remove all trailing whitespace at the end of a line.
+</P>
+<H3>Indentation</H3>
+<P>
+Use two-space indenting.
+</P>
+<H3>Line Length</H3>
+<P>
+Lines should be no more than 79 characters.
+This allows them to be displayed fully in a standard terminal even in diffs.
+The extra column on the right also makes long lines easier to spot.
+</P>
+<H3>Line Wrapping</H3>
+If a line needs to be continued on to the next line, use a single additional
+ space for all subsequent lines.
+Do not align subsequent lines with <CODE>=</CODE> operators, function
+ parameters, etc.
+Do not add additional indentation to indicate open parentheses, etc.
+If this produces lines you think are confusing, break them up into multiple
+ statements.
+</P>
+<P>
+Prefer wrapping at lower-precedence operators.
+</P>
+<P>
+Prefer making wrapped lines as close in length as possible, while minimizing
+ the total number of lines.
+</P>
+<P>
+All unary operators and the binary operators <CODE>+</CODE>, <CODE>-</CODE>,
+ <CODE>&amp;&amp;</CODE>, and <CODE>||</CODE> belong to the start of the next
+ line, not the end of the previous line.
+</P>
+<H3><CODE>struct</CODE> fields and local variables</CODE></H3>
+<P>
+One variable/field per declaration (e.g., do not use
+ <CODE>int x, y, z;</CODE>).
+</P>
+<P>
+Do not attempt to align variable/field names.
+</P>
+<P>
+Do not initialize variables in the declaration.
+This makes it harder to follow C89's "no declarations after a statement" rule
+ and can hide logic errors that would be exposed by valgrind.
+</P>
+<H3>Comments</H3>
+<P>
+Do not use C++ comments (<CODE>//</CODE>).
+</P>
+<P>
+Write properly punctuated comments that start with a capital letter.
+</P>
+<P>
+Do not put comments to the right of code.
+Put them on a separate line.
+</P>
+<P>
+Format multi-line comments as follows:
+</P>
+<PRE>
+/*This is a multi-line comment.
+  Each sentence starts on a new line, and all subsequent lines in the same
+   sentence are indented a single space, making it easier to change the comment
+   without re-flowing a whole paragraph.
+  This gives better "blame" information, and makes diffs easier to read.
+
+  Other notes:
+  - Start the first sentence on the same line as the start of the comment, and
+     do not add a space in front of it.
+    The former ensures that single-line and multi-line comments have the same
+     style, making it easier to convert between the two.
+    The latter maximizes the space available for prose in heavily-indented
+     code.
+  - Align the start of subsequent sentences with the start of the first one.
+  - End the comment on the same line as the last sentence, and do not add an
+     extra space after that sentence.*/
+</PRE>
+<H3>Preprocessor Statements</H3>
+<P>
+All pre-processor statements begin with a <CODE>#</CODE> in the leftmost
+ column.
+Indent pre-processor statements by adding spaces after the <CODE>#</CODE>, not
+ before it.
+</P>
+<P>
+Preprocessor statements inside an
+ <CODE>#if</CODE>/<CODE>#else</CODE>/<CODE>#endif</CODE> block are indented by
+ one space per level (after the leading <CODE>#</CODE>).
+</P>
+<P>
+Use <CODE>#if [!]defined(X)</CODE> instead of <CODE>#if[n]def X</CODE>.
+The former makes it easier to extend to multiple conditions, zero out, etc.,
+ e.g., replacing
+<PRE>
+#if defined(X)
+</PRE>
+with
+<PRE>
+#if defined(X) &amp;&amp; 0
+</PRE>
+</P>
+<H3>Blank Lines</H3>
+<P>
+There should never be more than a single blank line in a row.
+</P>
+<P>
+Do not add blank lines in the interior of a function, except inside of a
+ multi-line comment.
+If you find yourself wanting to do this, use two functions instead.
+</P>
+<H3>Operator Spacing</H3>
+<P>
+All non-unary operators with the precedence of <CODE>+</CODE> and
+ <CODE>-</CODE> or less should have one space on either side, except for
+ commas, which have a single following space.
+</P>
+<P>
+There is no space before the opening parenthesis of a function call argument
+ list, nor after a closing parenthesis followed by a comma or a semicolon.
+</P>
+<P>
+Semicolons in <CODE>for</CODE> loop iterators also have a single following
+ space, except when the following statement is empty.
+</P>
+<H3>Pointers</H3>
+<P>
+The <CODE>*</CODE> in pointer types hugs the variable name, not the type name.
+</P>
+<H3>Braces</H3>
+<P>
+Opening braces go on the same line as the start of the construct they are
+ opening (function body, <CODE>if</CODE>, <CODE>else</CODE>, <CODE>for</CODE>,
+ <CODE>do</CODE>, <CODE>while</CODE>, <CODE>switch</CODE>, etc.), separated by
+ a single space.
+</P>
+<P>
+Do not put spaces in empty braces.
+</P>
+<P>
+Closing braces go on a line by themselves, indented at the same level as the
+ opening line.
+</P>
+<H3>Array Initializers</H3>
+<P>
+If an array initializer fits on a single line, put a single space inside the
+ brace on each end.
+</P>
+<P>
+If an array initializer does not fit on a single line, do not wrap it as one
+ long line.
+Instead, start a new line after the opening brace and indent the initialization
+ data.
+Start new lines of initialization data as necessary, without the additional one
+ space used to indent wrapped lines.
+</P>
+<P>
+For multi-line multidimensional array initializers, place the comma on the same
+ line as the closing brace for the inner array, and start the opening brace for
+ the next element of the outer array on a new line.
+</P>
+<H3>Trailing Commas</H3>
+<P>
+Do not include trailing commas in array initializers, enums, or other lists.
+These cause warnings on some platforms.
+</P>
+<H3>Parentheses</H3>
+<P>
+Do not use syntactically unnecessary parentheses unless they would generate a
+ warning with gcc or MSVC.
+</P>
+<P>
+Parentheses should be placed around every single-expression macro definition,
+ including constants.
+</P>
+<H3>Keywords</H3>
+<P>
+A single space follows <CODE>if</CODE>, <CODE>for</CODE>, <CODE>while</CODE>,
+ and <CODE>switch</CODE> keywords, before the parenthesized expression.
+</P>
+<P>
+An <CODE>else</CODE> and the <CODE>while</CODE> in a <CODE>do</CODE> ...
+ <CODE>while</CODE> loop begin on a new line, instead of being placed on the
+ same line as the closing brace from the previous block.
+If the <CODE>else</CODE>'s statement is a subsequent <CODE>if</CODE>, that
+ <CODE>if</CODE> is placed on the same line as the <CODE>else</CODE>.
+</P>
+<P>
+If you omit the <CODE>break</CODE> after a non-empty <CODE>case</CODE>
+ statement where control reaches the end of the block, add a comment indicating
+ you are falling through.
+If control reaches the end of the block in the last <CODE>case</CODE> statement
+ in a <CODE>switch</CODE> block, do not omit the <CODE>break</CODE>.
+Use braces around the body of a <CODE>case</CODE> statement, unless the body is
+ a single statement (excluding the <CODE>break</CODE>) and fits on one line
+ (including the <CODE>break</CODE>).
+</P>
+<P>
+Loop or conditional bodies with a single statement may be placed on the same
+ line as the start of the loop/conditional without any braces.
+Such loops can easily be stepped over in a debugger.
+This is allowed even for <CODE>if</CODE> statements with an <CODE>else</CODE>
+ clause.
+If a loop/conditional body has to extend to multiple lines for any reason
+ (including exceeding the 79-character line limit, even if still a single
+ statement), then it must be contained in braces (and the first statement start
+ on a new line).
+</P>
+<P>
+Use <CODE>for (;;)</CODE> for infinite loops, not <CODE>while (1)</CODE>.
+Some compilers complain about conditional expressions that always evaluate to
+ true.
+</P>
+<P>
+<CODE>return</CODE> values are separated from the keyword by a single space,
+ and are not enclosed in parentheses.
+</P>
+<H4>Examples:</H4>
+<PRE>
+for (i = 0; i &lt; n; i++) x[i] = 0;
+</PRE>
+<PRE>
+do something();
+while (!done);
+</PRE>
+<PRE>
+while (!done) {
+  do_something();
+  do_something_else();
+}
+</PRE>
+<PRE>
+if (test) do_this();
+else do_that();
+</PRE>
+<PRE>
+if (condition) {
+  do_one_thing();
+  then_another();
+}
+else if (another_condition) do_something_else();
+</PRE>
+<PRE>
+switch (value) {
+  case 1: {
+    int foo;
+    foo=compute_foo();
+    use_foo(foo);
+    break;
+  }
+  case 2: ignore_foo();
+  /*Fall through.*/
+  case 3: return -1;
+  default: handle_default(); break;
+}
+</PRE>
+
+<H2>Functions</H2>
+<H3>Declarations</H3>
+<P>
+Put the return type and parameters on the same line as the function name,
+ wrapping as necessary.
+Do not attempt to align the function names in a group of functions with
+ different return types.
+</P>
+<H3>Function Parameter Ordering</H3>
+<P>
+If the function is associated with a single object, put that object first.
+</P>
+<P>
+If the function has both inputs and outputs, the outputs go before the inputs
+ (like memcpy(), which was designed to mimic the assignment operator).
+</P>
+<P>
+When taking a variable-length array, the length/size/stride of the array goes
+ after the pointer to the array.
+</P>
+
+<H2>Header Files</H2>
+<H3>The #define guard</H3>
+<P>
+All header files should be wrapped in a define guard as follows:
+<PRE>
+#if !defined(_path_file_H)
+# define _path_file_H (1)
+...
+#endif
+</PRE>
+Path elements should be sparated by underscores.
+The leading <CODE>src</CODE> component of the path is omitted.
+Path/file names should be lower case (as identifiers which match
+ <CODE>_[A-Z].*</CODE> are reserved by POSIX).
+</P>
+<H3>Forward Declarations</H3>
+<P>
+Do not forward declare things in order to avoid additional includes.
+Processing includes is fast in C, unlike C++, where they contain most of the
+ code, and recompiling C is also fast.
+It's not worth the maintenance burden of having one thing defined in many
+ places to avoid including some extra files.
+</P>
+<P>
+In header files which have circular dependencies, put any typedefs at the top,
+ before including the headers which produce the cycle.
+</P>
+<H3>Inline Functions</H3>
+<P>
+Do not put inline functions in headers except in platform-specific sections.
+The inline keyword is not available in C89.
+Do not use static functions in headers as a substitute, as they generate
+ warnings if unused.
+</P>
+</HTML>
