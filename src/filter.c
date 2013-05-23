@@ -209,21 +209,23 @@ void od_post_filter4(od_coeff _x[4],const od_coeff _y[4]){
 
 /*R=f
   6-bit
-        Ar95_Cg =  9.48639
-     Subset1_Cg = 10.78521
-     Ar95_2d_Cg = 18.97228
-  Subset1_2d_Cg = 13.98122*/
-#define OD_FILTER8_TYPE3 (0)
-#define OD_FILTER_PARAMS8_0 (84)
-#define OD_FILTER_PARAMS8_1 (68)
-#define OD_FILTER_PARAMS8_2 (67)
-#define OD_FILTER_PARAMS8_3 (68)
-#define OD_FILTER_PARAMS8_4 (-24)
-#define OD_FILTER_PARAMS8_5 (-19)
-#define OD_FILTER_PARAMS8_6 (-8)
-#define OD_FILTER_PARAMS8_7 (13)
-#define OD_FILTER_PARAMS8_8 (24)
-#define OD_FILTER_PARAMS8_9 (38)
+  Subset3_2d_Cg = 16.7948051638528391
+  This filter has some of the scale factors
+   forced to one to reduce complexity. Without
+   this constraint we get a filter with Subset3_2d_Cg
+   of 16.8035257369844686. The small cg loss is likely
+   worth the reduction in multiplies and adds.*/
+#define OD_FILTER8_TYPE3 (1)
+#define OD_FILTER_PARAMS8_0 (86)
+#define OD_FILTER_PARAMS8_1 (64)
+#define OD_FILTER_PARAMS8_2 (64)
+#define OD_FILTER_PARAMS8_3 (70)
+#define OD_FILTER_PARAMS8_4 (-29)
+#define OD_FILTER_PARAMS8_5 (-25)
+#define OD_FILTER_PARAMS8_6 (-13)
+#define OD_FILTER_PARAMS8_7 (45)
+#define OD_FILTER_PARAMS8_8 (29)
+#define OD_FILTER_PARAMS8_9 (17)
 
 const int OD_FILTER_PARAMS8[10]={
   OD_FILTER_PARAMS8_0,OD_FILTER_PARAMS8_1,OD_FILTER_PARAMS8_2,
@@ -347,32 +349,37 @@ void od_post_filter8(od_coeff _x[8],const od_coeff _y[8]){
    _x[7]=(od_coeff)(t[0]-t[7]);
 }
 
-/*R=f
+/*R=f Type-3
   6-bit
-  Ar95_Cg = 9.89338 */
-#define OD_FILTER16_TYPE3 (0)
+  Subset3_2d_Cg = 17.0007008994465814
+  This filter has some of the scale factors
+   forced to 1, without this we get a filter
+   with a Cg of 17.0010659559160686. The tiny
+   CG loss is likely worth the reduction in
+   multiplies and adds.*/
+#define OD_FILTER16_TYPE3 (1)
 #define OD_FILTER_PARAMS16_0 (90)
-#define OD_FILTER_PARAMS16_1 (74)
-#define OD_FILTER_PARAMS16_2 (73)
-#define OD_FILTER_PARAMS16_3 (71)
-#define OD_FILTER_PARAMS16_4 (67)
-#define OD_FILTER_PARAMS16_5 (67)
-#define OD_FILTER_PARAMS16_6 (67)
-#define OD_FILTER_PARAMS16_7 (72)
-#define OD_FILTER_PARAMS16_8 (-24)
-#define OD_FILTER_PARAMS16_9 (-23)
-#define OD_FILTER_PARAMS16_10 (-17)
-#define OD_FILTER_PARAMS16_11 (-12)
-#define OD_FILTER_PARAMS16_12 (-14)
-#define OD_FILTER_PARAMS16_13 (-13)
+#define OD_FILTER_PARAMS16_1 (67)
+#define OD_FILTER_PARAMS16_2 (64)
+#define OD_FILTER_PARAMS16_3 (64)
+#define OD_FILTER_PARAMS16_4 (64)
+#define OD_FILTER_PARAMS16_5 (64)
+#define OD_FILTER_PARAMS16_6 (66)
+#define OD_FILTER_PARAMS16_7 (67)
+#define OD_FILTER_PARAMS16_8 (-32)
+#define OD_FILTER_PARAMS16_9 (-37)
+#define OD_FILTER_PARAMS16_10 (-35)
+#define OD_FILTER_PARAMS16_11 (-30)
+#define OD_FILTER_PARAMS16_12 (-23)
+#define OD_FILTER_PARAMS16_13 (-16)
 #define OD_FILTER_PARAMS16_14 (-7)
-#define OD_FILTER_PARAMS16_15 (50)
-#define OD_FILTER_PARAMS16_16 (40)
-#define OD_FILTER_PARAMS16_17 (31)
-#define OD_FILTER_PARAMS16_18 (22)
-#define OD_FILTER_PARAMS16_19 (18)
-#define OD_FILTER_PARAMS16_20 (16)
-#define OD_FILTER_PARAMS16_21 (11)
+#define OD_FILTER_PARAMS16_15 (52)
+#define OD_FILTER_PARAMS16_16 (42)
+#define OD_FILTER_PARAMS16_17 (36)
+#define OD_FILTER_PARAMS16_18 (31)
+#define OD_FILTER_PARAMS16_19 (25)
+#define OD_FILTER_PARAMS16_20 (18)
+#define OD_FILTER_PARAMS16_21 (9)
 
 const int OD_FILTER_PARAMS16[22]={
   OD_FILTER_PARAMS16_0,OD_FILTER_PARAMS16_1,OD_FILTER_PARAMS16_2,
