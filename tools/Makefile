@@ -85,6 +85,7 @@ block_size_analysis.c \
 block_size.c \
 vidinput.c \
 newdct.c \
+internal.c \
 filter.c
 
 

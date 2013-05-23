@@ -67,7 +67,6 @@ static const char *CHROMA_TAGS[4]={" C420jpeg",""," C422jpeg"," C444"};
 
 #define OFF8   (1)
 #define OFF16  (2)
-#define OFF32  (2)
 
 #define OFF16_8  (1)
 #define OFF32_8  (1)
@@ -82,23 +81,26 @@ static const char *CHROMA_TAGS[4]={" C420jpeg",""," C422jpeg"," C444"};
 
 #define PSY_LAMBDA .65
 
-
 int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh)
 {
   int i,j;
-  int h4, w4,h8,w8,h16,w16,h32,w32;
+  int h8,w8,h32,w32;
+  static int dec8[MAX_VAR_BLOCKS>>2][MAX_VAR_BLOCKS>>2];
+#if 0
+  int h4,w4,h16,w16;
   static int Sx[MAX_VAR_BLOCKS][MAX_VAR_BLOCKS];
   static int Sxx[MAX_VAR_BLOCKS][MAX_VAR_BLOCKS];
   static int Sx4[MAX_VAR_BLOCKS>>1][MAX_VAR_BLOCKS>>1];
   static int Sxx4[MAX_VAR_BLOCKS>>1][MAX_VAR_BLOCKS>>1];
 
-  static float dummy[MAX_VAR_BLOCKS][MAX_VAR_BLOCKS];
-  static float dummy8[MAX_VAR_BLOCKS][MAX_VAR_BLOCKS];
-
   static int var[MAX_VAR_BLOCKS][MAX_VAR_BLOCKS];
   static int var_1[MAX_VAR_BLOCKS][MAX_VAR_BLOCKS];
   static int var8[MAX_VAR_BLOCKS>>1][MAX_VAR_BLOCKS>>1];
   static int var8_1[MAX_VAR_BLOCKS>>1][MAX_VAR_BLOCKS>>1];
+  static float dummy[MAX_VAR_BLOCKS][MAX_VAR_BLOCKS];
+  static float dummy8[MAX_VAR_BLOCKS][MAX_VAR_BLOCKS];
+
+
   static float nmr4[MAX_VAR_BLOCKS>>1][MAX_VAR_BLOCKS>>1];
   static float nmr8[MAX_VAR_BLOCKS>>2][MAX_VAR_BLOCKS>>2];
   static float cg8[MAX_VAR_BLOCKS>>2][MAX_VAR_BLOCKS>>2];
@@ -107,18 +109,20 @@ int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh
   static float nmr32[MAX_VAR_BLOCKS>>4][MAX_VAR_BLOCKS>>4];
   static float cg32[MAX_VAR_BLOCKS>>4][MAX_VAR_BLOCKS>>4];
 
-  static int dec8[MAX_VAR_BLOCKS>>2][MAX_VAR_BLOCKS>>2];
   const unsigned char *x;
+#endif
+
   w>>=1;
   h>>=1;
-  w4 = w>>1;
-  h4 = h>>1;
   w8 = w>>2;
   h8 = h>>2;
-  w16 = w>>3;
-  h16 = h>>3;
   w32 = w>>4;
   h32 = h>>4;
+#if 0
+  w4 = w>>1;
+  h4 = h>>1;
+  w16 = w>>3;
+  h16 = h>>3;
   x = img;
   for(i=0;i<h;i++){
     for(j=0;j<w;j++){
@@ -358,7 +362,7 @@ int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh
     /*printf("\n");*/
   }
 #endif
-
+#endif
   /* Replace decision with the one from process_block_size32() */
   if (1)
   {
@@ -372,6 +376,7 @@ int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh
         for(k=0;k<4;k++)
           for(m=0;m<4;m++)
             dec8[4*i+k][4*j+m]=dec[k][m];
+#if 0
         for(k=0;k<16;k++)
         {
           for(m=0;m<16;m++)
@@ -402,6 +407,7 @@ int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh
             var8_1[8*i+k][8*j+m]=bs.img_stats.invVar8[k+2][m+2];
           }
         }
+#endif
       }
     }
   }
@@ -740,15 +746,14 @@ static void process_plane(od_coeff *_img, od_coeff *_refi, int _w, int _h, int _
   int y;
   int j;
   int i;
-  int k;
   int free_ref;
+  static int count=0;
   _w = ROUNDUP_32(_w);
   _h = ROUNDUP_32(_h);
   if(!_refi){
     _refi=calloc(ROUNDUP_32(_w)*ROUNDUP_32(_h),sizeof(od_coeff));
     free_ref=1;
   }else free_ref=0;
-  static int count=0;
 
   prefilter_image(_img,_w,_h,16);
 
@@ -767,24 +772,22 @@ static void process_plane(od_coeff *_img, od_coeff *_refi, int _w, int _h, int _
     for(x=0;x<_w;x+=16){
       od_coeff coeffs[256];
       ogg_int32_t zi[256];
-      ogg_int16_t scale[256];
-      int         out[256];
-      unsigned char block[256];
-      int qg;
+/*      int         out[256];*/
+/*      ogg_int16_t scale[256];*/
 
+/*      for(j=0;j<256;j++)scale[j]=1;*/
       od_bin_fdct16x16(coeffs,16,&_img[(y)*_w+x],_w);
 
-      for(j=0;j<256;j++)scale[j]=1;
       for(i=0;i<16;i++){
         for(j=0;j<16;j++){
           zi[16*i+j]=floor(.5+coeffs[16*i+j]);
         }
       }
       if (_pli==-1){
+#if 0
         int foo[256];
         ogg_int32_t x[256];
         /*quant_scalar_gain(&zi[1],NULL,foo,255,200);*/
-#if 1
         extract(&zi[4], x, 2, 4, 16);
         quant_scalar_gain(x,NULL,foo,8,200);
         interleave(x, &zi[4], 2, 4, 16);
@@ -799,7 +802,7 @@ static void process_plane(od_coeff *_img, od_coeff *_refi, int _w, int _h, int _
         interleave(x, &zi[64+2], 4, 6, 16);
         interleave(x+24, &zi[32+4], 2, 4, 16);
 #endif
-#if 1
+#if 0
         extract(&zi[8], x, 4, 8, 16);
         /*quant_pvq(x, r, scale, out, 32, 1200./f, &qg);*/
         quant_scalar_gain(x,NULL,foo,32,600);
