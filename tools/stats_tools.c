@@ -433,6 +433,7 @@ int od_select_mode_bits(const od_coeff *_block,int _stride,double *_weight,
     if(bits<best_bits){
       next_best_bits=best_bits;
       best_bits=bits;
+      best_mode=mode;
     }
     else{
       if(bits<next_best_bits){
