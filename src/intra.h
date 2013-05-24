@@ -94,7 +94,7 @@ ogg_uint32_t od_chroma_pred4x4_dist(const od_coeff *_c,
 void od_intra_pred4x4_unapply(od_coeff *_c,int _stride,int _mode);
 
 void od_intra_pred_cdf(ogg_uint16_t _cdf[],
- const unsigned char _probs[][OD_INTRA_NCONTEXTS],const ogg_uint16_t _p0[],
+ unsigned char _probs[][OD_INTRA_NCONTEXTS],const ogg_uint16_t _p0[],
  int _nmodes,int _left,int _upleft,int _up);
 
 int od_intra_pred_search(ogg_uint16_t _p0[],const ogg_uint16_t _cdf[],

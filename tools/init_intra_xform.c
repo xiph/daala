@@ -509,7 +509,8 @@ static void intra_xform_update_block(void *_ctx,const unsigned char *_data,
   float p[OD_INTRA_NMODES];
   ogg_uint16_t cdf[OD_INTRA_NMODES];
   ogg_uint16_t p0[OD_INTRA_NMODES];
-  ogg_uint32_t wsatd[OD_INTRA_NMODES];
+/*If using this be sure to uncomment its assignment.*/
+/*  ogg_uint32_t wsatd[OD_INTRA_NMODES];*/
 
   ctx=(intra_xform_ctx *)_ctx;
   modes=ctx->map;
@@ -608,7 +609,7 @@ static void intra_xform_update_block(void *_ctx,const unsigned char *_data,
         error[i*B_SZ+j]=buf2[3*B_SZ*(i+B_SZ)+j+B_SZ]-p;
       }
     }
-    wsatd[mode] = satd*64;
+/*    wsatd[mode] = satd*64;*/
     rlsatd=satd;
     /* Normalize all probabilities except the max */
     /*bits = -log(p[mode]/sum)/log(2);*/
@@ -637,6 +638,7 @@ static void intra_xform_update_block(void *_ctx,const unsigned char *_data,
     else if(satd<next_best_satd){next_best_satd=satd;next_best_rlsatd=rlsatd;}
   }
   /*printf("\n");*/
+#if 0
   {
     int bmode;
     int left, up, upleft;
@@ -652,6 +654,7 @@ static void intra_xform_update_block(void *_ctx,const unsigned char *_data,
       printf("-");
     printf("%d %d\n", bmode, best_mode);*/
   }
+#endif
   for (i=0;i<B_SZ*B_SZ;i++)
     Ex[ctx->pli][i]+=fabs(best_error[i]);
   ExCount[ctx->pli]++;

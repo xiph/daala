@@ -236,7 +236,7 @@ void od_intra_pred4x4_unapply(od_coeff *_c,int _stride,int _mode){
 }
 
 void od_intra_pred_cdf(ogg_uint16_t _cdf[],
- const unsigned char _probs[][OD_INTRA_NCONTEXTS],const ogg_uint16_t _p0[],
+ unsigned char _probs[][OD_INTRA_NCONTEXTS],const ogg_uint16_t _p0[],
  int _nmodes,int _left,int _upleft,int _up){
   unsigned p[OD_INTRA_NMODES+1];
   int      mi;

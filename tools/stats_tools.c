@@ -346,10 +346,8 @@ int vp8_select_mode(const unsigned char *_data,int _stride,double *_weight){
   double next_best_satd;
   int    mode;
   int    best_mode;
-  int    next_best_mode;
   best_mode=0;
   best_satd=UINT_MAX;
-  next_best_mode=best_mode;
   next_best_satd=best_satd;
   for(mode=0;mode<OD_INTRA_NMODES;mode++){
     unsigned char block[B_SZ*B_SZ];
@@ -384,14 +382,12 @@ int vp8_select_mode(const unsigned char *_data,int _stride,double *_weight){
     }
     if(satd<best_satd){
       next_best_satd=best_satd;
-      next_best_mode=best_mode;
       best_satd=satd;
       best_mode=mode;
     }
     else{
       if(satd<next_best_satd){
         next_best_satd=satd;
-        next_best_mode=mode;
       }
     }
   }
@@ -406,12 +402,10 @@ int od_select_mode_bits(const od_coeff *_block,int _stride,double *_weight,
  double _b[OD_INTRA_NMODES][B_SZ*B_SZ]){
   int    best_mode;
   double best_bits;
-  int    next_best_mode;
   double next_best_bits;
   int    mode;
   best_mode=0;
   best_bits=UINT_MAX;
-  next_best_mode=best_mode;
   next_best_bits=best_bits;
   for(mode=0;mode<OD_INTRA_NMODES;mode++){
     double p[B_SZ*B_SZ];
@@ -437,14 +431,11 @@ int od_select_mode_bits(const od_coeff *_block,int _stride,double *_weight,
       }
     }
     if(bits<best_bits){
-      next_best_mode=best_mode;
       next_best_bits=best_bits;
-      best_mode=mode;
       best_bits=bits;
     }
     else{
       if(bits<next_best_bits){
-        next_best_mode=mode;
         next_best_bits=bits;
       }
     }
@@ -458,12 +449,10 @@ int od_select_mode_bits(const od_coeff *_block,int _stride,double *_weight,
 int od_select_mode_satd(const od_coeff *_block,int _stride,double *_weight){
   int    best_mode;
   double best_satd;
-  int    next_best_mode;
   double next_best_satd;
   int    mode;
   best_mode=0;
   best_satd=UINT_MAX;
-  next_best_mode=best_mode;
   next_best_satd=best_satd;
   for(mode=0;mode<OD_INTRA_NMODES;mode++){
     double p[B_SZ*B_SZ];
@@ -491,14 +480,12 @@ int od_select_mode_satd(const od_coeff *_block,int _stride,double *_weight){
       }
     }
     if(satd<best_satd){
-      next_best_mode=best_mode;
       next_best_satd=best_satd;
       best_mode=mode;
       best_satd=satd;
     }
     else{
       if(satd<next_best_satd){
-        next_best_mode=mode;
         next_best_satd=satd;
       }
     }
