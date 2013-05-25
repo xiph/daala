@@ -93,8 +93,14 @@ the set of all integer vectors in
 
 .
  When all codevectors are considered to have equal probability, several
- methods [Fischer, FPC] exist to convert between any codevector and an index
- 
+ methods 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "Fischer,FPC"
+
+\end_inset
+
+ exist to convert between any codevector and an index 
 \begin_inset Formula $J$
 \end_inset
 
@@ -112,7 +118,14 @@ the set of all integer vectors in
 
 .
  The index is then easily coded in a bit-stream, possibly with the use of
- a range coder [CELT] to allow for fractional bits since 
+ a range coder 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "RFC6716"
+
+\end_inset
+
+ to allow for fractional bits since 
 \begin_inset Formula $V(N,K)$
 \end_inset
 
@@ -454,8 +467,48 @@ r^{-n} & ,\ n\neq0
 Coding K
 \end_layout
 
+\begin_layout Standard
+In soem contexts, the value of 
+\begin_inset Formula $K$
+\end_inset
+
+ will already be known
+\end_layout
+
 \begin_layout Section
 Conclusion
+\end_layout
+
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+key "Fischer"
+
+\end_inset
+
+Fischer
+\end_layout
+
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+key "FPC"
+
+\end_inset
+
+Factorial pulse coding
+\end_layout
+
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+key "RFC6716"
+
+\end_inset
+
+Valin, J.-M., Vos.
+ K., Terriberry, T.B., Definition of the Opus codec, RFC 6716, Internet Engineering
+ Task Force, 2012.
 \end_layout
 
 \end_body
