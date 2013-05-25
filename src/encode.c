@@ -460,7 +460,7 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
             }
           }
           /*Apply the prefilter across the right block edges.*/
-          for(y=iyfill>>ydec;y<next_iyfill>>ydec;y++){
+          for(y=(mby<<4-ydec);y<mby+1<<4-ydec;y++){
             for(bx=mbx<<2-xdec;bx<(mbx+1<<2-xdec)-(mbx+1>=nhmbs);bx++){
               od_pre_filter4(c+y*w+(bx<<2)+2,c+y*w+(bx<<2)+2);
             }
@@ -619,7 +619,7 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
           od_adapt_mb(adapt_row, mbx, &adapt_hmean[pli], &adapt);
 
           /*Apply the postfilter across the left block edges.*/
-          for(y=oyfill>>ydec;y<next_oyfill>>ydec;y++){
+          for(y=(mby<<4-ydec);y<mby+1<<4-ydec;y++){
             for(bx=(mbx<<2-xdec)+(mbx<=0);bx<mbx+1<<2-xdec;bx++){
               od_post_filter4(c+y*w+(bx<<2)-2,c+y*w+(bx<<2)-2);
             }
