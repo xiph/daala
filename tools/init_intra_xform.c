@@ -540,7 +540,7 @@ static void intra_xform_update_block(void *_ctx,const unsigned char *_data,
         probs[m][c] = 256.*ctx->freq[ctx->pli][m][c][1]/(float)ctx->freq[ctx->pli][m][c][0];
     for (m=0;m<OD_INTRA_NMODES;m++)
       p0[m] = 65536*ctx->p0[m];
-    od_intra_pred_cdf(cdf,probs,p0,OD_INTRA_NMODES,left,upleft,up);
+    od_intra_pred_cdf(cdf,(const unsigned char (*)[8])probs,p0,OD_INTRA_NMODES,left,upleft,up);
   }
   for(m=0;m<OD_INTRA_NMODES;m++)
   {

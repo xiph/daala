@@ -30,8 +30,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 # define OD_INTRA_NCONTEXTS (8)
 
-typedef void (*od_intra_mult_func)(double *_p,
- const od_coeff *_c,int _stride,int _mode);
+typedef void (*od_intra_mult_func)(double *_p,int _pred_stride,
+ const od_coeff *_c,int _stride,
+ const od_coeff *_ur,int _strideur,int _mode);
 
 extern const od_intra_mult_func OD_INTRA_MULT[OD_NBSIZES];
 
@@ -39,24 +40,12 @@ extern const double OD_INTRA_PRED_WEIGHTS_4x4[OD_INTRA_NMODES][4][4][2*4][2*4];
 extern const unsigned char OD_INTRA_PRED_PROB_4x4[3]
  [OD_INTRA_NMODES][OD_INTRA_NCONTEXTS];
 
-void od_intra_pred4x4_mult(double *_p,
- const od_coeff *_c,int _stride,int _mode);
-
-/*Applies intra prediction to a 4x4 block of coefficients at _c, using
-   UL, U, and L blocks of reconstructed 4x4 coefficients.
-  On input:
-   {{_c[0],_c[1],_c[2],_c[3]},{_c[_stride],_c[stride+1],...}} contains
-    original coefficients (before quantization).
-   The other blocks contain reconstructed (post quantization and unprediction)
-    coefficients.
-  On output:
-   {{_c[0],_c[1],_c[2],_c[3]},{_c[_stride],_c[stride+1],...}} contains
-    the input coefficients with the prediction subtracted.
-  Return: The intra prediction mode used (0...OD_INTRA_NMODES-1).*/
-int od_intra_pred4x4_apply(od_coeff *_c,int _stride);
+void od_intra_pred4x4_mult(double *_p,int _pred_stride,
+ const od_coeff *_c,int _stride,
+ const od_coeff *_ur,int _strideur,int _mode);
 
 /*Fetches intra prediction to a 4x4 block of coefficients at _c, using
-   UL, U, and L blocks of reconstructed 4x4 coefficients.
+   UR, UL, U, and L blocks of reconstructed 4x4 coefficients.
   On input:
    {{_c[0],_c[1],_c[2],_c[3]},{_c[_stride],_c[stride+1],...}} contains
     original coefficients (before quantization).
@@ -67,10 +56,12 @@ int od_intra_pred4x4_apply(od_coeff *_c,int _stride);
    {{_out[0],_out[1],_out[2],_out[3]},{_out[4],_out[4+1],...}} contains
     the input coefficients with the prediction subtracted.*/
 void od_intra_pred4x4_get(od_coeff *_out,
- const od_coeff *_c,int _stride,int _mode);
+ const od_coeff *_c,int _stride,
+ const od_coeff *_ur,int _strideur,int _mode);
 
 void od_intra_pred4x4_dist(ogg_uint32_t *_dist,
- const od_coeff *_c,int _stride, int _pli);
+ const od_coeff *_c,int _stride,
+ const od_coeff *_ur,int _strideur,int _pli);
 
 extern const signed char OD_INTRA_CHROMA_WEIGHTS_Q6[OD_INTRA_NMODES][3];
 
@@ -80,25 +71,26 @@ void od_chroma_pred4x4(od_coeff *_p,const od_coeff *_c,
 ogg_uint32_t od_chroma_pred4x4_dist(const od_coeff *_c,
  const od_coeff *_l,int _stride,const int _weights_q8[3],int _pli);
 
-/*Unapplies intra prediction to a 4x4 block of coefficients at _c, using
-   UL, U, and L blocks of reconstructed 4x4 coefficients.
-  On input:
-   {{_c[0],_c[1],_c[2],_c[3]},{_c[_stride],_c[stride+1],...}} contains
-    unquantized coefficients.
-   The other blocks contain reconstructed (post quantization and unprediction)
-    coefficients.
-  On output:
-   {{_c[0],_c[1],_c[2],_c[3]},{_c[_stride],_c[stride+1],...}} contains
-    the input coefficients with the prediction added.
-  Return: The intra prediction mode used (0...OD_INTRA_NMODES-1).*/
-void od_intra_pred4x4_unapply(od_coeff *_c,int _stride,int _mode);
-
 void od_intra_pred_cdf(ogg_uint16_t _cdf[],
- unsigned char _probs[][OD_INTRA_NCONTEXTS],const ogg_uint16_t _p0[],
+ const unsigned char _probs[][OD_INTRA_NCONTEXTS],const ogg_uint16_t _p0[],
  int _nmodes,int _left,int _upleft,int _up);
 
 int od_intra_pred_search(ogg_uint16_t _p0[],const ogg_uint16_t _cdf[],
  const ogg_uint32_t _dist[],int _nmodes,ogg_uint16_t _lambda,
  int _left,int _upleft,int _up);
+
+extern double OD_PRED_WEIGHTS_4x4[OD_INTRA_NMODES][4][4][4*4*4];
+extern int OD_PRED_MULTS_4x4[OD_INTRA_NMODES][4][4];
+extern int OD_PRED_PARAMX_4x4[OD_INTRA_NMODES][4][4][4*4*4];
+extern int OD_PRED_PARAMY_4x4[OD_INTRA_NMODES][4][4][4*4*4];
+extern double OD_PRED_WEIGHTS_8x8[OD_INTRA_NMODES][8][8][4*8*8];
+extern int OD_PRED_MULTS_8x8[OD_INTRA_NMODES][8][8];
+extern int OD_PRED_PARAMX_8x8[OD_INTRA_NMODES][8][8][4*8*8];
+extern int OD_PRED_PARAMY_8x8[OD_INTRA_NMODES][8][8][4*8*8];
+extern double OD_PRED_WEIGHTS_16x16[OD_INTRA_NMODES][16][16][4*16*16];
+extern int OD_PRED_MULTS_16x16[OD_INTRA_NMODES][16][16];
+extern int OD_PRED_PARAMX_16x16[OD_INTRA_NMODES][16][16][4*16*16];
+extern int OD_PRED_PARAMY_16x16[OD_INTRA_NMODES][16][16][4*16*16];
+
 
 #endif

@@ -491,16 +491,20 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
                   int          m_ul;
                   int          m_u;
                   int          mode;
+                  od_coeff    *ur;
+                  ur=(by>0&&(((bx+1)<mbx+1<<2-xdec)||(by==mby<<2-ydec)))?
+                   d+((by-1)<<2)*w+((bx+1)<<2):
+                   d+((by-1)<<2)*w+(bx<<2);
                   m_l=modes[by*(w>>2)+bx-1];
                   m_ul=modes[(by-1)*(w>>2)+bx-1];
                   m_u=modes[(by-1)*(w>>2)+bx];
                   od_intra_pred_cdf(mode_cdf,OD_INTRA_PRED_PROB_4x4[pli],
                    mode_p0,OD_INTRA_NMODES,m_l,m_ul,m_u);
-                  od_intra_pred4x4_dist(mode_dist,d+(by<<2)*w+(bx<<2),w,pli);
+                  od_intra_pred4x4_dist(mode_dist,d+(by<<2)*w+(bx<<2),w,ur,w,pli);
                   /*Lambda = 1*/
                   mode=od_intra_pred_search(mode_p0,mode_cdf,mode_dist,
                    OD_INTRA_NMODES,128,m_l,m_ul,m_u);
-                  od_intra_pred4x4_get(pred,d+(by<<2)*w+(bx<<2),w,mode);
+                  od_intra_pred4x4_get(pred,d+(by<<2)*w+(bx<<2),w,ur,w,mode);
                   od_ec_encode_cdf_unscaled(&_enc->ec,mode,mode_cdf,
                    OD_INTRA_NMODES);
                   mode_bits-=M_LOG2E*log(
