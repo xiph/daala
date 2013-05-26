@@ -261,9 +261,8 @@ void od_intra_pred_cdf(ogg_uint16_t _cdf[],
   }
 }
 
-int od_intra_pred_search(ogg_uint16_t _p0[],const ogg_uint16_t _cdf[],
- const ogg_uint32_t _dist[],int _nmodes,ogg_uint16_t _lambda,
- int _left,int _upleft,int _up){
+int od_intra_pred_search(const ogg_uint16_t _cdf[],
+ const ogg_uint32_t _dist[],int _nmodes,ogg_uint16_t _lambda){
   int best_score;
   int best_mode;
   int mi;
@@ -278,15 +277,22 @@ int od_intra_pred_search(ogg_uint16_t _p0[],const ogg_uint16_t _cdf[],
       best_score=score;
       best_mode=mi;
     }
+  }
+  return best_mode;
+}
+
+void od_intra_pred_update(ogg_uint16_t _p0[],int _nmodes,int _mode,
+ int _left,int _upleft,int _up){
+  int mi;
+  for(mi=1;mi<_nmodes;mi++){
     /*p0 is the probability of choosing mode mi when none of its neighbors
        are in mode mi.
       So decay p0 if this block satisfies that condition.*/
     if(_left!=mi&&_up!=mi&&_upleft!=mi)_p0[mi]-=_p0[mi]+256>>9;
   }
   /*And bump up the probability in the mode we actually chose.*/
-  if(_left!=best_mode&&_up!=best_mode&&_upleft!=best_mode){
+  if(_left!=_mode&&_up!=_mode&&_upleft!=_mode){
     /*Arbitrary ceiling at 0.75 to prevent insane p0 values.*/
-    if(_p0[best_mode]<24576)_p0[best_mode]+=64;
+    if(_p0[_mode]<24576)_p0[_mode]+=64;
   }
-  return best_mode;
 }

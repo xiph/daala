@@ -75,8 +75,10 @@ void od_intra_pred_cdf(ogg_uint16_t _cdf[],
  const unsigned char _probs[][OD_INTRA_NCONTEXTS],const ogg_uint16_t _p0[],
  int _nmodes,int _left,int _upleft,int _up);
 
-int od_intra_pred_search(ogg_uint16_t _p0[],const ogg_uint16_t _cdf[],
- const ogg_uint32_t _dist[],int _nmodes,ogg_uint16_t _lambda,
+int od_intra_pred_search(const ogg_uint16_t _cdf[],
+ const ogg_uint32_t _dist[],int _nmodes,ogg_uint16_t _lambda);
+
+void od_intra_pred_update(ogg_uint16_t _p0[],int _nmodes,int _mode,
  int _left,int _upleft,int _up);
 
 extern double OD_PRED_WEIGHTS_4x4[OD_INTRA_NMODES][4][4][4*4*4];

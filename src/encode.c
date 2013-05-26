@@ -502,8 +502,8 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
                    mode_p0,OD_INTRA_NMODES,m_l,m_ul,m_u);
                   od_intra_pred4x4_dist(mode_dist,d+(by<<2)*w+(bx<<2),w,ur,w,pli);
                   /*Lambda = 1*/
-                  mode=od_intra_pred_search(mode_p0,mode_cdf,mode_dist,
-                   OD_INTRA_NMODES,128,m_l,m_ul,m_u);
+                  mode=od_intra_pred_search(mode_cdf,mode_dist,
+                   OD_INTRA_NMODES,128);
                   od_intra_pred4x4_get(pred,d+(by<<2)*w+(bx<<2),w,ur,w,mode);
                   od_ec_encode_cdf_unscaled(&_enc->ec,mode,mode_cdf,
                    OD_INTRA_NMODES);
@@ -512,6 +512,7 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
                    (float)mode_cdf[OD_INTRA_NMODES-1]);
                   mode_count++;
                   modes[by*(w>>2)+bx]=mode;
+                  od_intra_pred_update(mode_p0,OD_INTRA_NMODES,mode,m_l,m_ul,m_u);
                 }
                 else{
                   int chroma_weights_q8[3];

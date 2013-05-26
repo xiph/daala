@@ -646,8 +646,8 @@ static void intra_xform_update_block(void *_ctx,const unsigned char *_data,
     left=(_bi==0)?0:modes[pos-1];
     up=(_bj==0)?0:modes[pos-width];
     upleft=(_bi==0||_bj==0)?0:modes[pos-width-1];
-    bmode=od_intra_pred_search(p0,cdf,wsatd,OD_INTRA_NMODES,
-     64*1.1,left,upleft,up);
+    bmode=od_intra_pred_search(cdf,wsatd,OD_INTRA_NMODES,64*1.1);
+    od_intra_pred_update(p0,OD_INTRA_NMODES,bmode,left,upleft,up);
     /*if (bmode==best_mode)
       printf("+");
     else
