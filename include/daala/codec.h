@@ -1,5 +1,5 @@
 /*Daala video codec
-Copyright (c) 2006-2010 Daala project contributors.  All rights reserved.
+Copyright (c) 2006-2013 Daala project contributors.  All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -45,23 +45,23 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 /**\file
  * The shared <tt>libdaala<tt/> C API.*/
-#if !defined(_O_DAALA_CODEC_H_)
-# define _O_DAALA_CODEC_H_ (1)
+#if !defined(_daala_codec_H)
+# define _daala_codec_H (1)
 /*Pick up typedefs.*/
-#include <ogg/ogg.h>
+# include <ogg/ogg.h>
 
-#if defined(__cplusplus)
+# if defined(__cplusplus)
 extern "C" {
-#endif
-
-# if defined(__GNUC__)&&defined(__GNUC_MINOR__)
-#  define OD_GNUC_PREREQ(_maj,_min) \
-  ((__GNUC__<<16)+__GNUC_MINOR__>=((_maj)<<16)+(_min))
-# else
-#  define OD_GNUC_PREREQ(_maj,_min) 0
 # endif
 
-#if OD_GNUC_PREREQ(4,0)
+# if defined(__GNUC__) && defined(__GNUC_MINOR__)
+#  define OD_GNUC_PREREQ(maj, min) \
+  ((__GNUC__ << 16) + __GNUC_MINOR__ >= ((maj) << 16) + (min))
+# else
+#  define OD_GNUC_PREREQ(maj, min) (0)
+# endif
+
+#if OD_GNUC_PREREQ(4, 0)
 # pragma GCC visibility push(default)
 #endif
 
@@ -72,9 +72,9 @@ extern "C" {
 #endif
 
 #if OD_GNUC_PREREQ(3, 4)
-# define OD_ARG_NONNULL(_x) __attribute__((__nonnull__(_x)))
+# define OD_ARG_NONNULL(x) __attribute__((__nonnull__(x)))
 #else
-# define OD_ARG_NONNULL(_x)
+# define OD_ARG_NONNULL(x)
 #endif
 
 /*TODO: remove this ugliness*/
@@ -85,19 +85,19 @@ extern "C" {
 /**\name Error codes*/
 /*@{*/
 /**An invalid pointer was provided.*/
-#define OD_EFAULT     (-1)
+# define OD_EFAULT (-1)
 /**An invalid argument was provided.*/
-#define OD_EINVAL     (-10)
+# define OD_EINVAL (-10)
 /**The contents of the header were incomplete, invalid, or unexpected.*/
-#define OD_EBADHEADER (-20)
+# define OD_EBADHEADER (-20)
 /**The header does not belong to a Daala stream.*/
-#define OD_ENOTFORMAT (-21)
+# define OD_ENOTFORMAT (-21)
 /**The bitstream version is too high.*/
-#define OD_EVERSION   (-22)
+# define OD_EVERSION (-22)
 /**The specified function is not implemented.*/
-#define OD_EIMPL      (-23)
+# define OD_EIMPL (-23)
 /**There were errors in the video data packet.*/
-#define OD_EBADPACKET (-24)
+# define OD_EBADPACKET (-24)
 /*@}*/
 
 /**\name Colorspaces
@@ -105,71 +105,72 @@ extern "C" {
 /*@{*/
 /**The color space was not specified at the encoder.
  * It may be conveyed by an external means.*/
-#define OD_CS_UNSPECIFIED   (0)
+# define OD_CS_UNSPECIFIED (0)
 /**A Y'CbCr color space designed for NTSC content*/
-#define OD_CS_ITU_REC_470M  (1)
+# define OD_CS_ITU_REC_470M (1)
 /**A Y'CbCr color space designed for PAL/SECAM content.*/
-#define OD_CS_ITU_REC_470BG (2)
+# define OD_CS_ITU_REC_470BG (2)
 /**A Y'CbCr color space designed for HD content.*/
-#define OD_CS_ITU_REC_790   (3)
+# define OD_CS_ITU_REC_790 (3)
 /**A Y'CgCo color space designed for sRGB content.*/
-#define OD_CS_YCgCo         (4)
+# define OD_CS_YCgCo (4)
 /**The total number of currently defined color spaces.*/
-#define OD_CS_NSPACES       (5)
+# define OD_CS_NSPACES (5)
 /*@}*/
 
 /**The maximum number of color planes allowed in a single frame.*/
-#define OD_NPLANES_MAX (4)
+# define OD_NPLANES_MAX (4)
 
-typedef struct od_img_plane     od_img_plane;
-typedef struct od_img           od_img;
+typedef struct od_img_plane od_img_plane;
+typedef struct od_img od_img;
 typedef struct daala_plane_info daala_plane_info;
-typedef struct daala_info       daala_info;
+typedef struct daala_info daala_info;
+typedef struct daala_comment daala_comment;
 
 const char *daala_version_string(void);
 
-struct od_img_plane{
+struct od_img_plane {
   unsigned char *data;
-  unsigned char  xdec;
-  unsigned char  ydec;
-  int            xstride;
-  int            ystride;
+  unsigned char xdec;
+  unsigned char ydec;
+  int xstride;
+  int ystride;
 };
 
-struct od_img{
+struct od_img {
   od_img_plane planes[OD_NPLANES_MAX];
-  int          nplanes;
-  ogg_int32_t  width;
-  ogg_int32_t  height;
+  int nplanes;
+  ogg_int32_t width;
+  ogg_int32_t height;
 };
 
-struct daala_plane_info{
+struct daala_plane_info {
   unsigned char xdec;
   unsigned char ydec;
 };
 
-struct daala_info{
-  unsigned char    version_major;
-  unsigned char    version_minor;
-  unsigned char    version_sub;
-  ogg_int32_t      frame_width;
-  ogg_int32_t      frame_height;
-  ogg_int32_t      pic_x;
-  ogg_int32_t      pic_y;
-  ogg_int32_t      pic_width;
-  ogg_int32_t      pic_height;
-  ogg_uint32_t     pixel_aspect_numerator;
-  ogg_uint32_t     pixel_aspect_denominator;
-  ogg_uint32_t     timebase_numerator;
-  ogg_uint32_t     timebase_denominator;
-  ogg_uint32_t     frame_duration;
-  int              keyframe_granule_shift;
-  int              nplanes;
+struct daala_info {
+  unsigned char version_major;
+  unsigned char version_minor;
+  unsigned char version_sub;
+  ogg_int32_t frame_width;
+  ogg_int32_t frame_height;
+  ogg_int32_t pic_x;
+  ogg_int32_t pic_y;
+  ogg_int32_t pic_width;
+  ogg_int32_t pic_height;
+  ogg_uint32_t pixel_aspect_numerator;
+  ogg_uint32_t pixel_aspect_denominator;
+  ogg_uint32_t timebase_numerator;
+  ogg_uint32_t timebase_denominator;
+  ogg_uint32_t frame_duration;
+  int keyframe_granule_shift;
+  int nplanes;
   daala_plane_info plane_info[OD_NPLANES_MAX];
 };
 
-void daala_info_init(daala_info *_info);
-void daala_info_clear(daala_info *_info);
+void daala_info_init(daala_info *info);
+void daala_info_clear(daala_info *info);
 
 /**The comment information.
  *
@@ -193,29 +194,29 @@ void daala_info_clear(daala_info *_info);
  * However, the bitstream format itself treats them as 8-bit clean vectors,
  *  possibly containing null characters, and so the length array should be
  *  treated as their authoritative length.*/
-typedef struct daala_comment{
+struct daala_comment {
   /**The array of comment string vectors.*/
   char **user_comments;
   /**An array of the corresponding lengths of each vector, in bytes.*/
-  int   *comment_lengths;
+  int *comment_lengths;
   /**The total number of comment strings.*/
-  int    comments;
+  int comments;
   /**The null-terminated vendor string.
      This identifies the software used to encode the stream.*/
-  char  *vendor;
-}daala_comment;
+  char *vendor;
+};
 
-void daala_comment_init(daala_comment *_dc);
-void daala_comment_clear(daala_comment *_dc);
+void daala_comment_init(daala_comment *dc);
+void daala_comment_clear(daala_comment *dc);
 
-ogg_int64_t daala_granule_basetime(void *_encdec,ogg_int64_t _granpos);
-double      daala_granule_time(void *_encdec,ogg_int64_t _granpos);
+ogg_int64_t daala_granule_basetime(void *encdec, ogg_int64_t granpos);
+double daala_granule_time(void *encdec, ogg_int64_t granpos);
 
-#if OD_GNUC_PREREQ(4,0)
-# pragma GCC visibility pop
-#endif
-#if defined(__cplusplus)
+# if OD_GNUC_PREREQ(4, 0)
+#  pragma GCC visibility pop
+# endif
+# if defined(__cplusplus)
 }
-#endif
+# endif
 
 #endif
