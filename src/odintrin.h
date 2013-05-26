@@ -1,5 +1,5 @@
 /*Daala video codec
-Copyright (c) 2003-2010 Daala project contributors.  All rights reserved.
+Copyright (c) 2003-2013 Daala project contributors.  All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -29,11 +29,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # define _odintrin_H (1)
 
 # if !defined(OD_GNUC_PREREQ)
-#  if defined(__GNUC__)&&defined(__GNUC_MINOR__)
-#   define OD_GNUC_PREREQ(_maj,_min) \
-  ((__GNUC__<<16)+__GNUC_MINOR__>=((_maj)<<16)+(_min))
+#  if defined(__GNUC__) && defined(__GNUC_MINOR__)
+#   define OD_GNUC_PREREQ(maj, min) \
+  ((__GNUC__ << 16) + __GNUC_MINOR__ >= ((maj) << 16) + (min))
 #  else
-#   define OD_GNUC_PREREQ(_maj,_min) 0
+#   define OD_GNUC_PREREQ(maj, min) (0)
 #  endif
 # endif
 
@@ -67,142 +67,141 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
    given an appropriate architecture, but the branchless bit-twiddling versions
    are just as fast, and do not require any special target architecture.
   Earlier gcc versions (3.x) compiled both code to the same assembly
-   instructions, because of the way they represented ((_b)>(_a)) internally.*/
-/*#define OD_MAXI(_a,_b)      ((_a)<(_b)?(_b):(_a))*/
-#define OD_MAXI(_a,_b)      ((_a)-((_a)-(_b)&-((_b)>(_a))))
-/*#define OD_MINI(_a,_b)      ((_a)>(_b)?(_b):(_a))*/
-#define OD_MINI(_a,_b)      ((_a)+((_b)-(_a)&-((_b)<(_a))))
+   instructions, because of the way they represented ((b) > (a)) internally.*/
+/*#define OD_MAXI(a, b) ((a) < (b) ? (b) : (a))*/
+# define OD_MAXI(a, b) ((a) ^ (((a) ^ (b)) & -((b) > (a))))
+/*#define OD_MINI(a, b) ((a) > (b) ? (b) : (a))*/
+# define OD_MINI(a, b) ((a) ^ (((b) ^ (a)) & -((b) < (a))))
 /*This has a chance of compiling branchless, and is just as fast as the
    bit-twiddling method, which is slightly less portable, since it relies on a
    sign-extended rightshift, which is not guaranteed by ANSI (but present on
    every relevant platform).*/
-#define OD_SIGNI(_a)        (((_a)>0)-((_a)<0))
+# define OD_SIGNI(a) (((a) > 0) - ((a) < 0))
 /*Slightly more portable than relying on a sign-extended right-shift (which is
    not guaranteed by ANSI), and just as fast, since gcc (3.x and 4.x both)
    compile it into the right-shift anyway.*/
-#define OD_SIGNMASK(_a)     (-((_a)<0))
-/*Unlike copysign(), simply inverts the sign of _a if _b is negative.*/
-#define OD_FLIPSIGNI(_a,_b) ((_a)+OD_SIGNMASK(_b)^OD_SIGNMASK(_b))
-#define OD_COPYSIGNI(_a,_b) OD_FLIPSIGNI(abs(_a),_b)
+# define OD_SIGNMASK(a) (-((a) < 0))
+/*Unlike copysign(), simply inverts the sign of a if b is negative.*/
+# define OD_FLIPSIGNI(a, b) (((a) + OD_SIGNMASK(b)) ^ OD_SIGNMASK(b))
+# define OD_COPYSIGNI(a, b) OD_FLIPSIGNI(abs(a), b)
 /*Clamps an integer into the given range.
-  If _a>_c, then the lower bound _a is respected over the upper bound _c (this
+  If a > c, then the lower bound a is respected over the upper bound c (this
    behavior is required to meet our documented API behavior).
-  _a: The lower bound.
-  _b: The value to clamp.
-  _c: The upper boud.*/
-#define OD_CLAMPI(_a,_b,_c) (OD_MAXI(_a,OD_MINI(_b,_c)))
+  a: The lower bound.
+  b: The value to clamp.
+  c: The upper boud.*/
+# define OD_CLAMPI(a, b, c) (OD_MAXI(a, OD_MINI(b, c)))
 /*Clamps a signed integer between 0 and 255, returning an unsigned char.
   This assumes a char is 8 bits.*/
-#define OD_CLAMP255(_x)     ((unsigned char)((((_x)<0)-1)&((_x)|-((_x)>255))))
+# define OD_CLAMP255(x) \
+ ((unsigned char)((((x) < 0) - 1) & ((x) | -((x) > 255))))
 /*Divides a signed integer by a positive value with exact rounding.*/
-#define OD_DIV_ROUND(_x,_y)  (((_x)+OD_FLIPSIGNI((_y)>>1,_x))/(_y))
+# define OD_DIV_ROUND(x, y) ((((x) + OD_FLIPSIGNI((y)) >> 1, x))/(y))
 /*Divides an integer by a power of two, truncating towards 0.
-  _dividend: The integer to divide.
-  _shift:    The non-negative power of two to divide by.
-  _rmask:    (1<<_shift)-1*/
-#define OD_DIV_POW2(_dividend,_shift,_rmask)\
-  ((_dividend)+(OD_SIGNMASK(_dividend)&(_rmask))>>(_shift))
-/*Divides _x by 65536, truncating towards 0.*/
-#define OD_DIV2_16(_x) OD_DIV_POW2(_x,16,0xFFFF)
-/*Divides _x by 2, truncating towards 0.*/
-#define OD_DIV2(_x) OD_DIV_POW2(_x,1,0x1)
-/*Divides _x by 8, truncating towards 0.*/
-#define OD_DIV8(_x) OD_DIV_POW2(_x,3,0x7)
-/*Divides _x by 16, truncating towards 0.*/
-#define OD_DIV16(_x) OD_DIV_POW2(_x,4,0xF)
-/*Right shifts _dividend by _shift, adding _rval, and subtracting one for
+  dividend: The integer to divide.
+  shift: The non-negative power of two to divide by.
+  rmask: (1 << shift) - 1*/
+# define OD_DIV_POW2(dividend, shift, rmask) \
+  (((dividend) + (OD_SIGNMASK(dividend) & (rmask))) >> (shift))
+/*Divides x by 65536, truncating towards 0.*/
+# define OD_DIV2_16(x) OD_DIV_POW2(x, 16, 0xFFFF)
+/*Divides x by 2, truncating towards 0.*/
+# define OD_DIV2(x) OD_DIV_POW2(x, 1, 0x1)
+/*Divides x by 8, truncating towards 0.*/
+# define OD_DIV8(x) OD_DIV_POW2(x, 3, 0x7)
+/*Divides x by 16, truncating towards 0.*/
+# define OD_DIV16(x) OD_DIV_POW2(x, 4, 0xF)
+/*Right shifts dividend by shift, adding rval, and subtracting one for
    negative dividends first.
-  When _rval is (1<<_shift-1), this is equivalent to division with rounding
+  When rval is (1 << (shift - 1)), this is equivalent to division with rounding
    ties away from zero.*/
-#define OD_DIV_ROUND_POW2(_dividend,_shift,_rval)\
-  ((_dividend)+OD_SIGNMASK(_dividend)+(_rval)>>(_shift))
-/*Divides a _x by 2, rounding towards even numbers.*/
-#define OD_DIV2_RE(_x) ((_x)+((_x)>>1&1)>>1)
-/*Divides a _x by (1<<(_shift)), rounding towards even numbers.*/
-#define OD_DIV_POW2_RE(_x,_shift) \
- ((_x)+((_x)>>(_shift)&1)+((1<<(_shift))-1>>1)>>(_shift))
+# define OD_DIV_ROUND_POW2(dividend, shift, rval) \
+  (((dividend) + OD_SIGNMASK(dividend) + (rval)) >> (shift))
+/*Divides a x by 2, rounding towards even numbers.*/
+# define OD_DIV2_RE(x) ((x) + ((x) >> 1 & 1) >> 1)
+/*Divides a x by (1 << (shift)), rounding towards even numbers.*/
+# define OD_DIV_POW2_RE(x, shift) \
+ (((x) + ((x) >> (shift) & 1) + (((1 << (shift)) - 1) >> 1)) >> (shift))
 /*Count leading zeros.
   This macro should only be used for implementing od_ilog(), if it is defined.
   All other code should use OD_ILOG() instead.*/
-#if defined(_MSC_VER)
-# include <intrin.h>
+# if defined(_MSC_VER)
+#  include <intrin.h>
 /*In _DEBUG mode this is not an intrinsic by default.*/
-# pragma intrinsic(_BitScanReverse)
+#  pragma intrinsic(_BitScanReverse)
 
-static __inline int od_bsr(unsigned long _x){
+static __inline int od_bsr(unsigned long x) {
   unsigned long ret;
-  _BitScanReverse(&ret,_x);
+  _BitScanReverse(&ret, x);
   return (int)ret;
 }
-# define OD_CLZ0    (1)
-# define OD_CLZ(_x) (-od_bsr(_x))
-#elif defined(ENABLE_TI_DSPLIB)
-# include "dsplib.h"
-# define OD_CLZ0    (31)
-# define OD_CLZ(_x) (_lnorm(_x))
-#elif OD_GNUC_PREREQ(3,4)
-# if INT_MAX>=2147483647
-#  define OD_CLZ0    ((int)sizeof(unsigned)*CHAR_BIT)
-#  define OD_CLZ(_x) (__builtin_clz(_x))
-# elif LONG_MAX>=2147483647L
-#  define OD_CLZ0    ((int)sizeof(unsigned long)*CHAR_BIT)
-#  define OD_CLZ(_x) (__builtin_clzl(_x))
+#  define OD_CLZ0 (1)
+#  define OD_CLZ(x) (-od_bsr(x))
+# elif defined(ENABLE_TI_DSPLIB)
+#  include "dsplib.h"
+#  define OD_CLZ0 (31)
+#  define OD_CLZ(x) (_lnorm(x))
+# elif OD_GNUC_PREREQ(3,4)
+#  if INT_MAX>=2147483647
+#   define OD_CLZ0 ((int)sizeof(unsigned)*CHAR_BIT)
+#   define OD_CLZ(x) (__builtin_clz(x))
+#  elif LONG_MAX>=2147483647L
+#   define OD_CLZ0 ((int)sizeof(unsigned long)*CHAR_BIT)
+#   define OD_CLZ(x) (__builtin_clzl(x))
+#  endif
 # endif
-#endif
-#if defined(OD_CLZ)
-# define OD_ILOG_NZ(_x)  (OD_CLZ0-OD_CLZ(_x))
-/*Note that __builtin_clz is not defined when _x==0, according to the gcc
+# if defined(OD_CLZ)
+#  define OD_ILOG_NZ(x) (OD_CLZ0 - OD_CLZ(x))
+/*Note that __builtin_clz is not defined when x == 0, according to the gcc
    documentation (and that of the x86 BSR instruction that implements it), so
    we have to special-case it.
-  We define a special version of the macro to use when _x can be zero.*/
-# define OD_ILOG(_x)     (OD_ILOG_NZ(_x)&-!!(_x))
-#else
-# define OD_ILOG_NZ(_x) (od_ilog(_x))
-# define OD_ILOG(_x)    (od_ilog(_x))
-#endif
+  We define a special version of the macro to use when x can be zero.*/
+#  define OD_ILOG(x) (OD_ILOG_NZ(x) & -!!(x))
+# else
+#  define OD_ILOG_NZ(x) (od_ilog(x))
+#  define OD_ILOG(x) (od_ilog(x))
+# endif
 
-#define OD_LOG2(_x)     (M_LOG2E*log(_x))
+# define OD_LOG2(x) (M_LOG2E*log(x))
 
-/*Swaps two integers _a and _b if _a>_b.*/
-/*#define OD_SORT2I(_a,_b)\
-  if((_a)>(_b)){\
-    int t__;\
-    t__=(_a);\
-    (_a)=(_b);\
-    (_b)=t__;\
+/*Swaps two integers a and b if a > b.*/
+/*#define OD_SORT2I(a, b) \
+  if ((a) > (b)) { \
+    int t__; \
+    t__ = (a); \
+    (a) = (b); \
+    (b) = t__; \
   }*/
 /*This branchless version is significantly faster than the above
    straightforward implementation on modern processors.*/
-#define OD_SORT2I(_a,_b)\
-  do{\
-    int t__;\
-    t__=((_a)^(_b))&-((_b)<(_a));\
-    (_a)^=t__;\
-    (_b)^=t__;\
-  }\
+# define OD_SORT2I(a, b) \
+  do{ \
+    int t__; \
+    t__ = ((a) ^ (b)) & -((b) < (a)); \
+    (a) ^= t__; \
+    (b) ^= t__; \
+  } \
   while(0)
-
-
 
 /*All of these macros should expect floats as arguments.*/
 /*These two should compile as a single SSE instruction.*/
-#define OD_MINF(_a,_b)      ((_a)<(_b)?(_a):(_b))
-#define OD_MAXF(_a,_b)      ((_a)>(_b)?(_a):(_b))
-#define OD_CLAMPF(_a,_b,_c) (OD_MAXF(_a,OD_MINF(_b,_c)))
-#if defined(__GNUC__)
-# define OD_FABSF(_f)        (fabsf(_f))
-# define OD_SQRTF(_f)        (sqrtf(_f))
-# define OD_POWF(_b,_e)      (powf(_b,_e))
-# define OD_LOGF(_f)         (logf(_f))
-# define OD_IFLOORF(_f)      (floorf(_f))
-# define OD_ICEILF(_f)       (ceilf(_f))
-#else
-# define OD_FABSF(_f)        ((float)fabs(_f))
-# define OD_SQRTF(_f)        ((float)sqrt(_f))
-# define OD_POWF(_b,_e)      ((float)pow(_b,_e))
-# define OD_LOGF(_f)         ((float)log(_f))
-# define OD_IFLOORF(_f)      ((int)floor(_f))
-# define OD_ICEILF(_f)       ((int)ceil(_f))
-#endif
+# define OD_MINF(a, b) ((a) < (b) ? (a) : (b))
+# define OD_MAXF(a, b) ((a) > (b) ? (a) : (b))
+# define OD_CLAMPF(a, b, c) (OD_MAXF(a, OD_MINF(b, c)))
+# if defined(__GNUC__)
+#  define OD_FABSF(f) (fabsf(f))
+#  define OD_SQRTF(f) (sqrtf(f))
+#  define OD_POWF(b, e) (powf(b, e))
+#  define OD_LOGF(f) (logf(f))
+#  define OD_IFLOORF(f) (floorf(f))
+#  define OD_ICEILF(f) (ceilf(f))
+# else
+#  define OD_FABSF(f) ((float)fabs(f))
+#  define OD_SQRTF(f) ((float)sqrt(f))
+#  define OD_POWF(b, e) ((float)pow(b, e))
+#  define OD_LOGF(f) ((float)log(f))
+#  define OD_IFLOORF(f) ((int)floor(f))
+#  define OD_ICEILF(f)  ((int)ceil(f))
+# endif
 
 #endif
