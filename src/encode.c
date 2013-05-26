@@ -476,9 +476,12 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
               ogg_int16_t pvq_scale[4*4];
               int sgn;
               int qg;
-              int cblock[16];
+              int cblock[4*4];
               int zzi;
               int vk;
+#ifdef OD_LOLOSSLESS
+              od_coeff backup[4*4];
+#endif
               vk=0;
               /*fDCT a 4x4 block.*/
               od_bin_fdct4x4(d+(by<<2)*w+(bx<<2),w,c+(by<<2)*w+(bx<<2),w);
@@ -544,15 +547,22 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
                 else if(by>0)pred[0]=d[(by-1<<2)*w+(bx<<2)];
                 if(pli==0)modes[by*(w>>2)+bx]=0;
               }
-              /*Quantize*/
+              /*Zig-zag*/
               for(y=0;y<4;y++){
                 for(x=0;x<4;x++){
                   d[((by<<2)+y)*w+(bx<<2)+x]=cblock[OD_ZIG4[y*4+x]]=
                    d[((by<<2)+y)*w+(bx<<2)+x];
-                   /*/scale;*//*OD_DIV_ROUND((p[k]-pred[1]),scale);*/
                   predt[OD_ZIG4[y*4+x]]=pred[y*4+x];
                 }
               }
+#ifdef OD_LOLOSSLESS
+              for (zzi=0; zzi < 16; zzi++) {
+                backup[zzi] = cblock[zzi] + 32768;
+                OD_ASSERT(backup[zzi] >= 0);
+                OD_ASSERT(backup[zzi] < 65535);
+                od_ec_enc_uint(&_enc->ec, backup[zzi], 65536);
+              }
+#endif
               sgn=(cblock[0]-predt[0])<0;
               cblock[0]=(int)floor(pow(fabs(cblock[0]-predt[0])/scale,0.75));
               generic_encode(&_enc->ec,model_dc+pli,cblock[0],ex_dc+pli,0);
@@ -596,6 +606,11 @@ int daala_encode_img_in(daala_enc_ctx *_enc,od_img *_img,int _duration){
                 count_total_q8+=adapt.curr[OD_ADAPT_COUNT_Q8];
                 count_ex_total_q8+=adapt.curr[OD_ADAPT_COUNT_EX_Q8];
               }
+#ifdef OD_LOLOSSLESS
+              for (zzi=0; zzi < 16; zzi++) {
+                cblock[zzi] = backup[zzi] - 32768;
+              }
+#endif
               /*Dequantize*/
               for(y=0;y<4;y++){
                 for(x=0;x<4;x++){
