@@ -26,6 +26,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <limits.h>
 #include "filter.h"
 #include "intra.h"
+#include "tf.h"
 
 const od_intra_mult_func OD_INTRA_MULT[OD_NBSIZES]={
   od_intra_pred4x4_mult,
@@ -294,5 +295,17 @@ void od_intra_pred_update(ogg_uint16_t _p0[],int _nmodes,int _mode,
   if(_left!=_mode&&_up!=_mode&&_upleft!=_mode){
     /*Arbitrary ceiling at 0.75 to prevent insane p0 values.*/
     if(_p0[_mode]<24576)_p0[_mode]+=64;
+  }
+}
+
+void od_resample_luma_coeffs(od_coeff *l, int lstride,
+ const od_coeff *c, int cstride, int xdec, int ydec, int n) {
+  if (xdec) {
+    if (ydec) od_tf_up_hv_lp(l, lstride, c, cstride, n, n, n);
+    else od_tf_up_h_lp(l, lstride, c, cstride, n, n);
+  }
+  else{
+    OD_ASSERT(ydec);
+    if (ydec) od_tf_up_v_lp(l, lstride, c, cstride, n, n);
   }
 }

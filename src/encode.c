@@ -34,7 +34,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "intra.h"
 #include "pvq.h"
 #include "pvq_code.h"
-#include "tf.h"
 
 static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
   int ret;
@@ -107,10 +106,10 @@ void od_state_mc_predict(od_state *state, int ref) {
          2);
         /*Copy the predictor into the image, with clipping.*/
         iplane = img->planes + pli;
-        blk_w = 16 >> (iplane->xdec);
-        blk_h = 16 >> (iplane->ydec);
-        blk_x = (vx - 2) <<(2 - iplane->xdec);
-        blk_y = (vy - 2) <<(2 - iplane->ydec);
+        blk_w = 16 >> iplane->xdec;
+        blk_h = 16 >> iplane->ydec;
+        blk_x = (vx - 2) << (2 - iplane->xdec);
+        blk_y = (vy - 2) << (2 - iplane->ydec);
         p = buf[0];
         if (blk_x < 0) {
           blk_w += blk_x;
@@ -209,18 +208,6 @@ static void od_img_plane_copy_pad8(od_img_plane *dst_p,
       }
       dst += dstride;
     }
-  }
-}
-
-static void od_resample_luma_coeffs(od_coeff *l, int lstride,
- const od_coeff *c, int cstride, int xdec, int ydec, int n) {
-  if (xdec) {
-    if (ydec) od_tf_up_hv_lp(l, lstride, c, cstride, n, n, n);
-    else od_tf_up_h_lp(l, lstride, c, cstride, n, n);
-  }
-  else{
-    OD_ASSERT(ydec);
-    if (ydec) od_tf_up_v_lp(l ,lstride, c, cstride, n, n);
   }
 }
 
@@ -325,7 +312,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
 #endif
   }
   scale = 10; /*atoi(getenv("QUANT"));*/
-  /*TODO: Encode image.*/
   {
     GenericEncoder model_dc[OD_NPLANES_MAX];
     GenericEncoder model_g[OD_NPLANES_MAX];
@@ -369,6 +355,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       ydec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
       w = frame_width >> xdec;
       h = frame_height >> ydec;
+      od_ec_enc_uint(&enc->ec, scale, 512);
       ctmp[pli] = _ogg_calloc(w*h, sizeof(*ctmp[pli]));
       dtmp[pli] = _ogg_calloc(w*h, sizeof(*dtmp[pli]));
       /*We predict chroma planes from the luma plane.

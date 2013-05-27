@@ -81,6 +81,9 @@ int od_intra_pred_search(const ogg_uint16_t _cdf[],
 void od_intra_pred_update(ogg_uint16_t _p0[],int _nmodes,int _mode,
  int _left,int _upleft,int _up);
 
+void od_resample_luma_coeffs(od_coeff *l, int lstride,
+ const od_coeff *c, int cstride, int xdec, int ydec, int n);
+
 extern double OD_PRED_WEIGHTS_4x4[OD_INTRA_NMODES][4][4][4*4*4];
 extern int OD_PRED_MULTS_4x4[OD_INTRA_NMODES][4][4];
 extern int OD_PRED_PARAMX_4x4[OD_INTRA_NMODES][4][4][4*4*4];
