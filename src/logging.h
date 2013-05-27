@@ -60,7 +60,7 @@ typedef enum {
    od_log_init() determines what levels to log at by examining
     the environment variable OD_LOG_MODULES, which is of the
     form "<facility-name>:<level>(,<facility-name>:<level>)*".
-    
+
    For instance:
     OD_LOG_MODULES=generic:5
 

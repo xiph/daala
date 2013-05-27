@@ -37,6 +37,8 @@ PLAYER_EXAMPLE_TARGET = player_example
 # Test targets
 ECTEST_TARGET = ectest
 TEST_COEF_CODER_TARGET = test_coef_coder
+LOGGING_TEST_TARGET = logging_test
+
 # The command to use to generate dependency information
 MAKEDEPEND = gcc -MM
 #MAKEDEPEND = makedepend -f- -Y --
@@ -59,12 +61,14 @@ CFLAGS := -std=c89 -pedantic $(CFLAGS)
 CFLAGS := -fvisibility=hidden $(CFLAGS)
 CFLAGS := -Wextra -Wno-parentheses -Wno-long-long -Wno-overlength-strings $(CFLAGS)
 CFLAGS := -Wall $(CFLAGS)
+CFLAGS := -I/opt/local/include $(CFLAGS)
 # Set machine-specific flags
 HOST := $(shell uname -m)
 ifneq (,$(findstring 86,${HOST}))
 CFLAGS := -DOD_X86ASM $(CFLAGS)
 else ifneq (,$(findstring arm,${HOST}))
 CFLAGS := -DOD_ARMASM $(CFLAGS)
+CFLAGS := -DOD_LOGGING_ENABLED $(CFLAGS)
 #CFLAGS := -march=armv7 $(CFLAGS)
 endif
 
@@ -77,6 +81,7 @@ endif
 
 ECTEST_LIBS = -lm
 TEST_COEF_CODER_LIBS = -lm
+LOGGING_TEST_LIBS = ./libdaalabase.a -lm
 
 # ANYTHING BELOW THIS LINE PROBABLY DOES NOT NEED EDITING
 CINCLUDE := -I../include ${CINCLUDE}
@@ -101,6 +106,7 @@ internal.c \
 intra.c \
 intradata.c \
 laplace_tables.c \
+logging.c \
 mc.c \
 newdct.c \
 pvq.c \
@@ -119,6 +125,7 @@ mc.h \
 entcode.h \
 entdec.h \
 entenc.h \
+logging.h \
 mfrngcod.h \
 odintrin.h \
 pvq.h \
@@ -151,6 +158,7 @@ PLAYER_EXAMPLE_CSOURCES = player_example.c
 
 ECTEST_CSOURCES = tests/ectest.c
 TEST_COEF_CODER_CSOURCES = tests/test_coef_coder.c
+LOGGING_TEST_CSOURCES=tests/logging_test.c
 
 # Create object file list.
 LIBDAALABASE_OBJS:= ${LIBDAALABASE_CSOURCES:%.c=${WORKDIR}/%.o}
@@ -167,6 +175,7 @@ ENCODER_EXAMPLE_OBJS:= ${ENCODER_EXAMPLE_CSOURCES:%.c=${WORKDIR}/%.o}
 PLAYER_EXAMPLE_OBJS:= ${PLAYER_EXAMPLE_CSOURCES:%.c=${WORKDIR}/%.o}
 ECTEST_OBJS:= ${ECTEST_CSOURCES:%.c=${WORKDIR}/%.o}
 TEST_COEF_CODER_OBJS:= ${TEST_COEF_CODER_CSOURCES:%.c=${WORKDIR}/%.o}
+LOGGING_TEST_OBJS:= ${LOGGING_TEST_CSOURCES:%.c=${WORKDIR}/%.o}
 ALL_OBJS:= ${LIBDAALABASE_OBJS} ${LIBDAALADEC_OBJS} ${LIBDAALAENC_OBJS} \
  ${DUMP_VIDEO_OBJS} ${ENCODER_EXAMPLE_OBJS} ${PLAYER_EXAMPLE_OBJS} \
  ${ECTEST_OBJS} ${TEST_COEF_CODER_OBJS}
@@ -197,10 +206,12 @@ PLAYER_EXAMPLE_TARGET:= ${TARGETBINDIR}/${PLAYER_EXAMPLE_TARGET}
 # Prepend test path to file names.
 ECTEST_TARGET:= ${TESTBINDIR}/${ECTEST_TARGET}
 TEST_COEF_CODER_TARGET:= ${TESTBINDIR}/${TEST_COEF_CODER_TARGET}
+LOGGING_TEST_TARGET:= ${TESTBINDIR}/${LOGGING_TEST_TARGET}
+
 # Complete set of targets
 ALL_TARGETS:= ${LIBDAALABASE_TARGET} ${LIBDAALADEC_TARGET} \
  ${LIBDAALAENC_TARGET} ${DUMP_VIDEO_TARGET} ${ENCODER_EXAMPLE_TARGET} \
- ${PLAYER_EXAMPLE_TARGET} ${ECTEST_TARGET} ${TEST_COEF_CODER_TARGET}
+ ${PLAYER_EXAMPLE_TARGET} ${ECTEST_TARGET} ${TEST_COEF_CODER_TARGET} ${LOGGING_TEST_TARGET}
 
 # Targets:
 # Everything (default)
@@ -209,17 +220,17 @@ all: ${ALL_TARGETS}
 # libdaalabase
 ${LIBDAALABASE_TARGET}: ${LIBDAALABASE_OBJS}
 	mkdir -p ${TARGETLIBDIR}
-	ar cqs $@ ${LIBDAALABASE_OBJS}
+	ar crs $@ ${LIBDAALABASE_OBJS}
 
 # libdaaladec
 ${LIBDAALADEC_TARGET}: ${LIBDAALADEC_OBJS}
 	mkdir -p ${TARGETLIBDIR}
-	ar cqs $@ ${LIBDAALADEC_OBJS}
+	ar crs $@ ${LIBDAALADEC_OBJS}
 
 # libdaalaenc
 ${LIBDAALAENC_TARGET}: ${LIBDAALAENC_OBJS}
 	mkdir -p ${TARGETLIBDIR}
-	ar cqs $@ ${LIBDAALAENC_OBJS}
+	ar crs $@ ${LIBDAALAENC_OBJS}
 
 # dump_video
 ${DUMP_VIDEO_TARGET}: ${DUMP_VIDEO_OBJS} ${LIBDAALABASE_TARGET} \
@@ -252,6 +263,11 @@ ${TEST_COEF_CODER_TARGET}: ${TEST_COEF_CODER_OBJS}
 	mkdir -p ${TESTBINDIR}
 	${CC} ${CFLAGS} ${TEST_COEF_CODER_OBJS} ${TEST_COEF_CODER_LIBS} -o $@
 
+# logging_test
+${LOGGING_TEST_TARGET}: ${LOGGING_TEST_OBJS} ${LIBDAALABASE_TARGET}
+	mkdir -p ${TESTBINDIR}
+	${CC} ${CFLAGS} ${LOGGING_TEST_OBJS} ${LOGGING_TEST_LIBS} -o $@
+
 # Assembly listing
 ALL_ASM := ${ALL_OBJS:%.o=%.s}
 asm: ${ALL_ASM}
@@ -260,6 +276,7 @@ asm: ${ALL_ASM}
 check: all
 	${ECTEST_TARGET}
 	${TEST_COEF_CODER_TARGET}
+	${LOGGING_TEST_TARGET}
 
 # Remove all targets.
 clean:

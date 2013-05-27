@@ -47,7 +47,6 @@ static void expected_nothing() {
 }
 
 static void expected_result(const char *expected) {
-  
   if (!emitted) {
     fprintf(stderr, "ERROR: Log not called\n");
     failed = 1;
@@ -104,7 +103,7 @@ int main(int argc, char **argv) {
   reset_result();
   OD_LOG((OD_LOG_ENTROPY_CODER, OD_LOG_DEBUG, "Blah blah %s:%d", "XXX", 9));
   expected_something();
-    
+
   /* Test bogus module string */
   setenv("OD_LOG_MODULES", "generic:XXX,blahblah:9,entropy-coder:5", 1);
   od_log_init(od_logging_test_emit);
@@ -121,7 +120,7 @@ int main(int argc, char **argv) {
   bogus_fmt_string[sizeof(bogus_fmt_string) - 2] = 'Y';
   bogus_fmt_string[sizeof(bogus_fmt_string) - 1] = '\0';
   OD_LOG((OD_LOG_ENTROPY_CODER, OD_LOG_DEBUG, bogus_fmt_string, "XXX", 9));
-  
+
   if (failed)
     exit(1);
 

@@ -62,7 +62,7 @@ static const char *od_log_facility_name(od_log_facility fac) {
   assert (fac < OD_LOG_FACILITY_MAX);
   if (fac >= OD_LOG_FACILITY_MAX)
     return "INVALID";
-  
+
   return od_log_module_names[fac];
 }
 
@@ -72,7 +72,7 @@ static const char *od_log_level_name(od_log_level level) {
 
   if (level >= OD_LOG_LEVEL_MAX)
     return "INVALID";
-  
+
   return od_log_level_names[level];
 }
 
@@ -123,13 +123,13 @@ int od_log_init(od_logger_function logger) {
     /* At this point, we should theoretically have a valid clause */
     *colon = '\0';
     ++colon; /* Now points to the start of the number. */
-    
+
     for (i = 0; i < OD_LOG_FACILITY_MAX; ++i) {
       if (od_log_module_names[i] && !strcmp(ptr, od_log_module_names[i])) {
         break;  /* Success */
       }
     }
-    
+
     if (i == OD_LOG_FACILITY_MAX) {
       fprintf(stderr, "Unknown facility '%s'\n", ptr);
       continue;
@@ -164,7 +164,7 @@ int od_log(od_log_facility fac, od_log_level level, const char *fmt, ...) {
   va_start(ap, fmt);
   (void)od_logger(fac, level, fmt, ap);
   va_end(ap);
-  
+
   return 0;
 }
 
@@ -173,7 +173,7 @@ static int od_log_fprintf_stderr(od_log_facility facility,
                                  const char *fmt, va_list ap) {
   char fmt_buffer[1024];
   int rv;
-  
+
   rv = snprintf(fmt_buffer, sizeof(fmt_buffer),
            "[%s/%s] %s\n",
            od_log_facility_name(facility),
@@ -185,6 +185,6 @@ static int od_log_fprintf_stderr(od_log_facility facility,
   }
 
   (void)vfprintf(stderr, fmt_buffer, ap);
- 
+
  return 0;
 }
