@@ -1,0 +1,15 @@
+# daala installed pkg-config file
+
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: daala
+Description: Daala encoding/decoding library
+Version: @PACKAGE_VERSION@
+Requires.private: ogg >= 1.3
+Conflicts:
+Libs: -L${libdir} -ldaala
+Libs.private: @lrintf_lib@
+Cflags: -I${includedir}/daala
