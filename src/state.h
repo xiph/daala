@@ -87,10 +87,11 @@ struct od_state{
   od_state_opt_vtbl   opt_vtbl;
   ogg_uint32_t        cpu_flags;
   od_img              input;
-  int                 ref_imgi[4]; /* buffer for the 4 ref images  */
+  int                 ref_imgi[4]; /* buffer for the 4 ref images  - at double
+                                    * resolutions */
   od_img              ref_imgs[4]; /* pointers to the ref images so one can
                                       move them around without coping them  */
-  od_img              io_imgs[2]; /* pointer to input and output image */
+  od_img              io_imgs[2];  /* pointer to input and output image */
   unsigned char      *ref_line_buf[8];
   unsigned char      *ref_img_data;
   ogg_int64_t         cur_time; /* increments by 1 for each frame */
