@@ -1,3 +1,4 @@
+/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /*Daala video codec
 Copyright (c) 2006-2013 Daala project contributors.  All rights reserved.
 
@@ -21,6 +22,7 @@ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
+
 
 #include <stddef.h>
 #include <stdio.h>
@@ -303,8 +305,36 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
 #endif
     fprintf(stderr, "Predicting frame %i:\n",
      (int)daala_granule_basetime(enc, enc->state.cur_time));
-#if 0
+#if 1
     od_mv_est(enc->mvest, OD_FRAME_PREV, 452/*118*/);
+    /* output the motion vectors */
+    {
+      int nhmvbs;
+      int nvmvbs;
+      int vx;
+      int vy;
+      od_mv_grid_pt* mvp;
+      
+      nhmvbs = (enc->state.nhmbs + 1) << 2;
+      nvmvbs = (enc->state.nvmbs + 1) << 2;
+      /*img = state->io_imgs + OD_FRAME_REC; */
+      for (vy = 0; vy < nvmvbs; vy += 4) {
+        for (vx = 0; vx < nhmvbs; vx += 4) {
+          mvp = &( enc->state.mv_grid[vy][vx] );
+          /* TODO - need to tune probabliliyt distibution on next line */
+          od_ec_encode_bool( &enc->ec , mvp->valid, 16384 , 32768 ); 
+          if ( mvp->valid )
+          {
+            od_ec_enc_uint( &enc->ec , mvp->mv[0], 666 ); 
+            od_ec_enc_uint( &enc->ec , mvp->mv[0], 666 ); 
+            /* TODO - need to tune probabliliyt distibution on next 2 line */
+            od_ec_encode_bool( &enc->ec , mvp->right, 16384 , 32768 ); 
+            od_ec_encode_bool( &enc->ec , mvp->down, 16384 , 32768 ); 
+          }
+          /* TODO CJ */
+        }
+      }
+    }
 #endif
     od_state_mc_predict(&enc->state, OD_FRAME_PREV);
 #if defined(OD_DUMP_IMAGES)
@@ -761,7 +791,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
 #ifdef OD_DPCM
         {
           int pred_diff;
-          int qdiff;
+          int qdiff;g
           /*DPCM code the residual with uniform quantization.
             This provides simulated residual coding errors, without
              introducing blocking artifacts.*/
