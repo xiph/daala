@@ -145,8 +145,8 @@ typedef struct od_mv_grid_pt od_mv_grid_pt;
   Fortunately, our relatively limited levels of subdivision makes it mostly
    unnecessary.*/
 struct od_mv_grid_pt {
-  int mv[2];
-  unsigned valid:1;
+  int mv[2]; /*  This is x,y vector in 1/8th's of pixesls  */
+  unsigned valid:1; /*  says if the above motion vector is valid or not  */ 
   unsigned right:1;
   unsigned down:1;
 };
