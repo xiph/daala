@@ -86,6 +86,8 @@ block_size.c \
 vidinput.c \
 newdct.c \
 internal.c \
+entcode.c \
+entenc.c \
 filter.c
 
 

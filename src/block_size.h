@@ -96,3 +96,6 @@ typedef struct {
 
 void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img, const unsigned char *img, int stride, int dec[4][4]);
 
+int od_block_size_prob32(const int *bsize, int stride);
+
+int od_block_size_cdf16_id(const int *bsize, int stride);

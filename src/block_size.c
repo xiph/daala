@@ -25,6 +25,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "block_size.h"
 #include <string.h>
 #include "internal.h"
+#include "entenc.h"
 
 /* Actual 2D coding gains of lapped transforms (the 32x32 one is made-up).
    We divide by 6 to get bits from dB. */
@@ -44,7 +45,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
    used to square integers, but not circles. */
 #define SQUARE(x) ((int)(x)*(int)(x))
 
-static void compute_stats(const unsigned char *img, int stride, BlockStats *stats)
+static void od_compute_stats(const unsigned char *img, int stride, BlockStats *stats)
 {
   const unsigned char *x;
   int i;
@@ -134,14 +135,13 @@ static void compute_stats(const unsigned char *img, int stride, BlockStats *stat
  * @param [out]     dec     Decision for each 8x8 block in the image. 0=4x4, 1=8x8, 2=16x16, 3=32x32
  */
 void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
-    const unsigned char *img, int stride, int dec[4][4])
+    const unsigned char *img, int stride, int bsize[4][4])
 {
   int i;
   int j;
-  compute_stats(img, stride, &bs->img_stats);
-  if (psy_img != img) compute_stats(psy_img, stride, &bs->psy_stats);
+  od_compute_stats(img, stride, &bs->img_stats);
+  if (psy_img != img) od_compute_stats(psy_img, stride, &bs->psy_stats);
   else memcpy(&bs->psy_stats, &bs->img_stats, sizeof(BlockStats));
-
   /* Compute 4x4 masking */
   for (i = 0; i < 8; i++) {
     for (j = 0; j < 8; j++) {
@@ -166,8 +166,6 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
       bs->psy4[i][j] = psy/(3*3) - 1.;
     }
   }
-
-
   /* Compute 8x8 masking and make 4x4 vs 8x8 decision */
   for (i = 0; i < 4; i++) {
     for (j = 0; j < 4; j++) {
@@ -198,16 +196,15 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
       gain4 = CG4 - PSY_LAMBDA*(psy4_avg);
       gain8 = CG8 - PSY_LAMBDA*(bs->psy8[i][j]);
       if (gain8 >= gain4) {
-        dec[i][j] = 1;
+        bsize[i][j] = 1;
         bs->dec_gain8[i][j] = gain8;
       }
       else {
-        dec[i][j] = 0;
+        bsize[i][j] = 0;
         bs->dec_gain8[i][j] = gain4;
       }
     }
   }
-
   /* Compute 16x16 masking and make 4x4/8x8 vs 16x16 decision */
   for (i = 0; i < 2; i++) {
     for (j = 0; j < 2; j++) {
@@ -218,7 +215,6 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
       ogg_int32_t sum_var=0;
       float psy=0;
       float psy8=0;
-
       /* Masking based on 4x4 variances */
       for (k = 0; k < COUNT16; k++) {
         for (m = 0; m < COUNT16; m++) {
@@ -234,7 +230,6 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
         }
       }
       bs->psy16[i][j] = psy/(COUNT16*COUNT16) - 1.;
-
       sum_var = 0;
       /* Use 8x8 variances */
       for (k = 0; k < COUNT8_16; k++) {
@@ -252,22 +247,19 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
       }
       bs->psy16[i][j] = OD_MAXF(bs->psy16[i][j], PSY8_FUDGE*
        (psy8/(COUNT8_16*COUNT8_16) - 1.));
-
       gain8_avg = .25*(bs->dec_gain8[2*i][2*j] + bs->dec_gain8[2*i][2*j + 1]
        + bs->dec_gain8[2*i + 1][2*j] + bs->dec_gain8[2*i + 1][2*j + 1]);
       gain16 = CG16 - PSY_LAMBDA*(bs->psy16[i][j]);
       if (gain16 >= gain8_avg) {
-        dec[2*i][2*j] = dec[2*i][2*j + 1]
-         = dec[2*i + 1][2*j] = dec[2*i + 1][2*j + 1] = 2;
+        bsize[2*i][2*j] = bsize[2*i][2*j + 1]
+         = bsize[2*i + 1][2*j] = bsize[2*i + 1][2*j + 1] = 2;
         bs->dec_gain16[i][j] = gain16;
       }
       else {
         bs->dec_gain16[i][j] = gain8_avg;
       }
-
     }
   }
-
   /* Compute 32x32 masking and make final 4x4/8x8/16x16 vs 32x32 decision */
   {
     int k;
@@ -277,7 +269,6 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
     ogg_int32_t sum_var=0;
     float psy=0;
     float psy8=0;
-
     /* Masking based on 4x4 variances */
     for (k = 0; k < COUNT32; k++) {
       for (m = 0; m < COUNT32; m++) {
@@ -291,7 +282,6 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
       }
     }
     bs->psy32 = psy/(COUNT32*COUNT32) - 1.;
-
     sum_var = 0;
     /* Use 8x8 variances */
     for (k = 0; k < COUNT8_32; k++) {
@@ -306,15 +296,63 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
       }
     }
     bs->psy32 = OD_MAXF(bs->psy32, PSY8_FUDGE*(psy8/(COUNT8_32*COUNT8_32) - 1.));
-
-
     gain16_avg = .25*(bs->dec_gain16[0][0] + bs->dec_gain16[0][1]
      + bs->dec_gain16[1][0] + bs->dec_gain16[1][1]);
     gain32 = CG32 - PSY_LAMBDA*(bs->psy32);
     if (gain32 >= gain16_avg) {
-      for (k = 0; k < 4; k++) for (m = 0; m < 4; m++) dec[k][m] = 3;
+      for (k = 0; k < 4; k++) for (m = 0; m < 4; m++) bsize[k][m] = 3;
     }
-
   }
+}
 
+const unsigned char od_size32_prob[28] = {0};
+
+const unsigned char od_size16_prob[144] = {0};
+
+const ogg_uint16_t od_size8_cdf[144][16] = {{0}};
+
+int od_block_size_prob32(const int *bsize, int stride)
+{
+  int i;
+  int sum32;
+  sum32 = 0;
+  for (i = -1; i < 4; i++) sum32 += bsize[-stride + i];
+  for (i = 0; i < 4; i++) sum32 += bsize[stride*i - 1];
+  return sum32;
+}
+
+int od_block_size_cdf16_id(const int *bsize, int stride)
+{
+  int upleft;
+  int up;
+  int left;
+  int id;
+  upleft = bsize[-stride - 1];
+  /* For up and left, count only the combinations that are possible */
+  up = bsize[-stride] < 2 ? bsize[-stride]*2 + bsize[-stride + 1] :
+   bsize[-stride] + 2;
+  left = bsize[-1] < 2 ? bsize[-1]*2 + bsize[stride - 1] : bsize[-1] + 2;
+  id = up*24 + left*4 + upleft;
+  return id;
+}
+
+void od_block_size_encode(od_ec_enc *enc, const int *bsize, int stride)
+{
+  int id32;
+  id32 = od_block_size_prob32(bsize, stride);
+  od_ec_encode_bool_q15(enc, bsize[0] == 3, od_size32_prob[id32] << 7);
+  if (bsize[0] != 3) {
+    int cdf_id;
+    int prob16;
+    cdf_id = od_block_size_cdf16_id(bsize, stride);
+    prob16 = od_size16_prob[cdf_id];
+    od_ec_encode_bool_q15(enc, bsize[0] == 2, prob16 << 7);
+    if (bsize[0] != 2) {
+      const ogg_uint16_t *cdf;
+      int split;
+      split = bsize[0]*8 + bsize[1]*4 + bsize[stride]*2 + bsize[stride + 1];
+      cdf = od_size8_cdf[cdf_id];
+      od_ec_encode_cdf_q15(enc, split, cdf, 16);
+    }
+  }
 }
