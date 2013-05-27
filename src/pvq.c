@@ -34,6 +34,7 @@ typedef struct {
   float rd;
 } RDOEntry;
 
+#if 0
 static int compare(const RDOEntry *a, const RDOEntry *b)
 {
   if (a->rd<b->rd)
@@ -43,6 +44,7 @@ static int compare(const RDOEntry *a, const RDOEntry *b)
   else
     return 0;
 }
+#endif
 
 #define SWAP(x,a,b) do{RDOEntry tmp=x[b];x[b]=x[a];x[a]=tmp;}while(0);
 static void find_nbest(RDOEntry *x, int n, int len)
@@ -213,7 +215,7 @@ static void pvq_search_rdo(float *x,float *scale,float *scale_1,float g,int N,in
 }
 
 /* This is a "standard" pyramid vector quantizer search */
-static void pvq_search(float *x,float *scale,float *scale_1,float g,int N,int K,int *y,int m,float lambda){
+static void pvq_search(float *x,float *scale,float *scale_1,float g,int N,int K,int *y){
   float L1;
   float L2;
   float L1_proj;
@@ -257,26 +259,21 @@ static void pvq_search(float *x,float *scale,float *scale_1,float g,int N,int K,
     float best_num;
     float best_den;
     int   best_id;
-    float best_cost;
     best_num=-1;
     best_den=1e-15;
-    best_cost=0;
     yy+=1;
     best_id = 0;
     for(j=0;j<N;j++){
       float tmp_xy;
       float tmp_yy;
-      float cost;
       tmp_xy=xy+x[j];
       tmp_yy=yy+2*y[j];
       tmp_xy*=tmp_xy;
-      cost=(j==m)?0:lambda;
       /* Trick to avoid having to divide by the denominators */
       if (tmp_xy*best_den > best_num*tmp_yy){
       /*if (tmp_xy/sqrt(xx*tmp_yy)+best_cost > best_num/sqrt(xx*best_den)+cost){*/
         best_num=tmp_xy;
         best_den=tmp_yy;
-        best_cost = cost;
         best_id=j;
       }
     }
@@ -796,18 +793,15 @@ void dequant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   float s;
   float maxr=-1;
   float proj;
-  int   K,xm;
+  int   xm;
   float cg;              /* Companded gain of x*/
-  float cgq;
   float cgr;             /* Companded gain of r*/
-  float lambda;
   OD_ASSERT(N>1);
 
   /* Just some calibration -- should eventually go away */
   Q=pow(_Q*1.3,GAIN_EXP_1); /* Converts Q to the "companded domain" */
   /* High rate predicts that the constant should be log(2)/6 = 0.115, but in
      practice, it should be lower. */
-  lambda = 0.10*Q*Q;
 
   for(i=0;i<N;i++){
     scale[i]=_scale[i];
@@ -932,7 +926,7 @@ int quant_pvq_noref(ogg_int32_t *_x,float gr,
   qg = floor(.5+cg);
 
   K = floor(.5+cg*cg);
-  pvq_search(x,NULL,NULL,1,N,K,y,0,0);
+  pvq_search(x,NULL,NULL,1,N,K,y);
 
   L2x=0;
   for(i=0;i<N;i++){
@@ -957,9 +951,6 @@ int quant_scalar(ogg_int32_t *_x,const ogg_int32_t *_r,
   float Q2, Q2_1;
   int K;
   float lambda;
-  int mean_k_q8;
-  int mean_sum_ex_q8;
-  int expQ8;
   int Kn;
   OD_ASSERT(N>0);
 

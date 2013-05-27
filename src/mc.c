@@ -2432,9 +2432,18 @@ static void od_mc_blend8(od_state *state, unsigned char *dst, int dystride,
 }
 
 void od_mc_predict8(od_state *state, unsigned char *dst, int dystride,
- const unsigned char *src, int systride, const ogg_int32_t mvx[4],
- const ogg_int32_t mvy[4], int interp_type, int oc, int s,
- int log_xblk_sz, int log_yblk_sz) {
+ const unsigned char *src, int systride, 
+                    const ogg_int32_t mvx[4], /*this is x coord for the four
+                                               motion vectors of the four
+                                               corners (in rotation not
+                                               raster order) */
+ const ogg_int32_t mvy[4],
+                    int interp_type, /* type of interpolation (bbbv for now) */
+                    int oc,  /* index of outside corner  */
+                    int s, /* two split flags that indicate if the corners are split*/
+                    int log_xblk_sz,   /* log 2 of block size */
+                    int log_yblk_sz
+) {
   const unsigned char *pred[4];
   unsigned char __attribute__((aligned(16))) buf[4][16*16];
   int r;
