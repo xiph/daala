@@ -313,23 +313,26 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       int nvmvbs;
       int vx;
       int vy;
+      od_img *img;
+      int width;
+      int height;
       od_mv_grid_pt* mvp;
       
       nhmvbs = (enc->state.nhmbs + 1) << 2;
       nvmvbs = (enc->state.nvmbs + 1) << 2;
-      /*img = state->io_imgs + OD_FRAME_REC; */
+      img = enc->state.io_imgs + OD_FRAME_REC;
+      width = img->width;
+      height = img->height;
+     
       for (vy = 0; vy < nvmvbs; vy += 4) {
         for (vx = 0; vx < nhmvbs; vx += 4) {
           mvp = &( enc->state.mv_grid[vy][vx] );
           /* TODO - need to tune probabliliyt distibution on next line */
-          od_ec_encode_bool( &enc->ec , mvp->valid, 16384 , 32768 ); 
+          od_ec_encode_bool_q15( &enc->ec , mvp->valid, 32000 ); 
           if ( mvp->valid )
           {
-            od_ec_enc_uint( &enc->ec , mvp->mv[0], 666 ); 
-            od_ec_enc_uint( &enc->ec , mvp->mv[0], 666 ); 
-            /* TODO - need to tune probabliliyt distibution on next 2 line */
-            od_ec_encode_bool( &enc->ec , mvp->right, 16384 , 32768 ); 
-            od_ec_encode_bool( &enc->ec , mvp->down, 16384 , 32768 ); 
+            od_ec_enc_uint( &enc->ec , mvp->mv[0] + width+32, 2*(width+32) ); 
+            od_ec_enc_uint( &enc->ec , mvp->mv[1] + height+32, 2*(height+32) ); 
           }
           /* TODO CJ */
         }
