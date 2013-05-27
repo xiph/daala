@@ -151,6 +151,8 @@ IS_LIB_CSOURCES = \
 filter.c \
 newdct.c \
 intra.c \
+tf.c \
+internal.c \
 intradata.c
 
 IS_LDFLAGS = `pkg-config theoradec ogg libpng --libs` -lm
@@ -181,7 +183,8 @@ filter.c \
 newdct.c \
 intra.c \
 intradata.c \
-internal.c
+internal.c \
+tf.c
 
 IP_LDFLAGS = `pkg-config theoradec ogg libpng --libs` -lm
 
@@ -209,6 +212,8 @@ IT_LIB_CSOURCES = \
 filter.c \
 newdct.c \
 intra.c \
+tf.c \
+internal.c \
 intradata.c
 
 IT_LDFLAGS = `pkg-config theoradec ogg libpng --libs` -lm
@@ -241,7 +246,6 @@ cholesky.c
 T_LIB_CSOURCES = \
 filter.c \
 newdct.c \
-intra.c \
 intradata.c
 
 T_LDFLAGS = `pkg-config theoradec ogg libpng --libs` -lm
@@ -274,7 +278,6 @@ cholesky.c
 T2D_LIB_CSOURCES = \
 filter.c \
 newdct.c \
-intra.c \
 intradata.c
 
 T2D_LDFLAGS = `pkg-config theoradec ogg libpng --libs` -lm
@@ -297,6 +300,8 @@ IIX_LIB_CSOURCES = \
 filter.c \
 newdct.c \
 intra.c \
+tf.c \
+internal.c \
 intradata.c
 
 IIX_LDFLAGS = `pkg-config theoradec ogg libpng --libs` -lm
