@@ -25,6 +25,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "pvq.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include <math.h>
 
 #define MAXN 256
 #define EPSILON 1e-30
