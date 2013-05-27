@@ -424,7 +424,7 @@ int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh
           int stride;
           int id32;
           bsize = &dec8[4*i][4*j];
-          stride = sizeof(dec8[0]);
+          stride = sizeof(dec8[0])/sizeof(dec8[0][0]);
           id32 = od_block_size_prob32(bsize, stride);
           count32[id32]++;
           if (bsize[0] == 3) stats32[id32]++;
@@ -432,9 +432,14 @@ int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh
             int id16;
             id16 = od_block_size_cdf16_id(&bsize[2*k*stride + 2*m], stride);
             count16[id16]++;
+            OD_ASSERT(bsize[2*k*stride + 2*m]<=2);
             stats16[id16] += bsize[2*k*stride + 2*m] == 2;
             if (bsize[2*k*stride + 2*m] != 2) {
               int id8;
+              OD_ASSERT(bsize[2*k*stride + 2*m]<=1);
+              OD_ASSERT(bsize[2*k*stride + 2*m + 1]<=1);
+              OD_ASSERT(bsize[2*k*stride + stride + 2*m]<=1);
+              OD_ASSERT(bsize[2*k*stride + stride + 2*m + 1]<=1);
               id8 = 8*bsize[2*k*stride + 2*m] + 4*bsize[2*k*stride + 2*m + 1]
                + 2*bsize[2*k*stride + stride + 2*m]
                + bsize[2*k*stride + stride + 2*m + 1];
@@ -447,7 +452,7 @@ int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh
       for (i = 0; i < 28; i++) printf("%d ", stats32[i]);
       for (i = 0; i < 144; i++) printf("%d ", count16[i]);
       for (i = 0; i < 144; i++) printf("%d ", stats16[i]);
-      for (i = 0; i < 144; i++) for (j = 0; j < 16; j++) printf("%d ", stats16[i]);
+      for (i = 0; i < 144; i++) for (j = 0; j < 16; j++) printf("%d ", stats8[i][j]);
       printf("\n");
     }
   }
