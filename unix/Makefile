@@ -135,6 +135,8 @@ decint.h \
 
 LIBDAALAENC_CSOURCES = \
 encode.c \
+decode.c \
+pvq_decoder.c \
 infoenc.c \
 mcenc.c \
 

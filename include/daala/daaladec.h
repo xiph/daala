@@ -86,6 +86,10 @@ extern int daala_decode_ctl(daala_dec_ctx *dec,
 /**Frees an allocated decoder instance.
  * \param dec A #daala_dec_ctx handle.*/
 extern void daala_decode_free(daala_dec_ctx *dec);
+/**Retrieves decoded video data frames.
+ * \param dec A #daala_dec_ctx handle.
+ * \param img A buffer to receive the decoded image data.*/
+extern int daala_decode_img_out(daala_dec_ctx *dec,od_img *img);
 /*@}*/
 /*@}*/
 

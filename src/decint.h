@@ -22,21 +22,21 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
-#if !defined(_encint_H)
-# define _encint_H (1)
+#if !defined(_decint_H)
+# define _decint_H (1)
 # include "../include/daala/daaladec.h"
 # include "state.h"
 
 typedef struct daala_dec_ctx od_dec_ctx;
 
 /*Constants for the packet state machine specific to the decoder.*/
-
 /*Next packet to read: Data packet.*/
 # define OD_PACKET_DATA (0)
 
 struct daala_dec_ctx {
   od_state state;
   oggbyte_buffer obb;
+  od_ec_dec ec;
   int packet_state;
 };
 

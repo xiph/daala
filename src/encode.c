@@ -34,6 +34,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "intra.h"
 #include "pvq.h"
 #include "pvq_code.h"
+#if OD_DECODE_IN_ENCODE
+# include "decint.h"
+#endif
 
 static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
   int ret;
@@ -201,8 +204,8 @@ static void od_img_plane_copy_pad8(od_img_plane *dst_p,
     }
     /*Bottom.*/
     dst = dst_data + dstride*(pic_y + pic_height);
-    for (y = pic_y + pic_height; y < plane_height; y++){
-      for (x = 0; x < plane_width; x++){
+    for (y = pic_y + pic_height; y < plane_height; y++) {
+      for (x = 0; x < plane_width; x++) {
         dst[x] = 2*(dst - dstride)[x] + (dst - dstride)[x - (x > 0)]
          + (dst - dstride)[x + (x + 1 < plane_width)] + 2 >> 2;
       }
@@ -294,7 +297,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   memcpy(&enc->state.input, img, sizeof(enc->state.input));
   /*TODO: Incrment frame count.*/
   if (enc->state.ref_imgi[OD_FRAME_PREV] >= 0 /*
-   && daala_granule_basetime(enc, enc->state.cur_time) >= 19*/){
+   && daala_granule_basetime(enc, enc->state.cur_time) >= 19*/) {
 #if defined(OD_DUMP_IMAGES) && defined(OD_ANIMATE)
     enc->state.ani_iter = 0;
 #endif
@@ -459,7 +462,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
             }
           }
           /*Apply the prefilter across the right block edges.*/
-          for (y = (mby << (4 - ydec)); y < (mby + 1) << (4 - ydec); y++){
+          for (y = (mby << (4 - ydec)); y < (mby + 1) << (4 - ydec); y++) {
             for (bx = mbx << (2 - xdec); bx < ((mbx + 1) << (2 - xdec))
              - ((mbx + 1) >= nhmbs); bx++) {
               od_pre_filter4(c + y*w + (bx << 2) + 2, c + y*w + (bx << 2) + 2);
@@ -624,8 +627,8 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
               }
 #endif
               /*Dequantize*/
-              for (y = 0; y < 4; y++){
-                for (x = 0; x < 4; x++){
+              for (y = 0; y < 4; y++) {
+                for (x = 0; x < 4; x++) {
                   d[((by << 2) + y)*w + (bx << 2) + x] =
                    cblock[OD_ZIG4[y*4 + x]];
                 }
@@ -656,9 +659,9 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
           od_adapt_mb(adapt_row, mbx, &adapt_hmean[pli], &adapt);
 
           /*Apply the postfilter across the left block edges.*/
-          for (y = mby << (4 - ydec); y < (mby + 1) << (4 - ydec); y++){
+          for (y = mby << (4 - ydec); y < (mby + 1) << (4 - ydec); y++) {
             for (bx = (mbx<<(2 - xdec)) + (mbx <= 0); bx < (mbx + 1) <<
-             (2 - xdec); bx++){
+             (2 - xdec); bx++) {
               od_post_filter4(c + y*w + (bx << 2) - 2, c + y*w
                + (bx << 2) - 2);
             }
@@ -683,19 +686,35 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
         ixfill = next_ixfill;
         oxfill = next_oxfill;
       }
-      for (pli = 0; pli < nplanes; pli++){
+      for (pli = 0; pli < nplanes; pli++) {
         od_adapt_row(&enc->state.adapt_row[pli], &adapt_hmean[pli]);
       }
       iyfill = next_iyfill;
       oyfill = next_oyfill;
     }
-    for (pli = nplanes; pli-- > 0;){
+    for (pli = nplanes; pli-- > 0;) {
       _ogg_free(ltmp[pli]);
       _ogg_free(dtmp[pli]);
       _ogg_free(ctmp[pli]);
     }
     _ogg_free(modes);
   }
+  /*Dump YUV*/
+  od_state_dump_yuv(&enc->state, enc->state.io_imgs + OD_FRAME_REC, "out");
+#if OD_DECODE_IN_ENCODE
+  {
+    int ret;
+    ogg_uint32_t nbytes;
+    unsigned char *packet;
+    od_dec_ctx dec;
+    memcpy(&dec.state, &enc->state, sizeof(dec.state));
+    packet = od_ec_enc_done(&enc->ec, &nbytes);
+    od_ec_dec_init(&dec.ec, packet, nbytes);
+    dec.packet_state = OD_PACKET_DATA;
+    ret = daala_decode_img_out(&dec, img);
+    OD_ASSERT(ret==0);
+  }
+#endif
   for (pli = 0; pli < nplanes; pli++) {
     unsigned char *data;
     ogg_int64_t mc_sqerr;
@@ -795,8 +814,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   }
   fprintf(stderr, "mode bits: %f/%f=%f\n", mode_bits, mode_count,
    mode_bits/mode_count);
-  /*Dump YUV*/
-  od_state_dump_yuv(&enc->state, enc->state.io_imgs + OD_FRAME_REC, "out");
   enc->packet_state = OD_PACKET_READY;
   od_state_upsample8(&enc->state,
    enc->state.ref_imgs + enc->state.ref_imgi[OD_FRAME_SELF],

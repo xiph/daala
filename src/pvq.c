@@ -523,7 +523,6 @@ int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
   return m;
 }
 
-
 /** PVQ quantizer based on a reference
  *
  * This function computes a Householder reflection that causes the reference
@@ -746,6 +745,137 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   /*printf("xc1=%f\n", xc1);*/
   /*printf("y[m]=%d\n", y[m]);*/
   return m;
+}
+
+int pvq_unquant_k(const ogg_int32_t *_r,int _n,int _qg, int _scale){
+  int    i;
+  int    vk;
+  double Q;
+  double cgr;
+  Q=pow(_scale*1.3,1./(4./3.));
+  vk=0;
+  for(i=0;i<_n;i++)vk+=_r[i]*_r[i];
+  cgr=pow(sqrt(vk),1./(4./3.))/Q+.2;
+  cgr=cgr+_qg;
+  if(cgr<0)cgr=0;
+  if(cgr==0){
+    vk=0;
+  }else{
+    int K_large;
+    vk=floor(.5+0.6*cgr*cgr);
+    K_large=floor(.5+1.5*cgr*sqrt(_n/2));
+    if(vk>K_large){
+      vk=K_large;
+    }
+  }
+  return vk;
+}
+
+/** PVQ dequantizer based on a reference
+ *
+ * @param [in,out] _x     coefficients being dequantized (output is the dequantized values)
+ * @param [in]     _r     reference
+ * @param [in]     _scale quantization matrix (unused for now)
+ * @param [in]     N      length of vectors _x, _y, and _scale
+ * @param [in]     Q      quantization resolution (lower means higher quality)
+ * @param [in]    qg     quantized gain
+ *
+ */
+void dequant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
+    ogg_int16_t *_scale,int N,int _Q,int qg){
+  float L2x,L2r;
+  float g;               /* L2-norm of x */
+  float gr;              /* L2-norm of r */
+  float x[MAXN];
+  float r[MAXN];
+  float scale[MAXN];
+  float Q;
+  float scale_1[MAXN];
+  int   i;
+  int   m;
+  float s;
+  float maxr=-1;
+  float proj;
+  int   K,xm;
+  float cg;              /* Companded gain of x*/
+  float cgq;
+  float cgr;             /* Companded gain of r*/
+  float lambda;
+  OD_ASSERT(N>1);
+
+  /* Just some calibration -- should eventually go away */
+  Q=pow(_Q*1.3,GAIN_EXP_1); /* Converts Q to the "companded domain" */
+  /* High rate predicts that the constant should be log(2)/6 = 0.115, but in
+     practice, it should be lower. */
+  lambda = 0.10*Q*Q;
+
+  for(i=0;i<N;i++){
+    scale[i]=_scale[i];
+    scale_1[i]=1./scale[i];
+  }
+
+  L2r=0;
+  for(i=0;i<N;i++){
+    x[i]=_x[i];
+    r[i]=_r[i];
+    L2r+=r[i]*r[i];
+  }
+  gr=sqrt(L2r);
+  cgr = pow(gr,GAIN_EXP_1)/Q+.2;
+  cg = cgr+qg;
+  if (cg<0)cg=0;
+  g = pow(Q*cg, GAIN_EXP);
+
+  /* Pick component with largest magnitude. Not strictly
+   * necessary, but it helps numerical stability */
+  m=0;
+  for(i=0;i<N;i++){
+    if(fabs(r[i])>maxr){
+      maxr=fabs(r[i]);
+      m=i;
+    }
+  }
+  s=r[m]>0?1:-1;
+
+  /* This turns r into a Householder reflection vector that would reflect
+   * the original r[] to e_m */
+  r[m]+=gr*s;
+
+  L2r=0;
+  for(i=0;i<N;i++){
+    L2r+=r[i]*r[i];
+  }
+
+  /* Move x[m] back */
+  xm = x[0];
+  for (i=0;i<m;i++)
+    x[i] = x[i+1];
+  /* x[0] is positive when prediction is good  */
+  x[m] = -xm*s;
+
+  /* Apply Householder reflection to the quantized coefficients */
+  proj=0;
+  for(i=0;i<N;i++){
+    proj+=r[i]*x[i];
+  }
+  proj*=2.F/(EPSILON+L2r);
+  for(i=0;i<N;i++){
+    x[i]-=r[i]*proj;
+  }
+
+  L2x=0;
+  for(i=0;i<N;i++){
+    float tmp=x[i]/* *scale[i]*/;
+    L2x+=tmp*tmp;
+  }
+  g/=EPSILON+sqrt(L2x);
+  for(i=0;i<N;i++){
+    x[i]*=g/* *scale[i]*/;
+  }
+
+  for(i=0;i<N;i++){
+    _x[i]=floor(.5+x[i]);
+  }
 }
 
 /** PVQ quantizer with no reference
