@@ -32,7 +32,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #if defined(_WIN32)
 # include <fcntl.h>
 # include <io.h>
-
+#endif
+#if defined(_MSC_VER)
 static double rint(double _x){
   return (int)(_x<0?_x-0.5:_x+0.5);
 }
