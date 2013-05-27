@@ -29,45 +29,44 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <string.h>
 #include "decint.h"
 
-static int od_dec_init(od_dec_ctx *_dec,const daala_info *_info,
- const daala_setup_info *_setup){
+static int od_dec_init(od_dec_ctx *dec, const daala_info *info,
+ const daala_setup_info *setup) {
   int ret;
-  (void)_setup;
-  ret=od_state_init(&_dec->state,_info);
-  if(ret<0)return ret;
-  _dec->packet_state=OD_PACKET_INFO_HDR;
+  (void)setup;
+  ret = od_state_init(&dec->state, info);
+  if (ret < 0) return ret;
+  dec->packet_state = OD_PACKET_INFO_HDR;
   return 0;
 }
 
-static void od_dec_clear(od_dec_ctx *_dec){
-  od_state_clear(&_dec->state);
+static void od_dec_clear(od_dec_ctx *dec) {
+  od_state_clear(&dec->state);
 }
 
-daala_dec_ctx *daala_decode_alloc(const daala_info *_info,
- const daala_setup_info *_setup){
+daala_dec_ctx *daala_decode_alloc(const daala_info *info,
+ const daala_setup_info *setup) {
   od_dec_ctx *dec;
-  if(_info==NULL)return NULL;
-  dec=(od_dec_ctx *)_ogg_malloc(sizeof(*dec));
-  if(od_dec_init(dec,_info,_setup)<0){
+  if (info == NULL) return NULL;
+  dec = (od_dec_ctx *)_ogg_malloc(sizeof(*dec));
+  if (od_dec_init(dec, info, setup) < 0) {
     _ogg_free(dec);
     return NULL;
   }
   return dec;
 }
 
-void daala_decode_free(daala_dec_ctx *_dec){
-  if(_dec!=NULL){
-    od_dec_clear(_dec);
-    _ogg_free(_dec);
+void daala_decode_free(daala_dec_ctx *dec) {
+  if (dec != NULL) {
+    od_dec_clear(dec);
+    _ogg_free(dec);
   }
 }
 
-int daala_decode_ctl(daala_dec_ctx *_dec,int _req,void *_buf,
- size_t _buf_sz){
-  (void)_dec;
-  (void)_buf;
-  (void)_buf_sz;
-  switch(_req){
-    default:return OD_EIMPL;
+int daala_decode_ctl(daala_dec_ctx *dec, int req, void *buf, size_t buf_sz) {
+  (void)dec;
+  (void)buf;
+  (void)buf_sz;
+  switch(req) {
+    default: return OD_EIMPL;
   }
 }

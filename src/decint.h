@@ -1,5 +1,5 @@
 /*Daala video codec
-Copyright (c) 2006-2010 Daala project contributors.  All rights reserved.
+Copyright (c) 2006-2013 Daala project contributors.  All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -27,23 +27,17 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # include "../include/daala/daaladec.h"
 # include "state.h"
 
-
-
 typedef struct daala_dec_ctx od_dec_ctx;
-
-
 
 /*Constants for the packet state machine specific to the decoder.*/
 
 /*Next packet to read: Data packet.*/
-#define OD_PACKET_DATA        (0)
+# define OD_PACKET_DATA (0)
 
-
-
-struct daala_dec_ctx{
-  od_state        state;
-  oggbyte_buffer  obb;
-  int             packet_state;
+struct daala_dec_ctx {
+  od_state state;
+  oggbyte_buffer obb;
+  int packet_state;
 };
 
 #endif
