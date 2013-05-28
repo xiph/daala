@@ -115,6 +115,7 @@ AC_CONFIG_FILES([
   daala-uninstalled.pc
   doc/Makefile
   src/Makefile
+  src/tests/Makefile
   examples/Makefile
   include/Makefile
   tools/Makefile
