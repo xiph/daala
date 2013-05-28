@@ -306,6 +306,7 @@ void od_intra_pred16x16_dist(ogg_uint32_t *_dist,const od_coeff *_c,
         satd+=fabs((_c[_stride*i+j]-p[i*16+j])*OD_SATD_WEIGHTS_16x16[_pli][i*16+j]);
       }
     }
+    _dist[mode]=satd;
   }
 }
 
