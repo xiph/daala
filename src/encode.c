@@ -59,7 +59,7 @@ static void od_enc_clear(od_enc_ctx *enc) {
   od_state_clear(&enc->state);
 }
 
-daala_enc_ctx *daala_encode_alloc(const daala_info *info) {
+daala_enc_ctx *daala_encode_create(const daala_info *info) {
   od_enc_ctx *enc;
   if (info == NULL) return NULL;
   enc = (od_enc_ctx *)_ogg_malloc(sizeof(*enc));

@@ -486,8 +486,7 @@ int main(int _argc,char **_argv){
     memcpy(di.plane_info,avin.video_plane_info,
      di.nplanes*sizeof(*di.plane_info));
     /*TODO: Other crap.*/
-    dd=daala_encode_alloc(&di);
-    daala_info_clear(&di);
+    dd=daala_encode_create(&di);
     daala_comment_init(&dc);
     /*TODO: Set up encoder.*/
   }
