@@ -232,9 +232,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   int pic_width;
   int pic_height;
 
-  fprintf( stderr,"FLUFFY in daala_encode_img_in \n" );
-
-
   if (enc == NULL || img == NULL) return OD_EFAULT;
   if (enc->packet_state == OD_PACKET_DONE) return OD_EINVAL;
   /*Check the input image dimensions to make sure they're compatible with the
@@ -336,8 +333,12 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
           od_ec_encode_bool_q15( &enc->ec , mvp->valid, 32000 ); 
           if ( mvp->valid )
           {
-            od_ec_enc_uint( &enc->ec , mvp->mv[0] + width+32,  2*(width+32)  ); 
-            od_ec_enc_uint( &enc->ec , mvp->mv[1] + height+32, 2*(height+32) ); 
+            OD_ASSERT( mvp->mv[0] <  8*(width+32) );
+            OD_ASSERT( mvp->mv[0] > -8*(width+32) );
+            OD_ASSERT( mvp->mv[1] <  8*(height+32) );
+            OD_ASSERT( mvp->mv[1] > -8*(height+32) );
+            od_ec_enc_uint( &enc->ec , mvp->mv[0] + 8*(width+32),  8*2*(width+32)  ); 
+            od_ec_enc_uint( &enc->ec , mvp->mv[1] + 8*(height+32), 8*2*(height+32) ); 
           }
           /* TODO CJ */
         }
@@ -380,11 +381,11 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     int w;
     int y;
     int x;
-    int doIntra; /* true if doing an intra coded frame */
+    int isKeyframe; /* true if doing an intra coded frame */
 
     /* CJ - TODO - need better way to set doIntra */
-    doIntra = ( enc->state.cur_time % 16 == 0) ? 0 : 1;
-    fprintf( stderr,"FLUFFY doIntra = %d \n", doIntra );
+    isKeyframe = ( enc->state.cur_time % 16 == 0) ? 1 : 0;
+    fprintf( stderr,"FLUFFY isKeyframe = %d \n", isKeyframe );
         
     nhmbs = enc->state.nhmbs;
     nvmbs = enc->state.nvmbs;
@@ -504,7 +505,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
           for (y = iyfill >> ydec; y < next_iyfill >> ydec; y++) {
             for (x = ixfill >> xdec; x < next_ixfill >> xdec; x++) {
               c[y*w + x] = data[ystride*y + x] - 128;
-              if (doIntra)
+              if (!isKeyframe)
                 mc[y*w + x] = mdata[ystride*y + x] - 128;
             }
           }
@@ -516,7 +517,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
               for (y = 0; y < 4; y++) p[y] = c[((by << 2) + y + 2)*w + x];
               od_pre_filter4(p, p);
               for (y = 0; y < 4; y++) c[((by << 2) + y + 2)*w + x] = p[y];
-              if ( doIntra ) {
+              if ( !isKeyframe ) {
                 for (y = 0; y < 4; y++) p[y] = mc[((by << 2) + y + 2)*w + x];
                 od_pre_filter4(p, p);
                 for (y = 0; y < 4; y++) mc[((by << 2) + y + 2)*w + x] = p[y];
@@ -528,7 +529,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
             for (bx = mbx << (2 - xdec); bx < ((mbx + 1) << (2 - xdec))
              - ((mbx + 1) >= nhmbs); bx++) {
               od_pre_filter4(c + y*w + (bx << 2) + 2, c + y*w + (bx << 2) + 2);
-              if ( doIntra ) od_pre_filter4(mc + y*w + (bx << 2) + 2, mc + y*w + (bx << 2) + 2);
+              if ( !isKeyframe ) od_pre_filter4(mc + y*w + (bx << 2) + 2, mc + y*w + (bx << 2) + 2);
             }
           }
           nk = k_total = sum_ex_total_q8 = 0;
@@ -552,7 +553,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
               /*fDCT a 4x4 block.*/
               od_bin_fdct4x4(d + (by << 2)*w + (bx << 2), w,
                c + (by << 2)*w + (bx << 2), w);
-              if (doIntra) {
+              if (!isKeyframe) {
                 od_bin_fdct4x4(md + (by << 2)*w + (bx << 2), w,
                                mc + (by << 2)*w + (bx << 2), w);
               }
@@ -624,6 +625,17 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
                 else if (by > 0) pred[0] = d[((by - 1) << 2)*w + (bx << 2)];
                 if (pli == 0) modes[by*(w >> 2) + bx] = 0;
               }
+              if ( !isKeyframe )
+              {
+                int x;
+                int y;
+                int i;
+                i = 0;
+                for( y=0; y<4; y++ )
+                  for( x=0; x<4; x++ )
+                    pred[i++] = d[ (y << 2)*w + (x << 2) ];
+              }
+              
               /*Zig-zag*/
               for (y = 0; y < 4; y++) {
                 for (x = 0; x < 4; x++) {
