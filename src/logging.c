@@ -191,13 +191,12 @@ int od_log(od_log_facility fac, od_log_level level, const char *fmt, ...) {
 
 int od_log_partial(od_log_facility fac, od_log_level level, const char *fmt, ...) {
   va_list ap;
-  int rv;
 
   va_start(ap, fmt);
-  vfprintf(stderr, fmt, ap);
+  (void)vfprintf(stderr, fmt, ap);
   va_end(ap);
 
-  return rv;
+  return 0;
 }
 
     
