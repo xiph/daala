@@ -58,6 +58,7 @@ CFLAGS := -DOD_ENABLE_ASSERTIONS $(CFLAGS)
 #CFLAGS := -DOD_CHECKASM $(CFLAGS)
 #CFLAGS := -DOD_DUMP_IMAGES $(CFLAGS)
 #CFLAGS := -DOD_ANIMATE $(CFLAGS)
+#CFLAGS := -DOD_LOGGING_ENABLED $(CFLAGS)
 CFLAGS := -fPIC $(CFLAGS)
 CFLAGS := -std=c89 -pedantic $(CFLAGS)
 CFLAGS := -fvisibility=hidden $(CFLAGS)
@@ -119,6 +120,9 @@ $(if $(findstring -DOD_X86ASM,${CFLAGS}), \
 x86/cpu.c \
 x86/sse2mc.c \
 x86/x86state.c \
+) \
+$(if $(findstring -DOD_LOGGING_ENABLED,${CFLAGS}), \
+logging.c \
 )
 
 LIBDAALABASE_CHEADERS = \
@@ -159,7 +163,12 @@ ENCODER_EXAMPLE_CSOURCES = encoder_example.c
 PLAYER_EXAMPLE_CSOURCES = player_example.c
 
 ECTEST_CSOURCES = tests/ectest.c
-TEST_COEF_CODER_CSOURCES = tests/test_coef_coder.c
+TEST_COEF_CODER_CSOURCES = \
+tests/test_coef_coder.c \
+$(if $(findstring -DOD_LOGGING_ENABLED,${CFLAGS}), \
+logging.c \
+)
+
 LOGGING_TEST_CSOURCES=tests/logging_test.c
 TEST_CHECK_INITIAL_CSOURCES = tests/check_initial.c
 

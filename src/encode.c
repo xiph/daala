@@ -217,6 +217,48 @@ static void od_img_plane_copy_pad8(od_img_plane *dst_p,
   }
 }
 
+/*Extend the edge into the padding.*/
+static void od_img_plane_edge_ext8(od_img_plane *dst_p,
+ int plane_width, int plane_height, int horz_padding, int vert_padding) {
+  ptrdiff_t dstride;
+  unsigned char *dst_data;
+  unsigned char *dst;
+  int x;
+  int y;
+  dstride = dst_p->ystride;
+  dst_data = dst_p->data;
+  /*Left side.*/
+  for (y = 0; y < plane_height; y++) {
+    dst = dst_data + dstride * y;
+    for (x = 1; x <= horz_padding; x++) {
+      (dst-x)[0] = dst[0];
+    }
+  }
+  /*Right side.*/
+  for (y = 0; y < plane_height; y++) {
+    dst = dst_data + plane_width - 1 + dstride * y;
+    for (x = 1; x <= horz_padding; x++) {
+      dst[x] = dst[0];
+    }
+  }
+  /*Top.*/
+  dst = dst_data - horz_padding;
+  for (y = 0; y < vert_padding; y++) {
+    for (x = 0; x < plane_width + 2 * horz_padding; x++) {
+      (dst - dstride)[x] = dst[x];
+    }
+    dst -= dstride;
+  }
+  /*Bottom.*/
+  dst = dst_data - horz_padding + plane_height * dstride;
+  for (y = 0; y < vert_padding; y++) {
+    for (x = 0; x < plane_width + 2 * horz_padding; x++) {
+      dst[x] = (dst - dstride)[x];
+    }
+    dst += dstride;
+  }
+}
+
 static double mode_bits = 0;
 static double mode_count = 0;
 
@@ -287,10 +329,28 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     od_img_plane_copy_pad8(enc->state.io_imgs[OD_FRAME_INPUT].planes + pli,
      frame_width >> plane.xdec, frame_height >> plane.ydec,
      &plane, plane_x, plane_y, plane_width, plane_height);
+    od_img_plane_edge_ext8(enc->state.io_imgs[OD_FRAME_INPUT].planes + pli,
+     frame_width >> plane.xdec, frame_height >> plane.ydec,
+     OD_UMV_PADDING >> plane.xdec, OD_UMV_PADDING >> plane.ydec);
   }
+#if defined(OD_DUMP_IMAGES)
+  if (od_logging_active(OD_LOG_GENERIC, OD_LOG_DEBUG)) {
+    daala_info *info;
+    od_img img;
+    info=&enc->state.info;
+    /*Modify the image offsets to include the padding.*/
+    *&img=*(enc->state.io_imgs+OD_FRAME_INPUT);
+    for (pli = 0; pli < nplanes; pli++) {
+      img.planes[pli].data -= (OD_UMV_PADDING>>info->plane_info[pli].xdec)
+       +img.planes[pli].ystride*(OD_UMV_PADDING>>info->plane_info[pli].ydec);
+    }
+    img.width+=OD_UMV_PADDING<<1;
+    img.height+=OD_UMV_PADDING<<1;
+    od_state_dump_img(&enc->state, &img, "pad");
+  }
+#endif
   /*Initialize the entropy coder.*/
   od_ec_enc_reset(&enc->ec);
-
   /*set the top row and the left most column to three*/
   for(i = 0; i < (nhsb+1)*4; i++) {
     for(j = 0; j < 4; j++) {
