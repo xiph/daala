@@ -638,6 +638,8 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
 #if 1
               quant_pvq(cblock + 1, predt + 1, pvq_scale, pred + 1, 15, scale,
                &qg);
+              for (zzi = 1; zzi < 16; zzi++) cblock[zzi] = pred[zzi];
+              dequant_pvq(cblock + 1, predt + 1, pvq_scale, 15, scale, qg);
               generic_encode(&enc->ec, model_g + pli, abs(qg), ex_g + pli, 0);
               if (qg) od_ec_enc_bits(&enc->ec, qg < 0, 1);
               vk = 0;
