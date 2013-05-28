@@ -1,3 +1,4 @@
+Makefile
 Makefile.in
 aclocal.m4
 config.cache
@@ -55,9 +56,12 @@ m4/ltsugar.m4
 m4/ltversion.m4
 m4/lt~obsolete.m4
 package_version
+examples/Makefile
 examples/dump_video
 examples/encoder_example
 examples/player_example
+include/Makefile
+src/Makefile
 tools/block_size_analysis
 tools/dump_psnrhvs
 tools/gen_cdf
