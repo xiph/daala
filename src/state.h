@@ -60,7 +60,7 @@ extern const int *const OD_VERT_SETUP_DY[4][4];
 
 
 /*This should be a power of 2, and at least 8.*/
-#define OD_UMV_PADDING (16)
+#define OD_UMV_PADDING (32)
 
 
 
