@@ -104,6 +104,10 @@ struct od_state{
   int                 nhmbs;
   /** number of vertical macro blocks. */
   int                 nvmbs;
+  int                 nhsb;
+  int                 nvsb;
+  char               *bsize;
+  int                 bstride;
 #if defined(OD_DUMP_IMAGES)
   od_img              vis_img;
 #if defined(OD_ANIMATE)

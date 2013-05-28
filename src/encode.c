@@ -34,6 +34,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "intra.h"
 #include "pvq.h"
 #include "pvq_code.h"
+#include "block_size.h"
+#include "logging.h"
 #if OD_DECODE_IN_ENCODE
 # include "decint.h"
 #endif
@@ -228,6 +230,13 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   int pic_y;
   int pic_width;
   int pic_height;
+  int i;
+  int j;
+  int k;
+  int m;
+  BlockSizeComp *bs;
+  int nhsb;
+  int nvsb;
   if (enc == NULL || img == NULL) return OD_EFAULT;
   if (enc->packet_state == OD_PACKET_DONE) return OD_EINVAL;
   /*Check the input image dimensions to make sure they're compatible with the
@@ -246,6 +255,8 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   pic_y = enc->state.info.pic_y;
   pic_width = enc->state.info.pic_width;
   pic_height = enc->state.info.pic_height;
+  nhsb = enc->state.nhsb;
+  nvsb = enc->state.nvsb;
   if (img->width != frame_width || img->height != frame_height) {
     /*The buffer does not match the frame size.
       Check to see if it matches the picture size.*/
@@ -276,6 +287,46 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
      frame_width >> plane.xdec, frame_height >> plane.ydec,
      &plane, plane_x, plane_y, plane_width, plane_height);
   }
+  /*set the top row and the left most column to three*/
+  for(i = 0; i < (nhsb+1)*4; i++) {
+    for(j = 0; j < 4; j++) {
+      enc->state.bsize[(j*enc->state.bstride) + i] = 3;
+    }
+  }
+  for(j = 0; j < (nvsb+1)*4; j++) {
+    for(i = 0; i < 4; i++) {
+      enc->state.bsize[(j*enc->state.bstride) + i] = 3;
+    }
+  }
+
+  /* Allocate a blockSizeComp for scratch space and then calculate the block sizes
+     eventually store them in bsize. */
+  bs = _ogg_malloc(sizeof(BlockSizeComp));
+  for(i = 1; i < nvsb + 1; i++) {
+    unsigned char *img = enc->state.io_imgs[OD_FRAME_INPUT].planes[0].data;
+    int istride = enc->state.io_imgs[OD_FRAME_INPUT].planes[0].ystride;
+    for(j = 1; j < nhsb + 1; j++) {
+      int bsize[4][4];
+      process_block_size32(bs, img + i*istride*32 + j*32,
+          img + i*istride*32 + j*32, istride, bsize);
+      /* Grab the 4x4 information returned from process_block_size32 in bsize
+         and store it in the od_state bsize. */
+      for(k = 0; k < 4; k++) {
+        for(m = 0; m < 4; m++) {
+          enc->state.bsize[((i*4 + k)*enc->state.bstride) + j*4 + m] =
+              bsize[k][m];
+        }
+      }
+    }
+  }
+  for(i = 0; i < (nvsb + 1)*4; i++) {
+    for(j = 0; j < (nhsb + 1)*4; j++) {
+      OD_LOG((OD_LOG_GENERIC, OD_LOG_INFO, "%d ", enc->state.bsize[i*enc->state.bstride + j]));
+    }
+    OD_LOG((OD_LOG_GENERIC, OD_LOG_INFO, "\n"));
+  }
+
+  _ogg_free(bs);
   /*Initialize the entropy coder.*/
   od_ec_enc_reset(&enc->ec);
   /*Update the buffer state.*/
