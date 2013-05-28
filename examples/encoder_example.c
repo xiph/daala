@@ -28,11 +28,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <string.h>
 #include <time.h>
 #include <getopt.h>
+#include "../src/logging.h"
 #include "../include/daala/daalaenc.h"
 #if defined(_WIN32)
 # include <fcntl.h>
 # include <io.h>
-
+#endif
+#if defined(_MSC_VER)
 static double rint(double _x){
   return (int)(_x<0?_x-0.5:_x+0.5);
 }
@@ -412,6 +414,7 @@ int main(int _argc,char **_argv){
   int               video_q;
   int               video_r;
   int               video_ready;
+  od_log_init(NULL);
 #if defined(_WIN32)
   _setmode(_fileno(stdin),_O_BINARY);
   _setmode(_fileno(stdout),_O_BINARY);

@@ -87,18 +87,28 @@ struct od_state{
   od_state_opt_vtbl   opt_vtbl;
   ogg_uint32_t        cpu_flags;
   od_img              input;
-  int                 ref_imgi[4]; /* buffer for the 4 ref images  - at double
-                                    * resolutions */
-  od_img              ref_imgs[4]; /* pointers to the ref images so one can
-                                      move them around without coping them  */
-  od_img              io_imgs[2];  /* pointer to input and output image */
+  /** Buffer for the 4 ref images. */
+  int                 ref_imgi[4];
+  /** Pointers to the ref images so one can move them around without coping
+      them. */
+  od_img              ref_imgs[4];
+  /** Pointer to input and output image. */
+  od_img              io_imgs[2];
   unsigned char      *ref_line_buf[8];
   unsigned char      *ref_img_data;
-  ogg_int64_t         cur_time; /* increments by 1 for each frame */
+  /** Increments by 1 for each frame. */
+  ogg_int64_t         cur_time;
   od_mv_grid_pt     **mv_grid;
   od_adapt_row_ctx    adapt_row[OD_NPLANES_MAX];
-  int                 nhmbs; /* number of horizontal macro blocks */
-  int                 nvmbs; /* number of vertical macro blocks */
+  /** number of horizontal macro blocks. */
+  int                 nhmbs;
+  /** number of vertical macro blocks. */
+  int                 nvmbs;
+  int                 nhsb;
+  int                 nvsb;
+  char               *bsize;
+  int                 bstride;
+
 #if defined(OD_DUMP_IMAGES)
   od_img              vis_img;
 #if defined(OD_ANIMATE)

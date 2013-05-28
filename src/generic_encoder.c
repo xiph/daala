@@ -27,6 +27,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "generic_code.h"
 #include "entenc.h"
 #include "entdec.h"
+#include "logging.h"
 #include "odintrin.h"
 #include "pvq_code.h"
 
@@ -67,7 +68,8 @@ void generic_encode(od_ec_enc *enc, GenericEncoder *model, int x, int *ExQ16, in
 
   lgQ1=logEx(*ExQ16);
 
-  /*printf("%d %d\n", *ExQ16, lgQ1);*/
+  OD_LOG((OD_LOG_ENTROPY_CODER, OD_LOG_DEBUG,
+          "%d %d", *ExQ16, lgQ1));
   /* If expectation is too large, shift x to ensure that
      all we have past xs=15 is the exponentially decaying tail
      of the distribution */
@@ -102,7 +104,8 @@ void generic_encode(od_ec_enc *enc, GenericEncoder *model, int x, int *ExQ16, in
   }
 
   generic_model_update(model,ExQ16,x,xs,id,integration);
-  /*printf("enc: %d %d %d %d %d %x\n", *ExQ4, x, shift, id, xs, enc->rng);*/
+  OD_LOG((OD_LOG_ENTROPY_CODER, OD_LOG_DEBUG,
+          "enc: %d %d %d %d %d %x", *ExQ16, x, shift, id, xs, enc->rng));
 }
 
 

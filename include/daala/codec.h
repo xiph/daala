@@ -131,22 +131,26 @@ const char *daala_version_string(void);
 
 struct od_img_plane {
   unsigned char *data;
-  unsigned char xdec; /* The decimation factor in x direction. Pixesl are
-                       reduced by a factor of 2^xdec so  0 is none, 1 is
-                       decimated by a factor of 2. ( YUV420 will have xdec of 1
-                       and ydec also of 1. YUV444 will have xdec and ydec set
-                       to zero ) */
+  /** The decimation factor in x direction. Pixesl are reduced by a factor of
+      2^xdec so  0 is none, 1 is decimated by a factor of 2. ( YUV420 will
+      have xdec of 1 and ydec also of 1. YUV444 will have xdec and ydec set to
+      zero ). */
+  unsigned char xdec;
   unsigned char ydec;
-   int xstride; /* distance in memory between two pixels horizontally next to each other in (is always 1 in encoder) */
-   int ystride; /* distance in memory between two pixels vertically next to each other  */
+  /** Distance in memory between two pixels horizontally next to each other in
+      (is always 1 in encoder). */
+  int xstride;
+  /** Distance in memory between two pixels vertically next to each other. */
+  int ystride;
 };
 
 struct od_img {
-  od_img_plane planes[OD_NPLANES_MAX]; /* typical 3 planes for Y, Cb, and
-                                          Cr. Can have a 4th plane for alpha */
-  int nplanes; /* number of planes (1 for greyscale, 3 for YCbCr, 4 for
-                  YCbCr+Alpha ) */
-  ogg_int32_t width; /* width and height in pixels */
+  /** Typical 3 planes for Y, Cb, and  Cr. Can have a 4th plane for alpha */
+  od_img_plane planes[OD_NPLANES_MAX];
+  /** Number of planes (1 for greyscale, 3 for YCbCr, 4 for YCbCr+Alpha ) */
+  int nplanes;
+  /** Width and height in pixels */
+  ogg_int32_t width;
   ogg_int32_t height;
 };
 
@@ -161,7 +165,8 @@ struct daala_info {
   unsigned char version_sub;
   ogg_int32_t frame_width;
   ogg_int32_t frame_height;
-  ogg_int32_t pic_x; /* pic_x,_y,_width,_height form a region of interest to encode */
+  /** pic_x,_y,_width,_height form a region of interest to encode */
+  ogg_int32_t pic_x;
   ogg_int32_t pic_y;
   ogg_int32_t pic_width;
   ogg_int32_t pic_height;

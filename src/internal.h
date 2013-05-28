@@ -30,6 +30,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 # if defined(_MSC_VER)
 #  pragma warning(disable:4554 4799)
+#  define _USE_MATH_DEFINES
 # elif OD_GNUC_PREREQ(4,2)
 #  pragma GCC diagnostic ignored "-Wparentheses"
 #  pragma GCC diagnostic ignored "-Wlong-long"

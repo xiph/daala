@@ -110,7 +110,7 @@ static void usage(const char *_argv0){
    "  i.e. file-%%05d.png to look for files file00001.png to file99999.png.\n\n"
    "Options: \n\n"
    "  -h --help                       Display this help and exit.\n"
-   "  -o --output <filename.y4m>      Output file name (required).\n"
+   "  -o --output <filename.png>      Output file name (required).\n"
    "                                  This uses a C printf format string to\n"
    "                                  represent a list of files, i.e.\n"
    "                                  file%%05d to write files file00001.png\n"

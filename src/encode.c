@@ -34,8 +34,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "filter.h"
 #include "dct.h"
 #include "intra.h"
+#include "logging.h"
 #include "pvq.h"
 #include "pvq_code.h"
+#include "block_size.h"
+#include "logging.h"
 #if OD_DECODE_IN_ENCODE
 # include "decint.h"
 #endif
@@ -231,6 +234,13 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   int pic_y;
   int pic_width;
   int pic_height;
+  int i;
+  int j;
+  int k;
+  int m;
+  BlockSizeComp *bs;
+  int nhsb;
+  int nvsb;
 
   if (enc == NULL || img == NULL) return OD_EFAULT;
   if (enc->packet_state == OD_PACKET_DONE) return OD_EINVAL;
@@ -250,6 +260,8 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   pic_y = enc->state.info.pic_y;
   pic_width = enc->state.info.pic_width;
   pic_height = enc->state.info.pic_height;
+  nhsb = enc->state.nhsb;
+  nvsb = enc->state.nvsb;
   if (img->width != frame_width || img->height != frame_height) {
     /*The buffer does not match the frame size.
       Check to see if it matches the picture size.*/
@@ -280,6 +292,46 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
      frame_width >> plane.xdec, frame_height >> plane.ydec,
      &plane, plane_x, plane_y, plane_width, plane_height);
   }
+  /*set the top row and the left most column to three*/
+  for(i = 0; i < (nhsb+1)*4; i++) {
+    for(j = 0; j < 4; j++) {
+      enc->state.bsize[(j*enc->state.bstride) + i] = 3;
+    }
+  }
+  for(j = 0; j < (nvsb+1)*4; j++) {
+    for(i = 0; i < 4; i++) {
+      enc->state.bsize[(j*enc->state.bstride) + i] = 3;
+    }
+  }
+
+  /* Allocate a blockSizeComp for scratch space and then calculate the block sizes
+     eventually store them in bsize. */
+  bs = _ogg_malloc(sizeof(BlockSizeComp));
+  for(i = 1; i < nvsb + 1; i++) {
+    unsigned char *img = enc->state.io_imgs[OD_FRAME_INPUT].planes[0].data;
+    int istride = enc->state.io_imgs[OD_FRAME_INPUT].planes[0].ystride;
+    for(j = 1; j < nhsb + 1; j++) {
+      int bsize[4][4];
+      process_block_size32(bs, img + i*istride*32 + j*32,
+          img + i*istride*32 + j*32, istride, bsize);
+      /* Grab the 4x4 information returned from process_block_size32 in bsize
+         and store it in the od_state bsize. */
+      for(k = 0; k < 4; k++) {
+        for(m = 0; m < 4; m++) {
+          enc->state.bsize[((i*4 + k)*enc->state.bstride) + j*4 + m] =
+              bsize[k][m];
+        }
+      }
+    }
+  }
+  for(i = 0; i < (nvsb + 1)*4; i++) {
+    for(j = 0; j < (nhsb + 1)*4; j++) {
+      OD_LOG((OD_LOG_GENERIC, OD_LOG_INFO, "%d ", enc->state.bsize[i*enc->state.bstride + j]));
+    }
+    OD_LOG((OD_LOG_GENERIC, OD_LOG_INFO, "\n"));
+  }
+
+  _ogg_free(bs);
   /*Initialize the entropy coder.*/
   od_ec_enc_reset(&enc->ec);
   /*Update the buffer state.*/
@@ -305,8 +357,8 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
 #if defined(OD_DUMP_IMAGES) && defined(OD_ANIMATE)
     enc->state.ani_iter = 0;
 #endif
-    fprintf(stderr, "Predicting frame %i:\n",
-     (int)daala_granule_basetime(enc, enc->state.cur_time));
+    OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO, "Predicting frame %i:",
+            (int)daala_granule_basetime(enc, enc->state.cur_time)));
 #if 1
     od_mv_est(enc->mvest, OD_FRAME_PREV, 452/*118*/);
     /* output the motion vectors */
@@ -864,9 +916,10 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
           qdiff = (((diff - pred_diff) + ((diff - pred_diff) >> 31)
            + (5 + err_accum))/10)*10 + pred_diff;
           /*qdiff = (OD_DIV_ROUND_POW2(diff - pred_diff, 3, 4 + err_accum) << 3)
-           + pred_diff;*/
-          /*fprintf(stderr,"d-p_d: %3i  e_a: %3i  qd-p_d: %3i  e_a: %i\n",
-           diff - pred_diff, err_accum, qdiff - pred_diff, diff - qdiff);*/
+            + pred_diff;*/
+          OD_LOG((OD_LOG_ENCODER, OD_LOG_DEBUG,
+                  "d-p_d: %3i  e_a: %3i  qd-p_d: %3i  e_a: %i",
+                  diff - pred_diff, err_accum, qdiff - pred_diff, diff - qdiff));
           err_accum += diff - qdiff;
           rec_row[x] = OD_CLAMP255(rec_val + qdiff);
         }
@@ -880,20 +933,26 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       enc->state.ref_line_buf[0] = enc->state.ref_line_buf[1];
       enc->state.ref_line_buf[1] = prev_rec_row;
     }
-    /*printf("Bytes: %d  ex_dc: %d ex_g: %d ex_k: %d\n",
-      (od_ec_enc_tell(&enc->ec) + 7) >> 3, ex_dc, ex_g, ex_k);*/
+    /* Commented out because these variables don't seem to exist.
+       
+       TODO: re-add this?
+
+    OD_LOG((OD_LOG_ENCODER, OD_LOG_DEBUG,
+            "Bytes: %d  ex_dc: %d ex_g: %d ex_k: %d",
+            (od_ec_enc_tell(&enc->ec) + 7) >> 3, ex_dc, ex_g, ex_k));*/
     if (enc->state.ref_imgi[OD_FRAME_PREV] >= 0) {
-      fprintf(stderr,
-       "Plane %i, Squared Error: %12lli  Pixels: %6u  PSNR:  %5.2f\n",
-       pli, (long long)mc_sqerr, npixels,
-       10*log10(255*255.0*npixels/mc_sqerr));
+      OD_LOG((OD_LOG_ENCODER, OD_LOG_DEBUG,
+              "Plane %i, Squared Error: %12lli  Pixels: %6u  PSNR:  %5.2f",
+              pli, (long long)mc_sqerr, npixels,
+              10*log10(255*255.0*npixels/mc_sqerr)));
     }
-    fprintf(stderr,
-     "Encoded Plane %i, Squared Error: %12lli  Pixels: %6u  PSNR:  %5.2f\n",
-     pli,(long long)enc_sqerr,npixels,10*log10(255*255.0*npixels/enc_sqerr));
+    OD_LOG((OD_LOG_ENCODER, OD_LOG_DEBUG,
+            "Encoded Plane %i, Squared Error: %12lli  Pixels: %6u  PSNR:  %5.2f",
+            pli,(long long)enc_sqerr,npixels,10*log10(255*255.0*npixels/enc_sqerr)));
   }
-  fprintf(stderr, "mode bits: %f/%f=%f\n", mode_bits, mode_count,
-   mode_bits/mode_count);
+  OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO,
+          "mode bits: %f/%f=%f", mode_bits, mode_count,
+          mode_bits/mode_count));
   enc->packet_state = OD_PACKET_READY;
   od_state_upsample8(&enc->state,
    enc->state.ref_imgs + enc->state.ref_imgi[OD_FRAME_SELF],
@@ -916,7 +975,7 @@ int daala_encode_packet_out(daala_enc_ctx *enc, int last, ogg_packet *op) {
   }
   op->packet = od_ec_enc_done(&enc->ec, &nbytes);
   op->bytes = nbytes;
-  fprintf(stderr, "Output Bytes: %ld\n", op->bytes);
+  OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO, "Output Bytes: %ld", op->bytes));
   op->b_o_s = 0;
   op->e_o_s = last;
   op->packetno = 0;
