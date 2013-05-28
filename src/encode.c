@@ -745,13 +745,12 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
                 i = 0;
                 for( y=0; y<4; y++ )
                   for( x=0; x<4; x++ )
-                    pred[i++] = d[ ( y + (by<<2) )*w + ( x + (bx<<2)) ];
+                    pred[i++] = md[ ( y + (by<<2) )*w + ( x + (bx<<2)) ];
               }
-              
+ 
               /*Zig-zag*/
               for (y = 0; y < 4; y++) {
                 for (x = 0; x < 4; x++) {
-                  d[((by << 2) + y)*w + (bx << 2) + x] =
                    cblock[OD_ZIG4[y*4 + x]] =
                    d[((by << 2) + y)*w + (bx << 2) + x];
                   predt[OD_ZIG4[y*4 + x]] = pred[y*4 + x];
