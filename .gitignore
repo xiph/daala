@@ -46,6 +46,10 @@ Build
 *.lo
 *.la
 *.a
+*.d
+*.y4m
+*.png
+*.ogg
 m4/libtool.m4
 m4/ltoptions.m4
 m4/ltsugar.m4
@@ -70,4 +74,3 @@ tools/png2y4m
 tools/trans
 tools/trans2d
 tools/y4m2png
-
