@@ -1,9 +1,6 @@
 # Makefile to generate the paper from its sources.
 # Requires transfig and pdflatex.
 
-# Alias some shell commands, so we might have a chance of running on non-Unix
-#  platforms some day.
-RM = rm -f
 
 PAPER_SRCS = mc.tex daala.bib
 
@@ -17,7 +14,14 @@ FIG_OBJS = $(FIG_SRCS:.fig=.pdf) \
 
 EXTRA_FIGS =
 
-all: mc.pdf
+noinst_DATA = mc.pdf
+
+CLEANFILES = \
+	mc.pdf \
+	mc.out mc.log mc.blg mc.bbl mc.aux \
+	blockidx.pdftex blockidx.pdftex_t \
+	vbunsplit.pdftex vbunsplit.pdftex_t \
+	mvpred.pdf 4-8sub.pdf
 
 mc.pdf : $(PAPER_SRCS) $(FIG_OBJS) $(EXTRA_FIGS) mc.bbl
 	pdflatex mc
@@ -42,27 +46,5 @@ figures : $(FIG_OBJS)
 %.pdftex_t : %.fig
 	fig2dev -L pdftex_t -p $(<:.fig=.pdftex) $< $@
 
-.PHONY: all figures clean distclean maintainer-clean
-
-# clean targets
-clean:
-	-$(RM) mc.pdf
-	-$(RM) $(FIG_OBJS)
-	-$(RM) $(FIG_AUXS)
-	-$(RM) mc.aux
-	-$(RM) mc.log
-	-$(RM) mc.lof
-	-$(RM) mc.lot
-	-$(RM) mc.out
-	-$(RM) mc.bbl
-	-$(RM) mc.blg
-	-$(RM) mc.toc
-
-distclean: clean
-
-maintainer-clean: distclean
-
-maintainerclean: maintainer-clean
-
-distdir:
+.PHONY: figures
 
