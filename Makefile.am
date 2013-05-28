@@ -1,10 +1,10 @@
 
-SUBDIRS = src examples include
+SUBDIRS = src examples include tools
 if ENABLE_DOCS
 #SUBDIRS += doc
 endif
 
-DIST_SUBDIRS = src examples include
+DIST_SUBDIRS = src examples include tools
 #DIST_SUBDIRS += doc
 
 ACLOCAL_AMFLAGS = -I m4

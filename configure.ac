@@ -70,6 +70,8 @@ AS_IF([test "$enable_assertions" = "yes"], [
 
 PKG_CHECK_MODULES([OGG], [ogg >= 1.3])
 PKG_CHECK_MODULES([SDL], [sdl])
+PKG_CHECK_MODULES([PNG], [libpng12])
+PKG_CHECK_MODULES([THEORA], [theoradec])
 
 #CC_ATTRIBUTE_VISIBILITY([default], [
 #  CC_FLAG_VISIBILITY([CFLAGS="${CFLAGS} -fvisibility=hidden"])
@@ -114,6 +116,7 @@ AC_CONFIG_FILES([
   src/Makefile
   examples/Makefile
   include/Makefile
+  tools/Makefile
 ])
 AC_OUTPUT
 

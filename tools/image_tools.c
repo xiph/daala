@@ -28,6 +28,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "od_intra.h"
 #include "image_tools.h"
 #include "../src/dct.h"
+#include <stdlib.h>
 
 od_rgba16_pixel COLORS[OD_INTRA_NMODES];
 
