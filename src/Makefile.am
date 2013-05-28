@@ -22,7 +22,10 @@ noinst_HEADERS = \
 	tf.h
 
 libdaalabase_la_CFLAGS = $(OGG_CFLAGS)
-libdaalabase_la_LIBADD = $(DEPS_LIBS)
+libdaalabase_la_LIBADD = $(OGG_LIBS)
+if DUMP_IMAGES
+  libdaalabase_la_LIBADD += $(PNG_LIBS)
+endif
 libdaalabase_la_LDFLAGS = -no-undefined \
  -version-info @OP_LT_CURRENT@:@OP_LT_REVISION@:@OP_LT_AGE@
 libdaalabase_la_SOURCES = \
@@ -59,6 +62,9 @@ endif
 
 libdaaladec_la_CFLAGS = $(OGG_CFLAGS)
 libdaaladec_la_LIBADD = libdaalabase.la $(OGG_LIBS)
+if DUMP_IMAGES
+  libdaaladec_la_LIBADD += $(PNG_LIBS)
+endif
 libdaaladec_la_LDFLAGS = -no-undefined \
  -version-info @OP_LT_CURRENT@:@OP_LT_REVISION@:@OP_LT_AGE@
 libdaaladec_la_SOURCES = \
@@ -66,6 +72,9 @@ libdaaladec_la_SOURCES = \
 
 libdaalaenc_la_CFLAGS = $(OGG_CFLAGS)
 libdaalaenc_la_LIBADD = libdaalabase.la $(OGG_LIBS)
+if DUMP_IMAGES
+  libdaalaenc_la_LIBADD += $(PNG_LIBS)
+endif
 libdaalaenc_la_LDFLAGS = -no-undefined \
  -version-info @OP_LT_CURRENT@:@OP_LT_REVISION@:@OP_LT_AGE@
 libdaalaenc_la_SOURCES = \
@@ -73,5 +82,3 @@ libdaalaenc_la_SOURCES = \
 	decode.c \
 	infoenc.c \
 	mcenc.c
-
-

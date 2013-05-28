@@ -100,8 +100,16 @@ AM_CONDITIONAL(ENABLE_X86ASM, [test yes = yes])
 
 AM_CONDITIONAL(ENABLE_DOCS, [test $enable_doc = yes])
 
-AC_DEFINE([OP_ENABLE_ASSERTIONS], [1], [Enable assertions in code])
+AC_DEFINE([OD_ENABLE_ASSERTIONS], [1], [Enable assertions in code])
 AC_DEFINE([OD_LOGGING_ENABLED], [1], [Enable logging])
+
+AC_ARG_ENABLE([dump-images],
+  AS_HELP_STRING([--disable-dump-images], [Do not dump debugging images]),,
+  [enable_dump_images=yes])
+AS_IF([test x$enable_dump_images = xyes], [
+  AC_DEFINE([OD_DUMP_IMAGES], [1], [Enable image dumping])
+])
+AM_CONDITIONAL([DUMP_IMAGES], [test x$enable_dump_images = xyes])
 
 DAALA_DEC_LIBS="\$(top_builddir)/src/libdaaladec.la \$(top_builddir)/src/libdaalabase.la -lm"
 AC_SUBST(DAALA_DEC_LIBS)
