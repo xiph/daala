@@ -161,7 +161,7 @@ void od_mc_predict1imv8_c(unsigned char *dst, int dystride,
       OD_LOG_PARTIAL((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG,
                       "%2X ", *(dst + i + j*dystride)));
     }
-    OD_LOG((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG, " "));
+    OD_LOG_PARTIAL((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG, "\n"));
   }
 }
 

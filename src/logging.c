@@ -194,7 +194,7 @@ int od_log_partial(od_log_facility fac, od_log_level level, const char *fmt, ...
   int rv;
 
   va_start(ap, fmt);
-  rv = od_log_impl(fac, level, OD_LOG_FLAG_PARTIAL, fmt, ap);
+  vfprintf(stderr, fmt, ap);
   va_end(ap);
 
   return rv;

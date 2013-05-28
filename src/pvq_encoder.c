@@ -69,7 +69,7 @@ void laplace_encode_special(od_ec_enc *enc,int x,unsigned decay,int max)
       for (i=0;i<16;i++) {
         OD_LOG_PARTIAL((OD_LOG_PVQ, OD_LOG_DEBUG, "%d ", cdf[i]));
       }
-      OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, " "));
+      OD_LOG_PARTIAL((OD_LOG_PVQ, OD_LOG_DEBUG, "\n"));
     }
     if (ms>0 && ms<15){
       /* Simple way of truncating the pdf when we have a bound */

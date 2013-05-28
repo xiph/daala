@@ -491,7 +491,7 @@ int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
     for(i=0;i<N;i++) {
       OD_LOG_PARTIAL((OD_LOG_PVQ, OD_LOG_DEBUG, "%d ", y[i]));
     }
-    OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, " "));
+    OD_LOG_PARTIAL((OD_LOG_PVQ, OD_LOG_DEBUG, "\n"));
   }
 
   for(i=0;i<N;i++){
@@ -713,7 +713,7 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   for(i=0;i<N;i++) {
     OD_LOG_PARTIAL((OD_LOG_PVQ, OD_LOG_DEBUG, "%d ", (m==i)?0:y[i]));
   }
-
+  OD_LOG_PARTIAL((OD_LOG_PVQ, OD_LOG_DEBUG, "\n"));
   OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%d %d", K-y[m], N));
 
   /* Apply Householder reflection again to get the quantized coefficients */
@@ -1031,7 +1031,7 @@ int quant_scalar(ogg_int32_t *_x,const ogg_int32_t *_r,
       Kn--;
     }
   }
-  OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, " "));
+  OD_LOG_PARTIAL((OD_LOG_PVQ, OD_LOG_DEBUG, "\n"));
 #else
   if (K!=0) {
     float alpha;
