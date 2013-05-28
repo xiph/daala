@@ -220,6 +220,7 @@ static double mode_bits = 0;
 static double mode_count = 0;
 
 int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
+   
   int refi;
   int nplanes;
   int pli;
@@ -230,6 +231,10 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   int pic_y;
   int pic_width;
   int pic_height;
+
+  fprintf( stderr,"FLUFFY in daala_encode_img_in \n" );
+
+
   if (enc == NULL || img == NULL) return OD_EFAULT;
   if (enc->packet_state == OD_PACKET_DONE) return OD_EINVAL;
   /*Check the input image dimensions to make sure they're compatible with the
@@ -327,11 +332,11 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       for (vy = 0; vy < nvmvbs; vy += 4) {
         for (vx = 0; vx < nhmvbs; vx += 4) {
           mvp = &( enc->state.mv_grid[vy][vx] );
-          /* TODO - need to tune probabliliyt distibution on next line */
+          /* TODO - need to tune probability distribution on next line */
           od_ec_encode_bool_q15( &enc->ec , mvp->valid, 32000 ); 
           if ( mvp->valid )
           {
-            od_ec_enc_uint( &enc->ec , mvp->mv[0] + width+32, 2*(width+32) ); 
+            od_ec_enc_uint( &enc->ec , mvp->mv[0] + width+32,  2*(width+32)  ); 
             od_ec_enc_uint( &enc->ec , mvp->mv[1] + height+32, 2*(height+32) ); 
           }
           /* TODO CJ */
@@ -357,6 +362,8 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     int ex_g[OD_NPLANES_MAX];
     od_coeff *ctmp[OD_NPLANES_MAX];
     od_coeff *dtmp[OD_NPLANES_MAX];
+    od_coeff *mctmp[OD_NPLANES_MAX];
+    od_coeff *mdtmp[OD_NPLANES_MAX];
     od_coeff *ltmp[OD_NPLANES_MAX];
     od_coeff *lbuf[OD_NPLANES_MAX];
     signed char *modes;
@@ -373,6 +380,12 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     int w;
     int y;
     int x;
+    int doIntra; /* true if doing an intra coded frame */
+
+    /* CJ - TODO - need better way to set doIntra */
+    doIntra = ( enc->state.cur_time % 16 == 0) ? 0 : 1;
+    fprintf( stderr,"FLUFFY doIntra = %d \n", doIntra );
+        
     nhmbs = enc->state.nhmbs;
     nvmbs = enc->state.nvmbs;
     /*Initialize the data needed for each plane.*/
@@ -394,10 +407,11 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       od_ec_enc_uint(&enc->ec, scale, 512);
       ctmp[pli] = _ogg_calloc(w*h, sizeof(*ctmp[pli]));
       dtmp[pli] = _ogg_calloc(w*h, sizeof(*dtmp[pli]));
-      /*We predict chroma planes from the luma plane.
-        Since chroma can be subsampled, we cache subsampled versions of the
-         luma plane in the frequency domain.
-        We can share buffers with the same subsampling.*/
+      mctmp[pli] = _ogg_calloc(w*h, sizeof(*mctmp[pli]));
+      mdtmp[pli] = _ogg_calloc(w*h, sizeof(*mdtmp[pli]));
+      /*We predict chroma planes from the luma plane.  Since chroma can be
+        subsampled, we cache subsampled versions of the luma plane in the
+        frequency domain.  We can share buffers with the same subsampling.*/
       if (pli > 0) {
         int plj;
         if (xdec || ydec) {
@@ -445,8 +459,11 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
           od_adapt_ctx adapt;
           od_coeff *c;
           od_coeff *d;
+         od_coeff *mc;
+          od_coeff *md;
           od_coeff *l;
           unsigned char *data;
+          unsigned char *mdata;
           int ystride;
           int by;
           int bx;
@@ -458,6 +475,8 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
           int count_ex_total_q8;
           c = ctmp[pli];
           d = dtmp[pli];
+          mc = mctmp[pli];
+          md = mdtmp[pli];
           l = lbuf[pli];
           xdec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
           ydec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
@@ -478,10 +497,15 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
           }
           /*Collect the image data needed for this macro block.*/
           data = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].data;
+          mdata = enc->state.io_imgs[OD_FRAME_REC].planes[pli].data; /* CJ TODO
+                                                                      * - CHECK */
+          
           ystride = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ystride;
           for (y = iyfill >> ydec; y < next_iyfill >> ydec; y++) {
             for (x = ixfill >> xdec; x < next_ixfill >> xdec; x++) {
               c[y*w + x] = data[ystride*y + x] - 128;
+              if (doIntra)
+                mc[y*w + x] = mdata[ystride*y + x] - 128;
             }
           }
           /*Apply the prefilter across the bottom block edges.*/
@@ -492,6 +516,11 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
               for (y = 0; y < 4; y++) p[y] = c[((by << 2) + y + 2)*w + x];
               od_pre_filter4(p, p);
               for (y = 0; y < 4; y++) c[((by << 2) + y + 2)*w + x] = p[y];
+              if ( doIntra ) {
+                for (y = 0; y < 4; y++) p[y] = mc[((by << 2) + y + 2)*w + x];
+                od_pre_filter4(p, p);
+                for (y = 0; y < 4; y++) mc[((by << 2) + y + 2)*w + x] = p[y];
+              }
             }
           }
           /*Apply the prefilter across the right block edges.*/
@@ -499,6 +528,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
             for (bx = mbx << (2 - xdec); bx < ((mbx + 1) << (2 - xdec))
              - ((mbx + 1) >= nhmbs); bx++) {
               od_pre_filter4(c + y*w + (bx << 2) + 2, c + y*w + (bx << 2) + 2);
+              if ( doIntra ) od_pre_filter4(mc + y*w + (bx << 2) + 2, mc + y*w + (bx << 2) + 2);
             }
           }
           nk = k_total = sum_ex_total_q8 = 0;
@@ -522,6 +552,10 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
               /*fDCT a 4x4 block.*/
               od_bin_fdct4x4(d + (by << 2)*w + (bx << 2), w,
                c + (by << 2)*w + (bx << 2), w);
+              if (doIntra) {
+                od_bin_fdct4x4(md + (by << 2)*w + (bx << 2), w,
+                               mc + (by << 2)*w + (bx << 2), w);
+              }
               for (zzi = 0; zzi < 16; zzi++) pvq_scale[zzi] = 0;
               if (bx > 0 && by > 0) {
                 if (pli == 0) {
@@ -729,6 +763,8 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       _ogg_free(ltmp[pli]);
       _ogg_free(dtmp[pli]);
       _ogg_free(ctmp[pli]);
+      _ogg_free(mctmp[pli]);
+      _ogg_free(mdtmp[pli]);
     }
     _ogg_free(modes);
   }
