@@ -1,7 +1,7 @@
 
 SUBDIRS = src examples include
 if ENABLE_DOCS
-SUBDIRS += doc
+#SUBDIRS += doc
 endif
 
 DIST_SUBDIRS = src examples include
