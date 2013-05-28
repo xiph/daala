@@ -438,10 +438,9 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     int x;
     int is_keyframe; /* true if doing an intra coded frame */
  
-    /* CJ - TODO - need better way to set doIntra */
     is_keyframe = ( enc->state.cur_time % (enc->state.info.keyframe_rate) == 0) ? 1 : 0;
-    fprintf( stderr,"FLUFFY is_keyframe = %d \n", is_keyframe );
-        
+    OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO,"is_keyframe=%d",is_keyframe ));
+   
     nhmbs = enc->state.nhmbs;
     nvmbs = enc->state.nvmbs;
     /*Initialize the data needed for each plane.*/
