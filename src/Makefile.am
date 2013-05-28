@@ -21,6 +21,7 @@ noinst_HEADERS = \
 	state.h \
 	tf.h
 
+libdaalabase_la_CFLAGS = $(OGG_CFLAGS)
 libdaalabase_la_LIBADD = $(DEPS_LIBS)
 libdaalabase_la_LDFLAGS = -no-undefined \
  -version-info @OP_LT_CURRENT@:@OP_LT_REVISION@:@OP_LT_AGE@
@@ -42,6 +43,7 @@ libdaalabase_la_SOURCES = \
 	mc.c \
 	newdct.c \
 	pvq.c \
+	pvq_decoder.c \
 	pvq_encoder.c \
 	state.c \
 	tf.c
@@ -54,19 +56,20 @@ libdaalabase_la_SOURCES += \
 	x86/x86state.c
 endif
 
-libdaaladec_la_LIBADD = libdaalabase.la $(DEPS_LIBS)
+libdaaladec_la_CFLAGS = $(OGG_CFLAGS)
+libdaaladec_la_LIBADD = libdaalabase.la $(OGG_LIBS)
 libdaaladec_la_LDFLAGS = -no-undefined \
  -version-info @OP_LT_CURRENT@:@OP_LT_REVISION@:@OP_LT_AGE@
 libdaaladec_la_SOURCES = \
 	decode.c
 
-libdaalaenc_la_LIBADD = libdaalabase.la $(DEPS_LIBS)
+libdaalaenc_la_CFLAGS = $(OGG_CFLAGS)
+libdaalaenc_la_LIBADD = libdaalabase.la $(OGG_LIBS)
 libdaalaenc_la_LDFLAGS = -no-undefined \
  -version-info @OP_LT_CURRENT@:@OP_LT_REVISION@:@OP_LT_AGE@
 libdaalaenc_la_SOURCES = \
 	encode.c \
 	decode.c \
-	pvq_decoder.c \
 	infoenc.c \
 	mcenc.c
 

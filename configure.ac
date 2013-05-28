@@ -68,7 +68,8 @@ AS_IF([test "$enable_assertions" = "yes"], [
   AC_DEFINE([OP_ENABLE_ASSERTIONS], [1], [Enable assertions in code])
 ])
 
-PKG_CHECK_MODULES([DEPS], [ogg >= 1.3 sdl])
+PKG_CHECK_MODULES([OGG], [ogg >= 1.3])
+PKG_CHECK_MODULES([SDL], [sdl])
 
 #CC_ATTRIBUTE_VISIBILITY([default], [
 #  CC_FLAG_VISIBILITY([CFLAGS="${CFLAGS} -fvisibility=hidden"])
