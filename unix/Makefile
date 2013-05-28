@@ -53,6 +53,7 @@ CINCLUDE = `sdl-config --cflags` `pkg-config ogg --cflags`
 #  -ffast-math, or additional flags, depending on your system and compiler.
 # The -g flag will generally include debugging information.
 CFLAGS := -g $(CFLAGS)
+CFLAGS := -DOD_LOGGING_ENABLED $(CFLAGS)
 CFLAGS := -DOD_ENABLE_ASSERTIONS $(CFLAGS)
 #CFLAGS := -DOD_CHECKASM $(CFLAGS)
 #CFLAGS := -DOD_DUMP_IMAGES $(CFLAGS)
@@ -69,7 +70,6 @@ ifneq (,$(findstring 86,${HOST}))
 CFLAGS := -DOD_X86ASM $(CFLAGS)
 else ifneq (,$(findstring arm,${HOST}))
 CFLAGS := -DOD_ARMASM $(CFLAGS)
-CFLAGS := -DOD_LOGGING_ENABLED $(CFLAGS)
 #CFLAGS := -march=armv7 $(CFLAGS)
 endif
 
@@ -267,14 +267,16 @@ ${ECTEST_TARGET}: ${ECTEST_OBJS}
 	${CC} ${CFLAGS} ${ECTEST_OBJS} ${ECTEST_LIBS} -o $@
 
 # test_coef_coder
-${TEST_COEF_CODER_TARGET}: ${TEST_COEF_CODER_OBJS}
+${TEST_COEF_CODER_TARGET}: ${TEST_COEF_CODER_OBJS} ${LIBDAALABASE_TARGET}
 	mkdir -p ${TESTBINDIR}
-	${CC} ${CFLAGS} ${TEST_COEF_CODER_OBJS} ${TEST_COEF_CODER_LIBS} -o $@
+	${CC} ${CFLAGS} ${TEST_COEF_CODER_OBJS} ${TEST_COEF_CODER_LIBS} -o $@ \
+	  ${LIBDAALABASE_TARGET}
 
 # logging_test
 ${LOGGING_TEST_TARGET}: ${LOGGING_TEST_OBJS} ${LIBDAALABASE_TARGET}
 	mkdir -p ${TESTBINDIR}
-	${CC} ${CFLAGS} ${LOGGING_TEST_OBJS} ${LOGGING_TEST_LIBS} -o $@
+	${CC} ${CFLAGS} ${LOGGING_TEST_OBJS} ${LOGGING_TEST_LIBS} -o $@ \
+	  ${LIBDAALABASE_TARGET}
 
 # check_initial
 ${TEST_CHECK_INITIAL_TARGET}: ${TEST_CHECK_INITIAL_OBJS}
