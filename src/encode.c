@@ -32,6 +32,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "filter.h"
 #include "dct.h"
 #include "intra.h"
+#include "logging.h"
 #include "pvq.h"
 #include "pvq_code.h"
 #include "block_size.h"
@@ -352,8 +353,8 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
 #if defined(OD_DUMP_IMAGES) && defined(OD_ANIMATE)
     enc->state.ani_iter = 0;
 #endif
-    fprintf(stderr, "Predicting frame %i:\n",
-     (int)daala_granule_basetime(enc, enc->state.cur_time));
+    OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO, "Predicting frame %i:",
+            (int)daala_granule_basetime(enc, enc->state.cur_time)));
 #if 0
     od_mv_est(enc->mvest, OD_FRAME_PREV, 452/*118*/);
 #endif
@@ -835,9 +836,10 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
           qdiff = (((diff - pred_diff) + ((diff - pred_diff) >> 31)
            + (5 + err_accum))/10)*10 + pred_diff;
           /*qdiff = (OD_DIV_ROUND_POW2(diff - pred_diff, 3, 4 + err_accum) << 3)
-           + pred_diff;*/
-          /*fprintf(stderr,"d-p_d: %3i  e_a: %3i  qd-p_d: %3i  e_a: %i\n",
-           diff - pred_diff, err_accum, qdiff - pred_diff, diff - qdiff);*/
+            + pred_diff;*/
+          OD_LOG((OD_LOG_ENCODER, OD_LOG_DEBUG,
+                  "d-p_d: %3i  e_a: %3i  qd-p_d: %3i  e_a: %i",
+                  diff - pred_diff, err_accum, qdiff - pred_diff, diff - qdiff));
           err_accum += diff - qdiff;
           rec_row[x] = OD_CLAMP255(rec_val + qdiff);
         }
@@ -851,20 +853,26 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       enc->state.ref_line_buf[0] = enc->state.ref_line_buf[1];
       enc->state.ref_line_buf[1] = prev_rec_row;
     }
-    /*printf("Bytes: %d  ex_dc: %d ex_g: %d ex_k: %d\n",
-      (od_ec_enc_tell(&enc->ec) + 7) >> 3, ex_dc, ex_g, ex_k);*/
+    /* Commented out because these variables don't seem to exist.
+       
+       TODO: re-add this?
+
+    OD_LOG((OD_LOG_ENCODER, OD_LOG_DEBUG,
+            "Bytes: %d  ex_dc: %d ex_g: %d ex_k: %d",
+            (od_ec_enc_tell(&enc->ec) + 7) >> 3, ex_dc, ex_g, ex_k));*/
     if (enc->state.ref_imgi[OD_FRAME_PREV] >= 0) {
-      fprintf(stderr,
-       "Plane %i, Squared Error: %12lli  Pixels: %6u  PSNR:  %5.2f\n",
-       pli, (long long)mc_sqerr, npixels,
-       10*log10(255*255.0*npixels/mc_sqerr));
+      OD_LOG((OD_LOG_ENCODER, OD_LOG_DEBUG,
+              "Plane %i, Squared Error: %12lli  Pixels: %6u  PSNR:  %5.2f",
+              pli, (long long)mc_sqerr, npixels,
+              10*log10(255*255.0*npixels/mc_sqerr)));
     }
-    fprintf(stderr,
-     "Encoded Plane %i, Squared Error: %12lli  Pixels: %6u  PSNR:  %5.2f\n",
-     pli,(long long)enc_sqerr,npixels,10*log10(255*255.0*npixels/enc_sqerr));
+    OD_LOG((OD_LOG_ENCODER, OD_LOG_DEBUG,
+            "Encoded Plane %i, Squared Error: %12lli  Pixels: %6u  PSNR:  %5.2f",
+            pli,(long long)enc_sqerr,npixels,10*log10(255*255.0*npixels/enc_sqerr)));
   }
-  fprintf(stderr, "mode bits: %f/%f=%f\n", mode_bits, mode_count,
-   mode_bits/mode_count);
+  OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO,
+          "mode bits: %f/%f=%f", mode_bits, mode_count,
+          mode_bits/mode_count));
   enc->packet_state = OD_PACKET_READY;
   od_state_upsample8(&enc->state,
    enc->state.ref_imgs + enc->state.ref_imgi[OD_FRAME_SELF],
@@ -887,7 +895,7 @@ int daala_encode_packet_out(daala_enc_ctx *enc, int last, ogg_packet *op) {
   }
   op->packet = od_ec_enc_done(&enc->ec, &nbytes);
   op->bytes = nbytes;
-  fprintf(stderr, "Output Bytes: %ld\n", op->bytes);
+  OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO, "Output Bytes: %ld", op->bytes));
   op->b_o_s = 0;
   op->e_o_s = last;
   op->packetno = 0;

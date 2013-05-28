@@ -98,6 +98,9 @@ AM_CONDITIONAL(ENABLE_X86ASM, [test yes = yes])
 
 AM_CONDITIONAL(ENABLE_DOCS, [test $enable_doc = yes])
 
+AC_DEFINE([OP_ENABLE_ASSERTIONS], [1], [Enable assertions in code])
+AC_DEFINE([OD_LOGGING_ENABLED], [1], [Enable logging])
+
 DAALA_DEC_LIBS="\$(top_builddir)/src/libdaaladec.la \$(top_builddir)/src/libdaalabase.la -lm"
 AC_SUBST(DAALA_DEC_LIBS)
 

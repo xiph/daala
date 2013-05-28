@@ -23,15 +23,19 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 
-#if !defined(_logging_file_H)
-# define _path_file_H (1)
+#if !defined(_logging_H)
+# define _logging_H (1)
 
 #include <stdarg.h>
 
 /* Exhaustive list of all the log facilities. */
 typedef enum {
   OD_LOG_GENERIC = 0,
+  OD_LOG_ENCODER,
+  OD_LOG_MOTION_ESTIMATION,
+  OD_LOG_MOTION_COMPENSATION,
   OD_LOG_ENTROPY_CODER,
+  OD_LOG_PVQ,
 
   /* Add new facilities here. */
 
@@ -67,9 +71,13 @@ typedef enum {
    Messages are logged if the level for a facility is >= the
     level passed to OD_LOG
  */
+
 typedef int (*od_logger_function)(od_log_facility facility,
                                   od_log_level level,
+                                  unsigned int flags,
                                   const char *fmt, va_list ap);
+#define OD_LOG_FLAG_PARTIAL  1
+
 int od_log_init(od_logger_function logger);
 
 
@@ -83,17 +91,32 @@ int od_log_init(od_logger_function logger);
     is not compiled.
 */
 
-#ifdef OD_LOGGING_ENABLED
+#ifndef OD_LOGGING_ENABLED
 # define OD_LOG(a)
+# define od_logging_active(a, b) 0
 #else
 # define OD_LOG(a) od_log a
+# define od_logging_active od_logging_active_impl
+#endif
 
-int od_log(od_log_facility fac, od_log_level level, const char *fmt, ...)
+/* Hack to accomodate non-newline printfs */
+# define OD_LOG_PARTIAL(a) od_log_partial a
+
+int od_log(od_log_facility fac, od_log_level level,
+           const char *fmt, ...)
 #ifdef __GNUC__
   __attribute__ ((format (printf, 3, 4)))
 #endif
 ;
 
+int od_log_partial(od_log_facility fac, od_log_level level,
+                      const char *fmt, ...)
+#ifdef __GNUC__
+  __attribute__ ((format (printf, 3, 4)))
 #endif
+;
+
+/* Ask whether a given logging facility/level is active */
+int od_logging_active_impl(od_log_facility fac, od_log_level level);
 
 #endif

@@ -1,4 +1,3 @@
-
 lib_LTLIBRARIES = libdaalabase.la libdaaladec.la libdaalaenc.la
 
 noinst_HEADERS = \
@@ -14,6 +13,7 @@ noinst_HEADERS = \
 	generic_code.h \
 	internal.h \
 	intra.h \
+        logging.h \
 	mc.h \
 	odintrin.h \
 	pvq.h \
@@ -40,6 +40,7 @@ libdaalabase_la_SOURCES = \
 	intra.c \
 	intradata.c \
 	laplace_tables.c \
+	logging.c \
 	mc.c \
 	newdct.c \
 	pvq.c \

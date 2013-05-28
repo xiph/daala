@@ -25,6 +25,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "pvq.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include "logging.h"
 #include <math.h>
 
 #define MAXN 256
@@ -386,7 +387,6 @@ int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
   /* This is the actual gain the decoder will apply */
   g = pow(Q*cg, GAIN_EXP);
 
-  /*printf("%f ", xc0);*/
   /* Pick component with largest magnitude. Not strictly
    * necessary, but it helps numerical stability */
   m=0;
@@ -397,7 +397,7 @@ int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
     }
   }
 
-  /*printf("max r: %f %f %d\n", maxr, r[m], m);*/
+  OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "max r: %f %f %d", maxr, r[m], m));
   s=r[m]>0?1:-1;
 
   /* This turns r into a Householder reflection vector that would reflect
@@ -479,13 +479,20 @@ int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
     theta=0;
     K=0;
   }
-  /*printf("%d %d\n", K, N);*/
+  OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%d %d", K, N));
 
   /*pvq_search(x,NULL,NULL,1,N,K,y,m,0);*/
   pvq_search_rdo(x,NULL,NULL,1,N,K,y,m,.0*lambda/(cg*cg));
 
-  /*for(i=0;i<N;i++)printf("%d ", y[i]);*/
-  /*if (N==32)for(i=0;i<N;i++)printf("%d ", y[i]);printf("\n");*/
+  for(i=0;i<N;i++) {
+    OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%d ", y[i]));
+  }
+  if (N==32) {
+    for(i=0;i<N;i++) {
+      OD_LOG_PARTIAL((OD_LOG_PVQ, OD_LOG_DEBUG, "%d ", y[i]));
+    }
+    OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, " "));
+  }
 
   for(i=0;i<N;i++){
     x[i]*=sin(theta);
@@ -516,8 +523,8 @@ int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
     _x[i]=floor(.5+x[i]);
   }
 
-  /*printf("xc1=%f\n", xc1);*/
-  /*printf("y[m]=%d\n", y[m]);*/
+  
+  OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "y[m]=%d", y[m]));
   return m;
 }
 
@@ -588,7 +595,7 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   }
   gr=sqrt(L2r);
 
-  /*printf("%f\n", g);*/
+  OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%f", g));
   /* compand gain of x and subtract a constant for "pseudo-RDO" purposes */
   cg = pow(g,GAIN_EXP_1)/Q;
   if (cg<0)
@@ -638,10 +645,11 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
     g=0;
     cg=0;
   }
-  /*if(N==16)printf("%d ", qg);*/
 
-  /*if (g>100000 && g0>100000)
-    printf("%f %f\n", g, g0);*/
+  /* TODO: actually add a reasonable log statement here.
+    
+    if(N==16) OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%d ", *qg));*/
+
   /*for(i=0;i<N;i++){
     x[i]*=scale_1[i];
     r[i]*=scale_1[i];
@@ -664,7 +672,6 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   }
 */
 
-  /*printf("%f ", xc0);*/
   /* Pick component with largest magnitude. Not strictly
    * necessary, but it helps numerical stability */
   m=0;
@@ -675,7 +682,7 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
     }
   }
 
-  /*printf("max r: %f %f %d\n", maxr, r[m], m);*/
+  OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "max r: %f %f %d", maxr, r[m], m));
   s=r[m]>0?1:-1;
 
   /* This turns r into a Householder reflection vector that would reflect
@@ -697,16 +704,17 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
     x[i]-=r[i]*proj;
   }
 
-  /*printf("%d ", qt);*/
-  /*printf("%d %d\n", K, N);*/
+  OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%d %d", K, N));
 
   /* Normalize lambda for quantizing on the unit circle */
   /* FIXME: See if we can avoid setting lambda to zero! */
   pvq_search_rdo(x,NULL,NULL,1,N,K,y,m,.0*lambda/(cg*cg));
-  /*printf("%d ", K-abs(y[m]));*/
-  /*for(i=0;i<N;i++)printf("%d ", (m==i)?0:y[i]);*/
+  OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%d ", K-abs(y[m])));
+  for(i=0;i<N;i++) {
+    OD_LOG_PARTIAL((OD_LOG_PVQ, OD_LOG_DEBUG, "%d ", (m==i)?0:y[i]));
+  }
 
-  /*printf("%d %d\n", K-y[m], N);*/
+  OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%d %d", K-y[m], N));
 
   /* Apply Householder reflection again to get the quantized coefficients */
   proj=0;
@@ -739,9 +747,8 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   /* Make y[0] positive when prediction is good  */
   y[0] = -ym*s;
 
-  /*printf("%d ", *qg);*/
-  /*printf("xc1=%f\n", xc1);*/
-  /*printf("y[m]=%d\n", y[m]);*/
+  OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%d ", *qg));
+  OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "y[m]=%d", y[m]));
   return m;
 }
 
@@ -997,7 +1004,7 @@ int quant_scalar(ogg_int32_t *_x,const ogg_int32_t *_r,
       Ex=Kn*128;
 
     decay = OD_MINI(255,(int)((256*Ex/(Ex+256) + 8*Ex*Ex/(256*(Kn+2)*(Kn)*(Kn)))));
-    /*printf("(%d %d %d %d ", expQ8, Kn, Ex, decay);*/
+    OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "(%d %d %d %d ", expQ8, Kn, Ex, decay));
     rate0 = -log2(pow(decay/256.,ay)*(1-decay/256.)/(1-pow(decay/256.,Kn+1)));
     if(Kn==1){
       rate_1=0;
@@ -1007,13 +1014,14 @@ int quant_scalar(ogg_int32_t *_x,const ogg_int32_t *_r,
         Ex=(Kn-1)*256;
 
       decay = OD_MINI(255,(int)((256*Ex/(Ex+256) + 8*Ex*Ex/(256*(Kn+1)*(Kn-1)*(Kn-1)))));
-      /*printf("%d ", decay);*/
+      OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%d ", decay));
       rate_1 = -log2(pow(decay/256.,ay-1)*(1-decay/256.)/(1-pow(decay/256.,Kn)));
     }
 
     cost0 = e*e + lambda*rate0;
     cost_1 = (e+1)*(e+1) + lambda*rate_1;
-    /*printf("%f %f %f %f) ", e*e, (e+1)*(e+1), rate0, rate_1);*/
+    OD_LOG_PARTIAL((OD_LOG_PVQ, OD_LOG_DEBUG, "%f %f %f %f) ",
+                    e*e, (e+1)*(e+1), rate0, rate_1));
     if (cost_1<cost0)
     {
       if (y[i]>0)
@@ -1023,7 +1031,7 @@ int quant_scalar(ogg_int32_t *_x,const ogg_int32_t *_r,
       Kn--;
     }
   }
-  /*printf("\n");*/
+  OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, " "));
 #else
   if (K!=0) {
     float alpha;

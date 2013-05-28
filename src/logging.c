@@ -24,18 +24,23 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #include "logging.h"
 
-#include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
-#include "daala/codec.h"
+
+#include "../include/daala/codec.h"
+#include "internal.h"
 
 static unsigned long od_log_levels[OD_LOG_FACILITY_MAX] = {0};
 
 static const char *od_log_module_names[OD_LOG_FACILITY_MAX] = {
   "generic",
-  "entropy-coder"
+  "encoder",
+  "motion-estimation",
+  "motion-compensation",
+  "entropy-coder",
+  "pvq"
 };
 
 static const char *od_log_level_names[OD_LOG_LEVEL_MAX] = {
@@ -50,6 +55,7 @@ static const char *od_log_level_names[OD_LOG_LEVEL_MAX] = {
 
 static int od_log_fprintf_stderr(od_log_facility facility,
                                  od_log_level level,
+                                 unsigned int flags,
                                  const char *fmt, va_list ap);
 static const char *od_log_facility_name(od_log_facility facility);
 static const char *od_log_level_name(od_log_level level);
@@ -59,7 +65,7 @@ static od_logger_function od_logger = od_log_fprintf_stderr;
 
 static const char *od_log_facility_name(od_log_facility fac) {
   /* Check for invalid input */
-  assert (fac < OD_LOG_FACILITY_MAX);
+  OD_ASSERT(fac < OD_LOG_FACILITY_MAX);
   if (fac >= OD_LOG_FACILITY_MAX)
     return "INVALID";
 
@@ -68,7 +74,7 @@ static const char *od_log_facility_name(od_log_facility fac) {
 
 static const char *od_log_level_name(od_log_level level) {
   /* Check for invalid input */
-  assert (level < OD_LOG_LEVEL_MAX);
+  OD_ASSERT(level < OD_LOG_LEVEL_MAX);
 
   if (level >= OD_LOG_LEVEL_MAX)
     return "INVALID";
@@ -150,35 +156,66 @@ int od_log_init(od_logger_function logger) {
   return 0;
 }
 
-int od_log(od_log_facility fac, od_log_level level, const char *fmt, ...) {
-  va_list ap;
-
+int od_logging_active_impl(od_log_facility fac, od_log_level level) {
   /* Check for invalid input */
-  assert (fac < OD_LOG_FACILITY_MAX);
+  OD_ASSERT(fac < OD_LOG_FACILITY_MAX);
   if (fac >= OD_LOG_FACILITY_MAX)
     return 0;
 
   if (od_log_levels[fac] < level)
     return 0;  /* Skipped */
 
-  va_start(ap, fmt);
-  (void)od_logger(fac, level, fmt, ap);
-  va_end(ap);
+  return 1;
+}
+
+static int od_log_impl(od_log_facility fac, od_log_level level, unsigned int flags,
+                       const char *fmt, va_list ap) {
+  if (!od_logging_active(fac, level))
+    return 0;
+
+  (void)od_logger(fac, level, flags, fmt, ap);
 
   return 0;
 }
 
+int od_log(od_log_facility fac, od_log_level level, const char *fmt, ...) {
+  va_list ap;
+  int rv;
+
+  va_start(ap, fmt);
+  rv = od_log_impl(fac, level, 0, fmt, ap);
+  va_end(ap);
+
+  return rv;
+}
+
+int od_log_partial(od_log_facility fac, od_log_level level, const char *fmt, ...) {
+  va_list ap;
+  int rv;
+
+  va_start(ap, fmt);
+  rv = od_log_impl(fac, level, OD_LOG_FLAG_PARTIAL, fmt, ap);
+  va_end(ap);
+
+  return rv;
+}
+
+    
 static int od_log_fprintf_stderr(od_log_facility facility,
                                  od_log_level level,
+                                 unsigned int flags,
                                  const char *fmt, va_list ap) {
   char fmt_buffer[1024];
   int rv;
 
   rv = snprintf(fmt_buffer, sizeof(fmt_buffer),
-           "[%s/%s] %s\n",
-           od_log_facility_name(facility),
-           od_log_level_name(level),
-           fmt);
+                "[%s/%s] %s%s",
+                od_log_facility_name(facility),
+                od_log_level_name(level),
+                fmt,
+                (flags & OD_LOG_FLAG_PARTIAL ? "" : "\n")
+                );
+
   if ((rv < 0) || (((size_t)rv) >= sizeof(fmt_buffer))) {
     fprintf(stderr, "Error logging. Format string too long\n");
     return OD_EINVAL;

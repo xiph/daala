@@ -27,6 +27,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "internal.h"
 #include "entdec.h"
 #include "entcode.h"
+#include "logging.h"
 #include "pvq_code.h"
 
 
@@ -59,14 +60,18 @@ int laplace_decode_special(od_ec_dec *dec,unsigned decay,int max)
   decay = OD_MAXI(decay, 2);
   ms=max>>shift;
   cdf = exp_cdf_table[(decay+1)>>1];
-  /*printf("decay = %d\n", decay);*/
+  OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "decay = %d\n", decay));
   xs=0;
   do {
     sym = OD_MINI(xs, 15);
-    /*{int i; printf("%d %d %d %d %d\n", x, xs, shift, sym, max);
-    for (i=0;i<16;i++)
-      printf("%d ", cdf[i]);
-    printf("\n");}*/
+    {
+      int i;
+      OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%d %d %d %d", xs, shift, sym, max));
+      for (i=0;i<16;i++) {
+        OD_LOG_PARTIAL((OD_LOG_PVQ, OD_LOG_DEBUG, "%d ", cdf[i]));
+      }
+      OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, " "));
+    }
     if (ms>0 && ms<15){
       /* Simple way of truncating the pdf when we have a bound */
       sym = od_ec_decode_cdf_unscaled(dec, cdf, ms+1);

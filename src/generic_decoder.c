@@ -26,6 +26,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #include "generic_code.h"
 #include "entdec.h"
+#include "logging.h"
 #include "odintrin.h"
 #include "pvq_code.h"
 
@@ -85,6 +86,7 @@ int generic_decode(od_ec_dec *dec, GenericEncoder *model, int *ExQ16, int integr
 
   generic_model_update(model,ExQ16,x,xs,id,integration);
 
-  /*printf("dec: %d %d %d %d %d %x\n", *ExQ4, x, shift, id, xs, dec->rng);*/
+  OD_LOG((OD_LOG_ENTROPY_CODER, OD_LOG_DEBUG,
+          "dec: %d %d %d %d %d %x", *ExQ16, x, shift, id, xs, dec->rng));
   return x;
 }

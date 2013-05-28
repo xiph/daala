@@ -24,6 +24,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #include <stdio.h>
 #include <stddef.h>
+#include "logging.h"
 #include "mc.h"
 
 /*A table of indices used to set up the rotated versions of each vector
@@ -122,8 +123,19 @@ void od_mc_predict1imv8_c(unsigned char *dst, int dystride,
       int p11;
       unsigned a;
       unsigned b;
-      /*printf("<%16.12f, %16.12f>%s", (x - (i << 17))/(double)0x20000,
-       (y - (j << 17))/(double)0x20000, i + 1 < xblk_sz ? "::" : "\n");*/
+      if (i + 1 < xblk_sz) {
+        OD_LOG_PARTIAL((OD_LOG_MOTION_COMPENSATION,
+                        OD_LOG_DEBUG,
+                        "<%16.12f, %16.12f>::",
+                        (x - (i << 17))/(double)0x20000, (y - (j << 17))/(double)0x20000));
+      }
+      else {
+        OD_LOG((OD_LOG_MOTION_COMPENSATION,
+                OD_LOG_DEBUG,
+                "<%16.12f, %16.12f>",
+                (x - (i << 17))/(double)0x20000, (y - (j << 17))/(double)0x20000));
+      }
+
       xf = x & 0xFFFF;
       yf = y & 0xFFFF;
       p = src + (x >> 16) + (y >> 16)*systride;
@@ -143,11 +155,14 @@ void od_mc_predict1imv8_c(unsigned char *dst, int dystride,
     dmvy[1] += dmvy[3];
     dst += dystride;
   }
-  /*dst -= dystride*yblk_sz;
+  dst -= dystride*yblk_sz;
   for (j = 0; j < yblk_sz; j++) {
-    for ( i = 0; i < xblk_sz; i++) printf("%2X ", *(dst + i + j*dystride));
-    printf("\n");
-  }*/
+    for ( i = 0; i < xblk_sz; i++) {
+      OD_LOG_PARTIAL((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG,
+                      "%2X ", *(dst + i + j*dystride)));
+    }
+    OD_LOG((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG, " "));
+  }
 }
 
 static void od_mc_predict1imv8(od_state *state, unsigned char *dst,
