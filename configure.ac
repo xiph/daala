@@ -127,8 +127,6 @@ AC_MSG_NOTICE([
 
     Assertions ................... ${enable_assertions}
 
-    Hidden visibility ............ ${cc_cv_flag_visibility}
-
     API documentation ............ ${enable_doc}
 ------------------------------------------------------------------------
 ])
