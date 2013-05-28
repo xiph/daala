@@ -32,7 +32,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 typedef void (*od_intra_mult_func)(double *_p,int _pred_stride,
  const od_coeff *_c,int _stride,
- const od_coeff *_ur,int _strideur,int _mode);
+ const od_coeff *_ur,int _ur_stride,int _mode);
 
 extern const od_intra_mult_func OD_INTRA_MULT[OD_NBSIZES];
 
@@ -42,7 +42,13 @@ extern const unsigned char OD_INTRA_PRED_PROB_4x4[3]
 
 void od_intra_pred4x4_mult(double *_p,int _pred_stride,
  const od_coeff *_c,int _stride,
- const od_coeff *_ur,int _strideur,int _mode);
+ const od_coeff *_ur,int _ur_stride,int _mode);
+void od_intra_pred8x8_mult(double *_p,int _pred_stride,
+ const od_coeff *_c,int _stride,
+ const od_coeff *_ur,int _ur_stride,int _mode);
+void od_intra_pred16x16_mult(double *_p,int _pred_stride,
+ const od_coeff *_c,int _stride,
+ const od_coeff *_ur,int _ur_stride,int _mode);
 
 /*Fetches intra prediction to a 4x4 block of coefficients at _c, using
    UR, UL, U, and L blocks of reconstructed 4x4 coefficients.
@@ -57,11 +63,23 @@ void od_intra_pred4x4_mult(double *_p,int _pred_stride,
     the input coefficients with the prediction subtracted.*/
 void od_intra_pred4x4_get(od_coeff *_out,
  const od_coeff *_c,int _stride,
- const od_coeff *_ur,int _strideur,int _mode);
+ const od_coeff *_ur,int _ur_stride,int _mode);
+void od_intra_pred8x8_get(od_coeff *_out,
+ const od_coeff *_c,int _stride,
+ const od_coeff *_ur,int _ur_stride,int _mode);
+void od_intra_pred16x16_get(od_coeff *_out,
+ const od_coeff *_c,int _stride,
+ const od_coeff *_ur,int _ur_stride,int _mode);
 
 void od_intra_pred4x4_dist(ogg_uint32_t *_dist,
  const od_coeff *_c,int _stride,
- const od_coeff *_ur,int _strideur,int _pli);
+ const od_coeff *_ur,int _ur_stride,int _pli);
+void od_intra_pred8x8_dist(ogg_uint32_t *_dist,
+ const od_coeff *_c,int _stride,
+ const od_coeff *_ur,int _ur_stride,int _pli);
+void od_intra_pred16x16_dist(ogg_uint32_t *_dist,
+ const od_coeff *_c,int _stride,
+ const od_coeff *_ur,int _ur_stride,int _pli);
 
 extern const signed char OD_INTRA_CHROMA_WEIGHTS_Q6[OD_INTRA_NMODES][3];
 
