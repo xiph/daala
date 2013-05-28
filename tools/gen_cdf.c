@@ -39,6 +39,7 @@ int main(int argc, char **argv)
   int sum;
   int aN[MAXN];
 
+  if (argc!=3) fprintf(stderr, "bad bad bad\n");
   N=atoi(argv[1]);
   shift=atoi(argv[2]);
   printf("/* This file is auto-generated using \"gen_cdf %d %d\" */\n\n",
