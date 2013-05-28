@@ -340,7 +340,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
             od_ec_enc_uint( &enc->ec , mvp->mv[0] + 8*(width+32),  8*2*(width+32)  ); 
             od_ec_enc_uint( &enc->ec , mvp->mv[1] + 8*(height+32), 8*2*(height+32) ); 
           }
-          /* TODO CJ */
         }
       }
     }
@@ -382,9 +381,11 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     int y;
     int x;
     int isKeyframe; /* true if doing an intra coded frame */
+    int keyFrameRate; /* set to n for every n'th frame is keyFrame */
 
     /* CJ - TODO - need better way to set doIntra */
-    isKeyframe = ( enc->state.cur_time % 16 == 0) ? 1 : 0;
+    keyFrameRate = 5; /* TODO - get from command line */    
+    isKeyframe = ( enc->state.cur_time % keyFrameRate == 0) ? 1 : 0;
     fprintf( stderr,"FLUFFY isKeyframe = %d \n", isKeyframe );
         
     nhmbs = enc->state.nhmbs;
@@ -498,8 +499,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
           }
           /*Collect the image data needed for this macro block.*/
           data = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].data;
-          mdata = enc->state.io_imgs[OD_FRAME_REC].planes[pli].data; /* CJ TODO
-                                                                      * - CHECK */
+          mdata = enc->state.io_imgs[OD_FRAME_REC].planes[pli].data;
           
           ystride = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ystride;
           for (y = iyfill >> ydec; y < next_iyfill >> ydec; y++) {
@@ -625,15 +625,14 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
                 else if (by > 0) pred[0] = d[((by - 1) << 2)*w + (bx << 2)];
                 if (pli == 0) modes[by*(w >> 2) + bx] = 0;
               }
-              if ( !isKeyframe )
-              {
+              if ( !isKeyframe ) {
                 int x;
                 int y;
                 int i;
                 i = 0;
                 for( y=0; y<4; y++ )
                   for( x=0; x<4; x++ )
-                    pred[i++] = d[ (y << 2)*w + (x << 2) ];
+                    pred[i++] = d[ ( y + (by<<2) )*w + ( x + (bx<<2)) ];
               }
               
               /*Zig-zag*/
