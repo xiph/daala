@@ -59,18 +59,16 @@ static void od_state_ref_imgs_init(od_state *_state,int _nrefs,int _nio){
   /*TODO: Check for overflow before allocating.*/
   for(pli=0;pli<info->nplanes;pli++){
     /*Reserve space for this plane in _nrefs reference images.*/
-    plane_buf_width=(info->frame_width+(OD_UMV_PADDING<<1)<<1)
+    plane_buf_width=info->frame_width+(OD_UMV_PADDING<<1)
      >>info->plane_info[pli].xdec;
-    plane_buf_height=(info->frame_height+(OD_UMV_PADDING<<1)<<1)
+    plane_buf_height=info->frame_height+(OD_UMV_PADDING<<1)
      >>info->plane_info[pli].ydec;
-    data_sz+=plane_buf_width*plane_buf_height*_nrefs;
+    data_sz+=plane_buf_width*plane_buf_height*_nrefs<<2;
 #if defined(OD_DUMP_IMAGES)
     /*Reserve space for this plane in 1 visualization image.*/
-    data_sz+=plane_buf_width*plane_buf_height;
+    data_sz+=plane_buf_width*plane_buf_height<<2;
 #endif
     /*Reserve space for this plane in _nio input/output images.*/
-    plane_buf_width=info->frame_width>>info->plane_info[pli].xdec;
-    plane_buf_height=info->frame_height>>info->plane_info[pli].ydec;
     data_sz+=plane_buf_width*plane_buf_height*_nio;
   }
   /*Reserve space for the line buffer in the up-sampler.*/
@@ -105,10 +103,14 @@ static void od_state_ref_imgs_init(od_state *_state,int _nrefs,int _nio){
     img->width=info->frame_width;
     img->height=info->frame_height;
     for(pli=0;pli<img->nplanes;pli++){
-      plane_buf_width=info->frame_width>>info->plane_info[pli].xdec;
-      plane_buf_height=info->frame_height>>info->plane_info[pli].ydec;
+      plane_buf_width=info->frame_width+(OD_UMV_PADDING<<1)
+       >>info->plane_info[pli].xdec;
+      plane_buf_height=info->frame_height+(OD_UMV_PADDING<<1)
+       >>info->plane_info[pli].ydec;
       iplane=img->planes+pli;
-      iplane->data=ref_img_data;
+      iplane->data=ref_img_data
+       +(OD_UMV_PADDING>>info->plane_info[pli].xdec)
+       +plane_buf_width*(OD_UMV_PADDING>>info->plane_info[pli].ydec);
       ref_img_data+=plane_buf_width*plane_buf_height;
       iplane->xdec=info->plane_info[pli].xdec;
       iplane->ydec=info->plane_info[pli].ydec;
