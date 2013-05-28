@@ -10,7 +10,3 @@ echo "Updating build configuration files for daala, please wait...."
 ACLOCAL_FLAGS="-I m4"
 autoreconf -if
 
-if test "$NO_CONFIGURE" = "" ; then
-  ./configure $@
-fi
-
