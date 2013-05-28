@@ -351,6 +351,7 @@ int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
     scale[i]=_scale[i];
     scale_1[i]=1./scale[i];
   }
+  (void)scale_1[0];
 
   L2x=0;
   for(i=0;i<N;i++){
@@ -579,6 +580,7 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
     scale[i]=_scale[i];
     scale_1[i]=1./scale[i];
   }
+  (void)scale_1[0];
 
   L2x=0;
   for(i=0;i<N;i++){
@@ -815,6 +817,7 @@ void dequant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
     scale[i]=_scale[i];
     scale_1[i]=1./scale[i];
   }
+  (void)scale_1[0];
 
   L2r=0;
   for(i=0;i<N;i++){
@@ -912,6 +915,7 @@ int quant_pvq_noref(ogg_int32_t *_x,float gr,
     scale[i]=_scale[i];
     scale_1[i]=1./scale[i];
   }
+  (void)scale_1[0];
 
   L2x=0;
   for(i=0;i<N;i++){
@@ -961,6 +965,7 @@ int quant_scalar(ogg_int32_t *_x,const ogg_int32_t *_r,
   float lambda;
   int Kn;
   OD_ASSERT(N>0);
+  (void)_scale[0];
 
   K=0;
   Q2=1.4*Q;

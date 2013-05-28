@@ -66,12 +66,12 @@ typedef struct daala_enc_ctx daala_enc_ctx;
  *      packets that are ready.
  * - Call daala_encode_free() to release all encoder memory.*/
 /*@{*/
-/**Allocates an encoder instance.
+/**Allocates and initializes an encoder instance.
  * \param info A #daala_info struct filled with the desired encoding
  *              parameters.
  * \return The initialized #daala_enc_ctx handle.
  * \retval NULL if the encoding parameters were invalid.*/
-extern daala_enc_ctx *daala_encode_alloc(const daala_info *info);
+extern daala_enc_ctx *daala_encode_create(const daala_info *info);
 /**Encoder control function.
  * This is used to provide advanced control of the encoding process.
  * \param enc A #daala_enc_ctx handle.

@@ -85,6 +85,12 @@ int daala_decode_img_out(daala_dec_ctx *dec, od_img *img) {
   int frame_height;
   int pic_width;
   int pic_height;
+  int nvsb;
+  int nhsb;
+  int i;
+  int j;
+  int k;
+  int m;
   if (dec == NULL || img == NULL) return OD_EFAULT;
   if (dec->packet_state != OD_PACKET_DATA) return OD_EINVAL;
   /*Check the input image dimensions to make sure they're compatible with the
@@ -97,6 +103,19 @@ int daala_decode_img_out(daala_dec_ctx *dec, od_img *img) {
       return OD_EINVAL;
     }
   }
+  nhsb = dec->state.nhsb;
+  nvsb = dec->state.nvsb;
+  for(i = 1; i < nvsb + 1; i++) {
+    for(j = 1; j < nhsb + 1; j++) {
+      for(k = 0; k < 4; k++) {
+        for(m = 0; m < 4; m++) {
+          dec->state.bsize[((i*4 + k)*dec->state.bstride) + j*4 + m] =
+            od_ec_dec_uint(&dec->ec, 4);
+        }
+      }
+    }
+  }
+
   frame_width = dec->state.info.frame_width;
   frame_height = dec->state.info.frame_height;
   pic_width = dec->state.info.pic_width;

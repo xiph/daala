@@ -17,7 +17,7 @@ AC_CONFIG_SRCDIR([src/decode.c])
 AC_USE_SYSTEM_EXTENSIONS
 AC_SYS_LARGEFILE
 
-AM_INIT_AUTOMAKE([1.11 foreign no-define])
+AM_INIT_AUTOMAKE([1.10 foreign no-define])
 AM_MAINTAINER_MODE([enable])
 LT_INIT
 
@@ -70,6 +70,8 @@ AS_IF([test "$enable_assertions" = "yes"], [
 
 PKG_CHECK_MODULES([OGG], [ogg >= 1.3])
 PKG_CHECK_MODULES([SDL], [sdl])
+PKG_CHECK_MODULES([PNG], [libpng])
+PKG_CHECK_MODULES([THEORA], [theoradec])
 
 #CC_ATTRIBUTE_VISIBILITY([default], [
 #  CC_FLAG_VISIBILITY([CFLAGS="${CFLAGS} -fvisibility=hidden"])
@@ -111,9 +113,12 @@ AC_CONFIG_FILES([
   Makefile
   daala.pc
   daala-uninstalled.pc
+  doc/Makefile
   src/Makefile
+  src/tests/Makefile
   examples/Makefile
   include/Makefile
+  tools/Makefile
 ])
 AC_OUTPUT
 
@@ -122,8 +127,6 @@ AC_MSG_NOTICE([
   $PACKAGE_NAME $PACKAGE_VERSION: Automatic configuration OK.
 
     Assertions ................... ${enable_assertions}
-
-    Hidden visibility ............ ${cc_cv_flag_visibility}
 
     API documentation ............ ${enable_doc}
 ------------------------------------------------------------------------

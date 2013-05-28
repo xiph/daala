@@ -61,7 +61,7 @@ static void od_enc_clear(od_enc_ctx *enc) {
   od_state_clear(&enc->state);
 }
 
-daala_enc_ctx *daala_encode_alloc(const daala_info *info) {
+daala_enc_ctx *daala_encode_create(const daala_info *info) {
   od_enc_ctx *enc;
   if (info == NULL) return NULL;
   enc = (od_enc_ctx *)_ogg_malloc(sizeof(*enc));
@@ -292,6 +292,9 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
      frame_width >> plane.xdec, frame_height >> plane.ydec,
      &plane, plane_x, plane_y, plane_width, plane_height);
   }
+  /*Initialize the entropy coder.*/
+  od_ec_enc_reset(&enc->ec);
+
   /*set the top row and the left most column to three*/
   for(i = 0; i < (nhsb+1)*4; i++) {
     for(j = 0; j < 4; j++) {
@@ -319,11 +322,14 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       for(k = 0; k < 4; k++) {
         for(m = 0; m < 4; m++) {
           enc->state.bsize[((i*4 + k)*enc->state.bstride) + j*4 + m] =
-              bsize[k][m];
+            bsize[k][m];
+          /* put the blocksize into the bytestream */
+          od_ec_enc_uint(&enc->ec, bsize[k][m], 4);
         }
       }
     }
   }
+
   for(i = 0; i < (nvsb + 1)*4; i++) {
     for(j = 0; j < (nhsb + 1)*4; j++) {
       OD_LOG((OD_LOG_GENERIC, OD_LOG_INFO, "%d ", enc->state.bsize[i*enc->state.bstride + j]));
@@ -332,8 +338,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   }
 
   _ogg_free(bs);
-  /*Initialize the entropy coder.*/
-  od_ec_enc_reset(&enc->ec);
   /*Update the buffer state.*/
   if (enc->state.ref_imgi[OD_FRAME_SELF] >= 0) {
     enc->state.ref_imgi[OD_FRAME_PREV] =
@@ -716,6 +720,8 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
 #if 1
               quant_pvq(cblock + 1, predt + 1, pvq_scale, pred + 1, 15, scale,
                &qg);
+              for (zzi = 1; zzi < 16; zzi++) cblock[zzi] = pred[zzi];
+              dequant_pvq(cblock + 1, predt + 1, pvq_scale, 15, scale, qg);
               generic_encode(&enc->ec, model_g + pli, abs(qg), ex_g + pli, 0);
               if (qg) od_ec_enc_bits(&enc->ec, qg < 0, 1);
               vk = 0;
