@@ -1,6 +1,8 @@
 
 noinst_PROGRAMS = dump_video encoder_example player_example
 
+AM_CFLAGS = $(OGG_CFLAGS)
+
 dump_video_SOURCES = dump_video.c
 dump_video_LDADD = $(DAALA_DEC_LIBS) $(OGG_LIBS)
 
