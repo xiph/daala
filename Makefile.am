@@ -32,7 +32,7 @@ daala: all
 install-daala: install
 
 # Or just the docs
-docs: doc/doxygen-build.stamp
+#docs: doc/doxygen-build.stamp
 
 install-docs:
 	@if [ -z "$(NO_DOXYGEN)" ]; then \
