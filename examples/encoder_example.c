@@ -1,3 +1,4 @@
+/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /*Daala video codec
 Copyright (c) 2006-2010 Daala project contributors.  All rights reserved.
 
@@ -362,12 +363,13 @@ int fetch_and_process_video(av_input *_avin,ogg_page *_page,
   return _video_ready;
 }
 
-static const char *OPTSTRING="o:a:A:v:V:s:S:f:F:h";
+static const char *OPTSTRING="o:a:A:v:V:s:S:f:F:h:k:";
 
 static const struct option OPTIONS[]={
   {"output",required_argument,NULL,'o'},
   {"video-quality",required_argument,NULL,'v'},
   {"video-rate-target",required_argument,NULL,'V'},
+  {"keyframe-rate",required_argument,NULL,'k'},
   {"aspect-numerator",optional_argument,NULL,'s'},
   {"aspect-denominator",optional_argument,NULL,'S'},
   {"framerate-numerator",optional_argument,NULL,'f'},
@@ -387,6 +389,7 @@ static void usage(void){
    "                                 0 yields the smallest files, but\n"
    "                                 lowest video quality; 10 yields the\n"
    "                                 highest quality, but large files.\n\n"
+   "  -k --keyframe-rate <n>         Fequence of keyframes in output.\n\n"
    "  -V --video-rate-target <n>     bitrate target for Daala video;\n"
    "                                 use -v and not -V if at all possible,\n"
    "                                 as -v gives higher quality for a given\n"
@@ -413,6 +416,7 @@ int main(int _argc,char **_argv){
   int               video_kbps;
   int               video_q;
   int               video_r;
+  int               video_keyframe_rate;
   int               video_ready;
   od_log_init(NULL);
 #if defined(_WIN32)
@@ -426,6 +430,7 @@ int main(int _argc,char **_argv){
   avin.video_par_n=-1;
   avin.video_par_d=-1;
   video_q=48;
+  video_keyframe_rate=1; /* TODO - default off for now but make bigger later */
   video_r=-1;
   video_bytesout=0;
   video_kbps=0;
@@ -435,6 +440,13 @@ int main(int _argc,char **_argv){
         outfile=fopen(optarg,"wb");
         if(outfile==NULL){
           fprintf(stderr,"Unable to open output file '%s'\n",optarg);
+          exit(1);
+        }
+      }break;
+      case 'k':{
+        video_keyframe_rate=atoi(optarg);
+        if(video_keyframe_rate<1||video_keyframe_rate>1000){
+          fprintf(stderr,"Illegal video keyframe rate (use 1 through 1000)\n");
           exit(1);
         }
       }break;
@@ -485,6 +497,7 @@ int main(int _argc,char **_argv){
     di.nplanes=avin.video_nplanes;
     memcpy(di.plane_info,avin.video_plane_info,
      di.nplanes*sizeof(*di.plane_info));
+    di.keyframe_rate = video_keyframe_rate;
     /*TODO: Other crap.*/
     dd=daala_encode_create(&di);
     daala_comment_init(&dc);

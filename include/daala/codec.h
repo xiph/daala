@@ -1,3 +1,4 @@
+/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /*Daala video codec
 Copyright (c) 2006-2013 Daala project contributors.  All rights reserved.
 
@@ -178,6 +179,9 @@ struct daala_info {
   int keyframe_granule_shift;
   int nplanes;
   daala_plane_info plane_info[OD_NPLANES_MAX];
+   /** key frame rate defined how often a key frame is emitted by encoder in
+    * number of frames. So 10 means every 10th frame is a keyframe.  */ 
+  int keyframe_rate;
 };
 
 void daala_info_init(daala_info *info);

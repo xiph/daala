@@ -436,13 +436,11 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     int w;
     int y;
     int x;
-    int isKeyframe; /* true if doing an intra coded frame */
-    int keyFrameRate; /* set to n for every n'th frame is keyFrame */
-
+    int is_keyframe; /* true if doing an intra coded frame */
+ 
     /* CJ - TODO - need better way to set doIntra */
-    keyFrameRate = 5; /* TODO - get from command line */    
-    isKeyframe = ( enc->state.cur_time % keyFrameRate == 0) ? 1 : 0;
-    fprintf( stderr,"FLUFFY isKeyframe = %d \n", isKeyframe );
+    is_keyframe = ( enc->state.cur_time % (enc->state.info.keyframe_rate) == 0) ? 1 : 0;
+    fprintf( stderr,"FLUFFY is_keyframe = %d \n", is_keyframe );
         
     nhmbs = enc->state.nhmbs;
     nvmbs = enc->state.nvmbs;
@@ -561,7 +559,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
           for (y = iyfill >> ydec; y < next_iyfill >> ydec; y++) {
             for (x = ixfill >> xdec; x < next_ixfill >> xdec; x++) {
               c[y*w + x] = data[ystride*y + x] - 128;
-              if (!isKeyframe)
+              if (!is_keyframe)
                 mc[y*w + x] = mdata[ystride*y + x] - 128;
             }
           }
@@ -573,7 +571,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
               for (y = 0; y < 4; y++) p[y] = c[((by << 2) + y + 2)*w + x];
               od_pre_filter4(p, p);
               for (y = 0; y < 4; y++) c[((by << 2) + y + 2)*w + x] = p[y];
-              if ( !isKeyframe ) {
+              if ( !is_keyframe ) {
                 for (y = 0; y < 4; y++) p[y] = mc[((by << 2) + y + 2)*w + x];
                 od_pre_filter4(p, p);
                 for (y = 0; y < 4; y++) mc[((by << 2) + y + 2)*w + x] = p[y];
@@ -585,7 +583,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
             for (bx = mbx << (2 - xdec); bx < ((mbx + 1) << (2 - xdec))
              - ((mbx + 1) >= nhmbs); bx++) {
               od_pre_filter4(c + y*w + (bx << 2) + 2, c + y*w + (bx << 2) + 2);
-              if ( !isKeyframe ) od_pre_filter4(mc + y*w + (bx << 2) + 2, mc + y*w + (bx << 2) + 2);
+              if ( !is_keyframe ) od_pre_filter4(mc + y*w + (bx << 2) + 2, mc + y*w + (bx << 2) + 2);
             }
           }
           nk = k_total = sum_ex_total_q8 = 0;
@@ -609,7 +607,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
               /*fDCT a 4x4 block.*/
               od_bin_fdct4x4(d + (by << 2)*w + (bx << 2), w,
                c + (by << 2)*w + (bx << 2), w);
-              if (!isKeyframe) {
+              if (!is_keyframe) {
                 od_bin_fdct4x4(md + (by << 2)*w + (bx << 2), w,
                                mc + (by << 2)*w + (bx << 2), w);
               }
@@ -681,7 +679,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
                 else if (by > 0) pred[0] = d[((by - 1) << 2)*w + (bx << 2)];
                 if (pli == 0) modes[by*(w >> 2) + bx] = 0;
               }
-              if ( !isKeyframe ) {
+              if ( !is_keyframe ) {
                 int x;
                 int y;
                 int i;
