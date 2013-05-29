@@ -23,7 +23,6 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
-
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -43,6 +42,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #if OD_DECODE_IN_ENCODE
 # include "decint.h"
 #endif
+
+static double mode_bits = 0;
+static double mode_count = 0;
 
 static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
   int ret;
@@ -244,11 +246,225 @@ static void od_img_plane_edge_ext8(od_img_plane *dst_p,
   }
 }
 
-static double mode_bits = 0;
-static double mode_count = 0;
+
+struct od_mb_enc_ctx {
+  GenericEncoder model_dc[OD_NPLANES_MAX];
+  GenericEncoder model_g[OD_NPLANES_MAX];
+  GenericEncoder model_ym[OD_NPLANES_MAX];
+  od_adapt_ctx adapt;
+  signed char *modes;
+  od_coeff *c;
+  od_coeff *d;
+  od_coeff *md;
+  od_coeff *mc;
+  od_coeff *l;
+  int ex_dc[OD_NPLANES_MAX];
+  int ex_g[OD_NPLANES_MAX];
+  int is_keyframe;
+  int nk;
+  int k_total;
+  int sum_ex_total_q8;
+  int ncount;
+  int count_total_q8;
+  int count_ex_total_q8;
+  ogg_uint16_t mode_p0[OD_INTRA_NMODES];
+};
+typedef struct od_mb_enc_ctx od_mb_enc_ctx;
+
+void od_mb_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int scale, int pli,
+ int mbx, int mby) {
+  int by;
+  int bx;
+  int xdec;
+  int ydec;
+  int w;
+  int frame_width;
+  signed char *modes;
+  od_coeff *c;
+  od_coeff *d;
+  od_coeff *md;
+  od_coeff *mc;
+  od_coeff *l;
+  xdec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
+  ydec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
+  frame_width = enc->state.info.frame_width;
+  w = frame_width >> xdec;
+  modes = ctx->modes;
+  c = ctx->c;
+  d = ctx->d;
+  md = ctx->md;
+  mc = ctx->mc;
+  l = ctx->l;
+  for (by = mby << (2 - ydec); by < (mby + 1) << (2 - ydec); by++) {
+    for (bx = mbx << (2 - xdec); bx < (mbx + 1) << (2 - xdec); bx++) {
+      int x;
+      int y;
+      od_coeff pred[4*4];
+      od_coeff predt[4*4];
+      ogg_int16_t pvq_scale[4*4];
+      int sgn;
+      int qg;
+      int cblock[4*4];
+      int zzi;
+      int vk;
+#ifdef OD_LOLOSSLESS
+      od_coeff backup[4*4];
+#endif
+      vk = 0;
+      /*fDCT a 4x4 block.*/
+      od_bin_fdct4x4(d + (by << 2)*w + (bx << 2), w,
+       c + (by << 2)*w + (bx << 2), w);
+      if (!ctx->is_keyframe) {
+        od_bin_fdct4x4(md + (by << 2)*w + (bx << 2), w,
+         mc + (by << 2)*w + (bx << 2), w);
+      }
+      for (zzi = 0; zzi < 16; zzi++) pvq_scale[zzi] = 0;
+      if (bx > 0 && by > 0) {
+        if (pli == 0) {
+          ogg_uint16_t mode_cdf[OD_INTRA_NMODES];
+          ogg_uint32_t mode_dist[OD_INTRA_NMODES];
+          int m_l;
+          int m_ul;
+          int m_u;
+          int mode;
+          od_coeff *ur;
+          ur = (by > 0 && (((bx + 1) < (mbx + 1) << (2 - xdec))
+           || (by == mby << (2 - ydec)))) ?
+           d + ((by - 1) << 2)*w + ((bx + 1) << 2) :
+           d + ((by - 1) << 2)*w + (bx << 2);
+          m_l = modes[by*(w >> 2) + bx - 1];
+          m_ul = modes[(by - 1)*(w >> 2) + bx - 1];
+          m_u = modes[(by - 1)*(w >> 2) + bx];
+          od_intra_pred_cdf(mode_cdf, OD_INTRA_PRED_PROB_4x4[pli],
+           ctx->mode_p0, OD_INTRA_NMODES, m_l, m_ul, m_u);
+          od_intra_pred4x4_dist(mode_dist, d + (by << 2)*w + (bx << 2),
+           w, ur, w, pli);
+          /*Lambda = 1*/
+          mode = od_intra_pred_search(mode_cdf, mode_dist,
+           OD_INTRA_NMODES, 128);
+          od_intra_pred4x4_get(pred, d + (by << 2)*w + (bx << 2), w,
+           ur, w, mode);
+          od_ec_encode_cdf_unscaled(&enc->ec, mode, mode_cdf, OD_INTRA_NMODES);
+          mode_bits -= M_LOG2E*log(
+           (mode_cdf[mode] - (mode == 0 ? 0 : mode_cdf[mode - 1]))/
+           (float)mode_cdf[OD_INTRA_NMODES - 1]);
+          mode_count++;
+          modes[by*(w >> 2) + bx] = mode;
+          od_intra_pred_update(ctx->mode_p0, OD_INTRA_NMODES, mode, m_l, m_ul,
+           m_u);
+        }
+        else {
+          int chroma_weights_q8[3];
+          int mode;
+          mode = modes[(by << ydec)*(frame_width >> 2) + (bx << xdec)];
+          chroma_weights_q8[0] = OD_INTRA_CHROMA_WEIGHTS_Q6[mode][0];
+          chroma_weights_q8[1] = OD_INTRA_CHROMA_WEIGHTS_Q6[mode][1];
+          chroma_weights_q8[2] = OD_INTRA_CHROMA_WEIGHTS_Q6[mode][2];
+          mode = modes[(by << ydec)*(frame_width >> 2) + ((bx << xdec)
+           + xdec)];
+          chroma_weights_q8[0] += OD_INTRA_CHROMA_WEIGHTS_Q6[mode][0];
+          chroma_weights_q8[1] += OD_INTRA_CHROMA_WEIGHTS_Q6[mode][1];
+          chroma_weights_q8[2] += OD_INTRA_CHROMA_WEIGHTS_Q6[mode][2];
+          mode = modes[((by << ydec) + ydec)*(frame_width >> 2)
+           + (bx << xdec)];
+          chroma_weights_q8[0] += OD_INTRA_CHROMA_WEIGHTS_Q6[mode][0];
+          chroma_weights_q8[1] += OD_INTRA_CHROMA_WEIGHTS_Q6[mode][1];
+          chroma_weights_q8[2] += OD_INTRA_CHROMA_WEIGHTS_Q6[mode][2];
+          mode = modes[((by << ydec) + ydec)*(frame_width >> 2)
+           + ((bx << xdec) + xdec)];
+          chroma_weights_q8[0] += OD_INTRA_CHROMA_WEIGHTS_Q6[mode][0];
+          chroma_weights_q8[1] += OD_INTRA_CHROMA_WEIGHTS_Q6[mode][1];
+          chroma_weights_q8[2] += OD_INTRA_CHROMA_WEIGHTS_Q6[mode][2];
+          od_chroma_pred4x4(pred, d + (by << 2)*w + (bx << 2),
+           l + (by << 2)*w + (bx << 2), w, chroma_weights_q8);
+        }
+      }
+      else{
+        for (zzi = 0; zzi < 16; zzi++) pred[zzi] = 0;
+        if (bx > 0) pred[0] = d[(by << 2)*w + ((bx - 1) << 2)];
+        else if (by > 0) pred[0] = d[((by - 1) << 2)*w + (bx << 2)];
+        if (pli == 0) modes[by*(w >> 2) + bx] = 0;
+      }
+      if (!ctx->is_keyframe) {
+        int x;
+        int y;
+        int i;
+        i = 0;
+        for( y=0; y<4; y++ ) {
+          for( x=0; x<4; x++ ) {
+            pred[i++] = md[(y + (by << 2))*w + (x + (bx << 2))];
+          }
+
+        }
+      }
+      /*Zig-zag*/
+      for (y = 0; y < 4; y++) {
+        for (x = 0; x < 4; x++) {
+          cblock[OD_ZIG4[y*4 + x]] = d[((by << 2) + y)*w + (bx << 2) + x];
+          predt[OD_ZIG4[y*4 + x]] = pred[y*4 + x];
+        }
+      }
+#ifdef OD_LOLOSSLESS
+      for (zzi = 0; zzi < 16; zzi++) {
+        backup[zzi] = cblock[zzi] + 32768;
+        OD_ASSERT(backup[zzi] >= 0);
+        OD_ASSERT(backup[zzi] < 65535);
+        od_ec_enc_uint(&enc->ec, backup[zzi], 65536);
+      }
+#endif
+      sgn = (cblock[0] - predt[0]) < 0;
+      cblock[0] = (int)floor(pow(fabs(cblock[0] - predt[0])/scale,0.75));
+      generic_encode(&enc->ec, ctx->model_dc + pli, cblock[0],
+       ctx->ex_dc + pli, 0);
+      if (cblock[0]) od_ec_enc_bits(&enc->ec, sgn, 1);
+      cblock[0] = (int)(pow(cblock[0], 4.0/3)*scale);
+      cblock[0] *= sgn ? -1 : 1;
+      cblock[0] += predt[0];
+      quant_pvq(cblock + 1, predt + 1, pvq_scale, pred + 1, 15, scale, &qg);
+      for (zzi = 1; zzi < 16; zzi++) cblock[zzi] = pred[zzi];
+      dequant_pvq(cblock + 1, predt + 1, pvq_scale, 15, scale, qg);
+      generic_encode(&enc->ec, ctx->model_g + pli, abs(qg),
+       ctx->ex_g + pli, 0);
+      if (qg) od_ec_enc_bits(&enc->ec, qg < 0, 1);
+      vk = 0;
+      for (zzi = 0; zzi < 15; zzi++) vk += abs(pred[zzi + 1]);
+      /*No need to code vk because we can get it from qg.*/
+      /*Expectation is that half the pulses will go in y[m].*/
+      if (vk != 0) {
+        int ex_ym;
+        ex_ym = (65536/2)*vk;
+        generic_encode(&enc->ec, &ctx->model_ym[pli], vk - pred[1], &ex_ym, 0);
+      }
+      pvq_encoder(&enc->ec, pred + 2, 14, vk - abs(pred[1]), &ctx->adapt);
+      if (ctx->adapt.curr[OD_ADAPT_K_Q8] >= 0) {
+        ctx->nk++;
+        ctx->k_total += ctx->adapt.curr[OD_ADAPT_K_Q8];
+        ctx->sum_ex_total_q8 += ctx->adapt.curr[OD_ADAPT_SUM_EX_Q8];
+      }
+      if (ctx->adapt.curr[OD_ADAPT_COUNT_Q8] >= 0) {
+        ctx->ncount++;
+        ctx->count_total_q8 += ctx->adapt.curr[OD_ADAPT_COUNT_Q8];
+        ctx->count_ex_total_q8 += ctx->adapt.curr[OD_ADAPT_COUNT_EX_Q8];
+      }
+#ifdef OD_LOLOSSLESS
+      for (zzi = 0; zzi < 16; zzi++) {
+        cblock[zzi] = backup[zzi] - 32768;
+      }
+#endif
+      /*Dequantize*/
+      for (y = 0; y < 4; y++) {
+        for (x = 0; x < 4; x++) {
+          d[((by << 2) + y)*w + (bx << 2) + x] = cblock[OD_ZIG4[y*4 + x]];
+        }
+      }
+      /*iDCT the 4x4 block.*/
+      od_bin_idct4x4(c + (by << 2)*w + (bx << 2), w, d + (by << 2)*w
+       + (bx << 2), w);
+    }
+  }
+}
 
 int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
-   
   int refi;
   int nplanes;
   int pli;
@@ -264,7 +480,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   BlockSizeComp *bs;
   int nhsb;
   int nvsb;
-
   if (enc == NULL || img == NULL) return OD_EFAULT;
   if (enc->packet_state == OD_PACKET_DONE) return OD_EINVAL;
   /*Check the input image dimensions to make sure they're compatible with the
@@ -336,7 +551,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       enc->state.bsize[(j*enc->state.bstride) + i] = 3;
     }
   }
-
   /* Allocate a blockSizeComp for scratch space and then calculate the block sizes
      eventually store them in bsize. */
   bs = _ogg_malloc(sizeof(BlockSizeComp));
@@ -371,7 +585,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     }
     OD_LOG_PARTIAL((OD_LOG_GENERIC, OD_LOG_INFO, "\n"));
   }
-
   _ogg_free(bs);
   /*Update the buffer state.*/
   if (enc->state.ref_imgi[OD_FRAME_SELF] >= 0) {
@@ -410,26 +623,26 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       int width;
       int height;
       od_mv_grid_pt* mvp;
-      
       nhmvbs = (enc->state.nhmbs + 1) << 2;
       nvmvbs = (enc->state.nvmbs + 1) << 2;
       img = enc->state.io_imgs + OD_FRAME_REC;
       width = img->width;
       height = img->height;
-     
       for (vy = 0; vy < nvmvbs; vy += 4) {
         for (vx = 0; vx < nhmvbs; vx += 4) {
           mvp = &( enc->state.mv_grid[vy][vx] );
           /* TODO - need to tune probability distribution on next line */
-          od_ec_encode_bool_q15( &enc->ec , mvp->valid, 32000 ); 
+          od_ec_encode_bool_q15( &enc->ec , mvp->valid, 32000 );
           if ( mvp->valid )
           {
             OD_ASSERT( mvp->mv[0] <  8*(width+32) );
             OD_ASSERT( mvp->mv[0] > -8*(width+32) );
             OD_ASSERT( mvp->mv[1] <  8*(height+32) );
             OD_ASSERT( mvp->mv[1] > -8*(height+32) );
-            od_ec_enc_uint( &enc->ec , mvp->mv[0] + 8*(width+32),  8*2*(width+32)  ); 
-            od_ec_enc_uint( &enc->ec , mvp->mv[1] + 8*(height+32), 8*2*(height+32) ); 
+            od_ec_enc_uint( &enc->ec , mvp->mv[0] + 8*(width+32),
+             8*2*(width+32)  );
+            od_ec_enc_uint( &enc->ec , mvp->mv[1] + 8*(height+32),
+             8*2*(height+32) );
           }
         }
       }
@@ -445,19 +658,13 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   }
   scale = 10; /*atoi(getenv("QUANT"));*/
   {
-    GenericEncoder model_dc[OD_NPLANES_MAX];
-    GenericEncoder model_g[OD_NPLANES_MAX];
-    GenericEncoder model_ym[OD_NPLANES_MAX];
-    ogg_uint16_t mode_p0[OD_INTRA_NMODES];
-    int ex_dc[OD_NPLANES_MAX];
-    int ex_g[OD_NPLANES_MAX];
+    od_mb_enc_ctx mbctx;
     od_coeff *ctmp[OD_NPLANES_MAX];
     od_coeff *dtmp[OD_NPLANES_MAX];
     od_coeff *mctmp[OD_NPLANES_MAX];
     od_coeff *mdtmp[OD_NPLANES_MAX];
     od_coeff *ltmp[OD_NPLANES_MAX];
     od_coeff *lbuf[OD_NPLANES_MAX];
-    signed char *modes;
     int xdec;
     int ydec;
     int nvmbs;
@@ -471,25 +678,23 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     int w;
     int y;
     int x;
-    int is_keyframe; /* true if doing an intra coded frame */
- 
-    is_keyframe = ( enc->state.cur_time % (enc->state.info.keyframe_rate) == 0) ? 1 : 0;
-    OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO,"is_keyframe=%d",is_keyframe ));
-   
+    mbctx.is_keyframe = ( enc->state.cur_time %
+     (enc->state.info.keyframe_rate) == 0) ? 1 : 0;
+    OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO,"is_keyframe=%d",mbctx.is_keyframe ));
     nhmbs = enc->state.nhmbs;
     nvmbs = enc->state.nvmbs;
     /*Initialize the data needed for each plane.*/
-    modes = _ogg_calloc((frame_width >> 2)*(frame_height >> 2),
-     sizeof(*modes));
+    mbctx.modes = _ogg_calloc((frame_width >> 2)*(frame_height >> 2),
+     sizeof(*mbctx.modes));
     for (mi = 0; mi < OD_INTRA_NMODES; mi++) {
-     mode_p0[mi] = 32768/OD_INTRA_NMODES;
+     mbctx.mode_p0[mi] = 32768/OD_INTRA_NMODES;
     }
     for (pli = 0; pli < nplanes; pli++) {
-      generic_model_init(model_dc + pli);
-      generic_model_init(model_g + pli);
-      generic_model_init(model_ym + pli);
-      ex_dc[pli] = pli > 0 ? 8 : 32768;
-      ex_g[pli] = 8;
+      generic_model_init(&mbctx.model_dc[pli]);
+      generic_model_init(&mbctx.model_g[pli]);
+      generic_model_init(&mbctx.model_ym[pli]);
+      mbctx.ex_dc[pli] = pli > 0 ? 8 : 32768;
+      mbctx.ex_g[pli] = 8;
       xdec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
       ydec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
       w = frame_width >> xdec;
@@ -546,28 +751,16 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
         next_oxfill = mbx + 1 < nhmbs ? ((mbx + 1) << 4) - 8 : frame_width;
         for (pli = 0; pli < nplanes; pli++) {
           od_adapt_row_ctx *adapt_row;
-          od_adapt_ctx adapt;
-          od_coeff *c;
-          od_coeff *d;
-         od_coeff *mc;
-          od_coeff *md;
-          od_coeff *l;
           unsigned char *data;
           unsigned char *mdata;
           int ystride;
           int by;
           int bx;
-          int nk;
-          int k_total;
-          int sum_ex_total_q8;
-          int ncount;
-          int count_total_q8;
-          int count_ex_total_q8;
-          c = ctmp[pli];
-          d = dtmp[pli];
-          mc = mctmp[pli];
-          md = mdtmp[pli];
-          l = lbuf[pli];
+          mbctx.c = ctmp[pli];
+          mbctx.d = dtmp[pli];
+          mbctx.mc = mctmp[pli];
+          mbctx.md = mdtmp[pli];
+          mbctx.l = lbuf[pli];
           xdec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
           ydec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
           w = frame_width >> xdec;
@@ -579,7 +772,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
             for (by = mby << (2 - ydec); by < (mby + 1) << (2 - ydec); by++) {
               for (bx = mbx << (2 - xdec); bx < (mbx + 1) << (2 - xdec);
                bx++) {
-                od_resample_luma_coeffs(l + (by << 2)*w + (bx<<2), w,
+                od_resample_luma_coeffs(mbctx.l + (by << 2)*w + (bx<<2), w,
                  dtmp[0] + (by << (2 + ydec))*frame_width + (bx<<(2 + xdec)),
                  frame_width, xdec, ydec, 4);
               }
@@ -588,13 +781,12 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
           /*Collect the image data needed for this macro block.*/
           data = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].data;
           mdata = enc->state.io_imgs[OD_FRAME_REC].planes[pli].data;
-          
           ystride = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ystride;
           for (y = iyfill >> ydec; y < next_iyfill >> ydec; y++) {
             for (x = ixfill >> xdec; x < next_ixfill >> xdec; x++) {
-              c[y*w + x] = data[ystride*y + x] - 128;
-              if (!is_keyframe)
-                mc[y*w + x] = mdata[ystride*y + x] - 128;
+              mbctx.c[y*w + x] = data[ystride*y + x] - 128;
+              if (!mbctx.is_keyframe)
+                mbctx.mc[y*w + x] = mdata[ystride*y + x] - 128;
             }
           }
           /*Apply the prefilter across the bottom block edges.*/
@@ -602,13 +794,15 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
            - ( mby + 1 >= nvmbs); by++) {
             for (x = ixfill >> xdec; x < next_ixfill >> xdec; x++) {
               od_coeff p[4];
-              for (y = 0; y < 4; y++) p[y] = c[((by << 2) + y + 2)*w + x];
+              for (y = 0; y < 4; y++) p[y] = mbctx.c[((by << 2) + y + 2)*w + x];
               od_pre_filter4(p, p);
-              for (y = 0; y < 4; y++) c[((by << 2) + y + 2)*w + x] = p[y];
-              if ( !is_keyframe ) {
-                for (y = 0; y < 4; y++) p[y] = mc[((by << 2) + y + 2)*w + x];
+              for (y = 0; y < 4; y++) mbctx.c[((by << 2) + y + 2)*w + x] = p[y];
+              if ( !mbctx.is_keyframe ) {
+                for (y = 0; y < 4; y++) p[y] =
+                 mbctx.c[((by << 2) + y + 2)*w + x];
                 od_pre_filter4(p, p);
-                for (y = 0; y < 4; y++) mc[((by << 2) + y + 2)*w + x] = p[y];
+                for (y = 0; y < 4; y++) mbctx.mc[((by << 2) + y + 2)*w + x] =
+                 p[y];
               }
             }
           }
@@ -616,220 +810,40 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
           for (y = (mby << (4 - ydec)); y < (mby + 1) << (4 - ydec); y++) {
             for (bx = mbx << (2 - xdec); bx < ((mbx + 1) << (2 - xdec))
              - ((mbx + 1) >= nhmbs); bx++) {
-              od_pre_filter4(c + y*w + (bx << 2) + 2, c + y*w + (bx << 2) + 2);
-              if ( !is_keyframe ) od_pre_filter4(mc + y*w + (bx << 2) + 2, mc + y*w + (bx << 2) + 2);
+              od_pre_filter4(mbctx.c + y*w + (bx << 2) + 2, mbctx.c + y*w + (bx << 2) + 2);
+              if ( !mbctx.is_keyframe ) od_pre_filter4(mbctx.mc + y*w + (bx << 2) + 2,
+               mbctx.mc + y*w + (bx << 2) + 2);
             }
           }
-          nk = k_total = sum_ex_total_q8 = 0;
-          ncount = count_total_q8 = count_ex_total_q8 = 0;
+          mbctx.nk = mbctx.k_total = mbctx.sum_ex_total_q8 = 0;
+          mbctx.ncount = mbctx.count_total_q8 = mbctx.count_ex_total_q8 = 0;
           adapt_row = &enc->state.adapt_row[pli];
-          od_adapt_update_stats(adapt_row, mbx, &adapt_hmean[pli], &adapt);
-          for (by = mby << (2 - ydec); by < (mby + 1) << (2 - ydec); by++) {
-            for (bx = mbx << (2 - xdec); bx < (mbx + 1) << (2 - xdec); bx++) {
-              od_coeff pred[4*4];
-              od_coeff predt[4*4];
-              ogg_int16_t pvq_scale[4*4];
-              int sgn;
-              int qg;
-              int cblock[4*4];
-              int zzi;
-              int vk;
-#ifdef OD_LOLOSSLESS
-              od_coeff backup[4*4];
-#endif
-              vk = 0;
-              /*fDCT a 4x4 block.*/
-              od_bin_fdct4x4(d + (by << 2)*w + (bx << 2), w,
-               c + (by << 2)*w + (bx << 2), w);
-              if (!is_keyframe) {
-                od_bin_fdct4x4(md + (by << 2)*w + (bx << 2), w,
-                               mc + (by << 2)*w + (bx << 2), w);
-              }
-              for (zzi = 0; zzi < 16; zzi++) pvq_scale[zzi] = 0;
-              if (bx > 0 && by > 0) {
-                if (pli == 0) {
-                  ogg_uint16_t mode_cdf[OD_INTRA_NMODES];
-                  ogg_uint32_t mode_dist[OD_INTRA_NMODES];
-                  int m_l;
-                  int m_ul;
-                  int m_u;
-                  int mode;
-                  od_coeff *ur;
-                  ur = (by > 0 && (((bx + 1) < (mbx + 1) << (2 - xdec))
-                   || (by == mby << (2 - ydec)))) ?
-                   d + ((by - 1) << 2)*w + ((bx + 1) << 2) :
-                   d + ((by - 1) << 2)*w + (bx << 2);
-                  m_l = modes[by*(w >> 2) + bx - 1];
-                  m_ul = modes[(by - 1)*(w >> 2) + bx - 1];
-                  m_u = modes[(by - 1)*(w >> 2) + bx];
-                  od_intra_pred_cdf(mode_cdf, OD_INTRA_PRED_PROB_4x4[pli],
-                   mode_p0, OD_INTRA_NMODES, m_l, m_ul, m_u);
-                  od_intra_pred4x4_dist(mode_dist, d + (by << 2)*w + (bx << 2),
-                   w, ur, w, pli);
-                  /*Lambda = 1*/
-                  mode = od_intra_pred_search(mode_cdf, mode_dist,
-                   OD_INTRA_NMODES, 128);
-                  od_intra_pred4x4_get(pred, d + (by << 2)*w + (bx << 2),
-                   w, ur, w, mode);
-                  od_ec_encode_cdf_unscaled(&enc->ec, mode, mode_cdf,
-                   OD_INTRA_NMODES);
-                  mode_bits -= M_LOG2E*log(
-                   (mode_cdf[mode] - (mode == 0 ? 0 : mode_cdf[mode - 1]))/
-                   (float)mode_cdf[OD_INTRA_NMODES - 1]);
-                  mode_count++;
-                  modes[by*(w >> 2) + bx] = mode;
-                  od_intra_pred_update(mode_p0, OD_INTRA_NMODES, mode,
-                   m_l, m_ul, m_u);
-                }
-                else{
-                  int chroma_weights_q8[3];
-                  int mode;
-                  mode = modes[(by << ydec)*(frame_width >> 2) + (bx << xdec)];
-                  chroma_weights_q8[0] = OD_INTRA_CHROMA_WEIGHTS_Q6[mode][0];
-                  chroma_weights_q8[1] = OD_INTRA_CHROMA_WEIGHTS_Q6[mode][1];
-                  chroma_weights_q8[2] = OD_INTRA_CHROMA_WEIGHTS_Q6[mode][2];
-                  mode = modes[(by << ydec)*(frame_width >> 2) + ((bx << xdec)
-                   + xdec)];
-                  chroma_weights_q8[0] += OD_INTRA_CHROMA_WEIGHTS_Q6[mode][0];
-                  chroma_weights_q8[1] += OD_INTRA_CHROMA_WEIGHTS_Q6[mode][1];
-                  chroma_weights_q8[2] += OD_INTRA_CHROMA_WEIGHTS_Q6[mode][2];
-                  mode = modes[((by << ydec) + ydec)*(frame_width >> 2)
-                   + (bx << xdec)];
-                  chroma_weights_q8[0] += OD_INTRA_CHROMA_WEIGHTS_Q6[mode][0];
-                  chroma_weights_q8[1] += OD_INTRA_CHROMA_WEIGHTS_Q6[mode][1];
-                  chroma_weights_q8[2] += OD_INTRA_CHROMA_WEIGHTS_Q6[mode][2];
-                  mode = modes[((by << ydec) + ydec)*(frame_width >> 2)
-                   + ((bx << xdec) + xdec)];
-                  chroma_weights_q8[0] += OD_INTRA_CHROMA_WEIGHTS_Q6[mode][0];
-                  chroma_weights_q8[1] += OD_INTRA_CHROMA_WEIGHTS_Q6[mode][1];
-                  chroma_weights_q8[2] += OD_INTRA_CHROMA_WEIGHTS_Q6[mode][2];
-                  od_chroma_pred4x4(pred, d + (by << 2)*w + (bx << 2),
-                   l + (by << 2)*w + (bx << 2), w, chroma_weights_q8);
-                }
-              }
-              else{
-                for (zzi = 0; zzi < 16; zzi++) pred[zzi] = 0;
-                if (bx > 0) pred[0] = d[(by << 2)*w + ((bx - 1) << 2)];
-                else if (by > 0) pred[0] = d[((by - 1) << 2)*w + (bx << 2)];
-                if (pli == 0) modes[by*(w >> 2) + bx] = 0;
-              }
-              if ( !is_keyframe ) {
-                int x;
-                int y;
-                int i;
-                i = 0;
-                for( y=0; y<4; y++ )
-                  for( x=0; x<4; x++ )
-                    pred[i++] = md[ ( y + (by<<2) )*w + ( x + (bx<<2)) ];
-              }
- 
-              /*Zig-zag*/
-              for (y = 0; y < 4; y++) {
-                for (x = 0; x < 4; x++) {
-                   cblock[OD_ZIG4[y*4 + x]] =
-                   d[((by << 2) + y)*w + (bx << 2) + x];
-                  predt[OD_ZIG4[y*4 + x]] = pred[y*4 + x];
-                }
-              }
-#ifdef OD_LOLOSSLESS
-              for (zzi = 0; zzi < 16; zzi++) {
-                backup[zzi] = cblock[zzi] + 32768;
-                OD_ASSERT(backup[zzi] >= 0);
-                OD_ASSERT(backup[zzi] < 65535);
-                od_ec_enc_uint(&enc->ec, backup[zzi], 65536);
-              }
-#endif
-              sgn = (cblock[0] - predt[0]) < 0;
-              cblock[0] = (int)floor(pow(fabs(cblock[0] - predt[0])/
-               scale,0.75));
-              generic_encode(&enc->ec, model_dc + pli, cblock[0], ex_dc
-               + pli, 0);
-              if (cblock[0]) od_ec_enc_bits(&enc->ec, sgn, 1);
-              cblock[0] = (int)(pow(cblock[0], 4.0/3)*scale);
-              cblock[0] *= sgn ? -1 : 1;
-              cblock[0] += predt[0];
-#if 1
-              quant_pvq(cblock + 1, predt + 1, pvq_scale, pred + 1, 15, scale,
-               &qg);
-              for (zzi = 1; zzi < 16; zzi++) cblock[zzi] = pred[zzi];
-              dequant_pvq(cblock + 1, predt + 1, pvq_scale, 15, scale, qg);
-              generic_encode(&enc->ec, model_g + pli, abs(qg), ex_g + pli, 0);
-              if (qg) od_ec_enc_bits(&enc->ec, qg < 0, 1);
-              vk = 0;
-              for (zzi = 0; zzi < 15; zzi++) vk += abs(pred[zzi + 1]);
-              /*No need to code vk because we can get it from qg.*/
-              /*Expectation is that half the pulses will go in y[m].*/
-              if (vk != 0) {
-                int ex_ym;
-                ex_ym = (65536/2)*vk;
-                generic_encode(&enc->ec, model_ym + pli, vk - pred[1], &ex_ym,
-                 0);
-              }
-              pvq_encoder(&enc->ec, pred + 2, 14, vk - abs(pred[1]), &adapt);
-#else
-              vk = quant_scalar(cblock + 1, predt + 1, pvq_scale, pred + 1, 15,
-               11, &pvq_adapt);
-              {
-                /*This stupid crap is jmspeex's fault.
-                  Don't ever enable this code.*/
-                static int ex_k = 32768;
-                generic_encode(&enc->ec, &model_ym, &ex_k, 4);
-              }
-              /*Treat first component (y[m]) like all others.*/
-              pvq_encoder(&enc->ec, pred + 1, 15, vk, &pvq_adapt);
-#endif
-              if (adapt.curr[OD_ADAPT_K_Q8] >= 0) {
-                nk++;
-                k_total += adapt.curr[OD_ADAPT_K_Q8];
-                sum_ex_total_q8 += adapt.curr[OD_ADAPT_SUM_EX_Q8];
-              }
-              if (adapt.curr[OD_ADAPT_COUNT_Q8] >= 0) {
-                ncount++;
-                count_total_q8 += adapt.curr[OD_ADAPT_COUNT_Q8];
-                count_ex_total_q8 += adapt.curr[OD_ADAPT_COUNT_EX_Q8];
-              }
-#ifdef OD_LOLOSSLESS
-              for (zzi = 0; zzi < 16; zzi++) {
-                cblock[zzi] = backup[zzi] - 32768;
-              }
-#endif
-              /*Dequantize*/
-              for (y = 0; y < 4; y++) {
-                for (x = 0; x < 4; x++) {
-                  d[((by << 2) + y)*w + (bx << 2) + x] =
-                   cblock[OD_ZIG4[y*4 + x]];
-                }
-              }
-              /*iDCT the 4x4 block.*/
-              od_bin_idct4x4(c + (by << 2)*w + (bx << 2), w, d + (by << 2)*w
-               + (bx << 2), w);
-            }
-          }
-          if (nk > 0) {
-            adapt.curr[OD_ADAPT_K_Q8] = OD_DIVU_SMALL(k_total << 8, nk);
-            adapt.curr[OD_ADAPT_SUM_EX_Q8] =
-             OD_DIVU_SMALL(sum_ex_total_q8, nk);
+          od_adapt_update_stats(adapt_row, mbx, &adapt_hmean[pli], &mbctx.adapt);
+          od_mb_encode(enc, &mbctx, scale, pli, mbx, mby);
+          if (mbctx.nk > 0) {
+            mbctx.adapt.curr[OD_ADAPT_K_Q8] = OD_DIVU_SMALL(mbctx.k_total << 8, mbctx.nk);
+            mbctx.adapt.curr[OD_ADAPT_SUM_EX_Q8] =
+             OD_DIVU_SMALL(mbctx.sum_ex_total_q8, mbctx.nk);
           } else {
-            adapt.curr[OD_ADAPT_K_Q8] = OD_ADAPT_NO_VALUE;
-            adapt.curr[OD_ADAPT_SUM_EX_Q8] = OD_ADAPT_NO_VALUE;
+            mbctx.adapt.curr[OD_ADAPT_K_Q8] = OD_ADAPT_NO_VALUE;
+            mbctx.adapt.curr[OD_ADAPT_SUM_EX_Q8] = OD_ADAPT_NO_VALUE;
           }
-          if (ncount > 0)
+          if (mbctx.ncount > 0)
           {
-            adapt.curr[OD_ADAPT_COUNT_Q8] =
-             OD_DIVU_SMALL(count_total_q8, ncount);
-            adapt.curr[OD_ADAPT_COUNT_EX_Q8] =
-             OD_DIVU_SMALL(count_ex_total_q8, ncount);
+            mbctx.adapt.curr[OD_ADAPT_COUNT_Q8] =
+             OD_DIVU_SMALL(mbctx.count_total_q8, mbctx.ncount);
+            mbctx.adapt.curr[OD_ADAPT_COUNT_EX_Q8] =
+             OD_DIVU_SMALL(mbctx.count_ex_total_q8, mbctx.ncount);
           } else {
-            adapt.curr[OD_ADAPT_COUNT_Q8] = OD_ADAPT_NO_VALUE;
-            adapt.curr[OD_ADAPT_COUNT_EX_Q8] = OD_ADAPT_NO_VALUE;
+            mbctx.adapt.curr[OD_ADAPT_COUNT_Q8] = OD_ADAPT_NO_VALUE;
+            mbctx.adapt.curr[OD_ADAPT_COUNT_EX_Q8] = OD_ADAPT_NO_VALUE;
           }
-          od_adapt_mb(adapt_row, mbx, &adapt_hmean[pli], &adapt);
-
+          od_adapt_mb(adapt_row, mbx, &adapt_hmean[pli], &mbctx.adapt);
           /*Apply the postfilter across the left block edges.*/
           for (y = mby << (4 - ydec); y < (mby + 1) << (4 - ydec); y++) {
             for (bx = (mbx<<(2 - xdec)) + (mbx <= 0); bx < (mbx + 1) <<
              (2 - xdec); bx++) {
-              od_post_filter4(c + y*w + (bx << 2) - 2, c + y*w
+              od_post_filter4(mbctx.c + y*w + (bx << 2) - 2, mbctx.c + y*w
                + (bx << 2) - 2);
             }
           }
@@ -838,15 +852,15 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
            (2 - ydec); by++) {
             for (x = oxfill >> xdec; x < next_oxfill >> xdec; x++) {
               od_coeff p[4];
-              for (y = 0; y < 4; y++) p[y] = c[((by << 2) + y - 2)*w + x];
+              for (y = 0; y < 4; y++) p[y] = mbctx.c[((by << 2) + y - 2)*w + x];
               od_post_filter4(p,p);
-              for (y = 0; y < 4; y++) c[((by << 2) + y - 2)*w + x] = p[y];
+              for (y = 0; y < 4; y++) mbctx.c[((by << 2) + y - 2)*w + x] = p[y];
             }
           }
           data = enc->state.io_imgs[OD_FRAME_REC].planes[pli].data;
           for (y = oyfill>>ydec; y < next_oyfill >> ydec; y++) {
             for (x = oxfill >> xdec; x < next_oxfill >> xdec; x++) {
-              data[ystride*y + x] = OD_CLAMP255(c[y*w + x] + 128);
+              data[ystride*y + x] = OD_CLAMP255(mbctx.c[y*w + x] + 128);
             }
           }
         }
@@ -866,7 +880,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       _ogg_free(mctmp[pli]);
       _ogg_free(mdtmp[pli]);
     }
-    _ogg_free(modes);
+    _ogg_free(mbctx.modes);
   }
   /*Dump YUV*/
   od_state_dump_yuv(&enc->state, enc->state.io_imgs + OD_FRAME_REC, "out");
@@ -971,7 +985,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       enc->state.ref_line_buf[1] = prev_rec_row;
     }
     /* Commented out because these variables don't seem to exist.
-       
+
        TODO: re-add this?
 
     OD_LOG((OD_LOG_ENCODER, OD_LOG_DEBUG,
