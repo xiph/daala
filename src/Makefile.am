@@ -1,3 +1,5 @@
+SUBDIRS = . tests
+
 lib_LTLIBRARIES = libdaalabase.la libdaaladec.la libdaalaenc.la
 
 noinst_HEADERS = \

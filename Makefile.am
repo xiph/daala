@@ -1,4 +1,4 @@
-SUBDIRS = src examples include tools src/tests
+SUBDIRS = src examples include tools
 if ENABLE_DOCS
 SUBDIRS += doc
 endif
