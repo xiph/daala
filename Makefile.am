@@ -438,8 +438,6 @@ figures : $(FIG_OBJS)
 	fig2dev -L pdftex_t -p $(<:.fig=.pdftex) $< $@
 endif
 
-DIST_SUBDIRS = src examples include tools doc
-
 ACLOCAL_AMFLAGS = -I m4
 
 AM_CFLAGS = -I$(top_srcdir)/include $(DEPS_CFLAGS)

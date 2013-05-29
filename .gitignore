@@ -91,4 +91,5 @@ doc/mc.pdf
 doc/mvpred.pdf
 doc/vbunsplit.pdftex
 doc/vbunsplit.pdftex_t
-
+daala-*/
+*.tar.gz
