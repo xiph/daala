@@ -390,7 +390,7 @@ src_tests_logging_test_LDADD = src/libdaalabase.la src/libdaalaenc.la  $(OGG_LIB
 
 src_tests_check_tests_SOURCES = src/tests/check_main.c src/tests/headerencode_test.c
 src_tests_check_tests_CFLAGS = $(OGG_CFLAGS)
-src_tests_check_tests_LDADD =  src/libdaalabase.la src/libdaalaenc.la $(OGG_LIBS) $(CHECK_LIBS)
+src_tests_check_tests_LDADD =  src/libdaalabase.la src/libdaalaenc.la $(OGG_LIBS) $(CHECK_LIBS) -lm
 
 
 # Docs
