@@ -38,6 +38,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "pvq.h"
 #include "pvq_code.h"
 #include "block_size.h"
+#include "block_size_enc.h"
 #include "logging.h"
 #if OD_DECODE_IN_ENCODE
 # include "decint.h"
@@ -339,31 +340,36 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   /* Allocate a blockSizeComp for scratch space and then calculate the block sizes
      eventually store them in bsize. */
   bs = _ogg_malloc(sizeof(BlockSizeComp));
+  od_log_matrix_uchar(OD_LOG_GENERIC, OD_LOG_INFO, "bimg ", enc->state.io_imgs[OD_FRAME_INPUT].planes[0].data-16*enc->state.io_imgs[OD_FRAME_INPUT].planes[0].ystride-16,
+      enc->state.io_imgs[OD_FRAME_INPUT].planes[0].ystride, (nvsb + 1)*32);
   for(i = 1; i < nvsb + 1; i++) {
-    unsigned char *img = enc->state.io_imgs[OD_FRAME_INPUT].planes[0].data;
-    int istride = enc->state.io_imgs[OD_FRAME_INPUT].planes[0].ystride;
+    unsigned char *img;
+    int istride ;
+    int bstride;
+    bstride = enc->state.bstride;
+    img = enc->state.io_imgs[OD_FRAME_INPUT].planes[0].data;
+    istride = enc->state.io_imgs[OD_FRAME_INPUT].planes[0].ystride;
     for(j = 1; j < nhsb + 1; j++) {
       int bsize[4][4];
-      process_block_size32(bs, img + i*istride*32 + j*32,
-          img + i*istride*32 + j*32, istride, bsize);
+      char *state_bsize;
+      state_bsize = &enc->state.bsize[i*4*enc->state.bstride + j*4];
+      process_block_size32(bs, img, img + i*istride*32 + j*32, istride, bsize);
       /* Grab the 4x4 information returned from process_block_size32 in bsize
          and store it in the od_state bsize. */
       for(k = 0; k < 4; k++) {
         for(m = 0; m < 4; m++) {
-          enc->state.bsize[((i*4 + k)*enc->state.bstride) + j*4 + m] =
-            bsize[k][m];
-          /* put the blocksize into the bytestream */
-          od_ec_enc_uint(&enc->ec, bsize[k][m], 4);
+          state_bsize[k*bstride + m] = bsize[k][m];
         }
       }
+      od_block_size_encode(&enc->ec, &state_bsize[0], bstride);
     }
   }
-
+  od_log_matrix_char(OD_LOG_GENERIC, OD_LOG_INFO, "bsize ", enc->state.bsize, enc->state.bstride, (nvsb+1)*4);
   for(i = 0; i < (nvsb + 1)*4; i++) {
     for(j = 0; j < (nhsb + 1)*4; j++) {
-      OD_LOG((OD_LOG_GENERIC, OD_LOG_INFO, "%d ", enc->state.bsize[i*enc->state.bstride + j]));
+      OD_LOG_PARTIAL((OD_LOG_GENERIC, OD_LOG_INFO, "%d ", enc->state.bsize[i*enc->state.bstride + j]));
     }
-    OD_LOG((OD_LOG_GENERIC, OD_LOG_INFO, "\n"));
+    OD_LOG_PARTIAL((OD_LOG_GENERIC, OD_LOG_INFO, "\n"));
   }
 
   _ogg_free(bs);
