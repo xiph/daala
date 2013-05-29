@@ -22,8 +22,14 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
+#if !defined(_block_size_h)
+#define _block_size_h
+
 #include "odintrin.h"
 #include <ogg/ogg.h>
+#include "entenc.h"
+
+extern const ogg_uint16_t od_switch_size8_cdf[][16];
 
 /* None of these values should be larger than OFF32 or else the sun will
    explode */
@@ -96,6 +102,8 @@ typedef struct {
 
 void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img, const unsigned char *img, int stride, int dec[4][4]);
 
-int od_block_size_prob32(const int *bsize, int stride);
+int od_block_size_prob32(const char *bsize, int stride);
 
-int od_block_size_cdf16_id(const int *bsize, int stride);
+int od_block_size_cdf16_id(const char *bsize, int stride);
+
+#endif

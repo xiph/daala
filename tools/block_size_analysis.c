@@ -85,7 +85,7 @@ int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh
 {
   int i,j;
   int h8,w8,h32,w32;
-  static int dec8[MAX_VAR_BLOCKS>>2][MAX_VAR_BLOCKS>>2];
+  static char dec8[MAX_VAR_BLOCKS>>2][MAX_VAR_BLOCKS>>2];
 #if 0
   int h4,w4,h16,w16;
   static int Sx[MAX_VAR_BLOCKS][MAX_VAR_BLOCKS];
@@ -420,7 +420,7 @@ int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh
         for (j = 2; j < w32 - 2; j++) {
           int k;
           int m;
-          int *bsize;
+          char *bsize;
           int stride;
           int id32;
           bsize = &dec8[4*i][4*j];

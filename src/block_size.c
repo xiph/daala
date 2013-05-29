@@ -305,13 +305,7 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
   }
 }
 
-const unsigned char od_size32_prob[28] = {0};
-
-const unsigned char od_size16_prob[144] = {0};
-
-const ogg_uint16_t od_size8_cdf[144][16] = {{0}};
-
-int od_block_size_prob32(const int *bsize, int stride)
+int od_block_size_prob32(const char *bsize, int stride)
 {
   int i;
   int sum32;
@@ -321,7 +315,7 @@ int od_block_size_prob32(const int *bsize, int stride)
   return sum32;
 }
 
-int od_block_size_cdf16_id(const int *bsize, int stride)
+int od_block_size_cdf16_id(const char *bsize, int stride)
 {
   int upleft;
   int up;
@@ -336,23 +330,31 @@ int od_block_size_cdf16_id(const int *bsize, int stride)
   return id;
 }
 
-void od_block_size_encode(od_ec_enc *enc, const int *bsize, int stride)
+void od_block_size_encode(od_ec_enc *enc, const char *bsize, int stride)
 {
-  int id32;
-  id32 = od_block_size_prob32(bsize, stride);
-  od_ec_encode_bool_q15(enc, bsize[0] == 3, od_size32_prob[id32] << 7);
-  if (bsize[0] != 3) {
-    int cdf_id;
-    int prob16;
-    cdf_id = od_block_size_cdf16_id(bsize, stride);
-    prob16 = od_size16_prob[cdf_id];
-    od_ec_encode_bool_q15(enc, bsize[0] == 2, prob16 << 7);
-    if (bsize[0] != 2) {
-      const ogg_uint16_t *cdf;
-      int split;
-      split = bsize[0]*8 + bsize[1]*4 + bsize[stride]*2 + bsize[stride + 1];
-      cdf = od_size8_cdf[cdf_id];
-      od_ec_encode_cdf_q15(enc, split, cdf, 16);
+  int i, j;
+  int inefficient;
+  /*int id32;
+  id32 = od_block_size_prob32(bsize, stride);*/
+  inefficient = (bsize[0] == 3) ? 16 : (bsize[0]==2) + 2*(bsize[2]==2)
+   + 4*(bsize[2*stride]==2) + 8*(bsize[2*stride + 2]==2);
+  od_ec_enc_uint(enc, inefficient, 17);
+  if (bsize[0] < 3) {
+    for(i = 0; i < 2; i++) {
+      for (j = 0; j < 2; j++) {
+        const char *bsize16 = &bsize[2*i*stride + 2*j];
+        if (bsize16[0] < 2) {
+          const ogg_uint16_t *cdf;
+          int split;
+          int cdf_id;
+          cdf_id = od_block_size_cdf16_id(&bsize16[0], stride);
+          split = bsize16[0] + 2*bsize16[1] + 4*bsize16[stride]
+           + 8*bsize16[stride + 1];
+          /*printf("%d %d %d %d\n", i, j, cdf_id, split);*/
+          cdf = od_switch_size8_cdf[cdf_id];
+          od_ec_encode_cdf_q15(enc, split, cdf, 16);
+        }
+      }
     }
   }
 }

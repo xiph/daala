@@ -86,6 +86,7 @@ block_size_analysis_SOURCES = \
 	$(top_srcdir)/src/internal.c \
 	$(top_srcdir)/src/entcode.c \
 	$(top_srcdir)/src/entenc.c \
+	$(top_srcdir)/src/switch_table.c \
 	$(top_srcdir)/src/filter.c
 block_size_analysis_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS)
 block_size_analysis_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) -lm

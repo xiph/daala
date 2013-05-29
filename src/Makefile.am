@@ -3,6 +3,8 @@ lib_LTLIBRARIES = libdaalabase.la libdaaladec.la libdaalaenc.la
 noinst_HEADERS = \
 	adapt.h \
 	block_size.h \
+	block_size_dec.h \
+	block_size_enc.h \
 	dct.h \
 	decint.h \
 	encint.h \
@@ -50,6 +52,7 @@ libdaalabase_la_SOURCES = \
 	pvq_decoder.c \
 	pvq_encoder.c \
 	state.c \
+	switch_table.c \
 	tf.c
 if ENABLE_X86ASM
 libdaalabase_la_SOURCES += \
@@ -68,6 +71,7 @@ endif
 libdaaladec_la_LDFLAGS = -no-undefined \
  -version-info @OP_LT_CURRENT@:@OP_LT_REVISION@:@OP_LT_AGE@
 libdaaladec_la_SOURCES = \
+	block_size_dec.c \
 	decode.c
 
 libdaalaenc_la_CFLAGS = $(OGG_CFLAGS)
@@ -78,6 +82,8 @@ endif
 libdaalaenc_la_LDFLAGS = -no-undefined \
  -version-info @OP_LT_CURRENT@:@OP_LT_REVISION@:@OP_LT_AGE@
 libdaalaenc_la_SOURCES = \
+	block_size_dec.c \
+	block_size_enc.c \
 	encode.c \
 	decode.c \
 	infoenc.c \

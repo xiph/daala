@@ -34,6 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "intra.h"
 #include "pvq.h"
 #include "pvq_code.h"
+#include "block_size_dec.h"
 
 static int od_dec_init(od_dec_ctx *dec, const daala_info *info,
  const daala_setup_info *setup) {
@@ -105,14 +106,19 @@ int daala_decode_img_out(daala_dec_ctx *dec, od_img *img) {
   }
   nhsb = dec->state.nhsb;
   nvsb = dec->state.nvsb;
+  for(i = 0; i < (nhsb+1)*4; i++) {
+    for(j = 0; j < 4; j++) {
+      dec->state.bsize[(j*dec->state.bstride) + i] = 3;
+    }
+  }
+  for(j = 0; j < (nvsb+1)*4; j++) {
+    for(i = 0; i < 4; i++) {
+      dec->state.bsize[(j*dec->state.bstride) + i] = 3;
+    }
+  }
   for(i = 1; i < nvsb + 1; i++) {
     for(j = 1; j < nhsb + 1; j++) {
-      for(k = 0; k < 4; k++) {
-        for(m = 0; m < 4; m++) {
-          dec->state.bsize[((i*4 + k)*dec->state.bstride) + j*4 + m] =
-            od_ec_dec_uint(&dec->ec, 4);
-        }
-      }
+      od_block_size_decode(&dec->ec, &dec->state.bsize[4*dec->state.bstride*i + 4*j], dec->state.bstride);
     }
   }
 
