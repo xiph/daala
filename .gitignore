@@ -77,3 +77,4 @@ tools/png2y4m
 tools/trans
 tools/trans2d
 tools/y4m2png
+test-driver
