@@ -367,12 +367,14 @@ tools_gen_laplace_tables_LDADD = $(OGG_LIBS) $(PNG_LIBS) -lm
 noinst_PROGRAMS += \
 	src/tests/ectest \
 	src/tests/test_coef_coder \
-	src/tests/logging_test
+	src/tests/logging_test \
+	src/tests/check_tests
 
 TESTS = \
 	src/tests/ectest \
 	src/tests/test_coef_coder \
-	src/tests/logging_test
+	src/tests/logging_test \
+	src/tests/check_tests
 
 src_tests_ectest_SOURCES = src/tests/ectest.c
 src_tests_ectest_CFLAGS = $(OGG_CFLAGS)
@@ -385,6 +387,10 @@ src_tests_test_coef_coder_LDADD = src/libdaalabase.la src/libdaaladec.la $(OGG_L
 src_tests_logging_test_SOURCES = src/tests/logging_test.c
 src_tests_logging_test_CFLAGS = $(OGG_CFLAGS)	
 src_tests_logging_test_LDADD = src/libdaalabase.la src/libdaalaenc.la  $(OGG_LIBS)
+
+src_tests_check_tests_SOURCES = src/tests/check_main.c src/tests/headerencode_test.c
+src_tests_check_tests_CFLAGS = $(OGG_CFLAGS)
+src_tests_check_tests_LDADD =  src/libdaalabase.la src/libdaalaenc.la $(OGG_LIBS) $(CHECK_LIBS)
 
 
 # Docs

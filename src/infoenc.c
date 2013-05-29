@@ -27,13 +27,32 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 int daala_encode_flush_header(daala_enc_ctx *_enc,daala_comment *_dc,
  ogg_packet *_op){
+  daala_info *info = &_enc->state.info;
   if(_enc==NULL||_op==NULL)return OD_EFAULT;
-  /*TODO: Produce header contents.*/
   switch(_enc->packet_state){
     case OD_PACKET_INFO_HDR:{
+      int pli;
       oggbyte_reset(&_enc->obb);
       oggbyte_write1(&_enc->obb,0x80);
       oggbyte_writecopy(&_enc->obb,"daala",5);
+      oggbyte_write1(&_enc->obb, info->version_major);
+      oggbyte_write1(&_enc->obb, info->version_minor);
+      oggbyte_write1(&_enc->obb, info->version_sub);
+      oggbyte_write4(&_enc->obb, info->pic_width);
+      oggbyte_write4(&_enc->obb, info->pic_height);
+      oggbyte_write4(&_enc->obb, info->pixel_aspect_numerator);
+      oggbyte_write4(&_enc->obb, info->pixel_aspect_denominator);
+      oggbyte_write4(&_enc->obb, info->timebase_numerator);
+      oggbyte_write4(&_enc->obb, info->timebase_denominator);
+      oggbyte_write4(&_enc->obb, info->frame_duration);
+      OD_ASSERT(info->keyframe_granule_shift < 32);
+      oggbyte_write1(&_enc->obb, info->keyframe_granule_shift);
+      OD_ASSERT((info->nplanes >= 1) && (info->nplanes <= OD_NPLANES_MAX));
+      oggbyte_write1(&_enc->obb, info->nplanes);
+      for (pli=0; pli<info->nplanes; ++pli) {
+        oggbyte_write1(&_enc->obb, info->plane_info[pli].xdec);
+        oggbyte_write1(&_enc->obb, info->plane_info[pli].ydec);
+      }
       _op->b_o_s=1;
     }break;
     case OD_PACKET_COMMENT_HDR:{
@@ -59,6 +78,7 @@ int daala_encode_flush_header(daala_enc_ctx *_enc,daala_comment *_dc,
       _op->b_o_s=0;
     }break;
     case OD_PACKET_SETUP_HDR:{
+      /*TODO: Produce header contents.*/
       oggbyte_reset(&_enc->obb);
       oggbyte_write1(&_enc->obb,0x82);
       oggbyte_writecopy(&_enc->obb,"daala",5);
