@@ -62,6 +62,7 @@ examples/encoder_example
 examples/player_example
 include/Makefile
 src/Makefile
+src/tests/Makefile
 tools/Makefile
 tools/block_size_analysis
 tools/dump_psnrhvs
@@ -79,6 +80,7 @@ tools/trans
 tools/trans2d
 tools/y4m2png
 test-driver
+doc/Makefile
 doc/4-8sub.pdf
 doc/blockidx.pdftex
 doc/blockidx.pdftex_t
