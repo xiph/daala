@@ -63,6 +63,7 @@ examples/player_example
 src/tests/ectest
 src/tests/logging_test
 src/tests/test_coef_coder
+src/tests/check_tests
 tools/block_size_analysis
 tools/dump_psnrhvs
 tools/gen_cdf
