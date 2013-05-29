@@ -270,7 +270,7 @@ re_format: \
                     buffer_size - current_size, \
                     F, \
                     !w ? prefix : "", \
-                    values[(height * h) + w], \
+                    values[(width * h) + w], \
                     w != (width-1) ? ' ' : '\n'); \
       if (((size_t)rv) >= (buffer_size - current_size)) { \
         buffer_size *= 2; \
