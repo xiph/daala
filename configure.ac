@@ -33,13 +33,13 @@ dnl - interfaces added/removed/changed -> increment CURRENT, REVISION = 0
 dnl - interfaces added -> increment AGE
 dnl - interfaces removed -> AGE = 0
 
-OP_LT_CURRENT=0
-OP_LT_REVISION=1
-OP_LT_AGE=0
+OD_LT_CURRENT=0
+OD_LT_REVISION=1
+OD_LT_AGE=0
 
-AC_SUBST(OP_LT_CURRENT)
-AC_SUBST(OP_LT_REVISION)
-AC_SUBST(OP_LT_AGE)
+AC_SUBST(OD_LT_CURRENT)
+AC_SUBST(OD_LT_REVISION)
+AC_SUBST(OD_LT_AGE)
 
 CC_CHECK_CFLAGS_APPEND(
   [-std=c89 -pedantic -Wall -Wextra -Wno-parentheses -Wno-long-long -Wno-overlength-strings])
@@ -58,14 +58,14 @@ case $host in
     host_mingw=true
     ;;
 esac
-AM_CONDITIONAL(OP_WIN32, test "$host_mingw" = "true")
+AM_CONDITIONAL(OD_WIN32, test "$host_mingw" = "true")
 
 AC_ARG_ENABLE([assertions],
   AS_HELP_STRING([--enable-assertions], [Enable assertions in code]),,
   enable_assertions=no)
 
 AS_IF([test "$enable_assertions" = "yes"], [
-  AC_DEFINE([OP_ENABLE_ASSERTIONS], [1], [Enable assertions in code])
+  AC_DEFINE([OD_ENABLE_ASSERTIONS], [1], [Enable assertions in code])
 ])
 
 PKG_CHECK_MODULES([OGG], [ogg >= 1.3])

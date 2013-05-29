@@ -29,7 +29,7 @@ if DUMP_IMAGES
   libdaalabase_la_LIBADD += $(PNG_LIBS)
 endif
 libdaalabase_la_LDFLAGS = -no-undefined \
- -version-info @OP_LT_CURRENT@:@OP_LT_REVISION@:@OP_LT_AGE@
+ -version-info @OD_LT_CURRENT@:@OD_LT_REVISION@:@OD_LT_AGE@
 libdaalabase_la_SOURCES = \
 	adapt.c \
 	block_size.c \
@@ -68,7 +68,7 @@ if DUMP_IMAGES
   libdaaladec_la_LIBADD += $(PNG_LIBS)
 endif
 libdaaladec_la_LDFLAGS = -no-undefined \
- -version-info @OP_LT_CURRENT@:@OP_LT_REVISION@:@OP_LT_AGE@
+ -version-info @OD_LT_CURRENT@:@OD_LT_REVISION@:@OD_LT_AGE@
 libdaaladec_la_SOURCES = \
 	decode.c
 
@@ -78,7 +78,7 @@ if DUMP_IMAGES
   libdaalaenc_la_LIBADD += $(PNG_LIBS)
 endif
 libdaalaenc_la_LDFLAGS = -no-undefined \
- -version-info @OP_LT_CURRENT@:@OP_LT_REVISION@:@OP_LT_AGE@
+ -version-info @OD_LT_CURRENT@:@OD_LT_REVISION@:@OD_LT_AGE@
 libdaalaenc_la_SOURCES = \
 	encode.c \
 	decode.c \
