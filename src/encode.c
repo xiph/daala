@@ -287,7 +287,7 @@ void od_mb_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int scale, int pli,
   od_coeff *l;
   xdec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
   ydec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
-  frame_width = enc->state.info.frame_width;
+  frame_width = enc->state.frame_width;
   w = frame_width >> xdec;
   modes = ctx->modes;
   c = ctx->c;
@@ -768,7 +768,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
           /*Construct the luma predictors for chroma planes.*/
           if (ltmp[pli] != NULL) {
             OD_ASSERT(pli > 0);
-            OD_ASSERT(l == ltmp[pli]);
+            OD_ASSERT(mbctx.l == ltmp[pli]);
             for (by = mby << (2 - ydec); by < (mby + 1) << (2 - ydec); by++) {
               for (bx = mbx << (2 - xdec); bx < (mbx + 1) << (2 - xdec);
                bx++) {
