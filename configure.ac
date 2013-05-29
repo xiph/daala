@@ -17,7 +17,7 @@ AC_CONFIG_SRCDIR([src/decode.c])
 AC_USE_SYSTEM_EXTENSIONS
 AC_SYS_LARGEFILE
 
-AM_INIT_AUTOMAKE([1.10 foreign no-define])
+AM_INIT_AUTOMAKE([1.10 foreign no-define subdir-objects])
 AM_MAINTAINER_MODE([enable])
 LT_INIT
 
@@ -57,8 +57,13 @@ case $host in
      [We need at least WindowsXP for getaddrinfo/freaddrinfo])
     host_mingw=true
     ;;
+  *-*-darwin*)
+    os_darwin=true
+    ;;
 esac
 AM_CONDITIONAL(OD_WIN32, test "$host_mingw" = "true")
+AM_CONDITIONAL(OD_OS_DARWIN, test "$os_darwin" = "true")
+
 
 AC_ARG_ENABLE([assertions],
   AS_HELP_STRING([--enable-assertions], [Enable assertions in code]),,
@@ -96,7 +101,24 @@ if test "$HAVE_FIG2DEV" != "yes" -o "$enable_doc" != "yes" ; then
 fi
 AM_CONDITIONAL(HAVE_FIG2DEV, [test $HAVE_FIG2DEV = yes])
 
-AM_CONDITIONAL(ENABLE_X86ASM, [test yes = yes])
+AC_ARG_ENABLE([asm],
+  AS_HELP_STRING([--disable-asm], [Do not compile assembly versions]),,
+  [enable_asm=yes]
+)
+
+case $host_cpu in
+  i[3456]86)
+    cpu_x86=true
+    ;;
+  x86_64)
+    cpu_x86=true
+    ;;
+esac
+
+AM_CONDITIONAL([ENABLE_X86ASM], [test "$enable_asm" = "yes" -a "$cpu_x86" = "true"])
+AS_IF([test "$enable_asm" = "yes" -a "$cpu_x86" = "true"], [
+  AC_DEFINE([OD_X86ASM], [1])
+])
 
 AM_CONDITIONAL(ENABLE_DOCS, [test $enable_doc = yes])
 
@@ -111,22 +133,10 @@ AS_IF([test x$enable_dump_images = xyes], [
 ])
 AM_CONDITIONAL([DUMP_IMAGES], [test x$enable_dump_images = xyes])
 
-DAALA_DEC_LIBS="\$(top_builddir)/src/libdaaladec.la \$(top_builddir)/src/libdaalabase.la -lm"
-AC_SUBST(DAALA_DEC_LIBS)
-
-DAALA_ENC_LIBS="\$(top_builddir)/src/libdaalaenc.la \$(top_builddir)/src/libdaalabase.la -lm"
-AC_SUBST(DAALA_ENC_LIBS)
-
 AC_CONFIG_FILES([
   Makefile
   daala.pc
   daala-uninstalled.pc
-  doc/Makefile
-  src/Makefile
-  src/tests/Makefile
-  examples/Makefile
-  include/Makefile
-  tools/Makefile
 ])
 AC_OUTPUT
 
@@ -135,7 +145,8 @@ AC_MSG_NOTICE([
   $PACKAGE_NAME $PACKAGE_VERSION: Automatic configuration OK.
 
     Assertions ................... ${enable_assertions}
-
     API documentation ............ ${enable_doc}
+    Assembly optimizations ....... ${enable_asm}
+    Image dumping ................ ${enable_dump_images}
 ------------------------------------------------------------------------
 ])

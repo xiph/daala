@@ -1,5 +1,6 @@
 /Makefile
-Makefile.in
+/Makefile.in
+.dirstamp
 aclocal.m4
 config.cache
 config.guess
@@ -56,14 +57,12 @@ m4/ltsugar.m4
 m4/ltversion.m4
 m4/lt~obsolete.m4
 package_version
-examples/Makefile
 examples/dump_video
 examples/encoder_example
 examples/player_example
-include/Makefile
-src/Makefile
-src/tests/Makefile
-tools/Makefile
+src/tests/ectest
+src/tests/logging_test
+src/tests/test_coef_coder
 tools/block_size_analysis
 tools/dump_psnrhvs
 tools/gen_cdf
@@ -80,7 +79,6 @@ tools/trans
 tools/trans2d
 tools/y4m2png
 test-driver
-doc/Makefile
 doc/4-8sub.pdf
 doc/blockidx.pdftex
 doc/blockidx.pdftex_t
