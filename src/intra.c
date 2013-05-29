@@ -293,7 +293,7 @@ void od_intra_pred8x8_dist(ogg_uint32_t *_dist,const od_coeff *_c, int _stride,
 
 void od_intra_pred16x16_dist(ogg_uint32_t *_dist,const od_coeff *_c,
   int _stride, const od_coeff *_ur, int _ur_stride, int _pli){
-  double p[8*8];
+  double p[16*16];
   float  satd;
   int    mode;
   int    i;
