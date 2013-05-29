@@ -90,8 +90,6 @@ int daala_decode_img_out(daala_dec_ctx *dec, od_img *img) {
   int nhsb;
   int i;
   int j;
-  int k;
-  int m;
   if (dec == NULL || img == NULL) return OD_EFAULT;
   if (dec->packet_state != OD_PACKET_DATA) return OD_EINVAL;
   /*Check the input image dimensions to make sure they're compatible with the

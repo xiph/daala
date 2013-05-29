@@ -81,6 +81,7 @@ dump_psnrhvs_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) -lm
 block_size_analysis_SOURCES = \
 	block_size_analysis.c \
 	$(top_srcdir)/src/block_size.c \
+	$(top_srcdir)/src/block_size_enc.c \
 	vidinput.c \
 	$(top_srcdir)/src/newdct.c \
 	$(top_srcdir)/src/internal.c \

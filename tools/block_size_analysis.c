@@ -37,6 +37,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #endif
 #include "getopt.h"
 #include "../src/block_size.h"
+#include "../src/block_size_enc.h"
 #include <math.h>
 
 static void usage(char **_argv){
