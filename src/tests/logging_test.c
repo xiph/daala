@@ -66,18 +66,18 @@ static void expected_result(const char *expected) {
 
 const char *expected_matrix_int16 =
     "PREFIX:1000 1001 1002 1003 1004\n"
-    "PREFIX:1003 1004 1005 1006 1007\n"
-    "PREFIX:1006 1007 1008 1009 1010\n";
+    "PREFIX:1005 1006 1007 1008 1009\n"
+    "PREFIX:1010 1011 1012 1013 1014\n";
 
 const char *expected_matrix_float =
     "PREFIX:1 1.001 1.002 1.003 1.004\n"
-    "PREFIX:1.003 1.004 1.005 1.006 1.007\n"
-    "PREFIX:1.006 1.007 1.008 1.009 1.01\n";
+    "PREFIX:1.005 1.006 1.007 1.008 1.009\n"
+    "PREFIX:1.01 1.011 1.012 1.013 1.014\n";
 
 const char *expected_matrix_uint32 =
     "PREFIX:1000000 1000001 1000002 1000003 1000004\n"
-    "PREFIX:1000003 1000004 1000005 1000006 1000007\n"
-    "PREFIX:1000006 1000007 1000008 1000009 1000010\n";
+    "PREFIX:1000005 1000006 1000007 1000008 1000009\n"
+    "PREFIX:1000010 1000011 1000012 1000013 1000014\n";
 
 int main(int argc, char **argv) {
   int i;
