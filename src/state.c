@@ -59,9 +59,9 @@ static void od_state_ref_imgs_init(od_state *_state,int _nrefs,int _nio){
   /*TODO: Check for overflow before allocating.*/
   for(pli=0;pli<info->nplanes;pli++){
     /*Reserve space for this plane in _nrefs reference images.*/
-    plane_buf_width=info->frame_width+(OD_UMV_PADDING<<1)
+    plane_buf_width=_state->frame_width+(OD_UMV_PADDING<<1)
      >>info->plane_info[pli].xdec;
-    plane_buf_height=info->frame_height+(OD_UMV_PADDING<<1)
+    plane_buf_height=_state->frame_height+(OD_UMV_PADDING<<1)
      >>info->plane_info[pli].ydec;
     data_sz+=plane_buf_width*plane_buf_height*_nrefs<<2;
 #if defined(OD_DUMP_IMAGES)
@@ -72,18 +72,18 @@ static void od_state_ref_imgs_init(od_state *_state,int _nrefs,int _nio){
     data_sz+=plane_buf_width*plane_buf_height*_nio;
   }
   /*Reserve space for the line buffer in the up-sampler.*/
-  data_sz+=(info->frame_width+(OD_UMV_PADDING<<1)<<1)*8;
+  data_sz+=(_state->frame_width+(OD_UMV_PADDING<<1)<<1)*8;
   _state->ref_img_data=ref_img_data=(unsigned char *)_ogg_malloc(data_sz);
   /*Fill in the reference image structures.*/
   for(imgi=0;imgi<_nrefs;imgi++){
     img=_state->ref_imgs+imgi;
     img->nplanes=info->nplanes;
-    img->width=info->frame_width<<1;
-    img->height=info->frame_height<<1;
+    img->width=_state->frame_width<<1;
+    img->height=_state->frame_height<<1;
     for(pli=0;pli<img->nplanes;pli++){
-      plane_buf_width=(info->frame_width+(OD_UMV_PADDING<<1)<<1)
+      plane_buf_width=(_state->frame_width+(OD_UMV_PADDING<<1)<<1)
        >>info->plane_info[pli].xdec;
-      plane_buf_height=(info->frame_height+(OD_UMV_PADDING<<1)<<1)
+      plane_buf_height=(_state->frame_height+(OD_UMV_PADDING<<1)<<1)
        >>info->plane_info[pli].ydec;
       iplane=img->planes+pli;
       iplane->data=ref_img_data
@@ -100,12 +100,12 @@ static void od_state_ref_imgs_init(od_state *_state,int _nrefs,int _nio){
   for(imgi=0;imgi<_nio;imgi++){
     img=_state->io_imgs+imgi;
     img->nplanes=info->nplanes;
-    img->width=info->frame_width;
-    img->height=info->frame_height;
+    img->width=_state->frame_width;
+    img->height=_state->frame_height;
     for(pli=0;pli<img->nplanes;pli++){
-      plane_buf_width=info->frame_width+(OD_UMV_PADDING<<1)
+      plane_buf_width=_state->frame_width+(OD_UMV_PADDING<<1)
        >>info->plane_info[pli].xdec;
-      plane_buf_height=info->frame_height+(OD_UMV_PADDING<<1)
+      plane_buf_height=_state->frame_height+(OD_UMV_PADDING<<1)
        >>info->plane_info[pli].ydec;
       iplane=img->planes+pli;
       iplane->data=ref_img_data
@@ -121,7 +121,7 @@ static void od_state_ref_imgs_init(od_state *_state,int _nrefs,int _nio){
   /*Fill in the line buffers.*/
   for(y=0;y<8;y++){
     _state->ref_line_buf[y]=ref_img_data+(OD_UMV_PADDING<<1);
-    ref_img_data+=info->frame_width+(OD_UMV_PADDING<<1)<<1;
+    ref_img_data+=_state->frame_width+(OD_UMV_PADDING<<1)<<1;
   }
   /*Mark all of the reference image buffers available.*/
   for(imgi=0;imgi<_nrefs;imgi++)_state->ref_imgi[imgi]=-1;
@@ -129,8 +129,8 @@ static void od_state_ref_imgs_init(od_state *_state,int _nrefs,int _nio){
   /*Fill in the visualization image structure.*/
   img=&_state->vis_img;
   img->nplanes=info->nplanes;
-  img->width=info->frame_width+(OD_UMV_PADDING<<1)<<1;
-  img->height=info->frame_height+(OD_UMV_PADDING<<1)<<1;
+  img->width=_state->frame_width+(OD_UMV_PADDING<<1)<<1;
+  img->height=_state->frame_height+(OD_UMV_PADDING<<1)<<1;
   for(pli=0;pli<img->nplanes;pli++){
     iplane=img->planes+pli;
     plane_buf_width=img->width>>info->plane_info[pli].xdec;
@@ -174,15 +174,16 @@ int od_state_init(od_state *_state,const daala_info *_info){
   int pli;
   /*First validate the parameters.*/
   if(_info==NULL)return OD_EFAULT;
-  if((_info->frame_width&15)||(_info->frame_height&15))return OD_EINVAL;
   nplanes=_info->nplanes;
   if(nplanes<=0||nplanes>OD_NPLANES_MAX)return OD_EINVAL;
   /*The first plane (the luma plane) must not be subsampled.*/
   if(_info->plane_info[0].xdec||_info->plane_info[0].ydec)return OD_EINVAL;
   memset(_state,0,sizeof(*_state));
   memcpy(&_state->info,_info,sizeof(*_info));
-  _state->nhmbs=_info->frame_width+15>>4;
-  _state->nvmbs=_info->frame_height+15>>4;
+  _state->frame_width=_info->pic_width+15&~15;
+  _state->frame_height=_info->pic_height+15&~15;
+  _state->nhmbs=_state->frame_width>>4;
+  _state->nvmbs=_state->frame_height>>4;
   od_state_opt_vtbl_init(_state);
   od_state_ref_imgs_init(_state,4,2);
   od_state_mvs_init(_state);
@@ -191,8 +192,8 @@ int od_state_init(od_state *_state,const daala_info *_info){
      _state->nhmbs*sizeof(*_state->adapt_row[pli].ctx));
     _state->adapt_row[pli].nhmbs = _state->nhmbs;
   }
-  _state->nhsb=(_info->frame_width>>5);
-  _state->nvsb=(_info->frame_height>>5);
+  _state->nhsb=(_state->frame_width>>5);
+  _state->nvsb=(_state->frame_height>>5);
   _state->bsize=(char *)_ogg_malloc(
       (_state->nhsb+1)*4 *
       (_state->nvsb+1)*4);
@@ -562,8 +563,6 @@ void od_state_pred_block(od_state *_state,unsigned char *_buf,int _ystride,
 int od_state_dump_yuv(od_state *_state,od_img *_img,const char *_suf){
   char  fname[128];
   FILE *fp;
-  int   pic_x;
-  int   pic_y;
   int   pic_width;
   int   pic_height;
   int   y;
@@ -572,8 +571,6 @@ int od_state_dump_yuv(od_state *_state,od_img *_img,const char *_suf){
   sprintf(fname,"%08i%s.y4m",
    (int)daala_granule_basetime(_state,_state->cur_time),_suf);
   fp=fopen(fname,"wb");
-  pic_x=_state->info.pic_x;
-  pic_y=_state->info.pic_y;
   pic_width=_state->info.pic_width;
   pic_height=_state->info.pic_height;
   OD_ASSERT(_img->nplanes>=3);
@@ -588,9 +585,9 @@ int od_state_dump_yuv(od_state *_state,od_img *_img,const char *_suf){
     xdec=_img->planes[pli].xdec;
     ydec=_img->planes[pli].ydec;
     ystride=_img->planes[pli].ystride;
-    for(y=pic_y>>ydec;y<pic_y+pic_height+ydec>>ydec;y++){
-      if(fwrite(_img->planes[pli].data+ystride*y+(pic_x>>xdec),
-       (pic_x+pic_width+xdec>>xdec)-(pic_x>>xdec),1,fp)<1){
+    for(y=0;y<pic_height+ydec>>ydec;y++){
+      if(fwrite(_img->planes[pli].data+ystride*y,
+       (pic_width+xdec>>xdec),1,fp)<1){
         fprintf(stderr,"Error writing to \"%s\".\n","fixme");
         return EXIT_FAILURE;
       }

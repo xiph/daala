@@ -313,23 +313,23 @@ static ogg_int32_t od_state_sad8(od_state *state, const unsigned char *p,
   w = 1 << (log_blk_sz - iplane->xdec);
   h = 1 << (log_blk_sz - iplane->ydec);
   /*Clip the block against the active picture region.*/
-  clipx = (state->info.pic_x >> iplane->xdec) - x;
+  clipx = -x;
   if (clipx > 0) {
     w -= clipx;
     p += clipx*pxstride;
     x += clipx;
   }
-  clipy = (state->info.pic_y >> iplane->ydec) - y;
+  clipy = -y;
   if (clipy > 0) {
     h -= clipy;
     p += clipy*pystride;
     y += clipy;
   }
-  clipw = ((state->info.pic_x + state->info.pic_width
-   + (1 << iplane->xdec) - 1) >> iplane->xdec) - x;
+  clipw = ((state->info.pic_width + (1 << iplane->xdec) - 1) >> iplane->xdec)
+   - x;
   w = OD_MINI(w, clipw);
-  cliph = ((state->info.pic_y + state->info.pic_height
-   + (1 << iplane->ydec) - 1) >> iplane->ydec) - y;
+  cliph = ((state->info.pic_height + (1 << iplane->ydec) - 1) >> iplane->ydec)
+   - y;
   h = OD_MINI(h, cliph);
   OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG, "[%i, %i]x[%i, %i]\n", x, y, w, h));
   /*Compute the SAD.*/
@@ -1013,10 +1013,10 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
   bx = (vx - 2) << 2;
   by = (vy - 2) << 2;
   mvxmin = OD_MAXI(bx - (mvb_sz << 2) -32, -16) - (bx - (mvb_sz << 2));
-  mvxmax = OD_MINI(bx + (mvb_sz << 2) + 32, state->info.frame_width + 16)
+  mvxmax = OD_MINI(bx + (mvb_sz << 2) + 32, state->frame_width + 16)
    - (bx + (mvb_sz << 2)) - 1;
   mvymin = OD_MAXI(by - (mvb_sz << 2) - 32, - 16) - (by - (mvb_sz << 2));
-  mvymax = OD_MINI(by + (mvb_sz << 2) + 32, state->info.frame_height + 16)
+  mvymax = OD_MINI(by + (mvb_sz << 2) + 32, state->frame_height + 16)
    - (by + (mvb_sz << 2)) - 1;
   OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG, "(%i, %i): Search range: [%i, %i]x[%i, %i]\n",
    bx, by, mvxmin, mvymin, mvxmax, mvymax));
@@ -2404,10 +2404,10 @@ static int od_mv_est_get_boundary_case(od_state *state,
   bx = (vx - 2) << 2;
   by = (vy - 2) << 2;
   mvxmin = (OD_MAXI(bx - blk_sz - 32, -16) - (bx - blk_sz)) << 3;
-  mvxmax = ((OD_MINI(bx + blk_sz + 32, state->info.frame_width + 16)
+  mvxmax = ((OD_MINI(bx + blk_sz + 32, state->frame_width + 16)
    - (bx + blk_sz)) << 3) - dsz;
   mvymin = (OD_MAXI(by - blk_sz - 32, -16) - (by - blk_sz)) << 3;
-  mvymax = ((OD_MINI(by + blk_sz + 32, state->info.frame_height + 16)
+  mvymax = ((OD_MINI(by + blk_sz + 32, state->frame_height + 16)
    - (by + blk_sz)) << 3) - dsz;
   return (dx <= mvxmin) | (dx >= mvxmax) << 1 |
    (dy <= mvymin) << 2 | (dy >= mvymax) << 3;

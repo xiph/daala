@@ -86,6 +86,8 @@ struct od_state{
   daala_info          info;
   od_state_opt_vtbl   opt_vtbl;
   ogg_uint32_t        cpu_flags;
+  ogg_int32_t         frame_width;
+  ogg_int32_t         frame_height;
   od_img              input;
   /** Buffer for the 4 ref images. */
   int                 ref_imgi[4];

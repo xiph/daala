@@ -164,11 +164,7 @@ struct daala_info {
   unsigned char version_major;
   unsigned char version_minor;
   unsigned char version_sub;
-  ogg_int32_t frame_width;
-  ogg_int32_t frame_height;
-  /** pic_x,_y,_width,_height form a region of interest to encode */
-  ogg_int32_t pic_x;
-  ogg_int32_t pic_y;
+  /** pic_width,_height form a region of interest to encode */
   ogg_int32_t pic_width;
   ogg_int32_t pic_height;
   ogg_uint32_t pixel_aspect_numerator;

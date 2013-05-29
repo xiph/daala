@@ -147,7 +147,7 @@ void od_state_mc_predict(od_state *state, int ref) {
 
 static void od_img_plane_copy_pad8(od_img_plane *dst_p,
  int plane_width, int plane_height, od_img_plane *src_p,
- int pic_x, int pic_y, int pic_width, int pic_height) {
+ int pic_width, int pic_height) {
   unsigned char *dst_data;
   ptrdiff_t dstride;
   int y;
@@ -172,7 +172,7 @@ static void od_img_plane_copy_pad8(od_img_plane *dst_p,
     systride = src_p->ystride;
     dst_data = dst_p->data;
     src_data = src_p->data;
-    dst = dst_data + dstride*pic_y + pic_x;
+    dst = dst_data;
     for (y = 0; y < pic_height; y++) {
       if (sxstride == 1) memcpy(dst, src_data, pic_width);
       else for (x = 0; x < pic_width; x++) dst[x] = *(src_data + sxstride*x);
@@ -180,36 +180,18 @@ static void od_img_plane_copy_pad8(od_img_plane *dst_p,
       src_data += systride;
     }
     /*Step 2: Perform a low-pass extension into the padding region.*/
-    /*Left side.*/
-    for (x = pic_x; x-- > 0;) {
-      dst = dst_data + dstride*pic_y + x;
-      for (y = 0; y < pic_height; y++) {
-        dst[0] = 2*dst[1] + (dst - (dstride & -(y > 0)))[1]
-         + (dst + (dstride & -(y + 1 < pic_height)))[1] + 2 >> 2;
-        dst += dstride;
-      }
-    }
     /*Right side.*/
-    for (x = pic_x + pic_width; x < plane_width; x++) {
-      dst = dst_data + dstride*pic_y + x - 1;
+    for (x = pic_width; x < plane_width; x++) {
+      dst = dst_data + x - 1;
       for (y = 0; y < pic_height; y++) {
         dst[1] = 2*dst[0] + (dst - (dstride & -(y > 0)))[0]
          + (dst + (dstride & -(y + 1 < pic_height)))[0] + 2 >> 2;
         dst += dstride;
       }
     }
-    /*Top.*/
-    dst = dst_data + dstride*pic_y;
-    for (y = pic_y; y-- > 0;) {
-      for (x = 0; x < plane_width; x++) {
-        (dst - dstride)[x] = 2*dst[x] + dst[x - (x > 0)]
-         + dst[x + (x + 1 < plane_width)] + 2 >> 2;
-      }
-      dst -= dstride;
-    }
     /*Bottom.*/
-    dst = dst_data + dstride*(pic_y + pic_height);
-    for (y = pic_y + pic_height; y < plane_height; y++) {
+    dst = dst_data + dstride*pic_height;
+    for (y = pic_height; y < plane_height; y++) {
       for (x = 0; x < plane_width; x++) {
         dst[x] = 2*(dst - dstride)[x] + (dst - dstride)[x - (x > 0)]
          + (dst - dstride)[x + (x + 1 < plane_width)] + 2 >> 2;
@@ -272,8 +254,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   int scale;
   int frame_width;
   int frame_height;
-  int pic_x;
-  int pic_y;
   int pic_width;
   int pic_height;
   int i;
@@ -296,10 +276,8 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       return OD_EINVAL;
     }
   }
-  frame_width = enc->state.info.frame_width;
-  frame_height = enc->state.info.frame_height;
-  pic_x = enc->state.info.pic_x;
-  pic_y = enc->state.info.pic_y;
+  frame_width = enc->state.frame_width;
+  frame_height = enc->state.frame_height;
   pic_width = enc->state.info.pic_width;
   pic_height = enc->state.info.pic_height;
   nhsb = enc->state.nhsb;
@@ -315,24 +293,15 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   /*Copy and pad the image.*/
   for (pli = 0; pli < nplanes; pli++) {
     od_img_plane plane;
-    int plane_x;
-    int plane_y;
     int plane_width;
     int plane_height;
     *&plane = *(img->planes + pli);
-    plane_x = pic_x >> plane.xdec;
-    plane_y = pic_y >> plane.ydec;
-    plane_width = ((pic_x + pic_width + (1 << plane.xdec) - 1) >> plane.xdec)
-     - plane_x;
-    plane_height = ((pic_y + pic_height + (1 << plane.ydec) - 1) >>
-     plane.ydec) - plane_y;
-    if (img->width == frame_width && img->height == frame_height) {
-      plane.data -= plane.ystride*(ptrdiff_t)plane_y
-       + plane.xstride*(ptrdiff_t)plane_x;
-    }
-    od_img_plane_copy_pad8(enc->state.io_imgs[OD_FRAME_INPUT].planes + pli,
+    plane_width = ((pic_width + (1 << plane.xdec) - 1) >> plane.xdec);
+    plane_height = ((pic_height + (1 << plane.ydec) - 1) >>
+     plane.ydec);
+    od_img_plane_copy_pad8(&enc->state.io_imgs[OD_FRAME_INPUT].planes[pli],
      frame_width >> plane.xdec, frame_height >> plane.ydec,
-     &plane, plane_x, plane_y, plane_width, plane_height);
+     &plane, plane_width, plane_height);
     od_img_plane_edge_ext8(enc->state.io_imgs[OD_FRAME_INPUT].planes + pli,
      frame_width >> plane.xdec, frame_height >> plane.ydec,
      OD_UMV_PADDING >> plane.xdec, OD_UMV_PADDING >> plane.ydec);

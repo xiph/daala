@@ -50,10 +50,6 @@ typedef struct av_input av_input;
 struct av_input{
   int               has_video;
   FILE             *video_infile;
-  int               video_frame_w;
-  int               video_frame_h;
-  int               video_pic_x;
-  int               video_pic_y;
   int               video_pic_w;
   int               video_pic_h;
   int               video_fps_n;
@@ -178,13 +174,6 @@ static void id_y4m_file(av_input *_avin,const char *_file,FILE *_test){
    _file,_avin->video_pic_w,_avin->video_pic_h,
     (double)_avin->video_fps_n/_avin->video_fps_d,_avin->video_chroma_type);
   /*Allocate buffers for the image data.*/
-  _avin->video_frame_w=_avin->video_pic_w+15&~15;
-  _avin->video_frame_h=_avin->video_pic_h+15&~15;
-  /*Center the picture region in the frame.
-    These will be adjusted based on the chroma sampling type to avoid changing
-     how the chroma samples are interpreted.*/
-  _avin->video_pic_x=_avin->video_frame_w-_avin->video_pic_w>>1;
-  _avin->video_pic_y=_avin->video_frame_h-_avin->video_pic_h>>1;
   /*TODO: Specify chroma offsets.*/
   _avin->video_plane_info[0].xdec=0;
   _avin->video_plane_info[0].ydec=0;
@@ -210,7 +199,6 @@ static void id_y4m_file(av_input *_avin,const char *_file,FILE *_test){
     _avin->video_plane_info[1].ydec=0;
     _avin->video_plane_info[2].xdec=1;
     _avin->video_plane_info[2].ydec=0;
-    _avin->video_pic_x&=~1;
   }
   else if(strcmp(_avin->video_chroma_type,"411")==0){
     _avin->video_nplanes=3;
@@ -218,7 +206,6 @@ static void id_y4m_file(av_input *_avin,const char *_file,FILE *_test){
     _avin->video_plane_info[1].ydec=0;
     _avin->video_plane_info[2].xdec=2;
     _avin->video_plane_info[2].ydec=0;
-    _avin->video_pic_x&=~3;
   }
   else if(strcmp(_avin->video_chroma_type,"420")==0||
    strcmp(_avin->video_chroma_type,"420jpeg")==0){
@@ -227,8 +214,6 @@ static void id_y4m_file(av_input *_avin,const char *_file,FILE *_test){
     _avin->video_plane_info[1].ydec=1;
     _avin->video_plane_info[2].xdec=1;
     _avin->video_plane_info[2].ydec=1;
-    _avin->video_pic_x&=~1;
-    _avin->video_pic_y&=~1;
   }
   else if(strcmp(_avin->video_chroma_type,"420mpeg2")==0){
     _avin->video_nplanes=3;
@@ -236,8 +221,6 @@ static void id_y4m_file(av_input *_avin,const char *_file,FILE *_test){
     _avin->video_plane_info[1].ydec=1;
     _avin->video_plane_info[2].xdec=1;
     _avin->video_plane_info[2].ydec=1;
-    _avin->video_pic_x&=~1;
-    _avin->video_pic_y&=~1;
   }
   else if(strcmp(_avin->video_chroma_type,"420paldv")==0){
     _avin->video_nplanes=3;
@@ -245,8 +228,6 @@ static void id_y4m_file(av_input *_avin,const char *_file,FILE *_test){
     _avin->video_plane_info[1].ydec=1;
     _avin->video_plane_info[2].xdec=1;
     _avin->video_plane_info[2].ydec=1;
-    _avin->video_pic_x&=~1;
-    _avin->video_pic_y&=~1;
   }
   else if(strcmp(_avin->video_chroma_type,"mono")==0){
     _avin->video_nplanes=1;
@@ -402,7 +383,6 @@ int main(int _argc,char **_argv){
   FILE             *outfile;
   av_input          avin;
   ogg_stream_state  vo;
-  ogg_stream_state  ao;
   ogg_page          og;
   ogg_packet        op;
   daala_enc_ctx    *dd;
@@ -483,10 +463,6 @@ int main(int _argc,char **_argv){
   ogg_stream_init(&vo,rand());
   if(avin.has_video){
     daala_info_init(&di);
-    di.frame_width=avin.video_frame_w;
-    di.frame_height=avin.video_frame_h;
-    di.pic_x=avin.video_pic_x;
-    di.pic_y=avin.video_pic_y;
     di.pic_width=avin.video_pic_w;
     di.pic_height=avin.video_pic_h;
     di.timebase_numerator=avin.video_fps_n;

@@ -116,8 +116,8 @@ int daala_decode_img_out(daala_dec_ctx *dec, od_img *img) {
     }
   }
 
-  frame_width = dec->state.info.frame_width;
-  frame_height = dec->state.info.frame_height;
+  frame_width = dec->state.frame_width;
+  frame_height = dec->state.frame_height;
   pic_width = dec->state.info.pic_width;
   pic_height = dec->state.info.pic_height;
   if (img->width != frame_width || img->height != frame_height) {
