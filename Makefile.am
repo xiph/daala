@@ -103,7 +103,7 @@ endif
 
 examples_encoder_example_SOURCES = examples/encoder_example.c
 examples_encoder_example_CFLAGS = $(OGG_CFLAGS)
-examples_encoder_example_LDADD = src/libdaalabase.la src/libdaalaenc.la $(OGG_LIBS)
+examples_encoder_example_LDADD = src/libdaalabase.la src/libdaalaenc.la $(OGG_LIBS) -lm
 if DUMP_IMAGES
   examples_encoder_example_LDADD += $(PNG_LIBS)
 endif
@@ -371,7 +371,7 @@ src_tests_ectest_LDADD = -lm
 
 src_tests_test_coef_coder_SOURCES = src/tests/test_coef_coder.c
 src_tests_test_coef_coder_CFLAGS = $(OGG_CFLAGS)	
-src_tests_test_coef_coder_LDADD = src/libdaalabase.la src/libdaaladec.la $(OGG_LIBS)
+src_tests_test_coef_coder_LDADD = src/libdaalabase.la src/libdaaladec.la $(OGG_LIBS) -lm
 
 src_tests_logging_test_SOURCES = src/tests/logging_test.c
 src_tests_logging_test_CFLAGS = $(OGG_CFLAGS)	
