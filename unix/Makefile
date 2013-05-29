@@ -113,8 +113,10 @@ logging.c \
 mc.c \
 newdct.c \
 pvq.c \
+pvq_decoder.c \
 pvq_encoder.c \
 state.c \
+switch_table.c \
 tf.c \
 $(if $(findstring -DOD_X86ASM,${CFLAGS}), \
 x86/cpu.c \
@@ -126,19 +128,25 @@ logging.c \
 )
 
 LIBDAALABASE_CHEADERS = \
-internal.h \
-mc.h \
+adapt.h \
+block_size.h \
 entcode.h \
 entdec.h \
 entenc.h \
+filter.h \
+generic_code.h \
+internal.h \
+intra.h \
 logging.h \
-mfrngcod.h \
+mc.h \
 odintrin.h \
 pvq.h \
 state.h \
+tf.h \
 ../include/daala/codec.h \
 
 LIBDAALADEC_CSOURCES = \
+block_size_dec.c \
 decode.c \
 
 LIBDAALADEC_CHEADERS =   \
@@ -147,9 +155,10 @@ decint.h \
 ../include/daala/daaladec.h \
 
 LIBDAALAENC_CSOURCES = \
+block_size_dec.c \
+block_size_enc.c \
 encode.c \
 decode.c \
-pvq_decoder.c \
 infoenc.c \
 mcenc.c \
 
