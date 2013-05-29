@@ -47,7 +47,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #if !defined(_WIN32)
 # include <getopt.h>
 #else
-# include <fnctl.h>
+# include <fcntl.h>
 # include <io.h>
 # include "getopt.h"
 #endif

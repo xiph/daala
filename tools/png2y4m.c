@@ -53,7 +53,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # include <getopt.h>
 # include <unistd.h>
 #else
-# include <fnctl.h>
+# include <fcntl.h>
 # include <io.h>
 # include "getopt.h"
 #endif
@@ -144,7 +144,7 @@ int scandir(const char *_dirp,struct dirent ***_namelist,
   struct dirent **names;
   int             nnames;
   int             cnames;
-  d=opendir(dir);
+  d=opendir(_dirp);
   if(d==NULL)return -1;
   names=NULL;
   nnames=cnames=0;

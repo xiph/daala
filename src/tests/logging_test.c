@@ -32,6 +32,19 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <stdlib.h>
 #include <string.h>
 
+#if defined(_WIN32)
+static void setenv(const char *name, const char *value, int overwrite) {
+  int len;
+  char *str;
+  if (!overwrite && getenv(name) != NULL) return;
+  len = strlen(name)+1+strlen(value)+1;
+  str = _ogg_malloc(len);
+  sprintf(str, "%s=%s", name, value);
+  putenv(str);
+  _ogg_free(str);
+}
+#endif
+
 int emitted = 0;
 char tmp_buf[5000];
 char bogus_fmt_string[5000];
