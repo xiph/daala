@@ -180,8 +180,9 @@ int od_state_init(od_state *_state,const daala_info *_info){
   if(_info->plane_info[0].xdec||_info->plane_info[0].ydec)return OD_EINVAL;
   memset(_state,0,sizeof(*_state));
   memcpy(&_state->info,_info,sizeof(*_info));
-  _state->frame_width=_info->pic_width+15&~15;
-  _state->frame_height=_info->pic_height+15&~15;
+  /*Frame size is a multiple of a super block.*/
+  _state->frame_width=_info->pic_width+(OD_SUPERBLOCK_SIZE-1)&~(OD_SUPERBLOCK_SIZE-1);
+  _state->frame_height=_info->pic_height+(OD_SUPERBLOCK_SIZE-1)&~(OD_SUPERBLOCK_SIZE-1);
   _state->nhmbs=_state->frame_width>>4;
   _state->nvmbs=_state->frame_height>>4;
   od_state_opt_vtbl_init(_state);
