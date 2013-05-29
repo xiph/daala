@@ -398,6 +398,7 @@ int main(int _argc,char **_argv){
   int               video_r;
   int               video_keyframe_rate;
   int               video_ready;
+  int               pli;
   od_log_init(NULL);
 #if defined(_WIN32)
   _setmode(_fileno(stdin),_O_BINARY);
@@ -461,73 +462,65 @@ int main(int _argc,char **_argv){
   }
   srand(time(NULL));
   ogg_stream_init(&vo,rand());
-  if(avin.has_video){
-    daala_info_init(&di);
-    di.pic_width=avin.video_pic_w;
-    di.pic_height=avin.video_pic_h;
-    di.timebase_numerator=avin.video_fps_n;
-    di.timebase_denominator=avin.video_fps_d;
-    di.frame_duration=1;
-    di.pixel_aspect_numerator=avin.video_par_n;
-    di.pixel_aspect_denominator=avin.video_par_d;
-    di.nplanes=avin.video_nplanes;
-    memcpy(di.plane_info,avin.video_plane_info,
-     di.nplanes*sizeof(*di.plane_info));
-    di.keyframe_rate = video_keyframe_rate;
-    /*TODO: Other crap.*/
-    dd=daala_encode_create(&di);
-    daala_comment_init(&dc);
-    /*TODO: Set up encoder.*/
-  }
+  daala_info_init(&di);
+  di.pic_width=avin.video_pic_w;
+  di.pic_height=avin.video_pic_h;
+  di.timebase_numerator=avin.video_fps_n;
+  di.timebase_denominator=avin.video_fps_d;
+  di.frame_duration=1;
+  di.pixel_aspect_numerator=avin.video_par_n;
+  di.pixel_aspect_denominator=avin.video_par_d;
+  di.nplanes=avin.video_nplanes;
+  memcpy(di.plane_info,avin.video_plane_info,
+   di.nplanes*sizeof(*di.plane_info));
+  di.keyframe_rate = video_keyframe_rate;
+  /*TODO: Other crap.*/
+  dd=daala_encode_create(&di);
+  daala_comment_init(&dc);
+  /*TODO: Set up encoder.*/
   /*Write the bitstream header packets with proper page interleave.*/
   /*The first packet for each logical stream will get its own page
      automatically.*/
-  if(avin.has_video){
-    if(daala_encode_flush_header(dd,&dc,&op)<=0){
+  if(daala_encode_flush_header(dd,&dc,&op)<=0){
+    fprintf(stderr,"Internal Daala library error.\n");
+    exit(1);
+  }
+  ogg_stream_packetin(&vo,&op);
+  if(ogg_stream_pageout(&vo,&og)!=1){
+    fprintf(stderr,"Internal Ogg library error.\n");
+    exit(1);
+  }
+  fwrite(og.header,1,og.header_len,outfile);
+  fwrite(og.body,1,og.body_len,outfile);
+  /*Create and buffer the remaining Daala headers.*/
+  for(;;){
+    ret=daala_encode_flush_header(dd,&dc,&op);
+    if(ret<0){
       fprintf(stderr,"Internal Daala library error.\n");
       exit(1);
     }
+    else if(!ret)break;
     ogg_stream_packetin(&vo,&op);
-    if(ogg_stream_pageout(&vo,&og)!=1){
+  }
+  for(;;){
+    ret=ogg_stream_flush(&vo,&og);
+    if(ret<0){
       fprintf(stderr,"Internal Ogg library error.\n");
       exit(1);
     }
+    else if(!ret)break;
     fwrite(og.header,1,og.header_len,outfile);
     fwrite(og.body,1,og.body_len,outfile);
-    /*Create and buffer the remaining Daala headers.*/
-    for(;;){
-      ret=daala_encode_flush_header(dd,&dc,&op);
-      if(ret<0){
-        fprintf(stderr,"Internal Daala library error.\n");
-        exit(1);
-      }
-      else if(!ret)break;
-      ogg_stream_packetin(&vo,&op);
-    }
-  }
-  if(avin.has_video){
-    for(;;){
-      ret=ogg_stream_flush(&vo,&og);
-      if(ret<0){
-        fprintf(stderr,"Internal Ogg library error.\n");
-        exit(1);
-      }
-      else if(!ret)break;
-      fwrite(og.header,1,og.header_len,outfile);
-      fwrite(og.body,1,og.body_len,outfile);
-    }
   }
   /*Setup complete.
-    Main compression loop.*/
+     Main compression loop.*/
   fprintf(stderr,"Compressing...\n");
   video_ready=0;
   for(;;){
     ogg_page video_page;
     double   video_time;
-    if(avin.has_video){
-      video_ready=fetch_and_process_video(&avin,&video_page,
-       &vo,dd,video_ready);
-    }
+    video_ready=fetch_and_process_video(&avin,&video_page,
+     &vo,dd,video_ready);
     /*TODO: Fetch the next video page.*/
     /*If no more pages are available, we've hit the end of the stream.*/
     if(!video_ready)break;
@@ -544,14 +537,11 @@ int main(int _argc,char **_argv){
      (int)time_base/3600,((int)time_base/60)%60,(int)time_base%60,
      (int)(time_base*100-(long)time_base*100),video_kbps);
   }
-  if(avin.has_video){
-    int pli;
-    ogg_stream_clear(&vo);
-    daala_encode_free(dd);
-    daala_comment_clear(&dc);
-    for(pli=0;pli<avin.video_img.nplanes;pli++){
-      _ogg_free(avin.video_img.planes[pli].data);
-    }
+  ogg_stream_clear(&vo);
+  daala_encode_free(dd);
+  daala_comment_clear(&dc);
+  for(pli=0;pli<avin.video_img.nplanes;pli++){
+    _ogg_free(avin.video_img.planes[pli].data);
   }
   if(outfile!=NULL&&outfile!=stdout)fclose(outfile);
   fprintf(stderr,"\r    \ndone.\n\r");

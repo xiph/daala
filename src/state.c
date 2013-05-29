@@ -734,12 +734,10 @@ static void od_state_draw_mv_grid_block(od_state *_state,int _vx,int _vy,
 }
 
 void od_state_draw_mv_grid(od_state *_state){
-  od_img *img;
   int     vx;
   int     vy;
   int     nhmvbs;
   int     nvmvbs;
-  img=&_state->vis_img;
   nhmvbs=_state->nhmbs+1<<2;
   nvmvbs=_state->nvmbs+1<<2;
   for(vy=0;vy<nvmvbs;vy+=4)for(vx=0;vx<nhmvbs;vx+=4){
@@ -764,14 +762,12 @@ static void od_state_draw_mvs_block(od_state *_state,int _vx,int _vy,
     ogg_int32_t    mvy[4];
     const int     *dxp;
     const int     *dyp;
-    int            mvb_sz;
     int            etype;
     int            x0;
     int            y0;
     int            k;
     int            c;
     int            s;
-    mvb_sz=1<<_log_mvb_sz;
     if(_log_mvb_sz<2){
       int mask;
       mask=(1<<_log_mvb_sz+1)-1;
@@ -825,12 +821,10 @@ static void od_state_draw_mvs_block(od_state *_state,int _vx,int _vy,
 }
 
 void od_state_draw_mvs(od_state *_state){
-  od_img *img;
   int     vx;
   int     vy;
   int     nhmvbs;
   int     nvmvbs;
-  img=&_state->vis_img;
   nhmvbs=_state->nhmbs+1<<2;
   nvmvbs=_state->nvmbs+1<<2;
   for(vy=0;vy<nvmvbs;vy+=4)for(vx=0;vx<nhmvbs;vx+=4){

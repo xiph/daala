@@ -80,7 +80,7 @@ int daala_decode_ctl(daala_dec_ctx *dec, int req, void *buf, size_t buf_sz) {
 int daala_decode_img_out(daala_dec_ctx *dec, od_img *img) {
   int nplanes;
   int pli;
-  int scale;
+  int scale[OD_NPLANES_MAX];
   int frame_width;
   int frame_height;
   int pic_width;
@@ -170,7 +170,7 @@ int daala_decode_img_out(daala_dec_ctx *dec, od_img *img) {
       ydec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
       w = frame_width >> xdec;
       h = frame_height >> ydec;
-      scale=od_ec_dec_uint(&dec->ec, 512);
+      scale[pli] = od_ec_dec_uint(&dec->ec, 512);
       ctmp[pli] = _ogg_calloc(w*h, sizeof(*ctmp[pli]));
       dtmp[pli] = _ogg_calloc(w*h, sizeof(*dtmp[pli]));
       /*We predict chroma planes from the luma plane.
@@ -339,12 +339,12 @@ int daala_decode_img_out(daala_dec_ctx *dec, od_img *img) {
               pred[0] = generic_decode(&dec->ec, model_dc + pli, ex_dc + pli,
                0);
               if (pred[0]) sgn = od_ec_dec_bits(&dec->ec,1);
-              pred[0] = (int)(pow(pred[0],4.0/3)*scale);
+              pred[0] = (int)(pow(pred[0],4.0/3)*scale[pli]);
               pred[0] *= sgn ? -1 : 1;
               pred[0] += predt[0];
               qg = generic_decode(&dec->ec, model_g + pli, ex_g + pli, 0);
               if (qg) qg *= od_ec_dec_bits(&dec->ec, 1) ? -1 : 1;
-              vk = pvq_unquant_k(&predt[1], 15, qg, scale);
+              vk = pvq_unquant_k(&predt[1], 15, qg, scale[pli]);
               pred[1] = 0;
               if (vk != 0) {
                 int ex_ym;
@@ -353,7 +353,7 @@ int daala_decode_img_out(daala_dec_ctx *dec, od_img *img) {
                  &ex_ym, 0);
               }
               pvq_decoder(&dec->ec, pred + 2, 14, vk - abs(pred[1]), &adapt);
-              dequant_pvq(pred + 1, predt + 1, pvq_scale, 15, scale, qg);
+              dequant_pvq(pred + 1, predt + 1, pvq_scale, 15, scale[pli], qg);
               if (adapt.curr[OD_ADAPT_K_Q8] >= 0) {
                 nk++;
                 k_total += adapt.curr[OD_ADAPT_K_Q8];
