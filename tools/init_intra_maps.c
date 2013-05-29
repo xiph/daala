@@ -418,6 +418,7 @@ struct init_intra_maps_ctx{
 static int init_intra_plane_start(void *_ctx,const char *_name,
  const th_info *_ti,int _pli,int _nxblocks,int _nyblocks){
   init_intra_maps_ctx *ctx;
+  (void)_ti;
   ctx=(init_intra_maps_ctx *)_ctx;
   ctx->name=_name;
   ctx->map=(unsigned char *)malloc(_nxblocks*(size_t)_nyblocks);

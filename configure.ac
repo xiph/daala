@@ -42,7 +42,7 @@ AC_SUBST(OP_LT_REVISION)
 AC_SUBST(OP_LT_AGE)
 
 CC_CHECK_CFLAGS_APPEND(
-  [-std=c89 -pedantic -Wall -Wextra -Wno-parentheses -Wno-long-long])
+  [-std=c89 -pedantic -Wall -Wextra -Wno-parentheses -Wno-long-long -Wno-overlength-strings])
 
 # Platform-specific tweaks
 case $host in

@@ -112,6 +112,9 @@ int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh
   const unsigned char *x;
 #endif
 
+  (void)ow;
+  (void)oh;
+
   w>>=1;
   h>>=1;
   w8 = w>>2;
@@ -765,6 +768,8 @@ void quant_scalar_gain(ogg_int32_t *_x,ogg_int16_t *_scale,int *y,int N,int Q){
   float Q_1;
   int i;
 
+  (void)_scale;
+
   Q*=15;
   Q_1 = 1.f/Q;
   gain0=0;
@@ -793,6 +798,7 @@ static void process_plane(od_coeff *_img, od_coeff *_refi, int _w, int _h, int _
   int i;
   int free_ref;
   static int count=0;
+  (void)_pvq_k;
   _w = ROUNDUP_32(_w);
   _h = ROUNDUP_32(_h);
   if(!_refi){

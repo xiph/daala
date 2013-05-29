@@ -345,6 +345,8 @@ int main(int _argc,const char *_argv[]){
   int           i;
   double        r[2*B_SZ];
   const double *cov;
+  (void)_argc;
+  (void)_argv;
 #if B_SZ==4
   f=OD_FILTER_PARAMS4;
 #elif B_SZ==8

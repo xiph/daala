@@ -454,6 +454,8 @@ static void ip_pre_block(void *_ctx,const unsigned char *_data,int _stride,
 static void ip_fdct_block(void *_ctx,const unsigned char *_data,int _stride,
  int _bi,int _bj){
   classify_ctx *ctx;
+  (void)_data;
+  (void)_stride;
 #if PRINT_PROGRESS
   if(_bi==0&&_bj==0){
     print_progress(stdout,"ip_fdct_block");
@@ -474,6 +476,8 @@ static void ip_add_block(void *_ctx,const unsigned char *_data,int _stride,
   double        buf[5*B_SZ*B_SZ];
   int           mode;
   double        weight;
+  (void)_data;
+  (void)_stride;
 #if PRINT_PROGRESS
   if(_bi==0&&_bj==0){
     print_progress(stdout,"ip_add_block");
@@ -517,6 +521,8 @@ static void ip_print_block(void *_ctx,const unsigned char *_data,int _stride,
 static void ip_pred_block(void *_ctx,const unsigned char *_data,int _stride,
  int _bi,int _bj){
   classify_ctx *ctx;
+  (void)_data;
+  (void)_stride;
 #if PRINT_PROGRESS
   if(_bi==0&&_bj==0){
     print_progress("ip_pred_block");
@@ -529,6 +535,8 @@ static void ip_pred_block(void *_ctx,const unsigned char *_data,int _stride,
 static void ip_idct_block(void *_ctx,const unsigned char *_data,int _stride,
  int _bi,int _bj){
   classify_ctx *ctx;
+  (void)_data;
+  (void)_stride;
 #if PRINT_PROGRESS
   if(_bi==0&&_bj==0){
     print_progress("ip_idct_block");
@@ -541,6 +549,8 @@ static void ip_idct_block(void *_ctx,const unsigned char *_data,int _stride,
 static void ip_post_block(void *_ctx,const unsigned char *_data,int _stride,
  int _bi,int _bj){
   classify_ctx *ctx;
+  (void)_data;
+  (void)_stride;
 #if PRINT_PROGRESS
   if(_bi==0&&_bj==0){
     print_progress("ip_post_block");
@@ -626,6 +636,8 @@ static void od_mode_block(void *_ctx,const unsigned char *_data,int _stride,
   unsigned char *mode;
   od_coeff      *block;
   double        *weight;
+  (void)_data;
+  (void)_stride;
 #if PRINT_PROGRESS
   if(_bi==0&&_bj==0){
     print_progress("od_mode_block");
@@ -657,6 +669,8 @@ static void od_mode_block(void *_ctx,const unsigned char *_data,int _stride,
 static int init_start(void *_ctx,const char *_name,const th_info *_ti,int _pli,
  int _nxblocks,int _nyblocks){
   classify_ctx *ctx;
+  (void)_ti;
+  (void)_pli;
 #if PRINT_PROGRESS
   print_progress(stdout,"init_start");
 #endif
@@ -698,6 +712,8 @@ const int NINIT=sizeof(INIT)/sizeof(*INIT);
 static int pred_start(void *_ctx,const char *_name,const th_info *_ti,int _pli,
  int _nxblocks,int _nyblocks){
   classify_ctx *ctx;
+  (void)_ti;
+  (void)_pli;
 #if PRINT_PROGRESS
   print_progress(stdout,"pred_start");
 #endif
