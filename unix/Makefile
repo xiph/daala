@@ -84,7 +84,7 @@ endif
 
 ECTEST_LIBS = -lm
 TEST_COEF_CODER_LIBS = -lm
-TEST_HEADER_LIBS = -lcheck
+TEST_HEADER_LIBS = -lcheck -lm
 TEST_LOGGING_LIBS = -lm
 TEST_CHECK_INITIAL_LIBS = -lcheck
 
