@@ -107,6 +107,7 @@ static int intra_xform_train_plane_start(void *_ctx,const char *_name,
   char            *map_filename;
   FILE            *weights_file;
   char            *weights_filename;
+  (void)_ti;
   ctx=(intra_xform_ctx *)_ctx;
   ctx->map=(unsigned char *)malloc(_nxblocks*(size_t)_nyblocks);
   map_filename=get_map_filename(_name,_pli,_nxblocks,_nyblocks);
@@ -469,6 +470,7 @@ static int intra_xform_update_plane_start(void *_ctx,const char *_name,
  const th_info *_ti,int _pli,int _nxblocks,int _nyblocks){
   intra_xform_ctx *ctx;
   int i;
+  (void)_ti;
   ctx=(intra_xform_ctx *)_ctx;
   ctx->map_filename=get_map_filename(_name,_pli,_nxblocks,_nyblocks);
   ctx->weights_filename=get_weights_filename(_name,_pli,_nxblocks,_nyblocks);

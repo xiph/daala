@@ -168,6 +168,7 @@ static void intra_trace_ctx_step(intra_trace_ctx *_ctx,od_rgba16_image *_image,
  const int *_f){
   unsigned char data[4*B_SZ*4*B_SZ];
   int           m;
+  (void)_f;
   memset(data,0,4*B_SZ*4*B_SZ);
   data[4*B_SZ*_ctx->y+_ctx->x]=255;
   draw_pulse(_image,_ctx->x,_ctx->y);
@@ -209,6 +210,8 @@ int main(int _argc,char *_argv[]){
   intra_trace_ctx  ctx;
   const int       *f;
   od_rgba16_image  image;
+  (void)_argc;
+  (void)_argv;
   ne_filter_params_init();
   od_scale_init(OD_SCALE);
 #if B_SZ==4

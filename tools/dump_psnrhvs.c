@@ -65,6 +65,7 @@ static double calc_psnrhvs(const unsigned char *_src,int _systride,
   int pixels;
   int x;
   int y;
+  (void)_par;
   ret=pixels=0;
   /*In the PSNR-HVS-M paper[1] the authors describe the construction of
      their masking table as "we have used the quantization table for the

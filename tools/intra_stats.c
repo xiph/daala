@@ -78,6 +78,8 @@ static void vp8_stats_block(intra_stats_ctx *_ctx,const unsigned char *_data,
   od_coeff ref[B_SZ*B_SZ];
   od_coeff buf[B_SZ*B_SZ];
   double   res[B_SZ*B_SZ];
+  (void)_bi;
+  (void)_bj;
   /* Compute reference transform coefficients. */
   for(j=0;j<B_SZ;j++){
     for(i=0;i<B_SZ;i++){
@@ -145,6 +147,8 @@ static void vp8_block(void *_ctx,const unsigned char *_data,int _stride,
 static void od_pre_block(void *_ctx,const unsigned char *_data,int _stride,
  int _bi,int _bj){
   intra_stats_ctx *ctx;
+  (void)_data;
+  (void)_stride;
 #if PRINT_PROGRESS
   if(_bi==0&&_bj==0){
     fprintf(stdout,"in od_pre_block\n");
@@ -157,6 +161,8 @@ static void od_pre_block(void *_ctx,const unsigned char *_data,int _stride,
 static void od_fdct_block(void *_ctx,const unsigned char *_data,int _stride,
  int _bi,int _bj){
   intra_stats_ctx *ctx;
+  (void)_data;
+  (void)_stride;
 #if PRINT_PROGRESS
   if(_bi==0&&_bj==0){
     fprintf(stdout,"in od_fdct_block\n");
@@ -170,6 +176,8 @@ static void od_mode_block(void *_ctx,const unsigned char *_data,int _stride,
  int _bi,int _bj){
   intra_stats_ctx *ctx;
   od_coeff        *block;
+  (void)_data;
+  (void)_stride;
 #if PRINT_PROGRESS
   if(_bi==0&&_bj==0){
     fprintf(stdout,"in od_mode_block\n");
@@ -185,6 +193,8 @@ static void od_mode_block(void *_ctx,const unsigned char *_data,int _stride,
 static void od_print_block(void *_ctx,const unsigned char *_data,int _stride,
  int _bi,int _bj){
   intra_stats_ctx *ctx;
+  (void)_data;
+  (void)_stride;
 #if PRINT_PROGRESS
   if(_bi==0&&_bj==0){
     print_progress(stdout,"od_print_block");
@@ -198,6 +208,8 @@ static void od_print_block(void *_ctx,const unsigned char *_data,int _stride,
 static void od_pred_block(void *_ctx,const unsigned char *_data,int _stride,
  int _bi,int _bj){
   intra_stats_ctx *ctx;
+  (void)_data;
+  (void)_stride;
 #if PRINT_PROGRESS
   if(_bi==0&&_bj==0){
     fprintf(stdout,"in od_pred_block\n");
@@ -262,6 +274,8 @@ static void od_image_block(void *_ctx,const unsigned char *_data,int _stride,
 static int stats_start(void *_ctx,const char *_name,const th_info *_ti,int _pli,
  int _nxblocks,int _nyblocks){
   intra_stats_ctx *ctx;
+  (void)_ti;
+  (void)_pli;
   fprintf(stdout,"%s\n",_name);
   ctx=(intra_stats_ctx *)_ctx;
   intra_stats_ctx_set_image(ctx,_name,_nxblocks,_nyblocks);
