@@ -180,3 +180,10 @@ void od_tf_down_hv(od_coeff *dst, int dstride,
     }
   }
 }
+
+void od_convert_intra_coeffs(od_coeff coeffs[4], int strides[4],
+ const od_coeff *d, int dstride, int bx, int by, const char *bsize,
+ int bstride)
+{
+
+}

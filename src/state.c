@@ -199,6 +199,7 @@ int od_state_init(od_state *_state,const daala_info *_info){
       (_state->nhsb+1)*4 *
       (_state->nvsb+1)*4);
   _state->bstride = (_state->nhsb+1)*4;
+  _state->bsize += 4*_state->bstride+4;
   return 0;
 }
 
@@ -209,6 +210,7 @@ void od_state_clear(od_state *_state){
   for(pli=nplanes;pli-->0;)_ogg_free(_state->adapt_row[pli].ctx);
   od_free_2d(_state->mv_grid);
   _ogg_free(_state->ref_img_data);
+  _state->bsize -= 4*_state->bstride+4;
   _ogg_free(_state->bsize);
 }
 

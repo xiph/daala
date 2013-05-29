@@ -104,18 +104,18 @@ int daala_decode_img_out(daala_dec_ctx *dec, od_img *img) {
   }
   nhsb = dec->state.nhsb;
   nvsb = dec->state.nvsb;
-  for(i = 0; i < (nhsb+1)*4; i++) {
-    for(j = 0; j < 4; j++) {
+  for(i = -4; i < nhsb*4; i++) {
+    for(j = -4; j < 0; j++) {
       dec->state.bsize[(j*dec->state.bstride) + i] = 3;
     }
   }
-  for(j = 0; j < (nvsb+1)*4; j++) {
-    for(i = 0; i < 4; i++) {
+  for(j = -4; j < nvsb*4; j++) {
+    for(i = -4; i < 0; i++) {
       dec->state.bsize[(j*dec->state.bstride) + i] = 3;
     }
   }
-  for(i = 1; i < nvsb + 1; i++) {
-    for(j = 1; j < nhsb + 1; j++) {
+  for(i = 0; i < nvsb; i++) {
+    for(j = 0; j < nhsb; j++) {
       od_block_size_decode(&dec->ec, &dec->state.bsize[4*dec->state.bstride*i + 4*j], dec->state.bstride);
     }
   }

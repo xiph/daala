@@ -541,13 +541,13 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   /*Initialize the entropy coder.*/
   od_ec_enc_reset(&enc->ec);
   /*set the top row and the left most column to three*/
-  for(i = 0; i < (nhsb+1)*4; i++) {
-    for(j = 0; j < 4; j++) {
+  for(i = -4; i < nhsb*4; i++) {
+    for(j = -4; j < 0; j++) {
       enc->state.bsize[(j*enc->state.bstride) + i] = 3;
     }
   }
-  for(j = 0; j < (nvsb+1)*4; j++) {
-    for(i = 0; i < 4; i++) {
+  for(j = -4; j < nvsb*4; j++) {
+    for(i = -4; i < 0; i++) {
       enc->state.bsize[(j*enc->state.bstride) + i] = 3;
     }
   }
@@ -556,14 +556,14 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   bs = _ogg_malloc(sizeof(BlockSizeComp));
   od_log_matrix_uchar(OD_LOG_GENERIC, OD_LOG_INFO, "bimg ", enc->state.io_imgs[OD_FRAME_INPUT].planes[0].data-16*enc->state.io_imgs[OD_FRAME_INPUT].planes[0].ystride-16,
       enc->state.io_imgs[OD_FRAME_INPUT].planes[0].ystride, (nvsb + 1)*32);
-  for(i = 1; i < nvsb + 1; i++) {
+  for(i = 0; i < nvsb; i++) {
     unsigned char *img;
     int istride ;
     int bstride;
     bstride = enc->state.bstride;
     img = enc->state.io_imgs[OD_FRAME_INPUT].planes[0].data;
     istride = enc->state.io_imgs[OD_FRAME_INPUT].planes[0].ystride;
-    for(j = 1; j < nhsb + 1; j++) {
+    for(j = 0; j < nhsb; j++) {
       int bsize[4][4];
       char *state_bsize;
       state_bsize = &enc->state.bsize[i*4*enc->state.bstride + j*4];
@@ -579,8 +579,8 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     }
   }
   od_log_matrix_char(OD_LOG_GENERIC, OD_LOG_INFO, "bsize ", enc->state.bsize, enc->state.bstride, (nvsb+1)*4);
-  for(i = 0; i < (nvsb + 1)*4; i++) {
-    for(j = 0; j < (nhsb + 1)*4; j++) {
+  for(i = 0; i < nvsb*4; i++) {
+    for(j = 0; j < nhsb*4; j++) {
       OD_LOG_PARTIAL((OD_LOG_GENERIC, OD_LOG_INFO, "%d ", enc->state.bsize[i*enc->state.bstride + j]));
     }
     OD_LOG_PARTIAL((OD_LOG_GENERIC, OD_LOG_INFO, "\n"));
