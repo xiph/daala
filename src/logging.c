@@ -29,7 +29,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <string.h>
 
 
-#include "../include/daala/codec.h"
+#include "daala/codec.h"
 #include "internal.h"
 
 static unsigned long od_log_levels[OD_LOG_FACILITY_MAX] = {0};

@@ -30,7 +30,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <time.h>
 #include <getopt.h>
 #include "../src/logging.h"
-#include "../include/daala/daalaenc.h"
+#include "daala/daalaenc.h"
 #if defined(_WIN32)
 # include <fcntl.h>
 # include <io.h>
