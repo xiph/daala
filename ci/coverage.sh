@@ -11,7 +11,7 @@ GENHTML=${LCOV_PATH}/genhtml
 cd unix
 rm -Rf objs
 make clean
-CFLAGS="-g3 -fprofile-arcs -ftest-coverage" make
-CFLAGS="-g3 -fprofile-arcs -ftest-coverage" make check
+CFLAGS="-g3 -fprofile-arcs -ftest-coverage -UOD_ENABLE_ASSERTIONS" make
+CFLAGS="-g3 -fprofile-arcs -ftest-coverage -UOD_ENABLE_ASSERTIONS" make check
 ${LCOV} -c -b `pwd` -d `pwd` -o makecheck.info
 ${GENHTML} -s -o coverage/ makecheck.info
