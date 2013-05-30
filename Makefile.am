@@ -77,7 +77,8 @@ src_libdaaladec_la_LDFLAGS = -no-undefined \
  -version-info @OD_LT_CURRENT@:@OD_LT_REVISION@:@OD_LT_AGE@
 src_libdaaladec_la_SOURCES = \
 	src/block_size_dec.c \
-	src/decode.c
+	src/decode.c \
+	src/infodec.c
 
 src_libdaalaenc_la_CFLAGS = $(OGG_CFLAGS)
 src_libdaalaenc_la_LIBADD = src/libdaalabase.la $(OGG_LIBS)
@@ -89,12 +90,10 @@ src_libdaalaenc_la_LDFLAGS = -no-undefined \
 src_libdaalaenc_la_SOURCES = \
 	src/block_size_dec.c \
 	src/block_size_enc.c \
-	src/encode.c \
 	src/decode.c \
-	src/infodec.c \
+	src/encode.c \
 	src/infoenc.c \
 	src/mcenc.c
-
 
 # Example programs
 
@@ -384,17 +383,31 @@ src_tests_ectest_CFLAGS = $(OGG_CFLAGS)
 src_tests_ectest_LDADD = -lm
 
 src_tests_test_coef_coder_SOURCES = src/tests/test_coef_coder.c
-src_tests_test_coef_coder_CFLAGS = $(OGG_CFLAGS)	
-src_tests_test_coef_coder_LDADD = src/libdaalabase.la src/libdaaladec.la $(OGG_LIBS) -lm
+src_tests_test_coef_coder_CFLAGS = $(OGG_CFLAGS)
+src_tests_test_coef_coder_LDADD = \
+ src/libdaalabase.la \
+ src/libdaaladec.la \
+ $(OGG_LIBS) \
+ -lm
 
 src_tests_logging_test_SOURCES = src/tests/logging_test.c
-src_tests_logging_test_CFLAGS = $(OGG_CFLAGS)	
-src_tests_logging_test_LDADD = src/libdaalabase.la src/libdaalaenc.la  $(OGG_LIBS)
+src_tests_logging_test_CFLAGS = $(OGG_CFLAGS)
+src_tests_logging_test_LDADD = \
+ src/libdaalabase.la \
+ src/libdaalaenc.la \
+ $(OGG_LIBS)
 
-src_tests_check_tests_SOURCES = src/tests/check_main.c src/tests/headerencode_test.c
+src_tests_check_tests_SOURCES = \
+ src/tests/check_main.c \
+ src/tests/headerencode_test.c
 src_tests_check_tests_CFLAGS = $(OGG_CFLAGS)
-src_tests_check_tests_LDADD =  src/libdaalabase.la src/libdaalaenc.la $(OGG_LIBS) $(CHECK_LIBS) -lm
-
+src_tests_check_tests_LDADD = \
+ src/libdaalabase.la \
+ src/libdaaladec.la \
+ src/libdaalaenc.la \
+ $(OGG_LIBS) \
+ $(CHECK_LIBS) \
+ -lm
 
 # Docs
 

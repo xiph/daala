@@ -24,7 +24,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #include <limits.h>
 #include <string.h>
-#include "daala/daaladec.h"
+#include "../include/daala/daaladec.h"
 #include "decint.h"
 #include "encint.h"
 
