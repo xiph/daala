@@ -887,14 +887,16 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
 #if OD_DECODE_IN_ENCODE
   {
     int ret;
+    od_img out_img;
+    ogg_packet packet;
     ogg_uint32_t nbytes;
-    unsigned char *packet;
     od_dec_ctx dec;
     memcpy(&dec.state, &enc->state, sizeof(dec.state));
-    packet = od_ec_enc_done(&enc->ec, &nbytes);
-    od_ec_dec_init(&dec.ec, packet, nbytes);
+    memset(&packet, 0, sizeof(ogg_packet));
+    packet.packet = od_ec_enc_done(&enc->ec, &nbytes);
+    packet.bytes = nbytes;
     dec.packet_state = OD_PACKET_DATA;
-    ret = daala_decode_img_out(&dec, img);
+    ret = daala_decode_packet_in(&dec, &out_img, &packet);
     OD_ASSERT(ret==0);
   }
 #endif
