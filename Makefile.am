@@ -494,7 +494,7 @@ daala: all
 install-daala: install
 
 # Or just the docs
-#docs: doc/doxygen-build.stamp
+docs: doc/doxygen-build.stamp
 
 install-docs:
 	@if [ -z "$(NO_DOXYGEN)" ]; then \
@@ -506,8 +506,7 @@ install-docs:
 	    done ) \
 	fi
 
-doc/doxygen-build.stamp: doc/Doxyfile $(top_srcdir)/doc/daala_logo.svg \
-                         $(top_srcdir)/include/*.h
+doc/doxygen-build.stamp: doc/Doxyfile $(daalainclude_HEADERS)
 	@[ -n "$(NO_DOXYGEN)" ] || ( cd doc && doxygen && touch $(@F) )
 
 
@@ -521,6 +520,7 @@ install-data-local: install-docs
 clean-local:
 	$(RM) -r doc/html
 	$(RM) -r doc/latex
+	$(RM) -r doc/man
 	$(RM) doc/doxygen-build.stamp
 
 uninstall-local:

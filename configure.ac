@@ -138,6 +138,7 @@ AC_CONFIG_FILES([
   Makefile
   daala.pc
   daala-uninstalled.pc
+  doc/Doxyfile
 ])
 AC_OUTPUT
 

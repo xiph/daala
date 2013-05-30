@@ -1,0 +1,21 @@
+# Process with doxygen to generate API documentation.
+
+PROJECT_NAME           = @PACKAGE@
+PROJECT_NUMBER         = @VERSION@
+PROJECT_BRIEF          = "Experimental video codec API reference."
+
+INPUT                  = @top_srcdir@/include/daala
+STRIP_FROM_PATH        = @top_srcdir@/include
+
+
+OPTIMIZE_OUTPUT_FOR_C  = YES
+GENERATE_MAN           = YES
+
+QUIET                  = YES
+WARNINGS               = YES
+WARN_IF_UNDOCUMENTED   = YES
+WARN_IF_DOC_ERROR      = YES
+WARN_NO_PARAMDOC       = YES
+
+JAVADOC_AUTOBRIEF      = YES
+SORT_MEMBER_DOCS       = NO
