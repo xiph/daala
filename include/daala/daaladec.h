@@ -136,6 +136,16 @@ extern void daala_decode_free(daala_dec_ctx *dec);
 extern int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
  const ogg_packet *op);
 /*@}*/
+
+/** \defgroup decctlcodes Configuration keys for the decoder ctl interface.
+ * Decoder CTL settings.
+ *
+ * These defines and macros are for altering the behaviour of the decoder
+ * through the \ref daala_decode_ctl interface.
+ *
+ * No keys are currently defined.
+ */
+
 /*@}*/
 
 # if OD_GNUC_PREREQ(4, 0)

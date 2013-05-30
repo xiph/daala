@@ -139,6 +139,16 @@ extern int daala_encode_packet_out(daala_enc_ctx *enc,
  * \param enc A #daala_enc_ctx handle.*/
 extern void daala_encode_free(daala_enc_ctx *enc);
 /*@}*/
+
+/** \defgroup encctlcodes Configuration keys for the encoder ctl interface.
+ * Encoder CTL settings.
+ *
+ * These defines and macros are for altering the behaviour of the encoder
+ * through the \ref daala_encode_ctl interface.
+ *
+ * No keys are currently defined.
+ */
+
 /*@}*/
 
 # if OD_GNUC_PREREQ(4, 0)

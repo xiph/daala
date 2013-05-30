@@ -27,25 +27,24 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
  *
  * \section intro Introduction
  *
- * This is the documentation of the <tt>libdaala</tt> C API.
- * <tt>libdaala</tt> is the reference implementation for Daala, a free video
- *  codec.
+ * This is the documentation of the C API for the reference implementation
+ *  of Daala, a free video codec.
  *
  * \subsection Organization
- * <tt>libdaala</tt> is actually subdivided into three separate libraries.
- * - <tt>libdaalaenc<tt>, containing routines exclusive to the encoder.
+ * The implementation is subdivided into three separate libraries.
+ * - <tt>libdaalaenc</tt> contains routines exclusive to the encoder.
  *   You must link to this if you use any of the functions listed in
  *    \ref encfuncs.
- * - <tt>libdaaladec</tt>, containing routines exclusive to the decoder.
+ * - <tt>libdaaladec</tt> contains routines exclusive to the decoder.
  *   You must link to this if you use any of the functions listed in
  *    \ref decfuncs.
  * - <tt>libdaalabase</tt>, containing routines shared by the encoder and the
  *    decoder.
- *   You must link to this if you use any of the functions in this API, not
- *    just those listed in \ref basefuncs.*/
+ *   You must link to this if you use any of the functions in this API,
+ *    regardless of whether you use the encoder, decoder or both.*/
 
 /**\file
- * The shared <tt>libdaala<tt/> C API.*/
+ * The shared <tt>libdaala</tt> C API.*/
 #if !defined(_daala_codec_H)
 # define _daala_codec_H (1)
 /*Pick up typedefs.*/
@@ -55,6 +54,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 extern "C" {
 # endif
 
+/*Enable special features for gcc and compatible compilers.*/
 # if defined(__GNUC__) && defined(__GNUC_MINOR__)
 #  define OD_GNUC_PREREQ(maj, min) \
   ((__GNUC__ << 16) + __GNUC_MINOR__ >= ((maj) << 16) + (min))
@@ -130,10 +130,11 @@ typedef struct daala_comment daala_comment;
 
 const char *daala_version_string(void);
 
+/** Representation of a single component within an image or frame. */
 struct od_img_plane {
   unsigned char *data;
-  /** The decimation factor in x direction. Pixesl are reduced by a factor of
-      2^xdec so  0 is none, 1 is decimated by a factor of 2. ( YUV420 will
+  /** The decimation factor in x direction. Pixels are reduced by a factor of
+      2^xdec so 0 is none, 1 is decimated by a factor of 2. ( YUV420 will
       have xdec of 1 and ydec also of 1. YUV444 will have xdec and ydec set to
       zero ). */
   unsigned char xdec;
@@ -145,6 +146,7 @@ struct od_img_plane {
   int ystride;
 };
 
+/** Representation of an image or video frame. */
 struct od_img {
   /** Typical 3 planes for Y, Cb, and  Cr. Can have a 4th plane for alpha */
   od_img_plane planes[OD_NPLANES_MAX];
@@ -155,11 +157,14 @@ struct od_img {
   ogg_int32_t height;
 };
 
+/** Subsampling factors for a plane as a power of 2.
+ *  4:2:0 would have {0, 0} for Y and {1, 1} for Cb and Cr. */
 struct daala_plane_info {
   unsigned char xdec;
   unsigned char ydec;
 };
 
+/** Configuration parameters for a codec instance. */
 struct daala_info {
   unsigned char version_major;
   unsigned char version_minor;
