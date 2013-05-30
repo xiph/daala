@@ -177,9 +177,9 @@ int main() {
       printf("{");
       for (m = 0; m < OD_INTRA_NMODES; m++) {
         printf("{");
-        for (c = 0; c < OD_INTRA_NCONTEXTS-1; c++) {
+        for (c = 0; c < OD_INTRA_NCONTEXTS; c++) {
           printf("%u", OD_INTRA_PRED_PROB_4x4[i][m][c]);
-          if (c < OD_INTRA_NCONTEXTS-1) printf(",");
+          if (c < OD_INTRA_NCONTEXTS-1) printf(", ");
         }
         printf("}");
         if (m < OD_INTRA_NMODES-1) printf(",");
