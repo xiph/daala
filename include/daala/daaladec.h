@@ -88,8 +88,10 @@ extern int daala_decode_ctl(daala_dec_ctx *dec,
 extern void daala_decode_free(daala_dec_ctx *dec);
 /**Retrieves decoded video data frames.
  * \param dec A #daala_dec_ctx handle.
- * \param img A buffer to receive the decoded image data.*/
-extern int daala_decode_img_out(daala_dec_ctx *dec,od_img *img);
+ * \param img A buffer to receive the decoded image data.
+ * \param op An incoming Ogg packet.*/
+extern int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
+ const ogg_packet *op);
 /*@}*/
 /*@}*/
 

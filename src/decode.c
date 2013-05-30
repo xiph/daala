@@ -78,7 +78,8 @@ int daala_decode_ctl(daala_dec_ctx *dec, int req, void *buf, size_t buf_sz) {
   }
 }
 
-int daala_decode_img_out(daala_dec_ctx *dec, od_img *img) {
+int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
+ const ogg_packet *op) {
   int nplanes;
   int pli;
   int scale[OD_NPLANES_MAX];
@@ -90,18 +91,10 @@ int daala_decode_img_out(daala_dec_ctx *dec, od_img *img) {
   int nhsb;
   int i;
   int j;
-  if (dec == NULL || img == NULL) return OD_EFAULT;
+  if (dec == NULL || img == NULL || op == NULL) return OD_EFAULT;
   if (dec->packet_state != OD_PACKET_DATA) return OD_EINVAL;
-  /*Check the input image dimensions to make sure they're compatible with the
-     declared video size.*/
-  nplanes = dec->state.info.nplanes;
-  if (img->nplanes != nplanes) return OD_EINVAL;
-  for (pli = 0; pli < nplanes; pli++) {
-    if (img->planes[pli].xdec != dec->state.info.plane_info[pli].xdec
-      || img->planes[pli].ydec != dec->state.info.plane_info[pli].ydec) {
-      return OD_EINVAL;
-    }
-  }
+  if (op->e_o_s) dec->packet_state = OD_PACKET_DONE;
+  od_ec_dec_init(&dec->ec, op->packet, op->bytes);
   nhsb = dec->state.nhsb;
   nvsb = dec->state.nvsb;
   for(i = -4; i < nhsb*4; i++) {
@@ -124,14 +117,6 @@ int daala_decode_img_out(daala_dec_ctx *dec, od_img *img) {
   frame_height = dec->state.frame_height;
   pic_width = dec->state.info.pic_width;
   pic_height = dec->state.info.pic_height;
-  if (img->width != frame_width || img->height != frame_height) {
-    /*The buffer does not match the frame size.
-      Check to see if it matches the picture size.*/
-    if ( img->width != pic_width || img->height != pic_height) {
-      /*It doesn't; we don't know how to handle it yet.*/
-      return OD_EINVAL;
-    }
-  }
   {
     GenericEncoder model_dc[OD_NPLANES_MAX];
     GenericEncoder model_g[OD_NPLANES_MAX];
@@ -449,5 +434,7 @@ int daala_decode_img_out(daala_dec_ctx *dec, od_img *img) {
   od_state_upsample8(&dec->state,
    dec->state.ref_imgs + dec->state.ref_imgi[OD_FRAME_SELF],
    dec->state.io_imgs + OD_FRAME_REC);
+  /*Return decoded frame.*/
+  *img = dec->state.io_imgs[OD_FRAME_REC];
   return 0;
 }
