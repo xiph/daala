@@ -247,7 +247,8 @@ int main(int _argc,char **_argv){
       enc_method[j]=rand()&1;
       switch(enc_method[j]){
         case 0:{
-          od_ec_encode_bool_q15(&enc,data[j],fz[j]<<15-ftb[j]);
+          if(rand()&1)od_ec_encode_bool_q15(&enc,data[j],fz[j]<<15-ftb[j]);
+          else od_ec_encode_bool(&enc,data[j],fz[j]<<15-ftb[j],32768);
         }break;
         case 1:{
           ogg_uint16_t cdf[2];
@@ -276,7 +277,8 @@ int main(int _argc,char **_argv){
       dec_method=rand()&1;
       switch(dec_method){
         case 0:{
-          sym=od_ec_decode_bool_q15(&dec,fz[j]<<15-ftb[j]);
+          if(rand()&1)sym=od_ec_decode_bool_q15(&dec,fz[j]<<15-ftb[j]);
+          else sym=od_ec_decode_bool(&dec,fz[j]<<15-ftb[j],32768);
         }break;
         case 1:{
           ogg_uint16_t cdf[2];
