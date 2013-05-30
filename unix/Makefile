@@ -150,6 +150,7 @@ tf.h \
 LIBDAALADEC_CSOURCES = \
 block_size_dec.c \
 decode.c \
+infodec.c \
 
 LIBDAALADEC_CHEADERS =   \
 ${LIBDAALABASE_CHEADERS} \

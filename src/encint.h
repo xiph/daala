@@ -24,6 +24,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #if !defined(_encint_H)
 # define _encint_H (1)
+# include "../include/daala/daaladec.h"
 # include "../include/daala/daalaenc.h"
 # include "state.h"
 # include "entenc.h"

@@ -42,7 +42,7 @@ static int od_dec_init(od_dec_ctx *dec, const daala_info *info,
   (void)setup;
   ret = od_state_init(&dec->state, info);
   if (ret < 0) return ret;
-  dec->packet_state = OD_PACKET_INFO_HDR;
+  dec->packet_state = OD_PACKET_DATA;
   return 0;
 }
 

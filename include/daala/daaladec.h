@@ -45,7 +45,7 @@ extern "C" {
 typedef struct daala_dec_ctx daala_dec_ctx;
 /**Setup information.
    This contains auxiliary information decoded from the setup header by
-    daala_decode_headerin() to be passed to daala_decode_alloc().
+    daala_decode_header_in() to be passed to daala_decode_alloc().
    It can be re-used to initialize any number of decoders, and can be freed
     via daala_setup_free() at any time.*/
 typedef struct daala_setup_info daala_setup_info;
@@ -59,17 +59,60 @@ typedef struct daala_setup_info daala_setup_info;
  **/
 /*@{*/
 
+/**Parses the header packets from an Ogg Daala stream.
+ * To use this function:
+ * - Initialize a daala_info structure using daala_info_init().
+ * - Initialize a daala_comment structure using daala_comment_init().
+ * - Initialize a daala_setup_info pointer to NULL.
+ * - Call this function three times, passing in pointers to the same
+ *    daala_info, daala_comment, and daala_setup_info pointer each time, and
+ *    the three successive header packets.
+ * \param info The #daala_info structure to fill in.
+ *             This must have been previously initialized with
+                daala_info_init().
+               The application may begin using the contents of this structure
+                after the first header is decoded, though it must continue to
+                be passed in unmodified on all subsequent calls.
+ * \param dc The #daala_comment structure to fill in.
+             This must have been previously initialized with
+              daala_comment_init().
+             The application may immediately begin using the contents of this
+              structure after the second header is decoded, though it must
+              continue to be passed in on all subsequent calls.
+ * \param ds A pointer to a daala_setup_info pointer to fill in.
+             The contents of this pointer must be initialized to <tt>NULL</tt>
+              on the first call, and the returned value must continue to be
+              passed in on all subsequent calls.
+ * \param op The current header packet to process.
+ * \return A positive value indicates that a Daala header was successfully
+            processed.
+ * \retval 0 The first video data packet was encountered after all required
+              header packets were parsed.
+             The packet just passed to this call should be saved and fed to
+              daaala_decode_packet_in() to begin decoding video data.
+ * \retval OD_EFAULT One of \a info, \a dc, or \a ds was <tt>NULL</tt>, or
+                      there was a memory allocation failure.
+ * \retval OD_EBADHEADER \a op was <tt>NULL</tt>, the packet was not the next
+                          header packet in the expected sequence, or the
+                          format fo the header data was invalid.
+ * \retval OD_EVERSION The packet data was a Daala header, but for a bitstream
+                        version not decodable with this version of
+                        <tt>libdaaladec</tt>.
+ * \retval OD_ENOTFORMAT The packet was not a Daala header.*/
+int daala_decode_header_in(daala_info *info,
+ daala_comment *dc, daala_setup_info **ds, const ogg_packet *op);
+
 /**Allocates a decoder instance.
- * \param info A #daala_info struct filled via daala_decode_headerin().
+ * \param info A #daala_info struct filled via daala_decode_header_in().
  * \param setup A #daala_setup_info handle returned via
- *               daala_decode_headerin().
+ *               daala_decode_header_in().
  * \return The initialized #daala_dec_ctx handle.
  * \retval NULL If the decoding parameters were invalid.*/
 extern daala_dec_ctx *daala_decode_alloc(const daala_info *info,
  const daala_setup_info *setup);
 /**Releases all storage used for the decoder setup information.
  * This should be called after you no longer want to create any decoders for
- *  a stream whose headers you have parsed with th_decode_headerin().
+ *  a stream whose headers you have parsed with daala_decode_header_in().
  * \param setup The setup information to free.
  *              This can safely be <tt>NULL</tt>.*/
 extern void daala_setup_free(daala_setup_info *setup);

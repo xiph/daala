@@ -167,7 +167,8 @@ void oggbyte_writeinit(oggbyte_buffer *_b){
   _b->storage=BUFFER_INCREMENT;
 }
 
-void oggbyte_writetrunc(oggbyte_buffer *_b,long _bytes){
+void oggbyte_writetrunc(oggbyte_buffer *_b,ptrdiff_t _bytes){
+  OD_ASSERT(_bytes>=0);
   _b->ptr=_b->buf+_bytes;
 }
 
@@ -199,7 +200,7 @@ void oggbyte_write4(oggbyte_buffer *_b,ogg_uint32_t _value){
   *(_b->ptr++)=(unsigned char)_value;
 }
 
-void oggbyte_writecopy(oggbyte_buffer *_b,const void *_source,long _bytes){
+void oggbyte_writecopy(oggbyte_buffer *_b,const void *_source,ptrdiff_t _bytes){
   ptrdiff_t endbyte;
   endbyte=_b->ptr-_b->buf;
   if(endbyte+_bytes>_b->storage){
@@ -220,7 +221,8 @@ void oggbyte_writeclear(oggbyte_buffer *_b){
   memset(_b,0,sizeof(*_b));
 }
 
-void oggbyte_readinit(oggbyte_buffer *_b,unsigned char *_buf,long _bytes){
+void oggbyte_readinit(oggbyte_buffer *_b,unsigned char *_buf,ptrdiff_t _bytes){
+  OD_ASSERT(_bytes>=0);
   memset(_b,0,sizeof(*_b));
   _b->buf=_b->ptr=_buf;
   _b->storage=_bytes;
@@ -236,7 +238,7 @@ int oggbyte_look1(oggbyte_buffer *_b){
 int oggbyte_look4(oggbyte_buffer *_b,ogg_uint32_t *_val){
   ptrdiff_t endbyte;
   endbyte=_b->ptr-_b->buf;
-  if(endbyte+4>_b->storage){
+  if(endbyte>_b->storage-4){
     if(endbyte<_b->storage){
       *_val=_b->ptr[0];
       endbyte++;
@@ -294,8 +296,23 @@ int oggbyte_read4(oggbyte_buffer *_b,ogg_uint32_t *_val){
   return 0;
 }
 
-long oggbyte_bytes(oggbyte_buffer *_b){
+int oggbyte_readcopy(oggbyte_buffer *_b, void *_dest, ogg_uint32_t _bytes){
+  ptrdiff_t endbyte;
+  endbyte = _b->ptr - _b->buf;
+  OD_ASSERT(endbyte >= 0);
+  OD_ASSERT(endbyte <= _b->storage);
+  if ((size_t)(_b->storage - endbyte) < _bytes) return -1;
+  memcpy(_dest, _b->ptr, _bytes);
+  _b->ptr += _bytes;
+  return 0;
+}
+
+ptrdiff_t oggbyte_bytes(oggbyte_buffer *_b){
   return _b->ptr-_b->buf;
+}
+
+ptrdiff_t oggbyte_bytes_left(oggbyte_buffer *_b) {
+  return _b->storage - oggbyte_bytes(_b);
 }
 
 unsigned char *oggbyte_get_buffer(oggbyte_buffer *_b){

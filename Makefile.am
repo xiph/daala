@@ -89,6 +89,7 @@ src_libdaalaenc_la_SOURCES = \
 	src/block_size_enc.c \
 	src/encode.c \
 	src/decode.c \
+	src/infodec.c \
 	src/infoenc.c \
 	src/mcenc.c
 

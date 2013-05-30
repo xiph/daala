@@ -38,7 +38,9 @@ int daala_encode_flush_header(daala_enc_ctx *_enc,daala_comment *_dc,
       oggbyte_write1(&_enc->obb, info->version_major);
       oggbyte_write1(&_enc->obb, info->version_minor);
       oggbyte_write1(&_enc->obb, info->version_sub);
+      OD_ASSERT(info->pic_width > 0);
       oggbyte_write4(&_enc->obb, info->pic_width);
+      OD_ASSERT(info->pic_height > 0);
       oggbyte_write4(&_enc->obb, info->pic_height);
       oggbyte_write4(&_enc->obb, info->pixel_aspect_numerator);
       oggbyte_write4(&_enc->obb, info->pixel_aspect_denominator);

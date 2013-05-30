@@ -40,4 +40,9 @@ struct daala_dec_ctx {
   int packet_state;
 };
 
+/*Stub for the daala_setup_info.*/
+struct daala_setup_info {
+  unsigned char dummy;
+};
+
 #endif

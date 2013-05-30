@@ -78,10 +78,16 @@ void od_fatal_impl(const char *_str,const char *_file,int _line);
   } \
   while(0)
 
+#  define OD_ALWAYS_TRUE(_cond) OD_ASSERT(_cond)
+
 # else
 #  define OD_ASSERT(_cond)
 #  define OD_ASSERT2(_cond,_message)
+#  define OD_ALWAYS_TRUE(_cond) ((void)(_cond))
 # endif
+
+# define OD_MEM_SIZE_MAX (~(size_t)0 >> 1)
+# define OD_MEM_DIFF_MAX ((ptrdiff_t)OD_MEM_SIZE_MAX)
 
 /*Currently this structure is only in Tremor, and is read-only.*/
 typedef struct oggbyte_buffer oggbyte_buffer;
@@ -90,28 +96,31 @@ typedef struct oggbyte_buffer oggbyte_buffer;
 struct oggbyte_buffer{
   unsigned char *buf;
   unsigned char *ptr;
-  long           storage;
+  ptrdiff_t      storage;
 };
 
 /*Encoding functions.*/
 void oggbyte_writeinit(oggbyte_buffer *_b);
-void oggbyte_writetrunc(oggbyte_buffer *_b,long _bytes);
+void oggbyte_writetrunc(oggbyte_buffer *_b,ptrdiff_t _bytes);
 void oggbyte_write1(oggbyte_buffer *_b,unsigned _value);
 void oggbyte_write4(oggbyte_buffer *_b,ogg_uint32_t _value);
-void oggbyte_writecopy(oggbyte_buffer *_b,const void *_source,long _bytes);
+void oggbyte_writecopy(oggbyte_buffer *_b,const void *_source,ptrdiff_t _bytes);
 void oggbyte_writeclear(oggbyte_buffer *_b);
 /*Decoding functions.*/
-void oggbyte_readinit(oggbyte_buffer *_b,unsigned char *_buf,long _bytes);
+void oggbyte_readinit(oggbyte_buffer *_b,unsigned char *_buf,ptrdiff_t _bytes);
 int oggbyte_look1(oggbyte_buffer *_b);
 int oggbyte_look4(oggbyte_buffer *_b,ogg_uint32_t *_val);
 void oggbyte_adv1(oggbyte_buffer *_b);
 void oggbyte_adv4(oggbyte_buffer *_b);
 int oggbyte_read1(oggbyte_buffer *_b);
 int oggbyte_read4(oggbyte_buffer *_b,ogg_uint32_t *_val);
+int oggbyte_readcopy(oggbyte_buffer *_b, void *_dest, ogg_uint32_t _bytes);
+
 /*Shared functions.*/
 void oggbyte_reset(oggbyte_buffer *_b);
-long oggbyte_bytes(oggbyte_buffer *_b);
+ptrdiff_t oggbyte_bytes(oggbyte_buffer *_b);
 unsigned char *oggbyte_get_buffer(oggbyte_buffer *_b);
+ptrdiff_t oggbyte_bytes_left(oggbyte_buffer *_b);
 
 int od_ilog(ogg_uint32_t _v);
 void **od_malloc_2d(size_t _height,size_t _width,size_t _sz);
