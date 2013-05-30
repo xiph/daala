@@ -26,6 +26,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # define _tf_H (1)
 # include "filter.h"
 
+extern const unsigned char od_upright_table[8];
+
+/* Returns whether the up-right is unavailable */
+#define OD_UPRIGHT_UNAVAIL(x,y,csize) \
+ (((od_upright_table)[(y)>>(csize)] >> ((x)>>csize)) & 1)
+
 void od_tf_up_h_lp(od_coeff *dst,int dstride,
  const od_coeff *src, int sstride, int dx, int n);
 

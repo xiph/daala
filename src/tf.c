@@ -23,6 +23,21 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #include "tf.h"
+#include "block_size.h"
+
+/* Blocks that aren't available for predictions are marked with *
+   LSB           MSB
+   . . . . . . . .  00
+   . * . * . * . *  CC
+   . . . * . . . *  88
+   . * . * . * . *  CC
+   . . . . . . . *  80
+   . * . * . * . *  CC
+   . . . * . . . *  88
+   . * . * . * . *  CC
+ */
+const unsigned char od_upright_table[8] =
+ {0x00, 0xCC, 0x88, 0xCC, 0x80, 0xCC, 0x88, 0xCC};
 
 /*Increase horizontal frequency resolution of an entire block and return the LF
    half.*/
@@ -181,9 +196,114 @@ void od_tf_down_hv(od_coeff *dst, int dstride,
   }
 }
 
-void od_convert_intra_coeffs(od_coeff coeffs[4], int strides[4],
- const od_coeff *d, int dstride, int bx, int by, const char *bsize,
- int bstride)
-{
+static void od_convert_block_up(od_coeff *dst, int dstride,
+    const od_coeff *src, int sstride, const char *bsize,
+    int bstride, int nx, int ny, int dest_size) {
+  int i;
+  int j;
+  int n;
+  od_coeff scratch[16][16];
+  n = 1 << (dest_size + 2);
+  for (i = 0; i < n; i++) {
+    for (j = 0; j < n; j++) scratch[i][j] = src[i*sstride + j];
+  }
+  if (dest_size>1) {
+    int sub;
+    sub = 1 << (dest_size - 1);
+    for (i = 0; i < 2; i++) {
+      for (j = 0; j < 2; j++) {
+        if (BLOCK_SIZE4x4(bsize, bstride, nx + i*sub, ny + j*sub)
+         < dest_size - 1) {
+          od_convert_block_up(&scratch[4*i*sub][4*j*sub], 16,
+           &scratch[4*i*sub][4*j*sub], 16, bsize, bstride,
+           nx + i*sub, ny + j*sub, dest_size - 1);
+        }
+      }
+    }
+  }
+  /* At this point, we assume that scratch has size dest_size-1. */
+  od_tf_up_hv(dst, dstride, &scratch[0][0], 16, 1 << (dest_size + 2));
+}
 
+static void od_convert_block_down(od_coeff *dst, int dstride,
+    const od_coeff *src, int sstride, int curr_size, int dest_size) {
+  /* FIXME: This function makes useless computations. */
+  int i;
+  int j;
+  int n;
+  od_coeff scratch[16][16];
+  n = 1 << (dest_size + 2);
+  for (i = 0; i < n; i++) {
+    for (j = 0; j < n; j++) scratch[i][j] = src[i*sstride + j];
+  }
+  od_tf_down_hv(dst, dstride, &scratch[0][0], 16, 1 << (dest_size + 2));
+  if (curr_size-1 > dest_size) {
+    int sub;
+    /* As long as the max block size is 16, sub will always be equal to 1. */
+    sub = 1 << (curr_size - 1);
+    for (i = 0; i < n; i++) {
+      for (j = 0; j < n; j++) scratch[i][j] = dst[i*dstride + j];
+    }
+    for (i = 0; i < 2; i++) {
+      for (j = 0; j < 2; j++) {
+        od_convert_block_down(&dst[4*i*sub*dstride + 4*j*sub], dstride,
+         &scratch[4*i*sub][4*j*sub], 16, curr_size - 1, dest_size);
+      }
+    }
+  }
+}
+
+void od_convert_intra_coeffs(od_coeff *(dst[4]), int dstrides[4],
+ od_coeff *src, int sstride, int bx, int by, const char *bsize, int bstride) {
+  /* Relative position of neighbors: up-left     up   "up-right"  left */
+  static const int offsets[4][2] = {{-1, -1}, {0, -1}, {1, -1}, {-1, 0}};
+  int csize;
+  int n;
+  csize = BLOCK_SIZE4x4(bsize, bstride, bx, by);
+  /* Loop over neighbours. */
+  for (n = 0; n < 4; n++) {
+    int nx;
+    int ny;
+    int nsize;
+    if (n == 2 && OD_UPRIGHT_UNAVAIL(bx & 7, by & 7, csize)) nx = bx;
+    else nx = bx + (offsets[n][0] << csize);
+    ny = by + (offsets[n][1] << csize);
+    nsize = BLOCK_SIZE4x4(bsize, bstride, nx, ny);
+    if (nsize==csize) {
+      /* simply override the pointer and stride */
+      dst[n] = src + 4*ny*sstride + 4*nx;
+      dstrides[n] = sstride;
+    }
+    else if (nsize < csize) {
+      /* We need to TF down. */
+      int size;
+      int i;
+      int j;
+      int off_x;
+      int off_y;
+      int nxa;
+      int nya;
+      od_coeff scratch[16][16];
+      /* Aligns nx and ny to the size of the neighbour. */
+      nxa = nx >> nsize << nsize;
+      nya = ny >> nsize << nsize;
+      size = 1 << csize << 2;
+      od_convert_block_down(&scratch[0][0], 16, &src[4*nya*sstride + 4*nxa],
+       sstride, nsize, csize);
+      /* Find there offset in the TF'ed block that has the useful data */
+      off_x = (nx-nxa) << 2;
+      off_y = (ny-nya) << 2;
+      /* Copy only the part we need */
+      for (i = 0; i < size; i++) {
+        for (j = 0; j < size; j++) {
+          dst[n][i*dstrides[n] + j] = scratch[i + off_y][j + off_x];
+        }
+      }
+    }
+    else {
+      /* We need to TF up. */
+      od_convert_block_up(dst[n], dstrides[n], &src[4*ny*sstride + 4*nx],
+       sstride, bsize, bstride, nx, ny, csize);
+    }
+  }
 }
