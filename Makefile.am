@@ -2,7 +2,7 @@
 
 lib_LTLIBRARIES = src/libdaalabase.la src/libdaaladec.la src/libdaalaenc.la
 
-AM_CPPFLAGS = -Iinclude
+AM_CPPFLAGS = -I$(srcdir)/include
 
 noinst_HEADERS = \
 	src/adapt.h \
