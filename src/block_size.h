@@ -31,8 +31,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 extern const ogg_uint16_t od_switch_size8_cdf[][16];
 
-#define BLOCK_SIZE4x4(bsize, bstride, bx, by) ((bsize)[((by)>>1)*(bstride) + ((bx)>>1)])
-#define BLOCK_SIZE8x8(bsize, bstride, bx, by) ((bsize)[(by)*(bstride) + (bx)])
+#define OD_BLOCK_SIZE4x4(bsize, bstride, bx, by) ((bsize)[((by)>>1)*(bstride) + ((bx)>>1)])
+#define OD_BLOCK_SIZE8x8(bsize, bstride, bx, by) ((bsize)[(by)*(bstride) + (bx)])
 
 int od_block_size_prob32(const char *bsize, int stride);
 

@@ -212,7 +212,7 @@ static void od_convert_block_up(od_coeff *dst, int dstride,
     sub = 1 << (dest_size - 1);
     for (i = 0; i < 2; i++) {
       for (j = 0; j < 2; j++) {
-        if (BLOCK_SIZE4x4(bsize, bstride, nx + i*sub, ny + j*sub)
+        if (OD_BLOCK_SIZE4x4(bsize, bstride, nx + i*sub, ny + j*sub)
          < dest_size - 1) {
           od_convert_block_up(&scratch[4*i*sub][4*j*sub], 16,
            &scratch[4*i*sub][4*j*sub], 16, bsize, bstride,
@@ -259,7 +259,7 @@ void od_convert_intra_coeffs(od_coeff *(dst[4]), int dstrides[4],
   static const int offsets[4][2] = {{-1, -1}, {0, -1}, {1, -1}, {-1, 0}};
   int csize;
   int n;
-  csize = BLOCK_SIZE4x4(bsize, bstride, bx, by);
+  csize = OD_BLOCK_SIZE4x4(bsize, bstride, bx, by);
   /* Loop over neighbours. */
   for (n = 0; n < 4; n++) {
     int nx;
@@ -268,7 +268,7 @@ void od_convert_intra_coeffs(od_coeff *(dst[4]), int dstrides[4],
     if (n == 2 && OD_UPRIGHT_UNAVAIL(bx & 7, by & 7, csize)) nx = bx;
     else nx = bx + (offsets[n][0] << csize);
     ny = by + (offsets[n][1] << csize);
-    nsize = BLOCK_SIZE4x4(bsize, bstride, nx, ny);
+    nsize = OD_BLOCK_SIZE4x4(bsize, bstride, nx, ny);
     if (nsize==csize) {
       /* simply override the pointer and stride */
       dst[n] = src + 4*ny*sstride + 4*nx;
