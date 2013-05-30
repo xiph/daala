@@ -2,6 +2,8 @@
 
 lib_LTLIBRARIES = src/libdaalabase.la src/libdaaladec.la src/libdaalaenc.la
 
+AM_CPPFLAGS = -Iinclude
+
 noinst_HEADERS = \
 	src/adapt.h \
 	src/block_size.h \

@@ -163,6 +163,7 @@ block_size_enc.c \
 encode.c \
 decode.c \
 infoenc.c \
+infodec.c \
 mcenc.c \
 
 LIBDAALAENC_CHEADERS = \
