@@ -102,18 +102,18 @@ void od_intra_pred_update(ogg_uint16_t _p0[],int _nmodes,int _mode,
 void od_resample_luma_coeffs(od_coeff *l, int lstride,
  const od_coeff *c, int cstride, int xdec, int ydec, int n);
 
-extern double OD_PRED_WEIGHTS_4x4[OD_INTRA_NMODES][4][4][4*4*4];
-extern int OD_PRED_MULTS_4x4[OD_INTRA_NMODES][4][4];
-extern int OD_PRED_PARAMX_4x4[OD_INTRA_NMODES][4][4][4*4*4];
-extern int OD_PRED_PARAMY_4x4[OD_INTRA_NMODES][4][4][4*4*4];
-extern double OD_PRED_WEIGHTS_8x8[OD_INTRA_NMODES][8][8][4*8*8];
-extern int OD_PRED_MULTS_8x8[OD_INTRA_NMODES][8][8];
-extern int OD_PRED_PARAMX_8x8[OD_INTRA_NMODES][8][8][4*8*8];
-extern int OD_PRED_PARAMY_8x8[OD_INTRA_NMODES][8][8][4*8*8];
-extern double OD_PRED_WEIGHTS_16x16[OD_INTRA_NMODES][16][16][4*16*16];
-extern int OD_PRED_MULTS_16x16[OD_INTRA_NMODES][16][16];
-extern int OD_PRED_PARAMX_16x16[OD_INTRA_NMODES][16][16][4*16*16];
-extern int OD_PRED_PARAMY_16x16[OD_INTRA_NMODES][16][16][4*16*16];
+extern const double *OD_PRED_WEIGHTS_4x4[OD_INTRA_NMODES][4][4];
+extern const int OD_PRED_MULTS_4x4[OD_INTRA_NMODES][4][4];
+extern const int *OD_PRED_PARAMX_4x4[OD_INTRA_NMODES][4][4];
+extern const int *OD_PRED_PARAMY_4x4[OD_INTRA_NMODES][4][4];
+extern const double *OD_PRED_WEIGHTS_8x8[OD_INTRA_NMODES][8][8];
+extern const int OD_PRED_MULTS_8x8[OD_INTRA_NMODES][8][8];
+extern const int *OD_PRED_PARAMX_8x8[OD_INTRA_NMODES][8][8];
+extern const int *OD_PRED_PARAMY_8x8[OD_INTRA_NMODES][8][8];
+extern const double *OD_PRED_WEIGHTS_16x16[OD_INTRA_NMODES][16][16];
+extern const int OD_PRED_MULTS_16x16[OD_INTRA_NMODES][16][16];
+extern const int *OD_PRED_PARAMX_16x16[OD_INTRA_NMODES][16][16];
+extern const int *OD_PRED_PARAMY_16x16[OD_INTRA_NMODES][16][16];
 
 
 #endif
