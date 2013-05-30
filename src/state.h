@@ -47,6 +47,17 @@ typedef struct od_state          od_state;
 /*The input I/O frame.*/
 #define OD_FRAME_INPUT (1)
 
+/*Constants for the packet state machine common between encoder and decoder.*/
+
+/*Next packet to emit/read: Codec info header.*/
+#define OD_PACKET_INFO_HDR    (-3)
+/*Next packet to emit/read: Comment header.*/
+#define OD_PACKET_COMMENT_HDR (-2)
+/*Next packet to emit/read: Codec setup header.*/
+#define OD_PACKET_SETUP_HDR   (-1)
+/*Next more packets to emit/read.*/
+#define OD_PACKET_DONE        (INT_MAX)
+
 extern const int        OD_VERT_D[];
 /*The vector offsets in the X direction for each motion comepnsation block
    vertex from the upper-left.*/

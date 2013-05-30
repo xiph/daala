@@ -43,17 +43,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 # define OD_VENDOR_STRING "Xiph's experimental encoder library " __DATE__
 
-/*Constants for the packet state machine common between encoder and decoder.*/
-
-/*Next packet to emit/read: Codec info header.*/
-#define OD_PACKET_INFO_HDR    (-3)
-/*Next packet to emit/read: Comment header.*/
-#define OD_PACKET_COMMENT_HDR (-2)
-/*Next packet to emit/read: Codec setup header.*/
-#define OD_PACKET_SETUP_HDR   (-1)
-/*Next more packets to emit/read.*/
-#define OD_PACKET_DONE        (INT_MAX)
-
 /*Smallest blocks are 4x4*/
 #define OD_LOG_BSIZE0 (2)
 /*There are 3 block sizes total (4x4, 8x8, 16x16).*/
