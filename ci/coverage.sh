@@ -2,6 +2,8 @@
 # continuous integration test script
 # run this from the top-level source directory
 
+# run the lcov code-coverage analysis tool
+
 LCOV_PATH=/opt/lcov/bin
 LCOV=${LCOV_PATH}/lcov
 GENHTML=${LCOV_PATH}/genhtml
