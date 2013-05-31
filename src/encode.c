@@ -540,6 +540,8 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
 #endif
   /*Initialize the entropy coder.*/
   od_ec_enc_reset(&enc->ec);
+  /*Write a bit to mark this as a data packet.*/
+  od_ec_encode_bool_q15(&enc->ec,0,16384);
   /*set the top row and the left most column to three*/
   for(i = -4; i < nhsb*4; i++) {
     for(j = -4; j < 0; j++) {
