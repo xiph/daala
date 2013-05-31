@@ -120,6 +120,9 @@ pvq_encoder.c \
 state.c \
 switch_table.c \
 tf.c \
+zigzag4.c \
+zigzag8.c \
+zigzag16.c \
 $(if $(findstring -DOD_X86ASM,${CFLAGS}), \
 x86/cpu.c \
 x86/sse2mc.c \
