@@ -168,6 +168,7 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
     for (mi = 0; mi < OD_INTRA_NMODES; mi++) {
      mode_p0[mi] = 32768/OD_INTRA_NMODES;
     }
+    nplanes = dec->state.io_imgs[OD_FRAME_INPUT].nplanes;
     for (pli = 0; pli < nplanes; pli++) {
       generic_model_init(model_dc + pli);
       generic_model_init(model_g + pli);

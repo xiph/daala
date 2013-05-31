@@ -120,8 +120,8 @@ if DUMP_IMAGES
 endif
 
 examples_player_example_SOURCES = examples/player_example.c
-examples_player_example_CFLAGS = $(OGG_CFLAGS)
-examples_player_example_LDADD = src/libdaalabase.la src/libdaalaenc.la $(OGG_LIBS)
+examples_player_example_CFLAGS = $(OGG_CFLAGS) $(SDL_CFLAGS)
+examples_player_example_LDADD = src/libdaalabase.la src/libdaaladec.la $(OGG_LIBS) $(SDL_LIBS)
 if DUMP_IMAGES
   examples_player_example_LDADD += $(PNG_LIBS)
 endif
