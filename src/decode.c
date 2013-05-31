@@ -455,5 +455,7 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
    dec->state.io_imgs + OD_FRAME_REC);
   /*Return decoded frame.*/
   *img = dec->state.io_imgs[OD_FRAME_REC];
+  img->width = dec->state.info.pic_width;
+  img->height = dec->state.info.pic_height;
   return 0;
 }
