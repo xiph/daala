@@ -28,7 +28,7 @@ noinst_HEADERS = \
 	src/tf.h
 
 src_libdaalabase_la_CFLAGS = $(OGG_CFLAGS)
-src_libdaalabase_la_LIBADD = $(OGG_LIBS)
+src_libdaalabase_la_LIBADD = $(OGG_LIBS) -lm
 if DUMP_IMAGES
   src_libdaalabase_la_LIBADD += $(PNG_LIBS)
 endif
