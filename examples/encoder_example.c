@@ -366,10 +366,11 @@ static void usage(void){
    "  -o --output <filename.ogg>     file name for encoded output;\n"
    "                                 If this option is not given, the\n"
    "                                 compressed data is sent to stdout.\n\n"
-   "  -v --video-quality <n>         Daala quality selector from 0 to 10.\n"
-   "                                 0 yields the smallest files, but\n"
-   "                                 lowest video quality; 10 yields the\n"
-   "                                 highest quality, but large files.\n\n"
+   "  -v --video-quality <n>         Daala quality selector from 0 to 511.\n"
+   "                                 511 yields the smallest files, but\n"
+   "                                 lowest video quality; 1 yields the\n"
+   "                                 highest quality, but large files;\n"
+   "                                 0 ends the universe.\n\n"
    "  -k --keyframe-rate <n>         Fequence of keyframes in output.\n\n"
    "  -V --video-rate-target <n>     bitrate target for Daala video;\n"
    "                                 use -v and not -V if at all possible,\n"
@@ -432,9 +433,9 @@ int main(int _argc,char **_argv){
         }
       }break;
       case 'v':{
-        video_q=(int)rint(atof(optarg)*6.3);
-        if(video_q<0||video_q>63){
-          fprintf(stderr,"Illegal video quality (use 0 through 10)\n");
+        video_q=(int)rint(atof(optarg)*1);
+        if(video_q<0||video_q>511){
+          fprintf(stderr,"Illegal video quality (use 0 through 511)\n");
           exit(1);
         }
         video_r=0;
