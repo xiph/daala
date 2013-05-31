@@ -53,6 +53,7 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
   oggbyte_writeinit(&enc->obb);
   od_ec_enc_init(&enc->ec, 65025);
   enc->packet_state = OD_PACKET_INFO_HDR;
+  enc->scale = 10;
   enc->mvest = od_mv_est_alloc(enc);
   return 0;
 }
@@ -271,7 +272,7 @@ struct od_mb_enc_ctx {
 };
 typedef struct od_mb_enc_ctx od_mb_enc_ctx;
 
-void od_mb_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int scale, int pli,
+void od_mb_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
  int mbx, int mby) {
   int by;
   int bx;
@@ -413,16 +414,16 @@ void od_mb_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int scale, int pli,
       }
 #endif
       sgn = (cblock[0] - predt[0]) < 0;
-      cblock[0] = (int)floor(pow(fabs(cblock[0] - predt[0])/scale,0.75));
+      cblock[0] = (int)floor(pow(fabs(cblock[0] - predt[0])/enc->scale,0.75));
       generic_encode(&enc->ec, ctx->model_dc + pli, cblock[0],
        ctx->ex_dc + pli, 0);
       if (cblock[0]) od_ec_enc_bits(&enc->ec, sgn, 1);
-      cblock[0] = (int)(pow(cblock[0], 4.0/3)*scale);
+      cblock[0] = (int)(pow(cblock[0], 4.0/3)*enc->scale);
       cblock[0] *= sgn ? -1 : 1;
       cblock[0] += predt[0];
-      quant_pvq(cblock + 1, predt + 1, pvq_scale, pred + 1, 15, scale, &qg);
+      quant_pvq(cblock + 1, predt + 1, pvq_scale, pred + 1, 15, enc->scale, &qg);
       for (zzi = 1; zzi < 16; zzi++) cblock[zzi] = pred[zzi];
-      dequant_pvq(cblock + 1, predt + 1, pvq_scale, 15, scale, qg);
+      dequant_pvq(cblock + 1, predt + 1, pvq_scale, 15, enc->scale, qg);
       generic_encode(&enc->ec, ctx->model_g + pli, abs(qg),
        ctx->ex_g + pli, 0);
       if (qg) od_ec_enc_bits(&enc->ec, qg < 0, 1);
@@ -468,7 +469,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   int refi;
   int nplanes;
   int pli;
-  int scale;
   int frame_width;
   int frame_height;
   int pic_width;
@@ -658,7 +658,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     od_state_dump_img(&enc->state, &enc->state.vis_img, "vis");
 #endif
   }
-  scale = 10; /*atoi(getenv("QUANT"));*/
   {
     od_mb_enc_ctx mbctx;
     od_coeff *ctmp[OD_NPLANES_MAX];
@@ -701,7 +700,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       ydec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
       w = frame_width >> xdec;
       h = frame_height >> ydec;
-      od_ec_enc_uint(&enc->ec, scale, 512);
+      od_ec_enc_uint(&enc->ec, enc->scale, 512);
       ctmp[pli] = _ogg_calloc(w*h, sizeof(*ctmp[pli]));
       dtmp[pli] = _ogg_calloc(w*h, sizeof(*dtmp[pli]));
       mctmp[pli] = _ogg_calloc(w*h, sizeof(*mctmp[pli]));
@@ -821,7 +820,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
           mbctx.ncount = mbctx.count_total_q8 = mbctx.count_ex_total_q8 = 0;
           adapt_row = &enc->state.adapt_row[pli];
           od_adapt_update_stats(adapt_row, mbx, &adapt_hmean[pli], &mbctx.adapt);
-          od_mb_encode(enc, &mbctx, scale, pli, mbx, mby);
+          od_mb_encode(enc, &mbctx, pli, mbx, mby);
           if (mbctx.nk > 0) {
             mbctx.adapt.curr[OD_ADAPT_K_Q8] = OD_DIVU_SMALL(mbctx.k_total << 8, mbctx.nk);
             mbctx.adapt.curr[OD_ADAPT_SUM_EX_Q8] =
