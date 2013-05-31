@@ -790,7 +790,7 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   }
 
   for(i=0;i<N;i++){
-    _x[i]=floor(.5+x[i]/16.);
+    _x[i]=x[i]>>4;
   }
 
   /* Move y[m] to the front */
@@ -841,26 +841,28 @@ int pvq_unquant_k(const ogg_int32_t *_r,int _n,int _qg, int _scale){
  */
 void dequant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
     ogg_int16_t *_scale,int N,int _Q,int qg){
-  float L2x,L2r;
+  float L2x;
+  int L2r;
   float g;               /* L2-norm of x */
   float gr;              /* L2-norm of r */
   float x[MAXN];
-  float r[MAXN];
-  float scale[MAXN];
-  float Q;
-  float scale_1[MAXN];
+  int r[MAXN];
+  int scale[MAXN];
+  int Q;
+  int scale_1[MAXN];
   int   i;
   int   m;
-  float s;
-  float maxr=-1;
-  float proj;
+  int s;
+  int maxr=-1;
+  int proj;
+  float proj_1;
   int   xm;
   float cg;              /* Companded gain of x*/
   float cgr;             /* Companded gain of r*/
   OD_ASSERT(N>1);
 
   /* Just some calibration -- should eventually go away */
-  Q=pow(_Q*1.3,GAIN_EXP_1); /* Converts Q to the "companded domain" */
+  Q=pow(16*_Q*1.3,GAIN_EXP_1); /* Converts Q to the "companded domain" */
   /* High rate predicts that the constant should be log(2)/6 = 0.115, but in
      practice, it should be lower. */
 
@@ -873,7 +875,7 @@ void dequant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   L2r=0;
   for(i=0;i<N;i++){
     x[i]=_x[i];
-    r[i]=_r[i];
+    r[i]=_r[i]<<4;
     L2r+=r[i]*r[i];
   }
   gr=sqrt(L2r);
@@ -914,9 +916,9 @@ void dequant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   for(i=0;i<N;i++){
     proj+=r[i]*x[i];
   }
-  proj*=2.F/(EPSILON+L2r);
+  proj_1=proj*2.F/(EPSILON+L2r);
   for(i=0;i<N;i++){
-    x[i]-=r[i]*proj;
+    x[i]-=r[i]*proj_1;
   }
 
   L2x=0;
@@ -930,7 +932,7 @@ void dequant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   }
 
   for(i=0;i<N;i++){
-    _x[i]=floor(.5+x[i]);
+    _x[i]=floor(.5+x[i]*0.0625);
   }
 }
 
