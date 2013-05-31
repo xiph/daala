@@ -364,11 +364,12 @@ void pvq_synth(od_coeff *x, int *xn, od_coeff *r, int L2r, float cg,
   int Q, int N) {
   int i;
   int proj;
-  float proj_1;
+  int proj_1;
   int L2x;
-  float g;
-
-  g = pow(Q*cg, GAIN_EXP);
+  int g;
+  int shift;
+  int maxval;
+  int round;
 
   L2x=0;
   for(i=0;i<N;i++){
@@ -377,13 +378,19 @@ void pvq_synth(od_coeff *x, int *xn, od_coeff *r, int L2r, float cg,
 
   /* Apply Householder reflection to the quantized coefficients */
   proj=0;
-  for(i=0;i<N;i++){
+  for(i=0;i<N;i++) {
     proj+=r[i]*xn[i];
   }
-  g/=EPSILON+sqrt(L2x);
-  proj_1=g*proj*2.F/(EPSILON+L2r);
-  for(i=0;i<N;i++){
-    x[i]=(int)(g*xn[i] - r[i]*proj_1 + 8)>>4;
+  g=65536*pow(Q*cg, GAIN_EXP)/(EPSILON+sqrt(L2x));
+  proj_1=g*1.f*proj*2.F/(EPSILON+L2r);
+  maxval = OD_MAXI(g, abs(proj_1));
+  shift = OD_MAXI(0, OD_ILOG(maxval)-15);
+  g >>= shift;
+  proj_1 >>= shift;
+  shift = 16-shift;
+  round = 8<<shift;
+  for(i = 0; i < N; i++) {
+    x[i] = (g*xn[i] - r[i]*proj_1 + round) >> (shift + 4);
   }
 
 }
