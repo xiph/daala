@@ -410,7 +410,7 @@ int main(int _argc,char **_argv){
   avin.video_fps_d=-1;
   avin.video_par_n=-1;
   avin.video_par_d=-1;
-  video_q=48;
+  video_q=10;
   video_keyframe_rate=1; /* TODO - default off for now but make bigger later */
   video_r=-1;
   video_bytesout=0;
