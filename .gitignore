@@ -80,6 +80,8 @@ tools/trans
 tools/trans2d
 tools/y4m2png
 test-driver
+doc/Doxyfile
+doc/doxygen-build.stamp
 doc/4-8sub.pdf
 doc/blockidx.pdftex
 doc/blockidx.pdftex_t
@@ -92,5 +94,8 @@ doc/mc.pdf
 doc/mvpred.pdf
 doc/vbunsplit.pdftex
 doc/vbunsplit.pdftex_t
+doc/html
+doc/latex
+doc/man
 daala-*/
 *.tar.gz
