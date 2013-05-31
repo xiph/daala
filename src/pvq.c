@@ -619,7 +619,7 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   OD_ASSERT(N>1);
 
   /* Just some calibration -- should eventually go away */
-  Q=pow(_Q*1.3,GAIN_EXP_1); /* Converts Q to the "companded domain" */
+  Q=pow(16*_Q*1.3,GAIN_EXP_1); /* Converts Q to the "companded domain" */
   /* High rate predicts that the constant should be log(2)/6 = 0.115, but in
      practice, it should be lower. */
   lambda = 0.10*Q*Q;
@@ -632,8 +632,8 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
 
   L2x=0;
   for(i=0;i<N;i++){
-    x[i]=_x[i];
-    r[i]=_r[i];
+    x[i]=_x[i]*16;
+    r[i]=_r[i]*16;
     L2x+=x[i]*x[i];
   }
 
@@ -787,7 +787,7 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   }
 
   for(i=0;i<N;i++){
-    _x[i]=floor(.5+x[i]);
+    _x[i]=floor(.5+x[i]/16.);
   }
 
   /* Move y[m] to the front */
