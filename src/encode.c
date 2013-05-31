@@ -280,22 +280,33 @@ void od_mb_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
             int m_u;
             int mode;
             od_coeff *ur;
+            od_coeff *coeffs[4];
+            int strides[4];
+            /*Calculate the pointers to the surrounding blocks assuming 4x4
+               size.*/
             ur = (by > 0 && (((bx + 1) < (mbx + 1) << (2 - xdec))
              || (by == mby << (2 - ydec)))) ?
              d + ((by - 1) << 2)*w + ((bx + 1) << 2) :
              d + ((by - 1) << 2)*w + (bx << 2);
+            coeffs[0] = d + ((by - 1) << 2)*w + ((bx - 1) << 2);
+            coeffs[1] = d + ((by - 1) << 2)*w + (bx << 2);
+            coeffs[2] = ur;
+            coeffs[3] = d + (by << 2)*w + ((bx - 1) << 2);
+            strides[0] = w;
+            strides[1] = w;
+            strides[2] = w;
+            strides[3] = w;
             m_l = modes[by*(w >> 2) + bx - 1];
             m_ul = modes[(by - 1)*(w >> 2) + bx - 1];
             m_u = modes[(by - 1)*(w >> 2) + bx];
             od_intra_pred_cdf(mode_cdf, OD_INTRA_PRED_PROB_4x4[pli],
              ctx->mode_p0, OD_INTRA_NMODES, m_l, m_ul, m_u);
-            od_intra_pred4x4_dist(mode_dist, d + (by << 2)*w + (bx << 2),
-             w, ur, w, pli);
+            od_intra_pred4x4_dist(mode_dist,
+             d + (by << 2)*w + (bx << 2), w, coeffs, strides, pli);
             /*Lambda = 1*/
             mode = od_intra_pred_search(mode_cdf, mode_dist,
              OD_INTRA_NMODES, 128);
-            od_intra_pred4x4_get(pred, d + (by << 2)*w + (bx << 2), w,
-             ur, w, mode);
+            od_intra_pred4x4_get(pred, coeffs, strides, mode);
             od_ec_encode_cdf_unscaled(&enc->ec, mode, mode_cdf,
              OD_INTRA_NMODES);
             mode_bits -= M_LOG2E*log(

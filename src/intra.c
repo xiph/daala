@@ -35,8 +35,7 @@ const od_intra_mult_func OD_INTRA_MULT[OD_NBSIZES]={
 };
 
 void od_intra_pred4x4_mult(double *_pred,int _pred_stride,
- const od_coeff *_coeff,int _coeff_stride,
- const od_coeff *_ur,int _ur_stride,int _mode){
+ od_coeff *_neighbors[4],int _neighbor_strides[4],int _mode){
   int j;
   int i;
   int k;
@@ -46,19 +45,40 @@ void od_intra_pred4x4_mult(double *_pred,int _pred_stride,
     for(i=0;i<4;i++){
       _pred[_pred_stride*j+i]=0;
       for(k=0;k<OD_PRED_MULTS_4x4[_mode][j][i];k++){
+        od_coeff *neighbor;
+        int neighbor_stride;
+        int neighbori;
+        /*The values in the arrays are relative to the x & y of the upper-left
+           block.*/
         x=OD_PRED_PARAMX_4x4[_mode][j][i][k];
         y=OD_PRED_PARAMY_4x4[_mode][j][i][k];
+        OD_ASSERT(0<=x&&x<12&&0<=y&&y<8);
+        if(y<4){
+          if(x<4)neighbori=0;
+          else if(x<8){
+            neighbori=1;
+            x-=4;
+          }
+          else{
+            neighbori=2;
+            x-=8;
+          }
+        }
+        else{
+          neighbori=3;
+          y-=4;
+        }
+        neighbor=_neighbors[neighbori];
+        neighbor_stride=_neighbor_strides[neighbori];
         _pred[_pred_stride*j+i]+=
-         (x<2*4?_coeff[_coeff_stride*(y-4)+(x-4)]:
-         _ur[_ur_stride*y+(x-2*4)])*OD_PRED_WEIGHTS_4x4[_mode][j][i][k];
+         neighbor[neighbor_stride*y+x]*OD_PRED_WEIGHTS_4x4[_mode][j][i][k];
       }
     }
   }
 }
 
 void od_intra_pred8x8_mult(double *_pred,int _pred_stride,
- const od_coeff *_coeff,int _coeff_stride,
- const od_coeff *_ur,int _ur_stride,int _mode){
+ od_coeff *_neighbors[4],int _neighbor_strides[4],int _mode){
   int j;
   int i;
   int k;
@@ -68,19 +88,38 @@ void od_intra_pred8x8_mult(double *_pred,int _pred_stride,
     for(i=0;i<8;i++){
       _pred[_pred_stride*j+i]=0;
       for(k=0;k<OD_PRED_MULTS_8x8[_mode][j][i];k++){
+        od_coeff *neighbor;
+        int neighbor_stride;
+        int neighbori;
         x=OD_PRED_PARAMX_8x8[_mode][j][i][k];
         y=OD_PRED_PARAMY_8x8[_mode][j][i][k];
+        OD_ASSERT(0<=x&&x<24&&0<=y&&y<16);
+        if(y<8){
+          if(x<8)neighbori=0;
+          else if(x<16){
+            neighbori=1;
+            x-=8;
+          }
+          else{
+            neighbori=2;
+            x-=16;
+          }
+        }
+        else{
+          neighbori=3;
+          y-=8;
+        }
+        neighbor=_neighbors[neighbori];
+        neighbor_stride=_neighbor_strides[neighbori];
         _pred[_pred_stride*j+i]+=
-         (x<2*8?_coeff[_coeff_stride*(y-8)+(x-8)]:
-         _ur[_ur_stride*y+(x-2*8)])*OD_PRED_WEIGHTS_8x8[_mode][j][i][k];
+         neighbor[neighbor_stride*y+x]*OD_PRED_WEIGHTS_8x8[_mode][j][i][k];
       }
     }
   }
 }
 
 void od_intra_pred16x16_mult(double *_pred,int _pred_stride,
- const od_coeff *_coeff,int _coeff_stride,
- const od_coeff *_ur,int _ur_stride,int _mode){
+ od_coeff *_neighbors[4],int _neighbor_strides[4],int _mode){
   int j;
   int i;
   int k;
@@ -90,11 +129,31 @@ void od_intra_pred16x16_mult(double *_pred,int _pred_stride,
     for(i=0;i<16;i++){
       _pred[_pred_stride*j+i]=0;
       for(k=0;k<OD_PRED_MULTS_16x16[_mode][j][i];k++){
+        od_coeff *neighbor;
+        int neighbor_stride;
+        int neighbori;
         x=OD_PRED_PARAMX_16x16[_mode][j][i][k];
         y=OD_PRED_PARAMY_16x16[_mode][j][i][k];
+        OD_ASSERT(0<=x&&x<48&&0<=y&&y<32);
+        if(y<16){
+          if(x<16)neighbori=0;
+          else if(x<32){
+            neighbori=1;
+            x-=16;
+          }
+          else{
+            neighbori=2;
+            x-=32;
+          }
+        }
+        else{
+          neighbori=3;
+          y-=16;
+        }
+        neighbor=_neighbors[neighbori];
+        neighbor_stride=_neighbor_strides[neighbori];
         _pred[_pred_stride*j+i]+=
-         (x<2*16?_coeff[_coeff_stride*(y-16)+(x-16)]:
-         _ur[_ur_stride*y+(x-2*16)])*OD_PRED_WEIGHTS_16x16[_mode][j][i][k];
+         neighbor[neighbor_stride*y+x]*OD_PRED_WEIGHTS_16x16[_mode][j][i][k];
       }
     }
   }
@@ -253,57 +312,61 @@ static const float OD_SATD_WEIGHTS_16x16[3][16*16]={
   }
 };
 
-void od_intra_pred4x4_dist(ogg_uint32_t *_dist,const od_coeff *_c, int _stride,
-  const od_coeff *_ur, int _ur_stride, int _pli){
+void od_intra_pred4x4_dist(ogg_uint32_t *_dist,const od_coeff *_c,int _stride,
+ od_coeff *_neighbors[4],int _neighbor_strides[4], int _pli){
   double p[4*4];
   float  satd;
   int    mode;
   int    i;
   int    j;
   for(mode=0;mode<OD_INTRA_NMODES;mode++){
-    od_intra_pred4x4_mult(p,4,_c,_stride,_ur,_ur_stride,mode);
+    od_intra_pred4x4_mult(p,4,_neighbors,_neighbor_strides,mode);
     satd=0;
     for(i=0;i<4;i++){
       for(j=0;j<4;j++){
-        satd+=fabs((_c[_stride*i+j]-p[i*4+j])*OD_SATD_WEIGHTS_4x4[_pli][i*4+j]);
+        satd+=
+         fabs((_c[_stride*i+j]-p[i*4+j])*OD_SATD_WEIGHTS_4x4[_pli][i*4+j]);
       }
     }
     _dist[mode]=satd;
   }
 }
 
-void od_intra_pred8x8_dist(ogg_uint32_t *_dist,const od_coeff *_c, int _stride,
-  const od_coeff *_ur, int _ur_stride, int _pli){
+void od_intra_pred8x8_dist(ogg_uint32_t *_dist,const od_coeff *_c,int _stride,
+ od_coeff *_neighbors[4],int _neighbor_strides[4],int _pli){
   double p[8*8];
   float  satd;
   int    mode;
   int    i;
   int    j;
   for(mode=0;mode<OD_INTRA_NMODES;mode++){
-    od_intra_pred8x8_mult(p,8,_c,_stride,_ur,_ur_stride,mode);
+    od_intra_pred8x8_mult(p,8,_neighbors,_neighbor_strides,mode);
     satd=0;
     for(i=0;i<8;i++){
       for(j=0;j<8;j++){
-        satd+=fabs((_c[_stride*i+j]-p[i*8+j])*OD_SATD_WEIGHTS_8x8[_pli][i*8+j]);
+        satd+=
+         fabs((_c[_stride*i+j]-p[i*8+j])*OD_SATD_WEIGHTS_8x8[_pli][i*8+j]);
       }
     }
     _dist[mode]=satd;
   }
 }
 
-void od_intra_pred16x16_dist(ogg_uint32_t *_dist,const od_coeff *_c,
-  int _stride, const od_coeff *_ur, int _ur_stride, int _pli){
+void od_intra_pred16x16_dist(ogg_uint32_t *_dist,
+ const od_coeff *_c,int _stride,
+ od_coeff *_neighbors[4],int _neighbor_strides[4],int _pli){
   double p[16*16];
   float  satd;
   int    mode;
   int    i;
   int    j;
   for(mode=0;mode<OD_INTRA_NMODES;mode++){
-    od_intra_pred16x16_mult(p,16,_c,_stride,_ur,_ur_stride,mode);
+    od_intra_pred16x16_mult(p,16,_neighbors,_neighbor_strides,mode);
     satd=0;
     for(i=0;i<16;i++){
       for(j=0;j<16;j++){
-        satd+=fabs((_c[_stride*i+j]-p[i*16+j])*OD_SATD_WEIGHTS_16x16[_pli][i*16+j]);
+        satd+=
+         fabs((_c[_stride*i+j]-p[i*16+j])*OD_SATD_WEIGHTS_16x16[_pli][i*16+j]);
       }
     }
     _dist[mode]=satd;
@@ -402,12 +465,11 @@ ogg_uint32_t od_chroma_pred4x4_dist(const od_coeff *_c,
 }
 
 void od_intra_pred4x4_get(od_coeff *_out,
- const od_coeff *_c,int _stride,
- const od_coeff *_ur,int _ur_stride,int _mode){
+ od_coeff *_neighbors[4],int _neighbor_strides[4],int _mode){
   double p[4*4];
   int    i;
   int    j;
-  od_intra_pred4x4_mult(p,4,_c,_stride,_ur,_ur_stride,_mode);
+  od_intra_pred4x4_mult(p,4,_neighbors,_neighbor_strides,_mode);
   for(i=0;i<4;i++){
     for(j=0;j<4;j++){
       _out[4*i+j]=(od_coeff)floor(p[i*4+j]+0.5);
@@ -416,12 +478,11 @@ void od_intra_pred4x4_get(od_coeff *_out,
 }
 
 void od_intra_pred8x8_get(od_coeff *_out,
- const od_coeff *_c,int _stride,
- const od_coeff *_ur,int _ur_stride,int _mode){
+ od_coeff *_neighbors[4],int _neighbor_strides[4],int _mode){
   double p[8*8];
   int    i;
   int    j;
-  od_intra_pred8x8_mult(p,8,_c,_stride,_ur,_ur_stride,_mode);
+  od_intra_pred8x8_mult(p,8,_neighbors,_neighbor_strides,_mode);
   for(i=0;i<8;i++){
     for(j=0;j<8;j++){
       _out[8*i+j]=(od_coeff)floor(p[i*8+j]+0.5);
@@ -430,12 +491,11 @@ void od_intra_pred8x8_get(od_coeff *_out,
 }
 
 void od_intra_pred16x16_get(od_coeff *_out,
- const od_coeff *_c,int _stride,
- const od_coeff *_ur,int _ur_stride,int _mode){
+ od_coeff *_neighbors[4],int _neighbor_strides[4],int _mode){
   double p[16*16];
   int    i;
   int    j;
-  od_intra_pred16x16_mult(p,16,_c,_stride,_ur,_ur_stride,_mode);
+  od_intra_pred16x16_mult(p,16,_neighbors,_neighbor_strides,_mode);
   for(i=0;i<16;i++){
     for(j=0;j<16;j++){
       _out[16*i+j]=(od_coeff)floor(p[i*16+j]+0.5);

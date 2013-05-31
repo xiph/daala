@@ -365,6 +365,8 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
                     int m_u;
                     int mode;
                     od_coeff *ur;
+                    od_coeff *coeffs[4];
+                    int strides[4];
                     ur = (by > 0 && (((bx + 1) < (mbx + 1) << (2 - xdec))
                      || (by == mby << (2 - ydec)))) ?
                      d + ((by - 1) << 2)*w + ((bx + 1) << 2) :
@@ -372,12 +374,19 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
                     m_l = modes[by*(w >> 2) + bx - 1];
                     m_ul = modes[(by - 1)*(w >> 2) + bx - 1];
                     m_u = modes[(by - 1)*(w >> 2) + bx];
+                    coeffs[0] = d + ((by - 1) << 2)*w + ((bx - 1) << 2);
+                    coeffs[1] = d + ((by - 1) << 2)*w + (bx << 2);
+                    coeffs[2] = ur;
+                    coeffs[3] = d + (by << 2)*w + ((bx - 1) << 2);
+                    strides[0] = w;
+                    strides[1] = w;
+                    strides[2] = w;
+                    strides[3] = w;
                     od_intra_pred_cdf(mode_cdf, OD_INTRA_PRED_PROB_4x4[pli],
                      mode_p0, OD_INTRA_NMODES, m_l, m_ul, m_u);
                     mode = od_ec_decode_cdf_unscaled(&dec->ec, mode_cdf,
                      OD_INTRA_NMODES);
-                    od_intra_pred4x4_get(pred, d + (by << 2)*w + (bx << 2),
-                     w, ur, w, mode);
+                    od_intra_pred4x4_get(pred, coeffs, strides, mode);
                     modes[by*(w >> 2) + bx] = mode;
                     od_intra_pred_update(mode_p0, OD_INTRA_NMODES, mode,
                      m_l, m_ul, m_u);
