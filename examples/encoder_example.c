@@ -477,7 +477,8 @@ int main(int _argc,char **_argv){
   /*TODO: Other crap.*/
   dd=daala_encode_create(&di);
   daala_comment_init(&dc);
-  /*TODO: Set up encoder.*/
+  /*Set up encoder.*/
+  daala_encode_ctl(dd, OD_SET_QUANT, &video_q, sizeof(int));
   /*Write the bitstream header packets with proper page interleave.*/
   /*The first packet for each logical stream will get its own page
      automatically.*/

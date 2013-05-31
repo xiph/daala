@@ -83,12 +83,18 @@ void daala_encode_free(daala_enc_ctx *enc) {
   }
 }
 
-int daala_encode_ctl(daala_enc_ctx *enc, int req, void *buf,
- size_t buf_sz) {
-  (void)enc;
+int daala_encode_ctl(daala_enc_ctx *enc, int req, void *buf, size_t buf_sz) {
   (void)buf;
   (void)buf_sz;
   switch (req) {
+    case OD_SET_QUANT:
+    {
+      OD_ASSERT(enc);
+      OD_ASSERT(buf);
+      OD_ASSERT(buf_sz == sizeof(enc->scale));
+      enc->scale = *(int*)buf;
+      return OD_SUCCESS;
+    }
     default:return OD_EIMPL;
   }
 }
