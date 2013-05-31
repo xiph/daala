@@ -606,12 +606,12 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   float xn[MAXN];
   int r[MAXN];
   float scale[MAXN];
-  float Q;
+  int Q;
   float scale_1[MAXN];
   int   i;
   int   m;
-  float s;
-  float maxr=-1;
+  int s;
+  int maxr=-1;
   float proj;
   int   K,ym;
   float cg;              /* Companded gain of x*/
