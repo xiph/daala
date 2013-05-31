@@ -845,7 +845,8 @@ void dequant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   int L2r;
   float g;               /* L2-norm of x */
   float gr;              /* L2-norm of r */
-  float x[MAXN];
+  int x[MAXN];
+  float xn[MAXN];
   int r[MAXN];
   int scale[MAXN];
   int Q;
@@ -907,32 +908,34 @@ void dequant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   /* Move x[m] back */
   xm = x[0];
   for (i=0;i<m;i++)
-    x[i] = x[i+1];
+    xn[i] = x[i+1];
   /* x[0] is positive when prediction is good  */
-  x[m] = -xm*s;
+  xn[m] = -xm*s;
+  for (i=m+1;i<N;i++)
+    xn[i] = x[i];
 
   /* Apply Householder reflection to the quantized coefficients */
   proj=0;
   for(i=0;i<N;i++){
-    proj+=r[i]*x[i];
+    proj+=r[i]*xn[i];
   }
   proj_1=proj*2.F/(EPSILON+L2r);
   for(i=0;i<N;i++){
-    x[i]-=r[i]*proj_1;
+    xn[i]-=r[i]*proj_1;
   }
 
   L2x=0;
   for(i=0;i<N;i++){
-    float tmp=x[i]/* *scale[i]*/;
+    float tmp=xn[i]/* *scale[i]*/;
     L2x+=tmp*tmp;
   }
   g/=EPSILON+sqrt(L2x);
   for(i=0;i<N;i++){
-    x[i]*=g/* *scale[i]*/;
+    x[i]=xn[i]*g/* *scale[i]*/;
   }
 
   for(i=0;i<N;i++){
-    _x[i]=floor(.5+x[i]*0.0625);
+    _x[i]=(x[i]+8)>>4;
   }
 }
 
