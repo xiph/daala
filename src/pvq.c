@@ -605,14 +605,15 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   float x[MAXN];
   float xn[MAXN];
   int r[MAXN];
-  float scale[MAXN];
+  int scale[MAXN];
   int Q;
-  float scale_1[MAXN];
+  int scale_1[MAXN];
   int   i;
   int   m;
   int s;
   int maxr=-1;
-  float proj;
+  int proj;
+  float proj_1;
   int   K,ym;
   float cg;              /* Companded gain of x*/
   float cgq;
@@ -634,8 +635,8 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
 
   L2x=0;
   for(i=0;i<N;i++){
-    x[i]=_x[i]*16;
-    r[i]=_r[i]*16;
+    x[i]=_x[i]<<4;
+    r[i]=_r[i]<<4;
     L2x+=x[i]*x[i];
   }
 
@@ -647,7 +648,7 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   }
   gr=sqrt(L2r);
 
-  OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%f", g));
+  OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%d", g));
   /* compand gain of x and subtract a constant for "pseudo-RDO" purposes */
   cg = pow(g,GAIN_EXP_1)/Q;
   if (cg<0)
@@ -734,7 +735,7 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
     }
   }
 
-  OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "max r: %f %f %d", maxr, r[m], m));
+  OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "max r: %d %d %d", maxr, r[m], m));
   s=r[m]>0?1:-1;
 
   /* This turns r into a Householder reflection vector that would reflect
@@ -751,9 +752,9 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   for(i=0;i<N;i++){
     proj+=r[i]*x[i];
   }
-  proj*=2.F/(EPSILON+L2r);
+  proj_1=proj*2.F/(EPSILON+L2r);
   for(i=0;i<N;i++){
-    x[i]-=r[i]*proj;
+    x[i]-=r[i]*proj_1;
   }
 
   OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%d %d", K, N));
@@ -773,9 +774,9 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   for(i=0;i<N;i++){
     proj+=r[i]*xn[i];
   }
-  proj*=2.F/(EPSILON+L2r);
+  proj_1=proj*2.F/(EPSILON+L2r);
   for(i=0;i<N;i++){
-    xn[i]-=r[i]*proj;
+    xn[i]-=r[i]*proj_1;
   }
 
   L2xn=0;
