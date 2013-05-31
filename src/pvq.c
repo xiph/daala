@@ -135,7 +135,7 @@ static void find_nbest(RDOEntry *x, int n, int len)
 }
 
 /* This is a "standard" pyramid vector quantizer search */
-static void pvq_search_rdo(float *x,float *scale,float *scale_1,float g,int N,int K,int *y,int m,float lambda){
+static void pvq_search_rdo(float *xn,float *x,float *scale,float *scale_1,float g,int N,int K,int *y,int m,float lambda){
   float L1;
   float L2;
   float L1_proj;
@@ -171,7 +171,7 @@ static void pvq_search_rdo(float *x,float *scale,float *scale_1,float g,int N,in
   {
     float rescale = 1./sqrt(1e-15+xx);
     for (i=0;i<N;i++){
-      x[i] *= rescale;
+      xn[i] = x[i]*rescale;
     }
     L1 *= rescale;
     xx=1;
@@ -183,13 +183,13 @@ static void pvq_search_rdo(float *x,float *scale,float *scale_1,float g,int N,in
   yy=0;
   /* Find the first pulses based on the projection */
   for (i=0;i<N;i++){
-    p[i]=L1_proj*x[i];
+    p[i]=L1_proj*xn[i];
     y[i]=floor(p[i]);
     p[i] -= y[i];
     rd[i].rd = dist_scale*(1-2*p[i]) + rate_lin*lambda*i ;
     rd[i].i = i;
     left-=y[i];
-    xy+=x[i]*y[i];
+    xy+=xn[i]*y[i];
     yy+=y[i]*y[i];
   }
   /* Revert the rate cost of m and replace by the special case cost */
@@ -206,7 +206,7 @@ static void pvq_search_rdo(float *x,float *scale,float *scale_1,float g,int N,in
     int ii=rd[i].i;
     y[ii]++;
     left--;
-    xy+=x[ii];
+    xy+=xn[ii];
     yy+=2*y[ii]-1;
     i++;
   }
@@ -222,7 +222,7 @@ static void pvq_search_rdo(float *x,float *scale,float *scale_1,float g,int N,in
       float tmp_xy;
       float tmp_yy;
       float cost; /* cost has reversed sign */
-      tmp_xy=xy+x[j];
+      tmp_xy=xy+xn[j];
       tmp_yy=yy+2*y[j];
       /* RDO cost function (reversed sign) */
       cost = 2*tmp_xy/sqrt(tmp_yy)-rate_lin*lambda*j;
@@ -234,7 +234,7 @@ static void pvq_search_rdo(float *x,float *scale,float *scale_1,float g,int N,in
         best_id=j;
       }
     }
-    xy+=x[best_id];
+    xy+=xn[best_id];
     yy+=2*y[best_id];
     y[best_id]++;
   }
@@ -249,13 +249,13 @@ static void pvq_search_rdo(float *x,float *scale,float *scale_1,float g,int N,in
     /* Scale x to unit norm (with scaling) */
     g/=(EPSILON+sqrt(L2));
     for(i=0;i<N;i++){
-      x[i]=s[i]*g*scale[i]*y[i];
+      xn[i]=s[i]*g*scale[i]*y[i];
     }
   } else {
     /* Scale x to unit norm (without scaling) */
     g/=(EPSILON+sqrt(yy));
     for(i=0;i<N;i++){
-      x[i]=s[i]*g*y[i];
+      xn[i]=s[i]*g*y[i];
     }
   }
 
@@ -531,7 +531,7 @@ int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
   OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%d %d", K, N));
 
   /*pvq_search(x,NULL,NULL,1,N,K,y,m,0);*/
-  pvq_search_rdo(x,NULL,NULL,1,N,K,y,m,.0*lambda/(cg*cg));
+  pvq_search_rdo(x,x,NULL,NULL,1,N,K,y,m,.0*lambda/(cg*cg));
 
   for(i=0;i<N;i++) {
     OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%d ", y[i]));
@@ -598,10 +598,12 @@ int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
  */
 int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
     ogg_int16_t *_scale,int *y,int N,int _Q,int *qg){
-  int L2x,L2r;
+  float L2xn;
+  int L2x, L2r;
   int g;               /* L2-norm of x */
   int gr;              /* L2-norm of r */
   float x[MAXN];
+  float xn[MAXN];
   int r[MAXN];
   float scale[MAXN];
   float Q;
@@ -758,7 +760,7 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
 
   /* Normalize lambda for quantizing on the unit circle */
   /* FIXME: See if we can avoid setting lambda to zero! */
-  pvq_search_rdo(x,NULL,NULL,1,N,K,y,m,.0*lambda/(cg*cg));
+  pvq_search_rdo(xn,x,NULL,NULL,1,N,K,y,m,.0*lambda/(cg*cg));
   OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%d ", K-abs(y[m])));
   for(i=0;i<N;i++) {
     OD_LOG_PARTIAL((OD_LOG_PVQ, OD_LOG_DEBUG, "%d ", (m==i)?0:y[i]));
@@ -769,21 +771,21 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   /* Apply Householder reflection again to get the quantized coefficients */
   proj=0;
   for(i=0;i<N;i++){
-    proj+=r[i]*x[i];
+    proj+=r[i]*xn[i];
   }
   proj*=2.F/(EPSILON+L2r);
   for(i=0;i<N;i++){
-    x[i]-=r[i]*proj;
+    xn[i]-=r[i]*proj;
   }
 
-  L2x=0;
+  L2xn=0;
   for(i=0;i<N;i++){
-    float tmp=x[i]/* *scale[i]*/;
-    L2x+=tmp*tmp;
+    float tmp=xn[i]/* *scale[i]*/;
+    L2xn+=tmp*tmp;
   }
-  g/=EPSILON+sqrt(L2x);
+  g/=EPSILON+sqrt(L2xn);
   for(i=0;i<N;i++){
-    x[i]*=g/* *scale[i]*/;
+    x[i]=xn[i]*g/* *scale[i]*/;
   }
 
   for(i=0;i<N;i++){
