@@ -634,7 +634,6 @@ int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
  */
 int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
     ogg_int16_t *_scale,int *y,int N,int _Q,int *qg){
-  float L2xn;
   int L2x, L2r;
   int g;               /* L2-norm of x */
   int gr;              /* L2-norm of r */
@@ -805,33 +804,8 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   OD_LOG_PARTIAL((OD_LOG_PVQ, OD_LOG_DEBUG, "\n"));
   OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%d %d", K-y[m], N));
 
-#if 0
-  /* Apply Householder reflection again to get the quantized coefficients */
-  proj=0;
-  for(i=0;i<N;i++){
-    proj+=r[i]*xn[i];
-  }
-  proj_1=proj*2.F/(EPSILON+L2r);
-  for(i=0;i<N;i++){
-    xn[i]-=r[i]*proj_1;
-  }
-
-  L2xn=0;
-  for(i=0;i<N;i++){
-    float tmp=xn[i]/* *scale[i]*/;
-    L2xn+=tmp*tmp;
-  }
-  g/=EPSILON+sqrt(L2xn);
-  for(i=0;i<N;i++){
-    x[i]=xn[i]*g/* *scale[i]*/;
-  }
-
-  for(i=0;i<N;i++){
-    _x[i]=(x[i]+8)>>4;
-  }
-#else
   pvq_synth(_x, xn, r, L2r, cg, Q, N);
-#endif
+
   /* Move y[m] to the front */
   ym = y[m];
   for (i=m;i>=1;i--)
@@ -880,9 +854,7 @@ int pvq_unquant_k(const ogg_int32_t *_r,int _n,int _qg, int _scale){
  */
 void dequant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
     ogg_int16_t *_scale,int N,int _Q,int qg){
-  float L2x;
   int L2r;
-  float g;               /* L2-norm of x */
   float gr;              /* L2-norm of r */
   int x[MAXN];
   float xn[MAXN];
@@ -894,8 +866,6 @@ void dequant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   int   m;
   int s;
   int maxr=-1;
-  int proj;
-  float proj_1;
   int   xm;
   float cg;              /* Companded gain of x*/
   float cgr;             /* Companded gain of r*/
@@ -922,7 +892,6 @@ void dequant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   cgr = pow(gr,GAIN_EXP_1)/Q+.2;
   cg = cgr+qg;
   if (cg<0)cg=0;
-  g = pow(Q*cg, GAIN_EXP);
 
   /* Pick component with largest magnitude. Not strictly
    * necessary, but it helps numerical stability */
@@ -953,34 +922,7 @@ void dequant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   for (i=m+1;i<N;i++)
     xn[i] = x[i];
 
-#if 0
-
-  /* Apply Householder reflection to the quantized coefficients */
-  proj=0;
-  for(i=0;i<N;i++){
-    proj+=r[i]*xn[i];
-  }
-  proj_1=proj*2.F/(EPSILON+L2r);
-  for(i=0;i<N;i++){
-    xn[i]-=r[i]*proj_1;
-  }
-
-  L2x=0;
-  for(i=0;i<N;i++){
-    float tmp=xn[i]/* *scale[i]*/;
-    L2x+=tmp*tmp;
-  }
-  g/=EPSILON+sqrt(L2x);
-  for(i=0;i<N;i++){
-    x[i]=xn[i]*g/* *scale[i]*/;
-  }
-
-  for(i=0;i<N;i++){
-    _x[i]=(x[i]+8)>>4;
-  }
-#else
   pvq_synth(_x, xn, r, L2r, cg, Q, N);
-#endif
 }
 
 /** PVQ quantizer with no reference
