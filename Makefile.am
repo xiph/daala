@@ -58,7 +58,10 @@ src_libdaalabase_la_SOURCES = \
 	src/pvq_encoder.c \
 	src/state.c \
 	src/switch_table.c \
-	src/tf.c
+	src/tf.c \
+	src/zigzag4.c \
+	src/zigzag8.c \
+	src/zigzag16.c
 if ENABLE_X86ASM
 src_libdaalabase_la_SOURCES += \
 	src/x86/cpu.c \

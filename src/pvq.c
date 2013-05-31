@@ -27,9 +27,57 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <stdio.h>
 #include "logging.h"
 #include <math.h>
+#include "filter.h"
 
 #define MAXN 256
 #define EPSILON 1e-30
+
+static const int od_layout16_offsets[4] = {0, 32, 64, 192};
+extern const index_pair od_zigzag16[];
+const band_layout od_layout16 = {
+  od_zigzag16,
+  16,
+  3,
+  od_layout16_offsets
+};
+
+const int od_layout8_offsets[4] = {0, 8, 16, 48};
+extern const index_pair od_zigzag8[];
+const band_layout od_layout8 = {
+  od_zigzag8,
+  8,
+  3,
+  od_layout8_offsets
+};
+
+static const int od_layout4_offsets[2] = {0, 15};
+extern const index_pair od_zigzag4[];
+const band_layout od_layout4 = {
+  od_zigzag4,
+  4,
+  1,
+  od_layout4_offsets
+};
+
+void od_bands_from_raster(const band_layout *layout, od_coeff *dst,
+  od_coeff *src, int stride) {
+  int i;
+  int len;
+  len = layout->band_offsets[layout->nb_bands];
+  for (i = 0; i < len; i++) {
+    dst[i] = src[layout->dst_table[i][1]*stride + layout->dst_table[i][0]];
+  }
+}
+
+void od_raster_from_bands(const band_layout *layout, od_coeff *src,
+ int stride, od_coeff *dst) {
+  int i;
+  int len;
+  len = layout->band_offsets[layout->nb_bands];
+  for (i = 0; i < len; i++) {
+    src[layout->dst_table[i][1]*stride + layout->dst_table[i][0]] = dst[i];
+  }
+}
 
 typedef struct {
   int i;

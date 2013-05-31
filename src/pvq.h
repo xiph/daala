@@ -28,6 +28,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #include "pvq_code.h"
 
+typedef unsigned char index_pair[2];
+
+typedef struct {
+  const index_pair * const dst_table;
+  int size;
+  int nb_bands;
+  const int * const band_offsets;
+} band_layout;
+
+
 int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
     ogg_int16_t *_scale,int *y,int N,int Q, int *qg);
 
