@@ -135,7 +135,7 @@ static void find_nbest(RDOEntry *x, int n, int len)
 }
 
 /* This is a "standard" pyramid vector quantizer search */
-static void pvq_search_rdo(float *xn,float *x,float *scale,float *scale_1,float g,int N,int K,int *y,int m,float lambda){
+static void pvq_search_rdo(float *xn,int *x,float *scale,float *scale_1,float g,int N,int K,int *y,int m,float lambda){
   float L1;
   float L2;
   float L1_proj;
@@ -602,7 +602,7 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   int L2x, L2r;
   int g;               /* L2-norm of x */
   int gr;              /* L2-norm of r */
-  float x[MAXN];
+  int x[MAXN];
   float xn[MAXN];
   int r[MAXN];
   int scale[MAXN];
