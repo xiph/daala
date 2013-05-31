@@ -306,6 +306,27 @@ static void od_mc_blend_full8(od_state *state, unsigned char *dst,
     log_xblk_sz, log_yblk_sz);
 }
 
+/* Pulled aut of mcenc so it can be used in decoder as well. */
+/* maybe call od_mv */
+void od_state_mvs_clear(od_state *state){
+  int vx;
+  int vy;
+  int nhmvbs;
+  int nvmvbs;
+  nhmvbs = (state->nhmbs + 1) << 2;
+  nvmvbs = (state->nvmbs + 1) << 2;
+  for (vy = 0; vy < nvmvbs; vy++) {
+    od_mv_grid_pt *grid;
+    grid = state->mv_grid[vy];
+    for (vx = 0; vx < nhmvbs; vx++) {
+      grid[vx].valid = 0;
+      grid[vx].right = 0;
+      grid[vx].down = 0;
+      grid[vx].mv[0] = 0;
+      grid[vx].mv[1] = 1;
+    }
+  }
+}
 #if 0
 /*Perform multiresolution bilinear blending.*/
 static void od_mc_blend_multi8(unsigned char *dst, int dystride,

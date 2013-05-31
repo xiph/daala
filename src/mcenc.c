@@ -4788,9 +4788,9 @@ static ogg_int32_t od_mv_est_refine(od_mv_est_ctx *est, int ref, int log_dsz,
   state = &est->enc->state;
   nhmvbs = (state->nhmbs + 1) << 2;
   nvmvbs = (state->nvmbs + 1) << 2;
-  fprintf(stderr,
-   "Refining with displacements of %0g and 1/%i pel MV resolution.\n",
-   (1 << log_dsz)*0.125, 1 << (3 - mv_res));
+  OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
+        "Refining with displacements of %0g and 1/%i pel MV resolution.\n",
+        (1 << log_dsz)*0.125, 1 << (3 - mv_res)));
   dcost = 0;
   for (vy = 0; vy <= nvmvbs; vy++) {
     if (est->row_counts[vy]) {
@@ -4978,19 +4978,7 @@ void od_mv_est(od_mv_est_ctx *est, int ref, int lambda) {
      place, but is needed earlier by the visualization.*/
   if (daala_granule_basetime(&est->enc->state, est->enc->state.cur_time) ==
    ANI_FRAME) {
-    int vx;
-    int vy;
-    for (vy = 0; vy < nvmvbs; vy++) {
-      od_mv_grid_pt *grid;
-      grid = est->enc->state.mv_grid[vy];
-      for (vx = 0; vx < nhmvbs; vx++) {
-        grid[vx].valid = 0;
-        grid[vx].right = 0;
-        grid[vx].down = 0;
-        grid[vx].mv[0] = 0;
-        grid[vx].mv[1] = 1;
-      }
-    }
+    od_state_mvs_clear(&est->enc->state);
   }
 #endif
   od_mv_est_init_mvs(est, ref);

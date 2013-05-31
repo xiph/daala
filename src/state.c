@@ -1016,6 +1016,62 @@ int od_state_dump_img(od_state *_state,od_img *_img,const char *_suf){
 }
 #endif
 
+void od_state_mc_predict(od_state *state, int ref) {
+  unsigned char  __attribute__((aligned(16))) buf[16][16];
+  od_img *img;
+  int nhmvbs;
+  int nvmvbs;
+  int pli;
+  int vx;
+  int vy;
+  nhmvbs = (state->nhmbs + 1) << 2;
+  nvmvbs = (state->nvmbs + 1) << 2;
+  img = state->io_imgs + OD_FRAME_REC;
+  for (vy = 0; vy < nvmvbs; vy += 4) {
+    for (vx = 0; vx < nhmvbs; vx += 4) {
+      for (pli = 0; pli < img->nplanes; pli++) {
+        od_img_plane *iplane;
+        unsigned char *p;
+        int blk_w;
+        int blk_h;
+        int blk_x;
+        int blk_y;
+        int y;
+        od_state_pred_block(state, buf[0], sizeof(buf[0]), ref, pli, vx, vy,
+         2);
+        /*Copy the predictor into the image, with clipping.*/
+        iplane = img->planes + pli;
+        blk_w = 16 >> iplane->xdec;
+        blk_h = 16 >> iplane->ydec;
+        blk_x = (vx - 2) << (2 - iplane->xdec);
+        blk_y = (vy - 2) << (2 - iplane->ydec);
+        p = buf[0];
+        if (blk_x < 0) {
+          blk_w += blk_x;
+          p -= blk_x;
+          blk_x = 0;
+        }
+        if (blk_y < 0) {
+          blk_h += blk_y;
+          p -= blk_y*sizeof(buf[0]);
+          blk_y = 0;
+        }
+        if (blk_x + blk_w > img->width >> iplane->xdec) {
+          blk_w = (img->width >> iplane->xdec) - blk_x;
+        }
+        if (blk_y + blk_h > img->height >> iplane->ydec) {
+          blk_h = (img->height >> iplane->ydec) - blk_y;
+        }
+        for (y = blk_y; y < blk_y + blk_h; y++) {
+          memcpy(iplane->data + y*iplane->ystride + blk_x,
+           p, blk_w);
+          p += sizeof(buf[0]);
+        }
+      }
+    }
+  }
+}
+
 
 ogg_int64_t daala_granule_basetime(void *_encdec,ogg_int64_t _granpos){
   od_state *state;
