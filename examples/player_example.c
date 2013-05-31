@@ -128,7 +128,7 @@ restart:
         if (ret != 0) break;
         dctx = daala_decode_alloc(&di, dsi);
         assert(dctx != NULL);
-        /*daala_setup_free(dsi);*/
+        daala_setup_free(dsi);
         packet_state = PACKET_DATA;
       case PACKET_DATA:
         if (screen == NULL) {

@@ -32,8 +32,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #define OD_INT32_MAX (0x7FFFFFFFUL)
 #define OD_UINT32_MAX (0xFFFFFFFFUL)
 
-static daala_setup_info *daala_setup_info_create() {
+static daala_setup_info *daala_setup_create() {
   return _ogg_malloc(sizeof(daala_setup_info));
+}
+
+void daala_setup_free(daala_setup_info *setup) {
+  if (setup != NULL) {
+    free(setup);
+  }
 }
 
 static int daala_read_length_and_string(oggbyte_buffer *obb, int *lenp,
@@ -192,7 +198,7 @@ int daala_decode_header_in(daala_info *info,
       if (!info->pic_width || dc->vendor == NULL || *ds != NULL) {
         return OD_EBADHEADER;
       }
-      *ds = daala_setup_info_create();
+      *ds = daala_setup_create();
       return 1;
     }
   }
