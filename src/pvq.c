@@ -598,9 +598,9 @@ int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
  */
 int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
     ogg_int16_t *_scale,int *y,int N,int _Q,int *qg){
-  float L2x,L2r;
-  float g;               /* L2-norm of x */
-  float gr;              /* L2-norm of r */
+  int L2x,L2r;
+  int g;               /* L2-norm of x */
+  int gr;              /* L2-norm of r */
   float x[MAXN];
   int r[MAXN];
   float scale[MAXN];
