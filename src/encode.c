@@ -589,6 +589,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       img = enc->state.io_imgs + OD_FRAME_REC;
       width = img->width;
       height = img->height;
+      /*Level 0.*/
       for (vy = 0; vy < nvmvbs; vy += 4) {
         for (vx = 0; vx < nhmvbs; vx += 4) {
           mvp = &( enc->state.mv_grid[vy][vx] );
@@ -596,6 +597,19 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
            8*2*(width+32));
           od_ec_enc_uint(&enc->ec, (mvp->mv[1]) + 8*(height+32),
            8*2*(height+32));
+        }
+      }
+      /*Level 1.*/
+      for (vy = 2; vy < nvmvbs; vy += 4) {
+        for (vx = 2; vx < nhmvbs; vx += 4) {
+          mvp = &( enc->state.mv_grid[vy][vx] );
+          od_ec_encode_bool_q15(&enc->ec, mvp->valid, 16384);
+          if (mvp->valid) {
+            od_ec_enc_uint(&enc->ec, (mvp->mv[0]) + 8*(width+32),
+             8*2*(width+32));
+            od_ec_enc_uint(&enc->ec, (mvp->mv[1]) + 8*(height+32),
+             8*2*(height+32));
+          }
         }
       }
     }

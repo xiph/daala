@@ -150,14 +150,28 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
       img = dec->state.io_imgs + OD_FRAME_REC;
       width = img->width;
       height = img->height;
+      /*Level 0.*/
       for (vy = 0; vy < nvmvbs; vy += 4) {
         for (vx = 0; vx < nhmvbs; vx += 4) {
           mvp = &( dec->state.mv_grid[vy][vx] );
           mvp->valid = 1;
-          mvp->mv[0]= od_ec_dec_uint(&dec->ec, 8*2*(width+32))
+          mvp->mv[0] = od_ec_dec_uint(&dec->ec, 8*2*(width+32))
             - (8*(width+32));
-          mvp->mv[1]= (od_ec_dec_uint(&dec->ec, 8*2*(height+32)))
+          mvp->mv[1] = (od_ec_dec_uint(&dec->ec, 8*2*(height+32)))
             - (8*(height+32));
+        }
+      }
+      /*Level 1.*/
+      for (vy = 2; vy < nvmvbs; vy += 4) {
+        for (vx = 2; vx < nhmvbs; vx += 4) {
+          mvp = &( dec->state.mv_grid[vy][vx] );
+          mvp->valid = od_ec_decode_bool_q15(&dec->ec, 16384);
+          if (mvp->valid) {
+            mvp->mv[0] = od_ec_dec_uint(&dec->ec, 8*2*(width+32))
+              - (8*(width+32));
+            mvp->mv[1] = od_ec_dec_uint(&dec->ec, 8*2*(height+32))
+              - (8*(height+32));
+          }
         }
       }
       od_state_mc_predict(&dec->state, OD_FRAME_PREV);
