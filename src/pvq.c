@@ -357,10 +357,46 @@ static void pvq_search(float *x,float *scale,float *scale_1,float g,int N,int K,
   }
 }
 
-
-
 #define GAIN_EXP (4./3.)
 #define GAIN_EXP_1 (1./GAIN_EXP)
+
+void pvq_synth(od_coeff *_x, float *xn, od_coeff *r, int L2r, float cg,
+  int Q, int N) {
+  int i;
+  int proj;
+  float proj_1;
+  float L2x;
+  float g;
+  int x[MAXN];
+
+  g = pow(Q*cg, GAIN_EXP);
+
+  L2x=0;
+  for(i=0;i<N;i++){
+    float tmp=xn[i]/* *scale[i]*/;
+    L2x+=tmp*tmp;
+  }
+
+  /* Apply Householder reflection to the quantized coefficients */
+  proj=0;
+  for(i=0;i<N;i++){
+    proj+=r[i]*xn[i];
+  }
+  proj_1=proj*2.F/(EPSILON+L2r);
+  for(i=0;i<N;i++){
+    xn[i]-=r[i]*proj_1;
+  }
+
+  g/=EPSILON+sqrt(L2x);
+  for(i=0;i<N;i++){
+    x[i]=xn[i]*g/* *scale[i]*/;
+  }
+
+  for(i=0;i<N;i++){
+    _x[i]=(x[i]+8)>>4;
+  }
+
+}
 
 int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
     ogg_int16_t *_scale,int *y,int N,int _Q, int *qg){
@@ -769,6 +805,7 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   OD_LOG_PARTIAL((OD_LOG_PVQ, OD_LOG_DEBUG, "\n"));
   OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%d %d", K-y[m], N));
 
+#if 0
   /* Apply Householder reflection again to get the quantized coefficients */
   proj=0;
   for(i=0;i<N;i++){
@@ -790,9 +827,11 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   }
 
   for(i=0;i<N;i++){
-    _x[i]=x[i]>>4;
+    _x[i]=(x[i]+8)>>4;
   }
-
+#else
+  pvq_synth(_x, xn, r, L2r, cg, Q, N);
+#endif
   /* Move y[m] to the front */
   ym = y[m];
   for (i=m;i>=1;i--)
@@ -914,6 +953,8 @@ void dequant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   for (i=m+1;i<N;i++)
     xn[i] = x[i];
 
+#if 0
+
   /* Apply Householder reflection to the quantized coefficients */
   proj=0;
   for(i=0;i<N;i++){
@@ -937,6 +978,9 @@ void dequant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   for(i=0;i<N;i++){
     _x[i]=(x[i]+8)>>4;
   }
+#else
+  pvq_synth(_x, xn, r, L2r, cg, Q, N);
+#endif
 }
 
 /** PVQ quantizer with no reference
