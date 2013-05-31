@@ -360,7 +360,7 @@ static void pvq_search(float *x,float *scale,float *scale_1,float g,int N,int K,
 #define GAIN_EXP (4./3.)
 #define GAIN_EXP_1 (1./GAIN_EXP)
 
-void pvq_synth(od_coeff *_x, float *xn, od_coeff *r, int L2r, float cg,
+void pvq_synth(od_coeff *_x, int *xn, od_coeff *r, int L2r, float cg,
   int Q, int N) {
   int i;
   int proj;
@@ -373,8 +373,7 @@ void pvq_synth(od_coeff *_x, float *xn, od_coeff *r, int L2r, float cg,
 
   L2x=0;
   for(i=0;i<N;i++){
-    float tmp=xn[i]/* *scale[i]*/;
-    L2x+=tmp*tmp;
+    L2x+=xn[i]*xn[i];
   }
 
   /* Apply Householder reflection to the quantized coefficients */
@@ -800,7 +799,7 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   OD_LOG_PARTIAL((OD_LOG_PVQ, OD_LOG_DEBUG, "\n"));
   OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%d %d", K-y[m], N));
 
-  pvq_synth(_x, xn, r, L2r, cg, Q, N);
+  pvq_synth(_x, y, r, L2r, cg, Q, N);
 
   /* Move y[m] to the front */
   ym = y[m];
@@ -853,7 +852,6 @@ void dequant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   int L2r;
   float gr;              /* L2-norm of r */
   int x[MAXN];
-  float xn[MAXN];
   int r[MAXN];
   int scale[MAXN];
   int Q;
@@ -912,13 +910,11 @@ void dequant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   /* Move x[m] back */
   xm = x[0];
   for (i=0;i<m;i++)
-    xn[i] = x[i+1];
+    x[i] = x[i+1];
   /* x[0] is positive when prediction is good  */
-  xn[m] = -xm*s;
-  for (i=m+1;i<N;i++)
-    xn[i] = x[i];
+  x[m] = -xm*s;
 
-  pvq_synth(_x, xn, r, L2r, cg, Q, N);
+  pvq_synth(_x, x, r, L2r, cg, Q, N);
 }
 
 /** PVQ quantizer with no reference
