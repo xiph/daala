@@ -382,14 +382,10 @@ void pvq_synth(od_coeff *_x, float *xn, od_coeff *r, int L2r, float cg,
   for(i=0;i<N;i++){
     proj+=r[i]*xn[i];
   }
-  proj_1=proj*2.F/(EPSILON+L2r);
-  for(i=0;i<N;i++){
-    xn[i]-=r[i]*proj_1;
-  }
-
   g/=EPSILON+sqrt(L2x);
+  proj_1=g*proj*2.F/(EPSILON+L2r);
   for(i=0;i<N;i++){
-    x[i]=xn[i]*g/* *scale[i]*/;
+    x[i]=(g*xn[i] - r[i]*proj_1);
   }
 
   for(i=0;i<N;i++){
