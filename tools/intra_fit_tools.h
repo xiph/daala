@@ -27,7 +27,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "vidinput.h"
 #include "../src/odintrin.h"
 
-#define B_SZ_LOG (4)
+#define B_SZ_LOG (2)
 #define B_SZ_LOG_MAX (4)
 #define B_SZ     (1<<B_SZ_LOG)
 #define B_SZ_MAX (1<<B_SZ_LOG_MAX)

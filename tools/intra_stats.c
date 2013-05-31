@@ -357,9 +357,9 @@ int main(int _argc,const char *_argv[]){
     intra_stats_print(&ctx[0].gb_vp8,"VP8 Intra Predictors",VP8_SCALE);
     intra_stats_correct(&ctx[0].gb_od);
     intra_stats_print(&ctx[0].gb_od,"Daala Intra Predictors",OD_SCALE);
-    for (i=0;i<B_SZ*B_SZ;i++) {
+    /*for (i=0;i<B_SZ*B_SZ;i++) {
       printf ("%f\n", ctx[0].gb_od.fr.res.cov[i*B_SZ*B_SZ+i]);
-    }
+    }*/
   }
   for(i=0;i<NUM_PROCS;i++){
     intra_stats_ctx_clear(&ctx[i]);
