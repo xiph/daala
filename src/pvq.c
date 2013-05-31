@@ -360,14 +360,13 @@ static void pvq_search(float *x,float *scale,float *scale_1,float g,int N,int K,
 #define GAIN_EXP (4./3.)
 #define GAIN_EXP_1 (1./GAIN_EXP)
 
-void pvq_synth(od_coeff *_x, int *xn, od_coeff *r, int L2r, float cg,
+void pvq_synth(od_coeff *x, int *xn, od_coeff *r, int L2r, float cg,
   int Q, int N) {
   int i;
   int proj;
   float proj_1;
-  float L2x;
+  int L2x;
   float g;
-  int x[MAXN];
 
   g = pow(Q*cg, GAIN_EXP);
 
@@ -384,11 +383,7 @@ void pvq_synth(od_coeff *_x, int *xn, od_coeff *r, int L2r, float cg,
   g/=EPSILON+sqrt(L2x);
   proj_1=g*proj*2.F/(EPSILON+L2r);
   for(i=0;i<N;i++){
-    x[i]=(g*xn[i] - r[i]*proj_1);
-  }
-
-  for(i=0;i<N;i++){
-    _x[i]=(x[i]+8)>>4;
+    x[i]=(int)(g*xn[i] - r[i]*proj_1 + 8)>>4;
   }
 
 }
