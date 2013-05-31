@@ -361,7 +361,7 @@ static void pvq_search(float *x,float *scale,float *scale_1,float g,int N,int K,
 #define GAIN_EXP_1 (1./GAIN_EXP)
 
 void pvq_synth(od_coeff *x, int *xn, od_coeff *r, int L2r, float cg,
-  int Q, int N) {
+  int Q, int N, int syn_shift) {
   int i;
   int proj;
   int proj_1;
@@ -388,9 +388,9 @@ void pvq_synth(od_coeff *x, int *xn, od_coeff *r, int L2r, float cg,
   g >>= shift;
   proj_1 >>= shift;
   shift = 15-shift;
-  round = 8<<shift;
+  round = (1<<syn_shift>>1)<<shift;
   for(i = 0; i < N; i++) {
-    x[i] = (g*xn[i] - r[i]*proj_1 + round) >> (shift + 4);
+    x[i] = (g*xn[i] - r[i]*proj_1 + round) >> (shift + syn_shift);
   }
 
 }
@@ -630,7 +630,7 @@ int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
  * @retval position that should have the most pulses in _y
  */
 int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
-    ogg_int16_t *_scale,int *y,int N,int _Q,int *qg){
+ ogg_int16_t *_scale, int *y, int N, int _Q, int *qg, int shift) {
   int L2x, L2r;
   int g;               /* L2-norm of x */
   int gr;              /* L2-norm of r */
@@ -654,7 +654,7 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   OD_ASSERT(N>1);
 
   /* Just some calibration -- should eventually go away */
-  Q=pow(16*_Q*1.3,GAIN_EXP_1); /* Converts Q to the "companded domain" */
+  Q=pow((1<<shift)*_Q*1.3,GAIN_EXP_1); /* Converts Q to the "companded domain" */
   /* High rate predicts that the constant should be log(2)/6 = 0.115, but in
      practice, it should be lower. */
   lambda = 0.10*Q*Q;
@@ -667,8 +667,8 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
 
   L2x=0;
   for(i=0;i<N;i++){
-    x[i]=_x[i]<<4;
-    r[i]=_r[i]<<4;
+    x[i]=_x[i]<<shift;
+    r[i]=_r[i]<<shift;
     L2x+=x[i]*x[i];
   }
 
@@ -801,7 +801,7 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   OD_LOG_PARTIAL((OD_LOG_PVQ, OD_LOG_DEBUG, "\n"));
   OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%d %d", K-y[m], N));
 
-  pvq_synth(_x, y, r, L2r, cg, Q, N);
+  pvq_synth(_x, y, r, L2r, cg, Q, N, shift);
 
   /* Move y[m] to the front */
   ym = y[m];
@@ -850,7 +850,7 @@ int pvq_unquant_k(const ogg_int32_t *_r,int _n,int _qg, int _scale){
  *
  */
 void dequant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
-    ogg_int16_t *_scale,int N,int _Q,int qg){
+    ogg_int16_t *_scale,int N,int _Q,int qg, int shift){
   int L2r;
   float gr;              /* L2-norm of r */
   int x[MAXN];
@@ -868,7 +868,7 @@ void dequant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   OD_ASSERT(N>1);
 
   /* Just some calibration -- should eventually go away */
-  Q=pow(16*_Q*1.3,GAIN_EXP_1); /* Converts Q to the "companded domain" */
+  Q=pow((1<<shift)*_Q*1.3,GAIN_EXP_1); /* Converts Q to the "companded domain" */
   /* High rate predicts that the constant should be log(2)/6 = 0.115, but in
      practice, it should be lower. */
 
@@ -881,7 +881,7 @@ void dequant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   L2r=0;
   for(i=0;i<N;i++){
     x[i]=_x[i];
-    r[i]=_r[i]<<4;
+    r[i]=_r[i]<<shift;
     L2r+=r[i]*r[i];
   }
   gr=sqrt(L2r);
@@ -916,7 +916,7 @@ void dequant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   /* x[0] is positive when prediction is good  */
   x[m] = -xm*s;
 
-  pvq_synth(_x, x, r, L2r, cg, Q, N);
+  pvq_synth(_x, x, r, L2r, cg, Q, N, shift);
 }
 
 /** PVQ quantizer with no reference

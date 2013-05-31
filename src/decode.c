@@ -362,7 +362,7 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
                  &ex_ym, 0);
               }
               pvq_decoder(&dec->ec, pred + 2, 14, vk - abs(pred[1]), &adapt);
-              dequant_pvq(pred + 1, predt + 1, pvq_scale, 15, scale[pli], qg);
+              dequant_pvq(pred + 1, predt + 1, pvq_scale, 15, scale[pli], qg, 4);
               if (adapt.curr[OD_ADAPT_K_Q8] >= 0) {
                 nk++;
                 k_total += adapt.curr[OD_ADAPT_K_Q8];
