@@ -130,11 +130,11 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
   }
   for(i = 0; i < nvsb; i++) {
     for(j = 0; j < nhsb; j++) {
-      od_block_size_decode(&dec->ec, &dec->state.bsize[4*dec->state.bstride*i + 4*j], dec->state.bstride);
+      od_block_size_decode(&dec->ec,
+       &dec->state.bsize[4*dec->state.bstride*i + 4*j], dec->state.bstride);
     }
   }
   if(dec->state.ref_imgi[OD_FRAME_PREV] >= 0 && !is_keyframe){
-      od_state_mvs_clear(&dec->state);
       /* Input the motion vectors. */
       int nhmvbs;
       int nvmvbs;
@@ -144,6 +144,7 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
       int width;
       int height;
       od_mv_grid_pt* mvp;
+      od_state_mvs_clear(&dec->state);
       nhmvbs = (dec->state.nhmbs + 1) << 2;
       nvmvbs = (dec->state.nvmbs + 1) << 2;
       img = dec->state.io_imgs + OD_FRAME_REC;
@@ -355,64 +356,75 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
                     mc + (by << 2)*w + (bx << 2), w);
               }
               for (zzi = 0; zzi < 16; zzi++) pvq_scale[zzi] = 0;
-              if (bx > 0 && by > 0 && !is_keyframe) {
-                if (pli == 0) {
-                  ogg_uint16_t mode_cdf[OD_INTRA_NMODES];
-                  int m_l;
-                  int m_ul;
-                  int m_u;
-                  int mode;
-                  od_coeff *ur;
-                  ur = (by > 0 && (((bx + 1) < (mbx + 1) << (2 - xdec))
-                   || (by == mby << (2 - ydec)))) ?
-                   d + ((by - 1) << 2)*w + ((bx + 1) << 2) :
-                   d + ((by - 1) << 2)*w + (bx << 2);
-                  m_l = modes[by*(w >> 2) + bx - 1];
-                  m_ul = modes[(by - 1)*(w >> 2) + bx - 1];
-                  m_u = modes[(by - 1)*(w >> 2) + bx];
-                  od_intra_pred_cdf(mode_cdf, OD_INTRA_PRED_PROB_4x4[pli],
-                   mode_p0, OD_INTRA_NMODES, m_l, m_ul, m_u);
-                  mode = od_ec_decode_cdf_unscaled(&dec->ec, mode_cdf,
-                   OD_INTRA_NMODES);
-                  od_intra_pred4x4_get(pred, d + (by << 2)*w + (bx << 2),
-                   w, ur, w, mode);
-                  modes[by*(w >> 2) + bx] = mode;
-                  od_intra_pred_update(mode_p0, OD_INTRA_NMODES, mode,
-                   m_l, m_ul, m_u);
+              if (is_keyframe) {
+                if (bx > 0 && by > 0) {
+                  if (pli == 0) {
+                    ogg_uint16_t mode_cdf[OD_INTRA_NMODES];
+                    int m_l;
+                    int m_ul;
+                    int m_u;
+                    int mode;
+                    od_coeff *ur;
+                    ur = (by > 0 && (((bx + 1) < (mbx + 1) << (2 - xdec))
+                     || (by == mby << (2 - ydec)))) ?
+                     d + ((by - 1) << 2)*w + ((bx + 1) << 2) :
+                     d + ((by - 1) << 2)*w + (bx << 2);
+                    m_l = modes[by*(w >> 2) + bx - 1];
+                    m_ul = modes[(by - 1)*(w >> 2) + bx - 1];
+                    m_u = modes[(by - 1)*(w >> 2) + bx];
+                    od_intra_pred_cdf(mode_cdf, OD_INTRA_PRED_PROB_4x4[pli],
+                     mode_p0, OD_INTRA_NMODES, m_l, m_ul, m_u);
+                    mode = od_ec_decode_cdf_unscaled(&dec->ec, mode_cdf,
+                     OD_INTRA_NMODES);
+                    od_intra_pred4x4_get(pred, d + (by << 2)*w + (bx << 2),
+                     w, ur, w, mode);
+                    modes[by*(w >> 2) + bx] = mode;
+                    od_intra_pred_update(mode_p0, OD_INTRA_NMODES, mode,
+                     m_l, m_ul, m_u);
+                  }
+                  else{
+                    int chroma_weights_q8[3];
+                    int mode;
+                    mode = modes[(by << ydec)*(frame_width >> 2) + (bx << xdec)];
+                    chroma_weights_q8[0] = OD_INTRA_CHROMA_WEIGHTS_Q6[mode][0];
+                    chroma_weights_q8[1] = OD_INTRA_CHROMA_WEIGHTS_Q6[mode][1];
+                    chroma_weights_q8[2] = OD_INTRA_CHROMA_WEIGHTS_Q6[mode][2];
+                    mode = modes[(by << ydec)*(frame_width >> 2)
+                     + ((bx << xdec) + xdec)];
+                    chroma_weights_q8[0] +=
+                     OD_INTRA_CHROMA_WEIGHTS_Q6[mode][0];
+                    chroma_weights_q8[1] +=
+                     OD_INTRA_CHROMA_WEIGHTS_Q6[mode][1];
+                    chroma_weights_q8[2] +=
+                     OD_INTRA_CHROMA_WEIGHTS_Q6[mode][2];
+                    mode = modes[((by << ydec) + ydec)*(frame_width >> 2)
+                     + (bx << xdec)];
+                    chroma_weights_q8[0] +=
+                     OD_INTRA_CHROMA_WEIGHTS_Q6[mode][0];
+                    chroma_weights_q8[1] +=
+                     OD_INTRA_CHROMA_WEIGHTS_Q6[mode][1];
+                    chroma_weights_q8[2] +=
+                     OD_INTRA_CHROMA_WEIGHTS_Q6[mode][2];
+                    mode = modes[((by << ydec) + ydec)*(frame_width >> 2)
+                     + ((bx << xdec) + xdec)];
+                    chroma_weights_q8[0] +=
+                     OD_INTRA_CHROMA_WEIGHTS_Q6[mode][0];
+                    chroma_weights_q8[1] +=
+                     OD_INTRA_CHROMA_WEIGHTS_Q6[mode][1];
+                    chroma_weights_q8[2] +=
+                     OD_INTRA_CHROMA_WEIGHTS_Q6[mode][2];
+                    od_chroma_pred4x4(pred, d + (by << 2)*w + (bx << 2),
+                     l + (by << 2)*w + (bx << 2), w, chroma_weights_q8);
+                  }
                 }
                 else{
-                  int chroma_weights_q8[3];
-                  int mode;
-                  mode = modes[(by << ydec)*(frame_width >> 2) + (bx << xdec)];
-                  chroma_weights_q8[0] = OD_INTRA_CHROMA_WEIGHTS_Q6[mode][0];
-                  chroma_weights_q8[1] = OD_INTRA_CHROMA_WEIGHTS_Q6[mode][1];
-                  chroma_weights_q8[2] = OD_INTRA_CHROMA_WEIGHTS_Q6[mode][2];
-                  mode = modes[(by << ydec)*(frame_width >> 2) + ((bx << xdec)
-                   + xdec)];
-                  chroma_weights_q8[0] += OD_INTRA_CHROMA_WEIGHTS_Q6[mode][0];
-                  chroma_weights_q8[1] += OD_INTRA_CHROMA_WEIGHTS_Q6[mode][1];
-                  chroma_weights_q8[2] += OD_INTRA_CHROMA_WEIGHTS_Q6[mode][2];
-                  mode = modes[((by << ydec) + ydec)*(frame_width >> 2)
-                   + (bx << xdec)];
-                  chroma_weights_q8[0] += OD_INTRA_CHROMA_WEIGHTS_Q6[mode][0];
-                  chroma_weights_q8[1] += OD_INTRA_CHROMA_WEIGHTS_Q6[mode][1];
-                  chroma_weights_q8[2] += OD_INTRA_CHROMA_WEIGHTS_Q6[mode][2];
-                  mode = modes[((by << ydec) + ydec)*(frame_width >> 2)
-                   + ((bx << xdec) + xdec)];
-                  chroma_weights_q8[0] += OD_INTRA_CHROMA_WEIGHTS_Q6[mode][0];
-                  chroma_weights_q8[1] += OD_INTRA_CHROMA_WEIGHTS_Q6[mode][1];
-                  chroma_weights_q8[2] += OD_INTRA_CHROMA_WEIGHTS_Q6[mode][2];
-                  od_chroma_pred4x4(pred, d + (by << 2)*w + (bx << 2),
-                   l + (by << 2)*w + (bx << 2), w, chroma_weights_q8);
+                  for (zzi = 0; zzi < 16; zzi++) pred[zzi] = 0;
+                  if (bx > 0) pred[0] = d[(by << 2)*w + ((bx - 1) << 2)];
+                  else if (by > 0) pred[0] = d[((by - 1) << 2)*w + (bx << 2)];
+                  if (pli == 0) modes[by*(w >> 2) + bx] = 0;
                 }
               }
-              else{
-                for (zzi = 0; zzi < 16; zzi++) pred[zzi] = 0;
-                if (bx > 0) pred[0] = d[(by << 2)*w + ((bx - 1) << 2)];
-                else if (by > 0) pred[0] = d[((by - 1) << 2)*w + (bx << 2)];
-                if (pli == 0) modes[by*(w >> 2) + bx] = 0;
-              }
-              if (!is_keyframe) {
+              else {
                 int x;
                 int y;
                 int i;
