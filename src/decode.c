@@ -89,6 +89,7 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
   int pic_height;
   int nvsb;
   int nhsb;
+  int refi;
   int i;
   int j;
   if (dec == NULL || img == NULL || op == NULL) return OD_EFAULT;
@@ -97,6 +98,22 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
   od_ec_dec_init(&dec->ec, op->packet, op->bytes);
   /*Read the packet type bit.*/
   if (od_ec_decode_bool_q15(&dec->ec, 16384)) return OD_EBADPACKET;
+  /*Update the buffer state.*/
+  if (dec->state.ref_imgi[OD_FRAME_SELF] >= 0) {
+    dec->state.ref_imgi[OD_FRAME_PREV] =
+     dec->state.ref_imgi[OD_FRAME_SELF];
+    /*TODO: Update golden frame.*/
+    if (dec->state.ref_imgi[OD_FRAME_GOLD] < 0) {
+      dec->state.ref_imgi[OD_FRAME_GOLD] =
+       dec->state.ref_imgi[OD_FRAME_SELF];
+      /*TODO: Mark keyframe timebase.*/
+    }
+  }
+  /*Select a free buffer to use for this reference frame.*/
+  for (refi = 0; refi == dec->state.ref_imgi[OD_FRAME_GOLD]
+   || refi == dec->state.ref_imgi[OD_FRAME_PREV]
+   || refi == dec->state.ref_imgi[OD_FRAME_NEXT]; refi++);
+  dec->state.ref_imgi[OD_FRAME_SELF] = refi;
   nhsb = dec->state.nhsb;
   nvsb = dec->state.nvsb;
   for(i = -4; i < nhsb*4; i++) {
