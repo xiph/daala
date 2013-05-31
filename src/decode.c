@@ -96,7 +96,7 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
   if (op->e_o_s) dec->packet_state = OD_PACKET_DONE;
   od_ec_dec_init(&dec->ec, op->packet, op->bytes);
   /*Read the packet type bit.*/
-  if(od_ec_decode_bool_q15(&dec->ec, 16384)) OD_EBADPACKET;
+  if (od_ec_decode_bool_q15(&dec->ec, 16384)) return OD_EBADPACKET;
   nhsb = dec->state.nhsb;
   nvsb = dec->state.nvsb;
   for(i = -4; i < nhsb*4; i++) {
