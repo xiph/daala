@@ -381,13 +381,13 @@ void pvq_synth(od_coeff *x, int *xn, od_coeff *r, int L2r, float cg,
   for(i=0;i<N;i++) {
     proj+=r[i]*xn[i];
   }
-  g=65536*pow(Q*cg, GAIN_EXP)/(EPSILON+sqrt(L2x));
+  g=32768*pow(Q*cg, GAIN_EXP)/(EPSILON+sqrt(L2x));
   proj_1=g*1.f*proj*2.F/(EPSILON+L2r);
   maxval = OD_MAXI(g, abs(proj_1));
-  shift = OD_MAXI(0, OD_ILOG(maxval)-15);
+  shift = OD_MAXI(0, OD_ILOG(maxval)-16);
   g >>= shift;
   proj_1 >>= shift;
-  shift = 16-shift;
+  shift = 15-shift;
   round = 8<<shift;
   for(i = 0; i < N; i++) {
     x[i] = (g*xn[i] - r[i]*proj_1 + round) >> (shift + 4);
