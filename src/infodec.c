@@ -38,7 +38,7 @@ static daala_setup_info *daala_setup_create() {
 
 void daala_setup_free(daala_setup_info *setup) {
   if (setup != NULL) {
-    free(setup);
+    _ogg_free(setup);
   }
 }
 
