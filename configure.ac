@@ -17,7 +17,7 @@ AC_CONFIG_SRCDIR([src/decode.c])
 AC_USE_SYSTEM_EXTENSIONS
 AC_SYS_LARGEFILE
 
-AM_INIT_AUTOMAKE([1.10 foreign no-define subdir-objects])
+AM_INIT_AUTOMAKE([1.11 foreign no-define subdir-objects])
 AM_MAINTAINER_MODE([enable])
 LT_INIT
 
