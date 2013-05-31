@@ -602,7 +602,7 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   float g;               /* L2-norm of x */
   float gr;              /* L2-norm of r */
   float x[MAXN];
-  float r[MAXN];
+  int r[MAXN];
   float scale[MAXN];
   float Q;
   float scale_1[MAXN];
