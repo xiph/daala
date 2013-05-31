@@ -410,7 +410,7 @@ int main(int _argc,char **_argv){
   avin.video_fps_d=-1;
   avin.video_par_n=-1;
   avin.video_par_d=-1;
-  video_q=48;
+  video_q=10;
   video_keyframe_rate=1; /* TODO - default off for now but make bigger later */
   video_r=-1;
   video_bytesout=0;
@@ -477,7 +477,8 @@ int main(int _argc,char **_argv){
   /*TODO: Other crap.*/
   dd=daala_encode_create(&di);
   daala_comment_init(&dc);
-  /*TODO: Set up encoder.*/
+  /*Set up encoder.*/
+  daala_encode_ctl(dd, OD_SET_QUANT, &video_q, sizeof(int));
   /*Write the bitstream header packets with proper page interleave.*/
   /*The first packet for each logical stream will get its own page
      automatically.*/

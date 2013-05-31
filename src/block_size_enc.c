@@ -308,16 +308,9 @@ void od_block_size_encode(od_ec_enc *enc, const char *bsize, int stride)
 {
   int i, j;
   int inefficient;
-  int id16;
-  /*int id32;
-  id32 = od_block_size_prob32(bsize, stride);*/
   inefficient = (bsize[0] == 3) ? 16 : (bsize[0]==2) + 2*(bsize[2]==2)
    + 4*(bsize[2*stride]==2) + 8*(bsize[2*stride + 2]==2);
   od_ec_enc_uint(enc, inefficient, 17);
-  /*for (i=-1;i<4;i++) printf("%d ", bsize[-stride+i]);
-  for (i=0;i<4;i++) printf("%d ", bsize[i*stride-1]);
-  id16 = (bsize[0]>=2) ? 16 : (bsize[0]==1)+2*(bsize[1]==1)+4*(bsize[stride]==1)+8*(bsize[stride+1]==1);
-  printf("%d %d\n", id16, inefficient);*/
   if (bsize[0] < 3) {
     for(i = 0; i < 2; i++) {
       for (j = 0; j < 2; j++) {

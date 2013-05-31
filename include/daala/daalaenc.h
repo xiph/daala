@@ -144,10 +144,13 @@ extern void daala_encode_free(daala_enc_ctx *enc);
  * Encoder CTL settings.
  *
  * These defines and macros are for altering the behaviour of the encoder
- * through the \ref daala_encode_ctl interface.
- *
- * No keys are currently defined.
+ *  through the \ref daala_encode_ctl interface.
+ * These should have even values.
  */
+/** Set the quantizer scale.
+ * The passed buffer is interpreted as containing a single <tt>int</tt>.
+ * The valid range is 0-511. */
+#define OD_SET_QUANT 4000
 
 /*@}*/
 
