@@ -323,7 +323,7 @@ void od_state_mvs_clear(od_state *state){
       grid[vx].right = 0;
       grid[vx].down = 0;
       grid[vx].mv[0] = 0;
-      grid[vx].mv[1] = 1;
+      grid[vx].mv[1] = 0;
     }
   }
 }

@@ -153,8 +153,8 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
       height = img->height;
       grid = dec->state.mv_grid;
       /*Level 0.*/
-      for (vy = 0; vy < nvmvbs; vy += 4) {
-        for (vx = 0; vx < nhmvbs; vx += 4) {
+      for (vy = 0; vy <= nvmvbs; vy += 4) {
+        for (vx = 0; vx <= nhmvbs; vx += 4) {
           mvp = &grid[vy][vx];
           mvp->valid = 1;
           mvp->mv[0] = od_ec_dec_uint(&dec->ec, 8*2*(width+32))
@@ -164,8 +164,8 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
         }
       }
       /*Level 1.*/
-      for (vy = 2; vy < nvmvbs; vy += 4) {
-        for (vx = 2; vx < nhmvbs; vx += 4) {
+      for (vy = 2; vy <= nvmvbs; vy += 4) {
+        for (vx = 2; vx <= nhmvbs; vx += 4) {
           mvp = &grid[vy][vx];
           mvp->valid = od_ec_decode_bool_q15(&dec->ec, 16384);
           if (mvp->valid) {
@@ -177,13 +177,13 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
         }
       }
       /*Level 2.*/
-      for (vy = 0; vy < nvmvbs; vy += 2) {
-        for (vx = 2*(vy%4==0); vx < nhmvbs; vx += 4) {
+      for (vy = 0; vy <= nvmvbs; vy += 2) {
+        for (vx = 2*(vy%4==0); vx <= nhmvbs; vx += 4) {
           mvp = &grid[vy][vx];
           if (vy-2 >= 0 && grid[vy-2][vx].valid
            && vx-2 >= 0 && grid[vy][vx-2].valid
-           && vy+2 < height && grid[vy+2][vx].valid
-           && vx+2 < width && grid[vy][vx+2].valid) {
+           && vy+2 <= nvmvbs && grid[vy+2][vx].valid
+           && vx+2 <= nhmvbs && grid[vy][vx+2].valid) {
             mvp->valid = od_ec_decode_bool_q15(&dec->ec, 16384);
             if (mvp->valid) {
               mvp->mv[0] = od_ec_dec_uint(&dec->ec, 8*2*(width+32))
