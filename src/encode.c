@@ -421,8 +421,8 @@ void od_mb_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int scale, int pli,
       cblock[0] *= sgn ? -1 : 1;
       cblock[0] += predt[0];
       quant_pvq(cblock + 1, predt + 1, pvq_scale, pred + 1, 15, scale, &qg, 4);
-      /*for (zzi = 1; zzi < 16; zzi++) cblock[zzi] = pred[zzi];
-      dequant_pvq(cblock + 1, predt + 1, pvq_scale, 15, scale, qg, 4);*/
+      for (zzi = 1; zzi < 16; zzi++) cblock[zzi] = pred[zzi];
+      dequant_pvq(cblock + 1, predt + 1, pvq_scale, 15, scale, qg, 4);
       generic_encode(&enc->ec, ctx->model_g + pli, abs(qg),
        ctx->ex_g + pli, 0);
       if (qg) od_ec_enc_bits(&enc->ec, qg < 0, 1);
