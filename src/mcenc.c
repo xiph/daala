@@ -384,7 +384,7 @@ static void od_mv_est_init(od_mv_est_ctx *est, od_enc_ctx *enc) {
   /*TODO: Allow configuration.*/
   est->mv_res_min = 0;
   est->flags = OD_MC_USEB | OD_MC_USE_CHROMA;
-  est->level_max = 1;
+  est->level_max = 2;
   est->level_min = 0;
 }
 
