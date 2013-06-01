@@ -927,8 +927,10 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     }
     _ogg_free(mbctx.modes);
   }
+#if defined(OD_DUMP_IMAGES)
   /*Dump YUV*/
   od_state_dump_yuv(&enc->state, enc->state.io_imgs + OD_FRAME_REC, "out");
+#endif
 #if OD_DECODE_IN_ENCODE
   {
     int ret;
