@@ -393,6 +393,24 @@ int od_gain_expander(int x) {
   return (long long)base*correction>>15;
 }
 
+static int compute_k_from_gain(int cg, int N) {
+  /* Compute the number of pulses K based on the quantized gain -- still work
+     to do here */
+  int K;
+
+  if (cg==0){
+    K=0;
+  }else{
+    int K_large;
+    K = floor(.5+0.6*.125*.125*cg*cg);
+    K_large = floor(.5+1.5*.125*cg*sqrt(N/2));
+    if (K>K_large){
+      K=K_large;
+    }
+  }
+  return K;
+}
+
 void pvq_synth(od_coeff *x, int *xn, od_coeff *r, int L2r, int cg,
   int Q, int N, int syn_shift) {
   int i;
@@ -721,7 +739,7 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   if (cg<0)
     cg=0;
   /* FIXME: Make that 0.2 adaptive */
-  cgr = floor(.5+8*pow(gr,GAIN_EXP_1)/Q+.2);
+  cgr = (od_gain_compander(gr*32768)+Q/2+13*Q/8)/Q;
 
   /* Gain quantization. Round to nearest because we've already reduced cg.
      Maybe we should have a dead zone */
@@ -760,7 +778,7 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
     }
   }
 #endif
-  K = pvq_unquant_k(_r, N, *qg, _Q);
+  K = compute_k_from_gain(cg, N);
   if (K==0)
   {
     g=0;
@@ -853,9 +871,9 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
 
 int pvq_unquant_k(const ogg_int32_t *_r,int _n,int _qg, int _scale){
   int    i;
+#if 0
   int    vk;
   double cgr;
-#if 0
   double Q;
   Q=pow(_scale*1.3,1./(4./3.));
   vk=0;
@@ -883,7 +901,7 @@ int pvq_unquant_k(const ogg_int32_t *_r,int _n,int _qg, int _scale){
   int N = _n;
   int gr;
   int cg;
-  int K;
+  int cgr;
   /* Just some calibration -- should eventually go away */
   /* Converts Q to the "companded domain" */
   Q = .125*od_gain_compander((1<<shift)*_Q*1.3*32768);
@@ -900,24 +918,12 @@ int pvq_unquant_k(const ogg_int32_t *_r,int _n,int _qg, int _scale){
   gr=sqrt(L2r);
 
   /* FIXME: Make that 0.2 adaptive */
-  cgr = floor(.5+8*pow(gr,GAIN_EXP_1)/Q+.2);
+  cgr = (od_gain_compander(gr*32768)+Q/2+13*Q/8)/Q;
 
   cg = floor(.5+cgr+8*_qg);
   if (cg<0)cg=0;
 
-  /* Compute the number of pulses K based on the quantized gain -- still work
-     to do here */
-  if (cg==0){
-    K=0;
-  }else{
-    int K_large;
-    K = floor(.5+0.6*.125*.125*cg*cg);
-    K_large = floor(.5+1.5*.125*cg*sqrt(N/2));
-    if (K>K_large){
-      K=K_large;
-    }
-  }
-  return K;
+  return compute_k_from_gain(cg, N);
 #endif
 }
 
