@@ -135,7 +135,7 @@ static void find_nbest(RDOEntry *x, int n, int len)
 }
 
 /* This is a "standard" pyramid vector quantizer search */
-static void pvq_search_rdo(float *xn,int *x,float *scale,float *scale_1,float g,int N,int K,int *y,int m,float lambda){
+static void pvq_search_rdo(int *x,float *scale,float *scale_1,float g,int N,int K,int *y,int m,float lambda){
   float L1;
   float L2;
   float L1_proj;
@@ -148,6 +148,7 @@ static void pvq_search_rdo(float *xn,int *x,float *scale,float *scale_1,float g,
   float yy; /* sum(y*y) */
   float xx;
   float p[MAXN];
+  float xn[MAXN];
   RDOEntry rd[MAXN];
   /* Some simple RDO constants that should eventually depend on the state of the pvq encoders */
   const float rate_ym = .3; /* Cost advantage of y[m] compared to y[0] */
@@ -620,7 +621,7 @@ int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
   OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%d %d", K, N));
 
   /*pvq_search(x,NULL,NULL,1,N,K,y,m,0);*/
-  pvq_search_rdo(x,x,NULL,NULL,1,N,K,y,m,.0*lambda/(cg*cg));
+  pvq_search_rdo(x,NULL,NULL,1,N,K,y,m,.0*lambda/(cg*cg));
 
   for(i=0;i<N;i++) {
     OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%d ", y[i]));
@@ -691,7 +692,6 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   int g;               /* L2-norm of x */
   int gr;              /* L2-norm of r */
   int x[MAXN];
-  float xn[MAXN];
   int r[MAXN];
   int scale[MAXN];
   int Q;
@@ -711,7 +711,7 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
 
   /* Just some calibration -- should eventually go away */
   /* Converts Q to the "companded domain" */
-  Q = .125*od_gain_compander((1<<shift)*_Q*1.3*32768);
+  Q = od_gain_compander((1<<shift)*_Q*1.3*32768)/8;
   /* High rate predicts that the constant should be log(2)/6 = 0.115, but in
      practice, it should be lower. */
   lambda = 0.10*Q*Q;
@@ -747,9 +747,6 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
 
   /* Gain quantization. Round to nearest because we've already reduced cg.
      Maybe we should have a dead zone */
-#if 0
-  *qg = floor(.5+cg-cgr);
-#else
   /* Doing some RDO on the gain, start by rounding down */
   *qg = floor(.125*cg-.125*cgr);
   cgq = .125*cgr+*qg;
@@ -760,28 +757,12 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
     (*qg)++;
     cgq = .125*cgr+*qg;
   }
-#endif
+
   cg = floor(.5+cgr+8**qg);
   if (cg<0)cg=0;
   /* This is the actual gain the decoder will apply */
   g = pow(Q*.125*cg, GAIN_EXP);
 
-  /* Compute the number of pulses K based on the quantized gain -- still work
-     to do here */
-#if 0
-  K = floor(.5+ 1.*(M_PI/2)*(cg)/GAIN_EXP );
-#else
-  if (cg==0){
-    K=0;
-  }else{
-    int K_large;
-    K = floor(.5+0.6*.125*.125*cg*cg);
-    K_large = floor(.5+1.5*.125*cg*sqrt(N/2));
-    if (K>K_large){
-      K=K_large;
-    }
-  }
-#endif
   K = compute_k_from_gain(cg, N);
   if (K==0)
   {
@@ -851,7 +832,7 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
 
   /* Normalize lambda for quantizing on the unit circle */
   /* FIXME: See if we can avoid setting lambda to zero! */
-  pvq_search_rdo(xn,x,NULL,NULL,1,N,K,y,m,.0*lambda/(.125*.125*cg*cg));
+  pvq_search_rdo(x,NULL,NULL,1,N,K,y,m,.0*lambda/(.125*.125*cg*cg));
   OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%d ", K-abs(y[m])));
   for(i=0;i<N;i++) {
     OD_LOG_PARTIAL((OD_LOG_PVQ, OD_LOG_DEBUG, "%d ", (m==i)?0:y[i]));
@@ -908,7 +889,7 @@ int pvq_unquant_k(const ogg_int32_t *_r,int _n,int _qg, int _scale){
   int cgr;
   /* Just some calibration -- should eventually go away */
   /* Converts Q to the "companded domain" */
-  Q = .125*od_gain_compander((1<<shift)*_Q*1.3*32768);
+  Q = od_gain_compander((1<<shift)*_Q*1.3*32768)/8;
   /* High rate predicts that the constant should be log(2)/6 = 0.115, but in
      practice, it should be lower. */
   for(i=0;i<N;i++){
@@ -924,7 +905,7 @@ int pvq_unquant_k(const ogg_int32_t *_r,int _n,int _qg, int _scale){
   /* FIXME: Make that 0.2 adaptive */
   cgr = (od_gain_compander(gr*32768)+Q/2+13*Q/8)/Q;
 
-  cg = floor(.5+cgr+8*_qg);
+  cg = cgr+8*_qg;
   if (cg<0)cg=0;
 
   return compute_k_from_gain(cg, N);
@@ -960,7 +941,8 @@ void dequant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   OD_ASSERT(N>1);
 
   /* Just some calibration -- should eventually go away */
-  Q=floor(.5+pow((1<<shift)*_Q*1.3,GAIN_EXP_1)); /* Converts Q to the "companded domain" */
+  /* Converts Q to the "companded domain" */
+  Q = od_gain_compander((1<<shift)*_Q*1.3*32768)/8;
   /* High rate predicts that the constant should be log(2)/6 = 0.115, but in
      practice, it should be lower. */
 
