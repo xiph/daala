@@ -486,8 +486,8 @@ static void od_encode_block(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
 
 static void od_encode_mv(daala_enc_ctx *enc, od_mv_grid_pt *mvg, int vx,
  int vy, int level, int mv_res, int width, int height) {
-  int ex[3] = {628, 1382, 1879};
-  int ey[3] = {230, 525, 807};
+  static const int ex[5] = {628, 1382, 1879, 2119, 2102};
+  static const int ey[5] = {230, 525, 807, 1076, 1332};
   int pred[2];
   int ox;
   int oy;
@@ -697,7 +697,9 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
           p_invalid = od_mv_level1_prob(grid,vx,vy);
           mvp = &(grid[vy][vx]);
           od_ec_encode_bool_q15(&enc->ec, mvp->valid, p_invalid);
-          if (mvp->valid) od_encode_mv(enc, mvp, vx, vy, 1, mv_res, width, height);
+          if (mvp->valid) {
+            od_encode_mv(enc, mvp, vx, vy, 1, mv_res, width, height);
+          }
         }
       }
       /*Level 2.*/
@@ -709,7 +711,22 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
            && vy+2 <= nvmvbs && grid[vy+2][vx].valid
            && vx+2 <= nhmvbs && grid[vy][vx+2].valid) {
             od_ec_encode_bool_q15(&enc->ec, mvp->valid, 13684);
-            if (mvp->valid) od_encode_mv(enc, mvp, vx, vy, 2, mv_res, width, height);
+            if (mvp->valid) {
+              od_encode_mv(enc, mvp, vx, vy, 2, mv_res, width, height);
+            }
+          }
+        }
+      }
+      /*Level 3.*/
+      for (vy = 1; vy <= nvmvbs; vy += 2) {
+        for (vx = 1; vx <= nhmvbs; vx += 2) {
+          mvp = &grid[vy][vx];
+          if (grid[vy-1][vx-1].valid && grid[vy-1][vx+1].valid
+           && grid[vy+1][vx+1].valid && grid[vy+1][vx-1].valid) {
+            od_ec_encode_bool_q15(&enc->ec, mvp->valid, 16384);
+            if (mvp->valid) {
+              od_encode_mv(enc, mvp, vx, vy, 3, mv_res, width, height);
+            }
           }
         }
       }

@@ -80,8 +80,8 @@ int daala_decode_ctl(daala_dec_ctx *dec, int req, void *buf, size_t buf_sz) {
 
 static void od_decode_mv(daala_dec_ctx *dec, od_mv_grid_pt *mvg, int vx,
  int vy, int level, int mv_res, int width, int height) {
-  int ex[3] = {628, 1382, 1879};
-  int ey[3] = {230, 525, 807};
+  static const int ex[5] = {628, 1382, 1879, 2119, 2102};
+  static const int ey[5] = {230, 525, 807, 1076, 1332};
   int pred[2];
   int ox;
   int oy;
@@ -474,6 +474,19 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
           mvp->valid = od_ec_decode_bool_q15(&dec->ec, 13684);
           if (mvp->valid) {
             od_decode_mv(dec, mvp, vx, vy, 2, mv_res, width, height);
+          }
+        }
+      }
+    }
+    /*Level 3.*/
+    for (vy = 1; vy <= nvmvbs; vy += 2) {
+      for (vx = 1; vx <= nhmvbs; vx += 2) {
+        mvp = &grid[vy][vx];
+        if (grid[vy-1][vx-1].valid && grid[vy-1][vx+1].valid
+         && grid[vy+1][vx+1].valid && grid[vy+1][vx-1].valid) {
+          mvp->valid = od_ec_decode_bool_q15(&dec->ec, 16384);
+          if (mvp->valid) {
+            od_decode_mv(dec, mvp, vx, vy, 3, mv_res, width, height);
           }
         }
       }
