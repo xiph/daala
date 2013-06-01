@@ -24,6 +24,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #include "image.h"
 #include <stdlib.h>
+#include <stdio.h>
 #include <errno.h>
 #include <png.h>
 #include <zlib.h>
