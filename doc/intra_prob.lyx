@@ -1,0 +1,199 @@
+#LyX 2.0 created this file. For more info see http://www.lyx.org/
+\lyxformat 413
+\begin_document
+\begin_header
+\textclass article
+\use_default_options true
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman default
+\font_sans default
+\font_typewriter default
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100
+\font_tt_scale 100
+
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize default
+\use_hyperref false
+\papersize default
+\use_geometry false
+\use_amsmath 1
+\use_esint 1
+\use_mhchem 1
+\use_mathdots 1
+\cite_engine basic
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\use_refstyle 1
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\quotes_language english
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Title
+Probability Modelling of Intra Prediction Modes
+\end_layout
+
+\begin_layout Section
+Introduction
+\end_layout
+
+\begin_layout Standard
+Modern video codecs make use of intra prediction.
+ Multiple modes...
+ need to code which is selected.
+\end_layout
+
+\begin_layout Section
+Probability Modelling
+\end_layout
+
+\begin_layout Standard
+Let 
+\begin_inset Formula $m_{i,j}$
+\end_inset
+
+ be the id of the intra prediction mode selected for block 
+\begin_inset Formula $\left(i,j\right)$
+\end_inset
+
+, it is useful to know the probability 
+\begin_inset Formula $p\left(m_{i,j}\right)$
+\end_inset
+
+ to make optimal use of entropy coding when encoding the selected mode in
+ the bitstream.
+ In particular, coding can be made more efficient by making use of the context,
+ modes selected for causal neighbours that are already encoded in the bitstream.
+ For example, it is desirable to estimate 
+\begin_inset Formula $p\left(m_{i,j}\left|m_{i-1,j-1},m_{i,j-1},m_{i-1,j}\right.\right)$
+\end_inset
+
+.
+ Let 
+\begin_inset Formula $M$
+\end_inset
+
+ be the number of possible modes and 
+\begin_inset Formula $N$
+\end_inset
+
+ be the number of neighbours considered, then explicit modelling of the
+ conditional probabilities using an explicit table is equal to 
+\begin_inset Formula $M^{\left(N+1\right)}$
+\end_inset
+
+, which rapidly becomes prohibitive.
+ For example, with 10 modes and using the left, up-left and up blocks as
+ context requires a table with 10,000 entries.
+ This is one reason why the VP8 codec only uses the left and up blocks as
+ context.
+ 
+\end_layout
+
+\begin_layout Standard
+It is possible to reduce the size of the context by considering only whether
+ the neighboring blocks use the same more or a different mode, i.e.
+ modelling 
+\begin_inset Formula $p\left(m_{i,j}\left|m_{i-1,j-1}=m_{i,j},m_{i,j-1}=m_{i,j},m_{i-1,j}=m_{i,j}\right.\right)$
+\end_inset
+
+ instead of 
+\begin_inset Formula $p\left(m_{i,j}\left|m_{i-1,j-1},m_{i,j-1},m_{i-1,j}\right.\right)$
+\end_inset
+
+.
+ Because the conditional parameters are now binary (equal or not equal),
+ then a lookup table only requires 
+\begin_inset Formula $M\cdot2^{N}$
+\end_inset
+
+ tables, so only 80
+\begin_inset space ~
+\end_inset
+
+entries when using 3 neighbours.
+ One drawback of this approach is that
+\begin_inset Formula 
+\[
+\sum_{m=0}^{M}p\left(m_{i,j}\left|m_{i-1,j-1}=m,m_{i,j-1}=m,m_{i-1,j}=m\right.\right)\neq1
+\]
+
+\end_inset
+
+so some form of renormalization is required.
+\end_layout
+
+\begin_layout Standard
+The simplest way to renormalize probabilities is to multiply each of them
+ by the same factor such that the sum equals 1.
+ ...
+\end_layout
+
+\begin_layout Standard
+Another way is to first 
+\begin_inset Quotes eld
+\end_inset
+
+amplify
+\begin_inset Quotes erd
+\end_inset
+
+ probabilities that are close to unity:
+\begin_inset Formula 
+\[
+p_{k}^{'}==p_{k}\cdot\frac{1-p_{k}}{\sum_{j}p_{j}-p_{k}}\,,
+\]
+
+\end_inset
+
+followed by renormalizing the 
+\begin_inset Formula $p_{k}^{'}$
+\end_inset
+
+ to have a sum of 1.
+\end_layout
+
+\begin_layout Subsection
+Adaptation
+\end_layout
+
+\begin_layout Standard
+There are two possible ways of adapting...
+\end_layout
+
+\begin_layout Section
+Conclusion
+\end_layout
+
+\end_body
+\end_document
