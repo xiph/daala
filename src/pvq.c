@@ -360,6 +360,12 @@ static void pvq_search(float *x,float *scale,float *scale_1,float g,int N,int K,
 #define GAIN_EXP (4./3.)
 #define GAIN_EXP_1 (1./GAIN_EXP)
 
+/* Raises X to the power 3/4, Q15 input, Q3 output.
+   We use a lookup-based domain reduction to the [0.5,1[ range. */
+int od_gain_compander(int x) {
+  return floor(.5+8*pow(x*(1.f/32768),.75));
+}
+
 /* Raises X to the power 4/3, Q3 input, Q15 output.
    We use a lookup-based domain reduction to the [0.5,1[ range. */
 int od_gain_expander(int x) {
@@ -682,7 +688,8 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   OD_ASSERT(N>1);
 
   /* Just some calibration -- should eventually go away */
-  Q=pow((1<<shift)*_Q*1.3,GAIN_EXP_1); /* Converts Q to the "companded domain" */
+  /* Converts Q to the "companded domain" */
+  Q = .125*od_gain_compander((1<<shift)*_Q*1.3*32768);
   /* High rate predicts that the constant should be log(2)/6 = 0.115, but in
      practice, it should be lower. */
   lambda = 0.10*Q*Q;
@@ -710,11 +717,11 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
 
   OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%d", g));
   /* compand gain of x and subtract a constant for "pseudo-RDO" purposes */
-  cg = floor(.5+8*pow(g,GAIN_EXP_1)/Q);
+  cg = (od_gain_compander(g*32768)+Q/2)/Q;
   if (cg<0)
     cg=0;
   /* FIXME: Make that 0.2 adaptive */
-  cgr = pow(gr,GAIN_EXP_1)/Q+.2;
+  cgr = floor(.5+8*pow(gr,GAIN_EXP_1)/Q+.2);
 
   /* Gain quantization. Round to nearest because we've already reduced cg.
      Maybe we should have a dead zone */
@@ -722,17 +729,17 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   *qg = floor(.5+cg-cgr);
 #else
   /* Doing some RDO on the gain, start by rounding down */
-  *qg = floor(.125*cg-cgr);
-  cgq = cgr+*qg;
+  *qg = floor(.125*cg-.125*cgr);
+  cgq = .125*cgr+*qg;
   if (cgq<1e-15) cgq=1e-15;
   /* Cost difference between rounding up or down */
   if ( 2*(cgq-.125*cg)+1 + (lambda/(Q*Q))*(2. + (N-1)*log2(1+1./(cgq)))  < 0)
   {
     (*qg)++;
-    cgq = cgr+*qg;
+    cgq = .125*cgr+*qg;
   }
 #endif
-  cg = floor(.5+8*cgr+8**qg);
+  cg = floor(.5+cgr+8**qg);
   if (cg<0)cg=0;
   /* This is the actual gain the decoder will apply */
   g = pow(Q*.125*cg, GAIN_EXP);
