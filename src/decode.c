@@ -78,6 +78,19 @@ int daala_decode_ctl(daala_dec_ctx *dec, int req, void *buf, size_t buf_sz) {
   }
 }
 
+static void od_decode_mv(daala_dec_ctx *dec, od_mv_grid_pt *mvg,
+ int mv_res, int width, int height) {
+  int ox;
+  int oy;
+  ox = laplace_decode(&dec->ec, 2269 >> mv_res, width << 1);
+  oy = laplace_decode(&dec->ec, 569 >> mv_res, height << 1);
+  /*Deinterleave positive and negative values.*/
+  ox = (ox >> 1) ^ -(ox & 1);
+  oy = (oy >> 1) ^ -(oy & 1);
+  mvg->mv[0] = ox << mv_res;
+  mvg->mv[1] = oy << mv_res;
+}
+
 int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
  const ogg_packet *op) {
   int nplanes;
@@ -141,66 +154,55 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
     }
   }
   if(dec->state.ref_imgi[OD_FRAME_PREV] >= 0 && !is_keyframe){
-      /* Input the motion vectors. */
-      int nhmvbs;
-      int nvmvbs;
-      int vx;
-      int vy;
-      od_img *img;
-      int width;
-      int height;
-      od_mv_grid_pt *mvp;
-      od_mv_grid_pt **grid;
-      od_state_mvs_clear(&dec->state);
-      nhmvbs = (dec->state.nhmbs + 1) << 2;
-      nvmvbs = (dec->state.nvmbs + 1) << 2;
-      img = dec->state.io_imgs + OD_FRAME_REC;
-      width = img->width;
-      height = img->height;
-      grid = dec->state.mv_grid;
-      /*Level 0.*/
-      for (vy = 0; vy <= nvmvbs; vy += 4) {
-        for (vx = 0; vx <= nhmvbs; vx += 4) {
-          mvp = &grid[vy][vx];
-          mvp->valid = 1;
-          mvp->mv[0] = od_ec_dec_uint(&dec->ec, 8*2*(width+32))
-            - (8*(width+32));
-          mvp->mv[1] = (od_ec_dec_uint(&dec->ec, 8*2*(height+32)))
-            - (8*(height+32));
-        }
+    /* Input the motion vectors. */
+    int nhmvbs;
+    int nvmvbs;
+    int vx;
+    int vy;
+    od_img *img;
+    int width;
+    int height;
+    int mv_res;
+    od_mv_grid_pt *mvp;
+    od_mv_grid_pt **grid;
+    od_state_mvs_clear(&dec->state);
+    nhmvbs = (dec->state.nhmbs + 1) << 2;
+    nvmvbs = (dec->state.nvmbs + 1) << 2;
+    img = dec->state.io_imgs + OD_FRAME_REC;
+    mv_res = dec->state.mv_res = od_ec_dec_uint(&dec->ec, 3);
+    width = (img->width + 32) << (3 - mv_res);
+    height = (img->height + 32) << (3 - mv_res);
+    grid = dec->state.mv_grid;
+    /*Level 0.*/
+    for (vy = 0; vy <= nvmvbs; vy += 4) {
+      for (vx = 0; vx <= nhmvbs; vx += 4) {
+        mvp = &grid[vy][vx];
+        mvp->valid = 1;
+        od_decode_mv(dec, mvp, mv_res, width, height);
       }
-      /*Level 1.*/
-      for (vy = 2; vy <= nvmvbs; vy += 4) {
-        for (vx = 2; vx <= nhmvbs; vx += 4) {
-          mvp = &grid[vy][vx];
+    }
+    /*Level 1.*/
+    for (vy = 2; vy <= nvmvbs; vy += 4) {
+      for (vx = 2; vx <= nhmvbs; vx += 4) {
+        mvp = &grid[vy][vx];
+        mvp->valid = od_ec_decode_bool_q15(&dec->ec, 16384);
+        if (mvp->valid) od_decode_mv(dec, mvp, mv_res, width, height);
+      }
+    }
+    /*Level 2.*/
+    for (vy = 0; vy <= nvmvbs; vy += 2) {
+      for (vx = 2*((vy & 3) == 0); vx <= nhmvbs; vx += 4) {
+        mvp = &grid[vy][vx];
+        if (vy-2 >= 0 && grid[vy-2][vx].valid
+         && vx-2 >= 0 && grid[vy][vx-2].valid
+         && vy+2 <= nvmvbs && grid[vy+2][vx].valid
+         && vx+2 <= nhmvbs && grid[vy][vx+2].valid) {
           mvp->valid = od_ec_decode_bool_q15(&dec->ec, 16384);
-          if (mvp->valid) {
-            mvp->mv[0] = od_ec_dec_uint(&dec->ec, 8*2*(width+32))
-              - (8*(width+32));
-            mvp->mv[1] = od_ec_dec_uint(&dec->ec, 8*2*(height+32))
-              - (8*(height+32));
-          }
+          if (mvp->valid) od_decode_mv(dec, mvp, mv_res, width, height);
         }
       }
-      /*Level 2.*/
-      for (vy = 0; vy <= nvmvbs; vy += 2) {
-        for (vx = 2*(vy%4==0); vx <= nhmvbs; vx += 4) {
-          mvp = &grid[vy][vx];
-          if (vy-2 >= 0 && grid[vy-2][vx].valid
-           && vx-2 >= 0 && grid[vy][vx-2].valid
-           && vy+2 <= nvmvbs && grid[vy+2][vx].valid
-           && vx+2 <= nhmvbs && grid[vy][vx+2].valid) {
-            mvp->valid = od_ec_decode_bool_q15(&dec->ec, 16384);
-            if (mvp->valid) {
-              mvp->mv[0] = od_ec_dec_uint(&dec->ec, 8*2*(width+32))
-               - (8*(width+32));
-              mvp->mv[1] = od_ec_dec_uint(&dec->ec, 8*2*(height+32))
-               - (8*(height+32));
-            }
-          }
-        }
-      }
-      od_state_mc_predict(&dec->state, OD_FRAME_PREV);
+    }
+    od_state_mc_predict(&dec->state, OD_FRAME_PREV);
   }
   frame_width = dec->state.frame_width;
   frame_height = dec->state.frame_height;

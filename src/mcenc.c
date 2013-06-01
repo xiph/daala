@@ -4888,6 +4888,7 @@ void od_mv_subpel_refine(od_mv_est_ctx *est, int ref, int cost_thresh) {
   int nhmvbs;
   int nvmvbs;
   int mv_res;
+  int best_mv_res;
   state = &est->enc->state;
   nhmvbs = (state->nhmbs + 1) << 2;
   nvmvbs = (state->nvmbs + 1) << 2;
@@ -4900,7 +4901,7 @@ void od_mv_subpel_refine(od_mv_est_ctx *est, int ref, int cost_thresh) {
      OD_DIAMOND_NSITES, OD_DIAMOND_SITES);
   }
   while (dcost < cost_thresh);
-  for (mv_res = 2; mv_res-- > est->mv_res_min;) {
+  for (best_mv_res = mv_res = 2; mv_res-- > est->mv_res_min;) {
     subpel_cost = od_mv_est_update_mv_rates(est, mv_res)*est->lambda;
     /*If the rate penalty for refining is small, bump the termination threshold
        down to make sure we actually get a decent improvement.
@@ -4917,7 +4918,8 @@ void od_mv_subpel_refine(od_mv_est_ctx *est, int ref, int cost_thresh) {
     }
     while (dcost < cost_thresh);
     if (subpel_cost > 0) {
-      OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG, "1/%i refinement FAILED:    dopt %7i\n",
+      OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
+       "1/%i refinement FAILED:    dopt %7i\n",
        1 << (3 - mv_res), subpel_cost));
       grid = est->refine_grid;
       est->refine_grid = state->mv_grid;
@@ -4925,10 +4927,13 @@ void od_mv_subpel_refine(od_mv_est_ctx *est, int ref, int cost_thresh) {
       break;
     }
     else {
-      OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG, "1/%i refinement SUCCEEDED: dopt %7i\n",
+      OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
+       "1/%i refinement SUCCEEDED: dopt %7i\n",
        1 << (3 - mv_res), subpel_cost));
+      best_mv_res = mv_res;
     }
   }
+  state->mv_res = best_mv_res;
 }
 
 void od_mv_est(od_mv_est_ctx *est, int ref, int lambda) {

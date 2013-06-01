@@ -98,7 +98,7 @@ int laplace_decode_special(od_ec_dec *dec,unsigned decay,int max)
  *
  * @retval decoded variable (including sign)
  */
-static int laplace_decode(od_ec_dec *dec, int ExQ8, int K)
+int laplace_decode(od_ec_dec *dec, int ExQ8, int K)
 {
   int j;
   int shift;

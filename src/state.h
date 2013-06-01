@@ -121,8 +121,8 @@ struct od_state{
   int                 nhsb;
   int                 nvsb;
   unsigned char      *bsize;
+  int                 mv_res;
   int                 bstride;
-
 #if defined(OD_DUMP_IMAGES)
   od_img              vis_img;
 #if defined(OD_ANIMATE)

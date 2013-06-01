@@ -430,6 +430,19 @@ void od_mb_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
   }
 }
 
+static void od_encode_mv(daala_enc_ctx *enc, od_mv_grid_pt *mvg,
+ int mv_res, int width, int height) {
+  int ox;
+  int oy;
+  ox = mvg->mv[0] >> mv_res;
+  oy = mvg->mv[1] >> mv_res;
+  /*Interleave positive and negative values.*/
+  ox = (ox << 1) ^ OD_SIGNMASK(ox);
+  oy = (oy << 1) ^ OD_SIGNMASK(oy);
+  laplace_encode(&enc->ec, ox, 2269 >> mv_res, width << 1);
+  laplace_encode(&enc->ec, oy, 569 >> mv_res, height << 1);
+}
+
 int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   int refi;
   int nplanes;
@@ -600,22 +613,23 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       od_img *img;
       int width;
       int height;
+      int mv_res;
       od_mv_grid_pt *mvp;
       od_mv_grid_pt **grid;
       nhmvbs = (enc->state.nhmbs + 1) << 2;
       nvmvbs = (enc->state.nvmbs + 1) << 2;
       img = enc->state.io_imgs + OD_FRAME_REC;
-      width = img->width;
-      height = img->height;
+      mv_res = enc->state.mv_res;
+      OD_ASSERT(0 <= mv_res && mv_res < 3);
+      od_ec_enc_uint(&enc->ec, mv_res, 3);
+      width = (img->width + 32) << (3 - mv_res);
+      height = (img->height + 32) << (3 - mv_res);
       grid = enc->state.mv_grid;
       /*Level 0.*/
       for (vy = 0; vy <= nvmvbs; vy += 4) {
         for (vx = 0; vx <= nhmvbs; vx += 4) {
           mvp = &grid[vy][vx];
-          od_ec_enc_uint(&enc->ec, (mvp->mv[0]) + 8*(width+32),
-           8*2*(width+32));
-          od_ec_enc_uint(&enc->ec, (mvp->mv[1]) + 8*(height+32),
-           8*2*(height+32));
+          od_encode_mv(enc, mvp, mv_res, width, height);
         }
       }
       /*Level 1.*/
@@ -623,29 +637,19 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
         for (vx = 2; vx <= nhmvbs; vx += 4) {
           mvp = &(grid[vy][vx]);
           od_ec_encode_bool_q15(&enc->ec, mvp->valid, 16384);
-          if (mvp->valid) {
-            od_ec_enc_uint(&enc->ec, (mvp->mv[0]) + 8*(width+32),
-             8*2*(width+32));
-            od_ec_enc_uint(&enc->ec, (mvp->mv[1]) + 8*(height+32),
-             8*2*(height+32));
-          }
+          if (mvp->valid) od_encode_mv(enc, mvp, mv_res, width, height);
         }
       }
       /*Level 2.*/
       for (vy = 0; vy <= nvmvbs; vy += 2) {
-        for (vx = 2*(vy%4==0); vx <= nhmvbs; vx += 4) {
+        for (vx = 2*((vy & 3) == 0); vx <= nhmvbs; vx += 4) {
           mvp = &grid[vy][vx];
           if (vy-2 >= 0 && grid[vy-2][vx].valid
            && vx-2 >= 0 && grid[vy][vx-2].valid
            && vy+2 <= nvmvbs && grid[vy+2][vx].valid
            && vx+2 <= nhmvbs && grid[vy][vx+2].valid) {
             od_ec_encode_bool_q15(&enc->ec, mvp->valid, 16384);
-            if (mvp->valid) {
-              od_ec_enc_uint(&enc->ec, (mvp->mv[0]) + 8*(width+32),
-               8*2*(width+32));
-              od_ec_enc_uint(&enc->ec, (mvp->mv[1]) + 8*(height+32),
-               8*2*(height+32));
-            }
+            if (mvp->valid) od_encode_mv(enc, mvp, mv_res, width, height);
           }
         }
       }

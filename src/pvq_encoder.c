@@ -92,7 +92,7 @@ void laplace_encode_special(od_ec_enc *enc,int x,unsigned decay,int max)
  * @param [in]     ExQ8 expectation of the absolute value of x in Q8
  * @param [in]     K    maximum value of |x|
  */
-static void laplace_encode(od_ec_enc *enc, int x, int ExQ8, int K)
+void laplace_encode(od_ec_enc *enc, int x, int ExQ8, int K)
 {
   int j;
   int shift;

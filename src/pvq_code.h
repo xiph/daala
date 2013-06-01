@@ -38,6 +38,9 @@ extern const ogg_uint16_t laplace_offset[];
 void laplace_encode_special(od_ec_enc *enc,int pos,unsigned decay,int max);
 int laplace_decode_special(od_ec_dec *dec,unsigned decay,int max);
 
+void laplace_encode(od_ec_enc *enc, int x, int ExQ8, int K);
+int laplace_decode(od_ec_dec *dec, int ExQ8, int K);
+
 void pvq_encoder(od_ec_enc *enc,const int *y,int N,int K,
  od_adapt_ctx *_adapt);
 void pvq_decoder(od_ec_dec *dec,int *y,int N,int K,od_adapt_ctx *_adapt);
