@@ -959,7 +959,7 @@ void dequant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
     L2r+=r[i]*r[i];
   }
   gr=od_sqrt(L2r);
-  cgr = floor(.5+8*pow(gr,GAIN_EXP_1)/Q+1.6);
+  cgr = (od_gain_compander(gr*32768)+Q/2+13*Q/8)/Q;
   cg = cgr+8*qg;
   if (cg<0)cg=0;
 
