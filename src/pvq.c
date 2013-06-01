@@ -368,7 +368,7 @@ int od_gain_expander(int x) {
   ogg_int16_t xn;
   int ilog2x;
   /*const int C[3] = {2236, 25953, 18092};*/
-  const int C[3] = {2245, 25982, 18059};
+  const int C[3] = {2243, 25982, 18059};
   /* Generated using:
      printf("%d, ", round(32768*(2.^([0:15]-3).^(4/3))));printf("\n"); */
   static const int expand_table[16] = {
