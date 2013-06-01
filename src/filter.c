@@ -23,6 +23,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #include "filter.h"
+#include "block_size.h"
 
 /*Pre-/post-filter pairs of various sizes.
   For a FIR, PR, LP filter bank, the pre-filter must have the structure:
@@ -605,6 +606,127 @@ void od_post_filter16(od_coeff _x[16],const od_coeff _y[16]){
    _x[13]=(od_coeff)(t[2]-t[13]);
    _x[14]=(od_coeff)(t[1]-t[14]);
    _x[15]=(od_coeff)(t[0]-t[15]);
+}
+
+#define ZERO_FILTERS (0)
+
+static void od_apply_filter_rows(od_coeff *_c,int _stride,int _sbx,int _sby,
+ int _l,const unsigned char *_bsize,int _bstride,int _inv){
+  int f;
+  int i;
+  /*Assume we use the filter for the current blocks size.*/
+  f=_l;
+  /*If the my neighbor is smaller, use the filter for the smallest block
+     size of *my* neighbors.*/
+  if (OD_BLOCK_SIZE4x4(_bsize,_bstride,_sbx,_sby)<_l) {
+    for (i=1<<_l;i-->0;) {
+      f=OD_MINI(f,OD_BLOCK_SIZE4x4(_bsize,_bstride,_sbx,_sby+i));
+    }
+  }
+  /*If the my neighbor is larger, use the filter for the smallest block
+     size of *its* neighbors.*/
+  if (OD_BLOCK_SIZE4x4(_bsize,_bstride,_sbx,_sby)>_l) {
+    int l;
+    /*Hack to correct for having block size decisions of 32x32 but we
+       have no 32-point lapping filter.
+      Remove OD_MINI if we later support larger filter sizes.*/
+    l=OD_MINI(OD_BLOCK_SIZE4x4(_bsize,_bstride,_sbx,_sby),2);
+    /*Compute the y index in _bsize of the top of the left block.*/
+    _sby&=~((2<<(l-_l))-1);
+    for (i=1<<l;i-->0;) {
+      f=OD_MINI(f,OD_BLOCK_SIZE4x4(_bsize,_bstride,_sbx-1,_sby+i));
+    }
+  }
+  OD_ASSERT(0<=f&&f<=OD_NBSIZES);
+  /* Apply the row filter down the edge. */
+  for (i=4<<_l;i-->0;) {
+    (*(_inv?OD_POST_FILTER:OD_PRE_FILTER)[f])(&_c[i*_stride-(2<<f)],
+     &_c[i*_stride-(2<<f)]);
+#if ZERO_FILTERS
+    {
+      int j;
+      for (j=4<<_l;j-->0;) {
+        _c[i*_stride-(2<<f)+j]=0;
+      }
+    }
+#endif
+  }
+}
+
+static void od_apply_filter_cols(od_coeff *_c,int _stride,int _sbx,int _sby,
+ int _l,const unsigned char *_bsize,int _bstride,int _inv){
+  int f;
+  int i;
+  /*Assume we use the filter for the current blocks size.*/
+  f=_l;
+  /*If the bottom neighbor is smaller, use the filter for the smallest block
+     size of *my* neighbors.*/
+  if (OD_BLOCK_SIZE4x4(_bsize,_bstride,_sbx,_sby)<f) {
+    for (i=1<<_l;i-->0;) {
+      f=OD_MINI(f,OD_BLOCK_SIZE4x4(_bsize,_bstride,_sbx+i,_sby));
+    }
+  }
+  /*If the bottom neighbor is larger, use the filter for the smallest block
+     size of *its* neighbors.*/
+  if (OD_BLOCK_SIZE4x4(_bsize,_bstride,_sbx,_sby)>f) {
+    int l;
+    /*Hack to correct for having block size decisions of 32x32 but we
+       have no 32-point lapping filter.
+      Remove OD_MINI if we later support larger filter sizes.*/
+    l=OD_MINI(OD_BLOCK_SIZE4x4(_bsize,_bstride,_sbx,_sby),2);
+    /*Compute the x index in _bsize of the left of the bottom block.*/
+    _sbx&=~((2<<(l-_l))-1);
+    for (i=1<<l;i-->0;) {
+      f=OD_MINI(f,OD_BLOCK_SIZE4x4(_bsize,_bstride,_sbx+i,_sby-1));
+    }
+  }
+  OD_ASSERT(0<=f&&f<=OD_NBSIZES);
+  /* Apply the column filter across the edge. */
+  for (i=4<<_l;i-->0;) {
+    int j;
+    int c[4<<OD_NBSIZES];
+    for (j=4<<f;j-->0;) {
+      c[j]=_c[_stride*(j-(2<<f))+i];
+    }
+    (*(_inv?OD_POST_FILTER:OD_PRE_FILTER)[f])(c,c);
+    for (j=4<<f;j-->0;) {
+      _c[_stride*(j-(2<<f))+i]=c[j];
+#if ZERO_FILTERS
+      _c[_stride*(j-(2<<f))+i]=0;
+#endif
+    }
+  }
+}
+
+void od_apply_filter(od_coeff *_c,int _stride,int _sbx,int _sby,int _l,
+ const unsigned char *_bsize,int _bstride,int _edge,int _mask,int _inv){
+  int sz;
+  sz=4<<_l;
+  /*Hack to correct for having block size decisions of 32x32 but we
+     have no filter for 32x64.
+    Remove check for _l!=3 if we later support larger filter sizes.*/
+  if (_l!=3&&OD_BLOCK_SIZE4x4(_bsize,_bstride,_sbx,_sby)==_l) {
+    if (_edge&OD_BOTTOM_EDGE&_mask) {
+      od_apply_filter_cols(&_c[_stride*sz],_stride,_sbx,_sby+(1<<_l),_l,
+       _bsize,_bstride,_inv);
+    }
+    if (_edge&OD_RIGHT_EDGE&_mask) {
+      od_apply_filter_rows(&_c[sz],_stride,_sbx+(1<<_l),_sby,_l,
+       _bsize,_bstride,_inv);
+    }
+  }
+  else {
+    _l--;
+    sz>>=1;
+    od_apply_filter(&_c[0*sz+0*sz*_stride],_stride,_sbx+(0<<_l),_sby+(0<<_l),
+     _l,_bsize,_bstride,_edge,_mask|OD_BOTTOM_EDGE|OD_RIGHT_EDGE,_inv);
+    od_apply_filter(&_c[1*sz+0*sz*_stride],_stride,_sbx+(1<<_l),_sby+(0<<_l),
+     _l,_bsize,_bstride,_edge,_mask|OD_BOTTOM_EDGE,_inv);
+    od_apply_filter(&_c[0*sz+1*sz*_stride],_stride,_sbx+(0<<_l),_sby+(1<<_l),
+     _l,_bsize,_bstride,_edge,_mask|OD_RIGHT_EDGE,_inv);
+    od_apply_filter(&_c[1*sz+1*sz*_stride],_stride,_sbx+(1<<_l),_sby+(1<<_l),
+     _l,_bsize,_bstride,_edge,_mask,_inv);
+  }
 }
 
 #if defined(TEST)

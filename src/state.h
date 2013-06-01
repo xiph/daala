@@ -153,6 +153,9 @@ void od_state_draw_mvs(od_state *_state);
 void od_state_fill_vis(od_state *_state);
 #endif
 
+void od_extract_bsize(unsigned char *_bsize_out,int _bstride_out,
+ const unsigned char *_bsize_in,int _bstride_in,int _dec);
+
 /*Shared accelerated functions.*/
 
 /*Default pure-C implementations.*/

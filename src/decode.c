@@ -118,13 +118,19 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
   dec->state.ref_imgi[OD_FRAME_SELF] = refi;
   nhsb = dec->state.nhsb;
   nvsb = dec->state.nvsb;
-  for(i = -4; i < nhsb*4; i++) {
+  for(i = -4; i < (nhsb+1)*4; i++) {
     for(j = -4; j < 0; j++) {
       dec->state.bsize[(j*dec->state.bstride) + i] = 3;
     }
+    for(j = nvsb*4; j < (nvsb+1)*4; j++) {
+      dec->state.bsize[(j*dec->state.bstride) + i] = 3;
+    }
   }
-  for(j = -4; j < nvsb*4; j++) {
+  for(j = -4; j < (nvsb+1)*4; j++) {
     for(i = -4; i < 0; i++) {
+      dec->state.bsize[(j*dec->state.bstride) + i] = 3;
+    }
+    for(i = nhsb*4; i < (nhsb+1)*4; i++) {
       dec->state.bsize[(j*dec->state.bstride) + i] = 3;
     }
   }
@@ -220,8 +226,6 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
     int nhmbs;
     int mby;
     int mbx;
-    int oyfill;
-    int iyfill;
     int mi;
     int h;
     int w;
@@ -233,9 +237,55 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
     modes = _ogg_calloc((frame_width >> 2)*(frame_height >> 2),
      sizeof(*modes));
     for (mi = 0; mi < OD_INTRA_NMODES; mi++) {
-     mode_p0[mi] = 32768/OD_INTRA_NMODES;
+      mode_p0[mi] = 32768/OD_INTRA_NMODES;
     }
-    nplanes = dec->state.io_imgs[OD_FRAME_INPUT].nplanes;
+    nplanes = dec->state.info.nplanes;
+    /*Apply the prefilter to the motion-compensated reference.*/
+    if (!is_keyframe) {
+      for (pli = 0; pli < nplanes; pli++) {
+        xdec = dec->state.io_imgs[OD_FRAME_REC].planes[pli].xdec;
+        ydec = dec->state.io_imgs[OD_FRAME_REC].planes[pli].ydec;
+        w = frame_width >> xdec;
+        h = frame_height >> ydec;
+        mctmp[pli] = _ogg_calloc(w*h, sizeof(*mctmp[pli]));
+        mdtmp[pli] = _ogg_calloc(w*h, sizeof(*mdtmp[pli]));
+        /*Collect the image data needed for this plane.*/
+        {
+          unsigned char *mdata;
+          int ystride;
+          mdata = dec->state.io_imgs[OD_FRAME_REC].planes[pli].data;
+          ystride = dec->state.io_imgs[OD_FRAME_REC].planes[pli].ystride;
+          for (y=0;y<h;y++) {
+            for (x=0;x<w;x++) mctmp[pli][y*w+x]=mdata[ystride*y+x]-128;
+          }
+        }
+        /*Apply the prefilter across the entire image.*/
+        {
+          int sby;
+          int sbx;
+          /* This code assumes 4:4:4 or 4:2:0 input. */
+          OD_ASSERT(xdec==ydec);
+          /*Apply the prefilter down the bottom block edge columns.*/
+          for (sby = 0; sby < nvsb; sby++) {
+            for (sbx = 0; sbx < nhsb; sbx++) {
+              unsigned char btmp[6*6];
+              od_extract_bsize(btmp,6,&dec->state.bsize[dec->state.bstride*(sby<<2)+(sbx<<2)],dec->state.bstride,xdec);
+              od_apply_filter(&mctmp[pli][(sby<<(5-ydec))*w+(sbx<<(5-xdec))],w,0,0,3-xdec,
+               &btmp[6*1+1],6,OD_BOTTOM_EDGE,sby<nvsb-1?OD_BOTTOM_EDGE:0,0);
+            }
+          }
+          /*Apply the prefilter across the right block edge rows.*/
+          for (sby = 0; sby < nvsb; sby++) {
+            for (sbx = 0; sbx < nhsb; sbx++) {
+              unsigned char btmp[6*6];
+              od_extract_bsize(btmp,6,&dec->state.bsize[dec->state.bstride*(sby<<2)+(sbx<<2)],dec->state.bstride,xdec);
+              od_apply_filter(&mctmp[pli][(sby<<(5-ydec))*w+(sbx<<(5-xdec))],w,0,0,3-xdec,
+               &btmp[6*1+1],6,OD_RIGHT_EDGE,sbx<nhsb-1?OD_RIGHT_EDGE:0,0);
+            }
+          }
+        }
+      }
+    }
     for (pli = 0; pli < nplanes; pli++) {
       generic_model_init(model_dc + pli);
       generic_model_init(model_g + pli);
@@ -249,8 +299,6 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
       scale[pli] = od_ec_dec_uint(&dec->ec, 512);
       ctmp[pli] = _ogg_calloc(w*h, sizeof(*ctmp[pli]));
       dtmp[pli] = _ogg_calloc(w*h, sizeof(*dtmp[pli]));
-      mctmp[pli] = _ogg_calloc(w*h, sizeof(*mctmp[pli]));
-      mdtmp[pli] = _ogg_calloc(w*h, sizeof(*mdtmp[pli]));
       /*We predict chroma planes from the luma plane.
         Since chroma can be subsampled, we cache subsampled versions of the
          luma plane in the frequency domain.
@@ -277,26 +325,12 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
       else lbuf[pli] = ltmp[pli] = NULL;
       od_adapt_row_init(&dec->state.adapt_row[pli]);
     }
-    iyfill = 0;
-    oyfill = 0;
     for (mby = 0; mby < nvmbs; mby++) {
-      int next_oyfill;
-      int next_iyfill;
-      int oxfill;
-      int ixfill;
       od_adapt_ctx adapt_hmean[OD_NPLANES_MAX];
       for (pli = 0; pli < nplanes; pli++) {
         od_adapt_hmean_init(&adapt_hmean[pli]);
       }
-      next_oyfill = mby + 1 < nvmbs ? ((mby + 1) << 4) - 8 : frame_height;
-      next_iyfill = mby + 1 < nvmbs ? ((mby + 1) << 4) + 8 : frame_height;
-      oxfill = 0;
-      ixfill = 0;
       for (mbx = 0; mbx < nhmbs; mbx++) {
-        int next_oxfill;
-        int next_ixfill;
-        next_ixfill = mbx + 1 < nhmbs ? ((mbx + 1) << 4) + 8 : frame_width;
-        next_oxfill = mbx + 1 < nhmbs ? ((mbx + 1) << 4) - 8 : frame_width;
         for (pli = 0; pli < nplanes; pli++) {
           od_adapt_row_ctx *adapt_row;
           od_adapt_ctx adapt;
@@ -318,8 +352,10 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
           unsigned char* mdata;
           c = ctmp[pli];
           d = dtmp[pli];
-          mc = mctmp[pli];
-          md = mdtmp[pli];
+          if (!is_keyframe) {
+            mc = mctmp[pli];
+            md = mdtmp[pli];
+          }
           l = lbuf[pli];
           xdec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
           ydec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
@@ -341,33 +377,6 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
           ystride = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].ystride;
           data = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].data;
           mdata = dec->state.io_imgs[OD_FRAME_REC].planes[pli].data;
-          if (!is_keyframe){
-            for (y = iyfill >> ydec; y < next_iyfill >> ydec; y++) {
-              for (x = ixfill >> xdec; x < next_ixfill >> xdec; x++) {
-                mc[y*w + x] = mdata[ystride*y + x] - 128;
-              }
-            }
-           /*Apply the prefilter across the bottom block edges.*/
-            for (by = mby << (2 - ydec); by < ((mby + 1) << (2 - ydec))
-                - ( mby + 1 >= nvmbs); by++) {
-              for (x = ixfill >> xdec; x < next_ixfill >> xdec; x++) {
-                od_coeff p[4];
-                for (y = 0; y < 4; y++){
-                  p[y] = mc[((by << 2) + y + 2)*w + x];
-                }
-                od_pre_filter4(p, p);
-                for (y = 0; y < 4; y++) mc[((by << 2) + y + 2)*w + x] =
-                p[y];
-              }
-            }
-            for (y = (mby << (4 - ydec)); y < (mby + 1) << (4 - ydec); y++) {
-              for (bx = mbx << (2 - xdec); bx < ((mbx + 1) << (2 - xdec))
-                  - ((mbx + 1) >= nhmbs); bx++) {
-                od_pre_filter4(mc + y*w + (bx << 2) + 2,
-                    mc + y*w + (bx << 2) + 2);
-              }
-            }
-          }
           nk = k_total = sum_ex_total_q8 = 0;
           ncount = count_total_q8 = count_ex_total_q8 = 0;
           adapt_row = &dec->state.adapt_row[pli];
@@ -554,46 +563,62 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
             adapt.curr[OD_ADAPT_COUNT_EX_Q8] = OD_ADAPT_NO_VALUE;
           }
           od_adapt_mb(adapt_row, mbx, &adapt_hmean[pli], &adapt);
-          /*Apply the postfilter across the left block edges.*/
-          for (y = mby << (4 - ydec); y < (mby + 1) << (4 - ydec); y++) {
-            for (bx = (mbx<<(2 - xdec)) + (mbx <= 0); bx < (mbx + 1) <<
-             (2 - xdec); bx++) {
-              od_post_filter4(c + y*w + (bx << 2) - 2, c + y*w
-               + (bx << 2) - 2);
-            }
-          }
-          /*Apply the postfilter across the top block edges.*/
-          for (by = (mby << (2 - ydec)) + (mby <= 0); by < (mby + 1) <<
-           (2 - ydec); by++) {
-            for (x = oxfill >> xdec; x < next_oxfill >> xdec; x++) {
-              od_coeff p[4];
-              for (y = 0; y < 4; y++) p[y] = c[((by << 2) + y - 2)*w + x];
-              od_post_filter4(p,p);
-              for (y = 0; y < 4; y++) c[((by << 2) + y - 2)*w + x] = p[y];
-            }
-          }
-          data = dec->state.io_imgs[OD_FRAME_REC].planes[pli].data;
-          for (y = oyfill>>ydec; y < next_oyfill >> ydec; y++) {
-            for (x = oxfill >> xdec; x < next_oxfill >> xdec; x++) {
-              data[ystride*y + x] = OD_CLAMP255(c[y*w + x] + 128);
-            }
-          }
         }
-        oxfill = next_oxfill;
-        ixfill = next_ixfill;
       }
       for (pli = 0; pli < nplanes; pli++) {
         od_adapt_row(&dec->state.adapt_row[pli], &adapt_hmean[pli]);
       }
-      oyfill = next_oyfill;
-      iyfill = next_iyfill;
+    }
+    for (pli = 0; pli < nplanes; pli++) {
+      xdec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
+      ydec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
+      w = frame_width >> xdec;
+      h = frame_height >> ydec;
+      /*Apply the postfilter across the entire image.*/
+      {
+        int sby;
+        int sbx;
+        /* This code assumes 4:4:4 or 4:2:0 input. */
+        OD_ASSERT(xdec==ydec);
+        /*Apply the postfilter across the right block edge rows.*/
+        for (sby = 0; sby < nvsb; sby++) {
+          for (sbx = 0; sbx < nhsb; sbx++) {
+            unsigned char btmp[6*6];
+            od_extract_bsize(btmp,6,&dec->state.bsize[dec->state.bstride*(sby<<2)+(sbx<<2)],dec->state.bstride,xdec);
+            od_apply_filter(&ctmp[pli][(sby<<(5-ydec))*w+(sbx<<(5-xdec))],w,0,0,3-xdec,
+             &btmp[6*1+1],6,OD_RIGHT_EDGE,sbx<nhsb-1?OD_RIGHT_EDGE:0,1);
+          }
+        }
+        /*Apply the postfilter down the bottom block edge columns.*/
+        for (sby = 0; sby < nvsb; sby++) {
+          for (sbx = 0; sbx < nhsb; sbx++) {
+            unsigned char btmp[6*6];
+            od_extract_bsize(btmp,6,&dec->state.bsize[dec->state.bstride*(sby<<2)+(sbx<<2)],dec->state.bstride,xdec);
+            od_apply_filter(&ctmp[pli][(sby<<(5-ydec))*w+(sbx<<(5-xdec))],w,0,0,3-xdec,
+             &btmp[6*1+1],6,OD_BOTTOM_EDGE,sby<nvsb-1?OD_BOTTOM_EDGE:0,1);
+          }
+        }
+      }
+      {
+        unsigned char *data;
+        int ystride;
+        data = dec->state.io_imgs[OD_FRAME_REC].planes[pli].data;
+        ystride = dec->state.io_imgs[OD_FRAME_REC].planes[pli].ystride;
+        for (y=0;y<h;y++) {
+          for (x=0;x<w;x++) {
+            data[ystride*y+x]=OD_CLAMP255(ctmp[pli][y*w+x]+128);
+          }
+        }
+      }
     }
     for (pli = nplanes; pli-- > 0;) {
       _ogg_free(ltmp[pli]);
       _ogg_free(dtmp[pli]);
       _ogg_free(ctmp[pli]);
-      _ogg_free(mdtmp[pli]);
-      _ogg_free(mctmp[pli]);
+      if (!is_keyframe) {
+        _ogg_free(mdtmp[pli]);
+        _ogg_free(mctmp[pli]);
+      }
     }
     _ogg_free(modes);
   }

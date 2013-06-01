@@ -39,6 +39,7 @@ typedef enum {
   OD_LOG_MOTION_COMPENSATION,
   OD_LOG_ENTROPY_CODER,
   OD_LOG_PVQ,
+  OD_LOG_FILTER,
 
   /* Add new facilities here. */
 
