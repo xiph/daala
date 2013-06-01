@@ -360,6 +360,10 @@ static void pvq_search(float *x,float *scale,float *scale_1,float g,int N,int K,
 #define GAIN_EXP (4./3.)
 #define GAIN_EXP_1 (1./GAIN_EXP)
 
+/* FIXME: Replace with an actual fixed-point sqrt() */
+int od_sqrt(int x) {
+  return floor(.5+sqrt(x));
+}
 /* Raises X to the power 3/4, Q15 input, Q3 output.
    We use a lookup-based domain reduction to the [0.5,1[ range. */
 int od_gain_compander(int x) {
@@ -432,7 +436,7 @@ void pvq_synth(od_coeff *x, int *xn, od_coeff *r, int L2r, int cg,
   for(i=0;i<N;i++) {
     proj+=r[i]*xn[i];
   }
-  g = od_gain_expander(Q*cg)/OD_MAXI(1,(int)floor(.5+sqrt(L2x)));
+  g = od_gain_expander(Q*cg)/OD_MAXI(1,od_sqrt(L2x));
   /* FIXME: Do this without the 64-bit math. */
   proj_1 = (ogg_int64_t)g*2*proj/OD_MAXI(1,L2r);
   maxval = OD_MAXI(g, abs(proj_1));
@@ -493,13 +497,13 @@ int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
     L2x+=x[i]*x[i];
   }
 
-  g=sqrt(L2x);
+  g=od_sqrt(L2x);
 
   L2r=0;
   for(i=0;i<N;i++){
     L2r+=r[i]*r[i];
   }
-  gr=sqrt(L2r);
+  gr=od_sqrt(L2r);
 
   /* compand gains */
   cg = pow(g,GAIN_EXP_1)/Q;
@@ -725,13 +729,13 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
     L2x+=x[i]*x[i];
   }
 
-  g=sqrt(L2x);
+  g=od_sqrt(L2x);
 
   L2r=0;
   for(i=0;i<N;i++){
     L2r+=r[i]*r[i];
   }
-  gr=sqrt(L2r);
+  gr=od_sqrt(L2r);
 
   OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%d", g));
   /* compand gain of x and subtract a constant for "pseudo-RDO" purposes */
@@ -798,7 +802,7 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   for(i=0;i<N;i++){
     L2r+=r[i]*r[i];
   }
-  gr=sqrt(L2r);
+  gr=od_sqrt(L2r);
 
   /* This is where we can skip */
   /*
@@ -915,7 +919,7 @@ int pvq_unquant_k(const ogg_int32_t *_r,int _n,int _qg, int _scale){
   for(i=0;i<N;i++){
     L2r+=r[i]*r[i];
   }
-  gr=sqrt(L2r);
+  gr=od_sqrt(L2r);
 
   /* FIXME: Make that 0.2 adaptive */
   cgr = (od_gain_compander(gr*32768)+Q/2+13*Q/8)/Q;
@@ -972,7 +976,7 @@ void dequant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
     r[i]=_r[i]<<shift;
     L2r+=r[i]*r[i];
   }
-  gr=floor(.5+sqrt(L2r));
+  gr=od_sqrt(L2r);
   cgr = floor(.5+8*pow(gr,GAIN_EXP_1)/Q+1.6);
   cg = cgr+8*qg;
   if (cg<0)cg=0;
