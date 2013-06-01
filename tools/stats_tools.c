@@ -22,7 +22,6 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
-#include <omp.h>
 #include <stdlib.h>
 #include <string.h>
 #include "stats_tools.h"
@@ -524,7 +523,7 @@ int ne_apply_to_blocks(void *_ctx,int _ctx_sz,int _plmask,int _padding,
       fprintf(stderr,"Error reading first frame from '%s'.\n",_argv[ai]);
       continue;
     }
-    tid=omp_get_thread_num();
+    tid=OD_OMP_GET_THREAD;
     ctx=((unsigned char *)_ctx)+tid*_ctx_sz;
     for(pli=0;pli<3;pli++){
       if(_plmask&1<<pli){

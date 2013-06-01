@@ -1,4 +1,3 @@
-#include <omp.h>
 #include <stdlib.h>
 #include <string.h>
 #include "od_defs.h"
@@ -345,7 +344,7 @@ int main(int _argc,const char *_argv[]){
   for(i=0;i<NUM_PROCS;i++){
     intra_stats_ctx_init(&ctx[i]);
   }
-  omp_set_num_threads(NUM_PROCS);
+  OD_OMP_SET_THREADS(NUM_PROCS);
   ne_apply_to_blocks(ctx,sizeof(*ctx),0x1,PADDING,stats_start,NBLOCKS,BLOCKS,
    stats_finish,_argc,_argv);
   for(i=1;i<NUM_PROCS;i++){

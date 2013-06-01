@@ -22,7 +22,6 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
-#include <omp.h>
 #include <stdlib.h>
 #include "od_defs.h"
 #include "od_filter.h"
@@ -243,7 +242,7 @@ static void coding_gain_search(const double _r[2*B_SZ*2*B_SZ]){
 #   error "Unsupported block size."
 #  endif
       double cg;
-      tid=omp_get_thread_num();
+      tid=OD_OMP_GET_THREAD;
       for(j=0;j<dims;j++){
         int range;
         int mask;
@@ -333,7 +332,7 @@ int main(int _argc,const char *_argv[]){
   }
   cov=r;
 #if USE_FILES
-  omp_set_num_threads(NUM_PROCS);
+  OD_OMP_SET_THREADS(NUM_PROCS);
   ne_apply_to_blocks(ctx,sizeof(*ctx),0x1,PADDING,t_start,NBLOCKS,BLOCKS,NULL,
    _argc,_argv);
   for(i=1;i<NUM_PROCS;i++){

@@ -1,5 +1,4 @@
 #include <float.h>
-#include <omp.h>
 #include <stdlib.h>
 #include <sys/timeb.h>
 #include "cholesky.h"
@@ -325,7 +324,7 @@ static int comp_delta_pg(const prob_ctx *_prob,solve_ctx _sol[NUM_PROCS],int _y,
   #pragma omp parallel for schedule(dynamic)
   for(i=0;i<nmi;i++){
     int tid;
-    tid=omp_get_thread_num();
+    tid=OD_OMP_GET_THREAD;
     mask[tid][mi[i]]=0;
     delta_pg[i]=comp_error(_prob,&_sol[tid],_y,mask[tid])*s;
     mask[tid][mi[i]]=1;
@@ -409,7 +408,7 @@ static void comp_predictors(const prob_ctx *_prob,solve_ctx _sol[NUM_PROCS],
   #pragma omp parallel for schedule(dynamic)
   for(j=0;j<B_SZ*B_SZ;j++){
     int tid;
-    tid=omp_get_thread_num();
+    tid=OD_OMP_GET_THREAD;
     solve(_prob,&_sol[tid],j,&_mask[j*4*B_SZ*B_SZ],_sol->beta_0,_sol->beta_1);
   }
 
@@ -434,7 +433,7 @@ static void comp_predictors(const prob_ctx *_prob,solve_ctx _sol[NUM_PROCS],
 #if PRINT_PROGRESS
 static void print_progress(FILE *_fp,const char *_proc){
   int tid;
-  tid=omp_get_thread_num();
+  tid=OD_OMP_GET_THREAD;
   fprintf(_fp,"thread %i in %s\n",tid,_proc);
 }
 #endif
@@ -794,7 +793,7 @@ int main(int _argc,const char *_argv[]){
   for(i=0;i<NUM_PROCS;i++){
     classify_ctx_init(&cls[i]);
   }
-  omp_set_num_threads(NUM_PROCS);
+  OD_OMP_SET_THREADS(NUM_PROCS);
   /* First pass across images uses VP8 mode selection. */
   ne_apply_to_blocks(cls,sizeof(*cls),0x1,PADDING,init_start,NINIT,INIT,
    init_finish,_argc,_argv);

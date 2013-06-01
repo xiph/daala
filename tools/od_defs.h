@@ -28,7 +28,18 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "intra_fit_tools.h"
 #include "../src/filter.h"
 
-#define NUM_PROCS (4)
+#if defined(_OPENMP)
+# include <omp.h>
+# define NUM_PROCS (4)
+# define OD_OMP_GET_THREAD (omp_get_thread_num())
+# define OD_OMP_SET_THREADS(_x) (omp_set_num_threads(_x))
+#else
+# pragma GCC warning "Compiler enviroment does not support OpenMP. The training tools will be very slow."
+# define NUM_PROCS (1)
+# define OD_OMP_GET_THREAD (0)
+# define OD_OMP_SET_THREADS(_x)
+#endif
+
 #define FAST_MATH (1)
 
 #define FILTER_BITS (6)
