@@ -879,7 +879,7 @@ int pvq_unquant_k(const ogg_int32_t *_r,int _n,int _qg, int _scale){
 void dequant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
     ogg_int16_t *_scale,int N,int _Q,int qg, int shift){
   int L2r;
-  float gr;              /* L2-norm of r */
+  int gr;              /* L2-norm of r */
   int x[MAXN];
   int r[MAXN];
   int scale[MAXN];
@@ -891,11 +891,11 @@ void dequant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   int maxr=-1;
   int   xm;
   int cg;              /* Companded gain of x*/
-  float cgr;             /* Companded gain of r*/
+  int cgr;             /* Companded gain of r*/
   OD_ASSERT(N>1);
 
   /* Just some calibration -- should eventually go away */
-  Q=pow((1<<shift)*_Q*1.3,GAIN_EXP_1); /* Converts Q to the "companded domain" */
+  Q=floor(.5+pow((1<<shift)*_Q*1.3,GAIN_EXP_1)); /* Converts Q to the "companded domain" */
   /* High rate predicts that the constant should be log(2)/6 = 0.115, but in
      practice, it should be lower. */
 
@@ -911,17 +911,17 @@ void dequant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
     r[i]=_r[i]<<shift;
     L2r+=r[i]*r[i];
   }
-  gr=sqrt(L2r);
-  cgr = pow(gr,GAIN_EXP_1)/Q+.2;
-  cg = floor(.5+8*cgr+8*qg);
+  gr=floor(.5+sqrt(L2r));
+  cgr = floor(.5+8*pow(gr,GAIN_EXP_1)/Q+1.6);
+  cg = cgr+8*qg;
   if (cg<0)cg=0;
 
   /* Pick component with largest magnitude. Not strictly
    * necessary, but it helps numerical stability */
   m=0;
   for(i=0;i<N;i++){
-    if(fabs(r[i])>maxr){
-      maxr=fabs(r[i]);
+    if(abs(r[i])>maxr){
+      maxr=abs(r[i]);
       m=i;
     }
   }
