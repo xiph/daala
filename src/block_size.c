@@ -28,7 +28,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "entenc.h"
 
 
-int od_block_size_prob32(const char *bsize, int stride)
+int od_block_size_prob32(const unsigned char *bsize, int stride)
 {
   int i;
   int sum32;
@@ -38,7 +38,7 @@ int od_block_size_prob32(const char *bsize, int stride)
   return sum32;
 }
 
-int od_block_size_cdf16_id(const char *bsize, int stride)
+int od_block_size_cdf16_id(const unsigned char *bsize, int stride)
 {
   int upleft;
   int up;

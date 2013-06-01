@@ -25,7 +25,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "block_size.h"
 #include "block_size_dec.h"
 
-void od_block_size_decode(od_ec_dec *dec, char *bsize, int stride)
+void od_block_size_decode(od_ec_dec *dec, unsigned char *bsize, int stride)
 {
   int i, j;
   int inefficient;
@@ -44,7 +44,7 @@ void od_block_size_decode(od_ec_dec *dec, char *bsize, int stride)
     bsize[2*stride + 2] = (inefficient&8) ? 2 : 0;*/
     for(i = 0; i < 2; i++) {
       for (j = 0; j < 2; j++) {
-        char *bsize16 = &bsize[2*i*stride + 2*j];
+        unsigned char *bsize16 = &bsize[2*i*stride + 2*j];
         if ((inefficient & (1 << 2*i << j))==0) {
           const ogg_uint16_t *cdf;
           int split;

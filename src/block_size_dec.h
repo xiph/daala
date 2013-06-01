@@ -27,6 +27,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #include "entdec.h"
 
-void od_block_size_decode(od_ec_dec *dec, char *bsize, int stride);
+void od_block_size_decode(od_ec_dec *dec, unsigned char *bsize, int stride);
 
 #endif

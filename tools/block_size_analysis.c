@@ -86,7 +86,7 @@ int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh
 {
   int i,j;
   int h8,w8,h32,w32;
-  static char dec8[MAX_VAR_BLOCKS>>2][MAX_VAR_BLOCKS>>2];
+  static unsigned char dec8[MAX_VAR_BLOCKS>>2][MAX_VAR_BLOCKS>>2];
 #if 0
   int h4,w4,h16,w16;
   static int Sx[MAX_VAR_BLOCKS][MAX_VAR_BLOCKS];
@@ -424,7 +424,7 @@ int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh
         for (j = 2; j < w32 - 2; j++) {
           int k;
           int m;
-          char *bsize;
+          unsigned char *bsize;
           int stride;
           int id32;
           bsize = &dec8[4*i][4*j];
@@ -907,7 +907,7 @@ int main(int _argc,char **_argv){
   th_info      ti2;
   int          frameno;
   int          pli;
-  char        *outline;
+  unsigned char *outline;
   od_coeff    *refi[3];
   od_coeff    *iimg[3];
   int          xdec[3];
@@ -1009,7 +1009,7 @@ int main(int _argc,char **_argv){
     refi[pli]=malloc(w[pli]*h[pli]*sizeof(od_coeff));
     iimg[pli]=malloc(w[pli]*h[pli]*sizeof(od_coeff));
   }
-  outline=malloc(ti1.pic_width*sizeof(char));
+  outline=malloc(sizeof(*outline)*ti1.pic_width);
   fout=strcmp(_argv[optind+1],"-")==0?stdout:fopen(_argv[optind+1],"wb");
   if(fout==NULL){
     fprintf(stderr,"Error opening output file \"%s\".\n",_argv[optind+1]);

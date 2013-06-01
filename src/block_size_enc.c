@@ -304,7 +304,8 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
   }
 }
 
-void od_block_size_encode(od_ec_enc *enc, const char *bsize, int stride)
+void od_block_size_encode(od_ec_enc *enc,
+ const unsigned char *bsize, int stride)
 {
   int i, j;
   int inefficient;
@@ -314,7 +315,7 @@ void od_block_size_encode(od_ec_enc *enc, const char *bsize, int stride)
   if (bsize[0] < 3) {
     for(i = 0; i < 2; i++) {
       for (j = 0; j < 2; j++) {
-        const char *bsize16 = &bsize[2*i*stride + 2*j];
+        const unsigned char *bsize16 = &bsize[2*i*stride + 2*j];
         if (bsize16[0] < 2) {
           const ogg_uint16_t *cdf;
           int split;

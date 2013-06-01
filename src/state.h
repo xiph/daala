@@ -120,7 +120,7 @@ struct od_state{
   int                 nvmbs;
   int                 nhsb;
   int                 nvsb;
-  char               *bsize;
+  unsigned char      *bsize;
   int                 bstride;
 
 #if defined(OD_DUMP_IMAGES)

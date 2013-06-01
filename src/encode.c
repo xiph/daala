@@ -539,7 +539,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     istride = enc->state.io_imgs[OD_FRAME_INPUT].planes[0].ystride;
     for(j = 0; j < nhsb; j++) {
       int bsize[4][4];
-      char *state_bsize;
+      unsigned char *state_bsize;
       state_bsize = &enc->state.bsize[i*4*enc->state.bstride + j*4];
       process_block_size32(bs, img, img + i*istride*32 + j*32, istride, bsize);
       /* Grab the 4x4 information returned from process_block_size32 in bsize
@@ -552,7 +552,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       od_block_size_encode(&enc->ec, &state_bsize[0], bstride);
     }
   }
-  od_log_matrix_char(OD_LOG_GENERIC, OD_LOG_INFO, "bsize ", enc->state.bsize, enc->state.bstride, (nvsb+1)*4);
+  od_log_matrix_uchar(OD_LOG_GENERIC, OD_LOG_INFO, "bsize ", enc->state.bsize, enc->state.bstride, (nvsb+1)*4);
   for(i = 0; i < nvsb*4; i++) {
     for(j = 0; j < nhsb*4; j++) {
       OD_LOG_PARTIAL((OD_LOG_GENERIC, OD_LOG_INFO, "%d ", enc->state.bsize[i*enc->state.bstride + j]));
