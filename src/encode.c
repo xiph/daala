@@ -706,15 +706,16 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       for (vy = 0; vy <= nvmvbs; vy += 2) {
         for (vx = 2*((vy & 3) == 0); vx <= nhmvbs; vx += 4) {
           mvp = &grid[vy][vx];
-          if (vy-2 >= 0 && grid[vy-2][vx].valid
-           && vx-2 >= 0 && grid[vy][vx-2].valid
-           && vy+2 <= nvmvbs && grid[vy+2][vx].valid
-           && vx+2 <= nhmvbs && grid[vy][vx+2].valid) {
+          if ((vy-2 < 0 || grid[vy-2][vx].valid)
+           && (vx-2 < 0 || grid[vy][vx-2].valid)
+           && (vy+2 > nvmvbs || grid[vy+2][vx].valid)
+           && (vx+2 > nhmvbs || grid[vy][vx+2].valid)) {
             od_ec_encode_bool_q15(&enc->ec, mvp->valid, 13684);
             if (mvp->valid) {
               od_encode_mv(enc, mvp, vx, vy, 2, mv_res, width, height);
             }
           }
+          else OD_ASSERT(!mvp->valid);
         }
       }
       /*Level 3.*/
@@ -728,6 +729,21 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
               od_encode_mv(enc, mvp, vx, vy, 3, mv_res, width, height);
             }
           }
+          else OD_ASSERT(!mvp->valid);
+        }
+      }
+      /*Level 4.*/
+      for (vy = 2; vy <= nvmvbs - 2; vy += 1) {
+        for (vx = 3 - (vy & 1); vx <= nhmvbs - 2; vx += 2) {
+          mvp = &grid[vy][vx];
+          if (grid[vy-1][vx].valid && grid[vy][vx-1].valid
+           && grid[vy+1][vx].valid && grid[vy][vx+1].valid) {
+            od_ec_encode_bool_q15(&enc->ec, mvp->valid, 16384);
+            if (mvp->valid) {
+              od_encode_mv(enc, mvp, vx, vy, 4, mv_res, width, height);
+            }
+          }
+          else OD_ASSERT(!mvp->valid);
         }
       }
     }
