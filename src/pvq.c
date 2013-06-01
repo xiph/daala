@@ -705,7 +705,7 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   int   K,ym;
   int cg;              /* Companded gain of x*/
   float cgq;
-  float cgr;             /* Companded gain of r*/
+  int cgr;             /* Companded gain of r*/
   float lambda;
   OD_ASSERT(N>1);
 
@@ -748,7 +748,7 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   /* Gain quantization. Round to nearest because we've already reduced cg.
      Maybe we should have a dead zone */
   /* Doing some RDO on the gain, start by rounding down */
-  *qg = floor(.125*cg-.125*cgr);
+  *qg = (cg-cgr)>>3;
   cgq = .125*cgr+*qg;
   if (cgq<1e-15) cgq=1e-15;
   /* Cost difference between rounding up or down */
@@ -758,7 +758,7 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
     cgq = .125*cgr+*qg;
   }
 
-  cg = floor(.5+cgr+8**qg);
+  cg = cgr+8**qg;
   if (cg<0)cg=0;
   /* This is the actual gain the decoder will apply */
   g = pow(Q*.125*cg, GAIN_EXP);
