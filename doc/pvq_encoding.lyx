@@ -63,16 +63,19 @@
 PVQ Encoding with Non-Uniform Distribution
 \end_layout
 
+\begin_layout Author
+Jean-Marc Valin
+\end_layout
+
 \begin_layout Section
 Introduction
 \end_layout
 
-\begin_layout Section
-PVQ Codebook
-\end_layout
-
 \begin_layout Standard
-The PVQ codebook is defined
+The pyramid vector quantizer (PVQ) is common form of algebraic vector quantizati
+on.
+ It is useful in the context of both audio and video compression.
+ The PVQ codebook is defined
 \end_layout
 
 \begin_layout Standard
@@ -93,7 +96,11 @@ the set of all integer vectors in
 
 .
  When all codevectors are considered to have equal probability, several
- methods 
+ methods
+\begin_inset space ~
+\end_inset
+
+
 \begin_inset CommandInset citation
 LatexCommand cite
 key "Fischer,FPC"
@@ -118,7 +125,11 @@ key "Fischer,FPC"
 
 .
  The index is then easily coded in a bit-stream, possibly with the use of
- a range coder 
+ a range coder
+\begin_inset space ~
+\end_inset
+
+
 \begin_inset CommandInset citation
 LatexCommand cite
 key "RFC6716"
@@ -130,6 +141,12 @@ key "RFC6716"
 \end_inset
 
  is generally not a power of two.
+ The equal-probability case is common for audio.
+ For video, discrete cosine transform (DCT) coefficients for a block tend
+ to have widely different distributions.
+ For this reason, using a uniform probability model.
+ This document proposes a way to efficiently the result of PVQ quantization
+ with such non-uniform distributions.
 \end_layout
 
 \begin_layout Section
@@ -137,14 +154,23 @@ Non-Uniform Distribution
 \end_layout
 
 \begin_layout Standard
-When the codevectors do not have a uniform probability distribution, it
- becomes necessary to build a probability model.
- For any codebook of reasonable size, modelling the distribution of 
+The non-uniform probability distribution of the codevectors requires building
+ a probability model.
+ For any codebook of reasonable size, explicitly modelling the distribution
+ of 
 \begin_inset Formula $J$
 \end_inset
 
- itself is impractical.
- Instead, we parametric models for the distribution of 
+ itself is impractical since 
+\begin_inset Formula $V(N,K)$
+\end_inset
+
+ can easily exceed 32
+\begin_inset space ~
+\end_inset
+
+bits.
+ Instead, we use parametric models for the distribution of 
 \begin_inset Formula $\left|y_{i}\right|$
 \end_inset
 
@@ -153,10 +179,33 @@ When the codevectors do not have a uniform probability distribution, it
 \end_inset
 
 .
+ Sections
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Coefficient-model"
+
+\end_inset
+
+ and
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Run-Length-Model"
+
+\end_inset
+
+ present two possible models for encoding non-uniform PVQ parameters.
 \end_layout
 
 \begin_layout Subsection
-Coefficient Model
+Coefficient Magnitude Model
 \end_layout
 
 \begin_layout Standard
@@ -166,8 +215,8 @@ name "sub:Coefficient-model"
 
 \end_inset
 
-A first model is based on the expected absolute value of the coefficient
- 
+The coefficient magnitude (CM) model is based on the expected absolute value
+ of the coefficient 
 \begin_inset Formula $i$
 \end_inset
 
@@ -259,7 +308,11 @@ We can still use a more typical
 \begin_inset Formula $p\left(k\right)$
 \end_inset
 
- itself, in which case 
+ itself, in which case
+\begin_inset space ~
+\end_inset
+
+
 \begin_inset CommandInset ref
 LatexCommand eqref
 reference "eq:r-vs-sigma"
@@ -377,7 +430,17 @@ Run-Length Model
 \end_layout
 
 \begin_layout Standard
-For long sparse vectors, the method in Section 
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:Run-Length-Model"
+
+\end_inset
+
+For long sparse vectors, the method in Section
+\begin_inset space ~
+\end_inset
+
+
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "sub:Coefficient-model"
@@ -385,7 +448,7 @@ reference "sub:Coefficient-model"
 \end_inset
 
  is inefficient in terms of symbols coded.
- In those cases we propose modelling 
+ In those cases the run-length (RL) model models 
 \begin_inset Formula $q(n)$
 \end_inset
 
@@ -464,19 +527,48 @@ r^{-n} & ,\ n\neq0
 \end_layout
 
 \begin_layout Subsection
+Model Combinations
+\end_layout
+
+\begin_layout Standard
+It is possible to combine the CM and RL models to improve coding performance
+ and computational efficiency.
+ For small values of 
+\begin_inset Formula $K$
+\end_inset
+
+, the RL model tends to have similar efficiency as the CM model, but a much
+ lower complexity due to the smaller number of symbols.
+ For larger 
+\begin_inset Formula $K$
+\end_inset
+
+ values, the RL model tends to lose efficiency and becomes more complex.
+ Because 
+\begin_inset Formula $K$
+\end_inset
+
+ is known in advance, the encoder can choose between CM and RL at run-time
+ based on 
+\begin_inset Formula $K$
+\end_inset
+
+.
+ The decoder has access to the same information and can thus choose the
+ same model as the encoder.
+\end_layout
+
+\begin_layout Section
 Coding K
 \end_layout
 
 \begin_layout Standard
-In soem contexts, the value of 
+In some contexts, the value of 
 \begin_inset Formula $K$
 \end_inset
 
- will already be known
-\end_layout
-
-\begin_layout Section
-Conclusion
+ will already be known.
+ If not, 
 \end_layout
 
 \begin_layout Bibliography
@@ -486,7 +578,24 @@ key "Fischer"
 
 \end_inset
 
-Fischer
+T.
+ R.
+ Fischer, 
+\begin_inset Quotes eld
+\end_inset
+
+A Pyramid Vector Quantizer
+\begin_inset Quotes erd
+\end_inset
+
+, 
+\emph on
+in IEEE Trans.
+ on Information Theory
+\emph default
+, Vol.
+ 32, 1986, pp.
+ 568-583.
 \end_layout
 
 \begin_layout Bibliography
@@ -496,7 +605,27 @@ key "FPC"
 
 \end_inset
 
-Factorial pulse coding
+J.
+ P.
+ Ashley, E.
+ M.
+ Cruz-Zeno, U.
+ Mittal, and W.
+ Peng, 
+\begin_inset Quotes eld
+\end_inset
+
+Wideband Coding of Speech Using a Scalable Pulse Codebook,
+\begin_inset Quotes erd
+\end_inset
+
+ 
+\emph on
+in Proc.
+ IEEE Workshop on Speech Coding
+\emph default
+, 2000, pp.
+ 148–15.
 \end_layout
 
 \begin_layout Bibliography
@@ -507,8 +636,15 @@ key "RFC6716"
 \end_inset
 
 Valin, J.-M., Vos.
- K., Terriberry, T.B., Definition of the Opus codec, RFC 6716, Internet Engineering
- Task Force, 2012.
+ K., Terriberry, T.B., 
+\begin_inset Quotes eld
+\end_inset
+
+Definition of the Opus codec
+\begin_inset Quotes erd
+\end_inset
+
+, RFC 6716, Internet Engineering Task Force, 2012.
 \end_layout
 
 \end_body
