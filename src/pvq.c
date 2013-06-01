@@ -387,7 +387,7 @@ int od_gain_expander(int x) {
   return (long long)base*correction>>15;
 }
 
-void pvq_synth(od_coeff *x, int *xn, od_coeff *r, int L2r, float cg,
+void pvq_synth(od_coeff *x, int *xn, od_coeff *r, int L2r, int cg,
   int Q, int N, int syn_shift) {
   int i;
   int proj;
@@ -408,7 +408,7 @@ void pvq_synth(od_coeff *x, int *xn, od_coeff *r, int L2r, float cg,
   for(i=0;i<N;i++) {
     proj+=r[i]*xn[i];
   }
-  g = od_gain_expander(Q*cg*8)/(EPSILON+sqrt(L2x));
+  g = od_gain_expander(Q*cg)/(EPSILON+sqrt(L2x));
   proj_1=g*1.f*proj*2.F/(EPSILON+L2r);
   maxval = OD_MAXI(g, abs(proj_1));
   shift = OD_MAXI(0, OD_ILOG(maxval)-16);
@@ -674,7 +674,7 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   int proj;
   float proj_1;
   int   K,ym;
-  float cg;              /* Companded gain of x*/
+  int cg;              /* Companded gain of x*/
   float cgq;
   float cgr;             /* Companded gain of r*/
   float lambda;
@@ -709,7 +709,7 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
 
   OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%d", g));
   /* compand gain of x and subtract a constant for "pseudo-RDO" purposes */
-  cg = pow(g,GAIN_EXP_1)/Q;
+  cg = floor(.5+8*pow(g,GAIN_EXP_1)/Q);
   if (cg<0)
     cg=0;
   /* FIXME: Make that 0.2 adaptive */
@@ -721,20 +721,20 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   *qg = floor(.5+cg-cgr);
 #else
   /* Doing some RDO on the gain, start by rounding down */
-  *qg = floor(cg-cgr);
+  *qg = floor(.125*cg-cgr);
   cgq = cgr+*qg;
   if (cgq<1e-15) cgq=1e-15;
   /* Cost difference between rounding up or down */
-  if ( 2*(cgq-cg)+1 + (lambda/(Q*Q))*(2. + (N-1)*log2(1+1./(cgq)))  < 0)
+  if ( 2*(cgq-.125*cg)+1 + (lambda/(Q*Q))*(2. + (N-1)*log2(1+1./(cgq)))  < 0)
   {
     (*qg)++;
     cgq = cgr+*qg;
   }
 #endif
-  cg = cgr+*qg;
+  cg = floor(.5+8*cgr+8**qg);
   if (cg<0)cg=0;
   /* This is the actual gain the decoder will apply */
-  g = pow(Q*cg, GAIN_EXP);
+  g = pow(Q*.125*cg, GAIN_EXP);
 
   /* Compute the number of pulses K based on the quantized gain -- still work
      to do here */
@@ -745,8 +745,8 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
     K=0;
   }else{
     int K_large;
-    K = floor(.5+0.6*cg*cg);
-    K_large = floor(.5+1.5*cg*sqrt(N/2));
+    K = floor(.5+0.6*.125*.125*cg*cg);
+    K_large = floor(.5+1.5*.125*cg*sqrt(N/2));
     if (K>K_large){
       K=K_large;
     }
@@ -820,7 +820,7 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
 
   /* Normalize lambda for quantizing on the unit circle */
   /* FIXME: See if we can avoid setting lambda to zero! */
-  pvq_search_rdo(xn,x,NULL,NULL,1,N,K,y,m,.0*lambda/(cg*cg));
+  pvq_search_rdo(xn,x,NULL,NULL,1,N,K,y,m,.0*lambda/(.125*.125*cg*cg));
   OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%d ", K-abs(y[m])));
   for(i=0;i<N;i++) {
     OD_LOG_PARTIAL((OD_LOG_PVQ, OD_LOG_DEBUG, "%d ", (m==i)?0:y[i]));
@@ -890,7 +890,7 @@ void dequant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   int s;
   int maxr=-1;
   int   xm;
-  float cg;              /* Companded gain of x*/
+  int cg;              /* Companded gain of x*/
   float cgr;             /* Companded gain of r*/
   OD_ASSERT(N>1);
 
@@ -913,7 +913,7 @@ void dequant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   }
   gr=sqrt(L2r);
   cgr = pow(gr,GAIN_EXP_1)/Q+.2;
-  cg = cgr+qg;
+  cg = floor(.5+8*cgr+8*qg);
   if (cg<0)cg=0;
 
   /* Pick component with largest magnitude. Not strictly
