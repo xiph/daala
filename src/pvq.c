@@ -854,51 +854,19 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   return m;
 }
 
-int pvq_unquant_k(const ogg_int32_t *_r,int _n,int _qg, int _scale){
+int pvq_unquant_k(const ogg_int32_t *_r,int _n,int _qg, int _scale,
+ int shift){
   int    i;
-#if 0
-  int    vk;
-  double cgr;
-  double Q;
-  Q=pow(_scale*1.3,1./(4./3.));
-  vk=0;
-  for(i=0;i<_n;i++)vk+=_r[i]*_r[i];
-  cgr=pow(sqrt(vk),1./(4./3.))/Q+.2;
-  cgr=cgr+_qg;
-  if(cgr<0)cgr=0;
-  if(cgr==0){
-    vk=0;
-  }else{
-    int K_large;
-    vk=floor(.5+0.6*cgr*cgr);
-    K_large=floor(.5+1.5*cgr*sqrt(_n/2));
-    if(vk>K_large){
-      vk=K_large;
-    }
-  }
-  return vk;
-#else
   int Q;
-  int shift=4;
-  int _Q = _scale;
   int L2r;
-  int r[MAXN];
-  int N = _n;
   int gr;
   int cg;
   int cgr;
-  /* Just some calibration -- should eventually go away */
-  /* Converts Q to the "companded domain" */
-  Q = od_gain_compander((1<<shift)*_Q*1.3*32768)/8;
-  /* High rate predicts that the constant should be log(2)/6 = 0.115, but in
-     practice, it should be lower. */
-  for(i=0;i<N;i++){
-    r[i]=_r[i]<<shift;
-  }
+  Q = od_gain_compander((1<<shift)*_scale*1.3*32768)/8;
 
   L2r=0;
-  for(i=0;i<N;i++){
-    L2r+=r[i]*r[i];
+  for(i=0;i<_n;i++){
+    L2r+=_r[i]*_r[i]<<2*shift;
   }
   gr=od_sqrt(L2r);
 
@@ -908,8 +876,7 @@ int pvq_unquant_k(const ogg_int32_t *_r,int _n,int _qg, int _scale){
   cg = cgr+8*_qg;
   if (cg<0)cg=0;
 
-  return compute_k_from_gain(cg, N);
-#endif
+  return compute_k_from_gain(cg, _n);
 }
 
 /** PVQ dequantizer based on a reference

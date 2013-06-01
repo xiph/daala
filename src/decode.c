@@ -353,7 +353,7 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
               pred[0] += predt[0];
               qg = generic_decode(&dec->ec, model_g + pli, ex_g + pli, 0);
               if (qg) qg *= od_ec_dec_bits(&dec->ec, 1) ? -1 : 1;
-              vk = pvq_unquant_k(&predt[1], 15, qg, scale[pli]);
+              vk = pvq_unquant_k(&predt[1], 15, qg, scale[pli], 4);
               pred[1] = 0;
               if (vk != 0) {
                 int ex_ym;
