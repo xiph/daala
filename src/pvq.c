@@ -408,8 +408,9 @@ void pvq_synth(od_coeff *x, int *xn, od_coeff *r, int L2r, int cg,
   for(i=0;i<N;i++) {
     proj+=r[i]*xn[i];
   }
-  g = od_gain_expander(Q*cg)/(EPSILON+sqrt(L2x));
-  proj_1=g*1.f*proj*2.F/(EPSILON+L2r);
+  g = od_gain_expander(Q*cg)/OD_MAXI(1,(int)floor(.5+sqrt(L2x)));
+  /* FIXME: Do this without the 64-bit math. */
+  proj_1 = (ogg_int64_t)g*2*proj/OD_MAXI(1,L2r);
   maxval = OD_MAXI(g, abs(proj_1));
   shift = OD_MAXI(0, OD_ILOG(maxval)-16);
   g >>= shift;
