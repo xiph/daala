@@ -360,6 +360,33 @@ static void pvq_search(float *x,float *scale,float *scale_1,float g,int N,int K,
 #define GAIN_EXP (4./3.)
 #define GAIN_EXP_1 (1./GAIN_EXP)
 
+/* Raises X to the power 4/3, Q3 input, Q15 output.
+   We use a lookup-based domain reduction to the [0.5,1[ range. */
+int od_gain_expander(int x) {
+  ogg_int32_t base;
+  ogg_int16_t correction;
+  ogg_int16_t xn;
+  int ilog2x;
+  /*const int C[3] = {2236, 25953, 18092};*/
+  const int C[3] = {2245, 25982, 18059};
+  /* Generated using:
+     printf("%d, ", round(32768*(2.^([0:15]-3).^(4/3))));printf("\n"); */
+  static const int expand_table[16] = {
+   2048, 5161, 13004, 32768, 82570, 208064, 524288, 1321123, 3329021,
+   8388608, 21137968, 53264341, 134217728, 338207482, 852229450, 2147483647
+  };
+  if (x==0)
+    return 0;
+  ilog2x = OD_ILOG(x)-1;
+  base = expand_table[ilog2x+1];
+  /*printf("(%d)\n", base);*/
+  /* Normalize x to [16384,32768[ */
+  xn = x << (14-ilog2x);
+  correction = (xn*(C[1] + (C[2]*xn>>16))>>15)-C[0];
+  /* FIXME: Use a 32x16 macro here. We'll have to finish with a << 1 too */
+  return (long long)base*correction>>15;
+}
+
 void pvq_synth(od_coeff *x, int *xn, od_coeff *r, int L2r, float cg,
   int Q, int N, int syn_shift) {
   int i;
@@ -381,7 +408,7 @@ void pvq_synth(od_coeff *x, int *xn, od_coeff *r, int L2r, float cg,
   for(i=0;i<N;i++) {
     proj+=r[i]*xn[i];
   }
-  g=32768*pow(Q*cg, GAIN_EXP)/(EPSILON+sqrt(L2x));
+  g = od_gain_expander(Q*cg*8)/(EPSILON+sqrt(L2x));
   proj_1=g*1.f*proj*2.F/(EPSILON+L2r);
   maxval = OD_MAXI(g, abs(proj_1));
   shift = OD_MAXI(0, OD_ILOG(maxval)-16);
