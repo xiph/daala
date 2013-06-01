@@ -91,11 +91,242 @@ static void od_decode_mv(daala_dec_ctx *dec, od_mv_grid_pt *mvg,
   mvg->mv[1] = oy << mv_res;
 }
 
+struct od_mb_dec_ctx {
+  GenericEncoder model_dc[OD_NPLANES_MAX];
+  GenericEncoder model_g[OD_NPLANES_MAX];
+  GenericEncoder model_ym[OD_NPLANES_MAX];
+  od_adapt_ctx adapt;
+  signed char *modes;
+  od_coeff *c;
+  od_coeff *d;
+  od_coeff *md;
+  od_coeff *mc;
+  od_coeff *l;
+  int ex_dc[OD_NPLANES_MAX];
+  int ex_g[OD_NPLANES_MAX];
+  int is_keyframe;
+  int nk;
+  int k_total;
+  int sum_ex_total_q8;
+  int ncount;
+  int count_total_q8;
+  int count_ex_total_q8;
+  ogg_uint16_t mode_p0[OD_INTRA_NMODES];
+};
+typedef struct od_mb_dec_ctx od_mb_dec_ctx;
+
+void od_4x4_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
+  int bx, int by) {
+  int xdec;
+  int ydec;
+  int w;
+  int frame_width;
+  signed char *modes;
+  od_coeff *c;
+  od_coeff *d;
+  od_coeff *md;
+  od_coeff *mc;
+  od_coeff *l;
+  int x;
+  int y;
+  od_coeff pred[4*4];
+  od_coeff predt[4*4];
+  ogg_int16_t pvq_scale[4*4];
+  int sgn;
+  int qg;
+  int zzi;
+  int vk;
+#ifdef OD_LOLOSSLESS
+  od_coeff backup[4*4];
+#endif
+  xdec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
+  ydec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
+  frame_width = dec->state.frame_width;
+  w = frame_width >> xdec;
+  modes = ctx->modes;
+  c = ctx->c;
+  d = ctx->d;
+  md = ctx->md;
+  mc = ctx->mc;
+  l = ctx->l;
+  vk = 0;
+  if (!ctx->is_keyframe) {
+    od_bin_fdct4x4(md + (by << 2)*w + (bx << 2), w,
+     mc + (by << 2)*w + (bx << 2), w);
+  }
+  for (zzi = 0; zzi < 16; zzi++) pvq_scale[zzi] = 0;
+  if (ctx->is_keyframe) {
+    if (bx > 0 && by > 0) {
+      if (pli == 0) {
+        ogg_uint16_t mode_cdf[OD_INTRA_NMODES];
+        int m_l;
+        int m_ul;
+        int m_u;
+        int mode;
+        od_coeff *ur;
+        od_coeff *coeffs[4];
+        int strides[4];
+        ur = /*(by > 0 && (((bx + 1) < (mbx + 1) << (2 - xdec))
+         || (by == mby << (2 - ydec))))*/ 0 ?
+         d + ((by - 1) << 2)*w + ((bx + 1) << 2) :
+         d + ((by - 1) << 2)*w + (bx << 2);
+        m_l = modes[by*(w >> 2) + bx - 1];
+        m_ul = modes[(by - 1)*(w >> 2) + bx - 1];
+        m_u = modes[(by - 1)*(w >> 2) + bx];
+        coeffs[0] = d + ((by - 1) << 2)*w + ((bx - 1) << 2);
+        coeffs[1] = d + ((by - 1) << 2)*w + (bx << 2);
+        coeffs[2] = ur;
+        coeffs[3] = d + (by << 2)*w + ((bx - 1) << 2);
+        strides[0] = w;
+        strides[1] = w;
+        strides[2] = w;
+        strides[3] = w;
+        od_intra_pred_cdf(mode_cdf, OD_INTRA_PRED_PROB_4x4[pli],
+         ctx->mode_p0, OD_INTRA_NMODES, m_l, m_ul, m_u);
+        mode = od_ec_decode_cdf_unscaled(&dec->ec, mode_cdf,
+         OD_INTRA_NMODES);
+        od_intra_pred4x4_get(pred, coeffs, strides, mode);
+        modes[by*(w >> 2) + bx] = mode;
+        od_intra_pred_update(ctx->mode_p0, OD_INTRA_NMODES, mode,
+         m_l, m_ul, m_u);
+      }
+      else{
+        int chroma_weights_q8[3];
+        int mode;
+        mode = modes[(by << ydec)*(frame_width >> 2) + (bx << xdec)];
+        chroma_weights_q8[0] = OD_INTRA_CHROMA_WEIGHTS_Q6[mode][0];
+        chroma_weights_q8[1] = OD_INTRA_CHROMA_WEIGHTS_Q6[mode][1];
+        chroma_weights_q8[2] = OD_INTRA_CHROMA_WEIGHTS_Q6[mode][2];
+        mode = modes[(by << ydec)*(frame_width >> 2)
+         + ((bx << xdec) + xdec)];
+        chroma_weights_q8[0] +=
+         OD_INTRA_CHROMA_WEIGHTS_Q6[mode][0];
+        chroma_weights_q8[1] +=
+         OD_INTRA_CHROMA_WEIGHTS_Q6[mode][1];
+        chroma_weights_q8[2] +=
+         OD_INTRA_CHROMA_WEIGHTS_Q6[mode][2];
+        mode = modes[((by << ydec) + ydec)*(frame_width >> 2)
+         + (bx << xdec)];
+        chroma_weights_q8[0] +=
+         OD_INTRA_CHROMA_WEIGHTS_Q6[mode][0];
+        chroma_weights_q8[1] +=
+         OD_INTRA_CHROMA_WEIGHTS_Q6[mode][1];
+        chroma_weights_q8[2] +=
+         OD_INTRA_CHROMA_WEIGHTS_Q6[mode][2];
+        mode = modes[((by << ydec) + ydec)*(frame_width >> 2)
+         + ((bx << xdec) + xdec)];
+        chroma_weights_q8[0] +=
+         OD_INTRA_CHROMA_WEIGHTS_Q6[mode][0];
+        chroma_weights_q8[1] +=
+         OD_INTRA_CHROMA_WEIGHTS_Q6[mode][1];
+        chroma_weights_q8[2] +=
+         OD_INTRA_CHROMA_WEIGHTS_Q6[mode][2];
+        od_chroma_pred4x4(pred, d + (by << 2)*w + (bx << 2),
+         l + (by << 2)*w + (bx << 2), w, chroma_weights_q8);
+      }
+    }
+    else{
+      for (zzi = 0; zzi < 16; zzi++) pred[zzi] = 0;
+      if (bx > 0) pred[0] = ctx->d[(by << 2)*w + ((bx - 1) << 2)];
+      else if (by > 0) pred[0] = ctx->d[((by - 1) << 2)*w + (bx << 2)];
+      if (pli == 0) modes[by*(w >> 2) + bx] = 0;
+    }
+  }
+  else {
+    int x;
+    int y;
+    int i;
+    i = 0;
+    for (y=0; y<4; y++) {
+      for( x=0; x<4; x++ ) {
+        pred[i++] = ctx->md[(y + (by << 2))*w + (x + (bx << 2))];
+      }
+    }
+  }
+  /*Zig-zag*/
+  for (y = 0; y < 4; y++) {
+    for (x = 0; x < 4; x++) {
+      predt[OD_ZIG4[y*4 + x]] = pred[y*4 + x];
+    }
+  }
+#ifdef OD_LOLOSSLESS
+  for (zzi = 0; zzi < 16; zzi++) {
+    backup[zzi] = od_ec_dec_uint(&dec->ec, 65536);
+  }
+#endif
+  sgn = 0;
+  pred[0] = generic_decode(&dec->ec, ctx->model_dc + pli, ctx->ex_dc + pli, 0);
+  if (pred[0]) sgn = od_ec_dec_bits(&dec->ec,1);
+  pred[0] = (int)(pow(pred[0],4.0/3)*dec->scale[pli]);
+  pred[0] *= sgn ? -1 : 1;
+  pred[0] += predt[0];
+  qg = generic_decode(&dec->ec, ctx->model_g + pli, ctx->ex_g + pli, 0);
+  if (qg) qg *= od_ec_dec_bits(&dec->ec, 1) ? -1 : 1;
+  vk = pvq_unquant_k(&predt[1], 15, qg, dec->scale[pli]);
+  pred[1] = 0;
+  if (vk != 0) {
+    int ex_ym;
+    ex_ym = (65536/2)*vk;
+    pred[1] = vk - generic_decode(&dec->ec, ctx->model_ym + pli, &ex_ym, 0);
+  }
+  pvq_decoder(&dec->ec, pred + 2, 14, vk - abs(pred[1]), &ctx->adapt);
+  dequant_pvq(pred + 1, predt + 1, pvq_scale, 15, dec->scale[pli], qg);
+  if (ctx->adapt.curr[OD_ADAPT_K_Q8] >= 0) {
+    ctx->nk++;
+    ctx->k_total += ctx->adapt.curr[OD_ADAPT_K_Q8];
+    ctx->sum_ex_total_q8 += ctx->adapt.curr[OD_ADAPT_SUM_EX_Q8];
+  }
+  if (ctx->adapt.curr[OD_ADAPT_COUNT_Q8] >= 0) {
+    ctx->ncount++;
+    ctx->count_total_q8 += ctx->adapt.curr[OD_ADAPT_COUNT_Q8];
+    ctx->count_ex_total_q8 += ctx->adapt.curr[OD_ADAPT_COUNT_EX_Q8];
+  }
+#ifdef OD_LOLOSSLESS
+  for (zzi = 0; zzi < 16; zzi++) {
+    pred[zzi] = backup[zzi] - 32768;
+  }
+#endif
+  /*Dequantize*/
+  for (y = 0; y < 4; y++) {
+    for (x = 0; x < 4; x++) {
+      d[((by << 2) + y)*w + (bx << 2) + x] = pred[OD_ZIG4[y*4 + x]];
+    }
+  }
+  /*iDCT the 4x4 block.*/
+  od_bin_idct4x4(c + (by << 2)*w + (bx << 2), w, d + (by << 2)*w + (bx << 2), w);
+}
+
+void od_b8_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
+ int bx, int by) {
+  int xdec;
+  int ydec;
+  xdec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
+  ydec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
+  bx<<=1;
+  by<<=1;
+  od_4x4_decode(dec, ctx, pli, bx >> xdec, by >> ydec);
+  if (!xdec) od_4x4_decode(dec, ctx, pli, (bx + 1) >> xdec, by >> ydec);
+  if (!ydec) od_4x4_decode(dec, ctx, pli, bx >> xdec, (by + 1) >> ydec);
+  if (!xdec || !ydec) {
+    od_4x4_decode(dec, ctx, pli, (bx + 1) >> xdec, (by + 1) >> ydec);
+  }
+}
+
+void od_mb_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
+ int mbx, int mby) {
+  int bx;
+  int by;
+  for (by = mby << 1; by < (mby + 1) << 1; by++) {
+    for (bx = mbx << 1; bx < (mbx + 1) << 1; bx++) {
+      od_b8_decode(dec, ctx, pli, bx, by);
+    }
+  }
+}
+
 int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
  const ogg_packet *op) {
   int nplanes;
   int pli;
-  int scale[OD_NPLANES_MAX];
   int frame_width;
   int frame_height;
   int pic_width;
@@ -105,14 +336,14 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
   int refi;
   int i;
   int j;
-  int is_keyframe;
+  od_mb_dec_ctx mbctx;
   if (dec == NULL || img == NULL || op == NULL) return OD_EFAULT;
   if (dec->packet_state != OD_PACKET_DATA) return OD_EINVAL;
   if (op->e_o_s) dec->packet_state = OD_PACKET_DONE;
   od_ec_dec_init(&dec->ec, op->packet, op->bytes);
   /*Read the packet type bit.*/
   if (od_ec_decode_bool_q15(&dec->ec, 16384)) return OD_EBADPACKET;
-  is_keyframe = od_ec_decode_bool_q15(&dec->ec, 16384);
+  mbctx.is_keyframe = od_ec_decode_bool_q15(&dec->ec, 16384);
   /*Update the buffer state.*/
   if (dec->state.ref_imgi[OD_FRAME_SELF] >= 0) {
     dec->state.ref_imgi[OD_FRAME_PREV] =
@@ -153,7 +384,7 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
        &dec->state.bsize[4*dec->state.bstride*i + 4*j], dec->state.bstride);
     }
   }
-  if(dec->state.ref_imgi[OD_FRAME_PREV] >= 0 && !is_keyframe){
+  if(dec->state.ref_imgi[OD_FRAME_PREV] >= 0 && !mbctx.is_keyframe){
     /* Input the motion vectors. */
     int nhmvbs;
     int nvmvbs;
@@ -209,19 +440,12 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
   pic_width = dec->state.info.pic_width;
   pic_height = dec->state.info.pic_height;
   {
-    GenericEncoder model_dc[OD_NPLANES_MAX];
-    GenericEncoder model_g[OD_NPLANES_MAX];
-    GenericEncoder model_ym[OD_NPLANES_MAX];
-    ogg_uint16_t mode_p0[OD_INTRA_NMODES];
-    int ex_dc[OD_NPLANES_MAX];
-    int ex_g[OD_NPLANES_MAX];
     od_coeff *ctmp[OD_NPLANES_MAX];
     od_coeff *dtmp[OD_NPLANES_MAX];
     od_coeff *mctmp[OD_NPLANES_MAX];
     od_coeff *mdtmp[OD_NPLANES_MAX];
     od_coeff *ltmp[OD_NPLANES_MAX];
     od_coeff *lbuf[OD_NPLANES_MAX];
-    signed char *modes;
     int xdec;
     int ydec;
     int nvmbs;
@@ -236,14 +460,14 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
     nhmbs = dec->state.nhmbs;
     nvmbs = dec->state.nvmbs;
     /*Initialize the data needed for each plane.*/
-    modes = _ogg_calloc((frame_width >> 2)*(frame_height >> 2),
-     sizeof(*modes));
+    mbctx.modes = _ogg_calloc((frame_width >> 2)*(frame_height >> 2),
+     sizeof(*mbctx.modes));
     for (mi = 0; mi < OD_INTRA_NMODES; mi++) {
-      mode_p0[mi] = 32768/OD_INTRA_NMODES;
+      mbctx.mode_p0[mi] = 32768/OD_INTRA_NMODES;
     }
     nplanes = dec->state.info.nplanes;
     /*Apply the prefilter to the motion-compensated reference.*/
-    if (!is_keyframe) {
+    if (!mbctx.is_keyframe) {
       for (pli = 0; pli < nplanes; pli++) {
         xdec = dec->state.io_imgs[OD_FRAME_REC].planes[pli].xdec;
         ydec = dec->state.io_imgs[OD_FRAME_REC].planes[pli].ydec;
@@ -289,16 +513,16 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
       }
     }
     for (pli = 0; pli < nplanes; pli++) {
-      generic_model_init(model_dc + pli);
-      generic_model_init(model_g + pli);
-      generic_model_init(model_ym + pli);
-      ex_dc[pli] = pli > 0 ? 8 : 32768;
-      ex_g[pli] = 8;
+      generic_model_init(mbctx.model_dc + pli);
+      generic_model_init(mbctx.model_g + pli);
+      generic_model_init(mbctx.model_ym + pli);
+      mbctx.ex_dc[pli] = pli > 0 ? 8 : 32768;
+      mbctx.ex_g[pli] = 8;
       xdec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
       ydec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
       w = frame_width >> xdec;
       h = frame_height >> ydec;
-      scale[pli] = od_ec_dec_uint(&dec->ec, 512);
+      dec->scale[pli] = od_ec_dec_uint(&dec->ec, 512);
       ctmp[pli] = _ogg_calloc(w*h, sizeof(*ctmp[pli]));
       dtmp[pli] = _ogg_calloc(w*h, sizeof(*dtmp[pli]));
       /*We predict chroma planes from the luma plane.
@@ -335,30 +559,13 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
       for (mbx = 0; mbx < nhmbs; mbx++) {
         for (pli = 0; pli < nplanes; pli++) {
           od_adapt_row_ctx *adapt_row;
-          od_adapt_ctx adapt;
-          od_coeff *c;
-          od_coeff *d;
-          od_coeff *mc;
-          od_coeff *md;
-          od_coeff *l;
-          unsigned char *data;
-          int ystride;
           int by;
           int bx;
-          int nk;
-          int k_total;
-          int sum_ex_total_q8;
-          int ncount;
-          int count_total_q8;
-          int count_ex_total_q8;
-          unsigned char* mdata;
-          c = ctmp[pli];
-          d = dtmp[pli];
-          if (!is_keyframe) {
-            mc = mctmp[pli];
-            md = mdtmp[pli];
-          }
-          l = lbuf[pli];
+          mbctx.c = ctmp[pli];
+          mbctx.d = dtmp[pli];
+          mbctx.mc = mctmp[pli];
+          mbctx.md = mdtmp[pli];
+          mbctx.l = lbuf[pli];
           xdec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
           ydec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
           w = frame_width >> xdec;
@@ -366,205 +573,40 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
           /*Construct the luma predictors for chroma planes.*/
           if (ltmp[pli] != NULL) {
             OD_ASSERT(pli > 0);
-            OD_ASSERT(l == ltmp[pli]);
+            OD_ASSERT(mbctx.l == ltmp[pli]);
             for (by = mby << (2 - ydec); by < (mby + 1) << (2 - ydec); by++) {
               for (bx = mbx << (2 - xdec); bx < (mbx + 1) << (2 - xdec);
                bx++) {
-                od_resample_luma_coeffs(l + (by << 2)*w + (bx<<2), w,
+                od_resample_luma_coeffs(mbctx.l + (by << 2)*w + (bx<<2), w,
                  dtmp[0] + (by << (2 + ydec))*frame_width + (bx<<(2 + xdec)),
                  frame_width, xdec, ydec, 4);
               }
             }
           }
-          ystride = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].ystride;
-          data = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].data;
-          mdata = dec->state.io_imgs[OD_FRAME_REC].planes[pli].data;
-          nk = k_total = sum_ex_total_q8 = 0;
-          ncount = count_total_q8 = count_ex_total_q8 = 0;
+          mbctx.nk = mbctx.k_total = mbctx.sum_ex_total_q8 = 0;
+          mbctx.ncount = mbctx.count_total_q8 = mbctx.count_ex_total_q8 = 0;
           adapt_row = &dec->state.adapt_row[pli];
-          od_adapt_update_stats(adapt_row, mbx, &adapt_hmean[pli], &adapt);
-          for (by = mby << (2 - ydec); by < (mby + 1) << (2 - ydec); by++) {
-            for (bx = mbx << (2 - xdec); bx < (mbx + 1) << (2 - xdec); bx++) {
-              od_coeff pred[4*4];
-              od_coeff predt[4*4];
-              ogg_int16_t pvq_scale[4*4];
-              int sgn;
-              int qg;
-              int zzi;
-              int vk;
-#ifdef OD_LOLOSSLESS
-              od_coeff backup[4*4];
-#endif
-              vk = 0;
-              if (!is_keyframe) {
-                od_bin_fdct4x4(md + (by << 2)*w + (bx << 2), w,
-                    mc + (by << 2)*w + (bx << 2), w);
-              }
-              for (zzi = 0; zzi < 16; zzi++) pvq_scale[zzi] = 0;
-              if (is_keyframe) {
-                if (bx > 0 && by > 0) {
-                  if (pli == 0) {
-                    ogg_uint16_t mode_cdf[OD_INTRA_NMODES];
-                    int m_l;
-                    int m_ul;
-                    int m_u;
-                    int mode;
-                    od_coeff *ur;
-                    od_coeff *coeffs[4];
-                    int strides[4];
-                    ur = (by > 0 && (((bx + 1) < (mbx + 1) << (2 - xdec))
-                     || (by == mby << (2 - ydec)))) ?
-                     d + ((by - 1) << 2)*w + ((bx + 1) << 2) :
-                     d + ((by - 1) << 2)*w + (bx << 2);
-                    m_l = modes[by*(w >> 2) + bx - 1];
-                    m_ul = modes[(by - 1)*(w >> 2) + bx - 1];
-                    m_u = modes[(by - 1)*(w >> 2) + bx];
-                    coeffs[0] = d + ((by - 1) << 2)*w + ((bx - 1) << 2);
-                    coeffs[1] = d + ((by - 1) << 2)*w + (bx << 2);
-                    coeffs[2] = ur;
-                    coeffs[3] = d + (by << 2)*w + ((bx - 1) << 2);
-                    strides[0] = w;
-                    strides[1] = w;
-                    strides[2] = w;
-                    strides[3] = w;
-                    od_intra_pred_cdf(mode_cdf, OD_INTRA_PRED_PROB_4x4[pli],
-                     mode_p0, OD_INTRA_NMODES, m_l, m_ul, m_u);
-                    mode = od_ec_decode_cdf_unscaled(&dec->ec, mode_cdf,
-                     OD_INTRA_NMODES);
-                    od_intra_pred4x4_get(pred, coeffs, strides, mode);
-                    modes[by*(w >> 2) + bx] = mode;
-                    od_intra_pred_update(mode_p0, OD_INTRA_NMODES, mode,
-                     m_l, m_ul, m_u);
-                  }
-                  else{
-                    int chroma_weights_q8[3];
-                    int mode;
-                    mode = modes[(by << ydec)*(frame_width >> 2) + (bx << xdec)];
-                    chroma_weights_q8[0] = OD_INTRA_CHROMA_WEIGHTS_Q6[mode][0];
-                    chroma_weights_q8[1] = OD_INTRA_CHROMA_WEIGHTS_Q6[mode][1];
-                    chroma_weights_q8[2] = OD_INTRA_CHROMA_WEIGHTS_Q6[mode][2];
-                    mode = modes[(by << ydec)*(frame_width >> 2)
-                     + ((bx << xdec) + xdec)];
-                    chroma_weights_q8[0] +=
-                     OD_INTRA_CHROMA_WEIGHTS_Q6[mode][0];
-                    chroma_weights_q8[1] +=
-                     OD_INTRA_CHROMA_WEIGHTS_Q6[mode][1];
-                    chroma_weights_q8[2] +=
-                     OD_INTRA_CHROMA_WEIGHTS_Q6[mode][2];
-                    mode = modes[((by << ydec) + ydec)*(frame_width >> 2)
-                     + (bx << xdec)];
-                    chroma_weights_q8[0] +=
-                     OD_INTRA_CHROMA_WEIGHTS_Q6[mode][0];
-                    chroma_weights_q8[1] +=
-                     OD_INTRA_CHROMA_WEIGHTS_Q6[mode][1];
-                    chroma_weights_q8[2] +=
-                     OD_INTRA_CHROMA_WEIGHTS_Q6[mode][2];
-                    mode = modes[((by << ydec) + ydec)*(frame_width >> 2)
-                     + ((bx << xdec) + xdec)];
-                    chroma_weights_q8[0] +=
-                     OD_INTRA_CHROMA_WEIGHTS_Q6[mode][0];
-                    chroma_weights_q8[1] +=
-                     OD_INTRA_CHROMA_WEIGHTS_Q6[mode][1];
-                    chroma_weights_q8[2] +=
-                     OD_INTRA_CHROMA_WEIGHTS_Q6[mode][2];
-                    od_chroma_pred4x4(pred, d + (by << 2)*w + (bx << 2),
-                     l + (by << 2)*w + (bx << 2), w, chroma_weights_q8);
-                  }
-                }
-                else{
-                  for (zzi = 0; zzi < 16; zzi++) pred[zzi] = 0;
-                  if (bx > 0) pred[0] = d[(by << 2)*w + ((bx - 1) << 2)];
-                  else if (by > 0) pred[0] = d[((by - 1) << 2)*w + (bx << 2)];
-                  if (pli == 0) modes[by*(w >> 2) + bx] = 0;
-                }
-              }
-              else {
-                int x;
-                int y;
-                int i;
-                i = 0;
-                for( y=0; y<4; y++ ) {
-                  for( x=0; x<4; x++ ) {
-                    pred[i++] = md[(y + (by << 2))*w + (x + (bx << 2))];
-                  }
-                }
-              }
-              /*Zig-zag*/
-              for (y = 0; y < 4; y++) {
-                for (x = 0; x < 4; x++) {
-                  predt[OD_ZIG4[y*4 + x]] = pred[y*4 + x];
-                }
-              }
-#ifdef OD_LOLOSSLESS
-              for (zzi = 0; zzi < 16; zzi++) {
-                backup[zzi] = od_ec_dec_uint(&dec->ec, 65536);
-              }
-#endif
-              sgn = 0;
-              pred[0] = generic_decode(&dec->ec, model_dc + pli, ex_dc + pli,
-               0);
-              if (pred[0]) sgn = od_ec_dec_bits(&dec->ec,1);
-              pred[0] = (int)(pow(pred[0],4.0/3)*scale[pli]);
-              pred[0] *= sgn ? -1 : 1;
-              pred[0] += predt[0];
-              qg = generic_decode(&dec->ec, model_g + pli, ex_g + pli, 0);
-              if (qg) qg *= od_ec_dec_bits(&dec->ec, 1) ? -1 : 1;
-              vk = pvq_unquant_k(&predt[1], 15, qg, scale[pli]);
-              pred[1] = 0;
-              if (vk != 0) {
-                int ex_ym;
-                ex_ym = (65536/2)*vk;
-                pred[1] = vk - generic_decode(&dec->ec, model_ym + pli,
-                 &ex_ym, 0);
-              }
-              pvq_decoder(&dec->ec, pred + 2, 14, vk - abs(pred[1]), &adapt);
-              dequant_pvq(pred + 1, predt + 1, pvq_scale, 15, scale[pli], qg);
-              if (adapt.curr[OD_ADAPT_K_Q8] >= 0) {
-                nk++;
-                k_total += adapt.curr[OD_ADAPT_K_Q8];
-                sum_ex_total_q8 += adapt.curr[OD_ADAPT_SUM_EX_Q8];
-              }
-              if (adapt.curr[OD_ADAPT_COUNT_Q8] >= 0) {
-                ncount++;
-                count_total_q8 += adapt.curr[OD_ADAPT_COUNT_Q8];
-                count_ex_total_q8 += adapt.curr[OD_ADAPT_COUNT_EX_Q8];
-              }
-#ifdef OD_LOLOSSLESS
-              for (zzi = 0; zzi < 16; zzi++) {
-                pred[zzi] = backup[zzi] - 32768;
-              }
-#endif
-              /*Dequantize*/
-              for (y = 0; y < 4; y++) {
-                for (x = 0; x < 4; x++) {
-                  d[((by << 2) + y)*w + (bx << 2) + x] =
-                   pred[OD_ZIG4[y*4 + x]];
-                }
-              }
-              /*iDCT the 4x4 block.*/
-              od_bin_idct4x4(c + (by << 2)*w + (bx << 2), w, d + (by << 2)*w
-               + (bx << 2), w);
-            }
-          }
-          if (nk > 0) {
-            adapt.curr[OD_ADAPT_K_Q8] = OD_DIVU_SMALL(k_total << 8, nk);
-            adapt.curr[OD_ADAPT_SUM_EX_Q8] =
-             OD_DIVU_SMALL(sum_ex_total_q8, nk);
+          od_adapt_update_stats(adapt_row, mbx, &adapt_hmean[pli], &mbctx.adapt);
+          od_mb_decode(dec, &mbctx, pli, mbx, mby);
+          if (mbctx.nk > 0) {
+            mbctx.adapt.curr[OD_ADAPT_K_Q8] = OD_DIVU_SMALL(mbctx.k_total << 8, mbctx.nk);
+            mbctx.adapt.curr[OD_ADAPT_SUM_EX_Q8] =
+             OD_DIVU_SMALL(mbctx.sum_ex_total_q8, mbctx.nk);
           } else {
-            adapt.curr[OD_ADAPT_K_Q8] = OD_ADAPT_NO_VALUE;
-            adapt.curr[OD_ADAPT_SUM_EX_Q8] = OD_ADAPT_NO_VALUE;
+            mbctx.adapt.curr[OD_ADAPT_K_Q8] = OD_ADAPT_NO_VALUE;
+            mbctx.adapt.curr[OD_ADAPT_SUM_EX_Q8] = OD_ADAPT_NO_VALUE;
           }
-          if (ncount > 0)
+          if (mbctx.ncount > 0)
           {
-            adapt.curr[OD_ADAPT_COUNT_Q8] =
-             OD_DIVU_SMALL(count_total_q8, ncount);
-            adapt.curr[OD_ADAPT_COUNT_EX_Q8] =
-             OD_DIVU_SMALL(count_ex_total_q8, ncount);
+            mbctx.adapt.curr[OD_ADAPT_COUNT_Q8] =
+             OD_DIVU_SMALL(mbctx.count_total_q8, mbctx.ncount);
+            mbctx.adapt.curr[OD_ADAPT_COUNT_EX_Q8] =
+             OD_DIVU_SMALL(mbctx.count_ex_total_q8, mbctx.ncount);
           } else {
-            adapt.curr[OD_ADAPT_COUNT_Q8] = OD_ADAPT_NO_VALUE;
-            adapt.curr[OD_ADAPT_COUNT_EX_Q8] = OD_ADAPT_NO_VALUE;
+            mbctx.adapt.curr[OD_ADAPT_COUNT_Q8] = OD_ADAPT_NO_VALUE;
+            mbctx.adapt.curr[OD_ADAPT_COUNT_EX_Q8] = OD_ADAPT_NO_VALUE;
           }
-          od_adapt_mb(adapt_row, mbx, &adapt_hmean[pli], &adapt);
+          od_adapt_mb(adapt_row, mbx, &adapt_hmean[pli], &mbctx.adapt);
         }
       }
       for (pli = 0; pli < nplanes; pli++) {
@@ -617,12 +659,12 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
       _ogg_free(ltmp[pli]);
       _ogg_free(dtmp[pli]);
       _ogg_free(ctmp[pli]);
-      if (!is_keyframe) {
+      if (!mbctx.is_keyframe) {
         _ogg_free(mdtmp[pli]);
         _ogg_free(mctmp[pli]);
       }
     }
-    _ogg_free(modes);
+    _ogg_free(mbctx.modes);
   }
   /*Dump YUV*/
   od_state_dump_yuv(&dec->state, dec->state.io_imgs + OD_FRAME_REC, "decout");

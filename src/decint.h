@@ -37,6 +37,7 @@ struct daala_dec_ctx {
   od_state state;
   oggbyte_buffer obb;
   od_ec_dec ec;
+  int scale[OD_NPLANES_MAX];
   int packet_state;
 };
 
