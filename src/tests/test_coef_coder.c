@@ -223,6 +223,76 @@ void test_pvq_sequence(int len,int N,float std)
   free(X);
 }
 
+void test_pvq_basic(int N) {
+  int i;
+  int j;
+  int bits;
+  int *X;
+  int len;
+  len = 4*N + 1;
+  X = malloc(sizeof(*X)*N*len);
+  for (i = 0; i<N; i++) X[i] = 0;
+  for (i = 0; i<N; i++) {
+    for (j = 0; j < N; j++) {
+      X[(i + 1)*N + j] = (j == i);
+    }
+  }
+  for (i = 0; i < N; i++) {
+    for (j = 0; j < N; j++) {
+      X[(i + N + 1)*N + j] = -(j == i);
+    }
+  }
+  for (i = 0; i < N; i++) {
+    for (j = 0; j < N; j++){
+      X[(i+ N*2 + 1)*N + j] = j==i ?(rand() & 1? -2 : 2): 0;
+    }
+  }
+  for (i = 0; i < N; i++) {
+    for (j = 0; j < N; j++) {
+      X[(i + N*3 + 1)*N + j] = j==i ?(rand() & 1? -3 : 3): 0;
+    }
+  }
+  bits = run_pvq(X, len, N);
+  fprintf(stderr,
+   "Coded %d dim, few pulses with %f bits/sample (%1.4f bits/vector)\n",
+   N,bits/(float)(len)/N,bits/(float)(len));
+  free(X);
+}
+
+void test_pvq_huge(int N) {
+  int i;
+  int j;
+  int bits;
+  int *X;
+  int len;
+  len = 4*N;
+  X = malloc(sizeof(*X)*N*len);
+  for (i = 0; i < N; i++) {
+    for (j = 0; j < N; j++) {
+      X[i*N + j] = (j == i)*65535;
+    }
+  }
+  for (i = 0; i<N; i++) {
+    for (j = 0; j<N; j++) {
+      X[(i + N)*N + j] = (j == i)*-65536;
+    }
+  }
+  for (i = 0; i<N; i++) {
+    for (j = 0; j<N; j++) {
+      X[(i + N*2)*N + j] = (j == i)*-65535;
+    }
+  }
+  for (i = 0; i<N; i++) {
+    for (j = 0; j<N; j++) {
+      X[(i + N*3)*N + j] = (j == i)*65534;
+    }
+  }
+  bits = run_pvq(X, len, N);
+  fprintf(stderr,
+   "Coded %d dim, 65536 pulses with %f bits/sample (%1.4f bits/vector)\n",
+   N,bits/(float)(len)/N,bits/(float)(len));
+  free(X);
+}
 
 int main(int argc, char **argv){
   if(argc==4){
@@ -261,6 +331,18 @@ int main(int argc, char **argv){
     fclose(file);
     free(X);
   } else {
+    int i;
+    for (i=2; i<18; i++) test_pvq_basic(i);
+    test_pvq_basic(64);
+    test_pvq_basic(128);
+    test_pvq_basic(256);
+    for (i=2; i<18; i++) test_pvq_huge(i);
+    test_pvq_huge(64);
+#ifdef FAILING_TESTS
+    /*Currently failing due to signed integer overflow in expectation.*/
+    test_pvq_huge(128);
+    test_pvq_huge(256);
+#endif
     test_pvq_sequence(10000,128,.03);
     test_pvq_sequence(10000,128,.1);
     test_pvq_sequence(10000,128,.3);
