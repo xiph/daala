@@ -774,33 +774,42 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       }
       /*Apply the prefilter across the entire image.*/
       {
-        int sby;
-        int sbx;
+        int            bstride;
+        int            sby;
+        int            sbx;
+        unsigned char  btmp[6*6];
+        unsigned char *bsize;
+        od_coeff      *c;
+        bstride=enc->state.bstride;
         /* This code assumes 4:4:4 or 4:2:0 input. */
         OD_ASSERT(xdec==ydec);
         /*Apply the prefilter down the bottom block edge columns.*/
         for (sby = 0; sby < nvsb; sby++) {
           for (sbx = 0; sbx < nhsb; sbx++) {
-            unsigned char btmp[6*6];
-            od_extract_bsize(btmp,6,&enc->state.bsize[enc->state.bstride*(sby<<2)+(sbx<<2)],enc->state.bstride,xdec);
-            od_apply_filter(&ctmp[pli][(sby<<(5-ydec))*w+(sbx<<(5-xdec))],w,0,0,3-xdec,
-             &btmp[6*1+1],6,OD_BOTTOM_EDGE,sby<nvsb-1?OD_BOTTOM_EDGE:0,0);
+            bsize=&enc->state.bsize[bstride*(sby<<2)+(sbx<<2)];
+            od_extract_bsize(btmp,6,bsize,bstride,xdec);
+            c=&ctmp[pli][(sby<<(5-ydec))*w+(sbx<<(5-xdec))];
+            od_apply_filter(c,w,0,0,3-xdec,&btmp[6*1+1],6,OD_BOTTOM_EDGE,
+             sby<nvsb-1?OD_BOTTOM_EDGE:0,0);
             if (!mbctx.is_keyframe) {
-              od_apply_filter(&mctmp[pli][(sby<<(5-ydec))*w+(sbx<<(5-xdec))],w,0,0,3-xdec,
-               &btmp[6*1+1],6,OD_BOTTOM_EDGE,sby<nvsb-1?OD_BOTTOM_EDGE:0,0);
+              c=&mctmp[pli][(sby<<(5-ydec))*w+(sbx<<(5-xdec))];
+              od_apply_filter(c,w,0,0,3-xdec,&btmp[6*1+1],6,OD_BOTTOM_EDGE,
+               sby<nvsb-1?OD_BOTTOM_EDGE:0,0);
             }
           }
         }
         /*Apply the prefilter across the right block edge rows.*/
         for (sby = 0; sby < nvsb; sby++) {
           for (sbx = 0; sbx < nhsb; sbx++) {
-            unsigned char btmp[6*6];
-            od_extract_bsize(btmp,6,&enc->state.bsize[enc->state.bstride*(sby<<2)+(sbx<<2)],enc->state.bstride,xdec);
-            od_apply_filter(&ctmp[pli][(sby<<(5-ydec))*w+(sbx<<(5-xdec))],w,0,0,3-xdec,
-             &btmp[6*1+1],6,OD_RIGHT_EDGE,sbx<nhsb-1?OD_RIGHT_EDGE:0,0);
+            bsize=&enc->state.bsize[bstride*(sby<<2)+(sbx<<2)];
+            od_extract_bsize(btmp,6,bsize,enc->state.bstride,xdec);
+            c=&ctmp[pli][(sby<<(5-ydec))*w+(sbx<<(5-xdec))];
+            od_apply_filter(c,w,0,0,3-xdec,&btmp[6*1+1],6,OD_RIGHT_EDGE,
+             sbx<nhsb-1?OD_RIGHT_EDGE:0,0);
             if (!mbctx.is_keyframe) {
-              od_apply_filter(&mctmp[pli][(sby<<(5-ydec))*w+(sbx<<(5-xdec))],w,0,0,3-xdec,
-               &btmp[6*1+1],6,OD_RIGHT_EDGE,sbx<nhsb-1?OD_RIGHT_EDGE:0,0);
+              c=&mctmp[pli][(sby<<(5-ydec))*w+(sbx<<(5-xdec))];
+              od_apply_filter(c,w,0,0,3-xdec,&btmp[6*1+1],6,OD_RIGHT_EDGE,
+               sbx<nhsb-1?OD_RIGHT_EDGE:0,0);
             }
           }
         }
@@ -877,36 +886,33 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       h = frame_height >> ydec;
       /*Apply the postfilter across the entire image.*/
       {
-        int sby;
-        int sbx;
+        int            bstride;
+        int            sby;
+        int            sbx;
+        unsigned char  btmp[6*6];
+        unsigned char *bsize;
+        od_coeff      *c;
+        bstride=enc->state.bstride;
         /* This code assumes 4:4:4 or 4:2:0 input. */
         OD_ASSERT(xdec==ydec);
         /*Apply the postfilter across the right block edge rows.*/
         for (sby = 0; sby < nvsb; sby++) {
           for (sbx = 0; sbx < nhsb; sbx++) {
-            unsigned char btmp[6*6];
-            od_extract_bsize(btmp,6,&enc->state.bsize[enc->state.bstride*(sby<<2)+(sbx<<2)],enc->state.bstride,xdec);
-            /*extract_bsize(btmp,&enc->state.bsize[enc->state.bstride*(sby<<2)+(sbx<<2)],enc->state.bstride,xdec);*/
-            od_apply_filter(&ctmp[pli][(sby<<(5-ydec))*w+(sbx<<(5-xdec))],w,0,0,3-xdec,
-             &btmp[6*1+1],6,OD_RIGHT_EDGE,sbx<nhsb-1?OD_RIGHT_EDGE:0,1);
-            if (!mbctx.is_keyframe) {
-              od_apply_filter(&mctmp[pli][(sby<<(5-ydec))*w+(sbx<<(5-xdec))],w,0,0,3-xdec,
-               &btmp[6*1+1],6,OD_RIGHT_EDGE,sbx<nhsb-1?OD_RIGHT_EDGE:0,1);
-            }
+            bsize=&enc->state.bsize[bstride*(sby<<2)+(sbx<<2)];
+            od_extract_bsize(btmp,6,bsize,bstride,xdec);
+            c=&ctmp[pli][(sby<<(5-ydec))*w+(sbx<<(5-xdec))];
+            od_apply_filter(c,w,0,0,3-xdec,&btmp[6*1+1],6,OD_RIGHT_EDGE,
+             sbx<nhsb-1?OD_RIGHT_EDGE:0,1);
           }
         }
         /*Apply the postfilter down the bottom block edge columns.*/
         for (sby = 0; sby < nvsb; sby++) {
           for (sbx = 0; sbx < nhsb; sbx++) {
-            unsigned char btmp[6*6];
-            od_extract_bsize(btmp,6,&enc->state.bsize[enc->state.bstride*(sby<<2)+(sbx<<2)],enc->state.bstride,xdec);
-            /*extract_bsize(btmp,&enc->state.bsize[enc->state.bstride*(sby<<2)+(sbx<<2)],enc->state.bstride,xdec);*/
-            od_apply_filter(&ctmp[pli][(sby<<(5-ydec))*w+(sbx<<(5-xdec))],w,0,0,3-xdec,
-             &btmp[6*1+1],6,OD_BOTTOM_EDGE,sby<nvsb-1?OD_BOTTOM_EDGE:0,1);
-            if (!mbctx.is_keyframe) {
-              od_apply_filter(&mctmp[pli][(sby<<(5-ydec))*w+(sbx<<(5-xdec))],w,0,0,3-xdec,
-               &btmp[6*1+1],6,OD_BOTTOM_EDGE,sby<nvsb-1?OD_BOTTOM_EDGE:0,1);
-            }
+            bsize=&enc->state.bsize[bstride*(sby<<2)+(sbx<<2)];
+            od_extract_bsize(btmp,6,bsize,bstride,xdec);
+            c=&ctmp[pli][(sby<<(5-ydec))*w+(sbx<<(5-xdec))];
+            od_apply_filter(c,w,0,0,3-xdec,&btmp[6*1+1],6,OD_BOTTOM_EDGE,
+             sby<nvsb-1?OD_BOTTOM_EDGE:0,1);
           }
         }
       }
