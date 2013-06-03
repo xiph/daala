@@ -448,17 +448,21 @@ void od_mb_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
   }
 }
 
-static void od_encode_mv(daala_enc_ctx *enc, od_mv_grid_pt *mvg,
- int mv_res, int width, int height) {
+static void od_encode_mv(daala_enc_ctx *enc, od_mv_grid_pt *mvg, int vx,
+ int vy, int level, int mv_res, int width, int height) {
+  int ex[3] = {628, 1382, 1879};
+  int ey[3] = {230, 525, 807};
+  int pred[2];
   int ox;
   int oy;
-  ox = mvg->mv[0] >> mv_res;
-  oy = mvg->mv[1] >> mv_res;
+  od_state_get_predictor(&enc->state, pred, vx, vy, level, mv_res);
+  ox = (mvg->mv[0] >> mv_res) - pred[0];
+  oy = (mvg->mv[1] >> mv_res) - pred[1];
   /*Interleave positive and negative values.*/
   ox = (ox << 1) ^ OD_SIGNMASK(ox);
   oy = (oy << 1) ^ OD_SIGNMASK(oy);
-  laplace_encode(&enc->ec, ox, 2269 >> mv_res, width << 1);
-  laplace_encode(&enc->ec, oy, 569 >> mv_res, height << 1);
+  laplace_encode(&enc->ec, ox, ex[level] >> mv_res, width << (4-level));
+  laplace_encode(&enc->ec, oy, ey[level] >> mv_res, height << (4-level));
 }
 
 int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
@@ -647,15 +651,15 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       for (vy = 0; vy <= nvmvbs; vy += 4) {
         for (vx = 0; vx <= nhmvbs; vx += 4) {
           mvp = &grid[vy][vx];
-          od_encode_mv(enc, mvp, mv_res, width, height);
+          od_encode_mv(enc, mvp, vx, vy, 0, mv_res, width, height);
         }
       }
       /*Level 1.*/
       for (vy = 2; vy <= nvmvbs; vy += 4) {
         for (vx = 2; vx <= nhmvbs; vx += 4) {
           mvp = &(grid[vy][vx]);
-          od_ec_encode_bool_q15(&enc->ec, mvp->valid, 16384);
-          if (mvp->valid) od_encode_mv(enc, mvp, mv_res, width, height);
+          od_ec_encode_bool_q15(&enc->ec, mvp->valid, 25707);
+          if (mvp->valid) od_encode_mv(enc, mvp, vx, vy, 1, mv_res, width, height);
         }
       }
       /*Level 2.*/
@@ -666,8 +670,8 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
            && vx-2 >= 0 && grid[vy][vx-2].valid
            && vy+2 <= nvmvbs && grid[vy+2][vx].valid
            && vx+2 <= nhmvbs && grid[vy][vx+2].valid) {
-            od_ec_encode_bool_q15(&enc->ec, mvp->valid, 16384);
-            if (mvp->valid) od_encode_mv(enc, mvp, mv_res, width, height);
+            od_ec_encode_bool_q15(&enc->ec, mvp->valid, 13684);
+            if (mvp->valid) od_encode_mv(enc, mvp, vx, vy, 2, mv_res, width, height);
           }
         }
       }

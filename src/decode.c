@@ -78,17 +78,21 @@ int daala_decode_ctl(daala_dec_ctx *dec, int req, void *buf, size_t buf_sz) {
   }
 }
 
-static void od_decode_mv(daala_dec_ctx *dec, od_mv_grid_pt *mvg,
- int mv_res, int width, int height) {
+static void od_decode_mv(daala_dec_ctx *dec, od_mv_grid_pt *mvg, int vx,
+ int vy, int level, int mv_res, int width, int height) {
+  int ex[3] = {628, 1382, 1879};
+  int ey[3] = {230, 525, 807};
+  int pred[2];
   int ox;
   int oy;
-  ox = laplace_decode(&dec->ec, 2269 >> mv_res, width << 1);
-  oy = laplace_decode(&dec->ec, 569 >> mv_res, height << 1);
+  ox = laplace_decode(&dec->ec, ex[level] >> mv_res, width << (4 - level));
+  oy = laplace_decode(&dec->ec, ey[level] >> mv_res, height << (4 - level));
   /*Deinterleave positive and negative values.*/
   ox = (ox >> 1) ^ -(ox & 1);
   oy = (oy >> 1) ^ -(oy & 1);
-  mvg->mv[0] = ox << mv_res;
-  mvg->mv[1] = oy << mv_res;
+  od_state_get_predictor(&dec->state, pred, vx, vy, level, mv_res);
+  mvg->mv[0] = (pred[0] + ox) << mv_res;
+  mvg->mv[1] = (pred[1] + oy) << mv_res;
 }
 
 struct od_mb_dec_ctx {
@@ -409,15 +413,17 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
       for (vx = 0; vx <= nhmvbs; vx += 4) {
         mvp = &grid[vy][vx];
         mvp->valid = 1;
-        od_decode_mv(dec, mvp, mv_res, width, height);
+        od_decode_mv(dec, mvp, vx, vy, 0, mv_res, width, height);
       }
     }
     /*Level 1.*/
     for (vy = 2; vy <= nvmvbs; vy += 4) {
       for (vx = 2; vx <= nhmvbs; vx += 4) {
         mvp = &grid[vy][vx];
-        mvp->valid = od_ec_decode_bool_q15(&dec->ec, 16384);
-        if (mvp->valid) od_decode_mv(dec, mvp, mv_res, width, height);
+        mvp->valid = od_ec_decode_bool_q15(&dec->ec, 25707);
+        if (mvp->valid) {
+          od_decode_mv(dec, mvp, vx, vy, 1, mv_res, width, height);
+        }
       }
     }
     /*Level 2.*/
@@ -428,8 +434,10 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
          && vx-2 >= 0 && grid[vy][vx-2].valid
          && vy+2 <= nvmvbs && grid[vy+2][vx].valid
          && vx+2 <= nhmvbs && grid[vy][vx+2].valid) {
-          mvp->valid = od_ec_decode_bool_q15(&dec->ec, 16384);
-          if (mvp->valid) od_decode_mv(dec, mvp, mv_res, width, height);
+          mvp->valid = od_ec_decode_bool_q15(&dec->ec, 13684);
+          if (mvp->valid) {
+            od_decode_mv(dec, mvp, vx, vy, 2, mv_res, width, height);
+          }
         }
       }
     }
