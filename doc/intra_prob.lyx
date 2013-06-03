@@ -68,7 +68,7 @@ Introduction
 \end_layout
 
 \begin_layout Standard
-Modern video codecs make use of intra prediction.
+Modern video codecs and still image codecs make use of intra prediction.
  Multiple modes...
  need to code which is selected.
 \end_layout
@@ -188,7 +188,21 @@ Adaptation
 \end_layout
 
 \begin_layout Standard
-There are two possible ways of adapting...
+There are two possible ways of adapting the probability model to individual
+ images being coded.
+ The first is to compute an online probability 
+\begin_inset Formula $p_{0}\left(m\right)$
+\end_inset
+
+ of mode 
+\begin_inset Formula $m$
+\end_inset
+
+ being selected with none of the neighbours use mode 
+\begin_inset Formula $m$
+\end_inset
+
+.
 \end_layout
 
 \begin_layout Section
