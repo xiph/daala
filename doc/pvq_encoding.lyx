@@ -203,6 +203,12 @@ reference "sub:Run-Length-Model"
 \end_inset
 
  present two possible models for encoding non-uniform PVQ parameters.
+ Both models assume the use of a range/arithmetic coder, ideally one that
+ is capable of encoding non-binary symbols.
+ In most cases, the probability distributions functions (pdf) can be stored
+ in a lookup table in the form of cumulative distributions functions (cdf)
+ that can be used directly by the encoder and decoder.
+ 
 \end_layout
 
 \begin_layout Subsection
@@ -327,6 +333,15 @@ reference "eq:r-vs-sigma"
 
  is in the range 
 \begin_inset Formula $\left[\frac{1}{2},1\right]$
+\end_inset
+
+.
+ For efficiency reasons, we pre-compute the cdf corresponding to 
+\begin_inset Formula $p\left(k\right)$
+\end_inset
+
+ or different values of 
+\begin_inset Formula $r$
 \end_inset
 
 .
