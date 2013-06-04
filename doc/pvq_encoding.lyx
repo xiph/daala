@@ -143,11 +143,12 @@ key "RFC6716"
 
  is generally not a power of two.
  The equal-probability case is common for audio.
- For video, discrete cosine transform (DCT) coefficients for a block tend
- to have widely different distributions.
+ For video, transform coefficients (e.g.
+ DCT) or any prediction residual for a block tend to have widely different
+ distributions.
  For this reason, using a uniform probability model.
- This document proposes a way to efficiently the result of PVQ quantization
- with such non-uniform distributions.
+ This document proposes a way to efficiently encode the result of PVQ quantizati
+on with such non-uniform distributions.
 \end_layout
 
 \begin_layout Section
@@ -205,8 +206,8 @@ reference "sub:Run-Length-Model"
  present two possible models for encoding non-uniform PVQ parameters.
  Both models assume the use of a range/arithmetic coder, ideally one that
  is capable of encoding non-binary symbols.
- In most cases, the probability distributions functions (pdf) can be stored
- in a lookup table in the form of cumulative distributions functions (cdf)
+ In most cases, the probability distribution functions (pdf) can be stored
+ in a lookup table in the form of cumulative distribution functions (cdf)
  that can be used directly by the encoder and decoder.
  
 \end_layout
@@ -340,7 +341,7 @@ reference "eq:r-vs-sigma"
 \begin_inset Formula $p\left(k\right)$
 \end_inset
 
- or different values of 
+ for different values of 
 \begin_inset Formula $r$
 \end_inset
 
@@ -433,8 +434,20 @@ The process can be applied recursively until
 \begin_inset Formula $\alpha$
 \end_inset
 
- is assumed constant and adapted based on the data being encoded.
- 
+ is assumed constant across a vector and adapted between vectors based on
+ the observed expectation 
+\begin_inset Formula $\sigma_{i}$
+\end_inset
+
+ as a function of 
+\begin_inset Formula $K$
+\end_inset
+
+ and 
+\begin_inset Formula $N$
+\end_inset
+
+.
 \end_layout
 
 \begin_layout Standard
@@ -689,6 +702,26 @@ In some contexts, the value of
 \end_inset
 
 .
+\end_layout
+
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+key "PVQ-draft"
+
+\end_inset
+
+J.-M.
+ Valin, 
+\begin_inset Quotes eld
+\end_inset
+
+Pyramid Vector Quantization for Video Coding
+\begin_inset Quotes erd
+\end_inset
+
+, IETF draft, 2013.
+ http://tools.ietf.org/html/draft-valin-videocodec-pvq-00
 \end_layout
 
 \begin_layout Bibliography
