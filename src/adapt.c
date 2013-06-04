@@ -28,7 +28,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 void od_adapt_row_init(od_adapt_row_ctx *row)
 {
   int i,r;
-  for(r=0;r<row->nhmbs;r++)
+  for(r=0;r<row->nhsb;r++)
     for(i=0;i<NB_ADAPT_CTX;i++)
       row->ctx[r].mean[i] = 2*od_adapt_params[i][0]-(od_adapt_params[i][0]>>od_adapt_params[i][1]);
 }
@@ -42,26 +42,26 @@ void od_adapt_hmean_init(od_adapt_ctx *hmean)
 }
 
 /* Compute stats for current mb */
-void od_adapt_update_stats(const od_adapt_row_ctx *row, int mbx,
+void od_adapt_update_stats(const od_adapt_row_ctx *row, int sbx,
     const od_adapt_ctx *hmean, od_adapt_ctx *curr)
 {
   int i;
   for(i=0;i<NB_ADAPT_CTX;i++)
-    curr->mean[i] = row->ctx[mbx].mean[i] + (hmean->mean[i]>>od_adapt_params[i][1]);
+    curr->mean[i] = row->ctx[sbx].mean[i] + (hmean->mean[i]>>od_adapt_params[i][1]);
 }
 
-void od_adapt_mb(od_adapt_row_ctx *row, int mbx, od_adapt_ctx *hmean, const od_adapt_ctx *curr)
+void od_adapt_sb(od_adapt_row_ctx *row, int sbx, od_adapt_ctx *hmean, const od_adapt_ctx *curr)
 {
   int i;
   for (i=0;i<NB_ADAPT_CTX;i++)
   {
     if (curr->curr[i]!=OD_ADAPT_NO_VALUE)
     {
-      row->ctx[mbx].curr[i] = curr->curr[i]>>1;
-      hmean->mean[i] += (row->ctx[mbx].curr[i] - hmean->mean[i])>>od_adapt_params[i][1];
-      row->ctx[mbx].mean[i] += (hmean->mean[i]-row->ctx[mbx].mean[i])>>od_adapt_params[i][1];
+      row->ctx[sbx].curr[i] = curr->curr[i]>>1;
+      hmean->mean[i] += (row->ctx[sbx].curr[i] - hmean->mean[i])>>od_adapt_params[i][1];
+      row->ctx[sbx].mean[i] += (hmean->mean[i]-row->ctx[sbx].mean[i])>>od_adapt_params[i][1];
     } else {
-      row->ctx[mbx].curr[i] = OD_ADAPT_NO_VALUE;
+      row->ctx[sbx].curr[i] = OD_ADAPT_NO_VALUE;
     }
   }
 }
@@ -70,7 +70,7 @@ void od_adapt_row(od_adapt_row_ctx *row, od_adapt_ctx *hmean)
 {
   int r;
   od_adapt_hmean_init(hmean);
-  for(r=row->nhmbs;r-->0;)
+  for(r=row->nhsb;r-->0;)
   {
     int i;
     for(i=0;i<NB_ADAPT_CTX;i++)

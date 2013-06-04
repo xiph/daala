@@ -188,13 +188,13 @@ int od_state_init(od_state *_state,const daala_info *_info){
   od_state_opt_vtbl_init(_state);
   od_state_ref_imgs_init(_state,4,2);
   od_state_mvs_init(_state);
+  _state->nhsb=_state->frame_width >> 5;
+  _state->nvsb=_state->frame_height >> 5;
   for(pli=0;pli<nplanes;pli++){
     _state->adapt_row[pli].ctx=(od_adapt_ctx *)_ogg_malloc(
-     _state->nhmbs*sizeof(*_state->adapt_row[pli].ctx));
-    _state->adapt_row[pli].nhmbs = _state->nhmbs;
+     _state->nhsb*sizeof(*_state->adapt_row[pli].ctx));
+    _state->adapt_row[pli].nhsb = _state->nhsb;
   }
-  _state->nhsb=(_state->frame_width>>5);
-  _state->nvsb=(_state->frame_height>>5);
   _state->bsize=(unsigned char *)_ogg_malloc(
       (_state->nhsb+2)*4 *
       (_state->nvsb+2)*4);

@@ -223,7 +223,7 @@ struct od_mb_enc_ctx {
 typedef struct od_mb_enc_ctx od_mb_enc_ctx;
 
 void od_4x4_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
- int bx, int by) {
+ int bx, int by, int has_ur) {
   int xdec;
   int ydec;
   int w;
@@ -275,18 +275,15 @@ void od_4x4_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
         int m_ul;
         int m_u;
         int mode;
-        od_coeff *ur;
         od_coeff *coeffs[4];
         int strides[4];
         /*Calculate the pointers to the surrounding blocks assuming 4x4
          size.*/
-        ur = /*(by > 0 && (((bx + 1) < (mbx + 1) << (2 - xdec))
-         || (by == mby << (2 - ydec))))*/ 0 ?
-         d + ((by - 1) << 2)*w + ((bx + 1) << 2) :
-         d + ((by - 1) << 2)*w + (bx << 2);
         coeffs[0] = d + ((by - 1) << 2)*w + ((bx - 1) << 2);
         coeffs[1] = d + ((by - 1) << 2)*w + (bx << 2);
-        coeffs[2] = ur;
+        coeffs[2] = has_ur ?
+         d + ((by - 1) << 2)*w + ((bx + 1) << 2) :
+         d + ((by - 1) << 2)*w + (bx << 2);
         coeffs[3] = d + (by << 2)*w + ((bx - 1) << 2);
         strides[0] = w;
         strides[1] = w;
@@ -422,29 +419,68 @@ void od_4x4_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
    + (bx << 2), w);
 }
 
-void od_b8_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
- int bx, int by) {
-  int xdec;
-  int ydec;
-  xdec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
-  ydec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
-  bx<<=1;
-  by<<=1;
-  od_4x4_encode(enc, ctx, pli, bx >> xdec, by >> ydec);
-  if (!xdec) od_4x4_encode(enc, ctx, pli, (bx + 1) >> xdec, by >> ydec);
-  if (!ydec) od_4x4_encode(enc, ctx, pli, bx >> xdec, (by + 1) >> ydec);
-  if (!xdec || !ydec) od_4x4_encode(enc, ctx, pli, (bx + 1) >> xdec,
-   (by + 1) >> ydec);
+static void od_8x8_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
+ int bx, int by, int has_ur) {
+  bx <<= 1;
+  by <<= 1;
+  od_4x4_encode(enc, ctx, pli, bx + 0, by + 0, 1);
+  od_4x4_encode(enc, ctx, pli, bx + 1, by + 0, has_ur);
+  od_4x4_encode(enc, ctx, pli, bx + 0, by + 1, 1);
+  od_4x4_encode(enc, ctx, pli, bx + 1, by + 1, 0);
 }
 
-void od_mb_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
- int mbx, int mby) {
-  int bx;
-  int by;
-  for (by = mby << 1; by < (mby + 1) << 1; by++) {
-    for (bx = mbx << 1; bx < (mbx + 1) << 1; bx++) {
-      od_b8_encode(enc, ctx, pli, bx, by);
-    }
+static void od_16x16_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
+ int bx, int by, int has_ur) {
+  bx <<= 1;
+  by <<= 1;
+  od_8x8_encode(enc, ctx, pli, bx + 0, by + 0, 1);
+  od_8x8_encode(enc, ctx, pli, bx + 1, by + 0, has_ur);
+  od_8x8_encode(enc, ctx, pli, bx + 0, by + 1, 1);
+  od_8x8_encode(enc, ctx, pli, bx + 1, by + 1, 0);
+}
+
+static void od_32x32_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
+ int bx, int by, int has_ur) {
+  bx <<= 1;
+  by <<= 1;
+  od_16x16_encode(enc, ctx, pli, bx + 0, by + 0, 1);
+  od_16x16_encode(enc, ctx, pli, bx + 1, by + 0, has_ur);
+  od_16x16_encode(enc, ctx, pli, bx + 0, by + 1, 1);
+  od_16x16_encode(enc, ctx, pli, bx + 1, by + 1, 0);
+}
+
+typedef void (*od_enc_func)(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
+ int bx, int by, int has_ur);
+
+const od_enc_func OD_ENCODE_BLOCK[OD_NBSIZES+1]={
+  od_4x4_encode,
+  od_8x8_encode,
+  od_16x16_encode,
+  od_32x32_encode
+};
+
+static void od_encode_block(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
+ int bx, int by, int l, int xdec, int ydec, int has_ur) {
+  int x;
+  int y;
+  int d;
+  x = (bx << l) >> (1 + xdec);
+  y = (by << l) >> (1 + ydec);
+  /*This code assumes 4:4:4 or 4:2:0 input.*/
+  OD_ASSERT(xdec == ydec);
+  d=OD_MAXI(enc->state.bsize[enc->state.bstride*y + x] - xdec, 0);
+  OD_ASSERT(d <= l - xdec);
+  if (d == l - xdec) {
+    (*OD_ENCODE_BLOCK[d])(enc, ctx, pli, bx, by, has_ur);
+  }
+  else {
+    l--;
+    bx <<= 1;
+    by <<= 1;
+    od_encode_block(enc, ctx, pli, bx + 0, by + 0, l, xdec, ydec, 1);
+    od_encode_block(enc, ctx, pli, bx + 1, by + 0, l, xdec, ydec, has_ur);
+    od_encode_block(enc, ctx, pli, bx + 0, by + 1, l, xdec, ydec, 1);
+    od_encode_block(enc, ctx, pli, bx + 1, by + 1, l, xdec, ydec, 0);
   }
 }
 
@@ -695,17 +731,13 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     od_coeff *lbuf[OD_NPLANES_MAX];
     int xdec;
     int ydec;
-    int nvmbs;
-    int nhmbs;
-    int mby;
-    int mbx;
+    int sby;
+    int sbx;
     int mi;
     int h;
     int w;
     int y;
     int x;
-    nhmbs = enc->state.nhmbs;
-    nvmbs = enc->state.nvmbs;
     /*Initialize the data needed for each plane.*/
     mbctx.modes = _ogg_calloc((frame_width >> 2)*(frame_height >> 2),
      sizeof(*mbctx.modes));
@@ -777,13 +809,12 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       /*Apply the prefilter across the entire image.*/
       {
         int            bstride;
-        int            sby;
-        int            sbx;
         unsigned char  btmp[6*6];
         unsigned char *bsize;
         od_coeff      *c;
-        bstride=enc->state.bstride;
-        /* This code assumes 4:4:4 or 4:2:0 input. */
+        od_coeff      *mc;
+        bstride = enc->state.bstride;
+        /*This code assumes 4:4:4 or 4:2:0 input.*/
         OD_ASSERT(xdec==ydec);
         /*Apply the prefilter down the bottom block edge columns.*/
         for (sby = 0; sby < nvsb; sby++) {
@@ -794,8 +825,8 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
             od_apply_filter(c,w,0,0,3-xdec,&btmp[6*1+1],6,OD_BOTTOM_EDGE,
              sby<nvsb-1?OD_BOTTOM_EDGE:0,0);
             if (!mbctx.is_keyframe) {
-              c=&mctmp[pli][(sby<<(5-ydec))*w+(sbx<<(5-xdec))];
-              od_apply_filter(c,w,0,0,3-xdec,&btmp[6*1+1],6,OD_BOTTOM_EDGE,
+              mc=&mctmp[pli][(sby<<(5-ydec))*w+(sbx<<(5-xdec))];
+              od_apply_filter(mc,w,0,0,3-xdec,&btmp[6*1+1],6,OD_BOTTOM_EDGE,
                sby<nvsb-1?OD_BOTTOM_EDGE:0,0);
             }
           }
@@ -809,23 +840,22 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
             od_apply_filter(c,w,0,0,3-xdec,&btmp[6*1+1],6,OD_RIGHT_EDGE,
              sbx<nhsb-1?OD_RIGHT_EDGE:0,0);
             if (!mbctx.is_keyframe) {
-              c=&mctmp[pli][(sby<<(5-ydec))*w+(sbx<<(5-xdec))];
-              od_apply_filter(c,w,0,0,3-xdec,&btmp[6*1+1],6,OD_RIGHT_EDGE,
+              mc=&mctmp[pli][(sby<<(5-ydec))*w+(sbx<<(5-xdec))];
+              od_apply_filter(mc,w,0,0,3-xdec,&btmp[6*1+1],6,OD_RIGHT_EDGE,
                sbx<nhsb-1?OD_RIGHT_EDGE:0,0);
             }
           }
         }
       }
     }
-    for (mby = 0; mby < nvmbs; mby++) {
+    for (sby = 0; sby < nvsb; sby++) {
       od_adapt_ctx adapt_hmean[OD_NPLANES_MAX];
       for (pli = 0; pli < nplanes; pli++) {
         od_adapt_hmean_init(&adapt_hmean[pli]);
       }
-      for (mbx = 0; mbx < nhmbs; mbx++) {
+      for (sbx = 0; sbx < nhsb; sbx++) {
         for (pli = 0; pli < nplanes; pli++) {
           od_adapt_row_ctx *adapt_row;
-          int ystride;
           int by;
           int bx;
           mbctx.c = ctmp[pli];
@@ -841,8 +871,8 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
           if (ltmp[pli] != NULL) {
             OD_ASSERT(pli > 0);
             OD_ASSERT(mbctx.l == ltmp[pli]);
-            for (by = mby << (2 - ydec); by < (mby + 1) << (2 - ydec); by++) {
-              for (bx = mbx << (2 - xdec); bx < (mbx + 1) << (2 - xdec);
+            for (by = sby << (3 - ydec); by < (sby + 1) << (3 - ydec); by++) {
+              for (bx = sbx << (3 - xdec); bx < (sbx + 1) << (3 - xdec);
                   bx++) {
                 od_resample_luma_coeffs(mbctx.l + (by << 2)*w + (bx<<2), w,
                     dtmp[0] + (by << (2 + ydec))*frame_width + (bx<<(2 + xdec)),
@@ -850,16 +880,17 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
               }
             }
           }
-          ystride = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ystride;
           mbctx.nk = mbctx.k_total = mbctx.sum_ex_total_q8 = 0;
           mbctx.ncount = mbctx.count_total_q8 = mbctx.count_ex_total_q8 = 0;
           adapt_row = &enc->state.adapt_row[pli];
-          od_adapt_update_stats(adapt_row, mbx, &adapt_hmean[pli], &mbctx.adapt);
-          od_mb_encode(enc, &mbctx, pli, mbx, mby);
+          /*Need to update this to decay based on superblocks width.*/
+          od_adapt_update_stats(adapt_row, sbx, &adapt_hmean[pli], &mbctx.adapt);
+          od_encode_block(enc, &mbctx, pli, sbx, sby, 3, xdec, ydec,
+           sby > 0 && sbx < nhsb - 1);
           if (mbctx.nk > 0) {
-            mbctx.adapt.curr[OD_ADAPT_K_Q8] = OD_DIVU_SMALL(mbctx.k_total << 8, mbctx.nk);
+            mbctx.adapt.curr[OD_ADAPT_K_Q8] = (mbctx.k_total << 8)/mbctx.nk;
             mbctx.adapt.curr[OD_ADAPT_SUM_EX_Q8] =
-             OD_DIVU_SMALL(mbctx.sum_ex_total_q8, mbctx.nk);
+             mbctx.sum_ex_total_q8/mbctx.nk;
           } else {
             mbctx.adapt.curr[OD_ADAPT_K_Q8] = OD_ADAPT_NO_VALUE;
             mbctx.adapt.curr[OD_ADAPT_SUM_EX_Q8] = OD_ADAPT_NO_VALUE;
@@ -867,14 +898,14 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
           if (mbctx.ncount > 0)
           {
             mbctx.adapt.curr[OD_ADAPT_COUNT_Q8] =
-             OD_DIVU_SMALL(mbctx.count_total_q8, mbctx.ncount);
+             mbctx.count_total_q8/mbctx.ncount;
             mbctx.adapt.curr[OD_ADAPT_COUNT_EX_Q8] =
-             OD_DIVU_SMALL(mbctx.count_ex_total_q8, mbctx.ncount);
+             mbctx.count_ex_total_q8/mbctx.ncount;
           } else {
             mbctx.adapt.curr[OD_ADAPT_COUNT_Q8] = OD_ADAPT_NO_VALUE;
             mbctx.adapt.curr[OD_ADAPT_COUNT_EX_Q8] = OD_ADAPT_NO_VALUE;
           }
-          od_adapt_mb(adapt_row, mbx, &adapt_hmean[pli], &mbctx.adapt);
+          od_adapt_sb(adapt_row, sbx, &adapt_hmean[pli], &mbctx.adapt);
         }
       }
       for (pli = 0; pli < nplanes; pli++) {
@@ -889,8 +920,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       /*Apply the postfilter across the entire image.*/
       {
         int            bstride;
-        int            sby;
-        int            sbx;
         unsigned char  btmp[6*6];
         unsigned char *bsize;
         od_coeff      *c;

@@ -51,7 +51,7 @@ typedef struct{
 
 typedef struct{
   od_adapt_ctx *ctx;
-  int nhmbs;
+  int nhsb;
 } od_adapt_row_ctx;
 
 /* Once per frame */
@@ -63,7 +63,7 @@ void od_adapt_hmean_init(od_adapt_ctx *hmean);
 /* Compute stats for current mb */
 void od_adapt_update_stats(const od_adapt_row_ctx *curr_row, int id, const od_adapt_ctx *hmean, od_adapt_ctx *out);
 
-void od_adapt_mb(od_adapt_row_ctx *row, int id, od_adapt_ctx *hmean, const od_adapt_ctx *curr);
+void od_adapt_sb(od_adapt_row_ctx *row, int sbx, od_adapt_ctx *hmean, const od_adapt_ctx *curr);
 
 void od_adapt_row(od_adapt_row_ctx *row, od_adapt_ctx *hmean);
 
