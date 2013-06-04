@@ -419,8 +419,10 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
     /*Level 1.*/
     for (vy = 2; vy <= nvmvbs; vy += 4) {
       for (vx = 2; vx <= nhmvbs; vx += 4) {
+        int p_invalid;
+        p_invalid = od_mv_level1_prob(grid,vx,vy);
         mvp = &grid[vy][vx];
-        mvp->valid = od_ec_decode_bool_q15(&dec->ec, 25707);
+        mvp->valid = od_ec_decode_bool_q15(&dec->ec, p_invalid);
         if (mvp->valid) {
           od_decode_mv(dec, mvp, vx, vy, 1, mv_res, width, height);
         }

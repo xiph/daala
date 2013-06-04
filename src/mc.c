@@ -2715,6 +2715,29 @@ This last compare is unneeded for a median:
   }
 }
 
+/*Probability that a given level 1 MV is coded, given the nearest
+   left and up l1 neighbors and the consistency of the motion field
+   down and to the righ.*/
+int od_mv_level1_prob(od_mv_grid_pt **grid, int vx, int vy) {
+  const int probs[3][3] =
+   {{28323, 30610, 32128}, {18468, 21082, 24253}, {10799, 12839, 14144}};
+  od_mv_grid_pt *vur;
+  od_mv_grid_pt *vdr;
+  od_mv_grid_pt *vdl;
+  int lf;
+  int uf;
+  int rf;
+  int bf;
+  vur = &(grid[vy - 2][vx + 2]);
+  vdr = &(grid[vy + 2][vx + 2]);
+  vdl = &(grid[vy + 2][vx - 2]);
+  lf = vx > 3 ? grid[vy][vx - 4].valid : 0;
+  uf = vy > 3 ? grid[vy - 4][vx].valid : 0;
+  rf = (vur->mv[0] == vdr->mv[0]) && (vur->mv[1] == vdr->mv[1]);
+  bf = (vdr->mv[0] == vdl->mv[0]) && (vdr->mv[1] == vdl->mv[1]);
+  return probs[lf + uf][rf + bf];
+}
+
 #if 0
 #include <stdio.h>
 #include <string.h>
