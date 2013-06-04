@@ -528,26 +528,31 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
         }
         /*Apply the prefilter across the entire image.*/
         {
-          int sby;
-          int sbx;
+          int            bstride;
+          unsigned char  btmp[6*6];
+          unsigned char *bsize;
+          od_coeff      *mc;
+          bstride=dec->state.bstride;
           /* This code assumes 4:4:4 or 4:2:0 input. */
           OD_ASSERT(xdec==ydec);
           /*Apply the prefilter down the bottom block edge columns.*/
           for (sby = 0; sby < nvsb; sby++) {
             for (sbx = 0; sbx < nhsb; sbx++) {
-              unsigned char btmp[6*6];
-              od_extract_bsize(btmp,6,&dec->state.bsize[dec->state.bstride*(sby<<2)+(sbx<<2)],dec->state.bstride,xdec);
-              od_apply_filter(&mctmp[pli][(sby<<(5-ydec))*w+(sbx<<(5-xdec))],w,0,0,3-xdec,
-               &btmp[6*1+1],6,OD_BOTTOM_EDGE,sby<nvsb-1?OD_BOTTOM_EDGE:0,0);
+              bsize = &dec->state.bsize[bstride*(sby << 2) + (sbx << 2)];
+              od_extract_bsize(btmp, 6, bsize, bstride, xdec);
+              mc = &mctmp[pli][(sby<<(5 - ydec))*w + (sbx << (5 - xdec))];
+              od_apply_filter(mc, w, 0, 0, 3 - xdec, &btmp[6*1 + 1], 6,
+               OD_BOTTOM_EDGE, sby < nvsb - 1 ? OD_BOTTOM_EDGE : 0, 0);
             }
           }
           /*Apply the prefilter across the right block edge rows.*/
           for (sby = 0; sby < nvsb; sby++) {
             for (sbx = 0; sbx < nhsb; sbx++) {
-              unsigned char btmp[6*6];
-              od_extract_bsize(btmp,6,&dec->state.bsize[dec->state.bstride*(sby<<2)+(sbx<<2)],dec->state.bstride,xdec);
-              od_apply_filter(&mctmp[pli][(sby<<(5-ydec))*w+(sbx<<(5-xdec))],w,0,0,3-xdec,
-               &btmp[6*1+1],6,OD_RIGHT_EDGE,sbx<nhsb-1?OD_RIGHT_EDGE:0,0);
+              bsize = &dec->state.bsize[bstride*(sby << 2) + (sbx << 2)];
+              od_extract_bsize(btmp, 6, bsize, bstride, xdec);
+              mc = &mctmp[pli][(sby << (5 - ydec))*w + (sbx << (5 - xdec))];
+              od_apply_filter(mc, w, 0, 0, 3 - xdec, &btmp[6*1 + 1], 6,
+               OD_RIGHT_EDGE, sbx < nhsb - 1 ? OD_RIGHT_EDGE : 0, 0);
             }
           }
         }
