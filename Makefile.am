@@ -482,7 +482,7 @@ pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = daala.pc
 
 debug:
-	$(MAKE) CFLAGS="${CFLAGS} -O0 -ggdb -DOP_ENABLE_ASSERTIONS" all
+	$(MAKE) CFLAGS="${CFLAGS} -O0 -ggdb -DOD_ENABLE_ASSERTIONS" all
 
 EXTRA_DIST = \
 	daala.pc.in \
