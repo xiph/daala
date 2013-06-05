@@ -342,11 +342,11 @@ int main(int _argc,const char *_argv[]){
 # if PRINT_COV
   trans_data_print(&ctx[0].td,stderr);
 # endif
-  fprintf(stdout,"original cg=%- 24.16G\n",coding_gain_2d(ctx[0].td.cov));
+  fprintf(stdout,"original cg=%- 24.16G\n",coding_gain_2d(ctx[0].td.cov,f));
   trans_data_collapse(&ctx[0].td,2*B_SZ,r);
-  fprintf(stdout,"collapse cg=%- 24.16G\n",coding_gain_2d_collapsed(r));
+  fprintf(stdout,"collapse cg=%- 24.16G\n",coding_gain_2d_collapsed(r,f));
   trans_data_expand(&ctx[0].td,2*B_SZ,r);
-  fprintf(stdout,"expanded cg=%- 24.16G\n",coding_gain_2d(ctx[0].td.cov));
+  fprintf(stdout,"expanded cg=%- 24.16G\n",coding_gain_2d(ctx[0].td.cov,f));
 #elif USE_AR95
   auto_regressive_collapsed(r,2*B_SZ*2*B_SZ,2*B_SZ,0.95);
 #elif USE_SUBSET1
