@@ -369,6 +369,7 @@ tools_gen_laplace_tables_LDADD = $(OGG_LIBS) $(PNG_LIBS) -lm
 
 # Tests
 
+if ENABLE_UNIT_TESTS
 noinst_PROGRAMS += \
 	src/tests/ectest \
 	src/tests/test_coef_coder \
@@ -411,6 +412,8 @@ src_tests_check_tests_LDADD = \
  $(OGG_LIBS) \
  $(CHECK_LIBS) \
  -lm
+
+endif
 
 # Docs
 

@@ -76,11 +76,21 @@ PKG_CHECK_MODULES([OGG], [ogg >= 1.3])
 PKG_CHECK_MODULES([SDL], [sdl])
 PKG_CHECK_MODULES([PNG], [libpng])
 PKG_CHECK_MODULES([THEORA], [theoradec])
-PKG_CHECK_MODULES([CHECK], [check])
 
 #CC_ATTRIBUTE_VISIBILITY([default], [
 #  CC_FLAG_VISIBILITY([CFLAGS="${CFLAGS} -fvisibility=hidden"])
 #])
+
+dnl Check for check
+AC_ARG_ENABLE([unit-tests],
+  AS_HELP_STRING([--disable-unit-tests], [Do not build unit tests]),,
+  [enable_unit_tests=yes]
+)
+
+if test "$enable_unit_tests" = "yes" ; then
+  PKG_CHECK_MODULES([CHECK], [check])
+fi
+AM_CONDITIONAL(ENABLE_UNIT_TESTS, [test $enable_unit_tests = "yes"])
 
 dnl Check for doxygen
 AC_ARG_ENABLE([doc],
@@ -149,5 +159,6 @@ AC_MSG_NOTICE([
     API documentation ............ ${enable_doc}
     Assembly optimizations ....... ${enable_asm}
     Image dumping ................ ${enable_dump_images}
+    Unit tests ................... ${enable_unit_tests}
 ------------------------------------------------------------------------
 ])
