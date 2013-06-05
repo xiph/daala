@@ -124,18 +124,15 @@ void od_mc_predict1imv8_c(unsigned char *dst, int dystride,
       unsigned a;
       unsigned b;
       if (i + 1 < xblk_sz) {
-        OD_LOG_PARTIAL((OD_LOG_MOTION_COMPENSATION,
-                        OD_LOG_DEBUG,
-                        "<%16.12f, %16.12f>::",
-                        (x - (i << 17))/(double)0x20000, (y - (j << 17))/(double)0x20000));
+        OD_LOG_PARTIAL((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG,
+         "<%16.12f, %16.12f>::",
+         (x - (i << 17))/(double)0x20000, (y - (j << 17))/(double)0x20000));
       }
       else {
-        OD_LOG((OD_LOG_MOTION_COMPENSATION,
-                OD_LOG_DEBUG,
-                "<%16.12f, %16.12f>",
-                (x - (i << 17))/(double)0x20000, (y - (j << 17))/(double)0x20000));
+        OD_LOG((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG,
+         "<%16.12f, %16.12f>",
+         (x - (i << 17))/(double)0x20000, (y - (j << 17))/(double)0x20000));
       }
-
       xf = x & 0xFFFF;
       yf = y & 0xFFFF;
       p = src + (x >> 16) + (y >> 16)*systride;
@@ -159,7 +156,7 @@ void od_mc_predict1imv8_c(unsigned char *dst, int dystride,
   for (j = 0; j < yblk_sz; j++) {
     for ( i = 0; i < xblk_sz; i++) {
       OD_LOG_PARTIAL((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG,
-                      "%2X ", *(dst + i + j*dystride)));
+       "%2X ", *(dst + i + j*dystride)));
     }
     OD_LOG_PARTIAL((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG, "\n"));
   }
@@ -2660,10 +2657,10 @@ void od_state_get_predictor(od_state *state,
     }
     /*Median-of-4.*/
     if (ncns > 3) {
-      OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG, "Median of 4:\n"));
-      OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG, "(%i, %i) (%i, %i) (%i, %i) (%i, %i)\n",
-       a[0][0], a[0][1], a[1][0], a[1][1],
-       a[2][0], a[2][1], a[3][0], a[3][1]));
+      OD_LOG((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG, "Median of 4:"));
+      OD_LOG((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG,
+       "(%i, %i) (%i, %i) (%i, %i) (%i, %i)", a[0][0], a[0][1],
+       a[1][0], a[1][1], a[2][0], a[2][1], a[3][0], a[3][1]));
 /*Sorting network for 4 elements:
 0000 0001 0010 0011 0100 0101 0110 0111 1000 1001 1010 1011 1100 1101 1110 1111
 0001 0010 0011 0100 0101 0110 0111 1001 1010 1011 1101
@@ -2690,16 +2687,17 @@ This last compare is unneeded for a median:
       OD_SORT2I(a[0][1], a[2][1]);
       OD_SORT2I(a[1][0], a[3][0]);
       OD_SORT2I(a[1][1], a[3][1]);
-      OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG, "(%i, %i) (%i, %i) (%i, %i) (%i, %i)\n",
-       a[0][0], a[0][1], a[1][0], a[1][1],
-       a[2][0], a[2][1], a[3][0], a[3][1]));
+      OD_LOG((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG,
+       "(%i, %i) (%i, %i) (%i, %i) (%i, %i)", a[0][0], a[0][1],
+       a[1][0], a[1][1], a[2][0], a[2][1], a[3][0], a[3][1]));
       pred[0] = OD_DIV_POW2_RE(a[1][0] + a[2][0], mv_res + 1);
       pred[1] = OD_DIV_POW2_RE(a[1][1] + a[2][1], mv_res + 1);
     }
     /*Median-of-3.*/
     else {
-      OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG, "Median of 3:\n"));
-      OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG, "(%i, %i) (%i, %i) (%i, %i)\n",
+      OD_LOG((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG, "Median of 3:"));
+      OD_LOG((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG,
+       "(%i, %i) (%i, %i) (%i, %i)",
        a[0][0], a[0][1], a[1][0], a[1][1], a[2][0], a[2][1]));
       OD_SORT2I(a[0][0], a[1][0]);
       OD_SORT2I(a[0][1], a[1][1]);
@@ -2707,7 +2705,8 @@ This last compare is unneeded for a median:
       OD_SORT2I(a[1][1], a[2][1]);
       OD_SORT2I(a[0][0], a[1][0]);
       OD_SORT2I(a[0][1], a[1][1]);
-      OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG, "(%i, %i) (%i, %i) (%i, %i)\n",
+      OD_LOG((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG,
+       "(%i, %i) (%i, %i) (%i, %i)",
        a[0][0], a[0][1], a[1][0], a[1][1], a[2][0], a[2][1]));
       pred[0] = OD_DIV_POW2_RE(a[1][0], mv_res);
       pred[1] = OD_DIV_POW2_RE(a[1][1], mv_res);
