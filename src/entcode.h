@@ -1,5 +1,5 @@
 /*Daala video codec
-Copyright (c) 2001-2012 Daala project contributors.  All rights reserved.
+Copyright (c) 2001-2013 Daala project contributors.  All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -28,36 +28,30 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # include <stddef.h>
 # include "internal.h"
 
-
-
 /*OPT: od_ec_window must be at least 32 bits, but if you have fast arithmetic
    on a larger type, you can speed up the decoder by using it here.*/
-typedef ogg_uint32_t     od_ec_window;
-
-
+typedef ogg_uint32_t od_ec_window;
 
 # define OD_EC_WINDOW_SIZE ((int)sizeof(od_ec_window)*CHAR_BIT)
 
 /*The number of bits to use for the range-coded part of unsigned integers.*/
-# define OD_EC_UINT_BITS   (4)
+# define OD_EC_UINT_BITS (4)
 
 /*The resolution of fractional-precision bit usage measurements, i.e.,
    3 => 1/8th bits.*/
-# define OD_BITRES         (3)
-
+# define OD_BITRES (3)
 
 extern const ogg_uint16_t OD_UNIFORM_CDFS_Q15[135];
 
 /*Returns a Q15 CDF for a uniform probability distribution of the given size.
-  _n: The size of the distribution.
-      This must be at least 2, and no more than 16.*/
-#define OD_UNIFORM_CDF_Q15(_n) \
-  (OD_UNIFORM_CDFS_Q15+((_n)*((_n)-1)>>1)-1)
-
+  n: The size of the distribution.
+     This must be at least 2, and no more than 16.*/
+#define OD_UNIFORM_CDF_Q15(n) \
+ (OD_UNIFORM_CDFS_Q15 + ((n)*((n) - 1) >> 1) - 1)
 
 /*See entcode.c for further documentation.*/
 
-
-OD_WARN_UNUSED_RESULT ogg_uint32_t od_ec_tell_frac(ogg_uint32_t _nbits_total,ogg_uint32_t _rng);
+OD_WARN_UNUSED_RESULT ogg_uint32_t od_ec_tell_frac(ogg_uint32_t nbits_total,
+ ogg_uint32_t rng);
 
 #endif
