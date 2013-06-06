@@ -1,5 +1,5 @@
 /*Daala video codec
-Copyright (c) 2006-2010 Daala project contributors.  All rights reserved.
+Copyright (c) 2006-2013 Daala project contributors.  All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -23,17 +23,400 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #include <stdio.h>
-#include <assert.h>
+#include <stdlib.h>
 
 #include <daala/codec.h>
 #include <daala/daaladec.h>
 
 #include "SDL.h"
 
-#define PACKET_START 0
-#define PACKET_HEADER 1
-#define PACKET_DATA 2
-#define PACKET_DONE 3
+#define ODS_NONE 0
+#define ODS_HEADER 1
+#define ODS_DATA 2
+
+typedef struct {
+  SDL_Surface *screen;
+  daala_info di;
+  daala_comment dc;
+  ogg_sync_state oy;
+  FILE *input;
+  char *input_path;
+  ogg_stream_state os;
+  daala_dec_ctx *dctx;
+  SDL_Surface *surf;
+  od_img img;
+  int width;
+  int height;
+  int done;
+  int od_state;
+  int paused;
+  int restart;
+  int slow;
+  int loop;
+  int step;
+  int valid;
+} player_example;
+
+static void img_to_rgb(SDL_Surface *surf, const od_img *img);
+
+int player_example_init(player_example *player);
+player_example *player_example_create();
+int player_example_clear(player_example *player);
+int player_example_free(player_example *player);
+int player_example_reset(player_example *player);
+int player_example_play(player_example *player);
+int player_example_restart(player_example *player);
+int player_example_open(player_example *player, char *path);
+
+int player_example_daala_stream_init(player_example *player, int serial) {
+  int ret;
+  if (player == NULL) return -1;
+  ret = ogg_stream_init(&player->os, serial);
+  if (ret != 0) return -1;
+  daala_info_init(&player->di);
+  daala_comment_init(&player->dc);
+  player->od_state = ODS_HEADER;
+  return 0;
+}
+
+int player_example_daala_stream_clear(player_example *player) {
+  if (player == NULL) return -1;
+  daala_info_clear(&player->di);
+  daala_comment_clear(&player->dc);
+  if (player->dctx != NULL) {
+    daala_decode_free(player->dctx);
+    player->dctx = NULL;
+  }
+  ogg_stream_clear(&player->os);
+  player->od_state = ODS_NONE;
+  return 0;
+}
+
+int player_example_init(player_example *player) {
+  if (player == NULL) return -1;
+  player->screen = NULL;
+  player->surf = NULL;
+  player->width = 0;
+  player->height = 0;
+  player->paused = 0;
+  player->restart = 0;
+  player->slow = 0;
+  player->loop = 0;
+  player->done = 0;
+  player->step = 0;
+  player->valid = 0;
+  player->od_state = ODS_NONE;
+  return 0;
+}
+
+int player_example_clear(player_example *player) {
+  if (player == NULL) return -1;
+  memset(player, 0, sizeof(player_example));
+  return 0;
+}
+
+player_example *player_example_create() {
+  int ret;
+  player_example *player;
+  player = malloc(sizeof(player_example));
+  if (player == NULL) return NULL;
+  ret = player_example_init(player);
+  if (ret != 0) { 
+    free(player);
+    return NULL;
+  }
+  return player;
+}
+
+int player_example_free(player_example *player) {
+  int ret;
+  if (player == NULL) return -1;
+  ret = player_example_clear(player);
+  if (ret == 0) {
+    free(player);
+    return 0;
+  }
+  return -1;
+}
+
+int player_example_reset(player_example *player) {
+  int ret;
+  if (player == NULL) return -1;
+  ret = player_example_clear(player);
+  if (ret != 0) return -1;
+  ret = player_example_init(player);
+  if (ret != 0) return -1;
+  return 0;
+}
+
+int player_example_open_input(player_example *player, char *path) {
+  if ((player == NULL) || ((path == NULL) || (path[0] == '\0'))) return -1;
+  if ((path[0] == '-') && (path[1] == '\0')) {
+    player->input = stdin;
+  } else {
+    player->input = fopen(path, "rb");
+  }
+  if (player->input == NULL) {
+    player->input_path = "";
+    return -1;
+  }
+  player->input_path = path;
+  ogg_sync_init(&player->oy);
+  return 0;
+}
+
+int player_example_close_input(player_example *player) {
+  int ret;
+  if (player == NULL) return -1;
+  if ((player->input == stdin) || (player->input == NULL)) return -1;
+  ret = fclose(player->input);
+  player->input = NULL;
+  ogg_sync_clear(&player->oy);
+  if (ret != 0) return -1;
+  return 0;
+}
+
+int player_example_input_restart(player_example *player) {
+  int ret;
+  if (player == NULL) return -1;
+  if (player->input == stdin) return -1;
+  ret = player_example_close_input(player);
+  if (ret != 0) return -1;
+  ret = player_example_open_input(player, player->input_path);
+  return ret;
+}
+
+void player_example_handle_event(player_example *player, SDL_Event *event) {
+  switch (event->type) {
+    case SDL_QUIT:
+      player->done = 1;
+      break;
+    case SDL_KEYDOWN:
+      switch (event->key.keysym.sym) {
+        case SDLK_q:
+          player->done = 1;
+          break;
+        case SDLK_s:
+          player->slow = !player->slow;
+          break;
+        case SDLK_l:
+          player->loop = !player->loop;
+          break;
+        case SDLK_ESCAPE:
+          player->done = 1;
+          break;
+        case SDLK_SPACE:
+          player->paused = !player->paused;
+          player->step = 0;
+          break;
+        case SDLK_PERIOD:
+          player->step = 1;
+          player->paused = 1;
+          break;
+        case SDLK_r:
+          player->restart = 1;
+          if (player->paused) {
+            player->step = 1;
+          }
+          break;
+        default:
+          break;
+      }
+  }
+}
+
+void player_example_wait_user_input(player_example *player) {
+  SDL_Event event;
+  if (SDL_WaitEvent(&event)) {
+    player_example_handle_event(player, &event);
+  }
+}
+
+void player_example_check_user_input(player_example *player) {
+  SDL_Event event;
+  while (SDL_PollEvent(&event)) {
+    player_example_handle_event(player, &event);
+  }
+}
+
+int player_example_play(player_example *player) {
+  size_t bytes;
+  char *buffer;
+  int ret;
+  ogg_page page;
+  ogg_packet packet;
+  daala_setup_info *dsi;
+  dsi = NULL;
+  while (!player->done) {
+    while (ogg_sync_pageout(&player->oy, &page) != 1) {
+      buffer = ogg_sync_buffer(&player->oy, 4096);
+      if (buffer == NULL) return -1;
+      bytes = fread(buffer, 1, 4096, player->input);
+      if (bytes > 0) {
+        ret = ogg_sync_wrote(&player->oy, bytes);
+        if (ret != 0) return -1; 
+      } else {
+        if (!player->valid) {
+          fprintf(stderr, "Invalid Ogg\n");
+          exit(1);
+        }
+        if (player->od_state != ODS_NONE) {
+          ret = player_example_daala_stream_clear(player);
+          if (ret != 0) return -1;
+        }
+        if (player->input == stdin) {
+          return 0;
+        }
+        if (player->loop == 1) {
+          player_example_input_restart(player);
+          continue;
+        }
+        for (;;) {
+          player_example_wait_user_input(player);
+          if (player->restart) {
+            ret = player_example_input_restart(player);
+            player->restart = 0;
+            if (ret != 0) return -1;
+            break;
+          }
+          if (player->done) {
+            return 0;
+          }
+        }
+      }
+    }
+    if (ogg_page_bos(&page)) {
+      ret = player_example_daala_stream_init(player,
+             ogg_page_serialno(&page));
+      if (ret != 0) return -1; 
+    }
+    ret = ogg_stream_pagein(&player->os, &page);
+    if (ret != 0) return -1;
+    while (ogg_stream_packetout(&player->os, &packet) == 1) {
+      switch (player->od_state) {
+      case ODS_HEADER:
+        ret = daala_decode_header_in(&player->di, &player->dc, &dsi, &packet);
+        if (ret < 0) return -1;
+        if (ret != 0) break;
+        player->dctx = daala_decode_alloc(&player->di, dsi);
+        if (player->dctx == NULL) return -1;
+        daala_setup_free(dsi);
+        dsi = NULL;
+        player->od_state = ODS_DATA;
+      case ODS_DATA:
+        if ((player->screen == NULL)
+            || (player->width != player->di.pic_width)
+            || (player->height != player->di.pic_height)) {
+          player->width = player->di.pic_width;
+          player->height = player->di.pic_height;
+          player->screen = SDL_SetVideoMode(player->width, player->height, 24, 
+           SDL_HWSURFACE | SDL_DOUBLEBUF);
+          if (player->screen == NULL) return -1;
+          player->surf = SDL_GetVideoSurface();
+          if (player->surf == NULL) return -1;
+        }
+        ret = daala_decode_packet_in(player->dctx, &player->img, &packet);
+        if (ret != 0) return -1;
+        player->valid = 1;
+        if ((player->slow) && (!player->step)) {
+          SDL_Delay(420);
+        }
+        player_example_check_user_input(player);
+        while ((player->paused) && (!player->done)) {
+          if (player->restart) {
+            break;
+          }
+          if (player->step) {
+            player->step = 0;
+            break;
+          }
+          player_example_wait_user_input(player);
+        }
+        if ((!player->restart) && (!player->done)) {
+          SDL_LockSurface(player->surf);
+          img_to_rgb(player->surf, &player->img);
+          SDL_UnlockSurface(player->surf);
+          SDL_Flip(player->screen);
+        }
+      }
+    }
+    if ((player->restart) || (ogg_page_eos(&page))) {
+      ret = player_example_daala_stream_clear(player);
+      if (ret != 0) return -1;
+    }
+    if (player->restart) {
+      ret = player_example_input_restart(player);
+      player->restart = 0;
+      if (ret != 0) return -1;
+    }
+  }
+  if (player->od_state != ODS_NONE) {
+    ret = player_example_daala_stream_clear(player);
+    if (ret != 0) return -1;
+  }
+  return 0;
+}
+
+int main(int argc, char *argv[]) {
+
+  int ret;
+  char *input;
+  int start_paused;
+  player_example *player;
+
+  if ((argc == 3) && (memcmp(argv[1], "-p", 2) == 0)) {
+    start_paused = 1;
+    input = argv[2];
+  } else {
+    if ((argc != 2) || ((argc == 2)
+      && ((memcmp(argv[1], "-h", 2) == 0)
+        || (memcmp(argv[1] + 1, "-h", 2) == 0)))) {
+      fprintf(stderr, "usage: %s input.ogg\n%s\n", argv[0],
+       "\nProgram Options:\n-p to start paused\n- to read from stdin\n\n"
+       "Playback Control: \n"
+       "r to restart\nl to loop\ns for slow\n. to step\nspace to pause\n"
+       "q to quit");
+      exit(1);
+    }
+    start_paused = 0;
+    input = argv[1];
+  }
+
+  if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+    fprintf(stderr, "error: unable to init SDL\n");
+    exit(1);
+  }
+  atexit(SDL_Quit);
+  SDL_EnableKeyRepeat(222, 100);
+
+  player = player_example_create();
+  if (player == NULL) {
+    fprintf(stderr, "player example error: create player\n");
+    return -1;
+  }
+
+  ret = player_example_open_input(player, input);
+  if (ret != 0) {
+    fprintf(stderr, "player example error: could not open: %s\n", input);
+    player_example_free(player);
+    return -1;
+  }
+
+  if (start_paused == 1) {
+    player->step = 1;
+    player->paused = 1;
+  }
+
+  ret = player_example_play(player);
+  if (ret != 0) {
+    fprintf(stderr, "player example error: playback error\n");
+    exit(1);
+  }
+
+  ret = player_example_free(player);
+
+  return ret;
+}
 
 #define OD_MINI(_a,_b)      ((_a)<(_b)?(_a):(_b))
 #define OD_MAXI(_a,_b)      ((_a)>(_b)?(_a):(_b))
@@ -42,169 +425,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #define OD_FLIPSIGNI(_a,_b) ((_a)+OD_SIGNMASK(_b)^OD_SIGNMASK(_b))
 #define OD_DIV_ROUND(_x,_y) (((_x)+OD_FLIPSIGNI((_y)>>1,_x))/(_y))
 #define OD_CLAMP255(_x)     ((unsigned char)((((_x)<0)-1)&((_x)|-((_x)>255))))
-
-void img_to_rgb(SDL_Surface *surf, const od_img *img);
-
-int main(int argc, char *argv[]) {
-  SDL_Surface *screen;
-  SDL_Event event;
-  int done;
-  daala_info di;
-  daala_comment dc;
-  daala_setup_info *dsi;
-  ogg_sync_state oy;
-  ogg_page page;
-  int ret;
-  FILE *input;
-  size_t bytes;
-  int eof;
-  int packet_state;
-  ogg_stream_state os;
-  ogg_packet packet;
-  daala_dec_ctx *dctx;
-  SDL_Surface *surf;
-  od_img img;
-  int frame;
-  int paused;
-  int step;
-
-  if (argc != 2) {
-    fprintf(stderr, "usage: %s input.ogg\n", argv[0]);
-    exit(1);
-  }
-
-  if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-    fprintf(stderr, "error: unable to init SDL");
-    exit(1);
-  }
-  atexit(SDL_Quit);
-
-  screen = NULL;
-  surf = NULL;
-  paused = 1;
-
-restart:
-  ret = ogg_sync_init(&oy);
-  assert(ret == 0);
-  daala_info_init(&di);
-  daala_comment_init(&dc);
-  dsi = NULL;
-  packet_state = PACKET_START;
-  frame = 0;
-  done = 0;
-  step = 0;
-
-  input = fopen(argv[1], "rb");
-  assert(input != NULL);
-  
-  eof = 0;
-  while (!eof) {
-    while (!eof && ogg_sync_pageout(&oy, &page) != 1) {
-      char *buffer = ogg_sync_buffer(&oy, 4096);
-      assert(buffer != NULL);
-      bytes = fread(buffer, 1, 4096, input);
-      if (bytes > 0) {
-        ret = ogg_sync_wrote(&oy, bytes);
-        assert(ret == 0);
-      } else {
-        eof = 1;
-      }
-    }
-
-    if (packet_state == PACKET_START) {
-      ret = ogg_stream_init(&os, ogg_page_serialno(&page));
-      assert(ret == 0);
-      packet_state = PACKET_HEADER;
-    }
-
-    ret = ogg_stream_pagein(&os, &page);
-    assert(ret == 0);
-
-    while (!done && ogg_stream_packetout(&os, &packet) == 1) {
-      switch (packet_state) {
-      case PACKET_HEADER:
-        ret = daala_decode_header_in(&di, &dc, &dsi, &packet);
-        assert(ret >= 0);
-        if (ret != 0) break;
-        dctx = daala_decode_alloc(&di, dsi);
-        assert(dctx != NULL);
-        daala_setup_free(dsi);
-        packet_state = PACKET_DATA;
-      case PACKET_DATA:
-        if (screen == NULL) {
-          screen = SDL_SetVideoMode(di.pic_width, di.pic_height, 24, 
-           SDL_SWSURFACE | SDL_DOUBLEBUF);
-          assert(screen != NULL);
-          surf = SDL_GetVideoSurface();
-          assert(surf != NULL);
-        }
-
-        ret = daala_decode_packet_in(dctx, &img, &packet);
-        assert(ret == 0);
-
-        SDL_LockSurface(surf);
-        img_to_rgb(surf, &img);
-        SDL_UnlockSurface(surf);
-        SDL_Flip(screen);
-
-        if (step) {
-          step = 0;
-          paused = 1;
-        }
-
-        do {
-          while (SDL_PollEvent(&event)) {
-            switch (event.type) {
-            case SDL_QUIT:
-              done = 1;
-              break;
-            case SDL_KEYDOWN:
-              switch (event.key.keysym.sym) {
-              case SDLK_ESCAPE:
-                done = 1;
-                break;
-              case SDLK_SPACE:
-                paused = !paused;
-                break;
-              case SDLK_PERIOD:
-                step = 1;
-                paused = 0;
-                break;
-              case SDLK_r:
-                done = 0;
-                step = 0;
-                goto restart;
-              default:
-                break;
-              }
-            }
-          }
-        } while (paused && !done);
-      }
-    }
-  }
-
-  while (!done) {
-    while (SDL_PollEvent(&event)) {
-      switch (event.type) {
-      case SDL_QUIT:
-        done = 1;
-        break;
-      case SDL_KEYDOWN:
-        if (event.key.keysym.sym == SDLK_ESCAPE) done = 1;
-        if (event.key.keysym.sym == SDLK_r) {
-          paused = 0;
-          done = 0;
-          step = 0;
-          goto restart;
-        }
-        break;
-      }
-    }
-  }
-
-  return 0;
-}
 
 void img_to_rgb(SDL_Surface *surf, const od_img *img) {
   unsigned char *y_row;
