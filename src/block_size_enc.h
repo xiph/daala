@@ -73,6 +73,8 @@ typedef struct {
   BlockStats img_stats;
   BlockStats psy_stats;
 
+  unsigned char res[2*SIZE2_SUMS][2*SIZE2_SUMS];
+
   /* 4x4 metrics */
   ogg_int32_t noise4_4[8][8];
   ogg_int32_t noise4_8[4][4];
@@ -96,7 +98,8 @@ typedef struct {
   float dec_gain16[2][2];
 } BlockSizeComp;
 
-void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img, const unsigned char *img, int stride, int dec[4][4]);
+void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
+ int stride, const unsigned char *img, int pred_stride, int dec[4][4]);
 
 void od_block_size_encode(od_ec_enc *enc,
  const unsigned char *bsize, int stride);

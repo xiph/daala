@@ -134,13 +134,29 @@ static void od_compute_stats(const unsigned char *img, int stride, BlockStats *s
  * @param [out]     dec     Decision for each 8x8 block in the image. 0=4x4, 1=8x8, 2=16x16, 3=32x32
  */
 void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
-    const unsigned char *img, int stride, int bsize[4][4])
+  int stride, const unsigned char *pred, int pred_stride, int bsize[4][4])
 {
   int i;
   int j;
-  od_compute_stats(img, stride, &bs->img_stats);
-  if (psy_img != img) od_compute_stats(psy_img, stride, &bs->psy_stats);
-  else memcpy(&bs->psy_stats, &bs->img_stats, sizeof(BlockStats));
+  od_compute_stats(psy_img, stride, &bs->psy_stats);
+  if (psy_img == pred || pred == NULL) {
+    memcpy(&bs->img_stats, &bs->psy_stats, sizeof(BlockStats));
+  }
+  else {
+    const unsigned char *x0;
+    const unsigned char *p0;
+    x0 = psy_img - BLOCK_OFFSET(stride);
+    p0 = pred - BLOCK_OFFSET(pred_stride);
+    for (i = 0; i < 2*SIZE2_SUMS; i++) {
+      for (j = 0; j < 2*SIZE2_SUMS; j++) {
+        bs->res[i][j] = abs((int)x0[i*stride + j]
+         - (int)p0[i*pred_stride + j]);
+      }
+    }
+    od_compute_stats(&bs->res[2*OFF32][2*OFF32], 2*SIZE2_SUMS,
+     &bs->img_stats);
+  }
+
   /* Compute 4x4 masking */
   for (i = 0; i < 8; i++) {
     for (j = 0; j < 8; j++) {
@@ -162,7 +178,7 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
            [2*i + k + OFF32 - 1][2*j + m + OFF32 - 1]/16384.);
         }
       }
-      bs->psy4[i][j] = psy/(3*3) - 1.;
+      bs->psy4[i][j] = OD_MAXF(psy/(3*3) - 1.,0);
     }
   }
   /* Compute 8x8 masking and make 4x4 vs 8x8 decision */
@@ -184,12 +200,12 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
       bs->noise4_8[i][j] = sum_var/(COUNT8*COUNT8);
       for (k = 0; k < COUNT8; k++) {
         for(m = 0; m < COUNT8; m++) {
-          psy += OD_LOG2(1 + bs->noise4_8[i][j]*bs->img_stats.invVar4
+          psy += OD_LOG2(1 + bs->noise4_8[i][j]*bs->psy_stats.invVar4
            [4*i + k + OFF32 - OFF8]
            [4*j + m + OFF32 - OFF8]/16384.);
         }
       }
-      bs->psy8[i][j] = psy/(COUNT8*COUNT8) - 1.;
+      bs->psy8[i][j] = OD_MAXF(psy/(COUNT8*COUNT8) - 1., 0);
       psy4_avg = .25*(bs->psy4[2*i][2*j] + bs->psy4[2*i][2*j + 1]
        + bs->psy4[2*i + 1][2*j] + bs->psy4[2*i + 1][2*j + 1]);
       gain4 = CG4 - PSY_LAMBDA*(psy4_avg);
@@ -224,11 +240,11 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
       bs->noise4_16[i][j] = sum_var/(COUNT16*COUNT16);
       for (k = 0; k < COUNT16; k++) {
         for (m = 0; m < COUNT16; m++) {
-          psy += OD_LOG2(1 + bs->noise4_16[i][j]*bs->img_stats.invVar4
+          psy += OD_LOG2(1 + bs->noise4_16[i][j]*bs->psy_stats.invVar4
            [8*i + k + OFF32 - OFF16][8*j + m + OFF32 - OFF16]/16384.);
         }
       }
-      bs->psy16[i][j] = psy/(COUNT16*COUNT16) - 1.;
+      bs->psy16[i][j] = OD_MAXF(psy/(COUNT16*COUNT16) - 1., 0);
       sum_var = 0;
       /* Use 8x8 variances */
       for (k = 0; k < COUNT8_16; k++) {
@@ -240,12 +256,12 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
       bs->noise8_16[i][j] = sum_var/(COUNT8_16*COUNT8_16);
       for (k = 0 ; k < COUNT8_16; k++) {
         for (m = 0; m < COUNT8_16; m++) {
-          psy8 += OD_LOG2(1 + bs->noise8_16[i][j]*bs->img_stats.invVar8
+          psy8 += OD_LOG2(1 + bs->noise8_16[i][j]*bs->psy_stats.invVar8
            [4*i + k + OFF8_32 - OFF8_16][4*j + m + OFF8_32 - OFF8_16]/16384.);
         }
       }
       bs->psy16[i][j] = OD_MAXF(bs->psy16[i][j], PSY8_FUDGE*
-       (psy8/(COUNT8_16*COUNT8_16) - 1.));
+       OD_MAXF(psy8/(COUNT8_16*COUNT8_16) - 1., 0));
       gain8_avg = .25*(bs->dec_gain8[2*i][2*j] + bs->dec_gain8[2*i][2*j + 1]
        + bs->dec_gain8[2*i + 1][2*j] + bs->dec_gain8[2*i + 1][2*j + 1]);
       gain16 = CG16 - PSY_LAMBDA*(bs->psy16[i][j]);
@@ -277,10 +293,10 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
     bs->noise4_32 = sum_var/(COUNT32*COUNT32);
     for (k = 0; k < COUNT32; k++) {
       for (m = 0; m < COUNT32; m++) {
-        psy += OD_LOG2(1 + bs->noise4_32*bs->img_stats.invVar4[k][m]/16384.);
+        psy += OD_LOG2(1 + bs->noise4_32*bs->psy_stats.invVar4[k][m]/16384.);
       }
     }
-    bs->psy32 = psy/(COUNT32*COUNT32) - 1.;
+    bs->psy32 = OD_MAXF(psy/(COUNT32*COUNT32) - 1., 0);
     sum_var = 0;
     /* Use 8x8 variances */
     for (k = 0; k < COUNT8_32; k++) {
@@ -291,10 +307,11 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
     bs->noise8_32 = sum_var/(COUNT8_32*COUNT8_32);
     for (k=0; k < COUNT8_32; k++) {
       for (m = 0; m < COUNT8_32; m++) {
-        psy8 += OD_LOG2(1 + bs->noise8_32*bs->img_stats.invVar8[k][m]/16384.);
+        psy8 += OD_LOG2(1 + bs->noise8_32*bs->psy_stats.invVar8[k][m]/16384.);
       }
     }
-    bs->psy32 = OD_MAXF(bs->psy32, PSY8_FUDGE*(psy8/(COUNT8_32*COUNT8_32) - 1.));
+    bs->psy32 = OD_MAXF(bs->psy32,
+     PSY8_FUDGE*OD_MAXF(psy8/(COUNT8_32*COUNT8_32) - 1., 0));
     gain16_avg = .25*(bs->dec_gain16[0][0] + bs->dec_gain16[0][1]
      + bs->dec_gain16[1][0] + bs->dec_gain16[1][1]);
     gain32 = CG32 - PSY_LAMBDA*(bs->psy32);
