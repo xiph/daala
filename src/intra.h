@@ -117,5 +117,9 @@ extern const int OD_PRED_MULTS_16x16[OD_INTRA_NMODES][16][16];
 extern const int *OD_PRED_PARAMX_16x16[OD_INTRA_NMODES][16][16];
 extern const int *OD_PRED_PARAMY_16x16[OD_INTRA_NMODES][16][16];
 
+extern const int OD_PRED_PARAMX_4x4_DATA[640];
+extern const int OD_PRED_PARAMY_4x4_DATA[640];
+extern const double OD_PRED_WEIGHTS_4x4_DATA[640];
+extern const int OD_PRED_OFFSETS_4x4[OD_INTRA_NMODES];
 
 #endif

@@ -41,38 +41,33 @@ void od_intra_pred4x4_mult(double *_pred,int _pred_stride,
   int k;
   int x;
   int y;
+  const int *paramx;
+  const int *paramy;
+  const double *weights;
+  paramx=OD_PRED_PARAMX_4x4_DATA+OD_PRED_OFFSETS_4x4[_mode];
+  paramy=OD_PRED_PARAMY_4x4_DATA+OD_PRED_OFFSETS_4x4[_mode];
+  weights=OD_PRED_WEIGHTS_4x4_DATA+OD_PRED_OFFSETS_4x4[_mode];
   for(j=0;j<4;j++){
     for(i=0;i<4;i++){
-      _pred[_pred_stride*j+i]=0;
+      double sum=0;
       for(k=0;k<OD_PRED_MULTS_4x4[_mode][j][i];k++){
         od_coeff *neighbor;
         int neighbor_stride;
         int neighbori;
         /*The values in the arrays are relative to the x & y of the upper-left
            block.*/
-        x=OD_PRED_PARAMX_4x4[_mode][j][i][k];
-        y=OD_PRED_PARAMY_4x4[_mode][j][i][k];
+        x=*paramx++;
+        y=*paramy++;
         OD_ASSERT(0<=x&&x<12&&0<=y&&y<8);
-        if(y<4){
-          if(x<4)neighbori=0;
-          else if(x<8){
-            neighbori=1;
-            x-=4;
-          }
-          else{
-            neighbori=2;
-            x-=8;
-          }
-        }
-        else{
-          neighbori=3;
-          y-=4;
-        }
+        neighbori = (x>>2)+3*(y>>2);
+        x&=3;
+        y&=3;
         neighbor=_neighbors[neighbori];
         neighbor_stride=_neighbor_strides[neighbori];
-        _pred[_pred_stride*j+i]+=
-         neighbor[neighbor_stride*y+x]*OD_PRED_WEIGHTS_4x4[_mode][j][i][k];
+        sum+=
+         neighbor[neighbor_stride*y+x]**weights++;
       }
+      _pred[_pred_stride*j+i]=sum;
     }
   }
 }
