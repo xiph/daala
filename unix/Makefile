@@ -163,7 +163,6 @@ decint.h \
 LIBDAALAENC_CSOURCES = \
 block_size_dec.c \
 block_size_enc.c \
-decode.c \
 encode.c \
 infoenc.c \
 mcenc.c \

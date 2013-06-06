@@ -93,7 +93,6 @@ src_libdaalaenc_la_LDFLAGS = -no-undefined \
 src_libdaalaenc_la_SOURCES = \
 	src/block_size_dec.c \
 	src/block_size_enc.c \
-	src/decode.c \
 	src/encode.c \
 	src/infoenc.c \
 	src/mcenc.c
