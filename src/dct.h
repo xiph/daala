@@ -79,14 +79,19 @@ typedef void (*od_fdct_func_1d)(od_coeff *_out,const od_coeff *_in,
 typedef void (*od_idct_func_1d)(od_coeff *_out,int _out_stride,
  const od_coeff *_in);
 
-extern const od_dct_func_2d OD_FDCT_2D[OD_NBSIZES];
-extern const od_dct_func_2d OD_IDCT_2D[OD_NBSIZES];
+extern const od_dct_func_2d OD_FDCT_2D[OD_NBSIZES + 1];
+extern const od_dct_func_2d OD_IDCT_2D[OD_NBSIZES + 1];
 
-extern const od_fdct_func_1d OD_FDCT_1D[OD_NBSIZES];
+extern const od_fdct_func_1d OD_FDCT_1D[OD_NBSIZES + 1];
 
-extern const od_idct_func_1d OD_IDCT_1D[OD_NBSIZES];
+extern const od_idct_func_1d OD_IDCT_1D[OD_NBSIZES + 1];
 
-static const unsigned char OD_ZIG4[16]={0,1,5,6,2,4,7,12,3,8,11,13,9,10,14,15};
+extern const int OD_TRANS_QUANT_ADJ[3];
+
+extern const unsigned char OD_ZIG4[16];
+extern const unsigned char OD_ZIG8[64];
+extern const unsigned char OD_ZIG16[256];
+extern const unsigned char *OD_DCT_ZIGS[OD_NBSIZES + 1];
 
 /*A reversible integer approximation of a 4-point type-II DCT.
   _y:       The destination vector (of size 4).

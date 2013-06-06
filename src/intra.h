@@ -33,7 +33,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 typedef void (*od_intra_mult_func)(double *_p,int _pred_stride,
  od_coeff *_neighbors[4],int _neighbor_strides[4],int _mode);
 
-extern const od_intra_mult_func OD_INTRA_MULT[OD_NBSIZES];
+extern const od_intra_mult_func OD_INTRA_MULT[OD_NBSIZES+1];
 
 extern const double OD_INTRA_PRED_WEIGHTS_4x4[OD_INTRA_NMODES][4][4][2*4][2*4];
 extern const unsigned char OD_INTRA_PRED_PROB_4x4[3]
@@ -57,12 +57,23 @@ void od_intra_pred16x16_mult(double *_p,int _pred_stride,
   On output:
    {{_out[0],_out[1],_out[2],_out[3]},{_out[4],_out[4+1],...}} contains
     the input coefficients with the prediction subtracted.*/
+typedef void (*od_intra_get_func)(od_coeff *_out,
+ od_coeff *_neighbors[4],int _neighbor_strides[4],int _mode);
+
+extern const od_intra_get_func OD_INTRA_GET[OD_NBSIZES+1];
+
 void od_intra_pred4x4_get(od_coeff *_out,
  od_coeff *_neighbors[4],int _neighbor_strides[4],int _mode);
 void od_intra_pred8x8_get(od_coeff *_out,
  od_coeff *_neighbors[4],int _neighbor_strides[4],int _mode);
 void od_intra_pred16x16_get(od_coeff *_out,
  od_coeff *_neighbors[4],int _neighbor_strides[4],int _mode);
+
+typedef void (*od_intra_dist_func)(ogg_uint32_t *_dist,
+ const od_coeff *_c,int _stride, od_coeff *_neighbors[4],
+ int _neighbor_strides[4],int _pli);
+
+extern const od_intra_dist_func OD_INTRA_DIST[OD_NBSIZES+1];
 
 void od_intra_pred4x4_dist(ogg_uint32_t *_dist,const od_coeff *_c,int _stride,
  od_coeff *_neighbors[4],int _neighbor_strides[4],int _pli);

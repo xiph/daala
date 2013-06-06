@@ -34,7 +34,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "intra.h"
 #include "pvq.h"
 #include "pvq_code.h"
+#include "block_size.h"
 #include "block_size_dec.h"
+#include "tf.h"
 
 static int od_dec_init(od_dec_ctx *dec, const daala_info *info,
  const daala_setup_info *setup) {
@@ -96,6 +98,7 @@ static void od_decode_mv(daala_dec_ctx *dec, od_mv_grid_pt *mvg, int vx,
 }
 
 struct od_mb_dec_ctx {
+  od_coeff tfbuf[16*16*4];
   GenericEncoder model_dc[OD_NPLANES_MAX];
   GenericEncoder model_g[OD_NPLANES_MAX];
   GenericEncoder model_ym[OD_NPLANES_MAX];
@@ -119,8 +122,10 @@ struct od_mb_dec_ctx {
 };
 typedef struct od_mb_dec_ctx od_mb_dec_ctx;
 
-void od_4x4_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
-  int bx, int by, int has_ur) {
+void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
+ int pli, int bx, int by, int has_ur) {
+  int n;
+  int n2;
   int xdec;
   int ydec;
   int w;
@@ -133,16 +138,25 @@ void od_4x4_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
   od_coeff *l;
   int x;
   int y;
-  od_coeff pred[4*4];
-  od_coeff predt[4*4];
-  ogg_int16_t pvq_scale[4*4];
+  od_coeff pred[16*16];
+  od_coeff predt[16*16];
+  ogg_int16_t pvq_scale[16*16];
   int sgn;
   int qg;
   int zzi;
   int vk;
+  int scale;
+  unsigned char const *zig;
 #ifdef OD_LOLOSSLESS
-  od_coeff backup[4*4];
+  od_coeff backup[16*16];
 #endif
+  OD_ASSERT(ln >= 0 && ln <= 2);
+  n = 1 << (ln + 2);
+  n2 = n*n;
+  bx <<= ln;
+  by <<= ln;
+  zig = OD_DCT_ZIGS[ln];
+  scale = OD_MAXI((dec->scale[pli]*OD_TRANS_QUANT_ADJ[ln] + (1 << 14)) >> 15, 1);
   xdec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
   ydec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
   frame_width = dec->state.frame_width;
@@ -154,13 +168,15 @@ void od_4x4_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
   mc = ctx->mc;
   l = ctx->l;
   vk = 0;
+  /*Apply forward transform to MC predictor.*/
   if (!ctx->is_keyframe) {
-    od_bin_fdct4x4(md + (by << 2)*w + (bx << 2), w,
+    (*OD_FDCT_2D[ln])(md + (by << 2)*w + (bx << 2), w,
      mc + (by << 2)*w + (bx << 2), w);
   }
-  for (zzi = 0; zzi < 16; zzi++) pvq_scale[zzi] = 0;
+  for (zzi = 0; zzi < n2; zzi++) pvq_scale[zzi] = 0;
   if (ctx->is_keyframe) {
-    if (bx > 0 && by > 0) {
+    /*Chroma from luma temporarily disabled until it handles switching.*/
+    if (bx > 0 && by > 0 && pli == 0) {
       if (pli == 0) {
         ogg_uint16_t mode_cdf[OD_INTRA_NMODES];
         int m_l;
@@ -169,25 +185,30 @@ void od_4x4_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
         int mode;
         od_coeff *coeffs[4];
         int strides[4];
+        /*Calculate the intra-prediction.*/
+        coeffs[0] = &ctx->tfbuf[0];
+        coeffs[1] = &ctx->tfbuf[n2];
+        coeffs[2] = &ctx->tfbuf[n2*2];
+        coeffs[3] = &ctx->tfbuf[n2*3];
+        strides[0] = n;
+        strides[1] = n;
+        strides[2] = n;
+        strides[3] = n;
+        od_convert_intra_coeffs(coeffs, strides, d,
+         w, bx, by, dec->state.bsize, dec->state.bstride, has_ur);
         m_l = modes[by*(w >> 2) + bx - 1];
         m_ul = modes[(by - 1)*(w >> 2) + bx - 1];
         m_u = modes[(by - 1)*(w >> 2) + bx];
-        coeffs[0] = d + ((by - 1) << 2)*w + ((bx - 1) << 2);
-        coeffs[1] = d + ((by - 1) << 2)*w + (bx << 2);
-        coeffs[2] = has_ur ?
-         d + ((by - 1) << 2)*w + ((bx + 1) << 2) :
-         d + ((by - 1) << 2)*w + (bx << 2);
-        coeffs[3] = d + (by << 2)*w + ((bx - 1) << 2);
-        strides[0] = w;
-        strides[1] = w;
-        strides[2] = w;
-        strides[3] = w;
         od_intra_pred_cdf(mode_cdf, OD_INTRA_PRED_PROB_4x4[pli],
          ctx->mode_p0, OD_INTRA_NMODES, m_l, m_ul, m_u);
         mode = od_ec_decode_cdf_unscaled(&dec->ec, mode_cdf,
          OD_INTRA_NMODES);
-        od_intra_pred4x4_get(pred, coeffs, strides, mode);
-        modes[by*(w >> 2) + bx] = mode;
+        (*OD_INTRA_GET[ln])(pred, coeffs, strides, mode);
+        for (y = 0; y < (1 << ln); y++) {
+          for (x = 0; x < (1 << ln); x++) {
+            modes[(by + y)*(w >> 2) + bx + x] = mode;
+          }
+        }
         od_intra_pred_update(ctx->mode_p0, OD_INTRA_NMODES, mode,
          m_l, m_ul, m_u);
       }
@@ -227,51 +248,80 @@ void od_4x4_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
       }
     }
     else{
-      for (zzi = 0; zzi < 16; zzi++) pred[zzi] = 0;
-      if (bx > 0) pred[0] = ctx->d[(by << 2)*w + ((bx - 1) << 2)];
-      else if (by > 0) pred[0] = ctx->d[((by - 1) << 2)*w + (bx << 2)];
-      if (pli == 0) modes[by*(w >> 2) + bx] = 0;
+      int nsize;
+      for (zzi = 0; zzi < n2; zzi++) pred[zzi] = 0;
+      nsize = ln;
+      /*444/420 only right now.*/
+      OD_ASSERT(xdec==ydec);
+      if (bx > 0) {
+        int noff;
+        nsize = OD_BLOCK_SIZE4x4(dec->state.bsize, dec->state.bstride,
+         (bx - 1) << xdec, by << ydec);
+        nsize = OD_MAXI(nsize - xdec, 0);
+        noff = 1 << nsize;
+        /*Because of the quad-tree structure we can always find our neighbors
+           starting offset by rounding to a multiple of his size.*/
+        OD_ASSERT(!(bx & (noff - 1)));
+        pred[0] = d[((by & ~(noff - 1)) << 2)*w + ((bx - noff) << 2)];
+      }
+      else if (by > 0) {
+        int noff;
+        nsize = OD_BLOCK_SIZE4x4(dec->state.bsize, dec->state.bstride,
+         bx << xdec, (by - 1) << ydec);
+        nsize = OD_MAXI(nsize - xdec, 0);
+        noff = 1 << nsize;
+        OD_ASSERT(!(by & (noff - 1)));
+        pred[0] = d[((by - noff) << 2)*w + ((bx & ~(noff - 1)) << 2)];
+      }
+      /*Rescale DC for correct transform size.*/
+      if (nsize > ln) pred[0] >>= (nsize - ln);
+      else if (nsize < ln) pred[0] <<= (ln - nsize);
+      if (pli == 0) {
+        for (y = 0; y < (1 << ln); y++) {
+          for (x = 0; x < (1 << ln); x++) {
+            modes[(by + y)*(w >> 2) + bx + x] = 0;
+          }
+        }
+      }
     }
   }
   else {
-    int x;
-    int y;
-    int i;
-    i = 0;
-    for (y=0; y<4; y++) {
-      for( x=0; x<4; x++ ) {
-        pred[i++] = ctx->md[(y + (by << 2))*w + (x + (bx << 2))];
+    int ci;
+    ci = 0;
+    for (y = 0; y < n; y++) {
+      for (x = 0; x < n; x++) {
+        pred[ci++] = md[(y + (by << 2))*w + (x + (bx << 2))];
       }
     }
   }
   /*Zig-zag*/
-  for (y = 0; y < 4; y++) {
-    for (x = 0; x < 4; x++) {
-      predt[OD_ZIG4[y*4 + x]] = pred[y*4 + x];
+  for (y = 0; y < n; y++) {
+    for (x = 0; x < n; x++) {
+      predt[zig[y*n + x]] = pred[y*n + x];
     }
   }
 #ifdef OD_LOLOSSLESS
-  for (zzi = 0; zzi < 16; zzi++) {
+  for (zzi = 0; zzi < n2; zzi++) {
     backup[zzi] = od_ec_dec_uint(&dec->ec, 65536);
   }
 #endif
   sgn = 0;
   pred[0] = generic_decode(&dec->ec, ctx->model_dc + pli, ctx->ex_dc + pli, 0);
   if (pred[0]) sgn = od_ec_dec_bits(&dec->ec,1);
-  pred[0] = (int)(pow(pred[0],4.0/3)*dec->scale[pli]);
+  pred[0] = (int)(pow(pred[0], 4.0/3)*scale);
   pred[0] *= sgn ? -1 : 1;
   pred[0] += predt[0];
   qg = generic_decode(&dec->ec, ctx->model_g + pli, ctx->ex_g + pli, 0);
   if (qg) qg *= od_ec_dec_bits(&dec->ec, 1) ? -1 : 1;
-  vk = pvq_unquant_k(&predt[1], 15, qg, dec->scale[pli]);
+  vk = pvq_unquant_k(&predt[1], n2 - 1, qg, scale);
   pred[1] = 0;
   if (vk != 0) {
     int ex_ym;
     ex_ym = (65536/2)*vk;
     pred[1] = vk - generic_decode(&dec->ec, ctx->model_ym + pli, &ex_ym, 0);
   }
-  pvq_decoder(&dec->ec, pred + 2, 14, vk - abs(pred[1]), &ctx->adapt);
-  dequant_pvq(pred + 1, predt + 1, pvq_scale, 15, dec->scale[pli], qg);
+  pvq_decoder(&dec->ec, pred + 2, n2 - 2, vk - abs(pred[1]), &ctx->adapt);
+  dequant_pvq(pred + 1, predt + 1, pvq_scale, n2 - 1, scale, qg);
   if (ctx->adapt.curr[OD_ADAPT_K_Q8] >= 0) {
     ctx->nk++;
     ctx->k_total += ctx->adapt.curr[OD_ADAPT_K_Q8];
@@ -283,73 +333,51 @@ void od_4x4_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
     ctx->count_ex_total_q8 += ctx->adapt.curr[OD_ADAPT_COUNT_EX_Q8];
   }
 #ifdef OD_LOLOSSLESS
-  for (zzi = 0; zzi < 16; zzi++) {
+  for (zzi = 0; zzi < n2; zzi++) {
     pred[zzi] = backup[zzi] - 32768;
   }
 #endif
-  /*Dequantize*/
-  for (y = 0; y < 4; y++) {
-    for (x = 0; x < 4; x++) {
-      d[((by << 2) + y)*w + (bx << 2) + x] = pred[OD_ZIG4[y*4 + x]];
+  /*De-zigzag*/
+  for (y = 0; y < n; y++) {
+    for (x = 0; x < n; x++) {
+      d[((by << 2) + y)*w + (bx << 2) + x] = pred[zig[y*n + x]];
     }
   }
-  /*iDCT the 4x4 block.*/
-  od_bin_idct4x4(c + (by << 2)*w + (bx << 2), w, d + (by << 2)*w + (bx << 2), w);
+  /*Apply the inverse transform.*/
+  (*OD_IDCT_2D[ln])(c + (by << 2)*w + (bx << 2), w,
+   d + (by << 2)*w + (bx << 2), w);
 }
 
-static void od_8x8_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
- int bx, int by, int has_ur) {
+static void od_32x32_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
+ int pli, int bx, int by, int has_ur) {
   bx <<= 1;
   by <<= 1;
-  od_4x4_decode(dec, ctx, pli, bx + 0, by + 0, 1);
-  od_4x4_decode(dec, ctx, pli, bx + 1, by + 0, has_ur);
-  od_4x4_decode(dec, ctx, pli, bx + 0, by + 1, 1);
-  od_4x4_decode(dec, ctx, pli, bx + 1, by + 1, 0);
+  od_single_band_decode(dec, ctx, ln - 1, pli, bx + 0, by + 0, 1);
+  od_single_band_decode(dec, ctx, ln - 1, pli, bx + 1, by + 0, has_ur);
+  od_single_band_decode(dec, ctx, ln - 1, pli, bx + 0, by + 1, 1);
+  od_single_band_decode(dec, ctx, ln - 1, pli, bx + 1, by + 1, 0);
 }
 
-static void od_16x16_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
- int bx, int by, int has_ur) {
-  bx <<= 1;
-  by <<= 1;
-  od_8x8_decode(dec, ctx, pli, bx + 0, by + 0, 1);
-  od_8x8_decode(dec, ctx, pli, bx + 1, by + 0, has_ur);
-  od_8x8_decode(dec, ctx, pli, bx + 0, by + 1, 1);
-  od_8x8_decode(dec, ctx, pli, bx + 1, by + 1, 0);
-}
+typedef void (*od_dec_func)(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
+ int pli, int bx, int by, int has_ur);
 
-static void od_32x32_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
- int bx, int by, int has_ur) {
-  bx <<= 1;
-  by <<= 1;
-  od_16x16_decode(dec, ctx, pli, bx + 0, by + 0, 1);
-  od_16x16_decode(dec, ctx, pli, bx + 1, by + 0, has_ur);
-  od_16x16_decode(dec, ctx, pli, bx + 0, by + 1, 1);
-  od_16x16_decode(dec, ctx, pli, bx + 1, by + 1, 0);
-}
-
-typedef void (*od_dec_func)(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
- int bx, int by, int has_ur);
-
-const od_dec_func OD_DECODE_BLOCK[OD_NBSIZES + 1]={
-  od_4x4_decode,
-  od_8x8_decode,
-  od_16x16_decode,
+const od_dec_func OD_DECODE_BLOCK[OD_NBSIZES + 2]={
+  od_single_band_decode,
+  od_single_band_decode,
+  od_single_band_decode,
   od_32x32_decode
 };
 
 static void od_decode_block(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
  int bx, int by, int l, int xdec, int ydec, int has_ur) {
-  int x;
-  int y;
   int d;
-  x = (bx << l) >> (1 + xdec);
-  y = (by << l) >> (1 + ydec);
   /*This code assumes 4:4:4 or 4:2:0 input.*/
   OD_ASSERT(xdec == ydec);
-  d = OD_MAXI(dec->state.bsize[dec->state.bstride*y + x] - xdec, 0);
-  OD_ASSERT(d <= l - xdec);
-  if (d == l - xdec) {
-    (*OD_DECODE_BLOCK[d])(dec, ctx, pli, bx, by, has_ur);
+  d = OD_MAXI(OD_BLOCK_SIZE4x4(dec->state.bsize,
+   dec->state.bstride, bx << l, by << l), xdec);
+  OD_ASSERT(d <= l);
+  if (d == l) {
+    (*OD_DECODE_BLOCK[d - xdec])(dec, ctx, d - xdec, pli, bx, by, has_ur);
   }
   else {
     l--;
@@ -368,8 +396,6 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
   int pli;
   int frame_width;
   int frame_height;
-  int pic_width;
-  int pic_height;
   int nvsb;
   int nhsb;
   int refi;
@@ -508,8 +534,6 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
   }
   frame_width = dec->state.frame_width;
   frame_height = dec->state.frame_height;
-  pic_width = dec->state.info.pic_width;
-  pic_height = dec->state.info.pic_height;
   {
     od_coeff *ctmp[OD_NPLANES_MAX];
     od_coeff *dtmp[OD_NPLANES_MAX];

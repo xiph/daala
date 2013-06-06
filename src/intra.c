@@ -28,7 +28,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "intra.h"
 #include "tf.h"
 
-const od_intra_mult_func OD_INTRA_MULT[OD_NBSIZES]={
+const od_intra_mult_func OD_INTRA_MULT[OD_NBSIZES+1]={
   od_intra_pred4x4_mult,
   od_intra_pred8x8_mult,
   od_intra_pred16x16_mult
@@ -312,6 +312,12 @@ static const float OD_SATD_WEIGHTS_16x16[3][16*16]={
   }
 };
 
+const od_intra_dist_func OD_INTRA_DIST[OD_NBSIZES+1]={
+  od_intra_pred4x4_dist,
+  od_intra_pred8x8_dist,
+  od_intra_pred16x16_dist
+};
+
 void od_intra_pred4x4_dist(ogg_uint32_t *_dist,const od_coeff *_c,int _stride,
  od_coeff *_neighbors[4],int _neighbor_strides[4], int _pli){
   double p[4*4];
@@ -463,6 +469,12 @@ ogg_uint32_t od_chroma_pred4x4_dist(const od_coeff *_c,
   }
   return (ogg_uint32_t)satd;
 }
+
+const od_intra_get_func OD_INTRA_GET[OD_NBSIZES+1]={
+  od_intra_pred4x4_get,
+  od_intra_pred8x8_get,
+  od_intra_pred16x16_get
+};
 
 void od_intra_pred4x4_get(od_coeff *_out,
  od_coeff *_neighbors[4],int _neighbor_strides[4],int _mode){

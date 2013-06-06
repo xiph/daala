@@ -24,20 +24,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #include "tf.h"
 #include "block_size.h"
-
-/* Blocks that aren't available for predictions are marked with *
-   LSB           MSB
-   . . . . . . . .  00
-   . * . * . * . *  CC
-   . . . * . . . *  88
-   . * . * . * . *  CC
-   . . . . . . . *  80
-   . * . * . * . *  CC
-   . . . * . . . *  88
-   . * . * . * . *  CC
- */
-const unsigned char od_upright_table[8] =
- {0x00, 0xCC, 0x88, 0xCC, 0x80, 0xCC, 0x88, 0xCC};
+#if defined(OD_VALGRIND)
+# include <valgrind/memcheck.h>
+#endif
 
 /*Increase horizontal frequency resolution of an entire block and return the LF
    half.*/
@@ -164,10 +153,11 @@ void od_tf_down_hv(od_coeff *dst, int dstride,
   int x;
   int y;
   OD_ASSERT(!(n & 1));
-  for (y = 0; y < n >> 1; y++) {
+  n >>= 1;
+  for (y = 0; y < n; y++) {
     int vswap;
     vswap = y & 1;
-    for (x = 0; x < n >> 1; x++) {
+    for (x = 0; x < n; x++) {
       od_coeff ll;
       od_coeff lh;
       od_coeff hl;
@@ -197,7 +187,7 @@ void od_tf_down_hv(od_coeff *dst, int dstride,
 }
 
 static void od_convert_block_up(od_coeff *dst, int dstride,
-    const od_coeff *src, int sstride, const char *bsize,
+    const od_coeff *src, int sstride, const unsigned char *bsize,
     int bstride, int nx, int ny, int dest_size) {
   int i;
   int j;
@@ -222,7 +212,7 @@ static void od_convert_block_up(od_coeff *dst, int dstride,
     }
   }
   /* At this point, we assume that scratch has size dest_size-1. */
-  od_tf_up_hv(dst, dstride, &scratch[0][0], 16, 1 << (dest_size + 2));
+  od_tf_up_hv(dst, dstride, &scratch[0][0], 16, 1 << (dest_size - 1 + 2));
 }
 
 static void od_convert_block_down(od_coeff *dst, int dstride,
@@ -232,11 +222,11 @@ static void od_convert_block_down(od_coeff *dst, int dstride,
   int j;
   int n;
   od_coeff scratch[16][16];
-  n = 1 << (dest_size + 2);
+  n = 1 << (curr_size + 2);
   for (i = 0; i < n; i++) {
     for (j = 0; j < n; j++) scratch[i][j] = src[i*sstride + j];
   }
-  od_tf_down_hv(dst, dstride, &scratch[0][0], 16, 1 << (dest_size + 2));
+  od_tf_down_hv(dst, dstride, &scratch[0][0], 16, n);
   if (curr_size-1 > dest_size) {
     int sub;
     /* As long as the max block size is 16, sub will always be equal to 1. */
@@ -254,18 +244,28 @@ static void od_convert_block_down(od_coeff *dst, int dstride,
 }
 
 void od_convert_intra_coeffs(od_coeff *(dst[4]), int dstrides[4],
- od_coeff *src, int sstride, int bx, int by, const char *bsize, int bstride) {
+ od_coeff *src, int sstride, int bx, int by,
+ const unsigned char *bsize, int bstride, int has_ur) {
   /* Relative position of neighbors: up-left     up   "up-right"  left */
   static const int offsets[4][2] = {{-1, -1}, {0, -1}, {1, -1}, {-1, 0}};
   int csize;
   int n;
   csize = OD_BLOCK_SIZE4x4(bsize, bstride, bx, by);
+#if defined(OD_VALGRIND)
+  for (n = 0; n < 4; n++) {
+    int z;
+    for ( z = 0; z < (4 << csize); z++) {
+      VALGRIND_MAKE_MEM_UNDEFINED(dst[n] + z*dstrides[n],
+       dstrides[n]*sizeof(*dst[n]));
+    }
+  }
+#endif
   /* Loop over neighbours. */
   for (n = 0; n < 4; n++) {
     int nx;
     int ny;
     int nsize;
-    if (n == 2 && OD_UPRIGHT_UNAVAIL(bx & 7, by & 7, csize)) nx = bx;
+    if (n == 2 && !has_ur) nx = bx;
     else nx = bx + (offsets[n][0] << csize);
     ny = by + (offsets[n][1] << csize);
     nsize = OD_BLOCK_SIZE4x4(bsize, bstride, nx, ny);
@@ -274,7 +274,7 @@ void od_convert_intra_coeffs(od_coeff *(dst[4]), int dstrides[4],
       dst[n] = src + 4*ny*sstride + 4*nx;
       dstrides[n] = sstride;
     }
-    else if (nsize < csize) {
+    else if (nsize > csize) {
       /* We need to TF down. */
       int size;
       int i;
@@ -305,5 +305,14 @@ void od_convert_intra_coeffs(od_coeff *(dst[4]), int dstrides[4],
       od_convert_block_up(dst[n], dstrides[n], &src[4*ny*sstride + 4*nx],
        sstride, bsize, bstride, nx, ny, csize);
     }
+#if defined(OD_VALGRIND)
+    {
+      int z;
+      for (z = 0; z < ( 4 << csize); z++) {
+        VALGRIND_CHECK_MEM_IS_DEFINED(dst[n] + z*dstrides[n],
+         (4 << csize)*sizeof(*dst[n]));
+      }
+    }
+#endif
   }
 }

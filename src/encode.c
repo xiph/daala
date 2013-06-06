@@ -39,6 +39,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "block_size.h"
 #include "block_size_enc.h"
 #include "logging.h"
+#include "tf.h"
 #if OD_DECODE_IN_ENCODE
 # include "decint.h"
 #endif
@@ -199,6 +200,7 @@ static void od_img_plane_edge_ext8(od_img_plane *dst_p,
 
 
 struct od_mb_enc_ctx {
+  od_coeff tfbuf[16*16*4];
   GenericEncoder model_dc[OD_NPLANES_MAX];
   GenericEncoder model_g[OD_NPLANES_MAX];
   GenericEncoder model_ym[OD_NPLANES_MAX];
@@ -222,8 +224,10 @@ struct od_mb_enc_ctx {
 };
 typedef struct od_mb_enc_ctx od_mb_enc_ctx;
 
-void od_4x4_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
- int bx, int by, int has_ur) {
+void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
+  int pli, int bx, int by, int has_ur) {
+  int n;
+  int n2;
   int xdec;
   int ydec;
   int w;
@@ -236,17 +240,29 @@ void od_4x4_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
   od_coeff *l;
   int x;
   int y;
-  od_coeff pred[4*4];
-  od_coeff predt[4*4];
-  ogg_int16_t pvq_scale[4*4];
+  od_coeff pred[16*16];
+  od_coeff predt[16*16];
+  ogg_int16_t pvq_scale[16*16];
   int sgn;
   int qg;
-  int cblock[4*4];
+  int cblock[16*16];
   int zzi;
   int vk;
-#ifdef OD_LOLOSSLESS
-  od_coeff backup[4*4];
+  int scale;
+  unsigned char const *zig;
+#if defined(OD_LOLOSSLESS)
+  od_coeff backup[16*16];
 #endif
+#if defined(OD_OUTPUT_PRED)
+  od_coeff preds[16*16];
+#endif
+  OD_ASSERT(ln >= 0 && ln <= 2);
+  n = 1 << (ln + 2);
+  n2 = n*n;
+  bx <<= ln;
+  by <<= ln;
+  zig = OD_DCT_ZIGS[ln];
+  scale = OD_MAXI((enc->scale*OD_TRANS_QUANT_ADJ[ln] + (1 << 14)) >> 15, 1);
   xdec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
   ydec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
   frame_width = enc->state.frame_width;
@@ -258,16 +274,17 @@ void od_4x4_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
   mc = ctx->mc;
   l = ctx->l;
   vk = 0;
-  /*fDCT a 4x4 block.*/
-  od_bin_fdct4x4(d + (by << 2)*w + (bx << 2), w,
+  /*Apply forward transform(s).*/
+  (*OD_FDCT_2D[ln])(d + (by << 2)*w + (bx << 2), w,
    c + (by << 2)*w + (bx << 2), w);
   if (!ctx->is_keyframe) {
-    od_bin_fdct4x4(md + (by << 2)*w + (bx << 2), w,
+    (*OD_FDCT_2D[ln])(md + (by << 2)*w + (bx << 2), w,
      mc + (by << 2)*w + (bx << 2), w);
   }
-  for (zzi = 0; zzi < 16; zzi++) pvq_scale[zzi] = 0;
+  for (zzi = 0; zzi < n2; zzi++) pvq_scale[zzi] = 0;
   if (ctx->is_keyframe) {
-    if (bx > 0 && by > 0) {
+    /*Chroma from luma temporarily disabled until it handles switching.*/
+    if (bx > 0 && by > 0 && pli == 0) {
       if (pli == 0) {
         ogg_uint16_t mode_cdf[OD_INTRA_NMODES];
         ogg_uint32_t mode_dist[OD_INTRA_NMODES];
@@ -277,35 +294,38 @@ void od_4x4_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
         int mode;
         od_coeff *coeffs[4];
         int strides[4];
-        /*Calculate the pointers to the surrounding blocks assuming 4x4
-         size.*/
-        coeffs[0] = d + ((by - 1) << 2)*w + ((bx - 1) << 2);
-        coeffs[1] = d + ((by - 1) << 2)*w + (bx << 2);
-        coeffs[2] = has_ur ?
-         d + ((by - 1) << 2)*w + ((bx + 1) << 2) :
-         d + ((by - 1) << 2)*w + (bx << 2);
-        coeffs[3] = d + (by << 2)*w + ((bx - 1) << 2);
-        strides[0] = w;
-        strides[1] = w;
-        strides[2] = w;
-        strides[3] = w;
+        /*Search predictors from the surrounding blocks.*/
+        coeffs[0] = &ctx->tfbuf[0];
+        coeffs[1] = &ctx->tfbuf[n2];
+        coeffs[2] = &ctx->tfbuf[n2*2];
+        coeffs[3] = &ctx->tfbuf[n2*3];
+        strides[0] = n;
+        strides[1] = n;
+        strides[2] = n;
+        strides[3] = n;
+        od_convert_intra_coeffs(coeffs, strides, d,
+         w, bx, by, enc->state.bsize, enc->state.bstride, has_ur);
         m_l = modes[by*(w >> 2) + bx - 1];
         m_ul = modes[(by - 1)*(w >> 2) + bx - 1];
         m_u = modes[(by - 1)*(w >> 2) + bx];
         od_intra_pred_cdf(mode_cdf, OD_INTRA_PRED_PROB_4x4[pli],
          ctx->mode_p0, OD_INTRA_NMODES, m_l, m_ul, m_u);
-        od_intra_pred4x4_dist(mode_dist,
-         d + (by << 2)*w + (bx << 2), w, coeffs, strides, pli);
+        (*OD_INTRA_DIST[ln])(mode_dist, d + (by << 2)*w + (bx << 2), w,
+         coeffs, strides, pli);
         /*Lambda = 1*/
         mode = od_intra_pred_search(mode_cdf, mode_dist,
          OD_INTRA_NMODES, 128);
-        od_intra_pred4x4_get(pred, coeffs, strides, mode);
+        (*OD_INTRA_GET[ln])(pred, coeffs, strides, mode);
         od_ec_encode_cdf_unscaled(&enc->ec, mode, mode_cdf, OD_INTRA_NMODES);
         mode_bits -= M_LOG2E*log(
          (mode_cdf[mode] - (mode == 0 ? 0 : mode_cdf[mode - 1]))/
          (float)mode_cdf[OD_INTRA_NMODES - 1]);
         mode_count++;
-        modes[by*(w >> 2) + bx] = mode;
+        for (y = 0; y < (1 << ln); y++) {
+          for (x = 0; x < (1 << ln); x++) {
+            modes[(by + y)*(w >> 2) + bx + x] = mode;
+          }
+        }
         od_intra_pred_update(ctx->mode_p0, OD_INTRA_NMODES, mode, m_l, m_ul,
          m_u);
       }
@@ -336,33 +356,64 @@ void od_4x4_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
       }
     }
     else{
-      for (zzi = 0; zzi < 16; zzi++) pred[zzi] = 0;
-      if (bx > 0) pred[0] = d[(by << 2)*w + ((bx - 1) << 2)];
-      else if (by > 0) pred[0] = d[((by - 1) << 2)*w + (bx << 2)];
-      if (pli == 0) modes[by*(w >> 2) + bx] = 0;
+      int nsize;
+      for (zzi = 0; zzi < n2; zzi++) pred[zzi] = 0;
+      nsize = ln;
+      /*444/420 only right now.*/
+      OD_ASSERT(xdec == ydec);
+      if (bx > 0) {
+        int noff;
+        nsize = OD_BLOCK_SIZE4x4(enc->state.bsize, enc->state.bstride,
+         (bx - 1) << xdec, by << ydec);
+        nsize = OD_MAXI(nsize - xdec, 0);
+        noff = 1 << nsize;
+        /*Because of the quad-tree structure we can always find our neighbors
+           starting offset by rounding to a multiple of his size.*/
+        OD_ASSERT(!(bx & (noff - 1)));
+        pred[0] = d[((by & ~(noff - 1)) << 2)*w + ((bx - noff) << 2)];
+      }
+      else if (by > 0) {
+        int noff;
+        nsize = OD_BLOCK_SIZE4x4(enc->state.bsize, enc->state.bstride,
+         bx << xdec, (by - 1) << ydec);
+        nsize = OD_MAXI(nsize - xdec, 0);
+        noff = 1 << nsize;
+        OD_ASSERT(!(by & (noff - 1)));
+        pred[0] = d[((by - noff) << 2)*w + ((bx & ~(noff - 1)) << 2)];
+      }
+      /*Rescale DC for correct transform size.*/
+      if (nsize > ln) pred[0] >>= (nsize - ln);
+      else if (nsize < ln) pred[0] <<= (ln - nsize);
+      if (pli == 0) {
+        for (y = 0; y < (1 << ln); y++) {
+          for (x = 0; x < (1 << ln); x++) {
+            modes[(by + y)*(w >> 2) + bx + x] = 0;
+          }
+        }
+      }
     }
   }
   else {
-    int x;
-    int y;
-    int i;
-    i = 0;
-    for( y=0; y<4; y++ ) {
-      for( x=0; x<4; x++ ) {
-    pred[i++] = md[(y + (by << 2))*w + (x + (bx << 2))];
+    int ci;
+    ci = 0;
+    for (y = 0; y < n; y++) {
+      for (x = 0; x < n; x++) {
+        pred[ci++] = md[(y + (by << 2))*w + (x + (bx << 2))];
       }
-
     }
   }
+#if defined(OD_OUTPUT_PRED)
+  for (zzi = 0; zzi < n2; zzi++) preds[zzi] = pred[zzi];
+#endif
   /*Zig-zag*/
-  for (y = 0; y < 4; y++) {
-    for (x = 0; x < 4; x++) {
-      cblock[OD_ZIG4[y*4 + x]] = d[((by << 2) + y)*w + (bx << 2) + x];
-      predt[OD_ZIG4[y*4 + x]] = pred[y*4 + x];
+  for (y = 0; y < n; y++) {
+    for (x = 0; x < n; x++) {
+      cblock[zig[y*n + x]] = d[((by << 2) + y)*w + (bx << 2) + x];
+      predt[zig[y*n + x]] = pred[y*n + x];
     }
   }
-#ifdef OD_LOLOSSLESS
-  for (zzi = 0; zzi < 16; zzi++) {
+#if defined(OD_LOLOSSLESS)
+  for (zzi = 0; zzi < n2; zzi++) {
     backup[zzi] = cblock[zzi] + 32768;
     OD_ASSERT(backup[zzi] >= 0);
     OD_ASSERT(backup[zzi] < 65535);
@@ -370,21 +421,21 @@ void od_4x4_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
   }
 #endif
   sgn = (cblock[0] - predt[0]) < 0;
-  cblock[0] = (int)floor(pow(fabs(cblock[0] - predt[0])/enc->scale,0.75));
+  cblock[0] = (int)floor(pow(fabs(cblock[0] - predt[0])/scale, 0.75));
   generic_encode(&enc->ec, ctx->model_dc + pli, cblock[0],
    ctx->ex_dc + pli, 0);
   if (cblock[0]) od_ec_enc_bits(&enc->ec, sgn, 1);
-  cblock[0] = (int)(pow(cblock[0], 4.0/3)*enc->scale);
+  cblock[0] = (int)(pow(cblock[0], 4.0/3)*scale);
   cblock[0] *= sgn ? -1 : 1;
   cblock[0] += predt[0];
-  quant_pvq(cblock + 1, predt + 1, pvq_scale, pred + 1, 15, enc->scale, &qg);
-  for (zzi = 1; zzi < 16; zzi++) cblock[zzi] = pred[zzi];
-  dequant_pvq(cblock + 1, predt + 1, pvq_scale, 15, enc->scale, qg);
+  quant_pvq(cblock + 1, predt + 1, pvq_scale, pred + 1, n2 - 1, scale, &qg);
+  for (zzi = 1; zzi < n2; zzi++) cblock[zzi] = pred[zzi];
+  dequant_pvq(cblock + 1, predt + 1, pvq_scale, n2 - 1, scale, qg);
   generic_encode(&enc->ec, ctx->model_g + pli, abs(qg),
    ctx->ex_g + pli, 0);
   if (qg) od_ec_enc_bits(&enc->ec, qg < 0, 1);
   vk = 0;
-  for (zzi = 0; zzi < 15; zzi++) vk += abs(pred[zzi + 1]);
+  for (zzi = 0; zzi < n2 - 1; zzi++) vk += abs(pred[zzi + 1]);
   /*No need to code vk because we can get it from qg.*/
   /*Expectation is that half the pulses will go in y[m].*/
   if (vk != 0) {
@@ -392,7 +443,7 @@ void od_4x4_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
     ex_ym = (65536/2)*vk;
     generic_encode(&enc->ec, &ctx->model_ym[pli], vk - pred[1], &ex_ym, 0);
   }
-  pvq_encoder(&enc->ec, pred + 2, 14, vk - abs(pred[1]), &ctx->adapt);
+  pvq_encoder(&enc->ec, pred + 2, n2 - 2, vk - abs(pred[1]), &ctx->adapt);
   if (ctx->adapt.curr[OD_ADAPT_K_Q8] >= 0) {
     ctx->nk++;
     ctx->k_total += ctx->adapt.curr[OD_ADAPT_K_Q8];
@@ -403,75 +454,56 @@ void od_4x4_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
     ctx->count_total_q8 += ctx->adapt.curr[OD_ADAPT_COUNT_Q8];
     ctx->count_ex_total_q8 += ctx->adapt.curr[OD_ADAPT_COUNT_EX_Q8];
   }
-#ifdef OD_LOLOSSLESS
-  for (zzi = 0; zzi < 16; zzi++) {
+#if defined(OD_LOLOSSLESS)
+  for (zzi = 0; zzi < n2; zzi++) {
     cblock[zzi] = backup[zzi] - 32768;
   }
 #endif
-  /*Dequantize*/
-  for (y = 0; y < 4; y++) {
-    for (x = 0; x < 4; x++) {
-      d[((by << 2) + y)*w + (bx << 2) + x] = cblock[OD_ZIG4[y*4 + x]];
+  /*De-zigzag*/
+  for (y = 0; y < n; y++) {
+    for (x = 0; x < n; x++) {
+      d[((by << 2) + y)*w + (bx << 2) + x] = cblock[zig[y*n + x]];
     }
   }
-  /*iDCT the 4x4 block.*/
-  od_bin_idct4x4(c + (by << 2)*w + (bx << 2), w, d + (by << 2)*w
+  /*Apply the inverse transform.*/
+#if !defined(OD_OUTPUT_PRED)
+  (*OD_IDCT_2D[ln])(c + (by << 2)*w + (bx << 2), w, d + (by << 2)*w
    + (bx << 2), w);
+#else
+  (*OD_IDCT_2D[ln])(c + (by << 2)*w + (bx << 2), w, preds, n);
+#endif
 }
 
-static void od_8x8_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
- int bx, int by, int has_ur) {
+static void od_32x32_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
+ int pli, int bx, int by, int has_ur) {
   bx <<= 1;
   by <<= 1;
-  od_4x4_encode(enc, ctx, pli, bx + 0, by + 0, 1);
-  od_4x4_encode(enc, ctx, pli, bx + 1, by + 0, has_ur);
-  od_4x4_encode(enc, ctx, pli, bx + 0, by + 1, 1);
-  od_4x4_encode(enc, ctx, pli, bx + 1, by + 1, 0);
+  od_single_band_encode(enc, ctx, ln - 1, pli, bx + 0, by + 0, 1);
+  od_single_band_encode(enc, ctx, ln - 1, pli, bx + 1, by + 0, has_ur);
+  od_single_band_encode(enc, ctx, ln - 1, pli, bx + 0, by + 1, 1);
+  od_single_band_encode(enc, ctx, ln - 1, pli, bx + 1, by + 1, 0);
 }
 
-static void od_16x16_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
- int bx, int by, int has_ur) {
-  bx <<= 1;
-  by <<= 1;
-  od_8x8_encode(enc, ctx, pli, bx + 0, by + 0, 1);
-  od_8x8_encode(enc, ctx, pli, bx + 1, by + 0, has_ur);
-  od_8x8_encode(enc, ctx, pli, bx + 0, by + 1, 1);
-  od_8x8_encode(enc, ctx, pli, bx + 1, by + 1, 0);
-}
+typedef void (*od_enc_func)(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
+ int pli, int bx, int by, int has_ur);
 
-static void od_32x32_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
- int bx, int by, int has_ur) {
-  bx <<= 1;
-  by <<= 1;
-  od_16x16_encode(enc, ctx, pli, bx + 0, by + 0, 1);
-  od_16x16_encode(enc, ctx, pli, bx + 1, by + 0, has_ur);
-  od_16x16_encode(enc, ctx, pli, bx + 0, by + 1, 1);
-  od_16x16_encode(enc, ctx, pli, bx + 1, by + 1, 0);
-}
-
-typedef void (*od_enc_func)(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
- int bx, int by, int has_ur);
-
-const od_enc_func OD_ENCODE_BLOCK[OD_NBSIZES+1]={
-  od_4x4_encode,
-  od_8x8_encode,
-  od_16x16_encode,
+const od_enc_func OD_ENCODE_BLOCK[OD_NBSIZES + 2]={
+  od_single_band_encode,
+  od_single_band_encode,
+  od_single_band_encode,
   od_32x32_encode
 };
 
 static void od_encode_block(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
  int bx, int by, int l, int xdec, int ydec, int has_ur) {
-  int x;
-  int y;
   int d;
-  x = (bx << l) >> (1 + xdec);
-  y = (by << l) >> (1 + ydec);
   /*This code assumes 4:4:4 or 4:2:0 input.*/
   OD_ASSERT(xdec == ydec);
-  d=OD_MAXI(enc->state.bsize[enc->state.bstride*y + x] - xdec, 0);
-  OD_ASSERT(d <= l - xdec);
-  if (d == l - xdec) {
-    (*OD_ENCODE_BLOCK[d])(enc, ctx, pli, bx, by, has_ur);
+  d = OD_MAXI(OD_BLOCK_SIZE4x4(enc->state.bsize,
+   enc->state.bstride, bx << l, by << l), xdec);
+  OD_ASSERT(d <= l);
+  if (d == l) {
+    (*OD_ENCODE_BLOCK[d - xdec])(enc, ctx, d - xdec, pli, bx, by, has_ur);
   }
   else {
     l--;
@@ -618,12 +650,13 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       int bsize[4][4];
       unsigned char *state_bsize;
       state_bsize = &enc->state.bsize[i*4*enc->state.bstride + j*4];
-      process_block_size32(bs, img, img + i*istride*32 + j*32, istride, bsize);
+      process_block_size32(bs, img + i*istride*32 + j*32,
+       img + i*istride*32 + j*32, istride, bsize);
       /* Grab the 4x4 information returned from process_block_size32 in bsize
          and store it in the od_state bsize. */
       for(k = 0; k < 4; k++) {
         for(m = 0; m < 4; m++) {
-          state_bsize[k*bstride + m] = bsize[k][m];
+          state_bsize[k*bstride + m] = OD_MINI(bsize[k][m], 2);
         }
       }
       od_block_size_encode(&enc->ec, &state_bsize[0], bstride);
