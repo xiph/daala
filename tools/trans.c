@@ -228,7 +228,7 @@ static void coding_gain_search(const double _r[2*B_SZ]){
       srand=i*16843009; /*Broadcast char to 4xchar*/
       kiss99_srand(&ks[i],(unsigned char *)&srand,sizeof(srand));
     }
-#pragma omp parallel for schedule(dynamic)
+    #pragma omp parallel for schedule(dynamic)
     for(i=0;i<128;i++){
       int    tid;
       int    j;
@@ -268,74 +268,53 @@ static void coding_gain_search(const double _r[2*B_SZ]){
 #endif
 
 #if USE_FILES
-int apply(trans_ctx *_ctx,int _argc,const char *_argv[]){
-
-  int ai;
-#pragma omp parallel for schedule(dynamic)
-  for(ai=1;ai<_argc;ai++){
-    FILE            *fin;
-    video_input      vid;
-    th_info          ti;
-    th_ycbcr_buffer  ycbcr;
-    int              tid;
-    trans_ctx       *ctx;
-    int              x0,y0,x1,y1;
-
-    fin=fopen(_argv[ai],"rb");
-    if(fin==NULL){
-      fprintf(stderr,"Could not open '%s' for reading.\n",_argv[ai]);
-      continue;
-    }
-    if(video_input_open(&vid,fin)<0){
-      fprintf(stderr,"Error reading video info from '%s'.\n",_argv[ai]);
-      continue;
-    }
-    video_input_get_info(&vid,&ti);
-    if(video_input_fetch_frame(&vid,ycbcr,NULL)<0){
-      fprintf(stderr,"Error reading first frame from '%s'.\n",_argv[ai]);
-      continue;
-    }
-    tid=OD_OMP_GET_THREAD;
-    ctx=_ctx+tid;
-    x0 = ti.pic_x;
-    y0 = ti.pic_y;
-    x1 = x0 + ti.pic_width;
-    y1 = y0 + ti.pic_height;
-
-    /* start */
-    fprintf(stderr,"%s\n",_argv[ai]);
-    image_ctx_init(&ctx->img,_argv[ai],-1,-1);
-
-    /* map */
-    {
-      int                  stride=ycbcr[0].stride;
-      const unsigned char *data=ycbcr[0].data;
-      int                  x,y,z;
-      unsigned char        buf[2*B_SZ];
-      /* add the rows */
-      for(y=y0;y<y1;y++){
-        for(x=x0;x<x1-(2*B_SZ_MAX-1);x++){
-          for(z=0;z<2*B_SZ;z++){
-            buf[z]=data[y*stride+(x+z)];
-          }
-          trans_data_add(&ctx->td,buf);
-        }
-      }
-      /* add the columns */
-      for(y=y0;y<y1-(2*B_SZ_MAX-1);y++){
-        for(x=x0;x<x1;x++){
-          for(z=0;z<2*B_SZ;z++){
-            buf[z]=data[(y+z)*stride+x];
-          }
-          trans_data_add(&ctx->td,buf);
-        }
-      }
-    }
-
-    video_input_close(&vid);
-  }
+static int t_start(void *_ctx,const char *_name,const th_info *_ti,int _pli,
+ int _nxblocks,int _nyblocks){
+  trans_ctx *ctx;
+  fprintf(stdout,"%s %i %i\n",_name,_nxblocks,_nyblocks);
+  fflush(stdout);
+  ctx=(trans_ctx *)_ctx;
+  image_ctx_init(&ctx->img,_name,_nxblocks,_nyblocks);
   return EXIT_SUCCESS;
 }
+
+static void t_load_data(void *_ctx,const unsigned char *_data,int _stride,
+ int _bi,int _bj){
+  trans_ctx *ctx;
+  ctx=(trans_ctx *)_ctx;
+  if(_bi==0&&_bj==0){
+    int           x;
+    int           y;
+    int           z;
+    unsigned char buf[2*B_SZ];
+    /* add the rows */
+    for(y=0;y<ctx->img.nyblocks*B_SZ;y++){
+      for(x=0;x<ctx->img.nxblocks*B_SZ-(2*B_SZ-1);x++){
+        for(z=0;z<2*B_SZ;z++){
+          buf[z]=_data[y*_stride+(x+z)];
+        }
+        trans_data_add(&ctx->td,buf);
+      }
+    }
+    /* add the columns */
+    for(y=0;y<ctx->img.nyblocks*B_SZ-(2*B_SZ-1);y++){
+      for(x=0;x<ctx->img.nxblocks*B_SZ;x++){
+        for(z=0;z<2*B_SZ;z++){
+          buf[z]=_data[(y+z)*_stride+x];
+        }
+        trans_data_add(&ctx->td,buf);
+      }
+    }
+  }
+}
+
+#define PADDING (0)
+
+const block_func BLOCKS[]={
+  t_load_data
+};
+
+const int NBLOCKS=sizeof(BLOCKS)/sizeof(*BLOCKS);
 #endif
 
 int main(int _argc,const char *_argv[]){
@@ -361,7 +340,8 @@ int main(int _argc,const char *_argv[]){
   cov=r;
 #if USE_FILES
   OD_OMP_SET_THREADS(NUM_PROCS);
-  apply(ctx,_argc,_argv);
+  ne_apply_to_blocks(ctx,sizeof(*ctx),0x1,PADDING,t_start,NBLOCKS,BLOCKS,NULL,
+   _argc,_argv);
   for(i=1;i<NUM_PROCS;i++){
     trans_data_combine(&ctx[0].td,&ctx[i].td);
   }
