@@ -687,9 +687,10 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
           od_decode_block(dec, &mbctx, pli, sbx, sby, 3, xdec, ydec,
            sby > 0 && sbx < nhsb - 1);
           if (mbctx.nk > 0) {
-            mbctx.adapt.curr[OD_ADAPT_K_Q8] = (mbctx.k_total << 8)/mbctx.nk;
+            mbctx.adapt.curr[OD_ADAPT_K_Q8] =
+             OD_DIVU_SMALL(mbctx.k_total << 8, mbctx.nk);
             mbctx.adapt.curr[OD_ADAPT_SUM_EX_Q8] =
-             mbctx.sum_ex_total_q8/mbctx.nk;
+             OD_DIVU_SMALL(mbctx.sum_ex_total_q8, mbctx.nk);
           } else {
             mbctx.adapt.curr[OD_ADAPT_K_Q8] = OD_ADAPT_NO_VALUE;
             mbctx.adapt.curr[OD_ADAPT_SUM_EX_Q8] = OD_ADAPT_NO_VALUE;
@@ -697,9 +698,9 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
           if (mbctx.ncount > 0)
           {
             mbctx.adapt.curr[OD_ADAPT_COUNT_Q8] =
-             mbctx.count_total_q8/mbctx.ncount;
+             OD_DIVU_SMALL(mbctx.count_total_q8, mbctx.ncount);
             mbctx.adapt.curr[OD_ADAPT_COUNT_EX_Q8] =
-             mbctx.count_ex_total_q8/mbctx.ncount;
+             OD_DIVU_SMALL(mbctx.count_ex_total_q8, mbctx.ncount);
           } else {
             mbctx.adapt.curr[OD_ADAPT_COUNT_Q8] = OD_ADAPT_NO_VALUE;
             mbctx.adapt.curr[OD_ADAPT_COUNT_EX_Q8] = OD_ADAPT_NO_VALUE;
