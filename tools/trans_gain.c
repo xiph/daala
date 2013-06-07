@@ -78,7 +78,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
    LappedDCT    
 */
 
-#include <omp.h>
 #include <stdlib.h>
 #include "od_defs.h"
 #include "od_filter.h"
@@ -266,7 +265,7 @@ int apply(trans_ctx *_ctx,cov_state *_cov,int _argc,const char *_argv[]){
       fprintf(stderr,"Error reading first frame from '%s'.\n",_argv[ai]);
       continue;
     }
-    tid=omp_get_thread_num();
+    tid=OD_OMP_GET_THREAD;
     ctx=_ctx+tid;
     cov=_cov+tid;
     x0 = ti.pic_x;
@@ -1192,7 +1191,7 @@ int main(int _argc,const char *_argv[]){
 #endif
   }
 
-  omp_set_num_threads(NUM_PROCS);
+  OD_OMP_SET_THREADS(NUM_PROCS);
   apply(ctx,cvs,_argc,_argv);
   print_matrix(stdout,"cvs",cvs[0].cov,1,B_SUPPORT,1);
   for(i=1;i<NUM_PROCS;i++){
