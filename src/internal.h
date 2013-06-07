@@ -127,7 +127,7 @@ void **od_malloc_2d(size_t _height,size_t _width,size_t _sz);
 void **od_calloc_2d(size_t _height,size_t _width,size_t _sz);
 void od_free_2d(void *_ptr);
 
-# define OD_DIVU_DMAX (32)
+# define OD_DIVU_DMAX (64)
 
 extern ogg_uint32_t OD_DIVU_SMALL_CONSTS[OD_DIVU_DMAX][2];
 
