@@ -147,6 +147,7 @@ noinst_PROGRAMS += \
 	tools/intra_trace \
 	tools/trans \
 	tools/trans2d \
+	tools/trans_gain \
 	tools/init_intra_xform \
 	tools/gen_cdf \
 	tools/gen_laplace_tables
@@ -312,6 +313,19 @@ tools_trans_SOURCES = \
 	src/intradata.c
 tools_trans_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS) -fopenmp
 tools_trans_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) -lm
+
+# trans_gain
+tools_trans_gain_SOURCES = \
+	tools/trans_gain.c \
+	src/internal.c \
+	tools/vidinput.c \
+	tools/od_filter.c \
+	tools/trans_tools.c \
+	src/filter.c \
+	src/newdct.c \
+	src/intradata.c
+tools_trans_gain_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS) -fopenmp
+tools_trans_gain_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) -lm
 
 #trans2d
 tools_trans2d_SOURCES = \

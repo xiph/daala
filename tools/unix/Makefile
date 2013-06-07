@@ -84,12 +84,14 @@ PSNRHVS_TARGET:=dump_psnrhvs
 BSIZE_LOCAL_CSOURCES = \
 block_size_analysis.c \
 block_size.c \
+block_size_enc.c \
 vidinput.c \
 newdct.c \
 internal.c \
 entcode.c \
 entenc.c \
-filter.c
+filter.c \
+switch_table.c
 
 
 BSIZE_LIB_CSOURCES =
@@ -256,6 +258,25 @@ T_OBJS:=${T_OBJS:%.c=${WORKDIR}/%.o}
 T_CSOURCES:=${T_LOCAL_CSOURCES:%=${LOCALSRCDIR}/%} ${T_LIB_CSOURCES:%=${LIBSRCDIR}/%}
 T_TARGET:=trans
 
+#trans_gain
+TG_LOCAL_CSOURCES = \
+trans_gain.c \
+internal.c \
+vidinput.c \
+od_filter.c \
+trans_tools.c 
+
+TG_LIB_CSOURCES = \
+filter.c \
+newdct.c \
+intradata.c
+
+TG_LDFLAGS = `pkg-config theoradec ogg libpng --libs` -lm
+
+TG_OBJS:=${TG_LOCAL_CSOURCES} ${TG_LIB_CSOURCES}
+TG_OBJS:=${TG_OBJS:%.c=${WORKDIR}/%.o}
+TG_CSOURCES:=${TG_LOCAL_CSOURCES:%=${LOCALSRCDIR}/%} ${TG_LIB_CSOURCES:%=${LIBSRCDIR}/%}
+TG_TARGET:=trans_gain
 
 #trans2d
 T2D_LOCAL_CSOURCES = \
@@ -353,7 +374,7 @@ ALL_DEPS:=${ALL_OBJS:%.o=%.d}
 ALL_TARGETS:=${P2Y_TARGET} ${Y2P_TARGET} ${PSNRHVS_TARGET} \
  ${PIM_TARGET} ${IIM_TARGET} ${IIX_TARGET} ${GEN_CDF_TARGET} \
  ${GEN_LAPLACE_TABLES_TARGET} ${IS_TARGET} ${IP_TARGET} ${IT_TARGET} \
- ${T_TARGET} ${T2D_TARGET} ${BSIZE_TARGET}
+ ${T_TARGET} ${TG_TARGET} ${T2D_TARGET} ${BSIZE_TARGET}
 
 all: ${ALL_TARGETS}
 
@@ -395,6 +416,9 @@ ${IT_TARGET}: ${IT_OBJS}
 
 ${T_TARGET}: ${T_OBJS}
 	${CC} ${CFLAGS} ${T_OBJS} ${T_LDFLAGS} -o $@
+
+${TG_TARGET}: ${TG_OBJS}
+	${CC} ${CFLAGS} ${TG_OBJS} ${TG_LDFLAGS} -o $@
 
 ${T2D_TARGET}: ${T2D_OBJS}
 	${CC} ${CFLAGS} ${T2D_OBJS} ${T2D_LDFLAGS} -o $@
