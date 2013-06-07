@@ -117,18 +117,15 @@ extern const int OD_PRED_MULTS_16x16[OD_INTRA_NMODES][16][16];
 extern const int *OD_PRED_PARAMX_16x16[OD_INTRA_NMODES][16][16];
 extern const int *OD_PRED_PARAMY_16x16[OD_INTRA_NMODES][16][16];
 
-extern const int OD_PRED_PARAMX_4x4_DATA[];
-extern const int OD_PRED_PARAMY_4x4_DATA[];
+extern const ogg_int16_t OD_PRED_INDEX_4x4_DATA[];
 extern const double OD_PRED_WEIGHTS_4x4_DATA[];
 extern const int OD_PRED_OFFSETS_4x4[];
 
-extern const int OD_PRED_PARAMX_8x8_DATA[];
-extern const int OD_PRED_PARAMY_8x8_DATA[];
+extern const ogg_int16_t OD_PRED_INDEX_8x8_DATA[];
 extern const double OD_PRED_WEIGHTS_8x8_DATA[];
 extern const int OD_PRED_OFFSETS_8x8[];
 
-extern const int OD_PRED_PARAMX_16x16_DATA[];
-extern const int OD_PRED_PARAMY_16x16_DATA[];
+extern const ogg_int16_t OD_PRED_INDEX_16x16_DATA[];
 extern const double OD_PRED_WEIGHTS_16x16_DATA[];
 extern const int OD_PRED_OFFSETS_16x16[];
 
