@@ -59,7 +59,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
    LappedDCT       9.6119
                    9.6120
                    9.6232   10.8028   11.3698
-
+*/
 
 
 /* 2D coding gain figures */

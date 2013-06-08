@@ -183,7 +183,7 @@ struct daala_info {
   int nplanes;
   daala_plane_info plane_info[OD_NPLANES_MAX];
    /** key frame rate defined how often a key frame is emitted by encoder in
-    * number of frames. So 10 means every 10th frame is a keyframe.  */ 
+    * number of frames. So 10 means every 10th frame is a keyframe.  */
   int keyframe_rate;
 };
 
