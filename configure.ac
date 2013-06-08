@@ -41,7 +41,7 @@ AC_SUBST(OD_LT_CURRENT)
 AC_SUBST(OD_LT_REVISION)
 AC_SUBST(OD_LT_AGE)
 
-CFLAGS="$(CFLAGS) -std=c89 -pedantic -Wall -Wextra -Wno-parentheses -Wno-long-long -Wno-overlength-strings"
+CFLAGS="-std=c89 -pedantic -Wall -Wextra -Wno-parentheses -Wno-long-long -Wno-overlength-strings $CFLAGS"
 
 # Platform-specific tweaks
 case $host in
