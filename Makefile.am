@@ -135,7 +135,7 @@ daalainclude_HEADERS = \
 
 # Tools
 
-noinst_PROGRAMS += \
+tools_TARGETS = \
 	tools/png2y4m \
 	tools/y4m2png \
 	tools/dump_psnrhvs \
@@ -170,6 +170,9 @@ noinst_HEADERS += \
 	tools/svd.h \
 	tools/trans_tools.h \
 	tools/vidinput.h
+
+EXTRA_PROGRAMS = $(tools_TARGETS)
+CLEANFILES = $(tools_TARGETS)
 
 # png2y4m
 tools_png2y4m_SOURCES = \
@@ -465,7 +468,7 @@ FIG_OBJS = \
 
 #noinst_DATA = mc.pdf
 
-CLEANFILES = \
+CLEANFILES += \
 	doc/mc.pdf \
 	doc/mc.out \
 	doc/mc.log \
@@ -526,6 +529,8 @@ daala install-daala: NO_DOXYGEN = 1
 
 daala: all
 install-daala: install
+
+tools: $(tools_TARGETS)
 
 # Or just the docs
 docs: doc/doxygen-build.stamp
