@@ -154,8 +154,8 @@ case $host_cpu in
     ;;
 esac
 
-AM_CONDITIONAL([ENABLE_X86ASM], [test "$enable_asm" = "yes" && test "$cpu_x86" = "true"])
-AS_IF([test "$enable_asm" = "yes" && test "$cpu_x86" = "true"], [
+AM_CONDITIONAL([ENABLE_X86ASM], [test "$enable_asm" = "yes" -a "$cpu_x86" = "true"])
+AS_IF([test "$enable_asm" = "yes" -a "$cpu_x86" = "true"], [
   AC_DEFINE([OD_X86ASM], [1], [Enable asm optimisations])
 ])
 
