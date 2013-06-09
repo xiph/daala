@@ -132,9 +132,6 @@ AS_IF([test "$enable_asm" = "yes" -a "$cpu_x86" = "true"], [
 
 AM_CONDITIONAL(ENABLE_DOCS, [test $enable_doc = yes])
 
-AC_DEFINE([OD_ENABLE_ASSERTIONS], [1], [Enable assertions in code])
-AC_DEFINE([OD_LOGGING_ENABLED], [1], [Enable logging])
-
 AC_ARG_ENABLE([dump-images],
   AS_HELP_STRING([--disable-dump-images], [Do not dump debugging images]),,
   [enable_dump_images=yes])
