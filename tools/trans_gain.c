@@ -90,53 +90,53 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
    AR p=.95           4x4       8x8     16x16
    ------------------------------------------
-   KLT             15.1649   17.6924  18.9562
+   KLT            15.1649   17.6924   18.9562
 
-   DCT             
+   DCT            15.1403   17.6518   18.9109
 
-   CDF(9/7)        
+   CDF(9/7)       16.9374   18.9183   19.5731
 
-   LappedKLT       
+   LappedKLT      17.1265   18.9816   19.7902
 
-   LappedDCT       
+   LappedDCT      17.1047   18.9741   19.7858
 
 
 
    Subset 1           4x4       8x8     16x16
    ------------------------------------------
-   KLT original   12.4432
-       collapsed  12.4428
-       monty      12.4732
+   KLT original   12.4432   -------   -------
+       collapsed  12.4428   -------   -------
+       monty      12.4732   13.6167   14.1170
 
-   DCT            
-                  
-                  
+   DCT            12.3695   -------   -------
+                  12.3698   -------   -------
+                  12.4182   13.5473   14.0536
 
-   CDF(9/7)       
-                  
-                  
+   CDF(9/7)       -------   -------   -------
+                  -------   -------   -------
+                  13.1425   13.8184   14.0110
 
-   LappedKLT      
-                  
-                  
+   LappedKLT      13.2807   -------   -------
+                  13.2808   -------   -------
+                  13.3452   14.1273   14.4041
 
-   LappedDCT      
-                  
-                  
+   LappedDCT      13.2682   -------   -------
+                  13.2685   -------   -------
+                  13.3330   14.1215   14.3981
 
 
 
    Subset 3           4x4       8x8     16x16
    ------------------------------------------
-   KLT monty      14.9078
+   KLT monty      14.9078   16.2416   16.7839
 
-   DCT            
+   DCT            14.8313   16.1578   16.7221
 
-   CDF(9/7)       
+   CDF(9/7)       15.7553   16.4760   16.6656
 
-   LappedKLT      
+   LappedKLT      15.9763   16.8549   17.1181
 
-   LappedDCT      
+   LappedDCT      15.9627   16.8507   17.1152
 
 
 */
@@ -147,17 +147,17 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "stats_tools.h"
 #include "trans_tools.h"
 
-#define BLOCKSIZE_LOG  (2)
+#define BLOCKSIZE_LOG  (4)
 
 #define USE_LAPPING    (0)
-#define USE_KLT        (1)
+#define USE_KLT        (0)
 #define USE_DCT        (0)
-#define USE_WAVELET    (0)
+#define USE_WAVELET    (1)
 
 #define USE_2D         (1)
-#define USE_FILES      (0)
+#define USE_FILES      (1)
 #define USE_AR95       (0)
-#define COMPUTE_NATHAN (1)
+#define COMPUTE_NATHAN (0)
 #define PRINT_COV      (0)
 
 
@@ -230,6 +230,8 @@ static void cov_clear(cov_state *_this){
 }
 
 #if USE_2D
+/* 1D and 2D could both use the same generalized code, but it would be
+   harder to read */
 static void cov_accumulate_2d(cov_state *_this,
                               const unsigned char *_data,
                               int _stride, int _w, int _h){
