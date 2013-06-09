@@ -13,6 +13,7 @@ m4_define([CURRENT_VERSION],
 
 AC_INIT([daala],[CURRENT_VERSION],[daala@xiph.org])
 AC_CONFIG_SRCDIR([src/decode.c])
+AC_CONFIG_MACRO_DIR([m4])
 
 AC_USE_SYSTEM_EXTENSIONS
 AC_SYS_LARGEFILE
@@ -22,8 +23,6 @@ AM_MAINTAINER_MODE([enable])
 LT_INIT
 
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
-
-AC_CONFIG_MACRO_DIR([m4])
 
 dnl Library versioning for libtool.
 dnl Please update these for releases.
@@ -60,8 +59,9 @@ case $host in
     os_darwin=true
     ;;
 esac
-AM_CONDITIONAL(OD_WIN32, test "$host_mingw" = "true")
-AM_CONDITIONAL(OD_OS_DARWIN, test "$os_darwin" = "true")
+dnl These two are entirely unused at present.
+dnl AM_CONDITIONAL(OD_WIN32, test "$host_mingw" = "true")
+dnl AM_CONDITIONAL(OD_OS_DARWIN, test "$os_darwin" = "true")
 
 
 AC_ARG_ENABLE([assertions],
@@ -118,6 +118,7 @@ if test "$HAVE_FIG2DEV" != "yes" -o "$enable_doc" != "yes" ; then
   enable_doc="no"
 fi
 AM_CONDITIONAL(HAVE_FIG2DEV, [test $HAVE_FIG2DEV = yes])
+AM_CONDITIONAL(ENABLE_DOCS, [test $enable_doc = yes])
 
 AC_ARG_ENABLE([asm],
   AS_HELP_STRING([--disable-asm], [Do not compile assembly versions]),,
@@ -137,8 +138,6 @@ AM_CONDITIONAL([ENABLE_X86ASM], [test "$enable_asm" = "yes" -a "$cpu_x86" = "tru
 AS_IF([test "$enable_asm" = "yes" -a "$cpu_x86" = "true"], [
   AC_DEFINE([OD_X86ASM], [1], [Enable asm optimisations])
 ])
-
-AM_CONDITIONAL(ENABLE_DOCS, [test $enable_doc = yes])
 
 AC_ARG_ENABLE([dump-images],
   AS_HELP_STRING([--disable-dump-images], [Do not dump debugging images]),,
