@@ -72,6 +72,14 @@ AS_IF([test "$enable_assertions" = "yes"], [
   AC_DEFINE([OD_ENABLE_ASSERTIONS], [1], [Enable assertions in code])
 ])
 
+AC_ARG_ENABLE([logging],
+  AS_HELP_STRING([--enable-logging], [Enable logging]),,
+  enable_logging=no)
+
+AS_IF([test "$enable_logging" = "yes"], [
+  AC_DEFINE([OD_LOGGING_ENABLED], [1], [Enable logging])
+])
+
 PKG_CHECK_MODULES([OGG], [ogg >= 1.3])
 PKG_CHECK_MODULES([SDL], [sdl])
 PKG_CHECK_MODULES([PNG], [libpng])
@@ -154,9 +162,14 @@ AC_MSG_NOTICE([
   $PACKAGE_NAME $PACKAGE_VERSION: Automatic configuration OK.
 
     Assertions ................... ${enable_assertions}
+    Logging ...................... ${enable_logging}
     API documentation ............ ${enable_doc}
     Assembly optimizations ....... ${enable_asm}
     Image dumping ................ ${enable_dump_images}
     Unit tests ................... ${enable_unit_tests}
 ------------------------------------------------------------------------
+
+ Use "make tools" to compile the tools.
+ Use "make clean && make debug" to enable assertions and logging
+ without needing to reconfigure the source tree.
 ])
