@@ -26,6 +26,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
   The Theora source code is copyright (C) 2002-2009
   by the Xiph.Org Foundation and contributors http://www.xiph.org/
   Based on code from Vegard Nossum.*/
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #if !defined(_LARGEFILE_SOURCE)
 # define _LARGEFILE_SOURCE
 #endif

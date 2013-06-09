@@ -22,6 +22,10 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -48,6 +52,9 @@ int main(int argc, char **argv)
   shift=atoi(argv[2]);
   printf("/* This file is auto-generated using \"gen_laplace_tables %d %d\" */\n\n",
    N, shift);
+  printf("#ifdef HAVE_CONFIG_H\n");
+  printf("#include \"config.h\"\n");
+  printf("#endif\n\n");
   printf("#include \"pvq_code.h\"\n\n");
   printf("const ogg_uint16_t exp_cdf_table[%d][16] = {\n", N);
   printf("  {");

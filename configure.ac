@@ -13,6 +13,7 @@ m4_define([CURRENT_VERSION],
 
 AC_INIT([daala],[CURRENT_VERSION],[daala@xiph.org])
 AC_CONFIG_SRCDIR([src/decode.c])
+AC_CONFIG_MACRO_DIR([m4])
 
 AC_USE_SYSTEM_EXTENSIONS
 AC_SYS_LARGEFILE
@@ -22,8 +23,6 @@ AM_MAINTAINER_MODE([enable])
 LT_INIT
 
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
-
-AC_CONFIG_MACRO_DIR([m4])
 
 dnl Library versioning for libtool.
 dnl Please update these for releases.
@@ -41,7 +40,7 @@ AC_SUBST(OD_LT_CURRENT)
 AC_SUBST(OD_LT_REVISION)
 AC_SUBST(OD_LT_AGE)
 
-CFLAGS="$(CFLAGS) -std=c89 -pedantic -Wall -Wextra -Wno-parentheses -Wno-long-long -Wno-overlength-strings"
+CFLAGS="-std=c89 -pedantic -Wall -Wextra -Wno-parentheses -Wno-long-long -Wno-overlength-strings $CFLAGS"
 
 # Platform-specific tweaks
 case $host in
@@ -60,8 +59,9 @@ case $host in
     os_darwin=true
     ;;
 esac
-AM_CONDITIONAL(OD_WIN32, test "$host_mingw" = "true")
-AM_CONDITIONAL(OD_OS_DARWIN, test "$os_darwin" = "true")
+dnl These two are entirely unused at present.
+dnl AM_CONDITIONAL(OD_WIN32, test "$host_mingw" = "true")
+dnl AM_CONDITIONAL(OD_OS_DARWIN, test "$os_darwin" = "true")
 
 
 AC_ARG_ENABLE([assertions],
@@ -70,6 +70,14 @@ AC_ARG_ENABLE([assertions],
 
 AS_IF([test "$enable_assertions" = "yes"], [
   AC_DEFINE([OD_ENABLE_ASSERTIONS], [1], [Enable assertions in code])
+])
+
+AC_ARG_ENABLE([logging],
+  AS_HELP_STRING([--enable-logging], [Enable logging]),,
+  enable_logging=no)
+
+AS_IF([test "$enable_logging" = "yes"], [
+  AC_DEFINE([OD_LOGGING_ENABLED], [1], [Enable logging])
 ])
 
 PKG_CHECK_MODULES([OGG], [ogg >= 1.3])
@@ -110,6 +118,7 @@ if test "$HAVE_FIG2DEV" != "yes" -o "$enable_doc" != "yes" ; then
   enable_doc="no"
 fi
 AM_CONDITIONAL(HAVE_FIG2DEV, [test $HAVE_FIG2DEV = yes])
+AM_CONDITIONAL(ENABLE_DOCS, [test $enable_doc = yes])
 
 AC_ARG_ENABLE([asm],
   AS_HELP_STRING([--disable-asm], [Do not compile assembly versions]),,
@@ -127,13 +136,8 @@ esac
 
 AM_CONDITIONAL([ENABLE_X86ASM], [test "$enable_asm" = "yes" -a "$cpu_x86" = "true"])
 AS_IF([test "$enable_asm" = "yes" -a "$cpu_x86" = "true"], [
-  AC_DEFINE([OD_X86ASM], [1])
+  AC_DEFINE([OD_X86ASM], [1], [Enable asm optimisations])
 ])
-
-AM_CONDITIONAL(ENABLE_DOCS, [test $enable_doc = yes])
-
-AC_DEFINE([OD_ENABLE_ASSERTIONS], [1], [Enable assertions in code])
-AC_DEFINE([OD_LOGGING_ENABLED], [1], [Enable logging])
 
 AC_ARG_ENABLE([dump-images],
   AS_HELP_STRING([--disable-dump-images], [Do not dump debugging images]),,
@@ -149,6 +153,7 @@ AC_CONFIG_FILES([
   daala-uninstalled.pc
   doc/Doxyfile
 ])
+AC_CONFIG_HEADERS([config.h])
 AC_OUTPUT
 
 AC_MSG_NOTICE([
@@ -156,9 +161,14 @@ AC_MSG_NOTICE([
   $PACKAGE_NAME $PACKAGE_VERSION: Automatic configuration OK.
 
     Assertions ................... ${enable_assertions}
+    Logging ...................... ${enable_logging}
     API documentation ............ ${enable_doc}
     Assembly optimizations ....... ${enable_asm}
     Image dumping ................ ${enable_dump_images}
     Unit tests ................... ${enable_unit_tests}
 ------------------------------------------------------------------------
+
+ Use "make tools" to compile the tools.
+ Use "make clean && make debug" to enable assertions and logging
+ without needing to reconfigure the source tree.
 ])

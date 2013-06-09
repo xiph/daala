@@ -135,11 +135,12 @@ daalainclude_HEADERS = \
 
 # Tools
 
-noinst_PROGRAMS += \
+tools_TARGETS = \
 	tools/png2y4m \
 	tools/y4m2png \
 	tools/dump_psnrhvs \
 	tools/block_size_analysis \
+	tools/divu_const \
 	tools/plot_intra_maps \
 	tools/init_intra_maps \
 	tools/intra_stats \
@@ -169,6 +170,9 @@ noinst_HEADERS += \
 	tools/svd.h \
 	tools/trans_tools.h \
 	tools/vidinput.h
+
+EXTRA_PROGRAMS = $(tools_TARGETS)
+CLEANFILES = $(tools_TARGETS)
 
 # png2y4m
 tools_png2y4m_SOURCES = \
@@ -206,6 +210,12 @@ tools_block_size_analysis_SOURCES = \
 	src/switch_table.c
 tools_block_size_analysis_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS)
 tools_block_size_analysis_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) -lm
+
+# divu_const
+tools_divu_const_SOURCES = \
+	tools/divu_const.c
+tools_divu_const_CFLAGS = $(OGG_CFLAGS)
+tools_divu_const_LDADD = $(OGG_LIBS) -lm
 
 # plot_intra_maps
 tools_plot_intra_maps_SOURCES = \
@@ -387,12 +397,14 @@ noinst_PROGRAMS += \
 	src/tests/ectest \
 	src/tests/test_coef_coder \
 	src/tests/logging_test \
+	src/tests/test_divu_small \
 	src/tests/check_tests
 
 TESTS = \
 	src/tests/ectest \
 	src/tests/test_coef_coder \
 	src/tests/logging_test \
+	src/tests/test_divu_small \
 	src/tests/check_tests
 
 src_tests_ectest_SOURCES = src/tests/ectest.c
@@ -413,6 +425,12 @@ src_tests_logging_test_LDADD = \
  src/libdaalabase.la \
  src/libdaalaenc.la \
  $(OGG_LIBS)
+
+src_tests_test_divu_small_SOURCES = src/tests/test_divu_small.c
+src_tests_test_divu_small_CFLAGS = $(OGG_CFLAGS)
+src_tests_test_divu_small_LDADD = \
+ src/libdaalabase.la \
+ ${OGG_LIBS}
 
 src_tests_check_tests_SOURCES = \
  src/tests/check_main.c \
@@ -450,7 +468,7 @@ FIG_OBJS = \
 
 #noinst_DATA = mc.pdf
 
-CLEANFILES = \
+CLEANFILES += \
 	doc/mc.pdf \
 	doc/mc.out \
 	doc/mc.log \
@@ -497,8 +515,9 @@ dist_doc_DATA = COPYING AUTHORS README.txt
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = daala.pc
 
+debug: DEBUG_OPTIONS = -DOD_ENABLE_ASSERTIONS -DOD_LOGGING_ENABLED
 debug:
-	$(MAKE) CFLAGS="${CFLAGS} -O0 -ggdb -DOD_ENABLE_ASSERTIONS" all
+	$(MAKE) CFLAGS="$(CFLAGS) -O0 -ggdb $(DEBUG_OPTIONS)" all
 
 EXTRA_DIST = \
 	daala.pc.in \
@@ -511,6 +530,8 @@ daala install-daala: NO_DOXYGEN = 1
 
 daala: all
 install-daala: install
+
+tools: $(tools_TARGETS)
 
 # Or just the docs
 docs: doc/doxygen-build.stamp

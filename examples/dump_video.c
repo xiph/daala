@@ -24,6 +24,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 /*This code was cargo-culted from libtheora's dump_video.c.*/
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #if !defined(_REENTRANT)
 #define _REENTRANT
 #endif

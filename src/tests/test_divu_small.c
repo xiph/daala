@@ -26,54 +26,57 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "config.h"
 #endif
 
+#include <stdio.h>
 #include <stdlib.h>
-#include <limits.h>
-#include "int_search.h"
-#include "../src/internal.h"
+#include <time.h>
+#include "../internal.h"
 
-int int_simplex_max(double *_y,int _dims,isearch_obj _obj,const double *_aux,
- const int *_lb,const int *_ub,int *_x){
-  double        best_obj;
-  int           dim;
-  int           last_dim;
-  int           steps;
-  OD_ASSERT(_dims>0&&!!_x&&!!_lb&&!!_ub&&!!_obj);
-  last_dim=_dims;
-  best_obj=_obj(_aux,_x);
-  dim=steps=0;
-  do{
-    double y;
-    int i;
-    int dir;
-    dir=i=0;
-    do{
-      if(_x[i]>_lb[i]&&(i!=last_dim)){
-        _x[i]--;
-        y=_obj(_aux,_x);
-        if(y>best_obj){
-          best_obj=y;
-          dim=i;
-          dir=-1;
-        }
-        _x[i]++;
+int main(int argc, char *argv[]) {
+  unsigned int seed;
+  int          d;
+  unsigned int x;
+  int          i;
+  if (argc > 2) {
+    fprintf(stderr, "Usage: %s [<seed>]\n", argv[0]);
+    return EXIT_FAILURE;
+  }
+  if (argc > 1) {
+    seed = atoi(argv[1]);
+  }
+  else {
+    const char *env_seed;
+    env_seed = getenv("SEED");
+    if (env_seed) {
+      seed = atoi(env_seed);
+    }
+    else {
+      seed = time(NULL);
+    }
+  }
+  srand(seed);
+  fprintf(stderr, "Random seed: %u (%.4X).\n", seed, rand() & 65535);
+  fprintf(stderr, "Testing all divisions up to 1,000,000... ");
+  for (d = 1; d <= OD_DIVU_DMAX; d++) {
+    for (x = 1; x <= 1000000; x++) {
+      if (x/d != OD_DIVU_SMALL(x, d)) {
+        fprintf(stderr, "Failure! x=%i d=%i x/d=%i != %i\n",
+         x, d, x/d, OD_DIVU_SMALL(x, d));
+        return EXIT_FAILURE;
       }
-      if(_x[i]<_ub[i]&&(-i!=last_dim)){
-        _x[i]++;
-        y=_obj(_aux,_x);
-        if(y>best_obj){
-          best_obj=y;
-          dim=i;
-          dir=1;
-        }
-        _x[i]--;
+    }
+  }
+  fprintf(stderr, "Passed!\n");
+  fprintf(stderr, "Testing 1,000,000 random divisions... ");
+  for (d = 1; d < OD_DIVU_DMAX; d++) {
+    for (i = 0; i < 1000000; i++) {
+      x = rand();
+      if (x/d != OD_DIVU_SMALL(x, d)) {
+        fprintf(stderr,"Failure! x=%i d=%i x/d=%i != %i\n",
+         x, d, x/d, OD_DIVU_SMALL(x, d));
+        return EXIT_FAILURE;
       }
-    }while(++i<_dims);
-    if(dir==0)break;
-    steps++;
-    _x[dim]+=dir;
-    last_dim=dir<0?-dim:dim;
-    dir=0;
-  }while(1);
-  if(_y)*_y=best_obj;
-  return steps;
+    }
+  }
+  fprintf(stderr, "Passed!\n");
+  return EXIT_SUCCESS;
 }

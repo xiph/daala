@@ -22,6 +22,10 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include "entdec.h"
 
 /*A range decoder.
@@ -282,6 +286,7 @@ int od_ec_decode_cdf_q15(od_ec_dec *dec, const ogg_uint16_t *cdf, int nsyms) {
   unsigned fl;
   unsigned fh;
   int ret;
+  (void)nsyms;
   dif = dec->dif;
   r = dec->rng;
   OD_ASSERT(dif >> (OD_EC_WINDOW_SIZE - 16) < r);
@@ -379,6 +384,7 @@ int od_ec_decode_cdf_unscaled_dyadic(od_ec_dec *dec,
   unsigned fl;
   unsigned fh;
   int ret;
+  (void)nsyms;
   dif = dec->dif;
   r = dec->rng;
   OD_ASSERT(dif >> (OD_EC_WINDOW_SIZE - 16) < r);

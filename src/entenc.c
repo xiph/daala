@@ -22,6 +22,10 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <stdlib.h>
 #include <string.h>
 #include "entenc.h"
@@ -304,6 +308,7 @@ void od_ec_encode_cdf(od_ec_enc *enc, int s,
          This should be at most 16.*/
 void od_ec_encode_cdf_q15(od_ec_enc *enc, int s,
  const ogg_uint16_t *cdf, int nsyms) {
+  (void)nsyms;
   OD_ASSERT(s >= 0);
   OD_ASSERT(s < nsyms);
   OD_ASSERT(cdf[nsyms - 1] == 32768U);
@@ -337,6 +342,7 @@ void od_ec_encode_cdf_unscaled(od_ec_enc *enc, int s,
        This must be no more than 15.*/
 void od_ec_encode_cdf_unscaled_dyadic(od_ec_enc *enc, int s,
  const ogg_uint16_t *cdf, int nsyms, unsigned ftb) {
+  (void)nsyms;
   OD_ASSERT(s >= 0);
   OD_ASSERT(s < nsyms);
   OD_ASSERT(ftb <= 15);

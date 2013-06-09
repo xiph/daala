@@ -26,6 +26,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
    or not. It uses the original non-sparse versions of these to generate
    smaller ones.*/
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <stdio.h>
 
 #if defined(TRAIN)
@@ -155,6 +159,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #endif
 
 int main() {
+  printf("#ifdef HAVE_CONFIG_H\n");
+  printf("#include \"config.h\"\n");
+  printf("#endif\n\n");
 #if defined(TRAIN)
   printf("#include \"od_defs.h\"\n");
   printf("#include \"od_intra.h\"\n\n");

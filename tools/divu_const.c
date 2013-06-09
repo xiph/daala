@@ -1,5 +1,5 @@
 /*Daala video codec
-Copyright (c) 2001-2013 Daala project contributors.  All rights reserved.
+Copyright (c) 2013 Daala project contributors.  All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -11,7 +11,7 @@ modification, are permitted provided that the following conditions are met:
   this list of conditions and the following disclaimer in the documentation
   and/or other materials provided with the distribution.
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS “AS IS”
 AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
@@ -26,33 +26,43 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "config.h"
 #endif
 
+#include <stdio.h>
 #include <stdlib.h>
-#include <check.h>
+#include "../src/odintrin.h"
 
-START_TEST(test_name){
-  /* Unit test code. */
-  ck_assert_int_eq(5, 5);
-}
-END_TEST
+#define NBITS (32)
 
-Suite *
-example_suite(){
-  Suite *s = suite_create("Example");
-
-  /* Core test case. */
-  TCase *tc_core = tcase_create("Core");
-  tcase_add_test(tc_core, test_name);
-  suite_add_tcase(s, tc_core);
-
-  return s;
-}
-
-int main(int _argc,char **_argv){
-  int number_failed;
-  Suite *s = example_suite();
-  SRunner *sr = srunner_create(s);
-  srunner_run_all(sr, CK_NORMAL);
-  number_failed = srunner_ntests_failed(sr);
-  srunner_free(sr);
-  return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
+/*This program generates the constants for use with OD_DIVU_SMALL().*/
+int main(int argc, char *argv[]) {
+  if (argc != 2) {
+    printf("usage: %s <max>\n", argv[0]);
+    return EXIT_FAILURE;
+  }
+  else {
+    int max;
+    int d;
+    max = atoi(argv[1]);
+    printf("ogg_uint32_t OD_DIVU_SMALL_CONSTS[OD_DIVU_DMAX][2]={\n");
+    for (d = 1; d <= max; d++) {
+      if ((d & (d - 1)) == 0) {
+        printf("  {0xFFFFFFFF,0xFFFFFFFF},\n");
+      }
+      else {
+        unsigned long long t;
+        unsigned long long r;
+        int m;
+        m = OD_LOG2(d);
+        t = (1UL << m + NBITS)/d;
+        r = (t*d + d) & ((1UL << NBITS) - 1);
+        if (r <= 1UL << m) {
+          printf("  {0x%llX,         0},\n", t + 1);
+        }
+        else {
+          printf("  {0x%llX,0x%llX},\n", t, t);
+        }
+      }
+    }
+    printf("};\n");
+    return EXIT_SUCCESS;
+  }
 }

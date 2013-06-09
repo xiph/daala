@@ -23,6 +23,10 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -745,7 +749,9 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
               od_encode_mv(enc, mvp, vx, vy, 2, mv_res, width, height);
             }
           }
-          else OD_ASSERT(!mvp->valid);
+          else {
+            OD_ASSERT(!mvp->valid);
+          }
         }
       }
       /*Level 3.*/
@@ -759,7 +765,9 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
               od_encode_mv(enc, mvp, vx, vy, 3, mv_res, width, height);
             }
           }
-          else OD_ASSERT(!mvp->valid);
+          else {
+            OD_ASSERT(!mvp->valid);
+          }
         }
       }
       /*Level 4.*/
@@ -773,7 +781,9 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
               od_encode_mv(enc, mvp, vx, vy, 4, mv_res, width, height);
             }
           }
-          else OD_ASSERT(!mvp->valid);
+          else {
+            OD_ASSERT(!mvp->valid);
+          }
         }
       }
     }
@@ -951,9 +961,10 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
           od_encode_block(enc, &mbctx, pli, sbx, sby, 3, xdec, ydec,
            sby > 0 && sbx < nhsb - 1);
           if (mbctx.nk > 0) {
-            mbctx.adapt.curr[OD_ADAPT_K_Q8] = (mbctx.k_total << 8)/mbctx.nk;
+            mbctx.adapt.curr[OD_ADAPT_K_Q8] =
+             OD_DIVU_SMALL(mbctx.k_total << 8, mbctx.nk);
             mbctx.adapt.curr[OD_ADAPT_SUM_EX_Q8] =
-             mbctx.sum_ex_total_q8/mbctx.nk;
+             OD_DIVU_SMALL(mbctx.sum_ex_total_q8, mbctx.nk);
           } else {
             mbctx.adapt.curr[OD_ADAPT_K_Q8] = OD_ADAPT_NO_VALUE;
             mbctx.adapt.curr[OD_ADAPT_SUM_EX_Q8] = OD_ADAPT_NO_VALUE;
@@ -961,9 +972,9 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
           if (mbctx.ncount > 0)
           {
             mbctx.adapt.curr[OD_ADAPT_COUNT_Q8] =
-             mbctx.count_total_q8/mbctx.ncount;
+             OD_DIVU_SMALL(mbctx.count_total_q8, mbctx.ncount);
             mbctx.adapt.curr[OD_ADAPT_COUNT_EX_Q8] =
-             mbctx.count_ex_total_q8/mbctx.ncount;
+             OD_DIVU_SMALL(mbctx.count_ex_total_q8, mbctx.ncount);
           } else {
             mbctx.adapt.curr[OD_ADAPT_COUNT_Q8] = OD_ADAPT_NO_VALUE;
             mbctx.adapt.curr[OD_ADAPT_COUNT_EX_Q8] = OD_ADAPT_NO_VALUE;
@@ -1039,7 +1050,9 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     unsigned char *data;
     ogg_int64_t mc_sqerr;
     ogg_int64_t enc_sqerr;
+#ifdef OD_LOGGING_ENABLED
     ogg_uint32_t npixels;
+#endif
     int ystride;
     int xdec;
     int ydec;
@@ -1059,7 +1072,9 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     ydec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
     w = frame_width >> xdec;
     h = frame_height >> ydec;
+#ifdef OD_LOGGING_ENABLED
     npixels = w*h;
+#endif
     for (y = 0; y < h; y++) {
       unsigned char *prev_rec_row;
       unsigned char *rec_row;
