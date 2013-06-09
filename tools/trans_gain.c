@@ -153,15 +153,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #define BLOCKSIZE_LOG  (4)
 
-#define USE_LAPPING    (0)
-#define USE_KLT        (0)
+#define USE_LAPPING    (1)
+#define USE_KLT        (1)
 #define USE_DCT        (0)
-#define USE_WAVELET    (1)
+#define USE_WAVELET    (0)
 
 #define USE_2D         (1)
 #define USE_FILES      (1)
 #define USE_AR95       (0)
-#define COMPUTE_NATHAN (0)
+#define COMPUTE_NATHAN (1)
 #define PRINT_COV      (0)
 
 
@@ -785,7 +785,7 @@ void gklt_1d(double klt[BLOCKSIZE][BLOCKSIZE],
   for(i=0;i<SUPPORT;i++)
     for(j=0;j<SUPPORT;j++)
       workA[i][j]=cov[i][j];
-  flap_2d(workB,workA,f);
+  flap_2d(workB,workA,_f);
   symeigen(&klt[0][0],&workB[0][0],BLOCKSIZE);
 }
 
@@ -800,7 +800,7 @@ void gklt_2d(double klt[BLOCKSIZE*BLOCKSIZE][BLOCKSIZE*BLOCKSIZE],
       for(k=0;k<SUPPORT;k++)
         for(l=0;l<SUPPORT;l++)
           workA[i][j][k][l]=cov[i][j][k][l];
-  flap_4d(workB,workA,f);
+  flap_4d(workB,workA,_f);
   symeigen(&klt[0][0],&workB[0][0],BLOCKSIZE*BLOCKSIZE);
 }
 
@@ -813,7 +813,7 @@ void gklt_1d_collapsed(double klt[BLOCKSIZE][BLOCKSIZE],
   for(i=0;i<SUPPORT;i++)
     for(j=0;j<SUPPORT;j++)
       workA[i][j]=cov[abs(i-j)];
-  flap_2d(workB,workA,f);
+  flap_2d(workB,workA,_f);
   symeigen(&klt[0][0],&workB[0][0],BLOCKSIZE);
 }
 
@@ -828,7 +828,7 @@ void gklt_2d_collapsed(double klt[BLOCKSIZE*BLOCKSIZE][BLOCKSIZE*BLOCKSIZE],
       for(k=0;k<SUPPORT;k++)
         for(l=0;l<SUPPORT;l++)
           workA[i][j][k][l]=cov[abs(i-k)][abs(j-l)];
-  flap_4d(workB,workA,f);
+  flap_4d(workB,workA,_f);
   symeigen(&klt[0][0],&workB[0][0],BLOCKSIZE*BLOCKSIZE);
 }
 
@@ -921,7 +921,7 @@ void b_analysis_2d(double *_out,int _out_stride_i,int _out_stride_j,
     for(j=0;j<SUPPORT;j++)
       lap[i][j]=*(_in+i*_in_stride_i+j*_in_stride_j);
 
-  flap_2d(work,lap,f);
+  flap_2d(work,lap,_f);
 
   fklt(&temp[0][0],&work[0][0],&_klt[0][0],BLOCKSIZE*BLOCKSIZE);
 
@@ -1073,7 +1073,7 @@ static double cg_2d_i(double rggt[SUPPORT][SUPPORT][BLOCKSIZE][BLOCKSIZE],
                      SUPPORT*BLOCKSIZE*BLOCKSIZE,
                      &r[i][j][0][0],
                      BLOCKSIZE,1,
-                     f,_klt);
+                     _f,_klt);
 
   /* ((H1*P*H2)^T*H1*P*H2)_ii */
   for(i=0;i<BLOCKSIZE;i++){
