@@ -745,7 +745,9 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
               od_encode_mv(enc, mvp, vx, vy, 2, mv_res, width, height);
             }
           }
-          else OD_ASSERT(!mvp->valid);
+          else {
+            OD_ASSERT(!mvp->valid);
+          }
         }
       }
       /*Level 3.*/
@@ -759,7 +761,9 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
               od_encode_mv(enc, mvp, vx, vy, 3, mv_res, width, height);
             }
           }
-          else OD_ASSERT(!mvp->valid);
+          else {
+            OD_ASSERT(!mvp->valid);
+          }
         }
       }
       /*Level 4.*/
@@ -773,7 +777,9 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
               od_encode_mv(enc, mvp, vx, vy, 4, mv_res, width, height);
             }
           }
-          else OD_ASSERT(!mvp->valid);
+          else {
+            OD_ASSERT(!mvp->valid);
+          }
         }
       }
     }
