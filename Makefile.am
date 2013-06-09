@@ -515,8 +515,9 @@ dist_doc_DATA = COPYING AUTHORS README.txt
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = daala.pc
 
+debug: DEBUG_OPTIONS = -DOD_ENABLE_ASSERTIONS -DOD_LOGGING_ENABLED
 debug:
-	$(MAKE) CFLAGS="${CFLAGS} -O0 -ggdb -DOD_ENABLE_ASSERTIONS" all
+	$(MAKE) CFLAGS="$(CFLAGS) -O0 -ggdb $(DEBUG_OPTIONS)" all
 
 EXTRA_DIST = \
 	daala.pc.in \
