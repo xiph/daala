@@ -29,6 +29,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "block_size.h"
 #include "block_size_enc.h"
 #include <string.h>
+#include <stdlib.h>
 
 /* Actual 2D coding gains of lapped transforms (the 32x32 one is made-up).
    We divide by 6 to get bits from dB. */

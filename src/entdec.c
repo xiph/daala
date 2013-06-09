@@ -286,6 +286,7 @@ int od_ec_decode_cdf_q15(od_ec_dec *dec, const ogg_uint16_t *cdf, int nsyms) {
   unsigned fl;
   unsigned fh;
   int ret;
+  (void)nsyms;
   dif = dec->dif;
   r = dec->rng;
   OD_ASSERT(dif >> (OD_EC_WINDOW_SIZE - 16) < r);
@@ -383,6 +384,7 @@ int od_ec_decode_cdf_unscaled_dyadic(od_ec_dec *dec,
   unsigned fl;
   unsigned fh;
   int ret;
+  (void)nsyms;
   dif = dec->dif;
   r = dec->rng;
   OD_ASSERT(dif >> (OD_EC_WINDOW_SIZE - 16) < r);

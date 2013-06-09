@@ -1050,7 +1050,9 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     unsigned char *data;
     ogg_int64_t mc_sqerr;
     ogg_int64_t enc_sqerr;
+#ifdef OD_LOGGING_ENABLED
     ogg_uint32_t npixels;
+#endif
     int ystride;
     int xdec;
     int ydec;
@@ -1070,7 +1072,9 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     ydec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
     w = frame_width >> xdec;
     h = frame_height >> ydec;
+#ifdef OD_LOGGING_ENABLED
     npixels = w*h;
+#endif
     for (y = 0; y < h; y++) {
       unsigned char *prev_rec_row;
       unsigned char *rec_row;
