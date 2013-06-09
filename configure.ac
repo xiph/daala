@@ -127,7 +127,7 @@ esac
 
 AM_CONDITIONAL([ENABLE_X86ASM], [test "$enable_asm" = "yes" -a "$cpu_x86" = "true"])
 AS_IF([test "$enable_asm" = "yes" -a "$cpu_x86" = "true"], [
-  AC_DEFINE([OD_X86ASM], [1])
+  AC_DEFINE([OD_X86ASM], [1], [Enable asm optimisations])
 ])
 
 AM_CONDITIONAL(ENABLE_DOCS, [test $enable_doc = yes])
@@ -149,6 +149,7 @@ AC_CONFIG_FILES([
   daala-uninstalled.pc
   doc/Doxyfile
 ])
+AC_CONFIG_HEADERS([config.h])
 AC_OUTPUT
 
 AC_MSG_NOTICE([

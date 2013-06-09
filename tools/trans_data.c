@@ -1,3 +1,7 @@
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include "trans_tools.h"
 
 const double SUBSET1_1D_4x8[2*4]={

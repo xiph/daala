@@ -1,5 +1,9 @@
 /* This file is auto-generated using "gen_laplace_tables 128 7" */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include "pvq_code.h"
 
 const ogg_uint16_t exp_cdf_table[128][16] = {

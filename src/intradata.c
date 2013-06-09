@@ -1,3 +1,7 @@
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include "intra.h"
 
 const int OD_PRED_OFFSETS_4x4[OD_INTRA_NMODES] = {

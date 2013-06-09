@@ -18,6 +18,10 @@
 
 */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include "../generic_code.c"
 #include "../pvq_encoder.c"
 #include "../generic_encoder.c"
