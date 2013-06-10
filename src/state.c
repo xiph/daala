@@ -527,12 +527,13 @@ void od_state_pred_block_from_setup(od_state *_state,unsigned char *_buf,
 
 void od_state_pred_block(od_state *_state,unsigned char *_buf,int _ystride,
  int _ref,int _pli,int _vx,int _vy,int _log_mvb_sz){
-  int half_mvb_sz;
-  half_mvb_sz=1<<_log_mvb_sz-1;
-  if(_log_mvb_sz>0&&_state->mv_grid[_vy+half_mvb_sz][_vx+half_mvb_sz].valid){
+  if(_log_mvb_sz>0
+   &&_state->mv_grid[_vy+(1<<_log_mvb_sz-1)][_vx+(1<<_log_mvb_sz-1)].valid){
     od_img_plane *iplane;
+    int           half_mvb_sz;
     int           half_xblk_sz;
     int           half_yblk_sz;
+    half_mvb_sz=1<<_log_mvb_sz-1;
     iplane=_state->ref_imgs[_state->ref_imgi[_ref]].planes+_pli;
     half_xblk_sz=1<<_log_mvb_sz+1-iplane->xdec;
     half_yblk_sz=1<<_log_mvb_sz+1-iplane->ydec;
@@ -664,9 +665,10 @@ void od_img_draw_line(od_img *_img,int _x0,int _y0,int _x1,int _y1,
 
 static void od_state_draw_mv_grid_block(od_state *_state,int _vx,int _vy,
  int _log_mvb_sz){
-  int half_mvb_sz;
-  half_mvb_sz=1<<_log_mvb_sz-1;
-  if(_log_mvb_sz>0&&_state->mv_grid[_vy+half_mvb_sz][_vx+half_mvb_sz].valid){
+  if(_log_mvb_sz>0
+   &&_state->mv_grid[_vy+(1<<_log_mvb_sz-1)][_vx+(1<<_log_mvb_sz-1)].valid){
+    int half_mvb_sz;
+    half_mvb_sz=1<<_log_mvb_sz-1;
     od_state_draw_mv_grid_block(_state,_vx,_vy,_log_mvb_sz-1);
     od_state_draw_mv_grid_block(_state,_vx+half_mvb_sz,_vy,_log_mvb_sz-1);
     od_state_draw_mv_grid_block(_state,_vx,_vy+half_mvb_sz,_log_mvb_sz-1);
@@ -753,9 +755,10 @@ void od_state_draw_mv_grid(od_state *_state){
 
 static void od_state_draw_mvs_block(od_state *_state,int _vx,int _vy,
  int _log_mvb_sz){
-  int half_mvb_sz;
-  half_mvb_sz=1<<_log_mvb_sz-1;
-  if(_log_mvb_sz>0&&_state->mv_grid[_vy+half_mvb_sz][_vx+half_mvb_sz].valid){
+  if(_log_mvb_sz>0
+   &&_state->mv_grid[_vy+(1<<_log_mvb_sz-1)][_vx+(1<<_log_mvb_sz-1)].valid){
+    int half_mvb_sz;
+    half_mvb_sz=1<<_log_mvb_sz-1;
     od_state_draw_mvs_block(_state,_vx,_vy,_log_mvb_sz-1);
     od_state_draw_mvs_block(_state,_vx+half_mvb_sz,_vy,_log_mvb_sz-1);
     od_state_draw_mvs_block(_state,_vx,_vy+half_mvb_sz,_log_mvb_sz-1);
