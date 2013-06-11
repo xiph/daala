@@ -28,28 +28,27 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #include "generic_code.h"
 
-/** Takes the base-2 log of E(x)
+/** Takes the base-2 log of E(x) in Q1.
  *
  * @param [in] ExQ16 expectation of x in Q16
  *
  * @retval 2*log2(ExQ16/2^16)
  */
-int logEx(int ExQ16)
-{
+int logEx(int ex_q16) {
   int lg;
-  int lgQ1;
+  int lg_q1;
   int odd;
-
-  lg = od_ilog(ExQ16);
-  if (lg<15)
-  {
-    odd = ExQ16*ExQ16 > 2<<2*lg;
-  } else {
-    int tmp=ExQ16>>(lg-8);
-    odd = tmp*tmp > (1<<15);
+  lg = od_ilog(ex_q16);
+  if (lg < 15) {
+    odd = ex_q16*ex_q16 > 2 << 2*lg;
   }
-  lgQ1 = OD_MAXI(0,2*lg - 33 + odd);
-  return lgQ1;
+  else {
+    int tmp;
+    tmp = ex_q16 >> (lg - 8);
+    odd = tmp*tmp > (1 << 15);
+  }
+  lg_q1 = OD_MAXI(0, 2*lg - 33 + odd);
+  return lg_q1;
 }
 
 /** Updates the probability model based on the encoded/decoded value
@@ -59,31 +58,27 @@ int logEx(int ExQ16)
  * @param [in]     x     variable encoded/decoded (used for ExQ16)
  * @param [in]     xs    variable x after shift (used for the model)
  * @param [in]     id    id of the icdf to adapt
- * @param [in]     integration integration period of ExQ16 (leaky average over 1<<integration samples)
- *
+ * @param [in]     integration integration period of ExQ16 (leaky average over
+ * 1<<integration samples)
  */
-void generic_model_update(GenericEncoder *model,int *ExQ16,int x,int xs,int id,int integration)
-{
+void generic_model_update(generic_encoder *model,int *ex_q16,int x,int xs,
+ int id,int integration) {
   int i;
   int xenc;
   ogg_uint16_t *cdf;
-
   cdf=model->cdf[id];
   /* Renormalize if we cannot add increment */
-  if (cdf[15]+model->increment>32767){
-    for (i=0;i<16;i++){
+  if (cdf[15] + model->increment>32767) {
+    for (i = 0; i < 16; i++) {
       /* Second term ensures that the pdf is non-null */
-      cdf[i]=(cdf[i]>>1)+i+1;
+      cdf[i] = (cdf[i] >> 1) + i + 1;
     }
   }
-
   /* Update freq count */
-  xenc=OD_MINI(15,xs);
+  xenc = OD_MINI(15, xs);
   /* This can be easily vectorized */
-  for (i=xenc;i<16;i++)
-    cdf[i]+=model->increment;
-
+  for (i = xenc; i < 16; i++) cdf[i] += model->increment;
   /* We could have saturated ExQ16 directly, but this is safe and simpler */
   x = OD_MINI(x, 32767);
-  *ExQ16+=(x<<(16-integration))-(*ExQ16>>integration);
+  *ex_q16 += (x << (16 - integration)) - (*ex_q16 >> integration);
 }

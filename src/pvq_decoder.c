@@ -34,7 +34,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "logging.h"
 #include "pvq_code.h"
 
-
 /** Decodes the tail of a Laplace-distributed variable, i.e. it doesn't
  * do anything special for the zero case.
  *
@@ -44,28 +43,26 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
  *
  * @retval decoded variable x
  */
-int laplace_decode_special(od_ec_dec *dec,unsigned decay,int max)
-{
+int laplace_decode_special(od_ec_dec *dec, unsigned decay, int max) {
   int pos;
   int shift;
   int xs;
   int ms;
   int sym;
   const ogg_uint16_t *cdf;
-  shift=0;
-  /* We don't want a large decay value because that would require too many symbols.
-     However, it's OK if the max is below 15. */
-  while ( ((max>>shift)>=15||max==-1) && decay>235)
-  {
-    decay=(decay*decay+128)>>8;
+  shift = 0;
+  /* We don't want a large decay value because that would require too many
+     symbols. However, it's OK if the max is below 15. */
+  while ( ((max >> shift) >= 15 || max == -1) && decay > 235) {
+    decay = (decay*decay + 128) >> 8;
     shift++;
   }
   decay = OD_MINI(decay, 254);
   decay = OD_MAXI(decay, 2);
-  ms=max>>shift;
-  cdf = exp_cdf_table[(decay+1)>>1];
+  ms = max >> shift;
+  cdf = exp_cdf_table[(decay + 1) >> 1];
   OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "decay = %d\n", decay));
-  xs=0;
+  xs = 0;
   do {
     sym = OD_MINI(xs, 15);
     {
@@ -76,25 +73,20 @@ int laplace_decode_special(od_ec_dec *dec,unsigned decay,int max)
       }
       OD_LOG_PARTIAL((OD_LOG_PVQ, OD_LOG_DEBUG, "\n"));
     }
-    if (ms>0 && ms<15){
-      /* Simple way of truncating the pdf when we have a bound */
-      sym = od_ec_decode_cdf_unscaled(dec, cdf, ms+1);
-    } else {
-      sym = od_ec_decode_cdf_q15(dec, cdf, 16);
+    if (ms > 0 && ms < 15){
+      /* Simple way of truncating the pdf when we have a bound. */
+      sym = od_ec_decode_cdf_unscaled(dec, cdf, ms + 1);
     }
-
+    else sym = od_ec_decode_cdf_q15(dec, cdf, 16);
     xs += sym;
     ms -= 15;
-  } while (sym>=15);
-  if (shift)
-    pos = (xs<<shift) + od_ec_dec_bits(dec, shift);
-  else
-    pos = xs;
-
+  } while (sym >= 15);
+  if (shift) pos = (xs << shift) + od_ec_dec_bits(dec, shift);
+  else pos = xs;
   return pos;
 }
 
-/** Decodes a Laplace-distributed variable for use in PVQ
+/** Decodes a Laplace-distributed variable for use in PVQ.
  *
  * @param [in,out] dec  range decoder
  * @param [in]     ExQ8 expectation of the absolute value of x
@@ -102,48 +94,39 @@ int laplace_decode_special(od_ec_dec *dec,unsigned decay,int max)
  *
  * @retval decoded variable (including sign)
  */
-int laplace_decode(od_ec_dec *dec, int ExQ8, int K)
-{
+int laplace_decode(od_ec_dec *dec, int ex_q8, int k) {
   int j;
   int shift;
   ogg_uint16_t cdf[16];
   int sym;
-  int lsb=0;
+  int lsb;
   int decay;
   int offset;
-
-  /* shift down x if expectation is too high */
-  shift=od_ilog(ExQ8)-11;
-  if(shift<0)
-    shift=0;
-
-  /* Apply the shift with rounding to Ex, K and xs */
-  ExQ8=(ExQ8+(1<<shift>>1))>>shift;
-  K=(K+(1<<shift>>1))>>shift;
-
-  decay = OD_MINI(254,256*ExQ8/(ExQ8+256));
-  offset = laplace_offset[(decay+1)>>1];
-  for(j=0;j<16;j++)
-  {
-    cdf[j]=exp_cdf_table[(decay+1)>>1][j]-offset;
+  lsb=0;
+  /* Shift down x if expectation is too high. */
+  shift = od_ilog(ex_q8) - 11;
+  if(shift < 0) shift = 0;
+  /* Apply the shift with rounding to Ex, K and xs. */
+  ex_q8 = (ex_q8 + (1 << shift >> 1)) >> shift;
+  k = (k + (1 << shift >> 1)) >> shift;
+  decay = OD_MINI(254, 256*ex_q8/(ex_q8 + 256));
+  offset = laplace_offset[(decay + 1) >> 1];
+  for(j = 0; j < 16; j++) {
+    cdf[j] = exp_cdf_table[(decay + 1) >> 1][j] - offset;
   }
-
   /* Simple way of truncating the pdf when we have a bound */
-  sym=od_ec_decode_cdf_unscaled(dec,cdf,OD_MINI(K+1,16));
-  if(shift){
+  sym = od_ec_decode_cdf_unscaled(dec, cdf, OD_MINI(k + 1, 16));
+  if (shift) {
     int special;
-    /* Because of the rounding, there's only half the number of possibilities for xs=0 */
-    special=(sym==0);
-    if (shift-special>0)
-      lsb=od_ec_dec_bits(dec,shift-special);
-    lsb-=(!special<<(shift-1));
+    /* Because of the rounding, there's only half the number of possibilities
+       for xs=0 */
+    special = (sym == 0);
+    if (shift - special > 0) lsb = od_ec_dec_bits(dec, shift - special);
+    lsb -= (!special << (shift - 1));
   }
-
   /* Handle the exponentially-decaying tail of the distribution */
-  if(sym==15)
-    sym+=laplace_decode_special(dec,decay,K-15);
-
-  return (sym<<shift)+lsb;
+  if (sym == 15) sym += laplace_decode_special(dec, decay, k - 15);
+  return (sym << shift) + lsb;
 }
 
 /** Decodes a vector of integers assumed to come from rounding a sequence of
@@ -155,124 +138,117 @@ int laplace_decode(od_ec_dec *dec, int ExQ8, int K)
  * @param [in]     K   sum of the absolute value of components of y
  * @param [in,out] _adapt Adaptation context.
  */
-void pvq_decoder(od_ec_dec *dec, int *y,int N,int K,od_adapt_ctx *_adapt)
-{
+void pvq_decoder(od_ec_dec *dec, int *y, int n, int k, od_adapt_ctx *_adapt) {
   int i;
-  int sumEx;
-  int Kn;
-  int expQ8;
+  int sum_ex;
+  int kn;
+  int exp_q8;
   int mean_k_q8;
   int mean_sum_ex_q8;
-  _adapt->curr[OD_ADAPT_COUNT_Q8]=OD_ADAPT_NO_VALUE;
-  _adapt->curr[OD_ADAPT_COUNT_EX_Q8]=OD_ADAPT_NO_VALUE;
-  if(K<=1)
-  {
-    pvq_decode_delta(dec, y, N, K, _adapt);
+  _adapt->curr[OD_ADAPT_COUNT_Q8] = OD_ADAPT_NO_VALUE;
+  _adapt->curr[OD_ADAPT_COUNT_EX_Q8] = OD_ADAPT_NO_VALUE;
+  if (k <= 1) {
+    pvq_decode_delta(dec, y, n, k, _adapt);
     return;
   }
-  if(K==0){
-    _adapt->curr[OD_ADAPT_K_Q8]=0;
-    _adapt->curr[OD_ADAPT_SUM_EX_Q8]=0;
-    for(i=0;i<N;i++)
-      y[i]=0;
+  if (k == 0) {
+    _adapt->curr[OD_ADAPT_K_Q8] = 0;
+    _adapt->curr[OD_ADAPT_SUM_EX_Q8] = 0;
+    for(i = 0; i < n; i++)
+      y[i] = 0;
     return;
   }
-  sumEx=0;
-  Kn=K;
-
-  /* Estimates the factor relating pulses_left and positions_left to E(|x|) */
-  mean_k_q8=_adapt->mean[OD_ADAPT_K_Q8];
-  mean_sum_ex_q8=_adapt->mean[OD_ADAPT_SUM_EX_Q8];
-  if(mean_k_q8<1<<23)expQ8=256*mean_k_q8/(1+mean_sum_ex_q8);
-  else expQ8=mean_k_q8/(1+(mean_sum_ex_q8>>8));
-  for(i=0;i<N;i++){
-    int Ex;
+  sum_ex = 0;
+  kn = k;
+  /* Estimates the factor relating pulses_left and positions_left to E(|x|).*/
+  mean_k_q8 = _adapt->mean[OD_ADAPT_K_Q8];
+  mean_sum_ex_q8 = _adapt->mean[OD_ADAPT_SUM_EX_Q8];
+  if (mean_k_q8 < 1 << 23) exp_q8 = 256*mean_k_q8/(1 + mean_sum_ex_q8);
+  else exp_q8 = mean_k_q8/(1 + (mean_sum_ex_q8 >> 8));
+  for(i = 0; i < n; i++){
+    int ex;
     int x;
-    if(Kn==0)
+    if (kn == 0) break;
+    if (kn <= 1 && i != n - 1) {
+      pvq_decode_delta(dec, y + i, n - i, kn, _adapt);
+      i = n;
       break;
-    if(Kn<=1&&i!=N-1){
-      pvq_decode_delta(dec, y+i, N-i, Kn, _adapt);
-      i=N;
-      break;
     }
-    /* Expected value of x (round-to-nearest) is expQ8*pulses_left/positions_left */
-    Ex=(2*expQ8*Kn+(N-i))/(2*(N-i));
-    if(Ex>Kn*256)
-      Ex=Kn*256;
-    sumEx+=(2*256*Kn+(N-i))/(2*(N-i));
-    /* no need to encode the magnitude for the last bin */
-    if(i!=N-1){
-      x=laplace_decode(dec, Ex, Kn);
-    } else {
-      x=Kn;
+    /* Expected value of x (round-to-nearest) is
+       expQ8*pulses_left/positions_left. */
+    ex = (2*exp_q8*kn + (n - i))/(2*(n - i));
+    if (ex > kn*256) ex = kn*256;
+    sum_ex += (2*256*kn + (n - i))/(2*(n - i));
+    /* No need to encode the magnitude for the last bin. */
+    if (i != n - 1) x=laplace_decode(dec, ex, kn);
+    else x = kn;
+    if (x != 0) {
+      if (od_ec_dec_bits(dec, 1)) x = -x;
     }
-    if(x!=0)
-    {
-      if(od_ec_dec_bits(dec, 1))
-        x=-x;
-    }
-    y[i]=x;
-    Kn-=abs(x);
+    y[i] = x;
+    kn -= abs(x);
   }
-  /* Adapting the estimates for expQ8 */
-  _adapt->curr[OD_ADAPT_K_Q8]=K-Kn;
-  _adapt->curr[OD_ADAPT_SUM_EX_Q8]=sumEx;
-  for(;i<N;i++)
-    y[i]=0;
+  /* Adapting the estimates for expQ8. */
+  _adapt->curr[OD_ADAPT_K_Q8] = k - kn;
+  _adapt->curr[OD_ADAPT_SUM_EX_Q8] = sum_ex;
+  for(; i < n; i++)
+    y[i] = 0;
 }
 
-void pvq_decode_delta(od_ec_dec *dec, int *y,int N,int _K,
- od_adapt_ctx *_adapt)
-{
+void pvq_decode_delta(od_ec_dec *dec, int *y,int n,int k,
+ od_adapt_ctx *_adapt) {
   int i;
-  int prev=0;
-  int sumEx=0;
-  int sumC=0;
-  int coef = 256*_adapt->mean[OD_ADAPT_COUNT_Q8]/(1+_adapt->mean[OD_ADAPT_COUNT_EX_Q8]);
-  int pos=0;
-  int K0;
-  int sign=0;
-  int first = 1;
-  int K=_K;
-
-  for(i=0;i<N;i++)
-    y[i]=0;
-  K0=K;
-  coef=OD_MAXI(coef,1);
-  for(i=0;i<K0;i++){
+  int prev;
+  int sum_ex;
+  int sum_c;
+  int coef;
+  int pos;
+  int k0;
+  int sign;
+  int first;
+  int k_left;
+  prev=0;
+  sum_ex=0;
+  sum_c=0;
+  coef = 256*_adapt->mean[OD_ADAPT_COUNT_Q8]/
+   (1 + _adapt->mean[OD_ADAPT_COUNT_EX_Q8]);
+  pos=0;
+  sign=0;
+  first = 1;
+  k_left=k;
+  for (i = 0; i < n; i++) y[i] = 0;
+  k0 = k_left;
+  coef = OD_MAXI(coef, 1);
+  for (i = 0; i < k0; i++) {
     int count;
-
-    if(first)
-    {
+    if (first) {
       int decay;
-      int X = coef*(N-prev)/K;
-      decay = OD_MINI(255,(int)((256*X/(X+256) + 8*X*X/(256*(N+1)*(N-1)*(N-1)))));
+      int ex = coef*(n - prev)/k_left;
+      decay = OD_MINI(255,
+       (int)((256*ex/(ex + 256) + 8*ex*ex/(256*(n + 1)*(n - 1)*(n - 1)))));
       /*Update mean position.*/
-      count = laplace_decode_special(dec,decay,N-1);
+      count = laplace_decode_special(dec, decay, n - 1);
       first = 0;
-    } else {
-      count = laplace_decode(dec, coef*(N-prev)/K, N-prev-1);
     }
-    sumEx+=256*(N-prev);
-    sumC+=count*K;
+    else count = laplace_decode(dec, coef*(n - prev)/k_left, n - prev - 1);
+    sum_ex += 256*(n - prev);
+    sum_c += count*k_left;
     pos += count;
-    if (y[pos]==0)
-      sign = od_ec_dec_bits(dec,1);
-    y[pos]+=sign?-1:1;
-    prev=pos;
-    K--;
-    if(K==0)
-      break;
+    if (y[pos] == 0)
+      sign = od_ec_dec_bits(dec, 1);
+    y[pos] += sign ? -1 : 1;
+    prev = pos;
+    k_left--;
+    if (k_left == 0) break;
   }
-
-  if (_K>0)
-  {
-    _adapt->curr[OD_ADAPT_COUNT_Q8]=256*sumC;
-    _adapt->curr[OD_ADAPT_COUNT_EX_Q8]=sumEx;
-  } else {
-    _adapt->curr[OD_ADAPT_COUNT_Q8]=-1;
-    _adapt->curr[OD_ADAPT_COUNT_EX_Q8]=0;
+  if (k > 0) {
+    _adapt->curr[OD_ADAPT_COUNT_Q8] = 256*sum_c;
+    _adapt->curr[OD_ADAPT_COUNT_EX_Q8] = sum_ex;
   }
-  _adapt->curr[OD_ADAPT_K_Q8]=0;
-  _adapt->curr[OD_ADAPT_SUM_EX_Q8]=0;
+  else {
+    _adapt->curr[OD_ADAPT_COUNT_Q8] = -1;
+    _adapt->curr[OD_ADAPT_COUNT_EX_Q8] = 0;
+  }
+  _adapt->curr[OD_ADAPT_K_Q8] = 0;
+  _adapt->curr[OD_ADAPT_SUM_EX_Q8] = 0;
 }

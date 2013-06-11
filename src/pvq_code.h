@@ -22,8 +22,8 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
-#ifndef PVQ_CODE_H_
-#define PVQ_CODE_H_
+#if !defined(_pvq_code_H)
+#define _pvq_code_H
 
 #include "entenc.h"
 #include "entdec.h"
@@ -35,19 +35,19 @@ extern const unsigned char decayE[];
 extern const ogg_uint16_t exp_cdf_table[][16];
 extern const ogg_uint16_t laplace_offset[];
 
-void laplace_encode_special(od_ec_enc *enc,int pos,unsigned decay,int max);
-int laplace_decode_special(od_ec_dec *dec,unsigned decay,int max);
+void laplace_encode_special(od_ec_enc *enc, int pos, unsigned decay, int max);
+int laplace_decode_special(od_ec_dec *dec, unsigned decay, int max);
 
-void laplace_encode(od_ec_enc *enc, int x, int ExQ8, int K);
-int laplace_decode(od_ec_dec *dec, int ExQ8, int K);
+void laplace_encode(od_ec_enc *enc, int x, int ex_q8, int k);
+int laplace_decode(od_ec_dec *dec, int ex_q8, int k);
 
-void pvq_encoder(od_ec_enc *enc,const int *y,int N,int K,
+void pvq_encoder(od_ec_enc *enc, const int *y, int n, int k,
  od_adapt_ctx *_adapt);
-void pvq_decoder(od_ec_dec *dec,int *y,int N,int K,od_adapt_ctx *_adapt);
+void pvq_decoder(od_ec_dec *dec, int *y, int n, int k, od_adapt_ctx *_adapt);
 
-void pvq_encode_delta(od_ec_enc *enc, const int *y,int N,int K,
+void pvq_encode_delta(od_ec_enc *enc, const int *y, int n, int k,
  od_adapt_ctx *_adapt);
-void pvq_decode_delta(od_ec_dec *dec, int *y,int N,int K,
+void pvq_decode_delta(od_ec_dec *dec, int *y, int n, int k,
  od_adapt_ctx *_adapt);
 
 #endif

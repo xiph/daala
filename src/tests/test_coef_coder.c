@@ -99,7 +99,7 @@ int run_pvq(int *X,int len,int N){
   unsigned char *buf;
   ogg_uint32_t   buf_sz;
   int *Ki;
-  GenericEncoder model;
+  generic_encoder model;
   int EK=65536;
   int bits_used;
 

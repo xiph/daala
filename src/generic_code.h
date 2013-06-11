@@ -22,8 +22,8 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
-#ifndef GENERIC_ENCODER_H_
-#define GENERIC_ENCODER_H_
+#if !defined(_generic_code_H)
+#define _generic_code_H
 
 #include "entenc.h"
 #include "entdec.h"
@@ -31,34 +31,23 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #define GENERIC_TABLES 12
 
 typedef struct {
-  ogg_uint16_t cdf[GENERIC_TABLES][16]; /**< cdf for multiple expectations of x */
-  int increment; /**< Frequency increment for learning the cdfs */
-} GenericEncoder;
+  /** cdf for multiple expectations of x */
+  ogg_uint16_t cdf[GENERIC_TABLES][16];
+  /** Frequency increment for learning the cdfs */
+  int increment;
+} generic_encoder;
 
-void generic_model_init(GenericEncoder *model);
+void generic_model_init(generic_encoder *model);
 
-void generic_encode(od_ec_enc *enc, GenericEncoder *model, int x, int *ExQ16, int integration);
+void generic_encode(od_ec_enc *enc, generic_encoder *model, int x,
+ int *ex_q16, int integration);
 
-int generic_decode(od_ec_dec *dec, GenericEncoder *model, int *ExQ16, int integration);
+int generic_decode(od_ec_dec *dec, generic_encoder *model, int *ex_q16,
+ int integration);
 
-/** Takes the base-2 log of E(x)
- *
- * @param [in] ExQ16 expectation of x in Q16
- *
- * @retval 2*log2(ExQ16/2^16)
- */
-int logEx(int ExQ16);
+int logEx(int ex_q16);
 
-/** Updates the probability model based on the encoded/decoded value
- *
- * @param [in,out] model generic prob model
- * @param [in,out] ExQ16 expectation of x
- * @param [in]     x     variable encoded/decoded (used for ExQ16)
- * @param [in]     xs    variable x after shift (used for the model)
- * @param [in]     id    id of the icdf to adapt
- * @param [in]     integration integration period of ExQ16 (leaky average over 1<<integration samples)
- *
- */
-void generic_model_update(GenericEncoder *model,int *ExQ16,int x,int xs,int id,int integration);
+void generic_model_update(generic_encoder *model, int *ex_q16, int x, int xs,
+ int id, int integration);
 
 #endif

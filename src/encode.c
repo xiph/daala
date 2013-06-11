@@ -202,9 +202,9 @@ static void od_img_plane_edge_ext8(od_img_plane *dst_p,
 
 struct od_mb_enc_ctx {
   od_coeff tfbuf[16*16*4];
-  GenericEncoder model_dc[OD_NPLANES_MAX];
-  GenericEncoder model_g[OD_NPLANES_MAX];
-  GenericEncoder model_ym[OD_NPLANES_MAX];
+  generic_encoder model_dc[OD_NPLANES_MAX];
+  generic_encoder model_g[OD_NPLANES_MAX];
+  generic_encoder model_ym[OD_NPLANES_MAX];
   od_adapt_ctx adapt;
   signed char *modes;
   od_coeff *c;
