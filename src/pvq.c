@@ -139,7 +139,7 @@ static void find_nbest(RDOEntry *x, int n, int len)
 }
 
 /* This is a "standard" pyramid vector quantizer search */
-static void pvq_search_rdo(float *x,float *scale,float *scale_1,float g,int N,int K,int *y,int m,float lambda){
+static void pvq_search_rdo(int *x,float *scale,float *scale_1,float g,int N,int K,int *y,int m,float lambda){
   float L1;
   float L2;
   float L1_proj;
@@ -152,6 +152,7 @@ static void pvq_search_rdo(float *x,float *scale,float *scale_1,float g,int N,in
   float yy; /* sum(y*y) */
   float xx;
   float p[MAXN];
+  float xn[MAXN];
   RDOEntry rd[MAXN];
   /* Some simple RDO constants that should eventually depend on the state of the pvq encoders */
   const float rate_ym = .3; /* Cost advantage of y[m] compared to y[0] */
@@ -175,7 +176,7 @@ static void pvq_search_rdo(float *x,float *scale,float *scale_1,float g,int N,in
   {
     float rescale = 1./sqrt(1e-15+xx);
     for (i=0;i<N;i++){
-      x[i] *= rescale;
+      xn[i] = x[i]*rescale;
     }
     L1 *= rescale;
     xx=1;
@@ -187,13 +188,13 @@ static void pvq_search_rdo(float *x,float *scale,float *scale_1,float g,int N,in
   yy=0;
   /* Find the first pulses based on the projection */
   for (i=0;i<N;i++){
-    p[i]=L1_proj*x[i];
+    p[i]=L1_proj*xn[i];
     y[i]=floor(p[i]);
     p[i] -= y[i];
     rd[i].rd = dist_scale*(1-2*p[i]) + rate_lin*lambda*i ;
     rd[i].i = i;
     left-=y[i];
-    xy+=x[i]*y[i];
+    xy+=xn[i]*y[i];
     yy+=y[i]*y[i];
   }
   /* Revert the rate cost of m and replace by the special case cost */
@@ -210,7 +211,7 @@ static void pvq_search_rdo(float *x,float *scale,float *scale_1,float g,int N,in
     int ii=rd[i].i;
     y[ii]++;
     left--;
-    xy+=x[ii];
+    xy+=xn[ii];
     yy+=2*y[ii]-1;
     i++;
   }
@@ -226,7 +227,7 @@ static void pvq_search_rdo(float *x,float *scale,float *scale_1,float g,int N,in
       float tmp_xy;
       float tmp_yy;
       float cost; /* cost has reversed sign */
-      tmp_xy=xy+x[j];
+      tmp_xy=xy+xn[j];
       tmp_yy=yy+2*y[j];
       /* RDO cost function (reversed sign) */
       cost = 2*tmp_xy/sqrt(tmp_yy)-rate_lin*lambda*j;
@@ -238,7 +239,7 @@ static void pvq_search_rdo(float *x,float *scale,float *scale_1,float g,int N,in
         best_id=j;
       }
     }
-    xy+=x[best_id];
+    xy+=xn[best_id];
     yy+=2*y[best_id];
     y[best_id]++;
   }
@@ -253,13 +254,13 @@ static void pvq_search_rdo(float *x,float *scale,float *scale_1,float g,int N,in
     /* Scale x to unit norm (with scaling) */
     g/=(EPSILON+sqrt(L2));
     for(i=0;i<N;i++){
-      x[i]=s[i]*g*scale[i]*y[i];
+      xn[i]=s[i]*g*scale[i]*y[i];
     }
   } else {
     /* Scale x to unit norm (without scaling) */
     g/=(EPSILON+sqrt(yy));
     for(i=0;i<N;i++){
-      x[i]=s[i]*g*y[i];
+      xn[i]=s[i]*g*y[i];
     }
   }
 
@@ -361,11 +362,101 @@ static void pvq_search(float *x,float *scale,float *scale_1,float g,int N,int K,
   }
 }
 
-
-
 #define GAIN_EXP (4./3.)
 #define GAIN_EXP_1 (1./GAIN_EXP)
 
+/* FIXME: Replace with an actual fixed-point sqrt() */
+int od_sqrt(int x) {
+  return floor(.5+sqrt(x));
+}
+/* Raises X to the power 3/4, Q15 input, Q3 output.
+   We use a lookup-based domain reduction to the [0.5,1[ range. */
+int od_gain_compander(int x) {
+  return floor(.5+8*pow(x*(1.f/32768),.75));
+}
+
+/* Raises X to the power 4/3, Q3 input, Q15 output.
+   We use a lookup-based domain reduction to the [0.5,1[ range. */
+int od_gain_expander(int x) {
+  ogg_int32_t base;
+  ogg_int16_t correction;
+  ogg_int16_t xn;
+  int ilog2x;
+  /*const int C[3] = {2236, 25953, 18092};*/
+  const int C[3] = {2243, 25982, 18059};
+  /* Generated using:
+     printf("%d, ", round(32768*(2.^([0:15]-3).^(4/3))));printf("\n"); */
+  static const int expand_table[16] = {
+   2048, 5161, 13004, 32768, 82570, 208064, 524288, 1321123, 3329021,
+   8388608, 21137968, 53264341, 134217728, 338207482, 852229450, 2147483647
+  };
+  if (x==0)
+    return 0;
+  ilog2x = OD_ILOG(x)-1;
+  base = expand_table[ilog2x+1];
+  /*printf("(%d)\n", base);*/
+  /* Normalize x to [16384,32768[ */
+  xn = x << (14-ilog2x);
+  correction = (xn*(C[1] + (C[2]*xn>>16))>>15)-C[0];
+  /* FIXME: Use a 32x16 macro here. We'll have to finish with a << 1 too */
+  return (long long)base*correction>>15;
+}
+
+static int compute_k_from_gain(int cg, int N) {
+  /* Compute the number of pulses K based on the quantized gain -- still work
+     to do here */
+  int K;
+
+  if (cg==0){
+    K=0;
+  }else{
+    int K_large;
+    K = floor(.5+0.6*.125*.125*cg*cg);
+    K_large = floor(.5+1.5*.125*cg*sqrt(N/2));
+    if (K>K_large){
+      K=K_large;
+    }
+  }
+  return K;
+}
+
+void pvq_synth(od_coeff *x, int *xn, od_coeff *r, int L2r, int cg,
+  int Q, int N, int syn_shift) {
+  int i;
+  int proj;
+  int proj_1;
+  int L2x;
+  int g;
+  int shift;
+  int maxval;
+  int round;
+
+  L2x=0;
+  for(i=0;i<N;i++){
+    L2x+=xn[i]*xn[i];
+  }
+
+  /* Apply Householder reflection to the quantized coefficients */
+  proj=0;
+  for(i=0;i<N;i++) {
+    proj+=r[i]*xn[i];
+  }
+  g = od_gain_expander(Q*cg)/OD_MAXI(1,od_sqrt(L2x));
+  /* FIXME: Do this without the 64-bit math. */
+  proj_1 = (ogg_int64_t)g*2*proj/OD_MAXI(1,L2r);
+  maxval = OD_MAXI(g, abs(proj_1));
+  shift = OD_MAXI(0, OD_ILOG(maxval)-16);
+  g >>= shift;
+  proj_1 >>= shift;
+  shift = 15-shift;
+  round = (1<<syn_shift>>1)<<shift;
+  for(i = 0; i < N; i++) {
+    x[i] = (g*xn[i] - r[i]*proj_1 + round) >> (shift + syn_shift);
+  }
+
+}
+
+#if 0 /* Disabled until it gets integerized */
 int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
     ogg_int16_t *_scale,int *y,int N,int _Q, int *qg){
   float L2x,L2r;
@@ -412,13 +503,13 @@ int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
     L2x+=x[i]*x[i];
   }
 
-  g=sqrt(L2x);
+  g=od_sqrt(L2x);
 
   L2r=0;
   for(i=0;i<N;i++){
     L2r+=r[i]*r[i];
   }
-  gr=sqrt(L2r);
+  gr=od_sqrt(L2r);
 
   /* compand gains */
   cg = pow(g,GAIN_EXP_1)/Q;
@@ -580,6 +671,7 @@ int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
   OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "y[m]=%d", y[m]));
   return m;
 }
+#endif
 
 /** PVQ quantizer based on a reference
  *
@@ -601,29 +693,31 @@ int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
  * @retval position that should have the most pulses in _y
  */
 int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
-    ogg_int16_t *_scale,int *y,int N,int _Q,int *qg){
-  float L2x,L2r;
-  float g;               /* L2-norm of x */
-  float gr;              /* L2-norm of r */
-  float x[MAXN];
-  float r[MAXN];
-  float scale[MAXN];
-  float Q;
-  float scale_1[MAXN];
+ ogg_int16_t *_scale, int *y, int N, int _Q, int *qg, int shift) {
+  int L2x, L2r;
+  int g;               /* L2-norm of x */
+  int gr;              /* L2-norm of r */
+  int x[MAXN];
+  int r[MAXN];
+  int scale[MAXN];
+  int Q;
+  int scale_1[MAXN];
   int   i;
   int   m;
-  float s;
-  float maxr=-1;
-  float proj;
+  int s;
+  int maxr=-1;
+  int proj;
+  float proj_1;
   int   K,ym;
-  float cg;              /* Companded gain of x*/
+  int cg;              /* Companded gain of x*/
   float cgq;
-  float cgr;             /* Companded gain of r*/
+  int cgr;             /* Companded gain of r*/
   float lambda;
   OD_ASSERT(N>1);
 
   /* Just some calibration -- should eventually go away */
-  Q=pow(_Q*1.3,GAIN_EXP_1); /* Converts Q to the "companded domain" */
+  /* Converts Q to the "companded domain" */
+  Q = od_gain_compander((1<<shift)*_Q*1.3*32768)/8;
   /* High rate predicts that the constant should be log(2)/6 = 0.115, but in
      practice, it should be lower. */
   lambda = 0.10*Q*Q;
@@ -636,64 +730,46 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
 
   L2x=0;
   for(i=0;i<N;i++){
-    x[i]=_x[i];
-    r[i]=_r[i];
+    x[i]=_x[i]<<shift;
+    r[i]=_r[i]<<shift;
     L2x+=x[i]*x[i];
   }
 
-  g=sqrt(L2x);
+  g=od_sqrt(L2x);
 
   L2r=0;
   for(i=0;i<N;i++){
     L2r+=r[i]*r[i];
   }
-  gr=sqrt(L2r);
+  gr=od_sqrt(L2r);
 
-  OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%f", g));
+  OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%d", g));
   /* compand gain of x and subtract a constant for "pseudo-RDO" purposes */
-  cg = pow(g,GAIN_EXP_1)/Q;
+  cg = (od_gain_compander(g*32768)+Q/2)/Q;
   if (cg<0)
     cg=0;
   /* FIXME: Make that 0.2 adaptive */
-  cgr = pow(gr,GAIN_EXP_1)/Q+.2;
+  cgr = (od_gain_compander(gr*32768)+Q/2+13*Q/8)/Q;
 
   /* Gain quantization. Round to nearest because we've already reduced cg.
      Maybe we should have a dead zone */
-#if 0
-  *qg = floor(.5+cg-cgr);
-#else
   /* Doing some RDO on the gain, start by rounding down */
-  *qg = floor(cg-cgr);
-  cgq = cgr+*qg;
+  *qg = (cg-cgr)>>3;
+  cgq = .125*cgr+*qg;
   if (cgq<1e-15) cgq=1e-15;
   /* Cost difference between rounding up or down */
-  if ( 2*(cgq-cg)+1 + (lambda/(Q*Q))*(2. + (N-1)*log2(1+1./(cgq)))  < 0)
+  if ( 2*(cgq-.125*cg)+1 + (lambda/(Q*Q))*(2. + (N-1)*log2(1+1./(cgq)))  < 0)
   {
     (*qg)++;
-    cgq = cgr+*qg;
+    cgq = .125*cgr+*qg;
   }
-#endif
-  cg = cgr+*qg;
+
+  cg = cgr+8**qg;
   if (cg<0)cg=0;
   /* This is the actual gain the decoder will apply */
-  g = pow(Q*cg, GAIN_EXP);
+  g = pow(Q*.125*cg, GAIN_EXP);
 
-  /* Compute the number of pulses K based on the quantized gain -- still work
-     to do here */
-#if 0
-  K = floor(.5+ 1.*(M_PI/2)*(cg)/GAIN_EXP );
-#else
-  if (cg==0){
-    K=0;
-  }else{
-    int K_large;
-    K = floor(.5+0.6*cg*cg);
-    K_large = floor(.5+1.5*cg*sqrt(N/2));
-    if (K>K_large){
-      K=K_large;
-    }
-  }
-#endif
+  K = compute_k_from_gain(cg, N);
   if (K==0)
   {
     g=0;
@@ -713,7 +789,7 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   for(i=0;i<N;i++){
     L2r+=r[i]*r[i];
   }
-  gr=sqrt(L2r);
+  gr=od_sqrt(L2r);
 
   /* This is where we can skip */
   /*
@@ -736,7 +812,7 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
     }
   }
 
-  OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "max r: %f %f %d", maxr, r[m], m));
+  OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "max r: %d %d %d", maxr, r[m], m));
   s=r[m]>0?1:-1;
 
   /* This turns r into a Householder reflection vector that would reflect
@@ -753,16 +829,16 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   for(i=0;i<N;i++){
     proj+=r[i]*x[i];
   }
-  proj*=2.F/(EPSILON+L2r);
+  proj_1=proj*2.F/(EPSILON+L2r);
   for(i=0;i<N;i++){
-    x[i]-=r[i]*proj;
+    x[i]-=r[i]*proj_1;
   }
 
   OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%d %d", K, N));
 
   /* Normalize lambda for quantizing on the unit circle */
   /* FIXME: See if we can avoid setting lambda to zero! */
-  pvq_search_rdo(x,NULL,NULL,1,N,K,y,m,.0*lambda/(cg*cg));
+  pvq_search_rdo(x,NULL,NULL,1,N,K,y,m,.0*lambda/(.125*.125*cg*cg));
   OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%d ", K-abs(y[m])));
   for(i=0;i<N;i++) {
     OD_LOG_PARTIAL((OD_LOG_PVQ, OD_LOG_DEBUG, "%d ", (m==i)?0:y[i]));
@@ -770,29 +846,7 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   OD_LOG_PARTIAL((OD_LOG_PVQ, OD_LOG_DEBUG, "\n"));
   OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%d %d", K-y[m], N));
 
-  /* Apply Householder reflection again to get the quantized coefficients */
-  proj=0;
-  for(i=0;i<N;i++){
-    proj+=r[i]*x[i];
-  }
-  proj*=2.F/(EPSILON+L2r);
-  for(i=0;i<N;i++){
-    x[i]-=r[i]*proj;
-  }
-
-  L2x=0;
-  for(i=0;i<N;i++){
-    float tmp=x[i]/* *scale[i]*/;
-    L2x+=tmp*tmp;
-  }
-  g/=EPSILON+sqrt(L2x);
-  for(i=0;i<N;i++){
-    x[i]*=g/* *scale[i]*/;
-  }
-
-  for(i=0;i<N;i++){
-    _x[i]=floor(.5+x[i]);
-  }
+  pvq_synth(_x, y, r, L2r, cg, Q, N, shift);
 
   /* Move y[m] to the front */
   ym = y[m];
@@ -806,28 +860,29 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   return m;
 }
 
-int pvq_unquant_k(const ogg_int32_t *_r,int _n,int _qg, int _scale){
+int pvq_unquant_k(const ogg_int32_t *_r,int _n,int _qg, int _scale,
+ int shift){
   int    i;
-  int    vk;
-  double Q;
-  double cgr;
-  Q=pow(_scale*1.3,1./(4./3.));
-  vk=0;
-  for(i=0;i<_n;i++)vk+=_r[i]*_r[i];
-  cgr=pow(sqrt(vk),1./(4./3.))/Q+.2;
-  cgr=cgr+_qg;
-  if(cgr<0)cgr=0;
-  if(cgr==0){
-    vk=0;
-  }else{
-    int K_large;
-    vk=floor(.5+0.6*cgr*cgr);
-    K_large=floor(.5+1.5*cgr*sqrt(_n/2));
-    if(vk>K_large){
-      vk=K_large;
-    }
+  int Q;
+  int L2r;
+  int gr;
+  int cg;
+  int cgr;
+  Q = od_gain_compander((1<<shift)*_scale*1.3*32768)/8;
+
+  L2r=0;
+  for(i=0;i<_n;i++){
+    L2r+=_r[i]*_r[i]<<2*shift;
   }
-  return vk;
+  gr=od_sqrt(L2r);
+
+  /* FIXME: Make that 0.2 adaptive */
+  cgr = (od_gain_compander(gr*32768)+Q/2+13*Q/8)/Q;
+
+  cg = cgr+8*_qg;
+  if (cg<0)cg=0;
+
+  return compute_k_from_gain(cg, _n);
 }
 
 /** PVQ dequantizer based on a reference
@@ -841,27 +896,26 @@ int pvq_unquant_k(const ogg_int32_t *_r,int _n,int _qg, int _scale){
  *
  */
 void dequant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
-    ogg_int16_t *_scale,int N,int _Q,int qg){
-  float L2x,L2r;
-  float g;               /* L2-norm of x */
-  float gr;              /* L2-norm of r */
-  float x[MAXN];
-  float r[MAXN];
-  float scale[MAXN];
-  float Q;
-  float scale_1[MAXN];
+    ogg_int16_t *_scale,int N,int _Q,int qg, int shift){
+  int L2r;
+  int gr;              /* L2-norm of r */
+  int x[MAXN];
+  int r[MAXN];
+  int scale[MAXN];
+  int Q;
+  int scale_1[MAXN];
   int   i;
   int   m;
-  float s;
-  float maxr=-1;
-  float proj;
+  int s;
+  int maxr=-1;
   int   xm;
-  float cg;              /* Companded gain of x*/
-  float cgr;             /* Companded gain of r*/
+  int cg;              /* Companded gain of x*/
+  int cgr;             /* Companded gain of r*/
   OD_ASSERT(N>1);
 
   /* Just some calibration -- should eventually go away */
-  Q=pow(_Q*1.3,GAIN_EXP_1); /* Converts Q to the "companded domain" */
+  /* Converts Q to the "companded domain" */
+  Q = od_gain_compander((1<<shift)*_Q*1.3*32768)/8;
   /* High rate predicts that the constant should be log(2)/6 = 0.115, but in
      practice, it should be lower. */
 
@@ -874,21 +928,20 @@ void dequant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   L2r=0;
   for(i=0;i<N;i++){
     x[i]=_x[i];
-    r[i]=_r[i];
+    r[i]=_r[i]<<shift;
     L2r+=r[i]*r[i];
   }
-  gr=sqrt(L2r);
-  cgr = pow(gr,GAIN_EXP_1)/Q+.2;
-  cg = cgr+qg;
+  gr=od_sqrt(L2r);
+  cgr = (od_gain_compander(gr*32768)+Q/2+13*Q/8)/Q;
+  cg = cgr+8*qg;
   if (cg<0)cg=0;
-  g = pow(Q*cg, GAIN_EXP);
 
   /* Pick component with largest magnitude. Not strictly
    * necessary, but it helps numerical stability */
   m=0;
   for(i=0;i<N;i++){
-    if(fabs(r[i])>maxr){
-      maxr=fabs(r[i]);
+    if(abs(r[i])>maxr){
+      maxr=abs(r[i]);
       m=i;
     }
   }
@@ -910,29 +963,7 @@ void dequant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   /* x[0] is positive when prediction is good  */
   x[m] = -xm*s;
 
-  /* Apply Householder reflection to the quantized coefficients */
-  proj=0;
-  for(i=0;i<N;i++){
-    proj+=r[i]*x[i];
-  }
-  proj*=2.F/(EPSILON+L2r);
-  for(i=0;i<N;i++){
-    x[i]-=r[i]*proj;
-  }
-
-  L2x=0;
-  for(i=0;i<N;i++){
-    float tmp=x[i]/* *scale[i]*/;
-    L2x+=tmp*tmp;
-  }
-  g/=EPSILON+sqrt(L2x);
-  for(i=0;i<N;i++){
-    x[i]*=g/* *scale[i]*/;
-  }
-
-  for(i=0;i<N;i++){
-    _x[i]=floor(.5+x[i]);
-  }
+  pvq_synth(_x, x, r, L2r, cg, Q, N, shift);
 }
 
 /** PVQ quantizer with no reference

@@ -317,7 +317,7 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   pred[0] += predt[0];
   qg = generic_decode(&dec->ec, ctx->model_g + pli, ctx->ex_g + pli, 0);
   if (qg) qg *= od_ec_dec_bits(&dec->ec, 1) ? -1 : 1;
-  vk = pvq_unquant_k(&predt[1], n2 - 1, qg, scale);
+  vk = pvq_unquant_k(&predt[1], n2 - 1, qg, scale, 4 - ln);
   pred[1] = 0;
   if (vk != 0) {
     int ex_ym;
@@ -325,7 +325,7 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
     pred[1] = vk - generic_decode(&dec->ec, ctx->model_ym + pli, &ex_ym, 0);
   }
   pvq_decoder(&dec->ec, pred + 2, n2 - 2, vk - abs(pred[1]), &ctx->adapt);
-  dequant_pvq(pred + 1, predt + 1, pvq_scale, n2 - 1, scale, qg);
+  dequant_pvq(pred + 1, predt + 1, pvq_scale, n2 - 1, scale, qg, 4 - ln);
   if (ctx->adapt.curr[OD_ADAPT_K_Q8] >= 0) {
     ctx->nk++;
     ctx->k_total += ctx->adapt.curr[OD_ADAPT_K_Q8];

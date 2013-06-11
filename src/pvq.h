@@ -41,13 +41,13 @@ typedef struct {
 int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
     ogg_int16_t *_scale,int *y,int N,int Q, int *qg);
 
-int pvq_unquant_k(const ogg_int32_t *_r,int _n,int _qg, int _scale);
+int pvq_unquant_k(const ogg_int32_t *_r,int _n,int _qg, int _scale,int shift);
 
 int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
-    ogg_int16_t *_scale,int *y,int N,int Q,int *qg);
+    ogg_int16_t *_scale, int *y, int N, int Q, int *qg, int shift);
 
 void dequant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
-    ogg_int16_t *_scale,int N,int _Q,int qg);
+    ogg_int16_t *_scale,int N,int _Q,int qg, int shift);
 
 int quant_scalar(ogg_int32_t *_x,const ogg_int32_t *_r,
     ogg_int16_t *_scale,int *y,int N,int Q, od_adapt_ctx *_adapt);
