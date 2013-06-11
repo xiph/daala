@@ -56,7 +56,7 @@ int generic_decode(od_ec_dec *dec, generic_encoder *model, int *ex_q16,
   int lsb;
   int x;
   lsb = 0;
-  lg_q1 = logEx(*ex_q16);
+  lg_q1 = log_ex(*ex_q16);
   /* If expectation is too large, shift x to ensure that
      all we have past xs=15 is the exponentially decaying tail
      of the distribution. */

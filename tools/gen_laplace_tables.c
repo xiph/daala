@@ -56,7 +56,7 @@ int main(int argc, char **argv)
   printf("#include \"config.h\"\n");
   printf("#endif\n\n");
   printf("#include \"pvq_code.h\"\n\n");
-  printf("const ogg_uint16_t exp_cdf_table[%d][16] = {\n", N);
+  printf("const ogg_uint16_t EXP_CDF_TABLE[%d][16] = {\n", N);
   printf("  {");
   for(j=0;j<16;j++){
     printf("%5d%s",32768U-15+j,j+1<16?",":"");
@@ -107,7 +107,7 @@ int main(int argc, char **argv)
   }
   printf("};\n");
   printf("\n\n");
-  printf("const ogg_uint16_t laplace_offset[%d] = {\n", N);
+  printf("const ogg_uint16_t LAPLACE_OFFSET[%d] = {\n", N);
   for(i=0;i<N;i++)
     printf("  %d%s\n", aN[i], i+1<=N?",":"");
   printf("};\n");

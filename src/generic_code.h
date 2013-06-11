@@ -45,7 +45,7 @@ void generic_encode(od_ec_enc *enc, generic_encoder *model, int x,
 int generic_decode(od_ec_dec *dec, generic_encoder *model, int *ex_q16,
  int integration);
 
-int logEx(int ex_q16);
+int log_ex(int ex_q16);
 
 void generic_model_update(generic_encoder *model, int *ex_q16, int x, int xs,
  int id, int integration);

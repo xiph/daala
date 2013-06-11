@@ -34,7 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
  *
  * @retval 2*log2(ExQ16/2^16)
  */
-int logEx(int ex_q16) {
+int log_ex(int ex_q16) {
   int lg;
   int lg_q1;
   int odd;

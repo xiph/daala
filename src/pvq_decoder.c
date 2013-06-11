@@ -60,7 +60,7 @@ int laplace_decode_special(od_ec_dec *dec, unsigned decay, int max) {
   decay = OD_MINI(decay, 254);
   decay = OD_MAXI(decay, 2);
   ms = max >> shift;
-  cdf = exp_cdf_table[(decay + 1) >> 1];
+  cdf = EXP_CDF_TABLE[(decay + 1) >> 1];
   OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "decay = %d\n", decay));
   xs = 0;
   do {
@@ -110,9 +110,9 @@ int laplace_decode(od_ec_dec *dec, int ex_q8, int k) {
   ex_q8 = (ex_q8 + (1 << shift >> 1)) >> shift;
   k = (k + (1 << shift >> 1)) >> shift;
   decay = OD_MINI(254, 256*ex_q8/(ex_q8 + 256));
-  offset = laplace_offset[(decay + 1) >> 1];
+  offset = LAPLACE_OFFSET[(decay + 1) >> 1];
   for(j = 0; j < 16; j++) {
-    cdf[j] = exp_cdf_table[(decay + 1) >> 1][j] - offset;
+    cdf[j] = EXP_CDF_TABLE[(decay + 1) >> 1][j] - offset;
   }
   /* Simple way of truncating the pdf when we have a bound */
   sym = od_ec_decode_cdf_unscaled(dec, cdf, OD_MINI(k + 1, 16));

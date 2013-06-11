@@ -29,11 +29,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "entdec.h"
 #include "adapt.h"
 
-extern const ogg_uint16_t cdf_table[][16];
-extern const unsigned char decayE[];
-
-extern const ogg_uint16_t exp_cdf_table[][16];
-extern const ogg_uint16_t laplace_offset[];
+extern const ogg_uint16_t EXP_CDF_TABLE[][16];
+extern const ogg_uint16_t LAPLACE_OFFSET[];
 
 void laplace_encode_special(od_ec_enc *enc, int pos, unsigned decay, int max);
 int laplace_decode_special(od_ec_dec *dec, unsigned decay, int max);

@@ -62,7 +62,7 @@ void laplace_encode_special(od_ec_enc *enc, int x, unsigned decay, int max) {
   decay = OD_MAXI(decay, 2);
   xs = x >> shift;
   ms = max >> shift;
-  cdf = exp_cdf_table[(decay + 1) >> 1];
+  cdf = EXP_CDF_TABLE[(decay + 1) >> 1];
   OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "decay = %d", decay));
   do {
     sym = OD_MINI(xs, 15);
@@ -111,9 +111,9 @@ void laplace_encode(od_ec_enc *enc, int x, int ex_q8, int k) {
   k = (k + (1 << shift >> 1)) >> shift;
   xs = (x + (1 << shift >> 1)) >> shift;
   decay = OD_MINI(254, 256*ex_q8/(ex_q8 + 256));
-  offset = laplace_offset[(decay + 1) >> 1];
+  offset = LAPLACE_OFFSET[(decay + 1) >> 1];
   for(j = 0; j < 16; j++) {
-    cdf[j] = exp_cdf_table[(decay + 1) >> 1][j] - offset;
+    cdf[j] = EXP_CDF_TABLE[(decay + 1) >> 1][j] - offset;
   }
   sym = xs;
   if (sym > 15) sym = 15;

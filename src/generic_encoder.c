@@ -70,7 +70,7 @@ void generic_encode(od_ec_enc *enc, generic_encoder *model, int x,
   int id;
   ogg_uint16_t *cdf;
   int xs;
-  lg_q1 = logEx(*ex_q16);
+  lg_q1 = log_ex(*ex_q16);
   OD_LOG((OD_LOG_ENTROPY_CODER, OD_LOG_DEBUG,
    "%d %d", *ex_q16, lg_q1));
   /* If expectation is too large, shift x to ensure that
