@@ -453,7 +453,7 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
        &dec->state.bsize[4*dec->state.bstride*i + 4*j], dec->state.bstride);
     }
   }
-  if(dec->state.ref_imgi[OD_FRAME_PREV] >= 0 && !mbctx.is_keyframe){
+  if(!mbctx.is_keyframe){
     /* Input the motion vectors. */
     int nhmvbs;
     int nvmvbs;
@@ -465,6 +465,7 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
     int mv_res;
     od_mv_grid_pt *mvp;
     od_mv_grid_pt **grid;
+    OD_ASSERT(dec->state.ref_imgi[OD_FRAME_PREV] >= 0);
     od_state_mvs_clear(&dec->state);
     nhmvbs = (dec->state.nhmbs + 1) << 2;
     nvmvbs = (dec->state.nvmbs + 1) << 2;

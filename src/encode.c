@@ -575,10 +575,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       return OD_EINVAL;
     }
   }
-  /* Check if the frame is a keyframe. */
-  mbctx.is_keyframe = ( enc->state.cur_time %
-      (enc->state.info.keyframe_rate) == 0) ? 1 : 0;
-  OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO,"is_keyframe=%d",mbctx.is_keyframe ));
   /* Copy and pad the image. */
   for (pli = 0; pli < nplanes; pli++) {
     od_img_plane plane;
@@ -611,13 +607,63 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     od_state_dump_img(&enc->state, &img, "pad");
   }
 #endif
+  /* Check if the frame should be a keyframe. */
+  mbctx.is_keyframe = ( enc->state.cur_time %
+      (enc->state.info.keyframe_rate) == 0) ? 1 : 0;
+  /*Update the buffer state.*/
+  if (enc->state.ref_imgi[OD_FRAME_SELF] >= 0) {
+    enc->state.ref_imgi[OD_FRAME_PREV] =
+     enc->state.ref_imgi[OD_FRAME_SELF];
+    /*TODO: Update golden frame.*/
+    if (enc->state.ref_imgi[OD_FRAME_GOLD] < 0) {
+      enc->state.ref_imgi[OD_FRAME_GOLD] =
+       enc->state.ref_imgi[OD_FRAME_SELF];
+      /*TODO: Mark keyframe timebase.*/
+    }
+  }
+  /*Select a free buffer to use for this reference frame.*/
+  for (refi = 0; refi == enc->state.ref_imgi[OD_FRAME_GOLD]
+   || refi == enc->state.ref_imgi[OD_FRAME_PREV]
+   || refi == enc->state.ref_imgi[OD_FRAME_NEXT]; refi++);
+  enc->state.ref_imgi[OD_FRAME_SELF] = refi;
+  memcpy(&enc->state.input, img, sizeof(enc->state.input));
+  /*We must be a keyframe if we don't have a reference.*/
+  mbctx.is_keyframe |= !(enc->state.ref_imgi[OD_FRAME_PREV] >= 0);
   /*Initialize the entropy coder.*/
   od_ec_enc_reset(&enc->ec);
   /*Write a bit to mark this as a data packet.*/
   od_ec_encode_bool_q15(&enc->ec,0,16384);
-  /*Write a bit to mark it as a keyframe.*/
+  /*Code the keyframe bit.*/
   od_ec_encode_bool_q15(&enc->ec,mbctx.is_keyframe,16384);
-  /*set the top row and the left most column to three*/
+  OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO,"is_keyframe=%d",mbctx.is_keyframe ));
+  /*TODO: Incrment frame count.*/
+  /*Motion estimation and compensation.*/
+  if (!mbctx.is_keyframe) {
+#if defined(OD_DUMP_IMAGES) && defined(OD_ANIMATE)
+    enc->state.ani_iter = 0;
+#endif
+    OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO, "Predicting frame %i:",
+            (int)daala_granule_basetime(enc, enc->state.cur_time)));
+    od_mv_est(enc->mvest, OD_FRAME_PREV, 452);
+    od_state_mc_predict(&enc->state, OD_FRAME_PREV);
+    /*Do edge extension here because the block-size analysis needs to read
+      outside the frame, but otherwise isn't read from.*/
+    for (pli = 0; pli < nplanes; pli++) {
+      od_img_plane plane;
+      *&plane = *(enc->state.io_imgs[OD_FRAME_REC].planes + pli);
+      od_img_plane_edge_ext8(&plane, frame_width >> plane.xdec,
+       frame_height >> plane.ydec, OD_UMV_PADDING >> plane.xdec,
+       OD_UMV_PADDING >> plane.ydec);
+    }
+#if defined(OD_DUMP_IMAGES)
+    /*Dump reconstructed frame.*/
+    /*od_state_dump_img(&enc->state,enc->state.io_imgs + OD_FRAME_REC,"rec");*/
+    od_state_fill_vis(&enc->state);
+    od_state_dump_img(&enc->state, &enc->state.vis_img, "vis");
+#endif
+  }
+  /*Block size switching.*/
+  /*Set the top row and the left most column to 32x32.*/
   for(i = -4; i < (nhsb+1)*4; i++) {
     for(j = -4; j < 0; j++) {
       enc->state.bsize[(j*enc->state.bstride) + i] = 3;
@@ -640,18 +686,24 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   od_log_matrix_uchar(OD_LOG_GENERIC, OD_LOG_INFO, "bimg ", enc->state.io_imgs[OD_FRAME_INPUT].planes[0].data-16*enc->state.io_imgs[OD_FRAME_INPUT].planes[0].ystride-16,
       enc->state.io_imgs[OD_FRAME_INPUT].planes[0].ystride, (nvsb + 1)*32);
   for(i = 0; i < nvsb; i++) {
-    unsigned char *img;
-    int istride ;
+    unsigned char *bimg;
+    unsigned char *rimg;
+    int istride;
+    int rstride;
     int bstride;
+    int kf;
+    kf = mbctx.is_keyframe;
     bstride = enc->state.bstride;
-    img = enc->state.io_imgs[OD_FRAME_INPUT].planes[0].data;
     istride = enc->state.io_imgs[OD_FRAME_INPUT].planes[0].ystride;
+    rstride = kf ? 0 : enc->state.io_imgs[OD_FRAME_REC].planes[0].ystride;
+    bimg = enc->state.io_imgs[OD_FRAME_INPUT].planes[0].data + i*istride*32;
+    rimg = enc->state.io_imgs[OD_FRAME_REC].planes[0].data + i*rstride*32;
     for(j = 0; j < nhsb; j++) {
       int bsize[4][4];
       unsigned char *state_bsize;
       state_bsize = &enc->state.bsize[i*4*enc->state.bstride + j*4];
-      process_block_size32(bs, img + i*istride*32 + j*32, istride,
-       NULL, 0, bsize);
+      process_block_size32(bs, bimg + j*32, istride,
+       kf ? NULL : rimg + j*32, rstride, bsize);
       /* Grab the 4x4 information returned from process_block_size32 in bsize
          and store it in the od_state bsize. */
       for(k = 0; k < 4; k++) {
@@ -670,115 +722,57 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     OD_LOG_PARTIAL((OD_LOG_GENERIC, OD_LOG_INFO, "\n"));
   }
   _ogg_free(bs);
-  /*Update the buffer state.*/
-  if (enc->state.ref_imgi[OD_FRAME_SELF] >= 0) {
-    enc->state.ref_imgi[OD_FRAME_PREV] =
-     enc->state.ref_imgi[OD_FRAME_SELF];
-    /*TODO: Update golden frame.*/
-    if (enc->state.ref_imgi[OD_FRAME_GOLD] < 0) {
-      enc->state.ref_imgi[OD_FRAME_GOLD] =
-       enc->state.ref_imgi[OD_FRAME_SELF];
-      /*TODO: Mark keyframe timebase.*/
+  /*Code the motion vectors.*/
+  if (!mbctx.is_keyframe) {
+    int nhmvbs;
+    int nvmvbs;
+    int vx;
+    int vy;
+    od_img *mvimg;
+    int width;
+    int height;
+    int mv_res;
+    od_mv_grid_pt *mvp;
+    od_mv_grid_pt **grid;
+    nhmvbs = (enc->state.nhmbs + 1) << 2;
+    nvmvbs = (enc->state.nvmbs + 1) << 2;
+    mvimg = enc->state.io_imgs + OD_FRAME_REC;
+    mv_res = enc->state.mv_res;
+    OD_ASSERT(0 <= mv_res && mv_res < 3);
+    od_ec_enc_uint(&enc->ec, mv_res, 3);
+    width = (mvimg->width + 32) << (3 - mv_res);
+    height = (mvimg->height + 32) << (3 - mv_res);
+    grid = enc->state.mv_grid;
+    /*Level 0.*/
+    for (vy = 0; vy <= nvmvbs; vy += 4) {
+      for (vx = 0; vx <= nhmvbs; vx += 4) {
+        mvp = &grid[vy][vx];
+        od_encode_mv(enc, mvp, vx, vy, 0, mv_res, width, height);
+      }
     }
-  }
-  /*Select a free buffer to use for this reference frame.*/
-  for (refi = 0; refi == enc->state.ref_imgi[OD_FRAME_GOLD]
-   || refi == enc->state.ref_imgi[OD_FRAME_PREV]
-   || refi == enc->state.ref_imgi[OD_FRAME_NEXT]; refi++);
-  enc->state.ref_imgi[OD_FRAME_SELF] = refi;
-  memcpy(&enc->state.input, img, sizeof(enc->state.input));
-  /*TODO: Incrment frame count.*/
-  if ((enc->state.ref_imgi[OD_FRAME_PREV] >= 0) && (!mbctx.is_keyframe)){
-#if defined(OD_DUMP_IMAGES) && defined(OD_ANIMATE)
-    enc->state.ani_iter = 0;
-#endif
-    OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO, "Predicting frame %i:",
-            (int)daala_granule_basetime(enc, enc->state.cur_time)));
-    od_mv_est(enc->mvest, OD_FRAME_PREV, 452);
-    /* output the motion vectors */
-    {
-      int nhmvbs;
-      int nvmvbs;
-      int vx;
-      int vy;
-      od_img *img;
-      int width;
-      int height;
-      int mv_res;
-      od_mv_grid_pt *mvp;
-      od_mv_grid_pt **grid;
-      nhmvbs = (enc->state.nhmbs + 1) << 2;
-      nvmvbs = (enc->state.nvmbs + 1) << 2;
-      img = enc->state.io_imgs + OD_FRAME_REC;
-      mv_res = enc->state.mv_res;
-      OD_ASSERT(0 <= mv_res && mv_res < 3);
-      od_ec_enc_uint(&enc->ec, mv_res, 3);
-      width = (img->width + 32) << (3 - mv_res);
-      height = (img->height + 32) << (3 - mv_res);
-      grid = enc->state.mv_grid;
-      /*Level 0.*/
-      for (vy = 0; vy <= nvmvbs; vy += 4) {
-        for (vx = 0; vx <= nhmvbs; vx += 4) {
-          mvp = &grid[vy][vx];
-          od_encode_mv(enc, mvp, vx, vy, 0, mv_res, width, height);
+    /*Level 1.*/
+    for (vy = 2; vy <= nvmvbs; vy += 4) {
+      for (vx = 2; vx <= nhmvbs; vx += 4) {
+        int p_invalid;
+        p_invalid = od_mv_level1_prob(grid,vx,vy);
+        mvp = &(grid[vy][vx]);
+        od_ec_encode_bool_q15(&enc->ec, mvp->valid, p_invalid);
+        if (mvp->valid) {
+          od_encode_mv(enc, mvp, vx, vy, 1, mv_res, width, height);
         }
       }
-      /*Level 1.*/
-      for (vy = 2; vy <= nvmvbs; vy += 4) {
-        for (vx = 2; vx <= nhmvbs; vx += 4) {
-          int p_invalid;
-          p_invalid = od_mv_level1_prob(grid,vx,vy);
-          mvp = &(grid[vy][vx]);
-          od_ec_encode_bool_q15(&enc->ec, mvp->valid, p_invalid);
+    }
+    /*Level 2.*/
+    for (vy = 0; vy <= nvmvbs; vy += 2) {
+      for (vx = 2*((vy & 3) == 0); vx <= nhmvbs; vx += 4) {
+        mvp = &grid[vy][vx];
+        if ((vy-2 < 0 || grid[vy-2][vx].valid)
+         && (vx-2 < 0 || grid[vy][vx-2].valid)
+         && (vy+2 > nvmvbs || grid[vy+2][vx].valid)
+         && (vx+2 > nhmvbs || grid[vy][vx+2].valid)) {
+          od_ec_encode_bool_q15(&enc->ec, mvp->valid, 13684);
           if (mvp->valid) {
-            od_encode_mv(enc, mvp, vx, vy, 1, mv_res, width, height);
-          }
-        }
-      }
-      /*Level 2.*/
-      for (vy = 0; vy <= nvmvbs; vy += 2) {
-        for (vx = 2*((vy & 3) == 0); vx <= nhmvbs; vx += 4) {
-          mvp = &grid[vy][vx];
-          if ((vy-2 < 0 || grid[vy-2][vx].valid)
-           && (vx-2 < 0 || grid[vy][vx-2].valid)
-           && (vy+2 > nvmvbs || grid[vy+2][vx].valid)
-           && (vx+2 > nhmvbs || grid[vy][vx+2].valid)) {
-            od_ec_encode_bool_q15(&enc->ec, mvp->valid, 13684);
-            if (mvp->valid) {
-              od_encode_mv(enc, mvp, vx, vy, 2, mv_res, width, height);
-            }
-          }
-          else {
-            OD_ASSERT(!mvp->valid);
-          }
-        }
-      }
-      /*Level 3.*/
-      for (vy = 1; vy <= nvmvbs; vy += 2) {
-        for (vx = 1; vx <= nhmvbs; vx += 2) {
-          mvp = &grid[vy][vx];
-          if (grid[vy-1][vx-1].valid && grid[vy-1][vx+1].valid
-           && grid[vy+1][vx+1].valid && grid[vy+1][vx-1].valid) {
-            od_ec_encode_bool_q15(&enc->ec, mvp->valid, 16384);
-            if (mvp->valid) {
-              od_encode_mv(enc, mvp, vx, vy, 3, mv_res, width, height);
-            }
-          }
-          else {
-            OD_ASSERT(!mvp->valid);
-          }
-        }
-      }
-      /*Level 4.*/
-      for (vy = 2; vy <= nvmvbs - 2; vy += 1) {
-        for (vx = 3 - (vy & 1); vx <= nhmvbs - 2; vx += 2) {
-          mvp = &grid[vy][vx];
-          if (grid[vy-1][vx].valid && grid[vy][vx-1].valid
-           && grid[vy+1][vx].valid && grid[vy][vx+1].valid) {
-            od_ec_encode_bool_q15(&enc->ec, mvp->valid, 16384);
-            if (mvp->valid) {
-              od_encode_mv(enc, mvp, vx, vy, 4, mv_res, width, height);
-            }
+            od_encode_mv(enc, mvp, vx, vy, 2, mv_res, width, height);
           }
           else {
             OD_ASSERT(!mvp->valid);
@@ -786,13 +780,38 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
         }
       }
     }
-    od_state_mc_predict(&enc->state, OD_FRAME_PREV);
-#if defined(OD_DUMP_IMAGES)
-    /*Dump reconstructed frame.*/
-    /*od_state_dump_img(&enc->state,enc->state.io_imgs + OD_FRAME_REC,"rec");*/
-    od_state_fill_vis(&enc->state);
-    od_state_dump_img(&enc->state, &enc->state.vis_img, "vis");
-#endif
+    /*Level 3.*/
+    for (vy = 1; vy <= nvmvbs; vy += 2) {
+      for (vx = 1; vx <= nhmvbs; vx += 2) {
+        mvp = &grid[vy][vx];
+        if (grid[vy-1][vx-1].valid && grid[vy-1][vx+1].valid
+         && grid[vy+1][vx+1].valid && grid[vy+1][vx-1].valid) {
+          od_ec_encode_bool_q15(&enc->ec, mvp->valid, 16384);
+          if (mvp->valid) {
+            od_encode_mv(enc, mvp, vx, vy, 3, mv_res, width, height);
+          }
+          else {
+            OD_ASSERT(!mvp->valid);
+          }
+        }
+      }
+    }
+    /*Level 4.*/
+    for (vy = 2; vy <= nvmvbs - 2; vy += 1) {
+      for (vx = 3 - (vy & 1); vx <= nhmvbs - 2; vx += 2) {
+        mvp = &grid[vy][vx];
+        if (grid[vy-1][vx].valid && grid[vy][vx-1].valid
+         && grid[vy+1][vx].valid && grid[vy][vx+1].valid) {
+          od_ec_encode_bool_q15(&enc->ec, mvp->valid, 16384);
+          if (mvp->valid) {
+            od_encode_mv(enc, mvp, vx, vy, 4, mv_res, width, height);
+          }
+          else {
+            OD_ASSERT(!mvp->valid);
+          }
+        }
+      }
+    }
   }
   {
     od_coeff *ctmp[OD_NPLANES_MAX];
