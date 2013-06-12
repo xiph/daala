@@ -458,7 +458,7 @@ ogg_uint32_t od_ec_dec_bits(od_ec_dec *dec, unsigned ftb) {
         available = OD_EC_LOTS_OF_BITS;
         break;
       }
-      window |= *--eptr << available;
+      window |= (od_ec_window)*--eptr << available;
       available += 8;
     }
     while (available <= OD_EC_WINDOW_SIZE - 8);
