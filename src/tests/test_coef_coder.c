@@ -88,9 +88,67 @@ struct od_pvq_adapt_ctx{
   int count_ex_q8;
 };
 
+void pvq_coder_bitstreams(int n, int type){
+  od_pvq_adapt_ctx pvq_adapt;
+  od_adapt_ctx adapt;
+  int i;
+  int k;
+  od_ec_dec dec;
+  unsigned char *buf;
+  ogg_int32_t buf_sz;
+  k = 1;
+  for (i = 0; i < n; i++) k += rand()%n;
+  while (k > 1024) k >>= 1;
+  buf_sz = 1 + (rand() & 1023);
+  buf = malloc(buf_sz*sizeof(*buf));
+  buf[0] = 0;
+  if (type == 0) for (i = 0; i < buf_sz; i++) buf[i] = 0;
+  else if (type == 1) for (i = 0; i < buf_sz; i++) buf[i] = 255;
+  else if (type == 2) for (i = 0; i < buf_sz; i++) buf[i] = 85;
+  else if (type == 3) for (i = 0; i < buf_sz; i++) buf[i] = 170;
+  else if (type == 4) for (i = 1; i < buf_sz; i++) buf[i] = 255;
+  else if (type == 5) {
+    for (i = 0; i < buf_sz; i++) buf[i] = (rand() | rand()) & 255;
+  }
+  else if (type == 6) {
+    for (i = 0; i < buf_sz; i++) buf[i] = (rand() & rand()) & 255;
+  }
+  else for (i = 0; i < buf_sz; i++) buf[i] = rand()&255;
+  pvq_adapt.mean_k_q8 = 163;
+  pvq_adapt.mean_sum_ex_q8 = 64;
+  pvq_adapt.mean_count_q8 = 100*4;
+  pvq_adapt.mean_count_ex_q8 = 256*4;
+  od_ec_dec_init(&dec, buf, buf_sz);
+  for (i = 0; i < 65535; i++) {
+    int y[MAXN];
+    adapt.mean[OD_ADAPT_K_Q8] = pvq_adapt.mean_k_q8;
+    adapt.mean[OD_ADAPT_SUM_EX_Q8] = pvq_adapt.mean_sum_ex_q8;
+    adapt.mean[OD_ADAPT_COUNT_Q8] = pvq_adapt.mean_count_q8;
+    adapt.mean[OD_ADAPT_COUNT_EX_Q8] = pvq_adapt.mean_count_ex_q8;
+    pvq_decoder(&dec, y, n, k, &adapt);
+    pvq_adapt.k = adapt.curr[OD_ADAPT_K_Q8];
+    pvq_adapt.sum_ex_q8 = adapt.curr[OD_ADAPT_SUM_EX_Q8];
+    pvq_adapt.count_q8 = adapt.curr[OD_ADAPT_COUNT_Q8];
+    pvq_adapt.count_ex_q8 = adapt.curr[OD_ADAPT_COUNT_EX_Q8];
+    if (pvq_adapt.k >= 0) {
+      pvq_adapt.mean_k_q8 += (pvq_adapt.k << 8)
+       -pvq_adapt.mean_k_q8 >> OD_K_ADAPT_SPEED;
+      pvq_adapt.mean_sum_ex_q8 +=
+       pvq_adapt.sum_ex_q8 - pvq_adapt.mean_sum_ex_q8 >> OD_SUM_EX_ADAPT_SPEED;
+    }
+    if (pvq_adapt.count_q8 >= 0) {
+      pvq_adapt.mean_count_q8 += (pvq_adapt.count_q8<<8)
+       -pvq_adapt.mean_count_q8 >> OD_DELTA_ADAPT_SPEED;
+      pvq_adapt.mean_count_ex_q8 +=
+       pvq_adapt.count_ex_q8 - pvq_adapt.mean_count_ex_q8 >> OD_DELTA_ADAPT_SPEED;
+    }
+    if (od_ec_dec_tell(&dec) > buf_sz*8*2 + 4) break;
+  }
+  free(buf);
+}
 
 
-int run_pvq(int *X,int len,int N){
+int run_pvq(int *X,int len,int N,int fuzz){
   od_pvq_adapt_ctx pvq_adapt;
   od_adapt_ctx adapt;
   int i, j;
@@ -144,7 +202,20 @@ int run_pvq(int *X,int len,int N){
   buf = od_ec_enc_done(&enc, &buf_sz);
 
   bits_used = od_ec_enc_tell(&enc);
-
+  if (fuzz) {
+    int flipped;
+    flipped = 0;
+    for (i = 0; i < (int)buf_sz*8; i++) {
+      if ((rand() & 127) == 0) {
+        buf[i>>3] ^= 1 << (i & 7);
+        flipped++;
+      }
+    }
+    if (!flipped) {
+      i = rand()%(buf_sz*8);
+      buf[i>>3] ^= 1 << (i & 7);
+    }
+  }
   pvq_adapt.mean_k_q8=163;
   pvq_adapt.mean_sum_ex_q8=64;
   pvq_adapt.mean_count_q8=100*4;
@@ -158,7 +229,7 @@ int run_pvq(int *X,int len,int N){
     int y[MAXN];
     int K;
     K=generic_decode(&dec, &model, &EK, 4);
-    if (K!=Ki[i]){
+    if (!fuzz && K != Ki[i]) {
       fprintf(stderr, "mismatch for K of vector %d (N=%d)\n", i, N);
     }
     adapt.mean[OD_ADAPT_K_Q8] = pvq_adapt.mean_k_q8;
@@ -180,8 +251,8 @@ int run_pvq(int *X,int len,int N){
       pvq_adapt.mean_count_ex_q8+=
        pvq_adapt.count_ex_q8-pvq_adapt.mean_count_ex_q8>>OD_DELTA_ADAPT_SPEED;
     }
-    for (j=0;j<N;j++){
-      if(y[j]!=X[i*N+j]){
+    for (j=0; j < N; j++) {
+      if (!fuzz && y[j] != X[i*N+j]) {
         int k;
         fprintf(stderr, "mismatch for coef %d of vector %d (N=%d)\n", j, i, N);
         fprintf(stderr, "orig vector:\n");
@@ -220,9 +291,11 @@ void test_pvq_sequence(int len,int N,float std)
     /*printf("\n");*/
   }
 
-  bits = run_pvq(X,len,N);
+  bits = run_pvq(X,len,N,0);
 
   fprintf(stderr, "Coded %d dim, std=%1.1f with %f bits/sample (%1.4f bits/vector)\n",N,std,bits/(float)len/N,bits/(float)len);
+
+  run_pvq(X,len,N,1);
 
   free(X);
 }
@@ -256,10 +329,11 @@ void test_pvq_basic(int N) {
       X[(i + N*3 + 1)*N + j] = j==i ?(rand() & 1? -3 : 3): 0;
     }
   }
-  bits = run_pvq(X, len, N);
+  bits = run_pvq(X, len, N, 0);
   fprintf(stderr,
    "Coded %d dim, few pulses with %f bits/sample (%1.4f bits/vector)\n",
    N,bits/(float)(len)/N,bits/(float)(len));
+  run_pvq(X, len, N, 1);
   free(X);
 }
 
@@ -291,10 +365,11 @@ void test_pvq_huge(int N) {
       X[(i + N*3)*N + j] = (j == i)*65534;
     }
   }
-  bits = run_pvq(X, len, N);
+  bits = run_pvq(X, len, N, 0);
   fprintf(stderr,
    "Coded %d dim, 65536 pulses with %f bits/sample (%1.4f bits/vector)\n",
    N,bits/(float)(len)/N,bits/(float)(len));
+  run_pvq(X, len, N, 1);
   free(X);
 }
 
@@ -330,12 +405,21 @@ int main(int argc, char **argv){
       for(j=0;j<N;j++)
         if(fscanf(file,"%d",&X[i*N+j])!=1)
           return 1;
-    bits = run_pvq(X,len,N);
+    bits = run_pvq(X, len, N, 0);
     fprintf(stderr, "Coded file with %f bits/sample (%f bits/vector)\n",bits/(float)len/N,bits/(float)len);
     fclose(file);
     free(X);
   } else {
     int i;
+    int j;
+    fprintf(stderr, "Testing random bitstreams\n");
+    for (i = 2; i < 18; i++) {
+      for (j = 0; j < 8; j++) pvq_coder_bitstreams(i, j);
+    }
+    for (j = 0; j < 8; j++) pvq_coder_bitstreams(64, j);
+    for (j = 0; j < 8; j++) pvq_coder_bitstreams(128, j);
+    for (j = 0; j < 8; j++) pvq_coder_bitstreams(256, j);
+    fprintf(stderr, "Testing encode and decode\n");
     for (i=2; i<18; i++) test_pvq_basic(i);
     test_pvq_basic(64);
     test_pvq_basic(128);
