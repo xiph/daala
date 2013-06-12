@@ -120,7 +120,7 @@ void laplace_encode(od_ec_enc *enc, int x, int ex_q8, int k) {
   sym = xs;
   if (sym > 15) sym = 15;
   /* Simple way of truncating the pdf when we have a bound */
-  od_ec_encode_cdf_unscaled(enc, sym, cdf, OD_MINI(k + 1, 16));
+  if (k != 0) od_ec_encode_cdf_unscaled(enc, sym, cdf, OD_MINI(k + 1, 16));
   if (shift) {
     int special;
     /* Because of the rounding, there's only half the number of possibilities
@@ -223,8 +223,11 @@ void pvq_encode_delta(od_ec_enc *enc, const int *y, int n, int k,
       if (first) {
         int decay;
         int ex = coef*(n - prev)/k_left;
-        decay = OD_MINI(255,
-         (int)((256*ex/(ex + 256) + 8*ex*ex/(256*(n + 1)*(n - 1)*(n - 1)))));
+        if (ex > 65280) decay = 255;
+        else {
+          decay = OD_MINI(255,
+           (int)((256*ex/(ex + 256) + (ex>>5)*ex/((n + 1)*(n - 1)*(n - 1)))));
+        }
         /*Update mean position.*/
         OD_ASSERT(count <= n - 1);
         laplace_encode_special(enc, count, decay, n - 1);

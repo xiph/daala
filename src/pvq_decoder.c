@@ -122,7 +122,8 @@ int laplace_decode(od_ec_dec *dec, int ex_q8, int k) {
     cdf[j] = EXP_CDF_TABLE[(decay + 1) >> 1][j] - offset;
   }
   /* Simple way of truncating the pdf when we have a bound */
-  sym = od_ec_decode_cdf_unscaled(dec, cdf, OD_MINI(k + 1, 16));
+  if (k == 0) sym = 0;
+  else sym = od_ec_decode_cdf_unscaled(dec, cdf, OD_MINI(k + 1, 16));
   if (shift) {
     int special;
     /* Because of the rounding, there's only half the number of possibilities
@@ -231,8 +232,11 @@ void pvq_decode_delta(od_ec_dec *dec, int *y,int n,int k,
     if (first) {
       int decay;
       int ex = coef*(n - prev)/k_left;
-      decay = OD_MINI(255,
-       (int)((256*ex/(ex + 256) + 8*ex*ex/(256*(n + 1)*(n - 1)*(n - 1)))));
+      if (ex > 65280) decay = 255;
+      else {
+        decay = OD_MINI(255,
+         (int)((256*ex/(ex + 256) + (ex>>5)*ex/((n + 1)*(n - 1)*(n - 1)))));
+      }
       /*Update mean position.*/
       count = laplace_decode_special(dec, decay, n - 1);
       first = 0;
