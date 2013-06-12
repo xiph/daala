@@ -16,7 +16,7 @@ cd unix && rm -Rf objs
 make clean
 CFLAGS="-g3 -fprofile-arcs -ftest-coverage -UOD_ENABLE_ASSERTIONS" make
 ${LCOV} -z -d `pwd` -b `pwd`
-${LCOV} -c -b `pwd` -d `pwd` -t baseline -o baseline.info
+${LCOV} -c -i -b `pwd` -d `pwd` -t baseline -o baseline.info
 CFLAGS="-g3 -fprofile-arcs -ftest-coverage -UOD_ENABLE_ASSERTIONS" make check
 ${LCOV} -c -b `pwd` -d `pwd` -t check -o makecheck.info
 ${LCOV} -z -d `pwd` -b `pwd`
