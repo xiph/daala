@@ -52,12 +52,14 @@ void laplace_encode_special(od_ec_enc *enc, int x, unsigned decay, int max) {
   int sym;
   const ogg_uint16_t *cdf;
   shift=0;
+  if (max == 0) return;
   /* We don't want a large decay value because that would require too many
      symbols. However, it's OK if the max is below 15. */
   while (((max >> shift) >= 15 || max == -1) && decay > 235) {
     decay = (decay*decay + 128) >> 8;
     shift++;
   }
+  OD_ASSERT(x <= max || max == -1);
   decay = OD_MINI(decay, 254);
   decay = OD_MAXI(decay, 2);
   xs = x >> shift;
@@ -84,7 +86,7 @@ void laplace_encode_special(od_ec_enc *enc, int x, unsigned decay, int max) {
     }
     xs -= 15;
     ms -= 15;
-  } while (sym >= 15);
+  } while (sym >= 15 && ms != 0);
   if (shift) od_ec_enc_bits(enc, x & ((1 << shift) - 1), shift);
 }
 
@@ -130,6 +132,7 @@ void laplace_encode(od_ec_enc *enc, int x, int ex_q8, int k) {
     }
   }
   /* Handle the exponentially-decaying tail of the distribution */
+  OD_ASSERT(xs - 15 <= k - 15);
   if (xs >= 15) laplace_encode_special(enc, xs - 15, decay, k - 15);
 }
 
@@ -223,6 +226,7 @@ void pvq_encode_delta(od_ec_enc *enc, const int *y, int n, int k,
         decay = OD_MINI(255,
          (int)((256*ex/(ex + 256) + 8*ex*ex/(256*(n + 1)*(n - 1)*(n - 1)))));
         /*Update mean position.*/
+        OD_ASSERT(count <= n - 1);
         laplace_encode_special(enc, count, decay, n - 1);
         first = 0;
       }

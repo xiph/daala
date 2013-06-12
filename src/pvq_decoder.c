@@ -51,6 +51,7 @@ int laplace_decode_special(od_ec_dec *dec, unsigned decay, int max) {
   int sym;
   const ogg_uint16_t *cdf;
   shift = 0;
+  if (max == 0) return 0;
   /* We don't want a large decay value because that would require too many
      symbols. However, it's OK if the max is below 15. */
   while ( ((max >> shift) >= 15 || max == -1) && decay > 235) {
@@ -80,9 +81,15 @@ int laplace_decode_special(od_ec_dec *dec, unsigned decay, int max) {
     else sym = od_ec_decode_cdf_q15(dec, cdf, 16);
     xs += sym;
     ms -= 15;
-  } while (sym >= 15);
+  } while (sym >= 15 && ms != 0);
   if (shift) pos = (xs << shift) + od_ec_dec_bits(dec, shift);
   else pos = xs;
+  OD_ASSERT(pos >> shift <= max >> shift || max == -1);
+  if (max != -1 && pos > max) {
+    pos = max;
+    dec->error = 1;
+  }
+  OD_ASSERT(pos <= max || max == -1);
   return pos;
 }
 
@@ -234,6 +241,7 @@ void pvq_decode_delta(od_ec_dec *dec, int *y,int n,int k,
     sum_ex += 256*(n - prev);
     sum_c += count*k_left;
     pos += count;
+    OD_ASSERT(pos < n);
     if (y[pos] == 0)
       sign = od_ec_dec_bits(dec, 1);
     y[pos] += sign ? -1 : 1;
