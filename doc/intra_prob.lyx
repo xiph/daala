@@ -141,12 +141,16 @@ It is possible to reduce the size of the context by considering only whether
 \begin_inset space ~
 \end_inset
 
-entries when using 3 neighbours.
+entries when using 3
+\begin_inset space ~
+\end_inset
+
+neighbours.
  One drawback of this approach is that
 \begin_inset Formula 
-\[
-\sum_{m=0}^{M}p\left(m_{i,j}\left|m_{i-1,j-1}=m,m_{i,j-1}=m,m_{i-1,j}=m\right.\right)\neq1
-\]
+\begin{equation}
+S_{p}=\sum_{k=0}^{M}p\left(m_{i,j}=k\left|m_{i-1,j-1}=k,m_{i,j-1}=k,m_{i-1,j}=k\right.\right)\neq1
+\end{equation}
 
 \end_inset
 
@@ -156,11 +160,23 @@ so some form of renormalization is required.
 \begin_layout Standard
 The simplest way to renormalize probabilities is to multiply each of them
  by the same factor such that the sum equals 1.
- ...
+ In the context of an entropy coder that is based on the cumulative distribution
+ (cdf), this is easy to achieve by simply declaring 
+\begin_inset Formula $S_{p}$
+\end_inset
+
+ to be the 
+\emph on
+total frequency count
+\emph default
+.
+ This method is the simplest, but sometimes does not accurately model probabilit
+ies when one of the probabilities is close to unity.
+ 
 \end_layout
 
 \begin_layout Standard
-Another way is to first 
+A slightly more accurate renormalization procedure is to first 
 \begin_inset Quotes eld
 \end_inset
 
@@ -170,9 +186,9 @@ amplify
 
  probabilities that are close to unity:
 \begin_inset Formula 
-\[
-p_{k}^{'}==p_{k}\cdot\frac{1-p_{k}}{\sum_{j}p_{j}-p_{k}}\,,
-\]
+\begin{equation}
+p_{k}^{'}==p_{k}\cdot\frac{1-p_{k}}{\sum_{j}p_{j}-p_{k}}\,,\label{eq:weighted-renorm}
+\end{equation}
 
 \end_inset
 
@@ -181,6 +197,15 @@ followed by renormalizing the
 \end_inset
 
  to have a sum of 1.
+ The step in 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:weighted-renorm"
+
+\end_inset
+
+ results in large probabilities being less affected by the renormalization
+ and slightly improves coding efficiency over the simple renormalization.
 \end_layout
 
 \begin_layout Subsection
@@ -198,11 +223,22 @@ There are two possible ways of adapting the probability model to individual
 \begin_inset Formula $m$
 \end_inset
 
- being selected with none of the neighbours use mode 
+ being selected when none of the neighbours use mode 
 \begin_inset Formula $m$
 \end_inset
 
 .
+ Then, 
+\begin_inset Formula $p_{0}\left(m\right)$
+\end_inset
+
+ is used as a floor probability for each mode 
+\begin_inset Formula $m$
+\end_inset
+
+.
+ The purpose of this floor is to ensure that when a particular mode is highly
+ used in an image, its cost goes down.
 \end_layout
 
 \begin_layout Section
