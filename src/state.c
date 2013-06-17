@@ -1104,27 +1104,3 @@ double daala_granule_time(void *_encdec,ogg_int64_t _granpos){
   }
   return -1;
 }
-
-void od_extract_bsize(unsigned char *_bsize_out,int _bstride_out,
- const unsigned char *_bsize_in,int _bstride_in,int _dec){
-  int j;
-  int i;
-  for (j=0;j<1<<(2-_dec);j++) {
-    _bsize_out[_bstride_out*(j+1)]=
-     OD_CLAMPI(0,_bsize_in[_bstride_in*(1<<_dec)*j-1]-_dec,2);
-    _bsize_out[_bstride_out*(j+1)+(1<<(2-_dec))+1]=
-     OD_CLAMPI(0,_bsize_in[_bstride_in*(1<<_dec)*j+4]-_dec,2);
-  }
-  for (i=0;i<1<<(2-_dec);i++) {
-    _bsize_out[i+1]=
-     OD_CLAMPI(0,_bsize_in[_bstride_in*(0-1)+(1<<_dec)*i]-_dec,2);
-    _bsize_out[_bstride_out*((1<<(2-_dec))+1)+i+1]=
-     OD_CLAMPI(0,_bsize_in[_bstride_in*(0+4)+(1<<_dec)*i]-_dec,2);
-  }
-  for (j=0;j<1<<(2-_dec);j++) {
-    for (i=0;i<1<<(2-_dec);i++) {
-      _bsize_out[_bstride_out*(j+1)+i+1]=
-       OD_CLAMPI(0,_bsize_in[_bstride_in*(1<<_dec)*j+(1<<_dec)*i]-_dec,2);
-    }
-  }
-}

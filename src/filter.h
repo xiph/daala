@@ -63,10 +63,14 @@ void od_post_filter8(od_coeff _x[8],const od_coeff _y[8]);
 void od_pre_filter16(od_coeff _y[16],const od_coeff _x[16]);
 void od_post_filter16(od_coeff _x[16],const od_coeff _y[16]);
 
-#define OD_RIGHT_EDGE  (1<<1)
-#define OD_BOTTOM_EDGE (1<<0)
+#define OD_TOP_EDGE    (1<<3)
+#define OD_RIGHT_EDGE  (1<<2)
+#define OD_BOTTOM_EDGE (1<<1)
+#define OD_LEFT_EDGE   (1<<0)
 
-void od_apply_filter(od_coeff *_c,int _stride,int _sbx,int _sby,int _l,
- const unsigned char *_bsize,int _bstride,int _edge,int _mask,int _inv);
+void od_apply_prefilter(od_coeff *c, int w, int bx, int by, unsigned char l,
+ const unsigned char *bsize, int bstride, int xdec, int ydec, int edge);
+void od_apply_postfilter(od_coeff *c, int w, int bx, int by, unsigned char l,
+ const unsigned char *bsize, int bstride, int xdec, int ydec, int edge);
 
 #endif
