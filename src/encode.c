@@ -1014,13 +1014,11 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   /*Dump YUV*/
   od_state_dump_yuv(&enc->state, enc->state.io_imgs + OD_FRAME_REC, "out");
 #endif
+#if defined(OD_LOGGING_ENABLED)
   for (pli = 0; pli < nplanes; pli++) {
     unsigned char *data;
-    ogg_int64_t mc_sqerr;
     ogg_int64_t enc_sqerr;
-#ifdef OD_LOGGING_ENABLED
     ogg_uint32_t npixels;
-#endif
     int ystride;
     int xdec;
     int ydec;
@@ -1028,11 +1026,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     int h;
     int x;
     int y;
-#ifdef OD_DPCM
-    int err_accum;
-    err_accum = 0;
-#endif
-    mc_sqerr = 0;
     enc_sqerr = 0;
     data = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].data;
     ystride = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ystride;
@@ -1040,87 +1033,26 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     ydec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
     w = frame_width >> xdec;
     h = frame_height >> ydec;
-#ifdef OD_LOGGING_ENABLED
     npixels = w*h;
-#endif
     for (y = 0; y < h; y++) {
-      unsigned char *prev_rec_row;
       unsigned char *rec_row;
       unsigned char *inp_row;
       rec_row = enc->state.io_imgs[OD_FRAME_REC].planes[pli].data +
        enc->state.io_imgs[OD_FRAME_REC].planes[pli].ystride*y;
-      prev_rec_row = rec_row
-       - enc->state.io_imgs[OD_FRAME_REC].planes[pli].ystride;
       inp_row = data + ystride*y;
-      memcpy(enc->state.ref_line_buf[1], rec_row, w);
       for (x = 0; x < w; x++) {
-        int rec_val;
         int inp_val;
         int diff;
-        rec_val = rec_row[x];
         inp_val = inp_row[x];
-        diff = inp_val - rec_val;
-        mc_sqerr += diff*diff;
-#ifdef OD_DPCM
-        {
-          int pred_diff;
-          int qdiff;g
-          /*DPCM code the residual with uniform quantization.
-            This provides simulated residual coding errors, without
-             introducing blocking artifacts.*/
-          if (x > 0) {
-            pred_diff = rec_row[x - 1] - enc->state.ref_line_buf[1][x - 1];
-          }
-          else pred_diff = 0;
-          if (y > 0) {
-            if (x > 0) {
-              pred_diff += prev_rec_row[x - 1]
-               - enc->state.ref_line_buf[0][x - 1];
-            }
-            pred_diff += prev_rec_row[x] - enc->state.ref_line_buf[0][x];
-            if (x + 1 < w) {
-              pred_diff += prev_rec_row[x + 1]
-               - enc->state.ref_line_buf[0][x + 1];
-            }
-          }
-          pred_diff = OD_DIV_ROUND_POW2(pred_diff, 2, 2);
-          qdiff = (((diff - pred_diff) + ((diff - pred_diff) >> 31)
-           + (5 + err_accum))/10)*10 + pred_diff;
-          /*qdiff = (OD_DIV_ROUND_POW2(diff - pred_diff, 3, 4 + err_accum) << 3)
-            + pred_diff;*/
-          OD_LOG((OD_LOG_ENCODER, OD_LOG_DEBUG,
-                  "d-p_d: %3i  e_a: %3i  qd-p_d: %3i  e_a: %i",
-                  diff - pred_diff, err_accum, qdiff - pred_diff, diff - qdiff));
-          err_accum += diff - qdiff;
-          rec_row[x] = OD_CLAMP255(rec_val + qdiff);
-        }
-#else
-/*        rec_row[x] = inp_val;*/
-#endif
         diff = inp_val - rec_row[x];
         enc_sqerr += diff*diff;
       }
-      prev_rec_row = enc->state.ref_line_buf[0];
-      enc->state.ref_line_buf[0] = enc->state.ref_line_buf[1];
-      enc->state.ref_line_buf[1] = prev_rec_row;
-    }
-    /* Commented out because these variables don't seem to exist.
-
-       TODO: re-add this?
-
-    OD_LOG((OD_LOG_ENCODER, OD_LOG_DEBUG,
-            "Bytes: %d  ex_dc: %d ex_g: %d ex_k: %d",
-            (od_ec_enc_tell(&enc->ec) + 7) >> 3, ex_dc, ex_g, ex_k));*/
-    if (enc->state.ref_imgi[OD_FRAME_PREV] >= 0) {
-      OD_LOG((OD_LOG_ENCODER, OD_LOG_DEBUG,
-              "Plane %i, Squared Error: %12lli  Pixels: %6u  PSNR:  %5.2f",
-              pli, (long long)mc_sqerr, npixels,
-              10*log10(255*255.0*npixels/mc_sqerr)));
     }
     OD_LOG((OD_LOG_ENCODER, OD_LOG_DEBUG,
             "Encoded Plane %i, Squared Error: %12lli  Pixels: %6u  PSNR:  %5.2f",
             pli,(long long)enc_sqerr,npixels,10*log10(255*255.0*npixels/enc_sqerr)));
   }
+#endif
   OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO,
           "mode bits: %f/%f=%f", mode_bits, mode_count,
           mode_bits/mode_count));
