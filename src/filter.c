@@ -177,10 +177,10 @@ void od_pre_filter4(od_coeff _y[4],const od_coeff _x[4]){
    /*Rotation:*/
    _Check(t[2],2);
    /*p0*/
-   t[3]+=t[2]*OD_FILTER_PARAMS4_2+32>>6;
+   t[3]+=(t[2]*OD_FILTER_PARAMS4_2+32)>>6;
    _Check(t[3],3);
    /*u0*/
-   t[2]+=t[3]*OD_FILTER_PARAMS4_3+32>>6;
+   t[2]+=(t[3]*OD_FILTER_PARAMS4_3+32)>>6;
    /*More +1/-1 butterflies (required for FIR, PR, LP).*/
    t[0]+=t[3]>>1;
    _y[0]=(od_coeff)t[0];
@@ -196,8 +196,8 @@ void od_post_filter4(od_coeff _x[4],const od_coeff _y[4]){
    t[2]=_y[1]-_y[2];
    t[1]=_y[1]-(t[2]>>1);
    t[0]=_y[0]-(t[3]>>1);
-   t[2]-=t[3]*OD_FILTER_PARAMS4_3+32>>6;
-   t[3]-=t[2]*OD_FILTER_PARAMS4_2+32>>6;
+   t[2]-=(t[3]*OD_FILTER_PARAMS4_3+32)>>6;
+   t[3]-=(t[2]*OD_FILTER_PARAMS4_2+32)>>6;
 #if OD_FILTER_PARAMS4_1!=64
    t[3]=(t[3]<<6)/OD_FILTER_PARAMS4_1;
 #endif
@@ -257,36 +257,36 @@ void od_pre_filter8(od_coeff _y[8],const od_coeff _x[8]){
      This step ensures that the scaling is trivially invertible on the
       decoder's side, with perfect reconstruction.*/
 #if OD_FILTER_PARAMS8_0!=64
-   t[4]=t[4]*OD_FILTER_PARAMS8_0>>6;
+   t[4]=(t[4]*OD_FILTER_PARAMS8_0)>>6;
    t[4]+=-t[4]>>(OD_COEFF_BITS-1)&1;
 #endif
 #if OD_FILTER_PARAMS8_1!=64
-   t[5]=t[5]*OD_FILTER_PARAMS8_1>>6;
+   t[5]=(t[5]*OD_FILTER_PARAMS8_1)>>6;
    t[5]+=-t[5]>>(OD_COEFF_BITS-1)&1;
 #endif
 #if OD_FILTER_PARAMS8_2!=64
-   t[6]=t[6]*OD_FILTER_PARAMS8_2>>6;
+   t[6]=(t[6]*OD_FILTER_PARAMS8_2)>>6;
    t[6]+=-t[6]>>(OD_COEFF_BITS-1)&1;
 #endif
 #if OD_FILTER_PARAMS8_3!=64
-   t[7]=t[7]*OD_FILTER_PARAMS8_3>>6;
+   t[7]=(t[7]*OD_FILTER_PARAMS8_3)>>6;
    t[7]+=-t[7]>>(OD_COEFF_BITS-1)&1;
 #endif
    /*Rotations:*/
 #if OD_FILTER8_TYPE3
-   t[7]+=t[6]*OD_FILTER_PARAMS8_6+32>>6;
-   t[6]+=t[7]*OD_FILTER_PARAMS8_9+32>>6;
-   t[6]+=t[5]*OD_FILTER_PARAMS8_5+32>>6;
-   t[5]+=t[6]*OD_FILTER_PARAMS8_8+32>>6;
-   t[5]+=t[4]*OD_FILTER_PARAMS8_4+32>>6;
-   t[4]+=t[5]*OD_FILTER_PARAMS8_7+32>>6;
+   t[7]+=(t[6]*OD_FILTER_PARAMS8_6+32)>>6;
+   t[6]+=(t[7]*OD_FILTER_PARAMS8_9+32)>>6;
+   t[6]+=(t[5]*OD_FILTER_PARAMS8_5+32)>>6;
+   t[5]+=(t[6]*OD_FILTER_PARAMS8_8+32)>>6;
+   t[5]+=(t[4]*OD_FILTER_PARAMS8_4+32)>>6;
+   t[4]+=(t[5]*OD_FILTER_PARAMS8_7+32)>>6;
 #else
-   t[5]+=t[4]*OD_FILTER_PARAMS8_4+32>>6;
-   t[6]+=t[5]*OD_FILTER_PARAMS8_5+32>>6;
-   t[7]+=t[6]*OD_FILTER_PARAMS8_6+32>>6;
-   t[6]+=t[7]*OD_FILTER_PARAMS8_9+32>>6;
-   t[5]+=t[6]*OD_FILTER_PARAMS8_8+32>>6;
-   t[4]+=t[5]*OD_FILTER_PARAMS8_7+32>>6;
+   t[5]+=(t[4]*OD_FILTER_PARAMS8_4+32)>>6;
+   t[6]+=(t[5]*OD_FILTER_PARAMS8_5+32)>>6;
+   t[7]+=(t[6]*OD_FILTER_PARAMS8_6+32)>>6;
+   t[6]+=(t[7]*OD_FILTER_PARAMS8_9+32)>>6;
+   t[5]+=(t[6]*OD_FILTER_PARAMS8_8+32)>>6;
+   t[4]+=(t[5]*OD_FILTER_PARAMS8_7+32)>>6;
 #endif
    /*More +1/-1 butterflies (required for FIR, PR, LP).*/
    t[0]+=t[7]>>1;
@@ -314,19 +314,19 @@ void od_post_filter8(od_coeff _x[8],const od_coeff _y[8]){
    t[1]=_y[1]-(t[6]>>1);
    t[0]=_y[0]-(t[7]>>1);
 #if OD_FILTER8_TYPE3
-   t[4]-=t[5]*OD_FILTER_PARAMS8_7+32>>6;
-   t[5]-=t[4]*OD_FILTER_PARAMS8_4+32>>6;
-   t[5]-=t[6]*OD_FILTER_PARAMS8_8+32>>6;
-   t[6]-=t[5]*OD_FILTER_PARAMS8_5+32>>6;
-   t[6]-=t[7]*OD_FILTER_PARAMS8_9+32>>6;
-   t[7]-=t[6]*OD_FILTER_PARAMS8_6+32>>6;
+   t[4]-=(t[5]*OD_FILTER_PARAMS8_7+32)>>6;
+   t[5]-=(t[4]*OD_FILTER_PARAMS8_4+32)>>6;
+   t[5]-=(t[6]*OD_FILTER_PARAMS8_8+32)>>6;
+   t[6]-=(t[5]*OD_FILTER_PARAMS8_5+32)>>6;
+   t[6]-=(t[7]*OD_FILTER_PARAMS8_9+32)>>6;
+   t[7]-=(t[6]*OD_FILTER_PARAMS8_6+32)>>6;
 #else
-   t[4]-=t[5]*OD_FILTER_PARAMS8_7+32>>6;
-   t[5]-=t[6]*OD_FILTER_PARAMS8_8+32>>6;
-   t[6]-=t[7]*OD_FILTER_PARAMS8_9+32>>6;
-   t[7]-=t[6]*OD_FILTER_PARAMS8_6+32>>6;
-   t[6]-=t[5]*OD_FILTER_PARAMS8_5+32>>6;
-   t[5]-=t[4]*OD_FILTER_PARAMS8_4+32>>6;
+   t[4]-=(t[5]*OD_FILTER_PARAMS8_7+32)>>6;
+   t[5]-=(t[6]*OD_FILTER_PARAMS8_8+32)>>6;
+   t[6]-=(t[7]*OD_FILTER_PARAMS8_9+32)>>6;
+   t[7]-=(t[6]*OD_FILTER_PARAMS8_6+32)>>6;
+   t[6]-=(t[5]*OD_FILTER_PARAMS8_5+32)>>6;
+   t[5]-=(t[4]*OD_FILTER_PARAMS8_4+32)>>6;
 #endif
 #if OD_FILTER_PARAMS8_3!=64
    t[7]=(t[7]<<6)/OD_FILTER_PARAMS8_3;

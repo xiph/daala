@@ -426,7 +426,7 @@ int main(int argc, char *argv[]) {
 #define OD_MAXI(_a,_b)      ((_a)>(_b)?(_a):(_b))
 #define OD_CLAMPI(_a,_b,_c) (OD_MAXI(_a,OD_MINI(_b,_c)))
 #define OD_SIGNMASK(_a)     (-((_a)<0))
-#define OD_FLIPSIGNI(_a,_b) ((_a)+OD_SIGNMASK(_b)^OD_SIGNMASK(_b))
+#define OD_FLIPSIGNI(_a,_b) (((_a)+OD_SIGNMASK(_b))^OD_SIGNMASK(_b))
 #define OD_DIV_ROUND(_x,_y) (((_x)+OD_FLIPSIGNI((_y)>>1,_x))/(_y))
 #define OD_CLAMP255(_x)     ((unsigned char)((((_x)<0)-1)&((_x)|-((_x)>255))))
 
@@ -492,13 +492,13 @@ void img_to_rgb(SDL_Surface *surf, const od_img *img) {
       *(pixels + pitch*j + i++)=(unsigned char)(bval>>8);
       *(pixels + pitch*j + i++)=(unsigned char)(gval>>8);
       *(pixels + pitch*j + i++)=(unsigned char)(rval>>8);
-      dc = y - y_row & 1 | 1 - xdec;
+      dc = ((y - y_row) & 1) | (1 - xdec);
       y++;
       cb += dc;
       cr += dc;
     }
     y_row += y_stride;
-    dc = -(j & 1 | 1 - ydec);
+    dc = -((j & 1) | (1 - ydec));
     cb_row += dc & cb_stride;
     cr_row += dc & cr_stride;
   }

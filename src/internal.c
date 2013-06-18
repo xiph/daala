@@ -120,7 +120,7 @@ void od_fatal_impl(const char *_str,const char *_file,int _line){
 
 int od_ilog(ogg_uint32_t _v){
 #if defined(OD_CLZ)
-  return OD_CLZ0-OD_CLZ(_v)&-!!_v;
+  return (OD_CLZ0-OD_CLZ(_v))&-!!_v;
 #else
   /*On a Pentium M, this branchless version tested as the fastest on
      1,000,000,000 random 32-bit integers, edging out a similar version with

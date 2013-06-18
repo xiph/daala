@@ -3843,7 +3843,7 @@ static ogg_int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
   grid = state->mv_grid;
   dcost = 0;
   OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
-   "Refining column %i (%i)...", vx, vx - 2 << 2));
+   "Refining column %i (%i)...", vx, (vx - 2) << 2));
   for (vy = 0;; vy++) {
     ogg_int32_t block_sads[18][8];
     ogg_int32_t best_cost;

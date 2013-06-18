@@ -251,9 +251,9 @@ static void id_y4m_file(av_input *_avin,const char *_file,FILE *_test){
     iplane->xdec=_avin->video_plane_info[pli].xdec;
     iplane->ydec=_avin->video_plane_info[pli].ydec;
     iplane->xstride=1;
-    iplane->ystride=_avin->video_pic_w+(1<<iplane->xdec)-1>>iplane->xdec;
+    iplane->ystride=(_avin->video_pic_w+(1<<iplane->xdec)-1)>>iplane->xdec;
     iplane->data=_ogg_malloc(iplane->ystride*
-     (_avin->video_pic_h+(1<<iplane->ydec)-1>>iplane->ydec));
+     ((_avin->video_pic_h+(1<<iplane->ydec)-1)>>iplane->ydec));
   }
 }
 
@@ -326,8 +326,8 @@ int fetch_and_process_video(av_input *_avin,ogg_page *_page,
         od_img_plane *iplane;
         size_t        plane_sz;
         iplane=img->planes+pli;
-        plane_sz=(_avin->video_pic_w+(1<<iplane->xdec)-1>>iplane->xdec)*
-         (_avin->video_pic_h+(1<<iplane->ydec)-1>>iplane->ydec);
+        plane_sz=((_avin->video_pic_w+(1<<iplane->xdec)-1)>>iplane->xdec)*
+         ((_avin->video_pic_h+(1<<iplane->ydec)-1)>>iplane->ydec);
         ret=fread(iplane->data/*+(_avin->video_pic_y>>iplane->ydec)*iplane->ystride+
          (_avin->video_pic_x>>iplane->xdec)*/,1,plane_sz,_avin->video_infile);
         if(ret!=plane_sz){

@@ -140,8 +140,8 @@ static void od_img_plane_copy_pad8(od_img_plane *dst_p,
     for (x = pic_width; x < plane_width; x++) {
       dst = dst_data + x - 1;
       for (y = 0; y < pic_height; y++) {
-        dst[1] = 2*dst[0] + (dst - (dstride & -(y > 0)))[0]
-         + (dst + (dstride & -(y + 1 < pic_height)))[0] + 2 >> 2;
+        dst[1] = (2*dst[0] + (dst - (dstride & -(y > 0)))[0]
+         + (dst + (dstride & -(y + 1 < pic_height)))[0] + 2) >> 2;
         dst += dstride;
       }
     }
@@ -149,8 +149,8 @@ static void od_img_plane_copy_pad8(od_img_plane *dst_p,
     dst = dst_data + dstride*pic_height;
     for (y = pic_height; y < plane_height; y++) {
       for (x = 0; x < plane_width; x++) {
-        dst[x] = 2*(dst - dstride)[x] + (dst - dstride)[x - (x > 0)]
-         + (dst - dstride)[x + (x + 1 < plane_width)] + 2 >> 2;
+        dst[x] = (2*(dst - dstride)[x] + (dst - dstride)[x - (x > 0)]
+         + (dst - dstride)[x + (x + 1 < plane_width)] + 2) >> 2;
       }
       dst += dstride;
     }

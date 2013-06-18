@@ -315,7 +315,7 @@ static void od_mc_interp_mv_1xN(unsigned short *_hscale,
  int _log_yblk_sz){
   ptrdiff_t rend;
   ptrdiff_t row;
-  rend=1<<_log_yblk_sz+1;
+  rend=1<<(_log_yblk_sz+1);
   /*Interpolate the x component of the motion vector.*/
   __asm__ __volatile__(
     OD_INTERP_MV_PROLOG_1x8
@@ -352,7 +352,7 @@ static void od_mc_interp_mv_2xN(unsigned short *_hscale,
  int _log_yblk_sz){
   ptrdiff_t rend;
   ptrdiff_t row;
-  rend=1<<_log_yblk_sz+2;
+  rend=1<<(_log_yblk_sz+2);
   /*Interpolate the x component of the motion vector.*/
   __asm__ __volatile__(
     OD_INTERP_MV_PROLOG_2x4
@@ -391,7 +391,7 @@ static void od_mc_interp_mv_4xN(unsigned short *_hscale,
  int _log_yblk_sz){
   ptrdiff_t rend;
   ptrdiff_t row;
-  rend=1<<_log_yblk_sz+3;
+  rend=1<<(_log_yblk_sz+3);
   /*Interpolate the x component of the motion vector.*/
   __asm__ __volatile__(
     OD_INTERP_MV_PROLOG_4x2
@@ -431,7 +431,7 @@ static void od_mc_interp_mv_8xN(unsigned short *_hscale,
   int __attribute__((aligned(16))) dxmm1[4];
   ptrdiff_t                        rend;
   ptrdiff_t                        row;
-  rend=1<<_log_yblk_sz+4;
+  rend=1<<(_log_yblk_sz+4);
   /*Interpolate the x component of the motion vector.*/
   __asm__ __volatile__(
     OD_INTERP_MV_PROLOG_8x1
@@ -476,7 +476,7 @@ static void od_mc_interp_mv_16xN(unsigned short *_hscale,
   int __attribute__((aligned(16))) dxmm1[4];
   ptrdiff_t                        rend;
   ptrdiff_t                        row;
-  rend=1<<_log_yblk_sz+5;
+  rend=1<<(_log_yblk_sz+5);
   /*Interpolate the x component of the motion vector.*/
   __asm__ __volatile__(
     OD_INTERP_MV_PROLOG_8x1
@@ -656,7 +656,7 @@ void od_mc_predict1imv8_sse2(unsigned char *_dst,int _dystride,
       /*We loop backwards to avoid a register spill on the loop limit.
         Everything should already be in L1 cache, so no need to worry about the
          hardware prefetcher.*/
-      row=1<<_log_xblk_sz+_log_yblk_sz;
+      row=1<<(_log_xblk_sz+_log_yblk_sz);
       do{
         row-=0x10;
         /*Computes 16 samples of a motion vector field.
@@ -2964,15 +2964,15 @@ static void od_mc_blend_full_split8_bil_c(unsigned char *_dst,
   o=0;
   xblk_sz=1<<_log_xblk_sz;
   yblk_sz=1<<_log_yblk_sz;
-  round=1<<_log_xblk_sz+_log_yblk_sz;
+  round=1<<(_log_xblk_sz+_log_yblk_sz);
   for(j=0;j<yblk_sz;j++){
     for(i=0;i<xblk_sz;i++){
-      a=(_src[0][o+i]+_src[4+0][o+i]<<_log_xblk_sz)+
+      a=((_src[0][o+i]+_src[4+0][o+i])<<_log_xblk_sz)+
        (_src[1][o+i]-_src[0][o+i]+_src[4+1][o+i]-_src[4+0][o+i])*i;
-      b=(_src[3][o+i]+_src[4+3][o+i]<<_log_xblk_sz)+
+      b=((_src[3][o+i]+_src[4+3][o+i])<<_log_xblk_sz)+
        (_src[2][o+i]-_src[3][o+i]+_src[4+2][o+i]-_src[4+3][o+i])*i;
-      _dst[i]=(unsigned char)((a<<_log_yblk_sz)+(b-a)*j+
-       round>>_log_xblk_sz+_log_yblk_sz+1);
+      _dst[i]=(unsigned char)(((a<<_log_yblk_sz)+(b-a)*j+
+       round)>>(_log_xblk_sz+_log_yblk_sz+1));
     }
     o+=xblk_sz;
     _dst+=_dystride;
@@ -3090,11 +3090,11 @@ static void od_mc_setup_split_ptrs(const unsigned char *_drc[4],
   int j;
   int k;
   _drc[_c]=_src[_c];
-  j=_c+(_s&1)&3;
-  k=_c+1&3;
+  j=(_c+(_s&1))&3;
+  k=(_c+1)&3;
   _drc[k]=_src[j];
-  j=_c+(_s&2)+((_s&2)>>1)&3;
-  k=_c+3&3;
+  j=(_c+(_s&2)+((_s&2)>>1))&3;
+  k=(_c+3)&3;
   _drc[k]=_src[j];
   k=_c^2;
   _drc[k]=_src[k];

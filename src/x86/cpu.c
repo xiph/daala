@@ -95,9 +95,9 @@ ogg_uint32_t od_cpu_flags_get(void){
      is found in some engineering samples c. 1994.
     We don't bother to check for that here.*/
   /*              D M A c          i t n e          h t u A*/
-  else if(ecx==0x444D4163&&edx==0x69746E65&&ebx==0x68747541||
+  else if((ecx==0x444D4163&&edx==0x69746E65&&ebx==0x68747541)||
    /*      C S N            y b   e          d o e G*/
-   ecx==0x43534E20&&edx==0x79622065&&ebx==0x646F6547){
+   (ecx==0x43534E20&&edx==0x79622065&&ebx==0x646F6547)){
     /*AMD:*/
     cpuid(0x80000000,eax,ebx,ecx,edx);
     if(eax<=0x80000000){

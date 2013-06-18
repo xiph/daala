@@ -131,16 +131,16 @@ void pvq_coder_bitstreams(int n, int type){
     pvq_adapt.count_q8 = adapt.curr[OD_ADAPT_COUNT_Q8];
     pvq_adapt.count_ex_q8 = adapt.curr[OD_ADAPT_COUNT_EX_Q8];
     if (pvq_adapt.k >= 0) {
-      pvq_adapt.mean_k_q8 += (pvq_adapt.k << 8)
-       -pvq_adapt.mean_k_q8 >> OD_K_ADAPT_SPEED;
+      pvq_adapt.mean_k_q8 += ((pvq_adapt.k << 8)
+       -pvq_adapt.mean_k_q8) >> OD_K_ADAPT_SPEED;
       pvq_adapt.mean_sum_ex_q8 +=
-       pvq_adapt.sum_ex_q8 - pvq_adapt.mean_sum_ex_q8 >> OD_SUM_EX_ADAPT_SPEED;
+       (pvq_adapt.sum_ex_q8 - pvq_adapt.mean_sum_ex_q8) >> OD_SUM_EX_ADAPT_SPEED;
     }
     if (pvq_adapt.count_q8 >= 0) {
-      pvq_adapt.mean_count_q8 += pvq_adapt.count_q8
-       -pvq_adapt.mean_count_q8 >> OD_DELTA_ADAPT_SPEED;
+      pvq_adapt.mean_count_q8 += (pvq_adapt.count_q8
+       -pvq_adapt.mean_count_q8) >> OD_DELTA_ADAPT_SPEED;
       pvq_adapt.mean_count_ex_q8 +=
-       pvq_adapt.count_ex_q8 - pvq_adapt.mean_count_ex_q8 >> OD_DELTA_ADAPT_SPEED;
+       (pvq_adapt.count_ex_q8 - pvq_adapt.mean_count_ex_q8) >> OD_DELTA_ADAPT_SPEED;
     }
     if (od_ec_dec_tell(&dec) > buf_sz*8*2 + 4) break;
   }
@@ -184,14 +184,14 @@ int run_pvq(int *X,int len,int N,int fuzz){
     pvq_adapt.count_q8 = adapt.curr[OD_ADAPT_COUNT_Q8];
     pvq_adapt.count_ex_q8 = adapt.curr[OD_ADAPT_COUNT_EX_Q8];
     if(pvq_adapt.k>=0){
-      pvq_adapt.mean_k_q8+=(pvq_adapt.k<<8)-pvq_adapt.mean_k_q8>>OD_K_ADAPT_SPEED;
+      pvq_adapt.mean_k_q8+=((pvq_adapt.k<<8)-pvq_adapt.mean_k_q8)>>OD_K_ADAPT_SPEED;
       pvq_adapt.mean_sum_ex_q8+=
-       pvq_adapt.sum_ex_q8-pvq_adapt.mean_sum_ex_q8>>OD_SUM_EX_ADAPT_SPEED;
+       (pvq_adapt.sum_ex_q8-pvq_adapt.mean_sum_ex_q8)>>OD_SUM_EX_ADAPT_SPEED;
     }
     if(pvq_adapt.count_q8>=0){
-      pvq_adapt.mean_count_q8+=pvq_adapt.count_q8-pvq_adapt.mean_count_q8>>OD_DELTA_ADAPT_SPEED;
+      pvq_adapt.mean_count_q8+=(pvq_adapt.count_q8-pvq_adapt.mean_count_q8)>>OD_DELTA_ADAPT_SPEED;
       pvq_adapt.mean_count_ex_q8+=
-       pvq_adapt.count_ex_q8-pvq_adapt.mean_count_ex_q8>>OD_DELTA_ADAPT_SPEED;
+       (pvq_adapt.count_ex_q8-pvq_adapt.mean_count_ex_q8)>>OD_DELTA_ADAPT_SPEED;
     }
     /*if (i==0)
     {
@@ -242,14 +242,14 @@ int run_pvq(int *X,int len,int N,int fuzz){
     pvq_adapt.count_q8 = adapt.curr[OD_ADAPT_COUNT_Q8];
     pvq_adapt.count_ex_q8 = adapt.curr[OD_ADAPT_COUNT_EX_Q8];
     if(pvq_adapt.k>=0){
-      pvq_adapt.mean_k_q8+=(pvq_adapt.k<<8)-pvq_adapt.mean_k_q8>>OD_K_ADAPT_SPEED;
+      pvq_adapt.mean_k_q8+=((pvq_adapt.k<<8)-pvq_adapt.mean_k_q8)>>OD_K_ADAPT_SPEED;
       pvq_adapt.mean_sum_ex_q8+=
-       pvq_adapt.sum_ex_q8-pvq_adapt.mean_sum_ex_q8>>OD_SUM_EX_ADAPT_SPEED;
+       (pvq_adapt.sum_ex_q8-pvq_adapt.mean_sum_ex_q8)>>OD_SUM_EX_ADAPT_SPEED;
     }
     if(pvq_adapt.count_q8>=0){
-      pvq_adapt.mean_count_q8+=pvq_adapt.count_q8-pvq_adapt.mean_count_q8>>OD_DELTA_ADAPT_SPEED;
+      pvq_adapt.mean_count_q8+=(pvq_adapt.count_q8-pvq_adapt.mean_count_q8)>>OD_DELTA_ADAPT_SPEED;
       pvq_adapt.mean_count_ex_q8+=
-       pvq_adapt.count_ex_q8-pvq_adapt.mean_count_ex_q8>>OD_DELTA_ADAPT_SPEED;
+       (pvq_adapt.count_ex_q8-pvq_adapt.mean_count_ex_q8)>>OD_DELTA_ADAPT_SPEED;
     }
     for (j=0; j < N; j++) {
       if (!fuzz && y[j] != X[i*N+j]) {

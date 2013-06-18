@@ -1,5 +1,5 @@
 /*Daala video codec
-Copyright (c) 2006-2010 Daala project contributors.  All rights reserved.
+Copyright (c) 2006-2013 Daala project contributors.  All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -29,10 +29,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # include "odintrin.h"
 
 # if defined(_MSC_VER)
-#  pragma warning(disable:4554 4799)
 #  define _USE_MATH_DEFINES
 # elif OD_GNUC_PREREQ(4,2)
-#  pragma GCC diagnostic ignored "-Wparentheses"
 #  pragma GCC diagnostic ignored "-Wlong-long"
 #  pragma GCC diagnostic ignored "-Woverlength-strings"
 # endif
@@ -133,8 +131,8 @@ extern ogg_uint32_t OD_DIVU_SMALL_CONSTS[OD_DIVU_DMAX][2];
 
 /*Translate unsigned division by small divisors into multiplications.*/
 # define OD_DIVU_SMALL(_x,_d) \
-  ((ogg_uint32_t)(OD_DIVU_SMALL_CONSTS[(_d)-1][0]* \
-  (unsigned long long)(_x)+OD_DIVU_SMALL_CONSTS[(_d)-1][1]>>32)>> \
-  OD_ILOG(_d)-1)
+  ((ogg_uint32_t)((OD_DIVU_SMALL_CONSTS[(_d)-1][0]* \
+  (unsigned long long)(_x)+OD_DIVU_SMALL_CONSTS[(_d)-1][1])>>32)>> \
+  (OD_ILOG(_d)-1))
 
 #endif

@@ -417,15 +417,15 @@ void od_chroma_pred4x4(od_coeff *_p,const od_coeff *_c,
       xy+=cc*(ogg_int64_t)cc*w_q8;
     }
   }
-  xx-=lc_sum_q8*(ogg_int64_t)lc_sum_q8+128>>8;
-  xy-=cc_sum_q8*(ogg_int64_t)lc_sum_q8+128>>8;
+  xx-=(lc_sum_q8*(ogg_int64_t)lc_sum_q8+128)>>8;
+  xy-=(cc_sum_q8*(ogg_int64_t)lc_sum_q8+128)>>8;
   if(abs(xx)>abs(xy)>>1)alpha_q8=(xy<<8)/xx;
   else alpha_q8=0;
-  beta_q8=cc_sum_q8-(alpha_q8*lc_sum_q8+128>>8);
-  _p[0]=_l[0]*alpha_q8+beta_q8+128>>8;
+  beta_q8=cc_sum_q8-((alpha_q8*lc_sum_q8+128)>>8);
+  _p[0]=(_l[0]*alpha_q8+beta_q8+128)>>8;
   for(i=0;i<4;i++){
     for(j=i==0;j<4;j++){
-      _p[i*4+j]=_l[i*_stride+j]*alpha_q8+128>>8;
+      _p[i*4+j]=(_l[i*_stride+j]*alpha_q8+128)>>8;
     }
   }
 }
@@ -541,7 +541,7 @@ void od_intra_pred_update(ogg_uint16_t _p0[],int _nmodes,int _mode,
     /*p0 is the probability of choosing mode mi when none of its neighbors
        are in mode mi.
       So decay p0 if this block satisfies that condition.*/
-    if(_left!=mi&&_up!=mi&&_upleft!=mi)_p0[mi]-=_p0[mi]+256>>9;
+    if(_left!=mi&&_up!=mi&&_upleft!=mi)_p0[mi]-=(_p0[mi]+256)>>9;
   }
   /*And bump up the probability in the mode we actually chose.*/
   if(_left!=_mode&&_up!=_mode&&_upleft!=_mode){
