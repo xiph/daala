@@ -763,7 +763,7 @@ double coding_gain_2d(const double _r[2*B_SZ*2*B_SZ*2*B_SZ*2*B_SZ],const int *_f
     }
   }
 #if PRINT_CG_MATH
-  print_matrix(stdout,"rggt",rggt,B_SZ*B_SZ,2*B_SZ*B_SZ,B_SZ*B_SZ);
+  print_matrix(stdout,"rggt",rggt,B_SZ*B_SZ,4*B_SZ*B_SZ,B_SZ*B_SZ);
 #endif
   /* G1*P*G2*R*(G2*P*G1)^T */
   for(v=0;v<B_SZ;v++){
@@ -791,32 +791,30 @@ double coding_gain_2d(const double _r[2*B_SZ*2*B_SZ*2*B_SZ*2*B_SZ],const int *_f
   for(i=0;i<2*B_SZ;i++){
     r[i]=0;
   }
-  for(u=0;u<B_SZ;u++){
+  for(u=0;u<2*B_SZ;u++){
     for(j=0;j<B_SZ;j++){
       r[B_SZ]=s[B_SZ*u+j];
-      r[B_SZ+1]=s[B_SZ*(u+B_SZ)+j];
-      for(i=0;i<B_SZ/2;i++){
-        synthesis(&rggt[B_SZ*B_SZ/2*u*2*B_SZ+j+i*B_SZ],B_SZ*B_SZ/2,&r[B_SZ-2*i],1,1,_f);
+      for(i=0;i<B_SZ;i++){
+        synthesis(&rggt[B_SZ*B_SZ*u*2*B_SZ+j+i*B_SZ],B_SZ*B_SZ,&r[B_SZ-i],1,1,_f);
       }
     }
   }
 #if PRINT_CG_MATH
-  print_matrix(stdout,"hhi",rggt,B_SZ*B_SZ/2,2*B_SZ*B_SZ,B_SZ*B_SZ/2);
+  print_matrix(stdout,"hhi",rggt,B_SZ*B_SZ,4*B_SZ*B_SZ,B_SZ*B_SZ);
   fprintf(stdout,"G,H=\n");
 #endif
   /* ((H1*P*H2)^T*H1*P*H2)_ii */
-  for(j=0;j<B_SZ*B_SZ/2;j++){
+  for(j=0;j<B_SZ*B_SZ;j++){
     s[j]=0;
-    for(i=0;i<2*B_SZ*B_SZ;i++){
-      s[j]+=rggt[i*B_SZ*B_SZ/2+j]*rggt[i*B_SZ*B_SZ/2+j];
+    for(i=0;i<4*B_SZ*B_SZ;i++){
+      s[j]+=rggt[i*B_SZ*B_SZ+j]*rggt[i*B_SZ*B_SZ+j];
     }
   }
   /* (G1*P*G2*R*(G1*P*G2)^T)_ii * ((H1*P*H2)^T*H1*P*H2)_ii */
   cg=0;
   for(j=0;j<B_SZ*B_SZ;j++){
-    fprintf(stdout,"  %- 12.6G,  %- 12.6G\n",ggrggt[B_SZ*B_SZ*j+j],
-     s[j%(B_SZ*B_SZ/2)]);
-    cg-=10*log10(ggrggt[B_SZ*B_SZ*j+j]*s[j%(B_SZ*B_SZ/2)]);
+    fprintf(stdout,"  %- 12.6G,  %- 12.6G\n",ggrggt[B_SZ*B_SZ*j+j],s[j]);
+    cg-=10*log10(ggrggt[B_SZ*B_SZ*j+j]*s[j]);
   }
   return cg/(B_SZ*B_SZ);
 }
@@ -844,7 +842,7 @@ double coding_gain_2d_collapsed(const double _r[2*B_SZ*2*B_SZ],const int *_f){
     }
   }
 #if PRINT_CG_MATH
-  print_matrix(stdout,"rggt",rggt,B_SZ*B_SZ,2*B_SZ*B_SZ,B_SZ*B_SZ);
+  print_matrix(stdout,"rggt",rggt,B_SZ*B_SZ,4*B_SZ*B_SZ,B_SZ*B_SZ);
 #endif
   /* G1*P*G2*R*(G2*P*G1)^T */
   for(v=0;v<B_SZ;v++){
@@ -872,34 +870,32 @@ double coding_gain_2d_collapsed(const double _r[2*B_SZ*2*B_SZ],const int *_f){
   for(i=0;i<2*B_SZ;i++){
     r[i]=0;
   }
-  for(u=0;u<B_SZ;u++){
+  for(u=0;u<2*B_SZ;u++){
     for(j=0;j<B_SZ;j++){
       r[B_SZ]=s[B_SZ*u+j];
-      r[B_SZ+1]=s[B_SZ*(u+B_SZ)+j];
-      for(i=0;i<B_SZ/2;i++){
-        synthesis(&rggt[B_SZ*B_SZ/2*u*2*B_SZ+j+i*B_SZ],B_SZ*B_SZ/2,&r[B_SZ-2*i],1,1,_f);
+      for(i=0;i<B_SZ;i++){
+        synthesis(&rggt[B_SZ*B_SZ*u*2*B_SZ+j+i*B_SZ],B_SZ*B_SZ,&r[B_SZ-i],1,1,_f);
       }
     }
   }
 #if PRINT_CG_MATH
-  print_matrix(stdout,"hhi",rggt,B_SZ*B_SZ/2,2*B_SZ*B_SZ,B_SZ*B_SZ/2);
+  print_matrix(stdout,"hhi",rggt,B_SZ*B_SZ,4*B_SZ*B_SZ,B_SZ*B_SZ);
   fprintf(stdout,"G,H=\n");
 #endif
   /* ((H1*P*H2)^T*H1*P*H2)_ii */
-  for(j=0;j<B_SZ*B_SZ/2;j++){
+  for(j=0;j<B_SZ*B_SZ;j++){
     s[j]=0;
-    for(i=0;i<2*B_SZ*B_SZ;i++){
-      s[j]+=rggt[i*B_SZ*B_SZ/2+j]*rggt[i*B_SZ*B_SZ/2+j];
+    for(i=0;i<4*B_SZ*B_SZ;i++){
+      s[j]+=rggt[i*B_SZ*B_SZ+j]*rggt[i*B_SZ*B_SZ+j];
     }
   }
   /* (G1*P*G2*R*(G1*P*G2)^T)_ii * ((H1*P*H2)^T*H1*P*H2)_ii */
   cg=0;
   for(j=0;j<B_SZ*B_SZ;j++){
 #if PRINT_CG_MATH
-    fprintf(stdout,"  %- 12.6G,  %- 12.6G\n",ggrggt[B_SZ*B_SZ*j+j],
-     s[j%(B_SZ*B_SZ/2)]);
+    fprintf(stdout,"  %- 12.6G,  %- 12.6G\n",ggrggt[B_SZ*B_SZ*j+j],s[j]);
 #endif
-    cg-=10*log10(ggrggt[B_SZ*B_SZ*j+j]*s[j%(B_SZ*B_SZ/2)]);
+    cg-=10*log10(ggrggt[B_SZ*B_SZ*j+j]*s[j]);
   }
   return cg/(B_SZ*B_SZ);
 }
