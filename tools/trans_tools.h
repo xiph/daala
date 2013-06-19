@@ -30,6 +30,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "../src/internal.h"
 
 #define NE_DISABLE_FILTER (0)
+#define NE_DISABLE_TRANSFORM (0)
 
 typedef struct image_ctx image_ctx;
 

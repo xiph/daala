@@ -587,10 +587,12 @@ void analysis(double *_out,int _out_stride,const double *_in,int _in_stride,
 # error "Need a prefilter implementation for this block size."
 #endif
 #endif
+#if !NE_DISABLE_TRANSFORM
 #if B_SZ_LOG>=OD_LOG_BSIZE0&&B_SZ_LOG<OD_LOG_BSIZE0+OD_NBSIZES
     (*OD_FDCT_1D_DOUBLE[B_SZ_LOG-OD_LOG_BSIZE0])(&t[B_SZ/2],&t[B_SZ/2],1);
 #else
 # error "Need an fDCT implementation for this block size."
+#endif
 #endif
     for(j=0;j<B_SZ;j++){
       _out[j*_out_stride+i]=t[B_SZ/2+j];
@@ -610,10 +612,12 @@ void synthesis(double *_out,int _out_stride,const double *_in,int _in_stride,
     for(j=0;j<B_SZ;j++){
       t[B_SZ/2+j]=_in[j*_in_stride+i];
     }
+#if !NE_DISABLE_TRANSFORM
 #if B_SZ_LOG>=OD_LOG_BSIZE0&&B_SZ_LOG<OD_LOG_BSIZE0+OD_NBSIZES
     (*OD_IDCT_1D_DOUBLE[B_SZ_LOG-OD_LOG_BSIZE0])(&t[B_SZ/2],1,&t[B_SZ/2]);
 #else
 # error "Need an iDCT implementation for this block size."
+#endif
 #endif
 #if !NE_DISABLE_FILTER
 #if B_SZ_LOG>=OD_LOG_BSIZE0&&B_SZ_LOG<OD_LOG_BSIZE0+OD_NBSIZES
