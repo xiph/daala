@@ -758,7 +758,7 @@ void od_mv_est_check_rd_block_state(od_mv_est_ctx *est,
   od_state *state;
   int half_mvb_sz;
   state = &est->enc->state;
-  half_mvb_sz = 1 << (log_mvb_sz - 1);
+  half_mvb_sz = 1 << log_mvb_sz >> 1;
   if (log_mvb_sz > 0
    && state->mv_grid[vy + half_mvb_sz][vx + half_mvb_sz].valid) {
     od_mv_est_check_rd_block_state(est, ref, vx, vy, log_mvb_sz - 1);
