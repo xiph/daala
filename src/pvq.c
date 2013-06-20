@@ -200,11 +200,7 @@ static void pvq_search_rdo(int *x,float *scale,float *scale_1,float g,int N,int 
   /* Revert the rate cost of m and replace by the special case cost */
   rd[m].rd -= rate_ym*lambda + rate_lin*lambda*m;
 #if 0
-  qsort(rd, N-1, sizeof(RDOEntry), compare);
-#else
   find_nbest(rd,left-1,N);
-#endif
-#if 1
   i=0;
   while(left>1)
   {
