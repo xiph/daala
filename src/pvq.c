@@ -692,8 +692,8 @@ int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
  *
  * @retval position that should have the most pulses in _y
  */
-int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
- ogg_int16_t *_scale, int *y, int N, int _Q, int *qg, int shift) {
+int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r, ogg_int16_t *_scale,
+ int *y, int N, int _Q, int *qg, int shift, int intra) {
   int L2x, L2r;
   int g;               /* L2-norm of x */
   int gr;              /* L2-norm of r */
@@ -713,6 +713,7 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   float cgq;
   int cgr;             /* Companded gain of r*/
   float lambda;
+  int gain_offset;
   OD_ASSERT(N>1);
 
   /* Just some calibration -- should eventually go away */
@@ -748,8 +749,9 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   cg = (od_gain_compander(g*32768)+Q/2)/Q;
   if (cg<0)
     cg=0;
-  /* FIXME: Make that 0.2 adaptive */
-  cgr = (od_gain_compander(gr*32768)+Q/2+13*Q/8)/Q;
+  /* FIXME: Make that offset adaptive */
+  gain_offset = intra ? 13*Q/8 : 0;
+  cgr = (od_gain_compander(gr*32768) + Q/2 + gain_offset)/Q;
 
   /* Gain quantization. Round to nearest because we've already reduced cg.
      Maybe we should have a dead zone */
@@ -860,14 +862,15 @@ int quant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   return m;
 }
 
-int pvq_unquant_k(const ogg_int32_t *_r,int _n,int _qg, int _scale,
- int shift){
+int pvq_unquant_k(const ogg_int32_t *_r, int _n, int _qg, int _scale,
+ int shift, int intra){
   int    i;
   int Q;
   int L2r;
   int gr;
   int cg;
   int cgr;
+  int gain_offset;
   Q = od_gain_compander((1<<shift)*_scale*1.3*32768)/8;
 
   L2r=0;
@@ -876,8 +879,9 @@ int pvq_unquant_k(const ogg_int32_t *_r,int _n,int _qg, int _scale,
   }
   gr=od_sqrt(L2r);
 
-  /* FIXME: Make that 0.2 adaptive */
-  cgr = (od_gain_compander(gr*32768)+Q/2+13*Q/8)/Q;
+  /* FIXME: Make that offset adaptive */
+  gain_offset = intra ? 13*Q/8 : 0;
+  cgr = (od_gain_compander(gr*32768) + Q/2 + gain_offset)/Q;
 
   cg = cgr+8*_qg;
   if (cg<0)cg=0;
@@ -895,8 +899,8 @@ int pvq_unquant_k(const ogg_int32_t *_r,int _n,int _qg, int _scale,
  * @param [in]    qg     quantized gain
  *
  */
-void dequant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
-    ogg_int16_t *_scale,int N,int _Q,int qg, int shift){
+void dequant_pvq(ogg_int32_t *_x, const ogg_int32_t *_r, ogg_int16_t *_scale,
+ int N, int _Q, int qg, int shift, int intra){
   int L2r;
   int gr;              /* L2-norm of r */
   int x[MAXN];
@@ -911,6 +915,7 @@ void dequant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
   int   xm;
   int cg;              /* Companded gain of x*/
   int cgr;             /* Companded gain of r*/
+  int gain_offset;
   OD_ASSERT(N>1);
 
   /* Just some calibration -- should eventually go away */
@@ -932,7 +937,8 @@ void dequant_pvq(ogg_int32_t *_x,const ogg_int32_t *_r,
     L2r+=r[i]*r[i];
   }
   gr=od_sqrt(L2r);
-  cgr = (od_gain_compander(gr*32768)+Q/2+13*Q/8)/Q;
+  gain_offset = intra ? 13*Q/8 : 0;
+  cgr = (od_gain_compander(gr*32768) + Q/2 + gain_offset)/Q;
   cg = cgr+8*qg;
   if (cg<0)cg=0;
 
