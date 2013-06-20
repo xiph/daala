@@ -23,7 +23,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+# include "config.h"
 #endif
 
 #include <stddef.h>
@@ -174,9 +174,9 @@ struct od_mv_dp_node {
 struct od_mv_est_ctx {
   od_enc_ctx *enc;
   /*A cache of the SAD values used during decimation.
-    Indexed by [log_mvb_sz][vy>>log_mvb_sz][vx>>log_mvb_sz][s], where s is the
-     edge split state.
-    The SAD of top-level blocks (log_mvb_sz==2) is not stored in this cache,
+    Indexed by [log_mvb_sz][vy >> log_mvb_sz][vx >> log_mvb_sz][s], where s is
+     the edge split state.
+    The SAD of top-level blocks (log_mvb_sz == 2) is not stored in this cache,
      since it is only needed once.*/
   od_sad4 **sad_cache[2];
   /*The state of the MV mesh specific to the encoder.*/
@@ -424,140 +424,140 @@ static const int OD_SITE_DY[13] = {
 /*The number of sites to search of each boundary condition in the square
    pattern.
   Bit flags for the boundary conditions are as follows:
-  1: -32==dx
-  2: dx==31
-  4: -32==dy
-  8: dy==31*/
+  1: -32 == dx
+  2: dx == 31
+  4: -32 == dy
+  8: dy == 31*/
 static const int OD_SQUARE_NSITES[11] = { 8, 5, 5, 0, 5, 3, 3, 0, 5, 3, 3 };
 /*The list of sites to search for each boundary condition in the square
    pattern.*/
 static const od_pattern OD_SQUARE_SITES[11] = {
-  /* -32<dx<31,   -32<dy<31*/
+  /* -32 < dx < 31,   -32 < dy < 31*/
   { 0, 1, 2, 3, 5, 6, 7, 8 },
-  /*-32==dx,      -32<dy<31*/
+  /*-32 == dx,        -32 < dy < 31*/
   { 1, 2, 5, 7, 8 },
-  /*     dx==31,  -32<dy<31*/
+  /*       dx == 31,  -32 < dy < 31*/
   { 0, 1, 3, 6, 7 },
-  /*-32==dx==31,  -32<dy<31*/
+  /*-32 == dx == 31,  -32 < dy < 31*/
   { -1 },
-  /* -32<dx<31,  -32==dy*/
+  /* -32 < dx < 31,  -32 == dy*/
   { 3, 5, 6, 7, 8 },
-  /*-32==dx,     -32==dy*/
+  /*-32 == dx,       -32 == dy*/
   { 5, 7, 8 },
-  /*     dx==31, -32==dy*/
+  /*       dx == 31, -32 == dy*/
   { 3, 6, 7 },
-  /*-32==dx==31, -32==dy*/
+  /*-32 == dx == 31, -32 == dy*/
   { -1 },
-  /* -32<dx<31,       dy==31*/
+  /* -32 < dx < 31,         dy == 31*/
   { 0, 1, 2, 3, 5 },
-  /*-32==dx,          dy==31*/
+  /*-32 == dx,              dy == 31*/
   { 1, 2, 5 },
-  /*     dx==31,      dy==31*/
+  /*       dx == 31,        dy == 31*/
   { 0, 1, 3 }
 };
 
 /*The number of sites to search of each boundary condition in the diamond
    pattern.
   Bit flags for the boundary conditions are as follows:
-  1: -32==dx
-  2: dx==31
-  4: -32==dy
-  8: dy==31*/
+  1: -32 == dx
+  2: dx == 31
+  4: -32 == dy
+  8: dy == 31*/
 static const int OD_DIAMOND_NSITES[11] = { 4, 3, 3, 0, 3, 2, 2, 0, 3, 2, 2 };
 /*The list of sites to search for each boundary condition in the square
    pattern.*/
 static const od_pattern OD_DIAMOND_SITES[11] = {
-  /* -32<dx<31,   -32<dy<31*/
+  /* -32 < dx < 31,   -32 < dy < 31*/
   { 1, 3, 5, 7 },
-  /*-32==dx,      -32<dy<31*/
+  /*-32 == dx,        -32 < dy < 31*/
   { 1, 5, 7 },
-  /*     dx==31,  -32<dy<31*/
+  /*       dx == 31,  -32 < dy < 31*/
   { 1, 3, 7 },
-  /*-32==dx==31,  -32<dy<31*/
+  /*-32 == dx == 31,  -32 < dy < 31*/
   { -1 },
-  /* -32<dx<31,  -32==dy*/
+  /* -32 < dx < 31,  -32 == dy*/
   { 3, 5, 7 },
-  /*-32==dx,     -32==dy*/
+  /*-32 == dx,       -32 == dy*/
   { 5, 7 },
-  /*     dx==31, -32==dy*/
+  /*       dx == 31, -32 == dy*/
   { 3, 7 },
-  /*-32==dx==31, -32==dy*/
+  /*-32 == dx == 31, -32 == dy*/
   { -1 },
-  /* -32<dx<31,       dy==31*/
+  /* -32 < dx < 31,         dy == 31*/
   { 1, 3, 5 },
-  /*-32==dx,          dy==31*/
+  /*-32 == dx,              dy == 31*/
   { 1, 5 },
-  /*     dx==31,      dy==31*/
+  /*       dx == 31,        dy == 31*/
   { 1, 3 }
 };
 
 /*The number of sites to search of each boundary condition in the horizontal
    hex pattern.
   Bit flags for the boundary conditions are as follows:
-  1: -32==dx
-  2: dx==31
-  4: -32==dy
-  8: dy==31*/
+  1: -32 == dx
+  2: dx == 31
+  4: -32 == dy
+  8: dy == 31*/
 static const int OD_HHEX_NSITES[11] = { 6, 3, 3, 0, 4, 2, 2, 0, 4, 2, 2 };
 /*The list of sites to search for each boundary condition in the horizontal
    hex pattern.*/
 static const od_pattern OD_HHEX_SITES[11] = {
-  /* -32<dx<31,   -32<dy<31*/
+  /* -32 < dx < 31,   -32 < dy < 31*/
   { 0, 2, 6, 8, 9, 11 },
-  /*-32==dx,      -32<dy<31*/
+  /*-32 == dx,        -32 < dy < 31*/
   { 2, 8, 11 },
-  /*     dx==31,  -32<dy<31*/
+  /*       dx == 31,  -32 < dy < 31*/
   { 0, 6, 9 },
-  /*-32==dx==31,  -32<dy<31*/
+  /*-32 == dx == 31,  -32 < dy < 31*/
   { -1 },
-  /* -32<dx<31,  -32==dy*/
+  /* -32 < dx < 31,  -32 == dy*/
   { 6, 8, 9, 11 },
-  /*-32==dx,     -32==dy*/
+  /*-32 == dx,       -32 == dy*/
   { 8, 11 },
-  /*     dx==31, -32==dy*/
+  /*       dx == 31, -32 == dy*/
   { 6, 9 },
-  /*-32==dx==31, -32==dy*/
+  /*-32 == dx == 31, -32 == dy*/
   { -1 },
-  /* -32<dx<31,       dy==31*/
+  /* -32 < dx < 31,         dy == 31*/
   { 0, 2, 9, 11 },
-  /*-32==dx,          dy==31*/
+  /*-32 == dx,              dy == 31*/
   { 2, 11 },
-  /*     dx==31,      dy==31*/
+  /*     dx == 31,          dy == 31*/
   { 0, 9 }
 };
 
 /*The number of sites to search of each boundary condition in the vertical hex
    pattern.
   Bit flags for the boundary conditions are as follows:
-  1: -32==dx
-  2: dx==31
-  4: -32==dy
-  8: dy==31*/
+  1: -32 == dx
+  2: dx == 31
+  4: -32 == dy
+  8: dy == 31*/
 static const int OD_VHEX_NSITES[11] = { 6, 4, 4, 0, 3, 2, 2, 0, 3, 2, 2 };
 /*The list of sites to search for each boundary condition in the vertical hex
    pattern.*/
 static const od_pattern OD_VHEX_SITES[11] = {
-  /* -32<dx<31,   -32<dy<31*/
+  /* -32 < dx < 31,   -32 < dy < 31*/
   { 0, 2, 6, 8, 10, 12 },
-  /*-32==dx,      -32<dy<31*/
+  /*-32 == dx,        -32 < dy < 31*/
   { 2, 8, 10, 12 },
-  /*     dx==31,  -32<dy<31*/
+  /*       dx == 31,  -32 < dy < 31*/
   { 0, 6, 10, 12 },
-  /*-32==dx==31,  -32<dy<31*/
+  /*-32 == dx == 31,  -32 < dy < 31*/
   { -1 },
-  /* -32<dx<31,  -32==dy*/
+  /* -32 < dx < 31,  -32 == dy*/
   { 6, 8, 12 },
-  /*-32==dx,     -32==dy*/
+  /*-32 == dx,       -32 == dy*/
   { 8, 12 },
-  /*     dx==31, -32==dy*/
+  /*       dx == 31, -32 == dy*/
   { 6, 12 },
-  /*-32==dx==31, -32==dy*/
+  /*-32 == dx == 31, -32 == dy*/
   { -1 },
-  /* -32<dx<31,       dy==31*/
+  /* -32 < dx < 31,         dy == 31*/
   { 0, 2, 10 },
-  /*-32==dx,          dy==31*/
+  /*-32 == dx,              dy == 31*/
   { 2, 10 },
-  /*     dx==31,      dy==31*/
+  /*       dx == 31,        dy == 31*/
   { 0, 10 }
 };
 
@@ -1497,8 +1497,8 @@ static const od_mv_err_node *OD_ERRDOM[4] = {
 static int od_mv_dddr_cmp(ogg_int32_t dd1, int dr1,
  ogg_int32_t dd2, int dr2) {
   ogg_int64_t diff;
-  /*dr==0 and dd!=0 should not be possible, but we check for it anyway just in
-     case, to prevent a bug from trashing the whole optimization process.*/
+  /*dr == 0 and dd != 0 should not be possible, but we check for it anyway just
+     in case, to prevent a bug from trashing the whole optimization process.*/
   if (dr1 == 0) {
     return dr2 == 0 ? OD_SIGNI(dd2 - dd1) : (OD_SIGNI(dd1) << 1) - 1;
   }
@@ -2320,8 +2320,6 @@ static const int OD_ROW_PRED_HIST_SIZE[5] = { 8, 4, 2, 2, 1 };
    are evaluated correctly in column refinement.*/
 static const int OD_COL_PRED_HIST_SIZE[5] = { 8, 4, 2, 2, 1 };
 
-
-
 /*Returns the boundary case indicating which motion vector range edges the
    current motion vector is abutting.
   vx: The horizontal position of the node.
@@ -2554,7 +2552,7 @@ static void od_mv_dp_animate_state(od_state *state,
             if (d0vy >= mvb_sz
              && state->mv_grid[d0vy - mvb_sz][d0vx + mvb_sz ].valid) {
               od_img_draw_line(&state->vis_img,
-               x0 + (mvb_sz<<3), y0 - (mvb_sz<<3), x0 + (mvb_sz<<3), y1,
+               x0 + (mvb_sz << 3), y0 - (mvb_sz << 3), x0 + (mvb_sz << 3), y1,
                ecolor);
             }
             if (dp[0].mv->vy <= ((state->nvmbs + 1) << 2) - mvb_sz
@@ -2905,10 +2903,10 @@ static void od_mv_dp_prev_row_block_setup(od_mv_est_ctx *est,
       if (state->mv_grid[vy + half_mvb_sz][vx - half_mvb_sz].valid) {
         int dlvx;
         int dlvy;
-        dlvx = vx - (half_mvb_sz>>1);
-        dlvy = vy + (half_mvb_sz>>1);
+        dlvx = vx - (half_mvb_sz >> 1);
+        dlvy = vy + (half_mvb_sz >> 1);
         if (level > 0 || !state->mv_grid[dlvy][dlvx].valid) {
-          mvb_off=half_mvb_sz;
+          mvb_off = half_mvb_sz;
         }
         else mvb_off = half_mvb_sz >> 1;
         dp->blocks[nblocks++] = est->mvs[vy] + vx - mvb_off;
@@ -4854,7 +4852,6 @@ int od_mv_est_update_mv_rates(od_mv_est_ctx *est, int mv_res) {
   }
   return dr;
 }
-
 
 od_mv_est_ctx *od_mv_est_alloc(od_enc_ctx *enc) {
   od_mv_est_ctx *ret;
