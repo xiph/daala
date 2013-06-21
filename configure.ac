@@ -100,6 +100,21 @@ AC_ARG_ENABLE([unit-tests],
 
 if test "$enable_unit_tests" = "yes" ; then
   PKG_CHECK_MODULES([CHECK], [check])
+
+  dnl As of version 0.9.10, check does not include -pthread in its Cflags or
+  dnl Libs even though it does depend on it. Assuming that check.pc may one day
+  dnl be fixed for that, only add it here if it's not there already.  It really
+  dnl belongs in LDFLAGS here (since check is a static lib and doesn't expose
+  dnl pthread functions in its header), but it can't be added to CHECK_LIBS,
+  dnl since automake 1.13 will barf about adding -pthread to *_LDADD rather
+  dnl than *_LDFLAGS.  However libtool does also include CFLAGS when linking.
+  case $CHECK_CFLAGS in
+    *-pthread*)
+      ;;
+    *)
+      CHECK_CFLAGS="-pthread $CHECK_CFLAGS"
+      ;;
+  esac
 fi
 AM_CONDITIONAL(ENABLE_UNIT_TESTS, [test $enable_unit_tests = "yes"])
 

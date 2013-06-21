@@ -443,7 +443,7 @@ src_tests_test_filters_LDADD = \
 src_tests_check_tests_SOURCES = \
  src/tests/check_main.c \
  src/tests/headerencode_test.c
-src_tests_check_tests_CFLAGS = $(OGG_CFLAGS)
+src_tests_check_tests_CFLAGS = $(OGG_CFLAGS) $(CHECK_CFLAGS)
 src_tests_check_tests_LDADD = \
  src/libdaalabase.la \
  src/libdaaladec.la \
