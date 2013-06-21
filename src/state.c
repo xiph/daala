@@ -932,8 +932,8 @@ void od_state_fill_vis(od_state *state) {
       int diff;
       int px;
       int py;
-      px = y >> xdec;
-      py = x >> xdec;
+      px = x >> xdec;
+      py = y >> ydec;
       diff = *(img->planes[0].data + img->planes[0].ystride*py + px)
        - *(ref_img->planes[0].data + ref_img->planes[0].ystride*py + px);
       /*Scale the differences by 2 to make them visible.*/
