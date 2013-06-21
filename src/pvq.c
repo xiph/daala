@@ -100,6 +100,7 @@ static int compare(const RDOEntry *a, const RDOEntry *b)
 }
 #endif
 
+#if 0
 #define SWAP(x,a,b) do{RDOEntry tmp=x[b];x[b]=x[a];x[a]=tmp;}while(0);
 static void find_nbest(RDOEntry *x, int n, int len)
 {
@@ -137,6 +138,7 @@ static void find_nbest(RDOEntry *x, int n, int len)
     }
   };
 }
+#endif
 
 /* This is a "standard" pyramid vector quantizer search */
 static void pvq_search_rdo(int *x,float *scale,float *scale_1,float g,int N,int K,int *y,int m,float lambda){
