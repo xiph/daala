@@ -404,7 +404,7 @@ int main(int _argc,char **_argv){
   int               video_keyframe_rate;
   int               video_ready;
   int               pli;
-  od_log_init(NULL);
+  daala_log_init();
 #if defined(_WIN32)
   _setmode(_fileno(stdin),_O_BINARY);
   _setmode(_fileno(stdout),_O_BINARY);

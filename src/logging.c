@@ -86,6 +86,10 @@ static const char *od_log_level_name(od_log_level level) {
   return od_log_level_names[level];
 }
 
+int daala_log_init(void) {
+  return od_log_init(NULL);
+}
+
 int od_log_init(od_logger_function logger) {
   char *ptr;
   char *nextptr;

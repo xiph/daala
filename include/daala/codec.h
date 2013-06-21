@@ -132,6 +132,16 @@ typedef struct daala_comment daala_comment;
 
 const char *daala_version_string(void);
 
+/**Initialize the logging module.
+   This should be called once before invoking any other Daala functions if
+    logging support is enabled and you want to use it.
+   Otherwise no logging messages will be printed.
+   \retval 0 Success.
+             This function always succeeds.
+             It only returns a value for convenience (e.g., for use in a static
+              initializer).*/
+int daala_log_init(void);
+
 /** Representation of a single component within an image or frame. */
 struct od_img_plane {
   unsigned char *data;
