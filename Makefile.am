@@ -127,7 +127,7 @@ endif
 
 # Includes
 
-daalaincludedir = ${includedir}/daala
+daalaincludedir = $(includedir)/daala
 daalainclude_HEADERS = \
 	include/daala/codec.h \
 	include/daala/daaladec.h \
@@ -432,13 +432,13 @@ src_tests_test_divu_small_SOURCES = src/tests/test_divu_small.c
 src_tests_test_divu_small_CFLAGS = $(OGG_CFLAGS)
 src_tests_test_divu_small_LDADD = \
  src/libdaalabase.la \
- ${OGG_LIBS}
+ $(OGG_LIBS)
 
 src_tests_test_filters_SOURCES = src/tests/test_filters.c
 src_tests_test_filters_CFLAGS = $(OGG_CFLAGS)
 src_tests_test_filters_LDADD = \
  src/libdaalabase.la \
- ${OGG_LIBS}
+ $(OGG_LIBS)
 
 src_tests_check_tests_SOURCES = \
  src/tests/check_main.c \
