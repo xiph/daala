@@ -84,11 +84,13 @@ ifeq ($(findstring -DOD_DUMP_IMAGES,${CFLAGS}),-DOD_DUMP_IMAGES)
     LIBS += -lpng -lz
 endif
 
+CHECK_LIBS := -pthread $(shell pkg-config check --libs)
+
 ECTEST_LIBS = -lm
 TEST_COEF_CODER_LIBS =
-TEST_HEADER_LIBS = -lcheck
+TEST_HEADER_LIBS = ${CHECK_LIBS}
 TEST_LOGGING_LIBS =
-TEST_CHECK_INITIAL_LIBS = -lcheck
+TEST_CHECK_INITIAL_LIBS = ${CHECK_LIBS}
 TEST_DIVU_SMALL_LIBS =
 TEST_FILTER_LIBS =
 
