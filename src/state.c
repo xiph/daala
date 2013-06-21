@@ -61,8 +61,8 @@ static void od_state_ref_imgs_init(od_state *state, int nrefs, int nio) {
   info = &state->info;
   data_sz = 0;
   /*TODO: Check for overflow before allocating.*/
-  frame_buf_width = (state->frame_width + (OD_UMV_PADDING << 1));
-  frame_buf_height = (state->frame_height + (OD_UMV_PADDING << 1));
+  frame_buf_width = state->frame_width + (OD_UMV_PADDING << 1);
+  frame_buf_height = state->frame_height + (OD_UMV_PADDING << 1);
   for (pli = 0; pli < info->nplanes; pli++) {
     /*Reserve space for this plane in nrefs reference images.*/
     plane_buf_width = frame_buf_width >> info->plane_info[pli].xdec;
@@ -90,7 +90,7 @@ static void od_state_ref_imgs_init(od_state *state, int nrefs, int nio) {
       iplane = img->planes + pli;
       iplane->data = ref_img_data
        + ((OD_UMV_PADDING << 1) >> info->plane_info[pli].xdec)
-       + plane_buf_width*((OD_UMV_PADDING <<1 ) >> info->plane_info[pli].ydec);
+       + plane_buf_width*((OD_UMV_PADDING << 1) >> info->plane_info[pli].ydec);
       ref_img_data += plane_buf_width*plane_buf_height;
       iplane->xdec = info->plane_info[pli].xdec;
       iplane->ydec = info->plane_info[pli].ydec;
@@ -292,7 +292,7 @@ void od_state_upsample8(od_state *state, int refi) {
           memcpy(dst - (xpad << 1),
            state->ref_line_buf[(y - 2) & 3] - (xpad << 1),
            (w + (xpad << 1)) << 1);
-          /*fprintf(stderr,"%3i: ", (y - 2) << 1 | 1);
+          /*fprintf(stderr, "%3i: ", (y - 2) << 1 | 1);
           for (x = -xpad << 1; x < (w + xpad) << 1; x++) {
             fprintf(stderr, "%02X", *(dst + x));
           }
@@ -361,7 +361,7 @@ void od_state_upsample8(od_state *state, od_img *dimg, const od_img *simg) {
         unsigned char *buf;
         buf = state->ref_line_buf[y & 7];
         memset(buf - (xpad << 1), src[0], (xpad - 2) << 1);
-        /*for(x = -xpad; x < -2; x++) {
+        /*for (x = -xpad; x < -2; x++) {
           *(buf + (x << 1)) = src[0];
           *(buf + (x << 1 | 1)) = src[0];
         }*/
@@ -395,7 +395,7 @@ void od_state_upsample8(od_state *state, od_img *dimg, const od_img *simg) {
         buf[x << 1] = src[w - 1];
         buf[x << 1 | 1] = OD_CLAMP255((31*src[w - 1] + src[w - 2] + 16) >> 5);
         memset(buf + (++x << 1), src[w - 1], (xpad - 1) << 1);
-        /*for(x++; x < w + xpad; x++) {
+        /*for (x++; x < w + xpad; x++) {
           buf[x << 1] = src[w - 1];
           buf[x << 1 | 1]=src[w - 1];
         }*/
@@ -416,7 +416,7 @@ void od_state_upsample8(od_state *state, od_img *dimg, const od_img *simg) {
           memcpy(dst - (xpad << 1),
            state->ref_line_buf[(y - 3) & 7] - (xpad << 1),
            (w + (xpad << 1)) << 1);
-          /*fprintf(stderr,"%3i: ", (y - 3) << 1 | 1);
+          /*fprintf(stderr, "%3i: ", (y - 3) << 1 | 1);
           for (x = -xpad << 1; x < (w + xpad) << 1; x++) {
             fprintf(stderr, "%02X", *(dst + x));
           }
@@ -533,7 +533,7 @@ void od_state_pred_block_from_setup(od_state *state,
     /*if (oc == 3) etype |= (etype & 8) >> 3;
     else etype |= (etype & 1 << oc) << 1;*/
     etype |= (etype | etype << 4) >> 3 & 1 << ((oc + 1) & 3);
-    if (etype >> oc & 1 ) {
+    if (etype >> oc & 1) {
       mvx[(oc + 1) & 3] = mvx[oc] + mvx[(oc + 1) & 3] >> 1;
       mvy[(oc + 1) & 3] = mvy[oc] + mvy[(oc + 1) & 3] >> 1;
     }
@@ -637,7 +637,7 @@ int od_state_dump_yuv(od_state *state, od_img *img, const char *suf) {
     for (y = 0; y < (pic_height + ydec) >> ydec; y++) {
       if (fwrite(img->planes[pli].data + ystride*y,
        (pic_width + xdec) >> xdec, 1, fp) < 1) {
-        fprintf(stderr, "Error writing to \"%s\".\n",fname);
+        fprintf(stderr, "Error writing to \"%s\".\n", fname);
         return OD_EFAULT;
       }
     }
@@ -653,7 +653,7 @@ int od_state_dump_yuv(od_state *state, od_img *img, const char *suf) {
 /*State visualization.
   None of this is particularly fast.*/
 
-/*static const unsigned char OD_YCbCr_BORDER[3]={ 49,109,184};*/
+/*static const unsigned char OD_YCbCr_BORDER[3] = {49, 109, 184};*/
 static const unsigned char OD_YCbCr_BORDER[3] = {113, 72, 137};
 static const unsigned char OD_YCbCr_BEDGE[3] = {41, 240, 110};
 static const unsigned char OD_YCbCr_VEDGE[3] = {145, 54, 34};
@@ -880,7 +880,7 @@ static void od_state_draw_mvs_block(od_state *state,
     for (k = 0; k < 4; k++) {
       x0 = (vx - 2 + (dxp[k] << log_mvb_sz) << 3) + (OD_UMV_PADDING << 1);
       y0 = (vy - 2 + (dyp[k] << log_mvb_sz) << 3) + (OD_UMV_PADDING << 1);
-      /*od_img_draw_point(&state->vis_img,x0,y0,OD_YCbCr_MV);*/
+      /*od_img_draw_point(&state->vis_img, x0, y0, OD_YCbCr_MV);*/
       od_img_draw_line(&state->vis_img, x0, y0,
        x0 + OD_DIV_ROUND_POW2(grid[k]->mv[0], 2, 2),
        y0 + OD_DIV_ROUND_POW2(grid[k]->mv[1], 2, 2), OD_YCbCr_MV);
@@ -979,9 +979,9 @@ void od_state_fill_vis(od_state *state) {
   od_img_draw_line(img, border - 2, img->height - border + 1,
    img->width - border + 1, img->height - border + 1, OD_YCbCr_BORDER);
   od_img_draw_line(img, border - 1, border - 1,
-   border - 1, img->height-border, OD_YCbCr_BORDER);
-  od_img_draw_line(img,border - 2, border - 2,
-   border - 2, img->height-border + 1, OD_YCbCr_BORDER);
+   border - 1, img->height - border, OD_YCbCr_BORDER);
+  od_img_draw_line(img, border - 2, border - 2,
+   border - 2, img->height - border + 1, OD_YCbCr_BORDER);
   od_state_draw_mv_grid(state);
   od_state_draw_mvs(state);
 }
@@ -1001,7 +1001,7 @@ int od_state_dump_img(od_state *state, od_img *img, const char *suf) {
   int y;
   sprintf(fname, "%08i%s.png",
    (int)daala_granule_basetime(state, state->cur_time), suf);
-  fp = fopen(fname,"wb");
+  fp = fopen(fname, "wb");
   png = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
   if (png == NULL) {
     fclose(fp);
@@ -1086,7 +1086,7 @@ int od_state_dump_img(od_state *state, od_img *img, const char *suf) {
 #endif
 
 void od_state_mc_predict(od_state *state, int ref) {
-  unsigned char  __attribute__((aligned(16))) buf[16][16];
+  unsigned char __attribute__((aligned(16))) buf[16][16];
   od_img *img;
   int nhmvbs;
   int nvmvbs;
