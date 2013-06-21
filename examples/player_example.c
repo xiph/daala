@@ -367,7 +367,7 @@ int main(int argc, char *argv[]) {
   char *input;
   int start_paused;
   player_example *player;
-
+  daala_log_init();
   if ((argc == 3) && (memcmp(argv[1], "-p", 2) == 0)) {
     start_paused = 1;
     input = argv[2];

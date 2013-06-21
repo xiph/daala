@@ -181,7 +181,7 @@ int main(int argc,char *argv[]){
   ogg_int32_t fps_denom = 0;
   FILE *infile = stdin;
   outfile = stdout;
-
+  daala_log_init();
 #ifdef _WIN32 /* We need to set stdin/stdout to binary mode on windows. */
   /* Beware the evil ifdef. We avoid these where we can, but this one we
      cannot. Don't add any more, you'll probably go to hell if you do. */
