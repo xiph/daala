@@ -85,6 +85,9 @@ PKG_CHECK_MODULES([SDL], [sdl])
 PKG_CHECK_MODULES([PNG], [libpng])
 PKG_CHECK_MODULES([THEORA], [theoradec])
 
+dnl Set LIBM to the math library if needed.
+LT_LIB_M
+
 #CC_ATTRIBUTE_VISIBILITY([default], [
 #  CC_FLAG_VISIBILITY([CFLAGS="${CFLAGS} -fvisibility=hidden"])
 #])

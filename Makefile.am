@@ -28,7 +28,7 @@ noinst_HEADERS = \
 	src/tf.h
 
 src_libdaalabase_la_CFLAGS = $(OGG_CFLAGS)
-src_libdaalabase_la_LIBADD = $(OGG_LIBS) -lm
+src_libdaalabase_la_LIBADD = $(OGG_LIBS) $(LIBM)
 if DUMP_IMAGES
   src_libdaalabase_la_LIBADD += $(PNG_LIBS)
 endif
@@ -72,7 +72,7 @@ src_libdaalabase_la_SOURCES += \
 endif
 
 src_libdaaladec_la_CFLAGS = $(OGG_CFLAGS)
-src_libdaaladec_la_LIBADD = src/libdaalabase.la $(OGG_LIBS)
+src_libdaaladec_la_LIBADD = src/libdaalabase.la $(OGG_LIBS) $(LIBM)
 if DUMP_IMAGES
   src_libdaaladec_la_LIBADD += $(PNG_LIBS)
 endif
@@ -84,7 +84,7 @@ src_libdaaladec_la_SOURCES = \
 	src/infodec.c
 
 src_libdaalaenc_la_CFLAGS = $(OGG_CFLAGS)
-src_libdaalaenc_la_LIBADD = src/libdaalabase.la $(OGG_LIBS)
+src_libdaalaenc_la_LIBADD = src/libdaalabase.la $(OGG_LIBS) $(LIBM)
 if DUMP_IMAGES
   src_libdaalaenc_la_LIBADD += $(PNG_LIBS)
 endif
@@ -113,7 +113,7 @@ endif
 
 examples_encoder_example_SOURCES = examples/encoder_example.c
 examples_encoder_example_CFLAGS = $(OGG_CFLAGS)
-examples_encoder_example_LDADD = src/libdaalabase.la src/libdaalaenc.la $(OGG_LIBS) -lm
+examples_encoder_example_LDADD = src/libdaalabase.la src/libdaalaenc.la $(OGG_LIBS) $(LIBM)
 if DUMP_IMAGES
   examples_encoder_example_LDADD += $(PNG_LIBS)
 endif
@@ -194,7 +194,7 @@ tools_dump_psnrhvs_SOURCES = \
 	src/newdct.c \
 	tools/dump_psnrhvs.c
 tools_dump_psnrhvs_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS)
-tools_dump_psnrhvs_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) -lm
+tools_dump_psnrhvs_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
 
 # block_size_analysis
 tools_block_size_analysis_SOURCES = \
@@ -209,13 +209,13 @@ tools_block_size_analysis_SOURCES = \
 	src/filter.c \
 	src/switch_table.c
 tools_block_size_analysis_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS)
-tools_block_size_analysis_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) -lm
+tools_block_size_analysis_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
 
 # divu_const
 tools_divu_const_SOURCES = \
 	tools/divu_const.c
 tools_divu_const_CFLAGS = $(OGG_CFLAGS)
-tools_divu_const_LDADD = $(OGG_LIBS) -lm
+tools_divu_const_LDADD = $(OGG_LIBS) $(LIBM)
 
 # plot_intra_maps
 tools_plot_intra_maps_SOURCES = \
@@ -224,7 +224,7 @@ tools_plot_intra_maps_SOURCES = \
 	tools/intra_fit_tools.c \
 	tools/vidinput.c
 tools_plot_intra_maps_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS)
-tools_plot_intra_maps_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) -lm
+tools_plot_intra_maps_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
 
 # init_intra_maps
 tools_init_intra_maps_SOURCES = \
@@ -232,7 +232,7 @@ tools_init_intra_maps_SOURCES = \
 	tools/intra_fit_tools.c \
 	tools/vidinput.c
 tools_init_intra_maps_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS)
-tools_init_intra_maps_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) -lm
+tools_init_intra_maps_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
 
 # intra_stats
 tools_intra_stats_SOURCES = \
@@ -253,7 +253,7 @@ tools_intra_stats_SOURCES = \
 	src/internal.c \
 	src/intradata.c
 tools_intra_stats_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS) -fopenmp
-tools_intra_stats_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) -lm
+tools_intra_stats_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
 
 # intra_pred
 tools_intra_pred_SOURCES = \
@@ -276,7 +276,7 @@ tools_intra_pred_SOURCES = \
 	src/internal.c \
 	src/tf.c
 tools_intra_pred_CFLAGS = $(OGG_CFLAGS) $(PNG_CFLAGS) -fopenmp
-tools_intra_pred_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) -lm
+tools_intra_pred_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
 
 # intra_trace
 tools_intra_trace_SOURCES = \
@@ -298,7 +298,7 @@ tools_intra_trace_SOURCES = \
 	src/internal.c \
 	src/intradata.c
 tools_intra_trace_CFLAGS = $(OGG_CFLAGS) $(PNG_CFLAGS) -fopenmp
-tools_intra_trace_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) -lm
+tools_intra_trace_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
 
 # trans
 tools_trans_SOURCES = \
@@ -322,7 +322,7 @@ tools_trans_SOURCES = \
 	src/newdct.c \
 	src/intradata.c
 tools_trans_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS) -fopenmp
-tools_trans_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) -lm
+tools_trans_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
 
 # trans_gain
 tools_trans_gain_SOURCES = \
@@ -335,7 +335,7 @@ tools_trans_gain_SOURCES = \
 	src/newdct.c \
 	src/intradata.c
 tools_trans_gain_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS) -fopenmp
-tools_trans_gain_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) -lm
+tools_trans_gain_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
 
 #trans2d
 tools_trans2d_SOURCES = \
@@ -359,7 +359,7 @@ tools_trans2d_SOURCES = \
 	src/newdct.c \
 	src/intradata.c
 tools_trans2d_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS) -fopenmp
-tools_trans2d_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) -lm
+tools_trans2d_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
 
 # init_intra_xform
 tools_init_intra_xform_SOURCES = \
@@ -375,19 +375,19 @@ tools_init_intra_xform_SOURCES = \
 	src/internal.c \
 	src/intradata.c
 tools_init_intra_xform_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS)
-tools_init_intra_xform_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) -lm
+tools_init_intra_xform_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
 
 # gen_cdf
 tools_gen_cdf_SOURCES = \
 	tools/gen_cdf.c
 tools_gen_cdf_CFLAGS = $(OGG_CFLAGS) $(PNG_CFLAGS)
-tools_gen_cdf_LDADD = $(OGG_LIBS) $(PNG_LIBS) -lm
+tools_gen_cdf_LDADD = $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
 
 # gen_laplace_tables
 tools_gen_laplace_tables_SOURCES = \
 	tools/gen_laplace_tables.c
 tools_gen_laplace_tables_CFLAGS = $(OGG_CFLAGS) $(PNG_CFLAGS)
-tools_gen_laplace_tables_LDADD = $(OGG_LIBS) $(PNG_LIBS) -lm
+tools_gen_laplace_tables_LDADD = $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
 
 
 # Tests
@@ -411,7 +411,7 @@ TESTS = \
 
 src_tests_ectest_SOURCES = src/tests/ectest.c
 src_tests_ectest_CFLAGS = $(OGG_CFLAGS)
-src_tests_ectest_LDADD = -lm
+src_tests_ectest_LDADD = $(LIBM)
 
 src_tests_test_coef_coder_SOURCES = src/tests/test_coef_coder.c
 src_tests_test_coef_coder_CFLAGS = $(OGG_CFLAGS)
@@ -419,7 +419,7 @@ src_tests_test_coef_coder_LDADD = \
  src/libdaalabase.la \
  src/libdaaladec.la \
  $(OGG_LIBS) \
- -lm
+ $(LIBM)
 
 src_tests_logging_test_SOURCES = src/tests/logging_test.c
 src_tests_logging_test_CFLAGS = $(OGG_CFLAGS)
@@ -450,7 +450,7 @@ src_tests_check_tests_LDADD = \
  src/libdaalaenc.la \
  $(OGG_LIBS) \
  $(CHECK_LIBS) \
- -lm
+ $(LIBM)
 
 endif
 
