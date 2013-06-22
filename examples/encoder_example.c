@@ -288,7 +288,7 @@ static void id_file(av_input *_avin,const char *_file){
   }
   else{
     fprintf(stderr,
-     "Input file '%s' is neither a RIFF WAVE or YUV4MPEG2 file.\n",_file);
+     "Input file '%s' is not a YUV4MPEG2 file.\n",_file);
   }
 }
 
