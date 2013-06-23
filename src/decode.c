@@ -113,6 +113,7 @@ struct od_mb_dec_ctx {
   od_coeff *md;
   od_coeff *mc;
   od_coeff *l;
+  int run_pvq[OD_NPLANES_MAX];
   int ex_dc[OD_NPLANES_MAX];
   int ex_g[OD_NPLANES_MAX];
   int is_keyframe;
@@ -149,18 +150,15 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   int qg;
   int zzi;
   int vk;
-  int scale;
+  int run_pvq;
   unsigned char const *zig;
-#ifdef OD_LOLOSSLESS
-  od_coeff backup[16*16];
-#endif
   OD_ASSERT(ln >= 0 && ln <= 2);
+  run_pvq = ctx->run_pvq[pli];
   n = 1 << (ln + 2);
   n2 = n*n;
   bx <<= ln;
   by <<= ln;
   zig = OD_DCT_ZIGS[ln];
-  scale = OD_MAXI((dec->scale[pli]*OD_TRANS_QUANT_ADJ[ln] + (1 << 14)) >> 15, 1);
   xdec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
   ydec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
   frame_width = dec->state.frame_width;
@@ -304,29 +302,41 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
       predt[zig[y*n + x]] = pred[y*n + x];
     }
   }
-#ifdef OD_LOLOSSLESS
-  for (zzi = 0; zzi < n2; zzi++) {
-    backup[zzi] = od_ec_dec_uint(&dec->ec, 65536);
+  if (!run_pvq) {
+    int scale;
+    scale = OD_MAXI(dec->scale[pli], 1);
+    pred[0] = generic_decode(&dec->ec, ctx->model_dc + pli,
+     ctx->ex_dc + pli, 0);
+    if (pred[0]) pred[0] *= od_ec_dec_bits(&dec->ec, 1) ? -1 : 1;
+    pred[0] = pred[0]*scale + predt[0];
+    vk = generic_decode(&dec->ec, ctx->model_g + pli, ctx->ex_g + pli, 0);
+    pvq_decoder(&dec->ec, pred + 1, n2 - 1, vk, &ctx->adapt);
+    for (zzi = 1; zzi < n2; zzi++) pred[zzi] = pred[zzi]*scale + predt[zzi];
   }
-#endif
-  sgn = 0;
-  pred[0] = generic_decode(&dec->ec, ctx->model_dc + pli, ctx->ex_dc + pli, 0);
-  if (pred[0]) sgn = od_ec_dec_bits(&dec->ec,1);
-  pred[0] = (int)(pow(pred[0], 4.0/3)*scale);
-  pred[0] *= sgn ? -1 : 1;
-  pred[0] += predt[0];
-  qg = generic_decode(&dec->ec, ctx->model_g + pli, ctx->ex_g + pli, 0);
-  if (qg) qg *= od_ec_dec_bits(&dec->ec, 1) ? -1 : 1;
-  vk = pvq_unquant_k(&predt[1], n2 - 1, qg, scale, 4 - ln, ctx->is_keyframe);
-  pred[1] = 0;
-  if (vk != 0) {
-    int ex_ym;
-    ex_ym = (65536/2)*vk;
-    pred[1] = vk - generic_decode(&dec->ec, ctx->model_ym + pli, &ex_ym, 0);
+  if (run_pvq) {
+    int scale;
+    scale = OD_MAXI((dec->scale[pli]*OD_TRANS_QUANT_ADJ[ln]
+     + (1 << 14)) >> 15, 1);
+    sgn = 0;
+    pred[0] = generic_decode(&dec->ec, ctx->model_dc + pli,
+     ctx->ex_dc + pli, 0);
+    if (pred[0]) sgn = od_ec_dec_bits(&dec->ec, 1);
+    pred[0] = (int)(pow(pred[0], 4.0/3)*scale);
+    pred[0] *= sgn ? -1 : 1;
+    pred[0] += predt[0];
+    qg = generic_decode(&dec->ec, ctx->model_g + pli, ctx->ex_g + pli, 0);
+    if (qg) qg *= od_ec_dec_bits(&dec->ec, 1) ? -1 : 1;
+    vk = pvq_unquant_k(&predt[1], n2 - 1, qg, scale, 4 - ln, ctx->is_keyframe);
+    pred[1] = 0;
+    if (vk != 0) {
+      int ex_ym;
+      ex_ym = (65536/2)*vk;
+      pred[1] = vk - generic_decode(&dec->ec, ctx->model_ym + pli, &ex_ym, 0);
+    }
+    pvq_decoder(&dec->ec, pred + 2, n2 - 2, vk - abs(pred[1]), &ctx->adapt);
+    dequant_pvq(pred + 1, predt + 1, pvq_scale, n2 - 1, scale, qg, 4 - ln,
+     ctx->is_keyframe);
   }
-  pvq_decoder(&dec->ec, pred + 2, n2 - 2, vk - abs(pred[1]), &ctx->adapt);
-  dequant_pvq(pred + 1, predt + 1, pvq_scale, n2 - 1, scale, qg, 4 - ln,
-   ctx->is_keyframe);
   if (ctx->adapt.curr[OD_ADAPT_K_Q8] >= 0) {
     ctx->nk++;
     ctx->k_total += ctx->adapt.curr[OD_ADAPT_K_Q8];
@@ -337,11 +347,6 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
     ctx->count_total_q8 += ctx->adapt.curr[OD_ADAPT_COUNT_Q8];
     ctx->count_ex_total_q8 += ctx->adapt.curr[OD_ADAPT_COUNT_EX_Q8];
   }
-#ifdef OD_LOLOSSLESS
-  for (zzi = 0; zzi < n2; zzi++) {
-    pred[zzi] = backup[zzi] - 32768;
-  }
-#endif
   /*De-zigzag*/
   for (y = 0; y < n; y++) {
     for (x = 0; x < n; x++) {
@@ -603,6 +608,8 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
       w = frame_width >> xdec;
       h = frame_height >> ydec;
       dec->scale[pli] = od_ec_dec_uint(&dec->ec, 512);
+      mbctx.run_pvq[pli] = dec->scale[pli] &&
+       od_ec_decode_bool_q15(&dec->ec, 16384);
       ctmp[pli] = _ogg_calloc(w*h, sizeof(*ctmp[pli]));
       dtmp[pli] = _ogg_calloc(w*h, sizeof(*dtmp[pli]));
       /*We predict chroma planes from the luma plane.

@@ -49,13 +49,14 @@ static double mode_bits = 0;
 static double mode_count = 0;
 
 static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
+  int i;
   int ret;
   ret = od_state_init(&enc->state, info);
   if (ret < 0) return ret;
   oggbyte_writeinit(&enc->obb);
   od_ec_enc_init(&enc->ec, 65025);
   enc->packet_state = OD_PACKET_INFO_HDR;
-  enc->scale = 10;
+  for (i = 0; i < OD_NPLANES_MAX; i++) enc->scale[i] = 10;
   enc->mvest = od_mv_est_alloc(enc);
   return 0;
 }
@@ -91,10 +92,11 @@ int daala_encode_ctl(daala_enc_ctx *enc, int req, void *buf, size_t buf_sz) {
   switch (req) {
     case OD_SET_QUANT:
     {
+      int i;
       OD_ASSERT(enc);
       OD_ASSERT(buf);
-      OD_ASSERT(buf_sz == sizeof(enc->scale));
-      enc->scale = *(int*)buf;
+      OD_ASSERT(buf_sz == sizeof(*enc->scale));
+      for (i = 0; i < OD_NPLANES_MAX; i++) enc->scale[i] = *(int *)buf;
       return OD_SUCCESS;
     }
     default:return OD_EIMPL;
@@ -212,6 +214,7 @@ struct od_mb_enc_ctx {
   od_coeff *md;
   od_coeff *mc;
   od_coeff *l;
+  int run_pvq[OD_NPLANES_MAX];
   int ex_dc[OD_NPLANES_MAX];
   int ex_g[OD_NPLANES_MAX];
   int is_keyframe;
@@ -247,23 +250,21 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   int sgn;
   int qg;
   int cblock[16*16];
+  od_coeff scalar_out[16*16];
   int zzi;
   int vk;
-  int scale;
+  int run_pvq;
   unsigned char const *zig;
-#if defined(OD_LOLOSSLESS)
-  od_coeff backup[16*16];
-#endif
 #if defined(OD_OUTPUT_PRED)
   od_coeff preds[16*16];
 #endif
   OD_ASSERT(ln >= 0 && ln <= 2);
+  run_pvq = ctx->run_pvq[pli];
   n = 1 << (ln + 2);
   n2 = n*n;
   bx <<= ln;
   by <<= ln;
   zig = OD_DCT_ZIGS[ln];
-  scale = OD_MAXI((enc->scale*OD_TRANS_QUANT_ADJ[ln] + (1 << 14)) >> 15, 1);
   xdec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
   ydec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
   frame_width = enc->state.frame_width;
@@ -413,37 +414,66 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
       predt[zig[y*n + x]] = pred[y*n + x];
     }
   }
-#if defined(OD_LOLOSSLESS)
-  for (zzi = 0; zzi < n2; zzi++) {
-    backup[zzi] = cblock[zzi] + 32768;
-    OD_ASSERT(backup[zzi] >= 0);
-    OD_ASSERT(backup[zzi] < 65535);
-    od_ec_enc_uint(&enc->ec, backup[zzi], 65536);
+  if (!run_pvq) {
+    int scale;
+    scale = OD_MAXI(enc->scale[pli], 1);
+    scalar_out[0] = OD_DIV_R0(cblock[0] - predt[0], scale);
+    generic_encode(&enc->ec, ctx->model_dc + pli, abs(scalar_out[0]),
+     ctx->ex_dc + pli, 0);
+    if (scalar_out[0]) od_ec_enc_bits(&enc->ec, scalar_out[0] < 0, 1);
+    scalar_out[0] = scalar_out[0]*scale;
+    scalar_out[0] += predt[0];
+    vk = 0;
+    for (zzi = 1; zzi < n2; zzi++) {
+      scalar_out[zzi] = OD_DIV_R0(cblock[zzi] - predt[zzi], scale);
+      vk += abs(scalar_out[zzi]);
+    }
+    generic_encode(&enc->ec, ctx->model_g + pli, vk,
+     ctx->ex_g + pli, 0);
+    pvq_encoder(&enc->ec, scalar_out + 1, n2 - 1, vk, &ctx->adapt);
+    for (zzi = 1; zzi < n2; zzi++) {
+      scalar_out[zzi] = scalar_out[zzi]*scale + predt[zzi];
+    }
+    /*De-zigzag*/
+    for (y = 0; y < n; y++) {
+      for (x = 0; x < n; x++) {
+        d[((by << 2) + y)*w + (bx << 2) + x] = scalar_out[zig[y*n + x]];
+      }
+    }
   }
-#endif
-  sgn = (cblock[0] - predt[0]) < 0;
-  cblock[0] = (int)floor(pow(fabs(cblock[0] - predt[0])/scale, 0.75));
-  generic_encode(&enc->ec, ctx->model_dc + pli, cblock[0],
-   ctx->ex_dc + pli, 0);
-  if (cblock[0]) od_ec_enc_bits(&enc->ec, sgn, 1);
-  cblock[0] = (int)(pow(cblock[0], 4.0/3)*scale);
-  cblock[0] *= sgn ? -1 : 1;
-  cblock[0] += predt[0];
-  quant_pvq(cblock + 1, predt + 1, pvq_scale, pred + 1, n2 - 1, scale, &qg,
-   4 - ln, ctx->is_keyframe);
-  generic_encode(&enc->ec, ctx->model_g + pli, abs(qg),
-   ctx->ex_g + pli, 0);
-  if (qg) od_ec_enc_bits(&enc->ec, qg < 0, 1);
-  vk = 0;
-  for (zzi = 0; zzi < n2 - 1; zzi++) vk += abs(pred[zzi + 1]);
-  /*No need to code vk because we can get it from qg.*/
-  /*Expectation is that half the pulses will go in y[m].*/
-  if (vk != 0) {
-    int ex_ym;
-    ex_ym = (65536/2)*vk;
-    generic_encode(&enc->ec, &ctx->model_ym[pli], vk - pred[1], &ex_ym, 0);
+  if (run_pvq) {
+    int scale;
+    scale = OD_MAXI((enc->scale[pli]*OD_TRANS_QUANT_ADJ[ln] + (1 << 14)) >> 15, 1);
+    sgn = (cblock[0] - predt[0]) < 0;
+    cblock[0] = (int)floor(pow(fabs(cblock[0] - predt[0])/scale, 0.75));
+    generic_encode(&enc->ec, ctx->model_dc + pli, cblock[0],
+     ctx->ex_dc + pli, 0);
+    if (cblock[0]) od_ec_enc_bits(&enc->ec, sgn, 1);
+    cblock[0] = (int)(pow(cblock[0], 4.0/3)*scale);
+    cblock[0] *= sgn ? -1 : 1;
+    cblock[0] += predt[0];
+    quant_pvq(cblock + 1, predt + 1, pvq_scale, pred + 1, n2 - 1, scale,
+     &qg, 4 - ln, ctx->is_keyframe);
+    generic_encode(&enc->ec, ctx->model_g + pli, abs(qg),
+     ctx->ex_g + pli, 0);
+    if (qg) od_ec_enc_bits(&enc->ec, qg < 0, 1);
+    vk = 0;
+    for (zzi = 0; zzi < n2 - 1; zzi++) vk += abs(pred[zzi + 1]);
+    /*No need to code vk because we can get it from qg.*/
+    /*Expectation is that half the pulses will go in y[m].*/
+    if (vk != 0) {
+      int ex_ym;
+      ex_ym = (65536/2)*vk;
+      generic_encode(&enc->ec, &ctx->model_ym[pli], vk - pred[1], &ex_ym, 0);
+    }
+    pvq_encoder(&enc->ec, pred + 2, n2 - 2, vk - abs(pred[1]), &ctx->adapt);
+    /*De-zigzag*/
+    for (y = 0; y < n; y++) {
+      for (x = 0; x < n; x++) {
+        d[((by << 2) + y)*w + (bx << 2) + x] = cblock[zig[y*n + x]];
+      }
+    }
   }
-  pvq_encoder(&enc->ec, pred + 2, n2 - 2, vk - abs(pred[1]), &ctx->adapt);
   if (ctx->adapt.curr[OD_ADAPT_K_Q8] >= 0) {
     ctx->nk++;
     ctx->k_total += ctx->adapt.curr[OD_ADAPT_K_Q8];
@@ -453,17 +483,6 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
     ctx->ncount++;
     ctx->count_total_q8 += ctx->adapt.curr[OD_ADAPT_COUNT_Q8];
     ctx->count_ex_total_q8 += ctx->adapt.curr[OD_ADAPT_COUNT_EX_Q8];
-  }
-#if defined(OD_LOLOSSLESS)
-  for (zzi = 0; zzi < n2; zzi++) {
-    cblock[zzi] = backup[zzi] - 32768;
-  }
-#endif
-  /*De-zigzag*/
-  for (y = 0; y < n; y++) {
-    for (x = 0; x < n; x++) {
-      d[((by << 2) + y)*w + (bx << 2) + x] = cblock[zig[y*n + x]];
-    }
   }
   /*Apply the inverse transform.*/
 #if !defined(OD_OUTPUT_PRED)
@@ -845,7 +864,11 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       ydec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
       w = frame_width >> xdec;
       h = frame_height >> ydec;
-      od_ec_enc_uint(&enc->ec, enc->scale, 512);
+      mbctx.run_pvq[pli] = 1;
+      od_ec_enc_uint(&enc->ec, enc->scale[pli], 512);
+      /*If the scale is zero, force scalar.*/
+      if (!enc->scale[pli]) mbctx.run_pvq[pli] = 0;
+      else od_ec_encode_bool_q15(&enc->ec, mbctx.run_pvq[pli], 16384);
       ctmp[pli] = _ogg_calloc(w*h, sizeof(*ctmp[pli]));
       dtmp[pli] = _ogg_calloc(w*h, sizeof(*dtmp[pli]));
       mctmp[pli] = _ogg_calloc(w*h, sizeof(*mctmp[pli]));
@@ -1049,13 +1072,12 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       }
     }
     OD_LOG((OD_LOG_ENCODER, OD_LOG_DEBUG,
-            "Encoded Plane %i, Squared Error: %12lli  Pixels: %6u  PSNR:  %5.2f",
-            pli,(long long)enc_sqerr,npixels,10*log10(255*255.0*npixels/enc_sqerr)));
+     "Encoded Plane %i, Squared Error: %12lli  Pixels: %6u  PSNR:  %5.4f",
+     pli,(long long)enc_sqerr,npixels,10*log10(255*255.0*npixels/enc_sqerr)));
   }
 #endif
   OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO,
-          "mode bits: %f/%f=%f", mode_bits, mode_count,
-          mode_bits/mode_count));
+   "mode bits: %f/%f=%f", mode_bits, mode_count, mode_bits/mode_count));
   enc->packet_state = OD_PACKET_READY;
   od_state_upsample8(&enc->state,
    enc->state.ref_imgs + enc->state.ref_imgi[OD_FRAME_SELF],

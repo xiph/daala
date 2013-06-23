@@ -374,7 +374,7 @@ static void usage(void){
    "                                 511 yields the smallest files, but\n"
    "                                 lowest video quality; 1 yields the\n"
    "                                 highest quality, but large files;\n"
-   "                                 0 ends the universe.\n\n"
+   "                                 0 is lossless.\n\n"
    "  -k --keyframe-rate <n>         Fequence of keyframes in output.\n\n"
    "  -V --video-rate-target <n>     bitrate target for Daala video;\n"
    "                                 use -v and not -V if at all possible,\n"
