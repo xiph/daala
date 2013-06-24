@@ -1,0 +1,405 @@
+#LyX 2.0 created this file. For more info see http://www.lyx.org/
+\lyxformat 413
+\begin_document
+\begin_header
+\textclass article
+\use_default_options true
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman default
+\font_sans default
+\font_typewriter default
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100
+\font_tt_scale 100
+
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize default
+\spacing single
+\use_hyperref false
+\papersize default
+\use_geometry true
+\use_amsmath 1
+\use_esint 1
+\use_mhchem 1
+\use_mathdots 1
+\cite_engine basic
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\use_refstyle 1
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\leftmargin 3cm
+\topmargin 3cm
+\rightmargin 3cm
+\bottommargin 3cm
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\quotes_language english
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Title
+Jmspeex' Journal of Dubious Theoretical Results
+\end_layout
+
+\begin_layout Abstract
+This is a log of theoretical calculations and approximations that are used
+ in some of the Daala code.
+ Some approximations are likely to be too coarse, some assumptions may not
+ correspond to the observable universe and some calculations may just be
+ plain wrong.
+ You have been warned.
+\end_layout
+
+\begin_layout Part
+Relationship Between 
+\begin_inset Formula $\lambda$
+\end_inset
+
+ and 
+\begin_inset Formula $Q$
+\end_inset
+
+ in RDO
+\end_layout
+
+\begin_layout Standard
+When using a high-rate scalar quantizer, the distortion is given by
+\begin_inset Formula 
+\[
+D=\frac{Q^{2}}{12}\ ,
+\]
+
+\end_inset
+
+where 
+\begin_inset Formula $Q$
+\end_inset
+
+ is the quantizer's interval between two levels (not the maximum error like
+ in some other work).
+ The rate required to code the quantized values (assuming round-to-nearest)
+ is
+\begin_inset Formula 
+\[
+R=-\log_{2}Q+C
+\]
+
+\end_inset
+
+where 
+\begin_inset Formula $C$
+\end_inset
+
+ is a constant that does not depend on Q.
+ Starting from a known 
+\begin_inset Formula $\lambda$
+\end_inset
+
+ we want to find the quantization interval 
+\begin_inset Formula $Q$
+\end_inset
+
+ that minimizes the rate-distortion curve, so
+\begin_inset Formula 
+\begin{align*}
+\frac{\partial}{\partial Q}\left(D+\lambda R\right) & =0\\
+\frac{\partial}{\partial Q}\left(\frac{Q^{2}}{12}-\lambda\log_{2}Q-\lambda C\right) & =0\\
+\frac{Q}{6}-\frac{\lambda}{Q\log2} & =0\\
+Q & =\sqrt{\frac{6\lambda}{\log2}}
+\end{align*}
+
+\end_inset
+
+Or, if 
+\begin_inset Formula $Q$
+\end_inset
+
+ is known, then
+\begin_inset Formula 
+\[
+\lambda=\frac{Q^{2}\log2}{6}
+\]
+
+\end_inset
+
+ 
+\end_layout
+
+\begin_layout Part
+Rate-Distortion Analysis of a Quantized Laplace Distribution
+\end_layout
+
+\begin_layout Standard
+Here we assume that the quantization step size has already been taken into
+ account and that 
+\begin_inset Formula $\sigma$
+\end_inset
+
+ is the normalized standard deviation of a DCT coefficient.
+ The post-quantization distribution of a Laplace-distributed variable with
+ non-zero quantization threshold 
+\begin_inset Formula $\theta$
+\end_inset
+
+ is:
+\begin_inset Formula 
+\[
+p\left(n\right)=\begin{cases}
+1-r^{\theta} & n=0\\
+r^{\theta}\left(1-r\right)r^{n-1} & n>0
+\end{cases}
+\]
+
+\end_inset
+
+where 
+\begin_inset Formula $\theta=\frac{1}{2}$
+\end_inset
+
+ for round-to-nearest and 
+\begin_inset Formula $r=e^{-\sqrt{2}/\sigma}$
+\end_inset
+
+.
+ The entropy (rate) 
+\begin_inset Formula $R$
+\end_inset
+
+ of the quantized Laplace distribution is:
+\begin_inset Formula 
+\[
+R=\overset{\mathrm{sign}}{\overbrace{r^{\theta}}}+\overset{\mathrm{non-zero}}{\overbrace{H\left(r^{\theta}\right)}}+\overset{\mathrm{tail}}{\overbrace{\frac{r^{\theta}H\left(r\right)}{1-r}}}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+When 
+\begin_inset Formula $\sigma$
+\end_inset
+
+ is much smaller than the quantization step size (everything quantizes to
+ zero), then the distortion is simply 
+\begin_inset Formula $\sigma^{2}$
+\end_inset
+
+ and when 
+\begin_inset Formula $\sigma$
+\end_inset
+
+ is very large (flat distribution), then the distortion is that of a scalar
+ quantizer: 
+\begin_inset Formula $1/12$
+\end_inset
+
+.
+ So in the general case we can approximate with
+\begin_inset Formula 
+\[
+D=\min\left(\sigma^{2},\frac{1}{12}\right)
+\]
+
+\end_inset
+
+which tends to overestimate 
+\begin_inset Formula $D$
+\end_inset
+
+ in the region where 
+\begin_inset Formula $\sigma^{2}$
+\end_inset
+
+ is close to 
+\begin_inset Formula $1/12$
+\end_inset
+
+.
+ Assuming high-rate RDO, we have 
+\begin_inset Formula 
+\[
+\lambda=\frac{Q^{2}\log(2)}{6}=\frac{\log(2)}{6}\ .
+\]
+
+\end_inset
+
+The total RD-cost (expressed as a rate) becomes
+\begin_inset Formula 
+\[
+R+\frac{D}{\lambda}=r^{\theta}+H\left(r^{\theta}\right)+\frac{r^{\theta}H\left(r\right)}{1-r}+\min\left(\frac{6\sigma^{2}}{\log(2)},\frac{1}{2\log(2)}\right)
+\]
+
+\end_inset
+
+This cost function can be approximated by the (smoother) cost function
+\begin_inset Formula 
+\[
+C=\frac{1}{2}\log_{2}\left(1+\left(6.33\sigma\right)^{2}\right)
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Part
+Quantization of the Angle in PVQ
+\end_layout
+
+\begin_layout Standard
+Let 
+\begin_inset Formula $\mathbf{x}$
+\end_inset
+
+ and 
+\begin_inset Formula $\mathbf{y}$
+\end_inset
+
+ be unit vectors of the form 
+\begin_inset Formula 
+\[
+\mathbf{x}=\left[\cos\theta,\ \sin\theta\mathbf{x}^{'}\right]\ ,
+\]
+
+\end_inset
+
+where 
+\begin_inset Formula $\mathbf{x}^{'}$
+\end_inset
+
+ is also a unit vector.
+ Their inner product (and cosine distance) is 
+\begin_inset Formula 
+\[
+\mathbf{x}\cdot\mathbf{y}=\cos\theta_{x}\cos\theta_{y}+\sin\theta_{x}\sin\theta_{y}\left(\mathbf{x}^{'}\cdot\mathbf{y}^{'}\right)\ .
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+When PVQ quantizing a vector with 
+\begin_inset Formula $K=1$
+\end_inset
+
+, the worst-case cosine distance between 
+\begin_inset Formula $\mathbf{x}$
+\end_inset
+
+ and 
+\begin_inset Formula $\hat{\mathbf{x}}$
+\end_inset
+
+ is 
+\begin_inset Formula 
+\begin{align*}
+\mathbf{x}\cdot\mathbf{y} & =\frac{1}{\sqrt{N}}\\
+1-\frac{\Delta_{max}^{2}}{2} & \approx\frac{1}{\sqrt{N}}\\
+\Delta_{max}^{2} & \approx2-\frac{2}{\sqrt{N}}
+\end{align*}
+
+\end_inset
+
+The ratio between the average error and the max error is 
+\begin_inset Formula $N/\left(N+2\right)$
+\end_inset
+
+ (need to prove this properly), so we have
+\begin_inset Formula 
+\[
+\Delta_{avg}^{2}=\left(2-\frac{2}{\sqrt{N}}\right)\cdot\frac{N}{N+2}\ ,
+\]
+
+\end_inset
+
+and the average-case cosine distance is:
+\begin_inset Formula 
+\begin{align*}
+\mathbf{x}\cdot\mathbf{y} & =1-\frac{\Delta_{avg}^{2}}{2}\\
+ & =1-\frac{\sqrt{N}-1}{\sqrt{N}}\cdot\frac{N}{N+2}\\
+ & =1-\frac{N-\sqrt{N}}{N+2}\\
+ & =\frac{N+2-N+\sqrt{N}}{N+2}\\
+ & =\frac{2+\sqrt{N}}{2+N}
+\end{align*}
+
+\end_inset
+
+Considering the first level of PVQ quantization with 
+\begin_inset Formula $K=1$
+\end_inset
+
+, we have the average case
+\begin_inset Formula 
+\[
+\mathbf{x}\cdot\mathbf{y}=\cos\theta\cos\hat{\theta}+\sin\theta\sin\hat{\theta}\frac{2+\sqrt{N}}{2+N}\ .
+\]
+
+\end_inset
+
+where 
+\begin_inset Formula $\hat{\theta}$
+\end_inset
+
+ is the first quantization level for the angle.
+ The threshold 
+\begin_inset Formula $\theta$
+\end_inset
+
+ beyond which we should quantize to 
+\begin_inset Formula $\hat{\theta}$
+\end_inset
+
+ rather than 0 is
+\begin_inset Formula 
+\begin{align*}
+\cos\theta\cos\hat{\theta}+\sin\theta\sin\hat{\theta}\frac{2+\sqrt{N}}{2+N} & =\cos\theta\\
+\sin\theta\sin\hat{\theta}\frac{2+\sqrt{N}}{2+N} & =\cos\theta\left(1-\cos\hat{\theta}\right)\\
+\tan\theta & =\frac{\left(2+N\right)\left(1-\cos\hat{\theta}\right)}{\left(2+\sqrt{N}\right)\sin\hat{\theta}}\ .
+\end{align*}
+
+\end_inset
+
+Using the standard trig approximations, we get
+\begin_inset Formula 
+\[
+\theta=\arctan\left(\frac{\left(2+N\right)\hat{\theta}}{2\left(2+\sqrt{N}\right)}\right)
+\]
+
+\end_inset
+
+This is the first quantization threshold for theta 
+\end_layout
+
+\end_body
+\end_document
