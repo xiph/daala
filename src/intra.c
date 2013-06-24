@@ -206,7 +206,7 @@ void od_intra_pred4x4_dist(ogg_uint32_t *dist, const od_coeff *c,
     satd = 0;
     for (i = 0;i<4;i++){
       for (j = 0; j < 4 ; j++) {
-        satd += abs(c[stride*i + j] - p[i*4 + j] + 0.5)*
+        satd += abs(floor(c[stride*i + j] - p[i*4 + j] + 0.5))*
          OD_SATD_WEIGHTS_4x4[i*4 + j];
       }
     }
@@ -226,7 +226,7 @@ void od_intra_pred8x8_dist(ogg_uint32_t *dist, const od_coeff *c,
     satd = 0;
     for (i = 0; i < 8; i++) {
       for (j = 0; j < 8; j++) {
-        satd += abs(c[stride*i + j] - p[i*8 + j] + 0.5)*
+        satd += abs(floor(c[stride*i + j] - p[i*8 + j] + 0.5))*
          OD_SATD_WEIGHTS_8x8[i*8 + j];
       }
     }
@@ -246,7 +246,7 @@ void od_intra_pred16x16_dist(ogg_uint32_t *dist, const od_coeff *c,
     satd = 0;
     for (i = 0; i < 16; i++) {
       for (j = 0; j < 16; j++) {
-        satd += abs(c[stride*i + j] - p[i*16 + j] + 0.5)*
+        satd += abs(floor(c[stride*i + j] - p[i*16 + j] + 0.5))*
           OD_SATD_WEIGHTS_16x16[i*16 + j];
       }
     }
@@ -399,18 +399,16 @@ void od_intra_pred_cdf(ogg_uint16_t _cdf[],
 
 int od_intra_pred_search(const ogg_uint16_t _cdf[],
  const ogg_uint32_t _dist[],int _nmodes,ogg_uint16_t _lambda){
-  int sum_p;
   int best_score;
   int best_mode;
   int mi;
-  sum_p = _cdf[_nmodes-1];
   /*FIXME: Compute the log2() in fixed-point.*/
-  best_score=_dist[0]-_lambda*OD_LOG2(_cdf[0]/(double)sum_p);
+  best_score=_dist[0]-_lambda*OD_LOG2(_cdf[0]);
   best_mode=0;
   for(mi=1;mi<_nmodes;mi++){
     int score;
     /*FIXME: Compute the log2() in fixed-point.*/
-    score=_dist[mi]-_lambda*OD_LOG2((_cdf[mi]-_cdf[mi-1])/(double)sum_p);
+    score=_dist[mi]-_lambda*OD_LOG2(_cdf[mi]-_cdf[mi-1]);
     if(score<best_score){
       best_score=score;
       best_mode=mi;
