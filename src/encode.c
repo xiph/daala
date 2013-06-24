@@ -313,10 +313,10 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
         od_intra_pred_cdf(mode_cdf, OD_INTRA_PRED_PROB_4x4[pli],
          ctx->mode_p0, OD_INTRA_NMODES, m_l, m_ul, m_u);
         (*OD_INTRA_DIST[ln])(mode_dist, d + (by << 2)*w + (bx << 2), w,
-         coeffs, strides, pli);
+         coeffs, strides);
         /*Lambda = 1*/
         mode = od_intra_pred_search(mode_cdf, mode_dist,
-         OD_INTRA_NMODES, 128);
+         OD_INTRA_NMODES, 256);
         (*OD_INTRA_GET[ln])(pred, coeffs, strides, mode);
         od_ec_encode_cdf_unscaled(&enc->ec, mode, mode_cdf, OD_INTRA_NMODES);
         mode_bits -= M_LOG2E*log(

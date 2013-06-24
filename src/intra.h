@@ -69,27 +69,24 @@ void od_intra_pred8x8_get(od_coeff *_out,
 void od_intra_pred16x16_get(od_coeff *_out,
  od_coeff *_neighbors[4],int _neighbor_strides[4],int _mode);
 
-typedef void (*od_intra_dist_func)(ogg_uint32_t *_dist,
- const od_coeff *_c,int _stride, od_coeff *_neighbors[4],
- int _neighbor_strides[4],int _pli);
+typedef void (*od_intra_dist_func)(ogg_uint32_t *dist,
+ const od_coeff *c,int stride, od_coeff *neighbors[4],
+ int neighbor_strides[4]);
 
 extern const od_intra_dist_func OD_INTRA_DIST[OD_NBSIZES+1];
 
-void od_intra_pred4x4_dist(ogg_uint32_t *_dist,const od_coeff *_c,int _stride,
- od_coeff *_neighbors[4],int _neighbor_strides[4],int _pli);
-void od_intra_pred8x8_dist(ogg_uint32_t *_dist,const od_coeff *_c,int _stride,
- od_coeff *_neighbors[4],int _neighbor_strides[4],int _pli);
-void od_intra_pred16x16_dist(ogg_uint32_t *_dist,
- const od_coeff *_c,int _stride,
- od_coeff *_neighbors[4],int _neighbor_strides[4],int _pli);
+void od_intra_pred4x4_dist(ogg_uint32_t *dist,const od_coeff *c,int stride,
+ od_coeff *neighbors[4],int neighbor_strides[4]);
+void od_intra_pred8x8_dist(ogg_uint32_t *dist,const od_coeff *c,int stride,
+ od_coeff *neighbors[4],int neighbor_strides[4]);
+void od_intra_pred16x16_dist(ogg_uint32_t *dist,
+ const od_coeff *c,int stride,
+ od_coeff *neighbors[4],int neighbor_strides[4]);
 
 extern const signed char OD_INTRA_CHROMA_WEIGHTS_Q6[OD_INTRA_NMODES][3];
 
 void od_chroma_pred4x4(od_coeff *_p,const od_coeff *_c,
  const od_coeff *_l,int _stride,const int _weights_q8[3]);
-
-ogg_uint32_t od_chroma_pred4x4_dist(const od_coeff *_c,
- const od_coeff *_l,int _stride,const int _weights_q8[3],int _pli);
 
 void od_intra_pred_cdf(ogg_uint16_t _cdf[],
  const unsigned char _probs[][OD_INTRA_NCONTEXTS],const ogg_uint16_t _p0[],
