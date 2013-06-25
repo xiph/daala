@@ -182,6 +182,25 @@ static void update_diversity(const double *_ete,double _b[B_SZ*B_SZ],
   }
 }
 
+#if PRINT_BETAS && POOLED_COV
+static void print_diversity(FILE *_fp,double _b[B_SZ*B_SZ],
+ const double *_scale){
+  int j;
+  int i;
+  fprintf(_fp,"const ogg_int16_t OD_SATD_WEIGHTS_4x4[4*4] = {\n");
+  for(j=0;j<B_SZ;j++){
+    for(i=0;i<B_SZ;i++){
+      double b;
+      b=M_LOG2E/(_b[j*B_SZ+i]/(sqrt(_scale[i]*_scale[j])*INPUT_SCALE));
+      fprintf(_fp,"%s%3i%s",
+       i>0?" ":"  ",(int)(b*256+0.5),j==B_SZ-1&&i==B_SZ-1?"":",");
+    }
+    fprintf(_fp,"\n");
+  }
+  fprintf(_fp,"};\n");
+}
+#endif
+
 typedef struct solve_ctx solve_ctx;
 
 struct solve_ctx{
@@ -511,6 +530,8 @@ static void ip_add_block(void *_ctx,const unsigned char *_data,int _stride,
 static void ip_print_block(void *_ctx,const unsigned char *_data,int _stride,
  int _bi,int _bj){
   classify_ctx *ctx;
+  (void)_data;
+  (void)_stride;
 #if PRINT_PROGRESS
   if(_bi==0&&_bj==0){
     print_progress(stdout,"ip_print_block");
@@ -637,7 +658,7 @@ static void od_mode_block(void *_ctx,const unsigned char *_data,int _stride,
  int _bi,int _bj){
   classify_ctx  *ctx;
   unsigned char *mode;
-  od_coeff      *block;
+  od_coeff       block[5*B_SZ*B_SZ];
   double        *weight;
   (void)_data;
   (void)_stride;
@@ -648,17 +669,17 @@ static void od_mode_block(void *_ctx,const unsigned char *_data,int _stride,
 #endif
   ctx=(classify_ctx *)_ctx;
   mode=&ctx->img.mode[ctx->img.nxblocks*_bj+_bi];
-  block=&ctx->img.fdct[ctx->img.fdct_stride*B_SZ*(_bj+1)+B_SZ*(_bi+1)];
+  image_data_load_block(&ctx->img,_bi,_bj,block);
   weight=&ctx->img.weight[ctx->img.nxblocks*_bj+_bi];
 #if BITS_SELECT
   if(step==1){
-    *mode=od_select_mode_satd(block,ctx->img.fdct_stride,weight);
+    *mode=od_select_mode_satd(block,weight);
   }
   else{
-    *mode=od_select_mode_bits(block,ctx->img.fdct_stride,weight,b);
+    *mode=od_select_mode_bits(block,weight,b);
   }
 #else
-  *mode=od_select_mode_satd(block,ctx->img.fdct_stride,weight);
+  *mode=od_select_mode_satd(block,weight);
 #endif
 #if USE_WEIGHTS
   if(*mode==0){
@@ -797,6 +818,7 @@ int main(int _argc,const char *_argv[]){
   for(i=0;i<NUM_PROCS;i++){
     classify_ctx_init(&cls[i]);
   }
+  od_intra_init();
   OD_OMP_SET_THREADS(NUM_PROCS);
   /* First pass across images uses VP8 mode selection. */
   ne_apply_to_blocks(cls,sizeof(*cls),0x1,PADDING,init_start,NINIT,INIT,
@@ -906,10 +928,14 @@ int main(int _argc,const char *_argv[]){
     od_covmat_clear(&ete);
 #if PRINT_BETAS
     print_predictors(stderr);
+#if POOLED_COV
+    print_diversity(stderr,b[0],OD_SCALE);
+#endif
 #endif
   }
   for(i=0;i<NUM_PROCS;i++){
     classify_ctx_clear(&cls[i]);
   }
+  od_intra_clear();
   return EXIT_SUCCESS;
 }

@@ -6,6 +6,7 @@
 #include <string.h>
 #include "od_defs.h"
 #include "od_filter.h"
+#include "od_intra.h"
 #include "image_tools.h"
 #include "stats_tools.h"
 #include "../src/dct.h"
@@ -178,7 +179,7 @@ static void od_fdct_block(void *_ctx,const unsigned char *_data,int _stride,
 static void od_mode_block(void *_ctx,const unsigned char *_data,int _stride,
  int _bi,int _bj){
   intra_stats_ctx *ctx;
-  od_coeff        *block;
+  od_coeff         block[5*B_SZ*B_SZ];
   (void)_data;
   (void)_stride;
 #if PRINT_PROGRESS
@@ -187,9 +188,8 @@ static void od_mode_block(void *_ctx,const unsigned char *_data,int _stride,
   }
 #endif
   ctx=(intra_stats_ctx *)_ctx;
-  block=&ctx->img.fdct[ctx->img.fdct_stride*B_SZ*(_bj+1)+B_SZ*(_bi+1)];
-  ctx->img.mode[ctx->img.nxblocks*_bj+_bi]=
-   od_select_mode_satd(block,ctx->img.fdct_stride,NULL);
+  image_data_load_block(&ctx->img,_bi,_bj,block);
+  ctx->img.mode[ctx->img.nxblocks*_bj+_bi]=od_select_mode_satd(block,NULL);
 }
 
 #if PRINT_BLOCKS
@@ -348,6 +348,7 @@ int main(int _argc,const char *_argv[]){
   for(i=0;i<NUM_PROCS;i++){
     intra_stats_ctx_init(&ctx[i]);
   }
+  od_intra_init();
   OD_OMP_SET_THREADS(NUM_PROCS);
   ne_apply_to_blocks(ctx,sizeof(*ctx),0x1,PADDING,stats_start,NBLOCKS,BLOCKS,
    stats_finish,_argc,_argv);
@@ -360,12 +361,10 @@ int main(int _argc,const char *_argv[]){
     intra_stats_print(&ctx[0].gb_vp8,"VP8 Intra Predictors",VP8_SCALE);
     intra_stats_correct(&ctx[0].gb_od);
     intra_stats_print(&ctx[0].gb_od,"Daala Intra Predictors",OD_SCALE);
-    /*for (i=0;i<B_SZ*B_SZ;i++) {
-      printf ("%f\n", ctx[0].gb_od.fr.res.cov[i*B_SZ*B_SZ+i]);
-    }*/
   }
   for(i=0;i<NUM_PROCS;i++){
     intra_stats_ctx_clear(&ctx[i]);
   }
+  od_intra_clear();
   return EXIT_SUCCESS;
 }

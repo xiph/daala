@@ -28,35 +28,30 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <stdio.h>
 #include "od_defs.h"
 
-typedef void (*ne_intra_mult_func)(double *_pred,int _pred_stride,
- const od_coeff *_coeff,int _coeff_stride,int _mode);
+typedef void (*ne_intra_mult_func)(double *_pred,int _stride,
+ const od_coeff *_coeff,int _mode);
 
 extern const ne_intra_mult_func NE_INTRA_MULT[OD_NBSIZES];
 
-extern double NE_PRED_OFFSETS_4x4[OD_INTRA_NMODES][4][4];
-extern double *NE_PRED_WEIGHTS_4x4[OD_INTRA_NMODES][4][4];
+void od_intra_init();
+void od_intra_clear();
 
+extern double NE_PRED_OFFSETS_4x4[OD_INTRA_NMODES][4][4];
 extern int NE_PRED_MULTS_4x4[OD_INTRA_NMODES][4][4];
-extern int *NE_PRED_PARAMX_4x4[OD_INTRA_NMODES][4][4];
-extern int *NE_PRED_PARAMY_4x4[OD_INTRA_NMODES][4][4];
+extern double *NE_PRED_WEIGHTS_4x4[OD_INTRA_NMODES];
+extern int *NE_PRED_INDEX_4x4[OD_INTRA_NMODES];
 
 extern double NE_PRED_OFFSETS_8x8[OD_INTRA_NMODES][8][8];
-extern double *NE_PRED_WEIGHTS_8x8[OD_INTRA_NMODES][8][8];
-
 extern int NE_PRED_MULTS_8x8[OD_INTRA_NMODES][8][8];
-extern int *NE_PRED_PARAMX_8x8[OD_INTRA_NMODES][8][8];
-extern int *NE_PRED_PARAMY_8x8[OD_INTRA_NMODES][8][8];
+extern double *NE_PRED_WEIGHTS_8x8[OD_INTRA_NMODES];
+extern int *NE_PRED_INDEX_8x8[OD_INTRA_NMODES];
 
 extern double NE_PRED_OFFSETS_16x16[OD_INTRA_NMODES][16][16];
-extern double *NE_PRED_WEIGHTS_16x16[OD_INTRA_NMODES][16][16];
-
 extern int NE_PRED_MULTS_16x16[OD_INTRA_NMODES][16][16];
-extern int *NE_PRED_PARAMX_16x16[OD_INTRA_NMODES][16][16];
-extern int *NE_PRED_PARAMY_16x16[OD_INTRA_NMODES][16][16];
+extern double *NE_PRED_WEIGHTS_16x16[OD_INTRA_NMODES];
+extern int *NE_PRED_INDEX_16x16[OD_INTRA_NMODES];
 
-void update_predictors(int _mode,double *_beta_0,double *_beta_1,
- int _mask[B_SZ*B_SZ*4*B_SZ*B_SZ]);
+void update_predictors(int _mode,double *_beta_0,double *_beta_1,int *_mask);
 void print_predictors(FILE *_fp);
-void print_predictors_nonsparse(FILE *_fp);
 
 #endif

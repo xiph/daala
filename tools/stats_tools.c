@@ -401,12 +401,14 @@ int vp8_select_mode(const unsigned char *_data,int _stride,double *_weight){
   return best_mode;
 }
 
-int od_select_mode_bits(const od_coeff *_block,int _stride,double *_weight,
+int od_select_mode_bits(const od_coeff *_block,double *_weight,
  double _b[OD_INTRA_NMODES][B_SZ*B_SZ]){
-  int    best_mode;
-  double best_bits;
-  double next_best_bits;
-  int    mode;
+  const od_coeff *c;
+  int             best_mode;
+  double          best_bits;
+  double          next_best_bits;
+  int             mode;
+  c=_block+4*B_SZ*B_SZ;
   best_mode=0;
   best_bits=UINT_MAX;
   next_best_bits=best_bits;
@@ -419,7 +421,7 @@ int od_select_mode_bits(const od_coeff *_block,int _stride,double *_weight,
 #if 0
     (*OD_INTRA_MULT[B_SZ_LOG-OD_LOG_BSIZE0])(p,_block,_stride,mode);
 #else
-    (*NE_INTRA_MULT[B_SZ_LOG-OD_LOG_BSIZE0])(p,B_SZ,_block,_stride,mode);
+    (*NE_INTRA_MULT[B_SZ_LOG-OD_LOG_BSIZE0])(p,B_SZ,_block,mode);
 #endif
 #else
 # error "Need a predictor implementation for this block size."
@@ -429,7 +431,7 @@ int od_select_mode_bits(const od_coeff *_block,int _stride,double *_weight,
       for(i=0;i<B_SZ;i++){
         double res;
         res=sqrt(OD_SCALE[j]*OD_SCALE[i])*
-         abs(_block[_stride*j+i]-(od_coeff)floor(p[B_SZ*j+i]+0.5));
+         abs(c[B_SZ*j+i]-(od_coeff)floor(p[B_SZ*j+i]+0.5));
         bits+=1+OD_LOG2(_b[mode][j*B_SZ+i])+M_LOG2E/_b[mode][j*B_SZ+i]*res;
       }
     }
@@ -450,11 +452,13 @@ int od_select_mode_bits(const od_coeff *_block,int _stride,double *_weight,
   return best_mode;
 }
 
-int od_select_mode_satd(const od_coeff *_block,int _stride,double *_weight){
-  int    best_mode;
-  double best_satd;
-  double next_best_satd;
-  int    mode;
+int od_select_mode_satd(const od_coeff *_block,double *_weight){
+  const od_coeff *c;
+  int             best_mode;
+  double          best_satd;
+  double          next_best_satd;
+  int             mode;
+  c=_block+4*B_SZ*B_SZ;
   best_mode=0;
   best_satd=UINT_MAX;
   next_best_satd=best_satd;
@@ -467,7 +471,7 @@ int od_select_mode_satd(const od_coeff *_block,int _stride,double *_weight){
 #if 0
     (*OD_INTRA_MULT[B_SZ_LOG-OD_LOG_BSIZE0])(p,_block,_stride,mode);
 #else
-    (*NE_INTRA_MULT[B_SZ_LOG-OD_LOG_BSIZE0])(p,B_SZ,_block,_stride,mode);
+    (*NE_INTRA_MULT[B_SZ_LOG-OD_LOG_BSIZE0])(p,B_SZ,_block,mode);
 #endif
 #else
 # error "Need a predictor implementation for this block size."
@@ -477,9 +481,9 @@ int od_select_mode_satd(const od_coeff *_block,int _stride,double *_weight){
       for(i=0;i<B_SZ;i++){
 #if SCALE_SATD
         satd+=sqrt(OD_SCALE[j]*OD_SCALE[i])*
-         abs(_block[_stride*j+i]-(od_coeff)floor(p[B_SZ*j+i]+0.5));
+         abs(c[B_SZ*j+i]-(od_coeff)floor(p[B_SZ*j+i]+0.5));
 #else
-        satd+=abs(_block[_stride*j+i]-(od_coeff)floor(p[B_SZ*j+i]+0.5));
+        satd+=abs(c[B_SZ*j+i]-(od_coeff)floor(p[B_SZ*j+i]+0.5));
 #endif
       }
     }

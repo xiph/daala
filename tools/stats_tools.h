@@ -76,8 +76,8 @@ void vp8_scale_init(double _vp8_scale[B_SZ]);
 void od_scale_init(double _od_scale[B_SZ]);
 
 int vp8_select_mode(const unsigned char *_data,int _stride,double *_weight);
-int od_select_mode_satd(const od_coeff *_block,int _stride,double *_weight); 
-int od_select_mode_bits(const od_coeff *_block,int _stride,double *_weight,
+int od_select_mode_satd(const od_coeff *_block,double *_weight);
+int od_select_mode_bits(const od_coeff *_block,double *_weight,
  double _b[OD_INTRA_NMODES][B_SZ*B_SZ]);
 
 int ne_apply_to_blocks(void *_ctx,int _ctx_sz,int _plmask,int _padding,

@@ -76,6 +76,8 @@ void image_data_pre_block(image_data *_this,const unsigned char *_data,
  int _stride,int _bi,int _bj);
 void image_data_fdct_block(image_data *_this,int _bi,int _bj);
 void image_data_print_block(image_data *_this,int _bi,int _bj,FILE *_fp);
+void image_data_load_block(image_data *_this,int _bi,int _bj,
+ od_coeff _coeffs[5*B_SZ*B_SZ]);
 void image_data_pred_block(image_data *_this,int _bi,int _bj);
 void image_data_stats_block(image_data *_this,const unsigned char *_data,
  int _stride,int _bi,int _bj,intra_stats *_stats);

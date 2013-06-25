@@ -361,16 +361,36 @@ void image_data_print_block(image_data *_this,int _bi,int _bj,FILE *_fp){
   fflush(_fp);
 }
 
+void image_data_load_block(image_data *_this,int _bi,int _bj,
+ od_coeff _coeffs[5*B_SZ*B_SZ]){
+  od_coeff *fdct;
+  int       by;
+  int       bx;
+  int       y;
+  int       x;
+  fdct=&_this->fdct[_this->fdct_stride*B_SZ*(_bj+1)+B_SZ*(_bi+1)];
+  for(by=0;by<=1;by++){
+    for(bx=0;bx<=2-by;bx++){
+      for(y=0;y<B_SZ;y++){
+        for(x=0;x<B_SZ;x++){
+          (*_coeffs)=fdct[_this->fdct_stride*(B_SZ*(by-1)+y)+B_SZ*(bx-1)+x];
+          _coeffs++;
+        }
+      }
+    }
+  }
+}
+
 void image_data_pred_block(image_data *_this,int _bi,int _bj){
   double   *pred;
-  od_coeff *fdct;
   int       mode;
+  od_coeff  coeffs[5*B_SZ*B_SZ];
   pred=&_this->pred[_this->pred_stride*B_SZ*_bj+B_SZ*_bi];
-  fdct=&_this->fdct[_this->fdct_stride*B_SZ*(_bj+1)+B_SZ*(_bi+1)];
   mode=_this->mode[_this->nxblocks*_bj+_bi];
+  image_data_load_block(_this,_bi,_bj,coeffs);
 #if B_SZ_LOG>=OD_LOG_BSIZE0&&B_SZ_LOG<OD_LOG_BSIZE0+OD_NBSIZES
-  (*NE_INTRA_MULT[B_SZ_LOG-OD_LOG_BSIZE0])(pred,_this->pred_stride,fdct,
-   _this->fdct_stride,mode);
+  (*NE_INTRA_MULT[B_SZ_LOG-OD_LOG_BSIZE0])(pred,_this->pred_stride,coeffs,
+   mode);
 #else
 # error "Need a predictor implementation for this block size."
 #endif

@@ -38,119 +38,115 @@ const od_intra_mult_func OD_INTRA_MULT[OD_NBSIZES+1]={
   od_intra_pred16x16_mult
 };
 
-void od_intra_pred4x4_mult(double *_pred,int _pred_stride,
- od_coeff *_neighbors[4],int _neighbor_strides[4],int _mode){
+void od_intra_pred4x4_mult(double *pred, int pred_stride, od_coeff *blocks[4],
+ int strides[4], int mode) {
+  const ogg_uint16_t *index;
+  const double *weights;
   int j;
   int i;
   int k;
-  int x;
-  int y;
-  const ogg_int16_t *index;
-  const double *weights;
-  index = OD_PRED_INDEX_4x4_DATA+OD_PRED_OFFSETS_4x4[_mode];
-  weights=OD_PRED_WEIGHTS_4x4_DATA+OD_PRED_OFFSETS_4x4[_mode];
-  for(j=0;j<4;j++){
-    for(i=0;i<4;i++){
-      double sum=0;
-      for(k=0;k<OD_PRED_MULTS_4x4[_mode][j][i];k++){
-        od_coeff *neighbor;
-        int neighbor_stride;
-        int neighbori;
+  index = OD_PRED_INDEX_4x4 + OD_PRED_OFFSETS_4x4[mode];
+  weights = OD_PRED_WEIGHTS_4x4 + OD_PRED_OFFSETS_4x4[mode];
+  for (j = 0; j < 4; j++) {
+    for (i = 0; i < 4; i++) {
+      double sum;
+      sum = 0;
+      for (k = OD_PRED_MULTS_4x4[mode][j][i]; k-- > 0; ) {
         int id;
-        id = *index++;
-        x = id & 3;
-        y = (id >> 2) & 3;
-        neighbori = id >> 4;
-        neighbor=_neighbors[neighbori];
-        neighbor_stride=_neighbor_strides[neighbori];
-        sum+=
-         neighbor[neighbor_stride*y+x]**weights++;
+        int x;
+        int y;
+        id = *index;
+        x = id & 0x3;
+        id >>= 2;
+        y = id & 0x3;
+        id >>= 2;
+        sum += blocks[id][strides[id]*y + x]*(*weights);
+        index++;
+        weights++;
       }
-      _pred[_pred_stride*j+i]=sum;
+      pred[pred_stride*j + i] = sum;
     }
   }
 }
 
-void od_intra_pred8x8_mult(double *_pred,int _pred_stride,
- od_coeff *_neighbors[4],int _neighbor_strides[4],int _mode){
+void od_intra_pred8x8_mult(double *pred, int pred_stride, od_coeff *blocks[4],
+ int strides[4], int mode) {
+  const ogg_uint16_t *index;
+  const double *weights;
   int j;
   int i;
   int k;
-  int x;
-  int y;
-  const ogg_int16_t *index;
-  const double *weights;
-  index = OD_PRED_INDEX_8x8_DATA+OD_PRED_OFFSETS_8x8[_mode];
-  weights=OD_PRED_WEIGHTS_8x8_DATA+OD_PRED_OFFSETS_8x8[_mode];
-  for(j=0;j<8;j++){
-    for(i=0;i<8;i++){
-      double sum=0;
-      for(k=0;k<OD_PRED_MULTS_8x8[_mode][j][i];k++){
-        od_coeff *neighbor;
-        int neighbor_stride;
-        int neighbori;
+  index = OD_PRED_INDEX_8x8 + OD_PRED_OFFSETS_8x8[mode];
+  weights = OD_PRED_WEIGHTS_8x8 + OD_PRED_OFFSETS_8x8[mode];
+  for (j = 0; j < 8; j++) {
+    for (i = 0; i < 8; i++) {
+      double sum;
+      sum = 0;
+      for (k = OD_PRED_MULTS_8x8[mode][j][i]; k-- > 0; ) {
         int id;
-        id = *index++;
-        x = id & 7;
-        y = (id >> 3) & 7;
-        neighbori = id >> 6;
-        neighbor=_neighbors[neighbori];
-        neighbor_stride=_neighbor_strides[neighbori];
-        sum += neighbor[neighbor_stride*y+x]**weights++;
+        int x;
+        int y;
+        id = *index;
+        x = id & 0x7;
+        id >>= 3;
+        y = id & 0x7;
+        id >>= 3;
+        sum += blocks[id][strides[id]*y + x]*(*weights);
+        index++;
+        weights++;
       }
-      _pred[_pred_stride*j+i] = sum;
+      pred[pred_stride*j + i] = sum;
     }
   }
 }
 
-void od_intra_pred16x16_mult(double *_pred,int _pred_stride,
- od_coeff *_neighbors[4],int _neighbor_strides[4],int _mode){
+void od_intra_pred16x16_mult(double *pred, int pred_stride,
+ od_coeff *blocks[4], int strides[4], int mode) {
+  const ogg_uint16_t *index;
+  const double *weights;
   int j;
   int i;
   int k;
-  int x;
-  int y;
-  const ogg_int16_t *index;
-  const double *weights;
-  index = OD_PRED_INDEX_16x16_DATA+OD_PRED_OFFSETS_16x16[_mode];
-  weights=OD_PRED_WEIGHTS_16x16_DATA+OD_PRED_OFFSETS_16x16[_mode];
-  for(j=0;j<16;j++){
-    for(i=0;i<16;i++){
-      double sum=0;
-      for(k=0;k<OD_PRED_MULTS_16x16[_mode][j][i];k++){
-        od_coeff *neighbor;
-        int neighbor_stride;
-        int neighbori;
+  index = OD_PRED_INDEX_16x16 + OD_PRED_OFFSETS_16x16[mode];
+  weights = OD_PRED_WEIGHTS_16x16 + OD_PRED_OFFSETS_16x16[mode];
+  for (j = 0; j < 16; j++) {
+    for (i = 0; i < 16; i++) {
+      double sum;
+      sum = 0;
+      for (k = OD_PRED_MULTS_16x16[mode][j][i]; k-- > 0; ) {
         int id;
-        id = *index++;
+        int x;
+        int y;
+        id = *index;
         x = id & 0xf;
-        y = (id >> 4) & 0xf;
-        neighbori = id >> 8;
-        neighbor=_neighbors[neighbori];
-        neighbor_stride=_neighbor_strides[neighbori];
-        sum += neighbor[neighbor_stride*y+x]**weights++;
+        id >>= 4;
+        y = id & 0xf;
+        id >>= 4;
+        sum += blocks[id][strides[id]*y + x]*(*weights);
+        index++;
+        weights++;
       }
-      _pred[_pred_stride*j+i] = sum;
+      pred[pred_stride*j + i] = sum;
     }
   }
 }
 
 static const ogg_int16_t OD_SATD_WEIGHTS_4x4[4*4] = {
-  58,  84, 117, 132,
-  80,  99, 134, 147,
- 108, 129, 166, 178,
- 121, 139, 174, 184
+  20,  25,  40,  52,
+  24,  31,  50,  64,
+  36,  46,  69,  88,
+  44,  55,  81, 101
 };
 
 static const ogg_int16_t OD_SATD_WEIGHTS_8x8[8*8]={
- 256, 256, 256, 256, 256, 256, 256, 256,
- 256, 256, 256, 256, 256, 256, 256, 256,
- 256, 256, 256, 256, 256, 256, 256, 256,
- 256, 256, 256, 256, 256, 256, 256, 256,
- 256, 256, 256, 256, 256, 256, 256, 256,
- 256, 256, 256, 256, 256, 256, 256, 256,
- 256, 256, 256, 256, 256, 256, 256, 256,
- 256, 256, 256, 256, 256, 256, 256, 256
+   5,   7,  12,  16,  22,  26,  33,  37,
+   6,   9,  15,  20,  28,  33,  42,  47,
+  11,  15,  24,  30,  40,  46,  57,  62,
+  14,  19,  29,  36,  46,  52,  64,  69,
+  20,  25,  37,  44,  54,  62,  76,  84,
+  23,  29,  41,  47,  59,  66,  81,  90,
+  27,  35,  47,  56,  68,  77,  94, 104,
+  29,  37,  50,  59,  73,  84, 101, 108
 };
 
 static const ogg_int16_t OD_SATD_WEIGHTS_16x16[16*16]={
