@@ -9,6 +9,7 @@
 #include "image_tools.h"
 #include "stats_tools.h"
 #include "trans_tools.h"
+#include "od_intra.h"
 
 typedef struct intra_trace_ctx intra_trace_ctx;
 
@@ -227,6 +228,7 @@ int main(int _argc,char *_argv[]){
 #else
 # error "Unsupported block size."
 #endif
+  od_intra_init();
   intra_trace_ctx_init(&ctx);
   od_rgba16_image_init(&image,IMAGE_X,IMAGE_Y);
   do {
