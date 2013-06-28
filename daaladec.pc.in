@@ -1,0 +1,13 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: daaladec
+Description: Daala decoding library
+Version: @PACKAGE_VERSION@
+Requires.private: ogg >= 1.3 @PC_PNG_REQUIRES@
+Conflicts:
+Libs: -L${libdir} -ldaaladec
+Libs.private: -ldaalabase @OGG_LIBS@ @PC_PNG_LIBS@ @LIBM@
+Cflags: -I${includedir}/daala

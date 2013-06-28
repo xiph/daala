@@ -160,15 +160,22 @@ AS_IF([test "$enable_asm" = "yes" -a "$cpu_x86" = "true"], [
 AC_ARG_ENABLE([dump-images],
   AS_HELP_STRING([--disable-dump-images], [Do not dump debugging images]),,
   [enable_dump_images=yes])
-AS_IF([test x$enable_dump_images = xyes], [
+AS_IF([test "$enable_dump_images" = "yes"], [
   AC_DEFINE([OD_DUMP_IMAGES], [1], [Enable image dumping])
+  PC_PNG_REQUIRES="libpng"
+  PC_PNG_LIBS="$PNG_LIBS"
 ])
-AM_CONDITIONAL([DUMP_IMAGES], [test x$enable_dump_images = xyes])
+AM_CONDITIONAL([DUMP_IMAGES], [test "$enable_dump_images" = "yes"])
+AC_SUBST([PC_PNG_REQUIRES])
+AC_SUBST([PC_PNG_LIBS])
+
 
 AC_CONFIG_FILES([
   Makefile
-  daala.pc
-  daala-uninstalled.pc
+  daalaenc.pc
+  daaladec.pc
+  daalaenc-uninstalled.pc
+  daaladec-uninstalled.pc
   doc/Doxyfile
 ])
 AC_CONFIG_HEADERS([config.h])
