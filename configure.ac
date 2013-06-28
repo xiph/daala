@@ -118,25 +118,19 @@ if test "$enable_unit_tests" = "yes" ; then
 fi
 AM_CONDITIONAL(ENABLE_UNIT_TESTS, [test $enable_unit_tests = "yes"])
 
-dnl Check for doxygen
 AC_ARG_ENABLE([doc],
   AS_HELP_STRING([--disable-doc], [Do not build API documentation]),,
   [enable_doc=yes]
 )
-AC_CHECK_PROG(HAVE_DOXYGEN, doxygen, yes, no)
-if test "$HAVE_DOXYGEN" != "yes" -o "$enable_doc" != "yes" ; then
-  HAVE_DOXYGEN="no"
-  enable_doc="no"
-fi
-AM_CONDITIONAL(HAVE_DOXYGEN, [test $HAVE_DOXYGEN = yes])
-
-AC_CHECK_PROG(HAVE_FIG2DEV, fig2dev, yes, no)
-if test "$HAVE_FIG2DEV" != "yes" -o "$enable_doc" != "yes" ; then
-  HAVE_FIG2DEV="no"
-  enable_doc="no"
-fi
-AM_CONDITIONAL(HAVE_FIG2DEV, [test $HAVE_FIG2DEV = yes])
-AM_CONDITIONAL(ENABLE_DOCS, [test $enable_doc = yes])
+AS_IF([test "$enable_doc" = "yes"], [
+  AC_CHECK_PROG([HAVE_DOXYGEN], [doxygen], [yes], [no])
+  AC_CHECK_PROG([HAVE_FIG2DEV], [fig2dev], [yes], [no])
+],[
+  HAVE_DOXYGEN=no
+  HAVE_FIG2DEV=no
+])
+AM_CONDITIONAL([HAVE_DOXYGEN], [test "$HAVE_DOXYGEN" = "yes"])
+AM_CONDITIONAL([HAVE_FIG2DEV], [test "$HAVE_FIG2DEV" = "yes"])
 
 AC_ARG_ENABLE([asm],
   AS_HELP_STRING([--disable-asm], [Do not compile assembly versions]),,
@@ -152,8 +146,8 @@ case $host_cpu in
     ;;
 esac
 
-AM_CONDITIONAL([ENABLE_X86ASM], [test "$enable_asm" = "yes" -a "$cpu_x86" = "true"])
-AS_IF([test "$enable_asm" = "yes" -a "$cpu_x86" = "true"], [
+AM_CONDITIONAL([ENABLE_X86ASM], [test "$enable_asm" = "yes" && test "$cpu_x86" = "true"])
+AS_IF([test "$enable_asm" = "yes" && test "$cpu_x86" = "true"], [
   AC_DEFINE([OD_X86ASM], [1], [Enable asm optimisations])
 ])
 

@@ -456,7 +456,7 @@ endif
 
 # Docs
 
-if ENABLE_DOCS
+if HAVE_FIG2DEV
 # Generate the paper from its sources.
 # Requires transfig and pdflatex.
 
