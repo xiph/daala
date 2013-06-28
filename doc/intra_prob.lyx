@@ -25,6 +25,7 @@
 \bibtex_command default
 \index_command default
 \paperfontsize default
+\spacing onehalf
 \use_hyperref false
 \papersize default
 \use_geometry false
@@ -63,14 +64,29 @@
 Probability Modelling of Intra Prediction Modes
 \end_layout
 
+\begin_layout Author
+Jean-Marc Valin
+\end_layout
+
 \begin_layout Section
 Introduction
 \end_layout
 
 \begin_layout Standard
-Modern video codecs and still image codecs make use of intra prediction.
- Multiple modes...
- need to code which is selected.
+Modern video codecs and still image codecs make use of intra prediction
+ where a region (or block) of the image is predicted based on its surrounding.
+ There are usually multiple intra predictor 
+\emph on
+modes
+\emph default
+, each preforming a different kind of prediction.
+ For example, some modes may predict along a particular direction, in which
+ case the selected mode would typically represent the direction of the patterns
+ in the region being coded.
+ The mode is typically selected by the encoder and transmitted to the decoder.
+ The cost of coding the mode can be large for small block sizes, so it is
+ important to efficiently encode the information using entropy coding.
+ The following describes an efficient way of modelling mode probabilities.
 \end_layout
 
 \begin_layout Section
@@ -123,7 +139,7 @@ Let
 \begin_layout Standard
 It is possible to reduce the size of the context by considering only whether
  the neighboring blocks use the same more or a different mode, i.e.
- modelling 
+ modelling the probability 
 \begin_inset Formula $p\left(m_{i,j}\left|m_{i-1,j-1}=m_{i,j},m_{i,j-1}=m_{i,j},m_{i-1,j}=m_{i,j}\right.\right)$
 \end_inset
 
@@ -187,7 +203,7 @@ amplify
  probabilities that are close to unity:
 \begin_inset Formula 
 \begin{equation}
-p_{k}^{'}==p_{k}\cdot\frac{1-p_{k}}{\sum_{j}p_{j}-p_{k}}\,,\label{eq:weighted-renorm}
+p_{k}^{'}=p_{k}\cdot\frac{1-p_{k}}{\sum_{j}p_{j}-p_{k}}\,,\label{eq:weighted-renorm}
 \end{equation}
 
 \end_inset
@@ -239,10 +255,6 @@ There are two possible ways of adapting the probability model to individual
 .
  The purpose of this floor is to ensure that when a particular mode is highly
  used in an image, its cost goes down.
-\end_layout
-
-\begin_layout Section
-Conclusion
 \end_layout
 
 \end_body
