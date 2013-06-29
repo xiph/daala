@@ -85,7 +85,18 @@ modes
  in the region being coded.
  The mode is typically selected by the encoder and transmitted to the decoder.
  The cost of coding the mode can be large for small block sizes, so it is
- important to efficiently encode the information using entropy coding.
+ important to efficiently encode the information using entropy coding
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset citation
+LatexCommand cite
+key "MW98,SM98"
+
+\end_inset
+
+.
  The following describes an efficient way of modelling mode probabilities.
 \end_layout
 
@@ -126,10 +137,10 @@ Let
 
  be the number of neighbors considered, then explicit modelling of the condition
 al probabilities using an explicit table requires 
-\begin_inset Formula $O\left(M^{\left(N+1\right)}\right)$
+\begin_inset Formula $M^{\left(N+1\right)}$
 \end_inset
 
- storage, which rapidly becomes prohibitive.
+ entries, which rapidly becomes prohibitive.
  For example, with 10 modes and using the left, up-left and up blocks as
  context requires a table with 10,000 entries.
  This is one reason why the VP8 codec only uses the left and up blocks as
@@ -154,7 +165,7 @@ It is possible to reduce the size of the context by considering only whether
 \begin_inset Formula $M\cdot2^{N}$
 \end_inset
 
- tables, e.g., only 80
+ entries, e.g., only 80
 \begin_inset space ~
 \end_inset
 
@@ -195,7 +206,7 @@ ies when one of the probabilities is close to unity.
 \end_layout
 
 \begin_layout Standard
-A slightly more accurate renormalization procedure is to first 
+A slightly more bit-efficient renormalization procedure is to first 
 \begin_inset Quotes eld
 \end_inset
 
@@ -223,7 +234,7 @@ reference "eq:weighted-renorm"
 
 \end_inset
 
- results in large probabilities being less affected by the renormalization
+ results in probabilities close to 1 being less affected by the renormalization
  and slightly improves coding efficiency over the simple renormalization.
 \end_layout
 
@@ -258,6 +269,65 @@ There are two possible ways of adapting the probability model to individual
 .
  The purpose of this floor is to ensure that when a particular mode is highly
  used in an image, its cost goes down.
+\end_layout
+
+\begin_layout Standard
+The second way of adapting the probability model is to compute a statistic
+ on a large number of previously encoded modes.
+ For example, this can be the most often used mode in the frame, the percentage
+ of non-directional modes used, the most common direction.
+ This statistic can be used as an additional condition on the probability.
+ In that case, the storage requirement becomes 
+\begin_inset Formula $M\cdot2^{N}S$
+\end_inset
+
+ where 
+\begin_inset Formula $S$
+\end_inset
+
+ is the number of possible discrete value for the statistic.
+ 
+\end_layout
+
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+key "MW98"
+
+\end_inset
+
+Moffat, A., Witten, I.H., 
+\begin_inset Quotes eld
+\end_inset
+
+Arithmetic coding revisited
+\begin_inset Quotes erd
+\end_inset
+
+, 
+\emph on
+ACM Transactions on Information Systems (TOIS)
+\emph default
+, Vol.
+ 16, Issue 3, pp.
+ 256-294 , July 1998.
+\end_layout
+
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+key "SM98"
+
+\end_inset
+
+Stuiver, L.
+ and Moffat, A., "Piecewise Integer Mapping for Arithmetic Coding", 
+\emph on
+Proc.
+ of the 17th IEEE Data Compression Conference (DCC)
+\emph default
+, pp.
+ 1-10, March/April 1998.
 \end_layout
 
 \end_body
