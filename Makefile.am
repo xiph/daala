@@ -1,5 +1,9 @@
 # Libraries
 
+# Provide the full test output for failed tests when using the parallel
+# test suite (which is enabled by default with automake 1.13+).
+export VERBOSE = yes
+
 lib_LTLIBRARIES = src/libdaalabase.la src/libdaaladec.la src/libdaalaenc.la
 
 AM_CPPFLAGS = -I$(srcdir)/include
