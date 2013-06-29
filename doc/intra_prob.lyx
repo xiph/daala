@@ -102,14 +102,15 @@ Let
 \begin_inset Formula $\left(i,j\right)$
 \end_inset
 
-, it is useful to know the probability 
+.
+ It is useful to know the probability 
 \begin_inset Formula $p\left(m_{i,j}\right)$
 \end_inset
 
  to make optimal use of entropy coding when encoding the selected mode in
  the bitstream.
- In particular, coding can be made more efficient by making use of the context,
- modes selected for causal neighbours that are already encoded in the bitstream.
+ In particular, coding can be made more efficient by making use of the context:
+ modes selected for causal neighbors that are already encoded in the bitstream.
  For example, it is desirable to estimate 
 \begin_inset Formula $p\left(m_{i,j}\left|m_{i-1,j-1},m_{i,j-1},m_{i-1,j}\right.\right)$
 \end_inset
@@ -123,12 +124,12 @@ Let
 \begin_inset Formula $N$
 \end_inset
 
- be the number of neighbours considered, then explicit modelling of the
- conditional probabilities using an explicit table is equal to 
-\begin_inset Formula $M^{\left(N+1\right)}$
+ be the number of neighbors considered, then explicit modelling of the condition
+al probabilities using an explicit table requires 
+\begin_inset Formula $O\left(M^{\left(N+1\right)}\right)$
 \end_inset
 
-, which rapidly becomes prohibitive.
+ storage, which rapidly becomes prohibitive.
  For example, with 10 modes and using the left, up-left and up blocks as
  context requires a table with 10,000 entries.
  This is one reason why the VP8 codec only uses the left and up blocks as
@@ -138,7 +139,7 @@ Let
 
 \begin_layout Standard
 It is possible to reduce the size of the context by considering only whether
- the neighboring blocks use the same more or a different mode, i.e.
+ the neighboring blocks use the same mode or a different mode, i.e.
  modelling the probability 
 \begin_inset Formula $p\left(m_{i,j}\left|m_{i-1,j-1}=m_{i,j},m_{i,j-1}=m_{i,j},m_{i-1,j}=m_{i,j}\right.\right)$
 \end_inset
@@ -153,7 +154,7 @@ It is possible to reduce the size of the context by considering only whether
 \begin_inset Formula $M\cdot2^{N}$
 \end_inset
 
- tables, so only 80
+ tables, e.g., only 80
 \begin_inset space ~
 \end_inset
 
@@ -176,8 +177,9 @@ so some form of renormalization is required.
 \begin_layout Standard
 The simplest way to renormalize probabilities is to multiply each of them
  by the same factor such that the sum equals 1.
- In the context of an entropy coder that is based on the cumulative distribution
- (cdf), this is easy to achieve by simply declaring 
+ If the entropy coder, such as a classic non-binary arithmetic coder or
+ a range coder, is set up to code symbols using cumulative frequency counts,
+ then simply declaring 
 \begin_inset Formula $S_{p}$
 \end_inset
 
@@ -185,7 +187,8 @@ The simplest way to renormalize probabilities is to multiply each of them
 \emph on
 total frequency count
 \emph default
-.
+ allows the entropy coder to perform the renormalization process automatically
+ as part of the coding process.
  This method is the simplest, but sometimes does not accurately model probabilit
 ies when one of the probabilities is close to unity.
  
