@@ -321,7 +321,7 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
     pred[0] = generic_decode(&dec->ec, ctx->model_dc + pli,
      ctx->ex_dc + pli, 0);
     if (pred[0]) sgn = od_ec_dec_bits(&dec->ec, 1);
-    pred[0] = (int)(pow(pred[0], 4.0/3)*scale);
+    pred[0] = (int)(pow(pred[0], 4.0/3)*scale + 0.5);
     pred[0] *= sgn ? -1 : 1;
     pred[0] += predt[0];
     qg = generic_decode(&dec->ec, ctx->model_g + pli, ctx->ex_g + pli, 0);

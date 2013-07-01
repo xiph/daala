@@ -445,11 +445,11 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
     int scale;
     scale = OD_MAXI((enc->scale[pli]*OD_TRANS_QUANT_ADJ[ln] + (1 << 14)) >> 15, 1);
     sgn = (cblock[0] - predt[0]) < 0;
-    cblock[0] = (int)floor(pow(fabs(cblock[0] - predt[0])/scale, 0.75));
+    cblock[0] = (int)floor(pow(fabs(cblock[0] - predt[0])/scale, 0.75) + 0.5);
     generic_encode(&enc->ec, ctx->model_dc + pli, cblock[0],
      ctx->ex_dc + pli, 0);
     if (cblock[0]) od_ec_enc_bits(&enc->ec, sgn, 1);
-    cblock[0] = (int)(pow(cblock[0], 4.0/3)*scale);
+    cblock[0] = (int)(pow(cblock[0], 4.0/3)*scale + 0.5);
     cblock[0] *= sgn ? -1 : 1;
     cblock[0] += predt[0];
     quant_pvq(cblock + 1, predt + 1, pvq_scale, pred + 1, n2 - 1, scale,
