@@ -83,10 +83,11 @@ void od_intra_pred16x16_dist(ogg_uint32_t *dist,
  const od_coeff *c,int stride,
  od_coeff *neighbors[4],int neighbor_strides[4]);
 
-extern const signed char OD_INTRA_CHROMA_WEIGHTS_Q6[OD_INTRA_NMODES][3];
+extern const int OD_INTRA_CHROMA_WEIGHTS_Q8[OD_INTRA_NMODES][3];
 
-void od_chroma_pred4x4(od_coeff *_p,const od_coeff *_c,
- const od_coeff *_l,int _stride,const int _weights_q8[3]);
+void od_chroma_pred(od_coeff *p,const od_coeff *c, const od_coeff *l,
+ int stride, int bx, int by, int ln, int xdec, int ydec,
+  const unsigned char *bsize, int bstride, const int weights_q8[3]);
 
 void od_intra_pred_cdf(ogg_uint16_t _cdf[],
  const unsigned char _probs[][OD_INTRA_NCONTEXTS],const ogg_uint16_t _p0[],
@@ -99,7 +100,7 @@ void od_intra_pred_update(ogg_uint16_t _p0[],int _nmodes,int _mode,
  int _left,int _upleft,int _up);
 
 void od_resample_luma_coeffs(od_coeff *l, int lstride,
- const od_coeff *c, int cstride, int xdec, int ydec, int n);
+ const od_coeff *c, int cstride, int xdec, int ydec, int ln, int cln);
 
 extern const int OD_PRED_MULTS_4x4[OD_INTRA_NMODES][4][4];
 extern const double OD_PRED_WEIGHTS_4x4[];

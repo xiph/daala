@@ -28,6 +28,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #include <stdlib.h>
 #include <limits.h>
+#include "block_size.h"
 #include "filter.h"
 #include "intra.h"
 #include "tf.h"
@@ -252,75 +253,105 @@ void od_intra_pred16x16_dist(ogg_uint32_t *dist, const od_coeff *c,
 
 /*These are used to weight the samples we use to build the chroma-from-luma
    model.
-  They're constructed from the DC weights used to predict the DC coefficient in
-   each INTRA mode.
+  The weights are a result of minimizing the mean squared error for DC on
+   subset1/3 with 10% of the outliers removed, subject to the weights
+   adding to 1 and having no values less than 1/256.
   We look up the weights using the INTRA modes of the corresponding luma
    blocks.*/
-const signed char OD_INTRA_CHROMA_WEIGHTS_Q6[OD_INTRA_NMODES][3]={
-  { -3, 35, 32},
-  {-23, 41, 46},
-  {  5,-29, 88},
-  { 14,-13, 63},
-  { 34,-10, 40},
-  { 43,  9, 12},
-  { 32, 39, -8},
-  { 11, 65,-12},
-  {  5, 80,-21},
-  { 64,  0, -1}
+const int OD_INTRA_CHROMA_WEIGHTS_Q8[OD_INTRA_NMODES][3] = {
+  { 1,  89, 166},
+  { 1,  45, 210},
+  { 1,  19, 236},
+  { 1,   1, 254},
+  {27,  17, 212},
+  {25,  92, 139},
+  {31, 181,  44},
+  { 1, 254,   1},
+  { 1, 231,  24},
+  { 1, 168,  87},
 };
 
-void od_chroma_pred4x4(od_coeff *_p,const od_coeff *_c,
- const od_coeff *_l,int _stride,const int _weights_q8[3]){
-  static const int BLOCK_DX[3]={-4,0,-4};
-  static const int BLOCK_DY[3]={-4,-4,0};
-  static const int AC_DX[3]={1,0,1};
-  static const int AC_DY[3]={0,1,1};
+void od_chroma_pred(od_coeff *p,const od_coeff *c, const od_coeff *l,
+ int stride, int bx, int by, int ln, int xdec, int ydec,
+ const unsigned char *bsize, int bstride, const int weights_q8[3]) {
+  static const int BLOCK_DX[3] = {-1,  0, -1};
+  static const int BLOCK_DY[3] = {-1, -1, 0};
+  static const int AC_DX[3] = {1, 0, 1};
+  static const int AC_DY[3] = {0, 1, 1};
   ogg_int64_t xx;
   ogg_int64_t xy;
   ogg_int32_t alpha_q8;
   ogg_int32_t beta_q8;
   ogg_int32_t lc_sum_q8;
   ogg_int32_t cc_sum_q8;
-  int         bi;
-  int         i;
-  int         j;
+  int oshift;
+  int cshift;
+  int bi;
+  int i;
+  int j;
+  int n;
   /*Solve for a simple predictive model using the UL, U, L neighbors:
     chroma DC = luma DC * alpha + beta
     chroma AC = luma AC * alpha*/
-  lc_sum_q8=cc_sum_q8=0;
-  xx=xy=0;
-  for(bi=0;bi<3;bi++){
+  lc_sum_q8 = cc_sum_q8 = 0;
+  xx = xy = 0;
+  /*Because we may be predicting from neighbors of different sizes we must
+     shift to a common scale.
+    Because there is enough dynamic range we use the largest scale plus Q8.*/
+  oshift = 11 - ln;
+  cshift = 3 - ln;
+  OD_ASSERT(xdec == ydec);
+  OD_ASSERT(cshift - xdec >= 0);
+  for (bi = 0; bi < 3; bi++) {
     od_coeff lc;
     od_coeff cc;
-    int      boffs;
-    int      ci;
-    int      w_q8;
-    boffs=BLOCK_DY[bi]*_stride+BLOCK_DX[bi];
-    lc=*(_l+boffs);
-    cc=*(_c+boffs);
-    w_q8=_weights_q8[bi];
-    xx+=lc*(ogg_int64_t)lc*w_q8;
-    xy+=lc*(ogg_int64_t)cc*w_q8;
-    lc_sum_q8+=lc*w_q8;
-    cc_sum_q8+=cc*w_q8;
-    for(ci=0;ci<3;ci++){
+    int nx;
+    int ny;
+    int nsize;
+    int nshift;
+    int boffs;
+    int ci;
+    int w_q8;
+    w_q8 = weights_q8[bi];
+    nx = bx + BLOCK_DX[bi];
+    ny = by + BLOCK_DY[bi];
+    nsize = OD_BLOCK_SIZE4x4(bsize, bstride, nx << xdec, ny << ydec);
+    nsize = OD_MAXI(nsize - xdec, 0);
+    nx = nx >> nsize << nsize;
+    ny = ny >> nsize << nsize;
+    nshift = 3 - nsize;
+    boffs = (ny << 2)*stride + (nx << 2);
+    /*Resampled prediction is scaled by a factor of 2.*/
+    lc = *(l + boffs) << (nshift - xdec);
+    cc = *(c + boffs) << nshift;
+    xx += lc*(ogg_int64_t)lc*w_q8;
+    xy += lc*(ogg_int64_t)cc*w_q8;
+    lc_sum_q8 += lc*w_q8;
+    cc_sum_q8 += cc*w_q8;
+    for (ci = 0; ci < 3; ci++) {
       int coffs;
-      coffs=boffs+AC_DY[ci]*_stride+AC_DX[ci];
-      lc=*(_l+coffs);
-      cc=*(_c+coffs);
-      xx+=lc*(ogg_int64_t)lc*w_q8;
-      xy+=cc*(ogg_int64_t)cc*w_q8;
+      coffs=boffs + AC_DY[ci]*stride + AC_DX[ci];
+      lc=*(l + coffs) << (nshift - xdec);
+      cc=*(c + coffs) << nshift;
+      xx += lc*(ogg_int64_t)lc*w_q8;
+      xy += lc*(ogg_int64_t)cc*w_q8;
     }
   }
-  xx-=(lc_sum_q8*(ogg_int64_t)lc_sum_q8+128)>>8;
-  xy-=(cc_sum_q8*(ogg_int64_t)lc_sum_q8+128)>>8;
-  if(abs(xx)>abs(xy)>>1)alpha_q8=(xy<<8)/xx;
-  else alpha_q8=0;
-  beta_q8=cc_sum_q8-((alpha_q8*lc_sum_q8+128)>>8);
-  _p[0]=(_l[0]*alpha_q8+beta_q8+128)>>8;
-  for(i=0;i<4;i++){
-    for(j=i==0;j<4;j++){
-      _p[i*4+j]=(_l[i*_stride+j]*alpha_q8+128)>>8;
+  l += (by << 2)*stride + (bx << 2);
+  xx -= (lc_sum_q8*(ogg_int64_t)lc_sum_q8 + 128) >> 8;
+  xy -= (cc_sum_q8*(ogg_int64_t)lc_sum_q8 + 128) >> 8;
+  if (abs(xx) > abs(xy) >> 1) alpha_q8 = (xy << 8)/xx;
+  else alpha_q8 = 0;
+  if (abs(alpha_q8)>128)alpha_q8 = 0;
+  beta_q8 = cc_sum_q8 - ((alpha_q8*lc_sum_q8 + 128) >> 8);
+  /*Alpha is scaled by the amount needed to bring the luma at this block to
+    the working scale.*/
+  alpha_q8 <<= cshift - xdec;
+  p[0] = (l[0]*alpha_q8 + beta_q8 + (1 << (oshift - 1))) >> oshift;
+  n = 1 << (2 + ln);
+  for (i = 0; i < n; i++) {
+    for (j = i == 0; j < n; j++) {
+      p[i*n + j] = (l[i*stride+j]*alpha_q8 + (1 << (oshift - 1))) >> oshift;
     }
   }
 }
@@ -430,13 +461,29 @@ void od_intra_pred_update(ogg_uint16_t _p0[],int _nmodes,int _mode,
 }
 
 void od_resample_luma_coeffs(od_coeff *l, int lstride,
- const od_coeff *c, int cstride, int xdec, int ydec, int n) {
-  if (xdec) {
-    if (ydec) od_tf_up_hv_lp(l, lstride, c, cstride, n, n, n);
-    else od_tf_up_h_lp(l, lstride, c, cstride, n, n);
+ const od_coeff *c, int cstride, int xdec, int ydec, int ln, int cln) {
+  int n;
+  n = 4 << ln;
+  if (cln > ln) {
+    if (xdec) {
+      if (ydec) od_tf_up_hv_lp(l, lstride, c, cstride, n, n, n);
+      else od_tf_up_h_lp(l, lstride, c, cstride, n, n);
+    }
+    else{
+      OD_ASSERT(ydec);
+      od_tf_up_v_lp(l, lstride, c, cstride, n, n);
+    }
   }
-  else{
-    OD_ASSERT(ydec);
-    if (ydec) od_tf_up_v_lp(l, lstride, c, cstride, n, n);
+  else {
+    /*When the transform we code chroma with is smaller than the luma one,
+       downsampling just requires copying the upper lower quarter coeffs.*/
+    int x;
+    int y;
+    OD_ASSERT(xdec == ydec);
+    for (y = 0; y < n; y++) {
+      for (x = 0; x < n; x++) {
+        l[y*lstride + x] = c[y*cstride + x];
+      }
+    }
   }
 }

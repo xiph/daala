@@ -109,7 +109,7 @@ struct od_mb_dec_ctx {
   od_adapt_ctx adapt;
   signed char *modes;
   od_coeff *c;
-  od_coeff *d;
+  od_coeff **d;
   od_coeff *md;
   od_coeff *mc;
   od_coeff *l;
@@ -165,7 +165,7 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   w = frame_width >> xdec;
   modes = ctx->modes;
   c = ctx->c;
-  d = ctx->d;
+  d = ctx->d[pli];
   md = ctx->md;
   mc = ctx->mc;
   l = ctx->l;
@@ -177,8 +177,7 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   }
   for (zzi = 0; zzi < n2; zzi++) pvq_scale[zzi] = 0;
   if (ctx->is_keyframe) {
-    /*Chroma from luma temporarily disabled until it handles switching.*/
-    if (bx > 0 && by > 0 && pli == 0) {
+    if (bx > 0 && by > 0) {
       if (pli == 0) {
         ogg_uint16_t mode_cdf[OD_INTRA_NMODES];
         int m_l;
@@ -215,38 +214,11 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
          m_l, m_ul, m_u);
       }
       else{
-        int chroma_weights_q8[3];
         int mode;
         mode = modes[(by << ydec)*(frame_width >> 2) + (bx << xdec)];
-        chroma_weights_q8[0] = OD_INTRA_CHROMA_WEIGHTS_Q6[mode][0];
-        chroma_weights_q8[1] = OD_INTRA_CHROMA_WEIGHTS_Q6[mode][1];
-        chroma_weights_q8[2] = OD_INTRA_CHROMA_WEIGHTS_Q6[mode][2];
-        mode = modes[(by << ydec)*(frame_width >> 2)
-         + ((bx << xdec) + xdec)];
-        chroma_weights_q8[0] +=
-         OD_INTRA_CHROMA_WEIGHTS_Q6[mode][0];
-        chroma_weights_q8[1] +=
-         OD_INTRA_CHROMA_WEIGHTS_Q6[mode][1];
-        chroma_weights_q8[2] +=
-         OD_INTRA_CHROMA_WEIGHTS_Q6[mode][2];
-        mode = modes[((by << ydec) + ydec)*(frame_width >> 2)
-         + (bx << xdec)];
-        chroma_weights_q8[0] +=
-         OD_INTRA_CHROMA_WEIGHTS_Q6[mode][0];
-        chroma_weights_q8[1] +=
-         OD_INTRA_CHROMA_WEIGHTS_Q6[mode][1];
-        chroma_weights_q8[2] +=
-         OD_INTRA_CHROMA_WEIGHTS_Q6[mode][2];
-        mode = modes[((by << ydec) + ydec)*(frame_width >> 2)
-         + ((bx << xdec) + xdec)];
-        chroma_weights_q8[0] +=
-         OD_INTRA_CHROMA_WEIGHTS_Q6[mode][0];
-        chroma_weights_q8[1] +=
-         OD_INTRA_CHROMA_WEIGHTS_Q6[mode][1];
-        chroma_weights_q8[2] +=
-         OD_INTRA_CHROMA_WEIGHTS_Q6[mode][2];
-        od_chroma_pred4x4(pred, d + (by << 2)*w + (bx << 2),
-         l + (by << 2)*w + (bx << 2), w, chroma_weights_q8);
+        od_chroma_pred(pred, d, l, w, bx, by, ln, xdec, ydec,
+         dec->state.bsize, dec->state.bstride,
+         OD_INTRA_CHROMA_WEIGHTS_Q8[mode]);
       }
     }
     else{
@@ -380,14 +352,28 @@ const od_dec_func OD_DECODE_BLOCK[OD_NBSIZES + 2]={
 
 static void od_decode_block(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
  int bx, int by, int l, int xdec, int ydec, int has_ur) {
+  int od;
   int d;
   /*This code assumes 4:4:4 or 4:2:0 input.*/
   OD_ASSERT(xdec == ydec);
-  d = OD_MAXI(OD_BLOCK_SIZE4x4(dec->state.bsize,
-   dec->state.bstride, bx << l, by << l), xdec);
+  od = OD_BLOCK_SIZE4x4(dec->state.bsize,
+   dec->state.bstride, bx << l, by << l);
+  d = OD_MAXI(od, xdec);
   OD_ASSERT(d <= l);
   if (d == l) {
-    (*OD_DECODE_BLOCK[d - xdec])(dec, ctx, d - xdec, pli, bx, by, has_ur);
+    d -= xdec;
+    /*Construct the luma predictors for chroma planes.*/
+    if (ctx->l != NULL) {
+      int w;
+      int frame_width;
+      OD_ASSERT(pli > 0);
+      frame_width = dec->state.frame_width;
+      w = frame_width >> xdec;
+      od_resample_luma_coeffs(ctx->l + (by << (2 + d))*w + (bx << (2 + d)), w,
+       ctx->d[0] + (by << (2 + l))*frame_width + (bx << (2 + l)),
+       frame_width, xdec, ydec, d, od);
+    }
+    (*OD_DECODE_BLOCK[d])(dec, ctx, d, pli, bx, by, has_ur);
   }
   else {
     l--;
@@ -646,10 +632,8 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
       for (sbx = 0; sbx < nhsb; sbx++) {
         for (pli = 0; pli < nplanes; pli++) {
           od_adapt_row_ctx *adapt_row;
-          int by;
-          int bx;
           mbctx.c = ctmp[pli];
-          mbctx.d = dtmp[pli];
+          mbctx.d = dtmp;
           mbctx.mc = mctmp[pli];
           mbctx.md = mdtmp[pli];
           mbctx.l = lbuf[pli];
@@ -657,19 +641,6 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
           ydec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
           w = frame_width >> xdec;
           h = frame_height >> ydec;
-          /*Construct the luma predictors for chroma planes.*/
-          if (ltmp[pli] != NULL) {
-            OD_ASSERT(pli > 0);
-            OD_ASSERT(mbctx.l == ltmp[pli]);
-            for (by = sby << (3 - ydec); by < (sby + 1) << (3 - ydec); by++) {
-              for (bx = sbx << (3 - xdec); bx < (sbx + 1) << (3 - xdec);
-               bx++) {
-                od_resample_luma_coeffs(mbctx.l + (by << 2)*w + (bx<<2), w,
-                 dtmp[0] + (by << (2 + ydec))*frame_width + (bx<<(2 + xdec)),
-                 frame_width, xdec, ydec, 4);
-              }
-            }
-          }
           mbctx.nk = mbctx.k_total = mbctx.sum_ex_total_q8 = 0;
           mbctx.ncount = mbctx.count_total_q8 = mbctx.count_ex_total_q8 = 0;
           adapt_row = &dec->state.adapt_row[pli];
