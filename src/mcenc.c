@@ -4904,8 +4904,8 @@ void od_mv_subpel_refine(od_mv_est_ctx *est, int ref, int cost_thresh) {
       subpel_cost += dcost;
     }
     while (dcost < cost_thresh);
-    if (subpel_cost > 0) {
-      OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
+    if (subpel_cost >= 0) {
+      OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_INFO,
        "1/%i refinement FAILED:    dopt %7i", 1 << (3 - mv_res), subpel_cost));
       grid = est->refine_grid;
       est->refine_grid = state->mv_grid;
@@ -4913,7 +4913,7 @@ void od_mv_subpel_refine(od_mv_est_ctx *est, int ref, int cost_thresh) {
       break;
     }
     else {
-      OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
+      OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_INFO,
        "1/%i refinement SUCCEEDED: dopt %7i", 1 << (3 - mv_res), subpel_cost));
       best_mv_res = mv_res;
     }
