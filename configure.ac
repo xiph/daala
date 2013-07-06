@@ -171,6 +171,11 @@ AM_CONDITIONAL([DUMP_IMAGES], [test "$enable_dump_images" = "yes"])
 AC_SUBST([PC_PNG_REQUIRES])
 AC_SUBST([PC_PNG_LIBS])
 
+AC_ARG_ENABLE([metrics],
+  AS_HELP_STRING([--enable-metrics], [Enable metrics collection]),,
+  [enable_metrics=yes])
+AS_IF([test "$enable_metrics" = "yes"], [
+  AC_DEFINE([OD_METRICS], [1], [Enable metrics collection])])
 
 AC_CONFIG_FILES([
   Makefile
@@ -192,6 +197,7 @@ AC_MSG_NOTICE([
     API documentation ............ ${enable_doc}
     Assembly optimizations ....... ${enable_asm}
     Image dumping ................ ${enable_dump_images}
+    Metrics collection ........... ${enable_metrics}
     Unit tests ................... ${enable_unit_tests}
     Example Player................ ${enable_player}
 ------------------------------------------------------------------------

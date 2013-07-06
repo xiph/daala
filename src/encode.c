@@ -44,6 +44,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "block_size_enc.h"
 #include "logging.h"
 #include "tf.h"
+#include "metrics.h"
 
 static double mode_bits = 0;
 static double mode_count = 0;
@@ -260,6 +261,11 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
 #if defined(OD_OUTPUT_PRED)
   od_coeff preds[16*16];
 #endif
+#if defined(OD_METRICS)
+  ogg_int64_t pvq_frac_bits;
+  ogg_int64_t dc_frac_bits;
+  ogg_int64_t intra_frac_bits;
+#endif
   OD_ASSERT(ln >= 0 && ln <= 2);
   run_pvq = ctx->run_pvq[pli];
   n = 1 << (ln + 2);
@@ -321,7 +327,13 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
         mode = od_intra_pred_search(mode_cdf, mode_dist,
          OD_INTRA_NMODES, 256);
         (*OD_INTRA_GET[ln])(pred, coeffs, strides, mode);
+#if defined(OD_METRICS)
+        intra_frac_bits = od_ec_enc_tell_frac(&enc->ec);
+#endif
         od_ec_encode_cdf_unscaled(&enc->ec, mode, mode_cdf, OD_INTRA_NMODES);
+#if defined(OD_METRICS)
+        enc->state.bit_metrics[OD_METRIC_INTRA] += od_ec_enc_tell_frac(&enc->ec) - intra_frac_bits;
+#endif
         mode_bits -= M_LOG2E*log(
          (mode_cdf[mode] - (mode == 0 ? 0 : mode_cdf[mode - 1]))/
          (float)mode_cdf[OD_INTRA_NMODES - 1]);
@@ -409,9 +421,15 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
     int scale;
     scale = OD_MAXI(enc->scale[pli], 1);
     scalar_out[0] = OD_DIV_R0(cblock[0] - predt[0], scale);
+#if defined(OD_METRICS)
+    dc_frac_bits = od_ec_enc_tell_frac(&enc->ec);
+#endif
     generic_encode(&enc->ec, ctx->model_dc + pli, abs(scalar_out[0]),
      ctx->ex_dc + pli, 0);
     if (scalar_out[0]) od_ec_enc_bits(&enc->ec, scalar_out[0] < 0, 1);
+#if defined(OD_METRICS)
+    enc->state.bit_metrics[OD_METRIC_DC] += od_ec_enc_tell_frac(&enc->ec) - dc_frac_bits;
+#endif
     scalar_out[0] = scalar_out[0]*scale;
     scalar_out[0] += predt[0];
     vk = 0;
@@ -419,9 +437,15 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
       scalar_out[zzi] = OD_DIV_R0(cblock[zzi] - predt[zzi], scale);
       vk += abs(scalar_out[zzi]);
     }
+#if defined(OD_METRICS)
+    pvq_frac_bits = od_ec_enc_tell_frac(&enc->ec);
+#endif
     generic_encode(&enc->ec, ctx->model_g + pli, vk,
      ctx->ex_g + pli, 0);
     pvq_encoder(&enc->ec, scalar_out + 1, n2 - 1, vk, adapt_curr, ctx->adapt);
+#if defined(OD_METRICS)
+    enc->state.bit_metrics[OD_METRIC_PVQ] += od_ec_enc_tell_frac(&enc->ec) - pvq_frac_bits;
+#endif
     for (zzi = 1; zzi < n2; zzi++) {
       scalar_out[zzi] = scalar_out[zzi]*scale + predt[zzi];
     }
@@ -432,14 +456,23 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
     scale = OD_MAXI((enc->scale[pli]*OD_TRANS_QUANT_ADJ[ln] + (1 << 14)) >> 15, 1);
     sgn = (cblock[0] - predt[0]) < 0;
     cblock[0] = (int)floor(pow(fabs(cblock[0] - predt[0])/scale, 0.75) + 0.5);
+#if defined(OD_METRICS)
+    dc_frac_bits = od_ec_enc_tell_frac(&enc->ec);
+#endif
     generic_encode(&enc->ec, ctx->model_dc + pli, cblock[0],
      ctx->ex_dc + pli, 0);
     if (cblock[0]) od_ec_enc_bits(&enc->ec, sgn, 1);
+#if defined(OD_METRICS)
+    enc->state.bit_metrics[OD_METRIC_DC] += od_ec_enc_tell_frac(&enc->ec) - dc_frac_bits;
+#endif
     cblock[0] = (int)(pow(cblock[0], 4.0/3)*scale + 0.5);
     cblock[0] *= sgn ? -1 : 1;
     cblock[0] += predt[0];
     quant_pvq(cblock + 1, predt + 1, pvq_scale, pred + 1, n2 - 1, scale,
      &qg, 4 - ln, ctx->is_keyframe);
+#if defined(OD_METRICS)
+    pvq_frac_bits = od_ec_enc_tell_frac(&enc->ec);
+#endif
     generic_encode(&enc->ec, ctx->model_g + pli, abs(qg),
      ctx->ex_g + pli, 0);
     if (qg) od_ec_enc_bits(&enc->ec, qg < 0, 1);
@@ -455,6 +488,9 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
     pvq_encoder(&enc->ec, pred + 2, n2 - 2, vk - abs(pred[1]),
      adapt_curr, ctx->adapt);
     for (i = 0; i < n*n; i++) scalar_out[i] = cblock[i];
+#if defined(OD_METRICS)
+    enc->state.bit_metrics[OD_METRIC_PVQ] += od_ec_enc_tell_frac(&enc->ec) - pvq_frac_bits;
+#endif
   }
 #ifdef USE_PSEUDO_ZIGZAG
   od_band_pseudo_dezigzag(&d[((by << 2))*w + (bx << 2)], w, scalar_out, n);
@@ -584,6 +620,14 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   int nhsb;
   int nvsb;
   od_mb_enc_ctx mbctx;
+#if defined(OD_METRICS)
+  ogg_int64_t tot_frac_bits;
+  ogg_int64_t bs_frac_bits;
+  ogg_int64_t mv_frac_bits;
+  for (i = 0; i < OD_METRIC_COUNT; i++) {
+    enc->state.bit_metrics[i] = 0;
+  }
+#endif
   if (enc == NULL || img == NULL) return OD_EFAULT;
   if (enc->packet_state == OD_PACKET_DONE) return OD_EINVAL;
   /*Check the input image dimensions to make sure they're compatible with the
@@ -666,6 +710,9 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   mbctx.is_keyframe |= !(enc->state.ref_imgi[OD_FRAME_PREV] >= 0);
   /*Initialize the entropy coder.*/
   od_ec_enc_reset(&enc->ec);
+#if defined(OD_METRICS)
+  tot_frac_bits = od_ec_enc_tell_frac(&enc->ec);
+#endif
   /*Write a bit to mark this as a data packet.*/
   od_ec_encode_bool_q15(&enc->ec,0,16384);
   /*Code the keyframe bit.*/
@@ -720,6 +767,9 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   bs = _ogg_malloc(sizeof(BlockSizeComp));
   od_log_matrix_uchar(OD_LOG_GENERIC, OD_LOG_INFO, "bimg ", enc->state.io_imgs[OD_FRAME_INPUT].planes[0].data-16*enc->state.io_imgs[OD_FRAME_INPUT].planes[0].ystride-16,
       enc->state.io_imgs[OD_FRAME_INPUT].planes[0].ystride, (nvsb + 1)*32);
+#if defined(OD_METRICS)
+  bs_frac_bits = od_ec_enc_tell_frac(&enc->ec);
+#endif
   for(i = 0; i < nvsb; i++) {
     unsigned char *bimg;
     unsigned char *rimg;
@@ -749,6 +799,9 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       od_block_size_encode(&enc->ec, &state_bsize[0], bstride);
     }
   }
+#if defined(OD_METRICS)
+  enc->state.bit_metrics[OD_METRIC_BLOCK_SWITCHING] = od_ec_enc_tell_frac(&enc->ec) - bs_frac_bits;
+#endif
   od_log_matrix_uchar(OD_LOG_GENERIC, OD_LOG_INFO, "bsize ", enc->state.bsize, enc->state.bstride, (nvsb+1)*4);
   for(i = 0; i < nvsb*4; i++) {
     for(j = 0; j < nhsb*4; j++) {
@@ -769,6 +822,9 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     int mv_res;
     od_mv_grid_pt *mvp;
     od_mv_grid_pt **grid;
+#if defined(OD_METRICS)
+    mv_frac_bits = od_ec_enc_tell_frac(&enc->ec);
+#endif
     nhmvbs = (enc->state.nhmbs + 1) << 2;
     nvmvbs = (enc->state.nvmbs + 1) << 2;
     mvimg = enc->state.io_imgs + OD_FRAME_REC;
@@ -847,6 +903,9 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
         }
       }
     }
+#if defined(OD_METRICS)
+    enc->state.bit_metrics[OD_METRIC_MV] = od_ec_enc_tell_frac(&enc->ec) - mv_frac_bits;
+#endif
   }
   {
     od_coeff *ctmp[OD_NPLANES_MAX];
@@ -1090,6 +1149,10 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
 #endif
   if (enc->state.info.frame_duration == 0) enc->state.cur_time += duration;
   else enc->state.cur_time += enc->state.info.frame_duration;
+#if defined(OD_METRICS)
+  enc->state.bit_metrics[OD_METRIC_TOTAL] = od_ec_enc_tell_frac(&enc->ec) - tot_frac_bits;
+  write_metrics(enc->state.cur_time, &enc->state.bit_metrics[0]);
+#endif
   return 0;
 }
 

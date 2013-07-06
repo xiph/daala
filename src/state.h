@@ -75,6 +75,15 @@ extern const int *const OD_VERT_SETUP_DY[4][4];
 
 #define OD_SUPERBLOCK_SIZE (32)
 
+/*These are buckets for performance and bitrate measurements.*/
+#define OD_METRIC_TOTAL 0
+#define OD_METRIC_MV 1
+#define OD_METRIC_BLOCK_SWITCHING 2
+#define OD_METRIC_INTRA 3
+#define OD_METRIC_PVQ 4
+#define OD_METRIC_DC 5
+
+#define OD_METRIC_COUNT (OD_METRIC_DC + 1)
 
 /*The shared (encoder and decoder) functions that have accelerated variants.*/
 struct od_state_opt_vtbl{
@@ -128,6 +137,9 @@ struct od_state{
 #if defined(OD_ANIMATE)
   int                 ani_iter;
 #endif
+#endif
+#if defined(OD_METRICS)
+  ogg_int64_t bit_metrics[OD_METRIC_COUNT];
 #endif
 };
 

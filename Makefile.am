@@ -29,7 +29,8 @@ noinst_HEADERS = \
 	src/pvq.h \
 	src/pvq_code.h \
 	src/state.h \
-	src/tf.h
+	src/tf.h \
+	src/metrics.h
 
 src_libdaalabase_la_CFLAGS = $(OGG_CFLAGS)
 src_libdaalabase_la_LIBADD = $(OGG_LIBS) $(LIBM)
@@ -99,7 +100,8 @@ src_libdaalaenc_la_SOURCES = \
 	src/block_size_enc.c \
 	src/encode.c \
 	src/infoenc.c \
-	src/mcenc.c
+	src/mcenc.c \
+        src/metrics.c
 
 # Example programs
 
