@@ -365,7 +365,7 @@ static void pvq_search(float *x,float *scale,float *scale_1,float g,int N,int K,
 
 /* FIXME: Replace with an actual fixed-point sqrt() */
 int od_sqrt(int x) {
-  return floor(.5+sqrt(x));
+  return floor(.5+32768*sqrt(x));
 }
 /* Raises X to the power 3/4, Q15 input, Q3 output.
    We use a lookup-based domain reduction to the [0.5,1[ range. */
@@ -436,7 +436,7 @@ void pvq_synth(od_coeff *x, int *xn, od_coeff *r, int l2r, int cg,
   for (i = 0; i < n; i++) {
     proj += r[i]*xn[i];
   }
-  g = od_gain_expander(q*cg)/OD_MAXI(1,od_sqrt(l2x));
+  g = od_gain_expander(q*cg)/OD_MAXI(1, od_sqrt(l2x) + 16384 >> 15);
   /* FIXME: Do this without the 64-bit math. */
   proj_1 = (ogg_int64_t)g*2*proj/OD_MAXI(1,l2r);
   maxval = OD_MAXI(g, abs(proj_1));
@@ -737,11 +737,11 @@ int quant_pvq(ogg_int32_t *x0,const ogg_int32_t *r0, ogg_int16_t *scale0,
   gr = od_sqrt(l2r);
   OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%d", g));
   /* compand gain of x and subtract a constant for "pseudo-RDO" purposes */
-  cg = (od_gain_compander(g*32768) + q/2)/q;
+  cg = (od_gain_compander(g) + q/2)/q;
   if (cg < 0) cg = 0;
   /* FIXME: Make that offset adaptive */
   gain_offset = intra ? 13*q/8 : 0;
-  cgr = (od_gain_compander(gr*32768) + q/2 + gain_offset)/q;
+  cgr = (od_gain_compander(gr) + q/2 + gain_offset)/q;
   /* Gain quantization. Round to nearest because we've already reduced cg.
      Maybe we should have a dead zone */
   /* Doing some RDO on the gain, start by rounding down */
@@ -771,11 +771,6 @@ int quant_pvq(ogg_int32_t *x0,const ogg_int32_t *r0, ogg_int16_t *scale0,
     x[i]*=scale_1[i];
     r[i]*=scale_1[i];
   }*/
-  l2r = 0;
-  for(i = 0; i < n; i++) {
-    l2r += r[i]*r[i];
-  }
-  gr = od_sqrt(l2r);
   /* This is where we can skip */
   /*
   if (K<=0)
@@ -799,7 +794,7 @@ int quant_pvq(ogg_int32_t *x0,const ogg_int32_t *r0, ogg_int16_t *scale0,
   s = r[m] > 0 ? 1 : -1;
   /* This turns r into a Householder reflection vector that would reflect
    * the original r[] to e_m */
-  r[m] += gr*s;
+  r[m] += (gr*s + 16384) >> 15;
   l2r = 0;
   for (i = 0; i < n; i++) {
     l2r += r[i]*r[i];
@@ -849,10 +844,10 @@ int pvq_unquant_k(const ogg_int32_t *r, int n, int qg, int q0,
   for (i = 0; i < n; i++) {
     l2r += r[i]*r[i] << 2*shift;
   }
-  gr=od_sqrt(l2r);
+  gr = od_sqrt(l2r);
   /* FIXME: Make that offset adaptive */
   gain_offset = intra ? 13*q/8 : 0;
-  cgr = (od_gain_compander(gr*32768) + q/2 + gain_offset)/q;
+  cgr = (od_gain_compander(gr) + q/2 + gain_offset)/q;
   cg = cgr + 8*qg;
   if (cg < 0) cg=0;
   return compute_k_from_gain(cg, n);
@@ -905,7 +900,7 @@ void dequant_pvq(ogg_int32_t *x0, const ogg_int32_t *r0, ogg_int16_t *scale0,
   }
   gr = od_sqrt(l2r);
   gain_offset = intra ? 13*q/8 : 0;
-  cgr = (od_gain_compander(gr*32768) + q/2 + gain_offset)/q;
+  cgr = (od_gain_compander(gr) + q/2 + gain_offset)/q;
   cg = cgr + 8*qg;
   if (cg < 0) cg = 0;
   /* Pick component with largest magnitude. Not strictly
@@ -920,7 +915,7 @@ void dequant_pvq(ogg_int32_t *x0, const ogg_int32_t *r0, ogg_int16_t *scale0,
   s = r[m] > 0 ? 1 : -1;
   /* This turns r into a Householder reflection vector that would reflect
    * the original r[] to e_m */
-  r[m] += gr*s;
+  r[m] += (gr*s + 16384) >> 15;
   l2r = 0;
   for (i = 0; i < n; i++) {
     l2r += r[i]*r[i];
