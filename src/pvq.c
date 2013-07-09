@@ -363,6 +363,9 @@ static void pvq_search(float *x,float *scale,float *scale_1,float g,int N,int K,
 #define GAIN_EXP (4./3.)
 #define GAIN_EXP_1 (1./GAIN_EXP)
 
+#define CSCALE   (64.)
+#define SCALE_1  (0.015625f)
+
 /* FIXME: Replace with an actual fixed-point sqrt() */
 int od_sqrt(int x) {
   return floor(.5+32768*sqrt(x));
@@ -436,7 +439,7 @@ void pvq_synth(od_coeff *x, int *xn, od_coeff *r, int l2r, int cg,
   for (i = 0; i < n; i++) {
     proj += r[i]*xn[i];
   }
-  g = od_gain_expander(q*cg)/OD_MAXI(1, od_sqrt(l2x) + 16384 >> 15);
+  g = od_gain_expander(q*cg*.125)/OD_MAXI(1, od_sqrt(l2x) + 16384 >> 15);
   /* FIXME: Do this without the 64-bit math. */
   proj_1 = (ogg_int64_t)g*2*proj/OD_MAXI(1,l2r);
   maxval = OD_MAXI(g, abs(proj_1));
@@ -714,10 +717,10 @@ int quant_pvq(ogg_int32_t *x0,const ogg_int32_t *r0, ogg_int16_t *scale0,
   maxr = -1;
   /* Just some calibration -- should eventually go away */
   /* Converts Q to the "companded domain" */
-  q = od_gain_compander((1 << shift)*q0*1.3*32768)/8;
+  q = od_gain_compander((1 << shift)*q0*1.3*32768);
   /* High rate predicts that the constant should be log(2)/6 = 0.115, but in
      practice, it should be lower. */
-  lambda = 0.10*q*q;
+  lambda = 0.10*q*q/8/8;
   for (i = 0; i < n; i++) {
     scale[i] = scale0[i];
     scale_1[i] = 1./scale[i];
@@ -737,11 +740,11 @@ int quant_pvq(ogg_int32_t *x0,const ogg_int32_t *r0, ogg_int16_t *scale0,
   gr = od_sqrt(l2r);
   OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%d", g));
   /* compand gain of x and subtract a constant for "pseudo-RDO" purposes */
-  cg = (od_gain_compander(g) + q/2)/q;
+  cg = (8*od_gain_compander(g) + q/2)/q;
   if (cg < 0) cg = 0;
   /* FIXME: Make that offset adaptive */
   gain_offset = intra ? 13*q/8 : 0;
-  cgr = (od_gain_compander(gr) + q/2 + gain_offset)/q;
+  cgr = (8*od_gain_compander(gr) + q/2 + gain_offset)/q;
   /* Gain quantization. Round to nearest because we've already reduced cg.
      Maybe we should have a dead zone */
   /* Doing some RDO on the gain, start by rounding down */
@@ -750,14 +753,14 @@ int quant_pvq(ogg_int32_t *x0,const ogg_int32_t *r0, ogg_int16_t *scale0,
   if (cgq < 1e-15) cgq = 1e-15;
   /* Cost difference between rounding up or down */
   if (2*(cgq - .125*cg) + 1
-   + (lambda/(q*q))*(2. + (n - 1)*log2(1 + 1./(cgq))) < 0) {
+   + (8*8*lambda/(q*q))*(2. + (n - 1)*log2(1 + 1./(cgq))) < 0) {
     (*qg)++;
     cgq = .125*cgr + *qg;
   }
   cg = cgr + 8**qg;
   if (cg < 0) cg=0;
   /* This is the actual gain the decoder will apply */
-  g = pow(q*.125*cg, GAIN_EXP);
+  g = pow(q*.125*.125*cg, GAIN_EXP);
   k = compute_k_from_gain(cg, n);
   if (k == 0) {
     g = 0;
@@ -839,7 +842,7 @@ int pvq_unquant_k(const ogg_int32_t *r, int n, int qg, int q0,
   int cg;
   int cgr;
   int gain_offset;
-  q = od_gain_compander((1 << shift)*q0*1.3*32768)/8;
+  q = od_gain_compander((1 << shift)*q0*1.3*32768);
   l2r = 0;
   for (i = 0; i < n; i++) {
     l2r += r[i]*r[i] << 2*shift;
@@ -847,7 +850,7 @@ int pvq_unquant_k(const ogg_int32_t *r, int n, int qg, int q0,
   gr = od_sqrt(l2r);
   /* FIXME: Make that offset adaptive */
   gain_offset = intra ? 13*q/8 : 0;
-  cgr = (od_gain_compander(gr) + q/2 + gain_offset)/q;
+  cgr = (8*od_gain_compander(gr) + q/2 + gain_offset)/q;
   cg = cgr + 8*qg;
   if (cg < 0) cg=0;
   return compute_k_from_gain(cg, n);
@@ -884,7 +887,7 @@ void dequant_pvq(ogg_int32_t *x0, const ogg_int32_t *r0, ogg_int16_t *scale0,
   maxr = -1;
   /* Just some calibration -- should eventually go away */
   /* Converts Q to the "companded domain" */
-  q = od_gain_compander((1 << shift)*q0*1.3*32768)/8;
+  q = od_gain_compander((1 << shift)*q0*1.3*32768);
   /* High rate predicts that the constant should be log(2)/6 = 0.115, but in
      practice, it should be lower. */
   for (i = 0; i < n; i++) {
@@ -900,7 +903,7 @@ void dequant_pvq(ogg_int32_t *x0, const ogg_int32_t *r0, ogg_int16_t *scale0,
   }
   gr = od_sqrt(l2r);
   gain_offset = intra ? 13*q/8 : 0;
-  cgr = (od_gain_compander(gr) + q/2 + gain_offset)/q;
+  cgr = (8*od_gain_compander(gr) + q/2 + gain_offset)/q;
   cg = cgr + 8*qg;
   if (cg < 0) cg = 0;
   /* Pick component with largest magnitude. Not strictly
