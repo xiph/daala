@@ -363,8 +363,9 @@ static void pvq_search(float *x,float *scale,float *scale_1,float g,int N,int K,
 #define GAIN_EXP (4./3.)
 #define GAIN_EXP_1 (1./GAIN_EXP)
 
-#define CSCALE   (64)
-#define CSCALE_1  (0.015625f)
+#define CSCALE (64)
+#define CSCALE_1 (0.015625f)
+#define CSHIFT (6)
 
 /* FIXME: Replace with an actual fixed-point sqrt() */
 int od_sqrt(int x) {
@@ -373,7 +374,7 @@ int od_sqrt(int x) {
 /* Raises X to the power 3/4, Q15 input, Q3 output.
    We use a lookup-based domain reduction to the [0.5,1[ range. */
 int od_gain_compander(int x) {
-  return floor(.5 + 8*pow(x*(1.f/32768), .75));
+  return floor(.5 + CSCALE*pow(x*(1.f/32768), .75));
 }
 
 /* Raises X to the power 4/3, Q3 input, Q15 output.
@@ -387,16 +388,16 @@ int od_gain_expander(int x) {
   const int C[3] = {2243, 25982, 18059};
   /* Generated using:
      printf("%d, ", round(32768*(2.^([0:15]-3).^(4/3))));printf("\n"); */
-  static const int expand_table[16] = {
-   2048, 5161, 13004, 32768, 82570, 208064, 524288, 1321123, 3329021,
+  static const int expand_table[19] = {
+   128, 323, 813, 2048, 5161, 13004, 32768, 82570, 208064, 524288, 1321123, 3329021,
    8388608, 21137968, 53264341, 134217728, 338207482, 852229450, 2147483647
   };
   if (x == 0) return 0;
-  ilog2x = OD_ILOG(x) - 1;
-  base = expand_table[ilog2x + 1];
+  ilog2x = OD_ILOG(x);
+  base = expand_table[ilog2x];
   /*printf("(%d)\n", base);*/
   /* Normalize x to [16384,32768[ */
-  xn = x << (14 - ilog2x);
+  xn = x << (18 - ilog2x) >> 3;
   correction = (xn*(C[1] + (C[2]*xn >> 16)) >> 15) - C[0];
   /* FIXME: Use a 32x16 macro here. We'll have to finish with a << 1 too */
   return (long long)base*correction >> 15;
@@ -439,7 +440,7 @@ void pvq_synth(od_coeff *x, int *xn, od_coeff *r, int l2r, int cg,
   for (i = 0; i < n; i++) {
     proj += r[i]*xn[i];
   }
-  g = od_gain_expander(q*CSCALE_1*.125*cg)/OD_MAXI(1, od_sqrt(l2x) + 16384 >> 15);
+  g = od_gain_expander(q*CSCALE_1*cg)/OD_MAXI(1, od_sqrt(l2x) + 16384 >> 15);
   /* FIXME: Do this without the 64-bit math. */
   proj_1 = (ogg_int64_t)g*2*proj/OD_MAXI(1,l2r);
   maxval = OD_MAXI(g, abs(proj_1));
@@ -717,7 +718,7 @@ int quant_pvq(ogg_int32_t *x0,const ogg_int32_t *r0, ogg_int16_t *scale0,
   maxr = -1;
   /* Just some calibration -- should eventually go away */
   /* Converts Q to the "companded domain" */
-  q = 8*od_gain_compander((1 << shift)*q0*1.3*32768);
+  q = od_gain_compander((1 << shift)*q0*1.3*32768);
   /* High rate predicts that the constant should be log(2)/6 = 0.115, but in
      practice, it should be lower. */
   lambda = 0.10*q*q*CSCALE_1*CSCALE_1;
@@ -740,15 +741,15 @@ int quant_pvq(ogg_int32_t *x0,const ogg_int32_t *r0, ogg_int16_t *scale0,
   gr = od_sqrt(l2r);
   OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%d", g));
   /* compand gain of x and subtract a constant for "pseudo-RDO" purposes */
-  cg = 8*((CSCALE*od_gain_compander(g) + q/2)/q);
+  cg = (CSCALE*od_gain_compander(g) + q/2)/q;
   if (cg < 0) cg = 0;
   /* FIXME: Make that offset adaptive */
-  gain_offset = intra ? 13*q/8 : 0;
-  cgr = 8*((CSCALE*od_gain_compander(gr) + q/2 + gain_offset)/q);
+  gain_offset = intra ? 13*q : 0;
+  cgr = (CSCALE*od_gain_compander(gr) + q/2 + gain_offset)/q;
   /* Gain quantization. Round to nearest because we've already reduced cg.
      Maybe we should have a dead zone */
   /* Doing some RDO on the gain, start by rounding down */
-  *qg = (cg - cgr) >> 6;
+  *qg = (cg - cgr) >> CSHIFT;
   cgq = CSCALE_1*cgr+*qg;
   if (cgq < 1e-15) cgq = 1e-15;
   /* Cost difference between rounding up or down */
@@ -840,15 +841,15 @@ int pvq_unquant_k(const ogg_int32_t *r, int n, int qg, int q0,
   int cg;
   int cgr;
   int gain_offset;
-  q = 8*od_gain_compander((1 << shift)*q0*1.3*32768);
+  q = od_gain_compander((1 << shift)*q0*1.3*32768);
   l2r = 0;
   for (i = 0; i < n; i++) {
     l2r += r[i]*r[i] << 2*shift;
   }
   gr = od_sqrt(l2r);
   /* FIXME: Make that offset adaptive */
-  gain_offset = intra ? 13*q/8 : 0;
-  cgr = 8*((CSCALE*od_gain_compander(gr) + q/2 + gain_offset)/q);
+  gain_offset = intra ? 13*q : 0;
+  cgr = (CSCALE*od_gain_compander(gr) + q/2 + gain_offset)/q;
   cg = cgr + CSCALE*qg;
   if (cg < 0) cg=0;
   return compute_k_from_gain(cg, n);
@@ -885,7 +886,7 @@ void dequant_pvq(ogg_int32_t *x0, const ogg_int32_t *r0, ogg_int16_t *scale0,
   maxr = -1;
   /* Just some calibration -- should eventually go away */
   /* Converts Q to the "companded domain" */
-  q = 8*od_gain_compander((1 << shift)*q0*1.3*32768);
+  q = od_gain_compander((1 << shift)*q0*1.3*32768);
   /* High rate predicts that the constant should be log(2)/6 = 0.115, but in
      practice, it should be lower. */
   for (i = 0; i < n; i++) {
@@ -900,8 +901,8 @@ void dequant_pvq(ogg_int32_t *x0, const ogg_int32_t *r0, ogg_int16_t *scale0,
     l2r += r[i]*r[i];
   }
   gr = od_sqrt(l2r);
-  gain_offset = intra ? 13*q/8 : 0;
-  cgr = 8*((CSCALE*od_gain_compander(gr) + q/2 + gain_offset)/q);
+  gain_offset = intra ? 13*q : 0;
+  cgr = (CSCALE*od_gain_compander(gr) + q/2 + gain_offset)/q;
   cg = cgr + CSCALE*qg;
   if (cg < 0) cg = 0;
   /* Pick component with largest magnitude. Not strictly
