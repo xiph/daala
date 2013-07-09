@@ -363,7 +363,7 @@ static void pvq_search(float *x,float *scale,float *scale_1,float g,int N,int K,
 #define GAIN_EXP (4./3.)
 #define GAIN_EXP_1 (1./GAIN_EXP)
 
-#define CSCALE   (64.)
+#define CSCALE   (64)
 #define CSCALE_1  (0.015625f)
 
 /* FIXME: Replace with an actual fixed-point sqrt() */
@@ -411,8 +411,8 @@ static int compute_k_from_gain(int cg, int N) {
   }
   else {
     int K_large;
-    k = floor(.5 + 0.6*.125*.125*cg*cg);
-    K_large = floor(.5 + 1.5*.125*cg*sqrt(N/2));
+    k = floor(.5 + 0.6*CSCALE_1*CSCALE_1*cg*cg);
+    K_large = floor(.5 + 1.5*CSCALE_1*cg*sqrt(N/2));
     if (k > K_large) {
       k = K_large;
     }
@@ -439,7 +439,7 @@ void pvq_synth(od_coeff *x, int *xn, od_coeff *r, int l2r, int cg,
   for (i = 0; i < n; i++) {
     proj += r[i]*xn[i];
   }
-  g = od_gain_expander(q*CSCALE_1*cg)/OD_MAXI(1, od_sqrt(l2x) + 16384 >> 15);
+  g = od_gain_expander(q*CSCALE_1*.125*cg)/OD_MAXI(1, od_sqrt(l2x) + 16384 >> 15);
   /* FIXME: Do this without the 64-bit math. */
   proj_1 = (ogg_int64_t)g*2*proj/OD_MAXI(1,l2r);
   maxval = OD_MAXI(g, abs(proj_1));
@@ -740,24 +740,24 @@ int quant_pvq(ogg_int32_t *x0,const ogg_int32_t *r0, ogg_int16_t *scale0,
   gr = od_sqrt(l2r);
   OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%d", g));
   /* compand gain of x and subtract a constant for "pseudo-RDO" purposes */
-  cg = (CSCALE*od_gain_compander(g) + q/2)/q;
+  cg = 8*((CSCALE*od_gain_compander(g) + q/2)/q);
   if (cg < 0) cg = 0;
   /* FIXME: Make that offset adaptive */
   gain_offset = intra ? 13*q/8 : 0;
-  cgr = (CSCALE*od_gain_compander(gr) + q/2 + gain_offset)/q;
+  cgr = 8*((CSCALE*od_gain_compander(gr) + q/2 + gain_offset)/q);
   /* Gain quantization. Round to nearest because we've already reduced cg.
      Maybe we should have a dead zone */
   /* Doing some RDO on the gain, start by rounding down */
-  *qg = (cg - cgr) >> 3;
-  cgq = .125*cgr+*qg;
+  *qg = (cg - cgr) >> 6;
+  cgq = CSCALE_1*cgr+*qg;
   if (cgq < 1e-15) cgq = 1e-15;
   /* Cost difference between rounding up or down */
-  if (2*(cgq - .125*cg) + 1
+  if (2*(cgq - CSCALE_1*cg) + 1
    + (CSCALE*CSCALE*lambda/(q*q))*(2. + (n - 1)*log2(1 + 1./(cgq))) < 0) {
     (*qg)++;
-    cgq = .125*cgr + *qg;
+    cgq = CSCALE_1*cgr + *qg;
   }
-  cg = cgr + 8**qg;
+  cg = cgr + CSCALE**qg;
   if (cg < 0) cg=0;
   /* This is the actual gain the decoder will apply */
   k = compute_k_from_gain(cg, n);
@@ -812,7 +812,7 @@ int quant_pvq(ogg_int32_t *x0,const ogg_int32_t *r0, ogg_int16_t *scale0,
   OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%d %d", k, n));
   /* Normalize lambda for quantizing on the unit circle */
   /* FIXME: See if we can avoid setting lambda to zero! */
-  pvq_search_rdo(x, NULL, NULL, 1, n, k, y, m, .0*lambda/(.125*.125*cg*cg));
+  pvq_search_rdo(x, NULL, NULL, 1, n, k, y, m, .0*lambda*CSCALE*CSCALE/(cg*cg));
   OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%d ", k-abs(y[m])));
   for (i = 0; i < n; i++) {
     OD_LOG_PARTIAL((OD_LOG_PVQ, OD_LOG_DEBUG, "%d ", (m == i) ? 0 : y[i]));
@@ -848,8 +848,8 @@ int pvq_unquant_k(const ogg_int32_t *r, int n, int qg, int q0,
   gr = od_sqrt(l2r);
   /* FIXME: Make that offset adaptive */
   gain_offset = intra ? 13*q/8 : 0;
-  cgr = (CSCALE*od_gain_compander(gr) + q/2 + gain_offset)/q;
-  cg = cgr + 8*qg;
+  cgr = 8*((CSCALE*od_gain_compander(gr) + q/2 + gain_offset)/q);
+  cg = cgr + CSCALE*qg;
   if (cg < 0) cg=0;
   return compute_k_from_gain(cg, n);
 }
@@ -901,8 +901,8 @@ void dequant_pvq(ogg_int32_t *x0, const ogg_int32_t *r0, ogg_int16_t *scale0,
   }
   gr = od_sqrt(l2r);
   gain_offset = intra ? 13*q/8 : 0;
-  cgr = (CSCALE*od_gain_compander(gr) + q/2 + gain_offset)/q;
-  cg = cgr + 8*qg;
+  cgr = 8*((CSCALE*od_gain_compander(gr) + q/2 + gain_offset)/q);
+  cg = cgr + CSCALE*qg;
   if (cg < 0) cg = 0;
   /* Pick component with largest magnitude. Not strictly
    * necessary, but it helps numerical stability */
