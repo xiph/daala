@@ -455,15 +455,20 @@ void pvq_synth(od_coeff *x, int *xn, od_coeff *r, int l2r, int cg,
 }
 
 #if 0 /* Disabled until it gets integerized */
-int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
-    ogg_int16_t *_scale,int *y,int N,int _Q, int *qg){
-  float L2x,L2r;
+int quant_pvq_theta(ogg_int32_t *x0,const ogg_int32_t *r0, ogg_int16_t *scale0,
+  int *y, int n, int q0, int *qg, int shift, int intra)
+/*(ogg_int32_t *_x,const ogg_int32_t *_r,
+    ogg_int16_t *_scale,int *y,int N,int _Q, int *qg)*/{
+  int l2x;
+  float L2x;
+  int l2r;
   float g;
-  float gr;
-  float x[MAXN];
-  float r[MAXN];
+  int gr;
+  int x[MAXN];
+  float xn[MAXN];
+  int r[MAXN];
   float scale[MAXN];
-  float Q;
+  int q;
   float scale_1[MAXN];
   int   i;
   int   m;
@@ -473,98 +478,99 @@ int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
   float xm;
   float L2_m;
   float theta;
-  float cg;              /* Companded gain of x*/
-  float cgq;
-  float cgr;             /* Companded gain of r*/
-  int qt;
-  int K;
+  int cg;              /* Companded gain of x*/
+  int cgq;
+  int cgr;             /* Companded gain of r*/
+  int qt=0;
+  int k;
   float lambda;
-  OD_ASSERT(N>1);
+  OD_ASSERT(n>1);
 
   /* Just some calibration -- should eventually go away */
-  Q=pow(_Q*1.3,GAIN_EXP_1); /* Converts Q to the "companded domain" */
+  q = od_gain_compander((1 << shift)*q0*1.3*32768);
 
   /* High rate predicts that the constant should be log(2)/6 = 0.115, but in
      practice, it should be lower. */
-  lambda = 0.10*Q*Q;
+  lambda = 0.10*q*q*CSCALE_1*CSCALE_1;
 
-  for(i=0;i<N;i++){
-    scale[i]=_scale[i];
+  for(i=0;i<n;i++){
+    scale[i]=scale0[i];
     scale_1[i]=1./scale[i];
   }
   (void)scale_1[0];
 
-  L2x=0;
-  for(i=0;i<N;i++){
-    x[i]=_x[i];
-    r[i]=_r[i];
-    L2x+=x[i]*x[i];
+  l2x=0;
+  for(i=0;i<n;i++){
+    x[i]=x0[i] << shift;
+    r[i]=r0[i] << shift;
+    l2x+=x[i]*x[i];
   }
 
-  g=od_sqrt(L2x);
+  g=od_sqrt(l2x);
 
-  L2r=0;
-  for(i=0;i<N;i++){
-    L2r+=r[i]*r[i];
+  l2r=0;
+  for(i=0;i<n;i++){
+    l2r+=r[i]*r[i];
   }
-  gr=od_sqrt(L2r);
+  gr=od_sqrt(l2r);
 
   /* compand gains */
-  cg = pow(g,GAIN_EXP_1)/Q;
-  cgr = pow(gr,GAIN_EXP_1)/Q;
+  cg = (CSCALE*od_gain_compander(g) + q/2)/q;
+  (void)intra;
+  cgr = (CSCALE*od_gain_compander(gr) + q/2)/q;
 
   /* Doing some RDO on the gain, start by rounding down */
-  *qg = floor(cg-cgr);
-  cgq = cgr+*qg;
+  *qg = floor(CSCALE_1*(cg-cgr));
+  cgq = cgr+CSCALE**qg;
   if (cgq<1e-15) cgq=1e-15;
   /* Cost difference between rounding up or down */
-  if ( 2*(cgq-cg)+1 + (lambda/(Q*Q))*(2. + (N-1)*log2(1+1./(cgq)))  < 0)
+  if ( 2*CSCALE_1*(cgq-cg)+1 + (lambda/(q*q*CSCALE_1*CSCALE_1))*(2. + (n-1)*log2(1+(float)CSCALE/(cgq)))  < 0)
   {
     (*qg)++;
-    cgq = cgr+*qg;
+    cgq = cgr+CSCALE**qg;
   }
 
-  cg = cgr+*qg;
+  cg = cgr+CSCALE**qg;
   if (cg<0)cg=0;
   /* This is the actual gain the decoder will apply */
-  g = pow(Q*cg, GAIN_EXP);
+  g = od_gain_expander(q*CSCALE_1*cg);
 
   /* Pick component with largest magnitude. Not strictly
    * necessary, but it helps numerical stability */
   m=0;
-  for(i=0;i<N;i++){
+  for(i=0;i<n;i++){
     if(fabs(r[i])>maxr){
       maxr=fabs(r[i]);
       m=i;
     }
   }
 
-  OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "max r: %f %f %d", maxr, r[m], m));
+  OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "max r: %f %d %d", maxr, r[m], m));
   s=r[m]>0?1:-1;
 
   /* This turns r into a Householder reflection vector that would reflect
    * the original r[] to e_m */
-  r[m]+=gr*s;
+  r[m]+=(1.f/32768)*gr*s;
 
-  L2r=0;
-  for(i=0;i<N;i++){
-    L2r+=r[i]*r[i];
+  l2r=0;
+  for(i=0;i<n;i++){
+    l2r+=r[i]*r[i];
   }
 
   /* Apply Householder reflection */
   proj=0;
-  for(i=0;i<N;i++){
+  for(i=0;i<n;i++){
     proj+=r[i]*x[i];
   }
-  proj*=2.F/(EPSILON+L2r);
-  for(i=0;i<N;i++){
+  proj*=2.F/(EPSILON+l2r);
+  for(i=0;i<n;i++){
     x[i]-=r[i]*proj;
   }
 
   xm=-x[m]*s;
   x[m]=0;
   L2_m=0;
-  for(i=0;i<N;i++){
+  for(i=0;i<n;i++){
     L2_m+=x[i]*x[i];
   }
   theta=atan2(sqrt(L2_m),xm);
@@ -582,7 +588,7 @@ int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
     }
 
 #if 1
-    lambda = 1./(cg*cg);
+    lambda = 1./(CSCALE_1*CSCALE_1*cg*cg);
     beta = 2*sin(theta)*sin(theta)-lambda;
     if (beta<=0 /*|| theta<.5*M_PI/qg*/){
       theta=0;
@@ -602,69 +608,85 @@ int quant_pvq_theta(ogg_int32_t *_x,const ogg_int32_t *_r,
       beta = 0;
 #endif
     theta_mod = theta/1.2389 - (theta/1.2389)*(theta/1.2389)/6.;
-    qt = floor(cg*theta_mod);
-    theta_mod = qt/(float)cg;
+    qt = floor(CSCALE_1*cg*theta_mod);
+    theta_mod = qt/(float)(CSCALE_1*cg);
     theta = 1.2389 * 3*(1-sqrt(1-theta_mod/1.5));
     if (flip)
       theta=M_PI-theta;
     if (qt==0){
-      K=0;
+      k=0;
     }else{
       int K_large;
-      K = qt*qt;
-      K_large = sqrt(qt*N);
-      if (K>K_large){
-        K=K_large;
+      k = qt*qt;
+      K_large = sqrt(qt*n);
+      if (k>K_large){
+        k=K_large;
       }
     }
   }else{
     theta=0;
-    K=0;
+    k=0;
   }
-  OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%d %d", K, N));
+  OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%d %d", k, n));
 
-  /*pvq_search(x,NULL,NULL,1,N,K,y,m,0);*/
-  pvq_search_rdo(x,NULL,NULL,1,N,K,y,m,.0*lambda/(cg*cg));
+#if 0
+  x[m] = 0;
+  pvq_search (x,NULL,NULL,1,n,k,y);
+#else
+  {
+    x[m] = 0;
+    pvq_search_rdo(x,NULL,NULL,1,n,k,y,m,.0*lambda/(CSCALE_1*CSCALE_1*cg*cg));
+    {
+      float sum=1e-15;
+      for (i=0;i<n;i++) sum += y[i]*y[i];
+      sum = 1/sqrt(sum);
+      for (i=0;i<n;i++) xn[i] = y[i]*sum;
+    }
+  }
+#endif
 
-  for(i=0;i<N;i++) {
+  for(i=0;i<n;i++) {
     OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%d ", y[i]));
   }
-  if (N==32) {
-    for(i=0;i<N;i++) {
+  if (n==32) {
+    for(i=0;i<n;i++) {
       OD_LOG_PARTIAL((OD_LOG_PVQ, OD_LOG_DEBUG, "%d ", y[i]));
     }
     OD_LOG_PARTIAL((OD_LOG_PVQ, OD_LOG_DEBUG, "\n"));
   }
 
-  for(i=0;i<N;i++){
-    x[i]*=sin(theta);
+  for(i=0;i<n;i++){
+    xn[i]*=sin(theta);
   }
-  x[m]=-s*cos(theta);
+  xn[m]=-s*cos(theta);
 
   /* Apply Householder reflection again to get the quantized coefficients */
   proj=0;
-  for(i=0;i<N;i++){
-    proj+=r[i]*x[i];
+  for(i=0;i<n;i++){
+    proj+=r[i]*xn[i];
   }
-  proj*=2.F/(EPSILON+L2r);
-  for(i=0;i<N;i++){
-    x[i]-=r[i]*proj;
+  proj*=2.F/(EPSILON+l2r);
+  for(i=0;i<n;i++){
+    xn[i]-=r[i]*proj;
   }
 
   L2x=0;
-  for(i=0;i<N;i++){
-    float tmp=x[i]/* *scale[i]*/;
+  for(i=0;i<n;i++){
+    float tmp=xn[i]/* *scale[i]*/;
     L2x+=tmp*tmp;
   }
-  g/=EPSILON+sqrt(L2x);
-  for(i=0;i<N;i++){
-    x[i]*=g/* *scale[i]*/;
+  g/=EPSILON+32768*sqrt(L2x);
+  for(i=0;i<n;i++){
+    xn[i]*=g/* *scale[i]*/;
   }
 
-  for(i=0;i<N;i++){
-    _x[i]=floor(.5+x[i]);
+  for(i=0;i<n;i++){
+    x0[i]=floor(.5+xn[i]*(1./(1<<shift)));
   }
 
+  for (i = m; i >= 1; i--)
+    y[i] = y[i-1];
+  y[0] = qt;
   
   OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "y[m]=%d", y[m]));
   return m;
