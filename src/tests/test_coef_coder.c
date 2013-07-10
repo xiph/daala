@@ -90,7 +90,7 @@ struct od_pvq_adapt_ctx{
 
 void pvq_coder_bitstreams(int n, int type){
   od_pvq_adapt_ctx pvq_adapt;
-  od_adapt_ctx adapt;
+  ogg_int32_t adapt[OD_NSB_ADAPT_CTXS];
   int i;
   int k;
   od_ec_dec dec;
@@ -121,15 +121,15 @@ void pvq_coder_bitstreams(int n, int type){
   od_ec_dec_init(&dec, buf, buf_sz);
   for (i = 0; i < 65535; i++) {
     int y[MAXN];
-    adapt.mean[OD_ADAPT_K_Q8] = pvq_adapt.mean_k_q8;
-    adapt.mean[OD_ADAPT_SUM_EX_Q8] = pvq_adapt.mean_sum_ex_q8;
-    adapt.mean[OD_ADAPT_COUNT_Q8] = pvq_adapt.mean_count_q8;
-    adapt.mean[OD_ADAPT_COUNT_EX_Q8] = pvq_adapt.mean_count_ex_q8;
-    pvq_decoder(&dec, y, n, k, &adapt);
-    pvq_adapt.k = adapt.curr[OD_ADAPT_K_Q8];
-    pvq_adapt.sum_ex_q8 = adapt.curr[OD_ADAPT_SUM_EX_Q8];
-    pvq_adapt.count_q8 = adapt.curr[OD_ADAPT_COUNT_Q8];
-    pvq_adapt.count_ex_q8 = adapt.curr[OD_ADAPT_COUNT_EX_Q8];
+    adapt[OD_ADAPT_K_Q8] = pvq_adapt.mean_k_q8;
+    adapt[OD_ADAPT_SUM_EX_Q8] = pvq_adapt.mean_sum_ex_q8;
+    adapt[OD_ADAPT_COUNT_Q8] = pvq_adapt.mean_count_q8;
+    adapt[OD_ADAPT_COUNT_EX_Q8] = pvq_adapt.mean_count_ex_q8;
+    pvq_decoder(&dec, y, n, k, adapt, adapt);
+    pvq_adapt.k = adapt[OD_ADAPT_K_Q8];
+    pvq_adapt.sum_ex_q8 = adapt[OD_ADAPT_SUM_EX_Q8];
+    pvq_adapt.count_q8 = adapt[OD_ADAPT_COUNT_Q8];
+    pvq_adapt.count_ex_q8 = adapt[OD_ADAPT_COUNT_EX_Q8];
     if (pvq_adapt.k >= 0) {
       pvq_adapt.mean_k_q8 += ((pvq_adapt.k << 8)
        -pvq_adapt.mean_k_q8) >> OD_K_ADAPT_SPEED;
@@ -150,7 +150,7 @@ void pvq_coder_bitstreams(int n, int type){
 
 int run_pvq(int *X,int len,int N,int fuzz){
   od_pvq_adapt_ctx pvq_adapt;
-  od_adapt_ctx adapt;
+  ogg_int32_t adapt[OD_NSB_ADAPT_CTXS];
   int i, j;
   od_ec_enc enc;
   od_ec_dec dec;
@@ -174,15 +174,15 @@ int run_pvq(int *X,int len,int N,int fuzz){
       K += abs(X[i*N+j]);
     Ki[i] = K;
     generic_encode(&enc, &model, K, &EK, 4);
-    adapt.mean[OD_ADAPT_K_Q8] = pvq_adapt.mean_k_q8;
-    adapt.mean[OD_ADAPT_SUM_EX_Q8] = pvq_adapt.mean_sum_ex_q8;
-    adapt.mean[OD_ADAPT_COUNT_Q8] = pvq_adapt.mean_count_q8;
-    adapt.mean[OD_ADAPT_COUNT_EX_Q8] = pvq_adapt.mean_count_ex_q8;
-    pvq_encoder(&enc,&X[i*N],N,K,&adapt);
-    pvq_adapt.k = adapt.curr[OD_ADAPT_K_Q8];
-    pvq_adapt.sum_ex_q8 = adapt.curr[OD_ADAPT_SUM_EX_Q8];
-    pvq_adapt.count_q8 = adapt.curr[OD_ADAPT_COUNT_Q8];
-    pvq_adapt.count_ex_q8 = adapt.curr[OD_ADAPT_COUNT_EX_Q8];
+    adapt[OD_ADAPT_K_Q8] = pvq_adapt.mean_k_q8;
+    adapt[OD_ADAPT_SUM_EX_Q8] = pvq_adapt.mean_sum_ex_q8;
+    adapt[OD_ADAPT_COUNT_Q8] = pvq_adapt.mean_count_q8;
+    adapt[OD_ADAPT_COUNT_EX_Q8] = pvq_adapt.mean_count_ex_q8;
+    pvq_encoder(&enc,&X[i*N],N,K,adapt,adapt);
+    pvq_adapt.k = adapt[OD_ADAPT_K_Q8];
+    pvq_adapt.sum_ex_q8 = adapt[OD_ADAPT_SUM_EX_Q8];
+    pvq_adapt.count_q8 = adapt[OD_ADAPT_COUNT_Q8];
+    pvq_adapt.count_ex_q8 = adapt[OD_ADAPT_COUNT_EX_Q8];
     if(pvq_adapt.k>=0){
       pvq_adapt.mean_k_q8+=((pvq_adapt.k<<8)-pvq_adapt.mean_k_q8)>>OD_K_ADAPT_SPEED;
       pvq_adapt.mean_sum_ex_q8+=
@@ -232,15 +232,15 @@ int run_pvq(int *X,int len,int N,int fuzz){
     if (!fuzz && K != Ki[i]) {
       fprintf(stderr, "mismatch for K of vector %d (N=%d)\n", i, N);
     }
-    adapt.mean[OD_ADAPT_K_Q8] = pvq_adapt.mean_k_q8;
-    adapt.mean[OD_ADAPT_SUM_EX_Q8] = pvq_adapt.mean_sum_ex_q8;
-    adapt.mean[OD_ADAPT_COUNT_Q8] = pvq_adapt.mean_count_q8;
-    adapt.mean[OD_ADAPT_COUNT_EX_Q8] = pvq_adapt.mean_count_ex_q8;
-    pvq_decoder(&dec, y, N, Ki[i], &adapt);
-    pvq_adapt.k = adapt.curr[OD_ADAPT_K_Q8];
-    pvq_adapt.sum_ex_q8 = adapt.curr[OD_ADAPT_SUM_EX_Q8];
-    pvq_adapt.count_q8 = adapt.curr[OD_ADAPT_COUNT_Q8];
-    pvq_adapt.count_ex_q8 = adapt.curr[OD_ADAPT_COUNT_EX_Q8];
+    adapt[OD_ADAPT_K_Q8] = pvq_adapt.mean_k_q8;
+    adapt[OD_ADAPT_SUM_EX_Q8] = pvq_adapt.mean_sum_ex_q8;
+    adapt[OD_ADAPT_COUNT_Q8] = pvq_adapt.mean_count_q8;
+    adapt[OD_ADAPT_COUNT_EX_Q8] = pvq_adapt.mean_count_ex_q8;
+    pvq_decoder(&dec, y, N, Ki[i], adapt, adapt);
+    pvq_adapt.k = adapt[OD_ADAPT_K_Q8];
+    pvq_adapt.sum_ex_q8 = adapt[OD_ADAPT_SUM_EX_Q8];
+    pvq_adapt.count_q8 = adapt[OD_ADAPT_COUNT_Q8];
+    pvq_adapt.count_ex_q8 = adapt[OD_ADAPT_COUNT_EX_Q8];
     if(pvq_adapt.k>=0){
       pvq_adapt.mean_k_q8+=((pvq_adapt.k<<8)-pvq_adapt.mean_k_q8)>>OD_K_ADAPT_SPEED;
       pvq_adapt.mean_sum_ex_q8+=

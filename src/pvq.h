@@ -51,7 +51,7 @@ void dequant_pvq(ogg_int32_t *_x, const ogg_int32_t *_r, ogg_int16_t *_scale,
  int N, int _Q, int qg, int shift, int intra);
 
 int quant_scalar(ogg_int32_t *_x,const ogg_int32_t *_r,
-    ogg_int16_t *_scale,int *y,int N,int Q, od_adapt_ctx *_adapt);
+    ogg_int16_t *_scale,int *y,int N,int Q, ogg_int32_t *_adapt);
 
 int quant_pvq_noref(ogg_int32_t *_x,float gr,
     ogg_int16_t *_scale,int *y,int N,int Q);

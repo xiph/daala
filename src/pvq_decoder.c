@@ -141,27 +141,31 @@ int laplace_decode(od_ec_dec *dec, int ex_q8, int k) {
  * Laplace-distributed real values in decreasing order of variance.
  *
  * @param [in,out] dec range decoder
- * @param [in]     y   decoded vector
- * @param [in]     N   dimension of the vector
- * @param [in]     K   sum of the absolute value of components of y
- * @param [in,out] _adapt Adaptation context.
+ * @param [in]     y     decoded vector
+ * @param [in]     N     dimension of the vector
+ * @param [in]     K     sum of the absolute value of components of y
+ * @param [out]    curr  Adaptation context output, may alias means.
+ * @param [in]     means Adaptation context input.
  */
-void pvq_decoder(od_ec_dec *dec, int *y, int n, int k, od_adapt_ctx *_adapt) {
+void pvq_decoder(od_ec_dec *dec, int *y, int n, int k,
+ ogg_int32_t *curr, const ogg_int32_t *means) {
   int i;
   int sum_ex;
   int kn;
   int exp_q8;
   int mean_k_q8;
   int mean_sum_ex_q8;
-  _adapt->curr[OD_ADAPT_COUNT_Q8] = OD_ADAPT_NO_VALUE;
-  _adapt->curr[OD_ADAPT_COUNT_EX_Q8] = OD_ADAPT_NO_VALUE;
+  int ran_delta;
+  ran_delta = 0;
   if (k <= 1) {
-    pvq_decode_delta(dec, y, n, k, _adapt);
+    pvq_decode_delta(dec, y, n, k, curr, means);
     return;
   }
   if (k == 0) {
-    _adapt->curr[OD_ADAPT_K_Q8] = 0;
-    _adapt->curr[OD_ADAPT_SUM_EX_Q8] = 0;
+    curr[OD_ADAPT_COUNT_Q8] = OD_ADAPT_NO_VALUE;
+    curr[OD_ADAPT_COUNT_EX_Q8] = OD_ADAPT_NO_VALUE;
+    curr[OD_ADAPT_K_Q8] = 0;
+    curr[OD_ADAPT_SUM_EX_Q8] = 0;
     for(i = 0; i < n; i++)
       y[i] = 0;
     return;
@@ -169,8 +173,8 @@ void pvq_decoder(od_ec_dec *dec, int *y, int n, int k, od_adapt_ctx *_adapt) {
   sum_ex = 0;
   kn = k;
   /* Estimates the factor relating pulses_left and positions_left to E(|x|).*/
-  mean_k_q8 = _adapt->mean[OD_ADAPT_K_Q8];
-  mean_sum_ex_q8 = _adapt->mean[OD_ADAPT_SUM_EX_Q8];
+  mean_k_q8 = means[OD_ADAPT_K_Q8];
+  mean_sum_ex_q8 = means[OD_ADAPT_SUM_EX_Q8];
   if (mean_k_q8 < 1 << 23) exp_q8 = 256*mean_k_q8/(1 + mean_sum_ex_q8);
   else exp_q8 = mean_k_q8/(1 + (mean_sum_ex_q8 >> 8));
   for(i = 0; i < n; i++){
@@ -178,7 +182,8 @@ void pvq_decoder(od_ec_dec *dec, int *y, int n, int k, od_adapt_ctx *_adapt) {
     int x;
     if (kn == 0) break;
     if (kn <= 1 && i != n - 1) {
-      pvq_decode_delta(dec, y + i, n - i, kn, _adapt);
+      pvq_decode_delta(dec, y + i, n - i, kn, curr, means);
+      ran_delta = 1;
       i = n;
       break;
     }
@@ -197,14 +202,18 @@ void pvq_decoder(od_ec_dec *dec, int *y, int n, int k, od_adapt_ctx *_adapt) {
     kn -= abs(x);
   }
   /* Adapting the estimates for expQ8. */
-  _adapt->curr[OD_ADAPT_K_Q8] = k - kn;
-  _adapt->curr[OD_ADAPT_SUM_EX_Q8] = sum_ex;
+  if (!ran_delta) {
+    curr[OD_ADAPT_COUNT_Q8] = OD_ADAPT_NO_VALUE;
+    curr[OD_ADAPT_COUNT_EX_Q8] = OD_ADAPT_NO_VALUE;
+  }
+  curr[OD_ADAPT_K_Q8] = k - kn;
+  curr[OD_ADAPT_SUM_EX_Q8] = sum_ex;
   for(; i < n; i++)
     y[i] = 0;
 }
 
 void pvq_decode_delta(od_ec_dec *dec, int *y,int n,int k,
- od_adapt_ctx *_adapt) {
+ ogg_int32_t *curr, const ogg_int32_t *means) {
   int i;
   int prev;
   int sum_ex;
@@ -218,8 +227,8 @@ void pvq_decode_delta(od_ec_dec *dec, int *y,int n,int k,
   prev=0;
   sum_ex=0;
   sum_c=0;
-  coef = 256*_adapt->mean[OD_ADAPT_COUNT_Q8]/
-   (1 + _adapt->mean[OD_ADAPT_COUNT_EX_Q8]);
+  coef = 256*means[OD_ADAPT_COUNT_Q8]/
+   (1 + means[OD_ADAPT_COUNT_EX_Q8]);
   pos=0;
   sign=0;
   first = 1;
@@ -254,13 +263,13 @@ void pvq_decode_delta(od_ec_dec *dec, int *y,int n,int k,
     if (k_left == 0) break;
   }
   if (k > 0) {
-    _adapt->curr[OD_ADAPT_COUNT_Q8] = 256*sum_c;
-    _adapt->curr[OD_ADAPT_COUNT_EX_Q8] = sum_ex;
+    curr[OD_ADAPT_COUNT_Q8] = 256*sum_c;
+    curr[OD_ADAPT_COUNT_EX_Q8] = sum_ex;
   }
   else {
-    _adapt->curr[OD_ADAPT_COUNT_Q8] = -1;
-    _adapt->curr[OD_ADAPT_COUNT_EX_Q8] = 0;
+    curr[OD_ADAPT_COUNT_Q8] = -1;
+    curr[OD_ADAPT_COUNT_EX_Q8] = 0;
   }
-  _adapt->curr[OD_ADAPT_K_Q8] = 0;
-  _adapt->curr[OD_ADAPT_SUM_EX_Q8] = 0;
+  curr[OD_ADAPT_K_Q8] = 0;
+  curr[OD_ADAPT_SUM_EX_Q8] = 0;
 }

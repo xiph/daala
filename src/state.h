@@ -113,7 +113,7 @@ struct od_state{
   /** Increments by 1 for each frame. */
   ogg_int64_t         cur_time;
   od_mv_grid_pt     **mv_grid;
-  od_adapt_row_ctx    adapt_row[OD_NPLANES_MAX];
+  od_adapt_ctx        adapt_sb[OD_NPLANES_MAX];
   /** number of horizontal macro blocks. */
   int                 nhmbs;
   /** number of vertical macro blocks. */

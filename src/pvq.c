@@ -1027,7 +1027,7 @@ int quant_pvq_noref(ogg_int32_t *_x,float gr,
 }
 
 int quant_scalar(ogg_int32_t *_x,const ogg_int32_t *_r,
-    ogg_int16_t *_scale,int *y,int N,int Q, od_adapt_ctx *_adapt){
+    ogg_int16_t *_scale,int *y,int N,int Q, ogg_int32_t *_adapt){
   int i;
   float Q2, Q2_1;
   int K;
@@ -1112,7 +1112,7 @@ int quant_scalar(ogg_int32_t *_x,const ogg_int32_t *_r,
     float r, r_1;
     float E0;
     float bias;
-    alpha = (float)_adapt->mean[OD_ADAPT_K_Q8]/(float)_adapt->mean[OD_ADAPT_SUM_EX_Q8];
+    alpha = (float)_adapt[OD_ADAPT_K_Q8]/(float)_adapt[OD_ADAPT_SUM_EX_Q8];
     if(alpha<1)
       alpha=1;
     r = 1-alpha/N;
