@@ -398,7 +398,118 @@ Using the standard trig approximations, we get
 
 \end_inset
 
-This is the first quantization threshold for theta 
+This is the first quantization threshold for theta.
+\end_layout
+
+\begin_layout Part
+Distortion from theta PVQ
+\end_layout
+
+\begin_layout Standard
+Let the normalized theta-PVQ vector be 
+\begin_inset Formula 
+\[
+\mathbf{z}=\left[\begin{array}{c}
+\cos\theta\\
+\mathbf{x}\sin\theta
+\end{array}\right]\ ,
+\]
+
+\end_inset
+
+where 
+\begin_inset Formula $\mathbf{x}$
+\end_inset
+
+ is the unit-vector coded with the PVQ quantizer, the distortion 
+\begin_inset Formula $D$
+\end_inset
+
+ between the unquantized 
+\begin_inset Formula $\mathbf{z}$
+\end_inset
+
+ and its quantized version 
+\begin_inset Formula $\hat{\mathbf{z}}$
+\end_inset
+
+ is
+\begin_inset Formula 
+\begin{align}
+D & =\left(\mathbf{z}-\hat{\mathbf{z}}\right)^{T}\left(\mathbf{z}-\hat{\mathbf{z}}\right)\nonumber \\
+ & =\left(\cos\theta-\cos\hat{\theta}\right)^{2}+\left(\mathbf{x}\sin\theta-\hat{\mathbf{x}}\sin\hat{\theta}\right)^{T}\left(\mathbf{x}\sin\theta-\hat{\mathbf{x}}\sin\hat{\theta}\right)\nonumber \\
+ & =\cos^{2}\theta-2\cos\theta\cos\hat{\theta}+\cos^{2}\hat{\theta}+\sin^{2}\theta+\sin^{2}\hat{\theta}-2\sin\theta\sin\hat{\theta}\mathbf{x}^{T}\hat{\mathbf{x}}\nonumber \\
+ & =2-2\cos\theta\cos\hat{\theta}-2\sin\theta\sin\hat{\theta}\mathbf{x}^{T}\hat{\mathbf{x}}\label{eq:distortion-1}
+\end{align}
+
+\end_inset
+
+Let 
+\begin_inset Formula $D_{x}$
+\end_inset
+
+ be the distance between 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $\mathbf{x}$
+\end_inset
+
+ and 
+\begin_inset Formula $\hat{\mathbf{x}}$
+\end_inset
+
+,
+\begin_inset Formula 
+\begin{align*}
+D_{x} & =\left(\mathbf{x}-\hat{\mathbf{x}}\right)^{T}\left(\mathbf{x}-\hat{\mathbf{x}}\right)\\
+ & =2-2\mathbf{x}^{T}\hat{\mathbf{x}}
+\end{align*}
+
+\end_inset
+
+We can then rewrite 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:distortion-1"
+
+\end_inset
+
+ as
+\begin_inset Formula 
+\begin{align}
+D & =2-2\cos\theta\cos\hat{\theta}-\sin\theta\sin\hat{\theta}\left(2-D_{x}\right)\nonumber \\
+ & =2-2\cos\left(\theta-\hat{\theta}\right)+\sin\theta\sin\hat{\theta}D_{x}\nonumber \\
+ & =D_{\theta}+\sin\theta\sin\hat{\theta}D_{x}\ ,\label{eq:distortion-final}
+\end{align}
+
+\end_inset
+
+where 
+\begin_inset Formula $D_{\theta}=2-2\cos\left(\theta-\hat{\theta}\right)$
+\end_inset
+
+ is the mean square error due to quantizing 
+\begin_inset Formula $\theta$
+\end_inset
+
+.
+ So essentially, the total error is the sum of the error due to quantization
+ of 
+\begin_inset Formula $\theta$
+\end_inset
+
+ and the error in the PVQ quantization assuming a radius that's the geometric
+ mean of the quantized and unquantized radius.
 \end_layout
 
 \end_body
