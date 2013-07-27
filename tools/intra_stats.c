@@ -125,7 +125,7 @@ static void vp8_files_block(intra_stats_ctx *_ctx,const unsigned char *_data,
   image_draw_block(&_ctx->files_vp8.pred,B_SZ*_bi,B_SZ*_bj,_pred,B_SZ);
   for(j=0;j<B_SZ;j++){
     for(i=0;i<B_SZ;i++){
-      res[j*B_SZ+i]=abs(_data[_stride*i+j]-_pred[B_SZ*i+j]);
+      res[j*B_SZ+i]=_data[_stride*j+i]-_pred[B_SZ*j+i]+128;
     }
   }
   image_draw_block(&_ctx->files_vp8.res,B_SZ*_bi,B_SZ*_bj,res,B_SZ);
