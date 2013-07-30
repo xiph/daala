@@ -19,6 +19,7 @@
 #define USE_WEIGHTS (0)
 #define SUBTRACT_DC (0)
 #define POOLED_COV  (1)
+#define DROP_BY_MAG (0)
 
 #define WRITE_IMAGES   (0)
 #define PRINT_PROGRESS (0)
@@ -407,6 +408,49 @@ static void comp_predictors(const prob_ctx *_prob,solve_ctx _sol[NUM_PROCS],
 #endif
 
   if(_drop>0){
+#if DROP_BY_MAG
+    double min[B_SZ*B_SZ];
+    int    idx[B_SZ*B_SZ];
+
+    #pragma omp parallel for schedule(dynamic)
+    for(j=0;j<B_SZ*B_SZ;j++){
+      int tid;
+      tid=OD_OMP_GET_THREAD;
+      solve(_prob,&_sol[tid],j,&_mask[j*4*B_SZ*B_SZ],_sol->beta_0,_sol->beta_1);
+    }
+
+    for(j=0;j<B_SZ*B_SZ;j++){
+      idx[j]=-1;
+      min[j]=UINT_MAX;
+      for(i=0;i<4*B_SZ*B_SZ;i++){
+        if(_mask[4*B_SZ*B_SZ*j+i]&&fabs(_sol->beta_1[4*B_SZ*B_SZ*j+i])<min[j]){
+          idx[j]=i;
+          min[j]=fabs(_sol->beta_1[4*B_SZ*B_SZ*j+i]);
+        }
+      }
+    }
+    while(_drop-->0){
+      j=-1;
+      for(i=0;i<B_SZ*B_SZ;i++){
+        if(idx[i]!=-1&&(j==-1||min[i]<min[j])){
+          j=i;
+        }
+      }
+#if PRINT_DROPS
+      printf("Dropping (%2i,%2i) with beta_1=%g\n",j,idx[j],min[j]);
+      fflush(stdout);
+#endif
+      _mask[4*B_SZ*B_SZ*j+idx[j]]=0;
+      idx[j]=-1;
+      min[j]=UINT_MAX;
+      for(i=0;i<4*B_SZ*B_SZ;i++){
+        if(_mask[4*B_SZ*B_SZ*j+i]&&fabs(_sol->beta_1[4*B_SZ*B_SZ*j+i])<min[j]){
+          idx[j]=i;
+          min[j]=fabs(_sol->beta_1[4*B_SZ*B_SZ*j+i]);
+        }
+      }
+    }
+#else
     double delta_pg[B_SZ*B_SZ];
     int    idx[B_SZ*B_SZ];
     for(j=0;j<B_SZ*B_SZ;j++){
@@ -426,6 +470,7 @@ static void comp_predictors(const prob_ctx *_prob,solve_ctx _sol[NUM_PROCS],
       _mask[j*4*B_SZ*B_SZ+idx[j]]=0;
       idx[j]=comp_delta_pg(_prob,_sol,j,&_mask[j*4*B_SZ*B_SZ],&delta_pg[j]);
     }
+#endif
   }
 
   #pragma omp parallel for schedule(dynamic)
