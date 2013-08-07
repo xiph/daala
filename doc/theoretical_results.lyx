@@ -204,6 +204,27 @@ R=\overset{\mathrm{sign}}{\overbrace{r^{\theta}}}+\overset{\mathrm{non-zero}}{\o
 \end_layout
 
 \begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+D(r) & =-\log r\left(\int_{0}^{\theta}x^{2}r^{x}dx+\sum_{k=1}^{\infty}\int_{\theta-1}^{\theta}x^{2}r^{k}r^{x}dx\right)\\
+ & =I\left(r,\theta\right)-I\left(r,0\right)+\frac{r}{1-r}\left(I\left(r,\theta\right)-I\left(r,\theta-1\right)\right)
+\end{align*}
+
+\end_inset
+
+where
+\begin_inset Formula 
+\begin{align*}
+I\left(r,x\right) & =-\log r\int x^{2}r^{x}dx\\
+ & =r^{x}\frac{2x\log r-x^{2}\log^{2}r-2}{\log^{2}r}+C
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
 When 
 \begin_inset Formula $\sigma$
 \end_inset
