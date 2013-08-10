@@ -26,6 +26,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # define _pvq_H (1)
 # include "internal.h"
 
+#include "filter.h"
 #include "pvq_code.h"
 
 typedef unsigned char index_pair[2];
@@ -37,6 +38,13 @@ typedef struct {
   const int * const band_offsets;
 } band_layout;
 
+extern const band_layout od_layout4;
+extern const band_layout od_layout8;
+extern const band_layout od_layout16;
+void od_bands_from_raster(const band_layout *layout, od_coeff *dst,
+  od_coeff *src, int stride);
+void od_raster_from_bands(const band_layout *layout, od_coeff *src,
+ int stride, od_coeff *dst);
 
 int quant_pvq_theta(ogg_int32_t *x0,const ogg_int32_t *r0, ogg_int16_t *scale0,
   int *y, int n, int q0, int *qg, int shift, int intra);
