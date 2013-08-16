@@ -269,12 +269,16 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
       }
     }
   }
+#ifdef USE_PSEUDO_ZIGZAG
+  od_band_pseudo_zigzag(predt,  n, &pred[0], n);
+#else
   /*Zig-zag*/
   for (y = 0; y < n; y++) {
     for (x = 0; x < n; x++) {
       predt[zig[y*n + x]] = pred[y*n + x];
     }
   }
+#endif
   if (!run_pvq) {
     int scale;
     scale = OD_MAXI(dec->scale[pli], 1);
@@ -321,12 +325,16 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
     ctx->count_total_q8 += adapt_curr[OD_ADAPT_COUNT_Q8];
     ctx->count_ex_total_q8 += adapt_curr[OD_ADAPT_COUNT_EX_Q8];
   }
+#ifdef USE_PSEUDO_ZIGZAG
+  od_band_pseudo_dezigzag(&d[((by << 2))*w + (bx << 2)], w, pred, n);
+#else
   /*De-zigzag*/
   for (y = 0; y < n; y++) {
     for (x = 0; x < n; x++) {
       d[((by << 2) + y)*w + (bx << 2) + x] = pred[zig[y*n + x]];
     }
   }
+#endif
   /*Apply the inverse transform.*/
   (*OD_IDCT_2D[ln])(c + (by << 2)*w + (bx << 2), w,
    d + (by << 2)*w + (bx << 2), w);

@@ -83,6 +83,66 @@ void od_raster_from_bands(const band_layout *layout, od_coeff *src,
   }
 }
 
+void od_band_pseudo_zigzag(od_coeff *dst,  int n, od_coeff *src, int stride) {
+  od_coeff tmp1[1024];
+  od_bands_from_raster(&od_layout4, dst+1, src, stride);
+  if (n >= 8) {
+    int i;
+    od_bands_from_raster(&od_layout8, dst+16, src, stride);
+    for (i=0;i<8;i++)
+    {
+      tmp1[2*i] = dst[16+i];
+      tmp1[2*i+1] = dst[24+i];
+    }
+    for (i=0;i<16;i++) {
+      dst[16+i] = tmp1[i];
+    }
+  }
+  if (n >= 16) {
+    int i;
+    od_bands_from_raster(&od_layout16, dst+64, src, stride);
+    for (i=0;i<32;i++)
+    {
+      tmp1[2*i] = dst[64+i];
+      tmp1[2*i+1] = dst[96+i];
+    }
+    for (i=0;i<64;i++) {
+      dst[64+i] = tmp1[i];
+    }
+  }
+  dst[0] = src[0];
+}
+
+void od_band_pseudo_dezigzag(od_coeff *dst,  int stride, od_coeff *src,
+ int n) {
+  od_raster_from_bands(&od_layout4, dst, stride, src+1);
+  if (n >= 8) {
+    int i;
+    od_coeff tmp1[1024];
+    for (i = 0; i < 16; i++) {
+      tmp1[i] = src[16 + i];
+    }
+    for (i = 0; i < 8; i++) {
+      src[16+i] = tmp1[2*i];
+      src[24+i] = tmp1[2*i + 1];
+    }
+    od_raster_from_bands(&od_layout8, dst, stride, src+16);
+  }
+  if (n >= 16) {
+    int i;
+    od_coeff tmp1[1024];
+    for (i = 0; i < 64; i++) {
+      tmp1[i] = src[64 + i];
+    }
+    for (i = 0; i < 32; i++) {
+      src[64+i] = tmp1[2*i];
+      src[96+i] = tmp1[2*i + 1];
+    }
+    od_raster_from_bands(&od_layout16, dst, stride, src+64);
+  }
+  dst[0] = src[0];
+}
+
 typedef struct {
   int i;
   float rd;

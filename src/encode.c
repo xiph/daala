@@ -254,7 +254,9 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   int zzi;
   int vk;
   int run_pvq;
+#ifndef USE_PSEUDO_ZIGZAG
   unsigned char const *zig;
+#endif
 #if defined(OD_OUTPUT_PRED)
   od_coeff preds[16*16];
 #endif
@@ -264,7 +266,9 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   n2 = n*n;
   bx <<= ln;
   by <<= ln;
+#ifndef USE_PSEUDO_ZIGZAG
   zig = OD_DCT_ZIGS[ln];
+#endif
   xdec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
   ydec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
   frame_width = enc->state.frame_width;
@@ -388,6 +392,11 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
 #if defined(OD_OUTPUT_PRED)
   for (zzi = 0; zzi < n2; zzi++) preds[zzi] = pred[zzi];
 #endif
+  /* Change ordering for encoding. */
+#ifdef USE_PSEUDO_ZIGZAG
+  od_band_pseudo_zigzag(cblock,  n, &d[((by << 2))*w + (bx << 2)], w);
+  od_band_pseudo_zigzag(predt,  n, &pred[0], n);
+#else
   /*Zig-zag*/
   for (y = 0; y < n; y++) {
     for (x = 0; x < n; x++) {
@@ -395,6 +404,7 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
       predt[zig[y*n + x]] = pred[y*n + x];
     }
   }
+#endif
   if (!run_pvq) {
     int scale;
     scale = OD_MAXI(enc->scale[pli], 1);
@@ -415,15 +425,10 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
     for (zzi = 1; zzi < n2; zzi++) {
       scalar_out[zzi] = scalar_out[zzi]*scale + predt[zzi];
     }
-    /*De-zigzag*/
-    for (y = 0; y < n; y++) {
-      for (x = 0; x < n; x++) {
-        d[((by << 2) + y)*w + (bx << 2) + x] = scalar_out[zig[y*n + x]];
-      }
-    }
   }
   if (run_pvq) {
     int scale;
+    int i;
     scale = OD_MAXI((enc->scale[pli]*OD_TRANS_QUANT_ADJ[ln] + (1 << 14)) >> 15, 1);
     sgn = (cblock[0] - predt[0]) < 0;
     cblock[0] = (int)floor(pow(fabs(cblock[0] - predt[0])/scale, 0.75) + 0.5);
@@ -449,13 +454,18 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
     }
     pvq_encoder(&enc->ec, pred + 2, n2 - 2, vk - abs(pred[1]),
      adapt_curr, ctx->adapt);
-    /*De-zigzag*/
-    for (y = 0; y < n; y++) {
-      for (x = 0; x < n; x++) {
-        d[((by << 2) + y)*w + (bx << 2) + x] = cblock[zig[y*n + x]];
-      }
+    for (i = 0; i < n*n; i++) scalar_out[i] = cblock[i];
+  }
+#ifdef USE_PSEUDO_ZIGZAG
+  od_band_pseudo_dezigzag(&d[((by << 2))*w + (bx << 2)], w, scalar_out, n);
+#else
+  /*De-zigzag*/
+  for (y = 0; y < n; y++) {
+    for (x = 0; x < n; x++) {
+      d[((by << 2) + y)*w + (bx << 2) + x] = scalar_out[zig[y*n + x]];
     }
   }
+#endif
   if (adapt_curr[OD_ADAPT_K_Q8] >= 0) {
     ctx->nk++;
     ctx->k_total += adapt_curr[OD_ADAPT_K_Q8];
