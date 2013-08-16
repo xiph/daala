@@ -99,7 +99,7 @@ AC_ARG_ENABLE([unit-tests],
 )
 
 if test "$enable_unit_tests" = "yes" ; then
-  PKG_CHECK_MODULES([CHECK], [check])
+  PKG_CHECK_MODULES([CHECK], [check >= 0.9.8])
 
   dnl As of version 0.9.10, check does not include -pthread in its Cflags or
   dnl Libs even though it does depend on it. Assuming that check.pc may one day
