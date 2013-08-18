@@ -69,4 +69,7 @@ int quant_scalar(ogg_int32_t *_x,const ogg_int32_t *_r,
 int quant_pvq_noref(ogg_int32_t *_x,float gr,
     ogg_int16_t *_scale,int *y,int N,int Q);
 
+int pvq_noref(od_coeff *_x, int N, int Q, int *y, int *vk);
+
+
 #endif

@@ -148,6 +148,110 @@ typedef struct {
   float rd;
 } RDOEntry;
 
+/* Double-precision PVQ search just to make sure our tests aren't limited
+   by numerical accuracy. */
+static double pvq_search_double(const double *x, int n, int k, int *y) {
+  int i, j;
+  double xy;
+  double yy;
+  double X[1024];
+  double xx;
+  xx = xy = yy = 0;
+  for (j = 0; j < n; j++) {
+    X[j] = fabs(x[j]);
+    xx += X[j]*X[j];
+  }
+  for (j = 0; j < n; j++) y[j] = 0;
+  for (i = 0; i < k; i++) {
+    int pos;
+    double best_xy;
+    double best_yy;
+    pos=0;
+    best_xy = -10;
+    best_yy = 1;
+    for (j = 0; j < n; j++) {
+      double tmp_xy;
+      double tmp_yy;
+      tmp_xy = xy + X[j];
+      tmp_yy = yy + 2*y[j] + 1;
+      tmp_xy *= tmp_xy;
+      if (j==0 || tmp_xy*best_yy > best_xy*tmp_yy) {
+        best_xy = tmp_xy;
+        best_yy = tmp_yy;
+        pos = j;
+      }
+    }
+    xy = xy + X[pos];
+    yy = yy + 2*y[pos] + 1;
+    y[pos]++;
+  }
+  return xy/(1e-100 + sqrt(xx*yy));
+}
+
+#define ACTIVITY (1.)
+
+/* This is a slow implementation of no-reference PVQ quantization that tries
+   all possible gains. */
+int pvq_noref(od_coeff *x0, int n, int q0, int *y, int *vk)
+{
+  double l2x;
+  double g;
+  double x[MAXN];
+  int   i;
+  int k;
+  double cg;
+  int qg;
+  double norm;
+  double yy;
+  double best_dist;
+  double q;
+  q = q0*1.1;
+  OD_ASSERT(n > 1);
+  l2x = 0;
+  for(i = 0; i < n; i++) {
+    x[i] = x0[i];
+    l2x += x[i]*x[i];
+  }
+  g = sqrt(l2x);
+  cg = pow(g/q, ACTIVITY);
+  qg = 0;
+  best_dist = 1e100;
+  for (i = 0; i <= ceil(cg); i++) {
+    double cos_dist;
+    double dist;
+    k = floor(.5 + i*sqrt(n/4));
+    cos_dist = pvq_search_double(x, n, k, y);
+    dist = (i - cg)*(i - cg) + i*cg*(2 - 2*cos_dist);
+    dist += .25*k;
+    if (dist < best_dist) {
+      best_dist = dist;
+      qg = i;
+    }
+  }
+  cg = qg;
+  k = floor(.5 + cg*sqrt(n/4));
+  /*printf("%d\n", K);*/
+  pvq_search_double(x, n, k, y);
+  yy = 0;
+  for(i = 0; i < n; i++) {
+    yy += y[i]*y[i];
+  }
+  norm = sqrt(1./(1e-100 + yy));
+  for (i = 0; i < n; i++) {
+    if (x[i] < 0) y[i] = -y[i];
+    x[i] = y[i]*norm;
+  }
+  g = q*pow(cg, 1./ACTIVITY);
+  for (i = 0; i < n; i++) {
+    x[i] *= g;
+  }
+  for(i = 0; i < n; i++) {
+    x0[i] = floor(.5 + x[i]);
+  }
+  *vk = k;
+  return qg;
+}
+
 #if 0
 static int compare(const RDOEntry *a, const RDOEntry *b)
 {
