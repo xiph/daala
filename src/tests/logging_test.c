@@ -115,6 +115,13 @@ int main(int argc, char **argv) {
   (void)argc;
   (void)argv;
 
+#ifndef OD_LOGGING_ENABLED
+  /* If logging isn't enabled we can't test it. Instead of just failing,
+   * return 77 to report 'skipped test' to the harness. */
+  fprintf(stderr, "Logging disabled in this build.\n");
+  exit(77);
+#endif
+
   /* Test the basic functionality. */
   setenv("OD_LOG_MODULES", "generic:3", 1);
   od_log_init(od_logging_test_emit);
