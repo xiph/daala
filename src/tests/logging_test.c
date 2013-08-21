@@ -119,7 +119,7 @@ int main(int argc, char **argv) {
   /* If logging isn't enabled we can't test it. Instead of just failing,
    * return 77 to report 'skipped test' to the harness. */
   fprintf(stderr, "Logging disabled in this build.\n");
-  exit(77);
+  return 77;
 #endif
 
   /* Test the basic functionality. */
@@ -207,7 +207,7 @@ int main(int argc, char **argv) {
   expected_result(expected_matrix_uint32);
 
   if (failed)
-    exit(1);
+    return 1;
 
-  exit(0);
+  return 0;
 }
