@@ -132,6 +132,22 @@ static void vp8_files_block(intra_stats_ctx *_ctx,const unsigned char *_data,
 }
 #endif
 
+#if MASK_BLOCKS
+static void od_mask_block(void *_ctx,const unsigned char *_data,int _stride,
+ int _bi,int _bj){
+#if PRINT_PROGRESS
+  if(_bi==0&&_bj==0){
+    print_progress(stdout,"od_mask_block");
+  }
+#endif
+  if(_bi==0&&_bj==0){
+    intra_stats_ctx *ctx;
+    ctx=(intra_stats_ctx *)_ctx;
+    image_data_mask(&ctx->img,_data,_stride);
+  }
+}
+#endif
+
 static void vp8_block(void *_ctx,const unsigned char *_data,int _stride,
  int _bi,int _bj){
   intra_stats_ctx *ctx;
@@ -141,11 +157,27 @@ static void vp8_block(void *_ctx,const unsigned char *_data,int _stride,
   mode=vp8_select_mode(_data,_stride,NULL);
   memset(pred,0,B_SZ*B_SZ);
   vp8_intra_predict(pred,B_SZ,_data,_stride,mode);
-  vp8_stats_block(ctx,_data,_stride,_bi,_bj,mode,pred);
+#if MASK_BLOCKS
+  if(!ctx->img.mask[ctx->img.nxblocks*_bj+_bi]){
+    int j;
+    int i;
+    for(j=0;j<B_SZ;j++){
+      for(i=0;i<B_SZ;i++){
+        pred[j*B_SZ+i]=_data[_stride*j+i];
+      }
+    }
+  }
+#endif
 #if WRITE_IMAGES
   vp8_files_block(ctx,_data,_stride,_bi,_bj,mode,pred);
 #endif
   ctx->img.mode[ctx->img.nxblocks*_bj+_bi]=mode;
+#if MASK_BLOCKS
+  if(!ctx->img.mask[ctx->img.nxblocks*_bj+_bi]){
+    return;
+  }
+#endif
+  vp8_stats_block(ctx,_data,_stride,_bi,_bj,mode,pred);
 }
 
 static void od_pre_block(void *_ctx,const unsigned char *_data,int _stride,
@@ -311,6 +343,9 @@ static int stats_finish(void *_ctx){
 }
 
 const block_func BLOCKS[]={
+#if MASK_BLOCKS
+  od_mask_block,
+#endif
   vp8_block,
   od_pre_block,
   od_fdct_block,

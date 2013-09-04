@@ -506,6 +506,22 @@ static void print_progress(FILE *_fp,const char *_proc){
 }
 #endif
 
+#if MASK_BLOCKS
+static void ip_mask_block(void *_ctx,const unsigned char *_data,int _stride,
+ int _bi,int _bj){
+#if PRINT_PROGRESS
+  if(_bi==0&&_bj==0){
+    print_progress(stdout,"ip_mask_block");
+  }
+#endif
+  if(_bi==0&&_bj==0){
+    classify_ctx *ctx;
+    ctx=(classify_ctx *)_ctx;
+    image_data_mask(&ctx->img,_data,_stride);
+  }
+}
+#endif
+
 static void ip_pre_block(void *_ctx,const unsigned char *_data,int _stride,
  int _bi,int _bj){
   classify_ctx *ctx;
@@ -551,6 +567,11 @@ static void ip_add_block(void *_ctx,const unsigned char *_data,int _stride,
   }
 #endif
   ctx=(classify_ctx *)_ctx;
+#if MASK_BLOCKS
+  if(!ctx->img.mask[ctx->img.nxblocks*_bj+_bi]){
+    return;
+  }
+#endif
   for(by=0;by<=1;by++){
     for(bx=0;bx<=2-by;bx++){
       block=&ctx->img.fdct[ctx->img.fdct_stride*B_SZ*(_bj+by)+B_SZ*(_bi+bx)];
@@ -640,6 +661,11 @@ static void ip_stats_block(void *_ctx,const unsigned char *_data,int _stride,
   }
 #endif
   ctx=(classify_ctx *)_ctx;
+#if MASK_BLOCKS
+  if(!ctx->img.mask[ctx->img.nxblocks*_bj+_bi]){
+    return;
+  }
+#endif
   image_data_stats_block(&ctx->img,_data,_stride,_bi,_bj,&ctx->st);
   {
     od_coeff *block;
@@ -767,6 +793,9 @@ static int init_finish(void *_ctx){
 }
 
 const block_func INIT[]={
+#if MASK_BLOCKS
+  ip_mask_block,
+#endif
   ip_pre_block,
   ip_fdct_block,
   vp8_mode_block,
@@ -816,6 +845,9 @@ static int pred_finish(void *_ctx){
 }
 
 const block_func PRED[]={
+#if MASK_BLOCKS
+  ip_mask_block,
+#endif
   ip_pre_block,
   ip_fdct_block,
   od_mode_block,

@@ -250,9 +250,14 @@ tools_intra_stats_SOURCES = \
 	tools/stats_tools.c \
 	tools/vidinput.c \
 	tools/image.c \
+	src/block_size.c \
+	src/block_size_enc.c \
+	src/entenc.c \
+	src/entcode.c \
 	src/filter.c \
 	src/newdct.c \
 	src/intra.c \
+	src/switch_table.c \
 	src/tf.c \
 	src/internal.c \
 	src/intradata.c
@@ -273,11 +278,16 @@ tools_intra_pred_SOURCES = \
 	tools/image.c \
 	tools/svd.c \
 	tools/cholesky.c \
+	src/block_size.c \
+	src/block_size_enc.c \
+	src/entenc.c \
+	src/entcode.c \
 	src/filter.c \
 	src/newdct.c \
 	src/intra.c \
 	src/intradata.c \
 	src/internal.c \
+	src/switch_table.c \
 	src/tf.c
 tools_intra_pred_CFLAGS = $(OGG_CFLAGS) $(PNG_CFLAGS) -fopenmp
 tools_intra_pred_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
@@ -295,9 +305,14 @@ tools_intra_trace_SOURCES = \
 	tools/trans_tools.c \
 	tools/vidinput.c \
 	tools/image.c \
+	src/block_size.c \
+	src/block_size_enc.c \
+	src/entenc.c \
+	src/entcode.c \
 	src/filter.c \
 	src/newdct.c \
 	src/intra.c \
+	src/switch_table.c \
 	src/tf.c \
 	src/internal.c \
 	src/intradata.c

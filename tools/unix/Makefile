@@ -151,9 +151,14 @@ vidinput.c \
 image.c
 
 IS_LIB_CSOURCES = \
+block_size.c \
+block_size_enc.c \
+entenc.c \
+entcode.c \
 filter.c \
 newdct.c \
 intra.c \
+switch_table.c \
 tf.c \
 internal.c \
 intradata.c
@@ -182,11 +187,16 @@ svd.c \
 cholesky.c
 
 IP_LIB_CSOURCES = \
+block_size.c \
+block_size_enc.c \
+entenc.c \
+entcode.c \
 filter.c \
 newdct.c \
 intra.c \
 intradata.c \
 internal.c \
+switch_table.c \
 tf.c
 
 IP_LDFLAGS = `pkg-config theoradec ogg libpng --libs` -lm
@@ -212,9 +222,14 @@ vidinput.c \
 image.c
 
 IT_LIB_CSOURCES = \
+block_size.c \
+block_size_enc.c \
+entenc.c \
+entcode.c \
 filter.c \
 newdct.c \
 intra.c \
+switch_table.c \
 tf.c \
 internal.c \
 intradata.c

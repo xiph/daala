@@ -55,6 +55,7 @@ struct image_data{
   const char      *name;
   int              nxblocks;
   int              nyblocks;
+  unsigned char   *mask;
   unsigned char   *mode;
   double          *weight;
   od_coeff        *pre;
@@ -72,6 +73,7 @@ struct image_data{
 void image_data_init(image_data *_this,const char *_name,int _nxblocks,
  int _nyblocks);
 void image_data_clear(image_data *_this);
+void image_data_mask(image_data *_this,const unsigned char *_data,int _stride);
 void image_data_pre_block(image_data *_this,const unsigned char *_data,
  int _stride,int _bi,int _bj);
 void image_data_fdct_block(image_data *_this,int _bi,int _bj);

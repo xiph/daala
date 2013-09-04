@@ -31,6 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "od_filter.h"
 #include "od_intra.h"
 #include "image_tools.h"
+#include "../src/block_size_enc.h"
 #include "../src/dct.h"
 #include <stdlib.h>
 
@@ -230,6 +231,7 @@ void image_data_init(image_data *_this,const char *_name,int _nxblocks,
   _this->name=_name;
   _this->nxblocks=_nxblocks;
   _this->nyblocks=_nyblocks;
+  _this->mask=(unsigned char *)malloc(sizeof(*_this->mask)*_nxblocks*_nyblocks);
   _this->mode=(unsigned char *)malloc(sizeof(*_this->mode)*_nxblocks*_nyblocks);
   _this->weight=(double *)malloc(sizeof(*_this->weight)*_nxblocks*_nyblocks);
   w=B_SZ*(_nxblocks+3);
@@ -255,6 +257,7 @@ void image_data_init(image_data *_this,const char *_name,int _nxblocks,
 }
 
 void image_data_clear(image_data *_this){
+  free(_this->mask);
   free(_this->mode);
   free(_this->weight);
   free(_this->pre);
@@ -262,6 +265,46 @@ void image_data_clear(image_data *_this){
   free(_this->pred);
   free(_this->idct);
   free(_this->post);
+}
+
+void image_data_mask(image_data *_this,const unsigned char *_data,int _stride){
+  int pad;
+  int j;
+  int i;
+  memset(_this->mask,0,_this->nyblocks*_this->nxblocks);
+  /* process_block_size32 needs 32x32 image data with 6 pixel padding */
+  pad=_stride-_this->nxblocks*B_SZ;
+  OD_ASSERT(pad/2>=6);
+  for(j=0;j<_this->nyblocks*B_SZ/32;j++){
+    for(i=0;i<_this->nxblocks*B_SZ/32;i++){
+      const unsigned char *b;
+      BlockSizeComp        bs;
+      int                  dec[4][4];
+      int                  k;
+      int                  l;
+      b=&_data[_stride*32*j+32*i];
+      process_block_size32(&bs,b,_stride,b,_stride,dec);
+      for(l=0;l<32/B_SZ;l++){
+        for(k=0;k<32/B_SZ;k++){
+          /*printf("i=%i j=%i k=%i l=%i\n",i,j,k,l);
+          printf("bx=%i by=%i\n",i*32/B_SZ+k*B_SZ,j*32/B_SZ+l*B_SZ);
+          fflush(stdout);*/
+#if B_SZ==4
+          _this->mask[_this->nxblocks*(j*32/B_SZ+l)+i*32/B_SZ+k]=
+           (dec[l>>1][k>>1]==0);
+#elif B_SZ==8
+          _this->mask[_this->nxblocks*(j*32/B_SZ+l)+i*32/B_SZ+k]=
+           (dec[l][1]==1);
+#elif B_SZ==16
+          _this->mask[_this->nxblocks*(j*32/B_SZ+l)+i*32/B_SZ+k]=
+           (dec[l<<1][k<<1]==2||dec[l<<1][k<<1]==3);
+#else
+# error "Invalid block size."
+#endif
+        }
+      }
+    }
+  }
 }
 
 void image_data_pre_block(image_data *_this,const unsigned char *_data,
@@ -345,6 +388,11 @@ void image_data_print_block(image_data *_this,int _bi,int _bj,FILE *_fp){
   int bx;
   int j;
   int i;
+#if MASK_BLOCKS
+  if(!_this->mask[_this->nxblocks*_bj+_bi]){
+    return;
+  }
+#endif
   fprintf(_fp,"%i",_this->mode[_this->nxblocks*_bj+_bi]);
   for(by=0;by<=1;by++){
     for(bx=0;bx<=2-by;bx++){
@@ -386,6 +434,20 @@ void image_data_pred_block(image_data *_this,int _bi,int _bj){
   int       mode;
   od_coeff  coeffs[5*B_SZ*B_SZ];
   pred=&_this->pred[_this->pred_stride*B_SZ*_bj+B_SZ*_bi];
+#if MASK_BLOCKS
+  if(!_this->mask[_this->nxblocks*_bj+_bi]){
+    od_coeff *fdct;
+    int       j;
+    int       i;
+    fdct=&_this->fdct[_this->fdct_stride*B_SZ*(_bj+1)+B_SZ*(_bi+1)];
+    for(j=0;j<B_SZ;j++){
+      for(i=0;i<B_SZ;i++){
+        pred[_this->pred_stride*j+i]=fdct[_this->fdct_stride*j+i];
+      }
+    }
+    return;
+  }
+#endif
   mode=_this->mode[_this->nxblocks*_bj+_bi];
   image_data_load_block(_this,_bi,_bj,coeffs);
 #if B_SZ_LOG>=OD_LOG_BSIZE0&&B_SZ_LOG<OD_LOG_BSIZE0+OD_NBSIZES
@@ -404,6 +466,11 @@ void image_data_stats_block(image_data *_this,const unsigned char *_data,
   int       j;
   int       i;
   double    buf[B_SZ*B_SZ];
+#if MASK_BLOCKS
+  if(!_this->mask[_this->nxblocks*_bj+_bi]){
+    return;
+  }
+#endif
   mode=_this->mode[_this->nxblocks*_bj+_bi];
   ref=&_this->fdct[_this->fdct_stride*B_SZ*(_bj+1)+B_SZ*(_bi+1)];
   pred=&_this->pred[_this->pred_stride*B_SZ*_bj+B_SZ*_bi];
