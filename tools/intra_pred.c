@@ -883,15 +883,16 @@ const int NPRED=sizeof(PRED)/sizeof(*PRED);
 #endif
 
 int main(int _argc,const char *_argv[]){
-  classify_ctx   cls[NUM_PROCS];
-  int            i;
-  int            j;
+  classify_ctx *cls;
+  int           i;
+  int           j;
   ne_filter_params_init();
   vp8_scale_init(VP8_SCALE);
   od_scale_init(OD_SCALE);
 #if WRITE_IMAGES
   intra_map_colors(COLORS,OD_INTRA_NMODES);
 #endif
+  cls=(classify_ctx *)malloc(sizeof(*cls)*NUM_PROCS);
   for(i=0;i<NUM_PROCS;i++){
     classify_ctx_init(&cls[i]);
   }
@@ -907,7 +908,7 @@ int main(int _argc,const char *_argv[]){
     prob_ctx      prob;
     solve_ctx     sol[NUM_PROCS];
     od_covmat     ete;
-    int           mask[OD_INTRA_NMODES][B_SZ*B_SZ*4*B_SZ*B_SZ];
+    int          *mask;
     struct timeb  start;
     struct timeb  stop;
     prob_ctx_init(&prob);
@@ -915,10 +916,9 @@ int main(int _argc,const char *_argv[]){
       solve_ctx_init(&sol[i]);
     }
     od_covmat_init(&ete,B_SZ*B_SZ);
-    for(i=0;i<OD_INTRA_NMODES;i++){
-      for(j=0;j<B_SZ*B_SZ*4*B_SZ*B_SZ;j++){
-        mask[i][j]=1;
-      }
+    mask=(int *)malloc(sizeof(*mask)*OD_INTRA_NMODES*B_SZ*B_SZ*4*B_SZ*B_SZ);
+    for(i=0;i<OD_INTRA_NMODES*B_SZ*B_SZ*4*B_SZ*B_SZ;i++){
+      mask[i]=1;
     }
     ftime(&start);
     /* Each k-means step uses Daala mode selection. */
@@ -933,6 +933,7 @@ int main(int _argc,const char *_argv[]){
       }
       printf("Starting Step %02i (%i mults / block)\n",step,mults);
       for(j=0;j<OD_INTRA_NMODES;j++){
+        int *mode_mask;
         /* Combine the gathered prediction data. */
         for(i=1;i<NUM_PROCS;i++){
           od_covmat_combine(&cls[0].pd[j],&cls[i].pd[j]);
@@ -945,7 +946,8 @@ int main(int _argc,const char *_argv[]){
           fflush(stdout);
         }
 #endif
-        comp_predictors(&prob,sol,drops,mask[j]);
+        mode_mask=&mask[B_SZ*B_SZ*4*B_SZ*B_SZ*j];
+        comp_predictors(&prob,sol,drops,mode_mask);
         /* Compute residual covariance for each mode. */
         prob_ctx_comp_error(&prob,&cls[0].pd[j],sol->beta_1);
 #if ZERO_MEAN
@@ -966,11 +968,11 @@ int main(int _argc,const char *_argv[]){
 #endif
 #if SUBTRACT_DC
         for(i=0;i<4;i++){
-          OD_ASSERT(mask[j][i*B_SZ*B_SZ]);
+          OD_ASSERT(mode_mask[i*B_SZ*B_SZ]);
           sol->beta_1[i*B_SZ*B_SZ]+=0.25;
         }
 #endif
-        update_predictors(j,sol->beta_0,sol->beta_1,mask[j]);
+        update_predictors(j,sol->beta_0,sol->beta_1,mode_mask);
       }
 #if POOLED_COV
       od_covmat_correct(&ete);
@@ -1003,6 +1005,7 @@ int main(int _argc,const char *_argv[]){
       solve_ctx_clear(&sol[i]);
     }
     od_covmat_clear(&ete);
+    free(mask);
 #if PRINT_BETAS
     print_predictors(stderr);
 #if POOLED_COV
@@ -1013,6 +1016,7 @@ int main(int _argc,const char *_argv[]){
   for(i=0;i<NUM_PROCS;i++){
     classify_ctx_clear(&cls[i]);
   }
+  free(cls);
   od_intra_clear();
   return EXIT_SUCCESS;
 }
