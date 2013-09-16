@@ -39,6 +39,24 @@ if [ ! -f "$DUMP_PSNRHVS" ]; then
   exit 1
 fi
 
+if [ ! -z "$DUMP_SSIM" ]; then
+  if [ ! -f "$DUMP_SSIM" ]; then
+    echo "File not found DUMP_SSIM=$DUMP_SSIM"
+    exit 1
+  fi
+else
+  DUMP_SSIM=\#
+fi
+
+if [ ! -z "$DUMP_FASTSSIM" ]; then
+  if [ ! -f "$DUMP_FASTSSIM" ]; then
+    echo "File not found DUMP_FASTSSIM=$DUMP_FASTSSIM"
+    exit 1
+  fi
+else
+  DUMP_FASTSSIM=\#
+fi
+
 if [ -z "$TMP_DIR" ]; then
   TMP_DIR=.images.tmp
 fi
@@ -52,6 +70,6 @@ fi
 
 mkdir -p $TMP_DIR
 
-find $@ -type f -name "*.y4m" -print0 | xargs -0 -n1 -P$CORES $RD_COLLECT_SUB $ENCODER_EXAMPLE $DUMP_VIDEO $DUMP_PSNRHVS $TMP_DIR
+find $@ -type f -name "*.y4m" -print0 | xargs -0 -n1 -P$CORES $RD_COLLECT_SUB $ENCODER_EXAMPLE $DUMP_VIDEO $DUMP_PSNRHVS $DUMP_SSIM $DUMP_FASTSSIM $TMP_DIR
 
 rm -r $TMP_DIR 2> /dev/null
