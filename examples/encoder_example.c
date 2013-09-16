@@ -375,7 +375,7 @@ static void usage(void){
    "                                 lowest video quality; 1 yields the\n"
    "                                 highest quality, but large files;\n"
    "                                 0 is lossless.\n\n"
-   "  -k --keyframe-rate <n>         Fequence of keyframes in output.\n\n"
+   "  -k --keyframe-rate <n>         Frequence of keyframes in output.\n\n"
    "  -V --video-rate-target <n>     bitrate target for Daala video;\n"
    "                                 use -v and not -V if at all possible,\n"
    "                                 as -v gives higher quality for a given\n"
