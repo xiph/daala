@@ -245,6 +245,197 @@ int pvq_noref(od_coeff *x0, int n, int q0, int *y, int *vk)
   for (i = 0; i < n; i++) {
     x[i] *= g;
   }
+  if (0) {
+    double e;
+    e=0;
+    for(i=0;i<n;i++)
+      e += (x0[i]-x[i])*(x0[i]-x[i]);
+    printf("%f\n", e/(q*q));
+  }
+  for(i = 0; i < n; i++) {
+    x0[i] = floor(.5 + x[i]);
+  }
+  *vk = k;
+  return qg;
+}
+
+static int compute_householder(double *x, double *r, int n, double gr,
+ int *sign)
+{
+  int m;
+  int i;
+  int s;
+  double l2r;
+  double maxr;
+  double proj;
+  double proj_1;
+  /* Pick component with largest magnitude. Not strictly
+   * necessary, but it helps numerical stability */
+  m = 0;
+  maxr = 0;
+  for (i = 0; i < n; i++) {
+    if (fabs(r[i]) > maxr) {
+      maxr = fabs(r[i]);
+      m = i;
+    }
+  }
+  OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "max r: %f %f %d", maxr, r[m], m));
+  s = r[m] > 0 ? 1 : -1;
+  /* This turns r into a Householder reflection vector that would reflect
+   * the original r[] to e_m */
+  r[m] += gr*s;
+  l2r = 0;
+  for (i = 0; i < n; i++) {
+    l2r += r[i]*r[i];
+  }
+  /* Apply Householder reflection */
+  proj = 0;
+  for (i = 0; i < n; i++) {
+    proj += r[i]*x[i];
+  }
+  proj_1 = proj*2./(1e-100 + l2r);
+  for (i = 0; i < n; i++) {
+    x[i] -= r[i]*proj_1;
+  }
+  *sign = s;
+  return m;
+}
+
+void inverse_householder(double *xn, const double *r, int n)
+{
+  int i;
+  double proj;
+  double l2r;
+  l2r = 0;
+  for (i = 0; i < n; i++) {
+    l2r += r[i]*r[i];
+  }
+  proj=0;
+  for(i=0;i<n;i++){
+    proj+=r[i]*xn[i];
+  }
+  proj*=2./(1e-100+l2r);
+  for(i=0;i<n;i++){
+    xn[i]-=r[i]*proj;
+  }
+}
+
+/* This is a slow implementation of no-reference PVQ quantization that tries
+   all possible gains. */
+int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *vk)
+{
+  double l2x;
+  double l2r;
+  double g;
+  double gr;
+  double x[MAXN];
+  double r[MAXN];
+  int   i;
+  int k;
+  double cg;
+  /*double cgr;*/
+  int qg;
+  double norm;
+  double yy;
+  double best_dist;
+  double q;
+  int s;
+  int m;
+  double theta;
+  double corr;
+  int reverse;
+  int best_k;
+  double best_qtheta;
+  q = q0*1.1;
+  OD_ASSERT(n > 1);
+  l2x = 0;
+  l2r = 0;
+  corr = 0;
+  for(i = 0; i < n; i++) {
+    x[i] = x0[i];
+    r[i] = r0[i];
+    l2x += x[i]*x[i];
+    l2r += r[i]*r[i];
+    corr += x[i]*r[i];
+  }
+  g = sqrt(l2x);
+  gr = sqrt(l2r);
+  corr = corr/(1e-100+g*gr);
+  corr = OD_MAXF(OD_MINF(corr, 1.), -1.);
+  theta = acos(corr);
+  if (theta > M_PI/2)
+  {
+    theta = M_PI-theta;
+    reverse = 1;
+  }
+  else {
+    reverse = 0;
+  }
+  cg = pow(g/q, ACTIVITY);
+  /*cgr = pow(g/q, ACTIVITY);*/
+  m = compute_householder(x, r, n, gr, &s);
+  x[m] = 0;
+  qg = 0;
+  best_dist = 1e100;
+  best_k = 0;
+  best_qtheta = 0;
+  /* Search for the best gain. */
+  for (i = 0; i <= ceil(cg); i++) {
+    int j;
+    int ts;
+    ts = (int)floor(.5 + i*M_PI/2);
+    if (i == 1) ts = 1;
+    /* Search for the best angle. */
+    for (j = 0; j <= ceil(theta*2/M_PI*ts); j++)
+    {
+      double cos_dist;
+      double dist;
+      double dist_theta;
+      double qtheta;
+      if (ts != 0) qtheta = j*.5*M_PI/ts;
+      else qtheta = 0;
+      k = floor(.5 + i*sin(qtheta)*sqrt(n/4));
+      cos_dist = pvq_search_double(x, n, k, y);
+      dist_theta = 2 - 2*cos(theta - qtheta)
+       + sin(theta)*sin(qtheta)*(2 - 2*cos_dist);
+      dist = (i - cg)*(i - cg) + i*cg*dist_theta;
+      dist += .25*k;
+      if (dist < best_dist) {
+        best_dist = dist;
+        qg = i;
+        best_k = k;
+        best_qtheta = qtheta;
+      }
+    }
+  }
+  cg = qg;
+  theta = best_qtheta;
+  k = best_k;
+  /*printf("%d\n", K);*/
+  pvq_search_double(x, n, k, y);
+  yy = 0;
+  for(i = 0; i < n; i++) {
+    yy += y[i]*y[i];
+  }
+  norm = sqrt(1./(1e-100 + yy));
+  for (i = 0; i < n; i++) {
+    if (x[i] < 0) y[i] = -y[i];
+    x[i] = y[i]*norm*sin(theta);
+  }
+  x[m] = -s*cos(theta);
+  if (reverse) x[m] = -x[m];
+  inverse_householder(x, r, n);
+  g = q*pow(cg, 1./ACTIVITY);
+  for (i = 0; i < n; i++) {
+    x[i] *= g;
+  }
+  if (0) {
+    double e;
+    e=0;
+    for(i=0;i<n;i++)
+      e += (x0[i]-x[i])*(x0[i]-x[i]);
+    printf("%f\n", e/(q*q));
+  }
   for(i = 0; i < n; i++) {
     x0[i] = floor(.5 + x[i]);
   }
