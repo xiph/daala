@@ -188,7 +188,7 @@ static void print_diversity(FILE *_fp,double _b[B_SZ*B_SZ],
  const double *_scale){
   int j;
   int i;
-  fprintf(_fp,"const ogg_int16_t OD_SATD_WEIGHTS_4x4[4*4] = {\n");
+  fprintf(_fp,"const ogg_int16_t OD_SATD_WEIGHTS_%dx%d[%d*%d] = {\n",B_SZ,B_SZ,B_SZ,B_SZ);
   for(j=0;j<B_SZ;j++){
     for(i=0;i<B_SZ;i++){
       double b;
