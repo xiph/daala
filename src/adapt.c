@@ -26,6 +26,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "config.h"
 #endif
 
+#include <stdlib.h>
+
 #include "internal.h"
 #include "adapt.h"
 
