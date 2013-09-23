@@ -106,15 +106,18 @@ extern const int OD_PRED_MULTS_4x4[OD_INTRA_NMODES][4][4];
 extern const double OD_PRED_WEIGHTS_4x4[];
 extern const ogg_uint16_t OD_PRED_INDEX_4x4[];
 extern const int OD_PRED_OFFSETS_4x4[];
+extern const ogg_int16_t OD_SATD_WEIGHTS_4x4[4*4];
 
 extern const int OD_PRED_MULTS_8x8[OD_INTRA_NMODES][8][8];
 extern const double OD_PRED_WEIGHTS_8x8[];
 extern const ogg_uint16_t OD_PRED_INDEX_8x8[];
 extern const int OD_PRED_OFFSETS_8x8[];
+extern const ogg_int16_t OD_SATD_WEIGHTS_8x8[8*8];
 
 extern const int OD_PRED_MULTS_16x16[OD_INTRA_NMODES][16][16];
 extern const double OD_PRED_WEIGHTS_16x16[];
 extern const ogg_uint16_t OD_PRED_INDEX_16x16[];
 extern const int OD_PRED_OFFSETS_16x16[];
+extern const ogg_int16_t OD_SATD_WEIGHTS_16x16[16*16];
 
 #endif
