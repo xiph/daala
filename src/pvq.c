@@ -73,13 +73,13 @@ void od_bands_from_raster(const band_layout *layout, od_coeff *dst,
   }
 }
 
-void od_raster_from_bands(const band_layout *layout, od_coeff *src,
- int stride, od_coeff *dst) {
+void od_raster_from_bands(const band_layout *layout, od_coeff *dst,
+ int stride, od_coeff *src) {
   int i;
   int len;
   len = layout->band_offsets[layout->nb_bands];
   for (i = 0; i < len; i++) {
-    src[layout->dst_table[i][1]*stride + layout->dst_table[i][0]] = dst[i];
+    dst[layout->dst_table[i][1]*stride + layout->dst_table[i][0]] = src[i];
   }
 }
 
@@ -399,7 +399,7 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *vk)
       dist_theta = 2 - 2*cos(theta - qtheta)
        + sin(theta)*sin(qtheta)*(2 - 2*cos_dist);
       dist = (i - cg)*(i - cg) + i*cg*dist_theta;
-      dist += .25*k;
+      dist += .05*log2(n)*k;
       if (dist < best_dist) {
         best_dist = dist;
         qg = i;

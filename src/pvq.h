@@ -45,8 +45,8 @@ extern const band_layout od_layout8;
 extern const band_layout od_layout16;
 void od_bands_from_raster(const band_layout *layout, od_coeff *dst,
   od_coeff *src, int stride);
-void od_raster_from_bands(const band_layout *layout, od_coeff *src,
- int stride, od_coeff *dst);
+void od_raster_from_bands(const band_layout *layout, od_coeff *dst,
+ int stride, od_coeff *src);
 void od_band_pseudo_zigzag(od_coeff *dst,  int n, od_coeff *src, int stride);
 void od_band_pseudo_dezigzag(od_coeff *dst,  int stride, od_coeff *src,
  int n);
