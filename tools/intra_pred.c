@@ -981,6 +981,13 @@ int main(int _argc,const char *_argv[]){
       }
       od_covmat_reset(&ete);
 #endif
+#if PRINT_BETAS
+      fprintf(stderr,"Finished Step %02i\n",step);
+      print_predictors(stderr);
+#if POOLED_COV
+      print_diversity(stderr,b[0],OD_SCALE);
+#endif
+#endif
       /* Reset the prediction data. */
       for(i=0;i<NUM_PROCS;i++){
         classify_ctx_reset(&cls[i]);
@@ -1006,12 +1013,6 @@ int main(int _argc,const char *_argv[]){
     }
     od_covmat_clear(&ete);
     free(mask);
-#if PRINT_BETAS
-    print_predictors(stderr);
-#if POOLED_COV
-    print_diversity(stderr,b[0],OD_SCALE);
-#endif
-#endif
   }
   for(i=0;i<NUM_PROCS;i++){
     classify_ctx_clear(&cls[i]);
