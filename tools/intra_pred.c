@@ -19,6 +19,7 @@
 #define USE_WEIGHTS (0)
 #define SUBTRACT_DC (0)
 #define POOLED_COV  (1)
+#define MAKE_SPARSE (1)
 #define DROP_BY_MAG (0)
 
 #define WRITE_IMAGES   (0)
@@ -870,13 +871,10 @@ const int NPRED=sizeof(PRED)/sizeof(*PRED);
 
 #define INIT_STEPS (10)
 #if B_SZ==4
-# define DROP_STEPS (60)
 # define DROPS_PER_STEP (16)
 #elif B_SZ==8
-# define DROP_STEPS (126)
 # define DROPS_PER_STEP (128)
 #elif B_SZ==16
-# define DROP_STEPS (255)
 # define DROPS_PER_STEP (1024)
 #else
 # error "Unsupported block size."
@@ -922,12 +920,15 @@ int main(int _argc,const char *_argv[]){
     }
     ftime(&start);
     /* Each k-means step uses Daala mode selection. */
-    for(step=1;step<=INIT_STEPS+DROP_STEPS;step++){
+    for(step=1;;step++){
       int mults;
       int drops;
       mults=B_SZ*B_SZ*4*B_SZ*B_SZ;
       drops=0;
       if(step>INIT_STEPS){
+#if !MAKE_SPARSE
+        break;
+#endif
         mults-=DROPS_PER_STEP*(step-INIT_STEPS);
         drops=DROPS_PER_STEP;
       }
@@ -1006,6 +1007,9 @@ int main(int _argc,const char *_argv[]){
       printf("Step %02i Total Bits %-24.18G\n",step,cls[0].bits);
       intra_stats_correct(&cls[0].gb);
       intra_stats_print(&cls[0].gb,"Daala Intra Predictors",OD_SCALE);
+      if (mults==4*B_SZ*B_SZ) {
+        break;
+      }
     }
     prob_ctx_clear(&prob);
     for(i=0;i<NUM_PROCS;i++){
