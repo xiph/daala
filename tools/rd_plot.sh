@@ -23,7 +23,7 @@ for FILE in "$@"; do
   BASENAME=$(basename $FILE)
   CMDS="$CMDS $PREFIX '$FILE' using (\$3*8/\$2):4 with lines title '${BASENAME%.*} (PSNR)'"
   PREFIX=","
-  CMDS="$CMDS $PREFIX '$FILE' using (\$3*8/\$2):5 with lines title '${BASENAME%.*} (PSNR-HSV)'"
+  CMDS="$CMDS $PREFIX '$FILE' using (\$3*8/\$2):5 with lines title '${BASENAME%.*} (PSNR-HVS)'"
   PREFIX=","
   #CMDS="$CMDS $PREFIX '$FILE' using (\$3*8/\$2):6 with lines title '${BASENAME%.*} (SSIM)'"
   #PREFIX=","
