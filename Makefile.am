@@ -105,8 +105,11 @@ src_libdaalaenc_la_SOURCES = \
 
 noinst_PROGRAMS = \
 	examples/dump_video \
-	examples/encoder_example \
-	examples/player_example
+	examples/encoder_example
+
+if ENABLE_PLAYER_EXAMPLE
+  noinst_PROGRAMS += examples/player_example
+endif
 
 examples_dump_video_SOURCES = examples/dump_video.c
 examples_dump_video_CFLAGS = $(OGG_CFLAGS)
@@ -122,11 +125,13 @@ if DUMP_IMAGES
   examples_encoder_example_LDADD += $(PNG_LIBS)
 endif
 
+if ENABLE_PLAYER_EXAMPLE
 examples_player_example_SOURCES = examples/player_example.c
 examples_player_example_CFLAGS = $(OGG_CFLAGS) $(SDL_CFLAGS)
 examples_player_example_LDADD = src/libdaalabase.la src/libdaaladec.la $(OGG_LIBS) $(SDL_LIBS)
 if DUMP_IMAGES
   examples_player_example_LDADD += $(PNG_LIBS)
+endif
 endif
 
 # Includes
