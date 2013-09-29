@@ -187,7 +187,7 @@ static void usage(char *_argv[]){
    "    Options:\n\n"
    "      -f --frame-type Show frame type and QI value for each Theora frame.\n"
    "      -r --raw        Show raw SSIM scores, instead of"
-   " 10*log10(1/(1-ssim)**2).\n"
+   " 10*log10(1/(1-ssim)).\n"
    "      -s --summary    Only output the summary line.\n"
    "      -y --luma-only  Only output values for the luma channel.\n",_argv[0]);
 }
