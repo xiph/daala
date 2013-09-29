@@ -23,7 +23,7 @@ noinst_HEADERS = \
 	src/generic_code.h \
 	src/internal.h \
 	src/intra.h \
-        src/logging.h \
+	src/logging.h \
 	src/mc.h \
 	src/odintrin.h \
 	src/pvq.h \
@@ -155,7 +155,9 @@ tools_TARGETS = \
 	tools/trans_gain \
 	tools/init_intra_xform \
 	tools/gen_cdf \
-	tools/gen_laplace_tables
+	tools/gen_laplace_tables \
+	tools/dump_ssim \
+	tools/dump_fastssim
 
 noinst_HEADERS += \
 	tools/cholesky.h \
@@ -199,6 +201,20 @@ tools_dump_psnrhvs_SOURCES = \
 	tools/dump_psnrhvs.c
 tools_dump_psnrhvs_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS)
 tools_dump_psnrhvs_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
+
+# dump_ssim
+tools_dump_ssim_SOURCES = \
+	tools/vidinput.c \
+	tools/dump_ssim.c
+tools_dump_ssim_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS)
+tools_dump_ssim_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(LIBM)
+
+# dump_fastssim
+tools_dump_fastssim_SOURCES = \
+	tools/vidinput.c \
+	tools/dump_fastssim.c
+tools_dump_fastssim_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS)
+tools_dump_fastssim_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(LIBM)
 
 # block_size_analysis
 tools_block_size_analysis_SOURCES = \
