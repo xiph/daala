@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <style>
+      h1 { text-align: center; }
+      #plot { margin: 0 auto; width: 900px; height: 500px; }
+      #select { text-align: center; }
+    </style>
+    <script src="js/jquery-1.10.2.min.js"></script>
+    <script src="js/jquery.flot.js"></script>
+    <script>
+function plot(data) {
+  var total_bits = [];
+  var mv_bits = [];
+  var bs_bits = [];
+  var pvq_bits = [];
+  var dc_bits = [];
+  var intra_bits = [];
+
+  for (var i = 0; i < data.length; i++) {
+    total_bits.push([data[i].frame, data[i].total_bits]);
+    mv_bits.push([data[i].frame, data[i].mv_bits]);
+    bs_bits.push([data[i].frame, data[i].bs_bits]);
+    pvq_bits.push([data[i].frame, data[i].pvq_bits]);
+    dc_bits.push([data[i].frame, data[i].dc_bits]);
+    intra_bits.push([data[i].frame, data[i].intra_bits]);
+  }
+ 
+  var datasets = {
+    "total": { label: "total bits", data: total_bits, color: 0 },
+    "mv": { label: "motion vector bits", data: mv_bits, color: 1 },
+    "bs": { label: "block switching bits", data: bs_bits, color: 2 },
+    "intra": { label: "Intra modes bits", data: intra_bits, color: 5 },
+    "dc": { label: "DC bits", data: dc_bits, color: 4 },
+    "pvq": { label: "PVQ bits", data: pvq_bits, color: 3 },
+  };
+
+  var choices = $("#choices");
+  choices.empty();
+  $.each(datasets, function(key, val) {
+    choices.append("<input type=checkbox name=" + key +
+                   " checked id=choice_" + key + ">" +
+                   "<label for=choice_" + key + ">" +
+                   val.label +
+                   "</label>");
+  });
+
+  function plot_choices() {
+    var data = [];
+    choices.find("input:checked").each(function() {
+      var key = $(this).attr("name");
+      if (key && datasets[key]) {
+        data.push(datasets[key]);
+      }
+    });
+    var options = {
+      yaxis: { min: 0 },
+      xaxis: { tickDecimals: 0 }
+    };
+    $.plot("#plot", data, options);
+  }
+
+  choices.find("input").on("click", plot_choices);
+  plot_choices();
+}
+
+$(function() {
+  $("#filebox").on("change", function() {
+    console.log(this.files);
+
+    var file = this.files[0];
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      var data = JSON.parse(e.target.result);
+      plot(data);
+    };
+    console.log(reader);
+    reader.readAsText(file);
+  });
+});
+    </script>
+  </head>
+  <body>
+    <div id="header">
+      <h1>Bitrate Metrics</h1>
+    </div>
+    <div id="select">
+      <input type=file id=filebox>
+      <p id="choices"></p>
+    </div>
+    <div id="content">
+      <div id="plot"></div>
+    </div>
+  </body>
+</html>
