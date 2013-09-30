@@ -70,6 +70,6 @@ int quant_pvq_noref(ogg_int32_t *_x,float gr,
     ogg_int16_t *_scale,int *y,int N,int Q);
 
 int pvq_noref(od_coeff *_x, int N, int Q, int *y, int *vk);
-int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *vk);
+int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *itheta, int *max_theta, int *vk);
 
 #endif

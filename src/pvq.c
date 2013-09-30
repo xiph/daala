@@ -320,9 +320,15 @@ void inverse_householder(double *xn, const double *r, int n)
   }
 }
 
+static int neg_interleave(int x, int ref) {
+  if (x < ref) return -2*(x - ref) - 1;
+  else if (x < 2*ref) return 2*(x - ref);
+  else return x;
+}
+
 /* This is a slow implementation of no-reference PVQ quantization that tries
    all possible gains. */
-int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *vk)
+int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *itheta, int *max_theta, int *vk)
 {
   double l2x;
   double l2r;
@@ -334,6 +340,7 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *vk)
   int k;
   double cg;
   double cgr;
+  int icgr;
   int qg;
   double norm;
   double yy;
@@ -374,8 +381,9 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *vk)
     reverse = 0;
   }
   cg = pow(g/q, ACTIVITY);
-  cgr = pow(g/q, ACTIVITY);
-  gain_offset = cgr-floor(.5+cgr);
+  cgr = pow(gr/q, ACTIVITY);
+  icgr = floor(.5+cgr);
+  gain_offset = cgr-icgr;
   m = compute_householder(x, r, n, gr, &s);
   x[m] = 0;
   qg = 0;
@@ -387,7 +395,7 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *vk)
     int j;
     int ts;
     qcg = i+gain_offset;
-    if (qcg < .51) qcg = 0;
+    if (i == 0) qcg = 0;
     ts = (int)floor(.5 + qcg*M_PI/2);
     if (qcg < 1.4) ts = 1;
     /* Search for the best angle. */
@@ -410,11 +418,13 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *vk)
         qg = i;
         best_k = k;
         best_qtheta = qtheta;
+        *itheta = reverse ? -j : j;
+        *max_theta = ts;
       }
     }
   }
   qcg = qg+gain_offset;
-  if (qcg < .51) qcg = 0;
+  if (qg == 0) qcg = 0;
   theta = best_qtheta;
   k = best_k;
   /*printf("%d\n", K);*/
@@ -435,18 +445,23 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *vk)
   for (i = 0; i < n; i++) {
     x[i] *= g;
   }
-  if (0) {
-    double e;
-    e=0;
-    for(i=0;i<n;i++)
-      e += (x0[i]-x[i])*(x0[i]-x[i]);
-    printf("%f %f\n", e/(q*q), best_dist-.05*log2(n)*k);
+  if (1) {
+    double e0, e1;
+    e0=0;
+    e1=0;
+    for(i = 0; i < n; i++) {
+      e0 += (x0[i]-x[i])*(x0[i]-x[i]);
+      e1 += (r0[i]-x0[i])*(r0[i]-x0[i]);
+    }
+    if (e1 < e0 && *itheta!=0)
+      printf("err: %d %d %d %f %f %f %f\n", qg, icgr, *itheta, e1/(q*q), e0/(q*q), best_dist, .05*log2(n)*k);
+    /*printf("%f %f %f %d\n", e1/(q*q), e0/(q*q), best_dist-.05*log2(n)*k, *itheta);*/
   }
   for(i = 0; i < n; i++) {
     x0[i] = floor(.5 + x[i]);
   }
   *vk = k;
-  return qg;
+  return neg_interleave(qg, icgr);
 }
 
 #if 0
