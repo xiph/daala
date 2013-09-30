@@ -421,6 +421,15 @@ static const int OD_SITE_DY[13] = {
   -1, -1, -1, 0, 0, 0, 1, 1, 1, 0, -2, 0, 2
 };
 
+/*Set to do the initial search with a square search pattern instead of the 3-D
+   predict hexagon state machine.*/
+#undef OD_USE_SQUARE_SEARCH
+/*Set to use logarithmicly scaled search radius instead of a fixed search
+   radius during motion vector refinement.*/
+#undef OD_USE_LOGARITHMIC_REFINEMENT
+
+#if defined(OD_USE_SQUARE_SEARCH)||defined(OD_USE_LOGARITHMIC_REFINEMENT)
+
 /*The number of sites to search of each boundary condition in the square
    pattern.
   Bit flags for the boundary conditions are as follows:
@@ -456,6 +465,8 @@ static const od_pattern OD_SQUARE_SITES[11] = {
   { 0, 1, 3 }
 };
 
+#endif
+
 /*The number of sites to search of each boundary condition in the diamond
    pattern.
   Bit flags for the boundary conditions are as follows:
@@ -490,6 +501,8 @@ static const od_pattern OD_DIAMOND_SITES[11] = {
   /*       dx == 31,        dy == 31*/
   { 1, 3 }
 };
+
+#if !defined(OD_USE_SQUARE_SEARCH)
 
 /*The number of sites to search of each boundary condition in the horizontal
    hex pattern.
@@ -561,9 +574,11 @@ static const od_pattern OD_VHEX_SITES[11] = {
   { 0, 10 }
 };
 
-#if 0
+#endif
+
+#if defined(OD_USE_SQUARE_SEARCH)
 /*The search state indicating we found a local minimum.*/
-#define OD_SEARCH_STATE_DONE (1)
+# define OD_SEARCH_STATE_DONE (1)
 
 /*The number of sites in the pattern to use for each state.*/
 static const int *const OD_SEARCH_NSITES[1] = {
@@ -3482,7 +3497,7 @@ static void od_mv_dp_col_init(od_mv_est_ctx *est,
     dp->npred_changeable = nchangeable;
     /*Now, figure out the earliest DP node that influences our own prediction,
        or that of one of the other MVs we predict.*/
-    pred_hist = OD_ROW_PRED_HIST_SIZE[level];
+    pred_hist = OD_COL_PRED_HIST_SIZE[level];
     if (prev_dp != NULL && prev_dp->mv->vy >= vy - pred_hist) {
       od_mv_dp_node *dp_pred;
       for (dp_pred = prev_dp; dp_pred->mv->vy > vy-pred_hist
@@ -4982,7 +4997,7 @@ void od_mv_est(od_mv_est_ctx *est, int ref, int lambda) {
      more appropriate value, however that gives a PSNR improvement of less than
      0.01 dB, and requires almost twice as many iterations to achieve.*/
   cost_thresh = -nhmvbs*nvmvbs << OD_LAMBDA_SCALE;
-#if 0
+#if defined(OD_USE_LOGARITHMIC_REFINEMENT)
   /*Logarithmic search.*/
   do {
     dcost = 0;
