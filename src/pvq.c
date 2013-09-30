@@ -333,7 +333,7 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *vk)
   int   i;
   int k;
   double cg;
-  /*double cgr;*/
+  double cgr;
   int qg;
   double norm;
   double yy;
@@ -346,6 +346,8 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *vk)
   int reverse;
   int best_k;
   double best_qtheta;
+  double gain_offset;
+  double qcg;
   q = q0*1.1;
   OD_ASSERT(n > 1);
   l2x = 0;
@@ -372,7 +374,8 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *vk)
     reverse = 0;
   }
   cg = pow(g/q, ACTIVITY);
-  /*cgr = pow(g/q, ACTIVITY);*/
+  cgr = pow(g/q, ACTIVITY);
+  gain_offset = cgr-floor(.5+cgr);
   m = compute_householder(x, r, n, gr, &s);
   x[m] = 0;
   qg = 0;
@@ -380,11 +383,13 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *vk)
   best_k = 0;
   best_qtheta = 0;
   /* Search for the best gain. */
-  for (i = 0; i <= ceil(cg); i++) {
+  for (i = 0; i <= ceil(cg+.5); i++) {
     int j;
     int ts;
-    ts = (int)floor(.5 + i*M_PI/2);
-    if (i == 1) ts = 1;
+    qcg = i+gain_offset;
+    if (qcg < .51) qcg = 0;
+    ts = (int)floor(.5 + qcg*M_PI/2);
+    if (qcg < 1.4) ts = 1;
     /* Search for the best angle. */
     for (j = 0; j <= ceil(theta*2/M_PI*ts); j++)
     {
@@ -394,11 +399,11 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *vk)
       double qtheta;
       if (ts != 0) qtheta = j*.5*M_PI/ts;
       else qtheta = 0;
-      k = floor(.5 + i*sin(qtheta)*sqrt(n/4));
+      k = floor(.5 + qcg*sin(qtheta)*sqrt(n/4));
       cos_dist = pvq_search_double(x, n, k, y);
       dist_theta = 2 - 2*cos(theta - qtheta)
        + sin(theta)*sin(qtheta)*(2 - 2*cos_dist);
-      dist = (i - cg)*(i - cg) + i*cg*dist_theta;
+      dist = (qcg - cg)*(qcg - cg) + qcg*cg*dist_theta;
       dist += .05*log2(n)*k;
       if (dist < best_dist) {
         best_dist = dist;
@@ -408,7 +413,8 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *vk)
       }
     }
   }
-  cg = qg;
+  qcg = qg+gain_offset;
+  if (qcg < .51) qcg = 0;
   theta = best_qtheta;
   k = best_k;
   /*printf("%d\n", K);*/
@@ -425,7 +431,7 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *vk)
   x[m] = -s*cos(theta);
   if (reverse) x[m] = -x[m];
   inverse_householder(x, r, n);
-  g = q*pow(cg, 1./ACTIVITY);
+  g = q*pow(qcg, 1./ACTIVITY);
   for (i = 0; i < n; i++) {
     x[i] *= g;
   }
@@ -434,7 +440,7 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *vk)
     e=0;
     for(i=0;i<n;i++)
       e += (x0[i]-x[i])*(x0[i]-x[i]);
-    printf("%f\n", e/(q*q));
+    printf("%f %f\n", e/(q*q), best_dist-.05*log2(n)*k);
   }
   for(i = 0; i < n; i++) {
     x0[i] = floor(.5 + x[i]);
