@@ -59,7 +59,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
    LappedDCT       9.6213   10.7832   11.3230
                    9.6214   10.7839   11.3272
                    9.6232   10.8028   11.3698
-*/
 
 
    Subset 3           4x4       8x8     16x16
