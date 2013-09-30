@@ -312,7 +312,7 @@ void od_convert_intra_coeffs(od_coeff *(dst[4]), int dstrides[4],
 #if defined(OD_VALGRIND)
     {
       int z;
-      for (z = 0; z < ( 4 << csize); z++) {
+      for (z = 0; z < (4 << csize); z++) {
         VALGRIND_CHECK_MEM_IS_DEFINED(dst[n] + z*dstrides[n],
          (4 << csize)*sizeof(*dst[n]));
       }
