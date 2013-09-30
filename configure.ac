@@ -193,6 +193,7 @@ AC_MSG_NOTICE([
     Assembly optimizations ....... ${enable_asm}
     Image dumping ................ ${enable_dump_images}
     Unit tests ................... ${enable_unit_tests}
+    Example Player................ ${enable_player}
 ------------------------------------------------------------------------
 
  Use "make tools" to compile the tools.
