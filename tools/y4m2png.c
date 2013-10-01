@@ -53,6 +53,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #endif
 #include <png.h>
 #include <zlib.h>
+#include <ogg/os_types.h>
 #include "vidinput.h"
 
 #define OD_MINI(_a,_b)      ((_a)<(_b)?(_a):(_b))
@@ -127,8 +128,8 @@ static void usage(const char *_argv0){
 }
 
 
-static void ycbcr_to_rgb(png_bytep *_image,const th_info *_ti,
- th_ycbcr_buffer _ycbcr){
+static void ycbcr_to_rgb(png_bytep *_image,const video_input_info *_info,
+ video_input_ycbcr _ycbcr){
   unsigned char *y_row;
   unsigned char *cb_row;
   unsigned char *cr_row;
@@ -146,15 +147,15 @@ static void ycbcr_to_rgb(png_bytep *_image,const th_info *_ti,
   int            pic_y;
   int            i;
   int            j;
-  width=_ti->pic_width;
-  height=_ti->pic_height;
-  hshift=!(_ti->pixel_fmt&1);
-  vshift=!(_ti->pixel_fmt&2);
+  width=_info->pic_w;
+  height=_info->pic_h;
+  hshift=!(_info->pixel_fmt&1);
+  vshift=!(_info->pixel_fmt&2);
   y_stride=_ycbcr[0].stride;
   cb_stride=_ycbcr[1].stride;
   cr_stride=_ycbcr[2].stride;
-  pic_x=_ti->pic_x;
-  pic_y=_ti->pic_y;
+  pic_x=_info->pic_x;
+  pic_y=_info->pic_y;
   y_row=_ycbcr[0].data+pic_y*y_stride;
   cb_row=_ycbcr[1].data+(pic_y>>vshift)*cb_stride;
   cr_row=_ycbcr[2].data+(pic_y>>vshift)*cr_stride;
@@ -165,7 +166,7 @@ static void ycbcr_to_rgb(png_bytep *_image,const th_info *_ti,
     As an added bonus, it's dead simple.*/
   for(j=0;j<height;j++){
     int dc;
-    y=y_row+_ti->pic_x;
+    y=y_row+_info->pic_x;
     cb=cb_row+(pic_x>>hshift);
     cr=cr_row+(pic_x>>hshift);
     for(i=0;i<6*width;){
@@ -214,15 +215,15 @@ static void png_flush(png_structp _png){
   fflush((FILE *)png_get_io_ptr(_png));
 }
 
-static int write_png(FILE *_fout,const th_info *_ti,th_ycbcr_buffer _ycbcr){
+static int write_png(FILE *_fout,const video_input_info *_info,video_input_ycbcr _ycbcr){
   /*Dump a PNG of the reconstructed image.*/
   png_structp    png;
   png_infop      info;
   png_bytep     *image;
   int            width;
   int            height;
-  width=_ti->pic_width;
-  height=_ti->pic_height;
+  width=_info->pic_w;
+  height=_info->pic_h;
   image=(png_bytep *)od_malloc_2d(height,6*width,sizeof(**image));
   if(image==NULL)return -EFAULT;
   png=png_create_write_struct(PNG_LIBPNG_VER_STRING,NULL,NULL,NULL);
@@ -241,7 +242,7 @@ static int write_png(FILE *_fout,const th_info *_ti,th_ycbcr_buffer _ycbcr){
     od_free_2d(image);
     return -EFAULT;
   }
-  ycbcr_to_rgb(image,_ti,_ycbcr);
+  ycbcr_to_rgb(image,_info,_ycbcr);
   png_set_write_fn(png,_fout,png_write,png_flush);
   png_set_compression_level(png,Z_BEST_COMPRESSION);
   png_set_IHDR(png,info,width,height,16,PNG_COLOR_TYPE_RGB,
@@ -253,7 +254,7 @@ static int write_png(FILE *_fout,const th_info *_ti,th_ycbcr_buffer _ycbcr){
   png_set_gAMA(png,info,2.5);*/
   png_set_cHRM_fixed(png,info,31271,32902,
    64000,33000,30000,60000,15000,6000);
-  /*switch(_ti->colorspace){
+  /*switch(_info->colorspace){
     case TH_CS_ITU_REC_470M:{
       png_set_gAMA(png,info,2.2);
       png_set_cHRM_fixed(png,info,31006,31616,
@@ -266,7 +267,8 @@ static int write_png(FILE *_fout,const th_info *_ti,th_ycbcr_buffer _ycbcr){
     }break;
     default:break;
   }*/
-  png_set_pHYs(png,info,_ti->aspect_numerator,_ti->aspect_denominator,0);
+  /*Dodgy hack for non-square pixels.*/
+  png_set_pHYs(png,info,_info->par_n,_info->par_d,0);
   png_set_rows(png,info,image);
   png_write_png(png,info,PNG_TRANSFORM_IDENTITY,NULL);
   png_write_end(png,info);
@@ -289,13 +291,13 @@ static FILE *open_png_file(const char *_name,int _frameno){
 }
 
 int main(int _argc,char **_argv){
-  video_input      vid;
-  th_info          ti;
-  th_ycbcr_buffer  ycbcr;
-  FILE            *fout;
-  FILE            *fin;
-  const char      *input_filename;
-  int              i;
+  video_input vid;
+  video_input_info info;
+  video_input_ycbcr ycbcr;
+  FILE *fout;
+  FILE *fin;
+  const char *input_filename;
+  int i;
 #ifdef _WIN32
   /*We need to set stdin/stdout to binary mode.
     Damn Windows.*/
@@ -345,11 +347,11 @@ int main(int _argc,char **_argv){
     fprintf(stderr,"No output file specified. Run with -h for help.\n");
     return EXIT_FAILURE;
   }
-  video_input_get_info(&vid,&ti);
+  video_input_get_info(&vid,&info);
   for(i=0;video_input_fetch_frame(&vid,ycbcr,NULL)>0;i++){
     fout=strcmp(output_filename,"-")==0?
      stdout:open_png_file(output_filename,i+1);
-    if(write_png(fout,&ti,ycbcr)<0){
+    if(write_png(fout,&info,ycbcr)<0){
       fclose(fout);
       break;
     }

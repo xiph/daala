@@ -169,17 +169,17 @@ static double convert_score_db(double _score,double _weight){
 }
 
 int main(int _argc,char *_argv[]){
-  video_input        vid1;
-  th_info            ti1;
-  video_input        vid2;
-  th_info            ti2;
-  double             gssim[3];
-  double             cweight;
-  double             par;
-  int                frameno;
-  FILE              *fin;
-  int                long_option_index;
-  int                c;
+  video_input vid1;
+  video_input_info info1;
+  video_input vid2;
+  video_input_info info2;
+  double gssim[3];
+  double cweight;
+  double par;
+  int frameno;
+  FILE *fin;
+  int long_option_index;
+  int c;
 #ifdef _WIN32
   /*We need to set stdin/stdout to binary mode on windows.
     Beware the evil ifdef.
@@ -210,7 +210,7 @@ int main(int _argc,char *_argv[]){
   }
   fprintf(stderr,"Opening %s...\n",_argv[optind]);
   if(video_input_open(&vid1,fin)<0)exit(EXIT_FAILURE);
-  video_input_get_info(&vid1,&ti1);
+  video_input_get_info(&vid1,&info1);
   fin=strcmp(_argv[optind+1],"-")==0?stdin:fopen(_argv[optind+1],"rb");
   if(fin==NULL){
     fprintf(stderr,"Unable to open '%s' for extraction.\n",_argv[optind+1]);
@@ -218,44 +218,44 @@ int main(int _argc,char *_argv[]){
   }
   fprintf(stderr,"Opening %s...\n",_argv[optind+1]);
   if(video_input_open(&vid2,fin)<0)exit(EXIT_FAILURE);
-  video_input_get_info(&vid2,&ti2);
+  video_input_get_info(&vid2,&info2);
   /*Check to make sure these videos are compatible.*/
-  if(ti1.pic_width!=ti2.pic_width||ti1.pic_height!=ti2.pic_height){
+  if(info1.pic_w!=info2.pic_w||info1.pic_h!=info2.pic_h){
     fprintf(stderr,"Video resolution does not match.\n");
     exit(EXIT_FAILURE);
   }
-  if(ti1.pixel_fmt!=ti2.pixel_fmt){
+  if(info1.pixel_fmt!=info2.pixel_fmt){
     fprintf(stderr,"Pixel formats do not match.\n");
     exit(EXIT_FAILURE);
   }
-  if((ti1.pic_x&!(ti1.pixel_fmt&1))!=(ti2.pic_x&!(ti2.pixel_fmt&1))||
-   (ti1.pic_y&!(ti1.pixel_fmt&2))!=(ti2.pic_y&!(ti2.pixel_fmt&2))){
+  if((info1.pic_x&!(info1.pixel_fmt&1))!=(info2.pic_x&!(info2.pixel_fmt&1))||
+   (info1.pic_y&!(info1.pixel_fmt&2))!=(info2.pic_y&!(info2.pixel_fmt&2))){
     fprintf(stderr,"Chroma subsampling offsets do not match.\n");
     exit(EXIT_FAILURE);
   }
-  if(ti1.fps_numerator*(ogg_int64_t)ti2.fps_denominator!=
-   ti2.fps_numerator*(ogg_int64_t)ti1.fps_denominator){
+  if(info1.fps_n*(ogg_int64_t)info2.fps_d!=
+   info2.fps_n*(ogg_int64_t)info1.fps_d){
     fprintf(stderr,"Warning: framerates do not match.\n");
   }
-  if(ti1.aspect_numerator*(ogg_int64_t)ti2.aspect_denominator!=
-   ti2.aspect_numerator*(ogg_int64_t)ti1.aspect_denominator){
+  if(info1.par_n*(ogg_int64_t)info2.par_d!=
+   info2.par_n*(ogg_int64_t)info1.par_d){
     fprintf(stderr,"Warning: aspect ratios do not match.\n");
   }
-  par=ti1.aspect_numerator>0&&ti2.aspect_denominator>0?
-   ti1.aspect_numerator/(double)ti2.aspect_denominator:1;
+  par=info1.par_n>0&&info2.par_d>0?
+   info1.par_n/(double)info2.par_d:1;
   gssim[0]=gssim[1]=gssim[2]=0;
   /*We just use a simple weighting to get a single full-color score.
     In reality the CSF for chroma is not the same as luma.*/
-  cweight=0.25*(4>>!(ti1.pixel_fmt&1)+!(ti1.pixel_fmt&2));
+  cweight=0.25*(4>>!(info1.pixel_fmt&1)+!(info1.pixel_fmt&2));
   for(frameno=0;;frameno++){
-    th_ycbcr_buffer f1;
-    th_ycbcr_buffer f2;
-    double          ssim[3];
-    char            tag1[5];
-    char            tag2[5];
-    int             ret1;
-    int             ret2;
-    int             pli;
+    video_input_ycbcr f1;
+    video_input_ycbcr f2;
+    double ssim[3];
+    char tag1[5];
+    char tag2[5];
+    int ret1;
+    int ret2;
+    int pli;
     ret1=video_input_fetch_frame(&vid1,f1,tag1);
     ret2=video_input_fetch_frame(&vid2,f2,tag2);
     if(ret1==0&&ret2==0)break;
@@ -274,15 +274,15 @@ int main(int _argc,char *_argv[]){
     for(pli=0;pli<3;pli++){
       int xdec;
       int ydec;
-      xdec=pli&&!(ti1.pixel_fmt&1);
-      ydec=pli&&!(ti1.pixel_fmt&2);
+      xdec=pli&&!(info1.pixel_fmt&1);
+      ydec=pli&&!(info1.pixel_fmt&2);
       ssim[pli]=calc_psnrhvs(
-       f1[pli].data+(ti1.pic_y>>ydec)*f1[pli].stride+(ti1.pic_x>>xdec),
+       f1[pli].data+(info1.pic_y>>ydec)*f1[pli].stride+(info1.pic_x>>xdec),
        f1[pli].stride,
-       f2[pli].data+(ti2.pic_y>>ydec)*f2[pli].stride+(ti2.pic_x>>xdec),
+       f2[pli].data+(info2.pic_y>>ydec)*f2[pli].stride+(info2.pic_x>>xdec),
        f2[pli].stride,
-       par,(ti1.pic_x+ti1.pic_width+xdec>>xdec)-(ti1.pic_x>>xdec),
-       (ti1.pic_y+ti1.pic_height+ydec>>ydec)-(ti1.pic_y>>ydec),7,pli==0?csf_y:pli==1?csf_cb420:csf_cr420);
+       par,(info1.pic_x+info1.pic_w+xdec>>xdec)-(info1.pic_x>>xdec),
+       (info1.pic_y+info1.pic_h+ydec>>ydec)-(info1.pic_y>>ydec),7,pli==0?csf_y:pli==1?csf_cb420:csf_cr420);
       gssim[pli]+=ssim[pli];
     }
     if(!summary_only){

@@ -105,13 +105,13 @@ struct intra_xform_ctx{
 #define PRINT_BLOCKS (0)
 
 static int intra_xform_train_plane_start(void *_ctx,const char *_name,
- const th_info *_ti,int _pli,int _nxblocks,int _nyblocks){
+ const video_input_info *_info,int _pli,int _nxblocks,int _nyblocks){
   intra_xform_ctx *ctx;
   FILE            *map_file;
   char            *map_filename;
   FILE            *weights_file;
   char            *weights_filename;
-  (void)_ti;
+  (void)_info;
   ctx=(intra_xform_ctx *)_ctx;
   ctx->map=(unsigned char *)malloc(_nxblocks*(size_t)_nyblocks);
   map_filename=get_map_filename(_name,_pli,_nxblocks,_nyblocks);
@@ -471,10 +471,10 @@ static void update_intra_xforms(intra_xform_ctx *_ctx){
 
 
 static int intra_xform_update_plane_start(void *_ctx,const char *_name,
- const th_info *_ti,int _pli,int _nxblocks,int _nyblocks){
+ const video_input_info *_info,int _pli,int _nxblocks,int _nyblocks){
   intra_xform_ctx *ctx;
   int i;
-  (void)_ti;
+  (void)_info;
   ctx=(intra_xform_ctx *)_ctx;
   ctx->map_filename=get_map_filename(_name,_pli,_nxblocks,_nyblocks);
   ctx->weights_filename=get_weights_filename(_name,_pli,_nxblocks,_nyblocks);

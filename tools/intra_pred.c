@@ -762,10 +762,10 @@ static void od_mode_block(void *_ctx,const unsigned char *_data,int _stride,
 #endif
 }
 
-static int init_start(void *_ctx,const char *_name,const th_info *_ti,int _pli,
- int _nxblocks,int _nyblocks){
+static int init_start(void *_ctx,const char *_name,
+ const video_input_info *_info,int _pli,int _nxblocks,int _nyblocks){
   classify_ctx *ctx;
-  (void)_ti;
+  (void)_info;
   (void)_pli;
 #if PRINT_PROGRESS
   print_progress(stdout,"init_start");
@@ -808,10 +808,10 @@ const block_func INIT[]={
 
 const int NINIT=sizeof(INIT)/sizeof(*INIT);
 
-static int pred_start(void *_ctx,const char *_name,const th_info *_ti,int _pli,
- int _nxblocks,int _nyblocks){
+static int pred_start(void *_ctx,const char *_name,
+ const video_input_info *_info,int _pli,int _nxblocks,int _nyblocks){
   classify_ctx *ctx;
-  (void)_ti;
+  (void)_info;
   (void)_pli;
 #if PRINT_PROGRESS
   print_progress(stdout,"pred_start");

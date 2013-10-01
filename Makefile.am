@@ -197,6 +197,8 @@ tools_png2y4m_LDADD = $(OGG_LIBS) $(PNG_LIBS)
 # y4m2png
 tools_y4m2png_SOURCES = \
 	tools/vidinput.c \
+	tools/y4m_input.c \
+	tools/th_input.c \
 	tools/y4m2png.c
 tools_y4m2png_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS)
 tools_y4m2png_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS)
@@ -204,6 +206,8 @@ tools_y4m2png_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS)
 # dump_psnrhvs
 tools_dump_psnrhvs_SOURCES = \
 	tools/vidinput.c \
+	tools/y4m_input.c \
+	tools/th_input.c \
 	src/newdct.c \
 	tools/dump_psnrhvs.c
 tools_dump_psnrhvs_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS)
@@ -212,6 +216,8 @@ tools_dump_psnrhvs_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
 # dump_ssim
 tools_dump_ssim_SOURCES = \
 	tools/vidinput.c \
+	tools/y4m_input.c \
+	tools/th_input.c \
 	tools/dump_ssim.c
 tools_dump_ssim_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS)
 tools_dump_ssim_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(LIBM)
@@ -219,6 +225,8 @@ tools_dump_ssim_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(LIBM)
 # dump_fastssim
 tools_dump_fastssim_SOURCES = \
 	tools/vidinput.c \
+	tools/y4m_input.c \
+	tools/th_input.c \
 	tools/dump_fastssim.c
 tools_dump_fastssim_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS)
 tools_dump_fastssim_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(LIBM)
@@ -229,6 +237,8 @@ tools_block_size_analysis_SOURCES = \
 	src/block_size.c \
 	src/block_size_enc.c \
 	tools/vidinput.c \
+	tools/y4m_input.c \
+	tools/th_input.c \
 	src/newdct.c \
 	src/internal.c \
 	src/entcode.c \
@@ -249,7 +259,9 @@ tools_plot_intra_maps_SOURCES = \
 	tools/image.c \
 	tools/plot_intra_maps.c \
 	tools/intra_fit_tools.c \
-	tools/vidinput.c
+	tools/vidinput.c \
+	tools/y4m_input.c \
+	tools/th_input.c
 tools_plot_intra_maps_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS)
 tools_plot_intra_maps_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
 
@@ -257,7 +269,9 @@ tools_plot_intra_maps_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
 tools_init_intra_maps_SOURCES = \
 	tools/init_intra_maps.c \
 	tools/intra_fit_tools.c \
-	tools/vidinput.c
+	tools/vidinput.c \
+	tools/y4m_input.c \
+	tools/th_input.c
 tools_init_intra_maps_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS)
 tools_init_intra_maps_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
 
@@ -272,6 +286,8 @@ tools_intra_stats_SOURCES = \
 	tools/image_tools.c \
 	tools/stats_tools.c \
 	tools/vidinput.c \
+	tools/y4m_input.c \
+	tools/th_input.c \
 	tools/image.c \
 	src/block_size.c \
 	src/block_size_enc.c \
@@ -298,6 +314,8 @@ tools_intra_pred_SOURCES = \
 	tools/image_tools.c \
 	tools/stats_tools.c \
 	tools/vidinput.c \
+	tools/y4m_input.c \
+	tools/th_input.c \
 	tools/image.c \
 	tools/svd.c \
 	tools/cholesky.c \
@@ -327,6 +345,8 @@ tools_intra_trace_SOURCES = \
 	tools/stats_tools.c \
 	tools/trans_tools.c \
 	tools/vidinput.c \
+	tools/y4m_input.c \
+	tools/th_input.c \
 	tools/image.c \
 	src/block_size.c \
 	src/block_size_enc.c \
@@ -348,6 +368,8 @@ tools_trans_SOURCES = \
 	src/internal.c \
 	tools/intra_fit_tools.c \
 	tools/vidinput.c \
+	tools/y4m_input.c \
+	tools/th_input.c \
 	tools/od_covmat.c \
 	tools/od_filter.c \
 	tools/od_intra.c \
@@ -371,6 +393,8 @@ tools_trans_gain_SOURCES = \
 	tools/trans_gain.c \
 	src/internal.c \
 	tools/vidinput.c \
+	tools/y4m_input.c \
+	tools/th_input.c \
 	tools/od_filter.c \
 	tools/trans_tools.c \
 	src/filter.c \
@@ -385,6 +409,8 @@ tools_trans2d_SOURCES = \
 	src/internal.c \
 	tools/intra_fit_tools.c \
 	tools/vidinput.c \
+	tools/y4m_input.c \
+	tools/th_input.c \
 	tools/od_covmat.c \
 	tools/od_filter.c \
 	tools/od_intra.c \
@@ -410,6 +436,8 @@ tools_init_intra_xform_SOURCES = \
 	tools/intra_fit_tools.c \
 	tools/svd.c \
 	tools/vidinput.c \
+	tools/y4m_input.c \
+	tools/th_input.c \
 	src/filter.c \
 	src/newdct.c \
 	src/intra.c \

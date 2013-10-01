@@ -45,7 +45,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 
 typedef int (*plane_start_func)(void *_ctx,const char *_name,
- const th_info *_ti,int _pli,int _nxblocks,int _nyblocks);
+ const video_input_info *_info,int _pli,int _nxblocks,int _nyblocks);
 typedef void (*block_func)(void *_ctx,const unsigned char *_data,int _stride,
  int _bi,int _bj);
 typedef int (*plane_finish_func)(void *_ctx);
@@ -54,7 +54,7 @@ typedef int (*plane_finish_func)(void *_ctx);
 
 /*Computes the starting offset and number of blocks which can be intra
    predicted with full context (i.e., all of their neighbors) available.*/
-void get_intra_dims(const th_info *_ti,int _pli,int _padding,
+void get_intra_dims(const video_input_info *_info,int _pli,int _padding,
  int *_x0,int *_y0,int *_nxblocks,int *_nyblocks);
 
 char *get_map_filename(const char *_name,int _pli,int _nxblocks,int _nyblocks);

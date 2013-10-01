@@ -902,30 +902,30 @@ int main(int _argc,char **_argv){
     {"intra",no_argument,NULL,0},
     {NULL,0,NULL,0}
   };
-  FILE        *fin;
-  FILE        *fout;
-  video_input  vid1;
-  th_info      ti1;
-  video_input  vid2;
-  th_info      ti2;
-  int          frameno;
-  int          pli;
+  FILE *fin;
+  FILE *fout;
+  video_input vid1;
+  video_input_info info1;
+  video_input vid2;
+  video_input_info info2;
+  int frameno;
+  int pli;
   unsigned char *outline;
-  od_coeff    *refi[3];
-  od_coeff    *iimg[3];
-  int          xdec[3];
-  int          ydec[3];
-  int          w[3];
-  int          h[3];
-  int          pvq_k;
-  int          fps;
-  int          extend;
-  int          limit;
-  int          intra;
-  char         refname[1024];
-  int          ref_in;
-  int          long_option_index;
-  int          c;
+  od_coeff *refi[3];
+  od_coeff *iimg[3];
+  int xdec[3];
+  int ydec[3];
+  int w[3];
+  int h[3];
+  int pvq_k;
+  int fps;
+  int extend;
+  int limit;
+  int intra;
+  char refname[1024];
+  int ref_in;
+  int long_option_index;
+  int c;
   pvq_k=32;
   fps=-1;
   ref_in=0;
@@ -970,7 +970,7 @@ int main(int _argc,char **_argv){
   }
   fprintf(stderr,"Opening %s as input%s...\n",_argv[optind],ref_in?"":" and reference");
   if(video_input_open(&vid1,fin)<0)exit(EXIT_FAILURE);
-  video_input_get_info(&vid1,&ti1);
+  video_input_get_info(&vid1,&info1);
   if(ref_in){
     fin=fopen(refname,"rb");
     if(fin==NULL){
@@ -979,51 +979,51 @@ int main(int _argc,char **_argv){
     }
     fprintf(stderr,"Opening %s as reference...\n",refname);
     if(video_input_open(&vid2,fin)<0)exit(EXIT_FAILURE);
-    video_input_get_info(&vid2,&ti2);
+    video_input_get_info(&vid2,&info2);
     /*Check to make sure these videos are compatible.*/
-    if(ti1.pic_width!=ti2.pic_width||ti1.pic_height!=ti2.pic_height){
+    if(info1.pic_w!=info2.pic_w||info1.pic_h!=info2.pic_h){
       fprintf(stderr,"Video resolution does not match.\n");
       exit(EXIT_FAILURE);
     }
-    if(ti1.pixel_fmt!=ti2.pixel_fmt){
+    if(info1.pixel_fmt!=info2.pixel_fmt){
       fprintf(stderr,"Pixel formats do not match.\n");
       exit(EXIT_FAILURE);
     }
-    if((ti1.pic_x&!(ti1.pixel_fmt&1))!=(ti2.pic_x&!(ti2.pixel_fmt&1))||
-     (ti1.pic_y&!(ti1.pixel_fmt&2))!=(ti2.pic_y&!(ti2.pixel_fmt&2))){
+    if((info1.pic_x&!(info1.pixel_fmt&1))!=(info2.pic_x&!(info2.pixel_fmt&1))||
+     (info1.pic_y&!(info1.pixel_fmt&2))!=(info2.pic_y&!(info2.pixel_fmt&2))){
       fprintf(stderr,"Chroma subsampling offsets do not match.\n");
       exit(EXIT_FAILURE);
     }
-    if(ti1.fps_numerator*(ogg_int64_t)ti2.fps_denominator!=
-     ti2.fps_numerator*(ogg_int64_t)ti1.fps_denominator){
+    if(info1.fps_n*(ogg_int64_t)info2.fps_d!=
+     info2.fps_n*(ogg_int64_t)info1.fps_d){
       fprintf(stderr,"Warning: framerates do not match.\n");
     }
-    if(ti1.aspect_numerator*(ogg_int64_t)ti2.aspect_denominator!=
-     ti2.aspect_numerator*(ogg_int64_t)ti1.aspect_denominator){
+    if(info1.par_n*(ogg_int64_t)info2.par_d!=
+     info2.par_n*(ogg_int64_t)info1.par_d){
      fprintf(stderr,"Warning: aspect ratios do not match.\n");
     }
   }
   for(pli=0;pli<3;pli++){
     /*Planes padded up to a multiple of 32px*/
-    xdec[pli]=pli&&!(ti1.pixel_fmt&1);
-    ydec[pli]=pli&&!(ti1.pixel_fmt&2);
-    h[pli]=ROUNDUP_32(ti1.pic_height>>ydec[pli]);
-    w[pli]=ROUNDUP_32( ti1.pic_width>>xdec[pli]);
+    xdec[pli]=pli&&!(info1.pixel_fmt&1);
+    ydec[pli]=pli&&!(info1.pixel_fmt&2);
+    h[pli]=ROUNDUP_32(info1.pic_h>>ydec[pli]);
+    w[pli]=ROUNDUP_32(info1.pic_w>>xdec[pli]);
     refi[pli]=malloc(w[pli]*h[pli]*sizeof(od_coeff));
     iimg[pli]=malloc(w[pli]*h[pli]*sizeof(od_coeff));
   }
-  outline=malloc(sizeof(*outline)*ti1.pic_width);
+  outline=malloc(sizeof(*outline)*info1.pic_w);
   fout=strcmp(_argv[optind+1],"-")==0?stdout:fopen(_argv[optind+1],"wb");
   if(fout==NULL){
     fprintf(stderr,"Error opening output file \"%s\".\n",_argv[optind+1]);
     return 1;
   }
   fprintf(fout,"YUV4MPEG2 W%i H%i F%i:%i Ip A%i:%i%s\n",
-   ti1.pic_width,ti1.pic_height,fps>0?(unsigned)fps:ti1.fps_numerator,fps>0?1U:ti1.fps_denominator,
-   ti1.aspect_numerator,ti1.aspect_denominator,CHROMA_TAGS[ydec[1]?xdec[1]?0:2:3]);
+   info1.pic_w,info1.pic_h,fps>0?(unsigned)fps:info1.fps_n,fps>0?1U:info1.fps_d,
+   info1.par_n,info1.par_d,CHROMA_TAGS[ydec[1]?xdec[1]?0:2:3]);
   for(frameno=0;;frameno++){
-    th_ycbcr_buffer in;
-    th_ycbcr_buffer ref;
+    video_input_ycbcr in;
+    video_input_ycbcr ref;
     int             ret1=0;
     int             ret2=0;
     char            tag1[5];
@@ -1054,25 +1054,25 @@ int main(int _argc,char **_argv){
       int x;
       int y;
       if (pli==0)
-        switch_decision(in[pli].data, w[pli], h[pli], in[pli].stride, ti1.pic_width, ti1.pic_height);
+        switch_decision(in[pli].data, w[pli], h[pli], in[pli].stride, info1.pic_w, info1.pic_h);
 
       for(y=0;y<h[pli];y++){
         for(x=0;x<w[pli];x++){
-          int cy=OD_MINI(y+(int)(ti1.pic_y>>ydec[pli]),(int)ti1.pic_height>>ydec[pli]);
-          int cx=OD_MINI(x+(int)(ti1.pic_x>>xdec[pli]),(int)ti1.pic_width>>xdec[pli]);
+          int cy=OD_MINI(y+(int)(info1.pic_y>>ydec[pli]),(int)info1.pic_h>>ydec[pli]);
+          int cx=OD_MINI(x+(int)(info1.pic_x>>xdec[pli]),(int)info1.pic_w>>xdec[pli]);
           iimg[pli][y*w[pli]+x]=128*(in[pli].data[cy*in[pli].stride+cx]-128);
         }
       }
       if(ref_in&&ret2!=0){
         for(y=0;y<h[pli];y++){
           for(x=0;x<w[pli];x++){
-            int cy=OD_MINI(y+(int)(ti1.pic_y>>ydec[pli]),(int)ti1.pic_height>>ydec[pli]);
-            int cx=OD_MINI(x+(int)(ti1.pic_x>>xdec[pli]),(int)ti1.pic_width>>xdec[pli]);
+            int cy=OD_MINI(y+(int)(info1.pic_y>>ydec[pli]),(int)info1.pic_h>>ydec[pli]);
+            int cx=OD_MINI(x+(int)(info1.pic_x>>xdec[pli]),(int)info1.pic_w>>xdec[pli]);
             refi[pli][y*w[pli]+x]=128*(ref[pli].data[cy*in[pli].stride+cx]-128);
           }
         }
       }
-      process_plane(iimg[pli],(ref_in||frameno>0)&&!intra?refi[pli]:NULL,ti1.pic_width>>xdec[pli],ti1.pic_height>>ydec[pli],pli,pvq_k);
+      process_plane(iimg[pli],(ref_in||frameno>0)&&!intra?refi[pli]:NULL,info1.pic_w>>xdec[pli],info1.pic_h>>ydec[pli],pli,pvq_k);
       if(!ref_in){
         for(y=0;y<h[pli];y++){
           for(x=0;x<w[pli];x++){
@@ -1085,10 +1085,10 @@ int main(int _argc,char **_argv){
     for(pli=0;pli<3;pli++){
       int x;
       int y;
-      for(y=0;y<(int)ti1.pic_height>>ydec[pli];y++){
-        for(x=0;x<(int)ti1.pic_width>>xdec[pli];x++)outline[x]=OD_CLAMP255((int)floor(.5+(1./128)*iimg[pli][y*w[pli]+x])+128);
+      for(y=0;y<(int)info1.pic_h>>ydec[pli];y++){
+        for(x=0;x<(int)info1.pic_w>>xdec[pli];x++)outline[x]=OD_CLAMP255((int)floor(.5+(1./128)*iimg[pli][y*w[pli]+x])+128);
         if(fwrite(outline,
-         (ti1.pic_width>>xdec[pli]),1,fout)<1){
+         (info1.pic_w>>xdec[pli]),1,fout)<1){
           fprintf(stderr,"Error writing to output.\n");
           return EXIT_FAILURE;
         }

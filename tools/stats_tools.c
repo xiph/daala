@@ -510,13 +510,13 @@ int ne_apply_to_blocks(void *_ctx,int _ctx_sz,int _plmask,int _padding,
   int ai;
 #pragma omp parallel for schedule(dynamic)
   for(ai=1;ai<_argc;ai++){
-    FILE            *fin;
-    video_input      vid;
-    th_info          ti;
-    th_ycbcr_buffer  ycbcr;
-    int              pli;
-    int              tid;
-    unsigned char   *ctx;
+    FILE *fin;
+    video_input vid;
+    video_input_info info;
+    video_input_ycbcr ycbcr;
+    int pli;
+    int tid;
+    unsigned char *ctx;
     fin=fopen(_argv[ai],"rb");
     if(fin==NULL){
       fprintf(stderr,"Could not open '%s' for reading.\n",_argv[ai]);
@@ -526,7 +526,7 @@ int ne_apply_to_blocks(void *_ctx,int _ctx_sz,int _plmask,int _padding,
       fprintf(stderr,"Error reading video info from '%s'.\n",_argv[ai]);
       continue;
     }
-    video_input_get_info(&vid,&ti);
+    video_input_get_info(&vid,&info);
     if(video_input_fetch_frame(&vid,ycbcr,NULL)<0){
       fprintf(stderr,"Error reading first frame from '%s'.\n",_argv[ai]);
       continue;
@@ -539,9 +539,9 @@ int ne_apply_to_blocks(void *_ctx,int _ctx_sz,int _plmask,int _padding,
         int y0;
         int nxblocks;
         int nyblocks;
-        get_intra_dims(&ti,pli,_padding,&x0,&y0,&nxblocks,&nyblocks);
+        get_intra_dims(&info,pli,_padding,&x0,&y0,&nxblocks,&nyblocks);
         if(_start!=NULL){
-          (*_start)(ctx,_argv[ai],&ti,pli,nxblocks,nyblocks);
+          (*_start)(ctx,_argv[ai],&info,pli,nxblocks,nyblocks);
         }
         if(_funcs!=NULL){
           int f;

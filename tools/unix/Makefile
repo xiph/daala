@@ -54,6 +54,8 @@ P2Y_TARGET:=png2y4m
 #y4m2png
 Y2P_LOCAL_CSOURCES = \
 vidinput.c \
+y4m_input.c \
+th_input.c \
 y4m2png.c
 
 Y2P_LIB_CSOURCES =
@@ -68,6 +70,8 @@ Y2P_TARGET:=y4m2png
 #dump_psnrhvs
 PSNRHVS_LOCAL_CSOURCES = \
 vidinput.c \
+y4m_input.c \
+th_input.c \
 newdct.c \
 dump_psnrhvs.c \
 
@@ -86,6 +90,8 @@ block_size_analysis.c \
 block_size.c \
 block_size_enc.c \
 vidinput.c \
+y4m_input.c \
+th_input.c \
 newdct.c \
 internal.c \
 entcode.c \
@@ -109,7 +115,9 @@ PIM_LOCAL_CSOURCES = \
 image.c \
 plot_intra_maps.c \
 intra_fit_tools.c \
-vidinput.c
+vidinput.c \
+y4m_input.c \
+th_input.c
 
 PIM_LIB_CSOURCES =
 
@@ -125,7 +133,9 @@ PIM_TARGET:=plot_intra_maps
 IIM_LOCAL_CSOURCES = \
 init_intra_maps.c \
 intra_fit_tools.c \
-vidinput.c
+vidinput.c \
+y4m_input.c \
+th_input.c
 
 IIM_LIB_CSOURCES =
 
@@ -148,6 +158,8 @@ od_intra_data.c \
 image_tools.c \
 stats_tools.c \
 vidinput.c \
+y4m_input.c \
+th_input.c \
 image.c
 
 IS_LIB_CSOURCES = \
@@ -182,6 +194,8 @@ od_intra_data.c \
 image_tools.c \
 stats_tools.c \
 vidinput.c \
+y4m_input.c \
+th_input.c \
 image.c \
 svd.c \
 cholesky.c
@@ -219,6 +233,8 @@ image_tools.c \
 stats_tools.c \
 trans_tools.c \
 vidinput.c \
+y4m_input.c \
+th_input.c \
 image.c
 
 IT_LIB_CSOURCES = \
@@ -248,6 +264,8 @@ trans.c \
 internal.c \
 intra_fit_tools.c \
 vidinput.c \
+y4m_input.c \
+th_input.c \
 od_covmat.c \
 od_filter.c \
 od_intra.c \
@@ -278,6 +296,8 @@ TG_LOCAL_CSOURCES = \
 trans_gain.c \
 internal.c \
 vidinput.c \
+y4m_input.c \
+th_input.c \
 od_filter.c \
 trans_tools.c 
 
@@ -299,6 +319,8 @@ trans2d.c \
 internal.c \
 intra_fit_tools.c \
 vidinput.c \
+y4m_input.c \
+th_input.c \
 od_covmat.c \
 od_filter.c \
 od_intra.c \
@@ -331,7 +353,9 @@ cholesky.c \
 init_intra_xform.c \
 intra_fit_tools.c \
 svd.c \
-vidinput.c
+vidinput.c \
+y4m_input.c \
+th_input.c
 
 IIX_LIB_CSOURCES = \
 filter.c \

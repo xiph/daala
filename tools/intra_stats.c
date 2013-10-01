@@ -306,10 +306,10 @@ static void od_image_block(void *_ctx,const unsigned char *_data,int _stride,
 }
 #endif
 
-static int stats_start(void *_ctx,const char *_name,const th_info *_ti,int _pli,
- int _nxblocks,int _nyblocks){
+static int stats_start(void *_ctx,const char *_name,
+ const video_input_info *_info,int _pli, int _nxblocks,int _nyblocks){
   intra_stats_ctx *ctx;
-  (void)_ti;
+  (void)_info;
   (void)_pli;
   fprintf(stdout,"%s\n",_name);
   ctx=(intra_stats_ctx *)_ctx;

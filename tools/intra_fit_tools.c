@@ -32,21 +32,21 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 /*Computes the starting offset and number of blocks which can be intra
    predicted with full context (i.e., all of their neighbors) available.*/
-void get_intra_dims(const th_info *_ti,int _pli,int _padding,
+void get_intra_dims(const video_input_info *_info,int _pli,int _padding,
  int *_x0,int *_y0,int *_nxblocks,int *_nyblocks){
   int xshift;
   int yshift;
-  xshift=_pli!=0&&!(_ti->pixel_fmt&1);
-  yshift=_pli!=0&&!(_ti->pixel_fmt&2);
+  xshift=_pli!=0&&!(_info->pixel_fmt&1);
+  yshift=_pli!=0&&!(_info->pixel_fmt&2);
   /*An offset of 1 would be fine to provide enough context for VP8-style intra
      prediction, but for frequency-domain prediction, we'll want a full block,
      plus overlap.*/
-  *_x0=(_ti->pic_x>>xshift)+(_padding>>1);
-  *_y0=(_ti->pic_y>>yshift)+(_padding>>1);
+  *_x0=(_info->pic_x>>xshift)+(_padding>>1);
+  *_y0=(_info->pic_y>>yshift)+(_padding>>1);
   /*We take an extra block off the end to give enough context for above-right
      intra prediction.*/
-  *_nxblocks=_ti->pic_width-(_padding<<xshift)>>B_SZ_LOG+xshift;
-  *_nyblocks=_ti->pic_height-(_padding<<yshift)>>B_SZ_LOG+yshift;
+  *_nxblocks=_info->pic_w-(_padding<<xshift)>>B_SZ_LOG+xshift;
+  *_nyblocks=_info->pic_h-(_padding<<yshift)>>B_SZ_LOG+yshift;
 }
 
 char *get_map_filename(const char *_name,int _pli,int _nxblocks,int _nyblocks){
@@ -86,11 +86,11 @@ int apply_to_blocks2(void *_ctx,int _padding,plane_start_func _start,
  int _argc,const char **_argv){
   int ai;
   for(ai=1;ai<_argc;ai++){
-    video_input      vid;
-    th_info          ti;
-    th_ycbcr_buffer  ycbcr;
-    FILE            *fin;
-    int              pli;
+    video_input vid;
+    video_input_info info;
+    video_input_ycbcr ycbcr;
+    FILE *fin;
+    int pli;
     fin=fopen(_argv[ai],"rb");
     if(fin==NULL){
       fprintf(stderr,"Could not open '%s' for reading.\n",_argv[ai]);
@@ -100,7 +100,7 @@ int apply_to_blocks2(void *_ctx,int _padding,plane_start_func _start,
       fprintf(stderr,"Error reading video info from '%s'.\n",_argv[ai]);
       return EXIT_FAILURE;
     }
-    video_input_get_info(&vid,&ti);
+    video_input_get_info(&vid,&info);
     if(video_input_fetch_frame(&vid,ycbcr,NULL)<0){
       fprintf(stderr,"Error reading first frame from '%s'.\n",_argv[ai]);
       return EXIT_FAILURE;
@@ -112,9 +112,9 @@ int apply_to_blocks2(void *_ctx,int _padding,plane_start_func _start,
         int nxblocks;
         int nyblocks;
         int ret;
-        get_intra_dims(&ti,pli,_padding,&x0,&y0,&nxblocks,&nyblocks);
+        get_intra_dims(&info,pli,_padding,&x0,&y0,&nxblocks,&nyblocks);
         if(_start!=NULL){
-          ret=(*_start)(_ctx,_argv[ai],&ti,pli,nxblocks,nyblocks);
+          ret=(*_start)(_ctx,_argv[ai],&info,pli,nxblocks,nyblocks);
           if(ret)return ret;
         }
         if(_blocks!=NULL){

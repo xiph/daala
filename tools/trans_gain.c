@@ -306,13 +306,13 @@ static void process_files(trans_ctx *_ctx,
   int ai;
 #pragma omp parallel for schedule(dynamic)
   for(ai=1;ai<_argc;ai++){
-    FILE            *fin;
-    video_input      vid;
-    th_info          ti;
-    th_ycbcr_buffer  ycbcr;
-    int              tid;
-    cov_state       *cov;
-    int              x0,y0,x1,y1;
+    FILE *fin;
+    video_input vid;
+    video_input_info info;
+    video_input_ycbcr ycbcr;
+    int tid;
+    cov_state *cov;
+    int x0,y0,x1,y1;
 
     fin=fopen(_argv[ai],"rb");
     if(fin==NULL){
@@ -323,17 +323,17 @@ static void process_files(trans_ctx *_ctx,
       fprintf(stderr,"Error reading video info from '%s'.\n",_argv[ai]);
       continue;
     }
-    video_input_get_info(&vid,&ti);
+    video_input_get_info(&vid,&info);
     if(video_input_fetch_frame(&vid,ycbcr,NULL)<0){
       fprintf(stderr,"Error reading first frame from '%s'.\n",_argv[ai]);
       continue;
     }
     tid=OD_OMP_GET_THREAD;
     cov=_cov+tid;
-    x0 = ti.pic_x;
-    y0 = ti.pic_y;
-    x1 = x0 + ti.pic_width;
-    y1 = y0 + ti.pic_height;
+    x0 = info.pic_x;
+    y0 = info.pic_y;
+    x1 = x0 + info.pic_w;
+    y1 = y0 + info.pic_h;
 
     fprintf(stderr,"%s\n",_argv[ai]);
 
@@ -345,8 +345,8 @@ static void process_files(trans_ctx *_ctx,
 #if COMPUTE_NATHAN
       /* block-based full covariance computation (unlord style) */
 
-      int nxblocks=ti.pic_width>>BLOCKSIZE_LOG;
-      int nyblocks=ti.pic_height>>BLOCKSIZE_LOG;
+      int nxblocks=info.pic_w>>BLOCKSIZE_LOG;
+      int nyblocks=info.pic_h>>BLOCKSIZE_LOG;
       trans_ctx *ctx=_ctx+tid;
 
 # if USE_2D
