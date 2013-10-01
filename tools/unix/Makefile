@@ -24,7 +24,7 @@
 
 CC = gcc
 MAKEDEPEND = gcc -MM
-CINCLUDE = `pkg-config theoradec ogg libpng --cflags`
+CINCLUDE = `pkg-config ogg libpng --cflags`
 CFLAGS = -Wall -Wno-parentheses -Wno-overlength-strings -Wno-long-long
 CFLAGS += -std=c89 -pedantic -fopenmp
 CFLAGS += -O3
@@ -43,7 +43,7 @@ png2y4m.c
 
 P2Y_LIB_CSOURCES =
 
-P2Y_LDFLAGS = `pkg-config theoradec ogg libpng --libs`
+P2Y_LDFLAGS = `pkg-config ogg libpng --libs`
 
 P2Y_OBJS:=${P2Y_LOCAL_CSOURCES} ${P2Y_LIB_CSOURCES}
 P2Y_OBJS:=${P2Y_OBJS:%.c=${WORKDIR}/%.o}
@@ -55,12 +55,11 @@ P2Y_TARGET:=png2y4m
 Y2P_LOCAL_CSOURCES = \
 vidinput.c \
 y4m_input.c \
-th_input.c \
 y4m2png.c
 
 Y2P_LIB_CSOURCES =
 
-Y2P_LDFLAGS = `pkg-config theoradec ogg libpng --libs`
+Y2P_LDFLAGS = `pkg-config ogg libpng --libs`
 
 Y2P_OBJS:=${Y2P_LOCAL_CSOURCES} ${Y2P_LIB_CSOURCES}
 Y2P_OBJS:=${Y2P_OBJS:%.c=${WORKDIR}/%.o}
@@ -71,13 +70,12 @@ Y2P_TARGET:=y4m2png
 PSNRHVS_LOCAL_CSOURCES = \
 vidinput.c \
 y4m_input.c \
-th_input.c \
 newdct.c \
 dump_psnrhvs.c \
 
 PSNRHVS_LIB_CSOURCES =
 
-PSNRHVS_LDFLAGS = `pkg-config theoradec ogg libpng --libs` -lm
+PSNRHVS_LDFLAGS = `pkg-config ogg libpng --libs` -lm
 
 PSNRHVS_OBJS:=${PSNRHVS_LOCAL_CSOURCES} ${PSNRHVS_LIB_CSOURCES}
 PSNRHVS_OBJS:=${PSNRHVS_OBJS:%.c=${WORKDIR}/%.o}
@@ -91,7 +89,6 @@ block_size.c \
 block_size_enc.c \
 vidinput.c \
 y4m_input.c \
-th_input.c \
 newdct.c \
 internal.c \
 entcode.c \
@@ -102,7 +99,7 @@ switch_table.c
 
 BSIZE_LIB_CSOURCES =
 
-BSIZE_LDFLAGS = `pkg-config theoradec ogg libpng --libs` -lm
+BSIZE_LDFLAGS = `pkg-config ogg libpng --libs` -lm
 
 BSIZE_OBJS:=${BSIZE_LOCAL_CSOURCES} ${BSIZE_LIB_CSOURCES}
 BSIZE_OBJS:=${BSIZE_OBJS:%.c=${WORKDIR}/%.o}
@@ -117,11 +114,10 @@ plot_intra_maps.c \
 intra_fit_tools.c \
 vidinput.c \
 y4m_input.c \
-th_input.c
 
 PIM_LIB_CSOURCES =
 
-PIM_LDFLAGS = `pkg-config theoradec ogg libpng --libs` -lm
+PIM_LDFLAGS = `pkg-config ogg libpng --libs` -lm
 
 PIM_OBJS:=${PIM_LOCAL_CSOURCES} ${PIM_LIB_CSOURCES}
 PIM_OBJS:=${PIM_OBJS:%.c=${WORKDIR}/%.o}
@@ -135,11 +131,10 @@ init_intra_maps.c \
 intra_fit_tools.c \
 vidinput.c \
 y4m_input.c \
-th_input.c
 
 IIM_LIB_CSOURCES =
 
-IIM_LDFLAGS = `pkg-config theoradec ogg libpng --libs` -lm
+IIM_LDFLAGS = `pkg-config ogg libpng --libs` -lm
 
 IIM_OBJS:=${IIM_LOCAL_CSOURCES} ${IIM_LIB_CSOURCES}
 IIM_OBJS:=${IIM_OBJS:%.c=${WORKDIR}/%.o}
@@ -159,7 +154,6 @@ image_tools.c \
 stats_tools.c \
 vidinput.c \
 y4m_input.c \
-th_input.c \
 image.c
 
 IS_LIB_CSOURCES = \
@@ -175,7 +169,7 @@ tf.c \
 internal.c \
 intradata.c
 
-IS_LDFLAGS = `pkg-config theoradec ogg libpng --libs` -lm
+IS_LDFLAGS = `pkg-config ogg libpng --libs` -lm
 
 IS_OBJS:=${IS_LOCAL_CSOURCES} ${IS_LIB_CSOURCES}
 IS_OBJS:=${IS_OBJS:%.c=${WORKDIR}/%.o}
@@ -195,7 +189,6 @@ image_tools.c \
 stats_tools.c \
 vidinput.c \
 y4m_input.c \
-th_input.c \
 image.c \
 svd.c \
 cholesky.c
@@ -213,7 +206,7 @@ internal.c \
 switch_table.c \
 tf.c
 
-IP_LDFLAGS = `pkg-config theoradec ogg libpng --libs` -lm
+IP_LDFLAGS = `pkg-config ogg libpng --libs` -lm
 
 IP_OBJS:=${IP_LOCAL_CSOURCES} ${IP_LIB_CSOURCES}
 IP_OBJS:=${IP_OBJS:%.c=${WORKDIR}/%.o}
@@ -234,7 +227,6 @@ stats_tools.c \
 trans_tools.c \
 vidinput.c \
 y4m_input.c \
-th_input.c \
 image.c
 
 IT_LIB_CSOURCES = \
@@ -250,7 +242,7 @@ tf.c \
 internal.c \
 intradata.c
 
-IT_LDFLAGS = `pkg-config theoradec ogg libpng --libs` -lm
+IT_LDFLAGS = `pkg-config ogg libpng --libs` -lm
 
 IT_OBJS:=${IT_LOCAL_CSOURCES} ${IT_LIB_CSOURCES}
 IT_OBJS:=${IT_OBJS:%.c=${WORKDIR}/%.o}
@@ -265,7 +257,6 @@ internal.c \
 intra_fit_tools.c \
 vidinput.c \
 y4m_input.c \
-th_input.c \
 od_covmat.c \
 od_filter.c \
 od_intra.c \
@@ -284,7 +275,7 @@ filter.c \
 newdct.c \
 intradata.c
 
-T_LDFLAGS = `pkg-config theoradec ogg libpng --libs` -lm
+T_LDFLAGS = `pkg-config ogg libpng --libs` -lm
 
 T_OBJS:=${T_LOCAL_CSOURCES} ${T_LIB_CSOURCES}
 T_OBJS:=${T_OBJS:%.c=${WORKDIR}/%.o}
@@ -297,7 +288,6 @@ trans_gain.c \
 internal.c \
 vidinput.c \
 y4m_input.c \
-th_input.c \
 od_filter.c \
 trans_tools.c 
 
@@ -306,7 +296,7 @@ filter.c \
 newdct.c \
 intradata.c
 
-TG_LDFLAGS = `pkg-config theoradec ogg libpng --libs` -lm
+TG_LDFLAGS = `pkg-config ogg libpng --libs` -lm
 
 TG_OBJS:=${TG_LOCAL_CSOURCES} ${TG_LIB_CSOURCES}
 TG_OBJS:=${TG_OBJS:%.c=${WORKDIR}/%.o}
@@ -320,7 +310,6 @@ internal.c \
 intra_fit_tools.c \
 vidinput.c \
 y4m_input.c \
-th_input.c \
 od_covmat.c \
 od_filter.c \
 od_intra.c \
@@ -339,7 +328,7 @@ filter.c \
 newdct.c \
 intradata.c
 
-T2D_LDFLAGS = `pkg-config theoradec ogg libpng --libs` -lm
+T2D_LDFLAGS = `pkg-config ogg libpng --libs` -lm
 
 T2D_OBJS:=${T2D_LOCAL_CSOURCES} ${T2D_LIB_CSOURCES}
 T2D_OBJS:=${T2D_OBJS:%.c=${WORKDIR}/%.o}
@@ -355,7 +344,6 @@ intra_fit_tools.c \
 svd.c \
 vidinput.c \
 y4m_input.c \
-th_input.c
 
 IIX_LIB_CSOURCES = \
 filter.c \
@@ -365,7 +353,7 @@ tf.c \
 internal.c \
 intradata.c
 
-IIX_LDFLAGS = `pkg-config theoradec ogg libpng --libs` -lm
+IIX_LDFLAGS = `pkg-config ogg libpng --libs` -lm
 
 IIX_OBJS:=${IIX_LOCAL_CSOURCES} ${IIX_LIB_CSOURCES}
 IIX_OBJS:=${IIX_OBJS:%.c=${WORKDIR}/%.o}

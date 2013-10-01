@@ -91,7 +91,6 @@ AM_CONDITIONAL([ENABLE_PLAYER_EXAMPLE], [test "$enable_player" = "yes"])
 
 PKG_CHECK_MODULES([OGG], [ogg >= 1.3])
 PKG_CHECK_MODULES([PNG], [libpng])
-PKG_CHECK_MODULES([THEORA], [theoradec])
 
 dnl Set LIBM to the math library if needed.
 LT_LIB_M

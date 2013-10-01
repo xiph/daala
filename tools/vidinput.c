@@ -33,18 +33,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <ogg/os_types.h>
 
 extern video_input_vtbl Y4M_INPUT_VTBL;
-extern video_input_vtbl TH_INPUT_VTBL;
 
 int video_input_open(video_input *_vid,FILE *_fin){
   void *ctx;
   if((ctx = Y4M_INPUT_VTBL.open(_fin))!=NULL){
     _vid->vtbl=&Y4M_INPUT_VTBL;
-    _vid->ctx=ctx;
-    _vid->fin=_fin;
-    return 0;
-  }
-  else if((ctx = TH_INPUT_VTBL.open(_fin))!=NULL){
-    _vid->vtbl=&TH_INPUT_VTBL;
     _vid->ctx=ctx;
     _vid->fin=_fin;
     return 0;

@@ -57,6 +57,7 @@ typedef int (*video_input_fetch_frame_func)(void *_ctx,FILE *_fin,
  video_input_ycbcr _ycbcr,char _tag[5]);
 typedef void (*video_input_close_func)(void *_ctx);
 
+/**Pluggable method table for accessing different formats.*/
 struct video_input_vtbl{
   video_input_open_func         open;
   video_input_get_info_func     get_info;
