@@ -204,6 +204,7 @@ int pvq_noref(od_coeff *x0, int n, int q0, int *y, int *vk)
   double norm;
   double yy;
   double best_dist;
+  double best_cos_dist;
   double q;
   q = q0*1.1;
   OD_ASSERT(n > 1);
@@ -216,20 +217,22 @@ int pvq_noref(od_coeff *x0, int n, int q0, int *y, int *vk)
   cg = pow(g/q, ACTIVITY);
   qg = 0;
   best_dist = 1e100;
+  best_cos_dist = 1e100;
   for (i = 0; i <= ceil(cg); i++) {
     double cos_dist;
     double dist;
-    k = floor(.5 + i*sqrt(n/4));
+    k = floor(.5 + i*sqrt(n/2));
     cos_dist = pvq_search_double(x, n, k, y);
     dist = (i - cg)*(i - cg) + i*cg*(2 - 2*cos_dist);
-    dist += .25*k;
+    dist += .05*log2(n)*k;
     if (dist < best_dist) {
       best_dist = dist;
+      best_cos_dist = cos_dist;
       qg = i;
     }
   }
   cg = qg;
-  k = floor(.5 + cg*sqrt(n/4));
+  k = floor(.5 + cg*sqrt(n/2));
   /*printf("%d\n", K);*/
   pvq_search_double(x, n, k, y);
   yy = 0;
@@ -250,7 +253,7 @@ int pvq_noref(od_coeff *x0, int n, int q0, int *y, int *vk)
     e=0;
     for(i=0;i<n;i++)
       e += (x0[i]-x[i])*(x0[i]-x[i]);
-    printf("%f\n", e/(q*q));
+    printf("%f %f %f %d\n", e/(q*q), e/(q*q)/cg/cg, 2-2*best_cos_dist, k);
   }
   for(i = 0; i < n; i++) {
     x0[i] = floor(.5 + x[i]);
@@ -407,7 +410,7 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *itheta, in
       double qtheta;
       if (ts != 0) qtheta = j*.5*M_PI/ts;
       else qtheta = 0;
-      k = floor(.5 + qcg*sin(qtheta)*sqrt(n/4));
+      k = floor(.5 + qcg*sin(qtheta)*sqrt(n/2));
       cos_dist = pvq_search_double(x, n, k, y);
       dist_theta = 2 - 2*cos(theta - qtheta)
        + sin(theta)*sin(qtheta)*(2 - 2*cos_dist);
@@ -445,7 +448,7 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *itheta, in
   for (i = 0; i < n; i++) {
     x[i] *= g;
   }
-  if (1) {
+  if (0) {
     double e0, e1;
     e0=0;
     e1=0;
