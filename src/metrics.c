@@ -35,6 +35,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <unistd.h>
 
 #include "state.h"
+#include "logging.h"
 
 #endif
 
@@ -65,12 +66,14 @@ void write_metrics(ogg_int64_t cur_time, ogg_int64_t *metrics) {
     fprintf(metrics_file, ",\n");
   }
   fprintf(metrics_file,
-   "{\"frame\":%lld, \"total_bits\":%lld, \"mv_bits\":%lld, "
-   "\"bs_bits\":%lld, \"pvq_bits\":%lld, \"dc_bits\":%lld, "
-   "\"intra_bits\":%lld}\n",
-   cur_time, metrics[OD_METRIC_TOTAL], metrics[OD_METRIC_MV],
-   metrics[OD_METRIC_BLOCK_SWITCHING], metrics[OD_METRIC_PVQ],
-   metrics[OD_METRIC_DC], metrics[OD_METRIC_INTRA]);
+   "{\"frame\":%" OD_I64FMT ", \"total_bits\":%" OD_I64FMT ", "
+   "\"mv_bits\":%" OD_I64FMT ", \"bs_bits\":%" OD_I64FMT ", "
+   "\"pvq_bits\":%" OD_I64FMT ", \"dc_bits\":%" OD_I64FMT ", "
+   "\"intra_bits\":%" OD_I64FMT "}\n",
+   (long long)cur_time, (long long)metrics[OD_METRIC_TOTAL],
+   (long long)metrics[OD_METRIC_MV], (long long)metrics[OD_METRIC_BLOCK_SWITCHING],
+   (long long)metrics[OD_METRIC_PVQ], (long long)metrics[OD_METRIC_DC],
+   (long long)metrics[OD_METRIC_INTRA]);
   fprintf(metrics_file, "]\n");
   fclose(metrics_file);
 #else

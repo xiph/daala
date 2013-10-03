@@ -31,6 +31,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #include "ogg/os_types.h"
 
+#if defined(_WIN32)
+#define OD_I64FMT "I64d"
+#else
+#define OD_I64FMT "lld"
+#endif
+
 /* Exhaustive list of all the log facilities. */
 typedef enum {
   OD_LOG_GENERIC = 0,
