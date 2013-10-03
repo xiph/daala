@@ -358,7 +358,7 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *itheta, in
   double gain_offset;
   double qcg;
   int noref;
-  q = q0*1.1;
+  q = q0;
   OD_ASSERT(n > 1);
   l2x = 0;
   l2r = 0;
@@ -462,7 +462,7 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *itheta, in
     }
     norm = sqrt(1./(1e-100 + yy));
     for (i = 0; i < n; i++) {
-      if (x[i] < 0) y[i] = -y[i];
+      if (x1[i] < 0) y[i] = -y[i];
       x[i] = y[i]*norm;
     }
   }
