@@ -171,8 +171,9 @@ AC_SUBST([PC_PNG_REQUIRES])
 AC_SUBST([PC_PNG_LIBS])
 
 AC_ARG_ENABLE([metrics],
-  AS_HELP_STRING([--enable-metrics], [Enable metrics collection]),,
-  [enable_metrics=yes])
+  AS_HELP_STRING([--enable-metrics], [Enable metrics collection]),
+  [if test "$host_mingw" = "true"; then AC_MSG_ERROR([metrics not supported on Windows]); fi],
+  [enable_metrics=no])
 AS_IF([test "$enable_metrics" = "yes"], [
   AC_DEFINE([OD_METRICS], [1], [Enable metrics collection])])
 
