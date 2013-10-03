@@ -2486,7 +2486,7 @@ static void od_mc_blend_full8_4x4(unsigned char *_dst,int _dystride,
       We'll still use it in indexing expression in the asm, but the overhead is
        neglible, and it's easier than writing a special case of
        OD_MC_BLEND_FULL8_4x4 for it.*/
-    :[src]"r"(_src),[dystride]"r"((ptrdiff_t)_dystride),[row]"r"(0L),
+    :[src]"r"(_src),[dystride]"r"((ptrdiff_t)_dystride),[row]"r"((ptrdiff_t)0),
      [OD_BIL4H]"m"(*OD_BIL4H),[OD_BIL4V]"m"(*OD_BIL4V),
      [pstride]"i"(sizeof(*_src))
   );
@@ -2540,7 +2540,7 @@ static void od_mc_blend_full8_8x2(unsigned char *_dst,int _dystride,
   __asm__ __volatile__(
     OD_MC_BLEND_FULL8_8x2(1)
     :[dst]"+r"(_dst),[a]"=&r"(a)
-    :[src]"r"(_src),[dystride]"r"((ptrdiff_t)_dystride),[row]"r"(0L),
+    :[src]"r"(_src),[dystride]"r"((ptrdiff_t)_dystride),[row]"r"((ptrdiff_t)0),
      [OD_BILH]"m"(*OD_BILH),[OD_BILV]"m"(*OD_BILV),
      [pstride]"i"(sizeof(*_src))
   );
@@ -2600,7 +2600,7 @@ static void od_mc_blend_full8_16x1(unsigned char *_dst,int _dystride,
   __asm__ __volatile__(
     OD_MC_BLEND_FULL8_16x1(0)
     :[dst]"+r"(_dst),[a]"=&r"(a)
-    :[src]"r"(_src),[dystride]"r"((ptrdiff_t)_dystride),[row]"r"(0L),
+    :[src]"r"(_src),[dystride]"r"((ptrdiff_t)_dystride),[row]"r"((ptrdiff_t)0),
      [OD_BILH]"m"(*OD_BILH),[OD_BILV]"m"(*OD_BILV),
      [pstride]"i"(sizeof(*_src))
   );
@@ -3009,7 +3009,7 @@ static void od_mc_blend_full_split8_4x4(unsigned char *_dst,int _dystride,
   __asm__ __volatile__(
     OD_MC_BLEND_FULL_SPLIT8_4x4(2)
     :[dst]"+r"(_dst),[a]"=&r"(a)
-    :[src]"r"(_src),[dystride]"r"((ptrdiff_t)_dystride),[row]"r"(0L),
+    :[src]"r"(_src),[dystride]"r"((ptrdiff_t)_dystride),[row]"r"((ptrdiff_t)0),
      [OD_BIL4H]"m"(*OD_BIL4H),[OD_BIL4V]"m"(*OD_BIL4V),[OD_BILV]"m"(*OD_BILV),
      [pstride]"i"(sizeof(*_src))
   );
@@ -3039,7 +3039,7 @@ static void od_mc_blend_full_split8_8x2(unsigned char *_dst,int _dystride,
   __asm__ __volatile__(
     OD_MC_BLEND_FULL_SPLIT8_8x2(1)
     :[dst]"+r"(_dst),[a]"=&r"(a)
-    :[src]"r"(_src),[dystride]"r"((ptrdiff_t)_dystride),[row]"r"(0L),
+    :[src]"r"(_src),[dystride]"r"((ptrdiff_t)_dystride),[row]"r"((ptrdiff_t)0),
      [OD_BILH]"m"(*OD_BILH),[OD_BILV]"m"(*OD_BILV),
      [pstride]"i"(sizeof(*_src))
   );
