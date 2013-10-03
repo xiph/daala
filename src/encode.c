@@ -939,7 +939,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       ydec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
       w = frame_width >> xdec;
       h = frame_height >> ydec;
-      mbctx.run_pvq[pli] = 1;
+      mbctx.run_pvq[pli] = 0;
       od_ec_enc_uint(&enc->ec, enc->scale[pli], 512);
       /*If the scale is zero, force scalar.*/
       if (!enc->scale[pli]) mbctx.run_pvq[pli] = 0;
