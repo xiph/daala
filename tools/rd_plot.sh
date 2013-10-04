@@ -12,8 +12,9 @@ if [ $# == 0 ]; then
   exit 1
 fi
 
-CMDS="$CMDS set term png;"
+CMDS="$CMDS set term png size 1024,768;"
 CMDS="$CMDS set output \"$IMAGE\";"
+CMDS="$CMDS set log x;"
 CMDS="$CMDS set xlabel 'Bits/Pixel';"
 CMDS="$CMDS set ylabel 'dB';"
 CMDS="$CMDS set key bot right;"
@@ -21,15 +22,21 @@ CMDS="$CMDS set key bot right;"
 CMDS="$CMDS plot"
 for FILE in "$@"; do
   BASENAME=$(basename $FILE)
-  CMDS="$CMDS $PREFIX '$FILE' using (\$3*8/\$2):4 with lines title '${BASENAME%.*} (PSNR)'"
+  PSNR="$PSNR $PREFIX '$FILE' using (\$3*8/\$2):4 with lines title '${BASENAME%.*} (PSNR)'"
+  PSNRHVS="$PSNRHVS $PREFIX '$FILE' using (\$3*8/\$2):5 with lines title '${BASENAME%.*} (PSNR-HVS)'"
+  SSIM="$SSIM $PREFIX '$FILE' using (\$3*8/\$2):6 with lines title '${BASENAME%.*} (SSIM)'"
+  FASTSSIM="$FASTSSIM $PREFIX '$FILE' using (\$3*8/\$2):7 with lines title '${BASENAME%.*} (FAST SSIM)'"
   PREFIX=","
-  CMDS="$CMDS $PREFIX '$FILE' using (\$3*8/\$2):5 with lines title '${BASENAME%.*} (PSNR-HVS)'"
-  PREFIX=","
-  #CMDS="$CMDS $PREFIX '$FILE' using (\$3*8/\$2):6 with lines title '${BASENAME%.*} (SSIM)'"
-  #PREFIX=","
-  #CMDS="$CMDS $PREFIX '$FILE' using (\$3*8/\$2):7 with lines title '${BASENAME%.*} (FAST SSIM)'"
-  #PREFIX=","
 done
+PREFIX=""
+CMDS="$CMDS $PREFIX $PSNR"
+PREFIX=","
+CMDS="$CMDS $PREFIX $PSNRHVS"
+PREFIX=","
+#CMDS="$CMDS $PREFIX $SSIM"
+#PREFIX=","
+#CMDS="$CMDS $PREFIX $FASTSSIM"
+#PREFIX=","
 echo $CMDS
 CMDS="$CMDS;"
 
