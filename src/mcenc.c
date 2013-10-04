@@ -2516,7 +2516,7 @@ static void od_mv_dp_animate_state(od_state *state,
   int prev_active_states[OD_DP_NSTATES_MAX << 1];
   int nactive_states;
   int nprev_active_states;
-  int state;
+  int dp_state;
   int si;
   int d0vx;
   int d0vy;
@@ -2605,13 +2605,13 @@ static void od_mv_dp_animate_state(od_state *state,
     nprev_active_states = 0;
     for (si = 0; si < nactive_states; si++) {
       int sj;
-      state = active_states[si];
-      if (state >= dp[0].nstates) state -= dp[0].nstates;
-      state = dp[0].states[state].prevsi;
+      dp_state = active_states[si];
+      if (dp_state >= dp[0].nstates) dp_state -= dp[0].nstates;
+      dp_state = dp[0].states[dp_state].prevsi;
       for (sj = 0;
-       sj < nprev_active_states && prev_active_states[sj] != state; sj++);
+       sj < nprev_active_states && prev_active_states[sj] != dp_state; sj++);
       if (sj >= nprev_active_states) {
-        prev_active_states[nprev_active_states++] = state;
+        prev_active_states[nprev_active_states++] = dp_state;
       }
     }
   }
@@ -2638,11 +2638,11 @@ static void od_mv_dp_animate_state(od_state *state,
         x0 = ((d1vx - 2) << 3) + (OD_UMV_PADDING << 1);
         y0 = ((d1vy - 2) << 3) + (OD_UMV_PADDING << 1);
         for (si = 0; si < nactive_states; si++) {
-          state = active_states[si];
-          if (state >= dp[1].nstates) state -= dp[1].nstates;
+          dp_state = active_states[si];
+          if (dp_state >= dp[1].nstates) dp_state -= dp[1].nstates;
           od_img_draw_line(&state->vis_img, x0, y0,
-           x0 + OD_DIV_ROUND_POW2(dp[1].states[state].mv[0], 2, 2),
-           y0 + OD_DIV_ROUND_POW2(dp[1].states[state].mv[1], 2, 2),
+           x0 + OD_DIV_ROUND_POW2(dp[1].states[dp_state].mv[0], 2, 2),
+           y0 + OD_DIV_ROUND_POW2(dp[1].states[dp_state].mv[1], 2, 2),
            OD_YCbCr_MVCAND);
         }
       }
@@ -2654,28 +2654,29 @@ static void od_mv_dp_animate_state(od_state *state,
     nprev_active_states = 0;
     for (si = 0; si < nactive_states; si++) {
       int sj;
-      state = active_states[si];
-      if (state >= dp[0].nstates) state -= dp[0].nstates;
-      state = dp[0].states[state].prevsi;
+      dp_state = active_states[si];
+      if (dp_state >= dp[0].nstates) dp_state -= dp[0].nstates;
+      dp_state = dp[0].states[dp_state].prevsi;
       for (sj = 0;
-       sj < nprev_active_states && prev_active_states[sj] != state; sj++);
+       sj < nprev_active_states && prev_active_states[sj] != dp_state; sj++);
       if (sj >= nprev_active_states) {
-        prev_active_states[nprev_active_states++] = state;
+        prev_active_states[nprev_active_states++] = dp_state;
       }
     }
   }
   while ((dp--)->states[0].prevsi >= 0);
   /*Draw the first state's MV's.*/
-  dp1vx = dp[1].mv->vx;
-  dp1vy = dp[1].mv->vy;
+  d1vx = dp[1].mv->vx;
+  d1vy = dp[1].mv->vy;
   x0 = ((d1vx - 2) << 3) + (OD_UMV_PADDING << 1);
   y0 = ((d1vy - 2) << 3) + (OD_UMV_PADDING << 1);
   for (si = 0; si < nactive_states; si++) {
-    state = active_states[si];
-    if (state >= dp[1].nstates) state -= dp[1].nstates;
+    dp_state = active_states[si];
+    if (dp_state >= dp[1].nstates) dp_state -= dp[1].nstates;
     od_img_draw_line(&state->vis_img, x0, y0,
-     x0 + OD_DIV_ROUND_POW2(dp[1].states[state].mv[0], 2, 2),
-     y0 + OD_DIV_ROUND_POW2(dp[1].states[state].mv[1], 2, 2), OD_YCbCr_MVCAND);
+     x0 + OD_DIV_ROUND_POW2(dp[1].states[dp_state].mv[0], 2, 2),
+     y0 + OD_DIV_ROUND_POW2(dp[1].states[dp_state].mv[1], 2, 2),
+     OD_YCbCr_MVCAND);
   }
   sprintf(iter_label, "ani%08i", state->ani_iter++);
   od_state_dump_img(state, &state->vis_img, iter_label);
