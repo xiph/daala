@@ -383,16 +383,16 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *itheta, in
   noref = 0;
   m = 0;
   s = 1;
-  if (corr > 0)
-  {
+  if (corr > 0) {
     /* Perform theta search only if prediction is useful. */
     corr = corr/(1e-100+g*gr);
     corr = OD_MAXF(OD_MINF(corr, 1.), -1.);
     theta = acos(corr);
     m = compute_householder(x, r, n, gr, &s);
     x[m] = 0;
-  /* Search for the best gain. */
-    for (i = 0; i <= ceil(cg+.5); i++) {
+    /* Search for the best gain. */
+    for (i = (int)floor(cg-gain_offset)-1; i <= (int)ceil(cg-gain_offset);
+     i++) {
       int j;
       int ts;
       qcg = i+gain_offset;
@@ -400,8 +400,8 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *itheta, in
       ts = (int)floor(.5 + qcg*M_PI/2);
       if (qcg < 1.4) ts = 1;
       /* Search for the best angle. */
-      for (j = 0; j <= OD_MINI(ts-1, (int)ceil(theta*2/M_PI*ts)); j++)
-      {
+      for (j = OD_MAXI(0,(int)floor(.5+theta*2/M_PI*ts)-1);
+       j <= OD_MINI(ts-1, (int)ceil(theta*2/M_PI*ts)); j++) {
         double cos_dist;
         double dist;
         double dist_theta;
@@ -411,9 +411,11 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *itheta, in
         k = floor(.5 + qcg*sin(qtheta)*sqrt(n/2));
         cos_dist = pvq_search_double(x, n, k, y);
         dist_theta = 2 - 2*cos(theta - qtheta)
-        + sin(theta)*sin(qtheta)*(2 - 2*cos_dist);
+         + sin(theta)*sin(qtheta)*(2 - 2*cos_dist);
         dist = (qcg - cg)*(qcg - cg) + qcg*cg*dist_theta;
         dist += .05*log2(n)*k;
+        if (j == 0) dist -= .1;
+        if (i == icgr) dist -= .1;
         if (dist < best_dist) {
           best_dist = dist;
           qg = i;
@@ -451,8 +453,7 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *itheta, in
   qcg = qg+gain_offset;
   if (qg == 0) qcg = 0;
   k = best_k;
-  if (noref)
-  {
+  if (noref) {
     double x1[MAXN];
     for(i = 0; i < n; i++) x1[i] = x0[i];
     pvq_search_double(x1, n, k, y);
