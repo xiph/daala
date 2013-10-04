@@ -31,6 +31,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "logging.h"
 #include "mc.h"
 
+/*Motion compensation routines shared between the encoder and decoder.*/
+
 /*A table of indices used to set up the rotated versions of each vector
    interpolation formula.*/
 static const int MIDXS[][4] = {

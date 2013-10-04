@@ -32,6 +32,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <limits.h>
 #include <string.h>
 
+/*Encoder-only motion compensation routines.*/
+
 /*TODO:
  - Develop a real encoding and measure real bits.
  - Compute bits needed for labels during DP (to bias towards using the same
