@@ -149,7 +149,13 @@ typedef struct {
 } RDOEntry;
 
 /* Double-precision PVQ search just to make sure our tests aren't limited
-   by numerical accuracy. */
+   by numerical accuracy.
+   @param [in]      x      input vector to quantize
+   @param [in]      n      number of dimensions
+   @param [in]      k      number of pulses
+   @param [out]     y      optimal codevector found
+   @return                 cosine distance between x and y (between 0 and 1)
+*/
 static double pvq_search_double(const double *x, int n, int k, int *y) {
   int i, j;
   double xy;
@@ -162,6 +168,7 @@ static double pvq_search_double(const double *x, int n, int k, int *y) {
     xx += X[j]*X[j];
   }
   for (j = 0; j < n; j++) y[j] = 0;
+  /* Search one pulse at a time */
   for (i = 0; i < k; i++) {
     int pos;
     double best_xy;
@@ -190,78 +197,9 @@ static double pvq_search_double(const double *x, int n, int k, int *y) {
 
 #define ACTIVITY (1.)
 
-/* This is a slow implementation of no-reference PVQ quantization that tries
-   all possible gains. */
-int pvq_noref(od_coeff *x0, int n, int q0, int *y, int *vk)
-{
-  double l2x;
-  double g;
-  double x[MAXN];
-  int   i;
-  int k;
-  double cg;
-  int qg;
-  double norm;
-  double yy;
-  double best_dist;
-  double best_cos_dist;
-  double q;
-  q = q0*1.1;
-  OD_ASSERT(n > 1);
-  l2x = 0;
-  for(i = 0; i < n; i++) {
-    x[i] = x0[i];
-    l2x += x[i]*x[i];
-  }
-  g = sqrt(l2x);
-  cg = pow(g/q, ACTIVITY);
-  qg = 0;
-  best_dist = 1e100;
-  best_cos_dist = 1e100;
-  for (i = 0; i <= ceil(cg); i++) {
-    double cos_dist;
-    double dist;
-    k = floor(.5 + i*sqrt(n/2));
-    cos_dist = pvq_search_double(x, n, k, y);
-    dist = (i - cg)*(i - cg) + i*cg*(2 - 2*cos_dist);
-    dist += .05*log2(n)*k;
-    if (dist < best_dist) {
-      best_dist = dist;
-      best_cos_dist = cos_dist;
-      qg = i;
-    }
-  }
-  cg = qg;
-  k = floor(.5 + cg*sqrt(n/2));
-  /*printf("%d\n", K);*/
-  pvq_search_double(x, n, k, y);
-  yy = 0;
-  for(i = 0; i < n; i++) {
-    yy += y[i]*y[i];
-  }
-  norm = sqrt(1./(1e-100 + yy));
-  for (i = 0; i < n; i++) {
-    if (x[i] < 0) y[i] = -y[i];
-    x[i] = y[i]*norm;
-  }
-  g = q*pow(cg, 1./ACTIVITY);
-  for (i = 0; i < n; i++) {
-    x[i] *= g;
-  }
-  if (0) {
-    double e;
-    e=0;
-    for(i=0;i<n;i++)
-      e += (x0[i]-x[i])*(x0[i]-x[i]);
-    printf("%f %f %f %d\n", e/(q*q), e/(q*q)/cg/cg, 2-2*best_cos_dist, k);
-  }
-  for(i = 0; i < n; i++) {
-    x0[i] = floor(.5 + x[i]);
-  }
-  *vk = k;
-  return qg;
-}
-
+/* Computes Householder reflection that aligns the reference r to one
+   of the dimensions (return value). The reflection vector is returned
+   in r and x is reflected. */
 static int compute_householder(double *x, double *r, int n, double gr,
  int *sign)
 {
@@ -304,6 +242,7 @@ static int compute_householder(double *x, double *r, int n, double gr,
   return m;
 }
 
+/* Undoes the Householder reflection applied by compute_householder(). */
 void inverse_householder(double *xn, const double *r, int n)
 {
   int i;
@@ -323,14 +262,28 @@ void inverse_householder(double *xn, const double *r, int n)
   }
 }
 
+/* Encodes the gain in such a way that the return value increases with the
+   distance |x-ref|, so that we can encode a zero when x=ref. The value x=0
+   is not covered because it is only allowed in the noref case. */
 static int neg_interleave(int x, int ref) {
   if (x < ref) return -2*(x - ref) - 1;
   else if (x < 2*ref) return 2*(x - ref);
   else return x-1;
 }
 
-/* This is a slow implementation of no-reference PVQ quantization that tries
-   all possible gains. */
+/* This does PVQ quantization with prediction, trying several possible gains
+   and angles. See draft-valin-videocodec-pvq and
+   http://jmvalin.ca/slides/pvq.pdf for more details.
+   @param [in,out] x0        coefficients being quantized (before and after)
+   @param [in]     r0        reference, aka predicted coefficients
+   @param [in]     n         number of dimensions
+   @param [in]     q0        quantization step size
+   @param [out]    y         pulse vector (i.e. selected PVQ codevector)
+   @param [out]    itheta    angle between input and reference (-1 if noref)
+   @param [out]    max_theta maximum value of itheta that could have been
+   @param [out]    vk        total number of pulses
+   @return         gain      index of the quatized gain
+*/
 int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *itheta,
  int *max_theta, int *vk) {
   double l2x;
@@ -359,6 +312,8 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *itheta,
   double qcg;
   int noref;
   double lambda;
+  /* Normalized lambda. At high rate, this would be log(2)/6, but we're
+     making RDO a bit less aggressive for now. */
   lambda = .05;
   q = q0;
   OD_ASSERT(n > 1);
@@ -374,8 +329,12 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *itheta,
   }
   g = sqrt(l2x);
   gr = sqrt(l2r);
+  /* Normalize gain by quantization step size and apply companding
+     (if ACTIVITY != 1). */
   cg = pow(g/q, ACTIVITY);
   cgr = pow(gr/q, ACTIVITY);
+  /* gain_offset is meant to make sure one of the quantized gains has
+     exactly the same gain as the reference. */
   icgr = floor(.5+cgr);
   gain_offset = cgr-icgr;
   qg = 0;
@@ -392,16 +351,18 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *itheta,
     theta = acos(corr);
     m = compute_householder(x, r, n, gr, &s);
     x[m] = 0;
-    /* Search for the best gain. */
+    /* Search for the best gain within a reasonable range. */
     for (i = OD_MAXI(1,(int)floor(cg-gain_offset)-1);
      i <= (int)ceil(cg-gain_offset); i++) {
       int j;
       int ts;
       qcg = i+gain_offset;
       if (i == 0) qcg = 0;
+      /* Set angular resolution (in ra) to match the encoded gain */
       ts = (int)floor(.5 + qcg*M_PI/2);
+      /* Special case for low gains -- will need to be tuned anyway */
       if (qcg < 1.4) ts = 1;
-      /* Search for the best angle. */
+      /* Search for the best angle within a reasonable range. */
       for (j = OD_MAXI(0,(int)floor(.5+theta*2/M_PI*ts)-1);
        j <= OD_MINI(ts-1, (int)ceil(theta*2/M_PI*ts)); j++) {
         double cos_dist;
@@ -410,11 +371,16 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *itheta,
         double qtheta;
         if (ts != 0) qtheta = j*.5*M_PI/ts;
         else qtheta = 0;
+        /* Sets K according to gain and theta, based on the high-rate
+           PVQ distortion curves D~=N^2/(24*K^2). Low-rate will have to be
+           perceptually tuned anyway.  */
         k = floor(.5 + qcg*sin(qtheta)*sqrt(n/2));
         cos_dist = pvq_search_double(x, n, k, y);
+        /* See Jmspeex' Journal of Dubious Theoretical Results. */
         dist_theta = 2 - 2*cos(theta - qtheta)
          + sin(theta)*sin(qtheta)*(2 - 2*cos_dist);
         dist = (qcg - cg)*(qcg - cg) + qcg*cg*dist_theta;
+        /* Do approximate RDO -- should eventually be improved. */
         dist += lambda*log2(n)*k;
         if (j == 0) dist -= lambda*2.;
         if (i == icgr) dist -= lambda*2.;
@@ -434,12 +400,15 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *itheta,
   if (corr < .5 || cg < 2.) {
     double x1[MAXN];
     for (i = 0; i < n; i++) x1[i] = x0[i];
+    /* Search for the best gain (haven't determined reasonable range yet). */
     for (i = 0; i <= ceil(cg); i++) {
       double cos_dist;
       double dist;
       qcg = i+gain_offset;
+      /* See K from above. */
       k = floor(.5 + qcg*sqrt(n/2));
       cos_dist = pvq_search_double(x1, n, k, y);
+      /* See Jmspeex' Journal of Dubious Theoretical Results. */
       dist = (qcg - cg)*(qcg - cg) + qcg*cg*(2 - 2*cos_dist);
       dist += lambda*(log2(n)*k-2.);
       if (dist <= best_dist) {
@@ -455,6 +424,8 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *itheta,
   qcg = qg+gain_offset;
   if (qg == 0) qcg = 0;
   k = best_k;
+  /* Re-doing the search (we should eventually save the optimal vector)
+     and compute the synthesis. */
   if (noref) {
     double x1[MAXN];
     for(i = 0; i < n; i++) x1[i] = x0[i];
@@ -505,6 +476,7 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *itheta,
     x0[i] = floor(.5 + x[i]);
   }
   *vk = k;
+  /* Encode gain differently depending on whether we use prediction or not. */
   return noref ? qg : neg_interleave(qg, icgr);
 }
 
