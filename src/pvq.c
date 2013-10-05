@@ -326,13 +326,13 @@ void inverse_householder(double *xn, const double *r, int n)
 static int neg_interleave(int x, int ref) {
   if (x < ref) return -2*(x - ref) - 1;
   else if (x < 2*ref) return 2*(x - ref);
-  else return x;
+  else return x-1;
 }
 
 /* This is a slow implementation of no-reference PVQ quantization that tries
    all possible gains. */
-int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *itheta, int *max_theta, int *vk)
-{
+int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *itheta,
+ int *max_theta, int *vk) {
   double l2x;
   double l2r;
   double g;
@@ -358,6 +358,8 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *itheta, in
   double gain_offset;
   double qcg;
   int noref;
+  double lambda;
+  lambda = .05;
   q = q0;
   OD_ASSERT(n > 1);
   l2x = 0;
@@ -391,8 +393,8 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *itheta, in
     m = compute_householder(x, r, n, gr, &s);
     x[m] = 0;
     /* Search for the best gain. */
-    for (i = (int)floor(cg-gain_offset)-1; i <= (int)ceil(cg-gain_offset);
-     i++) {
+    for (i = OD_MAXI(1,(int)floor(cg-gain_offset)-1);
+     i <= (int)ceil(cg-gain_offset); i++) {
       int j;
       int ts;
       qcg = i+gain_offset;
@@ -413,9 +415,9 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *itheta, in
         dist_theta = 2 - 2*cos(theta - qtheta)
          + sin(theta)*sin(qtheta)*(2 - 2*cos_dist);
         dist = (qcg - cg)*(qcg - cg) + qcg*cg*dist_theta;
-        dist += .05*log2(n)*k;
-        if (j == 0) dist -= .1;
-        if (i == icgr) dist -= .1;
+        dist += lambda*log2(n)*k;
+        if (j == 0) dist -= lambda*2.;
+        if (i == icgr) dist -= lambda*2.;
         if (dist < best_dist) {
           best_dist = dist;
           qg = i;
@@ -429,7 +431,7 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *itheta, in
   }
   /* Don't bother with no-reference version if there's a reasonable
      correlation */
-  if (corr < .5) {
+  if (corr < .5 || cg < 2.) {
     double x1[MAXN];
     for (i = 0; i < n; i++) x1[i] = x0[i];
     for (i = 0; i <= ceil(cg); i++) {
@@ -439,7 +441,7 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *itheta, in
       k = floor(.5 + qcg*sqrt(n/2));
       cos_dist = pvq_search_double(x1, n, k, y);
       dist = (qcg - cg)*(qcg - cg) + qcg*cg*(2 - 2*cos_dist);
-      dist += .05*(log2(n)*k-.5);
+      dist += lambda*(log2(n)*k-2.);
       if (dist <= best_dist) {
         best_dist = dist;
         qg = i;
@@ -481,6 +483,7 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *itheta, in
     }
     x[m] = -s*cos(theta);
     inverse_householder(x, r, n);
+    for (i = m; i < n - 1; i++) y[i] = y[i+1];
   }
   g = q*pow(qcg, 1./ACTIVITY);
   for (i = 0; i < n; i++) {
@@ -502,7 +505,7 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *itheta, in
     x0[i] = floor(.5 + x[i]);
   }
   *vk = k;
-  return neg_interleave(qg, icgr);
+  return noref ? qg : neg_interleave(qg, icgr);
 }
 
 #if 0
