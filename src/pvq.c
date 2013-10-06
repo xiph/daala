@@ -404,7 +404,7 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *itheta,
     for (i = 0; i <= ceil(cg); i++) {
       double cos_dist;
       double dist;
-      qcg = i+gain_offset;
+      qcg = i;
       /* See K from above. */
       k = floor(.5 + qcg*sqrt(n/2));
       cos_dist = pvq_search_double(x1, n, k, y);
@@ -421,13 +421,12 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *itheta,
       }
     }
   }
-  qcg = qg+gain_offset;
-  if (qg == 0) qcg = 0;
   k = best_k;
   /* Re-doing the search (we should eventually save the optimal vector)
      and compute the synthesis. */
   if (noref) {
     double x1[MAXN];
+    qcg = qg;
     for(i = 0; i < n; i++) x1[i] = x0[i];
     pvq_search_double(x1, n, k, y);
     yy = 0;
@@ -441,6 +440,8 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *itheta,
     }
   }
   else {
+    qcg = qg+gain_offset;
+    if (qg == 0) qcg = 0;
     theta = best_qtheta;
     pvq_search_double(x, n, k, y);
     yy = 0;
