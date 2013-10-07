@@ -293,133 +293,151 @@ C=\frac{1}{2}\log_{2}\left(1+\left(6.33\sigma\right)^{2}\right)
 \end_layout
 
 \begin_layout Part
-Quantization of the Angle in PVQ
+Setting the number of pulses for PVQ
+\end_layout
+
+\begin_layout Standard
+According to experiments, the high-rate distortion of a unit-norm PVQ codebook
+ of 
+\begin_inset Formula $N$
+\end_inset
+
+ dimensions with 
+\begin_inset Formula $K$
+\end_inset
+
+ pulses is equal to 
+\begin_inset Formula 
+\begin{equation}
+D_{pvq}=\frac{N^{2}}{24K^{2}}\ .\label{eq:pvq_experiment_fit}
+\end{equation}
+
+\end_inset
+
+The high-rate distortion of a scalar quantizer is equal to 
+\begin_inset Formula $D_{s}=1/12$
+\end_inset
+
+ and since we would like a uniformly distributed codebook, the distortion
+ of the PVQ quantizer along the 
+\begin_inset Formula $N-1$
+\end_inset
+
+ remaining dimensions should be
+\begin_inset Formula 
+\begin{equation}
+D_{pvq}=\left(N-1\right)D_{s}=\frac{N-1}{12}\ .\label{eq:pvq_uniform}
+\end{equation}
+
+\end_inset
+
+Combining 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:pvq_experiment_fit"
+
+\end_inset
+
+ with 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:pvq_uniform"
+
+\end_inset
+
+, we get
+\begin_inset Formula 
+\begin{align*}
+g^{2}\frac{N^{2}}{24K^{2}} & =\frac{N-1}{12}\\
+K & =g\sqrt{\frac{N^{2}}{2\left(N-1\right)}}\\
+K & \approx g\sqrt{N/2}\ .
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Part
+PVQ Distortion
 \end_layout
 
 \begin_layout Standard
 Let 
-\begin_inset Formula $\mathbf{x}$
+\begin_inset Formula $\mathbf{X}=g\mathbf{z}$
 \end_inset
 
  and 
-\begin_inset Formula $\mathbf{y}$
+\begin_inset Formula $\hat{\mathbf{X}}=\hat{g}\hat{\mathbf{z}}$
 \end_inset
 
- be unit vectors of the form 
+ be the unquantized and quantized coefficient vector, respectively.
+ The quantization distortion is 
 \begin_inset Formula 
-\[
-\mathbf{x}=\left[\cos\theta,\ \sin\theta\mathbf{x}^{'}\right]\ ,
-\]
+\begin{align}
+D & =\left(\mathbf{X}-\hat{\mathbf{X}}\right)^{T}\left(\mathbf{X}-\hat{\mathbf{X}}\right)\nonumber \\
+ & =\mathbf{X}^{T}\mathbf{X}+\hat{\mathbf{X}}^{T}\hat{\mathbf{X}}-2\hat{\mathbf{X}}^{T}\mathbf{X}\nonumber \\
+ & =g^{2}+\hat{g}^{2}-2g\hat{g}\mathbf{z}\hat{\mathbf{z}}\nonumber \\
+ & =\left(g-\hat{g}\right)^{2}-2g\hat{g}-2g\hat{g}\mathbf{z}\hat{\mathbf{z}}\nonumber \\
+ & =\left(g-\hat{g}\right)^{2}-g\hat{g}\left(2-2\mathbf{z}\hat{\mathbf{z}}\right)\ .\label{eq:distance_v1}
+\end{align}
 
 \end_inset
 
-where 
-\begin_inset Formula $\mathbf{x}^{'}$
+Let 
+\begin_inset Formula $D_{z}$
 \end_inset
 
- is also a unit vector.
- Their inner product (and cosine distance) is 
-\begin_inset Formula 
-\[
-\mathbf{x}\cdot\mathbf{y}=\cos\theta_{x}\cos\theta_{y}+\sin\theta_{x}\sin\theta_{y}\left(\mathbf{x}^{'}\cdot\mathbf{y}^{'}\right)\ .
-\]
+ be the distance between 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
 
-\end_inset
-
-
-\end_layout
-
-\begin_layout Standard
-When PVQ quantizing a vector with 
-\begin_inset Formula $K=1$
-\end_inset
-
-, the worst-case cosine distance between 
-\begin_inset Formula $\mathbf{x}$
+\begin_inset Formula $\mathbf{z}$
 \end_inset
 
  and 
-\begin_inset Formula $\hat{\mathbf{x}}$
+\begin_inset Formula $\hat{\mathbf{z}}$
 \end_inset
 
- is 
+,
 \begin_inset Formula 
-\begin{align*}
-\mathbf{x}\cdot\mathbf{y} & =\frac{1}{\sqrt{N}}\\
-1-\frac{\Delta_{max}^{2}}{2} & \approx\frac{1}{\sqrt{N}}\\
-\Delta_{max}^{2} & \approx2-\frac{2}{\sqrt{N}}
-\end{align*}
+\begin{align}
+D_{z} & =\left(\mathbf{z}-\hat{\mathbf{z}}\right)^{T}\left(\mathbf{z}-\hat{\mathbf{z}}\right)\nonumber \\
+ & =2-2\mathbf{z}^{T}\hat{\mathbf{z}}\ .\label{eq:distance-Dz}
+\end{align}
 
 \end_inset
 
-The ratio between the average error and the max error is 
-\begin_inset Formula $N/\left(N+2\right)$
+We can then rewrite 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:distance_v1"
+
 \end_inset
 
- (need to prove this properly), so we have
+ as
 \begin_inset Formula 
-\[
-\Delta_{avg}^{2}=\left(2-\frac{2}{\sqrt{N}}\right)\cdot\frac{N}{N+2}\ ,
-\]
+\begin{equation}
+D=\left(g-\hat{g}\right)^{2}-g\hat{g}D_{z}\ ,\label{eq:pvq_distortion}
+\end{equation}
 
 \end_inset
 
-and the average-case cosine distance is:
-\begin_inset Formula 
-\begin{align*}
-\mathbf{x}\cdot\mathbf{y} & =1-\frac{\Delta_{avg}^{2}}{2}\\
- & =1-\frac{\sqrt{N}-1}{\sqrt{N}}\cdot\frac{N}{N+2}\\
- & =1-\frac{N-\sqrt{N}}{N+2}\\
- & =\frac{N+2-N+\sqrt{N}}{N+2}\\
- & =\frac{2+\sqrt{N}}{2+N}
-\end{align*}
-
+which separates the gain quantization from the quantization of the unit
+ vector 
+\begin_inset Formula $\mathbf{z}$
 \end_inset
 
-Considering the first level of PVQ quantization with 
-\begin_inset Formula $K=1$
-\end_inset
-
-, we have the average case
-\begin_inset Formula 
-\[
-\mathbf{x}\cdot\mathbf{y}=\cos\theta\cos\hat{\theta}+\sin\theta\sin\hat{\theta}\frac{2+\sqrt{N}}{2+N}\ .
-\]
-
-\end_inset
-
-where 
-\begin_inset Formula $\hat{\theta}$
-\end_inset
-
- is the first quantization level for the angle.
- The threshold 
-\begin_inset Formula $\theta$
-\end_inset
-
- beyond which we should quantize to 
-\begin_inset Formula $\hat{\theta}$
-\end_inset
-
- rather than 0 is
-\begin_inset Formula 
-\begin{align*}
-\cos\theta\cos\hat{\theta}+\sin\theta\sin\hat{\theta}\frac{2+\sqrt{N}}{2+N} & =\cos\theta\\
-\sin\theta\sin\hat{\theta}\frac{2+\sqrt{N}}{2+N} & =\cos\theta\left(1-\cos\hat{\theta}\right)\\
-\tan\theta & =\frac{\left(2+N\right)\left(1-\cos\hat{\theta}\right)}{\left(2+\sqrt{N}\right)\sin\hat{\theta}}\ .
-\end{align*}
-
-\end_inset
-
-Using the standard trig approximations, we get
-\begin_inset Formula 
-\[
-\theta=\arctan\left(\frac{\left(2+N\right)\hat{\theta}}{2\left(2+\sqrt{N}\right)}\right)
-\]
-
-\end_inset
-
-This is the first quantization threshold for theta.
+.
 \end_layout
 
 \begin_layout Part
@@ -457,19 +475,15 @@ where
  is
 \begin_inset Formula 
 \begin{align}
-D & =\left(\mathbf{z}-\hat{\mathbf{z}}\right)^{T}\left(\mathbf{z}-\hat{\mathbf{z}}\right)\nonumber \\
+D_{z} & =\left(\mathbf{z}-\hat{\mathbf{z}}\right)^{T}\left(\mathbf{z}-\hat{\mathbf{z}}\right)\nonumber \\
  & =\left(\cos\theta-\cos\hat{\theta}\right)^{2}+\left(\mathbf{x}\sin\theta-\hat{\mathbf{x}}\sin\hat{\theta}\right)^{T}\left(\mathbf{x}\sin\theta-\hat{\mathbf{x}}\sin\hat{\theta}\right)\nonumber \\
  & =\cos^{2}\theta-2\cos\theta\cos\hat{\theta}+\cos^{2}\hat{\theta}+\sin^{2}\theta+\sin^{2}\hat{\theta}-2\sin\theta\sin\hat{\theta}\mathbf{x}^{T}\hat{\mathbf{x}}\nonumber \\
- & =2-2\cos\theta\cos\hat{\theta}-2\sin\theta\sin\hat{\theta}\mathbf{x}^{T}\hat{\mathbf{x}}\label{eq:distortion-1}
+ & =2-2\cos\theta\cos\hat{\theta}-2\sin\theta\sin\hat{\theta}\mathbf{x}^{T}\hat{\mathbf{x}}\ .\label{eq:distortion-1}
 \end{align}
 
 \end_inset
 
-Let 
-\begin_inset Formula $D_{x}$
-\end_inset
 
- be the distance between 
 \family roman
 \series medium
 \shape up
@@ -481,24 +495,14 @@ Let
 \uwave off
 \noun off
 \color none
-
-\begin_inset Formula $\mathbf{x}$
-\end_inset
-
- and 
-\begin_inset Formula $\hat{\mathbf{x}}$
-\end_inset
-
-,
-\begin_inset Formula 
-\begin{align*}
-D_{x} & =\left(\mathbf{x}-\hat{\mathbf{x}}\right)^{T}\left(\mathbf{x}-\hat{\mathbf{x}}\right)\\
- & =2-2\mathbf{x}^{T}\hat{\mathbf{x}}
-\end{align*}
+Using the identity 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:distance-Dz"
 
 \end_inset
 
-We can then rewrite 
+, we can then rewrite 
 \begin_inset CommandInset ref
 LatexCommand eqref
 reference "eq:distortion-1"
@@ -508,7 +512,7 @@ reference "eq:distortion-1"
  as
 \begin_inset Formula 
 \begin{align}
-D & =2-2\cos\theta\cos\hat{\theta}-\sin\theta\sin\hat{\theta}\left(2-D_{x}\right)\nonumber \\
+D_{z} & =2-2\cos\theta\cos\hat{\theta}-\sin\theta\sin\hat{\theta}\left(2-D_{x}\right)\nonumber \\
  & =2-2\cos\left(\theta-\hat{\theta}\right)+\sin\theta\sin\hat{\theta}D_{x}\nonumber \\
  & =D_{\theta}+\sin\theta\sin\hat{\theta}D_{x}\ ,\label{eq:distortion-final}
 \end{align}
@@ -531,6 +535,32 @@ where
 
  and the error in the PVQ quantization assuming a radius that's the geometric
  mean of the quantized and unquantized radius.
+\end_layout
+
+\begin_layout Standard
+Putting 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:distortion-final"
+
+\end_inset
+
+ into 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:pvq_distortion"
+
+\end_inset
+
+, we obtain
+\begin_inset Formula 
+\begin{equation}
+D=\left(g-\hat{g}\right)^{2}-g\hat{g}\left(D_{\theta}+\sin\theta\sin\hat{\theta}D_{x}\right)\ .\label{eq:total_pvq_theta_dist}
+\end{equation}
+
+\end_inset
+
+
 \end_layout
 
 \end_body
