@@ -297,16 +297,19 @@ Setting the number of pulses for PVQ
 \end_layout
 
 \begin_layout Standard
-According to experiments, the high-rate distortion of a unit-norm PVQ codebook
- of 
-\begin_inset Formula $N$
-\end_inset
-
- dimensions with 
+Fig.
+ XX numericaly simulates the distortion caused by a PVQ quantizer of 
 \begin_inset Formula $K$
 \end_inset
 
- pulses is equal to 
+ pulses in 
+\begin_inset Formula $N$
+\end_inset
+
+ dimensions for Laplace-distributed input scaled to a unit sphere (no gain
+ quantization).
+ According to this experiment, the high-rate distortion of a unit-norm PVQ
+ codebook is equal to 
 \begin_inset Formula 
 \begin{equation}
 D_{pvq}=\frac{N^{2}}{24K^{2}}\ .\label{eq:pvq_experiment_fit}
@@ -314,6 +317,75 @@ D_{pvq}=\frac{N^{2}}{24K^{2}}\ .\label{eq:pvq_experiment_fit}
 
 \end_inset
 
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+centering{
+\end_layout
+
+\end_inset
+
+
+\begin_inset Graphics
+	filename pvq_distortion.png
+	lyxscale 50
+	width 60col%
+
+\end_inset
+
+
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption
+
+\begin_layout Plain Layout
+PVQ distortion as a function of the number of pulses
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:PVQ-distortion-K"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
 The high-rate distortion of a scalar quantizer is equal to 
 \begin_inset Formula $D_{s}=1/12$
 \end_inset
