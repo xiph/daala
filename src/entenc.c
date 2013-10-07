@@ -40,7 +40,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
    booktitle="Video \& Data Recording Conference",
    year=1979,
    address="Southampton",
-   month=Jul
+   month=Jul,
+   URL="http://www.compressconsult.com/rangecoder/rngcod.pdf.gz"
   }
   @ARTICLE{MNW98,
    author="Alistair Moffat and Radford Neal and Ian H. Witten",
@@ -51,7 +52,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
    number=3,
    pages="256--294",
    month=Jul,
-   URL="http://www.stanford.edu/class/ee398/handouts/papers/Moffat98ArithmCoding.pdf"
+   URL="http://researchcommons.waikato.ac.nz/bitstream/handle/10289/78/content.pdf"
   }*/
 
 /*Takes updated low and range values, renormalizes them so that
