@@ -31,6 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <stdio.h>
 #include "logging.h"
 #include <math.h>
+#include <string.h>
 #include "filter.h"
 
 #define MAXN 256
@@ -89,8 +90,7 @@ void od_band_pseudo_zigzag(od_coeff *dst,  int n, od_coeff *src, int stride) {
   if (n >= 8) {
     int i;
     od_bands_from_raster(&od_layout8, dst+16, src, stride);
-    for (i=0;i<8;i++)
-    {
+    for (i = 0; i < 8; i++) {
       tmp1[2*i] = dst[16+i];
       tmp1[2*i+1] = dst[24+i];
     }
@@ -192,6 +192,7 @@ static double pvq_search_double(const double *x, int n, int k, int *y) {
     yy = yy + 2*y[pos] + 1;
     y[pos]++;
   }
+  for (i = 0; i < n; i++) if (x[i] < 0) y[i] = -y[i];
   return xy/(1e-100 + sqrt(xx*yy));
 }
 
@@ -271,6 +272,47 @@ static int neg_interleave(int x, int ref) {
   else return x-1;
 }
 
+void pvq_synthesis(od_coeff *x0, int *y, const double *r, int n, int noref,
+ int qg, double gain_offset, double theta, int m, int s, double q) {
+  int i;
+  int yy;
+  double qcg;
+  double norm;
+  double x[MAXN];
+  double g;
+  if (noref) {
+    qcg = qg;
+    yy = 0;
+    for(i = 0; i < n; i++) {
+      yy += y[i]*y[i];
+    }
+    norm = sqrt(1./(1e-100 + yy));
+    for (i = 0; i < n; i++) {
+      x[i] = y[i]*norm;
+    }
+  }
+  else {
+    qcg = qg+gain_offset;
+    if (qg == 0) qcg = 0;
+    yy = 0;
+    for(i = 0; i < n; i++) {
+      yy += y[i]*y[i];
+    }
+    norm = sqrt(1./(1e-100 + yy));
+    for (i = 0; i < n; i++) {
+      x[i] = y[i]*norm*sin(theta);
+    }
+    x[m] = -s*cos(theta);
+    inverse_householder(x, r, n);
+  }
+  g = q*pow(qcg, 1./ACTIVITY);
+  for (i = 0; i < n; i++) {
+    x[i] *= g;
+  }
+  for(i = 0; i < n; i++) {
+    x0[i] = floor(.5 + x[i]);
+  }
+}
 /* This does PVQ quantization with prediction, trying several possible gains
    and angles. See draft-valin-videocodec-pvq and
    http://jmvalin.ca/slides/pvq.pdf for more details.
@@ -292,23 +334,27 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *itheta,
   double gr;
   double x[MAXN];
   double r[MAXN];
-  int   i;
+  int y_tmp[MAXN];
+  int i;
+  /* Number of pulses. */
   int k;
+  /* Companded gain of x and reference, normalized to q. */
   double cg;
   double cgr;
   int icgr;
   int qg;
-  double norm;
-  double yy;
   double best_dist;
   double q;
+  /* Sign of Householder reflection. */
   int s;
+  /* Dimension on which Householder reflects. */
   int m;
   double theta;
   double corr;
   int best_k;
   double best_qtheta;
   double gain_offset;
+  /* Quantized companded gain */
   double qcg;
   int noref;
   double lambda;
@@ -375,7 +421,7 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *itheta,
            PVQ distortion curves D~=N^2/(24*K^2). Low-rate will have to be
            perceptually tuned anyway.  */
         k = floor(.5 + qcg*sin(qtheta)*sqrt(n/2));
-        cos_dist = pvq_search_double(x, n, k, y);
+        cos_dist = pvq_search_double(x, n, k, y_tmp);
         /* See Jmspeex' Journal of Dubious Theoretical Results. */
         dist_theta = 2 - 2*cos(theta - qtheta)
          + sin(theta)*sin(qtheta)*(2 - 2*cos_dist);
@@ -391,6 +437,7 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *itheta,
           best_qtheta = qtheta;
           *itheta = j;
           *max_theta = ts;
+          memcpy(y, y_tmp, sizeof(int)*n);
         }
       }
     }
@@ -407,7 +454,7 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *itheta,
       qcg = i;
       /* See K from above. */
       k = floor(.5 + qcg*sqrt(n/2));
-      cos_dist = pvq_search_double(x1, n, k, y);
+      cos_dist = pvq_search_double(x1, n, k, y_tmp);
       /* See Jmspeex' Journal of Dubious Theoretical Results. */
       dist = (qcg - cg)*(qcg - cg) + qcg*cg*(2 - 2*cos_dist);
       dist += lambda*(log2(n)*k-2.);
@@ -418,64 +465,16 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *itheta,
         best_k = k;
         *itheta = -1;
         *max_theta = 0;
+        memcpy(y, y_tmp, sizeof(int)*n);
       }
     }
   }
   k = best_k;
-  /* Re-doing the search (we should eventually save the optimal vector)
-     and compute the synthesis. */
-  if (noref) {
-    double x1[MAXN];
-    qcg = qg;
-    for(i = 0; i < n; i++) x1[i] = x0[i];
-    pvq_search_double(x1, n, k, y);
-    yy = 0;
-    for(i = 0; i < n; i++) {
-      yy += y[i]*y[i];
-    }
-    norm = sqrt(1./(1e-100 + yy));
-    for (i = 0; i < n; i++) {
-      if (x1[i] < 0) y[i] = -y[i];
-      x[i] = y[i]*norm;
-    }
-  }
-  else {
-    qcg = qg+gain_offset;
-    if (qg == 0) qcg = 0;
-    theta = best_qtheta;
-    pvq_search_double(x, n, k, y);
-    yy = 0;
-    for(i = 0; i < n; i++) {
-      yy += y[i]*y[i];
-    }
-    norm = sqrt(1./(1e-100 + yy));
-    for (i = 0; i < n; i++) {
-      if (x[i] < 0) y[i] = -y[i];
-      x[i] = y[i]*norm*sin(theta);
-    }
-    x[m] = -s*cos(theta);
-    inverse_householder(x, r, n);
-    for (i = m; i < n - 1; i++) y[i] = y[i+1];
-  }
-  g = q*pow(qcg, 1./ACTIVITY);
-  for (i = 0; i < n; i++) {
-    x[i] *= g;
-  }
-  if (0) {
-    double e0, e1;
-    e0=0;
-    e1=0;
-    for(i = 0; i < n; i++) {
-      e0 += (x0[i]-x[i])*(x0[i]-x[i]);
-      e1 += (r0[i]-x0[i])*(r0[i]-x0[i]);
-    }
-    if (e1 < e0 && *itheta!=0)
-      printf("err: %d %d %d %f %f %f %f\n", qg, icgr, *itheta, e1/(q*q), e0/(q*q), best_dist, .05*log2(n)*k);
-    /*printf("%f %f %f %d\n", e1/(q*q), e0/(q*q), best_dist-.05*log2(n)*k, *itheta);*/
-  }
-  for(i = 0; i < n; i++) {
-    x0[i] = floor(.5 + x[i]);
-  }
+  theta = best_qtheta;
+  /* Synthesize like the decoder would. */
+  pvq_synthesis(x0, y, r, n, noref, qg, gain_offset, theta, m, s, q);
+  /* Remove dimension m if we're using theta. */
+  if (!noref) for (i = m; i < n - 1; i++) y[i] = y[i+1];
   *vk = k;
   /* Encode gain differently depending on whether we use prediction or not. */
   return noref ? qg : neg_interleave(qg, icgr);

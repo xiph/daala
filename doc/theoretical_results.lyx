@@ -451,7 +451,7 @@ Let
 D & =\left(\mathbf{X}-\hat{\mathbf{X}}\right)^{T}\left(\mathbf{X}-\hat{\mathbf{X}}\right)\nonumber \\
  & =\mathbf{X}^{T}\mathbf{X}+\hat{\mathbf{X}}^{T}\hat{\mathbf{X}}-2\hat{\mathbf{X}}^{T}\mathbf{X}\nonumber \\
  & =g^{2}+\hat{g}^{2}-2g\hat{g}\mathbf{z}\hat{\mathbf{z}}\nonumber \\
- & =\left(g-\hat{g}\right)^{2}-2g\hat{g}-2g\hat{g}\mathbf{z}\hat{\mathbf{z}}\nonumber \\
+ & =\left(g-\hat{g}\right)^{2}+2g\hat{g}-2g\hat{g}\mathbf{z}\hat{\mathbf{z}}\nonumber \\
  & =\left(g-\hat{g}\right)^{2}+g\hat{g}\left(2-2\mathbf{z}\hat{\mathbf{z}}\right)\ .\label{eq:distance_v1}
 \end{align}
 
