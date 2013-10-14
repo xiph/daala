@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -e
 # continuous integration test script
 # run this from the top-level source directory
 
