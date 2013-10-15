@@ -7,8 +7,10 @@ VIDEOS=/usr/local/share/videos
 
 ./autogen.sh
 CFLAGS='-O2 -DOD_CHECKASM -g' ./configure --enable-assertions --enable-logging PKG_CONFIG_PATH=${OGG_PATH}
+make clean
 make distcheck PKG_CONFIG_PATH=${OGG_PATH}
 make docs
+make
 ./examples/encoder_example -k 4 ${VIDEOS}/claire_qcif-2frames.y4m -o out.$$.ogv
 ./examples/dump_video out.$$.ogv -o /dev/null
 rm -f out.$$.ogv
