@@ -4,9 +4,9 @@
 
 #include "intra.h"
 
-#include "intradata_4x4.c"
-#include "intradata_8x8.c"
-#include "intradata_16x16.c"
+#include "intradata_4x4.h"
+#include "intradata_8x8.h"
+#include "intradata_16x16.h"
 
 const unsigned char OD_INTRA_PRED_PROB_4x4[3][OD_INTRA_NMODES][OD_INTRA_NCONTEXTS]={
 {{48, 96, 70, 112, 97, 149, 114, 246, },

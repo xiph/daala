@@ -23,6 +23,9 @@ noinst_HEADERS = \
 	src/generic_code.h \
 	src/internal.h \
 	src/intra.h \
+	src/intradata_4x4.h \
+	src/intradata_8x8.h \
+	src/intradata_16x16.h \
 	src/logging.h \
 	src/mc.h \
 	src/odintrin.h \
