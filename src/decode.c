@@ -152,14 +152,18 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   int zzi;
   int vk;
   int run_pvq;
+#ifndef USE_PSEUDO_ZIGZAG
   unsigned char const *zig;
+#endif
   OD_ASSERT(ln >= 0 && ln <= 2);
   run_pvq = ctx->run_pvq[pli];
   n = 1 << (ln + 2);
   n2 = n*n;
   bx <<= ln;
   by <<= ln;
+#ifndef USE_PSEUDO_ZIGZAG
   zig = OD_DCT_ZIGS[ln];
+#endif
   xdec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
   ydec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
   frame_width = dec->state.frame_width;
