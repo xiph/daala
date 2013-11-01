@@ -168,6 +168,7 @@ void od_state_pred_block_from_setup(od_state *_state,unsigned char *_buf,
 void od_state_pred_block(od_state *_state,unsigned char *_buf,int _ystride,
  int _ref,int _pli,int _vx,int _vy,int _log_mvb_sz);
 void od_state_mc_predict(od_state *_state,int _ref);
+void od_state_init_border_as_32x32(od_state *_state);
 void od_state_upsample8(od_state *_state,od_img *_dst,const od_img *_src);
 int od_state_dump_yuv(od_state *_state,od_img *_img,const char *_suf);
 #if defined(OD_DUMP_IMAGES)

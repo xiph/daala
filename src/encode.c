@@ -45,6 +45,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "logging.h"
 #include "tf.h"
 #include "metrics.h"
+#include "state.h"
 #if defined(OD_X86ASM)
 # include "x86/x86int.h"
 #endif
@@ -766,23 +767,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
 #endif
   }
   /*Block size switching.*/
-  /*Set the top row and the left most column to 32x32.*/
-  for(i = -4; i < (nhsb+1)*4; i++) {
-    for(j = -4; j < 0; j++) {
-      enc->state.bsize[(j*enc->state.bstride) + i] = 3;
-    }
-    for(j = nvsb*4; j < (nvsb+1)*4; j++) {
-      enc->state.bsize[(j*enc->state.bstride) + i] = 3;
-    }
-  }
-  for(j = -4; j < (nvsb+1)*4; j++) {
-    for(i = -4; i < 0; i++) {
-      enc->state.bsize[(j*enc->state.bstride) + i] = 3;
-    }
-    for(i = nhsb*4; i < (nhsb+1)*4; i++) {
-      enc->state.bsize[(j*enc->state.bstride) + i] = 3;
-    }
-  }
+  od_state_init_border_as_32x32(&enc->state);
   /* Allocate a blockSizeComp for scratch space and then calculate the block sizes
      eventually store them in bsize. */
   bs = _ogg_malloc(sizeof(BlockSizeComp));

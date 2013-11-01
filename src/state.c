@@ -1139,6 +1139,40 @@ void od_state_mc_predict(od_state *state, int ref) {
   }
 }
 
+/*To avoiding having to special-case superblocks on the edges of the image,
+   one superblock of padding is maintained on each side of the image.
+  These "dummy" superblocks are notionally not subdivided.
+  See the comment for the `bsize` member of `od_state` for more information
+   about the data layout and meaning.*/
+void od_state_init_border_as_32x32(od_state *state) {
+  int i;
+  int j;
+  int nhsb;
+  int nvsb;
+  unsigned char *bsize;
+  int bstride;
+  nhsb = state->nhsb;
+  nvsb = state->nvsb;
+  bsize = state->bsize;
+  bstride = state->bstride;
+  for(i = -4; i < (nhsb+1)*4; i++) {
+    for(j = -4; j < 0; j++) {
+      bsize[(j*bstride) + i] = 3;
+    }
+    for(j = nvsb*4; j < (nvsb+1)*4; j++) {
+      bsize[(j*bstride) + i] = 3;
+    }
+  }
+  for(j = -4; j < (nvsb+1)*4; j++) {
+    for(i = -4; i < 0; i++) {
+      bsize[(j*bstride) + i] = 3;
+    }
+    for(i = nhsb*4; i < (nhsb+1)*4; i++) {
+      bsize[(j*bstride) + i] = 3;
+    }
+  }
+}
+
 ogg_int64_t daala_granule_basetime(void *encdec, ogg_int64_t granpos) {
   od_state *state;
   state = (od_state *)encdec;

@@ -41,6 +41,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "block_size.h"
 #include "block_size_dec.h"
 #include "tf.h"
+#include "state.h"
 
 static int od_dec_init(od_dec_ctx *dec, const daala_info *info,
  const daala_setup_info *setup) {
@@ -483,6 +484,25 @@ static void od_dec_mv_unpack(daala_dec_ctx *dec) {
   }
 }
 
+/*Decode the blocks sizes into their corresponding form in dec->state.bsize.
+  See the comment for the `bsize` member of `od_state` for more information
+   about the data layout and meaning.*/
+static void od_decode_block_sizes(od_dec_ctx *dec) {
+  int i;
+  int j;
+  int nhsb;
+  int nvsb;
+  od_state_init_border_as_32x32(&dec->state);
+  nhsb = dec->state.nhsb;
+  nvsb = dec->state.nvsb;
+  for(i = 0; i < nvsb; i++) {
+    for(j = 0; j < nhsb; j++) {
+      od_block_size_decode(&dec->ec,
+       &dec->state.bsize[4*dec->state.bstride*i + 4*j], dec->state.bstride);
+    }
+  }
+}
+
 int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
  const ogg_packet *op) {
   int nplanes;
@@ -492,8 +512,6 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
   int nvsb;
   int nhsb;
   int refi;
-  int i;
-  int j;
   od_mb_dec_ctx mbctx;
   if (dec == NULL || img == NULL || op == NULL) return OD_EFAULT;
   if (dec->packet_state != OD_PACKET_DATA) return OD_EINVAL;
@@ -520,28 +538,7 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
   dec->state.ref_imgi[OD_FRAME_SELF] = refi;
   nhsb = dec->state.nhsb;
   nvsb = dec->state.nvsb;
-  for(i = -4; i < (nhsb+1)*4; i++) {
-    for(j = -4; j < 0; j++) {
-      dec->state.bsize[(j*dec->state.bstride) + i] = 3;
-    }
-    for(j = nvsb*4; j < (nvsb+1)*4; j++) {
-      dec->state.bsize[(j*dec->state.bstride) + i] = 3;
-    }
-  }
-  for(j = -4; j < (nvsb+1)*4; j++) {
-    for(i = -4; i < 0; i++) {
-      dec->state.bsize[(j*dec->state.bstride) + i] = 3;
-    }
-    for(i = nhsb*4; i < (nhsb+1)*4; i++) {
-      dec->state.bsize[(j*dec->state.bstride) + i] = 3;
-    }
-  }
-  for(i = 0; i < nvsb; i++) {
-    for(j = 0; j < nhsb; j++) {
-      od_block_size_decode(&dec->ec,
-       &dec->state.bsize[4*dec->state.bstride*i + 4*j], dec->state.bstride);
-    }
-  }
+  od_decode_block_sizes(dec);
   if(!mbctx.is_keyframe){
     od_dec_mv_unpack(dec);
     od_state_mc_predict(&dec->state, OD_FRAME_PREV);
