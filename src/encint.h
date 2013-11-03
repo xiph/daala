@@ -31,6 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 typedef struct daala_enc_ctx od_enc_ctx;
 typedef struct od_mv_est_ctx od_mv_est_ctx;
+typedef struct od_enc_opt_vtbl od_enc_opt_vtbl;
 
 /*Constants for the packet state machine specific to the encoder.*/
 /*No packet currently ready to output.*/
@@ -40,8 +41,18 @@ typedef struct od_mv_est_ctx od_mv_est_ctx;
 /*The number of fractional bits of precision in our \lambda values.*/
 #define OD_LAMBDA_SCALE       (5)
 
+struct od_enc_opt_vtbl {
+  int (*mc_compute_sad_4x4_xstride_1)(const unsigned char *src,
+   int systride, const unsigned char *ref, int dystride);
+  int (*mc_compute_sad_8x8_xstride_1)(const unsigned char *src,
+   int systride, const unsigned char *ref, int dystride);
+  int (*mc_compute_sad_16x16_xstride_1)(const unsigned char *src,
+   int systride, const unsigned char *ref, int dystride);
+};
+
 struct daala_enc_ctx{
   od_state state;
+  od_enc_opt_vtbl opt_vtbl;
   oggbyte_buffer obb;
   od_ec_enc ec;
   int packet_state;
@@ -52,5 +63,20 @@ struct daala_enc_ctx{
 od_mv_est_ctx *od_mv_est_alloc(od_enc_ctx *enc);
 void od_mv_est_free(od_mv_est_ctx *est);
 void od_mv_est(od_mv_est_ctx *est, int ref, int lambda);
+
+int od_mc_compute_sad_4x4_xstride_1_c(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride);
+int od_mc_compute_sad_8x8_xstride_1_c(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride);
+int od_mc_compute_sad_16x16_xstride_1_c(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride);
+int od_mc_compute_sad_c(const unsigned char *_src, int _systride,
+ const unsigned char *_ref, int _dystride, int _dxstride,int _w,int _h);
+
+void od_enc_opt_vtbl_init_c(od_enc_ctx *enc);
+
+# if defined(OD_X86ASM)
+void od_enc_opt_vtbl_init_x86(od_enc_ctx *enc);
+# endif
 
 #endif

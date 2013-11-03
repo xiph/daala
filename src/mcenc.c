@@ -297,11 +297,47 @@ static const od_offset *OD_ANCESTORS[4][4] = {
   { OD_ANCESTORS4[6], OD_ANCESTORS3[2], OD_ANCESTORS4[7], OD_ANCESTORS3[3] }
 };
 
+/*Computes the Sum of Absolute Differences: slow path.*/
+int od_mc_compute_sad_c(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride, int dxstride, int w, int h) {
+  const unsigned char *ref0;
+  int i;
+  int j;
+  int ret;
+  ret = 0;
+  ref0 = ref;
+  for (j = 0; j < h; j++) {
+    ref = ref0;
+    for (i = 0; i < w; i++) {
+      ret += abs(ref[0] - src[i]);
+      ref += dxstride;
+    }
+    src += systride;
+    ref0 += dystride;
+  }
+  return ret;
+}
+
+int od_mc_compute_sad_4x4_xstride_1_c(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride) {
+  return od_mc_compute_sad_c(src, systride, ref, dystride, 1, 4, 4);
+}
+
+int od_mc_compute_sad_8x8_xstride_1_c(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride) {
+  return od_mc_compute_sad_c(src, systride, ref, dystride, 1, 8, 8);
+}
+
+int od_mc_compute_sad_16x16_xstride_1_c(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride) {
+  return od_mc_compute_sad_c(src, systride, ref, dystride, 1, 16, 16);
+}
+
 /*Computes the SAD of the input image against the given predictor.*/
-static ogg_int32_t od_state_sad8(od_state *state, const unsigned char *p,
+static ogg_int32_t od_enc_sad8(od_enc_ctx *enc, const unsigned char *p,
  int pystride, int pxstride, int pli, int x, int y, int log_blk_sz) {
+  od_state *state;
   od_img_plane *iplane;
-  const unsigned char *p0;
   unsigned char *src;
   int clipx;
   int clipy;
@@ -309,9 +345,8 @@ static ogg_int32_t od_state_sad8(od_state *state, const unsigned char *p,
   int cliph;
   int w;
   int h;
-  int i;
-  int j;
   ogg_int32_t ret;
+  state = &enc->state;
   iplane = state->input.planes + pli;
   /*Compute the block dimensions in the target image plane.*/
   x >>= iplane->xdec;
@@ -342,15 +377,27 @@ static ogg_int32_t od_state_sad8(od_state *state, const unsigned char *p,
   /*Compute the SAD.*/
   src = iplane->data + y*iplane->ystride + x*iplane->xstride;
   ret = 0;
-  p0 = p;
-  for (j = 0; j < h; j++) {
-    p = p0;
-    for (i = 0; i < w; i++) {
-      ret += abs(p[0] - src[i]);
-      p += pxstride;
-    }
-    src += iplane->ystride;
-    p0 += pystride;
+  if (pxstride != 1) {
+    /*Default C implementation.*/
+    ret = od_mc_compute_sad_c(src, iplane->ystride,
+     p, pystride, pxstride, w, h);
+  }
+  else if (w == 4 && h == 4) {
+    ret = (*enc->opt_vtbl.mc_compute_sad_4x4_xstride_1)(src, iplane->ystride,
+     p, pystride);
+  }
+  else if (w == 8 && h == 8) {
+    ret = (*enc->opt_vtbl.mc_compute_sad_8x8_xstride_1)(src, iplane->ystride,
+     p, pystride);
+  }
+  else if (w == 16 && h == 16) {
+    ret = (*enc->opt_vtbl.mc_compute_sad_16x16_xstride_1)(src, iplane->ystride,
+     p, pystride);
+  }
+  else {
+    /*Default C implementation.*/
+    ret = od_mc_compute_sad_c(src, iplane->ystride,
+     p, pystride, pxstride, w, h);
   }
   return ret;
 }
@@ -724,7 +771,7 @@ static ogg_int32_t od_mv_est_bma_sad8(od_mv_est_ctx *est,
   pby = (by + (1 << iplane->ydec) - 1) & ~((1 << iplane->ydec) - 1);
   dx = (pbx << 1 >> iplane->xdec) + pmvx;
   dy = (pby << 1 >> iplane->ydec) + pmvy;
-  ret = od_state_sad8(state, iplane->data + dy*iplane->ystride + dx,
+  ret = od_enc_sad8(est->enc, iplane->data + dy*iplane->ystride + dx,
    iplane->ystride << 1, 2, 0, pbx, pby, log_mvb_sz + 2);
   if(est->flags & OD_MC_USE_CHROMA) {
     int pli;
@@ -736,7 +783,7 @@ static ogg_int32_t od_mv_est_bma_sad8(od_mv_est_ctx *est,
       pby = (by + (1 << iplane->ydec) - 1) & ~((1 << iplane->ydec) - 1);
       dx = (pbx << 1 >> iplane->xdec) + pmvx;
       dy = (pby << 1 >> iplane->ydec) + pmvy;
-      ret += od_state_sad8(state, iplane->data + dy*iplane->ystride + dx,
+      ret += od_enc_sad8(est->enc, iplane->data + dy*iplane->ystride + dx,
        iplane->ystride << 1, 2, pli, pbx, pby, log_mvb_sz + 2) >>
        OD_MC_CHROMA_SCALE;
     }
@@ -753,14 +800,14 @@ static ogg_int32_t od_mv_est_sad8(od_mv_est_ctx *est,
   state = &est->enc->state;
   od_state_pred_block_from_setup(state, pred[0], sizeof(pred[0]), ref, 0,
    vx, vy, oc, s, log_mvb_sz);
-  ret = od_state_sad8(state, pred[0], sizeof(pred[0]), 1, 0,
+  ret = od_enc_sad8(est->enc, pred[0], sizeof(pred[0]), 1, 0,
    (vx - 2) << 2, (vy - 2) << 2, log_mvb_sz + 2);
   if (est->flags & OD_MC_USE_CHROMA) {
     int pli;
     for (pli = 1; pli < state->input.nplanes; pli++) {
       od_state_pred_block_from_setup(state, pred[0], sizeof(pred[0]), ref, pli,
        vx, vy, oc, s, log_mvb_sz);
-      ret += od_state_sad8(state, pred[0], sizeof(pred[0]), 1, pli,
+      ret += od_enc_sad8(est->enc, pred[0], sizeof(pred[0]), 1, pli,
        (vx - 2) << 2, (vy - 2) << 2, log_mvb_sz + 2) >> OD_MC_CHROMA_SCALE;
     }
   }
@@ -1748,7 +1795,7 @@ static void od_mv_est_calc_sads(od_mv_est_ctx *est, int ref) {
   nvmvbs >>= 1;
   if (est->level_max >= 1) {
     if (est->level_min < 3) {
-      for(vy=0;vy<nvmvbs;vy++) {
+      for(vy = 0; vy < nvmvbs; vy++) {
         od_mv_node *mv_row;
         mv_row = est->mvs[vy << 1];
         for (vx = 0; vx < nhmvbs; vx++) {

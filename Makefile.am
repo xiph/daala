@@ -33,7 +33,10 @@ noinst_HEADERS = \
 	src/pvq_code.h \
 	src/state.h \
 	src/tf.h \
-	src/metrics.h
+	src/metrics.h \
+	src/x86/cpu.h \
+	src/x86/x86enc.h \
+	src/x86/x86int.h
 
 src_libdaalabase_la_CFLAGS = $(OGG_CFLAGS)
 src_libdaalabase_la_LIBADD = $(OGG_LIBS) $(LIBM)
@@ -73,8 +76,6 @@ src_libdaalabase_la_SOURCES = \
 if ENABLE_X86ASM
 src_libdaalabase_la_SOURCES += \
 	src/x86/cpu.c \
-	src/x86/cpu.h \
-	src/x86/x86int.h \
 	src/x86/sse2mc.c \
 	src/x86/x86state.c
 endif
@@ -105,6 +106,11 @@ src_libdaalaenc_la_SOURCES = \
 	src/infoenc.c \
 	src/mcenc.c \
         src/metrics.c
+if ENABLE_X86ASM
+src_libdaalaenc_la_SOURCES += \
+        src/x86/x86enc.c \
+        src/x86/x86mcenc.c
+endif
 
 # Example programs
 

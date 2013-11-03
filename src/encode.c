@@ -45,15 +45,36 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "logging.h"
 #include "tf.h"
 #include "metrics.h"
+#if defined(OD_X86ASM)
+# include "x86/x86int.h"
+#endif
 
 static double mode_bits = 0;
 static double mode_count = 0;
+
+void od_enc_opt_vtbl_init_c(od_enc_ctx *enc) {
+  enc->opt_vtbl.mc_compute_sad_4x4_xstride_1 =
+   od_mc_compute_sad_4x4_xstride_1_c;
+  enc->opt_vtbl.mc_compute_sad_8x8_xstride_1 =
+   od_mc_compute_sad_8x8_xstride_1_c;
+  enc->opt_vtbl.mc_compute_sad_16x16_xstride_1 =
+   od_mc_compute_sad_16x16_xstride_1_c;
+}
+
+static void od_enc_opt_vtbl_init(od_enc_ctx *enc) {
+#if defined(OD_X86ASM)
+  od_enc_opt_vtbl_init_x86(enc);
+#else
+  od_enc_opt_vtbl_init_c(enc);
+#endif
+}
 
 static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
   int i;
   int ret;
   ret = od_state_init(&enc->state, info);
   if (ret < 0) return ret;
+  od_enc_opt_vtbl_init(enc);
   oggbyte_writeinit(&enc->obb);
   od_ec_enc_init(&enc->ec, 65025);
   enc->packet_state = OD_PACKET_INFO_HDR;
