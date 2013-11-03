@@ -172,6 +172,10 @@ block_size_enc.c \
 encode.c \
 infoenc.c \
 mcenc.c \
+$(if $(findstring -DOD_X86ASM,${CFLAGS}), \
+x86/x86enc.c \
+x86/x86mcenc.c \
+) \
 
 LIBDAALAENC_CHEADERS = \
 ${LIBDAALABASE_CHEADERS} \
