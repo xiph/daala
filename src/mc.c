@@ -147,7 +147,7 @@ void od_mc_predict1imv8_c(unsigned char *dst, int dystride,
       p10 = (p + systride)[0];
       p11 = (p + systride)[1];
       a = (unsigned)(p00 + ((p01 - p00)*xf >> 16));
-      b = (unsigned)(p10 + ((p11 - p00)*xf >> 16));
+      b = (unsigned)(p10 + ((p11 - p10)*xf >> 16));
       dst[i] = (unsigned char)(a + ((b - a)*yf >> 16));
       x += dmvx[1];
       y += dmvy[1];
@@ -242,7 +242,7 @@ void od_mc_predict1fmv8_c(unsigned char *dst, const unsigned char *src,
           /*printf("<%16.12f, %16.12f>%s", mvx/(double)0x40000,
            mvy/(double)0x40000, i + 1 < xblk_sz ? "::" : "\n");*/
           p00 = src[i<<1];
-          p10 = (src + systride)[i<<1 | 1];
+          p10 = (src + systride)[i<<1];
           dst[j*xblk_sz + i] = (unsigned char)(
            (((ogg_uint32_t)p00 << 16) + (p10 - p00)*mvyf) >> 16);
         }
