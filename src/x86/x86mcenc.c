@@ -42,6 +42,7 @@ void od_mc_compute_sad_check(const unsigned char *src, int systride,
     fprintf(stderr, "od_mc_compute_sad %ix%i check failed: %i!=%i\n",
      w, h, sad, c_sad);
   }
+  OD_ASSERT(sad == c_sad);
 }
 # endif
 
