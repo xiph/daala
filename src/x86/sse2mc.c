@@ -137,6 +137,7 @@ void od_mc_predict1imv8_check(unsigned char *_dst,int _dystride,
     fprintf(stderr,"od_mc_predict1imv8 %ix%i check failed.\n",
      (1<<_log_xblk_sz),(1<<_log_yblk_sz));
   }
+  OD_ASSERT(!failed);
 }
 #endif
 
@@ -862,6 +863,7 @@ void od_mc_predict1fmv8_check(unsigned char *_dst,const unsigned char *_src,
     fprintf(stderr,"od_mc_predict1fmv8 %ix%i check failed.\n",
      (1<<_log_xblk_sz),(1<<_log_yblk_sz));
   }
+  OD_ASSERT(!failed);
 }
 #endif
 
@@ -2238,6 +2240,7 @@ static void od_mc_blend_full8_check(unsigned char *_dst,int _dystride,
     fprintf(stderr,"od_mc_predict1fmv8 %ix%i check failed.\n",
      (1<<_log_xblk_sz),(1<<_log_yblk_sz));
   }
+  OD_ASSERT(!failed);
 }
 #endif
 
@@ -2741,6 +2744,7 @@ void od_mc_blend_full_split8_check(unsigned char *_dst,int _dystride,
     fprintf(stderr,"od_mc_blend_full_split8 %ix%i check failed.\n",
      (1<<_log_xblk_sz),(1<<_log_yblk_sz));
   }
+  OD_ASSERT(!failed);
 }
 #endif
 
