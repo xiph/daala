@@ -125,19 +125,10 @@ g=\sqrt{\mathbf{x}_{d}^{T}\mathbf{x}_{d}}\,.\label{eq:band-energy}
 \end_layout
 
 \begin_layout Standard
-Let 
-\begin_inset Formula $\mathbf{Q}$
-\end_inset
-
- be a diagonal matrix containing the quantization step size for each element
- of 
-\begin_inset Formula $\mathbf{x}_{d}$
-\end_inset
-
-, the normalized band is computed as 
+The normalized band is computed as 
 \begin_inset Formula 
 \begin{equation}
-\mathbf{x}=\frac{\mathbf{Q}^{-1}\mathbf{x}_{d}}{\left\Vert \mathbf{Q}^{-1}\mathbf{x}_{d}\right\Vert }\,,\label{eq:normalized-x}
+\mathbf{x}=\frac{\mathbf{x}_{d}}{g}\,,\label{eq:normalized-x}
 \end{equation}
 
 \end_inset
@@ -221,7 +212,7 @@ Let
  
 \begin_inset Formula 
 \begin{equation}
-q=\underset{i}{\mathrm{argmax}}\frac{\mathbf{p}_{i}^{T}\left(\mathbf{z}+sz_{m}\mathbf{e}_{m}\right)}{\sqrt{\mathbf{p}_{i}^{T}\mathbf{p}_{i}}}\,,\label{eq:quantization}
+q=\underset{i}{\mathrm{argmax}}\frac{\mathbf{p}_{i}^{T}\left(\mathbf{z}-z_{m}\mathbf{e}_{m}\right)}{\sqrt{\mathbf{p}_{i}^{T}\mathbf{p}_{i}}}\,,\label{eq:quantization}
 \end{equation}
 
 \end_inset
@@ -239,81 +230,6 @@ where
 \end_inset
 
 .
- Let 
-\begin_inset Formula $\theta_{opt}$
-\end_inset
-
- be the post-quantization optimal angle, the mean square error becomes
-\begin_inset Formula 
-\begin{equation}
-E=\left(-s\cos\theta_{opt}\mathbf{e}_{m}+\sin\theta_{opt}\hat{\mathbf{p}}-\mathbf{z}\right)^{2}\ ,\label{eq:error-theta}
-\end{equation}
-
-\end_inset
-
-where 
-\begin_inset Formula $\hat{\mathbf{p}}=\mathbf{p}_{q}/\sqrt{\mathbf{p}_{q}^{T}\mathbf{p}_{q}}$
-\end_inset
-
-Solving for 
-\begin_inset Formula $\frac{\partial E}{\partial\theta}=0$
-\end_inset
-
- and knowing that 
-\begin_inset Formula $\hat{\mathbf{p}}^{T}\mathbf{e}_{m}=0$
-\end_inset
-
-, we have
-\end_layout
-
-\begin_layout Standard
-\begin_inset Formula 
-\begin{align}
-\frac{\partial}{\partial\theta}\left(-s\cos\theta_{opt}\mathbf{e}_{m}+\sin\theta_{opt}\hat{\mathbf{p}}\right)\mathbf{z} & =0\nonumber \\
-\left(s\sin\theta_{opt}\mathbf{e}_{m}+\cos\theta_{opt}\hat{\mathbf{p}}\right)\mathbf{z} & =0\nonumber \\
-\sin\theta_{opt}\mathbf{e}_{m}\mathbf{z} & =-s\cos\theta_{opt}\hat{\mathbf{p}}\mathbf{z}\nonumber \\
-\theta_{opt} & =-s\arctan\frac{\hat{\mathbf{p}}\mathbf{z}}{\mathbf{e}_{m}\mathbf{z}}\ .\label{eq:theta-opt}
-\end{align}
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Standard
-The resolution of the gain and angle, as well as the number of pulses should
- all be derived from a single quality parameter.
- The encoder transmits the gain 
-\begin_inset Formula $g$
-\end_inset
-
-, the quantized angle 
-\begin_inset Formula $\hat{\theta}$
-\end_inset
-
-, and the 
-\begin_inset Formula $\mathbf{p}_{q}$
-\end_inset
-
- vector.
- Neither 
-\begin_inset Formula $s$
-\end_inset
-
- nor 
-\begin_inset Formula $m$
-\end_inset
-
- need to be transmitted since they can be obtained from the decoder.
- Encoding 
-\begin_inset Formula $\mathbf{p}_{q}$
-\end_inset
-
- should make use of the fact that 
-\begin_inset Formula $K$
-\end_inset
-
- is known and is left as an exercise to the implementer.
  
 \end_layout
 
@@ -370,7 +286,7 @@ The renormalized band is computed by taking into account the quantization
  resolution:
 \begin_inset Formula 
 \begin{equation}
-\hat{\mathbf{x}}_{d}=\hat{g}\frac{\mathbf{Q}\hat{\mathbf{x}}}{\left\Vert \mathbf{Q}\hat{\mathbf{x}}\right\Vert }\,.\label{eq:decoded-band}
+\hat{\mathbf{x}}_{d}=\hat{g}\hat{\mathbf{x}}\,.\label{eq:decoded-band}
 \end{equation}
 
 \end_inset
@@ -403,7 +319,7 @@ It is desirable for a single quality parameter to control
  We can derive a scalar quantizer that follows this resolution:
 \begin_inset Formula 
 \begin{equation}
-\hat{g}=Q_{g}\gamma^{1+2\alpha}\ ,\label{eq:gain-scalar-quantization}
+\hat{g}=Q_{g}\hat{\gamma}^{1+2\alpha}\ ,\label{eq:gain-scalar-quantization}
 \end{equation}
 
 \end_inset
@@ -429,97 +345,145 @@ master
  resolution should be (roughly) 
 \begin_inset Formula 
 \begin{equation}
-Q_{\theta}=\frac{d\hat{g}/d\gamma}{\hat{g}}=\frac{Q_{g}\left(1+2\alpha\right)\gamma^{2\alpha}}{Q_{g}\gamma^{1+2\alpha}}=\frac{\left(1+2\alpha\right)}{\gamma}\ .\label{eq:theta-quantization-step}
+Q_{\theta}=\frac{d\hat{g}/d\hat{\gamma}}{\hat{g}}=\frac{Q_{g}\left(1+2\alpha\right)\hat{\gamma}^{2\alpha}}{Q_{g}\hat{\gamma}^{1+2\alpha}}=\frac{\left(1+2\alpha\right)}{\hat{\gamma}}\ .\label{eq:theta-quantization-step}
 \end{equation}
+
+\end_inset
+
+Alternatively, the number of quantization 
+\emph on
+steps
+\emph default
+ for 
+\begin_inset Formula $\theta$
+\end_inset
+
+ is 
+\begin_inset Formula 
+\[
+S_{\theta}=\frac{\pi\hat{\gamma}}{2\left(1+2\alpha\right)}\ .
+\]
 
 \end_inset
 
 
 \end_layout
 
-\begin_layout Standard
-To derive the optimal 
+\begin_layout Subsection
+Setting 
 \begin_inset Formula $K$
 \end_inset
 
- we need to consider the cosine distance between adjacent codevectors 
-\begin_inset Formula $\mathbf{p}_{1}$
+
+\end_layout
+
+\begin_layout Standard
+Using an 
+\emph on
+i.i.d.
+
+\emph default
+ Laplace source normalized to unit norm, we simulated quantization with
+ different values of 
+\begin_inset Formula $N$
 \end_inset
 
  and 
-\begin_inset Formula $\mathbf{p}_{2}$
-\end_inset
-
- for two cases: 
-\begin_inset Formula $K<N$
-\end_inset
-
- and 
-\begin_inset Formula $K>N$
+\begin_inset Formula $K$
 \end_inset
 
 .
- For 
-\begin_inset Formula $K<N$
+ The resulting distortion is shown in Fig.
+\begin_inset space ~
 \end_inset
 
-, the worst resolution occurs when no value in 
-\begin_inset Formula $\mathbf{p}_{q}$
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:PVQ-distortion-N-K"
+
 \end_inset
 
- is larger than one.
- In that case, the two closest codevectors have a cosine distance
+.
+ The asymptotic distortion for large values of 
+\begin_inset Formula $K$
+\end_inset
+
+ is approximately
 \begin_inset Formula 
-\begin{align*}
-\cos\tau & =\frac{\mathbf{p}_{1}^{T}\mathbf{p}_{2}}{\sqrt{\mathbf{p}_{2}^{T}\mathbf{p}_{2}}\sqrt{\mathbf{p}_{2}^{T}\mathbf{p}_{2}}}\\
- & =\frac{K-1}{K}\\
- & =1-\frac{1}{K}
-\end{align*}
+\[
+D_{pvq}=\frac{N^{2}}{24K^{2}}\ .
+\]
 
 \end_inset
 
-By approximating the cosine, we then get
-\begin_inset Formula 
-\begin{align}
-1-\frac{1}{K} & =\cos\tau\approx1-\frac{\tau^{2}}{2}\nonumber \\
-K & \approx\frac{2}{\tau^{2}}\label{eq:small-K}
-\end{align}
+
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+centering{
+\end_layout
 
 \end_inset
 
-For 
-\begin_inset Formula $K>N$
+
+\begin_inset Graphics
+	filename dist_vs_K.png
+	lyxscale 50
+	width 70col%
+
 \end_inset
 
- the worst resolution happens when all values are equal to 
-\begin_inset Formula $K/N$
+
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
 \end_inset
 
- in 
-\begin_inset Formula $\mathbf{p}_{1}$
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption
+
+\begin_layout Plain Layout
+PVQ distortion as a function of 
+\begin_inset Formula $N$
 \end_inset
 
  and 
-\begin_inset Formula $\mathbf{p}_{2}$
+\begin_inset Formula $K$
 \end_inset
 
- differs by one pulse.
- In that case
-\begin_inset Formula 
-\begin{align*}
-\cos\tau & =\frac{K^{2}/N}{\sqrt{\frac{K^{2}}{N}}\sqrt{\frac{K^{2}}{N}+2}}\\
- & =\frac{1}{\sqrt{1+\frac{2N}{K^{2}}}}\\
- & \approx1-\frac{N}{K^{2}}
-\end{align*}
+ for a Laplace-distributed source
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:PVQ-distortion-N-K"
 
 \end_inset
 
-By approximating the cosine, we get
-\begin_inset Formula 
-\begin{align}
-1-\frac{N}{K^{2}} & =\cos\tau\approx1-\frac{\tau^{2}}{2}\nonumber \\
-K & \approx\frac{\sqrt{2N}}{\tau}\ .\label{eq:large-K}
-\end{align}
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
 
 \end_inset
 
@@ -527,38 +491,53 @@ K & \approx\frac{\sqrt{2N}}{\tau}\ .\label{eq:large-K}
 \end_layout
 
 \begin_layout Standard
-By combining 
-\begin_inset CommandInset ref
-LatexCommand eqref
-reference "eq:small-K"
-
-\end_inset
-
- with 
-\begin_inset CommandInset ref
-LatexCommand eqref
-reference "eq:large-K"
-
-\end_inset
-
-, we have
+The distortion due to scalar quantization of the gain is (asymptotically)
 \begin_inset Formula 
-\begin{equation}
-K\approx\min\left(\frac{\sqrt{2N}}{\tau},\frac{2}{\tau^{2}}\right)\label{eq:pulse-allocation}
-\end{equation}
+\begin{align*}
+D_{g} & =\frac{1}{12}\left(d\hat{g}/d\hat{\gamma}\right)^{2}\\
+ & =\frac{\left(1+2\alpha\right)^{2}Q_{g}\hat{\gamma}^{4\alpha}}{12}\ .
+\end{align*}
 
 \end_inset
 
-The last step is to set 
+To achieve uniform distortion along all dimensions, the distortion due to
+ the 
+\begin_inset Formula $N-1$
+\end_inset
+
+ PVQ degrees of freedom must be 
+\begin_inset Formula $N-1$
+\end_inset
+
+ times greater than that due to quantizing the gain, so
+\end_layout
+
+\begin_layout Standard
 \begin_inset Formula 
-\begin{equation}
-\tau=Q_{\theta}/\sin\hat{\theta}\label{eq:tau-from-theta}
-\end{equation}
+\begin{align*}
+\left(N-1\right)D_{g} & =\hat{g}^{2}D_{pvq}\\
+\frac{\left(N-1\right)\left(1+2\alpha\right)^{2}Q_{g}\hat{\gamma}^{4\alpha}}{12} & =\left(Q_{g}\hat{\gamma}^{1+2\alpha}\sin\hat{\theta}\right)^{2}\frac{N^{2}}{24K^{2}}\\
+\left(N-1\right)\left(1+2\alpha\right)^{2} & =\frac{\hat{\gamma}^{2}N^{2}\sin^{2}\hat{\theta}}{2K^{2}}\\
+K & =\frac{\hat{\gamma}N\sin\hat{\theta}}{\left(1+2\alpha\right)}\sqrt{\frac{1}{2\left(N-1\right)}}\\
+ & \approx\frac{\hat{\gamma}\sin\hat{\theta}}{\left(1+2\alpha\right)}\sqrt{N/2}\ .
+\end{align*}
 
 \end_inset
 
-to account for the fact that the more the image differs from the reference,
- the higher the resolution needs to be.
+In this way, we can avoid having to signal 
+\begin_inset Formula $K$
+\end_inset
+
+ because it is determined only by 
+\begin_inset Formula $\hat{\gamma}$
+\end_inset
+
+ and 
+\begin_inset Formula $\hat{\theta}$
+\end_inset
+
+, both of which are available to the decoder.
+ 
 \end_layout
 
 \begin_layout Section
@@ -625,225 +604,6 @@ We can use this scheme for bi-prediction by introducing a second
  are before the frame being encoded, i.e.
  P frames based on two parents.
  This might help for fades.
-\end_layout
-
-\begin_layout Section
-Theoretical Ramblings on SSIM
-\end_layout
-
-\begin_layout Standard
-According to Wikipedia, the SSIM metric is defined as
-\begin_inset Formula 
-\[
-\mathrm{SSIM}\left(x,y\right)=\left(\frac{\mu_{x}\mu_{y}+c_{1}}{\mu_{x}^{2}+\mu_{y}^{2}+c_{1}}\right)\cdot\left(\frac{\sigma_{xy}+c_{2}}{\sigma_{x}^{2}+\sigma_{y}^{2}+c_{2}}\right)\,.
-\]
-
-\end_inset
-
-Where 
-\begin_inset Formula $\mu_{x}$
-\end_inset
-
- and 
-\begin_inset Formula $\mu_{y}$
-\end_inset
-
- are the DC of images 
-\begin_inset Formula $x$
-\end_inset
-
- and 
-\begin_inset Formula $y$
-\end_inset
-
- and 
-\begin_inset Formula $\sigma_{x}$
-\end_inset
-
- and 
-\begin_inset Formula $\sigma_{y}$
-\end_inset
-
- are the RMS value of the AC coefficients of images 
-\begin_inset Formula $x$
-\end_inset
-
- and 
-\begin_inset Formula $y$
-\end_inset
-
-.
- From now on, we will consider 
-\begin_inset Formula $x$
-\end_inset
-
- to be the reference image and 
-\begin_inset Formula $y$
-\end_inset
-
- to be the coded image.
- Now, let's ignore the DC for now and define a Simplified SSIM metric as
-\begin_inset Formula 
-\[
-\mathrm{SSSIM}\left(x,y\right)=\frac{2\sigma_{xy}+c_{2}}{\sigma_{x}^{2}+\sigma_{y}^{2}+c_{2}}\,.
-\]
-
-\end_inset
-
-This is the metric we'll try optimizing here.
- First, let 
-\begin_inset Formula $g=\sigma_{y}/\sigma_{x}$
-\end_inset
-
- be gain that the codec causes on the AC coefficients and 
-\begin_inset Formula $\hat{y}=y/g$
-\end_inset
-
-.
- Solving for 
-\begin_inset Formula 
-\[
-\frac{d}{dg}\mathrm{SSSIM}\left(x,y\right)=\frac{d}{dg}\frac{2g\sigma_{x\hat{y}}+c_{2}}{\sigma_{x}^{2}\left(1+g^{2}\right)+c_{2}}=0
-\]
-
-\end_inset
-
-we find that the optimal gain that maximizes SSSIM is 
-\begin_inset Formula $g_{max}\approx1-\frac{c_{2}}{2\sigma_{x}^{2}}\cdot\left(\frac{\sigma_{x}^{2}}{\sigma_{x\hat{y}}}-1\right)$
-\end_inset
-
-.
- This means that conserving energy (
-\begin_inset Formula $g_{max}=1$
-\end_inset
-
-) is a good thing to do as long as the contrat is high enough (
-\family roman
-\series medium
-\shape up
-\size normal
-\emph off
-\bar no
-\strikeout off
-\uuline off
-\uwave off
-\noun off
-\color none
-
-\begin_inset Formula $\frac{c_{2}}{2\sigma_{x}^{2}}$
-\end_inset
-
- is small) or the bit-rate is high enough (
-\begin_inset Formula $\frac{\sigma_{x}^{2}}{\sigma_{x\hat{y}}}$
-\end_inset
-
- close to 1).
-\end_layout
-
-\begin_layout Standard
-Now, let's consider a spherical horse in simple harmonic motion...
- or to be more exact, let's consider that the PVQ codebook is perfectly
- uniform over the sphere and that 
-\begin_inset Formula $g_{max}=1$
-\end_inset
-
-.
- We get 
-\begin_inset Formula 
-\[
-\mathrm{SSSIM}\left(x,y\right)=\frac{\sigma_{xy}+c_{2}/2}{\sigma_{x}^{2}+c_{2}/2}\,,
-\]
-
-\end_inset
-
-where 
-\begin_inset Formula $\sigma_{xy}/\sigma_{x}^{2}=\cos\theta$
-\end_inset
-
- is the cosine distance between 
-\begin_inset Formula $x$
-\end_inset
-
- and 
-\begin_inset Formula $y$
-\end_inset
-
-.
- Assuming a uniform quantizer, we have 
-\begin_inset Formula 
-\[
-\theta\propto2^{-b/(N-1)}\,,
-\]
-
-\end_inset
-
-where 
-\begin_inset Formula $b$
-\end_inset
-
- is the number of bits allocated and 
-\begin_inset Formula $N$
-\end_inset
-
- is the number of AC coefficients.
- Let 
-\begin_inset Formula $c'=c/(2\sigma_{x}^{2})$
-\end_inset
-
-...
-\end_layout
-
-\begin_layout Standard
-<FIXME: This needs to be cleaned up>
-\end_layout
-
-\begin_layout Standard
-\begin_inset Formula 
-\[
-\mathrm{SSSIM}\left(x,y\right)=\frac{\cos\theta+c'}{1+c'}\approx\frac{1-\theta^{2}+c'}{1+c'}\,,
-\]
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Standard
-Trying to make SSIM equal for two blocks:
-\begin_inset Formula 
-\[
-\frac{1+c_{1}'-2^{-2b_{1}/(N-1)}}{1+c_{1}'}=\frac{1+c_{2}'-2^{-2b_{2}/(N-1)}}{1+c_{2}'}
-\]
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Standard
-The optimal bit offset is 
-\begin_inset Formula 
-\[
-b=-\frac{N-1}{2}\log_{2}\left(1+2c_{2}/\sigma_{x}^{2}\right)
-\]
-
-\end_inset
-
- From this (theoretically) optimal offset, we can encode only the deviation
- from the optimal allocation.
- In practice, 
-\begin_inset Formula $b$
-\end_inset
-
- would not be an exact bit allocation like for CELT, but only the 
-\begin_inset Quotes eld
-\end_inset
-
-quantization step exponent
-\begin_inset Quotes erd
-\end_inset
-
-.
 \end_layout
 
 \begin_layout Section
