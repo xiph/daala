@@ -32,6 +32,7 @@ typedef struct od_state          od_state;
 # include "mc.h"
 # include "pvq_code.h"
 #include "adapt.h"
+#include "generic_code.h"
 
 /*The golden reference frame.*/
 #define OD_FRAME_GOLD (0)
@@ -123,6 +124,10 @@ struct od_state{
   ogg_int64_t         cur_time;
   od_mv_grid_pt     **mv_grid;
   od_adapt_ctx        adapt_sb[OD_NPLANES_MAX];
+  int                 pvq_adapt[OD_NSB_ADAPT_CTXS];
+  generic_encoder     pvq_gain_model;
+  int                 pvq_ext;
+  int                 pvq_exg;
   /** number of horizontal macro blocks. */
   int                 nhmbs;
   /** number of vertical macro blocks. */

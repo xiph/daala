@@ -275,7 +275,7 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
     }
   }
 #ifdef USE_PSEUDO_ZIGZAG
-  od_band_pseudo_zigzag(predt,  n, &pred[0], n);
+  od_band_pseudo_zigzag(predt,  n, &pred[0], n, !run_pvq);
 #else
   /*Zig-zag*/
   for (y = 0; y < n; y++) {
@@ -331,7 +331,7 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
     ctx->count_ex_total_q8 += adapt_curr[OD_ADAPT_COUNT_EX_Q8];
   }
 #ifdef USE_PSEUDO_ZIGZAG
-  od_band_pseudo_dezigzag(&d[((by << 2))*w + (bx << 2)], w, pred, n);
+  od_band_pseudo_dezigzag(&d[((by << 2))*w + (bx << 2)], w, pred, n, !run_pvq);
 #else
   /*De-zigzag*/
   for (y = 0; y < n; y++) {

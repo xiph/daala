@@ -250,6 +250,28 @@ struct od_mb_enc_ctx {
 };
 typedef struct od_mb_enc_ctx od_mb_enc_ctx;
 
+void od_band_encode(od_ec_enc *ec, int qg, int theta, int max_theta,
+ const int *y, int n, int k, generic_encoder *model, int *adapt, int *exg,
+ int *ext) {
+  int adapt_curr[OD_NSB_ADAPT_CTXS] = {0};
+  int speed = 5;
+  /*qg = pvq_theta(cblock, predt, n, q, y,
+    &theta, &max_theta, &k);*/
+  generic_encode(ec, model, qg, exg, 2);
+  if (theta>=0 && max_theta>0)
+    generic_encode(ec, model, theta, ext, 2);
+  pvq_encoder(ec, y, n-(theta>=0), k, adapt_curr, adapt);
+
+  if (adapt_curr[OD_ADAPT_K_Q8] > 0) {
+    adapt[OD_ADAPT_K_Q8] += 256*adapt_curr[OD_ADAPT_K_Q8]-adapt[OD_ADAPT_K_Q8]>>speed;
+    adapt[OD_ADAPT_SUM_EX_Q8] += adapt_curr[OD_ADAPT_SUM_EX_Q8]-adapt[OD_ADAPT_SUM_EX_Q8]>>speed;
+  }
+  if (adapt_curr[OD_ADAPT_COUNT_Q8] > 0) {
+    adapt[OD_ADAPT_COUNT_Q8] += adapt_curr[OD_ADAPT_COUNT_Q8]-adapt[OD_ADAPT_COUNT_Q8]>>speed;
+    adapt[OD_ADAPT_COUNT_EX_Q8] += adapt_curr[OD_ADAPT_COUNT_EX_Q8]-adapt[OD_ADAPT_COUNT_EX_Q8]>>speed;
+  }
+}
+
 void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   int pli, int bx, int by, int has_ur) {
   ogg_int32_t adapt_curr[OD_NSB_ADAPT_CTXS];
@@ -269,14 +291,12 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   int y;
   od_coeff pred[16*16];
   od_coeff predt[16*16];
-  ogg_int16_t pvq_scale[16*16];
-  int sgn;
-  int qg;
   int cblock[16*16];
   od_coeff scalar_out[16*16];
   int zzi;
   int vk;
   int run_pvq;
+  int scale;
 #ifndef USE_PSEUDO_ZIGZAG
   unsigned char const *zig;
 #endif
@@ -289,8 +309,9 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   ogg_int64_t intra_frac_bits;
 #endif
   OD_ASSERT(ln >= 0 && ln <= 2);
-  run_pvq = ctx->run_pvq[pli];
   n = 1 << (ln + 2);
+  /* The new PVQ is only supported on 8x8 for now. */
+  run_pvq = ctx->run_pvq[pli] && n == 8;
   n2 = n*n;
   bx <<= ln;
   by <<= ln;
@@ -315,7 +336,6 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
     (*OD_FDCT_2D[ln])(md + (by << 2)*w + (bx << 2), w,
      mc + (by << 2)*w + (bx << 2), w);
   }
-  for (zzi = 0; zzi < n2; zzi++) pvq_scale[zzi] = 0;
   if (ctx->is_keyframe) {
     if (bx > 0 && by > 0) {
       if (pli == 0) {
@@ -428,8 +448,8 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
 #endif
   /* Change ordering for encoding. */
 #ifdef USE_PSEUDO_ZIGZAG
-  od_band_pseudo_zigzag(cblock,  n, &d[((by << 2))*w + (bx << 2)], w);
-  od_band_pseudo_zigzag(predt,  n, &pred[0], n);
+  od_band_pseudo_zigzag(cblock,  n, &d[((by << 2))*w + (bx << 2)], w, !run_pvq);
+  od_band_pseudo_zigzag(predt,  n, &pred[0], n, !run_pvq);
 #else
   /*Zig-zag*/
   for (y = 0; y < n; y++) {
@@ -439,21 +459,52 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
     }
   }
 #endif
-  if (!run_pvq) {
-    int scale;
-    scale = OD_MAXI(enc->scale[pli], 1);
-    scalar_out[0] = OD_DIV_R0(cblock[0] - predt[0], scale);
+  scale = OD_MAXI(enc->scale[pli], 1);
+  scalar_out[0] = OD_DIV_R0(cblock[0] - predt[0], scale);
 #if defined(OD_METRICS)
-    dc_frac_bits = od_ec_enc_tell_frac(&enc->ec);
+  dc_frac_bits = od_ec_enc_tell_frac(&enc->ec);
 #endif
-    generic_encode(&enc->ec, ctx->model_dc + pli, abs(scalar_out[0]),
-     ctx->ex_dc + pli, 0);
-    if (scalar_out[0]) od_ec_enc_bits(&enc->ec, scalar_out[0] < 0, 1);
+  generic_encode(&enc->ec, ctx->model_dc + pli, abs(scalar_out[0]),
+    ctx->ex_dc + pli, 0);
+  if (scalar_out[0]) od_ec_enc_bits(&enc->ec, scalar_out[0] < 0, 1);
 #if defined(OD_METRICS)
-    enc->state.bit_metrics[OD_METRIC_DC] += od_ec_enc_tell_frac(&enc->ec) - dc_frac_bits;
+  enc->state.bit_metrics[OD_METRIC_DC] += od_ec_enc_tell_frac(&enc->ec) - dc_frac_bits;
 #endif
-    scalar_out[0] = scalar_out[0]*scale;
-    scalar_out[0] += predt[0];
+  scalar_out[0] = scalar_out[0]*scale;
+  scalar_out[0] += predt[0];
+  if (run_pvq) {
+    int theta[4];
+    int max_theta[4];
+    int qg[4];
+    int k[4];
+    int *adapt;
+    int *exg;
+    int *ext;
+    generic_encoder *model;
+    adapt = enc->state.pvq_adapt;
+    exg = &enc->state.pvq_exg;
+    ext = &enc->state.pvq_ext;
+    model = &enc->state.pvq_gain_model;
+    qg[0] = pvq_theta(cblock+1, predt+1, 15, scale, scalar_out+1,
+     &theta[0], &max_theta[0], &k[0]);
+    qg[1] = pvq_theta(cblock+16, predt+16, 8, scale, scalar_out+16,
+     &theta[1], &max_theta[1], &k[1]);
+    qg[2] = pvq_theta(cblock+24, predt+24, 8, scale, scalar_out+24,
+     &theta[2], &max_theta[2], &k[2]);
+    qg[3] = pvq_theta(cblock+32, predt+32, 32, scale, scalar_out+32,
+     &theta[3], &max_theta[3], &k[3]);
+    od_band_encode(&enc->ec, qg[0], theta[0], max_theta[0], scalar_out+1,
+     15, k[0], model, adapt, exg, ext);
+    od_band_encode(&enc->ec, qg[1], theta[1], max_theta[1], scalar_out+16,
+     8, k[1], model, adapt, exg, ext);
+    od_band_encode(&enc->ec, qg[2], theta[2], max_theta[2], scalar_out+24,
+     8, k[2], model, adapt, exg, ext);
+    od_band_encode(&enc->ec, qg[3], theta[3], max_theta[3], scalar_out+32,
+     32, k[3], model, adapt, exg, ext);
+    for (zzi=1;zzi<n2;zzi++)
+      scalar_out[zzi] = cblock[zzi];
+  }
+  else {
     vk = 0;
     for (zzi = 1; zzi < n2; zzi++) {
       scalar_out[zzi] = OD_DIV_R0(cblock[zzi] - predt[zzi], scale);
@@ -472,50 +523,9 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
       scalar_out[zzi] = scalar_out[zzi]*scale + predt[zzi];
     }
   }
-  if (run_pvq) {
-    int scale;
-    int i;
-    scale = OD_MAXI((enc->scale[pli]*OD_TRANS_QUANT_ADJ[ln] + (1 << 14)) >> 15, 1);
-    sgn = (cblock[0] - predt[0]) < 0;
-    cblock[0] = (int)floor(pow(fabs(cblock[0] - predt[0])/scale, 0.75) + 0.5);
-#if defined(OD_METRICS)
-    dc_frac_bits = od_ec_enc_tell_frac(&enc->ec);
-#endif
-    generic_encode(&enc->ec, ctx->model_dc + pli, cblock[0],
-     ctx->ex_dc + pli, 0);
-    if (cblock[0]) od_ec_enc_bits(&enc->ec, sgn, 1);
-#if defined(OD_METRICS)
-    enc->state.bit_metrics[OD_METRIC_DC] += od_ec_enc_tell_frac(&enc->ec) - dc_frac_bits;
-#endif
-    cblock[0] = (int)(pow(cblock[0], 4.0/3)*scale + 0.5);
-    cblock[0] *= sgn ? -1 : 1;
-    cblock[0] += predt[0];
-    quant_pvq(cblock + 1, predt + 1, pvq_scale, pred + 1, n2 - 1, scale,
-     &qg, 4 - ln, ctx->is_keyframe);
-#if defined(OD_METRICS)
-    pvq_frac_bits = od_ec_enc_tell_frac(&enc->ec);
-#endif
-    generic_encode(&enc->ec, ctx->model_g + pli, abs(qg),
-     ctx->ex_g + pli, 0);
-    if (qg) od_ec_enc_bits(&enc->ec, qg < 0, 1);
-    vk = 0;
-    for (zzi = 0; zzi < n2 - 1; zzi++) vk += abs(pred[zzi + 1]);
-    /*No need to code vk because we can get it from qg.*/
-    /*Expectation is that half the pulses will go in y[m].*/
-    if (vk != 0) {
-      int ex_ym;
-      ex_ym = (65536/2)*vk;
-      generic_encode(&enc->ec, &ctx->model_ym[pli], vk - pred[1], &ex_ym, 0);
-    }
-    pvq_encoder(&enc->ec, pred + 2, n2 - 2, vk - abs(pred[1]),
-     adapt_curr, ctx->adapt);
-    for (i = 0; i < n*n; i++) scalar_out[i] = cblock[i];
-#if defined(OD_METRICS)
-    enc->state.bit_metrics[OD_METRIC_PVQ] += od_ec_enc_tell_frac(&enc->ec) - pvq_frac_bits;
-#endif
-  }
 #ifdef USE_PSEUDO_ZIGZAG
-  od_band_pseudo_dezigzag(&d[((by << 2))*w + (bx << 2)], w, scalar_out, n);
+  od_band_pseudo_dezigzag(&d[((by << 2))*w + (bx << 2)], w, scalar_out, n,
+   !run_pvq);
 #else
   /*De-zigzag*/
   for (y = 0; y < n; y++) {
@@ -799,7 +809,11 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
          and store it in the od_state bsize. */
       for(k = 0; k < 4; k++) {
         for(m = 0; m < 4; m++) {
+#if 1
           state_bsize[k*bstride + m] = OD_MINI(bsize[k][m], 2);
+#else
+          state_bsize[k*bstride + m] = 1;
+#endif
         }
       }
       od_block_size_encode(&enc->ec, &state_bsize[0], bstride);
@@ -945,6 +959,8 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       ydec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
       w = frame_width >> xdec;
       h = frame_height >> ydec;
+      /* Set this to 1 to enable the new (experimental, encode-only) PVQ
+         implementation */
       mbctx.run_pvq[pli] = 0;
       od_ec_enc_uint(&enc->ec, enc->scale[pli], 512);
       /*If the scale is zero, force scalar.*/

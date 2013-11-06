@@ -47,9 +47,10 @@ void od_bands_from_raster(const band_layout *layout, od_coeff *dst,
   od_coeff *src, int stride);
 void od_raster_from_bands(const band_layout *layout, od_coeff *dst,
  int stride, od_coeff *src);
-void od_band_pseudo_zigzag(od_coeff *dst,  int n, od_coeff *src, int stride);
+void od_band_pseudo_zigzag(od_coeff *dst,  int n, od_coeff *src, int stride,
+ int interleave);
 void od_band_pseudo_dezigzag(od_coeff *dst,  int stride, od_coeff *src,
- int n);
+ int n, int interleave);
 
 int quant_pvq_theta(ogg_int32_t *x0,const ogg_int32_t *r0, ogg_int16_t *scale0,
   int *y, int n, int q0, int *qg, int shift, int intra);
