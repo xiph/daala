@@ -480,6 +480,7 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
     int *adapt;
     int *exg;
     int *ext;
+    int predflags8;
     generic_encoder *model;
     adapt = enc->state.pvq_adapt;
     exg = &enc->state.pvq_exg;
@@ -493,6 +494,9 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
      &theta[2], &max_theta[2], &k[2]);
     qg[3] = pvq_theta(cblock+32, predt+32, 32, scale, scalar_out+32,
      &theta[3], &max_theta[3], &k[3]);
+    predflags8 = 8*(theta[0]!=-1) + 4*(theta[1]!=-1) + 2*(theta[2]!=-1)
+     + (theta[3]!=-1);
+    od_ec_encode_cdf_q15(&enc->ec, predflags8, pred8_cdf, 16);
     od_band_encode(&enc->ec, qg[0], theta[0], max_theta[0], scalar_out+1,
      15, k[0], model, adapt, exg, ext);
     od_band_encode(&enc->ec, qg[1], theta[1], max_theta[1], scalar_out+16,

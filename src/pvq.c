@@ -64,6 +64,12 @@ const band_layout od_layout4 = {
   od_layout4_offsets
 };
 
+/* Table of combined "use prediction" pvq flags for 8x8 trained on
+   subset1. Should eventually make this adaptive. */
+const ogg_uint16_t pred8_cdf[16] =
+ {22313, 22461, 22993, 23050, 23418, 23468, 23553, 23617,
+  29873, 30181, 31285, 31409, 32380, 32525, 32701, 32768};
+
 void od_bands_from_raster(const band_layout *layout, od_coeff *dst,
   od_coeff *src, int stride) {
   int i;

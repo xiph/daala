@@ -43,6 +43,9 @@ typedef struct {
 extern const band_layout od_layout4;
 extern const band_layout od_layout8;
 extern const band_layout od_layout16;
+
+extern const ogg_uint16_t pred8_cdf[16];
+
 void od_bands_from_raster(const band_layout *layout, od_coeff *dst,
   od_coeff *src, int stride);
 void od_raster_from_bands(const band_layout *layout, od_coeff *dst,
