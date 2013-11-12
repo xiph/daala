@@ -411,7 +411,7 @@ void od_resample_luma_coeffs(od_coeff *l, int lstride,
  const od_coeff *c, int cstride, int xdec, int ydec, int ln, int cln) {
   int n;
   n = 4 << ln;
-  if (cln > ln) {
+  if (cln == 0 && (xdec || ydec)) {
     if (xdec) {
       if (ydec) od_tf_up_hv_lp(l, lstride, c, cstride, n, n, n);
       else od_tf_up_h_lp(l, lstride, c, cstride, n, n);
