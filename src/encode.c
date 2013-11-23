@@ -33,6 +33,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <math.h>
 #include <string.h>
 #include "encint.h"
+#if defined(OD_ENCODER_CHECK)
+# include "decint.h"
+#endif
 #include "generic_code.h"
 #include "filter.h"
 #include "dct.h"
@@ -99,11 +102,19 @@ daala_enc_ctx *daala_encode_create(const daala_info *info) {
     _ogg_free(enc);
     return NULL;
   }
+#if defined(OD_ENCODER_CHECK)
+  enc->dec = daala_decode_alloc(info, NULL);
+#endif
   return enc;
 }
 
 void daala_encode_free(daala_enc_ctx *enc) {
   if (enc != NULL) {
+#if defined(OD_ENCODER_CHECK)
+    if (enc->dec != NULL) {
+      daala_decode_free(enc->dec);
+    }
+#endif
     od_enc_clear(enc);
     _ogg_free(enc);
   }
@@ -1227,6 +1238,43 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   return 0;
 }
 
+#if defined(OD_ENCODER_CHECK)
+static void daala_encoder_check(daala_enc_ctx *ctx, od_img *img,
+ ogg_packet *op) {
+  int pli;
+  od_img dec_img;
+  OD_ASSERT(ctx->dec);
+
+  if (daala_decode_packet_in(ctx->dec, &dec_img, op) < 0) {
+    fprintf(stderr,"decode failed!\n");
+    return;
+  }
+
+  OD_ASSERT(img->nplanes == dec_img.nplanes);
+  for (pli = 0; pli < img->nplanes; pli++) {
+    int plane_width;
+    int plane_height;
+    int xdec;
+    int ydec;
+    int i;
+    OD_ASSERT(img->planes[pli].xdec == dec_img.planes[pli].xdec);
+    OD_ASSERT(img->planes[pli].ydec == dec_img.planes[pli].ydec);
+    OD_ASSERT(img->planes[pli].ystride == dec_img.planes[pli].ystride);
+
+    xdec = dec_img.planes[pli].xdec;
+    ydec = dec_img.planes[pli].ydec;
+    plane_width = ctx->dec->state.frame_width >> xdec;
+    plane_height = ctx->dec->state.frame_height >> ydec;
+    for (i = 0; i < plane_height; i++) {
+      if (memcmp(img->planes[pli].data + img->planes[pli].ystride * i,
+       dec_img.planes[pli].data + dec_img.planes[pli].ystride * i,
+       plane_width))
+        fprintf(stderr,"pixel mismatch in row %d\n", i);
+      }
+    }
+}
+#endif
+
 int daala_encode_packet_out(daala_enc_ctx *enc, int last, ogg_packet *op) {
   ogg_uint32_t nbytes;
   if (enc == NULL || op == NULL) return OD_EFAULT;
@@ -1242,5 +1290,11 @@ int daala_encode_packet_out(daala_enc_ctx *enc, int last, ogg_packet *op) {
   op->granulepos = enc->state.cur_time;
   if (last) enc->packet_state = OD_PACKET_DONE;
   else enc->packet_state = OD_PACKET_EMPTY;
+
+#if defined(OD_ENCODER_CHECK)
+  /*Compare reconstructed frame against decoded frame.*/
+  daala_encoder_check(enc, enc->state.io_imgs + OD_FRAME_REC, op);
+#endif
+
   return 1;
 }

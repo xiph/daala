@@ -94,6 +94,9 @@ src_libdaaladec_la_SOURCES = \
 
 src_libdaalaenc_la_CFLAGS = $(OGG_CFLAGS)
 src_libdaalaenc_la_LIBADD = src/libdaalabase.la $(OGG_LIBS) $(LIBM)
+if ENCODER_CHECK
+  src_libdaalaenc_la_LIBADD += src/libdaaladec.la
+endif
 if DUMP_IMAGES
   src_libdaalaenc_la_LIBADD += $(PNG_LIBS)
 endif

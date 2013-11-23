@@ -58,6 +58,9 @@ struct daala_enc_ctx{
   int packet_state;
   int scale[OD_NPLANES_MAX];
   od_mv_est_ctx *mvest;
+#if defined(OD_ENCODER_CHECK)
+  struct daala_dec_ctx *dec;
+#endif
 };
 
 od_mv_est_ctx *od_mv_est_alloc(od_enc_ctx *enc);

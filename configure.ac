@@ -158,6 +158,15 @@ AS_IF([test "$enable_asm" = "yes" -a "$cpu_x86" = "true"], [
   AC_DEFINE([OD_X86ASM], [1], [Enable asm optimisations])
 ])
 
+AC_ARG_ENABLE([encoder-check],
+  AS_HELP_STRING([--enable-encoder-check], [Do not compare reconstructed frames]),,
+  [enable_encoder_check=no])
+
+AS_IF([test "$enable_encoder_check" = "yes"], [
+  AC_DEFINE([OD_ENCODER_CHECK], [1], [Enable comparison of reconstructed frames])
+])
+AM_CONDITIONAL([ENCODER_CHECK], [test "$enable_encoder_check" = "yes"])
+
 AC_ARG_ENABLE([dump-images],
   AS_HELP_STRING([--disable-dump-images], [Do not dump debugging images]),,
   [enable_dump_images=yes])
@@ -197,6 +206,7 @@ AC_MSG_NOTICE([
     API documentation ............ ${enable_doc}
     Assembly optimizations ....... ${enable_asm}
     Image dumping ................ ${enable_dump_images}
+    Check encoder ................ ${enable_encoder_check}
     Metrics collection ........... ${enable_metrics}
     Unit tests ................... ${enable_unit_tests}
     Example Player................ ${enable_player}
