@@ -14,6 +14,15 @@ if ! grep -Fxq "#define OD_LOGGING_ENABLED 1" "$BUILD_ROOT/config.h"; then
   exit 1
 fi
 
+if [ -z "$PLANE" ]; then
+  PLANE=0
+fi
+
+if [ $PLANE != 0 ] && [ $PLANE != 1 ] && [ $PLANE != 2 ]; then
+  echo "Invalid plane $PLANE. Must be 0, 1 or 2."
+  exit 1
+fi
+
 if [ -z "$ENCODER_EXAMPLE" ]; then
   ENCODER_EXAMPLE=$BUILD_ROOT/examples/encoder_example
 fi
@@ -77,6 +86,6 @@ fi
 
 mkdir -p $TMP_DIR
 
-find $@ -type f -name "*.y4m" -print0 | xargs -0 -n1 -P$CORES $RD_COLLECT_SUB $ENCODER_EXAMPLE $DUMP_VIDEO $DUMP_PSNRHVS $DUMP_SSIM $DUMP_FASTSSIM $TMP_DIR
+find $@ -type f -name "*.y4m" -print0 | xargs -0 -n1 -P$CORES $RD_COLLECT_SUB $PLANE $ENCODER_EXAMPLE $DUMP_VIDEO $DUMP_PSNRHVS $DUMP_SSIM $DUMP_FASTSSIM $TMP_DIR
 
 rm -r $TMP_DIR 2> /dev/null
