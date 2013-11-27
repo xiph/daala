@@ -12,8 +12,10 @@ config.rpath
 config.status*
 config.sub
 configure
-daala.pc
-daala-uninstalled.pc
+daaladec-uninstalled.pc
+daaladec.pc
+daalaenc-uninstalled.pc
+daalaenc.pc
 libtool
 ltconfig
 ltmain.sh
@@ -60,10 +62,12 @@ package_version
 examples/dump_video
 examples/encoder_example
 examples/player_example
+src/tests/check_tests
 src/tests/ectest
 src/tests/logging_test
 src/tests/test_coef_coder
-src/tests/check_tests
+src/tests/test_divu_small
+src/tests/test_filters
 tools/block_size_analysis
 tools/dump_psnrhvs
 tools/gen_cdf
