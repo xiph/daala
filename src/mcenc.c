@@ -2800,8 +2800,11 @@ static void od_mv_dp_row_init(od_mv_est_ctx *est,
      pred_hist, prev_dp != NULL ? prev_dp->mv->vx : -1, vx-pred_hist));
     if (prev_dp != NULL && prev_dp->mv->vx >= vx - pred_hist) {
       od_mv_dp_node *dp_pred;
-      for (dp_pred = prev_dp; dp_pred->mv->vx > vx-pred_hist
-       && dp_pred->states[0].prevsi >= 0; dp_pred--);
+      dp_pred = prev_dp;
+      while (dp_pred->mv->vx > vx-pred_hist
+       && dp_pred->states[0].prevsi >= 0) {
+        dp_pred--;
+      }
       OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
        "Stopped at (%i, %i) (%i <= %i? %i) (%i < 0? %i)",
        dp_pred->mv->vx, dp_pred->mv->vy, dp_pred->mv->vx, vx-pred_hist,
