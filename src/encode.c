@@ -1121,7 +1121,14 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   }
 #if defined(OD_DUMP_IMAGES)
   /*Dump YUV*/
-  od_state_dump_yuv(&enc->state, enc->state.io_imgs + OD_FRAME_REC, "out");
+  {
+    char *ptr;
+    ptr = getenv("OD_DUMP_IMAGES_SUFFIX");
+    if (!ptr) {
+      ptr="out";
+    }
+    od_state_dump_yuv(&enc->state, enc->state.io_imgs + OD_FRAME_REC, ptr);
+  }
 #endif
 #if defined(OD_LOGGING_ENABLED)
   for (pli = 0; pli < nplanes; pli++) {
