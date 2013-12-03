@@ -39,4 +39,7 @@ void od_convert_intra_coeffs(od_coeff *(dst[4]), int dstrides[4],
  od_coeff *src, int sstride, int bx, int by,
  const unsigned char *bsize, int bstride, int has_ur);
 
+void od_convert_block_down(od_coeff *dst, int dstride, const od_coeff *src,
+ int sstride, int curr_size, int dest_size);
+
 #endif

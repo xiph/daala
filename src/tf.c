@@ -219,29 +219,39 @@ static void od_convert_block_up(od_coeff *dst, int dstride,
   od_tf_up_hv(dst, dstride, &scratch[0][0], 16, 1 << (dest_size - 1 + 2));
 }
 
-static void od_convert_block_down(od_coeff *dst, int dstride,
-    const od_coeff *src, int sstride, int curr_size, int dest_size) {
-  /* FIXME: This function makes useless computations. */
-  int i;
-  int j;
+void od_convert_block_down(od_coeff *dst, int dstride, const od_coeff *src,
+ int sstride, int curr_size, int dest_size) {
   int n;
-  od_coeff scratch[16][16];
-  n = 1 << (curr_size + 2);
-  for (i = 0; i < n; i++) {
-    for (j = 0; j < n; j++) scratch[i][j] = src[i*sstride + j];
-  }
-  od_tf_down_hv(dst, dstride, &scratch[0][0], 16, n);
-  if (curr_size-1 > dest_size) {
-    int sub;
-    /* As long as the max block size is 16, sub will always be equal to 1. */
-    sub = 1 << (curr_size - 1);
-    for (i = 0; i < n; i++) {
-      for (j = 0; j < n; j++) scratch[i][j] = dst[i*dstride + j];
+  int j;
+  int i;
+  od_coeff scratch[OD_BSIZE_MAX * OD_BSIZE_MAX];
+  n = 1 << (curr_size + OD_LOG_BSIZE0);
+  if (curr_size == dest_size) {
+    if (dst != src) {
+      for (j = 0; j < n; j++) {
+        for (i = 0; i < n; i++) {
+          dst[dstride*j + i] = src[sstride*j + i];
+        }
+      }
     }
-    for (i = 0; i < 2; i++) {
-      for (j = 0; j < 2; j++) {
-        od_convert_block_down(&dst[4*i*sub*dstride + 4*j*sub], dstride,
-         &scratch[4*i*sub][4*j*sub], 16, curr_size - 1, dest_size);
+    return;
+  }
+  if (curr_size - 1 == dest_size) {
+    for (j = 0; j < n; j++) {
+      for (i = 0; i < n; i++) {
+        scratch[OD_BSIZE_MAX*j + i] = src[sstride*j + i];
+      }
+    }
+    od_tf_down_hv(dst, dstride, scratch, OD_BSIZE_MAX, n);
+  }
+  else {
+    od_tf_down_hv(scratch, OD_BSIZE_MAX, src, sstride, n);
+    n >>= 1;
+    for (j = 0; j < 2; j++) {
+      for (i = 0; i < 2; i++) {
+        od_convert_block_down(&dst[dstride*n*j + n*i], dstride,
+         &scratch[OD_BSIZE_MAX*n*j + n*i], OD_BSIZE_MAX, curr_size - 1,
+         dest_size);
       }
     }
   }
