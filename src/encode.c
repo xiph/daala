@@ -255,8 +255,6 @@ void od_band_encode(od_ec_enc *ec, int qg, int theta, int max_theta,
  int *ext) {
   int adapt_curr[OD_NSB_ADAPT_CTXS] = {0};
   int speed = 5;
-  /*qg = pvq_theta(cblock, predt, n, q, y,
-    &theta, &max_theta, &k);*/
   generic_encode(ec, model, qg, exg, 2);
   if (theta>=0 && max_theta>0)
     generic_encode(ec, model, theta, ext, 2);

@@ -216,16 +216,11 @@ static double pvq_search_double(const double *x, int n, int k, int *y) {
 /* Computes Householder reflection that aligns the reference r to one
    of the dimensions (return value). The reflection vector is returned
    in r and x is reflected. */
-static int compute_householder(double *x, double *r, int n, double gr,
- int *sign)
-{
+static int compute_householder(double *r, int n, double gr, int *sign) {
   int m;
   int i;
   int s;
-  double l2r;
   double maxr;
-  double proj;
-  double proj_1;
   /* Pick component with largest magnitude. Not strictly
    * necessary, but it helps numerical stability */
   m = 0;
@@ -241,6 +236,17 @@ static int compute_householder(double *x, double *r, int n, double gr,
   /* This turns r into a Householder reflection vector that would reflect
    * the original r[] to e_m */
   r[m] += gr*s;
+  *sign = s;
+  return m;
+}
+
+/* Applies Householder reflection from compute_householder(). The reflection
+   is its own inverse. */
+static void apply_householder(double *x, const double *r, int n) {
+  int i;
+  double proj;
+  double proj_1;
+  double l2r;
   l2r = 0;
   for (i = 0; i < n; i++) {
     l2r += r[i]*r[i];
@@ -253,28 +259,6 @@ static int compute_householder(double *x, double *r, int n, double gr,
   proj_1 = proj*2./(1e-100 + l2r);
   for (i = 0; i < n; i++) {
     x[i] -= r[i]*proj_1;
-  }
-  *sign = s;
-  return m;
-}
-
-/* Undoes the Householder reflection applied by compute_householder(). */
-void inverse_householder(double *xn, const double *r, int n)
-{
-  int i;
-  double proj;
-  double l2r;
-  l2r = 0;
-  for (i = 0; i < n; i++) {
-    l2r += r[i]*r[i];
-  }
-  proj=0;
-  for(i=0;i<n;i++){
-    proj+=r[i]*xn[i];
-  }
-  proj*=2./(1e-100+l2r);
-  for(i=0;i<n;i++){
-    xn[i]-=r[i]*proj;
   }
 }
 
@@ -318,7 +302,7 @@ void pvq_synthesis(od_coeff *x0, int *y, const double *r, int n, int noref,
       x[i] = y[i]*norm*sin(theta);
     }
     x[m] = -s*cos(theta);
-    inverse_householder(x, r, n);
+    apply_householder(x, r, n);
   }
   g = q*pow(qcg, 1./ACTIVITY);
   for (i = 0; i < n; i++) {
@@ -410,7 +394,8 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *itheta,
     corr = corr/(1e-100+g*gr);
     corr = OD_MAXF(OD_MINF(corr, 1.), -1.);
     theta = acos(corr);
-    m = compute_householder(x, r, n, gr, &s);
+    m = compute_householder(r, n, gr, &s);
+    apply_householder(x, r, n);
     x[m] = 0;
     /* Search for the best gain within a reasonable range. */
     for (i = OD_MAXI(1,(int)floor(cg-gain_offset)-1);
