@@ -845,7 +845,7 @@ static void ieee1180_srand(int _seed){
   ieee1180_rand_x=_seed;
 }
 
-/*Computes a random number between -l and h, inclusive, accoring to the
+/*Computes a random number between -l and h, inclusive, according to the
    specification in IEEE Std 1180-1990, "IEEE Standard Specifications for the
    Implementations of 8x8 Inverse Discrete Cosine Transform."*/
 static int ieee1180_rand(int _l,int _h){

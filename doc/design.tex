@@ -103,7 +103,7 @@ This is also useful for embedded devices, which may not have a floating-point
  unit at all.
 
 The only other stage of the encoding and decoding process that could introduce
- unneccessary loss is color conversion.
+ unnecessary loss is color conversion.
 This is mostly an application issue.
 As long as the codec can handle the most common color formats, there is no
  reason for editing or encoding software to introduce additional color
@@ -526,7 +526,7 @@ The form of the pre-filter which allows increasing the length of the block
 Each of ${\mathbf I}$, ${\mathbf J}$, ${\mathbf U}$ and ${\mathbf V}$ are
  equal-sized square matrices, at most half the size of the block transform.
 Here ${\mathbf I}$ is the identity matrix, ${\mathbf J}$ is an anti-diagonal
- matrix of $1$'s, somtimes called the reversal matrix, and ${\mathbf U}$ and
+ matrix of $1$'s, sometimes called the reversal matrix, and ${\mathbf U}$ and
  ${\mathbf V}$ are aribtrary invertible matrices.
 Note that these matrices can be smaller than half the size of the block
  transform.
@@ -568,7 +568,7 @@ Using the Type-III approximation reduces this to $9.6115$ dB, and using the
 Forcing the transform to be orthogonal in any of these cases imposes
  approximately a $0.2$ dB penalty \cite{Tra01b}.
 Thus the penalty for using either approximation is very small.
-In general, the structure of the Type-III tranform matches better with the
+In general, the structure of the Type-III transform matches better with the
  sizes of the coefficients, so that the smaller coefficients with larger
  relative approximation error occur towards the end of the transform.
 The Type-IV transform still remains competitve in terms of coding gain,
@@ -825,7 +825,7 @@ This means that it is not valid to attempt to find quantizers which produce
 Chandler and Hemami have performed experiments for quantizing various wavelet
  channels, but their results rely on a specific viewing environment, including
  a specific image size and level of wavelet decomposition \cite{CH02b}.
-It is not clear how to generalize their results to other viewing enviroments or
+It is not clear how to generalize their results to other viewing environments or
  more adaptive transforms.
 
 %%CELT-style AVQ:

@@ -2487,7 +2487,7 @@ static void od_mc_blend_full8_4x4(unsigned char *_dst,int _dystride,
     :[dst]"+r"(_dst),[a]"=&r"(a)
     /*Note that we pass the constant 0 for [row] here.
       We'll still use it in indexing expression in the asm, but the overhead is
-       neglible, and it's easier than writing a special case of
+       negligible, and it's easier than writing a special case of
        OD_MC_BLEND_FULL8_4x4 for it.*/
     :[src]"r"(_src),[dystride]"r"((ptrdiff_t)_dystride),[row]"r"((ptrdiff_t)0),
      [OD_BIL4H]"m"(*OD_BIL4H),[OD_BIL4V]"m"(*OD_BIL4V),

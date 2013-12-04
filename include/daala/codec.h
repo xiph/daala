@@ -85,7 +85,7 @@ extern "C" {
 
 /**\name Error codes*/
 /*@{*/
-/**No error occured.*/
+/**No error occurred.*/
 #define OD_SUCCESS (0)
 /**An invalid pointer was provided.*/
 # define OD_EFAULT (-1)

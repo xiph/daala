@@ -103,12 +103,12 @@ int od_log_init(od_logger_function logger);
 
 #ifndef OD_LOGGING_ENABLED
 # define OD_LOG(a)
-/*Hack to accomodate non-newline printfs.*/
+/*Hack to accommodate non-newline printfs.*/
 # define OD_LOG_PARTIAL(a)
 # define od_logging_active(a, b) 0
 #else
 # define OD_LOG(a) od_log a
-/*Hack to accomodate non-newline printfs.*/
+/*Hack to accommodate non-newline printfs.*/
 # define OD_LOG_PARTIAL(a) od_log_partial a
 # define od_logging_active od_logging_active_impl
 #endif
