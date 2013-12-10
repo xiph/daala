@@ -23,7 +23,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+# include "config.h"
 #endif
 
 #include "logging.h"
@@ -36,7 +36,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "daala/codec.h"
 #include "internal.h"
 
-static unsigned long od_log_levels[OD_LOG_FACILITY_MAX] = {0};
+static unsigned long od_log_levels[OD_LOG_FACILITY_MAX] = { 0 };
 
 static const char *od_log_module_names[OD_LOG_FACILITY_MAX] = {
   "generic",
@@ -58,9 +58,9 @@ static const char *od_log_level_names[OD_LOG_LEVEL_MAX] = {
 
 
 static int od_log_fprintf_stderr(od_log_facility facility,
-                                 od_log_level level,
-                                 unsigned int flags,
-                                 const char *fmt, va_list ap);
+ od_log_level level,
+ unsigned int flags,
+ const char *fmt, va_list ap);
 static const char *od_log_facility_name(od_log_facility facility);
 static const char *od_log_level_name(od_log_level level);
 
@@ -72,17 +72,14 @@ static const char *od_log_facility_name(od_log_facility fac) {
   OD_ASSERT(fac < OD_LOG_FACILITY_MAX);
   if (fac >= OD_LOG_FACILITY_MAX)
     return "INVALID";
-
   return od_log_module_names[fac];
 }
 
 static const char *od_log_level_name(od_log_level level) {
   /* Check for invalid input */
   OD_ASSERT(level < OD_LOG_LEVEL_MAX);
-
   if (level >= OD_LOG_LEVEL_MAX)
     return "INVALID";
-
   return od_log_level_names[level];
 }
 
@@ -98,25 +95,20 @@ int od_log_init(od_logger_function logger) {
   char *endptr;
   unsigned long level;
   int i;
-
-  for (i=0; i<OD_LOG_FACILITY_MAX; ++i) {
+  for (i = 0; i < OD_LOG_FACILITY_MAX; ++i) {
     od_log_levels[i] = 0;
   }
-
   if (logger)
     od_logger = logger;
-
   ptr = getenv("OD_LOG_MODULES");
   if (!ptr)
     return 0;
-
   /* Break up the string. This is manual because strtok is evil. */
   nextptr = ptr;
   for (;;) {
     ptr = nextptr;
     if (!*ptr)
       break;
-
     comma = strchr(ptr, ',');
     if (comma) {
       *comma = '\0';
@@ -125,7 +117,6 @@ int od_log_init(od_logger_function logger) {
     else {
       nextptr = ptr + strlen(ptr);
     }
-
     /* At this point, ptr points to a single <facility>:<level> clause */
     colon = strchr(ptr, ':');
     if (!colon) {
@@ -133,22 +124,18 @@ int od_log_init(od_logger_function logger) {
       fprintf(stderr, "Bogus clause '%s'\n", ptr);
       continue;
     }
-
     /* At this point, we should theoretically have a valid clause */
     *colon = '\0';
     ++colon; /* Now points to the start of the number. */
-
     for (i = 0; i < OD_LOG_FACILITY_MAX; ++i) {
       if (od_log_module_names[i] && !strcmp(ptr, od_log_module_names[i])) {
         break;  /* Success */
       }
     }
-
     if (i == OD_LOG_FACILITY_MAX) {
       fprintf(stderr, "Unknown facility '%s'\n", ptr);
       continue;
     }
-
     if (!*colon) {
       fprintf(stderr, "Empty log level\n");
       continue;
@@ -160,7 +147,6 @@ int od_log_init(od_logger_function logger) {
     }
     od_log_levels[i] = level;
   }
-
   return 0;
 }
 
@@ -169,18 +155,16 @@ int od_logging_active_impl(od_log_facility fac, od_log_level level) {
   OD_ASSERT(fac < OD_LOG_FACILITY_MAX);
   if (fac >= OD_LOG_FACILITY_MAX)
     return 0;
-
   if (od_log_levels[fac] < level)
     return 0;  /* Skipped */
 
   return 1;
 }
 
-static int od_log_impl(od_log_facility fac, od_log_level level, unsigned int flags,
-                       const char *fmt, va_list ap) {
+static int od_log_impl(od_log_facility fac, od_log_level level,
+ unsigned int flags, const char *fmt, va_list ap) {
   if (!od_logging_active(fac, level))
     return 0;
-
   (void)od_logger(fac, level, flags, fmt, ap);
 
   return 0;
@@ -197,7 +181,8 @@ int od_log(od_log_facility fac, od_log_level level, const char *fmt, ...) {
   return rv;
 }
 
-int od_log_partial(od_log_facility fac, od_log_level level, const char *fmt, ...) {
+int od_log_partial(od_log_facility fac, od_log_level level,
+ const char *fmt, ...) {
   va_list ap;
   int rv;
 
@@ -210,31 +195,23 @@ int od_log_partial(od_log_facility fac, od_log_level level, const char *fmt, ...
 
 
 static int od_log_fprintf_stderr(od_log_facility facility,
-                                 od_log_level level,
-                                 unsigned int flags,
-                                 const char *fmt, va_list ap) {
+ od_log_level level, unsigned int flags, const char *fmt, va_list ap) {
   char fmt_buffer[1024];
   int rv;
-
   if (flags & OD_LOG_FLAG_PARTIAL) {
     (void)vfprintf(stderr, fmt, ap);
     return 0;
   }
-
   rv = snprintf(fmt_buffer, sizeof(fmt_buffer),
-                "[%s/%s] %s\n",
-                od_log_facility_name(facility),
-                od_log_level_name(level),
-                fmt);
-
+   "[%s/%s] %s\n", od_log_facility_name(facility),
+   od_log_level_name(level), fmt);
   if ((rv < 0) || (((size_t)rv) >= sizeof(fmt_buffer))) {
     fprintf(stderr, "Error logging. Format string too long\n");
     return OD_EINVAL;
   }
-
   (void)vfprintf(stderr, fmt_buffer, ap);
 
- return 0;
+  return 0;
 }
 
 

@@ -23,7 +23,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+# include "config.h"
 #endif
 
 #include <stdio.h>
@@ -79,7 +79,7 @@ int generic_decode(od_ec_dec *dec, generic_encoder *model, int *ex_q16,
     int special;
     /* Because of the rounding, there's only half the number of possibilities
        for xs=0 */
-    special = xs==0;
+    special = xs == 0;
     if (shift - special > 0) lsb = od_ec_dec_bits(dec, shift - special);
     lsb -= !special << (shift - 1);
   }

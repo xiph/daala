@@ -23,19 +23,19 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+# include "config.h"
 #endif
 
 #include "metrics.h"
 
 #if defined(OD_METRICS)
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
+# include <stdio.h>
+# include <stdlib.h>
+# include <unistd.h>
 
-#include "state.h"
-#include "logging.h"
+# include "state.h"
+# include "logging.h"
 
 #endif
 
@@ -57,7 +57,8 @@ void write_metrics(ogg_int64_t cur_time, ogg_int64_t *metrics) {
   if (cur_time == 1) {
     metrics_file = fopen(filename, "w");
     fprintf(metrics_file, "[\n");
-  } else {
+  }
+  else {
     metrics_file = fopen(filename, "a");
     res = ftell(metrics_file);
     fclose(metrics_file);
@@ -71,7 +72,8 @@ void write_metrics(ogg_int64_t cur_time, ogg_int64_t *metrics) {
    "\"pvq_bits\":%" OD_I64FMT ", \"dc_bits\":%" OD_I64FMT ", "
    "\"intra_bits\":%" OD_I64FMT "}\n",
    (long long)cur_time, (long long)metrics[OD_METRIC_TOTAL],
-   (long long)metrics[OD_METRIC_MV], (long long)metrics[OD_METRIC_BLOCK_SWITCHING],
+   (long long)metrics[OD_METRIC_MV],
+   (long long)metrics[OD_METRIC_BLOCK_SWITCHING],
    (long long)metrics[OD_METRIC_PVQ], (long long)metrics[OD_METRIC_DC],
    (long long)metrics[OD_METRIC_INTRA]);
   fprintf(metrics_file, "]\n");

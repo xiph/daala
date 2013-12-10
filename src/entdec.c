@@ -23,7 +23,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+# include "config.h"
 #endif
 
 #include "entdec.h"
@@ -86,7 +86,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 /*This is meant to be a large, positive constant that can still be efficiently
    loaded as an immediate (on platforms like ARM, for example).
   Even relatively modest values like 100 would work fine.*/
-# define OD_EC_LOTS_OF_BITS (0x4000)
+#define OD_EC_LOTS_OF_BITS (0x4000)
 
 /*Takes updated dif and range values, renormalizes them so that
    32768 <= rng < 65536 (reading more bytes from the stream into dif if
@@ -208,7 +208,7 @@ int od_ec_decode_bool_q15(od_ec_dec *dec, unsigned fz) {
   unsigned r;
   unsigned v;
   int ret;
-  OD_ASSERT( 0 < fz);
+  OD_ASSERT(0 < fz);
   OD_ASSERT(fz < 32768U);
   dif = dec->dif;
   r = dec->rng;

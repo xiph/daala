@@ -23,7 +23,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+# include "config.h"
 #endif
 
 #include <stdlib.h>
@@ -42,7 +42,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 /*Initializes a 2D moving average filter.*/
 void od_adapt_init(od_adapt_ctx *ctx, int nhv,
  int nctx, const ogg_int32_t *params) {
-  OD_ASSERT(nctx<=OD_NADAPT_CTXS_MAX);
+  OD_ASSERT(nctx <= OD_NADAPT_CTXS_MAX);
   ctx->data = (od_adapt_data *)_ogg_malloc(sizeof(*ctx->data)*nhv*nctx);
   ctx->nhv = nhv;
   ctx->nctx = nctx;

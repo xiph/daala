@@ -27,22 +27,22 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # include "internal.h"
 
 typedef ogg_int32_t od_coeff;
-#define OD_COEFF_BITS (32)
+# define OD_COEFF_BITS (32)
 
 /*This should translate directly to 3 or 4 instructions for a constant _b:
 #define OD_UNBIASED_RSHIFT(_a,_b) ((_a)+(((1<<(_b))-1)&-((_a)<0))>>(_b))*/
 /*This version relies on a smart compiler:*/
-#define OD_UNBIASED_RSHIFT(_a,_b) ((_a)/(1<<(_b)))
+# define OD_UNBIASED_RSHIFT(_a, _b) ((_a)/(1<<(_b)))
 
-#if 0
-# define OD_DCT_RSHIFT(_a,_b) OD_DIV_POW2_RE(_a,_b)
-#elif 1
-# define OD_DCT_RSHIFT(_a,_b) OD_UNBIASED_RSHIFT(_a,_b)
-#else
-# define OD_DCT_RSHIFT(_a,_b) ((_a)>>(_b))
-#endif
+# if 0
+#  define OD_DCT_RSHIFT(_a, _b) OD_DIV_POW2_RE(_a, _b)
+# elif 1
+#  define OD_DCT_RSHIFT(_a, _b) OD_UNBIASED_RSHIFT(_a, _b)
+# else
+#  define OD_DCT_RSHIFT(_a, _b) ((_a)>>(_b))
+# endif
 
-typedef void (*od_filter_func)(od_coeff _out[],const od_coeff _in[]);
+typedef void (*od_filter_func)(od_coeff _out[], const od_coeff _in[]);
 
 extern const od_filter_func OD_PRE_FILTER[OD_NBSIZES];
 extern const od_filter_func OD_POST_FILTER[OD_NBSIZES];
@@ -56,17 +56,17 @@ extern const int OD_FILTER_PARAMS4[4];
 extern const int OD_FILTER_PARAMS8[10];
 extern const int OD_FILTER_PARAMS16[22];
 
-void od_pre_filter4(od_coeff _y[4],const od_coeff _x[4]);
-void od_post_filter4(od_coeff _x[4],const od_coeff _y[4]);
-void od_pre_filter8(od_coeff _y[8],const od_coeff _x[8]);
-void od_post_filter8(od_coeff _x[8],const od_coeff _y[8]);
-void od_pre_filter16(od_coeff _y[16],const od_coeff _x[16]);
-void od_post_filter16(od_coeff _x[16],const od_coeff _y[16]);
+void od_pre_filter4(od_coeff _y[4], const od_coeff _x[4]);
+void od_post_filter4(od_coeff _x[4], const od_coeff _y[4]);
+void od_pre_filter8(od_coeff _y[8], const od_coeff _x[8]);
+void od_post_filter8(od_coeff _x[8], const od_coeff _y[8]);
+void od_pre_filter16(od_coeff _y[16], const od_coeff _x[16]);
+void od_post_filter16(od_coeff _x[16], const od_coeff _y[16]);
 
-#define OD_TOP_EDGE    (1<<3)
-#define OD_RIGHT_EDGE  (1<<2)
-#define OD_BOTTOM_EDGE (1<<1)
-#define OD_LEFT_EDGE   (1<<0)
+# define OD_TOP_EDGE    (1<<3)
+# define OD_RIGHT_EDGE  (1<<2)
+# define OD_BOTTOM_EDGE (1<<1)
+# define OD_LEFT_EDGE   (1<<0)
 
 void od_apply_prefilter(od_coeff *c, int w, int bx, int by, unsigned char l,
  const unsigned char *bsize, int bstride, int xdec, int ydec, int edge);

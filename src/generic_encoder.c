@@ -23,7 +23,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+# include "config.h"
 #endif
 
 #include <stdio.h>
@@ -39,8 +39,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
  *
  * @param [out] model model being initialized
  */
-void generic_model_init(generic_encoder *model)
-{
+void generic_model_init(generic_encoder *model) {
   int i;
   int j;
   model->increment = 64;
@@ -97,7 +96,7 @@ void generic_encode(od_ec_enc *enc, generic_encoder *model, int x,
     int special;
     /* Because of the rounding, there's only half the number of possibilities
        for xs=0. */
-    special = xs==0;
+    special = xs == 0;
     if (shift - special > 0) {
       od_ec_enc_bits(enc, x - (xs << shift) + (!special << (shift - 1)),
        shift - special);
@@ -107,5 +106,3 @@ void generic_encode(od_ec_enc *enc, generic_encoder *model, int x,
   OD_LOG((OD_LOG_ENTROPY_CODER, OD_LOG_DEBUG,
    "enc: %d %d %d %d %d %x", *ex_q16, x, shift, id, xs, enc->rng));
 }
-
-

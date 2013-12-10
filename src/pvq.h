@@ -26,18 +26,18 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # define _pvq_H (1)
 # include "internal.h"
 
-#include "filter.h"
-#include "pvq_code.h"
+# include "filter.h"
+# include "pvq_code.h"
 
-#define USE_PSEUDO_ZIGZAG (1)
+# define USE_PSEUDO_ZIGZAG (1)
 
 typedef unsigned char index_pair[2];
 
 typedef struct {
-  const index_pair * const dst_table;
+  const index_pair *const dst_table;
   int size;
   int nb_bands;
-  const int * const band_offsets;
+  const int *const band_offsets;
 } band_layout;
 
 extern const band_layout od_layout4;
@@ -47,7 +47,7 @@ extern const band_layout od_layout16;
 extern const ogg_uint16_t pred8_cdf[16];
 
 void od_bands_from_raster(const band_layout *layout, od_coeff *dst,
-  od_coeff *src, int stride);
+ od_coeff *src, int stride);
 void od_raster_from_bands(const band_layout *layout, od_coeff *dst,
  int stride, od_coeff *src);
 void od_band_pseudo_zigzag(od_coeff *dst,  int n, od_coeff *src, int stride,
@@ -55,8 +55,8 @@ void od_band_pseudo_zigzag(od_coeff *dst,  int n, od_coeff *src, int stride,
 void od_band_pseudo_dezigzag(od_coeff *dst,  int stride, od_coeff *src,
  int n, int interleave);
 
-int quant_pvq_theta(ogg_int32_t *x0,const ogg_int32_t *r0, ogg_int16_t *scale0,
-  int *y, int n, int q0, int *qg, int shift, int intra);
+int quant_pvq_theta(ogg_int32_t *x0, const ogg_int32_t *r0,
+ ogg_int16_t *scale0, int *y, int n, int q0, int *qg, int shift, int intra);
 
 int pvq_unquant_k(const ogg_int32_t *_r, int _n, int _qg, int _scale,
  int shift, int intra);
@@ -67,12 +67,13 @@ int quant_pvq(ogg_int32_t *_x, const ogg_int32_t *_r, ogg_int16_t *_scale,
 void dequant_pvq(ogg_int32_t *_x, const ogg_int32_t *_r, ogg_int16_t *_scale,
  int N, int _Q, int qg, int shift, int intra);
 
-int quant_scalar(ogg_int32_t *_x,const ogg_int32_t *_r,
-    ogg_int16_t *_scale,int *y,int N,int Q, ogg_int32_t *_adapt);
+int quant_scalar(ogg_int32_t *_x, const ogg_int32_t *_r,
+ ogg_int16_t *_scale, int *y, int N, int Q, ogg_int32_t *_adapt);
 
-int quant_pvq_noref(ogg_int32_t *_x,float gr,
-    ogg_int16_t *_scale,int *y,int N,int Q);
+int quant_pvq_noref(ogg_int32_t *_x, float gr,
+ ogg_int16_t *_scale, int *y, int N, int Q);
 
-int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *itheta, int *max_theta, int *vk);
+int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *itheta,
+ int *max_theta, int *vk);
 
 #endif

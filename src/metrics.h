@@ -26,7 +26,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #if !defined(_metrics_H)
 # define _metrics_H (1)
 
-#include "internal.h"
+# include "internal.h"
 
 void write_metrics(ogg_int64_t cur_time, ogg_int64_t *metrics);
 

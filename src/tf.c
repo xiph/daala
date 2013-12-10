@@ -23,7 +23,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+# include "config.h"
 #endif
 
 #include "tf.h"
@@ -38,7 +38,7 @@ void od_tf_up_h_lp(od_coeff *dst, int dstride,
  const od_coeff *src, int sstride, int dx, int n) {
   int x;
   int y;
-  for (y = 0; y <n; y++) {
+  for (y = 0; y < n; y++) {
     for (x = 0; x < n >> 1; x++) {
       od_coeff ll;
       od_coeff lh;
@@ -191,8 +191,8 @@ void od_tf_down_hv(od_coeff *dst, int dstride,
 }
 
 static void od_convert_block_up(od_coeff *dst, int dstride,
-    const od_coeff *src, int sstride, const unsigned char *bsize,
-    int bstride, int nx, int ny, int dest_size) {
+ const od_coeff *src, int sstride, const unsigned char *bsize,
+ int bstride, int nx, int ny, int dest_size) {
   int i;
   int j;
   int n;
@@ -201,7 +201,7 @@ static void od_convert_block_up(od_coeff *dst, int dstride,
   for (i = 0; i < n; i++) {
     for (j = 0; j < n; j++) scratch[i][j] = src[i*sstride + j];
   }
-  if (dest_size>1) {
+  if (dest_size > 1) {
     int sub;
     sub = 1 << (dest_size - 1);
     for (i = 0; i < 2; i++) {
@@ -261,14 +261,15 @@ void od_convert_intra_coeffs(od_coeff *(dst[4]), int dstrides[4],
  od_coeff *src, int sstride, int bx, int by,
  const unsigned char *bsize, int bstride, int has_ur) {
   /* Relative position of neighbors: up-left     up   "up-right"  left */
-  static const int offsets[4][2] = {{-1, -1}, {0, -1}, {1, -1}, {-1, 0}};
+  static const int offsets[4][2] =
+  { { -1, -1 }, { 0, -1 }, { 1, -1 }, { -1, 0 } };
   int csize;
   int n;
   csize = OD_BLOCK_SIZE4x4(bsize, bstride, bx, by);
 #if defined(OD_VALGRIND)
   for (n = 0; n < 4; n++) {
     int z;
-    for ( z = 0; z < (4 << csize); z++) {
+    for (z = 0; z < (4 << csize); z++) {
       VALGRIND_MAKE_MEM_UNDEFINED(dst[n] + z*dstrides[n],
        dstrides[n]*sizeof(*dst[n]));
     }
@@ -283,7 +284,7 @@ void od_convert_intra_coeffs(od_coeff *(dst[4]), int dstrides[4],
     else nx = bx + (offsets[n][0] << csize);
     ny = by + (offsets[n][1] << csize);
     nsize = OD_BLOCK_SIZE4x4(bsize, bstride, nx, ny);
-    if (nsize==csize) {
+    if (nsize == csize) {
       /* simply override the pointer and stride */
       dst[n] = src + 4*ny*sstride + 4*nx;
       dstrides[n] = sstride;

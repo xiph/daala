@@ -23,7 +23,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+# include "config.h"
 #endif
 
 #include <stddef.h>
@@ -225,10 +225,10 @@ struct od_mv_est_ctx {
 
 /*The subdivision level of a MV in the mesh, given its position (mod 4).*/
 static const int OD_MC_LEVEL[4][4] = {
-  {0, 4, 2, 4},
-  {4, 3, 4, 3},
-  {2, 4, 1, 4},
-  {4, 3, 4, 3}
+  { 0, 4, 2, 4 },
+  { 4, 3, 4, 3 },
+  { 2, 4, 1, 4 },
+  { 4, 3, 4, 3 }
 };
 
 /*Ancestor lists for a vertex.
@@ -284,16 +284,16 @@ static const od_offset OD_ANCESTORS4[8][9] = {
 
 /*The number of ancestors in each list in the grid pattern.*/
 static const int OD_NANCESTORS[4][4] = {
-  {0, 9, 2, 9},
-  {9, 5, 9, 5},
-  {2, 9, 0, 9},
-  {9, 5, 9, 5}
+  { 0, 9, 2, 9 },
+  { 9, 5, 9, 5 },
+  { 2, 9, 0, 9 },
+  { 9, 5, 9, 5 }
 };
 /*The lists for each vertex in the grid pattern.*/
 static const od_offset *OD_ANCESTORS[4][4] = {
-  { NULL,             OD_ANCESTORS4[0], OD_ANCESTORS2[0], OD_ANCESTORS4[1] },
+  {             NULL, OD_ANCESTORS4[0], OD_ANCESTORS2[0], OD_ANCESTORS4[1] },
   { OD_ANCESTORS4[2], OD_ANCESTORS3[0], OD_ANCESTORS4[3], OD_ANCESTORS3[1] },
-  { OD_ANCESTORS2[1], OD_ANCESTORS4[4], NULL            , OD_ANCESTORS4[5] },
+  { OD_ANCESTORS2[1], OD_ANCESTORS4[4],             NULL, OD_ANCESTORS4[5] },
   { OD_ANCESTORS4[6], OD_ANCESTORS3[2], OD_ANCESTORS4[7], OD_ANCESTORS3[3] }
 };
 
@@ -477,7 +477,7 @@ static const int OD_SITE_DY[13] = {
    radius during motion vector refinement.*/
 #undef OD_USE_LOGARITHMIC_REFINEMENT
 
-#if defined(OD_USE_SQUARE_SEARCH)||defined(OD_USE_LOGARITHMIC_REFINEMENT)
+#if defined(OD_USE_SQUARE_SEARCH) || defined(OD_USE_LOGARITHMIC_REFINEMENT)
 
 /*The number of sites to search of each boundary condition in the square
    pattern.
@@ -661,7 +661,7 @@ static const int OD_SEARCH_STATES[1][13] = {
   }*/
 
 /*The search state indicating we found a local minimum.*/
-#define OD_SEARCH_STATE_DONE (6)
+# define OD_SEARCH_STATE_DONE (6)
 
 /*The number of sites in the pattern to use for each state.*/
 static const int *const OD_SEARCH_NSITES[6] = {
@@ -741,10 +741,10 @@ static const int OD_MV_EST_RATE[256] = {
 static int od_mv_est_bits(int dx, int dy, int predx, int predy) {
   int pdx;
   int pdy;
-  pdx=OD_MINI(abs(dx - predx), 255);
-  pdy=OD_MINI(abs(dy - predy), 255);
-  dx=OD_MINI(abs(dx), 255);
-  dy=OD_MINI(abs(dy), 255);
+  pdx = OD_MINI(abs(dx - predx), 255);
+  pdy = OD_MINI(abs(dy - predy), 255);
+  dx = OD_MINI(abs(dx), 255);
+  dy = OD_MINI(abs(dy), 255);
   return 1 + OD_MINI(OD_MV_EST_RATE[dx] + OD_MV_EST_RATE[dy],
    OD_MV_EST_RATE[pdx] + OD_MV_EST_RATE[pdy]);
 }
@@ -773,7 +773,7 @@ static ogg_int32_t od_mv_est_bma_sad8(od_mv_est_ctx *est,
   dy = (pby << 1 >> iplane->ydec) + pmvy;
   ret = od_enc_sad8(est->enc, iplane->data + dy*iplane->ystride + dx,
    iplane->ystride << 1, 2, 0, pbx, pby, log_mvb_sz + 2);
-  if(est->flags & OD_MC_USE_CHROMA) {
+  if (est->flags & OD_MC_USE_CHROMA) {
     int pli;
     for (pli = 1; pli < state->input.nplanes; pli++) {
       iplane = state->ref_imgs[refi].planes + pli;
@@ -989,7 +989,7 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
   mvxmin = OD_MAXI(bx - (mvb_sz << 2) -32, -16) - (bx - (mvb_sz << 2));
   mvxmax = OD_MINI(bx + (mvb_sz << 2) + 32, state->frame_width + 16)
    - (bx + (mvb_sz << 2)) - 1;
-  mvymin = OD_MAXI(by - (mvb_sz << 2) - 32, - 16) - (by - (mvb_sz << 2));
+  mvymin = OD_MAXI(by - (mvb_sz << 2) - 32, -16) - (by - (mvb_sz << 2));
   mvymax = OD_MINI(by + (mvb_sz << 2) + 32, state->frame_height + 16)
    - (by + (mvb_sz << 2)) - 1;
   OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
@@ -1484,8 +1484,8 @@ static const od_mv_err_node OD_ERRDOM4[4] = {
           |\|/|
           4-3-4*/
 static const od_mv_err_node OD_ERRDOM3[9] = {
-  { -1, -2, 0 }, {  0, -2, 0 }, { -2, -1, 0}, {  1, -1, 0 },
-  { -2,  0, 0 }, {  1,  0, 0 }, { -1,  1, 0}, {  0,  1, 0 },
+  { -1, -2, 0 }, {  0, -2, 0 }, { -2, -1, 0 }, {  1, -1, 0 },
+  { -2,  0, 0 }, {  1,  0, 0 }, { -1,  1, 0 }, {  0,  1, 0 },
   { -1, -1, 1 }
 };
 
@@ -1566,7 +1566,7 @@ static int od_mv_dddr_cmp(ogg_int32_t dd1, int dr1,
   if (dr1 == 0) {
     return dr2 == 0 ? OD_SIGNI(dd2 - dd1) : (OD_SIGNI(dd1) << 1) - 1;
   }
-  else if(dr2 == 0) return (OD_SIGNI(-dd2) << 1) + 1;
+  else if (dr2 == 0) return (OD_SIGNI(-dd2) << 1) + 1;
   diff = dd2*(ogg_int64_t)dr1 - dd1*(ogg_int64_t)dr2;
   return OD_SIGNI(diff);
 }
@@ -1606,7 +1606,7 @@ static void od_mv_dec_heapify(od_mv_est_ctx *est) {
       od_mv_dec_heap_swap(heap, p, q);
       p = q;
     }
-    while(p < l);
+    while (p < l);
   }
 }
 
@@ -1624,7 +1624,7 @@ static void od_mv_dec_heap_down(od_mv_est_ctx *est, int heapi) {
     int q;
     q = (p << 1) + 1;
     if (q < r && od_mv_dec_cmp(heap[q], heap[q + 1]) >= 0) q++;
-    if (od_mv_dec_cmp(heap[p], heap[q]) <= 0)break;
+    if (od_mv_dec_cmp(heap[p], heap[q]) <= 0) break;
     od_mv_dec_heap_swap(heap, p, q);
     p = q;
   }
@@ -1795,7 +1795,7 @@ static void od_mv_est_calc_sads(od_mv_est_ctx *est, int ref) {
   nvmvbs >>= 1;
   if (est->level_max >= 1) {
     if (est->level_min < 3) {
-      for(vy = 0; vy < nvmvbs; vy++) {
+      for (vy = 0; vy < nvmvbs; vy++) {
         od_mv_node *mv_row;
         mv_row = est->mvs[vy << 1];
         for (vx = 0; vx < nhmvbs; vx++) {
@@ -1804,9 +1804,9 @@ static void od_mv_est_calc_sads(od_mv_est_ctx *est, int ref) {
             for (s = 0; s < 4; s++) {
               est->sad_cache[1][vy][vx][s] =
                (ogg_uint16_t)od_mv_est_sad8(est,
-                ref, vx << 1, vy << 1, oc, s, 1);
+               ref, vx << 1, vy << 1, oc, s, 1);
             }
-            if(est->level_max <= 2) {
+            if (est->level_max <= 2) {
               mv_row[vx << 1].oc = oc;
               mv_row[vx << 1].s = 3;
               mv_row[vx << 1].log_mvb_sz = 1;
@@ -2513,7 +2513,7 @@ static int od_mv_dp_get_rate_change(od_state *state, od_mv_dp_node *dp,
   nvmvbs = (state->nvmbs + 1) << 2;
   /*Compute the new rate for the current MV.*/
   mv = dp->mv;
-  if (mv->vx < 2 || mv->vx > nhmvbs - 2 || mv->vy < 2 || mv->vy>nvmvbs - 2) {
+  if (mv->vx < 2 || mv->vx > nhmvbs - 2 || mv->vy < 2 || mv->vy > nvmvbs - 2) {
     *cur_mv_rate = dr = 0;
   }
   else {
@@ -2553,9 +2553,9 @@ static int od_mv_dp_get_rate_change(od_state *state, od_mv_dp_node *dp,
 }
 
 #if defined(OD_DUMP_IMAGES) && defined(OD_ANIMATE)
-static const unsigned char OD_YCbCr_BEDGE[3] = {41, 240, 110};
-static const unsigned char OD_YCbCr_VEDGE[3] = {145, 54, 34};
-static const unsigned char OD_YCbCr_VBEDGE[3] = {170, 166, 16};
+static const unsigned char OD_YCbCr_BEDGE[3] = { 41, 240, 110 };
+static const unsigned char OD_YCbCr_VEDGE[3] = { 145, 54, 34 };
+static const unsigned char OD_YCbCr_VBEDGE[3] = { 170, 166, 16 };
 
 static void od_mv_dp_animate_state(od_state *state,
  int ref, od_mv_dp_node *dp, int has_gap) {
@@ -2614,7 +2614,7 @@ static void od_mv_dp_animate_state(od_state *state,
           if (!has_gap || dp + 1 != dp0) mvb_sz >>= 1;
           if (!state->mv_grid[d0vy][d0vx + mvb_sz].valid) {
             if (d0vy >= mvb_sz
-             && state->mv_grid[d0vy - mvb_sz][d0vx + mvb_sz ].valid) {
+             && state->mv_grid[d0vy - mvb_sz][d0vx + mvb_sz].valid) {
               od_img_draw_line(&state->vis_img,
                x0 + (mvb_sz << 3), y0 - (mvb_sz << 3), x0 + (mvb_sz << 3), y1,
                ecolor);
@@ -3344,13 +3344,14 @@ static ogg_int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
         }
         OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
          "State: %2i  Best P.State: %i%c", sitei,
-         best_si%dp_node[0].nstates, best_si>dp_node[0].nstates ? 'V' : 'B'));
+         best_si%dp_node[0].nstates,
+         best_si > dp_node[0].nstates ? 'V' : 'B'));
         cstate->prevsi = best_si;
         cstate->dr = best_dr;
         cstate->dd = best_dd;
         memcpy(cstate->block_sads, block_sads[best_si],
          sizeof(**block_sads)*dp_node[1].nblocks);
-        if (best_si<dp_node[0].nstates) {
+        if (best_si < dp_node[0].nstates) {
           cstate->mv_rate = cur_mv_rates[best_si];
           memcpy(cstate->pred_mv_rates, pred_mv_rates[best_si],
            sizeof(**pred_mv_rates)*dp_node[1].npredicted);
@@ -3361,7 +3362,7 @@ static ogg_int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
            pred_mv_rates[best_si - dp_node[0].nstates],
            sizeof(**pred_mv_rates)*dp_node[1].npredicted);
         }
-        if (sitei >= nsites)break;
+        if (sitei >= nsites) break;
         site = pattern[b][sitei];
       }
       dp_node[1].nstates = nsites + 1;
@@ -3662,7 +3663,7 @@ static void od_mv_dp_prev_col_block_setup(od_mv_est_ctx *est,
   if (level >= 3) {
     if (vx >= mvb_sz) {
       dp->blocks[nblocks++] = est->mvs[vy - mvb_sz] + vx - mvb_sz;
-      if (prev_log_mvb_sz>log_mvb_sz
+      if (prev_log_mvb_sz > log_mvb_sz
        && !state->mv_grid[vy - mvb_sz][vx - mvb_sz].valid) {
         dp->blocks[nblocks++] = est->mvs[vy - mvb_sz] + vx - (mvb_sz << 1);
       }
@@ -3844,9 +3845,9 @@ static void od_mv_dp_install_col_state(od_mv_dp_node *dp, int prevsi) {
      like nextsi pointers.
     We _can_ update the edge type flags here, however, and it is much more
      convenient to do so while going backwards than forwards.*/
-  nextsi=-1;
+  nextsi = -1;
   dp0 = dp;
-  for(si = prevsi; si >= 0; si = prevsi) {
+  for (si = prevsi; si >= 0; si = prevsi) {
     dp--;
     OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
      "Node %i, prevsi: %i nextsi: %i", (int)(dp0 - dp), prevsi, nextsi));
@@ -3967,7 +3968,7 @@ static ogg_int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
     dp_node[0].nstates = nsites + 1;
     has_gap = 0;
     pmvg = mvg;
-    while(vy < nvmvbs) {
+    while (vy < nvmvbs) {
       /*Find the next available MV to advance to.*/
       if (level & 1) {
         if (!grid[vy + mvb_sz][vx].valid) {
@@ -4029,7 +4030,7 @@ static ogg_int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
             This automatically loads the required bits of the trellis path into
              the grid, like the previous MV.*/
           cstate->dr = od_mv_dp_get_rate_change(state, dp_node + 1,
-            cur_mv_rates + si, pred_mv_rates[si], si, mv_res);
+           cur_mv_rates + si, pred_mv_rates[si], si, mv_res);
           /*Test against the previous state with a B edge.*/
           if (est->flags & OD_MC_USEB) {
             pmvg->down = 0;
@@ -4496,7 +4497,7 @@ static void od_mv_dp_last_col_block_setup(od_state *state,
           od_mv_dp_setup_block(state, dp->blocks + nblocks++,
            vx + mvb_off, vy, log_mvb_off);
         }
-        if(!state->mv_grid[vy + mvb_off][vx].valid) {
+        if (!state->mv_grid[vy + mvb_off][vx].valid) {
           od_mv_dp_setup_block(state, dp->blocks + nblocks++,
            vx, vy + mvb_off, log_mvb_off);
         }
@@ -4634,7 +4635,7 @@ static void od_mv_est_refine_col(od_mv_est_ctx *est, int ref, int vx,
       mvg = grid[vy] + vx;
       curx = mvg->mv[0];
       cury = mvg->mv[1];
-      if ((level & 1) || vy < 2 || vy > nvmvbs - 2|| labels_only) {
+      if ((level & 1) || vy < 2 || vy > nvmvbs - 2 || labels_only) {
         pred_node = NULL;
       }
       else pred_node = od_mv_dp_get_pred_node(dp_node, vy - mvb_sz);
@@ -4804,16 +4805,18 @@ static void od_mv_est_refine_col(od_mv_est_ctx *est, int ref, int vx,
     }
     /*There are no blocks to accumulate SAD after this one, so pick the best
        state so far.*/
-    else for (si = 0; si < dp_node[0].nstates; si++) {
-      pstate = dp_node[0].states + si;
-      cost = pstate->rate*est->lambda + (pstate->sad << OD_LAMBDA_SCALE);
-      if (best_si < 0 || cost < best_cost) {
-        best_si = si;
-        best_cost = cost;
+    else {
+      for (si = 0; si < dp_node[0].nstates; si++) {
+        pstate = dp_node[0].states + si;
+        cost = pstate->rate*est->lambda + (pstate->sad << OD_LAMBDA_SCALE);
+        if (best_si < 0 || cost < best_cost) {
+          best_si = si;
+          best_cost = cost;
+        }
       }
     }
     OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG, "Best P.State: %i%c",
-     best_si%dp_node[0].nstates, best_si>dp_node[0].nstates ? 'V' : 'B'));
+     best_si%dp_node[0].nstates, best_si > dp_node[0].nstates ? 'V' : 'B'));
     /*Update the MV state along the optimal path.*/
     for (;;) {
       if (best_si >= dp_node[0].nstates) {

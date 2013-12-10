@@ -23,7 +23,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+# include "config.h"
 #endif
 
 #include <stddef.h>
@@ -80,15 +80,15 @@ int daala_decode_ctl(daala_dec_ctx *dec, int req, void *buf, size_t buf_sz) {
   (void)dec;
   (void)buf;
   (void)buf_sz;
-  switch(req) {
+  switch (req) {
     default: return OD_EIMPL;
   }
 }
 
 static void od_decode_mv(daala_dec_ctx *dec, od_mv_grid_pt *mvg, int vx,
  int vy, int level, int mv_res, int width, int height) {
-  static const int ex[5] = {628, 1382, 1879, 2119, 2102};
-  static const int ey[5] = {230, 525, 807, 1076, 1332};
+  static const int ex[5] = { 628, 1382, 1879, 2119, 2102 };
+  static const int ey[5] = { 230, 525, 807, 1076, 1332 };
   int pred[2];
   int ox;
   int oy;
@@ -219,7 +219,7 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
         od_intra_pred_update(ctx->mode_p0, OD_INTRA_NMODES, mode,
          m_l, m_ul, m_u);
       }
-      else{
+      else {
         int mode;
         mode = modes[(by << ydec)*(frame_width >> 2) + (bx << xdec)];
         od_chroma_pred(pred, d, l, w, bx, by, ln, xdec, ydec,
@@ -227,12 +227,12 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
          OD_INTRA_CHROMA_WEIGHTS_Q8[mode]);
       }
     }
-    else{
+    else {
       int nsize;
       for (zzi = 0; zzi < n2; zzi++) pred[zzi] = 0;
       nsize = ln;
       /*444/420 only right now.*/
-      OD_ASSERT(xdec==ydec);
+      OD_ASSERT(xdec == ydec);
       if (bx > 0) {
         int noff;
         nsize = OD_BLOCK_SIZE4x4(dec->state.bsize, dec->state.bstride,
@@ -358,7 +358,7 @@ static void od_32x32_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
 typedef void (*od_dec_func)(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
  int pli, int bx, int by, int has_ur);
 
-const od_dec_func OD_DECODE_BLOCK[OD_NBSIZES + 2]={
+const od_dec_func OD_DECODE_BLOCK[OD_NBSIZES + 2] = {
   od_single_band_decode,
   od_single_band_decode,
   od_single_band_decode,
@@ -433,7 +433,7 @@ static void od_dec_mv_unpack(daala_dec_ctx *dec) {
   for (vy = 2; vy <= nvmvbs; vy += 4) {
     for (vx = 2; vx <= nhmvbs; vx += 4) {
       int p_invalid;
-      p_invalid = od_mv_level1_prob(grid,vx,vy);
+      p_invalid = od_mv_level1_prob(grid, vx, vy);
       mvp = &grid[vy][vx];
       mvp->valid = od_ec_decode_bool_q15(&dec->ec, p_invalid);
       if (mvp->valid) {
@@ -495,8 +495,8 @@ static void od_decode_block_sizes(od_dec_ctx *dec) {
   od_state_init_border_as_32x32(&dec->state);
   nhsb = dec->state.nhsb;
   nvsb = dec->state.nvsb;
-  for(i = 0; i < nvsb; i++) {
-    for(j = 0; j < nhsb; j++) {
+  for (i = 0; i < nvsb; i++) {
+    for (j = 0; j < nhsb; j++) {
       od_block_size_decode(&dec->ec,
        &dec->state.bsize[4*dec->state.bstride*i + 4*j], dec->state.bstride);
     }
@@ -539,7 +539,7 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
   nhsb = dec->state.nhsb;
   nvsb = dec->state.nvsb;
   od_decode_block_sizes(dec);
-  if(!mbctx.is_keyframe){
+  if (!mbctx.is_keyframe) {
     od_dec_mv_unpack(dec);
     od_state_mc_predict(&dec->state, OD_FRAME_PREV);
   }
@@ -583,8 +583,9 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
           int ystride;
           mdata = dec->state.io_imgs[OD_FRAME_REC].planes[pli].data;
           ystride = dec->state.io_imgs[OD_FRAME_REC].planes[pli].ystride;
-          for (y=0;y<h;y++) {
-            for (x=0;x<w;x++) mctmp[pli][y*w+x]=mdata[ystride*y+x]-128;
+          for (y = 0; y < h; y++) {
+            for (x = 0; x < w; x++)
+              mctmp[pli][y*w + x] = mdata[ystride*y + x] - 128;
           }
         }
         /*Apply the prefilter across the entire image.*/
@@ -630,7 +631,7 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
             lbuf[pli] = ltmp[pli] = _ogg_calloc(w*h, sizeof(*ltmp));
           }
         }
-        else{
+        else {
           ltmp[pli] = NULL;
           lbuf[pli] = ctmp[pli];
         }
@@ -667,17 +668,18 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
              OD_DIVU_SMALL(mbctx.k_total << 8, mbctx.nk);
             mbctx.adapt[OD_ADAPT_SUM_EX_Q8] =
              OD_DIVU_SMALL(mbctx.sum_ex_total_q8, mbctx.nk);
-          } else {
+          }
+          else {
             mbctx.adapt[OD_ADAPT_K_Q8] = OD_ADAPT_NO_VALUE;
             mbctx.adapt[OD_ADAPT_SUM_EX_Q8] = OD_ADAPT_NO_VALUE;
           }
-          if (mbctx.ncount > 0)
-          {
+          if (mbctx.ncount > 0) {
             mbctx.adapt[OD_ADAPT_COUNT_Q8] =
              OD_DIVU_SMALL(mbctx.count_total_q8, mbctx.ncount);
             mbctx.adapt[OD_ADAPT_COUNT_EX_Q8] =
              OD_DIVU_SMALL(mbctx.count_ex_total_q8, mbctx.ncount);
-          } else {
+          }
+          else {
             mbctx.adapt[OD_ADAPT_COUNT_Q8] = OD_ADAPT_NO_VALUE;
             mbctx.adapt[OD_ADAPT_COUNT_EX_Q8] = OD_ADAPT_NO_VALUE;
           }
@@ -706,9 +708,9 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
         int ystride;
         data = dec->state.io_imgs[OD_FRAME_REC].planes[pli].data;
         ystride = dec->state.io_imgs[OD_FRAME_REC].planes[pli].ystride;
-        for (y=0;y<h;y++) {
-          for (x=0;x<w;x++) {
-            data[ystride*y+x]=OD_CLAMP255(ctmp[pli][y*w+x]+128);
+        for (y = 0; y < h; y++) {
+          for (x = 0; x < w; x++) {
+            data[ystride*y + x] = OD_CLAMP255(ctmp[pli][y*w + x] + 128);
           }
         }
       }

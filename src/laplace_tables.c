@@ -1,7 +1,7 @@
 /* This file is auto-generated using "gen_laplace_tables 128 7" */
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+# include "config.h"
 #endif
 
 #include "pvq_code.h"

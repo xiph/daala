@@ -23,7 +23,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+# include "config.h"
 #endif
 
 #include <stddef.h>
@@ -251,8 +251,8 @@ void od_state_upsample8(od_state *state, int refi) {
         unsigned char *buf;
         buf = state->ref_line_buf[y & 3];
         for (x = -xpad; x < -1; x++) {
-          *(buf + (x << 1)) =src[0];
-          *(buf + (x << 1| 1)) =src[0];
+          *(buf + (x << 1)) = src[0];
+          *(buf + (x << 1| 1)) = src[0];
         }
         *(buf - 2) = src[0];
         *(buf - 1) = OD_CLAMP255((132*src[0] - 4*src[1] + 64) >> 7);
@@ -1162,19 +1162,19 @@ void od_state_init_border_as_32x32(od_state *state) {
   nvsb = state->nvsb;
   bsize = state->bsize;
   bstride = state->bstride;
-  for(i = -4; i < (nhsb+1)*4; i++) {
-    for(j = -4; j < 0; j++) {
+  for (i = -4; i < (nhsb+1)*4; i++) {
+    for (j = -4; j < 0; j++) {
       bsize[(j*bstride) + i] = 3;
     }
-    for(j = nvsb*4; j < (nvsb+1)*4; j++) {
+    for (j = nvsb*4; j < (nvsb+1)*4; j++) {
       bsize[(j*bstride) + i] = 3;
     }
   }
-  for(j = -4; j < (nvsb+1)*4; j++) {
-    for(i = -4; i < 0; i++) {
+  for (j = -4; j < (nvsb+1)*4; j++) {
+    for (i = -4; i < 0; i++) {
       bsize[(j*bstride) + i] = 3;
     }
-    for(i = nhsb*4; i < (nhsb+1)*4; i++) {
+    for (i = nhsb*4; i < (nhsb+1)*4; i++) {
       bsize[(j*bstride) + i] = 3;
     }
   }

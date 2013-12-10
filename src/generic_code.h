@@ -23,12 +23,12 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #if !defined(_generic_code_H)
-#define _generic_code_H
+# define _generic_code_H
 
-#include "entenc.h"
-#include "entdec.h"
+# include "entenc.h"
+# include "entdec.h"
 
-#define GENERIC_TABLES 12
+# define GENERIC_TABLES 12
 
 typedef struct {
   /** cdf for multiple expectations of x */

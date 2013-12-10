@@ -31,8 +31,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 /*Parameters used for block coding adaptation.
   The first OD_NSB_ADAPT_CTXS values are the adaptation speeds,
    second OD_NSB_ADAPT_CTXS values are the init values (half the average).*/
-static const ogg_int32_t OD_SB_ADAPT_PARAMS[OD_NSB_ADAPT_CTXS*2] =
- {2, 2, 1, 1, 2031, 216, 104, 128};
+static const ogg_int32_t OD_SB_ADAPT_PARAMS[OD_NSB_ADAPT_CTXS*2] = {
+ 2, 2, 1, 1, 2031, 216, 104, 128
+};
 # define OD_ADAPT_K_Q8        0
 # define OD_ADAPT_SUM_EX_Q8   1
 # define OD_ADAPT_COUNT_Q8    2

@@ -23,7 +23,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+# include "config.h"
 #endif
 
 #include "generic_code.h"
@@ -61,14 +61,14 @@ int log_ex(int ex_q16) {
  * @param [in]     integration integration period of ExQ16 (leaky average over
  * 1<<integration samples)
  */
-void generic_model_update(generic_encoder *model,int *ex_q16,int x,int xs,
- int id,int integration) {
+void generic_model_update(generic_encoder *model, int *ex_q16, int x, int xs,
+ int id, int integration) {
   int i;
   int xenc;
   ogg_uint16_t *cdf;
-  cdf=model->cdf[id];
+  cdf = model->cdf[id];
   /* Renormalize if we cannot add increment */
-  if (cdf[15] + model->increment>32767) {
+  if (cdf[15] + model->increment > 32767) {
     for (i = 0; i < 16; i++) {
       /* Second term ensures that the pdf is non-null */
       cdf[i] = (cdf[i] >> 1) + i + 1;

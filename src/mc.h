@@ -35,7 +35,7 @@ typedef struct od_mv_grid_pt od_mv_grid_pt;
 # define OD_MC_INTERP_BLEND (0)
 
 # define od_mc_interp_type(a, b, c, d) \
- ((a) | ((b) << 1) | ((c) << 2) | ((d) << 3))
+  ((a) | ((b) << 1) | ((c) << 2) | ((d) << 3))
 
 # define OD_MC_INTERP_BBBB (0)
 # define OD_MC_INTERP_VBBB (1)
@@ -146,7 +146,7 @@ typedef struct od_mv_grid_pt od_mv_grid_pt;
    unnecessary.*/
 struct od_mv_grid_pt {
   int mv[2]; /*  This is x,y vector in 1/8th's of pixesls  */
-  unsigned valid:1; /*  says if the above motion vector is valid or not  */ 
+  unsigned valid:1; /*  says if the above motion vector is valid or not  */
   unsigned right:1;
   unsigned down:1;
 };

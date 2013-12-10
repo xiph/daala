@@ -23,7 +23,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+# include "config.h"
 #endif
 
 #include <stdio.h>
@@ -160,7 +160,7 @@ void od_mc_predict1imv8_c(unsigned char *dst, int dystride,
   }
   dst -= dystride*yblk_sz;
   for (j = 0; j < yblk_sz; j++) {
-    for ( i = 0; i < xblk_sz; i++) {
+    for (i = 0; i < xblk_sz; i++) {
       OD_LOG_PARTIAL((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG,
        "%2X ", *(dst + i + j*dystride)));
     }
@@ -306,12 +306,12 @@ void od_mc_blend_full8_c(unsigned char *dst, int dystride,
 static void od_mc_blend_full8(od_state *state, unsigned char *dst,
  int dystride, const unsigned char *src[4], int log_xblk_sz, int log_yblk_sz) {
   (*state->opt_vtbl.mc_blend_full8)(dst, dystride, src,
-    log_xblk_sz, log_yblk_sz);
+   log_xblk_sz, log_yblk_sz);
 }
 
 /* Pulled aut of mcenc so it can be used in decoder as well. */
 /* maybe call od_mv */
-void od_state_mvs_clear(od_state *state){
+void od_state_mvs_clear(od_state *state) {
   int vx;
   int vy;
   int nhmvbs;
@@ -441,7 +441,7 @@ static void od_mc_blend_multi8(unsigned char *dst, int dystride,
     o0 += xblk_sz << 1;
     dst0 += dystride << 1;
   }
-  for(; j < yblk_sz; j += 2) {
+  for (; j < yblk_sz; j += 2) {
     o = o0;
     dst = dst0;
     /*Lower-left quadrant.*/
@@ -650,7 +650,7 @@ static void od_mc_blend_multi8(unsigned char *dst, int dystride,
        + src_ll[1][j + 1][i] + src_ll[1][j + 1][i + 1]) << (log_blk_sz2 - 2);
       dst[i2] = OD_CLAMP255(
        (((src[1] + o)[i2] << log_blk_sz2) + a - e + round) >> log_blk_sz2);
-      dst[i2 + 1]=OD_CLAMP255(
+      dst[i2 + 1] = OD_CLAMP255(
        (((src[1] + o)[i2 + 1] << log_blk_sz2) + b - f + round) >> log_blk_sz2);
       (dst + dystride)[i2] = OD_CLAMP255(
        (((src[1] + o + xblk_sz)[i2] << log_blk_sz2) + c - g + round) >>
@@ -710,7 +710,7 @@ static void od_mc_blend_multi8(unsigned char *dst, int dystride,
        log_blk_sz2);
     }
     /*Lower-right quadrant.*/
-    for(; i < xblk_sz_2 - 1; i++) {
+    for (; i < xblk_sz_2 - 1; i++) {
       i2 = i << 1;
       a = dst_ll[j][i] << 2;
       b = (dst_ll[j][i] + dst_ll[j][i + 1]) << 1;
@@ -724,7 +724,7 @@ static void od_mc_blend_multi8(unsigned char *dst, int dystride,
        + src_ll[2][j + 1][i] + src_ll[2][j + 1][i + 1]) << (log_blk_sz2 - 2);
       dst[i2] = OD_CLAMP255(
        (((src[2] + o)[i2] << log_blk_sz2) + a - e + round) >> log_blk_sz2);
-      dst[i2+1]=OD_CLAMP255(
+      dst[i2+1] = OD_CLAMP255(
        (((src[2] + o)[i2 + 1] << log_blk_sz2) + b - f + round) >> log_blk_sz2);
       (dst + dystride)[i2] = OD_CLAMP255(
        (((src[2] + o + xblk_sz)[i2] << log_blk_sz2) + c - g + round) >>
@@ -747,7 +747,7 @@ static void od_mc_blend_multi8(unsigned char *dst, int dystride,
      - (src_ll[2][j][i - 1] + src_ll[2][j + 1][i - 1])) << (log_blk_sz2 - 2);
     dst[i2] = OD_CLAMP255(
      (((src[2] + o)[i2] << log_blk_sz2) + a - e + round) >> log_blk_sz2);
-    dst[i2 + 1]=OD_CLAMP255(
+    dst[i2 + 1] = OD_CLAMP255(
      (((src[2] + o)[i2 + 1] << log_blk_sz2) + b - f + round) >> log_blk_sz2);
     (dst + dystride)[i2] = OD_CLAMP255(
      (((src[2] + o + xblk_sz)[i2] << log_blk_sz2) + c - g + round) >>
@@ -773,7 +773,7 @@ static void od_mc_blend_multi8(unsigned char *dst, int dystride,
      - (src_ll[3][j - 1][i] + src_ll[3][j - 1][i + 1])) << (log_blk_sz2 - 2);
     dst[i2] = OD_CLAMP255(
      (((src[3] + o)[i2] << log_blk_sz2) + a - e + round) >> log_blk_sz2);
-    dst[i2 + 1]=OD_CLAMP255(
+    dst[i2 + 1] = OD_CLAMP255(
      (((src[3] + o)[i2 + 1] << log_blk_sz2) + b - f + round) >> log_blk_sz2);
     (dst + dystride)[i2] = OD_CLAMP255(
      (((src[3] + o + xblk_sz)[i2] << log_blk_sz2) + c - g + round) >>
@@ -797,12 +797,12 @@ static void od_mc_blend_multi8(unsigned char *dst, int dystride,
      - (src_ll[2][j - 1][i] + src_ll[2][j - 1][i + 1])) << (log_blk_sz2 - 2);
     dst[i2] = OD_CLAMP255(
      (((src[2] + o)[i2] << log_blk_sz2) + a - e + round) >> log_blk_sz2);
-    dst[i2+1]=OD_CLAMP255(
+    dst[i2+1] = OD_CLAMP255(
      (((src[2] + o)[i2 + 1] << log_blk_sz2) + b - f + round) >> log_blk_sz2);
-    (dst + dystride)[i2]=OD_CLAMP255(
+    (dst + dystride)[i2] = OD_CLAMP255(
      (((src[2] + o + xblk_sz)[i2] << log_blk_sz2) + c - g + round) >>
      log_blk_sz2);
-    (dst + dystride)[i2 + 1]=OD_CLAMP255(
+    (dst + dystride)[i2 + 1] = OD_CLAMP255(
      (((src[2] + o + xblk_sz)[i2 + 1] << log_blk_sz2) + d - h + round) >>
      log_blk_sz2);
   }
@@ -820,11 +820,11 @@ static void od_mc_blend_multi8(unsigned char *dst, int dystride,
    + src_ll[2][j - 1][i - 1]) << (log_blk_sz2 - 2);
   dst[i2] = OD_CLAMP255(
    (((src[2] + o)[i2] << log_blk_sz2) + a - e + round) >> log_blk_sz2);
-  dst[i2+1]=OD_CLAMP255(
+  dst[i2+1] = OD_CLAMP255(
    (((src[2] + o)[i2 + 1] << log_blk_sz2) + b - f + round) >> log_blk_sz2);
-  (dst + dystride)[i2]=OD_CLAMP255(
+  (dst + dystride)[i2] = OD_CLAMP255(
    (((src[2] + o + xblk_sz)[i2]<<log_blk_sz2) + c - g + round) >> log_blk_sz2);
-  (dst + dystride)[i2 + 1]=OD_CLAMP255(
+  (dst + dystride)[i2 + 1] = OD_CLAMP255(
    (((src[2] + o + xblk_sz)[i2 + 1] << log_blk_sz2) + d - h + round) >>
    log_blk_sz2);
 }
@@ -1433,7 +1433,8 @@ static const unsigned char OD_MC_SIDXS_48[3][4][32] = {
   }
 };
 
-/*The MV from which to use the high-frequency coefficients for an 8x2 LL band.*/
+/*The MV from which to use the high-frequency coefficients for an 8x2 LL
+  band.*/
 static const unsigned char OD_MC_SIDXS_82[3][4][16] = {
   {
     {
@@ -1575,7 +1576,8 @@ static const unsigned char OD_MC_SIDXS_82[3][4][16] = {
   }
 };
 
-/*The MV from which to use the high-frequency coefficients for an 8x4 LL band.*/
+/*The MV from which to use the high-frequency coefficients for an 8x4 LL
+  band.*/
 static const unsigned char OD_MC_SIDXS_84[3][4][32] = {
   {
     {
@@ -1717,7 +1719,8 @@ static const unsigned char OD_MC_SIDXS_84[3][4][32] = {
   }
 };
 
-/*The MV from which to use the high-frequency coefficients for an 8x8 LL band.*/
+/*The MV from which to use the high-frequency coefficients for an 8x8 LL
+  band.*/
 static const unsigned char OD_MC_SIDXS_88[3][4][64] = {
   {
     {
@@ -2167,7 +2170,7 @@ static void od_mc_blend_multi_split8(unsigned char *dst, int dystride,
     }
     p += xblk_sz;
     q += xblk_sz;
-    for (j = 1; j< yblk_sz_2; j++) {
+    for (j = 1; j < yblk_sz_2; j++) {
       j2 = j << 1 & 3;
       lh[j2][0] = (p[0] + q[0]) << 2;
       for (i = 1; i < xblk_sz_2; i++) {
@@ -2205,9 +2208,9 @@ static void od_mc_blend_multi_split8(unsigned char *dst, int dystride,
   xblk_sz_4 = xblk_sz >> 2;
   yblk_sz_4 = yblk_sz >> 2;
   o = 0;
-  for(j = 0; j < yblk_sz_4; j++) {
+  for (j = 0; j < yblk_sz_4; j++) {
     /*Upper-left quadrant.*/
-    for(i = 0; i < xblk_sz_4; i++) {
+    for (i = 0; i < xblk_sz_4; i++) {
       i2 = i << 1;
       a = dst_ll[j][i] << 2;
       b = (dst_ll[j][i] +dst_ll[j][i + 1]) << 1;
@@ -2222,13 +2225,13 @@ static void od_mc_blend_multi_split8(unsigned char *dst, int dystride,
       dst[i2] = OD_CLAMP255(
        ((((src[0] + o)[i2] + (drc[0] + o)[i2]) << (log_blk_sz2 - 1))
        + a - e + round) >> log_blk_sz2);
-      dst[i2+1]=OD_CLAMP255(
+      dst[i2+1] = OD_CLAMP255(
        ((((src[0] + o)[i2 + 1] + (drc[0] + o)[i2 + 1]) << (log_blk_sz2 - 1))
        + b - f + round) >> log_blk_sz2);
       (dst + dystride)[i2] = OD_CLAMP255(((((src[0] + o + xblk_sz)[i2]
        + (drc[0] + o + xblk_sz)[i2]) << (log_blk_sz2 - 1))
        + c - g + round) >> log_blk_sz2);
-      (dst + dystride)[i2 + 1]=OD_CLAMP255(((((src[0] + o + xblk_sz)[i2 + 1]
+      (dst + dystride)[i2 + 1] = OD_CLAMP255(((((src[0] + o + xblk_sz)[i2 + 1]
        + (drc[0] + o + xblk_sz)[i2 + 1]) << (log_blk_sz2 - 1))
        + d - h + round) >> log_blk_sz2);
     }
@@ -2245,7 +2248,7 @@ static void od_mc_blend_multi_split8(unsigned char *dst, int dystride,
       g = (src_ll[1][j][i] + src_ll[1][j + 1][i]) << (log_blk_sz2 - 1);
       h = (src_ll[1][j][i] + src_ll[1][j][i + 1]
        + src_ll[1][j + 1][i] + src_ll[1][j + 1][i + 1]) << (log_blk_sz2 - 2);
-      dst[i2]=OD_CLAMP255(
+      dst[i2] = OD_CLAMP255(
        ((((src[1] + o)[i2] + (drc[1] + o)[i2]) << (log_blk_sz2 - 1))
        + a - e + round) >> log_blk_sz2);
       dst[i2 + 1] = OD_CLAMP255(
@@ -2302,10 +2305,10 @@ static void od_mc_blend_multi_split8(unsigned char *dst, int dystride,
       dst[i2] = OD_CLAMP255(
        ((((src[3] + o)[i2] + (drc[3] + o)[i2]) << (log_blk_sz2 - 1))
        + a - e + round) >> log_blk_sz2);
-      dst[i2+1]=OD_CLAMP255(
+      dst[i2+1] = OD_CLAMP255(
        ((((src[3] + o)[i2 + 1] + (drc[3] + o)[i2 + 1]) << (log_blk_sz2 - 1))
        + b - f + round) >> log_blk_sz2);
-      (dst + dystride)[i2]=OD_CLAMP255(((((src[3] + o + xblk_sz)[i2]
+      (dst + dystride)[i2] = OD_CLAMP255(((((src[3] + o + xblk_sz)[i2]
        + (drc[3] + o + xblk_sz)[i2]) << (log_blk_sz2 - 1))
        + c - g + round) >> log_blk_sz2);
       (dst + dystride)[i2 + 1] = OD_CLAMP255(((((src[3] + o + xblk_sz)[i2 + 1]
@@ -2381,7 +2384,7 @@ static void od_mc_blend_multi_split8(unsigned char *dst, int dystride,
     dst[i2] = OD_CLAMP255(
      ((((src[3] + o)[i2] + (drc[3] + o)[i2]) << (log_blk_sz2 - 1))
      + a - e + round) >> log_blk_sz2);
-    dst[i2+1]=OD_CLAMP255(
+    dst[i2+1] = OD_CLAMP255(
      ((((src[3] + o)[i2 + 1] + (drc[3] + o)[i2 + 1]) << (log_blk_sz2 - 1))
      + b - f + round) >> log_blk_sz2);
     (dst + dystride)[i2] = OD_CLAMP255(((((src[3] + o + xblk_sz)[i2]
@@ -2392,7 +2395,7 @@ static void od_mc_blend_multi_split8(unsigned char *dst, int dystride,
      + d - h + round) >> log_blk_sz2);
   }
   /*Lower-right quadrant, last row.*/
-  for(; i <xblk_sz_2 - 1; i++) {
+  for (; i < xblk_sz_2 - 1; i++) {
     i2 = i << 1;
     a = dst_ll[j][i] << 2;
     b = (dst_ll[j][i] + dst_ll[j][i + 1]) << 1;
@@ -2414,7 +2417,8 @@ static void od_mc_blend_multi_split8(unsigned char *dst, int dystride,
      + (drc[2] + o + xblk_sz)[i2]) << (log_blk_sz2 - 1))
      + c - g + round) >> log_blk_sz2);
     (dst + dystride)[i2 + 1] = OD_CLAMP255(
-     ((((src[2] + o + xblk_sz)[i2 + 1] + (drc[2] + o + xblk_sz)[i2 + 1]) << (log_blk_sz2 - 1))
+     ((((src[2] + o + xblk_sz)[i2 + 1] +
+     (drc[2] + o + xblk_sz)[i2 + 1]) << (log_blk_sz2 - 1))
      + d - h + round) >>log_blk_sz2);
   }
   /*Lower-right quadrant, last row and column.*/
@@ -2499,15 +2503,16 @@ void od_mc_predict8(od_state *state, unsigned char *dst, int dystride,
     /*Fall through.*/
     case OD_MC_INTERP_VBVV: r++;
     /*Fall through.*/
-    case OD_MC_INTERP_BVVV: {
+    case OD_MC_INTERP_BVVV:
+    {
       od_mc_predict1imv8(state, buf[0], 1 << log_xblk_sz, src, systride,
-       mvx, mvy, MIDXS[1]/*0, 0, 2, 3*/, r, log_xblk_sz, log_yblk_sz);
+       mvx, mvy, MIDXS[1] /*0, 0, 2, 3*/, r, log_xblk_sz, log_yblk_sz);
       pred[(0 + r) & 3] = buf[0];
       od_mc_predict1imv8(state, buf[1], 1 << log_xblk_sz, src, systride,
-       mvx, mvy, MIDXS[2]/*1, 1, 2, 3*/, r, log_xblk_sz, log_yblk_sz);
+       mvx, mvy, MIDXS[2] /*1, 1, 2, 3*/, r, log_xblk_sz, log_yblk_sz);
       pred[(1 + r) & 3] = buf[1];
       od_mc_predict1imv8(state, buf[2], 1 << log_xblk_sz, src, systride,
-       mvx, mvy, MIDXS[0]/*0, 1, 2, 3*/, r, log_xblk_sz, log_yblk_sz);
+       mvx, mvy, MIDXS[0] /*0, 1, 2, 3*/, r, log_xblk_sz, log_yblk_sz);
       pred[(2 + r) & 3] = buf[2];
       pred[(3 + r) & 3] = buf[2];
       od_mc_blend8(state, dst, dystride, pred,
@@ -2517,13 +2522,14 @@ void od_mc_predict8(od_state *state, unsigned char *dst, int dystride,
     }
     case OD_MC_INTERP_VBVB: r++;
     /*Fall through.*/
-    case OD_MC_INTERP_BVBV: {
+    case OD_MC_INTERP_BVBV:
+    {
       od_mc_predict1imv8(state, buf[0], 1 << log_xblk_sz, src, systride,
-       mvx, mvy, MIDXS[3]/*0, 0, 3, 3*/, r, log_xblk_sz, log_yblk_sz);
+       mvx, mvy, MIDXS[3] /*0, 0, 3, 3*/, r, log_xblk_sz, log_yblk_sz);
       pred[(3 + r) & 3] = buf[0];
       pred[(0 + r) & 3] = buf[0];
       od_mc_predict1imv8(state, buf[1], 1 << log_xblk_sz, src, systride,
-       mvx, mvy, MIDXS[4]/*1, 1, 2, 2*/, r, log_xblk_sz, log_yblk_sz);
+       mvx, mvy, MIDXS[4] /*1, 1, 2, 2*/, r, log_xblk_sz, log_yblk_sz);
       pred[(1 + r) & 3] = buf[1];
       pred[(2 + r) & 3] = buf[1];
       od_mc_blend8(state, dst, dystride, pred, oc,
@@ -2536,15 +2542,16 @@ void od_mc_predict8(od_state *state, unsigned char *dst, int dystride,
     /*Fall through.*/
     case OD_MC_INTERP_BVVB: r++;
     /*Fall through.*/
-    case OD_MC_INTERP_VVBB: {
+    case OD_MC_INTERP_VVBB:
+    {
       od_mc_predict1imv8(state, buf[0], 1 << log_xblk_sz, src, systride,
-       mvx, mvy, MIDXS[5]/*0, 1, 0, 0*/, r, log_xblk_sz, log_yblk_sz);
+       mvx, mvy, MIDXS[5] /*0, 1, 0, 0*/, r, log_xblk_sz, log_yblk_sz);
       pred[(0 + r) & 3] = buf[0];
       od_mc_predict1imv8(state, buf[1], 1 << log_xblk_sz, src, systride,
-       mvx, mvy, MIDXS[0]/*0, 1, 2, 3*/, r, log_xblk_sz, log_yblk_sz);
+       mvx, mvy, MIDXS[0] /*0, 1, 2, 3*/, r, log_xblk_sz, log_yblk_sz);
       pred[(1 + r) & 3] = buf[1];
       od_mc_predict1imv8(state, buf[2], 1 << log_xblk_sz, src, systride,
-       mvx, mvy, MIDXS[6]/*2, 1, 2, 2*/, r, log_xblk_sz, log_yblk_sz);
+       mvx, mvy, MIDXS[6] /*2, 1, 2, 2*/, r, log_xblk_sz, log_yblk_sz);
       pred[(2 + r) & 3] = buf[2];
       od_mc_predict1fmv8(state, buf[3], src, systride,
        mvx[(3 + r) & 3], mvy[(3 + r) & 3], log_xblk_sz, log_yblk_sz);
@@ -2560,12 +2567,13 @@ void od_mc_predict8(od_state *state, unsigned char *dst, int dystride,
     /*Fall through.*/
     case OD_MC_INTERP_BVBB: r++;
     /*Fall through.*/
-    case OD_MC_INTERP_VBBB: {
+    case OD_MC_INTERP_VBBB:
+    {
       od_mc_predict1imv8(state, buf[0], 1 << log_xblk_sz, src, systride,
-       mvx, mvy, MIDXS[5]/*0, 1, 0, 0*/, r, log_xblk_sz, log_yblk_sz);
+       mvx, mvy, MIDXS[5] /*0, 1, 0, 0*/, r, log_xblk_sz, log_yblk_sz);
       pred[(0 + r) & 3] = buf[0];
       od_mc_predict1imv8(state, buf[1], 1 << log_xblk_sz, src, systride,
-       mvx, mvy, MIDXS[7]/*0, 1, 1, 1*/, r, log_xblk_sz, log_yblk_sz);
+       mvx, mvy, MIDXS[7] /*0, 1, 1, 1*/, r, log_xblk_sz, log_yblk_sz);
       pred[(1 + r) & 3] = buf[1];
       od_mc_predict1fmv8(state, buf[2], src, systride,
        mvx[(2 + r) & 3], mvy[(2 + r) & 3], log_xblk_sz, log_yblk_sz);
@@ -2584,7 +2592,8 @@ void od_mc_predict8(od_state *state, unsigned char *dst, int dystride,
        log_xblk_sz, log_yblk_sz);
       break;
     }
-    case OD_MC_INTERP_BBBB: {
+    case OD_MC_INTERP_BBBB:
+    {
       od_mc_predict1fmv8(state, buf[0], src, systride,
        mvx[0], mvy[0], log_xblk_sz, log_yblk_sz);
       pred[0] = buf[0];
@@ -2744,8 +2753,8 @@ int od_mv_level1_prob(od_mv_grid_pt **grid, int vx, int vy) {
 }
 
 #if 0
-#include <stdio.h>
-#include <string.h>
+# include <stdio.h>
+# include <string.h>
 
 static unsigned char mask[4][4] = {
   {  0,  8,  2, 10 },
@@ -2907,8 +2916,8 @@ int main(void) {
           printf("Block (%i.%i, %i.%i): size %i, "
            "interpolation type: %c%c%c%c (0x%X)\n",
            i, (((c + 1) & 3) >> 1)*5, j, (c >> 1)*5, 1 << (log_blk_sz - 1),
-           etype & 1 ? 'V' : 'B' , etype & 2 ? 'V' : 'B',
-           etype & 4 ? 'V' : 'B' , etype & 8 ? 'V' : 'B', etype);
+           etype & 1 ? 'V' : 'B', etype & 2 ? 'V' : 'B',
+           etype & 4 ? 'V' : 'B', etype & 8 ? 'V' : 'B', etype);
           printf("<%9.5f, %9.5f> <%9.5f, %9.5f>\n",
            mvx[0]/(double)0x40000, mvy[0]/(double)0x40000,
            mvx[1]/(double)0x40000, mvy[1]/(double)0x40000);

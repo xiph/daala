@@ -23,9 +23,9 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #if !defined(_block_size_dec_h)
-#define _block_size_dec_h
+# define _block_size_dec_h
 
-#include "entdec.h"
+# include "entdec.h"
 
 void od_block_size_decode(od_ec_dec *dec, unsigned char *bsize, int stride);
 

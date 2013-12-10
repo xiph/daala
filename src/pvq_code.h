@@ -23,11 +23,11 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #if !defined(_pvq_code_H)
-#define _pvq_code_H
+# define _pvq_code_H
 
-#include "entenc.h"
-#include "entdec.h"
-#include "adapt.h"
+# include "entenc.h"
+# include "entdec.h"
+# include "adapt.h"
 
 extern const ogg_uint16_t EXP_CDF_TABLE[][16];
 extern const ogg_uint16_t LAPLACE_OFFSET[];

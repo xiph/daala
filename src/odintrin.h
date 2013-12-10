@@ -94,12 +94,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 /*Clamps a signed integer between 0 and 255, returning an unsigned char.
   This assumes a char is 8 bits.*/
 # define OD_CLAMP255(x) \
- ((unsigned char)((((x) < 0) - 1) & ((x) | -((x) > 255))))
+  ((unsigned char)((((x) < 0) - 1) & ((x) | -((x) > 255))))
 /*Divides a signed integer by a positive value with exact rounding.*/
 # define OD_DIV_ROUND(x, y) (((x) + OD_FLIPSIGNI((y) >> 1, x))/(y))
 # define OD_DIV_R0(x, y) (((x) + OD_FLIPSIGNI((((y) + 1) >> 1) - 1, (x)))/(y))
 # define OD_DIV_RE(x, y) \
- (((x) + OD_FLIPSIGNI((((y) + 1) >> 1) - 1 + ((x)/(y) & 1), (x)))/(y))
+  (((x) + OD_FLIPSIGNI((((y) + 1) >> 1) - 1 + ((x)/(y) & 1), (x)))/(y))
 /*Divides an integer by a power of two, truncating towards 0.
   dividend: The integer to divide.
   shift: The non-negative power of two to divide by.
@@ -124,7 +124,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # define OD_DIV2_RE(x) ((x) + ((x) >> 1 & 1) >> 1)
 /*Divides a x by (1 << (shift)), rounding towards even numbers.*/
 # define OD_DIV_POW2_RE(x, shift) \
- (((x) + ((x) >> (shift) & 1) + (((1 << (shift)) - 1) >> 1)) >> (shift))
+  (((x) + ((x) >> (shift) & 1) + (((1 << (shift)) - 1) >> 1)) >> (shift))
 /*Count leading zeros.
   This macro should only be used for implementing od_ilog(), if it is defined.
   All other code should use OD_ILOG() instead.*/
@@ -144,11 +144,11 @@ static __inline int od_bsr(unsigned long x) {
 #  include "dsplib.h"
 #  define OD_CLZ0 (31)
 #  define OD_CLZ(x) (_lnorm(x))
-# elif OD_GNUC_PREREQ(3,4)
-#  if INT_MAX>=2147483647
+# elif OD_GNUC_PREREQ(3, 4)
+#  if INT_MAX >= 2147483647
 #   define OD_CLZ0 ((int)sizeof(unsigned)*CHAR_BIT)
 #   define OD_CLZ(x) (__builtin_clz(x))
-#  elif LONG_MAX>=2147483647L
+#  elif LONG_MAX >= 2147483647L
 #   define OD_CLZ0 ((int)sizeof(unsigned long)*CHAR_BIT)
 #   define OD_CLZ(x) (__builtin_clzl(x))
 #  endif
@@ -178,13 +178,13 @@ static __inline int od_bsr(unsigned long x) {
 /*This branchless version is significantly faster than the above
    straightforward implementation on modern processors.*/
 # define OD_SORT2I(a, b) \
-  do{ \
+  do { \
     int t__; \
     t__ = ((a) ^ (b)) & -((b) < (a)); \
     (a) ^= t__; \
     (b) ^= t__; \
   } \
-  while(0)
+  while (0)
 
 /*All of these macros should expect floats as arguments.*/
 /*These two should compile as a single SSE instruction.*/

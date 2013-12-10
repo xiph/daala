@@ -23,7 +23,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+# include "config.h"
 #endif
 
 #include <stdlib.h>
@@ -51,7 +51,7 @@ void laplace_encode_special(od_ec_enc *enc, int x, unsigned decay, int max) {
   int ms;
   int sym;
   const ogg_uint16_t *cdf;
-  shift=0;
+  shift = 0;
   if (max == 0) return;
   /* We don't want a large decay value because that would require too many
      symbols. However, it's OK if the max is below 15. */
@@ -86,7 +86,8 @@ void laplace_encode_special(od_ec_enc *enc, int x, unsigned decay, int max) {
     }
     xs -= 15;
     ms -= 15;
-  } while (sym >= 15 && ms != 0);
+  }
+  while (sym >= 15 && ms != 0);
   if (shift) od_ec_enc_bits(enc, x & ((1 << shift) - 1), shift);
 }
 
@@ -114,7 +115,7 @@ void laplace_encode(od_ec_enc *enc, int x, int ex_q8, int k) {
   xs = (x + (1 << shift >> 1)) >> shift;
   decay = OD_MINI(254, 256*ex_q8/(ex_q8 + 256));
   offset = LAPLACE_OFFSET[(decay + 1) >> 1];
-  for(j = 0; j < 16; j++) {
+  for (j = 0; j < 16; j++) {
     cdf[j] = EXP_CDF_TABLE[(decay + 1) >> 1][j] - offset;
   }
   sym = xs;
@@ -146,7 +147,7 @@ void laplace_encode(od_ec_enc *enc, int x, int ex_q8, int k) {
  * @param [out]    curr  Adaptation context output, may alias means.
  * @param [in]     means Adaptation context input.
  */
-void pvq_encoder(od_ec_enc *enc, const int *y,int n,int k,
+void pvq_encoder(od_ec_enc *enc, const int *y, int n, int k,
  ogg_int32_t *curr, const ogg_int32_t *means) {
   int i;
   int sum_ex;
@@ -160,7 +161,7 @@ void pvq_encoder(od_ec_enc *enc, const int *y,int n,int k,
     pvq_encode_delta(enc, y, n, k, curr, means);
     return;
   }
-  if (k==0) {
+  if (k == 0) {
     curr[OD_ADAPT_COUNT_Q8] = OD_ADAPT_NO_VALUE;
     curr[OD_ADAPT_COUNT_EX_Q8] = OD_ADAPT_NO_VALUE;
     curr[OD_ADAPT_K_Q8] = 0;
@@ -244,7 +245,7 @@ void pvq_encode_delta(od_ec_enc *enc, const int *y, int n, int k,
       else laplace_encode(enc, count, coef*(n - prev)/k_left, n - prev - 1);
       sum_ex += 256*(n - prev);
       sum_c += count*k_left;
-      od_ec_enc_bits(enc, y[i]<0, 1);
+      od_ec_enc_bits(enc, y[i] < 0, 1);
       for (j = 0; j < mag - 1; j++) {
         laplace_encode(enc, 0, coef*(n - i)/(k_left - 1 - j), n - i - 1);
         sum_ex += 256*(n - i);

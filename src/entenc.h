@@ -79,8 +79,8 @@ void od_ec_encode_cdf_unscaled_dyadic(od_ec_enc *enc, int s,
  const ogg_uint16_t *cdf, int nsyms, unsigned ftb)
  OD_ARG_NONNULL(1) OD_ARG_NONNULL(3);
 
-void od_ec_enc_uint(od_ec_enc *enc, ogg_uint32_t fl,ogg_uint32_t ft)
- OD_ARG_NONNULL(1);
+void od_ec_enc_uint(od_ec_enc *enc, ogg_uint32_t fl, ogg_uint32_t ft)
+OD_ARG_NONNULL(1);
 
 void od_ec_enc_bits(od_ec_enc *enc, ogg_uint32_t fl, unsigned ftb)
  OD_ARG_NONNULL(1);

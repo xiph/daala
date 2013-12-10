@@ -23,7 +23,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+# include "config.h"
 #endif
 
 #include <stdlib.h>
@@ -129,9 +129,10 @@ int daala_decode_header_in(daala_info *info,
   rv = oggbyte_readcopy(&obb, daala, sizeof(daala));
   if (rv != 0) return OD_EBADHEADER;
   if (memcmp(daala, "daala", sizeof(daala)) != 0) return OD_EBADHEADER;
-  switch(packtype) {
+  switch (packtype) {
     /*Codec info header.*/
-    case 0x80: {
+    case 0x80:
+    {
       int pli;
       ogg_uint32_t tmp;
       int tmpi;
@@ -156,7 +157,7 @@ int daala_decode_header_in(daala_info *info,
       if (tmp > OD_INT32_MAX) return OD_EBADHEADER;
       info->pic_width = tmp;
       if (oggbyte_read4(&obb, &tmp))
-      if (tmp > OD_INT32_MAX) return OD_EBADHEADER;
+        if (tmp > OD_INT32_MAX) return OD_EBADHEADER;
       info->pic_height = tmp;
       if (oggbyte_read4(&obb, &info->pixel_aspect_numerator)) {
         return OD_EBADHEADER;
@@ -164,7 +165,9 @@ int daala_decode_header_in(daala_info *info,
       if (oggbyte_read4(&obb, &info->pixel_aspect_denominator)) {
         return OD_EBADHEADER;
       }
-      if (oggbyte_read4(&obb, &info->timebase_numerator)) return OD_EBADHEADER;
+      if (oggbyte_read4(&obb, &info->timebase_numerator)) {
+        return OD_EBADHEADER;
+      }
       if (oggbyte_read4(&obb, &info->timebase_denominator)) {
         return OD_EBADHEADER;
       }
@@ -186,7 +189,8 @@ int daala_decode_header_in(daala_info *info,
       }
       return 3;
     }
-    case 0x81: {
+    case 0x81:
+    {
       /*Check that we have read the info header and have not read the
          comment header.*/
       if (!info->pic_width || dc->vendor != NULL) return OD_EBADHEADER;
@@ -196,7 +200,8 @@ int daala_decode_header_in(daala_info *info,
       }
       return 2;
     }
-    case 0x82: {
+    case 0x82:
+    {
       /*Check that we have read the info header and the comment header,
          and not setup header.*/
       if (!info->pic_width || dc->vendor == NULL || *ds != NULL) {

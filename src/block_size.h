@@ -23,16 +23,18 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #if !defined(_block_size_h)
-#define _block_size_h
+# define _block_size_h
 
-#include "odintrin.h"
-#include <ogg/ogg.h>
-#include "entenc.h"
+# include "odintrin.h"
+# include <ogg/ogg.h>
+# include "entenc.h"
 
 extern const ogg_uint16_t od_switch_size8_cdf[][16];
 
-#define OD_BLOCK_SIZE4x4(bsize, bstride, bx, by) ((bsize)[((by)>>1)*(bstride) + ((bx)>>1)])
-#define OD_BLOCK_SIZE8x8(bsize, bstride, bx, by) ((bsize)[(by)*(bstride) + (bx)])
+# define OD_BLOCK_SIZE4x4(bsize, bstride, bx, by)\
+   ((bsize)[((by)>>1)*(bstride) + ((bx)>>1)])
+# define OD_BLOCK_SIZE8x8(bsize, bstride, bx, by)\
+   ((bsize)[(by)*(bstride) + (bx)])
 
 int od_block_size_prob32(const unsigned char *bsize, int stride);
 

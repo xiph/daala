@@ -23,7 +23,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+# include "config.h"
 #endif
 
 #include "filter.h"
@@ -108,13 +108,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
   The maximum denominator for all coefficients was allowed to be 64.*/
 
-const od_filter_func OD_PRE_FILTER[OD_NBSIZES]={
+const od_filter_func OD_PRE_FILTER[OD_NBSIZES] = {
   od_pre_filter4,
   od_pre_filter8,
   od_pre_filter16
 };
 
-const od_filter_func OD_POST_FILTER[OD_NBSIZES]={
+const od_filter_func OD_POST_FILTER[OD_NBSIZES] = {
   od_post_filter4,
   od_post_filter8,
   od_post_filter16
@@ -124,11 +124,11 @@ const od_filter_func OD_POST_FILTER[OD_NBSIZES]={
 #if defined(TEST)
 extern int minv[32];
 extern int maxv[32];
-#define _Check(_val,_idx) \
-   if((_val)<minv[(_idx)])minv[(_idx)]=(_val); \
-   if((_val)>maxv[(_idx)])maxv[(_idx)]=(_val);
+# define _Check(_val, _idx) \
+  if ((_val) < minv[(_idx)]) minv[(_idx)] = (_val); \
+  if ((_val) > maxv[(_idx)]) maxv[(_idx)] = (_val);
 #else
-#define _Check(_val,_idx)
+# define _Check(_val, _idx)
 #endif
 
 /*Filter parameters for the pre/post filters.
@@ -144,72 +144,72 @@ extern int maxv[32];
 #define OD_FILTER_PARAMS4_2 (-15)
 #define OD_FILTER_PARAMS4_3 (33)
 
-const int OD_FILTER_PARAMS4[4]={
-  OD_FILTER_PARAMS4_0,OD_FILTER_PARAMS4_1,OD_FILTER_PARAMS4_2,
+const int OD_FILTER_PARAMS4[4] = {
+  OD_FILTER_PARAMS4_0, OD_FILTER_PARAMS4_1, OD_FILTER_PARAMS4_2,
   OD_FILTER_PARAMS4_3
 };
 
-void od_pre_filter4(od_coeff _y[4],const od_coeff _x[4]){
-   int t[4];
-   /*+1/-1 butterflies (required for FIR, PR, LP).*/
-   t[3]=_x[0]-_x[3];
-   t[2]=_x[1]-_x[2];
-   t[1]=_x[1]-(t[2]>>1);
-   t[0]=_x[0]-(t[3]>>1);
-   /*U filter (arbitrary invertible, omitted).*/
-   /*V filter (arbitrary invertible).*/
-   /*Scaling factors: the biorthogonal part.*/
-   /*Note: t[i]+=t[i]>>(OD_COEFF_BITS-1)&1 is equivalent to: if(t[i]>0)t[i]++
-     This step ensures that the scaling is trivially invertible on the decoder's
-      side, with perfect reconstruction.*/
-   _Check(t[2],0);
-   /*s0*/
-#if OD_FILTER_PARAMS4_0!=64
-   t[2]=t[2]*OD_FILTER_PARAMS4_0>>6;
-   t[2]+=-t[2]>>(OD_COEFF_BITS-1)&1;
+void od_pre_filter4(od_coeff _y[4], const od_coeff _x[4]) {
+  int t[4];
+  /*+1/-1 butterflies (required for FIR, PR, LP).*/
+  t[3] = _x[0]-_x[3];
+  t[2] = _x[1]-_x[2];
+  t[1] = _x[1]-(t[2]>>1);
+  t[0] = _x[0]-(t[3]>>1);
+  /*U filter (arbitrary invertible, omitted).*/
+  /*V filter (arbitrary invertible).*/
+  /*Scaling factors: the biorthogonal part.*/
+  /*Note: t[i]+=t[i]>>(OD_COEFF_BITS-1)&1 is equivalent to: if(t[i]>0)t[i]++
+    This step ensures that the scaling is trivially invertible on the decoder's
+     side, with perfect reconstruction.*/
+  _Check(t[2], 0);
+  /*s0*/
+#if OD_FILTER_PARAMS4_0 != 64
+  t[2] = t[2]*OD_FILTER_PARAMS4_0>>6;
+  t[2] += -t[2]>>(OD_COEFF_BITS-1)&1;
 #endif
-   _Check(t[3],1);
-   /*s1*/
-#if OD_FILTER_PARAMS4_1!=64
-   t[3]=t[3]*OD_FILTER_PARAMS4_1>>6;
-   t[3]+=-t[3]>>(OD_COEFF_BITS-1)&1;
+  _Check(t[3], 1);
+  /*s1*/
+#if OD_FILTER_PARAMS4_1 != 64
+  t[3] = t[3]*OD_FILTER_PARAMS4_1>>6;
+  t[3] += -t[3]>>(OD_COEFF_BITS-1)&1;
 #endif
-   /*Rotation:*/
-   _Check(t[2],2);
-   /*p0*/
-   t[3]+=(t[2]*OD_FILTER_PARAMS4_2+32)>>6;
-   _Check(t[3],3);
-   /*u0*/
-   t[2]+=(t[3]*OD_FILTER_PARAMS4_3+32)>>6;
-   /*More +1/-1 butterflies (required for FIR, PR, LP).*/
-   t[0]+=t[3]>>1;
-   _y[0]=(od_coeff)t[0];
-   t[1]+=t[2]>>1;
-   _y[1]=(od_coeff)t[1];
-   _y[2]=(od_coeff)(t[1]-t[2]);
-   _y[3]=(od_coeff)(t[0]-t[3]);
+  /*Rotation:*/
+  _Check(t[2], 2);
+  /*p0*/
+  t[3] += (t[2]*OD_FILTER_PARAMS4_2+32)>>6;
+  _Check(t[3], 3);
+  /*u0*/
+  t[2] += (t[3]*OD_FILTER_PARAMS4_3+32)>>6;
+  /*More +1/-1 butterflies (required for FIR, PR, LP).*/
+  t[0] += t[3]>>1;
+  _y[0] = (od_coeff)t[0];
+  t[1] += t[2]>>1;
+  _y[1] = (od_coeff)t[1];
+  _y[2] = (od_coeff)(t[1]-t[2]);
+  _y[3] = (od_coeff)(t[0]-t[3]);
 }
 
-void od_post_filter4(od_coeff _x[4],const od_coeff _y[4]){
-   int t[4];
-   t[3]=_y[0]-_y[3];
-   t[2]=_y[1]-_y[2];
-   t[1]=_y[1]-(t[2]>>1);
-   t[0]=_y[0]-(t[3]>>1);
-   t[2]-=(t[3]*OD_FILTER_PARAMS4_3+32)>>6;
-   t[3]-=(t[2]*OD_FILTER_PARAMS4_2+32)>>6;
-#if OD_FILTER_PARAMS4_1!=64
-   t[3]=(t[3]<<6)/OD_FILTER_PARAMS4_1;
+void od_post_filter4(od_coeff _x[4], const od_coeff _y[4]) {
+  int t[4];
+  t[3] = _y[0]-_y[3];
+  t[2] = _y[1]-_y[2];
+  t[1] = _y[1]-(t[2]>>1);
+  t[0] = _y[0]-(t[3]>>1);
+  t[2] -= (t[3]*OD_FILTER_PARAMS4_3+32)>>6;
+  t[3] -= (t[2]*OD_FILTER_PARAMS4_2+32)>>6;
+#if OD_FILTER_PARAMS4_1 != 64
+  t[3] = (t[3]<<6)/OD_FILTER_PARAMS4_1;
 #endif
-#if OD_FILTER_PARAMS4_0!=64
-   t[2]=(t[2]<<6)/OD_FILTER_PARAMS4_0;
+#if OD_FILTER_PARAMS4_0 != 64
+  t[2] = (t[2]<<6)/OD_FILTER_PARAMS4_0;
 #endif
-   t[0]+=t[3]>>1;
-   _x[0]=(od_coeff)t[0];
-   t[1]+=t[2]>>1;
-   _x[1]=(od_coeff)t[1];
-   _x[2]=(od_coeff)(t[1]-t[2]);
-   _x[3]=(od_coeff)(t[0]-t[3]);
+  t[0] += t[3]>>1;
+  _x[0] = (od_coeff)t[0];
+  t[1] += t[2]>>1;
+  _x[1] = (od_coeff)t[1];
+  _x[2] = (od_coeff)(t[1]-t[2]);
+  _x[3] = (od_coeff)(t[0]-t[3]);
 }
 
 /*R=f
@@ -260,126 +260,126 @@ void od_post_filter4(od_coeff _x[4],const od_coeff _y[4]){
 # define OD_FILTER_PARAMS8_9 (24)
 #endif
 
-const int OD_FILTER_PARAMS8[10]={
-  OD_FILTER_PARAMS8_0,OD_FILTER_PARAMS8_1,OD_FILTER_PARAMS8_2,
-  OD_FILTER_PARAMS8_3,OD_FILTER_PARAMS8_4,OD_FILTER_PARAMS8_5,
-  OD_FILTER_PARAMS8_6,OD_FILTER_PARAMS8_7,OD_FILTER_PARAMS8_8,
+const int OD_FILTER_PARAMS8[10] = {
+  OD_FILTER_PARAMS8_0, OD_FILTER_PARAMS8_1, OD_FILTER_PARAMS8_2,
+  OD_FILTER_PARAMS8_3, OD_FILTER_PARAMS8_4, OD_FILTER_PARAMS8_5,
+  OD_FILTER_PARAMS8_6, OD_FILTER_PARAMS8_7, OD_FILTER_PARAMS8_8,
   OD_FILTER_PARAMS8_9
 };
 
-void od_pre_filter8(od_coeff _y[8],const od_coeff _x[8]){
-   int t[8];
-   /*+1/-1 butterflies (required for FIR, PR, LP).*/
-   t[7]=_x[0]-_x[7];
-   t[6]=_x[1]-_x[6];
-   t[5]=_x[2]-_x[5];
-   t[4]=_x[3]-_x[4];
-   t[3]=_x[3]-(t[4]>>1);
-   t[2]=_x[2]-(t[5]>>1);
-   t[1]=_x[1]-(t[6]>>1);
-   t[0]=_x[0]-(t[7]>>1);
-   /*U filter (arbitrary invertible, omitted).*/
-   /*V filter (arbitrary invertible, can be optimized for speed or accuracy).*/
-   /*Scaling factors: the biorthogonal part.*/
-   /*Note: t[i]+=t[i]>>(OD_COEFF_BITS-1)&1; is equivalent to: if(t[i]>0)t[i]++;
-     This step ensures that the scaling is trivially invertible on the
-      decoder's side, with perfect reconstruction.*/
-#if OD_FILTER_PARAMS8_0!=64
-   t[4]=(t[4]*OD_FILTER_PARAMS8_0)>>6;
-   t[4]+=-t[4]>>(OD_COEFF_BITS-1)&1;
+void od_pre_filter8(od_coeff _y[8], const od_coeff _x[8]) {
+  int t[8];
+  /*+1/-1 butterflies (required for FIR, PR, LP).*/
+  t[7] = _x[0]-_x[7];
+  t[6] = _x[1]-_x[6];
+  t[5] = _x[2]-_x[5];
+  t[4] = _x[3]-_x[4];
+  t[3] = _x[3]-(t[4]>>1);
+  t[2] = _x[2]-(t[5]>>1);
+  t[1] = _x[1]-(t[6]>>1);
+  t[0] = _x[0]-(t[7]>>1);
+  /*U filter (arbitrary invertible, omitted).*/
+  /*V filter (arbitrary invertible, can be optimized for speed or accuracy).*/
+  /*Scaling factors: the biorthogonal part.*/
+  /*Note: t[i]+=t[i]>>(OD_COEFF_BITS-1)&1; is equivalent to: if(t[i]>0)t[i]++;
+    This step ensures that the scaling is trivially invertible on the
+     decoder's side, with perfect reconstruction.*/
+#if OD_FILTER_PARAMS8_0 != 64
+  t[4] = (t[4]*OD_FILTER_PARAMS8_0)>>6;
+  t[4] += -t[4]>>(OD_COEFF_BITS-1)&1;
 #endif
-#if OD_FILTER_PARAMS8_1!=64
-   t[5]=(t[5]*OD_FILTER_PARAMS8_1)>>6;
-   t[5]+=-t[5]>>(OD_COEFF_BITS-1)&1;
+#if OD_FILTER_PARAMS8_1 != 64
+  t[5] = (t[5]*OD_FILTER_PARAMS8_1)>>6;
+  t[5] += -t[5]>>(OD_COEFF_BITS-1)&1;
 #endif
-#if OD_FILTER_PARAMS8_2!=64
-   t[6]=(t[6]*OD_FILTER_PARAMS8_2)>>6;
-   t[6]+=-t[6]>>(OD_COEFF_BITS-1)&1;
+#if OD_FILTER_PARAMS8_2 != 64
+  t[6] = (t[6]*OD_FILTER_PARAMS8_2)>>6;
+  t[6] += -t[6]>>(OD_COEFF_BITS-1)&1;
 #endif
-#if OD_FILTER_PARAMS8_3!=64
-   t[7]=(t[7]*OD_FILTER_PARAMS8_3)>>6;
-   t[7]+=-t[7]>>(OD_COEFF_BITS-1)&1;
+#if OD_FILTER_PARAMS8_3 != 64
+  t[7] = (t[7]*OD_FILTER_PARAMS8_3)>>6;
+  t[7] += -t[7]>>(OD_COEFF_BITS-1)&1;
 #endif
-   /*Rotations:*/
+  /*Rotations:*/
 #if OD_FILTER8_TYPE3
-   t[7]+=(t[6]*OD_FILTER_PARAMS8_6+32)>>6;
-   t[6]+=(t[7]*OD_FILTER_PARAMS8_9+32)>>6;
-   t[6]+=(t[5]*OD_FILTER_PARAMS8_5+32)>>6;
-   t[5]+=(t[6]*OD_FILTER_PARAMS8_8+32)>>6;
-   t[5]+=(t[4]*OD_FILTER_PARAMS8_4+32)>>6;
-   t[4]+=(t[5]*OD_FILTER_PARAMS8_7+32)>>6;
+  t[7] += (t[6]*OD_FILTER_PARAMS8_6+32)>>6;
+  t[6] += (t[7]*OD_FILTER_PARAMS8_9+32)>>6;
+  t[6] += (t[5]*OD_FILTER_PARAMS8_5+32)>>6;
+  t[5] += (t[6]*OD_FILTER_PARAMS8_8+32)>>6;
+  t[5] += (t[4]*OD_FILTER_PARAMS8_4+32)>>6;
+  t[4] += (t[5]*OD_FILTER_PARAMS8_7+32)>>6;
 #else
-   t[5]+=(t[4]*OD_FILTER_PARAMS8_4+32)>>6;
-   t[6]+=(t[5]*OD_FILTER_PARAMS8_5+32)>>6;
-   t[7]+=(t[6]*OD_FILTER_PARAMS8_6+32)>>6;
-   t[6]+=(t[7]*OD_FILTER_PARAMS8_9+32)>>6;
-   t[5]+=(t[6]*OD_FILTER_PARAMS8_8+32)>>6;
-   t[4]+=(t[5]*OD_FILTER_PARAMS8_7+32)>>6;
+  t[5] += (t[4]*OD_FILTER_PARAMS8_4+32)>>6;
+  t[6] += (t[5]*OD_FILTER_PARAMS8_5+32)>>6;
+  t[7] += (t[6]*OD_FILTER_PARAMS8_6+32)>>6;
+  t[6] += (t[7]*OD_FILTER_PARAMS8_9+32)>>6;
+  t[5] += (t[6]*OD_FILTER_PARAMS8_8+32)>>6;
+  t[4] += (t[5]*OD_FILTER_PARAMS8_7+32)>>6;
 #endif
-   /*More +1/-1 butterflies (required for FIR, PR, LP).*/
-   t[0]+=t[7]>>1;
-   _y[0]=(od_coeff)t[0];
-   t[1]+=t[6]>>1;
-   _y[1]=(od_coeff)t[1];
-   t[2]+=t[5]>>1;
-   _y[2]=(od_coeff)t[2];
-   t[3]+=t[4]>>1;
-   _y[3]=(od_coeff)t[3];
-   _y[4]=(od_coeff)(t[3]-t[4]);
-   _y[5]=(od_coeff)(t[2]-t[5]);
-   _y[6]=(od_coeff)(t[1]-t[6]);
-   _y[7]=(od_coeff)(t[0]-t[7]);
+  /*More +1/-1 butterflies (required for FIR, PR, LP).*/
+  t[0] += t[7]>>1;
+  _y[0] = (od_coeff)t[0];
+  t[1] += t[6]>>1;
+  _y[1] = (od_coeff)t[1];
+  t[2] += t[5]>>1;
+  _y[2] = (od_coeff)t[2];
+  t[3] += t[4]>>1;
+  _y[3] = (od_coeff)t[3];
+  _y[4] = (od_coeff)(t[3]-t[4]);
+  _y[5] = (od_coeff)(t[2]-t[5]);
+  _y[6] = (od_coeff)(t[1]-t[6]);
+  _y[7] = (od_coeff)(t[0]-t[7]);
 }
 
-void od_post_filter8(od_coeff _x[8],const od_coeff _y[8]){
-   int t[8];
-   t[7]=_y[0]-_y[7];
-   t[6]=_y[1]-_y[6];
-   t[5]=_y[2]-_y[5];
-   t[4]=_y[3]-_y[4];
-   t[3]=_y[3]-(t[4]>>1);
-   t[2]=_y[2]-(t[5]>>1);
-   t[1]=_y[1]-(t[6]>>1);
-   t[0]=_y[0]-(t[7]>>1);
+void od_post_filter8(od_coeff _x[8], const od_coeff _y[8]) {
+  int t[8];
+  t[7] = _y[0]-_y[7];
+  t[6] = _y[1]-_y[6];
+  t[5] = _y[2]-_y[5];
+  t[4] = _y[3]-_y[4];
+  t[3] = _y[3]-(t[4]>>1);
+  t[2] = _y[2]-(t[5]>>1);
+  t[1] = _y[1]-(t[6]>>1);
+  t[0] = _y[0]-(t[7]>>1);
 #if OD_FILTER8_TYPE3
-   t[4]-=(t[5]*OD_FILTER_PARAMS8_7+32)>>6;
-   t[5]-=(t[4]*OD_FILTER_PARAMS8_4+32)>>6;
-   t[5]-=(t[6]*OD_FILTER_PARAMS8_8+32)>>6;
-   t[6]-=(t[5]*OD_FILTER_PARAMS8_5+32)>>6;
-   t[6]-=(t[7]*OD_FILTER_PARAMS8_9+32)>>6;
-   t[7]-=(t[6]*OD_FILTER_PARAMS8_6+32)>>6;
+  t[4] -= (t[5]*OD_FILTER_PARAMS8_7+32)>>6;
+  t[5] -= (t[4]*OD_FILTER_PARAMS8_4+32)>>6;
+  t[5] -= (t[6]*OD_FILTER_PARAMS8_8+32)>>6;
+  t[6] -= (t[5]*OD_FILTER_PARAMS8_5+32)>>6;
+  t[6] -= (t[7]*OD_FILTER_PARAMS8_9+32)>>6;
+  t[7] -= (t[6]*OD_FILTER_PARAMS8_6+32)>>6;
 #else
-   t[4]-=(t[5]*OD_FILTER_PARAMS8_7+32)>>6;
-   t[5]-=(t[6]*OD_FILTER_PARAMS8_8+32)>>6;
-   t[6]-=(t[7]*OD_FILTER_PARAMS8_9+32)>>6;
-   t[7]-=(t[6]*OD_FILTER_PARAMS8_6+32)>>6;
-   t[6]-=(t[5]*OD_FILTER_PARAMS8_5+32)>>6;
-   t[5]-=(t[4]*OD_FILTER_PARAMS8_4+32)>>6;
+  t[4] -= (t[5]*OD_FILTER_PARAMS8_7+32)>>6;
+  t[5] -= (t[6]*OD_FILTER_PARAMS8_8+32)>>6;
+  t[6] -= (t[7]*OD_FILTER_PARAMS8_9+32)>>6;
+  t[7] -= (t[6]*OD_FILTER_PARAMS8_6+32)>>6;
+  t[6] -= (t[5]*OD_FILTER_PARAMS8_5+32)>>6;
+  t[5] -= (t[4]*OD_FILTER_PARAMS8_4+32)>>6;
 #endif
-#if OD_FILTER_PARAMS8_3!=64
-   t[7]=(t[7]<<6)/OD_FILTER_PARAMS8_3;
+#if OD_FILTER_PARAMS8_3 != 64
+  t[7] = (t[7]<<6)/OD_FILTER_PARAMS8_3;
 #endif
-#if OD_FILTER_PARAMS8_2!=64
-   t[6]=(t[6]<<6)/OD_FILTER_PARAMS8_2;
+#if OD_FILTER_PARAMS8_2 != 64
+  t[6] = (t[6]<<6)/OD_FILTER_PARAMS8_2;
 #endif
-#if OD_FILTER_PARAMS8_1!=64
-   t[5]=(t[5]<<6)/OD_FILTER_PARAMS8_1;
+#if OD_FILTER_PARAMS8_1 != 64
+  t[5] = (t[5]<<6)/OD_FILTER_PARAMS8_1;
 #endif
-#if OD_FILTER_PARAMS8_0!=64
-   t[4]=(t[4]<<6)/OD_FILTER_PARAMS8_0;
+#if OD_FILTER_PARAMS8_0 != 64
+  t[4] = (t[4]<<6)/OD_FILTER_PARAMS8_0;
 #endif
-   t[0]+=t[7]>>1;
-   _x[0]=(od_coeff)t[0];
-   t[1]+=t[6]>>1;
-   _x[1]=(od_coeff)t[1];
-   t[2]+=t[5]>>1;
-   _x[2]=(od_coeff)t[2];
-   t[3]+=t[4]>>1;
-   _x[3]=(od_coeff)t[3];
-   _x[4]=(od_coeff)(t[3]-t[4]);
-   _x[5]=(od_coeff)(t[2]-t[5]);
-   _x[6]=(od_coeff)(t[1]-t[6]);
-   _x[7]=(od_coeff)(t[0]-t[7]);
+  t[0] += t[7]>>1;
+  _x[0] = (od_coeff)t[0];
+  t[1] += t[6]>>1;
+  _x[1] = (od_coeff)t[1];
+  t[2] += t[5]>>1;
+  _x[2] = (od_coeff)t[2];
+  t[3] += t[4]>>1;
+  _x[3] = (od_coeff)t[3];
+  _x[4] = (od_coeff)(t[3]-t[4]);
+  _x[5] = (od_coeff)(t[2]-t[5]);
+  _x[6] = (od_coeff)(t[1]-t[6]);
+  _x[7] = (od_coeff)(t[0]-t[7]);
 }
 
 /*R=f Type-3
@@ -796,7 +796,7 @@ static void od_apply_filter_rows(od_coeff *c, int stride, int bx, int by,
     {
       int j;
       for (j = 0; j < 4 << f; j++) {
-        c[j]=0;
+        c[j] = 0;
       }
     }
 #endif
@@ -838,7 +838,7 @@ void od_apply_prefilter(od_coeff *c, int w, int bx, int by, unsigned char l,
 void od_apply_postfilter(od_coeff *c, int w, int bx, int by, unsigned char l,
  const unsigned char *bsize, int bstride, int xdec, int ydec, int edge) {
   unsigned char d;
-  OD_ASSERT((edge & ~(OD_RIGHT_EDGE | OD_TOP_EDGE))==0);
+  OD_ASSERT((edge & ~(OD_RIGHT_EDGE | OD_TOP_EDGE)) == 0);
   /*This code assumes 4:4:4 or 4:2:0 input.*/
   OD_ASSERT(xdec == ydec);
   d = OD_BLOCK_SIZE4x4_DEC(bsize, bstride, bx << l, by << l, xdec);
@@ -867,69 +867,78 @@ void od_apply_postfilter(od_coeff *c, int w, int bx, int by, unsigned char l,
 }
 
 #if defined(TEST)
-#include <stdio.h>
+# include <stdio.h>
 
 int minv[32];
 int maxv[32];
 
-int main(void){
-   ogg_int32_t min[16];
-   ogg_int32_t max[16];
-   int         mini[16];
-   int         maxi[16];
-   int         dims;
-   int         i;
-   int         j;
-   int         err;
-   err=0;
-   for(dims=4;dims<=16;dims<<=1){
-     printf("filter%d:\n",dims);
-     for(j=0;j<dims;j++){
-       min[j]=mini[j]=2147483647;
-       max[j]=maxi[j]=-2147483647-1;
-     }
-     for(i=0;i<(1<<dims);i++){
-        od_coeff x[16];
-        od_coeff y[16];
-        od_coeff x2[16];
-        for(j=0;j<dims;j++)x[j]=i>>j&1?676:-676;
-        switch(dims) {
-          case 16: od_pre_filter16(y,x);break;
-          case  8: od_pre_filter8(y,x);break;
-          case  4: od_pre_filter4(y,x);break;
+int main(void) {
+  ogg_int32_t min[16];
+  ogg_int32_t max[16];
+  int mini[16];
+  int maxi[16];
+  int dims;
+  int i;
+  int j;
+  int err;
+  err = 0;
+  for (dims = 4; dims <= 16; dims <<= 1) {
+    printf("filter%d:\n", dims);
+    for (j = 0; j < dims; j++) {
+      min[j] = mini[j] = 2147483647;
+      max[j] = maxi[j] = -2147483647-1;
+    }
+    for (i = 0; i < (1<<dims); i++) {
+      od_coeff x[16];
+      od_coeff y[16];
+      od_coeff x2[16];
+      for (j = 0; j < dims; j++) x[j] = i>>j&1 ? 676 : -676;
+      switch (dims) {
+        case 16: od_pre_filter16(y, x);
+          break;
+        case  8: od_pre_filter8(y, x);
+          break;
+        case  4: od_pre_filter4(y, x);
+          break;
+      }
+      for (j = 0; j < dims; j++) {
+        if (y[j] < min[j]) {
+          min[j] = y[j];
+          mini[j] = i;
         }
-        for(j=0;j<dims;j++){
-           if(y[j]<min[j]){
-              min[j]=y[j];
-              mini[j]=i;
-           }
-           else if(y[j]>max[j]){
-              max[j]=y[j];
-              maxi[j]=i;
-           }
+        else if (y[j] > max[j]) {
+          max[j] = y[j];
+          maxi[j] = i;
         }
-        switch(dims) {
-          case 16: od_post_filter16(x2,y);break;
-          case  8: od_post_filter8(x2,y);break;
-          case  4: od_post_filter4(x2,y);break;
+      }
+      switch (dims) {
+        case 16: od_post_filter16(x2, y);
+          break;
+        case  8: od_post_filter8(x2, y);
+          break;
+        case  4: od_post_filter4(x2, y);
+          break;
+      }
+      for (j = 0; j < dims; j++)
+        if (x[j] != x2[j]) {
+          printf("Mismatch:\n");
+          printf("in:    ");
+          for (j = 0; j < dims; j++) printf(" %i", x[j]);
+          printf("\nxform: ");
+          for (j = 0; j < dims; j++) printf(" %i", y[j]);
+          printf("\nout:    ");
+          for (j = 0; j < dims; j++) printf(" %i", x2[j]);
+          printf("\n\n");
+          err |= 1;
         }
-        for(j=0;j<dims;j++)if(x[j]!=x2[j]){
-           printf("Mismatch:\n");
-           printf("in:    ");
-           for(j=0;j<dims;j++)printf(" %i",x[j]);
-           printf("\nxform: ");
-           for(j=0;j<dims;j++)printf(" %i",y[j]);
-           printf("\nout:    ");
-           for(j=0;j<dims;j++)printf(" %i",x2[j]);
-           printf("\n\n");
-           err|=1;
-        }
-     }
-     printf(" Min: ");
-     for(j=0;j<dims;j++)printf("%5i%c",min[j],j==dims-1?'\n':' ');
-     printf(" Max: ");
-     for(j=0;j<dims;j++)printf("%5i%c",max[j],j==dims-1?'\n':' ');
-   }
-   return err;
+    }
+    printf(" Min: ");
+    for (j = 0; j < dims; j++)
+      printf("%5i%c", min[j], j == dims-1 ? '\n' : ' ');
+    printf(" Max: ");
+    for (j = 0; j < dims; j++)
+      printf("%5i%c", max[j], j == dims-1 ? '\n' : ' ');
+  }
+  return err;
 }
 #endif

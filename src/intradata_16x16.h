@@ -1,4 +1,4 @@
-const int OD_PRED_MULTS_16x16[OD_INTRA_NMODES][16][16]={
+const int OD_PRED_MULTS_16x16[OD_INTRA_NMODES][16][16] = {
 /* Mode 0 */
   {
     { 450, 124, 46, 12, 2, 0, 0, 0, 0, 0, 0, 4, 4, 0, 0, 0 },
@@ -10432,7 +10432,7 @@ const double OD_PRED_WEIGHTS_16x16[10240]={
 -0.74773861966123956,
 0.72525979263066864
 };
-const ogg_uint16_t OD_PRED_INDEX_16x16[10240]={
+const ogg_uint16_t OD_PRED_INDEX_16x16[10240] = {
   5, 6, 7, 11, 12, 13, 23, 28,
   30, 35, 42, 43, 44, 47, 53, 55,
   58, 59, 60, 75, 76, 77, 78, 79,

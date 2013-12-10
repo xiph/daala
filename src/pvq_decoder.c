@@ -23,7 +23,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+# include "config.h"
 #endif
 
 #include <stdlib.h>
@@ -54,7 +54,7 @@ int laplace_decode_special(od_ec_dec *dec, unsigned decay, int max) {
   if (max == 0) return 0;
   /* We don't want a large decay value because that would require too many
      symbols. However, it's OK if the max is below 15. */
-  while ( ((max >> shift) >= 15 || max == -1) && decay > 235) {
+  while (((max >> shift) >= 15 || max == -1) && decay > 235) {
     decay = (decay*decay + 128) >> 8;
     shift++;
   }
@@ -69,19 +69,20 @@ int laplace_decode_special(od_ec_dec *dec, unsigned decay, int max) {
     {
       int i;
       OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%d %d %d %d", xs, shift, sym, max));
-      for (i=0;i<16;i++) {
+      for (i = 0; i < 16; i++) {
         OD_LOG_PARTIAL((OD_LOG_PVQ, OD_LOG_DEBUG, "%d ", cdf[i]));
       }
       OD_LOG_PARTIAL((OD_LOG_PVQ, OD_LOG_DEBUG, "\n"));
     }
-    if (ms > 0 && ms < 15){
+    if (ms > 0 && ms < 15) {
       /* Simple way of truncating the pdf when we have a bound. */
       sym = od_ec_decode_cdf_unscaled(dec, cdf, ms + 1);
     }
     else sym = od_ec_decode_cdf_q15(dec, cdf, 16);
     xs += sym;
     ms -= 15;
-  } while (sym >= 15 && ms != 0);
+  }
+  while (sym >= 15 && ms != 0);
   if (shift) pos = (xs << shift) + od_ec_dec_bits(dec, shift);
   else pos = xs;
   OD_ASSERT(pos >> shift <= max >> shift || max == -1);
@@ -109,16 +110,16 @@ int laplace_decode(od_ec_dec *dec, int ex_q8, int k) {
   int lsb;
   int decay;
   int offset;
-  lsb=0;
+  lsb = 0;
   /* Shift down x if expectation is too high. */
   shift = od_ilog(ex_q8) - 11;
-  if(shift < 0) shift = 0;
+  if (shift < 0) shift = 0;
   /* Apply the shift with rounding to Ex, K and xs. */
   ex_q8 = (ex_q8 + (1 << shift >> 1)) >> shift;
   k = (k + (1 << shift >> 1)) >> shift;
   decay = OD_MINI(254, 256*ex_q8/(ex_q8 + 256));
   offset = LAPLACE_OFFSET[(decay + 1) >> 1];
-  for(j = 0; j < 16; j++) {
+  for (j = 0; j < 16; j++) {
     cdf[j] = EXP_CDF_TABLE[(decay + 1) >> 1][j] - offset;
   }
   /* Simple way of truncating the pdf when we have a bound */
@@ -166,8 +167,7 @@ void pvq_decoder(od_ec_dec *dec, int *y, int n, int k,
     curr[OD_ADAPT_COUNT_EX_Q8] = OD_ADAPT_NO_VALUE;
     curr[OD_ADAPT_K_Q8] = 0;
     curr[OD_ADAPT_SUM_EX_Q8] = 0;
-    for(i = 0; i < n; i++)
-      y[i] = 0;
+    for (i = 0; i < n; i++) y[i] = 0;
     return;
   }
   sum_ex = 0;
@@ -177,7 +177,7 @@ void pvq_decoder(od_ec_dec *dec, int *y, int n, int k,
   mean_sum_ex_q8 = means[OD_ADAPT_SUM_EX_Q8];
   if (mean_k_q8 < 1 << 23) exp_q8 = 256*mean_k_q8/(1 + mean_sum_ex_q8);
   else exp_q8 = mean_k_q8/(1 + (mean_sum_ex_q8 >> 8));
-  for(i = 0; i < n; i++){
+  for (i = 0; i < n; i++) {
     int ex;
     int x;
     if (kn == 0) break;
@@ -193,7 +193,7 @@ void pvq_decoder(od_ec_dec *dec, int *y, int n, int k,
     if (ex > kn*256) ex = kn*256;
     sum_ex += (2*256*kn + (n - i))/(2*(n - i));
     /* No need to encode the magnitude for the last bin. */
-    if (i != n - 1) x=laplace_decode(dec, ex, kn);
+    if (i != n - 1) x = laplace_decode(dec, ex, kn);
     else x = kn;
     if (x != 0) {
       if (od_ec_dec_bits(dec, 1)) x = -x;
@@ -208,11 +208,10 @@ void pvq_decoder(od_ec_dec *dec, int *y, int n, int k,
   }
   curr[OD_ADAPT_K_Q8] = k - kn;
   curr[OD_ADAPT_SUM_EX_Q8] = sum_ex;
-  for(; i < n; i++)
-    y[i] = 0;
+  for (; i < n; i++) y[i] = 0;
 }
 
-void pvq_decode_delta(od_ec_dec *dec, int *y,int n,int k,
+void pvq_decode_delta(od_ec_dec *dec, int *y, int n, int k,
  ogg_int32_t *curr, const ogg_int32_t *means) {
   int i;
   int prev;
@@ -224,15 +223,15 @@ void pvq_decode_delta(od_ec_dec *dec, int *y,int n,int k,
   int sign;
   int first;
   int k_left;
-  prev=0;
-  sum_ex=0;
-  sum_c=0;
+  prev = 0;
+  sum_ex = 0;
+  sum_c = 0;
   coef = 256*means[OD_ADAPT_COUNT_Q8]/
    (1 + means[OD_ADAPT_COUNT_EX_Q8]);
-  pos=0;
-  sign=0;
+  pos = 0;
+  sign = 0;
   first = 1;
-  k_left=k;
+  k_left = k;
   for (i = 0; i < n; i++) y[i] = 0;
   k0 = k_left;
   coef = OD_MAXI(coef, 1);

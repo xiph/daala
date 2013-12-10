@@ -24,7 +24,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+# include "config.h"
 #endif
 
 #include <stddef.h>
@@ -95,7 +95,7 @@ daala_enc_ctx *daala_encode_create(const daala_info *info) {
   od_enc_ctx *enc;
   if (info == NULL) return NULL;
   enc = (od_enc_ctx *)_ogg_malloc(sizeof(*enc));
-  if (od_enc_init(enc,info) < 0) {
+  if (od_enc_init(enc, info) < 0) {
     _ogg_free(enc);
     return NULL;
   }
@@ -122,7 +122,7 @@ int daala_encode_ctl(daala_enc_ctx *enc, int req, void *buf, size_t buf_sz) {
       for (i = 0; i < OD_NPLANES_MAX; i++) enc->scale[i] = *(int *)buf;
       return OD_SUCCESS;
     }
-    default:return OD_EIMPL;
+    default: return OD_EIMPL;
   }
 }
 
@@ -142,7 +142,7 @@ static void od_img_plane_copy_pad8(od_img_plane *dst_p,
     }
   }
   /*Otherwise, copy what we do have, and add our own padding.*/
-  else{
+  else {
     unsigned char *src_data;
     unsigned char *dst;
     ptrdiff_t sxstride;
@@ -253,25 +253,28 @@ typedef struct od_mb_enc_ctx od_mb_enc_ctx;
 void od_band_encode(od_ec_enc *ec, int qg, int theta, int max_theta,
  const int *y, int n, int k, generic_encoder *model, int *adapt, int *exg,
  int *ext) {
-  int adapt_curr[OD_NSB_ADAPT_CTXS] = {0};
+  int adapt_curr[OD_NSB_ADAPT_CTXS] = { 0 };
   int speed = 5;
   generic_encode(ec, model, qg, exg, 2);
-  if (theta>=0 && max_theta>0)
+  if (theta >= 0 && max_theta > 0)
     generic_encode(ec, model, theta, ext, 2);
-  pvq_encoder(ec, y, n-(theta>=0), k, adapt_curr, adapt);
-
+  pvq_encoder(ec, y, n - (theta >= 0), k, adapt_curr, adapt);
   if (adapt_curr[OD_ADAPT_K_Q8] > 0) {
-    adapt[OD_ADAPT_K_Q8] += 256*adapt_curr[OD_ADAPT_K_Q8]-adapt[OD_ADAPT_K_Q8]>>speed;
-    adapt[OD_ADAPT_SUM_EX_Q8] += adapt_curr[OD_ADAPT_SUM_EX_Q8]-adapt[OD_ADAPT_SUM_EX_Q8]>>speed;
+    adapt[OD_ADAPT_K_Q8] += 256*adapt_curr[OD_ADAPT_K_Q8] -
+     adapt[OD_ADAPT_K_Q8]>>speed;
+    adapt[OD_ADAPT_SUM_EX_Q8] += adapt_curr[OD_ADAPT_SUM_EX_Q8] -
+     adapt[OD_ADAPT_SUM_EX_Q8]>>speed;
   }
   if (adapt_curr[OD_ADAPT_COUNT_Q8] > 0) {
-    adapt[OD_ADAPT_COUNT_Q8] += adapt_curr[OD_ADAPT_COUNT_Q8]-adapt[OD_ADAPT_COUNT_Q8]>>speed;
-    adapt[OD_ADAPT_COUNT_EX_Q8] += adapt_curr[OD_ADAPT_COUNT_EX_Q8]-adapt[OD_ADAPT_COUNT_EX_Q8]>>speed;
+    adapt[OD_ADAPT_COUNT_Q8] += adapt_curr[OD_ADAPT_COUNT_Q8]-
+     adapt[OD_ADAPT_COUNT_Q8]>>speed;
+    adapt[OD_ADAPT_COUNT_EX_Q8] += adapt_curr[OD_ADAPT_COUNT_EX_Q8]-
+     adapt[OD_ADAPT_COUNT_EX_Q8]>>speed;
   }
 }
 
 void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
-  int pli, int bx, int by, int has_ur) {
+ int pli, int bx, int by, int has_ur) {
   ogg_int32_t adapt_curr[OD_NSB_ADAPT_CTXS];
   int n;
   int n2;
@@ -372,7 +375,8 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
 #endif
         od_ec_encode_cdf_unscaled(&enc->ec, mode, mode_cdf, OD_INTRA_NMODES);
 #if defined(OD_METRICS)
-        enc->state.bit_metrics[OD_METRIC_INTRA] += od_ec_enc_tell_frac(&enc->ec) - intra_frac_bits;
+        enc->state.bit_metrics[OD_METRIC_INTRA] +=
+         od_ec_enc_tell_frac(&enc->ec) - intra_frac_bits;
 #endif
         mode_bits -= M_LOG2E*log(
          (mode_cdf[mode] - (mode == 0 ? 0 : mode_cdf[mode - 1]))/
@@ -394,7 +398,7 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
          OD_INTRA_CHROMA_WEIGHTS_Q8[mode]);
       }
     }
-    else{
+    else {
       int nsize;
       for (zzi = 0; zzi < n2; zzi++) pred[zzi] = 0;
       nsize = ln;
@@ -446,7 +450,8 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
 #endif
   /* Change ordering for encoding. */
 #ifdef USE_PSEUDO_ZIGZAG
-  od_band_pseudo_zigzag(cblock,  n, &d[((by << 2))*w + (bx << 2)], w, !run_pvq);
+  od_band_pseudo_zigzag(cblock,  n, &d[((by << 2))*w + (bx << 2)], w,
+   !run_pvq);
   od_band_pseudo_zigzag(predt,  n, &pred[0], n, !run_pvq);
 #else
   /*Zig-zag*/
@@ -463,10 +468,11 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   dc_frac_bits = od_ec_enc_tell_frac(&enc->ec);
 #endif
   generic_encode(&enc->ec, ctx->model_dc + pli, abs(scalar_out[0]),
-    ctx->ex_dc + pli, 0);
+   ctx->ex_dc + pli, 0);
   if (scalar_out[0]) od_ec_enc_bits(&enc->ec, scalar_out[0] < 0, 1);
 #if defined(OD_METRICS)
-  enc->state.bit_metrics[OD_METRIC_DC] += od_ec_enc_tell_frac(&enc->ec) - dc_frac_bits;
+  enc->state.bit_metrics[OD_METRIC_DC] += od_ec_enc_tell_frac(&enc->ec) -
+   dc_frac_bits;
 #endif
   scalar_out[0] = scalar_out[0]*scale;
   scalar_out[0] += predt[0];
@@ -492,8 +498,8 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
      &theta[2], &max_theta[2], &k[2]);
     qg[3] = pvq_theta(cblock+32, predt+32, 32, scale, scalar_out+32,
      &theta[3], &max_theta[3], &k[3]);
-    predflags8 = 8*(theta[0]!=-1) + 4*(theta[1]!=-1) + 2*(theta[2]!=-1)
-     + (theta[3]!=-1);
+    predflags8 = 8*(theta[0] != -1) + 4*(theta[1] != -1) + 2*(theta[2] != -1)
+     + (theta[3] != -1);
     od_ec_encode_cdf_q15(&enc->ec, predflags8, pred8_cdf, 16);
     od_band_encode(&enc->ec, qg[0], theta[0], max_theta[0], scalar_out+1,
      15, k[0], model, adapt, exg, ext);
@@ -503,7 +509,7 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
      8, k[2], model, adapt, exg, ext);
     od_band_encode(&enc->ec, qg[3], theta[3], max_theta[3], scalar_out+32,
      32, k[3], model, adapt, exg, ext);
-    for (zzi=1;zzi<n2;zzi++)
+    for (zzi = 1; zzi < n2; zzi++)
       scalar_out[zzi] = cblock[zzi];
   }
   else {
@@ -519,7 +525,8 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
      ctx->ex_g + pli, 0);
     pvq_encoder(&enc->ec, scalar_out + 1, n2 - 1, vk, adapt_curr, ctx->adapt);
 #if defined(OD_METRICS)
-    enc->state.bit_metrics[OD_METRIC_PVQ] += od_ec_enc_tell_frac(&enc->ec) - pvq_frac_bits;
+    enc->state.bit_metrics[OD_METRIC_PVQ] += od_ec_enc_tell_frac(&enc->ec) -
+     pvq_frac_bits;
 #endif
     for (zzi = 1; zzi < n2; zzi++) {
       scalar_out[zzi] = scalar_out[zzi]*scale + predt[zzi];
@@ -578,7 +585,7 @@ static void od_32x32_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
 typedef void (*od_enc_func)(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
  int pli, int bx, int by, int has_ur);
 
-const od_enc_func OD_ENCODE_BLOCK[OD_NBSIZES + 2]={
+const od_enc_func OD_ENCODE_BLOCK[OD_NBSIZES + 2] = {
   od_single_band_encode,
   od_single_band_encode,
   od_single_band_encode,
@@ -623,8 +630,8 @@ static void od_encode_block(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
 
 static void od_encode_mv(daala_enc_ctx *enc, od_mv_grid_pt *mvg, int vx,
  int vy, int level, int mv_res, int width, int height) {
-  static const int ex[5] = {628, 1382, 1879, 2119, 2102};
-  static const int ey[5] = {230, 525, 807, 1076, 1332};
+  static const int ex[5] = { 628, 1382, 1879, 2119, 2102 };
+  static const int ey[5] = { 230, 525, 807, 1076, 1332 };
   int pred[2];
   int ox;
   int oy;
@@ -670,7 +677,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   if (img->nplanes != nplanes) return OD_EINVAL;
   for (pli = 0; pli < nplanes; pli++) {
     if (img->planes[pli].xdec != enc->state.info.plane_info[pli].xdec
-      || img->planes[pli].ydec != enc->state.info.plane_info[pli].ydec) {
+     || img->planes[pli].ydec != enc->state.info.plane_info[pli].ydec) {
       return OD_EINVAL;
     }
   }
@@ -683,7 +690,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   if (img->width != frame_width || img->height != frame_height) {
     /*The buffer does not match the frame size.
       Check to see if it matches the picture size.*/
-    if ( img->width != pic_width || img->height != pic_height) {
+    if (img->width != pic_width || img->height != pic_height) {
       /*It doesn't; we don't know how to handle it yet.*/
       return OD_EINVAL;
     }
@@ -708,21 +715,21 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   if (od_logging_active(OD_LOG_GENERIC, OD_LOG_DEBUG)) {
     daala_info *info;
     od_img img;
-    info=&enc->state.info;
+    info = &enc->state.info;
     /*Modify the image offsets to include the padding.*/
-    *&img=*(enc->state.io_imgs+OD_FRAME_INPUT);
+    *&img = *(enc->state.io_imgs+OD_FRAME_INPUT);
     for (pli = 0; pli < nplanes; pli++) {
       img.planes[pli].data -= (OD_UMV_PADDING>>info->plane_info[pli].xdec)
        +img.planes[pli].ystride*(OD_UMV_PADDING>>info->plane_info[pli].ydec);
     }
-    img.width+=OD_UMV_PADDING<<1;
-    img.height+=OD_UMV_PADDING<<1;
+    img.width += OD_UMV_PADDING<<1;
+    img.height += OD_UMV_PADDING<<1;
     od_state_dump_img(&enc->state, &img, "pad");
   }
 #endif
   /* Check if the frame should be a keyframe. */
-  mbctx.is_keyframe = ( enc->state.cur_time %
-      (enc->state.info.keyframe_rate) == 0) ? 1 : 0;
+  mbctx.is_keyframe = (enc->state.cur_time %
+   (enc->state.info.keyframe_rate) == 0) ? 1 : 0;
   /*Update the buffer state.*/
   if (enc->state.ref_imgi[OD_FRAME_SELF] >= 0) {
     enc->state.ref_imgi[OD_FRAME_PREV] =
@@ -748,10 +755,10 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   tot_frac_bits = od_ec_enc_tell_frac(&enc->ec);
 #endif
   /*Write a bit to mark this as a data packet.*/
-  od_ec_encode_bool_q15(&enc->ec,0,16384);
+  od_ec_encode_bool_q15(&enc->ec, 0, 16384);
   /*Code the keyframe bit.*/
-  od_ec_encode_bool_q15(&enc->ec,mbctx.is_keyframe,16384);
-  OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO,"is_keyframe=%d",mbctx.is_keyframe ));
+  od_ec_encode_bool_q15(&enc->ec, mbctx.is_keyframe, 16384);
+  OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO, "is_keyframe=%d", mbctx.is_keyframe));
   /*TODO: Incrment frame count.*/
   /*Motion estimation and compensation.*/
   if (!mbctx.is_keyframe) {
@@ -759,7 +766,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     enc->state.ani_iter = 0;
 #endif
     OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO, "Predicting frame %i:",
-            (int)daala_granule_basetime(enc, enc->state.cur_time)));
+     (int)daala_granule_basetime(enc, enc->state.cur_time)));
     od_mv_est(enc->mvest, OD_FRAME_PREV, 452);
     od_state_mc_predict(&enc->state, OD_FRAME_PREV);
     /*Do edge extension here because the block-size analysis needs to read
@@ -783,12 +790,14 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   /* Allocate a blockSizeComp for scratch space and then calculate the block sizes
      eventually store them in bsize. */
   bs = _ogg_malloc(sizeof(BlockSizeComp));
-  od_log_matrix_uchar(OD_LOG_GENERIC, OD_LOG_INFO, "bimg ", enc->state.io_imgs[OD_FRAME_INPUT].planes[0].data-16*enc->state.io_imgs[OD_FRAME_INPUT].planes[0].ystride-16,
-      enc->state.io_imgs[OD_FRAME_INPUT].planes[0].ystride, (nvsb + 1)*32);
+  od_log_matrix_uchar(OD_LOG_GENERIC, OD_LOG_INFO, "bimg ",
+   enc->state.io_imgs[OD_FRAME_INPUT].planes[0].data -
+   16*enc->state.io_imgs[OD_FRAME_INPUT].planes[0].ystride - 16,
+   enc->state.io_imgs[OD_FRAME_INPUT].planes[0].ystride, (nvsb + 1)*32);
 #if defined(OD_METRICS)
   bs_frac_bits = od_ec_enc_tell_frac(&enc->ec);
 #endif
-  for(i = 0; i < nvsb; i++) {
+  for (i = 0; i < nvsb; i++) {
     unsigned char *bimg;
     unsigned char *rimg;
     int istride;
@@ -801,7 +810,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     rstride = kf ? 0 : enc->state.io_imgs[OD_FRAME_REC].planes[0].ystride;
     bimg = enc->state.io_imgs[OD_FRAME_INPUT].planes[0].data + i*istride*32;
     rimg = enc->state.io_imgs[OD_FRAME_REC].planes[0].data + i*rstride*32;
-    for(j = 0; j < nhsb; j++) {
+    for (j = 0; j < nhsb; j++) {
       int bsize[4][4];
       unsigned char *state_bsize;
       state_bsize = &enc->state.bsize[i*4*enc->state.bstride + j*4];
@@ -809,8 +818,8 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
        kf ? NULL : rimg + j*32, rstride, bsize);
       /* Grab the 4x4 information returned from process_block_size32 in bsize
          and store it in the od_state bsize. */
-      for(k = 0; k < 4; k++) {
-        for(m = 0; m < 4; m++) {
+      for (k = 0; k < 4; k++) {
+        for (m = 0; m < 4; m++) {
 #if 1
           state_bsize[k*bstride + m] = OD_MINI(bsize[k][m], 2);
 #else
@@ -822,12 +831,15 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     }
   }
 #if defined(OD_METRICS)
-  enc->state.bit_metrics[OD_METRIC_BLOCK_SWITCHING] = od_ec_enc_tell_frac(&enc->ec) - bs_frac_bits;
+  enc->state.bit_metrics[OD_METRIC_BLOCK_SWITCHING] =
+   od_ec_enc_tell_frac(&enc->ec) - bs_frac_bits;
 #endif
-  od_log_matrix_uchar(OD_LOG_GENERIC, OD_LOG_INFO, "bsize ", enc->state.bsize, enc->state.bstride, (nvsb+1)*4);
-  for(i = 0; i < nvsb*4; i++) {
-    for(j = 0; j < nhsb*4; j++) {
-      OD_LOG_PARTIAL((OD_LOG_GENERIC, OD_LOG_INFO, "%d ", enc->state.bsize[i*enc->state.bstride + j]));
+  od_log_matrix_uchar(OD_LOG_GENERIC, OD_LOG_INFO, "bsize ", enc->state.bsize,
+   enc->state.bstride, (nvsb + 1)*4);
+  for (i = 0; i < nvsb*4; i++) {
+    for (j = 0; j < nhsb*4; j++) {
+      OD_LOG_PARTIAL((OD_LOG_GENERIC, OD_LOG_INFO, "%d ",
+       enc->state.bsize[i*enc->state.bstride + j]));
     }
     OD_LOG_PARTIAL((OD_LOG_GENERIC, OD_LOG_INFO, "\n"));
   }
@@ -867,7 +879,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     for (vy = 2; vy <= nvmvbs; vy += 4) {
       for (vx = 2; vx <= nhmvbs; vx += 4) {
         int p_invalid;
-        p_invalid = od_mv_level1_prob(grid,vx,vy);
+        p_invalid = od_mv_level1_prob(grid, vx, vy);
         mvp = &(grid[vy][vx]);
         od_ec_encode_bool_q15(&enc->ec, mvp->valid, p_invalid);
         if (mvp->valid) {
@@ -926,7 +938,8 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       }
     }
 #if defined(OD_METRICS)
-    enc->state.bit_metrics[OD_METRIC_MV] = od_ec_enc_tell_frac(&enc->ec) - mv_frac_bits;
+    enc->state.bit_metrics[OD_METRIC_MV] =
+     od_ec_enc_tell_frac(&enc->ec) - mv_frac_bits;
 #endif
   }
   {
@@ -949,7 +962,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     mbctx.modes = _ogg_calloc((frame_width >> 2)*(frame_height >> 2),
      sizeof(*mbctx.modes));
     for (mi = 0; mi < OD_INTRA_NMODES; mi++) {
-     mbctx.mode_p0[mi] = 32768/OD_INTRA_NMODES;
+      mbctx.mode_p0[mi] = 32768/OD_INTRA_NMODES;
     }
     for (pli = 0; pli < nplanes; pli++) {
       generic_model_init(&mbctx.model_dc[pli]);
@@ -989,7 +1002,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
             lbuf[pli] = ltmp[pli] = _ogg_calloc(w*h, sizeof(*ltmp));
           }
         }
-        else{
+        else {
           ltmp[pli] = NULL;
           lbuf[pli] = ctmp[pli];
         }
@@ -1010,11 +1023,11 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
         data = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].data;
         mdata = enc->state.io_imgs[OD_FRAME_REC].planes[pli].data;
         ystride = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ystride;
-        for (y=0;y<h;y++) {
-          for (x=0;x<w;x++) {
-            ctmp[pli][y*w+x]=data[ystride*y+x]-128;
+        for (y = 0; y < h; y++) {
+          for (x = 0; x < w; x++) {
+            ctmp[pli][y*w + x] = data[ystride*y + x] - 128;
             if (!mbctx.is_keyframe) {
-              mctmp[pli][y*w+x]=mdata[ystride*y+x]-128;
+              mctmp[pli][y*w + x] = mdata[ystride*y + x] - 128;
             }
           }
         }
@@ -1062,17 +1075,18 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
              OD_DIVU_SMALL(mbctx.k_total << 8, mbctx.nk);
             mbctx.adapt[OD_ADAPT_SUM_EX_Q8] =
              OD_DIVU_SMALL(mbctx.sum_ex_total_q8, mbctx.nk);
-          } else {
+          }
+          else {
             mbctx.adapt[OD_ADAPT_K_Q8] = OD_ADAPT_NO_VALUE;
             mbctx.adapt[OD_ADAPT_SUM_EX_Q8] = OD_ADAPT_NO_VALUE;
           }
-          if (mbctx.ncount > 0)
-          {
+          if (mbctx.ncount > 0) {
             mbctx.adapt[OD_ADAPT_COUNT_Q8] =
              OD_DIVU_SMALL(mbctx.count_total_q8, mbctx.ncount);
             mbctx.adapt[OD_ADAPT_COUNT_EX_Q8] =
              OD_DIVU_SMALL(mbctx.count_ex_total_q8, mbctx.ncount);
-          } else {
+          }
+          else {
             mbctx.adapt[OD_ADAPT_COUNT_Q8] = OD_ADAPT_NO_VALUE;
             mbctx.adapt[OD_ADAPT_COUNT_EX_Q8] = OD_ADAPT_NO_VALUE;
           }
@@ -1101,9 +1115,9 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
         int ystride;
         data = enc->state.io_imgs[OD_FRAME_REC].planes[pli].data;
         ystride = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ystride;
-        for (y=0;y<h;y++) {
-          for (x=0;x<w;x++) {
-            data[ystride*y+x]=OD_CLAMP255(ctmp[pli][y*w+x]+128);
+        for (y = 0; y < h; y++) {
+          for (x = 0; x < w; x++) {
+            data[ystride*y + x] = OD_CLAMP255(ctmp[pli][y*w + x] + 128);
           }
         }
       }
@@ -1164,7 +1178,8 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     }
     OD_LOG((OD_LOG_ENCODER, OD_LOG_DEBUG,
      "Encoded Plane %i, Squared Error: %12lli  Pixels: %6u  PSNR:  %5.4f",
-     pli,(long long)enc_sqerr,npixels,10*log10(255*255.0*npixels/enc_sqerr)));
+     pli, (long long)enc_sqerr, npixels,
+     10*log10(255*255.0*npixels/enc_sqerr)));
   }
 #endif
   OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO,
@@ -1181,7 +1196,8 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   if (enc->state.info.frame_duration == 0) enc->state.cur_time += duration;
   else enc->state.cur_time += enc->state.info.frame_duration;
 #if defined(OD_METRICS)
-  enc->state.bit_metrics[OD_METRIC_TOTAL] = od_ec_enc_tell_frac(&enc->ec) - tot_frac_bits;
+  enc->state.bit_metrics[OD_METRIC_TOTAL] =
+   od_ec_enc_tell_frac(&enc->ec) - tot_frac_bits;
   write_metrics(enc->state.cur_time, &enc->state.bit_metrics[0]);
 #endif
   return 0;

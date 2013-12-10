@@ -23,7 +23,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+# include "config.h"
 #endif
 
 #include <stdlib.h>
@@ -84,7 +84,7 @@ static void od_ec_enc_normalize(od_ec_enc *enc,
     offs = enc->offs;
     if (offs + 2 > storage) {
       storage = 2*storage + 2;
-      buf = _ogg_realloc(buf,sizeof(*buf)*storage);
+      buf = _ogg_realloc(buf, sizeof(*buf)*storage);
       if (buf == NULL) {
         enc->error = -1;
         enc->offs = 0;

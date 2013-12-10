@@ -23,19 +23,18 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+# include "config.h"
 #endif
 
 #include "block_size.h"
 #include "block_size_dec.h"
 
-void od_block_size_decode(od_ec_dec *dec, unsigned char *bsize, int stride)
-{
+void od_block_size_decode(od_ec_dec *dec, unsigned char *bsize, int stride) {
   int i, j;
   int inefficient;
   inefficient = od_ec_dec_uint(dec, 17);
   if (inefficient == 16) {
-    for(i = 0; i < 4; i++) {
+    for (i = 0; i < 4; i++) {
       for (j = 0; j < 4; j++) {
         bsize[i*stride + j] = 3;
       }
@@ -46,10 +45,10 @@ void od_block_size_decode(od_ec_dec *dec, unsigned char *bsize, int stride)
     bsize[2] = (inefficient&2) ? 2 : 0;
     bsize[2*stride] = (inefficient&4) ? 2 : 0;
     bsize[2*stride + 2] = (inefficient&8) ? 2 : 0;*/
-    for(i = 0; i < 2; i++) {
+    for (i = 0; i < 2; i++) {
       for (j = 0; j < 2; j++) {
         unsigned char *bsize16 = &bsize[2*i*stride + 2*j];
-        if ((inefficient & (1 << 2*i << j))==0) {
+        if ((inefficient & (1 << 2*i << j)) == 0) {
           const ogg_uint16_t *cdf;
           int split;
           int cdf_id;

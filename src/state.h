@@ -31,75 +31,75 @@ typedef struct od_state          od_state;
 # include "internal.h"
 # include "mc.h"
 # include "pvq_code.h"
-#include "adapt.h"
-#include "generic_code.h"
+# include "adapt.h"
+# include "generic_code.h"
 
 /*The golden reference frame.*/
-#define OD_FRAME_GOLD (0)
+# define OD_FRAME_GOLD (0)
 /*The previous reference frame.*/
-#define OD_FRAME_PREV (1)
+# define OD_FRAME_PREV (1)
 /*The next reference frame.*/
-#define OD_FRAME_NEXT (2)
+# define OD_FRAME_NEXT (2)
 /*The current frame.*/
-#define OD_FRAME_SELF (3)
+# define OD_FRAME_SELF (3)
 
 /*The reconstructed I/O frame.*/
-#define OD_FRAME_REC   (0)
+# define OD_FRAME_REC   (0)
 /*The input I/O frame.*/
-#define OD_FRAME_INPUT (1)
+# define OD_FRAME_INPUT (1)
 
 /*Constants for the packet state machine common between encoder and decoder.*/
 
 /*Next packet to emit/read: Codec info header.*/
-#define OD_PACKET_INFO_HDR    (-3)
+# define OD_PACKET_INFO_HDR    (-3)
 /*Next packet to emit/read: Comment header.*/
-#define OD_PACKET_COMMENT_HDR (-2)
+# define OD_PACKET_COMMENT_HDR (-2)
 /*Next packet to emit/read: Codec setup header.*/
-#define OD_PACKET_SETUP_HDR   (-1)
+# define OD_PACKET_SETUP_HDR   (-1)
 /*Next more packets to emit/read.*/
-#define OD_PACKET_DONE        (INT_MAX)
+# define OD_PACKET_DONE        (INT_MAX)
 
 extern const int        OD_VERT_D[];
 /*The vector offsets in the X direction for each motion comepnsation block
    vertex from the upper-left.*/
-#define OD_VERT_DX (OD_VERT_D+1)
+# define OD_VERT_DX (OD_VERT_D+1)
 /*The vector offsets in the Y direction for each motion compensation block
    vertex from the upper-left.*/
-#define OD_VERT_DY (OD_VERT_D+0)
+# define OD_VERT_DY (OD_VERT_D+0)
 extern const int *const OD_VERT_SETUP_DX[4][4];
 extern const int *const OD_VERT_SETUP_DY[4][4];
 
 
 
 /*This should be a power of 2, and at least 8.*/
-#define OD_UMV_PADDING (32)
+# define OD_UMV_PADDING (32)
 
-#define OD_SUPERBLOCK_SIZE (32)
+# define OD_SUPERBLOCK_SIZE (32)
 
 /*These are buckets for performance and bitrate measurements.*/
-#define OD_METRIC_TOTAL 0
-#define OD_METRIC_MV 1
-#define OD_METRIC_BLOCK_SWITCHING 2
-#define OD_METRIC_INTRA 3
-#define OD_METRIC_PVQ 4
-#define OD_METRIC_DC 5
+# define OD_METRIC_TOTAL 0
+# define OD_METRIC_MV 1
+# define OD_METRIC_BLOCK_SWITCHING 2
+# define OD_METRIC_INTRA 3
+# define OD_METRIC_PVQ 4
+# define OD_METRIC_DC 5
 
-#define OD_METRIC_COUNT (OD_METRIC_DC + 1)
+# define OD_METRIC_COUNT (OD_METRIC_DC + 1)
 
 /*The shared (encoder and decoder) functions that have accelerated variants.*/
 struct od_state_opt_vtbl{
-  void (*mc_predict1imv8)(unsigned char *_dst,int _dystride,
-   const unsigned char *_src,int _systride,const ogg_int32_t _mvx[4],
-   const ogg_int32_t _mvy[4],const int _m[4],int _r,int _log_xblk_sz,
+  void (*mc_predict1imv8)(unsigned char *_dst, int _dystride,
+   const unsigned char *_src, int _systride, const ogg_int32_t _mvx[4],
+   const ogg_int32_t _mvy[4], const int _m[4], int _r, int _log_xblk_sz,
    int _log_yblk_sz);
-  void (*mc_predict1fmv8)(unsigned char *_dst,const unsigned char *_src,
-   int _systride,ogg_int32_t _mvx,ogg_int32_t _mvy,
-   int _log_xblk_sz,int _log_yblk_sz);
-  void (*mc_blend_full8)(unsigned char *_dst,int _dystride,
-   const unsigned char *_src[4],int _log_xblk_sz,int _log_yblk_sz);
-  void (*mc_blend_full_split8)(unsigned char *_dst,int _dystride,
-   const unsigned char *_src[4],int _c,int _s,
-   int _log_xblk_sz,int _log_yblk_sz);
+  void (*mc_predict1fmv8)(unsigned char *_dst, const unsigned char *_src,
+   int _systride, ogg_int32_t _mvx, ogg_int32_t _mvy,
+   int _log_xblk_sz, int _log_yblk_sz);
+  void (*mc_blend_full8)(unsigned char *_dst, int _dystride,
+   const unsigned char *_src[4], int _log_xblk_sz, int _log_yblk_sz);
+  void (*mc_blend_full_split8)(unsigned char *_dst, int _dystride,
+   const unsigned char *_src[4], int _c, int _s,
+   int _log_xblk_sz, int _log_yblk_sz);
 };
 
 
@@ -118,11 +118,11 @@ struct od_state{
   od_img              ref_imgs[4];
   /** Pointer to input and output image. */
   od_img              io_imgs[2];
-  unsigned char      *ref_line_buf[8];
-  unsigned char      *ref_img_data;
+  unsigned char *ref_line_buf[8];
+  unsigned char *ref_img_data;
   /** Increments by 1 for each frame. */
   ogg_int64_t         cur_time;
-  od_mv_grid_pt     **mv_grid;
+  od_mv_grid_pt **mv_grid;
   od_adapt_ctx        adapt_sb[OD_NPLANES_MAX];
   int                 pvq_adapt[OD_NSB_ADAPT_CTXS];
   generic_encoder     pvq_gain_model;
@@ -150,57 +150,59 @@ struct od_state{
 
       The `bstride` member has the distance between vertically adjacent
       entries (horizontally adjacent entries are adjacent in memory). */
-  unsigned char      *bsize;
+  unsigned char *bsize;
   int                 bstride;
   int                 mv_res;
-#if defined(OD_DUMP_IMAGES)
+# if defined(OD_DUMP_IMAGES)
   od_img              vis_img;
-#if defined(OD_ANIMATE)
+#  if defined(OD_ANIMATE)
   int                 ani_iter;
-#endif
-#endif
-#if defined(OD_METRICS)
+#  endif
+# endif
+# if defined(OD_METRICS)
   ogg_int64_t bit_metrics[OD_METRIC_COUNT];
-#endif
+# endif
 };
 
 
-int  od_state_init(od_state *_state,const daala_info *_info);
+int od_state_init(od_state *_state, const daala_info *_info);
 void od_state_clear(od_state *_state);
 
-void od_state_pred_block_from_setup(od_state *_state,unsigned char *_buf,
- int _ystride,int _ref,int _pli,int _vx,int _vy,int _c,int _s,int _log_mvb_sz);
-void od_state_pred_block(od_state *_state,unsigned char *_buf,int _ystride,
- int _ref,int _pli,int _vx,int _vy,int _log_mvb_sz);
-void od_state_mc_predict(od_state *_state,int _ref);
+void od_state_pred_block_from_setup(od_state *_state, unsigned char *_buf,
+ int _ystride, int _ref, int _pli, int _vx, int _vy, int _c, int _s,
+ int _log_mvb_sz);
+void od_state_pred_block(od_state *_state, unsigned char *_buf, int _ystride,
+ int _ref, int _pli, int _vx, int _vy, int _log_mvb_sz);
+void od_state_mc_predict(od_state *_state, int _ref);
 void od_state_init_border_as_32x32(od_state *_state);
-void od_state_upsample8(od_state *_state,od_img *_dst,const od_img *_src);
-int od_state_dump_yuv(od_state *_state,od_img *_img,const char *_suf);
-#if defined(OD_DUMP_IMAGES)
-int od_state_dump_img(od_state *_state,od_img *_img,const char *_suf);
-void od_img_draw_point(od_img *_img,int _x,int _y,
+void od_state_upsample8(od_state *_state, od_img *_dst, const od_img *_src);
+int od_state_dump_yuv(od_state *_state, od_img *_img, const char *_suf);
+# if defined(OD_DUMP_IMAGES)
+int od_state_dump_img(od_state *_state, od_img *_img, const char *_suf);
+void od_img_draw_point(od_img *_img, int _x, int _y,
  const unsigned char _ycbcr[3]);
-void od_img_draw_line(od_img *_img,int _x0,int _y0,int _x1,int _y1,
+void od_img_draw_line(od_img *_img, int _x0, int _y0, int _x1, int _y1,
  const unsigned char _ycbcr[3]);
 void od_state_draw_mv_grid(od_state *_state);
 void od_state_draw_mvs(od_state *_state);
 void od_state_fill_vis(od_state *_state);
-#endif
+# endif
 
 /*Shared accelerated functions.*/
 
 /*Default pure-C implementations.*/
-void od_mc_predict1imv8_c(unsigned char *_dst,int _dystride,
- const unsigned char *_src,int _systride,const ogg_int32_t _mvx[4],
- const ogg_int32_t _mvy[4],const int _m[4],int _r,int _log_xblk_sz,
+void od_mc_predict1imv8_c(unsigned char *_dst, int _dystride,
+ const unsigned char *_src, int _systride, const ogg_int32_t _mvx[4],
+ const ogg_int32_t _mvy[4], const int _m[4], int _r, int _log_xblk_sz,
  int _log_yblk_sz);
-void od_mc_predict1fmv8_c(unsigned char *_dst,const unsigned char *_src,
- int _systride,ogg_int32_t _mvx,ogg_int32_t _mvy,
- int _log_xblk_sz,int _log_yblk_sz);
-void od_mc_blend_full8_c(unsigned char *_dst,int _dystride,
- const unsigned char *_src[4],int _log_xblk_sz,int _log_yblk_sz);
-void od_mc_blend_full_split8_c(unsigned char *_dst,int _dystride,
- const unsigned char *_src[4],int _c,int _s,int _log_xblk_sz,int _log_yblk_sz);
+void od_mc_predict1fmv8_c(unsigned char *_dst, const unsigned char *_src,
+ int _systride, ogg_int32_t _mvx, ogg_int32_t _mvy,
+ int _log_xblk_sz, int _log_yblk_sz);
+void od_mc_blend_full8_c(unsigned char *_dst, int _dystride,
+ const unsigned char *_src[4], int _log_xblk_sz, int _log_yblk_sz);
+void od_mc_blend_full_split8_c(unsigned char *_dst, int _dystride,
+ const unsigned char *_src[4], int _c, int _s, int _log_xblk_sz,
+ int _log_yblk_sz);
 
 void od_state_opt_vtbl_init_c(od_state *_state);
 

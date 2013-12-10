@@ -23,7 +23,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+# include "config.h"
 #endif
 
 #include <stdlib.h>
@@ -33,7 +33,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "intra.h"
 #include "tf.h"
 
-const od_intra_mult_func OD_INTRA_MULT[OD_NBSIZES+1]={
+const od_intra_mult_func OD_INTRA_MULT[OD_NBSIZES+1] = {
   od_intra_pred4x4_mult,
   od_intra_pred8x8_mult,
   od_intra_pred16x16_mult
@@ -52,7 +52,7 @@ void od_intra_pred4x4_mult(double *pred, int pred_stride, od_coeff *blocks[4],
     for (i = 0; i < 4; i++) {
       double sum;
       sum = 0;
-      for (k = OD_PRED_MULTS_4x4[mode][j][i]; k-- > 0; ) {
+      for (k = OD_PRED_MULTS_4x4[mode][j][i]; k-- > 0;) {
         int id;
         int x;
         int y;
@@ -83,7 +83,7 @@ void od_intra_pred8x8_mult(double *pred, int pred_stride, od_coeff *blocks[4],
     for (i = 0; i < 8; i++) {
       double sum;
       sum = 0;
-      for (k = OD_PRED_MULTS_8x8[mode][j][i]; k-- > 0; ) {
+      for (k = OD_PRED_MULTS_8x8[mode][j][i]; k-- > 0;) {
         int id;
         int x;
         int y;
@@ -114,7 +114,7 @@ void od_intra_pred16x16_mult(double *pred, int pred_stride,
     for (i = 0; i < 16; i++) {
       double sum;
       sum = 0;
-      for (k = OD_PRED_MULTS_16x16[mode][j][i]; k-- > 0; ) {
+      for (k = OD_PRED_MULTS_16x16[mode][j][i]; k-- > 0;) {
         int id;
         int x;
         int y;
@@ -132,7 +132,7 @@ void od_intra_pred16x16_mult(double *pred, int pred_stride,
   }
 }
 
-const od_intra_dist_func OD_INTRA_DIST[OD_NBSIZES+1]={
+const od_intra_dist_func OD_INTRA_DIST[OD_NBSIZES+1] = {
   od_intra_pred4x4_dist,
   od_intra_pred8x8_dist,
   od_intra_pred16x16_dist
@@ -148,8 +148,8 @@ void od_intra_pred4x4_dist(ogg_uint32_t *dist, const od_coeff *c,
   for (mode = 0; mode < OD_INTRA_NMODES; mode++) {
     od_intra_pred4x4_mult(p, 4, neighbors, neighbor_strides, mode);
     satd = 0;
-    for (i = 0;i<4;i++){
-      for (j = 0; j < 4 ; j++) {
+    for (i = 0; i < 4; i++) {
+      for (j = 0; j < 4; j++) {
         satd += abs(floor(c[stride*i + j] - p[i*4 + j] + 0.5))*
          OD_SATD_WEIGHTS_4x4[i*4 + j];
       }
@@ -179,7 +179,7 @@ void od_intra_pred8x8_dist(ogg_uint32_t *dist, const od_coeff *c,
 }
 
 void od_intra_pred16x16_dist(ogg_uint32_t *dist, const od_coeff *c,
- int stride, od_coeff *neighbors[4],int neighbor_strides[4]) {
+ int stride, od_coeff *neighbors[4], int neighbor_strides[4]) {
   double p[16*16];
   ogg_uint32_t satd;
   int mode;
@@ -191,7 +191,7 @@ void od_intra_pred16x16_dist(ogg_uint32_t *dist, const od_coeff *c,
     for (i = 0; i < 16; i++) {
       for (j = 0; j < 16; j++) {
         satd += abs(floor(c[stride*i + j] - p[i*16 + j] + 0.5))*
-          OD_SATD_WEIGHTS_16x16[i*16 + j];
+         OD_SATD_WEIGHTS_16x16[i*16 + j];
       }
     }
     dist[mode] = satd;
@@ -218,13 +218,13 @@ const int OD_INTRA_CHROMA_WEIGHTS_Q8[OD_INTRA_NMODES][3] = {
   { 1, 168,  87},
 };
 
-void od_chroma_pred(od_coeff *p,const od_coeff *c, const od_coeff *l,
+void od_chroma_pred(od_coeff *p, const od_coeff *c, const od_coeff *l,
  int stride, int bx, int by, int ln, int xdec, int ydec,
  const unsigned char *bsize, int bstride, const int weights_q8[3]) {
-  static const int BLOCK_DX[3] = {-1,  0, -1};
-  static const int BLOCK_DY[3] = {-1, -1, 0};
-  static const int AC_DX[3] = {1, 0, 1};
-  static const int AC_DY[3] = {0, 1, 1};
+  static const int BLOCK_DX[3] = { -1,  0, -1 };
+  static const int BLOCK_DY[3] = { -1, -1, 0 };
+  static const int AC_DX[3] = { 1, 0, 1 };
+  static const int AC_DY[3] = { 0, 1, 1 };
   ogg_int64_t xx;
   ogg_int64_t xy;
   ogg_int32_t alpha_q8;
@@ -277,9 +277,9 @@ void od_chroma_pred(od_coeff *p,const od_coeff *c, const od_coeff *l,
     cc_sum_q8 += cc*w_q8;
     for (ci = 0; ci < 3; ci++) {
       int coffs;
-      coffs=boffs + AC_DY[ci]*stride + AC_DX[ci];
-      lc=*(l + coffs) << (nshift - xdec);
-      cc=*(c + coffs) << nshift;
+      coffs = boffs + AC_DY[ci]*stride + AC_DX[ci];
+      lc = *(l + coffs) << (nshift - xdec);
+      cc = *(c + coffs) << nshift;
       xx += lc*(ogg_int64_t)lc*w_q8;
       xy += lc*(ogg_int64_t)cc*w_q8;
     }
@@ -289,7 +289,7 @@ void od_chroma_pred(od_coeff *p,const od_coeff *c, const od_coeff *l,
   xy -= (cc_sum_q8*(ogg_int64_t)lc_sum_q8 + 128) >> 8;
   if (abs(xx) > abs(xy) >> 1) alpha_q8 = (xy << 8)/xx;
   else alpha_q8 = 0;
-  if (abs(alpha_q8)>128)alpha_q8 = 0;
+  if (abs(alpha_q8) > 128) alpha_q8 = 0;
   beta_q8 = cc_sum_q8 - ((alpha_q8*lc_sum_q8 + 128) >> 8);
   /*Alpha is scaled by the amount needed to bring the luma at this block to
     the working scale.*/
@@ -303,107 +303,108 @@ void od_chroma_pred(od_coeff *p,const od_coeff *c, const od_coeff *l,
   }
 }
 
-const od_intra_get_func OD_INTRA_GET[OD_NBSIZES+1]={
+const od_intra_get_func OD_INTRA_GET[OD_NBSIZES+1] = {
   od_intra_pred4x4_get,
   od_intra_pred8x8_get,
   od_intra_pred16x16_get
 };
 
 void od_intra_pred4x4_get(od_coeff *_out,
- od_coeff *_neighbors[4],int _neighbor_strides[4],int _mode){
+ od_coeff *_neighbors[4], int _neighbor_strides[4], int _mode) {
   double p[4*4];
   int    i;
   int    j;
-  od_intra_pred4x4_mult(p,4,_neighbors,_neighbor_strides,_mode);
-  for(i=0;i<4;i++){
-    for(j=0;j<4;j++){
-      _out[4*i+j]=(od_coeff)floor(p[i*4+j]+0.5);
+  od_intra_pred4x4_mult(p, 4, _neighbors, _neighbor_strides, _mode);
+  for (i = 0; i < 4; i++) {
+    for (j = 0; j < 4; j++) {
+      _out[4*i+j] = (od_coeff)floor(p[i*4+j]+0.5);
     }
   }
 }
 
 void od_intra_pred8x8_get(od_coeff *_out,
- od_coeff *_neighbors[4],int _neighbor_strides[4],int _mode){
+ od_coeff *_neighbors[4], int _neighbor_strides[4], int _mode) {
   double p[8*8];
   int    i;
   int    j;
-  od_intra_pred8x8_mult(p,8,_neighbors,_neighbor_strides,_mode);
-  for(i=0;i<8;i++){
-    for(j=0;j<8;j++){
-      _out[8*i+j]=(od_coeff)floor(p[i*8+j]+0.5);
+  od_intra_pred8x8_mult(p, 8, _neighbors, _neighbor_strides, _mode);
+  for (i = 0; i < 8; i++) {
+    for (j = 0; j < 8; j++) {
+      _out[8*i+j] = (od_coeff)floor(p[i*8+j]+0.5);
     }
   }
 }
 
 void od_intra_pred16x16_get(od_coeff *_out,
- od_coeff *_neighbors[4],int _neighbor_strides[4],int _mode){
+ od_coeff *_neighbors[4], int _neighbor_strides[4], int _mode) {
   double p[16*16];
   int    i;
   int    j;
-  od_intra_pred16x16_mult(p,16,_neighbors,_neighbor_strides,_mode);
-  for(i=0;i<16;i++){
-    for(j=0;j<16;j++){
-      _out[16*i+j]=(od_coeff)floor(p[i*16+j]+0.5);
+  od_intra_pred16x16_mult(p, 16, _neighbors, _neighbor_strides, _mode);
+  for (i = 0; i < 16; i++) {
+    for (j = 0; j < 16; j++) {
+      _out[16*i+j] = (od_coeff)floor(p[i*16+j]+0.5);
     }
   }
 }
 
 void od_intra_pred_cdf(ogg_uint16_t _cdf[],
- const unsigned char _probs[][OD_INTRA_NCONTEXTS],const ogg_uint16_t _p0[],
- int _nmodes,int _left,int _upleft,int _up){
+ const unsigned char _probs[][OD_INTRA_NCONTEXTS], const ogg_uint16_t _p0[],
+ int _nmodes, int _left, int _upleft, int _up) {
   unsigned p[OD_INTRA_NMODES+1];
   int      mi;
   int      sum;
   int      curr_cdf;
-  sum=0;
-  for(mi=0;mi<_nmodes;mi++){
-    p[mi]=_probs[mi][(_left==mi)*4+(_upleft==mi)*2+(_up==mi)];
-    p[mi]=OD_MAXI(OD_MAXI(p[mi],_p0[mi]>>8),1);
-    sum+=p[mi];
+  sum = 0;
+  for (mi = 0; mi < _nmodes; mi++) {
+    p[mi] = _probs[mi][(_left == mi)*4+(_upleft == mi)*2+(_up == mi)];
+    p[mi] = OD_MAXI(OD_MAXI(p[mi], _p0[mi]>>8), 1);
+    sum += p[mi];
   }
-  curr_cdf=0;
-  for(mi=0;mi<_nmodes;mi++){
+  curr_cdf = 0;
+  for (mi = 0; mi < _nmodes; mi++) {
     /*Apply probability combination here: p[mi] *= (sum-p[mi])/(1-p[mi]).*/
     /*FIXME: Make this fixed-point.*/
-    p[mi]=p[mi]*(sum-p[mi])/(float)(256-p[mi]);
-    curr_cdf+=p[mi];
-    _cdf[mi]=curr_cdf;
+    p[mi] = p[mi]*(sum-p[mi])/(float)(256-p[mi]);
+    curr_cdf += p[mi];
+    _cdf[mi] = curr_cdf;
   }
 }
 
 int od_intra_pred_search(const ogg_uint16_t _cdf[],
- const ogg_uint32_t _dist[],int _nmodes,ogg_uint16_t _lambda){
+ const ogg_uint32_t _dist[], int _nmodes, ogg_uint16_t _lambda) {
   int best_score;
   int best_mode;
   int mi;
   /*FIXME: Compute the log2() in fixed-point.*/
-  best_score=_dist[0]-_lambda*OD_LOG2(_cdf[0]);
-  best_mode=0;
-  for(mi=1;mi<_nmodes;mi++){
+  best_score = _dist[0]-_lambda*OD_LOG2(_cdf[0]);
+  best_mode = 0;
+  for (mi = 1; mi < _nmodes; mi++) {
     int score;
     /*FIXME: Compute the log2() in fixed-point.*/
-    score=_dist[mi]-_lambda*OD_LOG2(_cdf[mi]-_cdf[mi-1]);
-    if(score<best_score){
-      best_score=score;
-      best_mode=mi;
+    score = _dist[mi]-_lambda*OD_LOG2(_cdf[mi]-_cdf[mi-1]);
+    if (score < best_score) {
+      best_score = score;
+      best_mode = mi;
     }
   }
   return best_mode;
 }
 
-void od_intra_pred_update(ogg_uint16_t _p0[],int _nmodes,int _mode,
- int _left,int _upleft,int _up){
+void od_intra_pred_update(ogg_uint16_t _p0[], int _nmodes, int _mode,
+ int _left, int _upleft, int _up) {
   int mi;
-  for(mi=1;mi<_nmodes;mi++){
+  for (mi = 1; mi < _nmodes; mi++) {
     /*p0 is the probability of choosing mode mi when none of its neighbors
        are in mode mi.
       So decay p0 if this block satisfies that condition.*/
-    if(_left!=mi&&_up!=mi&&_upleft!=mi)_p0[mi]-=(_p0[mi]+256)>>9;
+    if (_left != mi && _up != mi && _upleft != mi)
+      _p0[mi] -= (_p0[mi]+256)>>9;
   }
   /*And bump up the probability in the mode we actually chose.*/
-  if(_left!=_mode&&_up!=_mode&&_upleft!=_mode){
+  if (_left != _mode && _up != _mode && _upleft != _mode) {
     /*Arbitrary ceiling at 0.75 to prevent insane p0 values.*/
-    if(_p0[_mode]<24576)_p0[_mode]+=64;
+    if (_p0[_mode] < 24576) _p0[_mode] += 64;
   }
 }
 
@@ -416,7 +417,7 @@ void od_resample_luma_coeffs(od_coeff *l, int lstride,
       if (ydec) od_tf_up_hv_lp(l, lstride, c, cstride, n, n, n);
       else od_tf_up_h_lp(l, lstride, c, cstride, n, n);
     }
-    else{
+    else {
       OD_ASSERT(ydec);
       od_tf_up_v_lp(l, lstride, c, cstride, n, n);
     }
