@@ -617,7 +617,7 @@ int od_state_dump_yuv(od_state *state, od_img *img, const char *suf) {
   static const char *CHROMA_TAGS[4] = {
     " C420jpeg", "", " C422jpeg", " C444"
   };
-  char fname[128];
+  char fname[1024];
   FILE *fp;
   int pic_width;
   int pic_height;
