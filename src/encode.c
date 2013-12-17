@@ -1000,7 +1000,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
             }
           }
           if (plj >= pli) {
-            lbuf[pli] = ltmp[pli] = _ogg_calloc(w*h, sizeof(*ltmp));
+            lbuf[pli] = ltmp[pli] = _ogg_calloc(w*h, sizeof(*ltmp[pli]));
           }
         }
         else {

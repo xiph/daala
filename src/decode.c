@@ -672,7 +672,7 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
             }
           }
           if (plj >= pli) {
-            lbuf[pli] = ltmp[pli] = _ogg_calloc(w*h, sizeof(*ltmp));
+            lbuf[pli] = ltmp[pli] = _ogg_calloc(w*h, sizeof(*ltmp[pli]));
           }
         }
         else {
