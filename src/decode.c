@@ -128,6 +128,51 @@ struct od_mb_dec_ctx {
 };
 typedef struct od_mb_dec_ctx od_mb_dec_ctx;
 
+static void od_band_decode(od_ec_dec *ec, int q, int n, generic_encoder *model,
+ int *adapt, int *exg, int *ext, od_coeff *r0,  od_coeff *x0, int noref) {
+  int adapt_curr[OD_NSB_ADAPT_CTXS] = {0};
+  int speed = 5;
+  int k;
+  int qg;
+  double qcg;
+  double gain_offset;
+  double theta;
+  int itheta;
+  int max_theta;
+  int m;
+  int s;
+  double gr;
+  double r[1024];
+  int y[1024];
+  int i;
+  qg = generic_decode(ec, model, exg, 2);
+  max_theta = od_compute_max_theta(r0, n, q, &gr, &qcg, &qg, &gain_offset,
+   noref);
+  if (!noref && max_theta>0) itheta = generic_decode(ec, model, ext, 2);
+  else itheta = noref ? 0 : -1;
+  theta = od_compute_k_theta(&k, qcg, itheta, max_theta, noref, n);
+  pvq_decoder(ec, y, n-(!noref), k, adapt_curr, adapt);
+  for (i = 0; i < n; i++) r[i] = r0[i];
+  m = compute_householder(r, n, gr, &s);
+  if (!noref) {
+    for (i = n; i > m; i--) y[i] = y[i-1];
+    y[m] = 0;
+  }
+  pvq_synthesis(x0, y, r, n, noref, qg, gain_offset, theta, m, s, q);
+  if (adapt_curr[OD_ADAPT_K_Q8] > 0) {
+    adapt[OD_ADAPT_K_Q8]
+     += 256*adapt_curr[OD_ADAPT_K_Q8]-adapt[OD_ADAPT_K_Q8]>>speed;
+    adapt[OD_ADAPT_SUM_EX_Q8]
+     += adapt_curr[OD_ADAPT_SUM_EX_Q8]-adapt[OD_ADAPT_SUM_EX_Q8]>>speed;
+  }
+  if (adapt_curr[OD_ADAPT_COUNT_Q8] > 0) {
+    adapt[OD_ADAPT_COUNT_Q8]
+     += adapt_curr[OD_ADAPT_COUNT_Q8]-adapt[OD_ADAPT_COUNT_Q8]>>speed;
+    adapt[OD_ADAPT_COUNT_EX_Q8]
+     += adapt_curr[OD_ADAPT_COUNT_EX_Q8]-adapt[OD_ADAPT_COUNT_EX_Q8]>>speed;
+  }
+}
+
 void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
  int pli, int bx, int by, int has_ur) {
   ogg_int32_t adapt_curr[OD_NSB_ADAPT_CTXS];
@@ -147,18 +192,17 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   int y;
   od_coeff pred[16*16];
   od_coeff predt[16*16];
-  ogg_int16_t pvq_scale[16*16];
-  int sgn;
-  int qg;
   int zzi;
   int vk;
   int run_pvq;
+  int scale;
 #ifndef USE_PSEUDO_ZIGZAG
   unsigned char const *zig;
 #endif
   OD_ASSERT(ln >= 0 && ln <= 2);
-  run_pvq = ctx->run_pvq[pli];
   n = 1 << (ln + 2);
+  /* The new PVQ is only supported on 8x8 for now. */
+  run_pvq = ctx->run_pvq[pli] && n == 8;
   n2 = n*n;
   bx <<= ln;
   by <<= ln;
@@ -181,7 +225,6 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
     (*OD_FDCT_2D[ln])(md + (by << 2)*w + (bx << 2), w,
      mc + (by << 2)*w + (bx << 2), w);
   }
-  for (zzi = 0; zzi < n2; zzi++) pvq_scale[zzi] = 0;
   if (ctx->is_keyframe) {
     if (bx > 0 && by > 0) {
       if (pli == 0) {
@@ -284,41 +327,42 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
     }
   }
 #endif
-  if (!run_pvq) {
-    int scale;
-    scale = OD_MAXI(dec->scale[pli], 1);
-    pred[0] = generic_decode(&dec->ec, ctx->model_dc + pli,
-     ctx->ex_dc + pli, 0);
-    if (pred[0]) pred[0] *= od_ec_dec_bits(&dec->ec, 1) ? -1 : 1;
-    pred[0] = pred[0]*scale + predt[0];
+  scale = OD_MAXI(dec->scale[pli], 1);
+  pred[0] = generic_decode(&dec->ec, ctx->model_dc + pli,
+   ctx->ex_dc + pli, 0);
+  if (pred[0]) pred[0] *= od_ec_dec_bits(&dec->ec, 1) ? -1 : 1;
+  pred[0] = pred[0]*scale + predt[0];
+  if (run_pvq) {
+    int noref[4];
+    int *adapt;
+    int *exg;
+    int *ext;
+    int predflags8;
+    int i;
+    generic_encoder *model;
+    adapt = dec->state.pvq_adapt;
+    exg = &dec->state.pvq_exg;
+    ext = &dec->state.pvq_ext;
+    model = &dec->state.pvq_gain_model;
+    predflags8 = od_ec_decode_cdf_q15(&dec->ec, pred8_cdf, 16);
+    noref[0] = !(predflags8>>3);
+    noref[1] = !((predflags8>>2) & 0x1);
+    noref[2] = !((predflags8>>1) & 0x1);
+    noref[3] = !(predflags8 & 0x1);
+    od_band_decode(&dec->ec, scale, 15, model, adapt, exg, ext, predt+1,
+     pred+1, noref[0]);
+    od_band_decode(&dec->ec, scale, 8, model, adapt, exg, ext, predt+16,
+     pred+16, noref[1]);
+    od_band_decode(&dec->ec, scale, 8, model, adapt, exg, ext, predt+24,
+     pred+24, noref[2]);
+    od_band_decode(&dec->ec, scale, 32, model, adapt, exg, ext, predt+32,
+     pred+32, noref[3]);
+    for (i = 0; i < OD_NSB_ADAPT_CTXS; i++) adapt_curr[i] = 0;
+  }
+  else {
     vk = generic_decode(&dec->ec, ctx->model_g + pli, ctx->ex_g + pli, 0);
     pvq_decoder(&dec->ec, pred + 1, n2 - 1, vk, adapt_curr, ctx->adapt);
     for (zzi = 1; zzi < n2; zzi++) pred[zzi] = pred[zzi]*scale + predt[zzi];
-  }
-  if (run_pvq) {
-    int scale;
-    scale = OD_MAXI((dec->scale[pli]*OD_TRANS_QUANT_ADJ[ln]
-     + (1 << 14)) >> 15, 1);
-    sgn = 0;
-    pred[0] = generic_decode(&dec->ec, ctx->model_dc + pli,
-     ctx->ex_dc + pli, 0);
-    if (pred[0]) sgn = od_ec_dec_bits(&dec->ec, 1);
-    pred[0] = (int)(pow(pred[0], 4.0/3)*scale + 0.5);
-    pred[0] *= sgn ? -1 : 1;
-    pred[0] += predt[0];
-    qg = generic_decode(&dec->ec, ctx->model_g + pli, ctx->ex_g + pli, 0);
-    if (qg) qg *= od_ec_dec_bits(&dec->ec, 1) ? -1 : 1;
-    vk = pvq_unquant_k(&predt[1], n2 - 1, qg, scale, 4 - ln, ctx->is_keyframe);
-    pred[1] = 0;
-    if (vk != 0) {
-      int ex_ym;
-      ex_ym = (65536/2)*vk;
-      pred[1] = vk - generic_decode(&dec->ec, ctx->model_ym + pli, &ex_ym, 0);
-    }
-    pvq_decoder(&dec->ec, pred + 2, n2 - 2, vk - abs(pred[1]),
-     adapt_curr, ctx->adapt);
-    dequant_pvq(pred + 1, predt + 1, pvq_scale, n2 - 1, scale, qg, 4 - ln,
-     ctx->is_keyframe);
   }
   if (adapt_curr[OD_ADAPT_K_Q8] >= 0) {
     ctx->nk++;

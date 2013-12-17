@@ -485,6 +485,7 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
     int *exg;
     int *ext;
     int predflags8;
+    int i;
     generic_encoder *model;
     adapt = enc->state.pvq_adapt;
     exg = &enc->state.pvq_exg;
@@ -509,8 +510,8 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
      8, k[2], model, adapt, exg, ext);
     od_band_encode(&enc->ec, qg[3], theta[3], max_theta[3], scalar_out+32,
      32, k[3], model, adapt, exg, ext);
-    for (zzi = 1; zzi < n2; zzi++)
-      scalar_out[zzi] = cblock[zzi];
+    for (zzi = 1; zzi < n2; zzi++) scalar_out[zzi] = cblock[zzi];
+    for (i = 0; i < OD_NSB_ADAPT_CTXS; i++) adapt_curr[i] = 0;
   }
   else {
     vk = 0;

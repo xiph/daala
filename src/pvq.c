@@ -218,7 +218,7 @@ static double pvq_search_double(const double *x, int n, int k, int *y) {
 /* Computes Householder reflection that aligns the reference r to one
    of the dimensions (return value). The reflection vector is returned
    in r and x is reflected. */
-static int compute_householder(double *r, int n, double gr, int *sign) {
+int compute_householder(double *r, int n, double gr, int *sign) {
   int m;
   int i;
   int s;
@@ -271,6 +271,14 @@ static int neg_interleave(int x, int ref) {
   if (x < ref) return -2*(x - ref) - 1;
   else if (x < 2*ref) return 2*(x - ref);
   else return x-1;
+}
+
+static int neg_deinterleave(int x, int ref) {
+  if (x < 2*ref-1) {
+    if (x & 1) return ref - 1 - (x >> 1);
+    else return ref + (x >> 1);
+  }
+  else return x+1;
 }
 
 void pvq_synthesis(od_coeff *x0, int *y, const double *r, int n, int noref,
@@ -482,6 +490,51 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *itheta,
   *vk = k;
   /* Encode gain differently depending on whether we use prediction or not. */
   return noref ? qg : neg_interleave(qg, icgr);
+}
+
+int od_compute_max_theta(const od_coeff *r, int n, int q, double *gr,
+ double *qcg, int *qg, double *gain_offset, int noref) {
+  double l2r;
+  double cgr;
+  int icgr;
+  int ts;
+  int i;
+  l2r=0;
+  for (i = 0; i < n; i++) l2r += r[i]*r[i];
+  *gr = sqrt(l2r);
+  cgr = pow(*gr/q, ACTIVITY);
+  icgr = floor(.5+cgr);
+  *gain_offset = cgr-icgr;
+  if (!noref) *qg = neg_deinterleave(*qg, icgr);
+  *qcg = *qg;
+  if (!noref) *qcg += *gain_offset;
+  if (*qg == 0) *qcg = 0;
+  if (noref) ts = 0;
+  else {
+    /* Set angular resolution (in ra) to match the encoded gain */
+    ts = (int)floor(.5 + *qcg*M_PI/2);
+    /* Special case for low gains -- will need to be tuned anyway */
+    if (*qcg < 1.4) ts = 1;
+  }
+  return ts;
+}
+
+double od_compute_k_theta(int *k, double qcg, int t, int max_theta, int noref,
+ int n) {
+  double theta;
+  if (noref) {
+    *k = floor(.5 + qcg*sqrt(n/2));
+    theta = -1;
+  }
+  else {
+    if (max_theta != 0) theta = t*.5*M_PI/max_theta;
+    else theta = 0;
+    /* Sets K according to gain and theta, based on the high-rate
+       PVQ distortion curves D~=N^2/(24*K^2). Low-rate will have to be
+       perceptually tuned anyway.  */
+    *k = (int)floor(.5 + qcg*sin(theta)*sqrt(n/2));
+  }
+  return theta;
 }
 
 #if 0

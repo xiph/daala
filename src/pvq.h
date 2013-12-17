@@ -73,7 +73,21 @@ int quant_scalar(ogg_int32_t *_x, const ogg_int32_t *_r,
 int quant_pvq_noref(ogg_int32_t *_x, float gr,
  ogg_int16_t *_scale, int *y, int N, int Q);
 
+
+/* New PVQ implementation */
+
 int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, int *y, int *itheta,
  int *max_theta, int *vk);
+
+int compute_householder(double *r, int n, double gr, int *sign);
+
+void pvq_synthesis(od_coeff *x0, int *y, const double *r, int n, int noref,
+ int qg, double gain_offset, double theta, int m, int s, double q);
+
+int od_compute_max_theta(const od_coeff *r, int n, int q, double *gr,
+ double *qcg, int *qg, double *gain_offset, int noref);
+
+double od_compute_k_theta(int *k, double qcg, int t, int max_theta, int noref,
+ int n);
 
 #endif
