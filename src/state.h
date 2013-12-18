@@ -126,8 +126,8 @@ struct od_state{
   od_adapt_ctx        adapt_sb[OD_NPLANES_MAX];
   int                 pvq_adapt[OD_NSB_ADAPT_CTXS];
   generic_encoder     pvq_gain_model;
-  int                 pvq_ext;
-  int                 pvq_exg;
+  int                 pvq_ext[4];
+  int                 pvq_exg[4];
   /** number of horizontal macro blocks. */
   int                 nhmbs;
   /** number of vertical macro blocks. */

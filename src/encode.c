@@ -488,8 +488,8 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
     int i;
     generic_encoder *model;
     adapt = enc->state.pvq_adapt;
-    exg = &enc->state.pvq_exg;
-    ext = &enc->state.pvq_ext;
+    exg = enc->state.pvq_exg;
+    ext = enc->state.pvq_ext;
     model = &enc->state.pvq_gain_model;
     qg[0] = pvq_theta(cblock+1, predt+1, 15, scale, scalar_out+1,
      &theta[0], &max_theta[0], &k[0]);
@@ -505,11 +505,11 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
     od_band_encode(&enc->ec, qg[0], theta[0], max_theta[0], scalar_out+1,
      15, k[0], model, adapt, exg, ext);
     od_band_encode(&enc->ec, qg[1], theta[1], max_theta[1], scalar_out+16,
-     8, k[1], model, adapt, exg, ext);
+     8, k[1], model, adapt, exg+1, ext+1);
     od_band_encode(&enc->ec, qg[2], theta[2], max_theta[2], scalar_out+24,
-     8, k[2], model, adapt, exg, ext);
+     8, k[2], model, adapt, exg+2, ext+2);
     od_band_encode(&enc->ec, qg[3], theta[3], max_theta[3], scalar_out+32,
-     32, k[3], model, adapt, exg, ext);
+     32, k[3], model, adapt, exg+3, ext+3);
     for (zzi = 1; zzi < n2; zzi++) scalar_out[zzi] = cblock[zzi];
     for (i = 0; i < OD_NSB_ADAPT_CTXS; i++) adapt_curr[i] = 0;
   }

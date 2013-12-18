@@ -172,6 +172,7 @@ static void od_state_opt_vtbl_init(od_state *state) {
 int od_state_init(od_state *state, const daala_info *info) {
   int nplanes;
   int pli;
+  int i;
   /*First validate the parameters.*/
   if (info == NULL) return OD_EFAULT;
   nplanes = info->nplanes;
@@ -205,8 +206,10 @@ int od_state_init(od_state *state, const daala_info *info) {
   state->pvq_adapt[OD_ADAPT_SUM_EX_Q8] = 256;
   state->pvq_adapt[OD_ADAPT_COUNT_Q8] = 104;
   state->pvq_adapt[OD_ADAPT_COUNT_EX_Q8] = 128;
-  state->pvq_exg = 2<<16;
-  state->pvq_ext = 2<<16;
+  for (i = 0; i < 4; i++) {
+    state->pvq_exg[i] = 2 << 16;
+    state->pvq_ext[i] = 2 << 16;
+  }
   return 0;
 }
 
