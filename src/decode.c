@@ -202,7 +202,7 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   OD_ASSERT(ln >= 0 && ln <= 2);
   n = 1 << (ln + 2);
   /* The new PVQ is only supported on 8x8 for now. */
-  run_pvq = ctx->run_pvq[pli] && n == 8;
+  run_pvq = ctx->run_pvq[pli] && (n == 4 || n == 8);
   n2 = n*n;
   bx <<= ln;
   by <<= ln;
@@ -344,19 +344,26 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
     exg = dec->state.pvq_exg;
     ext = dec->state.pvq_ext;
     model = &dec->state.pvq_gain_model;
-    predflags8 = od_ec_decode_cdf_q15(&dec->ec, pred8_cdf, 16);
-    noref[0] = !(predflags8>>3);
-    noref[1] = !((predflags8>>2) & 0x1);
-    noref[2] = !((predflags8>>1) & 0x1);
-    noref[3] = !(predflags8 & 0x1);
-    od_band_decode(&dec->ec, scale, 15, model, adapt, exg, ext, predt+1,
-     pred+1, noref[0]);
-    od_band_decode(&dec->ec, scale, 8, model, adapt, exg+1, ext+1, predt+16,
-     pred+16, noref[1]);
-    od_band_decode(&dec->ec, scale, 8, model, adapt, exg+2, ext+2, predt+24,
-     pred+24, noref[2]);
-    od_band_decode(&dec->ec, scale, 32, model, adapt, exg+3, ext+3, predt+32,
-     pred+32, noref[3]);
+    if (n == 4) {
+      noref[0] = !od_ec_decode_bool_q15(&dec->ec, PRED4_PROB);
+      od_band_decode(&dec->ec, scale, 15, model, adapt, exg, ext, predt+1,
+       pred+1, noref[0]);
+    }
+    else {
+      predflags8 = od_ec_decode_cdf_q15(&dec->ec, pred8_cdf, 16);
+      noref[0] = !(predflags8>>3);
+      noref[1] = !((predflags8>>2) & 0x1);
+      noref[2] = !((predflags8>>1) & 0x1);
+      noref[3] = !(predflags8 & 0x1);
+      od_band_decode(&dec->ec, scale, 15, model, adapt, exg, ext, predt+1,
+       pred+1, noref[0]);
+      od_band_decode(&dec->ec, scale, 8, model, adapt, exg+1, ext+1, predt+16,
+       pred+16, noref[1]);
+      od_band_decode(&dec->ec, scale, 8, model, adapt, exg+2, ext+2, predt+24,
+       pred+24, noref[2]);
+      od_band_decode(&dec->ec, scale, 32, model, adapt, exg+3, ext+3, predt+32,
+       pred+32, noref[3]);
+    }
     for (i = 0; i < OD_NSB_ADAPT_CTXS; i++) adapt_curr[i] = 0;
   }
   else {
