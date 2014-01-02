@@ -225,7 +225,6 @@ static void od_img_plane_edge_ext8(od_img_plane *dst_p,
 }
 
 struct od_mb_enc_ctx {
-  od_coeff tfbuf[16*16*4];
   generic_encoder model_dc[OD_NPLANES_MAX];
   generic_encoder model_g[OD_NPLANES_MAX];
   generic_encoder model_ym[OD_NPLANES_MAX];
@@ -233,6 +232,8 @@ struct od_mb_enc_ctx {
   signed char *modes;
   od_coeff *c;
   od_coeff **d;
+  /* holds a TF'd copy of the transform coefficients in 4x4 blocks */
+  od_coeff *tf;
   od_coeff *md;
   od_coeff *mc;
   od_coeff *l;
@@ -285,6 +286,7 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   signed char *modes;
   od_coeff *c;
   od_coeff *d;
+  od_coeff *tf;
   od_coeff *md;
   od_coeff *mc;
   od_coeff *l;
@@ -326,6 +328,7 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   modes = ctx->modes;
   c = ctx->c;
   d = ctx->d[pli];
+  tf = ctx->tf;
   md = ctx->md;
   mc = ctx->mc;
   l = ctx->l;
@@ -349,16 +352,17 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
         od_coeff *coeffs[4];
         int strides[4];
         /*Search predictors from the surrounding blocks.*/
-        coeffs[0] = &ctx->tfbuf[0];
-        coeffs[1] = &ctx->tfbuf[n2];
-        coeffs[2] = &ctx->tfbuf[n2*2];
-        coeffs[3] = &ctx->tfbuf[n2*3];
-        strides[0] = n;
-        strides[1] = n;
-        strides[2] = n;
-        strides[3] = n;
-        od_convert_intra_coeffs(coeffs, strides, d,
-         w, bx, by, enc->state.bsize, enc->state.bstride, has_ur);
+        coeffs[0] = tf + ((by - (1 << ln)) << 2)*w + ((bx - (1 << ln)) << 2);
+        coeffs[1] = tf + ((by - (1 << ln)) << 2)*w + ((bx - (0 << ln)) << 2);
+        coeffs[2] = tf + ((by - (1 << ln)) << 2)*w + ((bx + (1 << ln)) << 2);
+        coeffs[3] = tf + ((by - (0 << ln)) << 2)*w + ((bx - (1 << ln)) << 2);
+        if (!has_ur) {
+          coeffs[2] = coeffs[1];
+        }
+        strides[0] = w;
+        strides[1] = w;
+        strides[2] = w;
+        strides[3] = w;
         m_l = modes[by*(w >> 2) + bx - 1];
         m_ul = modes[(by - 1)*(w >> 2) + bx - 1];
         m_u = modes[(by - 1)*(w >> 2) + bx];
@@ -553,6 +557,12 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
     }
   }
 #endif
+  /* Update the TF'd luma plane. */
+  if (ctx->is_keyframe && pli == 0) {
+    od_convert_block_down(tf + (by << 2)*w + (bx << 2), w,
+     d + (by << 2)*w + (bx << 2), w,
+     OD_BLOCK_SIZE4x4(enc->state.bsize, enc->state.bstride, bx, by), 0);
+  }
   if (adapt_curr[OD_ADAPT_K_Q8] >= 0) {
     ctx->nk++;
     ctx->k_total += adapt_curr[OD_ADAPT_K_Q8];
@@ -993,6 +1003,9 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       else od_ec_encode_bool_q15(&enc->ec, mbctx.run_pvq[pli], 16384);
       ctmp[pli] = _ogg_calloc(w*h, sizeof(*ctmp[pli]));
       dtmp[pli] = _ogg_calloc(w*h, sizeof(*dtmp[pli]));
+      if (pli == 0) {
+        mbctx.tf = _ogg_calloc(w*h, sizeof(*mbctx.tf));
+      }
       mctmp[pli] = _ogg_calloc(w*h, sizeof(*mctmp[pli]));
       mdtmp[pli] = _ogg_calloc(w*h, sizeof(*mdtmp[pli]));
       /*We predict chroma planes from the luma plane.  Since chroma can be
@@ -1140,6 +1153,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       _ogg_free(mdtmp[pli]);
     }
     _ogg_free(mbctx.modes);
+    _ogg_free(mbctx.tf);
   }
 #if defined(OD_DUMP_IMAGES)
   /*Dump YUV*/

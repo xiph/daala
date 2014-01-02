@@ -103,7 +103,6 @@ static void od_decode_mv(daala_dec_ctx *dec, od_mv_grid_pt *mvg, int vx,
 }
 
 struct od_mb_dec_ctx {
-  od_coeff tfbuf[16*16*4];
   generic_encoder model_dc[OD_NPLANES_MAX];
   generic_encoder model_g[OD_NPLANES_MAX];
   generic_encoder model_ym[OD_NPLANES_MAX];
@@ -111,6 +110,8 @@ struct od_mb_dec_ctx {
   signed char *modes;
   od_coeff *c;
   od_coeff **d;
+  /* holds a TF'd copy of the transform coefficients in 4x4 blocks */
+  od_coeff *tf;
   od_coeff *md;
   od_coeff *mc;
   od_coeff *l;
@@ -185,6 +186,7 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   signed char *modes;
   od_coeff *c;
   od_coeff *d;
+  od_coeff *tf;
   od_coeff *md;
   od_coeff *mc;
   od_coeff *l;
@@ -216,6 +218,7 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   modes = ctx->modes;
   c = ctx->c;
   d = ctx->d[pli];
+  tf = ctx->tf;
   md = ctx->md;
   mc = ctx->mc;
   l = ctx->l;
@@ -236,16 +239,17 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
         od_coeff *coeffs[4];
         int strides[4];
         /*Calculate the intra-prediction.*/
-        coeffs[0] = &ctx->tfbuf[0];
-        coeffs[1] = &ctx->tfbuf[n2];
-        coeffs[2] = &ctx->tfbuf[n2*2];
-        coeffs[3] = &ctx->tfbuf[n2*3];
-        strides[0] = n;
-        strides[1] = n;
-        strides[2] = n;
-        strides[3] = n;
-        od_convert_intra_coeffs(coeffs, strides, d,
-         w, bx, by, dec->state.bsize, dec->state.bstride, has_ur);
+        coeffs[0] = tf + ((by - (1 << ln)) << 2)*w + ((bx - (1 << ln)) << 2);
+        coeffs[1] = tf + ((by - (1 << ln)) << 2)*w + ((bx - (0 << ln)) << 2);
+        coeffs[2] = tf + ((by - (1 << ln)) << 2)*w + ((bx + (1 << ln)) << 2);
+        coeffs[3] = tf + ((by - (0 << ln)) << 2)*w + ((bx - (1 << ln)) << 2);
+        if (!has_ur) {
+          coeffs[2] = coeffs[1];
+        }
+        strides[0] = w;
+        strides[1] = w;
+        strides[2] = w;
+        strides[3] = w;
         m_l = modes[by*(w >> 2) + bx - 1];
         m_ul = modes[(by - 1)*(w >> 2) + bx - 1];
         m_u = modes[(by - 1)*(w >> 2) + bx];
@@ -391,6 +395,12 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
     }
   }
 #endif
+  /* Update the TF'd luma plane. */
+  if (ctx->is_keyframe && pli == 0) {
+    od_convert_block_down(tf + (by << 2)*w + (bx << 2), w,
+     d + (by << 2)*w + (bx << 2), w,
+     OD_BLOCK_SIZE4x4(dec->state.bsize, dec->state.bstride, bx, by), 0);
+  }
   /*Apply the inverse transform.*/
   (*OD_IDCT_2D[ln])(c + (by << 2)*w + (bx << 2), w,
    d + (by << 2)*w + (bx << 2), w);
@@ -619,6 +629,13 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
       mbctx.mode_p0[mi] = 32768/OD_INTRA_NMODES;
     }
     nplanes = dec->state.info.nplanes;
+    if (mbctx.is_keyframe) {
+      xdec = dec->state.io_imgs[OD_FRAME_REC].planes[0].xdec;
+      ydec = dec->state.io_imgs[OD_FRAME_REC].planes[0].ydec;
+      w = frame_width >> xdec;
+      h = frame_height >> ydec;
+      mbctx.tf = _ogg_calloc(w*h, sizeof(*mbctx.tf));
+    }
     /*Apply the prefilter to the motion-compensated reference.*/
     if (!mbctx.is_keyframe) {
       for (pli = 0; pli < nplanes; pli++) {
@@ -776,6 +793,9 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
       }
     }
     _ogg_free(mbctx.modes);
+    if (mbctx.is_keyframe) {
+      _ogg_free(mbctx.tf);
+    }
   }
 #if defined(OD_DUMP_IMAGES)
   /*Dump YUV*/
