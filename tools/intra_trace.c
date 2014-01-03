@@ -180,6 +180,9 @@ static void intra_trace_ctx_step(intra_trace_ctx *_ctx,od_rgba16_image *_image,
   image_data_pre_block(&_ctx->img,&data[4*B_SZ*(3*B_SZ>>1)+(3*B_SZ>>1)],4*B_SZ,
    0,0);
   image_data_fdct_block(&_ctx->img,0,0);
+#if TF_BLOCKS
+  image_data_tf_block(&_ctx->img,0,0);
+#endif
   for(m=0;m<OD_INTRA_NMODES;m++){
     int j;
     int i;

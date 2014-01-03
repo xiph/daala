@@ -33,6 +33,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "image_tools.h"
 #include "../src/block_size_enc.h"
 #include "../src/dct.h"
+#include "../src/tf.h"
 #include <stdlib.h>
 
 od_rgba16_pixel COLORS[OD_INTRA_NMODES];
@@ -204,6 +205,35 @@ static void od_fdct_blocks(od_coeff *_out,int _out_stride,od_coeff *_in,
   }
 }
 
+#if TF_BLOCKS
+static void od_tf_blocks_down(od_coeff *_out,int _out_stride,od_coeff *_in,
+ int _in_stride,int _bx,int _by){
+  int by;
+  int bx;
+  for(by=0;by<_by;by++){
+    int y;
+    y=B_SZ*by;
+    for(bx=0;bx<_bx;bx++){
+      int x;
+      x=B_SZ*bx;
+      if(B_SZ_LOG==2){
+        int j;
+        int i;
+        for(j=0;j<B_SZ;j++){
+          for(i=0;i<B_SZ;i++){
+            _out[_out_stride*(y+j)+x+i]=_in[_in_stride*(y+j)+x+i];
+          }
+        }
+      }
+      else {
+        od_convert_block_down(&_out[_out_stride*y+x],_out_stride,
+         &_in[_in_stride*y+x],_in_stride,B_SZ_LOG-2,0);
+      }
+    }
+  }
+}
+#endif
+
 static void od_idct_blocks(od_coeff *_out,int _out_stride,od_coeff *_in,
  int _in_stride,int _bx,int _by){
   int bx;
@@ -242,6 +272,9 @@ void image_data_init(image_data *_this,const char *_name,int _nxblocks,
   h=B_SZ*(_nyblocks+2);
   _this->fdct=(od_coeff *)malloc(sizeof(*_this->fdct)*w*h);
   _this->fdct_stride=w;
+#if TF_BLOCKS
+  _this->tf=(od_coeff *)malloc(sizeof(*_this->fdct)*w*h);
+#endif
   w=B_SZ*(_nxblocks+0);
   h=B_SZ*(_nyblocks+0);
   _this->pred=(double *)malloc(sizeof(*_this->pred)*w*h);
@@ -262,6 +295,9 @@ void image_data_clear(image_data *_this){
   free(_this->weight);
   free(_this->pre);
   free(_this->fdct);
+#if TF_BLOCKS
+  free(_this->tf);
+#endif
   free(_this->pred);
   free(_this->idct);
   free(_this->post);
@@ -383,9 +419,38 @@ void image_data_fdct_block(image_data *_this,int _bi,int _bj){
    &_this->pre[_this->pre_stride*y0+x0],_this->pre_stride,bx,by);
 }
 
+#if TF_BLOCKS
+void image_data_tf_block(image_data *_this,int _bi,int _bj){
+  int x;
+  int y;
+  int bx;
+  int by;
+  x=_bi*B_SZ+B_SZ;
+  y=_bj*B_SZ+B_SZ;
+  bx=by=1;
+  if(_bi==0){
+    x-=B_SZ;
+    bx++;
+  }
+  if(_bj==0){
+    y-=B_SZ;
+    by++;
+  }
+  if(_bi==_this->nxblocks-1){
+    bx++;
+  }
+  if(_bj==_this->nyblocks-1){
+    by++;
+  }
+  od_tf_blocks_down(&_this->tf[_this->fdct_stride*y+x],_this->fdct_stride,
+   &_this->fdct[_this->fdct_stride*y+x],_this->fdct_stride,bx,by);
+}
+#endif
+
 void image_data_print_block(image_data *_this,int _bi,int _bj,FILE *_fp){
   int by;
   int bx;
+  od_coeff *block;
   int j;
   int i;
 #if MASK_BLOCKS
@@ -395,14 +460,23 @@ void image_data_print_block(image_data *_this,int _bi,int _bj,FILE *_fp){
 #endif
   fprintf(_fp,"%i",_this->mode[_this->nxblocks*_bj+_bi]);
   for(by=0;by<=1;by++){
-    for(bx=0;bx<=2-by;bx++){
-      od_coeff *block;
+    for(bx=0;bx<=(1-by)<<1;bx++){
+#if TF_BLOCKS
+      block=&_this->tf[_this->fdct_stride*B_SZ*(_bj+by)+B_SZ*(_bi+bx)];
+#else
       block=&_this->fdct[_this->fdct_stride*B_SZ*(_bj+by)+B_SZ*(_bi+bx)];
+#endif
       for(j=0;j<B_SZ;j++){
         for(i=0;i<B_SZ;i++){
           fprintf(_fp," %i",block[_this->fdct_stride*j+i]);
         }
       }
+    }
+  }
+  block=&_this->fdct[_this->fdct_stride*B_SZ*(_bj+1)+B_SZ*(_bi+1)];
+  for(j=0;j<B_SZ;j++){
+    for(i=0;i<B_SZ;i++){
+      fprintf(_fp," %i",block[_this->fdct_stride*j+i]);
     }
   }
   fprintf(_fp,"\n");
@@ -411,20 +485,31 @@ void image_data_print_block(image_data *_this,int _bi,int _bj,FILE *_fp){
 
 void image_data_load_block(image_data *_this,int _bi,int _bj,
  od_coeff _coeffs[5*B_SZ*B_SZ]){
-  od_coeff *fdct;
+  od_coeff *block;
   int       by;
   int       bx;
   int       y;
   int       x;
-  fdct=&_this->fdct[_this->fdct_stride*B_SZ*(_bj+1)+B_SZ*(_bi+1)];
+#if TF_BLOCKS
+  block=&_this->tf[_this->fdct_stride*B_SZ*_bj+B_SZ*_bi];
+#else
+  block=&_this->fdct[_this->fdct_stride*B_SZ*_bj+B_SZ*_bi];
+#endif
   for(by=0;by<=1;by++){
-    for(bx=0;bx<=2-by;bx++){
+    for(bx=0;bx<=(1-by)<<1;bx++){
       for(y=0;y<B_SZ;y++){
         for(x=0;x<B_SZ;x++){
-          (*_coeffs)=fdct[_this->fdct_stride*(B_SZ*(by-1)+y)+B_SZ*(bx-1)+x];
+          (*_coeffs)=block[_this->fdct_stride*(B_SZ*by+y)+B_SZ*bx+x];
           _coeffs++;
         }
       }
+    }
+  }
+  block=&_this->fdct[_this->fdct_stride*B_SZ*(_bj+1)+B_SZ*(_bi+1)];
+  for(y=0;y<B_SZ;y++){
+    for(x=0;x<B_SZ;x++){
+      (*_coeffs)=block[_this->fdct_stride*y+x];
+      _coeffs++;
     }
   }
 }

@@ -21,6 +21,7 @@
 #define POOLED_COV  (1)
 #define MAKE_SPARSE (1)
 #define DROP_BY_MAG (0)
+#define TF_MASKING  (1)
 
 #define WRITE_IMAGES   (0)
 #define PRINT_PROGRESS (0)
@@ -549,6 +550,22 @@ static void ip_fdct_block(void *_ctx,const unsigned char *_data,int _stride,
   image_data_fdct_block(&ctx->img,_bi,_bj);
 }
 
+#if TF_BLOCKS
+static void ip_tf_block(void *_ctx,const unsigned char *_data,int _stride,
+ int _bi,int _bj){
+  classify_ctx *ctx;
+  (void)_data;
+  (void)_stride;
+#if PRINT_PROGRESS
+  if(_bi==0&&_bj==0){
+    print_progress(stdout,"ip_tf_block");
+  }
+#endif
+  ctx=(classify_ctx *)_ctx;
+  image_data_tf_block(&ctx->img,_bi,_bj);
+}
+#endif
+
 static void ip_add_block(void *_ctx,const unsigned char *_data,int _stride,
  int _bi,int _bj){
   classify_ctx *ctx;
@@ -574,13 +591,23 @@ static void ip_add_block(void *_ctx,const unsigned char *_data,int _stride,
   }
 #endif
   for(by=0;by<=1;by++){
-    for(bx=0;bx<=2-by;bx++){
+    for(bx=0;bx<=(1-by)<<1;bx++){
+#if TF_BLOCKS
+      block=&ctx->img.tf[ctx->img.fdct_stride*B_SZ*(_bj+by)+B_SZ*(_bi+bx)];
+#else
       block=&ctx->img.fdct[ctx->img.fdct_stride*B_SZ*(_bj+by)+B_SZ*(_bi+bx)];
+#endif
       for(j=0;j<B_SZ;j++){
         for(i=0;i<B_SZ;i++){
           buf[B_SZ*B_SZ*(3*by+bx)+j*B_SZ+i]=block[ctx->img.fdct_stride*j+i];
         }
       }
+    }
+  }
+  block=&ctx->img.fdct[ctx->img.fdct_stride*B_SZ*(_bj+1)+B_SZ*(_bi+1)];
+  for(j=0;j<B_SZ;j++){
+    for(i=0;i<B_SZ;i++){
+      buf[B_SZ*B_SZ*4+j*B_SZ+i]=block[ctx->img.fdct_stride*j+i];
     }
   }
 #if SUBTRACT_DC
@@ -799,6 +826,9 @@ const block_func INIT[]={
 #endif
   ip_pre_block,
   ip_fdct_block,
+#if TF_BLOCKS
+  ip_tf_block,
+#endif
   vp8_mode_block,
   ip_add_block,
 #if PRINT_BLOCKS
@@ -851,6 +881,9 @@ const block_func PRED[]={
 #endif
   ip_pre_block,
   ip_fdct_block,
+#if TF_BLOCKS
+  ip_tf_block,
+#endif
   od_mode_block,
   ip_add_block,
   ip_pred_block,
@@ -873,9 +906,9 @@ const int NPRED=sizeof(PRED)/sizeof(*PRED);
 #if B_SZ==4
 # define DROPS_PER_STEP (16)
 #elif B_SZ==8
-# define DROPS_PER_STEP (128)
+# define DROPS_PER_STEP (64)
 #elif B_SZ==16
-# define DROPS_PER_STEP (1024)
+# define DROPS_PER_STEP (256)
 #else
 # error "Unsupported block size."
 #endif
@@ -915,15 +948,44 @@ int main(int _argc,const char *_argv[]){
     }
     od_covmat_init(&ete,B_SZ*B_SZ);
     mask=(int *)malloc(sizeof(*mask)*OD_INTRA_NMODES*B_SZ*B_SZ*4*B_SZ*B_SZ);
+#if TF_BLOCKS && TF_MASKING
+    for(j=0;j<OD_INTRA_NMODES;j++){
+      int *mode_mask;
+      int *coeff_mask;
+      int  u;
+      int  v;
+      mode_mask=&mask[B_SZ*B_SZ*4*B_SZ*B_SZ*j];
+      for(i=0;i<B_SZ*B_SZ;i++){
+        coeff_mask=&mode_mask[4*B_SZ*B_SZ*i];
+        for(v=0;v<B_SZ;v++){
+          for(u=0;u<B_SZ;u++){
+            /* UL */
+            coeff_mask[0*B_SZ*B_SZ+B_SZ*v+u]=v>=B_SZ-4&&u>=B_SZ-4;
+            /* U */
+            coeff_mask[1*B_SZ*B_SZ+B_SZ*v+u]=v>=B_SZ-4;
+            /* UR */
+            coeff_mask[2*B_SZ*B_SZ+B_SZ*v+u]=v>=B_SZ-4;
+            /* L */
+            coeff_mask[3*B_SZ*B_SZ+B_SZ*v+u]=u>=B_SZ-4;
+          }
+        }
+      }
+    }
+#else
     for(i=0;i<OD_INTRA_NMODES*B_SZ*B_SZ*4*B_SZ*B_SZ;i++){
       mask[i]=1;
     }
+#endif
     ftime(&start);
     /* Each k-means step uses Daala mode selection. */
     for(step=1;;step++){
       int mults;
       int drops;
+#if TF_BLOCKS && TF_MASKING
+      mults=(B_SZ/4*3+1)*16*B_SZ*B_SZ;
+#else
       mults=B_SZ*B_SZ*4*B_SZ*B_SZ;
+#endif
       drops=0;
       if(step>INIT_STEPS){
 #if !MAKE_SPARSE

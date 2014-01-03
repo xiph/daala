@@ -208,6 +208,22 @@ static void od_fdct_block(void *_ctx,const unsigned char *_data,int _stride,
   image_data_fdct_block(&ctx->img,_bi,_bj);
 }
 
+#if TF_BLOCKS
+static void od_tf_block(void *_ctx,const unsigned char *_data,int _stride,
+ int _bi,int _bj){
+  intra_stats_ctx *ctx;
+  (void)_data;
+  (void)_stride;
+#if PRINT_PROGRESS
+  if(_bi==0&&_bj==0){
+    fprintf(stdout,"in od_tf_block\n");
+  }
+#endif
+  ctx=(intra_stats_ctx *)_ctx;
+  image_data_tf_block(&ctx->img,_bi,_bj);
+}
+#endif
+
 static void od_mode_block(void *_ctx,const unsigned char *_data,int _stride,
  int _bi,int _bj){
   intra_stats_ctx *ctx;
@@ -349,6 +365,9 @@ const block_func BLOCKS[]={
   vp8_block,
   od_pre_block,
   od_fdct_block,
+#if TF_BLOCKS
+  od_tf_block,
+#endif
 #if PRINT_BLOCKS
   od_print_block,
 #endif

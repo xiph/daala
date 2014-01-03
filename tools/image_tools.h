@@ -62,6 +62,9 @@ struct image_data{
   int              pre_stride;
   od_coeff        *fdct;
   int              fdct_stride;
+#if TF_BLOCKS
+  od_coeff        *tf;
+#endif
   double          *pred;
   int              pred_stride;
   od_coeff        *idct;
@@ -77,6 +80,9 @@ void image_data_mask(image_data *_this,const unsigned char *_data,int _stride);
 void image_data_pre_block(image_data *_this,const unsigned char *_data,
  int _stride,int _bi,int _bj);
 void image_data_fdct_block(image_data *_this,int _bi,int _bj);
+#if TF_BLOCKS
+void image_data_tf_block(image_data *_this,int _bi,int _bj);
+#endif
 void image_data_print_block(image_data *_this,int _bi,int _bj,FILE *_fp);
 void image_data_load_block(image_data *_this,int _bi,int _bj,
  od_coeff _coeffs[5*B_SZ*B_SZ]);
