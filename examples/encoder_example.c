@@ -530,8 +530,7 @@ int main(int _argc,char **_argv){
     /*TODO: Fetch the next video page.*/
     /*If no more pages are available, we've hit the end of the stream.*/
     if(!video_ready)break;
-    video_time=video_ready?
-     daala_granule_time(dd,ogg_page_granulepos(&video_page)):-1;
+    video_time=daala_granule_time(dd,ogg_page_granulepos(&video_page));
     video_bytesout+=
      fwrite(video_page.header,1,video_page.header_len,outfile);
     video_bytesout+=fwrite(video_page.body,1,video_page.body_len,outfile);
