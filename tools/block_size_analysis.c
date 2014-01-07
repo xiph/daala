@@ -75,10 +75,6 @@ static const char *CHROMA_TAGS[4]={" C420jpeg",""," C422jpeg"," C444"};
 #define OFF16_8  (1)
 #define OFF32_8  (1)
 
-#define COUNT8   (3+2*OFF8)
-#define COUNT16  (7+2*OFF16)
-#define COUNT32 (15+2*OFF32)
-
 #define COUNT16_8  (3+2*OFF16_8)
 #define COUNT32_8  (7+2*OFF32_8)
 
