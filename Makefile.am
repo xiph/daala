@@ -82,9 +82,6 @@ endif
 
 src_libdaaladec_la_CFLAGS = $(OGG_CFLAGS)
 src_libdaaladec_la_LIBADD = src/libdaalabase.la $(OGG_LIBS) $(LIBM)
-if DUMP_IMAGES
-  src_libdaaladec_la_LIBADD += $(PNG_LIBS)
-endif
 src_libdaaladec_la_LDFLAGS = -no-undefined \
  -version-info @OD_LT_CURRENT@:@OD_LT_REVISION@:@OD_LT_AGE@
 src_libdaaladec_la_SOURCES = \
@@ -96,9 +93,6 @@ src_libdaalaenc_la_CFLAGS = $(OGG_CFLAGS)
 src_libdaalaenc_la_LIBADD = src/libdaalabase.la $(OGG_LIBS) $(LIBM)
 if ENCODER_CHECK
   src_libdaalaenc_la_LIBADD += src/libdaaladec.la
-endif
-if DUMP_IMAGES
-  src_libdaalaenc_la_LIBADD += $(PNG_LIBS)
 endif
 src_libdaalaenc_la_LDFLAGS = -no-undefined \
  -version-info @OD_LT_CURRENT@:@OD_LT_REVISION@:@OD_LT_AGE@
@@ -128,24 +122,15 @@ endif
 examples_dump_video_SOURCES = examples/dump_video.c
 examples_dump_video_CFLAGS = $(OGG_CFLAGS)
 examples_dump_video_LDADD = src/libdaalabase.la src/libdaaladec.la  $(OGG_LIBS)
-if DUMP_IMAGES
-  examples_dump_video_LDADD += $(PNG_LIBS)
-endif
 
 examples_encoder_example_SOURCES = examples/encoder_example.c
 examples_encoder_example_CFLAGS = $(OGG_CFLAGS)
 examples_encoder_example_LDADD = src/libdaalabase.la src/libdaalaenc.la $(OGG_LIBS) $(LIBM)
-if DUMP_IMAGES
-  examples_encoder_example_LDADD += $(PNG_LIBS)
-endif
 
 if ENABLE_PLAYER_EXAMPLE
 examples_player_example_SOURCES = examples/player_example.c
 examples_player_example_CFLAGS = $(OGG_CFLAGS) $(SDL_CFLAGS)
 examples_player_example_LDADD = src/libdaalabase.la src/libdaaladec.la $(OGG_LIBS) $(SDL_LIBS)
-if DUMP_IMAGES
-  examples_player_example_LDADD += $(PNG_LIBS)
-endif
 endif
 
 # Includes
