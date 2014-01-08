@@ -29,6 +29,26 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "block_size.h"
 #include "block_size_dec.h"
 
+static void od_block_size_decode16x16(od_ec_dec *dec, unsigned char *bsize,
+ int stride, int i, int j, int split) {
+  unsigned char *bsize16 = &bsize[2*i*stride + 2*j];
+  if (split) {
+    const ogg_uint16_t *cdf;
+    int split;
+    int cdf_id;
+    cdf_id = od_block_size_cdf16_id(&bsize16[0], stride);
+    cdf = od_switch_size8_cdf[cdf_id];
+    split = od_ec_decode_cdf_q15(dec, cdf, 16);
+    bsize16[0] = (split&1) ? 1 : 0;
+    bsize16[1] = (split&2) ? 1 : 0;
+    bsize16[stride] = (split&4) ? 1 : 0;
+    bsize16[stride + 1] = (split&8) ? 1 : 0;
+  }
+  else {
+    bsize16[0] = bsize16[1] = bsize16[stride] = bsize16[stride + 1] = 2;
+  }
+}
+
 void od_block_size_decode(od_ec_dec *dec, unsigned char *bsize, int stride) {
   int i, j;
   int inefficient;
@@ -41,28 +61,10 @@ void od_block_size_decode(od_ec_dec *dec, unsigned char *bsize, int stride) {
     }
   }
   else {
-    /*bsize[0] = (inefficient&1) ? 2 : 0;
-    bsize[2] = (inefficient&2) ? 2 : 0;
-    bsize[2*stride] = (inefficient&4) ? 2 : 0;
-    bsize[2*stride + 2] = (inefficient&8) ? 2 : 0;*/
     for (i = 0; i < 2; i++) {
       for (j = 0; j < 2; j++) {
-        unsigned char *bsize16 = &bsize[2*i*stride + 2*j];
-        if ((inefficient & (1 << 2*i << j)) == 0) {
-          const ogg_uint16_t *cdf;
-          int split;
-          int cdf_id;
-          cdf_id = od_block_size_cdf16_id(&bsize16[0], stride);
-          cdf = od_switch_size8_cdf[cdf_id];
-          split = od_ec_decode_cdf_q15(dec, cdf, 16);
-          bsize16[0] = (split&1) ? 1 : 0;
-          bsize16[1] = (split&2) ? 1 : 0;
-          bsize16[stride] = (split&4) ? 1 : 0;
-          bsize16[stride + 1] = (split&8) ? 1 : 0;
-        }
-        else {
-          bsize16[0] = bsize16[1] = bsize16[stride] = bsize16[stride + 1] = 2;
-        }
+        od_block_size_decode16x16(dec, bsize, stride, i, j,
+         (inefficient & (1 << 2*i << j)) == 0);
       }
     }
   }

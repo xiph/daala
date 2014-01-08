@@ -322,6 +322,22 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
   }
 }
 
+static void od_block_size_encode16x16(od_ec_enc *enc,
+ const unsigned char *bsize, int stride, int i, int j) {
+  const unsigned char *bsize16 = &bsize[2*i*stride + 2*j];
+  if (bsize16[0] < 2) {
+    const ogg_uint16_t *cdf;
+    int split;
+    int cdf_id;
+    cdf_id = od_block_size_cdf16_id(&bsize16[0], stride);
+    split = bsize16[0] + 2*bsize16[1] + 4*bsize16[stride]
+     + 8*bsize16[stride + 1];
+    /*printf("%d %d %d %d\n", i, j, cdf_id, split);*/
+    cdf = od_switch_size8_cdf[cdf_id];
+    od_ec_encode_cdf_q15(enc, split, cdf, 16);
+  }
+}
+
 void od_block_size_encode(od_ec_enc *enc,
  const unsigned char *bsize, int stride) {
   int i, j;
@@ -332,18 +348,7 @@ void od_block_size_encode(od_ec_enc *enc,
   if (bsize[0] < 3) {
     for (i = 0; i < 2; i++) {
       for (j = 0; j < 2; j++) {
-        const unsigned char *bsize16 = &bsize[2*i*stride + 2*j];
-        if (bsize16[0] < 2) {
-          const ogg_uint16_t *cdf;
-          int split;
-          int cdf_id;
-          cdf_id = od_block_size_cdf16_id(&bsize16[0], stride);
-          split = bsize16[0] + 2*bsize16[1] + 4*bsize16[stride]
-           + 8*bsize16[stride + 1];
-          /*printf("%d %d %d %d\n", i, j, cdf_id, split);*/
-          cdf = od_switch_size8_cdf[cdf_id];
-          od_ec_encode_cdf_q15(enc, split, cdf, 16);
-        }
+        od_block_size_encode16x16(enc, bsize, stride, i, j);
       }
     }
   }
