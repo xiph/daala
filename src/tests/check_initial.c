@@ -49,8 +49,12 @@ example_suite(){
 
 int main(int _argc,char **_argv){
   int number_failed;
-  Suite *s = example_suite();
-  SRunner *sr = srunner_create(s);
+  Suite *s;
+  SRunner *sr;
+  (void)_argc;
+  (void)_argv;
+  s = example_suite();
+  sr = srunner_create(s);
   srunner_run_all(sr, CK_NORMAL);
   number_failed = srunner_ntests_failed(sr);
   srunner_free(sr);
