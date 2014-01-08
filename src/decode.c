@@ -398,8 +398,7 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   /* Update the TF'd luma plane. */
   if (ctx->is_keyframe && pli == 0) {
     od_convert_block_down(tf + (by << 2)*w + (bx << 2), w,
-     d + (by << 2)*w + (bx << 2), w,
-     OD_BLOCK_SIZE4x4(dec->state.bsize, dec->state.bstride, bx, by), 0);
+     d + (by << 2)*w + (bx << 2), w, ln, 0);
   }
   /*Apply the inverse transform.*/
   (*OD_IDCT_2D[ln])(c + (by << 2)*w + (bx << 2), w,
