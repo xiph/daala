@@ -31,6 +31,9 @@ CFLAGS += -O3
 CFLAGS += -g
 CFLAGS += -DOD_ENABLE_ASSERTIONS
 
+# You could instead set this to HAVE_GETTIMEOFDAY if you don't have ftime.
+CFLAGS += -DHAVE_FTIME
+
 LIBSRCDIR=../../src
 LOCALSRCDIR=..
 WORKDIR=build

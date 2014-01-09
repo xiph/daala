@@ -4,7 +4,13 @@
 
 #include <float.h>
 #include <stdlib.h>
-#include <sys/timeb.h>
+#include <sys/time.h>
+
+/* for fallback to the otherwise obsolete ftime on windows */
+#if ! HAVE_GETTIMEOFDAY && HAVE_FTIME
+  #include <sys/timeb.h>
+#endif
+
 #include "cholesky.h"
 #include "od_defs.h"
 #include "od_covmat.h"
@@ -29,6 +35,19 @@
 #define PRINT_COMP     (0)
 #define PRINT_DROPS    (0)
 #define PRINT_BETAS    (0)
+
+static void od_gettime(struct timeval *tv){
+#if HAVE_GETTIMEOFDAY
+  gettimeofday(tv,NULL);
+#elif HAVE_FTIME
+  struct timeb ft;
+  ftime(&ft);
+  tv->tv_sec=ft.time;
+  tv->tv_usec=ft.millitm*1000;
+#else
+  #error No suitable wall time function available.
+#endif
+}
 
 typedef struct classify_ctx classify_ctx;
 
@@ -377,10 +396,10 @@ static int comp_delta_pg(const prob_ctx *_prob,solve_ctx _sol[NUM_PROCS],int _y,
   return(mi[j]);
 }
 
-static long timing(const struct timeb *_start,const struct timeb *_stop){
+static long timing(const struct timeval *_start,const struct timeval *_stop){
   long ms;
-  ms=(_stop->time-_start->time)*1000;
-  ms+=(_stop->millitm-_start->millitm);
+  ms=(_stop->tv_sec-_start->tv_sec)*1000;
+  ms+=(_stop->tv_usec-_start->tv_usec)/1000;
   return ms;
 }
 
@@ -936,12 +955,12 @@ int main(int _argc,const char *_argv[]){
     cls[0].n+=cls[i].n;
   }
   if(cls[0].n>0){
-    prob_ctx      prob;
-    solve_ctx     sol[NUM_PROCS];
-    od_covmat     ete;
-    int          *mask;
-    struct timeb  start;
-    struct timeb  stop;
+    prob_ctx        prob;
+    solve_ctx       sol[NUM_PROCS];
+    od_covmat       ete;
+    int            *mask;
+    struct timeval  start;
+    struct timeval  stop;
     prob_ctx_init(&prob);
     for(i=0;i<NUM_PROCS;i++){
       solve_ctx_init(&sol[i]);
@@ -976,7 +995,7 @@ int main(int _argc,const char *_argv[]){
       mask[i]=1;
     }
 #endif
-    ftime(&start);
+    od_gettime(&start);
     /* Each k-means step uses Daala mode selection. */
     for(step=1;;step++){
       int mults;
@@ -1058,7 +1077,7 @@ int main(int _argc,const char *_argv[]){
       /* Reclassify based on the new model. */
       ne_apply_to_blocks(cls,sizeof(*cls),0x1,PADDING,pred_start,NPRED,PRED,
        pred_finish,_argc,_argv);
-      ftime(&stop);
+      od_gettime(&stop);
       printf("Finished Step %02i (%lims)\n",step,timing(&start,&stop));
       start=stop;
       /* Combine the gathered intra stats. */

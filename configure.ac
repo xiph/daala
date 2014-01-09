@@ -84,6 +84,11 @@ AC_ARG_ENABLE([player],
   AS_HELP_STRING([--disable-player], [Disable the example player]),,
   enable_player=yes)
 
+dnl Set LIBM to the math library if needed.
+LT_LIB_M
+
+AC_CHECK_FUNCS([gettimeofday ftime],[break])
+
 AS_IF([test "$enable_player" = "yes"], [
   PKG_CHECK_MODULES([SDL], [sdl])
 ])
@@ -91,9 +96,6 @@ AM_CONDITIONAL([ENABLE_PLAYER_EXAMPLE], [test "$enable_player" = "yes"])
 
 PKG_CHECK_MODULES([OGG], [ogg >= 1.3])
 PKG_CHECK_MODULES([PNG], [libpng])
-
-dnl Set LIBM to the math library if needed.
-LT_LIB_M
 
 #CC_ATTRIBUTE_VISIBILITY([default], [
 #  CC_FLAG_VISIBILITY([CFLAGS="${CFLAGS} -fvisibility=hidden"])
