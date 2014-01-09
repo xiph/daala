@@ -22,8 +22,7 @@
 #OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 #OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-CC = gcc
-MAKEDEPEND = gcc -MM
+MAKEDEPEND = $(CC) -MM
 CINCLUDE = `pkg-config ogg libpng --cflags`
 CFLAGS = -Wall -Wno-parentheses -Wno-overlength-strings -Wno-long-long
 CFLAGS += -std=c89 -pedantic -fopenmp

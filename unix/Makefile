@@ -44,7 +44,7 @@ TEST_DIVU_SMALL_TARGET = test_divu_small
 TEST_FILTERS_TARGET = test_filters
 
 # The command to use to generate dependency information
-MAKEDEPEND = gcc -MM
+MAKEDEPEND = $(CC) -MM
 #MAKEDEPEND = makedepend -f- -Y --
 # The location of include files.
 # Modify these to point to your Ogg and Vorbis include directories if they are
