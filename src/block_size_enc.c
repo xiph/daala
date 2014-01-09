@@ -341,11 +341,16 @@ static void od_block_size_encode16x16(od_ec_enc *enc,
 void od_block_size_encode(od_ec_enc *enc,
  const unsigned char *bsize, int stride) {
   int i, j;
+  int ctx32;
+  int split32;
   int inefficient;
-  inefficient = (bsize[0] == 3) ? 16 : (bsize[0] == 2) + 2*(bsize[2] == 2)
-   + 4*(bsize[2*stride] == 2) + 8*(bsize[2*stride + 2] == 2);
-  od_ec_enc_uint(enc, inefficient, 17);
+  ctx32 = od_block_size_prob32(bsize, stride);
+  split32 = OD_MAXI(bsize[0]-1, 0);
+  od_ec_encode_cdf_q15(enc, split32, od_switch_size32_cdf[ctx32], 3);
   if (bsize[0] < 3) {
+    inefficient = (bsize[2] == 2)
+     + 2*(bsize[2*stride] == 2) + 4*(bsize[2*stride + 2] == 2);
+    od_ec_enc_uint(enc, inefficient, 8);
     for (i = 0; i < 2; i++) {
       for (j = 0; j < 2; j++) {
         od_block_size_encode16x16(enc, bsize, stride, i, j);

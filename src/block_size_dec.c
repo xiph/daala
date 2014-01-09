@@ -52,8 +52,11 @@ static void od_block_size_decode16x16(od_ec_dec *dec, unsigned char *bsize,
 void od_block_size_decode(od_ec_dec *dec, unsigned char *bsize, int stride) {
   int i, j;
   int inefficient;
-  inefficient = od_ec_dec_uint(dec, 17);
-  if (inefficient == 16) {
+  int ctx32;
+  int split32;
+  ctx32 = od_block_size_prob32(bsize, stride);
+  split32 = od_ec_decode_cdf_q15(dec, od_switch_size32_cdf[ctx32], 3);
+  if (split32 == 2) {
     for (i = 0; i < 4; i++) {
       for (j = 0; j < 4; j++) {
         bsize[i*stride + j] = 3;
@@ -61,10 +64,13 @@ void od_block_size_decode(od_ec_dec *dec, unsigned char *bsize, int stride) {
     }
   }
   else {
+    inefficient = od_ec_dec_uint(dec, 8);
     for (i = 0; i < 2; i++) {
       for (j = 0; j < 2; j++) {
-        od_block_size_decode16x16(dec, bsize, stride, i, j,
-         (inefficient & (1 << 2*i << j)) == 0);
+        int split;
+        if (i == 0 && j == 0) split = (split32 == 0);
+        else split = ((inefficient<<1) & (1 << 2*i << j)) == 0;
+        od_block_size_decode16x16(dec, bsize, stride, i, j, split);
       }
     }
   }
