@@ -30,6 +30,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # include "entenc.h"
 
 extern const ogg_uint16_t od_switch_size32_cdf[][3];
+extern const ogg_uint16_t od_switch_size16_cdf[][8];
 extern const ogg_uint16_t od_switch_size8_cdf[][16];
 
 # define OD_BLOCK_SIZE4x4(bsize, bstride, bx, by)\
@@ -39,6 +40,8 @@ extern const ogg_uint16_t od_switch_size8_cdf[][16];
 
 int od_block_size_prob32(const unsigned char *bsize, int stride);
 
-int od_block_size_cdf16_id(const unsigned char *bsize, int stride);
+int od_block_size_prob16(const unsigned char *bsize, int stride);
+
+int od_block_size_cdf8_id(const unsigned char *bsize, int stride);
 
 #endif

@@ -29,14 +29,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "block_size.h"
 #include "block_size_dec.h"
 
-static void od_block_size_decode16x16(od_ec_dec *dec, unsigned char *bsize,
+static void od_block_size_decode8x8(od_ec_dec *dec, unsigned char *bsize,
  int stride, int i, int j, int split) {
   unsigned char *bsize16 = &bsize[2*i*stride + 2*j];
   if (split) {
     const ogg_uint16_t *cdf;
     int split;
     int cdf_id;
-    cdf_id = od_block_size_cdf16_id(&bsize16[0], stride);
+    cdf_id = od_block_size_cdf8_id(&bsize16[0], stride);
     cdf = od_switch_size8_cdf[cdf_id];
     split = od_ec_decode_cdf_q15(dec, cdf, 16);
     bsize16[0] = (split&1) ? 1 : 0;
@@ -51,7 +51,7 @@ static void od_block_size_decode16x16(od_ec_dec *dec, unsigned char *bsize,
 
 void od_block_size_decode(od_ec_dec *dec, unsigned char *bsize, int stride) {
   int i, j;
-  int inefficient;
+  int split16;
   int ctx32;
   int split32;
   ctx32 = od_block_size_prob32(bsize, stride);
@@ -64,13 +64,19 @@ void od_block_size_decode(od_ec_dec *dec, unsigned char *bsize, int stride) {
     }
   }
   else {
-    inefficient = od_ec_dec_uint(dec, 8);
+    int ctx16;
+    od_block_size_decode8x8(dec, bsize, stride, 0, 0, split32 == 0);
+    ctx16 = od_block_size_prob16(bsize, stride);
+    split16 = od_ec_decode_cdf_q15(dec, od_switch_size16_cdf[ctx16], 8);
+    bsize[2] = (split16&4) ? 2 : 1;
+    bsize[2*stride] = (split16&2) ? 2 : 1;
+    bsize[2*stride + 2] = (split16&1) ? 2 : 1;
     for (i = 0; i < 2; i++) {
       for (j = 0; j < 2; j++) {
         int split;
-        if (i == 0 && j == 0) split = (split32 == 0);
-        else split = ((inefficient<<1) & (1 << 2*i << j)) == 0;
-        od_block_size_decode16x16(dec, bsize, stride, i, j, split);
+        if (i == 0 && j == 0) continue;
+        split = (bsize[2*i*stride + 2*j] != 2);
+        od_block_size_decode8x8(dec, bsize, stride, i, j, split);
       }
     }
   }

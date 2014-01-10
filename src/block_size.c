@@ -41,7 +41,11 @@ int od_block_size_prob32(const unsigned char *bsize, int stride) {
   return sum32;
 }
 
-int od_block_size_cdf16_id(const unsigned char *bsize, int stride) {
+int od_block_size_prob16(const unsigned char *bsize, int stride) {
+  return 16*bsize[-stride + 2] + 4*bsize[2*stride - 1] + bsize[stride + 1];
+}
+
+int od_block_size_cdf8_id(const unsigned char *bsize, int stride) {
   int upleft;
   int up;
   int left;

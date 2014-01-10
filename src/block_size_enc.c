@@ -322,14 +322,14 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
   }
 }
 
-static void od_block_size_encode16x16(od_ec_enc *enc,
+static void od_block_size_encode8x8(od_ec_enc *enc,
  const unsigned char *bsize, int stride, int i, int j) {
   const unsigned char *bsize16 = &bsize[2*i*stride + 2*j];
   if (bsize16[0] < 2) {
     const ogg_uint16_t *cdf;
     int split;
     int cdf_id;
-    cdf_id = od_block_size_cdf16_id(&bsize16[0], stride);
+    cdf_id = od_block_size_cdf8_id(&bsize16[0], stride);
     split = bsize16[0] + 2*bsize16[1] + 4*bsize16[stride]
      + 8*bsize16[stride + 1];
     /*printf("%d %d %d %d\n", i, j, cdf_id, split);*/
@@ -343,17 +343,21 @@ void od_block_size_encode(od_ec_enc *enc,
   int i, j;
   int ctx32;
   int split32;
-  int inefficient;
   ctx32 = od_block_size_prob32(bsize, stride);
   split32 = OD_MAXI(bsize[0]-1, 0);
   od_ec_encode_cdf_q15(enc, split32, od_switch_size32_cdf[ctx32], 3);
   if (bsize[0] < 3) {
-    inefficient = (bsize[2] == 2)
-     + 2*(bsize[2*stride] == 2) + 4*(bsize[2*stride + 2] == 2);
-    od_ec_enc_uint(enc, inefficient, 8);
+    int ctx16;
+    int split16;
+    od_block_size_encode8x8(enc, bsize, stride, 0, 0);
+    ctx16 = od_block_size_prob16(bsize, stride);
+    split16 = 4*(bsize[2] == 2) + 2*(bsize[2*stride] == 2)
+     + (bsize[2 + 2*stride] == 2);
+    od_ec_encode_cdf_q15(enc, split16, od_switch_size16_cdf[ctx16], 8);
     for (i = 0; i < 2; i++) {
       for (j = 0; j < 2; j++) {
-        od_block_size_encode16x16(enc, bsize, stride, i, j);
+        if (i == 0 && j == 0) continue;
+        od_block_size_encode8x8(enc, bsize, stride, i, j);
       }
     }
   }
