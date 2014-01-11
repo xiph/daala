@@ -1015,8 +1015,10 @@ int main(int _argc,char **_argv){
     return 1;
   }
   fprintf(fout,"YUV4MPEG2 W%i H%i F%i:%i Ip A%i:%i%s\n",
-   info1.pic_w,info1.pic_h,fps>0?(unsigned)fps:info1.fps_n,fps>0?1U:info1.fps_d,
-   info1.par_n,info1.par_d,CHROMA_TAGS[ydec[1]?xdec[1]?0:2:3]);
+   info1.pic_w,info1.pic_h, fps > 0 ? (unsigned) fps : (unsigned) info1.fps_n,
+   fps > 0 ? 1U : (unsigned) info1.fps_d, info1.par_n, info1.par_d,
+   CHROMA_TAGS[ydec[1] ? xdec[1] ? 0 : 2 : 3]);
+
   for(frameno=0;;frameno++){
     video_input_ycbcr in;
     video_input_ycbcr ref;
