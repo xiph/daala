@@ -123,17 +123,18 @@ void od_intra_init(){
     const double *weights;
     const ogg_uint16_t *index;
     int w;
+    int b_sz;
     int j;
     int i;
     int k;
     w=0;
-#if B_SZ==4
-    NE_PRED_WEIGHTS_4x4[m]=(double *)malloc(B_SZ*B_SZ*4*B_SZ*B_SZ*sizeof(double));
-    NE_PRED_INDEX_4x4[m]=(int *)malloc(B_SZ*B_SZ*4*B_SZ*B_SZ*sizeof(int));
+    b_sz=4;
+    NE_PRED_WEIGHTS_4x4[m]=(double *)malloc(b_sz*b_sz*4*b_sz*b_sz*sizeof(double));
+    NE_PRED_INDEX_4x4[m]=(int *)malloc(b_sz*b_sz*4*b_sz*b_sz*sizeof(int));
     index=OD_PRED_INDEX_4x4+OD_PRED_OFFSETS_4x4[m];
     weights=OD_PRED_WEIGHTS_4x4+OD_PRED_OFFSETS_4x4[m];
-    for(j=0;j<B_SZ;j++){
-      for(i=0;i<B_SZ;i++){
+    for(j=0;j<b_sz;j++){
+      for(i=0;i<b_sz;i++){
         NE_PRED_MULTS_4x4[m][j][i]=OD_PRED_MULTS_4x4[m][j][i];
         for(k=OD_PRED_MULTS_4x4[m][j][i];k-->0;w++){
           NE_PRED_WEIGHTS_4x4[m][w]=*weights;
@@ -143,13 +144,14 @@ void od_intra_init(){
         }
       }
     }
-#elif B_SZ==8
-    NE_PRED_WEIGHTS_8x8[m]=(double *)malloc(B_SZ*B_SZ*4*B_SZ*B_SZ*sizeof(double));
-    NE_PRED_INDEX_8x8[m]=(int *)malloc(B_SZ*B_SZ*4*B_SZ*B_SZ*sizeof(int));
+    w=0;
+    b_sz=8;
+    NE_PRED_WEIGHTS_8x8[m]=(double *)malloc(b_sz*b_sz*4*b_sz*b_sz*sizeof(double));
+    NE_PRED_INDEX_8x8[m]=(int *)malloc(b_sz*b_sz*4*b_sz*b_sz*sizeof(int));
     index=OD_PRED_INDEX_8x8+OD_PRED_OFFSETS_8x8[m];
     weights=OD_PRED_WEIGHTS_8x8+OD_PRED_OFFSETS_8x8[m];
-    for(j=0;j<B_SZ;j++){
-      for(i=0;i<B_SZ;i++){
+    for(j=0;j<b_sz;j++){
+      for(i=0;i<b_sz;i++){
         NE_PRED_MULTS_8x8[m][j][i]=OD_PRED_MULTS_8x8[m][j][i];
         for(k=OD_PRED_MULTS_8x8[m][j][i];k-->0;w++){
           NE_PRED_WEIGHTS_8x8[m][w]=*weights;
@@ -159,13 +161,14 @@ void od_intra_init(){
         }
       }
     }
-#elif B_SZ==16
-    NE_PRED_WEIGHTS_16x16[m]=(double *)malloc(B_SZ*B_SZ*4*B_SZ*B_SZ*sizeof(double));
-    NE_PRED_INDEX_16x16[m]=(int *)malloc(B_SZ*B_SZ*4*B_SZ*B_SZ*sizeof(int));
+    w=0;
+    b_sz=16;
+    NE_PRED_WEIGHTS_16x16[m]=(double *)malloc(b_sz*b_sz*4*b_sz*b_sz*sizeof(double));
+    NE_PRED_INDEX_16x16[m]=(int *)malloc(b_sz*b_sz*4*b_sz*b_sz*sizeof(int));
     index=OD_PRED_INDEX_16x16+OD_PRED_OFFSETS_16x16[m];
     weights=OD_PRED_WEIGHTS_16x16+OD_PRED_OFFSETS_16x16[m];
-    for(j=0;j<B_SZ;j++){
-      for(i=0;i<B_SZ;i++){
+    for(j=0;j<b_sz;j++){
+      for(i=0;i<b_sz;i++){
         NE_PRED_MULTS_16x16[m][j][i]=OD_PRED_MULTS_16x16[m][j][i];
         for(k=OD_PRED_MULTS_16x16[m][j][i];k-->0;w++){
           NE_PRED_WEIGHTS_16x16[m][w]=*weights;
@@ -175,27 +178,18 @@ void od_intra_init(){
         }
       }
     }
-#else
-# error "Unsupported block size."
-#endif
   }
 }
 
 void od_intra_clear(){
   int m;
   for(m=0;m<OD_INTRA_NMODES;m++){
-#if B_SZ==4
     free(NE_PRED_WEIGHTS_4x4[m]);
     free(NE_PRED_INDEX_4x4[m]);
-#elif B_SZ==8
     free(NE_PRED_WEIGHTS_8x8[m]);
     free(NE_PRED_INDEX_8x8[m]);
-#elif B_SZ==16
     free(NE_PRED_WEIGHTS_16x16[m]);
     free(NE_PRED_INDEX_16x16[m]);
-#else
-# error "Unsupported block size."
-#endif
   }
 }
 

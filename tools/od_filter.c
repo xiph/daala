@@ -35,21 +35,15 @@ int NE_FILTER_PARAMS16[22];
 
 void ne_filter_params_init(){
   int i;
-#if B_SZ==4
   for(i=0;i<4;i++){
     NE_FILTER_PARAMS4[i]=OD_FILTER_PARAMS4[i];
   }
-#elif B_SZ==8
   for(i=0;i<10;i++){
     NE_FILTER_PARAMS8[i]=OD_FILTER_PARAMS8[i];
   }
-#elif B_SZ==16
   for(i=0;i<22;i++){
     NE_FILTER_PARAMS16[i]=OD_FILTER_PARAMS16[i];
   }
-#else
-# error "Need filter params for this block size."
-#endif
 }
 
 const od_filter_func NE_PRE_FILTER[OD_NBSIZES]={
