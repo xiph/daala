@@ -148,7 +148,7 @@ int laplace_decode(od_ec_dec *dec, int ex_q8, int k) {
  * @param [out]    curr  Adaptation context output, may alias means.
  * @param [in]     means Adaptation context input.
  */
-void pvq_decoder(od_ec_dec *dec, int *y, int n, int k,
+void pvq_decoder(od_ec_dec *dec, od_coeff *y, int n, int k,
  ogg_int32_t *curr, const ogg_int32_t *means) {
   int i;
   int sum_ex;
@@ -211,7 +211,7 @@ void pvq_decoder(od_ec_dec *dec, int *y, int n, int k,
   for (; i < n; i++) y[i] = 0;
 }
 
-void pvq_decode_delta(od_ec_dec *dec, int *y, int n, int k,
+void pvq_decode_delta(od_ec_dec *dec, od_coeff *y, int n, int k,
  ogg_int32_t *curr, const ogg_int32_t *means) {
   int i;
   int prev;

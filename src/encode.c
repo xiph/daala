@@ -263,7 +263,7 @@ struct od_mb_enc_ctx {
 typedef struct od_mb_enc_ctx od_mb_enc_ctx;
 
 void od_band_encode(od_ec_enc *ec, int qg, int theta, int max_theta,
- const int *y, int n, int k, generic_encoder *model, int *adapt, int *exg,
+ const od_coeff *y, int n, int k, generic_encoder *model, int *adapt, int *exg,
  int *ext) {
   int adapt_curr[OD_NSB_ADAPT_CTXS] = { 0 };
   int speed = 5;
@@ -305,7 +305,7 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   int y;
   od_coeff pred[16*16];
   od_coeff predt[16*16];
-  int cblock[16*16];
+  od_coeff cblock[16*16];
   od_coeff scalar_out[16*16];
   int zzi;
   int vk;

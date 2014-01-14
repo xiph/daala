@@ -34,6 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "entcode.h"
 #include "pvq_code.h"
 #include "adapt.h"
+#include "filter.h"
 
 /** Encodes the tail of a Laplace-distributed variable, i.e. it doesn't
  * do anything special for the zero case.
@@ -147,7 +148,7 @@ void laplace_encode(od_ec_enc *enc, int x, int ex_q8, int k) {
  * @param [out]    curr  Adaptation context output, may alias means.
  * @param [in]     means Adaptation context input.
  */
-void pvq_encoder(od_ec_enc *enc, const int *y, int n, int k,
+void pvq_encoder(od_ec_enc *enc, const od_coeff *y, int n, int k,
  ogg_int32_t *curr, const ogg_int32_t *means) {
   int i;
   int sum_ex;
@@ -205,7 +206,7 @@ void pvq_encoder(od_ec_enc *enc, const int *y, int n, int k,
   curr[OD_ADAPT_SUM_EX_Q8] = sum_ex;
 }
 
-void pvq_encode_delta(od_ec_enc *enc, const int *y, int n, int k,
+void pvq_encode_delta(od_ec_enc *enc, const od_coeff *y, int n, int k,
  ogg_int32_t *curr, const ogg_int32_t *means) {
   int i;
   int prev;

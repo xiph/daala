@@ -120,7 +120,7 @@ void pvq_coder_bitstreams(int n, int type){
   pvq_adapt.mean_count_ex_q8 = 256*4;
   od_ec_dec_init(&dec, buf, buf_sz);
   for (i = 0; i < 65535; i++) {
-    int y[MAXN];
+    od_coeff y[MAXN];
     adapt[OD_ADAPT_K_Q8] = pvq_adapt.mean_k_q8;
     adapt[OD_ADAPT_SUM_EX_Q8] = pvq_adapt.mean_sum_ex_q8;
     adapt[OD_ADAPT_COUNT_Q8] = pvq_adapt.mean_count_q8;
@@ -148,7 +148,7 @@ void pvq_coder_bitstreams(int n, int type){
 }
 
 
-int run_pvq(int *X,int len,int N,int fuzz){
+int run_pvq(od_coeff *X,int len,int N,int fuzz){
   od_pvq_adapt_ctx pvq_adapt;
   ogg_int32_t adapt[OD_NSB_ADAPT_CTXS];
   int i, j;
@@ -226,7 +226,7 @@ int run_pvq(int *X,int len,int N,int fuzz){
 
   for (i=0;i<len;i++)
   {
-    int y[MAXN];
+    od_coeff y[MAXN];
     int K;
     K=generic_decode(&dec, &model, &EK, 4);
     if (!fuzz && K != Ki[i]) {
@@ -279,7 +279,7 @@ void test_pvq_sequence(int len,int N,float std)
 {
   int i,j;
   int bits;
-  int *X;
+  od_coeff *X;
   X = malloc(sizeof(*X)*len*N);
   for(i=0;i<len;i++){
     for(j=0;j<N;j++){
@@ -304,7 +304,7 @@ void test_pvq_basic(int N) {
   int i;
   int j;
   int bits;
-  int *X;
+  od_coeff *X;
   int len;
   len = 4*N + 1;
   X = malloc(sizeof(*X)*N*len);
@@ -341,7 +341,7 @@ void test_pvq_huge(int N) {
   int i;
   int j;
   int bits;
-  int *X;
+  od_coeff *X;
   int len;
   len = 4*N;
   X = malloc(sizeof(*X)*N*len);
@@ -375,7 +375,7 @@ void test_pvq_huge(int N) {
 
 int main(int argc, char **argv){
   if(argc==4){
-    int *X;
+    od_coeff *X;
     int i,j;
     int len,N;
     int bits;
@@ -403,7 +403,11 @@ int main(int argc, char **argv){
     }
     for(i=0;i<len;i++)
       for(j=0;j<N;j++)
+#if (OD_COEFF_BITS == 16)
+        if(fscanf(file,"%hd",&X[i*N+j])!=1)
+#else
         if(fscanf(file,"%d",&X[i*N+j])!=1)
+#endif
           return 1;
     bits = run_pvq(X, len, N, 0);
     fprintf(stderr, "Coded file with %f bits/sample (%f bits/vector)\n",bits/(float)len/N,bits/(float)len);

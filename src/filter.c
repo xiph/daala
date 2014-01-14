@@ -738,7 +738,7 @@ static void od_apply_filter_cols(od_coeff *c, int stride, int bx, int by,
   /*Apply the column filter across the edge.*/
   for (i = 0; i < 4 << l; i++) {
     int j;
-    int t[4 << OD_NBSIZES];
+    od_coeff t[4 << OD_NBSIZES];
     for (j = 0; j < 4 << f; j++) {
       t[j] = c[stride*j + i];
     }

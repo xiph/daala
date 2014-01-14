@@ -144,7 +144,7 @@ static void od_band_decode(od_ec_dec *ec, int q, int n, generic_encoder *model,
   int s;
   double gr;
   double r[1024];
-  int y[1024];
+  od_coeff y[1024];
   int i;
   qg = generic_decode(ec, model, exg, 2);
   max_theta = od_compute_max_theta(r0, n, q, &gr, &qcg, &qg, &gain_offset,

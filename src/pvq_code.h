@@ -28,6 +28,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # include "entenc.h"
 # include "entdec.h"
 # include "adapt.h"
+# include "filter.h"
 
 extern const ogg_uint16_t EXP_CDF_TABLE[][16];
 extern const ogg_uint16_t LAPLACE_OFFSET[];
@@ -38,14 +39,14 @@ int laplace_decode_special(od_ec_dec *dec, unsigned decay, int max);
 void laplace_encode(od_ec_enc *enc, int x, int ex_q8, int k);
 int laplace_decode(od_ec_dec *dec, int ex_q8, int k);
 
-void pvq_encoder(od_ec_enc *enc, const int *y, int n, int k,
+void pvq_encoder(od_ec_enc *enc, const od_coeff *y, int n, int k,
  ogg_int32_t *curr, const ogg_int32_t *means);
-void pvq_decoder(od_ec_dec *dec, int *y, int n, int k,
+void pvq_decoder(od_ec_dec *dec, od_coeff *y, int n, int k,
  ogg_int32_t *curr, const ogg_int32_t *means);
 
-void pvq_encode_delta(od_ec_enc *enc, const int *y, int n, int k,
+void pvq_encode_delta(od_ec_enc *enc, const od_coeff *y, int n, int k,
  ogg_int32_t *curr, const ogg_int32_t *means);
-void pvq_decode_delta(od_ec_dec *dec, int *y, int n, int k,
+void pvq_decode_delta(od_ec_dec *dec, od_coeff *y, int n, int k,
  ogg_int32_t *curr, const ogg_int32_t *means);
 
 #endif
