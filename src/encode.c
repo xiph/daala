@@ -148,7 +148,7 @@ static void od_img_plane_copy_pad8(od_img_plane *dst_p,
   if (pic_width == 0 || pic_height == 0) {
     dst_data = dst_p->data;
     for (y = 0; y < plane_height; y++) {
-      memset(dst_data, 0, plane_width*sizeof(*dst_data));
+      OD_CLEAR(dst_data, plane_width);
       dst_data += dstride;
     }
   }
@@ -166,7 +166,7 @@ static void od_img_plane_copy_pad8(od_img_plane *dst_p,
     src_data = src_p->data;
     dst = dst_data;
     for (y = 0; y < pic_height; y++) {
-      if (sxstride == 1) memcpy(dst, src_data, pic_width);
+      if (sxstride == 1) OD_COPY(dst, src_data, pic_width);
       else for (x = 0; x < pic_width; x++) dst[x] = *(src_data + sxstride*x);
       dst += dstride;
       src_data += systride;
@@ -776,7 +776,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
    || refi == enc->state.ref_imgi[OD_FRAME_PREV]
    || refi == enc->state.ref_imgi[OD_FRAME_NEXT]; refi++);
   enc->state.ref_imgi[OD_FRAME_SELF] = refi;
-  memcpy(&enc->state.input, img, sizeof(enc->state.input));
+  OD_COPY(&enc->state.input, img, 1);
   /*We must be a keyframe if we don't have a reference.*/
   mbctx.is_keyframe |= !(enc->state.ref_imgi[OD_FRAME_PREV] >= 0);
   /*Initialize the entropy coder.*/

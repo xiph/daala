@@ -179,8 +179,8 @@ int od_state_init(od_state *state, const daala_info *info) {
   if (nplanes <= 0 || nplanes > OD_NPLANES_MAX) return OD_EINVAL;
   /*The first plane (the luma plane) must not be subsampled.*/
   if (info->plane_info[0].xdec || info->plane_info[0].ydec) return OD_EINVAL;
-  memset(state, 0, sizeof(*state));
-  memcpy(&state->info, info, sizeof(*info));
+  OD_CLEAR(state, 1);
+  OD_COPY(&state->info, info, 1);
   /*Frame size is a multiple of a super block.*/
   state->frame_width = (info->pic_width + (OD_SUPERBLOCK_SIZE - 1)) &
    ~(OD_SUPERBLOCK_SIZE - 1);
@@ -413,7 +413,7 @@ void od_state_upsample8(od_state *state, od_img *dimg, const od_img *simg) {
       /*Vertical filtering:*/
       if (y >= -ypad + 3) {
         if (y < 1 || y > h + 3) {
-          memcpy(dst - (xpad << 1),
+          OD_COPY(dst - (xpad << 1),
            state->ref_line_buf[(y - 3) & 7] - (xpad << 1),
            (w + (xpad << 1)) << 1);
           /*fprintf(stderr, "%3i: ", (y - 3) << 1);
@@ -422,7 +422,7 @@ void od_state_upsample8(od_state *state, od_img *dimg, const od_img *simg) {
           }
           fprintf(stderr, "\n");*/
           dst += diplane->ystride;
-          memcpy(dst - (xpad << 1),
+          OD_COPY(dst - (xpad << 1),
            state->ref_line_buf[(y - 3) & 7] - (xpad << 1),
            (w + (xpad << 1)) << 1);
           /*fprintf(stderr, "%3i: ", (y - 3) << 1 | 1);
@@ -440,7 +440,7 @@ void od_state_upsample8(od_state *state, od_img *dimg, const od_img *simg) {
           buf[3] = state->ref_line_buf[(y - 2) & 7];
           buf[4] = state->ref_line_buf[(y - 1) & 7];
           buf[5] = state->ref_line_buf[(y - 0) & 7];
-          memcpy(dst - (xpad << 1),
+          OD_COPY(dst - (xpad << 1),
            state->ref_line_buf[(y - 3) & 7] - (xpad << 1),
            (w + (xpad << 1)) << 1);
           /*fprintf(stderr, "%3i: ", (y - 3) << 1);
@@ -958,16 +958,16 @@ void od_state_fill_vis(od_state *state) {
   }
   /*Clear the border region.*/
   for (y = 0; y < (border >> ydec); y++) {
-    memset(img->planes[0].data + (img->planes[0].ystride)*y,
-     0, img->width >> xdec);
+    OD_CLEAR(img->planes[0].data + (img->planes[0].ystride)*y,
+     img->width >> xdec);
   }
   for (; y < (img->height - border) >> ydec; y++) {
-    memset(img->planes[0].data + img->planes[0].ystride*y, 0, border >> xdec);
-    memset(img->planes[0].data + img->planes[0].ystride*y
-     + ((img->width - border) >> xdec), 0, border >> xdec);
+    OD_CLEAR(img->planes[0].data + img->planes[0].ystride*y, border >> xdec);
+    OD_CLEAR(img->planes[0].data + img->planes[0].ystride*y
+     + ((img->width - border) >> xdec), border >> xdec);
   }
   for (; y < img->height >> ydec; y++) {
-    memset(img->planes[0].data + (img->planes[0].ystride)*y, 0,
+    OD_CLEAR(img->planes[0].data + (img->planes[0].ystride)*y,
      img->width >> xdec);
   }
   /*Clear the chroma planes.*/
@@ -1141,7 +1141,7 @@ void od_state_mc_predict(od_state *state, int ref) {
           blk_h = (img->height >> iplane->ydec) - blk_y;
         }
         for (y = blk_y; y < blk_y + blk_h; y++) {
-          memcpy(iplane->data + y*iplane->ystride + blk_x, p, blk_w);
+          OD_COPY(iplane->data + y*iplane->ystride + blk_x, p, blk_w);
           p += sizeof(buf[0]);
         }
       }

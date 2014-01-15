@@ -31,7 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "internal.h"
 
 void daala_info_init(daala_info *_info) {
-  memset(_info, 0, sizeof(*_info));
+  OD_CLEAR(_info, 1);
   _info->version_major = OD_VERSION_MAJOR;
   _info->version_minor = OD_VERSION_MINOR;
   _info->version_sub = OD_VERSION_SUB;
@@ -40,11 +40,11 @@ void daala_info_init(daala_info *_info) {
 }
 
 void daala_info_clear(daala_info *_info) {
-  memset(_info, 0, sizeof(*_info));
+  OD_CLEAR(_info, 1);
 }
 
 void daala_comment_init(daala_comment *_dc) {
-  memset(_dc, 0, sizeof(*_dc));
+  OD_CLEAR(_dc, 1);
 }
 
 void daala_comment_clear(daala_comment *_dc) {
@@ -54,6 +54,6 @@ void daala_comment_clear(daala_comment *_dc) {
     _ogg_free(_dc->user_comments);
     _ogg_free(_dc->comment_lengths);
     _ogg_free(_dc->vendor);
-    memset(_dc, 0, sizeof(*_dc));
+    OD_CLEAR(_dc, 1);
   }
 }

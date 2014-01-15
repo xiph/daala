@@ -141,7 +141,7 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
   int j;
   od_compute_stats(psy_img, stride, &bs->psy_stats);
   if (psy_img == pred || pred == NULL) {
-    memcpy(&bs->img_stats, &bs->psy_stats, sizeof(BlockStats));
+    OD_COPY(&bs->img_stats, &bs->psy_stats, 1);
   }
   else {
     const unsigned char *x0;

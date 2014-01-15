@@ -1317,7 +1317,7 @@ static void od_mv_est_init_mvs(od_mv_est_ctx *est, int ref) {
     for (vx = 2; vx <= nhmvbs - 2; vx++) {
       od_mv_node *mv;
       mv = est->mvs[vy] + vx;
-      memmove(mv->mvs + 1, mv->mvs + 0, sizeof(mv->mvs[0]) << 1);
+      OD_MOVE(mv->mvs + 1, mv->mvs + 0, 2);
     }
   }
   /*We initialize MVs a MVB at a time for cache coherency.
@@ -1988,8 +1988,8 @@ static void od_mv_est_init_dus(od_mv_est_ctx *est, int ref) {
   state = &est->enc->state;
   nhmvbs = (state->nhmbs + 1) << 2;
   nvmvbs = (state->nvmbs + 1) << 2;
-  memset(est->row_counts, 0, sizeof(est->col_counts[0])*(nvmvbs + 1));
-  memset(est->col_counts, 0, sizeof(est->col_counts[0])*(nhmvbs + 1));
+  OD_CLEAR(est->row_counts, nvmvbs + 1);
+  OD_CLEAR(est->col_counts, nhmvbs + 1);
   od_mv_est_init_nodes(est);
   OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG, "Finished MV bits."));
   od_mv_est_calc_sads(est, ref);
@@ -2647,8 +2647,7 @@ static void od_mv_dp_animate_state(od_state *state,
         }
       }
     }
-    memcpy(active_states, prev_active_states,
-     sizeof(*active_states)*nprev_active_states);
+    OD_COPY(active_states, prev_active_states, nprev_active_states);
     nactive_states = nprev_active_states;
     /*Follow the chain backwards to find the new active states.*/
     nprev_active_states = 0;
@@ -2696,8 +2695,7 @@ static void od_mv_dp_animate_state(od_state *state,
         }
       }
     }
-    memcpy(active_states, prev_active_states,
-     sizeof(*active_states)*nprev_active_states);
+    OD_COPY(active_states, prev_active_states, nprev_active_states);
     nactive_states = nprev_active_states;
     /*Follow the chain backwards to find the new active states.*/
     nprev_active_states = 0;
@@ -3349,18 +3347,17 @@ static ogg_int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
         cstate->prevsi = best_si;
         cstate->dr = best_dr;
         cstate->dd = best_dd;
-        memcpy(cstate->block_sads, block_sads[best_si],
-         sizeof(**block_sads)*dp_node[1].nblocks);
+        OD_COPY(cstate->block_sads, block_sads[best_si], dp_node[1].nblocks);
         if (best_si < dp_node[0].nstates) {
           cstate->mv_rate = cur_mv_rates[best_si];
-          memcpy(cstate->pred_mv_rates, pred_mv_rates[best_si],
-           sizeof(**pred_mv_rates)*dp_node[1].npredicted);
+          OD_COPY(cstate->pred_mv_rates, pred_mv_rates[best_si],
+           dp_node[1].npredicted);
         }
         else {
           cstate->mv_rate = cur_mv_rates[best_si - dp_node[0].nstates];
-          memcpy(cstate->pred_mv_rates,
+          OD_COPY(cstate->pred_mv_rates,
            pred_mv_rates[best_si - dp_node[0].nstates],
-           sizeof(**pred_mv_rates)*dp_node[1].npredicted);
+           dp_node[1].npredicted);
         }
         if (sitei >= nsites) break;
         site = pattern[b][sitei];
@@ -4082,18 +4079,18 @@ static ogg_int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
         cstate->prevsi = best_si;
         cstate->dr = best_dr;
         cstate->dd = best_dd;
-        memcpy(cstate->block_sads, block_sads[cstate->prevsi],
-         sizeof(**block_sads)*dp_node[1].nblocks);
+        OD_COPY(cstate->block_sads, block_sads[cstate->prevsi],
+         dp_node[1].nblocks);
         if (best_si < dp_node[0].nstates) {
           cstate->mv_rate = cur_mv_rates[best_si];
-          memcpy(cstate->pred_mv_rates, pred_mv_rates[best_si],
-           sizeof(**pred_mv_rates)*dp_node[1].npredicted);
+          OD_COPY(cstate->pred_mv_rates, pred_mv_rates[best_si],
+           dp_node[1].npredicted);
         }
         else {
           cstate->mv_rate = cur_mv_rates[best_si-dp_node[0].nstates];
-          memcpy(cstate->pred_mv_rates,
+          OD_COPY(cstate->pred_mv_rates,
            pred_mv_rates[best_si - dp_node[0].nstates],
-           sizeof(**pred_mv_rates)*dp_node[1].npredicted);
+           dp_node[1].npredicted);
         }
         if (sitei >= nsites) break;
         site = pattern[b][sitei];
@@ -4967,8 +4964,8 @@ void od_mv_subpel_refine(od_mv_est_ctx *est, int ref, int cost_thresh) {
        day (a motion field of all (0, 0)'s would have a rate penalty of 0!).*/
     cost_thresh = OD_MAXI(cost_thresh,
      -OD_MAXI(subpel_cost, 16 << OD_LAMBDA_SCALE));
-    memcpy(est->refine_grid[0], state->mv_grid[0],
-     sizeof(**state->mv_grid)*(nhmvbs + 1)*(nvmvbs + 1));
+    OD_COPY(est->refine_grid[0], state->mv_grid[0],
+     (nhmvbs + 1)*(nvmvbs + 1));
     do {
       dcost = od_mv_est_refine(est, ref, mv_res, mv_res,
        OD_DIAMOND_NSITES, OD_DIAMOND_SITES);

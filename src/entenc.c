@@ -400,8 +400,8 @@ void od_ec_enc_bits(od_ec_enc *enc, ogg_uint32_t fl, unsigned ftb) {
         enc->end_offs = 0;
         return;
       }
-      memcpy(new_buf + new_storage - end_offs,
-       buf + storage - end_offs, sizeof(*new_buf)*end_offs);
+      OD_COPY(new_buf + new_storage - end_offs,
+       buf + storage - end_offs, end_offs);
       storage = new_storage;
       _ogg_free(buf);
       enc->buf = buf = new_buf;
@@ -535,8 +535,7 @@ unsigned char *od_ec_enc_done(od_ec_enc *enc, ogg_uint32_t *nbytes) {
       enc->error = -1;
       return NULL;
     }
-    memmove(out + storage - end_offs, out + enc->storage - end_offs,
-     sizeof(*out)*end_offs);
+    OD_MOVE(out + storage - end_offs, out + enc->storage - end_offs, end_offs);
     enc->buf = out;
     enc->storage = storage;
   }

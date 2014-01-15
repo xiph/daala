@@ -207,4 +207,24 @@ static __inline int od_bsr(unsigned long x) {
 #  define OD_ICEILF(f)  ((int)ceil(f))
 # endif
 
+
+/** Copy n elements of memory from src to dst. The 0* term provides
+    compile-time type checking  */
+#if !defined(OVERRIDE_OD_COPY)
+# define OD_COPY(dst, src, n) (memcpy((dst), (src), sizeof(*(dst))*(n) \
+ + 0*((dst)-(src)) ))
+#endif
+
+/** Copy n elements of memory from src to dst, allowing overlapping regions.
+    The 0* term provides compile-time type checking */
+#if !defined(OVERRIDE_OD_MOVE)
+# define OD_MOVE(dst, src, n) (memmove((dst), (src), sizeof(*(dst))*(n) \
+ + 0*((dst)-(src)) ))
+#endif
+
+/** Set n elements of dst to zero, starting at address s */
+#if !defined(OVERRIDE_OD_CLEAR)
+# define OD_CLEAR(dst, n) (memset((dst), 0, sizeof(*(dst))*(n)))
+#endif
+
 #endif

@@ -200,7 +200,7 @@ void od_free_2d(void *_ptr) {
 #define BUFFER_INCREMENT (256)
 
 void oggbyte_writeinit(oggbyte_buffer *_b) {
-  memset(_b, 0, sizeof(*_b));
+  OD_CLEAR(_b, 1);
   _b->ptr = _b->buf = _ogg_malloc(BUFFER_INCREMENT);
   _b->storage = BUFFER_INCREMENT;
 }
@@ -257,13 +257,13 @@ void oggbyte_reset(oggbyte_buffer *_b) {
 
 void oggbyte_writeclear(oggbyte_buffer *_b) {
   _ogg_free(_b->buf);
-  memset(_b, 0, sizeof(*_b));
+  OD_CLEAR(_b, 1);
 }
 
 void oggbyte_readinit(oggbyte_buffer *_b, unsigned char *_buf,
  ptrdiff_t _bytes) {
   OD_ASSERT(_bytes >= 0);
-  memset(_b, 0, sizeof(*_b));
+  OD_CLEAR(_b, 1);
   _b->buf = _b->ptr = _buf;
   _b->storage = _bytes;
 }
