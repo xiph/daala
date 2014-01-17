@@ -52,10 +52,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
   One of these, at a minimum, must be set.*/
 /*Flag indicating we use `B' edges.*/
 #define OD_MC_USEB (1 << 0)
-/*Flag indicating we use `V' edges.*/
-#define OD_MC_USEV (1 << 1)
 /*Flag indicating we include the chroma planes in our SAD calculations.*/
-#define OD_MC_USE_CHROMA (1 << 2)
+#define OD_MC_USE_CHROMA (1 << 1)
 
 typedef struct od_mv_node od_mv_node;
 typedef struct od_mv_dp_state od_mv_dp_state;
@@ -1704,17 +1702,7 @@ static void od_mv_est_init_nodes(od_mv_est_ctx *est) {
   state = &est->enc->state;
   nhmvbs = (state->nhmbs + 1) << 2;
   nvmvbs = (state->nvmbs + 1) << 2;
-  if (est->flags & OD_MC_USEV) {
-    if (est->flags & OD_MC_USEB) {
-      etype = 0;
-      ebits = 3;
-    }
-    else {
-      etype = 1;
-      ebits = 0;
-    }
-  }
-  else etype = ebits = 0;
+  etype = ebits = 0;
   for (vy = 0; vy <= nvmvbs; vy++) {
     mv_row = est->mvs[vy];
     grid = state->mv_grid[vy];
@@ -3315,29 +3303,6 @@ static ogg_int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
               best_dr = dr;
             }
           }
-          if (est->flags & OD_MC_USEV) {
-            /*Test against the previous state with a V edge.*/
-            pmvg->right = 1;
-            dr = pstate->dr + cstate->dr;
-            /*Account for label mismatch.*/
-            /*if (pstate->prevsi >= 0
-             && pstate->prevsi < (dp_node - 1)->nstates) {
-              rate += 2;
-            }*/
-            dd = pstate->dd + od_mv_dp_get_sad_change8(est, ref, dp_node + 1,
-             block_sads[si + dp_node[0].nstates]);
-            cost = dr*est->lambda + (dd << OD_LAMBDA_SCALE);
-            OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
-             "State: %2i (%7g, %7g) P.State: %iV  dr: %3i  dd: %6i  dopt: %7i",
-             sitei, 0.125*cstate->mv[0], 0.125*cstate->mv[1],
-             si, dr, dd, cost));
-            if (cost < best_cost) {
-              best_si = si + dp_node[0].nstates;
-              best_cost = cost;
-              best_dd = dd;
-              best_dr = dr;
-            }
-          }
         }
         OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
          "State: %2i  Best P.State: %i%c", sitei,
@@ -3402,29 +3367,6 @@ static ogg_int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
            si, dr, dd, cost));
           if (cost < best_cost) {
             best_si = si;
-            best_cost = cost;
-          }
-        }
-        /*Test against the state with a following V edge.
-          If we hit a gap, then the edge label does not actually affect
-           anything, so we can skip these tests if we did the ones above.*/
-        if ((est->flags & OD_MC_USEV)
-         && (!has_gap || !(est->flags & OD_MC_USEB))) {
-          pmvg->right = 1;
-          dr = pstate->dr;
-          /*Account for label mismatch.*/
-          /*if (pstate->prevsi >= 0
-           && pstate->prevsi < (dp_node - 1)->nstates) {
-            rate += 2;
-          }*/
-          dd = pstate->dd + od_mv_dp_get_sad_change8(est,
-           ref, dp_node + 1, block_sads[si + dp_node[0].nstates]);
-          cost = dr*est->lambda + (dd << OD_LAMBDA_SCALE);
-          OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
-           "State: --  P.State: %iV  dr: %3i  dd: %6i  dopt: %7i",
-           si, dr, dd, cost));
-          if (cost < best_cost) {
-            best_si = si + dp_node[0].nstates;
             best_cost = cost;
           }
         }
@@ -4049,28 +3991,6 @@ static ogg_int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
               best_dr = dr;
             }
           }
-          if (est->flags & OD_MC_USEV) {
-            /*Test against the previous state with a V edge.*/
-            pmvg->down = 1;
-            dr = pstate->dr + cstate->dr;
-            /*Account for label mismatch.*/
-            /*if (pstate->prevsi >= 0
-             && pstate->prevsi < (dp_node - 1)->nstates) {
-              rate += 2;
-            }*/
-            dd = pstate->dd + od_mv_dp_get_sad_change8(est,
-             ref, dp_node + 1, block_sads[si + dp_node[0].nstates]);
-            cost = dr*est->lambda + (dd << OD_LAMBDA_SCALE);
-            OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
-             "State: %2i  P.State: %iV  dr: %3i  dd: %6i  dopt: %7i",
-             sitei, si, dr, dd, cost));
-            if (cost < best_cost) {
-              best_si = si + dp_node[0].nstates;
-              best_cost = cost;
-              best_dd = dd;
-              best_dr = dr;
-            }
-          }
         }
         OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
          "State: %2i  Best P.State: %i%c", sitei, best_si%dp_node[0].nstates,
@@ -4135,29 +4055,6 @@ static ogg_int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
            si, dr, dd, cost));
           if (best_si < 0 || cost < best_cost) {
             best_si = si;
-            best_cost = cost;
-          }
-        }
-        /*Test against the state with a following V edge.
-          If we hit a gap, then the edge label does not actually affect
-           anything, so we can skip these tests if we did the ones above.*/
-        if ((est->flags & OD_MC_USEV)
-         && (!has_gap || !(est->flags & OD_MC_USEB))) {
-          pmvg->down = 1;
-          dr = pstate->dr;
-          /*Account for label mismatch.*/
-          /*if (pstate->prevsi >= 0
-           && pstate->prevsi < (dp_node - 1)->nstates) {
-            rate += 2;
-          }*/
-          dd = pstate->dd + od_mv_dp_get_sad_change8(est,
-           ref, dp_node + 1, block_sads[si + dp_node[0].nstates]);
-          cost = dr*est->lambda + (dd << OD_LAMBDA_SCALE);
-          OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
-           "State: --  P.State: %iV  dr: %3i  dd: %6i  dopt: %7i",
-           si, dr, dd, cost));
-          if (cost < best_cost) {
-            best_si = si + dp_node[0].nstates;
             best_cost = cost;
           }
         }
