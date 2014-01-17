@@ -535,6 +535,7 @@ int main(int _argc,char **_argv){
      fwrite(video_page.header,1,video_page.header_len,outfile);
     video_bytesout+=fwrite(video_page.body,1,video_page.body_len,outfile);
     video_ready=0;
+    if(video_time==-1)continue;
     video_kbps=(int)rint(video_bytesout*8*0.001/video_time);
     time_base=video_time;
     fprintf(stderr,
