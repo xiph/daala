@@ -2469,9 +2469,7 @@ static int od_mv_dp_get_rate_change(od_state *state, od_mv_dp_node *dp,
     pred_si = pred_sis[npreds - 1] = prevsi;
     for (pi = 2; pi <= npreds; pi++) {
       pred_dp = dp - pi;
-      pred_si = pred_dp[1].states[pred_si].prevsi;
-      if (pred_si >= pred_dp[0].nstates) pred_si -= pred_dp[0].nstates;
-      pred_sis[npreds - pi] = pred_si;
+      pred_sis[npreds - pi] = pred_dp[1].states[pred_si].prevsi;
     }
     /*Then restore that state going FORWARDS.*/
     for (pred_dp = dp->min_predictor_node; pred_dp < dp; pred_dp++) {
@@ -2536,16 +2534,14 @@ static int od_mv_dp_get_rate_change(od_state *state, od_mv_dp_node *dp,
 }
 
 #if defined(OD_DUMP_IMAGES) && defined(OD_ANIMATE)
-static const unsigned char OD_YCbCr_BEDGE[3] = { 41, 240, 110 };
-static const unsigned char OD_YCbCr_VEDGE[3] = { 145, 54, 34 };
-static const unsigned char OD_YCbCr_VBEDGE[3] = { 170, 166, 16 };
+static const unsigned char OD_YCbCr_EDGE[3] = { 41, 240, 110 };
 
 static void od_mv_dp_animate_state(od_state *state,
  int ref, od_mv_dp_node *dp, int has_gap) {
   od_mv_dp_node *dp0;
   char iter_label[16];
-  int active_states[OD_DP_NSTATES_MAX << 1];
-  int prev_active_states[OD_DP_NSTATES_MAX << 1];
+  int active_states[OD_DP_NSTATES_MAX];
+  int prev_active_states[OD_DP_NSTATES_MAX];
   int nactive_states;
   int nprev_active_states;
   int dp_state;
@@ -2561,27 +2557,16 @@ static void od_mv_dp_animate_state(od_state *state,
   /*Now, draw the current state of the DP.*/
   dp0 = dp;
   /*First draw the candidate edge labels for the active trellis paths.*/
-  for (si = 0; si < dp0->nstates; si++) {
-    prev_active_states[si << 1] = si;
-    prev_active_states[si << 1 | 1] = si + dp0->nstates;
-  }
-  nprev_active_states = dp0->nstates << 1;
+  for (si = 0; si < dp0->nstates; si++) prev_active_states[si] = si;
+  nprev_active_states = dp0->nstates;
   nactive_states = 0;
   do {
-    int has_vedge;
-    int has_bedge;
     if (nactive_states > 0) {
       d0vx = dp[0].mv->vx;
       d0vy = dp[0].mv->vy;
       x0 = ((d0vx - 2) << 3) + (OD_UMV_PADDING << 1);
       y0 = ((d0vy - 2) << 3) + (OD_UMV_PADDING << 1);
-      has_vedge = has_bedge = 0;
-      for (si = 0; si < nprev_active_states; si++) {
-        if (prev_active_states[si] < dp[0].nstates) has_bedge = 1;
-        else has_vedge = 1;
-      }
-      if (has_vedge || has_bedge) {
-        const unsigned char *ecolor;
+      if (nprev_active_states > 0) {
         int mvb_sz;
         int x1;
         int y1;
@@ -2589,9 +2574,7 @@ static void od_mv_dp_animate_state(od_state *state,
         d1vy = dp[1].mv->vy;
         x1 = ((d1vx - 2) << 3) + (OD_UMV_PADDING << 1);
         y1 = ((d1vy - 2) << 3) + (OD_UMV_PADDING << 1);
-        ecolor = has_vedge ? has_bedge ?
-         OD_YCbCr_VBEDGE : OD_YCbCr_VEDGE : OD_YCbCr_BEDGE;
-        od_img_draw_line(&state->vis_img, x0, y0, x1, y1, ecolor);
+        od_img_draw_line(&state->vis_img, x0, y0, x1, y1, OD_YCbCr_EDGE);
         if (d1vx - d0vx > 1) {
           mvb_sz = d1vx - d0vx;
           if (!has_gap || dp + 1 != dp0) mvb_sz >>= 1;
@@ -2600,13 +2583,13 @@ static void od_mv_dp_animate_state(od_state *state,
              && state->mv_grid[d0vy - mvb_sz][d0vx + mvb_sz].valid) {
               od_img_draw_line(&state->vis_img,
                x0 + (mvb_sz << 3), y0 - (mvb_sz << 3), x0 + (mvb_sz << 3), y1,
-               ecolor);
+               OD_YCbCr_EDGE);
             }
             if (dp[0].mv->vy <= ((state->nvmbs + 1) << 2) - mvb_sz
              && state->mv_grid[d0vy + mvb_sz][d0vx + mvb_sz].valid) {
               od_img_draw_line(&state->vis_img,
                x0 + (mvb_sz << 3), y0 + (mvb_sz << 3),
-               x0 + (mvb_sz << 3), y1, ecolor);
+               x0 + (mvb_sz << 3), y1, OD_YCbCr_EDGE);
             }
           }
         }
@@ -2618,13 +2601,13 @@ static void od_mv_dp_animate_state(od_state *state,
              && state->mv_grid[d0vy + mvb_sz][d0vx - mvb_sz].valid) {
               od_img_draw_line(&state->vis_img,
                x0 - (mvb_sz << 3), y0 + (mvb_sz << 3), x1, y0 + (mvb_sz << 3),
-               ecolor);
+               OD_YCbCr_EDGE);
             }
             if (d0vx <= ((state->nhmbs + 1) << 2) - mvb_sz
              && state->mv_grid[d0vy + mvb_sz][d0vx + mvb_sz].valid) {
               od_img_draw_line(&state->vis_img,
                x0 + (mvb_sz << 3), y0 + (mvb_sz << 3), x1, y0 + (mvb_sz << 3),
-               ecolor);
+               OD_YCbCr_EDGE);
             }
           }
         }
@@ -2636,9 +2619,7 @@ static void od_mv_dp_animate_state(od_state *state,
     nprev_active_states = 0;
     for (si = 0; si < nactive_states; si++) {
       int sj;
-      dp_state = active_states[si];
-      if (dp_state >= dp[0].nstates) dp_state -= dp[0].nstates;
-      dp_state = dp[0].states[dp_state].prevsi;
+      dp_state = dp[0].states[active_states[si]].prevsi;
       for (sj = 0;
        sj < nprev_active_states && prev_active_states[sj] != dp_state; sj++);
       if (sj >= nprev_active_states) {
@@ -2652,11 +2633,8 @@ static void od_mv_dp_animate_state(od_state *state,
     Sorry for the mess that caused.*/
   /*Redraw the MVs, so they appear over the edge labels above.*/
   od_state_draw_mvs(state);
-  for (si = 0; si < dp0->nstates; si++) {
-    prev_active_states[si << 1] = si;
-    prev_active_states[si << 1 | 1] = si + dp0->nstates;
-  }
-  nprev_active_states = dp0->nstates << 1;
+  for (si = 0; si < dp0->nstates; si++) prev_active_states[si] = si;
+  nprev_active_states = dp0->nstates;
   nactive_states = 0;
   dp = dp0;
   do {
@@ -2670,7 +2648,6 @@ static void od_mv_dp_animate_state(od_state *state,
         y0 = ((d1vy - 2) << 3) + (OD_UMV_PADDING << 1);
         for (si = 0; si < nactive_states; si++) {
           dp_state = active_states[si];
-          if (dp_state >= dp[1].nstates) dp_state -= dp[1].nstates;
           od_img_draw_line(&state->vis_img, x0, y0,
            x0 + OD_DIV_ROUND_POW2(dp[1].states[dp_state].mv[0], 2, 2),
            y0 + OD_DIV_ROUND_POW2(dp[1].states[dp_state].mv[1], 2, 2),
@@ -2684,9 +2661,7 @@ static void od_mv_dp_animate_state(od_state *state,
     nprev_active_states = 0;
     for (si = 0; si < nactive_states; si++) {
       int sj;
-      dp_state = active_states[si];
-      if (dp_state >= dp[0].nstates) dp_state -= dp[0].nstates;
-      dp_state = dp[0].states[dp_state].prevsi;
+      dp_state = dp[0].states[active_states[si]].prevsi;
       for (sj = 0;
        sj < nprev_active_states && prev_active_states[sj] != dp_state; sj++);
       if (sj >= nprev_active_states) {
@@ -2702,7 +2677,6 @@ static void od_mv_dp_animate_state(od_state *state,
   y0 = ((d1vy - 2) << 3) + (OD_UMV_PADDING << 1);
   for (si = 0; si < nactive_states; si++) {
     dp_state = active_states[si];
-    if (dp_state >= dp[1].nstates) dp_state -= dp[1].nstates;
     od_img_draw_line(&state->vis_img, x0, y0,
      x0 + OD_DIV_ROUND_POW2(dp[1].states[dp_state].mv[0], 2, 2),
      y0 + OD_DIV_ROUND_POW2(dp[1].states[dp_state].mv[1], 2, 2),
@@ -3078,20 +3052,14 @@ static void od_mv_dp_install_row_state(od_mv_dp_node *dp, int prevsi) {
   /*We must install the state going FORWARDS, since the pred_mv_rates may have
      changed several times over the course of the trellis.
     Therefore, first we reverse all of the prevsi pointers to make them act
-     like nextsi pointers.
-    We _can_ update the edge type flags here, however, and it is much more
-     convenient to do so while going backwards than forwards.*/
+     like nextsi pointers.*/
   nextsi = -1;
   dp0 = dp;
   for (si = prevsi; si >= 0; si = prevsi) {
     dp--;
     OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
      "Node %i, prevsi: %i nextsi: %i", (int)(dp0 - dp), prevsi, nextsi));
-    if (si >= dp->nstates) {
-      dp->mvg->right = 1;
-      si -= dp->nstates;
-    }
-    else dp->mvg->right = 0;
+    dp->mvg->right = 0;
     prevsi = dp->states[si].prevsi;
     dp->states[si].prevsi = nextsi;
     nextsi = si;
@@ -3168,7 +3136,6 @@ static ogg_int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
     int dr;
     int best_si;
     int si;
-    int has_gap;
     for (; vx <= nhmvbs && !grid[vx].valid; vx++);
     if (vx > nhmvbs) break;
     level = OD_MC_LEVEL[vy & 3][vx & 3];
@@ -3210,7 +3177,6 @@ static ogg_int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
       site = pattern[b][sitei];
     }
     dp_node[0].nstates = nsites + 1;
-    has_gap = 0;
     pmvg = mvg;
     while (vx < nhmvbs) {
       /*Find the next available MV to advance to.*/
@@ -3218,7 +3184,6 @@ static ogg_int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
         if (!grid[vx + mvb_sz].valid) {
           OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
            "Gap found at %i (%i), stopping", vx, (vx - 2) << 2));
-          has_gap = 1;
           break;
         }
         else if (level >= 3) vx++;
@@ -3263,7 +3228,7 @@ static ogg_int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
         cstate = dp_node[1].states + sitei;
         cstate->mv[0] = curx + (OD_SITE_DX[site] << log_dsz);
         cstate->mv[1] = cury + (OD_SITE_DY[site] << log_dsz);
-        best_si = pmvg->right ? dp_node[0].nstates : 0;
+        best_si = 0;
         best_dr = dp_node[0].states[0].dr;
         best_dd = dp_node[0].states[0].dd;
         best_cost = INT_MAX;
@@ -3279,11 +3244,6 @@ static ogg_int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
           /*Test against the previous state.*/
           pmvg->right = 0;
           dr = pstate->dr + cstate->dr;
-          /*Account for label mismatch.*/
-          /*if (pstate->prevsi >= 0
-           && pstate->prevsi >= (dp_node - 1)->nstates) {
-            dr += 2;
-          }*/
           dd = pstate->dd + od_mv_dp_get_sad_change8(est,
            ref, dp_node + 1, block_sads[si]);
           cost = dr*est->lambda + (dd << OD_LAMBDA_SCALE);
@@ -3304,17 +3264,9 @@ static ogg_int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
         cstate->dr = best_dr;
         cstate->dd = best_dd;
         OD_COPY(cstate->block_sads, block_sads[best_si], dp_node[1].nblocks);
-        if (best_si < dp_node[0].nstates) {
-          cstate->mv_rate = cur_mv_rates[best_si];
-          OD_COPY(cstate->pred_mv_rates, pred_mv_rates[best_si],
-           dp_node[1].npredicted);
-        }
-        else {
-          cstate->mv_rate = cur_mv_rates[best_si - dp_node[0].nstates];
-          OD_COPY(cstate->pred_mv_rates,
-           pred_mv_rates[best_si - dp_node[0].nstates],
-           dp_node[1].npredicted);
-        }
+        cstate->mv_rate = cur_mv_rates[best_si];
+        OD_COPY(cstate->pred_mv_rates, pred_mv_rates[best_si],
+         dp_node[1].npredicted);
         if (sitei >= nsites) break;
         site = pattern[b][sitei];
       }
@@ -3325,7 +3277,7 @@ static ogg_int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
     OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
      "Finished DP at vertex %i (%i)",
      dp_node[0].mv->vx, (dp_node[0].mv->vx - 2) << 2));
-    best_si = pmvg->right ? dp_node[0].nstates : 0;
+    best_si = 0;
     best_cost = INT_MAX;
     /*TODO: Once we stop optimizing at arbitrary places, we'll need to
        compute the rate change of MVs we didn't get to.*/
@@ -3345,11 +3297,6 @@ static ogg_int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
         /*Test against the state with a following edge.*/
         pmvg->right = 0;
         dr = pstate->dr;
-        /*Account for label mismatch.*/
-        /*if (!has_gap && pstate->prevsi >=0
-         && pstate->prevsi >= (dp_node - 1)->nstates) {
-          rate+=2;
-        }*/
         dd = pstate->dd + od_mv_dp_get_sad_change8(est,
          ref, dp_node + 1, block_sads[si]);
         cost = dr*est->lambda + (dd << OD_LAMBDA_SCALE);
@@ -3374,7 +3321,6 @@ static ogg_int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
           best_cost = cost;
         }
       }
-      if (pmvg->right) best_si += dp_node[0].nstates;
     }
     OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
      "Best P.State: %i dopt: %7i", best_si, best_cost));
@@ -3769,20 +3715,14 @@ static void od_mv_dp_install_col_state(od_mv_dp_node *dp, int prevsi) {
   /*We must install the state going FORWARDS, since the pred_mv_rates may have
      changed several times over the course of the trellis.
     Therefore, first we reverse all of the prevsi pointers to make them act
-     like nextsi pointers.
-    We _can_ update the edge type flags here, however, and it is much more
-     convenient to do so while going backwards than forwards.*/
+     like nextsi pointers.*/
   nextsi = -1;
   dp0 = dp;
   for (si = prevsi; si >= 0; si = prevsi) {
     dp--;
     OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
      "Node %i, prevsi: %i nextsi: %i", (int)(dp0 - dp), prevsi, nextsi));
-    if (si >= dp->nstates) {
-      dp->mvg->down = 1;
-      si -= dp->nstates;
-    }
-    else dp->mvg->down = 0;
+    dp->mvg->down = 0;
     prevsi = dp->states[si].prevsi;
     dp->states[si].prevsi = nextsi;
     nextsi = si;
@@ -3850,7 +3790,6 @@ static ogg_int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
     int dr;
     int best_si;
     int si;
-    int has_gap;
     for (; vy <= nvmvbs && !grid[vy][vx].valid; vy++);
     if (vy > nvmvbs) break;
     level = OD_MC_LEVEL[vy & 3][vx & 3];
@@ -3893,7 +3832,6 @@ static ogg_int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
       site = pattern[b][sitei];
     }
     dp_node[0].nstates = nsites + 1;
-    has_gap = 0;
     pmvg = mvg;
     while (vy < nvmvbs) {
       /*Find the next available MV to advance to.*/
@@ -3901,7 +3839,6 @@ static ogg_int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
         if (!grid[vy + mvb_sz][vx].valid) {
           OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
            "Gap found at %i (%i), stopping", vy, (vy - 2) << 2));
-          has_gap = 1;
           break;
         }
         else if (level >= 3) vy++;
@@ -3945,7 +3882,7 @@ static ogg_int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
         cstate = dp_node[1].states + sitei;
         cstate->mv[0] = curx + (OD_SITE_DX[site] << log_dsz);
         cstate->mv[1] = cury + (OD_SITE_DY[site] << log_dsz);
-        best_si = pmvg->down ? dp_node[0].nstates : 0;
+        best_si = 0;
         best_dr = dp_node[0].states[0].dr;
         best_dd = dp_node[0].states[0].dd;
         best_cost = INT_MAX;
@@ -3961,11 +3898,6 @@ static ogg_int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
           /*Test against the previous state.*/
           pmvg->down = 0;
           dr = pstate->dr + cstate->dr;
-          /*Account for label mismatch.*/
-          /*if (pstate->prevsi >= 0
-           && pstate->prevsi >= (dp_node - 1)->nstates) {
-            dr += 2;
-          }*/
           dd = pstate->dd + od_mv_dp_get_sad_change8(est,
            ref, dp_node + 1, block_sads[si]);
           cost = dr*est->lambda + (dd << OD_LAMBDA_SCALE);
@@ -3986,17 +3918,9 @@ static ogg_int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
         cstate->dd = best_dd;
         OD_COPY(cstate->block_sads, block_sads[cstate->prevsi],
          dp_node[1].nblocks);
-        if (best_si < dp_node[0].nstates) {
-          cstate->mv_rate = cur_mv_rates[best_si];
-          OD_COPY(cstate->pred_mv_rates, pred_mv_rates[best_si],
-           dp_node[1].npredicted);
-        }
-        else {
-          cstate->mv_rate = cur_mv_rates[best_si-dp_node[0].nstates];
-          OD_COPY(cstate->pred_mv_rates,
-           pred_mv_rates[best_si - dp_node[0].nstates],
-           dp_node[1].npredicted);
-        }
+        cstate->mv_rate = cur_mv_rates[best_si];
+        OD_COPY(cstate->pred_mv_rates, pred_mv_rates[best_si],
+         dp_node[1].npredicted);
         if (sitei >= nsites) break;
         site = pattern[b][sitei];
       }
@@ -4007,7 +3931,7 @@ static ogg_int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
     OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
      "Finished DP at vertex %i (%i)",
      dp_node[0].mv->vy, (dp_node[0].mv->vy - 2) << 2));
-    best_si = pmvg->down ? dp_node[0].nstates : 0;
+    best_si = 0;
     best_cost = INT_MAX;
     /*TODO: Once we stop optimizing at arbitrary places, we'll need to
        compute the rate change of MVs we didn't get to.*/
@@ -4027,11 +3951,6 @@ static ogg_int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
         /*Test against the state with a following edge.*/
         pmvg->down = 0;
         dr = pstate->dr;
-        /*Account for label mismatch.*/
-        /*if (!has_gap && pstate->prevsi >= 0
-         && pstate->prevsi >= (dp_node - 1)->nstates) {
-          rate += 2;
-        }*/
         dd = pstate->dd + od_mv_dp_get_sad_change8(est,
          ref, dp_node + 1, block_sads[si]);
         cost = dr*est->lambda + (dd << OD_LAMBDA_SCALE);
@@ -4057,7 +3976,6 @@ static ogg_int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
           best_cost = cost;
         }
       }
-      if (pmvg->down) best_si += dp_node[0].nstates;
     }
     OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
      "Best P.State: %i dopt: %7i", best_si, best_cost));
