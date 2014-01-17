@@ -81,101 +81,6 @@ void od_mc_setup_mvc(ogg_int32_t dmv[4], const ogg_int32_t mvs[4],
   dmv[2] += dmv[3] >> 1;
 }
 
-/*Form the prediction given by one interpolated motion vector.
-  dst: The destination buffer (xstride must be 1).
-  dystride: The byte offset between destination pixel rows.
-  src: The source buffer (xstride must be 1).
-  systride: The byte offset between source pixel rows.
-  mvx: The X component of the motion vectors.
-  mvy: The Y component of the motion vectors.
-  m: The index of the motion vector to use for each corner in the
-      base orientation.
-  r: The amount to rotate (clockwise) the formulas by (0...3).
-  log_xblk_sz: The log base 2 of the horizontal block dimension.
-  log_yblk_sz: The log base 2 of the vertical block dimension.*/
-void od_mc_predict1imv8_c(unsigned char *dst, int dystride,
- const unsigned char *src, int systride, const ogg_int32_t mvx[4],
- const ogg_int32_t mvy[4], const int m[4], int r, int log_xblk_sz,
- int log_yblk_sz) {
-  ogg_int32_t x;
-  ogg_int32_t y;
-  ogg_int32_t dmvx[4];
-  ogg_int32_t dmvy[4];
-  int xblk_sz;
-  int yblk_sz;
-  int i;
-  int j;
-  xblk_sz = 1 << log_xblk_sz;
-  yblk_sz = 1 << log_yblk_sz;
-  od_mc_setup_mvc(dmvx, mvx, m, r, log_xblk_sz, log_yblk_sz);
-  od_mc_setup_mvc(dmvy, mvy, m, r, log_xblk_sz, log_yblk_sz);
-  if (dystride == xblk_sz
-   && !dmvx[1] && !dmvy[1] && !dmvx[2] && !dmvy[2] && !dmvx[3] && !dmvy[3]) {
-    od_mc_predict1fmv8_c(dst, src, systride, dmvx[0], dmvy[0],
-     log_xblk_sz, log_yblk_sz);
-  }
-  dmvx[1] += 1<<17;
-  dmvy[2] += 1<<17;
-  for (j = 0; j < yblk_sz; j++) {
-    x = dmvx[0];
-    y = dmvy[0];
-    for (i = 0; i < xblk_sz; i++) {
-      const unsigned char *p;
-      ogg_int32_t xf;
-      ogg_int32_t yf;
-      int p00;
-      int p01;
-      int p10;
-      int p11;
-      unsigned a;
-      unsigned b;
-      if (i + 1 < xblk_sz) {
-        OD_LOG_PARTIAL((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG,
-         "<%16.12f, %16.12f>::",
-         (x - (i << 17))/(double)0x20000, (y - (j << 17))/(double)0x20000));
-      }
-      else {
-        OD_LOG((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG,
-         "<%16.12f, %16.12f>",
-         (x - (i << 17))/(double)0x20000, (y - (j << 17))/(double)0x20000));
-      }
-      xf = x & 0xFFFF;
-      yf = y & 0xFFFF;
-      p = src + (x >> 16) + (y >> 16)*systride;
-      p00 = p[0];
-      p01 = p[1];
-      p10 = (p + systride)[0];
-      p11 = (p + systride)[1];
-      a = (unsigned)(p00 + ((p01 - p00)*xf >> 16));
-      b = (unsigned)(p10 + ((p11 - p10)*xf >> 16));
-      dst[i] = (unsigned char)(a + ((b - a)*yf >> 16));
-      x += dmvx[1];
-      y += dmvy[1];
-    }
-    dmvx[0] += dmvx[2];
-    dmvy[0] += dmvy[2];
-    dmvx[1] += dmvx[3];
-    dmvy[1] += dmvy[3];
-    dst += dystride;
-  }
-  dst -= dystride*yblk_sz;
-  for (j = 0; j < yblk_sz; j++) {
-    for (i = 0; i < xblk_sz; i++) {
-      OD_LOG_PARTIAL((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG,
-       "%2X ", *(dst + i + j*dystride)));
-    }
-    OD_LOG_PARTIAL((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG, "\n"));
-  }
-}
-
-static void od_mc_predict1imv8(od_state *state, unsigned char *dst,
- int dystride, const unsigned char *src, int systride,
- const ogg_int32_t mvx[4], const ogg_int32_t mvy[4], const int m[4], int r,
- int log_xblk_sz, int log_yblk_sz) {
-  (*state->opt_vtbl.mc_predict1imv8)(dst, dystride, src, systride,
-   mvx, mvy, m, r, log_xblk_sz, log_yblk_sz);
-}
-
 /*Form the prediction given by one fixed motion vector.
   dst: The destination buffer (xstride must be 1).
   src: The source buffer (xstride must be 1).
@@ -2481,7 +2386,7 @@ void od_mc_predict8(od_state *state, unsigned char *dst, int dystride,
                                                corners (in rotation not
                                                raster order) */
  const ogg_int32_t mvy[4],
-                    int interp_type, /* type of interpolation (bbbv for now) */
+                    int interp_type, /* type of interpolation (bbbb for now) */
                     int oc,  /* index of outside corner  */
                     int s, /* two split flags that indicate if the corners are split*/
                     int log_xblk_sz,   /* log 2 of block size */
@@ -2489,139 +2394,34 @@ void od_mc_predict8(od_state *state, unsigned char *dst, int dystride,
 ) {
   const unsigned char *pred[4];
   unsigned char __attribute__((aligned(16))) buf[4][16*16];
-  int r;
-  r=0;
-  switch (interp_type) {
-    case OD_MC_INTERP_VVVV: {
-      od_mc_predict1imv8(state, dst, dystride, src, systride,
-       mvx, mvy, MIDXS[0]/*0, 1, 2, 3*/, 0, log_xblk_sz, log_yblk_sz);
-      break;
-    }
-    case OD_MC_INTERP_VVVB: r++;
-    /*Fall through.*/
-    case OD_MC_INTERP_VVBV: r++;
-    /*Fall through.*/
-    case OD_MC_INTERP_VBVV: r++;
-    /*Fall through.*/
-    case OD_MC_INTERP_BVVV:
-    {
-      od_mc_predict1imv8(state, buf[0], 1 << log_xblk_sz, src, systride,
-       mvx, mvy, MIDXS[1] /*0, 0, 2, 3*/, r, log_xblk_sz, log_yblk_sz);
-      pred[(0 + r) & 3] = buf[0];
-      od_mc_predict1imv8(state, buf[1], 1 << log_xblk_sz, src, systride,
-       mvx, mvy, MIDXS[2] /*1, 1, 2, 3*/, r, log_xblk_sz, log_yblk_sz);
-      pred[(1 + r) & 3] = buf[1];
-      od_mc_predict1imv8(state, buf[2], 1 << log_xblk_sz, src, systride,
-       mvx, mvy, MIDXS[0] /*0, 1, 2, 3*/, r, log_xblk_sz, log_yblk_sz);
-      pred[(2 + r) & 3] = buf[2];
-      pred[(3 + r) & 3] = buf[2];
-      od_mc_blend8(state, dst, dystride, pred,
-       oc, s | (((oc - r) & 3) != 0) | (((oc - r) & 3) != 1) << 1,
-       log_xblk_sz, log_yblk_sz);
-      break;
-    }
-    case OD_MC_INTERP_VBVB: r++;
-    /*Fall through.*/
-    case OD_MC_INTERP_BVBV:
-    {
-      od_mc_predict1imv8(state, buf[0], 1 << log_xblk_sz, src, systride,
-       mvx, mvy, MIDXS[3] /*0, 0, 3, 3*/, r, log_xblk_sz, log_yblk_sz);
-      pred[(3 + r) & 3] = buf[0];
-      pred[(0 + r) & 3] = buf[0];
-      od_mc_predict1imv8(state, buf[1], 1 << log_xblk_sz, src, systride,
-       mvx, mvy, MIDXS[4] /*1, 1, 2, 2*/, r, log_xblk_sz, log_yblk_sz);
-      pred[(1 + r) & 3] = buf[1];
-      pred[(2 + r) & 3] = buf[1];
-      od_mc_blend8(state, dst, dystride, pred, oc,
-       s | ((oc - r) & 1) | !((oc - r) & 1) << 1, log_xblk_sz, log_yblk_sz);
-      break;
-    }
-    case OD_MC_INTERP_VBBV: r++;
-    /*Fall through.*/
-    case OD_MC_INTERP_BBVV: r++;
-    /*Fall through.*/
-    case OD_MC_INTERP_BVVB: r++;
-    /*Fall through.*/
-    case OD_MC_INTERP_VVBB:
-    {
-      od_mc_predict1imv8(state, buf[0], 1 << log_xblk_sz, src, systride,
-       mvx, mvy, MIDXS[5] /*0, 1, 0, 0*/, r, log_xblk_sz, log_yblk_sz);
-      pred[(0 + r) & 3] = buf[0];
-      od_mc_predict1imv8(state, buf[1], 1 << log_xblk_sz, src, systride,
-       mvx, mvy, MIDXS[0] /*0, 1, 2, 3*/, r, log_xblk_sz, log_yblk_sz);
-      pred[(1 + r) & 3] = buf[1];
-      od_mc_predict1imv8(state, buf[2], 1 << log_xblk_sz, src, systride,
-       mvx, mvy, MIDXS[6] /*2, 1, 2, 2*/, r, log_xblk_sz, log_yblk_sz);
-      pred[(2 + r) & 3] = buf[2];
-      od_mc_predict1fmv8(state, buf[3], src, systride,
-       mvx[(3 + r) & 3], mvy[(3 + r) & 3], log_xblk_sz, log_yblk_sz);
-      pred[(3 + r) & 3] = buf[3];
-      od_mc_blend8(state, dst, dystride, pred,
-       oc, s | ((oc + 2 - r) & 2) >> 1 | ((oc + 1 - r) & 2),
-       log_xblk_sz, log_yblk_sz);
-      break;
-    }
-    case OD_MC_INTERP_BBBV: r++;
-    /*Fall through.*/
-    case OD_MC_INTERP_BBVB: r++;
-    /*Fall through.*/
-    case OD_MC_INTERP_BVBB: r++;
-    /*Fall through.*/
-    case OD_MC_INTERP_VBBB:
-    {
-      od_mc_predict1imv8(state, buf[0], 1 << log_xblk_sz, src, systride,
-       mvx, mvy, MIDXS[5] /*0, 1, 0, 0*/, r, log_xblk_sz, log_yblk_sz);
-      pred[(0 + r) & 3] = buf[0];
-      od_mc_predict1imv8(state, buf[1], 1 << log_xblk_sz, src, systride,
-       mvx, mvy, MIDXS[7] /*0, 1, 1, 1*/, r, log_xblk_sz, log_yblk_sz);
-      pred[(1 + r) & 3] = buf[1];
-      od_mc_predict1fmv8(state, buf[2], src, systride,
-       mvx[(2 + r) & 3], mvy[(2 + r) & 3], log_xblk_sz, log_yblk_sz);
-      pred[(2 + r) & 3] = buf[2];
-      if (mvx[(3 + r) & 3] == mvx[(2 + r) & 3]
-       && mvy[(3 + r) & 3] == mvy[(2 + r) & 3]) {
-        pred[(3 + r) & 3] = pred[(2 + r) & 3];
-      }
-      else {
-        od_mc_predict1fmv8(state, buf[3], src, systride,
-         mvx[(3 + r) & 3], mvy[(3 + r) & 3], log_xblk_sz, log_yblk_sz);
-        pred[(3 + r) & 3] = buf[3];
-      }
-      od_mc_blend8(state, dst, dystride, pred,
-       oc, s | (((oc - r) & 3) == 0) | (((oc - r) & 3) == 1) << 1,
-       log_xblk_sz, log_yblk_sz);
-      break;
-    }
-    case OD_MC_INTERP_BBBB:
-    {
-      od_mc_predict1fmv8(state, buf[0], src, systride,
-       mvx[0], mvy[0], log_xblk_sz, log_yblk_sz);
-      pred[0] = buf[0];
-      if (mvx[1] == mvx[0] && mvy[1] == mvy[1]) pred[1] = pred[0];
-      else {
-        od_mc_predict1fmv8(state, buf[1], src, systride,
-         mvx[1], mvy[1], log_xblk_sz, log_yblk_sz);
-        pred[1] = buf[1];
-      }
-      if (mvx[2] == mvx[0] && mvy[2] == mvy[0]) pred[2] = pred[0];
-      else if (mvx[2] == mvx[1] && mvy[2] == mvy[1]) pred[2] = pred[1];
-      else {
-        od_mc_predict1fmv8(state, buf[2], src, systride,
-         mvx[2], mvy[2], log_xblk_sz, log_yblk_sz);
-        pred[2] = buf[2];
-      }
-      if (mvx[3] == mvx[0] && mvy[3] == mvy[0]) pred[3] = pred[0];
-      else if (mvx[3] == mvx[1] && mvy[3] == mvy[1]) pred[3] = pred[1];
-      else if (mvx[3] == mvx[2] && mvy[3] == mvy[2]) pred[3] = pred[2];
-      else {
-        od_mc_predict1fmv8(state, buf[3], src, systride,
-         mvx[3], mvy[3], log_xblk_sz, log_yblk_sz);
-        pred[3] = buf[3];
-      }
-      od_mc_blend8(state, dst, dystride, pred,
-       oc, s, log_xblk_sz, log_yblk_sz);
-    }
+  OD_ASSERT(interp_type == OD_MC_INTERP_BBBB);
+  (void)interp_type;
+  od_mc_predict1fmv8(state, buf[0], src, systride,
+   mvx[0], mvy[0], log_xblk_sz, log_yblk_sz);
+  pred[0] = buf[0];
+  if (mvx[1] == mvx[0] && mvy[1] == mvy[1]) pred[1] = pred[0];
+  else {
+    od_mc_predict1fmv8(state, buf[1], src, systride,
+     mvx[1], mvy[1], log_xblk_sz, log_yblk_sz);
+    pred[1] = buf[1];
   }
+  if (mvx[2] == mvx[0] && mvy[2] == mvy[0]) pred[2] = pred[0];
+  else if (mvx[2] == mvx[1] && mvy[2] == mvy[1]) pred[2] = pred[1];
+  else {
+    od_mc_predict1fmv8(state, buf[2], src, systride,
+     mvx[2], mvy[2], log_xblk_sz, log_yblk_sz);
+    pred[2] = buf[2];
+  }
+  if (mvx[3] == mvx[0] && mvy[3] == mvy[0]) pred[3] = pred[0];
+  else if (mvx[3] == mvx[1] && mvy[3] == mvy[1]) pred[3] = pred[1];
+  else if (mvx[3] == mvx[2] && mvy[3] == mvy[2]) pred[3] = pred[2];
+  else {
+    od_mc_predict1fmv8(state, buf[3], src, systride,
+     mvx[3], mvy[3], log_xblk_sz, log_yblk_sz);
+    pred[3] = buf[3];
+  }
+  od_mc_blend8(state, dst, dystride, pred,
+   oc, s, log_xblk_sz, log_yblk_sz);
 }
 
 /*Gets the predictor for a given MV node at the given MV resolution.*/

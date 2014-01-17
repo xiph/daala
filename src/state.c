@@ -155,7 +155,6 @@ static void od_state_mvs_init(od_state *state) {
 }
 
 void od_state_opt_vtbl_init_c(od_state *state) {
-  state->opt_vtbl.mc_predict1imv8 = od_mc_predict1imv8_c;
   state->opt_vtbl.mc_predict1fmv8 = od_mc_predict1fmv8_c;
   state->opt_vtbl.mc_blend_full8 = od_mc_blend_full8_c;
   state->opt_vtbl.mc_blend_full_split8 = od_mc_blend_full_split8_c;
