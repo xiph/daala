@@ -304,13 +304,11 @@ void image_data_clear(image_data *_this){
 }
 
 void image_data_mask(image_data *_this,const unsigned char *_data,int _stride){
-  int pad;
   int j;
   int i;
   memset(_this->mask,0,_this->nyblocks*_this->nxblocks);
   /* process_block_size32 needs 32x32 image data with 6 pixel padding */
-  pad=_stride-_this->nxblocks*B_SZ;
-  OD_ASSERT(pad/2>=6);
+  OD_ASSERT(((_stride-_this->nxblocks*B_SZ)/2)>=6);
   for(j=0;j<_this->nyblocks*B_SZ/32;j++){
     for(i=0;i<_this->nxblocks*B_SZ/32;i++){
       const unsigned char *b;
