@@ -496,8 +496,14 @@ int main(int _argc,char **_argv){
     fprintf(stderr,"Internal Ogg library error.\n");
     exit(1);
   }
-  fwrite(og.header,1,og.header_len,outfile);
-  fwrite(og.body,1,og.body_len,outfile);
+  if(fwrite(og.header,1,og.header_len,outfile)<(size_t)og.header_len){
+    fprintf(stderr,"Could not complete write to file.\n");
+    exit(1);
+  }
+  if(fwrite(og.body,1,og.body_len,outfile)<(size_t)og.body_len){
+    fprintf(stderr,"Could not complete write to file.\n");
+    exit(1);
+  }
   /*Create and buffer the remaining Daala headers.*/
   for(;;){
     ret=daala_encode_flush_header(dd,&dc,&op);
@@ -515,8 +521,14 @@ int main(int _argc,char **_argv){
       exit(1);
     }
     else if(!ret)break;
-    fwrite(og.header,1,og.header_len,outfile);
-    fwrite(og.body,1,og.body_len,outfile);
+    if(fwrite(og.header,1,og.header_len,outfile)<(size_t)og.header_len){
+      fprintf(stderr,"Could not write header to file.\n");
+      exit(1);
+    }
+    if(fwrite(og.body,1,og.body_len,outfile)<(size_t)og.body_len){
+      fprintf(stderr,"Could not write body to file.\n");
+      exit(1);
+    }
   }
   /*Setup complete.
      Main compression loop.*/
@@ -525,15 +537,25 @@ int main(int _argc,char **_argv){
   for(;;){
     ogg_page video_page;
     double   video_time;
+    size_t bytes_written;
     video_ready=fetch_and_process_video(&avin,&video_page,
      &vo,dd,video_ready);
     /*TODO: Fetch the next video page.*/
     /*If no more pages are available, we've hit the end of the stream.*/
     if(!video_ready)break;
     video_time=daala_granule_time(dd,ogg_page_granulepos(&video_page));
-    video_bytesout+=
-     fwrite(video_page.header,1,video_page.header_len,outfile);
-    video_bytesout+=fwrite(video_page.body,1,video_page.body_len,outfile);
+    bytes_written=fwrite(video_page.header,1,video_page.header_len,outfile);
+    if(bytes_written<(size_t)video_page.header_len){
+      fprintf(stderr,"Could not write page header to file.\n");
+      exit(1);
+    }
+    video_bytesout+=bytes_written;
+    bytes_written=fwrite(video_page.body,1,video_page.body_len,outfile);
+    if(bytes_written<(size_t)video_page.body_len){
+      fprintf(stderr,"Could not write page body to file.\n");
+      exit(1);
+    }
+    video_bytesout+=bytes_written;
     video_ready=0;
     if(video_time==-1)continue;
     video_kbps=(int)rint(video_bytesout*8*0.001/video_time);

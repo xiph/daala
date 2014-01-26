@@ -119,8 +119,11 @@ static void video_write(void){
       plane_width=(img.width+(1<<xdec)-1)>>xdec;
       plane_height=(img.height+(1<<ydec)-1)>>ydec;
       for(i=0;i<plane_height;i++){
-        fwrite(img.planes[pli].data+img.planes[pli].ystride*i, 1,
-         plane_width, outfile);
+        if(fwrite(img.planes[pli].data+img.planes[pli].ystride*i, 1,
+         plane_width, outfile) < (size_t)plane_width){
+          fprintf(stderr, "Error writing yuv frame");
+          return;
+        }
       }
     }
   }
