@@ -161,7 +161,9 @@ tools_TARGETS = \
 	tools/gen_cdf \
 	tools/gen_laplace_tables \
 	tools/dump_ssim \
-	tools/dump_fastssim
+	tools/dump_fastssim \
+	tools/bjontegaard
+
 
 noinst_HEADERS += \
 	tools/cholesky.h \
@@ -441,6 +443,15 @@ tools_gen_laplace_tables_SOURCES = \
 	tools/gen_laplace_tables.c
 tools_gen_laplace_tables_CFLAGS = $(OGG_CFLAGS) $(PNG_CFLAGS)
 tools_gen_laplace_tables_LDADD = $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
+
+# bjontegaard
+tools_bjontegaard_SOURCES = \
+	tools/bjontegaard.c \
+	tools/cholesky.c \
+	tools/qr.c \
+	tools/svd.c
+tools_bjontegaard_CFLAGS =
+tools_bjontegaard_LDADD = $(LIBM)
 
 
 # Tests
