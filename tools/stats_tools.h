@@ -34,31 +34,34 @@ typedef struct mode_data mode_data;
 
 struct mode_data{
   int       n;
-  double    satd_avg[B_SZ*B_SZ];
+  double    satd_avg[B_SZ_MAX*B_SZ_MAX];
   double    mean;
   double    var;
   od_covmat ref;
   od_covmat res;
 };
 
-void mode_data_init(mode_data *_md);
+void mode_data_init(mode_data *_md,int _b_sz);
 void mode_data_clear(mode_data *_md);
-void mode_data_add_input(mode_data *_md,const unsigned char *_data,int _stride);
+void mode_data_add_input(mode_data *_md,const unsigned char *_data,int _stride,
+ int _b_sz);
 void mode_data_add_block(mode_data *_md,const od_coeff *_block,int _stride,
  int _ref);
-void mode_data_correct(mode_data *_md);
-void mode_data_print(mode_data *_md,const char *_label,double *_scale);
+void mode_data_correct(mode_data *_md,int _b_sz);
+void mode_data_print(mode_data *_md,const char *_label,double *_scale,
+ int _b_sz);
 void mode_data_combine(mode_data *_a,const mode_data *_b);
 void mode_data_params(mode_data *_this,double _b[B_SZ*B_SZ],double *_scale);
 
 typedef struct intra_stats intra_stats;
 
 struct intra_stats{
+  int b_sz_log;
   mode_data fr;
   mode_data md[OD_INTRA_NMODES];
 };
 
-void intra_stats_init(intra_stats *_this);
+void intra_stats_init(intra_stats *_this,int _b_sz_log);
 void intra_stats_clear(intra_stats *_this);
 void intra_stats_reset(intra_stats *_this);
 void intra_stats_update(intra_stats *_this,const unsigned char *_data,
@@ -69,14 +72,14 @@ void intra_stats_print(intra_stats *_this,const char *_label,double *_scale);
 void intra_stats_combine(intra_stats *_this,const intra_stats *_that);
 
 /* Is there a good way to have a static initializer in C? */
-extern double VP8_SCALE[B_SZ];
-extern double OD_SCALE[B_SZ];
+extern double VP8_SCALE[OD_NBSIZES][B_SZ_MAX];
+extern double OD_SCALE[OD_NBSIZES][B_SZ_MAX];
 
-void vp8_scale_init(double _vp8_scale[B_SZ]);
-void od_scale_init(double _od_scale[B_SZ]);
+void vp8_scale_init(double *_vp8_scale,int _b_sz_log);
+void od_scale_init(double *_od_scale,int _b_sz_log);
 
 int vp8_select_mode(const unsigned char *_data,int _stride,double *_weight);
-int od_select_mode_satd(const od_coeff *_block,double *_weight);
+int od_select_mode_satd(const od_coeff *_block,double *_weight,int _b_sz_log);
 int od_select_mode_bits(const od_coeff *_block,double *_weight,
  double _b[OD_INTRA_NMODES][B_SZ*B_SZ]);
 

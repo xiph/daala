@@ -66,8 +66,8 @@ struct classify_ctx{
 static void classify_ctx_init(classify_ctx *_this){
   int i;
   _this->n=0;
-  intra_stats_init(&_this->st);
-  intra_stats_init(&_this->gb);
+  intra_stats_init(&_this->st,B_SZ_LOG);
+  intra_stats_init(&_this->gb,B_SZ_LOG);
   for(i=0;i<OD_INTRA_NMODES;i++){
     od_covmat_init(&_this->pd[i],5*B_SZ*B_SZ);
   }
@@ -96,7 +96,7 @@ static void classify_ctx_set_image(classify_ctx *_this,const char *_name,
  int _nxblocks,int _nyblocks){
   _this->n++;
   intra_stats_reset(&_this->st);
-  image_data_init(&_this->img,_name,_nxblocks,_nyblocks);
+  image_data_init(&_this->img,_name,B_SZ_LOG,_nxblocks,_nyblocks);
 #if WRITE_IMAGES
   image_files_init(&_this->files,_nxblocks,_nyblocks);
 #endif
@@ -716,17 +716,24 @@ static void ip_stats_block(void *_ctx,const unsigned char *_data,int _stride,
   image_data_stats_block(&ctx->img,_data,_stride,_bi,_bj,&ctx->st);
   {
     od_coeff *block;
+    int       bstride;
     double   *pred;
+    int       pstride;
     int       mode;
+    double   *od_scale;
     int       j;
     int       i;
     block=&ctx->img.fdct[ctx->img.fdct_stride*B_SZ*(_bj+1)+B_SZ*(_bi+1)];
+    bstride=ctx->img.fdct_stride;
     pred=&ctx->img.pred[ctx->img.pred_stride*B_SZ*_bj+B_SZ*_bi];
+    pstride=ctx->img.pred_stride;
     mode=ctx->img.mode[ctx->img.nxblocks*_bj+_bi];
+    od_scale=OD_SCALE[B_SZ_LOG-OD_LOG_BSIZE0];
     for(j=0;j<B_SZ;j++){
       for(i=0;i<B_SZ;i++){
         double res;
-        res=sqrt(OD_SCALE[j]*OD_SCALE[i])*abs(block[ctx->img.fdct_stride*j+i]-(od_coeff)floor(pred[ctx->img.pred_stride*j+i]+0.5));
+        res=sqrt(od_scale[j]*od_scale[i])*
+         abs(block[bstride*j+i]-(od_coeff)floor(pred[pstride*j+i]+0.5));
         ctx->bits+=1+OD_LOG2(b[mode][j*B_SZ+i])+M_LOG2E/b[mode][j*B_SZ+i]*res;
       }
     }
@@ -791,13 +798,13 @@ static void od_mode_block(void *_ctx,const unsigned char *_data,int _stride,
   weight=&ctx->img.weight[ctx->img.nxblocks*_bj+_bi];
 #if BITS_SELECT
   if(step==1){
-    *mode=od_select_mode_satd(block,weight);
+    *mode=od_select_mode_satd(block,weight,ctx->img.b_sz_log);
   }
   else{
     *mode=od_select_mode_bits(block,weight,b);
   }
 #else
-  *mode=od_select_mode_satd(block,weight);
+  *mode=od_select_mode_satd(block,weight,ctx->img.b_sz_log);
 #endif
 #if USE_WEIGHTS
   if(*mode==0){
@@ -883,7 +890,8 @@ static int pred_finish(void *_ctx){
   intra_stats_combine(&ctx->gb,&ctx->st);
   intra_stats_correct(&ctx->st);
   fprintf(stdout,"%s\n",ctx->img.name);
-  intra_stats_print(&ctx->st,"Daala Intra Predictors",OD_SCALE);
+  intra_stats_print(&ctx->st,"Daala Intra Predictors",
+   OD_SCALE[B_SZ_LOG-OD_LOG_BSIZE0]);
   fflush(stdout);
 #if WRITE_IMAGES
   sprintf(suffix,"-step%02i",step);
@@ -937,8 +945,8 @@ int main(int _argc,const char *_argv[]){
   int           i;
   int           j;
   ne_filter_params_init();
-  vp8_scale_init(VP8_SCALE);
-  od_scale_init(OD_SCALE);
+  vp8_scale_init(VP8_SCALE[B_SZ_LOG-OD_LOG_BSIZE0],B_SZ_LOG);
+  od_scale_init(OD_SCALE[B_SZ_LOG-OD_LOG_BSIZE0],B_SZ_LOG);
 #if WRITE_IMAGES
   intra_map_colors(COLORS,OD_INTRA_NMODES);
 #endif
@@ -1045,7 +1053,7 @@ int main(int _argc,const char *_argv[]){
 #endif
 #if !POOLED_COV
         od_covmat_correct(&ete);
-        update_diversity(ete.cov,b[j],OD_SCALE);
+        update_diversity(ete.cov,b[j],OD_SCALE[B_SZ_LOG-OD_LOG_BSIZE0]);
         od_covmat_reset(&ete);
 #endif
 #if SUBTRACT_DC
@@ -1059,7 +1067,7 @@ int main(int _argc,const char *_argv[]){
 #if POOLED_COV
       od_covmat_correct(&ete);
       for(j=0;j<OD_INTRA_NMODES;j++){
-        update_diversity(ete.cov,b[j],OD_SCALE);
+        update_diversity(ete.cov,b[j],OD_SCALE[B_SZ_LOG-OD_LOG_BSIZE0]);
       }
       od_covmat_reset(&ete);
 #endif
@@ -1067,7 +1075,7 @@ int main(int _argc,const char *_argv[]){
       fprintf(stderr,"Finished Step %02i\n",step);
       print_predictors(stderr);
 #if POOLED_COV
-      print_diversity(stderr,b[0],OD_SCALE);
+      print_diversity(stderr,b[0],OD_SCALE[B_SZ_LOG-OD_LOG_BSIZE0]);
 #endif
 #endif
       /* Reset the prediction data. */
@@ -1087,7 +1095,8 @@ int main(int _argc,const char *_argv[]){
       }
       printf("Step %02i Total Bits %-24.18G\n",step,cls[0].bits);
       intra_stats_correct(&cls[0].gb);
-      intra_stats_print(&cls[0].gb,"Daala Intra Predictors",OD_SCALE);
+      intra_stats_print(&cls[0].gb,"Daala Intra Predictors",
+       OD_SCALE[B_SZ_LOG-OD_LOG_BSIZE0]);
       if (mults==4*B_SZ*B_SZ) {
         break;
       }

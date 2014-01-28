@@ -55,6 +55,7 @@ struct image_data{
   const char      *name;
   int              nxblocks;
   int              nyblocks;
+  int              b_sz_log;
   unsigned char   *mask;
   unsigned char   *mode;
   double          *weight;
@@ -73,8 +74,8 @@ struct image_data{
   int              post_stride;
 };
 
-void image_data_init(image_data *_this,const char *_name,int _nxblocks,
- int _nyblocks);
+void image_data_init(image_data *_this,const char *_name,int _b_sz_log,
+ int _nxblocks,int _nyblocks);
 void image_data_clear(image_data *_this);
 void image_data_mask(image_data *_this,const unsigned char *_data,int _stride);
 void image_data_pre_block(image_data *_this,const unsigned char *_data,

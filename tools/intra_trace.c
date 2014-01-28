@@ -33,7 +33,7 @@ void intra_trace_ctx_reset(intra_trace_ctx *_this){
 void intra_trace_ctx_init(intra_trace_ctx *_this){
   int i;
   intra_trace_ctx_reset(_this);
-  image_data_init(&_this->img,NULL,1,1);
+  image_data_init(&_this->img,NULL,B_SZ_LOG,1,1);
   for(i=0;i<OD_INTRA_NMODES;i++){
     _this->min[i]=INT_MAX;
     _this->max[i]=-INT_MAX;
@@ -221,7 +221,7 @@ int main(int _argc,char *_argv[]){
   (void)_argc;
   (void)_argv;
   ne_filter_params_init();
-  od_scale_init(OD_SCALE);
+  od_scale_init(OD_SCALE[B_SZ_LOG-OD_LOG_BSIZE0],B_SZ_LOG);
 #if B_SZ==4
     f=NE_FILTER_PARAMS4;
 #elif B_SZ==8

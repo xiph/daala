@@ -33,10 +33,10 @@ struct intra_stats_ctx{
 
 static void intra_stats_ctx_init(intra_stats_ctx *_this){
   _this->n=0;
-  intra_stats_init(&_this->gb_vp8);
-  intra_stats_init(&_this->gb_od);
-  intra_stats_init(&_this->st_vp8);
-  intra_stats_init(&_this->st_od);
+  intra_stats_init(&_this->gb_vp8,B_SZ_LOG);
+  intra_stats_init(&_this->gb_od,B_SZ_LOG);
+  intra_stats_init(&_this->st_vp8,B_SZ_LOG);
+  intra_stats_init(&_this->st_od,B_SZ_LOG);
 }
 
 static void intra_stats_ctx_clear(intra_stats_ctx *_this){
@@ -51,7 +51,7 @@ static void intra_stats_ctx_set_image(intra_stats_ctx *_this,const char *_name,
   _this->n++;
   intra_stats_reset(&_this->st_vp8);
   intra_stats_reset(&_this->st_od);
-  image_data_init(&_this->img,_name,_nxblocks,_nyblocks);
+  image_data_init(&_this->img,_name,B_SZ_LOG,_nxblocks,_nyblocks);
 #if WRITE_IMAGES
   image_files_init(&_this->files_vp8,_nxblocks,_nyblocks);
   image_files_init(&_this->files_od,_nxblocks,_nyblocks);
@@ -237,7 +237,8 @@ static void od_mode_block(void *_ctx,const unsigned char *_data,int _stride,
 #endif
   ctx=(intra_stats_ctx *)_ctx;
   image_data_load_block(&ctx->img,_bi,_bj,block);
-  ctx->img.mode[ctx->img.nxblocks*_bj+_bi]=od_select_mode_satd(block,NULL);
+  ctx->img.mode[ctx->img.nxblocks*_bj+_bi]=
+   od_select_mode_satd(block,NULL,ctx->img.b_sz_log);
 }
 
 #if PRINT_BLOCKS
@@ -350,10 +351,10 @@ static int stats_finish(void *_ctx){
 #endif
   intra_stats_combine(&ctx->gb_vp8,&ctx->st_vp8);
   intra_stats_correct(&ctx->st_vp8);
-  intra_stats_print(&ctx->st_vp8,"VP8 Intra Predictors",VP8_SCALE);
+  intra_stats_print(&ctx->st_vp8,"VP8 Intra Predictors",VP8_SCALE[B_SZ_LOG-OD_LOG_BSIZE0]);
   intra_stats_combine(&ctx->gb_od,&ctx->st_od);
   intra_stats_correct(&ctx->st_od);
-  intra_stats_print(&ctx->st_od,"Daala Intra Predictors",OD_SCALE);
+  intra_stats_print(&ctx->st_od,"Daala Intra Predictors",OD_SCALE[B_SZ_LOG-OD_LOG_BSIZE0]);
   intra_stats_ctx_clear_image(ctx);
   return EXIT_SUCCESS;
 }
@@ -394,8 +395,8 @@ int main(int _argc,const char *_argv[]){
   intra_stats_ctx ctx[NUM_PROCS];
   int             i;
   ne_filter_params_init();
-  vp8_scale_init(VP8_SCALE);
-  od_scale_init(OD_SCALE);
+  vp8_scale_init(VP8_SCALE[B_SZ_LOG-OD_LOG_BSIZE0],B_SZ_LOG);
+  od_scale_init(OD_SCALE[B_SZ_LOG-OD_LOG_BSIZE0],B_SZ_LOG);
 #if WRITE_IMAGES
   intra_map_colors(COLORS,OD_INTRA_NMODES);
 #endif
@@ -412,9 +413,11 @@ int main(int _argc,const char *_argv[]){
   printf("Processed %i image(s)\n",ctx[0].n);
   if(ctx[0].n>0){
     intra_stats_correct(&ctx[0].gb_vp8);
-    intra_stats_print(&ctx[0].gb_vp8,"VP8 Intra Predictors",VP8_SCALE);
+    intra_stats_print(&ctx[0].gb_vp8,"VP8 Intra Predictors",
+     VP8_SCALE[B_SZ_LOG-OD_LOG_BSIZE0]);
     intra_stats_correct(&ctx[0].gb_od);
-    intra_stats_print(&ctx[0].gb_od,"Daala Intra Predictors",OD_SCALE);
+    intra_stats_print(&ctx[0].gb_od,"Daala Intra Predictors",
+     OD_SCALE[B_SZ_LOG-OD_LOG_BSIZE0]);
   }
   for(i=0;i<NUM_PROCS;i++){
     intra_stats_ctx_clear(&ctx[i]);

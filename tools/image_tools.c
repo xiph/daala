@@ -93,46 +93,42 @@ void image_files_write(image_files *_this,const char *_name,const char *_suf){
 }
 
 static void od_pre_blocks(od_coeff *_out,int _out_stride,od_coeff *_in,
- int _in_stride,int _bx,int _by){
+ int _in_stride,int _bx,int _by,int _b_sz_log){
+  int b_sz;
   int by;
   int bx;
   int j;
   int i;
+  b_sz=1<<_b_sz_log;
   for(by=0;by<_by;by++){
     int y;
-    y=B_SZ*by;
+    y=by<<_b_sz_log;
     for(bx=0;bx<_bx;bx++){
       int x;
-      x=B_SZ*bx;
-      for(i=0;i<B_SZ;i++){
-        od_coeff col[B_SZ];
+      x=bx<<_b_sz_log;
+      for(i=0;i<b_sz;i++){
+        od_coeff col[B_SZ_MAX];
 #if APPLY_FILTER
-        for(j=0;j<B_SZ;j++){
+        for(j=0;j<b_sz;j++){
           col[j]=_in[_in_stride*(y+j)+x+i];
         }
-#if B_SZ_LOG>=OD_LOG_BSIZE0&&B_SZ_LOG<OD_LOG_BSIZE0+OD_NBSIZES
-        (*NE_PRE_FILTER[B_SZ_LOG-OD_LOG_BSIZE0])(col,col);
-#else
-# error "Need a prefilter implementation for this block size."
-#endif
-        for(j=0;j<B_SZ;j++){
+        OD_ASSERT(_b_sz_log>=OD_LOG_BSIZE0&&_b_sz_log<=B_SZ_LOG_MAX);
+        (*NE_PRE_FILTER[_b_sz_log-OD_LOG_BSIZE0])(col,col);
+        for(j=0;j<b_sz;j++){
           _out[_out_stride*(y+j)+x+i]=col[j];
         }
 #else
-        for(j=0;j<B_SZ;j++){
+        for(j=0;j<b_sz;j++){
           _out[_out_stride*(y+j)+x+i]=_in[_in_stride*(y+j)+x+i];
         }
 #endif
       }
 #if APPLY_FILTER
-      for(j=0;j<B_SZ;j++){
+      for(j=0;j<b_sz;j++){
         od_coeff *row;
         row=&_out[_out_stride*(y+j)+x];
-#if B_SZ_LOG>=OD_LOG_BSIZE0&&B_SZ_LOG<OD_LOG_BSIZE0+OD_NBSIZES
-        (*NE_PRE_FILTER[B_SZ_LOG-OD_LOG_BSIZE0])(row,row);
-#else
-# error "Need a prefilter implementation for this block size."
-#endif
+        OD_ASSERT(_b_sz_log>=OD_LOG_BSIZE0&&_b_sz_log<=B_SZ_LOG_MAX);
+        (*NE_PRE_FILTER[_b_sz_log-OD_LOG_BSIZE0])(row,row);
       }
 #endif
     }
@@ -140,43 +136,39 @@ static void od_pre_blocks(od_coeff *_out,int _out_stride,od_coeff *_in,
 }
 
 static void od_post_blocks(od_coeff *_out,int _out_stride,od_coeff *_in,
- int _in_stride,int _bx,int _by){
+ int _in_stride,int _bx,int _by,int _b_sz_log){
+  int b_sz;
   int bx;
   int by;
   int j;
   int i;
+  b_sz=1<<_b_sz_log;
   for(by=0;by<_by;by++){
     int y;
-    y=B_SZ*by;
+    y=by<<_b_sz_log;
     for(bx=0;bx<_bx;bx++){
       int x;
-      x=B_SZ*bx;
-      for(j=0;j<B_SZ;j++){
+      x=bx<<_b_sz_log;
+      for(j=0;j<b_sz;j++){
         od_coeff *row;
-        for(i=0;i<B_SZ;i++){
+        for(i=0;i<b_sz;i++){
           _out[_out_stride*(y+j)+x+i]=_in[_in_stride*(y+j)+x+i];
         }
 #if APPLY_FILTER
         row=&_out[_out_stride*(y+j)+x];
-#if B_SZ_LOG>=OD_LOG_BSIZE0&&B_SZ_LOG<OD_LOG_BSIZE0+OD_NBSIZES
-        (*NE_POST_FILTER[B_SZ_LOG-OD_LOG_BSIZE0])(row,row);
-#else
-# error "Need a postfilter implementation for this block size."
-#endif
+        OD_ASSERT(_b_sz_log>=OD_LOG_BSIZE0&&_b_sz_log<=B_SZ_LOG_MAX);
+        (*NE_POST_FILTER[_b_sz_log-OD_LOG_BSIZE0])(row,row);
 #endif
       }
 #if APPLY_FILTER
-      for(i=0;i<B_SZ;i++){
-        od_coeff col[B_SZ];
-        for(j=0;j<B_SZ;j++){
+      for(i=0;i<b_sz;i++){
+        od_coeff col[B_SZ_MAX];
+        for(j=0;j<b_sz;j++){
           col[j]=_out[_out_stride*(y+j)+x+i];
         }
-#if B_SZ_LOG>=OD_LOG_BSIZE0&&B_SZ_LOG<OD_LOG_BSIZE0+OD_NBSIZES
-        (*NE_POST_FILTER[B_SZ_LOG-OD_LOG_BSIZE0])(col,col);
-#else
-# error "Need a postfilter implementation for this block size."
-#endif
-        for(j=0;j<B_SZ;j++){
+        OD_ASSERT(_b_sz_log>=OD_LOG_BSIZE0&&_b_sz_log<=B_SZ_LOG_MAX);
+        (*NE_POST_FILTER[_b_sz_log-OD_LOG_BSIZE0])(col,col);
+        for(j=0;j<b_sz;j++){
           _out[_out_stride*(j+y)+x+i]=col[j];
         }
       }
@@ -186,48 +178,47 @@ static void od_post_blocks(od_coeff *_out,int _out_stride,od_coeff *_in,
 }
 
 static void od_fdct_blocks(od_coeff *_out,int _out_stride,od_coeff *_in,
- int _in_stride,int _bx,int _by){
+ int _in_stride,int _bx,int _by,int _b_sz_log){
   int bx;
   int by;
   for(by=0;by<_by;by++){
     int y;
-    y=B_SZ*by;
+    y=by<<_b_sz_log;
     for(bx=0;bx<_bx;bx++){
       int x;
-      x=B_SZ*bx;
-#if B_SZ_LOG>=OD_LOG_BSIZE0&&B_SZ_LOG<OD_LOG_BSIZE0+OD_NBSIZES
-      (*OD_FDCT_2D[B_SZ_LOG-OD_LOG_BSIZE0])(&_out[_out_stride*y+x],_out_stride,
+      x=bx<<_b_sz_log;
+      OD_ASSERT(_b_sz_log>=OD_LOG_BSIZE0&&_b_sz_log<=B_SZ_LOG_MAX);
+      (*OD_FDCT_2D[_b_sz_log-OD_LOG_BSIZE0])(&_out[_out_stride*y+x],_out_stride,
        &_in[_in_stride*y+x],_in_stride);
-#else
-# error "Need an fDCT implementation for this block size."
-#endif
     }
   }
 }
 
 #if TF_BLOCKS
 static void od_tf_blocks_down(od_coeff *_out,int _out_stride,od_coeff *_in,
- int _in_stride,int _bx,int _by){
+ int _in_stride,int _bx,int _by,int _b_sz_log){
+  int b_sz;
   int by;
   int bx;
+  b_sz=1<<_b_sz_log;
   for(by=0;by<_by;by++){
     int y;
-    y=B_SZ*by;
+    y=by<<_b_sz_log;
     for(bx=0;bx<_bx;bx++){
       int x;
-      x=B_SZ*bx;
-      if(B_SZ_LOG==2){
+      x=bx<<_b_sz_log;
+      if(_b_sz_log==2){
         int j;
         int i;
-        for(j=0;j<B_SZ;j++){
-          for(i=0;i<B_SZ;i++){
+        for(j=0;j<b_sz;j++){
+          for(i=0;i<b_sz;i++){
             _out[_out_stride*(y+j)+x+i]=_in[_in_stride*(y+j)+x+i];
           }
         }
       }
       else {
         od_convert_block_down(&_out[_out_stride*y+x],_out_stride,
-         &_in[_in_stride*y+x],_in_stride,B_SZ_LOG-2,0);
+         &_in[_in_stride*y+x],_in_stride,_b_sz_log-2,0);
       }
     }
   }
@@ -235,56 +226,54 @@ static void od_tf_blocks_down(od_coeff *_out,int _out_stride,od_coeff *_in,
 #endif
 
 static void od_idct_blocks(od_coeff *_out,int _out_stride,od_coeff *_in,
- int _in_stride,int _bx,int _by){
+ int _in_stride,int _bx,int _by,int _b_sz_log){
   int bx;
   int by;
   for(by=0;by<_by;by++){
     int y;
-    y=B_SZ*by;
+    y=by<<_b_sz_log;
     for(bx=0;bx<_bx;bx++){
       int x;
-      x=B_SZ*bx;
-#if B_SZ_LOG>=OD_LOG_BSIZE0&&B_SZ_LOG<OD_LOG_BSIZE0+OD_NBSIZES
-      (*OD_IDCT_2D[B_SZ_LOG-OD_LOG_BSIZE0])(&_out[_out_stride*y+x],_out_stride,
+      x=bx<<_b_sz_log;
+      OD_ASSERT(_b_sz_log>=OD_LOG_BSIZE0&&_b_sz_log<=B_SZ_LOG_MAX);
+      (*OD_IDCT_2D[_b_sz_log-OD_LOG_BSIZE0])(&_out[_out_stride*y+x],_out_stride,
        &_in[_in_stride*y+x],_in_stride);
-#else
-# error "Need an iDCT implementation for this block size."
-#endif
     }
   }
 }
 
-void image_data_init(image_data *_this,const char *_name,int _nxblocks,
- int _nyblocks){
+void image_data_init(image_data *_this,const char *_name,int _b_sz_log,
+ int _nxblocks,int _nyblocks){
   int w;
   int h;
   _this->name=_name;
+  _this->b_sz_log=_b_sz_log;
   _this->nxblocks=_nxblocks;
   _this->nyblocks=_nyblocks;
   _this->mask=(unsigned char *)malloc(sizeof(*_this->mask)*_nxblocks*_nyblocks);
   _this->mode=(unsigned char *)malloc(sizeof(*_this->mode)*_nxblocks*_nyblocks);
   _this->weight=(double *)malloc(sizeof(*_this->weight)*_nxblocks*_nyblocks);
-  w=B_SZ*(_nxblocks+3);
-  h=B_SZ*(_nyblocks+3);
+  w=(_nxblocks+3)<<_b_sz_log;
+  h=(_nyblocks+3)<<_b_sz_log;
   _this->pre=(od_coeff *)malloc(sizeof(*_this->pre)*w*h);
   _this->pre_stride=w;
-  w=B_SZ*(_nxblocks+2);
-  h=B_SZ*(_nyblocks+2);
+  w=(_nxblocks+2)<<_b_sz_log;
+  h=(_nyblocks+2)<<_b_sz_log;
   _this->fdct=(od_coeff *)malloc(sizeof(*_this->fdct)*w*h);
   _this->fdct_stride=w;
 #if TF_BLOCKS
   _this->tf=(od_coeff *)malloc(sizeof(*_this->fdct)*w*h);
 #endif
-  w=B_SZ*(_nxblocks+0);
-  h=B_SZ*(_nyblocks+0);
+  w=(_nxblocks+0)<<_b_sz_log;
+  h=(_nyblocks+0)<<_b_sz_log;
   _this->pred=(double *)malloc(sizeof(*_this->pred)*w*h);
   _this->pred_stride=w;
-  w=B_SZ*(_nxblocks+2);
-  h=B_SZ*(_nyblocks+2);
+  w=(_nxblocks+2)<<_b_sz_log;
+  h=(_nyblocks+2)<<_b_sz_log;
   _this->idct=(od_coeff *)malloc(sizeof(*_this->idct)*w*h);
   _this->idct_stride=w;
-  w=B_SZ*(_nxblocks+1);
-  h=B_SZ*(_nyblocks+1);
+  w=(_nxblocks+1)<<_b_sz_log;
+  h=(_nyblocks+1)<<_b_sz_log;
   _this->post=(od_coeff *)malloc(sizeof(*_this->post)*w*h);
   _this->post_stride=w;
 }
@@ -343,6 +332,7 @@ void image_data_mask(image_data *_this,const unsigned char *_data,int _stride){
 
 void image_data_pre_block(image_data *_this,const unsigned char *_data,
  int _stride,int _bi,int _bj){
+  int b_sz;
   int x0;
   int y0;
   int bx;
@@ -353,16 +343,17 @@ void image_data_pre_block(image_data *_this,const unsigned char *_data,
   int bj;
   int i;
   int j;
-  od_coeff buf[B_SZ*B_SZ];
-  x0=-(B_SZ>>1);
-  y0=-(B_SZ>>1);
+  od_coeff buf[B_SZ_MAX*B_SZ_MAX];
+  b_sz=1<<_this->b_sz_log;
+  x0=-(b_sz>>1);
+  y0=-(b_sz>>1);
   bx=by=1;
   if(_bi==0){
-    x0-=B_SZ;
+    x0-=b_sz;
     bx++;
   }
   if(_bj==0){
-    y0-=B_SZ;
+    y0-=b_sz;
     by++;
   }
   if(_bi==_this->nxblocks-1){
@@ -371,38 +362,40 @@ void image_data_pre_block(image_data *_this,const unsigned char *_data,
   if(_bj==_this->nyblocks-1){
     by+=2;
   }
-  x=x0+_bi*B_SZ+(3*B_SZ>>1);
-  y=y0+_bj*B_SZ+(3*B_SZ>>1);
+  x=x0+_bi*b_sz+(3*b_sz>>1);
+  y=y0+_bj*b_sz+(3*b_sz>>1);
   for(bj=0;bj<by;bj++){
     for(bi=0;bi<bx;bi++){
-      for(j=0;j<B_SZ;j++){
-        for(i=0;i<B_SZ;i++){
-          buf[B_SZ*j+i]=
-           (_data[_stride*(y0+B_SZ*bj+j)+x0+B_SZ*bi+i]-128)*INPUT_SCALE;
+      for(j=0;j<b_sz;j++){
+        for(i=0;i<b_sz;i++){
+          buf[b_sz*j+i]=
+           (_data[_stride*(y0+b_sz*bj+j)+x0+b_sz*bi+i]-128)*INPUT_SCALE;
         }
       }
-      od_pre_blocks(&_this->pre[_this->pre_stride*(y+B_SZ*bj)+x+B_SZ*bi],
-       _this->pre_stride,buf,B_SZ,1,1);
+      od_pre_blocks(&_this->pre[_this->pre_stride*(y+b_sz*bj)+x+b_sz*bi],
+       _this->pre_stride,buf,b_sz,1,1,_this->b_sz_log);
     }
   }
 }
 
 void image_data_fdct_block(image_data *_this,int _bi,int _bj){
+  int b_sz;
   int x0;
   int y0;
   int bx;
   int by;
   int x;
   int y;
-  x0=_bi*B_SZ+(3*B_SZ>>1);
-  y0=_bj*B_SZ+(3*B_SZ>>1);
+  b_sz=1<<_this->b_sz_log;
+  x0=_bi*b_sz+(3*b_sz>>1);
+  y0=_bj*b_sz+(3*b_sz>>1);
   bx=by=1;
   if(_bi==0){
-    x0-=B_SZ;
+    x0-=b_sz;
     bx++;
   }
   if(_bj==0){
-    y0-=B_SZ;
+    y0-=b_sz;
     by++;
   }
   if(_bi==_this->nxblocks-1){
@@ -411,27 +404,30 @@ void image_data_fdct_block(image_data *_this,int _bi,int _bj){
   if(_bj==_this->nyblocks-1){
     by++;
   }
-  x=x0-(B_SZ>>1);
-  y=y0-(B_SZ>>1);
+  x=x0-(b_sz>>1);
+  y=y0-(b_sz>>1);
   od_fdct_blocks(&_this->fdct[_this->fdct_stride*y+x],_this->fdct_stride,
-   &_this->pre[_this->pre_stride*y0+x0],_this->pre_stride,bx,by);
+   &_this->pre[_this->pre_stride*y0+x0],_this->pre_stride,bx,by,
+    _this->b_sz_log);
 }
 
 #if TF_BLOCKS
 void image_data_tf_block(image_data *_this,int _bi,int _bj){
+  int b_sz;
   int x;
   int y;
   int bx;
   int by;
-  x=_bi*B_SZ+B_SZ;
-  y=_bj*B_SZ+B_SZ;
+  b_sz=1<<_this->b_sz_log;
+  x=_bi*b_sz+b_sz;
+  y=_bj*b_sz+b_sz;
   bx=by=1;
   if(_bi==0){
-    x-=B_SZ;
+    x-=b_sz;
     bx++;
   }
   if(_bj==0){
-    y-=B_SZ;
+    y-=b_sz;
     by++;
   }
   if(_bi==_this->nxblocks-1){
@@ -441,16 +437,19 @@ void image_data_tf_block(image_data *_this,int _bi,int _bj){
     by++;
   }
   od_tf_blocks_down(&_this->tf[_this->fdct_stride*y+x],_this->fdct_stride,
-   &_this->fdct[_this->fdct_stride*y+x],_this->fdct_stride,bx,by);
+   &_this->fdct[_this->fdct_stride*y+x],_this->fdct_stride,bx,by,
+   _this->b_sz_log);
 }
 #endif
 
 void image_data_print_block(image_data *_this,int _bi,int _bj,FILE *_fp){
+  int b_sz;
   int by;
   int bx;
   od_coeff *block;
   int j;
   int i;
+  b_sz=1<<_this->b_sz_log;
 #if MASK_BLOCKS
   if(!_this->mask[_this->nxblocks*_bj+_bi]){
     return;
@@ -460,20 +459,20 @@ void image_data_print_block(image_data *_this,int _bi,int _bj,FILE *_fp){
   for(by=0;by<=1;by++){
     for(bx=0;bx<=(1-by)<<1;bx++){
 #if TF_BLOCKS
-      block=&_this->tf[_this->fdct_stride*B_SZ*(_bj+by)+B_SZ*(_bi+bx)];
+      block=&_this->tf[_this->fdct_stride*b_sz*(_bj+by)+b_sz*(_bi+bx)];
 #else
-      block=&_this->fdct[_this->fdct_stride*B_SZ*(_bj+by)+B_SZ*(_bi+bx)];
+      block=&_this->fdct[_this->fdct_stride*b_sz*(_bj+by)+b_sz*(_bi+bx)];
 #endif
-      for(j=0;j<B_SZ;j++){
-        for(i=0;i<B_SZ;i++){
+      for(j=0;j<b_sz;j++){
+        for(i=0;i<b_sz;i++){
           fprintf(_fp," %i",block[_this->fdct_stride*j+i]);
         }
       }
     }
   }
-  block=&_this->fdct[_this->fdct_stride*B_SZ*(_bj+1)+B_SZ*(_bi+1)];
-  for(j=0;j<B_SZ;j++){
-    for(i=0;i<B_SZ;i++){
+  block=&_this->fdct[_this->fdct_stride*b_sz*(_bj+1)+b_sz*(_bi+1)];
+  for(j=0;j<b_sz;j++){
+    for(i=0;i<b_sz;i++){
       fprintf(_fp," %i",block[_this->fdct_stride*j+i]);
     }
   }
@@ -482,30 +481,32 @@ void image_data_print_block(image_data *_this,int _bi,int _bj,FILE *_fp){
 }
 
 void image_data_load_block(image_data *_this,int _bi,int _bj,
- od_coeff _coeffs[5*B_SZ*B_SZ]){
+ od_coeff *_coeffs){
+  int       b_sz;
   od_coeff *block;
   int       by;
   int       bx;
   int       y;
   int       x;
+  b_sz=1<<_this->b_sz_log;
 #if TF_BLOCKS
-  block=&_this->tf[_this->fdct_stride*B_SZ*_bj+B_SZ*_bi];
+  block=&_this->tf[_this->fdct_stride*b_sz*_bj+b_sz*_bi];
 #else
-  block=&_this->fdct[_this->fdct_stride*B_SZ*_bj+B_SZ*_bi];
+  block=&_this->fdct[_this->fdct_stride*b_sz*_bj+b_sz*_bi];
 #endif
   for(by=0;by<=1;by++){
     for(bx=0;bx<=(1-by)<<1;bx++){
-      for(y=0;y<B_SZ;y++){
-        for(x=0;x<B_SZ;x++){
-          (*_coeffs)=block[_this->fdct_stride*(B_SZ*by+y)+B_SZ*bx+x];
+      for(y=0;y<b_sz;y++){
+        for(x=0;x<b_sz;x++){
+          (*_coeffs)=block[_this->fdct_stride*(b_sz*by+y)+b_sz*bx+x];
           _coeffs++;
         }
       }
     }
   }
-  block=&_this->fdct[_this->fdct_stride*B_SZ*(_bj+1)+B_SZ*(_bi+1)];
-  for(y=0;y<B_SZ;y++){
-    for(x=0;x<B_SZ;x++){
+  block=&_this->fdct[_this->fdct_stride*b_sz*(_bj+1)+b_sz*(_bi+1)];
+  for(y=0;y<b_sz;y++){
+    for(x=0;x<b_sz;x++){
       (*_coeffs)=block[_this->fdct_stride*y+x];
       _coeffs++;
     }
@@ -513,18 +514,20 @@ void image_data_load_block(image_data *_this,int _bi,int _bj,
 }
 
 void image_data_pred_block(image_data *_this,int _bi,int _bj){
+  int       b_sz;
   double   *pred;
   int       mode;
-  od_coeff  coeffs[5*B_SZ*B_SZ];
-  pred=&_this->pred[_this->pred_stride*B_SZ*_bj+B_SZ*_bi];
+  od_coeff  coeffs[5*B_SZ_MAX*B_SZ_MAX];
+  b_sz=1<<_this->b_sz_log;
+  pred=&_this->pred[_this->pred_stride*b_sz*_bj+b_sz*_bi];
 #if MASK_BLOCKS
   if(!_this->mask[_this->nxblocks*_bj+_bi]){
     od_coeff *fdct;
     int       j;
     int       i;
-    fdct=&_this->fdct[_this->fdct_stride*B_SZ*(_bj+1)+B_SZ*(_bi+1)];
-    for(j=0;j<B_SZ;j++){
-      for(i=0;i<B_SZ;i++){
+    fdct=&_this->fdct[_this->fdct_stride*b_sz*(_bj+1)+b_sz*(_bi+1)];
+    for(j=0;j<b_sz;j++){
+      for(i=0;i<b_sz;i++){
         pred[_this->pred_stride*j+i]=fdct[_this->fdct_stride*j+i];
       }
     }
@@ -533,39 +536,39 @@ void image_data_pred_block(image_data *_this,int _bi,int _bj){
 #endif
   mode=_this->mode[_this->nxblocks*_bj+_bi];
   image_data_load_block(_this,_bi,_bj,coeffs);
-#if B_SZ_LOG>=OD_LOG_BSIZE0&&B_SZ_LOG<OD_LOG_BSIZE0+OD_NBSIZES
-  (*NE_INTRA_MULT[B_SZ_LOG-OD_LOG_BSIZE0])(pred,_this->pred_stride,coeffs,
-   mode);
-#else
-# error "Need a predictor implementation for this block size."
-#endif
+  OD_ASSERT(_this->b_sz_log>=OD_LOG_BSIZE0&&_this->b_sz_log<=B_SZ_LOG_MAX);
+  (*NE_INTRA_MULT[_this->b_sz_log-OD_LOG_BSIZE0])(pred,_this->pred_stride,
+   coeffs,mode);
 }
 
 void image_data_stats_block(image_data *_this,const unsigned char *_data,
  int _stride,int _bi,int _bj,intra_stats *_stats){
+  int       b_sz;
   int       mode;
   od_coeff *ref;
   double   *pred;
   int       j;
   int       i;
-  double    buf[B_SZ*B_SZ];
+  double    buf[B_SZ_MAX*B_SZ_MAX];
+  b_sz=1<<_this->b_sz_log;
 #if MASK_BLOCKS
   if(!_this->mask[_this->nxblocks*_bj+_bi]){
     return;
   }
 #endif
   mode=_this->mode[_this->nxblocks*_bj+_bi];
-  ref=&_this->fdct[_this->fdct_stride*B_SZ*(_bj+1)+B_SZ*(_bi+1)];
-  pred=&_this->pred[_this->pred_stride*B_SZ*_bj+B_SZ*_bi];
-  for(j=0;j<B_SZ;j++){
-    for(i=0;i<B_SZ;i++){
-      buf[B_SZ*j+i]=ref[_this->fdct_stride*j+i]-pred[_this->pred_stride*j+i];
+  ref=&_this->fdct[_this->fdct_stride*b_sz*(_bj+1)+b_sz*(_bi+1)];
+  pred=&_this->pred[_this->pred_stride*b_sz*_bj+b_sz*_bi];
+  for(j=0;j<b_sz;j++){
+    for(i=0;i<b_sz;i++){
+      buf[b_sz*j+i]=ref[_this->fdct_stride*j+i]-pred[_this->pred_stride*j+i];
     }
   }
-  intra_stats_update(_stats,_data,_stride,mode,ref,_this->fdct_stride,buf,B_SZ);
+  intra_stats_update(_stats,_data,_stride,mode,ref,_this->fdct_stride,buf,b_sz);
 }
 
 void image_data_idct_block(image_data *_this,int _bi,int _bj){
+  int      b_sz;
   int      x0;
   int      y0;
   int      x;
@@ -575,18 +578,19 @@ void image_data_idct_block(image_data *_this,int _bi,int _bj){
   int      j;
   int      i;
   double  *p;
-  od_coeff buf[B_SZ*B_SZ];
-  x0=B_SZ*_bi;
-  y0=B_SZ*_bj;
-  x=x0+B_SZ;
-  y=y0+B_SZ;
+  od_coeff buf[B_SZ_MAX*B_SZ_MAX];
+  b_sz=1<<_this->b_sz_log;
+  x0=b_sz*_bi;
+  y0=b_sz*_bj;
+  x=x0+b_sz;
+  y=y0+b_sz;
   bx=by=1;
   if(_bi==0){
-    x-=B_SZ;
+    x-=b_sz;
     bx++;
   }
   if(_bj==0){
-    y-=B_SZ;
+    y-=b_sz;
     by++;
   }
   if(_bi==_this->nxblocks-1){
@@ -598,31 +602,34 @@ void image_data_idct_block(image_data *_this,int _bi,int _bj){
   /* TODO remove redundant computations here */
   if(bx!=1||by!=1){
     od_idct_blocks(&_this->idct[_this->idct_stride*y+x],_this->idct_stride,
-     &_this->fdct[_this->fdct_stride*y+x],_this->fdct_stride,bx,by);
+     &_this->fdct[_this->fdct_stride*y+x],_this->fdct_stride,bx,by,
+     _this->b_sz_log);
   }
   p=&_this->pred[_this->pred_stride*y0+x0];
-  for(j=0;j<B_SZ;j++){
-    for(i=0;i<B_SZ;i++){
-      buf[j*B_SZ+i]=(od_coeff)floor(p[_this->pred_stride*j+i]+0.5);
+  for(j=0;j<b_sz;j++){
+    for(i=0;i<b_sz;i++){
+      buf[j*b_sz+i]=(od_coeff)floor(p[_this->pred_stride*j+i]+0.5);
     }
   }
-  x=x0+B_SZ;
-  y=y0+B_SZ;
+  x=x0+b_sz;
+  y=y0+b_sz;
   od_idct_blocks(&_this->idct[_this->idct_stride*y+x],_this->idct_stride,
-   buf,B_SZ,1,1);
+   buf,b_sz,1,1,_this->b_sz_log);
 }
 
 void image_data_post_block(image_data *_this,int _bi,int _bj){
+  int b_sz;
   int x0;
   int y0;
   int x;
   int y;
   int bx;
   int by;
-  x=B_SZ*_bi;
-  y=B_SZ*_bj;
-  x0=x+(B_SZ>>1);
-  y0=y+(B_SZ>>1);
+  b_sz=1<<_this->b_sz_log;
+  x=b_sz*_bi;
+  y=b_sz*_bj;
+  x0=x+(b_sz>>1);
+  y0=y+(b_sz>>1);
   bx=by=1;
   if(_bi==_this->nxblocks-1){
     bx++;
@@ -631,7 +638,8 @@ void image_data_post_block(image_data *_this,int _bi,int _bj){
     by++;
   }
   od_post_blocks(&_this->post[_this->post_stride*y+x],_this->post_stride,
-   &_this->idct[_this->idct_stride*y0+x0],_this->idct_stride,bx,by);
+   &_this->idct[_this->idct_stride*y0+x0],_this->idct_stride,bx,by,
+   _this->b_sz_log);
 }
 
 void image_data_files_block(image_data *_this,const unsigned char *_data,

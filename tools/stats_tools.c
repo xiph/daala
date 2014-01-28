@@ -37,16 +37,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #define PRINT_SCALE (0)
 
-void mode_data_init(mode_data *_md){
+void mode_data_init(mode_data *_md,int _b_sz){
   int i;
   _md->n=0;
   _md->mean=0;
   _md->var=0;
-  for(i=0;i<B_SZ*B_SZ;i++){
+  for(i=0;i<B_SZ_MAX*B_SZ_MAX;i++){
     _md->satd_avg[i]=0;
   }
-  od_covmat_init(&_md->ref,B_SZ*B_SZ);
-  od_covmat_init(&_md->res,B_SZ*B_SZ);
+  od_covmat_init(&_md->ref,_b_sz*_b_sz);
+  od_covmat_init(&_md->res,_b_sz*_b_sz);
 }
 
 void mode_data_clear(mode_data *_md){
@@ -59,7 +59,7 @@ void mode_data_reset(mode_data *_md){
   _md->n=0;
   _md->mean=0;
   _md->var=0;
-  for(i=0;i<B_SZ*B_SZ;i++){
+  for(i=0;i<B_SZ_MAX*B_SZ_MAX;i++){
     _md->satd_avg[i]=0;
   }
   od_covmat_reset(&_md->ref);
@@ -67,13 +67,14 @@ void mode_data_reset(mode_data *_md){
 }
 
 /* update the input mean and variance */
-void mode_data_add_input(mode_data *_md,const unsigned char *_data,int _stride){
+void mode_data_add_input(mode_data *_md,const unsigned char *_data,int _stride,
+ int _b_sz){
   int n;
   int i;
   int j;
-  n=_md->n*B_SZ*B_SZ;
-  for(j=0;j<B_SZ;j++){
-    for(i=0;i<B_SZ;i++){
+  n=_md->n*_b_sz*_b_sz;
+  for(j=0;j<_b_sz;j++){
+    for(i=0;i<_b_sz;i++){
       double delta;
       double s;
       n++;
@@ -114,7 +115,7 @@ void mode_data_combine(mode_data *_a,const mode_data *_b){
   s=((double)_b->n)/(_a->n+_b->n);
   delta=_b->mean-_a->mean;
   _a->mean+=delta*s;
-  for(i=0;i<B_SZ*B_SZ;i++){
+  for(i=0;i<B_SZ_MAX*B_SZ_MAX;i++){
     _a->satd_avg[i]+=(_b->satd_avg[i]-_a->satd_avg[i])*s;
   }
   s*=_a->n;
@@ -124,13 +125,14 @@ void mode_data_combine(mode_data *_a,const mode_data *_b){
   _a->n+=_b->n;
 }
 
-void mode_data_correct(mode_data *_md){
-  _md->var/=_md->n*B_SZ*B_SZ;
+void mode_data_correct(mode_data *_md,int _b_sz){
+  _md->var/=_md->n*_b_sz*_b_sz;
   od_covmat_correct(&_md->ref);
   od_covmat_correct(&_md->res);
 }
 
-void mode_data_print(mode_data *_md,const char *_label,double *_scale){
+void mode_data_print(mode_data *_md,const char *_label,double *_scale,
+ int _b_sz){
   double     cg_ref;
   double     cg_res;
   int        v;
@@ -141,15 +143,15 @@ void mode_data_print(mode_data *_md,const char *_label,double *_scale){
   cg_res=10*log10(_md->var);
   satd_avg=0;
   bits_avg=0;
-  for(v=0;v<B_SZ;v++){
-    for(u=0;u<B_SZ;u++){
+  for(v=0;v<_b_sz;v++){
+    for(u=0;u<_b_sz;u++){
       int    i;
       int    ii;
       double b;
-      i=B_SZ*v+u;
-      ii=B_SZ*B_SZ*i+i;
-      cg_ref-=10*log10(_md->ref.cov[ii]*_scale[v]*_scale[u])/(B_SZ*B_SZ);
-      cg_res-=10*log10(_md->res.cov[ii]*_scale[v]*_scale[u])/(B_SZ*B_SZ);
+      i=_b_sz*v+u;
+      ii=_b_sz*_b_sz*i+i;
+      cg_ref-=10*log10(_md->ref.cov[ii]*_scale[v]*_scale[u])/(_b_sz*_b_sz);
+      cg_res-=10*log10(_md->res.cov[ii]*_scale[v]*_scale[u])/(_b_sz*_b_sz);
       satd_avg+=sqrt(_scale[v]*_scale[u])*_md->satd_avg[i];
       b=sqrt(_scale[v]*_scale[u]*_md->res.cov[ii]/2);
       bits_avg+=1+OD_LOG2(b)+M_LOG2E/b*_md->satd_avg[i];
@@ -173,11 +175,12 @@ void mode_data_params(mode_data *_this,double _b[B_SZ*B_SZ],double *_scale){
   }
 }
 
-void intra_stats_init(intra_stats *_this){
+void intra_stats_init(intra_stats *_this,int _b_sz_log){
   int mode;
-  mode_data_init(&_this->fr);
+  _this->b_sz_log=_b_sz_log;
+  mode_data_init(&_this->fr,1<<_b_sz_log);
   for(mode=0;mode<OD_INTRA_NMODES;mode++){
-    mode_data_init(&_this->md[mode]);
+    mode_data_init(&_this->md[mode],1<<_b_sz_log);
   }
 }
 
@@ -200,53 +203,56 @@ void intra_stats_reset(intra_stats *_this){
 void intra_stats_update(intra_stats *_this,const unsigned char *_data,
  int _stride,int _mode,const od_coeff *_ref,int _ref_stride,
  const double *_res,int _res_stride){
+  int        b_sz;
   mode_data *fr;
   mode_data *md;
   int        j;
   int        i;
-  double     buf[B_SZ*B_SZ];
+  double     buf[B_SZ_MAX*B_SZ_MAX];
+
+  b_sz=1<<_this->b_sz_log;
 
   fr=&_this->fr;
   md=&_this->md[_mode];
 
   /* Update the input mean and variance. */
-  mode_data_add_input(fr,_data,_stride);
-  mode_data_add_input(md,_data,_stride);
+  mode_data_add_input(fr,_data,_stride,b_sz);
+  mode_data_add_input(md,_data,_stride,b_sz);
 
   /* Update the reference mean and covariance. */
-  for(j=0;j<B_SZ;j++){
-    for(i=0;i<B_SZ;i++){
-      buf[B_SZ*j+i]=_ref[_ref_stride*j+i];
+  for(j=0;j<b_sz;j++){
+    for(i=0;i<b_sz;i++){
+      buf[b_sz*j+i]=_ref[_ref_stride*j+i];
     }
   }
   od_covmat_add(&fr->ref,buf,1);
   od_covmat_add(&md->ref,buf,1);
 
   /* Update the residual mean and covariance. */
-  for(j=0;j<B_SZ;j++){
-    for(i=0;i<B_SZ;i++){
-      buf[B_SZ*j+i]=_res[_res_stride*j+i];
+  for(j=0;j<b_sz;j++){
+    for(i=0;i<b_sz;i++){
+      buf[b_sz*j+i]=_res[_res_stride*j+i];
     }
   }
   od_covmat_add(&fr->res,buf,1);
   od_covmat_add(&md->res,buf,1);
 
   /* Update the average SATD. */
-  for(j=0;j<B_SZ;j++){
-    for(i=0;i<B_SZ;i++){
+  for(j=0;j<b_sz;j++){
+    for(i=0;i<b_sz;i++){
       double satd;
-      satd=abs(buf[B_SZ*j+i]);
-      fr->satd_avg[B_SZ*j+i]+=(satd-fr->satd_avg[B_SZ*j+i])/fr->n;
-      md->satd_avg[B_SZ*j+i]+=(satd-md->satd_avg[B_SZ*j+i])/md->n;
+      satd=abs(buf[b_sz*j+i]);
+      fr->satd_avg[b_sz*j+i]+=(satd-fr->satd_avg[b_sz*j+i])/fr->n;
+      md->satd_avg[b_sz*j+i]+=(satd-md->satd_avg[b_sz*j+i])/md->n;
     }
   }
 }
 
 void intra_stats_correct(intra_stats *_this){
   int mode;
-  mode_data_correct(&_this->fr);
+  mode_data_correct(&_this->fr,1<<_this->b_sz_log);
   for(mode=0;mode<OD_INTRA_NMODES;mode++){
-    mode_data_correct(&_this->md[mode]);
+    mode_data_correct(&_this->md[mode],1<<_this->b_sz_log);
   }
 }
 
@@ -257,9 +263,9 @@ void intra_stats_print(intra_stats *_this,const char *_label,
   for(mode=0;mode<OD_INTRA_NMODES;mode++){
     char label[16];
     sprintf(label,"Mode %i",mode);
-    mode_data_print(&_this->md[mode],label,_scale);
+    mode_data_print(&_this->md[mode],label,_scale,1<<_this->b_sz_log);
   }
-  mode_data_print(&_this->fr,"Pooled",_scale);
+  mode_data_print(&_this->fr,"Pooled",_scale,1<<_this->b_sz_log);
 }
 
 void intra_stats_combine(intra_stats *_this,const intra_stats *_that){
@@ -271,26 +277,24 @@ void intra_stats_combine(intra_stats *_this,const intra_stats *_that){
 }
 
 /* compute the scale factors for the DCT and TDLT transforms */
-double VP8_SCALE[B_SZ];
-double OD_SCALE[B_SZ];
+double VP8_SCALE[OD_NBSIZES][B_SZ_MAX];
+double OD_SCALE[OD_NBSIZES][B_SZ_MAX];
 
 #define SCALE_BITS (14)
 
-void vp8_scale_init(double _vp8_scale[B_SZ]){
+void vp8_scale_init(double *_vp8_scale,int _b_sz_log){
+  int b_sz;
   int j;
   int i;
-  od_coeff buf[B_SZ];
-  for(i=0;i<B_SZ;i++){
-    for(j=0;j<B_SZ;j++){
+  od_coeff buf[B_SZ_MAX];
+  b_sz=1<<_b_sz_log;
+  for(i=0;i<b_sz;i++){
+    for(j=0;j<b_sz;j++){
       buf[j]=i!=j?0:(1<<SCALE_BITS);
     }
-#if B_SZ_LOG>=OD_LOG_BSIZE0&&B_SZ_LOG<OD_LOG_BSIZE0+OD_NBSIZES
-    (*OD_IDCT_1D[B_SZ_LOG-OD_LOG_BSIZE0])(buf,1,buf);
-#else
-# error "Need an iDCT implementation for this block size."
-#endif
+    (*OD_IDCT_1D[_b_sz_log-OD_LOG_BSIZE0])(buf,1,buf);
     _vp8_scale[i]=0;
-    for(j=0;j<B_SZ;j++){
+    for(j=0;j<b_sz;j++){
       double c=((double)buf[j])/(1<<SCALE_BITS);
       _vp8_scale[i]+=c*c;
     }
@@ -306,29 +310,23 @@ void vp8_scale_init(double _vp8_scale[B_SZ]){
 #define APPLY_PREFILTER (1)
 #define APPLY_POSTFILTER (1)
 
-void od_scale_init(double _od_scale[B_SZ]){
+void od_scale_init(double *_od_scale,int _b_sz_log){
+  int b_sz;
   int i;
   int j;
-  od_coeff buf[2*B_SZ];
-  for(i=0;i<B_SZ;i++){
-    for(j=0;j<2*B_SZ;j++){
-      buf[j]=(B_SZ>>1)+i!=j?0:(1<<SCALE_BITS);
+  od_coeff buf[2*B_SZ_MAX];
+  b_sz=1<<_b_sz_log;
+  for(i=0;i<b_sz;i++){
+    for(j=0;j<2*b_sz;j++){
+      buf[j]=(b_sz>>1)+i!=j?0:(1<<SCALE_BITS);
     }
-#if B_SZ_LOG>=OD_LOG_BSIZE0&&B_SZ_LOG<OD_LOG_BSIZE0+OD_NBSIZES
-    (*OD_IDCT_1D[B_SZ_LOG-OD_LOG_BSIZE0])(&buf[B_SZ>>1],1,&buf[B_SZ>>1]);
-#else
-# error "Need an iDCT implementation for this block size."
-#endif
+    (*OD_IDCT_1D[_b_sz_log-OD_LOG_BSIZE0])(&buf[b_sz>>1],1,&buf[b_sz>>1]);
 #if APPLY_POSTFILTER
-#if B_SZ_LOG>=OD_LOG_BSIZE0&&B_SZ_LOG<OD_LOG_BSIZE0+OD_NBSIZES
-    (*NE_POST_FILTER[B_SZ_LOG-OD_LOG_BSIZE0])(buf,buf);
-    (*NE_POST_FILTER[B_SZ_LOG-OD_LOG_BSIZE0])(&buf[B_SZ],&buf[B_SZ]);
-#else
-# error "Need a postfilter implementation for this block size."
-#endif
+    (*NE_POST_FILTER[_b_sz_log-OD_LOG_BSIZE0])(buf,buf);
+    (*NE_POST_FILTER[_b_sz_log-OD_LOG_BSIZE0])(&buf[b_sz],&buf[b_sz]);
 #endif
     _od_scale[i]=0;
-    for(j=0;j<2*B_SZ;j++){
+    for(j=0;j<2*b_sz;j++){
       double c=((double)buf[j])/(1<<SCALE_BITS);
       _od_scale[i]+=c*c;
     }
@@ -345,13 +343,15 @@ void od_scale_init(double _od_scale[B_SZ]){
 
 /* find the best vp8 mode */
 int vp8_select_mode(const unsigned char *_data,int _stride,double *_weight){
-  double best_satd;
-  double next_best_satd;
-  int    mode;
-  int    best_mode;
+  int     best_mode;
+  double  best_satd;
+  double  next_best_satd;
+  double *vp8_scale;
+  int     mode;
   best_mode=0;
   best_satd=UINT_MAX;
   next_best_satd=best_satd;
+  vp8_scale=VP8_SCALE[B_SZ_LOG-OD_LOG_BSIZE0];
   for(mode=0;mode<OD_INTRA_NMODES;mode++){
     unsigned char block[B_SZ*B_SZ];
     od_coeff      buf[B_SZ*B_SZ];
@@ -377,7 +377,7 @@ int vp8_select_mode(const unsigned char *_data,int _stride,double *_weight){
     for(j=0;j<B_SZ;j++){
       for(i=0;i<B_SZ;i++){
 #if SCALE_SATD
-        satd+=sqrt(VP8_SCALE[j]*VP8_SCALE[i])*abs(buf[B_SZ*j+i]);
+        satd+=sqrt(vp8_scale[j]*vp8_scale[i])*abs(buf[B_SZ*j+i]);
 #else
         satd+=abs(buf[B_SZ*j+i]);
 #endif
@@ -407,11 +407,13 @@ int od_select_mode_bits(const od_coeff *_block,double *_weight,
   int             best_mode;
   double          best_bits;
   double          next_best_bits;
+  double         *od_scale;
   int             mode;
   c=_block+4*B_SZ*B_SZ;
   best_mode=0;
   best_bits=UINT_MAX;
   next_best_bits=best_bits;
+  od_scale=OD_SCALE[B_SZ_LOG-OD_LOG_BSIZE0];
   for(mode=0;mode<OD_INTRA_NMODES;mode++){
     double p[B_SZ*B_SZ];
     double bits;
@@ -430,7 +432,7 @@ int od_select_mode_bits(const od_coeff *_block,double *_weight,
     for(j=0;j<B_SZ;j++){
       for(i=0;i<B_SZ;i++){
         double res;
-        res=sqrt(OD_SCALE[j]*OD_SCALE[i])*
+        res=sqrt(od_scale[j]*od_scale[i])*
          abs(c[B_SZ*j+i]-(od_coeff)floor(p[B_SZ*j+i]+0.5));
         bits+=1+OD_LOG2(_b[mode][j*B_SZ+i])+M_LOG2E/_b[mode][j*B_SZ+i]*res;
       }
@@ -452,38 +454,34 @@ int od_select_mode_bits(const od_coeff *_block,double *_weight,
   return best_mode;
 }
 
-int od_select_mode_satd(const od_coeff *_block,double *_weight){
+int od_select_mode_satd(const od_coeff *_block,double *_weight,int _b_sz_log){
+  int             b_sz;
   const od_coeff *c;
   int             best_mode;
   double          best_satd;
   double          next_best_satd;
+  double         *od_scale;
   int             mode;
-  c=_block+4*B_SZ*B_SZ;
+  b_sz=1<<_b_sz_log;
+  c=_block+4*b_sz*b_sz;
   best_mode=0;
   best_satd=UINT_MAX;
   next_best_satd=best_satd;
+  od_scale=OD_SCALE[_b_sz_log-OD_LOG_BSIZE0];
   for(mode=0;mode<OD_INTRA_NMODES;mode++){
-    double p[B_SZ*B_SZ];
+    double p[B_SZ_MAX*B_SZ_MAX];
     double satd;
     int    j;
     int    i;
-#if B_SZ_LOG>=OD_LOG_BSIZE0&&B_SZ_LOG<OD_LOG_BSIZE0+OD_NBSIZES
-#if 0
-    (*OD_INTRA_MULT[B_SZ_LOG-OD_LOG_BSIZE0])(p,_block,_stride,mode);
-#else
-    (*NE_INTRA_MULT[B_SZ_LOG-OD_LOG_BSIZE0])(p,B_SZ,_block,mode);
-#endif
-#else
-# error "Need a predictor implementation for this block size."
-#endif
+    (*NE_INTRA_MULT[_b_sz_log-OD_LOG_BSIZE0])(p,b_sz,_block,mode);
     satd=0;
-    for(j=0;j<B_SZ;j++){
-      for(i=0;i<B_SZ;i++){
+    for(j=0;j<b_sz;j++){
+      for(i=0;i<b_sz;i++){
 #if SCALE_SATD
-        satd+=sqrt(OD_SCALE[j]*OD_SCALE[i])*
-         abs(c[B_SZ*j+i]-(od_coeff)floor(p[B_SZ*j+i]+0.5));
+        satd+=sqrt(od_scale[j]*od_scale[i])*
+         abs(c[b_sz*j+i]-(od_coeff)floor(p[b_sz*j+i]+0.5));
 #else
-        satd+=abs(c[B_SZ*j+i]-(od_coeff)floor(p[B_SZ*j+i]+0.5));
+        satd+=abs(c[b_sz*j+i]-(od_coeff)floor(p[b_sz*j+i]+0.5));
 #endif
       }
     }
