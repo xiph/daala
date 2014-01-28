@@ -419,7 +419,6 @@ int main(int _argc,char **_argv){
   video_keyframe_rate=1; /* TODO - default off for now but make bigger later */
   video_r=-1;
   video_bytesout=0;
-  video_kbps=0;
   while((c=getopt_long(_argc,_argv,OPTSTRING,OPTIONS,&loi))!=EOF){
     switch(c){
       case 'o':{

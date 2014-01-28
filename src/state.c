@@ -884,8 +884,6 @@ static void od_state_draw_mvs_block(od_state *state,
         mvy[(oc + 3) & 3] = (mvy[oc] + mvy[(oc + 3) & 3]) >> 1;
       }
     }
-    x0 = ((vx - 2) << 3) + (OD_UMV_PADDING << 1);
-    y0 = ((vy - 2) << 3) + (OD_UMV_PADDING << 1);
     for (k = 0; k < 4; k++) {
       x0 = (vx - 2 + (dxp[k] << log_mvb_sz) << 3) + (OD_UMV_PADDING << 1);
       y0 = (vy - 2 + (dyp[k] << log_mvb_sz) << 3) + (OD_UMV_PADDING << 1);

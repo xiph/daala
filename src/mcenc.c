@@ -376,7 +376,6 @@ static ogg_int32_t od_enc_sad8(od_enc_ctx *enc, const unsigned char *p,
    "[%i, %i]x[%i, %i]", x, y, w, h));
   /*Compute the SAD.*/
   src = iplane->data + y*iplane->ystride + x*iplane->xstride;
-  ret = 0;
   if (pxstride != 1) {
     /*Default C implementation.*/
     ret = od_mc_compute_sad_c(src, iplane->ystride,

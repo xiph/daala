@@ -222,7 +222,6 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   md = ctx->md;
   mc = ctx->mc;
   l = ctx->l;
-  vk = 0;
   /*Apply forward transform to MC predictor.*/
   if (!ctx->is_keyframe) {
     (*OD_FDCT_2D[ln])(md + (by << 2)*w + (bx << 2), w,
@@ -721,8 +720,6 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
           mbctx.l = lbuf[pli];
           xdec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
           ydec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
-          w = frame_width >> xdec;
-          h = frame_height >> ydec;
           mbctx.nk = mbctx.k_total = mbctx.sum_ex_total_q8 = 0;
           mbctx.ncount = mbctx.count_total_q8 = mbctx.count_ex_total_q8 = 0;
           adapt_sb = &dec->state.adapt_sb[pli];

@@ -343,7 +343,6 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   md = ctx->md;
   mc = ctx->mc;
   l = ctx->l;
-  vk = 0;
   /*Apply forward transform(s).*/
   (*OD_FDCT_2D[ln])(d + (by << 2)*w + (bx << 2), w,
    c + (by << 2)*w + (bx << 2), w);
@@ -1094,8 +1093,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
           mbctx.l = lbuf[pli];
           xdec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
           ydec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
-          w = frame_width >> xdec;
-          h = frame_height >> ydec;
           mbctx.nk = mbctx.k_total = mbctx.sum_ex_total_q8 = 0;
           mbctx.ncount = mbctx.count_total_q8 = mbctx.count_ex_total_q8 = 0;
           adapt_sb = &enc->state.adapt_sb[pli];
