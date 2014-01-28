@@ -46,6 +46,7 @@ extern const band_layout od_layout16;
 
 #define PRED4_PROB (26376)
 extern const ogg_uint16_t pred8_cdf[16];
+extern const ogg_uint16_t pred16_cdf[16][8];
 
 void od_bands_from_raster(const band_layout *layout, od_coeff *dst,
  od_coeff *src, int stride);

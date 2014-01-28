@@ -203,8 +203,7 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
 #endif
   OD_ASSERT(ln >= 0 && ln <= 2);
   n = 1 << (ln + 2);
-  /* The new PVQ is only supported on 8x8 for now. */
-  run_pvq = ctx->run_pvq[pli] && (n == 4 || n == 8);
+  run_pvq = ctx->run_pvq[pli];
   n2 = n*n;
   bx <<= ln;
   by <<= ln;
@@ -336,17 +335,19 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   if (pred[0]) pred[0] *= od_ec_dec_bits(&dec->ec, 1) ? -1 : 1;
   pred[0] = pred[0]*scale + predt[0];
   if (run_pvq) {
-    int noref[4];
+    int noref[7];
     int *adapt;
     int *exg;
     int *ext;
     int predflags8;
+    int predflags16;
     int i;
     generic_encoder *model;
     adapt = dec->state.pvq_adapt;
     exg = dec->state.pvq_exg;
     ext = dec->state.pvq_ext;
     model = &dec->state.pvq_gain_model;
+
     if (n == 4) {
       noref[0] = !od_ec_decode_bool_q15(&dec->ec, PRED4_PROB);
       od_band_decode(&dec->ec, scale, 15, model, adapt, exg, ext, predt+1,
@@ -358,6 +359,14 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
       noref[1] = !((predflags8>>2) & 0x1);
       noref[2] = !((predflags8>>1) & 0x1);
       noref[3] = !(predflags8 & 0x1);
+
+      if(n >= 16) {
+        predflags16 = od_ec_decode_cdf_q15(&dec->ec, pred16_cdf[predflags8], 8);
+        noref[4] = !((predflags16>>2) & 0x1);
+        noref[5] = !((predflags16>>1) & 0x1);
+        noref[6] = !(predflags16 & 0x1);
+      }
+
       od_band_decode(&dec->ec, scale, 15, model, adapt, exg, ext, predt+1,
        pred+1, noref[0]);
       od_band_decode(&dec->ec, scale, 8, model, adapt, exg+1, ext+1, predt+16,
@@ -366,6 +375,15 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
        pred+24, noref[2]);
       od_band_decode(&dec->ec, scale, 32, model, adapt, exg+3, ext+3, predt+32,
        pred+32, noref[3]);
+
+      if(n >= 16) {
+        od_band_decode(&dec->ec, scale, 32, model, adapt, exg+4, ext+4, predt+64,
+                       pred+64, noref[4]);
+        od_band_decode(&dec->ec, scale, 32, model, adapt, exg+5, ext+5, predt+96,
+                       pred+96, noref[5]);
+        od_band_decode(&dec->ec, scale, 128, model, adapt, exg+6, ext+6, predt+128,
+                       pred+128, noref[6]);
+      }
     }
     for (i = 0; i < OD_NSB_ADAPT_CTXS; i++) adapt_curr[i] = 0;
   }
