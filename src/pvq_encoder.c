@@ -32,238 +32,141 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "logging.h"
 #include "entenc.h"
 #include "entcode.h"
+#include "laplace_code.h"
 #include "pvq_code.h"
 #include "adapt.h"
 #include "filter.h"
 
-/** Encodes the tail of a Laplace-distributed variable, i.e. it doesn't
- * do anything special for the zero case.
+/** Encodes a single vector of integers (eg, a partition within a
+ *  coefficient block) using PVQ
  *
- * @param [in,out] enc     range encoder
- * @param [in]     x       variable to encode (has to be positive)
- * @param [in]     decay   decay factor of the distribution in Q8 format,
- * i.e. pdf ~= decay^x
- * @param [in]     max     maximum possible value of x (used to truncate
- * the pdf)
+ * @param [in,out] ec         range encoder
+ * @param [in]     qg         quantized gain
+ * @param [in]     theta      quantized post-prediction theta
+ * @param [in]     max_theta  maximum possible quantized theta value
+ * @param [in]     in         coefficient vector to code
+ * @param [in]     n          number of coefficients in partition
+ * @param [in,out] model      entropy encoder state
+ * @param [in,out] adapt      adaptation context
+ * @param [in,out] exg        ExQ16 expectation of gain value
+ * @param [in,out] ext        ExQ16 expectation of theta value
  */
-void laplace_encode_special(od_ec_enc *enc, int x, unsigned decay, int max) {
-  int shift;
-  int xs;
-  int ms;
-  int sym;
-  const ogg_uint16_t *cdf;
-  shift = 0;
-  if (max == 0) return;
-  /* We don't want a large decay value because that would require too many
-     symbols. However, it's OK if the max is below 15. */
-  while (((max >> shift) >= 15 || max == -1) && decay > 235) {
-    decay = (decay*decay + 128) >> 8;
-    shift++;
+static void pvq_encode_partition(od_ec_enc *ec,
+                                 int qg,
+                                 int theta,
+                                 int max_theta,
+                                 const od_coeff *in,
+                                 int n,
+                                 int k,
+                                 generic_encoder *model,
+                                 int *adapt,
+                                 int *exg,
+                                 int *ext) {
+
+  int adapt_curr[OD_NSB_ADAPT_CTXS] = { 0 };
+  int speed = 5;
+
+  generic_encode(ec, model, qg, exg, 2);
+  if (theta >= 0 && max_theta > 0)
+    generic_encode(ec, model, theta, ext, 2);
+
+  laplace_encode_vector(ec, in, n - (theta >= 0), k, adapt_curr, adapt);
+
+  if (adapt_curr[OD_ADAPT_K_Q8] > 0) {
+    adapt[OD_ADAPT_K_Q8] += 256*adapt_curr[OD_ADAPT_K_Q8] -
+     adapt[OD_ADAPT_K_Q8]>>speed;
+    adapt[OD_ADAPT_SUM_EX_Q8] += adapt_curr[OD_ADAPT_SUM_EX_Q8] -
+     adapt[OD_ADAPT_SUM_EX_Q8]>>speed;
   }
-  OD_ASSERT(x <= max || max == -1);
-  decay = OD_MINI(decay, 254);
-  decay = OD_MAXI(decay, 2);
-  xs = x >> shift;
-  ms = max >> shift;
-  cdf = EXP_CDF_TABLE[(decay + 1) >> 1];
-  OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "decay = %d", decay));
-  do {
-    sym = OD_MINI(xs, 15);
-    {
-      int i;
-      OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%d %d %d %d %d\n", x, xs, shift,
-       sym, max));
-      for (i = 0; i < 16; i++) {
-        OD_LOG_PARTIAL((OD_LOG_PVQ, OD_LOG_DEBUG, "%d ", cdf[i]));
-      }
-      OD_LOG_PARTIAL((OD_LOG_PVQ, OD_LOG_DEBUG, "\n"));
-    }
-    if (ms > 0 && ms < 15) {
-      /* Simple way of truncating the pdf when we have a bound */
-      od_ec_encode_cdf_unscaled(enc, sym, cdf, ms + 1);
-    }
-    else {
-      od_ec_encode_cdf_q15(enc, sym, cdf, 16);
-    }
-    xs -= 15;
-    ms -= 15;
+  if (adapt_curr[OD_ADAPT_COUNT_Q8] > 0) {
+    adapt[OD_ADAPT_COUNT_Q8] += adapt_curr[OD_ADAPT_COUNT_Q8]-
+     adapt[OD_ADAPT_COUNT_Q8]>>speed;
+    adapt[OD_ADAPT_COUNT_EX_Q8] += adapt_curr[OD_ADAPT_COUNT_EX_Q8]-
+     adapt[OD_ADAPT_COUNT_EX_Q8]>>speed;
   }
-  while (sym >= 15 && ms != 0);
-  if (shift) od_ec_enc_bits(enc, x & ((1 << shift) - 1), shift);
 }
 
-/** Encodes a Laplace-distributed variable for use in PVQ
+/** Encode a coefficient block (excepting DC) using PVQ
  *
- * @param [in,out] enc  range encoder
- * @param [in]     x    variable to encode (including sign)
- * @param [in]     ExQ8 expectation of the absolute value of x in Q8
- * @param [in]     K    maximum value of |x|
+ * @param [in,out] enc     daala encoder context
+ * @param [in]     ref     'reference' (prediction) vector
+ * @param [in]     in      coefficient block to quantize and encode
+ * @param [out]    out     quantized coefficient block
+ * @param [in]     q       scale/quantizer
+ * @param [in]     n       number of coefficients on one side of block
  */
-void laplace_encode(od_ec_enc *enc, int x, int ex_q8, int k) {
-  int j;
-  int shift;
-  int xs;
-  ogg_uint16_t cdf[16];
-  int sym;
-  int decay;
-  int offset;
-  /* shift down x if expectation is too high */
-  shift = od_ilog(ex_q8) - 11;
-  if (shift < 0) shift = 0;
-  /* Apply the shift with rounding to Ex, K and xs */
-  ex_q8 = (ex_q8 + (1 << shift >> 1)) >> shift;
-  k = (k + (1 << shift >> 1)) >> shift;
-  xs = (x + (1 << shift >> 1)) >> shift;
-  decay = OD_MINI(254, 256*ex_q8/(ex_q8 + 256));
-  offset = LAPLACE_OFFSET[(decay + 1) >> 1];
-  for (j = 0; j < 16; j++) {
-    cdf[j] = EXP_CDF_TABLE[(decay + 1) >> 1][j] - offset;
-  }
-  sym = xs;
-  if (sym > 15) sym = 15;
-  /* Simple way of truncating the pdf when we have a bound */
-  if (k != 0) od_ec_encode_cdf_unscaled(enc, sym, cdf, OD_MINI(k + 1, 16));
-  if (shift) {
-    int special;
-    /* Because of the rounding, there's only half the number of possibilities
-       for xs=0 */
-    special = xs == 0;
-    if (shift - special > 0) {
-      od_ec_enc_bits(enc, x - (xs << shift) + (!special << (shift - 1)),
-       shift - special);
-    }
-  }
-  /* Handle the exponentially-decaying tail of the distribution */
-  OD_ASSERT(xs - 15 <= k - 15);
-  if (xs >= 15) laplace_encode_special(enc, xs - 15, decay, k - 15);
-}
+void pvq_encode(daala_enc_ctx *enc,
+                od_coeff *ref,
+                od_coeff *in,
+                od_coeff *out,
+                int q,
+                int n){
+  int theta[PVQ_MAX_PARTITIONS];
+  int max_theta[PVQ_MAX_PARTITIONS];
+  int qg[PVQ_MAX_PARTITIONS];
+  int k[PVQ_MAX_PARTITIONS];
+  int *adapt;
+  int *exg;
+  int *ext;
+  int predflags8;
+  int predflags16;
+  generic_encoder *model;
+  adapt = enc->state.pvq_adapt;
+  exg = enc->state.pvq_exg;
+  ext = enc->state.pvq_ext;
+  model = &enc->state.pvq_gain_model;
 
-/** Encodes a vector of integers assumed to come from rounding a sequence of
- * Laplace-distributed real values in decreasing order of variance.
- *
- * @param [in,out] enc range encoder
- * @param [in]     y     vector to encode
- * @param [in]     N     dimension of the vector
- * @param [in]     K     sum of the absolute value of components of y
- * @param [out]    curr  Adaptation context output, may alias means.
- * @param [in]     means Adaptation context input.
- */
-void pvq_encoder(od_ec_enc *enc, const od_coeff *y, int n, int k,
- ogg_int32_t *curr, const ogg_int32_t *means) {
-  int i;
-  int sum_ex;
-  int kn;
-  int exp_q8;
-  int mean_k_q8;
-  int mean_sum_ex_q8;
-  int ran_delta;
-  ran_delta = 0;
-  if (k <= 1) {
-    pvq_encode_delta(enc, y, n, k, curr, means);
-    return;
-  }
-  if (k == 0) {
-    curr[OD_ADAPT_COUNT_Q8] = OD_ADAPT_NO_VALUE;
-    curr[OD_ADAPT_COUNT_EX_Q8] = OD_ADAPT_NO_VALUE;
-    curr[OD_ADAPT_K_Q8] = 0;
-    curr[OD_ADAPT_SUM_EX_Q8] = 0;
-    return;
-  }
-  sum_ex = 0;
-  kn = k;
-  /* Estimates the factor relating pulses_left and positions_left to E(|x|) */
-  mean_k_q8 = means[OD_ADAPT_K_Q8];
-  mean_sum_ex_q8 = means[OD_ADAPT_SUM_EX_Q8];
-  if (mean_k_q8 < 1 << 23) exp_q8 = 256*mean_k_q8/(1 + mean_sum_ex_q8);
-  else exp_q8 = mean_k_q8/(1 + (mean_sum_ex_q8 >> 8));
-  for (i = 0; i < n; i++) {
-    int ex;
-    int x;
-    if (kn == 0) break;
-    if (kn <= 1 && i != n - 1) {
-      pvq_encode_delta(enc, y + i, n - i, kn, curr, means);
-      ran_delta = 1;
-      i = n;
-      break;
-    }
-    x = abs(y[i]);
-    /* Expected value of x (round-to-nearest) is
-       expQ8*pulses_left/positions_left */
-    ex = (2*exp_q8*kn + (n - i))/(2*(n - i));
-    if (ex > kn*256) ex = kn*256;
-    sum_ex += (2*256*kn + (n - i))/(2*(n - i));
-    /* No need to encode the magnitude for the last bin. */
-    if (i != n - 1) laplace_encode(enc, x, ex, kn);
-    if (x != 0) od_ec_enc_bits(enc, y[i] < 0, 1);
-    kn -= x;
-  }
-  /* Adapting the estimates for expQ8 */
-  if (!ran_delta) {
-    curr[OD_ADAPT_COUNT_Q8] = OD_ADAPT_NO_VALUE;
-    curr[OD_ADAPT_COUNT_EX_Q8] = OD_ADAPT_NO_VALUE;
-  }
-  curr[OD_ADAPT_K_Q8] = k - kn;
-  curr[OD_ADAPT_SUM_EX_Q8] = sum_ex;
-}
+  qg[0] = pvq_theta(in+1, ref+1, 15, q, out+1,
+                    &theta[0], &max_theta[0], &k[0]);
 
-void pvq_encode_delta(od_ec_enc *enc, const od_coeff *y, int n, int k,
- ogg_int32_t *curr, const ogg_int32_t *means) {
-  int i;
-  int prev;
-  int sum_ex;
-  int sum_c;
-  int first;
-  int k_left;
-  int coef;
-  prev = 0;
-  sum_ex = 0;
-  sum_c = 0;
-  first = 1;
-  k_left = k;
-  coef = 256*means[OD_ADAPT_COUNT_Q8]/
-   (1 + means[OD_ADAPT_COUNT_EX_Q8]);
-  coef = OD_MAXI(coef, 1);
-  for (i = 0; i < n; i++) {
-    if (y[i] != 0) {
-      int j;
-      int count;
-      int mag;
-      mag = abs(y[i]);
-      count = i - prev;
-      if (first) {
-        int decay;
-        int ex = coef*(n - prev)/k_left;
-        if (ex > 65280) decay = 255;
-        else {
-          decay = OD_MINI(255,
-           (int)((256*ex/(ex + 256) + (ex>>5)*ex/((n + 1)*(n - 1)*(n - 1)))));
-        }
-        /*Update mean position.*/
-        OD_ASSERT(count <= n - 1);
-        laplace_encode_special(enc, count, decay, n - 1);
-        first = 0;
-      }
-      else laplace_encode(enc, count, coef*(n - prev)/k_left, n - prev - 1);
-      sum_ex += 256*(n - prev);
-      sum_c += count*k_left;
-      od_ec_enc_bits(enc, y[i] < 0, 1);
-      for (j = 0; j < mag - 1; j++) {
-        laplace_encode(enc, 0, coef*(n - i)/(k_left - 1 - j), n - i - 1);
-        sum_ex += 256*(n - i);
-      }
-      k_left -= mag;
-      prev = i;
-      if (k_left == 0) break;
+  if (n==4){
+
+    od_ec_encode_bool_q15(&enc->ec, theta[0] != -1, PRED4_PROB);
+    pvq_encode_partition(&enc->ec, qg[0], theta[0], max_theta[0], out+1,
+                        15, k[0], model, adapt, exg, ext);
+
+  }
+  else{
+
+    qg[1] = pvq_theta(in+16, ref+16, 8, q, out+16,
+                      &theta[1], &max_theta[1], &k[1]);
+    qg[2] = pvq_theta(in+24, ref+24, 8, q, out+24,
+                      &theta[2], &max_theta[2], &k[2]);
+    qg[3] = pvq_theta(in+32, ref+32, 32, q, out+32,
+                      &theta[3], &max_theta[3], &k[3]);
+    predflags8 = 8*(theta[0] != -1) + 4*(theta[1] != -1) + 2*(theta[2] != -1)
+      + (theta[3] != -1);
+    od_ec_encode_cdf_q15(&enc->ec, predflags8, pred8_cdf, 16);
+
+    if (n >= 16) {
+      qg[4] = pvq_theta(in+64, ref+64, 32, q, out+64,
+                        &theta[4], &max_theta[4], &k[4]);
+      qg[5] = pvq_theta(in+96, ref+96, 32, q, out+96,
+                        &theta[5], &max_theta[5], &k[5]);
+      qg[6] = pvq_theta(in+128, ref+128, 128, q, out+128,
+                          &theta[6], &max_theta[6], &k[6]);
+
+      predflags16 = 4*(theta[4] != -1) + 2*(theta[5] != -1)
+        + (theta[6] != -1);
+      od_ec_encode_cdf_q15(&enc->ec, predflags16, pred16_cdf[predflags8], 8);
+    }
+
+    pvq_encode_partition(&enc->ec, qg[0], theta[0], max_theta[0], out+1,
+                         15, k[0], model, adapt, exg, ext);
+    pvq_encode_partition(&enc->ec, qg[1], theta[1], max_theta[1], out+16,
+                         8, k[1], model, adapt, exg+1, ext+1);
+    pvq_encode_partition(&enc->ec, qg[2], theta[2], max_theta[2], out+24,
+                         8, k[2], model, adapt, exg+2, ext+2);
+    pvq_encode_partition(&enc->ec, qg[3], theta[3], max_theta[3], out+32,
+                         32, k[3], model, adapt, exg+3, ext+3);
+
+    if (n >= 16) {
+      pvq_encode_partition(&enc->ec, qg[4], theta[4], max_theta[4], out+64,
+                           32, k[4], model, adapt, exg+4, ext+4);
+      pvq_encode_partition(&enc->ec, qg[5], theta[5], max_theta[5], out+96,
+                           32, k[5], model, adapt, exg+5, ext+5);
+      pvq_encode_partition(&enc->ec, qg[6], theta[6], max_theta[6], out+128,
+                           128, k[6], model, adapt, exg+6, ext+6);
     }
   }
-  if (k > 0) {
-    curr[OD_ADAPT_COUNT_Q8] = 256*sum_c;
-    curr[OD_ADAPT_COUNT_EX_Q8] = sum_ex;
-  }
-  else {
-    curr[OD_ADAPT_COUNT_Q8] = OD_ADAPT_NO_VALUE;
-    curr[OD_ADAPT_COUNT_EX_Q8] = OD_ADAPT_NO_VALUE;
-  }
-  curr[OD_ADAPT_K_Q8] = 0;
-  curr[OD_ADAPT_SUM_EX_Q8] = 0;
 }

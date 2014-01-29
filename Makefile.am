@@ -26,6 +26,7 @@ noinst_HEADERS = \
 	src/intradata_4x4.h \
 	src/intradata_8x8.h \
 	src/intradata_16x16.h \
+	src/laplace_code.h \
 	src/logging.h \
 	src/mc.h \
 	src/odintrin.h \
@@ -60,6 +61,8 @@ src_libdaalabase_la_SOURCES = \
 	src/internal.c \
 	src/intra.c \
 	src/intradata.c \
+	src/laplace_decoder.c \
+	src/laplace_encoder.c \
 	src/laplace_tables.c \
 	src/logging.c \
 	src/mc.c \

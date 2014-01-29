@@ -28,12 +28,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #include <stdio.h>
 
+#include "laplace_code.h"
 #include "generic_code.h"
 #include "entenc.h"
 #include "entdec.h"
 #include "logging.h"
 #include "odintrin.h"
-#include "pvq_code.h"
 
 /** Initializes the cdfs and freq counts for a model.
  *

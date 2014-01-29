@@ -22,20 +22,25 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
-#if !defined(_pvq_code_H)
-# define _pvq_code_H
+#if !defined(_laplace_code_H)
+# define _laplace_code_H
 
-# include "encint.h"
 # include "entenc.h"
 # include "entdec.h"
 # include "filter.h"
-# include "generic_code.h"
-# include "laplace_code.h"
+# include "adapt.h"
 
-void pvq_encode(daala_enc_ctx *enc, od_coeff *predt, od_coeff *cblock,
-                od_coeff *scalar_out, int scale, int n);
+extern const ogg_uint16_t EXP_CDF_TABLE[][16];
+extern const ogg_uint16_t LAPLACE_OFFSET[];
 
-void pvq_decode(daala_dec_ctx *dec, od_coeff *ref, od_coeff *out,
-                int scale, int n);
+extern void laplace_encode_special(od_ec_enc *enc, int x, unsigned decay, int max);
+extern void laplace_encode(od_ec_enc *enc, int x, int ex_q8, int k);
+extern void laplace_encode_vector(od_ec_enc *enc, const od_coeff *y, int n, int k,
+                                  ogg_int32_t *curr, const ogg_int32_t *means);
+
+extern int laplace_decode_special(od_ec_dec *dec, unsigned decay, int max);
+extern int laplace_decode(od_ec_dec *dec, int ex_q8, int k);
+extern void laplace_decode_vector(od_ec_dec *dec, od_coeff *y, int n, int k,
+                                  ogg_int32_t *curr, const ogg_int32_t *means);
 
 #endif

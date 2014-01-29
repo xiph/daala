@@ -262,29 +262,6 @@ struct od_mb_enc_ctx {
 };
 typedef struct od_mb_enc_ctx od_mb_enc_ctx;
 
-void od_band_encode(od_ec_enc *ec, int qg, int theta, int max_theta,
- const od_coeff *y, int n, int k, generic_encoder *model, int *adapt, int *exg,
- int *ext) {
-  int adapt_curr[OD_NSB_ADAPT_CTXS] = { 0 };
-  int speed = 5;
-  generic_encode(ec, model, qg, exg, 2);
-  if (theta >= 0 && max_theta > 0)
-    generic_encode(ec, model, theta, ext, 2);
-  pvq_encoder(ec, y, n - (theta >= 0), k, adapt_curr, adapt);
-  if (adapt_curr[OD_ADAPT_K_Q8] > 0) {
-    adapt[OD_ADAPT_K_Q8] += 256*adapt_curr[OD_ADAPT_K_Q8] -
-     adapt[OD_ADAPT_K_Q8]>>speed;
-    adapt[OD_ADAPT_SUM_EX_Q8] += adapt_curr[OD_ADAPT_SUM_EX_Q8] -
-     adapt[OD_ADAPT_SUM_EX_Q8]>>speed;
-  }
-  if (adapt_curr[OD_ADAPT_COUNT_Q8] > 0) {
-    adapt[OD_ADAPT_COUNT_Q8] += adapt_curr[OD_ADAPT_COUNT_Q8]-
-     adapt[OD_ADAPT_COUNT_Q8]>>speed;
-    adapt[OD_ADAPT_COUNT_EX_Q8] += adapt_curr[OD_ADAPT_COUNT_EX_Q8]-
-     adapt[OD_ADAPT_COUNT_EX_Q8]>>speed;
-  }
-}
-
 void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
  int pli, int bx, int by, int has_ur) {
   ogg_int32_t adapt_curr[OD_NSB_ADAPT_CTXS];
@@ -489,76 +466,12 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
 #endif
   scalar_out[0] = scalar_out[0]*scale;
   scalar_out[0] += predt[0];
+
   if (run_pvq) {
-    int theta[7];
-    int max_theta[7];
-    int qg[7];
-    int k[7];
-    int *adapt;
-    int *exg;
-    int *ext;
-    int predflags8;
-    int predflags16;
     int i;
-    generic_encoder *model;
-    adapt = enc->state.pvq_adapt;
-    exg = enc->state.pvq_exg;
-    ext = enc->state.pvq_ext;
-    model = &enc->state.pvq_gain_model;
-
-    qg[0] = pvq_theta(cblock+1, predt+1, 15, scale, scalar_out+1,
-                      &theta[0], &max_theta[0], &k[0]);
-    if (n==4){
-      od_ec_encode_bool_q15(&enc->ec, theta[0] != -1, PRED4_PROB);
-      od_band_encode(&enc->ec, qg[0], theta[0], max_theta[0], scalar_out+1,
-       15, k[0], model, adapt, exg, ext);
-    }
-    else{
-
-      qg[1] = pvq_theta(cblock+16, predt+16, 8, scale, scalar_out+16,
-                        &theta[1], &max_theta[1], &k[1]);
-      qg[2] = pvq_theta(cblock+24, predt+24, 8, scale, scalar_out+24,
-                        &theta[2], &max_theta[2], &k[2]);
-      qg[3] = pvq_theta(cblock+32, predt+32, 32, scale, scalar_out+32,
-                        &theta[3], &max_theta[3], &k[3]);
-
-      predflags8 = 8*(theta[0] != -1) + 4*(theta[1] != -1) + 2*(theta[2] != -1)
-        + (theta[3] != -1);
-      od_ec_encode_cdf_q15(&enc->ec, predflags8, pred8_cdf, 16);
-
-      if (n >= 16) {
-        qg[4] = pvq_theta(cblock+64, predt+64, 32, scale, scalar_out+64,
-                          &theta[4], &max_theta[4], &k[4]);
-        qg[5] = pvq_theta(cblock+96, predt+96, 32, scale, scalar_out+96,
-                          &theta[5], &max_theta[5], &k[5]);
-        qg[6] = pvq_theta(cblock+128, predt+128, 128, scale, scalar_out+128,
-                          &theta[6], &max_theta[6], &k[6]);
-
-        predflags16 = 4*(theta[4] != -1) + 2*(theta[5] != -1)
-          + (theta[6] != -1);
-        od_ec_encode_cdf_q15(&enc->ec, predflags16, pred16_cdf[predflags8], 8);
-      }
-
-      od_band_encode(&enc->ec, qg[0], theta[0], max_theta[0], scalar_out+1,
-                     15, k[0], model, adapt, exg, ext);
-      od_band_encode(&enc->ec, qg[1], theta[1], max_theta[1], scalar_out+16,
-                     8, k[1], model, adapt, exg+1, ext+1);
-      od_band_encode(&enc->ec, qg[2], theta[2], max_theta[2], scalar_out+24,
-                     8, k[2], model, adapt, exg+2, ext+2);
-      od_band_encode(&enc->ec, qg[3], theta[3], max_theta[3], scalar_out+32,
-                     32, k[3], model, adapt, exg+3, ext+3);
-
-      if (n >= 16) {
-        od_band_encode(&enc->ec, qg[4], theta[4], max_theta[4], scalar_out+64,
-                       32, k[4], model, adapt, exg+4, ext+4);
-        od_band_encode(&enc->ec, qg[5], theta[5], max_theta[5], scalar_out+96,
-                       32, k[5], model, adapt, exg+5, ext+5);
-        od_band_encode(&enc->ec, qg[6], theta[6], max_theta[6], scalar_out+128,
-                       128, k[6], model, adapt, exg+6, ext+6);
-      }
-    }
-    for (zzi = 1; zzi < n2; zzi++) scalar_out[zzi] = cblock[zzi];
+    pvq_encode(enc, predt, cblock, scalar_out, scale, n);
     for (i = 0; i < OD_NSB_ADAPT_CTXS; i++) adapt_curr[i] = 0;
+    for (i = 1; i < n2; i++) scalar_out[i] = cblock[i];
   }
   else {
     vk = 0;
@@ -571,7 +484,7 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
 #endif
     generic_encode(&enc->ec, ctx->model_g + pli, vk,
      ctx->ex_g + pli, 0);
-    pvq_encoder(&enc->ec, scalar_out + 1, n2 - 1, vk, adapt_curr, ctx->adapt);
+    laplace_encode_vector(&enc->ec, scalar_out + 1, n2 - 1, vk, adapt_curr, ctx->adapt);
 #if defined(OD_METRICS)
     enc->state.bit_metrics[OD_METRIC_PVQ] += od_ec_enc_tell_frac(&enc->ec) -
      pvq_frac_bits;

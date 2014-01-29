@@ -29,246 +29,143 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <stdlib.h>
 #include <stdio.h>
 #include "internal.h"
+#include "decint.h"
 #include "entdec.h"
 #include "entcode.h"
 #include "logging.h"
+#include "laplace_code.h"
 #include "pvq_code.h"
 
-/** Decodes the tail of a Laplace-distributed variable, i.e. it doesn't
- * do anything special for the zero case.
+/** Decodes a single vector of integers (eg, a partition within a
+ *  coefficient block) encoded using PVQ
  *
- * @param [dec] range decoder
- * @param [decay] decay factor of the distribution, i.e. pdf ~= decay^x
- * @param [max] maximum possible value of x (used to truncate the pdf)
- *
- * @retval decoded variable x
+ * @param [in,out] ec      range encoder
+ * @param [in]     q       scale/quantizer
+ * @param [in]     n       number of coefficients in partition
+ * @param [in,out] model   entropy decoder state
+ * @param [in,out] adapt   adaptation context
+ * @param [in,out] exg     ExQ16 expectation of decoded gain value
+ * @param [in,out] ext     ExQ16 expectation of decoded theta value
+ * @param [in]     ref     'reference' (prediction) vector
+ * @param [out]    out     decoded partition
+ * @param [in]     noref   boolean indicating absence of reference
  */
-int laplace_decode_special(od_ec_dec *dec, unsigned decay, int max) {
-  int pos;
-  int shift;
-  int xs;
-  int ms;
-  int sym;
-  const ogg_uint16_t *cdf;
-  shift = 0;
-  if (max == 0) return 0;
-  /* We don't want a large decay value because that would require too many
-     symbols. However, it's OK if the max is below 15. */
-  while (((max >> shift) >= 15 || max == -1) && decay > 235) {
-    decay = (decay*decay + 128) >> 8;
-    shift++;
-  }
-  decay = OD_MINI(decay, 254);
-  decay = OD_MAXI(decay, 2);
-  ms = max >> shift;
-  cdf = EXP_CDF_TABLE[(decay + 1) >> 1];
-  OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "decay = %d\n", decay));
-  xs = 0;
-  do {
-    sym = OD_MINI(xs, 15);
-    {
-      int i;
-      OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "%d %d %d %d", xs, shift, sym, max));
-      for (i = 0; i < 16; i++) {
-        OD_LOG_PARTIAL((OD_LOG_PVQ, OD_LOG_DEBUG, "%d ", cdf[i]));
-      }
-      OD_LOG_PARTIAL((OD_LOG_PVQ, OD_LOG_DEBUG, "\n"));
-    }
-    if (ms > 0 && ms < 15) {
-      /* Simple way of truncating the pdf when we have a bound. */
-      sym = od_ec_decode_cdf_unscaled(dec, cdf, ms + 1);
-    }
-    else sym = od_ec_decode_cdf_q15(dec, cdf, 16);
-    xs += sym;
-    ms -= 15;
-  }
-  while (sym >= 15 && ms != 0);
-  if (shift) pos = (xs << shift) + od_ec_dec_bits(dec, shift);
-  else pos = xs;
-  OD_ASSERT(pos >> shift <= max >> shift || max == -1);
-  if (max != -1 && pos > max) {
-    pos = max;
-    dec->error = 1;
-  }
-  OD_ASSERT(pos <= max || max == -1);
-  return pos;
-}
-
-/** Decodes a Laplace-distributed variable for use in PVQ.
- *
- * @param [in,out] dec  range decoder
- * @param [in]     ExQ8 expectation of the absolute value of x
- * @param [in]     K    maximum value of |x|
- *
- * @retval decoded variable (including sign)
- */
-int laplace_decode(od_ec_dec *dec, int ex_q8, int k) {
-  int j;
-  int shift;
-  ogg_uint16_t cdf[16];
-  int sym;
-  int lsb;
-  int decay;
-  int offset;
-  lsb = 0;
-  /* Shift down x if expectation is too high. */
-  shift = od_ilog(ex_q8) - 11;
-  if (shift < 0) shift = 0;
-  /* Apply the shift with rounding to Ex, K and xs. */
-  ex_q8 = (ex_q8 + (1 << shift >> 1)) >> shift;
-  k = (k + (1 << shift >> 1)) >> shift;
-  decay = OD_MINI(254, 256*ex_q8/(ex_q8 + 256));
-  offset = LAPLACE_OFFSET[(decay + 1) >> 1];
-  for (j = 0; j < 16; j++) {
-    cdf[j] = EXP_CDF_TABLE[(decay + 1) >> 1][j] - offset;
-  }
-  /* Simple way of truncating the pdf when we have a bound */
-  if (k == 0) sym = 0;
-  else sym = od_ec_decode_cdf_unscaled(dec, cdf, OD_MINI(k + 1, 16));
-  if (shift) {
-    int special;
-    /* Because of the rounding, there's only half the number of possibilities
-       for xs=0 */
-    special = (sym == 0);
-    if (shift - special > 0) lsb = od_ec_dec_bits(dec, shift - special);
-    lsb -= (!special << (shift - 1));
-  }
-  /* Handle the exponentially-decaying tail of the distribution */
-  if (sym == 15) sym += laplace_decode_special(dec, decay, k - 15);
-  return (sym << shift) + lsb;
-}
-
-/** Decodes a vector of integers assumed to come from rounding a sequence of
- * Laplace-distributed real values in decreasing order of variance.
- *
- * @param [in,out] dec range decoder
- * @param [in]     y     decoded vector
- * @param [in]     N     dimension of the vector
- * @param [in]     K     sum of the absolute value of components of y
- * @param [out]    curr  Adaptation context output, may alias means.
- * @param [in]     means Adaptation context input.
- */
-void pvq_decoder(od_ec_dec *dec, od_coeff *y, int n, int k,
- ogg_int32_t *curr, const ogg_int32_t *means) {
+static void pvq_decode_partition(od_ec_dec *ec,
+                                 int q,
+                                 int n,
+                                 generic_encoder *model,
+                                 int *adapt,
+                                 int *exg,
+                                 int *ext,
+                                 od_coeff *ref,
+                                 od_coeff *out,
+                                 int noref) {
+  int adapt_curr[OD_NSB_ADAPT_CTXS] = {0};
+  int speed = 5;
+  int k;
+  int qg;
+  double qcg;
+  double gain_offset;
+  double theta;
+  int itheta;
+  int max_theta;
+  int m;
+  int s;
+  double gr;
+  double r[1024];
+  od_coeff y[1024];
   int i;
-  int sum_ex;
-  int kn;
-  int exp_q8;
-  int mean_k_q8;
-  int mean_sum_ex_q8;
-  int ran_delta;
-  ran_delta = 0;
-  if (k <= 1) {
-    pvq_decode_delta(dec, y, n, k, curr, means);
-    return;
+  qg = generic_decode(ec, model, exg, 2);
+  max_theta = od_compute_max_theta(ref, n, q, &gr, &qcg, &qg, &gain_offset,
+                                   noref);
+  if (!noref && max_theta>0) itheta = generic_decode(ec, model, ext, 2);
+  else itheta = noref ? 0 : -1;
+  theta = od_compute_k_theta(&k, qcg, itheta, max_theta, noref, n);
+  laplace_decode_vector(ec, y, n-(!noref), k, adapt_curr, adapt);
+  for (i = 0; i < n; i++) r[i] = ref[i];
+  m = compute_householder(r, n, gr, &s);
+  if (!noref) {
+    for (i = n; i > m; i--) y[i] = y[i-1];
+    y[m] = 0;
   }
-  if (k == 0) {
-    curr[OD_ADAPT_COUNT_Q8] = OD_ADAPT_NO_VALUE;
-    curr[OD_ADAPT_COUNT_EX_Q8] = OD_ADAPT_NO_VALUE;
-    curr[OD_ADAPT_K_Q8] = 0;
-    curr[OD_ADAPT_SUM_EX_Q8] = 0;
-    for (i = 0; i < n; i++) y[i] = 0;
-    return;
+
+  pvq_synthesis(out, y, r, n, noref, qg, gain_offset, theta, m, s, q);
+
+  if (adapt_curr[OD_ADAPT_K_Q8] > 0) {
+    adapt[OD_ADAPT_K_Q8]
+      += 256*adapt_curr[OD_ADAPT_K_Q8]-adapt[OD_ADAPT_K_Q8]>>speed;
+    adapt[OD_ADAPT_SUM_EX_Q8]
+      += adapt_curr[OD_ADAPT_SUM_EX_Q8]-adapt[OD_ADAPT_SUM_EX_Q8]>>speed;
   }
-  sum_ex = 0;
-  kn = k;
-  /* Estimates the factor relating pulses_left and positions_left to E(|x|).*/
-  mean_k_q8 = means[OD_ADAPT_K_Q8];
-  mean_sum_ex_q8 = means[OD_ADAPT_SUM_EX_Q8];
-  if (mean_k_q8 < 1 << 23) exp_q8 = 256*mean_k_q8/(1 + mean_sum_ex_q8);
-  else exp_q8 = mean_k_q8/(1 + (mean_sum_ex_q8 >> 8));
-  for (i = 0; i < n; i++) {
-    int ex;
-    int x;
-    if (kn == 0) break;
-    if (kn <= 1 && i != n - 1) {
-      pvq_decode_delta(dec, y + i, n - i, kn, curr, means);
-      ran_delta = 1;
-      i = n;
-      break;
-    }
-    /* Expected value of x (round-to-nearest) is
-       expQ8*pulses_left/positions_left. */
-    ex = (2*exp_q8*kn + (n - i))/(2*(n - i));
-    if (ex > kn*256) ex = kn*256;
-    sum_ex += (2*256*kn + (n - i))/(2*(n - i));
-    /* No need to encode the magnitude for the last bin. */
-    if (i != n - 1) x = laplace_decode(dec, ex, kn);
-    else x = kn;
-    if (x != 0) {
-      if (od_ec_dec_bits(dec, 1)) x = -x;
-    }
-    y[i] = x;
-    kn -= abs(x);
+  if (adapt_curr[OD_ADAPT_COUNT_Q8] > 0) {
+    adapt[OD_ADAPT_COUNT_Q8]
+      += adapt_curr[OD_ADAPT_COUNT_Q8]-adapt[OD_ADAPT_COUNT_Q8]>>speed;
+    adapt[OD_ADAPT_COUNT_EX_Q8]
+      += adapt_curr[OD_ADAPT_COUNT_EX_Q8]-adapt[OD_ADAPT_COUNT_EX_Q8]>>speed;
   }
-  /* Adapting the estimates for expQ8. */
-  if (!ran_delta) {
-    curr[OD_ADAPT_COUNT_Q8] = OD_ADAPT_NO_VALUE;
-    curr[OD_ADAPT_COUNT_EX_Q8] = OD_ADAPT_NO_VALUE;
-  }
-  curr[OD_ADAPT_K_Q8] = k - kn;
-  curr[OD_ADAPT_SUM_EX_Q8] = sum_ex;
-  for (; i < n; i++) y[i] = 0;
 }
 
-void pvq_decode_delta(od_ec_dec *dec, od_coeff *y, int n, int k,
- ogg_int32_t *curr, const ogg_int32_t *means) {
-  int i;
-  int prev;
-  int sum_ex;
-  int sum_c;
-  int coef;
-  int pos;
-  int k0;
-  int sign;
-  int first;
-  int k_left;
-  prev = 0;
-  sum_ex = 0;
-  sum_c = 0;
-  coef = 256*means[OD_ADAPT_COUNT_Q8]/
-   (1 + means[OD_ADAPT_COUNT_EX_Q8]);
-  pos = 0;
-  sign = 0;
-  first = 1;
-  k_left = k;
-  for (i = 0; i < n; i++) y[i] = 0;
-  k0 = k_left;
-  coef = OD_MAXI(coef, 1);
-  for (i = 0; i < k0; i++) {
-    int count;
-    if (first) {
-      int decay;
-      int ex = coef*(n - prev)/k_left;
-      if (ex > 65280) decay = 255;
-      else {
-        decay = OD_MINI(255,
-         (int)((256*ex/(ex + 256) + (ex>>5)*ex/((n + 1)*(n - 1)*(n - 1)))));
-      }
-      /*Update mean position.*/
-      count = laplace_decode_special(dec, decay, n - 1);
-      first = 0;
-    }
-    else count = laplace_decode(dec, coef*(n - prev)/k_left, n - prev - 1);
-    sum_ex += 256*(n - prev);
-    sum_c += count*k_left;
-    pos += count;
-    OD_ASSERT(pos < n);
-    if (y[pos] == 0)
-      sign = od_ec_dec_bits(dec, 1);
-    y[pos] += sign ? -1 : 1;
-    prev = pos;
-    k_left--;
-    if (k_left == 0) break;
-  }
-  if (k > 0) {
-    curr[OD_ADAPT_COUNT_Q8] = 256*sum_c;
-    curr[OD_ADAPT_COUNT_EX_Q8] = sum_ex;
+/** Decodes a coefficient block (except for DC) encoded using PVQ
+ *
+ * @param [in,out] dec     daala decoder context
+ * @param [in]     ref     'reference' (prediction) vector
+ * @param [out]    out     decoded partition
+ * @param [in]     q       quantizer
+ * @param [in]     n       number of coefficients on one side of block
+ */
+void pvq_decode(daala_dec_ctx *dec,
+                od_coeff *ref,
+                od_coeff *out,
+                int q,
+                int n){
+
+  int noref[PVQ_MAX_PARTITIONS];
+  int *adapt;
+  int *exg;
+  int *ext;
+  int predflags8;
+  int predflags16;
+  generic_encoder *model;
+  adapt = dec->state.pvq_adapt;
+  exg = dec->state.pvq_exg;
+  ext = dec->state.pvq_ext;
+  model = &dec->state.pvq_gain_model;
+
+  if (n == 4) {
+    noref[0] = !od_ec_decode_bool_q15(&dec->ec, PRED4_PROB);
+    pvq_decode_partition(&dec->ec, q, 15, model, adapt, exg, ext, ref+1,
+                   out+1, noref[0]);
   }
   else {
-    curr[OD_ADAPT_COUNT_Q8] = -1;
-    curr[OD_ADAPT_COUNT_EX_Q8] = 0;
+    predflags8 = od_ec_decode_cdf_q15(&dec->ec, pred8_cdf, 16);
+    noref[0] = !(predflags8>>3);
+    noref[1] = !((predflags8>>2) & 0x1);
+    noref[2] = !((predflags8>>1) & 0x1);
+    noref[3] = !(predflags8 & 0x1);
+
+    if(n >= 16) {
+      predflags16 = od_ec_decode_cdf_q15(&dec->ec, pred16_cdf[predflags8], 8);
+      noref[4] = !((predflags16>>2) & 0x1);
+      noref[5] = !((predflags16>>1) & 0x1);
+      noref[6] = !(predflags16 & 0x1);
+    }
+
+    pvq_decode_partition(&dec->ec, q, 15, model, adapt, exg, ext, ref+1,
+                   out+1, noref[0]);
+    pvq_decode_partition(&dec->ec, q, 8, model, adapt, exg+1, ext+1, ref+16,
+                   out+16, noref[1]);
+    pvq_decode_partition(&dec->ec, q, 8, model, adapt, exg+2, ext+2, ref+24,
+                   out+24, noref[2]);
+    pvq_decode_partition(&dec->ec, q, 32, model, adapt, exg+3, ext+3, ref+32,
+                   out+32, noref[3]);
+
+    if(n >= 16) {
+      pvq_decode_partition(&dec->ec, q, 32, model, adapt, exg+4, ext+4, ref+64,
+                     out+64, noref[4]);
+      pvq_decode_partition(&dec->ec, q, 32, model, adapt, exg+5, ext+5, ref+96,
+                     out+96, noref[5]);
+      pvq_decode_partition(&dec->ec, q, 128, model, adapt, exg+6, ext+6, ref+128,
+                     out+128, noref[6]);
+    }
   }
-  curr[OD_ADAPT_K_Q8] = 0;
-  curr[OD_ADAPT_SUM_EX_Q8] = 0;
 }

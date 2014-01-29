@@ -129,51 +129,6 @@ struct od_mb_dec_ctx {
 };
 typedef struct od_mb_dec_ctx od_mb_dec_ctx;
 
-static void od_band_decode(od_ec_dec *ec, int q, int n, generic_encoder *model,
- int *adapt, int *exg, int *ext, od_coeff *r0,  od_coeff *x0, int noref) {
-  int adapt_curr[OD_NSB_ADAPT_CTXS] = {0};
-  int speed = 5;
-  int k;
-  int qg;
-  double qcg;
-  double gain_offset;
-  double theta;
-  int itheta;
-  int max_theta;
-  int m;
-  int s;
-  double gr;
-  double r[1024];
-  od_coeff y[1024];
-  int i;
-  qg = generic_decode(ec, model, exg, 2);
-  max_theta = od_compute_max_theta(r0, n, q, &gr, &qcg, &qg, &gain_offset,
-   noref);
-  if (!noref && max_theta>0) itheta = generic_decode(ec, model, ext, 2);
-  else itheta = noref ? 0 : -1;
-  theta = od_compute_k_theta(&k, qcg, itheta, max_theta, noref, n);
-  pvq_decoder(ec, y, n-(!noref), k, adapt_curr, adapt);
-  for (i = 0; i < n; i++) r[i] = r0[i];
-  m = compute_householder(r, n, gr, &s);
-  if (!noref) {
-    for (i = n; i > m; i--) y[i] = y[i-1];
-    y[m] = 0;
-  }
-  pvq_synthesis(x0, y, r, n, noref, qg, gain_offset, theta, m, s, q);
-  if (adapt_curr[OD_ADAPT_K_Q8] > 0) {
-    adapt[OD_ADAPT_K_Q8]
-     += 256*adapt_curr[OD_ADAPT_K_Q8]-adapt[OD_ADAPT_K_Q8]>>speed;
-    adapt[OD_ADAPT_SUM_EX_Q8]
-     += adapt_curr[OD_ADAPT_SUM_EX_Q8]-adapt[OD_ADAPT_SUM_EX_Q8]>>speed;
-  }
-  if (adapt_curr[OD_ADAPT_COUNT_Q8] > 0) {
-    adapt[OD_ADAPT_COUNT_Q8]
-     += adapt_curr[OD_ADAPT_COUNT_Q8]-adapt[OD_ADAPT_COUNT_Q8]>>speed;
-    adapt[OD_ADAPT_COUNT_EX_Q8]
-     += adapt_curr[OD_ADAPT_COUNT_EX_Q8]-adapt[OD_ADAPT_COUNT_EX_Q8]>>speed;
-  }
-}
-
 void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
  int pli, int bx, int by, int has_ur) {
   ogg_int32_t adapt_curr[OD_NSB_ADAPT_CTXS];
@@ -335,61 +290,13 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   if (pred[0]) pred[0] *= od_ec_dec_bits(&dec->ec, 1) ? -1 : 1;
   pred[0] = pred[0]*scale + predt[0];
   if (run_pvq) {
-    int noref[7];
-    int *adapt;
-    int *exg;
-    int *ext;
-    int predflags8;
-    int predflags16;
     int i;
-    generic_encoder *model;
-    adapt = dec->state.pvq_adapt;
-    exg = dec->state.pvq_exg;
-    ext = dec->state.pvq_ext;
-    model = &dec->state.pvq_gain_model;
-
-    if (n == 4) {
-      noref[0] = !od_ec_decode_bool_q15(&dec->ec, PRED4_PROB);
-      od_band_decode(&dec->ec, scale, 15, model, adapt, exg, ext, predt+1,
-       pred+1, noref[0]);
-    }
-    else {
-      predflags8 = od_ec_decode_cdf_q15(&dec->ec, pred8_cdf, 16);
-      noref[0] = !(predflags8>>3);
-      noref[1] = !((predflags8>>2) & 0x1);
-      noref[2] = !((predflags8>>1) & 0x1);
-      noref[3] = !(predflags8 & 0x1);
-
-      if(n >= 16) {
-        predflags16 = od_ec_decode_cdf_q15(&dec->ec, pred16_cdf[predflags8], 8);
-        noref[4] = !((predflags16>>2) & 0x1);
-        noref[5] = !((predflags16>>1) & 0x1);
-        noref[6] = !(predflags16 & 0x1);
-      }
-
-      od_band_decode(&dec->ec, scale, 15, model, adapt, exg, ext, predt+1,
-       pred+1, noref[0]);
-      od_band_decode(&dec->ec, scale, 8, model, adapt, exg+1, ext+1, predt+16,
-       pred+16, noref[1]);
-      od_band_decode(&dec->ec, scale, 8, model, adapt, exg+2, ext+2, predt+24,
-       pred+24, noref[2]);
-      od_band_decode(&dec->ec, scale, 32, model, adapt, exg+3, ext+3, predt+32,
-       pred+32, noref[3]);
-
-      if(n >= 16) {
-        od_band_decode(&dec->ec, scale, 32, model, adapt, exg+4, ext+4, predt+64,
-                       pred+64, noref[4]);
-        od_band_decode(&dec->ec, scale, 32, model, adapt, exg+5, ext+5, predt+96,
-                       pred+96, noref[5]);
-        od_band_decode(&dec->ec, scale, 128, model, adapt, exg+6, ext+6, predt+128,
-                       pred+128, noref[6]);
-      }
-    }
+    pvq_decode(dec, predt, pred, scale, n);
     for (i = 0; i < OD_NSB_ADAPT_CTXS; i++) adapt_curr[i] = 0;
   }
   else {
     vk = generic_decode(&dec->ec, ctx->model_g + pli, ctx->ex_g + pli, 0);
-    pvq_decoder(&dec->ec, pred + 1, n2 - 1, vk, adapt_curr, ctx->adapt);
+    laplace_decode_vector(&dec->ec, pred + 1, n2 - 1, vk, adapt_curr, ctx->adapt);
     for (zzi = 1; zzi < n2; zzi++) pred[zzi] = pred[zzi]*scale + predt[zzi];
   }
   if (adapt_curr[OD_ADAPT_K_Q8] >= 0) {

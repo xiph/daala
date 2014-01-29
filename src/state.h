@@ -30,7 +30,7 @@ typedef struct od_state          od_state;
 
 # include "internal.h"
 # include "mc.h"
-# include "pvq_code.h"
+# include "pvq.h"
 # include "adapt.h"
 # include "generic_code.h"
 
@@ -124,10 +124,13 @@ struct od_state{
   ogg_int64_t         cur_time;
   od_mv_grid_pt **mv_grid;
   od_adapt_ctx        adapt_sb[OD_NPLANES_MAX];
+
+  /* Support for PVQ encode/decode */
   int                 pvq_adapt[OD_NSB_ADAPT_CTXS];
   generic_encoder     pvq_gain_model;
-  int                 pvq_ext[7];
-  int                 pvq_exg[7];
+  int                 pvq_ext[PVQ_MAX_PARTITIONS];
+  int                 pvq_exg[PVQ_MAX_PARTITIONS];
+
   /** number of horizontal macro blocks. */
   int                 nhmbs;
   /** number of vertical macro blocks. */

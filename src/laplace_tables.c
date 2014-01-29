@@ -4,7 +4,7 @@
 # include "config.h"
 #endif
 
-#include "pvq_code.h"
+#include "laplace_code.h"
 
 const ogg_uint16_t EXP_CDF_TABLE[128][16] = {
   {32753,32754,32755,32756,32757,32758,32759,32760,32761,32762,32763,32764,32765,32766,32767,32768},

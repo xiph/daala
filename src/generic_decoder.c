@@ -28,11 +28,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #include <stdio.h>
 
+#include "laplace_code.h"
 #include "generic_code.h"
 #include "entdec.h"
 #include "logging.h"
 #include "odintrin.h"
-#include "pvq_code.h"
 
 /** Encodes a random variable using a "generic" model, assuming that the
  * distribution is one-sided (zero and up), has a single mode, and decays
