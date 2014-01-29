@@ -179,6 +179,41 @@ IS_CSOURCES:=${IS_LOCAL_CSOURCES:%=${LOCALSRCDIR}/%} ${IS_LIB_CSOURCES:%=${LIBSR
 IS_TARGET:=intra_stats
 
 
+# cfl_stats
+CS_LOCAL_CSOURCES = \
+cfl_stats.c \
+intra_fit_tools.c \
+od_covmat.c \
+od_filter.c \
+od_intra.c \
+od_intra_data.c \
+image_tools.c \
+stats_tools.c \
+vidinput.c \
+y4m_input.c \
+image.c
+
+CS_LIB_CSOURCES = \
+block_size.c \
+block_size_enc.c \
+entenc.c \
+entcode.c \
+filter.c \
+newdct.c \
+intra.c \
+switch_table.c \
+tf.c \
+internal.c \
+intradata.c
+
+CS_LDFLAGS = `pkg-config ogg libpng --libs` -lm
+
+CS_OBJS:=${CS_LOCAL_CSOURCES} ${CS_LIB_CSOURCES}
+CS_OBJS:=${CS_OBJS:%.c=${WORKDIR}/%.o}
+CC_CSOURCES:=${CS_LOCAL_CSOURCES:%=${LOCALSRCDIR}/%} ${CS_LIB_CSOURCES:%=${LIBSRCDIR}/%}
+CS_TARGET:=cfl_stats
+
+
 #intra_pred
 IP_LOCAL_CSOURCES = \
 intra_pred.c \
@@ -411,7 +446,7 @@ BD_TARGET:=bjontegaard
 
 ALL_OBJS:=${P2Y_OBJS} ${Y2P_OBJS} ${PSNRHVS_OBJS} ${PIM_OBJS} ${IIM_OBJS} ${IIX_OBJS} \
  ${GEN_CDF_OBJS} ${GEN_LAPLACE_TABLES_OBJS} ${IS_OBJS} ${IP_OBJS} ${IT_OBJS} ${T_OBJS} \
- ${TG_OBJS} ${T2D_OBJS} ${BSIZE_OBJS} ${BD_OBJS}
+ ${TG_OBJS} ${T2D_OBJS} ${BSIZE_OBJS} ${BD_OBJS} ${CS_OBJS}
 
 ALL_ASMS:=${ALL_OBJS:%.o=%.s}
 
@@ -420,7 +455,8 @@ ALL_DEPS:=${ALL_OBJS:%.o=%.d}
 ALL_TARGETS:=${P2Y_TARGET} ${Y2P_TARGET} ${PSNRHVS_TARGET} \
  ${PIM_TARGET} ${IIM_TARGET} ${IIX_TARGET} ${GEN_CDF_TARGET} \
  ${GEN_LAPLACE_TABLES_TARGET} ${IS_TARGET} ${IP_TARGET} ${IT_TARGET} \
- ${T_TARGET} ${TG_TARGET} ${T2D_TARGET} ${BSIZE_TARGET} ${BD_TARGET}
+ ${T_TARGET} ${TG_TARGET} ${T2D_TARGET} ${BSIZE_TARGET} ${BD_TARGET} \
+ ${CS_TARGET}
 
 all: ${ALL_TARGETS}
 
@@ -468,6 +504,9 @@ ${TG_TARGET}: ${TG_OBJS}
 
 ${T2D_TARGET}: ${T2D_OBJS}
 	${CC} ${CFLAGS} ${T2D_OBJS} ${T2D_LDFLAGS} -o $@
+
+${CS_TARGET}: ${CS_OBJS}
+	${CC} ${CFLAGS} ${CS_OBJS} ${CS_LDFLAGS} -o $@
 
 ${IIX_TARGET}: ${IIX_OBJS}
 	${CC} ${CFLAGS} ${IIX_OBJS} ${IIX_LDFLAGS} -o $@
