@@ -1029,7 +1029,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       h = frame_height >> ydec;
       /* Set this to 1 to enable the new (experimental, encode-only) PVQ
          implementation */
-      mbctx.run_pvq[pli] = 0;
+      mbctx.run_pvq[pli] = 1;
       od_ec_enc_uint(&enc->ec, enc->scale[pli], 512);
       /*If the scale is zero, force scalar.*/
       if (!enc->scale[pli]) mbctx.run_pvq[pli] = 0;
