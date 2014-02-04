@@ -47,10 +47,6 @@ extern const band_layout od_layout16;
 extern const ogg_uint16_t pred8_cdf[16];
 extern const ogg_uint16_t pred16_cdf[16][8];
 
-void od_bands_from_raster(const band_layout *layout, od_coeff *dst,
- od_coeff *src, int stride);
-void od_raster_from_bands(const band_layout *layout, od_coeff *dst,
- int stride, od_coeff *src);
 void od_band_pseudo_zigzag(od_coeff *dst,  int n, od_coeff *src, int stride,
  int interleave);
 void od_band_pseudo_dezigzag(od_coeff *dst,  int stride, od_coeff *src,
@@ -59,10 +55,8 @@ void od_band_pseudo_dezigzag(od_coeff *dst,  int stride, od_coeff *src,
 int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *itheta,
  int *max_theta, int *vk);
 
-int compute_householder(double *r, int n, double gr, int *sign);
-
-void pvq_synthesis(od_coeff *x0, od_coeff *y, const double *r, int n, int noref,
- int qg, double gain_offset, double theta, int m, int s, double q);
+void pvq_synthesis(od_coeff *x0, od_coeff *y, double *r, int n, double gr,
+ int noref, int qg, double gain_offset, double theta, double q);
 
 int od_compute_max_theta(const od_coeff *r, int n, int q, double *gr,
  double *qcg, int *qg, double *gain_offset, int noref);

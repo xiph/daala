@@ -90,7 +90,7 @@ const ogg_uint16_t pred16_cdf[16][8] = {
   { 4096,  8192, 12288, 16384, 20480, 24576, 28672, 32768 }
 };
 
-void od_bands_from_raster(const band_layout *layout, od_coeff *dst,
+static void od_bands_from_raster(const band_layout *layout, od_coeff *dst,
  od_coeff *src, int stride) {
   int i;
   int len;
@@ -100,7 +100,7 @@ void od_bands_from_raster(const band_layout *layout, od_coeff *dst,
   }
 }
 
-void od_raster_from_bands(const band_layout *layout, od_coeff *dst,
+static void od_raster_from_bands(const band_layout *layout, od_coeff *dst,
  int stride, od_coeff *src) {
   int i;
   int len;
@@ -232,7 +232,7 @@ static double pvq_search_double(const double *x, int n, int k, od_coeff *y) {
 /* Computes Householder reflection that aligns the reference r to one
    of the dimensions (return value). The reflection vector is returned
    in r and x is reflected. */
-int compute_householder(double *r, int n, double gr, int *sign) {
+static int compute_householder(double *r, int n, double gr, int *sign) {
   int m;
   int i;
   int s;
@@ -295,46 +295,52 @@ static int neg_deinterleave(int x, int ref) {
   else return x+1;
 }
 
-void pvq_synthesis(od_coeff *x0, od_coeff *y, const double *r, int n, int noref,
- int qg, double gain_offset, double theta, int m, int s, double q) {
+static void pvq_synthesis_partial(od_coeff *out, od_coeff *in, const double *r, int n,
+                                  int noref, int qg, double gain_offset,
+                                  double theta, int m, int s, double q) {
   int i;
   int yy;
   double qcg;
   double norm;
-  double x[MAXN];
   double g;
+  double x[MAXN];
+  int nn = n-(!noref); /* when noref==0, vector y is sized n-1 */
+
+  yy = 0;
+  for (i = 0; i < nn; i++)
+    yy += in[i]*(ogg_int32_t)in[i];
+  norm = sqrt(1./(1e-100 + yy));
+
   if (noref) {
     qcg = qg;
-    yy = 0;
-    for (i = 0; i < n; i++) {
-      yy += y[i]*(ogg_int32_t)y[i];
-    }
-    norm = sqrt(1./(1e-100 + yy));
-    for (i = 0; i < n; i++) {
-      x[i] = y[i]*norm;
-    }
+    for (i = 0; i < n; i++)
+      x[i] = in[i]*norm;
   }
-  else {
-    qcg = qg+gain_offset;
-    if (qg == 0) qcg = 0;
-    yy = 0;
-    for (i = 0; i < n; i++) {
-      yy += y[i]*(ogg_int32_t)y[i];
-    }
-    norm = sqrt(1./(1e-100 + yy));
-    for (i = 0; i < n; i++) {
-      x[i] = y[i]*norm*sin(theta);
-    }
+  else{
+    qcg = qg==0 ? 0 : qg+gain_offset;
+    norm *= sin(theta);
+    for (i = 0; i < m; i++)
+      x[i] = in[i]*norm;
     x[m] = -s*cos(theta);
+    for (i = m; i < nn; i++)
+      x[i+1] = in[i]*norm;
     apply_householder(x, r, n);
   }
+
   g = q*pow(qcg, 1./ACTIVITY);
   for (i = 0; i < n; i++) {
-    x[i] *= g;
+    out[i] = floor(.5 + x[i]*g);
   }
-  for (i = 0; i < n; i++) {
-    x0[i] = floor(.5 + x[i]);
-  }
+}
+
+void pvq_synthesis(od_coeff *out, od_coeff *in, double *r, int n,
+                   double gr, int noref, int qg, double gain_offset,
+                   double theta, double q) {
+  int s = 0;
+  int m = noref ? 0 : compute_householder(r, n, gr, &s);
+
+  pvq_synthesis_partial(out, in, r, n, noref, qg,
+                        gain_offset, theta, m, s, q);
 }
 
 /* This does PVQ quantization with prediction, trying several possible gains
@@ -496,12 +502,12 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *ithet
   }
   k = best_k;
   theta = best_qtheta;
-  /* Synthesize like the decoder would. */
-  pvq_synthesis(x0, y, r, n, noref, qg, gain_offset, theta, m, s, q);
   /* Remove dimension m if we're using theta. */
   if (!noref) {
     for (i = m; i < n - 1; i++) y[i] = y[i+1];
   }
+  /* Synthesize like the decoder would. */
+  pvq_synthesis_partial(x0, y, r, n, noref, qg, gain_offset, theta, m, s, q);
   *vk = k;
   /* Encode gain differently depending on whether we use prediction or not. */
   return noref ? qg : neg_interleave(qg, icgr);

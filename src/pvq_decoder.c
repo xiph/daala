@@ -69,27 +69,23 @@ static void pvq_decode_partition(od_ec_dec *ec,
   double theta;
   int itheta;
   int max_theta;
-  int m;
-  int s;
   double gr;
-  double r[1024];
   od_coeff y[1024];
+  double r[1024];
   int i;
   qg = generic_decode(ec, model, exg, 2);
+
   max_theta = od_compute_max_theta(ref, n, q, &gr, &qcg, &qg, &gain_offset,
                                    noref);
   if (!noref && max_theta>0) itheta = generic_decode(ec, model, ext, 2);
   else itheta = noref ? 0 : -1;
   theta = od_compute_k_theta(&k, qcg, itheta, max_theta, noref, n);
+  /* when noref==0, y is actually size n-1 */
   laplace_decode_vector(ec, y, n-(!noref), k, adapt_curr, adapt);
   for (i = 0; i < n; i++) r[i] = ref[i];
-  m = compute_householder(r, n, gr, &s);
-  if (!noref) {
-    for (i = n; i > m; i--) y[i] = y[i-1];
-    y[m] = 0;
-  }
 
-  pvq_synthesis(out, y, r, n, noref, qg, gain_offset, theta, m, s, q);
+  /* when noref==0, y is actually size n-1 */
+  pvq_synthesis(out, y, r, n, gr, noref, qg, gain_offset, theta, q);
 
   if (adapt_curr[OD_ADAPT_K_Q8] > 0) {
     adapt[OD_ADAPT_K_Q8]
