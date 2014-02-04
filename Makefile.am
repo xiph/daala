@@ -232,6 +232,8 @@ tools_dump_fastssim_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(LIBM)
 
 # dump_psnr
 tools_dump_psnr_SOURCES = \
+	tools/vidinput.c \
+	tools/y4m_input.c \
 	tools/dump_psnr.c
 tools_dump_psnr_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS)
 tools_dump_psnr_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
