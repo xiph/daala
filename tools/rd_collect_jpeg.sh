@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 if [ $# == 0 ]; then
   echo "usage: BUILD_ROOT=<build_dir> $0 *.y4m"
@@ -46,44 +47,44 @@ if [ -z "$DUMP_FASTSSIM" ]; then
   DUMP_FASTSSIM=$BUILD_ROOT/tools/dump_fastssim
 fi
 
-if [ ! -f "$YUVJPEG" ]; then
-  echo "File not found YUVJPEG=$YUVJPEG"
+if [ ! -x "$YUVJPEG" ]; then
+  echo "Executable not found YUVJPEG=$YUVJPEG"
   echo "Do you have the right BUILD_ROOT=$BUILD_ROOT"
   exit 1
 fi
 
-if [ ! -f "$JPEGYUV" ]; then
-  echo "File not found JPEGYUV=$JPEGYUV"
+if [ ! -x "$JPEGYUV" ]; then
+  echo "Executable not found JPEGYUV=$JPEGYUV"
   echo "Do you have the right BUILD_ROOT=$BUILD_ROOT"
   exit 1
 fi
 
-if [ ! -f "$YUV2YUV4MPEG" ]; then
-  echo "File not found YUV2YUV4MPEG=$YUV2YUV4MPEG"
+if [ ! -x "$YUV2YUV4MPEG" ]; then
+  echo "Executable not found YUV2YUV4MPEG=$YUV2YUV4MPEG"
   echo "Do you have the right BUILD_ROOT=$BUILD_ROOT"
   exit 1
 fi
 
-if [ ! -f "$DUMP_PSNR" ]; then
-  echo "File not found DUMP_PSNR=$DUMP_PSNR"
+if [ ! -x "$DUMP_PSNR" ]; then
+  echo "Executable not found DUMP_PSNR=$DUMP_PSNR"
   echo "Do you have the right BUILD_ROOT=$BUILD_ROOT"
   exit 1
 fi
 
-if [ ! -f "$DUMP_PSNRHVS" ]; then
-  echo "File not found DUMP_PSNRHVS=$DUMP_PSNRHVS"
+if [ ! -x "$DUMP_PSNRHVS" ]; then
+  echo "Executable not found DUMP_PSNRHVS=$DUMP_PSNRHVS"
   echo "Do you have the right BUILD_ROOT=$BUILD_ROOT"
   exit 1
 fi
 
-if [ ! -f "$DUMP_SSIM" ]; then
-  echo "File not found DUMP_SSIM=$DUMP_SSIM"
+if [ ! -x "$DUMP_SSIM" ]; then
+  echo "Executable not found DUMP_SSIM=$DUMP_SSIM"
   echo "Do you have the right BUILD_ROOT=$BUILD_ROOT"
   exit 1
 fi
 
-if [ ! -f "$DUMP_FASTSSIM" ]; then
-  echo "File not found DUMP_FASTSSIM=$DUMP_FASTSSIM"
+if [ ! -x "$DUMP_FASTSSIM" ]; then
+  echo "Executable not found DUMP_FASTSSIM=$DUMP_FASTSSIM"
   echo "Do you have the right BUILD_ROOT=$BUILD_ROOT"
   exit 1
 fi
