@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 PLANE=$1
 YUVJPEG=$2
@@ -11,6 +12,7 @@ DUMP_FASTSSIM=$8
 FILE=$9
 
 BASENAME=$(basename $FILE)
+rm $BASENAME.out 2> /dev/null || true
 echo $BASENAME
 tail -n+3 $FILE > $BASENAME-in.yuv
 WIDTH=$(head -1 $FILE | cut -d\  -f 2 | tr -d 'W')
