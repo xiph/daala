@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 if [ $# == 0 ]; then
   echo "usage: BUILD_ROOT=<build_dir> $0 <RD-1.out> <RD-2.out>"

@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 PLANE=$1
 ENCODER_EXAMPLE=$2
