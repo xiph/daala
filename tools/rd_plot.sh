@@ -13,8 +13,8 @@ if [ $# == 0 ]; then
   exit 1
 fi
 
-if [ -z "$GNUPLOT" -a -n "`type gnuplot`" ]; then
-  GNUPLOT=`type gnuplot`
+if [ -z "$GNUPLOT" -a -n "`type -p gnuplot`" ]; then
+  GNUPLOT=`type -p gnuplot`
 fi
 if [ ! -x "$GNUPLOT" ]; then
   echo "Executable not found GNUPLOT=$GNUPLOT"
