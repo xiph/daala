@@ -109,11 +109,11 @@ struct od_mb_dec_ctx {
   generic_encoder model_g[OD_NPLANES_MAX];
   generic_encoder model_ym[OD_NPLANES_MAX];
   ogg_int32_t adapt[OD_NSB_ADAPT_CTXS];
-  signed char *modes;
+  signed char *modes[OD_NPLANES_MAX];
   od_coeff *c;
   od_coeff **d;
   /* holds a TF'd copy of the transform coefficients in 4x4 blocks */
-  od_coeff *tf;
+  od_coeff *tf[OD_NPLANES_MAX];
   od_coeff *md;
   od_coeff *mc;
   od_coeff *l;
@@ -171,10 +171,10 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   ydec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
   frame_width = dec->state.frame_width;
   w = frame_width >> xdec;
-  modes = ctx->modes;
+  modes = ctx->modes[pli];
   c = ctx->c;
   d = ctx->d[pli];
-  tf = ctx->tf;
+  tf = ctx->tf[pli];
   md = ctx->md;
   mc = ctx->mc;
   l = ctx->l;
@@ -185,7 +185,7 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   }
   if (ctx->is_keyframe) {
     if (bx > 0 && by > 0) {
-      if (pli == 0) {
+      if (pli == 0 || OD_DISABLE_CFL) {
         ogg_uint16_t mode_cdf[OD_INTRA_NMODES];
         int m_l;
         int m_ul;
@@ -327,8 +327,8 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
     }
   }
 #endif
-  /* Update the TF'd luma plane. */
-  if (ctx->is_keyframe && pli == 0) {
+  /*Update the TF'd luma plane with CfL, or all the planes without CfL.*/
+  if (ctx->is_keyframe && (pli == 0 || OD_DISABLE_CFL)) {
     od_convert_block_down(tf + (by << 2)*w + (bx << 2), w,
      d + (by << 2)*w + (bx << 2), w, ln, 0, 0);
   }
@@ -513,6 +513,8 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
   int nvsb;
   int nhsb;
   int refi;
+  int xdec;
+  int ydec;
   od_mb_dec_ctx mbctx;
   if (dec == NULL || img == NULL || op == NULL) return OD_EFAULT;
   if (dec->packet_state != OD_PACKET_DATA) return OD_EINVAL;
@@ -539,6 +541,8 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
   dec->state.ref_imgi[OD_FRAME_SELF] = refi;
   nhsb = dec->state.nhsb;
   nvsb = dec->state.nvsb;
+  xdec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
+  ydec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
   od_decode_block_sizes(dec);
   if (!mbctx.is_keyframe) {
     od_dec_mv_unpack(dec);
@@ -563,18 +567,22 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
     int y;
     int x;
     /*Initialize the data needed for each plane.*/
-    mbctx.modes = _ogg_calloc((frame_width >> 2)*(frame_height >> 2),
-     sizeof(*mbctx.modes));
+    nplanes = dec->state.info.nplanes;
+    for (pli = 0; pli < OD_DISABLE_CFL ? nplanes : 1; pli++) {
+      mbctx.modes[pli] = _ogg_calloc((frame_width >> (2 + xdec))
+       *(frame_height >> (2 * ydec)), sizeof(*mbctx.modes[pli]));
+    }
     for (mi = 0; mi < OD_INTRA_NMODES; mi++) {
       mbctx.mode_p0[mi] = 32768/OD_INTRA_NMODES;
     }
-    nplanes = dec->state.info.nplanes;
     if (mbctx.is_keyframe) {
-      xdec = dec->state.io_imgs[OD_FRAME_REC].planes[0].xdec;
-      ydec = dec->state.io_imgs[OD_FRAME_REC].planes[0].ydec;
-      w = frame_width >> xdec;
-      h = frame_height >> ydec;
-      mbctx.tf = _ogg_calloc(w*h, sizeof(*mbctx.tf));
+      for (pli = 0; pli < OD_DISABLE_CFL ? nplanes : 1; pli++) {
+        xdec = dec->state.io_imgs[OD_FRAME_REC].planes[pli].xdec;
+        ydec = dec->state.io_imgs[OD_FRAME_REC].planes[pli].ydec;
+        w = frame_width >> xdec;
+        h = frame_height >> ydec;
+        mbctx.tf[pli] = _ogg_calloc(w*h, sizeof(*mbctx.tf[pli]));
+      }
     }
     /*Apply the prefilter to the motion-compensated reference.*/
     if (!mbctx.is_keyframe) {
@@ -730,9 +738,13 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
         _ogg_free(mctmp[pli]);
       }
     }
-    _ogg_free(mbctx.modes);
+    for (pli = 0; pli < OD_DISABLE_CFL ? nplanes : 1; pli++) {
+      _ogg_free(mbctx.modes[pli]);
+    }
     if (mbctx.is_keyframe) {
-      _ogg_free(mbctx.tf);
+      for (pli = 0; pli < OD_DISABLE_CFL ? nplanes : 1; pli++) {
+        _ogg_free(mbctx.tf[pli]);
+      }
     }
   }
 #if defined(OD_DUMP_IMAGES)

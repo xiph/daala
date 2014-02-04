@@ -240,11 +240,11 @@ struct od_mb_enc_ctx {
   generic_encoder model_g[OD_NPLANES_MAX];
   generic_encoder model_ym[OD_NPLANES_MAX];
   ogg_int32_t adapt[OD_NSB_ADAPT_CTXS];
-  signed char *modes;
+  signed char *modes[OD_NPLANES_MAX];
   od_coeff *c;
   od_coeff **d;
   /* holds a TF'd copy of the transform coefficients in 4x4 blocks */
-  od_coeff *tf;
+  od_coeff *tf[OD_NPLANES_MAX];
   od_coeff *md;
   od_coeff *mc;
   od_coeff *l;
@@ -312,10 +312,10 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   ydec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
   frame_width = enc->state.frame_width;
   w = frame_width >> xdec;
-  modes = ctx->modes;
+  modes = ctx->modes[pli];
   c = ctx->c;
   d = ctx->d[pli];
-  tf = ctx->tf;
+  tf = ctx->tf[pli];
   md = ctx->md;
   mc = ctx->mc;
   l = ctx->l;
@@ -328,7 +328,7 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   }
   if (ctx->is_keyframe) {
     if (bx > 0 && by > 0) {
-      if (pli == 0) {
+      if (pli == 0 || OD_DISABLE_CFL) {
         ogg_uint16_t mode_cdf[OD_INTRA_NMODES];
         ogg_uint32_t mode_dist[OD_INTRA_NMODES];
         int m_l;
@@ -512,8 +512,8 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
     }
   }
 #endif
-  /* Update the TF'd luma plane. */
-  if (ctx->is_keyframe && pli == 0) {
+  /*Update the TF'd luma plane with CfL, or all the planes without CfL.*/
+  if (ctx->is_keyframe && (pli == 0 || OD_DISABLE_CFL)) {
     od_convert_block_down(tf + (by << 2)*w + (bx << 2), w,
      d + (by << 2)*w + (bx << 2), w, ln, 0, 0);
   }
@@ -939,8 +939,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     int y;
     int x;
     /*Initialize the data needed for each plane.*/
-    mbctx.modes = _ogg_calloc((frame_width >> 2)*(frame_height >> 2),
-     sizeof(*mbctx.modes));
     for (mi = 0; mi < OD_INTRA_NMODES; mi++) {
       mbctx.mode_p0[mi] = 32768/OD_INTRA_NMODES;
     }
@@ -963,8 +961,10 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       else od_ec_encode_bool_q15(&enc->ec, mbctx.run_pvq[pli], 16384);
       ctmp[pli] = _ogg_calloc(w*h, sizeof(*ctmp[pli]));
       dtmp[pli] = _ogg_calloc(w*h, sizeof(*dtmp[pli]));
-      if (pli == 0) {
-        mbctx.tf = _ogg_calloc(w*h, sizeof(*mbctx.tf));
+      if (pli == 0 || OD_DISABLE_CFL) {
+        mbctx.tf[pli] = _ogg_calloc(w*h, sizeof(*mbctx.tf[pli]));
+        mbctx.modes[pli] = _ogg_calloc((w >> 2)*(h >> 2),
+         sizeof(*mbctx.modes[pli]));
       }
       mctmp[pli] = _ogg_calloc(w*h, sizeof(*mctmp[pli]));
       mdtmp[pli] = _ogg_calloc(w*h, sizeof(*mdtmp[pli]));
@@ -1109,9 +1109,11 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       _ogg_free(ctmp[pli]);
       _ogg_free(mctmp[pli]);
       _ogg_free(mdtmp[pli]);
+      if (pli == 0 || OD_DISABLE_CFL) {
+        _ogg_free(mbctx.tf[pli]);
+        _ogg_free(mbctx.modes[pli]);
+      }
     }
-    _ogg_free(mbctx.modes);
-    _ogg_free(mbctx.tf);
   }
 #if defined(OD_DUMP_IMAGES)
   /*Dump YUV*/
