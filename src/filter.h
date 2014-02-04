@@ -52,7 +52,7 @@ extern const od_filter_func OD_POST_FILTER[OD_NBSIZES];
    signal processing terms) to improve the energy compaction as well as reduce
    or eliminate blocking artifacts.*/
 
-extern const int OD_FILTER_PARAMS4[4];
+extern const int OD_FILTER_PARAMS4[3];
 extern const int OD_FILTER_PARAMS8[10];
 extern const int OD_FILTER_PARAMS16[22];
 

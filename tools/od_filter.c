@@ -29,13 +29,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "od_defs.h"
 #include "od_filter.h"
 
-int NE_FILTER_PARAMS4[4];
+int NE_FILTER_PARAMS4[3];
 int NE_FILTER_PARAMS8[10];
 int NE_FILTER_PARAMS16[22];
 
 void ne_filter_params_init(){
   int i;
-  for(i=0;i<4;i++){
+  for(i=0;i<3;i++){
     NE_FILTER_PARAMS4[i]=OD_FILTER_PARAMS4[i];
   }
   for(i=0;i<10;i++){
@@ -59,41 +59,39 @@ const od_filter_func NE_POST_FILTER[OD_NBSIZES]={
 };
 
 static void ne_pre_filter4_double(double _y[4],const double _x[4],
- const int _f[4]){
+ const int _f[3]){
   double t[4];
-  t[3]=_x[0]-_x[3];
-  t[2]=_x[1]-_x[2];
-  t[1]=_x[1]-(t[2]/2);
-  t[0]=_x[0]-(t[3]/2);
-  t[2]=t[2]*_f[0]/(1<<FILTER_BITS);
-  t[3]=t[3]*_f[1]/(1<<FILTER_BITS);
-  t[3]+=t[2]*_f[2]/(1<<FILTER_BITS);
-  t[2]+=t[3]*_f[3]/(1<<FILTER_BITS);
-  t[0]+=t[3]/2;
-  _y[0]=t[0];
-  t[1]+=t[2]/2;
-  _y[1]=t[1];
-  _y[2]=(t[1]-t[2]);
-  _y[3]=(t[0]-t[3]);
+  t[3]= _x[0] - _x[3];
+  t[2]= _x[1] - _x[2];
+  t[1]= _x[1] - (t[2]/2);
+  t[0]= _x[0] - (t[3]/2);
+  t[3] += t[2]*_f[0]/(1 << FILTER_BITS);
+  t[2] = t[3]*_f[1]/(1 << FILTER_BITS) - t[2];
+  t[3] += t[2]*_f[2]/(1 << FILTER_BITS);
+  t[0] += t[2]/2;
+  _y[0] = t[0];
+  t[1] += t[3]/2;
+  _y[1] = t[1];
+  _y[2] = (t[1] - t[3]);
+  _y[3] = (t[0] - t[2]);
 }
 
 static void ne_post_filter4_double(double _x[4],const double _y[4],
- const int _f[4]){
+ const int _f[3]){
   double t[4];
-  t[3]=_y[0]-_y[3];
-  t[2]=_y[1]-_y[2];
-  t[1]=_y[1]-(t[2]/2);
-  t[0]=_y[0]-(t[3]/2);
-  t[2]-=t[3]*_f[3]/(1<<FILTER_BITS);
-  t[3]-=t[2]*_f[2]/(1<<FILTER_BITS);
-  t[3]=t[3]*(1<<FILTER_BITS)/_f[1];
-  t[2]=t[2]*(1<<FILTER_BITS)/_f[0];
-  t[0]+=t[3]/2;
-  _x[0]=t[0];
-  t[1]+=t[2]/2;
-  _x[1]=t[1];
-  _x[2]=(t[1]-t[2]);
-  _x[3]=(t[0]-t[3]);
+  t[2] = _y[0] - _y[3];
+  t[3] = _y[1] - _y[2];
+  t[1] = _y[1] - (t[3]/2);
+  t[0] = _y[0] - (t[2]/2);
+  t[3] -= t[2]*_f[2]/(1 << FILTER_BITS);
+  t[2] = (t[3]*_f[1]/(1 << FILTER_BITS)) - t[2];
+  t[3] -= t[2]*_f[0]/(1 << FILTER_BITS);
+  t[0] += t[3]/2;
+  _x[0] = t[0];
+  t[1] += t[2]/2;
+  _x[1] = t[1];
+  _x[2] = (t[1] - t[2]);
+  _x[3] = (t[0] - t[3]);
 }
 
 static void ne_pre_filter8_double(double _y[8],const double _x[8],
