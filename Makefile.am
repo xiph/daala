@@ -162,7 +162,11 @@ tools_TARGETS = \
 	tools/gen_laplace_tables \
 	tools/dump_ssim \
 	tools/dump_fastssim \
-	tools/bjontegaard
+	tools/bjontegaard \
+	tools/yuvjpeg \
+	tools/jpegyuv \
+	tools/yuv2yuv4mpeg \
+	tools/dump_psnr
 
 
 noinst_HEADERS += \
@@ -225,6 +229,12 @@ tools_dump_fastssim_SOURCES = \
 	tools/dump_fastssim.c
 tools_dump_fastssim_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS)
 tools_dump_fastssim_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(LIBM)
+
+# dump_psnr
+tools_dump_psnr_SOURCES = \
+	tools/dump_psnr.c
+tools_dump_psnr_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS)
+tools_dump_psnr_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
 
 # block_size_analysis
 tools_block_size_analysis_SOURCES = \
@@ -452,6 +462,24 @@ tools_bjontegaard_SOURCES = \
 	tools/svd.c
 tools_bjontegaard_CFLAGS =
 tools_bjontegaard_LDADD = $(LIBM)
+
+# yuvjpeg
+tools_yuvjpeg_SOURCES = \
+	tools/yuvjpeg.c
+tools_yuvjpeg_CFLAGS =
+tools_yuvjpeg_LDADD = $(JPEG_LIBS)
+
+# jpegyuv
+tools_jpegyuv_SOURCES = \
+	tools/jpegyuv.c
+tools_jpegyuv_CFLAGS =
+tools_jpegyuv_LDADD = $(JPEG_LIBS)
+
+# yuv2yuv4mpeg
+tools_yuv2yuv4mpeg_SOURCES = \
+	tools/yuv2yuv4mpeg.c
+tools_yuv2yuv4mpeg_CFLAGS =
+tools_yuv2yuv4mpeg_LDADD =
 
 
 # Tests
