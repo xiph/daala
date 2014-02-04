@@ -355,10 +355,7 @@ static const struct option OPTIONS[]={
   {"video-quality",required_argument,NULL,'v'},
   {"video-rate-target",required_argument,NULL,'V'},
   {"keyframe-rate",required_argument,NULL,'k'},
-  {"aspect-numerator",optional_argument,NULL,'s'},
-  {"aspect-denominator",optional_argument,NULL,'S'},
-  {"framerate-numerator",optional_argument,NULL,'f'},
-  {"framerate-denominator",optional_argument,NULL,'F'},
+  {"serial",required_argument,NULL,'s'},
   {"help",no_argument,NULL,'h'},
   {NULL,0,NULL,0}
 };
@@ -380,6 +377,7 @@ static void usage(void){
    "                                 use -v and not -V if at all possible,\n"
    "                                 as -v gives higher quality for a given\n"
    "                                 bitrate.\n\n"
+   "  -s --serial <n>                Specify a serial number for the stream.\n"
    " encoder_example accepts only uncompressed YUV4MPEG2 video.\n\n");
   exit(1);
 }
@@ -404,6 +402,8 @@ int main(int _argc,char **_argv){
   int               video_keyframe_rate;
   int               video_ready;
   int               pli;
+  int               fixedserial;
+  unsigned int      serial;
   daala_log_init();
 #if defined(_WIN32)
   _setmode(_fileno(stdin),_O_BINARY);
@@ -419,6 +419,7 @@ int main(int _argc,char **_argv){
   video_keyframe_rate=1; /* TODO - default off for now but make bigger later */
   video_r=-1;
   video_bytesout=0;
+  fixedserial=0;
   while((c=getopt_long(_argc,_argv,OPTSTRING,OPTIONS,&loi))!=EOF){
     switch(c){
       case 'o':{
@@ -452,6 +453,14 @@ int main(int _argc,char **_argv){
         }
         video_q=0;
       }break;
+      case 's':{
+        if(sscanf(optarg,"%u",&serial)!=1){
+          serial=0;
+        }
+        else{
+          fixedserial=1;
+        }
+      }break;
       case 'h':
       default:{
         usage();
@@ -464,8 +473,11 @@ int main(int _argc,char **_argv){
     fprintf(stderr,"No video files submitted for compression.\n");
     exit(1);
   }
-  srand(time(NULL));
-  ogg_stream_init(&vo,rand());
+  if (!fixedserial) {
+    srand(time(NULL));
+    serial=rand();
+  }
+  ogg_stream_init(&vo,serial);
   daala_info_init(&di);
   di.pic_width=avin.video_pic_w;
   di.pic_height=avin.video_pic_h;
