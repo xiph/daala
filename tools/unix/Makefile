@@ -70,6 +70,8 @@ Y2P_TARGET:=y4m2png
 
 #dump_psnr
 PSNR_LOCAL_CSOURCES = \
+vidinput.c \
+y4m_input.c \
 dump_psnr.c
 
 PSNR_LIB_CSOURCES =
