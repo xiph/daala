@@ -112,3 +112,4 @@ doc/latex
 doc/man
 daala-*/
 *.tar.gz
+out/
