@@ -123,11 +123,15 @@ info.c \
 internal.c \
 intra.c \
 intradata.c \
+laplace_decoder.c \
+laplace_encoder.c \
 laplace_tables.c \
 logging.c \
 mc.c \
 newdct.c \
+partition.c \
 pvq.c \
+pvq_code.c \
 pvq_decoder.c \
 pvq_encoder.c \
 state.c \
@@ -153,6 +157,9 @@ entdec.h \
 entenc.h \
 filter.h \
 generic_code.h \
+laplace_code.h \
+partition.h \
+pvq_code.h \
 internal.h \
 intra.h \
 logging.h \
