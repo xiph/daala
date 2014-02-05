@@ -41,6 +41,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "dct.h"
 #include "intra.h"
 #include "logging.h"
+#include "partition.h"
 #include "pvq.h"
 #include "pvq_code.h"
 #include "block_size.h"
@@ -288,7 +289,7 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   int vk;
   int run_pvq;
   int scale;
-#ifndef USE_PSEUDO_ZIGZAG
+#ifndef USE_BAND_PARTITIONS
   unsigned char const *zig;
 #endif
 #if defined(OD_OUTPUT_PRED)
@@ -305,7 +306,7 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   n2 = n*n;
   bx <<= ln;
   by <<= ln;
-#ifndef USE_PSEUDO_ZIGZAG
+#ifndef USE_BAND_PARTITIONS
   zig = OD_DCT_ZIGS[ln];
 #endif
   xdec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
@@ -439,10 +440,10 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   for (zzi = 0; zzi < n2; zzi++) preds[zzi] = pred[zzi];
 #endif
   /* Change ordering for encoding. */
-#ifdef USE_PSEUDO_ZIGZAG
-  od_band_pseudo_zigzag(cblock,  n, &d[((by << 2))*w + (bx << 2)], w,
+#ifdef USE_BAND_PARTITIONS
+  od_band_partition(cblock,  n, &d[((by << 2))*w + (bx << 2)], w,
    !run_pvq);
-  od_band_pseudo_zigzag(predt,  n, &pred[0], n, !run_pvq);
+  od_band_partition(predt,  n, &pred[0], n, !run_pvq);
 #else
   /*Zig-zag*/
   for (y = 0; y < n; y++) {
@@ -493,8 +494,8 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
       scalar_out[zzi] = scalar_out[zzi]*scale + predt[zzi];
     }
   }
-#ifdef USE_PSEUDO_ZIGZAG
-  od_band_pseudo_dezigzag(&d[((by << 2))*w + (bx << 2)], w, scalar_out, n,
+#ifdef USE_BAND_PARTITIONS
+  od_band_departition(&d[((by << 2))*w + (bx << 2)], w, scalar_out, n,
    !run_pvq);
 #else
   /*De-zigzag*/

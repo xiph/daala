@@ -58,3 +58,133 @@ const band_layout od_layout4 = {
   od_layout4_offsets
 };
 
+/** Perform a single stage of conversion from a coefficient block in
+ * raster order into coding scan order
+ *
+ * @param [in]     layout  scan order specification
+ * @param [out]    dst     destination vector
+ * @param [in]     src     source coefficient block
+ * @param [int]    int     source vector row stride
+ */
+static void od_bands_from_raster(const band_layout *layout, od_coeff *dst,
+ od_coeff *src, int stride) {
+  int i;
+  int len;
+  len = layout->band_offsets[layout->nb_bands];
+  for (i = 0; i < len; i++) {
+    dst[i] = src[layout->dst_table[i][1]*stride + layout->dst_table[i][0]];
+  }
+}
+
+/** Perform a single stage of conversion from a vector in coding scan
+    order back into a coefficient block in raster order
+ *
+ * @param [in]     layout  scan order specification
+ * @param [out]    dst     destination coefficient block
+ * @param [in]     src     source vector
+ * @param [int]    stride  destination vector row stride
+ */
+static void od_raster_from_bands(const band_layout *layout, od_coeff *dst,
+ int stride, od_coeff *src) {
+  int i;
+  int len;
+  len = layout->band_offsets[layout->nb_bands];
+  for (i = 0; i < len; i++) {
+    dst[layout->dst_table[i][1]*stride + layout->dst_table[i][0]] = src[i];
+  }
+}
+
+/** Converts a coefficient block in raster order into a vector in
+ * coding scan order with the PVQ partitions laid out one after
+ * another.  This works in stages; the 4x4 conversion is applied to
+ * the coefficients nearest DC, then the 8x8 applied to the 8x8 block
+ * nearest DC that was not already coded by 4x4, then 16x16 following
+ * the same pattern.
+ *
+ * @param [out]    dst        destination vector
+ * @param [in]     n          block size (along one side)
+ * @param [in]     src        source coefficient block
+ * @param [in]     stride     source vector row stride
+ * @param [in]     interleave interleaves entries for the scalar
+                              (non-pvq) case
+ */
+void od_band_partition(od_coeff *dst,  int n, od_coeff *src, int stride,
+ int interleave) {
+  od_coeff tmp1[1024];
+  od_bands_from_raster(&od_layout4, dst+1, src, stride);
+  if (n >= 8) {
+    int i;
+    od_bands_from_raster(&od_layout8, dst+16, src, stride);
+    if (interleave) {
+      for (i = 0; i < 8; i++) {
+        tmp1[2*i] = dst[16+i];
+        tmp1[2*i+1] = dst[24+i];
+      }
+      for (i = 0; i < 16; i++) {
+        dst[16+i] = tmp1[i];
+      }
+    }
+  }
+  if (n >= 16) {
+    int i;
+    od_bands_from_raster(&od_layout16, dst+64, src, stride);
+    if (interleave) {
+      for (i = 0; i < 32; i++) {
+        tmp1[2*i] = dst[64+i];
+        tmp1[2*i+1] = dst[96+i];
+      }
+      for (i = 0; i < 64; i++) {
+        dst[64+i] = tmp1[i];
+      }
+    }
+  }
+  dst[0] = src[0];
+}
+
+/** Converts a vector in coding scan order witht he PVQ partitions
+ * laid out one after another into a coefficient block in raster
+ * order. This works in stages in the reverse order of raster->scan
+ * order; the 16x16 conversion is applied to the coefficients that
+ * don't appear in an 8x8 block, then the 8x8 applied to the 8x8 block
+ * sans the 4x4 block it contains, then 4x4 is converted sans DC.
+ *
+ * @param [out]    dst        destination coefficient block
+ * @param [in]     stride     destination vector row stride
+ * @param [in]     src        source vector
+ * @param [in]     n          block size (along one side)
+ * @param [in]     interleave de-interleaves entries for
+                              the scalar (non-pvq) case
+ */
+void od_band_departition(od_coeff *dst,  int stride, od_coeff *src,
+ int n, int interleave) {
+  od_raster_from_bands(&od_layout4, dst, stride, src+1);
+  if (n >= 8) {
+    if (interleave) {
+      int i;
+      od_coeff tmp1[1024];
+      for (i = 0; i < 16; i++) {
+        tmp1[i] = src[16 + i];
+      }
+      for (i = 0; i < 8; i++) {
+        src[16+i] = tmp1[2*i];
+        src[24+i] = tmp1[2*i + 1];
+      }
+    }
+    od_raster_from_bands(&od_layout8, dst, stride, src+16);
+  }
+  if (n >= 16) {
+    if (interleave) {
+      int i;
+      od_coeff tmp1[1024];
+      for (i = 0; i < 64; i++) {
+        tmp1[i] = src[64 + i];
+      }
+      for (i = 0; i < 32; i++) {
+        src[64+i] = tmp1[2*i];
+        src[96+i] = tmp1[2*i + 1];
+      }
+    }
+    od_raster_from_bands(&od_layout16, dst, stride, src+64);
+  }
+  dst[0] = src[0];
+}
