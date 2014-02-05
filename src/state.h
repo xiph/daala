@@ -88,10 +88,6 @@ extern const int *const OD_VERT_SETUP_DY[4][4];
 
 /*The shared (encoder and decoder) functions that have accelerated variants.*/
 struct od_state_opt_vtbl{
-  void (*mc_predict1imv8)(unsigned char *_dst, int _dystride,
-   const unsigned char *_src, int _systride, const ogg_int32_t _mvx[4],
-   const ogg_int32_t _mvy[4], const int _m[4], int _r, int _log_xblk_sz,
-   int _log_yblk_sz);
   void (*mc_predict1fmv8)(unsigned char *_dst, const unsigned char *_src,
    int _systride, ogg_int32_t _mvx, ogg_int32_t _mvy,
    int _log_xblk_sz, int _log_yblk_sz);
@@ -194,10 +190,6 @@ void od_state_fill_vis(od_state *_state);
 /*Shared accelerated functions.*/
 
 /*Default pure-C implementations.*/
-void od_mc_predict1imv8_c(unsigned char *_dst, int _dystride,
- const unsigned char *_src, int _systride, const ogg_int32_t _mvx[4],
- const ogg_int32_t _mvy[4], const int _m[4], int _r, int _log_xblk_sz,
- int _log_yblk_sz);
 void od_mc_predict1fmv8_c(unsigned char *_dst, const unsigned char *_src,
  int _systride, ogg_int32_t _mvx, ogg_int32_t _mvy,
  int _log_xblk_sz, int _log_yblk_sz);

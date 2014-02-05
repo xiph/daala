@@ -68,6 +68,21 @@ Y2P_OBJS:=${Y2P_OBJS:%.c=${WORKDIR}/%.o}
 Y2P_CSOURCES:=${Y2P_LOCAL_CSOURCES:%=${LOCALSRCDIR}/%} ${Y2P_LIB_CSOURCES:%=${LIBSRCDIR}/%}
 Y2P_TARGET:=y4m2png
 
+#dump_psnr
+PSNR_LOCAL_CSOURCES = \
+vidinput.c \
+y4m_input.c \
+dump_psnr.c
+
+PSNR_LIB_CSOURCES =
+
+PSNR_LDFLAGS = `pkg-config ogg libpng --libs` -lm
+
+PSNR_OBJS:=${PSNR_LOCAL_CSOURCES} ${PSNR_LIB_CSOURCES}
+PSNR_OBJS:=${PSNR_OBJS:%.c=${WORKDIR}/%.o}
+PSNR_CSOURCES:=${PSNR_LOCAL_CSOURCES:%=${LOCALSRCDIR}/%} ${PSNR_LIB_CSOURCES:%=${LIBSRCDIR}/%}
+PSNR_TARGET:=dump_psnr
+
 #dump_psnrhvs
 PSNRHVS_LOCAL_CSOURCES = \
 vidinput.c \
@@ -177,6 +192,41 @@ IS_OBJS:=${IS_LOCAL_CSOURCES} ${IS_LIB_CSOURCES}
 IS_OBJS:=${IS_OBJS:%.c=${WORKDIR}/%.o}
 IS_CSOURCES:=${IS_LOCAL_CSOURCES:%=${LOCALSRCDIR}/%} ${IS_LIB_CSOURCES:%=${LIBSRCDIR}/%}
 IS_TARGET:=intra_stats
+
+
+# cfl_stats
+CS_LOCAL_CSOURCES = \
+cfl_stats.c \
+intra_fit_tools.c \
+od_covmat.c \
+od_filter.c \
+od_intra.c \
+od_intra_data.c \
+image_tools.c \
+stats_tools.c \
+vidinput.c \
+y4m_input.c \
+image.c
+
+CS_LIB_CSOURCES = \
+block_size.c \
+block_size_enc.c \
+entenc.c \
+entcode.c \
+filter.c \
+newdct.c \
+intra.c \
+switch_table.c \
+tf.c \
+internal.c \
+intradata.c
+
+CS_LDFLAGS = `pkg-config ogg libpng --libs` -lm
+
+CS_OBJS:=${CS_LOCAL_CSOURCES} ${CS_LIB_CSOURCES}
+CS_OBJS:=${CS_OBJS:%.c=${WORKDIR}/%.o}
+CC_CSOURCES:=${CS_LOCAL_CSOURCES:%=${LOCALSRCDIR}/%} ${CS_LIB_CSOURCES:%=${LIBSRCDIR}/%}
+CS_TARGET:=cfl_stats
 
 
 #intra_pred
@@ -305,6 +355,7 @@ TG_OBJS:=${TG_OBJS:%.c=${WORKDIR}/%.o}
 TG_CSOURCES:=${TG_LOCAL_CSOURCES:%=${LOCALSRCDIR}/%} ${TG_LIB_CSOURCES:%=${LIBSRCDIR}/%}
 TG_TARGET:=trans_gain
 
+
 #trans2d
 T2D_LOCAL_CSOURCES = \
 trans2d.c \
@@ -409,18 +460,49 @@ BD_CSOURCES:=${BD_LOCAL_CSOURCES:%=${LOCALSRCDIR}/%} \
  ${BD_LIB_CSOURCES:%=${LIBSRCDIR}/%}
 BD_TARGET:=bjontegaard
 
-ALL_OBJS:=${P2Y_OBJS} ${Y2P_OBJS} ${PSNRHVS_OBJS} ${PIM_OBJS} ${IIM_OBJS} ${IIX_OBJS} \
+
+#yuvjpeg
+YJ_LOCAL_CSOURCES = \
+yuvjpeg.c
+
+YJ_LIB_CSOURCES =
+
+YJ_LDFLAGS = -ljpeg
+
+YJ_OBJS:=${YJ_LOCAL_CSOURCES} ${YJ_LIB_CSOURCES}
+YJ_OBJS:=${YJ_OBJS:%.c=${WORKDIR}/%.o}
+YJ_CSOURCES:=${YJ_LOCAL_CSOURCES:%=${LOCALSRCDIR}/%} \
+ ${YJ_LIB_CSOURCES:%=${LIBSRCDIR}/%}
+YJ_TARGET:=yuvjpeg
+
+
+#jpegyuv
+JY_LOCAL_CSOURCES = \
+jpegyuv.c
+
+JY_LIB_CSOURCES =
+
+JY_LDFLAGS = -ljpeg
+
+JY_OBJS:=${JY_LOCAL_CSOURCES} ${JY_LIB_CSOURCES}
+JY_OBJS:=${JY_OBJS:%.c=${WORKDIR}/%.o}
+JY_CSOURCES:=${JY_LOCAL_CSOURCES:%=${LOCALSRCDIR}/%} \
+ ${JY_LIB_CSOURCES:%=${LIBSRCDIR}/%}
+JY_TARGET:=jpegyuv
+
+ALL_OBJS:=${P2Y_OBJS} ${Y2P_OBJS} ${PSNR_OBJS} ${PSNRHVS_OBJS} ${PIM_OBJS} ${IIM_OBJS} ${IIX_OBJS} \
  ${GEN_CDF_OBJS} ${GEN_LAPLACE_TABLES_OBJS} ${IS_OBJS} ${IP_OBJS} ${IT_OBJS} ${T_OBJS} \
- ${TG_OBJS} ${T2D_OBJS} ${BSIZE_OBJS} ${BD_OBJS}
+ ${TG_OBJS} ${T2D_OBJS} ${BSIZE_OBJS} ${BD_OBJS} ${YJ_OBJS} ${JY_OBJS}
 
 ALL_ASMS:=${ALL_OBJS:%.o=%.s}
 
 ALL_DEPS:=${ALL_OBJS:%.o=%.d}
 
-ALL_TARGETS:=${P2Y_TARGET} ${Y2P_TARGET} ${PSNRHVS_TARGET} \
+ALL_TARGETS:=${P2Y_TARGET} ${Y2P_TARGET} ${PSNR_TARGET} ${PSNRHVS_TARGET} \
  ${PIM_TARGET} ${IIM_TARGET} ${IIX_TARGET} ${GEN_CDF_TARGET} \
  ${GEN_LAPLACE_TABLES_TARGET} ${IS_TARGET} ${IP_TARGET} ${IT_TARGET} \
- ${T_TARGET} ${TG_TARGET} ${T2D_TARGET} ${BSIZE_TARGET} ${BD_TARGET}
+ ${T_TARGET} ${TG_TARGET} ${T2D_TARGET} ${BSIZE_TARGET} ${BD_TARGET} \
+ ${YJ_TARGET} ${JY_TARGET}
 
 all: ${ALL_TARGETS}
 
@@ -441,6 +523,9 @@ ${P2Y_TARGET}: ${P2Y_OBJS}
 
 ${Y2P_TARGET}: ${Y2P_OBJS}
 	${CC} ${CFLAGS} ${Y2P_OBJS} ${Y2P_LDFLAGS} -o $@
+
+${PSNR_TARGET}: ${PSNR_OBJS}
+	${CC} ${CFLAGS} ${PSNR_OBJS} ${PSNR_LDFLAGS} -o $@
 
 ${PSNRHVS_TARGET}: ${PSNRHVS_OBJS}
 	${CC} ${CFLAGS} ${PSNRHVS_OBJS} ${PSNRHVS_LDFLAGS} -o $@
@@ -469,6 +554,9 @@ ${TG_TARGET}: ${TG_OBJS}
 ${T2D_TARGET}: ${T2D_OBJS}
 	${CC} ${CFLAGS} ${T2D_OBJS} ${T2D_LDFLAGS} -o $@
 
+${CS_TARGET}: ${CS_OBJS}
+	${CC} ${CFLAGS} ${CS_OBJS} ${CS_LDFLAGS} -o $@
+
 ${IIX_TARGET}: ${IIX_OBJS}
 	${CC} ${CFLAGS} ${IIX_OBJS} ${IIX_LDFLAGS} -o $@
 
@@ -480,6 +568,12 @@ ${GEN_LAPLACE_TABLES_TARGET}: ${GEN_LAPLACE_TABLES_OBJS}
 
 ${BD_TARGET}: ${BD_OBJS}
 	${CC} ${CFLAGS} ${BD_OBJS} ${BD_LDFLAGS} -o $@
+
+${YJ_TARGET}: ${YJ_OBJS}
+	${CC} ${CFLAGS} ${YJ_OBJS} ${YJ_LDFLAGS} -o $@
+
+${JY_TARGET}: ${JY_OBJS}
+	${CC} ${CFLAGS} ${JY_OBJS} ${JY_LDFLAGS} -o $@
 
 ${ALL_OBJS} ${ALL_ASMS} ${ALL_DEPS} ${ALL_TARGETS}: Makefile
 

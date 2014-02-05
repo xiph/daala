@@ -10,16 +10,6 @@ if [ -z $BUILD_ROOT ]; then
   BUILD_ROOT=.
 fi
 
-if ! grep -Fxq "#define OD_LOGGING_ENABLED 1" "$BUILD_ROOT/config.h"; then
-  echo "Logging not enabled, re-run configure with --enable-logging"
-  exit 1
-fi
-
-if ! grep -Fxq "#define OD_DUMP_IMAGES 1" "$BUILD_ROOT/config.h"; then
-  echo "Image dumping not enabled, re-run configure without --disable-dump-images"
-  exit 1
-fi
-
 if [ -z "$PLANE" ]; then
   PLANE=0
 fi
@@ -29,8 +19,20 @@ if [ $PLANE != 0 ] && [ $PLANE != 1 ] && [ $PLANE != 2 ]; then
   exit 1
 fi
 
-if [ -z "$ENCODER_EXAMPLE" ]; then
-  ENCODER_EXAMPLE=$BUILD_ROOT/examples/encoder_example
+if [ -z "$YUVJPEG" ]; then
+  YUVJPEG=$BUILD_ROOT/tools/yuvjpeg
+fi
+
+if [ -z "$JPEGYUV" ]; then
+  JPEGYUV=$BUILD_ROOT/tools/jpegyuv
+fi
+
+if [ -z "$YUV2YUV4MPEG" ]; then
+  YUV2YUV4MPEG=$BUILD_ROOT/tools/yuv2yuv4mpeg
+fi
+
+if [ -z "$DUMP_PSNRHVS" ]; then
+  DUMP_PSNR=$BUILD_ROOT/tools/dump_psnr
 fi
 
 if [ -z "$DUMP_PSNRHVS" ]; then
@@ -45,8 +47,26 @@ if [ -z "$DUMP_FASTSSIM" ]; then
   DUMP_FASTSSIM=$BUILD_ROOT/tools/dump_fastssim
 fi
 
-if [ ! -x "$ENCODER_EXAMPLE" ]; then
-  echo "Executable not found ENCODER_EXAMPLE=$ENCODER_EXAMPLE"
+if [ ! -x "$YUVJPEG" ]; then
+  echo "Executable not found YUVJPEG=$YUVJPEG"
+  echo "Do you have the right BUILD_ROOT=$BUILD_ROOT"
+  exit 1
+fi
+
+if [ ! -x "$JPEGYUV" ]; then
+  echo "Executable not found JPEGYUV=$JPEGYUV"
+  echo "Do you have the right BUILD_ROOT=$BUILD_ROOT"
+  exit 1
+fi
+
+if [ ! -x "$YUV2YUV4MPEG" ]; then
+  echo "Executable not found YUV2YUV4MPEG=$YUV2YUV4MPEG"
+  echo "Do you have the right BUILD_ROOT=$BUILD_ROOT"
+  exit 1
+fi
+
+if [ ! -x "$DUMP_PSNR" ]; then
+  echo "Executable not found DUMP_PSNR=$DUMP_PSNR"
   echo "Do you have the right BUILD_ROOT=$BUILD_ROOT"
   exit 1
 fi
@@ -69,11 +89,11 @@ if [ ! -x "$DUMP_FASTSSIM" ]; then
   exit 1
 fi
 
-RD_COLLECT_SUB=$(dirname "$0")/rd_collect_sub.sh
+RD_COLLECT_SUB=$(dirname "$0")/rd_collect_sub_jpeg.sh
 
 if [ -z "$CORES" ]; then
   CORES=`grep -i processor /proc/cpuinfo | wc -l`
   #echo "CORES not set, using $CORES"
 fi
 
-find $@ -type f -name "*.y4m" -print0 | xargs -0 -n1 -P$CORES $RD_COLLECT_SUB $PLANE $ENCODER_EXAMPLE $DUMP_PSNRHVS $DUMP_SSIM $DUMP_FASTSSIM
+find $@ -type f -name "*.y4m" -print0 | xargs -0 -n1 -P$CORES $RD_COLLECT_SUB $PLANE $YUVJPEG $JPEGYUV $YUV2YUV4MPEG $DUMP_PSNR $DUMP_PSNRHVS $DUMP_SSIM $DUMP_FASTSSIM

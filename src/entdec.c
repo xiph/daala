@@ -88,6 +88,31 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
   Even relatively modest values like 100 would work fine.*/
 #define OD_EC_LOTS_OF_BITS (0x4000)
 
+static void od_ec_dec_refill(od_ec_dec *dec) {
+  int s;
+  od_ec_window dif;
+  ogg_int16_t cnt;
+  const unsigned char *bptr;
+  const unsigned char *end;
+  dif = dec->dif;
+  cnt = dec->cnt;
+  bptr = dec->bptr;
+  end = dec->end;
+  s = OD_EC_WINDOW_SIZE - 9 - (cnt + 15);
+  for (; s >= 0 && bptr < end; s -= 8, bptr++) {
+    OD_ASSERT(s <= OD_EC_WINDOW_SIZE - 8);
+    dif |= (od_ec_window)bptr[0] << s;
+    cnt += 8;
+  }
+  if (bptr >= end) {
+    dec->tell_offs += OD_EC_LOTS_OF_BITS - cnt;
+    cnt = OD_EC_LOTS_OF_BITS;
+  }
+  dec->dif = dif;
+  dec->cnt = cnt;
+  dec->bptr = bptr;
+}
+
 /*Takes updated dif and range values, renormalizes them so that
    32768 <= rng < 65536 (reading more bytes from the stream into dif if
    necessary), and stores them back in the decoder context.
@@ -99,34 +124,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 static int od_ec_dec_normalize(od_ec_dec *dec,
  od_ec_window dif, unsigned rng, int ret) {
   int d;
-  int c;
-  int s;
-  c = dec->cnt;
   OD_ASSERT(rng <= 65535U);
   d = 16 - OD_ILOG_NZ(rng);
-  c -= d;
-  dif <<= d;
-  if (c < 0) {
-    const unsigned char *end;
-    const unsigned char *bptr;
-    end = dec->end;
-    bptr = dec->bptr;
-    for (s = OD_EC_WINDOW_SIZE - 9 -(c + 15); s >= 0;) {
-      OD_ASSERT(s <= OD_EC_WINDOW_SIZE - 8);
-      if (bptr >= end) {
-        dec->tell_offs += OD_EC_LOTS_OF_BITS - c;
-        c = OD_EC_LOTS_OF_BITS;
-        break;
-      }
-      dif |= (od_ec_window)*bptr++ << s;
-      c += 8;
-      s -= 8;
-    }
-    dec->bptr = bptr;
-  }
-  dec->dif = dif;
+  dec->cnt -= d;
+  dec->dif = dif << d;
   dec->rng = rng << d;
-  dec->cnt = c;
+  if (dec->cnt < 0) od_ec_dec_refill(dec);
   return ret;
 }
 
@@ -135,36 +138,18 @@ static int od_ec_dec_normalize(od_ec_dec *dec,
   Return: 0 on success, or a negative value on error.*/
 void od_ec_dec_init(od_ec_dec *dec,
  const unsigned char *buf, ogg_uint32_t storage) {
-  od_ec_window dif;
-  ogg_uint32_t offs;
-  ogg_int32_t tell_offs;
-  int c;
-  int s;
-  tell_offs = 10 - (OD_EC_WINDOW_SIZE - 8);
-  offs = 0;
-  dif = 0;
-  c = -15;
-  for (s = OD_EC_WINDOW_SIZE - 9; s >= 0;) {
-    if (offs >= storage) {
-      tell_offs += OD_EC_LOTS_OF_BITS - c;
-      c = OD_EC_LOTS_OF_BITS;
-      break;
-    }
-    c += 8;
-    dif |= (od_ec_window)buf[offs++] << s;
-    s -= 8;
-  }
   dec->buf = buf;
   dec->eptr = buf + storage;
   dec->end_window = 0;
   dec->nend_bits = 0;
-  dec->tell_offs = tell_offs;
+  dec->tell_offs = 10 - (OD_EC_WINDOW_SIZE - 8);
   dec->end = buf + storage;
-  dec->bptr = buf + offs;
-  dec->dif = dif;
+  dec->bptr = buf;
+  dec->dif = 0;
   dec->rng = 0x8000;
-  dec->cnt = c;
+  dec->cnt = -15;
   dec->error = 0;
+  od_ec_dec_refill(dec);
 }
 
 /*Decode a bit that has an fz/ft probability of being a zero.

@@ -36,6 +36,9 @@ OD_LT_CURRENT=0
 OD_LT_REVISION=1
 OD_LT_AGE=0
 
+AC_CHECK_LIB([jpeg],[jpeg_start_compress],[JPEG_LIBS="-ljpeg"],[AC_MSG_ERROR([oh noes libjpeg not found])])
+AC_SUBST([JPEG_LIBS])
+
 AC_SUBST(OD_LT_CURRENT)
 AC_SUBST(OD_LT_REVISION)
 AC_SUBST(OD_LT_AGE)

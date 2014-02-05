@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 PLANE=$1
 ENCODER_EXAMPLE=$2
@@ -8,7 +9,7 @@ DUMP_FASTSSIM=$5
 FILE=$6
 
 BASENAME=$(basename $FILE)
-rm $BASENAME.out 2> /dev/null
+rm $BASENAME.out 2> /dev/null || true
 echo $BASENAME
 
 for x in {2..40}; do

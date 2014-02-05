@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 # Use this to average data from multiple runs
 #awk '{size[FNR]+=$2;bytes[FNR]+=$3;psnr[FNR]+=$2*$4;psnrhvs[FNR]+=$2*$5;ssim[FNR]+=$2*$6;fastssim[FNR]+=$2*$7;}END{for(i=1;i<=FNR;i++)print i+1,size[i],bytes[i],psnr[i]/size[i],psnrhvs[i]/size[i],ssim[i]/size[i],fastssim[i]/size[i];}' *.out > total.out
@@ -9,6 +10,15 @@ fi
 
 if [ $# == 0 ]; then
   echo "usage: IMAGE=<prefix> $0 *.out"
+  exit 1
+fi
+
+if [ -z "$GNUPLOT" -a -n "`type -p gnuplot`" ]; then
+  GNUPLOT=`type -p gnuplot`
+fi
+if [ ! -x "$GNUPLOT" ]; then
+  echo "Executable not found GNUPLOT=$GNUPLOT"
+  echo "Please install it or set GNUPLOT to point to an installed copy"
   exit 1
 fi
 
@@ -28,10 +38,10 @@ for FILE in "$@"; do
 done
 
 SUFFIX="psnr.png"
-gnuplot -e "$CMDS set output \"$IMAGE$SUFFIX\"; plot $PSNR;"     2> /dev/null
+$GNUPLOT -e "$CMDS set output \"$IMAGE$SUFFIX\"; plot $PSNR;"     2> /dev/null
 SUFFIX="psnrhvs.png"
-gnuplot -e "$CMDS set output \"$IMAGE$SUFFIX\"; plot $PSNRHVS;"  2> /dev/null
+$GNUPLOT -e "$CMDS set output \"$IMAGE$SUFFIX\"; plot $PSNRHVS;"  2> /dev/null
 SUFFIX="ssim.png"
-gnuplot -e "$CMDS set output \"$IMAGE$SUFFIX\"; plot $SSIM;"     2> /dev/null
+$GNUPLOT -e "$CMDS set output \"$IMAGE$SUFFIX\"; plot $SSIM;"     2> /dev/null
 SUFFIX="fastssim.png"
-gnuplot -e "$CMDS set output \"$IMAGE$SUFFIX\"; plot $FASTSSIM;" 2> /dev/null
+$GNUPLOT -e "$CMDS set output \"$IMAGE$SUFFIX\"; plot $FASTSSIM;" 2> /dev/null

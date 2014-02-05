@@ -83,6 +83,15 @@ tools/png2y4m
 tools/trans
 tools/trans2d
 tools/y4m2png
+tools/bjontegaard
+tools/divu_const
+tools/dump_fastssim
+tools/dump_ssim
+tools/trans_gain
+tools/dump_psnr
+tools/jpegyuv
+tools/yuv2yuv4mpeg
+tools/yuvjpeg
 test-driver
 doc/Doxyfile
 doc/doxygen-build.stamp
@@ -103,3 +112,4 @@ doc/latex
 doc/man
 daala-*/
 *.tar.gz
+out/
