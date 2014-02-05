@@ -44,7 +44,7 @@ SSIM_DSNR=$($BJONTEGAARD 1 $N1 $AREA1 $SIZE1 $SSIM1 $N2 $AREA2 $SIZE2 $SSIM2)
 FASTSSIM_RATE=$($BJONTEGAARD 0 $N1 $AREA1 $SIZE1 $FASTSSIM1 $N2 $AREA2 $SIZE2 $FASTSSIM2)
 FASTSSIM_DSNR=$($BJONTEGAARD 1 $N1 $AREA1 $SIZE1 $FASTSSIM1 $N2 $AREA2 $SIZE2 $FASTSSIM2)
 
-echo "           RATE     DSNR"
+echo "           RATE (%) DSNR (dB)"
 echo "    PSNR" $(echo $PSNR_RATE     | cut -d\  -f 3) $(echo $PSNR_DSNR     | cut -d\  -f 3)
 echo " PSNRHVS" $(echo $PSNRHVS_RATE  | cut -d\  -f 3) $(echo $PSNRHVS_DSNR  | cut -d\  -f 3)
 echo "    SSIM" $(echo $SSIM_RATE     | cut -d\  -f 3) $(echo $SSIM_DSNR     | cut -d\  -f 3)
