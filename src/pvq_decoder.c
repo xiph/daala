@@ -36,6 +36,32 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "laplace_code.h"
 #include "pvq_code.h"
 
+/* Table of combined "use prediction" pvq flags for 8x8 trained on
+   subset1. Should eventually make this adaptive. */
+const ogg_uint16_t pred8_cdf[16] = {
+  22313, 22461, 22993, 23050, 23418, 23468, 23553, 23617,
+  29873, 30181, 31285, 31409, 32380, 32525, 32701, 32768
+};
+
+const ogg_uint16_t pred16_cdf[16][8] = {
+  { 4096,  8192, 12288, 16384, 20480, 24576, 28672, 32768 },
+  { 4096,  8192, 12288, 16384, 20480, 24576, 28672, 32768 },
+  { 4096,  8192, 12288, 16384, 20480, 24576, 28672, 32768 },
+  { 4096,  8192, 12288, 16384, 20480, 24576, 28672, 32768 },
+  { 4096,  8192, 12288, 16384, 20480, 24576, 28672, 32768 },
+  { 4096,  8192, 12288, 16384, 20480, 24576, 28672, 32768 },
+  { 4096,  8192, 12288, 16384, 20480, 24576, 28672, 32768 },
+  { 4096,  8192, 12288, 16384, 20480, 24576, 28672, 32768 },
+  { 4096,  8192, 12288, 16384, 20480, 24576, 28672, 32768 },
+  { 4096,  8192, 12288, 16384, 20480, 24576, 28672, 32768 },
+  { 4096,  8192, 12288, 16384, 20480, 24576, 28672, 32768 },
+  { 4096,  8192, 12288, 16384, 20480, 24576, 28672, 32768 },
+  { 4096,  8192, 12288, 16384, 20480, 24576, 28672, 32768 },
+  { 4096,  8192, 12288, 16384, 20480, 24576, 28672, 32768 },
+  { 4096,  8192, 12288, 16384, 20480, 24576, 28672, 32768 },
+  { 4096,  8192, 12288, 16384, 20480, 24576, 28672, 32768 }
+};
+
 /** Decodes a single vector of integers (eg, a partition within a
  *  coefficient block) encoded using PVQ
  *
@@ -63,28 +89,42 @@ static void pvq_decode_partition(od_ec_dec *ec,
   int adapt_curr[OD_NSB_ADAPT_CTXS] = {0};
   int speed = 5;
   int k;
-  int qg;
   double qcg;
-  double gain_offset;
-  double theta;
-  int itheta;
   int max_theta;
-  double gr;
+  int itheta;
+  double theta = 0;
+  double gr = 0;
+  double gain_offset = 0;
   od_coeff y[1024];
   double r[1024];
-  int i;
-  qg = generic_decode(ec, model, exg, 2);
 
-  max_theta = od_compute_max_theta(ref, n, q, &gr, &qcg, &qg, &gain_offset,
-                                   noref);
-  if (!noref && max_theta>0) itheta = generic_decode(ec, model, ext, 2);
-  else itheta = noref ? 0 : -1;
-  theta = od_compute_k_theta(&k, qcg, itheta, max_theta, noref, n);
+  /* read quantized gain */
+  int qg = generic_decode(ec, model, exg, 2);
+
+  if(!noref){
+    /* we have a reference; compute its gain */
+    double cgr = pvq_compute_gain(ref, n, q, &gr);
+    int icgr = floor(.5+cgr);
+    int i;
+    /* quantized gain is interleave encoded when there's a reference;
+       deinterleave it now */
+    qg = neg_deinterleave(qg, icgr);
+    gain_offset = cgr-icgr;
+    qcg = qg + gain_offset;
+    /* read and decode first-stage PVQ error theta */
+    max_theta = pvq_compute_max_theta(qcg);
+    itheta = -1;
+    if (max_theta>0) itheta = generic_decode(ec, model, ext, 2);
+    theta = pvq_compute_theta(itheta, max_theta);
+    for (i = 0; i < n; i++) r[i] = ref[i];
+  }
+  else{
+    qcg=qg;
+  }
+
+  k = pvq_compute_k(qcg, theta, noref, n);
   /* when noref==0, y is actually size n-1 */
   laplace_decode_vector(ec, y, n-(!noref), k, adapt_curr, adapt);
-  for (i = 0; i < n; i++) r[i] = ref[i];
-
-  /* when noref==0, y is actually size n-1 */
   pvq_synthesis(out, y, r, n, gr, noref, qg, gain_offset, theta, q);
 
   if (adapt_curr[OD_ADAPT_K_Q8] > 0) {

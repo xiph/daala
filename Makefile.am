@@ -30,6 +30,7 @@ noinst_HEADERS = \
 	src/logging.h \
 	src/mc.h \
 	src/odintrin.h \
+	src/partition.h \
 	src/pvq.h \
 	src/pvq_code.h \
 	src/state.h \
@@ -67,6 +68,7 @@ src_libdaalabase_la_SOURCES = \
 	src/logging.c \
 	src/mc.c \
 	src/newdct.c \
+	src/partition.c \
 	src/pvq.c \
 	src/pvq_decoder.c \
 	src/pvq_encoder.c \

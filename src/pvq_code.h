@@ -32,6 +32,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # include "generic_code.h"
 # include "laplace_code.h"
 
+# define PRED4_PROB (26376)
+extern const ogg_uint16_t pred8_cdf[16];
+extern const ogg_uint16_t pred16_cdf[16][8];
+
+void pvq_band_pseudo_zigzag(od_coeff *dst,  int n, od_coeff *src, int stride,
+                            int interleave);
+
+void pvq_band_pseudo_dezigzag(od_coeff *dst,  int stride, od_coeff *src,
+                              int n, int interleave);
+
 void pvq_encode(daala_enc_ctx *enc, od_coeff *predt, od_coeff *cblock,
                 od_coeff *scalar_out, int scale, int n);
 

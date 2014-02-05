@@ -22,26 +22,28 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
-#if !defined(_pvq_H)
-# define _pvq_H (1)
-# include "internal.h"
-# include "filter.h"
+#if !defined(_pvq_code_H)
+# define _pvq_code_H
 
-# define PVQ_MAX_PARTITIONS (7)
-# define ACTIVITY (1.)
+# define USE_BAND_PARTITIONS (1)
 
-int neg_deinterleave(int x, int ref);
+typedef unsigned char index_pair[2];
 
-int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *itheta,
- int *max_theta, int *vk);
+typedef struct {
+  const index_pair *const dst_table;
+  int size;
+  int nb_bands;
+  const int *const band_offsets;
+} band_layout;
 
-double pvq_compute_gain(od_coeff *x, int n, double q, double *g);
-int pvq_compute_max_theta(double qcg);
-double pvq_compute_theta(int t, int max_theta);
-int pvq_compute_k(double qcg, double theta, int noref, int n);
+extern const band_layout od_layout4;
+extern const band_layout od_layout8;
+extern const band_layout od_layout16;
 
-void pvq_synthesis(od_coeff *x0, od_coeff *y, double *r, int n, double gr,
- int noref, int qg, double gain_offset, double theta, double q);
+void od_band_partition(od_coeff *dst,  int n, od_coeff *src, int stride,
+                       int interleave);
 
+void od_band_departition(od_coeff *dst,  int stride, od_coeff *src,
+                         int n, int interleave);
 
 #endif

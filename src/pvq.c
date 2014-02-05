@@ -37,155 +37,17 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #define MAXN 256
 #define EPSILON 1e-30
 
-static const int od_layout16_offsets[4] = { 0, 32, 64, 192 };
-extern const index_pair od_zigzag16[];
-const band_layout od_layout16 = {
-  od_zigzag16,
-  16,
-  3,
-  od_layout16_offsets
-};
-
-const int od_layout8_offsets[4] = { 0, 8, 16, 48 };
-extern const index_pair od_zigzag8[];
-const band_layout od_layout8 = {
-  od_zigzag8,
-  8,
-  3,
-  od_layout8_offsets
-};
-
-static const int od_layout4_offsets[2] = { 0, 15 };
-extern const index_pair od_zigzag4[];
-const band_layout od_layout4 = {
-  od_zigzag4,
-  4,
-  1,
-  od_layout4_offsets
-};
-
-/* Table of combined "use prediction" pvq flags for 8x8 trained on
-   subset1. Should eventually make this adaptive. */
-const ogg_uint16_t pred8_cdf[16] = {
-  22313, 22461, 22993, 23050, 23418, 23468, 23553, 23617,
-  29873, 30181, 31285, 31409, 32380, 32525, 32701, 32768
-};
-
-const ogg_uint16_t pred16_cdf[16][8] = {
-  { 4096,  8192, 12288, 16384, 20480, 24576, 28672, 32768 },
-  { 4096,  8192, 12288, 16384, 20480, 24576, 28672, 32768 },
-  { 4096,  8192, 12288, 16384, 20480, 24576, 28672, 32768 },
-  { 4096,  8192, 12288, 16384, 20480, 24576, 28672, 32768 },
-  { 4096,  8192, 12288, 16384, 20480, 24576, 28672, 32768 },
-  { 4096,  8192, 12288, 16384, 20480, 24576, 28672, 32768 },
-  { 4096,  8192, 12288, 16384, 20480, 24576, 28672, 32768 },
-  { 4096,  8192, 12288, 16384, 20480, 24576, 28672, 32768 },
-  { 4096,  8192, 12288, 16384, 20480, 24576, 28672, 32768 },
-  { 4096,  8192, 12288, 16384, 20480, 24576, 28672, 32768 },
-  { 4096,  8192, 12288, 16384, 20480, 24576, 28672, 32768 },
-  { 4096,  8192, 12288, 16384, 20480, 24576, 28672, 32768 },
-  { 4096,  8192, 12288, 16384, 20480, 24576, 28672, 32768 },
-  { 4096,  8192, 12288, 16384, 20480, 24576, 28672, 32768 },
-  { 4096,  8192, 12288, 16384, 20480, 24576, 28672, 32768 },
-  { 4096,  8192, 12288, 16384, 20480, 24576, 28672, 32768 }
-};
-
-static void od_bands_from_raster(const band_layout *layout, od_coeff *dst,
- od_coeff *src, int stride) {
-  int i;
-  int len;
-  len = layout->band_offsets[layout->nb_bands];
-  for (i = 0; i < len; i++) {
-    dst[i] = src[layout->dst_table[i][1]*stride + layout->dst_table[i][0]];
-  }
-}
-
-static void od_raster_from_bands(const band_layout *layout, od_coeff *dst,
- int stride, od_coeff *src) {
-  int i;
-  int len;
-  len = layout->band_offsets[layout->nb_bands];
-  for (i = 0; i < len; i++) {
-    dst[layout->dst_table[i][1]*stride + layout->dst_table[i][0]] = src[i];
-  }
-}
-
-void od_band_pseudo_zigzag(od_coeff *dst,  int n, od_coeff *src, int stride,
- int interleave) {
-  od_coeff tmp1[1024];
-  od_bands_from_raster(&od_layout4, dst+1, src, stride);
-  if (n >= 8) {
-    int i;
-    od_bands_from_raster(&od_layout8, dst+16, src, stride);
-    if (interleave) {
-      for (i = 0; i < 8; i++) {
-        tmp1[2*i] = dst[16+i];
-        tmp1[2*i+1] = dst[24+i];
-      }
-      for (i = 0; i < 16; i++) {
-        dst[16+i] = tmp1[i];
-      }
-    }
-  }
-  if (n >= 16) {
-    int i;
-    od_bands_from_raster(&od_layout16, dst+64, src, stride);
-    if (interleave) {
-      for (i = 0; i < 32; i++) {
-        tmp1[2*i] = dst[64+i];
-        tmp1[2*i+1] = dst[96+i];
-      }
-      for (i = 0; i < 64; i++) {
-        dst[64+i] = tmp1[i];
-      }
-    }
-  }
-  dst[0] = src[0];
-}
-
-void od_band_pseudo_dezigzag(od_coeff *dst,  int stride, od_coeff *src,
- int n, int interleave) {
-  od_raster_from_bands(&od_layout4, dst, stride, src+1);
-  if (n >= 8) {
-    if (interleave) {
-      int i;
-      od_coeff tmp1[1024];
-      for (i = 0; i < 16; i++) {
-        tmp1[i] = src[16 + i];
-      }
-      for (i = 0; i < 8; i++) {
-        src[16+i] = tmp1[2*i];
-        src[24+i] = tmp1[2*i + 1];
-      }
-    }
-    od_raster_from_bands(&od_layout8, dst, stride, src+16);
-  }
-  if (n >= 16) {
-    if (interleave) {
-      int i;
-      od_coeff tmp1[1024];
-      for (i = 0; i < 64; i++) {
-        tmp1[i] = src[64 + i];
-      }
-      for (i = 0; i < 32; i++) {
-        src[64+i] = tmp1[2*i];
-        src[96+i] = tmp1[2*i + 1];
-      }
-    }
-    od_raster_from_bands(&od_layout16, dst, stride, src+64);
-  }
-  dst[0] = src[0];
-}
-
-/* Double-precision PVQ search just to make sure our tests aren't limited
-   by numerical accuracy.
-   @param [in]      x      input vector to quantize
-   @param [in]      n      number of dimensions
-   @param [in]      k      number of pulses
-   @param [out]     y      optimal codevector found
-   @return                 cosine distance between x and y (between 0 and 1)
-*/
-static double pvq_search_double(const double *x, int n, int k, od_coeff *y) {
+/** Find the codepoint on the given PSphere closest to the desired
+ * vector. Double-precision PVQ search just to make sure our tests
+ * aren't limited by numerical accuracy.
+ *
+ * @param [in]      in     input vector to quantize
+ * @param [in]      n      number of dimensions
+ * @param [in]      k      number of pulses
+ * @param [out]     out    optimal codevector found
+ * @return                 cosine distance between x and y (between 0 and 1)
+ */
+static double pvq_search_double(const double *in, int n, int k, od_coeff *out) {
   int i, j;
   double xy;
   double yy;
@@ -193,10 +55,10 @@ static double pvq_search_double(const double *x, int n, int k, od_coeff *y) {
   double xx;
   xx = xy = yy = 0;
   for (j = 0; j < n; j++) {
-    X[j] = fabs(x[j]);
+    X[j] = fabs(in[j]);
     xx += X[j]*X[j];
   }
-  for (j = 0; j < n; j++) y[j] = 0;
+  for (j = 0; j < n; j++) out[j] = 0;
   /* Search one pulse at a time */
   for (i = 0; i < k; i++) {
     int pos;
@@ -209,7 +71,7 @@ static double pvq_search_double(const double *x, int n, int k, od_coeff *y) {
       double tmp_xy;
       double tmp_yy;
       tmp_xy = xy + X[j];
-      tmp_yy = yy + 2*y[j] + 1;
+      tmp_yy = yy + 2*out[j] + 1;
       tmp_xy *= tmp_xy;
       if (j == 0 || tmp_xy*best_yy > best_xy*tmp_yy) {
         best_xy = tmp_xy;
@@ -218,20 +80,26 @@ static double pvq_search_double(const double *x, int n, int k, od_coeff *y) {
       }
     }
     xy = xy + X[pos];
-    yy = yy + 2*y[pos] + 1;
-    y[pos]++;
+    yy = yy + 2*out[pos] + 1;
+    out[pos]++;
   }
   for (i = 0; i < n; i++) {
-    if (x[i] < 0) y[i] = -y[i];
+    if (in[i] < 0) out[i] = -out[i];
   }
   return xy/(1e-100 + sqrt(xx*yy));
 }
 
-#define ACTIVITY (1.)
-
-/* Computes Householder reflection that aligns the reference r to one
-   of the dimensions (return value). The reflection vector is returned
-   in r and x is reflected. */
+/** Computes Householder reflection that aligns the reference r to the
+ *  dimension in r with the greatest absolute value. The reflection
+ *  vector is returned in r.
+ *
+ * @param [in,out]  r      reference vector to be reflected, reflection
+ *                         also returned in r
+ * @param [in]      n      number of dimensions in r
+ * @param [in]      gr     gain of reference vector
+ * @param [out]     sign   sign of reflection
+ * @return                 dimension number to which reflection aligns
+ **/
 static int compute_householder(double *r, int n, double gr, int *sign) {
   int m;
   int i;
@@ -256,8 +124,13 @@ static int compute_householder(double *r, int n, double gr, int *sign) {
   return m;
 }
 
-/* Applies Householder reflection from compute_householder(). The reflection
-   is its own inverse. */
+/** Applies Householder reflection from compute_householder(). The
+ * reflection is its own inverse.
+ *
+ * @param [in,out]  x      vector to be reflected
+ * @param [in]      r      reflection
+ * @param [in]      n      number of dimensions in x,r
+ */
 static void apply_householder(double *x, const double *r, int n) {
   int i;
   double proj;
@@ -278,16 +151,28 @@ static void apply_householder(double *x, const double *r, int n) {
   }
 }
 
-/* Encodes the gain in such a way that the return value increases with the
-   distance |x-ref|, so that we can encode a zero when x=ref. The value x=0
-   is not covered because it is only allowed in the noref case. */
+/** Encodes the gain so that the return value increases with the
+ * distance |x-ref|, so that we can encode a zero when x=ref. The
+ * value x=0 is not covered because it is only allowed in the noref
+ * case.
+ *
+ * @param [in]      x      quantized gain to encode
+ * @param [in]      ref    quantized gain of the reference
+ * @return                 interleave-encoded quantized gain value
+ */
 static int neg_interleave(int x, int ref) {
   if (x < ref) return -2*(x - ref) - 1;
   else if (x < 2*ref) return 2*(x - ref);
   else return x-1;
 }
 
-static int neg_deinterleave(int x, int ref) {
+/** Inverse of neg_interleave; decodes the interleaved gain.
+ *
+ * @param [in]      x      quantized/interleaved gain to decode
+ * @param [in]      ref    quantized gain of the reference
+ * @return                 original quantized gain value
+ */
+int neg_deinterleave(int x, int ref) {
   if (x < 2*ref-1) {
     if (x & 1) return ref - 1 - (x >> 1);
     else return ref + (x >> 1);
@@ -295,8 +180,92 @@ static int neg_deinterleave(int x, int ref) {
   else return x+1;
 }
 
+/** Computes the raw and quantized/companded gain of a given input
+ * vector
+ *
+ * @param [in]      x      vector of input data
+ * @param [in]      n      number of elements in vector x
+ * @param [in]      q      quantizer
+ * @param [out]     g      raw gain
+ * @return                 quantized/companded gain
+ */
+double pvq_compute_gain(od_coeff *x, int n, double q, double *g){
+  int i;
+  double acc=0;
+  for (i = 0; i < n; i++) acc += x[i]*x[i];
+  *g = sqrt(acc);
+  /* Normalize gain by quantization step size and apply companding
+     (if ACTIVITY != 1). */
+  return pow(*g/q, ACTIVITY);
+}
+
+/** Compute theta quantization range from quantized/companded gain
+ *
+ * @param [in]      qcg    quantized companded gain value
+ * @return                 max theta value
+ */
+int pvq_compute_max_theta(double qcg){
+  /* Set angular resolution (in ra) to match the encoded gain */
+  int ts = (int)floor(.5 + qcg*M_PI/2);
+  /* Special case for low gains -- will need to be tuned anyway */
+  if (qcg < 1.4) ts = 1;
+  return ts;
+}
+
+/** Decode quantized theta value from coded value
+ *
+ * @param [in]      t          quantized companded gain value
+ * @param [in]      max_theta  maximum theta value
+ * @return                     decoded theta value
+ */
+double pvq_compute_theta(int t, int max_theta) {
+  if (max_theta != 0) return t*.5*M_PI/max_theta;
+  return 0;
+}
+
+/** Compute the number of pulses used for PVQ encoding a vector from
+ * available metrics (encode and decode side)
+ *
+ * @param [in]      qcg        quantized companded gain value
+ * @param [in]      theta      PVQ error angle theta
+ * @param [in]      noref      indicates present or lack of reference
+ *                             (prediction)
+ * @param [in]      n          number of elements to be coded
+ * @return                     number of pulses to use for coding
+ */
+int pvq_compute_k(double qcg, double theta, int noref, int n) {
+  if (noref) {
+    return (int)floor(.5 + qcg*sqrt(n/2));
+  }
+  else {
+    /* Sets K according to gain and theta, based on the high-rate
+       PVQ distortion curves D~=N^2/(24*K^2). Low-rate will have to be
+       perceptually tuned anyway.  */
+    return (int)floor(.5 + qcg*sin(theta)*sqrt(n/2));
+  }
+}
+
+/** Synthesizes one parition of coefficient values from a PVQ-encoded
+ * vector.  This 'partial' version is called by the encode loop where
+ * the Householder reflection has already been computed and there's no
+ * need to recompute it.
+ *
+ * @param [out]     out    output coefficient partition
+ * @param [in]      in     PVQ-encoded values; in the noref case, this vector
+ *                         has n entries, in the reference case it contains
+ *                         n-1 entries (the m-th entry is not included)
+ * @param [in]      r      reference vector (prediction)
+ * @param [in]      n      number of elements in this partition
+ * @param [in]      noref  indicates presence or lack of prediction
+ * @param [in]      qg     decoded quantized vector gain
+ * @param [in]      go     gain offset for predicted case
+ * @param [in]      theta  decoded theta (prediction error)
+ * @param [in]      m      alignment dimension of Householder reflection
+ * @param [in]      s      sign of Householder reflection
+ * @param [in]      q      gain quantizer
+ */
 static void pvq_synthesis_partial(od_coeff *out, od_coeff *in, const double *r, int n,
-                                  int noref, int qg, double gain_offset,
+                                  int noref, int qg, double go,
                                   double theta, int m, int s, double q) {
   int i;
   int yy;
@@ -304,7 +273,7 @@ static void pvq_synthesis_partial(od_coeff *out, od_coeff *in, const double *r, 
   double norm;
   double g;
   double x[MAXN];
-  int nn = n-(!noref); /* when noref==0, vector y is sized n-1 */
+  int nn = n-(!noref); /* when noref==0, vector in is sized n-1 */
 
   yy = 0;
   for (i = 0; i < nn; i++)
@@ -317,7 +286,7 @@ static void pvq_synthesis_partial(od_coeff *out, od_coeff *in, const double *r, 
       x[i] = in[i]*norm;
   }
   else{
-    qcg = qg==0 ? 0 : qg+gain_offset;
+    qcg = qg==0 ? 0 : qg+go;
     norm *= sin(theta);
     for (i = 0; i < m; i++)
       x[i] = in[i]*norm;
@@ -333,33 +302,50 @@ static void pvq_synthesis_partial(od_coeff *out, od_coeff *in, const double *r, 
   }
 }
 
+/** Synthesizes one parition of coefficient values from a PVQ-encoded
+ * vector.
+ *
+ * @param [out]     out    output coefficient partition
+ * @param [in]      in     PVQ-encoded values; in the noref case, this vector
+ *                         has n entries, in the reference case it contains
+ *                         n-1 entries (the m-th entry is not included)
+ * @param [in]      r      reference vector (prediction)
+ * @param [in]      n      number of elements in this partition
+ * @param [in]      gr     gain of the reference vector (prediction)
+ * @param [in]      noref  indicates presence or lack of prediction
+ * @param [in]      qg     decoded quantized vector gain
+ * @param [in]      go     gain offset for predicted case
+ * @param [in]      theta  decoded theta (prediction error)
+ * @param [in]      m      alignment dimension of Householder reflection
+ * @param [in]      s      sign of Householder reflection
+ * @param [in]      q      gain quantizer
+ */
 void pvq_synthesis(od_coeff *out, od_coeff *in, double *r, int n,
-                   double gr, int noref, int qg, double gain_offset,
+                   double gr, int noref, int qg, double go,
                    double theta, double q) {
   int s = 0;
   int m = noref ? 0 : compute_householder(r, n, gr, &s);
 
   pvq_synthesis_partial(out, in, r, n, noref, qg,
-                        gain_offset, theta, m, s, q);
+                        go, theta, m, s, q);
 }
 
-/* This does PVQ quantization with prediction, trying several possible gains
-   and angles. See draft-valin-videocodec-pvq and
-   http://jmvalin.ca/slides/pvq.pdf for more details.
-   @param [in,out] x0        coefficients being quantized (before and after)
-   @param [in]     r0        reference, aka predicted coefficients
-   @param [in]     n         number of dimensions
-   @param [in]     q0        quantization step size
-   @param [out]    y         pulse vector (i.e. selected PVQ codevector)
-   @param [out]    itheta    angle between input and reference (-1 if noref)
-   @param [out]    max_theta maximum value of itheta that could have been
-   @param [out]    vk        total number of pulses
-   @return         gain      index of the quatized gain
+/** Perform PVQ quantization with prediction, trying several
+ * possible gains and angles. See draft-valin-videocodec-pvq and
+ * http://jmvalin.ca/slides/pvq.pdf for more details.
+ *
+ * @param [in,out] x0        coefficients being quantized (before and after)
+ * @param [in]     r0        reference, aka predicted coefficients
+ * @param [in]     n         number of dimensions
+ * @param [in]     q0        quantization step size
+ * @param [out]    y         pulse vector (i.e. selected PVQ codevector)
+ * @param [out]    itheta    angle between input and reference (-1 if noref)
+ * @param [out]    max_theta maximum value of itheta that could have been
+ * @param [out]    vk        total number of pulses
+ * @return         gain      index of the quatized gain
 */
 int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *itheta,
  int *max_theta, int *vk) {
-  double l2x;
-  double l2r;
   double g;
   double gr;
   double x[MAXN];
@@ -384,8 +370,6 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *ithet
   int best_k;
   double best_qtheta;
   double gain_offset;
-  /* Quantized companded gain */
-  double qcg;
   int noref;
   double lambda;
   /* Normalized lambda. At high rate, this would be log(2)/6, but we're
@@ -393,22 +377,15 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *ithet
   lambda = .05;
   q = q0;
   OD_ASSERT(n > 1);
-  l2x = 0;
-  l2r = 0;
   corr = 0;
-  for (i = 0; i < n; i++) {
+  for (i = 0; i < n; i++){
     x[i] = x0[i];
     r[i] = r0[i];
-    l2x += x[i]*x[i];
-    l2r += r[i]*r[i];
     corr += x[i]*r[i];
   }
-  g = sqrt(l2x);
-  gr = sqrt(l2r);
-  /* Normalize gain by quantization step size and apply companding
-     (if ACTIVITY != 1). */
-  cg = pow(g/q, ACTIVITY);
-  cgr = pow(gr/q, ACTIVITY);
+
+  cg  = pvq_compute_gain(x0, n, q, &g);
+  cgr = pvq_compute_gain(r0, n, q, &gr);
   /* gain_offset is meant to make sure one of the quantized gains has
      exactly the same gain as the reference. */
   icgr = floor(.5+cgr);
@@ -432,26 +409,18 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *ithet
     for (i = OD_MAXI(1, (int)floor(cg-gain_offset)-1);
      i <= (int)ceil(cg-gain_offset); i++) {
       int j;
-      int ts;
-      qcg = i+gain_offset;
-      if (i == 0) qcg = 0;
+      /* Quantized companded gain */
+      double qcg = i+gain_offset;
       /* Set angular resolution (in ra) to match the encoded gain */
-      ts = (int)floor(.5 + qcg*M_PI/2);
-      /* Special case for low gains -- will need to be tuned anyway */
-      if (qcg < 1.4) ts = 1;
+      int ts = pvq_compute_max_theta(qcg);
       /* Search for the best angle within a reasonable range. */
       for (j = OD_MAXI(0, (int)floor(.5+theta*2/M_PI*ts)-1);
        j <= OD_MINI(ts-1, (int)ceil(theta*2/M_PI*ts)); j++) {
         double cos_dist;
         double dist;
         double dist_theta;
-        double qtheta;
-        if (ts != 0) qtheta = j*.5*M_PI/ts;
-        else qtheta = 0;
-        /* Sets K according to gain and theta, based on the high-rate
-           PVQ distortion curves D~=N^2/(24*K^2). Low-rate will have to be
-           perceptually tuned anyway.  */
-        k = floor(.5 + qcg*sin(qtheta)*sqrt(n/2));
+        double qtheta = pvq_compute_theta(j, ts);
+        k = pvq_compute_k(qcg, qtheta, 0, n);
         cos_dist = pvq_search_double(x, n, k, y_tmp);
         /* See Jmspeex' Journal of Dubious Theoretical Results. */
         dist_theta = 2 - 2*cos(theta - qtheta)
@@ -482,9 +451,8 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *ithet
     for (i = 0; i <= ceil(cg); i++) {
       double cos_dist;
       double dist;
-      qcg = i;
-      /* See K from above. */
-      k = floor(.5 + qcg*sqrt(n/2));
+      double qcg = i;
+      k = pvq_compute_k(qcg, -1, 1, n);
       cos_dist = pvq_search_double(x1, n, k, y_tmp);
       /* See Jmspeex' Journal of Dubious Theoretical Results. */
       dist = (qcg - cg)*(qcg - cg) + qcg*cg*(2 - 2*cos_dist);
@@ -511,50 +479,5 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *ithet
   *vk = k;
   /* Encode gain differently depending on whether we use prediction or not. */
   return noref ? qg : neg_interleave(qg, icgr);
-}
-
-int od_compute_max_theta(const od_coeff *r, int n, int q, double *gr,
- double *qcg, int *qg, double *gain_offset, int noref) {
-  double l2r;
-  double cgr;
-  int icgr;
-  int ts;
-  int i;
-  l2r=0;
-  for (i = 0; i < n; i++) l2r += r[i]*r[i];
-  *gr = sqrt(l2r);
-  cgr = pow(*gr/q, ACTIVITY);
-  icgr = floor(.5+cgr);
-  *gain_offset = cgr-icgr;
-  if (!noref) *qg = neg_deinterleave(*qg, icgr);
-  *qcg = *qg;
-  if (!noref) *qcg += *gain_offset;
-  if (*qg == 0) *qcg = 0;
-  if (noref) ts = 0;
-  else {
-    /* Set angular resolution (in ra) to match the encoded gain */
-    ts = (int)floor(.5 + *qcg*M_PI/2);
-    /* Special case for low gains -- will need to be tuned anyway */
-    if (*qcg < 1.4) ts = 1;
-  }
-  return ts;
-}
-
-double od_compute_k_theta(int *k, double qcg, int t, int max_theta, int noref,
- int n) {
-  double theta;
-  if (noref) {
-    *k = floor(.5 + qcg*sqrt(n/2));
-    theta = -1;
-  }
-  else {
-    if (max_theta != 0) theta = t*.5*M_PI/max_theta;
-    else theta = 0;
-    /* Sets K according to gain and theta, based on the high-rate
-       PVQ distortion curves D~=N^2/(24*K^2). Low-rate will have to be
-       perceptually tuned anyway.  */
-    *k = (int)floor(.5 + qcg*sin(theta)*sqrt(n/2));
-  }
-  return theta;
 }
 
