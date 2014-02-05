@@ -41,13 +41,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
  * vector. Double-precision PVQ search just to make sure our tests
  * aren't limited by numerical accuracy.
  *
- * @param [in]      in     input vector to quantize
- * @param [in]      n      number of dimensions
- * @param [in]      k      number of pulses
- * @param [out]     out    optimal codevector found
- * @return                 cosine distance between x and y (between 0 and 1)
+ * @param [in]      xcoeff  input vector to quantize (x in the math doc)
+ * @param [in]      n       number of dimensions
+ * @param [in]      k       number of pulses
+ * @param [out]     ypulse  optimal codevector found (y in the math doc)
+ * @return                  cosine distance between x and y (between 0 and 1)
  */
-static double pvq_search_double(const double *in, int n, int k, od_coeff *out) {
+static double pvq_search_double(const double *xcoeff, int n, int k,
+                                od_coeff *ypulse) {
   int i, j;
   double xy;
   double yy;
@@ -55,10 +56,10 @@ static double pvq_search_double(const double *in, int n, int k, od_coeff *out) {
   double xx;
   xx = xy = yy = 0;
   for (j = 0; j < n; j++) {
-    X[j] = fabs(in[j]);
+    X[j] = fabs(xcoeff[j]);
     xx += X[j]*X[j];
   }
-  for (j = 0; j < n; j++) out[j] = 0;
+  for (j = 0; j < n; j++) ypulse[j] = 0;
   /* Search one pulse at a time */
   for (i = 0; i < k; i++) {
     int pos;
@@ -71,7 +72,7 @@ static double pvq_search_double(const double *in, int n, int k, od_coeff *out) {
       double tmp_xy;
       double tmp_yy;
       tmp_xy = xy + X[j];
-      tmp_yy = yy + 2*out[j] + 1;
+      tmp_yy = yy + 2*ypulse[j] + 1;
       tmp_xy *= tmp_xy;
       if (j == 0 || tmp_xy*best_yy > best_xy*tmp_yy) {
         best_xy = tmp_xy;
@@ -80,11 +81,11 @@ static double pvq_search_double(const double *in, int n, int k, od_coeff *out) {
       }
     }
     xy = xy + X[pos];
-    yy = yy + 2*out[pos] + 1;
-    out[pos]++;
+    yy = yy + 2*ypulse[pos] + 1;
+    ypulse[pos]++;
   }
   for (i = 0; i < n; i++) {
-    if (in[i] < 0) out[i] = -out[i];
+    if (xcoeff[i] < 0) ypulse[i] = -ypulse[i];
   }
   return xy/(1e-100 + sqrt(xx*yy));
 }
@@ -250,21 +251,23 @@ int pvq_compute_k(double qcg, double theta, int noref, int n) {
  * the Householder reflection has already been computed and there's no
  * need to recompute it.
  *
- * @param [out]     out    output coefficient partition
- * @param [in]      in     PVQ-encoded values; in the noref case, this vector
- *                         has n entries, in the reference case it contains
- *                         n-1 entries (the m-th entry is not included)
- * @param [in]      r      reference vector (prediction)
- * @param [in]      n      number of elements in this partition
- * @param [in]      noref  indicates presence or lack of prediction
- * @param [in]      qg     decoded quantized vector gain
- * @param [in]      go     gain offset for predicted case
- * @param [in]      theta  decoded theta (prediction error)
- * @param [in]      m      alignment dimension of Householder reflection
- * @param [in]      s      sign of Householder reflection
- * @param [in]      q      gain quantizer
+ * @param [out]     xcoeff  output coefficient partition (x in math doc)
+ * @param [in]      ypulse  PVQ-encoded values (y in the math doc); in
+ *                          the noref case, this vector has n entries,
+ *                          in the reference case it contains n-1 entries
+ *                          (the m-th entry is not included)
+ * @param [in]      r       reference vector (prediction)
+ * @param [in]      n       number of elements in this partition
+ * @param [in]      noref   indicates presence or lack of prediction
+ * @param [in]      qg      decoded quantized vector gain
+ * @param [in]      go      gain offset for predicted case
+ * @param [in]      theta   decoded theta (prediction error)
+ * @param [in]      m       alignment dimension of Householder reflection
+ * @param [in]      s       sign of Householder reflection
+ * @param [in]      q       gain quantizer
  */
-static void pvq_synthesis_partial(od_coeff *out, od_coeff *in, const double *r, int n,
+static void pvq_synthesis_partial(od_coeff *xcoeff, od_coeff *ypulse,
+                                  const double *r, int n,
                                   int noref, int qg, double go,
                                   double theta, int m, int s, double q) {
   int i;
@@ -277,56 +280,57 @@ static void pvq_synthesis_partial(od_coeff *out, od_coeff *in, const double *r, 
 
   yy = 0;
   for (i = 0; i < nn; i++)
-    yy += in[i]*(ogg_int32_t)in[i];
+    yy += ypulse[i]*(ogg_int32_t)ypulse[i];
   norm = sqrt(1./(1e-100 + yy));
 
   if (noref) {
     qcg = qg;
     for (i = 0; i < n; i++)
-      x[i] = in[i]*norm;
+      x[i] = ypulse[i]*norm;
   }
   else{
     qcg = qg==0 ? 0 : qg+go;
     norm *= sin(theta);
     for (i = 0; i < m; i++)
-      x[i] = in[i]*norm;
+      x[i] = ypulse[i]*norm;
     x[m] = -s*cos(theta);
     for (i = m; i < nn; i++)
-      x[i+1] = in[i]*norm;
+      x[i+1] = ypulse[i]*norm;
     apply_householder(x, r, n);
   }
 
   g = q*pow(qcg, 1./ACTIVITY);
   for (i = 0; i < n; i++) {
-    out[i] = floor(.5 + x[i]*g);
+    xcoeff[i] = floor(.5 + x[i]*g);
   }
 }
 
 /** Synthesizes one parition of coefficient values from a PVQ-encoded
  * vector.
  *
- * @param [out]     out    output coefficient partition
- * @param [in]      in     PVQ-encoded values; in the noref case, this vector
- *                         has n entries, in the reference case it contains
- *                         n-1 entries (the m-th entry is not included)
- * @param [in]      r      reference vector (prediction)
- * @param [in]      n      number of elements in this partition
- * @param [in]      gr     gain of the reference vector (prediction)
- * @param [in]      noref  indicates presence or lack of prediction
- * @param [in]      qg     decoded quantized vector gain
- * @param [in]      go     gain offset for predicted case
- * @param [in]      theta  decoded theta (prediction error)
- * @param [in]      m      alignment dimension of Householder reflection
- * @param [in]      s      sign of Householder reflection
- * @param [in]      q      gain quantizer
+ * @param [out]     xcoeff  output coefficient partition (x in math doc)
+ * @param [in]      ypulse  PVQ-encoded values (y in math doc); in the noref
+ *                          case, this vector has n entries, in the
+ *                          reference case it contains n-1 entries
+ *                          (the m-th entry is not included)
+ * @param [in]      r       reference vector (prediction)
+ * @param [in]      n       number of elements in this partition
+ * @param [in]      gr      gain of the reference vector (prediction)
+ * @param [in]      noref   indicates presence or lack of prediction
+ * @param [in]      qg      decoded quantized vector gain
+ * @param [in]      go      gain offset for predicted case
+ * @param [in]      theta   decoded theta (prediction error)
+ * @param [in]      m       alignment dimension of Householder reflection
+ * @param [in]      s       sign of Householder reflection
+ * @param [in]      q       gain quantizer
  */
-void pvq_synthesis(od_coeff *out, od_coeff *in, double *r, int n,
+void pvq_synthesis(od_coeff *xcoeff, od_coeff *ypulse, double *r, int n,
                    double gr, int noref, int qg, double go,
                    double theta, double q) {
   int s = 0;
   int m = noref ? 0 : compute_householder(r, n, gr, &s);
 
-  pvq_synthesis_partial(out, in, r, n, noref, qg,
+  pvq_synthesis_partial(xcoeff, ypulse, r, n, noref, qg,
                         go, theta, m, s, q);
 }
 
@@ -378,7 +382,7 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *ithet
   q = q0;
   OD_ASSERT(n > 1);
   corr = 0;
-  for (i = 0; i < n; i++){
+  for (i = 0; i < n; i++) {
     x[i] = x0[i];
     r[i] = r0[i];
     corr += x[i]*r[i];
@@ -409,10 +413,12 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *ithet
     for (i = OD_MAXI(1, (int)floor(cg-gain_offset)-1);
      i <= (int)ceil(cg-gain_offset); i++) {
       int j;
+      double qcg;
+      int ts;
       /* Quantized companded gain */
-      double qcg = i+gain_offset;
+      qcg = i+gain_offset;
       /* Set angular resolution (in ra) to match the encoded gain */
-      int ts = pvq_compute_max_theta(qcg);
+      ts = pvq_compute_max_theta(qcg);
       /* Search for the best angle within a reasonable range. */
       for (j = OD_MAXI(0, (int)floor(.5+theta*2/M_PI*ts)-1);
        j <= OD_MINI(ts-1, (int)ceil(theta*2/M_PI*ts)); j++) {
@@ -451,7 +457,8 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *ithet
     for (i = 0; i <= ceil(cg); i++) {
       double cos_dist;
       double dist;
-      double qcg = i;
+      double qcg;
+      qcg = i;
       k = pvq_compute_k(qcg, -1, 1, n);
       cos_dist = pvq_search_double(x1, n, k, y_tmp);
       /* See Jmspeex' Journal of Dubious Theoretical Results. */

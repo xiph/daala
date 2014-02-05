@@ -55,7 +55,7 @@ int main(int argc, char **argv)
   printf("#ifdef HAVE_CONFIG_H\n");
   printf("#include \"config.h\"\n");
   printf("#endif\n\n");
-  printf("#include \"pvq_code.h\"\n\n");
+  printf("#include \"laplace_code.h\"\n\n");
   printf("const ogg_uint16_t EXP_CDF_TABLE[%d][16] = {\n", N);
   printf("  {");
   for(j=0;j<16;j++){

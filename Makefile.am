@@ -70,6 +70,7 @@ src_libdaalabase_la_SOURCES = \
 	src/newdct.c \
 	src/partition.c \
 	src/pvq.c \
+	src/pvq_code.c \
 	src/pvq_decoder.c \
 	src/pvq_encoder.c \
 	src/state.c \

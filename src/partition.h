@@ -40,10 +40,10 @@ extern const band_layout od_layout4;
 extern const band_layout od_layout8;
 extern const band_layout od_layout16;
 
-void od_band_partition(od_coeff *dst,  int n, od_coeff *src, int stride,
+void od_raster_to_coding_order(od_coeff *dst,  int n, od_coeff *src, int stride,
                        int interleave);
 
-void od_band_departition(od_coeff *dst,  int stride, od_coeff *src,
+void od_coding_order_to_raster(od_coeff *dst,  int stride, od_coeff *src,
                          int n, int interleave);
 
 #endif

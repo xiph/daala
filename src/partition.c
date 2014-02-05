@@ -66,7 +66,7 @@ const band_layout od_layout4 = {
  * @param [in]     src     source coefficient block
  * @param [int]    int     source vector row stride
  */
-static void od_bands_from_raster(const band_layout *layout, od_coeff *dst,
+static void od_band_from_raster(const band_layout *layout, od_coeff *dst,
  od_coeff *src, int stride) {
   int i;
   int len;
@@ -84,7 +84,7 @@ static void od_bands_from_raster(const band_layout *layout, od_coeff *dst,
  * @param [in]     src     source vector
  * @param [int]    stride  destination vector row stride
  */
-static void od_raster_from_bands(const band_layout *layout, od_coeff *dst,
+static void od_raster_from_band(const band_layout *layout, od_coeff *dst,
  int stride, od_coeff *src) {
   int i;
   int len;
@@ -108,13 +108,13 @@ static void od_raster_from_bands(const band_layout *layout, od_coeff *dst,
  * @param [in]     interleave interleaves entries for the scalar
                               (non-pvq) case
  */
-void od_band_partition(od_coeff *dst,  int n, od_coeff *src, int stride,
+void od_raster_to_coding_order(od_coeff *dst,  int n, od_coeff *src, int stride,
  int interleave) {
   od_coeff tmp1[1024];
-  od_bands_from_raster(&od_layout4, dst+1, src, stride);
+  od_band_from_raster(&od_layout4, dst+1, src, stride);
   if (n >= 8) {
     int i;
-    od_bands_from_raster(&od_layout8, dst+16, src, stride);
+    od_band_from_raster(&od_layout8, dst+16, src, stride);
     if (interleave) {
       for (i = 0; i < 8; i++) {
         tmp1[2*i] = dst[16+i];
@@ -127,7 +127,7 @@ void od_band_partition(od_coeff *dst,  int n, od_coeff *src, int stride,
   }
   if (n >= 16) {
     int i;
-    od_bands_from_raster(&od_layout16, dst+64, src, stride);
+    od_band_from_raster(&od_layout16, dst+64, src, stride);
     if (interleave) {
       for (i = 0; i < 32; i++) {
         tmp1[2*i] = dst[64+i];
@@ -155,9 +155,9 @@ void od_band_partition(od_coeff *dst,  int n, od_coeff *src, int stride,
  * @param [in]     interleave de-interleaves entries for
                               the scalar (non-pvq) case
  */
-void od_band_departition(od_coeff *dst,  int stride, od_coeff *src,
+void od_coding_order_to_raster(od_coeff *dst,  int stride, od_coeff *src,
  int n, int interleave) {
-  od_raster_from_bands(&od_layout4, dst, stride, src+1);
+  od_raster_from_band(&od_layout4, dst, stride, src+1);
   if (n >= 8) {
     if (interleave) {
       int i;
@@ -170,7 +170,7 @@ void od_band_departition(od_coeff *dst,  int stride, od_coeff *src,
         src[24+i] = tmp1[2*i + 1];
       }
     }
-    od_raster_from_bands(&od_layout8, dst, stride, src+16);
+    od_raster_from_band(&od_layout8, dst, stride, src+16);
   }
   if (n >= 16) {
     if (interleave) {
@@ -184,7 +184,7 @@ void od_band_departition(od_coeff *dst,  int stride, od_coeff *src,
         src[96+i] = tmp1[2*i + 1];
       }
     }
-    od_raster_from_bands(&od_layout16, dst, stride, src+64);
+    od_raster_from_band(&od_layout16, dst, stride, src+64);
   }
   dst[0] = src[0];
 }

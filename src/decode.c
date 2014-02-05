@@ -277,7 +277,7 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
     }
   }
 #ifdef USE_BAND_PARTITIONS
-  od_band_partition(predt,  n, &pred[0], n, !run_pvq);
+  od_raster_to_coding_order(predt,  n, &pred[0], n, !run_pvq);
 #else
   /*Zig-zag*/
   for (y = 0; y < n; y++) {
@@ -312,7 +312,7 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
     ctx->count_ex_total_q8 += adapt_curr[OD_ADAPT_COUNT_EX_Q8];
   }
 #ifdef USE_BAND_PARTITIONS
-  od_band_departition(&d[((by << 2))*w + (bx << 2)], w, pred, n, !run_pvq);
+  od_coding_order_to_raster(&d[((by << 2))*w + (bx << 2)], w, pred, n, !run_pvq);
 #else
   /*De-zigzag*/
   for (y = 0; y < n; y++) {
