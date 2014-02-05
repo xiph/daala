@@ -48,7 +48,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 /*The largest block size.*/
 # define OD_BSIZE_MAX  (1<<OD_LOG_BSIZE0+OD_NBSIZES-1)
 
-
+# define OD_DISABLE_FILTER (0)
 
 # if defined(OD_ENABLE_ASSERTIONS)
 #  include <stdio.h>

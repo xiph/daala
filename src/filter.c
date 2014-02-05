@@ -164,6 +164,12 @@ const int OD_FILTER_PARAMS4[3] = {
 };
 
 void od_pre_filter4(od_coeff _y[4], const od_coeff _x[4]) {
+#if OD_DISABLE_FILTER
+  int i;
+  for (i = 0; i < 4; i++) {
+    _y[i] = _x[i];
+  }
+#else
   int t[4];
   /*+1/-1 butterflies (required for FIR, PR, LP).*/
   t[3] = _x[0]-_x[3];
@@ -191,9 +197,16 @@ void od_pre_filter4(od_coeff _y[4], const od_coeff _x[4]) {
   _y[1] = (od_coeff)t[1];
   _y[2] = (od_coeff)(t[1]-t[3]);
   _y[3] = (od_coeff)(t[0]-t[2]);
+#endif
 }
 
 void od_post_filter4(od_coeff _x[4], const od_coeff _y[4]) {
+#if OD_DISABLE_FILTER
+  int i;
+  for (i = 0; i < 4; i++) {
+    _x[i] = _y[i];
+  }
+#else
   int t[4];
   t[2] = _y[0]-_y[3];
   t[3] = _y[1]-_y[2];
@@ -216,6 +229,7 @@ void od_post_filter4(od_coeff _x[4], const od_coeff _y[4]) {
   _x[1] = (od_coeff)t[1];
   _x[2] = (od_coeff)(t[1]-t[2]);
   _x[3] = (od_coeff)(t[0]-t[3]);
+#endif
 }
 
 /*R=f
@@ -274,6 +288,12 @@ const int OD_FILTER_PARAMS8[10] = {
 };
 
 void od_pre_filter8(od_coeff _y[8], const od_coeff _x[8]) {
+#if OD_DISABLE_FILTER
+  int i;
+  for (i = 0; i < 8; i++) {
+    _y[i] = _x[i];
+  }
+#else
   int t[8];
   /*+1/-1 butterflies (required for FIR, PR, LP).*/
   t[7] = _x[0]-_x[7];
@@ -335,9 +355,16 @@ void od_pre_filter8(od_coeff _y[8], const od_coeff _x[8]) {
   _y[5] = (od_coeff)(t[2]-t[5]);
   _y[6] = (od_coeff)(t[1]-t[6]);
   _y[7] = (od_coeff)(t[0]-t[7]);
+#endif
 }
 
 void od_post_filter8(od_coeff _x[8], const od_coeff _y[8]) {
+#if OD_DISABLE_FILTER
+  int i;
+  for (i = 0; i < 8; i++) {
+    _x[i] = _y[i];
+  }
+#else
   int t[8];
   t[7] = _y[0]-_y[7];
   t[6] = _y[1]-_y[6];
@@ -386,6 +413,7 @@ void od_post_filter8(od_coeff _x[8], const od_coeff _y[8]) {
   _x[5] = (od_coeff)(t[2]-t[5]);
   _x[6] = (od_coeff)(t[1]-t[6]);
   _x[7] = (od_coeff)(t[0]-t[7]);
+#endif
 }
 
 /*R=f Type-3
@@ -484,6 +512,12 @@ const int OD_FILTER_PARAMS16[22]={
 };
 
 void od_pre_filter16(od_coeff _y[16],const od_coeff _x[16]){
+#if OD_DISABLE_FILTER
+  int i;
+  for (i = 0; i < 16; i++) {
+    _y[i] = _x[i];
+  }
+#else
    int t[16];
    /*+1/-1 butterflies (required for FIR, PR, LP).*/
    t[15]=_x[0]-_x[15];
@@ -597,9 +631,16 @@ void od_pre_filter16(od_coeff _y[16],const od_coeff _x[16]){
    _y[13]=(od_coeff)(t[2]-t[13]);
    _y[14]=(od_coeff)(t[1]-t[14]);
    _y[15]=(od_coeff)(t[0]-t[15]);
+#endif
 }
 
 void od_post_filter16(od_coeff _x[16],const od_coeff _y[16]){
+#if OD_DISABLE_FILTER
+  int i;
+  for (i = 0; i < 16; i++) {
+    _x[i] = _y[i];
+  }
+#else
    int t[16];
    t[15]=_y[0]-_y[15];
    t[14]=_y[1]-_y[14];
@@ -696,6 +737,7 @@ void od_post_filter16(od_coeff _x[16],const od_coeff _y[16]){
    _x[13]=(od_coeff)(t[2]-t[13]);
    _x[14]=(od_coeff)(t[1]-t[14]);
    _x[15]=(od_coeff)(t[0]-t[15]);
+#endif
 }
 
 #define ZERO_FILTERS (0)
