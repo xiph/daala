@@ -454,7 +454,7 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *ithet
     double x1[MAXN];
     for (i = 0; i < n; i++) x1[i] = x0[i];
     /* Search for the best gain (haven't determined reasonable range yet). */
-    for (i = 0; i <= ceil(cg); i++) {
+    for (i = OD_MAXI(0, (int)floor(cg) - 1); i <= ceil(cg); i++) {
       double cos_dist;
       double dist;
       double qcg;
