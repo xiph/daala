@@ -210,9 +210,15 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
         m_u = modes[(by - 1)*(w >> 2) + bx];
         od_intra_pred_cdf(mode_cdf, OD_INTRA_PRED_PROB_4x4[pli],
          ctx->mode_p0, OD_INTRA_NMODES, m_l, m_ul, m_u);
-        mode = od_ec_decode_cdf_unscaled(&dec->ec, mode_cdf,
-         OD_INTRA_NMODES);
+#if OD_DISABLE_INTRA
+        mode = 0;
+#else
+        mode = od_ec_decode_cdf_unscaled(&dec->ec, mode_cdf, OD_INTRA_NMODES);
+#endif
         (*OD_INTRA_GET[ln])(pred, coeffs, strides, mode);
+#if OD_DISABLE_INTRA
+        OD_CLEAR(pred+1, n2-1);
+#endif
         for (y = 0; y < (1 << ln); y++) {
           for (x = 0; x < (1 << ln); x++) {
             modes[(by + y)*(w >> 2) + bx + x] = mode;

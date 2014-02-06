@@ -54,6 +54,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #  error "block sizes above 16x16 not supported"
 # endif
 # define OD_DISABLE_FILTER (0)
+# define OD_DISABLE_INTRA (0)
 # define OD_DISABLE_PVQ (0)
 
 # if defined(OD_ENABLE_ASSERTIONS)
