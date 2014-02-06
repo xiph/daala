@@ -1,4 +1,3 @@
-/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /*Daala video codec
 Copyright (c) 2006-2013 Daala project contributors.  All rights reserved.
 
