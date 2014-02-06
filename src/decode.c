@@ -481,10 +481,19 @@ static void od_decode_block_sizes(od_dec_ctx *dec) {
   od_state_init_border_as_32x32(&dec->state);
   nhsb = dec->state.nhsb;
   nvsb = dec->state.nvsb;
-  for (i = 0; i < nvsb; i++) {
-    for (j = 0; j < nhsb; j++) {
-      od_block_size_decode(&dec->ec,
-       &dec->state.bsize[4*dec->state.bstride*i + 4*j], dec->state.bstride);
+  if (OD_LIMIT_LOG_BSIZE_MIN != OD_LIMIT_LOG_BSIZE_MAX) {
+    for (i = 0; i < nvsb; i++) {
+      for (j = 0; j < nhsb; j++) {
+        od_block_size_decode(&dec->ec,
+         &dec->state.bsize[4*dec->state.bstride*i + 4*j], dec->state.bstride);
+      }
+    }
+  } else {
+    for (i = 0; i < nvsb*4; i++) {
+      for (j = 0; j < nhsb*4; j++) {
+        dec->state.bsize[dec->state.bstride*i + j] =
+         OD_LIMIT_LOG_BSIZE_MIN - OD_LOG_BSIZE0;
+      }
     }
   }
 }

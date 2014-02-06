@@ -48,6 +48,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 /*The largest block size.*/
 # define OD_BSIZE_MAX  (1<<OD_LOG_BSIZE0+OD_NBSIZES-1)
 
+# define OD_LIMIT_LOG_BSIZE_MIN (2)
+# define OD_LIMIT_LOG_BSIZE_MAX (4)
+# if OD_LIMIT_LOG_BSIZE_MIN > 4 || OD_LIMIT_LOG_BSIZE_MAX > 4
+#  error "block sizes above 16x16 not supported"
+# endif
 # define OD_DISABLE_FILTER (0)
 # define OD_DISABLE_PVQ (0)
 
