@@ -190,37 +190,74 @@ void od_tf_down_hv(od_coeff *dst, int dstride,
   }
 }
 
-static void od_convert_block_up(od_coeff *dst, int dstride,
- const od_coeff *src, int sstride, const unsigned char *bsize,
- int bstride, int nx, int ny, int dest_size) {
+static void od_tf_filter(od_coeff *dst, int dstride, int n) {
+  od_coeff *v;
+  od_coeff *u;
   int i;
-  int j;
-  int n;
-  od_coeff scratch[16][16];
-  n = 1 << (dest_size + 2);
-  for (i = 0; i < n; i++) {
-    for (j = 0; j < n; j++) scratch[i][j] = src[i*sstride + j];
+  int m;
+  m = (n >> 1) - 1;
+  v = dst + dstride;
+  for (i = 0; i < m; i++) {
+    u = v;
+    v += dstride << 1;
+    *u += *v >> 1;
+    *v -= *u >> 1;
   }
-  if (dest_size > 1) {
-    int sub;
-    sub = 1 << (dest_size - 1);
-    for (i = 0; i < 2; i++) {
-      for (j = 0; j < 2; j++) {
-        if (OD_BLOCK_SIZE4x4(bsize, bstride, nx + i*sub, ny + j*sub)
-         < dest_size - 1) {
-          od_convert_block_up(&scratch[4*i*sub][4*j*sub], 16,
-           &scratch[4*i*sub][4*j*sub], 16, bsize, bstride,
-           nx + i*sub, ny + j*sub, dest_size - 1);
-        }
+}
+
+static void od_tf_filter_inv(od_coeff *dst, int dstride, int n) {
+  od_coeff *v;
+  od_coeff *u;
+  int i;
+  int m;
+  u = dst + dstride*(n - 1);
+  m = (n >> 1) - 1;
+  for (i = 0; i < m; i++) {
+    v = u;
+    u -= dstride << 1;
+    *v += *u >> 1;
+    *u -= *v >> 1;
+  }
+}
+
+void od_tf_filter_2d(od_coeff *dst, int dstride, const od_coeff *src,
+ int sstride, int n) {
+  int i,j;
+  if (dst!=src) {
+    for (j = 0; j < n; j++) {
+      for (i = 0; i < n; i++) {
+        dst[dstride*j + i] = src[sstride*j + i];
       }
     }
   }
-  /* At this point, we assume that scratch has size dest_size-1. */
-  od_tf_up_hv(dst, dstride, &scratch[0][0], 16, 1 << (dest_size - 1 + 2));
+  for (j = 0; j < n; j++) {
+    od_tf_filter(&dst[dstride*j], 1, n);
+  }
+  for (i = 0; i < n; i++) {
+    od_tf_filter(&dst[i*1], dstride, n);
+  }
+}
+
+void od_tf_filter_inv_2d(od_coeff *dst, int dstride, const od_coeff *src,
+ int sstride, int n) {
+  int i,j;
+  if (dst!=src) {
+    for (j = 0; j < n; j++) {
+      for (i = 0; i < n; i++) {
+        dst[dstride*j + i] = src[sstride*j + i];
+      }
+    }
+  }
+  for (i = 0; i < n; i++) {
+    od_tf_filter_inv(&dst[i*1], dstride, n);
+  }
+  for (j = 0; j < n; j++) {
+    od_tf_filter_inv(&dst[dstride*j], 1, n);
+  }
 }
 
 void od_convert_block_down(od_coeff *dst, int dstride, const od_coeff *src,
- int sstride, int curr_size, int dest_size) {
+ int sstride, int curr_size, int dest_size, int filter) {
   int n;
   int j;
   int i;
@@ -236,98 +273,27 @@ void od_convert_block_down(od_coeff *dst, int dstride, const od_coeff *src,
     }
     return;
   }
-  if (curr_size - 1 == dest_size) {
-    for (j = 0; j < n; j++) {
-      for (i = 0; i < n; i++) {
-        scratch[OD_BSIZE_MAX*j + i] = src[sstride*j + i];
-      }
+  for (j = 0; j < n; j++) {
+    for (i = 0; i < n; i++) {
+      scratch[OD_BSIZE_MAX*j + i] = src[sstride*j + i];
     }
+  }
+  if (filter) {
+    od_tf_filter_inv_2d(scratch, OD_BSIZE_MAX, scratch, OD_BSIZE_MAX, n);
+  }
+  if (curr_size - 1 == dest_size) {
     od_tf_down_hv(dst, dstride, scratch, OD_BSIZE_MAX, n);
   }
   else {
-    od_tf_down_hv(scratch, OD_BSIZE_MAX, src, sstride, n);
+    od_coeff scratch2[OD_BSIZE_MAX * OD_BSIZE_MAX];
+    od_tf_down_hv(scratch2, OD_BSIZE_MAX, scratch, OD_BSIZE_MAX, n);
     n >>= 1;
     for (j = 0; j < 2; j++) {
       for (i = 0; i < 2; i++) {
         od_convert_block_down(&dst[dstride*n*j + n*i], dstride,
-         &scratch[OD_BSIZE_MAX*n*j + n*i], OD_BSIZE_MAX, curr_size - 1,
-         dest_size);
+         &scratch2[OD_BSIZE_MAX*n*j + n*i], OD_BSIZE_MAX, curr_size - 1,
+         dest_size, filter);
       }
     }
-  }
-}
-
-void od_convert_intra_coeffs(od_coeff *(dst[4]), int dstrides[4],
- od_coeff *src, int sstride, int bx, int by,
- const unsigned char *bsize, int bstride, int has_ur) {
-  /* Relative position of neighbors: up-left     up   "up-right"  left */
-  static const int offsets[4][2] =
-  { { -1, -1 }, { 0, -1 }, { 1, -1 }, { -1, 0 } };
-  int csize;
-  int n;
-  csize = OD_BLOCK_SIZE4x4(bsize, bstride, bx, by);
-#if defined(OD_VALGRIND)
-  for (n = 0; n < 4; n++) {
-    int z;
-    for (z = 0; z < (4 << csize); z++) {
-      VALGRIND_MAKE_MEM_UNDEFINED(dst[n] + z*dstrides[n],
-       dstrides[n]*sizeof(*dst[n]));
-    }
-  }
-#endif
-  /* Loop over neighbours. */
-  for (n = 0; n < 4; n++) {
-    int nx;
-    int ny;
-    int nsize;
-    if (n == 2 && !has_ur) nx = bx;
-    else nx = bx + (offsets[n][0] << csize);
-    ny = by + (offsets[n][1] << csize);
-    nsize = OD_BLOCK_SIZE4x4(bsize, bstride, nx, ny);
-    if (nsize == csize) {
-      /* simply override the pointer and stride */
-      dst[n] = src + 4*ny*sstride + 4*nx;
-      dstrides[n] = sstride;
-    }
-    else if (nsize > csize) {
-      /* We need to TF down. */
-      int size;
-      int i;
-      int j;
-      int off_x;
-      int off_y;
-      int nxa;
-      int nya;
-      od_coeff scratch[16][16];
-      /* Aligns nx and ny to the size of the neighbour. */
-      nxa = nx >> nsize << nsize;
-      nya = ny >> nsize << nsize;
-      size = 1 << csize << 2;
-      od_convert_block_down(&scratch[0][0], 16, &src[4*nya*sstride + 4*nxa],
-       sstride, nsize, csize);
-      /* Find there offset in the TF'ed block that has the useful data */
-      off_x = (nx-nxa) << 2;
-      off_y = (ny-nya) << 2;
-      /* Copy only the part we need */
-      for (i = 0; i < size; i++) {
-        for (j = 0; j < size; j++) {
-          dst[n][i*dstrides[n] + j] = scratch[i + off_y][j + off_x];
-        }
-      }
-    }
-    else {
-      /* We need to TF up. */
-      od_convert_block_up(dst[n], dstrides[n], &src[4*ny*sstride + 4*nx],
-       sstride, bsize, bstride, nx, ny, csize);
-    }
-#if defined(OD_VALGRIND)
-    {
-      int z;
-      for (z = 0; z < (4 << csize); z++) {
-        VALGRIND_CHECK_MEM_IS_DEFINED(dst[n] + z*dstrides[n],
-         (4 << csize)*sizeof(*dst[n]));
-      }
-    }
-#endif
   }
 }

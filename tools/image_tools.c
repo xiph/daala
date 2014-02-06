@@ -218,7 +218,7 @@ static void od_tf_blocks_down(od_coeff *_out,int _out_stride,od_coeff *_in,
       }
       else {
         od_convert_block_down(&_out[_out_stride*y+x],_out_stride,
-         &_in[_in_stride*y+x],_in_stride,_b_sz_log-2,0);
+         &_in[_in_stride*y+x],_in_stride,_b_sz_log-2,0,0);
       }
     }
   }

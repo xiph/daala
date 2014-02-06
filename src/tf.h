@@ -35,11 +35,12 @@ void od_tf_up_v_lp(od_coeff *dst, int dstride,
 void od_tf_up_hv_lp(od_coeff *dst, int dstride,
  const od_coeff *src, int sstride, int dx, int dy, int n);
 
-void od_convert_intra_coeffs(od_coeff *(dst[4]), int dstrides[4],
- od_coeff *src, int sstride, int bx, int by,
- const unsigned char *bsize, int bstride, int has_ur);
-
 void od_convert_block_down(od_coeff *dst, int dstride, const od_coeff *src,
- int sstride, int curr_size, int dest_size);
+ int sstride, int curr_size, int dest_size, int filter);
+
+void od_tf_filter_2d(od_coeff *dst, int dstride, const od_coeff *src,
+ int sstride, int n);
+void od_tf_filter_inv_2d(od_coeff *dst, int dstride, const od_coeff *src,
+ int sstride, int n);
 
 #endif

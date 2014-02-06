@@ -508,7 +508,7 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   /* Update the TF'd luma plane. */
   if (ctx->is_keyframe && pli == 0) {
     od_convert_block_down(tf + (by << 2)*w + (bx << 2), w,
-     d + (by << 2)*w + (bx << 2), w, ln, 0);
+     d + (by << 2)*w + (bx << 2), w, ln, 0, 0);
   }
   if (adapt_curr[OD_ADAPT_K_Q8] >= 0) {
     ctx->nk++;
