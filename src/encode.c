@@ -312,7 +312,7 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   ydec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
   frame_width = enc->state.frame_width;
   w = frame_width >> xdec;
-  modes = ctx->modes[pli];
+  modes = ctx->modes[OD_DISABLE_CFL ? pli : 0];
   c = ctx->c;
   d = ctx->d[pli];
   tf = ctx->tf[pli];
