@@ -1,10 +1,11 @@
 #!/bin/bash
 #
-# USAGE: upload_commits.sh <num_commits> [upload.py ARGS]
-# NOTES: -y and --send_mail are automatically passed to upload.py
+# USAGE: upload_commits.sh <num_commits> [<upload.py ARGS>]
+# NOTE: -y and --send_mail are automatically passed to upload.py
 
 if [ $# == 0 ]; then
-  echo "usage: $0 <num_commits> [upload.py ARGS]"
+  echo "usage: $0 <num_commits> [<upload.py ARGS>]"
+  echo "NOTE: -y and --send_mail are automatically passed to upload.py"
   exit 1
 fi
 
