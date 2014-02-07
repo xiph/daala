@@ -625,7 +625,7 @@ pkgconfig_DATA = daalaenc.pc daaladec.pc
 
 debug: DEBUG_OPTIONS = -DOD_ENABLE_ASSERTIONS -DOD_LOGGING_ENABLED
 debug:
-	$(MAKE) CFLAGS="$(CFLAGS) -O0 -ggdb $(DEBUG_OPTIONS)" all
+	$(MAKE) CFLAGS="$(CFLAGS) -O0 -ggdb3 $(DEBUG_OPTIONS)" all
 
 EXTRA_DIST = \
 	daalaenc.pc.in \
