@@ -171,9 +171,11 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   ydec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
   frame_width = dec->state.frame_width;
   w = frame_width >> xdec;
-  modes = ctx->modes[pli];
+  modes = ctx->modes[OD_DISABLE_CFL ? pli : 0];
   c = ctx->c;
   d = ctx->d[pli];
+  /*We never use tf on the chroma planes, but if we do it will blow up, which
+    is better than always using luma's tf.*/
   tf = ctx->tf[pli];
   md = ctx->md;
   mc = ctx->mc;
@@ -564,7 +566,7 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
     int x;
     /*Initialize the data needed for each plane.*/
     nplanes = dec->state.info.nplanes;
-    for (pli = 0; pli < OD_DISABLE_CFL ? nplanes : 1; pli++) {
+    for (pli = 0; pli < (OD_DISABLE_CFL ? nplanes : 1); pli++) {
       xdec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
       ydec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
       mbctx.modes[pli] = _ogg_calloc((frame_width >> (2 + xdec))
@@ -574,7 +576,7 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
       mbctx.mode_p0[mi] = 32768/OD_INTRA_NMODES;
     }
     if (mbctx.is_keyframe) {
-      for (pli = 0; pli < OD_DISABLE_CFL ? nplanes : 1; pli++) {
+      for (pli = 0; pli < (OD_DISABLE_CFL ? nplanes : 1); pli++) {
         xdec = dec->state.io_imgs[OD_FRAME_REC].planes[pli].xdec;
         ydec = dec->state.io_imgs[OD_FRAME_REC].planes[pli].ydec;
         w = frame_width >> xdec;
@@ -739,11 +741,11 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
         _ogg_free(mctmp[pli]);
       }
     }
-    for (pli = 0; pli < OD_DISABLE_CFL ? nplanes : 1; pli++) {
+    for (pli = 0; pli < (OD_DISABLE_CFL ? nplanes : 1); pli++) {
       _ogg_free(mbctx.modes[pli]);
     }
     if (mbctx.is_keyframe) {
-      for (pli = 0; pli < OD_DISABLE_CFL ? nplanes : 1; pli++) {
+      for (pli = 0; pli < (OD_DISABLE_CFL ? nplanes : 1); pli++) {
         _ogg_free(mbctx.tf[pli]);
       }
     }

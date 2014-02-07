@@ -315,6 +315,8 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   modes = ctx->modes[OD_DISABLE_CFL ? pli : 0];
   c = ctx->c;
   d = ctx->d[pli];
+  /*We never use tf on the chroma planes, but if we do it will blow up, which
+    is better than always using luma's tf.*/
   tf = ctx->tf[pli];
   md = ctx->md;
   mc = ctx->mc;
