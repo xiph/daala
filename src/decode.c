@@ -118,8 +118,8 @@ struct od_mb_dec_ctx {
   od_coeff *mc;
   od_coeff *l;
   int run_pvq[OD_NPLANES_MAX];
-  int ex_dc[OD_NPLANES_MAX];
-  int ex_g[OD_NPLANES_MAX];
+  int ex_dc[OD_NPLANES_MAX][OD_NBSIZES];
+  int ex_g[OD_NPLANES_MAX][OD_NBSIZES];
   int is_keyframe;
   int nk;
   int k_total;
@@ -294,7 +294,7 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
 #endif
   scale = OD_MAXI(dec->scale[pli], 1);
   pred[0] = generic_decode(&dec->ec, ctx->model_dc + pli,
-   ctx->ex_dc + pli, 0);
+   &ctx->ex_dc[pli][ln], 0);
   if (pred[0]) pred[0] *= od_ec_dec_bits(&dec->ec, 1) ? -1 : 1;
   pred[0] = pred[0]*scale + predt[0];
   if (run_pvq) {
@@ -303,7 +303,7 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
     for (i = 0; i < OD_NSB_ADAPT_CTXS; i++) adapt_curr[i] = 0;
   }
   else {
-    vk = generic_decode(&dec->ec, ctx->model_g + pli, ctx->ex_g + pli, 0);
+    vk = generic_decode(&dec->ec, ctx->model_g + pli, &ctx->ex_g[pli][ln], 0);
     laplace_decode_vector(&dec->ec, pred + 1, n2 - 1, vk, adapt_curr, ctx->adapt);
     for (zzi = 1; zzi < n2; zzi++) pred[zzi] = pred[zzi]*scale + predt[zzi];
   }
@@ -613,11 +613,14 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
       }
     }
     for (pli = 0; pli < nplanes; pli++) {
+      int lni;
       generic_model_init(mbctx.model_dc + pli);
       generic_model_init(mbctx.model_g + pli);
       generic_model_init(mbctx.model_ym + pli);
-      mbctx.ex_dc[pli] = pli > 0 ? 8 : 32768;
-      mbctx.ex_g[pli] = 8;
+      for (lni = 0; lni < OD_NBSIZES; lni++) {
+        mbctx.ex_dc[pli][lni] = pli > 0 ? 8 : 32768;
+        mbctx.ex_g[pli][lni] = 8;
+      }
       xdec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
       ydec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
       w = frame_width >> xdec;

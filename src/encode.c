@@ -249,8 +249,8 @@ struct od_mb_enc_ctx {
   od_coeff *mc;
   od_coeff *l;
   int run_pvq[OD_NPLANES_MAX];
-  int ex_dc[OD_NPLANES_MAX];
-  int ex_g[OD_NPLANES_MAX];
+  int ex_dc[OD_NPLANES_MAX][OD_NBSIZES];
+  int ex_g[OD_NPLANES_MAX][OD_NBSIZES];
   int is_keyframe;
   int nk;
   int k_total;
@@ -466,7 +466,7 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   dc_frac_bits = od_ec_enc_tell_frac(&enc->ec);
 #endif
   generic_encode(&enc->ec, ctx->model_dc + pli, abs(scalar_out[0]),
-   ctx->ex_dc + pli, 0);
+   &ctx->ex_dc[pli][ln], 0);
   if (scalar_out[0]) od_ec_enc_bits(&enc->ec, scalar_out[0] < 0, 1);
 #if defined(OD_METRICS)
   enc->state.bit_metrics[OD_METRIC_DC] += od_ec_enc_tell_frac(&enc->ec) -
@@ -491,7 +491,7 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
     pvq_frac_bits = od_ec_enc_tell_frac(&enc->ec);
 #endif
     generic_encode(&enc->ec, ctx->model_g + pli, vk,
-     ctx->ex_g + pli, 0);
+     &ctx->ex_g[pli][ln], 0);
     laplace_encode_vector(&enc->ec, scalar_out + 1, n2 - 1, vk, adapt_curr, ctx->adapt);
 #if defined(OD_METRICS)
     enc->state.bit_metrics[OD_METRIC_PVQ] += od_ec_enc_tell_frac(&enc->ec) -
@@ -943,11 +943,14 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       mbctx.mode_p0[mi] = 32768/OD_INTRA_NMODES;
     }
     for (pli = 0; pli < nplanes; pli++) {
+      int lni;
       generic_model_init(&mbctx.model_dc[pli]);
       generic_model_init(&mbctx.model_g[pli]);
       generic_model_init(&mbctx.model_ym[pli]);
-      mbctx.ex_dc[pli] = pli > 0 ? 8 : 32768;
-      mbctx.ex_g[pli] = 8;
+      for (lni = 0; lni < OD_NBSIZES; lni++) {
+        mbctx.ex_dc[pli][lni] = pli > 0 ? 8 : 32768;
+        mbctx.ex_g[pli][lni] = 8;
+      }
       xdec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
       ydec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
       w = frame_width >> xdec;
