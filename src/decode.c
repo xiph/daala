@@ -513,8 +513,6 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
   int nvsb;
   int nhsb;
   int refi;
-  int xdec;
-  int ydec;
   od_mb_dec_ctx mbctx;
   if (dec == NULL || img == NULL || op == NULL) return OD_EFAULT;
   if (dec->packet_state != OD_PACKET_DATA) return OD_EINVAL;
@@ -541,8 +539,6 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
   dec->state.ref_imgi[OD_FRAME_SELF] = refi;
   nhsb = dec->state.nhsb;
   nvsb = dec->state.nvsb;
-  xdec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
-  ydec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
   od_decode_block_sizes(dec);
   if (!mbctx.is_keyframe) {
     od_dec_mv_unpack(dec);
@@ -569,8 +565,10 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
     /*Initialize the data needed for each plane.*/
     nplanes = dec->state.info.nplanes;
     for (pli = 0; pli < OD_DISABLE_CFL ? nplanes : 1; pli++) {
+      xdec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
+      ydec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
       mbctx.modes[pli] = _ogg_calloc((frame_width >> (2 + xdec))
-       *(frame_height >> (2 * ydec)), sizeof(*mbctx.modes[pli]));
+       *(frame_height >> (2 + ydec)), sizeof(*mbctx.modes[pli]));
     }
     for (mi = 0; mi < OD_INTRA_NMODES; mi++) {
       mbctx.mode_p0[mi] = 32768/OD_INTRA_NMODES;
