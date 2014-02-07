@@ -1014,7 +1014,7 @@ static void ieee1180_test_block4(long _sumerrs[4][4], long _sumsqerrs[4][4],
   }
   for (i = 0; i < 4; i++) {
     for (j = 0; j < 4; j++) {
-      refout[i][j] = (od_coeff)(floatcoefs[i][j]+0.5);
+      refout[i][j] = (od_coeff)floor(floatcoefs[i][j]+0.5);
       if (refout[i][j] > 255) refout[i][j] = 255;
       else if (refout[i][j] < -256) refout[i][j] = -256;
     }
@@ -1459,7 +1459,7 @@ static void ieee1180_test_block8(long _sumerrs[8][8], long _sumsqerrs[8][8],
   }
   for (i = 0; i < 8; i++) {
     for (j = 0; j < 8; j++) {
-      refout[i][j] = (od_coeff)(floatcoefs[i][j]+0.5);
+      refout[i][j] = (od_coeff)floor(floatcoefs[i][j]+0.5);
       if (refout[i][j] > 255) refout[i][j] = 255;
       else if (refout[i][j] < -256) refout[i][j] = -256;
     }
@@ -2109,7 +2109,7 @@ static void ieee1180_test_block16(long _sumerrs[16][16],
   }
   for (i = 0; i < 16; i++) {
     for (j = 0; j < 16; j++) {
-      refout[i][j] = (od_coeff)(floatcoefs[i][j]+0.5);
+      refout[i][j] = (od_coeff)floor(floatcoefs[i][j]+0.5);
       if (refout[i][j] > 255) refout[i][j] = 255;
       else if (refout[i][j] < -256) refout[i][j] = -256;
     }
