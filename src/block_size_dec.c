@@ -80,4 +80,10 @@ void od_block_size_decode(od_ec_dec *dec, unsigned char *bsize, int stride) {
       }
     }
   }
+  for (i = 0; i < 4; i++) {
+    for (j = 0; j < 4; j++) {
+      bsize[i*stride + j] = OD_MINI(OD_NBSIZES-1, OD_MAXI(0,
+       bsize[i*stride + j]));
+    }
+  }
 }
