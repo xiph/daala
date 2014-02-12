@@ -35,22 +35,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "logging.h"
 #include "odintrin.h"
 
-/** Initializes the cdfs and freq counts for a model.
- *
- * @param [out] model model being initialized
- */
-void generic_model_init(generic_encoder *model) {
-  int i;
-  int j;
-  model->increment = 64;
-  for (i = 0; i < GENERIC_TABLES; i++) {
-    for (j = 0; j < 16; j++) {
-      /* FIXME: Come on, we can do better than flat initialization! */
-      model->cdf[i][j] = (j + 1) << 10;
-    }
-  }
-}
-
 /** Encodes a random variable using a "generic" model, assuming that the
  * distribution is one-sided (zero and up), has a single mode, and decays
  * exponentially past the model.

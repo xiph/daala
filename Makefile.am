@@ -53,17 +53,14 @@ src_libdaalabase_la_SOURCES = \
 	src/block_size.c \
 	src/entcode.c \
 	src/entdec.c \
-	src/entenc.c \
 	src/filter.c \
 	src/generic_code.c \
 	src/generic_decoder.c \
-	src/generic_encoder.c \
 	src/info.c \
 	src/internal.c \
 	src/intra.c \
 	src/intradata.c \
 	src/laplace_decoder.c \
-	src/laplace_encoder.c \
 	src/laplace_tables.c \
 	src/logging.c \
 	src/mc.c \
@@ -72,7 +69,6 @@ src_libdaalabase_la_SOURCES = \
 	src/pvq.c \
 	src/pvq_code.c \
 	src/pvq_decoder.c \
-	src/pvq_encoder.c \
 	src/state.c \
 	src/switch_table.c \
 	src/tf.c \
@@ -106,9 +102,13 @@ src_libdaalaenc_la_SOURCES = \
 	src/block_size_dec.c \
 	src/block_size_enc.c \
 	src/encode.c \
+	src/entenc.c \
+	src/generic_encoder.c \
 	src/infoenc.c \
+	src/laplace_encoder.c \
 	src/mcenc.c \
-        src/metrics.c
+	src/metrics.c \
+	src/pvq_encoder.c
 if ENABLE_X86ASM
 src_libdaalaenc_la_SOURCES += \
         src/x86/x86enc.c \

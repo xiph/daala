@@ -28,6 +28,22 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #include "generic_code.h"
 
+/** Initializes the cdfs and freq counts for a model.
+ *
+ * @param [out] model model being initialized
+ */
+void generic_model_init(generic_encoder *model) {
+  int i;
+  int j;
+  model->increment = 64;
+  for (i = 0; i < GENERIC_TABLES; i++) {
+    for (j = 0; j < 16; j++) {
+      /* FIXME: Come on, we can do better than flat initialization! */
+      model->cdf[i][j] = (j + 1) << 10;
+    }
+  }
+}
+
 /** Takes the base-2 log of E(x) in Q1.
  *
  * @param [in] ExQ16 expectation of x in Q16

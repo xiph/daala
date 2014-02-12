@@ -114,17 +114,14 @@ adapt.c \
 block_size.c \
 entcode.c \
 entdec.c \
-entenc.c \
 filter.c \
 generic_code.c \
 generic_decoder.c \
-generic_encoder.c \
 info.c \
 internal.c \
 intra.c \
 intradata.c \
 laplace_decoder.c \
-laplace_encoder.c \
 laplace_tables.c \
 logging.c \
 mc.c \
@@ -133,7 +130,6 @@ partition.c \
 pvq.c \
 pvq_code.c \
 pvq_decoder.c \
-pvq_encoder.c \
 state.c \
 switch_table.c \
 tf.c \
@@ -154,7 +150,6 @@ adapt.h \
 block_size.h \
 entcode.h \
 entdec.h \
-entenc.h \
 filter.h \
 generic_code.h \
 laplace_code.h \
@@ -184,8 +179,12 @@ LIBDAALAENC_CSOURCES = \
 block_size_dec.c \
 block_size_enc.c \
 encode.c \
+entenc.c \
+generic_encoder.c \
 infoenc.c \
+laplace_encoder.c \
 mcenc.c \
+pvq_encoder.c \
 $(if $(findstring -DOD_X86ASM,${CFLAGS}), \
 x86/x86enc.c \
 x86/x86mcenc.c \
@@ -194,6 +193,8 @@ x86/x86mcenc.c \
 LIBDAALAENC_CHEADERS = \
 ${LIBDAALABASE_CHEADERS} \
 encint.h \
+entenc.h \
+laplace_encoder.h \
 ../include/daala/daalaenc.h \
 
 DUMP_VIDEO_CSOURCES = dump_video.c
