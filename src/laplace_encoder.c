@@ -237,7 +237,6 @@ void laplace_encode_vector(od_ec_enc *enc, const od_coeff *y, int n, int k,
     if (kn <= 1 && i != n - 1) {
       laplace_encode_vector_delta(enc, y + i, n - i, kn, curr, means);
       ran_delta = 1;
-      i = n;
       break;
     }
     x = abs(y[i]);
