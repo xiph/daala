@@ -672,7 +672,7 @@ static int y4m_input_open_impl(y4m_input *_y4m,FILE *_fin){
   _y4m->pic_x=_y4m->frame_w-_y4m->pic_w>>1&~1;
   _y4m->pic_y=_y4m->frame_h-_y4m->pic_h>>1&~1;
   _y4m->dst_buf=(unsigned char *)malloc(_y4m->dst_buf_sz);
-  _y4m->aux_buf=(unsigned char *)malloc(_y4m->aux_buf_sz);
+  _y4m->aux_buf=_y4m->aux_buf_sz?(unsigned char *)malloc(_y4m->aux_buf_sz):NULL;
   return 0;
 }
 
