@@ -829,6 +829,12 @@ double coding_gain_2d_collapsed(const double _r[2*B_SZ*2*B_SZ],const int *_f){
   double rggt[2*B_SZ*2*B_SZ*B_SZ*B_SZ];
   double ggrggt[B_SZ*B_SZ*B_SZ*B_SZ];
   double cg;
+#if NN_SEARCH
+  double basis[B_SZ];
+  for(v=0;v<B_SZ;v++)basis[v]=v<(B_SZ>>1)?0:255;
+  (NE_POST_FILTER_DOUBLE[B_SZ_LOG-OD_LOG_BSIZE0])(basis,basis,_f);
+  for(v=0;v<B_SZ;v++)if(basis[v]<0)return -100;
+#endif
   /* R*(G2*P*G1)^T */
   for(v=0;v<2*B_SZ;v++){
     for(j=0;j<2*B_SZ;j++){

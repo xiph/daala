@@ -52,6 +52,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # if USE_SIMPLEX && RAMP_DYADIC
 #  error "Dyadic ramp constraint not supported with simplex search."
 # endif
+# if NN_SEARCH && !USE_SIMPLEX
+#  error "Non-negative search requires simplex search."
+# endif
+
 static void coding_gain_search(const double _r[2*B_SZ*2*B_SZ]){
 # if !USE_SIMPLEX
 #  if B_SZ==4
@@ -215,7 +219,7 @@ static void coding_gain_search(const double _r[2*B_SZ*2*B_SZ]){
     int         lb[22];
     int         ub[22];
 #  if B_SZ==4
-    dims=4;
+    dims=3;
 #  elif B_SZ==8
     dims=10;
 #  elif B_SZ==16
@@ -224,8 +228,13 @@ static void coding_gain_search(const double _r[2*B_SZ*2*B_SZ]){
 #   error "Unsupported block size."
 #  endif
     for(i=0;i<dims;i++){
+#  if B_SZ==4
+      lb[i]=-2*(1<<FILTER_BITS);
+      ub[i]=2*(1<<FILTER_BITS);
+#  else
       lb[i]=i<(B_SZ>>1)?(1<<FILTER_BITS):-(1<<FILTER_BITS);
       ub[i]=i<(B_SZ>>1)?2*(1<<FILTER_BITS):(1<<FILTER_BITS);
+#  endif
     }
     for(i=0;i<NUM_PROCS;i++){
       uint32_t srand;
@@ -233,11 +242,11 @@ static void coding_gain_search(const double _r[2*B_SZ*2*B_SZ]){
       kiss99_srand(&ks[i],(unsigned char *)&srand,sizeof(srand));
     }
     #pragma omp parallel for schedule(dynamic)
-    for(i=0;i<128;i++){
+    for(i=0;i<1024;i++){
       int    tid;
       int    j;
 #  if B_SZ==4
-      int    f[4];
+      int    f[3];
 #  elif B_SZ==8
       int    f[10];
 #  elif B_SZ==16
