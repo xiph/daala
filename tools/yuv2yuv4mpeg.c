@@ -5,6 +5,15 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "../src/odintrin.h"
+
+/*Helper macro to validate fwrite/fread operations*/
+#define CHECK_IO(func,ptr,size,nmemb,stream) \
+  if(func(ptr,size,nmemb,stream)<(size_t)nmemb){ \
+    fprintf(stderr,#func"() error\n"); \
+    return 1; \
+  }
+
 /*This is a small utility used to convert many of the standard test sequences
    into a common format, the YUV4MPEG format used by mjpegtools.
   This is the format that the example encoder takes as input.
@@ -185,8 +194,8 @@ int main(int _argc,char *_argv[]){
     return -1;
   }
   have_alpha=strstr(chroma,"alpha")!=NULL;
-  if(frame_digits<0)frame_digits=0;
-  if(strlen(_argv[1])>8178-frame_digits){
+  frame_digits = OD_CLAMPI(0,frame_digits,8178);
+  if(strlen(_argv[1])>(size_t)8178-frame_digits){
     fprintf(stderr,"File name too long.\n");
     return -1;
   }
@@ -252,18 +261,19 @@ int main(int _argc,char *_argv[]){
   fprintf(out_y4m,"\n");
   buf=(unsigned char *)malloc((size_t)(y_w*y_h));
   for(;;){
-    if(fread(buf,y_w,y_h,in_y)<y_h)break;
+    if(fread(buf,y_w,y_h,in_y)<(size_t)y_h)break;
     fprintf(out_y4m,"FRAME\n");
-    fwrite(buf,y_w,y_h,out_y4m);
+    CHECK_IO(fwrite,buf,y_w,y_h,out_y4m);
+
     if(have_chroma){
-      fread(buf,c_w,c_h,in_u);
-      fwrite(buf,c_w,c_h,out_y4m);
-      fread(buf,c_w,c_h,in_v);
-      fwrite(buf,c_w,c_h,out_y4m);
+      CHECK_IO(fread,buf,c_w,c_h,in_u);
+      CHECK_IO(fwrite,buf,c_w,c_h,out_y4m);
+      CHECK_IO(fread,buf,c_w,c_h,in_v);
+      CHECK_IO(fwrite,buf,c_w,c_h,out_y4m);
     }
     if(have_alpha){
-      fread(buf,y_w,y_h,in_a);
-      fwrite(buf,y_w,y_h,out_y4m);
+      CHECK_IO(fread,buf,y_w,y_h,in_a);
+      CHECK_IO(fwrite,buf,y_w,y_h,out_y4m);
     }
     if(frame_digits>0){
       frame_num++;
