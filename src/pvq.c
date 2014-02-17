@@ -193,7 +193,7 @@ int neg_deinterleave(int x, int ref) {
 double pvq_compute_gain(od_coeff *x, int n, double q, double *g){
   int i;
   double acc=0;
-  for (i = 0; i < n; i++) acc += x[i]*x[i];
+  for (i = 0; i < n; i++) acc += x[i]*(double)x[i];
   *g = sqrt(acc);
   /* Normalize gain by quantization step size and apply companding
      (if ACTIVITY != 1). */

@@ -288,6 +288,7 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   int vk;
   int run_pvq;
   int scale;
+  int coeff_shift;
 #ifndef USE_BAND_PARTITIONS
   unsigned char const *zig;
 #endif
@@ -463,7 +464,8 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   }
 #endif
   scale = OD_MAXI(enc->scale[pli], 1);
-  scalar_out[0] = OD_DIV_R0(cblock[0] - predt[0], scale);
+  coeff_shift = enc->scale[pli] == 0 ? 0 : OD_COEFF_SHIFT;
+  scalar_out[0] = OD_DIV_R0(cblock[0] - predt[0], scale << coeff_shift);
 #if defined(OD_METRICS)
   dc_frac_bits = od_ec_enc_tell_frac(&enc->ec);
 #endif
@@ -474,19 +476,20 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   enc->state.bit_metrics[OD_METRIC_DC] += od_ec_enc_tell_frac(&enc->ec) -
    dc_frac_bits;
 #endif
-  scalar_out[0] = scalar_out[0]*scale;
+  scalar_out[0] = scalar_out[0]*(scale << coeff_shift);
   scalar_out[0] += predt[0];
 
   if (run_pvq) {
     int i;
-    pvq_encode(enc, predt, cblock, scalar_out, scale, n);
+    pvq_encode(enc, predt, cblock, scalar_out, scale << coeff_shift, n);
     for (i = 0; i < OD_NSB_ADAPT_CTXS; i++) adapt_curr[i] = 0;
     for (i = 1; i < n2; i++) scalar_out[i] = cblock[i];
   }
   else {
     vk = 0;
     for (zzi = 1; zzi < n2; zzi++) {
-      scalar_out[zzi] = OD_DIV_R0(cblock[zzi] - predt[zzi], scale);
+      scalar_out[zzi] = OD_DIV_R0(cblock[zzi] - predt[zzi],
+       scale << coeff_shift);
       vk += abs(scalar_out[zzi]);
     }
 #if defined(OD_METRICS)
@@ -500,7 +503,7 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
      pvq_frac_bits;
 #endif
     for (zzi = 1; zzi < n2; zzi++) {
-      scalar_out[zzi] = scalar_out[zzi]*scale + predt[zzi];
+      scalar_out[zzi] = (scalar_out[zzi]*(scale << coeff_shift)) + predt[zzi];
     }
   }
 #ifdef USE_BAND_PARTITIONS
@@ -1008,14 +1011,17 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
         unsigned char *data;
         unsigned char *mdata;
         int ystride;
+        int coeff_shift;
+        coeff_shift = enc->scale[pli] == 0 ? 0 : OD_COEFF_SHIFT;
         data = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].data;
         mdata = enc->state.io_imgs[OD_FRAME_REC].planes[pli].data;
         ystride = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ystride;
         for (y = 0; y < h; y++) {
           for (x = 0; x < w; x++) {
-            ctmp[pli][y*w + x] = data[ystride*y + x] - 128;
+            ctmp[pli][y*w + x] = (data[ystride*y + x] - 128) << coeff_shift;
             if (!mbctx.is_keyframe) {
-              mctmp[pli][y*w + x] = mdata[ystride*y + x] - 128;
+              mctmp[pli][y*w + x] = (mdata[ystride*y + x] - 128)
+               << coeff_shift;
             }
           }
         }
@@ -1099,11 +1105,14 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       {
         unsigned char *data;
         int ystride;
+        int coeff_shift;
+        coeff_shift = enc->scale[pli] == 0 ? 0 : OD_COEFF_SHIFT;
         data = enc->state.io_imgs[OD_FRAME_REC].planes[pli].data;
         ystride = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ystride;
         for (y = 0; y < h; y++) {
           for (x = 0; x < w; x++) {
-            data[ystride*y + x] = OD_CLAMP255(ctmp[pli][y*w + x] + 128);
+            data[ystride*y + x] = OD_CLAMP255(((ctmp[pli][y*w + x]
+             + (1 << coeff_shift >> 1)) >> coeff_shift) + 128);
           }
         }
       }

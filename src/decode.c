@@ -155,6 +155,7 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   int vk;
   int run_pvq;
   int scale;
+  int coeff_shift;
 #ifndef USE_BAND_PARTITIONS
   unsigned char const *zig;
 #endif
@@ -295,19 +296,22 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   }
 #endif
   scale = OD_MAXI(dec->scale[pli], 1);
+  coeff_shift = dec->scale[pli] == 0 ? 0 : OD_COEFF_SHIFT;
   pred[0] = generic_decode(&dec->ec, ctx->model_dc + pli,
    &ctx->ex_dc[pli][ln], 0);
   if (pred[0]) pred[0] *= od_ec_dec_bits(&dec->ec, 1) ? -1 : 1;
-  pred[0] = pred[0]*scale + predt[0];
+  pred[0] = (pred[0]*scale << coeff_shift) + predt[0];
   if (run_pvq) {
     int i;
-    pvq_decode(dec, predt, pred, scale, n);
+    pvq_decode(dec, predt, pred, scale << coeff_shift, n);
     for (i = 0; i < OD_NSB_ADAPT_CTXS; i++) adapt_curr[i] = 0;
   }
   else {
     vk = generic_decode(&dec->ec, ctx->model_g + pli, &ctx->ex_g[pli][ln], 0);
     laplace_decode_vector(&dec->ec, pred + 1, n2 - 1, vk, adapt_curr, ctx->adapt);
-    for (zzi = 1; zzi < n2; zzi++) pred[zzi] = pred[zzi]*scale + predt[zzi];
+    for (zzi = 1; zzi < n2; zzi++) {
+      pred[zzi] = (pred[zzi]*scale << coeff_shift) + predt[zzi];
+    }
   }
   if (adapt_curr[OD_ADAPT_K_Q8] >= 0) {
     ctx->nk++;
@@ -597,11 +601,15 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
         {
           unsigned char *mdata;
           int ystride;
+          int coeff_shift;
+          coeff_shift = dec->scale[pli] == 0 ? 0 : OD_COEFF_SHIFT;
           mdata = dec->state.io_imgs[OD_FRAME_REC].planes[pli].data;
           ystride = dec->state.io_imgs[OD_FRAME_REC].planes[pli].ystride;
           for (y = 0; y < h; y++) {
-            for (x = 0; x < w; x++)
-              mctmp[pli][y*w + x] = mdata[ystride*y + x] - 128;
+            for (x = 0; x < w; x++) {
+              mctmp[pli][y*w + x] = (mdata[ystride*y + x] - 128)
+               << coeff_shift;
+            }
           }
         }
         /*Apply the prefilter across the entire image.*/
@@ -727,7 +735,10 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
         ystride = dec->state.io_imgs[OD_FRAME_REC].planes[pli].ystride;
         for (y = 0; y < h; y++) {
           for (x = 0; x < w; x++) {
-            data[ystride*y + x] = OD_CLAMP255(ctmp[pli][y*w + x] + 128);
+            int coeff_shift;
+            coeff_shift = dec->scale[pli] == 0 ? 0 : OD_COEFF_SHIFT;
+            data[ystride*y + x] = OD_CLAMP255(((ctmp[pli][y*w + x]
+             + (1 << coeff_shift >> 1)) >> coeff_shift) + 128);
           }
         }
       }

@@ -58,6 +58,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # define OD_DISABLE_PVQ (0)
 # define OD_DISABLE_CFL (0)
 
+# define OD_COEFF_SHIFT (4)
+
 # if defined(OD_ENABLE_ASSERTIONS)
 #  include <stdio.h>
 #  include <stdlib.h>
