@@ -752,7 +752,14 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
   }
 #if defined(OD_DUMP_IMAGES)
   /*Dump YUV*/
-  od_state_dump_yuv(&dec->state, dec->state.io_imgs + OD_FRAME_REC, "decout");
+  {
+    char *ptr;
+    ptr = getenv("OD_DUMP_IMAGES_SUFFIX");
+    if (!ptr) {
+      ptr="decout";
+    }
+    od_state_dump_yuv(&dec->state, dec->state.io_imgs + OD_FRAME_REC, ptr);
+  }
 #endif
   od_state_upsample8(&dec->state,
    dec->state.ref_imgs + dec->state.ref_imgi[OD_FRAME_SELF],
