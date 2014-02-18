@@ -1222,10 +1222,11 @@ static void daala_encoder_check(daala_enc_ctx *ctx, od_img *img,
     for (i = 0; i < plane_height; i++) {
       if (memcmp(img->planes[pli].data + img->planes[pli].ystride * i,
        dec_img.planes[pli].data + dec_img.planes[pli].ystride * i,
-       plane_width))
+       plane_width)) {
         fprintf(stderr,"pixel mismatch in row %d\n", i);
       }
     }
+  }
 }
 #endif
 
