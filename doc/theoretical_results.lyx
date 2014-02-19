@@ -636,5 +636,143 @@ D=\left(g-\hat{g}\right)^{2}+g\hat{g}\left(D_{\theta}+\sin\theta\sin\hat{\theta}
 
 \end_layout
 
+\begin_layout Part
+Biorthogonality and quantization noise
+\end_layout
+
+\begin_layout Standard
+A biorthogonal transform defined as 
+\begin_inset Formula 
+\[
+\mathbf{H}\mathbf{G}^{T}=I
+\]
+
+\end_inset
+
+where the columns of 
+\begin_inset Formula $\mathbf{G}$
+\end_inset
+
+ are the analysis basis functions and the columns of 
+\begin_inset Formula $\mathbf{H}$
+\end_inset
+
+ are the columns of the synthesis basis functions.
+ We define the diagonal matrix 
+\begin_inset Formula $\mathbf{S}$
+\end_inset
+
+ such that the diagonal elements 
+\begin_inset Formula $s_{i,i}=\sqrt{\mathbf{h}_{i}^{T}\mathbf{h}_{i}}$
+\end_inset
+
+ are the magnitudes of the synthesis basis functions.
+ For an input vector 
+\begin_inset Formula $\mathbf{x}$
+\end_inset
+
+, the quantization process can be modeled as adding an uncorrelated noise
+ vector 
+\begin_inset Formula $\mathbf{n}$
+\end_inset
+
+ such that the reconstruction 
+\begin_inset Formula $\mathbf{y}$
+\end_inset
+
+ is
+\begin_inset Formula 
+\begin{align*}
+\mathbf{y} & =\mathbf{H}\mathbf{S}^{-1}\left(\mathbf{S}\mathbf{G}\mathbf{x}+\mathbf{n}\right)\\
+ & =\mathbf{x}+\mathbf{H}\mathbf{S}^{-1}\mathbf{n}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The distortion due to quantization is 
+\begin_inset Formula 
+\begin{align*}
+D & =\left(\mathbf{x}-\mathbf{y}\right)^{T}\left(\mathbf{x}-\mathbf{y}\right)\\
+ & =\left(\mathbf{H}\mathbf{S}^{-1}\mathbf{n}\right)^{T}\mathbf{H}\mathbf{S}^{-1}\mathbf{n}\\
+ & =\mathbf{n}^{T}\left(\mathbf{S}^{T}\right)^{-1}\mathbf{H}^{T}\mathbf{H}\mathbf{S}^{-1}\mathbf{n}\\
+ & =\mathbf{n}^{T}\mathbf{R}\mathbf{n}
+\end{align*}
+
+\end_inset
+
+where 
+\begin_inset Formula $\mathbf{R}=\left(\mathbf{S}^{-1}\right)^{T}\mathbf{H}^{T}\mathbf{H}\mathbf{S}^{-1}$
+\end_inset
+
+.
+ Rewriting 
+\begin_inset Formula $D$
+\end_inset
+
+ as a summation, we have 
+\begin_inset Formula 
+\[
+D=\sum_{i}\sum_{j}r_{i,i}n_{i}n_{j}
+\]
+
+\end_inset
+
+This is different from the orthonormal case where
+\begin_inset Formula 
+\[
+D=\sum_{i}n_{i}^{2}
+\]
+
+\end_inset
+
+due to 
+\begin_inset Formula $\mathbf{R}$
+\end_inset
+
+ being the identity matrix (also known as Parseval's theorem).
+ 
+\end_layout
+
+\begin_layout Standard
+Since the noise is uncorrelated and since the diagonal of 
+\begin_inset Formula $\mathbf{R}$
+\end_inset
+
+ is equal to 1, then the expectation of the noise power is 
+\begin_inset Formula $E\{D\}=E\{\mathbf{n}^{T}\mathbf{n}\}$
+\end_inset
+
+, like in the orthonormal case.
+ This shows that multiplying each transformed coefficient 
+\begin_inset Formula $x_{i}$
+\end_inset
+
+ by the magnitude of the corresponding synthesis function 
+\begin_inset Formula $s_{i,i}$
+\end_inset
+
+ prior to quantization is sufficient to obtain the same 
+\emph on
+average
+\emph default
+ noise behaviour.
+ In practice, it 
+\emph on
+may
+\emph default
+ be possible to do some clever trick in the quantization search to obtain
+ a smaller distortion than the orthonormal case, partially compensating
+ for the entropy cost of the biorthogonal transform.
+\end_layout
+
+\begin_layout Standard
+The average distortion we find also supports the use of the squared magnitude
+ of the synthesis basis function in the computation of the coding gain.
+\end_layout
+
 \end_body
 \end_document
