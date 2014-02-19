@@ -95,8 +95,9 @@ static void ne_post_filter4_double(double _x[4],const double _y[4],
 }
 
 static void ne_pre_filter8_double(double _y[8],const double _x[8],
- const int _f[10]){
+ const int _f[18]){
   double t[8];
+  double z;
   t[7]=_x[0]-_x[7];
   t[6]=_x[1]-_x[6];
   t[5]=_x[2]-_x[5];
@@ -105,25 +106,42 @@ static void ne_pre_filter8_double(double _y[8],const double _x[8],
   t[2]=_x[2]-(t[5]/2);
   t[1]=_x[1]-(t[6]/2);
   t[0]=_x[0]-(t[7]/2);
-  t[4]=t[4]*_f[0]/(1<<FILTER_BITS);
-  t[5]=t[5]*_f[1]/(1<<FILTER_BITS);
-  t[6]=t[6]*_f[2]/(1<<FILTER_BITS);
-  t[7]=t[7]*_f[3]/(1<<FILTER_BITS);
-#if USE_TYPE3
-  t[7]+=t[6]*_f[6]/(1<<FILTER_BITS);
-  t[6]+=t[7]*_f[9]/(1<<FILTER_BITS);
-  t[6]+=t[5]*_f[5]/(1<<FILTER_BITS);
-  t[5]+=t[6]*_f[8]/(1<<FILTER_BITS);
-  t[5]+=t[4]*_f[4]/(1<<FILTER_BITS);
-  t[4]+=t[5]*_f[7]/(1<<FILTER_BITS);
-#else
-  t[5]+=t[4]*_f[4]/(1<<FILTER_BITS);
-  t[6]+=t[5]*_f[5]/(1<<FILTER_BITS);
-  t[7]+=t[6]*_f[6]/(1<<FILTER_BITS);
-  t[6]+=t[7]*_f[9]/(1<<FILTER_BITS);
-  t[5]+=t[6]*_f[8]/(1<<FILTER_BITS);
-  t[4]+=t[5]*_f[7]/(1<<FILTER_BITS);
-#endif
+  t[6] += t[7]*_f[0]/(1<<FILTER_BITS);
+  t[7] += t[6]*_f[1]/(1<<FILTER_BITS);
+  t[6] += t[7]*_f[2]/(1<<FILTER_BITS);
+  z = t[6];
+  t[6] = -t[7];
+  t[7] = z;
+  t[5] += t[7]*_f[3]/(1<<FILTER_BITS);
+  t[7] += t[5]*_f[4]/(1<<FILTER_BITS);
+  t[5] += t[7]*_f[5]/(1<<FILTER_BITS);
+  z = t[5];
+  t[5] = -t[7];
+  t[7] = z;
+  t[5] += t[6]*_f[6]/(1<<FILTER_BITS);
+  t[6] += t[5]*_f[7]/(1<<FILTER_BITS);
+  t[5] += t[6]*_f[8]/(1<<FILTER_BITS);
+  z = t[5];
+  t[5] = -t[6];
+  t[6] = z;
+  t[4] += t[7]*_f[9]/(1<<FILTER_BITS);
+  t[7] += t[4]*_f[10]/(1<<FILTER_BITS);
+  t[4] += t[7]*_f[11]/(1<<FILTER_BITS);
+  z = t[4];
+  t[4] = -t[7];
+  t[7] = z;
+  t[4] += t[6]*_f[12]/(1<<FILTER_BITS);
+  t[6] += t[4]*_f[13]/(1<<FILTER_BITS);
+  t[4] += t[6]*_f[14]/(1<<FILTER_BITS);
+  z = t[4];
+  t[4] = -t[6];
+  t[6] = z;
+  t[4] += t[5]*_f[15]/(1<<FILTER_BITS);
+  t[5] += t[4]*_f[16]/(1<<FILTER_BITS);
+  t[4] += t[5]*_f[17]/(1<<FILTER_BITS);
+  z = t[4];
+  t[4] = -t[5];
+  t[5] = z;
   t[0]+=t[7]/2;
   _y[0]=t[0];
   t[1]+=t[6]/2;
@@ -139,8 +157,9 @@ static void ne_pre_filter8_double(double _y[8],const double _x[8],
 }
 
 static void ne_post_filter8_double(double _x[8],const double _y[8],
- const int _f[10]){
+ const int _f[18]){
   double t[8];
+  double z;
   t[7]=_y[0]-_y[7];
   t[6]=_y[1]-_y[6];
   t[5]=_y[2]-_y[5];
@@ -149,25 +168,42 @@ static void ne_post_filter8_double(double _x[8],const double _y[8],
   t[2]=_y[2]-(t[5]/2);
   t[1]=_y[1]-(t[6]/2);
   t[0]=_y[0]-(t[7]/2);
-#if USE_TYPE3
-  t[4]-=t[5]*_f[7]/(1<<FILTER_BITS);
-  t[5]-=t[4]*_f[4]/(1<<FILTER_BITS);
-  t[5]-=t[6]*_f[8]/(1<<FILTER_BITS);
-  t[6]-=t[5]*_f[5]/(1<<FILTER_BITS);
-  t[6]-=t[7]*_f[9]/(1<<FILTER_BITS);
-  t[7]-=t[6]*_f[6]/(1<<FILTER_BITS);
-#else
-  t[4]-=t[5]*_f[7]/(1<<FILTER_BITS);
-  t[5]-=t[6]*_f[8]/(1<<FILTER_BITS);
-  t[6]-=t[7]*_f[9]/(1<<FILTER_BITS);
-  t[7]-=t[6]*_f[6]/(1<<FILTER_BITS);
-  t[6]-=t[5]*_f[5]/(1<<FILTER_BITS);
-  t[5]-=t[4]*_f[4]/(1<<FILTER_BITS);
-#endif
-  t[7]=t[7]*(1<<FILTER_BITS)/_f[3];
-  t[6]=t[6]*(1<<FILTER_BITS)/_f[2];
-  t[5]=t[5]*(1<<FILTER_BITS)/_f[1];
-  t[4]=t[4]*(1<<FILTER_BITS)/_f[0];
+  z = t[5];
+  t[5] = -t[4];
+  t[4] = z;
+  t[4] -= t[5]*_f[17]/(1<<FILTER_BITS);
+  t[5] -= t[4]*_f[16]/(1<<FILTER_BITS);
+  t[4] -= t[5]*_f[15]/(1<<FILTER_BITS);
+  z = t[6];
+  t[6] = -t[4];
+  t[4] = z;
+  t[4] -= t[6]*_f[14]/(1<<FILTER_BITS);
+  t[6] -= t[4]*_f[13]/(1<<FILTER_BITS);
+  t[4] -= t[6]*_f[12]/(1<<FILTER_BITS);
+  z = t[7];
+  t[7] = -t[4];
+  t[4] = z;
+  t[4] -= t[7]*_f[11]/(1<<FILTER_BITS);
+  t[7] -= t[4]*_f[10]/(1<<FILTER_BITS);
+  t[4] -= t[7]*_f[9]/(1<<FILTER_BITS);
+  z = t[6];
+  t[6] = -t[5];
+  t[5] = z;
+  t[5] -= t[6]*_f[8]/(1<<FILTER_BITS);
+  t[6] -= t[5]*_f[7]/(1<<FILTER_BITS);
+  t[5] -= t[6]*_f[6]/(1<<FILTER_BITS);
+  z = t[7];
+  t[7] = -t[5];
+  t[5] = z;
+  t[5] -= t[7]*_f[5]/(1<<FILTER_BITS);
+  t[7] -= t[5]*_f[4]/(1<<FILTER_BITS);
+  t[5] -= t[7]*_f[3]/(1<<FILTER_BITS);
+  z = t[7];
+  t[7] = -t[6];
+  t[6] = z;
+  t[6] -= t[7]*_f[2]/(1<<FILTER_BITS);
+  t[7] -= t[6]*_f[1]/(1<<FILTER_BITS);
+  t[6] -= t[7]*_f[0]/(1<<FILTER_BITS);
   t[0]+=t[7]/2;
   _x[0]=t[0];
   t[1]+=t[6]/2;
