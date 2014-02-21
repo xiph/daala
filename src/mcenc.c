@@ -4351,4 +4351,5 @@ void od_mv_est(od_mv_est_ctx *est, int ref, int lambda) {
        lvflags[pred][7]));
     }
   }
+  od_restore_fpu(state);
 }

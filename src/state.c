@@ -154,10 +154,17 @@ static void od_state_mvs_init(od_state *state) {
    sizeof(**state->mv_grid));
 }
 
+static void od_restore_fpu_c(void) {}
+
+void od_restore_fpu(od_state *state) {
+  (*state->opt_vtbl.restore_fpu)();
+}
+
 void od_state_opt_vtbl_init_c(od_state *state) {
   state->opt_vtbl.mc_predict1fmv8 = od_mc_predict1fmv8_c;
   state->opt_vtbl.mc_blend_full8 = od_mc_blend_full8_c;
   state->opt_vtbl.mc_blend_full_split8 = od_mc_blend_full_split8_c;
+  state->opt_vtbl.restore_fpu = od_restore_fpu_c;
 }
 
 static void od_state_opt_vtbl_init(od_state *state) {

@@ -96,6 +96,7 @@ struct od_state_opt_vtbl{
   void (*mc_blend_full_split8)(unsigned char *_dst, int _dystride,
    const unsigned char *_src[4], int _c, int _s,
    int _log_xblk_sz, int _log_yblk_sz);
+  void (*restore_fpu)(void);
 };
 
 
@@ -198,6 +199,7 @@ void od_mc_blend_full8_c(unsigned char *_dst, int _dystride,
 void od_mc_blend_full_split8_c(unsigned char *_dst, int _dystride,
  const unsigned char *_src[4], int _c, int _s, int _log_xblk_sz,
  int _log_yblk_sz);
+void od_restore_fpu(od_state *state);
 
 void od_state_opt_vtbl_init_c(od_state *_state);
 
