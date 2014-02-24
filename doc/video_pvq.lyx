@@ -438,7 +438,7 @@ centering{
 
 
 \begin_inset Graphics
-	filename dist_vs_K.png
+	filename dist_vs_K.eps
 	lyxscale 50
 	width 70col%
 
