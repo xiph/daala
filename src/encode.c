@@ -288,6 +288,7 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   int vk;
   int run_pvq;
   int scale;
+  int dc_scale;
   int coeff_shift;
 #ifndef USE_BAND_PARTITIONS
   unsigned char const *zig;
@@ -464,8 +465,9 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   }
 #endif
   scale = OD_MAXI(enc->scale[pli], 1);
+  dc_scale = (pli==0 || enc->scale[pli]==0) ? scale : (scale + 1) >> 1;
   coeff_shift = enc->scale[pli] == 0 ? 0 : OD_COEFF_SHIFT;
-  scalar_out[0] = OD_DIV_R0(cblock[0] - predt[0], scale << coeff_shift);
+  scalar_out[0] = OD_DIV_R0(cblock[0] - predt[0], dc_scale << coeff_shift);
 #if defined(OD_METRICS)
   dc_frac_bits = od_ec_enc_tell_frac(&enc->ec);
 #endif
@@ -476,7 +478,7 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   enc->state.bit_metrics[OD_METRIC_DC] += od_ec_enc_tell_frac(&enc->ec) -
    dc_frac_bits;
 #endif
-  scalar_out[0] = scalar_out[0]*(scale << coeff_shift);
+  scalar_out[0] = scalar_out[0]*(dc_scale << coeff_shift);
   scalar_out[0] += predt[0];
 
   if (run_pvq) {
