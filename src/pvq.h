@@ -28,20 +28,19 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # include "filter.h"
 
 # define PVQ_MAX_PARTITIONS (7)
-# define ACTIVITY (1.)
 
 int neg_deinterleave(int x, int ref);
 
 int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *itheta,
- int *max_theta, int *vk);
+ int *max_theta, int *vk, double mask);
 
-double pvq_compute_gain(od_coeff *x, int n, double q, double *g);
+double pvq_compute_gain(od_coeff *x, int n, double q, double *g, double mask);
 int pvq_compute_max_theta(double qcg);
 double pvq_compute_theta(int t, int max_theta);
 int pvq_compute_k(double qcg, double theta, int noref, int n);
 
 void pvq_synthesis(od_coeff *x0, od_coeff *y, double *r, int n, double gr,
- int noref, int qg, double gain_offset, double theta, double q);
+ int noref, int qg, double gain_offset, double theta, double q, double mask);
 
 
 #endif

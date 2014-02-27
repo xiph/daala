@@ -59,7 +59,8 @@ static void pvq_decode_partition(od_ec_dec *ec,
                                  int *ext,
                                  od_coeff *ref,
                                  od_coeff *out,
-                                 int noref) {
+                                 int noref,
+                                 double mask) {
   int adapt_curr[OD_NSB_ADAPT_CTXS] = {0};
   int speed;
   int k;
@@ -86,7 +87,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
     double cgr;
     int icgr;
     int i;
-    cgr = pvq_compute_gain(ref, n, q, &gr);
+    cgr = pvq_compute_gain(ref, n, q, &gr, mask);
     icgr = floor(.5+cgr);
     /* quantized gain is interleave encoded when there's a reference;
        deinterleave it now */
@@ -106,7 +107,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
   k = pvq_compute_k(qcg, theta, noref, n);
   /* when noref==0, y is actually size n-1 */
   laplace_decode_vector(ec, y, n-(!noref), k, adapt_curr, adapt);
-  pvq_synthesis(out, y, r, n, gr, noref, qg, gain_offset, theta, q);
+  pvq_synthesis(out, y, r, n, gr, noref, qg, gain_offset, theta, q, mask);
 
   if (adapt_curr[OD_ADAPT_K_Q8] > 0) {
     adapt[OD_ADAPT_K_Q8]
@@ -151,7 +152,7 @@ void pvq_decode(daala_dec_ctx *dec,
   if (n == 4) {
     noref[0] = !od_ec_decode_bool_q15(&dec->ec, PRED4_PROB);
     pvq_decode_partition(&dec->ec, q, 15, model, adapt, exg, ext, ref+1,
-                   out+1, noref[0]);
+                   out+1, noref[0], 1);
   }
   else {
     predflags8 = od_ec_decode_cdf_q15(&dec->ec, pred8_cdf, 16);
@@ -168,21 +169,21 @@ void pvq_decode(daala_dec_ctx *dec,
     }
 
     pvq_decode_partition(&dec->ec, q, 15, model, adapt, exg, ext, ref+1,
-                   out+1, noref[0]);
+                   out+1, noref[0], 1);
     pvq_decode_partition(&dec->ec, q, 8, model, adapt, exg+1, ext+1, ref+16,
-                   out+16, noref[1]);
+                   out+16, noref[1], 1);
     pvq_decode_partition(&dec->ec, q, 8, model, adapt, exg+2, ext+2, ref+24,
-                   out+24, noref[2]);
+                   out+24, noref[2], 1);
     pvq_decode_partition(&dec->ec, q, 32, model, adapt, exg+3, ext+3, ref+32,
-                   out+32, noref[3]);
+                   out+32, noref[3], 1);
 
     if(n >= 16) {
       pvq_decode_partition(&dec->ec, q, 32, model, adapt, exg+4, ext+4, ref+64,
-                     out+64, noref[4]);
+                     out+64, noref[4], 1);
       pvq_decode_partition(&dec->ec, q, 32, model, adapt, exg+5, ext+5, ref+96,
-                     out+96, noref[5]);
+                     out+96, noref[5], 1);
       pvq_decode_partition(&dec->ec, q, 128, model, adapt, exg+6, ext+6, ref+128,
-                     out+128, noref[6]);
+                     out+128, noref[6], 1);
     }
   }
 }

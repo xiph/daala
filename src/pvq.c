@@ -190,14 +190,14 @@ int neg_deinterleave(int x, int ref) {
  * @param [out]     g      raw gain
  * @return                 quantized/companded gain
  */
-double pvq_compute_gain(od_coeff *x, int n, double q, double *g){
+double pvq_compute_gain(od_coeff *x, int n, double q, double *g, double mask){
   int i;
   double acc=0;
   for (i = 0; i < n; i++) acc += x[i]*(double)x[i];
   *g = sqrt(acc);
   /* Normalize gain by quantization step size and apply companding
      (if ACTIVITY != 1). */
-  return pow(*g/q, ACTIVITY);
+  return pow(*g/q, 1./mask);
 }
 
 /** Compute theta quantization range from quantized/companded gain
@@ -269,7 +269,8 @@ int pvq_compute_k(double qcg, double theta, int noref, int n) {
 static void pvq_synthesis_partial(od_coeff *xcoeff, od_coeff *ypulse,
                                   const double *r, int n,
                                   int noref, int qg, double go,
-                                  double theta, int m, int s, double q) {
+                                  double theta, int m, int s, double q,
+                                  double mask) {
   int i;
   int yy;
   double qcg;
@@ -299,7 +300,7 @@ static void pvq_synthesis_partial(od_coeff *xcoeff, od_coeff *ypulse,
     apply_householder(x, r, n);
   }
 
-  g = q*pow(qcg, 1./ACTIVITY);
+  g = q*pow(qcg, mask);
   for (i = 0; i < n; i++) {
     xcoeff[i] = floor(.5 + x[i]*g);
   }
@@ -326,12 +327,12 @@ static void pvq_synthesis_partial(od_coeff *xcoeff, od_coeff *ypulse,
  */
 void pvq_synthesis(od_coeff *xcoeff, od_coeff *ypulse, double *r, int n,
                    double gr, int noref, int qg, double go,
-                   double theta, double q) {
+                   double theta, double q, double mask) {
   int s = 0;
   int m = noref ? 0 : compute_householder(r, n, gr, &s);
 
   pvq_synthesis_partial(xcoeff, ypulse, r, n, noref, qg,
-                        go, theta, m, s, q);
+                        go, theta, m, s, q, mask);
 }
 
 /** Perform PVQ quantization with prediction, trying several
@@ -349,7 +350,7 @@ void pvq_synthesis(od_coeff *xcoeff, od_coeff *ypulse, double *r, int n,
  * @return         gain      index of the quatized gain
 */
 int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *itheta,
- int *max_theta, int *vk) {
+ int *max_theta, int *vk, double mask) {
   double g;
   double gr;
   double x[MAXN];
@@ -388,8 +389,8 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *ithet
     corr += x[i]*r[i];
   }
 
-  cg  = pvq_compute_gain(x0, n, q, &g);
-  cgr = pvq_compute_gain(r0, n, q, &gr);
+  cg  = pvq_compute_gain(x0, n, q, &g, mask);
+  cgr = pvq_compute_gain(r0, n, q, &gr, mask);
   /* gain_offset is meant to make sure one of the quantized gains has
      exactly the same gain as the reference. */
   icgr = floor(.5+cgr);
@@ -482,7 +483,8 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *ithet
     for (i = m; i < n - 1; i++) y[i] = y[i+1];
   }
   /* Synthesize like the decoder would. */
-  pvq_synthesis_partial(x0, y, r, n, noref, qg, gain_offset, theta, m, s, q);
+  pvq_synthesis_partial(x0, y, r, n, noref, qg, gain_offset, theta, m, s, q,
+   mask);
   *vk = k;
   /* Encode gain differently depending on whether we use prediction or not. */
   return noref ? qg : neg_interleave(qg, icgr);
