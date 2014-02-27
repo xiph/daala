@@ -205,9 +205,9 @@ double pvq_compute_gain(od_coeff *x, int n, double q, double *g, double mask){
  * @param [in]      qcg    quantized companded gain value
  * @return                 max theta value
  */
-int pvq_compute_max_theta(double qcg){
+int pvq_compute_max_theta(double qcg, double mask){
   /* Set angular resolution (in ra) to match the encoded gain */
-  int ts = (int)floor(.5 + qcg*M_PI/2);
+  int ts = (int)floor(.5 + qcg*M_PI/(2*mask));
   /* Special case for low gains -- will need to be tuned anyway */
   if (qcg < 1.4) ts = 1;
   return ts;
@@ -234,15 +234,15 @@ double pvq_compute_theta(int t, int max_theta) {
  * @param [in]      n          number of elements to be coded
  * @return                     number of pulses to use for coding
  */
-int pvq_compute_k(double qcg, double theta, int noref, int n) {
+int pvq_compute_k(double qcg, double theta, int noref, int n, double mask) {
   if (noref) {
-    return (int)floor(.5 + qcg*sqrt(n/2));
+    return (int)floor(.5 + qcg*sqrt(n/2)/mask);
   }
   else {
     /* Sets K according to gain and theta, based on the high-rate
        PVQ distortion curves D~=N^2/(24*K^2). Low-rate will have to be
        perceptually tuned anyway.  */
-    return (int)floor(.5 + qcg*sin(theta)*sqrt(n/2));
+    return (int)floor(.5 + qcg*sin(theta)*sqrt(n/2)/mask);
   }
 }
 
@@ -419,7 +419,7 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *ithet
       /* Quantized companded gain */
       qcg = i+gain_offset;
       /* Set angular resolution (in ra) to match the encoded gain */
-      ts = pvq_compute_max_theta(qcg);
+      ts = pvq_compute_max_theta(qcg, mask);
       /* Search for the best angle within a reasonable range. */
       for (j = OD_MAXI(0, (int)floor(.5+theta*2/M_PI*ts)-1);
        j <= OD_MINI(ts-1, (int)ceil(theta*2/M_PI*ts)); j++) {
@@ -427,7 +427,7 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *ithet
         double dist;
         double dist_theta;
         double qtheta = pvq_compute_theta(j, ts);
-        k = pvq_compute_k(qcg, qtheta, 0, n);
+        k = pvq_compute_k(qcg, qtheta, 0, n, mask);
         cos_dist = pvq_search_double(x, n, k, y_tmp);
         /* See Jmspeex' Journal of Dubious Theoretical Results. */
         dist_theta = 2 - 2*cos(theta - qtheta)
@@ -460,7 +460,7 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *ithet
       double dist;
       double qcg;
       qcg = i;
-      k = pvq_compute_k(qcg, -1, 1, n);
+      k = pvq_compute_k(qcg, -1, 1, n, mask);
       cos_dist = pvq_search_double(x1, n, k, y_tmp);
       /* See Jmspeex' Journal of Dubious Theoretical Results. */
       dist = (qcg - cg)*(qcg - cg) + qcg*cg*(2 - 2*cos_dist);

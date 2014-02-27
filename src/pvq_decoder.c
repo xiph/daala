@@ -95,7 +95,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
     gain_offset = cgr-icgr;
     qcg = qg + gain_offset;
     /* read and decode first-stage PVQ error theta */
-    max_theta = pvq_compute_max_theta(qcg);
+    max_theta = pvq_compute_max_theta(qcg, mask);
     itheta = generic_decode(ec, model, ext, 2);
     theta = pvq_compute_theta(itheta, max_theta);
     for (i = 0; i < n; i++) r[i] = ref[i];
@@ -104,7 +104,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
     qcg=qg;
   }
 
-  k = pvq_compute_k(qcg, theta, noref, n);
+  k = pvq_compute_k(qcg, theta, noref, n, mask);
   /* when noref==0, y is actually size n-1 */
   laplace_decode_vector(ec, y, n-(!noref), k, adapt_curr, adapt);
   pvq_synthesis(out, y, r, n, gr, noref, qg, gain_offset, theta, q, mask);

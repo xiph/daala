@@ -307,7 +307,7 @@ It is desirable for a single quality parameter to control
  That quality parameter should also take into account activity masking to
  some extent.
  According to Jason Garrett-Glaser, x264's activity masking uses a resolution
- proportional to the 
+ proportional to 
 \begin_inset Formula $g^{2\alpha}$
 \end_inset
 
@@ -495,18 +495,18 @@ The distortion due to scalar quantization of the gain is (asymptotically)
 \begin_inset Formula 
 \begin{align*}
 D_{g} & =\frac{1}{12}\left(d\hat{g}/d\hat{\gamma}\right)^{2}\\
- & =\frac{\left(1+2\alpha\right)^{2}Q_{g}\hat{\gamma}^{4\alpha}}{12}\ .
+ & =\frac{\left(1+2\alpha\right)^{2}Q_{g}^{2}\hat{\gamma}^{4\alpha}}{12}\ .
 \end{align*}
 
 \end_inset
 
 To achieve uniform distortion along all dimensions, the distortion due to
  the 
-\begin_inset Formula $N-1$
+\begin_inset Formula $N-2$
 \end_inset
 
  PVQ degrees of freedom must be 
-\begin_inset Formula $N-1$
+\begin_inset Formula $N-2$
 \end_inset
 
  times greater than that due to quantizing the gain, so
@@ -516,9 +516,9 @@ To achieve uniform distortion along all dimensions, the distortion due to
 \begin_inset Formula 
 \begin{align*}
 \left(N-1\right)D_{g} & =\hat{g}^{2}D_{pvq}\\
-\frac{\left(N-1\right)\left(1+2\alpha\right)^{2}Q_{g}\hat{\gamma}^{4\alpha}}{12} & =\left(Q_{g}\hat{\gamma}^{1+2\alpha}\sin\hat{\theta}\right)^{2}\frac{N^{2}}{24K^{2}}\\
-\left(N-1\right)\left(1+2\alpha\right)^{2} & =\frac{\hat{\gamma}^{2}N^{2}\sin^{2}\hat{\theta}}{2K^{2}}\\
-K & =\frac{\hat{\gamma}N\sin\hat{\theta}}{\left(1+2\alpha\right)}\sqrt{\frac{1}{2\left(N-1\right)}}\\
+\frac{\left(N-2\right)\left(1+2\alpha\right)^{2}Q_{g}^{2}\hat{\gamma}^{4\alpha}}{12} & =\left(Q_{g}\hat{\gamma}^{1+2\alpha}\sin\hat{\theta}\right)^{2}\frac{N^{2}}{24K^{2}}\\
+\left(N-2\right)\left(1+2\alpha\right)^{2} & =\frac{\hat{\gamma}^{2}N^{2}\sin^{2}\hat{\theta}}{2K^{2}}\\
+K & =\frac{\hat{\gamma}N\sin\hat{\theta}}{\left(1+2\alpha\right)}\sqrt{\frac{1}{2\left(N-2\right)}}\\
  & \approx\frac{\hat{\gamma}\sin\hat{\theta}}{\left(1+2\alpha\right)}\sqrt{N/2}\ .
 \end{align*}
 
