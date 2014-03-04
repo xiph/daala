@@ -34,6 +34,6 @@ for f in $FILES; do
   SIZE=$(identify $BASENAME.png | sed -re 's/^.*PNG\ +([0-9]+x[0-9]+).*$/\1/')
   WIDTH=$(echo $SIZE | cut -dx -f1)
   HEIGHT=$(echo $SIZE | cut -dx -f2)
-  $YUV2YUV4MPEG $BASENAME -w$WIDTH -h$HEIGHT -an0 -ad0 -c420mpeg2
+  $YUV2YUV4MPEG $BASENAME -w$WIDTH -h$HEIGHT -an0 -ad0 -c420jpeg
   rm $BASENAME.yuv
 done
