@@ -221,14 +221,14 @@ static void coding_gain_search(const double _r[2*B_SZ*2*B_SZ]){
 #  if B_SZ==4
     dims=3;
 #  elif B_SZ==8
-    dims=18;
+    dims=10;
 #  elif B_SZ==16
     dims=22;
 #  else
 #   error "Unsupported block size."
 #  endif
     for(i=0;i<dims;i++){
-#  if B_SZ!=16
+#  if B_SZ==4
       lb[i]=-2*(1<<FILTER_BITS);
       ub[i]=2*(1<<FILTER_BITS);
 #  else
@@ -242,13 +242,13 @@ static void coding_gain_search(const double _r[2*B_SZ*2*B_SZ]){
       kiss99_srand(&ks[i],(unsigned char *)&srand,sizeof(srand));
     }
     #pragma omp parallel for schedule(dynamic)
-    for(i=0;i<65535;i++){
+    for(i=0;i<1024;i++){
       int    tid;
       int    j;
 #  if B_SZ==4
       int    f[3];
 #  elif B_SZ==8
-      int    f[18];
+      int    f[10];
 #  elif B_SZ==16
       int    f[22];
 #  else
@@ -269,14 +269,11 @@ static void coding_gain_search(const double _r[2*B_SZ*2*B_SZ]){
         f[j]=lb[j]+rng;
       }
       j=int_simplex_max(&cg,dims,coding_gain_2d_collapsed,_r,lb,ub,f);
-      #pragma omp critical
-      {
-        fprintf(stdout,"obj=%-24.18G steps=%4d params={",cg,j);
-        for(j=0;j<dims;j++){
-          fprintf(stdout,"%3d%c",f[j],j==dims-1?'}':',');
-        }
-        fprintf(stdout,"\n");
+      fprintf(stdout,"obj=%-24.18G steps=%4d params={",cg,j);
+      for(j=0;j<dims;j++){
+        fprintf(stdout,"%3d%c",f[j],j==dims-1?'}':',');
       }
+      fprintf(stdout,"\n");
     }
   }
 # endif

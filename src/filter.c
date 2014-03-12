@@ -232,32 +232,59 @@ void od_post_filter4(od_coeff _x[4], const od_coeff _y[4]) {
 #endif
 }
 
-# define OD_FILTER_PARAMS8_0 (-64)
-# define OD_FILTER_PARAMS8_1 (52)
-# define OD_FILTER_PARAMS8_2 (-63)
-# define OD_FILTER_PARAMS8_3 (-47)
-# define OD_FILTER_PARAMS8_4 (80)
-# define OD_FILTER_PARAMS8_5 (-42)
-# define OD_FILTER_PARAMS8_6 (128)
-# define OD_FILTER_PARAMS8_7 (-44)
-# define OD_FILTER_PARAMS8_8 (109)
-# define OD_FILTER_PARAMS8_9 (68)
-# define OD_FILTER_PARAMS8_10 (-61)
-# define OD_FILTER_PARAMS8_11 (66)
-# define OD_FILTER_PARAMS8_12 (-45)
-# define OD_FILTER_PARAMS8_13 (77)
-# define OD_FILTER_PARAMS8_14 (-45)
-# define OD_FILTER_PARAMS8_15 (-25)
-# define OD_FILTER_PARAMS8_16 (45)
-# define OD_FILTER_PARAMS8_17 (-52)
+/*R=f
+  6-bit
+  Subset3_2d_Cg = 16.7948051638528391
+  This filter has some of the scale factors
+   forced to one to reduce complexity. Without
+   this constraint we get a filter with Subset3_2d_Cg
+   of 16.8035257369844686. The small cg loss is likely
+   worth the reduction in multiplies and adds.*/
+#if 0
+# define OD_FILTER8_TYPE3 (1)
+# define OD_FILTER_PARAMS8_0 (86)
+# define OD_FILTER_PARAMS8_1 (64)
+# define OD_FILTER_PARAMS8_2 (64)
+# define OD_FILTER_PARAMS8_3 (70)
+# define OD_FILTER_PARAMS8_4 (-29)
+# define OD_FILTER_PARAMS8_5 (-25)
+# define OD_FILTER_PARAMS8_6 (-13)
+# define OD_FILTER_PARAMS8_7 (45)
+# define OD_FILTER_PARAMS8_8 (29)
+# define OD_FILTER_PARAMS8_9 (17)
+#elif 1
+/*Optimal 1d subset3 Cg*/
+# define OD_FILTER8_TYPE3 (1)
+# define OD_FILTER_PARAMS8_0 (93)
+# define OD_FILTER_PARAMS8_1 (72)
+# define OD_FILTER_PARAMS8_2 (73)
+# define OD_FILTER_PARAMS8_3 (78)
+# define OD_FILTER_PARAMS8_4 (-28)
+# define OD_FILTER_PARAMS8_5 (-23)
+# define OD_FILTER_PARAMS8_6 (-10)
+# define OD_FILTER_PARAMS8_7 (50)
+# define OD_FILTER_PARAMS8_8 (37)
+# define OD_FILTER_PARAMS8_9 (23)
+#else
+/*1,2 regular*/
+# define OD_FILTER8_TYPE3 (0)
+# define OD_FILTER_PARAMS8_0 (88)
+# define OD_FILTER_PARAMS8_1 (75)
+# define OD_FILTER_PARAMS8_2 (76)
+# define OD_FILTER_PARAMS8_3 (76)
+# define OD_FILTER_PARAMS8_4 (-24)
+# define OD_FILTER_PARAMS8_5 (-20)
+# define OD_FILTER_PARAMS8_6 (-4)
+# define OD_FILTER_PARAMS8_7 (53)
+# define OD_FILTER_PARAMS8_8 (40)
+# define OD_FILTER_PARAMS8_9 (24)
+#endif
 
-const int OD_FILTER_PARAMS8[18] = {
+const int OD_FILTER_PARAMS8[10] = {
   OD_FILTER_PARAMS8_0, OD_FILTER_PARAMS8_1, OD_FILTER_PARAMS8_2,
   OD_FILTER_PARAMS8_3, OD_FILTER_PARAMS8_4, OD_FILTER_PARAMS8_5,
   OD_FILTER_PARAMS8_6, OD_FILTER_PARAMS8_7, OD_FILTER_PARAMS8_8,
-  OD_FILTER_PARAMS8_9, OD_FILTER_PARAMS8_10, OD_FILTER_PARAMS8_11,
-  OD_FILTER_PARAMS8_12, OD_FILTER_PARAMS8_13, OD_FILTER_PARAMS8_14,
-  OD_FILTER_PARAMS8_15, OD_FILTER_PARAMS8_16, OD_FILTER_PARAMS8_17
+  OD_FILTER_PARAMS8_9
 };
 
 void od_pre_filter8(od_coeff _y[8], const od_coeff _x[8]) {
@@ -268,7 +295,6 @@ void od_pre_filter8(od_coeff _y[8], const od_coeff _x[8]) {
   }
 #else
   int t[8];
-  int z;
   /*+1/-1 butterflies (required for FIR, PR, LP).*/
   t[7] = _x[0]-_x[7];
   t[6] = _x[1]-_x[6];
@@ -280,42 +306,42 @@ void od_pre_filter8(od_coeff _y[8], const od_coeff _x[8]) {
   t[0] = _x[0]-(t[7]>>1);
   /*U filter (arbitrary invertible, omitted).*/
   /*V filter (arbitrary invertible, can be optimized for speed or accuracy).*/
-  t[6] += (t[7]*OD_FILTER_PARAMS8_0 + 32) >> 6;
-  t[7] += (t[6]*OD_FILTER_PARAMS8_1 + 32) >> 6;
-  t[6] += (t[7]*OD_FILTER_PARAMS8_2 + 32) >> 6;
-  z = t[6];
-  t[6] = -t[7];
-  t[7] = z;
-  t[5] += (t[7]*OD_FILTER_PARAMS8_3 + 32) >> 6;
-  t[7] += (t[5]*OD_FILTER_PARAMS8_4 + 32) >> 6;
-  t[5] += (t[7]*OD_FILTER_PARAMS8_5 + 32) >> 6;
-  z = t[5];
-  t[5] = -t[7];
-  t[7] = z;
-  t[5] += (t[6]*OD_FILTER_PARAMS8_6 + 32) >> 6;
-  t[6] += (t[5]*OD_FILTER_PARAMS8_7 + 32) >> 6;
-  t[5] += (t[6]*OD_FILTER_PARAMS8_8 + 32) >> 6;
-  z = t[5];
-  t[5] = -t[6];
-  t[6] = z;
-  t[4] += (t[7]*OD_FILTER_PARAMS8_9 + 32) >> 6;
-  t[7] += (t[4]*OD_FILTER_PARAMS8_10 + 32) >> 6;
-  t[4] += (t[7]*OD_FILTER_PARAMS8_11 + 32) >> 6;
-  z = t[4];
-  t[4] = -t[7];
-  t[7] = z;
-  t[4] += (t[6]*OD_FILTER_PARAMS8_12 + 32) >> 6;
-  t[6] += (t[4]*OD_FILTER_PARAMS8_13 + 32) >> 6;
-  t[4] += (t[6]*OD_FILTER_PARAMS8_14 + 32) >> 6;
-  z = t[4];
-  t[4] = -t[6];
-  t[6] = z;
-  t[4] += (t[5]*OD_FILTER_PARAMS8_15 + 32) >> 6;
-  t[5] += (t[4]*OD_FILTER_PARAMS8_16 + 32) >> 6;
-  t[4] += (t[5]*OD_FILTER_PARAMS8_17 + 32) >> 6;
-  z = t[4];
-  t[4] = -t[5];
-  t[5] = z;
+  /*Scaling factors: the biorthogonal part.*/
+  /*Note: t[i]+=t[i]>>(OD_COEFF_BITS-1)&1; is equivalent to: if(t[i]>0)t[i]++;
+    This step ensures that the scaling is trivially invertible on the
+     decoder's side, with perfect reconstruction.*/
+#if OD_FILTER_PARAMS8_0 != 64
+  t[4] = (t[4]*OD_FILTER_PARAMS8_0)>>6;
+  t[4] += -t[4]>>(OD_COEFF_BITS-1)&1;
+#endif
+#if OD_FILTER_PARAMS8_1 != 64
+  t[5] = (t[5]*OD_FILTER_PARAMS8_1)>>6;
+  t[5] += -t[5]>>(OD_COEFF_BITS-1)&1;
+#endif
+#if OD_FILTER_PARAMS8_2 != 64
+  t[6] = (t[6]*OD_FILTER_PARAMS8_2)>>6;
+  t[6] += -t[6]>>(OD_COEFF_BITS-1)&1;
+#endif
+#if OD_FILTER_PARAMS8_3 != 64
+  t[7] = (t[7]*OD_FILTER_PARAMS8_3)>>6;
+  t[7] += -t[7]>>(OD_COEFF_BITS-1)&1;
+#endif
+  /*Rotations:*/
+#if OD_FILTER8_TYPE3
+  t[7] += (t[6]*OD_FILTER_PARAMS8_6+32)>>6;
+  t[6] += (t[7]*OD_FILTER_PARAMS8_9+32)>>6;
+  t[6] += (t[5]*OD_FILTER_PARAMS8_5+32)>>6;
+  t[5] += (t[6]*OD_FILTER_PARAMS8_8+32)>>6;
+  t[5] += (t[4]*OD_FILTER_PARAMS8_4+32)>>6;
+  t[4] += (t[5]*OD_FILTER_PARAMS8_7+32)>>6;
+#else
+  t[5] += (t[4]*OD_FILTER_PARAMS8_4+32)>>6;
+  t[6] += (t[5]*OD_FILTER_PARAMS8_5+32)>>6;
+  t[7] += (t[6]*OD_FILTER_PARAMS8_6+32)>>6;
+  t[6] += (t[7]*OD_FILTER_PARAMS8_9+32)>>6;
+  t[5] += (t[6]*OD_FILTER_PARAMS8_8+32)>>6;
+  t[4] += (t[5]*OD_FILTER_PARAMS8_7+32)>>6;
+#endif
   /*More +1/-1 butterflies (required for FIR, PR, LP).*/
   t[0] += t[7]>>1;
   _y[0] = (od_coeff)t[0];
@@ -340,7 +366,6 @@ void od_post_filter8(od_coeff _x[8], const od_coeff _y[8]) {
   }
 #else
   int t[8];
-  int z;
   t[7] = _y[0]-_y[7];
   t[6] = _y[1]-_y[6];
   t[5] = _y[2]-_y[5];
@@ -349,42 +374,33 @@ void od_post_filter8(od_coeff _x[8], const od_coeff _y[8]) {
   t[2] = _y[2]-(t[5]>>1);
   t[1] = _y[1]-(t[6]>>1);
   t[0] = _y[0]-(t[7]>>1);
-  z = t[5];
-  t[5] = -t[4];
-  t[4] = z;
-  t[4] -= (t[5]*OD_FILTER_PARAMS8_17 + 32) >> 6;
-  t[5] -= (t[4]*OD_FILTER_PARAMS8_16 + 32) >> 6;
-  t[4] -= (t[5]*OD_FILTER_PARAMS8_15 + 32) >> 6;
-  z = t[6];
-  t[6] = -t[4];
-  t[4] = z;
-  t[4] -= (t[6]*OD_FILTER_PARAMS8_14 + 32) >> 6;
-  t[6] -= (t[4]*OD_FILTER_PARAMS8_13 + 32) >> 6;
-  t[4] -= (t[6]*OD_FILTER_PARAMS8_12 + 32) >> 6;
-  z = t[7];
-  t[7] = -t[4];
-  t[4] = z;
-  t[4] -= (t[7]*OD_FILTER_PARAMS8_11 + 32) >> 6;
-  t[7] -= (t[4]*OD_FILTER_PARAMS8_10 + 32) >> 6;
-  t[4] -= (t[7]*OD_FILTER_PARAMS8_9 + 32) >> 6;
-  z = t[6];
-  t[6] = -t[5];
-  t[5] = z;
-  t[5] -= (t[6]*OD_FILTER_PARAMS8_8 + 32) >> 6;
-  t[6] -= (t[5]*OD_FILTER_PARAMS8_7 + 32) >> 6;
-  t[5] -= (t[6]*OD_FILTER_PARAMS8_6 + 32) >> 6;
-  z = t[7];
-  t[7] = -t[5];
-  t[5] = z;
-  t[5] -= (t[7]*OD_FILTER_PARAMS8_5 + 32) >> 6;
-  t[7] -= (t[5]*OD_FILTER_PARAMS8_4 + 32) >> 6;
-  t[5] -= (t[7]*OD_FILTER_PARAMS8_3 + 32) >> 6;
-  z = t[7];
-  t[7] = -t[6];
-  t[6] = z;
-  t[6] -= (t[7]*OD_FILTER_PARAMS8_2 + 32) >> 6;
-  t[7] -= (t[6]*OD_FILTER_PARAMS8_1 + 32) >> 6;
-  t[6] -= (t[7]*OD_FILTER_PARAMS8_0 + 32) >> 6;
+#if OD_FILTER8_TYPE3
+  t[4] -= (t[5]*OD_FILTER_PARAMS8_7+32)>>6;
+  t[5] -= (t[4]*OD_FILTER_PARAMS8_4+32)>>6;
+  t[5] -= (t[6]*OD_FILTER_PARAMS8_8+32)>>6;
+  t[6] -= (t[5]*OD_FILTER_PARAMS8_5+32)>>6;
+  t[6] -= (t[7]*OD_FILTER_PARAMS8_9+32)>>6;
+  t[7] -= (t[6]*OD_FILTER_PARAMS8_6+32)>>6;
+#else
+  t[4] -= (t[5]*OD_FILTER_PARAMS8_7+32)>>6;
+  t[5] -= (t[6]*OD_FILTER_PARAMS8_8+32)>>6;
+  t[6] -= (t[7]*OD_FILTER_PARAMS8_9+32)>>6;
+  t[7] -= (t[6]*OD_FILTER_PARAMS8_6+32)>>6;
+  t[6] -= (t[5]*OD_FILTER_PARAMS8_5+32)>>6;
+  t[5] -= (t[4]*OD_FILTER_PARAMS8_4+32)>>6;
+#endif
+#if OD_FILTER_PARAMS8_3 != 64
+  t[7] = (t[7]<<6)/OD_FILTER_PARAMS8_3;
+#endif
+#if OD_FILTER_PARAMS8_2 != 64
+  t[6] = (t[6]<<6)/OD_FILTER_PARAMS8_2;
+#endif
+#if OD_FILTER_PARAMS8_1 != 64
+  t[5] = (t[5]<<6)/OD_FILTER_PARAMS8_1;
+#endif
+#if OD_FILTER_PARAMS8_0 != 64
+  t[4] = (t[4]<<6)/OD_FILTER_PARAMS8_0;
+#endif
   t[0] += t[7]>>1;
   _x[0] = (od_coeff)t[0];
   t[1] += t[6]>>1;
