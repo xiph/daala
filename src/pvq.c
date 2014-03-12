@@ -37,6 +37,22 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #define MAXN 256
 #define EPSILON 1e-30
 
+/* This is the PVQ equivalent of a quantization matrix, except that
+   the values are per-band. */
+static const int od_pvq_qm4_luma[2] = {8, 16};
+static const int od_pvq_qm8_luma[5] = {16, 16, 32, 32, 64};
+static const int od_pvq_qm16_luma[8] = {16, 16, 16, 16, 32, 32, 32, 64};
+
+static const int od_pvq_qm4_chroma[2] = {8, 32};
+static const int od_pvq_qm8_chroma[5] = {8, 24, 64, 64, 100};
+static const int od_pvq_qm16_chroma[8] = {8, 16, 24, 24, 32, 64, 64, 100};
+
+const int * const od_pvq_qm[3][OD_NBSIZES] = {
+  {od_pvq_qm4_luma, od_pvq_qm8_luma, od_pvq_qm16_luma},
+  {od_pvq_qm4_chroma, od_pvq_qm8_chroma, od_pvq_qm16_chroma},
+  {od_pvq_qm4_chroma, od_pvq_qm8_chroma, od_pvq_qm16_chroma}
+};
+
 /** Find the codepoint on the given PSphere closest to the desired
  * vector. Double-precision PVQ search just to make sure our tests
  * aren't limited by numerical accuracy.

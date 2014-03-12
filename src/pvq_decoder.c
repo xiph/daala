@@ -135,7 +135,8 @@ void pvq_decode(daala_dec_ctx *dec,
                 od_coeff *ref,
                 od_coeff *out,
                 int q,
-                int n){
+                int n,
+                const int *qm){
 
   int noref[PVQ_MAX_PARTITIONS];
   int *adapt;
@@ -151,7 +152,7 @@ void pvq_decode(daala_dec_ctx *dec,
 
   if (n == 4) {
     noref[0] = !od_ec_decode_bool_q15(&dec->ec, PRED4_PROB);
-    pvq_decode_partition(&dec->ec, q, 15, model, adapt, exg, ext, ref+1,
+    pvq_decode_partition(&dec->ec, q*qm[1] >> 4, 15, model, adapt, exg, ext, ref+1,
                    out+1, noref[0], 1);
   }
   else {
@@ -168,21 +169,21 @@ void pvq_decode(daala_dec_ctx *dec,
       noref[6] = !(predflags16 & 0x1);
     }
 
-    pvq_decode_partition(&dec->ec, q, 15, model, adapt, exg, ext, ref+1,
+    pvq_decode_partition(&dec->ec, q*qm[1] >> 4, 15, model, adapt, exg, ext, ref+1,
                    out+1, noref[0], 1);
-    pvq_decode_partition(&dec->ec, q, 8, model, adapt, exg+1, ext+1, ref+16,
+    pvq_decode_partition(&dec->ec, q*qm[2] >> 4, 8, model, adapt, exg+1, ext+1, ref+16,
                    out+16, noref[1], 1);
-    pvq_decode_partition(&dec->ec, q, 8, model, adapt, exg+2, ext+2, ref+24,
+    pvq_decode_partition(&dec->ec, q*qm[3] >> 4, 8, model, adapt, exg+2, ext+2, ref+24,
                    out+24, noref[2], 1);
-    pvq_decode_partition(&dec->ec, q, 32, model, adapt, exg+3, ext+3, ref+32,
+    pvq_decode_partition(&dec->ec, q*qm[4] >> 4, 32, model, adapt, exg+3, ext+3, ref+32,
                    out+32, noref[3], 1);
 
     if(n >= 16) {
-      pvq_decode_partition(&dec->ec, q, 32, model, adapt, exg+4, ext+4, ref+64,
+      pvq_decode_partition(&dec->ec, q*qm[5] >> 4, 32, model, adapt, exg+4, ext+4, ref+64,
                      out+64, noref[4], 1);
-      pvq_decode_partition(&dec->ec, q, 32, model, adapt, exg+5, ext+5, ref+96,
+      pvq_decode_partition(&dec->ec, q*qm[6] >> 4, 32, model, adapt, exg+5, ext+5, ref+96,
                      out+96, noref[5], 1);
-      pvq_decode_partition(&dec->ec, q, 128, model, adapt, exg+6, ext+6, ref+128,
+      pvq_decode_partition(&dec->ec, q*qm[7] >> 4, 128, model, adapt, exg+6, ext+6, ref+128,
                      out+128, noref[6], 1);
     }
   }

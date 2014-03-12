@@ -29,6 +29,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 # define PVQ_MAX_PARTITIONS (7)
 
+extern const int * const od_pvq_qm[3][OD_NBSIZES];
+
 int neg_deinterleave(int x, int ref);
 
 int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *itheta,
