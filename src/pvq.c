@@ -52,16 +52,32 @@ static double pvq_search_double(const double *xcoeff, int n, int k,
   int i, j;
   double xy;
   double yy;
-  double X[1024];
+  double x[1024];
   double xx;
   xx = xy = yy = 0;
   for (j = 0; j < n; j++) {
-    X[j] = fabs(xcoeff[j]);
-    xx += X[j]*X[j];
+    x[j] = fabs(xcoeff[j]);
+    xx += x[j]*x[j];
   }
-  for (j = 0; j < n; j++) ypulse[j] = 0;
+  i = 0;
+  if (k > 2) {
+    double l1_norm;
+    double l1_inv;
+    l1_norm = 0;
+    for (j = 0; j < n; j++) l1_norm += x[j];
+    l1_inv = 1./OD_MAXF(l1_norm, 1e-100);
+    for (j = 0; j < n; j++) {
+      ypulse[j] = OD_MAXI(0, (int)floor(k*x[j]*l1_inv));
+      xy += x[j]*ypulse[j];
+      yy += ypulse[j]*ypulse[j];
+      i += ypulse[j];
+    }
+  }
+  else {
+    for (j = 0; j < n; j++) ypulse[j] = 0;
+  }
   /* Search one pulse at a time */
-  for (i = 0; i < k; i++) {
+  for (; i < k; i++) {
     int pos;
     double best_xy;
     double best_yy;
@@ -71,7 +87,7 @@ static double pvq_search_double(const double *xcoeff, int n, int k,
     for (j = 0; j < n; j++) {
       double tmp_xy;
       double tmp_yy;
-      tmp_xy = xy + X[j];
+      tmp_xy = xy + x[j];
       tmp_yy = yy + 2*ypulse[j] + 1;
       tmp_xy *= tmp_xy;
       if (j == 0 || tmp_xy*best_yy > best_xy*tmp_yy) {
@@ -80,7 +96,7 @@ static double pvq_search_double(const double *xcoeff, int n, int k,
         pos = j;
       }
     }
-    xy = xy + X[pos];
+    xy = xy + x[pos];
     yy = yy + 2*ypulse[pos] + 1;
     ypulse[pos]++;
   }
