@@ -367,6 +367,15 @@ void pvq_synthesis(od_coeff *xcoeff, od_coeff *ypulse, double *r, int n,
                         go, theta, m, s, q, mask);
 }
 
+/* Estimates the number of bits it will cost to encode K pulses in
+   N dimensions. This could be improved by using a table, but in the
+   short-term, the approximation is more general. It is based on experimental
+   data for bitrate vs K. */
+static double pvq_rate_approx(int n, int k)
+{
+  return n*OD_LOG2(1+log(n*2)*k/n);
+}
+
 /** Perform PVQ quantization with prediction, trying several
  * possible gains and angles. See draft-valin-videocodec-pvq and
  * http://jmvalin.ca/slides/pvq.pdf for more details.
@@ -409,9 +418,11 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *ithet
   double gain_offset;
   int noref;
   double lambda;
-  /* Normalized lambda. At high rate, this would be log(2)/6, but we're
-     making RDO a bit less aggressive for now. */
-  lambda = .05;
+  /* Normalized lambda. Since we normalize the gain by q, the distortion is
+     normalized by q^2 and lambda does not need the q^2 factor. At high rate,
+     this would be log(2)/6, but we're making RDO a bit less aggressive for
+     now. */
+  lambda = .025;
   q = q0;
   OD_ASSERT(n > 1);
   corr = 0;
@@ -465,8 +476,8 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *ithet
         dist_theta = 2 - 2*cos(theta - qtheta)
          + sin(theta)*sin(qtheta)*(2 - 2*cos_dist);
         dist = (qcg - cg)*(qcg - cg) + qcg*cg*dist_theta;
-        /* Do approximate RDO -- should eventually be improved. */
-        dist += lambda*log2(n)*k;
+        /* Do approximate RDO. */
+        dist += lambda*pvq_rate_approx(n, k);
         if (j == 0) dist -= lambda*2.;
         if (i == icgr) dist -= lambda*2.;
         if (dist < best_dist) {
@@ -496,7 +507,8 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *ithet
       cos_dist = pvq_search_double(x1, n, k, y_tmp);
       /* See Jmspeex' Journal of Dubious Theoretical Results. */
       dist = (qcg - cg)*(qcg - cg) + qcg*cg*(2 - 2*cos_dist);
-      dist += lambda*(log2(n)*k-2.);
+      /* Do approximate RDO. */
+      dist += lambda*(pvq_rate_approx(n, k)-2.);
       if (dist <= best_dist) {
         best_dist = dist;
         qg = i;
