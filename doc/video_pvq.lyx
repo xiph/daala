@@ -316,23 +316,27 @@ It is desirable for a single quality parameter to control
 \end_inset
 
 .
- We can derive a scalar quantizer that follows this resolution:
+ We can derive a scalar quantizer based on quantization index 
+\begin_inset Formula $\gamma$
+\end_inset
+
+ that follows this resolution:
 \begin_inset Formula 
-\begin{equation}
-\hat{g}=Q_{g}\hat{\gamma}^{1+2\alpha}\ ,\label{eq:gain-scalar-quantization}
-\end{equation}
+\begin{align}
+\frac{d\hat{g}}{d\hat{\gamma}} & =Q\hat{g}^{2\alpha}\nonumber \\
+\hat{g}^{-2\alpha}d\hat{g} & =Qd\hat{\gamma}\nonumber \\
+\frac{\hat{g}^{1-2\alpha}}{1-2\alpha} & =Q\hat{\gamma}\nonumber \\
+\hat{g} & =\left(\left(1-2\alpha\right)Q\hat{\gamma}\right)^{1/\left(1-2\alpha\right)}\nonumber \\
+\hat{g} & =Q_{g}\hat{\gamma}^{1/\left(1-2\alpha\right)}\label{eq:gain-scalar-quantization}
+\end{align}
 
 \end_inset
 
 where 
-\begin_inset Formula $\gamma$
+\begin_inset Formula $Q_{g}=\left(\left(1-2\alpha\right)Q\right)^{1/\left(1-2\alpha\right)}$
 \end_inset
 
- is the gain quantization index and 
-\begin_inset Formula $Q_{g}$
-\end_inset
-
- is the gain resolution and 
+ is the companded gain resolution and 
 \begin_inset Quotes eld
 \end_inset
 
@@ -341,11 +345,14 @@ master
 \end_inset
 
  quality parameter.
- If we assume that MSE is a good criterion, then the angle quantization
- resolution should be (roughly) 
+ Let 
+\begin_inset Formula $\beta=1/\left(1-2\alpha\right)$
+\end_inset
+
+, the MSE-optimal angle quantization resolution should be (roughly) 
 \begin_inset Formula 
 \begin{equation}
-Q_{\theta}=\frac{d\hat{g}/d\hat{\gamma}}{\hat{g}}=\frac{Q_{g}\left(1+2\alpha\right)\hat{\gamma}^{2\alpha}}{Q_{g}\hat{\gamma}^{1+2\alpha}}=\frac{\left(1+2\alpha\right)}{\hat{\gamma}}\ .\label{eq:theta-quantization-step}
+Q_{\theta}=\frac{d\hat{g}/d\hat{\gamma}}{\hat{g}}=\frac{Q_{g}\beta\hat{\gamma}^{\beta-1}}{Q_{g}\hat{\gamma}^{\beta}}=\frac{\beta}{\hat{\gamma}}\ .\label{eq:theta-quantization-step}
 \end{equation}
 
 \end_inset
@@ -361,7 +368,7 @@ steps
  is 
 \begin_inset Formula 
 \[
-S_{\theta}=\frac{\pi\hat{\gamma}}{2\left(1+2\alpha\right)}\ .
+S_{\theta}=\frac{\pi\hat{\gamma}}{2\beta}\ .
 \]
 
 \end_inset
@@ -495,7 +502,7 @@ The distortion due to scalar quantization of the gain is (asymptotically)
 \begin_inset Formula 
 \begin{align*}
 D_{g} & =\frac{1}{12}\left(d\hat{g}/d\hat{\gamma}\right)^{2}\\
- & =\frac{\left(1+2\alpha\right)^{2}Q_{g}^{2}\hat{\gamma}^{4\alpha}}{12}\ .
+ & =\frac{\beta^{2}Q_{g}^{2}\hat{\gamma}^{2\beta-2}}{12}\ .
 \end{align*}
 
 \end_inset
@@ -515,11 +522,11 @@ To achieve uniform distortion along all dimensions, the distortion due to
 \begin_layout Standard
 \begin_inset Formula 
 \begin{align*}
-\left(N-1\right)D_{g} & =\hat{g}^{2}D_{pvq}\\
-\frac{\left(N-2\right)\left(1+2\alpha\right)^{2}Q_{g}^{2}\hat{\gamma}^{4\alpha}}{12} & =\left(Q_{g}\hat{\gamma}^{1+2\alpha}\sin\hat{\theta}\right)^{2}\frac{N^{2}}{24K^{2}}\\
-\left(N-2\right)\left(1+2\alpha\right)^{2} & =\frac{\hat{\gamma}^{2}N^{2}\sin^{2}\hat{\theta}}{2K^{2}}\\
-K & =\frac{\hat{\gamma}N\sin\hat{\theta}}{\left(1+2\alpha\right)}\sqrt{\frac{1}{2\left(N-2\right)}}\\
- & \approx\frac{\hat{\gamma}\sin\hat{\theta}}{\left(1+2\alpha\right)}\sqrt{N/2}\ .
+\left(N-2\right)D_{g} & =\hat{g}^{2}D_{pvq}\\
+\frac{\left(N-2\right)\beta^{2}Q_{g}^{2}\hat{\gamma}^{2\beta-2}}{12} & =\left(Q_{g}\hat{\gamma}^{\beta}\sin\hat{\theta}\right)^{2}\frac{N^{2}}{24K^{2}}\\
+\left(N-2\right)\beta^{2} & =\frac{\hat{\gamma}^{2}N^{2}\sin^{2}\hat{\theta}}{2K^{2}}\\
+K & =\frac{\hat{\gamma}N\sin\hat{\theta}}{\beta}\sqrt{\frac{1}{2\left(N-2\right)}}\\
+ & \approx\frac{\hat{\gamma}\sin\hat{\theta}}{\beta}\sqrt{N/2}\ .
 \end{align*}
 
 \end_inset
