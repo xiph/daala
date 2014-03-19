@@ -44,4 +44,4 @@ $GNUPLOT -e "$CMDS set output \"$IMAGE$SUFFIX\"; plot $PSNRHVS;"  2> /dev/null
 SUFFIX="ssim.png"
 $GNUPLOT -e "$CMDS set output \"$IMAGE$SUFFIX\"; plot $SSIM;"     2> /dev/null
 SUFFIX="fastssim.png"
-#$GNUPLOT -e "$CMDS set output \"$IMAGE$SUFFIX\"; plot $FASTSSIM;" 2> /dev/null
+$GNUPLOT -e "$CMDS set output \"$IMAGE$SUFFIX\"; plot $FASTSSIM;" 2> /dev/null
