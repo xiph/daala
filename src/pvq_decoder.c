@@ -136,7 +136,8 @@ void pvq_decode(daala_dec_ctx *dec,
                 od_coeff *out,
                 int q,
                 int n,
-                const int *qm){
+                const int *qm,
+                const double *mask){
 
   int noref[PVQ_MAX_PARTITIONS];
   int *adapt;
@@ -153,7 +154,7 @@ void pvq_decode(daala_dec_ctx *dec,
   if (n == 4) {
     noref[0] = !od_ec_decode_bool_q15(&dec->ec, PRED4_PROB);
     pvq_decode_partition(&dec->ec, q*qm[1] >> 4, 15, model, adapt, exg, ext, ref+1,
-                   out+1, noref[0], 1);
+                   out+1, noref[0], mask[0]);
   }
   else {
     predflags8 = od_ec_decode_cdf_q15(&dec->ec, pred8_cdf, 16);
@@ -170,21 +171,21 @@ void pvq_decode(daala_dec_ctx *dec,
     }
 
     pvq_decode_partition(&dec->ec, q*qm[1] >> 4, 15, model, adapt, exg, ext, ref+1,
-                   out+1, noref[0], 1);
+                   out+1, noref[0], mask[0]);
     pvq_decode_partition(&dec->ec, q*qm[2] >> 4, 8, model, adapt, exg+1, ext+1, ref+16,
-                   out+16, noref[1], 1);
+                   out+16, noref[1], mask[1]);
     pvq_decode_partition(&dec->ec, q*qm[3] >> 4, 8, model, adapt, exg+2, ext+2, ref+24,
-                   out+24, noref[2], 1);
+                   out+24, noref[2], mask[2]);
     pvq_decode_partition(&dec->ec, q*qm[4] >> 4, 32, model, adapt, exg+3, ext+3, ref+32,
-                   out+32, noref[3], 1);
+                   out+32, noref[3], mask[3]);
 
     if(n >= 16) {
       pvq_decode_partition(&dec->ec, q*qm[5] >> 4, 32, model, adapt, exg+4, ext+4, ref+64,
-                     out+64, noref[4], 1);
+                     out+64, noref[4], mask[4]);
       pvq_decode_partition(&dec->ec, q*qm[6] >> 4, 32, model, adapt, exg+5, ext+5, ref+96,
-                     out+96, noref[5], 1);
+                     out+96, noref[5], mask[5]);
       pvq_decode_partition(&dec->ec, q*qm[7] >> 4, 128, model, adapt, exg+6, ext+6, ref+128,
-                     out+128, noref[6], 1);
+                     out+128, noref[6], mask[6]);
     }
   }
 }

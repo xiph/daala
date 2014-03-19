@@ -30,6 +30,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # define PVQ_MAX_PARTITIONS (7)
 
 extern const int * const od_pvq_qm[3][OD_NBSIZES];
+extern const double * const od_pvq_mask[3][OD_NBSIZES];
 
 int neg_deinterleave(int x, int ref);
 

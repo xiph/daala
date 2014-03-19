@@ -53,6 +53,20 @@ const int * const od_pvq_qm[3][OD_NBSIZES] = {
   {od_pvq_qm4_chroma, od_pvq_qm8_chroma, od_pvq_qm16_chroma}
 };
 
+static const double od_pvq_mask4_luma[1] = {1.};
+static const double od_pvq_mask8_luma[4] = {1., 1., 1., 1.};
+static const double od_pvq_mask16_luma[7] = {1., 1., 1., 1., 1., 1., 1.};
+
+static const double od_pvq_mask4_chroma[1] = {1.};
+static const double od_pvq_mask8_chroma[4] = {1., 1., 1., 1.};
+static const double od_pvq_mask16_chroma[7] = {1., 1., 1., 1., 1., 1., 1.};
+
+const double * const od_pvq_mask[3][OD_NBSIZES] = {
+  {od_pvq_mask4_luma, od_pvq_mask8_luma, od_pvq_mask16_luma},
+  {od_pvq_mask4_chroma, od_pvq_mask8_chroma, od_pvq_mask16_chroma},
+  {od_pvq_mask4_chroma, od_pvq_mask8_chroma, od_pvq_mask16_chroma}
+};
+
 /** Find the codepoint on the given PSphere closest to the desired
  * vector. Double-precision PVQ search just to make sure our tests
  * aren't limited by numerical accuracy.
