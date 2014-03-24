@@ -51,7 +51,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
  * @param [in]     noref   boolean indicating absence of reference
  */
 static void pvq_decode_partition(od_ec_dec *ec,
-                                 int q,
+                                 int q0,
                                  int n,
                                  generic_encoder *model,
                                  int *adapt,
@@ -73,7 +73,9 @@ static void pvq_decode_partition(od_ec_dec *ec,
   od_coeff y[1024];
   double r[1024];
   int qg;
-
+  double q;
+  /* Quantization step calibration to account for the activity masking. */
+  q = q0*pow(256<<OD_COEFF_SHIFT, 1./mask - 1);
   speed = 5;
   theta = 0;
   gr = 0;

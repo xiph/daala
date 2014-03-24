@@ -243,7 +243,7 @@ double pvq_compute_gain(od_coeff *x, int n, double q, double *g, double mask){
   *g = sqrt(acc);
   /* Normalize gain by quantization step size and apply companding
      (if ACTIVITY != 1). */
-  return pow(*g/q, 1./mask);
+  return pow(*g, 1./mask)/q;
 }
 
 /** Compute theta quantization range from quantized/companded gain
@@ -347,7 +347,7 @@ static void pvq_synthesis_partial(od_coeff *xcoeff, od_coeff *ypulse,
     apply_householder(x, r, n);
   }
 
-  g = q*pow(qcg, mask);
+  g = pow(q*qcg, mask);
   for (i = 0; i < n; i++) {
     xcoeff[i] = floor(.5 + x[i]*g);
   }
@@ -438,7 +438,8 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *ithet
      this would be log(2)/6, but we're making RDO a bit less aggressive for
      now. */
   lambda = .025;
-  q = q0;
+  /* Quantization step calibration to account for the activity masking. */
+  q = q0*pow(256<<OD_COEFF_SHIFT, 1./mask - 1);
   OD_ASSERT(n > 1);
   corr = 0;
   for (i = 0; i < n; i++) {
