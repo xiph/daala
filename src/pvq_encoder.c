@@ -112,6 +112,7 @@ void pvq_encode(daala_enc_ctx *enc,
   int *ext;
   int predflags8;
   int predflags16;
+  double g[PVQ_MAX_PARTITIONS] = {0};
   generic_encoder *model;
   adapt = enc->state.pvq_adapt;
   exg = enc->state.pvq_exg;
@@ -119,7 +120,7 @@ void pvq_encode(daala_enc_ctx *enc,
   model = &enc->state.pvq_gain_model;
 
   qg[0] = pvq_theta(in+1, ref+1, 15, q*qm[1] >> 4, out+1,
-                    &theta[0], &max_theta[0], &k[0], mask[0]);
+                    &theta[0], &max_theta[0], &k[0], &g[0], mask[0]);
 
   if (n==4){
 
@@ -129,24 +130,24 @@ void pvq_encode(daala_enc_ctx *enc,
 
   }
   else{
-
+    g[1] = g[2] = g[3] = INTER_MASKING*g[0];
     qg[1] = pvq_theta(in+16, ref+16, 8, q*qm[2] >> 4, out+16,
-                      &theta[1], &max_theta[1], &k[1], mask[1]);
+                      &theta[1], &max_theta[1], &k[1], &g[1], mask[1]);
     qg[2] = pvq_theta(in+24, ref+24, 8, q*qm[3] >> 4, out+24,
-                      &theta[2], &max_theta[2], &k[2], mask[2]);
+                      &theta[2], &max_theta[2], &k[2], &g[2], mask[2]);
     qg[3] = pvq_theta(in+32, ref+32, 32, q*qm[4] >> 4, out+32,
-                      &theta[3], &max_theta[3], &k[3], mask[3]);
+                      &theta[3], &max_theta[3], &k[3], &g[3], mask[3]);
     predflags8 = 8*(theta[0] != -1) + 4*(theta[1] != -1) + 2*(theta[2] != -1)
       + (theta[3] != -1);
     od_ec_encode_cdf_q15(&enc->ec, predflags8, pred8_cdf, 16);
 
     if (n >= 16) {
       qg[4] = pvq_theta(in+64, ref+64, 32, q*qm[5] >> 4, out+64,
-                        &theta[4], &max_theta[4], &k[4], mask[4]);
+                        &theta[4], &max_theta[4], &k[4], &g[4], mask[4]);
       qg[5] = pvq_theta(in+96, ref+96, 32, q*qm[6] >> 4, out+96,
-                        &theta[5], &max_theta[5], &k[5], mask[5]);
+                        &theta[5], &max_theta[5], &k[5], &g[5], mask[5]);
       qg[6] = pvq_theta(in+128, ref+128, 128, q*qm[7] >> 4, out+128,
-                          &theta[6], &max_theta[6], &k[6], mask[6]);
+                          &theta[6], &max_theta[6], &k[6], &g[6], mask[6]);
 
       predflags16 = 4*(theta[4] != -1) + 2*(theta[5] != -1)
         + (theta[6] != -1);

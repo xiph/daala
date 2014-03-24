@@ -60,6 +60,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
                                  od_coeff *ref,
                                  od_coeff *out,
                                  int noref,
+                                 double *mask_gain,
                                  double mask) {
   int adapt_curr[OD_NSB_ADAPT_CTXS] = {0};
   int speed;
@@ -74,6 +75,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
   double r[1024];
   int qg;
   double q;
+  double mask_ratio;
   /* Quantization step calibration to account for the activity masking. */
   q = q0*pow(256<<OD_COEFF_SHIFT, 1./mask - 1);
   speed = 5;
@@ -96,24 +98,27 @@ static void pvq_decode_partition(od_ec_dec *ec,
     qg = neg_deinterleave(qg, icgr);
     gain_offset = cgr-icgr;
     qcg = qg + gain_offset;
+    mask_ratio = pvq_interband_masking(*mask_gain, pow(q*qcg, mask), mask);
     /* read and decode first-stage PVQ error theta */
-    max_theta = pvq_compute_max_theta(qcg, mask);
+    max_theta = pvq_compute_max_theta(mask_ratio*qcg, mask);
     itheta = generic_decode(ec, model, ext, 2);
     theta = pvq_compute_theta(itheta, max_theta);
     for (i = 0; i < n; i++) r[i] = ref[i];
   }
   else{
     qcg=qg;
+    mask_ratio = pvq_interband_masking(*mask_gain, pow(q*qcg, mask), mask);
   }
 
   if (qg != 0) {
-    k = pvq_compute_k(qcg, theta, noref, n, mask);
+    k = pvq_compute_k(mask_ratio*qcg, theta, noref, n, mask);
     /* when noref==0, y is actually size n-1 */
     laplace_decode_vector(ec, y, n-(!noref), k, adapt_curr, adapt);
   } else {
     OD_CLEAR(y, n);
   }
-  pvq_synthesis(out, y, r, n, gr, noref, qg, gain_offset, theta, q, mask);
+  *mask_gain = pvq_synthesis(out, y, r, n, gr, noref, qg, gain_offset, theta,
+   q, mask);
 
   if (adapt_curr[OD_ADAPT_K_Q8] > 0) {
     adapt[OD_ADAPT_K_Q8]
@@ -151,6 +156,7 @@ void pvq_decode(daala_dec_ctx *dec,
   int *ext;
   int predflags8;
   int predflags16;
+  double g[PVQ_MAX_PARTITIONS] = {0};
   generic_encoder *model;
   adapt = dec->state.pvq_adapt;
   exg = dec->state.pvq_exg;
@@ -160,7 +166,7 @@ void pvq_decode(daala_dec_ctx *dec,
   if (n == 4) {
     noref[0] = !od_ec_decode_bool_q15(&dec->ec, PRED4_PROB);
     pvq_decode_partition(&dec->ec, q*qm[1] >> 4, 15, model, adapt, exg, ext, ref+1,
-                   out+1, noref[0], mask[0]);
+                   out+1, noref[0], &g[0], mask[0]);
   }
   else {
     predflags8 = od_ec_decode_cdf_q15(&dec->ec, pred8_cdf, 16);
@@ -177,21 +183,22 @@ void pvq_decode(daala_dec_ctx *dec,
     }
 
     pvq_decode_partition(&dec->ec, q*qm[1] >> 4, 15, model, adapt, exg, ext, ref+1,
-                   out+1, noref[0], mask[0]);
+                   out+1, noref[0], &g[0], mask[0]);
+    g[1] = g[2] = g[3] = INTER_MASKING*g[0];
     pvq_decode_partition(&dec->ec, q*qm[2] >> 4, 8, model, adapt, exg+1, ext+1, ref+16,
-                   out+16, noref[1], mask[1]);
+                   out+16, noref[1], &g[1], mask[1]);
     pvq_decode_partition(&dec->ec, q*qm[3] >> 4, 8, model, adapt, exg+2, ext+2, ref+24,
-                   out+24, noref[2], mask[2]);
+                   out+24, noref[2], &g[2], mask[2]);
     pvq_decode_partition(&dec->ec, q*qm[4] >> 4, 32, model, adapt, exg+3, ext+3, ref+32,
-                   out+32, noref[3], mask[3]);
+                   out+32, noref[3], &g[3], mask[3]);
 
     if(n >= 16) {
       pvq_decode_partition(&dec->ec, q*qm[5] >> 4, 32, model, adapt, exg+4, ext+4, ref+64,
-                     out+64, noref[4], mask[4]);
+                     out+64, noref[4], &g[4], mask[4]);
       pvq_decode_partition(&dec->ec, q*qm[6] >> 4, 32, model, adapt, exg+5, ext+5, ref+96,
-                     out+96, noref[5], mask[5]);
+                     out+96, noref[5], &g[5], mask[5]);
       pvq_decode_partition(&dec->ec, q*qm[7] >> 4, 128, model, adapt, exg+6, ext+6, ref+128,
-                     out+128, noref[6], mask[6]);
+                     out+128, noref[6], &g[6], mask[6]);
     }
   }
 }

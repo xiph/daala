@@ -54,7 +54,7 @@ static const double od_pvq_mask16_luma[7] = {1., 1., 1., 1., 1., 1., 1.};
 
 static const int od_pvq_qm4_luma[2] = {8, 16};
 static const int od_pvq_qm8_luma[5] = {16, 16, 44, 44, 72};
-static const int od_pvq_qm16_luma[8] = {16, 13, 20, 20, 40, 40, 40, 80};
+static const int od_pvq_qm16_luma[8] = {16, 13, 18, 18, 36, 40, 40, 80};
 
 static const double od_pvq_mask4_luma[1] = {1.};
 static const double od_pvq_mask8_luma[4] = {1.5, 1.5, 1.5, 1.5};
@@ -329,7 +329,7 @@ int pvq_compute_k(double qcg, double theta, int noref, int n, double mask) {
  * @param [in]      s       sign of Householder reflection
  * @param [in]      q       gain quantizer
  */
-static void pvq_synthesis_partial(od_coeff *xcoeff, od_coeff *ypulse,
+static double pvq_synthesis_partial(od_coeff *xcoeff, od_coeff *ypulse,
                                   const double *r, int n,
                                   int noref, int qg, double go,
                                   double theta, int m, int s, double q,
@@ -367,6 +367,7 @@ static void pvq_synthesis_partial(od_coeff *xcoeff, od_coeff *ypulse,
   for (i = 0; i < n; i++) {
     xcoeff[i] = floor(.5 + x[i]*g);
   }
+  return g;
 }
 
 /** Synthesizes one parition of coefficient values from a PVQ-encoded
@@ -388,13 +389,13 @@ static void pvq_synthesis_partial(od_coeff *xcoeff, od_coeff *ypulse,
  * @param [in]      s       sign of Householder reflection
  * @param [in]      q       gain quantizer
  */
-void pvq_synthesis(od_coeff *xcoeff, od_coeff *ypulse, double *r, int n,
+double pvq_synthesis(od_coeff *xcoeff, od_coeff *ypulse, double *r, int n,
                    double gr, int noref, int qg, double go,
                    double theta, double q, double mask) {
   int s = 0;
   int m = noref ? 0 : compute_householder(r, n, gr, &s);
 
-  pvq_synthesis_partial(xcoeff, ypulse, r, n, noref, qg,
+  return pvq_synthesis_partial(xcoeff, ypulse, r, n, noref, qg,
                         go, theta, m, s, q, mask);
 }
 
@@ -405,6 +406,17 @@ void pvq_synthesis(od_coeff *xcoeff, od_coeff *ypulse, double *r, int n,
 static double pvq_rate_approx(int n, int k)
 {
   return n*OD_LOG2(1+log(n*2)*k/n);
+}
+
+/** Computes the effect of masking from other bands.
+ *
+ * @param [in]     inter     Combined gain from other bands
+ * @param [in]     curr      Quantized gain from current band
+ * @param [in]     mask      Activity masking exponent (beta)
+ * @return         ratio     Reduction of K/theta allocation
+ */
+double pvq_interband_masking(double inter, double curr, double mask) {
+  return pow(curr*curr/(curr*curr+inter*inter), .5-.5/mask);
 }
 
 /** Perform PVQ quantization with prediction, trying several
@@ -422,7 +434,7 @@ static double pvq_rate_approx(int n, int k)
  * @return         gain      index of the quatized gain
 */
 int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *itheta,
- int *max_theta, int *vk, double mask) {
+ int *max_theta, int *vk, double *mask_gain, double mask) {
   double g;
   double gr;
   double x[MAXN];
@@ -449,6 +461,7 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *ithet
   double gain_offset;
   int noref;
   double lambda;
+  double mask_ratio;
   /* Normalized lambda. Since we normalize the gain by q, the distortion is
      normalized by q^2 and lambda does not need the q^2 factor. At high rate,
      this would be log(2)/6, but we're making RDO a bit less aggressive for
@@ -498,8 +511,9 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *ithet
       int ts;
       /* Quantized companded gain */
       qcg = i+gain_offset;
+      mask_ratio = pvq_interband_masking(*mask_gain, pow(q*qcg, mask), mask);
       /* Set angular resolution (in ra) to match the encoded gain */
-      ts = pvq_compute_max_theta(qcg, mask);
+      ts = pvq_compute_max_theta(mask_ratio*qcg, mask);
       /* Search for the best angle within a reasonable range. */
       for (j = OD_MAXI(0, (int)floor(.5+theta*2/M_PI*ts)-1);
        j <= OD_MINI(ts-1, (int)ceil(theta*2/M_PI*ts)); j++) {
@@ -507,7 +521,7 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *ithet
         double dist;
         double dist_theta;
         double qtheta = pvq_compute_theta(j, ts);
-        k = pvq_compute_k(qcg, qtheta, 0, n, mask);
+        k = pvq_compute_k(mask_ratio*qcg, qtheta, 0, n, mask);
         cos_dist = pvq_search_double(x, n, k, y_tmp);
         /* See Jmspeex' Journal of Dubious Theoretical Results. */
         dist_theta = 2 - 2*cos(theta - qtheta)
@@ -541,7 +555,8 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *ithet
       double dist;
       double qcg;
       qcg = i;
-      k = pvq_compute_k(qcg, -1, 1, n, mask);
+      mask_ratio = pvq_interband_masking(*mask_gain, pow(q*qcg, mask), mask);
+      k = pvq_compute_k(mask_ratio*qcg, -1, 1, n, mask);
       cos_dist = pvq_search_double(x1, n, k, y_tmp);
       /* See Jmspeex' Journal of Dubious Theoretical Results. */
       dist = (qcg - cg)*(qcg - cg) + qcg*cg*(2 - 2*cos_dist);
@@ -565,7 +580,7 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *ithet
     for (i = m; i < n - 1; i++) y[i] = y[i+1];
   }
   /* Synthesize like the decoder would. */
-  pvq_synthesis_partial(x0, y, r, n, noref, qg, gain_offset, theta, m, s, q,
+  *mask_gain = pvq_synthesis_partial(x0, y, r, n, noref, qg, gain_offset, theta, m, s, q,
    mask);
   *vk = k;
   /* Encode gain differently depending on whether we use prediction or not. */
