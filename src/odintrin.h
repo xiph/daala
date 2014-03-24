@@ -25,6 +25,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 /*Some common macros for potential platform-specific optimization.*/
 #include <math.h>
 #include <limits.h>
+#include <string.h>
 #if !defined(_odintrin_H)
 # define _odintrin_H (1)
 

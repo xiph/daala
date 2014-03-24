@@ -282,13 +282,14 @@ double pvq_compute_theta(int t, int max_theta) {
  */
 int pvq_compute_k(double qcg, double theta, int noref, int n, double mask) {
   if (noref) {
-    return (int)floor(.5 + qcg*sqrt(n/2)/mask);
+    return OD_MAXI(1, (int)floor(.5 + qcg*sqrt(n/2)/mask));
   }
   else {
+    if (theta == 0) return 0;
     /* Sets K according to gain and theta, based on the high-rate
        PVQ distortion curves D~=N^2/(24*K^2). Low-rate will have to be
        perceptually tuned anyway.  */
-    return (int)floor(.5 + qcg*sin(theta)*sqrt(n/2)/mask);
+    return OD_MAXI(1, (int)floor(.5 + qcg*sin(theta)*sqrt(n/2)/mask));
   }
 }
 
@@ -452,11 +453,16 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *ithet
      exactly the same gain as the reference. */
   icgr = floor(.5+cgr);
   gain_offset = cgr-icgr;
+  /* Start search with null case: gain=0, no pulse. */
   qg = 0;
-  best_dist = 1e100;
+  best_dist = cg*cg - 2*lambda;
+  noref = 1;
   best_k = 0;
+  *itheta = -1;
+  *max_theta = 0;
+  OD_CLEAR(y, n);
   best_qtheta = 0;
-  noref = 0;
+  noref = 1;
   m = 0;
   s = 1;
   if (corr > 0) {
@@ -501,6 +507,7 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *ithet
           best_qtheta = qtheta;
           *itheta = j;
           *max_theta = ts;
+          noref = 0;
           OD_COPY(y, y_tmp, n);
         }
       }
@@ -512,7 +519,7 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *ithet
     double x1[MAXN];
     for (i = 0; i < n; i++) x1[i] = x0[i];
     /* Search for the best gain (haven't determined reasonable range yet). */
-    for (i = OD_MAXI(0, (int)floor(cg) - 1); i <= ceil(cg); i++) {
+    for (i = OD_MAXI(1, (int)floor(cg) - 1); i <= ceil(cg); i++) {
       double cos_dist;
       double dist;
       double qcg;

@@ -104,9 +104,13 @@ static void pvq_decode_partition(od_ec_dec *ec,
     qcg=qg;
   }
 
-  k = pvq_compute_k(qcg, theta, noref, n, mask);
-  /* when noref==0, y is actually size n-1 */
-  laplace_decode_vector(ec, y, n-(!noref), k, adapt_curr, adapt);
+  if (qg != 0) {
+    k = pvq_compute_k(qcg, theta, noref, n, mask);
+    /* when noref==0, y is actually size n-1 */
+    laplace_decode_vector(ec, y, n-(!noref), k, adapt_curr, adapt);
+  } else {
+    OD_CLEAR(y, n);
+  }
   pvq_synthesis(out, y, r, n, gr, noref, qg, gain_offset, theta, q, mask);
 
   if (adapt_curr[OD_ADAPT_K_Q8] > 0) {
