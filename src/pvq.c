@@ -39,27 +39,43 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 /* This is the PVQ equivalent of a quantization matrix, except that
    the values are per-band. */
+
+#if OD_DISABLE_MASKING
+
 static const int od_pvq_qm4_luma[2] = {8, 16};
 static const int od_pvq_qm8_luma[5] = {16, 16, 32, 32, 64};
 static const int od_pvq_qm16_luma[8] = {16, 16, 16, 16, 32, 32, 32, 64};
 
+static const double od_pvq_mask4_luma[1] = {1.};
+static const double od_pvq_mask8_luma[4] = {1., 1., 1., 1.};
+static const double od_pvq_mask16_luma[7] = {1., 1., 1., 1., 1., 1., 1.};
+
+#else
+
+static const int od_pvq_qm4_luma[2] = {8, 16};
+static const int od_pvq_qm8_luma[5] = {16, 16, 44, 44, 72};
+static const int od_pvq_qm16_luma[8] = {16, 13, 20, 20, 40, 40, 40, 80};
+
+static const double od_pvq_mask4_luma[1] = {1.};
+static const double od_pvq_mask8_luma[4] = {1.5, 1.5, 1.5, 1.5};
+static const double od_pvq_mask16_luma[7] = {1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5};
+
+#endif
+
+
 static const int od_pvq_qm4_chroma[2] = {8, 32};
 static const int od_pvq_qm8_chroma[5] = {8, 24, 64, 64, 100};
 static const int od_pvq_qm16_chroma[8] = {8, 16, 24, 24, 32, 64, 64, 100};
+
+static const double od_pvq_mask4_chroma[1] = {1.};
+static const double od_pvq_mask8_chroma[4] = {1., 1., 1., 1.};
+static const double od_pvq_mask16_chroma[7] = {1., 1., 1., 1., 1., 1., 1.};
 
 const int * const od_pvq_qm[3][OD_NBSIZES] = {
   {od_pvq_qm4_luma, od_pvq_qm8_luma, od_pvq_qm16_luma},
   {od_pvq_qm4_chroma, od_pvq_qm8_chroma, od_pvq_qm16_chroma},
   {od_pvq_qm4_chroma, od_pvq_qm8_chroma, od_pvq_qm16_chroma}
 };
-
-static const double od_pvq_mask4_luma[1] = {1.};
-static const double od_pvq_mask8_luma[4] = {1., 1., 1., 1.};
-static const double od_pvq_mask16_luma[7] = {1., 1., 1., 1., 1., 1., 1.};
-
-static const double od_pvq_mask4_chroma[1] = {1.};
-static const double od_pvq_mask8_chroma[4] = {1., 1., 1., 1.};
-static const double od_pvq_mask16_chroma[7] = {1., 1., 1., 1., 1., 1., 1.};
 
 const double * const od_pvq_mask[3][OD_NBSIZES] = {
   {od_pvq_mask4_luma, od_pvq_mask8_luma, od_pvq_mask16_luma},
