@@ -220,6 +220,7 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
       }
     }
   }
+#if (OD_LIMIT_LOG_BSIZE_MAX >= 4) && (OD_LIMIT_LOG_BSIZE_MIN <= 4)
   /* Compute 16x16 masking and make 4x4/8x8 vs 16x16 decision */
   for (i = 0; i < 2; i++) {
     for (j = 0; j < 2; j++) {
@@ -275,6 +276,8 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
       }
     }
   }
+#endif
+#if OD_LIMIT_LOG_BSIZE_MAX>=5
   /* Compute 32x32 masking and make final 4x4/8x8/16x16 vs 32x32 decision */
   {
     int k;
@@ -320,6 +323,7 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
         for (m = 0; m < 4; m++) bsize[k][m] = 3;
     }
   }
+#endif
 }
 
 static void od_block_size_encode8x8(od_ec_enc *enc,
