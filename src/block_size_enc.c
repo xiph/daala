@@ -50,9 +50,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
    used to square integers, but not circles. */
 #define SQUARE(x) ((int)(x)*(int)(x))
 
-static void od_compute_stats(const unsigned char *img, int stride,
+static void od_compute_stats(const signed char *img, int stride,
  BlockStats *stats) {
-  const unsigned char *x;
+  const signed char *x;
   int i;
   int j;
   int off8;
@@ -109,7 +109,7 @@ static void od_compute_stats(const unsigned char *img, int stride,
     for (j = 0; j < SIZE4_SUMS; j++) {
       ogg_int32_t var_floor;
       Var4[i][j] = (Sxx4[i][j] - (SQUARE(Sx4[i][j]) >> 4)) >> 5;
-      var_floor = 4 + (Sx4[i][j] >> 8);
+      var_floor = 4 + ((Sx4[i][j]+(128<<4)) >> 8);
       if (Var4[i][j] < var_floor) Var4[i][j] = var_floor;
       invVar4[i][j] = 16384/Var4[i][j];
     }
@@ -118,7 +118,7 @@ static void od_compute_stats(const unsigned char *img, int stride,
     for (j = 0; j < SIZE8_SUMS; j++) {
       ogg_int32_t var_floor;
       Var8[i][j] = (Sxx8[i][j] - (SQUARE(Sx8[i][j]) >> 6)) >> 5;
-      var_floor = 4 + (Sx8[i][j] >> 8);
+      var_floor = 4 + ((Sx8[i][j]+(128<<6)) >> 8);
       if (Var8[i][j] < var_floor) Var8[i][j] = var_floor;
       invVar8[i][j] = 16384/Var8[i][j];
     }
@@ -139,19 +139,24 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
  int stride, const unsigned char *pred, int pred_stride, int bsize[4][4]) {
   int i;
   int j;
-  od_compute_stats(psy_img, stride, &bs->psy_stats);
+  const unsigned char *x0;
+  x0 = psy_img - BLOCK_OFFSET(stride);
+  for (i = 0; i < 2*SIZE2_SUMS; i++) {
+    for (j = 0; j < 2*SIZE2_SUMS; j++) {
+      bs->res[i][j] = (int)x0[i*stride + j] - 128;
+    }
+  }
+  od_compute_stats(&bs->res[2*OFF32][2*OFF32], 2*SIZE2_SUMS, &bs->psy_stats);
   if (psy_img == pred || pred == NULL) {
     OD_COPY(&bs->img_stats, &bs->psy_stats, 1);
   }
   else {
-    const unsigned char *x0;
     const unsigned char *p0;
-    x0 = psy_img - BLOCK_OFFSET(stride);
     p0 = pred - BLOCK_OFFSET(pred_stride);
     for (i = 0; i < 2*SIZE2_SUMS; i++) {
       for (j = 0; j < 2*SIZE2_SUMS; j++) {
-        bs->res[i][j] = abs((int)x0[i*stride + j]
-         - (int)p0[i*pred_stride + j]);
+        bs->res[i][j] = OD_CLAMPI(-128, (int)x0[i*stride + j]
+         - (int)p0[i*pred_stride + j], 127);
       }
     }
     od_compute_stats(&bs->res[2*OFF32][2*OFF32], 2*SIZE2_SUMS,

@@ -72,7 +72,7 @@ typedef struct {
   BlockStats img_stats;
   BlockStats psy_stats;
 
-  unsigned char res[2*SIZE2_SUMS][2*SIZE2_SUMS];
+  signed char res[2*SIZE2_SUMS][2*SIZE2_SUMS];
 
   /* 4x4 metrics */
   ogg_int32_t noise4_4[8][8];
