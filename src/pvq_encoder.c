@@ -66,9 +66,9 @@ static void pvq_encode_partition(od_ec_enc *ec,
   int adapt_curr[OD_NSB_ADAPT_CTXS] = { 0 };
   int speed = 5;
 
-  generic_encode(ec, model, qg, exg, 2);
+  generic_encode(ec, model, qg, -1, exg, 2);
   if (theta >= 0 && max_theta > 0)
-    generic_encode(ec, model, theta, ext, 2);
+    generic_encode(ec, model, theta, max_theta-1, ext, 2);
 
   laplace_encode_vector(ec, in, n - (theta >= 0), k, adapt_curr, adapt);
 

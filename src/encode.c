@@ -474,7 +474,7 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
 #if defined(OD_METRICS)
   dc_frac_bits = od_ec_enc_tell_frac(&enc->ec);
 #endif
-  generic_encode(&enc->ec, ctx->model_dc + pli, abs(scalar_out[0]),
+  generic_encode(&enc->ec, ctx->model_dc + pli, abs(scalar_out[0]), -1,
    &ctx->ex_dc[pli][ln], 0);
   if (scalar_out[0]) od_ec_enc_bits(&enc->ec, scalar_out[0] < 0, 1);
 #if defined(OD_METRICS)
@@ -501,7 +501,7 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
 #if defined(OD_METRICS)
     pvq_frac_bits = od_ec_enc_tell_frac(&enc->ec);
 #endif
-    generic_encode(&enc->ec, ctx->model_g + pli, vk,
+    generic_encode(&enc->ec, ctx->model_g + pli, vk, -1,
      &ctx->ex_g[pli][ln], 0);
     laplace_encode_vector(&enc->ec, scalar_out + 1, n2 - 1, vk, adapt_curr, ctx->adapt);
 #if defined(OD_METRICS)

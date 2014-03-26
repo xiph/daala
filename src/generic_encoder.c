@@ -42,17 +42,20 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
  * @param [in,out] enc   range encoder
  * @param [in,out] model generic probability model
  * @param [in]     x     variable being encoded
+ * @param [in]     max   largest value possible
  * @param [in,out] ExQ16 expectation of x (adapted)
  * @param [in]     integration integration period of ExQ16 (leaky average over
  * 1<<integration samples)
  */
-void generic_encode(od_ec_enc *enc, generic_encoder *model, int x,
+void generic_encode(od_ec_enc *enc, generic_encoder *model, int x, int max,
  int *ex_q16, int integration) {
   int lg_q1;
   int shift;
   int id;
   ogg_uint16_t *cdf;
   int xs;
+  int ms;
+  if (max == 0) return;
   lg_q1 = log_ex(*ex_q16);
   OD_LOG((OD_LOG_ENTROPY_CODER, OD_LOG_DEBUG,
    "%d %d", *ex_q16, lg_q1));
@@ -64,7 +67,12 @@ void generic_encode(od_ec_enc *enc, generic_encoder *model, int x,
   id = OD_MINI(GENERIC_TABLES - 1, lg_q1);
   cdf = model->cdf[id];
   xs = (x + (1 << shift >> 1)) >> shift;
-  od_ec_encode_cdf(enc, OD_MINI(15, xs), cdf, 16);
+  ms = (max + (1 << shift >> 1)) >> shift;
+  OD_ASSERT(max == -1 || xs <= ms);
+  if (max == -1) od_ec_encode_cdf(enc, OD_MINI(15, xs), cdf, 16);
+  else {
+    od_ec_encode_cdf_unscaled(enc, OD_MINI(15, xs), cdf, OD_MINI(ms + 1, 16));
+  }
   if (xs >= 15) {
     int e;
     unsigned decay;
@@ -74,7 +82,7 @@ void generic_encode(od_ec_enc *enc, generic_encoder *model, int x,
     e = ((*ex_q16 >> 8) + (1 << shift >> 1)) >> shift;
     decay = OD_MAXI(2, OD_MINI(254, 256*e/(e + 256)));
     /* Encode the tail of the distribution assuming exponential decay. */
-    laplace_encode_special(enc, xs - 15, decay, -1);
+    laplace_encode_special(enc, xs - 15, decay, (max == -1) ? -1 : ms - 15);
   }
   if (shift != 0) {
     int special;

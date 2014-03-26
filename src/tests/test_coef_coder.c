@@ -173,7 +173,7 @@ int run_pvq(od_coeff *X,int len,int N,int fuzz){
     for (j=0;j<N;j++)
       K += abs(X[i*N+j]);
     Ki[i] = K;
-    generic_encode(&enc, &model, K, &EK, 4);
+    generic_encode(&enc, &model, K, -1, &EK, 4);
     adapt[OD_ADAPT_K_Q8] = pvq_adapt.mean_k_q8;
     adapt[OD_ADAPT_SUM_EX_Q8] = pvq_adapt.mean_sum_ex_q8;
     adapt[OD_ADAPT_COUNT_Q8] = pvq_adapt.mean_count_q8;
@@ -228,7 +228,7 @@ int run_pvq(od_coeff *X,int len,int N,int fuzz){
   {
     od_coeff y[MAXN];
     int K;
-    K=generic_decode(&dec, &model, &EK, 4);
+    K=generic_decode(&dec, &model, -1, &EK, 4);
     if (!fuzz && K != Ki[i]) {
       fprintf(stderr, "mismatch for K of vector %d (N=%d)\n", i, N);
     }

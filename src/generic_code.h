@@ -39,11 +39,11 @@ typedef struct {
 
 void generic_model_init(generic_encoder *model);
 
-void generic_encode(od_ec_enc *enc, generic_encoder *model, int x,
+void generic_encode(od_ec_enc *enc, generic_encoder *model, int x, int max,
  int *ex_q16, int integration);
 
-int generic_decode(od_ec_dec *dec, generic_encoder *model, int *ex_q16,
- int integration);
+int generic_decode(od_ec_dec *dec, generic_encoder *model, int max,
+ int *ex_q16, int integration);
 
 int log_ex(int ex_q16);
 

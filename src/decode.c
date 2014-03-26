@@ -302,7 +302,7 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   else
     dc_scale = (pli==0 || dec->scale[pli]==0) ? scale : (scale + 1) >> 1;
   coeff_shift = dec->scale[pli] == 0 ? 0 : OD_COEFF_SHIFT;
-  pred[0] = generic_decode(&dec->ec, ctx->model_dc + pli,
+  pred[0] = generic_decode(&dec->ec, ctx->model_dc + pli, -1,
    &ctx->ex_dc[pli][ln], 0);
   if (pred[0]) pred[0] *= od_ec_dec_bits(&dec->ec, 1) ? -1 : 1;
   pred[0] = (pred[0]*dc_scale << coeff_shift) + predt[0];
@@ -313,7 +313,8 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
     for (i = 0; i < OD_NSB_ADAPT_CTXS; i++) adapt_curr[i] = 0;
   }
   else {
-    vk = generic_decode(&dec->ec, ctx->model_g + pli, &ctx->ex_g[pli][ln], 0);
+    vk = generic_decode(&dec->ec, ctx->model_g + pli, -1,
+     &ctx->ex_g[pli][ln], 0);
     laplace_decode_vector(&dec->ec, pred + 1, n2 - 1, vk, adapt_curr, ctx->adapt);
     for (zzi = 1; zzi < n2; zzi++) {
       pred[zzi] = (pred[zzi]*scale << coeff_shift) + predt[zzi];
