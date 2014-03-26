@@ -38,10 +38,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #define CG16 (16.9986/6)
 #define CG32 (17.1/6)
 
-/* Tuning parameter for block decision (higher values results in smaller
-    blocks) */
-#define PSY_LAMBDA (.65)
-
 /* Weighting of the 8x8 masking compared to 4x4 */
 #define PSY8_FUDGE (.5f)
 
@@ -136,11 +132,16 @@ static void od_compute_stats(const signed char *img, int stride,
  * @param [out]     dec     Decision for each 8x8 block in the image. 0=4x4, 1=8x8, 2=16x16, 3=32x32
  */
 void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
- int stride, const unsigned char *pred, int pred_stride, int bsize[4][4]) {
+ int stride, const unsigned char *pred, int pred_stride, int bsize[4][4],
+ int q) {
   int i;
   int j;
+  /* Tuning parameter for block decision (higher values results in smaller
+      blocks) */
+  double psy_lambda;
   const unsigned char *x0;
   x0 = psy_img - BLOCK_OFFSET(stride);
+  psy_lambda = 3/sqrt(OD_MAXI(1, q));
   for (i = 0; i < 2*SIZE2_SUMS; i++) {
     for (j = 0; j < 2*SIZE2_SUMS; j++) {
       bs->res[i][j] = (int)x0[i*stride + j] - 128;
@@ -213,8 +214,8 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
       bs->psy8[i][j] = OD_MAXF(psy/(COUNT8*COUNT8) - 1., 0);
       psy4_avg = .25*(bs->psy4[2*i][2*j] + bs->psy4[2*i][2*j + 1]
        + bs->psy4[2*i + 1][2*j] + bs->psy4[2*i + 1][2*j + 1]);
-      gain4 = CG4 - PSY_LAMBDA*(psy4_avg);
-      gain8 = CG8 - PSY_LAMBDA*(bs->psy8[i][j]);
+      gain4 = CG4 - psy_lambda*(psy4_avg);
+      gain8 = CG8 - psy_lambda*(bs->psy8[i][j]);
       if (gain8 >= gain4) {
         bsize[i][j] = 1;
         bs->dec_gain8[i][j] = gain8;
@@ -270,7 +271,7 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
        OD_MAXF(psy8/(COUNT8_16*COUNT8_16) - 1., 0));
       gain8_avg = .25*(bs->dec_gain8[2*i][2*j] + bs->dec_gain8[2*i][2*j + 1]
        + bs->dec_gain8[2*i + 1][2*j] + bs->dec_gain8[2*i + 1][2*j + 1]);
-      gain16 = CG16 - PSY_LAMBDA*(bs->psy16[i][j]);
+      gain16 = CG16 - psy_lambda*(bs->psy16[i][j]);
       if (gain16 >= gain8_avg) {
         bsize[2*i][2*j] = bsize[2*i][2*j + 1]
          = bsize[2*i + 1][2*j] = bsize[2*i + 1][2*j + 1] = 2;
@@ -322,7 +323,7 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
      PSY8_FUDGE*OD_MAXF(psy8/(COUNT8_32*COUNT8_32) - 1., 0));
     gain16_avg = .25*(bs->dec_gain16[0][0] + bs->dec_gain16[0][1]
      + bs->dec_gain16[1][0] + bs->dec_gain16[1][1]);
-    gain32 = CG32 - PSY_LAMBDA*(bs->psy32);
+    gain32 = CG32 - psy_lambda*(bs->psy32);
     if (gain32 >= gain16_avg) {
       for (k = 0; k < 4; k++)
         for (m = 0; m < 4; m++) bsize[k][m] = 3;

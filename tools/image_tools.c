@@ -306,7 +306,7 @@ void image_data_mask(image_data *_this,const unsigned char *_data,int _stride){
       int                  k;
       int                  l;
       b=&_data[_stride*32*j+32*i];
-      process_block_size32(&bs,b,_stride,b,_stride,dec);
+      process_block_size32(&bs, b,_stride, b, _stride, dec, 21);
       for(l=0;l<32/B_SZ;l++){
         for(k=0;k<32/B_SZ;k++){
           /*printf("i=%i j=%i k=%i l=%i\n",i,j,k,l);

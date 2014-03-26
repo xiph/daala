@@ -98,7 +98,7 @@ typedef struct {
 } BlockSizeComp;
 
 void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
- int stride, const unsigned char *img, int pred_stride, int dec[4][4]);
+ int stride, const unsigned char *img, int pred_stride, int dec[4][4], int q);
 
 void od_block_size_encode(od_ec_enc *enc,
  const unsigned char *bsize, int stride);

@@ -800,7 +800,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       unsigned char *state_bsize;
       state_bsize = &enc->state.bsize[i*4*enc->state.bstride + j*4];
       process_block_size32(bs, bimg + j*32, istride,
-       kf ? NULL : rimg + j*32, rstride, bsize);
+       kf ? NULL : rimg + j*32, rstride, bsize, enc->scale[0]);
       /* Grab the 4x4 information returned from process_block_size32 in bsize
          and store it in the od_state bsize. */
       for (k = 0; k < 4; k++) {
