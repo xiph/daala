@@ -485,7 +485,7 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *ithet
   gain_offset = cgr-icgr;
   /* Start search with null case: gain=0, no pulse. */
   qg = 0;
-  best_dist = cg*cg - 2*lambda;
+  best_dist = cg*cg;
   noref = 1;
   best_k = 0;
   *itheta = -1;
@@ -529,6 +529,7 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *ithet
         dist = (qcg - cg)*(qcg - cg) + qcg*cg*dist_theta;
         /* Do approximate RDO. */
         dist += lambda*pvq_rate_approx(n, k);
+        dist += lambda*(1+log2(ts));
         if (j == 0) dist -= lambda*2.;
         if (i == icgr) dist -= lambda*2.;
         if (dist < best_dist) {
@@ -561,7 +562,7 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *ithet
       /* See Jmspeex' Journal of Dubious Theoretical Results. */
       dist = (qcg - cg)*(qcg - cg) + qcg*cg*(2 - 2*cos_dist);
       /* Do approximate RDO. */
-      dist += lambda*(pvq_rate_approx(n, k)-2.);
+      dist += lambda*pvq_rate_approx(n, k);
       if (dist <= best_dist) {
         best_dist = dist;
         qg = i;
