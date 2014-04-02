@@ -207,7 +207,9 @@ int od_state_init(od_state *state, const daala_info *info) {
    sizeof(*state->bsize)*(state->nhsb + 2)*4*(state->nvsb + 2)*4);
   state->bstride = (state->nhsb + 2)*4;
   state->bsize += 4*state->bstride + 4;
-  generic_model_init(&state->pvq_gain_model);
+  generic_model_init(&state->pvq_gain_model[0]);
+  generic_model_init(&state->pvq_gain_model[1]);
+  generic_model_init(&state->pvq_gain_model[2]);
   state->pvq_adapt[OD_ADAPT_K_Q8] = 384;
   state->pvq_adapt[OD_ADAPT_SUM_EX_Q8] = 256;
   state->pvq_adapt[OD_ADAPT_COUNT_Q8] = 104;

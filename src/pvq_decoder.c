@@ -84,7 +84,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
   gain_offset = 0;
 
   /* read quantized gain */
-  qg = generic_decode(ec, model, -1, exg, 2);
+  qg = generic_decode(ec, &model[!noref], -1, exg, 2);
 
   if(!noref){
     /* we have a reference; compute its gain */
@@ -101,7 +101,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
     mask_ratio = pvq_interband_masking(*mask_gain, pow(q*qcg, mask), mask);
     /* read and decode first-stage PVQ error theta */
     max_theta = pvq_compute_max_theta(mask_ratio*qcg, mask);
-    itheta = generic_decode(ec, model, max_theta-1, ext, 2);
+    itheta = generic_decode(ec, &model[2], max_theta-1, ext, 2);
     theta = pvq_compute_theta(itheta, max_theta);
     for (i = 0; i < n; i++) r[i] = ref[i];
   }
@@ -161,7 +161,7 @@ void pvq_decode(daala_dec_ctx *dec,
   adapt = dec->state.pvq_adapt;
   exg = dec->state.pvq_exg;
   ext = dec->state.pvq_ext;
-  model = &dec->state.pvq_gain_model;
+  model = dec->state.pvq_gain_model;
 
   if (n == 4) {
     noref[0] = !od_ec_decode_bool_q15(&dec->ec, PRED4_PROB);

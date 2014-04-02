@@ -124,7 +124,7 @@ struct od_state{
 
   /* Support for PVQ encode/decode */
   int                 pvq_adapt[OD_NSB_ADAPT_CTXS];
-  generic_encoder     pvq_gain_model;
+  generic_encoder     pvq_gain_model[3];
   int                 pvq_ext[PVQ_MAX_PARTITIONS];
   int                 pvq_exg[PVQ_MAX_PARTITIONS];
 
