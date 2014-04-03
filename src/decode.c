@@ -303,7 +303,7 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
     dc_scale = (pli==0 || dec->scale[pli]==0) ? scale : (scale + 1) >> 1;
   coeff_shift = dec->scale[pli] == 0 ? 0 : OD_COEFF_SHIFT;
   pred[0] = generic_decode(&dec->ec, ctx->model_dc + pli, -1,
-   &ctx->ex_dc[pli][ln], 0);
+   &ctx->ex_dc[pli][ln], 2);
   if (pred[0]) pred[0] *= od_ec_dec_bits(&dec->ec, 1) ? -1 : 1;
   pred[0] = (pred[0]*dc_scale << coeff_shift) + predt[0];
   if (run_pvq) {

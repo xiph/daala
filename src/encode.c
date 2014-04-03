@@ -475,7 +475,7 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   dc_frac_bits = od_ec_enc_tell_frac(&enc->ec);
 #endif
   generic_encode(&enc->ec, ctx->model_dc + pli, abs(scalar_out[0]), -1,
-   &ctx->ex_dc[pli][ln], 0);
+   &ctx->ex_dc[pli][ln], 2);
   if (scalar_out[0]) od_ec_enc_bits(&enc->ec, scalar_out[0] < 0, 1);
 #if defined(OD_METRICS)
   enc->state.bit_metrics[OD_METRIC_DC] += od_ec_enc_tell_frac(&enc->ec) -

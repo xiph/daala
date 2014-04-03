@@ -75,8 +75,9 @@ int generic_decode(od_ec_dec *dec, generic_encoder *model, int max,
     unsigned decay;
     /* Estimate decay based on the assumption that the distribution is close
        to Laplacian for large values. We should probably have an adaptive
-       estimate instead. */
-    e = ((*ex_q16 >> 8) + (1 << shift >> 1)) >> shift;
+       estimate instead. Note: The 2* is a kludge that's not fully understood
+       yet. */
+    e = ((2**ex_q16 >> 8) + (1 << shift >> 1)) >> shift;
     decay = OD_MAXI(2, OD_MINI(254, 256*e/(e + 256)));
     xs += laplace_decode_special(dec, decay, (max == -1) ? -1 : ms - 15);
   }
