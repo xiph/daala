@@ -70,14 +70,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
    inputs in the range [-256,255) will produce outputs in the range
    [-1024,1023).*/
 
-typedef void (*od_dct_func_2d)(od_coeff *_out, int _out_stride,
- const od_coeff *_in, int _in_stride);
+typedef void (*od_dct_func_2d)(od_coeff *out, int out_stride,
+ const od_coeff *in, int in_stride);
 
-typedef void (*od_fdct_func_1d)(od_coeff *_out, const od_coeff *_in,
- int _in_stride);
+typedef void (*od_fdct_func_1d)(od_coeff *out, const od_coeff *in,
+ int in_stride);
 
-typedef void (*od_idct_func_1d)(od_coeff *_out, int _out_stride,
- const od_coeff *_in);
+typedef void (*od_idct_func_1d)(od_coeff *out, int out_stride,
+ const od_coeff *in);
 
 extern const od_dct_func_2d OD_FDCT_2D[OD_NBSIZES + 1];
 extern const od_dct_func_2d OD_IDCT_2D[OD_NBSIZES + 1];
@@ -94,69 +94,65 @@ extern const unsigned char OD_ZIG16[256];
 extern const unsigned char *OD_DCT_ZIGS[OD_NBSIZES + 1];
 
 /*A reversible integer approximation of a 4-point type-II DCT.
-  _y:       The destination vector (of size 4).
-            This may be the same as the source.
-  _x:       The source vector (of size 4).
-  _xstride: The stride of the source.*/
-void od_bin_fdct4(od_coeff _y[4], const od_coeff *_x, int _xstride);
+  y:       The destination vector (of size 4).
+           This may be the same as the source.
+  x:       The source vector (of size 4).
+  xstride: The stride of the source.*/
+void od_bin_fdct4(od_coeff y[4], const od_coeff *x, int xstride);
 
 /*An inverse of the reversible integer approximation of a 4-point type-II DCT
    above.
-  _x:       The destination vector (of size 4).
-            This may be the same as the source.
-  _xstride: The stride of the destination.
-  _y:       The source vector (of size 4).*/
-void od_bin_idct4(od_coeff *_x, int _xstride, const od_coeff _y[4]);
+  x:       The destination vector (of size 4).
+           This may be the same as the source.
+  xstride: The stride of the destination.
+  y:       The source vector (of size 4).*/
+void od_bin_idct4(od_coeff *x, int xstride, const od_coeff y[4]);
 
-void od_bin_fdct4x4(od_coeff *_y, int _ystride, const od_coeff *_x,
- int _xstride);
-void od_bin_idct4x4(od_coeff *_x, int _xstride, const od_coeff *_y,
- int _ystride);
+void od_bin_fdct4x4(od_coeff *y, int ystride, const od_coeff *x, int xstride);
+void od_bin_idct4x4(od_coeff *x, int xstride, const od_coeff *y, int ystride);
 
 /*A reversible integer approximation of an 8-point type-II DCT based on
    Loeffler's factorization.
   The final output should be scaled by M_SQRT1_2 in order to approximate a true
    orthonormal DCT.
-  _y:       The destination vector (of size 8).
-            This may be the same as the source.
-  _x:       The source vector (of size 8).
-  _xstride: The stride of the source.*/
-void od_bin_fdct8(od_coeff _y[8], const od_coeff *_x, int _xstride);
+  y:       The destination vector (of size 8).
+           This may be the same as the source.
+  x:       The source vector (of size 8).
+  xstride: The stride of the source.*/
+void od_bin_fdct8(od_coeff y[8], const od_coeff *x, int xstride);
 
 /*An inverse of the reversible integer approximation of an 8-point type-II DCT
    above.
   The final output should be scaled by M_SQRT2 in order to approximate a true
    orthonormal DCT.
-  _x:       The destination vector (of size 8).
-            This may be the same as the source.
-  _xstride: The stride of the destination.
-  _y:       The source vector (of size 8).*/
-void od_bin_idct8(od_coeff _x[8], int _xstride, const od_coeff *_y);
+  x:       The destination vector (of size 8).
+           This may be the same as the source.
+  xstride: The stride of the destination.
+  y:       The source vector (of size 8).*/
+void od_bin_idct8(od_coeff x[8], int xstride, const od_coeff *y);
 
-void od_bin_fdct8x8(od_coeff *_y, int _ystride, const od_coeff *_x,
- int _xstride);
-void od_bin_idct8x8(od_coeff *_x, int _xstride, const od_coeff *_y,
- int _ystride);
+void od_bin_fdct8x8(od_coeff *y, int ystride, const od_coeff *x, int xstride);
+void od_bin_idct8x8(od_coeff *x, int xstride, const od_coeff *y, int ystride);
 
 /*A reversible integer approximation of a 16-point type-II DCT based on
    Loeffler's factorization.
-  _y:       The destination vector (of size 16).
-            This may be the same as the source.
-  _x:       The source vector (of size 16).
-  _xstride: The stride of the source.*/
-void od_bin_fdct16(od_coeff _y[16], const od_coeff *_x, int _xstride);
+  y:       The destination vector (of size 16).
+           This may be the same as the source.
+  x:       The source vector (of size 16).
+  xstride: The stride of the source.*/
+void od_bin_fdct16(od_coeff y[16], const od_coeff *x, int xstride);
 
 /*An inverse of the reversible integer approximation of a 16-point type-II DCT
    above.
-  _x:       The destination vector (of size 16).
-            This may be the same as the source.
-  _xstride: The stride of the destination.
-  _y:       The source vector (of size 16).*/
-void od_bin_idct16(od_coeff *_x, int _xstride, const od_coeff _y[16]);
+  x:       The destination vector (of size 16).
+           This may be the same as the source.
+  xstride: The stride of the destination.
+  y:       The source vector (of size 16).*/
+void od_bin_idct16(od_coeff *x, int xstride, const od_coeff y[16]);
 
-void od_bin_fdct16x16(od_coeff *_y, int _ystride,
- const od_coeff *_x, int _xstride);
-void od_bin_idct16x16(od_coeff *_x, int _xstride,
- const od_coeff *_y, int _ystride);
+void od_bin_fdct16x16(od_coeff *y, int ystride,
+ const od_coeff *x, int xstride);
+void od_bin_idct16x16(od_coeff *x, int xstride,
+ const od_coeff *y, int ystride);
 
 #endif
