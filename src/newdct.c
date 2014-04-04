@@ -1348,59 +1348,98 @@ static void ieee1180_test(int bszi) {
   }
 }
 
-static void print_basis4(double basis[4][4]) {
+static void print_basis(double basis[OD_BSIZE_MAX][OD_BSIZE_MAX], int bszi) {
   int i;
   int j;
-  for (i = 0; i < 4; i++) {
-    for (j = 0; j < 4; j++) {
-      printf("%8.5lf%c", basis[i][j], j == 4 - 1 ? '\n' : ' ');
+  int n;
+  n = 1 << (OD_LOG_BSIZE0 + bszi);
+  for (i = 0; i < n; i++) {
+    for (j = 0; j < n; j++) {
+      printf("%8.5lf%c", basis[i][j], j == n - 1 ? '\n' : ' ');
     }
   }
 }
 
-static void compute_fbasis4(double basis[4][4]) {
+static void compute_fbasis(double basis[OD_BSIZE_MAX][OD_BSIZE_MAX],
+ int bszi) {
   int i;
   int j;
-  for (i = 0; i < 4; i++) {
-    od_coeff x[4];
-    for (j = 0; j < 4; j++) x[j] = (i == j) << 8 ;
-    od_bin_fdct4(x, x, 1);
-    for (j = 0; j < 4; j++) basis[j][i] = x[j]/256.0;
+  int n;
+  n = 1 << (OD_LOG_BSIZE0 + bszi);
+  for (i = 0; i < n; i++) {
+    od_coeff x[OD_BSIZE_MAX];
+    for (j = 0; j < n; j++) x[j] = (i == j) << 8 ;
+    (*OD_FDCT_1D[bszi])(x, x, 1);
+    for (j = 0; j < n; j++) basis[j][i] = x[j]/256.0;
   }
 }
 
-static void compute_ftrue_basis4(double basis[4][4]) {
+static void compute_ibasis(double basis[OD_BSIZE_MAX][OD_BSIZE_MAX],
+ int bszi) {
   int i;
   int j;
-  for (j = 0; j < 4; j++) {
-    for (i = 0; i < 4; i++) {
-      basis[j][i] = sqrt(2.0/4)*cos((i + 0.5)*j*M_PI/4);
+  int n;
+  n = 1 << (OD_LOG_BSIZE0 + bszi);
+  for (i = 0; i < n; i++) {
+    od_coeff x[OD_BSIZE_MAX];
+    for (j = 0; j < n; j++) x[j] = (i == j) << 8;
+    (*OD_IDCT_1D[bszi])(x, 1, x);
+    for (j = 0; j < n; j++) basis[j][i] = x[j]/256.0;
+  }
+}
+
+static void compute_ftrue_basis(double basis[OD_BSIZE_MAX][OD_BSIZE_MAX],
+ int bszi) {
+  int i;
+  int j;
+  int n;
+  n = 1 << (OD_LOG_BSIZE0 + bszi);
+  for (j = 0; j < n; j++) {
+    for (i = 0; i < n; i++) {
+      basis[j][i] = sqrt(2.0/n)*cos((i + 0.5)*j*M_PI/n);
       if (j == 0) basis[j][i] *= M_SQRT1_2;
     }
   }
 }
 
-static double compute_mse4(double basis[4][4], double tbasis[4][4]) {
-  double e[4][4];
+static void compute_itrue_basis(double basis[OD_BSIZE_MAX][OD_BSIZE_MAX],
+ int bszi) {
+  int i;
+  int j;
+  int n;
+  n = 1 << (OD_LOG_BSIZE0 + bszi);
+  for (i = 0; i < n; i++) {
+    double x[OD_BSIZE_MAX];
+    for (j = 0; j < n; j++) x[j] = (i == j);
+    idct(x, x, bszi);
+    for (j = 0; j < n; j++) basis[j][i] = x[j];
+  }
+}
+
+static double compute_mse(double basis[OD_BSIZE_MAX][OD_BSIZE_MAX],
+ double tbasis[OD_BSIZE_MAX][OD_BSIZE_MAX], int bszi) {
+  double e[OD_BSIZE_MAX][OD_BSIZE_MAX];
   double ret;
   int i;
   int j;
   int k;
-  for (i = 0; i < 4; i++) {
-    for (j = 0; j < 4; j++) {
+  int n;
+  n = 1 << (OD_LOG_BSIZE0 + bszi);
+  for (i = 0; i < n; i++) {
+    for (j = 0; j < n; j++) {
       e[i][j] = 0;
-      for (k = 0; k < 4; k++) {
+      for (k = 0; k < n; k++) {
         e[i][j] += (basis[i][k] - tbasis[i][k])*AUTOCORR[k - j + 15];
       }
     }
   }
   ret = 0;
-  for (i = 0; i < 4; i++) {
-    for (j = 0; j < 4; j++) {
+  for (i = 0; i < n; i++) {
+    for (j = 0; j < n; j++) {
       ret += e[i][j]*(basis[i][j] - tbasis[i][j]);
     }
   }
-  return ret/4;
+  return ret/n;
 }
 
 static void check_bias4() {
@@ -1488,8 +1527,8 @@ static void check_bias4() {
 static void check4(void) {
   od_coeff min[4];
   od_coeff max[4];
-  double basis[4][4];
-  double tbasis[4][4];
+  double basis[OD_BSIZE_MAX][OD_BSIZE_MAX];
+  double tbasis[OD_BSIZE_MAX][OD_BSIZE_MAX];
   int i;
   int j;
   for (j = 0; j < 4; j++) min[j] = max[j] = 0;
@@ -1523,91 +1562,14 @@ static void check4(void) {
   printf("\nMax:");
   for (j = 0; j < 4; j++) printf(" %5i", max[j]);
   printf("\nod_bin_fdct4 basis:\n");
-  compute_fbasis4(basis);
-  print_basis4(basis);
+  compute_fbasis(basis, 0);
+  print_basis(basis, 0);
   printf("Scaled type-II DCT basis:\n");
-  compute_ftrue_basis4(tbasis);
-  print_basis4(tbasis);
-  printf("MSE: %.32lg\n\n", compute_mse4(basis, tbasis));
+  compute_ftrue_basis(tbasis, 0);
+  print_basis(tbasis, 0);
+  printf("MSE: %.32lg\n\n", compute_mse(basis, tbasis, 0));
   ieee1180_test(0);
   check_bias4();
-}
-
-static void print_basis8(double basis[8][8]) {
-  int i;
-  int j;
-  for (i = 0; i < 8; i++) {
-    for (j = 0; j < 8; j++) {
-      printf("%8.5lf%c", basis[i][j], j == 8 - 1 ? '\n' : ' ');
-    }
-  }
-}
-
-static void compute_fbasis8(double basis[8][8]) {
-  int i;
-  int j;
-  for (i = 0; i < 8; i++) {
-    od_coeff x[8];
-    for (j = 0; j < 8; j++) x[j] = (i == j)*256;
-    od_bin_fdct8(x, x, 1);
-    for (j = 0; j < 8; j++) basis[j][i] = x[j]/256.0;
-  }
-}
-
-static void compute_ibasis8(double basis[8][8]) {
-  int i;
-  int j;
-  for (i = 0; i < 8; i++) {
-    od_coeff x[8];
-    for (j = 0; j < 8; j++) x[j] = (i == j)*256;
-    od_bin_idct8(x, 1, x);
-    for (j = 0; j < 8; j++) basis[j][i] = x[j]/256.0;
-  }
-}
-
-static void compute_ftrue_basis8(double basis[8][8]) {
-  int i;
-  int j;
-  for (j = 0; j < 8; j++) {
-    for (i = 0; i < 8; i++) {
-      basis[j][i] = sqrt(2.0/8)*cos((i + 0.5)*j*M_PI/8);
-      if (j == 0) basis[j][i] *= M_SQRT1_2;
-    }
-  }
-}
-
-static void compute_itrue_basis8(double basis[8][8]) {
-  int i;
-  int j;
-  for (i = 0; i < 8; i++) {
-    double x[8];
-    for (j = 0; j < 8; j++) x[j] = (i == j);
-    idct(x, x, 1);
-    for (j = 0; j < 8; j++) basis[j][i] = x[j];
-  }
-}
-
-static double compute_mse8(double basis[8][8], double tbasis[8][8]) {
-  double e[8][8];
-  double ret;
-  int i;
-  int j;
-  int k;
-  for (i = 0; i < 8; i++) {
-    for (j = 0; j < 8; j++) {
-      e[i][j] = 0;
-      for (k = 0; k < 8; k++) {
-        e[i][j] += (basis[i][k] - tbasis[i][k])*AUTOCORR[k - j + 15];
-      }
-    }
-  }
-  ret = 0;
-  for (i = 0; i < 8; i++) {
-    for (j = 0; j < 8; j++) {
-      ret += e[i][j]*(basis[i][j] - tbasis[i][j]);
-    }
-  }
-  return ret/8;
 }
 
 static void check_bias8() {
@@ -1776,8 +1738,8 @@ static void dynamic_range8(void) {
 static void check8(void) {
   od_coeff min[8];
   od_coeff max[8];
-  double basis[8][8];
-  double tbasis[8][8];
+  double basis[OD_BSIZE_MAX][OD_BSIZE_MAX];
+  double tbasis[OD_BSIZE_MAX][OD_BSIZE_MAX];
   int i;
   int j;
   /*dynamic_range8();*/
@@ -1812,97 +1774,20 @@ static void check8(void) {
   printf("\nMax:");
   for (j = 0; j < 8; j++) printf(" %5i", max[j]);
   printf("\nod_bin_idct8 basis:\n");
-  compute_ibasis8(basis);
-  print_basis8(basis);
+  compute_ibasis(basis, 1);
+  print_basis(basis, 1);
   printf("Scaled type-II iDCT basis:\n");
-  compute_itrue_basis8(tbasis);
-  print_basis8(tbasis);
+  compute_itrue_basis(tbasis, 1);
+  print_basis(tbasis, 1);
   printf("\nod_bin_fdct8 basis:\n");
-  compute_fbasis8(basis);
-  print_basis8(basis);
+  compute_fbasis(basis, 1);
+  print_basis(basis, 1);
   printf("Scaled type-II DCT basis:\n");
-  compute_ftrue_basis8(tbasis);
-  print_basis8(tbasis);
-  printf("MSE: %.32lg\n\n", compute_mse8(basis, tbasis));
+  compute_ftrue_basis(tbasis, 1);
+  print_basis(tbasis, 1);
+  printf("MSE: %.32lg\n\n", compute_mse(basis, tbasis, 1));
   ieee1180_test(1);
   check_bias8();
-}
-
-static void print_basis16(double basis[16][16]) {
-  int i;
-  int j;
-  for (i = 0; i < 16; i++) {
-    for (j = 0; j < 16; j++) {
-      printf("%8.5lf%c", basis[i][j], j == 16 - 1 ? '\n' : ' ');
-    }
-  }
-}
-
-static void compute_fbasis16(double basis[16][16]) {
-  int i;
-  int j;
-  for (i = 0; i < 16; i++) {
-    od_coeff x[16];
-    for (j = 0; j < 16; j++) x[j] = (i == j)*256;
-    od_bin_fdct16(x, x, 1);
-    for (j = 0; j < 16; j++) basis[j][i] = x[j]/256.0;
-  }
-}
-
-static void compute_ibasis16(double basis[16][16]) {
-  int i;
-  int j;
-  for (i = 0; i < 16; i++) {
-    od_coeff x[16];
-    for (j = 0; j < 16; j++) x[j] = (i == j)*256;
-    od_bin_idct16(x, 1, x);
-    for (j = 0; j < 16; j++) basis[j][i] = x[j]/256.0;
-  }
-}
-
-static void compute_ftrue_basis16(double basis[16][16]) {
-  int i;
-  int j;
-  for (j = 0; j < 16; j++) {
-    for (i = 0; i < 16; i++) {
-      basis[j][i] = sqrt(2.0/16)*cos((i + 0.5)*j*M_PI/16);
-      if (j == 0) basis[j][i] *= M_SQRT1_2;
-    }
-  }
-}
-
-static void compute_itrue_basis16(double basis[16][16]) {
-  int i;
-  int j;
-  for (i = 0; i < 16; i++) {
-    double x[16];
-    for (j = 0; j < 16; j++) x[j] = (i == j);
-    idct(x, x, 2);
-    for (j = 0; j < 16; j++) basis[j][i] = x[j];
-  }
-}
-
-static double compute_mse16(double basis[16][16], double tbasis[16][16]) {
-  double e[16][16];
-  double ret;
-  int i;
-  int j;
-  int k;
-  for (i = 0; i < 16; i++) {
-    for (j = 0; j < 16; j++) {
-      e[i][j] = 0;
-      for (k = 0; k < 16; k++) {
-        e[i][j] += (basis[i][k] - tbasis[i][k])*AUTOCORR[k - j + 15];
-      }
-    }
-  }
-  ret = 0;
-  for (i = 0; i < 16; i++) {
-    for (j = 0; j < 16; j++) {
-      ret += e[i][j]*(basis[i][j] - tbasis[i][j]);
-    }
-  }
-  return ret/16;
 }
 
 static void check_bias16() {
@@ -2071,8 +1956,8 @@ static void dynamic_range16(void) {
 static void check16(void) {
   od_coeff min[16];
   od_coeff max[16];
-  double basis[16][16];
-  double tbasis[16][16];
+  double basis[OD_BSIZE_MAX][OD_BSIZE_MAX];
+  double tbasis[OD_BSIZE_MAX][OD_BSIZE_MAX];
   int i;
   int j;
   /*dynamic_range16();*/
@@ -2107,18 +1992,18 @@ static void check16(void) {
   printf("\nMax:");
   for (j = 0; j < 16; j++) printf(" %5i", max[j]);
   printf("\nod_bin_idct16 basis:\n");
-  compute_ibasis16(basis);
-  print_basis16(basis);
+  compute_ibasis(basis, 2);
+  print_basis(basis, 2);
   printf("Scaled type-II iDCT basis:\n");
-  compute_itrue_basis16(tbasis);
-  print_basis16(tbasis);
+  compute_itrue_basis(tbasis, 2);
+  print_basis(tbasis, 2);
   printf("\nod_bin_fdct16 basis:\n");
-  compute_fbasis16(basis);
-  print_basis16(basis);
+  compute_fbasis(basis, 2);
+  print_basis(basis, 2);
   printf("Scaled type-II DCT basis:\n");
-  compute_ftrue_basis16(tbasis);
-  print_basis16(tbasis);
-  printf("MSE: %.32lg\n\n", compute_mse16(basis, tbasis));
+  compute_ftrue_basis(tbasis, 2);
+  print_basis(tbasis, 2);
+  printf("MSE: %.32lg\n\n", compute_mse(basis, tbasis, 2));
   ieee1180_test(2);
   check_bias16();
 }
