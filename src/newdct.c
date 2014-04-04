@@ -877,12 +877,6 @@ static const int IEEE1180_H[IEEE1180_NRANGES] = { 255, 5, 300 };
 # define OD_COEFF_UNSCALE(x) \
  (((x) + (1 << OD_COEFF_SHIFT >> 1)) >> OD_COEFF_SHIFT)
 
-/*The (1-D) scaling factors that make a true iDCT approximation out of the
-   integer transform.*/
-static const double DCT4_ISCALE[4] = {
-  1, 1, 1, 1
-};
-
 /*The true forward 4-point type-II DCT basis, to 32-digit (100 bit) precision.
   The inverse is merely the transpose.*/
 static const double DCT4_BASIS[4][4] = {
@@ -1005,10 +999,7 @@ static void ieee1180_test_block4(long sumerrs[4][4], long sumsqerrs[4][4],
      are always in range with our integerized DCT).*/
   for (i = 0; i < 4; i++) {
     for (j = 0; j < 4; j++) {
-      /*Modification of IEEE1180: inputs to reference iDCT are scaled to match
-         the scaling factors introduced by the forward integer transform.*/
-      floatcoefs[i][j] =
-       refcoefs[i][j]/(DCT4_ISCALE[i]*DCT4_ISCALE[j]*(1 << OD_COEFF_SHIFT));
+      floatcoefs[i][j] = refcoefs[i][j]/(double)(1 << OD_COEFF_SHIFT);
     }
   }
   for (i = 0; i < 4; i++) idct4(floatcoefs[i], floatcoefs[i]);
@@ -1164,7 +1155,7 @@ static void compute_ftrue_basis4(double basis[4][4]) {
   int j;
   for (j = 0; j < 4; j++) {
     for (i = 0; i < 4; i++) {
-      basis[j][i] = sqrt(2.0/4)*cos((i + 0.5)*j*M_PI/4)*DCT4_ISCALE[j];
+      basis[j][i] = sqrt(2.0/4)*cos((i + 0.5)*j*M_PI/4);
       if (j == 0) basis[j][i] *= M_SQRT1_2;
     }
   }
@@ -1323,12 +1314,6 @@ static void check4(void) {
   check_bias4();
 }
 
-/*The (1-D) scaling factors that make a true iDCT approximation out of the
-   integer transform.*/
-static const double DCT8_ISCALE[8] = {
-  1, 1, 1, 1, 1, 1, 1, 1
-};
-
 /*The true forward 8-point type-II DCT basis, to 32-digit (100 bit) precision.
   The inverse is merely the transpose.*/
 static const double DCT8_BASIS[8][8] = {
@@ -1472,10 +1457,7 @@ static void ieee1180_test_block8(long sumerrs[8][8], long sumsqerrs[8][8],
      are always in range with our integerized DCT).*/
   for (i = 0; i < 8; i++) {
     for (j = 0; j < 8; j++) {
-      /*Modification of IEEE1180: inputs to reference iDCT are scaled to match
-         the scaling factors introduced by the forward integer transform.*/
-      floatcoefs[i][j] =
-       refcoefs[i][j]/(DCT8_ISCALE[i]*DCT8_ISCALE[j]*(1 << OD_COEFF_SHIFT));
+      floatcoefs[i][j] = refcoefs[i][j]/(double)(1 << OD_COEFF_SHIFT);
     }
   }
   for (i = 0; i < 8; i++) idct8(floatcoefs[i], floatcoefs[i]);
@@ -1642,7 +1624,7 @@ static void compute_ftrue_basis8(double basis[8][8]) {
   int j;
   for (j = 0; j < 8; j++) {
     for (i = 0; i < 8; i++) {
-      basis[j][i] = sqrt(2.0/8)*cos((i + 0.5)*j*M_PI/8)*DCT8_ISCALE[j];
+      basis[j][i] = sqrt(2.0/8)*cos((i + 0.5)*j*M_PI/8);
       if (j == 0) basis[j][i] *= M_SQRT1_2;
     }
   }
@@ -1655,7 +1637,7 @@ static void compute_itrue_basis8(double basis[8][8]) {
     double x[8];
     for (j = 0; j < 8; j++) x[j] = (i == j);
     idct8(x, x);
-    for (j = 0; j < 8; j++) basis[j][i] = x[j]/DCT8_ISCALE[i];
+    for (j = 0; j < 8; j++) basis[j][i] = x[j];
   }
 }
 
@@ -1899,12 +1881,6 @@ static void check8(void) {
   ieee1180_test8();
   check_bias8();
 }
-
-/*The (1-D) scaling factors that make a true iDCT approximation out of the
-   integer transform.*/
-static const double DCT16_ISCALE[16] = {
-  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
-};
 
 /*The true forward 16-point type-II DCT basis, to 32-digit (100 bit) precision.
   The inverse is merely the transpose.*/
@@ -2161,10 +2137,7 @@ static void ieee1180_test_block16(long sumerrs[16][16],
      are always in range with our integerized DCT).*/
   for (i = 0; i < 16; i++) {
     for (j = 0; j < 16; j++) {
-      /*Modification of IEEE1180: inputs to reference iDCT are scaled to match
-         the scaling factors introduced by the forward integer transform.*/
-      floatcoefs[i][j] =
-       refcoefs[i][j]/(DCT16_ISCALE[i]*DCT16_ISCALE[j]*(1 << OD_COEFF_SHIFT));
+      floatcoefs[i][j] = refcoefs[i][j]/(double)(1 << OD_COEFF_SHIFT);
     }
   }
   for (i = 0; i < 16; i++) idct16(floatcoefs[i], floatcoefs[i]);
@@ -2331,7 +2304,7 @@ static void compute_ftrue_basis16(double basis[16][16]) {
   int j;
   for (j = 0; j < 16; j++) {
     for (i = 0; i < 16; i++) {
-      basis[j][i] = sqrt(2.0/16)*cos((i + 0.5)*j*M_PI/16)*DCT16_ISCALE[j];
+      basis[j][i] = sqrt(2.0/16)*cos((i + 0.5)*j*M_PI/16);
       if (j == 0) basis[j][i] *= M_SQRT1_2;
     }
   }
@@ -2344,7 +2317,7 @@ static void compute_itrue_basis16(double basis[16][16]) {
     double x[16];
     for (j = 0; j < 16; j++) x[j] = (i == j);
     idct16(x, x);
-    for (j = 0; j < 16; j++) basis[j][i] = x[j]/DCT16_ISCALE[i];
+    for (j = 0; j < 16; j++) basis[j][i] = x[j];
   }
 }
 
