@@ -1316,7 +1316,7 @@ static void ieee1180_test_block(long sumerrs[OD_BSIZE_MAX][OD_BSIZE_MAX],
   }*/
 }
 
-static void ieee1180_test4(void) {
+static void ieee1180_test(int bszi) {
   long sumerrs[OD_BSIZE_MAX][OD_BSIZE_MAX];
   long sumsqerrs[OD_BSIZE_MAX][OD_BSIZE_MAX];
   int maxerr[OD_BSIZE_MAX][OD_BSIZE_MAX];
@@ -1329,10 +1329,10 @@ static void ieee1180_test4(void) {
     memset(maxerr, 0, sizeof(maxerr));
     for (j = 0; j < IEEE1180_NBLOCKS; j++) {
       ieee1180_test_block(sumerrs, sumsqerrs, maxerr, IEEE1180_L[i],
-       IEEE1180_H[i], 1, 0);
+       IEEE1180_H[i], 1, bszi);
     }
     ieee1180_print_results(sumerrs, sumsqerrs, maxerr, IEEE1180_L[i],
-     IEEE1180_H[i], 1, 0);
+     IEEE1180_H[i], 1, bszi);
   }
   ieee1180_srand(1);
   for (i = 0; i < IEEE1180_NRANGES; i++) {
@@ -1341,10 +1341,10 @@ static void ieee1180_test4(void) {
     memset(maxerr, 0, sizeof(maxerr));
     for (j = 0; j < IEEE1180_NBLOCKS; j++) {
       ieee1180_test_block(sumerrs, sumsqerrs, maxerr, IEEE1180_L[i],
-       IEEE1180_H[i], -1, 0);
+       IEEE1180_H[i], -1, bszi);
     }
     ieee1180_print_results(sumerrs, sumsqerrs, maxerr, IEEE1180_L[i],
-     IEEE1180_H[i], -1, 0);
+     IEEE1180_H[i], -1, bszi);
   }
 }
 
@@ -1529,40 +1529,8 @@ static void check4(void) {
   compute_ftrue_basis4(tbasis);
   print_basis4(tbasis);
   printf("MSE: %.32lg\n\n", compute_mse4(basis, tbasis));
-  ieee1180_test4();
+  ieee1180_test(0);
   check_bias4();
-}
-
-static void ieee1180_test8(void) {
-  long sumerrs[OD_BSIZE_MAX][OD_BSIZE_MAX];
-  long sumsqerrs[OD_BSIZE_MAX][OD_BSIZE_MAX];
-  int  maxerr[OD_BSIZE_MAX][OD_BSIZE_MAX];
-  int  i;
-  int  j;
-  ieee1180_srand(1);
-  for (i = 0; i < IEEE1180_NRANGES; i++) {
-    memset(sumerrs, 0, sizeof(sumerrs));
-    memset(sumsqerrs, 0, sizeof(sumsqerrs));
-    memset(maxerr, 0, sizeof(maxerr));
-    for (j = 0; j < IEEE1180_NBLOCKS; j++) {
-      ieee1180_test_block(sumerrs, sumsqerrs, maxerr, IEEE1180_L[i],
-       IEEE1180_H[i], 1, 1);
-    }
-    ieee1180_print_results(sumerrs, sumsqerrs, maxerr, IEEE1180_L[i],
-     IEEE1180_H[i], 1, 1);
-  }
-  ieee1180_srand(1);
-  for (i = 0; i < IEEE1180_NRANGES; i++) {
-    memset(sumerrs, 0, sizeof(sumerrs));
-    memset(sumsqerrs, 0, sizeof(sumsqerrs));
-    memset(maxerr, 0, sizeof(maxerr));
-    for (j = 0; j < IEEE1180_NBLOCKS; j++) {
-      ieee1180_test_block(sumerrs, sumsqerrs, maxerr, IEEE1180_L[i],
-       IEEE1180_H[i], -1, 1);
-    }
-    ieee1180_print_results(sumerrs, sumsqerrs, maxerr, IEEE1180_L[i],
-     IEEE1180_H[i], -1, 1);
-  }
 }
 
 static void print_basis8(double basis[8][8]) {
@@ -1856,40 +1824,8 @@ static void check8(void) {
   compute_ftrue_basis8(tbasis);
   print_basis8(tbasis);
   printf("MSE: %.32lg\n\n", compute_mse8(basis, tbasis));
-  ieee1180_test8();
+  ieee1180_test(1);
   check_bias8();
-}
-
-static void ieee1180_test16(void) {
-  long sumerrs[OD_BSIZE_MAX][OD_BSIZE_MAX];
-  long sumsqerrs[OD_BSIZE_MAX][OD_BSIZE_MAX];
-  int  maxerr[OD_BSIZE_MAX][OD_BSIZE_MAX];
-  int  i;
-  int  j;
-  ieee1180_srand(1);
-  for (i = 0; i < IEEE1180_NRANGES; i++) {
-    memset(sumerrs, 0, sizeof(sumerrs));
-    memset(sumsqerrs, 0, sizeof(sumsqerrs));
-    memset(maxerr, 0, sizeof(maxerr));
-    for (j = 0; j < IEEE1180_NBLOCKS; j++) {
-      ieee1180_test_block(sumerrs, sumsqerrs, maxerr, IEEE1180_L[i],
-       IEEE1180_H[i], 1, 2);
-    }
-    ieee1180_print_results(sumerrs, sumsqerrs, maxerr, IEEE1180_L[i],
-     IEEE1180_H[i], 1, 2);
-  }
-  ieee1180_srand(1);
-  for (i = 0; i < IEEE1180_NRANGES; i++) {
-    memset(sumerrs, 0, sizeof(sumerrs));
-    memset(sumsqerrs, 0, sizeof(sumsqerrs));
-    memset(maxerr, 0, sizeof(maxerr));
-    for (j = 0; j < IEEE1180_NBLOCKS; j++) {
-      ieee1180_test_block(sumerrs, sumsqerrs, maxerr, IEEE1180_L[i],
-       IEEE1180_H[i], -1, 2);
-    }
-    ieee1180_print_results(sumerrs, sumsqerrs, maxerr, IEEE1180_L[i],
-     IEEE1180_H[i], -1, 2);
-  }
 }
 
 static void print_basis16(double basis[16][16]) {
@@ -2183,7 +2119,7 @@ static void check16(void) {
   compute_ftrue_basis16(tbasis);
   print_basis16(tbasis);
   printf("MSE: %.32lg\n\n", compute_mse16(basis, tbasis));
-  ieee1180_test16();
+  ieee1180_test(2);
   check_bias16();
 }
 
