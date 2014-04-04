@@ -1200,65 +1200,67 @@ static void ieee1180_print_results(long sumerrs[OD_BSIZE_MAX][OD_BSIZE_MAX],
    ieee1180_meets(total, 0.0015));
 }
 
-static void ieee1180_test_block4(long sumerrs[OD_BSIZE_MAX][OD_BSIZE_MAX],
+static void ieee1180_test_block(long sumerrs[OD_BSIZE_MAX][OD_BSIZE_MAX],
  long sumsqerrs[OD_BSIZE_MAX][OD_BSIZE_MAX],
- int maxerr[OD_BSIZE_MAX][OD_BSIZE_MAX], int l, int h, int sign) {
-  od_coeff block[4][4];
-  od_coeff refcoefs[4][4];
-  od_coeff refout[4][4];
-  od_coeff testout[4][4];
-  double floatcoefs[4][4];
+ int maxerr[OD_BSIZE_MAX][OD_BSIZE_MAX], int l, int h, int sign, int bszi) {
+  od_coeff block[OD_BSIZE_MAX][OD_BSIZE_MAX];
+  od_coeff refcoefs[OD_BSIZE_MAX][OD_BSIZE_MAX];
+  od_coeff refout[OD_BSIZE_MAX][OD_BSIZE_MAX];
+  od_coeff testout[OD_BSIZE_MAX][OD_BSIZE_MAX];
+  double floatcoefs[OD_BSIZE_MAX][OD_BSIZE_MAX];
   int global_maxerr;
   int i;
   int j;
-  for (i = 0; i < 4; i++) {
-    for (j = 0; j < 4; j++) {
+  int n;
+  n = 1 << (OD_LOG_BSIZE0 + bszi);
+  for (i = 0; i < n; i++) {
+    for (j = 0; j < n; j++) {
       block[i][j] = ieee1180_rand(l, h)*sign << OD_COEFF_SHIFT;
     }
   }
   /*Modification of IEEE1180: use our integerized DCT, not a true DCT.*/
-  od_bin_fdct4x4(refcoefs[0], 4, block[0], 4);
+  (*OD_FDCT_2D[bszi])(refcoefs[0], OD_BSIZE_MAX, block[0], OD_BSIZE_MAX);
   /*Modification of IEEE1180: no rounding or range clipping (coefficients
      are always in range with our integerized DCT).*/
-  for (i = 0; i < 4; i++) {
-    for (j = 0; j < 4; j++) {
+  for (i = 0; i < n; i++) {
+    for (j = 0; j < n; j++) {
       floatcoefs[i][j] = refcoefs[i][j]/(double)(1 << OD_COEFF_SHIFT);
     }
   }
-  for (i = 0; i < 4; i++) idct(floatcoefs[i], floatcoefs[i], 0);
-  for (j = 0; j < 4; j++) {
-    double x[4];
-    for (i = 0; i < 4; i++) x[i] = floatcoefs[i][j];
-    idct(x, x, 0);
-    for (i = 0; i < 4; i++) floatcoefs[i][j] = x[i];
+  for (i = 0; i < n; i++) idct(floatcoefs[i], floatcoefs[i], bszi);
+  for (j = 0; j < n; j++) {
+    double x[OD_BSIZE_MAX];
+    for (i = 0; i < n; i++) x[i] = floatcoefs[i][j];
+    idct(x, x, bszi);
+    for (i = 0; i < n; i++) floatcoefs[i][j] = x[i];
   }
-  for (i = 0; i < 4; i++) {
-    for (j = 0; j < 4; j++) {
+  for (i = 0; i < n; i++) {
+    for (j = 0; j < n; j++) {
       refout[i][j] = (od_coeff)floor(floatcoefs[i][j] + 0.5);
       refout[i][j] = OD_CLAMPI(-256, refout[i][j], 255);
     }
   }
-  od_bin_idct4x4(testout[0], 4, refcoefs[0], 4);
-  for (i = 0; i < 4; i++) {
-    for (j = 0; j < 4; j++) {
+  (*OD_IDCT_2D[bszi])(testout[0], OD_BSIZE_MAX, refcoefs[0], OD_BSIZE_MAX);
+  for (i = 0; i < n; i++) {
+    for (j = 0; j < n; j++) {
       if (testout[i][j] != block[i][j]) {
         printf("Mismatch:\n");
         printf("in:\n");
-        for (i = 0; i < 4; i++) {
+        for (i = 0; i < n; i++) {
           printf("       ");
-          for (j = 0; j < 4; j++) printf(" %i", block[i][j]);
+          for (j = 0; j < n; j++) printf(" %i", block[i][j]);
           printf("\n");
         }
         printf("xform:\n");
-        for (i = 0; i < 4; i++) {
+        for (i = 0; i < n; i++) {
           printf("       ");
-          for (j = 0; j < 4; j++) printf(" %i", refcoefs[i][j]);
+          for (j = 0; j < n; j++) printf(" %i", refcoefs[i][j]);
           printf("\n");
         }
         printf("out:\n");
-        for (i = 0; i < 4; i++) {
+        for (i = 0; i < n; i++) {
           printf("       ");
-          for (j = 0; j < 4; j++) printf(" %i", testout[i][j]);
+          for (j = 0; j < n; j++) printf(" %i", testout[i][j]);
           printf("\n");
         }
         printf("\n");
@@ -1267,22 +1269,16 @@ static void ieee1180_test_block4(long sumerrs[OD_BSIZE_MAX][OD_BSIZE_MAX],
       testout[i][j] = OD_CLAMPI(-256, OD_COEFF_UNSCALE(testout[i][j]), 255);
     }
   }
-  for (i = 0; i < 4; i++) {
-    for (j = 0; j < 4; j++) {
+  global_maxerr = 0;
+  for (i = 0; i < n; i++) {
+    for (j = 0; j < n; j++) {
       int err;
       err = testout[i][j] - refout[i][j];
       sumerrs[i][j] += err;
       sumsqerrs[i][j] += err*err;
       if (err < 0) err = -err;
-      if (maxerr[i][j] < err) maxerr[i][j] = err;
-    }
-  }
-  for (i = 0, global_maxerr = 0; i < 4; i++) {
-    for (j = 0; j < 4; j++) {
-      int err;
-      err = testout[i][j] - refout[i][j];
-      if (err < 0) err = -err;
-      if (err > global_maxerr) global_maxerr = err;
+      maxerr[i][j] = OD_MAXI(maxerr[i][j], err);
+      global_maxerr = OD_MAXI(global_maxerr, err);
     }
   }
   /*if (global_maxerr > 1) {
@@ -1290,29 +1286,29 @@ static void ieee1180_test_block4(long sumerrs[OD_BSIZE_MAX][OD_BSIZE_MAX],
     int v;
     printf("Excessive peak error: %i\n", global_maxerr);
     printf("Input:\n");
-    for (u = 0; u < 4; u++) {
-      for (v = 0;v < 4; v++) {
+    for (u = 0; u < n; u++) {
+      for (v = 0;v < n; v++) {
         printf("%5i", block[u][v]);
       }
       printf("\n");
     }
     printf("Forward transform coefficients:\n");
-    for (u = 0; u < 4; u++) {
-      for (v = 0; v < 4; v++) {
+    for (u = 0; u < n; u++) {
+      for (v = 0; v < n; v++) {
         printf("%5i", refcoefs[u][v]);
       }
       printf("\n");
     }
     printf("Reference inverse:\n");
-    for (u = 0; u < 4; u++) {
-      for (v = 0; v < 4; v++) {
+    for (u = 0; u < n; u++) {
+      for (v = 0; v < n; v++) {
         printf("%5i", refout[u][v]);
       }
       printf("\n");
     }
     printf("Integerized inverse:\n");
-    for (u = 0; u < 4; u++) {
-      for (v = 0; v < 4; v++) {
+    for (u = 0; u < n; u++) {
+      for (v = 0; v < n; v++) {
         printf("%5i", testout[u][v]);
       }
       printf("\n");
@@ -1332,8 +1328,8 @@ static void ieee1180_test4(void) {
     memset(sumsqerrs, 0, sizeof(sumsqerrs));
     memset(maxerr, 0, sizeof(maxerr));
     for (j = 0; j < IEEE1180_NBLOCKS; j++) {
-      ieee1180_test_block4(sumerrs, sumsqerrs, maxerr, IEEE1180_L[i],
-       IEEE1180_H[i], 1);
+      ieee1180_test_block(sumerrs, sumsqerrs, maxerr, IEEE1180_L[i],
+       IEEE1180_H[i], 1, 0);
     }
     ieee1180_print_results(sumerrs, sumsqerrs, maxerr, IEEE1180_L[i],
      IEEE1180_H[i], 1, 0);
@@ -1344,8 +1340,8 @@ static void ieee1180_test4(void) {
     memset(sumsqerrs, 0, sizeof(sumsqerrs));
     memset(maxerr, 0, sizeof(maxerr));
     for (j = 0; j < IEEE1180_NBLOCKS; j++) {
-      ieee1180_test_block4(sumerrs, sumsqerrs, maxerr, IEEE1180_L[i],
-       IEEE1180_H[i], -1);
+      ieee1180_test_block(sumerrs, sumsqerrs, maxerr, IEEE1180_L[i],
+       IEEE1180_H[i], -1, 0);
     }
     ieee1180_print_results(sumerrs, sumsqerrs, maxerr, IEEE1180_L[i],
      IEEE1180_H[i], -1, 0);
@@ -1537,126 +1533,6 @@ static void check4(void) {
   check_bias4();
 }
 
-static void ieee1180_test_block8(long sumerrs[OD_BSIZE_MAX][OD_BSIZE_MAX],
- long sumsqerrs[OD_BSIZE_MAX][OD_BSIZE_MAX],
- int maxerr[OD_BSIZE_MAX][OD_BSIZE_MAX], int l, int h, int sign) {
-  od_coeff block[8][8];
-  od_coeff refcoefs[8][8];
-  od_coeff refout[8][8];
-  od_coeff testout[8][8];
-  double floatcoefs[8][8];
-  int global_maxerr;
-  int i;
-  int j;
-  for (i = 0; i < 8; i++) {
-    for (j = 0; j < 8; j++) {
-      block[i][j] = ieee1180_rand(l, h)*sign << OD_COEFF_SHIFT;
-    }
-  }
-  /*Modification of IEEE1180: use our integerized DCT, not a true DCT.*/
-  od_bin_fdct8x8(refcoefs[0], 8, block[0], 8);
-  /*Modification of IEEE1180: no rounding or range clipping (coefficients
-     are always in range with our integerized DCT).*/
-  for (i = 0; i < 8; i++) {
-    for (j = 0; j < 8; j++) {
-      floatcoefs[i][j] = refcoefs[i][j]/(double)(1 << OD_COEFF_SHIFT);
-    }
-  }
-  for (i = 0; i < 8; i++) idct(floatcoefs[i], floatcoefs[i], 1);
-  for (j = 0; j < 8; j++) {
-    double x[8];
-    for (i = 0; i < 8; i++) x[i] = floatcoefs[i][j];
-    idct(x, x, 1);
-    for (i = 0; i < 8; i++) floatcoefs[i][j] = x[i];
-  }
-  for (i = 0; i < 8; i++) {
-    for (j = 0; j < 8; j++) {
-      refout[i][j] = (od_coeff)floor(floatcoefs[i][j] + 0.5);
-      refout[i][j] = OD_CLAMPI(-256, refout[i][j], 255);
-    }
-  }
-  od_bin_idct8x8(testout[0], 8, refcoefs[0], 8);
-  for (i = 0; i < 8; i++) {
-    for (j = 0; j < 8; j++) {
-      if (testout[i][j] != block[i][j]) {
-        printf("Mismatch:\n");
-        printf("in:\n");
-        for (i = 0; i < 8; i++) {
-          printf("       ");
-          for (j = 0; j < 8; j++) printf(" %i", block[i][j]);
-          printf("\n");
-        }
-        printf("xform:\n");
-        for (i = 0; i < 8; i++) {
-          printf("       ");
-          for (j = 0; j < 8; j++) printf(" %i", refcoefs[i][j]);
-          printf("\n");
-        }
-        printf("out:\n");
-        for (i = 0; i < 8; i++) {
-          printf("       ");
-          for (j = 0; j < 8; j++) printf(" %i", testout[i][j]);
-          printf("\n");
-        }
-        printf("\n");
-        return;
-      }
-      testout[i][j] = OD_CLAMPI(-256, OD_COEFF_UNSCALE(testout[i][j]), 255);
-    }
-  }
-  for (i = 0; i < 8; i++) {
-    for (j = 0; j < 8; j++) {
-      int err;
-      err = testout[i][j] - refout[i][j];
-      sumerrs[i][j] += err;
-      sumsqerrs[i][j] += err*err;
-      if (err < 0) err = -err;
-      if (maxerr[i][j] < err) maxerr[i][j] = err;
-    }
-  }
-  for (i = 0, global_maxerr = 0; i < 8; i++) {
-    for (j = 0; j < 8; j++) {
-      int err;
-      err = testout[i][j] - refout[i][j];
-      if (err < 0) err = -err;
-      if (err > global_maxerr) global_maxerr = err;
-    }
-  }
-  /*if (global_maxerr > 1) {
-    int u;
-    int v;
-    printf("Excessive peak error: %i\n", global_maxerr);
-    printf("Input:\n");
-    for (u = 0; u < 8; u++) {
-      for (v = 0; v < 8; v++) {
-        printf("%5i", block[u][v]);
-      }
-      printf("\n");
-    }
-    printf("Forward transform coefficients:\n");
-    for (u = 0; u < 8; u++) {
-      for (v = 0; v < 8; v++) {
-        printf("%5i", refcoefs[u][v]);
-      }
-      printf("\n");
-    }
-    printf("Reference inverse:\n");
-    for (u = 0; u < 8; u++) {
-      for (v = 0; v < 8; v++) {
-        printf("%5i", refout[u][v]);
-      }
-      printf("\n");
-    }
-    printf("Integerized inverse:\n");
-    for (u = 0; u < 8; u++) {
-      for (v = 0; v < 8; v++) {
-        printf("%5i", testout[u][v]);
-      }
-      printf("\n");
-    }
-  }*/
-}
-
 static void ieee1180_test8(void) {
   long sumerrs[OD_BSIZE_MAX][OD_BSIZE_MAX];
   long sumsqerrs[OD_BSIZE_MAX][OD_BSIZE_MAX];
@@ -1669,8 +1545,8 @@ static void ieee1180_test8(void) {
     memset(sumsqerrs, 0, sizeof(sumsqerrs));
     memset(maxerr, 0, sizeof(maxerr));
     for (j = 0; j < IEEE1180_NBLOCKS; j++) {
-      ieee1180_test_block8(sumerrs, sumsqerrs, maxerr, IEEE1180_L[i],
-       IEEE1180_H[i], 1);
+      ieee1180_test_block(sumerrs, sumsqerrs, maxerr, IEEE1180_L[i],
+       IEEE1180_H[i], 1, 1);
     }
     ieee1180_print_results(sumerrs, sumsqerrs, maxerr, IEEE1180_L[i],
      IEEE1180_H[i], 1, 1);
@@ -1681,8 +1557,8 @@ static void ieee1180_test8(void) {
     memset(sumsqerrs, 0, sizeof(sumsqerrs));
     memset(maxerr, 0, sizeof(maxerr));
     for (j = 0; j < IEEE1180_NBLOCKS; j++) {
-      ieee1180_test_block8(sumerrs, sumsqerrs, maxerr, IEEE1180_L[i],
-       IEEE1180_H[i], -1);
+      ieee1180_test_block(sumerrs, sumsqerrs, maxerr, IEEE1180_L[i],
+       IEEE1180_H[i], -1, 1);
     }
     ieee1180_print_results(sumerrs, sumsqerrs, maxerr, IEEE1180_L[i],
      IEEE1180_H[i], -1, 1);
@@ -1984,126 +1860,6 @@ static void check8(void) {
   check_bias8();
 }
 
-static void ieee1180_test_block16(long sumerrs[OD_BSIZE_MAX][OD_BSIZE_MAX],
- long sumsqerrs[OD_BSIZE_MAX][OD_BSIZE_MAX],
- int maxerr[OD_BSIZE_MAX][OD_BSIZE_MAX], int l, int h, int sign) {
-  od_coeff block[16][16];
-  od_coeff refcoefs[16][16];
-  od_coeff refout[16][16];
-  od_coeff testout[16][16];
-  double floatcoefs[16][16];
-  int global_maxerr;
-  int i;
-  int j;
-  for (i = 0; i < 16; i++) {
-    for (j = 0; j < 16; j++) {
-      block[i][j] = ieee1180_rand(l, h)*sign << OD_COEFF_SHIFT;
-    }
-  }
-  /*Modification of IEEE1180: use our integerized DCT, not a true DCT.*/
-  od_bin_fdct16x16(refcoefs[0], 16, block[0], 16);
-  /*Modification of IEEE1180: no rounding or range clipping (coefficients
-     are always in range with our integerized DCT).*/
-  for (i = 0; i < 16; i++) {
-    for (j = 0; j < 16; j++) {
-      floatcoefs[i][j] = refcoefs[i][j]/(double)(1 << OD_COEFF_SHIFT);
-    }
-  }
-  for (i = 0; i < 16; i++) idct(floatcoefs[i], floatcoefs[i], 2);
-  for (j = 0; j < 16; j++) {
-    double x[16];
-    for (i = 0; i < 16; i++) x[i] = floatcoefs[i][j];
-    idct(x, x, 2);
-    for (i = 0; i < 16; i++) floatcoefs[i][j] = x[i];
-  }
-  for (i = 0; i < 16; i++) {
-    for (j = 0; j < 16; j++) {
-      refout[i][j] = (od_coeff)floor(floatcoefs[i][j] + 0.5);
-      refout[i][j] = OD_CLAMPI(-256, refout[i][j], 255);
-    }
-  }
-  od_bin_idct16x16(testout[0], 16, refcoefs[0], 16);
-  for (i = 0; i < 16; i++) {
-    for (j = 0; j < 16; j++) {
-      if (testout[i][j] != block[i][j]) {
-        printf("Mismatch:\n");
-        printf("in:\n");
-        for (i = 0; i < 16; i++) {
-          printf("       ");
-          for (j = 0; j < 16; j++) printf(" %i", block[i][j]);
-          printf("\n");
-        }
-        printf("xform:\n");
-        for (i = 0; i < 16; i++) {
-          printf("       ");
-          for (j = 0; j < 16; j++) printf(" %i", refcoefs[i][j]);
-          printf("\n");
-        }
-        printf("out:\n");
-        for (i = 0; i < 16; i++) {
-          printf("       ");
-          for (j = 0; j < 16; j++) printf(" %i", testout[i][j]);
-          printf("\n");
-        }
-        printf("\n");
-        return;
-      }
-      testout[i][j] = OD_CLAMPI(-256, OD_COEFF_UNSCALE(testout[i][j]), 255);
-    }
-  }
-  for (i = 0; i < 16; i++) {
-    for (j = 0; j < 16; j++) {
-      int err;
-      err = testout[i][j] - refout[i][j];
-      sumerrs[i][j] += err;
-      sumsqerrs[i][j] += err*err;
-      if (err < 0) err = -err;
-      if (maxerr[i][j] < err) maxerr[i][j] = err;
-    }
-  }
-  for (i = 0, global_maxerr = 0; i < 16; i++) {
-    for (j = 0; j < 16; j++) {
-      int err;
-      err = testout[i][j] - refout[i][j];
-      if (err < 0) err = -err;
-      if (err > global_maxerr) global_maxerr = err;
-    }
-  }
-  /*if (global_maxerr > 1) {
-    int u;
-    int v;
-    printf("Excessive peak error: %i\n", global_maxerr);
-    printf("Input:\n");
-    for (u = 0; u < 16; u++) {
-      for (v = 0; v < 16; v++) {
-        printf("%5i", block[u][v]);
-      }
-      printf("\n");
-    }
-    printf("Forward transform coefficients:\n");
-    for (u = 0; u < 16; u++) {
-      for (v = 0; v < 16; v++) {
-        printf("%5i", refcoefs[u][v]);
-      }
-      printf("\n");
-    }
-    printf("Reference inverse:\n");
-    for (u = 0; u < 16; u++) {
-      for (v = 0; v < 16; v++) {
-        printf("%5i", refout[u][v]);
-      }
-      printf("\n");
-    }
-    printf("Integerized inverse:\n");
-    for (u = 0; u < 16; u++) {
-      for (v = 0; v < 16; v++) {
-        printf("%5i", testout[u][v]);
-      }
-      printf("\n");
-    }
-  }*/
-}
-
 static void ieee1180_test16(void) {
   long sumerrs[OD_BSIZE_MAX][OD_BSIZE_MAX];
   long sumsqerrs[OD_BSIZE_MAX][OD_BSIZE_MAX];
@@ -2116,8 +1872,8 @@ static void ieee1180_test16(void) {
     memset(sumsqerrs, 0, sizeof(sumsqerrs));
     memset(maxerr, 0, sizeof(maxerr));
     for (j = 0; j < IEEE1180_NBLOCKS; j++) {
-      ieee1180_test_block16(sumerrs, sumsqerrs, maxerr, IEEE1180_L[i],
-       IEEE1180_H[i], 1);
+      ieee1180_test_block(sumerrs, sumsqerrs, maxerr, IEEE1180_L[i],
+       IEEE1180_H[i], 1, 2);
     }
     ieee1180_print_results(sumerrs, sumsqerrs, maxerr, IEEE1180_L[i],
      IEEE1180_H[i], 1, 2);
@@ -2128,8 +1884,8 @@ static void ieee1180_test16(void) {
     memset(sumsqerrs, 0, sizeof(sumsqerrs));
     memset(maxerr, 0, sizeof(maxerr));
     for (j = 0; j < IEEE1180_NBLOCKS; j++) {
-      ieee1180_test_block16(sumerrs, sumsqerrs, maxerr, IEEE1180_L[i],
-       IEEE1180_H[i], -1);
+      ieee1180_test_block(sumerrs, sumsqerrs, maxerr, IEEE1180_L[i],
+       IEEE1180_H[i], -1, 2);
     }
     ieee1180_print_results(sumerrs, sumsqerrs, maxerr, IEEE1180_L[i],
      IEEE1180_H[i], -1, 2);
