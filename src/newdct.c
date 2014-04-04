@@ -1526,54 +1526,6 @@ static void check_bias(int bszi) {
   printf("\n");
 }
 
-static void check4(void) {
-  od_coeff min[4];
-  od_coeff max[4];
-  double basis[OD_BSIZE_MAX][OD_BSIZE_MAX];
-  double tbasis[OD_BSIZE_MAX][OD_BSIZE_MAX];
-  int i;
-  int j;
-  for (j = 0; j < 4; j++) min[j] = max[j] = 0;
-  for (i = 0; i < 1 << 4; i++) {
-    od_coeff x[4];
-    od_coeff y[4];
-    od_coeff x2[4];
-    for (j = 0; j < 4; j++) x[j] = (i >> j & 1) ? 255 : -256;
-    od_bin_fdct4(y, x, 1);
-    od_bin_idct4(x2, 1, y);
-    for (j = 0; j < 4; j++) {
-      if (y[j] < min[j]) min[j] = y[j];
-      else if (y[j] > max[j]) max[j] = y[j];
-    }
-    for (j = 0; j < 4; j++) {
-      if (x[j] != x2[j]) {
-        printf("Mismatch:\n");
-        printf("in:    ");
-        for (j = 0; j < 4; j++) printf(" %i", x[j]);
-        printf("\nxform: ");
-        for (j = 0; j < 4; j++) printf(" %i", y[j]);
-        printf("\nout:   ");
-        for (j = 0; j < 4; j++) printf(" %i", x2[j]);
-        printf("\n\n");
-        break;
-      }
-    }
-  }
-  printf("Min:");
-  for (j = 0; j < 4; j++) printf(" %5i", min[j]);
-  printf("\nMax:");
-  for (j = 0; j < 4; j++) printf(" %5i", max[j]);
-  printf("\nod_bin_fdct4 basis:\n");
-  compute_fbasis(basis, 0);
-  print_basis(basis, 0);
-  printf("Scaled type-II DCT basis:\n");
-  compute_ftrue_basis(tbasis, 0);
-  print_basis(tbasis, 0);
-  printf("MSE: %.32lg\n\n", compute_mse(basis, tbasis, 0));
-  ieee1180_test(0);
-  check_bias(0);
-}
-
 # if 0
 static void bin_fxform_2d8(od_coeff x[8*2][8*2]) {
   od_coeff y[8*2];
@@ -1655,59 +1607,61 @@ static void dynamic_range8(void) {
 }
 # endif
 
-static void check8(void) {
-  od_coeff min[8];
-  od_coeff max[8];
+static void check_transform(int bszi) {
+  od_coeff min[OD_BSIZE_MAX];
+  od_coeff max[OD_BSIZE_MAX];
   double basis[OD_BSIZE_MAX][OD_BSIZE_MAX];
   double tbasis[OD_BSIZE_MAX][OD_BSIZE_MAX];
   int i;
   int j;
-  /*dynamic_range8();*/
-  for (j = 0; j < 8; j++) min[j] = max[j] = 0;
-  for (i = 0; i < 1 << 8; i++) {
-    od_coeff x[8];
-    od_coeff y[8];
-    od_coeff x2[8];
-    for (j = 0; j < 8; j++) x[j] = (i >> j & 1) ? 255 : -256;
-    od_bin_fdct8(y, x, 1);
-    od_bin_idct8(x2, 1, y);
-    for (j = 0; j < 8; j++) {
+  int n;
+  n = 1 << (OD_LOG_BSIZE0 + bszi);
+  /*dynamic_range(bszi);*/
+  for (j = 0; j < n; j++) min[j] = max[j] = 0;
+  for (i = 0; i < 1 << n; i++) {
+    od_coeff x[OD_BSIZE_MAX];
+    od_coeff y[OD_BSIZE_MAX];
+    od_coeff x2[OD_BSIZE_MAX];
+    for (j = 0; j < n; j++) x[j] = (i >> j & 1) ? 255 : -256;
+    (*OD_FDCT_1D[bszi])(y, x, 1);
+    (*OD_IDCT_1D[bszi])(x2, 1, y);
+    for (j = 0; j < n; j++) {
       if (y[j] < min[j]) min[j] = y[j];
       else if (y[j] > max[j]) max[j] = y[j];
     }
-    for (j = 0; j < 8; j++) {
+    for (j = 0; j < n; j++) {
       if (x[j] != x2[j]) {
         printf("Mismatch:\n");
         printf("in:    ");
-        for (j = 0; j < 8; j++) printf(" %i", x[j]);
+        for (j = 0; j < n; j++) printf(" %i", x[j]);
         printf("\nxform: ");
-        for (j = 0; j < 8; j++) printf(" %i", y[j]);
+        for (j = 0; j < n; j++) printf(" %i", y[j]);
         printf("\nout:   ");
-        for (j = 0; j < 8; j++) printf(" %i", x2[j]);
+        for (j = 0; j < n; j++) printf(" %i", x2[j]);
         printf("\n\n");
         break;
       }
     }
   }
   printf("Min:");
-  for (j = 0; j < 8; j++) printf(" %5i", min[j]);
+  for (j = 0; j < n; j++) printf(" %5i", min[j]);
   printf("\nMax:");
-  for (j = 0; j < 8; j++) printf(" %5i", max[j]);
-  printf("\nod_bin_idct8 basis:\n");
-  compute_ibasis(basis, 1);
-  print_basis(basis, 1);
+  for (j = 0; j < n; j++) printf(" %5i", max[j]);
+  printf("\nod_bin_idct%i basis:\n", n);
+  compute_ibasis(basis, bszi);
+  print_basis(basis, bszi);
   printf("Scaled type-II iDCT basis:\n");
-  compute_itrue_basis(tbasis, 1);
-  print_basis(tbasis, 1);
-  printf("\nod_bin_fdct8 basis:\n");
-  compute_fbasis(basis, 1);
-  print_basis(basis, 1);
+  compute_itrue_basis(tbasis, bszi);
+  print_basis(tbasis, bszi);
+  printf("\nod_bin_fdct%i basis:\n", n);
+  compute_fbasis(basis, bszi);
+  print_basis(basis, bszi);
   printf("Scaled type-II DCT basis:\n");
-  compute_ftrue_basis(tbasis, 1);
-  print_basis(tbasis, 1);
-  printf("MSE: %.32lg\n\n", compute_mse(basis, tbasis, 1));
-  ieee1180_test(1);
-  check_bias(1);
+  compute_ftrue_basis(tbasis, bszi);
+  print_basis(tbasis, bszi);
+  printf("MSE: %.32lg\n\n", compute_mse(basis, tbasis, bszi));
+  ieee1180_test(bszi);
+  check_bias(bszi);
 }
 
 # if 0
@@ -1791,65 +1745,9 @@ static void dynamic_range16(void) {
 }
 # endif
 
-static void check16(void) {
-  od_coeff min[16];
-  od_coeff max[16];
-  double basis[OD_BSIZE_MAX][OD_BSIZE_MAX];
-  double tbasis[OD_BSIZE_MAX][OD_BSIZE_MAX];
-  int i;
-  int j;
-  /*dynamic_range16();*/
-  for (j = 0; j < 16; j++) min[j] = max[j] = 0;
-  for (i = 0; i < 1 << 16; i++) {
-    od_coeff x[16];
-    od_coeff y[16];
-    od_coeff x2[16];
-    for (j = 0; j < 16; j++) x[j] = (i >> j & 1) ? 255 : -256;
-    od_bin_fdct16(y, x, 1);
-    od_bin_idct16(x2, 1, y);
-    for (j = 0; j < 16; j++) {
-      if (y[j] < min[j]) min[j] = y[j];
-      else if (y[j] > max[j]) max[j] = y[j];
-    }
-    for (j = 0; j < 16; j++) {
-      if (x[j] != x2[j]) {
-        printf("Mismatch:\n");
-        printf("in:    ");
-        for (j = 0; j < 16; j++) printf(" %i", x[j]);
-        printf("\nxform: ");
-        for (j = 0; j < 16; j++) printf(" %i", y[j]);
-        printf("\nout:   ");
-        for (j = 0; j < 16; j++) printf(" %i", x2[j]);
-        printf("\n\n");
-        break;
-      }
-    }
-  }
-  printf("Min:");
-  for (j = 0; j < 16; j++) printf(" %5i", min[j]);
-  printf("\nMax:");
-  for (j = 0; j < 16; j++) printf(" %5i", max[j]);
-  printf("\nod_bin_idct16 basis:\n");
-  compute_ibasis(basis, 2);
-  print_basis(basis, 2);
-  printf("Scaled type-II iDCT basis:\n");
-  compute_itrue_basis(tbasis, 2);
-  print_basis(tbasis, 2);
-  printf("\nod_bin_fdct16 basis:\n");
-  compute_fbasis(basis, 2);
-  print_basis(basis, 2);
-  printf("Scaled type-II DCT basis:\n");
-  compute_ftrue_basis(tbasis, 2);
-  print_basis(tbasis, 2);
-  printf("MSE: %.32lg\n\n", compute_mse(basis, tbasis, 2));
-  ieee1180_test(2);
-  check_bias(2);
-}
-
 int main(void) {
-  check4();
-  check8();
-  check16();
+  int bszi;
+  for (bszi = 0; bszi < OD_NBSIZES; bszi++) check_transform(bszi);
   return 0;
 }
 
