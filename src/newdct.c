@@ -874,6 +874,9 @@ static char *ieee1180_meets(double _val, double _limit) {
 static const int IEEE1180_L[IEEE1180_NRANGES] = { 256, 5, 300 };
 static const int IEEE1180_H[IEEE1180_NRANGES] = { 255, 5, 300 };
 
+/*TODO: This unscaling introduces noticeable bias, since all ties round up.*/
+# define OD_COEFF_UNSCALE(x) \
+ (((x) + (1 << OD_COEFF_SHIFT >> 1)) >> OD_COEFF_SHIFT)
 
 /*The (1-D) scaling factors that make a true iDCT approximation out of the
    integer transform.*/
@@ -992,8 +995,11 @@ static void ieee1180_test_block4(long _sumerrs[4][4], long _sumsqerrs[4][4],
   int      maxerr;
   int      i;
   int      j;
-  for (i = 0; i < 4; i++)
-    for (j = 0; j < 4; j++) block[i][j] = ieee1180_rand(_l, _h)*_sign;
+  for (i = 0; i < 4; i++) {
+    for (j = 0; j < 4; j++) {
+      block[i][j] = ieee1180_rand(_l, _h)*_sign << OD_COEFF_SHIFT;
+    }
+  }
   /*Modification of IEEE1180: use our integerized DCT, not a true DCT.*/
   od_bin_fdct4x4(refcoefs[0], 4, block[0], 4);
   /*Modification of IEEE1180: no rounding or range clipping (coefficients
@@ -1002,7 +1008,8 @@ static void ieee1180_test_block4(long _sumerrs[4][4], long _sumsqerrs[4][4],
     for (j = 0; j < 4; j++) {
       /*Modification of IEEE1180: inputs to reference iDCT are scaled to match
          the scaling factors introduced by the forward integer transform.*/
-      floatcoefs[i][j] = refcoefs[i][j]/(DCT4_ISCALE[i]*DCT4_ISCALE[j]);
+      floatcoefs[i][j] =
+       refcoefs[i][j]/(DCT4_ISCALE[i]*DCT4_ISCALE[j]*(1 << OD_COEFF_SHIFT));
     }
   }
   for (i = 0; i < 4; i++) idct4(floatcoefs[i], floatcoefs[i]);
@@ -1045,8 +1052,7 @@ static void ieee1180_test_block4(long _sumerrs[4][4], long _sumsqerrs[4][4],
         printf("\n");
         return;
       }
-      if (testout[i][j] > 255) testout[i][j] = 255;
-      else if (testout[i][j] < -256) testout[i][j] = -256;
+      testout[i][j] = OD_CLAMPI(-256, OD_COEFF_UNSCALE(testout[i][j]), 255);
     }
   }
   for (i = 0; i < 4; i++) {
@@ -1205,7 +1211,7 @@ static void check_bias4() {
     od_coeff x2[4];
     od_coeff y[4];
     od_coeff y2[4];
-    for (j = 0; j < 4; j++) x[j] = ieee1180_rand(255, 255);
+    for (j = 0; j < 4; j++) x[j] = ieee1180_rand(255, 255) << OD_COEFF_SHIFT;
     od_bin_fdct4(y, x, 1);
     for (j = 0; j < 4; j++) facc[j] += y[j];
     od_bin_idct4(x2, 1, y);
@@ -1222,31 +1228,54 @@ static void check_bias4() {
         break;
       }
     }
-    for (j = 0; j < 4; j++) y2[j] = y[j]+ieee1180_rand(1, 1);
+    for (j = 0; j < 4; j++) x[j] = OD_COEFF_UNSCALE(x[j]);
+    for (j = 0; j < 4; j++) {
+      y2[j] = y[j] + (ieee1180_rand(1, 1) << OD_COEFF_SHIFT);
+    }
     od_bin_idct4(x2, 1, y2);
-    for (j = 0; j < 4; j++) rtacc[j] += x2[j]-x[j];
-    for (j = 0; j < 4; j++) y2[j] = y[j]/8<<3;
+    for (j = 0; j < 4; j++) {
+      x2[j] = OD_COEFF_UNSCALE(x2[j]);
+      rtacc[j] += x2[j] - x[j];
+    }
+    for (j = 0; j < 4; j++) {
+      y2[j] = (y[j] + ((y[j] < 0 ? -4 : 4) << OD_COEFF_SHIFT))/
+       (8 << OD_COEFF_SHIFT) << (3 + OD_COEFF_SHIFT);
+    }
     od_bin_idct4(x2, 1, y2);
-    for (j = 0; j < 4; j++) q8acc[j] += x2[j]-x[j];
-    for (j = 0; j < 4; j++) y2[j] = y[j]/7*7;
+    for (j = 0; j < 4; j++) {
+      x2[j] = OD_COEFF_UNSCALE(x2[j]);
+      q8acc[j] += x2[j] - x[j];
+    }
+    for (j = 0; j < 4; j++) {
+      y2[j] = (y[j] + ((y[j] < 0 ? -7 : 7) << OD_COEFF_SHIFT >> 1))/
+       (7 << OD_COEFF_SHIFT)*(7 << OD_COEFF_SHIFT);
+    }
     od_bin_idct4(x2, 1, y2);
-    for (j = 0; j < 4; j++) q7acc[j] += x2[j]-x[j];
+    for (j = 0; j < 4; j++) {
+      x2[j] = OD_COEFF_UNSCALE(x2[j]);
+      q7acc[j] += x2[j] - x[j];
+    }
   }
   printf("1-D Forward Bias:\n");
-  for (j = 0; j < 4; j++)
-     printf("% -18.15G%s", facc[j]/i, (j&3) == 3 ? "\n" : "  ");
+  for (j = 0; j < 4; j++) {
+    printf("% -18.15G%s", facc[j]/(i << OD_COEFF_SHIFT),
+     (j & 3) == 3 ? "\n" : "  ");
+  }
   printf("\n");
   printf("1-D Round-Trip Bias:\n");
-  for (j = 0; j < 4; j++)
-     printf("% -18.15G%s", rtacc[j]/i, (j&3) == 3 ? "\n" : "  ");
+  for (j = 0; j < 4; j++) {
+    printf("% -18.15G%s", rtacc[j]/i, (j & 3) == 3 ? "\n" : "  ");
+  }
   printf("\n");
   printf("1-D Q=8 Bias:\n");
-  for (j = 0; j < 4; j++)
-     printf("% -18.15G%s", q8acc[j]/i, (j&3) == 3 ? "\n" : "  ");
+  for (j = 0; j < 4; j++) {
+    printf("% -18.15G%s", q8acc[j]/i, (j & 3) == 3 ? "\n" : "  ");
+  }
   printf("\n");
   printf("1-D Q=7 Bias:\n");
-  for (j = 0; j < 4; j++)
-     printf("% -18.15G%s", q7acc[j]/i, (j&3) == 3 ? "\n" : "  ");
+  for (j = 0; j < 4; j++) {
+    printf("% -18.15G%s", q7acc[j]/i, (j & 3) == 3 ? "\n" : "  ");
+  }
   printf("\n");
 }
 
@@ -1438,7 +1467,9 @@ static void ieee1180_test_block8(long _sumerrs[8][8], long _sumsqerrs[8][8],
   int      i;
   int      j;
   for (i = 0; i < 8; i++) {
-    for (j = 0; j < 8; j++) block[i][j] = ieee1180_rand(_l, _h)*_sign;
+    for (j = 0; j < 8; j++) {
+      block[i][j] = ieee1180_rand(_l, _h)*_sign << OD_COEFF_SHIFT;
+    }
   }
   /*Modification of IEEE1180: use our integerized DCT, not a true DCT.*/
   od_bin_fdct8x8(refcoefs[0], 8, block[0], 8);
@@ -1448,7 +1479,8 @@ static void ieee1180_test_block8(long _sumerrs[8][8], long _sumsqerrs[8][8],
     for (j = 0; j < 8; j++) {
       /*Modification of IEEE1180: inputs to reference iDCT are scaled to match
          the scaling factors introduced by the forward integer transform.*/
-      floatcoefs[i][j] = refcoefs[i][j]/(DCT8_ISCALE[i]*DCT8_ISCALE[j]);
+      floatcoefs[i][j] =
+       refcoefs[i][j]/(DCT8_ISCALE[i]*DCT8_ISCALE[j]*(1 << OD_COEFF_SHIFT));
     }
   for (i = 0; i < 8; i++) idct8(floatcoefs[i], floatcoefs[i]);
   for (j = 0; j < 8; j++) {
@@ -1490,8 +1522,7 @@ static void ieee1180_test_block8(long _sumerrs[8][8], long _sumsqerrs[8][8],
         printf("\n");
         return;
       }
-      if (testout[i][j] > 255) testout[i][j] = 255;
-      else if (testout[i][j] < -256) testout[i][j] = -256;
+      testout[i][j] = OD_CLAMPI(-256, OD_COEFF_UNSCALE(testout[i][j]), 255);
     }
   }
   for (i = 0; i < 8; i++) {
@@ -1670,7 +1701,7 @@ static void check_bias8() {
     od_coeff x2[8];
     od_coeff y[8];
     od_coeff y2[8];
-    for (j = 0; j < 8; j++) x[j] = ieee1180_rand(255, 255);
+    for (j = 0; j < 8; j++) x[j] = ieee1180_rand(255, 255) << OD_COEFF_SHIFT;
     od_bin_fdct8(y, x, 1);
     for (j = 0; j < 8; j++) facc[j] += y[j];
     od_bin_idct8(x2, 1, y);
@@ -1686,18 +1717,36 @@ static void check_bias8() {
         printf("\n\n");
         break;
       }
-    for (j = 0; j < 8; j++) y2[j] = y[j]+ieee1180_rand(1, 1);
+    for (j = 0; j < 8; j++) x[j] = OD_COEFF_UNSCALE(x[j]);
+    for (j = 0; j < 8; j++) {
+      y2[j] = y[j] + (ieee1180_rand(1, 1) << OD_COEFF_SHIFT);
+    }
     od_bin_idct8(x2, 1, y2);
-    for (j = 0; j < 8; j++) rtacc[j] += x2[j]-x[j];
-    for (j = 0; j < 8; j++) y2[j] = y[j]/8<<3;
+    for (j = 0; j < 8; j++) {
+      x2[j] = OD_COEFF_UNSCALE(x2[j]);
+      rtacc[j] += x2[j] - x[j];
+    }
+    for (j = 0; j < 8; j++) {
+      y2[j] = (y[j] + ((y[j] < 0 ? -4 : 4) << OD_COEFF_SHIFT))/
+       (8 << OD_COEFF_SHIFT) << (3 + OD_COEFF_SHIFT);
+    }
     od_bin_idct8(x2, 1, y2);
-    for (j = 0; j < 8; j++) q8acc[j] += x2[j]-x[j];
-    for (j = 0; j < 8; j++) y2[j] = y[j]/7*7;
+    for (j = 0; j < 8; j++) {
+      x2[j] = OD_COEFF_UNSCALE(x2[j]);
+      q8acc[j] += x2[j] - x[j];
+    }
+    for (j = 0; j < 8; j++) {
+      y2[j] = (y[j] + ((y[j] < 0 ? -7 : 7) << OD_COEFF_SHIFT >> 1))/
+       (7 << OD_COEFF_SHIFT)*(7 << OD_COEFF_SHIFT);
+    }
     od_bin_idct8(x2, 1, y2);
-    for (j = 0; j < 8; j++) q7acc[j] += x2[j]-x[j];
+    for (j = 0; j < 8; j++) {
+      x2[j] = OD_COEFF_UNSCALE(x2[j]);
+      q7acc[j] += OD_COEFF_UNSCALE(x2[j]) - x[j];
+    }
   }
   printf("1-D Forward Bias:\n");
-  for (j = 0; j < 8; j++) printf("% -18.15G%s", facc[j]/i,
+  for (j = 0; j < 8; j++) printf("% -18.15G%s", facc[j]/(i << OD_COEFF_SHIFT),
      (j&3) == 3 ? "\n" : "  ");
   printf("\n");
   printf("1-D Round-Trip Bias:\n");
@@ -2087,7 +2136,9 @@ static void ieee1180_test_block16(long _sumerrs[16][16],
   int      i;
   int      j;
   for (i = 0; i < 16; i++) {
-    for (j = 0; j < 16; j++) block[i][j] = ieee1180_rand(_l, _h)*_sign;
+    for (j = 0; j < 16; j++) {
+      block[i][j] = ieee1180_rand(_l, _h)*_sign << OD_COEFF_SHIFT;
+    }
   }
   /*Modification of IEEE1180: use our integerized DCT, not a true DCT.*/
   od_bin_fdct16x16(refcoefs[0], 16, block[0], 16);
@@ -2097,7 +2148,8 @@ static void ieee1180_test_block16(long _sumerrs[16][16],
     for (j = 0; j < 16; j++) {
       /*Modification of IEEE1180: inputs to reference iDCT are scaled to match
          the scaling factors introduced by the forward integer transform.*/
-      floatcoefs[i][j] = refcoefs[i][j]/(DCT16_ISCALE[i]*DCT16_ISCALE[j]);
+      floatcoefs[i][j] =
+       refcoefs[i][j]/(DCT16_ISCALE[i]*DCT16_ISCALE[j]*(1 << OD_COEFF_SHIFT));
     }
   }
   for (i = 0; i < 16; i++) idct16(floatcoefs[i], floatcoefs[i]);
@@ -2140,8 +2192,7 @@ static void ieee1180_test_block16(long _sumerrs[16][16],
         printf("\n");
         return;
       }
-      if (testout[i][j] > 255) testout[i][j] = 255;
-      else if (testout[i][j] < -256) testout[i][j] = -256;
+      testout[i][j] = OD_CLAMPI(-256, OD_COEFF_UNSCALE(testout[i][j]), 255);
     }
   }
   for (i = 0; i < 16; i++) {
@@ -2320,7 +2371,7 @@ static void check_bias16() {
     od_coeff x2[16];
     od_coeff y[16];
     od_coeff y2[16];
-    for (j = 0; j < 16; j++) x[j] = ieee1180_rand(255, 255);
+    for (j = 0; j < 16; j++) x[j] = ieee1180_rand(255, 255) << OD_COEFF_SHIFT;
     od_bin_fdct16(y, x, 1);
     for (j = 0; j < 16; j++) facc[j] += y[j];
     od_bin_idct16(x2, 1, y);
@@ -2336,19 +2387,39 @@ static void check_bias16() {
         printf("\n\n");
         break;
       }
-    for (j = 0; j < 16; j++) y2[j] = y[j]+ieee1180_rand(1, 1);
+    for (j = 0; j < 16; j++) x[j] = OD_COEFF_UNSCALE(x[j]);
+    for (j = 0; j < 16; j++) {
+      y2[j] = y[j] + (ieee1180_rand(1, 1) << OD_COEFF_SHIFT);
+    }
     od_bin_idct16(x2, 1, y2);
-    for (j = 0; j < 16; j++) rtacc[j] += x2[j]-x[j];
-    for (j = 0; j < 16; j++) y2[j] = y[j]/8<<3;
+    for (j = 0; j < 16; j++) {
+      x2[j] = OD_COEFF_UNSCALE(x2[j]);
+      rtacc[j] += x2[j] - x[j];
+    }
+    for (j = 0; j < 16; j++) {
+      y2[j] = (y[j] + ((y[j] < 0 ? -4 : 4) << OD_COEFF_SHIFT))/
+       (8 << OD_COEFF_SHIFT) << (3 + OD_COEFF_SHIFT);
+    }
     od_bin_idct16(x2, 1, y2);
-    for (j = 0; j < 16; j++) q8acc[j] += x2[j]-x[j];
-    for (j = 0; j < 16; j++) y2[j] = y[j]/7*7;
+    for (j = 0; j < 16; j++) {
+      x2[j] = OD_COEFF_UNSCALE(x2[j]);
+      q8acc[j] += x2[j] - x[j];
+    }
+    for (j = 0; j < 16; j++) {
+      y2[j] = (y[j] + ((y[j] < 0 ? -7 : 7) << OD_COEFF_SHIFT >> 1))/
+       (7 << OD_COEFF_SHIFT)*(7 << OD_COEFF_SHIFT);
+    }
     od_bin_idct16(x2, 1, y2);
-    for (j = 0; j < 16; j++) q7acc[j] += x2[j]-x[j];
+    for (j = 0; j < 16; j++) {
+      x2[j] = OD_COEFF_UNSCALE(x2[j]);
+      q7acc[j] += x2[j] - x[j];
+    }
   }
   printf("1-D Forward Bias:\n");
-  for (j = 0; j < 16; j++)
-    printf("% -18.15G%s", facc[j]/i, (j&3) == 3 ? "\n" : "  ");
+  for (j = 0; j < 16; j++) {
+    printf("% -18.15G%s", facc[j]/(i << OD_COEFF_SHIFT),
+     (j&3) == 3 ? "\n" : "  ");
+  }
   printf("\n");
   printf("1-D Round-Trip Bias:\n");
   for (j = 0; j < 16; j++)
