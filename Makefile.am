@@ -51,6 +51,7 @@ src_libdaalabase_la_LDFLAGS +=
 src_libdaalabase_la_SOURCES = \
 	src/adapt.c \
 	src/block_size.c \
+	src/dct.c \
 	src/entcode.c \
 	src/entdec.c \
 	src/filter.c \
@@ -64,7 +65,6 @@ src_libdaalabase_la_SOURCES = \
 	src/laplace_tables.c \
 	src/logging.c \
 	src/mc.c \
-	src/newdct.c \
 	src/partition.c \
 	src/pvq.c \
 	src/pvq_code.c \
@@ -215,7 +215,7 @@ tools_y4m2png_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS)
 tools_dump_psnrhvs_SOURCES = \
 	tools/vidinput.c \
 	tools/y4m_input.c \
-	src/newdct.c \
+	src/dct.c \
 	tools/dump_psnrhvs.c
 tools_dump_psnrhvs_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS)
 tools_dump_psnrhvs_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
@@ -251,7 +251,7 @@ tools_block_size_analysis_SOURCES = \
 	src/block_size_enc.c \
 	tools/vidinput.c \
 	tools/y4m_input.c \
-	src/newdct.c \
+	src/dct.c \
 	src/internal.c \
 	src/entcode.c \
 	src/entenc.c \
@@ -303,7 +303,7 @@ tools_intra_stats_SOURCES = \
 	src/entenc.c \
 	src/entcode.c \
 	src/filter.c \
-	src/newdct.c \
+	src/dct.c \
 	src/intra.c \
 	src/switch_table.c \
 	src/tf.c \
@@ -332,7 +332,7 @@ tools_intra_pred_SOURCES = \
 	src/entenc.c \
 	src/entcode.c \
 	src/filter.c \
-	src/newdct.c \
+	src/dct.c \
 	src/intra.c \
 	src/intradata.c \
 	src/internal.c \
@@ -360,7 +360,7 @@ tools_intra_trace_SOURCES = \
 	src/entenc.c \
 	src/entcode.c \
 	src/filter.c \
-	src/newdct.c \
+	src/dct.c \
 	src/intra.c \
 	src/switch_table.c \
 	src/tf.c \
@@ -389,7 +389,7 @@ tools_trans_SOURCES = \
 	tools/svd.c \
 	tools/cholesky.c \
 	src/filter.c \
-	src/newdct.c \
+	src/dct.c \
 	src/intradata.c
 tools_trans_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS) -fopenmp
 tools_trans_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
@@ -403,7 +403,7 @@ tools_trans_gain_SOURCES = \
 	tools/od_filter.c \
 	tools/trans_tools.c \
 	src/filter.c \
-	src/newdct.c \
+	src/dct.c \
 	src/intradata.c
 tools_trans_gain_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS) -fopenmp
 tools_trans_gain_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
@@ -428,7 +428,7 @@ tools_trans2d_SOURCES = \
 	tools/svd.c \
 	tools/cholesky.c \
 	src/filter.c \
-	src/newdct.c \
+	src/dct.c \
 	src/intradata.c
 tools_trans2d_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS) -fopenmp
 tools_trans2d_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
@@ -442,7 +442,7 @@ tools_init_intra_xform_SOURCES = \
 	tools/vidinput.c \
 	tools/y4m_input.c \
 	src/filter.c \
-	src/newdct.c \
+	src/dct.c \
 	src/intra.c \
 	src/tf.c \
 	src/internal.c \

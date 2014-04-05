@@ -125,7 +125,7 @@ laplace_decoder.c \
 laplace_tables.c \
 logging.c \
 mc.c \
-newdct.c \
+dct.c \
 partition.c \
 pvq.c \
 pvq_code.c \

@@ -87,7 +87,7 @@ PSNR_TARGET:=dump_psnr
 PSNRHVS_LOCAL_CSOURCES = \
 vidinput.c \
 y4m_input.c \
-newdct.c \
+dct.c \
 dump_psnrhvs.c \
 
 PSNRHVS_LIB_CSOURCES =
@@ -106,7 +106,7 @@ block_size.c \
 block_size_enc.c \
 vidinput.c \
 y4m_input.c \
-newdct.c \
+dct.c \
 internal.c \
 entcode.c \
 entenc.c \
@@ -179,7 +179,7 @@ block_size_enc.c \
 entenc.c \
 entcode.c \
 filter.c \
-newdct.c \
+dct.c \
 intra.c \
 switch_table.c \
 tf.c \
@@ -214,7 +214,7 @@ block_size_enc.c \
 entenc.c \
 entcode.c \
 filter.c \
-newdct.c \
+dct.c \
 intra.c \
 switch_table.c \
 tf.c \
@@ -251,7 +251,7 @@ block_size_enc.c \
 entenc.c \
 entcode.c \
 filter.c \
-newdct.c \
+dct.c \
 intra.c \
 intradata.c \
 internal.c \
@@ -287,7 +287,7 @@ block_size_enc.c \
 entenc.c \
 entcode.c \
 filter.c \
-newdct.c \
+dct.c \
 intra.c \
 switch_table.c \
 tf.c \
@@ -324,7 +324,7 @@ cholesky.c
 
 T_LIB_CSOURCES = \
 filter.c \
-newdct.c \
+dct.c \
 intradata.c
 
 T_LDFLAGS = `pkg-config ogg libpng --libs` -lm
@@ -345,7 +345,7 @@ trans_tools.c
 
 TG_LIB_CSOURCES = \
 filter.c \
-newdct.c \
+dct.c \
 intradata.c
 
 TG_LDFLAGS = `pkg-config ogg libpng --libs` -lm
@@ -378,7 +378,7 @@ cholesky.c
 
 T2D_LIB_CSOURCES = \
 filter.c \
-newdct.c \
+dct.c \
 intradata.c
 
 T2D_LDFLAGS = `pkg-config ogg libpng --libs` -lm
@@ -400,7 +400,7 @@ y4m_input.c \
 
 IIX_LIB_CSOURCES = \
 filter.c \
-newdct.c \
+dct.c \
 intra.c \
 tf.c \
 internal.c \

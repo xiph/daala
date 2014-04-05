@@ -31,7 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <limits.h>
 #include <string.h>
 #include "intra_fit_tools.h"
-#include "../src/newdct.c"
+#include "../src/dct.c"
 #include "../src/internal.c"
 
 /*For validation purposes only.
