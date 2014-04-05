@@ -842,6 +842,7 @@ void od_bin_idct16x16(od_coeff *x, int xstride,
 #if OD_DCT_TEST
 /*Test code.*/
 # include <stdio.h>
+# include <stdlib.h>
 # include <math.h>
 # include <string.h>
 
@@ -911,8 +912,13 @@ static int ieee1180_rand(int l, int h) {
   return (int)x - l;
 }
 
+int od_exit_code = EXIT_SUCCESS;
+
 static char *ieee1180_meets(double val, double limit) {
-  return fabs(val) <= limit ? "meets" : "FAILS";
+  int meets;
+  meets = fabs(val) <= limit;
+  if (!meets) od_exit_code = EXIT_FAILURE;
+  return meets ? "meets" : "FAILS";
 }
 
 /*The number of different input ranges.*/
@@ -1295,6 +1301,7 @@ static void ieee1180_test_block(long sumerrs[OD_BSIZE_MAX][OD_BSIZE_MAX],
   for (i = 0; i < n; i++) {
     for (j = 0; j < n; j++) {
       if (testout[i][j] != block[i][j]) {
+        od_exit_code = EXIT_FAILURE;
         printf("Mismatch:\n");
         printf("in:\n");
         for (i = 0; i < n; i++) {
@@ -1515,6 +1522,7 @@ static void check_bias(int bszi) {
     (*OD_IDCT_1D[bszi])(x2, 1, y);
     for (j = 0; j < n; j++) {
       if (x[j] != x2[j]) {
+        od_exit_code = EXIT_FAILURE;
         printf("Mismatch:\n");
         printf("in:    ");
         for (j = 0; j < n; j++) printf(" %i", x[j]);
@@ -1695,6 +1703,7 @@ static void check_transform(int bszi) {
     }
     for (j = 0; j < n; j++) {
       if (x[j] != x2[j]) {
+        od_exit_code = EXIT_FAILURE;
         printf("Mismatch:\n");
         printf("in:    ");
         for (j = 0; j < n; j++) printf(" %i", x[j]);
@@ -1736,7 +1745,7 @@ static void check_transform(int bszi) {
 int main(void) {
   int bszi;
   for (bszi = 0; bszi < OD_NBSIZES; bszi++) check_transform(bszi);
-  return 0;
+  return od_exit_code;
 }
 
 #endif

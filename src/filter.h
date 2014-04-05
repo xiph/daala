@@ -76,6 +76,8 @@ void od_apply_postfilter(od_coeff *c, int w, int bx, int by, unsigned char l,
 # if defined(OD_DCT_TEST) && defined(OD_DCT_CHECK_OVERFLOW)
 #  include <stdio.h>
 
+extern int od_exit_code;
+
 extern int od_dct_check_min[];
 extern int od_dct_check_max[];
 
