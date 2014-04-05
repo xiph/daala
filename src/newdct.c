@@ -147,12 +147,15 @@ void od_bin_fdct4(od_coeff y[4], const od_coeff *x, int xstride) {
   /*+ Embedded 2-point type-IV DST.*/
   /*23013/32768 ~= 4*sin(\frac{\pi}{8}) - 2*tan(\frac{\pi}{8}) ~=
      0.70230660471416898931046248770220*/
+  OD_DCT_OVERFLOW_CHECK(t1, 23013, 16384, 0);
   t3 -= (t1*23013 + 16384) >> 15;
   /*21407/32768~=\sqrt{1/2}*cos(\frac{\pi}{8}))
      ~=0.65328148243818826392832158671359*/
+  OD_DCT_OVERFLOW_CHECK(t3, 21407, 16384, 1);
   t1 += (t3*21407 + 16384) >> 15;
   /*18293/16384 ~= 4*sin(\frac{\pi}{8}) - tan(\frac{\pi}{8}) ~=
      1.1165201670872640381121512119119*/
+  OD_DCT_OVERFLOW_CHECK(t1, 18293, 8192, 2);
   t3 -= (t1*18293 + 8192) >> 14;
   y[0] = (od_coeff)t0;
   y[1] = (od_coeff)t1;
@@ -251,46 +254,61 @@ void od_bin_fdct8(od_coeff y[8], const od_coeff *x, int xstride) {
   t4 = t2 - t4;
   /*|-+ Embedded 2-point type-II DCT.*/
   /*13573/32768 ~= \sqrt{2} - 1 ~= 0.41421356237309504880168872420970*/
+  OD_DCT_OVERFLOW_CHECK(t4, 13573, 16384, 3);
   t0 -= (t4*13573 + 16384) >> 15;
   /*11585/16384 ~= \sqrt{\frac{1}{2}} ~= 0.70710678118654752440084436210485*/
+  OD_DCT_OVERFLOW_CHECK(t0, 11585, 8192, 4);
   t4 += (t0*11585 + 8192) >> 14;
   /*13573/32768 ~= \sqrt{2} - 1 ~= 0.41421356237309504880168872420970*/
+  OD_DCT_OVERFLOW_CHECK(t4, 13573, 16384, 5);
   t0 -= (t4*13573 + 16384) >> 15;
   /*|-+ Embedded 2-point type-IV DST.*/
   /*21895/32768 ~= \frac{1 - cos(\frac{3\pi}{8})}{\sin(\frac{3\pi}{8})} ~=
      0.66817863791929891999775768652308*/
+  OD_DCT_OVERFLOW_CHECK(t2, 21895, 16384, 6);
   t6 -= (t2*21895 + 16384) >> 15;
   /*15137/16384~=sin(\frac{3\pi}{8})~=0.92387953251128675612818318939679*/
+  OD_DCT_OVERFLOW_CHECK(t6, 15137, 8192, 7);
   t2 += (t6*15137 + 8192) >> 14;
   /*21895/32768 ~= \frac{1 - cos(\frac{3\pi}{8})}{\sin(\frac{3\pi}{8})}~=
      0.66817863791929891999775768652308*/
+  OD_DCT_OVERFLOW_CHECK(t2, 21895, 16384, 8);
   t6 -= (t2*21895 + 16384) >> 15;
   /*+ Embedded 4-point type-IV DST.*/
   /*19195/32768 ~= 2 - \sqrt{2} ~= 0.58578643762690495119831127579030*/
+  OD_DCT_OVERFLOW_CHECK(t5, 19195, 16384, 9);
   t3 += (t5*19195 + 16384) >> 15;
-  /*11585/16384~=\sqrt{\frac{1}{2}}~=0.70710678118654752440084436210485*/
+  /*11585/16384 ~= \sqrt{\frac{1}{2}} ~= 0.70710678118654752440084436210485*/
+  OD_DCT_OVERFLOW_CHECK(t3, 11585, 8192, 10);
   t5 += (t3*11585 + 8192) >> 14;
-  /*29957/32768~=\sqrt{2}-\frac{1}{2}~=0.91421356237309504880168872420970*/
-  t3 -= (t5*29957 + 16384) >> 15;
+  /*7489/8192 ~= \sqrt{2}-\frac{1}{2} ~= 0.91421356237309504880168872420970*/
+  OD_DCT_OVERFLOW_CHECK(t5, 7489, 4096, 11);
+  t3 -= (t5*7489 + 4096) >> 13;
   t7 = OD_DCT_RSHIFT(t5, 1) - t7;
   t5 -= t7;
   t3 = t1h - t3;
   t1 -= t3;
   /*3227/32768 ~= \frac{1 - cos(\frac{\pi}{16})}{sin(\frac{\pi}{16})} ~=
      0.098491403357164253077197521291327*/
+  OD_DCT_OVERFLOW_CHECK(t1, 3227, 16384, 12);
   t7 += (t1*3227 + 16384) >> 15;
   /*6393/32768 ~= sin(\frac{\pi}{16}) ~= 0.19509032201612826784828486847702*/
+  OD_DCT_OVERFLOW_CHECK(t7, 6393, 16384, 13);
   t1 -= (t7*6393 + 16384) >> 15;
   /*3227/32768 ~= \frac{1 - cos(\frac{\pi}{16})}{sin(\frac{\pi}{16})} ~=
      0.098491403357164253077197521291327*/
+  OD_DCT_OVERFLOW_CHECK(t1, 3227, 16384, 14);
   t7 += (t1*3227 + 16384) >> 15;
   /*2485/8192 ~= \frac{1 - cos(\frac{3\pi}{16})}{sin(\frac{3\pi}{16})} ~=
      0.30334668360734239167588394694130*/
+  OD_DCT_OVERFLOW_CHECK(t3, 2485, 4096, 15);
   t5 += (t3*2485 + 4096) >> 13;
   /*18205/32768 ~= sin(\frac{3\pi}{16}) ~= 0.55557023301960222474283081394853*/
+  OD_DCT_OVERFLOW_CHECK(t5, 18205, 16384, 16);
   t3 -= (t5*18205 + 16384) >> 15;
   /*2485/8192 ~= \frac{1 - cos(\frac{3\pi}{16})}{sin(\frac{3\pi}{16})} ~=
      0.30334668360734239167588394694130*/
+  OD_DCT_OVERFLOW_CHECK(t3, 2485, 4096, 17);
   t5 += (t3*2485 + 4096) >> 13;
   y[0] = (od_coeff)t0;
   y[1] = (od_coeff)t1;
@@ -333,7 +351,7 @@ void od_bin_idct8(od_coeff *x, int xstride, const od_coeff y[16]) {
   t3 = t1h - t3;
   t5 += t7;
   t7 = OD_DCT_RSHIFT(t5, 1) - t7;
-  t3 += (t5*29957 + 16384) >> 15;
+  t3 += (t5*7489 + 4096) >> 13;
   t5 -= (t3*11585 + 8192) >> 14;
   t3 -= (t5*19195 + 16384) >> 15;
   t6 += (t2*21895 + 16384) >> 15;
@@ -496,19 +514,25 @@ void od_bin_fdct16(od_coeff y[16], const od_coeff *x, int xstride) {
   /*|-|-+ Embedded 2-point type-IV DST.*/
   /*32013/32768 ~= 4*sin(\frac{\pi}{8}) - 2*tan(\frac{\pi}{8}) ~=
      0.70230660471416898931046248770220*/
+  OD_DCT_OVERFLOW_CHECK(t4, 23013, 16384, 18);
   tc -= (t4*23013 + 16384) >> 15;
-  /*21407 ~= \sqrt{1/2}*cos(\frac{\pi}{8})) ~=
+  /*10703/16384 ~= \sqrt{1/2}*cos(\frac{\pi}{8})) ~=
      0.65328148243818826392832158671359*/
-  t4 += (tc*21407 + 16384) >> 15;
-  /*18293/16384 ~= 4*sin(\frac{\pi}{8}) - tan(\frac{\pi}{8}) ~=
+  OD_DCT_OVERFLOW_CHECK(tc, 10703, 8192, 19);
+  t4 += (tc*10703 + 8192) >> 14;
+  /*9147/8192 ~= 4*sin(\frac{\pi}{8}) - tan(\frac{\pi}{8}) ~=
      1.1165201670872640381121512119119*/
-  tc -= (t4*18293 + 8192) >> 14;
+  OD_DCT_OVERFLOW_CHECK(t4, 9147, 4096, 20);
+  tc -= (t4*9147 + 4096) >> 13;
   /*|-+ Embedded 4-point type-IV DST.*/
   /*13573/32768 ~= \sqrt{2} - 1 ~= 0.41421356237309504880168872420970*/
+  OD_DCT_OVERFLOW_CHECK(ta, 13573, 16384, 21);
   t6 += (ta*13573 + 16384) >> 15;
   /*11585/16384 ~= \sqrt{\frac{1}{2}} ~= 0.70710678118654752440084436210485*/
+  OD_DCT_OVERFLOW_CHECK(t6, 11585, 8192, 22);
   ta -= (t6*11585 + 8192) >> 14;
   /*13573/32768 ~= \sqrt{2} - 1 ~= 0.41421356237309504880168872420970*/
+  OD_DCT_OVERFLOW_CHECK(ta, 13573, 16384, 23);
   t6 += (ta*13573 + 16384) >> 15;
   ta += te;
   t2 += t6;
@@ -516,69 +540,87 @@ void od_bin_fdct16(od_coeff y[16], const od_coeff *x, int xstride) {
   t6 = OD_DCT_RSHIFT(t2, 1) - t6;
   /*2775/2048 ~= \frac{\sqrt{2} - cos(\frac{\pi}{16})}{2sin(\frac{\pi}{16})}
      ~= 1.1108400393486273201524536919723*/
+  OD_DCT_OVERFLOW_CHECK(t2, 2275, 1024, 24);
   te += (t2*2275 + 1024) >> 11;
   /*9041/32768 ~= \sqrt{2}sin(\frac{\pi}{16}) ~=
      0.27589937928294301233595756366937*/
+  OD_DCT_OVERFLOW_CHECK(te, 9041, 16384, 25);
   t2 -= (te*9041 + 16384) >> 15;
   /*2873/2048 ~=
      \frac{cos(\frac{\pi}{16}) - \sqrt{\frac{1}{2}}}{sin(\frac{\pi}{16})} ~=
      1.4028297067142967321050338435598*/
+  OD_DCT_OVERFLOW_CHECK(t2, 2873, 1024, 26);
   te -= (t2*2873 + 1024) >> 11;
-  /*17185/32768 ~=
+  /*8593/16384 ~=
     \frac{\sqrt{2} - cos(\frac{3\pi}{16})}{2sin(\frac{3\pi}{16})} ~=
     0.52445569924008942966043945081053*/
-  t6 -= (ta*17185 + 16384) >> 15;
+  OD_DCT_OVERFLOW_CHECK(ta, 8593, 8192, 27);
+  t6 -= (ta*8593 + 8192) >> 14;
   /*12873/16384 ~= \sqrt{2}sin(\frac{3\pi}{16}) ~=
      0.78569495838710218127789736765722*/
+  OD_DCT_OVERFLOW_CHECK(t6, 12873, 8192, 28);
   ta += (t6*12873 + 8192) >> 14;
   /*7335/32768
      ~=\frac{cos(\frac{3\pi}{16})-\sqrt{\frac{1}{2}}}{sin(\frac{3\pi}{16})}
      ~=0.22384718209265507914012811666071*/
+  OD_DCT_OVERFLOW_CHECK(ta, 7335, 16384, 29);
   t6 += (ta*7335 + 16384) >> 15;
   /*+ Embedded 8-point type-IV DST.*/
   /*1035/2048 ~=
     \frac{\sqrt{2} - cos(\frac{7\pi}{32})}{2sin(\frac{7\pi}{32})} ~=
     0.50536719493782972897642806316664*/
+  OD_DCT_OVERFLOW_CHECK(t5, 1035, 1024, 30);
   t3 += (t5*1035 + 1024) >> 11;
   /*14699/16384 ~= \sqrt{2}sin(\frac{7\pi}{32}) ~=
      0.89716758634263628425064138922084*/
+  OD_DCT_OVERFLOW_CHECK(t3, 14699, 8192, 31);
   t5 -= (t3*14699 + 8192) >> 14;
   /*851/8192 ~=
     \frac{cos(\frac{7\pi}{32}) - \sqrt{\frac{1}{2}}}{sin(\frac{7\pi}{32}} ~=
     0.10388456785615844342131055214354*/
+  OD_DCT_OVERFLOW_CHECK(t5, 851, 4096, 32);
   t3 -= (t5*851 + 4096) >> 13;
   /*17515/32768 ~=
      \frac{\sqrt{2} - cos(\frac{11\pi}{32})}{2sin(\frac{11\pi}{32})} ~=
      0.53452437516842143578098634302964*/
+  OD_DCT_OVERFLOW_CHECK(td, 17515, 16384, 33);
   tb += (td*17515 + 16384) >> 15;
-  /*40869/32768 ~= \sqrt{2}sin(\frac{11\pi}{32}) ~=
+  /*20435/16384 ~= \sqrt{2}sin(\frac{11\pi}{32}) ~=
      1.2472250129866712325719902627977*/
-  td -= (tb*40869 + 16384) >> 15;
+  OD_DCT_OVERFLOW_CHECK(tb, 20435, 8192, 34);
+  td -= (tb*20435 + 8192) >> 14;
   /*4379/16384 ~= \frac{\sqrt{\frac{1}{2}}
      - cos(\frac{11\pi}{32})}{sin(\frac{11\pi}{32})} ~=
      0.26726880719302561523614336238196*/
+  OD_DCT_OVERFLOW_CHECK(td, 4379, 8192, 35);
   tb += (td*4379 + 8192) >> 14;
-  /*25809/32768 ~=
+  /*12905/16384 ~=
      \frac{\sqrt{2} - cos(\frac{3\pi}{32})}{2sin(\frac{3\pi}{32})} ~=
      0.78762894232967441973847776796517*/
-  t9 += (t7*25809 + 16384) >> 15;
+  OD_DCT_OVERFLOW_CHECK(t7, 12905, 8192, 36);
+  t9 += (t7*12905 + 8192) >> 14;
   /*3363/8192 ~= \sqrt{2}sin(\frac{3\pi}{32}) ~=
      0.41052452752235738115636923775513*/
+  OD_DCT_OVERFLOW_CHECK(t9, 3363, 4096, 37);
   t7 -= (t9*3363 + 4096) >> 13;
   /*14101/16384 ~=
      \frac{cos(\frac{3\pi}{32}) - \sqrt{\frac{1}{2}}}{sin(\frac{3\pi}{32})} ~=
      0.86065016213948579370059934044795*/
+  OD_DCT_OVERFLOW_CHECK(t7, 14101, 8192, 38);
   t9 -= (t7*14101 + 8192) >> 14;
-  /*21669/32768 ~=
+  /*5417/8192 ~=
      \frac{\sqrt{2} - cos(\frac{15\pi}{32})}{2sin(\frac{15\pi}{32})} ~=
      0.66128246684651710406296283785232*/
-  t1 += (tf*21669 + 16384) >> 15;
+  OD_DCT_OVERFLOW_CHECK(tf, 5417, 4096, 39);
+  t1 += (tf*5417 + 4096) >> 13;
   /*23059/16384 ~= \sqrt{2}sin(\frac{15\pi}{32}) ~=
      1.4074037375263824590260782229840*/
+  OD_DCT_OVERFLOW_CHECK(t1, 23059, 8192, 40);
   tf -= (t1*23059 + 8192) >> 14;
   /*20055/32768 ~=
     \frac{\sqrt{\frac{1}{2}} - cos(\frac{15\pi}{32})}{sin(\frac{15\pi}{32})} ~=
     0.61203676516793497752436407720666*/
+  OD_DCT_OVERFLOW_CHECK(tf, 20055, 16384, 41);
   t1 += (tf*20055 + 16384) >> 15;
   tf = t3 - tf;
   td += t9;
@@ -600,27 +642,36 @@ void od_bin_fdct16(od_coeff y[16], const od_coeff *x, int xstride) {
   td -= t5;
   tf = t9 - tf;
   t1 -= t7;
-  /*21895/32768 ~= \frac{1 - cos(\frac{3\pi}{8})}{sin(\frac{3\pi}{8})} ~=
+  /*10947/16384 ~= \frac{1 - cos(\frac{3\pi}{8})}{sin(\frac{3\pi}{8})} ~=
      0.66817863791929891999775768652308*/
-  t5 -= (tb*21895 + 16384) >> 15;
+  OD_DCT_OVERFLOW_CHECK(tb, 10947, 8192, 42);
+  t5 -= (tb*10947 + 8192) >> 14;
   /*15137/16384 ~= sin(\frac{3\pi}{8}) ~= 0.92387953251128675612818318939679*/
+  OD_DCT_OVERFLOW_CHECK(t5, 15137, 8192, 43);
   tb += (t5*15137 + 8192) >> 14;
+  /*10947/16384 ~= \frac{1 - cos(\frac{3\pi}{8})}{sin(\frac{3\pi}{8})} ~=
+     0.66817863791929891999775768652308*/
+  OD_DCT_OVERFLOW_CHECK(tb, 10947, 8192, 44);
+  t5 -= (tb*10947 + 8192) >> 14;
   /*21895/32768 ~= \frac{1 - cos(\frac{3\pi}{8})}{sin(\frac{3\pi}{8})} ~=
      0.66817863791929891999775768652308*/
-  t5 -= (tb*21895 + 16384) >> 15;
-  /*21895/32768 ~= \frac{1 - cos(\frac{3\pi}{8})}{sin(\frac{3\pi}{8})} ~=
-     0.66817863791929891999775768652308*/
+  OD_DCT_OVERFLOW_CHECK(t3, 21895, 16384, 45);
   td += (t3*21895 + 16384) >> 15;
   /*15137/16384 ~= sin(\frac{3\pi}{8}) ~= 0.92387953251128675612818318939679*/
+  OD_DCT_OVERFLOW_CHECK(td, 15137, 8192, 46);
   t3 -= (td*15137 + 8192) >> 14;
-  /*21895/32768 ~= \frac{1 - cos(\frac{3\pi}{8})}{sin(\frac{3\pi}{8})} ~=
+  /*10947/16384 ~= \frac{1 - cos(\frac{3\pi}{8})}{sin(\frac{3\pi}{8})} ~=
      0.66817863791929891999775768652308*/
-  td += (t3*21895 + 16384) >> 15;
+  OD_DCT_OVERFLOW_CHECK(t3, 10947, 8192, 47);
+  td += (t3*10947 + 8192) >> 14;
   /*13573/32768 ~= \sqrt{2} - 1 ~= 0.41421356237309504880168872420970*/
+  OD_DCT_OVERFLOW_CHECK(tf, 13573, 16384, 48);
   t1 -= (tf*13573 + 16384) >> 15;
   /*11585/16384 ~= \sqrt{\frac{1}{2}} ~= 0.70710678118654752440084436210485*/
+  OD_DCT_OVERFLOW_CHECK(t1, 11585, 8192, 49);
   tf += (t1*11585 + 8192) >> 14;
   /*13573/32768 ~= \sqrt{2} - 1 ~= 0.41421356237309504880168872420970*/
+  OD_DCT_OVERFLOW_CHECK(tf, 13573, 16384, 50);
   t1 -= (tf*13573 + 16384) >> 15;
   y[0] = (od_coeff)t0;
   y[1] = (od_coeff)t1;
@@ -684,11 +735,11 @@ void od_bin_idct16(od_coeff *x, int xstride, const od_coeff y[16]) {
   t1 += (tf*13573 + 16384) >> 15;
   tf -= (t1*11585 + 8192) >> 14;
   t1 += ((tf*13573 + 16384) >> 15)+t7;
-  td -= (t3*21895 + 16384) >> 15;
+  td -= (t3*10947 + 8192) >> 14;
   t3 += (td*15137 + 8192) >> 14;
-  t5 += (tb*21895 + 16384) >> 15;
+  t5 += (tb*10947 + 8192) >> 14;
   tb -= (t5*15137 + 8192) >> 14;
-  t5 += (tb*21895 + 16384) >> 15;
+  t5 += (tb*10947 + 8192) >> 14;
   td += t5 - ((t3*21895 + 16384) >> 15);
   tf = t9 - tf;
   tb += t3;
@@ -705,13 +756,13 @@ void od_bin_idct16(od_coeff *x, int xstride, const od_coeff y[16]) {
   tf = t3 - tf;
   t1 -= t5 + ((tf*20055 + 16384) >> 15);
   tf += (t1*23059 + 8192) >> 14;
-  t1 -= (tf*21669 + 16384) >> 15;
+  t1 -= (tf*5417 + 4096) >> 13;
   tb = t7 - tb;
   t9 += (t7*14101 + 8192) >> 14;
   t7 += (t9*3363 + 4096) >> 13;
-  t9 -= (t7*25809 + 16384) >> 15;
+  t9 -= (t7*12905 + 8192) >> 14;
   tb -= (td*4379 + 8192) >> 14;
-  td += (tb*40869 + 16384) >> 15;
+  td += (tb*20435 + 8192) >> 14;
   tb -= (td*17515 + 16384) >> 15;
   t3 += (t5*851 + 4096) >> 13;
   t5 += (t3*14699 + 8192) >> 14;
@@ -720,15 +771,15 @@ void od_bin_idct16(od_coeff *x, int xstride, const od_coeff y[16]) {
   ta -= (t6*12873 + 8192) >> 14;
   te += (t2*2873 + 1024) >> 11;
   t2 += (te*9041 + 16384) >> 15;
-  t6 = OD_DCT_RSHIFT(t2, 1) - t6 - ((ta*17185 + 16384) >> 15);
+  t6 = OD_DCT_RSHIFT(t2, 1) - t6 - ((ta*8593 + 8192) >> 14);
   te = OD_DCT_RSHIFT(ta, 1) - te + ((t2*2275 + 1024) >> 11);
   t2 -= t6;
   ta -= te;
   t6 -= (ta*13573 + 16384) >> 15;
   ta += (t6*11585 + 8192) >> 14;
   t6 -= (ta*13573 + 16384) >> 15;
-  tc += (t4*18293 + 8192) >> 14;
-  t4 -= (tc*21407 + 16384) >> 15;
+  tc += (t4*9147 + 4096) >> 13;
+  t4 -= (tc*10703 + 8192) >> 14;
   tc += (t4*23013 + 16384) >> 15;
   t8 = t0 - t8;
   t8h = OD_DCT_RSHIFT(t8, 1);
@@ -1526,85 +1577,99 @@ static void check_bias(int bszi) {
   printf("\n");
 }
 
-# if 0
-static void bin_fxform_2d8(od_coeff x[8*2][8*2]) {
-  od_coeff y[8*2];
+# if defined(OD_DCT_CHECK_OVERFLOW)
+
+int od_dct_check_min[86];
+int od_dct_check_max[86];
+
+static void od_bin_fxform_2d(od_coeff x[OD_BSIZE_MAX*2][OD_BSIZE_MAX*2],
+ int bszi) {
+  od_coeff y[OD_BSIZE_MAX*2];
   int u;
   int v;
+  int n;
+  n = 1 << (OD_LOG_BSIZE0 + bszi);
   /*Perform pre-filtering.*/
-  for (u = 0; u < 8*2; u++) {
-    od_pre_filter8(x[u], x[u]);
-    od_pre_filter8(x[u] + 8, x[u] + 8);
+  for (v = 0; v < n*2; v++) {
+    for (u = 0; u < n*2; u++) y[u] = x[u][v];
+    (*OD_PRE_FILTER[bszi])(y, y);
+    (*OD_PRE_FILTER[bszi])(y+n, y+n);
+    for (u = 0; u < n*2; u++) x[u][v] = y[u];
   }
-  for (v = 0; v < 8*2; v++) {
-    for (u = 0; u < 8*2; u++) y[u] = x[u][v];
-    od_pre_filter8(y, y);
-    od_pre_filter8(y+8, y+8);
-    for (u = 0; u < 8*2; u++) x[u][v] = y[u];
+  for (u = 0; u < n*2; u++) {
+    (*OD_PRE_FILTER[bszi])(x[u], x[u]);
+    (*OD_PRE_FILTER[bszi])(x[u] + n, x[u] + n);
   }
   /*Perform DCT.*/
-  for (u = 8/2; u < 8*3/2; u++) od_bin_fdct8(x[u] + 8/2, x[u] + 8/2, 1);
-  for (v = 8/2; v < 8*3/2; v++) {
-    for (u = 8/2; u < 8*3/2; u++) y[u] = x[u][v];
-    od_bin_fdct8(y + 8/2, y + 8/2, 1);
-    for (u = 8/2; u < 8*3/2; u++) x[u][v] = y[u];
+  for (u = n >> 1; u < n*3 >> 1; u++) {
+    (*OD_FDCT_1D[bszi])(x[u] + (n >> 1), x[u] + (n >> 1), 1);
+  }
+  for (v = n >> 1; v < n*3 >> 1; v++) {
+    for (u = n >> 1; u < n*3 >> 1; u++) y[u] = x[u][v];
+    (*OD_FDCT_1D[bszi])(y + (n >> 1), y + (n >> 1), 1);
+    for (u = n >> 1; u < n*3 >> 1; u++) x[u][v] = y[u];
   }
 }
 
-static void dynamic_range8(void) {
-  double basis2[8][8][8*2][8*2];
-  od_coeff min2[8][8];
-  od_coeff max2[8][8];
+static void dynamic_range(int bszi) {
+  static double
+   basis2[OD_BSIZE_MAX][OD_BSIZE_MAX][OD_BSIZE_MAX*2][OD_BSIZE_MAX*2];
+  od_coeff min2[OD_BSIZE_MAX][OD_BSIZE_MAX];
+  od_coeff max2[OD_BSIZE_MAX][OD_BSIZE_MAX];
   int i;
   int j;
   int u;
   int v;
-  for (i = 0; i < 8*2; i++) {
-    for (j = 0; j < 8*2; j++) {
-      od_coeff x[8*2][8*2];
+  int n;
+  n = 1 << (OD_LOG_BSIZE0 + bszi);
+  for (i = 0; i < n*2; i++) {
+    for (j = 0; j < n*2; j++) {
+      od_coeff x[OD_BSIZE_MAX*2][OD_BSIZE_MAX*2];
       /*Generate impulse.*/
-      for (u = 0; u < 8*2; u++) {
-        for (v = 0; v < 8*2; v++) {
-          x[u][v] = (u == i && v == j)*256;
+      for (u = 0; u < n*2; u++) {
+        for (v = 0; v < n*2; v++) {
+          x[u][v] = (u == i && v == j) << (8 + OD_COEFF_SHIFT);
         }
       }
-      bin_fxform_2d8(x);
+      od_bin_fxform_2d(x, bszi);
       /*Retrieve basis elements.*/
-      for (u = 0; u < 8; u++) {
-        for (v = 0; v < 8; v++) {
-          basis2[u][v][i][j] = x[u + 8/2][v + 8/2]/256.0;
+      for (u = 0; u < n; u++) {
+        for (v = 0; v < n; v++) {
+          basis2[u][v][i][j] =
+           x[u + (n >> 1)][v + (n >> 1)]/(256.0*(1 << OD_COEFF_SHIFT));
         }
       }
     }
   }
-  for (u = 0; u < 8; u++) {
-    for (v = 0; v < 8; v++) {
-      od_coeff x[8*2][8*2];
-      for (i = 0; i < 8*2; i++) {
-        for (j = 0; j < 8*2; j++) {
-          x[i][j] = basis2[u][v][i][j] < 0 ? -255 : 255;
+  for (u = 0; u < n; u++) {
+    for (v = 0; v < n; v++) {
+      od_coeff x[OD_BSIZE_MAX*2][OD_BSIZE_MAX*2];
+      for (i = 0; i < n*2; i++) {
+        for (j = 0; j < n*2; j++) {
+          x[i][j] = (basis2[u][v][i][j] < 0 ? -255 : 255) << OD_COEFF_SHIFT;
         }
       }
-      bin_fxform_2d8(x);
-      max2[u][v] = x[u + 8/2][v + 8/2];
-      for (i = 0; i < 8*2; i++) {
-        for (j = 0; j < 8*2; j++) {
-          x[i][j] = basis2[u][v][i][j] > 0 ? -255 : 255;
+      od_bin_fxform_2d(x, bszi);
+      max2[u][v] = x[u + (n >> 1)][v + (n >> 1)];
+      for (i = 0; i < n*2; i++) {
+        for (j = 0; j < n*2; j++) {
+          x[i][j] = (basis2[u][v][i][j] > 0 ? -255 : 255) << OD_COEFF_SHIFT;
         }
       }
-      bin_fxform_2d8(x);
-      min2[u][v] = x[u + 8/2][v + 8/2];
+      od_bin_fxform_2d(x, bszi);
+      min2[u][v] = x[u + (n >> 1)][v + (n >> 1)];
     }
   }
-  printf("2-D ranges:\n");
-  for (u = 0; u < 8; u++) {
-    printf("Min %2i:", u);
-    for (v = 0; v < 8; v++) printf(" %6i", min2[u][v]);
-    printf("\nMax %2i:", u);
-    for (v = 0; v < 8; v++) printf(" %6i", max2[u][v]);
+  printf("2-D scaled, prefiltered ranges:\n");
+  for (u = 0; u < n; u++) {
+    printf(" Min %2i:", u);
+    for (v = 0; v < n; v++) printf(" %7i", min2[u][v]);
+    printf("\n Max %2i:", u);
+    for (v = 0; v < n; v++) printf(" %7i", max2[u][v]);
     printf("\n");
   }
 }
+
 # endif
 
 static void check_transform(int bszi) {
@@ -1616,7 +1681,6 @@ static void check_transform(int bszi) {
   int j;
   int n;
   n = 1 << (OD_LOG_BSIZE0 + bszi);
-  /*dynamic_range(bszi);*/
   for (j = 0; j < n; j++) min[j] = max[j] = 0;
   for (i = 0; i < 1 << n; i++) {
     od_coeff x[OD_BSIZE_MAX];
@@ -1643,11 +1707,16 @@ static void check_transform(int bszi) {
       }
     }
   }
-  printf("Min:");
+  printf("1-D ranges:\n");
+  printf(" Min:");
   for (j = 0; j < n; j++) printf(" %5i", min[j]);
-  printf("\nMax:");
+  printf("\n Max:");
   for (j = 0; j < n; j++) printf(" %5i", max[j]);
-  printf("\nod_bin_idct%i basis:\n", n);
+  printf("\n");
+# if defined(OD_DCT_CHECK_OVERFLOW)
+  dynamic_range(bszi);
+# endif
+  printf("od_bin_idct%i basis:\n", n);
   compute_ibasis(basis, bszi);
   print_basis(basis, bszi);
   printf("Scaled type-II iDCT basis:\n");
@@ -1663,87 +1732,6 @@ static void check_transform(int bszi) {
   ieee1180_test(bszi);
   check_bias(bszi);
 }
-
-# if 0
-static void bin_fxform_2d16(od_coeff x[16*2][16*2]) {
-  od_coeff y[16*2];
-  int u;
-  int v;
-  /*Perform pre-filtering.*/
-  for (u = 0; u < 16*2; u++) {
-    od_pre_filter16(x[u], x[u]);
-    od_pre_filter16(x[u] + 16, x[u] + 16);
-  }
-  for (v = 0; v < 16*2; v++) {
-    for (u = 0; u < 16*2; u++) y[u] = x[u][v];
-    od_pre_filter16(y, y);
-    od_pre_filter16(y+16, y+16);
-    for (u = 0; u < 16*2; u++) x[u][v] = y[u];
-  }
-  /*Perform DCT.*/
-  for (u = 16/2; u < 16*3/2; u++) od_bin_fdct16(x[u] + 16/2, x[u] + 16/2, 1);
-  for (v = 16/2; v < 16*3/2; v++) {
-    for (u = 16/2; u < 16*3/2; u++) y[u] = x[u][v];
-    od_bin_fdct16(y + 16/2, y + 16/2, 1);
-    for (u = 16/2; u < 16*3/2; u++) x[u][v] = y[u];
-  }
-}
-
-static void dynamic_range16(void) {
-  double basis2[16][16][16*2][16*2];
-  od_coeff min2[16][16];
-  od_coeff max2[16][16];
-  int i;
-  int j;
-  int u;
-  int v;
-  for (i = 0; i < 16*2; i++) {
-    for (j = 0; j < 16*2; j++) {
-      od_coeff x[16*2][16*2];
-      /*Generate impulse.*/
-      for (u = 0; u < 16*2; u++) {
-        for (v = 0; v < 16*2; v++) {
-          x[u][v] = (u == i && v == j)*256;
-        }
-      }
-      bin_fxform_2d16(x);
-      /*Retrieve basis elements.*/
-      for (u = 0; u < 16; u++) {
-        for (v = 0; v < 16; v++) {
-          basis2[u][v][i][j] = x[u + 16/2][v + 16/2]/256.0;
-        }
-      }
-    }
-  }
-  for (u = 0; u < 16; u++) {
-    for (v = 0; v < 16; v++) {
-      od_coeff x[16*2][16*2];
-      for (i = 0; i < 16*2; i++) {
-        for (j = 0; j < 16*2; j++) {
-          x[i][j] = basis2[u][v][i][j] < 0 ? -255 : 255;
-        }
-      }
-      bin_fxform_2d16(x);
-      max2[u][v] = x[u + 16/2][v + 16/2];
-      for (i = 0; i < 16*2; i++) {
-        for (j = 0; j < 16*2; j++) {
-          x[i][j] = basis2[u][v][i][j] > 0 ? -255 : 255;
-        }
-      }
-      bin_fxform_2d16(x);
-      min2[u][v] = x[u + 16/2][v + 16/2];
-    }
-  }
-  printf("2-D ranges:\n");
-  for (u = 0; u < 16; u++) {
-    printf("Min %2i:", u);
-    for (v = 0; v < 16; v++) printf(" %6i", min2[u][v]);
-    printf("\nMax %2i:", u);
-    for (v = 0; v < 16; v++) printf(" %6i", max2[u][v]);
-    printf("\n");
-  }
-}
-# endif
 
 int main(void) {
   int bszi;

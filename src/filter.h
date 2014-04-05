@@ -73,4 +73,41 @@ void od_apply_prefilter(od_coeff *c, int w, int bx, int by, unsigned char l,
 void od_apply_postfilter(od_coeff *c, int w, int bx, int by, unsigned char l,
  const unsigned char *bsize, int bstride, int xdec, int ydec, int edge);
 
+# if defined(OD_DCT_TEST) && defined(OD_DCT_CHECK_OVERFLOW)
+#  include <stdio.h>
+
+extern int od_dct_check_min[];
+extern int od_dct_check_max[];
+
+#  define OD_DCT_OVERFLOW_CHECK(val, scale, offset, idx) \
+  do { \
+    od_dct_check_min[(idx)] = OD_MINI(od_dct_check_min[(idx)], val); \
+    od_dct_check_max[(idx)] = OD_MAXI(od_dct_check_max[(idx)], val); \
+    OD_ASSERT((offset) >= 0); \
+    if ((scale) > 0) { \
+      if ((val) < INT_MIN/(scale)) { \
+        printf("Overflow %2i: 0x%08X*0x%08X < INT_MIN\n", \
+         (idx), (val), (scale)); \
+      } \
+      if ((val) > (INT_MAX - (offset))/(scale)) { \
+        printf("Overflow %2i: 0x%08X*0x%04X + 0x%04X > INT_MAX\n", \
+         (idx), (val), (scale), (offset)); \
+      } \
+    } \
+    else if ((scale) < 0) { \
+      if ((val) > (INT_MIN)/(scale)) { \
+        printf("Overflow %2i: 0x%08X*-0x%04X < INT_MIN\n", \
+         (idx), (val), (scale)); \
+      } \
+      if ((val) < (INT_MAX - (offset))/(scale)) { \
+        printf("Overflow %2i: 0x%08X*-0x%08X + 0x%04X > INT_MAX\n", \
+         (idx), (val), (scale), (offset)); \
+      } \
+    } \
+  } \
+  while(0)
+# else
+#  define OD_DCT_OVERFLOW_CHECK(val, scale, offset, idx)
+# endif
+
 #endif

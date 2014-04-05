@@ -141,17 +141,6 @@ const od_filter_func OD_POST_FILTER[OD_NBSIZES] = {
   od_post_filter16
 };
 
-
-#if defined(TEST)
-extern int minv[32];
-extern int maxv[32];
-# define _Check(_val, _idx) \
-  if ((_val) < minv[(_idx)]) minv[(_idx)] = (_val); \
-  if ((_val) > maxv[(_idx)]) maxv[(_idx)] = (_val);
-#else
-# define _Check(_val, _idx)
-#endif
-
 /*Filter parameters for the pre/post filters.
   When changing these the intra-predictors in
   initdata.c must be updated.*/
@@ -180,15 +169,18 @@ void od_pre_filter4(od_coeff _y[4], const od_coeff _x[4]) {
   /*V filter (arbitrary invertible).*/
   /*Rotation:*/
 #if OD_FILTER_PARAMS4_0 != 64
+  OD_DCT_OVERFLOW_CHECK(t[2], OD_FILTER_PARAMS4_0, 32, 51);
   t[3] += (t[2]*OD_FILTER_PARAMS4_0 + 32) >> 6;
 #else
   t[3] += t[2];
 #endif
 #if OD_FILTER_PARAMS4_1 != 64
+  OD_DCT_OVERFLOW_CHECK(t[3], OD_FILTER_PARAMS4_1, 32, 52);
   t[2] = ((t[3]*OD_FILTER_PARAMS4_1 + 32) >> 6) - t[2];
 #else
   t[2] = t[3] - t[2];
 #endif
+  OD_DCT_OVERFLOW_CHECK(t[2], OD_FILTER_PARAMS4_2, 32, 53);
   t[3] += (t[2]*OD_FILTER_PARAMS4_2 + 32) >> 6;
   /*More +1/-1 butterflies (required for FIR, PR, LP).*/
   t[0] += t[2]>>1;
@@ -311,35 +303,51 @@ void od_pre_filter8(od_coeff _y[8], const od_coeff _x[8]) {
     This step ensures that the scaling is trivially invertible on the
      decoder's side, with perfect reconstruction.*/
 #if OD_FILTER_PARAMS8_0 != 64
+  OD_DCT_OVERFLOW_CHECK(t[4], OD_FILTER_PARAMS8_0, 0, 54);
   t[4] = (t[4]*OD_FILTER_PARAMS8_0)>>6;
   t[4] += -t[4]>>(OD_COEFF_BITS-1)&1;
 #endif
 #if OD_FILTER_PARAMS8_1 != 64
+  OD_DCT_OVERFLOW_CHECK(t[5], OD_FILTER_PARAMS8_1, 0, 55);
   t[5] = (t[5]*OD_FILTER_PARAMS8_1)>>6;
   t[5] += -t[5]>>(OD_COEFF_BITS-1)&1;
 #endif
 #if OD_FILTER_PARAMS8_2 != 64
+  OD_DCT_OVERFLOW_CHECK(t[6], OD_FILTER_PARAMS8_2, 0, 56);
   t[6] = (t[6]*OD_FILTER_PARAMS8_2)>>6;
   t[6] += -t[6]>>(OD_COEFF_BITS-1)&1;
 #endif
 #if OD_FILTER_PARAMS8_3 != 64
+  OD_DCT_OVERFLOW_CHECK(t[7], OD_FILTER_PARAMS8_3, 0, 57);
   t[7] = (t[7]*OD_FILTER_PARAMS8_3)>>6;
   t[7] += -t[7]>>(OD_COEFF_BITS-1)&1;
 #endif
   /*Rotations:*/
 #if OD_FILTER8_TYPE3
+  OD_DCT_OVERFLOW_CHECK(t[6], OD_FILTER_PARAMS8_6, 32, 58);
   t[7] += (t[6]*OD_FILTER_PARAMS8_6+32)>>6;
+  OD_DCT_OVERFLOW_CHECK(t[7], OD_FILTER_PARAMS8_9, 32, 59);
   t[6] += (t[7]*OD_FILTER_PARAMS8_9+32)>>6;
+  OD_DCT_OVERFLOW_CHECK(t[5], OD_FILTER_PARAMS8_5, 32, 60);
   t[6] += (t[5]*OD_FILTER_PARAMS8_5+32)>>6;
+  OD_DCT_OVERFLOW_CHECK(t[6], OD_FILTER_PARAMS8_8, 32, 61);
   t[5] += (t[6]*OD_FILTER_PARAMS8_8+32)>>6;
+  OD_DCT_OVERFLOW_CHECK(t[4], OD_FILTER_PARAMS8_4, 32, 62);
   t[5] += (t[4]*OD_FILTER_PARAMS8_4+32)>>6;
+  OD_DCT_OVERFLOW_CHECK(t[5], OD_FILTER_PARAMS8_7, 32, 63);
   t[4] += (t[5]*OD_FILTER_PARAMS8_7+32)>>6;
 #else
+  OD_DCT_OVERFLOW_CHECK(t[4], OD_FILTER_PARAMS8_4, 32, 58);
   t[5] += (t[4]*OD_FILTER_PARAMS8_4+32)>>6;
+  OD_DCT_OVERFLOW_CHECK(t[5], OD_FILTER_PARAMS8_5, 32, 59);
   t[6] += (t[5]*OD_FILTER_PARAMS8_5+32)>>6;
+  OD_DCT_OVERFLOW_CHECK(t[6], OD_FILTER_PARAMS8_6, 32, 60);
   t[7] += (t[6]*OD_FILTER_PARAMS8_6+32)>>6;
+  OD_DCT_OVERFLOW_CHECK(t[7], OD_FILTER_PARAMS8_7, 32, 61);
   t[6] += (t[7]*OD_FILTER_PARAMS8_9+32)>>6;
+  OD_DCT_OVERFLOW_CHECK(t[6], OD_FILTER_PARAMS8_8, 32, 62);
   t[5] += (t[6]*OD_FILTER_PARAMS8_8+32)>>6;
+  OD_DCT_OVERFLOW_CHECK(t[5], OD_FILTER_PARAMS8_9, 32, 63);
   t[4] += (t[5]*OD_FILTER_PARAMS8_7+32)>>6;
 #endif
   /*More +1/-1 butterflies (required for FIR, PR, LP).*/
@@ -543,67 +551,103 @@ void od_pre_filter16(od_coeff _y[16],const od_coeff _x[16]){
      This step ensures that the scaling is trivially invertible on the
       decoder's side, with perfect reconstruction.*/
 #if OD_FILTER_PARAMS16_0!=64
+   OD_DCT_OVERFLOW_CHECK(t[8], OD_FILTER_PARAMS16_0, 0, 64);
    t[8]=(t[8]*OD_FILTER_PARAMS16_0)>>6;
    t[8]+=-t[8]>>(OD_COEFF_BITS-1)&1;
 #endif
 #if OD_FILTER_PARAMS16_1!=64
+   OD_DCT_OVERFLOW_CHECK(t[9], OD_FILTER_PARAMS16_1, 0, 65);
    t[9]=(t[9]*OD_FILTER_PARAMS16_1)>>6;
    t[9]+=-t[9]>>(OD_COEFF_BITS-1)&1;
 #endif
 #if OD_FILTER_PARAMS16_2!=64
+   OD_DCT_OVERFLOW_CHECK(t[10], OD_FILTER_PARAMS16_2, 0, 66);
    t[10]=(t[10]*OD_FILTER_PARAMS16_2)>>6;
    t[10]+=-t[10]>>(OD_COEFF_BITS-1)&1;
 #endif
 #if OD_FILTER_PARAMS16_3!=64
+   OD_DCT_OVERFLOW_CHECK(t[11], OD_FILTER_PARAMS16_3, 0, 67);
    t[11]=(t[11]*OD_FILTER_PARAMS16_3)>>6;
    t[11]+=-t[11]>>(OD_COEFF_BITS-1)&1;
 #endif
 #if OD_FILTER_PARAMS16_4!=64
+   OD_DCT_OVERFLOW_CHECK(t[12], OD_FILTER_PARAMS16_4, 0, 68);
    t[12]=(t[12]*OD_FILTER_PARAMS16_4)>>6;
    t[12]+=-t[12]>>(OD_COEFF_BITS-1)&1;
 #endif
 #if OD_FILTER_PARAMS16_5!=64
+   OD_DCT_OVERFLOW_CHECK(t[13], OD_FILTER_PARAMS16_5, 0, 69);
    t[13]=(t[13]*OD_FILTER_PARAMS16_5)>>6;
    t[13]+=-t[13]>>(OD_COEFF_BITS-1)&1;
 #endif
 #if OD_FILTER_PARAMS16_6!=64
+   OD_DCT_OVERFLOW_CHECK(t[14], OD_FILTER_PARAMS16_6, 0, 70);
    t[14]=t[14]*OD_FILTER_PARAMS16_6>>6;
    t[14]+=-t[14]>>(OD_COEFF_BITS-1)&1;
 #endif
 #if OD_FILTER_PARAMS16_7!=64
+   OD_DCT_OVERFLOW_CHECK(t[15], OD_FILTER_PARAMS16_7, 0, 71);
    t[15]=t[15]*OD_FILTER_PARAMS16_7>>6;
    t[15]+=-t[15]>>(OD_COEFF_BITS-1)&1;
 #endif
    /*Rotations:*/
 #if OD_FILTER16_TYPE3
+   OD_DCT_OVERFLOW_CHECK(t[14], OD_FILTER_PARAMS16_14, 32, 72);
    t[15]+=(t[14]*OD_FILTER_PARAMS16_14+32)>>6;
+   OD_DCT_OVERFLOW_CHECK(t[15], OD_FILTER_PARAMS16_21, 32, 73);
    t[14]+=(t[15]*OD_FILTER_PARAMS16_21+32)>>6;
+   OD_DCT_OVERFLOW_CHECK(t[13], OD_FILTER_PARAMS16_13, 32, 74);
    t[14]+=(t[13]*OD_FILTER_PARAMS16_13+32)>>6;
+   OD_DCT_OVERFLOW_CHECK(t[14], OD_FILTER_PARAMS16_20, 32, 75);
    t[13]+=(t[14]*OD_FILTER_PARAMS16_20+32)>>6;
+   OD_DCT_OVERFLOW_CHECK(t[12], OD_FILTER_PARAMS16_12, 32, 76);
    t[13]+=(t[12]*OD_FILTER_PARAMS16_12+32)>>6;
+   OD_DCT_OVERFLOW_CHECK(t[13], OD_FILTER_PARAMS16_19, 32, 77);
    t[12]+=(t[13]*OD_FILTER_PARAMS16_19+32)>>6;
+   OD_DCT_OVERFLOW_CHECK(t[11], OD_FILTER_PARAMS16_11, 32, 78);
    t[12]+=(t[11]*OD_FILTER_PARAMS16_11+32)>>6;
+   OD_DCT_OVERFLOW_CHECK(t[12], OD_FILTER_PARAMS16_18, 32, 79);
    t[11]+=(t[12]*OD_FILTER_PARAMS16_18+32)>>6;
+   OD_DCT_OVERFLOW_CHECK(t[10], OD_FILTER_PARAMS16_10, 32, 80);
    t[11]+=(t[10]*OD_FILTER_PARAMS16_10+32)>>6;
+   OD_DCT_OVERFLOW_CHECK(t[11], OD_FILTER_PARAMS16_17, 32, 81);
    t[10]+=(t[11]*OD_FILTER_PARAMS16_17+32)>>6;
+   OD_DCT_OVERFLOW_CHECK(t[9], OD_FILTER_PARAMS16_9, 32, 82);
    t[10]+=(t[9]*OD_FILTER_PARAMS16_9+32)>>6;
+   OD_DCT_OVERFLOW_CHECK(t[10], OD_FILTER_PARAMS16_16, 32, 83);
    t[9]+=(t[10]*OD_FILTER_PARAMS16_16+32)>>6;
+   OD_DCT_OVERFLOW_CHECK(t[8], OD_FILTER_PARAMS16_8, 32, 84);
    t[9]+=(t[8]*OD_FILTER_PARAMS16_8+32)>>6;
+   OD_DCT_OVERFLOW_CHECK(t[9], OD_FILTER_PARAMS16_15, 32, 85);
    t[8]+=(t[9]*OD_FILTER_PARAMS16_15+32)>>6;
 #else
+   OD_DCT_OVERFLOW_CHECK(t[8], OD_FILTER_PARAMS16_8, 32, 72);
    t[9]+=(t[8]*OD_FILTER_PARAMS16_8+32)>>6;
+   OD_DCT_OVERFLOW_CHECK(t[9], OD_FILTER_PARAMS16_9, 32, 73);
    t[10]+=(t[9]*OD_FILTER_PARAMS16_9+32)>>6;
+   OD_DCT_OVERFLOW_CHECK(t[10], OD_FILTER_PARAMS16_10, 32, 74);
    t[11]+=(t[10]*OD_FILTER_PARAMS16_10+32)>>6;
+   OD_DCT_OVERFLOW_CHECK(t[11], OD_FILTER_PARAMS16_11, 32, 75);
    t[12]+=(t[11]*OD_FILTER_PARAMS16_11+32)>>6;
+   OD_DCT_OVERFLOW_CHECK(t[12], OD_FILTER_PARAMS16_12, 32, 76);
    t[13]+=(t[12]*OD_FILTER_PARAMS16_12+32)>>6;
+   OD_DCT_OVERFLOW_CHECK(t[13], OD_FILTER_PARAMS16_13, 32, 77);
    t[14]+=(t[13]*OD_FILTER_PARAMS16_13+32)>>6;
+   OD_DCT_OVERFLOW_CHECK(t[14], OD_FILTER_PARAMS16_14, 32, 78);
    t[15]+=(t[14]*OD_FILTER_PARAMS16_14+32)>>6;
+   OD_DCT_OVERFLOW_CHECK(t[15], OD_FILTER_PARAMS16_21, 32, 79);
    t[14]+=(t[15]*OD_FILTER_PARAMS16_21+32)>>6;
+   OD_DCT_OVERFLOW_CHECK(t[14], OD_FILTER_PARAMS16_20, 32, 80);
    t[13]+=(t[14]*OD_FILTER_PARAMS16_20+32)>>6;
+   OD_DCT_OVERFLOW_CHECK(t[13], OD_FILTER_PARAMS16_19, 32, 81);
    t[12]+=(t[13]*OD_FILTER_PARAMS16_19+32)>>6;
+   OD_DCT_OVERFLOW_CHECK(t[12], OD_FILTER_PARAMS16_18, 32, 82);
    t[11]+=(t[12]*OD_FILTER_PARAMS16_18+32)>>6;
+   OD_DCT_OVERFLOW_CHECK(t[11], OD_FILTER_PARAMS16_17, 32, 83);
    t[10]+=(t[11]*OD_FILTER_PARAMS16_17+32)>>6;
+   OD_DCT_OVERFLOW_CHECK(t[10], OD_FILTER_PARAMS16_16, 32, 84);
    t[9]+=(t[10]*OD_FILTER_PARAMS16_16+32)>>6;
+   OD_DCT_OVERFLOW_CHECK(t[9], OD_FILTER_PARAMS16_15, 32, 85);
    t[8]+=(t[9]*OD_FILTER_PARAMS16_15+32)>>6;
 #endif
    /*More +1/-1 butterflies (required for FIR, PR, LP).*/
