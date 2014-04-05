@@ -1413,7 +1413,7 @@ static void print_basis(double basis[OD_BSIZE_MAX][OD_BSIZE_MAX], int bszi) {
   n = 1 << (OD_LOG_BSIZE0 + bszi);
   for (i = 0; i < n; i++) {
     for (j = 0; j < n; j++) {
-      printf("%8.5lf%c", basis[i][j], j == n - 1 ? '\n' : ' ');
+      printf("%8.5f%c", basis[i][j], j == n - 1 ? '\n' : ' ');
     }
   }
 }
@@ -1737,7 +1737,7 @@ static void check_transform(int bszi) {
   printf("Scaled type-II DCT basis:\n");
   compute_ftrue_basis(tbasis, bszi);
   print_basis(tbasis, bszi);
-  printf("MSE: %.32lg\n\n", compute_mse(basis, tbasis, bszi));
+  printf("MSE: %.32g\n\n", compute_mse(basis, tbasis, bszi));
   ieee1180_test(bszi);
   check_bias(bszi);
 }

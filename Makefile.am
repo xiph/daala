@@ -494,6 +494,7 @@ tools_yuv2yuv4mpeg_LDADD =
 
 if ENABLE_UNIT_TESTS
 noinst_PROGRAMS += \
+	src/tests/dcttest \
 	src/tests/ectest \
 	src/tests/test_coef_coder \
 	src/tests/logging_test \
@@ -502,12 +503,17 @@ noinst_PROGRAMS += \
 	src/tests/check_tests
 
 TESTS = \
+	src/tests/dcttest \
 	src/tests/ectest \
 	src/tests/test_coef_coder \
 	src/tests/logging_test \
 	src/tests/test_divu_small \
 	src/tests/test_filters \
 	src/tests/check_tests
+
+src_tests_dcttest_SOURCES = src/dct.c src/filter.c
+src_tests_dcttest_CFLAGS = $(OGG_CFLAGS) -DOD_DCT_CHECK_OVERFLOW -DOD_DCT_TEST
+src_tests_dcttest_LDADD = $(LIBM)
 
 src_tests_ectest_SOURCES = src/tests/ectest.c
 src_tests_ectest_CFLAGS = $(OGG_CFLAGS)
