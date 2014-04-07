@@ -176,9 +176,9 @@ void pvq_decode(daala_dec_ctx *dec,
   generic_encoder *model;
   unsigned *noref_prob;
   adapt = dec->state.pvq_adapt;
-  exg = dec->state.pvq_exg;
-  ext = dec->state.pvq_ext;
-  noref_prob = dec->state.pvq_noref_prob;
+  exg = dec->state.pvq_exg+ln*PVQ_MAX_PARTITIONS;
+  ext = dec->state.pvq_ext+ln*PVQ_MAX_PARTITIONS;
+  noref_prob = dec->state.pvq_noref_prob+ln*PVQ_MAX_PARTITIONS;
   model = dec->state.pvq_gain_model;
   nb_bands = od_band_offsets[ln][0];
   off = &od_band_offsets[ln][1];
