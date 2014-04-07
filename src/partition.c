@@ -58,6 +58,18 @@ const band_layout od_layout4 = {
   od_layout4_offsets
 };
 
+/* First element is the number of bands, followed by the list all the band
+  boundaries. */
+static const int od_band_offsets4[] = {1, 1, 16};
+static const int od_band_offsets8[] = {4, 1, 16, 24, 32, 64};
+static const int od_band_offsets16[] = {7, 1, 16, 24, 32, 64, 96, 128, 256};
+
+const int * const od_band_offsets[3] = {
+ &od_band_offsets4[0],
+ &od_band_offsets8[0],
+ &od_band_offsets16[0]
+};
+
 /** Perform a single stage of conversion from a coefficient block in
  * raster order into coding scan order
  *

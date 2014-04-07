@@ -31,17 +31,18 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # include "filter.h"
 # include "generic_code.h"
 # include "laplace_code.h"
+# include "partition.h"
 
 # define PRED4_PROB (26376)
 extern const ogg_uint16_t pred8_cdf[16];
 extern const ogg_uint16_t pred16_cdf[16][8];
 
 void pvq_encode(daala_enc_ctx *enc, od_coeff *predt, od_coeff *cblock,
-                od_coeff *scalar_out, int scale, int n, const int *qm,
+                od_coeff *scalar_out, int scale, int ln, const int *qm,
                 const double *mask);
 
 void pvq_decode(daala_dec_ctx *dec, od_coeff *ref, od_coeff *out,
-                int scale, int n, const int *qm,
+                int scale, int ln, const int *qm,
                 const double *mask);
 
 #endif

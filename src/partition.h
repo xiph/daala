@@ -40,6 +40,8 @@ extern const band_layout od_layout4;
 extern const band_layout od_layout8;
 extern const band_layout od_layout16;
 
+extern const int * const od_band_offsets[3];
+
 void od_raster_to_coding_order(od_coeff *dst,  int n, od_coeff *src, int stride,
                        int interleave);
 

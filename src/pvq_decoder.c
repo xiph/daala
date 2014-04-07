@@ -146,7 +146,7 @@ void pvq_decode(daala_dec_ctx *dec,
                 od_coeff *ref,
                 od_coeff *out,
                 int q,
-                int n,
+                int ln,
                 const int *qm,
                 const double *mask){
 
@@ -156,17 +156,21 @@ void pvq_decode(daala_dec_ctx *dec,
   int *ext;
   int predflags8;
   int predflags16;
+  int nb_bands;
+  int i;
+  const int *off;
+  int size[PVQ_MAX_PARTITIONS];
   double g[PVQ_MAX_PARTITIONS] = {0};
   generic_encoder *model;
   adapt = dec->state.pvq_adapt;
   exg = dec->state.pvq_exg;
   ext = dec->state.pvq_ext;
   model = dec->state.pvq_gain_model;
-
-  if (n == 4) {
+  nb_bands = od_band_offsets[ln][0];
+  off = &od_band_offsets[ln][1];
+  for (i = 0; i < nb_bands; i++) size[i] = off[i+1] - off[i];
+  if (ln == 0) {
     noref[0] = !od_ec_decode_bool_q15(&dec->ec, PRED4_PROB);
-    pvq_decode_partition(&dec->ec, q*qm[1] >> 4, 15, model, adapt, exg, ext, ref+1,
-                   out+1, noref[0], &g[0], mask[0]);
   }
   else {
     predflags8 = od_ec_decode_cdf_q15(&dec->ec, pred8_cdf, 16);
@@ -174,31 +178,16 @@ void pvq_decode(daala_dec_ctx *dec,
     noref[1] = !((predflags8>>2) & 0x1);
     noref[2] = !((predflags8>>1) & 0x1);
     noref[3] = !(predflags8 & 0x1);
-
-    if(n >= 16) {
+    if(ln >= 2) {
       predflags16 = od_ec_decode_cdf_q15(&dec->ec, pred16_cdf[predflags8], 8);
       noref[4] = !((predflags16>>2) & 0x1);
       noref[5] = !((predflags16>>1) & 0x1);
       noref[6] = !(predflags16 & 0x1);
     }
-
-    pvq_decode_partition(&dec->ec, q*qm[1] >> 4, 15, model, adapt, exg, ext, ref+1,
-                   out+1, noref[0], &g[0], mask[0]);
-    g[1] = g[2] = g[3] = INTER_MASKING*g[0];
-    pvq_decode_partition(&dec->ec, q*qm[2] >> 4, 8, model, adapt, exg+1, ext+1, ref+16,
-                   out+16, noref[1], &g[1], mask[1]);
-    pvq_decode_partition(&dec->ec, q*qm[3] >> 4, 8, model, adapt, exg+2, ext+2, ref+24,
-                   out+24, noref[2], &g[2], mask[2]);
-    pvq_decode_partition(&dec->ec, q*qm[4] >> 4, 32, model, adapt, exg+3, ext+3, ref+32,
-                   out+32, noref[3], &g[3], mask[3]);
-
-    if(n >= 16) {
-      pvq_decode_partition(&dec->ec, q*qm[5] >> 4, 32, model, adapt, exg+4, ext+4, ref+64,
-                     out+64, noref[4], &g[4], mask[4]);
-      pvq_decode_partition(&dec->ec, q*qm[6] >> 4, 32, model, adapt, exg+5, ext+5, ref+96,
-                     out+96, noref[5], &g[5], mask[5]);
-      pvq_decode_partition(&dec->ec, q*qm[7] >> 4, 128, model, adapt, exg+6, ext+6, ref+128,
-                     out+128, noref[6], &g[6], mask[6]);
-    }
+  }
+  for (i = 0; i < nb_bands; i++) {
+    if (i == 1) g[1] = g[2] = g[3] = INTER_MASKING*g[0];
+    pvq_decode_partition(&dec->ec, q*qm[i+1] >> 4, size[i], model, adapt, exg+i, ext+i, ref+off[i],
+                   out+off[i], noref[i], &g[i], mask[i]);
   }
 }
