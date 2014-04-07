@@ -134,6 +134,19 @@ static void pvq_decode_partition(od_ec_dec *ec,
   }
 }
 
+static int decode_flag(od_ec_dec *ec, unsigned *prob)
+{
+  int val;
+  val = od_ec_decode_bool_q15(ec, *prob);
+  if (val) {
+    *prob = *prob - (*prob>>OD_NOREF_ADAPT_SPEED);
+  }
+  else {
+    *prob = *prob + ((32768-*prob)>>OD_NOREF_ADAPT_SPEED);
+  }
+  return val;
+}
+
 /** Decodes a coefficient block (except for DC) encoded using PVQ
  *
  * @param [in,out] dec     daala decoder context
@@ -148,42 +161,31 @@ void pvq_decode(daala_dec_ctx *dec,
                 int q,
                 int ln,
                 const int *qm,
-                const double *mask){
+                const double *mask,
+                int is_keyframe){
 
   int noref[PVQ_MAX_PARTITIONS];
   int *adapt;
   int *exg;
   int *ext;
-  int predflags8;
-  int predflags16;
   int nb_bands;
   int i;
   const int *off;
   int size[PVQ_MAX_PARTITIONS];
   double g[PVQ_MAX_PARTITIONS] = {0};
   generic_encoder *model;
+  unsigned *noref_prob;
   adapt = dec->state.pvq_adapt;
   exg = dec->state.pvq_exg;
   ext = dec->state.pvq_ext;
+  noref_prob = dec->state.pvq_noref_prob;
   model = dec->state.pvq_gain_model;
   nb_bands = od_band_offsets[ln][0];
   off = &od_band_offsets[ln][1];
   for (i = 0; i < nb_bands; i++) size[i] = off[i+1] - off[i];
-  if (ln == 0) {
-    noref[0] = !od_ec_decode_bool_q15(&dec->ec, PRED4_PROB);
-  }
-  else {
-    predflags8 = od_ec_decode_cdf_q15(&dec->ec, pred8_cdf, 16);
-    noref[0] = !(predflags8>>3);
-    noref[1] = !((predflags8>>2) & 0x1);
-    noref[2] = !((predflags8>>1) & 0x1);
-    noref[3] = !(predflags8 & 0x1);
-    if(ln >= 2) {
-      predflags16 = od_ec_decode_cdf_q15(&dec->ec, pred16_cdf[predflags8], 8);
-      noref[4] = !((predflags16>>2) & 0x1);
-      noref[5] = !((predflags16>>1) & 0x1);
-      noref[6] = !(predflags16 & 0x1);
-    }
+  for (i = 0; i < nb_bands; i++) {
+    if (is_keyframe && vector_is_null(ref+off[i], size[i])) noref[i] = 1;
+    else noref[i] = !decode_flag(&dec->ec, &noref_prob[i]);
   }
   for (i = 0; i < nb_bands; i++) {
     if (i == 1) g[1] = g[2] = g[3] = INTER_MASKING*g[0];

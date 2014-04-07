@@ -30,6 +30,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # define PVQ_MAX_PARTITIONS (7)
 
 # define INTER_MASKING .25
+# define OD_NOREF_ADAPT_SPEED 4
 
 extern const int * const od_pvq_qm[3][OD_NBSIZES];
 extern const double * const od_pvq_mask[3][OD_NBSIZES];
@@ -48,5 +49,7 @@ double pvq_synthesis(od_coeff *x0, od_coeff *y, double *r, int n, double gr,
  int noref, int qg, double gain_offset, double theta, double q, double mask);
 
 double pvq_interband_masking(double inter, double curr, double mask);
+
+int vector_is_null(const od_coeff *x, int len);
 
 #endif

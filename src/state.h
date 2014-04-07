@@ -127,6 +127,7 @@ struct od_state{
   generic_encoder     pvq_gain_model[3];
   int                 pvq_ext[PVQ_MAX_PARTITIONS];
   int                 pvq_exg[PVQ_MAX_PARTITIONS];
+  unsigned            pvq_noref_prob[PVQ_MAX_PARTITIONS];
 
   /** number of horizontal macro blocks. */
   int                 nhmbs;

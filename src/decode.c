@@ -309,7 +309,7 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   if (run_pvq) {
     int i;
     pvq_decode(dec, predt, pred, scale << coeff_shift, ln, od_pvq_qm[pli][ln],
-     od_pvq_mask[pli][ln]);
+     od_pvq_mask[pli][ln], ctx->is_keyframe);
     for (i = 0; i < OD_NSB_ADAPT_CTXS; i++) adapt_curr[i] = 0;
   }
   else {

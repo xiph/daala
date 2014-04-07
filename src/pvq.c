@@ -419,6 +419,12 @@ double pvq_interband_masking(double inter, double curr, double mask) {
   return pow(curr*curr/(curr*curr+inter*inter), .5-.5/mask);
 }
 
+int vector_is_null(const od_coeff *x, int len) {
+  int i;
+  for (i = 0; i < len; i++) if (x[i]) return 0;
+  return 1;
+}
+
 /** Perform PVQ quantization with prediction, trying several
  * possible gains and angles. See draft-valin-videocodec-pvq and
  * http://jmvalin.ca/slides/pvq.pdf for more details.
@@ -495,7 +501,7 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *ithet
   noref = 1;
   m = 0;
   s = 1;
-  if (corr > 0) {
+  if (!vector_is_null(r0, n) && corr > 0) {
     /* Perform theta search only if prediction is useful. */
     corr = corr/(1e-100+g*gr);
     corr = OD_MAXF(OD_MINF(corr, 1.), -1.);

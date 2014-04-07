@@ -487,7 +487,7 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   if (run_pvq) {
     int i;
     pvq_encode(enc, predt, cblock, scalar_out, scale << coeff_shift, ln,
-     od_pvq_qm[pli][ln], od_pvq_mask[pli][ln]);
+     od_pvq_qm[pli][ln], od_pvq_mask[pli][ln], ctx->is_keyframe);
     for (i = 0; i < OD_NSB_ADAPT_CTXS; i++) adapt_curr[i] = 0;
     for (i = 1; i < n2; i++) scalar_out[i] = cblock[i];
   }

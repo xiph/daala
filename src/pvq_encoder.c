@@ -86,6 +86,17 @@ static void pvq_encode_partition(od_ec_enc *ec,
   }
 }
 
+void code_flag(od_ec_enc *ec, int val, unsigned *prob)
+{
+  od_ec_encode_bool_q15(ec, val, *prob);
+  if (val) {
+    *prob = *prob - (*prob>>OD_NOREF_ADAPT_SPEED);
+  }
+  else {
+    *prob = *prob + ((32768-*prob)>>OD_NOREF_ADAPT_SPEED);
+  }
+}
+
 /** Encode a coefficient block (excepting DC) using PVQ
  *
  * @param [in,out] enc     daala encoder context
@@ -102,7 +113,8 @@ void pvq_encode(daala_enc_ctx *enc,
                 int q,
                 int ln,
                 const int *qm,
-                const double *mask){
+                const double *mask,
+                int is_keyframe){
   int theta[PVQ_MAX_PARTITIONS];
   int max_theta[PVQ_MAX_PARTITIONS];
   int qg[PVQ_MAX_PARTITIONS];
@@ -110,17 +122,17 @@ void pvq_encode(daala_enc_ctx *enc,
   int *adapt;
   int *exg;
   int *ext;
-  int predflags8;
-  int predflags16;
   int nb_bands;
   int i;
   const int *off;
   int size[PVQ_MAX_PARTITIONS];
   double g[PVQ_MAX_PARTITIONS] = {0};
   generic_encoder *model;
+  unsigned *noref_prob;
   adapt = enc->state.pvq_adapt;
   exg = enc->state.pvq_exg;
   ext = enc->state.pvq_ext;
+  noref_prob = enc->state.pvq_noref_prob;
   model = enc->state.pvq_gain_model;
   nb_bands = od_band_offsets[ln][0];
   off = &od_band_offsets[ln][1];
@@ -130,17 +142,11 @@ void pvq_encode(daala_enc_ctx *enc,
     qg[i] = pvq_theta(in+off[i], ref+off[i], size[i], q*qm[i+1] >> 4, out+off[i],
      &theta[i], &max_theta[i], &k[i], &g[i], mask[i]);
   }
-  if (ln == 0) {
-    od_ec_encode_bool_q15(&enc->ec, theta[0] != -1, PRED4_PROB);
-  } else {
-    predflags8 = 8*(theta[0] != -1) + 4*(theta[1] != -1) + 2*(theta[2] != -1)
-     + (theta[3] != -1);
-    od_ec_encode_cdf_q15(&enc->ec, predflags8, pred8_cdf, 16);
-    if (ln >= 2) {
-      predflags16 = 4*(theta[4] != -1) + 2*(theta[5] != -1)
-       + (theta[6] != -1);
-      od_ec_encode_cdf_q15(&enc->ec, predflags16, pred16_cdf[predflags8], 8);
-    }
+  /* TODO: Find efficient way to code up to 4 noref flags per symbol
+     to reduce entropy coder calls. */
+  for (i = 0; i < nb_bands; i++) {
+    if (!(is_keyframe && vector_is_null(ref+off[i], size[i])))
+      code_flag(&enc->ec, theta[i] != -1, &noref_prob[i]);
   }
   for (i = 0; i < nb_bands; i++) {
     pvq_encode_partition(&enc->ec, qg[i], theta[i], max_theta[i], out+off[i],

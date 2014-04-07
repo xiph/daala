@@ -217,6 +217,7 @@ int od_state_init(od_state *state, const daala_info *info) {
   for (i = 0; i < PVQ_MAX_PARTITIONS; i++) {
     state->pvq_exg[i] = 2 << 16;
     state->pvq_ext[i] = 2 << 16;
+    state->pvq_noref_prob[i] = 26376;
   }
   return 0;
 }
