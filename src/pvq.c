@@ -42,45 +42,49 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #if OD_DISABLE_MASKING
 
-static const int od_pvq_qm4_luma[2] = {8, 16};
-static const int od_pvq_qm8_luma[5] = {16, 16, 32, 32, 64};
-static const int od_pvq_qm16_luma[8] = {16, 16, 16, 16, 32, 32, 32, 64};
+static const int OD_PVQ_QM4_LUMA_Q4[2] = {8, 16};
+static const int OD_PVQ_QM8_LUMA_Q4[5] = {16, 16, 32, 32, 64};
+static const int OD_PVQ_QM16_LUMA_Q4[8] = {16, 16, 16, 16, 32, 32, 32, 64};
 
-static const double od_pvq_mask4_luma[1] = {1.};
-static const double od_pvq_mask8_luma[4] = {1., 1., 1., 1.};
-static const double od_pvq_mask16_luma[7] = {1., 1., 1., 1., 1., 1., 1.};
+static const double OD_PVQ_BETA4_LUMA[1] = {1.};
+static const double OD_PVQ_BETA8_LUMA[4] = {1., 1., 1., 1.};
+static const double OD_PVQ_BETA16_LUMA[7] = {1., 1., 1., 1., 1., 1., 1.};
 
 #else
 
-static const int od_pvq_qm4_luma[2] = {8, 16};
-static const int od_pvq_qm8_luma[5] = {16, 16, 44, 44, 72};
-static const int od_pvq_qm16_luma[8] = {16, 13, 18, 18, 36, 40, 40, 80};
+static const int OD_PVQ_QM4_LUMA_Q4[2] = {8, 16};
+static const int OD_PVQ_QM8_LUMA_Q4[5] = {16, 16, 44, 44, 72};
+static const int OD_PVQ_QM16_LUMA_Q4[8] = {16, 13, 18, 18, 36, 40, 40, 80};
 
-static const double od_pvq_mask4_luma[1] = {1.};
-static const double od_pvq_mask8_luma[4] = {1.5, 1.5, 1.5, 1.5};
-static const double od_pvq_mask16_luma[7] = {1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5};
+static const double OD_PVQ_BETA4_LUMA[1] = {1.};
+static const double OD_PVQ_BETA8_LUMA[4] = {1.5, 1.5, 1.5, 1.5};
+static const double OD_PVQ_BETA16_LUMA[7] = {1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5};
 
 #endif
 
 
-static const int od_pvq_qm4_chroma[2] = {8, 32};
-static const int od_pvq_qm8_chroma[5] = {8, 24, 64, 64, 100};
-static const int od_pvq_qm16_chroma[8] = {8, 16, 24, 24, 32, 64, 64, 100};
+static const int OD_PVQ_QM4_CHROMA_Q4[2] = {8, 32};
+static const int OD_PVQ_QM8_CHROMA_Q4[5] = {8, 24, 64, 64, 100};
+static const int OD_PVQ_QM16_CHROMA_Q4[8] = {8, 16, 24, 24, 32, 64, 64, 100};
 
-static const double od_pvq_mask4_chroma[1] = {1.};
-static const double od_pvq_mask8_chroma[4] = {1., 1., 1., 1.};
-static const double od_pvq_mask16_chroma[7] = {1., 1., 1., 1., 1., 1., 1.};
+static const double OD_PVQ_BETA4_CHROMA[1] = {1.};
+static const double OD_PVQ_BETA8_CHROMA[4] = {1., 1., 1., 1.};
+static const double OD_PVQ_BETA16_CHROMA[7] = {1., 1., 1., 1., 1., 1., 1.};
 
-const int * const od_pvq_qm[3][OD_NBSIZES] = {
-  {od_pvq_qm4_luma, od_pvq_qm8_luma, od_pvq_qm16_luma},
-  {od_pvq_qm4_chroma, od_pvq_qm8_chroma, od_pvq_qm16_chroma},
-  {od_pvq_qm4_chroma, od_pvq_qm8_chroma, od_pvq_qm16_chroma}
+/* We use the chroma params for the alpha channel. Not sure whether it's
+   a good idea. */
+const int * const OD_PVQ_QM_Q4[OD_NPLANES_MAX][OD_NBSIZES] = {
+  {OD_PVQ_QM4_LUMA_Q4, OD_PVQ_QM8_LUMA_Q4, OD_PVQ_QM16_LUMA_Q4},
+  {OD_PVQ_QM4_CHROMA_Q4, OD_PVQ_QM8_CHROMA_Q4, OD_PVQ_QM16_CHROMA_Q4},
+  {OD_PVQ_QM4_CHROMA_Q4, OD_PVQ_QM8_CHROMA_Q4, OD_PVQ_QM16_CHROMA_Q4},
+  {OD_PVQ_QM4_CHROMA_Q4, OD_PVQ_QM8_CHROMA_Q4, OD_PVQ_QM16_CHROMA_Q4}
 };
 
-const double * const od_pvq_mask[3][OD_NBSIZES] = {
-  {od_pvq_mask4_luma, od_pvq_mask8_luma, od_pvq_mask16_luma},
-  {od_pvq_mask4_chroma, od_pvq_mask8_chroma, od_pvq_mask16_chroma},
-  {od_pvq_mask4_chroma, od_pvq_mask8_chroma, od_pvq_mask16_chroma}
+const double * const OD_PVQ_BETA[OD_NPLANES_MAX][OD_NBSIZES] = {
+  {OD_PVQ_BETA4_LUMA, OD_PVQ_BETA8_LUMA, OD_PVQ_BETA16_LUMA},
+  {OD_PVQ_BETA4_CHROMA, OD_PVQ_BETA8_CHROMA, OD_PVQ_BETA16_CHROMA},
+  {OD_PVQ_BETA4_CHROMA, OD_PVQ_BETA8_CHROMA, OD_PVQ_BETA16_CHROMA},
+  {OD_PVQ_BETA4_CHROMA, OD_PVQ_BETA8_CHROMA, OD_PVQ_BETA16_CHROMA}
 };
 
 /** Find the codepoint on the given PSphere closest to the desired
@@ -252,14 +256,14 @@ int neg_deinterleave(int x, int ref) {
  * @param [out]     g      raw gain
  * @return                 quantized/companded gain
  */
-double pvq_compute_gain(od_coeff *x, int n, double q, double *g, double mask){
+double pvq_compute_gain(od_coeff *x, int n, double q, double *g, double beta){
   int i;
   double acc=0;
   for (i = 0; i < n; i++) acc += x[i]*(double)x[i];
   *g = sqrt(acc);
   /* Normalize gain by quantization step size and apply companding
      (if ACTIVITY != 1). */
-  return pow(*g, 1./mask)/q;
+  return pow(*g, 1./beta)/q;
 }
 
 /** Compute theta quantization range from quantized/companded gain
@@ -267,9 +271,9 @@ double pvq_compute_gain(od_coeff *x, int n, double q, double *g, double mask){
  * @param [in]      qcg    quantized companded gain value
  * @return                 max theta value
  */
-int pvq_compute_max_theta(double qcg, double mask){
+int pvq_compute_max_theta(double qcg, double beta){
   /* Set angular resolution (in ra) to match the encoded gain */
-  int ts = (int)floor(.5 + qcg*M_PI/(2*mask));
+  int ts = (int)floor(.5 + qcg*M_PI/(2*beta));
   /* Special case for low gains -- will need to be tuned anyway */
   if (qcg < 1.4) ts = 1;
   return ts;
@@ -296,16 +300,16 @@ double pvq_compute_theta(int t, int max_theta) {
  * @param [in]      n          number of elements to be coded
  * @return                     number of pulses to use for coding
  */
-int pvq_compute_k(double qcg, double theta, int noref, int n, double mask) {
+int pvq_compute_k(double qcg, double theta, int noref, int n, double beta) {
   if (noref) {
-    return OD_MAXI(1, (int)floor(.5 + qcg*sqrt(n/2)/mask));
+    return OD_MAXI(1, (int)floor(.5 + qcg*sqrt(n/2)/beta));
   }
   else {
     if (theta == 0) return 0;
     /* Sets K according to gain and theta, based on the high-rate
        PVQ distortion curves D~=N^2/(24*K^2). Low-rate will have to be
        perceptually tuned anyway.  */
-    return OD_MAXI(1, (int)floor(.5 + qcg*sin(theta)*sqrt(n/2)/mask));
+    return OD_MAXI(1, (int)floor(.5 + qcg*sin(theta)*sqrt(n/2)/beta));
   }
 }
 
@@ -333,7 +337,7 @@ static double pvq_synthesis_partial(od_coeff *xcoeff, od_coeff *ypulse,
                                   const double *r, int n,
                                   int noref, int qg, double go,
                                   double theta, int m, int s, double q,
-                                  double mask) {
+                                  double beta) {
   int i;
   int yy;
   double qcg;
@@ -363,7 +367,7 @@ static double pvq_synthesis_partial(od_coeff *xcoeff, od_coeff *ypulse,
     apply_householder(x, r, n);
   }
 
-  g = pow(q*qcg, mask);
+  g = pow(q*qcg, beta);
   for (i = 0; i < n; i++) {
     xcoeff[i] = floor(.5 + x[i]*g);
   }
@@ -391,12 +395,12 @@ static double pvq_synthesis_partial(od_coeff *xcoeff, od_coeff *ypulse,
  */
 double pvq_synthesis(od_coeff *xcoeff, od_coeff *ypulse, double *r, int n,
                    double gr, int noref, int qg, double go,
-                   double theta, double q, double mask) {
+                   double theta, double q, double beta) {
   int s = 0;
   int m = noref ? 0 : compute_householder(r, n, gr, &s);
 
   return pvq_synthesis_partial(xcoeff, ypulse, r, n, noref, qg,
-                        go, theta, m, s, q, mask);
+                        go, theta, m, s, q, beta);
 }
 
 /* Estimates the number of bits it will cost to encode K pulses in
@@ -412,11 +416,12 @@ static double pvq_rate_approx(int n, int k)
  *
  * @param [in]     inter     Combined gain from other bands
  * @param [in]     curr      Quantized gain from current band
- * @param [in]     mask      Activity masking exponent (beta)
+ * @param [in]     beta      Activity masking exponent
  * @return         ratio     Reduction of K/theta allocation
  */
-double pvq_interband_masking(double inter, double curr, double mask) {
-  return pow(curr*curr/(curr*curr+inter*inter), .5-.5/mask);
+double pvq_interband_masking(double inter, double curr, double beta) {
+  /* alpha = .5-.5/beta */
+  return pow(curr*curr/(curr*curr+inter*inter), .5-.5/beta);
 }
 
 int vector_is_null(const od_coeff *x, int len) {
@@ -437,10 +442,13 @@ int vector_is_null(const od_coeff *x, int len) {
  * @param [out]    itheta    angle between input and reference (-1 if noref)
  * @param [out]    max_theta maximum value of itheta that could have been
  * @param [out]    vk        total number of pulses
+ * @param [in,out] mask_gain input masking from other bands, output masking for
+ *                           other bands
+ * @param [in]     beta      per-band activity masking beta param
  * @return         gain      index of the quatized gain
 */
-int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *itheta,
- int *max_theta, int *vk, double *mask_gain, double mask) {
+int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y,
+ int *itheta, int *max_theta, int *vk, double *mask_gain, double beta) {
   double g;
   double gr;
   double x[MAXN];
@@ -474,7 +482,7 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *ithet
      now. */
   lambda = .025;
   /* Quantization step calibration to account for the activity masking. */
-  q = q0*pow(256<<OD_COEFF_SHIFT, 1./mask - 1);
+  q = q0*pow(256<<OD_COEFF_SHIFT, 1./beta - 1);
   OD_ASSERT(n > 1);
   corr = 0;
   for (i = 0; i < n; i++) {
@@ -483,8 +491,8 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *ithet
     corr += x[i]*r[i];
   }
 
-  cg  = pvq_compute_gain(x0, n, q, &g, mask);
-  cgr = pvq_compute_gain(r0, n, q, &gr, mask);
+  cg  = pvq_compute_gain(x0, n, q, &g, beta);
+  cgr = pvq_compute_gain(r0, n, q, &gr, beta);
   /* gain_offset is meant to make sure one of the quantized gains has
      exactly the same gain as the reference. */
   icgr = floor(.5+cgr);
@@ -498,7 +506,6 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *ithet
   *max_theta = 0;
   OD_CLEAR(y, n);
   best_qtheta = 0;
-  noref = 1;
   m = 0;
   s = 1;
   if (!vector_is_null(r0, n) && corr > 0) {
@@ -517,9 +524,9 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *ithet
       int ts;
       /* Quantized companded gain */
       qcg = i+gain_offset;
-      mask_ratio = pvq_interband_masking(*mask_gain, pow(q*qcg, mask), mask);
+      mask_ratio = pvq_interband_masking(*mask_gain, pow(q*qcg, beta), beta);
       /* Set angular resolution (in ra) to match the encoded gain */
-      ts = pvq_compute_max_theta(mask_ratio*qcg, mask);
+      ts = pvq_compute_max_theta(mask_ratio*qcg, beta);
       /* Search for the best angle within a reasonable range. */
       for (j = OD_MAXI(0, (int)floor(.5+theta*2/M_PI*ts)-1);
        j <= OD_MINI(ts-1, (int)ceil(theta*2/M_PI*ts)); j++) {
@@ -527,7 +534,7 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *ithet
         double dist;
         double dist_theta;
         double qtheta = pvq_compute_theta(j, ts);
-        k = pvq_compute_k(mask_ratio*qcg, qtheta, 0, n, mask);
+        k = pvq_compute_k(mask_ratio*qcg, qtheta, 0, n, beta);
         cos_dist = pvq_search_double(x, n, k, y_tmp);
         /* See Jmspeex' Journal of Dubious Theoretical Results. */
         dist_theta = 2 - 2*cos(theta - qtheta)
@@ -562,8 +569,8 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *ithet
       double dist;
       double qcg;
       qcg = i;
-      mask_ratio = pvq_interband_masking(*mask_gain, pow(q*qcg, mask), mask);
-      k = pvq_compute_k(mask_ratio*qcg, -1, 1, n, mask);
+      mask_ratio = pvq_interband_masking(*mask_gain, pow(q*qcg, beta), beta);
+      k = pvq_compute_k(mask_ratio*qcg, -1, 1, n, beta);
       cos_dist = pvq_search_double(x1, n, k, y_tmp);
       /* See Jmspeex' Journal of Dubious Theoretical Results. */
       dist = (qcg - cg)*(qcg - cg) + qcg*cg*(2 - 2*cos_dist);
@@ -588,7 +595,7 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *ithet
   }
   /* Synthesize like the decoder would. */
   *mask_gain = pvq_synthesis_partial(x0, y, r, n, noref, qg, gain_offset, theta, m, s, q,
-   mask);
+   beta);
   *vk = k;
   /* Encode gain differently depending on whether we use prediction or not. */
   return noref ? qg : neg_interleave(qg, icgr);

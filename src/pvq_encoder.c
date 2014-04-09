@@ -58,16 +58,17 @@ static void pvq_encode_partition(od_ec_enc *ec,
                                  const od_coeff *in,
                                  int n,
                                  int k,
-                                 generic_encoder *model,
+                                 generic_encoder model[3],
                                  int *adapt,
                                  int *exg,
                                  int *ext) {
 
   int adapt_curr[OD_NSB_ADAPT_CTXS] = { 0 };
   int speed = 5;
-
-  generic_encode(ec, &model[theta!=-1], qg, -1, exg, 2);
-  if (theta >= 0 && max_theta > 0)
+  int noref;
+  noref = (theta == -1);
+  generic_encode(ec, &model[!noref], qg, -1, exg, 2);
+  if (!noref)
     generic_encode(ec, &model[2], theta, max_theta-1, ext, 2);
 
   laplace_encode_vector(ec, in, n - (theta >= 0), k, adapt_curr, adapt);
@@ -104,7 +105,10 @@ void code_flag(od_ec_enc *ec, int val, unsigned *prob)
  * @param [in]     in      coefficient block to quantize and encode
  * @param [out]    out     quantized coefficient block
  * @param [in]     q       scale/quantizer
- * @param [in]     n       number of coefficients on one side of block
+ * @param [in]     ln      log of the block size minus two
+ * @param [in]     qm      per-band quantization matrix
+ * @param [in]     beta    per-band activity masking beta param
+ * @param [in]     is_keyframe whether we're encoding a keyframe
  */
 void pvq_encode(daala_enc_ctx *enc,
                 od_coeff *ref,
@@ -113,7 +117,7 @@ void pvq_encode(daala_enc_ctx *enc,
                 int q,
                 int ln,
                 const int *qm,
-                const double *mask,
+                const double *beta,
                 int is_keyframe){
   int theta[PVQ_MAX_PARTITIONS];
   int max_theta[PVQ_MAX_PARTITIONS];
@@ -133,14 +137,14 @@ void pvq_encode(daala_enc_ctx *enc,
   exg = enc->state.pvq_exg+ln*PVQ_MAX_PARTITIONS;
   ext = enc->state.pvq_ext+ln*PVQ_MAX_PARTITIONS;
   noref_prob = enc->state.pvq_noref_prob+ln*PVQ_MAX_PARTITIONS;
-  model = enc->state.pvq_gain_model;
+  model = enc->state.pvq_param_model;
   nb_bands = od_band_offsets[ln][0];
   off = &od_band_offsets[ln][1];
   for (i = 0; i < nb_bands; i++) size[i] = off[i+1] - off[i];
   for (i = 0; i < nb_bands; i++) {
-    if (i == 1) g[1] = g[2] = g[3] = INTER_MASKING*g[0];
-    qg[i] = pvq_theta(in+off[i], ref+off[i], size[i], q*qm[i+1] >> 4, out+off[i],
-     &theta[i], &max_theta[i], &k[i], &g[i], mask[i]);
+    if (i == 1) g[1] = g[2] = g[3] = INTER_BAND_MASKING*g[0];
+    qg[i] = pvq_theta(in+off[i], ref+off[i], size[i], q*qm[i+1] >> 4,
+     out+off[i], &theta[i], &max_theta[i], &k[i], &g[i], beta[i]);
   }
   /* TODO: Find efficient way to code up to 4 noref flags per symbol
      to reduce entropy coder calls. */

@@ -49,11 +49,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
  * @param [in]     ref     'reference' (prediction) vector
  * @param [out]    out     decoded partition
  * @param [in]     noref   boolean indicating absence of reference
+ * @param [in,out] mask_gain input masking from other bands, output masking for
+ *                           other bands
+ * @param [in]     beta    per-band activity masking beta param
  */
 static void pvq_decode_partition(od_ec_dec *ec,
                                  int q0,
                                  int n,
-                                 generic_encoder *model,
+                                 generic_encoder model[3],
                                  int *adapt,
                                  int *exg,
                                  int *ext,
@@ -61,7 +64,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
                                  od_coeff *out,
                                  int noref,
                                  double *mask_gain,
-                                 double mask) {
+                                 double beta) {
   int adapt_curr[OD_NSB_ADAPT_CTXS] = {0};
   int speed;
   int k;
@@ -77,7 +80,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
   double q;
   double mask_ratio;
   /* Quantization step calibration to account for the activity masking. */
-  q = q0*pow(256<<OD_COEFF_SHIFT, 1./mask - 1);
+  q = q0*pow(256<<OD_COEFF_SHIFT, 1./beta - 1);
   speed = 5;
   theta = 0;
   gr = 0;
@@ -91,34 +94,34 @@ static void pvq_decode_partition(od_ec_dec *ec,
     double cgr;
     int icgr;
     int i;
-    cgr = pvq_compute_gain(ref, n, q, &gr, mask);
+    cgr = pvq_compute_gain(ref, n, q, &gr, beta);
     icgr = floor(.5+cgr);
     /* quantized gain is interleave encoded when there's a reference;
        deinterleave it now */
     qg = neg_deinterleave(qg, icgr);
     gain_offset = cgr-icgr;
     qcg = qg + gain_offset;
-    mask_ratio = pvq_interband_masking(*mask_gain, pow(q*qcg, mask), mask);
+    mask_ratio = pvq_interband_masking(*mask_gain, pow(q*qcg, beta), beta);
     /* read and decode first-stage PVQ error theta */
-    max_theta = pvq_compute_max_theta(mask_ratio*qcg, mask);
+    max_theta = pvq_compute_max_theta(mask_ratio*qcg, beta);
     itheta = generic_decode(ec, &model[2], max_theta-1, ext, 2);
     theta = pvq_compute_theta(itheta, max_theta);
     for (i = 0; i < n; i++) r[i] = ref[i];
   }
   else{
     qcg=qg;
-    mask_ratio = pvq_interband_masking(*mask_gain, pow(q*qcg, mask), mask);
+    mask_ratio = pvq_interband_masking(*mask_gain, pow(q*qcg, beta), beta);
   }
 
   if (qg != 0) {
-    k = pvq_compute_k(mask_ratio*qcg, theta, noref, n, mask);
+    k = pvq_compute_k(mask_ratio*qcg, theta, noref, n, beta);
     /* when noref==0, y is actually size n-1 */
     laplace_decode_vector(ec, y, n-(!noref), k, adapt_curr, adapt);
   } else {
     OD_CLEAR(y, n);
   }
   *mask_gain = pvq_synthesis(out, y, r, n, gr, noref, qg, gain_offset, theta,
-   q, mask);
+   q, beta);
 
   if (adapt_curr[OD_ADAPT_K_Q8] > 0) {
     adapt[OD_ADAPT_K_Q8]
@@ -153,7 +156,10 @@ static int decode_flag(od_ec_dec *ec, unsigned *prob)
  * @param [in]     ref     'reference' (prediction) vector
  * @param [out]    out     decoded partition
  * @param [in]     q       quantizer
- * @param [in]     n       number of coefficients on one side of block
+ * @param [in]     ln      log of the block size minus two
+ * @param [in]     qm      per-band quantization matrix
+ * @param [in]     beta    per-band activity masking beta param
+ * @param [in]     is_keyframe whether we're encoding a keyframe
  */
 void pvq_decode(daala_dec_ctx *dec,
                 od_coeff *ref,
@@ -161,7 +167,7 @@ void pvq_decode(daala_dec_ctx *dec,
                 int q,
                 int ln,
                 const int *qm,
-                const double *mask,
+                const double *beta,
                 int is_keyframe){
 
   int noref[PVQ_MAX_PARTITIONS];
@@ -179,7 +185,7 @@ void pvq_decode(daala_dec_ctx *dec,
   exg = dec->state.pvq_exg+ln*PVQ_MAX_PARTITIONS;
   ext = dec->state.pvq_ext+ln*PVQ_MAX_PARTITIONS;
   noref_prob = dec->state.pvq_noref_prob+ln*PVQ_MAX_PARTITIONS;
-  model = dec->state.pvq_gain_model;
+  model = dec->state.pvq_param_model;
   nb_bands = od_band_offsets[ln][0];
   off = &od_band_offsets[ln][1];
   for (i = 0; i < nb_bands; i++) size[i] = off[i+1] - off[i];
@@ -188,8 +194,8 @@ void pvq_decode(daala_dec_ctx *dec,
     else noref[i] = !decode_flag(&dec->ec, &noref_prob[i]);
   }
   for (i = 0; i < nb_bands; i++) {
-    if (i == 1) g[1] = g[2] = g[3] = INTER_MASKING*g[0];
-    pvq_decode_partition(&dec->ec, q*qm[i+1] >> 4, size[i], model, adapt, exg+i, ext+i, ref+off[i],
-                   out+off[i], noref[i], &g[i], mask[i]);
+    if (i == 1) g[1] = g[2] = g[3] = INTER_BAND_MASKING*g[0];
+    pvq_decode_partition(&dec->ec, q*qm[i+1] >> 4, size[i], model, adapt,
+     exg+i, ext+i, ref+off[i], out+off[i], noref[i], &g[i], beta[i]);
   }
 }

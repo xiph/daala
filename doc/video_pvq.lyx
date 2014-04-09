@@ -349,7 +349,10 @@ master
 \begin_inset Formula $\beta=1/\left(1-2\alpha\right)$
 \end_inset
 
-, the MSE-optimal angle quantization resolution should be (roughly) 
+, the MSE-optimal angle quantization resolution is the one that matches
+ the gain resolution.
+ Considering the distance to be approximately equal to the arc distance,
+ we have
 \begin_inset Formula 
 \begin{equation}
 Q_{\theta}=\frac{d\hat{g}/d\hat{\gamma}}{\hat{g}}=\frac{Q_{g}\beta\hat{\gamma}^{\beta-1}}{Q_{g}\hat{\gamma}^{\beta}}=\frac{\beta}{\hat{\gamma}}\ .\label{eq:theta-quantization-step}
@@ -522,7 +525,7 @@ To achieve uniform distortion along all dimensions, the distortion due to
 \begin_layout Standard
 \begin_inset Formula 
 \begin{align*}
-\left(N-2\right)D_{g} & =\hat{g}^{2}D_{pvq}\\
+\left(N-2\right)D_{g} & =\left(\hat{g}\sin\hat{\theta}\right)^{2}D_{pvq}\\
 \frac{\left(N-2\right)\beta^{2}Q_{g}^{2}\hat{\gamma}^{2\beta-2}}{12} & =\left(Q_{g}\hat{\gamma}^{\beta}\sin\hat{\theta}\right)^{2}\frac{N^{2}}{24K^{2}}\\
 \left(N-2\right)\beta^{2} & =\frac{\hat{\gamma}^{2}N^{2}\sin^{2}\hat{\theta}}{2K^{2}}\\
 K & =\frac{\hat{\gamma}N\sin\hat{\theta}}{\beta}\sqrt{\frac{1}{2\left(N-2\right)}}\\

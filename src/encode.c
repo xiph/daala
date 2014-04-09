@@ -466,7 +466,7 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
 #endif
   scale = OD_MAXI(enc->scale[pli], 1);
   if (run_pvq)
-    dc_scale = OD_MAXI(1, scale*od_pvq_qm[pli][ln][0] >> 4);
+    dc_scale = OD_MAXI(1, scale*OD_PVQ_QM_Q4[pli][ln][0] >> 4);
   else
     dc_scale = (pli==0 || enc->scale[pli]==0) ? scale : (scale + 1) >> 1;
   coeff_shift = enc->scale[pli] == 0 ? 0 : OD_COEFF_SHIFT;
@@ -487,7 +487,7 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   if (run_pvq) {
     int i;
     pvq_encode(enc, predt, cblock, scalar_out, scale << coeff_shift, ln,
-     od_pvq_qm[pli][ln], od_pvq_mask[pli][ln], ctx->is_keyframe);
+      OD_PVQ_QM_Q4[pli][ln], OD_PVQ_BETA[pli][ln], ctx->is_keyframe);
     for (i = 0; i < OD_NSB_ADAPT_CTXS; i++) adapt_curr[i] = 0;
     for (i = 1; i < n2; i++) scalar_out[i] = cblock[i];
   }
