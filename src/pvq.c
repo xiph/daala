@@ -413,6 +413,11 @@ static double pvq_rate_approx(int n, int k)
 }
 
 /** Computes the effect of masking from other bands.
+ * The idea is that without any adjusting, the resolution is already
+ * proportional to gain^(2*alpha) so we just need to divide it by
+ * gain^(2*alpha) and then multiply by the total_gain^(2*alpha),
+ * where total_gain = sqrt(current_gain^2 + other_gain^2).
+ * K is inversely proportional to the quantization resolution.
  *
  * @param [in]     inter     Combined gain from other bands
  * @param [in]     curr      Quantized gain from current band

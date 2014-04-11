@@ -87,14 +87,14 @@ static void pvq_encode_partition(od_ec_enc *ec,
   }
 }
 
-void code_flag(od_ec_enc *ec, int val, unsigned *prob)
+void code_flag(od_ec_enc *ec, int val, unsigned *prob0)
 {
-  od_ec_encode_bool_q15(ec, val, *prob);
+  od_ec_encode_bool_q15(ec, val, *prob0);
   if (val) {
-    *prob = *prob - (*prob>>OD_NOREF_ADAPT_SPEED);
+    *prob0 = *prob0 - (*prob0 >> OD_NOREF_ADAPT_SPEED);
   }
   else {
-    *prob = *prob + ((32768-*prob)>>OD_NOREF_ADAPT_SPEED);
+    *prob0 = *prob0 + ((32768 - *prob0) >> OD_NOREF_ADAPT_SPEED);
   }
 }
 
@@ -134,26 +134,26 @@ void pvq_encode(daala_enc_ctx *enc,
   generic_encoder *model;
   unsigned *noref_prob;
   adapt = enc->state.pvq_adapt;
-  exg = enc->state.pvq_exg+ln*PVQ_MAX_PARTITIONS;
-  ext = enc->state.pvq_ext+ln*PVQ_MAX_PARTITIONS;
-  noref_prob = enc->state.pvq_noref_prob+ln*PVQ_MAX_PARTITIONS;
+  exg = enc->state.pvq_exg + ln*PVQ_MAX_PARTITIONS;
+  ext = enc->state.pvq_ext + ln*PVQ_MAX_PARTITIONS;
+  noref_prob = enc->state.pvq_noref_prob + ln*PVQ_MAX_PARTITIONS;
   model = enc->state.pvq_param_model;
   nb_bands = od_band_offsets[ln][0];
   off = &od_band_offsets[ln][1];
   for (i = 0; i < nb_bands; i++) size[i] = off[i+1] - off[i];
   for (i = 0; i < nb_bands; i++) {
-    if (i == 1) g[1] = g[2] = g[3] = INTER_BAND_MASKING*g[0];
-    qg[i] = pvq_theta(in+off[i], ref+off[i], size[i], q*qm[i+1] >> 4,
+    if (i == 1) g[1] = g[2] = g[3] = OD_INTER_BAND_MASKING*g[0];
+    qg[i] = pvq_theta(in + off[i], ref + off[i], size[i], q*qm[i + 1] >> 4,
      out+off[i], &theta[i], &max_theta[i], &k[i], &g[i], beta[i]);
   }
   /* TODO: Find efficient way to code up to 4 noref flags per symbol
      to reduce entropy coder calls. */
   for (i = 0; i < nb_bands; i++) {
-    if (!(is_keyframe && vector_is_null(ref+off[i], size[i])))
+    if (!(is_keyframe && vector_is_null(ref + off[i], size[i])))
       code_flag(&enc->ec, theta[i] != -1, &noref_prob[i]);
   }
   for (i = 0; i < nb_bands; i++) {
-    pvq_encode_partition(&enc->ec, qg[i], theta[i], max_theta[i], out+off[i],
-     size[i], k[i], model, adapt, exg+i, ext+i);
+    pvq_encode_partition(&enc->ec, qg[i], theta[i], max_theta[i], out + off[i],
+     size[i], k[i], model, adapt, exg + i, ext + i);
   }
 }

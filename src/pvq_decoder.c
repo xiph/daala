@@ -137,15 +137,15 @@ static void pvq_decode_partition(od_ec_dec *ec,
   }
 }
 
-static int decode_flag(od_ec_dec *ec, unsigned *prob)
+static int decode_flag(od_ec_dec *ec, unsigned *prob0)
 {
   int val;
-  val = od_ec_decode_bool_q15(ec, *prob);
+  val = od_ec_decode_bool_q15(ec, *prob0);
   if (val) {
-    *prob = *prob - (*prob>>OD_NOREF_ADAPT_SPEED);
+    *prob0 = *prob0 - (*prob0 >> OD_NOREF_ADAPT_SPEED);
   }
   else {
-    *prob = *prob + ((32768-*prob)>>OD_NOREF_ADAPT_SPEED);
+    *prob0 = *prob0 + ((32768 - *prob0) >> OD_NOREF_ADAPT_SPEED);
   }
   return val;
 }
@@ -182,20 +182,20 @@ void pvq_decode(daala_dec_ctx *dec,
   generic_encoder *model;
   unsigned *noref_prob;
   adapt = dec->state.pvq_adapt;
-  exg = dec->state.pvq_exg+ln*PVQ_MAX_PARTITIONS;
-  ext = dec->state.pvq_ext+ln*PVQ_MAX_PARTITIONS;
-  noref_prob = dec->state.pvq_noref_prob+ln*PVQ_MAX_PARTITIONS;
+  exg = dec->state.pvq_exg + ln*PVQ_MAX_PARTITIONS;
+  ext = dec->state.pvq_ext + ln*PVQ_MAX_PARTITIONS;
+  noref_prob = dec->state.pvq_noref_prob + ln*PVQ_MAX_PARTITIONS;
   model = dec->state.pvq_param_model;
   nb_bands = od_band_offsets[ln][0];
   off = &od_band_offsets[ln][1];
   for (i = 0; i < nb_bands; i++) size[i] = off[i+1] - off[i];
   for (i = 0; i < nb_bands; i++) {
-    if (is_keyframe && vector_is_null(ref+off[i], size[i])) noref[i] = 1;
+    if (is_keyframe && vector_is_null(ref + off[i], size[i])) noref[i] = 1;
     else noref[i] = !decode_flag(&dec->ec, &noref_prob[i]);
   }
   for (i = 0; i < nb_bands; i++) {
-    if (i == 1) g[1] = g[2] = g[3] = INTER_BAND_MASKING*g[0];
-    pvq_decode_partition(&dec->ec, q*qm[i+1] >> 4, size[i], model, adapt,
-     exg+i, ext+i, ref+off[i], out+off[i], noref[i], &g[i], beta[i]);
+    if (i == 1) g[1] = g[2] = g[3] = OD_INTER_BAND_MASKING*g[0];
+    pvq_decode_partition(&dec->ec, q*qm[i + 1] >> 4, size[i], model, adapt,
+     exg + i, ext + i, ref + off[i], out + off[i], noref[i], &g[i], beta[i]);
   }
 }
