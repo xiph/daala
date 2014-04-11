@@ -42,15 +42,25 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #if OD_DISABLE_MASKING
 
+# if OD_DISABLE_QM
+static const int OD_PVQ_QM4_LUMA_Q4[2] = {16, 16};
+static const int OD_PVQ_QM8_LUMA_Q4[5] = {16, 16, 16, 16, 16};
+static const int OD_PVQ_QM16_LUMA_Q4[8] = {16, 16, 16, 16, 16, 16, 16, 16};
+# else
 static const int OD_PVQ_QM4_LUMA_Q4[2] = {8, 16};
 static const int OD_PVQ_QM8_LUMA_Q4[5] = {16, 16, 32, 32, 64};
 static const int OD_PVQ_QM16_LUMA_Q4[8] = {16, 16, 16, 16, 32, 32, 32, 64};
+# endif
 
 static const double OD_PVQ_BETA4_LUMA[1] = {1.};
 static const double OD_PVQ_BETA8_LUMA[4] = {1., 1., 1., 1.};
 static const double OD_PVQ_BETA16_LUMA[7] = {1., 1., 1., 1., 1., 1., 1.};
 
 #else
+
+# if OD_DISABLE_QM
+# error "Can't enable activity masking while disabling quantization matrix"
+# endif
 
 static const int OD_PVQ_QM4_LUMA_Q4[2] = {8, 16};
 static const int OD_PVQ_QM8_LUMA_Q4[5] = {16, 16, 44, 44, 72};
@@ -63,9 +73,15 @@ static const double OD_PVQ_BETA16_LUMA[7] = {1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5};
 #endif
 
 
+#if OD_DISABLE_QM
+static const int OD_PVQ_QM4_CHROMA_Q4[2] = {8, 16};
+static const int OD_PVQ_QM8_CHROMA_Q4[5] = {8, 16, 16, 16, 16};
+static const int OD_PVQ_QM16_CHROMA_Q4[8] = {8, 16, 16, 16, 16, 16, 16, 16};
+#else
 static const int OD_PVQ_QM4_CHROMA_Q4[2] = {8, 32};
 static const int OD_PVQ_QM8_CHROMA_Q4[5] = {8, 24, 64, 64, 100};
 static const int OD_PVQ_QM16_CHROMA_Q4[8] = {8, 16, 24, 24, 32, 64, 64, 100};
+#endif
 
 static const double OD_PVQ_BETA4_CHROMA[1] = {1.};
 static const double OD_PVQ_BETA8_CHROMA[4] = {1., 1., 1., 1.};
