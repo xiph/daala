@@ -422,12 +422,19 @@ reference "fig:PVQ-distortion-N-K"
  is approximately
 \begin_inset Formula 
 \[
-D_{pvq}=\frac{N^{2}}{24K^{2}}\ .
+D_{pvq}=\frac{\left(N-1\right)^{2}+C_{K}\left(N-1\right)}{24K^{2}}\ ,
 \]
 
 \end_inset
 
+with 
+\begin_inset Formula $C_{K}=4.2.$
+\end_inset
 
+
+\end_layout
+
+\begin_layout Standard
 \begin_inset Float figure
 wide false
 sideways false
@@ -526,10 +533,9 @@ To achieve uniform distortion along all dimensions, the distortion due to
 \begin_inset Formula 
 \begin{align*}
 \left(N-2\right)D_{g} & =\left(\hat{g}\sin\hat{\theta}\right)^{2}D_{pvq}\\
-\frac{\left(N-2\right)\beta^{2}Q_{g}^{2}\hat{\gamma}^{2\beta-2}}{12} & =\left(Q_{g}\hat{\gamma}^{\beta}\sin\hat{\theta}\right)^{2}\frac{N^{2}}{24K^{2}}\\
-\left(N-2\right)\beta^{2} & =\frac{\hat{\gamma}^{2}N^{2}\sin^{2}\hat{\theta}}{2K^{2}}\\
-K & =\frac{\hat{\gamma}N\sin\hat{\theta}}{\beta}\sqrt{\frac{1}{2\left(N-2\right)}}\\
- & \approx\frac{\hat{\gamma}\sin\hat{\theta}}{\beta}\sqrt{N/2}\ .
+\frac{\left(N-2\right)\beta^{2}Q_{g}^{2}\hat{\gamma}^{2\beta-2}}{12} & =\left(Q_{g}\hat{\gamma}^{\beta}\sin\hat{\theta}\right)^{2}\frac{\left(N-2\right)^{2}+C_{K}\left(N-2\right)}{24K^{2}}\\
+\left(N-2\right)\beta^{2} & =\frac{\hat{\gamma}^{2}\sin^{2}\hat{\theta}\left[\left(N-2\right)^{2}+C_{K}\left(N-2\right)\right]}{2K^{2}}\\
+K & =\frac{\hat{\gamma}\sin\hat{\theta}}{\beta}\sqrt{\frac{N+C_{K}-2}{2}}
 \end{align*}
 
 \end_inset

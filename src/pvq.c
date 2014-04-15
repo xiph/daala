@@ -318,14 +318,17 @@ double pvq_compute_theta(int t, int max_theta) {
  */
 int pvq_compute_k(double qcg, double theta, int noref, int n, double beta) {
   if (noref) {
-    return OD_MAXI(1, (int)floor(.5 + qcg*sqrt(n/2)/beta));
+    return OD_MAXI(1, (int)floor(.5 + (qcg-.2)*sqrt((n+3)/2)/beta));
   }
   else {
     if (theta == 0) return 0;
     /* Sets K according to gain and theta, based on the high-rate
-       PVQ distortion curves D~=N^2/(24*K^2). Low-rate will have to be
-       perceptually tuned anyway.  */
-    return OD_MAXI(1, (int)floor(.5 + qcg*sin(theta)*sqrt(n/2)/beta));
+       PVQ distortion curves (see PVQ document). Low-rate will have to be
+       perceptually tuned anyway. We subtract 0.2 from the radius as an
+       approximation for the fact that the coefficients aren't identically
+       distributed within a band so at low gain the number of dimensions that
+       are likely to have a pulse is less than n. */
+    return OD_MAXI(1, (int)floor(.5 + (qcg*sin(theta)-.2)*sqrt((n+2)/2)/beta));
   }
 }
 
