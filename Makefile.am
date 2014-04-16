@@ -512,6 +512,9 @@ TESTS = \
 	src/tests/check_tests
 
 src_tests_dcttest_SOURCES = src/dct.c src/filter.c
+if ENABLE_ASSERTIONS
+  src_tests_dcttest_SOURCES += src/internal.c
+endif
 src_tests_dcttest_CFLAGS = $(OGG_CFLAGS) -DOD_DCT_CHECK_OVERFLOW -DOD_DCT_TEST
 src_tests_dcttest_LDADD = $(LIBM)
 

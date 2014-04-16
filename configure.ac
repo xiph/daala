@@ -70,7 +70,7 @@ dnl AM_CONDITIONAL(OD_OS_DARWIN, test "$os_darwin" = "true")
 AC_ARG_ENABLE([assertions],
   AS_HELP_STRING([--enable-assertions], [Enable assertions in code]),,
   enable_assertions=no)
-
+AM_CONDITIONAL([ENABLE_ASSERTIONS], [test "$enable_assertions" = "yes"])
 AS_IF([test "$enable_assertions" = "yes"], [
   AC_DEFINE([OD_ENABLE_ASSERTIONS], [1], [Enable assertions in code])
 ])
