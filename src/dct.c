@@ -906,7 +906,11 @@ static void ieee1180_srand(int seed) {
 static int ieee1180_rand(int l, int h) {
   double x;
   int i;
-  ieee1180_rand_x = ieee1180_rand_x*1103515245 + 12345;
+  /*We do an unsigned multiply here to avoid signed overflow (which is
+     undefined).
+    The results should not change on a 2's-complement machine, since the low
+     32-bits of the multiply are the same either way.*/
+  ieee1180_rand_x = ieee1180_rand_x*1103515245U + 12345;
   i = ieee1180_rand_x & 0x7FFFFFFE;
   x = i/(double)0x7FFFFFFF*(l + h + 1);
   return (int)x - l;
