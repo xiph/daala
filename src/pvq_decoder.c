@@ -52,6 +52,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
  * @param [in,out] mask_gain input masking from other bands, output masking for
  *                           other bands
  * @param [in]     beta    per-band activity masking beta param
+ * @param [in]     is_keyframe whether we're encoding a keyframe
  */
 static void pvq_decode_partition(od_ec_dec *ec,
                                  int q0,
@@ -64,7 +65,8 @@ static void pvq_decode_partition(od_ec_dec *ec,
                                  od_coeff *out,
                                  int noref,
                                  double *mask_gain,
-                                 double beta) {
+                                 double beta,
+                                 int is_keyframe) {
   int adapt_curr[OD_NSB_ADAPT_CTXS] = {0};
   int speed;
   int k;
@@ -104,7 +106,20 @@ static void pvq_decode_partition(od_ec_dec *ec,
     mask_ratio = pvq_interband_masking(*mask_gain, pow(q*qcg, beta), beta);
     /* read and decode first-stage PVQ error theta */
     max_theta = pvq_compute_max_theta(mask_ratio*qcg, beta);
-    itheta = generic_decode(ec, &model[2], max_theta-1, ext, 2);
+    if (max_theta > 1) {
+      if (is_keyframe) {
+        int tmp;
+        /* FIXME: This is a temporary kludge until we can properly initialize
+           od_state differently for keyframes and non-keyframes. */
+        if (*ext > 65536) *ext = 32768;
+        tmp = max_theta**ext;
+        itheta = generic_decode(ec, &model[2], max_theta-1, &tmp, 2);
+        /* Adapt expectation as fraction of max_theta */
+        *ext += (itheta*65536/max_theta - *ext) >> 5;
+      }
+      else itheta = generic_decode(ec, &model[2], max_theta - 1, ext, 2);
+    }
+    else itheta = 0;
     theta = pvq_compute_theta(itheta, max_theta);
     for (i = 0; i < n; i++) r[i] = ref[i];
   }
@@ -196,6 +211,7 @@ void pvq_decode(daala_dec_ctx *dec,
   for (i = 0; i < nb_bands; i++) {
     if (i == 1) g[1] = g[2] = g[3] = OD_INTER_BAND_MASKING*g[0];
     pvq_decode_partition(&dec->ec, q*qm[i + 1] >> 4, size[i], model, adapt,
-     exg + i, ext + i, ref + off[i], out + off[i], noref[i], &g[i], beta[i]);
+     exg + i, ext + i, ref + off[i], out + off[i], noref[i], &g[i], beta[i],
+     is_keyframe);
   }
 }

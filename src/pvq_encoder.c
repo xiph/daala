@@ -50,6 +50,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
  * @param [in,out] adapt      adaptation context
  * @param [in,out] exg        ExQ16 expectation of gain value
  * @param [in,out] ext        ExQ16 expectation of theta value
+ * @param [in]     is_keyframe whether we're encoding a keyframe
  */
 static void pvq_encode_partition(od_ec_enc *ec,
                                  int qg,
@@ -61,16 +62,27 @@ static void pvq_encode_partition(od_ec_enc *ec,
                                  generic_encoder model[3],
                                  int *adapt,
                                  int *exg,
-                                 int *ext) {
+                                 int *ext,
+                                 int is_keyframe) {
 
   int adapt_curr[OD_NSB_ADAPT_CTXS] = { 0 };
   int speed = 5;
   int noref;
   noref = (theta == -1);
   generic_encode(ec, &model[!noref], qg, -1, exg, 2);
-  if (!noref)
-    generic_encode(ec, &model[2], theta, max_theta-1, ext, 2);
-
+  if (!noref && max_theta > 1) {
+    if (is_keyframe) {
+      int tmp;
+      /* FIXME: This is a temporary kludge until we can properly initialize
+         od_state differently for keyframes and non-keyframes. */
+      if (*ext > 65536) *ext = 32768;
+      tmp = max_theta**ext;
+      generic_encode(ec, &model[2], theta, max_theta-1, &tmp, 2);
+      /* Adapt expectation as fraction of max_theta */
+      *ext += (theta*65536/max_theta - *ext) >> 5;
+    }
+    else generic_encode(ec, &model[2], theta, max_theta-1, ext, 2);
+  }
   laplace_encode_vector(ec, in, n - (theta >= 0), k, adapt_curr, adapt);
 
   if (adapt_curr[OD_ADAPT_K_Q8] > 0) {
@@ -154,6 +166,6 @@ void pvq_encode(daala_enc_ctx *enc,
   }
   for (i = 0; i < nb_bands; i++) {
     pvq_encode_partition(&enc->ec, qg[i], theta[i], max_theta[i], out + off[i],
-     size[i], k[i], model, adapt, exg + i, ext + i);
+     size[i], k[i], model, adapt, exg + i, ext + i, is_keyframe);
   }
 }
