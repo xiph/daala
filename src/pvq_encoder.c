@@ -130,6 +130,7 @@ void pvq_encode(daala_enc_ctx *enc,
                 int ln,
                 const int *qm,
                 const double *beta,
+                const double *inter_band,
                 int is_keyframe){
   int theta[PVQ_MAX_PARTITIONS];
   int max_theta[PVQ_MAX_PARTITIONS];
@@ -154,7 +155,11 @@ void pvq_encode(daala_enc_ctx *enc,
   off = &od_band_offsets[ln][1];
   for (i = 0; i < nb_bands; i++) size[i] = off[i+1] - off[i];
   for (i = 0; i < nb_bands; i++) {
-    if (i == 1) g[1] = g[2] = g[3] = OD_INTER_BAND_MASKING*g[0];
+    int j;
+    double mask;
+    mask = 0;
+    for (j = 0; j < i; j++) mask += *inter_band++*g[j];
+    g[i] = mask;
     qg[i] = pvq_theta(in + off[i], ref + off[i], size[i], q*qm[i + 1] >> 4,
      out+off[i], &theta[i], &max_theta[i], &k[i], &g[i], beta[i]);
   }

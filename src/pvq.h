@@ -29,11 +29,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 # define PVQ_MAX_PARTITIONS (7)
 
-# define OD_INTER_BAND_MASKING (.25)
 # define OD_NOREF_ADAPT_SPEED (4)
 
-extern const int * const OD_PVQ_QM_Q4[OD_NPLANES_MAX][OD_NBSIZES];
-extern const double * const OD_PVQ_BETA[OD_NPLANES_MAX][OD_NBSIZES];
+extern const int *const OD_PVQ_QM_Q4[OD_NPLANES_MAX][OD_NBSIZES];
+extern const double *const OD_PVQ_BETA[OD_NPLANES_MAX][OD_NBSIZES];
+extern const double *const OD_PVQ_INTER_BAND_MASKING[OD_NBSIZES];
 
 int neg_deinterleave(int x, int ref);
 

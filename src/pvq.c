@@ -87,20 +87,45 @@ static const double OD_PVQ_BETA4_CHROMA[1] = {1.};
 static const double OD_PVQ_BETA8_CHROMA[4] = {1., 1., 1., 1.};
 static const double OD_PVQ_BETA16_CHROMA[7] = {1., 1., 1., 1., 1., 1., 1.};
 
+/* A triangular array containing the inter-band masking for each band caused
+   by each of the previous bands. The first row corresponds to band 1 because
+   band 0 doesn't have a previous band. Inter-band masking only has an effect
+   when beta != 1, so there's no need for multiple versions at this point. */
+static const double OD_PVQ_INTER_BAND_MASKING4[] = {0};
+static const double OD_PVQ_INTER_BAND_MASKING8[] = {
+ 0.0625,
+ 0.0625, 0,
+ 0.015625, 0.0625, 0.0625
+};
+static const double OD_PVQ_INTER_BAND_MASKING16[] = {
+  0.0625,
+  0.0625, 0,
+  0.015625, 0.0625, 0.0625,
+  0.015625, 0.0625, 0.0625, 0.0625,
+  0.015625, 0.0625, 0.0625, 0.0625, 0,
+  0.015625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625
+};
+
 /* We use the chroma params for the alpha channel. Not sure whether it's
    a good idea. */
-const int * const OD_PVQ_QM_Q4[OD_NPLANES_MAX][OD_NBSIZES] = {
+const int *const OD_PVQ_QM_Q4[OD_NPLANES_MAX][OD_NBSIZES] = {
   {OD_PVQ_QM4_LUMA_Q4, OD_PVQ_QM8_LUMA_Q4, OD_PVQ_QM16_LUMA_Q4},
   {OD_PVQ_QM4_CHROMA_Q4, OD_PVQ_QM8_CHROMA_Q4, OD_PVQ_QM16_CHROMA_Q4},
   {OD_PVQ_QM4_CHROMA_Q4, OD_PVQ_QM8_CHROMA_Q4, OD_PVQ_QM16_CHROMA_Q4},
   {OD_PVQ_QM4_CHROMA_Q4, OD_PVQ_QM8_CHROMA_Q4, OD_PVQ_QM16_CHROMA_Q4}
 };
 
-const double * const OD_PVQ_BETA[OD_NPLANES_MAX][OD_NBSIZES] = {
+const double *const OD_PVQ_BETA[OD_NPLANES_MAX][OD_NBSIZES] = {
   {OD_PVQ_BETA4_LUMA, OD_PVQ_BETA8_LUMA, OD_PVQ_BETA16_LUMA},
   {OD_PVQ_BETA4_CHROMA, OD_PVQ_BETA8_CHROMA, OD_PVQ_BETA16_CHROMA},
   {OD_PVQ_BETA4_CHROMA, OD_PVQ_BETA8_CHROMA, OD_PVQ_BETA16_CHROMA},
   {OD_PVQ_BETA4_CHROMA, OD_PVQ_BETA8_CHROMA, OD_PVQ_BETA16_CHROMA}
+};
+
+const double *const OD_PVQ_INTER_BAND_MASKING[OD_NBSIZES] = {
+  OD_PVQ_INTER_BAND_MASKING4,
+  OD_PVQ_INTER_BAND_MASKING8,
+  OD_PVQ_INTER_BAND_MASKING16
 };
 
 /** Find the codepoint on the given PSphere closest to the desired
@@ -390,7 +415,7 @@ static double pvq_synthesis_partial(od_coeff *xcoeff, od_coeff *ypulse,
   for (i = 0; i < n; i++) {
     xcoeff[i] = floor(.5 + x[i]*g);
   }
-  return g;
+  return g*g;
 }
 
 /** Synthesizes one parition of coefficient values from a PVQ-encoded
@@ -445,7 +470,7 @@ static double pvq_rate_approx(int n, int k)
  */
 double pvq_interband_masking(double inter, double curr, double beta) {
   /* alpha = .5-.5/beta */
-  return pow(curr*curr/(curr*curr+inter*inter), .5-.5/beta);
+  return pow(curr/(curr+inter), .5-.5/beta);
 }
 
 int vector_is_null(const od_coeff *x, int len) {
@@ -548,7 +573,7 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y,
       int ts;
       /* Quantized companded gain */
       qcg = i+gain_offset;
-      mask_ratio = pvq_interband_masking(*mask_gain, pow(q*qcg, beta), beta);
+      mask_ratio = pvq_interband_masking(*mask_gain, pow(q*qcg, 2*beta), beta);
       /* Set angular resolution (in ra) to match the encoded gain */
       ts = pvq_compute_max_theta(mask_ratio*qcg, beta);
       /* Search for the best angle within a reasonable range. */
@@ -593,7 +618,7 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y,
       double dist;
       double qcg;
       qcg = i;
-      mask_ratio = pvq_interband_masking(*mask_gain, pow(q*qcg, beta), beta);
+      mask_ratio = pvq_interband_masking(*mask_gain, pow(q*qcg, 2*beta), beta);
       k = pvq_compute_k(mask_ratio*qcg, -1, 1, n, beta);
       cos_dist = pvq_search_double(x1, n, k, y_tmp);
       /* See Jmspeex' Journal of Dubious Theoretical Results. */
@@ -618,8 +643,8 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y,
     for (i = m; i < n - 1; i++) y[i] = y[i+1];
   }
   /* Synthesize like the decoder would. */
-  *mask_gain = pvq_synthesis_partial(x0, y, r, n, noref, qg, gain_offset, theta, m, s, q,
-   beta);
+  *mask_gain = pvq_synthesis_partial(x0, y, r, n, noref, qg, gain_offset,
+   theta, m, s, q, beta);
   *vk = k;
   /* Encode gain differently depending on whether we use prediction or not. */
   return noref ? qg : neg_interleave(qg, icgr);
