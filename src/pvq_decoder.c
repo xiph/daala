@@ -109,9 +109,6 @@ static void pvq_decode_partition(od_ec_dec *ec,
     if (max_theta > 1) {
       if (is_keyframe) {
         int tmp;
-        /* FIXME: This is a temporary kludge until we can properly initialize
-           od_state differently for keyframes and non-keyframes. */
-        if (*ext > 65536) *ext = 32768;
         tmp = max_theta**ext;
         itheta = generic_decode(ec, &model[2], max_theta-1, &tmp, 2);
         /* Adapt expectation as fraction of max_theta */

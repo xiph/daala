@@ -630,6 +630,7 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
         }
       }
     }
+    od_state_reset_probs(&dec->state, mbctx.is_keyframe);
     for (pli = 0; pli < nplanes; pli++) {
       int lni;
       generic_model_init(mbctx.model_dc + pli);

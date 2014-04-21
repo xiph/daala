@@ -954,6 +954,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     for (mi = 0; mi < OD_INTRA_NMODES; mi++) {
       mbctx.mode_p0[mi] = 32768/OD_INTRA_NMODES;
     }
+    od_state_reset_probs(&enc->state, mbctx.is_keyframe);
     for (pli = 0; pli < nplanes; pli++) {
       int lni;
       generic_model_init(&mbctx.model_dc[pli]);

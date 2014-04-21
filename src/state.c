@@ -178,7 +178,6 @@ static void od_state_opt_vtbl_init(od_state *state) {
 int od_state_init(od_state *state, const daala_info *info) {
   int nplanes;
   int pli;
-  int i;
   /*First validate the parameters.*/
   if (info == NULL) return OD_EFAULT;
   nplanes = info->nplanes;
@@ -207,18 +206,7 @@ int od_state_init(od_state *state, const daala_info *info) {
    sizeof(*state->bsize)*(state->nhsb + 2)*4*(state->nvsb + 2)*4);
   state->bstride = (state->nhsb + 2)*4;
   state->bsize += 4*state->bstride + 4;
-  generic_model_init(&state->pvq_param_model[0]);
-  generic_model_init(&state->pvq_param_model[1]);
-  generic_model_init(&state->pvq_param_model[2]);
-  state->pvq_adapt[OD_ADAPT_K_Q8] = 384;
-  state->pvq_adapt[OD_ADAPT_SUM_EX_Q8] = 256;
-  state->pvq_adapt[OD_ADAPT_COUNT_Q8] = 104;
-  state->pvq_adapt[OD_ADAPT_COUNT_EX_Q8] = 128;
-  for (i = 0; i < OD_NBSIZES*PVQ_MAX_PARTITIONS; i++) {
-    state->pvq_exg[i] = 2 << 16;
-    state->pvq_ext[i] = 2 << 16;
-    state->pvq_noref_prob[i] = 26376;
-  }
+  od_state_reset_probs(state, 1);
   return 0;
 }
 
@@ -231,6 +219,22 @@ void od_state_clear(od_state *state) {
   _ogg_free(state->ref_img_data);
   state->bsize -= 4*state->bstride + 4;
   _ogg_free(state->bsize);
+}
+
+void od_state_reset_probs(od_state *state, int is_keyframe) {
+  int i;
+  generic_model_init(&state->pvq_param_model[0]);
+  generic_model_init(&state->pvq_param_model[1]);
+  generic_model_init(&state->pvq_param_model[2]);
+  state->pvq_adapt[OD_ADAPT_K_Q8] = 384;
+  state->pvq_adapt[OD_ADAPT_SUM_EX_Q8] = 256;
+  state->pvq_adapt[OD_ADAPT_COUNT_Q8] = 104;
+  state->pvq_adapt[OD_ADAPT_COUNT_EX_Q8] = 128;
+  for (i = 0; i < OD_NBSIZES*PVQ_MAX_PARTITIONS; i++) {
+    state->pvq_exg[i] = 2 << 16;
+    state->pvq_ext[i] = is_keyframe ? 24576 : 2 << 16;
+    state->pvq_noref_prob[i] = 26376;
+  }
 }
 
 #if 0
