@@ -69,7 +69,7 @@ void generic_encode(od_ec_enc *enc, generic_encoder *model, int x, int max,
   xs = (x + (1 << shift >> 1)) >> shift;
   ms = (max + (1 << shift >> 1)) >> shift;
   OD_ASSERT(max == -1 || xs <= ms);
-  if (max == -1) od_ec_encode_cdf(enc, OD_MINI(15, xs), cdf, 16);
+  if (max == -1) od_ec_encode_cdf_unscaled(enc, OD_MINI(15, xs), cdf, 16);
   else {
     od_ec_encode_cdf_unscaled(enc, OD_MINI(15, xs), cdf, OD_MINI(ms + 1, 16));
   }

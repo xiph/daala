@@ -38,8 +38,8 @@ void generic_model_init(generic_encoder *model) {
   model->increment = 64;
   for (i = 0; i < GENERIC_TABLES; i++) {
     for (j = 0; j < 16; j++) {
-      /* FIXME: Come on, we can do better than flat initialization! */
-      model->cdf[i][j] = (j + 1) << 10;
+      /* Do flat initialization equivalent to a single symbol in each bin. */
+      model->cdf[i][j] = (j + 1) * model->increment;
     }
   }
 }

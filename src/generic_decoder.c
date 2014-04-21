@@ -68,7 +68,7 @@ int generic_decode(od_ec_dec *dec, generic_encoder *model, int max,
   id = OD_MINI(GENERIC_TABLES - 1, lg_q1);
   cdf = model->cdf[id];
   ms = (max + (1 << shift >> 1)) >> shift;
-  if (max == -1) xs = od_ec_decode_cdf(dec, cdf, 16);
+  if (max == -1) xs = od_ec_decode_cdf_unscaled(dec, cdf, 16);
   else xs = od_ec_decode_cdf_unscaled(dec, cdf, OD_MINI(ms + 1, 16));
   if (xs == 15) {
     int e;
