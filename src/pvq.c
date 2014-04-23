@@ -74,13 +74,21 @@ static const double OD_PVQ_BETA16_LUMA[7] = {1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5};
 
 
 #if OD_DISABLE_QM
-static const int OD_PVQ_QM4_CHROMA_Q4[2] = {8, 16};
-static const int OD_PVQ_QM8_CHROMA_Q4[5] = {8, 16, 16, 16, 16};
-static const int OD_PVQ_QM16_CHROMA_Q4[8] = {8, 16, 16, 16, 16, 16, 16, 16};
+static const int OD_PVQ_QM4_CB_Q4[2] = {8, 16};
+static const int OD_PVQ_QM8_CB_Q4[5] = {8, 16, 16, 16, 16};
+static const int OD_PVQ_QM16_CB_Q4[8] = {8, 16, 16, 16, 16, 16, 16, 16};
+
+#define OD_PVQ_QM4_CR_Q4 OD_PVQ_QM4_CB_Q4
+#define OD_PVQ_QM8_CR_Q4 OD_PVQ_QM8_CB_Q4
+#define OD_PVQ_QM16_CR_Q4 OD_PVQ_QM16_CB_Q4
 #else
-static const int OD_PVQ_QM4_CHROMA_Q4[2] = {8, 32};
-static const int OD_PVQ_QM8_CHROMA_Q4[5] = {8, 24, 64, 64, 100};
-static const int OD_PVQ_QM16_CHROMA_Q4[8] = {8, 16, 24, 24, 32, 64, 64, 100};
+static const int OD_PVQ_QM4_CB_Q4[2] = {24, 48};
+static const int OD_PVQ_QM8_CB_Q4[5] = {16, 48, 64, 64, 100};
+static const int OD_PVQ_QM16_CB_Q4[8] = {16, 32, 48, 48, 64, 64, 64, 100};
+
+static const int OD_PVQ_QM4_CR_Q4[2] = {12, 16};
+static const int OD_PVQ_QM8_CR_Q4[5] = {8, 24, 64, 64, 100};
+static const int OD_PVQ_QM16_CR_Q4[8] = {8, 16, 24, 24, 32, 64, 64, 100};
 #endif
 
 static const double OD_PVQ_BETA4_CHROMA[1] = {1.};
@@ -110,9 +118,9 @@ static const double OD_PVQ_INTER_BAND_MASKING16[] = {
    a good idea. */
 const int *const OD_PVQ_QM_Q4[OD_NPLANES_MAX][OD_NBSIZES] = {
   {OD_PVQ_QM4_LUMA_Q4, OD_PVQ_QM8_LUMA_Q4, OD_PVQ_QM16_LUMA_Q4},
-  {OD_PVQ_QM4_CHROMA_Q4, OD_PVQ_QM8_CHROMA_Q4, OD_PVQ_QM16_CHROMA_Q4},
-  {OD_PVQ_QM4_CHROMA_Q4, OD_PVQ_QM8_CHROMA_Q4, OD_PVQ_QM16_CHROMA_Q4},
-  {OD_PVQ_QM4_CHROMA_Q4, OD_PVQ_QM8_CHROMA_Q4, OD_PVQ_QM16_CHROMA_Q4}
+  {OD_PVQ_QM4_CB_Q4, OD_PVQ_QM8_CB_Q4, OD_PVQ_QM16_CB_Q4},
+  {OD_PVQ_QM4_CR_Q4, OD_PVQ_QM8_CR_Q4, OD_PVQ_QM16_CR_Q4},
+  {OD_PVQ_QM4_CR_Q4, OD_PVQ_QM8_CR_Q4, OD_PVQ_QM16_CR_Q4}
 };
 
 const double *const OD_PVQ_BETA[OD_NPLANES_MAX][OD_NBSIZES] = {
