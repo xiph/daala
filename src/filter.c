@@ -106,28 +106,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
    of the approximations are actually lower. This is selected when the TYPE3
    defines are set.
 
-  Or we use the form
-    x0 ---------------------------------+------ y0
-                                p0 | u0 | r0 |
-    x1 ---------------------+------+---------+- y1
-                    p1 | u1 | r1 |
-    x2 ---------+------+---------+------------- y2
-        p2 | u2 | r2 |
-    x3 ----+---------+------------------------- y3
-                           .
-                           .
-                           .
-
-   which is a construction using three lifting steps to build a filter with
-    an overall determinant of one.
-   This is a necessary condition for having perfect
-    reconstruction in the reverse directions:
-
-   The scaling steps in the other factorizations give perfect reconstruction
-    in only the forward direction: post(pre(image)) = image, but are
-    not sufficient to make prediction for static scenes instantly convergent.
-   For that we need pre(post(image)) = image as well.
-  */
+  The maximum denominator for all coefficients was allowed to be 64.*/
 
 const od_filter_func OD_PRE_FILTER[OD_NBSIZES] = {
   od_pre_filter4,
@@ -144,12 +123,19 @@ const od_filter_func OD_POST_FILTER[OD_NBSIZES] = {
 /*Filter parameters for the pre/post filters.
   When changing these the intra-predictors in
   initdata.c must be updated.*/
-#define OD_FILTER_PARAMS4_0 (64)
-#define OD_FILTER_PARAMS4_1 (64)
-#define OD_FILTER_PARAMS4_2 (-42)
 
-const int OD_FILTER_PARAMS4[3] = {
-  OD_FILTER_PARAMS4_0, OD_FILTER_PARAMS4_1, OD_FILTER_PARAMS4_2
+/*R=f
+  6-bit s0=1.328125, s1=1.171875, p0=-0.234375, u0=0.515625
+  Ar95_Cg = 8.55232 dB, SBA = 23.3660, Width = 4.6896
+  BiOrth = 0.004968, Subset1_Cg = 9.62133 */
+#define OD_FILTER_PARAMS4_0 (85)
+#define OD_FILTER_PARAMS4_1 (75)
+#define OD_FILTER_PARAMS4_2 (-15)
+#define OD_FILTER_PARAMS4_3 (33)
+
+const int OD_FILTER_PARAMS4[4] = {
+  OD_FILTER_PARAMS4_0, OD_FILTER_PARAMS4_1, OD_FILTER_PARAMS4_2,
+  OD_FILTER_PARAMS4_3
 };
 
 void od_pre_filter4(od_coeff _y[4], const od_coeff _x[4]) {
@@ -167,28 +153,36 @@ void od_pre_filter4(od_coeff _y[4], const od_coeff _x[4]) {
   t[0] = _x[0]-(t[3]>>1);
   /*U filter (arbitrary invertible, omitted).*/
   /*V filter (arbitrary invertible).*/
-  /*Rotation:*/
-#if OD_FILTER_PARAMS4_0 != 64
+  /*Scaling factors: the biorthogonal part.*/
+  /*Note: t[i]+=t[i]>>(OD_COEFF_BITS-1)&1 is equivalent to: if(t[i]>0)t[i]++
+    This step ensures that the scaling is trivially invertible on the decoder's
+     side, with perfect reconstruction.*/
   OD_DCT_OVERFLOW_CHECK(t[2], OD_FILTER_PARAMS4_0, 32, 51);
-  t[3] += (t[2]*OD_FILTER_PARAMS4_0 + 32) >> 6;
-#else
-  t[3] += t[2];
-#endif
-#if OD_FILTER_PARAMS4_1 != 64
+  /*s0*/
+# if OD_FILTER_PARAMS4_0 != 64
+  t[2] = t[2]*OD_FILTER_PARAMS4_0>>6;
+  t[2] += -t[2]>>(OD_COEFF_BITS-1)&1;
+# endif
   OD_DCT_OVERFLOW_CHECK(t[3], OD_FILTER_PARAMS4_1, 32, 52);
-  t[2] = ((t[3]*OD_FILTER_PARAMS4_1 + 32) >> 6) - t[2];
-#else
-  t[2] = t[3] - t[2];
-#endif
+  /*s1*/
+# if OD_FILTER_PARAMS4_1 != 64
+  t[3] = t[3]*OD_FILTER_PARAMS4_1>>6;
+  t[3] += -t[3]>>(OD_COEFF_BITS-1)&1;
+# endif
+  /*Rotation:*/
   OD_DCT_OVERFLOW_CHECK(t[2], OD_FILTER_PARAMS4_2, 32, 53);
-  t[3] += (t[2]*OD_FILTER_PARAMS4_2 + 32) >> 6;
+  /*p0*/
+  t[3] += (t[2]*OD_FILTER_PARAMS4_2+32)>>6;
+  OD_DCT_OVERFLOW_CHECK(t[3], OD_FILTER_PARAMS4_3, 32, 86);
+  /*u0*/
+  t[2] += (t[3]*OD_FILTER_PARAMS4_3+32)>>6;
   /*More +1/-1 butterflies (required for FIR, PR, LP).*/
-  t[0] += t[2]>>1;
+  t[0] += t[3]>>1;
   _y[0] = (od_coeff)t[0];
-  t[1] += t[3]>>1;
+  t[1] += t[2]>>1;
   _y[1] = (od_coeff)t[1];
-  _y[2] = (od_coeff)(t[1]-t[3]);
-  _y[3] = (od_coeff)(t[0]-t[2]);
+  _y[2] = (od_coeff)(t[1]-t[2]);
+  _y[3] = (od_coeff)(t[0]-t[3]);
 #endif
 }
 
@@ -200,20 +194,17 @@ void od_post_filter4(od_coeff _x[4], const od_coeff _y[4]) {
   }
 #else
   int t[4];
-  t[2] = _y[0]-_y[3];
-  t[3] = _y[1]-_y[2];
-  t[1] = _y[1]-(t[3]>>1);
-  t[0] = _y[0]-(t[2]>>1);
-  t[3] -= (t[2]*OD_FILTER_PARAMS4_2 + 32) >> 6;
+  t[3] = _y[0]-_y[3];
+  t[2] = _y[1]-_y[2];
+  t[1] = _y[1]-(t[2]>>1);
+  t[0] = _y[0]-(t[3]>>1);
+  t[2] -= (t[3]*OD_FILTER_PARAMS4_3+32)>>6;
+  t[3] -= (t[2]*OD_FILTER_PARAMS4_2+32)>>6;
 #if OD_FILTER_PARAMS4_1 != 64
-  t[2] = ((t[3]*OD_FILTER_PARAMS4_1 + 32) >> 6) - t[2];
-#else
-  t[2] = t[3] - t[2];
+  t[3] = (t[3]<<6)/OD_FILTER_PARAMS4_1;
 #endif
 #if OD_FILTER_PARAMS4_0 != 64
-  t[3] -= (t[2]*OD_FILTER_PARAMS4_0 + 32) >> 6;
-#else
-  t[3] -= t[2];
+  t[2] = (t[2]<<6)/OD_FILTER_PARAMS4_0;
 #endif
   t[0] += t[3]>>1;
   _x[0] = (od_coeff)t[0];
