@@ -62,7 +62,7 @@ static const double OD_PVQ_BETA16_LUMA[7] = {1., 1., 1., 1., 1., 1., 1.};
 # error "Can't enable activity masking while disabling quantization matrix"
 # endif
 
-static const int OD_PVQ_QM4_LUMA_Q4[2] = {8, 16};
+static const int OD_PVQ_QM4_LUMA_Q4[2] = {19, 19};
 static const int OD_PVQ_QM8_LUMA_Q4[5] = {16, 16, 44, 44, 72};
 static const int OD_PVQ_QM16_LUMA_Q4[8] = {16, 13, 18, 18, 36, 40, 40, 80};
 
@@ -537,7 +537,7 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y,
      normalized by q^2 and lambda does not need the q^2 factor. At high rate,
      this would be log(2)/6, but we're making RDO a bit less aggressive for
      now. */
-  lambda = .025;
+  lambda = .07;
   /* Quantization step calibration to account for the activity masking. */
   q = q0*pow(256<<OD_COEFF_SHIFT, 1./beta - 1);
   OD_ASSERT(n > 1);
@@ -574,7 +574,7 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y,
     apply_householder(x, r, n);
     x[m] = 0;
     /* Search for the best gain within a reasonable range. */
-    for (i = OD_MAXI(1, (int)floor(cg-gain_offset)-1);
+    for (i = OD_MAXI(1, (int)floor(cg-gain_offset));
      i <= (int)ceil(cg-gain_offset); i++) {
       int j;
       double qcg;
@@ -599,9 +599,9 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y,
         dist = (qcg - cg)*(qcg - cg) + qcg*cg*dist_theta;
         /* Do approximate RDO. */
         dist += lambda*pvq_rate_approx(n, k);
-        dist += lambda*(1+log2(ts));
-        if (j == 0) dist -= lambda*2.;
-        if (i == icgr) dist -= lambda*2.;
+        /* Approximate cost of entropy-coding theta */
+        dist += lambda*(.9*log2(ts));
+        if (i == icgr) dist -= lambda*.5;
         if (dist < best_dist) {
           best_dist = dist;
           qg = i;
@@ -621,7 +621,7 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y,
     double x1[MAXN];
     for (i = 0; i < n; i++) x1[i] = x0[i];
     /* Search for the best gain (haven't determined reasonable range yet). */
-    for (i = OD_MAXI(1, (int)floor(cg) - 1); i <= ceil(cg); i++) {
+    for (i = OD_MAXI(1, (int)floor(cg)); i <= ceil(cg); i++) {
       double cos_dist;
       double dist;
       double qcg;
