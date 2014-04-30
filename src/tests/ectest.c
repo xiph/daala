@@ -209,6 +209,7 @@ int main(int _argc,char **_argv){
       fprintf(stderr,"od_ec_dec_tell() mismatch between encoder and decoder "
        "at symbol %i: %u instead of %u (Random seed: %u).\n",
        0,(unsigned)od_ec_dec_tell_frac(&dec),tell[0],seed);
+      ret=EXIT_FAILURE;
     }
     for(j=0;j<sz;j++){
       sym=od_ec_dec_uint(&dec,ft);
@@ -222,6 +223,7 @@ int main(int _argc,char **_argv){
         fprintf(stderr,"od_ec_dec_tell() mismatch between encoder and decoder "
          "at symbol %i: %u instead of %u (Random seed: %u).\n",
          j+1,(unsigned)od_ec_dec_tell_frac(&dec),tell[j+1],seed);
+        ret=EXIT_FAILURE;
       }
     }
     free(tell);
@@ -275,6 +277,7 @@ int main(int _argc,char **_argv){
       fprintf(stderr,"od_ec_dec_tell() mismatch between encoder and decoder "
        "at symbol %i: %u instead of %u (Random seed: %u).\n",
        0,(unsigned)od_ec_dec_tell_frac(&dec),tell[0],seed);
+      ret=EXIT_FAILURE;
     }
     for(j=0;j<sz;j++){
       int      dec_method;
@@ -303,6 +306,7 @@ int main(int _argc,char **_argv){
         fprintf(stderr,"od_ec_dec_tell() mismatch between encoder and decoder "
          "at symbol %i: %u instead of %u (Random seed: %u).\n",
          j+1,(unsigned)od_ec_dec_tell_frac(&dec),tell[j+1],seed);
+        ret=EXIT_FAILURE;
       }
     }
     free(enc_method);
