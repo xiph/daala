@@ -82,8 +82,8 @@ static const int OD_PVQ_QM16_CB_Q4[8] = {8, 16, 16, 16, 16, 16, 16, 16};
 #define OD_PVQ_QM8_CR_Q4 OD_PVQ_QM8_CB_Q4
 #define OD_PVQ_QM16_CR_Q4 OD_PVQ_QM16_CB_Q4
 #else
-static const int OD_PVQ_QM4_CB_Q4[2] = {24, 48};
-static const int OD_PVQ_QM8_CB_Q4[5] = {16, 48, 64, 64, 100};
+static const int OD_PVQ_QM4_CB_Q4[2] = {14, 32};
+static const int OD_PVQ_QM8_CB_Q4[5] = {10, 48, 64, 64, 100};
 static const int OD_PVQ_QM16_CB_Q4[8] = {16, 32, 48, 48, 64, 64, 64, 100};
 
 static const int OD_PVQ_QM4_CR_Q4[2] = {12, 16};
