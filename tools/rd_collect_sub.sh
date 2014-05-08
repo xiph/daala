@@ -12,7 +12,8 @@ BASENAME=$(basename $FILE)
 rm $BASENAME.out 2> /dev/null || true
 echo $BASENAME
 
-for x in {2..40}; do
+QUALITY="1 2 3 4 5 6 7 9 11 13 16 20 25 30 37 45 55 67 81 99 122 148 181 221 270 330 400 500"
+for x in $QUALITY; do
   OD_LOG_MODULES='encoder:10' OD_DUMP_IMAGES_SUFFIX=$BASENAME $ENCODER_EXAMPLE -v $x $FILE -o /dev/null 2> $BASENAME-$x-enc.out
   PIXELS=$(cat $BASENAME-$x-enc.out | grep "Plane $PLANE" | sed -re 's/^.*Pixels:\ +([0-9]+).*$/\1/')
   PSNR=$(cat $BASENAME-$x-enc.out | grep "Plane $PLANE" | sed -re 's/^.*PSNR:\ +([0-9\.]+).*$/\1/')
