@@ -172,7 +172,8 @@ tools_TARGETS = \
 	tools/yuvjpeg \
 	tools/jpegyuv \
 	tools/yuv2yuv4mpeg \
-	tools/dump_psnr
+	tools/dump_psnr \
+	tools/vq_train
 
 
 noinst_HEADERS += \
@@ -488,6 +489,12 @@ tools_yuv2yuv4mpeg_SOURCES = \
 	tools/yuv2yuv4mpeg.c
 tools_yuv2yuv4mpeg_CFLAGS =
 tools_yuv2yuv4mpeg_LDADD =
+
+# vq_train
+tools_vq_train_SOURCES = \
+	tools/vq_train.c
+tools_vq_train_CFLAGS =
+tools_vq_train_LDADD = $(LIBM)
 
 
 # Tests
