@@ -1,5 +1,5 @@
 /*Daala video codec
-Copyright (c) 2013 Daala project contributors.  All rights reserved.
+Copyright (c) 2012-2014 Daala project contributors.  All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -26,13 +26,19 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <stdio.h>
 #include <math.h>
 #include <time.h>
+#include "od_defs.h"
 #include "../src/dct.h"
 
 #define MAX(a,b) ((a)>(b)?(a):(b))
 #define MAX_ENTRIES (4096)
 #define MAX_DIMS    (128)
 
-double inner_prod(const double *x, const double *y, int n) {
+#if 0
+# undef NUM_PROCS
+# define NUM_PROCS (1)
+#endif
+
+static double inner_prod(const double *x, const double *y, int n) {
   double sum;
   int i;
   sum = 0;
@@ -40,7 +46,7 @@ double inner_prod(const double *x, const double *y, int n) {
   return sum;
 }
 
-void normalize(double *x, int n) {
+static void normalize(double *x, int n) {
   int i;
   double sum;
   sum = 1e-30;
@@ -52,8 +58,9 @@ void normalize(double *x, int n) {
 /* Returns the distance to the closest K=2 codeword. We can take a shortcut
  because there are only two possibilities: both pulses at the position with
  largest magnitude, or one pulse at each of the two largest magnitudes. */
-double pvq_dist_k2(const double *data, int n) {
-  double xbest1, xbest2;
+static double pvq_dist_k2(const double *data, int n) {
+  double xbest1;
+  double xbest2;
   int i;
   xbest1 = xbest2 = -1;
   for (i = 0; i < n; i++) {
@@ -70,8 +77,7 @@ double pvq_dist_k2(const double *data, int n) {
   return 2 - 2*MAX(xbest1, M_SQRT1_2*(xbest1 + xbest2));
 }
 
-
-int find_nearest(const double *data, const double *codebook, int nb_entries,
+static int find_nearest(const double *data, const double *codebook, int nb_entries,
  int n, double *sign, double *err) {
   double best_dist;
   double best_sign;
@@ -94,12 +100,10 @@ int find_nearest(const double *data, const double *codebook, int nb_entries,
   return best_id;
 }
 
-double vq_train(const double *data, int nb_vectors, double *codebook,
- int nb_entries, int n, int nb_iter, int exclude_pvq) {
-  int i, j;
-  int iter;
-  double rms;
-  double accum[MAX_ENTRIES*MAX_DIMS];
+void vq_rand_init(const double *data, int nb_vectors, double *codebook,
+ int nb_entries, int n) {
+  int i;
+  int j;
   /* Start with a codebook made of randomly selected vectors. */
   for (i = 0; i < nb_entries; i++) {
     int id;
@@ -110,51 +114,77 @@ double vq_train(const double *data, int nb_vectors, double *codebook,
     }
     normalize(&codebook[i*n], n);
   }
+}
 
-  rms = 0;
+double vq_train(const double *data, int nb_vectors, double *codebook,
+ int nb_entries, int n, int nb_iter, int exclude_pvq) {
+  int i;
+  int iter;
+  double rms[NUM_PROCS];
+  double *accum;
+  accum = malloc(MAX_ENTRIES*MAX_DIMS*NUM_PROCS*sizeof(*accum));
   for (iter = 0; iter < nb_iter; iter++) {
-    double pvq_err;
-    rms = 0;
-    for (i = 0; i < nb_entries*n; i++) accum[i] = 0;
+    for (i = 0; i < NUM_PROCS; i++) rms[i] = 0;
+    memset(accum,0,nb_entries*n*NUM_PROCS*sizeof(*accum));
+    #pragma omp parallel for schedule(dynamic)
     for (i = 0; i < nb_vectors; i++) {
+      int tid;
       int id;
       double sign;
+      double pvq_err;
       double err;
+      tid=OD_OMP_GET_THREAD;
       id = find_nearest(&data[i*n], codebook, nb_entries, n, &sign, &err);
       pvq_err = pvq_dist_k2(&data[i*n], n);
       /*printf("%f ", err);*/
       if (!exclude_pvq || err < pvq_err) {
-        rms += err;
-        for (j = 0; j < n; j++) accum[id*n + j] += sign*data[i*n + j];
+        int j;
+        int offset;
+        rms[tid] += err;
+        offset = nb_entries*n*tid + id*n;
+        for (j = 0; j < n; j++) accum[offset + j] += sign*data[i*n + j];
       }
-      else rms += pvq_err;
+      else rms[tid] += pvq_err;
     }
+    for (i = 1; i < NUM_PROCS; i++) {
+      int j;
+      int offset;
+      offset = nb_entries*n*i;
+      for (j = 0; j < nb_entries*n; j++) accum[j] += accum[offset+j];
+    }
+    for (i = 1; i < NUM_PROCS; i++) rms[0] += rms[i];
     for (i = 0; i < nb_entries; i++) normalize(&accum[i*n], n);
     for (i = 0; i < nb_entries*n; i++) codebook[i] = accum[i];
-    rms = sqrt(rms/nb_vectors);
-    fprintf(stderr, "RMS: %f\n", rms);
+    rms[0] = sqrt(rms[0]/nb_vectors);
+    fprintf(stderr, "RMS: %f\n", rms[0]);
   }
-  return rms;
+  free(accum);
+  return rms[0];
 }
 
 int main(int argc, char **argv)
 {
-  int i,j;
-  int nb_vectors, nb_entries, ndim;
-  double *data, *codebook;
+  int i;
+  int j;
+  int nb_vectors;
+  int nb_entries;
+  int ndim;
+  double *data;
+  double *codebook;
   double rms;
   unsigned seed;
   seed = time(NULL);
   srand(seed);
-  
+
   if (argc != 4) {
-    fprintf(stderr, "usage: vq_train <dimensions> <max vectors> <bits>\n");
+    fprintf(stderr, "usage: %s <dimensions> <max vectors> <bits>\n",argc > 0? argv[0] : '\0');
     return 1;
   }
   ndim = atoi(argv[1]);
   nb_vectors = atoi(argv[2]);
   nb_entries = 1<<atoi(argv[3]);
-  
+  OD_OMP_SET_THREADS(NUM_PROCS);
+
   data = malloc(nb_vectors*ndim*sizeof(*data));
   codebook = malloc(nb_entries*ndim*sizeof(*codebook));
   if (data == NULL || codebook == NULL) {
@@ -172,6 +202,7 @@ int main(int argc, char **argv)
   nb_vectors = i;
   fprintf(stderr, "read %d vectors\n", nb_vectors);
 
+  vq_rand_init(data, nb_vectors, codebook, nb_entries, ndim);
   rms = vq_train(data, nb_vectors, codebook, nb_entries, ndim, 100, 1);
 #if 0
   for (i = 0; i < nb_vectors; i++)

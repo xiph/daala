@@ -493,7 +493,7 @@ tools_yuv2yuv4mpeg_LDADD =
 # vq_train
 tools_vq_train_SOURCES = \
 	tools/vq_train.c
-tools_vq_train_CFLAGS =
+tools_vq_train_CFLAGS = -fopenmp
 tools_vq_train_LDADD = $(LIBM)
 
 
