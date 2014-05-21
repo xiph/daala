@@ -379,7 +379,8 @@ const od_dec_func OD_DECODE_BLOCK[OD_NBSIZES + 2] = {
 
 #if !OD_DISABLE_HAAR_DC
 static void od_decode_haar_dc(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
- int bx, int by, int l, int xdec, int ydec, od_coeff hgrad, od_coeff vgrad) {
+ int bx, int by, int l, int xdec, int ydec, od_coeff hgrad, od_coeff vgrad,
+ int has_ur) {
   int od;
   int d;
   int w;
@@ -410,8 +411,18 @@ static void od_decode_haar_dc(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
     sb_dc_mem = dec->state.sb_dc_mem[pli];
     l2 = l - xdec + 2;
     if (by > 0 && bx > 0) {
-      sb_dc_pred = (sb_dc_mem[by*nhsb + bx - 1]
-       + sb_dc_mem[(by - 1)*nhsb + bx]) >> 1;
+      /* These coeffs were LS-optimized on subset 1. */
+      if (has_ur) {
+        sb_dc_pred = (22*sb_dc_mem[by*nhsb + bx - 1]
+         - 9*sb_dc_mem[(by - 1)*nhsb + bx - 1]
+         + 15*sb_dc_mem[(by - 1)*nhsb + bx]
+         + 4*sb_dc_mem[(by - 1)*nhsb + bx + 1] + 16) >> 5;
+      }
+      else {
+        sb_dc_pred = (23*sb_dc_mem[by*nhsb + bx - 1]
+         - 10*sb_dc_mem[(by - 1)*nhsb + bx - 1]
+         + 19*sb_dc_mem[(by - 1)*nhsb + bx] + 16) >> 5;
+      }
     }
     else if (by > 0) sb_dc_pred = sb_dc_mem[(by - 1)*nhsb + bx];
     else if (bx > 0) sb_dc_pred = sb_dc_mem[by*nhsb + bx - 1];
@@ -466,13 +477,13 @@ static void od_decode_haar_dc(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
     c[((by + 1) << l2)*w + (bx << l2)] = x[2];
     c[((by + 1) << l2)*w + ((bx + 1) << l2)] = x[3];
     od_decode_haar_dc(dec, ctx, pli, bx + 0, by + 0, l, xdec, ydec, hgrad,
-     vgrad);
+     vgrad, 0);
     od_decode_haar_dc(dec, ctx, pli, bx + 1, by + 0, l, xdec, ydec, hgrad,
-     vgrad);
+     vgrad, 0);
     od_decode_haar_dc(dec, ctx, pli, bx + 0, by + 1, l, xdec, ydec, hgrad,
-     vgrad);
+     vgrad, 0);
     od_decode_haar_dc(dec, ctx, pli, bx + 1, by + 1, l, xdec, ydec, hgrad,
-     vgrad);
+     vgrad, 0);
   }
 }
 #endif
@@ -807,7 +818,8 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
           od_adapt_get_stats(adapt_sb, sbx, adapt_hmean[pli],
            mbctx.adapt);
           if (!OD_DISABLE_HAAR_DC && mbctx.is_keyframe) {
-            od_decode_haar_dc(dec, &mbctx, pli, sbx, sby, 3, xdec, ydec, 0, 0);
+            od_decode_haar_dc(dec, &mbctx, pli, sbx, sby, 3, xdec, ydec, 0, 0,
+             sby > 0 && sbx < nhsb - 1);
           }
           od_decode_block(dec, &mbctx, pli, sbx, sby, 3, xdec, ydec,
            sby > 0 && sbx < nhsb - 1);

@@ -627,7 +627,7 @@ static void od_compute_dcts(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
 #if !OD_DISABLE_HAAR_DC
 static void od_quantize_haar_dc(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
  int pli, int bx, int by, int l, int xdec, int ydec, od_coeff hgrad,
- od_coeff vgrad) {
+ od_coeff vgrad, int has_ur) {
   int od;
   int d;
   int w;
@@ -659,8 +659,18 @@ static void od_quantize_haar_dc(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
     sb_dc_mem = enc->state.sb_dc_mem[pli];
     l2 = l - xdec + 2;
     if (by > 0 && bx > 0) {
-      sb_dc_pred = (sb_dc_mem[by*nhsb + bx - 1]
-       + sb_dc_mem[(by - 1)*nhsb + bx])>>1;
+      /* These coeffs were LS-optimized on subset 1. */
+      if (has_ur) {
+        sb_dc_pred = (22*sb_dc_mem[by*nhsb + bx - 1]
+         - 9*sb_dc_mem[(by - 1)*nhsb + bx - 1]
+         + 15*sb_dc_mem[(by - 1)*nhsb + bx]
+         + 4*sb_dc_mem[(by - 1)*nhsb + bx + 1] + 16) >> 5;
+      }
+      else {
+        sb_dc_pred = (23*sb_dc_mem[by*nhsb + bx - 1]
+         - 10*sb_dc_mem[(by - 1)*nhsb + bx - 1]
+         + 19*sb_dc_mem[(by - 1)*nhsb + bx] + 16) >> 5;
+      }
     }
     else if (by > 0) sb_dc_pred = sb_dc_mem[(by - 1)*nhsb + bx];
     else if (bx > 0) sb_dc_pred = sb_dc_mem[by*nhsb + bx - 1];
@@ -716,13 +726,13 @@ static void od_quantize_haar_dc(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
     c[((by + 1) << l2)*w + (bx << l2)] = x[2];
     c[((by + 1) << l2)*w + ((bx + 1) << l2)] = x[3];
     od_quantize_haar_dc(enc, ctx, pli, bx + 0, by + 0, l, xdec, ydec, hgrad,
-     vgrad);
+     vgrad, 0);
     od_quantize_haar_dc(enc, ctx, pli, bx + 1, by + 0, l, xdec, ydec, hgrad,
-     vgrad);
+     vgrad, 0);
     od_quantize_haar_dc(enc, ctx, pli, bx + 0, by + 1, l, xdec, ydec, hgrad,
-     vgrad);
+     vgrad, 0);
     od_quantize_haar_dc(enc, ctx, pli, bx + 1, by + 1, l, xdec, ydec, hgrad,
-     vgrad);
+     vgrad, 0);
   }
 }
 #endif
@@ -1232,7 +1242,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
           od_compute_dcts(enc, &mbctx, pli, sbx, sby, 3, xdec, ydec);
           if (!OD_DISABLE_HAAR_DC && mbctx.is_keyframe) {
             od_quantize_haar_dc(enc, &mbctx, pli, sbx, sby, 3, xdec, ydec, 0,
-             0);
+             0, sby > 0 && sbx < nhsb - 1);
           }
           od_encode_block(enc, &mbctx, pli, sbx, sby, 3, xdec, ydec,
            sby > 0 && sbx < nhsb - 1);
