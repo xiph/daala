@@ -200,8 +200,6 @@ int od_state_init(od_state *state, const daala_info *info) {
   state->nhsb = state->frame_width >> 5;
   state->nvsb = state->frame_height >> 5;
   for (pli = 0; pli < nplanes; pli++) {
-    od_adapt_init(&state->adapt_sb[pli], state->nhsb,
-     OD_NSB_ADAPT_CTXS, OD_SB_ADAPT_PARAMS);
     state->sb_dc_mem[pli] = (od_coeff*)_ogg_malloc(
      sizeof(state->sb_dc_mem[pli][0])*state->nhsb*state->nvsb);
   }
@@ -219,7 +217,6 @@ int od_state_init(od_state *state, const daala_info *info) {
 
 void od_state_clear(od_state *state) {
   int nplanes;
-  int pli;
 #if defined(OD_DUMP_IMAGES)
   int i;
   if (state->dump_tags > 0) {
@@ -230,10 +227,6 @@ void od_state_clear(od_state *state) {
   }
 #endif
   nplanes = state->info.nplanes;
-  for (pli = nplanes; pli-- > 0;) {
-    od_adapt_clear(&state->adapt_sb[pli]);
-    _ogg_free(state->sb_dc_mem[pli]);
-  }
   od_free_2d(state->mv_grid);
   _ogg_free(state->ref_img_data);
   state->bsize -= 4*state->bstride + 4;

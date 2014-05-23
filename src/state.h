@@ -38,6 +38,9 @@ typedef struct od_yuv_dumpfile   od_yuv_dumpfile;
 
 extern const od_coeff OD_DC_RES[3];
 
+/*Adaptation speed of scalar Laplace encoding.*/
+# define OD_SCALAR_ADAPT_SPEED (4)
+
 /*The golden reference frame.*/
 # define OD_FRAME_GOLD (0)
 /*The previous reference frame.*/
@@ -129,7 +132,6 @@ struct od_state{
   /** Increments by 1 for each frame. */
   ogg_int64_t         cur_time;
   od_mv_grid_pt **mv_grid;
-  od_adapt_ctx        adapt_sb[OD_NPLANES_MAX];
 
   /* Support for PVQ encode/decode */
   int                 pvq_adapt[OD_NSB_ADAPT_CTXS];

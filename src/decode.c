@@ -117,7 +117,6 @@ struct od_mb_dec_ctx {
   generic_encoder model_dc[OD_NPLANES_MAX];
   generic_encoder model_g[OD_NPLANES_MAX];
   generic_encoder model_ym[OD_NPLANES_MAX];
-  ogg_int32_t adapt[OD_NSB_ADAPT_CTXS];
   signed char *modes[OD_NPLANES_MAX];
   od_coeff *c;
   od_coeff **d;
@@ -274,7 +273,6 @@ static void od_decode_compute_pred(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, od_co
 
 void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
  int pli, int bx, int by, int has_ur) {
-  ogg_int32_t adapt_curr[OD_NSB_ADAPT_CTXS];
   int n;
   int n2;
   int xdec;
@@ -347,29 +345,32 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
     pred[0] = d[((by << 2))*w + ((bx << 2))];
   }
   if (run_pvq) {
-    int i;
     pvq_decode(dec, predt, pred, scale << coeff_shift, ln,
      OD_PVQ_QM_Q4[pli][ln], OD_PVQ_BETA[pli][ln],
      OD_PVQ_INTER_BAND_MASKING[ln], ctx->is_keyframe);
-    for (i = 0; i < OD_NSB_ADAPT_CTXS; i++) adapt_curr[i] = 0;
   }
   else {
+    int *adapt;
+    ogg_int32_t adapt_curr[OD_NSB_ADAPT_CTXS];
+    adapt = dec->state.pvq_adapt;
     vk = generic_decode(&dec->ec, ctx->model_g + pli, -1,
      &ctx->ex_g[pli][ln], 0);
-    laplace_decode_vector(&dec->ec, pred + 1, n2 - 1, vk, adapt_curr, ctx->adapt);
+    laplace_decode_vector(&dec->ec, pred + 1, n2 - 1, vk, adapt_curr, adapt);
     for (zzi = 1; zzi < n2; zzi++) {
       pred[zzi] = (pred[zzi]*scale << coeff_shift) + predt[zzi];
     }
-  }
-  if (adapt_curr[OD_ADAPT_K_Q8] >= 0) {
-    ctx->nk++;
-    ctx->k_total += adapt_curr[OD_ADAPT_K_Q8];
-    ctx->sum_ex_total_q8 += adapt_curr[OD_ADAPT_SUM_EX_Q8];
-  }
-  if (adapt_curr[OD_ADAPT_COUNT_Q8] >= 0) {
-    ctx->ncount++;
-    ctx->count_total_q8 += adapt_curr[OD_ADAPT_COUNT_Q8];
-    ctx->count_ex_total_q8 += adapt_curr[OD_ADAPT_COUNT_EX_Q8];
+    if (adapt_curr[OD_ADAPT_K_Q8] > 0) {
+      adapt[OD_ADAPT_K_Q8] += 256*adapt_curr[OD_ADAPT_K_Q8] -
+       adapt[OD_ADAPT_K_Q8] >> OD_SCALAR_ADAPT_SPEED;
+      adapt[OD_ADAPT_SUM_EX_Q8] += adapt_curr[OD_ADAPT_SUM_EX_Q8] -
+       adapt[OD_ADAPT_SUM_EX_Q8] >> OD_SCALAR_ADAPT_SPEED;
+    }
+    if (adapt_curr[OD_ADAPT_COUNT_Q8] > 0) {
+      adapt[OD_ADAPT_COUNT_Q8] += adapt_curr[OD_ADAPT_COUNT_Q8]-
+       adapt[OD_ADAPT_COUNT_Q8] >> OD_SCALAR_ADAPT_SPEED;
+      adapt[OD_ADAPT_COUNT_EX_Q8] += adapt_curr[OD_ADAPT_COUNT_EX_Q8]-
+       adapt[OD_ADAPT_COUNT_EX_Q8] >> OD_SCALAR_ADAPT_SPEED;
+    }
   }
 #ifdef USE_BAND_PARTITIONS
   od_coding_order_to_raster(&d[((by << 2))*w + (bx << 2)], w, pred, n, !run_pvq);
@@ -829,16 +830,10 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
         }
       }
       else lbuf[pli] = ltmp[pli] = NULL;
-      od_adapt_row_init(&dec->state.adapt_sb[pli]);
     }
     for (sby = 0; sby < nvsb; sby++) {
-      ogg_int32_t adapt_hmean[OD_NPLANES_MAX][OD_NSB_ADAPT_CTXS];
-      for (pli = 0; pli < nplanes; pli++) {
-        od_adapt_hmean_init(&dec->state.adapt_sb[pli], adapt_hmean[pli]);
-      }
       for (sbx = 0; sbx < nhsb; sbx++) {
         for (pli = 0; pli < nplanes; pli++) {
-          od_adapt_ctx *adapt_sb;
           mbctx.c = ctmp[pli];
           mbctx.d = dtmp;
           mbctx.mc = mctmp[pli];
@@ -848,40 +843,13 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
           ydec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
           mbctx.nk = mbctx.k_total = mbctx.sum_ex_total_q8 = 0;
           mbctx.ncount = mbctx.count_total_q8 = mbctx.count_ex_total_q8 = 0;
-          adapt_sb = &dec->state.adapt_sb[pli];
-          od_adapt_get_stats(adapt_sb, sbx, adapt_hmean[pli],
-           mbctx.adapt);
           if (!OD_DISABLE_HAAR_DC && mbctx.is_keyframe) {
             od_decode_haar_dc(dec, &mbctx, pli, sbx, sby, 3, xdec, ydec, 0, 0,
              sby > 0 && sbx < nhsb - 1);
           }
           od_decode_block(dec, &mbctx, pli, sbx, sby, 3, xdec, ydec,
            sby > 0 && sbx < nhsb - 1);
-          if (mbctx.nk > 0) {
-            mbctx.adapt[OD_ADAPT_K_Q8] =
-             OD_DIVU_SMALL(mbctx.k_total << 8, mbctx.nk);
-            mbctx.adapt[OD_ADAPT_SUM_EX_Q8] =
-             OD_DIVU_SMALL(mbctx.sum_ex_total_q8, mbctx.nk);
-          }
-          else {
-            mbctx.adapt[OD_ADAPT_K_Q8] = OD_ADAPT_NO_VALUE;
-            mbctx.adapt[OD_ADAPT_SUM_EX_Q8] = OD_ADAPT_NO_VALUE;
-          }
-          if (mbctx.ncount > 0) {
-            mbctx.adapt[OD_ADAPT_COUNT_Q8] =
-             OD_DIVU_SMALL(mbctx.count_total_q8, mbctx.ncount);
-            mbctx.adapt[OD_ADAPT_COUNT_EX_Q8] =
-             OD_DIVU_SMALL(mbctx.count_ex_total_q8, mbctx.ncount);
-          }
-          else {
-            mbctx.adapt[OD_ADAPT_COUNT_Q8] = OD_ADAPT_NO_VALUE;
-            mbctx.adapt[OD_ADAPT_COUNT_EX_Q8] = OD_ADAPT_NO_VALUE;
-          }
-          od_adapt_forward(adapt_sb, sbx, adapt_hmean[pli], mbctx.adapt);
         }
-      }
-      for (pli = 0; pli < nplanes; pli++) {
-        od_adapt_row_backward(&dec->state.adapt_sb[pli]);
       }
     }
     for (pli = 0; pli < nplanes; pli++) {

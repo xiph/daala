@@ -245,7 +245,6 @@ struct od_mb_enc_ctx {
   generic_encoder model_dc[OD_NPLANES_MAX];
   generic_encoder model_g[OD_NPLANES_MAX];
   generic_encoder model_ym[OD_NPLANES_MAX];
-  ogg_int32_t adapt[OD_NSB_ADAPT_CTXS];
   signed char *modes[OD_NPLANES_MAX];
   od_coeff *c;
   od_coeff **d;
@@ -417,7 +416,6 @@ static void od_encode_compute_pred(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, od_co
 
 void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
  int pli, int bx, int by, int has_ur) {
-  ogg_int32_t adapt_curr[OD_NSB_ADAPT_CTXS];
   int n;
   int n2;
   int xdec;
@@ -515,14 +513,14 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   OD_METRICS_UPDATE(&enc->metrics, od_ec_enc_tell_frac(&enc->ec),
    OD_MET_CAT_TECHNIQUE, OD_MET_TECH_AC_COEFFS);
   if (run_pvq) {
-    int i;
     pvq_encode(enc, predt, cblock, scalar_out, scale << coeff_shift, ln,
      OD_PVQ_QM_Q4[pli][ln], OD_PVQ_BETA[pli][ln],
      OD_PVQ_INTER_BAND_MASKING[ln], ctx->is_keyframe);
-    for (i = 0; i < OD_NSB_ADAPT_CTXS; i++) adapt_curr[i] = 0;
-    for (i = 1; i < n2; i++) scalar_out[i] = cblock[i];
   }
   else {
+    int *adapt;
+    ogg_int32_t adapt_curr[OD_NSB_ADAPT_CTXS];
+    adapt = enc->state.pvq_adapt;
     vk = 0;
     for (zzi = 1; zzi < n2; zzi++) {
       scalar_out[zzi] = OD_DIV_R0(cblock[zzi] - predt[zzi],
@@ -531,9 +529,22 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
     }
     generic_encode(&enc->ec, ctx->model_g + pli, vk, -1,
      &ctx->ex_g[pli][ln], 0);
-    laplace_encode_vector(&enc->ec, scalar_out + 1, n2 - 1, vk, adapt_curr, ctx->adapt);
+    laplace_encode_vector(&enc->ec, scalar_out + 1, n2 - 1, vk, adapt_curr,
+     adapt);
     for (zzi = 1; zzi < n2; zzi++) {
       scalar_out[zzi] = (scalar_out[zzi]*(scale << coeff_shift)) + predt[zzi];
+    }
+    if (adapt_curr[OD_ADAPT_K_Q8] > 0) {
+      adapt[OD_ADAPT_K_Q8] += 256*adapt_curr[OD_ADAPT_K_Q8] -
+       adapt[OD_ADAPT_K_Q8] >> OD_SCALAR_ADAPT_SPEED;
+      adapt[OD_ADAPT_SUM_EX_Q8] += adapt_curr[OD_ADAPT_SUM_EX_Q8] -
+       adapt[OD_ADAPT_SUM_EX_Q8] >> OD_SCALAR_ADAPT_SPEED;
+    }
+    if (adapt_curr[OD_ADAPT_COUNT_Q8] > 0) {
+      adapt[OD_ADAPT_COUNT_Q8] += adapt_curr[OD_ADAPT_COUNT_Q8]-
+       adapt[OD_ADAPT_COUNT_Q8] >> OD_SCALAR_ADAPT_SPEED;
+      adapt[OD_ADAPT_COUNT_EX_Q8] += adapt_curr[OD_ADAPT_COUNT_EX_Q8]-
+       adapt[OD_ADAPT_COUNT_EX_Q8] >> OD_SCALAR_ADAPT_SPEED;
     }
   }
   OD_METRICS_UPDATE(&enc->metrics, od_ec_enc_tell_frac(&enc->ec),
@@ -553,16 +564,6 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   if (ctx->is_keyframe && (pli == 0 || OD_DISABLE_CFL)) {
     od_convert_block_down(tf + (by << 2)*w + (bx << 2), w,
      d + (by << 2)*w + (bx << 2), w, ln, 0, 0);
-  }
-  if (adapt_curr[OD_ADAPT_K_Q8] >= 0) {
-    ctx->nk++;
-    ctx->k_total += adapt_curr[OD_ADAPT_K_Q8];
-    ctx->sum_ex_total_q8 += adapt_curr[OD_ADAPT_SUM_EX_Q8];
-  }
-  if (adapt_curr[OD_ADAPT_COUNT_Q8] >= 0) {
-    ctx->ncount++;
-    ctx->count_total_q8 += adapt_curr[OD_ADAPT_COUNT_Q8];
-    ctx->count_ex_total_q8 += adapt_curr[OD_ADAPT_COUNT_EX_Q8];
   }
   /*Apply the inverse transform.*/
 #if !defined(OD_OUTPUT_PRED)
@@ -1216,7 +1217,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
         }
       }
       else lbuf[pli] = ltmp[pli] = NULL;
-      od_adapt_row_init(&enc->state.adapt_sb[pli]);
     }
     for (pli = 0; pli < nplanes; pli++) {
       xdec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
@@ -1258,13 +1258,8 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       }
     }
     for (sby = 0; sby < nvsb; sby++) {
-      ogg_int32_t adapt_hmean[OD_NPLANES_MAX][OD_NSB_ADAPT_CTXS];
-      for (pli = 0; pli < nplanes; pli++) {
-        od_adapt_hmean_init(&enc->state.adapt_sb[pli], adapt_hmean[pli]);
-      }
       for (sbx = 0; sbx < nhsb; sbx++) {
         for (pli = 0; pli < nplanes; pli++) {
-          od_adapt_ctx *adapt_sb;
           OD_METRICS_UPDATE(&enc->metrics, od_ec_enc_tell_frac(&enc->ec),
            OD_MET_CAT_PLANE, OD_MET_PLANE_LUMA + pli);
           mbctx.c = ctmp[pli];
@@ -1276,9 +1271,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
           ydec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
           mbctx.nk = mbctx.k_total = mbctx.sum_ex_total_q8 = 0;
           mbctx.ncount = mbctx.count_total_q8 = mbctx.count_ex_total_q8 = 0;
-          adapt_sb = &enc->state.adapt_sb[pli];
           /*Need to update this to decay based on superblocks width.*/
-          od_adapt_get_stats(adapt_sb, sbx, adapt_hmean[pli], mbctx.adapt);
           od_compute_dcts(enc, &mbctx, pli, sbx, sby, 3, xdec, ydec);
           if (!OD_DISABLE_HAAR_DC && mbctx.is_keyframe) {
             od_quantize_haar_dc(enc, &mbctx, pli, sbx, sby, 3, xdec, ydec, 0,
@@ -1286,33 +1279,9 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
           }
           od_encode_block(enc, &mbctx, pli, sbx, sby, 3, xdec, ydec,
            sby > 0 && sbx < nhsb - 1);
-          if (mbctx.nk > 0) {
-            mbctx.adapt[OD_ADAPT_K_Q8] =
-             OD_DIVU_SMALL(mbctx.k_total << 8, mbctx.nk);
-            mbctx.adapt[OD_ADAPT_SUM_EX_Q8] =
-             OD_DIVU_SMALL(mbctx.sum_ex_total_q8, mbctx.nk);
-          }
-          else {
-            mbctx.adapt[OD_ADAPT_K_Q8] = OD_ADAPT_NO_VALUE;
-            mbctx.adapt[OD_ADAPT_SUM_EX_Q8] = OD_ADAPT_NO_VALUE;
-          }
-          if (mbctx.ncount > 0) {
-            mbctx.adapt[OD_ADAPT_COUNT_Q8] =
-             OD_DIVU_SMALL(mbctx.count_total_q8, mbctx.ncount);
-            mbctx.adapt[OD_ADAPT_COUNT_EX_Q8] =
-             OD_DIVU_SMALL(mbctx.count_ex_total_q8, mbctx.ncount);
-          }
-          else {
-            mbctx.adapt[OD_ADAPT_COUNT_Q8] = OD_ADAPT_NO_VALUE;
-            mbctx.adapt[OD_ADAPT_COUNT_EX_Q8] = OD_ADAPT_NO_VALUE;
-          }
-          od_adapt_forward(adapt_sb, sbx, adapt_hmean[pli], mbctx.adapt);
+        }
           OD_METRICS_UPDATE(&enc->metrics, od_ec_enc_tell_frac(&enc->ec),
            OD_MET_CAT_PLANE, OD_MET_PLANE_UNKNOWN);
-        }
-      }
-      for (pli = 0; pli < nplanes; pli++) {
-        od_adapt_row_backward(&enc->state.adapt_sb[pli]);
       }
     }
     for (pli = 0; pli < nplanes; pli++) {
