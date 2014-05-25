@@ -132,9 +132,8 @@ struct od_mb_dec_ctx {
 };
 typedef struct od_mb_dec_ctx od_mb_dec_ctx;
 
-void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
- int pli, int bx, int by, int has_ur) {
-  ogg_int32_t adapt_curr[OD_NSB_ADAPT_CTXS];
+static void od_decode_compute_pred(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, od_coeff *pred,
+  int ln, int pli, int bx, int by, int has_ur) {
   int n;
   int n2;
   int xdec;
@@ -142,52 +141,27 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   int w;
   int frame_width;
   signed char *modes;
-  od_coeff *c;
   od_coeff *d;
   od_coeff *tf;
   od_coeff *md;
-  od_coeff *mc;
   od_coeff *l;
   int x;
   int y;
-  od_coeff pred[16*16];
-  od_coeff predt[16*16];
   int zzi;
-  int vk;
-  int run_pvq;
-  int scale;
-  int dc_scale;
-  int coeff_shift;
-#ifndef USE_BAND_PARTITIONS
-  unsigned char const *zig;
-#endif
   OD_ASSERT(ln >= 0 && ln <= 2);
   n = 1 << (ln + 2);
-  run_pvq = ctx->run_pvq[pli];
   n2 = n*n;
-  bx <<= ln;
-  by <<= ln;
-#ifndef USE_BAND_PARTITIONS
-  zig = OD_DCT_ZIGS[ln];
-#endif
   xdec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
   ydec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
   frame_width = dec->state.frame_width;
   w = frame_width >> xdec;
   modes = ctx->modes[OD_DISABLE_CFL ? pli : 0];
-  c = ctx->c;
   d = ctx->d[pli];
   /*We never use tf on the chroma planes, but if we do it will blow up, which
     is better than always using luma's tf.*/
   tf = ctx->tf[pli];
   md = ctx->md;
-  mc = ctx->mc;
   l = ctx->l;
-  /*Apply forward transform to MC predictor.*/
-  if (!ctx->is_keyframe) {
-    (*OD_FDCT_2D[ln])(md + (by << 2)*w + (bx << 2), w,
-     mc + (by << 2)*w + (bx << 2), w);
-  }
   if (ctx->is_keyframe) {
     if (bx > 0 && by > 0) {
       if (pli == 0 || OD_DISABLE_CFL) {
@@ -287,6 +261,57 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
       }
     }
   }
+}
+
+void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
+ int pli, int bx, int by, int has_ur) {
+  ogg_int32_t adapt_curr[OD_NSB_ADAPT_CTXS];
+  int n;
+  int n2;
+  int xdec;
+  int w;
+  int frame_width;
+  od_coeff *c;
+  od_coeff *d;
+  od_coeff *tf;
+  od_coeff *md;
+  od_coeff *mc;
+  od_coeff pred[16*16];
+  od_coeff predt[16*16];
+  int zzi;
+  int vk;
+  int run_pvq;
+  int scale;
+  int dc_scale;
+  int coeff_shift;
+#ifndef USE_BAND_PARTITIONS
+  unsigned char const *zig;
+#endif
+  OD_ASSERT(ln >= 0 && ln <= 2);
+  n = 1 << (ln + 2);
+  run_pvq = ctx->run_pvq[pli];
+  n2 = n*n;
+  bx <<= ln;
+  by <<= ln;
+#ifndef USE_BAND_PARTITIONS
+  zig = OD_DCT_ZIGS[ln];
+#endif
+  xdec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
+  frame_width = dec->state.frame_width;
+  w = frame_width >> xdec;
+  c = ctx->c;
+  d = ctx->d[pli];
+  /*We never use tf on the chroma planes, but if we do it will blow up, which
+    is better than always using luma's tf.*/
+  tf = ctx->tf[pli];
+  md = ctx->md;
+  mc = ctx->mc;
+  /*Apply forward transform to MC predictor.*/
+  if (!ctx->is_keyframe) {
+    (*OD_FDCT_2D[ln])(md + (by << 2)*w + (bx << 2), w,
+     mc + (by << 2)*w + (bx << 2), w);
+  }
+  od_decode_compute_pred(dec, ctx, pred, ln, pli, bx, by, has_ur);
 #ifdef USE_BAND_PARTITIONS
   od_raster_to_coding_order(predt,  n, &pred[0], n, !run_pvq);
 #else
