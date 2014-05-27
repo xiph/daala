@@ -351,7 +351,8 @@ double pvq_compute_theta(int t, int max_theta) {
  */
 int pvq_compute_k(double qcg, double theta, int noref, int n, double beta) {
   if (noref) {
-    return OD_MAXI(1, (int)floor(.5 + (qcg-.2)*sqrt((n+3)/2)/beta));
+    if (n == 15 && qcg == 1 && beta > 1.25) return 1;
+    else return OD_MAXI(1, (int)floor(.5 + (qcg-.2)*sqrt((n+3)/2)/beta));
   }
   else {
     if (theta == 0) return 0;
