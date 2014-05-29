@@ -89,16 +89,25 @@ int daala_decode_ctl(daala_dec_ctx *dec, int req, void *buf, size_t buf_sz) {
 
 static void od_decode_mv(daala_dec_ctx *dec, od_mv_grid_pt *mvg, int vx,
  int vy, int level, int mv_res, int width, int height) {
-  static const int ex[5] = { 628, 1382, 1879, 2119, 2102 };
-  static const int ey[5] = { 230, 525, 807, 1076, 1332 };
+  int ex;
+  int ey;
+  generic_encoder *model;
+  int *mv_ex;
+  int *mv_ey;
   int pred[2];
   int ox;
   int oy;
-  ox = laplace_decode(&dec->ec, ex[level] >> mv_res, width << (4 - level));
-  oy = laplace_decode(&dec->ec, ey[level] >> mv_res, height << (4 - level));
-  /*Deinterleave positive and negative values.*/
-  ox = (ox >> 1) ^ -(ox & 1);
-  oy = (oy >> 1) ^ -(oy & 1);
+  mv_ex = dec->state.mv_ex;
+  mv_ey = dec->state.mv_ey;
+  model = &dec->state.mv_model;
+  ex = mv_ex[level] >> mv_res;
+  ey = mv_ex[level] >> mv_res;
+  ox = generic_decode(&dec->ec, model, width << (3 - mv_res), &ex, 2);
+  oy = generic_decode(&dec->ec, model, height << (3 - mv_res), &ey, 2);
+  mv_ex[level] -= (mv_ex[level] - (ox << mv_res << 16)) >> 6;
+  mv_ey[level] -= (mv_ey[level] - (oy << mv_res << 16)) >> 6;
+  if (ox && od_ec_dec_bits(&dec->ec, 1)) ox = -ox;
+  if (oy && od_ec_dec_bits(&dec->ec, 1)) oy = -oy;
   od_state_get_predictor(&dec->state, pred, vx, vy, level, mv_res);
   mvg->mv[0] = (pred[0] + ox) << mv_res;
   mvg->mv[1] = (pred[1] + oy) << mv_res;

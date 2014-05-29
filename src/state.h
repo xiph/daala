@@ -138,6 +138,11 @@ struct od_state{
   int                 pvq_exg[OD_NBSIZES*PVQ_MAX_PARTITIONS];
   unsigned            pvq_noref_prob[OD_NBSIZES*PVQ_MAX_PARTITIONS];
 
+  /* Motion vectors */
+  generic_encoder     mv_model;
+  int                 mv_ex[5];
+  int                 mv_ey[5];
+
   /** number of horizontal macro blocks. */
   int                 nhmbs;
   /** number of vertical macro blocks. */

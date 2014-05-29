@@ -254,6 +254,8 @@ void od_state_reset_probs(od_state *state, int is_keyframe) {
     state->pvq_ext[i] = is_keyframe ? 24576 : 2 << 16;
     state->pvq_noref_prob[i] = 26376;
   }
+  generic_model_init(&state->mv_model);
+  for (i = 0; i < 5; i++) state->mv_ex[i] = state->mv_ey[i] = 24 << 16;
 }
 
 #if 0
