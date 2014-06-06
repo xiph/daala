@@ -297,11 +297,11 @@ int main(int _argc,char *_argv[]){
   }
   if(!luma_only){
     printf("Total: %-8G  (Y': %-8G  Cb: %-8G  Cr: %-8G)\n",
-     convert_score_db(gssim[0]+cweight*(gssim[1]+gssim[2]),(1+2*cweight)*frameno),
-     convert_score_db(gssim[0],frameno),convert_score_db(gssim[1],frameno),
-     convert_score_db(gssim[2],frameno));
+     convert_score_db(gssim[0]+cweight*(gssim[1]+gssim[2]),(1+2*cweight)*1./frameno),
+     convert_score_db(gssim[0],1./frameno),convert_score_db(gssim[1],1./frameno),
+     convert_score_db(gssim[2],1./frameno));
   }
-  else printf("Total: %-8G\n",convert_score_db(gssim[0],frameno));
+  else printf("Total: %-8G\n",convert_score_db(gssim[0],1./frameno));
   video_input_close(&vid1);
   video_input_close(&vid2);
   return EXIT_SUCCESS;
