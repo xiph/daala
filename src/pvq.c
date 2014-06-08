@@ -505,8 +505,9 @@ int vector_is_null(const od_coeff *x, int len) {
  * @param [in]     beta      per-band activity masking beta param
  * @return         gain      index of the quatized gain
 */
-int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y,
- int *itheta, int *max_theta, int *vk, double *mask_gain, double beta) {
+int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
+ od_coeff *y, int *itheta, int *max_theta, int *vk, double *mask_gain,
+ double beta) {
   double g;
   double gr;
   double x[MAXN];
@@ -652,7 +653,7 @@ int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y,
     for (i = m; i < n - 1; i++) y[i] = y[i+1];
   }
   /* Synthesize like the decoder would. */
-  *mask_gain = pvq_synthesis_partial(x0, y, r, n, noref, qg, gain_offset,
+  *mask_gain = pvq_synthesis_partial(out, y, r, n, noref, qg, gain_offset,
    theta, m, s, q, beta);
   *vk = k;
   /* Encode gain differently depending on whether we use prediction or not. */

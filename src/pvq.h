@@ -37,8 +37,9 @@ extern const double *const OD_PVQ_INTER_BAND_MASKING[OD_NBSIZES];
 
 int neg_deinterleave(int x, int ref);
 
-int pvq_theta(od_coeff *x0, od_coeff *r0, int n, int q0, od_coeff *y, int *itheta,
- int *max_theta, int *vk, double *mask_gain, double beta);
+int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
+ od_coeff *y, int *itheta, int *max_theta, int *vk, double *mask_gain,
+ double beta);
 
 double pvq_compute_gain(od_coeff *x, int n, double q, double *g, double beta);
 int pvq_compute_max_theta(double qcg, double beta);

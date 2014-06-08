@@ -133,6 +133,7 @@ void pvq_encode(daala_enc_ctx *enc,
   int max_theta[PVQ_MAX_PARTITIONS];
   int qg[PVQ_MAX_PARTITIONS];
   int k[PVQ_MAX_PARTITIONS];
+  od_coeff y[16*16];
   int *adapt;
   int *exg;
   int *ext;
@@ -157,8 +158,9 @@ void pvq_encode(daala_enc_ctx *enc,
     mask = 0;
     for (j = 0; j < i; j++) mask += *inter_band++*g[j];
     g[i] = mask;
-    qg[i] = pvq_theta(in + off[i], ref + off[i], size[i], q*qm[i + 1] >> 4,
-     out+off[i], &theta[i], &max_theta[i], &k[i], &g[i], beta[i]);
+    qg[i] = pvq_theta(out + off[i], in + off[i], ref + off[i], size[i],
+     q*qm[i + 1] >> 4, y + off[i], &theta[i], &max_theta[i], &k[i], &g[i],
+     beta[i]);
   }
   /* TODO: Find efficient way to code up to 4 noref flags per symbol
      to reduce entropy coder calls. */
@@ -167,7 +169,7 @@ void pvq_encode(daala_enc_ctx *enc,
       code_flag(&enc->ec, theta[i] != -1, &noref_prob[i]);
   }
   for (i = 0; i < nb_bands; i++) {
-    pvq_encode_partition(&enc->ec, qg[i], theta[i], max_theta[i], out + off[i],
+    pvq_encode_partition(&enc->ec, qg[i], theta[i], max_theta[i], y + off[i],
      size[i], k[i], model, adapt, exg + i, ext + i, is_keyframe);
   }
 }
