@@ -39,6 +39,12 @@ typedef struct {
 
 void generic_model_init(generic_encoder *model);
 
+void od_encode_cdf_adapt(od_ec_enc *ec, int val, ogg_uint16_t *cdf, int n,
+ int increment);
+
+int od_decode_cdf_adapt(od_ec_dec *ec, ogg_uint16_t *cdf, int n,
+ int increment);
+
 void generic_encode(od_ec_enc *enc, generic_encoder *model, int x, int max,
  int *ex_q16, int integration);
 

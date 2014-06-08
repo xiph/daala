@@ -34,6 +34,31 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "logging.h"
 #include "odintrin.h"
 
+/** Decodes a value from 0 to N-1 (with N up to 16) based on a cdf and adapts
+ * the cdf accordingly.
+ *
+ * @param [in,out] enc   range encoder
+ * @param [in]     cdf   CDF of the variable (Q15)
+ * @param [in]     n     number of values possible
+ * @param [in]     increment adaptation speed (Q15)
+ *
+ * @retval decoded variable
+ */
+int od_decode_cdf_adapt(od_ec_dec *ec, ogg_uint16_t *cdf, int n,
+ int increment) {
+  int i;
+  int val;
+  val = od_ec_decode_cdf_unscaled(ec, cdf, n);
+  if (cdf[n-1] + increment > 32767) {
+    for (i = 0; i < n; i++) {
+      /* Second term ensures that the pdf is non-null */
+      cdf[i] = (cdf[i] >> 1) + i + 1;
+    }
+  }
+  for (i = val; i < n; i++) cdf[i] += increment;
+  return val;
+}
+
 /** Encodes a random variable using a "generic" model, assuming that the
  * distribution is one-sided (zero and up), has a single mode, and decays
  * exponentially past the model.
