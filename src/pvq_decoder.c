@@ -201,19 +201,28 @@ void pvq_decode(daala_dec_ctx *dec,
   model = dec->adapt.pvq_param_model;
   nb_bands = od_band_offsets[ln][0];
   off = &od_band_offsets[ln][1];
-  for (i = 0; i < nb_bands; i++) size[i] = off[i+1] - off[i];
-  for (i = 0; i < nb_bands; i++) {
-    if (is_keyframe && vector_is_null(ref + off[i], size[i])) noref[i] = 1;
-    else noref[i] = !decode_flag(&dec->ec, &noref_prob[i]);
+  if (!is_keyframe && od_ec_decode_bool_q15(&dec->ec, dec->adapt.skip_prob)) {
+    for (i = 1; i < 1 << (2*ln + 4); i++) out[i] = ref[i];
+    dec->adapt.skip_prob = OD_CLAMPI(2000, dec->adapt.skip_prob
+     - (dec->adapt.skip_prob >> 4), 30000);
   }
-  for (i = 0; i < nb_bands; i++) {
-    int j;
-    double mask;
-    mask = 0;
-    for (j = 0; j < i; j++) mask += *inter_band++*g[j];
-    g[i] = mask;
-    pvq_decode_partition(&dec->ec, q*qm[i + 1] >> 4, size[i], model, adapt,
-     exg + i, ext + i, ref + off[i], out + off[i], noref[i], &g[i], beta[i],
-     is_keyframe);
+  else {
+    dec->adapt.skip_prob = OD_CLAMPI(2000, dec->adapt.skip_prob
+     - ((dec->adapt.skip_prob - 32768) >> 4), 30000);
+    for (i = 0; i < nb_bands; i++) size[i] = off[i+1] - off[i];
+    for (i = 0; i < nb_bands; i++) {
+      if (is_keyframe && vector_is_null(ref + off[i], size[i])) noref[i] = 1;
+      else noref[i] = !decode_flag(&dec->ec, &noref_prob[i]);
+    }
+    for (i = 0; i < nb_bands; i++) {
+      int j;
+      double mask;
+      mask = 0;
+      for (j = 0; j < i; j++) mask += *inter_band++*g[j];
+      g[i] = mask;
+      pvq_decode_partition(&dec->ec, q*qm[i + 1] >> 4, size[i], model, adapt,
+       exg + i, ext + i, ref + off[i], out + off[i], noref[i], &g[i], beta[i],
+       is_keyframe);
+    }
   }
 }

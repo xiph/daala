@@ -180,6 +180,8 @@ struct od_adapt_ctx {
   int ex_sb_dc[OD_NPLANES_MAX];
   int ex_dc[OD_NPLANES_MAX][OD_NBSIZES][3];
   int ex_g[OD_NPLANES_MAX][OD_NBSIZES];
+
+  unsigned skip_prob;
 };
 
 int od_state_init(od_state *_state, const daala_info *_info);

@@ -246,6 +246,7 @@ void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe) {
   }
   generic_model_init(&state->mv_model);
   for (i = 0; i < 5; i++) state->mv_ex[i] = state->mv_ey[i] = 24 << 16;
+  state->skip_prob = 8192;
 }
 
 #if 0

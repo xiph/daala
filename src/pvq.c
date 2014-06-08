@@ -507,7 +507,7 @@ int vector_is_null(const od_coeff *x, int len) {
 */
 int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
  od_coeff *y, int *itheta, int *max_theta, int *vk, double *mask_gain,
- double beta) {
+ double beta, double *skip_acc) {
   double g;
   double gr;
   double x[MAXN];
@@ -535,6 +535,7 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   int noref;
   double lambda;
   double mask_ratio;
+  double skip_dist;
   /* Normalized lambda. Since we normalize the gain by q, the distortion is
      normalized by q^2 and lambda does not need the q^2 factor. At high rate,
      this would be log(2)/6, but we're making RDO a bit less aggressive for
@@ -567,10 +568,12 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   best_qtheta = 0;
   m = 0;
   s = 1;
+  corr = corr/(1e-100 + g*gr);
+  corr = OD_MAXF(OD_MINF(corr, 1.), -1.);
+  skip_dist = (cg - cgr)*(cg - cgr) + cgr*cg*(2 - 2*corr);
+  skip_dist -= 2*lambda;
   if (!vector_is_null(r0, n) && corr > 0) {
     /* Perform theta search only if prediction is useful. */
-    corr = corr/(1e-100+g*gr);
-    corr = OD_MAXF(OD_MINF(corr, 1.), -1.);
     theta = acos(corr);
     m = compute_householder(r, n, gr, &s);
     apply_householder(x, r, n);
@@ -656,6 +659,7 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   *mask_gain = pvq_synthesis_partial(out, y, r, n, noref, qg, gain_offset,
    theta, m, s, q, beta);
   *vk = k;
+  *skip_acc += skip_dist - best_dist;
   /* Encode gain differently depending on whether we use prediction or not. */
   return noref ? qg : neg_interleave(qg, icgr);
 }
