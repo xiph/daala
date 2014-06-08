@@ -207,7 +207,6 @@ int od_state_init(od_state *state, const daala_info *info) {
    sizeof(*state->bsize)*(state->nhsb + 2)*4*(state->nvsb + 2)*4);
   state->bstride = (state->nhsb + 2)*4;
   state->bsize += 4*state->bstride + 4;
-  od_state_reset_probs(state, 1);
 #if defined(OD_DUMP_IMAGES)
   state->dump_tags = 0;
   state->dump_files = 0;
@@ -233,7 +232,7 @@ void od_state_clear(od_state *state) {
   _ogg_free(state->bsize);
 }
 
-void od_state_reset_probs(od_state *state, int is_keyframe) {
+void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe) {
   int i;
   generic_model_init(&state->pvq_param_model[0]);
   generic_model_init(&state->pvq_param_model[1]);

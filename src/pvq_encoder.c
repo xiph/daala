@@ -143,11 +143,11 @@ void pvq_encode(daala_enc_ctx *enc,
   double g[PVQ_MAX_PARTITIONS] = {0};
   generic_encoder *model;
   unsigned *noref_prob;
-  adapt = enc->state.pvq_adapt;
-  exg = enc->state.pvq_exg + ln*PVQ_MAX_PARTITIONS;
-  ext = enc->state.pvq_ext + ln*PVQ_MAX_PARTITIONS;
-  noref_prob = enc->state.pvq_noref_prob + ln*PVQ_MAX_PARTITIONS;
-  model = enc->state.pvq_param_model;
+  adapt = enc->adapt.pvq_adapt;
+  exg = enc->adapt.pvq_exg + ln*PVQ_MAX_PARTITIONS;
+  ext = enc->adapt.pvq_ext + ln*PVQ_MAX_PARTITIONS;
+  noref_prob = enc->adapt.pvq_noref_prob + ln*PVQ_MAX_PARTITIONS;
+  model = enc->adapt.pvq_param_model;
   nb_bands = od_band_offsets[ln][0];
   off = &od_band_offsets[ln][1];
   for (i = 0; i < nb_bands; i++) size[i] = off[i+1] - off[i];

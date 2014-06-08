@@ -35,6 +35,7 @@ typedef struct daala_dec_ctx od_dec_ctx;
 
 struct daala_dec_ctx {
   od_state state;
+  od_adapt_ctx adapt;
   oggbyte_buffer obb;
   od_ec_dec ec;
   int scale[OD_NPLANES_MAX];

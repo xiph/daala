@@ -97,9 +97,9 @@ static void od_decode_mv(daala_dec_ctx *dec, od_mv_grid_pt *mvg, int vx,
   int pred[2];
   int ox;
   int oy;
-  mv_ex = dec->state.mv_ex;
-  mv_ey = dec->state.mv_ey;
-  model = &dec->state.mv_model;
+  mv_ex = dec->adapt.mv_ex;
+  mv_ey = dec->adapt.mv_ey;
+  model = &dec->adapt.mv_model;
   ex = mv_ex[level] >> mv_res;
   ey = mv_ex[level] >> mv_res;
   ox = generic_decode(&dec->ec, model, width << (3 - mv_res), &ex, 2);
@@ -114,9 +114,6 @@ static void od_decode_mv(daala_dec_ctx *dec, od_mv_grid_pt *mvg, int vx,
 }
 
 struct od_mb_dec_ctx {
-  generic_encoder model_dc[OD_NPLANES_MAX];
-  generic_encoder model_g[OD_NPLANES_MAX];
-  generic_encoder model_ym[OD_NPLANES_MAX];
   signed char *modes[OD_NPLANES_MAX];
   od_coeff *c;
   od_coeff **d;
@@ -126,9 +123,6 @@ struct od_mb_dec_ctx {
   od_coeff *mc;
   od_coeff *l;
   int run_pvq[OD_NPLANES_MAX];
-  int ex_sb_dc[OD_NPLANES_MAX];
-  int ex_dc[OD_NPLANES_MAX][OD_NBSIZES][3];
-  int ex_g[OD_NPLANES_MAX][OD_NBSIZES];
   int is_keyframe;
   int nk;
   int k_total;
@@ -336,8 +330,8 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
     dc_scale = (pli==0 || dec->scale[pli]==0) ? scale : (scale + 1) >> 1;
   coeff_shift = dec->scale[pli] == 0 ? 0 : OD_COEFF_SHIFT;
   if (OD_DISABLE_HAAR_DC || !ctx->is_keyframe) {
-    pred[0] = generic_decode(&dec->ec, ctx->model_dc + pli, -1,
-     &ctx->ex_dc[pli][ln][0], 2);
+    pred[0] = generic_decode(&dec->ec, &dec->adapt.model_dc[pli], -1,
+     &dec->adapt.ex_dc[pli][ln][0], 2);
     if (pred[0]) pred[0] *= od_ec_dec_bits(&dec->ec, 1) ? -1 : 1;
     pred[0] = (pred[0]*dc_scale << coeff_shift) + predt[0];
   }
@@ -352,9 +346,9 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   else {
     int *adapt;
     ogg_int32_t adapt_curr[OD_NSB_ADAPT_CTXS];
-    adapt = dec->state.pvq_adapt;
-    vk = generic_decode(&dec->ec, ctx->model_g + pli, -1,
-     &ctx->ex_g[pli][ln], 0);
+    adapt = dec->adapt.pvq_adapt;
+    vk = generic_decode(&dec->ec, &dec->adapt.model_g[pli], -1,
+     &dec->adapt.ex_g[pli][ln], 0);
     laplace_decode_vector(&dec->ec, pred + 1, n2 - 1, vk, adapt_curr, adapt);
     for (zzi = 1; zzi < n2; zzi++) {
       pred[zzi] = (pred[zzi]*scale << coeff_shift) + predt[zzi];
@@ -462,8 +456,8 @@ static void od_decode_haar_dc(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
     else if (by > 0) sb_dc_pred = sb_dc_mem[(by - 1)*nhsb + bx];
     else if (bx > 0) sb_dc_pred = sb_dc_mem[by*nhsb + bx - 1];
     else sb_dc_pred = 0;
-    quant = generic_decode(&dec->ec, ctx->model_dc + pli, -1,
-     &ctx->ex_sb_dc[pli], 2);
+    quant = generic_decode(&dec->ec, &dec->adapt.model_dc[pli], -1,
+     &dec->adapt.ex_sb_dc[pli], 2);
     if (quant) {
       if (od_ec_dec_bits(&dec->ec, 1)) quant = -quant;
     }
@@ -487,8 +481,8 @@ static void od_decode_haar_dc(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
     x[3] = c[((by + 1) << l2)*w + ((bx + 1) << l2)];
     for (i = 1; i < 4; i++) {
       int quant;
-      quant = generic_decode(&dec->ec, ctx->model_dc + pli, -1,
-       &ctx->ex_dc[pli][l][i-1], 2);
+      quant = generic_decode(&dec->ec, &dec->adapt.model_dc[pli], -1,
+       &dec->adapt.ex_dc[pli][l][i-1], 2);
       if (quant) {
         if (od_ec_dec_bits(&dec->ec, 1)) quant = -quant;
       }
@@ -782,20 +776,20 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
         }
       }
     }
-    od_state_reset_probs(&dec->state, mbctx.is_keyframe);
+    od_adapt_ctx_reset(&dec->adapt, mbctx.is_keyframe);
     for (pli = 0; pli < nplanes; pli++) {
       int lni;
-      generic_model_init(mbctx.model_dc + pli);
-      generic_model_init(mbctx.model_g + pli);
-      generic_model_init(mbctx.model_ym + pli);
+      generic_model_init(dec->adapt.model_dc + pli);
+      generic_model_init(dec->adapt.model_g + pli);
+      generic_model_init(dec->adapt.model_ym + pli);
       for (lni = 0; lni < OD_NBSIZES; lni++) {
-        mbctx.ex_g[pli][lni] = 8;
+        dec->adapt.ex_g[pli][lni] = 8;
       }
-      mbctx.ex_sb_dc[pli] = pli > 0 ? 8 : 32768;
+      dec->adapt.ex_sb_dc[pli] = pli > 0 ? 8 : 32768;
       for (lni = 0; lni < 4; lni++) {
         int j;
         for (j=0;j<3;j++)
-        mbctx.ex_dc[pli][lni][j] = pli > 0 ? 8 : 32768;
+          dec->adapt.ex_dc[pli][lni][j] = pli > 0 ? 8 : 32768;
       }
       xdec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
       ydec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;

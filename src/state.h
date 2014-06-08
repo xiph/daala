@@ -28,6 +28,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 typedef struct od_state_opt_vtbl od_state_opt_vtbl;
 typedef struct od_state          od_state;
 typedef struct od_yuv_dumpfile   od_yuv_dumpfile;
+typedef struct od_adapt_ctx      od_adapt_ctx;
 
 # include <stdio.h>
 # include "internal.h"
@@ -133,18 +134,6 @@ struct od_state{
   ogg_int64_t         cur_time;
   od_mv_grid_pt **mv_grid;
 
-  /* Support for PVQ encode/decode */
-  int                 pvq_adapt[OD_NSB_ADAPT_CTXS];
-  generic_encoder     pvq_param_model[3];
-  int                 pvq_ext[OD_NBSIZES*PVQ_MAX_PARTITIONS];
-  int                 pvq_exg[OD_NBSIZES*PVQ_MAX_PARTITIONS];
-  unsigned            pvq_noref_prob[OD_NBSIZES*PVQ_MAX_PARTITIONS];
-
-  /* Motion vectors */
-  generic_encoder     mv_model;
-  int                 mv_ex[5];
-  int                 mv_ey[5];
-
   /** number of horizontal macro blocks. */
   int                 nhmbs;
   /** number of vertical macro blocks. */
@@ -181,11 +170,32 @@ struct od_state{
 # endif
 };
 
+struct od_adapt_ctx {
+  /* Support for PVQ encode/decode */
+  int                 pvq_adapt[OD_NSB_ADAPT_CTXS];
+  generic_encoder     pvq_param_model[3];
+  int                 pvq_ext[OD_NBSIZES*PVQ_MAX_PARTITIONS];
+  int                 pvq_exg[OD_NBSIZES*PVQ_MAX_PARTITIONS];
+  unsigned            pvq_noref_prob[OD_NBSIZES*PVQ_MAX_PARTITIONS];
+
+  /* Motion vectors */
+  generic_encoder     mv_model;
+  int                 mv_ex[5];
+  int                 mv_ey[5];
+
+  generic_encoder model_dc[OD_NPLANES_MAX];
+  generic_encoder model_g[OD_NPLANES_MAX];
+  generic_encoder model_ym[OD_NPLANES_MAX];
+
+  int ex_sb_dc[OD_NPLANES_MAX];
+  int ex_dc[OD_NPLANES_MAX][OD_NBSIZES][3];
+  int ex_g[OD_NPLANES_MAX][OD_NBSIZES];
+};
 
 int od_state_init(od_state *_state, const daala_info *_info);
 void od_state_clear(od_state *_state);
 
-void od_state_reset_probs(od_state *state, int is_keyframe);
+void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe);
 void od_state_pred_block_from_setup(od_state *_state, unsigned char *_buf,
  int _ystride, int _ref, int _pli, int _vx, int _vy, int _c, int _s,
  int _log_mvb_sz);

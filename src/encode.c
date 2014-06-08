@@ -242,9 +242,6 @@ static void od_img_plane_edge_ext8(od_img_plane *dst_p,
 }
 
 struct od_mb_enc_ctx {
-  generic_encoder model_dc[OD_NPLANES_MAX];
-  generic_encoder model_g[OD_NPLANES_MAX];
-  generic_encoder model_ym[OD_NPLANES_MAX];
   signed char *modes[OD_NPLANES_MAX];
   od_coeff *c;
   od_coeff **d;
@@ -254,9 +251,6 @@ struct od_mb_enc_ctx {
   od_coeff *mc;
   od_coeff *l;
   int run_pvq[OD_NPLANES_MAX];
-  int ex_sb_dc[OD_NPLANES_MAX];
-  int ex_dc[OD_NPLANES_MAX][OD_NBSIZES][3];
-  int ex_g[OD_NPLANES_MAX][OD_NBSIZES];
   int is_keyframe;
   int nk;
   int k_total;
@@ -499,8 +493,8 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
     scalar_out[0] = OD_DIV_R0(cblock[0] - predt[0], dc_scale << coeff_shift);
     OD_METRICS_UPDATE(&enc->metrics, od_ec_enc_tell_frac(&enc->ec),
      OD_MET_CAT_TECHNIQUE, OD_MET_TECH_DC_COEFF);
-    generic_encode(&enc->ec, ctx->model_dc + pli, abs(scalar_out[0]), -1,
-     &ctx->ex_dc[pli][ln][0], 2);
+    generic_encode(&enc->ec, &enc->adapt.model_dc[pli], abs(scalar_out[0]), -1,
+     &enc->adapt.ex_dc[pli][ln][0], 2);
     if (scalar_out[0]) od_ec_enc_bits(&enc->ec, scalar_out[0] < 0, 1);
     OD_METRICS_UPDATE(&enc->metrics, od_ec_enc_tell_frac(&enc->ec),
      OD_MET_CAT_TECHNIQUE, OD_MET_TECH_UNKNOWN);
@@ -522,15 +516,15 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   else {
     int *adapt;
     ogg_int32_t adapt_curr[OD_NSB_ADAPT_CTXS];
-    adapt = enc->state.pvq_adapt;
+    adapt = enc->adapt.pvq_adapt;
     vk = 0;
     for (zzi = 1; zzi < n2; zzi++) {
       scalar_out[zzi] = OD_DIV_R0(cblock[zzi] - predt[zzi],
        scale << coeff_shift);
       vk += abs(scalar_out[zzi]);
     }
-    generic_encode(&enc->ec, ctx->model_g + pli, vk, -1,
-     &ctx->ex_g[pli][ln], 0);
+    generic_encode(&enc->ec, &enc->adapt.model_g[pli], vk, -1,
+     &enc->adapt.ex_g[pli][ln], 0);
     laplace_encode_vector(&enc->ec, scalar_out + 1, n2 - 1, vk, adapt_curr,
      adapt);
     for (zzi = 1; zzi < n2; zzi++) {
@@ -710,8 +704,8 @@ static void od_quantize_haar_dc(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
     else sb_dc_pred = 0;
     dc0 = c[(by << l2)*w + (bx << l2)] - sb_dc_pred;
     quant = OD_DIV_R0(dc0, dc_scale);
-    generic_encode(&enc->ec, ctx->model_dc + pli, abs(quant), -1,
-     &ctx->ex_sb_dc[pli], 2);
+    generic_encode(&enc->ec, &enc->adapt.model_dc[pli], abs(quant), -1,
+     &enc->adapt.ex_sb_dc[pli], 2);
     if (quant) od_ec_enc_bits(&enc->ec, quant < 0, 1);
     sb_dc_curr = quant*dc_scale + sb_dc_pred;
     c[(by << l2)*w + (bx << l2)] = sb_dc_curr;
@@ -736,8 +730,8 @@ static void od_quantize_haar_dc(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
     for (i = 1; i < 4; i++) {
       int quant;
       quant = OD_DIV_R0(x[i], dc_scale);
-      generic_encode(&enc->ec, ctx->model_dc + pli, abs(quant), -1,
-       &ctx->ex_dc[pli][l][i-1], 2);
+      generic_encode(&enc->ec, &enc->adapt.model_dc[pli], abs(quant), -1,
+       &enc->adapt.ex_dc[pli][l][i-1], 2);
       if (quant) od_ec_enc_bits(&enc->ec, quant < 0, 1);
       x[i] = quant*dc_scale;
     }
@@ -820,9 +814,9 @@ static void od_encode_mv(daala_enc_ctx *enc, od_mv_grid_pt *mvg, int vx,
   ox = (mvg->mv[0] >> mv_res) - pred[0];
   oy = (mvg->mv[1] >> mv_res) - pred[1];
   /*Interleave positive and negative values.*/
-  mv_ex = enc->state.mv_ex;
-  mv_ey = enc->state.mv_ey;
-  model = &enc->state.mv_model;
+  mv_ex = enc->adapt.mv_ex;
+  mv_ey = enc->adapt.mv_ey;
+  model = &enc->adapt.mv_model;
   ex = mv_ex[level] >> mv_res;
   ey = mv_ex[level] >> mv_res;
   generic_encode(&enc->ec, model, abs(ox), width << (3 - mv_res), &ex, 2);
@@ -1152,20 +1146,20 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     for (mi = 0; mi < OD_INTRA_NMODES; mi++) {
       mbctx.mode_p0[mi] = 32768/OD_INTRA_NMODES;
     }
-    od_state_reset_probs(&enc->state, mbctx.is_keyframe);
+    od_adapt_ctx_reset(&enc->adapt, mbctx.is_keyframe);
     for (pli = 0; pli < nplanes; pli++) {
       int lni;
-      generic_model_init(&mbctx.model_dc[pli]);
-      generic_model_init(&mbctx.model_g[pli]);
-      generic_model_init(&mbctx.model_ym[pli]);
+      generic_model_init(&enc->adapt.model_dc[pli]);
+      generic_model_init(&enc->adapt.model_g[pli]);
+      generic_model_init(&enc->adapt.model_ym[pli]);
       for (lni = 0; lni < OD_NBSIZES; lni++) {
-        mbctx.ex_g[pli][lni] = 8;
+        enc->adapt.ex_g[pli][lni] = 8;
       }
-      mbctx.ex_sb_dc[pli] = pli > 0 ? 8 : 32768;
+      enc->adapt.ex_sb_dc[pli] = pli > 0 ? 8 : 32768;
       for (lni = 0; lni < 4; lni++) {
         int j;
         for (j = 0; j < 3; j++) {
-          mbctx.ex_dc[pli][lni][j] = pli > 0 ? 8 : 32768;
+          enc->adapt.ex_dc[pli][lni][j] = pli > 0 ? 8 : 32768;
         }
       }
       xdec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;

@@ -194,11 +194,11 @@ void pvq_decode(daala_dec_ctx *dec,
   double g[PVQ_MAX_PARTITIONS] = {0};
   generic_encoder *model;
   unsigned *noref_prob;
-  adapt = dec->state.pvq_adapt;
-  exg = dec->state.pvq_exg + ln*PVQ_MAX_PARTITIONS;
-  ext = dec->state.pvq_ext + ln*PVQ_MAX_PARTITIONS;
-  noref_prob = dec->state.pvq_noref_prob + ln*PVQ_MAX_PARTITIONS;
-  model = dec->state.pvq_param_model;
+  adapt = dec->adapt.pvq_adapt;
+  exg = dec->adapt.pvq_exg + ln*PVQ_MAX_PARTITIONS;
+  ext = dec->adapt.pvq_ext + ln*PVQ_MAX_PARTITIONS;
+  noref_prob = dec->adapt.pvq_noref_prob + ln*PVQ_MAX_PARTITIONS;
+  model = dec->adapt.pvq_param_model;
   nb_bands = od_band_offsets[ln][0];
   off = &od_band_offsets[ln][1];
   for (i = 0; i < nb_bands; i++) size[i] = off[i+1] - off[i];
