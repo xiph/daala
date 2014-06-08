@@ -265,10 +265,38 @@ static void od_decode_compute_pred(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, od_co
   }
 }
 
+static void od_single_band_scalar_decode(daala_dec_ctx *dec, int ln,
+ od_coeff *pred, const od_coeff *predt, int scale, int pli, int coeff_shift) {
+  int *adapt;
+  int vk;
+  int zzi;
+  int n2;
+  ogg_int32_t adapt_curr[OD_NSB_ADAPT_CTXS];
+  adapt = dec->adapt.pvq_adapt;
+  n2 = 1 << (2*ln + 4);
+  vk = generic_decode(&dec->ec, &dec->adapt.model_g[pli], -1,
+   &dec->adapt.ex_g[pli][ln], 0);
+  laplace_decode_vector(&dec->ec, pred + 1, n2 - 1, vk, adapt_curr, adapt);
+  for (zzi = 1; zzi < n2; zzi++) {
+    pred[zzi] = (pred[zzi]*scale << coeff_shift) + predt[zzi];
+  }
+  if (adapt_curr[OD_ADAPT_K_Q8] > 0) {
+    adapt[OD_ADAPT_K_Q8] += 256*adapt_curr[OD_ADAPT_K_Q8] -
+     adapt[OD_ADAPT_K_Q8] >> OD_SCALAR_ADAPT_SPEED;
+    adapt[OD_ADAPT_SUM_EX_Q8] += adapt_curr[OD_ADAPT_SUM_EX_Q8] -
+     adapt[OD_ADAPT_SUM_EX_Q8] >> OD_SCALAR_ADAPT_SPEED;
+  }
+  if (adapt_curr[OD_ADAPT_COUNT_Q8] > 0) {
+    adapt[OD_ADAPT_COUNT_Q8] += adapt_curr[OD_ADAPT_COUNT_Q8]-
+     adapt[OD_ADAPT_COUNT_Q8] >> OD_SCALAR_ADAPT_SPEED;
+    adapt[OD_ADAPT_COUNT_EX_Q8] += adapt_curr[OD_ADAPT_COUNT_EX_Q8]-
+     adapt[OD_ADAPT_COUNT_EX_Q8] >> OD_SCALAR_ADAPT_SPEED;
+  }
+}
+
 void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
  int pli, int bx, int by, int has_ur) {
   int n;
-  int n2;
   int xdec;
   int w;
   int frame_width;
@@ -279,8 +307,6 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   od_coeff *mc;
   od_coeff pred[16*16];
   od_coeff predt[16*16];
-  int zzi;
-  int vk;
   int run_pvq;
   int scale;
   int dc_scale;
@@ -291,7 +317,6 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   OD_ASSERT(ln >= 0 && ln <= 2);
   n = 1 << (ln + 2);
   run_pvq = ctx->run_pvq[pli];
-  n2 = n*n;
   bx <<= ln;
   by <<= ln;
 #ifndef USE_BAND_PARTITIONS
@@ -344,27 +369,8 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
      OD_PVQ_INTER_BAND_MASKING[ln], ctx->is_keyframe);
   }
   else {
-    int *adapt;
-    ogg_int32_t adapt_curr[OD_NSB_ADAPT_CTXS];
-    adapt = dec->adapt.pvq_adapt;
-    vk = generic_decode(&dec->ec, &dec->adapt.model_g[pli], -1,
-     &dec->adapt.ex_g[pli][ln], 0);
-    laplace_decode_vector(&dec->ec, pred + 1, n2 - 1, vk, adapt_curr, adapt);
-    for (zzi = 1; zzi < n2; zzi++) {
-      pred[zzi] = (pred[zzi]*scale << coeff_shift) + predt[zzi];
-    }
-    if (adapt_curr[OD_ADAPT_K_Q8] > 0) {
-      adapt[OD_ADAPT_K_Q8] += 256*adapt_curr[OD_ADAPT_K_Q8] -
-       adapt[OD_ADAPT_K_Q8] >> OD_SCALAR_ADAPT_SPEED;
-      adapt[OD_ADAPT_SUM_EX_Q8] += adapt_curr[OD_ADAPT_SUM_EX_Q8] -
-       adapt[OD_ADAPT_SUM_EX_Q8] >> OD_SCALAR_ADAPT_SPEED;
-    }
-    if (adapt_curr[OD_ADAPT_COUNT_Q8] > 0) {
-      adapt[OD_ADAPT_COUNT_Q8] += adapt_curr[OD_ADAPT_COUNT_Q8]-
-       adapt[OD_ADAPT_COUNT_Q8] >> OD_SCALAR_ADAPT_SPEED;
-      adapt[OD_ADAPT_COUNT_EX_Q8] += adapt_curr[OD_ADAPT_COUNT_EX_Q8]-
-       adapt[OD_ADAPT_COUNT_EX_Q8] >> OD_SCALAR_ADAPT_SPEED;
-    }
+    od_single_band_scalar_decode(dec, ln, pred, predt, scale, pli,
+     coeff_shift);
   }
 #ifdef USE_BAND_PARTITIONS
   od_coding_order_to_raster(&d[((by << 2))*w + (bx << 2)], w, pred, n, !run_pvq);

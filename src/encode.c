@@ -418,10 +418,53 @@ static void od_encode_compute_pred(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, od_co
   }
 }
 
-void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
+static void od_single_band_scalar_quant(daala_enc_ctx *enc, int ln,
+ od_coeff *scalar_out, const od_coeff *cblock, const od_coeff *predt,
+ int scale, int pli, int coeff_shift) {
+  int *adapt;
+  int vk;
+  int zzi;
+  int n2;
+  ogg_int32_t adapt_curr[OD_NSB_ADAPT_CTXS];
+  adapt = enc->adapt.pvq_adapt;
+  vk = 0;
+  n2 = 1 << (2*ln + 4);
+  for (zzi = 1; zzi < n2; zzi++) {
+    scalar_out[zzi] = OD_DIV_R0(cblock[zzi] - predt[zzi],
+     scale << coeff_shift);
+    vk += abs(scalar_out[zzi]);
+  }
+#if defined(OD_METRICS)
+  pvq_frac_bits = od_ec_enc_tell_frac(&enc->ec);
+#endif
+  generic_encode(&enc->ec, &enc->adapt.model_g[pli], vk, -1,
+   &enc->adapt.ex_g[pli][ln], 0);
+  laplace_encode_vector(&enc->ec, scalar_out + 1, n2 - 1, vk, adapt_curr,
+   adapt);
+#if defined(OD_METRICS)
+  enc->state.bit_metrics[OD_METRIC_PVQ] += od_ec_enc_tell_frac(&enc->ec) -
+   pvq_frac_bits;
+#endif
+  for (zzi = 1; zzi < n2; zzi++) {
+    scalar_out[zzi] = (scalar_out[zzi]*(scale << coeff_shift)) + predt[zzi];
+  }
+  if (adapt_curr[OD_ADAPT_K_Q8] > 0) {
+    adapt[OD_ADAPT_K_Q8] += 256*adapt_curr[OD_ADAPT_K_Q8] -
+     adapt[OD_ADAPT_K_Q8] >> OD_SCALAR_ADAPT_SPEED;
+    adapt[OD_ADAPT_SUM_EX_Q8] += adapt_curr[OD_ADAPT_SUM_EX_Q8] -
+     adapt[OD_ADAPT_SUM_EX_Q8] >> OD_SCALAR_ADAPT_SPEED;
+  }
+  if (adapt_curr[OD_ADAPT_COUNT_Q8] > 0) {
+    adapt[OD_ADAPT_COUNT_Q8] += adapt_curr[OD_ADAPT_COUNT_Q8]-
+     adapt[OD_ADAPT_COUNT_Q8] >> OD_SCALAR_ADAPT_SPEED;
+    adapt[OD_ADAPT_COUNT_EX_Q8] += adapt_curr[OD_ADAPT_COUNT_EX_Q8]-
+     adapt[OD_ADAPT_COUNT_EX_Q8] >> OD_SCALAR_ADAPT_SPEED;
+  }
+}
+
+void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
  int pli, int bx, int by, int has_ur) {
   int n;
-  int n2;
   int xdec;
   int w;
   int frame_width;
@@ -434,8 +477,6 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   od_coeff predt[16*16];
   od_coeff cblock[16*16];
   od_coeff scalar_out[16*16];
-  int zzi;
-  int vk;
   int run_pvq;
   int scale;
   int dc_scale;
@@ -449,7 +490,6 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   OD_ASSERT(ln >= 0 && ln <= 2);
   n = 1 << (ln + 2);
   run_pvq = ctx->run_pvq[pli];
-  n2 = n*n;
   bx <<= ln;
   by <<= ln;
 #ifndef USE_BAND_PARTITIONS
@@ -517,34 +557,8 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
      OD_PVQ_INTER_BAND_MASKING[ln], ctx->is_keyframe);
   }
   else {
-    int *adapt;
-    ogg_int32_t adapt_curr[OD_NSB_ADAPT_CTXS];
-    adapt = enc->adapt.pvq_adapt;
-    vk = 0;
-    for (zzi = 1; zzi < n2; zzi++) {
-      scalar_out[zzi] = OD_DIV_R0(cblock[zzi] - predt[zzi],
-       scale << coeff_shift);
-      vk += abs(scalar_out[zzi]);
-    }
-    generic_encode(&enc->ec, &enc->adapt.model_g[pli], vk, -1,
-     &enc->adapt.ex_g[pli][ln], 0);
-    laplace_encode_vector(&enc->ec, scalar_out + 1, n2 - 1, vk, adapt_curr,
-     adapt);
-    for (zzi = 1; zzi < n2; zzi++) {
-      scalar_out[zzi] = (scalar_out[zzi]*(scale << coeff_shift)) + predt[zzi];
-    }
-    if (adapt_curr[OD_ADAPT_K_Q8] > 0) {
-      adapt[OD_ADAPT_K_Q8] += 256*adapt_curr[OD_ADAPT_K_Q8] -
-       adapt[OD_ADAPT_K_Q8] >> OD_SCALAR_ADAPT_SPEED;
-      adapt[OD_ADAPT_SUM_EX_Q8] += adapt_curr[OD_ADAPT_SUM_EX_Q8] -
-       adapt[OD_ADAPT_SUM_EX_Q8] >> OD_SCALAR_ADAPT_SPEED;
-    }
-    if (adapt_curr[OD_ADAPT_COUNT_Q8] > 0) {
-      adapt[OD_ADAPT_COUNT_Q8] += adapt_curr[OD_ADAPT_COUNT_Q8]-
-       adapt[OD_ADAPT_COUNT_Q8] >> OD_SCALAR_ADAPT_SPEED;
-      adapt[OD_ADAPT_COUNT_EX_Q8] += adapt_curr[OD_ADAPT_COUNT_EX_Q8]-
-       adapt[OD_ADAPT_COUNT_EX_Q8] >> OD_SCALAR_ADAPT_SPEED;
-    }
+    od_single_band_scalar_quant(enc, ln, scalar_out, cblock, predt, scale, pli,
+     coeff_shift);
   }
   OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
    OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
@@ -587,19 +601,19 @@ static void od_32x32_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
  int pli, int bx, int by, int has_ur) {
   bx <<= 1;
   by <<= 1;
-  od_single_band_encode(enc, ctx, ln - 1, pli, bx + 0, by + 0, 1);
-  od_single_band_encode(enc, ctx, ln - 1, pli, bx + 1, by + 0, has_ur);
-  od_single_band_encode(enc, ctx, ln - 1, pli, bx + 0, by + 1, 1);
-  od_single_band_encode(enc, ctx, ln - 1, pli, bx + 1, by + 1, 0);
+  od_block_encode(enc, ctx, ln - 1, pli, bx + 0, by + 0, 1);
+  od_block_encode(enc, ctx, ln - 1, pli, bx + 1, by + 0, has_ur);
+  od_block_encode(enc, ctx, ln - 1, pli, bx + 0, by + 1, 1);
+  od_block_encode(enc, ctx, ln - 1, pli, bx + 1, by + 1, 0);
 }
 
 typedef void (*od_enc_func)(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
  int pli, int bx, int by, int has_ur);
 
 const od_enc_func OD_ENCODE_BLOCK[OD_NBSIZES + 2] = {
-  od_single_band_encode,
-  od_single_band_encode,
-  od_single_band_encode,
+  od_block_encode,
+  od_block_encode,
+  od_block_encode,
   od_32x32_encode
 };
 
