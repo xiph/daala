@@ -35,6 +35,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 typedef struct daala_enc_ctx od_enc_ctx;
 typedef struct od_mv_est_ctx od_mv_est_ctx;
 typedef struct od_enc_opt_vtbl od_enc_opt_vtbl;
+typedef struct od_rollback_buffer od_rollback_buffer;
 
 /*Constants for the packet state machine specific to the encoder.*/
 /*No packet currently ready to output.*/
@@ -70,6 +71,15 @@ struct daala_enc_ctx{
   od_metrics metrics;
 #endif
 };
+
+/** Holds important encoder information so we can roll back decisions */
+struct od_rollback_buffer {
+  od_ec_enc ec;
+  od_adapt_ctx adapt;
+};
+
+void od_encode_checkpoint(const daala_enc_ctx *enc, od_rollback_buffer *rbuf);
+void od_encode_rollback(daala_enc_ctx *enc, const od_rollback_buffer *rbuf);
 
 od_mv_est_ctx *od_mv_est_alloc(od_enc_ctx *enc);
 void od_mv_est_free(od_mv_est_ctx *est);

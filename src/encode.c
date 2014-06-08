@@ -143,6 +143,16 @@ int daala_encode_ctl(daala_enc_ctx *enc, int req, void *buf, size_t buf_sz) {
   }
 }
 
+void od_encode_checkpoint(const daala_enc_ctx *enc, od_rollback_buffer *rbuf) {
+  od_ec_enc_checkpoint(&rbuf->ec, &enc->ec);
+  OD_COPY(&rbuf->adapt, &enc->adapt, 1);
+}
+
+void od_encode_rollback(daala_enc_ctx *enc, const od_rollback_buffer *rbuf) {
+  od_ec_enc_rollback(&enc->ec, &rbuf->ec);
+  OD_COPY(&enc->adapt, &rbuf->adapt, 1);
+}
+
 static void od_img_plane_copy_pad8(od_img_plane *dst_p,
  int plane_width, int plane_height, od_img_plane *src_p,
  int pic_width, int pic_height) {

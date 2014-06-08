@@ -597,3 +597,26 @@ int od_ec_enc_tell(od_ec_enc *enc) {
 ogg_uint32_t od_ec_enc_tell_frac(od_ec_enc *enc) {
   return od_ec_tell_frac(od_ec_enc_tell(enc), enc->rng);
 }
+
+void od_ec_enc_checkpoint(od_ec_enc *dst, const od_ec_enc *src) {
+  OD_COPY(dst, src, 1);
+}
+
+void od_ec_enc_rollback(od_ec_enc *dst, const od_ec_enc *src) {
+  unsigned char *buf;
+  ogg_uint32_t storage;
+  ogg_uint16_t *precarry_buf;
+  ogg_uint32_t precarry_storage;
+  OD_ASSERT(dst->storage >= src->storage);
+  OD_ASSERT(dst->precarry_storage >= src->precarry_storage);
+  buf = dst->buf;
+  storage = dst->storage;
+  precarry_buf = dst->precarry_buf;
+  precarry_storage = dst->precarry_storage;
+  OD_COPY(dst, src, 1);
+  dst->buf = buf;
+  dst->storage = storage;
+  dst->precarry_buf = precarry_buf;
+  dst->precarry_storage = precarry_storage;
+
+}
