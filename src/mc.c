@@ -33,19 +33,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 /*Motion compensation routines shared between the encoder and decoder.*/
 
-/*A table of indices used to set up the rotated versions of each vector
-   interpolation formula.*/
-static const int MIDXS[][4] = {
-  { 0, 1, 2, 3 },
-  { 0, 0, 2, 3 },
-  { 1, 1, 2, 3 },
-  { 0, 0, 3, 3 },
-  { 1, 1, 2, 2 },
-  { 0, 1, 0, 0 },
-  { 2, 1, 2, 2 },
-  { 0, 1, 1, 1 },
-};
-
 /*Set up the finite differences needed to interpolate a motion vector
    component.
   dmv: Returns the motion vector deltas.
