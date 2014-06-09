@@ -35,6 +35,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # include "x86/x86int.h"
 #endif
 
+const od_coeff OD_DC_RES[3] = {14, 12, 18};
+
 /*Initializes the buffers used for reference frames.
   These buffers are padded with 16 extra pixels on each side, to allow
    (relatively) unrestricted motion vectors without special casing reading
@@ -200,6 +202,8 @@ int od_state_init(od_state *state, const daala_info *info) {
   for (pli = 0; pli < nplanes; pli++) {
     od_adapt_init(&state->adapt_sb[pli], state->nhsb,
      OD_NSB_ADAPT_CTXS, OD_SB_ADAPT_PARAMS);
+    state->sb_dc_mem[pli] = (od_coeff*)_ogg_malloc(
+     sizeof(state->sb_dc_mem[pli][0])*state->nhsb*state->nvsb);
   }
   state->bsize = (unsigned char *)_ogg_malloc(
    sizeof(*state->bsize)*(state->nhsb + 2)*4*(state->nvsb + 2)*4);
@@ -226,7 +230,10 @@ void od_state_clear(od_state *state) {
   }
 #endif
   nplanes = state->info.nplanes;
-  for (pli = nplanes; pli-- > 0;) od_adapt_clear(&state->adapt_sb[pli]);
+  for (pli = nplanes; pli-- > 0;) {
+    od_adapt_clear(&state->adapt_sb[pli]);
+    _ogg_free(state->sb_dc_mem[pli]);
+  }
   od_free_2d(state->mv_grid);
   _ogg_free(state->ref_img_data);
   state->bsize -= 4*state->bstride + 4;

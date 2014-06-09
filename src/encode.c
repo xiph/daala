@@ -249,7 +249,8 @@ struct od_mb_enc_ctx {
   od_coeff *mc;
   od_coeff *l;
   int run_pvq[OD_NPLANES_MAX];
-  int ex_dc[OD_NPLANES_MAX][OD_NBSIZES];
+  int ex_sb_dc[OD_NPLANES_MAX];
+  int ex_dc[OD_NPLANES_MAX][OD_NBSIZES][3];
   int ex_g[OD_NPLANES_MAX][OD_NBSIZES];
   int is_keyframe;
   int nk;
@@ -323,9 +324,7 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   md = ctx->md;
   mc = ctx->mc;
   l = ctx->l;
-  /*Apply forward transform(s).*/
-  (*OD_FDCT_2D[ln])(d + (by << 2)*w + (bx << 2), w,
-   c + (by << 2)*w + (bx << 2), w);
+  /* Apply forward transform. */
   if (!ctx->is_keyframe) {
     (*OD_FDCT_2D[ln])(md + (by << 2)*w + (bx << 2), w,
      mc + (by << 2)*w + (bx << 2), w);
@@ -470,20 +469,24 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   else
     dc_scale = (pli==0 || enc->scale[pli]==0) ? scale : (scale + 1) >> 1;
   coeff_shift = enc->scale[pli] == 0 ? 0 : OD_COEFF_SHIFT;
-  scalar_out[0] = OD_DIV_R0(cblock[0] - predt[0], dc_scale << coeff_shift);
+  if (OD_DISABLE_HAAR_DC || !ctx->is_keyframe) {
+    scalar_out[0] = OD_DIV_R0(cblock[0] - predt[0], dc_scale << coeff_shift);
 #if defined(OD_METRICS)
-  dc_frac_bits = od_ec_enc_tell_frac(&enc->ec);
+    dc_frac_bits = od_ec_enc_tell_frac(&enc->ec);
 #endif
-  generic_encode(&enc->ec, ctx->model_dc + pli, abs(scalar_out[0]), -1,
-   &ctx->ex_dc[pli][ln], 2);
-  if (scalar_out[0]) od_ec_enc_bits(&enc->ec, scalar_out[0] < 0, 1);
+    generic_encode(&enc->ec, ctx->model_dc + pli, abs(scalar_out[0]), -1,
+     &ctx->ex_dc[pli][ln][0], 2);
+    if (scalar_out[0]) od_ec_enc_bits(&enc->ec, scalar_out[0] < 0, 1);
 #if defined(OD_METRICS)
-  enc->state.bit_metrics[OD_METRIC_DC] += od_ec_enc_tell_frac(&enc->ec) -
-   dc_frac_bits;
+    enc->state.bit_metrics[OD_METRIC_DC] += od_ec_enc_tell_frac(&enc->ec) -
+     dc_frac_bits;
 #endif
-  scalar_out[0] = scalar_out[0]*(dc_scale << coeff_shift);
-  scalar_out[0] += predt[0];
-
+    scalar_out[0] = scalar_out[0]*(dc_scale << coeff_shift);
+    scalar_out[0] += predt[0];
+  }
+  else {
+    scalar_out[0] = cblock[0];
+  }
   if (run_pvq) {
     int i;
     pvq_encode(enc, predt, cblock, scalar_out, scale << coeff_shift, ln,
@@ -577,6 +580,160 @@ const od_enc_func OD_ENCODE_BLOCK[OD_NBSIZES + 2] = {
   od_single_band_encode,
   od_32x32_encode
 };
+
+static void od_compute_dcts(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
+  int bx, int by, int l, int xdec, int ydec) {
+  int od;
+  int d;
+  int w;
+  od_coeff *c;
+  c = ctx->d[pli];
+  w = enc->state.frame_width >> xdec;
+  /*This code assumes 4:4:4 or 4:2:0 input.*/
+  OD_ASSERT(xdec == ydec);
+  od = OD_BLOCK_SIZE4x4(enc->state.bsize,
+   enc->state.bstride, bx << l, by << l);
+  d = OD_MAXI(od, xdec);
+  OD_ASSERT(d <= l);
+  if (d == l) {
+    d -= xdec;
+    (*OD_FDCT_2D[d])(c + (by << (2 + d))*w + (bx << (2 + d)), w,
+      ctx->c + (by << (2 + d))*w + (bx << (2 + d)), w);
+  }
+  else {
+    l--;
+    bx <<= 1;
+    by <<= 1;
+    od_compute_dcts(enc, ctx, pli, bx + 0, by + 0, l, xdec, ydec);
+    od_compute_dcts(enc, ctx, pli, bx + 1, by + 0, l, xdec, ydec);
+    od_compute_dcts(enc, ctx, pli, bx + 0, by + 1, l, xdec, ydec);
+    od_compute_dcts(enc, ctx, pli, bx + 1, by + 1, l, xdec, ydec);
+    if (!OD_DISABLE_HAAR_DC && ctx->is_keyframe) {
+      od_coeff x[4];
+      od_coeff tmp;
+      int l2;
+      l2 = l - xdec + 2;
+      x[0] = c[(by << l2)*w + (bx << l2)];
+      x[1] = c[(by << l2)*w + ((bx + 1) << l2)];
+      x[2] = c[((by + 1) << l2)*w + (bx << l2)];
+      x[3] = c[((by + 1) << l2)*w + ((bx + 1) << l2)];
+      x[0] += x[1];
+      x[3] -= x[2];
+      tmp = (x[0] - x[3]) >> 1;
+      x[1] = tmp - x[1];
+      x[2] = tmp - x[2];
+      x[0] -= x[2];
+      x[3] += x[1];
+      c[(by << l2)*w + (bx << l2)] = x[0];
+      c[(by << l2)*w + ((bx + 1) << l2)] = x[1];
+      c[((by + 1) << l2)*w + (bx << l2)] = x[2];
+      c[((by + 1) << l2)*w + ((bx + 1) << l2)] = x[3];
+    }
+  }
+}
+
+#if !OD_DISABLE_HAAR_DC
+static void od_quantize_haar_dc(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
+ int pli, int bx, int by, int l, int xdec, int ydec, od_coeff hgrad,
+ od_coeff vgrad) {
+  int od;
+  int d;
+  int w;
+  int i;
+  int dc_scale;
+  od_coeff *c;
+  c = ctx->d[pli];
+  w = enc->state.frame_width >> xdec;
+  /*This code assumes 4:4:4 or 4:2:0 input.*/
+  OD_ASSERT(xdec == ydec);
+  od = OD_BLOCK_SIZE4x4(enc->state.bsize,
+   enc->state.bstride, bx << l, by << l);
+  d = OD_MAXI(od, xdec);
+  OD_ASSERT(d <= l);
+  if (enc->scale[pli] == 0) dc_scale = 1;
+  else {
+    dc_scale = OD_MAXI(1, enc->scale[pli]*OD_DC_RES[pli] >> 4)
+     << OD_COEFF_SHIFT;
+  }
+  if (l == 3) {
+    int nhsb;
+    int quant;
+    int dc0;
+    int l2;
+    od_coeff sb_dc_pred;
+    od_coeff sb_dc_curr;
+    od_coeff *sb_dc_mem;
+    nhsb = enc->state.nhsb;
+    sb_dc_mem = enc->state.sb_dc_mem[pli];
+    l2 = l - xdec + 2;
+    if (by > 0 && bx > 0) {
+      sb_dc_pred = (sb_dc_mem[by*nhsb + bx - 1]
+       + sb_dc_mem[(by - 1)*nhsb + bx])>>1;
+    }
+    else if (by > 0) sb_dc_pred = sb_dc_mem[(by - 1)*nhsb + bx];
+    else if (bx > 0) sb_dc_pred = sb_dc_mem[by*nhsb + bx - 1];
+    else sb_dc_pred = 0;
+    dc0 = c[(by << l2)*w + (bx << l2)] - sb_dc_pred;
+    quant = OD_DIV_R0(dc0, dc_scale);
+    generic_encode(&enc->ec, ctx->model_dc + pli, abs(quant), -1,
+     &ctx->ex_sb_dc[pli], 2);
+    if (quant) od_ec_enc_bits(&enc->ec, quant < 0, 1);
+    sb_dc_curr = quant*dc_scale + sb_dc_pred;
+    c[(by << l2)*w + (bx << l2)] = sb_dc_curr;
+    sb_dc_mem[by*nhsb + bx] = sb_dc_curr;
+    if (by > 0) vgrad = sb_dc_mem[(by - 1)*nhsb + bx] - sb_dc_curr;
+    if (bx > 0) hgrad = sb_dc_mem[by*nhsb + bx - 1]- sb_dc_curr;
+  }
+  if (l > d) {
+    od_coeff x[4];
+    od_coeff tmp;
+    int l2;
+    l--;
+    bx <<= 1;
+    by <<= 1;
+    l2 = l - xdec + 2;
+    x[0] = c[(by << l2)*w + (bx << l2)];
+    x[1] = c[(by << l2)*w + ((bx + 1) << l2)];
+    x[2] = c[((by + 1) << l2)*w + (bx << l2)];
+    x[3] = c[((by + 1) << l2)*w + ((bx + 1) << l2)];
+    x[1] -= hgrad/5;
+    x[2] -= vgrad/5;
+    for (i = 1; i < 4; i++) {
+      int quant;
+      quant = OD_DIV_R0(x[i], dc_scale);
+      generic_encode(&enc->ec, ctx->model_dc + pli, abs(quant), -1,
+       &ctx->ex_dc[pli][l][i-1], 2);
+      if (quant) od_ec_enc_bits(&enc->ec, quant < 0, 1);
+      x[i] = quant*dc_scale;
+    }
+    /* Gives best results for subset1, more conservative than the
+       theoretical /4 of a pure gradient. */
+    x[1] += hgrad/5;
+    x[2] += vgrad/5;
+    hgrad = x[1];
+    vgrad = x[2];
+    x[0] += x[2];
+    x[3] -= x[1];
+    tmp = (x[0] - x[3]) >> 1;
+    x[1] = tmp - x[1];
+    x[2] = tmp - x[2];
+    x[0] -= x[1];
+    x[3] += x[2];
+    c[(by << l2)*w + (bx << l2)] = x[0];
+    c[(by << l2)*w + ((bx + 1) << l2)] = x[1];
+    c[((by + 1) << l2)*w + (bx << l2)] = x[2];
+    c[((by + 1) << l2)*w + ((bx + 1) << l2)] = x[3];
+    od_quantize_haar_dc(enc, ctx, pli, bx + 0, by + 0, l, xdec, ydec, hgrad,
+     vgrad);
+    od_quantize_haar_dc(enc, ctx, pli, bx + 1, by + 0, l, xdec, ydec, hgrad,
+     vgrad);
+    od_quantize_haar_dc(enc, ctx, pli, bx + 0, by + 1, l, xdec, ydec, hgrad,
+     vgrad);
+    od_quantize_haar_dc(enc, ctx, pli, bx + 1, by + 1, l, xdec, ydec, hgrad,
+     vgrad);
+  }
+}
+#endif
 
 static void od_encode_block(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
  int bx, int by, int l, int xdec, int ydec, int has_ur) {
@@ -961,8 +1118,14 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       generic_model_init(&mbctx.model_g[pli]);
       generic_model_init(&mbctx.model_ym[pli]);
       for (lni = 0; lni < OD_NBSIZES; lni++) {
-        mbctx.ex_dc[pli][lni] = pli > 0 ? 8 : 32768;
         mbctx.ex_g[pli][lni] = 8;
+      }
+      mbctx.ex_sb_dc[pli] = pli > 0 ? 8 : 32768;
+      for (lni = 0; lni < 4; lni++) {
+        int j;
+        for (j = 0; j < 3; j++) {
+          mbctx.ex_dc[pli][lni][j] = pli > 0 ? 8 : 32768;
+        }
       }
       xdec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
       ydec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
@@ -1068,6 +1231,11 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
           adapt_sb = &enc->state.adapt_sb[pli];
           /*Need to update this to decay based on superblocks width.*/
           od_adapt_get_stats(adapt_sb, sbx, adapt_hmean[pli], mbctx.adapt);
+          od_compute_dcts(enc, &mbctx, pli, sbx, sby, 3, xdec, ydec);
+          if (!OD_DISABLE_HAAR_DC && mbctx.is_keyframe) {
+            od_quantize_haar_dc(enc, &mbctx, pli, sbx, sby, 3, xdec, ydec, 0,
+             0);
+          }
           od_encode_block(enc, &mbctx, pli, sbx, sby, 3, xdec, ydec,
            sby > 0 && sbx < nhsb - 1);
           if (mbctx.nk > 0) {

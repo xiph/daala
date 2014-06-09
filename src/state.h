@@ -36,6 +36,8 @@ typedef struct od_yuv_dumpfile   od_yuv_dumpfile;
 # include "adapt.h"
 # include "generic_code.h"
 
+extern const od_coeff OD_DC_RES[3];
+
 /*The golden reference frame.*/
 # define OD_FRAME_GOLD (0)
 /*The previous reference frame.*/
@@ -160,6 +162,7 @@ struct od_state{
       entries (horizontally adjacent entries are adjacent in memory). */
   unsigned char *bsize;
   int                 bstride;
+  od_coeff           *(sb_dc_mem[OD_NPLANES_MAX]);
   int                 mv_res;
 # if defined(OD_DUMP_IMAGES)
   od_img              vis_img;
