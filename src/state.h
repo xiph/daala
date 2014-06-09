@@ -27,7 +27,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 typedef struct od_state_opt_vtbl od_state_opt_vtbl;
 typedef struct od_state          od_state;
+typedef struct od_yuv_dumpfile   od_yuv_dumpfile;
 
+# include <stdio.h>
 # include "internal.h"
 # include "mc.h"
 # include "pvq.h"
@@ -99,7 +101,12 @@ struct od_state_opt_vtbl{
   void (*restore_fpu)(void);
 };
 
-
+# if defined(OD_DUMP_IMAGES)
+struct od_yuv_dumpfile{
+  char tag[16];
+  FILE *fd;
+};
+# endif
 
 struct od_state{
   daala_info          info;
@@ -156,6 +163,8 @@ struct od_state{
   int                 mv_res;
 # if defined(OD_DUMP_IMAGES)
   od_img              vis_img;
+  int                 dump_tags;
+  od_yuv_dumpfile    *dump_files;
 #  if defined(OD_ANIMATE)
   int                 ani_iter;
 #  endif
@@ -178,9 +187,9 @@ void od_state_pred_block(od_state *_state, unsigned char *_buf, int _ystride,
 void od_state_mc_predict(od_state *_state, int _ref);
 void od_state_init_border_as_32x32(od_state *_state);
 void od_state_upsample8(od_state *_state, od_img *_dst, const od_img *_src);
-int od_state_dump_yuv(od_state *_state, od_img *_img, const char *_suf);
+int od_state_dump_yuv(od_state *_state, od_img *_img, const char *_tag);
 # if defined(OD_DUMP_IMAGES)
-int od_state_dump_img(od_state *_state, od_img *_img, const char *_suf);
+int od_state_dump_img(od_state *_state, od_img *_img, const char *_tag);
 void od_img_draw_point(od_img *_img, int _x, int _y,
  const unsigned char _ycbcr[3]);
 void od_img_draw_line(od_img *_img, int _x0, int _y0, int _x1, int _y1,

@@ -30,7 +30,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
 #include "state.h"
 #if defined(OD_X86ASM)
 # include "x86/x86int.h"
@@ -207,12 +206,25 @@ int od_state_init(od_state *state, const daala_info *info) {
   state->bstride = (state->nhsb + 2)*4;
   state->bsize += 4*state->bstride + 4;
   od_state_reset_probs(state, 1);
+#if defined(OD_DUMP_IMAGES)
+  state->dump_tags = 0;
+  state->dump_files = 0;
+#endif
   return 0;
 }
 
 void od_state_clear(od_state *state) {
   int nplanes;
   int pli;
+#if defined(OD_DUMP_IMAGES)
+  int i;
+  if (state->dump_tags > 0) {
+    for (i = 0; i < state->dump_tags; i++) fclose(state->dump_files[i].fd);
+    _ogg_free(state->dump_files);
+    state->dump_files = 0;
+    state->dump_tags = 0;
+  }
+#endif
   nplanes = state->info.nplanes;
   for (pli = nplanes; pli-- > 0;) od_adapt_clear(&state->adapt_sb[pli]);
   od_free_2d(state->mv_grid);
@@ -629,7 +641,7 @@ void od_state_pred_block(od_state *state, unsigned char *buf, int ystride,
   }
 }
 
-int od_state_dump_yuv(od_state *state, od_img *img, const char *suf) {
+int od_state_dump_yuv(od_state *state, od_img *img, const char *tag) {
   static const char *CHROMA_TAGS[4] = {
     " C420jpeg", "", " C422jpeg", " C444"
   };
@@ -639,15 +651,52 @@ int od_state_dump_yuv(od_state *state, od_img *img, const char *suf) {
   int pic_height;
   int y;
   int pli;
-  sprintf(fname, "%08i%s.y4m",
-   (int)daala_granule_basetime(state, state->cur_time), suf);
-  fp = fopen(fname, "wb");
+  int needs_header;
+#if defined(OD_DUMP_IMAGES)
+  int i;
+  needs_header = 0;
+  for (i = 0; i < state->dump_tags &&
+    strcmp(tag,state->dump_files[i].tag) != 0; i++);
+  if(i>=state->dump_tags) {
+    char *suf;
+    OD_ASSERT(strlen(tag)<16);
+    state->dump_tags++;
+    state->dump_files = _ogg_realloc(state->dump_files,
+     state->dump_tags*sizeof(od_yuv_dumpfile));
+    OD_ASSERT(state->dump_files);
+    strncpy(state->dump_files[i].tag,tag,16);
+#else
+  {
+    char *suf;
+#endif
+    needs_header = 1;
+    suf = getenv("OD_DUMP_IMAGES_SUFFIX");
+    if (!suf) {
+      suf="";
+    }
+    sprintf(fname, "%08i%s-%s.y4m",
+     (int)daala_granule_basetime(state, state->cur_time), tag, suf);
+#if defined(OD_DUMP_IMAGES)
+    state->dump_files[i].fd = fopen(fname, "wb");
+  }
+  fp = state->dump_files[i].fd;
+#else
+    fp = fopen(fname, "wb");
+  }
+#endif
   pic_width = state->info.pic_width;
   pic_height = state->info.pic_height;
   OD_ASSERT(img->nplanes >= 3);
-  fprintf(fp, "YUV4MPEG2 W%i H%i F%i:%i Ip A%i:%i%s\n",
-   pic_width, pic_height, 1, 1, 0, 0,
-   CHROMA_TAGS[(img->planes[1].xdec == 0) + (img->planes[1].ydec == 0)*2]);
+  if (needs_header) {
+    int fps_num;
+    int fps_denom;
+    fps_num = state->info.timebase_numerator;
+    fps_denom = state->info.timebase_denominator*state->info.frame_duration;
+    fprintf(fp, "YUV4MPEG2 W%i H%i F%i:%i Ip A%i:%i%s\n",
+     pic_width, pic_height, fps_num, fps_denom,
+     state->info.pixel_aspect_numerator, state->info.pixel_aspect_denominator,
+     CHROMA_TAGS[(img->planes[1].xdec == 0) + (img->planes[1].ydec == 0)*2]);
+  }
   fprintf(fp, "FRAME\n");
   for (pli = 0; pli < 3; pli++) {
     int xdec;
@@ -664,7 +713,6 @@ int od_state_dump_yuv(od_state *state, od_img *img, const char *suf) {
       }
     }
   }
-  fclose(fp);
   return 0;
 }
 
@@ -1007,7 +1055,7 @@ void od_state_fill_vis(od_state *state) {
 }
 
 /*Dump a PNG of the reconstructed image, or a reference frame.*/
-int od_state_dump_img(od_state *state, od_img *img, const char *suf) {
+int od_state_dump_img(od_state *state, od_img *img, const char *tag) {
   png_structp png;
   png_infop info;
   png_bytep *data;
@@ -1019,8 +1067,13 @@ int od_state_dump_img(od_state *state, od_img *img, const char *suf) {
   int pli;
   int x;
   int y;
-  sprintf(fname, "%08i%s.png",
-   (int)daala_granule_basetime(state, state->cur_time), suf);
+  char *suf;
+  suf = getenv("OD_DUMP_IMAGES_SUFFIX");
+  if (!suf) {
+    suf="";
+  }
+  sprintf(fname, "%08i%s%s.png",
+   (int)daala_granule_basetime(state, state->cur_time), tag, suf);
   fp = fopen(fname, "wb");
   png = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
   if (png == NULL) {
