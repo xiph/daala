@@ -149,6 +149,11 @@ daalainclude_HEADERS = \
 
 # Tools
 
+CLEANFILES =
+EXTRA_PROGRAMS =
+
+if ENABLE_TOOLS
+
 tools_TARGETS = \
 	tools/png2y4m \
 	tools/y4m2png \
@@ -194,8 +199,8 @@ noinst_HEADERS += \
 	tools/trans_tools.h \
 	tools/vidinput.h
 
-EXTRA_PROGRAMS = $(tools_TARGETS)
-CLEANFILES = $(tools_TARGETS)
+EXTRA_PROGRAMS += $(tools_TARGETS)
+CLEANFILES += $(tools_TARGETS)
 
 # png2y4m
 tools_png2y4m_SOURCES = \
@@ -496,6 +501,7 @@ tools_vq_train_SOURCES = \
 tools_vq_train_CFLAGS = -fopenmp
 tools_vq_train_LDADD = $(LIBM)
 
+endif # ENABLE_TOOLS
 
 # Tests
 
@@ -655,7 +661,12 @@ daala install-daala: NO_DOXYGEN = 1
 daala: all
 install-daala: install
 
+if ENABLE_TOOLS
 tools: $(tools_TARGETS)
+else
+tools:
+	@echo "error: Tools support not enabled. Try running 'configure --enable-tools'."
+endif
 
 # Or just the docs
 docs: doc/doxygen-build.stamp
@@ -727,4 +738,4 @@ force:
 dist-hook:
 	echo 'PACKAGE_VERSION="$(PACKAGE_VERSION)"' > $(top_distdir)/package_version
 
-.PHONY: daala install-daala docs install-docs figures
+.PHONY: daala install-daala docs install-docs figures tools

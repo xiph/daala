@@ -37,9 +37,6 @@ OD_LT_CURRENT=0
 OD_LT_REVISION=1
 OD_LT_AGE=0
 
-AC_CHECK_LIB([jpeg],[jpeg_start_compress],[JPEG_LIBS="-ljpeg"],[AC_MSG_ERROR([oh noes libjpeg not found])])
-AC_SUBST([JPEG_LIBS])
-
 AC_SUBST(OD_LT_CURRENT)
 AC_SUBST(OD_LT_REVISION)
 AC_SUBST(OD_LT_AGE)
@@ -104,6 +101,18 @@ PKG_CHECK_MODULES([PNG], [libpng])
 #CC_ATTRIBUTE_VISIBILITY([default], [
 #  CC_FLAG_VISIBILITY([CFLAGS="${CFLAGS} -fvisibility=hidden"])
 #])
+
+dnl Check for tools
+AC_ARG_ENABLE([tools],
+  AC_HELP_STRING([--disable-tools], [Disable the tools]),,
+  [enable_tools=yes])
+
+if test "$enable_tools" = "yes" ; then
+   AC_CHECK_LIB([jpeg],[jpeg_start_compress],[JPEG_LIBS="-ljpeg"],[AC_MSG_ERROR([libjpeg needed for building tools])])
+   AC_SUBST([JPEG_LIBS])
+fi
+
+AM_CONDITIONAL(ENABLE_TOOLS, [test $enable_tools = "yes"])
 
 dnl Check for check
 AC_ARG_ENABLE([unit-tests],
@@ -214,6 +223,7 @@ AC_MSG_NOTICE([
     Image dumping ................ ${enable_dump_images}
     Check encoder ................ ${enable_encoder_check}
     Metrics collection ........... ${enable_metrics}
+    Tools ........................ ${enable_tools}
     Unit tests ................... ${enable_unit_tests}
     Example Player................ ${enable_player}
 ------------------------------------------------------------------------
