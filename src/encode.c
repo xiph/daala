@@ -538,7 +538,19 @@ void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
     scalar_out[0] = OD_DIV_R0(cblock[0] - predt[0], dc_scale << coeff_shift);
     OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
      OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_DC_COEFF);
-    generic_encode(&enc->ec, &enc->adapt.model_dc[pli], abs(scalar_out[0]), -1,
+  }
+  if (run_pvq) {
+    pvq_encode(enc, predt, cblock, scalar_out, scale << coeff_shift, ln,
+     OD_PVQ_QM_Q4[pli][ln], OD_PVQ_BETA[pli][ln],
+     OD_PVQ_INTER_BAND_MASKING[ln], ctx->is_keyframe);
+  }
+  else {
+    od_single_band_scalar_quant(enc, ln, scalar_out, cblock, predt, scale, pli,
+     coeff_shift);
+  }
+  if (OD_DISABLE_HAAR_DC || !ctx->is_keyframe) {
+    if (!run_pvq || scalar_out[0]) generic_encode(&enc->ec,
+     &enc->adapt.model_dc[pli], abs(scalar_out[0]) - run_pvq, -1,
      &enc->adapt.ex_dc[pli][ln][0], 2);
     if (scalar_out[0]) od_ec_enc_bits(&enc->ec, scalar_out[0] < 0, 1);
     OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
@@ -551,15 +563,6 @@ void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   }
   OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
    OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_AC_COEFFS);
-  if (run_pvq) {
-    pvq_encode(enc, predt, cblock, scalar_out, scale << coeff_shift, ln,
-     OD_PVQ_QM_Q4[pli][ln], OD_PVQ_BETA[pli][ln],
-     OD_PVQ_INTER_BAND_MASKING[ln], ctx->is_keyframe);
-  }
-  else {
-    od_single_band_scalar_quant(enc, ln, scalar_out, cblock, predt, scale, pli,
-     coeff_shift);
-  }
   OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
    OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
 #ifdef USE_BAND_PARTITIONS

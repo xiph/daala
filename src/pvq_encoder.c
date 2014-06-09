@@ -145,6 +145,7 @@ void pvq_encode(daala_enc_ctx *enc,
   generic_encoder *model;
   unsigned *noref_prob;
   double skip_acc;
+  int skip;
   adapt = enc->adapt.pvq_adapt;
   exg = enc->adapt.pvq_exg + ln*PVQ_MAX_PARTITIONS;
   ext = enc->adapt.pvq_ext + ln*PVQ_MAX_PARTITIONS;
@@ -164,15 +165,14 @@ void pvq_encode(daala_enc_ctx *enc,
      q*qm[i + 1] >> 4, y + off[i], &theta[i], &max_theta[i], &k[i], &g[i],
      beta[i], &skip_acc);
   }
-  if (!is_keyframe && skip_acc < 0) {
-    od_ec_encode_bool_q15(&enc->ec, 1, enc->adapt.skip_prob);
+  skip = !is_keyframe && skip_acc < 0;
+  if (!is_keyframe) {
+    od_encode_cdf_adapt(&enc->ec, 2*skip + (out[0] != 0), enc->adapt.skip_cdf,
+     4, enc->adapt.skip_increment);
+  }
+  if (skip) {
     for (i = 1; i < 1 << (2*ln + 4); i++) out[i] = ref[i];
-    enc->adapt.skip_prob = OD_CLAMPI(2000, enc->adapt.skip_prob
-     - (enc->adapt.skip_prob >> 4), 30000);
   } else {
-    if (!is_keyframe) od_ec_encode_bool_q15(&enc->ec, 0, enc->adapt.skip_prob);
-    enc->adapt.skip_prob = OD_CLAMPI(2000, enc->adapt.skip_prob
-     - ((enc->adapt.skip_prob - 32768) >> 4), 30000);
     /* TODO: Find efficient way to code up to 4 noref flags per symbol
        to reduce entropy coder calls. */
     for (i = 0; i < nb_bands; i++) {

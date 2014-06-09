@@ -359,15 +359,6 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   else
     dc_scale = (pli==0 || dec->scale[pli]==0) ? scale : (scale + 1) >> 1;
   coeff_shift = dec->scale[pli] == 0 ? 0 : OD_COEFF_SHIFT;
-  if (OD_DISABLE_HAAR_DC || !ctx->is_keyframe) {
-    pred[0] = generic_decode(&dec->ec, &dec->adapt.model_dc[pli], -1,
-     &dec->adapt.ex_dc[pli][ln][0], 2);
-    if (pred[0]) pred[0] *= od_ec_dec_bits(&dec->ec, 1) ? -1 : 1;
-    pred[0] = (pred[0]*dc_scale << coeff_shift) + predt[0];
-  }
-  else {
-    pred[0] = d[((by << 2))*w + ((bx << 2))];
-  }
   if (run_pvq) {
     pvq_decode(dec, predt, pred, scale << coeff_shift, ln,
      OD_PVQ_QM_Q4[pli][ln], OD_PVQ_BETA[pli][ln],
@@ -376,6 +367,17 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   else {
     od_single_band_scalar_decode(dec, ln, pred, predt, scale, pli,
      coeff_shift);
+  }
+  if (OD_DISABLE_HAAR_DC || !ctx->is_keyframe) {
+    if (!run_pvq || pred[0]) {
+      pred[0] = run_pvq + generic_decode(&dec->ec, &dec->adapt.model_dc[pli],
+       -1, &dec->adapt.ex_dc[pli][ln][0], 2);
+      if (pred[0]) pred[0] *= od_ec_dec_bits(&dec->ec, 1) ? -1 : 1;
+    }
+    pred[0] = (pred[0]*dc_scale << coeff_shift) + predt[0];
+  }
+  else {
+    pred[0] = d[((by << 2))*w + ((bx << 2))];
   }
 #ifdef USE_BAND_PARTITIONS
   od_coding_order_to_raster(&d[((by << 2))*w + (bx << 2)], w, pred, n, !run_pvq);

@@ -183,7 +183,9 @@ struct od_adapt_ctx {
   int ex_dc[OD_NPLANES_MAX][OD_NBSIZES][3];
   int ex_g[OD_NPLANES_MAX][OD_NBSIZES];
 
-  unsigned skip_prob;
+  /* Joint skip flag for DC and AC */
+  ogg_uint16_t skip_cdf[4];
+  int skip_increment;
 };
 
 int od_state_init(od_state *_state, const daala_info *_info);
