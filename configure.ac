@@ -165,7 +165,7 @@ AS_IF([test "$enable_asm" = "yes" -a "$cpu_x86" = "true"], [
 ])
 
 AC_ARG_ENABLE([encoder-check],
-  AS_HELP_STRING([--enable-encoder-check], [Do not compare reconstructed frames]),,
+  AS_HELP_STRING([--enable-encoder-check], [Compare reconstructed frames]),,
   [enable_encoder_check=no])
 
 AS_IF([test "$enable_encoder_check" = "yes"], [
