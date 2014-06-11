@@ -30,6 +30,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # define PVQ_MAX_PARTITIONS (7)
 
 # define OD_NOREF_ADAPT_SPEED (4)
+/* Normalized lambda. Since we normalize the gain by q, the distortion is
+   normalized by q^2 and lambda does not need the q^2 factor. At high rate,
+   this would be log(2)/6, but we're making RDO a bit less aggressive for
+   now. */
+# define OD_PVQ_LAMBDA (.07)
 
 extern const int *const OD_PVQ_QM_Q4[OD_NPLANES_MAX][OD_NBSIZES];
 extern const double *const OD_PVQ_BETA[OD_NPLANES_MAX][OD_NBSIZES];

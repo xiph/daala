@@ -503,11 +503,13 @@ int vector_is_null(const od_coeff *x, int len) {
  * @param [in,out] mask_gain input masking from other bands, output masking for
  *                           other bands
  * @param [in]     beta      per-band activity masking beta param
+ * @param [out]    skip_diff distortion cost of skipping this block
+ *                           (accumulated)
  * @return         gain      index of the quatized gain
 */
 int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
  od_coeff *y, int *itheta, int *max_theta, int *vk, double *mask_gain,
- double beta, double *skip_acc) {
+ double beta, double *skip_diff) {
   double g;
   double gr;
   double x[MAXN];
@@ -521,7 +523,11 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   double cgr;
   int icgr;
   int qg;
+  /* Best RDO cost (D + lamdba*R) so far. */
+  double best_cost;
+  /* Distortion (D) that corresponds to the best RDO cost. */
   double best_dist;
+  double dist;
   double q;
   /* Sign of Householder reflection. */
   int s;
@@ -536,11 +542,7 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   double lambda;
   double mask_ratio;
   double skip_dist;
-  /* Normalized lambda. Since we normalize the gain by q, the distortion is
-     normalized by q^2 and lambda does not need the q^2 factor. At high rate,
-     this would be log(2)/6, but we're making RDO a bit less aggressive for
-     now. */
-  lambda = .07;
+  lambda = OD_PVQ_LAMBDA;
   /* Quantization step calibration to account for the activity masking. */
   q = q0*pow(256<<OD_COEFF_SHIFT, 1./beta - 1);
   OD_ASSERT(n > 1);
@@ -559,7 +561,9 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   gain_offset = cgr-icgr;
   /* Start search with null case: gain=0, no pulse. */
   qg = 0;
-  best_dist = cg*cg;
+  dist = cg*cg;
+  best_dist = dist;
+  best_cost = dist;
   noref = 1;
   best_k = 0;
   *itheta = -1;
@@ -571,7 +575,6 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   corr = corr/(1e-100 + g*gr);
   corr = OD_MAXF(OD_MINF(corr, 1.), -1.);
   skip_dist = (cg - cgr)*(cg - cgr) + cgr*cg*(2 - 2*corr);
-  skip_dist -= 2*lambda;
   if (!vector_is_null(r0, n) && corr > 0) {
     /* Perform theta search only if prediction is useful. */
     theta = acos(corr);
@@ -593,7 +596,7 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
       for (j = OD_MAXI(0, (int)floor(.5+theta*2/M_PI*ts)-1);
        j <= OD_MINI(ts-1, (int)ceil(theta*2/M_PI*ts)); j++) {
         double cos_dist;
-        double dist;
+        double cost;
         double dist_theta;
         double qtheta = pvq_compute_theta(j, ts);
         k = pvq_compute_k(mask_ratio*qcg, qtheta, 0, n, beta);
@@ -603,11 +606,12 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
          + sin(theta)*sin(qtheta)*(2 - 2*cos_dist);
         dist = (qcg - cg)*(qcg - cg) + qcg*cg*dist_theta;
         /* Do approximate RDO. */
-        dist += lambda*pvq_rate_approx(n, k);
+        cost = dist + lambda*pvq_rate_approx(n, k);
         /* Approximate cost of entropy-coding theta */
-        dist += lambda*(.9*log2(ts));
-        if (i == icgr) dist -= lambda*.5;
-        if (dist < best_dist) {
+        cost += lambda*(.9*log2(ts));
+        if (i == icgr) cost -= lambda*.5;
+        if (cost < best_cost) {
+          best_cost = cost;
           best_dist = dist;
           qg = i;
           best_k = k;
@@ -628,7 +632,7 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
     /* Search for the best gain (haven't determined reasonable range yet). */
     for (i = OD_MAXI(1, (int)floor(cg)); i <= ceil(cg); i++) {
       double cos_dist;
-      double dist;
+      double cost;
       double qcg;
       qcg = i;
       mask_ratio = pvq_interband_masking(*mask_gain, pow(q*qcg, 2*beta), beta);
@@ -637,8 +641,9 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
       /* See Jmspeex' Journal of Dubious Theoretical Results. */
       dist = (qcg - cg)*(qcg - cg) + qcg*cg*(2 - 2*cos_dist);
       /* Do approximate RDO. */
-      dist += lambda*pvq_rate_approx(n, k);
-      if (dist <= best_dist) {
+      cost = dist + lambda*pvq_rate_approx(n, k);
+      if (cost <= best_cost) {
+        best_cost = cost;
         best_dist = dist;
         qg = i;
         noref = 1;
@@ -659,7 +664,7 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   *mask_gain = pvq_synthesis_partial(out, y, r, n, noref, qg, gain_offset,
    theta, m, s, q, beta);
   *vk = k;
-  *skip_acc += skip_dist - best_dist;
+  *skip_diff += skip_dist - best_dist;
   /* Encode gain differently depending on whether we use prediction or not. */
   return noref ? qg : neg_interleave(qg, icgr);
 }
