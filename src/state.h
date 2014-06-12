@@ -177,7 +177,6 @@ struct od_adapt_ctx {
 
   generic_encoder model_dc[OD_NPLANES_MAX];
   generic_encoder model_g[OD_NPLANES_MAX];
-  generic_encoder model_ym[OD_NPLANES_MAX];
 
   int ex_sb_dc[OD_NPLANES_MAX];
   int ex_dc[OD_NPLANES_MAX][OD_NBSIZES][3];

@@ -791,19 +791,6 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
     }
     od_adapt_ctx_reset(&dec->adapt, mbctx.is_keyframe);
     for (pli = 0; pli < nplanes; pli++) {
-      int lni;
-      generic_model_init(dec->adapt.model_dc + pli);
-      generic_model_init(dec->adapt.model_g + pli);
-      generic_model_init(dec->adapt.model_ym + pli);
-      for (lni = 0; lni < OD_NBSIZES; lni++) {
-        dec->adapt.ex_g[pli][lni] = 8;
-      }
-      dec->adapt.ex_sb_dc[pli] = pli > 0 ? 8 : 32768;
-      for (lni = 0; lni < 4; lni++) {
-        int j;
-        for (j=0;j<3;j++)
-          dec->adapt.ex_dc[pli][lni][j] = pli > 0 ? 8 : 32768;
-      }
       xdec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
       ydec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
       w = frame_width >> xdec;
