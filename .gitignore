@@ -63,6 +63,7 @@ examples/dump_video
 examples/encoder_example
 examples/player_example
 src/tests/check_tests
+src/tests/dcttest
 src/tests/ectest
 src/tests/logging_test
 src/tests/test_coef_coder
@@ -90,6 +91,7 @@ tools/dump_ssim
 tools/trans_gain
 tools/dump_psnr
 tools/jpegyuv
+tools/vq_train
 tools/yuv2yuv4mpeg
 tools/yuvjpeg
 test-driver
