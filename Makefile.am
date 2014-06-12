@@ -315,7 +315,7 @@ tools_intra_stats_SOURCES = \
 	src/tf.c \
 	src/internal.c \
 	src/intradata.c
-tools_intra_stats_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS) -fopenmp
+tools_intra_stats_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS) $(OPENMP_CFLAGS)
 tools_intra_stats_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
 
 # intra_pred
@@ -344,7 +344,7 @@ tools_intra_pred_SOURCES = \
 	src/internal.c \
 	src/switch_table.c \
 	src/tf.c
-tools_intra_pred_CFLAGS = $(OGG_CFLAGS) $(PNG_CFLAGS) -fopenmp
+tools_intra_pred_CFLAGS = $(OGG_CFLAGS) $(PNG_CFLAGS) $(OPENMP_CFLAGS)
 tools_intra_pred_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
 
 # intra_trace
@@ -372,7 +372,7 @@ tools_intra_trace_SOURCES = \
 	src/tf.c \
 	src/internal.c \
 	src/intradata.c
-tools_intra_trace_CFLAGS = $(OGG_CFLAGS) $(PNG_CFLAGS) -fopenmp
+tools_intra_trace_CFLAGS = $(OGG_CFLAGS) $(PNG_CFLAGS) $(OPENMP_CFLAGS)
 tools_intra_trace_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
 
 # trans
@@ -397,7 +397,7 @@ tools_trans_SOURCES = \
 	src/filter.c \
 	src/dct.c \
 	src/intradata.c
-tools_trans_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS) -fopenmp
+tools_trans_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS) $(OPENMP_CFLAGS)
 tools_trans_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
 
 # trans_gain
@@ -411,7 +411,7 @@ tools_trans_gain_SOURCES = \
 	src/filter.c \
 	src/dct.c \
 	src/intradata.c
-tools_trans_gain_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS) -fopenmp
+tools_trans_gain_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS) $(OPENMP_CFLAGS)
 tools_trans_gain_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
 
 #trans2d
@@ -436,7 +436,7 @@ tools_trans2d_SOURCES = \
 	src/filter.c \
 	src/dct.c \
 	src/intradata.c
-tools_trans2d_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS) -fopenmp
+tools_trans2d_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS) $(OPENMP_CFLAGS)
 tools_trans2d_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
 
 # init_intra_xform
@@ -498,7 +498,7 @@ tools_yuv2yuv4mpeg_LDADD =
 # vq_train
 tools_vq_train_SOURCES = \
 	tools/vq_train.c
-tools_vq_train_CFLAGS = -fopenmp
+tools_vq_train_CFLAGS = $(OPENMP_CFLAGS)
 tools_vq_train_LDADD = $(LIBM)
 
 endif # ENABLE_TOOLS

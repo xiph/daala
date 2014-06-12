@@ -110,6 +110,8 @@ AC_ARG_ENABLE([tools],
 if test "$enable_tools" = "yes" ; then
    AC_CHECK_LIB([jpeg],[jpeg_start_compress],[JPEG_LIBS="-ljpeg"],[AC_MSG_ERROR([libjpeg needed for building tools])])
    AC_SUBST([JPEG_LIBS])
+
+   AC_OPENMP
 fi
 
 AM_CONDITIONAL(ENABLE_TOOLS, [test $enable_tools = "yes"])
