@@ -172,9 +172,6 @@ struct od_state{
   int                 ani_iter;
 #  endif
 # endif
-# if defined(OD_METRICS)
-  ogg_int64_t bit_metrics[OD_METRIC_COUNT];
-# endif
 };
 
 

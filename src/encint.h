@@ -28,6 +28,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # include "../include/daala/daalaenc.h"
 # include "state.h"
 # include "entenc.h"
+#if defined(OD_METRICS)
+# include "metrics.h"
+#endif
 
 typedef struct daala_enc_ctx od_enc_ctx;
 typedef struct od_mv_est_ctx od_mv_est_ctx;
@@ -60,6 +63,10 @@ struct daala_enc_ctx{
   od_mv_est_ctx *mvest;
 #if defined(OD_ENCODER_CHECK)
   struct daala_dec_ctx *dec;
+#endif
+#if defined(OD_METRICS)
+  /*Account for where bits are spent in encoding.*/
+  od_metrics metrics;
 #endif
 };
 
