@@ -209,18 +209,18 @@ static void y4m_convert_42xmpeg2_42xjpeg(y4m_input *_y4m,unsigned char *_dst,
       /*Filter: [4 -17 114 35 -9 1]/128, derived from a 6-tap Lanczos
          window.*/
       for(x=0;x<OC_MINI(c_w,2);x++){
-        _dst[x]=(unsigned char)OC_CLAMPI(0,4*_aux[0]-17*_aux[OC_MAXI(x-1,0)]+
+        _dst[x]=(unsigned char)OC_CLAMPI(0,(4*_aux[0]-17*_aux[OC_MAXI(x-1,0)]+
          114*_aux[x]+35*_aux[OC_MINI(x+1,c_w-1)]-9*_aux[OC_MINI(x+2,c_w-1)]+
-         _aux[OC_MINI(x+3,c_w-1)]+64>>7,255);
+         _aux[OC_MINI(x+3,c_w-1)]+64)>>7,255);
       }
       for(;x<c_w-3;x++){
-        _dst[x]=(unsigned char)OC_CLAMPI(0,4*_aux[x-2]-17*_aux[x-1]+
-         114*_aux[x]+35*_aux[x+1]-9*_aux[x+2]+_aux[x+3]+64>>7,255);
+        _dst[x]=(unsigned char)OC_CLAMPI(0,(4*_aux[x-2]-17*_aux[x-1]+
+         114*_aux[x]+35*_aux[x+1]-9*_aux[x+2]+_aux[x+3]+64)>>7,255);
       }
       for(;x<c_w;x++){
-        _dst[x]=(unsigned char)OC_CLAMPI(0,4*_aux[x-2]-17*_aux[x-1]+
+        _dst[x]=(unsigned char)OC_CLAMPI(0,(4*_aux[x-2]-17*_aux[x-1]+
          114*_aux[x]+35*_aux[OC_MINI(x+1,c_w-1)]-9*_aux[OC_MINI(x+2,c_w-1)]+
-         _aux[c_w-1]+64>>7,255);
+         _aux[c_w-1]+64)>>7,255);
       }
       _dst+=c_w;
       _aux+=c_w;
@@ -295,18 +295,18 @@ static void y4m_convert_42xpaldv_42xjpeg(y4m_input *_y4m,unsigned char *_dst,
       /*Filter: [4 -17 114 35 -9 1]/128, derived from a 6-tap Lanczos
          window.*/
       for(x=0;x<OC_MINI(c_w,2);x++){
-        tmp[x]=(unsigned char)OC_CLAMPI(0,4*_aux[0]-17*_aux[OC_MAXI(x-1,0)]+
+        tmp[x]=(unsigned char)OC_CLAMPI(0,(4*_aux[0]-17*_aux[OC_MAXI(x-1,0)]+
          114*_aux[x]+35*_aux[OC_MINI(x+1,c_w-1)]-9*_aux[OC_MINI(x+2,c_w-1)]+
-         _aux[OC_MINI(x+3,c_w-1)]+64>>7,255);
+         _aux[OC_MINI(x+3,c_w-1)]+64)>>7,255);
       }
       for(;x<c_w-3;x++){
-        tmp[x]=(unsigned char)OC_CLAMPI(0,4*_aux[x-2]-17*_aux[x-1]+
-         114*_aux[x]+35*_aux[x+1]-9*_aux[x+2]+_aux[x+3]+64>>7,255);
+        tmp[x]=(unsigned char)OC_CLAMPI(0,(4*_aux[x-2]-17*_aux[x-1]+
+         114*_aux[x]+35*_aux[x+1]-9*_aux[x+2]+_aux[x+3]+64)>>7,255);
       }
       for(;x<c_w;x++){
-        tmp[x]=(unsigned char)OC_CLAMPI(0,4*_aux[x-2]-17*_aux[x-1]+
+        tmp[x]=(unsigned char)OC_CLAMPI(0,(4*_aux[x-2]-17*_aux[x-1]+
          114*_aux[x]+35*_aux[OC_MINI(x+1,c_w-1)]-9*_aux[OC_MINI(x+2,c_w-1)]+
-         _aux[c_w-1]+64>>7,255);
+         _aux[c_w-1]+64)>>7,255);
       }
       tmp+=c_w;
       _aux+=c_w;
@@ -318,20 +318,20 @@ static void y4m_convert_42xpaldv_42xjpeg(y4m_input *_y4m,unsigned char *_dst,
           This is the same filter used above, but in the other order.*/
         for(x=0;x<c_w;x++){
           for(y=0;y<OC_MINI(c_h,3);y++){
-            _dst[y*c_w]=(unsigned char)OC_CLAMPI(0,tmp[0]-
+            _dst[y*c_w]=(unsigned char)OC_CLAMPI(0,(tmp[0]-
              9*tmp[OC_MAXI(y-2,0)*c_w]+35*tmp[OC_MAXI(y-1,0)*c_w]+
              114*tmp[y*c_w]-17*tmp[OC_MINI(y+1,c_h-1)*c_w]+
-             4*tmp[OC_MINI(y+2,c_h-1)*c_w]+64>>7,255);
+             4*tmp[OC_MINI(y+2,c_h-1)*c_w]+64)>>7,255);
           }
           for(;y<c_h-2;y++){
-            _dst[y*c_w]=(unsigned char)OC_CLAMPI(0,tmp[(y-3)*c_w]-
+            _dst[y*c_w]=(unsigned char)OC_CLAMPI(0,(tmp[(y-3)*c_w]-
              9*tmp[(y-2)*c_w]+35*tmp[(y-1)*c_w]+114*tmp[y*c_w]-
-             17*tmp[(y+1)*c_w]+4*tmp[(y+2)*c_w]+64>>7,255);
+             17*tmp[(y+1)*c_w]+4*tmp[(y+2)*c_w]+64)>>7,255);
           }
           for(;y<c_h;y++){
-            _dst[y*c_w]=(unsigned char)OC_CLAMPI(0,tmp[(y-3)*c_w]-
+            _dst[y*c_w]=(unsigned char)OC_CLAMPI(0,(tmp[(y-3)*c_w]-
              9*tmp[(y-2)*c_w]+35*tmp[(y-1)*c_w]+114*tmp[y*c_w]-
-             17*tmp[OC_MINI(y+1,c_h-1)*c_w]+4*tmp[(c_h-1)*c_w]+64>>7,255);
+             17*tmp[OC_MINI(y+1,c_h-1)*c_w]+4*tmp[(c_h-1)*c_w]+64)>>7,255);
           }
           _dst++;
           tmp++;
@@ -345,20 +345,20 @@ static void y4m_convert_42xpaldv_42xjpeg(y4m_input *_y4m,unsigned char *_dst,
           This is the same as the horizontal filter.*/
         for(x=0;x<c_w;x++){
           for(y=0;y<OC_MINI(c_h,2);y++){
-            _dst[y*c_w]=(unsigned char)OC_CLAMPI(0,4*tmp[0]-
+            _dst[y*c_w]=(unsigned char)OC_CLAMPI(0,(4*tmp[0]-
              17*tmp[OC_MAXI(y-1,0)*c_w]+114*tmp[y*c_w]+
              35*tmp[OC_MINI(y+1,c_h-1)*c_w]-9*tmp[OC_MINI(y+2,c_h-1)*c_w]+
-             tmp[OC_MINI(y+3,c_h-1)*c_w]+64>>7,255);
+             tmp[OC_MINI(y+3,c_h-1)*c_w]+64)>>7,255);
           }
           for(;y<c_h-3;y++){
-            _dst[y*c_w]=(unsigned char)OC_CLAMPI(0,4*tmp[(y-2)*c_w]-
+            _dst[y*c_w]=(unsigned char)OC_CLAMPI(0,(4*tmp[(y-2)*c_w]-
              17*tmp[(y-1)*c_w]+114*tmp[y*c_w]+35*tmp[(y+1)*c_w]-
-             9*tmp[(y+2)*c_w]+tmp[(y+3)*c_w]+64>>7,255);
+             9*tmp[(y+2)*c_w]+tmp[(y+3)*c_w]+64)>>7,255);
           }
           for(;y<c_h;y++){
-            _dst[y*c_w]=(unsigned char)OC_CLAMPI(0,4*tmp[(y-2)*c_w]-
+            _dst[y*c_w]=(unsigned char)OC_CLAMPI(0,(4*tmp[(y-2)*c_w]-
              17*tmp[(y-1)*c_w]+114*tmp[y*c_w]+35*tmp[OC_MINI(y+1,c_h-1)*c_w]-
-             9*tmp[OC_MINI(y+2,c_h-1)*c_w]+tmp[(c_h-1)*c_w]+64>>7,255);
+             9*tmp[OC_MINI(y+2,c_h-1)*c_w]+tmp[(c_h-1)*c_w]+64)>>7,255);
           }
           _dst++;
           tmp++;
@@ -433,23 +433,23 @@ static void y4m_convert_411_422jpeg(y4m_input *_y4m,unsigned char *_dst,
       /*Filters: [1 110 18 -1]/128 and [-3 50 86 -5]/128, both derived from a
          4-tap Mitchell window.*/
       for(x=0;x<OC_MINI(c_w,1);x++){
-        _dst[x<<1]=(unsigned char)OC_CLAMPI(0,111*_aux[0]+
-         18*_aux[OC_MINI(1,c_w-1)]-_aux[OC_MINI(2,c_w-1)]+64>>7,255);
-        _dst[x<<1|1]=(unsigned char)OC_CLAMPI(0,47*_aux[0]+
-         86*_aux[OC_MINI(1,c_w-1)]-5*_aux[OC_MINI(2,c_w-1)]+64>>7,255);
+        _dst[x<<1]=(unsigned char)OC_CLAMPI(0,(111*_aux[0]+
+         18*_aux[OC_MINI(1,c_w-1)]-_aux[OC_MINI(2,c_w-1)]+64)>>7,255);
+        _dst[x<<1|1]=(unsigned char)OC_CLAMPI(0,(47*_aux[0]+
+         86*_aux[OC_MINI(1,c_w-1)]-5*_aux[OC_MINI(2,c_w-1)]+64)>>7,255);
       }
       for(;x<c_w-2;x++){
-        _dst[x<<1]=(unsigned char)OC_CLAMPI(0,_aux[x-1]+110*_aux[x]+
-         18*_aux[x+1]-_aux[x+2]+64>>7,255);
-        _dst[x<<1|1]=(unsigned char)OC_CLAMPI(0,-3*_aux[x-1]+50*_aux[x]+
-         86*_aux[x+1]-5*_aux[x+2]+64>>7,255);
+        _dst[x<<1]=(unsigned char)OC_CLAMPI(0,(_aux[x-1]+110*_aux[x]+
+         18*_aux[x+1]-_aux[x+2]+64)>>7,255);
+        _dst[x<<1|1]=(unsigned char)OC_CLAMPI(0,(-3*_aux[x-1]+50*_aux[x]+
+         86*_aux[x+1]-5*_aux[x+2]+64)>>7,255);
       }
       for(;x<c_w;x++){
-        _dst[x<<1]=(unsigned char)OC_CLAMPI(0,_aux[x-1]+110*_aux[x]+
-         18*_aux[OC_MINI(x+1,c_w-1)]-_aux[c_w-1]+64>>7,255);
+        _dst[x<<1]=(unsigned char)OC_CLAMPI(0,(_aux[x-1]+110*_aux[x]+
+         18*_aux[OC_MINI(x+1,c_w-1)]-_aux[c_w-1]+64)>>7,255);
         if((x<<1|1)<dst_c_w){
-          _dst[x<<1|1]=(unsigned char)OC_CLAMPI(0,-3*_aux[x-1]+50*_aux[x]+
-           86*_aux[OC_MINI(x+1,c_w-1)]-5*_aux[c_w-1]+64>>7,255);
+          _dst[x<<1|1]=(unsigned char)OC_CLAMPI(0,(-3*_aux[x-1]+50*_aux[x]+
+           86*_aux[OC_MINI(x+1,c_w-1)]-5*_aux[c_w-1]+64)>>7,255);
         }
       }
       _dst+=dst_c_w;
@@ -669,8 +669,8 @@ static int y4m_input_open_impl(y4m_input *_y4m,FILE *_fin){
   _y4m->frame_h=_y4m->pic_h+15&~0xF;
   /*Force the offsets to be even so that chroma samples line up like we
      expect.*/
-  _y4m->pic_x=_y4m->frame_w-_y4m->pic_w>>1&~1;
-  _y4m->pic_y=_y4m->frame_h-_y4m->pic_h>>1&~1;
+  _y4m->pic_x=(_y4m->frame_w-_y4m->pic_w)>>1&~1;
+  _y4m->pic_y=(_y4m->frame_h-_y4m->pic_h)>>1&~1;
   _y4m->dst_buf=(unsigned char *)malloc(_y4m->dst_buf_sz);
   _y4m->aux_buf=_y4m->aux_buf_sz?(unsigned char *)malloc(_y4m->aux_buf_sz):NULL;
   return 0;
