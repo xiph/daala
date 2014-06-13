@@ -47,7 +47,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "block_size_enc.h"
 #include "logging.h"
 #include "tf.h"
-#include "metrics.h"
+#include "accounting.h"
 #include "state.h"
 #if defined(OD_X86ASM)
 # include "x86/x86int.h"
@@ -84,8 +84,8 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
   enc->packet_state = OD_PACKET_INFO_HDR;
   for (i = 0; i < OD_NPLANES_MAX; i++) enc->scale[i] = 10;
   enc->mvest = od_mv_est_alloc(enc);
-#if defined(OD_METRICS)
-  od_metrics_init(&enc->metrics);
+#if defined(OD_ACCOUNTING)
+  od_acct_init(&enc->acct);
 #endif
   return 0;
 }
@@ -95,8 +95,8 @@ static void od_enc_clear(od_enc_ctx *enc) {
   od_ec_enc_clear(&enc->ec);
   oggbyte_writeclear(&enc->obb);
   od_state_clear(&enc->state);
-#if defined(OD_METRICS)
-  od_metrics_clear(&enc->metrics);
+#if defined(OD_ACCOUNTING)
+  od_acct_clear(&enc->acct);
 #endif
 }
 
@@ -342,13 +342,13 @@ static void od_encode_compute_pred(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, od_co
 #if OD_DISABLE_INTRA
         OD_CLEAR(pred+1, n2-1);
 #endif
-        OD_METRICS_UPDATE(&enc->metrics, od_ec_enc_tell_frac(&enc->ec),
-         OD_MET_CAT_TECHNIQUE, OD_MET_TECH_INTRA_MODE);
+        OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
+         OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_INTRA_MODE);
 #if !OD_DISABLE_INTRA
         od_ec_encode_cdf_unscaled(&enc->ec, mode, mode_cdf, OD_INTRA_NMODES);
 #endif
-        OD_METRICS_UPDATE(&enc->metrics, od_ec_enc_tell_frac(&enc->ec),
-         OD_MET_CAT_TECHNIQUE, OD_MET_TECH_UNKNOWN);
+        OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
+         OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
         mode_bits -= M_LOG2E*log(
          (mode_cdf[mode] - (mode == 0 ? 0 : mode_cdf[mode - 1]))/
          (float)mode_cdf[OD_INTRA_NMODES - 1]);
@@ -446,7 +446,7 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
 #if defined(OD_OUTPUT_PRED)
   od_coeff preds[16*16];
 #endif
-#if defined(OD_METRICS)
+#if defined(OD_ACCOUNTING)
   ogg_int64_t pvq_frac_bits;
   ogg_int64_t dc_frac_bits;
   ogg_int64_t intra_frac_bits;
@@ -501,21 +501,21 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   coeff_shift = enc->scale[pli] == 0 ? 0 : OD_COEFF_SHIFT;
   if (OD_DISABLE_HAAR_DC || !ctx->is_keyframe) {
     scalar_out[0] = OD_DIV_R0(cblock[0] - predt[0], dc_scale << coeff_shift);
-    OD_METRICS_UPDATE(&enc->metrics, od_ec_enc_tell_frac(&enc->ec),
-     OD_MET_CAT_TECHNIQUE, OD_MET_TECH_DC_COEFF);
+    OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
+     OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_DC_COEFF);
     generic_encode(&enc->ec, &enc->adapt.model_dc[pli], abs(scalar_out[0]), -1,
      &enc->adapt.ex_dc[pli][ln][0], 2);
     if (scalar_out[0]) od_ec_enc_bits(&enc->ec, scalar_out[0] < 0, 1);
-    OD_METRICS_UPDATE(&enc->metrics, od_ec_enc_tell_frac(&enc->ec),
-     OD_MET_CAT_TECHNIQUE, OD_MET_TECH_UNKNOWN);
+    OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
+     OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
     scalar_out[0] = scalar_out[0]*(dc_scale << coeff_shift);
     scalar_out[0] += predt[0];
   }
   else {
     scalar_out[0] = cblock[0];
   }
-  OD_METRICS_UPDATE(&enc->metrics, od_ec_enc_tell_frac(&enc->ec),
-   OD_MET_CAT_TECHNIQUE, OD_MET_TECH_AC_COEFFS);
+  OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
+   OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_AC_COEFFS);
   if (run_pvq) {
     int i;
     pvq_encode(enc, predt, cblock, scalar_out, scale << coeff_shift, ln,
@@ -553,8 +553,8 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
        adapt[OD_ADAPT_COUNT_EX_Q8] >> OD_SCALAR_ADAPT_SPEED;
     }
   }
-  OD_METRICS_UPDATE(&enc->metrics, od_ec_enc_tell_frac(&enc->ec),
-   OD_MET_CAT_TECHNIQUE, OD_MET_TECH_UNKNOWN);
+  OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
+   OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
 #ifdef USE_BAND_PARTITIONS
   od_coding_order_to_raster(&d[((by << 2))*w + (bx << 2)], w, scalar_out, n,
    !run_pvq);
@@ -853,8 +853,8 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   int nhsb;
   int nvsb;
   od_mb_enc_ctx mbctx;
-#if defined(OD_METRICS)
-  od_metrics_reset(&enc->metrics);
+#if defined(OD_ACCOUNTING)
+  od_acct_reset(&enc->acct);
 #endif
   if (enc == NULL || img == NULL) return OD_EFAULT;
   if (enc->packet_state == OD_PACKET_DONE) return OD_EINVAL;
@@ -938,19 +938,19 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   mbctx.is_keyframe |= !(enc->state.ref_imgi[OD_FRAME_PREV] >= 0);
   /*Initialize the entropy coder.*/
   od_ec_enc_reset(&enc->ec);
-  OD_METRICS_UPDATE(&enc->metrics, od_ec_enc_tell_frac(&enc->ec),
-   OD_MET_CAT_TECHNIQUE, OD_MET_TECH_FRAME);
-  OD_METRICS_UPDATE(&enc->metrics, od_ec_enc_tell_frac(&enc->ec),
-   OD_MET_CAT_PLANE, OD_MET_PLANE_FRAME);
+  OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
+   OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_FRAME);
+  OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
+   OD_ACCT_CAT_PLANE, OD_ACCT_PLANE_FRAME);
   /*Write a bit to mark this as a data packet.*/
   od_ec_encode_bool_q15(&enc->ec, 0, 16384);
   /*Code the keyframe bit.*/
   od_ec_encode_bool_q15(&enc->ec, mbctx.is_keyframe, 16384);
   OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO, "is_keyframe=%d", mbctx.is_keyframe));
-  OD_METRICS_UPDATE(&enc->metrics, od_ec_enc_tell_frac(&enc->ec),
-   OD_MET_CAT_TECHNIQUE, OD_MET_TECH_UNKNOWN);
-  OD_METRICS_UPDATE(&enc->metrics, od_ec_enc_tell_frac(&enc->ec),
-   OD_MET_CAT_PLANE, OD_MET_TECH_UNKNOWN);
+  OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
+   OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
+  OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
+   OD_ACCT_CAT_PLANE, OD_ACCT_TECH_UNKNOWN);
   /*TODO: Incrment frame count.*/
   /*Motion estimation and compensation.*/
   if (!mbctx.is_keyframe) {
@@ -986,10 +986,10 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
    enc->state.io_imgs[OD_FRAME_INPUT].planes[0].data -
    16*enc->state.io_imgs[OD_FRAME_INPUT].planes[0].ystride - 16,
    enc->state.io_imgs[OD_FRAME_INPUT].planes[0].ystride, (nvsb + 1)*32);
-   OD_METRICS_UPDATE(&enc->metrics, od_ec_enc_tell_frac(&enc->ec),
-    OD_MET_CAT_TECHNIQUE, OD_MET_TECH_BLOCK_SIZE);
-   OD_METRICS_UPDATE(&enc->metrics, od_ec_enc_tell_frac(&enc->ec),
-    OD_MET_CAT_PLANE, OD_MET_PLANE_FRAME);
+   OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
+    OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_BLOCK_SIZE);
+   OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
+    OD_ACCT_CAT_PLANE, OD_ACCT_PLANE_FRAME);
   for (i = 0; i < nvsb; i++) {
     unsigned char *bimg;
     unsigned char *rimg;
@@ -1029,8 +1029,8 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       }
     }
   }
-  OD_METRICS_UPDATE(&enc->metrics, od_ec_enc_tell_frac(&enc->ec),
-   OD_MET_CAT_TECHNIQUE, OD_MET_TECH_UNKNOWN);
+  OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
+   OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
   od_log_matrix_uchar(OD_LOG_GENERIC, OD_LOG_INFO, "bsize ", enc->state.bsize,
    enc->state.bstride, (nvsb + 1)*4);
   for (i = 0; i < nvsb*4; i++) {
@@ -1053,8 +1053,8 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     int mv_res;
     od_mv_grid_pt *mvp;
     od_mv_grid_pt **grid;
-    OD_METRICS_UPDATE(&enc->metrics, od_ec_enc_tell_frac(&enc->ec),
-     OD_MET_CAT_TECHNIQUE, OD_MET_TECH_MOTION_VECTORS);
+    OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
+     OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_MOTION_VECTORS);
     nhmvbs = (enc->state.nhmbs + 1) << 2;
     nvmvbs = (enc->state.nvmbs + 1) << 2;
     mvimg = enc->state.io_imgs + OD_FRAME_REC;
@@ -1133,8 +1133,8 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
         }
       }
     }
-    OD_METRICS_UPDATE(&enc->metrics, od_ec_enc_tell_frac(&enc->ec),
-     OD_MET_CAT_TECHNIQUE, OD_MET_TECH_UNKNOWN);
+    OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
+     OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
   }
   {
     od_coeff *ctmp[OD_NPLANES_MAX];
@@ -1179,18 +1179,18 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       /* Set this to 1 to enable the new (experimental, encode-only) PVQ
          implementation */
       mbctx.run_pvq[pli] = !OD_DISABLE_PVQ;
-      OD_METRICS_UPDATE(&enc->metrics, od_ec_enc_tell_frac(&enc->ec),
-       OD_MET_CAT_TECHNIQUE, OD_MET_TECH_FRAME);
-      OD_METRICS_UPDATE(&enc->metrics, od_ec_enc_tell_frac(&enc->ec),
-       OD_MET_CAT_PLANE, OD_MET_PLANE_FRAME);
+      OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
+       OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_FRAME);
+      OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
+       OD_ACCT_CAT_PLANE, OD_ACCT_PLANE_FRAME);
       od_ec_enc_uint(&enc->ec, enc->scale[pli], 512);
       /*If the scale is zero, force scalar.*/
       if (!enc->scale[pli]) mbctx.run_pvq[pli] = 0;
       else od_ec_encode_bool_q15(&enc->ec, mbctx.run_pvq[pli], 16384);
-      OD_METRICS_UPDATE(&enc->metrics, od_ec_enc_tell_frac(&enc->ec),
-       OD_MET_CAT_TECHNIQUE, OD_MET_TECH_UNKNOWN);
-      OD_METRICS_UPDATE(&enc->metrics, od_ec_enc_tell_frac(&enc->ec),
-       OD_MET_CAT_PLANE, OD_MET_PLANE_UNKNOWN);
+      OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
+       OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
+      OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
+       OD_ACCT_CAT_PLANE, OD_ACCT_PLANE_UNKNOWN);
       ctmp[pli] = _ogg_calloc(w*h, sizeof(*ctmp[pli]));
       dtmp[pli] = _ogg_calloc(w*h, sizeof(*dtmp[pli]));
       if (pli == 0 || OD_DISABLE_CFL) {
@@ -1266,8 +1266,8 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     for (sby = 0; sby < nvsb; sby++) {
       for (sbx = 0; sbx < nhsb; sbx++) {
         for (pli = 0; pli < nplanes; pli++) {
-          OD_METRICS_UPDATE(&enc->metrics, od_ec_enc_tell_frac(&enc->ec),
-           OD_MET_CAT_PLANE, OD_MET_PLANE_LUMA + pli);
+          OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
+           OD_ACCT_CAT_PLANE, OD_ACCT_PLANE_LUMA + pli);
           mbctx.c = ctmp[pli];
           mbctx.d = dtmp;
           mbctx.mc = mctmp[pli];
@@ -1286,8 +1286,8 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
           od_encode_block(enc, &mbctx, pli, sbx, sby, 3, xdec, ydec,
            sby > 0 && sbx < nhsb - 1);
         }
-          OD_METRICS_UPDATE(&enc->metrics, od_ec_enc_tell_frac(&enc->ec),
-           OD_MET_CAT_PLANE, OD_MET_PLANE_UNKNOWN);
+          OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
+           OD_ACCT_CAT_PLANE, OD_ACCT_PLANE_UNKNOWN);
       }
     }
     for (pli = 0; pli < nplanes; pli++) {
@@ -1385,9 +1385,9 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   /*od_state_dump_img(&enc->state,
    enc->state.ref_img + enc->state.ref_imigi[OD_FRAME_SELF], "ref");*/
 #endif
-#if defined(OD_METRICS)
-  OD_ASSERT(enc->metrics.last_frac_bits == od_ec_enc_tell_frac(&enc->ec));
-  od_metrics_write(&enc->metrics, enc->state.cur_time);
+#if defined(OD_ACCOUNTING)
+  OD_ASSERT(enc->acct.last_frac_bits == od_ec_enc_tell_frac(&enc->ec));
+  od_acct_write(&enc->acct, enc->state.cur_time);
 #endif
   if (enc->state.info.frame_duration == 0) enc->state.cur_time += duration;
   else enc->state.cur_time += enc->state.info.frame_duration;

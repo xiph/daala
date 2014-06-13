@@ -196,12 +196,12 @@ AM_CONDITIONAL([DUMP_IMAGES], [test "$enable_dump_images" = "yes"])
 AC_SUBST([PC_PNG_REQUIRES])
 AC_SUBST([PC_PNG_LIBS])
 
-AC_ARG_ENABLE([metrics],
-  AS_HELP_STRING([--enable-metrics], [Enable metrics collection]),
-  [if test "$host_mingw" = "true"; then AC_MSG_ERROR([metrics not supported on Windows]); fi],
-  [enable_metrics=no])
-AS_IF([test "$enable_metrics" = "yes"], [
-  AC_DEFINE([OD_METRICS], [1], [Enable metrics collection])])
+AC_ARG_ENABLE([accounting],
+  AS_HELP_STRING([--enable-accounting], [Enable bit accounting]),
+  [if test "$host_mingw" = "true"; then AC_MSG_ERROR([accounting not supported on Windows]); fi],
+  [enable_accounting=no])
+AS_IF([test "$enable_accounting" = "yes"], [
+  AC_DEFINE([OD_ACCOUNTING], [1], [Enable bit accounting])])
 
 AC_CONFIG_FILES([
   Makefile
@@ -224,7 +224,7 @@ AC_MSG_NOTICE([
     Assembly optimizations ....... ${enable_asm}
     Image dumping ................ ${enable_dump_images}
     Check encoder ................ ${enable_encoder_check}
-    Metrics collection ........... ${enable_metrics}
+    Bit accounting ............... ${enable_accounting}
     Tools ........................ ${enable_tools}
     Unit tests ................... ${enable_unit_tests}
     Example Player................ ${enable_player}

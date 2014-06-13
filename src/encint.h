@@ -28,8 +28,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # include "../include/daala/daalaenc.h"
 # include "state.h"
 # include "entenc.h"
-#if defined(OD_METRICS)
-# include "metrics.h"
+#if defined(OD_ACCOUNTING)
+# include "accounting.h"
 #endif
 
 typedef struct daala_enc_ctx od_enc_ctx;
@@ -66,9 +66,9 @@ struct daala_enc_ctx{
 #if defined(OD_ENCODER_CHECK)
   struct daala_dec_ctx *dec;
 #endif
-#if defined(OD_METRICS)
+#if defined(OD_ACCOUNTING)
   /*Account for where bits are spent in encoding.*/
-  od_metrics metrics;
+  od_acct acct;
 #endif
 };
 

@@ -35,7 +35,7 @@ noinst_HEADERS = \
 	src/pvq_code.h \
 	src/state.h \
 	src/tf.h \
-	src/metrics.h \
+	src/accounting.h \
 	src/x86/cpu.h \
 	src/x86/x86enc.h \
 	src/x86/x86int.h
@@ -107,7 +107,7 @@ src_libdaalaenc_la_SOURCES = \
 	src/infoenc.c \
 	src/laplace_encoder.c \
 	src/mcenc.c \
-	src/metrics.c \
+	src/accounting.c \
 	src/pvq_encoder.c
 if ENABLE_X86ASM
 src_libdaalaenc_la_SOURCES += \

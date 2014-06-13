@@ -64,7 +64,7 @@ CFLAGS := -DOD_ENABLE_ASSERTIONS $(CFLAGS)
 #CFLAGS := -DOD_ENCODER_CHECK $(CFLAGS)
 #CFLAGS := -DOD_ANIMATE $(CFLAGS)
 #CFLAGS := -DOD_LOGGING_ENABLED $(CFLAGS)
-CFLAGS := -DOD_METRICS $(CFLAGS)
+CFLAGS := -DOD_ACCOUNTING $(CFLAGS)
 CFLAGS := -fPIC $(CFLAGS)
 CFLAGS := -std=c89 -pedantic $(CFLAGS)
 CFLAGS := -fvisibility=hidden $(CFLAGS)
@@ -188,7 +188,7 @@ infoenc.c \
 laplace_encoder.c \
 mcenc.c \
 $(if $(findstring -DOD_METRICS,${CFLAGS}), \
-metrics.c \
+accounting.c \
 ) \
 pvq_encoder.c \
 $(if $(findstring -DOD_X86ASM,${CFLAGS}), \
