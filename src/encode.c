@@ -446,11 +446,6 @@ void od_single_band_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
 #if defined(OD_OUTPUT_PRED)
   od_coeff preds[16*16];
 #endif
-#if defined(OD_ACCOUNTING)
-  ogg_int64_t pvq_frac_bits;
-  ogg_int64_t dc_frac_bits;
-  ogg_int64_t intra_frac_bits;
-#endif
   OD_ASSERT(ln >= 0 && ln <= 2);
   n = 1 << (ln + 2);
   run_pvq = ctx->run_pvq[pli];

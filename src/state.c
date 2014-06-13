@@ -215,7 +215,6 @@ int od_state_init(od_state *state, const daala_info *info) {
 }
 
 void od_state_clear(od_state *state) {
-  int nplanes;
 #if defined(OD_DUMP_IMAGES)
   int i;
   if (state->dump_tags > 0) {
@@ -225,7 +224,6 @@ void od_state_clear(od_state *state) {
     state->dump_tags = 0;
   }
 #endif
-  nplanes = state->info.nplanes;
   od_free_2d(state->mv_grid);
   _ogg_free(state->ref_img_data);
   state->bsize -= 4*state->bstride + 4;

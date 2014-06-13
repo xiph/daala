@@ -76,7 +76,7 @@ void od_acct_init(od_acct *acct) {
     suf = "";
   }
   rv = snprintf(fname, sizeof(fname), "%s%s.json", pre, suf);
-  OD_ASSERT(rv >= 0 && ((size_t)rv) < sizeof(fname));
+  OD_ALWAYS_TRUE(rv >= 0 && ((size_t)rv) < sizeof(fname));
   acct->fp = fopen(fname, "w");
   OD_ASSERT(acct->fp);
   od_acct_reset(acct);
