@@ -187,7 +187,7 @@ generic_encoder.c \
 infoenc.c \
 laplace_encoder.c \
 mcenc.c \
-$(if $(findstring -DOD_METRICS,${CFLAGS}), \
+$(if $(findstring -DOD_ACCOUNTING,${CFLAGS}), \
 accounting.c \
 ) \
 pvq_encoder.c \
