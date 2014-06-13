@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-CODECS="<daala|vp8|vp9|x264|x265|libjpeg|mozjpeg>"
+CODECS="<daala|vp8|vp9|x264|x265|libjpeg|mozjpeg|theora>"
 
 if [ $# == 0 ]; then
   echo "usage: DAALA_ROOT=<build_dir> $0 $CODECS *.y4m"
@@ -169,6 +169,34 @@ case $CODEC in
     fi
 
     export RD_COLLECT_SUB=$(dirname $0)/rd_collect_jpeg.sh
+    ;;
+  theora)
+    if [ -z $THEORA_ROOT ] || [ ! -d $THEORA_ROOT ]; then
+      echo "Please set THEORA_ROOT to the location of your theora svn checkout"
+      exit 1
+    fi
+
+    if [ -z "$ENCODER_EXAMPLE" ]; then
+      export ENCODER_EXAMPLE=$THEORA_ROOT/examples/encoder_example
+    fi
+
+    if [ -z "$DUMP_VIDEO" ]; then
+      export DUMP_VIDEO=$THEORA_ROOT/examples/dump_video
+    fi
+
+    if [ ! -x "$ENCODER_EXAMPLE" ]; then
+      echo "Executable not found ENCODER_EXAMPLE=$ENCODER_EXAMPLE"
+      echo "Do you have the right THEORA_ROOT=$THEORA_ROOT"
+      exit 1
+    fi
+
+    if [ ! -x "$DUMP_VIDEO" ]; then
+      echo "Executable not found DUMP_VIDEO=$DUMP_VIDEO"
+      echo "Do you have the right THEORA_ROOT=$THEORA_ROOT"
+      exit 1
+    fi
+
+    export RD_COLLECT_SUB=$(dirname $0)/rd_collect_theora.sh
     ;;
   *)
     echo "Unknown codec: $CODEC"

@@ -8,7 +8,7 @@ fi
 
 FILE=$1
 
-BASENAME=$(basename $FILE)
+BASENAME=$(basename $FILE)-$CODEC
 rm $BASENAME.out 2> /dev/null || true
 echo $BASENAME
 
