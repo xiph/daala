@@ -18,6 +18,7 @@
 
 int main(int _argc,char **_argv){
   od_ec_enc      enc;
+  od_ec_enc      enc_bak;
   od_ec_dec      dec;
   long           nbits;
   long           nbits2;
@@ -72,6 +73,9 @@ int main(int _argc,char **_argv){
   for(ftb=1;ftb<17;ftb++){
     for(i=0;i<(1<<ftb);i++){
       od_ec_enc_init(&enc,ftb+i&1);
+      od_ec_enc_checkpoint(&enc_bak,&enc);
+      od_ec_enc_bits(&enc,i,ftb);
+      od_ec_enc_rollback(&enc,&enc_bak);
       od_ec_enc_bits(&enc,i,ftb);
       ptr=od_ec_enc_done(&enc,&ptr_sz);
       if(ptr_sz!=(unsigned)ftb+7>>3){
@@ -91,6 +95,11 @@ int main(int _argc,char **_argv){
   /*Testing unsigned integer corruption*/
   od_ec_enc_init(&enc,2);
   od_ec_enc_uint(&enc,128,129);
+  od_ec_enc_checkpoint(&enc_bak,&enc);
+  od_ec_enc_uint(&enc,128,129);
+  od_ec_enc_uint(&enc,128,129);
+  od_ec_enc_uint(&enc,128,129);
+  od_ec_enc_rollback(&enc,&enc_bak);
   ptr=od_ec_enc_done(&enc,&ptr_sz);
   if(ptr_sz!=1){
     fprintf(stderr,"Incorrect output size %li.\n",(long)ptr_sz);
@@ -115,7 +124,13 @@ int main(int _argc,char **_argv){
   for(ft=2;ft<1024;ft++){
     for(i=0;i<ft;i++){
       entropy+=log(ft)*M_LOG2E;
+      od_ec_enc_checkpoint(&enc_bak,&enc);
+      od_ec_enc_uint(&enc,0,ft);
+      od_ec_enc_rollback(&enc,&enc_bak);
       od_ec_enc_uint(&enc,i,ft);
+      od_ec_enc_checkpoint(&enc_bak,&enc);
+      od_ec_enc_uint(&enc,1,ft);
+      od_ec_enc_rollback(&enc,&enc_bak);
     }
     if(ft==512)ptr=od_ec_enc_done(&enc,&ptr_sz);
   }
@@ -186,6 +201,11 @@ int main(int _argc,char **_argv){
       else data[j]=rand()%ft;
       od_ec_enc_uint(&enc,data[j],ft);
       tell[j+1]=od_ec_enc_tell_frac(&enc);
+      if(rand()&7==0){
+        od_ec_enc_checkpoint(&enc_bak,&enc);
+        od_ec_enc_uint(&enc,rand()&1?0:ft-1,ft);
+        od_ec_enc_rollback(&enc,&enc_bak);
+      }
     }
     if(!(rand()&1)){
       while(od_ec_enc_tell(&enc)&7)od_ec_enc_uint(&enc,rand()&1,2);

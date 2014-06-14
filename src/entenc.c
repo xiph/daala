@@ -598,10 +598,20 @@ ogg_uint32_t od_ec_enc_tell_frac(od_ec_enc *enc) {
   return od_ec_tell_frac(od_ec_enc_tell(enc), enc->rng);
 }
 
+/*Saves a entropy coder checkpoint to dst.
+  This allows an encoder to reverse a series of entropy coder
+   decisions if it decides that the information would have been
+   better coded some other way.*/
 void od_ec_enc_checkpoint(od_ec_enc *dst, const od_ec_enc *src) {
   OD_COPY(dst, src, 1);
 }
 
+/*Restores an entropy coder checkpoint saved by od_ec_enc_checkpoint.
+  This can only be used to restore from checkpoints earlier in the target
+   state's history: you can not switch backwards and forwards or otherwise
+   switch to a state which isn't a casual ancestor of the current state.
+  Restore is also incompatible with patching the initial bits, as the
+   changes will remain in the restored version.*/
 void od_ec_enc_rollback(od_ec_enc *dst, const od_ec_enc *src) {
   unsigned char *buf;
   ogg_uint32_t storage;
@@ -618,5 +628,4 @@ void od_ec_enc_rollback(od_ec_enc *dst, const od_ec_enc *src) {
   dst->storage = storage;
   dst->precarry_buf = precarry_buf;
   dst->precarry_storage = precarry_storage;
-
 }
