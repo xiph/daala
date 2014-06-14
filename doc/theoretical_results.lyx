@@ -1,5 +1,5 @@
-#LyX 2.0 created this file. For more info see http://www.lyx.org/
-\lyxformat 413
+#LyX 2.1 created this file. For more info see http://www.lyx.org/
+\lyxformat 474
 \begin_document
 \begin_header
 \textclass article
@@ -12,13 +12,13 @@
 \font_roman default
 \font_sans default
 \font_typewriter default
+\font_math auto
 \font_default_family default
 \use_non_tex_fonts false
 \font_sc false
 \font_osf false
 \font_sf_scale 100
 \font_tt_scale 100
-
 \graphics default
 \default_output_format default
 \output_sync 0
@@ -29,15 +29,24 @@
 \use_hyperref false
 \papersize default
 \use_geometry true
-\use_amsmath 1
-\use_esint 1
-\use_mhchem 1
-\use_mathdots 1
+\use_package amsmath 1
+\use_package amssymb 1
+\use_package cancel 1
+\use_package esint 1
+\use_package mathdots 1
+\use_package mathtools 1
+\use_package mhchem 1
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
 \cite_engine basic
+\cite_engine_type default
+\biblio_style plain
 \use_bibtopic false
 \use_indices false
 \paperorientation portrait
 \suppress_date false
+\justification true
 \use_refstyle 1
 \index Index
 \shortcut idx
@@ -633,6 +642,88 @@ may
 \begin_layout Standard
 The average distortion we find also supports the use of the squared magnitude
  of the synthesis basis function in the computation of the coding gain.
+\end_layout
+
+\begin_layout Part
+Temporal RDO
+\end_layout
+
+\begin_layout Standard
+Let's assume two sequences of 
+\begin_inset Formula $N$
+\end_inset
+
+ samples each being quantized with a resolution 
+\begin_inset Formula $Q$
+\end_inset
+
+.
+ One sequence is constant, while the other isn't.
+ The total distortion will be
+\begin_inset Formula 
+\[
+D=\frac{2NQ^{2}}{12}\ .
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+If we assume that we can skip encoding of the constant sequence at no cost
+ and shift 
+\begin_inset Formula $b$
+\end_inset
+
+ bits away from the variable sequence to the constant one, it costs only
+ 
+\begin_inset Formula $b/N$
+\end_inset
+
+ bits per sample on the variable sequence and we get a distortion
+\begin_inset Formula 
+\begin{align*}
+D & =N\frac{\left(2^{-b}Q\right)^{2}}{12}+N\frac{\left(2^{b/N}Q\right)^{2}}{12}\\
+ & =\frac{NQ^{2}}{12}\left(2^{-2b}+2^{2b/N}\right)
+\end{align*}
+
+\end_inset
+
+We solve for 
+\begin_inset Formula $\partial D/\partial b=0$
+\end_inset
+
+ to minimize distortion:
+\begin_inset Formula 
+\begin{gather*}
+\frac{\partial D}{\partial b}=\frac{NQ^{2}}{12}\left(-2b\log22^{-2b}+\frac{2b\log2}{N}2^{2b/N}\right)=0\\
+\frac{2b2^{2b/N}\log2}{N}=2b2^{-2b}\log2\\
+\frac{2^{2b/N}}{N}=2^{-2b}
+\end{gather*}
+
+\end_inset
+
+Taking the base-2 log on both side:
+\begin_inset Formula 
+\begin{align*}
+2b/N-\log_{2}N & =-2b\\
+\frac{2b\left(N+1\right)}{N} & =\log_{2}N\\
+b & =\frac{N\log_{2}N}{2\left(N+1\right)}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section*
+Slowly varying sequence
+\end_layout
+
+\begin_layout Standard
+Let's see what happens with a slowly varying sequence rather than a constant
+ one...
 \end_layout
 
 \end_body

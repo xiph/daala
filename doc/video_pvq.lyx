@@ -1,5 +1,5 @@
-#LyX 2.0 created this file. For more info see http://www.lyx.org/
-\lyxformat 413
+#LyX 2.1 created this file. For more info see http://www.lyx.org/
+\lyxformat 474
 \begin_document
 \begin_header
 \textclass article
@@ -12,13 +12,13 @@
 \font_roman default
 \font_sans default
 \font_typewriter default
+\font_math auto
 \font_default_family default
 \use_non_tex_fonts false
 \font_sc false
 \font_osf false
 \font_sf_scale 100
 \font_tt_scale 100
-
 \graphics default
 \default_output_format default
 \output_sync 0
@@ -28,15 +28,24 @@
 \use_hyperref false
 \papersize default
 \use_geometry false
-\use_amsmath 1
-\use_esint 1
-\use_mhchem 1
-\use_mathdots 1
+\use_package amsmath 1
+\use_package amssymb 1
+\use_package cancel 1
+\use_package esint 1
+\use_package mathdots 1
+\use_package mathtools 1
+\use_package mhchem 1
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
 \cite_engine basic
+\cite_engine_type default
+\biblio_style plain
 \use_bibtopic false
 \use_indices false
 \paperorientation portrait
 \suppress_date false
+\justification true
 \use_refstyle 1
 \index Index
 \shortcut idx
@@ -67,6 +76,10 @@ Energy Preservation in PVQ-Based Video Coding
 Jean-Marc Valin
 \end_layout
 
+\begin_layout Abstract
+This paper starts with an introduction and ends with a conclusion
+\end_layout
+
 \begin_layout Section
 Introduction
 \end_layout
@@ -88,6 +101,52 @@ The main challenge of adapting this scheme to video is that we have a good
  Other challenges are the introduction of a quantization matrix and the
  fact that we want the reference (motion predicted) data to perfectly correspond
  to one of the entries in our codebook.
+\end_layout
+
+\begin_layout Section
+Pyramid Vector Quantization and Spherical Quantization
+\end_layout
+
+\begin_layout Standard
+A pyramid vector quantization (PVQ) codebook [Fisher] of dimension 
+\begin_inset Formula $N$
+\end_inset
+
+ is constructed as the sum of 
+\begin_inset Formula $K$
+\end_inset
+
+ signed unit pulses:
+\begin_inset Formula 
+\[
+\mathbf{y}\in\mathbb{Z}^{N}:\sum_{i=0}^{N-1}\left|y_{i}\right|=K\ .
+\]
+
+\end_inset
+
+In the Opus codec [RFC6716], the PVQ codebook is used in the context of
+ spherical quantization, with the gain encoded separately from a unit-norm
+ vector derived from a PVQ codeword 
+\begin_inset Formula $\mathbf{y}/\left\Vert \mathbf{y}\right\Vert $
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Section
+Application to still image coding
+\end_layout
+
+\begin_layout Standard
+In order to apply PVQ-based gain-shape quantization to DCT coefficients,
+ we need to first divide the coefficient into 
+\emph on
+bands
+\emph default
+.
+ For 4x4 blocks, a single band is used for all AC coefficients, while 8x8
+ and 16x16 blocks are split into 4 and 7 bands, respectively (Fig.
+ XX).
 \end_layout
 
 \begin_layout Section
@@ -476,7 +535,7 @@ status open
 \end_layout
 
 \begin_layout Plain Layout
-\begin_inset Caption
+\begin_inset Caption Standard
 
 \begin_layout Plain Layout
 PVQ distortion as a function of 
