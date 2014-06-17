@@ -226,7 +226,7 @@ amplify
  probabilities that are close to unity:
 \begin_inset Formula 
 \begin{equation}
-p_{k}^{'}=p_{k}\cdot\frac{1-p_{k}}{\left(\sum_{j}p_{j}\right)-p_{k}}\,,\label{eq:weighted-renorm}
+p_{k}^{'}=p_{k}\cdot\frac{\left(\sum_{j}p_{j}\right)-p_{k}}{1-p_{k}}\,,\label{eq:weighted-renorm}
 \end{equation}
 
 \end_inset
