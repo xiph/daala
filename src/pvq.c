@@ -492,7 +492,8 @@ int vector_is_null(const od_coeff *x, int len) {
  * possible gains and angles. See draft-valin-videocodec-pvq and
  * http://jmvalin.ca/slides/pvq.pdf for more details.
  *
- * @param [in,out] x0        coefficients being quantized (before and after)
+ * @param [out]    out       coefficients after quantization
+ * @param [in]     x0        coefficients before quantization
  * @param [in]     r0        reference, aka predicted coefficients
  * @param [in]     n         number of dimensions
  * @param [in]     q0        quantization step size
