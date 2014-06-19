@@ -147,8 +147,10 @@ static void ycbcr_to_rgb(png_bytep *_image,const video_input_info *_info,
   int            pic_y;
   int            i;
   int            j;
+  int            xstride;
   width=_info->pic_w;
   height=_info->pic_h;
+  xstride=(_info->depth>8)?2:1;
   hshift=!(_info->pixel_fmt&1);
   vshift=!(_info->pixel_fmt&2);
   y_stride=_ycbcr[0].stride;
@@ -176,25 +178,39 @@ static void ycbcr_to_rgb(png_bytep *_image,const video_input_info *_info,
       unsigned rval;
       unsigned gval;
       unsigned bval;
-      yval=*y-16;
-      cbval=*cb-128;
-      crval=*cr-128;
+      int      extrabits;
+      extrabits=_info->depth-8;
+      if(_info->depth<=8){
+        yval=*y-16;
+        cbval=*cb-128;
+        crval=*cr-128;
+      }
+      else {
+        yval = *y + (*(y+1)<<8);
+        cbval = *cb + (*(cb+1)<<8);
+        crval = *cr + (*(cr+1)<<8);
+        yval=(yval-(16<<extrabits));
+        cbval=(cbval-(128<<extrabits));
+        crval=(crval-(128<<extrabits));
+      }
       /*This is intentionally slow and very accurate.*/
       rval=OD_CLAMPI(0,(int32_t)OD_DIV_ROUND(
-       2916394880000LL*yval+4490222169144LL*crval,9745792000LL),65535);
+       2916394880000LL*yval+4490222169144LL*crval,9745792000LL<<extrabits),
+       65535);
       gval=OD_CLAMPI(0,(int32_t)OD_DIV_ROUND(
        2916394880000LL*yval-534117096223LL*cbval-1334761232047LL*crval,
-       9745792000LL),65535);
+       9745792000LL<<extrabits),65535);
       bval=OD_CLAMPI(0,(int32_t)OD_DIV_ROUND(
-       2916394880000LL*yval+5290866304968LL*cbval,9745792000LL),65535);
+       2916394880000LL*yval+5290866304968LL*cbval,9745792000LL<<extrabits),
+       65535);
       _image[j][i++]=(unsigned char)(rval>>8);
       _image[j][i++]=(unsigned char)(rval&0xFF);
       _image[j][i++]=(unsigned char)(gval>>8);
       _image[j][i++]=(unsigned char)(gval&0xFF);
       _image[j][i++]=(unsigned char)(bval>>8);
       _image[j][i++]=(unsigned char)(bval&0xFF);
-      dc=y-y_row&1|1-hshift;
-      y++;
+      dc=y-y_row&(xstride)|1-hshift;
+      y+=xstride;
       cb+=dc;
       cr+=dc;
     }

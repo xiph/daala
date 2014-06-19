@@ -110,6 +110,7 @@ struct video_input_info{
   video_input_pixel_format pixel_fmt;
   char              interlace;
   char              chroma_type[16];
+  int               depth;
 };
 
 # if defined(__cplusplus)

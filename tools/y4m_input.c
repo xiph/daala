@@ -66,6 +66,7 @@ struct y4m_input{
   int               dst_c_dec_h;
   int               dst_c_dec_v;
   char              chroma_type[16];
+  int               depth;
   /*The size of each converted frame buffer.*/
   size_t            dst_buf_sz;
   /*The amount to read directly into the converted frame buffer.*/
@@ -565,6 +566,7 @@ static int y4m_input_open_impl(y4m_input *_y4m,FILE *_fin){
   char buffer[80];
   int  ret;
   int  i;
+  int  xstride;
   /*Read until newline, or 80 cols, whichever happens first.*/
   for(i=0;i<79;i++){
     ret=fread(buffer+i,1,1,_fin);
@@ -593,11 +595,21 @@ static int y4m_input_open_impl(y4m_input *_y4m,FILE *_fin){
      "Theora only handles progressive scan.\n");
     return -1;
   }
+  _y4m->depth=8;
   if(strcmp(_y4m->chroma_type,"420")==0||
    strcmp(_y4m->chroma_type,"420jpeg")==0){
     _y4m->src_c_dec_h=_y4m->dst_c_dec_h=_y4m->src_c_dec_v=_y4m->dst_c_dec_v=2;
     _y4m->dst_buf_read_sz=_y4m->pic_w*_y4m->pic_h
      +2*((_y4m->pic_w+1)/2)*((_y4m->pic_h+1)/2);
+    /*Natively supported: no conversion required.*/
+    _y4m->aux_buf_sz=_y4m->aux_buf_read_sz=0;
+    _y4m->convert=y4m_convert_null;
+  }
+  else if(strcmp(_y4m->chroma_type,"420p10")==0){
+    _y4m->src_c_dec_h=_y4m->dst_c_dec_h=_y4m->src_c_dec_v=_y4m->dst_c_dec_v=2;
+    _y4m->dst_buf_read_sz=(_y4m->pic_w*_y4m->pic_h
+			   +2*((_y4m->pic_w+1)/2)*((_y4m->pic_h+1)/2))*2;
+    _y4m->depth=10;
     /*Natively supported: no conversion required.*/
     _y4m->aux_buf_sz=_y4m->aux_buf_read_sz=0;
     _y4m->convert=y4m_convert_null;
@@ -667,11 +679,13 @@ static int y4m_input_open_impl(y4m_input *_y4m,FILE *_fin){
     fprintf(stderr,"Unknown chroma sampling type: %s\n",_y4m->chroma_type);
     return -1;
   }
+  xstride = (_y4m->depth>8)?2:1;
   /*The size of the final frame buffers is always computed from the
      destination chroma decimation type.*/
   _y4m->dst_buf_sz=_y4m->pic_w*_y4m->pic_h
    +2*((_y4m->pic_w+_y4m->dst_c_dec_h-1)/_y4m->dst_c_dec_h)*
    ((_y4m->pic_h+_y4m->dst_c_dec_v-1)/_y4m->dst_c_dec_v);
+  _y4m->dst_buf_sz*=xstride;
   /*Scale the picture size up to a multiple of 16.*/
   _y4m->frame_w=_y4m->pic_w+15&~0xF;
   _y4m->frame_h=_y4m->pic_h+15&~0xF;
@@ -711,6 +725,7 @@ static void y4m_input_get_info(y4m_input *_y4m,video_input_info *_info){
   _info->par_d=_y4m->par_d;
   _info->pixel_fmt=_y4m->dst_c_dec_h==2?
    (_y4m->dst_c_dec_v==2?PF_420:PF_422):PF_444;
+  _info->depth=_y4m->depth;
 }
 
 static int y4m_input_fetch_frame(y4m_input *_y4m,FILE *_fin,
@@ -723,12 +738,14 @@ static int y4m_input_fetch_frame(y4m_input *_y4m,FILE *_fin,
   int  c_h;
   int  c_sz;
   int  ret;
-  pic_sz=_y4m->pic_w*_y4m->pic_h;
+  int  xstride;
+  xstride=(_y4m->depth>8)?2:1;
+  pic_sz=_y4m->pic_w*_y4m->pic_h*xstride;
   frame_c_w=_y4m->frame_w/_y4m->dst_c_dec_h;
   frame_c_h=_y4m->frame_h/_y4m->dst_c_dec_v;
   c_w=(_y4m->pic_w+_y4m->dst_c_dec_h-1)/_y4m->dst_c_dec_h;
   c_h=(_y4m->pic_h+_y4m->dst_c_dec_v-1)/_y4m->dst_c_dec_v;
-  c_sz=c_w*c_h;
+  c_sz=c_w*c_h*xstride;
   /*Read and skip the frame header.*/
   ret=fread(frame,1,6,_fin);
   if(ret<6)return 0;
@@ -760,16 +777,16 @@ static int y4m_input_fetch_frame(y4m_input *_y4m,FILE *_fin,
   /*Fill in the frame buffer pointers.*/
   _ycbcr[0].width=_y4m->frame_w;
   _ycbcr[0].height=_y4m->frame_h;
-  _ycbcr[0].stride=_y4m->pic_w;
+  _ycbcr[0].stride=_y4m->pic_w*xstride;
   _ycbcr[0].data=_y4m->dst_buf-_y4m->pic_x-_y4m->pic_y*_y4m->pic_w;
   _ycbcr[1].width=frame_c_w;
   _ycbcr[1].height=frame_c_h;
-  _ycbcr[1].stride=c_w;
+  _ycbcr[1].stride=c_w*xstride;
   _ycbcr[1].data=_y4m->dst_buf+pic_sz-(_y4m->pic_x/_y4m->dst_c_dec_h)-
    (_y4m->pic_y/_y4m->dst_c_dec_v)*c_w;
   _ycbcr[2].width=frame_c_w;
   _ycbcr[2].height=frame_c_h;
-  _ycbcr[2].stride=c_w;
+  _ycbcr[2].stride=c_w*xstride;
   _ycbcr[2].data=_ycbcr[1].data+c_sz;
   if(_tag!=NULL)_tag[0]='\0';
   return 1;
