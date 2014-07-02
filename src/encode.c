@@ -486,6 +486,7 @@ void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
 #endif
 #if defined(OD_OUTPUT_PRED)
   od_coeff preds[16*16];
+  int zzi;
 #endif
   OD_ASSERT(ln >= 0 && ln <= 2);
   n = 1 << (ln + 2);
@@ -512,7 +513,7 @@ void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   }
   od_encode_compute_pred(enc, ctx, pred, ln, pli, bx, by, has_ur);
 #if defined(OD_OUTPUT_PRED)
-  for (zzi = 0; zzi < n2; zzi++) preds[zzi] = pred[zzi];
+  for (zzi = 0; zzi < (n*n); zzi++) preds[zzi] = pred[zzi];
 #endif
   /* Change ordering for encoding. */
 #ifdef USE_BAND_PARTITIONS
