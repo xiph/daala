@@ -207,8 +207,9 @@ if [ -z "$PLANE" ]; then
   export PLANE=0
 fi
 
-if [ $PLANE != 0 ] && [ $PLANE != 1 ] && [ $PLANE != 2 ]; then
-  echo "Invalid plane $PLANE. Must be 0, 1 or 2."
+if [ $PLANE != 0 ] && [ $PLANE != 1 ] && [ $PLANE != 2 ] &&
+  [ $PLANE != -1 ]; then
+  echo "Invalid plane $PLANE. Must be 0, 1, 2, or -1 (all planes)."
   exit 1
 fi
 
