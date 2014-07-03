@@ -540,6 +540,8 @@ void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
     OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
      OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_DC_COEFF);
   }
+  OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
+    OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_AC_COEFFS);
   if (run_pvq) {
     pvq_encode(enc, predt, cblock, scalar_out, scale << coeff_shift, ln,
      OD_PVQ_QM_Q4[pli][ln], OD_PVQ_BETA[pli][ln],
@@ -549,6 +551,8 @@ void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
     od_single_band_scalar_quant(enc, ln, scalar_out, cblock, predt, scale, pli,
      coeff_shift);
   }
+  OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
+    OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
   if (OD_DISABLE_HAAR_DC || !ctx->is_keyframe) {
     if (!run_pvq || scalar_out[0]) generic_encode(&enc->ec,
      &enc->adapt.model_dc[pli], abs(scalar_out[0]) - run_pvq, -1,
@@ -562,8 +566,6 @@ void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   else {
     scalar_out[0] = cblock[0];
   }
-  OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
-   OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_AC_COEFFS);
   OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
    OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
 #ifdef USE_BAND_PARTITIONS
@@ -695,6 +697,8 @@ static void od_quantize_haar_dc(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
     dc_scale = OD_MAXI(1, enc->scale[pli]*OD_DC_RES[pli] >> 4)
      << OD_COEFF_SHIFT;
   }
+  OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
+     OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_DC_COEFF);
   if (l == 3) {
     int nhsb;
     int quant;
@@ -782,6 +786,8 @@ static void od_quantize_haar_dc(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
     od_quantize_haar_dc(enc, ctx, pli, bx + 1, by + 1, l, xdec, ydec, hgrad,
      vgrad, 0);
   }
+  OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
+   OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
 }
 #endif
 
