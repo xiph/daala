@@ -26,7 +26,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # define _block_size_dec_h
 
 # include "entdec.h"
+# include "state.h"
 
-void od_block_size_decode(od_ec_dec *dec, unsigned char *bsize, int stride);
+void od_block_size_decode(od_ec_dec *dec,  od_adapt_ctx *adapt,
+ unsigned char *bsize, int stride);
 
 #endif

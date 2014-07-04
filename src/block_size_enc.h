@@ -26,6 +26,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # define _block_size_enc_h
 
 # include "entenc.h"
+# include "state.h"
 
 /* None of these values should be larger than OFF32 or else the sun will
    explode */
@@ -100,7 +101,7 @@ typedef struct {
 void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
  int stride, const unsigned char *img, int pred_stride, int dec[4][4], int q);
 
-void od_block_size_encode(od_ec_enc *enc,
+void od_block_size_encode(od_ec_enc *enc, od_adapt_ctx *adapt,
  const unsigned char *bsize, int stride);
 
 #endif

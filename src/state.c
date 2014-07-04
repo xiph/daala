@@ -245,6 +245,14 @@ void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe) {
     state->pvq_ext[i] = is_keyframe ? 24576 : 2 << 16;
     state->pvq_noref_prob[i] = 26376;
   }
+  state->bsize_range_increment = 128;
+  for (i = 0; i < 7; i++) {
+    state->bsize_range_cdf[i] = (i+1)*state->bsize_range_increment;
+  }
+  state->bsize16_increment = 128;
+  for (i = 0; i < 16; i++) {
+    state->bsize16_cdf[i] = (i+1)*state->bsize16_increment;
+  }
   generic_model_init(&state->mv_model);
   for (i = 0; i < 5; i++) state->mv_ex[i] = state->mv_ey[i] = 24 << 16;
   state->skip_increment = 128;

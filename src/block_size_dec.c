@@ -49,14 +49,18 @@ static void od_block_size_decode8x8(od_ec_dec *dec, unsigned char *bsize,
   }
 }
 
-void od_block_size_decode(od_ec_dec *dec, unsigned char *bsize, int stride) {
+void od_block_size_decode(od_ec_dec *dec, od_adapt_ctx *adapt,
+ unsigned char *bsize, int stride) {
   int i, j;
   int split16;
-  int ctx32;
-  int split32;
-  ctx32 = od_block_size_prob32(bsize, stride);
-  split32 = od_ec_decode_cdf_q15(dec, od_switch_size32_cdf[ctx32], 3);
-  if (split32 == 2) {
+  int range_id;
+  int min_size;
+  int max_size;
+  range_id = od_decode_cdf_adapt(dec, adapt->bsize_range_cdf, 7,
+   adapt->bsize_range_increment);
+  min_size = od_range_ids[range_id][0];
+  max_size = od_range_ids[range_id][1];
+  if (min_size == 3) {
     for (i = 0; i < 4; i++) {
       for (j = 0; j < 4; j++) {
         bsize[i*stride + j] = 3;
@@ -64,19 +68,33 @@ void od_block_size_decode(od_ec_dec *dec, unsigned char *bsize, int stride) {
     }
   }
   else {
-    int ctx16;
-    od_block_size_decode8x8(dec, bsize, stride, 0, 0, split32 == 0);
-    ctx16 = od_block_size_prob16(bsize, stride);
-    split16 = od_ec_decode_cdf_q15(dec, od_switch_size16_cdf[ctx16], 8);
+    if (max_size >= 2 && min_size < 2) {
+      split16 = od_decode_cdf_adapt(dec, adapt->bsize16_cdf, 16,
+         adapt->bsize16_increment);
+    }
+    else if (min_size == 2) split16 = 0xf;
+    else split16 = 0;
+    bsize[0] = (split16&8) ? 2 : 1;
     bsize[2] = (split16&4) ? 2 : 1;
     bsize[2*stride] = (split16&2) ? 2 : 1;
     bsize[2*stride + 2] = (split16&1) ? 2 : 1;
-    for (i = 0; i < 2; i++) {
-      for (j = 0; j < 2; j++) {
-        int split;
-        if (i == 0 && j == 0) continue;
-        split = (bsize[2*i*stride + 2*j] != 2);
-        od_block_size_decode8x8(dec, bsize, stride, i, j, split);
+    if (min_size == 0 && max_size > 0) {
+      for (i = 0; i < 2; i++) {
+        for (j = 0; j < 2; j++) {
+          int split;
+          split = (bsize[2*i*stride + 2*j] != 2);
+          od_block_size_decode8x8(dec, bsize, stride, i, j, split);
+        }
+      }
+    }
+    else {
+      for (i = 0; i < 2; i++) {
+        for (j = 0; j < 2; j++) {
+          if (max_size == 0) bsize[2*i*stride + 2*j] = 0;
+          /* Copy the same value to all four 8x8 blocks in the 16x16. */
+          bsize[(2*i + 1)*stride + 2*j] = bsize[2*i*stride + 2*j + 1] =
+           bsize[(2*i + 1)*stride + 2*j + 1] = bsize[2*i*stride + 2*j];
+        }
       }
     }
   }

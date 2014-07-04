@@ -663,7 +663,7 @@ static void od_decode_block_sizes(od_dec_ctx *dec) {
   if (OD_LIMIT_LOG_BSIZE_MIN != OD_LIMIT_LOG_BSIZE_MAX) {
     for (i = 0; i < nvsb; i++) {
       for (j = 0; j < nhsb; j++) {
-        od_block_size_decode(&dec->ec,
+        od_block_size_decode(&dec->ec, &dec->adapt,
          &dec->state.bsize[4*dec->state.bstride*i + 4*j], dec->state.bstride);
       }
     }
@@ -712,6 +712,7 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
   dec->state.ref_imgi[OD_FRAME_SELF] = refi;
   nhsb = dec->state.nhsb;
   nvsb = dec->state.nvsb;
+  od_adapt_ctx_reset(&dec->adapt, mbctx.is_keyframe);
   od_decode_block_sizes(dec);
   if (!mbctx.is_keyframe) {
     od_dec_mv_unpack(dec);
@@ -789,7 +790,6 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
         }
       }
     }
-    od_adapt_ctx_reset(&dec->adapt, mbctx.is_keyframe);
     for (pli = 0; pli < nplanes; pli++) {
       xdec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
       ydec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;

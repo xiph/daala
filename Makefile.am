@@ -259,6 +259,11 @@ tools_block_size_analysis_SOURCES = \
 	tools/y4m_input.c \
 	src/dct.c \
 	src/internal.c \
+	src/generic_encoder.c \
+	src/generic_code.c \
+	src/laplace_encoder.c \
+	src/logging.c \
+	src/laplace_tables.c \
 	src/entcode.c \
 	src/entenc.c \
 	src/filter.c \
@@ -306,6 +311,11 @@ tools_intra_stats_SOURCES = \
 	tools/image.c \
 	src/block_size.c \
 	src/block_size_enc.c \
+	src/generic_encoder.c \
+	src/generic_code.c \
+	src/laplace_encoder.c \
+	src/logging.c \
+	src/laplace_tables.c \
 	src/entenc.c \
 	src/entcode.c \
 	src/filter.c \
@@ -335,6 +345,11 @@ tools_intra_pred_SOURCES = \
 	tools/cholesky.c \
 	src/block_size.c \
 	src/block_size_enc.c \
+	src/generic_encoder.c \
+	src/generic_code.c \
+	src/laplace_encoder.c \
+	src/logging.c \
+	src/laplace_tables.c \
 	src/entenc.c \
 	src/entcode.c \
 	src/filter.c \
@@ -363,6 +378,11 @@ tools_intra_trace_SOURCES = \
 	tools/image.c \
 	src/block_size.c \
 	src/block_size_enc.c \
+	src/generic_encoder.c \
+	src/generic_code.c \
+	src/laplace_encoder.c \
+	src/logging.c \
+	src/laplace_tables.c \
 	src/entenc.c \
 	src/entcode.c \
 	src/filter.c \

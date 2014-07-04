@@ -168,6 +168,11 @@ struct od_adapt_ctx {
   int                 pvq_exg[OD_NBSIZES*PVQ_MAX_PARTITIONS];
   unsigned            pvq_noref_prob[OD_NBSIZES*PVQ_MAX_PARTITIONS];
 
+  int                 bsize_range_increment;
+  ogg_uint16_t        bsize_range_cdf[7];
+  int                 bsize16_increment;
+  ogg_uint16_t        bsize16_cdf[16];
+
   /* Motion vectors */
   generic_encoder     mv_model;
   int                 mv_ex[5];

@@ -348,25 +348,47 @@ static void od_block_size_encode8x8(od_ec_enc *enc,
   }
 }
 
-void od_block_size_encode(od_ec_enc *enc,
+void od_block_size_encode(od_ec_enc *enc, od_adapt_ctx *adapt,
  const unsigned char *bsize, int stride) {
   int i, j;
-  int ctx32;
-  int split32;
-  ctx32 = od_block_size_prob32(bsize, stride);
-  split32 = OD_MAXI(bsize[0]-1, 0);
-  od_ec_encode_cdf_q15(enc, split32, od_switch_size32_cdf[ctx32], 3);
-  if (bsize[0] < 3) {
-    int ctx16;
-    int split16;
-    od_block_size_encode8x8(enc, bsize, stride, 0, 0);
-    ctx16 = od_block_size_prob16(bsize, stride);
-    split16 = 4*(bsize[2] == 2) + 2*(bsize[2*stride] == 2)
-     + (bsize[2 + 2*stride] == 2);
-    od_ec_encode_cdf_q15(enc, split16, od_switch_size16_cdf[ctx16], 8);
+  int min_size;
+  int max_size;
+  int range_id;
+  int split16;
+  min_size = max_size = bsize[0];
+  for (i = 0; i < 4; i++) {
+    for (j = 0; j < 4; j++) {
+      min_size = OD_MINI(min_size, bsize[i*stride + j]);
+      max_size = OD_MAXI(max_size, bsize[i*stride + j]);
+    }
+  }
+  range_id = -1;
+  for (i = 0; i < 7; i++) {
+    if (od_range_ids[i][0] == min_size && od_range_ids[i][1] == max_size) {
+      range_id = i;
+      break;
+    }
+  }
+  OD_ASSERT(range_id != -1);
+  /* The first symbol we encode is the min/max range of the block sizes.
+     TODO: Add some context. */
+  od_encode_cdf_adapt(enc, range_id, adapt->bsize_range_cdf, 7,
+   adapt->bsize_range_increment);
+  split16 = 8*(bsize[0] == 2) + 4*(bsize[2] == 2) + 2*(bsize[2*stride] == 2)
+   + (bsize[2 + 2*stride] == 2);
+  /* Encode whether the 16x16 blocks is split only when the range allows for
+     both 8x8 and 16x16.
+     TODO: Add some context. */
+  if (max_size >= 2 && min_size < 2) {
+    od_encode_cdf_adapt(enc, split16, adapt->bsize16_cdf, 16,
+     adapt->bsize16_increment);
+  }
+  /* Encode the 8x8 block splits only when the range allows both 4x4 and 8x8.*/
+  if (min_size == 0 && max_size > 0) {
     for (i = 0; i < 2; i++) {
       for (j = 0; j < 2; j++) {
-        if (i == 0 && j == 0) continue;
+        /* TODO: Make this adaptive and consider the fact that we can't have
+           all 8x8 if the min is 4x4. */
         od_block_size_encode8x8(enc, bsize, stride, i, j);
       }
     }

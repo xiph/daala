@@ -991,6 +991,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     od_state_dump_img(&enc->state, &enc->state.vis_img, "vis");
 #endif
   }
+  od_adapt_ctx_reset(&enc->adapt, mbctx.is_keyframe);
   /*Block size switching.*/
   od_state_init_border_as_32x32(&enc->state);
   /* Allocate a blockSizeComp for scratch space and then calculate the block sizes
@@ -1039,7 +1040,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
         }
       }
       if (OD_LIMIT_LOG_BSIZE_MIN != OD_LIMIT_LOG_BSIZE_MAX) {
-        od_block_size_encode(&enc->ec, &state_bsize[0], bstride);
+        od_block_size_encode(&enc->ec, &enc->adapt, &state_bsize[0], bstride);
       }
     }
   }
@@ -1170,7 +1171,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     for (mi = 0; mi < OD_INTRA_NMODES; mi++) {
       mbctx.mode_p0[mi] = 32768/OD_INTRA_NMODES;
     }
-    od_adapt_ctx_reset(&enc->adapt, mbctx.is_keyframe);
     for (pli = 0; pli < nplanes; pli++) {
       xdec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
       ydec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;

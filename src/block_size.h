@@ -29,9 +29,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # include <ogg/ogg.h>
 # include "entenc.h"
 
-extern const ogg_uint16_t od_switch_size32_cdf[][3];
-extern const ogg_uint16_t od_switch_size16_cdf[][8];
 extern const ogg_uint16_t od_switch_size8_cdf[][16];
+
+extern const int od_range_ids[7][2];
 
 # define OD_BLOCK_SIZE4x4(bsize, bstride, bx, by)\
    ((bsize)[((by)>>1)*(bstride) + ((bx)>>1)])
