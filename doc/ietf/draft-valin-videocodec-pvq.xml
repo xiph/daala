@@ -10,7 +10,7 @@
 <?rfc inline="yes"?>
 <?rfc compact="yes"?>
 <?rfc subcompact="no"?>
-<rfc category="std" docName="draft-valin-videocodec-pvq-00"
+<rfc category="std" docName="draft-valin-videocodec-pvq-01"
      ipr="noDerivativesTrust200902">
   <front>
     <title abbrev="Video PVQ">Pyramid Vector Quantization for Video Coding</title>
@@ -19,7 +19,7 @@
    <organization>Mozilla</organization>
    <address>
      <postal>
-       <street>650 Castro Street</street>
+       <street>331 E. Evelyn Avenue</street>
        <city>Mountain View</city>
        <region>CA</region>
        <code>94041</code>
@@ -30,7 +30,7 @@
  </author>
  
 
-    <date day="15" month="October" year="2012" />
+    <date day="4" month="July" year="2014" />
 
     <abstract>
       <t>This proposes applying pyramid vector quantization (PVQ) to video coding.</t>
@@ -86,11 +86,11 @@
       We can derive a scalar quantizer that follows this resolution:
 <figure align="center">
 <artwork align="center"><![CDATA[
-                 1+2a
+                 b
       g=Q_g gamma     ,
 ]]></artwork>
 </figure>
-      where gamma is the gain quantization index and Q_g is the gain resolution
+      where gamma is the gain quantization index, b=1/(1-2*a) and Q_g is the gain resolution
       and main quality parameter.
       </t>
       <t>An important aspect of the current proposal is the use of prediction.
@@ -192,72 +192,40 @@
       then the angle quantization resolution should be (roughly) 
 <figure align="center">
 <artwork align="center"><![CDATA[
-                   dg       1      1+2a
+                   dg       1        b
       Q_theta = ---------*----- = ------ .
                  d(gamma)   g      gamma
 ]]></artwork>
 </figure>
-      To derive the optimal K we need to consider the cosine distance between 
-      adjacent codevectors y_1 and y_2 for two cases: K&lt;N and K&gt;N. For
-      K&lt;N, the worst resolution occurs when no value in y is larger than one.
-      In that case, the two closest codevectors have a cosine distance
+      To derive the optimal K we need to consider the normalized distortion for a
+      Laplace-distributed variable found experimentally to be approximately
 <figure align="center">
 <artwork align="center"><![CDATA[
-                      1
-      cos(tau) = 1 - --- .
-                      K
-(derivation left as an exercise for the reader)
+            (N-1)^2 + C*(N-1)
+      D_p = ----------------- ,
+                 24*K^2
 ]]></artwork>
 </figure>
-      By approximating cos(tau) as 1 - tau^2, we get
+      with C ~= 4.2. The distortion due to the gain is 
 <figure align="center">
 <artwork align="center"><![CDATA[
-           2
-      K = --- .
-          tau
+            b^2*Q_g^2*gamma^(2*b-2)
+      D_g = ----------------------- .
+                     12
 ]]></artwork>
 </figure>
-      </t>
-      <t>For K&gt;N the worst resolution happens when all values are equal to
-      K/N in y_1, and y_2 differs by one pulse. In that case
+      Since PVQ codes N-2 degrees of freedom, its distortion should also be
+      (N-2) times the gain distortion, which eventually leads us to the optimal
+      number of pulses
+      The distortion due to the gain is 
 <figure align="center">
 <artwork align="center"><![CDATA[
-                      N
-      cos(tau) = 1 - --- .
-                     K^2
-(also left as an exercise for the reader)
-]]></artwork>
-</figure>
-      which gives the approximation
-<figure align="center">
-<artwork align="center"><![CDATA[
-             _____
-           \/ 2 N '
-      K =  -------  .
-             tau
+          gamma*sin(theta)       / N + C - 2 \
+      K = ----------------  sqrt | ---------  | .
+                  b              \     2     /
 ]]></artwork>
 </figure>
       </t>
-      <t>By combining the two cases, we have
-<figure align="center">
-<artwork align="center"><![CDATA[
-                   _____
-              /  \/ 2 N '      2    \
-      K = min|   -------  ,  -----   | .
-              \    tau       tau^2  /
-]]></artwork>
-</figure>
-      </t>
-      <t>To achieve uniform resolution in all dimensions,
-<figure align="center">
-<artwork align="center"><![CDATA[
-             Q_theta
-      tau = ---------- .
-            sin(theta)
-]]></artwork>
-</figure>
-      </t>
-      
       <t>The value of K does not need to be coded because all the variables it
       depends on are known to the decoder.
       However, because Q_theta depends on the gain, this can lead to
@@ -287,33 +255,6 @@
     </section>
       
 
-    <section title="Pyramid-Based Encoding">
-      <t>Instead of explicitly encoding an angle, it is also possible to
-      apply PVQ directly on z. 
-      In that case, the angle is replaced by v = K + s y[m],
-      with 0 &le; v &le; 2K, with smaller values more likely (assuming the
-      predictor is good). Based on calculations similar to those for the
-      angle-based encoding, the value of K is set to
-<figure align="center">
-<artwork align="center"><![CDATA[
-                          ___
-      K = min( c1 gamma \/ N ' ,  c2 gamma^2 ) ,
-]]></artwork>
-</figure>
-      where c1 and c2 are empirical constants.
-      </t>
-
-      <t>As is the case for angle-based encoding, K does not need to be coded.
-      However, if the gain parameter gamma is predicted from a different frame,
-      then this would lead to unacceptable error propagation behavior.
-      To reduce the error propagation, instead of coding v we can code
-      v'=K-|y[m]|, along with the sign of s*y[m].
-      In this way, any error in the gain will lead to the wrong value of K,
-      but will not cause a desynchronization of the range coder as would
-      happen when decoding the wrong number of symbols.
-      </t>
-    </section>
-
     <section title="Bi-prediction">
       <t>We can use this scheme for bi-prediction by introducing a second theta
       parameter. 
@@ -329,6 +270,32 @@
       </t>
     </section>
 
+    <section title="Coefficient coding">
+      <t>Encoding coefficients quantized with PVQ differs from encoding scalar-quantized
+      coefficients from the fact that the sum of the coefficients magnitude is known (equal
+      to K). It is possible to take advantage of the known K value either through modeling
+      the distribution of coefficient magnitude or by modeling the zero runs. In the case of
+      magnitude modeling, the expection of the magnitude of coefficient n is modeled as
+<figure align="center">
+<artwork align="center"><![CDATA[
+                          K_n
+      E(|y_n|) = alpha * ----- ,
+                         N - n
+]]></artwork>
+</figure>
+      where K_n is the number of number of pulses left after encoding coeffients from 0 to n-1
+      and alpha depends on the distribution of the coefficients. For run-length modeling, the
+      expection of the position of the next non-zero coefficient is given by
+<figure align="center">
+<artwork align="center"><![CDATA[
+                        N - n
+      E(|run|) = beta * ----- ,
+                         K_n
+]]></artwork>
+</figure>
+      where beta also models the coefficient distribution.
+      </t>
+    </section>
 
     <section title="Development Repository">
       <t>The algorithms in this proposal are being developed as part of
