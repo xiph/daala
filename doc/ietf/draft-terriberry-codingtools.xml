@@ -2,7 +2,7 @@
 <!DOCTYPE rfc SYSTEM 'rfc2629.dtd'>
 <?rfc toc="yes" symrefs="yes" ?>
 
-<rfc ipr="trust200902" category="info" docName="draft-terriberry-codingtools-00">
+<rfc ipr="trust200902" category="info" docName="draft-terriberry-codingtools-01">
 
 <front>
 <title abbrev="Coding Tools">Coding Tools for a Next Generation Video Codec</title>
@@ -10,7 +10,7 @@
 <organization>Mozilla Corporation</organization>
 <address>
 <postal>
-<street>650 Castro Street</street>
+<street>331 E. Evelyn Avenue</street>
 <city>Mountain View</city>
 <region>CA</region>
 <code>94041</code>
@@ -21,7 +21,7 @@
 </address>
 </author>
 
-<date day="15" month="October" year="2012"/>
+<date day="4" month="July" year="2014"/>
 <area>RAI</area>
 
 <abstract>
@@ -90,17 +90,24 @@ So far, most approaches to allowing parallel entropy coding have focused on
  independently.
 This "independence" requirement has a non-negligible impact on compression,
  parallelizability, or both.
-For example, H.264 can partition frames into "slices" which might cover only a
+For example, H.264 can split frames into "slices" which might cover only a
  small subset of the blocks in the frame.
 In order to allow decoding these slices independently, they cannot use context
  information from blocks in other slices (harming compression).
 Those contexts must adapt rapidly to account for the generally small number of
  symbols available for learning probabilities (also harming compression).
+In some cases the number of contexts must be reduced to ensure enough symbols
+ are coded in each context to usefully learn probabilities at all (once more,
+ harming compression).
 Furthermore, an encoder must specially format the stream to use multiple slices
  per frame to allow any parallel entropy decoding at all.
 Encoders rarely have enough information to evaluate this "compression
  efficiency" vs. "parallelizability" trade-off, since they don't generally know
  the limitations of the decoders for which they are encoding.
+That means there will be many files or streams which could have been decoded if
+ they were encoded with different options, but which a given decoder cannot
+ decode because of bad choices made by the encoder (at least from the
+ perspective of that decoder).
 The same set of drawbacks apply to the DCT token partitions in
  VP8&nbsp;<xref target="RFC6386"/>.
 </t>
@@ -131,14 +138,14 @@ This requires the encoder to compute two partition values, in general (for both
  the upper and lower bound of the symbol to encode).
 The decoder, on the other hand, must search the partitions for the one that
  contains the received code point.
-This requires computing at least O(log N) partition values.
+This requires computing at least O(log&nbsp;N) partition values.
 </t>
 <t>
 However, coding a parameter with N possible values with a binary arithmetic
- coder requires o(log N) symbols in the worst case (the only case
+ coder requires O(log&nbsp;N) symbols in the worst case (the only case
  that matters for hardware design).
-Hence, this does not represent any actual savings (and actually represents an
- increase in the number of encoder partition value computations).
+Hence, this does not represent any actual savings (indeed, it represents an
+ increase in the number of partition values computed by the encoder).
 In addition, there are a number of overheads that are per-symbol, rather than
  per-value.
 For example, renormalization (which enlarges the set of valid code points after
@@ -170,10 +177,12 @@ The trade-off, of course, is that non-binary symbols must be "binarized" into
  each one.
 </t>
 <t>
-In a non-binary arithmetic coder, the decoder must compute at least O(log N)
- cumulative probabilities (one for each partition value it needs).
+In a non-binary arithmetic coder, the decoder must compute at least
+ O(log&nbsp;N) cumulative probabilities (one for each partition value it
+ needs).
 Because these probabilities are usually not estimated directly in "cumulative"
- form, this can require computing (N-1) non-cumulative probability values.
+ form, this can require computing (N&nbsp;-&nbsp;1) non-cumulative probability
+ values.
 Unless N is very small, these cannot be updated with a single table lookup.
 The normal approach is to use "frequency counts".
 Define the frequency of value k to be
@@ -238,9 +247,10 @@ For example
 E[x[n+1]] = E[x[n]] + floor(C*(x[n] - E[x[n]]))
 ]]></artwork>
 </figure>
- produces an exponential moving average with a decay factor of (1-C).
+ produces an exponential moving average with a decay factor of
+ (1&nbsp;-&nbsp;C).
 For a choice of C that is a negative power of two (e.g., 1/16 or 1/32 or
- similar), this can be implemented with a two adds and a shift.
+ similar), this can be implemented with two adds and a shift.
 Given this expected value, the actual distribution to use can be obtained from
  a small set of pre-computed distributions via a lookup table.
 Linear interpolation between these pre-computed values can improve accuracy, at
@@ -293,8 +303,8 @@ The upside is that F*e[i] may be replaced by any monotonically non-decreasing
 That is, instead of just incrementing the probability of symbol i, it can
  increase the probability of values that are highly correlated with i.
 E.g., this allows decoding value i to apply a small probability increase
- to the neighboring values (i-1) and (i+1), in addition to a large probability
- increase to the value i.
+ to the neighboring values (i&nbsp;-&nbsp;1) and (i&nbsp;+&nbsp;1), in addition
+ to a large probability increase to the value i.
 This may help, for example, in motion vector coding, and is much more sensible
  than the approach taken with binary context modeling, which often does things
  like "increase the probability of all even values when decoding a 6" because
@@ -307,28 +317,29 @@ The other approach is to change the function used to partition the set of valid
  code points so that it does not need a division, even when ft is not a power
  of two.
 Let the range of valid code points in the current arithmetic coder state be
- [L,&nbsp;L+R), where L is the lower bound of the range and R is the number of
- valid code points.
+ [L,&nbsp;L&nbsp;+&nbsp;R), where L is the lower bound of the range and R is
+ the number of valid code points.
 Assume that ft&nbsp;&lt;=&nbsp;R&nbsp;&lt;&nbsp;2*ft (this is easy to enforce
  with the normal rescaling operations used with frequency counts).
 Then one possible partition function is
 <figure align="center">
 <artwork align="center"><![CDATA[
-r[k] = fl[k] + min(fl[k], R-ft)
+r[k] = fl[k] + min(fl[k], R - ft)
 ]]></artwork>
 </figure>
- so that the new range after coding symbol k is [L+r[k],&nbsp;L+r[k+1]).
+ so that the new range after coding symbol k is
+ [L&nbsp;+&nbsp;r[k],&nbsp;L&nbsp;+&nbsp;r[k+1]).
 </t>
 <t>
 This is a variation of the partition function proposed
  by&nbsp;<xref target="SM98"/>.
 The size of the new partition (r[k+1]&nbsp;-&nbsp;r[k]) is no longer truly
  proportional to R*p[k].
-It can be off by up to a factor of 2.
+It can be off by up to a factor of 2, implying a peak error as large as one bit
+ per symbol.
 However, if the probabilities are accurate and the symbols being coded are
- independent, the average inefficiency introduced can be as low as
+ independent, the average inefficiency introduced will be as low as
  log2(log2(e)*2/e)&nbsp;~=&nbsp;0.0861 bits per symbol.
-The peak error can be as large as one bit per symbol, however.
 This error can, of course, be reduced by coding fewer symbols with larger
  alphabets.
 In practice the overhead is roughly equal to the overhead introduced by other
@@ -387,7 +398,7 @@ This is very nearly equal to the number of symbols per value in the binary
 <t>
 Integer transforms in image and video coding date back to at least
  1969&nbsp;<xref target="PKA69"/>.
-Although standards such as MPEG2 and MPEG4 Part&nbsp;2 allowed some flexibility
+Although standards such as MPEG2 and MPEG4 Part&nbsp;2 allow some flexibility
  in the transform implementation, implementations were subject to drift and
  error accumulation, and encoders had to impose special macroblock refresh
  requirements to avoid these problems, not always successfully.
@@ -521,7 +532,7 @@ If our goal is simply to (optionally quantize) and code the result, this is
 The different scale factors can be incorporated into the quantization matrix in
  the lossy case, and the total expansion is roughly equivalent to that of the
  orthonormal transform in the lossless case.
-Plus, both steps together require just two ARM instructions, total.
+Plus, we can perform each step with just one ARM instruction.
 </t>
 <t>
 However, if instead we want to apply additional transformations to the data, or
@@ -531,9 +542,9 @@ For a two-point transform, there is little we can do to improve on the
  three-multiplications approach above.
 However, for a four-point transform, we can use the last approach and arrange
  multiple transform stages such that the "too large" and "too small" scaling
- factors cancel out, producing a result that has the true, uniform orthonormal
+ factors cancel out, producing a result that has the true, uniform, orthonormal
  scaling.
-To do this, we need one more tool that implements the following transform:
+To do this, we need one more tool, which implements the following transform:
 <figure align="center">
 <artwork align="center"><![CDATA[
             ___
@@ -566,7 +577,7 @@ As before, the transcendental constants may be replaced by fixed-point
 
 </section>
 
-<section anchor="4point_transform" title="4-Point Transform">
+<section anchor="four_point_transform" title="4-Point Transform">
 <t>
 Using the tools from the previous section, we can design a reversible integer
  four-point DCT approximation with uniform, orthonormal scaling.
@@ -576,11 +587,12 @@ This requires 3&nbsp;multiplies, 9&nbsp;additions, and 2&nbsp;shifts (not
 This is significantly cheaper than the&nbsp;<xref target="BE92"/> approach, and
  the output scaling is smaller by a factor of sqrt(2), saving half a bit per
  sample in the lossless case.
-By comparison, the four-point forward DCT approximation currently in the libvpx
- experimental branch, which is not reversible, uses 4&nbsp;multiplies and
- 8&nbsp;additions.
-Its multipliers also require 28-bit accumulators, whereas this proposal can use
- much smaller multipliers without giving up the reversibility property.
+By comparison, the four-point forward DCT approximation used in VP9, which is
+ not reversible, uses 6&nbsp;multiplies, 6&nbsp;additions, and 2 shifts
+ (counting shifts and rounding offsets which cannot be merged into a single
+ multiply instruction on ARM).
+Four of its multipliers also require 28-bit accumulators, whereas this proposal
+ can use much smaller multipliers without giving up the reversibility property.
 The total dynamic range expansion is 1&nbsp;bit: inputs in the range [-256,255)
  produce transformed values in the range [-512,510).
 This is the smallest dynamic range expansion possible for any reversible
@@ -713,7 +725,8 @@ Using the above procedure, the theoretical MSE of this approximation is
  right shift operations.
 This suggests the dynamic range of the input would have to be more than
  20&nbsp;bits before it became worthwhile to increase the precision of the
- constants used in the multiplications.
+ constants used in the multiplications to improve accuracy, though it may be
+ worth using more precision to reduce bias.
 </t>
 
 </section>
@@ -721,42 +734,144 @@ This suggests the dynamic range of the input would have to be more than
 <section anchor="larger_transforms" title="Larger Transforms">
 <t>
 The same techniques can be applied to construct a reversible eight-point DCT
- approximation with uniform scaling using 11&nbsp;multiplies,
- 29&nbsp;additions, and 6&nbsp;shifts.
-This is the minimum number of multiplies possible for an eight-point DCT with
- uniform scaling&nbsp;<xref target="LLM89"/> (though an approximation to the
- DCT can be made simpler by replacing the multiplies with shifts and adds).
-By comparison, the current eight-point transform in the libvpx experimental
- branch uses 16&nbsp;multiplications and 28&nbsp;additions.
-The output scaling is currently a factor of a sqrt(2) larger than orthonormal.
-While it should be theoretically possible to reduce this down to the
- orthonormal scaling, it appears to require additional multiplies, and means
- that the DC coefficient would no longer differ from a simple sum of the inputs
- by just a power of two.
-These trade-offs may ultimately be worthwhile to improve the lossless
- compression performance.
-With the current scaling, the dynamic range expansion is 2&nbsp;bits, and the
- MSE is 1.689E-5.
+ approximation with uniform, orthonormal scaling using 15&nbsp;multiplies,
+ 31&nbsp;additions, and 5&nbsp;shifts.
+It is possible to reduce this to 11&nbsp;multiplies and 29&nbsp;additions,
+ which is the minimum number of multiplies possible for an eight-point DCT with
+ uniform scaling&nbsp;<xref target="LLM89"/>, by introducing a scaling factor
+ of sqrt(2), but this harms lossless performance.
+The dynamic range expansion is 1.5&nbsp;bits (again the smallest possible), and
+ the MSE is 1.592E-06.
+By comparison, the eight-point transform in VP9 uses 12&nbsp;multiplications,
+ 32&nbsp;additions, and 6 shifts.
 </t>
 <t>
-Similarly, we have also constructed a reversible sixteen-point DCT
- approximation with uniform orthonormal scaling using 32&nbsp;multiplies,
- 83&nbsp;additions, and 17&nbsp;shifts.
-This is just 1&nbsp;multiply and 2&nbsp;additions more than the
+Similarly, we have constructed a reversible sixteen-point DCT approximation
+ with uniform, orthonormal scaling using 33&nbsp;multiplies, 83&nbsp;additions,
+ and 16&nbsp;shifts.
+This is just 2&nbsp;multiplies and 2&nbsp;additions more than the
  (non-reversible, non-integer, but uniformly scaled) factorization
  in&nbsp;<xref target="LLM89"/>.
-The experimental branch of libvpx does not currently have a sixteen-point
- integer transform to compare with, though it has a floating-point transform
- which requires 46&nbsp;multiplies (not counting factors of 2) and
- 72&nbsp;additions (plus some scalings by factors of 2 and some negations).
-The dynamic range expansion is only 2&nbsp;bits (the same as the eight-point
- transform), and the MSE is 7.444E-5.
+By comparison, the sixteen-point transform in VP9 uses 44&nbsp;multiplies,
+ 88&nbsp;additions, and 18&nbsp;shifts.
+The dynamic range expansion is only 2&nbsp;bits (again the smallest possible),
+ and the MSE is 1.495E-5.
 </t>
 <t>
 Code for both of these transforms (as well as the four-point transform) is
  available in the development repository listed
  in&nbsp;<xref target="development_repository"/>.
 </t>
+</section>
+
+<section anchor="hadamard_transforms" title="Walsh-Hadamard Transforms">
+<t>
+These techniques can also be applied to constructing Walsh-Hadamard
+ Transforms, another useful transform family that is cheaper to implement than
+ the DCT (since it requires no multiplications at all).
+The WHT has many applications as a cheap way to approximately change the time
+ and frequency resolution of a set of data (either individual bands, as in the
+ Opus audio codec, or whole blocks).
+VP9 uses it as a reversible transform with uniform, orthonormal scaling for
+ lossless coding in place of its DCT, which does not have these properties.
+</t>
+
+<t>
+Applying a 2x2 WHT to a block of 2x2 inputs involves running a 2-point WHT on
+ the rows, and then another 2-point WHT on the columns.
+The basis functions for the 2-point WHT are, up to scaling, [1,&nbsp;1] and
+ [1,&nbsp;-1].
+The four variations of a two-step lifer given in
+ <xref target="lifting_steps"/> are exactly the lifting steps needed to
+ implement a 2x2 WHT: two stages that produce asymmetrically scaled outputs
+ followed by two stages that consume asymmetrically scaled inputs.
+<figure align="left">
+<artwork align="left"><![CDATA[
+Input:  x00, x01, x10, x11
+Output: y00, y01, y10, y11
+/* Transform rows */
+t1 = x00 - x01
+t0 = x00 - (t1 >> 1) /* == (x00 + x01)/2 */
+t2 = x10 + x11
+t3 = (t2 >> 1) - x11 /* == (x10 - x11)/2 */
+/* Transform columns */
+y00 = t0 + (t2 >> 1) /* == (x00 + x01 + x10 + x11)/2 */
+y10 = y00 - t2       /* == (x00 + x01 - x10 - x11)/2 */
+y11 = (t1 >> 1) - t3 /* == (x00 - x01 - x10 + x11)/2 */
+y01 = t1 - y11       /* == (x00 - x01 + x10 - x11)/2 */
+]]></artwork>
+</figure>
+</t>
+
+<t>
+By simply re-ordering the operations, we can see that there are two shifts that
+ may be shared between the two stages:
+<figure align="left">
+<artwork align="left"><![CDATA[
+Input:  x00, x01, x10, x11
+Output: y00, y01, y10, y11
+t1 = x00 - x01
+t2 = x10 + x11
+t0 = x00 - (t1 >> 1) /* == (x00 + x01)/2 */
+y00 = t0 + (t2 >> 1) /* == (x00 + x01 + x10 + x11)/2 */
+t3 = (t2 >> 1) - x11 /* == (x10 - x11)/2 */
+y11 = (t1 >> 1) - t3 /* == (x00 - x01 - x10 + x11)/2 */
+y10 = y00 - t2       /* == (x00 + x01 - x10 - x11)/2 */
+y01 = t1 - y11       /* == (x00 - x01 + x10 - x11)/2 */
+]]></artwork>
+</figure>
+</t>
+
+<t>
+By eliminating the double-negation of x11 and re-ordering the additions to it,
+ we can see even more operations in common:
+<figure align="left">
+<artwork align="left"><![CDATA[
+Input:  x00, x01, x10, x11
+Output: y00, y01, y10, y11
+t1 = x00 - x01
+t2 = x10 + x11
+t0 = x00 - (t1 >> 1) /* == (x00 + x01)/2 */
+y00 = t0 + (t2 >> 1) /* == (x00 + x01 + x10 + x11)/2 */
+t3 = x11 + (t1 >> 1) /* == x11 + (x00 - x01)/2 */
+y11 = t3 - (t2 >> 1) /* == (x00 - x01 - x10 + x11)/2 */
+y10 = y00 - t2       /* == (x00 + x01 - x10 - x11)/2 */
+y01 = t1 - y11       /* == (x00 - x01 + x10 - x11)/2 */
+]]></artwork>
+</figure>
+</t>
+
+<t>
+Simplifying further, the whole transform may be computed with just
+ 7&nbsp;additions and 1&nbsp;shift:
+<figure align="left">
+<artwork align="left"><![CDATA[
+Input:  x00, x01, x10, x11
+Output: y00, y01, y10, y11
+t1 = x00 - x01
+t2 = x10 + x11
+t4 = (t2 - t1) >> 1 /* == (-x00 + x01 + x10 + x11)/2 */
+y00 = x00 + t4      /* ==  (x00 + x01 + x10 + x11)/2 */
+y11 = x11 - t4      /* ==  (x00 - x01 - x10 + x11)/2 */
+y10 = y00 - t2      /* ==  (x00 + x01 - x10 - x11)/2 */
+y01 = t1 - y11      /* ==  (x00 - x01 + x10 - x11)/2 */
+]]></artwork>
+</figure>
+</t>
+
+<t>
+This is a significant savings over other approaches described in the
+ literature, which require 8&nbsp;additions, 2&nbsp;shifts, and
+ 1&nbsp;negation&nbsp;<xref target="FOIK99"/> (37.5%&nbsp;more operations), or
+ 10&nbsp;additions, 1&nbsp;shift, and
+ 2&nbsp;negations&nbsp;<xref target="TSSRM08"/> (62.5%&nbsp;more operations).
+The same operations can be applied to compute a 4-point WHT in one dimension.
+This implementation is used in this way in VP9's lossless mode.
+Since larger WHTs may be trivially factored into multiple smaller WHTs, the
+ same approach can implement a reversible, orthonormally scaled WHT of any size
+ (2**N)x(2**M), so long as (N&nbsp;+&nbsp;M) is even.
+</t>
+
 </section>
 
 </section>
@@ -808,6 +923,21 @@ Thanks to Nathan Egge, Gregory Maxwell, and Jean-Marc Valin for their
 </front>
 <seriesInfo name="IEEE Journal on Selected Areas in Communication"
  value="10(1):129--137"/>
+</reference>
+
+<reference anchor="FOIK99">
+<front>
+<title>Lossless 8-point Fast Discrete Cosine Transform Using Lossless
+ Hadamard Transform</title>
+<author initials="S." surname="Fukuma" fullname="Shinji Fukuma"/>
+<author initials="K." surname="Oyama" fullname="Koichi Oyama"/>
+<author initials="M." surname="Iwahashi" fullname="Masahiro Iwahashi"/>
+<author initials="N." surname="Kambayashi" fullname="Noriyoshi Kambayashi"/>
+<date month="October" year="1999"/>
+</front>
+<seriesInfo name="Technical Report"
+ value="The Institute of Electronics, Information, and Communication Engineers
+ of Japan"/>
 </reference>
 
 <reference anchor="LLM89">
