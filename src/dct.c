@@ -1185,7 +1185,7 @@ static const od_dct_basis_row *const OD_DCT_BASES[OD_NBSIZES] = {
   OD_DCT16_BASIS
 };
 
-void idct(double x[], const double y[], int bszi) {
+static void idct(double x[], int bszi, const double y[]) {
   double t[OD_BSIZE_MAX];
   const od_dct_basis_row *basis;
   int i;
@@ -1288,11 +1288,11 @@ static void ieee1180_test_block(long sumerrs[OD_BSIZE_MAX][OD_BSIZE_MAX],
       floatcoefs[i][j] = refcoefs[i][j]/(double)(1 << OD_COEFF_SHIFT);
     }
   }
-  for (i = 0; i < n; i++) idct(floatcoefs[i], floatcoefs[i], bszi);
+  for (i = 0; i < n; i++) idct(floatcoefs[i], bszi, floatcoefs[i]);
   for (j = 0; j < n; j++) {
     double x[OD_BSIZE_MAX];
     for (i = 0; i < n; i++) x[i] = floatcoefs[i][j];
-    idct(x, x, bszi);
+    idct(x, bszi, x);
     for (i = 0; i < n; i++) floatcoefs[i][j] = x[i];
   }
   for (i = 0; i < n; i++) {
@@ -1473,7 +1473,7 @@ static void compute_itrue_basis(double basis[OD_BSIZE_MAX][OD_BSIZE_MAX],
   for (i = 0; i < n; i++) {
     double x[OD_BSIZE_MAX];
     for (j = 0; j < n; j++) x[j] = (i == j);
-    idct(x, x, bszi);
+    idct(x, bszi, x);
     for (j = 0; j < n; j++) basis[j][i] = x[j];
   }
 }
