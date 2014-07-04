@@ -457,7 +457,7 @@ The process can be applied recursively until
 \end_inset
 
 .
- Similar to a limear regression, we have 
+ Similar to a linear regression, we have 
 \begin_inset Formula 
 \begin{equation}
 \alpha=\frac{S_{y}}{S_{E}}\ ,
@@ -686,7 +686,7 @@ reference "sub:Coefficient-model"
 
 \end_inset
 
-where for new vector, we update 
+where for each new vector, we update 
 \begin_inset Formula $S_{p}$
 \end_inset
 

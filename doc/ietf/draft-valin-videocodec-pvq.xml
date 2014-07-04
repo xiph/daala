@@ -206,7 +206,7 @@
                  24*K^2
 ]]></artwork>
 </figure>
-      with C ~= 4.2. The distortion due to the gain is 
+      with C ~= 4.2. The distortion due to the gain is
 <figure align="center">
 <artwork align="center"><![CDATA[
             b^2*Q_g^2*gamma^(2*b-2)
@@ -217,7 +217,6 @@
       Since PVQ codes N-2 degrees of freedom, its distortion should also be
       (N-2) times the gain distortion, which eventually leads us to the optimal
       number of pulses
-      The distortion due to the gain is 
 <figure align="center">
 <artwork align="center"><![CDATA[
           gamma*sin(theta)       / N + C - 2 \
