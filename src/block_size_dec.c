@@ -30,23 +30,18 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "block_size_dec.h"
 
 static void od_block_size_decode8x8(od_ec_dec *dec, unsigned char *bsize,
- int stride, int i, int j, int split) {
+ int stride, int i, int j) {
   unsigned char *bsize16 = &bsize[2*i*stride + 2*j];
-  if (split) {
-    const ogg_uint16_t *cdf;
-    int split;
-    int cdf_id;
-    cdf_id = od_block_size_cdf8_id(&bsize16[0], stride);
-    cdf = od_switch_size8_cdf[cdf_id];
-    split = od_ec_decode_cdf_q15(dec, cdf, 16);
-    bsize16[0] = (split&1) ? 1 : 0;
-    bsize16[1] = (split&2) ? 1 : 0;
-    bsize16[stride] = (split&4) ? 1 : 0;
-    bsize16[stride + 1] = (split&8) ? 1 : 0;
-  }
-  else {
-    bsize16[0] = bsize16[1] = bsize16[stride] = bsize16[stride + 1] = 2;
-  }
+  const ogg_uint16_t *cdf;
+  int split;
+  int cdf_id;
+  cdf_id = od_block_size_cdf8_id(&bsize16[0], stride);
+  cdf = od_switch_size8_cdf[cdf_id];
+  split = od_ec_decode_cdf_q15(dec, cdf, 16);
+  bsize16[0] = (split&1) ? 1 : 0;
+  bsize16[1] = (split&2) ? 1 : 0;
+  bsize16[stride] = (split&4) ? 1 : 0;
+  bsize16[stride + 1] = (split&8) ? 1 : 0;
 }
 
 void od_block_size_decode(od_ec_dec *dec, od_adapt_ctx *adapt,
@@ -78,18 +73,12 @@ void od_block_size_decode(od_ec_dec *dec, od_adapt_ctx *adapt,
     bsize[2] = (split16&4) ? 2 : 1;
     bsize[2*stride] = (split16&2) ? 2 : 1;
     bsize[2*stride + 2] = (split16&1) ? 2 : 1;
-    if (min_size == 0 && max_size > 0) {
-      for (i = 0; i < 2; i++) {
-        for (j = 0; j < 2; j++) {
-          int split;
-          split = (bsize[2*i*stride + 2*j] != 2);
-          od_block_size_decode8x8(dec, bsize, stride, i, j, split);
+    for (i = 0; i < 2; i++) {
+      for (j = 0; j < 2; j++) {
+        if (min_size == 0 && max_size > 0 && bsize[2*i*stride + 2*j] != 2) {
+          od_block_size_decode8x8(dec, bsize, stride, i, j);
         }
-      }
-    }
-    else {
-      for (i = 0; i < 2; i++) {
-        for (j = 0; j < 2; j++) {
+        else {
           if (max_size == 0) bsize[2*i*stride + 2*j] = 0;
           /* Copy the same value to all four 8x8 blocks in the 16x16. */
           bsize[(2*i + 1)*stride + 2*j] = bsize[2*i*stride + 2*j + 1] =
