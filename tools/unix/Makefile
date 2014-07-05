@@ -33,6 +33,7 @@ CFLAGS += -DOD_ENABLE_ASSERTIONS
 # You could instead set this to HAVE_GETTIMEOFDAY if you don't have ftime.
 CFLAGS += -DHAVE_FTIME
 
+CINCLUDE := -I../../include ${CINCLUDE}
 LIBSRCDIR=../../src
 LOCALSRCDIR=..
 WORKDIR=build
@@ -104,6 +105,11 @@ BSIZE_LOCAL_CSOURCES = \
 block_size_analysis.c \
 block_size.c \
 block_size_enc.c \
+generic_encoder.c \
+generic_code.c \
+laplace_encoder.c \
+logging.c \
+laplace_tables.c \
 vidinput.c \
 y4m_input.c \
 dct.c \
@@ -176,6 +182,11 @@ image.c
 IS_LIB_CSOURCES = \
 block_size.c \
 block_size_enc.c \
+generic_encoder.c \
+generic_code.c \
+laplace_encoder.c \
+logging.c \
+laplace_tables.c \
 entenc.c \
 entcode.c \
 filter.c \
@@ -211,6 +222,11 @@ image.c
 CS_LIB_CSOURCES = \
 block_size.c \
 block_size_enc.c \
+generic_encoder.c \
+generic_code.c \
+laplace_encoder.c \
+logging.c \
+laplace_tables.c \
 entenc.c \
 entcode.c \
 filter.c \
@@ -248,6 +264,11 @@ cholesky.c
 IP_LIB_CSOURCES = \
 block_size.c \
 block_size_enc.c \
+generic_encoder.c \
+generic_code.c \
+laplace_encoder.c \
+logging.c \
+laplace_tables.c \
 entenc.c \
 entcode.c \
 filter.c \
@@ -284,6 +305,11 @@ image.c
 IT_LIB_CSOURCES = \
 block_size.c \
 block_size_enc.c \
+generic_encoder.c \
+generic_code.c \
+laplace_encoder.c \
+logging.c \
+laplace_tables.c \
 entenc.c \
 entcode.c \
 filter.c \
