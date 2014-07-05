@@ -250,8 +250,10 @@ void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe) {
     state->bsize_range_cdf[i] = (i+1)*state->bsize_range_increment;
   }
   state->bsize16_increment = 128;
+  state->bsize8_increment = 128;
   for (i = 0; i < 16; i++) {
     state->bsize16_cdf[i] = (i+1)*state->bsize16_increment;
+    state->bsize8_cdf[i] = (i+1)*state->bsize8_increment;
   }
   generic_model_init(&state->mv_model);
   for (i = 0; i < 5; i++) state->mv_ex[i] = state->mv_ey[i] = 24 << 16;

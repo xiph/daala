@@ -29,21 +29,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "block_size.h"
 #include "block_size_dec.h"
 
-static void od_block_size_decode8x8(od_ec_dec *dec, unsigned char *bsize,
- int stride, int i, int j) {
-  unsigned char *bsize16 = &bsize[2*i*stride + 2*j];
-  const ogg_uint16_t *cdf;
-  int split;
-  int cdf_id;
-  cdf_id = od_block_size_cdf8_id(&bsize16[0], stride);
-  cdf = od_switch_size8_cdf[cdf_id];
-  split = od_ec_decode_cdf_q15(dec, cdf, 16);
-  bsize16[0] = (split&1) ? 1 : 0;
-  bsize16[1] = (split&2) ? 1 : 0;
-  bsize16[stride] = (split&4) ? 1 : 0;
-  bsize16[stride + 1] = (split&8) ? 1 : 0;
-}
-
 void od_block_size_decode(od_ec_dec *dec, od_adapt_ctx *adapt,
  unsigned char *bsize, int stride) {
   int i, j;
@@ -76,7 +61,13 @@ void od_block_size_decode(od_ec_dec *dec, od_adapt_ctx *adapt,
     for (i = 0; i < 2; i++) {
       for (j = 0; j < 2; j++) {
         if (min_size == 0 && max_size > 0 && bsize[2*i*stride + 2*j] != 2) {
-          od_block_size_decode8x8(dec, bsize, stride, i, j);
+          int split8;
+          split8 = od_decode_cdf_adapt(dec, adapt->bsize8_cdf, 16,
+           adapt->bsize8_increment);
+          bsize[2*i*stride + 2*j] = split8 & 1;
+          bsize[2*i*stride + 2*j + 1] = (split8 >> 1) & 1;
+          bsize[(2*i + 1)*stride + 2*j] = (split8 >> 2) & 1;
+          bsize[(2*i + 1)*stride + 2*j + 1] = (split8 >> 3) & 1;
         }
         else {
           if (max_size == 0) bsize[2*i*stride + 2*j] = 0;

@@ -172,6 +172,8 @@ struct od_adapt_ctx {
   ogg_uint16_t        bsize_range_cdf[7];
   int                 bsize16_increment;
   ogg_uint16_t        bsize16_cdf[16];
+  int                 bsize8_increment;
+  ogg_uint16_t        bsize8_cdf[16];
 
   /* Motion vectors */
   generic_encoder     mv_model;

@@ -332,22 +332,6 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
 #endif
 }
 
-static void od_block_size_encode8x8(od_ec_enc *enc,
- const unsigned char *bsize, int stride, int i, int j) {
-  const unsigned char *bsize16 = &bsize[2*i*stride + 2*j];
-  if (bsize16[0] < 2) {
-    const ogg_uint16_t *cdf;
-    int split;
-    int cdf_id;
-    cdf_id = od_block_size_cdf8_id(&bsize16[0], stride);
-    split = bsize16[0] + 2*bsize16[1] + 4*bsize16[stride]
-     + 8*bsize16[stride + 1];
-    /*printf("%d %d %d %d\n", i, j, cdf_id, split);*/
-    cdf = od_switch_size8_cdf[cdf_id];
-    od_ec_encode_cdf_q15(enc, split, cdf, 16);
-  }
-}
-
 void od_block_size_encode(od_ec_enc *enc, od_adapt_ctx *adapt,
  const unsigned char *bsize, int stride) {
   int i, j;
@@ -387,9 +371,15 @@ void od_block_size_encode(od_ec_enc *enc, od_adapt_ctx *adapt,
   if (min_size == 0 && max_size > 0) {
     for (i = 0; i < 2; i++) {
       for (j = 0; j < 2; j++) {
-        /* TODO: Make this adaptive and consider the fact that we can't have
-           all 8x8 if the min is 4x4. */
-        od_block_size_encode8x8(enc, bsize, stride, i, j);
+        if (bsize[2*i*stride + 2*j] < 2) {
+          int split8;
+          /* TODO: Consider the fact that we can't have all 8x8 if the
+             min is 4x4. */
+          split8 = bsize[2*i*stride + 2*j] + 2*bsize[2*i*stride + 2*j + 1]
+           + 4*bsize[(2*i + 1)*stride + 2*j] + 8*bsize[(2*i + 1)*stride + 2*j + 1];
+          od_encode_cdf_adapt(enc, split8, adapt->bsize8_cdf, 16,
+            adapt->bsize8_increment);
+        }
       }
     }
   }

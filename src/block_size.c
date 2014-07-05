@@ -49,30 +49,3 @@ const int od_range_ids[7][2] = {
   {2, 2},
   {3, 3},
 };
-
-int od_block_size_prob32(const unsigned char *bsize, int stride) {
-  int i;
-  int sum32;
-  sum32 = 0;
-  for (i = -1; i < 4; i++) sum32 += bsize[-stride + i];
-  for (i = 0; i < 4; i++) sum32 += bsize[stride*i - 1];
-  return sum32;
-}
-
-int od_block_size_prob16(const unsigned char *bsize, int stride) {
-  return 16*bsize[-stride + 2] + 4*bsize[2*stride - 1] + bsize[stride + 1];
-}
-
-int od_block_size_cdf8_id(const unsigned char *bsize, int stride) {
-  int upleft;
-  int up;
-  int left;
-  int id;
-  upleft = bsize[-stride - 1];
-  /* For up and left, count only the combinations that are possible */
-  up = bsize[-stride] < 2 ? bsize[-stride]*2 + bsize[-stride + 1] :
-   bsize[-stride] + 2;
-  left = bsize[-1] < 2 ? bsize[-1]*2 + bsize[stride - 1] : bsize[-1] + 2;
-  id = up*24 + left*4 + upleft;
-  return id;
-}
