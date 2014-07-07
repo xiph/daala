@@ -416,7 +416,7 @@ int main(int _argc,char **_argv){
   avin.video_par_n=-1;
   avin.video_par_d=-1;
   video_q=10;
-  video_keyframe_rate=1; /* TODO - default off for now but make bigger later */
+  video_keyframe_rate=256;
   video_r=-1;
   video_bytesout=0;
   fixedserial=0;
