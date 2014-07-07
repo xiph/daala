@@ -364,7 +364,7 @@ void od_block_size_encode(od_ec_enc *enc, od_adapt_ctx *adapt,
      both 8x8 and 16x16.
      TODO: Add some context. */
   if (max_size >= 2 && min_size < 2) {
-    od_encode_cdf_adapt(enc, split16, adapt->bsize16_cdf, 16,
+    od_encode_cdf_adapt(enc, split16, adapt->bsize16_cdf[min_size], 16,
      adapt->bsize16_increment);
   }
   /* Encode the 8x8 block splits only when the range allows both 4x4 and 8x8.*/

@@ -34,6 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #if defined(OD_X86ASM)
 # include "x86/x86int.h"
 #endif
+#include "block_size.h"
 
 const od_coeff OD_DC_RES[3] = {14, 12, 18};
 
@@ -253,13 +254,15 @@ void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe) {
   }
   state->bsize_range_increment = 128;
   for (i = 0; i < 7; i++) {
-    state->bsize_range_cdf[i] = (i+1)*state->bsize_range_increment;
+    state->bsize_range_cdf[i] = range_cdf_init[i]>>6;
   }
   state->bsize16_increment = 128;
   state->bsize8_increment = 128;
   for (i = 0; i < 16; i++) {
-    state->bsize16_cdf[i] = (i+1)*state->bsize16_increment;
     state->bsize8_cdf[i] = (i+1)*state->bsize8_increment;
+    /* Shifting makes the initial adaptation faster. */
+    state->bsize16_cdf[0][i] = split16_cdf_init[0][i]>>6;
+    state->bsize16_cdf[1][i] = split16_cdf_init[1][i]>>6;
   }
   generic_model_init(&state->mv_model);
   for (i = 0; i < 5; i++) state->mv_ex[i] = state->mv_ey[i] = 24 << 16;

@@ -49,7 +49,7 @@ void od_block_size_decode(od_ec_dec *dec, od_adapt_ctx *adapt,
   }
   else {
     if (max_size >= 2 && min_size < 2) {
-      split16 = od_decode_cdf_adapt(dec, adapt->bsize16_cdf, 16,
+      split16 = od_decode_cdf_adapt(dec, adapt->bsize16_cdf[min_size], 16,
          adapt->bsize16_increment);
     }
     else if (min_size == 2) split16 = 0xf;

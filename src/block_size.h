@@ -32,6 +32,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 extern const ogg_uint16_t od_switch_size8_cdf[][16];
 
 extern const int od_range_ids[7][2];
+extern const ogg_uint16_t range_cdf_init[7];
+extern const ogg_uint16_t split16_cdf_init[2][16];
 
 # define OD_BLOCK_SIZE4x4(bsize, bstride, bx, by)\
    ((bsize)[((by)>>1)*(bstride) + ((bx)>>1)])
