@@ -59,7 +59,7 @@ if [ ! -x "$Y4M2PNG" ]; then
   exit 1
 fi
 
-if [ -z V ]; then
+if [ -z $V ]; then
   V=29
 fi
 
