@@ -124,6 +124,7 @@ void pvq_encode(daala_enc_ctx *enc,
                 od_coeff *in,
                 od_coeff *out,
                 int q,
+                int pli,
                 int ln,
                 const int *qm,
                 const double *beta,
@@ -148,7 +149,7 @@ void pvq_encode(daala_enc_ctx *enc,
   unsigned tell;
   od_rollback_buffer buf;
   adapt = enc->adapt.pvq_adapt;
-  exg = enc->adapt.pvq_exg + ln*PVQ_MAX_PARTITIONS;
+  exg = &enc->adapt.pvq_exg[pli][ln][0];
   ext = enc->adapt.pvq_ext + ln*PVQ_MAX_PARTITIONS;
   noref_prob = enc->adapt.pvq_noref_prob + ln*PVQ_MAX_PARTITIONS;
   model = enc->adapt.pvq_param_model;

@@ -360,7 +360,7 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
     dc_scale = (pli==0 || dec->scale[pli]==0) ? scale : (scale + 1) >> 1;
   coeff_shift = dec->scale[pli] == 0 ? 0 : OD_COEFF_SHIFT;
   if (run_pvq) {
-    pvq_decode(dec, predt, pred, scale << coeff_shift, ln,
+    pvq_decode(dec, predt, pred, scale << coeff_shift, pli, ln,
      OD_PVQ_QM_Q4[pli][ln], OD_PVQ_BETA[pli][ln],
      OD_PVQ_INTER_BAND_MASKING[ln], ctx->is_keyframe);
   }

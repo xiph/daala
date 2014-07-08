@@ -165,7 +165,7 @@ struct od_adapt_ctx {
   int                 pvq_adapt[OD_NSB_ADAPT_CTXS];
   generic_encoder     pvq_param_model[3];
   int                 pvq_ext[OD_NBSIZES*PVQ_MAX_PARTITIONS];
-  int                 pvq_exg[OD_NBSIZES*PVQ_MAX_PARTITIONS];
+  int                 pvq_exg[OD_NPLANES_MAX][OD_NBSIZES][PVQ_MAX_PARTITIONS];
   unsigned            pvq_noref_prob[OD_NBSIZES*PVQ_MAX_PARTITIONS];
 
   int                 bsize_range_increment;

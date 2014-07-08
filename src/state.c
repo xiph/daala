@@ -232,6 +232,7 @@ void od_state_clear(od_state *state) {
 
 void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe) {
   int i;
+  int ln;
   int pli;
   generic_model_init(&state->pvq_param_model[0]);
   generic_model_init(&state->pvq_param_model[1]);
@@ -240,8 +241,13 @@ void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe) {
   state->pvq_adapt[OD_ADAPT_SUM_EX_Q8] = 256;
   state->pvq_adapt[OD_ADAPT_COUNT_Q8] = 104;
   state->pvq_adapt[OD_ADAPT_COUNT_EX_Q8] = 128;
+  for (pli = 0; pli < OD_NPLANES_MAX; pli++) {
+    for (ln = 0; ln < OD_NBSIZES; ln++)
+    for (i = 0; i < PVQ_MAX_PARTITIONS; i++) {
+      state->pvq_exg[pli][ln][i] = 2 << 16;
+    }
+  }
   for (i = 0; i < OD_NBSIZES*PVQ_MAX_PARTITIONS; i++) {
-    state->pvq_exg[i] = 2 << 16;
     state->pvq_ext[i] = is_keyframe ? 24576 : 2 << 16;
     state->pvq_noref_prob[i] = 26376;
   }

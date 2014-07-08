@@ -543,7 +543,7 @@ void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
     OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_AC_COEFFS);
   if (run_pvq) {
-    pvq_encode(enc, predt, cblock, scalar_out, scale << coeff_shift, ln,
+    pvq_encode(enc, predt, cblock, scalar_out, scale << coeff_shift, pli, ln,
      OD_PVQ_QM_Q4[pli][ln], OD_PVQ_BETA[pli][ln],
      OD_PVQ_INTER_BAND_MASKING[ln], ctx->is_keyframe);
   }

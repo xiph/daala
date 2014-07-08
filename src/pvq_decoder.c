@@ -177,6 +177,7 @@ void pvq_decode(daala_dec_ctx *dec,
                 od_coeff *ref,
                 od_coeff *out,
                 int q,
+                int pli,
                 int ln,
                 const int *qm,
                 const double *beta,
@@ -196,7 +197,7 @@ void pvq_decode(daala_dec_ctx *dec,
   unsigned *noref_prob;
   int skip;
   adapt = dec->adapt.pvq_adapt;
-  exg = dec->adapt.pvq_exg + ln*PVQ_MAX_PARTITIONS;
+  exg = &dec->adapt.pvq_exg[pli][ln][0];
   ext = dec->adapt.pvq_ext + ln*PVQ_MAX_PARTITIONS;
   noref_prob = dec->adapt.pvq_noref_prob + ln*PVQ_MAX_PARTITIONS;
   model = dec->adapt.pvq_param_model;
