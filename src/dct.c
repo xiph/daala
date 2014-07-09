@@ -1197,7 +1197,8 @@ static void idct(double x[], int bszi, const double y[]) {
     t[j] = 0;
     for (i = 0; i < n; i++) t[j] += basis[i][j]*y[i];
   }
-  for (j = 0; j < n; j++) x[j] = t[j];
+  /* workaround to prevent mis-compilation by clang-3.4 */
+  OD_MOVE(x, t, n);
 }
 
 static void ieee1180_print_results(long sumerrs[OD_BSIZE_MAX][OD_BSIZE_MAX],
