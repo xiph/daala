@@ -147,11 +147,13 @@ void pvq_encode(daala_enc_ctx *enc,
   unsigned *noref_prob;
   double skip_diff;
   unsigned tell;
+  ogg_uint16_t *skip_cdf;
   od_rollback_buffer buf;
   adapt = enc->adapt.pvq_adapt;
   exg = &enc->adapt.pvq_exg[pli][ln][0];
   ext = enc->adapt.pvq_ext + ln*PVQ_MAX_PARTITIONS;
   noref_prob = enc->adapt.pvq_noref_prob + ln*PVQ_MAX_PARTITIONS;
+  skip_cdf = enc->adapt.skip_cdf[pli];
   model = enc->adapt.pvq_param_model;
   nb_bands = od_band_offsets[ln][0];
   off = &od_band_offsets[ln][1];
@@ -170,7 +172,7 @@ void pvq_encode(daala_enc_ctx *enc,
   if (!is_keyframe) {
     od_encode_checkpoint(enc, &buf);
     /* Code as if we're not skipping. */
-    od_encode_cdf_adapt(&enc->ec, (out[0] != 0), enc->adapt.skip_cdf,
+    od_encode_cdf_adapt(&enc->ec, (out[0] != 0), skip_cdf,
      4, enc->adapt.skip_increment);
     /* Excluding skip flag from the rate since it's minor and would be prone
        to greedy decision issues. */
@@ -191,7 +193,7 @@ void pvq_encode(daala_enc_ctx *enc,
     if (skip_diff < OD_PVQ_LAMBDA/8*tell) {
       /* We decide to skip, roll back everything as it was before. */
       od_encode_rollback(enc, &buf);
-      od_encode_cdf_adapt(&enc->ec, 2 + (out[0] != 0), enc->adapt.skip_cdf,
+      od_encode_cdf_adapt(&enc->ec, 2 + (out[0] != 0), skip_cdf,
        4, enc->adapt.skip_increment);
       for (i = 1; i < 1 << (2*ln + 4); i++) out[i] = ref[i];
     }
