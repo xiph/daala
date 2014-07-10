@@ -339,6 +339,12 @@ void od_block_size_encode(od_ec_enc *enc, od_adapt_ctx *adapt,
   int max_size;
   int range_id;
   int split16;
+  int min_ctx_size;
+  min_ctx_size = bsize[-1 - stride];
+  for (i = 0; i < 4; i++) {
+    min_ctx_size = OD_MINI(min_ctx_size, bsize[i*stride - 1]);
+    min_ctx_size = OD_MINI(min_ctx_size, bsize[-stride + i]);
+  }
   min_size = max_size = bsize[0];
   for (i = 0; i < 4; i++) {
     for (j = 0; j < 4; j++) {
@@ -356,7 +362,7 @@ void od_block_size_encode(od_ec_enc *enc, od_adapt_ctx *adapt,
   OD_ASSERT(range_id != -1);
   /* The first symbol we encode is the min/max range of the block sizes.
      TODO: Add some context. */
-  od_encode_cdf_adapt(enc, range_id, adapt->bsize_range_cdf, 7,
+  od_encode_cdf_adapt(enc, range_id, adapt->bsize_range_cdf[min_ctx_size], 7,
    adapt->bsize_range_increment);
   split16 = 8*(bsize[0] == 2) + 4*(bsize[2] == 2) + 2*(bsize[2*stride] == 2)
    + (bsize[2 + 2*stride] == 2);

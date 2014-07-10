@@ -169,7 +169,7 @@ struct od_adapt_ctx {
   unsigned            pvq_noref_prob[OD_NBSIZES*PVQ_MAX_PARTITIONS];
 
   int                 bsize_range_increment;
-  ogg_uint16_t        bsize_range_cdf[7];
+  ogg_uint16_t        bsize_range_cdf[OD_NBSIZES][7];
   int                 bsize16_increment;
   ogg_uint16_t        bsize16_cdf[2][16];
   int                 bsize8_increment;

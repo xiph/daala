@@ -254,7 +254,10 @@ void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe) {
   }
   state->bsize_range_increment = 128;
   for (i = 0; i < 7; i++) {
-    state->bsize_range_cdf[i] = range_cdf_init[i]>>6;
+    int j;
+    for (j = 0; j < OD_NBSIZES; j++) {
+      state->bsize_range_cdf[j][i] = range_cdf_init[i] >> 6;
+    }
   }
   state->bsize16_increment = 128;
   state->bsize8_increment = 128;
@@ -1272,18 +1275,18 @@ void od_state_init_border_as_32x32(od_state *state) {
   bstride = state->bstride;
   for (i = -4; i < (nhsb+1)*4; i++) {
     for (j = -4; j < 0; j++) {
-      bsize[(j*bstride) + i] = 3;
+      bsize[(j*bstride) + i] = OD_LIMIT_LOG_BSIZE_MAX - OD_LOG_BSIZE0;
     }
     for (j = nvsb*4; j < (nvsb+1)*4; j++) {
-      bsize[(j*bstride) + i] = 3;
+      bsize[(j*bstride) + i] = OD_LIMIT_LOG_BSIZE_MAX - OD_LOG_BSIZE0;
     }
   }
   for (j = -4; j < (nvsb+1)*4; j++) {
     for (i = -4; i < 0; i++) {
-      bsize[(j*bstride) + i] = 3;
+      bsize[(j*bstride) + i] = OD_LIMIT_LOG_BSIZE_MAX - OD_LOG_BSIZE0;
     }
     for (i = nhsb*4; i < (nhsb+1)*4; i++) {
-      bsize[(j*bstride) + i] = 3;
+      bsize[(j*bstride) + i] = OD_LIMIT_LOG_BSIZE_MAX - OD_LOG_BSIZE0;
     }
   }
 }

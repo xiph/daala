@@ -36,7 +36,13 @@ void od_block_size_decode(od_ec_dec *dec, od_adapt_ctx *adapt,
   int range_id;
   int min_size;
   int max_size;
-  range_id = od_decode_cdf_adapt(dec, adapt->bsize_range_cdf, 7,
+  int min_ctx_size;
+  min_ctx_size = bsize[-1 - stride];
+  for (i = 0; i < 4; i++) {
+    min_ctx_size = OD_MINI(min_ctx_size, bsize[i*stride - 1]);
+    min_ctx_size = OD_MINI(min_ctx_size, bsize[-stride + i]);
+  }
+  range_id = od_decode_cdf_adapt(dec, adapt->bsize_range_cdf[min_ctx_size], 7,
    adapt->bsize_range_increment);
   min_size = od_range_ids[range_id][0];
   max_size = od_range_ids[range_id][1];
