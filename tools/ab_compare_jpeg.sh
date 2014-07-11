@@ -1,4 +1,5 @@
-#!/bin/sh
+#!/bin/bash
+set -e
 
 if [ -z $DAALA_ROOT ]; then
   DAALA_ROOT=.

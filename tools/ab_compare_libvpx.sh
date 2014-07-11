@@ -1,4 +1,5 @@
-#!/bin/sh
+#!/bin/bash
+set -e
 
 # TODO - add a test for this
 export CODEC=$1
