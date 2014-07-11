@@ -217,9 +217,26 @@ void pvq_decode(daala_dec_ctx *dec,
   }
   else {
     for (i = 0; i < nb_bands; i++) size[i] = off[i+1] - off[i];
-    for (i = 0; i < nb_bands; i++) {
-      if (is_keyframe && vector_is_null(ref + off[i], size[i])) noref[i] = 1;
-      else noref[i] = !decode_flag(&dec->ec, &noref_prob[i]);
+    if (!is_keyframe && ln > 0) {
+      int id;
+      id = od_decode_cdf_adapt(&dec->ec, dec->adapt.pvq_noref_joint_cdf[ln-1],
+       16, dec->adapt.pvq_noref_joint_increment);
+      for (i = 0; i < 4; i++) noref[i] = (id >> (3 - i)) & 1;
+      if (ln >= 2) {
+        int count;
+        count = 0;
+        for (i = 0; i < 4; i++) count += noref[i];
+        id = od_decode_cdf_adapt(&dec->ec,
+         dec->adapt.pvq_noref2_joint_cdf[count], 8,
+         dec->adapt.pvq_noref_joint_increment);
+        for (i = 4; i < 7; i++) noref[i] = (id >> (6 - i)) & 1;
+      }
+    }
+    else {
+      for (i = 0; i < nb_bands; i++) {
+        if (is_keyframe && vector_is_null(ref + off[i], size[i])) noref[i] = 1;
+        else noref[i] = !decode_flag(&dec->ec, &noref_prob[i]);
+      }
     }
     for (i = 0; i < nb_bands; i++) {
       int j;

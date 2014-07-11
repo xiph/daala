@@ -282,6 +282,18 @@ void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe) {
     state->mv_small_cdf[i] = state->mv_small_cdf[i - 1]
      + state->mv_small_increment;
   }
+  state->pvq_noref_joint_increment = 128;
+  for (i = 0; i < 16; i++) {
+    state->pvq_noref_joint_cdf[0][i] = state->pvq_noref_joint_cdf[1][i] =
+     (i + 1)*state->pvq_noref_joint_increment >> 2;
+  }
+  for (i = 0; i < 8; i++) {
+    int j;
+    for (j = 0; j < 5; j++) {
+      state->pvq_noref2_joint_cdf[j][i] = (i + 1)*
+       state->pvq_noref_joint_increment >> 2;
+    }
+  }
   for (pli = 0; pli < OD_NPLANES_MAX; pli++) {
     generic_model_init(&state->model_dc[pli]);
     generic_model_init(&state->model_g[pli]);

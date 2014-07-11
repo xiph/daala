@@ -178,11 +178,30 @@ void pvq_encode(daala_enc_ctx *enc,
        to greedy decision issues. */
     tell = od_ec_enc_tell_frac(&enc->ec);
   }
-  /* TODO: Find efficient way to code up to 4 noref flags per symbol
-     to reduce entropy coder calls. */
-  for (i = 0; i < nb_bands; i++) {
-    if (!(is_keyframe && vector_is_null(ref + off[i], size[i])))
-      code_flag(&enc->ec, theta[i] != -1, &noref_prob[i]);
+  if (!is_keyframe && ln > 0) {
+    int id;
+    id = 0;
+    /* Jointly code the noref flags for the first 4 bands. */
+    for (i = 0; i < 4; i++) id = (id << 1) + (theta[i] == -1);
+    od_encode_cdf_adapt(&enc->ec, id, enc->adapt.pvq_noref_joint_cdf[ln-1],
+     16, enc->adapt.pvq_noref_joint_increment);
+    if (ln >= 2) {
+      int count;
+      id = 0;
+      count = 0;
+      /* Context for the last 3 bands is how many of the first 4 bands are
+         noref. */
+      for (i = 0; i < 4; i++) count += (theta[i] == -1);
+      for (i = 4; i < 7; i++) id = (id << 1) + (theta[i] == -1);
+      od_encode_cdf_adapt(&enc->ec, id, enc->adapt.pvq_noref2_joint_cdf[count],
+       8, enc->adapt.pvq_noref_joint_increment);
+    }
+  }
+  else {
+    for (i = 0; i < nb_bands; i++) {
+      if (!(is_keyframe && vector_is_null(ref + off[i], size[i])))
+        code_flag(&enc->ec, theta[i] != -1, &noref_prob[i]);
+    }
   }
   for (i = 0; i < nb_bands; i++) {
     pvq_encode_partition(&enc->ec, qg[i], theta[i], max_theta[i], y + off[i],
