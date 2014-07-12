@@ -268,7 +268,6 @@ struct od_mb_enc_ctx {
   int ncount;
   int count_total_q8;
   int count_ex_total_q8;
-  ogg_uint16_t mode_p0[OD_INTRA_NMODES];
 };
 typedef struct od_mb_enc_ctx od_mb_enc_ctx;
 
@@ -328,8 +327,8 @@ static void od_encode_compute_pred(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, od_co
         m_l = modes[by*(w >> 2) + bx - 1];
         m_ul = modes[(by - 1)*(w >> 2) + bx - 1];
         m_u = modes[(by - 1)*(w >> 2) + bx];
-        od_intra_pred_cdf(mode_cdf, OD_INTRA_PRED_PROB_4x4[pli],
-         ctx->mode_p0, OD_INTRA_NMODES, m_l, m_ul, m_u);
+        od_intra_pred_cdf(mode_cdf, enc->adapt.mode_probs[pli],
+         OD_INTRA_NMODES, m_l, m_ul, m_u);
         (*OD_INTRA_DIST[ln])(mode_dist, d + (by << 2)*w + (bx << 2), w,
          coeffs, strides);
         /*Lambda = 1*/
@@ -358,8 +357,8 @@ static void od_encode_compute_pred(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, od_co
             modes[(by + y)*(w >> 2) + bx + x] = mode;
           }
         }
-        od_intra_pred_update(ctx->mode_p0, OD_INTRA_NMODES, mode, m_l, m_ul,
-         m_u);
+        od_intra_pred_update(enc->adapt.mode_probs[pli], OD_INTRA_NMODES,
+         mode, m_l, m_ul, m_u);
       }
       else {
         int mode;
@@ -1178,15 +1177,10 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     int ydec;
     int sby;
     int sbx;
-    int mi;
     int h;
     int w;
     int y;
     int x;
-    /*Initialize the data needed for each plane.*/
-    for (mi = 0; mi < OD_INTRA_NMODES; mi++) {
-      mbctx.mode_p0[mi] = 32768/OD_INTRA_NMODES;
-    }
     for (pli = 0; pli < nplanes; pli++) {
       xdec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
       ydec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;

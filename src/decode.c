@@ -135,7 +135,6 @@ struct od_mb_dec_ctx {
   int ncount;
   int count_total_q8;
   int count_ex_total_q8;
-  ogg_uint16_t mode_p0[OD_INTRA_NMODES];
 };
 typedef struct od_mb_dec_ctx od_mb_dec_ctx;
 
@@ -194,8 +193,8 @@ static void od_decode_compute_pred(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, od_co
         m_l = modes[by*(w >> 2) + bx - 1];
         m_ul = modes[(by - 1)*(w >> 2) + bx - 1];
         m_u = modes[(by - 1)*(w >> 2) + bx];
-        od_intra_pred_cdf(mode_cdf, OD_INTRA_PRED_PROB_4x4[pli],
-         ctx->mode_p0, OD_INTRA_NMODES, m_l, m_ul, m_u);
+        od_intra_pred_cdf(mode_cdf, dec->adapt.mode_probs[pli],
+         OD_INTRA_NMODES, m_l, m_ul, m_u);
 #if OD_DISABLE_INTRA
         mode = 0;
 #else
@@ -210,7 +209,7 @@ static void od_decode_compute_pred(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, od_co
             modes[(by + y)*(w >> 2) + bx + x] = mode;
           }
         }
-        od_intra_pred_update(ctx->mode_p0, OD_INTRA_NMODES, mode,
+        od_intra_pred_update(dec->adapt.mode_probs[pli], OD_INTRA_NMODES, mode,
          m_l, m_ul, m_u);
       }
       else {
@@ -733,7 +732,6 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
     int ydec;
     int sby;
     int sbx;
-    int mi;
     int h;
     int w;
     int y;
@@ -745,9 +743,6 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
       ydec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
       mbctx.modes[pli] = _ogg_calloc((frame_width >> (2 + xdec))
        *(frame_height >> (2 + ydec)), sizeof(*mbctx.modes[pli]));
-    }
-    for (mi = 0; mi < OD_INTRA_NMODES; mi++) {
-      mbctx.mode_p0[mi] = 32768/OD_INTRA_NMODES;
     }
     if (mbctx.is_keyframe) {
       for (pli = 0; pli < (OD_DISABLE_CFL ? nplanes : 1); pli++) {

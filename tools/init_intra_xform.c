@@ -514,7 +514,6 @@ static void intra_xform_update_block(void *_ctx,const unsigned char *_data,
   int width;
   float p[OD_INTRA_NMODES];
   ogg_uint16_t cdf[OD_INTRA_NMODES];
-  ogg_uint16_t p0[OD_INTRA_NMODES];
 /*If using this be sure to uncomment its assignment.*/
 /*  ogg_uint32_t wsatd[OD_INTRA_NMODES];*/
 
@@ -544,9 +543,7 @@ static void intra_xform_update_block(void *_ctx,const unsigned char *_data,
     for (m=0;m<OD_INTRA_NMODES;m++)
       for(c=0;c<OD_INTRA_NCONTEXTS;c++)
         probs[m][c] = 256.*ctx->freq[ctx->pli][m][c][1]/(float)ctx->freq[ctx->pli][m][c][0];
-    for (m=0;m<OD_INTRA_NMODES;m++)
-      p0[m] = 65536*ctx->p0[m];
-    od_intra_pred_cdf(cdf,(const unsigned char (*)[8])probs,p0,OD_INTRA_NMODES,left,upleft,up);
+    od_intra_pred_cdf(cdf,probs,OD_INTRA_NMODES,left,upleft,up);
   }
   for(m=0;m<OD_INTRA_NMODES;m++)
   {

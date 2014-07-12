@@ -36,6 +36,7 @@ typedef struct od_adapt_ctx      od_adapt_ctx;
 # include "pvq.h"
 # include "adapt.h"
 # include "generic_code.h"
+#include "intra.h"
 
 extern const od_coeff OD_DC_RES[3];
 
@@ -194,6 +195,7 @@ struct od_adapt_ctx {
   int ex_dc[OD_NPLANES_MAX][OD_NBSIZES][3];
   int ex_g[OD_NPLANES_MAX][OD_NBSIZES];
 
+  unsigned char mode_probs[3][OD_INTRA_NMODES][OD_INTRA_NCONTEXTS];
   /* Joint skip flag for DC and AC */
   ogg_uint16_t skip_cdf[OD_NPLANES_MAX][4];
   int skip_increment;

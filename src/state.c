@@ -308,6 +308,7 @@ void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe) {
       }
     }
   }
+  memcpy(state->mode_probs, OD_INTRA_PRED_PROB_4x4, 3*OD_INTRA_NMODES*OD_INTRA_NCONTEXTS);
 }
 
 #if 0

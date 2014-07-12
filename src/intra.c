@@ -349,8 +349,8 @@ void od_intra_pred16x16_get(od_coeff *_out,
 }
 
 void od_intra_pred_cdf(ogg_uint16_t _cdf[],
- const unsigned char _probs[][OD_INTRA_NCONTEXTS], const ogg_uint16_t _p0[],
- int _nmodes, int _left, int _upleft, int _up) {
+ unsigned char _probs[][OD_INTRA_NCONTEXTS], int _nmodes,
+ int _left, int _upleft, int _up) {
   unsigned p[OD_INTRA_NMODES+1];
   int      mi;
   int      sum;
@@ -358,14 +358,14 @@ void od_intra_pred_cdf(ogg_uint16_t _cdf[],
   sum = 0;
   for (mi = 0; mi < _nmodes; mi++) {
     p[mi] = _probs[mi][(_left == mi)*4+(_upleft == mi)*2+(_up == mi)];
-    p[mi] = OD_MAXI(OD_MAXI(p[mi], _p0[mi]>>8), 1);
+    p[mi] = OD_MAXI(p[mi], 1);
     sum += p[mi];
   }
   curr_cdf = 0;
   for (mi = 0; mi < _nmodes; mi++) {
     /*Apply probability combination here: p[mi] *= (sum-p[mi])/(1-p[mi]).*/
     /*FIXME: Make this fixed-point.*/
-    p[mi] = p[mi]*(sum-p[mi])/(float)(256-p[mi]);
+    p[mi] = OD_MINI(8192, OD_MAXI(1, (int)(p[mi]*(sum-p[mi])/(float)(256-p[mi]))));
     curr_cdf += p[mi];
     _cdf[mi] = curr_cdf;
   }
@@ -391,20 +391,17 @@ int od_intra_pred_search(const ogg_uint16_t _cdf[],
   return best_mode;
 }
 
-void od_intra_pred_update(ogg_uint16_t _p0[], int _nmodes, int _mode,
- int _left, int _upleft, int _up) {
+void od_intra_pred_update(unsigned char _probs[][OD_INTRA_NCONTEXTS],
+ int _nmodes, int _mode, int _left, int _upleft, int _up) {
   int mi;
-  for (mi = 1; mi < _nmodes; mi++) {
-    /*p0 is the probability of choosing mode mi when none of its neighbors
-       are in mode mi.
-      So decay p0 if this block satisfies that condition.*/
-    if (_left != mi && _up != mi && _upleft != mi)
-      _p0[mi] -= (_p0[mi]+256)>>9;
-  }
-  /*And bump up the probability in the mode we actually chose.*/
-  if (_left != _mode && _up != _mode && _upleft != _mode) {
-    /*Arbitrary ceiling at 0.75 to prevent insane p0 values.*/
-    if (_p0[_mode] < 24576) _p0[_mode] += 64;
+  int speed = 4;
+  for (mi = 0; mi < _nmodes; mi++) {
+    int id = (_left == mi)*4+(_upleft == mi)*2+(_up == mi);
+    _probs[mi][id] -= _probs[mi][id] >> speed;
+    if (_mode == mi) {
+      _probs[mi][id] = OD_MINI(255, _probs[mi][id] + (256 >> speed));
+    }
+    _probs[mi][id] = OD_MAXI(5, OD_MINI(251, _probs[mi][id]));
   }
 }
 

@@ -90,13 +90,14 @@ void od_chroma_pred(od_coeff *p, const od_coeff *c, const od_coeff *l,
   const unsigned char *bsize, int bstride, const int weights_q8[3]);
 
 void od_intra_pred_cdf(ogg_uint16_t _cdf[],
- const unsigned char _probs[][OD_INTRA_NCONTEXTS],const ogg_uint16_t _p0[],
- int _nmodes,int _left,int _upleft,int _up);
+ unsigned char _probs[][OD_INTRA_NCONTEXTS], int _nmodes,
+ int _left, int _upleft, int _up);
 
 int od_intra_pred_search(const ogg_uint16_t _cdf[],
  const ogg_uint32_t _dist[], int _nmodes, ogg_uint16_t _lambda);
 
-void od_intra_pred_update(ogg_uint16_t _p0[], int _nmodes, int _mode,
+void od_intra_pred_update(unsigned char _probs[][OD_INTRA_NCONTEXTS],
+ int _nmodes, int _mode,
  int _left, int _upleft, int _up);
 
 void od_resample_luma_coeffs(od_coeff *l, int lstride,
