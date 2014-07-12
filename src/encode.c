@@ -335,7 +335,8 @@ static void od_encode_compute_pred(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, od_co
 #if OD_DISABLE_INTRA
         mode = 0;
 #else
-        mode = od_intra_pred_search(mode_cdf, mode_dist, OD_INTRA_NMODES, 256);
+        mode = od_intra_pred_search(mode_cdf, mode_dist, OD_INTRA_NMODES,
+         OD_MINI(32767, enc->scale[pli]*256));
 #endif
         (*OD_INTRA_GET[ln])(pred, coeffs, strides, mode);
 #if OD_DISABLE_INTRA
