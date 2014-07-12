@@ -554,9 +554,12 @@ void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
     OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
   if (OD_DISABLE_HAAR_DC || !ctx->is_keyframe) {
-    if (!run_pvq || scalar_out[0]) generic_encode(&enc->ec,
-     &enc->adapt.model_dc[pli], abs(scalar_out[0]) - run_pvq, -1,
-     &enc->adapt.ex_dc[pli][ln][0], 2);
+    int has_dc_skip;
+    has_dc_skip = !ctx->is_keyframe && run_pvq;
+    if (!has_dc_skip || scalar_out[0]) {
+      generic_encode(&enc->ec, &enc->adapt.model_dc[pli],
+       abs(scalar_out[0]) - has_dc_skip, -1, &enc->adapt.ex_dc[pli][ln][0], 2);
+    }
     if (scalar_out[0]) od_ec_enc_bits(&enc->ec, scalar_out[0] < 0, 1);
     OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
      OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);

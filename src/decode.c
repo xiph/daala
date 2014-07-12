@@ -369,9 +369,11 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
      coeff_shift);
   }
   if (OD_DISABLE_HAAR_DC || !ctx->is_keyframe) {
-    if (!run_pvq || pred[0]) {
-      pred[0] = run_pvq + generic_decode(&dec->ec, &dec->adapt.model_dc[pli],
-       -1, &dec->adapt.ex_dc[pli][ln][0], 2);
+    int has_dc_skip;
+    has_dc_skip = !ctx->is_keyframe && run_pvq;
+    if (!has_dc_skip || pred[0]) {
+      pred[0] = has_dc_skip + generic_decode(&dec->ec,
+       &dec->adapt.model_dc[pli], -1, &dec->adapt.ex_dc[pli][ln][0], 2);
       if (pred[0]) pred[0] *= od_ec_dec_bits(&dec->ec, 1) ? -1 : 1;
     }
     pred[0] = (pred[0]*dc_scale << coeff_shift) + predt[0];
