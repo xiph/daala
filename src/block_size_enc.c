@@ -360,8 +360,8 @@ void od_block_size_encode(od_ec_enc *enc, od_adapt_ctx *adapt,
     }
   }
   OD_ASSERT(range_id != -1);
-  /* The first symbol we encode is the min/max range of the block sizes.
-     TODO: Add some context. */
+  /* The first symbol we encode is the min/max range of the block sizes. We
+     use the min neighbor block size as context. */
   od_encode_cdf_adapt(enc, range_id, adapt->bsize_range_cdf[min_ctx_size], 7,
    adapt->bsize_range_increment);
   split16 = 8*(bsize[0] == 2) + 4*(bsize[2] == 2) + 2*(bsize[2*stride] == 2)

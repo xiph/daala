@@ -168,7 +168,7 @@ struct od_adapt_ctx {
   int                 pvq_exg[OD_NPLANES_MAX][OD_NBSIZES][PVQ_MAX_PARTITIONS];
   unsigned            pvq_noref_prob[OD_NBSIZES*PVQ_MAX_PARTITIONS];
   int                 pvq_noref_joint_increment;
-  ogg_uint16_t        pvq_noref_joint_cdf[OD_NBSIZES-1][16];
+  ogg_uint16_t        pvq_noref_joint_cdf[OD_NBSIZES - 1][16];
   ogg_uint16_t        pvq_noref2_joint_cdf[5][8];
 
   int                 bsize_range_increment;
@@ -207,7 +207,7 @@ void od_state_pred_block_from_setup(od_state *_state, unsigned char *_buf,
 void od_state_pred_block(od_state *_state, unsigned char *_buf, int _ystride,
  int _ref, int _pli, int _vx, int _vy, int _log_mvb_sz);
 void od_state_mc_predict(od_state *_state, int _ref);
-void od_state_init_border_as_32x32(od_state *_state);
+void od_state_init_border(od_state *_state);
 void od_state_upsample8(od_state *_state, od_img *_dst, const od_img *_src);
 int od_state_dump_yuv(od_state *_state, od_img *_img, const char *_tag);
 # if defined(OD_DUMP_IMAGES)

@@ -1000,7 +1000,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   }
   od_adapt_ctx_reset(&enc->adapt, mbctx.is_keyframe);
   /*Block size switching.*/
-  od_state_init_border_as_32x32(&enc->state);
+  od_state_init_border(&enc->state);
   /* Allocate a blockSizeComp for scratch space and then calculate the block sizes
      eventually store them in bsize. */
   bs = _ogg_malloc(sizeof(BlockSizeComp));

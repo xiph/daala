@@ -657,7 +657,7 @@ static void od_decode_block_sizes(od_dec_ctx *dec) {
   int j;
   int nhsb;
   int nvsb;
-  od_state_init_border_as_32x32(&dec->state);
+  od_state_init_border(&dec->state);
   nhsb = dec->state.nhsb;
   nvsb = dec->state.nvsb;
   if (OD_LIMIT_LOG_BSIZE_MIN != OD_LIMIT_LOG_BSIZE_MAX) {

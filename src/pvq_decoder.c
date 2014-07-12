@@ -193,7 +193,6 @@ void pvq_decode(daala_dec_ctx *dec,
   const int *off;
   int size[PVQ_MAX_PARTITIONS];
   double g[PVQ_MAX_PARTITIONS] = {0};
-  ogg_uint16_t *skip_cdf;
   generic_encoder *model;
   unsigned *noref_prob;
   int skip;
@@ -201,13 +200,12 @@ void pvq_decode(daala_dec_ctx *dec,
   exg = &dec->adapt.pvq_exg[pli][ln][0];
   ext = dec->adapt.pvq_ext + ln*PVQ_MAX_PARTITIONS;
   noref_prob = dec->adapt.pvq_noref_prob + ln*PVQ_MAX_PARTITIONS;
-  skip_cdf = dec->adapt.skip_cdf[pli];
   model = dec->adapt.pvq_param_model;
   nb_bands = od_band_offsets[ln][0];
   off = &od_band_offsets[ln][1];
   if (is_keyframe) skip = 0;
   else {
-    skip = od_decode_cdf_adapt(&dec->ec, skip_cdf, 4,
+    skip = od_decode_cdf_adapt(&dec->ec, dec->adapt.skip_cdf[pli], 4,
      dec->adapt.skip_increment);
     out[0] = skip&1;
     skip >>= 1;
@@ -219,17 +217,18 @@ void pvq_decode(daala_dec_ctx *dec,
     for (i = 0; i < nb_bands; i++) size[i] = off[i+1] - off[i];
     if (!is_keyframe && ln > 0) {
       int id;
-      id = od_decode_cdf_adapt(&dec->ec, dec->adapt.pvq_noref_joint_cdf[ln-1],
-       16, dec->adapt.pvq_noref_joint_increment);
+      id = od_decode_cdf_adapt(&dec->ec,
+       dec->adapt.pvq_noref_joint_cdf[ln - 1], 16,
+       dec->adapt.pvq_noref_joint_increment);
       for (i = 0; i < 4; i++) noref[i] = (id >> (3 - i)) & 1;
       if (ln >= 2) {
-        int count;
-        count = 0;
-        for (i = 0; i < 4; i++) count += noref[i];
+        int nb_norefs;
+        nb_norefs = 0;
+        for (i = 0; i < 4; i++) nb_norefs += noref[i];
         id = od_decode_cdf_adapt(&dec->ec,
-         dec->adapt.pvq_noref2_joint_cdf[count], 8,
+         dec->adapt.pvq_noref2_joint_cdf[nb_norefs], 8,
          dec->adapt.pvq_noref_joint_increment);
-        for (i = 4; i < 7; i++) noref[i] = (id >> (6 - i)) & 1;
+        for (i = 0; i < 3; i++) noref[i + 4] = (id >> (2 - i)) & 1;
       }
     }
     else {

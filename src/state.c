@@ -1279,7 +1279,7 @@ void od_state_mc_predict(od_state *state, int ref) {
   These "dummy" superblocks are notionally not subdivided.
   See the comment for the `bsize` member of `od_state` for more information
    about the data layout and meaning.*/
-void od_state_init_border_as_32x32(od_state *state) {
+void od_state_init_border(od_state *state) {
   int i;
   int j;
   int nhsb;

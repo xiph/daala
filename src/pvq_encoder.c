@@ -183,18 +183,19 @@ void pvq_encode(daala_enc_ctx *enc,
     id = 0;
     /* Jointly code the noref flags for the first 4 bands. */
     for (i = 0; i < 4; i++) id = (id << 1) + (theta[i] == -1);
-    od_encode_cdf_adapt(&enc->ec, id, enc->adapt.pvq_noref_joint_cdf[ln-1],
+    od_encode_cdf_adapt(&enc->ec, id, enc->adapt.pvq_noref_joint_cdf[ln - 1],
      16, enc->adapt.pvq_noref_joint_increment);
     if (ln >= 2) {
-      int count;
+      int nb_norefs;
       id = 0;
-      count = 0;
+      nb_norefs = 0;
       /* Context for the last 3 bands is how many of the first 4 bands are
          noref. */
-      for (i = 0; i < 4; i++) count += (theta[i] == -1);
-      for (i = 4; i < 7; i++) id = (id << 1) + (theta[i] == -1);
-      od_encode_cdf_adapt(&enc->ec, id, enc->adapt.pvq_noref2_joint_cdf[count],
-       8, enc->adapt.pvq_noref_joint_increment);
+      for (i = 0; i < 4; i++) nb_norefs += (theta[i] == -1);
+      for (i = 0; i < 3; i++) id = (id << 1) + (theta[i + 4] == -1);
+      od_encode_cdf_adapt(&enc->ec, id,
+       enc->adapt.pvq_noref2_joint_cdf[nb_norefs], 8,
+       enc->adapt.pvq_noref_joint_increment);
     }
   }
   else {
