@@ -185,8 +185,8 @@ AS_IF([test "$enable_encoder_check" = "yes"], [
 AM_CONDITIONAL([ENCODER_CHECK], [test "$enable_encoder_check" = "yes"])
 
 AC_ARG_ENABLE([dump-images],
-  AS_HELP_STRING([--disable-dump-images], [Do not dump debugging images]),,
-  [enable_dump_images=yes])
+  AS_HELP_STRING([--enable-dump-images], [Dump debugging images]),,
+  [enable_dump_images=no])
 AS_IF([test "$enable_dump_images" = "yes"], [
   AC_DEFINE([OD_DUMP_IMAGES], [1], [Enable image dumping])
   PC_PNG_REQUIRES="libpng"
@@ -195,6 +195,13 @@ AS_IF([test "$enable_dump_images" = "yes"], [
 AM_CONDITIONAL([DUMP_IMAGES], [test "$enable_dump_images" = "yes"])
 AC_SUBST([PC_PNG_REQUIRES])
 AC_SUBST([PC_PNG_LIBS])
+
+AC_ARG_ENABLE([dump-recons],
+  AS_HELP_STRING([--enable-dump-recons], [Dump reconstructed video]),,
+  [enable_dump_recons=no])
+AS_IF([test "$enable_dump_recons" = "yes"], [
+  AC_DEFINE([OD_DUMP_RECONS], [1], [Enable reconstructed video dumping])
+])
 
 AC_ARG_ENABLE([accounting],
   AS_HELP_STRING([--enable-accounting], [Enable bit accounting]),
@@ -223,6 +230,7 @@ AC_MSG_NOTICE([
     API documentation ............ ${enable_doc}
     Assembly optimizations ....... ${enable_asm}
     Image dumping ................ ${enable_dump_images}
+    Reconstructed video dumping .. ${enable_dump_recons}
     Check encoder ................ ${enable_encoder_check}
     Bit accounting ............... ${enable_accounting}
     Tools ........................ ${enable_tools}

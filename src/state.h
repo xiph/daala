@@ -97,7 +97,7 @@ struct od_state_opt_vtbl{
   void (*restore_fpu)(void);
 };
 
-# if defined(OD_DUMP_IMAGES)
+# if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
 struct od_yuv_dumpfile{
   char tag[16];
   FILE *fd;
@@ -150,10 +150,12 @@ struct od_state{
   int                 bstride;
   od_coeff           *(sb_dc_mem[OD_NPLANES_MAX]);
   int                 mv_res;
-# if defined(OD_DUMP_IMAGES)
-  od_img              vis_img;
+# if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
   int                 dump_tags;
   od_yuv_dumpfile    *dump_files;
+# endif
+# if defined(OD_DUMP_IMAGES)
+  od_img              vis_img;
 #  if defined(OD_ANIMATE)
   int                 ani_iter;
 #  endif

@@ -38,8 +38,9 @@ case $CODEC in
       exit 1
     fi
 
-    if ! grep -Fxq "#define OD_DUMP_IMAGES 1" "$DAALA_ROOT/config.h"; then
-      echo "Image dumping not enabled, re-run configure without --disable-dump-images"
+    if ((! grep -Fxq "#define OD_DUMP_IMAGES 1" "$DAALA_ROOT/config.h") &&
+        (! grep -Fxq "#define OD_DUMP_RECONS 1" "$DAALA_ROOT/config.h")); then
+      echo "Video dumping not enabled, re-run configure with --enable-dump-recons"
       exit 1
     fi
 

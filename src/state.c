@@ -208,7 +208,7 @@ int od_state_init(od_state *state, const daala_info *info) {
    sizeof(*state->bsize)*(state->nhsb + 2)*4*(state->nvsb + 2)*4);
   state->bstride = (state->nhsb + 2)*4;
   state->bsize += 4*state->bstride + 4;
-#if defined(OD_DUMP_IMAGES)
+#if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
   state->dump_tags = 0;
   state->dump_files = 0;
 #endif
@@ -216,7 +216,7 @@ int od_state_init(od_state *state, const daala_info *info) {
 }
 
 void od_state_clear(od_state *state) {
-#if defined(OD_DUMP_IMAGES)
+#if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
   int i;
   if (state->dump_tags > 0) {
     for (i = 0; i < state->dump_tags; i++) fclose(state->dump_files[i].fd);
@@ -713,7 +713,7 @@ int od_state_dump_yuv(od_state *state, od_img *img, const char *tag) {
   int y;
   int pli;
   int needs_header;
-#if defined(OD_DUMP_IMAGES)
+#if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
   int i;
   needs_header = 0;
   for (i = 0; i < state->dump_tags &&
@@ -737,7 +737,7 @@ int od_state_dump_yuv(od_state *state, od_img *img, const char *tag) {
     }
     sprintf(fname, "%08i%s-%s.y4m",
      (int)daala_granule_basetime(state, state->cur_time), tag, suf);
-#if defined(OD_DUMP_IMAGES)
+#if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
     state->dump_files[i].fd = fopen(fname, "wb");
   }
   fp = state->dump_files[i].fd;
