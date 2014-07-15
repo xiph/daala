@@ -195,7 +195,7 @@ int main(int argc, char **argv)
     if (feof(stdin))
       break;
     for (j = 0; j < ndim; j++) {
-      scanf("%lf ", &data[i*ndim + j]);
+      if(scanf("%lf ", &data[i*ndim + j]) != 1) exit(EXIT_FAILURE);
     }
     normalize(&data[i*ndim], ndim);
   }
