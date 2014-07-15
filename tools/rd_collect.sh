@@ -33,11 +33,6 @@ case $CODEC in
       exit 1
     fi
 
-    if ! grep -Fxq "#define OD_LOGGING_ENABLED 1" "$DAALA_ROOT/config.h"; then
-      echo "Logging not enabled, re-run configure with --enable-logging"
-      exit 1
-    fi
-
     if ((! grep -Fxq "#define OD_DUMP_IMAGES 1" "$DAALA_ROOT/config.h") &&
         (! grep -Fxq "#define OD_DUMP_RECONS 1" "$DAALA_ROOT/config.h")); then
       echo "Video dumping not enabled, re-run configure with --enable-dump-recons"
