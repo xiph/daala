@@ -157,6 +157,7 @@ void pvq_encode(daala_enc_ctx *enc,
   model = enc->adapt.pvq_param_model;
   nb_bands = od_band_offsets[ln][0];
   off = &od_band_offsets[ln][1];
+  tell = 0;
   for (i = 0; i < nb_bands; i++) size[i] = off[i+1] - off[i];
   skip_diff = 0;
   for (i = 0; i < nb_bands; i++) {
