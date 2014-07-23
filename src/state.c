@@ -748,19 +748,22 @@ int od_state_dump_yuv(od_state *state, od_img *img, const char *tag) {
 #endif
   pic_width = state->info.pic_width;
   pic_height = state->info.pic_height;
-  OD_ASSERT(img->nplanes >= 3);
+  OD_ASSERT(img->nplanes != 2);
   if (needs_header) {
     int fps_num;
     int fps_denom;
+    const char *chroma;
     fps_num = state->info.timebase_numerator;
     fps_denom = state->info.timebase_denominator*state->info.frame_duration;
+    chroma = img->nplanes == 1 ? " Cmono" :
+     CHROMA_TAGS[(img->planes[1].xdec == 0) + (img->planes[1].ydec == 0)*2];
     fprintf(fp, "YUV4MPEG2 W%i H%i F%i:%i Ip A%i:%i%s\n",
      pic_width, pic_height, fps_num, fps_denom,
      state->info.pixel_aspect_numerator, state->info.pixel_aspect_denominator,
-     CHROMA_TAGS[(img->planes[1].xdec == 0) + (img->planes[1].ydec == 0)*2]);
+     chroma);
   }
   fprintf(fp, "FRAME\n");
-  for (pli = 0; pli < 3; pli++) {
+  for (pli = 0; pli < OD_MINI(img->nplanes, 3); pli++) {
     int xdec;
     int ydec;
     int ystride;
