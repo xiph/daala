@@ -293,7 +293,8 @@ static void id_file(av_input *_avin,const char *_file){
 }
 
 int fetch_and_process_video(av_input *_avin,ogg_page *_page,
- ogg_stream_state *_vo,daala_enc_ctx *_dd,int _video_ready){
+ ogg_stream_state *_vo,daala_enc_ctx *_dd,int _video_ready,
+ int *_limit){
   ogg_packet op;
   while(!_video_ready){
     size_t ret;
@@ -301,7 +302,7 @@ int fetch_and_process_video(av_input *_avin,ogg_page *_page,
     char   c;
     int    last;
     if(ogg_stream_pageout(_vo,_page)>0)return 1;
-    else if(ogg_stream_eos(_vo))return 0;
+    else if(ogg_stream_eos(_vo)||(_limit && (*_limit)<0))return 0;
     ret=fread(frame,1,6,_avin->video_infile);
     if(ret==6){
       od_img *img;
@@ -335,7 +336,11 @@ int fetch_and_process_video(av_input *_avin,ogg_page *_page,
           exit(1);
         }
       }
-      last=0;
+      if(_limit){
+        last=(*_limit)==0;
+        (*_limit)--;
+      }
+      else last=0;
     }
     else last=1;
     /*Pull the packets from the previous frame, now that we know whether or not
@@ -348,7 +353,7 @@ int fetch_and_process_video(av_input *_avin,ogg_page *_page,
   return _video_ready;
 }
 
-static const char *OPTSTRING="o:a:A:v:V:s:S:f:F:h:k:";
+static const char *OPTSTRING="o:a:A:v:V:s:S:f:F:h:k:l:";
 
 static const struct option OPTIONS[]={
   {"output",required_argument,NULL,'o'},
@@ -356,6 +361,7 @@ static const struct option OPTIONS[]={
   {"video-rate-target",required_argument,NULL,'V'},
   {"keyframe-rate",required_argument,NULL,'k'},
   {"serial",required_argument,NULL,'s'},
+  {"limit",required_argument,NULL,'l'},
   {"help",no_argument,NULL,'h'},
   {NULL,0,NULL,0}
 };
@@ -378,6 +384,7 @@ static void usage(void){
    "                                 as -v gives higher quality for a given\n"
    "                                 bitrate.\n\n"
    "  -s --serial <n>                Specify a serial number for the stream.\n"
+   "  -l --limit <n>                 Maximum number of frames to encode.\n"
    " encoder_example accepts only uncompressed YUV4MPEG2 video.\n\n");
   exit(1);
 }
@@ -404,6 +411,7 @@ int main(int _argc,char **_argv){
   int               pli;
   int               fixedserial;
   unsigned int      serial;
+  int               limit;
   daala_log_init();
 #if defined(_WIN32)
   _setmode(_fileno(stdin),_O_BINARY);
@@ -420,6 +428,7 @@ int main(int _argc,char **_argv){
   video_r=-1;
   video_bytesout=0;
   fixedserial=0;
+  limit=-1;
   while((c=getopt_long(_argc,_argv,OPTSTRING,OPTIONS,&loi))!=EOF){
     switch(c){
       case 'o':{
@@ -459,6 +468,14 @@ int main(int _argc,char **_argv){
         }
         else{
           fixedserial=1;
+        }
+      }break;
+      case 'l':{
+        limit=atoi(optarg);
+        if(limit<1){
+          fprintf(stderr,
+           "Illegal maximum frame limit (must be greater than 0)\n");
+          exit(1);
         }
       }break;
       case 'h':
@@ -550,7 +567,7 @@ int main(int _argc,char **_argv){
     double   video_time;
     size_t bytes_written;
     video_ready=fetch_and_process_video(&avin,&video_page,
-     &vo,dd,video_ready);
+     &vo,dd,video_ready,limit>=0 ? &limit : NULL);
     /*TODO: Fetch the next video page.*/
     /*If no more pages are available, we've hit the end of the stream.*/
     if(!video_ready)break;
