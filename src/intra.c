@@ -32,6 +32,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "filter.h"
 #include "intra.h"
 #include "tf.h"
+#include "state.h"
 
 const od_intra_mult_func OD_INTRA_MULT[OD_NBSIZES+1] = {
   od_intra_pred4x4_mult,
@@ -365,7 +366,8 @@ void od_intra_pred_cdf(ogg_uint16_t _cdf[],
   for (mi = 0; mi < _nmodes; mi++) {
     /*Apply probability combination here: p[mi] *= (sum-p[mi])/(1-p[mi]).*/
     /*FIXME: Make this fixed-point.*/
-    p[mi] = OD_MINI(8192, OD_MAXI(1, (int)(p[mi]*(sum-p[mi])/(float)(256-p[mi]))));
+    p[mi] = OD_MINI(8192, OD_MAXI(1,
+     (int)(p[mi]*(sum-p[mi])/(float)(256-p[mi]))));
     curr_cdf += p[mi];
     _cdf[mi] = curr_cdf;
   }
@@ -394,13 +396,14 @@ int od_intra_pred_search(const ogg_uint16_t _cdf[],
 void od_intra_pred_update(unsigned char _probs[][OD_INTRA_NCONTEXTS],
  int _nmodes, int _mode, int _left, int _upleft, int _up) {
   int mi;
-  int speed = 4;
   for (mi = 0; mi < _nmodes; mi++) {
     int id = (_left == mi)*4+(_upleft == mi)*2+(_up == mi);
-    _probs[mi][id] -= _probs[mi][id] >> speed;
+    _probs[mi][id] -= _probs[mi][id] >> OD_INTRA_ADAPT_SPEED;
     if (_mode == mi) {
-      _probs[mi][id] = OD_MINI(255, _probs[mi][id] + (256 >> speed));
+      _probs[mi][id] = _probs[mi][id] + (256 >> OD_INTRA_ADAPT_SPEED);
     }
+    /* Bound certainty to avoid problems with the renormalization. Also
+       avoids high costs if the modeling isn't very good. */
     _probs[mi][id] = OD_MAXI(5, OD_MINI(251, _probs[mi][id]));
   }
 }

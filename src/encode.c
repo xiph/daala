@@ -335,6 +335,8 @@ static void od_encode_compute_pred(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, od_co
 #if OD_DISABLE_INTRA
         mode = 0;
 #else
+        /* Make lambda proportional to quantization step size, with exact
+           factor based on quick experiments with subset1 (can be improved). */
         mode = od_intra_pred_search(mode_cdf, mode_dist, OD_INTRA_NMODES,
          OD_MINI(32767, enc->scale[pli]*256));
 #endif

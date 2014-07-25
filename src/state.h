@@ -42,6 +42,8 @@ extern const od_coeff OD_DC_RES[3];
 
 /*Adaptation speed of scalar Laplace encoding.*/
 # define OD_SCALAR_ADAPT_SPEED (4)
+/*Adaptation speed of intra mode encoding.*/
+# define OD_INTRA_ADAPT_SPEED (4)
 
 /*The golden reference frame.*/
 # define OD_FRAME_GOLD (0)
