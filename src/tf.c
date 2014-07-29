@@ -90,19 +90,13 @@ void od_tf_up_hv_lp(od_coeff *dst, int dstride,
       od_coeff lh;
       od_coeff hl;
       od_coeff hh;
-      od_coeff lhmhl_2;
       int hswap;
       ll = src[y*sstride + x];
       lh = src[y*sstride + x + dx];
       hl = src[(y + dy)*sstride + x];
       hh = src[(y + dy)*sstride + x + dx];
-      hl = ll - hl;
-      lh += hh;
-      lhmhl_2 = OD_DCT_RSHIFT(lh - hl, 1);
-      ll += lhmhl_2;
-      hh -= lhmhl_2;
-      lh = ll - lh;
-      hl -= hh;
+      /*We swap lh and hl for compatibility with od_tf_up_hv.*/
+      OD_HAAR_KERNEL(ll, hl, lh, hh);
       hswap = x & 1;
       dst[(2*y + vswap)*dstride + 2*x + hswap] = ll;
       dst[(2*y + vswap)*dstride + 2*x + 1 - hswap] = lh;
@@ -126,21 +120,13 @@ void od_tf_up_hv(od_coeff *dst, int dstride,
       od_coeff lh;
       od_coeff hl;
       od_coeff hh;
-      od_coeff lhmhl_2;
       int hswap;
       ll = src[y*sstride + x];
       lh = src[y*sstride + x + n];
       hl = src[(y + n)*sstride + x];
       hh = src[(y + n)*sstride + x + n];
-      /*This kernel is identical to that of od_tf_down_hv with the roles of
-         hl and lh swapped.*/
-      hl = ll - hl;
-      lh += hh;
-      lhmhl_2 = OD_DCT_RSHIFT(lh - hl, 1);
-      ll += lhmhl_2;
-      hh -= lhmhl_2;
-      lh = ll - lh;
-      hl -= hh;
+      /*We have to swap lh and hl for exact reversibility with od_tf_up_down.*/
+      OD_HAAR_KERNEL(ll, hl, lh, hh);
       hswap = x & 1;
       dst[(2*y + vswap)*dstride + 2*x + hswap] = ll;
       dst[(2*y + vswap)*dstride + 2*x + 1 - hswap] = lh;
@@ -166,22 +152,13 @@ void od_tf_down_hv(od_coeff *dst, int dstride,
       od_coeff lh;
       od_coeff hl;
       od_coeff hh;
-      od_coeff lhmhl_2;
       int hswap;
       hswap = x & 1;
       ll = src[(2*y + vswap)*sstride + 2*x + hswap];
       lh = src[(2*y + vswap)*sstride + 2*x + 1 - hswap];
       hl = src[(2*y + 1 - vswap)*sstride+2*x + hswap];
       hh = src[(2*y + 1 - vswap)*sstride+2*x + 1 - hswap];
-      /*This kernel is identical to that of od_tf_up_hv with the roles of
-         hl and lh swapped.*/
-      lh = ll - lh;
-      hl += hh;
-      lhmhl_2 = OD_DCT_RSHIFT(lh - hl, 1);
-      ll -= lhmhl_2;
-      hh += lhmhl_2;
-      hl = ll - hl;
-      lh -= hh;
+      OD_HAAR_KERNEL(ll, lh, hl, hh);
       dst[y*dstride + x] = ll;
       dst[y*dstride + x + n] = lh;
       dst[(y + n)*dstride + x] = hl;

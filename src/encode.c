@@ -657,20 +657,13 @@ static void od_compute_dcts(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
     od_compute_dcts(enc, ctx, pli, bx + 1, by + 1, l, xdec, ydec);
     if (!OD_DISABLE_HAAR_DC && ctx->is_keyframe) {
       od_coeff x[4];
-      od_coeff tmp;
       int l2;
       l2 = l - xdec + 2;
       x[0] = c[(by << l2)*w + (bx << l2)];
       x[1] = c[(by << l2)*w + ((bx + 1) << l2)];
       x[2] = c[((by + 1) << l2)*w + (bx << l2)];
       x[3] = c[((by + 1) << l2)*w + ((bx + 1) << l2)];
-      x[0] += x[1];
-      x[3] -= x[2];
-      tmp = (x[0] - x[3]) >> 1;
-      x[1] = tmp - x[1];
-      x[2] = tmp - x[2];
-      x[0] -= x[2];
-      x[3] += x[1];
+      OD_HAAR_KERNEL(x[0], x[2], x[1], x[3]);
       c[(by << l2)*w + (bx << l2)] = x[0];
       c[(by << l2)*w + ((bx + 1) << l2)] = x[1];
       c[((by + 1) << l2)*w + (bx << l2)] = x[2];
@@ -745,7 +738,6 @@ static void od_quantize_haar_dc(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
   }
   if (l > d) {
     od_coeff x[4];
-    od_coeff tmp;
     int l2;
     l--;
     bx <<= 1;
@@ -771,13 +763,7 @@ static void od_quantize_haar_dc(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
     x[2] += vgrad/5;
     hgrad = x[1];
     vgrad = x[2];
-    x[0] += x[2];
-    x[3] -= x[1];
-    tmp = (x[0] - x[3]) >> 1;
-    x[1] = tmp - x[1];
-    x[2] = tmp - x[2];
-    x[0] -= x[1];
-    x[3] += x[2];
+    OD_HAAR_KERNEL(x[0], x[1], x[2], x[3]);
     c[(by << l2)*w + (bx << l2)] = x[0];
     c[(by << l2)*w + ((bx + 1) << l2)] = x[1];
     c[((by + 1) << l2)*w + (bx << l2)] = x[2];

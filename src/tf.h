@@ -26,6 +26,24 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # define _tf_H (1)
 # include "filter.h"
 
+/*This is an in-place, reversible, orthonormal Haar transform in 7 adds,
+   1 shift (2 operations per sample).
+  It is its own inverse (but requires swapping lh and hl on one side for
+   bit-exact reversibility).
+  It is defined in a macro here so it can be reused in various places.*/
+#define OD_HAAR_KERNEL(ll, lh, hl, hh) \
+  do { \
+    od_coeff llmhh_2__; \
+    (ll) += (hl); \
+    (hh) -= (lh); \
+    llmhh_2__ = ((ll) - (hh)) >> 1; \
+    (lh) = llmhh_2__ - (lh); \
+    (hl) = llmhh_2__ - (hl); \
+    (ll) -= (lh); \
+    (hh) += (hl); \
+  } \
+  while(0)
+
 void od_tf_up_h_lp(od_coeff *dst, int dstride,
  const od_coeff *src, int sstride, int dx, int n);
 
