@@ -239,6 +239,8 @@ int main(int argc, char *argv[]) {
   jpeg_set_quality(&cinfo, quality, TRUE);
   cinfo.optimize_coding = TRUE;
 
+  jpeg_simple_progression(&cinfo);
+
   jpeg_start_compress(&cinfo, TRUE);
 
   plane_pointer[0] = yrow_pointer;
