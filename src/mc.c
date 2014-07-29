@@ -1914,7 +1914,8 @@ static void od_mc_blend_multi_split8(unsigned char *dst, int dystride,
   int ddsdidj[4];
   int xblk_sz;
   int yblk_sz;
-  int log_blk_sz2p1;
+  int log_blk_sz2m1;
+  int round;
   int i;
   int j;
   int k;
@@ -1923,7 +1924,8 @@ static void od_mc_blend_multi_split8(unsigned char *dst, int dystride,
   yblk_sz = 1 << log_yblk_sz;
   o0 = 0;
   dst0 = dst;
-  log_blk_sz2p1 = log_xblk_sz + log_yblk_sz + 1;
+  log_blk_sz2m1 = log_xblk_sz + log_yblk_sz - 1;
+  round = 1 << (log_blk_sz2m1 - 1);
   od_mc_setup_s_split(s0, dsdi, dsdj, ddsdidj, oc, s,
    log_xblk_sz - 1, log_yblk_sz - 1);
   sidx0 = OD_MC_SIDXS[log_yblk_sz - 2][log_xblk_sz - 2][s][oc];
@@ -1956,9 +1958,11 @@ static void od_mc_blend_multi_split8(unsigned char *dst, int dystride,
       p = src[(k + 3) & 3] + o;
       ll[(k + 3) & 3] = p[0] + p[1] + (p + xblk_sz)[0] + (p + xblk_sz)[1];
       /*LL blending.*/
-      a = (int)(((ogg_int32_t)ll[0]*sw[0]
-       + (ogg_int32_t)ll[1]*sw[1] + (ogg_int32_t)ll[2]*sw[2]
-       + (ogg_int32_t)ll[3]*sw[3]) >> log_blk_sz2p1);
+      a = ll[0];
+      b = (ll[1] - a)*sw[1];
+      c = (ll[2] - a)*sw[2];
+      d = (ll[3] - a)*sw[3];
+      a = (int)(((a << log_blk_sz2m1) + b + c + d + round) >> log_blk_sz2m1);
       /*Inverse Haar wavelet.*/
       c = (a - hl + 1) >> 1;
       a = (a + hl + 1) >> 1;
