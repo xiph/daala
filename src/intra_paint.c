@@ -325,11 +325,11 @@ static void interp_block(unsigned char *img, int *edge_accum, int n,
   for (i = 0; i < n; i++) {
     for (j = 0; j < n; j++) {
       int k;
-      img[i*stride + j] = 0;
+      int sum;
       pixel_interp(pi, pj, w, m, i, j, ln);
-      for (k = 0; k < 4; k++) {
-        img[i*stride + j] += (edge_accum[pi[k]*stride + pj[k]]*w[k] + 64) >> 7;
-      }
+      sum = 0;
+      for (k = 0; k < 4; k++) sum += edge_accum[pi[k]*stride + pj[k]]*w[k];
+      img[i*stride + j] = OD_CLAMPI(0, (sum + 64) >> 7, 255);
     }
   }
 }
