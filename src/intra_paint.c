@@ -202,7 +202,7 @@ static void pixel_interp(int pi[4], int pj[4], int w[4], int m, int i, int j,
 
 static void compare_mode(unsigned char block[MAXN][MAXN],
  unsigned char best_block[MAXN][MAXN], int *dist, int *best_dist, int id,
- int *best_id, int n, unsigned char *img, int stride) {
+ int *best_id, int n, const unsigned char *img, int stride) {
   int i;
   int j;
   int curr_dist;
@@ -229,7 +229,7 @@ static void compare_mode(unsigned char block[MAXN][MAXN],
 
 /* Select which mode to use for a block by making the (false) assumption that
    the edge is coded only based on that mode. */
-static int mode_select(unsigned char *img, int n, int stride) {
+static int mode_select(const unsigned char *img, int n, int stride) {
   int i;
   int j;
   int m;
@@ -281,7 +281,7 @@ static int mode_select(unsigned char *img, int n, int stride) {
       }
     }
     compare_mode(block, best_block, &dist, &best_dist, m, &best_id, n, img,
-         stride);
+     stride);
   }
   return best_id;
 }
@@ -289,8 +289,8 @@ static int mode_select(unsigned char *img, int n, int stride) {
 /* Compute the final edges once the contribution of all blocks are counted.
    There's usually two blocks used for each edge, but there can be up to 4
    in the corners. */
-static void compute_edges(unsigned char *img, int *edge_accum, int *edge_count,
- int n, int stride, int m) {
+static void compute_edges(const unsigned char *img, int *edge_accum,
+ int *edge_count, int n, int stride, int m) {
   int i;
   int j;
   int pi[4];
@@ -616,7 +616,8 @@ static void quantize_edge(int *edge_accum, int n, int stride, int q, int m) {
   /*printf("\n");*/
 }
 
-void intra_decision(unsigned char *img, int w8, int h8, int stride) {
+void od_intra_paint_encode(unsigned char *paint, const unsigned char *img,
+ int w8, int h8, int stride) {
   int i, j;
   for(i = 8; i < 2*h8-8; i++) {
     for(j = 8; j < 2*w8-8; j++) {
@@ -648,7 +649,7 @@ void intra_decision(unsigned char *img, int w8, int h8, int stride) {
       bs = dec8[i>>1][j>>1];
       if (i>>bs<<bs == i && j>>bs<<bs == j) {
         quantize_edge(&edge_accum[4*stride*i + 4*j], 4<<bs, stride, 30, mode[i][j]);
-        interp_block(&img[4*stride*i + 4*j], &edge_accum[4*stride*i + 4*j],
+        interp_block(&paint[4*stride*i + 4*j], &edge_accum[4*stride*i + 4*j],
          4<<bs, stride, mode[i][j]);
       }
     }
@@ -690,7 +691,7 @@ int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh
           dec8[4*i+k][4*j+m]=2+0*OD_MINI(3,OD_MAXI(1, dec[k][m]));
     }
   }
-  intra_decision(img, w8, h8, stride);
+  od_intra_paint_encode(img, img, w8, h8, stride);
 #if 0
   for(i=4;i<h8-4;i++){
     for(j=4;j<w8-4;j++){
