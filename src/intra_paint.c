@@ -44,7 +44,18 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 unsigned char intra_matrix16[33][16][16][8] = {{{{0}}}};
 static unsigned char dec8[MAX_VAR_BLOCKS>>2][MAX_VAR_BLOCKS>>2] = {{0}};
 static unsigned char mode[MAX_VAR_BLOCKS>>1][MAX_VAR_BLOCKS>>1] = {{0}};
+static int edge_accum[1<<24] = {0};
+static int edge_count[1<<24] = {0};
 
+/* Throughout this code, mode -1 means DC/gradient. All other modes are
+   numbered clockwise starting from mode 0 oriented 45 degrees up-right.
+   For an NxN block, mode N is horizontal, mode 2*N is 45-degrees down-right,
+   mode 3*N is vertical, and mode 4*N-1 is just next to mode 0. */
+
+/* This function computes the position of the four points used to interpolate
+   pixel (i,j) within an block of size 2^ln. The weights w[] are in Q7. We
+   always use two edges when interpolating so we can make a smooth transition
+   across edges. */
 static void pixel_interp(int pi[4], int pj[4], int w[4], int m, int i, int j,
  int ln) {
   int k;
@@ -62,13 +73,14 @@ static void pixel_interp(int pi[4], int pj[4], int w[4], int m, int i, int j,
   int dir;
   n = 1 << ln;
   for (k = 0; k < 4; k++) pi[k] = pj[k] = w[k] = 0;
+  /* The the top and left edges, we reuse the points as-is. */
   if (i == 0 || j == 0) {
     pi[0] = i;
     pj[0] = j;
     w[0] = 128;
     return;
   }
-  /* Handle DC */
+  /* DC/Gradient mode, weights are proportional to 1/distance. */
   if (m == -1) {
     pi[0] = 0;
     pj[0] = j;
@@ -203,6 +215,8 @@ static void compare_mode(unsigned char block[MAXN][MAXN],
     }
   }
 #if 1
+  /* Give a slight bias to DC/gradient mode otherwise it doesn't get used.
+     This needs to be improved. */
   if (id==-1) curr_dist -= n*n*2 + 0*curr_dist/4;
 #endif
   *dist = curr_dist;
@@ -213,6 +227,8 @@ static void compare_mode(unsigned char block[MAXN][MAXN],
   }
 }
 
+/* Select which mode to use for a block by making the (false) assumption that
+   the edge is coded only based on that mode. */
 static int mode_select(unsigned char *img, int n, int stride) {
   int i;
   int j;
@@ -270,6 +286,9 @@ static int mode_select(unsigned char *img, int n, int stride) {
   return best_id;
 }
 
+/* Compute the final edges once the contribution of all blocks are counted.
+   There's usually two blocks used for each edge, but there can be up to 4
+   in the corners. */
 static void compute_edges(unsigned char *img, int *edge_accum, int *edge_count,
  int n, int stride, int m) {
   int i;
@@ -292,8 +311,9 @@ static void compute_edges(unsigned char *img, int *edge_accum, int *edge_count,
   }
 }
 
-static void interp_block(unsigned char *img, int *edge_accum, int n, int stride,
- int m) {
+/* Compute the actual interpolation (reconstruction) for a block. */
+static void interp_block(unsigned char *img, int *edge_accum, int n,
+ int stride, int m) {
   int i;
   int j;
   int pi[4];
@@ -314,8 +334,10 @@ static void interp_block(unsigned char *img, int *edge_accum, int n, int stride,
   }
 }
 
-static void predict_bottom_edge(int *p, int *edge_accum, int n, int stride, int m,
- int has_right) {
+/* Predict the bottom edge using the top, left and (optionally, if already
+   coded) right edge, using the mode signaled */
+static void predict_bottom_edge(int *p, int *edge_accum, int n, int stride,
+ int m, int has_right) {
   int i;
   if (m == 2*n) {
     for(i = 0; i < n; i++) p[i] = edge_accum[(n - i - 1)*stride];
@@ -380,8 +402,10 @@ static void predict_bottom_edge(int *p, int *edge_accum, int n, int stride, int 
   if (has_right) p[n - 1] = edge_accum[n*stride+n];
 }
 
-static void predict_right_edge(int *p, int *edge_accum, int n, int stride, int m,
- int has_bottom) {
+/* Predict the right edge using the top, left and (optionally, if already
+   coded) bottom edge, using the mode signaled */
+static void predict_right_edge(int *p, int *edge_accum, int n, int stride,
+ int m, int has_bottom) {
   int i;
   int dir;
   dir = n - m;
@@ -456,6 +480,8 @@ static void predict_right_edge(int *p, int *edge_accum, int n, int stride, int m
   if (has_bottom) p[n - 1] = edge_accum[n*stride+n];
 }
 
+/* This is for simulating 32-point and 64-point DCTs since we don't have those
+   at the moment. */
 static void od_fdct32_approx(od_coeff *y, const od_coeff *x, int xstride) {
   int i;
   for (i = 0; i < 16; i++) {
@@ -514,9 +540,9 @@ static const od_idct_func_1d my_idct_table[5] = {
   od_idct64_approx,
 };
 
-
-static void quantize_bottom_edge(int *edge_accum, int n, int stride, int q, int m,
- int has_right) {
+/* Quantize the bottom edge using prediction. */
+static void quantize_bottom_edge(int *edge_accum, int n, int stride, int q,
+ int m, int has_right) {
   int x[MAXN];
   int p[MAXN] = {0};
   int lsize;
@@ -537,7 +563,7 @@ static void quantize_bottom_edge(int *edge_accum, int n, int stride, int q, int 
 #if QUANTIZE
   for (i = 0; i < n; i++) {
     x[i] = (int)(q*floor(.5+x[i]/q));
-    printf("%d ", (int)floor(.5+x[i]/q));
+    /*printf("%d ", (int)floor(.5+x[i]/q));*/
   }
 #endif
   my_idct_table[lsize](&edge_accum[n*stride+1], 1, x);
@@ -545,8 +571,9 @@ static void quantize_bottom_edge(int *edge_accum, int n, int stride, int q, int 
   for (i = 0; i < n; i++) edge_accum[n*stride + i + 1] = OD_MAXI(0, OD_MINI(255, edge_accum[n*stride+i+1]));
 }
 
-static void quantize_right_edge(int *edge_accum, int n, int stride, int q, int m,
- int has_bottom) {
+/* Quantize the right edge using prediction. */
+static void quantize_right_edge(int *edge_accum, int n, int stride, int q,
+ int m, int has_bottom) {
   int x[MAXN];
   int p[MAXN] = {0};
   int lsize;
@@ -566,7 +593,7 @@ static void quantize_right_edge(int *edge_accum, int n, int stride, int q, int m
 #if QUANTIZE
   for (i = 0; i < n; i++) {
     x[i] = (int)(q*floor(.5+x[i]/q));
-    printf("%d ", (int)floor(.5+x[i]/q));
+    /*printf("%d ", (int)floor(.5+x[i]/q));*/
   }
 #endif
   my_idct_table[lsize](&edge_accum[stride+n], stride, x);
@@ -575,6 +602,8 @@ static void quantize_right_edge(int *edge_accum, int n, int stride, int q, int m
 
 }
 
+/* Quantize both the right and bottom edge, changing the order to maximize
+   the number of pixels we can predict. */
 static void quantize_edge(int *edge_accum, int n, int stride, int q, int m) {
   if (m > 0 && m < n) {
     quantize_right_edge(edge_accum, n, stride, q, m, 0);
@@ -584,11 +613,8 @@ static void quantize_edge(int *edge_accum, int n, int stride, int q, int m) {
     quantize_bottom_edge(edge_accum, n, stride, q, m, 0);
     quantize_right_edge(edge_accum, n, stride, q, m, 1);
   }
-  printf("\n");
+  /*printf("\n");*/
 }
-
-int edge_accum[1<<24] = {0};
-int edge_count[1<<24] = {0};
 
 void intra_decision(unsigned char *img, int w8, int h8, int stride) {
   int i, j;
