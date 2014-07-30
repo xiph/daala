@@ -72,12 +72,12 @@ static void pixel_interp(int pi[4], int pj[4], int w[4], int m, int i, int j,
   int d1;
   int dir;
   n = 1 << ln;
-  for (k = 0; k < 4; k++) pi[k] = pj[k] = w[k] = 0;
   /* The the top and left edges, we reuse the points as-is. */
   if (i == 0 || j == 0) {
     pi[0] = i;
     pj[0] = j;
     w[0] = 128;
+    for (k = 1; k < 4; k++) pi[k] = pj[k] = w[k] = 0;
     return;
   }
   /* DC/Gradient mode, weights are proportional to 1/distance. */
@@ -248,7 +248,8 @@ static int mode_select(const unsigned char *img, int n, int stride) {
   ln = 0;
   while (1 << ln < n) ln++;
   for (m = -1; m < 4*n; m++) {
-    /*if (m>=0 && (m&3)) continue;*/
+    /* Only consider half the directions. */
+    if (m>=0 && (m&1)) continue;
     int dist;
     for (i = 0; i <= n; i++) for (j = 0; j <= n; j++) edge_accum[i][j] = 0;
     for (i = 0; i <= n; i++) for (j = 0; j <= n; j++) edge_count[i][j] = 0;
@@ -273,11 +274,11 @@ static int mode_select(const unsigned char *img, int n, int stride) {
     for (i = 0; i < n; i++) {
       for (j = 0; j < n; j++) {
         int k;
-        block[i][j] = 0;
+        int sum;
+        sum = 0;
         pixel_interp(pi, pj, w, m, i, j, ln);
-        for (k = 0; k < 4; k++) {
-          block[i][j] += (edge_accum[pi[k]][pj[k]]*w[k] + 64) >> 7;
-        }
+        for (k = 0; k < 4; k++) sum += edge_accum[pi[k]][pj[k]]*w[k];
+        block[i][j] = OD_CLAMPI(0, (sum + 64) >> 7, 255);
       }
     }
     compare_mode(block, best_block, &dist, &best_dist, m, &best_id, n, img,
