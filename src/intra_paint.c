@@ -39,7 +39,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #define MAX_VAR_BLOCKS 1024
 #define MAXN 64
 
-unsigned char intra_matrix16[33][16][16][8] = {{{{0}}}};
 static unsigned char dec8[MAX_VAR_BLOCKS>>2][MAX_VAR_BLOCKS>>2] = {{0}};
 static unsigned char mode[MAX_VAR_BLOCKS>>1][MAX_VAR_BLOCKS>>1] = {{0}};
 static int edge_accum[1<<24] = {0};
@@ -544,6 +543,7 @@ static const od_idct_func_1d my_idct_table[5] = {
 static void quantize_bottom_edge(int *edge_accum, int n, int stride, int q,
  int m, int has_right) {
   int x[MAXN];
+  int r[MAXN];
   int p[MAXN] = {0};
   int lsize;
   int i;
@@ -558,23 +558,24 @@ static void quantize_bottom_edge(int *edge_accum, int n, int stride, int q,
   /*printf("%d ", m);*/
   for (i = 0; i < n; i++) printf("%d ", edge_accum[n*stride + (i + 1)] - p[i]);
 #endif
-  for (i = 0; i < n; i++) edge_accum[n*stride + i + 1] -= p[i];
-  my_fdct_table[lsize](x, &edge_accum[n*stride+1], 1);
+  for (i = 0; i < n; i++) r[i] = edge_accum[n*stride + i + 1] - p[i];
+  my_fdct_table[lsize](x, r, 1);
 #if QUANTIZE
   for (i = 0; i < n; i++) {
     x[i] = (int)(q*floor(.5+x[i]/q));
     /*printf("%d ", (int)floor(.5+x[i]/q));*/
   }
 #endif
-  my_idct_table[lsize](&edge_accum[n*stride+1], 1, x);
-  for (i = 0; i < n; i++) edge_accum[n*stride + i + 1] += p[i];
-  for (i = 0; i < n; i++) edge_accum[n*stride + i + 1] = OD_MAXI(0, OD_MINI(255, edge_accum[n*stride+i+1]));
+  my_idct_table[lsize](r, 1, x);
+  for (i = 0; i < n; i++) r[i] += p[i];
+  for (i = 0; i < n; i++) edge_accum[n*stride + i + 1] = OD_MAXI(0, OD_MINI(255, r[i]));
 }
 
 /* Quantize the right edge using prediction. */
 static void quantize_right_edge(int *edge_accum, int n, int stride, int q,
  int m, int has_bottom) {
   int x[MAXN];
+  int r[MAXN];
   int p[MAXN] = {0};
   int lsize;
   int i;
@@ -588,18 +589,17 @@ static void quantize_right_edge(int *edge_accum, int n, int stride, int q,
 #if !QUANTIZE
   for (i = 0; i < n; i++) printf("%d ", edge_accum[(i + 1)*stride + n] - p[i]);
 #endif
-  for (i = 0; i < n; i++) edge_accum[(i + 1)*stride + n] -= p[i];
-  my_fdct_table[lsize](x, &edge_accum[stride+n], stride);
+  for (i = 0; i < n; i++) r[i] = edge_accum[(i + 1)*stride + n] - p[i];
+  my_fdct_table[lsize](x, r, 1);
 #if QUANTIZE
   for (i = 0; i < n; i++) {
     x[i] = (int)(q*floor(.5+x[i]/q));
     /*printf("%d ", (int)floor(.5+x[i]/q));*/
   }
 #endif
-  my_idct_table[lsize](&edge_accum[stride+n], stride, x);
-  for (i = 0; i < n; i++) edge_accum[(i + 1)*stride+n] += p[i];
-  for (i = 0; i < n; i++) edge_accum[(i+1)*stride+n] = OD_MAXI(0, OD_MINI(255, edge_accum[(i+1)*stride+n]));
-
+  my_idct_table[lsize](r, 1, x);
+  for (i = 0; i < n; i++) r[i] += p[i];
+  for (i = 0; i < n; i++) edge_accum[(i+1)*stride+n] = OD_MAXI(0, OD_MINI(255, r[i]));
 }
 
 /* Quantize both the right and bottom edge, changing the order to maximize
