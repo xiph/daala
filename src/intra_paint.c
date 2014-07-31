@@ -32,8 +32,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <string.h>
 #include <math.h>
 #include "odintrin.h"
-#include "block_size.h"
-#include "block_size_enc.h"
 
 #define QUANTIZE (1)
 
@@ -229,7 +227,7 @@ static void compare_mode(unsigned char block[MAXN][MAXN],
 
 /* Select which mode to use for a block by making the (false) assumption that
    the edge is coded only based on that mode. */
-static int mode_select(const unsigned char *img, int n, int stride) {
+static int mode_select(const unsigned char *img, int *dist, int n, int stride) {
   int i;
   int j;
   int m;
@@ -284,6 +282,7 @@ static int mode_select(const unsigned char *img, int n, int stride) {
     compare_mode(block, best_block, &dist, &best_dist, m, &best_id, n, img,
      stride);
   }
+  if (dist) *dist = best_dist;
   return best_id;
 }
 
@@ -606,6 +605,7 @@ static void quantize_right_edge(int *edge_accum, int n, int stride, int q,
 /* Quantize both the right and bottom edge, changing the order to maximize
    the number of pixels we can predict. */
 static void quantize_edge(int *edge_accum, int n, int stride, int q, int m) {
+  /*printf("q\%d ", n);*/
   if (m > 0 && m < n) {
     quantize_right_edge(edge_accum, n, stride, q, m, 0);
     quantize_bottom_edge(edge_accum, n, stride, q, m, 1);
@@ -626,7 +626,7 @@ void od_intra_paint_encode(unsigned char *paint, const unsigned char *img,
       bs = dec8[i>>1][j>>1];
       if (i>>bs<<bs == i && j>>bs<<bs == j) {
         int k, m;
-        mode[i][j] = mode_select(&img[4*stride*i + 4*j], 4<<bs, stride);
+        mode[i][j] = mode_select(&img[4*stride*i + 4*j], NULL, 4<<bs, stride);
         compute_edges(&img[4*stride*i + 4*j], &edge_accum[4*stride*i + 4*j],
          &edge_count[4*stride*i + 4*j], 4<<bs, stride, mode[i][j]);
         for (k=0;k<1<<bs;k++) {
@@ -665,11 +665,49 @@ void od_intra_paint_encode(unsigned char *paint, const unsigned char *img,
 #endif
 }
 
+void od_intra_paint_choose_block_size(const unsigned char *img, int stride,
+ int bsize[2][2]) {
+  int i;
+  int j;
+  int cost16;
+  int cost32;
+  cost16 = 0;
+  for (i = 0; i < 2; i++) {
+    for (j = 0; j < 2; j++) {
+      int k;
+      int m;
+      int dist;
+      int cost8;
+      cost8 = 0;
+      for (k = 0; k < 2; k++) {
+        for (m = 0; m < 2; m++) {
+          mode_select(&img[(16*i + 8*k)*stride + 16*j + 8*m], &dist, 8,
+           stride);
+          cost8 += dist;
+        }
+      }
+      cost8 = cost8 + 16000;
+      mode_select(&img[16*stride*i + 16*j], &dist, 16, stride);
+      if (dist < cost8) {
+        bsize[i][j] = 2;
+      }
+      else {
+        dist = cost8;
+        bsize[i][j] = 1;
+      }
+      cost16 += dist;
+    }
+  }
+  mode_select(img, &cost32, 32, stride);
+  if (cost32 < cost16+32000) {
+    bsize[0][0] = bsize[0][1] = bsize[1][0] = bsize[1][1] = 3;
+  }
+}
+
 int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh)
 {
   int i,j;
   int h8,w8,h32,w32;
-  BlockSizeComp bs;
 
   (void)ow;
   (void)oh;
@@ -684,12 +722,15 @@ int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh
   for(i=1;i<h32-1;i++){
     for(j=1;j<w32-1;j++){
       int k,m;
-      int dec[4][4];
-      process_block_size32(&bs, img+32*stride*i+32*j, stride, NULL, 0, dec,
-       120);
+      int dec[2][2];
+#if 0
+      od_intra_paint_choose_block_size(img+32*stride*i+32*j, stride, dec);
+#else
+      dec[0][0] = dec[0][1] = dec[1][0] = dec[1][1] = 2;
+#endif
       for(k=0;k<4;k++)
         for(m=0;m<4;m++)
-          dec8[4*i+k][4*j+m]=2+0*OD_MINI(3,OD_MAXI(1, dec[k][m]));
+          dec8[4*i+k][4*j+m]=dec[k>>1][m>>1];
     }
   }
   od_intra_paint_encode(img, img, w8, h8, stride);
