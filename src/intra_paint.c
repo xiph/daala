@@ -41,8 +41,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 static unsigned char dec8[MAX_VAR_BLOCKS>>2][MAX_VAR_BLOCKS>>2] = {{0}};
 static unsigned char mode[MAX_VAR_BLOCKS>>1][MAX_VAR_BLOCKS>>1] = {{0}};
-static int edge_accum[1<<24] = {0};
+static int edge_sum[1<<24] = {0};
 static int edge_count[1<<24] = {0};
+static unsigned char paint_out[1<<24] = {0};
 
 /* Throughout this code, mode -1 means DC/gradient. All other modes are
    numbered clockwise starting from mode 0 oriented 45 degrees up-right.
@@ -311,7 +312,7 @@ static void compute_edges(const unsigned char *img, int *edge_accum,
 }
 
 /* Compute the actual interpolation (reconstruction) for a block. */
-static void interp_block(unsigned char *img, int *edge_accum, int n,
+static void interp_block(unsigned char *img, unsigned char *edge_accum, int n,
  int stride, int m) {
   int i;
   int j;
@@ -335,7 +336,7 @@ static void interp_block(unsigned char *img, int *edge_accum, int n,
 
 /* Predict the bottom edge using the top, left and (optionally, if already
    coded) right edge, using the mode signaled */
-static void predict_bottom_edge(int *p, int *edge_accum, int n, int stride,
+static void predict_bottom_edge(int *p, unsigned char *edge_accum, int n, int stride,
  int m, int has_right) {
   int i;
   if (m == 2*n) {
@@ -403,7 +404,7 @@ static void predict_bottom_edge(int *p, int *edge_accum, int n, int stride,
 
 /* Predict the right edge using the top, left and (optionally, if already
    coded) bottom edge, using the mode signaled */
-static void predict_right_edge(int *p, int *edge_accum, int n, int stride,
+static void predict_right_edge(int *p, unsigned char *edge_accum, int n, int stride,
  int m, int has_bottom) {
   int i;
   int dir;
@@ -540,7 +541,7 @@ static const od_idct_func_1d my_idct_table[5] = {
 };
 
 /* Quantize the bottom edge using prediction. */
-static void quantize_bottom_edge(int *edge_accum, int n, int stride, int q,
+static void quantize_bottom_edge(unsigned char *edge_accum, int n, int stride, int q,
  int m, int has_right) {
   int x[MAXN];
   int r[MAXN];
@@ -572,7 +573,7 @@ static void quantize_bottom_edge(int *edge_accum, int n, int stride, int q,
 }
 
 /* Quantize the right edge using prediction. */
-static void quantize_right_edge(int *edge_accum, int n, int stride, int q,
+static void quantize_right_edge(unsigned char *edge_accum, int n, int stride, int q,
  int m, int has_bottom) {
   int x[MAXN];
   int r[MAXN];
@@ -604,7 +605,7 @@ static void quantize_right_edge(int *edge_accum, int n, int stride, int q,
 
 /* Quantize both the right and bottom edge, changing the order to maximize
    the number of pixels we can predict. */
-static void quantize_edge(int *edge_accum, int n, int stride, int q, int m) {
+static void quantize_edge(unsigned char *edge_accum, int n, int stride, int q, int m) {
   /*printf("q\%d ", n);*/
   if (m > 0 && m < n) {
     quantize_right_edge(edge_accum, n, stride, q, m, 0);
@@ -627,7 +628,7 @@ void od_intra_paint_encode(unsigned char *paint, const unsigned char *img,
       if (i>>bs<<bs == i && j>>bs<<bs == j) {
         int k, m;
         mode[i][j] = mode_select(&img[4*stride*i + 4*j], NULL, 4<<bs, stride);
-        compute_edges(&img[4*stride*i + 4*j], &edge_accum[4*stride*i + 4*j],
+        compute_edges(&img[4*stride*i + 4*j], &edge_sum[4*stride*i + 4*j],
          &edge_count[4*stride*i + 4*j], 4<<bs, stride, mode[i][j]);
         for (k=0;k<1<<bs;k++) {
           for (m=0;m<1<<bs;m++) {
@@ -640,7 +641,7 @@ void od_intra_paint_encode(unsigned char *paint, const unsigned char *img,
 
   for (i = 0; i < 1<<24; i++) {
     if (edge_count[i] > 0) {
-      edge_accum[i] = edge_accum[i]/edge_count[i];
+      paint_out[i] = edge_sum[i]/edge_count[i];
     }
   }
 
@@ -649,8 +650,8 @@ void od_intra_paint_encode(unsigned char *paint, const unsigned char *img,
       int bs;
       bs = dec8[i>>1][j>>1];
       if (i>>bs<<bs == i && j>>bs<<bs == j) {
-        quantize_edge(&edge_accum[4*stride*i + 4*j], 4<<bs, stride, 30, mode[i][j]);
-        interp_block(&paint[4*stride*i + 4*j], &edge_accum[4*stride*i + 4*j],
+        quantize_edge(&paint_out[4*stride*i + 4*j], 4<<bs, stride, 30, mode[i][j]);
+        interp_block(&paint[4*stride*i + 4*j], &paint_out[4*stride*i + 4*j],
          4<<bs, stride, mode[i][j]);
       }
     }
@@ -734,6 +735,11 @@ int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh
     }
   }
   od_intra_paint_encode(img, img, w8, h8, stride);
+  for(i=1;i<32*(h32-1);i++) {
+    for(j=1;j<32*(w32-1);j++) {
+
+    }
+  }
 #if 0
   for(i=4;i<h8-4;i++){
     for(j=4;j<w8-4;j++){
