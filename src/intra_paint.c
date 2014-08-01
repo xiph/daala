@@ -39,7 +39,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #define MAX_VAR_BLOCKS 1024
 #define MAXN 64
 
-static unsigned char dec8[MAX_VAR_BLOCKS>>2][MAX_VAR_BLOCKS>>2] = {{0}};
 static unsigned char mode[MAX_VAR_BLOCKS>>1][MAX_VAR_BLOCKS>>1] = {{0}};
 static int edge_sum[1<<24] = {0};
 static int edge_count[1<<24] = {0};
@@ -619,12 +618,12 @@ static void quantize_edge(unsigned char *edge_accum, int n, int stride, int q, i
 }
 
 void od_intra_paint_encode(unsigned char *paint, const unsigned char *img,
- int w8, int h8, int stride) {
+ int w8, int h8, int stride, const unsigned char *dec8, int bstride) {
   int i, j;
   for(i = 8; i < 2*h8-8; i++) {
     for(j = 8; j < 2*w8-8; j++) {
       int bs;
-      bs = dec8[i>>1][j>>1];
+      bs = dec8[(i>>1)*bstride + (j>>1)];
       if (i>>bs<<bs == i && j>>bs<<bs == j) {
         int k, m;
         mode[i][j] = mode_select(&img[4*stride*i + 4*j], NULL, 4<<bs, stride);
@@ -648,7 +647,7 @@ void od_intra_paint_encode(unsigned char *paint, const unsigned char *img,
   for(i = 8; i < 2*h8-8; i++) {
     for(j = 8; j < 2*w8-8; j++) {
       int bs;
-      bs = dec8[i>>1][j>>1];
+      bs = dec8[(i>>1)*bstride + (j>>1)];
       if (i>>bs<<bs == i && j>>bs<<bs == j) {
         quantize_edge(&paint_out[4*stride*i + 4*j], 4<<bs, stride, 30, mode[i][j]);
         interp_block(&paint[4*stride*i + 4*j], &paint_out[4*stride*i + 4*j],
@@ -709,6 +708,8 @@ int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh
 {
   int i,j;
   int h8,w8,h32,w32;
+  unsigned char *dec8;
+  int bstride;
 
   (void)ow;
   (void)oh;
@@ -719,6 +720,8 @@ int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh
   h8 = h>>2;
   w32 = w>>4;
   h32 = h>>4;
+  dec8 = (unsigned char*)malloc(w8*w8*sizeof(dec8));
+  bstride = w8;
   /* Replace decision with the one from process_block_size32() */
   for(i=1;i<h32-1;i++){
     for(j=1;j<w32-1;j++){
@@ -731,13 +734,13 @@ int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh
 #endif
       for(k=0;k<4;k++)
         for(m=0;m<4;m++)
-          dec8[4*i+k][4*j+m]=dec[k>>1][m>>1];
+          dec8[(4*i + k)*bstride + (4*j + m)]=dec[k>>1][m>>1];
     }
   }
-  od_intra_paint_encode(img, img, w8, h8, stride);
-  for(i=1;i<32*(h32-1);i++) {
-    for(j=1;j<32*(w32-1);j++) {
-
+  od_intra_paint_encode(paint_out, img, w8, h8, stride, dec8, bstride);
+  for(i=32;i<32*(h32-1);i++) {
+    for(j=32;j<32*(w32-1);j++) {
+      img[i*stride + j] = paint_out[i*stride + j];
     }
   }
 #if 0
@@ -750,20 +753,20 @@ int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh
         for(k=0;k<32;k++)
           img[(8*i+k)*stride+j*8] = 0;
       }
-      if ((i&1)==0 && (j&1)==0 && dec8[i][j]==2){
+      if ((i&1)==0 && (j&1)==0 && dec8[i*bstride + j]==2){
         int k;
         for(k=0;k<16;k++)
           img[i*stride*8+j*8+k] = 0;
         for(k=0;k<16;k++)
           img[(8*i+k)*stride+j*8] = 0;
       }
-      if (dec8[i][j]<=1){
+      if (dec8[i*bstride + j]<=1){
         int k;
         for(k=0;k<8;k++)
           img[i*stride*8+j*8+k] = 0;
         for(k=0;k<8;k++)
           img[(8*i+k)*stride+j*8] = 0;
-        if (dec8[i][j]==0){
+        if (dec8[i*bstride + j]==0){
           img[(8*i+4)*stride+j*8+3] = 0;
           img[(8*i+4)*stride+j*8+4] = 0;
           img[(8*i+4)*stride+j*8+5] = 0;
@@ -778,7 +781,7 @@ int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh
   for (i=32;i<(h32-1)*32;i++)
     img[i*stride+(w32-1)*32]=0;
 #endif
-
+  free(dec8);
   return 0;
 }
 
