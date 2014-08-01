@@ -72,8 +72,9 @@ static void pixel_interp(int pi[4], int pj[4], int w[4], int m, int i, int j,
     for (k = 1; k < 4; k++) pi[k] = pj[k] = w[k] = 0;
     return;
   }
-  /* DC/Gradient mode, weights are proportional to 1/distance. */
-  if (m == -1) {
+  /* DC/Gradient mode, weights are proportional to 1/distance. The 255 alias
+     is a temporary fix because mode is sometimes unsigned. */
+  if (m == -1 || m == 255) {
     pi[0] = 0;
     pj[0] = j;
     pi[1] = n;
