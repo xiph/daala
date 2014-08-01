@@ -39,9 +39,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #define MAX_VAR_BLOCKS 1024
 #define MAXN 64
 
-static int edge_sum[1<<24] = {0};
-static int edge_count[1<<24] = {0};
-
 /* Throughout this code, mode -1 means DC/gradient. All other modes are
    numbered clockwise starting from mode 0 oriented 45 degrees up-right.
    For an NxN block, mode N is horizontal, mode 2*N is 45-degrees down-right,
@@ -617,7 +614,7 @@ static void quantize_edge(unsigned char *edge_accum, int n, int stride, int q, i
 
 void od_intra_paint_encode(unsigned char *paint, const unsigned char *img,
  int w8, int h8, int stride, const unsigned char *dec8, int bstride,
- unsigned char *mode, int mstride) {
+ unsigned char *mode, int mstride, int *edge_sum, int *edge_count) {
   int i, j;
   for(i = 8; i < 2*h8-8; i++) {
     for(j = 8; j < 2*w8-8; j++) {
@@ -637,7 +634,7 @@ void od_intra_paint_encode(unsigned char *paint, const unsigned char *img,
     }
   }
 
-  for (i = 0; i < 1<<24; i++) {
+  for (i = 0; i < (8*w8+1)*(8*h8+1); i++) {
     if (edge_count[i] > 0) {
       paint[i] = edge_sum[i]/edge_count[i];
     }
@@ -704,20 +701,27 @@ void od_intra_paint_choose_block_size(const unsigned char *img, int stride,
   }
 }
 
-int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh)
+/* Eventually we shouldn't be using this function, but calling
+   od_intra_paint_choose_block_size() and od_intra_paint_encode() directly. */
+int compute_intra_paint(unsigned char *img, int w, int h, int stride, int ow,
+ int oh)
 {
   int i,j;
   int h8,w8,h32,w32;
   unsigned char *dec8;
   unsigned char *mode;
+  unsigned char *paint_out;
+  int *edge_sum;
+  int *edge_count;
   int bstride;
   int mstride;
-  unsigned char *paint_out;
 
   (void)ow;
   (void)oh;
 
-  paint_out = (unsigned char*)malloc((w+1)*(h+1)*sizeof(*paint_out));
+  paint_out = (unsigned char*)calloc((w+1)*(h+1)*sizeof(*paint_out), 1);
+  edge_sum = (int*)calloc((w+1)*(h+1), sizeof(*edge_sum));
+  edge_count = (int*)calloc((w+1)*(h+1), sizeof(*edge_count));
   w>>=1;
   h>>=1;
   w8 = w>>2;
@@ -744,7 +748,7 @@ int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh
     }
   }
   od_intra_paint_encode(paint_out, img, w8, h8, stride, dec8, bstride, mode,
-   mstride);
+   mstride, edge_sum, edge_count);
   for(i=32;i<32*(h32-1);i++) {
     for(j=32;j<32*(w32-1);j++) {
       img[i*stride + j] = paint_out[i*stride + j];
@@ -789,6 +793,8 @@ int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh
     img[i*stride+(w32-1)*32]=0;
 #endif
   free(paint_out);
+  free(edge_sum);
+  free(edge_count);
   free(dec8);
   free(mode);
   return 0;
