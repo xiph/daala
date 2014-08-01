@@ -350,29 +350,26 @@ static void predict_bottom_edge(int *p, unsigned char *edge_accum, int n, int st
     }
   }
   else if (m > 2*n && m < 3*n) {
-    int from_left;
-    int dir;
-    dir = m - 3*n;
-    if (m > 2*n) from_left = 3*n - m;
-    else from_left = n;
-    for (i = 0; i < from_left; i++) {
-      p[i] = edge_accum[(n + ((i + 1)*n+dir/2)/dir)*stride];
+    int slope;
+    slope = 3*n - m;
+    for (i = 0; i < slope; i++) {
+      p[i] = edge_accum[(n - ((i + 1)*n+slope/2)/slope)*stride];
     }
     for (; i < n; i++) {
-      p[i] = edge_accum[(i + 1 + dir)];
+      p[i] = edge_accum[(i + 1 - slope)];
     }
   }
   else if (m > 0 && m < n) {
     int slope;
     slope = n - m;
-    if (has_right)
-    {
-      for (i = 0; i < n; i++)
-        p[i] = edge_accum[n + (n - ((n - i - 1)*slope+n/2)/n)*stride];
-    } else {
+    if (has_right) {
       for (i = 0; i < n; i++) {
-        for(i = 0; i < n; i++) p[i] = edge_accum[n*stride] +
-         .25*(double)(i+1)/n*(edge_accum[n]-edge_accum[n*stride]);
+        p[i] = edge_accum[n + (n - ((n - i - 1)*slope+n/2)/n)*stride];
+      }
+    }
+    else {
+      for (i=0; i < n; i++) {
+        p[i] = edge_accum[n*stride];
       }
     }
   }
@@ -380,8 +377,16 @@ static void predict_bottom_edge(int *p, unsigned char *edge_accum, int n, int st
     int dir;
     dir = m - 3*n;
     for (i = 0; i < n - dir; i++) p[i] = edge_accum[i + 1 + dir];
-    for (; i < n; i++)
-      p[i] = edge_accum[n + (n - ((n - i - 1)*n+dir/2)/dir)*stride];
+    if (has_right) {
+      for (; i < n; i++)
+        p[i] = edge_accum[n + (n - ((n - i - 1)*n+dir/2)/dir)*stride];
+    }
+    else {
+      OD_ASSERT(i != 0);
+      for(; i < n; i++) {
+        p[i] = p[i-1];
+      }
+    }
   }
   else {
     if (has_right) {
