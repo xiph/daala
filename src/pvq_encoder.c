@@ -167,8 +167,8 @@ void pvq_encode(daala_enc_ctx *enc,
     for (j = 0; j < i; j++) mask += *inter_band++*g[j];
     g[i] = mask;
     qg[i] = pvq_theta(out + off[i], in + off[i], ref + off[i], size[i],
-     q*qm[i + 1] >> 4, y + off[i], &theta[i], &max_theta[i], &k[i], &g[i],
-     beta[i], &skip_diff);
+     OD_MAXI(1, q*qm[i + 1] >> 4), y + off[i], &theta[i], &max_theta[i],
+     &k[i], &g[i], beta[i], &skip_diff);
   }
   if (!is_keyframe) {
     od_encode_checkpoint(enc, &buf);

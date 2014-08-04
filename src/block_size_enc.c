@@ -141,7 +141,9 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
   double psy_lambda;
   const unsigned char *x0;
   x0 = psy_img - BLOCK_OFFSET(stride);
-  psy_lambda = 6/sqrt(OD_MAXI(1, q));
+  /* The passed in q value is now a quantizer with the same scaling as
+     the coefficients. */
+  psy_lambda = q ? 6*sqrt((double)(1<<OD_COEFF_SHIFT)/q) : 6;
   for (i = 0; i < 2*SIZE2_SUMS; i++) {
     for (j = 0; j < 2*SIZE2_SUMS; j++) {
       bs->res[i][j] = (int)x0[i*stride + j] - 128;

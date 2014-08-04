@@ -56,6 +56,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 static double mode_bits = 0;
 static double mode_count = 0;
 
+static int od_quantizer_from_quality(int quality) {
+  return quality == 0 ? 0 :
+   (quality << OD_COEFF_SHIFT >> OD_QUALITY_SHIFT) +
+   (1 << OD_COEFF_SHIFT >> 1);
+}
+
 void od_enc_opt_vtbl_init_c(od_enc_ctx *enc) {
   enc->opt_vtbl.mc_compute_sad_4x4_xstride_1 =
    od_mc_compute_sad_4x4_xstride_1_c;
@@ -82,7 +88,9 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
   oggbyte_writeinit(&enc->obb);
   od_ec_enc_init(&enc->ec, 65025);
   enc->packet_state = OD_PACKET_INFO_HDR;
-  for (i = 0; i < OD_NPLANES_MAX; i++) enc->scale[i] = 10;
+  for (i = 0; i < OD_NPLANES_MAX; i++){
+    enc->quantizer[i] = od_quantizer_from_quality(10);
+  }
   enc->mvest = od_mv_est_alloc(enc);
 #if defined(OD_ACCOUNTING)
   od_acct_init(&enc->acct);
@@ -135,8 +143,10 @@ int daala_encode_ctl(daala_enc_ctx *enc, int req, void *buf, size_t buf_sz) {
       int i;
       OD_ASSERT(enc);
       OD_ASSERT(buf);
-      OD_ASSERT(buf_sz == sizeof(*enc->scale));
-      for (i = 0; i < OD_NPLANES_MAX; i++) enc->scale[i] = *(int *)buf;
+      OD_ASSERT(buf_sz == sizeof(*enc->quantizer));
+      for (i = 0; i < OD_NPLANES_MAX; i++){
+        enc->quantizer[i] = od_quantizer_from_quality(*(int *)buf);
+      }
       return OD_SUCCESS;
     }
     default: return OD_EIMPL;
@@ -338,7 +348,7 @@ static void od_encode_compute_pred(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, od_co
         /* Make lambda proportional to quantization step size, with exact
            factor based on quick experiments with subset1 (can be improved). */
         mode = od_intra_pred_search(mode_cdf, mode_dist, OD_INTRA_NMODES,
-         OD_MINI(32767, enc->scale[pli]*256));
+         OD_MINI(32767, enc->quantizer[pli] << 4));
 #endif
         (*OD_INTRA_GET[ln])(pred, coeffs, strides, mode);
 #if OD_DISABLE_INTRA
@@ -422,7 +432,7 @@ static void od_encode_compute_pred(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, od_co
 
 static void od_single_band_scalar_quant(daala_enc_ctx *enc, int ln,
  od_coeff *scalar_out, const od_coeff *cblock, const od_coeff *predt,
- int scale, int pli, int coeff_shift) {
+ int q, int pli) {
   int *adapt;
   int vk;
   int zzi;
@@ -432,8 +442,7 @@ static void od_single_band_scalar_quant(daala_enc_ctx *enc, int ln,
   vk = 0;
   n2 = 1 << (2*ln + 4);
   for (zzi = 1; zzi < n2; zzi++) {
-    scalar_out[zzi] = OD_DIV_R0(cblock[zzi] - predt[zzi],
-     scale << coeff_shift);
+    scalar_out[zzi] = OD_DIV_R0(cblock[zzi] - predt[zzi], q);
     vk += abs(scalar_out[zzi]);
   }
 #if defined(OD_METRICS)
@@ -448,7 +457,7 @@ static void od_single_band_scalar_quant(daala_enc_ctx *enc, int ln,
    pvq_frac_bits;
 #endif
   for (zzi = 1; zzi < n2; zzi++) {
-    scalar_out[zzi] = (scalar_out[zzi]*(scale << coeff_shift)) + predt[zzi];
+    scalar_out[zzi] = scalar_out[zzi]*q + predt[zzi];
   }
   if (adapt_curr[OD_ADAPT_K_Q8] > 0) {
     adapt[OD_ADAPT_K_Q8] += 256*adapt_curr[OD_ADAPT_K_Q8] -
@@ -480,9 +489,8 @@ void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   od_coeff cblock[16*16];
   od_coeff scalar_out[16*16];
   int run_pvq;
-  int scale;
-  int dc_scale;
-  int coeff_shift;
+  int quant;
+  int dc_quant;
 #ifndef USE_BAND_PARTITIONS
   unsigned char const *zig;
 #endif
@@ -531,27 +539,28 @@ void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
     }
   }
 #endif
-  scale = OD_MAXI(enc->scale[pli], 1);
+  /* Lossless encoding uses an actual quantizer of 1, but is signalled
+     with a 'quantizer' of 0. */
+  quant = OD_MAXI(1, enc->quantizer[pli]);
   if (run_pvq)
-    dc_scale = OD_MAXI(1, scale*OD_PVQ_QM_Q4[pli][ln][0] >> 4);
+    dc_quant = OD_MAXI(1, quant*OD_PVQ_QM_Q4[pli][ln][0] >> 4);
   else
-    dc_scale = (pli==0 || enc->scale[pli]==0) ? scale : (scale + 1) >> 1;
-  coeff_shift = enc->scale[pli] == 0 ? 0 : OD_COEFF_SHIFT;
+    dc_quant = (pli==0 || enc->quantizer[pli]==0) ? quant : (quant + 1) >> 1;
   if (OD_DISABLE_HAAR_DC || !ctx->is_keyframe) {
-    scalar_out[0] = OD_DIV_R0(cblock[0] - predt[0], dc_scale << coeff_shift);
+    scalar_out[0] = OD_DIV_R0(cblock[0] - predt[0], dc_quant);
     OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
      OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_DC_COEFF);
   }
   OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
     OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_AC_COEFFS);
   if (run_pvq) {
-    pvq_encode(enc, predt, cblock, scalar_out, scale << coeff_shift, pli, ln,
+    pvq_encode(enc, predt, cblock, scalar_out, quant, pli, ln,
      OD_PVQ_QM_Q4[pli][ln], OD_PVQ_BETA[pli][ln],
      OD_PVQ_INTER_BAND_MASKING[ln], ctx->is_keyframe);
   }
   else {
-    od_single_band_scalar_quant(enc, ln, scalar_out, cblock, predt, scale, pli,
-     coeff_shift);
+    od_single_band_scalar_quant(enc, ln, scalar_out, cblock, predt, quant,
+     pli);
   }
   OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
     OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
@@ -565,7 +574,7 @@ void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
     if (scalar_out[0]) od_ec_enc_bits(&enc->ec, scalar_out[0] < 0, 1);
     OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
      OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
-    scalar_out[0] = scalar_out[0]*(dc_scale << coeff_shift);
+    scalar_out[0] = scalar_out[0]*dc_quant;
     scalar_out[0] += predt[0];
   }
   else {
@@ -680,7 +689,7 @@ static void od_quantize_haar_dc(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
   int d;
   int w;
   int i;
-  int dc_scale;
+  int dc_quant;
   od_coeff *c;
   c = ctx->d[pli];
   w = enc->state.frame_width >> xdec;
@@ -690,10 +699,9 @@ static void od_quantize_haar_dc(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
    enc->state.bstride, bx << l, by << l);
   d = OD_MAXI(od, xdec);
   OD_ASSERT(d <= l);
-  if (enc->scale[pli] == 0) dc_scale = 1;
+  if (enc->quantizer[pli] == 0) dc_quant = 1;
   else {
-    dc_scale = OD_MAXI(1, enc->scale[pli]*OD_DC_RES[pli] >> 4)
-     << OD_COEFF_SHIFT;
+    dc_quant = OD_MAXI(1, enc->quantizer[pli]*OD_DC_RES[pli] >> 4);
   }
   OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
      OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_DC_COEFF);
@@ -726,11 +734,11 @@ static void od_quantize_haar_dc(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
     else if (bx > 0) sb_dc_pred = sb_dc_mem[by*nhsb + bx - 1];
     else sb_dc_pred = 0;
     dc0 = c[(by << l2)*w + (bx << l2)] - sb_dc_pred;
-    quant = OD_DIV_R0(dc0, dc_scale);
+    quant = OD_DIV_R0(dc0, dc_quant);
     generic_encode(&enc->ec, &enc->adapt.model_dc[pli], abs(quant), -1,
      &enc->adapt.ex_sb_dc[pli], 2);
     if (quant) od_ec_enc_bits(&enc->ec, quant < 0, 1);
-    sb_dc_curr = quant*dc_scale + sb_dc_pred;
+    sb_dc_curr = quant*dc_quant + sb_dc_pred;
     c[(by << l2)*w + (bx << l2)] = sb_dc_curr;
     sb_dc_mem[by*nhsb + bx] = sb_dc_curr;
     if (by > 0) vgrad = sb_dc_mem[(by - 1)*nhsb + bx] - sb_dc_curr;
@@ -751,11 +759,11 @@ static void od_quantize_haar_dc(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
     x[2] -= vgrad/5;
     for (i = 1; i < 4; i++) {
       int quant;
-      quant = OD_DIV_R0(x[i], dc_scale);
+      quant = OD_DIV_R0(x[i], dc_quant);
       generic_encode(&enc->ec, &enc->adapt.model_dc[pli], abs(quant), -1,
        &enc->adapt.ex_dc[pli][l][i-1], 2);
       if (quant) od_ec_enc_bits(&enc->ec, quant < 0, 1);
-      x[i] = quant*dc_scale;
+      x[i] = quant*dc_quant;
     }
     /* Gives best results for subset1, more conservative than the
        theoretical /4 of a pure gradient. */
@@ -977,7 +985,8 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
        predict unpredictable areas when lamba is too small.
       Hopefully when we fix that, we can remove the limit.*/
     od_mv_est(enc->mvest, OD_FRAME_PREV,
-     OD_MAXI((2851196 * enc->scale[0] >> (23 - OD_LAMBDA_SCALE)), 452));
+     OD_MAXI((2851196 + (((1 << OD_COEFF_SHIFT) - 1) >> 1) >> OD_COEFF_SHIFT)*
+     enc->quantizer[0] >> (23 - OD_LAMBDA_SCALE), 452));
     od_state_mc_predict(&enc->state, OD_FRAME_PREV);
     /*Do edge extension here because the block-size analysis needs to read
       outside the frame, but otherwise isn't read from.*/
@@ -1027,7 +1036,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       unsigned char *state_bsize;
       state_bsize = &enc->state.bsize[i*4*enc->state.bstride + j*4];
       process_block_size32(bs, bimg + j*32, istride,
-       kf ? NULL : rimg + j*32, rstride, bsize, enc->scale[0]);
+       kf ? NULL : rimg + j*32, rstride, bsize, enc->quantizer[0]);
       /* Grab the 4x4 information returned from process_block_size32 in bsize
          and store it in the od_state bsize. */
       for (k = 0; k < 4; k++) {
@@ -1182,9 +1191,10 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
        OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_FRAME);
       OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
        OD_ACCT_CAT_PLANE, OD_ACCT_PLANE_FRAME);
-      od_ec_enc_uint(&enc->ec, enc->scale[pli], 512);
-      /*If the scale is zero, force scalar.*/
-      if (!enc->scale[pli]) mbctx.run_pvq[pli] = 0;
+      /* TODO: We shouldn't be encoding the full, linear quantizer range. */
+      od_ec_enc_uint(&enc->ec, enc->quantizer[pli], 512<<OD_COEFF_SHIFT);
+      /*If the quantizer is zero (lossless), force scalar.*/
+      if (!enc->quantizer[pli]) mbctx.run_pvq[pli] = 0;
       else od_ec_encode_bool_q15(&enc->ec, mbctx.run_pvq[pli], 16384);
       OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
        OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
@@ -1234,7 +1244,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
         unsigned char *mdata;
         int ystride;
         int coeff_shift;
-        coeff_shift = enc->scale[pli] == 0 ? 0 : OD_COEFF_SHIFT;
+        coeff_shift = enc->quantizer[pli] == 0 ? 0 : OD_COEFF_SHIFT;
         data = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].data;
         mdata = enc->state.io_imgs[OD_FRAME_REC].planes[pli].data;
         ystride = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ystride;
@@ -1306,7 +1316,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
         unsigned char *data;
         int ystride;
         int coeff_shift;
-        coeff_shift = enc->scale[pli] == 0 ? 0 : OD_COEFF_SHIFT;
+        coeff_shift = enc->quantizer[pli] == 0 ? 0 : OD_COEFF_SHIFT;
         data = enc->state.io_imgs[OD_FRAME_REC].planes[pli].data;
         ystride = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ystride;
         for (y = 0; y < h; y++) {

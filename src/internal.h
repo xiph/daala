@@ -62,6 +62,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # define OD_DISABLE_QM (0)
 
 # define OD_COEFF_SHIFT (4)
+/*OD_QUALITY_SHIFT specifies the number of fractional bits in a
+   passed in 'quality' parameter.
+  For example, an OD_QUALITY_SHIFT of (4) specifies the quality parameter is
+   in Q4 format.*/
+# define OD_QUALITY_SHIFT (4)
 
 # if defined(OD_ENABLE_ASSERTIONS)
 #  include <stdio.h>

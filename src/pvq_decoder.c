@@ -243,9 +243,9 @@ void pvq_decode(daala_dec_ctx *dec,
       mask = 0;
       for (j = 0; j < i; j++) mask += *inter_band++*g[j];
       g[i] = mask;
-      pvq_decode_partition(&dec->ec, q*qm[i + 1] >> 4, size[i], model, adapt,
-       exg + i, ext + i, ref + off[i], out + off[i], noref[i], &g[i], beta[i],
-       is_keyframe);
+      pvq_decode_partition(&dec->ec, OD_MAXI(1, q*qm[i + 1] >> 4), size[i],
+       model, adapt, exg + i, ext + i, ref + off[i], out + off[i], noref[i],
+       &g[i], beta[i], is_keyframe);
     }
   }
 }
