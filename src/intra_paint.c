@@ -634,12 +634,84 @@ static void quantize_edge(unsigned char *edge_accum, int n, int stride, int q, i
   /*printf("\n");*/
 }
 
+void od_intra_paint_quant_block(unsigned char *paint, const unsigned char *img,
+ int stride, const unsigned char *dec8, int bstride,
+ unsigned char *mode, int mstride, int *edge_sum, int *edge_count,
+ int bx, int by, int level) {
+  int bs;
+  bs = dec8[(by<<level>>1)*bstride + (bx<<level>>1)];
+
+  OD_ASSERT(bs <= level);
+  if (bs < level) {
+    level--;
+    bx <<= 1;
+    by <<= 1;
+    od_intra_paint_quant_block(paint, img, stride, dec8, bstride,
+     mode, mstride, edge_sum, edge_count, bx, by, level);
+    od_intra_paint_quant_block(paint, img, stride, dec8, bstride,
+     mode, mstride, edge_sum, edge_count, bx + 1, by, level);
+    od_intra_paint_quant_block(paint, img, stride, dec8, bstride,
+     mode, mstride, edge_sum, edge_count, bx, by + 1, level);
+    od_intra_paint_quant_block(paint, img, stride, dec8, bstride,
+     mode, mstride, edge_sum, edge_count, bx + 1, by + 1, level);
+  }
+  else {
+    int ln;
+    int n;
+    int k;
+    int idx;
+
+    ln = 2 + bs;
+    n = 1 << ln;
+    if (bx == 0 && by == 0) {
+      if (edge_count[0] > 0) paint[0] = edge_sum[0]/edge_count[0];
+      else paint[0] = 0;
+    }
+    /* FIXME: Handle last pixel of left and top properly (no image data). */
+    /* Compute left edge (left column only). */
+    if (bx == 0) {
+      for (k = 1; k <= n; k++) {
+        idx = stride*(n*by + k);
+        if (edge_count[idx] > 0) paint[idx] = edge_sum[idx]/edge_count[idx];
+        else paint[idx] = 0;
+      }
+    }
+    /* Compute top edge (top row only). */
+    if (by == 0) {
+      for (k = 1; k <= n; k++) {
+        idx = n*bx + k;
+        if (edge_count[idx] > 0) paint[idx] = edge_sum[idx]/edge_count[idx];
+        else paint[idx] = 0;
+      }
+    }
+    /* Compute right edge stats. */
+    for (k = 1; k < n; k++) {
+      idx = stride*(n*by + k) + n*(bx + 1);
+      if (edge_count[idx] > 0) paint[idx] = edge_sum[idx]/edge_count[idx];
+      else paint[idx] = img[idx - 1];
+    }
+    /* Compute bottom edge stats. */
+    for (k = 1; k < n; k++) {
+      idx = stride*n*(by + 1) + n*bx + k;
+      if (edge_count[idx] > 0) paint[idx] = edge_sum[idx]/edge_count[idx];
+      else paint[idx] = img[idx - stride];
+    }
+    idx = stride*n*(by + 1) + n*(bx + 1);
+    if (edge_count[idx] > 0) paint[idx] = edge_sum[idx]/edge_count[idx];
+    else paint[idx] = img[idx - stride - 1];
+    quantize_edge(&paint[stride*n*by + n*bx], n, stride, 30,
+     mode[(by*mstride + bx) << ln >> 2]);
+    interp_block(&paint[stride*n*by + n*bx], &paint[stride*n*by + n*bx],
+     n, stride, mode[(by*mstride + bx)<< ln >> 2]);
+  }
+}
+
 void od_intra_paint_encode(unsigned char *paint, const unsigned char *img,
  int w8, int h8, int stride, const unsigned char *dec8, int bstride,
  unsigned char *mode, int mstride, int *edge_sum, int *edge_count) {
   int i, j;
-  for(i = 8; i < 2*h8-8; i++) {
-    for(j = 8; j < 2*w8-8; j++) {
+  for(i = 0; i < 2*h8; i++) {
+    for(j = 0; j < 2*w8; j++) {
       int bs;
       bs = dec8[(i>>1)*bstride + (j>>1)];
       if (i>>bs<<bs == i && j>>bs<<bs == j) {
@@ -656,76 +728,10 @@ void od_intra_paint_encode(unsigned char *paint, const unsigned char *img,
     }
   }
 
-  for (i = 0; i < (8*w8+1)*(8*h8+1); i++) {
-    if (edge_count[i] > 0) {
-      paint[i] = edge_sum[i]/edge_count[i];
-    }
-  }
-
-#if 0
-  for(i = 32; i < 8*w8; i++) {
-    if (edge_count[32*stride + i] > 0) {
-      paint[32*stride + i] = edge_sum[32*stride + i]/edge_count[32*stride + i];
-    }
-    else {
-      paint[32*stride + i] = img[32*stride + i - 1];
-    }
-  }
-  for(i = 32; i < 8*h8; i++) {
-    if (edge_count[stride*i + 32] > 0) {
-      paint[stride*i + 32] = edge_sum[stride*i + 32]/edge_count[stride*i + 32];
-    }
-    else {
-      paint[stride*i + 32] = img[stride*(i-1) + 32];
-    }
-  }
-#endif
-
-  for(i = 8; i < 2*h8-8; i++) {
-    for(j = 8; j < 2*w8-8; j++) {
-      int bs;
-      bs = dec8[(i>>1)*bstride + (j>>1)];
-      if (i>>bs<<bs == i && j>>bs<<bs == j) {
-#if 0
-        int k;
-        int n;
-        int base;
-        n = 4 << bs;
-        /*for (k = 1; k <= n; k++) {
-          if (edge_count[stride*(4*i + n) + 4*j + k] == 0)
-            paint[stride*(4*i + n) + 4*j + k] = 128;
-          if (edge_count[stride*(4*i + k) + 4*j + n] == 0)
-          paint[stride*(4*i + k) + 4*j + n] = 128;
-        }*/
-        base = 4*stride*i + 4*j;
-        for (k = 1; k < n; k++) {
-          if (edge_count[base + stride*n + k] > 0) {
-            paint[base + stride*n + k] = edge_sum[base + stride*n + k]/edge_count[base + stride*n + k];
-          }
-          else {
-            paint[base + stride*n + k] = img[base + stride*(n - 1) + k];
-          }
-        }
-        for (k = 1; k < n; k++) {
-          if (edge_count[base + stride*k + n] > 0) {
-            paint[base + stride*k + n] = edge_sum[base + stride*k + n]/edge_count[base + stride*k + n];
-          }
-          else {
-            paint[base + stride*k + n] = img[base + stride*k + n - 1];
-          }
-        }
-        if (edge_count[base + stride*n + n] > 0) {
-          paint[base + stride*n + n] = edge_sum[base + stride*n + n]/edge_count[base + stride*n + n];
-        }
-        else {
-          paint[base + stride*n + n] = img[base + stride*(n - 1) + n - 1];
-        }
-#endif
-        quantize_edge(&paint[4*stride*i + 4*j], 4<<bs, stride, 30,
-         mode[i*mstride + j]);
-        interp_block(&paint[4*stride*i + 4*j], &paint[4*stride*i + 4*j],
-         4<<bs, stride, mode[i*mstride + j]);
-      }
+  for(i = 0; i < h8/4; i++) {
+    for(j = 0; j < w8/4; j++) {
+      od_intra_paint_quant_block(paint, img, stride, dec8, bstride, mode,
+       mstride, edge_sum, edge_count, j, i, 3);
     }
   }
 #if 0
@@ -795,22 +801,22 @@ int compute_intra_paint(unsigned char *img, int w, int h, int stride, int ow,
   (void)ow;
   (void)oh;
 
-  paint_out = (unsigned char*)calloc((w+1)*(h+1)*sizeof(*paint_out), 1);
-  edge_sum = (int*)calloc((w+1)*(h+1), sizeof(*edge_sum));
-  edge_count = (int*)calloc((w+1)*(h+1), sizeof(*edge_count));
+  paint_out = (unsigned char*)calloc((w+32)*(h+32)*sizeof(*paint_out), 1);
+  edge_sum = (int*)calloc((w+32)*(h+32), sizeof(*edge_sum));
+  edge_count = (int*)calloc((w+32)*(h+32), sizeof(*edge_count));
   w>>=1;
   h>>=1;
-  w8 = w>>2;
-  h8 = h>>2;
   w32 = w>>4;
   h32 = h>>4;
+  w8 = w32<<2;
+  h8 = h32<<2;
   dec8 = (unsigned char*)malloc(w8*h8*sizeof(*dec8));
   mode = (unsigned char*)malloc(w8*h8*sizeof(*mode)<<2);
   bstride = w8;
   mstride = w8<<1;
   /* Replace decision with the one from process_block_size32() */
-  for(i=1;i<h32-1;i++){
-    for(j=1;j<w32-1;j++){
+  for(i=0;i<h32;i++){
+    for(j=0;j<w32;j++){
       int k,m;
       int dec[2][2];
 #if 0
@@ -825,14 +831,14 @@ int compute_intra_paint(unsigned char *img, int w, int h, int stride, int ow,
   }
   od_intra_paint_encode(paint_out, img, w8, h8, stride, dec8, bstride, mode,
    mstride, edge_sum, edge_count);
-  for(i=32;i<32*(h32-1);i++) {
-    for(j=32;j<32*(w32-1);j++) {
+  for(i=0;i<32*h32;i++) {
+    for(j=0;j<32*w32;j++) {
       img[i*stride + j] = paint_out[i*stride + j];
     }
   }
 #if 0
-  for(i=4;i<h8-4;i++){
-    for(j=4;j<w8-4;j++){
+  for(i=0;i<h8;i++){
+    for(j=0;j<w8;j++){
       if ((i&3)==0 && (j&3)==0){
         int k;
         for(k=0;k<32;k++)
@@ -863,10 +869,10 @@ int compute_intra_paint(unsigned char *img, int w, int h, int stride, int ow,
       }
     }
   }
-  for (i=32;i<(w32-1)*32;i++)
-    img[(h32-1)*32*stride+i]=0;
-  for (i=32;i<(h32-1)*32;i++)
-    img[i*stride+(w32-1)*32]=0;
+  for (i=0;i<w32*32;i++)
+    img[(h32*32-1)*stride+i]=0;
+  for (i=0;i<h32*32;i++)
+    img[i*stride+w32*32-1]=0;
 #endif
   free(paint_out);
   free(edge_sum);
