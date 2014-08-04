@@ -412,10 +412,14 @@ int main(int _argc,char **_argv){
   int               fixedserial;
   unsigned int      serial;
   int               limit;
+  int               interactive;
   daala_log_init();
 #if defined(_WIN32)
   _setmode(_fileno(stdin),_O_BINARY);
   _setmode(_fileno(stdout),_O_BINARY);
+  interactive = _isatty(_fileno(stderr));
+#else
+  interactive = isatty(fileno(stderr));
 #endif
   outfile=stdout;
   memset(&avin,0,sizeof(avin));
@@ -588,8 +592,14 @@ int main(int _argc,char **_argv){
     if(video_time==-1)continue;
     video_kbps=(int)rint(video_bytesout*8*0.001/video_time);
     time_base=video_time;
+    if (interactive) {
+      fprintf(stderr, "\r");
+    }
+    else {
+      fprintf(stderr, "\n");
+    }
     fprintf(stderr,
-     "\r     %i:%02i:%02i.%02i video: %ikbps          ",
+     "     %i:%02i:%02i.%02i video: %ikbps          ",
      (int)time_base/3600,((int)time_base/60)%60,(int)time_base%60,
      (int)(time_base*100-(long)time_base*100),video_kbps);
   }
