@@ -607,7 +607,23 @@ static void quantize_right_edge(unsigned char *edge_accum, int n, int stride, in
    the number of pixels we can predict. */
 static void quantize_edge(unsigned char *edge_accum, int n, int stride, int q, int m) {
   /*printf("q\%d ", n);*/
-  if (m > 0 && m < n) {
+  if (m<0 || m >= 4*n) {
+    int pred;
+    int res;
+    int qdc;
+    int i;
+    pred = .73*(edge_accum[n] + edge_accum[n*stride]) - .46 *edge_accum[0];
+    res = edge_accum[n*stride+n]-pred;
+    qdc = q/8;
+    res = (int)(qdc*floor(.5+res/qdc));
+    /*printf("DC %d\n", (int)floor(.5+res/qdc));*/
+    edge_accum[n*stride+n] = res + pred;
+    for (i = 1; i < n; i++) {
+      edge_accum[n*stride+i] = edge_accum[n*stride] + i*(edge_accum[n*stride+n]-edge_accum[n*stride])/n;
+      edge_accum[i*stride+n] = edge_accum[n] + i*(edge_accum[n*stride+n]-edge_accum[n])/n;
+    }
+  }
+  else if (m > 0 && m < n) {
     quantize_right_edge(edge_accum, n, stride, q, m, 0);
     quantize_bottom_edge(edge_accum, n, stride, q, m, 1);
   }
@@ -646,11 +662,65 @@ void od_intra_paint_encode(unsigned char *paint, const unsigned char *img,
     }
   }
 
+#if 0
+  for(i = 32; i < 8*w8; i++) {
+    if (edge_count[32*stride + i] > 0) {
+      paint[32*stride + i] = edge_sum[32*stride + i]/edge_count[32*stride + i];
+    }
+    else {
+      paint[32*stride + i] = img[32*stride + i - 1];
+    }
+  }
+  for(i = 32; i < 8*h8; i++) {
+    if (edge_count[stride*i + 32] > 0) {
+      paint[stride*i + 32] = edge_sum[stride*i + 32]/edge_count[stride*i + 32];
+    }
+    else {
+      paint[stride*i + 32] = img[stride*(i-1) + 32];
+    }
+  }
+#endif
+
   for(i = 8; i < 2*h8-8; i++) {
     for(j = 8; j < 2*w8-8; j++) {
       int bs;
       bs = dec8[(i>>1)*bstride + (j>>1)];
       if (i>>bs<<bs == i && j>>bs<<bs == j) {
+#if 0
+        int k;
+        int n;
+        int base;
+        n = 4 << bs;
+        /*for (k = 1; k <= n; k++) {
+          if (edge_count[stride*(4*i + n) + 4*j + k] == 0)
+            paint[stride*(4*i + n) + 4*j + k] = 128;
+          if (edge_count[stride*(4*i + k) + 4*j + n] == 0)
+          paint[stride*(4*i + k) + 4*j + n] = 128;
+        }*/
+        base = 4*stride*i + 4*j;
+        for (k = 1; k < n; k++) {
+          if (edge_count[base + stride*n + k] > 0) {
+            paint[base + stride*n + k] = edge_sum[base + stride*n + k]/edge_count[base + stride*n + k];
+          }
+          else {
+            paint[base + stride*n + k] = img[base + stride*(n - 1) + k];
+          }
+        }
+        for (k = 1; k < n; k++) {
+          if (edge_count[base + stride*k + n] > 0) {
+            paint[base + stride*k + n] = edge_sum[base + stride*k + n]/edge_count[base + stride*k + n];
+          }
+          else {
+            paint[base + stride*k + n] = img[base + stride*k + n - 1];
+          }
+        }
+        if (edge_count[base + stride*n + n] > 0) {
+          paint[base + stride*n + n] = edge_sum[base + stride*n + n]/edge_count[base + stride*n + n];
+        }
+        else {
+          paint[base + stride*n + n] = img[base + stride*(n - 1) + n - 1];
+        }
+#endif
         quantize_edge(&paint[4*stride*i + 4*j], 4<<bs, stride, 30,
          mode[i*mstride + j]);
         interp_block(&paint[4*stride*i + 4*j], &paint[4*stride*i + 4*j],
@@ -661,7 +731,7 @@ void od_intra_paint_encode(unsigned char *paint, const unsigned char *img,
 #if 0
   for(i = 0; i < 2*h8; i++) {
     for(j = 0; j < 2*w8; j++) {
-      printf("%d ", mode[i][j]);
+      printf("%d ", mode[i*mstride+j]);
     }
     printf("\n");
   }
