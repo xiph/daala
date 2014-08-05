@@ -815,8 +815,7 @@ void od_intra_paint_choose_block_size(const unsigned char *img, int stride,
 
 /* Eventually we shouldn't be using this function, but calling
    od_intra_paint_choose_block_size() and od_intra_paint_encode() directly. */
-int compute_intra_paint(unsigned char *img, int w, int h, int stride, int ow,
- int oh)
+int compute_intra_paint(unsigned char *img, int w, int h, int stride)
 {
   int i,j;
   int h8,w8,h32,w32;
@@ -828,10 +827,7 @@ int compute_intra_paint(unsigned char *img, int w, int h, int stride, int ow,
   int bstride;
   int mstride;
 
-  (void)ow;
-  (void)oh;
-
-  paint_out = (unsigned char*)calloc((w+32)*(h+32)*sizeof(*paint_out), 1);
+  paint_out = (unsigned char*)calloc(stride*(h+32)*sizeof(*paint_out), 1);
   edge_sum = (int*)calloc((w+32)*(h+32), sizeof(*edge_sum));
   edge_count = (int*)calloc((w+32)*(h+32), sizeof(*edge_count));
   w32 = w>>5;
