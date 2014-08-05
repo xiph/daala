@@ -634,6 +634,47 @@ static void quantize_edge(unsigned char *edge_accum, int n, int stride, int q, i
   /*printf("\n");*/
 }
 
+void od_intra_paint_analysis(const unsigned char *img,
+ int stride, const unsigned char *dec8, int bstride,
+ unsigned char *mode, int mstride, int *edge_sum, int *edge_count,
+ int bx, int by, int level) {
+  int bs;
+  bs = dec8[(by<<level>>1)*bstride + (bx<<level>>1)];
+
+  OD_ASSERT(bs <= level);
+  if (bs < level) {
+    level--;
+    bx <<= 1;
+    by <<= 1;
+    od_intra_paint_analysis(img, stride, dec8, bstride,
+     mode, mstride, edge_sum, edge_count, bx, by, level);
+    od_intra_paint_analysis(img, stride, dec8, bstride,
+     mode, mstride, edge_sum, edge_count, bx + 1, by, level);
+    od_intra_paint_analysis(img, stride, dec8, bstride,
+     mode, mstride, edge_sum, edge_count, bx, by + 1, level);
+    od_intra_paint_analysis(img, stride, dec8, bstride,
+     mode, mstride, edge_sum, edge_count, bx + 1, by + 1, level);
+  }
+  else {
+    int ln;
+    int n;
+    int k;
+    int m;
+    int curr_mode;
+    ln = 2 + bs;
+    n = 1 << ln;
+    curr_mode = mode_select(&img[stride*n*by + n*bx], NULL, n, stride);
+    compute_edges(&img[stride*n*by + n*bx], &edge_sum[stride*n*by + n*bx],
+     &edge_count[stride*n*by + n*bx], n, stride, curr_mode);
+    mode[(by<<bs)*mstride + (bx<<bs)] = curr_mode;
+    for (k=0;k<1<<bs;k++) {
+      for (m=0;m<1<<bs;m++) {
+        mode[((by << bs) + k)*mstride + (bx << bs) + m] = curr_mode;
+      }
+    }
+  }
+}
+
 void od_intra_paint_quant_block(unsigned char *paint, const unsigned char *img,
  int stride, const unsigned char *dec8, int bstride,
  unsigned char *mode, int mstride, int *edge_sum, int *edge_count,
@@ -707,36 +748,25 @@ void od_intra_paint_quant_block(unsigned char *paint, const unsigned char *img,
 }
 
 void od_intra_paint_encode(unsigned char *paint, const unsigned char *img,
- int w8, int h8, int stride, const unsigned char *dec8, int bstride,
+ int w, int h, int stride, const unsigned char *dec8, int bstride,
  unsigned char *mode, int mstride, int *edge_sum, int *edge_count) {
   int i, j;
-  for(i = 0; i < 2*h8; i++) {
-    for(j = 0; j < 2*w8; j++) {
-      int bs;
-      bs = dec8[(i>>1)*bstride + (j>>1)];
-      if (i>>bs<<bs == i && j>>bs<<bs == j) {
-        int k, m;
-        mode[i*mstride + j] = mode_select(&img[4*stride*i + 4*j], NULL, 4<<bs, stride);
-        compute_edges(&img[4*stride*i + 4*j], &edge_sum[4*stride*i + 4*j],
-         &edge_count[4*stride*i + 4*j], 4<<bs, stride, mode[i*mstride + j]);
-        for (k=0;k<1<<bs;k++) {
-          for (m=0;m<1<<bs;m++) {
-            mode[(i+k)*mstride + j + m] = mode[i*mstride + j];
-          }
-        }
-      }
+  for(i = 0; i < h; i++) {
+    for(j = 0; j < w; j++) {
+      od_intra_paint_analysis(img, stride, dec8, bstride, mode,
+       mstride, edge_sum, edge_count, j, i, 3);
     }
   }
 
-  for(i = 0; i < h8/4; i++) {
-    for(j = 0; j < w8/4; j++) {
+  for(i = 0; i < h; i++) {
+    for(j = 0; j < w; j++) {
       od_intra_paint_quant_block(paint, img, stride, dec8, bstride, mode,
        mstride, edge_sum, edge_count, j, i, 3);
     }
   }
 #if 0
-  for(i = 0; i < 2*h8; i++) {
-    for(j = 0; j < 2*w8; j++) {
+  for(i = 0; i < h*8; i++) {
+    for(j = 0; j < w*8; j++) {
       printf("%d ", mode[i*mstride+j]);
     }
     printf("\n");
@@ -804,10 +834,8 @@ int compute_intra_paint(unsigned char *img, int w, int h, int stride, int ow,
   paint_out = (unsigned char*)calloc((w+32)*(h+32)*sizeof(*paint_out), 1);
   edge_sum = (int*)calloc((w+32)*(h+32), sizeof(*edge_sum));
   edge_count = (int*)calloc((w+32)*(h+32), sizeof(*edge_count));
-  w>>=1;
-  h>>=1;
-  w32 = w>>4;
-  h32 = h>>4;
+  w32 = w>>5;
+  h32 = h>>5;
   w8 = w32<<2;
   h8 = h32<<2;
   dec8 = (unsigned char*)malloc(w8*h8*sizeof(*dec8));
@@ -829,7 +857,7 @@ int compute_intra_paint(unsigned char *img, int w, int h, int stride, int ow,
           dec8[(4*i + k)*bstride + (4*j + m)]=dec[k>>1][m>>1];
     }
   }
-  od_intra_paint_encode(paint_out, img, w8, h8, stride, dec8, bstride, mode,
+  od_intra_paint_encode(paint_out, img, w32, h32, stride, dec8, bstride, mode,
    mstride, edge_sum, edge_count);
   for(i=0;i<32*h32;i++) {
     for(j=0;j<32*w32;j++) {
