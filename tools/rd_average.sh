@@ -11,4 +11,4 @@ if [ -n "$OUTPUT" ]; then
   TOTAL="$OUTPUT.out"
 fi
 
-awk '{size[FNR]+=$2;bytes[FNR]+=$3;psnr[FNR]+=$2*$4;psnrhvs[FNR]+=$2*$5;ssim[FNR]+=$2*$6;fastssim[FNR]+=$2*$7;}END{for(i=1;i<=FNR;i++)print i+1,size[i],bytes[i],psnr[i]/size[i],psnrhvs[i]/size[i],ssim[i]/size[i],fastssim[i]/size[i];}' $@ > $TOTAL
+awk '{size[$1]+=$2;bytes[$1]+=$3;psnr[$1]+=$2*$4;psnrhvs[$1]+=$2*$5;ssim[$1]+=$2*$6;fastssim[$1]+=$2*$7;}END{for(i in size)print i,size[i],bytes[i],psnr[i]/size[i],psnrhvs[i]/size[i],ssim[i]/size[i],fastssim[i]/size[i];}' $@ | sort -n > $TOTAL
