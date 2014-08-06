@@ -33,6 +33,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #endif
 
 typedef struct daala_enc_ctx od_enc_ctx;
+typedef struct od_params_ctx od_params_ctx;
 typedef struct od_mv_est_ctx od_mv_est_ctx;
 typedef struct od_enc_opt_vtbl od_enc_opt_vtbl;
 typedef struct od_rollback_buffer od_rollback_buffer;
@@ -57,6 +58,14 @@ struct od_enc_opt_vtbl {
    int systride, const unsigned char *ref, int dystride);
 };
 
+/*Unsanitized user parameters*/
+struct od_params_ctx {
+  /*Set using OD_SET_MV_LEVEL_MIN*/
+  int mv_level_min;
+  /*Set using OD_SET_MV_LEVEL_MAX*/
+  int mv_level_max;
+};
+
 struct daala_enc_ctx{
   od_state state;
   od_enc_opt_vtbl opt_vtbl;
@@ -65,6 +74,7 @@ struct daala_enc_ctx{
   int packet_state;
   int quantizer[OD_NPLANES_MAX];
   od_mv_est_ctx *mvest;
+  od_params_ctx params;
 #if defined(OD_ENCODER_CHECK)
   struct daala_dec_ctx *dec;
 #endif

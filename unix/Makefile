@@ -162,6 +162,7 @@ internal.h \
 intra.h \
 logging.h \
 mc.h \
+mcenc.h \
 odintrin.h \
 pvq.h \
 state.h \

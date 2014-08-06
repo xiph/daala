@@ -365,6 +365,11 @@ static const struct option OPTIONS[]={
   {"video-rate-target",required_argument,NULL,'V'},
   {"serial",required_argument,NULL,'s'},
   {"limit",required_argument,NULL,'l'},
+  {"mc-use-chroma",no_argument,NULL,0},
+  {"no-mc-use-chroma",no_argument,NULL,0},
+  {"mv-res-min",required_argument,NULL,0},
+  {"mv-level-min",required_argument,NULL,0},
+  {"mv-level-max",required_argument,NULL,0},
   {NULL,0,NULL,0}
 };
 
@@ -388,6 +393,17 @@ static void usage(void){
    "                                 bitrate.\n\n"
    "  -s --serial <n>                Specify a serial number for the stream.\n"
    "  -l --limit <n>                 Maximum number of frames to encode.\n"
+   "     --[no-]mc-use-chroma        Control whether the chroma planes should\n"
+   "                                 be used in the motion compensation search.\n"
+   "                                 --mc-use-chroma is implied by default.\n"
+   "     --mv-res-min <n>            Minimum motion vectors resolution for the\n"
+   "                                 motion compensation search.\n"
+   "                                 0 => 1/8 pel (default), 1 => 1/4 pel,\n"
+   "                                 2 => 1/2 pel\n"
+   "     --mv-level-min <n>          Minimum motion vectors level between\n"
+   "                                 0 (default) and 4.\n"
+   "     --mv-level-max <n>          Maximum motion vectors level between\n"
+   "                                 0 and 4 (default).\n"
    " encoder_example accepts only uncompressed YUV4MPEG2 video.\n\n");
   exit(1);
 }
@@ -417,6 +433,10 @@ int main(int _argc,char **_argv){
   unsigned int      serial;
   int               limit;
   int               interactive;
+  int               mc_use_chroma;
+  int               mv_res_min;
+  int               mv_level_min;
+  int               mv_level_max;
   daala_log_init();
 #if defined(_WIN32)
   _setmode(_fileno(stdin),_O_BINARY);
@@ -437,6 +457,10 @@ int main(int _argc,char **_argv){
   video_bytesout=0;
   fixedserial=0;
   limit=-1;
+  mc_use_chroma=1;
+  mv_res_min=0;
+  mv_level_min=0;
+  mv_level_max=4;
   while((c=getopt_long(_argc,_argv,OPTSTRING,OPTIONS,&loi))!=EOF){
     switch(c){
       case 'o':{
@@ -486,6 +510,45 @@ int main(int _argc,char **_argv){
           exit(1);
         }
       }break;
+      case 0:{
+        if(strcmp(OPTIONS[loi].name,"mc-use-chroma")==0){
+          mc_use_chroma=1;
+        }
+        else if (strcmp(OPTIONS[loi].name,"no-mc-use-chroma")==0){
+          mc_use_chroma=0;
+        }
+        else if (strcmp(OPTIONS[loi].name,"mv-res-min")==0){
+          mv_res_min=atoi(optarg);
+          if(mv_res_min<0||mv_res_min>2){
+            fprintf(stderr,"Illegal value for --mv-res-min\n");
+            exit(1);
+          }
+        }
+        else if (strcmp(OPTIONS[loi].name,"mv-level-min")==0){
+          mv_level_min=atoi(optarg);
+          if(mv_level_min<0||mv_level_min>4){
+            fprintf(stderr,"Illegal value for --mv-level-min\n");
+            exit(1);
+          }
+          if(mv_level_min>mv_level_max){
+            fprintf(stderr,
+             "--mv-level-min must be less than or equal to --mv-level-max\n");
+            exit(1);
+          }
+        }
+        else if (strcmp(OPTIONS[loi].name,"mv-level-max")==0){
+          mv_level_max=atoi(optarg);
+          if(mv_level_max<0||mv_level_max>4){
+            fprintf(stderr,"Illegal value for --mv-level-max\n");
+            exit(1);
+          }
+          if(mv_level_min>mv_level_max){
+            fprintf(stderr,
+             "--mv-level-max must be greater than or equal to --mv-level-min\n");
+            exit(1);
+          }
+        }
+      }break;
       case 'h':
       default:{
         usage();
@@ -521,6 +584,10 @@ int main(int _argc,char **_argv){
   video_q=(int)((input_q>0)?((input_q*16)-8.0):0);
   /*Set up encoder.*/
   daala_encode_ctl(dd, OD_SET_QUANT, &video_q, sizeof(int));
+  daala_encode_ctl(dd, OD_SET_MC_USE_CHROMA, &mc_use_chroma, sizeof(int));
+  daala_encode_ctl(dd, OD_SET_MV_RES_MIN, &mv_res_min, sizeof(int));
+  daala_encode_ctl(dd, OD_SET_MV_LEVEL_MIN, &mv_level_min, sizeof(int));
+  daala_encode_ctl(dd, OD_SET_MV_LEVEL_MAX, &mv_level_max, sizeof(int));
   /*Write the bitstream header packets with proper page interleave.*/
   /*The first packet for each logical stream will get its own page
      automatically.*/
