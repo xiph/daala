@@ -39,10 +39,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #define MAX_VAR_BLOCKS 1024
 #define MAXN 64
 
-/* Throughout this code, mode -1 means DC/gradient. All other modes are
-   numbered clockwise starting from mode 0 oriented 45 degrees up-right.
-   For an NxN block, mode N is horizontal, mode 2*N is 45-degrees down-right,
-   mode 3*N is vertical, and mode 4*N-1 is just next to mode 0. */
+/* All modes are numbered clockwise starting from mode 0 oriented 45 degrees
+   up-right. For an NxN block, mode N is horizontal, mode 2*N is 45-degrees
+   down-right, mode 3*N is vertical, and mode 4*N-1 is just next to mode 0.
+   Mode 4*N means DC/gradient.  */
 
 /* This function computes the position of the four points used to interpolate
    pixel (i,j) within an block of size 2^ln. The weights w[] are in Q7. We
@@ -74,7 +74,7 @@ static void pixel_interp(int pi[4], int pj[4], int w[4], int m, int i, int j,
   }
   /* DC/Gradient mode, weights are proportional to 1/distance. The 255 alias
      is a temporary fix because mode is sometimes unsigned. */
-  if (m == -1 || m == 255) {
+  if (m == 4*n) {
     pi[0] = 0;
     pj[0] = j;
     pi[1] = n;
@@ -210,7 +210,7 @@ static void compare_mode(unsigned char block[MAXN][MAXN],
 #if 1
   /* Give a slight bias to DC/gradient mode otherwise it doesn't get used.
      This needs to be improved. */
-  if (id==-1) curr_dist -= n*n*2 + 0*curr_dist/4;
+  if (id==4*n) curr_dist -= n*n*2 + 0*curr_dist/4;
 #endif
   *dist = curr_dist;
   if (curr_dist < *best_dist) {
@@ -240,9 +240,9 @@ static int mode_select(const unsigned char *img, int *dist, int n, int stride) {
   best_id = 0;
   ln = 0;
   while (1 << ln < n) ln++;
-  for (m = -1; m < 4*n; m++) {
+  for (m = 0; m <= 4*n; m++) {
     /* Only consider half the directions. */
-    if (m>=0 && (m&1)) continue;
+    if (m & 1) continue;
     int dist;
     for (i = 0; i <= n; i++) for (j = 0; j <= n; j++) edge_accum[i][j] = 0;
     for (i = 0; i <= n; i++) for (j = 0; j <= n; j++) edge_count[i][j] = 0;
@@ -385,7 +385,7 @@ static void predict_bottom_edge(int *p, unsigned char *edge_accum, int n, int st
     else {
       OD_ASSERT(i != 0);
       for(; i < n; i++) {
-        p[i] = p[i-1];
+        p[i] = p[i - 1];
       }
     }
   }
