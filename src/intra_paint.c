@@ -799,15 +799,14 @@ void od_intra_paint_quant_block(unsigned char *paint, const unsigned char *img,
     /*od_intra_paint_mode_encode(mode, bx, by, ln, mstride, dec8, bstride, res);*/
     if (bx == 0 && by == 0) {
       if (edge_count[0] > 0) paint[0] = edge_sum[0]/edge_count[0];
-      else paint[0] = 0;
+      else paint[0] = img[0];
     }
-    /* FIXME: Handle last pixel of left and top properly (no image data). */
     /* Compute left edge (left column only). */
     if (bx == 0) {
       for (k = 1; k <= n; k++) {
         idx = stride*(n*by + k);
         if (edge_count[idx] > 0) paint[idx] = edge_sum[idx]/edge_count[idx];
-        else paint[idx] = 0;
+        else paint[idx] = img[idx - 1];
       }
     }
     /* Compute top edge (top row only). */
@@ -815,7 +814,7 @@ void od_intra_paint_quant_block(unsigned char *paint, const unsigned char *img,
       for (k = 1; k <= n; k++) {
         idx = n*bx + k;
         if (edge_count[idx] > 0) paint[idx] = edge_sum[idx]/edge_count[idx];
-        else paint[idx] = 0;
+        else paint[idx] = img[idx - stride];
       }
     }
     /* Compute right edge stats. */
