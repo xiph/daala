@@ -184,6 +184,9 @@ tools_TARGETS = \
 	tools/y4m2png \
 	tools/dump_psnrhvs \
 	tools/block_size_analysis \
+	tools/to_monochrome \
+	tools/downsample \
+	tools/upsample \
 	tools/divu_const \
 	tools/trans \
 	tools/trans2d \
@@ -282,6 +285,43 @@ tools_block_size_analysis_SOURCES = \
 	src/switch_table.c
 tools_block_size_analysis_CFLAGS = $(OGG_CFLAGS) $(PNG_CFLAGS)
 tools_block_size_analysis_LDADD = $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
+
+# to_monochrome
+tools_to_monochrome_SOURCES = \
+	tools/vidinput.c \
+	tools/y4m_input.c \
+	tools/to_monochrome.c
+tools_to_monochrome_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS)
+tools_to_monochrome_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS)
+
+# downsample
+tools_downsample_SOURCES = \
+	tools/vidinput.c \
+	tools/y4m_input.c \
+	tools/downsample.c
+tools_downsample_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS)
+tools_downsample_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS)
+
+# upsample
+tools_upsample_SOURCES = \
+	$(src_dct_SOURCES) \
+	src/generic_code.c \
+	src/switch_table.c \
+	src/logging.c \
+	src/info.c \
+	src/mc.c \
+	src/pvq.c \
+	src/state.c \
+	tools/vidinput.c \
+	tools/y4m_input.c \
+	tools/upsample.c
+if ENABLE_X86ASM
+tools_upsample_SOURCES += \
+	src/x86/sse2mc.c \
+	src/x86/x86state.c
+endif
+tools_upsample_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS)
+tools_upsample_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
 
 # divu_const
 tools_divu_const_SOURCES = \

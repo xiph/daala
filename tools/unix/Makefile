@@ -129,6 +129,62 @@ BSIZE_OBJS:=${BSIZE_OBJS:%.c=${WORKDIR}/%.o}
 BSIZE_CSOURCES:=${BSIZE_LOCAL_CSOURCES:%=${LOCALSRCDIR}/%} ${BSIZE_LIB_CSOURCES:%=${LIBSRCDIR}/%}
 BSIZE_TARGET:=block_size_analysis
 
+#to_monochrome
+MONO_LOCAL_CSOURCES = \
+vidinput.c \
+y4m_input.c \
+to_monochrome.c
+
+MONO_LIB_CSOURCES =
+
+MONO_LDFLAGS = `pkg-config ogg libpng --libs`
+
+MONO_OBJS:=${MONO_LOCAL_CSOURCES} ${MONO_LIB_CSOURCES}
+MONO_OBJS:=${MONO_OBJS:%.c=${WORKDIR}/%.o}
+MONO_CSOURCES:=${MONO_LOCAL_CSOURCES:%=${LOCALSRCDIR}/%} ${MONO_LIB_CSOURCES:%=${LIBSRCDIR}/%}
+MONO_TARGET:=to_monochrome
+
+
+#downsample
+DS_LOCAL_CSOURCES = \
+vidinput.c \
+y4m_input.c \
+downsample.c
+
+DS_LIB_CSOURCES =
+
+DS_LDFLAGS = `pkg-config ogg libpng --libs`
+
+DS_OBJS:=${DS_LOCAL_CSOURCES} ${DS_LIB_CSOURCES}
+DS_OBJS:=${DS_OBJS:%.c=${WORKDIR}/%.o}
+DS_CSOURCES:=${DS_LOCAL_CSOURCES:%=${LOCALSRCDIR}/%} ${DS_LIB_CSOURCES:%=${LIBSRCDIR}/%}
+DS_TARGET:=downsample
+
+
+#upsample
+US_LOCAL_CSOURCES = \
+vidinput.c \
+y4m_input.c \
+upsample.c
+
+US_LIB_CSOURCES = \
+dct.c \
+internal.c \
+generic_code.c \
+switch_table.c \
+logging.c \
+info.c \
+mc.c \
+pvq.c \
+state.c
+
+US_LDFLAGS = `pkg-config ogg libpng --libs` -lm
+
+US_OBJS:=${US_LOCAL_CSOURCES} ${US_LIB_CSOURCES}
+US_OBJS:=${US_OBJS:%.c=${WORKDIR}/%.o}
+US_CSOURCES:=${US_LOCAL_CSOURCES:%=${LOCALSRCDIR}/%} ${US_LIB_CSOURCES:%=${LIBSRCDIR}/%}
+US_TARGET:=upsample
+
 #trans
 T_LOCAL_CSOURCES = \
 trans.c \
@@ -294,7 +350,8 @@ JY_TARGET:=jpegyuv
 
 ALL_OBJS:=${P2Y_OBJS} ${Y2P_OBJS} ${PSNR_OBJS} ${PSNRHVS_OBJS} \
  ${GEN_CDF_OBJS} ${GEN_LAPLACE_TABLES_OBJS} ${T_OBJS} \
- ${TG_OBJS} ${CBASIS_OBJS} ${T2D_OBJS} ${BSIZE_OBJS} ${BD_OBJS} ${YJ_OBJS} ${JY_OBJS}
+ ${TG_OBJS} ${CBASIS_OBJS} ${T2D_OBJS} ${BSIZE_OBJS} ${BD_OBJS} \
+ ${YJ_OBJS} ${JY_OBJS} ${MONO_OBJS} ${DS_OBJS} ${US_OBJS}
 
 ALL_ASMS:=${ALL_OBJS:%.o=%.s}
 
@@ -304,7 +361,7 @@ ALL_TARGETS:=${P2Y_TARGET} ${Y2P_TARGET} ${PSNR_TARGET} ${PSNRHVS_TARGET} \
  ${GEN_CDF_TARGET} \
  ${GEN_LAPLACE_TABLES_TARGET} \
  ${T_TARGET} ${TG_TARGET} ${CBASIS_TARGET} ${T2D_TARGET} ${BSIZE_TARGET} ${BD_TARGET} \
- ${YJ_TARGET} ${JY_TARGET}
+ ${YJ_TARGET} ${JY_TARGET} ${MONO_TARGET} ${DS_TARGET} ${US_TARGET}
 
 all: ${ALL_TARGETS}
 
@@ -358,6 +415,15 @@ ${YJ_TARGET}: ${YJ_OBJS}
 
 ${JY_TARGET}: ${JY_OBJS}
 	${CC} ${CFLAGS} ${JY_OBJS} ${JY_LDFLAGS} -o $@
+
+${MONO_TARGET}: ${MONO_OBJS}
+	${CC} ${CFLAGS} ${MONO_OBJS} ${MONO_LDFLAGS} -o $@
+
+${DS_TARGET}: ${DS_OBJS}
+	${CC} ${CFLAGS} ${DS_OBJS} ${DS_LDFLAGS} -o $@
+
+${US_TARGET}: ${US_OBJS}
+	${CC} ${CFLAGS} ${US_OBJS} ${US_LDFLAGS} -o $@
 
 ${ALL_OBJS} ${ALL_ASMS} ${ALL_DEPS} ${ALL_TARGETS}: Makefile
 

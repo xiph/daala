@@ -75,6 +75,9 @@ src/tests/*.log
 src/tests/*.trs
 test-suite.log
 tools/block_size_analysis
+tools/to_monochrome
+tools/downsample
+tools/upsample
 tools/dump_psnrhvs
 tools/gen_cdf
 tools/gen_laplace_tables
