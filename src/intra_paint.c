@@ -677,11 +677,11 @@ void od_intra_paint_analysis(const unsigned char *img,
 static int dc_prob[8] = {128, 128, 128, 128, 128, 128, 128, 128};
 #define DC_PROB_SPEED (4)
 
-static int dir_prob[8] = {128, 128, 128, 128, 128, 128, 128, 128};
+static int dir_prob[9] = {128, 128, 128, 128, 128, 128, 128, 128, 128};
 #define DIR_PROB_SPEED (4)
 
 void od_intra_paint_mode_encode(const unsigned char *mode, int bx, int by,
- int ln, int mstride, int res) {
+ int ln, int mstride, const unsigned char *dec8, int bstride, int res) {
   int i;
   int m;
   int left;
@@ -689,18 +689,32 @@ void od_intra_paint_mode_encode(const unsigned char *mode, int bx, int by,
   int topleft;
   int idx;
   int dc_ctx;
-  int n;
+  int nb;
+  int bs;
   double bits;
   if (bx ==0 || by == 0)
     return;
-  n = 1 << ln >> res;
-  idx = (by*mstride + bx) << ln >> 2;
+  bs = ln - 2;
+  nb = 4 << ln >> res;
+  if (0) {
+    printf("%f\n", log2(1+(nb>>res)));
+    return;
+  }
+  idx = (by*mstride + bx) << bs;
   m = mode[idx] >> res;
   top = mode[idx - mstride] >> res;
   left = mode[idx - 1] >> res;
   topleft = mode[idx - mstride - 1] >> res;
-  dc_ctx = 4*(top == 4*n) + 2*(left == 4*n) + (topleft == 4*n);
-  if (m == 4*n) {
+  /* Compensate for mixed block size. */
+  top = top << bs >> dec8[(((by<<bs)-1)>>1)*bstride + (bx<<bs>>1)];
+  left = left << bs >> dec8[(by<<bs>>1)*bstride + (((bx<<bs)-1)>>1)];
+  topleft = topleft << bs >> dec8[(((by<<bs)-1)>>1)*bstride + (((bx<<bs)-1)>>1)];
+  OD_ASSERT(m <= nb);
+  OD_ASSERT(topleft <= nb);
+  OD_ASSERT(left <= nb);
+  OD_ASSERT(top <= nb);
+  dc_ctx = 4*(top == nb) + 2*(left == nb) + (topleft == nb);
+  if (m == nb) {
     bits = -log2(dc_prob[dc_ctx]/256.);
     dc_prob[dc_ctx] += (256 - dc_prob[dc_ctx]) >> DC_PROB_SPEED;
   } else {
@@ -715,7 +729,7 @@ void od_intra_paint_mode_encode(const unsigned char *mode, int bx, int by,
 
     cnt = 0;
     prob_sum = dir_prob[0];
-    for (i = 0; i< 4*n; i++) {
+    for (i = 0; i< nb; i++) {
       int ctx;
       ctx = 0;
       if (i == top) ctx+=2;
@@ -745,7 +759,7 @@ void od_intra_paint_mode_encode(const unsigned char *mode, int bx, int by,
     }
     if (!in_list) {
       bits += -log2(dir_prob[0]/(double)prob_sum);
-      bits += log2(4*n-cnt);
+      bits += log2(nb-cnt);
       dir_prob[0] += (256 - dir_prob[0]) >> DIR_PROB_SPEED;
     } else {
       dir_prob[0] -= dir_prob[0] >> DIR_PROB_SPEED;
@@ -782,7 +796,7 @@ void od_intra_paint_quant_block(unsigned char *paint, const unsigned char *img,
     int idx;
     ln = 2 + bs;
     n = 1 << ln;
-    /*od_intra_paint_mode_encode(mode, bx, by, ln, mstride, res);*/
+    /*od_intra_paint_mode_encode(mode, bx, by, ln, mstride, dec8, bstride, res);*/
     if (bx == 0 && by == 0) {
       if (edge_count[0] > 0) paint[0] = edge_sum[0]/edge_count[0];
       else paint[0] = 0;
@@ -846,7 +860,7 @@ void od_intra_paint_encode(unsigned char *paint, const unsigned char *img,
 #if 0
   for(i = 0; i < h*8; i++) {
     for(j = 0; j < w*8; j++) {
-      printf("%d ", mode[i*mstride+j]);
+      printf("%d ", mode[i*mstride+j]<<3>>dec8[(i>>1)*bstride + (j>>1)]);
     }
     printf("\n");
   }
