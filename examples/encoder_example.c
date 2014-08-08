@@ -403,6 +403,7 @@ int main(int _argc,char **_argv){
   ogg_int64_t       video_bytesout;
   double            time_base;
   int               c;
+  double            input_q;
   int               loi;
   int               ret;
   int               video_kbps;
@@ -429,7 +430,7 @@ int main(int _argc,char **_argv){
   avin.video_fps_d=-1;
   avin.video_par_n=-1;
   avin.video_par_d=-1;
-  video_q=10;
+  input_q=10.0;
   video_keyframe_rate=256;
   video_r=-1;
   video_bytesout=0;
@@ -452,8 +453,8 @@ int main(int _argc,char **_argv){
         }
       }break;
       case 'v':{
-        video_q=(int)rint(atof(optarg)*1);
-        if(video_q<0||video_q>511){
+        input_q=atof(optarg);
+        if(input_q<0||input_q>511){
           fprintf(stderr,"Illegal video quality (use 0 through 511)\n");
           exit(1);
         }
@@ -466,7 +467,7 @@ int main(int _argc,char **_argv){
            "Illegal video bitrate (use 45kbps through 2000kbps)\n");
           exit(1);
         }
-        video_q=0;
+        input_q=0;
       }break;
       case 's':{
         if(sscanf(optarg,"%u",&serial)!=1){
@@ -516,6 +517,7 @@ int main(int _argc,char **_argv){
   /*TODO: Other crap.*/
   dd=daala_encode_create(&di);
   daala_comment_init(&dc);
+  video_q=(int)((input_q>0)?((input_q*16)-8.0):0);
   /*Set up encoder.*/
   daala_encode_ctl(dd, OD_SET_QUANT, &video_q, sizeof(int));
   /*Write the bitstream header packets with proper page interleave.*/
