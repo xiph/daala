@@ -34,6 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "odintrin.h"
 #include "entenc.h"
 #include "generic_code.h"
+#include "laplace_code.h"
 
 #define QUANTIZE (1)
 
@@ -541,8 +542,40 @@ static const od_idct_func_1d my_idct_table[5] = {
   od_idct64_approx,
 };
 
+generic_encoder model;
+int ex_dc = 16384;
+int ex_k[4] = {16384, 16384};
+generic_encoder edge_k_model;
+ogg_int32_t adapt[OD_NSB_ADAPT_CTXS] = {384, 256, 104, 128};
+
+void encode_edge_coeffs(od_ec_enc *enc, od_coeff *x, int n, int ctx) {
+  int i;
+  int k;
+  ogg_int32_t adapt_curr[OD_NSB_ADAPT_CTXS];
+  int speed;
+  speed = 4;
+  k = 0;
+  for (i = 0; i < n; i++) k += abs(x[i]);
+  generic_encode(enc, &edge_k_model, k, -1, &ex_k[ctx], 6);
+  laplace_encode_vector(enc, x, n, k, adapt_curr, adapt);
+
+  if (adapt_curr[OD_ADAPT_K_Q8] > 0) {
+    adapt[OD_ADAPT_K_Q8] += 256*adapt_curr[OD_ADAPT_K_Q8] -
+     adapt[OD_ADAPT_K_Q8]>>speed;
+    adapt[OD_ADAPT_SUM_EX_Q8] += adapt_curr[OD_ADAPT_SUM_EX_Q8] -
+     adapt[OD_ADAPT_SUM_EX_Q8]>>speed;
+  }
+  if (adapt_curr[OD_ADAPT_COUNT_Q8] > 0) {
+    adapt[OD_ADAPT_COUNT_Q8] += adapt_curr[OD_ADAPT_COUNT_Q8]-
+     adapt[OD_ADAPT_COUNT_Q8]>>speed;
+    adapt[OD_ADAPT_COUNT_EX_Q8] += adapt_curr[OD_ADAPT_COUNT_EX_Q8]-
+     adapt[OD_ADAPT_COUNT_EX_Q8]>>speed;
+  }
+
+}
+
 /* Quantize the bottom edge using prediction. */
-static void quantize_bottom_edge(unsigned char *edge_accum, int n, int stride, int q,
+static void quantize_bottom_edge(od_ec_enc *enc, unsigned char *edge_accum, int n, int stride, int q,
  int m, int has_right) {
   int x[MAXN];
   int r[MAXN];
@@ -563,10 +596,9 @@ static void quantize_bottom_edge(unsigned char *edge_accum, int n, int stride, i
   for (i = 0; i < n; i++) r[i] = edge_accum[n*stride + i + 1] - p[i];
   my_fdct_table[lsize](x, r, 1);
 #if QUANTIZE
-  for (i = 0; i < n; i++) {
-    x[i] = (int)(q*floor(.5+x[i]/q));
-    /*printf("%d ", (int)floor(.5+x[i]/q));*/
-  }
+  for (i = 0; i < n; i++) x[i] = (int)(floor(.5+x[i]/q));
+  encode_edge_coeffs(enc, x, n, has_right || (m >= n && m <= 3*n));
+  for (i = 0; i < n; i++) x[i] = q*x[i];
 #endif
   my_idct_table[lsize](r, 1, x);
   for (i = 0; i < n; i++) r[i] += p[i];
@@ -574,7 +606,7 @@ static void quantize_bottom_edge(unsigned char *edge_accum, int n, int stride, i
 }
 
 /* Quantize the right edge using prediction. */
-static void quantize_right_edge(unsigned char *edge_accum, int n, int stride, int q,
+static void quantize_right_edge(od_ec_enc *enc, unsigned char *edge_accum, int n, int stride, int q,
  int m, int has_bottom) {
   int x[MAXN];
   int r[MAXN];
@@ -594,18 +626,14 @@ static void quantize_right_edge(unsigned char *edge_accum, int n, int stride, in
   for (i = 0; i < n; i++) r[i] = edge_accum[(i + 1)*stride + n] - p[i];
   my_fdct_table[lsize](x, r, 1);
 #if QUANTIZE
-  for (i = 0; i < n; i++) {
-    x[i] = (int)(q*floor(.5+x[i]/q));
-    /*printf("%d ", (int)floor(.5+x[i]/q));*/
-  }
+  for (i = 0; i < n; i++) x[i] = (int)(floor(.5+x[i]/q));
+  encode_edge_coeffs(enc, x, n, (has_bottom || (m >= n && m <= 3*n)) + 2);
+  for (i = 0; i < n; i++) x[i] = q*x[i];
 #endif
   my_idct_table[lsize](r, 1, x);
   for (i = 0; i < n; i++) r[i] += p[i];
   for (i = 0; i < n; i++) edge_accum[(i+1)*stride+n] = OD_MAXI(0, OD_MINI(255, r[i]));
 }
-
-generic_encoder model;
-int ex_dc = 16384;
 
 /* Quantize both the right and bottom edge, changing the order to maximize
    the number of pixels we can predict. */
@@ -632,12 +660,12 @@ static void quantize_edge(od_ec_enc *enc, unsigned char *edge_accum, int n, int 
     }
   }
   else if (m > 0 && m < n) {
-    quantize_right_edge(edge_accum, n, stride, q, m, 0);
-    quantize_bottom_edge(edge_accum, n, stride, q, m, 1);
+    quantize_right_edge(enc, edge_accum, n, stride, q, m, 0);
+    quantize_bottom_edge(enc, edge_accum, n, stride, q, m, 1);
   }
   else {
-    quantize_bottom_edge(edge_accum, n, stride, q, m, 0);
-    quantize_right_edge(edge_accum, n, stride, q, m, 1);
+    quantize_bottom_edge(enc, edge_accum, n, stride, q, m, 0);
+    quantize_right_edge(enc, edge_accum, n, stride, q, m, 1);
   }
   /*printf("\n");*/
 }
@@ -935,6 +963,7 @@ int compute_intra_paint(od_ec_enc *enc, unsigned char *img, int w, int h, int st
   int mstride;
 
   generic_model_init(&model);
+  generic_model_init(&edge_k_model);
 
   paint_out = (unsigned char*)calloc(stride*(h+32)*sizeof(*paint_out), 1);
   edge_sum = (int*)calloc((w+32)*(h+32), sizeof(*edge_sum));
