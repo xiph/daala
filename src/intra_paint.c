@@ -604,9 +604,10 @@ static void quantize_right_edge(unsigned char *edge_accum, int n, int stride, in
 
 /* Quantize both the right and bottom edge, changing the order to maximize
    the number of pixels we can predict. */
-static void quantize_edge(unsigned char *edge_accum, int n, int stride, int q, int m) {
+static void quantize_edge(unsigned char *edge_accum, int n, int stride, int q,
+ int m, int dc_quant) {
   /*printf("q\%d ", n);*/
-  if (m<0 || m >= 4*n) {
+  if (dc_quant) {
     int pred;
     int res;
     int qdc;
@@ -794,6 +795,7 @@ void od_intra_paint_quant_block(unsigned char *paint, const unsigned char *img,
     int n;
     int k;
     int idx;
+    int dc_quant;
     ln = 2 + bs;
     n = 1 << ln;
     /*od_intra_paint_mode_encode(mode, bx, by, ln, mstride, dec8, bstride, res);*/
@@ -832,8 +834,13 @@ void od_intra_paint_quant_block(unsigned char *paint, const unsigned char *img,
     idx = stride*n*(by + 1) + n*(bx + 1);
     if (edge_count[idx] > 0) paint[idx] = edge_sum[idx]/edge_count[idx];
     else paint[idx] = img[idx - stride - 1];
+    /* Only use special DC quantization when the two adjacent blocks are
+       also DC. In the future, we could also treat each edge separately. */
+    dc_quant = mode[(by*mstride + bx) << ln >> 2]==4*n
+     && mode[(by*mstride + bx + 1) << ln >> 2] == 4*n
+     && mode[((by + 1)*mstride + bx -1) << ln >> 2] == 4*n;
     quantize_edge(&paint[stride*n*by + n*bx], n, stride, 30,
-     mode[(by*mstride + bx) << ln >> 2]);
+     mode[(by*mstride + bx) << ln >> 2], dc_quant);
     interp_block(&paint[stride*n*by + n*bx], &paint[stride*n*by + n*bx],
      n, stride, mode[(by*mstride + bx) << ln >> 2]);
   }
