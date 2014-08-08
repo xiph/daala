@@ -32,6 +32,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <string.h>
 #include <math.h>
 #include "odintrin.h"
+#include "entenc.h"
+#include "generic_code.h"
 
 #define QUANTIZE (1)
 
@@ -602,9 +604,12 @@ static void quantize_right_edge(unsigned char *edge_accum, int n, int stride, in
   for (i = 0; i < n; i++) edge_accum[(i+1)*stride+n] = OD_MAXI(0, OD_MINI(255, r[i]));
 }
 
+generic_encoder model;
+int ex_dc = 16384;
+
 /* Quantize both the right and bottom edge, changing the order to maximize
    the number of pixels we can predict. */
-static void quantize_edge(unsigned char *edge_accum, int n, int stride, int q,
+static void quantize_edge(od_ec_enc *enc, unsigned char *edge_accum, int n, int stride, int q,
  int m, int dc_quant) {
   /*printf("q\%d ", n);*/
   if (dc_quant) {
@@ -612,11 +617,14 @@ static void quantize_edge(unsigned char *edge_accum, int n, int stride, int q,
     int res;
     int qdc;
     int i;
-    pred = .73*(edge_accum[n] + edge_accum[n*stride]) - .46 *edge_accum[0];
+    pred = floor(.5 + .73*(edge_accum[n] + edge_accum[n*stride]) - .46 *edge_accum[0]);
     res = edge_accum[n*stride+n]-pred;
     qdc = q/8;
-    res = (int)(qdc*floor(.5+res/qdc));
-    /*printf("DC %d\n", (int)floor(.5+res/qdc));*/
+    res = (int)floor(.5+res/qdc);
+    generic_encode(enc, &model, abs(res), -1, &ex_dc, 6);
+    if (res != 0) od_ec_enc_bits(enc, res > 0, 1);
+    /*printf("DC %d\n", res);*/
+    res = res*qdc;
     edge_accum[n*stride+n] = res + pred;
     for (i = 1; i < n; i++) {
       edge_accum[n*stride+i] = edge_accum[n*stride] + i*(edge_accum[n*stride+n]-edge_accum[n*stride])/n;
@@ -769,7 +777,7 @@ void od_intra_paint_mode_encode(const unsigned char *mode, int bx, int by,
   printf("%d %f\n", m, bits);
 }
 
-void od_intra_paint_quant_block(unsigned char *paint, const unsigned char *img,
+void od_intra_paint_quant_block(od_ec_enc *enc, unsigned char *paint, const unsigned char *img,
  int stride, const unsigned char *dec8, int bstride,
  unsigned char *mode, int mstride, int *edge_sum, int *edge_count, int res,
  int bx, int by, int level) {
@@ -781,13 +789,13 @@ void od_intra_paint_quant_block(unsigned char *paint, const unsigned char *img,
     level--;
     bx <<= 1;
     by <<= 1;
-    od_intra_paint_quant_block(paint, img, stride, dec8, bstride,
+    od_intra_paint_quant_block(enc, paint, img, stride, dec8, bstride,
      mode, mstride, edge_sum, edge_count, res, bx, by, level);
-    od_intra_paint_quant_block(paint, img, stride, dec8, bstride,
+    od_intra_paint_quant_block(enc, paint, img, stride, dec8, bstride,
      mode, mstride, edge_sum, edge_count, res, bx + 1, by, level);
-    od_intra_paint_quant_block(paint, img, stride, dec8, bstride,
+    od_intra_paint_quant_block(enc, paint, img, stride, dec8, bstride,
      mode, mstride, edge_sum, edge_count, res, bx, by + 1, level);
-    od_intra_paint_quant_block(paint, img, stride, dec8, bstride,
+    od_intra_paint_quant_block(enc, paint, img, stride, dec8, bstride,
      mode, mstride, edge_sum, edge_count, res, bx + 1, by + 1, level);
   }
   else {
@@ -839,14 +847,14 @@ void od_intra_paint_quant_block(unsigned char *paint, const unsigned char *img,
     dc_quant = mode[(by*mstride + bx) << ln >> 2]==4*n
      && mode[(by*mstride + bx + 1) << ln >> 2] == 4*n
      && mode[((by + 1)*mstride + bx -1) << ln >> 2] == 4*n;
-    quantize_edge(&paint[stride*n*by + n*bx], n, stride, 30,
+    quantize_edge(enc, &paint[stride*n*by + n*bx], n, stride, 30,
      mode[(by*mstride + bx) << ln >> 2], dc_quant);
     interp_block(&paint[stride*n*by + n*bx], &paint[stride*n*by + n*bx],
      n, stride, mode[(by*mstride + bx) << ln >> 2]);
   }
 }
 
-void od_intra_paint_encode(unsigned char *paint, const unsigned char *img,
+void od_intra_paint_encode(od_ec_enc *enc, unsigned char *paint, const unsigned char *img,
  int w, int h, int stride, const unsigned char *dec8, int bstride,
  unsigned char *mode, int mstride, int *edge_sum, int *edge_count, int res) {
   int i, j;
@@ -859,7 +867,7 @@ void od_intra_paint_encode(unsigned char *paint, const unsigned char *img,
 
   for(i = 0; i < h; i++) {
     for(j = 0; j < w; j++) {
-      od_intra_paint_quant_block(paint, img, stride, dec8, bstride, mode,
+      od_intra_paint_quant_block(enc, paint, img, stride, dec8, bstride, mode,
        mstride, edge_sum, edge_count, res, j, i, 3);
     }
   }
@@ -914,7 +922,7 @@ void od_intra_paint_choose_block_size(const unsigned char *img, int stride,
 
 /* Eventually we shouldn't be using this function, but calling
    od_intra_paint_choose_block_size() and od_intra_paint_encode() directly. */
-int compute_intra_paint(unsigned char *img, int w, int h, int stride)
+int compute_intra_paint(od_ec_enc *enc, unsigned char *img, int w, int h, int stride)
 {
   int i,j;
   int h8,w8,h32,w32;
@@ -925,6 +933,8 @@ int compute_intra_paint(unsigned char *img, int w, int h, int stride)
   int *edge_count;
   int bstride;
   int mstride;
+
+  generic_model_init(&model);
 
   paint_out = (unsigned char*)calloc(stride*(h+32)*sizeof(*paint_out), 1);
   edge_sum = (int*)calloc((w+32)*(h+32), sizeof(*edge_sum));
@@ -952,7 +962,7 @@ int compute_intra_paint(unsigned char *img, int w, int h, int stride)
           dec8[(4*i + k)*bstride + (4*j + m)]=dec[k>>1][m>>1];
     }
   }
-  od_intra_paint_encode(paint_out, img, w32, h32, stride, dec8, bstride, mode,
+  od_intra_paint_encode(enc, paint_out, img, w32, h32, stride, dec8, bstride, mode,
    mstride, edge_sum, edge_count, 1);
   for(i=0;i<32*h32;i++) {
     for(j=0;j<32*w32;j++) {
