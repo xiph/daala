@@ -17,7 +17,7 @@ WIDTH=$(head -1 $FILE | cut -d\  -f 2 | tr -d 'W')
 HEIGHT=$(head -1 $FILE | cut -d\  -f 3 | tr -d 'H')
 PIXELS=$(($WIDTH*$HEIGHT))
 
-for x in $(seq 0 100); do
+for x in $(seq 100 -1 0); do
   $YUVJPEG $x "$WIDTH"x$HEIGHT $BASENAME-in.yuv $BASENAME.jpeg
   $JPEGYUV $BASENAME.jpeg $BASENAME.yuv
   $YUV2YUV4MPEG $BASENAME -w$WIDTH -h$HEIGHT -an0 -ad0 -c420mpeg2
@@ -27,7 +27,7 @@ for x in $(seq 0 100); do
   SSIM=$($DUMP_SSIM $FILE $BASENAME.y4m 2> /dev/null | grep Total | tr -s ' ' | cut -d\  -f $((4+$PLANE*2)))
   FASTSSIM=$($DUMP_FASTSSIM -c $FILE $BASENAME.y4m 2> /dev/null | grep Total | tr -s ' ' | cut -d\  -f $((4+$PLANE*2)))
   rm $BASENAME.jpeg $BASENAME.yuv $BASENAME.y4m
-  echo $x $PIXELS $SIZE $PSNR $PSNRHVS $SSIM $FASTSSIM >> $BASENAME.out
+  echo -$x $PIXELS $SIZE $PSNR $PSNRHVS $SSIM $FASTSSIM >> $BASENAME.out
   #tail -1 $BASENAME.out
 done
 
