@@ -544,7 +544,7 @@ static const od_idct_func_1d my_idct_table[5] = {
 
 generic_encoder model;
 int ex_dc = 16384;
-int ex_k[4] = {16384, 16384};
+int ex_k[4] = {16384, 16384, 16384, 16384};
 generic_encoder edge_k_model;
 ogg_int32_t adapt[OD_NSB_ADAPT_CTXS] = {384, 256, 104, 128};
 
