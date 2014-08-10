@@ -223,7 +223,7 @@ static __inline int od_bsr(unsigned long x) {
  + 0*((dst)-(src)) ))
 #endif
 
-/** Set n elements of dst to zero, starting at address s */
+/** Set n elements of dst to zero */
 #if !defined(OVERRIDE_OD_CLEAR)
 # define OD_CLEAR(dst, n) (memset((dst), 0, sizeof(*(dst))*(n)))
 #endif
