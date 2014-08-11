@@ -717,28 +717,22 @@ static int dc_prob[8] = {128, 128, 128, 128, 128, 128, 128, 128};
 static int dir_prob[9] = {128, 128, 128, 128, 128, 128, 128, 128, 128};
 #define DIR_PROB_SPEED (4)
 
-void od_intra_paint_mode_encode(const unsigned char *mode, int bx, int by,
+int od_intra_paint_mode_cdf(ogg_uint16_t *cdf, int *dir_list, int *prob_list,
+ int *ctx_list, int *dc_ctx, const unsigned char *mode, int bx, int by,
  int ln, int mstride, const unsigned char *dec8, int bstride, int res) {
   int i;
-  int m;
   int left;
   int top;
   int topleft;
   int idx;
-  int dc_ctx;
   int nb;
   int bs;
-  double bits;
-  if (bx ==0 || by == 0)
-    return;
+  int cnt;
+  int prob_sum;
+  int norm;
   bs = ln - 2;
   nb = 4 << ln >> res;
-  if (0) {
-    printf("%f\n", log2(1+(nb>>res)));
-    return;
-  }
   idx = (by*mstride + bx) << bs;
-  m = mode[idx] >> res;
   top = mode[idx - mstride] >> res;
   left = mode[idx - 1] >> res;
   topleft = mode[idx - mstride - 1] >> res;
@@ -746,48 +740,80 @@ void od_intra_paint_mode_encode(const unsigned char *mode, int bx, int by,
   top = top << bs >> dec8[(((by<<bs)-1)>>1)*bstride + (bx<<bs>>1)];
   left = left << bs >> dec8[(by<<bs>>1)*bstride + (((bx<<bs)-1)>>1)];
   topleft = topleft << bs >> dec8[(((by<<bs)-1)>>1)*bstride + (((bx<<bs)-1)>>1)];
-  OD_ASSERT(m <= nb);
   OD_ASSERT(topleft <= nb);
   OD_ASSERT(left <= nb);
   OD_ASSERT(top <= nb);
-  dc_ctx = 4*(top == nb) + 2*(left == nb) + (topleft == nb);
+  *dc_ctx = 4*(top == nb) + 2*(left == nb) + (topleft == nb);
+
+  cnt = 0;
+  prob_sum = dir_prob[0];
+  for (i = 0; i< nb; i++) {
+    int ctx;
+    ctx = 0;
+    if (i == top) ctx+=2;
+    if (abs(i - top) == 1) ctx++;
+    if (i == left) ctx+=2;
+    if (abs(i - left) == 1) ctx++;
+    if (i == topleft) ctx+=2;
+    if (abs(i - topleft) == 1) ctx++;
+    if (ctx > 0) {
+      dir_list[cnt] = i;
+      ctx_list[cnt] = ctx;
+      prob_list[cnt] = dir_prob[ctx];
+      /*prob_list[cnt] = prob_list[cnt]*(256-dc_prob[dc_ctx]) >> 8;*/
+      prob_sum += prob_list[cnt];
+      cnt++;
+    }
+  }
+  norm = 256*(256-dc_prob[*dc_ctx])/prob_sum;
+  for (i = 0; i < cnt; i++) {
+    prob_list[i] = prob_list[i]*norm >> 8;
+
+  }
+  cdf[0] = dir_prob[0]*norm >> 8;
+  cdf[1] = cdf[0] + dc_prob[*dc_ctx];
+  for (i = 0; i < cnt; i++) {
+    cdf[i + 2] = cdf[i + 1] + prob_list[i];
+  }
+  prob_sum = cdf[cnt + 1];
+  return cnt;
+}
+
+void od_intra_paint_mode_encode(od_ec_enc *enc, const unsigned char *mode, int bx, int by,
+ int ln, int mstride, const unsigned char *dec8, int bstride, int res) {
+  int i;
+  int m;
+  int idx;
+  int dc_ctx;
+  int nb;
+  int bs;
+  int prob_list[10];
+  int dir_list[10];
+  int ctx_list[10];
+  int cnt;
+  int in_list;
+  ogg_uint16_t cdf[16];
+  if (bx ==0 || by == 0)
+    return;
+  bs = ln - 2;
+  nb = 4 << ln >> res;
+  idx = (by*mstride + bx) << bs;
+  m = mode[idx] >> res;
+  OD_ASSERT(m <= nb);
+  cnt = od_intra_paint_mode_cdf(cdf, dir_list, prob_list, ctx_list, &dc_ctx,
+   mode, bx, by, ln, mstride, dec8, bstride, res);
+
   if (m == nb) {
-    bits = -log2(dc_prob[dc_ctx]/256.);
+    od_ec_encode_cdf_unscaled(enc, 1, cdf, cnt + 2);
     dc_prob[dc_ctx] += (256 - dc_prob[dc_ctx]) >> DC_PROB_SPEED;
   } else {
-    int prob_list[10];
-    int dir_list[10];
-    int ctx_list[10];
-    int cnt;
-    int prob_sum;
-    int in_list;
-    bits = -log2(1 - dc_prob[dc_ctx]/256.);
     dc_prob[dc_ctx] -= dc_prob[dc_ctx] >> DC_PROB_SPEED;
 
-    cnt = 0;
-    prob_sum = dir_prob[0];
-    for (i = 0; i< nb; i++) {
-      int ctx;
-      ctx = 0;
-      if (i == top) ctx+=2;
-      if (abs(i - top) == 1) ctx++;
-      if (i == left) ctx+=2;
-      if (abs(i - left) == 1) ctx++;
-      if (i == topleft) ctx+=2;
-      if (abs(i - topleft) == 1) ctx++;
-      if (ctx > 0) {
-        dir_list[cnt] = i;
-        ctx_list[cnt] = ctx;
-        prob_list[cnt] = dir_prob[ctx];
-        prob_sum += prob_list[cnt];
-        cnt++;
-      }
-    }
     in_list = 0;
     for (i = 0; i < cnt; i++) {
       if (dir_list[i] == m) {
+        od_ec_encode_cdf_unscaled(enc, i + 2, cdf, cnt + 2);
         in_list = 1;
-        bits += -log2(prob_list[i]/(double)prob_sum);
         dir_prob[ctx_list[i]] += (256 - dir_prob[ctx_list[i]]) >> DIR_PROB_SPEED;
       }
       else {
@@ -795,14 +821,14 @@ void od_intra_paint_mode_encode(const unsigned char *mode, int bx, int by,
       }
     }
     if (!in_list) {
-      bits += -log2(dir_prob[0]/(double)prob_sum);
-      bits += log2(nb-cnt);
+      od_ec_encode_cdf_unscaled(enc, 0, cdf, cnt + 2);
+      /* FIXME: Encode the actual index here. */
+      od_ec_enc_uint(enc, 1, nb - cnt);
       dir_prob[0] += (256 - dir_prob[0]) >> DIR_PROB_SPEED;
     } else {
       dir_prob[0] -= dir_prob[0] >> DIR_PROB_SPEED;
     }
   }
-  printf("%d %f\n", m, bits);
 }
 
 void od_intra_paint_quant_block(od_ec_enc *enc, unsigned char *paint, const unsigned char *img,
@@ -834,7 +860,7 @@ void od_intra_paint_quant_block(od_ec_enc *enc, unsigned char *paint, const unsi
     int dc_quant;
     ln = 2 + bs;
     n = 1 << ln;
-    /*od_intra_paint_mode_encode(mode, bx, by, ln, mstride, dec8, bstride, res);*/
+    od_intra_paint_mode_encode(enc, mode, bx, by, ln, mstride, dec8, bstride, res);
     if (bx == 0 && by == 0) {
       if (edge_count[0] > 0) paint[0] = edge_sum[0]/edge_count[0];
       else paint[0] = img[0];
