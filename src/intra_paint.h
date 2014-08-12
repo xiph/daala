@@ -29,5 +29,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 void od_intra_paint_encode(od_state *state, od_ec_enc *enc, unsigned char *paint, const unsigned char *img,
  int w, int h, int stride, const unsigned char *dec8, int bstride,
  unsigned char *mode, int mstride, int *edge_sum, int *edge_count, int res);
+ 
+void od_intra_paint_choose_block_size(const unsigned char *img, int stride,
+ int bsize[2][2]);
 
 #endif
