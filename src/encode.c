@@ -49,6 +49,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "tf.h"
 #include "accounting.h"
 #include "state.h"
+#include "intra_paint.h"
 #if defined(OD_X86ASM)
 # include "x86/x86int.h"
 #endif
@@ -1002,6 +1003,55 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     /*od_state_dump_img(&enc->state,enc->state.io_imgs + OD_FRAME_REC,"rec");*/
     od_state_fill_vis(&enc->state);
     od_state_dump_img(&enc->state, &enc->state.vis_img, "vis");
+#endif
+  } else {
+    int i;
+    int w,h;
+    int h8,w8,h32,w32;
+    int bstride;
+    int mstride;
+    w = enc->state.frame_width;
+    h = enc->state.frame_height;
+    w32 = w>>5;
+    h32 = h>>5;
+    w8 = w32<<2;
+    h8 = h32<<2;
+    bstride = w8;
+    mstride = w8<<1;
+    /* clear out chroma */
+    for (pli = 1; pli < enc->state.info.nplanes; pli++) {
+      int plane_width;
+      int plane_height;
+      od_img_plane plane;
+      *&plane = *(img->planes + pli);
+      plane_width = ((pic_width + (1 << plane.xdec) - 1) >> plane.xdec);
+      plane_height = ((pic_height + (1 << plane.ydec) - 1) >>
+       plane.ydec);
+      memset(enc->state.io_imgs[OD_FRAME_REC].planes[pli].data,127,plane_width*plane_height);
+    }
+    /* intra paint */
+    
+    OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO, "Intra paint frame %i:",
+     (int)daala_granule_basetime(enc, enc->state.cur_time)));
+    /* Replace decision with the one from process_block_size32() */
+    for(i=0;i<h32;i++){
+      for(j=0;j<w32;j++){
+        int k,m;
+        int dec[2][2];
+  #if 0
+        od_intra_paint_choose_block_size(img+32*stride*i+32*j, stride, dec);
+  #else
+        dec[0][0] = dec[0][1] = dec[1][0] = dec[1][1] = 2;
+  #endif
+        for(k=0;k<4;k++)
+          for(m=0;m<4;m++)
+            enc->state.dec8[(4*i + k)*bstride + (4*j + m)]=dec[k>>1][m>>1];
+      }
+    }  
+    od_intra_paint_encode(&enc->state, &enc->ec, enc->state.io_imgs[OD_FRAME_REC].planes[0].data, enc->state.io_imgs[OD_FRAME_INPUT].planes[0].data, w32, h32, frame_width, enc->state.dec8, bstride, enc->state.mode, mstride, enc->state.edge_sum, enc->state.edge_count, 1);
+#if defined(OD_DUMP_IMAGES)
+    /*Dump painted frame.*/
+    od_state_dump_img(&enc->state,enc->state.io_imgs + OD_FRAME_REC,"paint");
 #endif
   }
   od_adapt_ctx_reset(&enc->adapt, mbctx.is_keyframe);

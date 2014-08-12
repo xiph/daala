@@ -180,6 +180,9 @@ static void od_state_opt_vtbl_init(od_state *state) {
 int od_state_init(od_state *state, const daala_info *info) {
   int nplanes;
   int pli;
+  int w;
+  int h;
+  int h8,w8,h32,w32;
   /*First validate the parameters.*/
   if (info == NULL) return OD_EFAULT;
   nplanes = info->nplanes;
@@ -212,6 +215,17 @@ int od_state_init(od_state *state, const daala_info *info) {
   state->dump_tags = 0;
   state->dump_files = 0;
 #endif
+  /* intra_paint */
+  w = state->frame_width;
+  h = state->frame_height;
+  w32 = w>>5;
+  h32 = h>>5;
+  w8 = w32<<2;
+  h8 = h32<<2;
+  state->edge_sum = (int*)calloc((w+32)*(h+32), sizeof(*state->edge_sum));
+  state->edge_count = (int*)calloc((w+32)*(h+32), sizeof(*state->edge_count));
+  state->dec8 = (unsigned char*)malloc(w8*h8*sizeof(*state->dec8));
+  state->mode = (unsigned char*)malloc(w8*h8*sizeof(*state->mode)<<2);
   return 0;
 }
 
