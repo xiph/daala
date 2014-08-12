@@ -2478,7 +2478,7 @@ static int od_mv_dp_get_rate_change(od_state *state, od_mv_dp_node *dp,
     pred_si = pred_sis[npreds - 1] = prevsi;
     for (pi = 2; pi <= npreds; pi++) {
       pred_dp = dp - pi;
-      pred_sis[npreds - pi] = pred_dp[1].states[pred_si].prevsi;
+      pred_si = pred_sis[npreds - pi] = pred_dp[1].states[pred_si].prevsi;
     }
     /*Then restore that state going FORWARDS.*/
     for (pred_dp = dp->min_predictor_node; pred_dp < dp; pred_dp++) {
