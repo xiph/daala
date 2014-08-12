@@ -2369,6 +2369,10 @@ static const od_offset *const OD_COL_PREDICTED[4] = {
   OD_COL_PREDICTED3
 };
 
+/*This should be the maximum value found in either OD_ROW_PRED_HIST_SIZE or
+   OD_COL_PRED_HIST_SIZE.*/
+#define OD_PRED_HIST_SIZE_MAX (8)
+
 /*The amount of history to restore in the trellis state to ensure predicted MVs
    are evaluated correctly in row refinement.*/
 static const int OD_ROW_PRED_HIST_SIZE[5] = { 8, 4, 2, 2, 1 };
@@ -2424,7 +2428,7 @@ static ogg_int32_t od_mv_est_block_sad8(od_mv_est_ctx *est, int ref,
 /*Gets the change in SAD for the blocks affected by the given DP node, using
    the current state of the grid.*/
 static ogg_int32_t od_mv_dp_get_sad_change8(od_mv_est_ctx *est, int ref,
- od_mv_dp_node *dp, ogg_int32_t block_sads[8]) {
+ od_mv_dp_node *dp, ogg_int32_t block_sads[OD_DP_NBLOCKS_MAX]) {
   int bi;
   ogg_int32_t dd;
   dd = 0;
@@ -2454,7 +2458,8 @@ static ogg_int32_t od_mv_dp_get_sad_change8(od_mv_est_ctx *est, int ref,
   mv_res: The motion vector resolution (0 = 1/8th pel to 2 = 1/2 pel).
   Return: The change in rate for the preceding MVs.*/
 static int od_mv_dp_get_rate_change(od_state *state, od_mv_dp_node *dp,
- int *cur_mv_rate, int pred_mv_rates[17], int prevsi, int mv_res) {
+ int *cur_mv_rate, int pred_mv_rates[OD_DP_NPREDICTED_MAX],
+ int prevsi, int mv_res) {
   od_mv_node *mv;
   od_mv_grid_pt *mvg;
   int nhmvbs;
@@ -2464,12 +2469,12 @@ static int od_mv_dp_get_rate_change(od_state *state, od_mv_dp_node *dp,
   int dr;
   /*Move the state from the current trellis path into the grid.*/
   if (dp->min_predictor_node != NULL) {
-    int pred_sis[8];
+    int pred_sis[OD_PRED_HIST_SIZE_MAX];
     int pred_si;
     int npreds;
     od_mv_dp_node *pred_dp;
     npreds = dp - dp->min_predictor_node;
-    if (npreds > 8) {
+    if (npreds > OD_PRED_HIST_SIZE_MAX) {
       OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG, "Too far back!"));
     }
     OD_LOG_PARTIAL((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG, "Restoring "));
@@ -3134,13 +3139,13 @@ static ogg_int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
   OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
    "Refining row %i (%i)...", vy, (vy - 2) << 2));
   for (vx = 0;; vx++) {
-    ogg_int32_t block_sads[18][8];
+    ogg_int32_t block_sads[OD_DP_NSTATES_MAX][OD_DP_NBLOCKS_MAX];
     ogg_int32_t best_cost;
     ogg_int32_t cost;
     ogg_int32_t best_dd;
     ogg_int32_t dd;
-    int cur_mv_rates[9];
-    int pred_mv_rates[9][17];
+    int cur_mv_rates[OD_DP_NSTATES_MAX];
+    int pred_mv_rates[OD_DP_NSTATES_MAX][OD_DP_NPREDICTED_MAX];
     int best_dr;
     int dr;
     int best_si;
@@ -3788,13 +3793,13 @@ static ogg_int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
   OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
    "Refining column %i (%i)...", vx, (vx - 2) << 2));
   for (vy = 0;; vy++) {
-    ogg_int32_t block_sads[18][8];
+    ogg_int32_t block_sads[OD_DP_NSTATES_MAX][OD_DP_NBLOCKS_MAX];
     ogg_int32_t best_cost;
     ogg_int32_t cost;
     ogg_int32_t best_dd;
     ogg_int32_t dd;
-    int cur_mv_rates[9];
-    int pred_mv_rates[9][17];
+    int cur_mv_rates[OD_DP_NSTATES_MAX];
+    int pred_mv_rates[OD_DP_NSTATES_MAX][OD_DP_NPREDICTED_MAX];
     int best_dr;
     int dr;
     int best_si;
