@@ -366,8 +366,8 @@ static ogg_int32_t od_enc_sad8(od_enc_ctx *enc, const unsigned char *p,
   cliph = ((state->info.pic_height + (1 << iplane->ydec) - 1) >> iplane->ydec)
    - y;
   h = OD_MINI(h, cliph);
-  OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
-   "[%i, %i]x[%i, %i]", x, y, w, h));
+  /*OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
+   "[%i, %i]x[%i, %i]", x, y, w, h));*/
   /*Compute the SAD.*/
   src = iplane->data + y*iplane->ystride + x*iplane->xstride;
   if (pxstride != 1) {
@@ -1223,7 +1223,7 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
                need 2 more bits, or 4 times as much table storage, and require
                4 extra compares, when there are often fewer than 4 sites).
               If the displacement is larger than +/-1 in any direction (which
-               happens when site>8), check the bounds explicitly.*/
+               happens when site > 8), check the bounds explicitly.*/
             if (site > 8 && (candx < mvxmin || candx > mvxmax
              || candy < mvymin || candy > mvymax)) {
               continue;
@@ -2273,7 +2273,7 @@ static void od_mv_est_decimate(od_mv_est_ctx *est, int ref) {
      dec->dd, dec->dr, dec->dr*est->lambda + (dec->dd << OD_ERROR_SCALE)));
   }*/
   /*if (state->mv_grid[31][1].valid) {
-    dec = est->mvs[31]+1;
+    dec = est->mvs[31] + 1;
     OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
      "(%i, %i) remains. dd: %5i, dr: %2i, dopt: %6i.", dec->vx, dec->vy,
      dec->dd, dec->dr, dec->dr*est->lambda + (dec->dd << OD_ERROR_SCALE)));
@@ -2474,9 +2474,7 @@ static int od_mv_dp_get_rate_change(od_state *state, od_mv_dp_node *dp,
     int npreds;
     od_mv_dp_node *pred_dp;
     npreds = dp - dp->min_predictor_node;
-    if (npreds > OD_PRED_HIST_SIZE_MAX) {
-      OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG, "Too far back!"));
-    }
+    OD_ASSERT2(npreds <= OD_PRED_HIST_SIZE_MAX, "Too far back!");
     OD_LOG_PARTIAL((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG, "Restoring "));
     /*First, follow the trellis path backwards to find the state used in each
        node.*/
@@ -4221,7 +4219,7 @@ void od_mv_est(od_mv_est_ctx *est, int ref, int lambda) {
        256 >> (iplane->xdec + iplane->ydec + OD_MC_CHROMA_SCALE);
     }
   }
-  OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG, "lambda: %i", est->lambda*8));
+  OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG, "lambda: %i", est->lambda));
   est->thresh2_offs[0] = est->thresh1[0] >> 1;
   est->thresh2_offs[1] = est->thresh1[1] >> 1;
   est->thresh2_offs[2] = est->thresh1[2] >> 1;
