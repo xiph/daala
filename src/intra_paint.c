@@ -826,9 +826,12 @@ void od_intra_paint_mode_encode(od_ec_enc *enc, const unsigned char *mode, int b
       }
     }
     if (!in_list) {
+      int other_id;
       od_ec_encode_cdf_unscaled(enc, 0, cdf, cnt + 2);
-      /* FIXME: Encode the actual index here. */
-      od_ec_enc_uint(enc, 1, nb - cnt);
+      other_id = m;
+      /* Don't count the directions we had in the list. */
+      for (i = 0; i < cnt; i++) if (dir_list[i] < m) other_id--;
+      od_ec_enc_uint(enc, other_id, nb - cnt);
       dir_prob[0] += (256 - dir_prob[0]) >> DIR_PROB_SPEED;
     } else {
       dir_prob[0] -= dir_prob[0] >> DIR_PROB_SPEED;
