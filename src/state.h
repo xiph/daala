@@ -163,6 +163,14 @@ struct od_state{
   int                 ani_iter;
 #  endif
 # endif
+  /* intra_paint buffers */
+  /* TODO high bit depth */
+  unsigned char *dec8;
+  unsigned char *mode;
+  int *edge_sum;
+  int *edge_count;
+  generic_encoder model;
+  generic_encoder edge_k_model;
 };
 
 struct od_adapt_ctx {
