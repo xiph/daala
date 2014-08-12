@@ -733,13 +733,20 @@ int od_intra_paint_mode_cdf(ogg_uint16_t *cdf, int *dir_list, int *prob_list,
   bs = ln - 2;
   nb = 4 << ln >> res;
   idx = (by*mstride + bx) << bs;
-  top = mode[idx - mstride] >> res;
-  left = mode[idx - 1] >> res;
-  topleft = mode[idx - mstride - 1] >> res;
+  top = left = topleft = nb;
+  if (by > 0) {
+    top = mode[idx - mstride] >> res;
+    top = top << bs >> dec8[(((by<<bs)-1)>>1)*bstride + (bx<<bs>>1)];
+  }
+  if (bx > 0) {
+    left = mode[idx - 1] >> res;
+    left = left << bs >> dec8[(by<<bs>>1)*bstride + (((bx<<bs)-1)>>1)];
+  }
+  if (bx > 0 && by > 0) {
+    topleft = mode[idx - mstride - 1] >> res;
+    topleft = topleft << bs >> dec8[(((by<<bs)-1)>>1)*bstride + (((bx<<bs)-1)>>1)];
+  }
   /* Compensate for mixed block size. */
-  top = top << bs >> dec8[(((by<<bs)-1)>>1)*bstride + (bx<<bs>>1)];
-  left = left << bs >> dec8[(by<<bs>>1)*bstride + (((bx<<bs)-1)>>1)];
-  topleft = topleft << bs >> dec8[(((by<<bs)-1)>>1)*bstride + (((bx<<bs)-1)>>1)];
   OD_ASSERT(topleft <= nb);
   OD_ASSERT(left <= nb);
   OD_ASSERT(top <= nb);
@@ -793,8 +800,6 @@ void od_intra_paint_mode_encode(od_ec_enc *enc, const unsigned char *mode, int b
   int cnt;
   int in_list;
   ogg_uint16_t cdf[16];
-  if (bx ==0 || by == 0)
-    return;
   bs = ln - 2;
   nb = 4 << ln >> res;
   idx = (by*mstride + bx) << bs;
