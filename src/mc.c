@@ -215,8 +215,6 @@ void od_state_mvs_clear(od_state *state) {
     grid = state->mv_grid[vy];
     for (vx = 0; vx < nhmvbs; vx++) {
       grid[vx].valid = 0;
-      grid[vx].right = 0;
-      grid[vx].down = 0;
       grid[vx].mv[0] = 0;
       grid[vx].mv[1] = 0;
     }
@@ -2377,7 +2375,6 @@ void od_mc_predict8(od_state *state, unsigned char *dst, int dystride,
                                                corners (in rotation not
                                                raster order) */
  const ogg_int32_t mvy[4],
-                    int interp_type, /* type of interpolation (bbbb for now) */
                     int oc,  /* index of outside corner  */
                     int s, /* two split flags that indicate if the corners are split*/
                     int log_xblk_sz,   /* log 2 of block size */
@@ -2385,8 +2382,6 @@ void od_mc_predict8(od_state *state, unsigned char *dst, int dystride,
 ) {
   const unsigned char *pred[4];
   unsigned char __attribute__((aligned(16))) buf[4][16*16];
-  OD_ASSERT(interp_type == OD_MC_INTERP_BBBB);
-  (void)interp_type;
   od_mc_predict1fmv8(state, buf[0], src, systride,
    mvx[0], mvy[0], log_xblk_sz, log_yblk_sz);
   pred[0] = buf[0];
@@ -2522,7 +2517,7 @@ This last compare is unneeded for a median:
 
 /*Probability that a given level 1 MV is coded, given the nearest
    left and up l1 neighbors and the consistency of the motion field
-   down and to the righ.*/
+   down and to the right.*/
 int od_mv_level1_prob(od_mv_grid_pt **grid, int vx, int vy) {
   const int probs[3][3] =
    {{28323, 30610, 32128}, {18468, 21082, 24253}, {10799, 12839, 14144}};

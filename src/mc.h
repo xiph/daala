@@ -145,18 +145,17 @@ typedef struct od_mv_grid_pt od_mv_grid_pt;
   Fortunately, our relatively limited levels of subdivision makes it mostly
    unnecessary.*/
 struct od_mv_grid_pt {
-  int mv[2]; /*  This is x,y vector in 1/8th's of pixesls  */
-  unsigned valid:1; /*  says if the above motion vector is valid or not  */
-  unsigned right:1;
-  unsigned down:1;
+  /*The x, y offsets of the motion vector in units of 1/8th pixels.*/
+  int mv[2];
+  /*Whether or not this MV actually has a valid value.*/
+  unsigned valid:1;
 };
 
 void od_mc_setup_mvc(ogg_int32_t dmv[4], const ogg_int32_t mvs[4],
  const int m[4], int r, int log_xblk_sz, int log_yblk_sz);
 void od_mc_predict8(od_state *state, unsigned char *dst, int dystride,
  const unsigned char *src, int systride, const ogg_int32_t mvx[4],
- const ogg_int32_t mvy[4], int interp_type, int oc, int s,
- int log_xblk_sz, int log_yblk_sz);
+ const ogg_int32_t mvy[4], int oc, int s, int log_xblk_sz, int log_yblk_sz);
 void od_state_mvs_clear(od_state *state);
 void od_state_get_predictor(od_state *state, int pred[2],
  int vx, int vy, int level, int mv_res);

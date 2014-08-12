@@ -36,12 +36,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 /*TODO:
  - Develop a real encoding and measure real bits.
- - Compute bits needed for labels during DP (to bias towards using the same
-    label).
  - Thresholds for DP.
    + How do we calculate them?
-   + How do they propagate between frames (block sizes change)
-   + Compute rate change of trailing MVs correctly.*/
+   + How do they propagate between frames (block sizes change)*/
 
 /*The frame number to animate.*/
 #if defined(OD_DUMP_IMAGES) && defined(OD_ANIMATE)
@@ -149,8 +146,6 @@ struct od_mv_dp_node {
   int npred_changeable;
   /*The original MV used by this node.*/
   int original_mv[2];
-  /*The original edge label used b this node.*/
-  unsigned original_etype:1;
   /*The original rate of this MV.*/
   int original_mv_rate;
   /*The original MV rates before predictors were changed by this node.
@@ -1709,13 +1704,11 @@ static void od_mv_est_init_nodes(od_mv_est_ctx *est) {
   od_mv_grid_pt *grid;
   int nhmvbs;
   int nvmvbs;
-  int etype;
   int vx;
   int vy;
   state = &est->enc->state;
   nhmvbs = (state->nhmbs + 1) << 2;
   nvmvbs = (state->nvmbs + 1) << 2;
-  etype = 0;
   for (vy = 0; vy <= nvmvbs; vy++) {
     mv_row = est->mvs[vy];
     grid = state->mv_grid[vy];
@@ -1726,8 +1719,6 @@ static void od_mv_est_init_nodes(od_mv_est_ctx *est) {
         int flag_rate;
         /*While we're here, reset the MV state.*/
         grid[vx].valid = 1;
-        grid[vx].right = etype;
-        grid[vx].down = etype;
         est->row_counts[vy]++;
         est->col_counts[vx]++;
         /*Inbetween the level limits, vertices require on average 2 bits to
@@ -2711,7 +2702,6 @@ static void od_mv_dp_row_init(od_mv_est_ctx *est,
   dp->mvg = state->mv_grid[vy] + vx;
   dp->original_mv[0] = dp->mvg->mv[0];
   dp->original_mv[1] = dp->mvg->mv[1];
-  dp->original_etype = dp->mvg->right;
   dp->original_mv_rate = dp->mv->mv_rate;
   nhmvbs = (state->nhmbs + 1) << 2;
   nvmvbs = (state->nvmbs + 1) << 2;
@@ -3045,7 +3035,6 @@ static void od_mv_dp_restore_row_state(od_mv_dp_node *dp) {
     mvg = dp->mvg;
     mvg->mv[0] = dp->original_mv[0];
     mvg->mv[1] = dp->original_mv[1];
-    mvg->right = dp->original_etype;
     for (pi = 0; pi < dp->npred_changeable; pi++) {
       /*Restore the state for the MVs this one predicted.*/
       dp->predicted_mvs[pi]->mv_rate = dp->original_mv_rates[pi];
@@ -3071,7 +3060,6 @@ static void od_mv_dp_install_row_state(od_mv_dp_node *dp, int prevsi) {
     dp--;
     OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
      "Node %i, prevsi: %i nextsi: %i", (int)(dp0 - dp), prevsi, nextsi));
-    dp->mvg->right = 0;
     prevsi = dp->states[si].prevsi;
     dp->states[si].prevsi = nextsi;
     nextsi = si;
@@ -3254,7 +3242,6 @@ static ogg_int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
           cstate->dr = od_mv_dp_get_rate_change(state, dp_node + 1,
            cur_mv_rates + si, pred_mv_rates[si], si, mv_res);
           /*Test against the previous state.*/
-          pmvg->right = 0;
           dr = pstate->dr + cstate->dr;
           dd = pstate->dd + od_mv_dp_get_sad_change8(est,
            ref, dp_node + 1, block_sads[si]);
@@ -3307,7 +3294,6 @@ static ogg_int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
         pmvg->mv[0] = pstate->mv[0];
         pmvg->mv[1] = pstate->mv[1];
         /*Test against the state with a following edge.*/
-        pmvg->right = 0;
         dr = pstate->dr;
         dd = pstate->dd + od_mv_dp_get_sad_change8(est,
          ref, dp_node + 1, block_sads[si]);
@@ -3386,7 +3372,6 @@ static void od_mv_dp_col_init(od_mv_est_ctx *est,
   dp->mvg = state->mv_grid[vy] + vx;
   dp->original_mv[0] = dp->mvg->mv[0];
   dp->original_mv[1] = dp->mvg->mv[1];
-  dp->original_etype = dp->mvg->down;
   dp->original_mv_rate = dp->mv->mv_rate;
   nhmvbs = (state->nhmbs + 1) << 2;
   nvmvbs = (state->nvmbs + 1) << 2;
@@ -3708,7 +3693,6 @@ static void od_mv_dp_restore_col_state(od_mv_dp_node *dp) {
     mvg = dp->mvg;
     mvg->mv[0] = dp->original_mv[0];
     mvg->mv[1] = dp->original_mv[1];
-    mvg->down = dp->original_etype;
     for (pi = 0; pi < dp->npred_changeable; pi++) {
       /*Restore the state for the MVs this one predicted.*/
       dp->predicted_mvs[pi]->mv_rate = dp->original_mv_rates[pi];
@@ -3734,7 +3718,6 @@ static void od_mv_dp_install_col_state(od_mv_dp_node *dp, int prevsi) {
     dp--;
     OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
      "Node %i, prevsi: %i nextsi: %i", (int)(dp0 - dp), prevsi, nextsi));
-    dp->mvg->down = 0;
     prevsi = dp->states[si].prevsi;
     dp->states[si].prevsi = nextsi;
     nextsi = si;
@@ -3908,7 +3891,6 @@ static ogg_int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
           cstate->dr = od_mv_dp_get_rate_change(state, dp_node + 1,
            cur_mv_rates + si, pred_mv_rates[si], si, mv_res);
           /*Test against the previous state.*/
-          pmvg->down = 0;
           dr = pstate->dr + cstate->dr;
           dd = pstate->dd + od_mv_dp_get_sad_change8(est,
            ref, dp_node + 1, block_sads[si]);
@@ -3961,7 +3943,6 @@ static ogg_int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
         pmvg->mv[0] = pstate->mv[0];
         pmvg->mv[1] = pstate->mv[1];
         /*Test against the state with a following edge.*/
-        pmvg->down = 0;
         dr = pstate->dr;
         dd = pstate->dd + od_mv_dp_get_sad_change8(est,
          ref, dp_node + 1, block_sads[si]);
@@ -4270,99 +4251,5 @@ void od_mv_est(od_mv_est_ctx *est, int ref, int lambda) {
   while (dcost < cost_thresh);
 #endif
   od_mv_subpel_refine(est, ref, cost_thresh);
-  {
-    int vx;
-    int vy;
-    static int l0flags[4][4];
-    static int lhflags[2][8];
-    static int lvflags[2][8];
-    int pred;
-    int flags;
-    /*memset(l0flags, 0, sizeof(l0flags));
-    memset(lhflags, 0, sizeof(lhflags));
-    memset(lvflags, 0, sizeof(lvflags));*/
-    for (vy = 0; vy <= nvmvbs; vy += 4) {
-      for (vx = 0; vx <= nhmvbs; vx += 4) {
-        if (vy > 0) {
-          if (vx > 0) {
-            pred = state->mv_grid[vy][vx - 4].right |
-             state->mv_grid[vy - 4][vx].down << 1;
-          }
-          else {
-            pred = state->mv_grid[vy - 4][vx].down |
-             state->mv_grid[vy - 4][vx].down << 1;
-          }
-        }
-        else if (vx > 0) {
-          pred = state->mv_grid[vy][vx - 4].right |
-           state->mv_grid[vy][vx - 4].right << 1;
-        }
-        else pred = 0;
-        flags = state->mv_grid[vy][vx].right |
-         state->mv_grid[vy][vx].down << 1;
-        l0flags[pred][flags]++;
-      }
-    }
-    for (vy = 0; vy <= nvmvbs; vy += 4) {
-      for (vx = 2; vx <= nhmvbs; vx += 4) {
-        if (!state->mv_grid[vy][vx].valid) continue;
-        pred = state->mv_grid[vy][vx - 2].right;
-        flags = state->mv_grid[vy][vx].right << 2;
-        if (vy > 0) flags |= state->mv_grid[vy - 2][vx].down;
-        if (vy < nvmvbs) flags |= state->mv_grid[vy][vx].down << 1;
-        lhflags[pred][flags]++;
-      }
-    }
-    for (vy = 2; vy <= nvmvbs; vy += 4) {
-      for (vx = 0; vx <= nhmvbs; vx += 4) {
-        if (!state->mv_grid[vy][vx].valid) continue;
-        pred = state->mv_grid[vy - 2][vx].down;
-        flags = state->mv_grid[vy][vx].down << 2;
-        if (vx > 0) flags |= state->mv_grid[vy][vx - 2].right;
-        if (vx < nhmvbs) flags |= state->mv_grid[vy][vx].right << 1;
-        lvflags[pred][flags]++;
-      }
-    }
-    for (vy = 0; vy <= nvmvbs; vy += 2) {
-      for (vx = 1; vx <= nhmvbs; vx += 2) {
-        if (!state->mv_grid[vy][vx].valid) continue;
-        pred = state->mv_grid[vy][vx - 1].right;
-        flags = state->mv_grid[vy][vx].right << 2;
-        if (vy > 0) flags |= state->mv_grid[vy - 1][vx].down;
-        if (vy < nvmvbs) flags |= state->mv_grid[vy][vx].down << 1;
-        lhflags[pred][flags]++;
-      }
-    }
-    for (vy = 1; vy <= nvmvbs; vy += 2) {
-      for (vx = 0; vx <= nhmvbs; vx += 2) {
-        if (!state->mv_grid[vy][vx].valid) continue;
-        pred = state->mv_grid[vy - 1][vx].down;
-        flags = state->mv_grid[vy][vx].down << 2;
-        if (vx > 0) flags |= state->mv_grid[vy][vx - 1].right;
-        if (vx < nhmvbs) flags |= state->mv_grid[vy][vx].right << 1;
-        lvflags[pred][flags]++;
-      }
-    }
-    for (pred = 0; pred < 4; pred++) {
-      OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
-       "l0flags[%i|%i] = %6i:%6i:%6i:%6i", pred & 1, pred & 2,
-       l0flags[pred][0], l0flags[pred][1], l0flags[pred][2],
-       l0flags[pred][3]));
-    }
-    for (pred = 0; pred < 2; pred++) {
-      OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
-       "lhflags[%i] = %6i:%6i:%6i:%6i:%6i:%6i:%6i:%6i", pred,
-       lhflags[pred][0], lhflags[pred][1], lhflags[pred][2], lhflags[pred][3],
-       lhflags[pred][4], lhflags[pred][5], lhflags[pred][6],
-       lhflags[pred][7]));
-    }
-    for (pred = 0; pred < 2; pred++) {
-      OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
-       "lvflags[%i] = %6i:%6i:%6i:%6i:%6i:%6i:%6i:%6i", pred,
-       lvflags[pred][0], lvflags[pred][1], lvflags[pred][2], lvflags[pred][3],
-       lvflags[pred][4], lvflags[pred][5], lvflags[pred][6],
-       lvflags[pred][7]));
-    }
-  }
   od_restore_fpu(state);
 }

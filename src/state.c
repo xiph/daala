@@ -603,7 +603,6 @@ void od_state_pred_block_from_setup(od_state *state,
   ogg_int32_t mvy[4];
   const int *dxp;
   const int *dyp;
-  int etype;
   int x;
   int y;
   int k;
@@ -616,41 +615,10 @@ void od_state_pred_block_from_setup(od_state *state,
     mvx[k] = (ogg_int32_t)grid[k]->mv[0] << (14 - iplane->xdec);
     mvy[k] = (ogg_int32_t)grid[k]->mv[1] << (14 - iplane->ydec);
   }
-  /*Note: We pull the edge types from the grid points _after_ they've been
-    offset to account for unsplit edges.
-   This means that we do not rely on all the flags that would be implicitly set
-    to the edge type of the unsplit edge to be up to date.
-   This might also cause some other flags to be set incorrectly, but those are
-    precisely the ones we override below.*/
-  etype = grid[0]->right | grid[1]->down << 1 |
-   grid[3]->right << 2 | grid[0]->down << 3;
-  if (!(s & 1)) {
-    etype &= ~(1 << ((oc + 1) & 3));
-    /*if (oc == 3) etype |= (etype & 8) >> 3;
-    else etype |= (etype & 1 << oc) << 1;*/
-    etype |= (etype | etype << 4) >> 3 & 1 << ((oc + 1) & 3);
-    if (etype >> oc & 1) {
-      mvx[(oc + 1) & 3] = mvx[oc] + mvx[(oc + 1) & 3] >> 1;
-      mvy[(oc + 1) & 3] = mvy[oc] + mvy[(oc + 1) & 3] >> 1;
-    }
-  }
-  if (!(s & 2)) {
-    etype &= ~(1 << ((oc + 2) & 3));
-    /*if (oc == 1) etype |= (etype & 1) << 3;
-    else etype |= (etype & 1 << ((oc + 3) & 3)) >> 1;*/
-    etype |= (etype | etype << 4) >> 1 & 1 << ((oc + 2) & 3);
-    if (etype << (-oc & 3) & 8) {
-      mvx[(oc + 3) & 3] = mvx[oc] + mvx[(oc + 3) & 3] >> 1;
-      mvy[(oc + 3) & 3] = mvy[oc] + mvy[(oc + 3) & 3] >> 1;
-    }
-  }
-  /*fprintf(stderr, "interpolation type: %c%c%c%c (0x%X) ",
-   etype & 1 ? 'V' : 'B', etype & 2 ? 'V' : 'B',
-   etype & 4 ? 'V' : 'B', etype & 8 ? 'V' : 'B', etype);*/
   x = (vx - 2) << (3 - iplane->xdec);
   y = (vy - 2) << (3 - iplane->ydec);
   od_mc_predict8(state, buf, ystride, iplane->data + y*iplane->ystride + x,
-   iplane->ystride, mvx, mvy, etype, oc, s,
+   iplane->ystride, mvx, mvy, oc, s,
    log_mvb_sz + 2 - iplane->xdec, log_mvb_sz + 2 - iplane->ydec);
 }
 
@@ -790,8 +758,7 @@ int od_state_dump_yuv(od_state *state, od_img *img, const char *tag) {
 
 /*static const unsigned char OD_YCbCr_BORDER[3] = {49, 109, 184};*/
 static const unsigned char OD_YCbCr_BORDER[3] = {113, 72, 137};
-static const unsigned char OD_YCbCr_BEDGE[3] = {41, 240, 110};
-static const unsigned char OD_YCbCr_VEDGE[3] = {145, 54, 34};
+static const unsigned char OD_YCbCr_EDGE[3] = {41, 240, 110};
 static const unsigned char OD_YCbCr_MV[3] = {81, 90, 240};
 
 void od_img_draw_point(od_img *img, int x, int y,
@@ -858,7 +825,6 @@ static void od_state_draw_mv_grid_block(od_state *state,
     const int *dxp;
     const int *dyp;
     int mvb_sz;
-    int etype;
     int x0;
     int y0;
     int k;
@@ -893,36 +859,16 @@ static void od_state_draw_mv_grid_block(od_state *state,
       mvx[k] = grid[k]->mv[0];
       mvy[k] = grid[k]->mv[1];
     }
-    etype = grid[0]->right | grid[1]->down << 1 |
-     grid[3]->right << 2 | grid[0]->down << 3;
-    if (!(s & 1)) {
-      etype &= ~(1 << ((oc + 1) & 3));
-      etype |= (etype | etype << 4) >> 3 & 1 << ((oc + 1) & 3);
-      if (etype >> oc & 1) {
-        mvx[(oc + 1) & 3] = mvx[oc] + mvx[(oc + 1) & 3] >> 1;
-        mvy[(oc + 1) & 3] = mvy[oc] + mvy[(oc + 1) & 3] >> 1;
-      }
-    }
-    if (!(s & 2)) {
-      etype &= ~(1 << ((oc + 2) & 3));
-      etype |= (etype | etype << 4) >> 1 & 1 << ((oc + 2) & 3);
-      if (etype << (-oc & 3) & 8) {
-        mvx[(oc + 3) & 3] = mvx[oc] + mvx[(oc + 3) & 3] >> 1;
-        mvy[(oc + 3) & 3] = mvy[oc] + mvy[(oc + 3) & 3] >> 1;
-      }
-    }
     x0 = ((vx - 2) << 3) + (OD_UMV_PADDING << 1);
     y0 = ((vy - 2) << 3) + (OD_UMV_PADDING << 1);
     od_img_draw_line(&state->vis_img, x0, y0, x0 + (mvb_sz << 3), y0,
-     etype & 1 ? OD_YCbCr_VEDGE : OD_YCbCr_BEDGE);
+     OD_YCbCr_EDGE);
     od_img_draw_line(&state->vis_img, x0 + (mvb_sz << 3), y0,
-     x0 + (mvb_sz << 3), y0 + (mvb_sz << 3),
-     etype & 2 ? OD_YCbCr_VEDGE : OD_YCbCr_BEDGE);
+     x0 + (mvb_sz << 3), y0 + (mvb_sz << 3), OD_YCbCr_EDGE);
     od_img_draw_line(&state->vis_img, x0, y0 + (mvb_sz << 3),
-     x0 + (mvb_sz << 3), y0 + (mvb_sz << 3),
-     etype & 4 ? OD_YCbCr_VEDGE : OD_YCbCr_BEDGE);
+     x0 + (mvb_sz << 3), y0 + (mvb_sz << 3), OD_YCbCr_EDGE);
     od_img_draw_line(&state->vis_img, x0, y0, x0, y0 + (mvb_sz << 3),
-     etype & 8 ? OD_YCbCr_VEDGE : OD_YCbCr_BEDGE);
+     OD_YCbCr_EDGE);
   }
 }
 
@@ -958,7 +904,6 @@ static void od_state_draw_mvs_block(od_state *state,
     ogg_int32_t mvy[4];
     const int *dxp;
     const int *dyp;
-    int etype;
     int x0;
     int y0;
     int k;
@@ -991,24 +936,6 @@ static void od_state_draw_mvs_block(od_state *state,
        + vx + (dxp[k] << log_mvb_sz);
       mvx[k] = grid[k]->mv[0];
       mvy[k] = grid[k]->mv[1];
-    }
-    etype = grid[0]->right | grid[1]->down << 1 |
-     grid[3]->right << 2 | grid[0]->down << 3;
-    if (!(s & 1)) {
-      etype &= ~(1 << ((oc + 1) & 3));
-      etype |= (etype | etype << 4) >> 3 & 1 << ((oc + 1) & 3);
-      if (etype >> oc & 1) {
-        mvx[(oc + 1) & 3] = (mvx[oc] + mvx[(oc + 1) & 3]) >> 1;
-        mvy[(oc + 1) & 3] = (mvy[oc] + mvy[(oc + 1) & 3]) >> 1;
-      }
-    }
-    if (!(s & 2)) {
-      etype &= ~(1 << ((oc + 2) & 3));
-      etype |= (etype | etype << 4) >> 1 & 1 << ((oc + 2) & 3);
-      if (etype << (-oc & 3) & 8) {
-        mvx[(oc + 3) & 3] = (mvx[oc] + mvx[(oc + 3) & 3]) >> 1;
-        mvy[(oc + 3) & 3] = (mvy[oc] + mvy[(oc + 3) & 3]) >> 1;
-      }
     }
     for (k = 0; k < 4; k++) {
       x0 = (vx - 2 + (dxp[k] << log_mvb_sz) << 3) + (OD_UMV_PADDING << 1);
