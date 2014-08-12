@@ -312,7 +312,7 @@ static void od_encode_compute_pred(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, od_co
   tf = ctx->tf[pli];
   md = ctx->md;
   l = ctx->l;
-  if (ctx->is_keyframe) {
+  if (ctx->is_keyframe && (pli != 0)) {
     if (bx > 0 && by > 0) {
       if (pli == 0 || OD_DISABLE_CFL) {
         ogg_uint16_t mode_cdf[OD_INTRA_NMODES];
@@ -518,7 +518,7 @@ void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   md = ctx->md;
   mc = ctx->mc;
   /* Apply forward transform. */
-  if (!ctx->is_keyframe) {
+  if (1) {
     (*OD_FDCT_2D[ln])(md + (by << 2)*w + (bx << 2), w,
      mc + (by << 2)*w + (bx << 2), w);
   }
@@ -1019,7 +1019,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     bstride = w8;
     mstride = w8<<1;
     /* clear out chroma */
-    for (pli = 1; pli < enc->state.info.nplanes; pli++) {
+    for (pli = 0; pli < enc->state.info.nplanes; pli++) {
       int plane_width;
       int plane_height;
       od_img_plane plane;
@@ -1027,7 +1027,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       plane_width = ((pic_width + (1 << plane.xdec) - 1) >> plane.xdec);
       plane_height = ((pic_height + (1 << plane.ydec) - 1) >>
        plane.ydec);
-      memset(enc->state.io_imgs[OD_FRAME_REC].planes[pli].data,127,plane_width*plane_height);
+      memset(enc->state.io_imgs[OD_FRAME_REC].planes[pli].data,128,plane_width*plane_height);
     }
     /* intra paint */
     
@@ -1038,8 +1038,8 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       for(j=0;j<w32;j++){
         int k,m;
         int dec[2][2];
-  #if 0
-        od_intra_paint_choose_block_size(img+32*stride*i+32*j, stride, dec);
+  #if 1
+        od_intra_paint_choose_block_size(enc->state.io_imgs[OD_FRAME_INPUT].planes[0].data+32*enc->state.io_imgs[OD_FRAME_REC].planes[0].ystride*i+32*j, enc->state.io_imgs[OD_FRAME_REC].planes[0].ystride, dec);
   #else
         dec[0][0] = dec[0][1] = dec[1][0] = dec[1][1] = 2;
   #endif
@@ -1048,10 +1048,13 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
             enc->state.dec8[(4*i + k)*bstride + (4*j + m)]=dec[k>>1][m>>1];
       }
     }  
-    od_intra_paint_encode(&enc->state, &enc->ec, enc->state.io_imgs[OD_FRAME_REC].planes[0].data, enc->state.io_imgs[OD_FRAME_INPUT].planes[0].data, w32, h32, frame_width, enc->state.dec8, bstride, enc->state.mode, mstride, enc->state.edge_sum, enc->state.edge_count, 1);
+#if (!OD_DISABLE_PAINT)
+    od_intra_paint_encode(&enc->state, &enc->ec, enc->state.io_imgs[OD_FRAME_REC].planes[0].data, enc->state.io_imgs[OD_FRAME_INPUT].planes[0].data, w32, h32, enc->state.io_imgs[OD_FRAME_REC].planes[0].ystride, enc->state.dec8, bstride, enc->state.mode, mstride, enc->state.edge_sum, enc->state.edge_count, 1);
+#endif
 #if defined(OD_DUMP_IMAGES)
     /*Dump painted frame.*/
     od_state_dump_img(&enc->state,enc->state.io_imgs + OD_FRAME_REC,"paint");
+    od_state_dump_img(&enc->state,enc->state.io_imgs + OD_FRAME_INPUT,"input");
 #endif
   }
   od_adapt_ctx_reset(&enc->adapt, mbctx.is_keyframe);
@@ -1078,7 +1081,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     kf = mbctx.is_keyframe;
     bstride = enc->state.bstride;
     istride = enc->state.io_imgs[OD_FRAME_INPUT].planes[0].ystride;
-    rstride = kf ? 0 : enc->state.io_imgs[OD_FRAME_REC].planes[0].ystride;
+    rstride = enc->state.io_imgs[OD_FRAME_REC].planes[0].ystride;
     bimg = enc->state.io_imgs[OD_FRAME_INPUT].planes[0].data + i*istride*32;
     rimg = enc->state.io_imgs[OD_FRAME_REC].planes[0].data + i*rstride*32;
     for (j = 0; j < nhsb; j++) {
@@ -1301,7 +1304,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
         for (y = 0; y < h; y++) {
           for (x = 0; x < w; x++) {
             ctmp[pli][y*w + x] = (data[ystride*y + x] - 128) << coeff_shift;
-            if (!mbctx.is_keyframe) {
+            if (1) {
               mctmp[pli][y*w + x] = (mdata[ystride*y + x] - 128)
                << coeff_shift;
             }
@@ -1314,7 +1317,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
           od_apply_prefilter(ctmp[pli], w, sbx, sby, 3, enc->state.bsize,
            enc->state.bstride, xdec, ydec, (sbx > 0 ? OD_LEFT_EDGE : 0) |
            (sby < nvsb - 1 ? OD_BOTTOM_EDGE : 0));
-          if (!mbctx.is_keyframe) {
+          if (1) {
             od_apply_prefilter(mctmp[pli], w, sbx, sby, 3, enc->state.bsize,
              enc->state.bstride, xdec, ydec, (sbx > 0 ? OD_LEFT_EDGE : 0) |
              (sby < nvsb - 1 ? OD_BOTTOM_EDGE : 0));
