@@ -603,7 +603,7 @@ The steps of the algorithm are:
 \begin{enumerate}
 \item $v^*\leftarrow\argmin_{v\in M} -\frac{\Delta D(M_v)}{\Delta R(M_v)}$
 \item If $-\frac{\Delta D(M_{v^*})}{\Delta R(M_{v^*})}>\lambda$, stop.
-\item For all $w\in M_v$, sorted by depth from deepest to shallowest:
+\item For all $w\in M_{v^*}$, sorted by depth from deepest to shallowest:
 \begin{enumerate}
 \item For all $a\in A_w$, $\Delta\underline{u}(M_a)\leftarrow
  \Delta\underline{u}(M_a)-\Delta\underline{u}(M_w)$
