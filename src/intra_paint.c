@@ -838,7 +838,7 @@ void od_intra_paint_mode_encode(od_ec_enc *enc, const unsigned char *mode, int b
   }
 }
 
-static void quantize_initial_edge(od_ec_enc *enc, unsigned char *paint, int ln,
+static void quantize_initial_edge(od_state *state, od_ec_enc *enc, unsigned char *paint, int ln,
  int stride, int q) {
   int pred;
   int i;
@@ -850,7 +850,7 @@ static void quantize_initial_edge(od_ec_enc *enc, unsigned char *paint, int ln,
   for (i = 0; i < n; i++) r[i] = paint[i*stride] - pred;
   my_fdct_table[ln - 2](x, r, 1);
   for (i = 0; i < n; i++) x[i] = (int)(floor(.5+x[i]/q));
-  encode_edge_coeffs(enc, x, n, 0);
+  encode_edge_coeffs(state, enc, x, n, 0);
   for (i = 0; i < n; i++) x[i] = q*x[i];
   my_idct_table[ln - 2](r, 1, x);
   for (i = 0; i < n; i++) paint[i*stride] = r[i] + pred;
@@ -899,7 +899,7 @@ void od_intra_paint_quant_block(od_state *state, od_ec_enc *enc, unsigned char *
         if (edge_count[idx] > 0) paint[idx] = edge_sum[idx]/edge_count[idx];
         else paint[idx] = img[idx - 1];
       }
-      quantize_initial_edge(enc, &paint[stride*(n*by + 1)], ln, stride, q);
+      quantize_initial_edge(state, enc, &paint[stride*(n*by + 1)], ln, stride, q);
     }
     /* Compute top edge (top row only). */
     if (by == 0) {
@@ -908,7 +908,7 @@ void od_intra_paint_quant_block(od_state *state, od_ec_enc *enc, unsigned char *
         if (edge_count[idx] > 0) paint[idx] = edge_sum[idx]/edge_count[idx];
         else paint[idx] = img[idx - stride];
       }
-      quantize_initial_edge(enc, &paint[n*bx + 1], ln, 1, q);
+      quantize_initial_edge(state, enc, &paint[n*bx + 1], ln, 1, q);
     }
     /* Compute right edge stats. */
     for (k = 1; k < n; k++) {
