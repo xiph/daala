@@ -1038,7 +1038,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       for(j=0;j<w32;j++){
         int k,m;
         int dec[2][2];
-  #if 1
+  #if 0
         od_intra_paint_choose_block_size(enc->state.io_imgs[OD_FRAME_INPUT].planes[0].data+32*enc->state.io_imgs[OD_FRAME_REC].planes[0].ystride*i+32*j, enc->state.io_imgs[OD_FRAME_REC].planes[0].ystride, dec);
   #else
         dec[0][0] = dec[0][1] = dec[1][0] = dec[1][1] = 2;
@@ -1049,7 +1049,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       }
     }  
 #if (!OD_DISABLE_PAINT)
-    od_intra_paint_encode(&enc->state, &enc->ec, enc->state.io_imgs[OD_FRAME_REC].planes[0].data, enc->state.io_imgs[OD_FRAME_INPUT].planes[0].data, w32, h32, enc->state.io_imgs[OD_FRAME_REC].planes[0].ystride, enc->state.dec8, bstride, enc->state.mode, mstride, enc->state.edge_sum, enc->state.edge_count, 1);
+    od_intra_paint_encode(&enc->state, &enc->ec, enc->state.io_imgs[OD_FRAME_REC].planes[0].data, enc->state.io_imgs[OD_FRAME_INPUT].planes[0].data, w32, h32, enc->state.io_imgs[OD_FRAME_REC].planes[0].ystride, enc->state.dec8, bstride, enc->state.mode, mstride, enc->state.edge_sum, enc->state.edge_count, 1, 1);
 #endif
 #if defined(OD_DUMP_IMAGES)
     /*Dump painted frame.*/
