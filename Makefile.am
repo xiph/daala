@@ -109,7 +109,8 @@ src_libdaalaenc_la_SOURCES = \
 	src/laplace_encoder.c \
 	src/mcenc.c \
 	src/accounting.c \
-  src/intra_paint.c \
+	src/intra_paint.c \
+	src/intra_paint_enc.c \
 	src/pvq_encoder.c
 if ENABLE_X86ASM
 src_libdaalaenc_la_SOURCES += \
