@@ -49,6 +49,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "tf.h"
 #include "accounting.h"
 #include "state.h"
+#include "mcenc.h"
 #if defined(OD_X86ASM)
 # include "x86/x86int.h"
 #endif
@@ -147,6 +148,60 @@ int daala_encode_ctl(daala_enc_ctx *enc, int req, void *buf, size_t buf_sz) {
       for (i = 0; i < OD_NPLANES_MAX; i++){
         enc->quantizer[i] = od_quantizer_from_quality(*(int *)buf);
       }
+      return OD_SUCCESS;
+    }
+    case OD_SET_MC_USE_CHROMA:
+    {
+      int mc_use_chroma;
+      OD_ASSERT(enc);
+      OD_ASSERT(buf);
+      OD_ASSERT(buf_sz == sizeof(mc_use_chroma));
+      mc_use_chroma = *(int *)buf;
+      if (mc_use_chroma) {
+        enc->mvest->flags |= OD_MC_USE_CHROMA;
+      }
+      else {
+        enc->mvest->flags &= ~OD_MC_USE_CHROMA;
+      }
+      return OD_SUCCESS;
+    }
+    case OD_SET_MV_RES_MIN:
+    {
+      int mv_res_min;
+      OD_ASSERT(enc);
+      OD_ASSERT(buf);
+      OD_ASSERT(buf_sz == sizeof(mv_res_min));
+      mv_res_min = *(int *)buf;
+      if (mv_res_min < 0 || mv_res_min > 2) {
+        return OD_EINVAL;
+      }
+      enc->mvest->mv_res_min = mv_res_min;
+      return OD_SUCCESS;
+    }
+    case OD_SET_MV_LEVEL_MIN:
+    {
+      int mv_level_min;
+      OD_ASSERT(enc);
+      OD_ASSERT(buf);
+      OD_ASSERT(buf_sz == sizeof(mv_level_min));
+      mv_level_min = *(int *)buf;
+      if (mv_level_min < 0 || mv_level_min > 4) {
+        return OD_EINVAL;
+      }
+      enc->mvest->level_min = mv_level_min;
+      return OD_SUCCESS;
+    }
+    case OD_SET_MV_LEVEL_MAX:
+    {
+      int mv_level_max;
+      OD_ASSERT(enc);
+      OD_ASSERT(buf);
+      OD_ASSERT(buf_sz == sizeof(mv_level_max));
+      mv_level_max = *(int *)buf;
+      if (mv_level_max < 0 || mv_level_max > 4) {
+        return OD_EINVAL;
+      }
+      enc->mvest->level_max = mv_level_max;
       return OD_SUCCESS;
     }
     default: return OD_EIMPL;
