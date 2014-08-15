@@ -61,7 +61,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #define OD_SUPERBLOCK_SIZE (32)
 
-const char *optstring = "o:rf";
+const char *optstring = "o:r";
 struct option options [] = {
   {"output",required_argument,NULL,'o'},
   {"raw",no_argument, NULL,'r'}, /*Disable YUV4MPEG2 headers:*/

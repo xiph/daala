@@ -355,16 +355,16 @@ int fetch_and_process_video(av_input *_avin,ogg_page *_page,
   return _video_ready;
 }
 
-static const char *OPTSTRING="o:a:A:v:V:s:S:f:F:h:k:l:";
+static const char *OPTSTRING="ho:k:v:V:s:l:";
 
 static const struct option OPTIONS[]={
+  {"help",no_argument,NULL,'h'},
   {"output",required_argument,NULL,'o'},
+  {"keyframe-rate",required_argument,NULL,'k'},
   {"video-quality",required_argument,NULL,'v'},
   {"video-rate-target",required_argument,NULL,'V'},
-  {"keyframe-rate",required_argument,NULL,'k'},
   {"serial",required_argument,NULL,'s'},
   {"limit",required_argument,NULL,'l'},
-  {"help",no_argument,NULL,'h'},
   {NULL,0,NULL,0}
 };
 
@@ -372,15 +372,16 @@ static void usage(void){
   fprintf(stderr,
    "Usage: encoder_example [options] video_file\n\n"
    "Options:\n\n"
+   "  -h --help                      Display this help and exit.\n"
    "  -o --output <filename.ogg>     file name for encoded output;\n"
    "                                 If this option is not given, the\n"
    "                                 compressed data is sent to stdout.\n\n"
+   "  -k --keyframe-rate <n>         Frequence of keyframes in output.\n\n"
    "  -v --video-quality <n>         Daala quality selector from 0 to 511.\n"
    "                                 511 yields the smallest files, but\n"
    "                                 lowest video quality; 1 yields the\n"
    "                                 highest quality, but large files;\n"
    "                                 0 is lossless.\n\n"
-   "  -k --keyframe-rate <n>         Frequence of keyframes in output.\n\n"
    "  -V --video-rate-target <n>     bitrate target for Daala video;\n"
    "                                 use -v and not -V if at all possible,\n"
    "                                 as -v gives higher quality for a given\n"
