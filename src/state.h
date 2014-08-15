@@ -169,8 +169,6 @@ struct od_state{
   unsigned char *mode;
   int *edge_sum;
   int *edge_count;
-  generic_encoder model;
-  generic_encoder edge_k_model;
 };
 
 struct od_adapt_ctx {
@@ -209,6 +207,8 @@ struct od_adapt_ctx {
   /* Joint skip flag for DC and AC */
   ogg_uint16_t skip_cdf[OD_NPLANES_MAX][4];
   int skip_increment;
+  generic_encoder paint_dc_model;
+  generic_encoder paint_edge_k_model;
 };
 
 int od_state_init(od_state *_state, const daala_info *_info);
