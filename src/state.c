@@ -322,6 +322,8 @@ void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe) {
       }
     }
   }
+  generic_model_init(&state->paint_edge_k_model);
+  generic_model_init(&state->paint_dc_model);
   memcpy(state->mode_probs, OD_INTRA_PRED_PROB_4x4, 3*OD_INTRA_NMODES*OD_INTRA_NCONTEXTS);
 }
 

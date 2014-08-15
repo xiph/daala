@@ -1039,8 +1039,9 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
             enc->state.dec8[(4*i + k)*bstride + (4*j + m)]=dec[k>>1][m>>1];
       }
     }  
+    od_adapt_ctx_reset(&enc->adapt, mbctx.is_keyframe);
 #if (!OD_DISABLE_PAINT)
-    od_intra_paint_encode(&enc->state, &enc->ec, enc->state.io_imgs[OD_FRAME_REC].planes[0].data, enc->state.io_imgs[OD_FRAME_INPUT].planes[0].data, w32, h32, enc->state.io_imgs[OD_FRAME_REC].planes[0].ystride, enc->state.dec8, bstride, enc->state.mode, mstride, enc->state.edge_sum, enc->state.edge_count, 1, 1);
+    od_intra_paint_encode(&enc->adapt, &enc->ec, enc->state.io_imgs[OD_FRAME_REC].planes[0].data, enc->state.io_imgs[OD_FRAME_INPUT].planes[0].data, w32, h32, enc->state.io_imgs[OD_FRAME_REC].planes[0].ystride, enc->state.dec8, bstride, enc->state.mode, mstride, enc->state.edge_sum, enc->state.edge_count, 1, 1);
 #endif
 #if defined(OD_DUMP_IMAGES)
     /*Dump painted frame.*/
@@ -1048,7 +1049,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     od_state_dump_img(&enc->state,enc->state.io_imgs + OD_FRAME_INPUT,"input");
 #endif
   }
-  od_adapt_ctx_reset(&enc->adapt, mbctx.is_keyframe);
   /*Block size switching.*/
   od_state_init_border(&enc->state);
   /* Allocate a blockSizeComp for scratch space and then calculate the block sizes
