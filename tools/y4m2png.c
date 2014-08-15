@@ -73,10 +73,10 @@ enum{
 
 static const char *output_filename=NULL;
 
-const char *OPTSTRING="o:hs:S:f:F:\5\6";
+const char *OPTSTRING="ho:";
 struct option OPTIONS[]={
-  {"output",required_argument,NULL,'o'},
   {"help",no_argument,NULL,'h'},
+  {"output",required_argument,NULL,'o'},
   {NULL,0,NULL,0}
 };
 
