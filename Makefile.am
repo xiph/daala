@@ -29,6 +29,7 @@ noinst_HEADERS = \
 	src/laplace_code.h \
 	src/logging.h \
 	src/mc.h \
+	src/mcenc.h \
 	src/odintrin.h \
 	src/partition.h \
 	src/pvq.h \

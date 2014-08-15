@@ -151,6 +151,25 @@ extern void daala_encode_free(daala_enc_ctx *enc);
  * The passed buffer is interpreted as containing a single <tt>int</tt>.
  * The valid range is 0-511. */
 #define OD_SET_QUANT 4000
+/** Whether the motion compensation search should use the chroma planes in
+    addition to the luma plane.
+ * \param[in]  _buf <tt>int</tt>: 0 to disable the use of the chroma planes,
+ *                   a non-zero value otherwise (the default). */
+#define OD_SET_MC_USE_CHROMA 4100
+/** Minimum motion vectors resolution for the motion compensation search.
+ * \param[in]  _buf <tt>int</tt>: 0 => 1/8 pel (default), 1 => 1/4 pel,
+ *                   2 => 1/2 pel */
+#define OD_SET_MV_RES_MIN 4102
+/** Minimum motion vectors level for the motion compensation search. If this
+ *  level is greater than the maximum level, the maximum level will be used
+ *  instead.
+ * \param[in]  _buf <tt>int</tt>: level between 0 and 4
+ *                   Default: 0 */
+#define OD_SET_MV_LEVEL_MIN 4104
+/** Maximum motion vectors level for the motion compensation search.
+ * \param[in]  _buf <tt>int</tt>: level between 0 and 4
+ *                   Default: 4 */
+#define OD_SET_MV_LEVEL_MAX 4106
 
 /*@}*/
 
