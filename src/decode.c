@@ -98,13 +98,13 @@ static void od_decode_mv(daala_dec_ctx *dec, od_mv_grid_pt *mvg, int vx,
   int ox;
   int oy;
   int id;
-  mv_ex = dec->adapt.mv_ex;
-  mv_ey = dec->adapt.mv_ey;
-  model = &dec->adapt.mv_model;
+  mv_ex = dec->state.adapt.mv_ex;
+  mv_ey = dec->state.adapt.mv_ey;
+  model = &dec->state.adapt.mv_model;
   ex = mv_ex[level] >> mv_res;
   ey = mv_ex[level] >> mv_res;
-  id = od_decode_cdf_adapt(&dec->ec, dec->adapt.mv_small_cdf, 16,
-   dec->adapt.mv_small_increment);
+  id = od_decode_cdf_adapt(&dec->ec, dec->state.adapt.mv_small_cdf, 16,
+   dec->state.adapt.mv_small_increment);
   oy = id >> 2;
   ox = id & 0x3;
   if (ox == 3) ox += generic_decode(&dec->ec, model, width << (3 - mv_res), &ex, 2);
@@ -193,7 +193,7 @@ static void od_decode_compute_pred(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, od_co
         m_l = modes[by*(w >> 2) + bx - 1];
         m_ul = modes[(by - 1)*(w >> 2) + bx - 1];
         m_u = modes[(by - 1)*(w >> 2) + bx];
-        od_intra_pred_cdf(mode_cdf, dec->adapt.mode_probs[pli],
+        od_intra_pred_cdf(mode_cdf, dec->state.adapt.mode_probs[pli],
          OD_INTRA_NMODES, m_l, m_ul, m_u);
 #if OD_DISABLE_INTRA
         mode = 0;
@@ -209,7 +209,7 @@ static void od_decode_compute_pred(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, od_co
             modes[(by + y)*(w >> 2) + bx + x] = mode;
           }
         }
-        od_intra_pred_update(dec->adapt.mode_probs[pli], OD_INTRA_NMODES, mode,
+        od_intra_pred_update(dec->state.adapt.mode_probs[pli], OD_INTRA_NMODES, mode,
          m_l, m_ul, m_u);
       }
       else {
@@ -276,10 +276,10 @@ static void od_single_band_scalar_decode(daala_dec_ctx *dec, int ln,
   int zzi;
   int n2;
   ogg_int32_t adapt_curr[OD_NSB_ADAPT_CTXS];
-  adapt = dec->adapt.pvq_adapt;
+  adapt = dec->state.adapt.pvq_adapt;
   n2 = 1 << (2*ln + 4);
-  vk = generic_decode(&dec->ec, &dec->adapt.model_g[pli], -1,
-   &dec->adapt.ex_g[pli][ln], 0);
+  vk = generic_decode(&dec->ec, &dec->state.adapt.model_g[pli], -1,
+   &dec->state.adapt.ex_g[pli][ln], 0);
   laplace_decode_vector(&dec->ec, pred + 1, n2 - 1, vk, adapt_curr, adapt);
   for (zzi = 1; zzi < n2; zzi++) {
     pred[zzi] = pred[zzi]*q + predt[zzi];
@@ -369,7 +369,7 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
     has_dc_skip = !ctx->is_keyframe && run_pvq;
     if (!has_dc_skip || pred[0]) {
       pred[0] = has_dc_skip + generic_decode(&dec->ec,
-       &dec->adapt.model_dc[pli], -1, &dec->adapt.ex_dc[pli][ln][0], 2);
+       &dec->state.adapt.model_dc[pli], -1, &dec->state.adapt.ex_dc[pli][ln][0], 2);
       if (pred[0]) pred[0] *= od_ec_dec_bits(&dec->ec, 1) ? -1 : 1;
     }
     pred[0] = pred[0]*dc_quant + predt[0];
@@ -466,8 +466,8 @@ static void od_decode_haar_dc(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
     else if (by > 0) sb_dc_pred = sb_dc_mem[(by - 1)*nhsb + bx];
     else if (bx > 0) sb_dc_pred = sb_dc_mem[by*nhsb + bx - 1];
     else sb_dc_pred = 0;
-    quant = generic_decode(&dec->ec, &dec->adapt.model_dc[pli], -1,
-     &dec->adapt.ex_sb_dc[pli], 2);
+    quant = generic_decode(&dec->ec, &dec->state.adapt.model_dc[pli], -1,
+     &dec->state.adapt.ex_sb_dc[pli], 2);
     if (quant) {
       if (od_ec_dec_bits(&dec->ec, 1)) quant = -quant;
     }
@@ -490,8 +490,8 @@ static void od_decode_haar_dc(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
     x[3] = c[((by + 1) << l2)*w + ((bx + 1) << l2)];
     for (i = 1; i < 4; i++) {
       int quant;
-      quant = generic_decode(&dec->ec, &dec->adapt.model_dc[pli], -1,
-       &dec->adapt.ex_dc[pli][l][i-1], 2);
+      quant = generic_decode(&dec->ec, &dec->state.adapt.model_dc[pli], -1,
+       &dec->state.adapt.ex_dc[pli][l][i-1], 2);
       if (quant) {
         if (od_ec_dec_bits(&dec->ec, 1)) quant = -quant;
       }
@@ -653,7 +653,7 @@ static void od_decode_block_sizes(od_dec_ctx *dec) {
   if (OD_LIMIT_LOG_BSIZE_MIN != OD_LIMIT_LOG_BSIZE_MAX) {
     for (i = 0; i < nvsb; i++) {
       for (j = 0; j < nhsb; j++) {
-        od_block_size_decode(&dec->ec, &dec->adapt,
+        od_block_size_decode(&dec->ec, &dec->state.adapt,
          &dec->state.bsize[4*dec->state.bstride*i + 4*j], dec->state.bstride);
       }
     }
@@ -702,7 +702,7 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
   dec->state.ref_imgi[OD_FRAME_SELF] = refi;
   nhsb = dec->state.nhsb;
   nvsb = dec->state.nvsb;
-  od_adapt_ctx_reset(&dec->adapt, mbctx.is_keyframe);
+  od_adapt_ctx_reset(&dec->state.adapt, mbctx.is_keyframe);
   od_decode_block_sizes(dec);
   if (!mbctx.is_keyframe) {
     od_dec_mv_unpack(dec);

@@ -149,12 +149,12 @@ void pvq_encode(daala_enc_ctx *enc,
   unsigned tell;
   ogg_uint16_t *skip_cdf;
   od_rollback_buffer buf;
-  adapt = enc->adapt.pvq_adapt;
-  exg = &enc->adapt.pvq_exg[pli][ln][0];
-  ext = enc->adapt.pvq_ext + ln*PVQ_MAX_PARTITIONS;
-  noref_prob = enc->adapt.pvq_noref_prob + ln*PVQ_MAX_PARTITIONS;
-  skip_cdf = enc->adapt.skip_cdf[pli];
-  model = enc->adapt.pvq_param_model;
+  adapt = enc->state.adapt.pvq_adapt;
+  exg = &enc->state.adapt.pvq_exg[pli][ln][0];
+  ext = enc->state.adapt.pvq_ext + ln*PVQ_MAX_PARTITIONS;
+  noref_prob = enc->state.adapt.pvq_noref_prob + ln*PVQ_MAX_PARTITIONS;
+  skip_cdf = enc->state.adapt.skip_cdf[pli];
+  model = enc->state.adapt.pvq_param_model;
   nb_bands = od_band_offsets[ln][0];
   off = &od_band_offsets[ln][1];
   tell = 0;
@@ -174,7 +174,7 @@ void pvq_encode(daala_enc_ctx *enc,
     od_encode_checkpoint(enc, &buf);
     /* Code as if we're not skipping. */
     od_encode_cdf_adapt(&enc->ec, (out[0] != 0), skip_cdf,
-     4, enc->adapt.skip_increment);
+     4, enc->state.adapt.skip_increment);
     /* Excluding skip flag from the rate since it's minor and would be prone
        to greedy decision issues. */
     tell = od_ec_enc_tell_frac(&enc->ec);
@@ -184,8 +184,8 @@ void pvq_encode(daala_enc_ctx *enc,
     id = 0;
     /* Jointly code the noref flags for the first 4 bands. */
     for (i = 0; i < 4; i++) id = (id << 1) + (theta[i] == -1);
-    od_encode_cdf_adapt(&enc->ec, id, enc->adapt.pvq_noref_joint_cdf[ln - 1],
-     16, enc->adapt.pvq_noref_joint_increment);
+    od_encode_cdf_adapt(&enc->ec, id, enc->state.adapt.pvq_noref_joint_cdf[ln - 1],
+     16, enc->state.adapt.pvq_noref_joint_increment);
     if (ln >= 2) {
       int nb_norefs;
       id = 0;
@@ -195,8 +195,8 @@ void pvq_encode(daala_enc_ctx *enc,
       for (i = 0; i < 4; i++) nb_norefs += (theta[i] == -1);
       for (i = 0; i < 3; i++) id = (id << 1) + (theta[i + 4] == -1);
       od_encode_cdf_adapt(&enc->ec, id,
-       enc->adapt.pvq_noref2_joint_cdf[nb_norefs], 8,
-       enc->adapt.pvq_noref_joint_increment);
+       enc->state.adapt.pvq_noref2_joint_cdf[nb_norefs], 8,
+       enc->state.adapt.pvq_noref_joint_increment);
     }
   }
   else {
@@ -215,7 +215,7 @@ void pvq_encode(daala_enc_ctx *enc,
       /* We decide to skip, roll back everything as it was before. */
       od_encode_rollback(enc, &buf);
       od_encode_cdf_adapt(&enc->ec, 2 + (out[0] != 0), skip_cdf,
-       4, enc->adapt.skip_increment);
+       4, enc->state.adapt.skip_increment);
       for (i = 1; i < 1 << (2*ln + 4); i++) out[i] = ref[i];
     }
   }

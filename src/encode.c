@@ -155,12 +155,12 @@ int daala_encode_ctl(daala_enc_ctx *enc, int req, void *buf, size_t buf_sz) {
 
 void od_encode_checkpoint(const daala_enc_ctx *enc, od_rollback_buffer *rbuf) {
   od_ec_enc_checkpoint(&rbuf->ec, &enc->ec);
-  OD_COPY(&rbuf->adapt, &enc->adapt, 1);
+  OD_COPY(&rbuf->adapt, &enc->state.adapt, 1);
 }
 
 void od_encode_rollback(daala_enc_ctx *enc, const od_rollback_buffer *rbuf) {
   od_ec_enc_rollback(&enc->ec, &rbuf->ec);
-  OD_COPY(&enc->adapt, &rbuf->adapt, 1);
+  OD_COPY(&enc->state.adapt, &rbuf->adapt, 1);
 }
 
 static void od_img_plane_copy_pad8(od_img_plane *dst_p,
@@ -337,7 +337,7 @@ static void od_encode_compute_pred(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, od_co
         m_l = modes[by*(w >> 2) + bx - 1];
         m_ul = modes[(by - 1)*(w >> 2) + bx - 1];
         m_u = modes[(by - 1)*(w >> 2) + bx];
-        od_intra_pred_cdf(mode_cdf, enc->adapt.mode_probs[pli],
+        od_intra_pred_cdf(mode_cdf, enc->state.adapt.mode_probs[pli],
          OD_INTRA_NMODES, m_l, m_ul, m_u);
         (*OD_INTRA_DIST[ln])(mode_dist, d + (by << 2)*w + (bx << 2), w,
          coeffs, strides);
@@ -370,7 +370,7 @@ static void od_encode_compute_pred(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, od_co
             modes[(by + y)*(w >> 2) + bx + x] = mode;
           }
         }
-        od_intra_pred_update(enc->adapt.mode_probs[pli], OD_INTRA_NMODES,
+        od_intra_pred_update(enc->state.adapt.mode_probs[pli], OD_INTRA_NMODES,
          mode, m_l, m_ul, m_u);
       }
       else {
@@ -438,7 +438,7 @@ static void od_single_band_scalar_quant(daala_enc_ctx *enc, int ln,
   int zzi;
   int n2;
   ogg_int32_t adapt_curr[OD_NSB_ADAPT_CTXS];
-  adapt = enc->adapt.pvq_adapt;
+  adapt = enc->state.adapt.pvq_adapt;
   vk = 0;
   n2 = 1 << (2*ln + 4);
   for (zzi = 1; zzi < n2; zzi++) {
@@ -448,8 +448,8 @@ static void od_single_band_scalar_quant(daala_enc_ctx *enc, int ln,
 #if defined(OD_METRICS)
   pvq_frac_bits = od_ec_enc_tell_frac(&enc->ec);
 #endif
-  generic_encode(&enc->ec, &enc->adapt.model_g[pli], vk, -1,
-   &enc->adapt.ex_g[pli][ln], 0);
+  generic_encode(&enc->ec, &enc->state.adapt.model_g[pli], vk, -1,
+   &enc->state.adapt.ex_g[pli][ln], 0);
   laplace_encode_vector(&enc->ec, scalar_out + 1, n2 - 1, vk, adapt_curr,
    adapt);
 #if defined(OD_METRICS)
@@ -568,8 +568,8 @@ void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
     int has_dc_skip;
     has_dc_skip = !ctx->is_keyframe && run_pvq;
     if (!has_dc_skip || scalar_out[0]) {
-      generic_encode(&enc->ec, &enc->adapt.model_dc[pli],
-       abs(scalar_out[0]) - has_dc_skip, -1, &enc->adapt.ex_dc[pli][ln][0], 2);
+      generic_encode(&enc->ec, &enc->state.adapt.model_dc[pli],
+       abs(scalar_out[0]) - has_dc_skip, -1, &enc->state.adapt.ex_dc[pli][ln][0], 2);
     }
     if (scalar_out[0]) od_ec_enc_bits(&enc->ec, scalar_out[0] < 0, 1);
     OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
@@ -735,8 +735,8 @@ static void od_quantize_haar_dc(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
     else sb_dc_pred = 0;
     dc0 = c[(by << l2)*w + (bx << l2)] - sb_dc_pred;
     quant = OD_DIV_R0(dc0, dc_quant);
-    generic_encode(&enc->ec, &enc->adapt.model_dc[pli], abs(quant), -1,
-     &enc->adapt.ex_sb_dc[pli], 2);
+    generic_encode(&enc->ec, &enc->state.adapt.model_dc[pli], abs(quant), -1,
+     &enc->state.adapt.ex_sb_dc[pli], 2);
     if (quant) od_ec_enc_bits(&enc->ec, quant < 0, 1);
     sb_dc_curr = quant*dc_quant + sb_dc_pred;
     c[(by << l2)*w + (bx << l2)] = sb_dc_curr;
@@ -760,8 +760,8 @@ static void od_quantize_haar_dc(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
     for (i = 1; i < 4; i++) {
       int quant;
       quant = OD_DIV_R0(x[i], dc_quant);
-      generic_encode(&enc->ec, &enc->adapt.model_dc[pli], abs(quant), -1,
-       &enc->adapt.ex_dc[pli][l][i-1], 2);
+      generic_encode(&enc->ec, &enc->state.adapt.model_dc[pli], abs(quant), -1,
+       &enc->state.adapt.ex_dc[pli][l][i-1], 2);
       if (quant) od_ec_enc_bits(&enc->ec, quant < 0, 1);
       x[i] = quant*dc_quant;
     }
@@ -841,14 +841,14 @@ static void od_encode_mv(daala_enc_ctx *enc, od_mv_grid_pt *mvg, int vx,
   ox = (mvg->mv[0] >> mv_res) - pred[0];
   oy = (mvg->mv[1] >> mv_res) - pred[1];
   /*Interleave positive and negative values.*/
-  mv_ex = enc->adapt.mv_ex;
-  mv_ey = enc->adapt.mv_ey;
-  model = &enc->adapt.mv_model;
+  mv_ex = enc->state.adapt.mv_ex;
+  mv_ey = enc->state.adapt.mv_ey;
+  model = &enc->state.adapt.mv_model;
   ex = mv_ex[level] >> mv_res;
   ey = mv_ex[level] >> mv_res;
   id = OD_MINI(abs(oy), 3)*4 + OD_MINI(abs(ox), 3);
-  od_encode_cdf_adapt(&enc->ec, id, enc->adapt.mv_small_cdf, 16,
-   enc->adapt.mv_small_increment);
+  od_encode_cdf_adapt(&enc->ec, id, enc->state.adapt.mv_small_cdf, 16,
+   enc->state.adapt.mv_small_increment);
   if (abs(ox) >= 3) generic_encode(&enc->ec, model, abs(ox) - 3, width << (3 - mv_res), &ex, 2);
   if (abs(oy) >= 3) generic_encode(&enc->ec, model, abs(oy) - 3, height << (3 - mv_res), &ey, 2);
   if (abs(ox)) od_ec_enc_bits(&enc->ec, ox < 0, 1);
@@ -1004,7 +1004,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     od_state_dump_img(&enc->state, &enc->state.vis_img, "vis");
 #endif
   }
-  od_adapt_ctx_reset(&enc->adapt, mbctx.is_keyframe);
+  od_adapt_ctx_reset(&enc->state.adapt, mbctx.is_keyframe);
   /*Block size switching.*/
   od_state_init_border(&enc->state);
   /* Allocate a blockSizeComp for scratch space and then calculate the block sizes
@@ -1053,7 +1053,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
         }
       }
       if (OD_LIMIT_LOG_BSIZE_MIN != OD_LIMIT_LOG_BSIZE_MAX) {
-        od_block_size_encode(&enc->ec, &enc->adapt, &state_bsize[0], bstride);
+        od_block_size_encode(&enc->ec, &enc->state.adapt, &state_bsize[0], bstride);
       }
     }
   }

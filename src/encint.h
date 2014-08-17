@@ -59,7 +59,6 @@ struct od_enc_opt_vtbl {
 
 struct daala_enc_ctx{
   od_state state;
-  od_adapt_ctx adapt;
   od_enc_opt_vtbl opt_vtbl;
   oggbyte_buffer obb;
   od_ec_enc ec;
