@@ -605,65 +605,7 @@ src_tests_check_tests_LDADD = \
 
 endif
 
-# Docs
-
-if HAVE_FIG2DEV
-# Generate the paper from its sources.
-# Requires transfig and pdflatex.
-
-PAPER_SRCS = \
-	doc/mc.tex \
-	doc/daala.bib
-
-FIG_SRCS = \
-	doc/4-8sub.fig \
-	doc/mvpred.fig
-FIG_TEX_SRCS = blockidx.fig vbunsplit.fig
-
-FIG_OBJS = \
-	$(FIG_SRCS:.fig=.pdf) \
-	$(FIG_TEX_SRCS:.fig=.pdftex) \
-	$(FIG_TEX_SRCS:.fig=.pdftex_t)
-
-#noinst_DATA = mc.pdf
-
-CLEANFILES += \
-	doc/mc.pdf \
-	doc/mc.out \
-	doc/mc.log \
-	doc/mc.blg \
-	doc/mc.bbl \
-	doc/mc.aux \
-	doc/blockidx.pdftex \
-	doc/blockidx.pdftex_t \
-	doc/vbunsplit.pdftex \
-	doc/vbunsplit.pdftex_t \
-	doc/mvpred.pdf \
-	doc/4-8sub.pdf
-
-mc.pdf : $(PAPER_SRCS) $(FIG_OBJS) $(EXTRA_FIGS) mc.bbl
-	pdflatex mc
-	pdflatex mc
-
-mc.bbl : $(PAPER_SRCS) $(FIG_OBJS) $(EXTRA_FIGS)
-	if [ mc.tex -nt mc.aux ] ; then pdflatex mc ; fi
-	bibtex mc
-
-figures : $(FIG_OBJS)
-
-# rule to generate latex versions of the xfig figures
-%.tex : %.fig
-	fig2dev -L latex $< $@
-
-%.pdf : %.fig
-	fig2dev -L pdf -p 0 $< $@
-
-%.pdftex : %.fig
-	fig2dev -L pdftex -p 0 $< $@
-
-%.pdftex_t : %.fig
-	fig2dev -L pdftex_t -p $(<:.fig=.pdftex) $< $@
-endif
+SUBDIRS=doc
 
 ACLOCAL_AMFLAGS = -I m4
 

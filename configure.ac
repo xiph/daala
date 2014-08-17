@@ -243,6 +243,7 @@ AC_CONFIG_FILES([
   daalaenc-uninstalled.pc
   daaladec-uninstalled.pc
   doc/Doxyfile
+  doc/Makefile
 ])
 AC_CONFIG_HEADERS([config.h])
 AC_OUTPUT
