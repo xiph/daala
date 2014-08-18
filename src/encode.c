@@ -1029,8 +1029,10 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       memset(enc->state.io_imgs[OD_FRAME_REC].planes[pli].data,128,
        plane.ystride*(img->height>>plane.ydec));
     }
+    /* clear intra paint buffers */
+    memset(enc->state.edge_sum,0,(w+32)*(h+32)*sizeof(*enc->state.edge_sum));
+    memset(enc->state.edge_count,0,(w+32)*(h+32)*sizeof(*enc->state.edge_count));
     /* intra paint */
-    
     OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO, "Intra paint frame %i:",
      (int)daala_granule_basetime(enc, enc->state.cur_time)));
     /* Replace decision with the one from process_block_size32() */
