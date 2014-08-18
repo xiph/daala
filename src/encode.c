@@ -312,7 +312,11 @@ static void od_encode_compute_pred(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, od_co
   tf = ctx->tf[pli];
   md = ctx->md;
   l = ctx->l;
+#if OD_DISABLE_PAINT
   if (ctx->is_keyframe && (pli != 0)) {
+#else
+  if (ctx->is_keyframe) {
+#endif
     if (bx > 0 && by > 0) {
       if (pli == 0 || OD_DISABLE_CFL) {
         ogg_uint16_t mode_cdf[OD_INTRA_NMODES];
@@ -1020,14 +1024,10 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     mstride = w8<<1;
     /* clear out chroma */
     for (pli = 0; pli < enc->state.info.nplanes; pli++) {
-      int plane_width;
-      int plane_height;
       od_img_plane plane;
       *&plane = *(img->planes + pli);
-      plane_width = ((pic_width + (1 << plane.xdec) - 1) >> plane.xdec);
-      plane_height = ((pic_height + (1 << plane.ydec) - 1) >>
-       plane.ydec);
-      memset(enc->state.io_imgs[OD_FRAME_REC].planes[pli].data,128,plane_width*plane_height);
+      memset(enc->state.io_imgs[OD_FRAME_REC].planes[pli].data,128,
+       plane.ystride*(img->height>>plane.ydec));
     }
     /* intra paint */
     
