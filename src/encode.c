@@ -590,10 +590,14 @@ void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   od_raster_to_coding_order(predt,  n, &pred[0], n, !run_pvq);
 #else
   /*Zig-zag*/
-  for (y = 0; y < n; y++) {
-    for (x = 0; x < n; x++) {
-      cblock[zig[y*n + x]] = d[((by << 2) + y)*w + (bx << 2) + x];
-      predt[zig[y*n + x]] = pred[y*n + x];
+  {
+    int y;
+    for (y = 0; y < n; y++) {
+      int x;
+      for (x = 0; x < n; x++) {
+        cblock[zig[y*n + x]] = d[((by << 2) + y)*w + (bx << 2) + x];
+        predt[zig[y*n + x]] = pred[y*n + x];
+      }
     }
   }
 #endif
@@ -645,9 +649,13 @@ void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
    !run_pvq);
 #else
   /*De-zigzag*/
-  for (y = 0; y < n; y++) {
-    for (x = 0; x < n; x++) {
-      d[((by << 2) + y)*w + (bx << 2) + x] = scalar_out[zig[y*n + x]];
+  {
+    int y;
+    for (y = 0; y < n; y++) {
+      int x;
+      for (x = 0; x < n; x++) {
+        d[((by << 2) + y)*w + (bx << 2) + x] = scalar_out[zig[y*n + x]];
+      }
     }
   }
 #endif

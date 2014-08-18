@@ -345,9 +345,13 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   od_raster_to_coding_order(predt,  n, &pred[0], n, !run_pvq);
 #else
   /*Zig-zag*/
-  for (y = 0; y < n; y++) {
-    for (x = 0; x < n; x++) {
-      predt[zig[y*n + x]] = pred[y*n + x];
+  {
+    int y;
+    for (y = 0; y < n; y++) {
+      int x;
+      for (x = 0; x < n; x++) {
+        predt[zig[y*n + x]] = pred[y*n + x];
+      }
     }
   }
 #endif
@@ -381,9 +385,13 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   od_coding_order_to_raster(&d[((by << 2))*w + (bx << 2)], w, pred, n, !run_pvq);
 #else
   /*De-zigzag*/
-  for (y = 0; y < n; y++) {
-    for (x = 0; x < n; x++) {
-      d[((by << 2) + y)*w + (bx << 2) + x] = pred[zig[y*n + x]];
+  {
+    int y;
+    for (y = 0; y < n; y++) {
+      int x;
+      for (x = 0; x < n; x++) {
+        d[((by << 2) + y)*w + (bx << 2) + x] = pred[zig[y*n + x]];
+      }
     }
   }
 #endif
