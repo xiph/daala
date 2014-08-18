@@ -1024,10 +1024,13 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     mstride = w8<<1;
     /* clear out chroma */
     for (pli = 0; pli < enc->state.info.nplanes; pli++) {
+      int y;
       od_img_plane plane;
       *&plane = *(img->planes + pli);
-      memset(enc->state.io_imgs[OD_FRAME_REC].planes[pli].data,128,
-       plane.ystride*(img->height>>plane.ydec));
+      for (y = 0; y < (img->height>>plane.ydec); y++){
+        memset(&enc->state.io_imgs[OD_FRAME_REC].planes[pli].data[y*plane.ystride],
+         128, img->width>>plane.xdec);
+      }
     }
     /* clear intra paint buffers */
     memset(enc->state.edge_sum,0,(w+32)*(h+32)*sizeof(*enc->state.edge_sum));
