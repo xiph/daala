@@ -1056,7 +1056,12 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       }
     }
     od_adapt_ctx_reset(&enc->adapt, mbctx.is_keyframe);
-    od_intra_paint_encode(&enc->adapt, &enc->ec, enc->state.io_imgs[OD_FRAME_REC].planes[0].data, enc->state.io_imgs[OD_FRAME_INPUT].planes[0].data, w32, h32, enc->state.io_imgs[OD_FRAME_REC].planes[0].ystride, enc->state.dec8, bstride, enc->state.mode, mstride, enc->state.edge_sum, enc->state.edge_count, 1, 1);
+    od_intra_paint_encode(&enc->adapt, &enc->ec,
+     enc->state.io_imgs[OD_FRAME_REC].planes[0].data,
+     enc->state.io_imgs[OD_FRAME_INPUT].planes[0].data, w32, h32,
+     enc->state.io_imgs[OD_FRAME_REC].planes[0].ystride, enc->state.dec8,
+     bstride, enc->state.mode, mstride, enc->state.edge_sum,
+     enc->state.edge_count, 15, 1);
 # if defined(OD_DUMP_IMAGES)
     /*Dump painted frame.*/
     od_state_dump_img(&enc->state,enc->state.io_imgs + OD_FRAME_REC,"paint");
