@@ -215,11 +215,11 @@ typedef struct {
 
 static void cov_init(cov_state *_this, int _sz){
   _this->sz    = _sz;
-  _this->n     = calloc(_sz,sizeof(*_this->n));
-  _this->acc_i = calloc(_sz,sizeof(*_this->acc_i));
-  _this->acc_j = calloc(_sz,sizeof(*_this->acc_j));
-  _this->acc_ij= calloc(_sz,sizeof(*_this->acc_ij));
-  _this->cov   = calloc(_sz,sizeof(*_this->cov));
+  _this->n     = (u_int64_t *)calloc(_sz,sizeof(*_this->n));
+  _this->acc_i = (u_int64_t *)calloc(_sz,sizeof(*_this->acc_i));
+  _this->acc_j = (u_int64_t *)calloc(_sz,sizeof(*_this->acc_j));
+  _this->acc_ij= (u_int64_t *)calloc(_sz,sizeof(*_this->acc_ij));
+  _this->cov   = (double *)calloc(_sz,sizeof(*_this->cov));
 }
 
 static void cov_clear(cov_state *_this){
@@ -1100,6 +1100,7 @@ double cg_2d(double _in[SUPPORT][SUPPORT][SUPPORT][SUPPORT],
   int    j;
   double ret;
   double (*rggt)[SUPPORT][BLOCKSIZE][BLOCKSIZE] =
+      (double (*)[SUPPORT][BLOCKSIZE][BLOCKSIZE])
     malloc(SUPPORT*SUPPORT*BLOCKSIZE*BLOCKSIZE*sizeof(****rggt));
   double klt[BLOCKSIZE*BLOCKSIZE][BLOCKSIZE*BLOCKSIZE];
 
@@ -1130,6 +1131,7 @@ double cg_2d_collapsed(double _in[SUPPORT][SUPPORT],const int *_f){
   double ret;
   double r[SUPPORT][SUPPORT];
   double (*rggt)[SUPPORT][BLOCKSIZE][BLOCKSIZE] =
+      (double (*)[SUPPORT][BLOCKSIZE][BLOCKSIZE])
     malloc(SUPPORT*SUPPORT*BLOCKSIZE*BLOCKSIZE*sizeof(****rggt));
   double klt[BLOCKSIZE*BLOCKSIZE][BLOCKSIZE*BLOCKSIZE];
 

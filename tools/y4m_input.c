@@ -677,7 +677,7 @@ static int y4m_input_open_impl(y4m_input *_y4m,FILE *_fin){
 }
 
 static y4m_input *y4m_input_open(FILE *_fin){
-  y4m_input *y4m = _ogg_malloc(sizeof(*y4m));
+  y4m_input *y4m = (y4m_input *)_ogg_malloc(sizeof(*y4m));
   if(y4m==NULL){
     fprintf(stderr,"Could not allocate y4m reader state.\n");
     return NULL;
@@ -773,7 +773,7 @@ static void y4m_input_close(y4m_input *_y4m){
 }
 
 
-const video_input_vtbl Y4M_INPUT_VTBL={
+extern const video_input_vtbl Y4M_INPUT_VTBL={
   (video_input_open_func)y4m_input_open,
   (video_input_get_info_func)y4m_input_get_info,
   (video_input_fetch_frame_func)y4m_input_fetch_frame,

@@ -758,7 +758,7 @@ static void process_plane(od_coeff *_img, od_coeff *_refi, int _w, int _h, int _
   _w = ROUNDUP_32(_w);
   _h = ROUNDUP_32(_h);
   if(!_refi){
-    _refi=calloc(ROUNDUP_32(_w)*ROUNDUP_32(_h),sizeof(od_coeff));
+    _refi = (od_coeff *)calloc(ROUNDUP_32(_w)*ROUNDUP_32(_h),sizeof(*_refi));
     free_ref=1;
   }else free_ref=0;
 
@@ -961,10 +961,10 @@ int main(int _argc,char **_argv){
     ydec[pli]=pli&&!(info1.pixel_fmt&2);
     h[pli]=ROUNDUP_32(info1.pic_h>>ydec[pli]);
     w[pli]=ROUNDUP_32(info1.pic_w>>xdec[pli]);
-    refi[pli]=malloc(w[pli]*h[pli]*sizeof(od_coeff));
-    iimg[pli]=malloc(w[pli]*h[pli]*sizeof(od_coeff));
+    refi[pli] = (od_coeff *)malloc(w[pli]*h[pli]*sizeof(*refi[pli]));
+    iimg[pli] = (od_coeff *)malloc(w[pli]*h[pli]*sizeof(*iimg[pli]));
   }
-  outline=malloc(sizeof(*outline)*info1.pic_w);
+  outline = (unsigned char *)malloc(sizeof(*outline)*info1.pic_w);
   fout=strcmp(_argv[optind+1],"-")==0?stdout:fopen(_argv[optind+1],"wb");
   if(fout==NULL){
     fprintf(stderr,"Error opening output file \"%s\".\n",_argv[optind+1]);
