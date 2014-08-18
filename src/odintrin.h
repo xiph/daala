@@ -228,4 +228,12 @@ static __inline int od_bsr(unsigned long x) {
 # define OD_CLEAR(dst, n) (memset((dst), 0, sizeof(*(dst))*(n)))
 #endif
 
+/** Linkage will break without this if using a C++ compiler, and will issue
+ * warnings without this for a C compiler*/
+#if defined(__cplusplus)
+# define OD_EXTERN extern
+#else
+# define OD_EXTERN
+#endif
+
 #endif
