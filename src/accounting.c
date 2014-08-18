@@ -66,8 +66,8 @@ static const unsigned int OD_ACCT_INDICES[OD_ACCT_NCATS] = {
 
 void od_acct_init(od_acct *acct) {
   char  fname[1024];
-  char *pre;
-  char *suf;
+  const char *pre;
+  const char *suf;
   int   rv;
   pre = "acct-";
   suf = getenv("OD_ACCT_SUFFIX");
@@ -102,9 +102,9 @@ void od_acct_reset(od_acct *acct) {
 
 static int od_acct_index(unsigned int state[OD_ACCT_NCATS]) {
   int index;
-  od_acct_category cat;
+  int cat;
   index = state[0];
-  for (cat = 1; cat < OD_ACCT_NCATS; cat++) {
+  for (cat = (int)OD_ACCT_CAT_PLANE; cat < OD_ACCT_NCATS; cat++) {
     index = (index*OD_ACCT_INDICES[OD_ACCT_NCATS - cat]) + state[cat];
   }
   return index;
@@ -131,8 +131,8 @@ void od_acct_update(od_acct *acct, ogg_uint32_t frac_bits,
 }
 
 static int od_acct_next_state(unsigned int state[OD_ACCT_NCATS],
- od_acct_category skip) {
-  od_acct_category i;
+ int skip) {
+  int i;
   i = skip == 0;
   while (i < OD_ACCT_NCATS) {
     state[i]++;
@@ -149,10 +149,10 @@ static int od_acct_next_state(unsigned int state[OD_ACCT_NCATS],
 }
 
 static ogg_uint32_t od_acct_get_total(od_acct *acct,
- od_acct_category cat, unsigned int value) {
+ int cat, unsigned int value) {
   unsigned int state[OD_ACCT_NCATS];
   ogg_uint32_t total;
-  od_acct_category i;
+  int i;
   for (i = 0; i < OD_ACCT_NCATS; i++) {
     state[i] = 0;
   }
@@ -167,7 +167,7 @@ static ogg_uint32_t od_acct_get_total(od_acct *acct,
 
 void od_acct_print_state(FILE *_fp, unsigned int state[OD_ACCT_NCATS]) {
   int cat;
-  for (cat = 0; cat < OD_ACCT_NCATS; cat++) {
+  for (cat = OD_ACCT_CAT_TECHNIQUE; cat < OD_ACCT_NCATS; cat++) {
     fprintf(_fp, "%s%s", cat > 0 ? "," : "",
      OD_ACCT_CATEGORY_VALUE_NAMES[cat][state[cat]]);
   }
@@ -189,7 +189,7 @@ void od_acct_print(od_acct *acct, FILE *_fp) {
 }
 
 void od_acct_write(od_acct *acct, ogg_int64_t cur_time) {
-  od_acct_category cat;
+  int cat;
   unsigned int value;
   long fsize;
   OD_ASSERT(acct->fp);

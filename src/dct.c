@@ -916,9 +916,9 @@ static int ieee1180_rand(int l, int h) {
   return (int)x - l;
 }
 
-int od_exit_code = EXIT_SUCCESS;
+static int od_exit_code = EXIT_SUCCESS;
 
-static char *ieee1180_meets(double val, double limit) {
+static const char *ieee1180_meets(double val, double limit) {
   int meets;
   meets = fabs(val) <= limit;
   if (!meets) od_exit_code = EXIT_FAILURE;

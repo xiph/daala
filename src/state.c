@@ -688,7 +688,7 @@ int od_state_dump_yuv(od_state *state, od_img *img, const char *tag) {
   for (i = 0; i < state->dump_tags &&
     strcmp(tag,state->dump_files[i].tag) != 0; i++);
   if(i>=state->dump_tags) {
-    char *suf;
+    const char *suf;
     OD_ASSERT(strlen(tag)<16);
     state->dump_tags++;
     state->dump_files = _ogg_realloc(state->dump_files,
@@ -697,7 +697,7 @@ int od_state_dump_yuv(od_state *state, od_img *img, const char *tag) {
     strncpy(state->dump_files[i].tag,tag,16);
 #else
   {
-    char *suf;
+    const char *suf;
 #endif
     needs_header = 1;
     suf = getenv("OD_DUMP_IMAGES_SUFFIX");

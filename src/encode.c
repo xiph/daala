@@ -118,7 +118,7 @@ daala_enc_ctx *daala_encode_create(const daala_info *info) {
     _ogg_free(enc);
     return NULL;
   }
-  enc->bs = _ogg_malloc(sizeof(*enc->bs));
+  enc->bs = (BlockSizeComp *)_ogg_malloc(sizeof(*enc->bs));
 #if defined(OD_ENCODER_CHECK)
   enc->dec = daala_decode_alloc(info, NULL);
 #endif
@@ -1263,15 +1263,15 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
        OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
       OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
        OD_ACCT_CAT_PLANE, OD_ACCT_PLANE_UNKNOWN);
-      ctmp[pli] = _ogg_calloc(w*h, sizeof(*ctmp[pli]));
-      dtmp[pli] = _ogg_calloc(w*h, sizeof(*dtmp[pli]));
+      ctmp[pli] = (od_coeff *)_ogg_calloc(w*h, sizeof(*ctmp[pli]));
+      dtmp[pli] = (od_coeff *)_ogg_calloc(w*h, sizeof(*dtmp[pli]));
       if (pli == 0 || OD_DISABLE_CFL) {
-        mbctx.tf[pli] = _ogg_calloc(w*h, sizeof(*mbctx.tf[pli]));
-        mbctx.modes[pli] = _ogg_calloc((w >> 2)*(h >> 2),
+        mbctx.tf[pli] = (od_coeff *)_ogg_calloc(w*h, sizeof(*mbctx.tf[pli]));
+        mbctx.modes[pli] = (signed char *)_ogg_calloc((w >> 2)*(h >> 2),
          sizeof(*mbctx.modes[pli]));
       }
-      mctmp[pli] = _ogg_calloc(w*h, sizeof(*mctmp[pli]));
-      mdtmp[pli] = _ogg_calloc(w*h, sizeof(*mdtmp[pli]));
+      mctmp[pli] = (od_coeff *)_ogg_calloc(w*h, sizeof(*mctmp[pli]));
+      mdtmp[pli] = (od_coeff *)_ogg_calloc(w*h, sizeof(*mdtmp[pli]));
       /*We predict chroma planes from the luma plane.  Since chroma can be
         subsampled, we cache subsampled versions of the luma plane in the
         frequency domain.  We can share buffers with the same subsampling.*/
@@ -1286,7 +1286,8 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
             }
           }
           if (plj >= pli) {
-            lbuf[pli] = ltmp[pli] = _ogg_calloc(w*h, sizeof(*ltmp[pli]));
+            lbuf[pli] = ltmp[pli] = (od_coeff *)_ogg_calloc(w*h,
+                    sizeof(*ltmp[pli]));
           }
         }
         else {

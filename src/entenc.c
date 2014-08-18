@@ -84,7 +84,7 @@ static void od_ec_enc_normalize(od_ec_enc *enc,
     offs = enc->offs;
     if (offs + 2 > storage) {
       storage = 2*storage + 2;
-      buf = _ogg_realloc(buf, sizeof(*buf)*storage);
+      buf = (ogg_uint16_t *)_ogg_realloc(buf, sizeof(*buf)*storage);
       if (buf == NULL) {
         enc->error = -1;
         enc->offs = 0;

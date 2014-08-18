@@ -269,7 +269,7 @@ static void id_y4m_file(av_input *avin, const char *file, FILE *test) {
     iplane->xstride = 1;
     iplane->ystride = (avin->video_pic_w
      + (1 << iplane->xdec) - 1)  >>  iplane->xdec;
-    iplane->data = _ogg_malloc(iplane->ystride*
+    iplane->data = (unsigned char *)_ogg_malloc(iplane->ystride*
      ((avin->video_pic_h + (1 << iplane->ydec) - 1)  >>  iplane->ydec));
   }
 }

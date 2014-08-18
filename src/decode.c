@@ -738,7 +738,7 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
     for (pli = 0; pli < (OD_DISABLE_CFL ? nplanes : 1); pli++) {
       xdec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
       ydec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
-      mbctx.modes[pli] = _ogg_calloc((frame_width >> (2 + xdec))
+      mbctx.modes[pli] = (signed char *)_ogg_calloc((frame_width >> (2 + xdec))
        *(frame_height >> (2 + ydec)), sizeof(*mbctx.modes[pli]));
     }
     if (mbctx.is_keyframe) {
@@ -747,7 +747,7 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
         ydec = dec->state.io_imgs[OD_FRAME_REC].planes[pli].ydec;
         w = frame_width >> xdec;
         h = frame_height >> ydec;
-        mbctx.tf[pli] = _ogg_calloc(w*h, sizeof(*mbctx.tf[pli]));
+        mbctx.tf[pli] = (od_coeff *)_ogg_calloc(w*h, sizeof(*mbctx.tf[pli]));
       }
     }
     /*Apply the prefilter to the motion-compensated reference.*/
@@ -757,8 +757,8 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
         ydec = dec->state.io_imgs[OD_FRAME_REC].planes[pli].ydec;
         w = frame_width >> xdec;
         h = frame_height >> ydec;
-        mctmp[pli] = _ogg_calloc(w*h, sizeof(*mctmp[pli]));
-        mdtmp[pli] = _ogg_calloc(w*h, sizeof(*mdtmp[pli]));
+        mctmp[pli] = (od_coeff *)_ogg_calloc(w*h, sizeof(*mctmp[pli]));
+        mdtmp[pli] = (od_coeff *)_ogg_calloc(w*h, sizeof(*mdtmp[pli]));
         /*Collect the image data needed for this plane.*/
         {
           unsigned char *mdata;
@@ -793,8 +793,8 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
       dec->quantizer[pli] = od_ec_dec_uint(&dec->ec, 512 << OD_COEFF_SHIFT);
       mbctx.run_pvq[pli] = dec->quantizer[pli] &&
        od_ec_decode_bool_q15(&dec->ec, 16384);
-      ctmp[pli] = _ogg_calloc(w*h, sizeof(*ctmp[pli]));
-      dtmp[pli] = _ogg_calloc(w*h, sizeof(*dtmp[pli]));
+      ctmp[pli] = (od_coeff *)_ogg_calloc(w*h, sizeof(*ctmp[pli]));
+      dtmp[pli] = (od_coeff *)_ogg_calloc(w*h, sizeof(*dtmp[pli]));
       /*We predict chroma planes from the luma plane.
         Since chroma can be subsampled, we cache subsampled versions of the
          luma plane in the frequency domain.
@@ -810,7 +810,8 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
             }
           }
           if (plj >= pli) {
-            lbuf[pli] = ltmp[pli] = _ogg_calloc(w*h, sizeof(*ltmp[pli]));
+            lbuf[pli] = ltmp[pli] = (od_coeff *)_ogg_calloc(w*h,
+                    sizeof(*ltmp[pli]));
           }
         }
         else {

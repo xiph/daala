@@ -44,7 +44,7 @@ typedef struct {
   daala_comment dc;
   ogg_sync_state oy;
   FILE *input;
-  char *input_path;
+  const char *input_path;
   ogg_stream_state os;
   daala_dec_ctx *dctx;
   SDL_Surface *surf;
@@ -122,7 +122,7 @@ int player_example_clear(player_example *player) {
 player_example *player_example_create() {
   int ret;
   player_example *player;
-  player = malloc(sizeof(player_example));
+  player = (player_example *)malloc(sizeof(player_example));
   if (player == NULL) return NULL;
   ret = player_example_init(player);
   if (ret != 0) {
@@ -153,7 +153,7 @@ int player_example_reset(player_example *player) {
   return 0;
 }
 
-int player_example_open_input(player_example *player, char *path) {
+int player_example_open_input(player_example *player, const char *path) {
   if ((player == NULL) || ((path == NULL) || (path[0] == '\0'))) return -1;
   if ((path[0] == '-') && (path[1] == '\0')) {
     player->input = stdin;
