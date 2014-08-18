@@ -48,10 +48,6 @@ struct od_mv_node {
   int mvs[3][2][2];
   /*The current estimated rate of this MV.*/
   unsigned mv_rate:16;
-  /*The current estimated rate of the edge labels.*/
-  unsigned lb_rate:4;
-  /*The number of blocks influenced by this MV who failed their SAD checks.*/
-  unsigned needs_check:4;
   /*The current size of the block with this MV at its upper-left.*/
   unsigned log_mvb_sz:2;
   /*The index of the exterior corner of that block.*/

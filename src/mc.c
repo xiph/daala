@@ -33,41 +33,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 /*Motion compensation routines shared between the encoder and decoder.*/
 
-/*Set up the finite differences needed to interpolate a motion vector
-   component.
-  dmv: Returns the motion vector deltas.
-  dmv[0]: The initial value.
-  dmv[1]: The initial amount to increment per unit change in i.
-  dmv[2]: The amount to increment per unit change in j.
-  dmv[3]: The amount to increment _dxdi by per unit change in j.
-  mvx: The component value of the 4 motion vectors.
-  m: The index of the motion vector to use for each corner in the
-      base orientation.
-  r: The amount to rotate (clockwise) the formulas by (0...3).
-  log_xblk_sz: The log base 2 of the horizontal block dimension.
-  log_yblk_sz: The log base 2 of the vertical block dimension.*/
-void od_mc_setup_mvc(ogg_int32_t dmv[4], const ogg_int32_t mvs[4],
- const int m[4], int r, int log_xblk_sz, int log_yblk_sz) {
-  int c0;
-  int c1;
-  int c2;
-  int c3;
-  c0 = (m[(0 - r) & 3] + r) & 3;
-  c1 = (m[(1 - r) & 3] + r) & 3;
-  c2 = (m[(2 - r) & 3] + r) & 3;
-  c3 = (m[(3 - r) & 3] + r) & 3;
-  dmv[0] = mvs[c0];
-  dmv[1] = (mvs[c1] - dmv[0]) >> log_xblk_sz;
-  dmv[2] = (mvs[c3] - dmv[0]) >> log_yblk_sz;
-  dmv[3] = (mvs[c0] + mvs[c2] - mvs[c1] - mvs[c3]) >>
-   (log_xblk_sz + log_yblk_sz);
-  /*Advance the vector to the (0.5, 0.5) position.*/
-  dmv[0] += dmv[2] >> 1;
-  dmv[1] += dmv[3] >> 1;
-  dmv[0] += dmv[1] >> 1;
-  dmv[2] += dmv[3] >> 1;
-}
-
 /*Form the prediction given by one fixed motion vector.
   dst: The destination buffer (xstride must be 1).
   src: The source buffer (xstride must be 1).
