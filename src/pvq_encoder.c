@@ -170,7 +170,7 @@ void pvq_encode(daala_enc_ctx *enc,
      OD_MAXI(1, q*qm[i + 1] >> 4), y + off[i], &theta[i], &max_theta[i],
      &k[i], &g[i], beta[i], &skip_diff);
   }
-  if (!is_keyframe) {
+  if (!is_keyframe || !OD_DISABLE_PAINT) {
     od_encode_checkpoint(enc, &buf);
     /* Code as if we're not skipping. */
     od_encode_cdf_adapt(&enc->ec, (out[0] != 0), skip_cdf,
@@ -179,7 +179,7 @@ void pvq_encode(daala_enc_ctx *enc,
        to greedy decision issues. */
     tell = od_ec_enc_tell_frac(&enc->ec);
   }
-  if (!is_keyframe && ln > 0) {
+  if ((!is_keyframe || !OD_DISABLE_PAINT) && ln > 0) {
     int id;
     id = 0;
     /* Jointly code the noref flags for the first 4 bands. */
@@ -209,7 +209,7 @@ void pvq_encode(daala_enc_ctx *enc,
     pvq_encode_partition(&enc->ec, qg[i], theta[i], max_theta[i], y + off[i],
       size[i], k[i], model, adapt, exg + i, ext + i, is_keyframe);
   }
-  if (!is_keyframe) {
+  if (!is_keyframe || !OD_DISABLE_PAINT) {
     tell = od_ec_enc_tell_frac(&enc->ec) - tell;
     if (skip_diff < OD_PVQ_LAMBDA/8*tell) {
       /* We decide to skip, roll back everything as it was before. */
