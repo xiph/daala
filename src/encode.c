@@ -313,9 +313,9 @@ static void od_encode_compute_pred(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, od_co
   md = ctx->md;
   l = ctx->l;
 #if OD_DISABLE_PAINT
-  if (ctx->is_keyframe && (pli != 0)) {
-#else
   if (ctx->is_keyframe) {
+#else
+  if (ctx->is_keyframe && (pli != 0)) {
 #endif
     if (bx > 0 && by > 0) {
       if (pli == 0 || OD_DISABLE_CFL) {
