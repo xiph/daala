@@ -44,7 +44,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "pvq.h"
 #include "pvq_code.h"
 #include "block_size.h"
-#include "block_size_enc.h"
 #include "logging.h"
 #include "tf.h"
 #include "accounting.h"
@@ -119,6 +118,7 @@ daala_enc_ctx *daala_encode_create(const daala_info *info) {
     _ogg_free(enc);
     return NULL;
   }
+  enc->bs = _ogg_malloc(sizeof(*enc->bs));
 #if defined(OD_ENCODER_CHECK)
   enc->dec = daala_decode_alloc(info, NULL);
 #endif
@@ -132,6 +132,7 @@ void daala_encode_free(daala_enc_ctx *enc) {
       daala_decode_free(enc->dec);
     }
 #endif
+    _ogg_free(enc->bs);
     od_enc_clear(enc);
     _ogg_free(enc);
   }
@@ -926,7 +927,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   int j;
   int k;
   int m;
-  BlockSizeComp *bs;
   int nhsb;
   int nvsb;
   od_mb_enc_ctx mbctx;
@@ -1066,7 +1066,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   od_state_init_border(&enc->state);
   /* Allocate a blockSizeComp for scratch space and then calculate the block sizes
      eventually store them in bsize. */
-  bs = _ogg_malloc(sizeof(BlockSizeComp));
   od_log_matrix_uchar(OD_LOG_GENERIC, OD_LOG_INFO, "bimg ",
    enc->state.io_imgs[OD_FRAME_INPUT].planes[0].data -
    16*enc->state.io_imgs[OD_FRAME_INPUT].planes[0].ystride - 16,
@@ -1092,7 +1091,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       int bsize[4][4];
       unsigned char *state_bsize;
       state_bsize = &enc->state.bsize[i*4*enc->state.bstride + j*4];
-      process_block_size32(bs, bimg + j*32, istride,
+      process_block_size32(enc->bs, bimg + j*32, istride,
        kf ? NULL : rimg + j*32, rstride, bsize, enc->quantizer[0]);
       /* Grab the 4x4 information returned from process_block_size32 in bsize
          and store it in the od_state bsize. */
@@ -1125,7 +1124,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     }
     OD_LOG_PARTIAL((OD_LOG_GENERIC, OD_LOG_INFO, "\n"));
   }
-  _ogg_free(bs);
   /*Code the motion vectors.*/
   if (!mbctx.is_keyframe) {
     int nhmvbs;

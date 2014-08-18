@@ -28,6 +28,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # include "../include/daala/daalaenc.h"
 # include "state.h"
 # include "entenc.h"
+# include "block_size_enc.h"
 #if defined(OD_ACCOUNTING)
 # include "accounting.h"
 #endif
@@ -82,6 +83,7 @@ struct daala_enc_ctx{
   /*Account for where bits are spent in encoding.*/
   od_acct acct;
 #endif
+  BlockSizeComp *bs;
 };
 
 /** Holds important encoder information so we can roll back decisions */
