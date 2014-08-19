@@ -410,45 +410,36 @@ void od_intra_paint_compute_edges(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned 
     int idx;
     ln = 2 + bs;
     n = 1 << ln;
-    if (bx == 0 && by == 0) {
-      if (edge_count[0] > 0) paint[0] = edge_sum[0]/edge_count[0];
-      else paint[0] = img[0];
-      /* For now, we just encode the first pixel as is. */
-      od_ec_enc_bits(enc, paint[0], 8);
-    }
     /* Compute left edge (left column only). */
     if (bx == 0) {
-      for (k = 1; k <= n; k++) {
-        idx = stride*(n*by + k);
+      for (k = 0; k < n; k++) {
+        idx = stride*(n*by + k) - 1;
         if (edge_count[idx] > 0) paint[idx] = edge_sum[idx]/edge_count[idx];
-        else paint[idx] = img[idx - 1];
+        else paint[idx] = img[idx];
       }
       quantize_initial_edge(adapt, enc, &paint[stride*(n*by + 1)], ln, stride, q);
     }
     /* Compute top edge (top row only). */
     if (by == 0) {
-      for (k = 1; k <= n; k++) {
-        idx = n*bx + k;
+      for (k = 0; k < n; k++) {
+        idx = -stride + n*bx + k;
         if (edge_count[idx] > 0) paint[idx] = edge_sum[idx]/edge_count[idx];
-        else paint[idx] = img[idx - stride];
+        else paint[idx] = img[idx];
       }
       quantize_initial_edge(adapt, enc, &paint[n*bx + 1], ln, 1, q);
     }
     /* Compute right edge stats. */
-    for (k = 1; k < n; k++) {
-      idx = stride*(n*by + k) + n*(bx + 1);
+    for (k = 0; k < n - 1; k++) {
+      idx = stride*(n*by + k) + n*(bx + 1) - 1;
       if (edge_count[idx] > 0) paint[idx] = edge_sum[idx]/edge_count[idx];
-      else paint[idx] = img[idx - 1];
+      else paint[idx] = img[idx];
     }
     /* Compute bottom edge stats. */
-    for (k = 1; k < n; k++) {
-      idx = stride*n*(by + 1) + n*bx + k;
+    for (k = 0; k < n; k++) {
+      idx = stride*(n*(by + 1) - 1) + n*bx + k;
       if (edge_count[idx] > 0) paint[idx] = edge_sum[idx]/edge_count[idx];
-      else paint[idx] = img[idx - stride];
+      else paint[idx] = img[idx];
     }
-    idx = stride*n*(by + 1) + n*(bx + 1);
-    if (edge_count[idx] > 0) paint[idx] = edge_sum[idx]/edge_count[idx];
-    else paint[idx] = img[idx - stride - 1];
     /* Refinement: one last chance to pick DC. */
     if (mode[(by*mstride + bx) << ln >> 2] != 4*n) {
       int i;
@@ -463,13 +454,13 @@ void od_intra_paint_compute_edges(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned 
       best_dist = 1 << 30;
       for (i = 0; i <= n; i++) {
         for (j = 0; j <= n; j++) {
-          block[i][j] = paint[stride*(n*by + i) + n*bx + j];
+          block[i][j] = paint[stride*(n*by + i - 1) + n*bx + j - 1];
         }
       }
-      interp_block(&block[0][0], &block[0][0], n, MAXN + 1, m);
+      interp_block(&block[1][1], &block[1][1], n, MAXN + 1, m);
       compare_mode(block, best_block, &dist, &best_dist, m, &best_id, n,
        &img[stride*n*by + n*bx], stride);
-      interp_block(&block[0][0], &block[0][0], n, MAXN + 1, 4*n);
+      interp_block(&block[1][1], &block[1][1], n, MAXN + 1, 4*n);
       compare_mode(block, best_block, &dist, &best_dist, 4*n, &best_id, n,
        &img[stride*n*by + n*bx], stride);
       mode[(by*mstride + bx) << ln >> 2] = best_id;
@@ -511,8 +502,8 @@ void od_intra_paint_quant_block(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned ch
     dc_quant = mode[(by*mstride + bx) << ln >> 2]==4*n
      && mode[(by*mstride + bx + 1) << ln >> 2] == 4*n
      && mode[((by + 1)*mstride + bx -1) << ln >> 2] == 4*n;
-    quantize_edge(adapt, enc, &paint[stride*n*by + n*bx], n, stride, q,
-     mode[(by*mstride + bx) << ln >> 2], dc_quant);
+    /*quantize_edge(adapt, enc, &paint[stride*n*by + n*bx], n, stride, q,
+     mode[(by*mstride + bx) << ln >> 2], dc_quant);*/
     interp_block(&paint[stride*n*by + n*bx], &paint[stride*n*by + n*bx],
      n, stride, mode[(by*mstride + bx) << ln >> 2]);
   }
@@ -529,7 +520,7 @@ void od_intra_paint_encode(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *p
        mstride, edge_sum, edge_count, res, j, i, 3);
     }
   }
-#if 1
+#if 0
   for(i = 0; i < h*8; i++) {
     for(j = 0; j < w*8; j++) {
       printf("%d ", mode[i*mstride+j]<<3>>dec8[(i>>1)*bstride + (j>>1)]);
