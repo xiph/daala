@@ -449,6 +449,31 @@ void od_intra_paint_compute_edges(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned 
     idx = stride*n*(by + 1) + n*(bx + 1);
     if (edge_count[idx] > 0) paint[idx] = edge_sum[idx]/edge_count[idx];
     else paint[idx] = img[idx - stride - 1];
+    /* Refinement: one last chance to pick DC. */
+    if (mode[(by*mstride + bx) << ln >> 2] != 4*n) {
+      int i;
+      int j;
+      unsigned char block[MAXN + 1][MAXN + 1];
+      unsigned char best_block[MAXN][MAXN];
+      int dist;
+      int best_dist;
+      int best_id = 0;
+      int m;
+      m = mode[(by*mstride + bx) << ln >> 2];
+      best_dist = 1 << 30;
+      for (i = 0; i <= n; i++) {
+        for (j = 0; j <= n; j++) {
+          block[i][j] = paint[stride*(n*by + i) + n*bx + j];
+        }
+      }
+      interp_block(&block[0][0], &block[0][0], n, MAXN + 1, m);
+      compare_mode(block, best_block, &dist, &best_dist, m, &best_id, n,
+       &img[stride*n*by + n*bx], stride);
+      interp_block(&block[0][0], &block[0][0], n, MAXN + 1, 4*n);
+      compare_mode(block, best_block, &dist, &best_dist, 4*n, &best_id, n,
+       &img[stride*n*by + n*bx], stride);
+      mode[(by*mstride + bx) << ln >> 2] = best_id;
+    }
   }
 }
 
