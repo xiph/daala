@@ -609,7 +609,11 @@ void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   else
     dc_quant = (pli==0 || enc->quantizer[pli]==0) ? quant : (quant + 1) >> 1;
   if (OD_DISABLE_HAAR_DC || !ctx->is_keyframe) {
-    scalar_out[0] = OD_DIV_R0(cblock[0] - predt[0], dc_quant);
+    if (abs(cblock[0] - predt[0]) < dc_quant * 141 / 256) { /* 0.55 */
+      scalar_out[0] = 0;
+    } else {
+      scalar_out[0] = OD_DIV_R0(cblock[0] - predt[0], dc_quant);
+    }
     OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
      OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_DC_COEFF);
   }
