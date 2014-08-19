@@ -979,7 +979,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     od_img_plane_copy_pad8(&enc->state.io_imgs[OD_FRAME_INPUT].planes[pli],
      frame_width >> plane.xdec, frame_height >> plane.ydec,
      &plane, plane_width, plane_height);
-    od_img_plane_edge_ext8(enc->state.io_imgs[OD_FRAME_INPUT].planes + pli,
+    od_img_plane_edge_ext8(&enc->state.io_imgs[OD_FRAME_INPUT].planes[pli],
      frame_width >> plane.xdec, frame_height >> plane.ydec,
      OD_UMV_PADDING >> plane.xdec, OD_UMV_PADDING >> plane.ydec);
   }
