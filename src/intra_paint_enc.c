@@ -188,7 +188,7 @@ static void quantize_bottom_edge(od_adapt_ctx *adapt,od_ec_enc *enc, unsigned ch
   else lsize = 3;
 
   /* Quantize bottom edge. */
-  predict_bottom_edge(p, edge_accum, n, stride, m, has_right);
+  predict_bottom_edge(p, edge_accum - stride - 1, n, stride, m, has_right);
 #if !QUANTIZE
   /*printf("%d ", m);*/
   for (i = 0; i < n; i++) printf("%d ", edge_accum[n*stride + (i + 1)] - p[i]);
@@ -219,7 +219,7 @@ static void quantize_right_edge(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned ch
   else lsize = 3;
 
   /* Quantize right edge. */
-  predict_right_edge(p, edge_accum, n, stride, m, has_bottom);
+  predict_right_edge(p, edge_accum - stride - 1, n, stride, m, has_bottom);
 #if !QUANTIZE
   for (i = 0; i < n; i++) printf("%d ", edge_accum[(i + 1)*stride + n] - p[i]);
 #endif
