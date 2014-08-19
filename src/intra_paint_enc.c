@@ -412,6 +412,13 @@ void od_intra_paint_compute_edges(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned 
     int idx;
     ln = 2 + bs;
     n = 1 << ln;
+    if (bx == 0 && by == 0) {
+      idx = -stride - 1;
+      if (edge_count[idx] > 0) paint[idx] = edge_sum[idx]/edge_count[idx];
+      else paint[idx] = img[idx];
+      /* For now, we just encode the first pixel as is. */
+      od_ec_enc_bits(enc, paint[idx], 8);
+    }
     /* Compute left edge (left column only). */
     if (bx == 0) {
       for (k = 0; k < n; k++) {
@@ -419,7 +426,7 @@ void od_intra_paint_compute_edges(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned 
         if (edge_count[idx] > 0) paint[idx] = edge_sum[idx]/edge_count[idx];
         else paint[idx] = img[idx];
       }
-      quantize_initial_edge(adapt, enc, &paint[stride*(n*by + 1)], ln, stride, q);
+      quantize_initial_edge(adapt, enc, &paint[stride*n*by - 1], ln, stride, q);
     }
     /* Compute top edge (top row only). */
     if (by == 0) {
@@ -428,7 +435,7 @@ void od_intra_paint_compute_edges(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned 
         if (edge_count[idx] > 0) paint[idx] = edge_sum[idx]/edge_count[idx];
         else paint[idx] = img[idx];
       }
-      quantize_initial_edge(adapt, enc, &paint[n*bx + 1], ln, 1, q);
+      quantize_initial_edge(adapt, enc, &paint[-stride + n*bx], ln, 1, q);
     }
     /* Compute right edge stats. */
     for (k = 0; k < n - 1; k++) {
