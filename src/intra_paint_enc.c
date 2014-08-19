@@ -100,6 +100,8 @@ static int mode_select(const unsigned char *img, int *dist, int n, int stride,
         int k;
         pixel_interp(pi, pj, w, m, i, j, ln);
         for (k = 0; k < 4; k++) {
+          /* Avoids having edges with no data. */
+          w[k] = OD_MAXI(w[k], 1);
           edge_accum[pi[k]][pj[k]] += (int)img[i*stride+j]*w[k];
           edge_count[pi[k]][pj[k]] += w[k];
         }
