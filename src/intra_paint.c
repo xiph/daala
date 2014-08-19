@@ -61,24 +61,26 @@ void pixel_interp(int pi[4], int pj[4], int w[4], int m, int i, int j,
   int dir;
   n = 1 << ln;
   /* The the top and left edges, we reuse the points as-is. */
-  if (i == 0 || j == 0) {
+  if (i == n - 1 || j == n - 1) {
     pi[0] = i;
     pj[0] = j;
     w[0] = 128;
     for (k = 1; k < 4; k++) pi[k] = pj[k] = w[k] = 0;
     return;
   }
+  i++;
+  j++;
   /* DC/Gradient mode, weights are proportional to 1/distance. The 255 alias
      is a temporary fix because mode is sometimes unsigned. */
   if (m == 4*n) {
-    pi[0] = 0;
-    pj[0] = j;
-    pi[1] = n;
-    pj[1] = j;
-    pi[2] = i;
-    pj[2] = 0;
-    pi[3] = i;
-    pj[3] = n;
+    pi[0] = -1;
+    pj[0] = j - 1;
+    pi[1] = n - 1;
+    pj[1] = j - 1;
+    pi[2] = i - 1;
+    pj[2] = -1;
+    pi[3] = i - 1;
+    pj[3] = n - 1;
     if (0) {
     w[0] = (n - i) << 6 >> ln;
     w[1] = i << 6 >> ln;
@@ -187,6 +189,8 @@ void pixel_interp(int pi[4], int pj[4], int w[4], int m, int i, int j,
       pj[k] = tmp;
     }
   }
+  for (k = 0; k < 4; k++) pi[k]--;
+  for (k = 0; k < 4; k++) pj[k]--;
 }
 
 /* Compute the actual interpolation (reconstruction) for a block. */

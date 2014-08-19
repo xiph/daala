@@ -53,7 +53,7 @@ static void compare_mode(unsigned char block[MAXN + 1][MAXN + 1],
   for (i=0;i<n;i++) {
     for (j=0;j<n;j++) {
       int e;
-      e = (int)block[i][j] - (int)img[i*stride + j];
+      e = (int)block[i+1][j+1] - (int)img[i*stride + j];
       curr_dist += e*e;
     }
   }
@@ -66,7 +66,7 @@ static void compare_mode(unsigned char block[MAXN + 1][MAXN + 1],
   if (curr_dist < *best_dist) {
     *best_dist = curr_dist;
     *best_id = id;
-    for (i=0;i<n;i++) for (j=0;j<n;j++) best_block[i][j] = block[i][j];
+    for (i=0;i<n;i++) for (j=0;j<n;j++) best_block[i][j] = block[i+1][j+1];
   }
 }
 
@@ -102,8 +102,8 @@ static int mode_select(const unsigned char *img, int *dist, int n, int stride,
         for (k = 0; k < 4; k++) {
           /* Avoids having edges with no data. */
           w[k] = OD_MAXI(w[k], 1);
-          edge_accum[pi[k]][pj[k]] += (int)img[i*stride+j]*w[k];
-          edge_count[pi[k]][pj[k]] += w[k];
+          edge_accum[1+pi[k]][1+pj[k]] += (int)img[i*stride+j]*w[k];
+          edge_count[1+pi[k]][1+pj[k]] += w[k];
         }
       }
     }
@@ -114,7 +114,7 @@ static int mode_select(const unsigned char *img, int *dist, int n, int stride,
         }
       }
     }
-    interp_block(&block[0][0], &block[0][0], n, MAXN + 1, m);
+    interp_block(&block[1][1], &block[1][1], n, MAXN + 1, m);
     compare_mode(block, best_block, &dist, &best_dist, m, &best_id, n, img,
      stride);
   }
@@ -529,6 +529,14 @@ void od_intra_paint_encode(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *p
        mstride, edge_sum, edge_count, res, j, i, 3);
     }
   }
+#if 1
+  for(i = 0; i < h*8; i++) {
+    for(j = 0; j < w*8; j++) {
+      printf("%d ", mode[i*mstride+j]<<3>>dec8[(i>>1)*bstride + (j>>1)]);
+    }
+    printf("\n");
+  }
+#endif
 
   for(i = 0; i < h; i++) {
     for(j = 0; j < w; j++) {
@@ -542,14 +550,6 @@ void od_intra_paint_encode(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *p
        mstride, edge_sum, edge_count, q, res, j, i, 3);
     }
   }
-#if 0
-  for(i = 0; i < h*8; i++) {
-    for(j = 0; j < w*8; j++) {
-      printf("%d ", mode[i*mstride+j]<<3>>dec8[(i>>1)*bstride + (j>>1)]);
-    }
-    printf("\n");
-  }
-#endif
 }
 
 void od_intra_paint_choose_block_size(const unsigned char *img, int stride,
