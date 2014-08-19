@@ -43,7 +43,7 @@ int dc_prob[8] = {128, 128, 128, 128, 128, 128, 128, 128};
 int dir_prob[9] = {128, 128, 128, 128, 128, 128, 128, 128, 128};
 #define DIR_PROB_SPEED (4)
 
-static void compare_mode(unsigned char block[MAXN][MAXN],
+static void compare_mode(unsigned char block[MAXN + 1][MAXN + 1],
  unsigned char best_block[MAXN][MAXN], int *dist, int *best_dist, int id,
  int *best_id, int n, const unsigned char *img, int stride) {
   int i;
@@ -81,7 +81,7 @@ static int mode_select(const unsigned char *img, int *dist, int n, int stride,
   int best_id;
   int edge_accum[MAXN+1][MAXN+1];
   int edge_count[MAXN+1][MAXN+1];
-  unsigned char block[MAXN][MAXN];
+  unsigned char block[MAXN + 1][MAXN + 1];
   unsigned char best_block[MAXN][MAXN];
   int pi[4];
   int pj[4];
@@ -108,21 +108,11 @@ static int mode_select(const unsigned char *img, int *dist, int n, int stride,
     for (i = 0; i <= n; i++) {
       for (j = 0; j <= n; j++) {
         if (edge_count[i][j] > 0) {
-          edge_accum[i][j] = edge_accum[i][j]/edge_count[i][j];
+          block[i][j] = edge_accum[i][j]/edge_count[i][j];
         }
       }
     }
-
-    for (i = 0; i < n; i++) {
-      for (j = 0; j < n; j++) {
-        int k;
-        int sum;
-        sum = 0;
-        pixel_interp(pi, pj, w, m, i, j, ln);
-        for (k = 0; k < 4; k++) sum += edge_accum[pi[k]][pj[k]]*w[k];
-        block[i][j] = OD_CLAMPI(0, (sum + 64) >> 7, 255);
-      }
-    }
+    interp_block(&block[0][0], &block[0][0], n, MAXN + 1, m);
     compare_mode(block, best_block, &dist, &best_dist, m, &best_id, n, img,
      stride);
   }
