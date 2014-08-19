@@ -125,11 +125,16 @@ static void od_compute_stats(const signed char *img, int stride,
  * activity masking model. The masking at any given point is assumed to be
  * proportional to the local variance. The decision is made using a simple
  * dynamic programming algorithm, working from 8x8 decisions up to 32x32.
- * @param [scratch] bs Sratch space for computation
- * @param [in]      psy_img Image on which to compute the psy model (should not be a residual)
- * @param [in]      img     Image on which to compute the noise model (i.e. what is to be coded)
+ * @param [scratch] bs      Scratch space for computation
+ * @param [in]      psy_img Image on which to compute the psy model (should
+ *  not be a residual)
  * @param [in]      stride  Image stride
- * @param [out]     dec     Decision for each 8x8 block in the image. 0=4x4, 1=8x8, 2=16x16, 3=32x32
+ * @param [in]      pred    Prediction input (NULL means no prediction
+ *  available)
+ * @param [in]      pred_stride Prediction input stride
+ * @param [out]     bsize   Decision for each 8x8 block in the image
+ *  (0=4x4, 1=8x8, 2=16x16, 3=32x32)
+ * @param [in]      q       Quality tuning parameter
  */
 void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
  int stride, const unsigned char *pred, int pred_stride, int bsize[4][4],
