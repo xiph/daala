@@ -245,18 +245,20 @@ void quantize_edge(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *edge_accu
     int res;
     int qdc;
     int i;
-    pred = floor(.5 + .73*(edge_accum[n] + edge_accum[n*stride]) - .46 *edge_accum[0]);
-    res = edge_accum[n*stride+n]-pred;
+    pred = floor(.5 + .73*(edge_accum[n - 1] + edge_accum[(n - 1)*stride]) - .46 *edge_accum[-stride - 1]);
+    res = edge_accum[(n - 1)*stride + n - 1]-pred;
     qdc = OD_MAXI(1, q/8);
     res = (int)floor(.5+res/qdc);
     generic_encode(enc, &adapt->paint_dc_model, abs(res), -1, &ex_dc, 6);
     if (res != 0) od_ec_enc_bits(enc, res > 0, 1);
     /*printf("DC %d\n", res);*/
     res = res*qdc;
-    edge_accum[n*stride+n] = res + pred;
-    for (i = 1; i < n; i++) {
-      edge_accum[n*stride+i] = edge_accum[n*stride] + i*(edge_accum[n*stride+n]-edge_accum[n*stride])/n;
-      edge_accum[i*stride+n] = edge_accum[n] + i*(edge_accum[n*stride+n]-edge_accum[n])/n;
+    edge_accum[(n - 1)*stride + n - 1] = res + pred;
+    for (i = 0; i < n - 1; i++) {
+      edge_accum[(n - 1)*stride + i] = edge_accum[(n - 1)*stride - 1]
+       + i*(edge_accum[(n - 1)*stride + n - 1]-edge_accum[(n - 1)*stride - 1])/n;
+      edge_accum[i*stride + n - 1] = edge_accum[-stride + n - 1]
+       + i*(edge_accum[(n - 1)*stride + n - 1]-edge_accum[-stride + n - 1])/n;
     }
   }
   else if (m > 0 && m < n) {
@@ -502,8 +504,8 @@ void od_intra_paint_quant_block(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned ch
     dc_quant = mode[(by*mstride + bx) << ln >> 2]==4*n
      && mode[(by*mstride + bx + 1) << ln >> 2] == 4*n
      && mode[((by + 1)*mstride + bx) << ln >> 2] == 4*n;
-    /*quantize_edge(adapt, enc, &paint[stride*n*by + n*bx], n, stride, q,
-     mode[(by*mstride + bx) << ln >> 2], dc_quant);*/
+    quantize_edge(adapt, enc, &paint[stride*n*by + n*bx], n, stride, q,
+     mode[(by*mstride + bx) << ln >> 2], dc_quant);
     interp_block(&paint[stride*n*by + n*bx], &paint[stride*n*by + n*bx],
      n, stride, mode[(by*mstride + bx) << ln >> 2]);
   }
