@@ -216,6 +216,7 @@ int od_state_init(od_state *state, const daala_info *info) {
 }
 
 void od_state_clear(od_state *state) {
+  int pli;
 #if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
   int i;
   if (state->dump_tags > 0) {
@@ -228,6 +229,9 @@ void od_state_clear(od_state *state) {
   od_free_2d(state->mv_grid);
   _ogg_free(state->ref_img_data);
   state->bsize -= 4*state->bstride + 4;
+  for (pli = 0; pli < state->info.nplanes; pli++) {
+    _ogg_free(state->sb_dc_mem[pli]);
+  }
   _ogg_free(state->bsize);
 }
 
