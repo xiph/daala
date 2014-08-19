@@ -481,11 +481,11 @@ int od_intra_paint_mode_cdf(ogg_uint16_t *cdf, int *dir_list, int *prob_list,
   }
   norm = 256*(256-dc_prob[*dc_ctx])/prob_sum;
   for (i = 0; i < cnt; i++) {
-    prob_list[i] = prob_list[i]*norm >> 8;
+    prob_list[i] = OD_MAXI(1, prob_list[i]*norm >> 8);
 
   }
-  cdf[0] = dir_prob[0]*norm >> 8;
-  cdf[1] = cdf[0] + dc_prob[*dc_ctx];
+  cdf[0] = OD_MAXI(1, dir_prob[0]*norm >> 8);
+  cdf[1] = cdf[0] + OD_MAXI(1, dc_prob[*dc_ctx]);
   for (i = 0; i < cnt; i++) {
     cdf[i + 2] = cdf[i + 1] + prob_list[i];
   }
