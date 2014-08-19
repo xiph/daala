@@ -501,7 +501,7 @@ void od_intra_paint_quant_block(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned ch
        also DC. In the future, we could also treat each edge separately. */
     dc_quant = mode[(by*mstride + bx) << ln >> 2]==4*n
      && mode[(by*mstride + bx + 1) << ln >> 2] == 4*n
-     && mode[((by + 1)*mstride + bx -1) << ln >> 2] == 4*n;
+     && mode[((by + 1)*mstride + bx) << ln >> 2] == 4*n;
     /*quantize_edge(adapt, enc, &paint[stride*n*by + n*bx], n, stride, q,
      mode[(by*mstride + bx) << ln >> 2], dc_quant);*/
     interp_block(&paint[stride*n*by + n*bx], &paint[stride*n*by + n*bx],
