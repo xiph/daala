@@ -33,10 +33,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 /* Actual 2D coding gains of lapped transforms (the 32x32 one is made-up).
    We divide by 6 to get bits from dB. */
-#define CG4 (15.943/6)
-#define CG8 (16.7836/6)
-#define CG16 (16.9986/6)
-#define CG32 (17.1/6)
+#define CG4 (15.943f/6)
+#define CG8 (16.7836f/6)
+#define CG16 (16.9986f/6)
+#define CG32 (17.1f/6)
 
 /* Weighting of the 8x8 masking compared to 4x4 */
 #define PSY8_FUDGE (.5f)
@@ -188,10 +188,10 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
       for (k = 0; k < 3; k++) {
         for (m = 0; m < 3; m++) {
           psy += OD_LOG2(1 + bs->noise4_4[i][j]*bs->psy_stats.invVar4
-           [2*i + k + OFF32 - 1][2*j + m + OFF32 - 1]/16384.);
+           [2*i + k + OFF32 - 1][2*j + m + OFF32 - 1]/16384.f);
         }
       }
-      bs->psy4[i][j] = OD_MAXF(psy/(3*3) - 1., 0);
+      bs->psy4[i][j] = OD_MAXF(psy/(3*3) - 1.f, 0);
     }
   }
   /* Compute 8x8 masking and make 4x4 vs 8x8 decision */
@@ -215,11 +215,11 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
         for (m = 0; m < COUNT8; m++) {
           psy += OD_LOG2(1 + bs->noise4_8[i][j]*bs->psy_stats.invVar4
            [4*i + k + OFF32 - OFF8]
-           [4*j + m + OFF32 - OFF8]/16384.);
+           [4*j + m + OFF32 - OFF8]/16384.f);
         }
       }
-      bs->psy8[i][j] = OD_MAXF(psy/(COUNT8*COUNT8) - 1., 0);
-      psy4_avg = .25*(bs->psy4[2*i][2*j] + bs->psy4[2*i][2*j + 1]
+      bs->psy8[i][j] = OD_MAXF(psy/(COUNT8*COUNT8) - 1.f, 0);
+      psy4_avg = .25f*(bs->psy4[2*i][2*j] + bs->psy4[2*i][2*j + 1]
        + bs->psy4[2*i + 1][2*j] + bs->psy4[2*i + 1][2*j + 1]);
       gain4 = CG4 - psy_lambda*(psy4_avg);
       gain8 = CG8 - psy_lambda*(bs->psy8[i][j]);
@@ -255,10 +255,10 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
       for (k = 0; k < COUNT16; k++) {
         for (m = 0; m < COUNT16; m++) {
           psy += OD_LOG2(1 + bs->noise4_16[i][j]*bs->psy_stats.invVar4
-           [8*i + k + OFF32 - OFF16][8*j + m + OFF32 - OFF16]/16384.);
+           [8*i + k + OFF32 - OFF16][8*j + m + OFF32 - OFF16]/16384.f);
         }
       }
-      bs->psy16[i][j] = OD_MAXF(psy/(COUNT16*COUNT16) - 1., 0);
+      bs->psy16[i][j] = OD_MAXF(psy/(COUNT16*COUNT16) - 1.f, 0);
       sum_var = 0;
       /* Use 8x8 variances */
       for (k = 0; k < COUNT8_16; k++) {
@@ -271,7 +271,7 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
       for (k = 0; k < COUNT8_16; k++) {
         for (m = 0; m < COUNT8_16; m++) {
           psy8 += OD_LOG2(1 + bs->noise8_16[i][j]*bs->psy_stats.invVar8
-           [4*i + k + OFF8_32 - OFF8_16][4*j + m + OFF8_32 - OFF8_16]/16384.);
+           [4*i + k + OFF8_32 - OFF8_16][4*j + m + OFF8_32 - OFF8_16]/16384.f);
         }
       }
       bs->psy16[i][j] = OD_MAXF(bs->psy16[i][j], PSY8_FUDGE*
@@ -309,10 +309,10 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
     bs->noise4_32 = sum_var/(COUNT32*COUNT32);
     for (k = 0; k < COUNT32; k++) {
       for (m = 0; m < COUNT32; m++) {
-        psy += OD_LOG2(1 + bs->noise4_32*bs->psy_stats.invVar4[k][m]/16384.);
+        psy += OD_LOG2(1 + bs->noise4_32*bs->psy_stats.invVar4[k][m]/16384.f);
       }
     }
-    bs->psy32 = OD_MAXF(psy/(COUNT32*COUNT32) - 1., 0);
+    bs->psy32 = OD_MAXF(psy/(COUNT32*COUNT32) - 1.f, 0);
     sum_var = 0;
     /* Use 8x8 variances */
     for (k = 0; k < COUNT8_32; k++) {
@@ -323,12 +323,12 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
     bs->noise8_32 = sum_var/(COUNT8_32*COUNT8_32);
     for (k = 0; k < COUNT8_32; k++) {
       for (m = 0; m < COUNT8_32; m++) {
-        psy8 += OD_LOG2(1 + bs->noise8_32*bs->psy_stats.invVar8[k][m]/16384.);
+        psy8 += OD_LOG2(1 + bs->noise8_32*bs->psy_stats.invVar8[k][m]/16384.f);
       }
     }
     bs->psy32 = OD_MAXF(bs->psy32,
-     PSY8_FUDGE*OD_MAXF(psy8/(COUNT8_32*COUNT8_32) - 1., 0));
-    gain16_avg = .25*(bs->dec_gain16[0][0] + bs->dec_gain16[0][1]
+     PSY8_FUDGE*OD_MAXF(psy8/(COUNT8_32*COUNT8_32) - 1.f, 0));
+    gain16_avg = .25f*(bs->dec_gain16[0][0] + bs->dec_gain16[0][1]
      + bs->dec_gain16[1][0] + bs->dec_gain16[1][1]);
     gain32 = CG32 - psy_lambda*(bs->psy32);
     if (gain32 >= gain16_avg) {
