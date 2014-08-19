@@ -239,6 +239,25 @@ void daala_comment_clear(daala_comment *dc);
 
 ogg_int64_t daala_granule_basetime(void *encdec, ogg_int64_t granpos);
 double daala_granule_time(void *encdec, ogg_int64_t granpos);
+/**Determines whether a Daala packet is a header or not.
+   This function does no verification beyond checking the packet type bit, so
+    it should not be used for bitstream identification.
+   Use daala_decode_headerin() for that.
+   \param packet A buffer containing an encoded Daala packet.
+   \param len    The length of the buffer in bytes.
+   \retval 1 The packet is a header packet.
+   \retval 0 The packet is a video data packet.*/
+int daala_packet_isheader(const unsigned char *packet, int len);
+/**Determines whether a Daala packet is a key frame or not.
+   This function does no verfication beyond checking the packet type and key
+    frame bits, so it should not be used for bitstream identification.
+   Feed the packet to an actual decoder for that.
+   \param packet A buffer containing an encoded Daala packet.
+   \param len    The length of the buffer in bytes.
+   \retval 1  The packet contains a key frame.
+   \retval 0  The packet contains a delta frame.
+   \retval -1 The packet is not a video data packet.*/
+int daala_packet_iskeyframe(const unsigned char *packet, int len);
 
 # if OD_GNUC_PREREQ(4, 0)
 #  pragma GCC visibility pop
