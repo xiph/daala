@@ -382,7 +382,7 @@ static void quantize_initial_edge(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned 
   for (i = 0; i < n; i++) paint[i*stride] = r[i] + pred;
 }
 
-void od_intra_paint_quant_block(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *paint, const unsigned char *img,
+void od_intra_paint_compute_edges(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *paint, const unsigned char *img,
  int stride, const unsigned char *dec8, int bstride,
  unsigned char *mode, int mstride, int *edge_sum, int *edge_count, int q,
  int res, int bx, int by, int level) {
@@ -394,13 +394,13 @@ void od_intra_paint_quant_block(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned ch
     level--;
     bx <<= 1;
     by <<= 1;
-    od_intra_paint_quant_block(adapt, enc, paint, img, stride, dec8, bstride,
+    od_intra_paint_compute_edges(adapt, enc, paint, img, stride, dec8, bstride,
      mode, mstride, edge_sum, edge_count, q, res, bx, by, level);
-    od_intra_paint_quant_block(adapt, enc, paint, img, stride, dec8, bstride,
+    od_intra_paint_compute_edges(adapt, enc, paint, img, stride, dec8, bstride,
      mode, mstride, edge_sum, edge_count, q, res, bx + 1, by, level);
-    od_intra_paint_quant_block(adapt, enc, paint, img, stride, dec8, bstride,
+    od_intra_paint_compute_edges(adapt, enc, paint, img, stride, dec8, bstride,
      mode, mstride, edge_sum, edge_count, q, res, bx, by + 1, level);
-    od_intra_paint_quant_block(adapt, enc, paint, img, stride, dec8, bstride,
+    od_intra_paint_compute_edges(adapt, enc, paint, img, stride, dec8, bstride,
      mode, mstride, edge_sum, edge_count, q, res, bx + 1, by + 1, level);
   }
   else {
@@ -408,10 +408,8 @@ void od_intra_paint_quant_block(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned ch
     int n;
     int k;
     int idx;
-    int dc_quant;
     ln = 2 + bs;
     n = 1 << ln;
-    od_intra_paint_mode_encode(enc, mode, bx, by, ln, mstride, dec8, bstride, res);
     if (bx == 0 && by == 0) {
       if (edge_count[0] > 0) paint[0] = edge_sum[0]/edge_count[0];
       else paint[0] = img[0];
@@ -451,6 +449,38 @@ void od_intra_paint_quant_block(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned ch
     idx = stride*n*(by + 1) + n*(bx + 1);
     if (edge_count[idx] > 0) paint[idx] = edge_sum[idx]/edge_count[idx];
     else paint[idx] = img[idx - stride - 1];
+  }
+}
+
+
+void od_intra_paint_quant_block(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *paint, const unsigned char *img,
+ int stride, const unsigned char *dec8, int bstride,
+ unsigned char *mode, int mstride, int *edge_sum, int *edge_count, int q,
+ int res, int bx, int by, int level) {
+  int bs;
+  bs = dec8[(by<<level>>1)*bstride + (bx<<level>>1)];
+
+  OD_ASSERT(bs <= level);
+  if (bs < level) {
+    level--;
+    bx <<= 1;
+    by <<= 1;
+    od_intra_paint_quant_block(adapt, enc, paint, img, stride, dec8, bstride,
+     mode, mstride, edge_sum, edge_count, q, res, bx, by, level);
+    od_intra_paint_quant_block(adapt, enc, paint, img, stride, dec8, bstride,
+     mode, mstride, edge_sum, edge_count, q, res, bx + 1, by, level);
+    od_intra_paint_quant_block(adapt, enc, paint, img, stride, dec8, bstride,
+     mode, mstride, edge_sum, edge_count, q, res, bx, by + 1, level);
+    od_intra_paint_quant_block(adapt, enc, paint, img, stride, dec8, bstride,
+     mode, mstride, edge_sum, edge_count, q, res, bx + 1, by + 1, level);
+  }
+  else {
+    int ln;
+    int n;
+    int dc_quant;
+    ln = 2 + bs;
+    n = 1 << ln;
+    od_intra_paint_mode_encode(enc, mode, bx, by, ln, mstride, dec8, bstride, res);
     /* Only use special DC quantization when the two adjacent blocks are
        also DC. In the future, we could also treat each edge separately. */
     dc_quant = mode[(by*mstride + bx) << ln >> 2]==4*n
@@ -475,6 +505,12 @@ void od_intra_paint_encode(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *p
     }
   }
 
+  for(i = 0; i < h; i++) {
+    for(j = 0; j < w; j++) {
+      od_intra_paint_compute_edges(adapt, enc, paint, img, stride, dec8, bstride, mode,
+        mstride, edge_sum, edge_count, q, res, j, i, 3);
+    }
+  }
   for(i = 0; i < h; i++) {
     for(j = 0; j < w; j++) {
       od_intra_paint_quant_block(adapt, enc, paint, img, stride, dec8, bstride, mode,

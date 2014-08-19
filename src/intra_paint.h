@@ -43,7 +43,7 @@ extern int dc_prob[8];
 
 void pixel_interp(int pi[4], int pj[4], int w[4], int m, int i, int j, int ln);
 
-void interp_block(unsigned char *img, unsigned char *edge_accum, int n,
+void interp_block(unsigned char *img, const unsigned char *edge_accum, int n,
  int stride, int m);
 
 void predict_bottom_edge(int *p, unsigned char *edge_accum, int n, int stride,
