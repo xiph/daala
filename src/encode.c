@@ -154,6 +154,11 @@ daala_enc_ctx *daala_encode_create(const daala_info *info) {
         }
       }
     else enc->lbuf[pli] = enc->ltmp[pli] = NULL;
+    if (pli == 0 || OD_DISABLE_CFL) {
+      enc->tf[pli] = (od_coeff *)_ogg_malloc(w*h*sizeof(*enc->tf[pli]));
+      enc->modes[pli] = (signed char *)_ogg_malloc((w >> 2)*(h >> 2)*
+       sizeof(*enc->modes[pli]));
+    }
   }
 #if defined(OD_ENCODER_CHECK)
   enc->dec = daala_decode_alloc(info, NULL);
@@ -175,6 +180,10 @@ void daala_encode_free(daala_enc_ctx *enc) {
       _ogg_free(enc->ctmp[pli]);
       _ogg_free(enc->mctmp[pli]);
       _ogg_free(enc->mdtmp[pli]);
+      if (pli == 0 || OD_DISABLE_CFL) {
+        _ogg_free(enc->tf[pli]);
+        _ogg_free(enc->modes[pli]);
+      }
     }
     _ogg_free(enc->bs);
     od_enc_clear(enc);
@@ -367,7 +376,6 @@ struct od_mb_enc_ctx {
   signed char *modes[OD_NPLANES_MAX];
   od_coeff *c;
   od_coeff **d;
-  /* holds a TF'd copy of the transform coefficients in 4x4 blocks */
   od_coeff *tf[OD_NPLANES_MAX];
   od_coeff *md;
   od_coeff *mc;
@@ -994,6 +1002,10 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   /*Check the input image dimensions to make sure they're compatible with the
      declared video size.*/
   nplanes = enc->state.info.nplanes;
+  for (pli = 0; pli < OD_NPLANES_MAX; pli++) {
+    mbctx.tf[pli] = enc->tf[pli];
+    mbctx.modes[pli] = enc->modes[pli];
+  }
   if (img->nplanes != nplanes) return OD_EINVAL;
   for (pli = 0; pli < nplanes; pli++) {
     if (img->planes[pli].xdec != enc->state.info.plane_info[pli].xdec
@@ -1305,11 +1317,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
        OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
       OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
        OD_ACCT_CAT_PLANE, OD_ACCT_PLANE_UNKNOWN);
-      if (pli == 0 || OD_DISABLE_CFL) {
-        mbctx.tf[pli] = (od_coeff *)_ogg_calloc(w*h, sizeof(*mbctx.tf[pli]));
-        mbctx.modes[pli] = (signed char *)_ogg_calloc((w >> 2)*(h >> 2),
-         sizeof(*mbctx.modes[pli]));
-      }
     }
     for (pli = 0; pli < nplanes; pli++) {
       xdec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
@@ -1403,12 +1410,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
              + (1 << coeff_shift >> 1)) >> coeff_shift) + 128);
           }
         }
-      }
-    }
-    for (pli = nplanes; pli-- > 0;) {
-      if (pli == 0 || OD_DISABLE_CFL) {
-        _ogg_free(mbctx.tf[pli]);
-        _ogg_free(mbctx.modes[pli]);
       }
     }
   }
