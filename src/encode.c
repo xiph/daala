@@ -963,6 +963,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   mbctx.is_keyframe |= !(enc->state.ref_imgi[OD_FRAME_PREV] >= 0);
   /*Initialize the entropy coder.*/
   od_ec_enc_reset(&enc->ec);
+  od_adapt_ctx_reset(&enc->adapt, mbctx.is_keyframe);
   OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
    OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_FRAME);
   OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
@@ -1055,7 +1056,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
             enc->state.dec8[(4*i + k)*bstride + (4*j + m)]=dec[k>>1][m>>1];
       }
     }
-    od_adapt_ctx_reset(&enc->adapt, mbctx.is_keyframe);
     od_intra_paint_encode(&enc->adapt, &enc->ec,
      enc->state.io_imgs[OD_FRAME_REC].planes[0].data,
      enc->state.io_imgs[OD_FRAME_INPUT].planes[0].data, w32, h32,
