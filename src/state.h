@@ -202,6 +202,15 @@ struct od_state{
   int                 ani_iter;
 #  endif
 # endif
+  od_coeff *ctmp[OD_NPLANES_MAX];
+  od_coeff *dtmp[OD_NPLANES_MAX];
+  od_coeff *mctmp[OD_NPLANES_MAX];
+  od_coeff *mdtmp[OD_NPLANES_MAX];
+  od_coeff *ltmp[OD_NPLANES_MAX];
+  od_coeff *lbuf[OD_NPLANES_MAX];
+  /* Holds a TF'd copy of the transform coefficients in 4x4 blocks. */
+  od_coeff *tf[OD_NPLANES_MAX];
+  signed char *modes[OD_NPLANES_MAX];
 };
 
 int od_state_init(od_state *_state, const daala_info *_info);

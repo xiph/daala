@@ -72,15 +72,6 @@ struct daala_enc_ctx{
   od_enc_opt_vtbl opt_vtbl;
   oggbyte_buffer obb;
   od_ec_enc ec;
-  od_coeff *ctmp[OD_NPLANES_MAX];
-  od_coeff *dtmp[OD_NPLANES_MAX];
-  od_coeff *mctmp[OD_NPLANES_MAX];
-  od_coeff *mdtmp[OD_NPLANES_MAX];
-  od_coeff *ltmp[OD_NPLANES_MAX];
-  od_coeff *lbuf[OD_NPLANES_MAX];
-  /* Holds a TF'd copy of the transform coefficients in 4x4 blocks. */
-  od_coeff *tf[OD_NPLANES_MAX];
-  signed char *modes[OD_NPLANES_MAX];
   int packet_state;
   int quantizer[OD_NPLANES_MAX];
   od_mv_est_ctx *mvest;

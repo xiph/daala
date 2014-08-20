@@ -719,12 +719,6 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
   frame_width = dec->state.frame_width;
   frame_height = dec->state.frame_height;
   {
-    od_coeff *ctmp[OD_NPLANES_MAX];
-    od_coeff *dtmp[OD_NPLANES_MAX];
-    od_coeff *mctmp[OD_NPLANES_MAX];
-    od_coeff *mdtmp[OD_NPLANES_MAX];
-    od_coeff *ltmp[OD_NPLANES_MAX];
-    od_coeff *lbuf[OD_NPLANES_MAX];
     int xdec;
     int ydec;
     int sby;
@@ -735,20 +729,9 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
     int x;
     /*Initialize the data needed for each plane.*/
     nplanes = dec->state.info.nplanes;
-    for (pli = 0; pli < (OD_DISABLE_CFL ? nplanes : 1); pli++) {
-      xdec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
-      ydec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
-      mbctx.modes[pli] = (signed char *)_ogg_calloc((frame_width >> (2 + xdec))
-       *(frame_height >> (2 + ydec)), sizeof(*mbctx.modes[pli]));
-    }
-    if (mbctx.is_keyframe) {
-      for (pli = 0; pli < (OD_DISABLE_CFL ? nplanes : 1); pli++) {
-        xdec = dec->state.io_imgs[OD_FRAME_REC].planes[pli].xdec;
-        ydec = dec->state.io_imgs[OD_FRAME_REC].planes[pli].ydec;
-        w = frame_width >> xdec;
-        h = frame_height >> ydec;
-        mbctx.tf[pli] = (od_coeff *)_ogg_calloc(w*h, sizeof(*mbctx.tf[pli]));
-      }
+    for (pli = 0; pli < OD_NPLANES_MAX; pli++) {
+      mbctx.tf[pli] = dec->state.tf[pli];
+      mbctx.modes[pli] = dec->state.modes[pli];
     }
     /*Apply the prefilter to the motion-compensated reference.*/
     if (!mbctx.is_keyframe) {
@@ -757,8 +740,6 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
         ydec = dec->state.io_imgs[OD_FRAME_REC].planes[pli].ydec;
         w = frame_width >> xdec;
         h = frame_height >> ydec;
-        mctmp[pli] = (od_coeff *)_ogg_calloc(w*h, sizeof(*mctmp[pli]));
-        mdtmp[pli] = (od_coeff *)_ogg_calloc(w*h, sizeof(*mdtmp[pli]));
         /*Collect the image data needed for this plane.*/
         {
           unsigned char *mdata;
@@ -769,7 +750,7 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
           ystride = dec->state.io_imgs[OD_FRAME_REC].planes[pli].ystride;
           for (y = 0; y < h; y++) {
             for (x = 0; x < w; x++) {
-              mctmp[pli][y*w + x] = (mdata[ystride*y + x] - 128)
+              dec->state.mctmp[pli][y*w + x] = (mdata[ystride*y + x] - 128)
                << coeff_shift;
             }
           }
@@ -777,8 +758,9 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
         /*Apply the prefilter across the entire image.*/
         for (sby = 0; sby < nvsb; sby++) {
           for (sbx = 0; sbx < nhsb; sbx++) {
-            od_apply_prefilter(mctmp[pli], w, sbx, sby, 3, dec->state.bsize,
-             dec->state.bstride, xdec, ydec, (sbx > 0 ? OD_LEFT_EDGE : 0) |
+            od_apply_prefilter(dec->state.mctmp[pli], w, sbx, sby, 3,
+             dec->state.bsize, dec->state.bstride, xdec, ydec,
+             (sbx > 0 ? OD_LEFT_EDGE : 0) |
              (sby < nvsb - 1 ? OD_BOTTOM_EDGE : 0));
           }
         }
@@ -793,42 +775,15 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
       dec->quantizer[pli] = od_ec_dec_uint(&dec->ec, 512 << OD_COEFF_SHIFT);
       mbctx.run_pvq[pli] = dec->quantizer[pli] &&
        od_ec_decode_bool_q15(&dec->ec, 16384);
-      ctmp[pli] = (od_coeff *)_ogg_calloc(w*h, sizeof(*ctmp[pli]));
-      dtmp[pli] = (od_coeff *)_ogg_calloc(w*h, sizeof(*dtmp[pli]));
-      /*We predict chroma planes from the luma plane.
-        Since chroma can be subsampled, we cache subsampled versions of the
-         luma plane in the frequency domain.
-        We can share buffers with the same subsampling.*/
-      if (pli > 0) {
-        int plj;
-        if (xdec || ydec) {
-          for (plj = 1; plj < pli; plj++) {
-            if (xdec == dec->state.io_imgs[OD_FRAME_INPUT].planes[plj].xdec
-             && ydec == dec->state.io_imgs[OD_FRAME_INPUT].planes[plj].ydec) {
-              ltmp[pli] = NULL;
-              lbuf[pli] = ltmp[plj];
-            }
-          }
-          if (plj >= pli) {
-            lbuf[pli] = ltmp[pli] = (od_coeff *)_ogg_calloc(w*h,
-                    sizeof(*ltmp[pli]));
-          }
-        }
-        else {
-          ltmp[pli] = NULL;
-          lbuf[pli] = ctmp[pli];
-        }
-      }
-      else lbuf[pli] = ltmp[pli] = NULL;
     }
     for (sby = 0; sby < nvsb; sby++) {
       for (sbx = 0; sbx < nhsb; sbx++) {
         for (pli = 0; pli < nplanes; pli++) {
-          mbctx.c = ctmp[pli];
-          mbctx.d = dtmp;
-          mbctx.mc = mctmp[pli];
-          mbctx.md = mdtmp[pli];
-          mbctx.l = lbuf[pli];
+          mbctx.c = dec->state.ctmp[pli];
+          mbctx.d = dec->state.dtmp;
+          mbctx.mc = dec->state.mctmp[pli];
+          mbctx.md = dec->state.mdtmp[pli];
+          mbctx.l = dec->state.lbuf[pli];
           xdec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
           ydec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
           mbctx.nk = mbctx.k_total = mbctx.sum_ex_total_q8 = 0;
@@ -850,7 +805,7 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
       /*Apply the postfilter across the entire image.*/
       for (sby = 0; sby < nvsb; sby++) {
         for (sbx = 0; sbx < nhsb; sbx++) {
-          od_apply_postfilter(ctmp[pli], w, sbx, sby, 3, dec->state.bsize,
+          od_apply_postfilter(dec->state.ctmp[pli], w, sbx, sby, 3, dec->state.bsize,
            dec->state.bstride, xdec, ydec, (sby > 0 ? OD_TOP_EDGE : 0) |
            (sbx < nhsb - 1 ? OD_RIGHT_EDGE : 0));
         }
@@ -864,27 +819,10 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
           for (x = 0; x < w; x++) {
             int coeff_shift;
             coeff_shift = dec->quantizer[pli] == 0 ? 0 : OD_COEFF_SHIFT;
-            data[ystride*y + x] = OD_CLAMP255(((ctmp[pli][y*w + x]
+            data[ystride*y + x] = OD_CLAMP255(((dec->state.ctmp[pli][y*w + x]
              + (1 << coeff_shift >> 1)) >> coeff_shift) + 128);
           }
         }
-      }
-    }
-    for (pli = nplanes; pli-- > 0;) {
-      _ogg_free(ltmp[pli]);
-      _ogg_free(dtmp[pli]);
-      _ogg_free(ctmp[pli]);
-      if (!mbctx.is_keyframe) {
-        _ogg_free(mdtmp[pli]);
-        _ogg_free(mctmp[pli]);
-      }
-    }
-    for (pli = 0; pli < (OD_DISABLE_CFL ? nplanes : 1); pli++) {
-      _ogg_free(mbctx.modes[pli]);
-    }
-    if (mbctx.is_keyframe) {
-      for (pli = 0; pli < (OD_DISABLE_CFL ? nplanes : 1); pli++) {
-        _ogg_free(mbctx.tf[pli]);
       }
     }
   }

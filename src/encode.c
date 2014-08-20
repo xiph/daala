@@ -112,7 +112,6 @@ static void od_enc_clear(od_enc_ctx *enc) {
 
 daala_enc_ctx *daala_encode_create(const daala_info *info) {
   od_enc_ctx *enc;
-  int pli, xdec, ydec, w, h;
   if (info == NULL) return NULL;
   enc = (od_enc_ctx *)_ogg_malloc(sizeof(*enc));
   if (od_enc_init(enc, info) < 0) {
@@ -121,45 +120,6 @@ daala_enc_ctx *daala_encode_create(const daala_info *info) {
   }
   enc->bs = (BlockSizeComp *)_ogg_malloc(sizeof(*enc->bs));
 
-  for (pli = 0; pli < info->nplanes; pli++) {
-    xdec = info->plane_info[pli].xdec;
-    ydec = info->plane_info[pli].ydec;
-    w = enc->state.frame_width >> xdec;
-    h = enc->state.frame_height >> ydec;
-    enc->ctmp[pli] = (od_coeff *)_ogg_malloc(w*h*sizeof(*enc->ctmp[pli]));
-    enc->dtmp[pli] = (od_coeff *)_ogg_malloc(w*h*sizeof(*enc->dtmp[pli]));
-    enc->mctmp[pli] = (od_coeff *)_ogg_malloc(w*h*sizeof(*enc->mctmp[pli]));
-    enc->mdtmp[pli] = (od_coeff *)_ogg_malloc(w*h*sizeof(*enc->mdtmp[pli]));
-    /*We predict chroma planes from the luma plane.  Since chroma can be
-      subsampled, we cache subsampled versions of the luma plane in the
-      frequency domain.  We can share buffers with the same subsampling.*/
-    if (pli > 0) {
-      int plj;
-      if (xdec || ydec) {
-        for (plj = 1; plj < pli; plj++) {
-          if (xdec == info->plane_info[plj].xdec
-           && ydec == info->plane_info[plj].ydec) {
-            enc->ltmp[pli] = NULL;
-            enc->lbuf[pli] = enc->ltmp[plj];
-          }
-        }
-        if (plj >= pli) {
-          enc->lbuf[pli] = enc->ltmp[pli] = (od_coeff *)_ogg_malloc(w*h
-           *sizeof(*enc->ltmp[pli]));
-          }
-        }
-        else {
-          enc->ltmp[pli] = NULL;
-          enc->lbuf[pli] = enc->ctmp[pli];
-        }
-      }
-    else enc->lbuf[pli] = enc->ltmp[pli] = NULL;
-    if (pli == 0 || OD_DISABLE_CFL) {
-      enc->tf[pli] = (od_coeff *)_ogg_malloc(w*h*sizeof(*enc->tf[pli]));
-      enc->modes[pli] = (signed char *)_ogg_malloc((w >> 2)*(h >> 2)*
-       sizeof(*enc->modes[pli]));
-    }
-  }
 #if defined(OD_ENCODER_CHECK)
   enc->dec = daala_decode_alloc(info, NULL);
 #endif
@@ -167,24 +127,12 @@ daala_enc_ctx *daala_encode_create(const daala_info *info) {
 }
 
 void daala_encode_free(daala_enc_ctx *enc) {
-  int pli;
   if (enc != NULL) {
 #if defined(OD_ENCODER_CHECK)
     if (enc->dec != NULL) {
       daala_decode_free(enc->dec);
     }
 #endif
-    for (pli = enc->state.info.nplanes; pli-- > 0;) {
-      _ogg_free(enc->ltmp[pli]);
-      _ogg_free(enc->dtmp[pli]);
-      _ogg_free(enc->ctmp[pli]);
-      _ogg_free(enc->mctmp[pli]);
-      _ogg_free(enc->mdtmp[pli]);
-      if (pli == 0 || OD_DISABLE_CFL) {
-        _ogg_free(enc->tf[pli]);
-        _ogg_free(enc->modes[pli]);
-      }
-    }
     _ogg_free(enc->bs);
     od_enc_clear(enc);
     _ogg_free(enc);
@@ -1003,8 +951,8 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
      declared video size.*/
   nplanes = enc->state.info.nplanes;
   for (pli = 0; pli < OD_NPLANES_MAX; pli++) {
-    mbctx.tf[pli] = enc->tf[pli];
-    mbctx.modes[pli] = enc->modes[pli];
+    mbctx.tf[pli] = enc->state.tf[pli];
+    mbctx.modes[pli] = enc->state.modes[pli];
   }
   if (img->nplanes != nplanes) return OD_EINVAL;
   for (pli = 0; pli < nplanes; pli++) {
@@ -1335,9 +1283,10 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
         ystride = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ystride;
         for (y = 0; y < h; y++) {
           for (x = 0; x < w; x++) {
-            enc->ctmp[pli][y*w + x] = (data[ystride*y + x] - 128) << coeff_shift;
+            enc->state.ctmp[pli][y*w + x] = (data[ystride*y + x] - 128) <<
+             coeff_shift;
             if (!mbctx.is_keyframe) {
-              enc->mctmp[pli][y*w + x] = (mdata[ystride*y + x] - 128)
+              enc->state.mctmp[pli][y*w + x] = (mdata[ystride*y + x] - 128)
                << coeff_shift;
             }
           }
@@ -1346,11 +1295,12 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       /*Apply the prefilter across the entire image.*/
       for (sby = 0; sby < nvsb; sby++) {
         for (sbx = 0; sbx < nhsb; sbx++) {
-          od_apply_prefilter(enc->ctmp[pli], w, sbx, sby, 3, enc->state.bsize,
-           enc->state.bstride, xdec, ydec, (sbx > 0 ? OD_LEFT_EDGE : 0) |
+          od_apply_prefilter(enc->state.ctmp[pli], w, sbx, sby, 3,
+           enc->state.bsize, enc->state.bstride, xdec, ydec,
+           (sbx > 0 ? OD_LEFT_EDGE : 0) |
            (sby < nvsb - 1 ? OD_BOTTOM_EDGE : 0));
           if (!mbctx.is_keyframe) {
-            od_apply_prefilter(enc->mctmp[pli], w, sbx, sby, 3, enc->state.bsize,
+            od_apply_prefilter(enc->state.mctmp[pli], w, sbx, sby, 3, enc->state.bsize,
              enc->state.bstride, xdec, ydec, (sbx > 0 ? OD_LEFT_EDGE : 0) |
              (sby < nvsb - 1 ? OD_BOTTOM_EDGE : 0));
           }
@@ -1362,11 +1312,11 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
         for (pli = 0; pli < nplanes; pli++) {
           OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
            OD_ACCT_CAT_PLANE, OD_ACCT_PLANE_LUMA + pli);
-          mbctx.c = enc->ctmp[pli];
-          mbctx.d = enc->dtmp;
-          mbctx.mc = enc->mctmp[pli];
-          mbctx.md = enc->mdtmp[pli];
-          mbctx.l = enc->lbuf[pli];
+          mbctx.c = enc->state.ctmp[pli];
+          mbctx.d = enc->state.dtmp;
+          mbctx.mc = enc->state.mctmp[pli];
+          mbctx.md = enc->state.mdtmp[pli];
+          mbctx.l = enc->state.lbuf[pli];
           xdec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
           ydec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
           mbctx.nk = mbctx.k_total = mbctx.sum_ex_total_q8 = 0;
@@ -1392,7 +1342,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       /*Apply the postfilter across the entire image.*/
       for (sby = 0; sby < nvsb; sby++) {
         for (sbx = 0; sbx < nhsb; sbx++) {
-          od_apply_postfilter(enc->ctmp[pli], w, sbx, sby, 3, enc->state.bsize,
+          od_apply_postfilter(enc->state.ctmp[pli], w, sbx, sby, 3, enc->state.bsize,
            enc->state.bstride, xdec, ydec, (sby > 0 ? OD_TOP_EDGE : 0) |
            (sbx < nhsb - 1 ? OD_RIGHT_EDGE : 0));
         }
@@ -1406,7 +1356,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
         ystride = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ystride;
         for (y = 0; y < h; y++) {
           for (x = 0; x < w; x++) {
-            data[ystride*y + x] = OD_CLAMP255(((enc->ctmp[pli][y*w + x]
+            data[ystride*y + x] = OD_CLAMP255(((enc->state.ctmp[pli][y*w + x]
              + (1 << coeff_shift >> 1)) >> coeff_shift) + 128);
           }
         }
