@@ -37,6 +37,14 @@ typedef struct y4m_input y4m_input;
 typedef void (*y4m_convert_func)(y4m_input *_y4m,
  unsigned char *_dst,unsigned char *_aux);
 
+/** Linkage will break without this if using a C++ compiler, and will issue
+ * warnings without this for a C compiler*/
+#if defined(__cplusplus)
+# define OC_EXTERN extern
+#else
+# define OC_EXTERN
+#endif
+
 #define OC_MINI(_a,_b)      ((_a)>(_b)?(_b):(_a))
 #define OC_MAXI(_a,_b)      ((_a)<(_b)?(_b):(_a))
 #define OC_CLAMPI(_a,_b,_c) (OC_MAXI(_a,OC_MINI(_b,_c)))
@@ -773,7 +781,7 @@ static void y4m_input_close(y4m_input *_y4m){
 }
 
 
-extern const video_input_vtbl Y4M_INPUT_VTBL={
+OC_EXTERN const video_input_vtbl Y4M_INPUT_VTBL={
   (video_input_open_func)y4m_input_open,
   (video_input_get_info_func)y4m_input_get_info,
   (video_input_fetch_frame_func)y4m_input_fetch_frame,
