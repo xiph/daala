@@ -222,8 +222,8 @@ int od_state_init(od_state *state, const daala_info *info) {
     h32 = h>>5;
     w8 = w32<<2;
     h8 = h32<<2;
-    state->edge_sum = (int*)calloc((w+32)*(h+32), sizeof(*state->edge_sum));
-    state->edge_count = (int*)calloc((w+32)*(h+32), sizeof(*state->edge_count));
+    state->edge_sum = (int*)calloc((w+64)*(h+64), sizeof(*state->edge_sum)) + 4096;
+    state->edge_count = (int*)calloc((w+64)*(h+64), sizeof(*state->edge_count)) + 4096;
     state->dec8 = (unsigned char*)malloc(w8*h8*sizeof(*state->dec8));
     state->mode = (unsigned char*)malloc(w8*h8*sizeof(*state->mode)<<2);
   }
@@ -246,8 +246,8 @@ void od_state_clear(od_state *state) {
   state->bsize -= 4*state->bstride + 4;
   _ogg_free(state->bsize);
 #if !OD_DISABLE_PAINT
-  _ogg_free(state->edge_sum);
-  _ogg_free(state->edge_count);
+  _ogg_free(state->edge_sum - 4096);
+  _ogg_free(state->edge_count - 4096);
   _ogg_free(state->dec8);
   _ogg_free(state->mode);
 #endif
