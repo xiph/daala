@@ -191,7 +191,7 @@ static void quantize_bottom_edge(od_adapt_ctx *adapt,od_ec_enc *enc, unsigned ch
   predict_bottom_edge(p, edge_accum - stride - 1, n, stride, m, has_right);
 #if !QUANTIZE
   /*printf("%d ", m);*/
-  for (i = 0; i < n; i++) printf("%d ", edge_accum[n*stride + (i + 1)] - p[i]);
+  for (i = 0; i < n; i++) printf("%d ", edge_accum[(n - 1)*stride + i] - p[i]);
 #endif
   for (i = 0; i < n; i++) r[i] = edge_accum[(n - 1)*stride + i] - p[i];
   my_fdct_table[lsize](x, r, 1);
@@ -221,7 +221,7 @@ static void quantize_right_edge(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned ch
   /* Quantize right edge. */
   predict_right_edge(p, edge_accum - stride - 1, n, stride, m, has_bottom);
 #if !QUANTIZE
-  for (i = 0; i < n; i++) printf("%d ", edge_accum[(i + 1)*stride + n] - p[i]);
+  for (i = 0; i < n; i++) printf("%d ", edge_accum[i*stride + n - 1] - p[i]);
 #endif
   for (i = 0; i < n; i++) r[i] = edge_accum[i*stride + n - 1] - p[i];
   my_fdct_table[lsize](x, r, 1);
@@ -239,7 +239,7 @@ static void quantize_right_edge(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned ch
    the number of pixels we can predict. */
 void quantize_edge(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *edge_accum, int n, int stride, int q,
  int m, int dc_quant) {
-  /*printf("q\%d ", n);*/
+  /*printf("%d ", m);*/
   if (dc_quant) {
     int pred;
     int res;
@@ -261,7 +261,7 @@ void quantize_edge(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *edge_accu
        + i*(edge_accum[(n - 1)*stride + n - 1]-edge_accum[-stride + n - 1])/n;
     }
   }
-  else if (m > 0 && m < n) {
+  else if (m >= 0 && m < 2*n) {
     quantize_right_edge(adapt, enc, edge_accum, n, stride, q, m, 0);
     quantize_bottom_edge(adapt, enc, edge_accum, n, stride, q, m, 1);
   }

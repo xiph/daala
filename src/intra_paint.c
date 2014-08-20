@@ -66,6 +66,24 @@ void pixel_interp(int pi[4], int pj[4], int w[4], int m, int i, int j,
     pj[0] = j;
     w[0] = 128;
     for (k = 1; k < 4; k++) pi[k] = pj[k] = w[k] = 0;
+    if (m == 3*n && i < n - 1) {
+      pi[1] = n - 1;
+      pj[1] = j;
+      pi[2] = -1;
+      pj[2] = j;
+      w[0] = 32;
+      w[1] = 96*(i + 1)/n;
+      w[2] = 96 - w[1];
+    }
+    if (m == n && j < n - 1) {
+      pi[1] = i;
+      pj[1] = n - 1;
+      pi[2] = i;
+      pj[2] = -1;
+      w[0] = 32;
+      w[1] = 96*(j + 1)/n;
+      w[2] = 96 - w[1];
+    }
     return;
   }
   i++;
