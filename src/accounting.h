@@ -93,4 +93,29 @@ void od_acct_update(od_acct *acct, ogg_uint32_t frac_bits,
 void od_acct_print(od_acct *acct, FILE *_fp);
 void od_acct_write(od_acct *acct, ogg_int64_t cur_time);
 
+typedef struct od_ec_acct_data od_ec_acct_data;
+
+struct od_ec_acct_data {
+  const char *label;
+  int capacity;
+  int used;
+  int reclen;
+  int **values;
+  od_ec_acct_data *next;
+};
+
+typedef struct od_ec_acct od_ec_acct;
+
+struct od_ec_acct {
+  FILE *fp;
+  od_ec_acct_data *data;
+};
+
+void od_ec_acct_init(od_ec_acct *acct);
+void od_ec_acct_clear(od_ec_acct *acct);
+void od_ec_acct_reset(od_ec_acct *acct);
+void od_ec_acct_add_label(od_ec_acct *acct, const char *label, int ncontext);
+void od_ec_acct_record(od_ec_acct *acct, const char *label, int val, int n, ...);
+void od_ec_acct_write(od_ec_acct *acct);
+
 #endif

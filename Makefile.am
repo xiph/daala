@@ -562,13 +562,16 @@ src_tests_dcttest_LDADD = $(LIBM)
 
 src_tests_ectest_SOURCES = src/tests/ectest.c
 src_tests_ectest_CFLAGS = $(OGG_CFLAGS)
-src_tests_ectest_LDADD = $(LIBM)
+src_tests_ectest_LDADD = \
+ src/libdaalaenc.la \
+ $(LIBM)
 
 src_tests_test_coef_coder_SOURCES = src/tests/test_coef_coder.c
 src_tests_test_coef_coder_CFLAGS = $(OGG_CFLAGS)
 src_tests_test_coef_coder_LDADD = \
  src/libdaalabase.la \
  src/libdaaladec.la \
+ src/libdaalaenc.la \
  $(OGG_LIBS) \
  $(LIBM)
 

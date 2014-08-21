@@ -248,6 +248,12 @@ AC_ARG_ENABLE([accounting],
 AS_IF([test "$enable_accounting" = "yes"], [
   AC_DEFINE([OD_ACCOUNTING], [1], [Enable bit accounting])])
 
+AC_ARG_ENABLE([ec-accounting],
+  AS_HELP_STRING([--enable-ec-accounting], [Enable entropy coder accounting]),,
+  [enable_ec_accounting=no])
+AS_IF([test "$enable_ec_accounting" = "yes"], [
+  AC_DEFINE([OD_EC_ACCOUNTING], [1], [Enable entropy coder accounting])])
+
 AC_CONFIG_FILES([
   Makefile
   daalaenc.pc
@@ -272,6 +278,7 @@ AC_MSG_NOTICE([
     Reconstructed video dumping .. ${enable_dump_recons}
     Check encoder ................ ${enable_encoder_check}
     Bit accounting ............... ${enable_accounting}
+    Entropy coder accounting ..... ${enable_ec_accounting}
     Tools ........................ ${enable_tools}
     Unit tests ................... ${enable_unit_tests}
     Example Player................ ${enable_player}

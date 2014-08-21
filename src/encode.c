@@ -1374,6 +1374,9 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
 #if defined(OD_ACCOUNTING)
   od_acct_reset(&enc->acct);
 #endif
+#if defined(OD_EC_ACCOUNTING)
+  od_ec_acct_reset(&enc->ec.acct);
+#endif
   if (enc == NULL || img == NULL) return OD_EFAULT;
   if (enc->packet_state == OD_PACKET_DONE) return OD_EINVAL;
   /*Check the input image dimensions to make sure they're compatible with the
@@ -1484,6 +1487,9 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
 #if defined(OD_ACCOUNTING)
   OD_ASSERT(enc->acct.last_frac_bits == od_ec_enc_tell_frac(&enc->ec));
   od_acct_write(&enc->acct, enc->state.cur_time);
+#endif
+#if defined(OD_EC_ACCOUNTING)
+  od_ec_acct_write(&enc->ec.acct);
 #endif
   if (enc->state.info.frame_duration == 0) enc->state.cur_time += duration;
   else enc->state.cur_time += enc->state.info.frame_duration;

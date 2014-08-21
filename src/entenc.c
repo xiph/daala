@@ -29,6 +29,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <stdlib.h>
 #include <string.h>
 #include "entenc.h"
+#if defined(OD_EC_ACCOUNTING)
+# include "accounting.h"
+#endif
 
 /*A range encoder.
   See entdec.c and the references for implementation details \cite{Mar79,MNW98}.
@@ -130,6 +133,9 @@ void od_ec_enc_init(od_ec_enc *enc, ogg_uint32_t size) {
     enc->precarry_storage = 0;
     enc->error = -1;
   }
+#if defined(OD_EC_ACCOUNTING)
+  od_ec_acct_init(&enc->acct);
+#endif
 }
 
 /*Reinitializes the encoder.*/
@@ -153,6 +159,9 @@ void od_ec_enc_reset(od_ec_enc *enc) {
 void od_ec_enc_clear(od_ec_enc *enc) {
   _ogg_free(enc->precarry_buf);
   _ogg_free(enc->buf);
+#if defined(OD_EC_ACCOUNTING)
+  od_ec_acct_clear(&enc->acct);
+#endif
 }
 
 /*Encodes a symbol given its scaled frequency information.

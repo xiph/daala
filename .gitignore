@@ -119,3 +119,6 @@ daala-*/
 out/
 # Used by submit_awcy.py
 secret_key
+# accounting
+acct.json
+ec-acct.json
