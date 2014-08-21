@@ -33,26 +33,24 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 /*Entropy accounting:
   The main function you will use is od_ec_acct_record(), which takes the
-   symbol, the number of possible symbols, and a variable number of arguments
-   for the context. Use this right before you call od_ec_encode_*() for the
-   symbol.
+   symbol, the number of possible symbols, and the index of the context.
+   Use this right before you call od_ec_encode_*() for the symbol.
   Before you call od_ec_acct_record(), you must create a label to hold the
    events. Use od_ec_acct_add_label() to add a new label and tell the system
-   how many pieces of context you will use.
+   how many contexts you will use.
   For simply recording the symbol and having no context it would look like:
     od_ec_acct_add_label(&enc->ec.acct, "motion-flags-level-2", 0);
     ...
-    od_ec_acct_record(&enc->ec.acct, "motion-flags-level-2", mvp->valid, 2);
+    od_ec_acct_record(&enc->ec.acct, "motion-flags-level-2", mvp->valid, 2, 0);
     od_ec_encode_bool_q15(&enc->ec, mvp->valid, 16384);
-  Here's an example record cal of the same thing but with 4 pieces of
-   context:
+  Here's an example record cal of the same thing but with 9 contexts:
    od_ec_acct_record(&enc->ec.acct, "motion-flags-level-4", mvp->valid, 2,
-    vx > 0 && vy > 0 ? grid[vy - 1][vx - 1].valid : 0,
-    vy > 0 ? grid[vy - 1][vx + 1].valid : 0,
-    grid[vy - 1][vx].mv[0] == grid[vy][vx + 1].mv[0] &&
-    grid[vy - 1][vx].mv[1] == grid[vy][vx + 1].mv[1],
-    grid[vy + 1][vx].mv[0] == grid[vy][vx + 1].mv[0] &&
-    grid[vy + 1][vx].mv[1] == grid[vy][vx + 1].mv[1]);
+    3 * (vx > 0 && vy > 0 ? grid[vy - 1][vx - 1].valid : 0)
+     + (vy > 0 ? grid[vy - 1][vx + 1].valid : 0)
+     + (grid[vy - 1][vx].mv[0] == grid[vy][vx + 1].mv[0] &&
+     grid[vy - 1][vx].mv[1] == grid[vy][vx + 1].mv[1])
+     + (grid[vy + 1][vx].mv[0] == grid[vy][vx + 1].mv[0] &&
+     grid[vy + 1][vx].mv[1] == grid[vy][vx + 1].mv[1]));
   By default these results will be written out per frame into
    ec-acct.json. You can override the filename with OD_EC_ACCT_SUFFIX in the
    environment.*/
@@ -287,7 +285,7 @@ void od_ec_acct_reset(od_ec_acct *acct) {
   }
 }
 
-void od_ec_acct_add_label(od_ec_acct *acct, const char *label, int ncontext) {
+void od_ec_acct_add_label(od_ec_acct *acct, const char *label) {
   od_ec_acct_data *data;
   od_ec_acct_data *old_data;
   int i;
@@ -308,10 +306,9 @@ void od_ec_acct_add_label(od_ec_acct *acct, const char *label, int ncontext) {
     data->used = 0;
     /*Records are composed of a symbol, the number of possible symbols, and
       ncontext items of context.*/
-    data->reclen = ncontext + 2;
     data->values = (int **)_ogg_malloc(128 * sizeof(int *));
     for (i = 0; i < 128; i++) {
-      data->values[i] = (int *)_ogg_malloc(data->reclen * sizeof(int));
+      data->values[i] = (int *)_ogg_malloc(3 * sizeof(int));
     }
     OD_ASSERT(data->values);
     data->next = NULL;
@@ -323,8 +320,8 @@ void od_ec_acct_add_label(od_ec_acct *acct, const char *label, int ncontext) {
   }
 }
 
-void od_ec_acct_record(od_ec_acct *acct, const char *label, int val, int n, ...) {
-  va_list ap;
+void od_ec_acct_record(od_ec_acct *acct, const char *label, int val, int n,
+ int context) {
   od_ec_acct_data *data;
   int i;
   int old_capacity;
@@ -341,16 +338,12 @@ void od_ec_acct_record(od_ec_acct *acct, const char *label, int val, int n, ...)
     data->capacity *= 2;
     data->values = (int **)_ogg_realloc(data->values, data->capacity * sizeof(int *));
     for (i = old_capacity; i < data->capacity; i++) {
-      data->values[i] = (int *)_ogg_malloc(data->reclen * sizeof(int));
+      data->values[i] = (int *)_ogg_malloc(3 * sizeof(int));
     }
   }
   data->values[data->used][0] = val;
   data->values[data->used][1] = n;
-  va_start(ap, n);
-  for (i = 2; i < data->reclen; i++) {
-    data->values[data->used][i] = va_arg(ap, int);
-  }
-  va_end(ap);
+  data->values[data->used][2] = context;
   data->used++;
 }
 
@@ -374,7 +367,7 @@ void od_ec_acct_write(od_ec_acct *acct) {
     fprintf(acct->fp, "  \"%s\": [\n", data->label);
     for (i = 0; i < data->used; i++) {
       fprintf(acct->fp, "    [");
-      for (j = 0; j < data->reclen; j++) {
+      for (j = 0; j < 3; j++) {
         fprintf(acct->fp, "%s%d", j > 0 ? "," : "", data->values[i][j]);
       }
       fprintf(acct->fp, "]%s\n", i == (data->used - 1) ? "" : ",");

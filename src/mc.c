@@ -30,6 +30,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <stddef.h>
 #include "logging.h"
 #include "mc.h"
+#include "state.h"
 
 /*Motion compensation routines shared between the encoder and decoder.*/
 
@@ -2480,12 +2481,52 @@ This last compare is unneeded for a median:
   }
 }
 
-/*Probability that a given level 1 MV is coded, given the nearest
-   left and up l1 neighbors and the consistency of the motion field
-   down and to the right.*/
-int od_mv_level1_prob(od_mv_grid_pt **grid, int vx, int vy) {
-  const int probs[3][3] =
-   {{28323, 30610, 32128}, {18468, 21082, 24253}, {10799, 12839, 14144}};
+/*Probabilities that a motion vector is not coded given two neighbors and the
+  consistency of the nearby motion field. Which MVs are used varies by
+  level due to the grid geometry, but critically, we never look at MVs in
+  blocks to our right or below.
+
+  This data was compiled from video-subset1-short using
+  tools/collect_mvf_ec.sh and tools/mv_ec_stats.jl:
+
+  LEVEL 1:
+   Probabilties:
+    [30512 31715 32546
+     19755 22768 25170
+     8822 11180 13710]
+   Totals:
+    [2865820 1304318 1970291
+     844820 196641 65383
+     311051 50215 11931]
+  LEVEL 2:
+   Probabilties:
+    [15025 11377 11630
+     11771 13799 17357
+     9106 12384 14943]
+   Totals:
+    [429074 69682 11586
+     329998 44923 6228
+     104242 9983 978]
+  LEVEL 3:
+   Probabilties:
+    [20517 21744 24679
+     12351 12900 16429
+     8029 9085 12245]
+   Totals:
+    [188607 29632 5623
+     145680 24551 3265
+     44420 6687 867]
+  LEVEL 4:
+   Probabilties:
+    [9803 8953 10887
+     11962 12496 18801
+     11424 17400 24094]
+   Totals:
+    [107908 10753 1833
+     51862 4492 671
+     7260 371 68]*/
+
+int od_mv_level1_ctx(od_mv_grid_pt **grid, int vx, int vy) {
   od_mv_grid_pt *vur;
   od_mv_grid_pt *vdr;
   od_mv_grid_pt *vdl;
@@ -2500,5 +2541,85 @@ int od_mv_level1_prob(od_mv_grid_pt **grid, int vx, int vy) {
   uf = vy > 3 ? grid[vy - 4][vx].valid : 0;
   rf = (vur->mv[0] == vdr->mv[0]) && (vur->mv[1] == vdr->mv[1]);
   bf = (vdr->mv[0] == vdl->mv[0]) && (vdr->mv[1] == vdl->mv[1]);
-  return probs[lf + uf][rf + bf];
+  return 3 * (lf + uf) + rf + bf;
+}
+
+int od_mv_level1_probz(od_mv_grid_pt **grid, int vx, int vy) {
+  const int probs[9] =
+   {30512, 31715, 32546, 19755, 22768, 25170, 8822, 11180, 13710};
+  return probs[od_mv_level1_ctx(grid, vx, vy)];
+}
+
+int od_mv_level2_ctx(od_mv_grid_pt **grid, int vx, int vy) {
+  od_mv_grid_pt *v1;
+  od_mv_grid_pt *v2;
+  od_mv_grid_pt *v3;
+  int nv1;
+  int nv2;
+  int same1;
+  int same2;
+  v1 = &(grid[vy - 2][vx]);
+  v2 = &(grid[vy][vx - 2]);
+  v3 = vx & 2 ? &(grid[vy][vx + 2]) : &(grid[vy + 2][vx]);
+  nv1 = vx > 3 ? grid[vy][vx - 4].valid : 0;
+  nv2 = vy > 3 ? grid[vy - 4][vx].valid : 0;
+  same1 = vy > 1 && vx > 1 && (v1->mv[0] == v2->mv[0])
+   && (v1->mv[1] == v2->mv[1]);
+  same2 = vx > 1 && (v2->mv[0] == v3->mv[0]) && (v2->mv[1] == v3->mv[1]);
+  return 3 * (nv1 + nv2) + same1 + same2;
+}
+
+int od_mv_level2_probz(od_mv_grid_pt **grid, int vx, int vy) {
+  const int probs[9] =
+   {15025, 11377, 11630, 11771, 13799, 17357, 9106, 12384, 14943};
+  return probs[od_mv_level2_ctx(grid, vx, vy)];
+}
+
+int od_mv_level3_ctx(od_mv_grid_pt **grid, int vx, int vy) {
+  od_mv_grid_pt *vur;
+  od_mv_grid_pt *vdr;
+  od_mv_grid_pt *vdl;
+  int lf;
+  int uf;
+  int rf;
+  int bf;
+  vur = &(grid[vy - 1][vx + 1]);
+  vdr = &(grid[vy + 1][vx + 1]);
+  vdl = &(grid[vy + 1][vx - 1]);
+  lf = vx > 1 ? grid[vy][vx - 2].valid : 0;
+  uf = vy > 1 ? grid[vy - 2][vx].valid : 0;
+  rf = (vur->mv[0] == vdr->mv[0]) && (vur->mv[1] == vdr->mv[1]);
+  bf = (vdr->mv[0] == vdl->mv[0]) && (vdr->mv[1] == vdl->mv[1]);
+  return 3 * (lf + uf) + rf + bf;
+}
+
+int od_mv_level3_probz(od_mv_grid_pt **grid, int vx, int vy) {
+  const int probs[9] =
+   {20517, 21744, 24679, 12351, 12900, 16429, 8029, 9085, 12245};
+  return probs[od_mv_level3_ctx(grid, vx, vy)];
+}
+
+int od_mv_level4_ctx(od_mv_grid_pt **grid, int vx, int vy) {
+  od_mv_grid_pt *v1;
+  od_mv_grid_pt *v2;
+  od_mv_grid_pt *v3;
+  int nv1;
+  int nv2;
+  int same1;
+  int same2;
+  v1 = &(grid[vy - 1][vx]);
+  v2 = &(grid[vy][vx - 1]);
+  v3 = vx & 1 ? &(grid[vy][vx + 1]) : &(grid[vy + 1][vx]);
+  nv1 = vx > 1 ? grid[vy][vx - 2].valid : 0;
+  nv2 = vy > 1 ? grid[vy - 2][vx].valid : 0;
+  same1 = vy > 0 && vx > 0 && (v1->mv[0] == v2->mv[0])
+   && (v1->mv[1] == v2->mv[1]);
+  same2 = vx > 0 && (v2->mv[0] == v3->mv[0]) && (v2->mv[1] == v3->mv[1]);
+  return 3 * (nv1 + nv2) + same1 + same2;
+}
+
+int od_mv_level4_probz(od_mv_grid_pt **grid, int vx, int vy) {
+  const int probs[9] =
+   {9803, 8953, 10887, 11962, 12496, 18801, 11424, 17400, 24094};
+  return probs[od_mv_level4_ctx(grid, vx, vy)];
 }

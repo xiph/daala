@@ -99,7 +99,6 @@ struct od_ec_acct_data {
   const char *label;
   int capacity;
   int used;
-  int reclen;
   int **values;
   od_ec_acct_data *next;
 };
@@ -114,8 +113,9 @@ struct od_ec_acct {
 void od_ec_acct_init(od_ec_acct *acct);
 void od_ec_acct_clear(od_ec_acct *acct);
 void od_ec_acct_reset(od_ec_acct *acct);
-void od_ec_acct_add_label(od_ec_acct *acct, const char *label, int ncontext);
-void od_ec_acct_record(od_ec_acct *acct, const char *label, int val, int n, ...);
+void od_ec_acct_add_label(od_ec_acct *acct, const char *label);
+void od_ec_acct_record(od_ec_acct *acct, const char *label, int val, int n,
+ int context);
 void od_ec_acct_write(od_ec_acct *acct);
 
 #endif

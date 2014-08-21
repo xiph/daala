@@ -24,6 +24,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #if !defined(_encint_H)
 # define _encint_H (1)
+
+typedef struct daala_enc_ctx od_enc_ctx;
+typedef struct od_params_ctx od_params_ctx;
+typedef struct od_mv_est_ctx od_mv_est_ctx;
+typedef struct od_enc_opt_vtbl od_enc_opt_vtbl;
+typedef struct od_rollback_buffer od_rollback_buffer;
+
 # include "../include/daala/daaladec.h"
 # include "../include/daala/daalaenc.h"
 # include "state.h"
@@ -32,12 +39,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #if defined(OD_ACCOUNTING)
 # include "accounting.h"
 #endif
-
-typedef struct daala_enc_ctx od_enc_ctx;
-typedef struct od_params_ctx od_params_ctx;
-typedef struct od_mv_est_ctx od_mv_est_ctx;
-typedef struct od_enc_opt_vtbl od_enc_opt_vtbl;
-typedef struct od_rollback_buffer od_rollback_buffer;
 
 /*Constants for the packet state machine specific to the encoder.*/
 /*No packet currently ready to output.*/

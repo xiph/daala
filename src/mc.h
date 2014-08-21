@@ -83,6 +83,13 @@ void od_mc_predict8(od_state *state, unsigned char *dst, int dystride,
 void od_state_mvs_clear(od_state *state);
 void od_state_get_predictor(od_state *state, int pred[2],
  int vx, int vy, int level, int mv_res);
-int od_mv_level1_prob(od_mv_grid_pt **grid, int vx, int vy);
+int od_mv_level1_ctx(od_mv_grid_pt **grid, int vx, int vy);
+int od_mv_level1_probz(od_mv_grid_pt **grid, int vx, int vy);
+int od_mv_level2_ctx(od_mv_grid_pt **grid, int vx, int vy);
+int od_mv_level2_probz(od_mv_grid_pt **grid, int vx, int vy);
+int od_mv_level3_ctx(od_mv_grid_pt **grid, int vx, int vy);
+int od_mv_level3_probz(od_mv_grid_pt **grid, int vx, int vy);
+int od_mv_level4_ctx(od_mv_grid_pt **grid, int vx, int vy);
+int od_mv_level4_probz(od_mv_grid_pt **grid, int vx, int vy);
 
 #endif

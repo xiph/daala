@@ -97,6 +97,7 @@ tools/yuvjpeg
 test-driver
 doc/Doxyfile
 doc/Makefile
+doc/Makefile.in
 doc/doxygen-build.stamp
 doc/4-8sub.pdf
 doc/blockidx.pdftex
@@ -117,8 +118,9 @@ doc/man
 daala-*/
 *.tar.gz
 out/
+TAGS
 # Used by submit_awcy.py
 secret_key
 # accounting
-acct.json
-ec-acct.json
+acct*.json
+ec-acct*.json
