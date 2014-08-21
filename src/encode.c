@@ -614,8 +614,6 @@ void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
     } else {
       scalar_out[0] = OD_DIV_R0(cblock[0] - predt[0], dc_quant);
     }
-    OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
-     OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_DC_COEFF);
   }
   OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
     OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_AC_COEFFS);
@@ -629,10 +627,12 @@ void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
      pli);
   }
   OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
-    OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
+   OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
   if (OD_DISABLE_HAAR_DC || !ctx->is_keyframe) {
     int has_dc_skip;
     has_dc_skip = !ctx->is_keyframe && run_pvq;
+    OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
+     OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_DC_COEFF);
     if (!has_dc_skip || scalar_out[0]) {
       generic_encode(&enc->ec, &enc->state.adapt.model_dc[pli],
        abs(scalar_out[0]) - has_dc_skip, -1, &enc->state.adapt.ex_dc[pli][ln][0], 2);
@@ -646,8 +646,6 @@ void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   else {
     scalar_out[0] = cblock[0];
   }
-  OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
-   OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
 #ifdef USE_BAND_PARTITIONS
   od_coding_order_to_raster(&d[((by << 2))*w + (bx << 2)], w, scalar_out, n,
    !run_pvq);
