@@ -564,6 +564,10 @@ static void od_decode_block(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
   }
 }
 
+static int od_dec_mv_in_frame(int vx, int vy, int nhmvbs, int nvmvbs) {
+  return vx >= 2 && vy >= 2 && vx <= nhmvbs - 2 && vy <= nvmvbs - 2;
+}
+
 static void od_dec_mv_unpack(daala_dec_ctx *dec) {
   int nhmvbs;
   int nvmvbs;
@@ -584,12 +588,17 @@ static void od_dec_mv_unpack(daala_dec_ctx *dec) {
   width = (img->width + 32) << (3 - mv_res);
   height = (img->height + 32) << (3 - mv_res);
   grid = dec->state.mv_grid;
+  /*Motion vectors outside the frame are always zero.*/
   /*Level 0.*/
+  /*We don't modify the loop indices as in the encoder because we need to
+    set all level 0 MVs valid.*/
   for (vy = 0; vy <= nvmvbs; vy += 4) {
     for (vx = 0; vx <= nhmvbs; vx += 4) {
       mvp = &grid[vy][vx];
       mvp->valid = 1;
-      od_decode_mv(dec, mvp, vx, vy, 0, mv_res, width, height);
+      if (od_dec_mv_in_frame(vx, vy, nhmvbs, nvmvbs)) {
+        od_decode_mv(dec, mvp, vx, vy, 0, mv_res, width, height);
+      }
     }
   }
   /*Level 1.*/
@@ -613,7 +622,7 @@ static void od_dec_mv_unpack(daala_dec_ctx *dec) {
        && (vy+2 > nvmvbs || grid[vy+2][vx].valid)
        && (vx+2 > nhmvbs || grid[vy][vx+2].valid)) {
         mvp->valid = od_ec_decode_bool_q15(&dec->ec, 13684);
-        if (mvp->valid) {
+        if (mvp->valid && od_dec_mv_in_frame(vx, vy, nhmvbs, nvmvbs)) {
           od_decode_mv(dec, mvp, vx, vy, 2, mv_res, width, height);
         }
       }
@@ -639,7 +648,7 @@ static void od_dec_mv_unpack(daala_dec_ctx *dec) {
       if (grid[vy-1][vx].valid && grid[vy][vx-1].valid
        && grid[vy+1][vx].valid && grid[vy][vx+1].valid) {
         mvp->valid = od_ec_decode_bool_q15(&dec->ec, 16384);
-        if (mvp->valid) {
+        if (mvp->valid && od_dec_mv_in_frame(vx, vy, nhmvbs, nvmvbs)) {
           od_decode_mv(dec, mvp, vx, vy, 4, mv_res, width, height);
         }
       }
