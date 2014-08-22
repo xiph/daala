@@ -2350,7 +2350,7 @@ void od_mc_predict8(od_state *state, unsigned char *dst, int dystride,
   od_mc_predict1fmv8(state, buf[0], src, systride,
    mvx[0], mvy[0], log_xblk_sz, log_yblk_sz);
   pred[0] = buf[0];
-  if (mvx[1] == mvx[0] && mvy[1] == mvy[1]) pred[1] = pred[0];
+  if (mvx[1] == mvx[0] && mvy[1] == mvy[0]) pred[1] = pred[0];
   else {
     od_mc_predict1fmv8(state, buf[1], src, systride,
      mvx[1], mvy[1], log_xblk_sz, log_yblk_sz);
