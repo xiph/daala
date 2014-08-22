@@ -38,6 +38,30 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 const od_coeff OD_DC_RES[3] = {14, 12, 18};
 
+static void *od_aligned_malloc(size_t _sz,size_t _align) {
+  unsigned char *p;
+  if (_align - 1 > UCHAR_MAX || (_align&_align-1) || _sz > ~(size_t)0-_align)
+    return NULL;
+  p = (unsigned char *)_ogg_malloc(_sz + _align);
+  if (p != NULL) {
+    int offs;
+    offs = ((p-(unsigned char *)0) - 1 & _align - 1);
+    p[offs] = offs;
+    p += offs+1;
+  }
+  return p;
+}
+
+static void od_aligned_free(void *_ptr) {
+  unsigned char *p;
+  p = (unsigned char *)_ptr;
+  if (p != NULL) {
+    int offs;
+    offs = *--p;
+    _ogg_free(p - offs);
+  }
+}
+
 /*Initializes the buffers used for reference frames.
   These buffers are padded with 16 extra pixels on each side, to allow
    (relatively) unrestricted motion vectors without special casing reading
@@ -79,7 +103,8 @@ static void od_state_ref_imgs_init(od_state *state, int nrefs, int nio) {
   }
   /*Reserve space for the line buffer in the up-sampler.*/
   data_sz += (frame_buf_width << 1)*8;
-  state->ref_img_data = ref_img_data = (unsigned char *)_ogg_malloc(data_sz);
+  state->ref_img_data = ref_img_data =
+    (unsigned char *)od_aligned_malloc(data_sz, 32);
   /*Fill in the reference image structures.*/
   for (imgi = 0; imgi < nrefs; imgi++) {
     img = state->ref_imgs + imgi;
@@ -312,7 +337,7 @@ void od_state_clear(od_state *state) {
   }
 #endif
   od_free_2d(state->mv_grid);
-  _ogg_free(state->ref_img_data);
+  od_aligned_free(state->ref_img_data);
   state->bsize -= 4*state->bstride + 4;
   for (pli = 0; pli < state->info.nplanes; pli++) {
     _ogg_free(state->sb_dc_mem[pli]);
