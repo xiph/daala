@@ -97,6 +97,10 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
 #if defined(OD_ACCOUNTING)
   od_acct_init(&enc->acct);
 #endif
+  enc->bs = (BlockSizeComp *)_ogg_malloc(sizeof(*enc->bs));
+#if defined(OD_ENCODER_CHECK)
+  enc->dec = daala_decode_alloc(info, NULL);
+#endif
   return 0;
 }
 
@@ -118,11 +122,6 @@ daala_enc_ctx *daala_encode_create(const daala_info *info) {
     _ogg_free(enc);
     return NULL;
   }
-  enc->bs = (BlockSizeComp *)_ogg_malloc(sizeof(*enc->bs));
-
-#if defined(OD_ENCODER_CHECK)
-  enc->dec = daala_decode_alloc(info, NULL);
-#endif
   return enc;
 }
 
