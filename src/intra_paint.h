@@ -67,4 +67,10 @@ void od_intra_paint_encode(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *p
  unsigned char *mode, int mstride, int *edge_sum, int *edge_count, int q,
  int res);
 
+void od_intra_paint_encode2(od_adapt_ctx *adapt, od_ec_enc *enc,
+ unsigned char *paint, const unsigned char *img, int stride, int nhsb, int nvsb,
+ unsigned char *dec8, unsigned char *mode4, unsigned char *mode8,
+ unsigned char *mode16, unsigned char *mode32, int *edge_sum, int *edge_count,
+ int q, int res);
+
 #endif

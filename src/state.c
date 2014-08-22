@@ -226,6 +226,9 @@ int od_state_init(od_state *state, const daala_info *info) {
     state->edge_count = (int*)calloc((w+64)*(h+64), sizeof(*state->edge_count)) + 4096;
     state->dec8 = (unsigned char*)malloc(w8*h8*sizeof(*state->dec8));
     state->mode = (unsigned char*)malloc(w8*h8*sizeof(*state->mode)<<2);
+    state->mode8 = (unsigned char *)malloc(w32*h32*sizeof(*state->mode8)<<4);
+    state->mode16 = (unsigned char *)malloc(w32*h32*sizeof(*state->mode16)<<2);
+    state->mode32 = (unsigned char *)malloc(w32*h32*sizeof(*state->mode32)<<0);
   }
 #endif
   return 0;
@@ -250,6 +253,9 @@ void od_state_clear(od_state *state) {
   _ogg_free(state->edge_count - 4096);
   _ogg_free(state->dec8);
   _ogg_free(state->mode);
+  _ogg_free(state->mode8);
+  _ogg_free(state->mode16);
+  _ogg_free(state->mode32);
 #endif
 }
 

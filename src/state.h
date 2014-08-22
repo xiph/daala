@@ -168,6 +168,9 @@ struct od_state{
   /* TODO high bit depth */
   unsigned char *dec8;
   unsigned char *mode;
+  unsigned char *mode8;
+  unsigned char *mode16;
+  unsigned char *mode32;
   int *edge_sum;
   int *edge_count;
 # endif
