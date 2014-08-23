@@ -1194,9 +1194,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
            vy <= nvmvbs - 2) {
             od_encode_mv(enc, mvp, vx, vy, 2, mv_res, width, height);
           }
-          else {
-            OD_ASSERT(!mvp->valid);
-          }
         }
       }
     }
