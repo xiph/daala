@@ -1023,7 +1023,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
    || refi == enc->state.ref_imgi[OD_FRAME_PREV]
    || refi == enc->state.ref_imgi[OD_FRAME_NEXT]; refi++);
   enc->state.ref_imgi[OD_FRAME_SELF] = refi;
-  OD_COPY(&enc->state.input, img, 1);
   /*We must be a keyframe if we don't have a reference.*/
   mbctx.is_keyframe |= !(enc->state.ref_imgi[OD_FRAME_PREV] >= 0);
   /*Initialize the entropy coder.*/

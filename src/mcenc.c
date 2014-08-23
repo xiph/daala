@@ -180,7 +180,7 @@ static ogg_int32_t od_enc_sad8(od_enc_ctx *enc, const unsigned char *p,
   int h;
   ogg_int32_t ret;
   state = &enc->state;
-  iplane = state->input.planes + pli;
+  iplane = state->io_imgs[OD_FRAME_INPUT].planes + pli;
   /*Compute the block dimensions in the target image plane.*/
   x >>= iplane->xdec;
   y >>= iplane->ydec;
@@ -622,7 +622,7 @@ static ogg_int32_t od_mv_est_bma_sad8(od_mv_est_ctx *est,
    iplane->ystride << 1, 2, 0, pbx, pby, log_mvb_sz + 2);
   if (est->flags & OD_MC_USE_CHROMA) {
     int pli;
-    for (pli = 1; pli < state->input.nplanes; pli++) {
+    for (pli = 1; pli < state->io_imgs[OD_FRAME_INPUT].nplanes; pli++) {
       iplane = state->ref_imgs[refi].planes + pli;
       pmvx = OD_DIV_POW2_RE(mvx << 1, iplane->xdec);
       pmvy = OD_DIV_POW2_RE(mvy << 1, iplane->ydec);
@@ -651,7 +651,7 @@ static ogg_int32_t od_mv_est_sad8(od_mv_est_ctx *est,
    (vx - 2) << 2, (vy - 2) << 2, log_mvb_sz + 2);
   if (est->flags & OD_MC_USE_CHROMA) {
     int pli;
-    for (pli = 1; pli < state->input.nplanes; pli++) {
+    for (pli = 1; pli < state->io_imgs[OD_FRAME_INPUT].nplanes; pli++) {
       od_state_pred_block_from_setup(state, pred[0], sizeof(pred[0]), ref, pli,
        vx, vy, oc, s, log_mvb_sz);
       ret += od_enc_sad8(est->enc, pred[0], sizeof(pred[0]), 1, pli,
@@ -4020,7 +4020,7 @@ void od_mv_est(od_mv_est_ctx *est, int ref, int lambda) {
   state = &est->enc->state;
   nhmvbs = (state->nhmbs + 1) << 2;
   nvmvbs = (state->nvmbs + 1) << 2;
-  iplane = state->input.planes + 0;
+  iplane = state->io_imgs[OD_FRAME_INPUT].planes + 0;
   /*Sanitize user parameters*/
   est->level_min = OD_MINI(est->enc->params.mv_level_min,
    est->enc->params.mv_level_max);
@@ -4035,8 +4035,8 @@ void od_mv_est(od_mv_est_ctx *est, int ref, int lambda) {
   /*If we're using the chroma planes, then our distortions will be larger.
     Compensate by increasing lambda and the termination thresholds.*/
   if (est->flags & OD_MC_USE_CHROMA) {
-    for (pli = 1; pli < state->input.nplanes; pli++) {
-      iplane = state->input.planes + pli;
+    for (pli = 1; pli < state->io_imgs[OD_FRAME_INPUT].nplanes; pli++) {
+      iplane = state->io_imgs[OD_FRAME_INPUT].planes + pli;
       est->lambda +=
        lambda >> (iplane->xdec + iplane->ydec + OD_MC_CHROMA_SCALE);
       est->thresh1[0] +=
