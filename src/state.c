@@ -147,13 +147,17 @@ static void od_state_ref_imgs_init(od_state *state, int nrefs, int nio) {
 #endif
 }
 
-static void od_state_mvs_init(od_state *state) {
+static int od_state_mvs_init(od_state *state) {
   int nhmvbs;
   int nvmvbs;
   nhmvbs = (state->nhmbs + 1) << 2;
   nvmvbs = (state->nvmbs + 1) << 2;
   state->mv_grid = (od_mv_grid_pt **)od_calloc_2d(nvmvbs + 1, nhmvbs + 1,
    sizeof(**state->mv_grid));
+  if (OD_UNLIKELY(!state->mv_grid)) {
+    return OD_EFAULT;
+  }
+  return OD_SUCCESS;
 }
 
 static void od_restore_fpu_c(void) {}
@@ -177,7 +181,7 @@ static void od_state_opt_vtbl_init(od_state *state) {
 #endif
 }
 
-int od_state_init(od_state *state, const daala_info *info) {
+static int od_state_init_impl(od_state *state, const daala_info *info) {
   int nplanes;
   int pli;
   /*First validate the parameters.*/
@@ -197,7 +201,9 @@ int od_state_init(od_state *state, const daala_info *info) {
   state->nvmbs = state->frame_height >> 4;
   od_state_opt_vtbl_init(state);
   od_state_ref_imgs_init(state, 4, 2);
-  od_state_mvs_init(state);
+  if (OD_UNLIKELY(od_state_mvs_init(state))) {
+    return OD_EFAULT;
+  }
   state->nhsb = state->frame_width >> 5;
   state->nvsb = state->frame_height >> 5;
   for (pli = 0; pli < nplanes; pli++) {
@@ -207,14 +213,29 @@ int od_state_init(od_state *state, const daala_info *info) {
     int h;
     state->sb_dc_mem[pli] = (od_coeff*)_ogg_malloc(
      sizeof(state->sb_dc_mem[pli][0])*state->nhsb*state->nvsb);
+    if (OD_UNLIKELY(!state->sb_dc_mem[pli])) {
+      return OD_EFAULT;
+    }
     xdec = info->plane_info[pli].xdec;
     ydec = info->plane_info[pli].ydec;
     w = state->frame_width >> xdec;
     h = state->frame_height >> ydec;
     state->ctmp[pli] = (od_coeff *)_ogg_malloc(w*h*sizeof(*state->ctmp[pli]));
+    if (OD_UNLIKELY(!state->ctmp[pli])) {
+      return OD_EFAULT;
+    }
     state->dtmp[pli] = (od_coeff *)_ogg_malloc(w*h*sizeof(*state->dtmp[pli]));
+    if (OD_UNLIKELY(!state->dtmp[pli])) {
+      return OD_EFAULT;
+    }
     state->mctmp[pli] = (od_coeff *)_ogg_malloc(w*h*sizeof(*state->mctmp[pli]));
+    if (OD_UNLIKELY(!state->mctmp[pli])) {
+      return OD_EFAULT;
+    }
     state->mdtmp[pli] = (od_coeff *)_ogg_malloc(w*h*sizeof(*state->mdtmp[pli]));
+    if (OD_UNLIKELY(!state->mdtmp[pli])) {
+      return OD_EFAULT;
+    }
     /*We predict chroma planes from the luma plane.  Since chroma can be
       subsampled, we cache subsampled versions of the luma plane in the
       frequency domain.  We can share buffers with the same subsampling.*/
@@ -231,31 +252,52 @@ int od_state_init(od_state *state, const daala_info *info) {
         if (plj >= pli) {
           state->lbuf[pli] = state->ltmp[pli] = (od_coeff *)_ogg_malloc(w*h*
            sizeof(*state->ltmp[pli]));
+          if (OD_UNLIKELY(!state->lbuf[pli])) {
+            return OD_EFAULT;
           }
         }
-        else {
-          state->ltmp[pli] = NULL;
-          state->lbuf[pli] = state->ctmp[pli];
-        }
       }
+      else {
+        state->ltmp[pli] = NULL;
+        state->lbuf[pli] = state->ctmp[pli];
+      }
+    }
     else state->lbuf[pli] = state->ltmp[pli] = NULL;
     if (pli == 0 || OD_DISABLE_CFL) {
       xdec = state->info.plane_info[pli].xdec;
       ydec = state->info.plane_info[pli].ydec;
       state->tf[pli] = (od_coeff *)_ogg_malloc(w*h*sizeof(*state->tf[pli]));
+      if (OD_UNLIKELY(!state->tf[pli])) {
+        return OD_EFAULT;
+      }
       state->modes[pli] = (signed char *)_ogg_malloc((w >> (2 + xdec))*
        (h >> (2 + ydec))*sizeof(*state->modes[pli]));
+      if (OD_UNLIKELY(!state->modes[pli])) {
+        return OD_EFAULT;
+      }
     }
   }
   state->bsize = (unsigned char *)_ogg_malloc(
    sizeof(*state->bsize)*(state->nhsb + 2)*4*(state->nvsb + 2)*4);
+  if (OD_UNLIKELY(!state->bsize)) {
+    return OD_EFAULT;
+  }
   state->bstride = (state->nhsb + 2)*4;
   state->bsize += 4*state->bstride + 4;
 #if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
   state->dump_tags = 0;
   state->dump_files = 0;
 #endif
-  return 0;
+  return OD_SUCCESS;
+}
+
+int od_state_init(od_state *state, const daala_info *info) {
+  int ret;
+  ret = od_state_init_impl(state, info);
+  if (OD_UNLIKELY(ret < 0)) {
+    od_state_clear(state);
+  }
+  return ret;
 }
 
 void od_state_clear(od_state *state) {
