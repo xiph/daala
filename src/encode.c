@@ -49,7 +49,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "tf.h"
 #include "accounting.h"
 #include "state.h"
+#if !OD_DISABLE_PAINT
 #include "intra_paint.h"
+#endif
 #if defined(OD_X86ASM)
 # include "x86/x86int.h"
 #endif
