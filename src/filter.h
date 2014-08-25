@@ -29,18 +29,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 typedef ogg_int32_t od_coeff;
 # define OD_COEFF_BITS (32)
 
-/*This should translate directly to 3 or 4 instructions for a constant _b:
-#define OD_UNBIASED_RSHIFT(_a,_b) ((_a)+(((1<<(_b))-1)&-((_a)<0))>>(_b))*/
-/*This version relies on a smart compiler:*/
-# define OD_UNBIASED_RSHIFT(_a, _b) ((_a)/(1<<(_b)))
+/*This is the strength reduced version of ((_a)/(1<<(_b))).*/
+# define OD_UNBIASED_RSHIFT(_a, _b) (((int)((((unsigned)(_a))>>(32-(_b)))+(_a)))>>(_b))
 
-# if 0
-#  define OD_DCT_RSHIFT(_a, _b) OD_DIV_POW2_RE(_a, _b)
-# elif 1
-#  define OD_DCT_RSHIFT(_a, _b) OD_UNBIASED_RSHIFT(_a, _b)
-# else
-#  define OD_DCT_RSHIFT(_a, _b) ((_a)>>(_b))
-# endif
+# define OD_DCT_RSHIFT(_a, _b) OD_UNBIASED_RSHIFT(_a, _b)
 
 typedef void (*od_filter_func)(od_coeff _out[], const od_coeff _in[]);
 
