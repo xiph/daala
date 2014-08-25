@@ -898,8 +898,8 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
     OD_SORT2I(a[1][1], a[3][1]);
     predx = a[1][0] + a[2][0];
     predy = a[1][1] + a[2][1];
-    candx = OD_CLAMPI(mvxmin, OD_DIV2(predx), mvxmax);
-    candy = OD_CLAMPI(mvymin, OD_DIV2(predy), mvymax);
+    candx = OD_CLAMPI(mvxmin, OD_DIV2_RE(predx), mvxmax);
+    candy = OD_CLAMPI(mvymin, OD_DIV2_RE(predy), mvymax);
   }
   else {
     /*Median-of-3.*/
