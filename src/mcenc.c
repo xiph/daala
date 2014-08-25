@@ -880,8 +880,8 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
   }
   /*Spatially correlated predictors (from the current frame):*/
   for (ci = 0; ci < ncns; ci++) {
-    a[ci][0] = cneighbors[ci]->mvs[0][ref][0];
-    a[ci][1] = cneighbors[ci]->mvs[0][ref][1];
+    a[ci][0] = cneighbors[ci]->bma_mvs[0][ref][0];
+    a[ci][1] = cneighbors[ci]->bma_mvs[0][ref][1];
     cands[ci][0] = OD_CLAMPI(mvxmin, a[ci][0], mvxmax);
     cands[ci][1] = OD_CLAMPI(mvymin, a[ci][1], mvymax);
   }
@@ -949,8 +949,10 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
     }
     t2 = t2 + (t2 >> OD_MC_THRESH2_SCALE_BITS) + est->thresh2_offs[log_mvb_sz];
     /*Constant velocity predictor:*/
-    cands[ncns][0] = OD_CLAMPI(mvxmin, OD_DIV8(mv->mvs[1][ref][0]), mvxmax);
-    cands[ncns][1] = OD_CLAMPI(mvymin, OD_DIV8(mv->mvs[1][ref][1]), mvymax);
+    cands[ncns][0] =
+     OD_CLAMPI(mvxmin, OD_DIV8(mv->bma_mvs[1][ref][0]), mvxmax);
+    cands[ncns][1] =
+     OD_CLAMPI(mvymin, OD_DIV8(mv->bma_mvs[1][ref][1]), mvymax);
     ncns++;
     /*Zero predictor.*/
     cands[ncns][0] = 0;
@@ -990,18 +992,18 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
     if (best_sad > t2) {
       /*Constant velocity predictors from the previous frame:*/
       for (ci = 0; ci < 4; ci++) {
-        cands[ci][0] =
-         OD_CLAMPI(mvxmin, OD_DIV8(pneighbors[ci]->mvs[1][ref][0]), mvxmax);
-        cands[ci][1] =
-         OD_CLAMPI(mvymin, OD_DIV8(pneighbors[ci]->mvs[1][ref][1]), mvymax);
+        cands[ci][0] = OD_CLAMPI(mvxmin,
+         OD_DIV8(pneighbors[ci]->bma_mvs[1][ref][0]), mvxmax);
+        cands[ci][1] = OD_CLAMPI(mvymin,
+         OD_DIV8(pneighbors[ci]->bma_mvs[1][ref][1]), mvymax);
       }
       /*The constant acceleration predictor:*/
       cands[4][0] = OD_CLAMPI(mvxmin,
-       OD_DIV_ROUND_POW2(mv->mvs[1][ref][0]*est->mvapw[ref][0]
-       - mv->mvs[2][ref][0]*est->mvapw[ref][1], 16, 0x8000), mvxmax);
+       OD_DIV_ROUND_POW2(mv->bma_mvs[1][ref][0]*est->mvapw[ref][0]
+       - mv->bma_mvs[2][ref][0]*est->mvapw[ref][1], 16, 0x8000), mvxmax);
       cands[4][1] = OD_CLAMPI(mvymin,
-       OD_DIV_ROUND_POW2(mv->mvs[1][ref][1]*est->mvapw[ref][0]
-       - mv->mvs[2][ref][1]*est->mvapw[ref][1], 16, 0x8000), mvymax);
+       OD_DIV_ROUND_POW2(mv->bma_mvs[1][ref][1]*est->mvapw[ref][0]
+       - mv->bma_mvs[2][ref][1]*est->mvapw[ref][1], 16, 0x8000), mvymax);
       /*Examine the candidates in Set C.*/
       for (ci = 0; ci < 5; ci++) {
         candx = cands[ci][0];
@@ -1102,8 +1104,8 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
   OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
    "Finished. Best vector: (%i, %i)  Best cost %i",
    best_vec[0], best_vec[1], best_cost));
-  mv->mvs[0][ref][0] = best_vec[0];
-  mv->mvs[0][ref][1] = best_vec[1];
+  mv->bma_mvs[0][ref][0] = best_vec[0];
+  mv->bma_mvs[0][ref][1] = best_vec[1];
   mvg->mv[0] = best_vec[0] << 3;
   mvg->mv[1] = best_vec[1] << 3;
 #if defined(OD_DUMP_IMAGES) && defined(OD_ANIMATE)
@@ -1164,7 +1166,7 @@ static void od_mv_est_init_mvs(od_mv_est_ctx *est, int ref) {
     for (vx = 2; vx <= nhmvbs - 2; vx++) {
       od_mv_node *mv;
       mv = est->mvs[vy] + vx;
-      OD_MOVE(mv->mvs + 1, mv->mvs + 0, 2);
+      OD_MOVE(mv->bma_mvs + 1, mv->bma_mvs + 0, 2);
     }
   }
   /*We initialize MVs a MVB at a time for cache coherency.
@@ -3901,8 +3903,8 @@ void od_mv_est_update_fullpel_mvs(od_mv_est_ctx *est, int ref) {
       mvg = state->mv_grid[vy] + vx;
       if (!mvg->valid) continue;
       mv = est->mvs[vy] + vx;
-      mv->mvs[0][ref][0] = mvg->mv[0] >> 3;
-      mv->mvs[0][ref][1] = mvg->mv[1] >> 3;
+      mv->bma_mvs[0][ref][0] = mvg->mv[0] >> 3;
+      mv->bma_mvs[0][ref][1] = mvg->mv[1] >> 3;
     }
   }
 }
