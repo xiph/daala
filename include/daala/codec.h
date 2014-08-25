@@ -55,24 +55,24 @@ extern "C" {
 # endif
 
 /*Enable special features for gcc and compatible compilers.*/
-# if defined(__GNUC__) && defined(__GNUC_MINOR__)
-#  define OD_GNUC_PREREQ(maj, min) \
-  ((__GNUC__ << 16) + __GNUC_MINOR__ >= ((maj) << 16) + (min))
+# if defined(__GNUC__) && defined(__GNUC_MINOR__) && defined(__GNUC_PATCHLEVEL__)
+#  define OD_GNUC_PREREQ(maj, min, pat)                             \
+  ((__GNUC__ << 16) + (__GNUC_MINOR__ << 8) + __GNUC_PATCHLEVEL__ >= ((maj) << 16) + ((min) << 8) + pat)
 # else
-#  define OD_GNUC_PREREQ(maj, min) (0)
+#  define OD_GNUC_PREREQ(maj, min, pat) (0)
 # endif
 
-#if OD_GNUC_PREREQ(4, 0)
+#if OD_GNUC_PREREQ(4, 0, 0)
 # pragma GCC visibility push(default)
 #endif
 
-#if OD_GNUC_PREREQ(3, 4)
+#if OD_GNUC_PREREQ(3, 4, 0)
 # define OD_WARN_UNUSED_RESULT __attribute__((__warn_unused_result__))
 #else
 # define OD_WARN_UNUSED_RESULT
 #endif
 
-#if OD_GNUC_PREREQ(3, 4)
+#if OD_GNUC_PREREQ(3, 4, 0)
 # define OD_ARG_NONNULL(x) __attribute__((__nonnull__(x)))
 #else
 # define OD_ARG_NONNULL(x)
@@ -259,7 +259,7 @@ int daala_packet_isheader(const unsigned char *packet, int len);
    \retval -1 The packet is not a video data packet.*/
 int daala_packet_iskeyframe(const unsigned char *packet, int len);
 
-# if OD_GNUC_PREREQ(4, 0)
+# if OD_GNUC_PREREQ(4, 0, 0)
 #  pragma GCC visibility pop
 # endif
 # if defined(__cplusplus)

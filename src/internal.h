@@ -30,7 +30,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 # if defined(_MSC_VER)
 #  define _USE_MATH_DEFINES
-# elif OD_GNUC_PREREQ(4, 2)
+# elif OD_GNUC_PREREQ(4, 2, 0)
 #  pragma GCC diagnostic ignored "-Wlong-long"
 #  pragma GCC diagnostic ignored "-Woverlength-strings"
 # endif
@@ -71,7 +71,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # if defined(OD_ENABLE_ASSERTIONS)
 #  include <stdio.h>
 #  include <stdlib.h>
-#  if OD_GNUC_PREREQ(2, 5)
+#  if OD_GNUC_PREREQ(2, 5, 0)
 __attribute__((noreturn))
 #  endif
 void od_fatal_impl(const char *_str, const char *_file, int _line);
@@ -105,7 +105,7 @@ void od_fatal_impl(const char *_str, const char *_file, int _line);
 # define OD_MEM_SIZE_MAX (~(size_t)0 >> 1)
 # define OD_MEM_DIFF_MAX ((ptrdiff_t)OD_MEM_SIZE_MAX)
 
-# if OD_GNUC_PREREQ(3,0)
+# if OD_GNUC_PREREQ(3, 0, 0)
 /*Another alternative is
     (__builtin_constant_p(_x)?!!(_x):__builtin_expect(!!(_x),1))
    but that evaluates _x multiple times, which may be bad.*/
