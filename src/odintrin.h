@@ -26,7 +26,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <math.h>
 #include <limits.h>
 #include <string.h>
-#include "daala/codec.h"
+#include "../include/daala/codec.h"
 
 #if !defined(_odintrin_H)
 # define _odintrin_H (1)
