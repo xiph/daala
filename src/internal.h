@@ -105,6 +105,17 @@ void od_fatal_impl(const char *_str, const char *_file, int _line);
 # define OD_MEM_SIZE_MAX (~(size_t)0 >> 1)
 # define OD_MEM_DIFF_MAX ((ptrdiff_t)OD_MEM_SIZE_MAX)
 
+# if OD_GNUC_PREREQ(3,0)
+/*Another alternative is
+    (__builtin_constant_p(_x)?!!(_x):__builtin_expect(!!(_x),1))
+   but that evaluates _x multiple times, which may be bad.*/
+#  define OD_LIKELY(_x) (__builtin_expect(!!(_x),1))
+#  define OD_UNLIKELY(_x) (__builtin_expect(!!(_x),0))
+# else
+#  define OD_LIKELY(_x)   (!!(_x))
+#  define OD_UNLIKELY(_x) (!!(_x))
+# endif
+
 /*Currently this structure is only in Tremor, and is read-only.*/
 typedef struct oggbyte_buffer oggbyte_buffer;
 
