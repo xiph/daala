@@ -47,6 +47,10 @@ void od_state_opt_vtbl_init_x86(od_state *_state){
       _state->opt_vtbl.fdct_2d=OD_FDCT_2D_SSE4_1;
       _state->opt_vtbl.idct_2d=OD_IDCT_2D_SSE4_1;
     }
+    if (_state->cpu_flags&OD_CPU_X86_AVX2){
+      _state->opt_vtbl.fdct_2d=OD_FDCT_2D_AVX2;
+      _state->opt_vtbl.idct_2d=OD_IDCT_2D_AVX2;
+    }
   }
   if(_state->cpu_flags&OD_CPU_X86_MMX){
     _state->opt_vtbl.restore_fpu=od_restore_fpu_mmx;

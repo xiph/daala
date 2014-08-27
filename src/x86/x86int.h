@@ -38,8 +38,10 @@ void od_mc_blend_full_split8_sse2(unsigned char *_dst,int _dystride,
 
 extern const od_dct_func_2d OD_FDCT_2D_SSE2[OD_NBSIZES + 1];
 extern const od_dct_func_2d OD_FDCT_2D_SSE4_1[OD_NBSIZES + 1];
+extern const od_dct_func_2d OD_FDCT_2D_AVX2[OD_NBSIZES + 1];
 
 extern const od_dct_func_2d OD_IDCT_2D_SSE2[OD_NBSIZES + 1];
 extern const od_dct_func_2d OD_IDCT_2D_SSE4_1[OD_NBSIZES + 1];
+extern const od_dct_func_2d OD_IDCT_2D_AVX2[OD_NBSIZES + 1];
 
 #endif

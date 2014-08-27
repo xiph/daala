@@ -1774,6 +1774,11 @@ int main(void) {
     test_idct_2d = OD_IDCT_2D_SSE4_1;
     run_test();
   }
+  if (od_cpu_flags_get() & OD_CPU_X86_AVX2) {
+    test_fdct_2d = OD_FDCT_2D_AVX2;
+    test_idct_2d = OD_IDCT_2D_AVX2;
+    run_test();
+  }
   return od_exit_code;
 }
 
