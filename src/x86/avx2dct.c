@@ -85,27 +85,27 @@ static __inline void transpose8(__m256i *t0, __m256i *t1, __m256i *t2, __m256i *
 static __inline void load8(const od_coeff *x, int xstride,
 			   __m256i *t0, __m256i *t1, __m256i *t2, __m256i *t3,
 			   __m256i *t4, __m256i *t5, __m256i *t6, __m256i *t7) {
-  *t0 = _mm256_loadu_si256((const __m256i *)(x + 0*xstride));
-  *t1 = _mm256_loadu_si256((const __m256i *)(x + 1*xstride));
-  *t2 = _mm256_loadu_si256((const __m256i *)(x + 2*xstride));
-  *t3 = _mm256_loadu_si256((const __m256i *)(x + 3*xstride));
-  *t4 = _mm256_loadu_si256((const __m256i *)(x + 4*xstride));
-  *t5 = _mm256_loadu_si256((const __m256i *)(x + 5*xstride));
-  *t6 = _mm256_loadu_si256((const __m256i *)(x + 6*xstride));
-  *t7 = _mm256_loadu_si256((const __m256i *)(x + 7*xstride));
+  *t0 = _mm256_loadu_si256((const __m256i *)x);
+  *t1 = _mm256_loadu_si256((const __m256i *)(x += xstride));
+  *t2 = _mm256_loadu_si256((const __m256i *)(x += xstride));
+  *t3 = _mm256_loadu_si256((const __m256i *)(x += xstride));
+  *t4 = _mm256_loadu_si256((const __m256i *)(x += xstride));
+  *t5 = _mm256_loadu_si256((const __m256i *)(x += xstride));
+  *t6 = _mm256_loadu_si256((const __m256i *)(x += xstride));
+  *t7 = _mm256_loadu_si256((const __m256i *)(x += xstride));
 }
 
 static __inline void store8(od_coeff *x, int xstride,
 			    __m256i t0, __m256i t1, __m256i t2, __m256i t3,
 			    __m256i t4, __m256i t5, __m256i t6, __m256i t7) {
-  _mm256_storeu_si256((__m256i *)(x + 0*xstride), t0);
-  _mm256_storeu_si256((__m256i *)(x + 1*xstride), t1);
-  _mm256_storeu_si256((__m256i *)(x + 2*xstride), t2);
-  _mm256_storeu_si256((__m256i *)(x + 3*xstride), t3);
-  _mm256_storeu_si256((__m256i *)(x + 4*xstride), t4);
-  _mm256_storeu_si256((__m256i *)(x + 5*xstride), t5);
-  _mm256_storeu_si256((__m256i *)(x + 6*xstride), t6);
-  _mm256_storeu_si256((__m256i *)(x + 7*xstride), t7);
+  _mm256_storeu_si256((__m256i *)x, t0);
+  _mm256_storeu_si256((__m256i *)(x += xstride), t1);
+  _mm256_storeu_si256((__m256i *)(x += xstride), t2);
+  _mm256_storeu_si256((__m256i *)(x += xstride), t3);
+  _mm256_storeu_si256((__m256i *)(x += xstride), t4);
+  _mm256_storeu_si256((__m256i *)(x += xstride), t5);
+  _mm256_storeu_si256((__m256i *)(x += xstride), t6);
+  _mm256_storeu_si256((__m256i *)(x += xstride), t7);
 }
 
 #define M(a,scale,offset,shift) _mm256_srai_epi32(_mm256_add_epi32(mul_epi32(a, scale), _mm256_set1_epi32(offset)), shift)
