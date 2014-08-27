@@ -41,10 +41,6 @@ noinst_HEADERS = \
 	src/x86/x86enc.h \
 	src/x86/x86int.h
 
-if ENABLE_X86ASM
-	OGG_CFLAGS += -msse4.1
-endif
-
 src_dct_SOURCES = \
 	src/dct.c
 if ENABLE_X86ASM

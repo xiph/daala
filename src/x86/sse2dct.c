@@ -28,7 +28,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #if defined(OD_X86ASM)
 
-#include <smmintrin.h>
+#include <xmmintrin.h>
 
 #include "../dct.h"
 
@@ -38,7 +38,7 @@ static __inline __m128i unbiased_rshift32(__m128i a, int b) {
 
 static __inline __m128i mul_epi32(__m128i a, int b1) {
   __m128i b = _mm_set1_epi32(b1);
-#ifdef USE_SSE_4_1
+#ifdef __SSE4_1__
   return _mm_mullo_epi32(a, b);
 #else
   __m128i lo = _mm_mul_epu32(a, b);
