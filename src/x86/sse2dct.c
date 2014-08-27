@@ -62,8 +62,7 @@ static __inline void overflow_check(__m128i val, ogg_int32_t scale, ogg_int32_t 
   (void)idx;
 }
 
-static __inline __m128i M(__m128i val, ogg_int32_t scale, ogg_int32_t offset, ogg_int32_t shift, int idx) {
-  overflow_check(val, scale, offset, idx);
+static __inline __m128i M(__m128i val, ogg_int32_t scale, ogg_int32_t offset, ogg_int32_t shift) {
   return _mm_srai_epi32(_mm_add_epi32(mul_epi32(val, scale), _mm_set1_epi32(offset)), shift);
 }
 
@@ -111,13 +110,16 @@ static __inline void fdct4_kernel(__m128i *x0, __m128i *x1, __m128i *x2, __m128i
   /*+ Embedded 2-point type-IV DST.*/
   /*23013/32768 ~= 4*sin(\frac{\pi}{8}) - 2*tan(\frac{\pi}{8}) ~=
      0.70230660471416898931046248770220*/
-  t3 = _mm_sub_epi32(t3, M(t1, 23013, 16384, 15, 0));
+  overflow_check(t1, 23013, 16384, 0);
+  t3 = _mm_sub_epi32(t3, M(t1, 23013, 16384, 15));
   /*21407/32768~=\sqrt{1/2}*cos(\frac{\pi}{8}))
      ~=0.65328148243818826392832158671359*/
-  t1 = _mm_add_epi32(t1, M(t3, 21407, 16384, 15, 1));
+  overflow_check(t3, 21407, 16384, 1);
+  t1 = _mm_add_epi32(t1, M(t3, 21407, 16384, 15));
   /*18293/16384 ~= 4*sin(\frac{\pi}{8}) - tan(\frac{\pi}{8}) ~=
      1.1165201670872640381121512119119*/
-  t3 = _mm_sub_epi32(t3, M(t1, 18293, 8192, 14, 2));
+  overflow_check(t1, 18293, 8192, 2);
+  t3 = _mm_sub_epi32(t3, M(t1, 18293, 8192, 14));
   transpose4(&t0, &t1, &t2, &t3);
   *x0 = t0;
   *x1 = t1;
@@ -140,9 +142,9 @@ static __inline void idct4_kernel(__m128i *y0, __m128i *y1, __m128i *y2, __m128i
   __m128i t3 = *y3;
   __m128i t2h;
   transpose4(&t0, &t1, &t2, &t3);
-  t3 = _mm_add_epi32(t3, M(t1, 18293, 8192, 14, 0));
-  t1 = _mm_sub_epi32(t1, M(t3, 21407, 16384, 15, 1));
-  t3 = _mm_add_epi32(t3, M(t1, 23013, 16384, 15, 2));
+  t3 = _mm_add_epi32(t3, M(t1, 18293, 8192, 14));
+  t1 = _mm_sub_epi32(t1, M(t3, 21407, 16384, 15));
+  t3 = _mm_add_epi32(t3, M(t1, 23013, 16384, 15));
   t2 = _mm_sub_epi32(t0, t2);
   t2h = unbiased_rshift32(t2, 1);
   t0 = _mm_sub_epi32(t0, _mm_sub_epi32(t2h, unbiased_rshift32(t3, 1)));
