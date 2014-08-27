@@ -668,7 +668,7 @@ void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   }
   /*Apply the inverse transform.*/
 #if !defined(OD_OUTPUT_PRED)
-  (*OD_IDCT_2D[ln])(c + (by << 2)*w + (bx << 2), w, d + (by << 2)*w
+  (*enc->state.opt_vtbl.idct_2d[ln])(c + (by << 2)*w + (bx << 2), w, d + (by << 2)*w
    + (bx << 2), w);
 #else
 # if 0
@@ -681,7 +681,7 @@ void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
     }
   }
 # endif
-  (*OD_IDCT_2D[ln])(c + (by << 2)*w + (bx << 2), w, preds, n);
+  (*enc->state.opt_vtbl.idct_2d[ln])(c + (by << 2)*w + (bx << 2), w, preds, n);
 #endif
 }
 

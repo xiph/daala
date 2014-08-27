@@ -42,8 +42,10 @@ void od_state_opt_vtbl_init_x86(od_state *_state){
     _state->opt_vtbl.mc_blend_full8=od_mc_blend_full8_sse2;
     _state->opt_vtbl.mc_blend_full_split8=od_mc_blend_full_split8_sse2;
     _state->opt_vtbl.fdct_2d=OD_FDCT_2D_SSE2;
+    _state->opt_vtbl.idct_2d=OD_IDCT_2D_SSE2;
     if (_state->cpu_flags&OD_CPU_X86_SSE4_1){
       _state->opt_vtbl.fdct_2d=OD_FDCT_2D_SSE4_1;
+      _state->opt_vtbl.idct_2d=OD_IDCT_2D_SSE4_1;
     }
   }
   if(_state->cpu_flags&OD_CPU_X86_MMX){

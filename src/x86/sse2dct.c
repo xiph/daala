@@ -92,7 +92,7 @@ static __inline void store4(od_coeff *x, int xstride, __m128i t0, __m128i t1, __
   _mm_store_si128((__m128i *)(x + 3*xstride), t3);
 }
 
-static __inline void kernel(__m128i *x0, __m128i *x1, __m128i *x2, __m128i *x3) {
+static __inline void fdct4_kernel(__m128i *x0, __m128i *x1, __m128i *x2, __m128i *x3) {
   /*9 adds, 2 shifts, 3 "muls".*/
   __m128i t0 = *x0;
   __m128i t2 = *x1;
@@ -126,20 +126,51 @@ static __inline void kernel(__m128i *x0, __m128i *x1, __m128i *x2, __m128i *x3) 
 }
 
 static void od_bin_fdct4x4_sse2(od_coeff y[4], int ystride, const od_coeff *x, int xstride) {
-  __m128i t0;
-  __m128i t1;
-  __m128i t2;
-  __m128i t3;
+  __m128i t0, t1, t2, t3;
   load4(x, xstride, &t0, &t1, &t2, &t3);
-  kernel(&t0, &t1, &t2, &t3);
-  kernel(&t0, &t1, &t2, &t3);
+  fdct4_kernel(&t0, &t1, &t2, &t3);
+  fdct4_kernel(&t0, &t1, &t2, &t3);
   store4(y, ystride, t0, t1, t2, t3);
+}
+
+static __inline void idct4_kernel(__m128i *y0, __m128i *y1, __m128i *y2, __m128i *y3) {
+  __m128i t0 = *y0;
+  __m128i t1 = *y1;
+  __m128i t2 = *y2;
+  __m128i t3 = *y3;
+  __m128i t2h;
+  transpose4(&t0, &t1, &t2, &t3);
+  t3 = _mm_add_epi32(t3, M(t1, 18293, 8192, 14, 0));
+  t1 = _mm_sub_epi32(t1, M(t3, 21407, 16384, 15, 1));
+  t3 = _mm_add_epi32(t3, M(t1, 23013, 16384, 15, 2));
+  t2 = _mm_sub_epi32(t0, t2);
+  t2h = unbiased_rshift32(t2, 1);
+  t0 = _mm_sub_epi32(t0, _mm_sub_epi32(t2h, unbiased_rshift32(t3, 1)));
+  t1 = _mm_sub_epi32(t2h, t1);
+  *y0 = t0;
+  *y1 = _mm_sub_epi32(t2, t1);
+  *y2 = t1;
+  *y3 = _mm_sub_epi32(t0, t3);
+}
+
+void od_bin_idct4x4_sse2(od_coeff *x, int xstride, const od_coeff *y, int ystride) {
+  __m128i t0, t1, t2, t3;
+  load4(y, ystride, &t0, &t1, &t2, &t3);
+  idct4_kernel(&t0, &t1, &t2, &t3);
+  idct4_kernel(&t0, &t1, &t2, &t3);
+  store4(x, xstride, t0, t1, t2, t3);
 }
 
 const od_dct_func_2d OD_FDCT_2D_SSE2[OD_NBSIZES + 1] = {
   od_bin_fdct4x4_sse2,
   od_bin_fdct8x8,
   od_bin_fdct16x16
+};
+
+const od_dct_func_2d OD_IDCT_2D_SSE2[OD_NBSIZES + 1] = {
+  od_bin_idct4x4_sse2,
+  od_bin_idct8x8,
+  od_bin_idct16x16
 };
 
 #endif
