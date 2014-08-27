@@ -92,6 +92,9 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
     enc->quantizer[i] = od_quantizer_from_quality(10);
   }
   enc->mvest = od_mv_est_alloc(enc);
+  if (OD_UNLIKELY(!enc->mvest)) {
+    return OD_EFAULT;
+  }
   enc->params.mv_level_min = 0;
   enc->params.mv_level_max = 4;
 #if defined(OD_ACCOUNTING)

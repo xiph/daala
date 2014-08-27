@@ -234,28 +234,53 @@ static ogg_int32_t od_enc_sad8(od_enc_ctx *enc, const unsigned char *p,
   return ret;
 }
 
-static void od_mv_est_init(od_mv_est_ctx *est, od_enc_ctx *enc) {
+static int od_mv_est_init_impl(od_mv_est_ctx *est, od_enc_ctx *enc) {
   int nhmvbs;
   int nvmvbs;
   int vx;
   int vy;
+  if (OD_UNLIKELY(!est)) {
+    return OD_EFAULT;
+  }
+  OD_CLEAR(est, 1);
   est->enc = enc;
   nhmvbs = (enc->state.nhmbs + 1) << 2;
   nvmvbs = (enc->state.nvmbs + 1) << 2;
   est->sad_cache[1] = (od_sad4 **)od_malloc_2d(nvmvbs >> 1, nhmvbs >> 1,
    sizeof(est->sad_cache[1][0][0]));
+  if (OD_UNLIKELY(!est->sad_cache[1])) {
+    return OD_EFAULT;
+  }
   est->sad_cache[0] = (od_sad4 **)od_malloc_2d(nvmvbs, nhmvbs,
    sizeof(est->sad_cache[1][0][0]));
+  if (OD_UNLIKELY(!est->sad_cache[0])) {
+    return OD_EFAULT;
+  }
   est->mvs = (od_mv_node **)od_calloc_2d(nvmvbs + 1, nhmvbs + 1,
    sizeof(est->mvs[0][0]));
+  if (OD_UNLIKELY(!est->mvs)) {
+    return OD_EFAULT;
+  }
   est->refine_grid = (od_mv_grid_pt **)od_malloc_2d(nvmvbs + 1, nhmvbs + 1,
    sizeof(est->refine_grid[0][0]));
+  if (OD_UNLIKELY(!est->refine_grid)) {
+    return OD_EFAULT;
+  }
   est->dp_nodes = (od_mv_dp_node *)_ogg_malloc(
    sizeof(od_mv_dp_node)*(OD_MAXI(nhmvbs, nvmvbs) + 1));
+  if (OD_UNLIKELY(!est->dp_nodes)) {
+    return OD_EFAULT;
+  }
   est->row_counts =
    (unsigned *)_ogg_malloc(sizeof(*est->row_counts)*(nvmvbs + 1));
+  if (OD_UNLIKELY(!est->row_counts)) {
+    return OD_EFAULT;
+  }
   est->col_counts =
    (unsigned *)_ogg_malloc(sizeof(*est->col_counts)*(nhmvbs + 1));
+  if (OD_UNLIKELY(!est->col_counts)) {
+    return OD_EFAULT;
+  }
   for (vy = 0; vy <= nvmvbs; vy++) {
     for (vx = 0; vx <= nhmvbs; vx++) {
       est->mvs[vy][vx].vx = vx;
@@ -266,10 +291,14 @@ static void od_mv_est_init(od_mv_est_ctx *est, od_enc_ctx *enc) {
   }
   est->dec_heap = (od_mv_node **)_ogg_malloc(
    sizeof(*est->dec_heap)*(nvmvbs + 1)*(nhmvbs + 1));
+  if (OD_UNLIKELY(!est->dec_heap)) {
+    return OD_EFAULT;
+  }
   /*Set to UCHAR_MAX so that od_mv_est_clear_hit_cache initializes hit_cache.*/
   est->hit_bit = UCHAR_MAX;
   est->mv_res_min = 0;
   est->flags = OD_MC_USE_CHROMA;
+  return OD_SUCCESS;
 }
 
 static void od_mv_est_clear(od_mv_est_ctx *est) {
@@ -281,6 +310,15 @@ static void od_mv_est_clear(od_mv_est_ctx *est) {
   od_free_2d(est->mvs);
   od_free_2d(est->sad_cache[0]);
   od_free_2d(est->sad_cache[1]);
+}
+
+static int od_mv_est_init(od_mv_est_ctx *est, od_enc_ctx *enc) {
+  int ret;
+  ret = od_mv_est_init_impl(est, enc);
+  if (OD_UNLIKELY(ret < 0)) {
+    od_mv_est_clear(est);
+  }
+  return ret;
 }
 
 /*STAGE 1: INITIAL MV ESTIMATES (via EPZS^2).*/
@@ -3947,7 +3985,10 @@ int od_mv_est_update_mv_rates(od_mv_est_ctx *est, int mv_res) {
 od_mv_est_ctx *od_mv_est_alloc(od_enc_ctx *enc) {
   od_mv_est_ctx *ret;
   ret = (od_mv_est_ctx *)_ogg_malloc(sizeof(*ret));
-  od_mv_est_init(ret, enc);
+  if (od_mv_est_init(ret, enc) < 0) {
+    _ogg_free(ret);
+    return NULL;
+  }
   return ret;
 }
 
