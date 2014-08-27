@@ -34,15 +34,16 @@ static __inline __m128i unbiased_rshift32(__m128i a, int b) {
   return _mm_srai_epi32(_mm_add_epi32(_mm_srli_epi32(a, 32-b), a), b);
 }
 
-static __inline __m128i mul_epi32(__m128i a, int b1) {
-  __m128i b = _mm_set1_epi32(b1);
-#ifdef __SSE4_1__
-  return _mm_mullo_epi32(a, b);
-#else
+#ifndef __SSE4_1__
+static __inline __m128i _mm_mullo_epi32(__m128i a, __m128i b) {
   __m128i lo = _mm_mul_epu32(a, b);
   __m128i hi = _mm_mul_epu32(_mm_srli_si128(a,4), _mm_srli_si128(b,4));
   return _mm_unpacklo_epi32(_mm_shuffle_epi32(lo, _MM_SHUFFLE(0,0,2,0)), _mm_shuffle_epi32(hi, _MM_SHUFFLE(0,0,2,0)));
+}
 #endif
+
+static __inline __m128i mul_epi32(__m128i a, int b1) {
+  return _mm_mullo_epi32(a, _mm_set1_epi32(b1));
 }
 
 static __inline void overflow_check(__m128i val, ogg_int32_t scale, ogg_int32_t offset, int idx) {
@@ -126,7 +127,7 @@ static __inline void fdct4_kernel(__m128i *x0, __m128i *x1, __m128i *x2, __m128i
   *x3 = t3;
 }
 
-void od_bin_fdct4x4_sse2(od_coeff y[4], int ystride, const od_coeff *x, int xstride) {
+void od_bin_fdct4x4_sse2(od_coeff *y, int ystride, const od_coeff *x, int xstride) {
   __m128i t0, t1, t2, t3;
   load4(x, xstride, &t0, &t1, &t2, &t3);
   fdct4_kernel(&t0, &t1, &t2, &t3);
@@ -162,14 +163,122 @@ void od_bin_idct4x4_sse2(od_coeff *x, int xstride, const od_coeff *y, int ystrid
   store4(x, xstride, t0, t1, t2, t3);
 }
 
+typedef struct {
+  __m128i _0;
+  __m128i _1;
+} __m256i;
+
+static __inline __m256i _mm256_srai_epi32(__m256i a, int c) {
+  __m256i r;
+  r._0 = _mm_srai_epi32(a._0, c);
+  r._1 = _mm_srai_epi32(a._1, c);
+  return r;
+}
+
+static __inline __m256i _mm256_srli_epi32(__m256i a, int c) {
+  __m256i r;
+  r._0 = _mm_srli_epi32(a._0, c);
+  r._1 = _mm_srli_epi32(a._1, c);
+  return r;
+}
+
+static __inline __m256i _mm256_add_epi32(__m256i a, __m256i b) {
+  __m256i r;
+  r._0 = _mm_add_epi32(a._0, b._0);
+  r._1 = _mm_add_epi32(a._1, b._1);
+  return r;
+}
+
+static __inline __m256i _mm256_sub_epi32(__m256i a, __m256i b) {
+  __m256i r;
+  r._0 = _mm_sub_epi32(a._0, b._0);
+  r._1 = _mm_sub_epi32(a._1, b._1);
+  return r;
+}
+
+static __inline __m256i _mm256_mullo_epi32(__m256i a, __m256i b) {
+  __m256i r;
+  r._0 = _mm_mullo_epi32(a._0, b._0);
+  r._1 = _mm_mullo_epi32(a._1, b._1);
+  return r;
+}
+
+static __inline __m256i _mm256_set1_epi32(int c) {
+  __m256i r;
+  r._0 = r._1 = _mm_set1_epi32(c);
+  return r;
+}
+
+static __inline __m256i _mm256_unpacklo_epi32(__m256i a, __m256i b) {
+  __m256i r;
+  r._0 = _mm_unpacklo_epi32(a._0, b._0);
+  r._1 = _mm_unpacklo_epi32(a._1, b._1);
+  return r;
+}
+
+static __inline __m256i _mm256_unpackhi_epi32(__m256i a, __m256i b) {
+  __m256i r;
+  r._0 = _mm_unpackhi_epi32(a._0, b._0);
+  r._1 = _mm_unpackhi_epi32(a._1, b._1);
+  return r;
+}
+
+static __inline __m256i _mm256_unpacklo_epi64(__m256i a, __m256i b) {
+  __m256i r;
+  r._0 = _mm_unpacklo_epi64(a._0, b._0);
+  r._1 = _mm_unpacklo_epi64(a._1, b._1);
+  return r;
+}
+
+static __inline __m256i _mm256_unpackhi_epi64(__m256i a, __m256i b) {
+  __m256i r;
+  r._0 = _mm_unpackhi_epi64(a._0, b._0);
+  r._1 = _mm_unpackhi_epi64(a._1, b._1);
+  return r;
+}
+
+static __inline __m256i _mm256_permute2x128_si256(__m256i a, __m256i b, int c) {
+  __m256i r;
+  r._0 = (c & 8) ? _mm_setzero_si128() : ((c & 2) ? ((c & 1) ? b._1 : b._0) : ((c & 1) ? a._1 : a._0));
+  c >>= 4;
+  r._1 = (c & 8) ? _mm_setzero_si128() : ((c & 2) ? ((c & 1) ? b._1 : b._0) : ((c & 1) ? a._1 : a._0));
+  return r;
+}
+
+static __inline __m256i _mm256_loadu_si256(const __m256i *ptr) {
+  __m256i r;
+  r._0 = _mm_load_si128(((const __m128i *)ptr) + 0);
+  r._1 = _mm_load_si128(((const __m128i *)ptr) + 1);
+  return r;
+}
+
+static __inline void _mm256_storeu_si256(__m256i *ptr, __m256i a) {
+  _mm_store_si128(((__m128i *)ptr) + 0, a._0);
+  _mm_store_si128(((__m128i *)ptr) + 1, a._1);
+}
+
+#undef M
+#undef S
+#undef A
+
+#include "avx2dct.c"
+
+void od_bin_fdct8x8_sse2(od_coeff *y, int ystride, const od_coeff *x, int xstride) {
+  od_bin_fdct8x8_avx2(y, ystride, x, xstride);
+}
+
+void od_bin_idct8x8_sse2(od_coeff *y, int ystride, const od_coeff *x, int xstride) {
+  od_bin_idct8x8_avx2(y, ystride, x, xstride);
+}
+
 const od_dct_func_2d OD_FDCT_2D_SSE2[OD_NBSIZES + 1] = {
   od_bin_fdct4x4_sse2,
-  od_bin_fdct8x8,
+  od_bin_fdct8x8_sse2,
   od_bin_fdct16x16
 };
 
 const od_dct_func_2d OD_IDCT_2D_SSE2[OD_NBSIZES + 1] = {
   od_bin_idct4x4_sse2,
-  od_bin_idct8x8,
+  od_bin_idct8x8_sse2,
   od_bin_idct16x16
 };

@@ -26,6 +26,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #define od_bin_fdct4x4_sse2 od_bin_fdct4x4_sse4_1
 #define od_bin_idct4x4_sse2 od_bin_idct4x4_sse4_1
+#define od_bin_fdct8x8_sse2 od_bin_fdct8x8_sse4_1
+#define od_bin_idct8x8_sse2 od_bin_idct8x8_sse4_1
+
 #define OD_FDCT_2D_SSE2 OD_FDCT_2D_SSE4_1
 #define OD_IDCT_2D_SSE2 OD_IDCT_2D_SSE4_1
 
