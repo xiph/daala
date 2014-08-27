@@ -170,10 +170,36 @@ case $host_cpu in
     ;;
 esac
 
-AM_CONDITIONAL([ENABLE_X86ASM], [test "$enable_asm" = "yes" -a "$cpu_x86" = "true"])
 AS_IF([test "$enable_asm" = "yes" -a "$cpu_x86" = "true"], [
   AC_DEFINE([OD_X86ASM], [1], [Enable asm optimisations])
+  AC_TRY_COMPILE([
+#include <xmmintrin.h>
+   ], [
+    return _mm_cvtsi128_si32(_mm_setzero_si128());
+   ], [
+    enable_sse2_intrinsics=yes
+    AC_DEFINE([OD_SSE2_INTRINSICS], [1],
+     [Enable SSE2 intrinsics optimisations])
+    AC_TRY_COMPILE([
+#include <smmintrin.h>
+     ], [
+      return _mm_cvtsi128_si32(_mm_mullo_epi32(_mm_setzero_si128(),
+       _mm_setzero_si128()));
+     ], [
+       enable_sse41_intrinsics=yes
+       AC_DEFINE([OD_SSE41_INTRINSICS], [1],
+        [Enable SSE4.1 intrinsics optimisations])
+     ], [enable_sse41_intrinsics=no]
+    )
+   ], [enable_sse2_intrinsics=no]
+  )
 ])
+AM_CONDITIONAL([ENABLE_X86ASM],
+ [test "$enable_asm" = "yes" -a "$cpu_x86" = "true"])
+AM_CONDITIONAL([ENABLE_SSE2_INTRINSICS],
+ [test "$enable_asm" = "yes" -a "$cpu_x86" = "true" -a "$enable_sse2_intrinsics" = "yes"])
+AM_CONDITIONAL([ENABLE_SSE41_INTRINSICS],
+ [test "$enable_asm" = "yes" -a "$cpu_x86" = "true" -a "$enable_sse41_intrinsics" = "yes"])
 
 AC_ARG_ENABLE([encoder-check],
   AS_HELP_STRING([--enable-encoder-check], [Compare reconstructed frames]),,

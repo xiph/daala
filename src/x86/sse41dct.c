@@ -1,5 +1,5 @@
 /*Daala video codec
-Copyright (c) 2006-2010 Daala project contributors.  All rights reserved.
+Copyright (c) 2002-2013 Daala project contributors.  All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -11,7 +11,7 @@ modification, are permitted provided that the following conditions are met:
   this list of conditions and the following disclaimer in the documentation
   and/or other materials provided with the distribution.
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS “AS IS”
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
@@ -22,28 +22,19 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
-#if !defined(_x86_x86int_H)
-# define _x86_x86int_H (1)
-# include "../state.h"
-
-# if OD_GNUC_PREREQ(3, 0, 0)
-#  define OD_SIMD_INLINE static __inline __attribute__((always_inline))
-# else
-#  define OD_SIMD_INLINE static
-# endif
-
-void od_state_opt_vtbl_init_x86(od_state *_state);
-
-void od_mc_predict1fmv8_sse2(unsigned char *_dst,const unsigned char *_src,
- int _systride,ogg_int32_t _mvx,ogg_int32_t _mvy,
- int _log_xblk_sz,int _log_yblk_sz);
-void od_mc_blend_full8_sse2(unsigned char *_dst,int _dystride,
- const unsigned char *_src[4],int _log_xblk_sz,int _log_yblk_sz);
-void od_mc_blend_full_split8_sse2(unsigned char *_dst,int _dystride,
- const unsigned char *_src[4],int _c,int _s,int _log_xblk_sz,int _log_yblk_sz);
-void od_bin_fdct4x4_sse2(od_coeff *y, int ystride,
- const od_coeff *x, int xstride);
-void od_bin_fdct4x4_sse41(od_coeff *y, int ystride,
- const od_coeff *x, int xstride);
-
+#if defined(HAVE_CONFIG_H)
+# include "config.h"
 #endif
+
+#include <smmintrin.h>
+#include "x86int.h"
+
+OD_SIMD_INLINE __m128i od_mullo_epi32_sse41(__m128i a, int b) {
+  return _mm_mullo_epi32(a, _mm_set1_epi32(b));
+}
+
+#define OD_MULLO_EPI32 od_mullo_epi32_sse41
+
+#define od_bin_fdct4x4_sse2 od_bin_fdct4x4_sse41
+
+#include "sse2dct.c"
