@@ -41,6 +41,19 @@ noinst_HEADERS = \
 	src/x86/x86enc.h \
 	src/x86/x86int.h
 
+if ENABLE_X86ASM
+	OGG_CFLAGS += -msse4.1
+endif
+
+src_dct_SOURCES = \
+	src/dct.c
+if ENABLE_X86ASM
+src_dct_SOURCES += \
+	src/x86/cpu.c \
+	src/x86/sse2dct.c \
+	src/x86/sse41dct.c
+endif
+
 src_libdaalabase_la_CFLAGS = $(OGG_CFLAGS)
 src_libdaalabase_la_LIBADD = $(OGG_LIBS) $(LIBM)
 if DUMP_IMAGES
@@ -52,7 +65,6 @@ src_libdaalabase_la_LDFLAGS +=
 src_libdaalabase_la_SOURCES = \
 	src/adapt.c \
 	src/block_size.c \
-	src/dct.c \
 	src/entcode.c \
 	src/entdec.c \
 	src/filter.c \
@@ -75,10 +87,10 @@ src_libdaalabase_la_SOURCES = \
 	src/tf.c \
 	src/zigzag4.c \
 	src/zigzag8.c \
-	src/zigzag16.c
+	src/zigzag16.c \
+	$(src_dct_SOURCES)
 if ENABLE_X86ASM
 src_libdaalabase_la_SOURCES += \
-	src/x86/cpu.c \
 	src/x86/sse2mc.c \
 	src/x86/x86state.c
 endif
@@ -222,7 +234,7 @@ tools_y4m2png_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS)
 tools_dump_psnrhvs_SOURCES = \
 	tools/vidinput.c \
 	tools/y4m_input.c \
-	src/dct.c \
+	$(src_dct_SOURCES) \
 	tools/dump_psnrhvs.c
 tools_dump_psnrhvs_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS)
 tools_dump_psnrhvs_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
@@ -258,7 +270,7 @@ tools_block_size_analysis_SOURCES = \
 	src/block_size_enc.c \
 	tools/vidinput.c \
 	tools/y4m_input.c \
-	src/dct.c \
+	$(src_dct_SOURCES) \
 	src/internal.c \
 	src/generic_encoder.c \
 	src/generic_code.c \
@@ -320,7 +332,7 @@ tools_intra_stats_SOURCES = \
 	src/entenc.c \
 	src/entcode.c \
 	src/filter.c \
-	src/dct.c \
+	$(src_dct_SOURCES) \
 	src/intra.c \
 	src/switch_table.c \
 	src/tf.c \
@@ -354,7 +366,7 @@ tools_intra_pred_SOURCES = \
 	src/entenc.c \
 	src/entcode.c \
 	src/filter.c \
-	src/dct.c \
+	$(src_dct_SOURCES) \
 	src/intra.c \
 	src/intradata.c \
 	src/internal.c \
@@ -387,7 +399,7 @@ tools_intra_trace_SOURCES = \
 	src/entenc.c \
 	src/entcode.c \
 	src/filter.c \
-	src/dct.c \
+	$(src_dct_SOURCES) \
 	src/intra.c \
 	src/switch_table.c \
 	src/tf.c \
@@ -416,7 +428,7 @@ tools_trans_SOURCES = \
 	tools/svd.c \
 	tools/cholesky.c \
 	src/filter.c \
-	src/dct.c \
+	$(src_dct_SOURCES) \
 	src/intradata.c
 tools_trans_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS) $(OPENMP_CFLAGS)
 tools_trans_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
@@ -430,7 +442,7 @@ tools_trans_gain_SOURCES = \
 	tools/od_filter.c \
 	tools/trans_tools.c \
 	src/filter.c \
-	src/dct.c \
+	$(src_dct_SOURCES) \
 	src/intradata.c
 tools_trans_gain_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS) $(OPENMP_CFLAGS)
 tools_trans_gain_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
@@ -455,7 +467,7 @@ tools_trans2d_SOURCES = \
 	tools/svd.c \
 	tools/cholesky.c \
 	src/filter.c \
-	src/dct.c \
+	$(src_dct_SOURCES) \
 	src/intradata.c
 tools_trans2d_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS) $(OPENMP_CFLAGS)
 tools_trans2d_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
@@ -469,7 +481,7 @@ tools_init_intra_xform_SOURCES = \
 	tools/vidinput.c \
 	tools/y4m_input.c \
 	src/filter.c \
-	src/dct.c \
+	$(src_dct_SOURCES) \
 	src/intra.c \
 	src/tf.c \
 	src/internal.c \
@@ -545,7 +557,7 @@ TESTS = \
 	src/tests/test_filters \
 	src/tests/check_tests
 
-src_tests_dcttest_SOURCES = src/dct.c src/filter.c src/internal.c
+src_tests_dcttest_SOURCES = $(src_dct_SOURCES) src/filter.c src/internal.c
 src_tests_dcttest_CFLAGS = $(OGG_CFLAGS) \
  -DOD_DCT_CHECK_OVERFLOW -DOD_DCT_TEST -DOD_ENABLE_ASSERTIONS
 src_tests_dcttest_LDADD = $(LIBM)

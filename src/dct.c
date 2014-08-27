@@ -28,6 +28,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #include "dct.h"
 
+#if defined(OD_X86ASM)
+# include "x86/cpu.h"
+# include "x86/x86int.h"
+#endif
+
 /*Adjustments for the quantization step in Q15, a factor of 2^(1/4) per
  octave due to the 3/4 power in the quantizer.*/
 const int OD_TRANS_QUANT_ADJ[3] = {
@@ -93,35 +98,48 @@ const unsigned char *OD_DCT_ZIGS[OD_NBSIZES + 1] = {
   OD_ZIG16
 };
 
+void od_bin_fdct4x4_detect(od_coeff *y, int ystride, const od_coeff *x, int xstride);
+
 /*Making function pointer tables at least one entry
    longer than needed makes it highly likely that an
    off-by-one will result in a null-pointer rather than
    another otherwise compatible function pointer.
   This can help avoid difficult to diagnose misbehavior.*/
 
-const od_dct_func_2d OD_FDCT_2D[OD_NBSIZES + 1] = {
-  od_bin_fdct4x4,
+od_dct_func_2d OD_FDCT_2D[OD_NBSIZES + 1] = {
+  od_bin_fdct4x4_detect,
   od_bin_fdct8x8,
   od_bin_fdct16x16
 };
 
-const od_dct_func_2d OD_IDCT_2D[OD_NBSIZES + 1] = {
+od_dct_func_2d OD_IDCT_2D[OD_NBSIZES + 1] = {
   od_bin_idct4x4,
   od_bin_idct8x8,
   od_bin_idct16x16
 };
 
-const od_fdct_func_1d OD_FDCT_1D[OD_NBSIZES + 1] = {
+od_fdct_func_1d OD_FDCT_1D[OD_NBSIZES + 1] = {
   od_bin_fdct4,
   od_bin_fdct8,
   od_bin_fdct16
 };
 
-const od_idct_func_1d OD_IDCT_1D[OD_NBSIZES + 1] = {
+od_idct_func_1d OD_IDCT_1D[OD_NBSIZES + 1] = {
   od_bin_idct4,
   od_bin_idct8,
   od_bin_idct16
 };
+
+void od_bin_fdct4x4_detect(od_coeff *y, int ystride, const od_coeff *x, int xstride) {
+  OD_FDCT_2D[0] = od_bin_fdct4x4;
+#if defined(OD_X86ASM)
+  if (od_cpu_flags_get() & OD_CPU_X86_SSE4_1)
+    OD_FDCT_2D[0] = od_bin_fdct4x4_sse4_1;
+  if (od_cpu_flags_get() & OD_CPU_X86_SSE2)
+    OD_FDCT_2D[0] = od_bin_fdct4x4_sse2;
+#endif
+  OD_FDCT_2D[0](y, ystride, x, xstride);
+}
 
 void od_bin_fdct4(od_coeff y[4], const od_coeff *x, int xstride) {
   /*9 adds, 2 shifts, 3 "muls".*/
