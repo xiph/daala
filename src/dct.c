@@ -135,7 +135,7 @@ void od_bin_fdct4x4_detect(od_coeff *y, int ystride, const od_coeff *x, int xstr
 #if defined(OD_X86ASM)
   if (od_cpu_flags_get() & OD_CPU_X86_SSE4_1)
     OD_FDCT_2D[0] = od_bin_fdct4x4_sse4_1;
-  if (od_cpu_flags_get() & OD_CPU_X86_SSE2)
+  else if (od_cpu_flags_get() & OD_CPU_X86_SSE2)
     OD_FDCT_2D[0] = od_bin_fdct4x4_sse2;
 #endif
   OD_FDCT_2D[0](y, ystride, x, xstride);
