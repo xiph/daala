@@ -232,6 +232,73 @@ void od_bin_fdct8x8_avx2(od_coeff y[8], int ystride, const od_coeff *x, int xstr
   store8(y, ystride, t0, t1, t2, t3, t4, t5, t6, t7);
 }
 
+#define S(r,a,scale,offset,shift) r = _mm256_sub_epi32(r,M(a,scale,offset,shift))
+#define A(r,a,scale,offset,shift) r = _mm256_add_epi32(r,M(a,scale,offset,shift))
+
+static __inline void idct8_kernel(__m256i *y0, __m256i *y1, __m256i *y2, __m256i *y3,
+                                  __m256i *y4, __m256i *y5, __m256i *y6, __m256i *y7) {
+  __m256i t0 = *y0;
+  __m256i t1 = *y1;
+  __m256i t2 = *y2;
+  __m256i t3 = *y3;
+  __m256i t4 = *y4;
+  __m256i t5 = *y5;
+  __m256i t6 = *y6;
+  __m256i t7 = *y7;
+  __m256i t1h, t4h, t6h;
+  transpose8(&t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
+  S(t5, t3, 2485, 4096, 13);
+  A(t3, t5, 18205, 16384, 15);
+  S(t5, t3, 2485, 4096, 13);
+  S(t7, t1, 3227, 16384, 15);
+  A(t1, t7, 6393, 16384, 15);
+  S(t7, t1, 3227, 16384, 15);
+  t1 = _mm256_add_epi32(t1, t3);
+  t1h = unbiased_rshift32(t1, 1);
+  t3 = _mm256_sub_epi32(t1h, t3);
+  t5 = _mm256_add_epi32(t5, t7);
+  t7 = _mm256_sub_epi32(unbiased_rshift32(t5, 1), t7);
+  A(t3, t5, 7489, 4096, 13);
+  S(t5, t3, 11585, 8192, 14);
+  S(t3, t5, 19195, 16384, 15);
+  A(t6, t2, 21895, 16384, 15);
+  S(t2, t6, 15137, 8192, 14);
+  A(t6, t2, 21895, 16384, 15);
+  A(t0, t4, 13573, 16384, 15);
+  S(t4, t0, 11585, 8192, 14);
+  A(t0, t4, 13573, 16384, 15);
+  t4 = _mm256_sub_epi32(t2, t4);
+  t4h = unbiased_rshift32(t4, 1);
+  t2 = _mm256_sub_epi32(t4h, t2);
+  t6 = _mm256_sub_epi32(t0, t6);
+  t6h = unbiased_rshift32(t6, 1);
+  t0 = _mm256_sub_epi32(t0, t6h);
+  t7 = _mm256_sub_epi32(t6h, t7);
+  t6 = _mm256_sub_epi32(t6, t7);
+  t2 = _mm256_add_epi32(t2, unbiased_rshift32(t3, 1));
+  t3 = _mm256_sub_epi32(t2, t3);
+  t5 = _mm256_add_epi32(t5, t4h);
+  t4 = _mm256_sub_epi32(t4, t5);
+  t0 = _mm256_add_epi32(t0, t1h);
+  t1 = _mm256_sub_epi32(t0, t1);
+  *y0 = t0;
+  *y1 = t4;
+  *y2 = t2;
+  *y3 = t6;
+  *y4 = t7;
+  *y5 = t3;
+  *y6 = t5;
+  *y7 = t1;
+}
+
+void od_bin_idct8x8_avx2(od_coeff *x, int xstride, const od_coeff *y, int ystride) {
+  __m256i t0, t1, t2, t3, t4, t5, t6, t7;
+  load8(y, ystride, &t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
+  idct8_kernel(&t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
+  idct8_kernel(&t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
+  store8(x, xstride, t0, t1, t2, t3, t4, t5, t6, t7);
+}
+
 void od_bin_fdct4x4_sse4_1(od_coeff y[4], int ystride, const od_coeff *x, int xstride);
 void od_bin_idct4x4_sse4_1(od_coeff *x, int xstride, const od_coeff *y, int ystride);
 
@@ -243,6 +310,6 @@ const od_dct_func_2d OD_FDCT_2D_AVX2[OD_NBSIZES + 1] = {
 
 const od_dct_func_2d OD_IDCT_2D_AVX2[OD_NBSIZES + 1] = {
   od_bin_idct4x4_sse4_1,
-  od_bin_idct8x8,
+  od_bin_idct8x8_avx2,
   od_bin_idct16x16
 };
