@@ -32,6 +32,7 @@ typedef struct od_adapt_ctx      od_adapt_ctx;
 
 # include <stdio.h>
 # include "internal.h"
+# include "dct.h"
 # include "mc.h"
 # include "pvq.h"
 # include "adapt.h"
@@ -98,6 +99,7 @@ struct od_state_opt_vtbl{
    const unsigned char *_src[4], int _c, int _s,
    int _log_xblk_sz, int _log_yblk_sz);
   void (*restore_fpu)(void);
+  const od_dct_func_2d *fdct_2d;
 };
 
 # if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)

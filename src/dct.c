@@ -28,11 +28,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #include "dct.h"
 
-#if defined(OD_X86ASM)
-# include "x86/cpu.h"
-# include "x86/x86int.h"
-#endif
-
 /*Adjustments for the quantization step in Q15, a factor of 2^(1/4) per
  octave due to the 3/4 power in the quantizer.*/
 const int OD_TRANS_QUANT_ADJ[3] = {
@@ -98,48 +93,35 @@ const unsigned char *OD_DCT_ZIGS[OD_NBSIZES + 1] = {
   OD_ZIG16
 };
 
-void od_bin_fdct4x4_detect(od_coeff *y, int ystride, const od_coeff *x, int xstride);
-
 /*Making function pointer tables at least one entry
    longer than needed makes it highly likely that an
    off-by-one will result in a null-pointer rather than
    another otherwise compatible function pointer.
   This can help avoid difficult to diagnose misbehavior.*/
 
-od_dct_func_2d OD_FDCT_2D[OD_NBSIZES + 1] = {
-  od_bin_fdct4x4_detect,
+const od_dct_func_2d OD_FDCT_2D[OD_NBSIZES + 1] = {
+  od_bin_fdct4x4,
   od_bin_fdct8x8,
   od_bin_fdct16x16
 };
 
-od_dct_func_2d OD_IDCT_2D[OD_NBSIZES + 1] = {
+const od_dct_func_2d OD_IDCT_2D[OD_NBSIZES + 1] = {
   od_bin_idct4x4,
   od_bin_idct8x8,
   od_bin_idct16x16
 };
 
-od_fdct_func_1d OD_FDCT_1D[OD_NBSIZES + 1] = {
+const od_fdct_func_1d OD_FDCT_1D[OD_NBSIZES + 1] = {
   od_bin_fdct4,
   od_bin_fdct8,
   od_bin_fdct16
 };
 
-od_idct_func_1d OD_IDCT_1D[OD_NBSIZES + 1] = {
+const od_idct_func_1d OD_IDCT_1D[OD_NBSIZES + 1] = {
   od_bin_idct4,
   od_bin_idct8,
   od_bin_idct16
 };
-
-void od_bin_fdct4x4_detect(od_coeff *y, int ystride, const od_coeff *x, int xstride) {
-  OD_FDCT_2D[0] = od_bin_fdct4x4;
-#if defined(OD_X86ASM)
-  if (od_cpu_flags_get() & OD_CPU_X86_SSE4_1)
-    OD_FDCT_2D[0] = od_bin_fdct4x4_sse4_1;
-  else if (od_cpu_flags_get() & OD_CPU_X86_SSE2)
-    OD_FDCT_2D[0] = od_bin_fdct4x4_sse2;
-#endif
-  OD_FDCT_2D[0](y, ystride, x, xstride);
-}
 
 void od_bin_fdct4(od_coeff y[4], const od_coeff *x, int xstride) {
   /*9 adds, 2 shifts, 3 "muls".*/
@@ -864,6 +846,11 @@ void od_bin_idct16x16(od_coeff *x, int xstride,
 # include <math.h>
 # include <string.h>
 
+#if defined(OD_X86ASM)
+# include "x86/cpu.h"
+# include "x86/x86int.h"
+#endif
+
 /*The auto-correlation coefficent. 0.95 is a common value.*/
 # define INPUT_AUTOCORR (0.95)
 # define INPUT_AUTOCORR_2 (INPUT_AUTOCORR*INPUT_AUTOCORR)
@@ -1280,6 +1267,8 @@ static void ieee1180_print_results(long sumerrs[OD_BSIZE_MAX][OD_BSIZE_MAX],
    ieee1180_meets(total, 0.0015));
 }
 
+static const od_dct_func_2d *test_fdct_2d;
+
 static void ieee1180_test_block(long sumerrs[OD_BSIZE_MAX][OD_BSIZE_MAX],
  long sumsqerrs[OD_BSIZE_MAX][OD_BSIZE_MAX],
  int maxerr[OD_BSIZE_MAX][OD_BSIZE_MAX], int l, int h, int sign, int bszi) {
@@ -1299,7 +1288,7 @@ static void ieee1180_test_block(long sumerrs[OD_BSIZE_MAX][OD_BSIZE_MAX],
     }
   }
   /*Modification of IEEE1180: use our integerized DCT, not a true DCT.*/
-  (*OD_FDCT_2D[bszi])(refcoefs[0], OD_BSIZE_MAX, block[0], OD_BSIZE_MAX);
+  (*test_fdct_2d[bszi])(refcoefs[0], OD_BSIZE_MAX, block[0], OD_BSIZE_MAX);
   /*Modification of IEEE1180: no rounding or range clipping (coefficients
      are always in range with our integerized DCT).*/
   for (i = 0; i < n; i++) {
@@ -1765,9 +1754,22 @@ static void check_transform(int bszi) {
   check_bias(bszi);
 }
 
-int main(void) {
+void run_test(void) {
   int bszi;
   for (bszi = 0; bszi < OD_NBSIZES; bszi++) check_transform(bszi);
+}
+
+int main(void) {
+  test_fdct_2d = OD_FDCT_2D;
+  run_test();
+  if (od_cpu_flags_get() & OD_CPU_X86_SSE2) {
+    test_fdct_2d = OD_FDCT_2D_SSE2;
+    run_test();
+  }
+  if (od_cpu_flags_get() & OD_CPU_X86_SSE4_1) {
+    test_fdct_2d = OD_FDCT_2D_SSE4_1;
+    run_test();
+  }
   return od_exit_code;
 }
 

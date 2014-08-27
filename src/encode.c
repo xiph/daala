@@ -576,7 +576,7 @@ void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   mc = ctx->mc;
   /* Apply forward transform. */
   if (!ctx->is_keyframe) {
-    (*OD_FDCT_2D[ln])(md + (by << 2)*w + (bx << 2), w,
+    (*enc->state.opt_vtbl.fdct_2d[ln])(md + (by << 2)*w + (bx << 2), w,
      mc + (by << 2)*w + (bx << 2), w);
   }
   od_encode_compute_pred(enc, ctx, pred, ln, pli, bx, by, has_ur);
@@ -721,7 +721,7 @@ static void od_compute_dcts(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
   OD_ASSERT(d <= l);
   if (d == l) {
     d -= xdec;
-    (*OD_FDCT_2D[d])(c + (by << (2 + d))*w + (bx << (2 + d)), w,
+    (*enc->state.opt_vtbl.fdct_2d[d])(c + (by << (2 + d))*w + (bx << (2 + d)), w,
       ctx->c + (by << (2 + d))*w + (bx << (2 + d)), w);
   }
   else {

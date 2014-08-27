@@ -125,7 +125,7 @@ static __inline void kernel(__m128i *x0, __m128i *x1, __m128i *x2, __m128i *x3) 
   *x3 = t3;
 }
 
-void od_bin_fdct4x4_sse2(od_coeff y[4], int ystride, const od_coeff *x, int xstride) {
+static void od_bin_fdct4x4_sse2(od_coeff y[4], int ystride, const od_coeff *x, int xstride) {
   __m128i t0;
   __m128i t1;
   __m128i t2;
@@ -135,5 +135,11 @@ void od_bin_fdct4x4_sse2(od_coeff y[4], int ystride, const od_coeff *x, int xstr
   kernel(&t0, &t1, &t2, &t3);
   store4(y, ystride, t0, t1, t2, t3);
 }
+
+const od_dct_func_2d OD_FDCT_2D_SSE2[OD_NBSIZES + 1] = {
+  od_bin_fdct4x4_sse2,
+  od_bin_fdct8x8,
+  od_bin_fdct16x16
+};
 
 #endif

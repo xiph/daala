@@ -27,5 +27,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <smmintrin.h>
 
 #define od_bin_fdct4x4_sse2 od_bin_fdct4x4_sse4_1
+#define OD_FDCT_2D_SSE2 OD_FDCT_2D_SSE4_1
 
 #include "sse2dct.c"

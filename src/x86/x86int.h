@@ -35,7 +35,8 @@ void od_mc_blend_full8_sse2(unsigned char *_dst,int _dystride,
  const unsigned char *_src[4],int _log_xblk_sz,int _log_yblk_sz);
 void od_mc_blend_full_split8_sse2(unsigned char *_dst,int _dystride,
  const unsigned char *_src[4],int _c,int _s,int _log_xblk_sz,int _log_yblk_sz);
-void od_bin_fdct4x4_sse2(od_coeff y[4], int ystride, const od_coeff *x, int xstride);
-void od_bin_fdct4x4_sse4_1(od_coeff y[4], int ystride, const od_coeff *x, int xstride);
+
+extern const od_dct_func_2d OD_FDCT_2D_SSE2[OD_NBSIZES + 1];
+extern const od_dct_func_2d OD_FDCT_2D_SSE4_1[OD_NBSIZES + 1];
 
 #endif
