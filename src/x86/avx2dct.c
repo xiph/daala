@@ -53,10 +53,6 @@ static __inline void overflow_check(__m256i val, ogg_int32_t scale, ogg_int32_t 
   (void)idx;
 }
 
-static __inline __m256i M(__m256i val, ogg_int32_t scale, ogg_int32_t offset, ogg_int32_t shift) {
-  return _mm256_srai_epi32(_mm256_add_epi32(mul_epi32(val, scale), _mm256_set1_epi32(offset)), shift);
-}
-
 static __inline void transpose8(__m256i *t0, __m256i *t1, __m256i *t2, __m256i *t3,
                                 __m256i *t4, __m256i *t5, __m256i *t6, __m256i *t7) {
   __m256 a, b, c, d, e, f, g, h, x, y;
@@ -112,6 +108,10 @@ static __inline void store8(od_coeff *x, int xstride,
   _mm256_storeu_si256((__m256i *)(x + 7*xstride), t7);
 }
 
+#define M(a,scale,offset,shift) _mm256_srai_epi32(_mm256_add_epi32(mul_epi32(a, scale), _mm256_set1_epi32(offset)), shift)
+#define S(r,a,scale,offset,shift) r = _mm256_sub_epi32(r,M(a,scale,offset,shift))
+#define A(r,a,scale,offset,shift) r = _mm256_add_epi32(r,M(a,scale,offset,shift))
+
 static __inline void fdct8_kernel(__m256i *x0, __m256i *x1, __m256i *x2, __m256i *x3,
 				  __m256i *x4, __m256i *x5, __m256i *x6, __m256i *x7) {
   /*31 adds, 5 shifts, 15 "muls".*/
@@ -158,35 +158,35 @@ static __inline void fdct8_kernel(__m256i *x0, __m256i *x1, __m256i *x2, __m256i
   /*|-+ Embedded 2-point type-II DCT.*/
   /*13573/32768 ~= \sqrt{2} - 1 ~= 0.41421356237309504880168872420970*/
   overflow_check(t4, 13573, 16384, 3);
-  t0 = _mm256_sub_epi32(t0, M(t4, 13573, 16384, 15));
+  S(t0, t4, 13573, 16384, 15);
   /*11585/16384 ~= \sqrt{\frac{1}{2}} ~= 0.70710678118654752440084436210485*/
   overflow_check(t0, 11585, 8192, 4);
-  t4 = _mm256_add_epi32(t4, M(t0, 11585, 8192, 14));
+  A(t4, t0, 11585, 8192, 14);
   /*13573/32768 ~= \sqrt{2} - 1 ~= 0.41421356237309504880168872420970*/
   overflow_check(t4, 13573, 16384, 5);
-  t0 = _mm256_sub_epi32(t0, M(t4, 13573, 16384, 15));
+  S(t0, t4, 13573, 16384, 15);
   /*|-+ Embedded 2-point type-IV DST.*/
   /*21895/32768 ~= \frac{1 - cos(\frac{3\pi}{8})}{\sin(\frac{3\pi}{8})} ~=
      0.66817863791929891999775768652308*/
   overflow_check(t2, 21895, 16384, 6);
-  t6 = _mm256_sub_epi32(t6, M(t2, 21895, 16384, 15));
+  S(t6, t2, 21895, 16384, 15);
   /*15137/16384~=sin(\frac{3\pi}{8})~=0.92387953251128675612818318939679*/
   overflow_check(t6, 15137, 8192, 7);
-  t2 = _mm256_add_epi32(t2, M(t6, 15137, 8192, 14));
+  A(t2, t6, 15137, 8192, 14);
   /*21895/32768 ~= \frac{1 - cos(\frac{3\pi}{8})}{\sin(\frac{3\pi}{8})}~=
      0.66817863791929891999775768652308*/
   overflow_check(t2, 21895, 16384, 8);
-  t6 = _mm256_sub_epi32(t6, M(t2, 21895, 16384, 15));
+  S(t6, t2, 21895, 16384, 15);
   /*+ Embedded 4-point type-IV DST.*/
   /*19195/32768 ~= 2 - \sqrt{2} ~= 0.58578643762690495119831127579030*/
   overflow_check(t5, 19195, 16384, 9);
-  t3 = _mm256_add_epi32(t3, M(t5, 19195, 16384, 15));
+  A(t3, t5, 19195, 16384, 15);
   /*11585/16384 ~= \sqrt{\frac{1}{2}} ~= 0.70710678118654752440084436210485*/
   overflow_check(t3, 11585, 8192, 10);
-  t5 = _mm256_add_epi32(t5, M(t3, 11585, 8192, 14));
+  A(t5, t3, 11585, 8192, 14);
   /*7489/8192 ~= \sqrt{2}-\frac{1}{2} ~= 0.91421356237309504880168872420970*/
   overflow_check(t5, 7489, 4096, 11);
-  t3 = _mm256_sub_epi32(t3, M(t5, 7489, 4096, 13));
+  S(t3, t5, 7489, 4096, 13);
   t7 = _mm256_sub_epi32(unbiased_rshift32(t5, 1), t7);
   t5 = _mm256_sub_epi32(t5, t7);
   t3 = _mm256_sub_epi32(t1h, t3);
@@ -194,25 +194,25 @@ static __inline void fdct8_kernel(__m256i *x0, __m256i *x1, __m256i *x2, __m256i
   /*3227/32768 ~= \frac{1 - cos(\frac{\pi}{16})}{sin(\frac{\pi}{16})} ~=
      0.098491403357164253077197521291327*/
   overflow_check(t1, 3227, 16384, 12);
-  t7 = _mm256_add_epi32(t7, M(t1, 3227, 16384, 15));
+  A(t7, t1, 3227, 16384, 15);
   /*6393/32768 ~= sin(\frac{\pi}{16}) ~= 0.19509032201612826784828486847702*/
   overflow_check(t7, 6393, 16384, 13);
-  t1 = _mm256_sub_epi32(t1, M(t7, 6393, 16384, 15));
+  S(t1, t7, 6393, 16384, 15);
   /*3227/32768 ~= \frac{1 - cos(\frac{\pi}{16})}{sin(\frac{\pi}{16})} ~=
      0.098491403357164253077197521291327*/
   overflow_check(t1, 3227, 16384, 14);
-  t7 = _mm256_add_epi32(t7, M(t1, 3227, 16384, 15));
+  A(t7, t1, 3227, 16384, 15);
   /*2485/8192 ~= \frac{1 - cos(\frac{3\pi}{16})}{sin(\frac{3\pi}{16})} ~=
      0.30334668360734239167588394694130*/
   overflow_check(t3, 2485, 4096, 15);
-  t5 = _mm256_add_epi32(t5, M(t3, 2485, 4096, 13));
+  A(t5, t3, 2485, 4096, 13);
   /*18205/32768 ~= sin(\frac{3\pi}{16}) ~= 0.55557023301960222474283081394853*/
   overflow_check(t5, 18205, 16384, 16);
-  t3 = _mm256_sub_epi32(t3, M(t5, 18205, 16384, 15));
+  S(t3, t5, 18205, 16384, 15);
   /*2485/8192 ~= \frac{1 - cos(\frac{3\pi}{16})}{sin(\frac{3\pi}{16})} ~=
      0.30334668360734239167588394694130*/
   overflow_check(t3, 2485, 4096, 17);
-  t5 = _mm256_add_epi32(t5, M(t3, 2485, 4096, 13));
+  A(t5, t3, 2485, 4096, 13);
   transpose8(&t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
   *x0 = t0;
   *x1 = t1;
@@ -231,9 +231,6 @@ void od_bin_fdct8x8_avx2(od_coeff y[8], int ystride, const od_coeff *x, int xstr
   fdct8_kernel(&t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
   store8(y, ystride, t0, t1, t2, t3, t4, t5, t6, t7);
 }
-
-#define S(r,a,scale,offset,shift) r = _mm256_sub_epi32(r,M(a,scale,offset,shift))
-#define A(r,a,scale,offset,shift) r = _mm256_add_epi32(r,M(a,scale,offset,shift))
 
 static __inline void idct8_kernel(__m256i *y0, __m256i *y1, __m256i *y2, __m256i *y3,
                                   __m256i *y4, __m256i *y5, __m256i *y6, __m256i *y7) {
