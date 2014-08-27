@@ -76,17 +76,17 @@ static __inline void transpose4(__m128i *t0, __m128i *t1, __m128i *t2, __m128i *
 }
 
 static __inline void load4(const od_coeff *x, int xstride, __m128i *t0, __m128i *t1, __m128i *t2, __m128i *t3) {
-  *t0 = _mm_load_si128((const __m128i *)(x + 0*xstride));
-  *t1 = _mm_load_si128((const __m128i *)(x + 1*xstride));
-  *t2 = _mm_load_si128((const __m128i *)(x + 2*xstride));
-  *t3 = _mm_load_si128((const __m128i *)(x + 3*xstride));
+  *t0 = _mm_load_si128((const __m128i *)x);
+  *t1 = _mm_load_si128((const __m128i *)(x += xstride));
+  *t2 = _mm_load_si128((const __m128i *)(x += xstride));
+  *t3 = _mm_load_si128((const __m128i *)(x += xstride));
 }
 
 static __inline void store4(od_coeff *x, int xstride, __m128i t0, __m128i t1, __m128i t2, __m128i t3) {
-  _mm_store_si128((__m128i *)(x + 0*xstride), t0);
-  _mm_store_si128((__m128i *)(x + 1*xstride), t1);
-  _mm_store_si128((__m128i *)(x + 2*xstride), t2);
-  _mm_store_si128((__m128i *)(x + 3*xstride), t3);
+  _mm_store_si128((__m128i *)x, t0);
+  _mm_store_si128((__m128i *)(x += xstride), t1);
+  _mm_store_si128((__m128i *)(x += xstride), t2);
+  _mm_store_si128((__m128i *)(x += xstride), t3);
 }
 
 static __inline void fdct4_kernel(__m128i *x0, __m128i *x1, __m128i *x2, __m128i *x3) {
