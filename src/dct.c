@@ -99,7 +99,10 @@ const unsigned char *OD_DCT_ZIGS[OD_NBSIZES + 1] = {
    another otherwise compatible function pointer.
   This can help avoid difficult to diagnose misbehavior.*/
 
-const od_dct_func_2d OD_FDCT_2D[OD_NBSIZES + 1] = {
+/*Function tables suffixed with _C are for generic implementations.
+  Code should use the tables in od_state.opt_vtbl to get optimized
+   implementations when they are available.*/
+const od_dct_func_2d OD_FDCT_2D_C[OD_NBSIZES + 1] = {
   od_bin_fdct4x4,
   od_bin_fdct8x8,
   od_bin_fdct16x16
@@ -846,6 +849,11 @@ void od_bin_idct16x16(od_coeff *x, int xstride,
 # include <math.h>
 # include <string.h>
 
+#if defined(OD_X86ASM)
+# include "x86/cpu.h"
+# include "x86/x86int.h"
+#endif
+
 /*The auto-correlation coefficent. 0.95 is a common value.*/
 # define INPUT_AUTOCORR (0.95)
 # define INPUT_AUTOCORR_2 (INPUT_AUTOCORR*INPUT_AUTOCORR)
@@ -1262,6 +1270,8 @@ static void ieee1180_print_results(long sumerrs[OD_BSIZE_MAX][OD_BSIZE_MAX],
    ieee1180_meets(total, 0.0015));
 }
 
+static const od_dct_func_2d *test_fdct_2d;
+
 static void ieee1180_test_block(long sumerrs[OD_BSIZE_MAX][OD_BSIZE_MAX],
  long sumsqerrs[OD_BSIZE_MAX][OD_BSIZE_MAX],
  int maxerr[OD_BSIZE_MAX][OD_BSIZE_MAX], int l, int h, int sign, int bszi) {
@@ -1281,7 +1291,7 @@ static void ieee1180_test_block(long sumerrs[OD_BSIZE_MAX][OD_BSIZE_MAX],
     }
   }
   /*Modification of IEEE1180: use our integerized DCT, not a true DCT.*/
-  (*OD_FDCT_2D[bszi])(refcoefs[0], OD_BSIZE_MAX, block[0], OD_BSIZE_MAX);
+  (*test_fdct_2d[bszi])(refcoefs[0], OD_BSIZE_MAX, block[0], OD_BSIZE_MAX);
   /*Modification of IEEE1180: no rounding or range clipping (coefficients
      are always in range with our integerized DCT).*/
   for (i = 0; i < n; i++) {
@@ -1747,9 +1757,38 @@ static void check_transform(int bszi) {
   check_bias(bszi);
 }
 
-int main(void) {
+void run_test(void) {
   int bszi;
   for (bszi = 0; bszi < OD_NBSIZES; bszi++) check_transform(bszi);
+}
+
+int main(void) {
+  test_fdct_2d = OD_FDCT_2D_C;
+  run_test();
+#if defined(OD_X86ASM)
+# if defined(OD_SSE2_INTRINSICS)
+  if (od_cpu_flags_get() & OD_CPU_X86_SSE2) {
+    static const od_dct_func_2d OD_FDCT_2D_SSE2[OD_NBSIZES + 1] = {
+      od_bin_fdct4x4_sse2,
+      od_bin_fdct8x8,
+      od_bin_fdct16x16
+    };
+    test_fdct_2d = OD_FDCT_2D_SSE2;
+    run_test();
+  }
+# endif
+# if defined(OD_SSE41_INTRINSICS)
+  if (od_cpu_flags_get() & OD_CPU_X86_SSE4_1) {
+    static const od_dct_func_2d OD_FDCT_2D_SSE41[OD_NBSIZES + 1] = {
+      od_bin_fdct4x4_sse41,
+      od_bin_fdct8x8,
+      od_bin_fdct16x16
+    };
+    test_fdct_2d = OD_FDCT_2D_SSE41;
+    run_test();
+  }
+# endif
+#endif
   return od_exit_code;
 }
 

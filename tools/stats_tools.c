@@ -368,7 +368,7 @@ int vp8_select_mode(const unsigned char *_data,int _stride,double *_weight){
     }
 
 #if B_SZ_LOG>=OD_LOG_BSIZE0&&B_SZ_LOG<OD_LOG_BSIZE0+OD_NBSIZES
-    (*OD_FDCT_2D[B_SZ_LOG-OD_LOG_BSIZE0])(buf,B_SZ,buf,B_SZ);
+    (*OD_FDCT_2D_C[B_SZ_LOG-OD_LOG_BSIZE0])(buf,B_SZ,buf,B_SZ);
 #else
 # error "Need an fDCT implementation for this block size."
 #endif

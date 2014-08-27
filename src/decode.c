@@ -337,7 +337,7 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   mc = ctx->mc;
   /*Apply forward transform to MC predictor.*/
   if (!ctx->is_keyframe) {
-    (*OD_FDCT_2D[ln])(md + (by << 2)*w + (bx << 2), w,
+    (*dec->state.opt_vtbl.fdct_2d[ln])(md + (by << 2)*w + (bx << 2), w,
      mc + (by << 2)*w + (bx << 2), w);
   }
   od_decode_compute_pred(dec, ctx, pred, ln, pli, bx, by, has_ur);

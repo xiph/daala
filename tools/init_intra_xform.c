@@ -200,7 +200,7 @@ static od_coeff *xform_blocks(od_coeff _buf[3*B_SZ*3*B_SZ],
   for(by=0;by<2;by++){
     for(bx=0;bx<2;bx++){
 # if B_SZ_LOG>=OD_LOG_BSIZE0&&B_SZ_LOG<OD_LOG_BSIZE0+OD_NBSIZES
-      (*OD_FDCT_2D[B_SZ_LOG-OD_LOG_BSIZE0])(buf2+B_SZ*(3*B_SZ*by+bx),3*B_SZ,
+      (*OD_FDCT_2D_C[B_SZ_LOG-OD_LOG_BSIZE0])(buf2+B_SZ*(3*B_SZ*by+bx),3*B_SZ,
        buf2+B_SZ*(3*B_SZ*by+bx),3*B_SZ);
 # else
 #  error "Need an fDCT implementation for this block size."

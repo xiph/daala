@@ -188,8 +188,8 @@ static void od_fdct_blocks(od_coeff *_out,int _out_stride,od_coeff *_in,
       int x;
       x=bx<<_b_sz_log;
       OD_ASSERT(_b_sz_log>=OD_LOG_BSIZE0&&_b_sz_log<=B_SZ_LOG_MAX);
-      (*OD_FDCT_2D[_b_sz_log-OD_LOG_BSIZE0])(&_out[_out_stride*y+x],_out_stride,
-       &_in[_in_stride*y+x],_in_stride);
+      (*OD_FDCT_2D_C[_b_sz_log-OD_LOG_BSIZE0])(&_out[_out_stride*y+x],
+       _out_stride,&_in[_in_stride*y+x],_in_stride);
     }
   }
 }
