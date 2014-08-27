@@ -34,20 +34,22 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 /*On x86-64, gcc seems to be able to figure out how to save %rbx for us when
  *    compiling with -fPIC.*/
 #  define cpuid(_op,_eax,_ebx,_ecx,_edx) \
+    eax = _op; ecx = 0; \
     __asm__ __volatile__( \
            "cpuid\n\t" \
-           :[eax]"=a"(_eax),[ebx]"=b"(_ebx),[ecx]"=c"(_ecx),[edx]"=d"(_edx) \
-           :"a"(_op) \
+           :[eax]"+a"(_eax),[ebx]"=b"(_ebx),[ecx]"+c"(_ecx),[edx]"=d"(_edx) \
+           :\
           )
 # else
 /*On x86-32, not so much.*/
 #  define cpuid(_op,_eax,_ebx,_ecx,_edx) \
+    eax = _op; ecx = 0; \
     __asm__ __volatile__( \
            "xchgl %%ebx,%[ebx]\n\t" \
            "cpuid\n\t" \
            "xchgl %%ebx,%[ebx]\n\t" \
-           :[eax]"=a"(_eax),[ebx]"=r"(_ebx),[ecx]"=c"(_ecx),[edx]"=d"(_edx) \
-           :"a"(_op) \
+           :[eax]"+a"(_eax),[ebx]"=r"(_ebx),[ecx]"+c"(_ecx),[edx]"=d"(_edx) \
+           :\
           )
 # endif
 
@@ -92,7 +94,8 @@ ogg_uint32_t od_cpu_flags_get(void){
     if(ecx&0x00000001)flags|=OD_CPU_X86_PNI;
     if(ecx&0x00080000)flags|=OD_CPU_X86_SSE4_1;
     cpuid(7,eax,ebx,ecx,edx);
-    if(ebx&0x00000020)flags|=OD_CPU_X86_AVX2;
+    printf("%x\n", ebx);
+    if(ebx&0x00000010)flags|=OD_CPU_X86_AVX2;
   }
   /*Also          R E T T          E B S I            D M A
      is found in some engineering samples c. 1994.

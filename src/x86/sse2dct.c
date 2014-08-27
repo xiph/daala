@@ -26,8 +26,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # include "config.h"
 #endif
 
-#if defined(OD_X86ASM)
-
 #include <xmmintrin.h>
 
 #include "../dct.h"
@@ -93,6 +91,7 @@ static __inline void store4(od_coeff *x, int xstride, __m128i t0, __m128i t1, __
 
 static __inline void fdct4_kernel(__m128i *x0, __m128i *x1, __m128i *x2, __m128i *x3) {
   /*9 adds, 2 shifts, 3 "muls".*/
+  /*Initial permutation:*/
   __m128i t0 = *x0;
   __m128i t2 = *x1;
   __m128i t1 = *x2;
@@ -127,7 +126,7 @@ static __inline void fdct4_kernel(__m128i *x0, __m128i *x1, __m128i *x2, __m128i
   *x3 = t3;
 }
 
-static void od_bin_fdct4x4_sse2(od_coeff y[4], int ystride, const od_coeff *x, int xstride) {
+void od_bin_fdct4x4_sse2(od_coeff y[4], int ystride, const od_coeff *x, int xstride) {
   __m128i t0, t1, t2, t3;
   load4(x, xstride, &t0, &t1, &t2, &t3);
   fdct4_kernel(&t0, &t1, &t2, &t3);
@@ -155,7 +154,7 @@ static __inline void idct4_kernel(__m128i *y0, __m128i *y1, __m128i *y2, __m128i
   *y3 = _mm_sub_epi32(t0, t3);
 }
 
-static void od_bin_idct4x4_sse2(od_coeff *x, int xstride, const od_coeff *y, int ystride) {
+void od_bin_idct4x4_sse2(od_coeff *x, int xstride, const od_coeff *y, int ystride) {
   __m128i t0, t1, t2, t3;
   load4(y, ystride, &t0, &t1, &t2, &t3);
   idct4_kernel(&t0, &t1, &t2, &t3);
@@ -174,5 +173,3 @@ const od_dct_func_2d OD_IDCT_2D_SSE2[OD_NBSIZES + 1] = {
   od_bin_idct8x8,
   od_bin_idct16x16
 };
-
-#endif
