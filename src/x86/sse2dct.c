@@ -60,10 +60,6 @@ static __inline void overflow_check(__m128i val, ogg_int32_t scale, ogg_int32_t 
   (void)idx;
 }
 
-static __inline __m128i M(__m128i val, ogg_int32_t scale, ogg_int32_t offset, ogg_int32_t shift) {
-  return _mm_srai_epi32(_mm_add_epi32(mul_epi32(val, scale), _mm_set1_epi32(offset)), shift);
-}
-
 static __inline void transpose4(__m128i *t0, __m128i *t1, __m128i *t2, __m128i *t3) {
   __m128i a = _mm_unpacklo_epi32(*t0, *t1);
   __m128i b = _mm_unpacklo_epi32(*t2, *t3);
@@ -89,6 +85,10 @@ static __inline void store4(od_coeff *x, int xstride, __m128i t0, __m128i t1, __
   _mm_store_si128((__m128i *)(x += xstride), t3);
 }
 
+#define M(a,scale,offset,shift) _mm_srai_epi32(_mm_add_epi32(mul_epi32(a, scale), _mm_set1_epi32(offset)), shift)
+#define S(r,a,scale,offset,shift) r = _mm_sub_epi32(r,M(a,scale,offset,shift))
+#define A(r,a,scale,offset,shift) r = _mm_add_epi32(r,M(a,scale,offset,shift))
+
 static __inline void fdct4_kernel(__m128i *x0, __m128i *x1, __m128i *x2, __m128i *x3) {
   /*9 adds, 2 shifts, 3 "muls".*/
   /*Initial permutation:*/
@@ -110,15 +110,15 @@ static __inline void fdct4_kernel(__m128i *x0, __m128i *x1, __m128i *x2, __m128i
   /*23013/32768 ~= 4*sin(\frac{\pi}{8}) - 2*tan(\frac{\pi}{8}) ~=
      0.70230660471416898931046248770220*/
   overflow_check(t1, 23013, 16384, 0);
-  t3 = _mm_sub_epi32(t3, M(t1, 23013, 16384, 15));
+  S(t3, t1, 23013, 16384, 15);
   /*21407/32768~=\sqrt{1/2}*cos(\frac{\pi}{8}))
      ~=0.65328148243818826392832158671359*/
   overflow_check(t3, 21407, 16384, 1);
-  t1 = _mm_add_epi32(t1, M(t3, 21407, 16384, 15));
+  A(t1, t3, 21407, 16384, 15);
   /*18293/16384 ~= 4*sin(\frac{\pi}{8}) - tan(\frac{\pi}{8}) ~=
      1.1165201670872640381121512119119*/
   overflow_check(t1, 18293, 8192, 2);
-  t3 = _mm_sub_epi32(t3, M(t1, 18293, 8192, 14));
+  S(t3, t1, 18293, 8192, 14);
   transpose4(&t0, &t1, &t2, &t3);
   *x0 = t0;
   *x1 = t1;
@@ -141,9 +141,9 @@ static __inline void idct4_kernel(__m128i *y0, __m128i *y1, __m128i *y2, __m128i
   __m128i t3 = *y3;
   __m128i t2h;
   transpose4(&t0, &t1, &t2, &t3);
-  t3 = _mm_add_epi32(t3, M(t1, 18293, 8192, 14));
-  t1 = _mm_sub_epi32(t1, M(t3, 21407, 16384, 15));
-  t3 = _mm_add_epi32(t3, M(t1, 23013, 16384, 15));
+  A(t3, t1, 18293, 8192, 14);
+  S(t1, t3, 21407, 16384, 15);
+  A(t3, t1, 23013, 16384, 15);
   t2 = _mm_sub_epi32(t0, t2);
   t2h = unbiased_rshift32(t2, 1);
   t0 = _mm_sub_epi32(t0, _mm_sub_epi32(t2h, unbiased_rshift32(t3, 1)));
