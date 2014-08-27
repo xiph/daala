@@ -153,7 +153,7 @@ static __inline void idct4_kernel(__m128i *y0, __m128i *y1, __m128i *y2, __m128i
   *y3 = _mm_sub_epi32(t0, t3);
 }
 
-void od_bin_idct4x4_sse2(od_coeff *x, int xstride, const od_coeff *y, int ystride) {
+static void od_bin_idct4x4_sse2(od_coeff *x, int xstride, const od_coeff *y, int ystride) {
   __m128i t0, t1, t2, t3;
   load4(y, ystride, &t0, &t1, &t2, &t3);
   idct4_kernel(&t0, &t1, &t2, &t3);
