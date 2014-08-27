@@ -36,5 +36,6 @@ OD_SIMD_INLINE __m128i od_mullo_epi32_sse41(__m128i a, int b) {
 #define OD_MULLO_EPI32 od_mullo_epi32_sse41
 
 #define od_bin_fdct4x4_sse2 od_bin_fdct4x4_sse41
+#define od_bin_idct4x4_sse2 od_bin_idct4x4_sse41
 
 #include "sse2dct.c"

@@ -100,6 +100,7 @@ struct od_state_opt_vtbl{
    int _log_xblk_sz, int _log_yblk_sz);
   void (*restore_fpu)(void);
   od_dct_func_2d fdct_2d[OD_NBSIZES + 1];
+  od_dct_func_2d idct_2d[OD_NBSIZES + 1];
 };
 
 # if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)

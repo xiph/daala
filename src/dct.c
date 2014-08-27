@@ -108,7 +108,7 @@ const od_dct_func_2d OD_FDCT_2D_C[OD_NBSIZES + 1] = {
   od_bin_fdct16x16
 };
 
-const od_dct_func_2d OD_IDCT_2D[OD_NBSIZES + 1] = {
+const od_dct_func_2d OD_IDCT_2D_C[OD_NBSIZES + 1] = {
   od_bin_idct4x4,
   od_bin_idct8x8,
   od_bin_idct16x16
@@ -1271,6 +1271,7 @@ static void ieee1180_print_results(long sumerrs[OD_BSIZE_MAX][OD_BSIZE_MAX],
 }
 
 static const od_dct_func_2d *test_fdct_2d;
+static const od_dct_func_2d *test_idct_2d;
 
 static void ieee1180_test_block(long sumerrs[OD_BSIZE_MAX][OD_BSIZE_MAX],
  long sumsqerrs[OD_BSIZE_MAX][OD_BSIZE_MAX],
@@ -1312,7 +1313,7 @@ static void ieee1180_test_block(long sumerrs[OD_BSIZE_MAX][OD_BSIZE_MAX],
       refout[i][j] = OD_CLAMPI(-256, refout[i][j], 255);
     }
   }
-  (*OD_IDCT_2D[bszi])(testout[0], OD_BSIZE_MAX, refcoefs[0], OD_BSIZE_MAX);
+  (*test_idct_2d[bszi])(testout[0], OD_BSIZE_MAX, refcoefs[0], OD_BSIZE_MAX);
   for (i = 0; i < n; i++) {
     for (j = 0; j < n; j++) {
       if (testout[i][j] != block[i][j]) {
@@ -1764,6 +1765,7 @@ void run_test(void) {
 
 int main(void) {
   test_fdct_2d = OD_FDCT_2D_C;
+  test_idct_2d = OD_IDCT_2D_C;
   run_test();
 #if defined(OD_X86ASM)
 # if defined(OD_SSE2_INTRINSICS)
@@ -1773,7 +1775,13 @@ int main(void) {
       od_bin_fdct8x8,
       od_bin_fdct16x16
     };
+    static const od_dct_func_2d OD_IDCT_2D_SSE2[OD_NBSIZES + 1] = {
+      od_bin_idct4x4_sse2,
+      od_bin_idct8x8,
+      od_bin_idct16x16
+    };
     test_fdct_2d = OD_FDCT_2D_SSE2;
+    test_idct_2d = OD_IDCT_2D_SSE2;
     run_test();
   }
 # endif
@@ -1784,7 +1792,13 @@ int main(void) {
       od_bin_fdct8x8,
       od_bin_fdct16x16
     };
+    static const od_dct_func_2d OD_IDCT_2D_SSE41[OD_NBSIZES + 1] = {
+      od_bin_idct4x4_sse41,
+      od_bin_idct8x8,
+      od_bin_idct16x16
+    };
     test_fdct_2d = OD_FDCT_2D_SSE41;
+    test_idct_2d = OD_IDCT_2D_SSE41;
     run_test();
   }
 # endif

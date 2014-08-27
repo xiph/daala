@@ -45,5 +45,9 @@ void od_bin_fdct4x4_sse2(od_coeff *y, int ystride,
  const od_coeff *x, int xstride);
 void od_bin_fdct4x4_sse41(od_coeff *y, int ystride,
  const od_coeff *x, int xstride);
+void od_bin_idct4x4_sse2(od_coeff *y, int ystride,
+ const od_coeff *x, int xstride);
+void od_bin_idct4x4_sse41(od_coeff *y, int ystride,
+ const od_coeff *x, int xstride);
 
 #endif

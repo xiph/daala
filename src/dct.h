@@ -80,7 +80,7 @@ typedef void (*od_idct_func_1d)(od_coeff *out, int out_stride,
  const od_coeff *in);
 
 extern const od_dct_func_2d OD_FDCT_2D_C[OD_NBSIZES + 1];
-extern const od_dct_func_2d OD_IDCT_2D[OD_NBSIZES + 1];
+extern const od_dct_func_2d OD_IDCT_2D_C[OD_NBSIZES + 1];
 
 extern const od_fdct_func_1d OD_FDCT_1D[OD_NBSIZES + 1];
 

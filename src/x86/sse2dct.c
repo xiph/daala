@@ -145,3 +145,36 @@ void od_bin_fdct4x4_sse2(od_coeff *y, int ystride,
   od_fdct4_kernel(&t0, &t1, &t2, &t3);
   od_store4(y, ystride, t0, t1, t2, t3);
 }
+
+OD_SIMD_INLINE void od_idct4_kernel(__m128i *y0, __m128i *y1,
+ __m128i *y2, __m128i *y3) {
+  __m128i t0 = *y0;
+  __m128i t1 = *y1;
+  __m128i t2 = *y2;
+  __m128i t3 = *y3;
+  __m128i t2h;
+  od_transpose4(&t0, &t1, &t2, &t3);
+  t3 = _mm_add_epi32(t3, od_dct_mul_epi32(t1, 18293, 8192, 14));
+  t1 = _mm_sub_epi32(t1, od_dct_mul_epi32(t3, 21407, 16384, 15));
+  t3 = _mm_add_epi32(t3, od_dct_mul_epi32(t1, 23013, 16384, 15));
+  t2 = _mm_sub_epi32(t0, t2);
+  t2h = od_unbiased_rshift_epi32(t2, 1);
+  t0 = _mm_sub_epi32(t0, _mm_sub_epi32(t2h, od_unbiased_rshift_epi32(t3, 1)));
+  t1 = _mm_sub_epi32(t2h, t1);
+  *y0 = t0;
+  *y1 = _mm_sub_epi32(t2, t1);
+  *y2 = t1;
+  *y3 = _mm_sub_epi32(t0, t3);
+}
+
+void od_bin_idct4x4_sse2(od_coeff *x, int xstride,
+ const od_coeff *y, int ystride) {
+  __m128i t0;
+  __m128i t1;
+  __m128i t2;
+  __m128i t3;
+  od_load4(y, ystride, &t0, &t1, &t2, &t3);
+  od_idct4_kernel(&t0, &t1, &t2, &t3);
+  od_idct4_kernel(&t0, &t1, &t2, &t3);
+  od_store4(x, xstride, t0, t1, t2, t3);
+}
