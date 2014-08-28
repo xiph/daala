@@ -387,7 +387,7 @@ static void quantize_initial_edge(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned 
 
 void od_intra_paint_compute_edges(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *paint, const unsigned char *img,
  int stride, const unsigned char *dec8, int bstride,
- unsigned char *mode, int mstride, int *edge_sum, int *edge_count, int q,
+ unsigned char *mode, int mstride, int *edge_sum, int *edge_count,
  int res, int bx, int by, int level) {
   int bs;
   bs = dec8[(by<<level>>1)*bstride + (bx<<level>>1)];
@@ -398,13 +398,13 @@ void od_intra_paint_compute_edges(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned 
     bx <<= 1;
     by <<= 1;
     od_intra_paint_compute_edges(adapt, enc, paint, img, stride, dec8, bstride,
-     mode, mstride, edge_sum, edge_count, q, res, bx, by, level);
+     mode, mstride, edge_sum, edge_count, res, bx, by, level);
     od_intra_paint_compute_edges(adapt, enc, paint, img, stride, dec8, bstride,
-     mode, mstride, edge_sum, edge_count, q, res, bx + 1, by, level);
+     mode, mstride, edge_sum, edge_count, res, bx + 1, by, level);
     od_intra_paint_compute_edges(adapt, enc, paint, img, stride, dec8, bstride,
-     mode, mstride, edge_sum, edge_count, q, res, bx, by + 1, level);
+     mode, mstride, edge_sum, edge_count, res, bx, by + 1, level);
     od_intra_paint_compute_edges(adapt, enc, paint, img, stride, dec8, bstride,
-     mode, mstride, edge_sum, edge_count, q, res, bx + 1, by + 1, level);
+     mode, mstride, edge_sum, edge_count, res, bx + 1, by + 1, level);
   }
   else {
     int ln;
@@ -417,8 +417,6 @@ void od_intra_paint_compute_edges(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned 
       idx = -stride - 1;
       if (edge_count[idx] > 0) paint[idx] = edge_sum[idx]/edge_count[idx];
       else paint[idx] = img[idx];
-      /* For now, we just encode the first pixel as is. */
-      od_ec_enc_bits(enc, paint[idx], 8);
     }
     /* Compute left edge (left column only). */
     if (bx == 0) {
@@ -427,7 +425,6 @@ void od_intra_paint_compute_edges(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned 
         if (edge_count[idx] > 0) paint[idx] = edge_sum[idx]/edge_count[idx];
         else paint[idx] = img[idx];
       }
-      quantize_initial_edge(adapt, enc, &paint[stride*n*by - 1], ln, stride, q);
     }
     /* Compute top edge (top row only). */
     if (by == 0) {
@@ -436,7 +433,6 @@ void od_intra_paint_compute_edges(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned 
         if (edge_count[idx] > 0) paint[idx] = edge_sum[idx]/edge_count[idx];
         else paint[idx] = img[idx];
       }
-      quantize_initial_edge(adapt, enc, &paint[-stride + n*bx], ln, 1, q);
     }
     /* Compute right edge stats. */
     for (k = 0; k < n - 1; k++) {
@@ -508,6 +504,18 @@ void od_intra_paint_quant_block(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned ch
     int dc_quant;
     ln = 2 + bs;
     n = 1 << ln;
+    if (bx == 0 && by == 0) {
+      /* For now, we just encode the first pixel as is. */
+      od_ec_enc_bits(enc, paint[-stride - 1], 8);
+    }
+    /* Compute left edge (left column only). */
+    if (bx == 0) {
+      quantize_initial_edge(adapt, enc, &paint[stride*n*by - 1], ln, stride, q);
+    }
+    /* Compute top edge (top row only). */
+    if (by == 0) {
+      quantize_initial_edge(adapt, enc, &paint[-stride + n*bx], ln, 1, q);
+    }
     od_intra_paint_mode_encode(enc, mode, bx, by, ln, mstride, dec8, bstride, res);
     /* Only use special DC quantization when the two adjacent blocks are
        also DC. In the future, we could also treat each edge separately. */
@@ -516,6 +524,37 @@ void od_intra_paint_quant_block(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned ch
      && mode[((by + 1)*mstride + bx) << ln >> 2] == 4*n;
     quantize_edge(adapt, enc, &paint[stride*n*by + n*bx], n, stride, q,
      mode[(by*mstride + bx) << ln >> 2], dc_quant);
+    interp_block(&paint[stride*n*by + n*bx], &paint[stride*n*by + n*bx],
+     n, stride, mode[(by*mstride + bx) << ln >> 2]);
+  }
+}
+
+static void od_paint_block(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *paint, const unsigned char *img,
+ int stride, const unsigned char *dec8, int bstride,
+ unsigned char *mode, int mstride, int *edge_sum, int *edge_count, int q,
+ int res, int bx, int by, int level) {
+  int bs;
+  bs = dec8[(by<<level>>1)*bstride + (bx<<level>>1)];
+
+  OD_ASSERT(bs <= level);
+  if (bs < level) {
+    level--;
+    bx <<= 1;
+    by <<= 1;
+    od_paint_block(adapt, enc, paint, img, stride, dec8, bstride,
+     mode, mstride, edge_sum, edge_count, q, res, bx, by, level);
+    od_paint_block(adapt, enc, paint, img, stride, dec8, bstride,
+     mode, mstride, edge_sum, edge_count, q, res, bx + 1, by, level);
+    od_paint_block(adapt, enc, paint, img, stride, dec8, bstride,
+     mode, mstride, edge_sum, edge_count, q, res, bx, by + 1, level);
+    od_paint_block(adapt, enc, paint, img, stride, dec8, bstride,
+     mode, mstride, edge_sum, edge_count, q, res, bx + 1, by + 1, level);
+  }
+  else {
+    int ln;
+    int n;
+    ln = 2 + bs;
+    n = 1 << ln;
     interp_block(&paint[stride*n*by + n*bx], &paint[stride*n*by + n*bx],
      n, stride, mode[(by*mstride + bx) << ln >> 2]);
   }
@@ -1084,7 +1123,7 @@ void od_intra_paint_encode2(od_adapt_ctx *adapt, od_ec_enc *enc,
   for (j = 0; j < nvsb; j++) {
     for (i = 0; i < nhsb; i++) {
       od_intra_paint_compute_edges(adapt, enc, paint, img, stride, dec8, w8,
-       mode4, w4, edge_sum, edge_count, q, res, i, j, 3);
+       mode4, w4, edge_sum, edge_count, res, i, j, 3);
     }
   }
 
@@ -1120,12 +1159,50 @@ void od_intra_paint_encode(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *p
   for(i = 0; i < h; i++) {
     for(j = 0; j < w; j++) {
       od_intra_paint_compute_edges(adapt, enc, paint, img, stride, dec8, bstride, mode,
-        mstride, edge_sum, edge_count, q, res, j, i, 3);
+        mstride, edge_sum, edge_count, res, j, i, 3);
     }
   }
   for(i = 0; i < h; i++) {
     for(j = 0; j < w; j++) {
       od_intra_paint_quant_block(adapt, enc, paint, img, stride, dec8, bstride, mode,
+       mstride, edge_sum, edge_count, q, res, j, i, 3);
+    }
+  }
+}
+
+void od_paint_dering(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *paint, const unsigned char *img,
+ int w, int h, int stride, const unsigned char *dec8, int bstride,
+ unsigned char *mode, int mstride, int *edge_sum, int *edge_count, int q,
+ int res) {
+  int i, j;
+  for(i = 0; i < 32*h; i++) paint[-stride + i] = paint[i];
+  for(i = 0; i < 32*w; i++) paint[stride*i - 1] = paint[stride*i];
+  paint[-stride - 1] = paint[0];
+  for(i = 0; i < h; i++) {
+    for(j = 0; j < w; j++) {
+      od_intra_paint_analysis(img, stride, dec8, bstride, mode,
+       mstride, edge_sum, edge_count, res, j, i, 3);
+    }
+  }
+#if 0
+  for(i = 0; i < h*8; i++) {
+    for(j = 0; j < w*8; j++) {
+      printf("%d ", mode[i*mstride+j]);
+      /*printf("%d ", mode[i*mstride+j]<<3>>dec8[(i>>1)*bstride + (j>>1)]);*/
+    }
+    printf("\n");
+  }
+#endif
+
+  for(i = 0; i < h; i++) {
+    for(j = 0; j < w; j++) {
+      od_intra_paint_compute_edges(adapt, enc, paint, img, stride, dec8, bstride, mode,
+        mstride, edge_sum, edge_count, res, j, i, 3);
+    }
+  }
+  for(i = 0; i < h; i++) {
+    for(j = 0; j < w; j++) {
+      od_paint_block(adapt, enc, paint, img, stride, dec8, bstride, mode,
        mstride, edge_sum, edge_count, q, res, j, i, 3);
     }
   }

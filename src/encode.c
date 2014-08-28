@@ -1438,7 +1438,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
                   enc->state.dec8[(4*i + k)*bstride + (4*j + m)]=dec[k>>1][m>>1];
             }
           }
-          od_intra_paint_encode(&enc->adapt, &enc->ec,
+          od_paint_dering(&enc->adapt, &enc->ec,
            enc->state.io_imgs[OD_FRAME_REC].planes[pli].data,
            enc->state.io_imgs[OD_FRAME_REC].planes[pli].data, w32, h32,
            enc->state.io_imgs[OD_FRAME_REC].planes[pli].ystride, enc->state.dec8,
