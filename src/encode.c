@@ -314,7 +314,7 @@ static void od_encode_compute_pred(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, od_co
   tf = ctx->tf[pli];
   md = ctx->md;
   l = ctx->l;
-#if OD_DISABLE_PAINT
+#if 1
   if (ctx->is_keyframe) {
 #else
   if (ctx->is_keyframe && (pli != 0)) {
@@ -573,7 +573,7 @@ void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
     OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
   if (OD_DISABLE_HAAR_DC || !ctx->is_keyframe) {
     int has_dc_skip;
-    has_dc_skip = (!ctx->is_keyframe || !OD_DISABLE_PAINT) && run_pvq;
+    has_dc_skip = !ctx->is_keyframe && run_pvq;
     if (!has_dc_skip || scalar_out[0]) {
       generic_encode(&enc->ec, &enc->adapt.model_dc[pli],
        abs(scalar_out[0]) - has_dc_skip, -1, &enc->adapt.ex_dc[pli][ln][0], 2);
@@ -1012,7 +1012,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     od_state_dump_img(&enc->state, &enc->state.vis_img, "vis");
 #endif
   }
-#if (!OD_DISABLE_PAINT)
+#if 0
   else {
     int i;
     int w,h;
@@ -1402,6 +1402,54 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
           }
         }
       }
+      /* Apply deringing */
+      if (pli == 0) {
+          int i;
+          int w,h;
+          int h8,w8,h32,w32;
+          int bstride;
+          int mstride;
+          w = enc->state.frame_width;
+          h = enc->state.frame_height;
+          w32 = w>>5;
+          h32 = h>>5;
+          w8 = w32<<2;
+          h8 = h32<<2;
+          bstride = w8;
+          mstride = w8<<1;
+          /* clear intra paint buffers */
+          memset(enc->state.edge_sum,0,(w+32)*(h+32)*sizeof(*enc->state.edge_sum));
+          memset(enc->state.edge_count,0,(w+32)*(h+32)*sizeof(*enc->state.edge_count));
+          /* intra paint */
+          OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO, "Intra paint frame %i:",
+           (int)daala_granule_basetime(enc, enc->state.cur_time)));
+          /* Replace decision with the one from process_block_size32() */
+          for(i=0;i<h32;i++){
+            for(j=0;j<w32;j++){
+              int k,m;
+              int dec[2][2];
+      # if 0
+              od_intra_paint_choose_block_size(enc->state.io_imgs[OD_FRAME_INPUT].planes[0].data+32*enc->state.io_imgs[OD_FRAME_REC].planes[0].ystride*i+32*j, enc->state.io_imgs[OD_FRAME_REC].planes[0].ystride, dec);
+      # else
+              dec[0][0] = dec[0][1] = dec[1][0] = dec[1][1] = 2;
+      # endif
+              for(k=0;k<4;k++)
+                for(m=0;m<4;m++)
+                  enc->state.dec8[(4*i + k)*bstride + (4*j + m)]=dec[k>>1][m>>1];
+            }
+          }
+          od_intra_paint_encode(&enc->adapt, &enc->ec,
+           enc->state.io_imgs[OD_FRAME_REC].planes[pli].data,
+           enc->state.io_imgs[OD_FRAME_REC].planes[pli].data, w32, h32,
+           enc->state.io_imgs[OD_FRAME_REC].planes[pli].ystride, enc->state.dec8,
+           bstride, enc->state.mode, mstride, enc->state.edge_sum,
+           enc->state.edge_count, 1, 1);
+      # if defined(OD_DUMP_IMAGES)
+          /*Dump painted frame.*/
+          od_state_dump_img(&enc->state,enc->state.io_imgs + OD_FRAME_REC,"paint");
+          od_state_dump_img(&enc->state,enc->state.io_imgs + OD_FRAME_INPUT,"input");
+      # endif
+        }
     }
     for (pli = nplanes; pli-- > 0;) {
       _ogg_free(ltmp[pli]);
