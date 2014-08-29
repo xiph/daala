@@ -266,7 +266,8 @@ static void od_mv_est_init(od_mv_est_ctx *est, od_enc_ctx *enc) {
   }
   est->dec_heap = (od_mv_node **)_ogg_malloc(
    sizeof(*est->dec_heap)*(nvmvbs + 1)*(nhmvbs + 1));
-  est->hit_bit = 0;
+  /*Set to UCHAR_MAX so that od_mv_est_clear_hit_cache initializes hit_cache.*/
+  est->hit_bit = UCHAR_MAX;
   est->mv_res_min = 0;
   est->flags = OD_MC_USE_CHROMA;
 }
@@ -532,8 +533,10 @@ static const int OD_SEARCH_STATES[6][13] = {
 
 /*Clear the cache of motion vectors we've examined.*/
 static void od_mv_est_clear_hit_cache(od_mv_est_ctx *est) {
-  if (est->hit_bit++ == 0) memset(est->hit_cache, 0, sizeof(est->hit_cache));
-  else est->hit_bit &= UCHAR_MAX;
+  if (++est->hit_bit == UCHAR_MAX + 1) {
+    memset(est->hit_cache, 0, sizeof(est->hit_cache));
+    est->hit_bit = 1;
+  }
 }
 
 /*Test if a motion vector has been examined.*/
