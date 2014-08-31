@@ -1431,7 +1431,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       # if 0
               od_intra_paint_choose_block_size(enc->state.io_imgs[OD_FRAME_INPUT].planes[0].data+32*enc->state.io_imgs[OD_FRAME_REC].planes[0].ystride*i+32*j, enc->state.io_imgs[OD_FRAME_REC].planes[0].ystride, dec);
       # else
-              dec[0][0] = dec[0][1] = dec[1][0] = dec[1][1] = 2;
+              dec[0][0] = dec[0][1] = dec[1][0] = dec[1][1] = 1;
       # endif
               for(k=0;k<4;k++)
                 for(m=0;m<4;m++)
