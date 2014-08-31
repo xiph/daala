@@ -502,17 +502,10 @@ static void od_single_band_scalar_quant(daala_enc_ctx *enc, int ln,
     scalar_out[zzi] = OD_DIV_R0(cblock[zzi] - predt[zzi], q);
     vk += abs(scalar_out[zzi]);
   }
-#if defined(OD_METRICS)
-  pvq_frac_bits = od_ec_enc_tell_frac(&enc->ec);
-#endif
   generic_encode(&enc->ec, &enc->state.adapt.model_g[pli], vk, -1,
    &enc->state.adapt.ex_g[pli][ln], 0);
   laplace_encode_vector(&enc->ec, scalar_out + 1, n2 - 1, vk, adapt_curr,
    adapt);
-#if defined(OD_METRICS)
-  enc->state.bit_metrics[OD_METRIC_PVQ] += od_ec_enc_tell_frac(&enc->ec) -
-   pvq_frac_bits;
-#endif
   for (zzi = 1; zzi < n2; zzi++) {
     scalar_out[zzi] = scalar_out[zzi]*q + predt[zzi];
   }
