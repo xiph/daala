@@ -96,10 +96,12 @@ tools/yuv2yuv4mpeg
 tools/yuvjpeg
 test-driver
 doc/Doxyfile
+doc/Makefile
 doc/doxygen-build.stamp
 doc/4-8sub.pdf
 doc/blockidx.pdftex
 doc/blockidx.pdftex_t
+doc/design.pdf
 doc/mc.aux
 doc/mc.bbl
 doc/mc.blg
@@ -115,3 +117,5 @@ doc/man
 daala-*/
 *.tar.gz
 out/
+# Used by submit_awcy.py
+secret_key
