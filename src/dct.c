@@ -846,6 +846,11 @@ void od_bin_idct16x16(od_coeff *x, int xstride,
 # include <math.h>
 # include <string.h>
 
+#if defined(OD_X86ASM)
+# include "x86/cpu.h"
+# include "x86/x86int.h"
+#endif
+
 /*The auto-correlation coefficent. 0.95 is a common value.*/
 # define INPUT_AUTOCORR (0.95)
 # define INPUT_AUTOCORR_2 (INPUT_AUTOCORR*INPUT_AUTOCORR)
@@ -1262,6 +1267,9 @@ static void ieee1180_print_results(long sumerrs[OD_BSIZE_MAX][OD_BSIZE_MAX],
    ieee1180_meets(total, 0.0015));
 }
 
+static const od_dct_func_2d *test_fdct_2d;
+static const od_dct_func_2d *test_idct_2d;
+
 static void ieee1180_test_block(long sumerrs[OD_BSIZE_MAX][OD_BSIZE_MAX],
  long sumsqerrs[OD_BSIZE_MAX][OD_BSIZE_MAX],
  int maxerr[OD_BSIZE_MAX][OD_BSIZE_MAX], int l, int h, int sign, int bszi) {
@@ -1281,7 +1289,7 @@ static void ieee1180_test_block(long sumerrs[OD_BSIZE_MAX][OD_BSIZE_MAX],
     }
   }
   /*Modification of IEEE1180: use our integerized DCT, not a true DCT.*/
-  (*OD_FDCT_2D[bszi])(refcoefs[0], OD_BSIZE_MAX, block[0], OD_BSIZE_MAX);
+  (*test_fdct_2d[bszi])(refcoefs[0], OD_BSIZE_MAX, block[0], OD_BSIZE_MAX);
   /*Modification of IEEE1180: no rounding or range clipping (coefficients
      are always in range with our integerized DCT).*/
   for (i = 0; i < n; i++) {
@@ -1302,7 +1310,7 @@ static void ieee1180_test_block(long sumerrs[OD_BSIZE_MAX][OD_BSIZE_MAX],
       refout[i][j] = OD_CLAMPI(-256, refout[i][j], 255);
     }
   }
-  (*OD_IDCT_2D[bszi])(testout[0], OD_BSIZE_MAX, refcoefs[0], OD_BSIZE_MAX);
+  (*test_idct_2d[bszi])(testout[0], OD_BSIZE_MAX, refcoefs[0], OD_BSIZE_MAX);
   for (i = 0; i < n; i++) {
     for (j = 0; j < n; j++) {
       if (testout[i][j] != block[i][j]) {
@@ -1747,9 +1755,25 @@ static void check_transform(int bszi) {
   check_bias(bszi);
 }
 
-int main(void) {
+void run_test(void) {
   int bszi;
   for (bszi = 0; bszi < OD_NBSIZES; bszi++) check_transform(bszi);
+}
+
+int main(void) {
+  test_fdct_2d = OD_FDCT_2D;
+  test_idct_2d = OD_IDCT_2D;
+  run_test();
+  if (od_cpu_flags_get() & OD_CPU_X86_SSE2) {
+    test_fdct_2d = OD_FDCT_2D_SSE2;
+    test_idct_2d = OD_IDCT_2D_SSE2;
+    run_test();
+  }
+  if (od_cpu_flags_get() & OD_CPU_X86_SSE4_1) {
+    test_fdct_2d = OD_FDCT_2D_SSE4_1;
+    test_idct_2d = OD_IDCT_2D_SSE4_1;
+    run_test();
+  }
   return od_exit_code;
 }
 

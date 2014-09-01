@@ -90,6 +90,9 @@ ogg_uint32_t od_cpu_flags_get(void){
     if(edx&0x02000000)flags|=OD_CPU_X86_MMXEXT|OD_CPU_X86_SSE;
     if(edx&0x04000000)flags|=OD_CPU_X86_SSE2;
     if(ecx&0x00000001)flags|=OD_CPU_X86_PNI;
+    if(ecx&0x00080000)flags|=OD_CPU_X86_SSE4_1;
+    cpuid(7,eax,ebx,ecx,edx);
+    if(ebx&0x00000020)flags|=OD_CPU_X86_AVX2;
   }
   /*Also          R E T T          E B S I            D M A
      is found in some engineering samples c. 1994.

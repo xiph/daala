@@ -34,6 +34,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #define OD_CPU_X86_SSE2   (1<<5)
 /*Prescott New Instructions, also known as SSE3.*/
 #define OD_CPU_X86_PNI    (1<<6)
+#define OD_CPU_X86_SSE4_1 (1<<7)
+#define OD_CPU_X86_AVX2   (1<<8)
 
 ogg_uint32_t od_cpu_flags_get(void);
 
