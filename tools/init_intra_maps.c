@@ -31,8 +31,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <limits.h>
 #include <string.h>
 #include "intra_fit_tools.h"
-#include "../src/dct.c"
-#include "../src/internal.c"
+#include "../src/dct.h"
+#include "../src/internal.h"
 
 /*For validation purposes only.
   Copied from libvpx.*/

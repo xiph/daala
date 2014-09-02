@@ -4,7 +4,10 @@
 # test suite (which is enabled by default with automake 1.13+).
 export VERBOSE = yes
 
-lib_LTLIBRARIES = src/libdaalabase.la src/libdaaladec.la src/libdaalaenc.la
+DCT_LIBS = src/libdct.la src/libdctsse2.la src/libdctsse4_1.la src/libdctavx2.la
+DCT_DEBUG_LIBS = src/libdct_g.la src/libdctsse2_g.la src/libdctsse4_1_g.la src/libdctavx2_g.la
+
+lib_LTLIBRARIES = src/libdaalabase.la src/libdaaladec.la src/libdaalaenc.la $(DCT_LIBS) $(DCT_DEBUG_LIBS)
 
 AM_CPPFLAGS = -I$(srcdir)/include
 
@@ -41,8 +44,98 @@ noinst_HEADERS = \
 	src/x86/x86enc.h \
 	src/x86/x86int.h
 
+src_libdct_la_CFLAGS = $(OGG_CFLAGS)
+src_libdct_la_LIBADD = $(OGG_LIBS) $(LIBM)
+src_libdct_la_LDFLAGS = \
+ -version-info @OD_LT_CURRENT@:@OD_LT_REVISION@:@OD_LT_AGE@
+src_libdct_la_LDFLAGS +=
+src_libdct_la_SOURCES = \
+	src/dct.c
+if ENABLE_X86ASM
+src_libdct_la_SOURCES += \
+	src/x86/cpu.c
+endif
+
+src_libdctsse2_la_CFLAGS = $(OGG_CFLAGS) -msse2
+src_libdctsse2_la_LIBADD = $(OGG_LIBS) $(LIBM) src/libdct.la
+src_libdctsse2_la_LDFLAGS = -no-undefined \
+ -version-info @OD_LT_CURRENT@:@OD_LT_REVISION@:@OD_LT_AGE@
+src_libdctsse2_la_LDFLAGS +=
+src_libdctsse2_la_SOURCES =
+if ENABLE_X86ASM
+src_libdctsse2_la_SOURCES += \
+	src/x86/sse2dct.c
+endif
+
+src_libdctsse4_1_la_CFLAGS = $(OGG_CFLAGS) -msse4.1
+src_libdctsse4_1_la_LIBADD = $(OGG_LIBS) $(LIBM) src/libdct.la
+src_libdctsse4_1_la_LDFLAGS = -no-undefined \
+ -version-info @OD_LT_CURRENT@:@OD_LT_REVISION@:@OD_LT_AGE@
+src_libdctsse4_1_la_LDFLAGS +=
+src_libdctsse4_1_la_SOURCES =
+if ENABLE_X86ASM
+src_libdctsse4_1_la_SOURCES += \
+	src/x86/sse41dct.c
+endif
+
+src_libdctavx2_la_CFLAGS = $(OGG_CFLAGS) -mavx2
+src_libdctavx2_la_LIBADD = $(OGG_LIBS) $(LIBM) src/libdctsse4_1.la
+src_libdctavx2_la_LDFLAGS = -no-undefined \
+ -version-info @OD_LT_CURRENT@:@OD_LT_REVISION@:@OD_LT_AGE@
+src_libdctavx2_la_LDFLAGS +=
+src_libdctavx2_la_SOURCES =
+if ENABLE_X86ASM
+src_libdctavx2_la_SOURCES += \
+	src/x86/avx2dct.c
+endif
+
+src_libdct_g_la_CFLAGS = $(OGG_CFLAGS) -DOD_DCT_CHECK_OVERFLOW -DOD_DCT_TEST -DOD_ENABLE_ASSERTIONS
+src_libdct_g_la_LIBADD = $(OGG_LIBS) $(LIBM)
+src_libdct_g_la_LDFLAGS = \
+ -version-info @OD_LT_CURRENT@:@OD_LT_REVISION@:@OD_LT_AGE@
+src_libdct_g_la_LDFLAGS +=
+src_libdct_g_la_SOURCES = \
+	src/dct.c
+if ENABLE_X86ASM
+src_libdct_g_la_SOURCES += \
+	src/x86/cpu.c
+endif
+
+src_libdctsse2_g_la_CFLAGS = $(OGG_CFLAGS) -msse2 -DOD_DCT_CHECK_OVERFLOW -DOD_DCT_TEST -DOD_ENABLE_ASSERTIONS
+src_libdctsse2_g_la_LIBADD = $(OGG_LIBS) $(LIBM)
+src_libdctsse2_g_la_LDFLAGS = \
+ -version-info @OD_LT_CURRENT@:@OD_LT_REVISION@:@OD_LT_AGE@
+src_libdctsse2_g_la_LDFLAGS +=
+src_libdctsse2_g_la_SOURCES =
+if ENABLE_X86ASM
+src_libdctsse2_g_la_SOURCES += \
+	src/x86/sse2dct.c
+endif
+
+src_libdctsse4_1_g_la_CFLAGS = $(OGG_CFLAGS) -msse4.1 -DOD_DCT_CHECK_OVERFLOW -DOD_DCT_TEST -DOD_ENABLE_ASSERTIONS
+src_libdctsse4_1_g_la_LIBADD = $(OGG_LIBS) $(LIBM) src/libdct_g.la
+src_libdctsse4_1_g_la_LDFLAGS = \
+ -version-info @OD_LT_CURRENT@:@OD_LT_REVISION@:@OD_LT_AGE@
+src_libdctsse4_1_g_la_LDFLAGS +=
+src_libdctsse4_1_g_la_SOURCES =
+if ENABLE_X86ASM
+src_libdctsse4_1_g_la_SOURCES += \
+	src/x86/sse41dct.c
+endif
+
+src_libdctavx2_g_la_CFLAGS = $(OGG_CFLAGS) -mavx2 -DOD_DCT_CHECK_OVERFLOW -DOD_DCT_TEST -DOD_ENABLE_ASSERTIONS
+src_libdctavx2_g_la_LIBADD = $(OGG_LIBS) $(LIBM)
+src_libdctavx2_g_la_LDFLAGS = \
+ -version-info @OD_LT_CURRENT@:@OD_LT_REVISION@:@OD_LT_AGE@
+src_libdctavx2_g_la_LDFLAGS +=
+src_libdctavx2_g_la_SOURCES =
+if ENABLE_X86ASM
+src_libdctavx2_g_la_SOURCES += \
+	src/x86/avx2dct.c
+endif
+
 src_libdaalabase_la_CFLAGS = $(OGG_CFLAGS)
-src_libdaalabase_la_LIBADD = $(OGG_LIBS) $(LIBM)
+src_libdaalabase_la_LIBADD = $(OGG_LIBS) $(LIBM) $(DCT_LIBS)
 if DUMP_IMAGES
   src_libdaalabase_la_LIBADD += $(PNG_LIBS)
 endif
@@ -52,7 +145,6 @@ src_libdaalabase_la_LDFLAGS +=
 src_libdaalabase_la_SOURCES = \
 	src/adapt.c \
 	src/block_size.c \
-	src/dct.c \
 	src/entcode.c \
 	src/entdec.c \
 	src/filter.c \
@@ -78,7 +170,6 @@ src_libdaalabase_la_SOURCES = \
 	src/zigzag16.c
 if ENABLE_X86ASM
 src_libdaalabase_la_SOURCES += \
-	src/x86/cpu.c \
 	src/x86/sse2mc.c \
 	src/x86/x86state.c
 endif
@@ -222,10 +313,9 @@ tools_y4m2png_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS)
 tools_dump_psnrhvs_SOURCES = \
 	tools/vidinput.c \
 	tools/y4m_input.c \
-	src/dct.c \
 	tools/dump_psnrhvs.c
 tools_dump_psnrhvs_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS)
-tools_dump_psnrhvs_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
+tools_dump_psnrhvs_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM) $(DCT_LIBS)
 
 # dump_ssim
 tools_dump_ssim_SOURCES = \
@@ -258,7 +348,6 @@ tools_block_size_analysis_SOURCES = \
 	src/block_size_enc.c \
 	tools/vidinput.c \
 	tools/y4m_input.c \
-	src/dct.c \
 	src/internal.c \
 	src/generic_encoder.c \
 	src/generic_code.c \
@@ -270,7 +359,7 @@ tools_block_size_analysis_SOURCES = \
 	src/filter.c \
 	src/switch_table.c
 tools_block_size_analysis_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS)
-tools_block_size_analysis_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
+tools_block_size_analysis_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM) $(DCT_LIBS)
 
 # divu_const
 tools_divu_const_SOURCES = \
@@ -320,14 +409,13 @@ tools_intra_stats_SOURCES = \
 	src/entenc.c \
 	src/entcode.c \
 	src/filter.c \
-	src/dct.c \
 	src/intra.c \
 	src/switch_table.c \
 	src/tf.c \
 	src/internal.c \
 	src/intradata.c
 tools_intra_stats_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS) $(OPENMP_CFLAGS)
-tools_intra_stats_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
+tools_intra_stats_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM) $(DCT_LIBS)
 
 # intra_pred
 tools_intra_pred_SOURCES = \
@@ -354,14 +442,13 @@ tools_intra_pred_SOURCES = \
 	src/entenc.c \
 	src/entcode.c \
 	src/filter.c \
-	src/dct.c \
 	src/intra.c \
 	src/intradata.c \
 	src/internal.c \
 	src/switch_table.c \
 	src/tf.c
 tools_intra_pred_CFLAGS = $(OGG_CFLAGS) $(PNG_CFLAGS) $(OPENMP_CFLAGS)
-tools_intra_pred_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
+tools_intra_pred_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM) $(DCT_LIBS)
 
 # intra_trace
 tools_intra_trace_SOURCES = \
@@ -387,14 +474,13 @@ tools_intra_trace_SOURCES = \
 	src/entenc.c \
 	src/entcode.c \
 	src/filter.c \
-	src/dct.c \
 	src/intra.c \
 	src/switch_table.c \
 	src/tf.c \
 	src/internal.c \
 	src/intradata.c
 tools_intra_trace_CFLAGS = $(OGG_CFLAGS) $(PNG_CFLAGS) $(OPENMP_CFLAGS)
-tools_intra_trace_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
+tools_intra_trace_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM) $(DCT_LIBS)
 
 # trans
 tools_trans_SOURCES = \
@@ -416,10 +502,9 @@ tools_trans_SOURCES = \
 	tools/svd.c \
 	tools/cholesky.c \
 	src/filter.c \
-	src/dct.c \
 	src/intradata.c
 tools_trans_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS) $(OPENMP_CFLAGS)
-tools_trans_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
+tools_trans_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM) $(DCT_LIBS)
 
 # trans_gain
 tools_trans_gain_SOURCES = \
@@ -430,7 +515,6 @@ tools_trans_gain_SOURCES = \
 	tools/od_filter.c \
 	tools/trans_tools.c \
 	src/filter.c \
-	src/dct.c \
 	src/intradata.c
 tools_trans_gain_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS) $(OPENMP_CFLAGS)
 tools_trans_gain_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
@@ -455,10 +539,9 @@ tools_trans2d_SOURCES = \
 	tools/svd.c \
 	tools/cholesky.c \
 	src/filter.c \
-	src/dct.c \
 	src/intradata.c
 tools_trans2d_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS) $(OPENMP_CFLAGS)
-tools_trans2d_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
+tools_trans2d_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM) $(DCT_LIBS)
 
 # init_intra_xform
 tools_init_intra_xform_SOURCES = \
@@ -469,13 +552,12 @@ tools_init_intra_xform_SOURCES = \
 	tools/vidinput.c \
 	tools/y4m_input.c \
 	src/filter.c \
-	src/dct.c \
 	src/intra.c \
 	src/tf.c \
 	src/internal.c \
 	src/intradata.c
 tools_init_intra_xform_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS)
-tools_init_intra_xform_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
+tools_init_intra_xform_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM) $(DCT_LIBS)
 
 # gen_cdf
 tools_gen_cdf_SOURCES = \
@@ -545,10 +627,10 @@ TESTS = \
 	src/tests/test_filters \
 	src/tests/check_tests
 
-src_tests_dcttest_SOURCES = src/dct.c src/filter.c src/internal.c
+src_tests_dcttest_SOURCES = src/filter.c src/internal.c
 src_tests_dcttest_CFLAGS = $(OGG_CFLAGS) \
  -DOD_DCT_CHECK_OVERFLOW -DOD_DCT_TEST -DOD_ENABLE_ASSERTIONS
-src_tests_dcttest_LDADD = $(LIBM)
+src_tests_dcttest_LDADD = $(LIBM) $(DCT_DEBUG_LIBS)
 
 src_tests_ectest_SOURCES = src/tests/ectest.c
 src_tests_ectest_CFLAGS = $(OGG_CFLAGS)

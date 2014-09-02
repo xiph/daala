@@ -1,5 +1,5 @@
 /*Daala video codec
-Copyright (c) 2006-2010 Daala project contributors.  All rights reserved.
+Copyright (c) 2002-2013 Daala project contributors.  All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -11,7 +11,7 @@ modification, are permitted provided that the following conditions are met:
   this list of conditions and the following disclaimer in the documentation
   and/or other materials provided with the distribution.
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS “AS IS”
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
@@ -22,21 +22,14 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
-#if !defined(_x86_cpu_H)
-# define _x86_cpu_H (1)
-#include "../internal.h"
+#include <smmintrin.h>
 
-#define OD_CPU_X86_MMX    (1<<0)
-#define OD_CPU_X86_MMXEXT (1<<1)
-#define OD_CPU_X86_3DNOW  (1<<2)
-#define OD_CPU_X86_3DNOW2 (1<<3)
-#define OD_CPU_X86_SSE    (1<<4)
-#define OD_CPU_X86_SSE2   (1<<5)
-/*Prescott New Instructions, also known as SSE3.*/
-#define OD_CPU_X86_PNI    (1<<6)
-#define OD_CPU_X86_SSE4_1 (1<<7)
-#define OD_CPU_X86_AVX2   (1<<8)
+#define od_bin_fdct4x4_sse2 od_bin_fdct4x4_sse4_1
+#define od_bin_idct4x4_sse2 od_bin_idct4x4_sse4_1
+#define od_bin_fdct8x8_sse2 od_bin_fdct8x8_sse4_1
+#define od_bin_idct8x8_sse2 od_bin_idct8x8_sse4_1
 
-ogg_uint32_t od_cpu_flags_get(void);
+#define OD_FDCT_2D_SSE2 OD_FDCT_2D_SSE4_1
+#define OD_IDCT_2D_SSE2 OD_IDCT_2D_SSE4_1
 
-#endif
+#include "sse2dct.c"
