@@ -49,5 +49,17 @@ void od_bin_idct4x4_sse2(od_coeff *y, int ystride,
  const od_coeff *x, int xstride);
 void od_bin_idct4x4_sse41(od_coeff *y, int ystride,
  const od_coeff *x, int xstride);
+void od_bin_fdct8x8_sse2(od_coeff *y, int ystride,
+ const od_coeff *x, int xstride);
+void od_bin_fdct8x8_sse41(od_coeff *y, int ystride,
+ const od_coeff *x, int xstride);
+void od_bin_idct8x8_sse2(od_coeff *y, int ystride,
+ const od_coeff *x, int xstride);
+void od_bin_idct8x8_sse41(od_coeff *y, int ystride,
+ const od_coeff *x, int xstride);
+void od_bin_fdct8x8_avx2(od_coeff *y, int ystride,
+ const od_coeff *x, int xstride);
+void od_bin_idct8x8_avx2(od_coeff *x, int xstride,
+ const od_coeff *y, int ystride);
 
 #endif

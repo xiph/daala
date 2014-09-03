@@ -192,3 +192,120 @@ void od_bin_idct4x4_sse2(od_coeff *x, int xstride,
   od_dct_check(0, ref, x, xstride);
 #endif
 }
+
+typedef struct {
+  __m128i lo;
+  __m128i hi;
+} od_m256i;
+
+OD_SIMD_INLINE od_m256i od_mm256_srai_epi32(od_m256i a, int c) {
+  od_m256i r;
+  r.lo = _mm_srai_epi32(a.lo, c);
+  r.hi = _mm_srai_epi32(a.hi, c);
+  return r;
+}
+
+OD_SIMD_INLINE od_m256i od_mm256_srli_epi32(od_m256i a, int c) {
+  od_m256i r;
+  r.lo = _mm_srli_epi32(a.lo, c);
+  r.hi = _mm_srli_epi32(a.hi, c);
+  return r;
+}
+
+OD_SIMD_INLINE od_m256i od_mm256_add_epi32(od_m256i a, od_m256i b) {
+  od_m256i r;
+  r.lo = _mm_add_epi32(a.lo, b.lo);
+  r.hi = _mm_add_epi32(a.hi, b.hi);
+  return r;
+}
+
+OD_SIMD_INLINE od_m256i od_mm256_sub_epi32(od_m256i a, od_m256i b) {
+  od_m256i r;
+  r.lo = _mm_sub_epi32(a.lo, b.lo);
+  r.hi = _mm_sub_epi32(a.hi, b.hi);
+  return r;
+}
+
+OD_SIMD_INLINE od_m256i od_mm256_set1_epi32(int c) {
+  od_m256i r;
+  r.lo = _mm_set1_epi32(c);
+  r.hi = _mm_set1_epi32(c);
+  return r;
+}
+
+OD_SIMD_INLINE od_m256i od_mm256_unpacklo_epi32(od_m256i a, od_m256i b) {
+  od_m256i r;
+  r.lo = _mm_unpacklo_epi32(a.lo, b.lo);
+  r.hi = _mm_unpacklo_epi32(a.hi, b.hi);
+  return r;
+}
+
+OD_SIMD_INLINE od_m256i od_mm256_unpackhi_epi32(od_m256i a, od_m256i b) {
+  od_m256i r;
+  r.lo = _mm_unpackhi_epi32(a.lo, b.lo);
+  r.hi = _mm_unpackhi_epi32(a.hi, b.hi);
+  return r;
+}
+
+OD_SIMD_INLINE od_m256i od_mm256_unpacklo_epi64(od_m256i a, od_m256i b) {
+  od_m256i r;
+  r.lo = _mm_unpacklo_epi64(a.lo, b.lo);
+  r.hi = _mm_unpacklo_epi64(a.hi, b.hi);
+  return r;
+}
+
+OD_SIMD_INLINE od_m256i od_mm256_unpackhi_epi64(od_m256i a, od_m256i b) {
+  od_m256i r;
+  r.lo = _mm_unpackhi_epi64(a.lo, b.lo);
+  r.hi = _mm_unpackhi_epi64(a.hi, b.hi);
+  return r;
+}
+
+OD_SIMD_INLINE od_m256i od_mm256_permute2x128_si256(od_m256i a,
+ od_m256i b, int c) {
+  od_m256i r;
+  switch (c & 0xF) {
+    case 0: r.lo = a.lo; break;
+    case 1: r.lo = a.hi; break;
+    case 2: r.lo = b.lo; break;
+    case 3: r.lo = b.hi; break;
+    default: r.lo = _mm_setzero_si128(); break;
+  }
+  switch ((c >> 4) & 0xF){
+    case 0: r.hi = a.lo; break;
+    case 1: r.hi = a.hi; break;
+    case 2: r.hi = b.lo; break;
+    case 3: r.hi = b.hi; break;
+    default: r.hi = _mm_setzero_si128(); break;
+  }
+  return r;
+}
+
+OD_SIMD_INLINE od_m256i od_mm256_loadu_si256(const od_m256i *ptr) {
+  od_m256i r;
+  r.lo = _mm_load_si128(((const __m128i *)ptr) + 0);
+  r.hi = _mm_load_si128(((const __m128i *)ptr) + 1);
+  return r;
+}
+
+OD_SIMD_INLINE void od_mm256_storeu_si256(od_m256i *ptr, od_m256i a) {
+  _mm_store_si128(((__m128i *)ptr) + 0, a.lo);
+  _mm_store_si128(((__m128i *)ptr) + 1, a.hi);
+}
+
+OD_SIMD_INLINE od_m256i unbiased_rshift32_256(od_m256i a, int b) {
+  return od_mm256_srai_epi32(od_mm256_add_epi32(
+   od_mm256_srli_epi32(a, 32 - b), a), b);
+}
+
+OD_SIMD_INLINE od_m256i mul_epi32_256(od_m256i a, int b1) {
+  od_m256i x;
+  x.lo = OD_MULLO_EPI32(a.lo, b1);
+  x.hi = OD_MULLO_EPI32(a.hi, b1);
+  return x;
+}
+
+#define od_bin_fdct8x8_x86 od_bin_fdct8x8_sse2
+#define od_bin_idct8x8_x86 od_bin_idct8x8_sse2
+
+#include "x86dct.h"

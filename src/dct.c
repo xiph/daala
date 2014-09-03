@@ -1801,6 +1801,23 @@ int main(void) {
     run_test();
   }
 # endif
+# if defined(OD_AVX2_INTRINSICS)
+  if (od_cpu_flags_get() & OD_CPU_X86_AVX2) {
+    static const od_dct_func_2d OD_FDCT_2D_AVX2[OD_NBSIZES + 1] = {
+      od_bin_fdct4x4_sse41,
+      od_bin_fdct8x8_avx2,
+      od_bin_fdct16x16
+    };
+    static const od_dct_func_2d OD_IDCT_2D_AVX2[OD_NBSIZES + 1] = {
+      od_bin_idct4x4_sse41,
+      od_bin_idct8x8_avx2,
+      od_bin_idct16x16
+    };
+    test_fdct_2d = OD_FDCT_2D_AVX2;
+    test_idct_2d = OD_IDCT_2D_AVX2;
+    run_test();
+  }
+# endif
 #endif
   return od_exit_code;
 }
