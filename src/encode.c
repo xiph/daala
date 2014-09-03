@@ -912,12 +912,18 @@ static void od_encode_mv(daala_enc_ctx *enc, od_mv_grid_pt *mvg, int vx,
   id = OD_MINI(abs(oy), 3)*4 + OD_MINI(abs(ox), 3);
   od_encode_cdf_adapt(&enc->ec, id, enc->state.adapt.mv_small_cdf, 16,
    enc->state.adapt.mv_small_increment);
-  if (abs(ox) >= 3) generic_encode(&enc->ec, model, abs(ox) - 3, width << (3 - mv_res), &ex, 2);
-  if (abs(oy) >= 3) generic_encode(&enc->ec, model, abs(oy) - 3, height << (3 - mv_res), &ey, 2);
+  if (abs(ox) >= 3) {
+    generic_encode(&enc->ec, model, abs(ox) - 3,
+     width << (3 - mv_res), &ex, 2);
+    mv_ex[level] -= (mv_ex[level] - ((abs(ox) - 3) << mv_res << 16)) >> 6;
+  }
+  if (abs(oy) >= 3) {
+    generic_encode(&enc->ec, model, abs(oy) - 3,
+     height << (3 - mv_res), &ey, 2);
+    mv_ey[level] -= (mv_ey[level] - ((abs(oy) - 3) << mv_res << 16)) >> 6;
+  }
   if (abs(ox)) od_ec_enc_bits(&enc->ec, ox < 0, 1);
   if (abs(oy)) od_ec_enc_bits(&enc->ec, oy < 0, 1);
-  mv_ex[level] -= (mv_ex[level] - (abs(ox) << mv_res << 16)) >> 6;
-  mv_ey[level] -= (mv_ey[level] - (abs(oy) << mv_res << 16)) >> 6;
 }
 
 int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {

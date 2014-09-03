@@ -107,10 +107,14 @@ static void od_decode_mv(daala_dec_ctx *dec, od_mv_grid_pt *mvg, int vx,
    dec->state.adapt.mv_small_increment);
   oy = id >> 2;
   ox = id & 0x3;
-  if (ox == 3) ox += generic_decode(&dec->ec, model, width << (3 - mv_res), &ex, 2);
-  if (oy == 3) oy += generic_decode(&dec->ec, model, height << (3 - mv_res), &ey, 2);
-  mv_ex[level] -= (mv_ex[level] - (ox << mv_res << 16)) >> 6;
-  mv_ey[level] -= (mv_ey[level] - (oy << mv_res << 16)) >> 6;
+  if (ox == 3) {
+    ox += generic_decode(&dec->ec, model, width << (3 - mv_res), &ex, 2);
+    mv_ex[level] -= (mv_ex[level] - ((ox - 3) << mv_res << 16)) >> 6;
+  }
+  if (oy == 3) {
+    oy += generic_decode(&dec->ec, model, height << (3 - mv_res), &ey, 2);
+    mv_ey[level] -= (mv_ey[level] - ((oy - 3) << mv_res << 16)) >> 6;
+  }
   if (ox && od_ec_dec_bits(&dec->ec, 1)) ox = -ox;
   if (oy && od_ec_dec_bits(&dec->ec, 1)) oy = -oy;
   od_state_get_predictor(&dec->state, pred, vx, vy, level, mv_res);
