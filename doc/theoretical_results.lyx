@@ -726,5 +726,117 @@ Let's see what happens with a slowly varying sequence rather than a constant
  one...
 \end_layout
 
+\begin_layout Part
+Wiener filtering
+\end_layout
+
+\begin_layout Standard
+Let 
+\begin_inset Formula $\mathbf{x}$
+\end_inset
+
+ be the original pixel data and 
+\begin_inset Formula $\mathbf{y}=\mathbf{x}+\mathbf{q}$
+\end_inset
+
+ be the quantized pixel data, where 
+\begin_inset Formula $\mathbf{q}$
+\end_inset
+
+ is the quantization noise, we can reduce the noise with a Wiener filter
+\begin_inset Formula 
+\[
+\mathbf{z}=\mathbf{y}+g\left(\mathbf{u}-\mathbf{y}\right)\ ,
+\]
+
+\end_inset
+
+where 
+\begin_inset Formula $\mathbf{u}$
+\end_inset
+
+ is the mean pixel value in 
+\begin_inset Formula $\mathbf{y}$
+\end_inset
+
+, and 
+\begin_inset Formula $g$
+\end_inset
+
+ is the gain of the filter.
+ The optimal gain minimizes the distortion with the original image:
+\begin_inset Formula 
+\begin{align*}
+E & =\left\Vert \mathbf{y}+g\left(\mathbf{u}-\mathbf{y}\right)-\mathbf{x}\right\Vert ^{2}\\
+ & =\mathbf{y}^{T}\mathbf{y}+g^{2}\left(\mathbf{u}-\mathbf{y}\right)^{T}\left(\mathbf{u}-\mathbf{y}\right)+\mathbf{x}^{T}\mathbf{x}+2g\mathbf{y}^{T}\left(\mathbf{u}-\mathbf{y}\right)-2\mathbf{y}^{T}\mathbf{x}-2g\mathbf{x}^{T}\left(\mathbf{u}-\mathbf{y}\right)
+\end{align*}
+
+\end_inset
+
+We find the gain that minimizes distortion by solving
+\begin_inset Formula 
+\begin{align*}
+\frac{\partial E}{\partial g} & =2g\left(\mathbf{u}-\mathbf{y}\right)^{T}\left(\mathbf{u}-\mathbf{y}\right)+2\mathbf{y}^{T}\left(\mathbf{u}-\mathbf{y}\right)-2\mathbf{x}^{T}\left(\mathbf{u}-\mathbf{y}\right)=0\\
+2g\left(\mathbf{u}-\mathbf{y}\right)^{T}\left(\mathbf{u}-\mathbf{y}\right) & =2\left(\mathbf{x}-\mathbf{y}\right)^{T}\left(\mathbf{u}-\mathbf{y}\right)\\
+g & =\frac{\left(\mathbf{x}-\mathbf{y}\right)^{T}\left(\mathbf{u}-\mathbf{y}\right)}{\left(\mathbf{u}-\mathbf{y}\right)^{T}\left(\mathbf{u}-\mathbf{y}\right)}\\
+ & =\frac{\left(\mathbf{x}-\mathbf{y}\right)^{T}\left(\mathbf{u}-\mathbf{y}\right)}{\sigma_{\mathbf{y}}^{2}}
+\end{align*}
+
+\end_inset
+
+where 
+\begin_inset Formula $\sigma_{\mathbf{y}}^{2}$
+\end_inset
+
+ is the variance of 
+\begin_inset Formula $\mathbf{y}$
+\end_inset
+
+ since 
+\begin_inset Formula $\mathbf{u}$
+\end_inset
+
+ is the mean of 
+\begin_inset Formula $\mathbf{y}$
+\end_inset
+
+.
+ Computing the optimal gain in the decoder requires side information since
+ the input image 
+\begin_inset Formula $\mathbf{x}$
+\end_inset
+
+ isn't known.
+ However, we can still compute the 
+\emph on
+expectation
+\emph default
+ by assuming that the quantization noise is zero-mean and uncorrelated to
+ the input image
+\begin_inset Formula 
+\begin{align*}
+E\left\{ g\right\}  & =\frac{E\left\{ \left(\mathbf{x}-\mathbf{y}\right)^{T}\left(\mathbf{u}-\mathbf{y}\right)\right\} }{\sigma_{\mathbf{y}}^{2}}\\
+ & =\frac{E\left\{ \left(-\mathbf{q}\right)^{T}\left(\mathbf{u}-\mathbf{x}-\mathbf{q}\right)\right\} }{\sigma_{\mathbf{y}}^{2}}\\
+ & =\frac{E\left\{ \mathbf{q}^{T}\mathbf{q}\right\} }{\sigma_{\mathbf{y}}^{2}}\\
+ & =\frac{\sigma_{\mathbf{q}}^{2}}{\sigma_{\mathbf{y}}^{2}}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+At high rate, 
+\begin_inset Formula $\sigma_{\mathbf{q}}^{2}=Q^{2}/12$
+\end_inset
+
+, where 
+\begin_inset Formula $Q$
+\end_inset
+
+ is the quantization step size.
+\end_layout
+
 \end_body
 \end_document
