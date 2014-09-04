@@ -189,6 +189,16 @@ AS_IF([test "$enable_asm" = "yes" -a "$cpu_x86" = "true"], [
        enable_sse41_intrinsics=yes
        AC_DEFINE([OD_SSE41_INTRINSICS], [1],
         [Enable SSE4.1 intrinsics optimisations])
+       AC_TRY_LINK([
+#include <immintrin.h>
+       ], [
+        return _mm_cvtsi128_si32(_mm_broadcastb_epi8(_mm_setzero_si128()));
+       ], [
+         enable_avx2_intrinsics=yes
+         AC_DEFINE([OD_AVX2_INTRINSICS], [1],
+          [Enable AVX2 intrinsics optimisations])
+       ], [enable_avx2_intrinsics=no]
+      )
      ], [enable_sse41_intrinsics=no]
     )
    ], [enable_sse2_intrinsics=no]
@@ -200,6 +210,8 @@ AM_CONDITIONAL([ENABLE_SSE2_INTRINSICS],
  [test "$enable_asm" = "yes" -a "$cpu_x86" = "true" -a "$enable_sse2_intrinsics" = "yes"])
 AM_CONDITIONAL([ENABLE_SSE41_INTRINSICS],
  [test "$enable_asm" = "yes" -a "$cpu_x86" = "true" -a "$enable_sse41_intrinsics" = "yes"])
+AM_CONDITIONAL([ENABLE_AVX2_INTRINSICS],
+ [test "$enable_asm" = "yes" -a "$cpu_x86" = "true" -a "$enable_avx2_intrinsics" = "yes"])
 
 AC_ARG_ENABLE([encoder-check],
   AS_HELP_STRING([--enable-encoder-check], [Compare reconstructed frames]),,
