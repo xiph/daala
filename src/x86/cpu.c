@@ -33,21 +33,21 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # if defined(__amd64__)||defined(__x86_64__)
 /*On x86-64, gcc seems to be able to figure out how to save %rbx for us when
  *    compiling with -fPIC.*/
-#  define cpuid(_op,_eax,_ebx,_ecx,_edx) \
+#  define cpuid(_op,_subop,_eax,_ebx,_ecx,_edx) \
     __asm__ __volatile__( \
            "cpuid\n\t" \
            :[eax]"=a"(_eax),[ebx]"=b"(_ebx),[ecx]"=c"(_ecx),[edx]"=d"(_edx) \
-           :"a"(_op) \
+           :"a"(_op),"c"(_subop) \
           )
 # else
 /*On x86-32, not so much.*/
-#  define cpuid(_op,_eax,_ebx,_ecx,_edx) \
+#  define cpuid(_op,_subop,_eax,_ebx,_ecx,_edx) \
     __asm__ __volatile__( \
            "xchgl %%ebx,%[ebx]\n\t" \
            "cpuid\n\t" \
            "xchgl %%ebx,%[ebx]\n\t" \
            :[eax]"=a"(_eax),[ebx]"=r"(_ebx),[ecx]"=c"(_ecx),[edx]"=d"(_edx) \
-           :"a"(_op) \
+           :"a"(_op),"c"(_subop) \
           )
 # endif
 
@@ -79,11 +79,11 @@ ogg_uint32_t od_cpu_flags_get(void){
   if(eax==ebx)return 0;
   /*x86-64: All CPUs support cpuid, so there's no need to check.*/
 #endif
-  cpuid(0,eax,ebx,ecx,edx);
+  cpuid(0,0,eax,ebx,ecx,edx);
   /*         l e t n          I e n i          u n e G*/
   if(ecx==0x6C65746E&&edx==0x49656E69&&ebx==0x756E6547){
     /*Intel:*/
-    cpuid(1,eax,ebx,ecx,edx);
+    cpuid(1,0,eax,ebx,ecx,edx);
     /*If there isn't even MMX, give up.*/
     if(!(edx&0x00800000))return 0;
     flags=OD_CPU_X86_MMX;
@@ -91,7 +91,7 @@ ogg_uint32_t od_cpu_flags_get(void){
     if(edx&0x04000000)flags|=OD_CPU_X86_SSE2;
     if(ecx&0x00000001)flags|=OD_CPU_X86_PNI;
     if(ecx&0x00080000)flags|=OD_CPU_X86_SSE4_1;
-    cpuid(7,eax,ebx,ecx,edx);
+    cpuid(7,0,eax,ebx,ecx,edx);
     if(ebx&0x00000020)flags|=OD_CPU_X86_AVX2;
   }
   /*Also          R E T T          E B S I            D M A
@@ -102,18 +102,18 @@ ogg_uint32_t od_cpu_flags_get(void){
    /*      C S N            y b   e          d o e G*/
    (ecx==0x43534E20&&edx==0x79622065&&ebx==0x646F6547)){
     /*AMD:*/
-    cpuid(0x80000000,eax,ebx,ecx,edx);
+    cpuid(0x80000000,0,eax,ebx,ecx,edx);
     if(eax<=0x80000000){
       /*No extended functions supported.
         Use normal cpuid flags.*/
-      cpuid(1,eax,ebx,ecx,edx);
+      cpuid(1,0,eax,ebx,ecx,edx);
       /*If there isn't even MMX, give up.*/
       if(!(edx&0x00800000))return 0;
       flags=OD_CPU_X86_MMX;
       if(edx&0x02000000)flags|=OD_CPU_X86_MMXEXT|OD_CPU_X86_SSE;
     }
     else{
-      cpuid(0x80000001,eax,ebx,ecx,edx);
+      cpuid(0x80000001,0,eax,ebx,ecx,edx);
       /*If there isn't even MMX, give up.*/
       if(!(edx&0x00800000))return 0;
       flags=OD_CPU_X86_MMX;
@@ -121,7 +121,7 @@ ogg_uint32_t od_cpu_flags_get(void){
       if(edx&0x40000000)flags|=OD_CPU_X86_3DNOW2;
       if(edx&0x00400000)flags|=OD_CPU_X86_MMXEXT;
       /*Also check for SSE.*/
-      cpuid(1,eax,ebx,ecx,edx);
+      cpuid(1,0,eax,ebx,ecx,edx);
       if(edx&0x02000000)flags|=OD_CPU_X86_SSE;
     }
     if(edx&0x04000000)flags|=OD_CPU_X86_SSE2;
