@@ -1143,6 +1143,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     int height;
     int mv_res;
     od_mv_grid_pt *mvp;
+    od_mv_grid_pt *other;
     od_mv_grid_pt **grid;
     OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
      OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_MOTION_VECTORS);
@@ -1206,19 +1207,25 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
           if ((vx == 3 && grid[vy == 1 ? vy - 1 : vy + 1][vx - 1].valid)
            || (vx == nhmvbs - 3
            && grid[vy == 1 ? vy - 1 : vy + 1][vx + 1].valid)) {
+            other = &grid[vy][vx == 3 ? vx - 2 : vx + 2];
             /*MVs are valid but will be zero.*/
+            OD_ASSERT(mvp->valid && !mvp->mv[0] && !mvp->mv[1]
+             && !other->valid);
           }
           else if (vx > 3 && vx < nhmvbs - 3) {
+            other = &grid[vy][vx + 2];
             if (!(vx & 2) && grid[vy == 1 ? vy - 1 : vy + 1][vx + 1].valid) {
               /*0 = both valid, 1 = only this one, 2 = other one valid*/
               int s;
-              s = mvp->valid && grid[vy][vx + 2].valid ? 0 : mvp->valid
-               + (grid[vy][vx + 2].valid << 1);
+              s = mvp->valid && other->valid ? 0 : mvp->valid
+               + (other->valid << 1);
               od_ec_encode_cdf_q15(&enc->ec, s, OD_UNIFORM_CDF_Q15(3), 3);
               /*MVs are valid but will be zero.*/
+              OD_ASSERT((mvp->valid && !mvp->mv[0] && !mvp->mv[1])
+               || (other->valid && !other->mv[0] && !other->mv[1]));
             }
             else if (!(vx & 2)) {
-              OD_ASSERT(!mvp->valid && !grid[vy][vx + 2].valid);
+              OD_ASSERT(!mvp->valid && !other->valid);
             }
           }
           else {
@@ -1226,20 +1233,28 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
           }
         }
         else if (vx < 2 || vx > nhmvbs - 2) {
+          od_mv_grid_pt *other;
           if ((vy == 3 && grid[vy - 1][vx == 1 ? vx - 1 : vx + 1].valid)
            || (vy == nvmvbs - 3
-           && grid[vy + 1][vx == 1 ? vx - 1 : vx + 1].valid)) {
+            && grid[vy + 1][vx == 1 ? vx - 1 : vx + 1].valid)) {
+            other = &grid[vy == 3 ? vy - 2 : vy + 2][vx];
             /*MVs are valid but will be zero.*/
+            OD_ASSERT(mvp->valid && !mvp->mv[0] && !mvp->mv[1]
+             && !other->valid);
           }
           else if (!(vy & 2) && grid[vy + 1][vx == 1 ? vx - 1 : vx + 1].valid) {
             int s;
-            s = mvp->valid && grid[vy + 2][vx].valid ? 0 : mvp->valid
-             + (grid[vy + 2][vx].valid << 1);
+            other = &grid[vy + 2][vx];
+            s = mvp->valid && other->valid ? 0 : mvp->valid
+             + (other->valid << 1);
             od_ec_encode_cdf_q15(&enc->ec, s, OD_UNIFORM_CDF_Q15(3), 3);
             /*MVs are valid but will be zero.*/
+            OD_ASSERT((mvp->valid && !mvp->mv[0] && !mvp->mv[1])
+             || (other->valid && !other->mv[0] && !other->mv[1]));
           }
           else if (!(vy & 2)) {
-            OD_ASSERT(!mvp->valid && !grid[vy + 2][vx].valid);
+            other = &grid[vy == 3 ? vy - 2 : vy + 2][vx];
+            OD_ASSERT(!mvp->valid && !other->valid);
           }
         }
         else if (grid[vy - 1][vx - 1].valid && grid[vy - 1][vx + 1].valid
