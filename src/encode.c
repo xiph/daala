@@ -891,11 +891,7 @@ static void od_encode_block(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
 
 static void od_encode_mv(daala_enc_ctx *enc, od_mv_grid_pt *mvg, int vx,
  int vy, int level, int mv_res, int width, int height) {
-  int ex;
-  int ey;
   generic_encoder *model;
-  int *mv_ex;
-  int *mv_ey;
   int pred[2];
   int ox;
   int oy;
@@ -904,23 +900,17 @@ static void od_encode_mv(daala_enc_ctx *enc, od_mv_grid_pt *mvg, int vx,
   ox = (mvg->mv[0] >> mv_res) - pred[0];
   oy = (mvg->mv[1] >> mv_res) - pred[1];
   /*Interleave positive and negative values.*/
-  mv_ex = enc->state.adapt.mv_ex;
-  mv_ey = enc->state.adapt.mv_ey;
   model = &enc->state.adapt.mv_model;
-  ex = mv_ex[level] >> mv_res;
-  ey = mv_ex[level] >> mv_res;
   id = OD_MINI(abs(oy), 3)*4 + OD_MINI(abs(ox), 3);
   od_encode_cdf_adapt(&enc->ec, id, enc->state.adapt.mv_small_cdf, 16,
    enc->state.adapt.mv_small_increment);
   if (abs(ox) >= 3) {
-    generic_encode(&enc->ec, model, abs(ox) - 3,
-     width << (3 - mv_res), &ex, 2);
-    mv_ex[level] -= (mv_ex[level] - ((abs(ox) - 3) << mv_res << 16)) >> 6;
+    generic_encode(&enc->ec, model, abs(ox) - 3, width << (3 - mv_res),
+     &enc->state.adapt.mv_ex[level], 6);
   }
   if (abs(oy) >= 3) {
-    generic_encode(&enc->ec, model, abs(oy) - 3,
-     height << (3 - mv_res), &ey, 2);
-    mv_ey[level] -= (mv_ey[level] - ((abs(oy) - 3) << mv_res << 16)) >> 6;
+    generic_encode(&enc->ec, model, abs(oy) - 3, height << (3 - mv_res),
+     &enc->state.adapt.mv_ey[level], 6);
   }
   if (abs(ox)) od_ec_enc_bits(&enc->ec, ox < 0, 1);
   if (abs(oy)) od_ec_enc_bits(&enc->ec, oy < 0, 1);

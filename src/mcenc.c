@@ -4050,7 +4050,7 @@ void od_mv_subpel_refine(od_mv_est_ctx *est, int ref, int cost_thresh) {
       best_mv_res = mv_res;
     }
   }
-  state->mv_res = best_mv_res;
+  od_state_set_mv_res(state, best_mv_res);
 }
 
 void od_mv_est(od_mv_est_ctx *est, int ref, int lambda) {

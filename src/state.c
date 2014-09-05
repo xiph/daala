@@ -393,7 +393,6 @@ void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe) {
     state->bsize16_cdf[1][i] = split16_cdf_init[1][i]>>6;
   }
   generic_model_init(&state->mv_model);
-  for (i = 0; i < 5; i++) state->mv_ex[i] = state->mv_ey[i] = 24 << 16;
   state->skip_increment = 128;
   for (ln = 0; ln < OD_NPLANES_MAX; ln++) {
     for (i = 0; i < 4; i++) {
@@ -434,6 +433,14 @@ void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe) {
     }
   }
   memcpy(state->mode_probs, OD_INTRA_PRED_PROB_4x4, 3*OD_INTRA_NMODES*OD_INTRA_NCONTEXTS);
+}
+
+void od_state_set_mv_res(od_state *state, int mv_res) {
+  int i;
+  state->mv_res = mv_res;
+  for (i = 0; i < 5; i++) {
+    state->adapt.mv_ex[i] = state->adapt.mv_ey[i] = (24 << 16) >> mv_res;
+  }
 }
 
 #if 0
