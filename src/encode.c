@@ -1209,7 +1209,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
             /*MVs are valid but will be zero.*/
           }
           else if (vx > 3 && vx < nhmvbs - 3) {
-            if (!(vx & 2) && grid[vx == 3 ? vy - 1 : vy + 1][vx + 1].valid) {
+            if (!(vx & 2) && grid[vy == 1 ? vy - 1 : vy + 1][vx + 1].valid) {
               /*0 = both valid, 1 = only this one, 2 = other one valid*/
               int s;
               s = mvp->valid && grid[vy][vx + 2].valid ? 0 : mvp->valid
@@ -1228,7 +1228,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
         else if (vx < 2 || vx > nhmvbs - 2) {
           if ((vy == 3 && grid[vy - 1][vx == 1 ? vx - 1 : vx + 1].valid)
            || (vy == nvmvbs - 3
-           && grid[vy - 1][vx == 1 ? vx - 1 : vx + 1].valid)) {
+           && grid[vy + 1][vx == 1 ? vx - 1 : vx + 1].valid)) {
             /*MVs are valid but will be zero.*/
           }
           else if (!(vy & 2) && grid[vy + 1][vx == 1 ? vx - 1 : vx + 1].valid) {

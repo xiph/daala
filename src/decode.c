@@ -642,7 +642,7 @@ static void od_dec_mv_unpack(daala_dec_ctx *dec) {
           /*MV is outside frame and will be zero.*/
         }
         else if (vx > 3 && vx < nhmvbs - 3) {
-          if (!(vx & 2) && grid[vx == 3 ? vy - 1 : vy + 1][vx + 1].valid) {
+          if (!(vx & 2) && grid[vy == 1 ? vy - 1 : vy + 1][vx + 1].valid) {
             /*0 = both valid, 1 = only this one, 2 = other one valid*/
             int s;
             s = od_ec_decode_cdf_q15(&dec->ec, OD_UNIFORM_CDF_Q15(3), 3);
@@ -655,7 +655,7 @@ static void od_dec_mv_unpack(daala_dec_ctx *dec) {
       else if (vx < 2 || vx > nhmvbs - 2) {
         if ((vy == 3 && grid[vy - 1][vx == 1 ? vx - 1 : vx + 1].valid)
          || (vy == nvmvbs - 3
-         && grid[vy - 1][vx == 1 ? vx - 1 : vx + 1].valid)) {
+         && grid[vy + 1][vx == 1 ? vx - 1 : vx + 1].valid)) {
           mvp->valid = 1;
           /*MV is outside frame and will be zero.*/
         }
