@@ -140,10 +140,17 @@ void od_bin_fdct4x4_sse2(od_coeff *y, int ystride,
   __m128i t1;
   __m128i t2;
   __m128i t3;
+#if defined(OD_CHECKASM)
+  od_coeff ref[4*4];
+  od_bin_fdct4x4(ref, 4, x, xstride);
+#endif
   od_load4(x, xstride, &t0, &t1, &t2, &t3);
   od_fdct4_kernel(&t0, &t1, &t2, &t3);
   od_fdct4_kernel(&t0, &t1, &t2, &t3);
   od_store4(y, ystride, t0, t1, t2, t3);
+#if defined(OD_CHECKASM)
+  od_dct_check(0, ref, y, ystride);
+#endif
 }
 
 OD_SIMD_INLINE void od_idct4_kernel(__m128i *y0, __m128i *y1,
@@ -173,8 +180,15 @@ void od_bin_idct4x4_sse2(od_coeff *x, int xstride,
   __m128i t1;
   __m128i t2;
   __m128i t3;
+#if defined(OD_CHECKASM)
+  od_coeff ref[4*4];
+  od_bin_idct4x4(ref, 4, y, ystride);
+#endif
   od_load4(y, ystride, &t0, &t1, &t2, &t3);
   od_idct4_kernel(&t0, &t1, &t2, &t3);
   od_idct4_kernel(&t0, &t1, &t2, &t3);
   od_store4(x, xstride, t0, t1, t2, t3);
+#if defined(OD_CHECKASM)
+  od_dct_check(0, ref, x, xstride);
+#endif
 }

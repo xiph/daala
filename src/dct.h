@@ -155,4 +155,9 @@ void od_bin_fdct16x16(od_coeff *y, int ystride,
 void od_bin_idct16x16(od_coeff *x, int xstride,
  const od_coeff *y, int ystride);
 
+# if defined(OD_CHECKASM)
+void od_dct_check(int ln, const od_coeff *ref, const od_coeff *x,
+ int xstride);
+# endif
+
 #endif
