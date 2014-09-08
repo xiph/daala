@@ -951,46 +951,10 @@ static void od_state_draw_mv_grid_block(od_state *state,
      log_mvb_sz - 1);
   }
   else {
-    od_mv_grid_pt *grid[4];
-    ogg_int32_t mvx[4];
-    ogg_int32_t mvy[4];
-    const int *dxp;
-    const int *dyp;
     int mvb_sz;
     int x0;
     int y0;
-    int k;
-    int oc;
-    int s;
     mvb_sz = 1 << log_mvb_sz;
-    if (log_mvb_sz < 2) {
-      int mask;
-      int s1vx;
-      int s1vy;
-      int s3vx;
-      int s3vy;
-      mask = (1 << log_mvb_sz + 1) - 1;
-      oc = !!(vx & mask);
-      if (vy & mask) oc = 3 - oc;
-      s1vx = vx + (OD_VERT_DX[(oc + 1) & 3] << log_mvb_sz);
-      s1vy = vy + (OD_VERT_DY[(oc + 1) & 3] << log_mvb_sz);
-      s3vx = vx + (OD_VERT_DX[(oc + 3) & 3] << log_mvb_sz);
-      s3vy = vy + (OD_VERT_DY[(oc + 3) & 3] << log_mvb_sz);
-      s = state->mv_grid[s1vy][s1vx].valid |
-       state->mv_grid[s3vy][s3vx].valid << 1;
-    }
-    else {
-      oc = 0;
-      s = 3;
-    }
-    dxp = OD_VERT_SETUP_DX[oc][s];
-    dyp = OD_VERT_SETUP_DY[oc][s];
-    for (k = 0; k < 4; k++) {
-      grid[k] = state->mv_grid[vy + (dyp[k] << log_mvb_sz)]
-       + vx + (dxp[k] << log_mvb_sz);
-      mvx[k] = grid[k]->mv[0];
-      mvy[k] = grid[k]->mv[1];
-    }
     x0 = ((vx - 2) << 3) + (OD_UMV_PADDING << 1);
     y0 = ((vy - 2) << 3) + (OD_UMV_PADDING << 1);
     od_img_draw_line(&state->vis_img, x0, y0, x0 + (mvb_sz << 3), y0,
@@ -1032,8 +996,6 @@ static void od_state_draw_mvs_block(od_state *state,
   }
   else {
     od_mv_grid_pt *grid[4];
-    ogg_int32_t mvx[4];
-    ogg_int32_t mvy[4];
     const int *dxp;
     const int *dyp;
     int x0;
@@ -1066,8 +1028,6 @@ static void od_state_draw_mvs_block(od_state *state,
     for (k = 0; k < 4; k++) {
       grid[k] = state->mv_grid[vy + (dyp[k] << log_mvb_sz)]
        + vx + (dxp[k] << log_mvb_sz);
-      mvx[k] = grid[k]->mv[0];
-      mvy[k] = grid[k]->mv[1];
     }
     for (k = 0; k < 4; k++) {
       x0 = (vx - 2 + (dxp[k] << log_mvb_sz) << 3) + (OD_UMV_PADDING << 1);
