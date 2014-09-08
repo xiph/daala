@@ -547,7 +547,7 @@ void od_intra_paint_compute_edges(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned 
 #if 1
 #define VAR2(q) do {int yy;\
                 yy = COVAR(edge_sum2[idx], edge_sum1[idx], edge_sum1[idx], edge_count[idx]); \
-                paint[idx] = OD_CLAMPI(0, (int)(256.*((q)*(q)/12./32)/(10+yy)), 255);} while(0)
+                paint[idx] = OD_CLAMPI(0, (int)(256.*((q)*(q)/12./4)/(10+yy)), 255);} while(0)
 #else
 #define VAR2(q) do {int yy, xy;\
                 yy = COVAR(edge_sum2[idx], edge_sum1[idx], edge_sum1[idx], edge_count[idx]); \
@@ -699,6 +699,59 @@ static void od_paint_block(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *p
     n = 1 << ln;
     interp_block(&paint[stride*n*by + n*bx], &paint[stride*n*by + n*bx],
      n, stride, mode[(by*mstride + bx) << ln >> 2]);
+  }
+}
+
+static void od_paint_switch(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *img1, const unsigned char *img2, const unsigned char *ref,
+ int stride, const unsigned char *dec8, int bstride,
+ unsigned char *mode, int mstride, int *edge_sum, int *edge_count, int q,
+ int res, int bx, int by, int level) {
+  int bs;
+  bs = dec8[(by<<level>>1)*bstride + (bx<<level>>1)];
+
+  OD_ASSERT(bs <= level);
+  if (bs < level) {
+    level--;
+    bx <<= 1;
+    by <<= 1;
+    od_paint_switch(adapt, enc, img1, img2, ref, stride, dec8, bstride,
+     mode, mstride, edge_sum, edge_count, q, res, bx, by, level);
+    od_paint_switch(adapt, enc, img1, img2, ref, stride, dec8, bstride,
+     mode, mstride, edge_sum, edge_count, q, res, bx + 1, by, level);
+    od_paint_switch(adapt, enc, img1, img2, ref, stride, dec8, bstride,
+     mode, mstride, edge_sum, edge_count, q, res, bx, by + 1, level);
+    od_paint_switch(adapt, enc, img1, img2, ref, stride, dec8, bstride,
+     mode, mstride, edge_sum, edge_count, q, res, bx + 1, by + 1, level);
+  }
+  else {
+    int ln;
+    int n;
+    int i;
+    int j;
+    int dist1;
+    int dist2;
+    ln = 2 + bs;
+    n = 1 << ln;
+    dist1 = dist2 = 0;
+    for (i = 0; i < n; i++) {
+      for (j = 0; j < n; j++) {
+        int x1;
+        int x2;
+        int r;
+        r = ref[stride*(n*by + i) + n*bx + j];
+        x1 = img1[stride*(n*by + i) + n*bx + j];
+        x2 = img2[stride*(n*by + i) + n*bx + j];
+        dist1 += (x1-r)*(x1-r);
+        dist2 += (x2-r)*(x2-r);
+      }
+    }
+    if (dist2 < dist1) {
+      for (i = 0; i < n; i++) {
+        for (j = 0; j < n; j++) {
+          img1[stride*(n*by + i) + n*bx + j] = img2[stride*(n*by + i) + n*bx + j];
+        }
+      }
+    }
   }
 }
 
@@ -1374,10 +1427,16 @@ void od_paint_dering(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *paint, 
       int idx;
       idx = i*stride + j;
 #if 1
-      paint[idx] = OD_CLAMPI(0, paint[idx] + (((int)paint_mask[idx]*(paint_out[idx] - paint[idx]) + 128) >> 8), 255);
+      paint_mask[idx] = OD_CLAMPI(0, paint[idx] + (((int)paint_mask[idx]*(paint_out[idx] - paint[idx]) + 128) >> 8), 255);
 #else
       paint[idx] = paint_mask[idx];
 #endif
+    }
+  }
+  for(i = 0; i < h; i++) {
+    for(j = 0; j < w; j++) {
+      od_paint_switch(adapt, enc, paint, paint_mask, img, stride, dec8, bstride, mode,
+        mstride, edge_sum, edge_count, q, res, j, i, 3);
     }
   }
 }
