@@ -50,9 +50,6 @@ endif
 if ENABLE_SSE41_INTRINSICS
 src_dct_SOURCES += src/x86/sse41dct.c
 endif
-if ENABLE_AVX2_INTRINSICS
-src_dct_SOURCES += src/x86/avx2dct.c
-endif
 endif
 
 src_libdaalabase_la_CFLAGS = $(OGG_CFLAGS)
