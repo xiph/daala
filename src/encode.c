@@ -1409,8 +1409,10 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
           int h8,w8,h32,w32;
           int bstride;
           int mstride;
-          w = enc->state.frame_width;
-          h = enc->state.frame_height;
+          int xdec;
+          xdec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
+          w = enc->state.frame_width>>xdec;
+          h = enc->state.frame_height>>xdec;
           w32 = w>>5;
           h32 = h>>5;
           w8 = w32<<2;

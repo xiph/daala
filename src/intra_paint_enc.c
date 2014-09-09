@@ -298,6 +298,45 @@ void quantize_edge(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *edge_accu
   /*printf("\n");*/
 }
 
+void od_paint_mode_select(const unsigned char *img, const unsigned char *paint,
+ int stride, const unsigned char *dec8, int bstride,
+ unsigned char *mode, int mstride, int *edge_sum, int *edge_count, int res,
+ int bx, int by, int level) {
+  int bs;
+  bs = dec8[(by<<level>>1)*bstride + (bx<<level>>1)] + 0;
+
+  OD_ASSERT(bs <= level);
+  if (bs < level) {
+    level--;
+    bx <<= 1;
+    by <<= 1;
+    od_paint_mode_select(img, paint, stride, dec8, bstride,
+     mode, mstride, edge_sum, edge_count, res, bx, by, level);
+    od_paint_mode_select(img, paint, stride, dec8, bstride,
+     mode, mstride, edge_sum, edge_count, res, bx + 1, by, level);
+    od_paint_mode_select(img, paint, stride, dec8, bstride,
+     mode, mstride, edge_sum, edge_count, res, bx, by + 1, level);
+    od_paint_mode_select(img, paint, stride, dec8, bstride,
+     mode, mstride, edge_sum, edge_count, res, bx + 1, by + 1, level);
+  }
+  else {
+    int ln;
+    int n;
+    int k;
+    int m;
+    int curr_mode;
+    ln = 2 + bs;
+    n = 1 << ln;
+    curr_mode = mode_select(&img[stride*n*by + n*bx], NULL, n, stride, res);
+    curr_mode >>= 0;
+    for (k=0;k<1<<bs;k++) {
+      for (m=0;m<1<<bs;m++) {
+        mode[((by << bs) + k)*mstride + (bx << bs) + m] = curr_mode;
+      }
+    }
+  }
+}
+
 void od_intra_paint_analysis(const unsigned char *img, const unsigned char *paint,
  int stride, const unsigned char *dec8, int bstride,
  unsigned char *mode, int mstride, int *edge_sum, int *edge_count, int res,
@@ -322,21 +361,11 @@ void od_intra_paint_analysis(const unsigned char *img, const unsigned char *pain
   else {
     int ln;
     int n;
-    int k;
-    int m;
-    int curr_mode;
     ln = 2 + bs;
     n = 1 << ln;
-    curr_mode = mode_select(&img[stride*n*by + n*bx], NULL, n, stride, res);
     compute_edges(&paint[stride*n*by + n*bx], stride,
      &edge_sum[stride*n*by + n*bx], &edge_count[stride*n*by + n*bx], stride,
-     n, curr_mode);
-    mode[(by<<bs)*mstride + (bx<<bs)] = curr_mode;
-    for (k=0;k<1<<bs;k++) {
-      for (m=0;m<1<<bs;m++) {
-        mode[((by << bs) + k)*mstride + (bx << bs) + m] = curr_mode;
-      }
-    }
+     n, mode[(by<<bs)*mstride + (bx<<bs)]);
   }
 }
 
@@ -1337,6 +1366,8 @@ void od_intra_paint_encode(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *p
   int i, j;
   for(i = 0; i < h; i++) {
     for(j = 0; j < w; j++) {
+      od_paint_mode_select(img, img, stride, dec8, bstride, mode,
+       mstride, edge_sum, edge_count, res, j, i, 3);
       od_intra_paint_analysis(img, img, stride, dec8, bstride, mode,
        mstride, edge_sum, edge_count, res, j, i, 3);
     }
@@ -1386,6 +1417,8 @@ void od_paint_dering(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *paint, 
   paint[-stride - 1] = paint[0];
   for(i = 0; i < h; i++) {
     for(j = 0; j < w; j++) {
+      od_paint_mode_select(paint, paint, stride, dec8, bstride, mode,
+        mstride, edge_sum, edge_count, res, j, i, 3);
       od_intra_paint_analysis(paint, paint, stride, dec8, bstride, mode,
        mstride, edge_sum, edge_count, res, j, i, 3);
     }
