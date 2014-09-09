@@ -587,9 +587,14 @@ static void od_mv_est_set_hit(od_mv_est_ctx *est, int mvx, int mvy) {
   est->hit_cache[mvy + 32][mvx + 32] = (unsigned char)est->hit_bit;
 }
 
-/*Estimated rate (in units of OD_BITRES) of a MV component of a given length.
-  TODO: This should be replaced with more realistic estimates.*/
-static const int OD_MV_EST_RATE[256] = {
+/*Estimated rate (in units of OD_BITRES) of the >=3 part of a MV component of a
+   given length.
+  There is no theoretical basis for the current values, they were
+   supposed to estimate the rate of a complete MV component (not just the >=3
+   part) encoded using a Huffman code.
+  TODO: This should be replaced with more realistic estimates (so far, attempts
+  to do so have resulted in worse quality).*/
+static const int OD_MV_GE3_EST_RATE[256] = {
     8,  32,  32,  48,  48,  48,  48,  64,
    64,  64,  64,  64,  64,  64,  64,  80,
    80,  80,  80,  80,  80,  80,  80,  80,
@@ -626,15 +631,27 @@ static const int OD_MV_EST_RATE[256] = {
 
 /*Estimate the number of bits that will be used to encode the given MV and its
    predictor.*/
-static int od_mv_est_bits(int dx, int dy, int predx, int predy) {
-  int pdx;
-  int pdy;
-  pdx = OD_MINI(abs(dx - predx), 255);
-  pdy = OD_MINI(abs(dy - predy), 255);
-  dx = OD_MINI(abs(dx), 255);
-  dy = OD_MINI(abs(dy), 255);
-  return (1 << OD_BITRES) + OD_MINI(OD_MV_EST_RATE[dx] + OD_MV_EST_RATE[dy],
-   OD_MV_EST_RATE[pdx] + OD_MV_EST_RATE[pdy]);
+static int od_mv_est_bits(od_mv_est_ctx *est,
+ int dx, int dy, int predx, int predy) {
+  int ox;
+  int oy;
+  int id;
+  int cost;
+  int sign_cost;
+  cost = 0;
+  sign_cost = 1 << OD_BITRES;
+  ox = dx - predx;
+  oy = dy - predy;
+  id = OD_MINI(abs(oy), 3)*4 + OD_MINI(abs(ox), 3);
+  cost += ((ox != 0) + (oy != 0))*sign_cost;
+  cost += est->mv_small_rate_est[id];
+  if (abs(ox) >= 3) {
+    cost += OD_MV_GE3_EST_RATE[OD_MINI(abs(ox) - 3, 255)];
+  }
+  if (abs(oy) >= 3) {
+    cost += OD_MV_GE3_EST_RATE[OD_MINI(abs(oy) - 3, 255)];
+  }
+  return cost;
 }
 
 /*Computes the SAD of a whole-pel BMA block with the given parameters.*/
@@ -799,8 +816,8 @@ void od_mv_est_check_rd_state(od_mv_est_ctx *est, int ref, int mv_res) {
       if (vx >= 2 && vx <= nhmvbs - 2 && vy >= 2 && vy <= nvmvbs - 2) {
         od_state_get_predictor(state, pred, vx, vy,
          OD_MC_LEVEL[vy & 3][vx & 3], mv_res);
-        mv_rate = od_mv_est_bits(mvg->mv[0] >> mv_res, mvg->mv[1] >> mv_res,
-         pred[0], pred[1]);
+        mv_rate = od_mv_est_bits(est,
+         mvg->mv[0] >> mv_res, mvg->mv[1] >> mv_res, pred[0], pred[1]);
       }
       else pred[0] = pred[1] = mv_rate = 0;
       if (mv_rate != mv->mv_rate) {
@@ -963,7 +980,7 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
   }
 #endif
   best_sad = od_mv_est_bma_sad8(est, ref, bx, by, candx, candy, log_mvb_sz);
-  best_rate = od_mv_est_bits(candx << 1, candy << 1, predx, predy);
+  best_rate = od_mv_est_bits(est, candx << 1, candy << 1, predx, predy);
   best_cost = (best_sad << OD_ERROR_SCALE) + best_rate*est->lambda;
   OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
    "Median predictor: (%i, %i)   Cost: %i", candx, candy, best_cost));
@@ -1017,7 +1034,7 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
       }
 #endif
       sad = od_mv_est_bma_sad8(est, ref, bx, by, candx, candy, log_mvb_sz);
-      rate = od_mv_est_bits(candx << 1, candy << 1, predx, predy);
+      rate = od_mv_est_bits(est, candx << 1, candy << 1, predx, predy);
       cost = (sad << OD_ERROR_SCALE) + rate*est->lambda;
       OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
        "Set B predictor %i: (%i, %i)    Cost: %i", ci, candx, candy, cost));
@@ -1063,7 +1080,7 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
         }
 #endif
         sad = od_mv_est_bma_sad8(est, ref, bx, by, candx, candy, log_mvb_sz);
-        rate = od_mv_est_bits(candx << 1, candy << 1, predx, predy);
+        rate = od_mv_est_bits(est, candx << 1, candy << 1, predx, predy);
         cost = (sad << OD_ERROR_SCALE) + rate*est->lambda;
         OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
          "Set C predictor %i: (%i, %i)    Cost: %i", ci, candx, candy, cost));
@@ -1122,7 +1139,7 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
 #endif
             sad = od_mv_est_bma_sad8(est,
              ref, bx, by, candx, candy, log_mvb_sz);
-            rate = od_mv_est_bits(candx << 1, candy << 1, predx, predy);
+            rate = od_mv_est_bits(est, candx << 1, candy << 1, predx, predy);
             cost = (sad << OD_ERROR_SCALE) + rate*est->lambda;
             OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
              "Pattern search %i: (%i, %i)    Cost: %i",
@@ -1184,7 +1201,7 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
      "Failure in MV predictor init: (%i, %i) != (%i, %i)",
      a[0][0], a[0][1], predx, predy));
   }
-  mv->mv_rate = od_mv_est_bits(mvg->mv[0] >> 2, mvg->mv[1] >> 2,
+  mv->mv_rate = od_mv_est_bits(est, mvg->mv[0] >> 2, mvg->mv[1] >> 2,
    a[0][0], a[0][1]);
   if (mv->mv_rate != best_rate) {
     OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
@@ -2332,9 +2349,10 @@ static ogg_int32_t od_mv_dp_get_sad_change8(od_mv_est_ctx *est, int ref,
   prevsi: The state index to follow in the previous DP node.
   mv_res: The motion vector resolution (0 = 1/8th pel to 2 = 1/2 pel).
   Return: The change in rate for the preceding MVs.*/
-static int od_mv_dp_get_rate_change(od_state *state, od_mv_dp_node *dp,
+static int od_mv_dp_get_rate_change(od_mv_est_ctx *est, od_mv_dp_node *dp,
  int *cur_mv_rate, int pred_mv_rates[OD_DP_NPREDICTED_MAX],
  int prevsi, int mv_res) {
+  od_state *state;
   od_mv_node *mv;
   od_mv_grid_pt *mvg;
   int nhmvbs;
@@ -2342,6 +2360,7 @@ static int od_mv_dp_get_rate_change(od_state *state, od_mv_dp_node *dp,
   int pred[2];
   int pi;
   int dr;
+  state = &est->enc->state;
   /*Move the state from the current trellis path into the grid.*/
   if (dp->min_predictor_node != NULL) {
     int pred_sis[OD_PRED_HIST_SIZE_MAX];
@@ -2388,8 +2407,8 @@ static int od_mv_dp_get_rate_change(od_state *state, od_mv_dp_node *dp,
     od_state_get_predictor(state, pred, mv->vx, mv->vy,
      OD_MC_LEVEL[mv->vy & 3][mv->vx & 3], mv_res);
     mvg = dp->mvg;
-    *cur_mv_rate = od_mv_est_bits(mvg->mv[0] >> mv_res, mvg->mv[1] >> mv_res,
-     pred[0], pred[1]);
+    *cur_mv_rate = od_mv_est_bits(est,
+     mvg->mv[0] >> mv_res, mvg->mv[1] >> mv_res, pred[0], pred[1]);
     OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
      "Current MV rate: %i - %i = %i",
      *cur_mv_rate, mv->mv_rate, *cur_mv_rate - mv->mv_rate));
@@ -2403,7 +2422,7 @@ static int od_mv_dp_get_rate_change(od_state *state, od_mv_dp_node *dp,
       mvg = dp->predicted_mvgs[pi];
       od_state_get_predictor(state, pred, mv->vx, mv->vy,
        OD_MC_LEVEL[mv->vy & 3][mv->vx & 3], mv_res);
-      pred_mv_rates[pi] = od_mv_est_bits(
+      pred_mv_rates[pi] = od_mv_est_bits(est,
        mvg->mv[0] >> mv_res, mvg->mv[1] >> mv_res, pred[0], pred[1]);
       OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
        "Calculated predicted mv_rate of %i for (%i, %i)",
@@ -3049,7 +3068,7 @@ static ogg_int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
       cstate->prevsi = -1;
       mvg->mv[0] = cstate->mv[0];
       mvg->mv[1] = cstate->mv[1];
-      cstate->dr = od_mv_dp_get_rate_change(state, dp_node,
+      cstate->dr = od_mv_dp_get_rate_change(est, dp_node,
        &cstate->mv_rate, cstate->pred_mv_rates, -1, mv_res);
       cstate->dd = od_mv_dp_get_sad_change8(est, ref, dp_node,
        cstate->block_sads);
@@ -3123,7 +3142,7 @@ static ogg_int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
           /*Get the rate change for this state using previous state si.
             This automatically loads the required bits of the trellis path into
              the grid, like the previous MV.*/
-          cstate->dr = od_mv_dp_get_rate_change(state, dp_node + 1,
+          cstate->dr = od_mv_dp_get_rate_change(est, dp_node + 1,
            cur_mv_rates + si, pred_mv_rates[si], si, mv_res);
           /*Test against the previous state.*/
           dr = pstate->dr + cstate->dr;
@@ -3700,7 +3719,7 @@ static ogg_int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
       cstate->prevsi = -1;
       mvg->mv[0] = cstate->mv[0];
       mvg->mv[1] = cstate->mv[1];
-      cstate->dr = od_mv_dp_get_rate_change(state, dp_node,
+      cstate->dr = od_mv_dp_get_rate_change(est, dp_node,
        &cstate->mv_rate, cstate->pred_mv_rates, -1, mv_res);
       cstate->dd = od_mv_dp_get_sad_change8(est, ref, dp_node,
        cstate->block_sads);
@@ -3772,7 +3791,7 @@ static ogg_int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
           /*Get the rate change for this state using previous state si.
             This automatically loads the required bits of the trellis path into
              the grid, like the previous MV.*/
-          cstate->dr = od_mv_dp_get_rate_change(state, dp_node + 1,
+          cstate->dr = od_mv_dp_get_rate_change(est, dp_node + 1,
            cur_mv_rates + si, pred_mv_rates[si], si, mv_res);
           /*Test against the previous state.*/
           dr = pstate->dr + cstate->dr;
@@ -3974,8 +3993,8 @@ int od_mv_est_update_mv_rates(od_mv_est_ctx *est, int mv_res) {
       od_state_get_predictor(state, pred,
        vx, vy, OD_MC_LEVEL[vy & 3][vx & 3], mv_res);
       dr -= mv->mv_rate;
-      mv->mv_rate = od_mv_est_bits(mvg->mv[0] >> mv_res, mvg->mv[1] >> mv_res,
-       pred[0], pred[1]);
+      mv->mv_rate = od_mv_est_bits(est,
+       mvg->mv[0] >> mv_res, mvg->mv[1] >> mv_res, pred[0], pred[1]);
       dr += mv->mv_rate;
     }
   }
@@ -4061,6 +4080,7 @@ void od_mv_est(od_mv_est_ctx *est, int ref, int lambda) {
   int nhmvbs;
   int nvmvbs;
   int pli;
+  int i;
   state = &est->enc->state;
   nhmvbs = (state->nhmbs + 1) << 2;
   nvmvbs = (state->nvmbs + 1) << 2;
@@ -4069,6 +4089,13 @@ void od_mv_est(od_mv_est_ctx *est, int ref, int lambda) {
   est->level_min = OD_MINI(est->enc->params.mv_level_min,
    est->enc->params.mv_level_max);
   est->level_max = est->enc->params.mv_level_max;
+  /*Rate estimations*/
+  for (i = 0; i < 16; i++) {
+    est->mv_small_rate_est[i] = (int)((1 << OD_BITRES)
+     *(OD_LOG2(est->enc->state.adapt.mv_small_cdf[15])
+     - (OD_LOG2(est->enc->state.adapt.mv_small_cdf[i]
+     - (i > 0 ? est->enc->state.adapt.mv_small_cdf[i - 1] : 0)))) + 0.5);
+  }
   /*If the luma plane is decimated for some reason, then our distortions will
      be smaller, so scale lambda appropriately.*/
   est->lambda = lambda >> (iplane->xdec + iplane->ydec);

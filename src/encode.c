@@ -1042,6 +1042,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
    OD_ACCT_CAT_PLANE, OD_ACCT_TECH_UNKNOWN);
   /*TODO: Incrment frame count.*/
+  od_adapt_ctx_reset(&enc->state.adapt, mbctx.is_keyframe);
   /*Motion estimation and compensation.*/
   if (!mbctx.is_keyframe) {
 #if defined(OD_DUMP_IMAGES) && defined(OD_ANIMATE)
@@ -1074,7 +1075,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     od_state_dump_img(&enc->state, &enc->state.vis_img, "vis");
 #endif
   }
-  od_adapt_ctx_reset(&enc->state.adapt, mbctx.is_keyframe);
   /*Block size switching.*/
   od_state_init_border(&enc->state);
   /* Allocate a blockSizeComp for scratch space and then calculate the block sizes
