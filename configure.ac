@@ -172,7 +172,7 @@ esac
 
 AS_IF([test "$enable_asm" = "yes" -a "$cpu_x86" = "true"], [
   AC_DEFINE([OD_X86ASM], [1], [Enable asm optimisations])
-  AC_TRY_COMPILE([
+  AC_TRY_LINK([
 #include <xmmintrin.h>
    ], [
     return _mm_cvtsi128_si32(_mm_setzero_si128());
@@ -180,7 +180,7 @@ AS_IF([test "$enable_asm" = "yes" -a "$cpu_x86" = "true"], [
     enable_sse2_intrinsics=yes
     AC_DEFINE([OD_SSE2_INTRINSICS], [1],
      [Enable SSE2 intrinsics optimisations])
-    AC_TRY_COMPILE([
+    AC_TRY_LINK([
 #include <smmintrin.h>
      ], [
       return _mm_cvtsi128_si32(_mm_mullo_epi32(_mm_setzero_si128(),
