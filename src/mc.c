@@ -175,10 +175,10 @@ void od_state_mvs_clear(od_state *state) {
   int nvmvbs;
   nhmvbs = (state->nhmbs + 1) << 2;
   nvmvbs = (state->nvmbs + 1) << 2;
-  for (vy = 0; vy < nvmvbs; vy++) {
+  for (vy = 0; vy <= nvmvbs; vy++) {
     od_mv_grid_pt *grid;
     grid = state->mv_grid[vy];
-    for (vx = 0; vx < nhmvbs; vx++) {
+    for (vx = 0; vx <= nhmvbs; vx++) {
       grid[vx].valid = 0;
       grid[vx].mv[0] = 0;
       grid[vx].mv[1] = 0;
