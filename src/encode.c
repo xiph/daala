@@ -89,7 +89,7 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
   od_ec_enc_init(&enc->ec, 65025);
   enc->packet_state = OD_PACKET_INFO_HDR;
   for (i = 0; i < OD_NPLANES_MAX; i++){
-    enc->quantizer[i] = od_quantizer_from_quality(10);
+    enc->quality[i] = 10;
   }
   enc->mvest = od_mv_est_alloc(enc);
   if (OD_UNLIKELY(!enc->mvest)) {
@@ -150,9 +150,9 @@ int daala_encode_ctl(daala_enc_ctx *enc, int req, void *buf, size_t buf_sz) {
       int i;
       OD_ASSERT(enc);
       OD_ASSERT(buf);
-      OD_ASSERT(buf_sz == sizeof(*enc->quantizer));
+      OD_ASSERT(buf_sz == sizeof(*enc->quality));
       for (i = 0; i < OD_NPLANES_MAX; i++){
-        enc->quantizer[i] = od_quantizer_from_quality(*(int *)buf);
+        enc->quality[i] = *(int *)buf;
       }
       return OD_SUCCESS;
     }
@@ -1008,6 +1008,14 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       enc->state.ref_imgi[OD_FRAME_GOLD] =
        enc->state.ref_imgi[OD_FRAME_SELF];
       /*TODO: Mark keyframe timebase.*/
+    }
+  }
+  for (pli = 0; pli < nplanes; pli++) {
+    enc->quantizer[pli] = od_quantizer_from_quality(enc->quality[pli]);
+    /* At low rate, boost the keyframe quality by multiplying the quantizer
+       by 29/32 (~0.9). */
+    if (mbctx.is_keyframe && enc->quantizer[pli] > 20 << OD_COEFF_SHIFT) {
+      enc->quantizer[pli] = (16+29*enc->quantizer[pli]) >> 5;
     }
   }
   /*Select a free buffer to use for this reference frame.*/

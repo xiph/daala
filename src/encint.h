@@ -73,6 +73,7 @@ struct daala_enc_ctx{
   oggbyte_buffer obb;
   od_ec_enc ec;
   int packet_state;
+  int quality[OD_NPLANES_MAX];
   int quantizer[OD_NPLANES_MAX];
   od_mv_est_ctx *mvest;
   od_params_ctx params;
