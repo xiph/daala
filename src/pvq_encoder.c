@@ -107,6 +107,24 @@ void code_flag(od_ec_enc *ec, int val, unsigned *prob0)
   }
 }
 
+/** Quantizes a scalar with rate-distortion optimization (RDO)
+ * @param [in] x      unquantized value
+ * @param [in] q      quantization step size
+ * @param [in] delta0 rate increase for encoding a 1 instead of a 0
+ * @retval quantized value
+ */
+int od_rdo_quant(od_coeff x, int q, double delta0) {
+  int threshold;
+  /* Optimal quantization threshold is 1/2 + lambda*delta_rate/2. See
+     Jmspeex' Journal of Dubious Theoretical Results for details. */
+  threshold = 128 + OD_CLAMPI(0, (int)(256*OD_PVQ_LAMBDA*delta0/2), 128);
+  if (abs(x) < q * threshold / 256) {
+    return 0;
+  } else {
+    return OD_DIV_R0(x, q);
+  }
+}
+
 /** Encode a coefficient block (excepting DC) using PVQ
  *
  * @param [in,out] enc     daala encoder context
@@ -149,6 +167,7 @@ void pvq_encode(daala_enc_ctx *enc,
   unsigned tell;
   ogg_uint16_t *skip_cdf;
   od_rollback_buffer buf;
+  int dc_quant;
   adapt = enc->state.adapt.pvq_adapt;
   exg = &enc->state.adapt.pvq_exg[pli][ln][0];
   ext = enc->state.adapt.pvq_ext + ln*PVQ_MAX_PARTITIONS;
@@ -157,6 +176,7 @@ void pvq_encode(daala_enc_ctx *enc,
   model = enc->state.adapt.pvq_param_model;
   nb_bands = od_band_offsets[ln][0];
   off = &od_band_offsets[ln][1];
+  dc_quant = OD_MAXI(1, q*qm[0] >> 4);
   tell = 0;
   for (i = 0; i < nb_bands; i++) size[i] = off[i+1] - off[i];
   skip_diff = 0;
@@ -171,7 +191,10 @@ void pvq_encode(daala_enc_ctx *enc,
      &k[i], &g[i], beta[i], &skip_diff);
   }
   if (!is_keyframe) {
+    double dc_rate;
     od_encode_checkpoint(enc, &buf);
+    dc_rate = -OD_LOG2((double)(skip_cdf[1]-skip_cdf[0])/(double)skip_cdf[0]);
+    out[0] = od_rdo_quant(in[0] - ref[0], dc_quant, dc_rate);
     /* Code as if we're not skipping. */
     od_encode_cdf_adapt(&enc->ec, (out[0] != 0), skip_cdf,
      4, enc->state.adapt.skip_increment);
@@ -212,6 +235,10 @@ void pvq_encode(daala_enc_ctx *enc,
   if (!is_keyframe) {
     tell = od_ec_enc_tell_frac(&enc->ec) - tell;
     if (skip_diff < OD_PVQ_LAMBDA/8*tell) {
+      double dc_rate;
+      dc_rate = -OD_LOG2((double)(skip_cdf[3]-skip_cdf[2])/
+       (double)(skip_cdf[2]-skip_cdf[1]));
+      out[0] = od_rdo_quant(in[0] - ref[0], dc_quant, dc_rate);
       /* We decide to skip, roll back everything as it was before. */
       od_encode_rollback(enc, &buf);
       od_encode_cdf_adapt(&enc->ec, 2 + (out[0] != 0), skip_cdf,

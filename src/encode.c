@@ -603,6 +603,7 @@ void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
     dc_quant = OD_MAXI(1, quant*OD_PVQ_QM_Q4[pli][ln][0] >> 4);
   else
     dc_quant = (pli==0 || enc->quantizer[pli]==0) ? quant : (quant + 1) >> 1;
+  /* This quantization may be overridden in the PVQ code for full RDO. */
   if (OD_DISABLE_HAAR_DC || !ctx->is_keyframe) {
     if (abs(cblock[0] - predt[0]) < dc_quant * 141 / 256) { /* 0.55 */
       scalar_out[0] = 0;
