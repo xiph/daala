@@ -29,6 +29,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 typedef struct od_ec_enc od_ec_enc;
 
+#define OD_MEASURE_EC_OVERHEAD (0)
+
 /*The entropy encoder context.*/
 struct od_ec_enc {
   /*Buffered output.
@@ -57,6 +59,9 @@ struct od_ec_enc {
   ogg_int16_t cnt;
   /*Nonzero if an error occurred.*/
   int error;
+#if OD_MEASURE_EC_OVERHEAD
+  double entropy;
+#endif
 };
 
 /*See entenc.c for further documentation.*/

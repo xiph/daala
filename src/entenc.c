@@ -144,6 +144,9 @@ void od_ec_enc_reset(od_ec_enc *enc) {
      one byte + one carry bit.*/
   enc->cnt = -9;
   enc->error = 0;
+#if OD_MEASURE_EC_OVERHEAD
+  enc->entropy = 0;
+#endif
 }
 
 /*Frees the buffers used by the encoder.*/
@@ -192,6 +195,9 @@ static void od_ec_encode(od_ec_enc *enc,
   r = v - u;
   l += u;
   od_ec_enc_normalize(enc, l, r);
+#if OD_MEASURE_EC_OVERHEAD
+  enc->entropy -= OD_LOG2((double)(fh - fl)/ft);
+#endif
 }
 
 /*Equivalent to od_ec_encode() with ft == 32768.
@@ -217,6 +223,9 @@ static void od_ec_encode_q15(od_ec_enc *enc, unsigned fl, unsigned fh) {
   r = v - u;
   l += u;
   od_ec_enc_normalize(enc, l, r);
+#if OD_MEASURE_EC_OVERHEAD
+  enc->entropy -= OD_LOG2((double)(fh - fl)/32768.);
+#endif
 }
 
 /*Encodes a symbol given its frequency information with an arbitrary scale.
@@ -264,6 +273,9 @@ void od_ec_encode_bool(od_ec_enc *enc, int val, unsigned fz, unsigned ft) {
   if (val) l += v;
   r = val ? r - v : v;
   od_ec_enc_normalize(enc, l, r);
+#if OD_MEASURE_EC_OVERHEAD
+  enc->entropy -= OD_LOG2((double)(val ? ft - fz : fz)/ft);
+#endif
 }
 
 /*Equivalent to od_ec_encode_bool() with ft == 32768.
@@ -282,6 +294,9 @@ void od_ec_encode_bool_q15(od_ec_enc *enc, int val, unsigned fz) {
   if (val) l += v;
   r = val ? r - v : v;
   od_ec_enc_normalize(enc, l, r);
+#if OD_MEASURE_EC_OVERHEAD
+  enc->entropy -= OD_LOG2((double)(val ? 32768 - fz : fz)/32768.);
+#endif
 }
 
 /*Encodes a symbol given a cumulative distribution function (CDF) table.
@@ -381,6 +396,9 @@ void od_ec_enc_bits(od_ec_enc *enc, ogg_uint32_t fl, unsigned ftb) {
   int nend_bits;
   OD_ASSERT(ftb <= 25);
   OD_ASSERT(fl < (ogg_uint32_t)1 << ftb);
+#if OD_MEASURE_EC_OVERHEAD
+  enc->entropy += ftb;
+#endif
   end_window = enc->end_window;
   nend_bits = enc->nend_bits;
   if (nend_bits + ftb > OD_EC_WINDOW_SIZE) {
@@ -479,6 +497,14 @@ unsigned char *od_ec_enc_done(od_ec_enc *enc, ogg_uint32_t *nbytes) {
   int c;
   int s;
   if (enc->error) return NULL;
+#if OD_MEASURE_EC_OVERHEAD
+  {
+    ogg_uint32_t tell;
+    /* Don't count the 1 bit we lose to raw bits as overhead. */
+    tell = od_ec_enc_tell_frac(enc)/8.-1;
+    fprintf(stderr, "overhead: %f%%\n", 100*(tell-enc->entropy)/enc->entropy);
+  }
+#endif
   /*We output the minimum number of bits that ensures that the symbols encoded
      thus far will be decoded correctly regardless of the bits that follow.*/
   l = enc->low;
