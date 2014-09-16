@@ -61,6 +61,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # define OD_DISABLE_MASKING (0)
 # define OD_DISABLE_QM (0)
 
+# define OD_ROBUST_STREAM (0)
+
 # define OD_COEFF_SHIFT (4)
 /*OD_QUALITY_SHIFT specifies the number of fractional bits in a
    passed in 'quality' parameter.

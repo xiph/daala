@@ -335,7 +335,7 @@ int pvq_compute_max_theta(double qcg, double beta){
  * @return                     decoded theta value
  */
 double pvq_compute_theta(int t, int max_theta) {
-  if (max_theta != 0) return t*.5*M_PI/max_theta;
+  if (max_theta != 0) return OD_MINI(t, max_theta - 1)*.5*M_PI/max_theta;
   return 0;
 }
 
@@ -343,16 +343,20 @@ double pvq_compute_theta(int t, int max_theta) {
  * available metrics (encode and decode side)
  *
  * @param [in]      qcg        quantized companded gain value
+ * @param [in]      itheta     quantizized PVQ error angle theta
  * @param [in]      theta      PVQ error angle theta
  * @param [in]      noref      indicates present or lack of reference
  *                             (prediction)
  * @param [in]      n          number of elements to be coded
+ * @param [in]      beta       activity masking beta param
+ * @param [in]      nodesync   do not use info that depend on the reference
  * @return                     number of pulses to use for coding
  */
-int pvq_compute_k(double qcg, double theta, int noref, int n, double beta) {
+int pvq_compute_k(double qcg, int itheta, double theta, int noref, int n,
+ double beta, int nodesync) {
   if (noref) {
     if (n == 15 && qcg == 1 && beta > 1.25) return 1;
-    else return OD_MAXI(1, (int)floor(.5 + (qcg-.2)*sqrt((n+3)/2)/beta));
+    else return OD_MAXI(1, (int)floor(.5 + (qcg - .2)*sqrt((n+3)/2)/beta));
   }
   else {
     if (theta == 0) return 0;
@@ -362,7 +366,13 @@ int pvq_compute_k(double qcg, double theta, int noref, int n, double beta) {
        approximation for the fact that the coefficients aren't identically
        distributed within a band so at low gain the number of dimensions that
        are likely to have a pulse is less than n. */
-    return OD_MAXI(1, (int)floor(.5 + (qcg*sin(theta)-.2)*sqrt((n+2)/2)/beta));
+    if (nodesync) {
+      return OD_MAXI(1, (int)floor(.5 + (itheta - .2)*sqrt((n + 2)/2)));
+    }
+    else {
+      return OD_MAXI(1, (int)floor(.5 + (qcg*sin(theta) - .2)*
+       sqrt((n + 2)/2)/beta));
+    }
   }
 }
 
@@ -506,11 +516,13 @@ int vector_is_null(const od_coeff *x, int len) {
  * @param [in]     beta      per-band activity masking beta param
  * @param [out]    skip_diff distortion cost of skipping this block
  *                           (accumulated)
+ * @param [in]     robust    make stream robust to error in the reference
+ * @param [in]     is_keyframe whether we're encoding a keyframe
  * @return         gain      index of the quatized gain
 */
 int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
  od_coeff *y, int *itheta, int *max_theta, int *vk, double *mask_gain,
- double beta, double *skip_diff) {
+ double beta, double *skip_diff, int robust, int is_keyframe) {
   double g;
   double gr;
   double x[MAXN];
@@ -590,7 +602,11 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
       int ts;
       /* Quantized companded gain */
       qcg = i+gain_offset;
-      mask_ratio = pvq_interband_masking(*mask_gain, pow(q*qcg, 2*beta), beta);
+      if (robust) mask_ratio = 1;
+      else {
+        mask_ratio = pvq_interband_masking(*mask_gain, pow(q*qcg, 2*beta),
+         beta);
+      }
       /* Set angular resolution (in ra) to match the encoded gain */
       ts = pvq_compute_max_theta(mask_ratio*qcg, beta);
       /* Search for the best angle within a reasonable range. */
@@ -600,7 +616,8 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
         double cost;
         double dist_theta;
         double qtheta = pvq_compute_theta(j, ts);
-        k = pvq_compute_k(mask_ratio*qcg, qtheta, 0, n, beta);
+        k = pvq_compute_k(mask_ratio*qcg, j, qtheta, 0, n, beta, robust &&
+         !is_keyframe);
         cos_dist = pvq_search_double(x, n, k, y_tmp);
         /* See Jmspeex' Journal of Dubious Theoretical Results. */
         dist_theta = 2 - 2*cos(theta - qtheta)
@@ -636,8 +653,13 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
       double cost;
       double qcg;
       qcg = i;
-      mask_ratio = pvq_interband_masking(*mask_gain, pow(q*qcg, 2*beta), beta);
-      k = pvq_compute_k(mask_ratio*qcg, -1, 1, n, beta);
+      if (robust) mask_ratio = 1;
+      else {
+        mask_ratio = pvq_interband_masking(*mask_gain, pow(q*qcg, 2*beta),
+         beta);
+      }
+      k = pvq_compute_k(mask_ratio*qcg, -1, -1, 1, n, beta, robust &&
+       !is_keyframe);
       cos_dist = pvq_search_double(x1, n, k, y_tmp);
       /* See Jmspeex' Journal of Dubious Theoretical Results. */
       dist = (qcg - cg)*(qcg - cg) + qcg*cg*(2 - 2*cos_dist);

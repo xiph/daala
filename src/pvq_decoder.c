@@ -52,6 +52,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
  * @param [in,out] mask_gain input masking from other bands, output masking for
  *                           other bands
  * @param [in]     beta    per-band activity masking beta param
+ * @param [in]     robust  stream is robust to error in the reference
  * @param [in]     is_keyframe whether we're encoding a keyframe
  */
 static void pvq_decode_partition(od_ec_dec *ec,
@@ -66,6 +67,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
                                  int noref,
                                  double *mask_gain,
                                  double beta,
+                                 int robust,
                                  int is_keyframe) {
   int adapt_curr[OD_NSB_ADAPT_CTXS] = {0};
   int speed;
@@ -103,10 +105,13 @@ static void pvq_decode_partition(od_ec_dec *ec,
     qg = neg_deinterleave(qg, icgr);
     gain_offset = cgr-icgr;
     qcg = qg + gain_offset;
-    mask_ratio = pvq_interband_masking(*mask_gain, pow(q*qcg, 2*beta), beta);
+    if (robust) mask_ratio = 1;
+    else {
+      mask_ratio = pvq_interband_masking(*mask_gain, pow(q*qcg, 2*beta), beta);
+    }
     /* read and decode first-stage PVQ error theta */
     max_theta = pvq_compute_max_theta(mask_ratio*qcg, beta);
-    if (max_theta > 1) {
+    if ((robust && !is_keyframe) || max_theta > 1) {
       if (is_keyframe) {
         int tmp;
         tmp = max_theta**ext;
@@ -114,19 +119,27 @@ static void pvq_decode_partition(od_ec_dec *ec,
         /* Adapt expectation as fraction of max_theta */
         *ext += (itheta*65536/max_theta - *ext) >> 5;
       }
-      else itheta = generic_decode(ec, &model[2], max_theta - 1, ext, 2);
+      else {
+        itheta = generic_decode(ec, &model[2], robust ? -1 : max_theta - 1,
+         ext, 2);
+      }
     }
     else itheta = 0;
     theta = pvq_compute_theta(itheta, max_theta);
     for (i = 0; i < n; i++) r[i] = ref[i];
   }
   else{
+    itheta = 0;
     qcg=qg;
-    mask_ratio = pvq_interband_masking(*mask_gain, pow(q*qcg, 2*beta), beta);
+    if (robust) mask_ratio = 1;
+    else {
+      mask_ratio = pvq_interband_masking(*mask_gain, pow(q*qcg, 2*beta), beta);
+    }
   }
 
   if (qg != 0) {
-    k = pvq_compute_k(mask_ratio*qcg, theta, noref, n, beta);
+    k = pvq_compute_k(mask_ratio*qcg, itheta, theta, noref, n, beta, robust &&
+     !is_keyframe);
     /* when noref==0, y is actually size n-1 */
     laplace_decode_vector(ec, y, n-(!noref), k, adapt_curr, adapt);
   } else {
@@ -171,6 +184,7 @@ static int decode_flag(od_ec_dec *ec, unsigned *prob0)
  * @param [in]     ln      log of the block size minus two
  * @param [in]     qm      per-band quantization matrix
  * @param [in]     beta    per-band activity masking beta param
+ * @param [in]     robust  stream is robust to error in the reference
  * @param [in]     is_keyframe whether we're encoding a keyframe
  */
 void pvq_decode(daala_dec_ctx *dec,
@@ -182,6 +196,7 @@ void pvq_decode(daala_dec_ctx *dec,
                 const int *qm,
                 const double *beta,
                 const double *inter_band,
+                int robust,
                 int is_keyframe){
 
   int noref[PVQ_MAX_PARTITIONS];
@@ -245,7 +260,7 @@ void pvq_decode(daala_dec_ctx *dec,
       g[i] = mask;
       pvq_decode_partition(&dec->ec, OD_MAXI(1, q*qm[i + 1] >> 4), size[i],
        model, adapt, exg + i, ext + i, ref + off[i], out + off[i], noref[i],
-       &g[i], beta[i], is_keyframe);
+       &g[i], beta[i], robust, is_keyframe);
     }
   }
 }

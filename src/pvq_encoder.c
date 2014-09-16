@@ -50,6 +50,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
  * @param [in,out] adapt      adaptation context
  * @param [in,out] exg        ExQ16 expectation of gain value
  * @param [in,out] ext        ExQ16 expectation of theta value
+ * @param [in]     nodesync   do not use info that depend on the reference
  * @param [in]     is_keyframe whether we're encoding a keyframe
  */
 static void pvq_encode_partition(od_ec_enc *ec,
@@ -63,6 +64,7 @@ static void pvq_encode_partition(od_ec_enc *ec,
                                  int *adapt,
                                  int *exg,
                                  int *ext,
+                                 int nodesync,
                                  int is_keyframe) {
 
   int adapt_curr[OD_NSB_ADAPT_CTXS] = { 0 };
@@ -70,7 +72,7 @@ static void pvq_encode_partition(od_ec_enc *ec,
   int noref;
   noref = (theta == -1);
   generic_encode(ec, &model[!noref], qg, -1, exg, 2);
-  if (!noref && max_theta > 1) {
+  if (!noref && (max_theta > 1 || nodesync)) {
     if (is_keyframe) {
       int tmp;
       tmp = max_theta**ext;
@@ -78,7 +80,10 @@ static void pvq_encode_partition(od_ec_enc *ec,
       /* Adapt expectation as fraction of max_theta */
       *ext += (theta*65536/max_theta - *ext) >> 5;
     }
-    else generic_encode(ec, &model[2], theta, max_theta-1, ext, 2);
+    else {
+      generic_encode(ec, &model[2], theta, nodesync ? -1 : max_theta - 1, ext,
+       2);
+    }
   }
   laplace_encode_vector(ec, in, n - (theta >= 0), k, adapt_curr, adapt);
 
@@ -135,6 +140,7 @@ int od_rdo_quant(od_coeff x, int q, double delta0) {
  * @param [in]     ln      log of the block size minus two
  * @param [in]     qm      per-band quantization matrix
  * @param [in]     beta    per-band activity masking beta param
+ * @param [in]     robust  make stream robust to error in the reference
  * @param [in]     is_keyframe whether we're encoding a keyframe
  */
 void pvq_encode(daala_enc_ctx *enc,
@@ -147,6 +153,7 @@ void pvq_encode(daala_enc_ctx *enc,
                 const int *qm,
                 const double *beta,
                 const double *inter_band,
+                int robust,
                 int is_keyframe){
   int theta[PVQ_MAX_PARTITIONS];
   int max_theta[PVQ_MAX_PARTITIONS];
@@ -188,7 +195,7 @@ void pvq_encode(daala_enc_ctx *enc,
     g[i] = mask;
     qg[i] = pvq_theta(out + off[i], in + off[i], ref + off[i], size[i],
      OD_MAXI(1, q*qm[i + 1] >> 4), y + off[i], &theta[i], &max_theta[i],
-     &k[i], &g[i], beta[i], &skip_diff);
+     &k[i], &g[i], beta[i], &skip_diff, robust, is_keyframe);
   }
   if (!is_keyframe) {
     double dc_rate;
@@ -230,7 +237,8 @@ void pvq_encode(daala_enc_ctx *enc,
   }
   for (i = 0; i < nb_bands; i++) {
     pvq_encode_partition(&enc->ec, qg[i], theta[i], max_theta[i], y + off[i],
-      size[i], k[i], model, adapt, exg + i, ext + i, is_keyframe);
+     size[i], k[i], model, adapt, exg + i, ext + i, robust && !is_keyframe,
+     is_keyframe);
   }
   if (!is_keyframe) {
     tell = od_ec_enc_tell_frac(&enc->ec) - tell;

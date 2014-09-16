@@ -359,7 +359,7 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   if (run_pvq) {
     pvq_decode(dec, predt, pred, quant, pli, ln,
      OD_PVQ_QM_Q4[pli][ln], OD_PVQ_BETA[pli][ln],
-     OD_PVQ_INTER_BAND_MASKING[ln], ctx->is_keyframe);
+     OD_PVQ_INTER_BAND_MASKING[ln], OD_ROBUST_STREAM, ctx->is_keyframe);
   }
   else {
     od_single_band_scalar_decode(dec, ln, pred, predt, quant, pli);

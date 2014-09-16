@@ -616,7 +616,7 @@ void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   if (run_pvq) {
     pvq_encode(enc, predt, cblock, scalar_out, quant, pli, ln,
      OD_PVQ_QM_Q4[pli][ln], OD_PVQ_BETA[pli][ln],
-     OD_PVQ_INTER_BAND_MASKING[ln], ctx->is_keyframe);
+     OD_PVQ_INTER_BAND_MASKING[ln], OD_ROBUST_STREAM, ctx->is_keyframe);
   }
   else {
     od_single_band_scalar_quant(enc, ln, scalar_out, cblock, predt, quant,
