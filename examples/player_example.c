@@ -312,7 +312,12 @@ int player_example_play(player_example *player) {
         case ODS_HEADER: {
           ret =
            daala_decode_header_in(&player->di, &player->dc, &dsi, &packet);
-          if (ret < 0) return -1;
+          if (ret < 0) {
+            if (memcmp(packet.packet, "fishead", packet.bytes)) {
+              fprintf(stderr, "Ogg Skeleton streams not supported\n");
+            }
+            return -1;
+          }
           if (ret != 0) break;
           player->dctx = daala_decode_alloc(&player->di, dsi);
           if (player->dctx == NULL) return -1;
