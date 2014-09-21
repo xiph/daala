@@ -943,6 +943,26 @@ static void od_img_copy_pad(od_state *state, od_img *img) {
   }
 }
 
+#if defined(OD_DUMP_IMAGES)
+static void od_img_dump_padded(od_state *state) {
+  daala_info *info;
+  od_img img;
+  int nplanes;
+  int pli;
+  info = &state->info;
+  nplanes = info->nplanes;
+  /*Modify the image offsets to include the padding.*/
+  *&img = *(state->io_imgs+OD_FRAME_INPUT);
+  for (pli = 0; pli < nplanes; pli++) {
+    img.planes[pli].data -= (OD_UMV_PADDING>>info->plane_info[pli].xdec)
+        +img.planes[pli].ystride*(OD_UMV_PADDING>>info->plane_info[pli].ydec);
+  }
+  img.width += OD_UMV_PADDING<<1;
+  img.height += OD_UMV_PADDING<<1;
+  od_state_dump_img(state, &img, "pad");
+}
+#endif
+
 int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   int refi;
   int nplanes;
@@ -995,18 +1015,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
 
 #if defined(OD_DUMP_IMAGES)
   if (od_logging_active(OD_LOG_GENERIC, OD_LOG_DEBUG)) {
-    daala_info *info;
-    od_img img;
-    info = &enc->state.info;
-    /*Modify the image offsets to include the padding.*/
-    *&img = *(enc->state.io_imgs+OD_FRAME_INPUT);
-    for (pli = 0; pli < nplanes; pli++) {
-      img.planes[pli].data -= (OD_UMV_PADDING>>info->plane_info[pli].xdec)
-       +img.planes[pli].ystride*(OD_UMV_PADDING>>info->plane_info[pli].ydec);
-    }
-    img.width += OD_UMV_PADDING<<1;
-    img.height += OD_UMV_PADDING<<1;
-    od_state_dump_img(&enc->state, &img, "pad");
+    od_img_dump_padded(&enc->state);
   }
 #endif
   /* Check if the frame should be a keyframe. */
