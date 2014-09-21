@@ -153,7 +153,7 @@ int daala_encode_ctl(daala_enc_ctx *enc, int req, void *buf, size_t buf_sz) {
       OD_ASSERT(buf_sz == sizeof(*enc->quality));
       for (i = 0; i < OD_NPLANES_MAX; i++){
         int tmp = *(int *)buf;
-        enc->quality[i] = tmp > 0 ? (tmp << OD_COEFF_SHIFT) - 8 : 0;
+        enc->quality[i] = tmp > 0 ? (tmp << OD_QUALITY_SHIFT) - 8 : 0;
       }
       return OD_SUCCESS;
     }
