@@ -918,6 +918,31 @@ static void od_encode_mv(daala_enc_ctx *enc, od_mv_grid_pt *mvg, int vx,
   if (abs(oy)) od_ec_enc_bits(&enc->ec, oy < 0, 1);
 }
 
+static void od_img_copy_pad(od_state *state, od_img *img) {
+  int pli;
+  int nplanes;
+  nplanes = img->nplanes;
+  /* Copy and pad the image. */
+  for (pli = 0; pli < nplanes; pli++) {
+    od_img_plane plane;
+    int plane_width;
+    int plane_height;
+    int xdec;
+    int ydec;
+    *&plane = *(img->planes + pli);
+    xdec = plane.xdec;
+    ydec = plane.ydec;
+    plane_width = ((state->info.pic_width + (1 << xdec) - 1) >> xdec);
+    plane_height = ((state->info.pic_height + (1 << ydec) - 1) >> ydec);
+    od_img_plane_copy_pad8(&state->io_imgs[OD_FRAME_INPUT].planes[pli],
+     state->frame_width >> xdec, state->frame_height >> ydec,
+     &plane, plane_width, plane_height);
+    od_img_plane_edge_ext8(&state->io_imgs[OD_FRAME_INPUT].planes[pli],
+     state->frame_width >> xdec, state->frame_height >> ydec,
+     OD_UMV_PADDING >> xdec, OD_UMV_PADDING >> ydec);
+  }
+}
+
 int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   int refi;
   int nplanes;
@@ -966,22 +991,8 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       return OD_EINVAL;
     }
   }
-  /* Copy and pad the image. */
-  for (pli = 0; pli < nplanes; pli++) {
-    od_img_plane plane;
-    int plane_width;
-    int plane_height;
-    *&plane = *(img->planes + pli);
-    plane_width = ((pic_width + (1 << plane.xdec) - 1) >> plane.xdec);
-    plane_height = ((pic_height + (1 << plane.ydec) - 1) >>
-     plane.ydec);
-    od_img_plane_copy_pad8(&enc->state.io_imgs[OD_FRAME_INPUT].planes[pli],
-     frame_width >> plane.xdec, frame_height >> plane.ydec,
-     &plane, plane_width, plane_height);
-    od_img_plane_edge_ext8(&enc->state.io_imgs[OD_FRAME_INPUT].planes[pli],
-     frame_width >> plane.xdec, frame_height >> plane.ydec,
-     OD_UMV_PADDING >> plane.xdec, OD_UMV_PADDING >> plane.ydec);
-  }
+  od_img_copy_pad(&enc->state, img);
+
 #if defined(OD_DUMP_IMAGES)
   if (od_logging_active(OD_LOG_GENERIC, OD_LOG_DEBUG)) {
     daala_info *info;
