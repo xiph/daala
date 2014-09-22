@@ -228,21 +228,9 @@ static void id_y4m_file(av_input *avin, const char *file, FILE *test) {
     avin->video_plane_info[2].ydec = 0;
   }
   else if (strcmp(avin->video_chroma_type, "420") == 0 ||
-   strcmp(avin->video_chroma_type, "420jpeg") == 0) {
-    avin->video_nplanes = 3;
-    avin->video_plane_info[1].xdec = 1;
-    avin->video_plane_info[1].ydec = 1;
-    avin->video_plane_info[2].xdec = 1;
-    avin->video_plane_info[2].ydec = 1;
-  }
-  else if (strcmp(avin->video_chroma_type, "420mpeg2") == 0) {
-    avin->video_nplanes = 3;
-    avin->video_plane_info[1].xdec = 1;
-    avin->video_plane_info[1].ydec = 1;
-    avin->video_plane_info[2].xdec = 1;
-    avin->video_plane_info[2].ydec = 1;
-  }
-  else if (strcmp(avin->video_chroma_type, "420paldv") == 0) {
+   strcmp(avin->video_chroma_type, "420jpeg") == 0 ||
+   strcmp(avin->video_chroma_type, "420mpeg2") == 0 ||
+   strcmp(avin->video_chroma_type, "420paldv") == 0) {
     avin->video_nplanes = 3;
     avin->video_plane_info[1].xdec = 1;
     avin->video_plane_info[1].ydec = 1;
