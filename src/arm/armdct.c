@@ -38,7 +38,7 @@ OD_SIMD_INLINE void od_overflow_check_epi32(int32x4_t val, ogg_int32_t scale,
 #if defined(OD_DCT_TEST) && defined(OD_DCT_CHECK_OVERFLOW)
   ogg_int32_t mem[4];
   int n;
-  _mm_store_si128((int32x4_t *)mem, val);
+  vst1q_s32((int *)mem, val);
   for (n = 0; n < 4; n++) {
     OD_DCT_OVERFLOW_CHECK(mem[n], scale, offset, idx);
   }
