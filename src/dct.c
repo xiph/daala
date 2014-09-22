@@ -882,6 +882,11 @@ void od_dct_check(int ln, const od_coeff *ref, const od_coeff *x,
 # include "x86/x86int.h"
 #endif
 
+#if defined(OD_ARMASM)
+# include "arm/cpu.h"
+# include "arm/armint.h"
+#endif
+
 /*The auto-correlation coefficent. 0.95 is a common value.*/
 # define INPUT_AUTOCORR (0.95)
 # define INPUT_AUTOCORR_2 (INPUT_AUTOCORR*INPUT_AUTOCORR)
@@ -1830,6 +1835,23 @@ int main(void) {
     run_test();
   }
 # endif
+#endif
+#if defined(OD_ARMASM)
+  if (od_cpu_flags_get() & OD_CPU_ARM_NEON) {
+    static const od_dct_func_2d OD_FDCT_2D_NEON[OD_NBSIZES + 1] = {
+      od_bin_fdct4x4_neon,
+      od_bin_fdct8x8,
+      od_bin_fdct16x16
+    };
+    static const od_dct_func_2d OD_IDCT_2D_NEON[OD_NBSIZES + 1] = {
+      od_bin_idct4x4_neon,
+      od_bin_idct8x8,
+      od_bin_idct16x16
+    };
+    test_fdct_2d = OD_FDCT_2D_NEON;
+    test_idct_2d = OD_IDCT_2D_NEON;
+    run_test();
+  }
 #endif
   return od_exit_code;
 }
