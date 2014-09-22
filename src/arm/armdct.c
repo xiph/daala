@@ -50,7 +50,7 @@ OD_SIMD_INLINE void od_overflow_check_epi32(int32x4_t val, ogg_int32_t scale,
 }
 
 #define OD_DCT_MUL(val, scale, offset, shift) \
-  vshrq_n_s32(vmlaq_s32(val, vdupq_n_s32(scale), vdupq_n_s32(offset)), shift)
+  vshrq_n_s32(vmlaq_s32(vdupq_n_s32(offset), val, vdupq_n_s32(scale)), shift)
 
 OD_SIMD_INLINE uint64x2x2_t od_vswpq_u64(uint64x2_t a, uint64x2_t b) {
   uint64x2x2_t x;
