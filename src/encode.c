@@ -1445,7 +1445,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
            enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].data, w32, h32,
            enc->state.io_imgs[OD_FRAME_REC].planes[pli].ystride, enc->state.dec8,
            bstride, enc->state.mode, mstride, enc->state.edge_sum,
-           enc->state.edge_count, enc->quantizer[pli]>>OD_COEFF_SHIFT, 1);
+           enc->state.edge_count, enc->quantizer[pli]>>OD_COEFF_SHIFT, 2);
       # if 0&&defined(OD_DUMP_IMAGES)
           /*Dump painted frame.*/
           od_state_dump_img(&enc->state,enc->state.io_imgs + OD_FRAME_REC,"paint");
@@ -1453,6 +1453,10 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       # endif
         }
     }
+#if 0
+    memset(enc->state.io_imgs[OD_FRAME_REC].planes[1].data, 128, enc->state.frame_height/2*enc->state.io_imgs[OD_FRAME_REC].planes[1].ystride );
+    memset(enc->state.io_imgs[OD_FRAME_REC].planes[2].data, 128, enc->state.frame_height/2*enc->state.io_imgs[OD_FRAME_REC].planes[2].ystride );
+#endif
     for (pli = nplanes; pli-- > 0;) {
       _ogg_free(ltmp[pli]);
       _ogg_free(dtmp[pli]);

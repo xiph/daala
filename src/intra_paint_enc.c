@@ -122,6 +122,113 @@ static int mode_select(const unsigned char *img, int *dist, int n, int stride,
   return best_id;
 }
 
+static int mode_select8(const unsigned char *img, int *dist, int n, int stride,
+ int res) {
+  int i;
+  int cost[9] = {0};
+  int best_cost = 0;
+  int best_dir = 0;
+  int dc_mode;
+  dc_mode = 0;
+  /* Cost for horizontal and vertical. */
+  for (i = 0; i < n; i++) {
+    int j;
+    int hsum;
+    int vsum;
+    hsum = vsum = 0;
+    for (j = 0; j < n; j++) hsum += (img[i*stride + j] - 128);
+    for (j = 0; j < n; j++) vsum += (img[j*stride + i] - 128);
+    dc_mode += hsum;
+    cost[2] += hsum*hsum/n;
+    cost[6] += vsum*vsum/n;
+  }
+  /* DC */
+  cost[8] = (dc_mode/n)*(dc_mode/n) + 2*n*n;
+  /* Cost for 45-degree diagonal. */
+  for (i = 0; i < n; i++) {
+    int j;
+    int d0sum;
+    int d4sum;
+    d0sum = d4sum = 0;
+    for (j = 0; j <= i; j++) d0sum += (img[(i - j)*stride + j] - 128);
+    for (j = 0; j <= i; j++) d4sum += (img[(n - i - 1 + j)*stride + j] - 128);
+    cost[0] += d0sum*d0sum/(i + 1);
+    cost[4] += d4sum*d4sum/(i + 1);
+    if (i != n - 1) {
+      d0sum = d4sum = 0;
+      for (j = 0; j <= i; j++) d0sum += (img[(n - 1 - i + j)*stride + (n - 1 - j)] - 128);
+      for (j = 0; j <= i; j++) d4sum += (img[(i - j)*stride + (n - 1 - j)] - 128);
+      cost[0] += d0sum*d0sum/(i + 1);
+      cost[4] += d4sum*d4sum/(i + 1);
+    }
+  }
+
+  for (i = 0; i < 9; i++) {
+    if (cost[i] > best_cost) {
+      best_cost = cost[i];
+      best_dir = i;
+    }
+  }
+  /* Convert to a max of 4*N. */
+  return best_dir*(4*n/8);
+}
+
+static int mode_select8b(const unsigned char *img, int *dist, int n, int stride,
+ int res) {
+  int i;
+  int cost[9] = {0};
+  int partial[9][2*MAXN + 1] = {{0}};
+  int best_cost = 0;
+  int best_dir = 0;
+  for (i = 0; i < n; i++) {
+    int j;
+    for (j = 0; j < n; j++) {
+      int x;
+      x = img[i*stride + j] - 128;
+      partial[0][i + j] += x;
+      partial[1][i + j/2] += x;
+      partial[2][i] += x;
+      partial[3][n/2 - 1 + i - j/2] += x;
+      partial[4][n - 1 + i - j] += x;
+      partial[5][n/2 - 1 - i/2 + j] += x;
+      partial[6][j] += x;
+      partial[7][i/2 + j] += x;
+      partial[8][0] += x;
+    }
+  }
+  for (i = 0; i < n; i++) {
+    cost[2] += partial[2][i]*partial[2][i]/n;
+    cost[6] += partial[6][i]*partial[6][i]/n;
+  }
+  for (i = 0; i < n - 1; i++) {
+    cost[0] += partial[0][i]*partial[0][i]/(i + 1)
+     + partial[0][2*n - 2 - i]*partial[0][2*n - 2 - i]/(i + 1);
+    cost[4] += partial[4][i]*partial[4][i]/(i + 1)
+     + partial[4][2*n - 2 - i]*partial[4][2*n - 2 - i]/(i + 1);
+  }
+  cost[0] += partial[0][n - 1]*partial[0][n - 1]/n;
+  cost[4] += partial[4][n - 1]*partial[4][n - 1]/n;
+  for (i = 1; i < 8; i+=2) {
+    int j;
+    for (j = 0; j < n/2 + 1; j++) {
+      cost[i] += partial[i][n/2 - 1 + j]*partial[i][n/2 - 1 + j]/n;
+    }
+    for (j = 0; j < n/2 - 1; j++) {
+      cost[i] += partial[i][j]*partial[i][j]/(2*j+2);
+      cost[i] += partial[i][3*n/2 - j]*partial[i][3*n/2 - j]/(2*j+2);
+    }
+  }
+  cost[8] = (partial[8][0]/n)*(partial[8][0]/n) + 2*n*n;
+  for (i = 0; i < 9; i++) {
+    if (cost[i] > best_cost) {
+      best_cost = cost[i];
+      best_dir = i;
+    }
+  }
+  /* Convert to a max of 4*N. */
+  return best_dir*(4*n/8);
+}
+
 /* Compute the final edges once the contribution of all blocks are counted.
    There's usually two blocks used for each edge, but there can be up to 4
    in the corners. */
@@ -327,7 +434,7 @@ void od_paint_mode_select(const unsigned char *img, const unsigned char *paint,
     int curr_mode;
     ln = 2 + bs;
     n = 1 << ln;
-    curr_mode = mode_select(&img[stride*n*by + n*bx], NULL, n, stride, res);
+    curr_mode = mode_select8b(&img[stride*n*by + n*bx], NULL, n, stride, res);
     curr_mode >>= 0;
     for (k=0;k<1<<bs;k++) {
       for (m=0;m<1<<bs;m++) {
@@ -537,7 +644,7 @@ void od_intra_paint_compute_edges(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned 
       if (edge_count[idx] > 0) paint[idx] = edge_sum[idx]/edge_count[idx];
       else paint[idx] = img[idx];
     }
-#if 1
+#if 0
     /* Refinement: one last chance to pick DC. */
     if (mode[(by*mstride + bx) << ln >> 2] != 4*n) {
       int i;
@@ -781,6 +888,54 @@ static void od_paint_switch(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *
         }
       }
     }
+#if 0
+    for (i = 0; i < n; i++) for (j = 0; j < n; j++) img1[stride*(n*by + i) + n*bx + j] = 255;
+#endif
+#if 0
+    for (i = 0; i < n; i++) img1[stride*(n*by + i) + n*bx + n - 1] = 0;
+    for (i = 0; i < n; i++) img1[stride*(n*by + i) + n*bx + n - 2] = 0;
+    for (i = 0; i < n; i++) img1[stride*(n*by + n - 1) + n*bx + i] = 0;
+    for (i = 0; i < n; i++) img1[stride*(n*by + n - 2) + n*bx + i] = 0;
+#endif
+#if 0
+    for (i = 0; i < n; i++) img1[stride*(n*by + i) + n*bx + n - 2] = img1[stride*(n*by + i) + n*bx + n - 1];
+    for (i = 0; i < n; i++) img1[stride*(n*by + n - 2) + n*bx + i] = img1[stride*(n*by + n - 1) + n*bx + i];
+#endif
+#if 0
+    {
+      int m;
+      int n2;
+      m = mode[(by*mstride + bx) << ln >> 2];
+      n2 = n/2;
+      if (m == 4*n) {
+        img1[stride*(n*by + n2) + n*bx + n2] = 0;
+        img1[stride*(n*by + n2) + n*bx + n2 - 1] = 0;
+        img1[stride*(n*by + n2 - 1) + n*bx + n2] = 0;
+        img1[stride*(n*by + n2 - 1) + n*bx + n2 - 1] = 0;
+      } else if (m <= 2*n) {
+        double r;
+        r = (double)m/n - 1;
+        for (i = 0; i < n; i++) {
+          int y;
+          y = floor(.5 + n2 + r*(i-n2));
+          img1[stride*(n*by + y) + n*bx + i] = 0;
+          img1[stride*(n*by + y - 1) + n*bx + i] = 0;
+          img1[stride*(n*by + y + 1) + n*bx + i] = 0;
+        }
+      }
+      else {
+        double r;
+        r = 3 - (double)m/n;
+        for (i = 0; i < n; i++) {
+          int x;
+          x = floor(.5 + n2 + r*(i-n2));
+          img1[stride*(n*by + i) + n*bx + x] = 0;
+          img1[stride*(n*by + i) + n*bx + x - 1] = 0;
+          img1[stride*(n*by + i) + n*bx + x + 1] = 0;
+        }
+      }
+    }
+#endif
   }
 }
 
@@ -1449,8 +1604,10 @@ void od_paint_dering(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *paint, 
   }
   for(i = 0; i < h; i++) {
     for(j = 0; j < w; j++) {
+#if 1
       od_paint_block(adapt, enc, paint_out, paint_out, stride, dec8, bstride, mode,
        mstride, edge_sum, edge_count, q, res, j, i, 3);
+#endif
       od_paint_block(adapt, enc, paint_mask, paint_mask, stride, dec8, bstride, mode,
        mstride, edge_sum, edge_count, q, res, j, i, 3);
     }
@@ -1462,16 +1619,18 @@ void od_paint_dering(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *paint, 
 #if 1
       paint_mask[idx] = OD_CLAMPI(0, paint[idx] + (((int)paint_mask[idx]*(paint_out[idx] - paint[idx]) + 128) >> 8), 255);
 #else
-      paint[idx] = paint_mask[idx];
+      paint[idx] = paint_out[idx];
 #endif
     }
   }
+#if 1
   for(i = 0; i < h; i++) {
     for(j = 0; j < w; j++) {
       od_paint_switch(adapt, enc, paint, paint_mask, img, stride, dec8, bstride, mode,
         mstride, edge_sum, edge_count, q, res, j, i, 3);
     }
   }
+#endif
 }
 
 void od_intra_paint_choose_block_size(const unsigned char *img, int stride,
