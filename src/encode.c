@@ -100,7 +100,7 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
 #if defined(OD_ACCOUNTING)
   od_acct_init(&enc->acct);
 #endif
-  enc->bs = (BlockSizeComp *)_ogg_malloc(sizeof(*enc->bs));
+  enc->bs = (od_block_size_comp *)_ogg_malloc(sizeof(*enc->bs));
 #if defined(OD_ENCODER_CHECK)
   enc->dec = daala_decode_alloc(info, NULL);
 #endif
@@ -1040,9 +1040,9 @@ static void od_split_superblocks(daala_enc_ctx *enc, int is_keyframe) {
       int bsize[4][4];
       unsigned char *state_bsize;
       state_bsize = &state->bsize[i*4*state->bstride + j*4];
-      process_block_size32(enc->bs, bimg + j*32, istride,
+      od_split_superblock(enc->bs, bimg + j*32, istride,
        is_keyframe ? NULL : rimg + j*32, rstride, bsize, enc->quantizer[0]);
-      /* Grab the 4x4 information returned from process_block_size32 in bsize
+      /* Grab the 4x4 information returned from `od_split_superblock` in bsize
          and store it in the od_state bsize. */
       for (k = 0; k < 4; k++) {
         for (m = 0; m < 4; m++) {

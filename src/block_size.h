@@ -45,6 +45,7 @@ extern const ogg_uint16_t split16_cdf_init[2][16];
 #define OD_BLOCK_8X8 (1)
 #define OD_BLOCK_16X16 (2)
 #define OD_BLOCK_32X32 (3)
+#define OD_BLOCK_SIZES (OD_BLOCK_32X32+1)
 
 int od_block_size_prob32(const unsigned char *bsize, int stride);
 

@@ -296,17 +296,18 @@ void image_data_mask(image_data *_this,const unsigned char *_data,int _stride){
   int j;
   int i;
   memset(_this->mask,0,_this->nyblocks*_this->nxblocks);
-  /* process_block_size32 needs 32x32 image data with 6 pixel padding */
+  /*`od_split_superblock` needs 32x32 image data with 2*OD_MAX_OVERLAP pixel
+     padding.*/
   OD_ASSERT(((_stride-_this->nxblocks*B_SZ)/2)>=6);
   for(j=0;j<_this->nyblocks*B_SZ/32;j++){
     for(i=0;i<_this->nxblocks*B_SZ/32;i++){
       const unsigned char *b;
-      BlockSizeComp        bs;
+      od_block_size_comp   bs;
       int                  dec[4][4];
       int                  k;
       int                  l;
       b=&_data[_stride*32*j+32*i];
-      process_block_size32(&bs, b,_stride, b, _stride, dec, 21);
+      od_split_superblock(&bs, b,_stride, b, _stride, dec, 21);
       for(l=0;l<32/B_SZ;l++){
         for(k=0;k<32/B_SZ;k++){
           /*printf("i=%i j=%i k=%i l=%i\n",i,j,k,l);

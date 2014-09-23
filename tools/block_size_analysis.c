@@ -366,17 +366,17 @@ int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh
   }
 #endif
 #endif
-  /* Replace decision with the one from process_block_size32() */
+  /* Replace decision with the one from `od_split_superblock` */
   if (1)
   {
-    BlockSizeComp bs;
+    od_block_size_comp bs;
 
     for(i=1;i<h32-1;i++){
       for(j=1;j<w32-1;j++){
         int k,m;
         int dec[4][4];
-        process_block_size32(&bs, img+32*stride*i+32*j, stride, NULL, 0, dec,
-         21);
+        od_split_superblock(&bs, img+32*stride*i+32*j, stride, NULL, 0,
+         dec, 21);
         for(k=0;k<4;k++)
           for(m=0;m<4;m++)
             dec8[4*i+k][4*j+m]=dec[k][m];

@@ -84,7 +84,7 @@ struct daala_enc_ctx{
   /*Account for where bits are spent in encoding.*/
   od_acct acct;
 #endif
-  BlockSizeComp *bs;
+  od_block_size_comp *bs;
 };
 
 /** Holds important encoder information so we can roll back decisions */
