@@ -963,6 +963,466 @@ static void od_img_dump_padded(od_state *state) {
 }
 #endif
 
+static void od_predict_frame(daala_enc_ctx *enc) {
+  int nplanes;
+  int pli;
+  int frame_width;
+  int frame_height;
+  nplanes = enc->state.info.nplanes;
+  frame_width = enc->state.frame_width;
+  frame_height = enc->state.frame_height;
+#if defined(OD_DUMP_IMAGES) && defined(OD_ANIMATE)
+  enc->state.ani_iter = 0;
+#endif
+  OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO, "Predicting frame %i:",
+   (int)daala_granule_basetime(enc, enc->state.cur_time)));
+  /*2851196 ~= sqrt(ln(2)/6) in Q23.
+   The lower bound of 56 is there because we do not yet consider PVQ noref
+    flags during the motion search, so we waste far too many bits trying to
+    predict unpredictable areas when lamba is too small.
+   Hopefully when we fix that, we can remove the limit.*/
+  od_mv_est(enc->mvest, OD_FRAME_PREV,
+   OD_MAXI((2851196 + (((1 << OD_COEFF_SHIFT) - 1) >> 1) >> OD_COEFF_SHIFT)*
+   enc->quantizer[0] >> (23 - OD_LAMBDA_SCALE), 56));
+  od_state_mc_predict(&enc->state, OD_FRAME_PREV);
+  /*Do edge extension here because the block-size analysis needs to read
+    outside the frame, but otherwise isn't read from.*/
+  for (pli = 0; pli < nplanes; pli++) {
+    od_img_plane plane;
+    *&plane = *(enc->state.io_imgs[OD_FRAME_REC].planes + pli);
+    od_img_plane_edge_ext8(&plane, frame_width >> plane.xdec,
+     frame_height >> plane.ydec, OD_UMV_PADDING >> plane.xdec,
+     OD_UMV_PADDING >> plane.ydec);
+  }
+#if defined(OD_DUMP_IMAGES)
+  /*Dump reconstructed frame.*/
+  /*od_state_dump_img(&enc->state,enc->state.io_imgs + OD_FRAME_REC,"rec");*/
+  od_state_fill_vis(&enc->state);
+  od_state_dump_img(&enc->state, &enc->state.vis_img, "vis");
+#endif
+}
+
+static void od_split_superblocks(daala_enc_ctx *enc, int is_keyframe) {
+  int nhsb;
+  int nvsb;
+  int i;
+  int j;
+  int k;
+  int m;
+  od_state *state;
+  state = &enc->state;
+  nhsb = state->nhsb;
+  nvsb = state->nvsb;
+  od_state_init_border(state);
+  /* Allocate a blockSizeComp for scratch space and then calculate the block
+     sizes eventually store them in bsize. */
+  od_log_matrix_uchar(OD_LOG_GENERIC, OD_LOG_INFO, "bimg ",
+   state->io_imgs[OD_FRAME_INPUT].planes[0].data -
+   16*state->io_imgs[OD_FRAME_INPUT].planes[0].ystride - 16,
+   state->io_imgs[OD_FRAME_INPUT].planes[0].ystride, (nvsb + 1)*32);
+  OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
+   OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_BLOCK_SIZE);
+  OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
+   OD_ACCT_CAT_PLANE, OD_ACCT_PLANE_FRAME);
+  for (i = 0; i < nvsb; i++) {
+    unsigned char *bimg;
+    unsigned char *rimg;
+    int istride;
+    int rstride;
+    int bstride;
+    bstride = state->bstride;
+    istride = state->io_imgs[OD_FRAME_INPUT].planes[0].ystride;
+    rstride = is_keyframe ? 0 :
+     state->io_imgs[OD_FRAME_REC].planes[0].ystride;
+    bimg = state->io_imgs[OD_FRAME_INPUT].planes[0].data + i*istride*32;
+    rimg = state->io_imgs[OD_FRAME_REC].planes[0].data + i*rstride*32;
+    for (j = 0; j < nhsb; j++) {
+      int bsize[4][4];
+      unsigned char *state_bsize;
+      state_bsize = &state->bsize[i*4*state->bstride + j*4];
+      process_block_size32(enc->bs, bimg + j*32, istride,
+       is_keyframe ? NULL : rimg + j*32, rstride, bsize, enc->quantizer[0]);
+      /* Grab the 4x4 information returned from process_block_size32 in bsize
+         and store it in the od_state bsize. */
+      for (k = 0; k < 4; k++) {
+        for (m = 0; m < 4; m++) {
+          if (OD_LIMIT_LOG_BSIZE_MIN != OD_LIMIT_LOG_BSIZE_MAX) {
+            state_bsize[k*bstride + m] =
+             OD_MAXI(OD_MINI(bsize[k][m], OD_LIMIT_LOG_BSIZE_MAX
+             - OD_LOG_BSIZE0), OD_LIMIT_LOG_BSIZE_MIN - OD_LOG_BSIZE0);
+          }
+          else {
+            state_bsize[k*bstride + m] =
+             OD_LIMIT_LOG_BSIZE_MIN - OD_LOG_BSIZE0;
+          }
+        }
+      }
+      if (OD_LIMIT_LOG_BSIZE_MIN != OD_LIMIT_LOG_BSIZE_MAX) {
+        od_block_size_encode(&enc->ec, &state->adapt, &state_bsize[0],
+         bstride);
+      }
+    }
+  }
+  OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
+  OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
+  od_log_matrix_uchar(OD_LOG_GENERIC, OD_LOG_INFO, "bsize ", state->bsize,
+   state->bstride, (nvsb + 1)*4);
+  for (i = 0; i < nvsb*4; i++) {
+    for (j = 0; j < nhsb*4; j++) {
+      OD_LOG_PARTIAL((OD_LOG_GENERIC, OD_LOG_INFO, "%d ",
+       state->bsize[i*state->bstride + j]));
+    }
+    OD_LOG_PARTIAL((OD_LOG_GENERIC, OD_LOG_INFO, "\n"));
+  }
+}
+
+static void od_encode_mvs(daala_enc_ctx *enc) {
+  int nhmvbs;
+  int nvmvbs;
+  int vx;
+  int vy;
+  od_img *mvimg;
+  int width;
+  int height;
+  int mv_res;
+  od_mv_grid_pt *mvp;
+  od_mv_grid_pt *other;
+  od_mv_grid_pt **grid;
+  OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
+   OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_MOTION_VECTORS);
+  nhmvbs = (enc->state.nhmbs + 1) << 2;
+  nvmvbs = (enc->state.nvmbs + 1) << 2;
+  mvimg = enc->state.io_imgs + OD_FRAME_REC;
+  mv_res = enc->state.mv_res;
+  OD_ASSERT(0 <= mv_res && mv_res < 3);
+  od_ec_enc_uint(&enc->ec, mv_res, 3);
+  width = (mvimg->width + 32) << (3 - mv_res);
+  height = (mvimg->height + 32) << (3 - mv_res);
+  grid = enc->state.mv_grid;
+  /*Code the motion vectors and flags. At each level, the MVs are zero
+    outside of the frame, so don't code them.*/
+  /*Level 0.*/
+  for (vy = 4; vy < nvmvbs; vy += 4) {
+    for (vx = 4; vx < nhmvbs; vx += 4) {
+      mvp = &grid[vy][vx];
+      od_encode_mv(enc, mvp, vx, vy, 0, mv_res, width, height);
+    }
+  }
+  /*Level 1.*/
+  for (vy = 2; vy <= nvmvbs; vy += 4) {
+    for (vx = 2; vx <= nhmvbs; vx += 4) {
+      int p_invalid;
+      p_invalid = od_mv_level1_prob(grid, vx, vy);
+      mvp = &(grid[vy][vx]);
+      od_ec_encode_bool_q15(&enc->ec, mvp->valid, p_invalid);
+      if (mvp->valid) {
+        od_encode_mv(enc, mvp, vx, vy, 1, mv_res, width, height);
+      }
+    }
+  }
+  /*Level 2.*/
+  for (vy = 0; vy <= nvmvbs; vy += 2) {
+    for (vx = 2*((vy & 3) == 0); vx <= nhmvbs; vx += 4) {
+      mvp = &grid[vy][vx];
+      if ((vy-2 < 0 || grid[vy-2][vx].valid)
+       && (vx-2 < 0 || grid[vy][vx-2].valid)
+       && (vy+2 > nvmvbs || grid[vy+2][vx].valid)
+       && (vx+2 > nhmvbs || grid[vy][vx+2].valid)) {
+        od_ec_encode_bool_q15(&enc->ec, mvp->valid, 13684);
+        if (mvp->valid && vx >= 2 && vy >= 2 && vx <= nhmvbs - 2 &&
+         vy <= nvmvbs - 2) {
+          od_encode_mv(enc, mvp, vx, vy, 2, mv_res, width, height);
+        }
+      }
+    }
+  }
+  /*Level 3.*/
+  /*Level 3 motion vector flags outside the frame are specially coded
+    since more information is known. On the grid edge, an L2 MV will only be
+    valid if a L3 MV is needed outside of the frame. In the middle of the
+    edge, this implies a tristate of the two possible child L3 MVs; they
+    can't both be invalid. At the corner, one of the child L3 vectors will
+    never appear, so an L2 MV directly implies the remaining L3 child.*/
+  for (vy = 1; vy <= nvmvbs; vy += 2) {
+    for (vx = 1; vx <= nhmvbs; vx += 2) {
+      mvp = &grid[vy][vx];
+      if (vy < 2 || vy > nvmvbs - 2) {
+        if ((vx == 3 && grid[vy == 1 ? vy - 1 : vy + 1][vx - 1].valid)
+         || (vx == nhmvbs - 3
+         && grid[vy == 1 ? vy - 1 : vy + 1][vx + 1].valid)) {
+          other = &grid[vy][vx == 3 ? vx - 2 : vx + 2];
+          /*MVs are valid but will be zero.*/
+          OD_ASSERT(mvp->valid && !mvp->mv[0] && !mvp->mv[1]
+           && !other->valid);
+        }
+        else if (vx > 3 && vx < nhmvbs - 3) {
+          other = &grid[vy][vx + 2];
+          if (!(vx & 2) && grid[vy == 1 ? vy - 1 : vy + 1][vx + 1].valid) {
+            /*0 = both valid, 1 = only this one, 2 = other one valid*/
+            int s;
+            s = mvp->valid && other->valid ? 0 : mvp->valid
+             + (other->valid << 1);
+            od_ec_encode_cdf_q15(&enc->ec, s, OD_UNIFORM_CDF_Q15(3), 3);
+            /*MVs are valid but will be zero.*/
+            OD_ASSERT((mvp->valid && !mvp->mv[0] && !mvp->mv[1])
+             || (other->valid && !other->mv[0] && !other->mv[1]));
+          }
+          else if (!(vx & 2)) {
+            OD_ASSERT(!mvp->valid && !other->valid);
+          }
+        }
+        else {
+          OD_ASSERT(!mvp->valid);
+        }
+      }
+      else if (vx < 2 || vx > nhmvbs - 2) {
+        od_mv_grid_pt *other;
+        if ((vy == 3 && grid[vy - 1][vx == 1 ? vx - 1 : vx + 1].valid)
+         || (vy == nvmvbs - 3
+          && grid[vy + 1][vx == 1 ? vx - 1 : vx + 1].valid)) {
+          other = &grid[vy == 3 ? vy - 2 : vy + 2][vx];
+          /*MVs are valid but will be zero.*/
+          OD_ASSERT(mvp->valid && !mvp->mv[0] && !mvp->mv[1]
+           && !other->valid);
+        }
+        else if (!(vy & 2) && grid[vy + 1][vx == 1 ? vx - 1 : vx + 1].valid) {
+          int s;
+          other = &grid[vy + 2][vx];
+          s = mvp->valid && other->valid ? 0 : mvp->valid
+           + (other->valid << 1);
+          od_ec_encode_cdf_q15(&enc->ec, s, OD_UNIFORM_CDF_Q15(3), 3);
+          /*MVs are valid but will be zero.*/
+          OD_ASSERT((mvp->valid && !mvp->mv[0] && !mvp->mv[1])
+           || (other->valid && !other->mv[0] && !other->mv[1]));
+        }
+        else if (!(vy & 2)) {
+          other = &grid[vy == 3 ? vy - 2 : vy + 2][vx];
+          OD_ASSERT(!mvp->valid && !other->valid);
+        }
+      }
+      else if (grid[vy - 1][vx - 1].valid && grid[vy - 1][vx + 1].valid
+       && grid[vy + 1][vx + 1].valid && grid[vy + 1][vx - 1].valid) {
+        od_ec_encode_bool_q15(&enc->ec, mvp->valid, 16384);
+        if (mvp->valid) {
+          od_encode_mv(enc, mvp, vx, vy, 3, mv_res, width, height);
+        }
+      }
+      else {
+        OD_ASSERT(!mvp->valid);
+      }
+    }
+  }
+  /*Level 4.*/
+  for (vy = 2; vy <= nvmvbs - 2; vy += 1) {
+    for (vx = 3 - (vy & 1); vx <= nhmvbs - 2; vx += 2) {
+      mvp = &grid[vy][vx];
+      if (grid[vy-1][vx].valid && grid[vy][vx-1].valid
+       && grid[vy+1][vx].valid && grid[vy][vx+1].valid) {
+        od_ec_encode_bool_q15(&enc->ec, mvp->valid, 16384);
+        if (mvp->valid) {
+          od_encode_mv(enc, mvp, vx, vy, 4, mv_res, width, height);
+        }
+        else {
+          OD_ASSERT(!mvp->valid);
+        }
+      }
+    }
+  }
+  OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
+   OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
+}
+
+static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx) {
+  int xdec;
+  int ydec;
+  int sby;
+  int sbx;
+  int h;
+  int w;
+  int y;
+  int x;
+  int pli;
+  int nplanes;
+  int frame_width;
+  int frame_height;
+  int nhsb;
+  int nvsb;
+  od_state *state = &enc->state;
+  nplanes = state->info.nplanes;
+  frame_width = state->frame_width;
+  frame_height = state->frame_height;
+  nhsb = state->nhsb;
+  nvsb = state->nvsb;
+  for (pli = 0; pli < nplanes; pli++) {
+    xdec = state->io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
+    ydec = state->io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
+    w = frame_width >> xdec;
+    h = frame_height >> ydec;
+    /* Set this to 1 to enable the new (experimental, encode-only) PVQ
+       implementation */
+    mbctx->run_pvq[pli] = !OD_DISABLE_PVQ;
+    OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
+     OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_FRAME);
+    OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
+     OD_ACCT_CAT_PLANE, OD_ACCT_PLANE_FRAME);
+    /* TODO: We shouldn't be encoding the full, linear quantizer range. */
+    od_ec_enc_uint(&enc->ec, enc->quantizer[pli], 512<<OD_COEFF_SHIFT);
+    /*If the quantizer is zero (lossless), force scalar.*/
+    if (!enc->quantizer[pli]) mbctx->run_pvq[pli] = 0;
+    else od_ec_encode_bool_q15(&enc->ec, mbctx->run_pvq[pli], 16384);
+    OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
+     OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
+    OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
+     OD_ACCT_CAT_PLANE, OD_ACCT_PLANE_UNKNOWN);
+  }
+  for (pli = 0; pli < nplanes; pli++) {
+    xdec = state->io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
+    ydec = state->io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
+    w = frame_width >> xdec;
+    h = frame_height >> ydec;
+    /*Collect the image data needed for this plane.*/
+    {
+      unsigned char *data;
+      unsigned char *mdata;
+      int ystride;
+      int coeff_shift;
+      coeff_shift = enc->quantizer[pli] == 0 ? 0 : OD_COEFF_SHIFT;
+      data = state->io_imgs[OD_FRAME_INPUT].planes[pli].data;
+      mdata = state->io_imgs[OD_FRAME_REC].planes[pli].data;
+      ystride = state->io_imgs[OD_FRAME_INPUT].planes[pli].ystride;
+      for (y = 0; y < h; y++) {
+        for (x = 0; x < w; x++) {
+          state->ctmp[pli][y*w + x] = (data[ystride*y + x] - 128) <<
+           coeff_shift;
+          if (!mbctx->is_keyframe) {
+            state->mctmp[pli][y*w + x] = (mdata[ystride*y + x] - 128)
+             << coeff_shift;
+          }
+        }
+      }
+    }
+    /*Apply the prefilter across the entire image.*/
+    for (sby = 0; sby < nvsb; sby++) {
+      for (sbx = 0; sbx < nhsb; sbx++) {
+        od_apply_prefilter(state->ctmp[pli], w, sbx, sby, 3,
+         state->bsize, state->bstride, xdec, ydec,
+         (sbx > 0 ? OD_LEFT_EDGE : 0) |
+         (sby < nvsb - 1 ? OD_BOTTOM_EDGE : 0));
+        if (!mbctx->is_keyframe) {
+          od_apply_prefilter(state->mctmp[pli], w, sbx, sby, 3, state->bsize,
+           state->bstride, xdec, ydec, (sbx > 0 ? OD_LEFT_EDGE : 0) |
+           (sby < nvsb - 1 ? OD_BOTTOM_EDGE : 0));
+        }
+      }
+    }
+  }
+  for (sby = 0; sby < nvsb; sby++) {
+    for (sbx = 0; sbx < nhsb; sbx++) {
+      for (pli = 0; pli < nplanes; pli++) {
+        OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
+         OD_ACCT_CAT_PLANE, OD_ACCT_PLANE_LUMA + pli);
+        mbctx->c = state->ctmp[pli];
+        mbctx->d = state->dtmp;
+        mbctx->mc = state->mctmp[pli];
+        mbctx->md = state->mdtmp[pli];
+        mbctx->l = state->lbuf[pli];
+        xdec = state->io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
+        ydec = state->io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
+        mbctx->nk = mbctx->k_total = mbctx->sum_ex_total_q8 = 0;
+        mbctx->ncount = mbctx->count_total_q8 = mbctx->count_ex_total_q8 = 0;
+        /*Need to update this to decay based on superblocks width.*/
+        od_compute_dcts(enc, mbctx, pli, sbx, sby, 3, xdec, ydec);
+        if (!OD_DISABLE_HAAR_DC && mbctx->is_keyframe) {
+          od_quantize_haar_dc(enc, mbctx, pli, sbx, sby, 3, xdec, ydec, 0,
+           0, sby > 0 && sbx < nhsb - 1);
+        }
+        od_encode_block(enc, mbctx, pli, sbx, sby, 3, xdec, ydec,
+         sby > 0 && sbx < nhsb - 1);
+      }
+        OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
+         OD_ACCT_CAT_PLANE, OD_ACCT_PLANE_UNKNOWN);
+    }
+  }
+  for (pli = 0; pli < nplanes; pli++) {
+    xdec = state->io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
+    ydec = state->io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
+    w = frame_width >> xdec;
+    h = frame_height >> ydec;
+    /*Apply the postfilter across the entire image.*/
+    for (sby = 0; sby < nvsb; sby++) {
+      for (sbx = 0; sbx < nhsb; sbx++) {
+        od_apply_postfilter(state->ctmp[pli], w, sbx, sby, 3, state->bsize,
+         state->bstride, xdec, ydec,
+         (sby > 0 ? OD_TOP_EDGE : 0) | (sbx < nhsb - 1 ? OD_RIGHT_EDGE : 0));
+      }
+    }
+    {
+      unsigned char *data;
+      int ystride;
+      int coeff_shift;
+      coeff_shift = enc->quantizer[pli] == 0 ? 0 : OD_COEFF_SHIFT;
+      data = state->io_imgs[OD_FRAME_REC].planes[pli].data;
+      ystride = state->io_imgs[OD_FRAME_INPUT].planes[pli].ystride;
+      for (y = 0; y < h; y++) {
+        for (x = 0; x < w; x++) {
+          data[ystride*y + x] = OD_CLAMP255(((state->ctmp[pli][y*w + x]
+           + (1 << coeff_shift >> 1)) >> coeff_shift) + 128);
+        }
+      }
+    }
+  }
+}
+
+#if defined(OD_LOGGING_ENABLED)
+static void od_dump_frame_metrics(od_state *state) {
+  int pli;
+  int nplanes;
+  int frame_width;
+  int frame_height;
+  nplanes = state->info.nplanes;
+  frame_width = state->frame_width;
+  frame_height = state->frame_height;
+  for (pli = 0; pli < nplanes; pli++) {
+    unsigned char *data;
+    ogg_int64_t enc_sqerr;
+    ogg_uint32_t npixels;
+    int ystride;
+    int xdec;
+    int ydec;
+    int w;
+    int h;
+    int x;
+    int y;
+    enc_sqerr = 0;
+    data = state->io_imgs[OD_FRAME_INPUT].planes[pli].data;
+    ystride = state->io_imgs[OD_FRAME_INPUT].planes[pli].ystride;
+    xdec = state->io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
+    ydec = state->io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
+    w = frame_width >> xdec;
+    h = frame_height >> ydec;
+    npixels = w*h;
+    for (y = 0; y < h; y++) {
+      unsigned char *rec_row;
+      unsigned char *inp_row;
+      rec_row = state->io_imgs[OD_FRAME_REC].planes[pli].data +
+       state->io_imgs[OD_FRAME_REC].planes[pli].ystride*y;
+      inp_row = data + ystride*y;
+      for (x = 0; x < w; x++) {
+        int inp_val;
+        int diff;
+        inp_val = inp_row[x];
+        diff = inp_val - rec_row[x];
+        enc_sqerr += diff*diff;
+      }
+    }
+    OD_LOG((OD_LOG_ENCODER, OD_LOG_DEBUG,
+     "Encoded Plane %i, Squared Error: %12lli  Pixels: %6u  PSNR:  %5.4f",
+     pli, (long long)enc_sqerr, npixels,
+     10*log10(255*255.0*npixels/enc_sqerr)));
+  }
+}
+#endif
+
 int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   int refi;
   int nplanes;
@@ -971,12 +1431,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   int frame_height;
   int pic_width;
   int pic_height;
-  int i;
-  int j;
-  int k;
-  int m;
-  int nhsb;
-  int nvsb;
   od_mb_enc_ctx mbctx;
 #if defined(OD_ACCOUNTING)
   od_acct_reset(&enc->acct);
@@ -1001,8 +1455,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   frame_height = enc->state.frame_height;
   pic_width = enc->state.info.pic_width;
   pic_height = enc->state.info.pic_height;
-  nhsb = enc->state.nhsb;
-  nvsb = enc->state.nvsb;
   if (img->width != frame_width || img->height != frame_height) {
     /*The buffer does not match the frame size.
       Check to see if it matches the picture size.*/
@@ -1062,429 +1514,22 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
    OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
   OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
    OD_ACCT_CAT_PLANE, OD_ACCT_TECH_UNKNOWN);
-  /*TODO: Incrment frame count.*/
+  /*TODO: Increment frame count.*/
   od_adapt_ctx_reset(&enc->state.adapt, mbctx.is_keyframe);
-  /*Motion estimation and compensation.*/
   if (!mbctx.is_keyframe) {
-#if defined(OD_DUMP_IMAGES) && defined(OD_ANIMATE)
-    enc->state.ani_iter = 0;
-#endif
-    OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO, "Predicting frame %i:",
-     (int)daala_granule_basetime(enc, enc->state.cur_time)));
-    /*2851196 ~= sqrt(ln(2)/6) in Q23.
-      The lower bound of 56 is there because we do not yet consider PVQ noref
-       flags during the motion search, so we waste far too many bits trying to
-       predict unpredictable areas when lamba is too small.
-      Hopefully when we fix that, we can remove the limit.*/
-    od_mv_est(enc->mvest, OD_FRAME_PREV,
-     OD_MAXI((2851196 + (((1 << OD_COEFF_SHIFT) - 1) >> 1) >> OD_COEFF_SHIFT)*
-     enc->quantizer[0] >> (23 - OD_LAMBDA_SCALE), 56));
-    od_state_mc_predict(&enc->state, OD_FRAME_PREV);
-    /*Do edge extension here because the block-size analysis needs to read
-      outside the frame, but otherwise isn't read from.*/
-    for (pli = 0; pli < nplanes; pli++) {
-      od_img_plane plane;
-      *&plane = *(enc->state.io_imgs[OD_FRAME_REC].planes + pli);
-      od_img_plane_edge_ext8(&plane, frame_width >> plane.xdec,
-       frame_height >> plane.ydec, OD_UMV_PADDING >> plane.xdec,
-       OD_UMV_PADDING >> plane.ydec);
-    }
-#if defined(OD_DUMP_IMAGES)
-    /*Dump reconstructed frame.*/
-    /*od_state_dump_img(&enc->state,enc->state.io_imgs + OD_FRAME_REC,"rec");*/
-    od_state_fill_vis(&enc->state);
-    od_state_dump_img(&enc->state, &enc->state.vis_img, "vis");
-#endif
+    od_predict_frame(enc);
+    od_split_superblocks(enc, 0);
+    od_encode_mvs(enc);
+  } else {
+    od_split_superblocks(enc, 1);
   }
-  /*Block size switching.*/
-  od_state_init_border(&enc->state);
-  /* Allocate a blockSizeComp for scratch space and then calculate the block sizes
-     eventually store them in bsize. */
-  od_log_matrix_uchar(OD_LOG_GENERIC, OD_LOG_INFO, "bimg ",
-   enc->state.io_imgs[OD_FRAME_INPUT].planes[0].data -
-   16*enc->state.io_imgs[OD_FRAME_INPUT].planes[0].ystride - 16,
-   enc->state.io_imgs[OD_FRAME_INPUT].planes[0].ystride, (nvsb + 1)*32);
-   OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
-    OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_BLOCK_SIZE);
-   OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
-    OD_ACCT_CAT_PLANE, OD_ACCT_PLANE_FRAME);
-  for (i = 0; i < nvsb; i++) {
-    unsigned char *bimg;
-    unsigned char *rimg;
-    int istride;
-    int rstride;
-    int bstride;
-    int kf;
-    kf = mbctx.is_keyframe;
-    bstride = enc->state.bstride;
-    istride = enc->state.io_imgs[OD_FRAME_INPUT].planes[0].ystride;
-    rstride = kf ? 0 : enc->state.io_imgs[OD_FRAME_REC].planes[0].ystride;
-    bimg = enc->state.io_imgs[OD_FRAME_INPUT].planes[0].data + i*istride*32;
-    rimg = enc->state.io_imgs[OD_FRAME_REC].planes[0].data + i*rstride*32;
-    for (j = 0; j < nhsb; j++) {
-      int bsize[4][4];
-      unsigned char *state_bsize;
-      state_bsize = &enc->state.bsize[i*4*enc->state.bstride + j*4];
-      process_block_size32(enc->bs, bimg + j*32, istride,
-       kf ? NULL : rimg + j*32, rstride, bsize, enc->quantizer[0]);
-      /* Grab the 4x4 information returned from process_block_size32 in bsize
-         and store it in the od_state bsize. */
-      for (k = 0; k < 4; k++) {
-        for (m = 0; m < 4; m++) {
-          if (OD_LIMIT_LOG_BSIZE_MIN != OD_LIMIT_LOG_BSIZE_MAX) {
-            state_bsize[k*bstride + m] =
-             OD_MAXI(OD_MINI(bsize[k][m], OD_LIMIT_LOG_BSIZE_MAX
-             - OD_LOG_BSIZE0), OD_LIMIT_LOG_BSIZE_MIN - OD_LOG_BSIZE0);
-          }
-          else {
-            state_bsize[k*bstride + m] =
-             OD_LIMIT_LOG_BSIZE_MIN - OD_LOG_BSIZE0;
-          }
-        }
-      }
-      if (OD_LIMIT_LOG_BSIZE_MIN != OD_LIMIT_LOG_BSIZE_MAX) {
-        od_block_size_encode(&enc->ec, &enc->state.adapt, &state_bsize[0], bstride);
-      }
-    }
-  }
-  OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
-   OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
-  od_log_matrix_uchar(OD_LOG_GENERIC, OD_LOG_INFO, "bsize ", enc->state.bsize,
-   enc->state.bstride, (nvsb + 1)*4);
-  for (i = 0; i < nvsb*4; i++) {
-    for (j = 0; j < nhsb*4; j++) {
-      OD_LOG_PARTIAL((OD_LOG_GENERIC, OD_LOG_INFO, "%d ",
-       enc->state.bsize[i*enc->state.bstride + j]));
-    }
-    OD_LOG_PARTIAL((OD_LOG_GENERIC, OD_LOG_INFO, "\n"));
-  }
-  /*Code the motion vectors.*/
-  if (!mbctx.is_keyframe) {
-    int nhmvbs;
-    int nvmvbs;
-    int vx;
-    int vy;
-    od_img *mvimg;
-    int width;
-    int height;
-    int mv_res;
-    od_mv_grid_pt *mvp;
-    od_mv_grid_pt *other;
-    od_mv_grid_pt **grid;
-    OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
-     OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_MOTION_VECTORS);
-    nhmvbs = (enc->state.nhmbs + 1) << 2;
-    nvmvbs = (enc->state.nvmbs + 1) << 2;
-    mvimg = enc->state.io_imgs + OD_FRAME_REC;
-    mv_res = enc->state.mv_res;
-    OD_ASSERT(0 <= mv_res && mv_res < 3);
-    od_ec_enc_uint(&enc->ec, mv_res, 3);
-    width = (mvimg->width + 32) << (3 - mv_res);
-    height = (mvimg->height + 32) << (3 - mv_res);
-    grid = enc->state.mv_grid;
-    /*Code the motion vectors and flags. At each level, the MVs are zero
-      outside of the frame, so don't code them.*/
-    /*Level 0.*/
-    for (vy = 4; vy < nvmvbs; vy += 4) {
-      for (vx = 4; vx < nhmvbs; vx += 4) {
-        mvp = &grid[vy][vx];
-        od_encode_mv(enc, mvp, vx, vy, 0, mv_res, width, height);
-      }
-    }
-    /*Level 1.*/
-    for (vy = 2; vy <= nvmvbs; vy += 4) {
-      for (vx = 2; vx <= nhmvbs; vx += 4) {
-        int p_invalid;
-        p_invalid = od_mv_level1_prob(grid, vx, vy);
-        mvp = &(grid[vy][vx]);
-        od_ec_encode_bool_q15(&enc->ec, mvp->valid, p_invalid);
-        if (mvp->valid) {
-          od_encode_mv(enc, mvp, vx, vy, 1, mv_res, width, height);
-        }
-      }
-    }
-    /*Level 2.*/
-    for (vy = 0; vy <= nvmvbs; vy += 2) {
-      for (vx = 2*((vy & 3) == 0); vx <= nhmvbs; vx += 4) {
-        mvp = &grid[vy][vx];
-        if ((vy-2 < 0 || grid[vy-2][vx].valid)
-         && (vx-2 < 0 || grid[vy][vx-2].valid)
-         && (vy+2 > nvmvbs || grid[vy+2][vx].valid)
-         && (vx+2 > nhmvbs || grid[vy][vx+2].valid)) {
-          od_ec_encode_bool_q15(&enc->ec, mvp->valid, 13684);
-          if (mvp->valid && vx >= 2 && vy >= 2 && vx <= nhmvbs - 2 &&
-           vy <= nvmvbs - 2) {
-            od_encode_mv(enc, mvp, vx, vy, 2, mv_res, width, height);
-          }
-        }
-      }
-    }
-    /*Level 3.*/
-    /*Level 3 motion vector flags outside the frame are specially coded
-      since more information is known. On the grid edge, an L2 MV will only be
-      valid if a L3 MV is needed outside of the frame. In the middle of the
-      edge, this implies a tristate of the two possible child L3 MVs; they
-      can't both be invalid. At the corner, one of the child L3 vectors will
-      never appear, so an L2 MV directly implies the remaining L3 child.*/
-    for (vy = 1; vy <= nvmvbs; vy += 2) {
-      for (vx = 1; vx <= nhmvbs; vx += 2) {
-        mvp = &grid[vy][vx];
-        if (vy < 2 || vy > nvmvbs - 2) {
-          if ((vx == 3 && grid[vy == 1 ? vy - 1 : vy + 1][vx - 1].valid)
-           || (vx == nhmvbs - 3
-           && grid[vy == 1 ? vy - 1 : vy + 1][vx + 1].valid)) {
-            other = &grid[vy][vx == 3 ? vx - 2 : vx + 2];
-            /*MVs are valid but will be zero.*/
-            OD_ASSERT(mvp->valid && !mvp->mv[0] && !mvp->mv[1]
-             && !other->valid);
-          }
-          else if (vx > 3 && vx < nhmvbs - 3) {
-            other = &grid[vy][vx + 2];
-            if (!(vx & 2) && grid[vy == 1 ? vy - 1 : vy + 1][vx + 1].valid) {
-              /*0 = both valid, 1 = only this one, 2 = other one valid*/
-              int s;
-              s = mvp->valid && other->valid ? 0 : mvp->valid
-               + (other->valid << 1);
-              od_ec_encode_cdf_q15(&enc->ec, s, OD_UNIFORM_CDF_Q15(3), 3);
-              /*MVs are valid but will be zero.*/
-              OD_ASSERT((mvp->valid && !mvp->mv[0] && !mvp->mv[1])
-               || (other->valid && !other->mv[0] && !other->mv[1]));
-            }
-            else if (!(vx & 2)) {
-              OD_ASSERT(!mvp->valid && !other->valid);
-            }
-          }
-          else {
-            OD_ASSERT(!mvp->valid);
-          }
-        }
-        else if (vx < 2 || vx > nhmvbs - 2) {
-          od_mv_grid_pt *other;
-          if ((vy == 3 && grid[vy - 1][vx == 1 ? vx - 1 : vx + 1].valid)
-           || (vy == nvmvbs - 3
-            && grid[vy + 1][vx == 1 ? vx - 1 : vx + 1].valid)) {
-            other = &grid[vy == 3 ? vy - 2 : vy + 2][vx];
-            /*MVs are valid but will be zero.*/
-            OD_ASSERT(mvp->valid && !mvp->mv[0] && !mvp->mv[1]
-             && !other->valid);
-          }
-          else if (!(vy & 2) && grid[vy + 1][vx == 1 ? vx - 1 : vx + 1].valid) {
-            int s;
-            other = &grid[vy + 2][vx];
-            s = mvp->valid && other->valid ? 0 : mvp->valid
-             + (other->valid << 1);
-            od_ec_encode_cdf_q15(&enc->ec, s, OD_UNIFORM_CDF_Q15(3), 3);
-            /*MVs are valid but will be zero.*/
-            OD_ASSERT((mvp->valid && !mvp->mv[0] && !mvp->mv[1])
-             || (other->valid && !other->mv[0] && !other->mv[1]));
-          }
-          else if (!(vy & 2)) {
-            other = &grid[vy == 3 ? vy - 2 : vy + 2][vx];
-            OD_ASSERT(!mvp->valid && !other->valid);
-          }
-        }
-        else if (grid[vy - 1][vx - 1].valid && grid[vy - 1][vx + 1].valid
-         && grid[vy + 1][vx + 1].valid && grid[vy + 1][vx - 1].valid) {
-          od_ec_encode_bool_q15(&enc->ec, mvp->valid, 16384);
-          if (mvp->valid) {
-            od_encode_mv(enc, mvp, vx, vy, 3, mv_res, width, height);
-          }
-        }
-        else {
-          OD_ASSERT(!mvp->valid);
-        }
-      }
-    }
-    /*Level 4.*/
-    for (vy = 2; vy <= nvmvbs - 2; vy += 1) {
-      for (vx = 3 - (vy & 1); vx <= nhmvbs - 2; vx += 2) {
-        mvp = &grid[vy][vx];
-        if (grid[vy-1][vx].valid && grid[vy][vx-1].valid
-         && grid[vy+1][vx].valid && grid[vy][vx+1].valid) {
-          od_ec_encode_bool_q15(&enc->ec, mvp->valid, 16384);
-          if (mvp->valid) {
-            od_encode_mv(enc, mvp, vx, vy, 4, mv_res, width, height);
-          }
-          else {
-            OD_ASSERT(!mvp->valid);
-          }
-        }
-      }
-    }
-    OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
-     OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
-  }
-  {
-    int xdec;
-    int ydec;
-    int sby;
-    int sbx;
-    int h;
-    int w;
-    int y;
-    int x;
-    for (pli = 0; pli < nplanes; pli++) {
-      xdec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
-      ydec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
-      w = frame_width >> xdec;
-      h = frame_height >> ydec;
-      /* Set this to 1 to enable the new (experimental, encode-only) PVQ
-         implementation */
-      mbctx.run_pvq[pli] = !OD_DISABLE_PVQ;
-      OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
-       OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_FRAME);
-      OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
-       OD_ACCT_CAT_PLANE, OD_ACCT_PLANE_FRAME);
-      /* TODO: We shouldn't be encoding the full, linear quantizer range. */
-      od_ec_enc_uint(&enc->ec, enc->quantizer[pli], 512<<OD_COEFF_SHIFT);
-      /*If the quantizer is zero (lossless), force scalar.*/
-      if (!enc->quantizer[pli]) mbctx.run_pvq[pli] = 0;
-      else od_ec_encode_bool_q15(&enc->ec, mbctx.run_pvq[pli], 16384);
-      OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
-       OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
-      OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
-       OD_ACCT_CAT_PLANE, OD_ACCT_PLANE_UNKNOWN);
-    }
-    for (pli = 0; pli < nplanes; pli++) {
-      xdec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
-      ydec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
-      w = frame_width >> xdec;
-      h = frame_height >> ydec;
-      /*Collect the image data needed for this plane.*/
-      {
-        unsigned char *data;
-        unsigned char *mdata;
-        int ystride;
-        int coeff_shift;
-        coeff_shift = enc->quantizer[pli] == 0 ? 0 : OD_COEFF_SHIFT;
-        data = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].data;
-        mdata = enc->state.io_imgs[OD_FRAME_REC].planes[pli].data;
-        ystride = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ystride;
-        for (y = 0; y < h; y++) {
-          for (x = 0; x < w; x++) {
-            enc->state.ctmp[pli][y*w + x] = (data[ystride*y + x] - 128) <<
-             coeff_shift;
-            if (!mbctx.is_keyframe) {
-              enc->state.mctmp[pli][y*w + x] = (mdata[ystride*y + x] - 128)
-               << coeff_shift;
-            }
-          }
-        }
-      }
-      /*Apply the prefilter across the entire image.*/
-      for (sby = 0; sby < nvsb; sby++) {
-        for (sbx = 0; sbx < nhsb; sbx++) {
-          od_apply_prefilter(enc->state.ctmp[pli], w, sbx, sby, 3,
-           enc->state.bsize, enc->state.bstride, xdec, ydec,
-           (sbx > 0 ? OD_LEFT_EDGE : 0) |
-           (sby < nvsb - 1 ? OD_BOTTOM_EDGE : 0));
-          if (!mbctx.is_keyframe) {
-            od_apply_prefilter(enc->state.mctmp[pli], w, sbx, sby, 3, enc->state.bsize,
-             enc->state.bstride, xdec, ydec, (sbx > 0 ? OD_LEFT_EDGE : 0) |
-             (sby < nvsb - 1 ? OD_BOTTOM_EDGE : 0));
-          }
-        }
-      }
-    }
-    for (sby = 0; sby < nvsb; sby++) {
-      for (sbx = 0; sbx < nhsb; sbx++) {
-        for (pli = 0; pli < nplanes; pli++) {
-          OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
-           OD_ACCT_CAT_PLANE, OD_ACCT_PLANE_LUMA + pli);
-          mbctx.c = enc->state.ctmp[pli];
-          mbctx.d = enc->state.dtmp;
-          mbctx.mc = enc->state.mctmp[pli];
-          mbctx.md = enc->state.mdtmp[pli];
-          mbctx.l = enc->state.lbuf[pli];
-          xdec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
-          ydec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
-          mbctx.nk = mbctx.k_total = mbctx.sum_ex_total_q8 = 0;
-          mbctx.ncount = mbctx.count_total_q8 = mbctx.count_ex_total_q8 = 0;
-          /*Need to update this to decay based on superblocks width.*/
-          od_compute_dcts(enc, &mbctx, pli, sbx, sby, 3, xdec, ydec);
-          if (!OD_DISABLE_HAAR_DC && mbctx.is_keyframe) {
-            od_quantize_haar_dc(enc, &mbctx, pli, sbx, sby, 3, xdec, ydec, 0,
-             0, sby > 0 && sbx < nhsb - 1);
-          }
-          od_encode_block(enc, &mbctx, pli, sbx, sby, 3, xdec, ydec,
-           sby > 0 && sbx < nhsb - 1);
-        }
-          OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
-           OD_ACCT_CAT_PLANE, OD_ACCT_PLANE_UNKNOWN);
-      }
-    }
-    for (pli = 0; pli < nplanes; pli++) {
-      xdec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
-      ydec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
-      w = frame_width >> xdec;
-      h = frame_height >> ydec;
-      /*Apply the postfilter across the entire image.*/
-      for (sby = 0; sby < nvsb; sby++) {
-        for (sbx = 0; sbx < nhsb; sbx++) {
-          od_apply_postfilter(enc->state.ctmp[pli], w, sbx, sby, 3, enc->state.bsize,
-           enc->state.bstride, xdec, ydec, (sby > 0 ? OD_TOP_EDGE : 0) |
-           (sbx < nhsb - 1 ? OD_RIGHT_EDGE : 0));
-        }
-      }
-      {
-        unsigned char *data;
-        int ystride;
-        int coeff_shift;
-        coeff_shift = enc->quantizer[pli] == 0 ? 0 : OD_COEFF_SHIFT;
-        data = enc->state.io_imgs[OD_FRAME_REC].planes[pli].data;
-        ystride = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ystride;
-        for (y = 0; y < h; y++) {
-          for (x = 0; x < w; x++) {
-            data[ystride*y + x] = OD_CLAMP255(((enc->state.ctmp[pli][y*w + x]
-             + (1 << coeff_shift >> 1)) >> coeff_shift) + 128);
-          }
-        }
-      }
-    }
-  }
+  od_encode_residual(enc, &mbctx);
 #if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
   /*Dump YUV*/
   od_state_dump_yuv(&enc->state, enc->state.io_imgs + OD_FRAME_REC, "out");
 #endif
 #if defined(OD_LOGGING_ENABLED)
-  for (pli = 0; pli < nplanes; pli++) {
-    unsigned char *data;
-    ogg_int64_t enc_sqerr;
-    ogg_uint32_t npixels;
-    int ystride;
-    int xdec;
-    int ydec;
-    int w;
-    int h;
-    int x;
-    int y;
-    enc_sqerr = 0;
-    data = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].data;
-    ystride = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ystride;
-    xdec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
-    ydec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
-    w = frame_width >> xdec;
-    h = frame_height >> ydec;
-    npixels = w*h;
-    for (y = 0; y < h; y++) {
-      unsigned char *rec_row;
-      unsigned char *inp_row;
-      rec_row = enc->state.io_imgs[OD_FRAME_REC].planes[pli].data +
-       enc->state.io_imgs[OD_FRAME_REC].planes[pli].ystride*y;
-      inp_row = data + ystride*y;
-      for (x = 0; x < w; x++) {
-        int inp_val;
-        int diff;
-        inp_val = inp_row[x];
-        diff = inp_val - rec_row[x];
-        enc_sqerr += diff*diff;
-      }
-    }
-    OD_LOG((OD_LOG_ENCODER, OD_LOG_DEBUG,
-     "Encoded Plane %i, Squared Error: %12lli  Pixels: %6u  PSNR:  %5.4f",
-     pli, (long long)enc_sqerr, npixels,
-     10*log10(255*255.0*npixels/enc_sqerr)));
-  }
+  od_dump_frame_metrics(&enc->state);
 #endif
   OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO,
    "mode bits: %f/%f=%f", mode_bits, mode_count, mode_bits/mode_count));
