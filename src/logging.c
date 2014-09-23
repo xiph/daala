@@ -269,7 +269,7 @@ re_format: \
   } \
  \
   od_log(facility, level, "%s", buffer); \
- \
+  _ogg_free(buffer); \
   return 0; \
 }
 
