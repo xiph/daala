@@ -46,7 +46,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 /*There are 3 block sizes total (4x4, 8x8, 16x16).*/
 # define OD_NBSIZES    (3)
 /*The largest block size.*/
-# define OD_BSIZE_MAX  (1<<OD_LOG_BSIZE0+OD_NBSIZES-1)
+# define OD_BSIZE_MAX  (1<<(OD_LOG_BSIZE0+OD_NBSIZES-1))
 
 # define OD_LIMIT_LOG_BSIZE_MIN (2)
 # define OD_LIMIT_LOG_BSIZE_MAX (4)
