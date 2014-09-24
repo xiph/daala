@@ -133,7 +133,7 @@ static void od_compute_stats(const signed char *img, int stride,
  *  available)
  * @param [in]      pred_stride Prediction input stride
  * @param [out]     bsize   Decision for each 8x8 block in the image
- *  (0=4x4, 1=8x8, 2=16x16, 3=32x32)
+ *  (see OD_BLOCK_* macros in block_size.h for possible values)
  * @param [in]      q       Quality tuning parameter
  */
 void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
@@ -224,16 +224,16 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
       gain4 = CG4 - psy_lambda*(psy4_avg);
       gain8 = CG8 - psy_lambda*(bs->psy8[i][j]);
       if (gain8 >= gain4) {
-        bsize[i][j] = 1;
+        bsize[i][j] = OD_BLOCK_8X8;
         bs->dec_gain8[i][j] = gain8;
       }
       else {
-        bsize[i][j] = 0;
+        bsize[i][j] = OD_BLOCK_4X4;
         bs->dec_gain8[i][j] = gain4;
       }
     }
   }
-#if (OD_LIMIT_LOG_BSIZE_MAX >= 4) && (OD_LIMIT_LOG_BSIZE_MIN <= 4)
+#if (OD_LIMIT_BSIZE_MAX >= OD_BLOCK_16X16) && (OD_LIMIT_BSIZE_MIN <= OD_BLOCK_16X16)
   /* Compute 16x16 masking and make 4x4/8x8 vs 16x16 decision */
   for (i = 0; i < 2; i++) {
     for (j = 0; j < 2; j++) {
@@ -281,7 +281,7 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
       gain16 = CG16 - psy_lambda*(bs->psy16[i][j]);
       if (gain16 >= gain8_avg) {
         bsize[2*i][2*j] = bsize[2*i][2*j + 1]
-         = bsize[2*i + 1][2*j] = bsize[2*i + 1][2*j + 1] = 2;
+         = bsize[2*i + 1][2*j] = bsize[2*i + 1][2*j + 1] = OD_BLOCK_16X16;
         bs->dec_gain16[i][j] = gain16;
       }
       else {
@@ -290,7 +290,7 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
     }
   }
 #endif
-#if OD_LIMIT_LOG_BSIZE_MAX>=5
+#if OD_LIMIT_BSIZE_MAX >= OD_BLOCK_32X32
   /* Compute 32x32 masking and make final 4x4/8x8/16x16 vs 32x32 decision */
   {
     int k;
@@ -333,7 +333,7 @@ void process_block_size32(BlockSizeComp *bs, const unsigned char *psy_img,
     gain32 = CG32 - psy_lambda*(bs->psy32);
     if (gain32 >= gain16_avg) {
       for (k = 0; k < 4; k++)
-        for (m = 0; m < 4; m++) bsize[k][m] = 3;
+        for (m = 0; m < 4; m++) bsize[k][m] = OD_BLOCK_32X32;
     }
   }
 #endif
@@ -344,7 +344,7 @@ void od_block_size_encode(od_ec_enc *enc, od_adapt_ctx *adapt,
   int i, j;
   int min_size;
   int max_size;
-  int range_id;
+  int bsize_range_id;
   int split16;
   int min_ctx_size;
   min_ctx_size = bsize[-1 - stride];
@@ -359,37 +359,38 @@ void od_block_size_encode(od_ec_enc *enc, od_adapt_ctx *adapt,
       max_size = OD_MAXI(max_size, bsize[i*stride + j]);
     }
   }
-  range_id = -1;
+  bsize_range_id = -1;
   for (i = 0; i < 7; i++) {
-    if (od_range_ids[i][0] == min_size && od_range_ids[i][1] == max_size) {
-      range_id = i;
+    if (od_bsize_range[i][0] == min_size && od_bsize_range[i][1] == max_size) {
+      bsize_range_id = i;
       break;
     }
   }
-  OD_ASSERT(range_id != -1);
+  OD_ASSERT(bsize_range_id != -1);
   /* The first symbol we encode is the min/max range of the block sizes. We
      use the min neighbor block size as context. */
-  od_encode_cdf_adapt(enc, range_id, adapt->bsize_range_cdf[min_ctx_size], 7,
-   adapt->bsize_range_increment);
+  od_encode_cdf_adapt(enc, bsize_range_id,
+   adapt->bsize_range_cdf[min_ctx_size], 7, adapt->bsize_range_increment);
   split16 = 8*(bsize[0] == 2) + 4*(bsize[2] == 2) + 2*(bsize[2*stride] == 2)
    + (bsize[2 + 2*stride] == 2);
   /* Encode whether the 16x16 blocks is split only when the range allows for
      both 8x8 and 16x16.
      TODO: Add some context. */
-  if (max_size >= 2 && min_size < 2) {
+  if (max_size >= OD_BLOCK_16X16 && min_size < OD_BLOCK_16X16) {
     od_encode_cdf_adapt(enc, split16, adapt->bsize16_cdf[min_size], 16,
      adapt->bsize16_increment);
   }
   /* Encode the 8x8 block splits only when the range allows both 4x4 and 8x8.*/
-  if (min_size == 0 && max_size > 0) {
+  if (min_size == OD_BLOCK_4X4 && max_size > OD_BLOCK_4X4) {
     for (i = 0; i < 2; i++) {
       for (j = 0; j < 2; j++) {
-        if (bsize[2*i*stride + 2*j] < 2) {
+        if (bsize[2*i*stride + 2*j] < OD_BLOCK_16X16) {
           int split8;
           /* TODO: Consider the fact that we can't have all 8x8 if the
              min is 4x4. */
           split8 = bsize[2*i*stride + 2*j] + 2*bsize[2*i*stride + 2*j + 1]
-           + 4*bsize[(2*i + 1)*stride + 2*j] + 8*bsize[(2*i + 1)*stride + 2*j + 1];
+           + 4*bsize[(2*i + 1)*stride + 2*j]
+           + 8*bsize[(2*i + 1)*stride + 2*j + 1];
           od_encode_cdf_adapt(enc, split8, adapt->bsize8_cdf, 16,
             adapt->bsize8_increment);
         }

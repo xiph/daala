@@ -45,12 +45,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # define OD_LOG_BSIZE0 (2)
 /*There are 3 block sizes total (4x4, 8x8, 16x16).*/
 # define OD_NBSIZES    (3)
-/*The largest block size.*/
+/*The maximum length of the side of a block.*/
 # define OD_BSIZE_MAX  (1<<OD_LOG_BSIZE0+OD_NBSIZES-1)
 
-# define OD_LIMIT_LOG_BSIZE_MIN (2)
-# define OD_LIMIT_LOG_BSIZE_MAX (4)
-# if OD_LIMIT_LOG_BSIZE_MIN > 4 || OD_LIMIT_LOG_BSIZE_MAX > 4
+# define OD_LIMIT_BSIZE_MIN (OD_BLOCK_4X4)
+# define OD_LIMIT_BSIZE_MAX (OD_BLOCK_16X16)
+# if OD_LIMIT_BSIZE_MIN > OD_BLOCK_16X16 || OD_LIMIT_BSIZE_MAX > OD_BLOCK_16X16
 #  error "block sizes above 16x16 not supported"
 # endif
 # define OD_DISABLE_FILTER (0)

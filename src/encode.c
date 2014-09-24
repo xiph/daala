@@ -1046,19 +1046,18 @@ static void od_split_superblocks(daala_enc_ctx *enc, int is_keyframe) {
          and store it in the od_state bsize. */
       for (k = 0; k < 4; k++) {
         for (m = 0; m < 4; m++) {
-          if (OD_LIMIT_LOG_BSIZE_MIN != OD_LIMIT_LOG_BSIZE_MAX) {
+          if (OD_LIMIT_BSIZE_MIN != OD_LIMIT_BSIZE_MAX) {
             state_bsize[k*bstride + m] =
-             OD_MAXI(OD_MINI(bsize[k][m], OD_LIMIT_LOG_BSIZE_MAX
-             - OD_LOG_BSIZE0), OD_LIMIT_LOG_BSIZE_MIN - OD_LOG_BSIZE0);
+             OD_MAXI(OD_MINI(bsize[k][m], OD_LIMIT_BSIZE_MAX),
+             OD_LIMIT_BSIZE_MIN);
           }
           else {
-            state_bsize[k*bstride + m] =
-             OD_LIMIT_LOG_BSIZE_MIN - OD_LOG_BSIZE0;
+            state_bsize[k*bstride + m] = OD_LIMIT_BSIZE_MIN;
           }
         }
       }
-      if (OD_LIMIT_LOG_BSIZE_MIN != OD_LIMIT_LOG_BSIZE_MAX) {
-        od_block_size_encode(&enc->ec, &state->adapt, &state_bsize[0],
+      if (OD_LIMIT_BSIZE_MIN != OD_LIMIT_BSIZE_MAX) {
+        od_block_size_encode(&enc->ec, &enc->state.adapt, &state_bsize[0],
          bstride);
       }
     }

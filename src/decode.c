@@ -699,7 +699,7 @@ static void od_decode_block_sizes(od_dec_ctx *dec) {
   od_state_init_border(&dec->state);
   nhsb = dec->state.nhsb;
   nvsb = dec->state.nvsb;
-  if (OD_LIMIT_LOG_BSIZE_MIN != OD_LIMIT_LOG_BSIZE_MAX) {
+  if (OD_LIMIT_BSIZE_MIN != OD_LIMIT_BSIZE_MAX) {
     for (i = 0; i < nvsb; i++) {
       for (j = 0; j < nhsb; j++) {
         od_block_size_decode(&dec->ec, &dec->state.adapt,
@@ -709,8 +709,7 @@ static void od_decode_block_sizes(od_dec_ctx *dec) {
   } else {
     for (i = 0; i < nvsb*4; i++) {
       for (j = 0; j < nhsb*4; j++) {
-        dec->state.bsize[dec->state.bstride*i + j] =
-         OD_LIMIT_LOG_BSIZE_MIN - OD_LOG_BSIZE0;
+        dec->state.bsize[dec->state.bstride*i + j] = OD_LIMIT_BSIZE_MIN;
       }
     }
   }

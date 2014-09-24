@@ -1315,18 +1315,18 @@ void od_state_init_border(od_state *state) {
   bstride = state->bstride;
   for (i = -4; i < (nhsb+1)*4; i++) {
     for (j = -4; j < 0; j++) {
-      bsize[(j*bstride) + i] = OD_LIMIT_LOG_BSIZE_MAX - OD_LOG_BSIZE0;
+      bsize[(j*bstride) + i] = OD_LIMIT_BSIZE_MAX;
     }
     for (j = nvsb*4; j < (nvsb+1)*4; j++) {
-      bsize[(j*bstride) + i] = OD_LIMIT_LOG_BSIZE_MAX - OD_LOG_BSIZE0;
+      bsize[(j*bstride) + i] = OD_LIMIT_BSIZE_MAX;
     }
   }
   for (j = -4; j < (nvsb+1)*4; j++) {
     for (i = -4; i < 0; i++) {
-      bsize[(j*bstride) + i] = OD_LIMIT_LOG_BSIZE_MAX - OD_LOG_BSIZE0;
+      bsize[(j*bstride) + i] = OD_LIMIT_BSIZE_MAX;
     }
     for (i = nhsb*4; i < (nhsb+1)*4; i++) {
-      bsize[(j*bstride) + i] = OD_LIMIT_LOG_BSIZE_MAX - OD_LOG_BSIZE0;
+      bsize[(j*bstride) + i] = OD_LIMIT_BSIZE_MAX;
     }
   }
 }
