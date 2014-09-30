@@ -41,6 +41,9 @@ rd2=flipud(sortrows(rd2,1));
 rate1=rd1(:,3)*8./rd1(:,2);
 rate2=rd2(:,3)*8./rd2(:,2);
 
+pin = program_invocation_name;
+chdir(pin(1:(length(pin)-length(program_name))));
+
 [psnr_rate,psnr_dsnr]=bjontegaard([rate1,rd1(:,4)],[rate2,rd2(:,4)],t);
 [psnrhvs_rate,psnrhvs_dsnr]=bjontegaard([rate1,rd1(:,5)],[rate2,rd2(:,5)],t);
 [ssim_rate,ssim_dsnr]=bjontegaard([rate1,rd1(:,6)],[rate2,rd2(:,6)],t);
