@@ -338,6 +338,10 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
      mc + (by << 2)*w + (bx << 2), w);
   }
   od_decode_compute_pred(dec, ctx, pred, ln, pli, bx, by, has_ur);
+  if (ctx->is_keyframe && pli == 0) {
+    od_hv_intra_pred(pred, d, w, bx, by, dec->state.bsize,
+     dec->state.bstride, ln);
+  }
   od_raster_to_coding_order(predt,  n, &pred[0], n, lossless);
   quant = OD_MAXI(1, dec->quantizer[pli]);
   if (lossless) dc_quant = 1;

@@ -578,6 +578,10 @@ static void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
      mc + (by << 2)*w + (bx << 2), w);
   }
   od_encode_compute_pred(enc, ctx, pred, ln, pli, bx, by, has_ur);
+  if (ctx->is_keyframe && pli == 0) {
+    od_hv_intra_pred(pred, d, w, bx, by, enc->state.bsize,
+     enc->state.bstride, ln);
+  }
   lossless = (enc->quantizer[pli] == 0);
 #if defined(OD_OUTPUT_PRED)
   for (zzi = 0; zzi < (n*n); zzi++) preds[zzi] = pred[zzi];

@@ -39,6 +39,9 @@ extern const double OD_INTRA_PRED_WEIGHTS_4x4[OD_INTRA_NMODES][4][4][2*4][2*4];
 extern const unsigned char OD_INTRA_PRED_PROB_4x4[3]
  [OD_INTRA_NMODES][OD_INTRA_NCONTEXTS];
 
+void od_hv_intra_pred(od_coeff *pred, od_coeff *d, int w, int bx, int by,
+  unsigned char *bsize, int bstride, int ln);
+
 void od_intra_pred4x4_mult(double *_p, int _pred_stride,
  od_coeff *_neighbors[4], int _neighbor_strides[4], int _mode);
 void od_intra_pred8x8_mult(double *_p, int _pred_stride,

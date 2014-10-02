@@ -40,6 +40,32 @@ const od_intra_mult_func OD_INTRA_MULT[OD_NBSIZES+1] = {
   od_intra_pred16x16_mult
 };
 
+void od_hv_intra_pred(od_coeff *pred, od_coeff *d, int w, int bx, int by,
+ unsigned char *bsize, int bstride, int ln) {
+  int i;
+  od_coeff *t;
+  double g1;
+  double g2;
+  int top;
+  int left;
+  int n;
+  n = 1 << (ln + OD_LOG_BSIZE0);
+  top = by > 0 && OD_BLOCK_SIZE4x4(bsize, bstride, bx, by - 1) == ln;
+  left = bx > 0 && OD_BLOCK_SIZE4x4(bsize, bstride, bx - 1, by) == ln;
+  t = &d[((by << OD_LOG_BSIZE0))*w + (bx << OD_LOG_BSIZE0)];
+  g1 = g2 = 0;
+  if (top) for (i = 1; i < 4; i++) g1 += t[-n*w + i]*(double)t[-n*w + i];
+  if (left) for (i = 1; i < 4; i++) g2 += t[-n + i*w]*(double)t[-n + i*w];
+  if (top) for (i = 4; i < n; i++) pred[i] = t[-n*w + i];
+  if (left) for (i = 4; i < n; i++) pred[i*n] = t[-n + i*w];
+  if (g1 > g2) {
+    if (top) for (i = 1; i < 4; i++) pred[i] = t[-n*w + i];
+  }
+  else {
+    if (left) for (i = 1; i < 4; i++) pred[i*n] = t[-n + i*w];
+  }
+}
+
 void od_intra_pred4x4_mult(double *pred, int pred_stride, od_coeff *blocks[4],
  int strides[4], int mode) {
   const ogg_uint16_t *index;
