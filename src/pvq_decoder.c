@@ -140,9 +140,9 @@ static void pvq_decode_partition(od_ec_dec *ec,
     }
   }
 
-  if (qg != 0) {
-    k = pvq_compute_k(mask_ratio*qcg, itheta, theta, noref, n, beta, robust &&
-     !is_keyframe);
+  k = pvq_compute_k(mask_ratio*qcg, itheta, theta, noref, n, beta, robust &&
+   !is_keyframe);
+  if (k != 0) {
     /* when noref==0, y is actually size n-1 */
     laplace_decode_vector(ec, y, n-(!noref), k, adapt_curr, adapt);
   } else {

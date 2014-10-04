@@ -355,11 +355,12 @@ double pvq_compute_theta(int t, int max_theta) {
 int pvq_compute_k(double qcg, int itheta, double theta, int noref, int n,
  double beta, int nodesync) {
   if (noref) {
+    if (qcg == 0) return 0;
     if (n == 15 && qcg == 1 && beta > 1.25) return 1;
     else return OD_MAXI(1, (int)floor(.5 + (qcg - .2)*sqrt((n+3)/2)/beta));
   }
   else {
-    if (theta == 0) return 0;
+    if (itheta == 0) return 0;
     /* Sets K according to gain and theta, based on the high-rate
        PVQ distortion curves (see PVQ document). Low-rate will have to be
        perceptually tuned anyway. We subtract 0.2 from the radius as an
@@ -493,7 +494,7 @@ static double pvq_rate_approx(int n, int k)
  */
 double pvq_interband_masking(double inter, double curr, double beta) {
   /* alpha = .5-.5/beta */
-  return pow(curr/(curr+inter), .5-.5/beta);
+  return pow(curr/(1e-15+curr+inter), .5-.5/beta);
 }
 
 int vector_is_null(const od_coeff *x, int len) {
