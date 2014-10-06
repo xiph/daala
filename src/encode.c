@@ -331,7 +331,6 @@ struct od_mb_enc_ctx {
   od_coeff *md;
   od_coeff *mc;
   od_coeff *l;
-  int run_pvq[OD_NPLANES_MAX];
   int is_keyframe;
   int nk;
   int k_total;
@@ -491,9 +490,9 @@ static void od_encode_compute_pred(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, od_co
   }
 }
 
-static void od_single_band_scalar_quant(daala_enc_ctx *enc, int ln,
+static void od_single_band_lossless_encode(daala_enc_ctx *enc, int ln,
  od_coeff *scalar_out, const od_coeff *cblock, const od_coeff *predt,
- int q, int pli) {
+ int pli) {
   int *adapt;
   int vk;
   int zzi;
@@ -503,7 +502,7 @@ static void od_single_band_scalar_quant(daala_enc_ctx *enc, int ln,
   vk = 0;
   n2 = 1 << (2*ln + 4);
   for (zzi = 1; zzi < n2; zzi++) {
-    scalar_out[zzi] = OD_DIV_R0(cblock[zzi] - predt[zzi], q);
+    scalar_out[zzi] = cblock[zzi] - predt[zzi];
     vk += abs(scalar_out[zzi]);
   }
   generic_encode(&enc->ec, &enc->state.adapt.model_g[pli], vk, -1,
@@ -511,7 +510,7 @@ static void od_single_band_scalar_quant(daala_enc_ctx *enc, int ln,
   laplace_encode_vector(&enc->ec, scalar_out + 1, n2 - 1, vk, adapt_curr,
    adapt);
   for (zzi = 1; zzi < n2; zzi++) {
-    scalar_out[zzi] = scalar_out[zzi]*q + predt[zzi];
+    scalar_out[zzi] = scalar_out[zzi] + predt[zzi];
   }
   if (adapt_curr[OD_ADAPT_K_Q8] > 0) {
     adapt[OD_ADAPT_K_Q8] += 256*adapt_curr[OD_ADAPT_K_Q8] -
@@ -542,9 +541,9 @@ void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   od_coeff predt[16*16];
   od_coeff cblock[16*16];
   od_coeff scalar_out[16*16];
-  int run_pvq;
   int quant;
   int dc_quant;
+  int lossless;
 #ifndef USE_BAND_PARTITIONS
   unsigned char const *zig;
 #endif
@@ -554,7 +553,6 @@ void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
 #endif
   OD_ASSERT(ln >= 0 && ln <= 2);
   n = 1 << (ln + 2);
-  run_pvq = ctx->run_pvq[pli];
   bx <<= ln;
   by <<= ln;
 #ifndef USE_BAND_PARTITIONS
@@ -576,34 +574,19 @@ void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
      mc + (by << 2)*w + (bx << 2), w);
   }
   od_encode_compute_pred(enc, ctx, pred, ln, pli, bx, by, has_ur);
+  lossless = (enc->quantizer[pli] == 0);
 #if defined(OD_OUTPUT_PRED)
   for (zzi = 0; zzi < (n*n); zzi++) preds[zzi] = pred[zzi];
 #endif
   /* Change ordering for encoding. */
-#ifdef USE_BAND_PARTITIONS
   od_raster_to_coding_order(cblock,  n, &d[((by << 2))*w + (bx << 2)], w,
-   !run_pvq);
-  od_raster_to_coding_order(predt,  n, &pred[0], n, !run_pvq);
-#else
-  /*Zig-zag*/
-  {
-    int y;
-    for (y = 0; y < n; y++) {
-      int x;
-      for (x = 0; x < n; x++) {
-        cblock[zig[y*n + x]] = d[((by << 2) + y)*w + (bx << 2) + x];
-        predt[zig[y*n + x]] = pred[y*n + x];
-      }
-    }
-  }
-#endif
+   lossless);
+  od_raster_to_coding_order(predt,  n, &pred[0], n, lossless);
   /* Lossless encoding uses an actual quantizer of 1, but is signalled
      with a 'quantizer' of 0. */
   quant = OD_MAXI(1, enc->quantizer[pli]);
-  if (run_pvq)
-    dc_quant = OD_MAXI(1, quant*OD_PVQ_QM_Q4[pli][ln][0] >> 4);
-  else
-    dc_quant = (pli==0 || enc->quantizer[pli]==0) ? quant : (quant + 1) >> 1;
+  if (lossless) dc_quant = quant;
+  else dc_quant = OD_MAXI(1, quant*OD_PVQ_QM_Q4[pli][ln][0] >> 4);
   /* This quantization may be overridden in the PVQ code for full RDO. */
   if (OD_DISABLE_HAAR_DC || !ctx->is_keyframe) {
     if (abs(cblock[0] - predt[0]) < dc_quant * 141 / 256) { /* 0.55 */
@@ -614,20 +597,19 @@ void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   }
   OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
     OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_AC_COEFFS);
-  if (run_pvq) {
+  if (lossless) {
+    od_single_band_lossless_encode(enc, ln, scalar_out, cblock, predt, pli);
+  }
+  else {
     pvq_encode(enc, predt, cblock, scalar_out, quant, pli, ln,
      OD_PVQ_QM_Q4[pli][ln], OD_PVQ_BETA[pli][ln],
      OD_PVQ_INTER_BAND_MASKING[ln], OD_ROBUST_STREAM, ctx->is_keyframe);
-  }
-  else {
-    od_single_band_scalar_quant(enc, ln, scalar_out, cblock, predt, quant,
-     pli);
   }
   OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
    OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
   if (OD_DISABLE_HAAR_DC || !ctx->is_keyframe) {
     int has_dc_skip;
-    has_dc_skip = !ctx->is_keyframe && run_pvq;
+    has_dc_skip = !ctx->is_keyframe && !lossless;
     OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
      OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_DC_COEFF);
     if (!has_dc_skip || scalar_out[0]) {
@@ -643,21 +625,8 @@ void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   else {
     scalar_out[0] = cblock[0];
   }
-#ifdef USE_BAND_PARTITIONS
   od_coding_order_to_raster(&d[((by << 2))*w + (bx << 2)], w, scalar_out, n,
-   !run_pvq);
-#else
-  /*De-zigzag*/
-  {
-    int y;
-    for (y = 0; y < n; y++) {
-      int x;
-      for (x = 0; x < n; x++) {
-        d[((by << 2) + y)*w + (bx << 2) + x] = scalar_out[zig[y*n + x]];
-      }
-    }
-  }
-#endif
+   lossless);
   /*Update the TF'd luma plane with CfL, or all the planes without CfL.*/
   if (ctx->is_keyframe && (pli == 0 || OD_DISABLE_CFL)) {
     od_convert_block_down(tf + (by << 2)*w + (bx << 2), w,
@@ -1257,9 +1226,6 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx) {
     ydec = state->io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
     w = frame_width >> xdec;
     h = frame_height >> ydec;
-    /* Set this to 1 to enable the new (experimental, encode-only) PVQ
-       implementation */
-    mbctx->run_pvq[pli] = !OD_DISABLE_PVQ;
     OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
      OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_FRAME);
     OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
@@ -1267,8 +1233,6 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx) {
     /* TODO: We shouldn't be encoding the full, linear quantizer range. */
     od_ec_enc_uint(&enc->ec, enc->quantizer[pli], 512<<OD_COEFF_SHIFT);
     /*If the quantizer is zero (lossless), force scalar.*/
-    if (!enc->quantizer[pli]) mbctx->run_pvq[pli] = 0;
-    else od_ec_encode_bool_q15(&enc->ec, mbctx->run_pvq[pli], 16384);
     OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
      OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
     OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),

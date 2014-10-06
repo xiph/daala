@@ -123,7 +123,6 @@ struct od_mb_dec_ctx {
   od_coeff *md;
   od_coeff *mc;
   od_coeff *l;
-  int run_pvq[OD_NPLANES_MAX];
   int is_keyframe;
   int nk;
   int k_total;
@@ -265,8 +264,8 @@ static void od_decode_compute_pred(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, od_co
   }
 }
 
-static void od_single_band_scalar_decode(daala_dec_ctx *dec, int ln,
- od_coeff *pred, const od_coeff *predt, int q, int pli) {
+static void od_single_band_lossless_decode(daala_dec_ctx *dec, int ln,
+ od_coeff *pred, const od_coeff *predt, int pli) {
   int *adapt;
   int vk;
   int zzi;
@@ -278,7 +277,7 @@ static void od_single_band_scalar_decode(daala_dec_ctx *dec, int ln,
    &dec->state.adapt.ex_g[pli][ln], 0);
   laplace_decode_vector(&dec->ec, pred + 1, n2 - 1, vk, adapt_curr, adapt);
   for (zzi = 1; zzi < n2; zzi++) {
-    pred[zzi] = pred[zzi]*q + predt[zzi];
+    pred[zzi] = pred[zzi] + predt[zzi];
   }
   if (adapt_curr[OD_ADAPT_K_Q8] > 0) {
     adapt[OD_ADAPT_K_Q8] += 256*adapt_curr[OD_ADAPT_K_Q8] -
@@ -307,7 +306,7 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   od_coeff *mc;
   od_coeff pred[16*16];
   od_coeff predt[16*16];
-  int run_pvq;
+  int lossless;
   int quant;
   int dc_quant;
 #ifndef USE_BAND_PARTITIONS
@@ -315,7 +314,7 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
 #endif
   OD_ASSERT(ln >= 0 && ln <= 2);
   n = 1 << (ln + 2);
-  run_pvq = ctx->run_pvq[pli];
+  lossless = (dec->quantizer[pli] == 0);
   bx <<= ln;
   by <<= ln;
 #ifndef USE_BAND_PARTITIONS
@@ -337,36 +336,21 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
      mc + (by << 2)*w + (bx << 2), w);
   }
   od_decode_compute_pred(dec, ctx, pred, ln, pli, bx, by, has_ur);
-#ifdef USE_BAND_PARTITIONS
-  od_raster_to_coding_order(predt,  n, &pred[0], n, !run_pvq);
-#else
-  /*Zig-zag*/
-  {
-    int y;
-    for (y = 0; y < n; y++) {
-      int x;
-      for (x = 0; x < n; x++) {
-        predt[zig[y*n + x]] = pred[y*n + x];
-      }
-    }
-  }
-#endif
+  od_raster_to_coding_order(predt,  n, &pred[0], n, lossless);
   quant = OD_MAXI(1, dec->quantizer[pli]);
-  if (run_pvq)
-    dc_quant = OD_MAXI(1, quant*OD_PVQ_QM_Q4[pli][ln][0] >> 4);
-  else
-    dc_quant = (pli==0 || dec->quantizer[pli]==0) ? quant : (quant + 1) >> 1;
-  if (run_pvq) {
+  if (lossless) dc_quant = 1;
+  else dc_quant = OD_MAXI(1, quant*OD_PVQ_QM_Q4[pli][ln][0] >> 4);
+  if (lossless) {
+    od_single_band_lossless_decode(dec, ln, pred, predt, pli);
+  }
+  else {
     pvq_decode(dec, predt, pred, quant, pli, ln,
      OD_PVQ_QM_Q4[pli][ln], OD_PVQ_BETA[pli][ln],
      OD_PVQ_INTER_BAND_MASKING[ln], OD_ROBUST_STREAM, ctx->is_keyframe);
   }
-  else {
-    od_single_band_scalar_decode(dec, ln, pred, predt, quant, pli);
-  }
   if (OD_DISABLE_HAAR_DC || !ctx->is_keyframe) {
     int has_dc_skip;
-    has_dc_skip = !ctx->is_keyframe && run_pvq;
+    has_dc_skip = !ctx->is_keyframe && !lossless;
     if (!has_dc_skip || pred[0]) {
       pred[0] = has_dc_skip + generic_decode(&dec->ec,
        &dec->state.adapt.model_dc[pli], -1, &dec->state.adapt.ex_dc[pli][ln][0], 2);
@@ -377,20 +361,8 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   else {
     pred[0] = d[((by << 2))*w + ((bx << 2))];
   }
-#ifdef USE_BAND_PARTITIONS
-  od_coding_order_to_raster(&d[((by << 2))*w + (bx << 2)], w, pred, n, !run_pvq);
-#else
-  /*De-zigzag*/
-  {
-    int y;
-    for (y = 0; y < n; y++) {
-      int x;
-      for (x = 0; x < n; x++) {
-        d[((by << 2) + y)*w + (bx << 2) + x] = pred[zig[y*n + x]];
-      }
-    }
-  }
-#endif
+  od_coding_order_to_raster(&d[((by << 2))*w + (bx << 2)], w, pred, n,
+   lossless);
   /*Update the TF'd luma plane with CfL, or all the planes without CfL.*/
   if (ctx->is_keyframe && (pli == 0 || OD_DISABLE_CFL)) {
     od_convert_block_down(tf + (by << 2)*w + (bx << 2), w,
@@ -813,8 +785,6 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
       h = frame_height >> ydec;
       /* TODO: We shouldn't be encoding the full, linear quantizer range. */
       dec->quantizer[pli] = od_ec_dec_uint(&dec->ec, 512 << OD_COEFF_SHIFT);
-      mbctx.run_pvq[pli] = dec->quantizer[pli] &&
-       od_ec_decode_bool_q15(&dec->ec, 16384);
     }
     for (sby = 0; sby < nvsb; sby++) {
       for (sbx = 0; sbx < nhsb; sbx++) {
