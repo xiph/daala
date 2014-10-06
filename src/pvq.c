@@ -522,11 +522,12 @@ int vector_is_null(const od_coeff *x, int len) {
  *                           (accumulated)
  * @param [in]     robust    make stream robust to error in the reference
  * @param [in]     is_keyframe whether we're encoding a keyframe
+ * @param [in]     pli       plane index
  * @return         gain      index of the quatized gain
 */
 int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
  od_coeff *y, int *itheta, int *max_theta, int *vk, double *mask_gain,
- double beta, double *skip_diff, int robust, int is_keyframe) {
+ double beta, double *skip_diff, int robust, int is_keyframe, int pli) {
   double g;
   double gr;
   double x[MAXN];
@@ -572,6 +573,7 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
 
   cg  = pvq_compute_gain(x0, n, q, &g, beta);
   cgr = pvq_compute_gain(r0, n, q, &gr, beta);
+  if (pli != 0 && is_keyframe && !OD_DISABLE_CFL) cgr = 1;
   /* gain_offset is meant to make sure one of the quantized gains has
      exactly the same gain as the reference. */
   icgr = floor(.5+cgr);

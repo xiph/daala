@@ -434,11 +434,13 @@ static void od_encode_compute_pred(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, od_co
          mode, m_l, m_ul, m_u);
       }
       else {
-        int mode;
-        mode = modes[(by << ydec)*(frame_width >> 2) + (bx << xdec)];
-        od_chroma_pred(pred, d, l, w, bx, by, ln, xdec, ydec,
-         enc->state.bsize, enc->state.bstride,
-         OD_INTRA_CHROMA_WEIGHTS_Q8[mode]);
+        int i;
+        int j;
+        for (i = 0; i < n; i++) {
+          for (j = 0; j < n; j++) {
+            pred[i*n + j] = l[((by << 2) + i)*w + (bx << 2) + j];
+          }
+        }
       }
     }
     else {

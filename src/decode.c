@@ -208,11 +208,13 @@ static void od_decode_compute_pred(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, od_co
          m_l, m_ul, m_u);
       }
       else {
-        int mode;
-        mode = modes[(by << ydec)*(frame_width >> 2) + (bx << xdec)];
-        od_chroma_pred(pred, d, l, w, bx, by, ln, xdec, ydec,
-         dec->state.bsize, dec->state.bstride,
-         OD_INTRA_CHROMA_WEIGHTS_Q8[mode]);
+        int i;
+        int j;
+        for (i = 0; i < n; i++) {
+          for (j = 0; j < n; j++) {
+            pred[i*n + j] = l[((by << 2) + i)*w + (bx << 2) + j];
+          }
+        }
       }
     }
     else {

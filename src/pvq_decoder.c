@@ -54,6 +54,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
  * @param [in]     beta    per-band activity masking beta param
  * @param [in]     robust  stream is robust to error in the reference
  * @param [in]     is_keyframe whether we're encoding a keyframe
+ * @param [in]     pli     plane index
  */
 static void pvq_decode_partition(od_ec_dec *ec,
                                  int q0,
@@ -68,7 +69,8 @@ static void pvq_decode_partition(od_ec_dec *ec,
                                  double *mask_gain,
                                  double beta,
                                  int robust,
-                                 int is_keyframe) {
+                                 int is_keyframe,
+                                 int pli) {
   int adapt_curr[OD_NSB_ADAPT_CTXS] = {0};
   int speed;
   int k;
@@ -99,6 +101,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
     int icgr;
     int i;
     cgr = pvq_compute_gain(ref, n, q, &gr, beta);
+    if (pli != 0 && is_keyframe && !OD_DISABLE_CFL) cgr = 1;
     icgr = floor(.5+cgr);
     /* quantized gain is interleave encoded when there's a reference;
        deinterleave it now */
@@ -181,6 +184,7 @@ static int decode_flag(od_ec_dec *ec, unsigned *prob0)
  * @param [in]     ref     'reference' (prediction) vector
  * @param [out]    out     decoded partition
  * @param [in]     q       quantizer
+ * @param [in]     pli     plane index
  * @param [in]     ln      log of the block size minus two
  * @param [in]     qm      per-band quantization matrix
  * @param [in]     beta    per-band activity masking beta param
@@ -211,6 +215,7 @@ void pvq_decode(daala_dec_ctx *dec,
   generic_encoder *model;
   unsigned *noref_prob;
   int skip;
+  int use_cfl;
   adapt = dec->state.adapt.pvq_adapt;
   exg = &dec->state.adapt.pvq_exg[pli][ln][0];
   ext = dec->state.adapt.pvq_ext + ln*PVQ_MAX_PARTITIONS;
@@ -230,6 +235,7 @@ void pvq_decode(daala_dec_ctx *dec,
   }
   else {
     for (i = 0; i < nb_bands; i++) size[i] = off[i+1] - off[i];
+    use_cfl = 0;
     if (!is_keyframe && ln > 0) {
       int id;
       id = od_decode_cdf_adapt(&dec->ec,
@@ -250,7 +256,11 @@ void pvq_decode(daala_dec_ctx *dec,
       for (i = 0; i < nb_bands; i++) {
         if (is_keyframe && vector_is_null(ref + off[i], size[i])) noref[i] = 1;
         else noref[i] = !decode_flag(&dec->ec, &noref_prob[i]);
+        if (!noref[i] && pli != 0 && is_keyframe) use_cfl = 1;
       }
+    }
+    if (use_cfl && od_ec_dec_bits(&dec->ec, 1)) {
+      for(i = 1; i < off[nb_bands]; i++) ref[i] = -ref[i];
     }
     for (i = 0; i < nb_bands; i++) {
       int j;
@@ -260,7 +270,7 @@ void pvq_decode(daala_dec_ctx *dec,
       g[i] = mask;
       pvq_decode_partition(&dec->ec, OD_MAXI(1, q*qm[i + 1] >> 4), size[i],
        model, adapt, exg + i, ext + i, ref + off[i], out + off[i], noref[i],
-       &g[i], beta[i], robust, is_keyframe);
+       &g[i], beta[i], robust, is_keyframe, pli);
     }
   }
 }

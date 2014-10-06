@@ -137,6 +137,7 @@ int od_rdo_quant(od_coeff x, int q, double delta0) {
  * @param [in]     in      coefficient block to quantize and encode
  * @param [out]    out     quantized coefficient block
  * @param [in]     q       scale/quantizer
+ * @param [in]     pli     plane index
  * @param [in]     ln      log of the block size minus two
  * @param [in]     qm      per-band quantization matrix
  * @param [in]     beta    per-band activity masking beta param
@@ -175,6 +176,8 @@ void pvq_encode(daala_enc_ctx *enc,
   ogg_uint16_t *skip_cdf;
   od_rollback_buffer buf;
   int dc_quant;
+  int use_cfl;
+  int flip;
   adapt = enc->state.adapt.pvq_adapt;
   exg = &enc->state.adapt.pvq_exg[pli][ln][0];
   ext = enc->state.adapt.pvq_ext + ln*PVQ_MAX_PARTITIONS;
@@ -187,6 +190,17 @@ void pvq_encode(daala_enc_ctx *enc,
   tell = 0;
   for (i = 0; i < nb_bands; i++) size[i] = off[i+1] - off[i];
   skip_diff = 0;
+  flip = 0;
+  if (pli != 0 && is_keyframe) {
+    double xy;
+    xy = 0;
+    for (i = 1; i < 16; i++) xy += ref[i]*(double)in[i];
+    if (xy < 0) {
+      flip = 1;
+      for(i = 1; i < off[nb_bands]; i++) ref[i] = -ref[i];
+    }
+  }
+  use_cfl = 0;
   for (i = 0; i < nb_bands; i++) {
     int j;
     double mask;
@@ -195,7 +209,8 @@ void pvq_encode(daala_enc_ctx *enc,
     g[i] = mask;
     qg[i] = pvq_theta(out + off[i], in + off[i], ref + off[i], size[i],
      OD_MAXI(1, q*qm[i + 1] >> 4), y + off[i], &theta[i], &max_theta[i],
-     &k[i], &g[i], beta[i], &skip_diff, robust, is_keyframe);
+     &k[i], &g[i], beta[i], &skip_diff, robust, is_keyframe, pli);
+    if (pli!=0 && is_keyframe && theta[i] != -1) use_cfl = 1;
   }
   if (!is_keyframe) {
     double dc_rate;
@@ -234,6 +249,13 @@ void pvq_encode(daala_enc_ctx *enc,
       if (!(is_keyframe && vector_is_null(ref + off[i], size[i])))
         code_flag(&enc->ec, theta[i] != -1, &noref_prob[i]);
     }
+  }
+  if (use_cfl) {
+    /* We could eventually do some smarter entropy coding here, but it would
+       have to be good enough to overcome the overhead of the entropy coder.
+       An early attempt using a "toogle" flag with simple adaptation wasn't
+       worth the trouble. */
+    od_ec_enc_bits(&enc->ec, flip, 1);
   }
   for (i = 0; i < nb_bands; i++) {
     pvq_encode_partition(&enc->ec, qg[i], theta[i], max_theta[i], y + off[i],
