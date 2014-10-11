@@ -68,7 +68,7 @@ static void od_aligned_free(void *_ptr) {
    outside the image boundary.
   If chroma is decimated in either direction, the padding is reduced by an
    appropriate factor on the appropriate sides.*/
-static void od_state_ref_imgs_init(od_state *state, int nrefs, int nio) {
+static int od_state_ref_imgs_init(od_state *state, int nrefs, int nio) {
   daala_info *info;
   od_img *img;
   od_img_plane *iplane;
@@ -105,6 +105,9 @@ static void od_state_ref_imgs_init(od_state *state, int nrefs, int nio) {
   data_sz += (frame_buf_width << 1)*8;
   state->ref_img_data = ref_img_data =
     (unsigned char *)od_aligned_malloc(data_sz, 32);
+  if (OD_UNLIKELY(!ref_img_data)) {
+    return OD_EFAULT;
+  }
   /*Fill in the reference image structures.*/
   for (imgi = 0; imgi < nrefs; imgi++) {
     img = state->ref_imgs + imgi;
@@ -170,6 +173,7 @@ static void od_state_ref_imgs_init(od_state *state, int nrefs, int nio) {
     iplane->ystride = plane_buf_width;
   }
 #endif
+  return OD_SUCCESS;
 }
 
 static int od_state_mvs_init(od_state *state) {
@@ -227,7 +231,9 @@ static int od_state_init_impl(od_state *state, const daala_info *info) {
   state->nhmbs = state->frame_width >> 4;
   state->nvmbs = state->frame_height >> 4;
   od_state_opt_vtbl_init(state);
-  od_state_ref_imgs_init(state, 4, 2);
+  if (OD_UNLIKELY(od_state_ref_imgs_init(state, 4, 2))) {
+    return OD_EFAULT;
+  }
   if (OD_UNLIKELY(od_state_mvs_init(state))) {
     return OD_EFAULT;
   }
