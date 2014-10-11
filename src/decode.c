@@ -689,14 +689,127 @@ static void od_decode_block_sizes(od_dec_ctx *dec) {
   }
 }
 
-int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
- const ogg_packet *op) {
+static void od_decode_residual(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
   int nplanes;
   int pli;
+  int xdec;
+  int ydec;
+  int sby;
+  int sbx;
+  int h;
+  int w;
+  int y;
+  int x;
   int frame_width;
   int frame_height;
   int nvsb;
   int nhsb;
+  od_state *state;
+  state = &dec->state;
+  /*Initialize the data needed for each plane.*/
+  nplanes = state->info.nplanes;
+  for (pli = 0; pli < OD_NPLANES_MAX; pli++) {
+    mbctx->tf[pli] = state->tf[pli];
+    mbctx->modes[pli] = state->modes[pli];
+  }
+  nhsb = state->nhsb;
+  nvsb = state->nvsb;
+  frame_width = state->frame_width;
+  frame_height = state->frame_height;
+  /*Apply the prefilter to the motion-compensated reference.*/
+  if (!mbctx->is_keyframe) {
+    for (pli = 0; pli < nplanes; pli++) {
+      xdec = state->io_imgs[OD_FRAME_REC].planes[pli].xdec;
+      ydec = state->io_imgs[OD_FRAME_REC].planes[pli].ydec;
+      w = frame_width >> xdec;
+      h = frame_height >> ydec;
+      /*Collect the image data needed for this plane.*/
+      {
+        unsigned char *mdata;
+        int ystride;
+        int coeff_shift;
+        coeff_shift = dec->quantizer[pli] == 0 ? 0 : OD_COEFF_SHIFT;
+        mdata = state->io_imgs[OD_FRAME_REC].planes[pli].data;
+        ystride = state->io_imgs[OD_FRAME_REC].planes[pli].ystride;
+        for (y = 0; y < h; y++) {
+          for (x = 0; x < w; x++) {
+            state->mctmp[pli][y*w + x] = (mdata[ystride*y + x] - 128)
+             << coeff_shift;
+          }
+        }
+      }
+      /*Apply the prefilter across the entire image.*/
+      for (sby = 0; sby < nvsb; sby++) {
+        for (sbx = 0; sbx < nhsb; sbx++) {
+          od_apply_prefilter(state->mctmp[pli], w, sbx, sby, 3,
+           state->bsize, state->bstride, xdec, ydec,
+           (sbx > 0 ? OD_LEFT_EDGE : 0) |
+           (sby < nvsb - 1 ? OD_BOTTOM_EDGE : 0));
+        }
+      }
+    }
+  }
+  for (pli = 0; pli < nplanes; pli++) {
+    xdec = state->io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
+    ydec = state->io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
+    w = frame_width >> xdec;
+    h = frame_height >> ydec;
+    /* TODO: We shouldn't be encoding the full, linear quantizer range. */
+    dec->quantizer[pli] = od_ec_dec_uint(&dec->ec, 512 << OD_COEFF_SHIFT);
+  }
+  for (sby = 0; sby < nvsb; sby++) {
+    for (sbx = 0; sbx < nhsb; sbx++) {
+      for (pli = 0; pli < nplanes; pli++) {
+        mbctx->c = state->ctmp[pli];
+        mbctx->d = state->dtmp;
+        mbctx->mc = state->mctmp[pli];
+        mbctx->md = state->mdtmp[pli];
+        mbctx->l = state->lbuf[pli];
+        xdec = state->io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
+        ydec = state->io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
+        mbctx->nk = mbctx->k_total = mbctx->sum_ex_total_q8 = 0;
+        mbctx->ncount = mbctx->count_total_q8 = mbctx->count_ex_total_q8 = 0;
+        if (!OD_DISABLE_HAAR_DC && mbctx->is_keyframe) {
+          od_decode_haar_dc(dec, mbctx, pli, sbx, sby, 3, xdec, ydec, 0, 0,
+           sby > 0 && sbx < nhsb - 1);
+        }
+        od_decode_block(dec, mbctx, pli, sbx, sby, 3, xdec, ydec,
+         sby > 0 && sbx < nhsb - 1);
+      }
+    }
+  }
+  for (pli = 0; pli < nplanes; pli++) {
+    xdec = state->io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
+    ydec = state->io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
+    w = frame_width >> xdec;
+    h = frame_height >> ydec;
+    /*Apply the postfilter across the entire image.*/
+    for (sby = 0; sby < nvsb; sby++) {
+      for (sbx = 0; sbx < nhsb; sbx++) {
+        od_apply_postfilter(state->ctmp[pli], w, sbx, sby, 3, state->bsize,
+         state->bstride, xdec, ydec, (sby > 0 ? OD_TOP_EDGE : 0) |
+         (sbx < nhsb - 1 ? OD_RIGHT_EDGE : 0));
+      }
+    }
+    {
+      unsigned char *data;
+      int ystride;
+      data = state->io_imgs[OD_FRAME_REC].planes[pli].data;
+      ystride = state->io_imgs[OD_FRAME_REC].planes[pli].ystride;
+      for (y = 0; y < h; y++) {
+        for (x = 0; x < w; x++) {
+          int coeff_shift;
+          coeff_shift = dec->quantizer[pli] == 0 ? 0 : OD_COEFF_SHIFT;
+          data[ystride*y + x] = OD_CLAMP255(((state->ctmp[pli][y*w + x]
+           + (1 << coeff_shift >> 1)) >> coeff_shift) + 128);
+        }
+      }
+    }
+  }
+}
+
+int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
+ const ogg_packet *op) {
   int refi;
   od_mb_dec_ctx mbctx;
   if (dec == NULL || img == NULL || op == NULL) return OD_EFAULT;
@@ -722,122 +835,13 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
    || refi == dec->state.ref_imgi[OD_FRAME_PREV]
    || refi == dec->state.ref_imgi[OD_FRAME_NEXT]; refi++);
   dec->state.ref_imgi[OD_FRAME_SELF] = refi;
-  nhsb = dec->state.nhsb;
-  nvsb = dec->state.nvsb;
   od_adapt_ctx_reset(&dec->state.adapt, mbctx.is_keyframe);
   od_decode_block_sizes(dec);
   if (!mbctx.is_keyframe) {
     od_dec_mv_unpack(dec);
     od_state_mc_predict(&dec->state, OD_FRAME_PREV);
   }
-  frame_width = dec->state.frame_width;
-  frame_height = dec->state.frame_height;
-  {
-    int xdec;
-    int ydec;
-    int sby;
-    int sbx;
-    int h;
-    int w;
-    int y;
-    int x;
-    /*Initialize the data needed for each plane.*/
-    nplanes = dec->state.info.nplanes;
-    for (pli = 0; pli < OD_NPLANES_MAX; pli++) {
-      mbctx.tf[pli] = dec->state.tf[pli];
-      mbctx.modes[pli] = dec->state.modes[pli];
-    }
-    /*Apply the prefilter to the motion-compensated reference.*/
-    if (!mbctx.is_keyframe) {
-      for (pli = 0; pli < nplanes; pli++) {
-        xdec = dec->state.io_imgs[OD_FRAME_REC].planes[pli].xdec;
-        ydec = dec->state.io_imgs[OD_FRAME_REC].planes[pli].ydec;
-        w = frame_width >> xdec;
-        h = frame_height >> ydec;
-        /*Collect the image data needed for this plane.*/
-        {
-          unsigned char *mdata;
-          int ystride;
-          int coeff_shift;
-          coeff_shift = dec->quantizer[pli] == 0 ? 0 : OD_COEFF_SHIFT;
-          mdata = dec->state.io_imgs[OD_FRAME_REC].planes[pli].data;
-          ystride = dec->state.io_imgs[OD_FRAME_REC].planes[pli].ystride;
-          for (y = 0; y < h; y++) {
-            for (x = 0; x < w; x++) {
-              dec->state.mctmp[pli][y*w + x] = (mdata[ystride*y + x] - 128)
-               << coeff_shift;
-            }
-          }
-        }
-        /*Apply the prefilter across the entire image.*/
-        for (sby = 0; sby < nvsb; sby++) {
-          for (sbx = 0; sbx < nhsb; sbx++) {
-            od_apply_prefilter(dec->state.mctmp[pli], w, sbx, sby, 3,
-             dec->state.bsize, dec->state.bstride, xdec, ydec,
-             (sbx > 0 ? OD_LEFT_EDGE : 0) |
-             (sby < nvsb - 1 ? OD_BOTTOM_EDGE : 0));
-          }
-        }
-      }
-    }
-    for (pli = 0; pli < nplanes; pli++) {
-      xdec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
-      ydec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
-      w = frame_width >> xdec;
-      h = frame_height >> ydec;
-      /* TODO: We shouldn't be encoding the full, linear quantizer range. */
-      dec->quantizer[pli] = od_ec_dec_uint(&dec->ec, 512 << OD_COEFF_SHIFT);
-    }
-    for (sby = 0; sby < nvsb; sby++) {
-      for (sbx = 0; sbx < nhsb; sbx++) {
-        for (pli = 0; pli < nplanes; pli++) {
-          mbctx.c = dec->state.ctmp[pli];
-          mbctx.d = dec->state.dtmp;
-          mbctx.mc = dec->state.mctmp[pli];
-          mbctx.md = dec->state.mdtmp[pli];
-          mbctx.l = dec->state.lbuf[pli];
-          xdec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
-          ydec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
-          mbctx.nk = mbctx.k_total = mbctx.sum_ex_total_q8 = 0;
-          mbctx.ncount = mbctx.count_total_q8 = mbctx.count_ex_total_q8 = 0;
-          if (!OD_DISABLE_HAAR_DC && mbctx.is_keyframe) {
-            od_decode_haar_dc(dec, &mbctx, pli, sbx, sby, 3, xdec, ydec, 0, 0,
-             sby > 0 && sbx < nhsb - 1);
-          }
-          od_decode_block(dec, &mbctx, pli, sbx, sby, 3, xdec, ydec,
-           sby > 0 && sbx < nhsb - 1);
-        }
-      }
-    }
-    for (pli = 0; pli < nplanes; pli++) {
-      xdec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
-      ydec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
-      w = frame_width >> xdec;
-      h = frame_height >> ydec;
-      /*Apply the postfilter across the entire image.*/
-      for (sby = 0; sby < nvsb; sby++) {
-        for (sbx = 0; sbx < nhsb; sbx++) {
-          od_apply_postfilter(dec->state.ctmp[pli], w, sbx, sby, 3, dec->state.bsize,
-           dec->state.bstride, xdec, ydec, (sby > 0 ? OD_TOP_EDGE : 0) |
-           (sbx < nhsb - 1 ? OD_RIGHT_EDGE : 0));
-        }
-      }
-      {
-        unsigned char *data;
-        int ystride;
-        data = dec->state.io_imgs[OD_FRAME_REC].planes[pli].data;
-        ystride = dec->state.io_imgs[OD_FRAME_REC].planes[pli].ystride;
-        for (y = 0; y < h; y++) {
-          for (x = 0; x < w; x++) {
-            int coeff_shift;
-            coeff_shift = dec->quantizer[pli] == 0 ? 0 : OD_COEFF_SHIFT;
-            data[ystride*y + x] = OD_CLAMP255(((dec->state.ctmp[pli][y*w + x]
-             + (1 << coeff_shift >> 1)) >> coeff_shift) + 128);
-          }
-        }
-      }
-    }
-  }
+  od_decode_residual(dec, &mbctx);
 #if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
   /*Dump YUV*/
   od_state_dump_yuv(&dec->state, dec->state.io_imgs + OD_FRAME_REC, "out");
