@@ -605,7 +605,7 @@ void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   else {
     pvq_encode(enc, predt, cblock, scalar_out, quant, pli, ln,
      OD_PVQ_QM_Q4[pli][ln], OD_PVQ_BETA[pli][ln],
-     OD_PVQ_INTER_BAND_MASKING[ln], OD_ROBUST_STREAM, ctx->is_keyframe);
+     OD_ROBUST_STREAM, ctx->is_keyframe);
   }
   OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
    OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);

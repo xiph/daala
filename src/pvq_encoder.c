@@ -153,7 +153,6 @@ void pvq_encode(daala_enc_ctx *enc,
                 int ln,
                 const int *qm,
                 const double *beta,
-                const double *inter_band,
                 int robust,
                 int is_keyframe){
   int theta[PVQ_MAX_PARTITIONS];
@@ -168,7 +167,6 @@ void pvq_encode(daala_enc_ctx *enc,
   int i;
   const int *off;
   int size[PVQ_MAX_PARTITIONS];
-  double g[PVQ_MAX_PARTITIONS] = {0};
   generic_encoder *model;
   unsigned *noref_prob;
   double skip_diff;
@@ -202,14 +200,9 @@ void pvq_encode(daala_enc_ctx *enc,
   }
   use_cfl = 0;
   for (i = 0; i < nb_bands; i++) {
-    int j;
-    double mask;
-    mask = 0;
-    for (j = 0; j < i; j++) mask += *inter_band++*g[j];
-    g[i] = mask;
     qg[i] = pvq_theta(out + off[i], in + off[i], ref + off[i], size[i],
      OD_MAXI(1, q*qm[i + 1] >> 4), y + off[i], &theta[i], &max_theta[i],
-     &k[i], &g[i], beta[i], &skip_diff, robust, is_keyframe, pli);
+     &k[i], beta[i], &skip_diff, robust, is_keyframe, pli);
     if (pli!=0 && is_keyframe && theta[i] != -1) use_cfl = 1;
   }
   if (!is_keyframe) {

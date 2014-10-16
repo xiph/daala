@@ -95,25 +95,6 @@ static const double OD_PVQ_BETA4_CHROMA[1] = {1.};
 static const double OD_PVQ_BETA8_CHROMA[4] = {1., 1., 1., 1.};
 static const double OD_PVQ_BETA16_CHROMA[7] = {1., 1., 1., 1., 1., 1., 1.};
 
-/* A triangular array containing the inter-band masking for each band caused
-   by each of the previous bands. The first row corresponds to band 1 because
-   band 0 doesn't have a previous band. Inter-band masking only has an effect
-   when beta != 1, so there's no need for multiple versions at this point. */
-static const double OD_PVQ_INTER_BAND_MASKING4[] = {0};
-static const double OD_PVQ_INTER_BAND_MASKING8[] = {
- 0.0625,
- 0.0625, 0,
- 0.015625, 0.0625, 0.0625
-};
-static const double OD_PVQ_INTER_BAND_MASKING16[] = {
-  0.0625,
-  0.0625, 0,
-  0.015625, 0.0625, 0.0625,
-  0.015625, 0.0625, 0.0625, 0.0625,
-  0.015625, 0.0625, 0.0625, 0.0625, 0,
-  0.015625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625
-};
-
 /* We use the chroma params for the alpha channel. Not sure whether it's
    a good idea. */
 const int *const OD_PVQ_QM_Q4[OD_NPLANES_MAX][OD_NBSIZES] = {
@@ -128,12 +109,6 @@ const double *const OD_PVQ_BETA[OD_NPLANES_MAX][OD_NBSIZES] = {
   {OD_PVQ_BETA4_CHROMA, OD_PVQ_BETA8_CHROMA, OD_PVQ_BETA16_CHROMA},
   {OD_PVQ_BETA4_CHROMA, OD_PVQ_BETA8_CHROMA, OD_PVQ_BETA16_CHROMA},
   {OD_PVQ_BETA4_CHROMA, OD_PVQ_BETA8_CHROMA, OD_PVQ_BETA16_CHROMA}
-};
-
-const double *const OD_PVQ_INTER_BAND_MASKING[OD_NBSIZES] = {
-  OD_PVQ_INTER_BAND_MASKING4,
-  OD_PVQ_INTER_BAND_MASKING8,
-  OD_PVQ_INTER_BAND_MASKING16
 };
 
 /** Find the codepoint on the given PSphere closest to the desired
@@ -397,7 +372,7 @@ int pvq_compute_k(double qcg, int itheta, double theta, int noref, int n,
  * @param [in]      s       sign of Householder reflection
  * @param [in]      q       gain quantizer
  */
-static double pvq_synthesis_partial(od_coeff *xcoeff, od_coeff *ypulse,
+static void pvq_synthesis_partial(od_coeff *xcoeff, od_coeff *ypulse,
                                   const double *r, int n,
                                   int noref, int qg, double go,
                                   double theta, int m, int s, double q,
@@ -411,7 +386,7 @@ static double pvq_synthesis_partial(od_coeff *xcoeff, od_coeff *ypulse,
   int nn;
   if (qg == 0) {
     OD_CLEAR(xcoeff, n);
-    return 0;
+    return;
   }
   nn = n-(!noref); /* when noref==0, vector in is sized n-1 */
   yy = 0;
@@ -439,7 +414,6 @@ static double pvq_synthesis_partial(od_coeff *xcoeff, od_coeff *ypulse,
   for (i = 0; i < n; i++) {
     xcoeff[i] = floor(.5 + x[i]*g);
   }
-  return g*g;
 }
 
 /** Synthesizes one parition of coefficient values from a PVQ-encoded
@@ -461,13 +435,13 @@ static double pvq_synthesis_partial(od_coeff *xcoeff, od_coeff *ypulse,
  * @param [in]      s       sign of Householder reflection
  * @param [in]      q       gain quantizer
  */
-double pvq_synthesis(od_coeff *xcoeff, od_coeff *ypulse, double *r, int n,
+void pvq_synthesis(od_coeff *xcoeff, od_coeff *ypulse, double *r, int n,
                    double gr, int noref, int qg, double go,
                    double theta, double q, double beta) {
   int s = 0;
   int m = noref ? 0 : compute_householder(r, n, gr, &s);
 
-  return pvq_synthesis_partial(xcoeff, ypulse, r, n, noref, qg,
+  pvq_synthesis_partial(xcoeff, ypulse, r, n, noref, qg,
                         go, theta, m, s, q, beta);
 }
 
@@ -478,23 +452,6 @@ double pvq_synthesis(od_coeff *xcoeff, od_coeff *ypulse, double *r, int n,
 static double pvq_rate_approx(int n, int k)
 {
   return n*OD_LOG2(1+log(n*2)*k/n);
-}
-
-/** Computes the effect of masking from other bands.
- * The idea is that without any adjusting, the resolution is already
- * proportional to gain^(2*alpha) so we just need to divide it by
- * gain^(2*alpha) and then multiply by the total_gain^(2*alpha),
- * where total_gain = sqrt(current_gain^2 + other_gain^2).
- * K is inversely proportional to the quantization resolution.
- *
- * @param [in]     inter     Combined gain from other bands
- * @param [in]     curr      Quantized gain from current band
- * @param [in]     beta      Activity masking exponent
- * @return         ratio     Reduction of K/theta allocation
- */
-double pvq_interband_masking(double inter, double curr, double beta) {
-  /* alpha = .5-.5/beta */
-  return pow(curr/(1e-15+curr+inter), .5-.5/beta);
 }
 
 int vector_is_null(const od_coeff *x, int len) {
@@ -516,8 +473,6 @@ int vector_is_null(const od_coeff *x, int len) {
  * @param [out]    itheta    angle between input and reference (-1 if noref)
  * @param [out]    max_theta maximum value of itheta that could have been
  * @param [out]    vk        total number of pulses
- * @param [in,out] mask_gain input masking from other bands, output masking for
- *                           other bands
  * @param [in]     beta      per-band activity masking beta param
  * @param [out]    skip_diff distortion cost of skipping this block
  *                           (accumulated)
@@ -527,7 +482,7 @@ int vector_is_null(const od_coeff *x, int len) {
  * @return         gain      index of the quatized gain
 */
 int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
- od_coeff *y, int *itheta, int *max_theta, int *vk, double *mask_gain,
+ od_coeff *y, int *itheta, int *max_theta, int *vk,
  double beta, double *skip_diff, int robust, int is_keyframe, int pli) {
   double g;
   double gr;
@@ -559,7 +514,6 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   double gain_offset;
   int noref;
   double lambda;
-  double mask_ratio;
   double skip_dist;
   lambda = OD_PVQ_LAMBDA;
   /* Quantization step calibration to account for the activity masking. */
@@ -609,13 +563,8 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
       int ts;
       /* Quantized companded gain */
       qcg = i+gain_offset;
-      if (robust) mask_ratio = 1;
-      else {
-        mask_ratio = pvq_interband_masking(*mask_gain, pow(q*qcg, 2*beta),
-         beta);
-      }
       /* Set angular resolution (in ra) to match the encoded gain */
-      ts = pvq_compute_max_theta(mask_ratio*qcg, beta);
+      ts = pvq_compute_max_theta(qcg, beta);
       /* Search for the best angle within a reasonable range. */
       for (j = OD_MAXI(0, (int)floor(.5+theta*2/M_PI*ts)-1);
        j <= OD_MINI(ts-1, (int)ceil(theta*2/M_PI*ts)); j++) {
@@ -623,7 +572,7 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
         double cost;
         double dist_theta;
         double qtheta = pvq_compute_theta(j, ts);
-        k = pvq_compute_k(mask_ratio*qcg, j, qtheta, 0, n, beta, robust &&
+        k = pvq_compute_k(qcg, j, qtheta, 0, n, beta, robust &&
          !is_keyframe);
         cos_dist = pvq_search_double(x, n, k, y_tmp);
         /* See Jmspeex' Journal of Dubious Theoretical Results. */
@@ -660,12 +609,7 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
       double cost;
       double qcg;
       qcg = i;
-      if (robust) mask_ratio = 1;
-      else {
-        mask_ratio = pvq_interband_masking(*mask_gain, pow(q*qcg, 2*beta),
-         beta);
-      }
-      k = pvq_compute_k(mask_ratio*qcg, -1, -1, 1, n, beta, robust &&
+      k = pvq_compute_k(qcg, -1, -1, 1, n, beta, robust &&
        !is_keyframe);
       cos_dist = pvq_search_double(x1, n, k, y_tmp);
       /* See Jmspeex' Journal of Dubious Theoretical Results. */
@@ -691,7 +635,7 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
     for (i = m; i < n - 1; i++) y[i] = y[i+1];
   }
   /* Synthesize like the decoder would. */
-  *mask_gain = pvq_synthesis_partial(out, y, r, n, noref, qg, gain_offset,
+  pvq_synthesis_partial(out, y, r, n, noref, qg, gain_offset,
    theta, m, s, q, beta);
   *vk = k;
   *skip_diff += skip_dist - best_dist;

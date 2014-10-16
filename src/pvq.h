@@ -43,7 +43,7 @@ extern const double *const OD_PVQ_INTER_BAND_MASKING[OD_NBSIZES];
 int neg_deinterleave(int x, int ref);
 
 int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
- od_coeff *y, int *itheta, int *max_theta, int *vk, double *mask_gain,
+ od_coeff *y, int *itheta, int *max_theta, int *vk,
  double beta, double *skip_acc, int robust, int is_keyframe, int pli);
 
 double pvq_compute_gain(od_coeff *x, int n, double q, double *g, double beta);
@@ -52,7 +52,7 @@ double pvq_compute_theta(int t, int max_theta);
 int pvq_compute_k(double qcg, int itheta, double theta, int noref, int n,
  double beta, int nodesync);
 
-double pvq_synthesis(od_coeff *x0, od_coeff *y, double *r, int n, double gr,
+void pvq_synthesis(od_coeff *x0, od_coeff *y, double *r, int n, double gr,
  int noref, int qg, double gain_offset, double theta, double q, double beta);
 
 double pvq_interband_masking(double inter, double curr, double beta);
