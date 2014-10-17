@@ -64,8 +64,7 @@ static void pvq_encode_partition(od_ec_enc *ec,
                                  int *adapt,
                                  int *exg,
                                  int *ext,
-                                 int nodesync,
-                                 int is_keyframe) {
+                                 int nodesync) {
 
   int adapt_curr[OD_NSB_ADAPT_CTXS] = { 0 };
   int speed = 5;
@@ -73,17 +72,8 @@ static void pvq_encode_partition(od_ec_enc *ec,
   noref = (theta == -1);
   generic_encode(ec, &model[!noref], qg, -1, exg, 2);
   if (!noref && (max_theta > 1 || nodesync)) {
-    if (is_keyframe) {
-      int tmp;
-      tmp = max_theta**ext;
-      generic_encode(ec, &model[2], theta, max_theta-1, &tmp, 2);
-      /* Adapt expectation as fraction of max_theta */
-      *ext += (theta*65536/max_theta - *ext) >> 5;
-    }
-    else {
-      generic_encode(ec, &model[2], theta, nodesync ? -1 : max_theta - 1, ext,
-       2);
-    }
+    generic_encode(ec, &model[2], theta, nodesync ? -1 : max_theta - 1, ext,
+     2);
   }
   laplace_encode_vector(ec, in, n - (theta >= 0), k, adapt_curr, adapt);
 
@@ -239,8 +229,7 @@ void pvq_encode(daala_enc_ctx *enc,
   }
   else {
     for (i = 0; i < nb_bands; i++) {
-      if (!(is_keyframe && vector_is_null(ref + off[i], size[i])))
-        code_flag(&enc->ec, theta[i] != -1, &noref_prob[i]);
+      code_flag(&enc->ec, theta[i] != -1, &noref_prob[i]);
     }
   }
   if (use_cfl) {
@@ -252,8 +241,7 @@ void pvq_encode(daala_enc_ctx *enc,
   }
   for (i = 0; i < nb_bands; i++) {
     pvq_encode_partition(&enc->ec, qg[i], theta[i], max_theta[i], y + off[i],
-     size[i], k[i], model, adapt, exg + i, ext + i, robust && !is_keyframe,
-     is_keyframe);
+     size[i], k[i], model, adapt, exg + i, ext + i, robust || is_keyframe);
   }
   if (!is_keyframe) {
     tell = od_ec_enc_tell_frac(&enc->ec) - tell;

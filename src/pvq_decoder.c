@@ -81,13 +81,16 @@ static void pvq_decode_partition(od_ec_dec *ec,
   double r[1024];
   int qg;
   double q;
+  int nodesync;
   /* Quantization step calibration to account for the activity masking. */
   q = q0*pow(256<<OD_COEFF_SHIFT, 1./beta - 1);
   speed = 5;
   theta = 0;
   gr = 0;
   gain_offset = 0;
-
+  /* We always use the robust bitstream for keyframes to avoid having
+     PVQ and entropy decoding depending on each other, hurting parallelism. */
+  nodesync = robust || is_keyframe;
   /* read quantized gain */
   qg = generic_decode(ec, &model[!noref], -1, exg, 2);
 
@@ -106,18 +109,9 @@ static void pvq_decode_partition(od_ec_dec *ec,
     qcg = qg + gain_offset;
     /* read and decode first-stage PVQ error theta */
     max_theta = pvq_compute_max_theta(qcg, beta);
-    if ((robust && !is_keyframe) || max_theta > 1) {
-      if (is_keyframe) {
-        int tmp;
-        tmp = max_theta**ext;
-        itheta = generic_decode(ec, &model[2], max_theta-1, &tmp, 2);
-        /* Adapt expectation as fraction of max_theta */
-        *ext += (itheta*65536/max_theta - *ext) >> 5;
-      }
-      else {
-        itheta = generic_decode(ec, &model[2], robust ? -1 : max_theta - 1,
-         ext, 2);
-      }
+    if (nodesync || max_theta > 1) {
+      itheta = generic_decode(ec, &model[2], nodesync ? -1 : max_theta - 1,
+       ext, 2);
     }
     else itheta = 0;
     theta = pvq_compute_theta(itheta, max_theta);
@@ -128,8 +122,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
     qcg=qg;
   }
 
-  k = pvq_compute_k(qcg, itheta, theta, noref, n, beta, robust &&
-   !is_keyframe);
+  k = pvq_compute_k(qcg, itheta, theta, noref, n, beta, nodesync);
   if (k != 0) {
     /* when noref==0, y is actually size n-1 */
     laplace_decode_vector(ec, y, n-(!noref), k, adapt_curr, adapt);
@@ -240,8 +233,7 @@ void pvq_decode(daala_dec_ctx *dec,
     }
     else {
       for (i = 0; i < nb_bands; i++) {
-        if (is_keyframe && vector_is_null(ref + off[i], size[i])) noref[i] = 1;
-        else noref[i] = !decode_flag(&dec->ec, &noref_prob[i]);
+        noref[i] = !decode_flag(&dec->ec, &noref_prob[i]);
         if (!noref[i] && pli != 0 && is_keyframe) use_cfl = 1;
       }
     }

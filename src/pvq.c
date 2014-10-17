@@ -572,8 +572,7 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
         double cost;
         double dist_theta;
         double qtheta = pvq_compute_theta(j, ts);
-        k = pvq_compute_k(qcg, j, qtheta, 0, n, beta, robust &&
-         !is_keyframe);
+        k = pvq_compute_k(qcg, j, qtheta, 0, n, beta, robust || is_keyframe);
         cos_dist = pvq_search_double(x, n, k, y_tmp);
         /* See Jmspeex' Journal of Dubious Theoretical Results. */
         dist_theta = 2 - 2*cos(theta - qtheta)
@@ -609,8 +608,7 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
       double cost;
       double qcg;
       qcg = i;
-      k = pvq_compute_k(qcg, -1, -1, 1, n, beta, robust &&
-       !is_keyframe);
+      k = pvq_compute_k(qcg, -1, -1, 1, n, beta, robust || is_keyframe);
       cos_dist = pvq_search_double(x1, n, k, y_tmp);
       /* See Jmspeex' Journal of Dubious Theoretical Results. */
       dist = (qcg - cg)*(qcg - cg) + qcg*cg*(2 - 2*cos_dist);
