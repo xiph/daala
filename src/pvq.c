@@ -549,9 +549,17 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   corr = corr/(1e-100 + g*gr);
   corr = OD_MAXF(OD_MINF(corr, 1.), -1.);
   skip_dist = (cg - cgr)*(cg - cgr) + cgr*cg*(2 - 2*corr);
-  if (!is_keyframe && icgr == 0) {
+  if (!is_keyframe) {
     /* noref, gain=0 isn't allowed, but skip is allowed. */
-    best_dist = best_cost = skip_dist;
+    double scgr;
+    scgr = OD_MAXF(0,gain_offset);
+    if (icgr == 0) {
+      best_dist = best_cost = (cg - scgr)*(cg - scgr) + scgr*cg*(2 - 2*corr);
+    }
+    best_qtheta = 0;
+    *itheta = 0;
+    *max_theta = 0;
+    noref = 0;
   }
   if (!vector_is_null(r0, n) && corr > 0) {
     /* Perform theta search only if prediction is useful. */
@@ -641,16 +649,16 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
    theta, m, s, q, beta);
   *vk = k;
   *skip_diff += skip_dist - best_dist;
-  if (!is_keyframe && icgr == 0) {
-    /* noref, gain=0 isn't allowed, make this a skip. */
-    if (qg == 0) {
-      noref = 0;
-      *itheta = 0;
-      for (i = 0; i < n; i++) out[i] = r0[i];
-    }
-    return qg;
-  }
   /* Encode gain differently depending on whether we use prediction or not. */
-  return noref ? qg : neg_interleave(qg, icgr);
+  if (is_keyframe) return noref ? qg : neg_interleave(qg, icgr);
+  else {
+    if (qg == 0) {
+      if (icgr == 0) for (i = 0; i < n; i++) out[i] = r0[i];
+      else for (i = 0; i < n; i++) out[i] = 0;
+    }
+    /* Special encoding on inter frames where qg=0 is allowed for noref=0
+       but not noref=1. */
+    return noref ? qg - 1 : neg_interleave(qg + 1, icgr + 1);
+  }
 }
 
