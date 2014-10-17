@@ -82,6 +82,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
   int qg;
   double q;
   int nodesync;
+  int skip;
   /* Quantization step calibration to account for the activity masking. */
   q = q0*pow(256<<OD_COEFF_SHIFT, 1./beta - 1);
   speed = 5;
@@ -94,6 +95,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
   /* read quantized gain */
   qg = generic_decode(ec, &model[!noref], -1, exg, 2);
 
+  skip = 0;
   if(!noref){
     /* we have a reference; compute its gain */
     double cgr;
@@ -102,9 +104,12 @@ static void pvq_decode_partition(od_ec_dec *ec,
     cgr = pvq_compute_gain(ref, n, q, &gr, beta);
     if (pli != 0 && is_keyframe && !OD_DISABLE_CFL) cgr = 1;
     icgr = floor(.5+cgr);
+    if (!is_keyframe && icgr == 0 && qg == 0) {
+      skip = 1;
+    }
     /* quantized gain is interleave encoded when there's a reference;
        deinterleave it now */
-    qg = neg_deinterleave(qg, icgr);
+    if (is_keyframe || icgr != 0) qg = neg_deinterleave(qg, icgr);
     gain_offset = cgr-icgr;
     qcg = qg + gain_offset;
     /* read and decode first-stage PVQ error theta */
@@ -131,6 +136,10 @@ static void pvq_decode_partition(od_ec_dec *ec,
   }
   pvq_synthesis(out, y, r, n, gr, noref, qg, gain_offset, theta,
    q, beta);
+  if (skip) {
+    int i;
+    for (i = 0; i < n; i++) out[i] = ref[i];
+  }
 
   if (adapt_curr[OD_ADAPT_K_Q8] > 0) {
     adapt[OD_ADAPT_K_Q8]

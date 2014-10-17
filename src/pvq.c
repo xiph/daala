@@ -549,6 +549,10 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   corr = corr/(1e-100 + g*gr);
   corr = OD_MAXF(OD_MINF(corr, 1.), -1.);
   skip_dist = (cg - cgr)*(cg - cgr) + cgr*cg*(2 - 2*corr);
+  if (!is_keyframe && icgr == 0) {
+    /* noref, gain=0 isn't allowed, but skip is allowed. */
+    best_dist = best_cost = skip_dist;
+  }
   if (!vector_is_null(r0, n) && corr > 0) {
     /* Perform theta search only if prediction is useful. */
     theta = acos(corr);
@@ -637,6 +641,15 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
    theta, m, s, q, beta);
   *vk = k;
   *skip_diff += skip_dist - best_dist;
+  if (!is_keyframe && icgr == 0) {
+    /* noref, gain=0 isn't allowed, make this a skip. */
+    if (qg == 0) {
+      noref = 0;
+      *itheta = 0;
+      for (i = 0; i < n; i++) out[i] = r0[i];
+    }
+    return qg;
+  }
   /* Encode gain differently depending on whether we use prediction or not. */
   return noref ? qg : neg_interleave(qg, icgr);
 }
