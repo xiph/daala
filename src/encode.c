@@ -653,26 +653,6 @@ void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
 #endif
 }
 
-static void od_32x32_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
- int pli, int bx, int by, int has_ur) {
-  bx <<= 1;
-  by <<= 1;
-  od_block_encode(enc, ctx, ln - 1, pli, bx + 0, by + 0, 1);
-  od_block_encode(enc, ctx, ln - 1, pli, bx + 1, by + 0, has_ur);
-  od_block_encode(enc, ctx, ln - 1, pli, bx + 0, by + 1, 1);
-  od_block_encode(enc, ctx, ln - 1, pli, bx + 1, by + 1, 0);
-}
-
-typedef void (*od_enc_func)(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
- int pli, int bx, int by, int has_ur);
-
-const od_enc_func OD_ENCODE_BLOCK[OD_NBSIZES + 2] = {
-  od_block_encode,
-  od_block_encode,
-  od_block_encode,
-  od_32x32_encode
-};
-
 static void od_compute_dcts(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
   int bx, int by, int l, int xdec, int ydec) {
   int od;
@@ -826,8 +806,8 @@ static void od_quantize_haar_dc(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
 }
 #endif
 
-static void od_encode_block(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
- int bx, int by, int l, int xdec, int ydec, int has_ur) {
+static void od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
+ int pli, int bx, int by, int l, int xdec, int ydec, int has_ur) {
   int od;
   int d;
   /*This code assumes 4:4:4 or 4:2:0 input.*/
@@ -849,16 +829,16 @@ static void od_encode_block(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
        ctx->d[0] + (by << (2 + l))*frame_width + (bx << (2 + l)),
        frame_width, xdec, ydec, d, od);
     }
-    (*OD_ENCODE_BLOCK[d])(enc, ctx, d, pli, bx, by, has_ur);
+    od_block_encode(enc, ctx, d, pli, bx, by, has_ur);
   }
   else {
     l--;
     bx <<= 1;
     by <<= 1;
-    od_encode_block(enc, ctx, pli, bx + 0, by + 0, l, xdec, ydec, 1);
-    od_encode_block(enc, ctx, pli, bx + 1, by + 0, l, xdec, ydec, has_ur);
-    od_encode_block(enc, ctx, pli, bx + 0, by + 1, l, xdec, ydec, 1);
-    od_encode_block(enc, ctx, pli, bx + 1, by + 1, l, xdec, ydec, 0);
+    od_encode_recursive(enc, ctx, pli, bx + 0, by + 0, l, xdec, ydec, 1);
+    od_encode_recursive(enc, ctx, pli, bx + 1, by + 0, l, xdec, ydec, has_ur);
+    od_encode_recursive(enc, ctx, pli, bx + 0, by + 1, l, xdec, ydec, 1);
+    od_encode_recursive(enc, ctx, pli, bx + 1, by + 1, l, xdec, ydec, 0);
   }
 }
 
@@ -1301,7 +1281,7 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx) {
           od_quantize_haar_dc(enc, mbctx, pli, sbx, sby, 3, xdec, ydec, 0,
            0, sby > 0 && sbx < nhsb - 1);
         }
-        od_encode_block(enc, mbctx, pli, sbx, sby, 3, xdec, ydec,
+        od_encode_recursive(enc, mbctx, pli, sbx, sby, 3, xdec, ydec,
          sby > 0 && sbx < nhsb - 1);
       }
         OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
