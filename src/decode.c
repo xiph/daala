@@ -295,7 +295,7 @@ static void od_single_band_lossless_decode(daala_dec_ctx *dec, int ln,
   }
 }
 
-void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
+static void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
  int pli, int bx, int by, int has_ur) {
   int n;
   int xdec;
@@ -311,17 +311,11 @@ void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   int lossless;
   int quant;
   int dc_quant;
-#ifndef USE_BAND_PARTITIONS
-  unsigned char const *zig;
-#endif
   OD_ASSERT(ln >= 0 && ln <= 2);
   n = 1 << (ln + 2);
   lossless = (dec->quantizer[pli] == 0);
   bx <<= ln;
   by <<= ln;
-#ifndef USE_BAND_PARTITIONS
-  zig = OD_DCT_ZIGS[ln];
-#endif
   xdec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
   frame_width = dec->state.frame_width;
   w = frame_width >> xdec;

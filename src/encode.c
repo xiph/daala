@@ -528,7 +528,7 @@ static void od_single_band_lossless_encode(daala_enc_ctx *enc, int ln,
   }
 }
 
-void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
+static void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
  int pli, int bx, int by, int has_ur) {
   int n;
   int xdec;
@@ -546,9 +546,6 @@ void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   int quant;
   int dc_quant;
   int lossless;
-#ifndef USE_BAND_PARTITIONS
-  unsigned char const *zig;
-#endif
 #if defined(OD_OUTPUT_PRED)
   od_coeff preds[16*16];
   int zzi;
@@ -557,9 +554,6 @@ void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   n = 1 << (ln + 2);
   bx <<= ln;
   by <<= ln;
-#ifndef USE_BAND_PARTITIONS
-  zig = OD_DCT_ZIGS[ln];
-#endif
   xdec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
   frame_width = enc->state.frame_width;
   w = frame_width >> xdec;

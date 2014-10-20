@@ -25,8 +25,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #if !defined(_partition_H)
 # define _partition_H
 
-# define USE_BAND_PARTITIONS (1)
-
 typedef unsigned char index_pair[2];
 
 typedef struct {
