@@ -266,7 +266,7 @@ static void od_decode_compute_pred(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, od_co
   }
 }
 
-static void od_single_band_lossless_decode(daala_dec_ctx *dec, int ln,
+static void od_block_lossless_decode(daala_dec_ctx *dec, int ln,
  od_coeff *pred, const od_coeff *predt, int pli) {
   int *adapt;
   int vk;
@@ -295,7 +295,7 @@ static void od_single_band_lossless_decode(daala_dec_ctx *dec, int ln,
   }
 }
 
-static void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
+static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
  int pli, int bx, int by, int has_ur) {
   int n;
   int xdec;
@@ -337,7 +337,7 @@ static void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln
   if (lossless) dc_quant = 1;
   else dc_quant = OD_MAXI(1, quant*OD_PVQ_QM_Q4[pli][ln][0] >> 4);
   if (lossless) {
-    od_single_band_lossless_decode(dec, ln, pred, predt, pli);
+    od_block_lossless_decode(dec, ln, pred, predt, pli);
   }
   else {
     pvq_decode(dec, predt, pred, quant, pli, ln,
@@ -368,26 +368,6 @@ static void od_single_band_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln
   (*dec->state.opt_vtbl.idct_2d[ln])(c + (by << 2)*w + (bx << 2), w,
    d + (by << 2)*w + (bx << 2), w);
 }
-
-static void od_32x32_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
- int pli, int bx, int by, int has_ur) {
-  bx <<= 1;
-  by <<= 1;
-  od_single_band_decode(dec, ctx, ln - 1, pli, bx + 0, by + 0, 1);
-  od_single_band_decode(dec, ctx, ln - 1, pli, bx + 1, by + 0, has_ur);
-  od_single_band_decode(dec, ctx, ln - 1, pli, bx + 0, by + 1, 1);
-  od_single_band_decode(dec, ctx, ln - 1, pli, bx + 1, by + 1, 0);
-}
-
-typedef void (*od_dec_func)(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
- int pli, int bx, int by, int has_ur);
-
-const od_dec_func OD_DECODE_BLOCK[OD_NBSIZES + 2] = {
-  od_single_band_decode,
-  od_single_band_decode,
-  od_single_band_decode,
-  od_32x32_decode
-};
 
 #if !OD_DISABLE_HAAR_DC
 static void od_decode_haar_dc(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
@@ -492,7 +472,7 @@ static void od_decode_haar_dc(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
 }
 #endif
 
-static void od_decode_block(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
+static void od_decode_recursive(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
  int bx, int by, int l, int xdec, int ydec, int has_ur) {
   int od;
   int d;
@@ -515,16 +495,16 @@ static void od_decode_block(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
        ctx->d[0] + (by << (2 + l))*frame_width + (bx << (2 + l)),
        frame_width, xdec, ydec, d, od);
     }
-    (*OD_DECODE_BLOCK[d])(dec, ctx, d, pli, bx, by, has_ur);
+    od_block_decode(dec, ctx, d, pli, bx, by, has_ur);
   }
   else {
     l--;
     bx <<= 1;
     by <<= 1;
-    od_decode_block(dec, ctx, pli, bx + 0, by + 0, l, xdec, ydec, 1);
-    od_decode_block(dec, ctx, pli, bx + 1, by + 0, l, xdec, ydec, has_ur);
-    od_decode_block(dec, ctx, pli, bx + 0, by + 1, l, xdec, ydec, 1);
-    od_decode_block(dec, ctx, pli, bx + 1, by + 1, l, xdec, ydec, 0);
+    od_decode_recursive(dec, ctx, pli, bx + 0, by + 0, l, xdec, ydec, 1);
+    od_decode_recursive(dec, ctx, pli, bx + 1, by + 0, l, xdec, ydec, has_ur);
+    od_decode_recursive(dec, ctx, pli, bx + 0, by + 1, l, xdec, ydec, 1);
+    od_decode_recursive(dec, ctx, pli, bx + 1, by + 1, l, xdec, ydec, 0);
   }
 }
 
@@ -767,7 +747,7 @@ static void od_decode_residual(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
           od_decode_haar_dc(dec, mbctx, pli, sbx, sby, 3, xdec, ydec, 0, 0,
            sby > 0 && sbx < nhsb - 1);
         }
-        od_decode_block(dec, mbctx, pli, sbx, sby, 3, xdec, ydec,
+        od_decode_recursive(dec, mbctx, pli, sbx, sby, 3, xdec, ydec,
          sby > 0 && sbx < nhsb - 1);
       }
     }
