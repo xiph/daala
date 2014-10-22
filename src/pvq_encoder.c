@@ -37,6 +37,46 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "adapt.h"
 #include "filter.h"
 
+static void od_encode_pvq_codeword(od_ec_enc *ec, od_adapt_ctx *adapt,
+ const od_coeff *in, int n, int k, int noref) {
+  if (k == 1 && n < 16) {
+    int cdf_id;
+    int i;
+    int pos;
+    cdf_id = 2*(n == 15) + !noref;
+    pos = 32;
+    for (i = 0; i < n - !noref; i++) {
+      if (in[i]) {
+        pos = i;
+        break;
+      }
+    }
+    od_encode_cdf_adapt(ec, pos, adapt->pvq_k1_cdf[cdf_id], n - !noref,
+     adapt->pvq_k1_increment);
+    od_ec_enc_bits(ec, in[pos] < 0, 1);
+  }
+  else {
+    int speed = 5;
+    int *pvq_adapt;
+    int adapt_curr[OD_NSB_ADAPT_CTXS] = { 0 };
+    pvq_adapt = adapt->pvq_adapt;
+    laplace_encode_vector(ec, in, n - !noref, k, adapt_curr,
+     pvq_adapt);
+    if (adapt_curr[OD_ADAPT_K_Q8] > 0) {
+      pvq_adapt[OD_ADAPT_K_Q8] += (256*adapt_curr[OD_ADAPT_K_Q8]
+       - pvq_adapt[OD_ADAPT_K_Q8]) >> speed;
+      pvq_adapt[OD_ADAPT_SUM_EX_Q8] += (adapt_curr[OD_ADAPT_SUM_EX_Q8]
+       - pvq_adapt[OD_ADAPT_SUM_EX_Q8]) >> speed;
+    }
+    if (adapt_curr[OD_ADAPT_COUNT_Q8] > 0) {
+      pvq_adapt[OD_ADAPT_COUNT_Q8] += (adapt_curr[OD_ADAPT_COUNT_Q8]
+       - pvq_adapt[OD_ADAPT_COUNT_Q8]) >> speed;
+      pvq_adapt[OD_ADAPT_COUNT_EX_Q8] += (adapt_curr[OD_ADAPT_COUNT_EX_Q8]
+       - pvq_adapt[OD_ADAPT_COUNT_EX_Q8]) >> speed;
+    }
+  }
+}
+
 /** Encodes a single vector of integers (eg, a partition within a
  *  coefficient block) using PVQ
  *
@@ -61,13 +101,10 @@ static void pvq_encode_partition(od_ec_enc *ec,
                                  int n,
                                  int k,
                                  generic_encoder model[3],
-                                 int *adapt,
+                                 od_adapt_ctx *adapt,
                                  int *exg,
                                  int *ext,
                                  int nodesync) {
-
-  int adapt_curr[OD_NSB_ADAPT_CTXS] = { 0 };
-  int speed = 5;
   int noref;
   noref = (theta == -1);
   generic_encode(ec, &model[!noref], qg, -1, exg, 2);
@@ -75,20 +112,7 @@ static void pvq_encode_partition(od_ec_enc *ec,
     generic_encode(ec, &model[2], theta, nodesync ? -1 : max_theta - 1, ext,
      2);
   }
-  laplace_encode_vector(ec, in, n - (theta >= 0), k, adapt_curr, adapt);
-
-  if (adapt_curr[OD_ADAPT_K_Q8] > 0) {
-    adapt[OD_ADAPT_K_Q8] += 256*adapt_curr[OD_ADAPT_K_Q8] -
-     adapt[OD_ADAPT_K_Q8]>>speed;
-    adapt[OD_ADAPT_SUM_EX_Q8] += adapt_curr[OD_ADAPT_SUM_EX_Q8] -
-     adapt[OD_ADAPT_SUM_EX_Q8]>>speed;
-  }
-  if (adapt_curr[OD_ADAPT_COUNT_Q8] > 0) {
-    adapt[OD_ADAPT_COUNT_Q8] += adapt_curr[OD_ADAPT_COUNT_Q8]-
-     adapt[OD_ADAPT_COUNT_Q8]>>speed;
-    adapt[OD_ADAPT_COUNT_EX_Q8] += adapt_curr[OD_ADAPT_COUNT_EX_Q8]-
-     adapt[OD_ADAPT_COUNT_EX_Q8]>>speed;
-  }
+  od_encode_pvq_codeword(ec, adapt, in, n, k, theta == -1);
 }
 
 void code_flag(od_ec_enc *ec, int val, unsigned *prob0)
@@ -150,7 +174,6 @@ void pvq_encode(daala_enc_ctx *enc,
   int qg[PVQ_MAX_PARTITIONS];
   int k[PVQ_MAX_PARTITIONS];
   od_coeff y[16*16];
-  int *adapt;
   int *exg;
   int *ext;
   int nb_bands;
@@ -166,7 +189,6 @@ void pvq_encode(daala_enc_ctx *enc,
   int dc_quant;
   int use_cfl;
   int flip;
-  adapt = enc->state.adapt.pvq_adapt;
   exg = &enc->state.adapt.pvq_exg[pli][ln][0];
   ext = enc->state.adapt.pvq_ext + ln*PVQ_MAX_PARTITIONS;
   noref_prob = enc->state.adapt.pvq_noref_prob + ln*PVQ_MAX_PARTITIONS;
@@ -241,7 +263,8 @@ void pvq_encode(daala_enc_ctx *enc,
   }
   for (i = 0; i < nb_bands; i++) {
     pvq_encode_partition(&enc->ec, qg[i], theta[i], max_theta[i], y + off[i],
-     size[i], k[i], model, adapt, exg + i, ext + i, robust || is_keyframe);
+     size[i], k[i], model, &enc->state.adapt, exg + i, ext + i,
+     robust || is_keyframe);
   }
   if (!is_keyframe) {
     tell = od_ec_enc_tell_frac(&enc->ec) - tell;

@@ -113,6 +113,9 @@ struct od_yuv_dumpfile{
 struct od_adapt_ctx {
   /* Support for PVQ encode/decode */
   int                 pvq_adapt[OD_NSB_ADAPT_CTXS];
+  int                 pvq_k1_increment;
+  /* CDFs are size 16 despite the fact that we're using less than that. */
+  ogg_uint16_t        pvq_k1_cdf[4][16];
   generic_encoder     pvq_param_model[3];
   int                 pvq_ext[OD_NBSIZES*PVQ_MAX_PARTITIONS];
   int                 pvq_exg[OD_NPLANES_MAX][OD_NBSIZES][PVQ_MAX_PARTITIONS];
