@@ -28,6 +28,17 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #include "generic_code.h"
 
+void od_cdf_init(ogg_uint16_t *cdf, int ncdfs, int nsyms, int val, int first) {
+  int i;
+  int j;
+  for (i = 0; i < ncdfs; i++) {
+    cdf[i*nsyms] = first;
+    for (j = 0; j < nsyms; j++) {
+      cdf[i*nsyms + j] = val*j + first;
+    }
+  }
+}
+
 /** Initializes the cdfs and freq counts for a model.
  *
  * @param [out] model model being initialized

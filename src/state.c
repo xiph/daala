@@ -393,37 +393,22 @@ void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe) {
   state->bsize16_increment = 128;
   state->bsize8_increment = 128;
   for (i = 0; i < 16; i++) {
-    state->bsize8_cdf[i] = (i+1)*state->bsize8_increment;
     /* Shifting makes the initial adaptation faster. */
     state->bsize16_cdf[0][i] = split16_cdf_init[0][i]>>6;
     state->bsize16_cdf[1][i] = split16_cdf_init[1][i]>>6;
   }
+  OD_SINGLE_CDF_INIT(state->bsize8_cdf, state->bsize8_increment);
   generic_model_init(&state->mv_model);
   state->skip_increment = 128;
-  for (ln = 0; ln < OD_NPLANES_MAX; ln++) {
-    for (i = 0; i < 4; i++) {
-      /* The >> 2 makes early adaptation faster. */
-      state->skip_cdf[ln][i] = (i + 1)*state->skip_increment >> 2;
-    }
-  }
+  OD_CDFS_INIT(state->skip_cdf, state->skip_increment >> 2);
   state->mv_small_increment = 128;
-  state->mv_small_cdf[0] = 10*state->mv_small_increment;
-  for (i = 1; i < 16; i++) {
-    state->mv_small_cdf[i] = state->mv_small_cdf[i - 1]
-     + state->mv_small_increment;
-  }
+  OD_SINGLE_CDF_INIT_FIRST(state->mv_small_cdf, state->mv_small_increment,
+   10*state->mv_small_increment);
   state->pvq_noref_joint_increment = 128;
-  for (i = 0; i < 16; i++) {
-    state->pvq_noref_joint_cdf[0][i] = state->pvq_noref_joint_cdf[1][i] =
-     (i + 1)*state->pvq_noref_joint_increment >> 2;
-  }
-  for (i = 0; i < 8; i++) {
-    int j;
-    for (j = 0; j < 5; j++) {
-      state->pvq_noref2_joint_cdf[j][i] = (i + 1)*
-       state->pvq_noref_joint_increment >> 2;
-    }
-  }
+  OD_CDFS_INIT(state->pvq_noref_joint_cdf,
+   state->pvq_noref_joint_increment >> 2);
+  OD_CDFS_INIT(state->pvq_noref2_joint_cdf,
+   state->pvq_noref_joint_increment >> 2);
   for (pli = 0; pli < OD_NPLANES_MAX; pli++) {
     generic_model_init(&state->model_dc[pli]);
     generic_model_init(&state->model_g[pli]);
