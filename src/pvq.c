@@ -34,7 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <string.h>
 #include "filter.h"
 
-#define MAXN 256
+#define MAXN 512
 #define EPSILON 1e-30
 
 /* This is the PVQ equivalent of a quantization matrix, except that
@@ -46,15 +46,21 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 static const int OD_PVQ_QM4_LUMA_Q4[2] = {16, 16};
 static const int OD_PVQ_QM8_LUMA_Q4[5] = {16, 16, 16, 16, 16};
 static const int OD_PVQ_QM16_LUMA_Q4[8] = {16, 16, 16, 16, 16, 16, 16, 16};
+static const int OD_PVQ_QM32_LUMA_Q4[11] = {16, 16, 16, 16, 16, 16, 16, 16,
+ 16, 16, 16};
 # else
 static const int OD_PVQ_QM4_LUMA_Q4[2] = {8, 16};
 static const int OD_PVQ_QM8_LUMA_Q4[5] = {16, 16, 32, 32, 64};
 static const int OD_PVQ_QM16_LUMA_Q4[8] = {16, 16, 16, 16, 32, 32, 32, 64};
+static const int OD_PVQ_QM32_LUMA_Q4[11] = {16, 16, 16, 16, 16, 16, 16, 32,
+ 32, 32, 64};
 # endif
 
 static const double OD_PVQ_BETA4_LUMA[1] = {1.};
 static const double OD_PVQ_BETA8_LUMA[4] = {1., 1., 1., 1.};
 static const double OD_PVQ_BETA16_LUMA[7] = {1., 1., 1., 1., 1., 1., 1.};
+static const double OD_PVQ_BETA32_LUMA[10] = {1., 1., 1., 1., 1., 1., 1.,
+ 1., 1., 1.};
 
 #else
 
@@ -65,10 +71,14 @@ static const double OD_PVQ_BETA16_LUMA[7] = {1., 1., 1., 1., 1., 1., 1.};
 static const int OD_PVQ_QM4_LUMA_Q4[2] = {19, 19};
 static const int OD_PVQ_QM8_LUMA_Q4[5] = {16, 16, 44, 44, 72};
 static const int OD_PVQ_QM16_LUMA_Q4[8] = {16, 13, 18, 18, 36, 40, 40, 80};
+static const int OD_PVQ_QM32_LUMA_Q4[11] = {16, 12, 14, 14, 12, 14, 14, 32,
+ 36, 36, 64};
 
 static const double OD_PVQ_BETA4_LUMA[1] = {1.};
 static const double OD_PVQ_BETA8_LUMA[4] = {1.5, 1.5, 1.5, 1.5};
 static const double OD_PVQ_BETA16_LUMA[7] = {1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5};
+static const double OD_PVQ_BETA32_LUMA[10] = {1.5, 1.5, 1.5, 1.5, 1.5, 1.5,
+1.5, 1.5, 1.5, 1.5};
 
 #endif
 
@@ -77,38 +87,55 @@ static const double OD_PVQ_BETA16_LUMA[7] = {1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5};
 static const int OD_PVQ_QM4_CB_Q4[2] = {8, 16};
 static const int OD_PVQ_QM8_CB_Q4[5] = {8, 16, 16, 16, 16};
 static const int OD_PVQ_QM16_CB_Q4[8] = {8, 16, 16, 16, 16, 16, 16, 16};
+static const int OD_PVQ_QM32_CB_q4[11] = {8, 16, 16, 16, 16, 16, 16, 16,
+ 16, 16, 16};
 
 #define OD_PVQ_QM4_CR_Q4 OD_PVQ_QM4_CB_Q4
 #define OD_PVQ_QM8_CR_Q4 OD_PVQ_QM8_CB_Q4
 #define OD_PVQ_QM16_CR_Q4 OD_PVQ_QM16_CB_Q4
+#define OD_PVQ_QM32_CR_Q4 OD_PVQ_QM32_CB_Q4
 #else
 static const int OD_PVQ_QM4_CB_Q4[2] = {14, 32};
 static const int OD_PVQ_QM8_CB_Q4[5] = {10, 48, 64, 64, 100};
 static const int OD_PVQ_QM16_CB_Q4[8] = {16, 32, 48, 48, 64, 64, 64, 100};
+static const int OD_PVQ_QM32_CB_Q4[11] = {16, 32, 32, 32, 32, 48, 48, 64,
+ 64, 64, 100};
 
 static const int OD_PVQ_QM4_CR_Q4[2] = {12, 16};
 static const int OD_PVQ_QM8_CR_Q4[5] = {8, 24, 64, 64, 100};
 static const int OD_PVQ_QM16_CR_Q4[8] = {8, 16, 24, 24, 32, 64, 64, 100};
+static const int OD_PVQ_QM32_CR_Q4[11] = {8, 16, 16, 16, 16, 24, 24, 32,
+ 64, 64, 100};
 #endif
 
 static const double OD_PVQ_BETA4_CHROMA[1] = {1.};
 static const double OD_PVQ_BETA8_CHROMA[4] = {1., 1., 1., 1.};
 static const double OD_PVQ_BETA16_CHROMA[7] = {1., 1., 1., 1., 1., 1., 1.};
+static const double OD_PVQ_BETA32_CHROMA[10] = {1., 1., 1., 1., 1., 1., 1.,
+ 1., 1., 1.};
 
 /* We use the chroma params for the alpha channel. Not sure whether it's
    a good idea. */
 const int *const OD_PVQ_QM_Q4[OD_NPLANES_MAX][OD_NBSIZES] = {
-  {OD_PVQ_QM4_LUMA_Q4, OD_PVQ_QM8_LUMA_Q4, OD_PVQ_QM16_LUMA_Q4},
-  {OD_PVQ_QM4_CB_Q4, OD_PVQ_QM8_CB_Q4, OD_PVQ_QM16_CB_Q4},
-  {OD_PVQ_QM4_CR_Q4, OD_PVQ_QM8_CR_Q4, OD_PVQ_QM16_CR_Q4},
-  {OD_PVQ_QM4_CR_Q4, OD_PVQ_QM8_CR_Q4, OD_PVQ_QM16_CR_Q4}
+  {OD_PVQ_QM4_LUMA_Q4, OD_PVQ_QM8_LUMA_Q4,
+   OD_PVQ_QM16_LUMA_Q4, OD_PVQ_QM32_LUMA_Q4},
+  {OD_PVQ_QM4_CB_Q4, OD_PVQ_QM8_CB_Q4,
+   OD_PVQ_QM16_CB_Q4, OD_PVQ_QM32_CB_Q4},
+  {OD_PVQ_QM4_CR_Q4, OD_PVQ_QM8_CR_Q4,
+   OD_PVQ_QM16_CR_Q4, OD_PVQ_QM32_CR_Q4},
+  {OD_PVQ_QM4_CR_Q4, OD_PVQ_QM8_CR_Q4,
+   OD_PVQ_QM16_CR_Q4, OD_PVQ_QM32_CR_Q4}
 };
 
 const double *const OD_PVQ_BETA[OD_NPLANES_MAX][OD_NBSIZES] = {
-  {OD_PVQ_BETA4_LUMA, OD_PVQ_BETA8_LUMA, OD_PVQ_BETA16_LUMA},
-  {OD_PVQ_BETA4_CHROMA, OD_PVQ_BETA8_CHROMA, OD_PVQ_BETA16_CHROMA},
-  {OD_PVQ_BETA4_CHROMA, OD_PVQ_BETA8_CHROMA, OD_PVQ_BETA16_CHROMA},
-  {OD_PVQ_BETA4_CHROMA, OD_PVQ_BETA8_CHROMA, OD_PVQ_BETA16_CHROMA}
+  {OD_PVQ_BETA4_LUMA, OD_PVQ_BETA8_LUMA,
+   OD_PVQ_BETA16_LUMA, OD_PVQ_BETA32_LUMA},
+  {OD_PVQ_BETA4_CHROMA, OD_PVQ_BETA8_CHROMA,
+   OD_PVQ_BETA16_CHROMA, OD_PVQ_BETA32_CHROMA},
+  {OD_PVQ_BETA4_CHROMA, OD_PVQ_BETA8_CHROMA,
+   OD_PVQ_BETA16_CHROMA, OD_PVQ_BETA32_CHROMA},
+  {OD_PVQ_BETA4_CHROMA, OD_PVQ_BETA8_CHROMA,
+   OD_PVQ_BETA16_CHROMA, OD_PVQ_BETA32_CHROMA}
 };
 
 /** Find the codepoint on the given PSphere closest to the desired

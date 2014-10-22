@@ -261,6 +261,15 @@ void pvq_decode(daala_dec_ctx *dec,
          dec->state.adapt.pvq_noref_joint_increment);
         for (i = 0; i < 3; i++) noref[i + 4] = (id >> (2 - i)) & 1;
       }
+      if (ln >= 3) {
+        int nb_norefs;
+        nb_norefs = 0;
+        for (i = 0; i < 4; i++) nb_norefs += noref[i];
+        id = od_decode_cdf_adapt(&dec->ec,
+         dec->state.adapt.pvq_noref2_joint_cdf[nb_norefs], 8,
+         dec->state.adapt.pvq_noref_joint_increment);
+        for (i = 0; i < 3; i++) noref[i + 7] = (id >> (2 - i)) & 1;
+      }
     }
     else {
       for (i = 0; i < nb_bands; i++) {

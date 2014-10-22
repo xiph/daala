@@ -26,7 +26,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # include "config.h"
 #endif
 
+#include "block_size.h"
 #include "dct.h"
+#include "tf.h"
 
 /*Adjustments for the quantization step in Q15, a factor of 2^(1/4) per
  octave due to the 3/4 power in the quantizer.*/
@@ -105,13 +107,15 @@ const unsigned char *OD_DCT_ZIGS[OD_NBSIZES + 1] = {
 const od_dct_func_2d OD_FDCT_2D_C[OD_NBSIZES + 1] = {
   od_bin_fdct4x4,
   od_bin_fdct8x8,
-  od_bin_fdct16x16
+  od_bin_fdct16x16,
+  od_bin_fxform32x32
 };
 
 const od_dct_func_2d OD_IDCT_2D_C[OD_NBSIZES + 1] = {
   od_bin_idct4x4,
   od_bin_idct8x8,
-  od_bin_idct16x16
+  od_bin_idct16x16,
+  od_bin_ixform32x32
 };
 
 const od_fdct_func_1d OD_FDCT_1D[OD_NBSIZES + 1] = {
@@ -840,6 +844,38 @@ void od_bin_idct16x16(od_coeff *x, int xstride,
   int i;
   for (i = 0; i < 16; i++) od_bin_idct16(z + i, 16, y + ystride*i);
   for (i = 0; i < 16; i++) od_bin_idct16(x + i, xstride, z + 16*i);
+}
+
+void od_bin_fxform32x32(od_coeff *y, int ystride,
+ const od_coeff *x, int xstride) {
+  od_coeff t[32*32];
+  od_coeff z[16*16];
+  int i;
+  int j;
+  int rc;
+  for (j = 0; j < 2; j++) for (i = 0; i < 2; i++) {
+    for (rc = 0; rc < 16; rc++)
+     od_bin_fdct16(z + 16*rc, x + 16*j*xstride + 16*i + rc, xstride);
+    for (rc = 0; rc < 16; rc++)
+     od_bin_fdct16(t + 16*j*32 + 16*i + 32*rc, z + rc, 16);
+  }
+  od_tf_up_hv(y, ystride, t, 32, 16);
+}
+
+void od_bin_ixform32x32(od_coeff *x, int xstride,
+ const od_coeff *y, int ystride) {
+  od_coeff t[32*32];
+  od_coeff z[16*16];
+  int i;
+  int j;
+  int rc;
+  od_tf_down_hv(t, 32, y, ystride, 32);
+  for (j = 0; j < 2; j++) for (i = 0; i < 2; i++) {
+    for (rc = 0; rc < 16; rc++)
+     od_bin_idct16(z + rc, 16, t + 16*j*32 + 16*i + 32*rc);
+    for (rc = 0; rc < 16; rc++)
+     od_bin_idct16(x + 16*j*xstride + 16*i + rc, xstride, z + 16*rc);
+  }
 }
 
 #if defined(OD_CHECKASM)
@@ -1788,7 +1824,7 @@ static void check_transform(int bszi) {
 
 void run_test(void) {
   int bszi;
-  for (bszi = 0; bszi < OD_NBSIZES; bszi++) check_transform(bszi);
+  for (bszi = 0; bszi < OD_BLOCK_32X32; bszi++) check_transform(bszi);
 }
 
 int main(void) {

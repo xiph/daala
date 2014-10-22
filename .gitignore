@@ -64,6 +64,7 @@ examples/encoder_example
 examples/player_example
 src/tests/check_tests
 src/tests/dcttest
+src/tests/test_32x32
 src/tests/ectest
 src/tests/logging_test
 src/tests/test_coef_coder

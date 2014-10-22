@@ -173,7 +173,7 @@ void pvq_encode(daala_enc_ctx *enc,
   int max_theta[PVQ_MAX_PARTITIONS];
   int qg[PVQ_MAX_PARTITIONS];
   int k[PVQ_MAX_PARTITIONS];
-  od_coeff y[16*16];
+  od_coeff y[OD_BSIZE_MAX*OD_BSIZE_MAX];
   int *exg;
   int *ext;
   int nb_bands;
@@ -244,6 +244,18 @@ void pvq_encode(daala_enc_ctx *enc,
          noref. */
       for (i = 0; i < 4; i++) nb_norefs += (theta[i] == -1);
       for (i = 0; i < 3; i++) id = (id << 1) + (theta[i + 4] == -1);
+      od_encode_cdf_adapt(&enc->ec, id,
+       enc->state.adapt.pvq_noref2_joint_cdf[nb_norefs], 8,
+       enc->state.adapt.pvq_noref_joint_increment);
+    }
+    if (ln >= 3) {
+      int nb_norefs;
+      id = 0;
+      nb_norefs = 0;
+      /* Context for the last 3 bands is how many of the first 4 bands are
+         noref. */
+      for (i = 0; i < 4; i++) nb_norefs += (theta[i] == -1);
+      for (i = 0; i < 3; i++) id = (id << 1) + (theta[i + 7] == -1);
       od_encode_cdf_adapt(&enc->ec, id,
        enc->state.adapt.pvq_noref2_joint_cdf[nb_norefs], 8,
        enc->state.adapt.pvq_noref_joint_increment);

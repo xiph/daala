@@ -341,6 +341,7 @@ struct od_mb_enc_ctx {
 };
 typedef struct od_mb_enc_ctx od_mb_enc_ctx;
 
+#if !defined(OD_DUMP_COEFFS)
 static void od_encode_compute_pred(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, od_coeff *pred,
   int ln, int pli, int bx, int by, int has_ur) {
   int n;
@@ -357,7 +358,7 @@ static void od_encode_compute_pred(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, od_co
   int x;
   int y;
   int zzi;
-  OD_ASSERT(ln >= 0 && ln <= 2);
+  OD_ASSERT(ln >= 0 && ln <= 3);
   n = 1 << (ln + 2);
   n2 = n*n;
   xdec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
@@ -375,13 +376,17 @@ static void od_encode_compute_pred(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, od_co
     if (bx > 0 && by > 0) {
       if (pli == 0 || OD_DISABLE_CFL) {
         ogg_uint16_t mode_cdf[OD_INTRA_NMODES];
+#if !OD_DISABLE_INTRA
         ogg_uint32_t mode_dist[OD_INTRA_NMODES];
+#endif
         int m_l;
         int m_ul;
         int m_u;
         int mode;
         od_coeff *coeffs[4];
+#if !OD_DISABLE_INTRA || OD_DISABLE_HAAR_DC
         int strides[4];
+#endif
         /*Search predictors from the surrounding blocks.*/
         coeffs[0] = tf + ((by - (1 << ln)) << 2)*w + ((bx - (1 << ln)) << 2);
         coeffs[1] = tf + ((by - (1 << ln)) << 2)*w + ((bx - (0 << ln)) << 2);
@@ -390,27 +395,30 @@ static void od_encode_compute_pred(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, od_co
         if (!has_ur) {
           coeffs[2] = coeffs[1];
         }
+#if !OD_DISABLE_INTRA || OD_DISABLE_HAAR_DC
         strides[0] = w;
         strides[1] = w;
         strides[2] = w;
         strides[3] = w;
+#endif
         m_l = modes[by*(w >> 2) + bx - 1];
         m_ul = modes[(by - 1)*(w >> 2) + bx - 1];
         m_u = modes[(by - 1)*(w >> 2) + bx];
         od_intra_pred_cdf(mode_cdf, enc->state.adapt.mode_probs[pli],
          OD_INTRA_NMODES, m_l, m_ul, m_u);
-        (*OD_INTRA_DIST[ln])(mode_dist, d + (by << 2)*w + (bx << 2), w,
-         coeffs, strides);
-        /*Lambda = 1*/
 #if OD_DISABLE_INTRA
         mode = 0;
 #else
+        (*OD_INTRA_DIST[ln])(mode_dist, d + (by << 2)*w + (bx << 2), w,
+         coeffs, strides);
         /* Make lambda proportional to quantization step size, with exact
            factor based on quick experiments with subset1 (can be improved). */
         mode = od_intra_pred_search(mode_cdf, mode_dist, OD_INTRA_NMODES,
          OD_MINI(32767, enc->quantizer[pli] << 4));
 #endif
+#if !OD_DISABLE_INTRA || OD_DISABLE_HAAR_DC
         (*OD_INTRA_GET[ln])(pred, coeffs, strides, mode);
+#endif
 #if OD_DISABLE_INTRA
         OD_CLEAR(pred+1, n2-1);
 #endif
@@ -539,18 +547,18 @@ static void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   od_coeff *tf;
   od_coeff *md;
   od_coeff *mc;
-  od_coeff pred[16*16];
-  od_coeff predt[16*16];
-  od_coeff cblock[16*16];
-  od_coeff scalar_out[16*16];
+  od_coeff pred[OD_BSIZE_MAX*OD_BSIZE_MAX];
+  od_coeff predt[OD_BSIZE_MAX*OD_BSIZE_MAX];
+  od_coeff cblock[OD_BSIZE_MAX*OD_BSIZE_MAX];
+  od_coeff scalar_out[OD_BSIZE_MAX*OD_BSIZE_MAX];
   int quant;
   int dc_quant;
   int lossless;
 #if defined(OD_OUTPUT_PRED)
-  od_coeff preds[16*16];
+  od_coeff preds[OD_BSIZE_MAX*OD_BSIZE_MAX];
   int zzi;
 #endif
-  OD_ASSERT(ln >= 0 && ln <= 2);
+  OD_ASSERT(ln >= 0 && ln <= 3);
   n = 1 << (ln + 2);
   bx <<= ln;
   by <<= ln;
@@ -647,6 +655,7 @@ static void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   (*enc->state.opt_vtbl.idct_2d[ln])(c + (by << 2)*w + (bx << 2), w, preds, n);
 #endif
 }
+#endif
 
 static void od_compute_dcts(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
   int bx, int by, int l, int xdec, int ydec) {
@@ -666,6 +675,19 @@ static void od_compute_dcts(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
     d -= xdec;
     (*enc->state.opt_vtbl.fdct_2d[d])(c + (by << (2 + d))*w + (bx << (2 + d)), w,
       ctx->c + (by << (2 + d))*w + (bx << (2 + d)), w);
+#if defined(OD_DUMP_COEFFS)
+    {
+      int i;
+      int j;
+      int n;
+      n = 1 << (OD_LOG_BSIZE0 + l);
+      printf("%d ", n);
+      for (j = 0; j < n; j++) for (i = 0; i < n; i++) {
+        printf("%d ", c[j*w + i]);
+      }
+      printf("\n");
+    }
+#endif
   }
   else {
     l--;
@@ -801,6 +823,7 @@ static void od_quantize_haar_dc(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
 }
 #endif
 
+#if !defined(OD_DUMP_COEFFS)
 static void od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
  int pli, int bx, int by, int l, int xdec, int ydec, int has_ur) {
   int od;
@@ -836,6 +859,7 @@ static void od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
     od_encode_recursive(enc, ctx, pli, bx + 1, by + 1, l, xdec, ydec, 0);
   }
 }
+#endif
 
 static void od_encode_mv(daala_enc_ctx *enc, od_mv_grid_pt *mvg, int vx,
  int vy, int level, int mv_res, int width, int height) {
@@ -1314,8 +1338,10 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx) {
           od_quantize_haar_dc(enc, mbctx, pli, sbx, sby, 3, xdec, ydec, 0,
            0, sby > 0 && sbx < nhsb - 1);
         }
+#if !defined(OD_DUMP_COEFFS)
         od_encode_recursive(enc, mbctx, pli, sbx, sby, 3, xdec, ydec,
          sby > 0 && sbx < nhsb - 1);
+#endif
       }
         OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
          OD_ACCT_CAT_PLANE, OD_ACCT_PLANE_UNKNOWN);
