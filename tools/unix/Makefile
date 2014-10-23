@@ -90,6 +90,8 @@ vidinput.c \
 y4m_input.c \
 dct.c \
 dump_psnrhvs.c \
+tf.c \
+internal.c
 
 PSNRHVS_LIB_CSOURCES =
 
@@ -117,7 +119,8 @@ internal.c \
 entcode.c \
 entenc.c \
 filter.c \
-switch_table.c
+switch_table.c \
+tf.c
 
 
 BSIZE_LIB_CSOURCES =
@@ -346,7 +349,8 @@ trans_data.c \
 kiss99.c \
 image.c \
 svd.c \
-cholesky.c
+cholesky.c \
+tf.c
 
 T_LIB_CSOURCES = \
 filter.c \
@@ -367,7 +371,8 @@ internal.c \
 vidinput.c \
 y4m_input.c \
 od_filter.c \
-trans_tools.c 
+trans_tools.c \
+tf.c
 
 TG_LIB_CSOURCES = \
 filter.c \
@@ -400,7 +405,8 @@ trans_data.c \
 kiss99.c \
 image.c \
 svd.c \
-cholesky.c
+cholesky.c \
+tf.c
 
 T2D_LIB_CSOURCES = \
 filter.c \

@@ -139,6 +139,7 @@ tf.c \
 zigzag4.c \
 zigzag8.c \
 zigzag16.c \
+zigzag32.c \
 $(if $(findstring -DOD_X86ASM,${CFLAGS}), \
 x86/cpu.c \
 x86/sse2mc.c \
@@ -211,6 +212,7 @@ PLAYER_EXAMPLE_CSOURCES = player_example.c
 DCTTEST_CSOURCES = \
 dct.c \
 filter.c \
+tf.c \
 $(if $(findstring -DOD_ENABLE_ASSERTIONS,${CFLAGS}), \
 internal.c \
 )
