@@ -59,9 +59,18 @@ typedef struct {
   int loop;
   int step;
   int valid;
+  int plane_mask;
 } player_example;
 
-static void img_to_rgb(SDL_Surface *surf, const od_img *img);
+enum {
+  OD_LUMA_MASK = 1 << 0,
+  OD_CB_MASK = 1 << 1,
+  OD_CR_MASK = 1 << 2,
+  OD_ALL_MASK = OD_LUMA_MASK | OD_CB_MASK | OD_CR_MASK
+};
+
+static void img_to_rgb(SDL_Surface *surf, const od_img *img, int plane_mask);
+static int next_plane(int plane_mask);
 
 int player_example_init(player_example *player);
 player_example *player_example_create();
@@ -110,6 +119,7 @@ int player_example_init(player_example *player) {
   player->step = 0;
   player->valid = 0;
   player->od_state = ODS_NONE;
+  player->plane_mask = OD_ALL_MASK;
   return 0;
 }
 
@@ -205,6 +215,10 @@ void player_example_handle_event(player_example *player, SDL_Event *event) {
         }
         case SDLK_s: {
           player->slow = !player->slow;
+          break;
+        }
+        case SDLK_p: {
+          player->plane_mask = next_plane(player->plane_mask);
           break;
         }
         case SDLK_l: {
@@ -358,7 +372,7 @@ int player_example_play(player_example *player) {
           }
           if ((!player->restart) && (!player->done)) {
             SDL_LockSurface(player->surf);
-            img_to_rgb(player->surf, &player->img);
+            img_to_rgb(player->surf, &player->img, player->plane_mask);
             SDL_UnlockSurface(player->surf);
             SDL_Flip(player->screen);
           }
@@ -401,7 +415,7 @@ int main(int argc, char *argv[]) {
        "\nProgram Options:\n-p to start paused\n- to read from stdin\n\n"
        "Playback Control: \n"
        "r to restart\nl to loop\ns for slow\n. to step\nspace to pause\n"
-       "q to quit");
+       "p to switch planes\nq to quit");
       exit(1);
     }
     start_paused = 0;
@@ -448,7 +462,7 @@ int main(int argc, char *argv[]) {
 #define OD_CLAMP255(x) \
   ((unsigned char)((((x) < 0) - 1) & ((x) | -((x) > 255))))
 
-void img_to_rgb(SDL_Surface *surf, const od_img *img) {
+void img_to_rgb(SDL_Surface *surf, const od_img *img, int plane_mask) {
   unsigned char *y_row;
   unsigned char *cb_row;
   unsigned char *cr_row;
@@ -496,9 +510,10 @@ void img_to_rgb(SDL_Surface *surf, const od_img *img) {
       unsigned rval;
       unsigned gval;
       unsigned bval;
-      yval = *y - 16;
-      cbval = *cb - 128;
-      crval = *cr - 128;
+      yval = (plane_mask & OD_LUMA_MASK) * (*y - 16)
+       + (((plane_mask & OD_LUMA_MASK) ^ OD_LUMA_MASK) << 7);
+      cbval = ((plane_mask & OD_CB_MASK) >> 1) * (*cb - 128);
+      crval = ((plane_mask & OD_CR_MASK) >> 2) * (*cr - 128);
       /*This is intentionally slow and very accurate.*/
       rval = OD_CLAMPI(0, (int32_t)OD_DIV_ROUND(
        2916394880000LL*yval + 4490222169144LL*crval, 9745792000LL), 65535);
@@ -520,4 +535,9 @@ void img_to_rgb(SDL_Surface *surf, const od_img *img) {
     cb_row += dc & cb_stride;
     cr_row += dc & cr_stride;
   }
+}
+
+int next_plane(int plane_mask) {
+  return OD_MINI(plane_mask << 1, OD_ALL_MASK) >>
+   ((plane_mask == OD_ALL_MASK) << 1);
 }
