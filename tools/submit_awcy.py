@@ -27,6 +27,7 @@ branch = subprocess.check_output('git symbolic-ref -q --short HEAD',shell=True).
 
 parser = argparse.ArgumentParser(description='Submit test to arewecompressedyet.com')
 parser.add_argument('-prefix',default=branch)
+parser.add_argument('-master',action='store_true',default=False)
 args = parser.parse_args()
 
 commit = subprocess.check_output('git rev-parse HEAD',shell=True).strip()
@@ -34,9 +35,10 @@ short = subprocess.check_output('git rev-parse --short HEAD',shell=True).strip()
 date = subprocess.check_output(['git','show','-s','--format=%ci',commit]).strip()
 date_short = date.split()[0]
 user = args.prefix
+is_master = args.master
 
 run_id = user+'-'+date_short+'-'+short
 
 print('Creating run '+run_id)
-r = requests.post("https://arewecompressedyet.com/submit/job", {'run_id': run_id, 'commit': commit, 'key': key})
+r = requests.post("https://arewecompressedyet.com/submit/job", {'run_id': run_id, 'commit': commit, 'master': is_master, 'key': key})
 print(r)
