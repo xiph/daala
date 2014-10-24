@@ -662,6 +662,7 @@ static void od_compute_dcts(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
   int od;
   int d;
   int w;
+  int bo;
   od_coeff *c;
   c = ctx->d[pli];
   w = enc->state.frame_width >> xdec;
@@ -671,10 +672,10 @@ static void od_compute_dcts(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
    enc->state.bstride, bx << l, by << l);
   d = OD_MAXI(od, xdec);
   OD_ASSERT(d <= l);
+  bo = (by << (OD_LOG_BSIZE0 + d))*w + (bx << (OD_LOG_BSIZE0 + d));
   if (d == l) {
     d -= xdec;
-    (*enc->state.opt_vtbl.fdct_2d[d])(c + (by << (2 + d))*w + (bx << (2 + d)), w,
-      ctx->c + (by << (2 + d))*w + (bx << (2 + d)), w);
+    (*enc->state.opt_vtbl.fdct_2d[d])(c + bo, w, ctx->c + bo, w);
 #if defined(OD_DUMP_COEFFS)
     {
       int i;
@@ -683,7 +684,7 @@ static void od_compute_dcts(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
       n = 1 << (OD_LOG_BSIZE0 + l);
       printf("%d ", n);
       for (j = 0; j < n; j++) for (i = 0; i < n; i++) {
-        printf("%d ", c[j*w + i]);
+        printf("%d ", c[bo + j*w + i]);
       }
       printf("\n");
     }
