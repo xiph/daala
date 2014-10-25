@@ -86,13 +86,6 @@ extern const od_fdct_func_1d OD_FDCT_1D[OD_NBSIZES + 1];
 
 extern const od_idct_func_1d OD_IDCT_1D[OD_NBSIZES + 1];
 
-extern const int OD_TRANS_QUANT_ADJ[3];
-
-extern const unsigned char OD_ZIG4[16];
-extern const unsigned char OD_ZIG8[64];
-extern const unsigned char OD_ZIG16[256];
-extern const unsigned char *OD_DCT_ZIGS[OD_NBSIZES + 1];
-
 /*A reversible integer approximation of a 4-point type-II DCT.
   y:       The destination vector (of size 4).
            This may be the same as the source.
