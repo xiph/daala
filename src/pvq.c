@@ -71,8 +71,8 @@ static const double OD_PVQ_BETA32_LUMA[10] = {1., 1., 1., 1., 1., 1., 1.,
 static const int OD_PVQ_QM4_LUMA_Q4[2] = {19, 19};
 static const int OD_PVQ_QM8_LUMA_Q4[5] = {16, 16, 44, 44, 72};
 static const int OD_PVQ_QM16_LUMA_Q4[8] = {16, 13, 18, 18, 36, 40, 40, 80};
-static const int OD_PVQ_QM32_LUMA_Q4[11] = {16, 12, 14, 14, 12, 14, 14, 32,
- 36, 36, 64};
+static const int OD_PVQ_QM32_LUMA_Q4[11] = {16, 10, 12, 12, 10, 12, 12, 30,
+ 32, 32, 58};
 
 static const double OD_PVQ_BETA4_LUMA[1] = {1.};
 static const double OD_PVQ_BETA8_LUMA[4] = {1.5, 1.5, 1.5, 1.5};

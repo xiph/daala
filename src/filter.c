@@ -777,9 +777,8 @@ void od_post_filter16(od_coeff _x[16],const od_coeff _y[16]){
 
 #define ZERO_FILTERS (0)
 
-/*Remove OD_MINI if we ever support 32-point filters.*/
 #define OD_BLOCK_SIZE4x4_DEC(bsize, bstride, bx, by, dec) \
- OD_MAXI(OD_MINI(OD_BLOCK_SIZE4x4(bsize, bstride, bx, by), 2 + (dec)), dec)
+ OD_MAXI(OD_BLOCK_SIZE4x4(bsize, bstride, bx, by), dec)
 
 static void od_apply_filter_cols(od_coeff *c, int stride, int bx, int by,
  int out, unsigned char l, const unsigned char *bsize, int bstride, int xdec,
@@ -816,7 +815,8 @@ static void od_apply_filter_cols(od_coeff *c, int stride, int bx, int by,
   l -= xdec;
   /*Filter size in c is f - xdec.*/
   f -= xdec;
-  OD_ASSERT(0 <= f && f <= OD_NBSIZES);
+  /*Remove if we ever support 32-point filters.*/
+  f = OD_MINI(f, 2);
   c += (((by + out) << (l + 2)) - (2 << f))*stride + (bx << (l + 2));
   /*Apply the column filter across the edge.*/
   for (i = 0; i < 4 << l; i++) {
@@ -870,7 +870,8 @@ static void od_apply_filter_rows(od_coeff *c, int stride, int bx, int by,
   l -= xdec;
   /*Filter size in c is f - xdec.*/
   f -= xdec;
-  OD_ASSERT(0 <= f && f <= OD_NBSIZES);
+  /*Remove if we ever support 32-point filters.*/
+  f = OD_MINI(f, 2);
   c += (by << (l + 2))*stride + ((bx + out) << (l + 2)) - (2 << f);
   /* Apply the row filter down the edge. */
   for (i = 0; i < 4 << l; i++) {

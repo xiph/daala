@@ -30,6 +30,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "dct.h"
 #include "tf.h"
 
+void od_bin_fdct32x32(od_coeff *y, int ystride,
+ const od_coeff *x, int xstride);
+void od_bin_idct32x32(od_coeff *x, int xstride,
+ const od_coeff *y, int ystride);
+
 /*Making function pointer tables at least one entry
    longer than needed makes it highly likely that an
    off-by-one will result in a null-pointer rather than
@@ -43,14 +48,14 @@ const od_dct_func_2d OD_FDCT_2D_C[OD_NBSIZES + 1] = {
   od_bin_fdct4x4,
   od_bin_fdct8x8,
   od_bin_fdct16x16,
-  od_bin_fxform32x32
+  od_bin_fdct32x32
 };
 
 const od_dct_func_2d OD_IDCT_2D_C[OD_NBSIZES + 1] = {
   od_bin_idct4x4,
   od_bin_idct8x8,
   od_bin_idct16x16,
-  od_bin_ixform32x32
+  od_bin_idct32x32
 };
 
 const od_fdct_func_1d OD_FDCT_1D[OD_NBSIZES + 1] = {
@@ -781,6 +786,87 @@ void od_bin_idct16x16(od_coeff *x, int xstride,
   for (i = 0; i < 16; i++) od_bin_idct16(x + i, xstride, z + 16*i);
 }
 
+static double od_cos_table[128] = {
+  1.000000, 0.998795, 0.995185, 0.989177,
+  0.980785, 0.970031, 0.956940, 0.941544,
+  0.923880, 0.903989, 0.881921, 0.857729,
+  0.831470, 0.803208, 0.773010, 0.740951,
+  0.707107, 0.671559, 0.634393, 0.595699,
+  0.555570, 0.514103, 0.471397, 0.427555,
+  0.382683, 0.336890, 0.290285, 0.242980,
+  0.195090, 0.146730, 0.098017, 0.049068,
+  0.000000, -0.049068, -0.098017, -0.146730,
+  -0.195090, -0.242980, -0.290285, -0.336890,
+  -0.382683, -0.427555, -0.471397, -0.514103,
+  -0.555570, -0.595699, -0.634393, -0.671559,
+  -0.707107, -0.740951, -0.773010, -0.803208,
+  -0.831470, -0.857729, -0.881921, -0.903989,
+  -0.923880, -0.941544, -0.956940, -0.970031,
+  -0.980785, -0.989177, -0.995185, -0.998795,
+  -1.000000, -0.998795, -0.995185, -0.989177,
+  -0.980785, -0.970031, -0.956940, -0.941544,
+  -0.923880, -0.903989, -0.881921, -0.857729,
+  -0.831470, -0.803208, -0.773010, -0.740951,
+  -0.707107, -0.671559, -0.634393, -0.595699,
+  -0.555570, -0.514103, -0.471397, -0.427555,
+  -0.382683, -0.336890, -0.290285, -0.242980,
+  -0.195090, -0.146730, -0.098017, -0.049068,
+  -0.000000, 0.049068, 0.098017, 0.146730,
+  0.195090, 0.242980, 0.290285, 0.336890,
+  0.382683, 0.427555, 0.471397, 0.514103,
+  0.555570, 0.595699, 0.634393, 0.671559,
+  0.707107, 0.740951, 0.773010, 0.803208,
+  0.831470, 0.857729, 0.881921, 0.903989,
+  0.923880, 0.941544, 0.956940, 0.970031,
+  0.980785, 0.989177, 0.995185, 0.998795
+};
+
+void od_bin_fdct32(od_coeff y[32], const od_coeff *x, int xstride) {
+  int i;
+  double norm;
+  norm = sqrt(2./32);
+  for (i = 0; i < 32; i++) {
+    int j;
+    double sum;
+    sum = 0;
+    for (j = 0; j < 32; j++) {
+      sum += x[j*xstride]*od_cos_table[(i*(2*j + 1)) & 0x7f];
+    }
+    y[i] = floor(.5 + norm*sum * (i==0 ? M_SQRT1_2 : 1));
+  }
+}
+
+void od_bin_idct32(od_coeff *x, int xstride, const od_coeff y[32]) {
+  int i;
+  double norm;
+  norm = sqrt(2./32);
+  for (i = 0; i < 32; i++) {
+    int j;
+    double sum;
+    sum = y[0]*M_SQRT1_2;
+    for (j = 1; j < 32; j++) {
+      sum += y[j]*od_cos_table[(j*(2*i + 1)) & 0x7f];
+    }
+    x[i*xstride] = floor(.5+norm*sum);
+  }
+}
+
+void od_bin_fdct32x32(od_coeff *y, int ystride,
+ const od_coeff *x, int xstride) {
+  od_coeff z[32*32];
+  int i;
+  for (i = 0; i < 32; i++) od_bin_fdct32(z + 32*i, x + i, xstride);
+  for (i = 0; i < 32; i++) od_bin_fdct32(y + ystride*i, z + i, 32);
+}
+
+void od_bin_idct32x32(od_coeff *x, int xstride,
+ const od_coeff *y, int ystride) {
+  od_coeff z[32*32];
+  int i;
+  for (i = 0; i < 32; i++) od_bin_idct32(z + i, 32, y + ystride*i);
+  for (i = 0; i < 32; i++) od_bin_idct32(x + i, xstride, z + 32*i);
+}
+
 void od_bin_fxform32x32(od_coeff *y, int ystride,
  const od_coeff *x, int xstride) {
   od_coeff t[32*32];
@@ -795,16 +881,19 @@ void od_bin_fxform32x32(od_coeff *y, int ystride,
      od_bin_fdct16(t + 16*j*32 + 16*i + 32*rc, z + rc, 16);
   }
   od_tf_up_hv(y, ystride, t, 32, 16);
+  od_tf_filter_2d(y, ystride, y, ystride, 32);
 }
 
 void od_bin_ixform32x32(od_coeff *x, int xstride,
  const od_coeff *y, int ystride) {
   od_coeff t[32*32];
   od_coeff z[16*16];
+  od_coeff f[32*32];
   int i;
   int j;
   int rc;
-  od_tf_down_hv(t, 32, y, ystride, 32);
+  od_tf_filter_inv_2d(f, 32, y, ystride, 32);
+  od_tf_down_hv(t, 32, f, 32, 32);
   for (j = 0; j < 2; j++) for (i = 0; i < 2; i++) {
     for (rc = 0; rc < 16; rc++)
      od_bin_idct16(z + rc, 16, t + 16*j*32 + 16*i + 32*rc);

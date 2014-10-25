@@ -37,6 +37,7 @@ typedef struct {
 extern const band_layout od_layout4;
 extern const band_layout od_layout8;
 extern const band_layout od_layout16;
+extern const band_layout od_layout32;
 
 extern const int * const od_band_offsets[OD_NBSIZES];
 
