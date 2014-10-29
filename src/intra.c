@@ -329,13 +329,31 @@ void od_intra_pred_update(unsigned char _probs[][OD_INTRA_NCONTEXTS],
   }
 }
 
+/* Trained using a linear regression on subset3. See dump_cfl_scaling4.*/
+static ogg_int16_t od_cfl_scaling4[4][4] = {
+  { 128, 128, 114, 68 },
+  { 128, 104, 86, 68 },
+  { 114, 86, 77, 62 },
+  { 68, 68, 62, 51 }
+};
+
 void od_resample_luma_coeffs(od_coeff *l, int lstride,
  const od_coeff *c, int cstride, int xdec, int ydec, int ln, int cln) {
   int n;
   n = 4 << ln;
   if (cln == 0 && (xdec || ydec)) {
     if (xdec) {
-      if (ydec) od_tf_up_hv_lp(l, lstride, c, cstride, n, n, n);
+      if (ydec) {
+        int i;
+        od_tf_up_hv_lp(l, lstride, c, cstride, n, n, n);
+        for (i = 0; i < 4; i++) {
+          int j;
+          for (j = 0; j < 4; j++) {
+            l[i*lstride + j] = (od_cfl_scaling4[j][i] * l[i*lstride + j]
+             + 64) >> 7;
+          }
+        }
+      }
       else od_tf_up_h_lp(l, lstride, c, cstride, n, n);
     }
     else {
