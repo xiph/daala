@@ -346,6 +346,7 @@ void od_resample_luma_coeffs(od_coeff *l, int lstride,
       if (ydec) {
         int i;
         od_tf_up_hv_lp(l, lstride, c, cstride, n, n, n);
+#if 0
         for (i = 0; i < 4; i++) {
           int j;
           for (j = 0; j < 4; j++) {
@@ -353,6 +354,7 @@ void od_resample_luma_coeffs(od_coeff *l, int lstride,
              + 64) >> 7;
           }
         }
+#endif
       }
       else od_tf_up_h_lp(l, lstride, c, cstride, n, n);
     }
