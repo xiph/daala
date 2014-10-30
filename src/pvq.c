@@ -138,6 +138,17 @@ const double *const OD_PVQ_BETA[OD_NPLANES_MAX][OD_NBSIZES] = {
    OD_PVQ_BETA16_CHROMA, OD_PVQ_BETA32_CHROMA}
 };
 
+/* Computes 1/sqrt(i) using a table for small values. */
+static double od_rsqrt_table(int i) {
+  static double table[16] = {
+    1.000000, 0.707107, 0.577350, 0.500000,
+    0.447214, 0.408248, 0.377964, 0.353553,
+    0.333333, 0.316228, 0.301511, 0.288675,
+    0.277350, 0.267261, 0.258199, 0.250000};
+  if (i <= 16) return table[i-1];
+  else return 1./sqrt(i);
+}
+
 /** Find the codepoint on the given PSphere closest to the desired
  * vector. Double-precision PVQ search just to make sure our tests
  * aren't limited by numerical accuracy.
@@ -146,20 +157,28 @@ const double *const OD_PVQ_BETA[OD_NPLANES_MAX][OD_NBSIZES] = {
  * @param [in]      n       number of dimensions
  * @param [in]      k       number of pulses
  * @param [out]     ypulse  optimal codevector found (y in the math doc)
+ * @param [out]     g2      multiplier for the distortion (typically squared
+ *                          gain units)
  * @return                  cosine distance between x and y (between 0 and 1)
  */
-static double pvq_search_double(const double *xcoeff, int n, int k,
-                                od_coeff *ypulse) {
+static double pvq_search_rdo_double(const double *xcoeff, int n, int k,
+ od_coeff *ypulse, double g2) {
   int i, j;
   double xy;
   double yy;
   double x[1024];
   double xx;
+  double lambda;
+  double norm_1;
+  int rdo_pulses;
+  double delta_rate;
   xx = xy = yy = 0;
   for (j = 0; j < n; j++) {
     x[j] = fabs(xcoeff[j]);
     xx += x[j]*x[j];
   }
+  norm_1 = 1./sqrt(1e-30 + xx);
+  lambda = OD_PVQ_LAMBDA/(1e-30 + g2);
   i = 0;
   if (k > 2) {
     double l1_norm;
@@ -177,8 +196,15 @@ static double pvq_search_double(const double *xcoeff, int n, int k,
   else {
     for (j = 0; j < n; j++) ypulse[j] = 0;
   }
+  /* Only use RDO on the last few pulses. This not only saves CPU, but using
+     RDO on all pulses actually makes the results worse for reasons I don't
+     fully understand. */
+  rdo_pulses = 1 + k/4;
+  /* Rough assumption for now, the last position costs about 3 bits more than
+     the first. */
+  delta_rate = 3./n;
   /* Search one pulse at a time */
-  for (; i < k; i++) {
+  for (; i < k - rdo_pulses; i++) {
     int pos;
     double best_xy;
     double best_yy;
@@ -194,6 +220,30 @@ static double pvq_search_double(const double *xcoeff, int n, int k,
       if (j == 0 || tmp_xy*best_yy > best_xy*tmp_yy) {
         best_xy = tmp_xy;
         best_yy = tmp_yy;
+        pos = j;
+      }
+    }
+    xy = xy + x[pos];
+    yy = yy + 2*ypulse[pos] + 1;
+    ypulse[pos]++;
+  }
+  /* Search last pulses with RDO. Distortion is D = (x-y)^2 = x^2 - x*y + y^2
+     and since x^2 and y^2 are constant, we just maximize x*y, plus a
+     lambda*rate term. Note that since x and y aren't normalized here,
+     we need to divide by sqrt(x^2)*sqrt(y^2). */
+  for (; i < k; i++) {
+    int pos;
+    double best_cost;
+    pos = 0;
+    best_cost = -1e5;
+    for (j = 0; j < n; j++) {
+      double tmp_xy;
+      double tmp_yy;
+      tmp_xy = xy + x[j];
+      tmp_yy = yy + 2*ypulse[j] + 1;
+      tmp_xy = 2*tmp_xy*norm_1*od_rsqrt_table(tmp_yy) - lambda*j*delta_rate;
+      if (j == 0 || tmp_xy > best_cost) {
+        best_cost = tmp_xy;
         pos = j;
       }
     }
@@ -616,7 +666,11 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
         double dist_theta;
         double qtheta = pvq_compute_theta(j, ts);
         k = pvq_compute_k(qcg, j, qtheta, 0, n, beta, robust || is_keyframe);
-        cos_dist = pvq_search_double(x, n, k, y_tmp);
+        /* PVQ search, using a gain of qcg*cg*sin(theta)*sin(qtheta) since
+           that's the factor by which cos_dist is multiplied to get the
+           distortion metric. */
+        cos_dist = pvq_search_rdo_double(x, n, k, y_tmp,
+         qcg*cg*sin(theta)*sin(qtheta));
         /* See Jmspeex' Journal of Dubious Theoretical Results. */
         dist_theta = 2 - 2*cos(theta - qtheta)
          + sin(theta)*sin(qtheta)*(2 - 2*cos_dist);
@@ -655,7 +709,7 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
       double qcg;
       qcg = i;
       k = pvq_compute_k(qcg, -1, -1, 1, n, beta, robust || is_keyframe);
-      cos_dist = pvq_search_double(x1, n, k, y_tmp);
+      cos_dist = pvq_search_rdo_double(x1, n, k, y_tmp, qcg*cg);
       /* See Jmspeex' Journal of Dubious Theoretical Results. */
       dist = (qcg - cg)*(qcg - cg) + qcg*cg*(2 - 2*cos_dist);
       /* Do approximate RDO. */
