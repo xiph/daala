@@ -406,11 +406,8 @@ void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe) {
   state->mv_small_increment = 128;
   OD_SINGLE_CDF_INIT_FIRST(state->mv_small_cdf, state->mv_small_increment,
    10*state->mv_small_increment);
-  state->pvq_noref_joint_increment = 128;
-  OD_CDFS_INIT(state->pvq_noref_joint_cdf,
-   state->pvq_noref_joint_increment >> 2);
-  OD_CDFS_INIT(state->pvq_noref2_joint_cdf,
-   state->pvq_noref_joint_increment >> 2);
+  state->pvq_gaintheta_increment = 128;
+  OD_CDFS_INIT(state->pvq_gaintheta_cdf, state->pvq_gaintheta_increment >> 2);
   for (pli = 0; pli < OD_NPLANES_MAX; pli++) {
     generic_model_init(&state->model_dc[pli]);
     generic_model_init(&state->model_g[pli]);

@@ -92,6 +92,7 @@ static void od_encode_pvq_codeword(od_ec_enc *ec, od_adapt_ctx *adapt,
  * @param [in,out] ext        ExQ16 expectation of theta value
  * @param [in]     nodesync   do not use info that depend on the reference
  * @param [in]     is_keyframe whether we're encoding a keyframe
+ * @param [in]     cdf_ctx    selects which cdf context to use
  */
 static void pvq_encode_partition(od_ec_enc *ec,
                                  int qg,
@@ -104,13 +105,38 @@ static void pvq_encode_partition(od_ec_enc *ec,
                                  od_adapt_ctx *adapt,
                                  int *exg,
                                  int *ext,
-                                 int nodesync) {
+                                 int nodesync,
+                                 int is_keyframe,
+                                 int cdf_ctx) {
   int noref;
   noref = (theta == -1);
-  generic_encode(ec, &model[!noref], qg, -1, exg, 2);
-  if (!noref && (max_theta > 1 || nodesync)) {
-    generic_encode(ec, &model[2], theta, nodesync ? -1 : max_theta - 1, ext,
-     2);
+  if (is_keyframe) {
+    generic_encode(ec, &model[!noref], qg, -1, exg, 2);
+    if (!noref && (max_theta > 1 || nodesync)) {
+      generic_encode(ec, &model[2], theta, nodesync ? -1 : max_theta - 1, ext,
+       2);
+    }
+  }
+  else {
+    int id;
+    id = (qg > 0) + 2*OD_MINI(theta + 1,3);
+    /* Jointly code gain, theta and noref for small values. Then we handle
+       larger gain and theta values. For noref, theta = -1. */
+    od_encode_cdf_adapt(ec, id, &adapt->pvq_gaintheta_cdf[cdf_ctx][0],
+     8, adapt->pvq_gaintheta_increment);
+    if (qg > 0) {
+      int tmp;
+      tmp = *exg;
+      generic_encode(ec, &model[!noref], qg - 1, -1, &tmp, 2);
+      *exg += (qg << (16 - 2)) - (*exg >> 2);
+    }
+    if (theta > 1 && (nodesync || max_theta > 3)) {
+      int tmp;
+      tmp = *ext;
+      generic_encode(ec, &model[2], theta - 2, nodesync ? -1 : max_theta - 3,
+       &tmp, 2);
+      *ext += (theta << (16 - 2)) - (*ext >> 2);
+    }
   }
   od_encode_pvq_codeword(ec, adapt, in, n, k, theta == -1);
 }
@@ -229,39 +255,7 @@ void pvq_encode(daala_enc_ctx *enc,
        to greedy decision issues. */
     tell = od_ec_enc_tell_frac(&enc->ec);
   }
-  if (!is_keyframe && ln > 0) {
-    int id;
-    id = 0;
-    /* Jointly code the noref flags for the first 4 bands. */
-    for (i = 0; i < 4; i++) id = (id << 1) + (theta[i] == -1);
-    od_encode_cdf_adapt(&enc->ec, id, enc->state.adapt.pvq_noref_joint_cdf[ln - 1],
-     16, enc->state.adapt.pvq_noref_joint_increment);
-    if (ln >= 2) {
-      int nb_norefs;
-      id = 0;
-      nb_norefs = 0;
-      /* Context for the last 3 bands is how many of the first 4 bands are
-         noref. */
-      for (i = 0; i < 4; i++) nb_norefs += (theta[i] == -1);
-      for (i = 0; i < 3; i++) id = (id << 1) + (theta[i + 4] == -1);
-      od_encode_cdf_adapt(&enc->ec, id,
-       enc->state.adapt.pvq_noref2_joint_cdf[nb_norefs], 8,
-       enc->state.adapt.pvq_noref_joint_increment);
-    }
-    if (ln >= 3) {
-      int nb_norefs;
-      id = 0;
-      nb_norefs = 0;
-      /* Context for the last 3 bands is how many of the first 4 bands are
-         noref. */
-      for (i = 0; i < 4; i++) nb_norefs += (theta[i] == -1);
-      for (i = 0; i < 3; i++) id = (id << 1) + (theta[i + 7] == -1);
-      od_encode_cdf_adapt(&enc->ec, id,
-       enc->state.adapt.pvq_noref2_joint_cdf[nb_norefs], 8,
-       enc->state.adapt.pvq_noref_joint_increment);
-    }
-  }
-  else {
+  if (is_keyframe) {
     for (i = 0; i < nb_bands; i++) {
       code_flag(&enc->ec, theta[i] != -1, &noref_prob[i]);
     }
@@ -276,7 +270,7 @@ void pvq_encode(daala_enc_ctx *enc,
   for (i = 0; i < nb_bands; i++) {
     pvq_encode_partition(&enc->ec, qg[i], theta[i], max_theta[i], y + off[i],
      size[i], k[i], model, &enc->state.adapt, exg + i, ext + i,
-     robust || is_keyframe);
+     robust || is_keyframe, is_keyframe, ln*PVQ_MAX_PARTITIONS + i);
   }
   if (!is_keyframe) {
     tell = od_ec_enc_tell_frac(&enc->ec) - tell;
