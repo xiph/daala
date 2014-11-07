@@ -462,14 +462,18 @@ static void pvq_synthesis_partial(od_coeff *xcoeff, od_coeff *ypulse,
  * @param [in]      s       sign of Householder reflection
  * @param [in]      q       gain quantizer
  */
-void pvq_synthesis(od_coeff *xcoeff, od_coeff *ypulse, double *r, int n,
+void pvq_synthesis(od_coeff *xcoeff, od_coeff *ypulse, od_coeff *ref, int n,
                    double gr, int noref, int qg, double go,
                    double theta, double q, double beta) {
-  int s = 0;
-  int m = noref ? 0 : compute_householder(r, n, gr, &s);
-
+  int i;
+  int s;
+  int m;
+  double r[MAXN];
+  s = 0;
+  if (!noref) for (i = 0; i < n; i++) r[i] = ref[i];
+  m = noref ? 0 : compute_householder(r, n, gr, &s);
   pvq_synthesis_partial(xcoeff, ypulse, r, n, noref, qg,
-                        go, theta, m, s, q, beta);
+   go, theta, m, s, q, beta);
 }
 
 /* Estimates the number of bits it will cost to encode K pulses in

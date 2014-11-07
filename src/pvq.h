@@ -52,7 +52,7 @@ double pvq_compute_theta(int t, int max_theta);
 int pvq_compute_k(double qcg, int itheta, double theta, int noref, int n,
  double beta, int nodesync);
 
-void pvq_synthesis(od_coeff *x0, od_coeff *y, double *r, int n, double gr,
+void pvq_synthesis(od_coeff *x0, od_coeff *y, od_coeff *ref, int n, double gr,
  int noref, int qg, double gain_offset, double theta, double q, double beta);
 
 double pvq_interband_masking(double inter, double curr, double beta);

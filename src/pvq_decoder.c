@@ -73,6 +73,12 @@ static void od_decode_pvq_codeword(od_ec_dec *ec, od_adapt_ctx *adapt,
   }
 }
 
+typedef struct {
+  od_coeff *ref;
+  int nb_coeffs;
+  int enabled;
+} cfl_data;
+
 /** Decodes a single vector of integers (eg, a partition within a
  *  coefficient block) encoded using PVQ
  *
@@ -106,7 +112,8 @@ static void pvq_decode_partition(od_ec_dec *ec,
                                  int robust,
                                  int is_keyframe,
                                  int pli,
-                                 int cdf_ctx) {
+                                 int cdf_ctx,
+                                 cfl_data *cfl) {
   int k;
   double qcg;
   int max_theta;
@@ -115,7 +122,6 @@ static void pvq_decode_partition(od_ec_dec *ec,
   double gr;
   double gain_offset;
   od_coeff y[1024];
-  double r[1024];
   int qg;
   double q;
   int nodesync;
@@ -156,7 +162,6 @@ static void pvq_decode_partition(od_ec_dec *ec,
     /* we have a reference; compute its gain */
     double cgr;
     int icgr;
-    int i;
     cgr = pvq_compute_gain(ref, n, q, &gr, beta);
     if (pli != 0 && is_keyframe && !OD_DISABLE_CFL) cgr = 1;
     icgr = (int)floor(.5+cgr);
@@ -183,7 +188,6 @@ static void pvq_decode_partition(od_ec_dec *ec,
       *ext += (itheta << (16 - 2)) - (*ext >> 2);
     }
     theta = pvq_compute_theta(itheta, max_theta);
-    for (i = 0; i < n; i++) r[i] = ref[i];
   }
   else{
     itheta = 0;
@@ -198,8 +202,16 @@ static void pvq_decode_partition(od_ec_dec *ec,
   } else {
     OD_CLEAR(y, n);
   }
-  pvq_synthesis(out, y, r, n, gr, noref, qg, gain_offset, theta,
-   q, beta);
+  if (cfl->enabled && !noref) {
+    int flip;
+    int i;
+    flip = od_ec_dec_bits(ec, 1);
+    if (flip) {
+      for (i = 0; i < cfl->nb_coeffs; i++) cfl->ref[i] = -cfl->ref[i];
+    }
+    cfl->enabled = 0;
+  }
+  pvq_synthesis(out, y, ref, n, gr, noref, qg, gain_offset, theta, q, beta);
   if (skip) {
     int i;
     if (skip == OD_PVQ_SKIP_COPY) for (i = 0; i < n; i++) out[i] = ref[i];
@@ -254,7 +266,7 @@ void pvq_decode(daala_dec_ctx *dec,
   generic_encoder *model;
   unsigned *noref_prob;
   int skip;
-  int use_cfl;
+  cfl_data cfl;
   exg = &dec->state.adapt.pvq_exg[pli][ln][0];
   ext = dec->state.adapt.pvq_ext + ln*PVQ_MAX_PARTITIONS;
   noref_prob = dec->state.adapt.pvq_noref_prob + ln*PVQ_MAX_PARTITIONS;
@@ -273,20 +285,19 @@ void pvq_decode(daala_dec_ctx *dec,
   }
   else {
     for (i = 0; i < nb_bands; i++) size[i] = off[i+1] - off[i];
-    use_cfl = 0;
     if (is_keyframe) {
       for (i = 0; i < nb_bands; i++) {
         noref[i] = !decode_flag(&dec->ec, &noref_prob[i]);
-        if (!noref[i] && pli != 0 && is_keyframe) use_cfl = 1;
       }
     }
-    if (use_cfl && od_ec_dec_bits(&dec->ec, 1)) {
-      for(i = 1; i < off[nb_bands]; i++) ref[i] = -ref[i];
-    }
+    cfl.ref = ref;
+    cfl.nb_coeffs = off[nb_bands];
+    cfl.enabled = pli != 0 && is_keyframe;
     for (i = 0; i < nb_bands; i++) {
       pvq_decode_partition(&dec->ec, OD_MAXI(1, q*qm[i + 1] >> 4), size[i],
        model, &dec->state.adapt, exg + i, ext + i, ref + off[i], out + off[i],
-       noref[i], beta[i], robust, is_keyframe, pli, ln*PVQ_MAX_PARTITIONS + i);
+       noref[i], beta[i], robust, is_keyframe, pli, ln*PVQ_MAX_PARTITIONS + i,
+       &cfl);
     }
   }
 }
