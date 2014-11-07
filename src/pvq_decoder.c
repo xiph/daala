@@ -126,6 +126,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
   double q;
   int nodesync;
   int skip;
+  int id;
   /* Quantization step calibration to account for the activity masking. */
   q = q0*pow(256<<OD_COEFF_SHIFT, 1./beta - 1);
   theta = 0;
@@ -135,28 +136,20 @@ static void pvq_decode_partition(od_ec_dec *ec,
   /* We always use the robust bitstream for keyframes to avoid having
      PVQ and entropy decoding depending on each other, hurting parallelism. */
   nodesync = robust || is_keyframe;
-  /* read quantized gain */
-  if (is_keyframe) {
-    qg = generic_decode(ec, &model[!noref], -1, exg, 2);
+  /* Jointly decode gain, itheta and noref for small values. Then we handle
+     larger gain. We need to wait for itheta because in the !nodesync case
+     it depends on max_theta, which depends on the gain. */
+  id = od_decode_cdf_adapt(ec, &adapt->pvq_gaintheta_cdf[cdf_ctx][0],
+   8, adapt->pvq_gaintheta_increment);
+  qg = id & 1;
+  itheta = (id >> 1) - 1;
+  noref = (itheta == -1);
+  if (qg > 0) {
+    int tmp;
+    tmp = *exg;
+    qg = 1 + generic_decode(ec, &model[!noref], -1, &tmp, 2);
+    *exg += (qg << (16 - 2)) - (*exg >> 2);
   }
-  else {
-    int id;
-    /* Jointly code gain, itheta and noref for small values. Then we handle
-       larger gain. We need to wait for itheta because in the !nodesync case
-       it depends on max_theta, which depends on the gain. */
-    id = od_decode_cdf_adapt(ec, &adapt->pvq_gaintheta_cdf[cdf_ctx][0],
-     8, adapt->pvq_gaintheta_increment);
-    qg = id & 1;
-    itheta = (id >> 1) - 1;
-    noref = (itheta == -1);
-    if (qg > 0) {
-      int tmp;
-      tmp = *exg;
-      qg = 1 + generic_decode(ec, &model[!noref], -1, &tmp, 2);
-      *exg += (qg << (16 - 2)) - (*exg >> 2);
-    }
-  }
-
   skip = 0;
   if(!noref){
     /* we have a reference; compute its gain */
@@ -176,11 +169,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
     qcg = qg + gain_offset;
     /* read and decode first-stage PVQ error theta */
     max_theta = pvq_compute_max_theta(qcg, beta);
-    if (is_keyframe) {
-      itheta = generic_decode(ec, &model[2], nodesync ? -1 : max_theta - 1,
-       ext, 2);
-    }
-    else if (itheta > 1 && (nodesync || max_theta > 3)) {
+    if (itheta > 1 && (nodesync || max_theta > 3)) {
       int tmp;
       tmp = *ext;
       itheta = 2 + generic_decode(ec, &model[2], nodesync ? -1 : max_theta - 3,
@@ -219,19 +208,6 @@ static void pvq_decode_partition(od_ec_dec *ec,
   }
 }
 
-static int decode_flag(od_ec_dec *ec, unsigned *prob0)
-{
-  int val;
-  val = od_ec_decode_bool_q15(ec, *prob0);
-  if (val) {
-    *prob0 = *prob0 - (*prob0 >> OD_NOREF_ADAPT_SPEED);
-  }
-  else {
-    *prob0 = *prob0 + ((32768 - *prob0) >> OD_NOREF_ADAPT_SPEED);
-  }
-  return val;
-}
-
 /** Decodes a coefficient block (except for DC) encoded using PVQ
  *
  * @param [in,out] dec     daala decoder context
@@ -264,12 +240,10 @@ void pvq_decode(daala_dec_ctx *dec,
   const int *off;
   int size[PVQ_MAX_PARTITIONS];
   generic_encoder *model;
-  unsigned *noref_prob;
   int skip;
   cfl_data cfl;
   exg = &dec->state.adapt.pvq_exg[pli][ln][0];
   ext = dec->state.adapt.pvq_ext + ln*PVQ_MAX_PARTITIONS;
-  noref_prob = dec->state.adapt.pvq_noref_prob + ln*PVQ_MAX_PARTITIONS;
   model = dec->state.adapt.pvq_param_model;
   nb_bands = od_band_offsets[ln][0];
   off = &od_band_offsets[ln][1];
@@ -285,11 +259,6 @@ void pvq_decode(daala_dec_ctx *dec,
   }
   else {
     for (i = 0; i < nb_bands; i++) size[i] = off[i+1] - off[i];
-    if (is_keyframe) {
-      for (i = 0; i < nb_bands; i++) {
-        noref[i] = !decode_flag(&dec->ec, &noref_prob[i]);
-      }
-    }
     cfl.ref = ref;
     cfl.nb_coeffs = off[nb_bands];
     cfl.enabled = pli != 0 && is_keyframe;

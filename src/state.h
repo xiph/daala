@@ -119,7 +119,6 @@ struct od_adapt_ctx {
   generic_encoder     pvq_param_model[3];
   int                 pvq_ext[OD_NBSIZES*PVQ_MAX_PARTITIONS];
   int                 pvq_exg[OD_NPLANES_MAX][OD_NBSIZES][PVQ_MAX_PARTITIONS];
-  unsigned            pvq_noref_prob[OD_NBSIZES*PVQ_MAX_PARTITIONS];
   int                 pvq_gaintheta_increment;
   ogg_uint16_t        pvq_gaintheta_cdf[OD_NBSIZES*PVQ_MAX_PARTITIONS][8];
 

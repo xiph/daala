@@ -106,50 +106,29 @@ static void pvq_encode_partition(od_ec_enc *ec,
                                  int *exg,
                                  int *ext,
                                  int nodesync,
-                                 int is_keyframe,
                                  int cdf_ctx) {
   int noref;
+  int id;
   noref = (theta == -1);
-  if (is_keyframe) {
-    generic_encode(ec, &model[!noref], qg, -1, exg, 2);
-    if (!noref && (max_theta > 1 || nodesync)) {
-      generic_encode(ec, &model[2], theta, nodesync ? -1 : max_theta - 1, ext,
-       2);
-    }
+  id = (qg > 0) + 2*OD_MINI(theta + 1,3);
+  /* Jointly code gain, theta and noref for small values. Then we handle
+     larger gain and theta values. For noref, theta = -1. */
+  od_encode_cdf_adapt(ec, id, &adapt->pvq_gaintheta_cdf[cdf_ctx][0],
+   8, adapt->pvq_gaintheta_increment);
+  if (qg > 0) {
+    int tmp;
+    tmp = *exg;
+    generic_encode(ec, &model[!noref], qg - 1, -1, &tmp, 2);
+    *exg += (qg << (16 - 2)) - (*exg >> 2);
   }
-  else {
-    int id;
-    id = (qg > 0) + 2*OD_MINI(theta + 1,3);
-    /* Jointly code gain, theta and noref for small values. Then we handle
-       larger gain and theta values. For noref, theta = -1. */
-    od_encode_cdf_adapt(ec, id, &adapt->pvq_gaintheta_cdf[cdf_ctx][0],
-     8, adapt->pvq_gaintheta_increment);
-    if (qg > 0) {
-      int tmp;
-      tmp = *exg;
-      generic_encode(ec, &model[!noref], qg - 1, -1, &tmp, 2);
-      *exg += (qg << (16 - 2)) - (*exg >> 2);
-    }
-    if (theta > 1 && (nodesync || max_theta > 3)) {
-      int tmp;
-      tmp = *ext;
-      generic_encode(ec, &model[2], theta - 2, nodesync ? -1 : max_theta - 3,
-       &tmp, 2);
-      *ext += (theta << (16 - 2)) - (*ext >> 2);
-    }
+  if (theta > 1 && (nodesync || max_theta > 3)) {
+    int tmp;
+    tmp = *ext;
+    generic_encode(ec, &model[2], theta - 2, nodesync ? -1 : max_theta - 3,
+     &tmp, 2);
+    *ext += (theta << (16 - 2)) - (*ext >> 2);
   }
   od_encode_pvq_codeword(ec, adapt, in, n, k, theta == -1);
-}
-
-void code_flag(od_ec_enc *ec, int val, unsigned *prob0)
-{
-  od_ec_encode_bool_q15(ec, val, *prob0);
-  if (val) {
-    *prob0 = *prob0 - (*prob0 >> OD_NOREF_ADAPT_SPEED);
-  }
-  else {
-    *prob0 = *prob0 + ((32768 - *prob0) >> OD_NOREF_ADAPT_SPEED);
-  }
 }
 
 /** Quantizes a scalar with rate-distortion optimization (RDO)
@@ -207,7 +186,6 @@ void pvq_encode(daala_enc_ctx *enc,
   const int *off;
   int size[PVQ_MAX_PARTITIONS];
   generic_encoder *model;
-  unsigned *noref_prob;
   double skip_diff;
   unsigned tell;
   ogg_uint16_t *skip_cdf;
@@ -217,7 +195,6 @@ void pvq_encode(daala_enc_ctx *enc,
   int cfl_encoded;
   exg = &enc->state.adapt.pvq_exg[pli][ln][0];
   ext = enc->state.adapt.pvq_ext + ln*PVQ_MAX_PARTITIONS;
-  noref_prob = enc->state.adapt.pvq_noref_prob + ln*PVQ_MAX_PARTITIONS;
   skip_cdf = enc->state.adapt.skip_cdf[pli];
   model = enc->state.adapt.pvq_param_model;
   nb_bands = od_band_offsets[ln][0];
@@ -253,16 +230,11 @@ void pvq_encode(daala_enc_ctx *enc,
        to greedy decision issues. */
     tell = od_ec_enc_tell_frac(&enc->ec);
   }
-  if (is_keyframe) {
-    for (i = 0; i < nb_bands; i++) {
-      code_flag(&enc->ec, theta[i] != -1, &noref_prob[i]);
-    }
-  }
   cfl_encoded = 0;
   for (i = 0; i < nb_bands; i++) {
     pvq_encode_partition(&enc->ec, qg[i], theta[i], max_theta[i], y + off[i],
      size[i], k[i], model, &enc->state.adapt, exg + i, ext + i,
-     robust || is_keyframe, is_keyframe, ln*PVQ_MAX_PARTITIONS + i);
+     robust || is_keyframe, ln*PVQ_MAX_PARTITIONS + i);
     /* Encode CFL flip bit just after the first time it's used. */
     if (pli!=0 && is_keyframe && theta[i] != -1 && !cfl_encoded) {
       /* We could eventually do some smarter entropy coding here, but it would

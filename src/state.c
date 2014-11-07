@@ -383,7 +383,6 @@ void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe) {
   }
   for (i = 0; i < OD_NBSIZES*PVQ_MAX_PARTITIONS; i++) {
     state->pvq_ext[i] = is_keyframe ? 24576 : 2 << 16;
-    state->pvq_noref_prob[i] = 26376;
   }
   state->bsize_range_increment = 128;
   for (i = 0; i < 7; i++) {
