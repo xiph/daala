@@ -620,7 +620,7 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
         /* Do approximate RDO. */
         cost = dist + lambda*pvq_rate_approx(n, k);
         /* Approximate cost of entropy-coding theta */
-        cost += lambda*(.9*log2(ts));
+        cost += lambda*(.9*OD_LOG2(ts));
         if (i == icgr) cost -= lambda*.5;
         if (cost < best_cost) {
           best_cost = cost;
