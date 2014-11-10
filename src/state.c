@@ -1236,7 +1236,6 @@ int od_state_dump_img(od_state *state, od_img *img, const char *tag) {
 #endif
 
 void od_state_mc_predict(od_state *state, int ref) {
-  unsigned char __attribute__((aligned(16))) buf[16][16];
   od_img *img;
   int nhmvbs;
   int nvmvbs;
@@ -1257,14 +1256,14 @@ void od_state_mc_predict(od_state *state, int ref) {
         int blk_y;
         int y;
         od_state_pred_block(state,
-         buf[0], sizeof(buf[0]), ref, pli, vx, vy, 2);
+         state->mc_buf[4], OD_MCBSIZE_MAX, ref, pli, vx, vy, 2);
         /*Copy the predictor into the image, with clipping.*/
         iplane = img->planes + pli;
         blk_w = 16 >> iplane->xdec;
         blk_h = 16 >> iplane->ydec;
         blk_x = (vx - 2) << (2 - iplane->xdec);
         blk_y = (vy - 2) << (2 - iplane->ydec);
-        p = buf[0];
+        p = state->mc_buf[4];
         if (blk_x < 0) {
           blk_w += blk_x;
           p -= blk_x;
@@ -1272,7 +1271,7 @@ void od_state_mc_predict(od_state *state, int ref) {
         }
         if (blk_y < 0) {
           blk_h += blk_y;
-          p -= blk_y*sizeof(buf[0]);
+          p -= blk_y*OD_MCBSIZE_MAX;
           blk_y = 0;
         }
         if (blk_x + blk_w > img->width >> iplane->xdec) {
@@ -1283,7 +1282,7 @@ void od_state_mc_predict(od_state *state, int ref) {
         }
         for (y = blk_y; y < blk_y + blk_h; y++) {
           OD_COPY(iplane->data + y*iplane->ystride + blk_x, p, blk_w);
-          p += sizeof(buf[0]);
+          p += OD_MCBSIZE_MAX;
         }
       }
     }

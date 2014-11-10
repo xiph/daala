@@ -48,6 +48,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 /*The maximum length of the side of a block.*/
 # define OD_BSIZE_MAX  (1<<OD_LOG_BSIZE0+OD_NBSIZES-1)
 
+/*Largest motion compensation partition sizes are 16x16.*/
+# define OD_LOG_MCBSIZE_MAX (4)
+# define OD_MCBSIZE_MAX (1 << OD_LOG_MCBSIZE_MAX)
+
 # define OD_LIMIT_BSIZE_MIN (OD_BLOCK_4X4)
 # define OD_LIMIT_BSIZE_MAX (OD_BLOCK_32X32)
 # if OD_LIMIT_BSIZE_MIN > OD_BLOCK_32X32 || OD_LIMIT_BSIZE_MAX > OD_BLOCK_32X32

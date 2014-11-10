@@ -2347,30 +2347,29 @@ void od_mc_predict8(od_state *state, unsigned char *dst, int dystride,
                     int log_yblk_sz
 ) {
   const unsigned char *pred[4];
-  unsigned char __attribute__((aligned(16))) buf[4][16*16];
-  od_mc_predict1fmv8(state, buf[0], src, systride,
+  od_mc_predict1fmv8(state, state->mc_buf[0], src, systride,
    mvx[0], mvy[0], log_xblk_sz, log_yblk_sz);
-  pred[0] = buf[0];
+  pred[0] = state->mc_buf[0];
   if (mvx[1] == mvx[0] && mvy[1] == mvy[0]) pred[1] = pred[0];
   else {
-    od_mc_predict1fmv8(state, buf[1], src, systride,
+    od_mc_predict1fmv8(state, state->mc_buf[1], src, systride,
      mvx[1], mvy[1], log_xblk_sz, log_yblk_sz);
-    pred[1] = buf[1];
+    pred[1] = state->mc_buf[1];
   }
   if (mvx[2] == mvx[0] && mvy[2] == mvy[0]) pred[2] = pred[0];
   else if (mvx[2] == mvx[1] && mvy[2] == mvy[1]) pred[2] = pred[1];
   else {
-    od_mc_predict1fmv8(state, buf[2], src, systride,
+    od_mc_predict1fmv8(state, state->mc_buf[2], src, systride,
      mvx[2], mvy[2], log_xblk_sz, log_yblk_sz);
-    pred[2] = buf[2];
+    pred[2] = state->mc_buf[2];
   }
   if (mvx[3] == mvx[0] && mvy[3] == mvy[0]) pred[3] = pred[0];
   else if (mvx[3] == mvx[1] && mvy[3] == mvy[1]) pred[3] = pred[1];
   else if (mvx[3] == mvx[2] && mvy[3] == mvy[2]) pred[3] = pred[2];
   else {
-    od_mc_predict1fmv8(state, buf[3], src, systride,
+    od_mc_predict1fmv8(state, state->mc_buf[3], src, systride,
      mvx[3], mvy[3], log_xblk_sz, log_yblk_sz);
-    pred[3] = buf[3];
+    pred[3] = state->mc_buf[3];
   }
   od_mc_blend8(state, dst, dystride, pred,
    oc, s, log_xblk_sz, log_yblk_sz);

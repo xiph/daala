@@ -229,4 +229,28 @@ static __inline int od_bsr(unsigned long x) {
 # define OD_EXTERN
 #endif
 
+/*Some assembly constructs require aligned operands.
+  The following macros are _only_ intended for structure member declarations.
+  Although they will sometimes work on stack variables, gcc will often silently
+   ignore them.
+  A separate set of macros could be made for manual stack alignment, but we
+   don't actually require it anywhere.*/
+# if defined(OD_X86ASM)||defined(OD_ARMASM)
+#  if defined(__GNUC__)
+#   define OD_ALIGN8(expr) expr __attribute__((aligned(8)))
+#   define OD_ALIGN16(expr) expr __attribute__((aligned(16)))
+#  elif defined(_MSC_VER)
+#   define OD_ALIGN8(expr) __declspec (align(8)) expr
+#   define OD_ALIGN16(expr) __declspec (align(16)) expr
+#  else
+#   error "Alignment macros required for this platform."
+#  endif
+# endif
+# if !defined(OD_ALIGN8)
+#  define OD_ALIGN8(expr) expr
+# endif
+# if !defined(OD_ALIGN16)
+#  define OD_ALIGN16(expr) expr
+# endif
+
 #endif
