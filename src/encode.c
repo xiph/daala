@@ -441,15 +441,6 @@ static void od_encode_compute_pred(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, od_co
         od_intra_pred_update(enc->state.adapt.mode_probs[pli], OD_INTRA_NMODES,
          mode, m_l, m_ul, m_u);
       }
-      else {
-        int i;
-        int j;
-        for (i = 0; i < n; i++) {
-          for (j = 0; j < n; j++) {
-            pred[i*n + j] = l[((by << 2) + i)*w + (bx << 2) + j];
-          }
-        }
-      }
     }
     else {
       int nsize;
@@ -485,6 +476,15 @@ static void od_encode_compute_pred(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, od_co
           for (x = 0; x < (1 << ln); x++) {
             modes[(by + y)*(w >> 2) + bx + x] = 0;
           }
+        }
+      }
+    }
+    if (pli != 0 && !OD_DISABLE_CFL) {
+      int i;
+      int j;
+      for (i = 0; i < n; i++) {
+        for (j = 0; j < n; j++) {
+          pred[i*n + j] = l[((by << 2) + i)*w + (bx << 2) + j];
         }
       }
     }

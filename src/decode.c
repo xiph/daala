@@ -213,15 +213,6 @@ static void od_decode_compute_pred(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, od_co
         od_intra_pred_update(dec->state.adapt.mode_probs[pli], OD_INTRA_NMODES, mode,
          m_l, m_ul, m_u);
       }
-      else {
-        int i;
-        int j;
-        for (i = 0; i < n; i++) {
-          for (j = 0; j < n; j++) {
-            pred[i*n + j] = l[((by << 2) + i)*w + (bx << 2) + j];
-          }
-        }
-      }
     }
     else {
       int nsize;
@@ -257,6 +248,15 @@ static void od_decode_compute_pred(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, od_co
           for (x = 0; x < (1 << ln); x++) {
             modes[(by + y)*(w >> 2) + bx + x] = 0;
           }
+        }
+      }
+    }
+    if (pli != 0 && !OD_DISABLE_CFL) {
+      int i;
+      int j;
+      for (i = 0; i < n; i++) {
+        for (j = 0; j < n; j++) {
+          pred[i*n + j] = l[((by << 2) + i)*w + (bx << 2) + j];
         }
       }
     }
