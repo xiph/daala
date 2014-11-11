@@ -123,7 +123,6 @@ generic_decoder.c \
 info.c \
 internal.c \
 intra.c \
-intradata.c \
 laplace_decoder.c \
 laplace_tables.c \
 logging.c \

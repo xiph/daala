@@ -53,9 +53,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # include "x86/x86int.h"
 #endif
 
-static double mode_bits = 0;
-static double mode_count = 0;
-
 static int od_quantizer_from_quality(int quality) {
   return quality == 0 ? 0 :
    (quality << OD_COEFF_SHIFT >> OD_QUALITY_SHIFT) +
@@ -324,10 +321,8 @@ static void od_img_plane_edge_ext8(od_img_plane *dst_p,
 }
 
 struct od_mb_enc_ctx {
-  signed char *modes[OD_NPLANES_MAX];
   od_coeff *c;
   od_coeff **d;
-  od_coeff *tf[OD_NPLANES_MAX];
   od_coeff *md;
   od_coeff *mc;
   od_coeff *l;
@@ -343,143 +338,31 @@ typedef struct od_mb_enc_ctx od_mb_enc_ctx;
 
 #if !defined(OD_DUMP_COEFFS)
 static void od_encode_compute_pred(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, od_coeff *pred,
-  int ln, int pli, int bx, int by, int has_ur) {
+  int ln, int pli, int bx, int by) {
   int n;
   int n2;
   int xdec;
-  int ydec;
   int w;
   int frame_width;
-  signed char *modes;
-  od_coeff *d;
-  od_coeff *tf;
   od_coeff *md;
   od_coeff *l;
   int x;
   int y;
-  int zzi;
   OD_ASSERT(ln >= 0 && ln <= 3);
   n = 1 << (ln + 2);
   n2 = n*n;
   xdec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
-  ydec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
   frame_width = enc->state.frame_width;
   w = frame_width >> xdec;
-  modes = ctx->modes[OD_DISABLE_CFL ? pli : 0];
-  d = ctx->d[pli];
   /*We never use tf on the chroma planes, but if we do it will blow up, which
     is better than always using luma's tf.*/
-  tf = ctx->tf[pli];
   md = ctx->md;
   l = ctx->l;
   if (ctx->is_keyframe) {
-    if (bx > 0 && by > 0) {
-      if (pli == 0 || OD_DISABLE_CFL) {
-        ogg_uint16_t mode_cdf[OD_INTRA_NMODES];
-#if !OD_DISABLE_INTRA
-        ogg_uint32_t mode_dist[OD_INTRA_NMODES];
-#endif
-        int m_l;
-        int m_ul;
-        int m_u;
-        int mode;
-        od_coeff *coeffs[4];
-#if !OD_DISABLE_INTRA || OD_DISABLE_HAAR_DC
-        int strides[4];
-#endif
-        /*Search predictors from the surrounding blocks.*/
-        coeffs[0] = tf + ((by - (1 << ln)) << 2)*w + ((bx - (1 << ln)) << 2);
-        coeffs[1] = tf + ((by - (1 << ln)) << 2)*w + ((bx - (0 << ln)) << 2);
-        coeffs[2] = tf + ((by - (1 << ln)) << 2)*w + ((bx + (1 << ln)) << 2);
-        coeffs[3] = tf + ((by - (0 << ln)) << 2)*w + ((bx - (1 << ln)) << 2);
-        if (!has_ur) {
-          coeffs[2] = coeffs[1];
-        }
-#if !OD_DISABLE_INTRA || OD_DISABLE_HAAR_DC
-        strides[0] = w;
-        strides[1] = w;
-        strides[2] = w;
-        strides[3] = w;
-#endif
-        m_l = modes[by*(w >> 2) + bx - 1];
-        m_ul = modes[(by - 1)*(w >> 2) + bx - 1];
-        m_u = modes[(by - 1)*(w >> 2) + bx];
-        od_intra_pred_cdf(mode_cdf, enc->state.adapt.mode_probs[pli],
-         OD_INTRA_NMODES, m_l, m_ul, m_u);
-#if OD_DISABLE_INTRA
-        mode = 0;
-#else
-        (*OD_INTRA_DIST[ln])(mode_dist, d + (by << 2)*w + (bx << 2), w,
-         coeffs, strides);
-        /* Make lambda proportional to quantization step size, with exact
-           factor based on quick experiments with subset1 (can be improved). */
-        mode = od_intra_pred_search(mode_cdf, mode_dist, OD_INTRA_NMODES,
-         OD_MINI(32767, enc->quantizer[pli] << 4));
-#endif
-#if !OD_DISABLE_INTRA || OD_DISABLE_HAAR_DC
-        (*OD_INTRA_GET[ln])(pred, coeffs, strides, mode);
-#endif
-#if OD_DISABLE_INTRA
-        OD_CLEAR(pred+1, n2-1);
-#endif
-        OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
-         OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_INTRA_MODE);
-#if !OD_DISABLE_INTRA
-        od_ec_encode_cdf_unscaled(&enc->ec, mode, mode_cdf, OD_INTRA_NMODES);
-#endif
-        OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
-         OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
-        mode_bits -= M_LOG2E*log(
-         (mode_cdf[mode] - (mode == 0 ? 0 : mode_cdf[mode - 1]))/
-         (float)mode_cdf[OD_INTRA_NMODES - 1]);
-        mode_count++;
-        for (y = 0; y < (1 << ln); y++) {
-          for (x = 0; x < (1 << ln); x++) {
-            modes[(by + y)*(w >> 2) + bx + x] = mode;
-          }
-        }
-        od_intra_pred_update(enc->state.adapt.mode_probs[pli], OD_INTRA_NMODES,
-         mode, m_l, m_ul, m_u);
-      }
+    if (pli == 0 || OD_DISABLE_CFL) {
+      OD_CLEAR(pred, n2);
     }
     else {
-      int nsize;
-      for (zzi = 0; zzi < n2; zzi++) pred[zzi] = 0;
-      nsize = ln;
-      /*444/420 only right now.*/
-      OD_ASSERT(xdec == ydec);
-      if (bx > 0) {
-        int noff;
-        nsize = OD_BLOCK_SIZE4x4(enc->state.bsize, enc->state.bstride,
-         (bx - 1) << xdec, by << ydec);
-        nsize = OD_MAXI(nsize - xdec, 0);
-        noff = 1 << nsize;
-        /*Because of the quad-tree structure we can always find our neighbors
-           starting offset by rounding to a multiple of his size.*/
-        OD_ASSERT(!(bx & (noff - 1)));
-        pred[0] = d[((by & ~(noff - 1)) << 2)*w + ((bx - noff) << 2)];
-      }
-      else if (by > 0) {
-        int noff;
-        nsize = OD_BLOCK_SIZE4x4(enc->state.bsize, enc->state.bstride,
-         bx << xdec, (by - 1) << ydec);
-        nsize = OD_MAXI(nsize - xdec, 0);
-        noff = 1 << nsize;
-        OD_ASSERT(!(by & (noff - 1)));
-        pred[0] = d[((by - noff) << 2)*w + ((bx & ~(noff - 1)) << 2)];
-      }
-      /*Rescale DC for correct transform size.*/
-      if (nsize > ln) pred[0] >>= (nsize - ln);
-      else if (nsize < ln) pred[0] <<= (ln - nsize);
-      if (pli == 0) {
-        for (y = 0; y < (1 << ln); y++) {
-          for (x = 0; x < (1 << ln); x++) {
-            modes[(by + y)*(w >> 2) + bx + x] = 0;
-          }
-        }
-      }
-    }
-    if (pli != 0 && !OD_DISABLE_CFL) {
       int i;
       int j;
       for (i = 0; i < n; i++) {
@@ -537,14 +420,13 @@ static void od_single_band_lossless_encode(daala_enc_ctx *enc, int ln,
 }
 
 static void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
- int pli, int bx, int by, int has_ur) {
+ int pli, int bx, int by) {
   int n;
   int xdec;
   int w;
   int frame_width;
   od_coeff *c;
   od_coeff *d;
-  od_coeff *tf;
   od_coeff *md;
   od_coeff *mc;
   od_coeff pred[OD_BSIZE_MAX*OD_BSIZE_MAX];
@@ -567,9 +449,6 @@ static void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   w = frame_width >> xdec;
   c = ctx->c;
   d = ctx->d[pli];
-  /*We never use tf on the chroma planes, but if we do it will blow up, which
-    is better than always using luma's tf.*/
-  tf = ctx->tf[pli];
   md = ctx->md;
   mc = ctx->mc;
   /* Apply forward transform. */
@@ -577,7 +456,7 @@ static void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
     (*enc->state.opt_vtbl.fdct_2d[ln])(md + (by << 2)*w + (bx << 2), w,
      mc + (by << 2)*w + (bx << 2), w);
   }
-  od_encode_compute_pred(enc, ctx, pred, ln, pli, bx, by, has_ur);
+  od_encode_compute_pred(enc, ctx, pred, ln, pli, bx, by);
   if (ctx->is_keyframe && pli == 0) {
     od_hv_intra_pred(pred, d, w, bx, by, enc->state.bsize,
      enc->state.bstride, ln);
@@ -636,11 +515,6 @@ static void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   }
   od_coding_order_to_raster(&d[((by << 2))*w + (bx << 2)], w, scalar_out, n,
    lossless);
-  /*Update the TF'd luma plane with CfL, or all the planes without CfL.*/
-  if (ctx->is_keyframe && (pli == 0 || OD_DISABLE_CFL)) {
-    od_convert_block_down(tf + (by << 2)*w + (bx << 2), w,
-     d + (by << 2)*w + (bx << 2), w, ln, 0, 0);
-  }
   /*Apply the inverse transform.*/
 #if !defined(OD_OUTPUT_PRED)
   (*enc->state.opt_vtbl.idct_2d[ln])(c + (by << 2)*w + (bx << 2), w,
@@ -830,7 +704,7 @@ static void od_quantize_haar_dc(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
 
 #if !defined(OD_DUMP_COEFFS)
 static void od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
- int pli, int bx, int by, int l, int xdec, int ydec, int has_ur) {
+ int pli, int bx, int by, int l, int xdec, int ydec) {
   int od;
   int d;
   /*This code assumes 4:4:4 or 4:2:0 input.*/
@@ -852,16 +726,16 @@ static void od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
        ctx->d[0] + (by << (2 + l))*frame_width + (bx << (2 + l)),
        frame_width, xdec, ydec, d, od);
     }
-    od_block_encode(enc, ctx, d, pli, bx, by, has_ur);
+    od_block_encode(enc, ctx, d, pli, bx, by);
   }
   else {
     l--;
     bx <<= 1;
     by <<= 1;
-    od_encode_recursive(enc, ctx, pli, bx + 0, by + 0, l, xdec, ydec, 1);
-    od_encode_recursive(enc, ctx, pli, bx + 1, by + 0, l, xdec, ydec, has_ur);
-    od_encode_recursive(enc, ctx, pli, bx + 0, by + 1, l, xdec, ydec, 1);
-    od_encode_recursive(enc, ctx, pli, bx + 1, by + 1, l, xdec, ydec, 0);
+    od_encode_recursive(enc, ctx, pli, bx + 0, by + 0, l, xdec, ydec);
+    od_encode_recursive(enc, ctx, pli, bx + 1, by + 0, l, xdec, ydec);
+    od_encode_recursive(enc, ctx, pli, bx + 0, by + 1, l, xdec, ydec);
+    od_encode_recursive(enc, ctx, pli, bx + 1, by + 1, l, xdec, ydec);
   }
 }
 #endif
@@ -1344,8 +1218,7 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx) {
            0, sby > 0 && sbx < nhsb - 1);
         }
 #if !defined(OD_DUMP_COEFFS)
-        od_encode_recursive(enc, mbctx, pli, sbx, sby, 3, xdec, ydec,
-         sby > 0 && sbx < nhsb - 1);
+        od_encode_recursive(enc, mbctx, pli, sbx, sby, 3, xdec, ydec);
 #endif
       }
         OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
@@ -1452,10 +1325,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   /*Check the input image dimensions to make sure they're compatible with the
      declared video size.*/
   nplanes = enc->state.info.nplanes;
-  for (pli = 0; pli < OD_NPLANES_MAX; pli++) {
-    mbctx.tf[pli] = enc->state.tf[pli];
-    mbctx.modes[pli] = enc->state.modes[pli];
-  }
   if (img->nplanes != nplanes) return OD_EINVAL;
   for (pli = 0; pli < nplanes; pli++) {
     if (img->planes[pli].xdec != enc->state.info.plane_info[pli].xdec
@@ -1544,8 +1413,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
 #if defined(OD_LOGGING_ENABLED)
   od_dump_frame_metrics(&enc->state);
 #endif
-  OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO,
-   "mode bits: %f/%f=%f", mode_bits, mode_count, mode_bits/mode_count));
   enc->packet_state = OD_PACKET_READY;
   od_state_upsample8(&enc->state,
    enc->state.ref_imgs + enc->state.ref_imgi[OD_FRAME_SELF],
