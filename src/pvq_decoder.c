@@ -137,7 +137,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
     int i;
     cgr = pvq_compute_gain(ref, n, q, &gr, beta);
     if (pli != 0 && is_keyframe && !OD_DISABLE_CFL) cgr = 1;
-    icgr = floor(.5+cgr);
+    icgr = (int)floor(.5+cgr);
     /* quantized gain is interleave encoded when there's a reference;
        deinterleave it now */
     if (is_keyframe) qg = neg_deinterleave(qg, icgr);

@@ -439,7 +439,7 @@ static void pvq_synthesis_partial(od_coeff *xcoeff, od_coeff *ypulse,
 
   g = pow(q*qcg, beta);
   for (i = 0; i < n; i++) {
-    xcoeff[i] = floor(.5 + x[i]*g);
+    xcoeff[i] = (od_coeff)floor(.5 + x[i]*g);
   }
 }
 
@@ -558,7 +558,7 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   if (pli != 0 && is_keyframe && !OD_DISABLE_CFL) cgr = 1;
   /* gain_offset is meant to make sure one of the quantized gains has
      exactly the same gain as the reference. */
-  icgr = floor(.5+cgr);
+  icgr = (int)floor(.5+cgr);
   gain_offset = cgr-icgr;
   /* Start search with null case: gain=0, no pulse. */
   qg = 0;
