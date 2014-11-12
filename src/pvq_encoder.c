@@ -241,7 +241,9 @@ void pvq_encode(daala_enc_ctx *enc,
   cfl_encoded = 0;
   skip_rest = 1;
   for (i = 1; i < nb_bands; i++) {
-    if (theta[i] || qg[i]) skip_rest = 0;
+    int skip_theta;
+    skip_theta = is_keyframe ? -1 : 0;
+    if (theta[i] != skip_theta || qg[i]) skip_rest = 0;
   }
   if (!is_keyframe && theta[0] == 0 && qg[0] == 0 && skip_rest) nb_bands = 0;
   for (i = 0; i < nb_bands; i++) {
