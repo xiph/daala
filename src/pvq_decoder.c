@@ -113,7 +113,9 @@ static void pvq_decode_partition(od_ec_dec *ec,
                                  int is_keyframe,
                                  int pli,
                                  int cdf_ctx,
-                                 cfl_data *cfl) {
+                                 cfl_data *cfl,
+                                 int has_skip,
+                                 int *skip_rest) {
   int k;
   double qcg;
   int max_theta;
@@ -139,11 +141,21 @@ static void pvq_decode_partition(od_ec_dec *ec,
   /* Jointly decode gain, itheta and noref for small values. Then we handle
      larger gain. We need to wait for itheta because in the !nodesync case
      it depends on max_theta, which depends on the gain. */
-  id = od_decode_cdf_adapt(ec, &adapt->pvq_gaintheta_cdf[cdf_ctx][0],
-   8, adapt->pvq_gaintheta_increment);
-  qg = id & 1;
-  itheta = (id >> 1) - 1;
-  noref = (itheta == -1);
+  if (*skip_rest) {
+    qg = itheta = noref = 0;
+  }
+  else {
+    id = od_decode_cdf_adapt(ec, &adapt->pvq_gaintheta_cdf[cdf_ctx][0],
+     8 + (8 - !is_keyframe)*has_skip, adapt->pvq_gaintheta_increment);
+    if (!is_keyframe && id >= 10) id++;
+    if (id >= 8) {
+      id -= 8;
+      *skip_rest = 1;
+    }
+    qg = id & 1;
+    itheta = (id >> 1) - 1;
+    noref = (itheta == -1);
+  }
   if (qg > 0) {
     int tmp;
     tmp = *exg;
@@ -241,6 +253,7 @@ void pvq_decode(daala_dec_ctx *dec,
   int size[PVQ_MAX_PARTITIONS];
   generic_encoder *model;
   int skip;
+  int skip_rest;
   cfl_data cfl;
   exg = &dec->state.adapt.pvq_exg[pli][ln][0];
   ext = dec->state.adapt.pvq_ext + ln*PVQ_MAX_PARTITIONS;
@@ -262,11 +275,12 @@ void pvq_decode(daala_dec_ctx *dec,
     cfl.ref = ref;
     cfl.nb_coeffs = off[nb_bands];
     cfl.enabled = pli != 0 && is_keyframe;
+    skip_rest = 0;
     for (i = 0; i < nb_bands; i++) {
       pvq_decode_partition(&dec->ec, OD_MAXI(1, q*qm[i + 1] >> 4), size[i],
        model, &dec->state.adapt, exg + i, ext + i, ref + off[i], out + off[i],
        noref[i], beta[i], robust, is_keyframe, pli, ln*PVQ_MAX_PARTITIONS + i,
-       &cfl);
+       &cfl, i == 0 && (i < nb_bands - 1), &skip_rest);
     }
   }
 }

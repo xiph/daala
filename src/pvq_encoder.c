@@ -106,15 +106,22 @@ static void pvq_encode_partition(od_ec_enc *ec,
                                  int *exg,
                                  int *ext,
                                  int nodesync,
-                                 int cdf_ctx) {
+                                 int cdf_ctx,
+                                 int is_keyframe,
+                                 int code_skip,
+                                 int skip_rest) {
   int noref;
   int id;
   noref = (theta == -1);
-  id = (qg > 0) + 2*OD_MINI(theta + 1,3);
+  id = (qg > 0) + 2*OD_MINI(theta + 1,3) + 8*code_skip*skip_rest;
+  if (!is_keyframe) {
+    OD_ASSERT(id != 10);
+    if (id >= 10) id--;
+  }
   /* Jointly code gain, theta and noref for small values. Then we handle
      larger gain and theta values. For noref, theta = -1. */
   od_encode_cdf_adapt(ec, id, &adapt->pvq_gaintheta_cdf[cdf_ctx][0],
-   8, adapt->pvq_gaintheta_increment);
+   8 + (8 - !is_keyframe)*code_skip, adapt->pvq_gaintheta_increment);
   if (qg > 0) {
     int tmp;
     tmp = *exg;
@@ -193,6 +200,7 @@ void pvq_encode(daala_enc_ctx *enc,
   int dc_quant;
   int flip;
   int cfl_encoded;
+  int skip_rest;
   exg = &enc->state.adapt.pvq_exg[pli][ln][0];
   ext = enc->state.adapt.pvq_ext + ln*PVQ_MAX_PARTITIONS;
   skip_cdf = enc->state.adapt.skip_cdf[pli];
@@ -231,10 +239,18 @@ void pvq_encode(daala_enc_ctx *enc,
     tell = od_ec_enc_tell_frac(&enc->ec);
   }
   cfl_encoded = 0;
+  skip_rest = 1;
+  for (i = 1; i < nb_bands; i++) {
+    if (theta[i] || qg[i]) skip_rest = 0;
+  }
+  if (!is_keyframe && theta[0] == 0 && qg[0] == 0 && skip_rest) nb_bands = 0;
   for (i = 0; i < nb_bands; i++) {
-    pvq_encode_partition(&enc->ec, qg[i], theta[i], max_theta[i], y + off[i],
-     size[i], k[i], model, &enc->state.adapt, exg + i, ext + i,
-     robust || is_keyframe, ln*PVQ_MAX_PARTITIONS + i);
+    if (i == 0 || !skip_rest) {
+      pvq_encode_partition(&enc->ec, qg[i], theta[i], max_theta[i], y + off[i],
+       size[i], k[i], model, &enc->state.adapt, exg + i, ext + i,
+       robust || is_keyframe, ln*PVQ_MAX_PARTITIONS + i, is_keyframe,
+       i == 0 && (i < nb_bands - 1), skip_rest);
+    }
     /* Encode CFL flip bit just after the first time it's used. */
     if (pli!=0 && is_keyframe && theta[i] != -1 && !cfl_encoded) {
       /* We could eventually do some smarter entropy coding here, but it would
@@ -247,7 +263,7 @@ void pvq_encode(daala_enc_ctx *enc,
   }
   if (!is_keyframe) {
     tell = od_ec_enc_tell_frac(&enc->ec) - tell;
-    if (skip_diff < OD_PVQ_LAMBDA/8*tell) {
+    if (nb_bands == 0 || skip_diff <= OD_PVQ_LAMBDA/8*tell) {
       double dc_rate;
       dc_rate = -OD_LOG2((double)(skip_cdf[3]-skip_cdf[2])/
        (double)(skip_cdf[2]-skip_cdf[1]));
