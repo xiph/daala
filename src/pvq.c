@@ -451,7 +451,7 @@ static void pvq_synthesis_partial(od_coeff *xcoeff, od_coeff *ypulse,
  *                          case, this vector has n entries, in the
  *                          reference case it contains n-1 entries
  *                          (the m-th entry is not included)
- * @param [in]      r       reference vector (prediction)
+ * @param [in]      ref     reference vector (prediction)
  * @param [in]      n       number of elements in this partition
  * @param [in]      gr      gain of the reference vector (prediction)
  * @param [in]      noref   indicates presence or lack of prediction

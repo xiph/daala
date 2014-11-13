@@ -76,8 +76,8 @@ static void od_decode_pvq_codeword(od_ec_dec *ec, od_adapt_ctx *adapt,
 typedef struct {
   od_coeff *ref;
   int nb_coeffs;
-  int enabled;
-} cfl_data;
+  int allow_flip;
+} cfl_ctx;
 
 /** Decodes a single vector of integers (eg, a partition within a
  *  coefficient block) encoded using PVQ
@@ -113,7 +113,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
                                  int is_keyframe,
                                  int pli,
                                  int cdf_ctx,
-                                 cfl_data *cfl,
+                                 cfl_ctx *cfl,
                                  int has_skip,
                                  int *skip_rest) {
   int k;
@@ -211,14 +211,15 @@ static void pvq_decode_partition(od_ec_dec *ec,
   } else {
     OD_CLEAR(y, n);
   }
-  if (cfl->enabled && !noref) {
+  /* The CfL flip bit is only decoded on the first band that has noref=0. */
+  if (cfl->allow_flip && !noref) {
     int flip;
     int i;
     flip = od_ec_dec_bits(ec, 1);
     if (flip) {
       for (i = 0; i < cfl->nb_coeffs; i++) cfl->ref[i] = -cfl->ref[i];
     }
-    cfl->enabled = 0;
+    cfl->allow_flip = 0;
   }
   pvq_synthesis(out, y, ref, n, gr, noref, qg, gain_offset, theta, q, beta);
   if (skip) {
@@ -262,7 +263,7 @@ void pvq_decode(daala_dec_ctx *dec,
   generic_encoder *model;
   int skip;
   int skip_rest;
-  cfl_data cfl;
+  cfl_ctx cfl;
   exg = &dec->state.adapt.pvq_exg[pli][ln][0];
   ext = dec->state.adapt.pvq_ext + ln*PVQ_MAX_PARTITIONS;
   model = dec->state.adapt.pvq_param_model;
@@ -282,7 +283,7 @@ void pvq_decode(daala_dec_ctx *dec,
     for (i = 0; i < nb_bands; i++) size[i] = off[i+1] - off[i];
     cfl.ref = ref;
     cfl.nb_coeffs = off[nb_bands];
-    cfl.enabled = pli != 0 && is_keyframe;
+    cfl.allow_flip = pli != 0 && is_keyframe;
     skip_rest = 0;
     for (i = 0; i < nb_bands; i++) {
       pvq_decode_partition(&dec->ec, OD_MAXI(1, q*qm[i + 1] >> 4), size[i],
