@@ -115,11 +115,8 @@ static void od_decode_mv(daala_dec_ctx *dec, od_mv_grid_pt *mvg, int vx,
 }
 
 struct od_mb_dec_ctx {
-  signed char *modes[OD_NPLANES_MAX];
   od_coeff *c;
   od_coeff **d;
-  /* holds a TF'd copy of the transform coefficients in 4x4 blocks */
-  od_coeff *tf[OD_NPLANES_MAX];
   od_coeff *md;
   od_coeff *mc;
   od_coeff *l;
@@ -134,129 +131,36 @@ struct od_mb_dec_ctx {
 typedef struct od_mb_dec_ctx od_mb_dec_ctx;
 
 static void od_decode_compute_pred(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, od_coeff *pred,
-  int ln, int pli, int bx, int by, int has_ur) {
+  int ln, int pli, int bx, int by) {
   int n;
   int n2;
   int xdec;
-  int ydec;
   int w;
   int frame_width;
-  signed char *modes;
-  od_coeff *d;
-  od_coeff *tf;
   od_coeff *md;
   od_coeff *l;
   int x;
   int y;
-  int zzi;
   OD_ASSERT(ln >= 0 && ln <= 3);
   n = 1 << (ln + 2);
   n2 = n*n;
   xdec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
-  ydec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
   frame_width = dec->state.frame_width;
   w = frame_width >> xdec;
-  modes = ctx->modes[OD_DISABLE_CFL ? pli : 0];
-  d = ctx->d[pli];
   /*We never use tf on the chroma planes, but if we do it will blow up, which
     is better than always using luma's tf.*/
-  tf = ctx->tf[pli];
   md = ctx->md;
   l = ctx->l;
   if (ctx->is_keyframe) {
-    if (bx > 0 && by > 0) {
-      if (pli == 0 || OD_DISABLE_CFL) {
-        ogg_uint16_t mode_cdf[OD_INTRA_NMODES];
-        int m_l;
-        int m_ul;
-        int m_u;
-        int mode;
-        od_coeff *coeffs[4];
-#if !OD_DISABLE_INTRA || OD_DISABLE_HAAR_DC
-        int strides[4];
-#endif
-        /*Calculate the intra-prediction.*/
-        coeffs[0] = tf + ((by - (1 << ln)) << 2)*w + ((bx - (1 << ln)) << 2);
-        coeffs[1] = tf + ((by - (1 << ln)) << 2)*w + ((bx - (0 << ln)) << 2);
-        coeffs[2] = tf + ((by - (1 << ln)) << 2)*w + ((bx + (1 << ln)) << 2);
-        coeffs[3] = tf + ((by - (0 << ln)) << 2)*w + ((bx - (1 << ln)) << 2);
-        if (!has_ur) {
-          coeffs[2] = coeffs[1];
-        }
-#if !OD_DISABLE_INTRA || OD_DISABLE_HAAR_DC
-        strides[0] = w;
-        strides[1] = w;
-        strides[2] = w;
-        strides[3] = w;
-#endif
-        m_l = modes[by*(w >> 2) + bx - 1];
-        m_ul = modes[(by - 1)*(w >> 2) + bx - 1];
-        m_u = modes[(by - 1)*(w >> 2) + bx];
-        od_intra_pred_cdf(mode_cdf, dec->state.adapt.mode_probs[pli],
-         OD_INTRA_NMODES, m_l, m_ul, m_u);
-#if OD_DISABLE_INTRA
-        mode = 0;
-#else
-        mode = od_ec_decode_cdf_unscaled(&dec->ec, mode_cdf, OD_INTRA_NMODES);
-#endif
-#if !OD_DISABLE_INTRA || OD_DISABLE_HAAR_DC
-        (*OD_INTRA_GET[ln])(pred, coeffs, strides, mode);
-#endif
-#if OD_DISABLE_INTRA
-        OD_CLEAR(pred+1, n2-1);
-#endif
-        for (y = 0; y < (1 << ln); y++) {
-          for (x = 0; x < (1 << ln); x++) {
-            modes[(by + y)*(w >> 2) + bx + x] = mode;
-          }
-        }
-        od_intra_pred_update(dec->state.adapt.mode_probs[pli], OD_INTRA_NMODES, mode,
-         m_l, m_ul, m_u);
-      }
-      else {
-        int i;
-        int j;
-        for (i = 0; i < n; i++) {
-          for (j = 0; j < n; j++) {
-            pred[i*n + j] = l[((by << 2) + i)*w + (bx << 2) + j];
-          }
-        }
-      }
+    if (pli == 0 || OD_DISABLE_CFL) {
+      OD_CLEAR(pred, n2);
     }
     else {
-      int nsize;
-      for (zzi = 0; zzi < n2; zzi++) pred[zzi] = 0;
-      nsize = ln;
-      /*444/420 only right now.*/
-      OD_ASSERT(xdec == ydec);
-      if (bx > 0) {
-        int noff;
-        nsize = OD_BLOCK_SIZE4x4(dec->state.bsize, dec->state.bstride,
-         (bx - 1) << xdec, by << ydec);
-        nsize = OD_MAXI(nsize - xdec, 0);
-        noff = 1 << nsize;
-        /*Because of the quad-tree structure we can always find our neighbors
-           starting offset by rounding to a multiple of his size.*/
-        OD_ASSERT(!(bx & (noff - 1)));
-        pred[0] = d[((by & ~(noff - 1)) << 2)*w + ((bx - noff) << 2)];
-      }
-      else if (by > 0) {
-        int noff;
-        nsize = OD_BLOCK_SIZE4x4(dec->state.bsize, dec->state.bstride,
-         bx << xdec, (by - 1) << ydec);
-        nsize = OD_MAXI(nsize - xdec, 0);
-        noff = 1 << nsize;
-        OD_ASSERT(!(by & (noff - 1)));
-        pred[0] = d[((by - noff) << 2)*w + ((bx & ~(noff - 1)) << 2)];
-      }
-      /*Rescale DC for correct transform size.*/
-      if (nsize > ln) pred[0] >>= (nsize - ln);
-      else if (nsize < ln) pred[0] <<= (ln - nsize);
-      if (pli == 0) {
-        for (y = 0; y < (1 << ln); y++) {
-          for (x = 0; x < (1 << ln); x++) {
-            modes[(by + y)*(w >> 2) + bx + x] = 0;
-          }
+      int i;
+      int j;
+      for (i = 0; i < n; i++) {
+        for (j = 0; j < n; j++) {
+          pred[i*n + j] = l[((by << 2) + i)*w + (bx << 2) + j];
         }
       }
     }
@@ -302,14 +206,13 @@ static void od_block_lossless_decode(daala_dec_ctx *dec, int ln,
 }
 
 static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
- int pli, int bx, int by, int has_ur) {
+ int pli, int bx, int by) {
   int n;
   int xdec;
   int w;
   int frame_width;
   od_coeff *c;
   od_coeff *d;
-  od_coeff *tf;
   od_coeff *md;
   od_coeff *mc;
   od_coeff pred[OD_BSIZE_MAX*OD_BSIZE_MAX];
@@ -327,9 +230,6 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   w = frame_width >> xdec;
   c = ctx->c;
   d = ctx->d[pli];
-  /*We never use tf on the chroma planes, but if we do it will blow up, which
-    is better than always using luma's tf.*/
-  tf = ctx->tf[pli];
   md = ctx->md;
   mc = ctx->mc;
   /*Apply forward transform to MC predictor.*/
@@ -337,7 +237,7 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
     (*dec->state.opt_vtbl.fdct_2d[ln])(md + (by << 2)*w + (bx << 2), w,
      mc + (by << 2)*w + (bx << 2), w);
   }
-  od_decode_compute_pred(dec, ctx, pred, ln, pli, bx, by, has_ur);
+  od_decode_compute_pred(dec, ctx, pred, ln, pli, bx, by);
   if (ctx->is_keyframe && pli == 0) {
     od_hv_intra_pred(pred, d, w, bx, by, dec->state.bsize,
      dec->state.bstride, ln);
@@ -369,11 +269,6 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   }
   od_coding_order_to_raster(&d[((by << 2))*w + (bx << 2)], w, pred, n,
    lossless);
-  /*Update the TF'd luma plane with CfL, or all the planes without CfL.*/
-  if (ctx->is_keyframe && (pli == 0 || OD_DISABLE_CFL)) {
-    od_convert_block_down(tf + (by << 2)*w + (bx << 2), w,
-     d + (by << 2)*w + (bx << 2), w, ln, 0, 0);
-  }
   /*Apply the inverse transform.*/
   (*dec->state.opt_vtbl.idct_2d[ln])(c + (by << 2)*w + (bx << 2), w,
    d + (by << 2)*w + (bx << 2), w);
@@ -483,7 +378,7 @@ static void od_decode_haar_dc(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
 #endif
 
 static void od_decode_recursive(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
- int bx, int by, int l, int xdec, int ydec, int has_ur) {
+ int bx, int by, int l, int xdec, int ydec) {
   int od;
   int d;
   /*This code assumes 4:4:4 or 4:2:0 input.*/
@@ -505,16 +400,16 @@ static void od_decode_recursive(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
        ctx->d[0] + (by << (2 + l))*frame_width + (bx << (2 + l)),
        frame_width, xdec, ydec, d, od);
     }
-    od_block_decode(dec, ctx, d, pli, bx, by, has_ur);
+    od_block_decode(dec, ctx, d, pli, bx, by);
   }
   else {
     l--;
     bx <<= 1;
     by <<= 1;
-    od_decode_recursive(dec, ctx, pli, bx + 0, by + 0, l, xdec, ydec, 1);
-    od_decode_recursive(dec, ctx, pli, bx + 1, by + 0, l, xdec, ydec, has_ur);
-    od_decode_recursive(dec, ctx, pli, bx + 0, by + 1, l, xdec, ydec, 1);
-    od_decode_recursive(dec, ctx, pli, bx + 1, by + 1, l, xdec, ydec, 0);
+    od_decode_recursive(dec, ctx, pli, bx + 0, by + 0, l, xdec, ydec);
+    od_decode_recursive(dec, ctx, pli, bx + 1, by + 0, l, xdec, ydec);
+    od_decode_recursive(dec, ctx, pli, bx + 0, by + 1, l, xdec, ydec);
+    od_decode_recursive(dec, ctx, pli, bx + 1, by + 1, l, xdec, ydec);
   }
 }
 
@@ -719,10 +614,6 @@ static void od_decode_residual(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
   state = &dec->state;
   /*Initialize the data needed for each plane.*/
   nplanes = state->info.nplanes;
-  for (pli = 0; pli < OD_NPLANES_MAX; pli++) {
-    mbctx->tf[pli] = state->tf[pli];
-    mbctx->modes[pli] = state->modes[pli];
-  }
   nhsb = state->nhsb;
   nvsb = state->nvsb;
   frame_width = state->frame_width;
@@ -784,8 +675,7 @@ static void od_decode_residual(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
           od_decode_haar_dc(dec, mbctx, pli, sbx, sby, 3, xdec, ydec, 0, 0,
            sby > 0 && sbx < nhsb - 1);
         }
-        od_decode_recursive(dec, mbctx, pli, sbx, sby, 3, xdec, ydec,
-         sby > 0 && sbx < nhsb - 1);
+        od_decode_recursive(dec, mbctx, pli, sbx, sby, 3, xdec, ydec);
       }
     }
   }

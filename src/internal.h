@@ -58,7 +58,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #  error "block sizes above 32x32 not supported"
 # endif
 # define OD_DISABLE_FILTER (0)
-# define OD_DISABLE_INTRA (1)
 # define OD_DISABLE_HAAR_DC (0)
 # define OD_DISABLE_CFL (0)
 # define OD_DISABLE_MASKING (0)

@@ -43,8 +43,6 @@ extern const od_coeff OD_DC_RES[3];
 
 /*Adaptation speed of scalar Laplace encoding.*/
 # define OD_SCALAR_ADAPT_SPEED (4)
-/*Adaptation speed of intra mode encoding.*/
-# define OD_INTRA_ADAPT_SPEED (4)
 
 /*The golden reference frame.*/
 # define OD_FRAME_GOLD (0)
@@ -143,7 +141,6 @@ struct od_adapt_ctx {
   int ex_dc[OD_NPLANES_MAX][OD_NBSIZES][3];
   int ex_g[OD_NPLANES_MAX][OD_NBSIZES];
 
-  unsigned char mode_probs[3][OD_INTRA_NMODES][OD_INTRA_NCONTEXTS];
   /* Joint skip flag for DC and AC */
   ogg_uint16_t skip_cdf[OD_NPLANES_MAX][4];
   int skip_increment;
@@ -213,8 +210,6 @@ struct od_state{
   od_coeff *ltmp[OD_NPLANES_MAX];
   od_coeff *lbuf[OD_NPLANES_MAX];
   /* Holds a TF'd copy of the transform coefficients in 4x4 blocks. */
-  od_coeff *tf[OD_NPLANES_MAX];
-  signed char *modes[OD_NPLANES_MAX];
 };
 
 int od_state_init(od_state *_state, const daala_info *_info);

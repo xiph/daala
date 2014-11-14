@@ -299,15 +299,6 @@ static int od_state_init_impl(od_state *state, const daala_info *info) {
     if (pli == 0 || OD_DISABLE_CFL) {
       xdec = state->info.plane_info[pli].xdec;
       ydec = state->info.plane_info[pli].ydec;
-      state->tf[pli] = (od_coeff *)_ogg_malloc(w*h*sizeof(*state->tf[pli]));
-      if (OD_UNLIKELY(!state->tf[pli])) {
-        return OD_EFAULT;
-      }
-      state->modes[pli] = (signed char *)_ogg_malloc((w >> (2 + xdec))*
-       (h >> (2 + ydec))*sizeof(*state->modes[pli]));
-      if (OD_UNLIKELY(!state->modes[pli])) {
-        return OD_EFAULT;
-      }
     }
   }
   state->bsize = (unsigned char *)_ogg_malloc(
@@ -354,10 +345,6 @@ void od_state_clear(od_state *state) {
     _ogg_free(state->ctmp[pli]);
     _ogg_free(state->mctmp[pli]);
     _ogg_free(state->mdtmp[pli]);
-    if (pli == 0 || OD_DISABLE_CFL) {
-      _ogg_free(state->tf[pli]);
-      _ogg_free(state->modes[pli]);
-    }
   }
   _ogg_free(state->bsize);
 }
@@ -421,7 +408,6 @@ void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe) {
       }
     }
   }
-  memcpy(state->mode_probs, OD_INTRA_PRED_PROB_4x4, 3*OD_INTRA_NMODES*OD_INTRA_NCONTEXTS);
 }
 
 void od_state_set_mv_res(od_state *state, int mv_res) {
