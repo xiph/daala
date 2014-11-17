@@ -288,7 +288,8 @@ void pvq_decode(daala_dec_ctx *dec,
     for (i = 0; i < nb_bands; i++) {
       pvq_decode_partition(&dec->ec, OD_MAXI(1, q*qm[i + 1] >> 4), size[i],
        model, &dec->state.adapt, exg + i, ext + i, ref + off[i], out + off[i],
-       noref[i], beta[i], robust, is_keyframe, pli, ln*PVQ_MAX_PARTITIONS + i,
+       noref[i], beta[i], robust, is_keyframe, pli,
+       (pli != 0)*OD_NBSIZES*PVQ_MAX_PARTITIONS + ln*PVQ_MAX_PARTITIONS + i,
        &cfl, i == 0 && (i < nb_bands - 1), &skip_rest);
     }
   }

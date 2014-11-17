@@ -118,7 +118,7 @@ struct od_adapt_ctx {
   int                 pvq_ext[OD_NBSIZES*PVQ_MAX_PARTITIONS];
   int                 pvq_exg[OD_NPLANES_MAX][OD_NBSIZES][PVQ_MAX_PARTITIONS];
   int                 pvq_gaintheta_increment;
-  ogg_uint16_t        pvq_gaintheta_cdf[OD_NBSIZES*PVQ_MAX_PARTITIONS][16];
+  ogg_uint16_t        pvq_gaintheta_cdf[2*OD_NBSIZES*PVQ_MAX_PARTITIONS][16];
 
   int                 bsize_range_increment;
   ogg_uint16_t        bsize_range_cdf[OD_NBSIZES][7];

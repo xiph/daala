@@ -250,8 +250,9 @@ void pvq_encode(daala_enc_ctx *enc,
     if (i == 0 || !skip_rest) {
       pvq_encode_partition(&enc->ec, qg[i], theta[i], max_theta[i], y + off[i],
        size[i], k[i], model, &enc->state.adapt, exg + i, ext + i,
-       robust || is_keyframe, ln*PVQ_MAX_PARTITIONS + i, is_keyframe,
-       i == 0 && (i < nb_bands - 1), skip_rest);
+       robust || is_keyframe, (pli != 0)*OD_NBSIZES*PVQ_MAX_PARTITIONS
+       + ln*PVQ_MAX_PARTITIONS + i, is_keyframe, i == 0 && (i < nb_bands - 1),
+       skip_rest);
     }
     /* Encode CFL flip bit just after the first time it's used. */
     if (pli!=0 && is_keyframe && theta[i] != -1 && !cfl_encoded) {
