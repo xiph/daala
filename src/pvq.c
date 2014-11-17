@@ -625,6 +625,9 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
         cost = dist + lambda*pvq_rate_approx(n, k);
         /* Approximate cost of entropy-coding theta */
         cost += lambda*(.9*OD_LOG2(ts));
+        /* Adding a cost to using the H/V pred because it's going to be off
+           most of the time. Cost is optimized on subset1. */
+        if (is_keyframe && pli == 0) cost += lambda*2.5;
         if (i == icgr) cost -= lambda*.5;
         if (cost < best_cost) {
           best_cost = cost;
