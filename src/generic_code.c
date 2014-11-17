@@ -107,5 +107,5 @@ void generic_model_update(generic_encoder *model, int *ex_q16, int x, int xs,
   for (i = xenc; i < 16; i++) cdf[i] += model->increment;
   /* We could have saturated ExQ16 directly, but this is safe and simpler */
   x = OD_MINI(x, 32767);
-  *ex_q16 += (x << (16 - integration)) - (*ex_q16 >> integration);
+  OD_IIR_DIADIC(*ex_q16, x << 16, integration);
 }

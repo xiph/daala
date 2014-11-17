@@ -168,7 +168,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
     int tmp;
     tmp = *exg;
     qg = 1 + generic_decode(ec, &model[!noref], -1, &tmp, 2);
-    *exg += (qg << (16 - 2)) - (*exg >> 2);
+    OD_IIR_DIADIC(*exg, qg << 16, 2);
   }
   skip = 0;
   if(!noref){
@@ -194,7 +194,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
       tmp = *ext;
       itheta = 2 + generic_decode(ec, &model[2], nodesync ? -1 : max_theta - 3,
        &tmp, 2);
-      *ext += (itheta << (16 - 2)) - (*ext >> 2);
+      OD_IIR_DIADIC(*ext, itheta << 16, 2);
     }
     theta = pvq_compute_theta(itheta, max_theta);
   }

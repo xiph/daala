@@ -126,14 +126,14 @@ static void pvq_encode_partition(od_ec_enc *ec,
     int tmp;
     tmp = *exg;
     generic_encode(ec, &model[!noref], qg - 1, -1, &tmp, 2);
-    *exg += (qg << (16 - 2)) - (*exg >> 2);
+    OD_IIR_DIADIC(*exg, qg << 16, 2);
   }
   if (theta > 1 && (nodesync || max_theta > 3)) {
     int tmp;
     tmp = *ext;
     generic_encode(ec, &model[2], theta - 2, nodesync ? -1 : max_theta - 3,
      &tmp, 2);
-    *ext += (theta << (16 - 2)) - (*ext >> 2);
+    OD_IIR_DIADIC(*ext, theta << 16, 2);
   }
   od_encode_pvq_codeword(ec, adapt, in, n, k, theta == -1);
 }

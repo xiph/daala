@@ -37,6 +37,8 @@ typedef struct {
   int increment;
 } generic_encoder;
 
+#define OD_IIR_DIADIC(y, x, shift) ((y) += ((x) - (y)) >> (shift))
+
 void generic_model_init(generic_encoder *model);
 
 #define OD_CDFS_INIT(cdf, val) od_cdf_init(&cdf[0][0],\
