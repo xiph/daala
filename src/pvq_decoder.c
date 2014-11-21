@@ -126,8 +126,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
   int nodesync;
   int skip;
   int id;
-  /* Quantization step calibration to account for the activity masking. */
-  q = q0*pow(256<<OD_COEFF_SHIFT, 1./beta - 1);
+  q = od_quality_compand(q0, beta);
   theta = 0;
   gr = 0;
   gain_offset = 0;

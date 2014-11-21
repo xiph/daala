@@ -348,6 +348,41 @@ int neg_deinterleave(int x, int ref) {
   else return x+1;
 }
 
+/** Gain companding: raises gain to the power 1/beta for activity masking.
+ *
+ * @param [in]  g     real (uncompanded) gain
+ * @param [in]  beta  activity masking beta param (exponent)
+ * @return            g^(1/beta)
+ */
+static double od_gain_compand(double g, double beta) {
+  if (beta == 1) return g;
+  else return pow(g, 1./beta);
+}
+
+/** Gain expanding: raises gain to the power beta for activity masking.
+ *
+ * @param [in]  cg    companded gain
+ * @param [in]  beta  activity masking beta param (exponent)
+ * @return            g^beta
+ */
+static double od_gain_expand(double cg, double beta) {
+  if (beta == 1) return cg;
+  else if (beta == 1.5) return cg*sqrt(cg);
+  else return pow(cg, beta);
+}
+
+/* Quantization step calibration to account for the activity masking.
+ *
+ * @param [in]  q     equivalent quality parameter
+ * @param [in]  beta  activity masking beta param (exponent)
+ * @return            quantization step size with activity masking
+ */
+double od_quality_compand(double q, double beta) {
+  if (beta == 1) return q;
+  else if (beta == 1.5 && OD_COEFF_SHIFT == 4) return 0.0625*q;
+  else return q*pow(256 << OD_COEFF_SHIFT, 1./beta - 1);
+}
+
 /** Computes the raw and quantized/companded gain of a given input
  * vector
  *
@@ -364,7 +399,7 @@ double pvq_compute_gain(od_coeff *x, int n, double q, double *g, double beta){
   *g = sqrt(acc);
   /* Normalize gain by quantization step size and apply companding
      (if ACTIVITY != 1). */
-  return pow(*g, 1./beta)/q;
+  return od_gain_compand(*g, beta)/q;
 }
 
 /** Compute theta quantization range from quantized/companded gain
@@ -484,7 +519,7 @@ static void pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,
     apply_householder(x, r, n);
   }
 
-  g = pow(q*qcg, beta);
+  g = od_gain_expand(q*qcg, beta);
   for (i = 0; i < n; i++) {
     xcoeff[i] = (od_coeff)floor(.5 + x[i]*g);
   }
@@ -596,8 +631,7 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   int cfl_enabled;
   int skip;
   lambda = OD_PVQ_LAMBDA;
-  /* Quantization step calibration to account for the activity masking. */
-  q = q0*pow(256<<OD_COEFF_SHIFT, 1./beta - 1);
+  q = od_quality_compand(q0, beta);
   OD_ASSERT(n > 1);
   corr = 0;
   for (i = 0; i < n; i++) {
