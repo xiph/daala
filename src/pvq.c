@@ -449,7 +449,7 @@ int pvq_compute_k(double qcg, int itheta, double theta, int noref, int n,
  * @param [in]      s       sign of Householder reflection
  * @param [in]      q       gain quantizer
  */
-static void pvq_synthesis_partial(od_coeff *xcoeff, od_coeff *ypulse,
+static void pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,
                                   const double *r, int n,
                                   int noref, int qg, double go,
                                   double theta, int m, int s, double q,
@@ -461,10 +461,7 @@ static void pvq_synthesis_partial(od_coeff *xcoeff, od_coeff *ypulse,
   double g;
   double x[MAXN];
   int nn;
-  if (qg == 0) {
-    OD_CLEAR(xcoeff, n);
-    return;
-  }
+  OD_ASSERT(qg != 0);
   nn = n-(!noref); /* when noref==0, vector in is sized n-1 */
   yy = 0;
   for (i = 0; i < nn; i++)
@@ -596,6 +593,8 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   int noref;
   double lambda;
   double skip_dist;
+  int cfl_enabled;
+  int skip;
   lambda = OD_PVQ_LAMBDA;
   /* Quantization step calibration to account for the activity masking. */
   q = q0*pow(256<<OD_COEFF_SHIFT, 1./beta - 1);
@@ -606,7 +605,7 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
     r[i] = r0[i];
     corr += x[i]*r[i];
   }
-
+  cfl_enabled = is_keyframe && pli != 0 && !OD_DISABLE_CFL;
   cg  = pvq_compute_gain(x0, n, q, &g, beta);
   cgr = pvq_compute_gain(r0, n, q, &gr, beta);
   if (pli != 0 && is_keyframe && !OD_DISABLE_CFL) cgr = 1;
@@ -732,21 +731,31 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   if (!noref) {
     for (i = m; i < n - 1; i++) y[i] = y[i+1];
   }
+  skip = 0;
+  if (noref) {
+    if (qg == 0) skip = OD_PVQ_SKIP_ZERO;
+  }
+  else {
+    if (!is_keyframe && qg == 0) {
+      skip = (icgr ? OD_PVQ_SKIP_ZERO : OD_PVQ_SKIP_COPY);
+    }
+    if (qg == icgr && *itheta == 0 && !cfl_enabled) skip = OD_PVQ_SKIP_COPY;
+  }
   /* Synthesize like the decoder would. */
-  pvq_synthesis_partial(out, y, r, n, noref, qg, gain_offset,
-   theta, m, s, q, beta);
+  if (skip) {
+    if (skip == OD_PVQ_SKIP_COPY) OD_COPY(out, r0, n);
+    else OD_CLEAR(out, n);
+  }
+  else {
+    pvq_synthesis_partial(out, y, r, n, noref, qg, gain_offset,
+     theta, m, s, q, beta);
+  }
   *vk = k;
   *skip_diff += skip_dist - best_dist;
-  /* Encode gain differently depending on whether we use prediction or not. */
+  /* Encode gain differently depending on whether we use prediction or not.
+     Special encoding on inter frames where qg=0 is allowed for noref=0
+       but not noref=1.*/
   if (is_keyframe) return noref ? qg : neg_interleave(qg, icgr);
-  else {
-    if (qg == 0) {
-      if (icgr == 0) for (i = 0; i < n; i++) out[i] = r0[i];
-      else for (i = 0; i < n; i++) out[i] = 0;
-    }
-    /* Special encoding on inter frames where qg=0 is allowed for noref=0
-       but not noref=1. */
-    return noref ? qg - 1 : neg_interleave(qg + 1, icgr + 1);
-  }
+  else return noref ? qg - 1 : neg_interleave(qg + 1, icgr + 1);
 }
 

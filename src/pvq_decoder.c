@@ -36,9 +36,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "laplace_code.h"
 #include "pvq_code.h"
 
-#define OD_PVQ_SKIP_ZERO 1
-#define OD_PVQ_SKIP_COPY 2
-
 static void od_decode_pvq_codeword(od_ec_dec *ec, od_adapt_ctx *adapt,
  od_coeff *y, int n, int k, int noref) {
   if (k == 1 && n < 16) {
@@ -175,8 +172,10 @@ static void pvq_decode_partition(od_ec_dec *ec,
     /* we have a reference; compute its gain */
     double cgr;
     int icgr;
+    int cfl_enabled;
+    cfl_enabled = pli != 0 && is_keyframe && !OD_DISABLE_CFL;
     cgr = pvq_compute_gain(ref, n, q, &gr, beta);
-    if (pli != 0 && is_keyframe && !OD_DISABLE_CFL) cgr = 1;
+    if (cfl_enabled) cgr = 1;
     icgr = (int)floor(.5+cgr);
     /* quantized gain is interleave encoded when there's a reference;
        deinterleave it now */
@@ -185,6 +184,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
       qg = neg_deinterleave(qg, icgr + 1) - 1;
       if (qg == 0) skip = (icgr ? OD_PVQ_SKIP_ZERO : OD_PVQ_SKIP_COPY);
     }
+    if (qg == icgr && itheta == 0 && !cfl_enabled) skip = OD_PVQ_SKIP_COPY;
     gain_offset = cgr-icgr;
     qcg = qg + gain_offset;
     /* read and decode first-stage PVQ error theta */
@@ -202,6 +202,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
     itheta = 0;
     if (!is_keyframe) qg++;
     qcg = qg;
+    if (qg == 0) skip = OD_PVQ_SKIP_ZERO;
   }
 
   k = pvq_compute_k(qcg, itheta, theta, noref, n, beta, nodesync);
@@ -221,11 +222,12 @@ static void pvq_decode_partition(od_ec_dec *ec,
     }
     cfl->allow_flip = 0;
   }
-  pvq_synthesis(out, y, ref, n, gr, noref, qg, gain_offset, theta, q, beta);
   if (skip) {
-    int i;
-    if (skip == OD_PVQ_SKIP_COPY) for (i = 0; i < n; i++) out[i] = ref[i];
-    else for (i = 0; i < n; i++) out[i] = 0;
+    if (skip == OD_PVQ_SKIP_COPY) OD_COPY(out, ref, n);
+    else OD_CLEAR(out, n);
+  }
+  else {
+    pvq_synthesis(out, y, ref, n, gr, noref, qg, gain_offset, theta, q, beta);
   }
 }
 
