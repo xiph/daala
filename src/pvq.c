@@ -351,36 +351,31 @@ int neg_deinterleave(int x, int ref) {
 /** Gain companding: raises gain to the power 1/beta for activity masking.
  *
  * @param [in]  g     real (uncompanded) gain
+ * @param [in]  q0    uncompanded quality parameter
  * @param [in]  beta  activity masking beta param (exponent)
  * @return            g^(1/beta)
  */
-static double od_gain_compand(double g, double beta) {
-  if (beta == 1) return g;
-  else return pow(g, 1./beta);
+static double od_gain_compand(double g, int q0, double beta) {
+  if (beta == 1) return g/q0;
+  else return OD_COMPAND_SCALE*pow(g*OD_COMPAND_SCALE_1, 1./beta)/q0;
 }
 
 /** Gain expanding: raises gain to the power beta for activity masking.
  *
  * @param [in]  cg    companded gain
+ * @param [in]  q0    uncompanded quality parameter
  * @param [in]  beta  activity masking beta param (exponent)
  * @return            g^beta
  */
-static double od_gain_expand(double cg, double beta) {
-  if (beta == 1) return cg;
-  else if (beta == 1.5) return cg*sqrt(cg);
-  else return pow(cg, beta);
-}
-
-/* Quantization step calibration to account for the activity masking.
- *
- * @param [in]  q     equivalent quality parameter
- * @param [in]  beta  activity masking beta param (exponent)
- * @return            quantization step size with activity masking
- */
-double od_quality_compand(double q, double beta) {
-  if (beta == 1) return q;
-  else if (beta == 1.5 && OD_COEFF_SHIFT == 4) return 0.0625*q;
-  else return q*pow(256 << OD_COEFF_SHIFT, 1./beta - 1);
+double od_gain_expand(double cg, int q0, double beta) {
+  if (beta == 1) return cg*q0;
+  else if (beta == 1.5) {
+    cg *= q0*OD_COMPAND_SCALE_1;
+    return OD_COMPAND_SCALE*cg*sqrt(cg);
+  }
+  else {
+    return OD_COMPAND_SCALE*pow(cg*q0*OD_COMPAND_SCALE_1, beta);
+  }
 }
 
 /** Computes the raw and quantized/companded gain of a given input
@@ -392,14 +387,14 @@ double od_quality_compand(double q, double beta) {
  * @param [out]     g      raw gain
  * @return                 quantized/companded gain
  */
-double pvq_compute_gain(od_coeff *x, int n, double q, double *g, double beta){
+double pvq_compute_gain(od_coeff *x, int n, int q0, double *g, double beta){
   int i;
   double acc=0;
   for (i = 0; i < n; i++) acc += x[i]*(double)x[i];
   *g = sqrt(acc);
   /* Normalize gain by quantization step size and apply companding
      (if ACTIVITY != 1). */
-  return od_gain_compand(*g, beta)/q;
+  return od_gain_compand(*g, q0, beta);
 }
 
 /** Compute theta quantization range from quantized/companded gain
@@ -486,30 +481,24 @@ int pvq_compute_k(double qcg, int itheta, double theta, int noref, int n,
  */
 static void pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,
                                   const double *r, int n,
-                                  int noref, int qg, double go,
-                                  double theta, int m, int s, double q,
-                                  double beta) {
+                                  int noref, double g,
+                                  double theta, int m, int s) {
   int i;
   int yy;
-  double qcg;
   double norm;
-  double g;
   double x[MAXN];
   int nn;
-  OD_ASSERT(qg != 0);
+  OD_ASSERT(g != 0);
   nn = n-(!noref); /* when noref==0, vector in is sized n-1 */
   yy = 0;
   for (i = 0; i < nn; i++)
     yy += ypulse[i]*(ogg_int32_t)ypulse[i];
   norm = sqrt(1./(1e-100 + yy));
-
   if (noref) {
-    qcg = qg;
     for (i = 0; i < n; i++)
       x[i] = ypulse[i]*norm;
   }
   else{
-    qcg = qg+go;
     norm *= sin(theta);
     for (i = 0; i < m; i++)
       x[i] = ypulse[i]*norm;
@@ -518,8 +507,6 @@ static void pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,
       x[i+1] = ypulse[i]*norm;
     apply_householder(x, r, n);
   }
-
-  g = od_gain_expand(q*qcg, beta);
   for (i = 0; i < n; i++) {
     xcoeff[i] = (od_coeff)floor(.5 + x[i]*g);
   }
@@ -545,8 +532,8 @@ static void pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,
  * @param [in]      q       gain quantizer
  */
 void pvq_synthesis(od_coeff *xcoeff, od_coeff *ypulse, od_coeff *ref, int n,
-                   double gr, int noref, int qg, double go,
-                   double theta, double q, double beta) {
+                   double gr, int noref, double g,
+                   double theta) {
   int i;
   int s;
   int m;
@@ -554,8 +541,7 @@ void pvq_synthesis(od_coeff *xcoeff, od_coeff *ypulse, od_coeff *ref, int n,
   s = 0;
   if (!noref) for (i = 0; i < n; i++) r[i] = ref[i];
   m = noref ? 0 : compute_householder(r, n, gr, &s);
-  pvq_synthesis_partial(xcoeff, ypulse, r, n, noref, qg,
-   go, theta, m, s, q, beta);
+  pvq_synthesis_partial(xcoeff, ypulse, r, n, noref, g, theta, m, s);
 }
 
 /* Estimates the number of bits it will cost to encode K pulses in
@@ -615,7 +601,6 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   /* Distortion (D) that corresponds to the best RDO cost. */
   double best_dist;
   double dist;
-  double q;
   /* Sign of Householder reflection. */
   int s;
   /* Dimension on which Householder reflects. */
@@ -631,7 +616,6 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   int cfl_enabled;
   int skip;
   lambda = OD_PVQ_LAMBDA;
-  q = od_quality_compand(q0, beta);
   OD_ASSERT(n > 1);
   corr = 0;
   for (i = 0; i < n; i++) {
@@ -640,8 +624,8 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
     corr += x[i]*r[i];
   }
   cfl_enabled = is_keyframe && pli != 0 && !OD_DISABLE_CFL;
-  cg  = pvq_compute_gain(x0, n, q, &g, beta);
-  cgr = pvq_compute_gain(r0, n, q, &gr, beta);
+  cg  = pvq_compute_gain(x0, n, q0, &g, beta);
+  cgr = pvq_compute_gain(r0, n, q0, &gr, beta);
   if (pli != 0 && is_keyframe && !OD_DISABLE_CFL) cgr = 1;
   /* gain_offset is meant to make sure one of the quantized gains has
      exactly the same gain as the reference. */
@@ -781,14 +765,15 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
     else OD_CLEAR(out, n);
   }
   else {
-    pvq_synthesis_partial(out, y, r, n, noref, qg, gain_offset,
-     theta, m, s, q, beta);
+    if (noref) gain_offset = 0;
+    g = od_gain_expand(qg + gain_offset, q0, beta);
+    pvq_synthesis_partial(out, y, r, n, noref, g, theta, m, s);
   }
   *vk = k;
   *skip_diff += skip_dist - best_dist;
   /* Encode gain differently depending on whether we use prediction or not.
      Special encoding on inter frames where qg=0 is allowed for noref=0
-       but not noref=1.*/
+     but not noref=1.*/
   if (is_keyframe) return noref ? qg : neg_interleave(qg, icgr);
   else return noref ? qg - 1 : neg_interleave(qg + 1, icgr + 1);
 }

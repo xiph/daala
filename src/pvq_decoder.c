@@ -122,11 +122,9 @@ static void pvq_decode_partition(od_ec_dec *ec,
   double gain_offset;
   od_coeff y[1024];
   int qg;
-  double q;
   int nodesync;
   int skip;
   int id;
-  q = od_quality_compand(q0, beta);
   theta = 0;
   gr = 0;
   gain_offset = 0;
@@ -173,7 +171,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
     int icgr;
     int cfl_enabled;
     cfl_enabled = pli != 0 && is_keyframe && !OD_DISABLE_CFL;
-    cgr = pvq_compute_gain(ref, n, q, &gr, beta);
+    cgr = pvq_compute_gain(ref, n, q0, &gr, beta);
     if (cfl_enabled) cgr = 1;
     icgr = (int)floor(.5+cgr);
     /* quantized gain is interleave encoded when there's a reference;
@@ -226,7 +224,9 @@ static void pvq_decode_partition(od_ec_dec *ec,
     else OD_CLEAR(out, n);
   }
   else {
-    pvq_synthesis(out, y, ref, n, gr, noref, qg, gain_offset, theta, q, beta);
+    double g;
+    g = od_gain_expand(qg + gain_offset, q0, beta);
+    pvq_synthesis(out, y, ref, n, gr, noref, g, theta);
   }
 }
 
