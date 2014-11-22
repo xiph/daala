@@ -485,30 +485,28 @@ static void pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,
                                   double theta, int m, int s) {
   int i;
   int yy;
-  double norm;
-  double x[MAXN];
+  double scale;
   int nn;
   OD_ASSERT(g != 0);
   nn = n-(!noref); /* when noref==0, vector in is sized n-1 */
   yy = 0;
   for (i = 0; i < nn; i++)
     yy += ypulse[i]*(ogg_int32_t)ypulse[i];
-  norm = sqrt(1./(1e-100 + yy));
+  if (yy == 0) scale = 0;
+  else scale = g/sqrt(yy);
   if (noref) {
-    for (i = 0; i < n; i++)
-      x[i] = ypulse[i]*norm;
+    for (i = 0; i < n; i++) xcoeff[i] = (od_coeff)floor(.5 + ypulse[i]*scale);
   }
   else{
-    norm *= sin(theta);
+    double x[MAXN];
+    scale *= sin(theta);
     for (i = 0; i < m; i++)
-      x[i] = ypulse[i]*norm;
-    x[m] = -s*cos(theta);
+      x[i] = ypulse[i]*scale;
+    x[m] = -s*g*cos(theta);
     for (i = m; i < nn; i++)
-      x[i+1] = ypulse[i]*norm;
+      x[i+1] = ypulse[i]*scale;
     apply_householder(x, r, n);
-  }
-  for (i = 0; i < n; i++) {
-    xcoeff[i] = (od_coeff)floor(.5 + x[i]*g);
+    for (i = 0; i < n; i++) xcoeff[i] = (od_coeff)floor(.5 + x[i]);
   }
 }
 
