@@ -70,6 +70,51 @@ static void od_decode_pvq_codeword(od_ec_dec *ec, od_adapt_ctx *adapt,
   }
 }
 
+/** Inverse of neg_interleave; decodes the interleaved gain.
+ *
+ * @param [in]      x      quantized/interleaved gain to decode
+ * @param [in]      ref    quantized gain of the reference
+ * @return                 original quantized gain value
+ */
+static int neg_deinterleave(int x, int ref) {
+  if (x < 2*ref-1) {
+    if (x & 1) return ref - 1 - (x >> 1);
+    else return ref + (x >> 1);
+  }
+  else return x+1;
+}
+
+/** Synthesizes one parition of coefficient values from a PVQ-encoded
+ * vector.
+ *
+ * @param [out]     xcoeff  output coefficient partition (x in math doc)
+ * @param [in]      ypulse  PVQ-encoded values (y in math doc); in the noref
+ *                          case, this vector has n entries, in the
+ *                          reference case it contains n-1 entries
+ *                          (the m-th entry is not included)
+ * @param [in]      ref     reference vector (prediction)
+ * @param [in]      n       number of elements in this partition
+ * @param [in]      gr      gain of the reference vector (prediction)
+ * @param [in]      noref   indicates presence or lack of prediction
+ * @param [in]      qg      decoded quantized vector gain
+ * @param [in]      go      gain offset for predicted case
+ * @param [in]      theta   decoded theta (prediction error)
+ * @param [in]      m       alignment dimension of Householder reflection
+ * @param [in]      s       sign of Householder reflection
+ * @param [in]      q       gain quantizer
+ */
+static void pvq_synthesis(od_coeff *xcoeff, od_coeff *ypulse, od_coeff *ref,
+ int n, double gr, int noref, double g, double theta) {
+  int i;
+  int s;
+  int m;
+  double r[MAXN];
+  s = 0;
+  if (!noref) for (i = 0; i < n; i++) r[i] = ref[i];
+  m = noref ? 0 : compute_householder(r, n, gr, &s);
+  pvq_synthesis_partial(xcoeff, ypulse, r, n, noref, g, theta, m, s);
+}
+
 typedef struct {
   od_coeff *ref;
   int nb_coeffs;
