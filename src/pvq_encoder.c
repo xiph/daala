@@ -226,6 +226,21 @@ int vector_is_null(const od_coeff *x, int len) {
   return 1;
 }
 
+static double od_pvq_rate(int qg, int icgr, int theta, int ts, int k, int n,
+ int is_keyframe, int pli) {
+  double rate;
+  rate = pvq_rate_approx(n, k);
+  if (qg > 0 && theta >= 0) {
+    /* Approximate cost of entropy-coding theta */
+    rate += .9*OD_LOG2(ts);
+    /* Adding a cost to using the H/V pred because it's going to be off
+       most of the time. Cost is optimized on subset1. */
+    if (is_keyframe && pli == 0) rate += 2.5;
+    if (qg == icgr) rate -= .5;
+  }
+  return rate;
+}
+
 /** Perform PVQ quantization with prediction, trying several
  * possible gains and angles. See draft-valin-videocodec-pvq and
  * http://jmvalin.ca/slides/pvq.pdf for more details.
@@ -302,7 +317,7 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   qg = 0;
   dist = cg*cg;
   best_dist = dist;
-  best_cost = dist;
+  best_cost = dist + lambda*od_pvq_rate(0, 0, -1, 0, 0, n, is_keyframe, pli);
   noref = 1;
   best_k = 0;
   *itheta = -1;
@@ -321,6 +336,8 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
     if (icgr == 0) {
       best_dist = best_cost = (cg - scgr)*(cg - scgr) + scgr*cg*(2 - 2*corr);
     }
+    best_cost = best_dist + lambda*od_pvq_rate(0, icgr, 0, 0, 0, n,
+     is_keyframe, pli);
     best_qtheta = 0;
     *itheta = 0;
     *max_theta = 0;
@@ -360,13 +377,8 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
          + sin(theta)*sin(qtheta)*(2 - 2*cos_dist);
         dist = (qcg - cg)*(qcg - cg) + qcg*cg*dist_theta;
         /* Do approximate RDO. */
-        cost = dist + lambda*pvq_rate_approx(n, k);
-        /* Approximate cost of entropy-coding theta */
-        cost += lambda*(.9*OD_LOG2(ts));
-        /* Adding a cost to using the H/V pred because it's going to be off
-           most of the time. Cost is optimized on subset1. */
-        if (is_keyframe && pli == 0) cost += lambda*2.5;
-        if (i == icgr) cost -= lambda*.5;
+        cost = dist + lambda*od_pvq_rate(i, icgr, j, ts, k, n, is_keyframe,
+         pli);
         if (cost < best_cost) {
           best_cost = cost;
           best_dist = dist;
@@ -397,7 +409,7 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
       /* See Jmspeex' Journal of Dubious Theoretical Results. */
       dist = (qcg - cg)*(qcg - cg) + qcg*cg*(2 - 2*cos_dist);
       /* Do approximate RDO. */
-      cost = dist + lambda*pvq_rate_approx(n, k);
+      cost = dist + lambda*od_pvq_rate(i, 0, -1, 0, k, n, is_keyframe, pli);
       if (cost <= best_cost) {
         best_cost = cost;
         best_dist = dist;
