@@ -234,8 +234,9 @@ double od_gain_expand(double cg, int q0, double beta) {
  *
  * @param [in]      x      vector of input data
  * @param [in]      n      number of elements in vector x
- * @param [in]      q      quantizer
+ * @param [in]      q0     quantizer
  * @param [out]     g      raw gain
+ * @param [in]      beta   activity masking beta param
  * @return                 quantized/companded gain
  */
 double pvq_compute_gain(od_coeff *x, int n, int q0, double *g, double beta){
@@ -324,11 +325,9 @@ int pvq_compute_k(double qcg, int itheta, double theta, int noref, int n,
  * @param [in]      n       number of elements in this partition
  * @param [in]      noref   indicates presence or lack of prediction
  * @param [in]      qg      decoded quantized vector gain
- * @param [in]      go      gain offset for predicted case
  * @param [in]      theta   decoded theta (prediction error)
  * @param [in]      m       alignment dimension of Householder reflection
  * @param [in]      s       sign of Householder reflection
- * @param [in]      q       gain quantizer
  */
 void pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,
  const double *r, int n, int noref, double g, double theta, int m, int s) {

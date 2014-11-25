@@ -97,11 +97,9 @@ static int neg_deinterleave(int x, int ref) {
  * @param [in]      gr      gain of the reference vector (prediction)
  * @param [in]      noref   indicates presence or lack of prediction
  * @param [in]      qg      decoded quantized vector gain
- * @param [in]      go      gain offset for predicted case
  * @param [in]      theta   decoded theta (prediction error)
  * @param [in]      m       alignment dimension of Householder reflection
  * @param [in]      s       sign of Householder reflection
- * @param [in]      q       gain quantizer
  */
 static void pvq_synthesis(od_coeff *xcoeff, od_coeff *ypulse, od_coeff *ref,
  int n, double gr, int noref, double g, double theta) {
