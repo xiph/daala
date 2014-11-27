@@ -96,7 +96,6 @@ AS_IF([test "$enable_player" = "yes"], [
 AM_CONDITIONAL([ENABLE_PLAYER_EXAMPLE], [test "$enable_player" = "yes"])
 
 PKG_CHECK_MODULES([OGG], [ogg >= 1.3])
-PKG_CHECK_MODULES([PNG], [libpng])
 
 #CC_ATTRIBUTE_VISIBILITY([default], [
 #  CC_FLAG_VISIBILITY([CFLAGS="${CFLAGS} -fvisibility=hidden"])
@@ -110,6 +109,7 @@ AC_ARG_ENABLE([tools],
 if test "$enable_tools" = "yes" ; then
    AC_CHECK_LIB([jpeg],[jpeg_start_compress],[JPEG_LIBS="-ljpeg"],[AC_MSG_ERROR([libjpeg needed for building tools])])
    AC_SUBST([JPEG_LIBS])
+   PKG_CHECK_MODULES([PNG], [libpng])
 
    AC_OPENMP
 fi
@@ -227,6 +227,9 @@ AC_ARG_ENABLE([dump-images],
   [enable_dump_images=no])
 AS_IF([test "$enable_dump_images" = "yes"], [
   AC_DEFINE([OD_DUMP_IMAGES], [1], [Enable image dumping])
+  if test "$enable_tools" != "yes" ; then
+    PKG_CHECK_MODULES([PNG], [libpng])
+  fi
   PC_PNG_REQUIRES="libpng"
   PC_PNG_LIBS="$PNG_LIBS"
 ])
