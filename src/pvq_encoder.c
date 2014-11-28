@@ -569,6 +569,8 @@ void pvq_encode(daala_enc_ctx *enc,
   int flip;
   int cfl_encoded;
   int skip_rest;
+  int skip_dir;
+  int skip_theta_value;
   exg = &enc->state.adapt.pvq_exg[pli][ln][0];
   ext = enc->state.adapt.pvq_ext + ln*PVQ_MAX_PARTITIONS;
   skip_cdf = enc->state.adapt.skip_cdf[pli];
@@ -608,19 +610,35 @@ void pvq_encode(daala_enc_ctx *enc,
   }
   cfl_encoded = 0;
   skip_rest = 1;
+  skip_theta_value = is_keyframe ? -1 : 0;
   for (i = 1; i < nb_bands; i++) {
-    int skip_theta;
-    skip_theta = is_keyframe ? -1 : 0;
-    if (theta[i] != skip_theta || qg[i]) skip_rest = 0;
+    if (theta[i] != skip_theta_value || qg[i]) skip_rest = 0;
+  }
+  skip_dir = 0;
+  if (nb_bands > 1) {
+    for (i = 0; i < 3; i++) {
+      int j;
+      int tmp;
+      tmp = 1;
+      for (j = i + 1; j < nb_bands; j += 3) {
+        if (theta[j] != skip_theta_value || qg[j]) tmp = 0;
+      }
+      skip_dir |= tmp << i;
+    }
   }
   if (!is_keyframe && theta[0] == 0 && qg[0] == 0 && skip_rest) nb_bands = 0;
   for (i = 0; i < nb_bands; i++) {
-    if (i == 0 || !skip_rest) {
+    if (i == 0 || (!skip_rest && !(skip_dir & (1 << ((i - 1)%3))))) {
       pvq_encode_partition(&enc->ec, qg[i], theta[i], max_theta[i], y + off[i],
        size[i], k[i], model, &enc->state.adapt, exg + i, ext + i,
        robust || is_keyframe, (pli != 0)*OD_NBSIZES*PVQ_MAX_PARTITIONS
        + ln*PVQ_MAX_PARTITIONS + i, is_keyframe, i == 0 && (i < nb_bands - 1),
        skip_rest);
+    }
+    if (i == 0 && !skip_rest && ln > 0) {
+      od_encode_cdf_adapt(&enc->ec, skip_dir,
+       &enc->state.adapt.pvq_skip_dir_cdf[(pli != 0) + 2*(ln - 1)][0], 7,
+       enc->state.adapt.pvq_skip_dir_increment);
     }
     /* Encode CFL flip bit just after the first time it's used. */
     if (pli!=0 && is_keyframe && theta[i] != -1 && !cfl_encoded) {

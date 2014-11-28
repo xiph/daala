@@ -137,6 +137,8 @@ typedef struct {
  * @param [in]     is_keyframe whether we're encoding a keyframe
  * @param [in]     pli     plane index
  * @param [in]     cdf_ctx selects which cdf context to use
+ * @param [in,out] skip_rest whether to skip further bands in each direction
+ * @param [in]     band    index of the band being decoded
  */
 static void pvq_decode_partition(od_ec_dec *ec,
                                  int q0,
@@ -155,7 +157,8 @@ static void pvq_decode_partition(od_ec_dec *ec,
                                  int cdf_ctx,
                                  cfl_ctx *cfl,
                                  int has_skip,
-                                 int *skip_rest) {
+                                 int *skip_rest,
+                                 int band) {
   int k;
   double qcg;
   int max_theta;
@@ -175,10 +178,8 @@ static void pvq_decode_partition(od_ec_dec *ec,
   /* We always use the robust bitstream for keyframes to avoid having
      PVQ and entropy decoding depending on each other, hurting parallelism. */
   nodesync = robust || is_keyframe;
-  /* Jointly decode gain, itheta and noref for small values. Then we handle
-     larger gain. We need to wait for itheta because in the !nodesync case
-     it depends on max_theta, which depends on the gain. */
-  if (*skip_rest) {
+  /* Skip is per-direction. For band=0, we can use any of the flags. */
+  if (skip_rest[(band + 2) % 3]) {
     qg = 0;
     if (is_keyframe) {
       itheta = -1;
@@ -190,12 +191,15 @@ static void pvq_decode_partition(od_ec_dec *ec,
     }
   }
   else {
+    /* Jointly decode gain, itheta and noref for small values. Then we handle
+       larger gain. We need to wait for itheta because in the !nodesync case
+       it depends on max_theta, which depends on the gain. */
     id = od_decode_cdf_adapt(ec, &adapt->pvq_gaintheta_cdf[cdf_ctx][0],
      8 + (8 - !is_keyframe)*has_skip, adapt->pvq_gaintheta_increment);
     if (!is_keyframe && id >= 10) id++;
     if (id >= 8) {
       id -= 8;
-      *skip_rest = 1;
+      skip_rest[0] = skip_rest[1] = skip_rest[2] = 1;
     }
     qg = id & 1;
     itheta = (id >> 1) - 1;
@@ -306,7 +310,7 @@ void pvq_decode(daala_dec_ctx *dec,
   int size[PVQ_MAX_PARTITIONS];
   generic_encoder *model;
   int skip;
-  int skip_rest;
+  int skip_rest[3] = {0};
   cfl_ctx cfl;
   exg = &dec->state.adapt.pvq_exg[pli][ln][0];
   ext = dec->state.adapt.pvq_ext + ln*PVQ_MAX_PARTITIONS;
@@ -328,13 +332,21 @@ void pvq_decode(daala_dec_ctx *dec,
     cfl.ref = ref;
     cfl.nb_coeffs = off[nb_bands];
     cfl.allow_flip = pli != 0 && is_keyframe;
-    skip_rest = 0;
     for (i = 0; i < nb_bands; i++) {
       pvq_decode_partition(&dec->ec, OD_MAXI(1, q*qm[i + 1] >> 4), size[i],
        model, &dec->state.adapt, exg + i, ext + i, ref + off[i], out + off[i],
        noref[i], beta[i], robust, is_keyframe, pli,
        (pli != 0)*OD_NBSIZES*PVQ_MAX_PARTITIONS + ln*PVQ_MAX_PARTITIONS + i,
-       &cfl, i == 0 && (i < nb_bands - 1), &skip_rest);
+       &cfl, i == 0 && (i < nb_bands - 1), skip_rest, i);
+      if (i == 0 && !skip_rest[0] && ln > 0) {
+        int skip_dir;
+        int j;
+        skip_dir = od_decode_cdf_adapt(&dec->ec,
+         &dec->state.adapt.pvq_skip_dir_cdf[(pli != 0) + 2*(ln - 1)][0], 7,
+         dec->state.adapt.pvq_skip_dir_increment);
+        for (j = 0; j < 3; j++) skip_rest[j] = !!(skip_dir & (1 << j));
+      }
+
     }
   }
 }

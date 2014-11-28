@@ -394,6 +394,8 @@ void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe) {
    10*state->mv_small_increment);
   state->pvq_gaintheta_increment = 128;
   OD_CDFS_INIT(state->pvq_gaintheta_cdf, state->pvq_gaintheta_increment >> 2);
+  state->pvq_skip_dir_increment = 128;
+  OD_CDFS_INIT(state->pvq_skip_dir_cdf, state->pvq_skip_dir_increment >> 2);
   for (pli = 0; pli < OD_NPLANES_MAX; pli++) {
     generic_model_init(&state->model_dc[pli]);
     generic_model_init(&state->model_g[pli]);
