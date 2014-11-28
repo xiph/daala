@@ -152,6 +152,7 @@ void od_ec_enc_reset(od_ec_enc *enc) {
   enc->error = 0;
 #if OD_MEASURE_EC_OVERHEAD
   enc->entropy = 0;
+  enc->nb_symbols = 0;
 #endif
 }
 
@@ -206,6 +207,7 @@ static void od_ec_encode(od_ec_enc *enc,
   od_ec_enc_normalize(enc, l, r);
 #if OD_MEASURE_EC_OVERHEAD
   enc->entropy -= OD_LOG2((double)(fh - fl)/ft);
+  enc->nb_symbols++;
 #endif
 }
 
@@ -234,6 +236,7 @@ static void od_ec_encode_q15(od_ec_enc *enc, unsigned fl, unsigned fh) {
   od_ec_enc_normalize(enc, l, r);
 #if OD_MEASURE_EC_OVERHEAD
   enc->entropy -= OD_LOG2((double)(fh - fl)/32768.);
+  enc->nb_symbols++;
 #endif
 }
 
@@ -284,6 +287,7 @@ void od_ec_encode_bool(od_ec_enc *enc, int val, unsigned fz, unsigned ft) {
   od_ec_enc_normalize(enc, l, r);
 #if OD_MEASURE_EC_OVERHEAD
   enc->entropy -= OD_LOG2((double)(val ? ft - fz : fz)/ft);
+  enc->nb_symbols++;
 #endif
 }
 
@@ -305,6 +309,7 @@ void od_ec_encode_bool_q15(od_ec_enc *enc, int val, unsigned fz) {
   od_ec_enc_normalize(enc, l, r);
 #if OD_MEASURE_EC_OVERHEAD
   enc->entropy -= OD_LOG2((double)(val ? 32768 - fz : fz)/32768.);
+  enc->nb_symbols++;
 #endif
 }
 
@@ -512,6 +517,8 @@ unsigned char *od_ec_enc_done(od_ec_enc *enc, ogg_uint32_t *nbytes) {
     /* Don't count the 1 bit we lose to raw bits as overhead. */
     tell = od_ec_enc_tell_frac(enc)/8.-1;
     fprintf(stderr, "overhead: %f%%\n", 100*(tell-enc->entropy)/enc->entropy);
+    fprintf(stderr, "efficiency: %f bits/symbol\n",
+     (double)tell/enc->nb_symbols);
   }
 #endif
   /*We output the minimum number of bits that ensures that the symbols encoded

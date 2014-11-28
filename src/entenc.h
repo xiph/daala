@@ -63,6 +63,7 @@ struct od_ec_enc {
   int error;
 #if OD_MEASURE_EC_OVERHEAD
   double entropy;
+  int nb_symbols;
 #endif
 #if defined(OD_EC_ACCOUNTING)
   od_ec_acct acct;
