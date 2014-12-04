@@ -57,10 +57,6 @@ void pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,
 
 double od_gain_expand(double cg, int q0, double beta);
 
-int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
- od_coeff *y, int *itheta, int *max_theta, int *vk,
- double beta, double *skip_acc, int robust, int is_keyframe, int pli);
-
 double pvq_compute_gain(od_coeff *x, int n, int q0, double *g, double beta);
 int pvq_compute_max_theta(double qcg, double beta);
 double pvq_compute_theta(int t, int max_theta);

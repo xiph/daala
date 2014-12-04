@@ -37,6 +37,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "adapt.h"
 #include "filter.h"
 
+#define OD_PVQ_RATE_APPROX (0)
+
 static void od_encode_pvq_codeword(od_ec_enc *ec, od_adapt_ctx *adapt,
  const od_coeff *in, int n, int k, int noref) {
   if (k == 1 && n < 16) {
@@ -211,25 +213,43 @@ static int neg_interleave(int x, int ref) {
   else return x-1;
 }
 
-/* Estimates the number of bits it will cost to encode K pulses in
-   N dimensions. This could be improved by using a table, but in the
-   short-term, the approximation is more general. It is based on experimental
-   data for bitrate vs K. */
-static double pvq_rate_approx(int n, int k)
-{
-  return n*OD_LOG2(1+log(n*2)*k/n);
-}
-
 int vector_is_null(const od_coeff *x, int len) {
   int i;
   for (i = 0; i < len; i++) if (x[i]) return 0;
   return 1;
 }
 
-static double od_pvq_rate(int qg, int icgr, int theta, int ts, int k, int n,
+static double od_pvq_rate(int qg, int icgr, int theta, int ts,
+ const od_adapt_ctx *adapt, const od_coeff *y0, int m, int k, int n,
  int is_keyframe, int pli) {
   double rate;
-  rate = pvq_rate_approx(n, k);
+#if OD_PVQ_RATE_APPROX
+  /* Estimates the number of bits it will cost to encode K pulses in
+     N dimensions based on experimental data for bitrate vs K. */
+  rate = n*OD_LOG2(1+log(n*2)*k/n);
+  (void)adapt;
+  (void)m;
+  (void)y0;
+#else
+  if (k > 0){
+    od_ec_enc ec;
+    od_coeff in[MAXN];
+    od_adapt_ctx ad;
+    int tell;
+    od_ec_enc_init(&ec, 1000);
+    OD_COPY(&ad, adapt, 1);
+    OD_COPY(in, y0, n);
+    if (theta >= 0) {
+      int i;
+      for (i = m; i < n - 1; i++) in[i] = in[i+1];
+    }
+    tell = od_ec_enc_tell_frac(&ec);
+    od_encode_pvq_codeword(&ec, &ad, in, n, k, theta == -1);
+    rate = (od_ec_enc_tell_frac(&ec)-tell)/8.;
+    od_ec_enc_clear(&ec);
+  }
+  else rate = 0;
+#endif
   if (qg > 0 && theta >= 0) {
     /* Approximate cost of entropy-coding theta */
     rate += .9*OD_LOG2(ts);
@@ -260,11 +280,13 @@ static double od_pvq_rate(int qg, int icgr, int theta, int ts, int k, int n,
  * @param [in]     robust    make stream robust to error in the reference
  * @param [in]     is_keyframe whether we're encoding a keyframe
  * @param [in]     pli       plane index
+ * @param [in]     adapt     probability adaptation context
  * @return         gain      index of the quatized gain
 */
-int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
+static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
  od_coeff *y, int *itheta, int *max_theta, int *vk,
- double beta, double *skip_diff, int robust, int is_keyframe, int pli) {
+ double beta, double *skip_diff, int robust, int is_keyframe, int pli,
+ const od_adapt_ctx *adapt) {
   double g;
   double gr;
   double x[MAXN];
@@ -317,7 +339,8 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   qg = 0;
   dist = cg*cg;
   best_dist = dist;
-  best_cost = dist + lambda*od_pvq_rate(0, 0, -1, 0, 0, n, is_keyframe, pli);
+  best_cost = dist + lambda*od_pvq_rate(0, 0, -1, 0, adapt, NULL, 0, 0, n,
+   is_keyframe, pli);
   noref = 1;
   best_k = 0;
   *itheta = -1;
@@ -336,8 +359,8 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
     if (icgr == 0) {
       best_dist = best_cost = (cg - scgr)*(cg - scgr) + scgr*cg*(2 - 2*corr);
     }
-    best_cost = best_dist + lambda*od_pvq_rate(0, icgr, 0, 0, 0, n,
-     is_keyframe, pli);
+    best_cost = best_dist + lambda*od_pvq_rate(0, icgr, 0, 0, adapt, NULL, 0,
+     0, n, is_keyframe, pli);
     best_qtheta = 0;
     *itheta = 0;
     *max_theta = 0;
@@ -377,8 +400,8 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
          + sin(theta)*sin(qtheta)*(2 - 2*cos_dist);
         dist = (qcg - cg)*(qcg - cg) + qcg*cg*dist_theta;
         /* Do approximate RDO. */
-        cost = dist + lambda*od_pvq_rate(i, icgr, j, ts, k, n, is_keyframe,
-         pli);
+        cost = dist + lambda*od_pvq_rate(i, icgr, j, ts, adapt, y_tmp, m, k, n,
+         is_keyframe, pli);
         if (cost < best_cost) {
           best_cost = cost;
           best_dist = dist;
@@ -409,7 +432,8 @@ int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
       /* See Jmspeex' Journal of Dubious Theoretical Results. */
       dist = (qcg - cg)*(qcg - cg) + qcg*cg*(2 - 2*cos_dist);
       /* Do approximate RDO. */
-      cost = dist + lambda*od_pvq_rate(i, 0, -1, 0, k, n, is_keyframe, pli);
+      cost = dist + lambda*od_pvq_rate(i, 0, -1, 0, adapt, y_tmp, 0, k, n,
+       is_keyframe, pli);
       if (cost <= best_cost) {
         best_cost = cost;
         best_dist = dist;
@@ -606,7 +630,7 @@ void pvq_encode(daala_enc_ctx *enc,
   for (i = 0; i < nb_bands; i++) {
     qg[i] = pvq_theta(out + off[i], in + off[i], ref + off[i], size[i],
      OD_MAXI(1, q*qm[i + 1] >> 4), y + off[i], &theta[i], &max_theta[i],
-     &k[i], beta[i], &skip_diff, robust, is_keyframe, pli);
+     &k[i], beta[i], &skip_diff, robust, is_keyframe, pli, &enc->state.adapt);
   }
   if (!is_keyframe) {
     double dc_rate;
