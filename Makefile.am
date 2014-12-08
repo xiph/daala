@@ -36,6 +36,7 @@ noinst_HEADERS = \
 	src/accounting.h \
 	src/x86/cpu.h \
 	src/x86/x86enc.h \
+	src/x86/x86dct.h \
 	src/x86/x86int.h
 
 src_dct_SOURCES = src/dct.c src/tf.c src/internal.c
