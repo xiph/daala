@@ -1069,7 +1069,7 @@ static void od_encode_mvs(daala_enc_ctx *enc) {
           }
         }
         else {
-          OD_ASSERT(!mvp_valid);
+          OD_ASSERT(!mvp->valid);
         }
       }
       else if (grid[vy - 1][vx - 1].valid && grid[vy - 1][vx + 1].valid
