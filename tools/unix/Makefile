@@ -90,6 +90,8 @@ vidinput.c \
 y4m_input.c \
 dct.c \
 dump_psnrhvs.c \
+tf.c \
+internal.c
 
 PSNRHVS_LIB_CSOURCES =
 
@@ -117,7 +119,8 @@ internal.c \
 entcode.c \
 entenc.c \
 filter.c \
-switch_table.c
+switch_table.c \
+tf.c
 
 
 BSIZE_LIB_CSOURCES =
@@ -130,228 +133,24 @@ BSIZE_CSOURCES:=${BSIZE_LOCAL_CSOURCES:%=${LOCALSRCDIR}/%} ${BSIZE_LIB_CSOURCES:
 BSIZE_TARGET:=block_size_analysis
 
 
-#plot_intra_maps
-PIM_LOCAL_CSOURCES = \
-image.c \
-plot_intra_maps.c \
-intra_fit_tools.c \
-vidinput.c \
-y4m_input.c \
-
-PIM_LIB_CSOURCES =
-
-PIM_LDFLAGS = `pkg-config ogg libpng --libs` -lm
-
-PIM_OBJS:=${PIM_LOCAL_CSOURCES} ${PIM_LIB_CSOURCES}
-PIM_OBJS:=${PIM_OBJS:%.c=${WORKDIR}/%.o}
-PIM_CSOURCES:=${PIM_LOCAL_CSOURCES:%=${LOCALSRCDIR}/%} ${PIM_LIB_CSOURCES:%=${LIBSRCDIR}/%}
-PIM_TARGET:=plot_intra_maps
-
-
-#init_intra_maps
-IIM_LOCAL_CSOURCES = \
-init_intra_maps.c \
-intra_fit_tools.c \
-vidinput.c \
-y4m_input.c \
-
-IIM_LIB_CSOURCES =
-
-IIM_LDFLAGS = `pkg-config ogg libpng --libs` -lm
-
-IIM_OBJS:=${IIM_LOCAL_CSOURCES} ${IIM_LIB_CSOURCES}
-IIM_OBJS:=${IIM_OBJS:%.c=${WORKDIR}/%.o}
-IIM_CSOURCES:=${IIM_LOCAL_CSOURCES:%=${LOCALSRCDIR}/%} ${IIM_LIB_CSOURCES:%=${LIBSRCDIR}/%}
-IIM_TARGET:=init_intra_maps
-
-
-#intra_stats
-IS_LOCAL_CSOURCES = \
-intra_stats.c \
-intra_fit_tools.c \
-od_covmat.c \
-od_filter.c \
-od_intra.c \
-od_intra_data.c \
-image_tools.c \
-stats_tools.c \
-vidinput.c \
-y4m_input.c \
-image.c
-
-IS_LIB_CSOURCES = \
-block_size.c \
-block_size_enc.c \
-generic_encoder.c \
-generic_code.c \
-laplace_encoder.c \
-logging.c \
-laplace_tables.c \
-entenc.c \
-entcode.c \
-filter.c \
-dct.c \
-intra.c \
-switch_table.c \
-tf.c \
-internal.c \
-intradata.c
-
-IS_LDFLAGS = `pkg-config ogg libpng --libs` -lm
-
-IS_OBJS:=${IS_LOCAL_CSOURCES} ${IS_LIB_CSOURCES}
-IS_OBJS:=${IS_OBJS:%.c=${WORKDIR}/%.o}
-IS_CSOURCES:=${IS_LOCAL_CSOURCES:%=${LOCALSRCDIR}/%} ${IS_LIB_CSOURCES:%=${LIBSRCDIR}/%}
-IS_TARGET:=intra_stats
-
-
-# cfl_stats
-CS_LOCAL_CSOURCES = \
-cfl_stats.c \
-intra_fit_tools.c \
-od_covmat.c \
-od_filter.c \
-od_intra.c \
-od_intra_data.c \
-image_tools.c \
-stats_tools.c \
-vidinput.c \
-y4m_input.c \
-image.c
-
-CS_LIB_CSOURCES = \
-block_size.c \
-block_size_enc.c \
-generic_encoder.c \
-generic_code.c \
-laplace_encoder.c \
-logging.c \
-laplace_tables.c \
-entenc.c \
-entcode.c \
-filter.c \
-dct.c \
-intra.c \
-switch_table.c \
-tf.c \
-internal.c \
-intradata.c
-
-CS_LDFLAGS = `pkg-config ogg libpng --libs` -lm
-
-CS_OBJS:=${CS_LOCAL_CSOURCES} ${CS_LIB_CSOURCES}
-CS_OBJS:=${CS_OBJS:%.c=${WORKDIR}/%.o}
-CC_CSOURCES:=${CS_LOCAL_CSOURCES:%=${LOCALSRCDIR}/%} ${CS_LIB_CSOURCES:%=${LIBSRCDIR}/%}
-CS_TARGET:=cfl_stats
-
-
-#intra_pred
-IP_LOCAL_CSOURCES = \
-intra_pred.c \
-intra_fit_tools.c \
-od_covmat.c \
-od_filter.c \
-od_intra.c \
-od_intra_data.c \
-image_tools.c \
-stats_tools.c \
-vidinput.c \
-y4m_input.c \
-image.c \
-svd.c \
-cholesky.c
-
-IP_LIB_CSOURCES = \
-block_size.c \
-block_size_enc.c \
-generic_encoder.c \
-generic_code.c \
-laplace_encoder.c \
-logging.c \
-laplace_tables.c \
-entenc.c \
-entcode.c \
-filter.c \
-dct.c \
-intra.c \
-intradata.c \
-internal.c \
-switch_table.c \
-tf.c
-
-IP_LDFLAGS = `pkg-config ogg libpng --libs` -lm
-
-IP_OBJS:=${IP_LOCAL_CSOURCES} ${IP_LIB_CSOURCES}
-IP_OBJS:=${IP_OBJS:%.c=${WORKDIR}/%.o}
-IP_CSOURCES:=${IP_LOCAL_CSOURCES:%=${LOCALSRCDIR}/%} ${IP_LIB_CSOURCES:%=${LIBSRCDIR}/%}
-IP_TARGET:=intra_pred
-
-
-#intra_trace
-IT_LOCAL_CSOURCES = \
-intra_trace.c \
-intra_fit_tools.c \
-od_covmat.c \
-od_filter.c \
-od_intra.c \
-od_intra_data.c \
-image_tools.c \
-stats_tools.c \
-trans_tools.c \
-vidinput.c \
-y4m_input.c \
-image.c
-
-IT_LIB_CSOURCES = \
-block_size.c \
-block_size_enc.c \
-generic_encoder.c \
-generic_code.c \
-laplace_encoder.c \
-logging.c \
-laplace_tables.c \
-entenc.c \
-entcode.c \
-filter.c \
-dct.c \
-intra.c \
-switch_table.c \
-tf.c \
-internal.c \
-intradata.c
-
-IT_LDFLAGS = `pkg-config ogg libpng --libs` -lm
-
-IT_OBJS:=${IT_LOCAL_CSOURCES} ${IT_LIB_CSOURCES}
-IT_OBJS:=${IT_OBJS:%.c=${WORKDIR}/%.o}
-IT_CSOURCES:=${IT_LOCAL_CSOURCES:%=${LOCALSRCDIR}/%} ${IT_LIB_CSOURCES:%=${LIBSRCDIR}/%}
-IT_TARGET:=intra_trace
-
-
 #trans
 T_LOCAL_CSOURCES = \
 trans.c \
 internal.c \
-intra_fit_tools.c \
 vidinput.c \
 y4m_input.c \
-od_covmat.c \
 od_filter.c \
-od_intra.c \
-od_intra_data.c \
-stats_tools.c \
 trans_tools.c \
 int_search.c \
 trans_data.c \
 kiss99.c \
-image.c \
 svd.c \
-cholesky.c
+cholesky.c \
+tf.c
 
 T_LIB_CSOURCES = \
 filter.c \
-dct.c \
-intradata.c
+dct.c
 
 T_LDFLAGS = `pkg-config ogg libpng --libs` -lm
 
@@ -367,12 +166,12 @@ internal.c \
 vidinput.c \
 y4m_input.c \
 od_filter.c \
-trans_tools.c 
+trans_tools.c \
+tf.c
 
 TG_LIB_CSOURCES = \
 filter.c \
-dct.c \
-intradata.c
+dct.c
 
 TG_LDFLAGS = `pkg-config ogg libpng --libs` -lm
 
@@ -386,26 +185,20 @@ TG_TARGET:=trans_gain
 T2D_LOCAL_CSOURCES = \
 trans2d.c \
 internal.c \
-intra_fit_tools.c \
 vidinput.c \
 y4m_input.c \
-od_covmat.c \
 od_filter.c \
-od_intra.c \
-od_intra_data.c \
-stats_tools.c \
 trans_tools.c \
 int_search.c \
 trans_data.c \
 kiss99.c \
-image.c \
 svd.c \
-cholesky.c
+cholesky.c \
+tf.c
 
 T2D_LIB_CSOURCES = \
 filter.c \
-dct.c \
-intradata.c
+dct.c
 
 T2D_LDFLAGS = `pkg-config ogg libpng --libs` -lm
 
@@ -414,30 +207,6 @@ T2D_OBJS:=${T2D_OBJS:%.c=${WORKDIR}/%.o}
 T2D_CSOURCES:=${T2D_LOCAL_CSOURCES:%=${LOCALSRCDIR}/%} ${T2D_LIB_CSOURCES:%=${LIBSRCDIR}/%}
 T2D_TARGET:=trans2d
 
-
-#init_intra_xform
-IIX_LOCAL_CSOURCES = \
-cholesky.c \
-init_intra_xform.c \
-intra_fit_tools.c \
-svd.c \
-vidinput.c \
-y4m_input.c \
-
-IIX_LIB_CSOURCES = \
-filter.c \
-dct.c \
-intra.c \
-tf.c \
-internal.c \
-intradata.c
-
-IIX_LDFLAGS = `pkg-config ogg libpng --libs` -lm
-
-IIX_OBJS:=${IIX_LOCAL_CSOURCES} ${IIX_LIB_CSOURCES}
-IIX_OBJS:=${IIX_OBJS:%.c=${WORKDIR}/%.o}
-IIX_CSOURCES:=${IIX_LOCAL_CSOURCES:%=${LOCALSRCDIR}/%} ${IIX_LIB_CSOURCES:%=${LIBSRCDIR}/%}
-IIX_TARGET:=init_intra_xform
 
 
 #gen_cdf
@@ -516,8 +285,8 @@ JY_CSOURCES:=${JY_LOCAL_CSOURCES:%=${LOCALSRCDIR}/%} \
  ${JY_LIB_CSOURCES:%=${LIBSRCDIR}/%}
 JY_TARGET:=jpegyuv
 
-ALL_OBJS:=${P2Y_OBJS} ${Y2P_OBJS} ${PSNR_OBJS} ${PSNRHVS_OBJS} ${PIM_OBJS} ${IIM_OBJS} ${IIX_OBJS} \
- ${GEN_CDF_OBJS} ${GEN_LAPLACE_TABLES_OBJS} ${IS_OBJS} ${IP_OBJS} ${IT_OBJS} ${T_OBJS} \
+ALL_OBJS:=${P2Y_OBJS} ${Y2P_OBJS} ${PSNR_OBJS} ${PSNRHVS_OBJS} \
+ ${GEN_CDF_OBJS} ${GEN_LAPLACE_TABLES_OBJS} ${T_OBJS} \
  ${TG_OBJS} ${T2D_OBJS} ${BSIZE_OBJS} ${BD_OBJS} ${YJ_OBJS} ${JY_OBJS}
 
 ALL_ASMS:=${ALL_OBJS:%.o=%.s}
@@ -525,8 +294,8 @@ ALL_ASMS:=${ALL_OBJS:%.o=%.s}
 ALL_DEPS:=${ALL_OBJS:%.o=%.d}
 
 ALL_TARGETS:=${P2Y_TARGET} ${Y2P_TARGET} ${PSNR_TARGET} ${PSNRHVS_TARGET} \
- ${PIM_TARGET} ${IIM_TARGET} ${IIX_TARGET} ${GEN_CDF_TARGET} \
- ${GEN_LAPLACE_TABLES_TARGET} ${IS_TARGET} ${IP_TARGET} ${IT_TARGET} \
+ ${GEN_CDF_TARGET} \
+ ${GEN_LAPLACE_TABLES_TARGET} \
  ${T_TARGET} ${TG_TARGET} ${T2D_TARGET} ${BSIZE_TARGET} ${BD_TARGET} \
  ${YJ_TARGET} ${JY_TARGET}
 
@@ -556,21 +325,6 @@ ${PSNR_TARGET}: ${PSNR_OBJS}
 ${PSNRHVS_TARGET}: ${PSNRHVS_OBJS}
 	${CC} ${CFLAGS} ${PSNRHVS_OBJS} ${PSNRHVS_LDFLAGS} -o $@
 
-${PIM_TARGET}: ${PIM_OBJS}
-	${CC} ${CFLAGS} ${PIM_OBJS} ${PIM_LDFLAGS} -o $@
-
-${IIM_TARGET}: ${IIM_OBJS}
-	${CC} ${CFLAGS} ${IIM_OBJS} ${IIM_LDFLAGS} -o $@
-
-${IS_TARGET}: ${IS_OBJS}
-	${CC} ${CFLAGS} ${IS_OBJS} ${IS_LDFLAGS} -o $@
-
-${IP_TARGET}: ${IP_OBJS}
-	${CC} ${CFLAGS} ${IP_OBJS} ${IP_LDFLAGS} -o $@
-
-${IT_TARGET}: ${IT_OBJS}
-	${CC} ${CFLAGS} ${IT_OBJS} ${IT_LDFLAGS} -o $@
-
 ${T_TARGET}: ${T_OBJS}
 	${CC} ${CFLAGS} ${T_OBJS} ${T_LDFLAGS} -o $@
 
@@ -579,12 +333,6 @@ ${TG_TARGET}: ${TG_OBJS}
 
 ${T2D_TARGET}: ${T2D_OBJS}
 	${CC} ${CFLAGS} ${T2D_OBJS} ${T2D_LDFLAGS} -o $@
-
-${CS_TARGET}: ${CS_OBJS}
-	${CC} ${CFLAGS} ${CS_OBJS} ${CS_LDFLAGS} -o $@
-
-${IIX_TARGET}: ${IIX_OBJS}
-	${CC} ${CFLAGS} ${IIX_OBJS} ${IIX_LDFLAGS} -o $@
 
 ${GEN_CDF_TARGET}: ${GEN_CDF_OBJS}
 	${CC} ${CFLAGS} ${GEN_CDF_OBJS} ${GEN_CDF_LDFLAGS} -o $@

@@ -26,72 +26,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # include "config.h"
 #endif
 
+#include "block_size.h"
 #include "dct.h"
-
-/*Adjustments for the quantization step in Q15, a factor of 2^(1/4) per
- octave due to the 3/4 power in the quantizer.*/
-const int OD_TRANS_QUANT_ADJ[3] = {
-  32768, 27554, 23170
-};
-
-const unsigned char OD_ZIG4[16] = {
-   0,  1,  5,  6,
-   2,  4,  7, 12,
-   3,  8, 11, 13,
-   9, 10, 14, 15
-};
-
-const unsigned char OD_ZIG8[64] = {
-   0,  1,  5,  6, 14, 15, 27, 28,
-   2,  4,  7, 13, 16, 26, 29, 42,
-   3,  8, 12, 17, 25, 30, 41, 43,
-   9, 11, 18, 24, 31, 40, 44, 53,
-  10, 19, 23, 32, 39, 45, 52, 54,
-  20, 22, 33, 38, 46, 51, 55, 60,
-  21, 34, 37, 47, 50, 56, 59, 61,
-  35, 36, 48, 49, 57, 58, 62, 63
-};
-
-const unsigned char OD_ZIG16[256] = {
-   0,   1,   5,   6,  14,  15,  27,  28,
-  44,  45,  65,  66,  90,  91, 119, 120,
-   2,   4,   7,  13,  16,  26,  29,  43,
-  46,  64,  67,  89,  92, 118, 121, 150,
-   3,   8,  12,  17,  25,  30,  42,  47,
-  63,  68,  88,  93, 117, 122, 149, 151,
-   9,  11,  18,  24,  31,  41,  48,  62,
-  69,  87,  94, 116, 123, 148, 152, 177,
-  10,  19,  23,  32,  40,  49,  61,  70,
-  86,  95, 115, 124, 147, 153, 176, 178,
-  20,  22,  33,  39,  50,  60,  71,  85,
-  96, 114, 125, 146, 154, 175, 179, 200,
-  21,  34,  38,  51,  59,  72,  84,  97,
- 113, 126, 145, 155, 174, 180, 199, 201,
-  35,  37,  52,  58,  73,  83,  98, 112,
- 127, 144, 156, 173, 181, 198, 202, 219,
-  36,  53,  57,  74,  82,  99, 111, 128,
- 143, 157, 172, 182, 197, 203, 218, 220,
-  54,  56,  75,  81, 100, 110, 129, 142,
- 158, 171, 183, 196, 204, 217, 221, 234,
-  55,  76,  80, 101, 109, 130, 141, 159,
- 170, 184, 195, 205, 216, 222, 233, 235,
-  77,  79, 102, 108, 131, 140, 160, 169,
- 185, 194, 206, 215, 223, 232, 236, 245,
-  78, 103, 107, 132, 139, 161, 168, 186,
- 193, 207, 214, 224, 231, 237, 244, 246,
- 104, 106, 133, 138, 162, 167, 187, 192,
- 208, 213, 225, 230, 238, 243, 247, 252,
- 105, 134, 137, 163, 166, 188, 191, 209,
- 212, 226, 229, 239, 242, 248, 251, 253,
- 135, 136, 164, 165, 189, 190, 210, 211,
- 227, 228, 240, 241, 249, 250, 254, 255
-};
-
-const unsigned char *OD_DCT_ZIGS[OD_NBSIZES + 1] = {
-  OD_ZIG4,
-  OD_ZIG8,
-  OD_ZIG16
-};
+#include "tf.h"
 
 /*Making function pointer tables at least one entry
    longer than needed makes it highly likely that an
@@ -99,16 +36,21 @@ const unsigned char *OD_DCT_ZIGS[OD_NBSIZES + 1] = {
    another otherwise compatible function pointer.
   This can help avoid difficult to diagnose misbehavior.*/
 
-const od_dct_func_2d OD_FDCT_2D[OD_NBSIZES + 1] = {
+/*Function tables suffixed with _C are for generic implementations.
+  Code should use the tables in od_state.opt_vtbl to get optimized
+   implementations when they are available.*/
+const od_dct_func_2d OD_FDCT_2D_C[OD_NBSIZES + 1] = {
   od_bin_fdct4x4,
   od_bin_fdct8x8,
-  od_bin_fdct16x16
+  od_bin_fdct16x16,
+  od_bin_fxform32x32
 };
 
-const od_dct_func_2d OD_IDCT_2D[OD_NBSIZES + 1] = {
+const od_dct_func_2d OD_IDCT_2D_C[OD_NBSIZES + 1] = {
   od_bin_idct4x4,
   od_bin_idct8x8,
-  od_bin_idct16x16
+  od_bin_idct16x16,
+  od_bin_ixform32x32
 };
 
 const od_fdct_func_1d OD_FDCT_1D[OD_NBSIZES + 1] = {
@@ -839,12 +781,77 @@ void od_bin_idct16x16(od_coeff *x, int xstride,
   for (i = 0; i < 16; i++) od_bin_idct16(x + i, xstride, z + 16*i);
 }
 
+void od_bin_fxform32x32(od_coeff *y, int ystride,
+ const od_coeff *x, int xstride) {
+  od_coeff t[32*32];
+  od_coeff z[16*16];
+  int i;
+  int j;
+  int rc;
+  for (j = 0; j < 2; j++) for (i = 0; i < 2; i++) {
+    for (rc = 0; rc < 16; rc++)
+     od_bin_fdct16(z + 16*rc, x + 16*j*xstride + 16*i + rc, xstride);
+    for (rc = 0; rc < 16; rc++)
+     od_bin_fdct16(t + 16*j*32 + 16*i + 32*rc, z + rc, 16);
+  }
+  od_tf_up_hv(y, ystride, t, 32, 16);
+}
+
+void od_bin_ixform32x32(od_coeff *x, int xstride,
+ const od_coeff *y, int ystride) {
+  od_coeff t[32*32];
+  od_coeff z[16*16];
+  int i;
+  int j;
+  int rc;
+  od_tf_down_hv(t, 32, y, ystride, 32);
+  for (j = 0; j < 2; j++) for (i = 0; i < 2; i++) {
+    for (rc = 0; rc < 16; rc++)
+     od_bin_idct16(z + rc, 16, t + 16*j*32 + 16*i + 32*rc);
+    for (rc = 0; rc < 16; rc++)
+     od_bin_idct16(x + 16*j*xstride + 16*i + rc, xstride, z + 16*rc);
+  }
+}
+
+#if defined(OD_CHECKASM)
+# include <stdio.h>
+
+void od_dct_check(int ln, const od_coeff *ref, const od_coeff *x,
+ int xstride) {
+  int failed;
+  int i;
+  int j;
+  int ref_stride;
+  ref_stride = 4 << ln;
+  failed = 0;
+  for (j = 0; j < 4; j++) {
+    for (i = 0; i < 4; i++) {
+      if (ref[i + j*ref_stride] != x[i + j*xstride]) {
+        fprintf(stderr, "ASM mismatch: 0x%02X!=0x%02X @ (%2i,%2i)\n",
+         ref[i + j*ref_stride], x[i + j*xstride], i, j);
+        failed = 1;
+      }
+    }
+  }
+  if (failed) {
+    fprintf(stderr, "od_bin %ix%i check failed.\n",
+     ref_stride, ref_stride);
+  }
+  OD_ASSERT(!failed);
+}
+#endif
+
 #if OD_DCT_TEST
 /*Test code.*/
 # include <stdio.h>
 # include <stdlib.h>
 # include <math.h>
 # include <string.h>
+
+#if defined(OD_X86ASM)
+# include "x86/cpu.h"
+# include "x86/x86int.h"
+#endif
 
 /*The auto-correlation coefficent. 0.95 is a common value.*/
 # define INPUT_AUTOCORR (0.95)
@@ -916,9 +923,9 @@ static int ieee1180_rand(int l, int h) {
   return (int)x - l;
 }
 
-int od_exit_code = EXIT_SUCCESS;
+static int od_exit_code = EXIT_SUCCESS;
 
-static char *ieee1180_meets(double val, double limit) {
+static const char *ieee1180_meets(double val, double limit) {
   int meets;
   meets = fabs(val) <= limit;
   if (!meets) od_exit_code = EXIT_FAILURE;
@@ -1262,6 +1269,9 @@ static void ieee1180_print_results(long sumerrs[OD_BSIZE_MAX][OD_BSIZE_MAX],
    ieee1180_meets(total, 0.0015));
 }
 
+static const od_dct_func_2d *test_fdct_2d;
+static const od_dct_func_2d *test_idct_2d;
+
 static void ieee1180_test_block(long sumerrs[OD_BSIZE_MAX][OD_BSIZE_MAX],
  long sumsqerrs[OD_BSIZE_MAX][OD_BSIZE_MAX],
  int maxerr[OD_BSIZE_MAX][OD_BSIZE_MAX], int l, int h, int sign, int bszi) {
@@ -1281,7 +1291,7 @@ static void ieee1180_test_block(long sumerrs[OD_BSIZE_MAX][OD_BSIZE_MAX],
     }
   }
   /*Modification of IEEE1180: use our integerized DCT, not a true DCT.*/
-  (*OD_FDCT_2D[bszi])(refcoefs[0], OD_BSIZE_MAX, block[0], OD_BSIZE_MAX);
+  (*test_fdct_2d[bszi])(refcoefs[0], OD_BSIZE_MAX, block[0], OD_BSIZE_MAX);
   /*Modification of IEEE1180: no rounding or range clipping (coefficients
      are always in range with our integerized DCT).*/
   for (i = 0; i < n; i++) {
@@ -1302,7 +1312,7 @@ static void ieee1180_test_block(long sumerrs[OD_BSIZE_MAX][OD_BSIZE_MAX],
       refout[i][j] = OD_CLAMPI(-256, refout[i][j], 255);
     }
   }
-  (*OD_IDCT_2D[bszi])(testout[0], OD_BSIZE_MAX, refcoefs[0], OD_BSIZE_MAX);
+  (*test_idct_2d[bszi])(testout[0], OD_BSIZE_MAX, refcoefs[0], OD_BSIZE_MAX);
   for (i = 0; i < n; i++) {
     for (j = 0; j < n; j++) {
       if (testout[i][j] != block[i][j]) {
@@ -1747,9 +1757,68 @@ static void check_transform(int bszi) {
   check_bias(bszi);
 }
 
-int main(void) {
+void run_test(void) {
   int bszi;
-  for (bszi = 0; bszi < OD_NBSIZES; bszi++) check_transform(bszi);
+  for (bszi = 0; bszi < OD_BLOCK_32X32; bszi++) check_transform(bszi);
+}
+
+int main(void) {
+  test_fdct_2d = OD_FDCT_2D_C;
+  test_idct_2d = OD_IDCT_2D_C;
+  run_test();
+#if defined(OD_X86ASM)
+# if defined(OD_SSE2_INTRINSICS)
+  if (od_cpu_flags_get() & OD_CPU_X86_SSE2) {
+    static const od_dct_func_2d OD_FDCT_2D_SSE2[OD_NBSIZES + 1] = {
+      od_bin_fdct4x4_sse2,
+      od_bin_fdct8x8,
+      od_bin_fdct16x16
+    };
+    static const od_dct_func_2d OD_IDCT_2D_SSE2[OD_NBSIZES + 1] = {
+      od_bin_idct4x4_sse2,
+      od_bin_idct8x8,
+      od_bin_idct16x16
+    };
+    test_fdct_2d = OD_FDCT_2D_SSE2;
+    test_idct_2d = OD_IDCT_2D_SSE2;
+    run_test();
+  }
+# endif
+# if defined(OD_SSE41_INTRINSICS)
+  if (od_cpu_flags_get() & OD_CPU_X86_SSE4_1) {
+    static const od_dct_func_2d OD_FDCT_2D_SSE41[OD_NBSIZES + 1] = {
+      od_bin_fdct4x4_sse41,
+      od_bin_fdct8x8,
+      od_bin_fdct16x16
+    };
+    static const od_dct_func_2d OD_IDCT_2D_SSE41[OD_NBSIZES + 1] = {
+      od_bin_idct4x4_sse41,
+      od_bin_idct8x8,
+      od_bin_idct16x16
+    };
+    test_fdct_2d = OD_FDCT_2D_SSE41;
+    test_idct_2d = OD_IDCT_2D_SSE41;
+    run_test();
+  }
+# endif
+# if defined(OD_AVX2_INTRINSICS)
+  if (od_cpu_flags_get() & OD_CPU_X86_AVX2) {
+    static const od_dct_func_2d OD_FDCT_2D_AVX2[OD_NBSIZES + 1] = {
+      od_bin_fdct4x4_sse41,
+      od_bin_fdct8x8_avx2,
+      od_bin_fdct16x16
+    };
+    static const od_dct_func_2d OD_IDCT_2D_AVX2[OD_NBSIZES + 1] = {
+      od_bin_idct4x4_sse41,
+      od_bin_idct8x8_avx2,
+      od_bin_idct16x16
+    };
+    test_fdct_2d = OD_FDCT_2D_AVX2;
+    test_idct_2d = OD_IDCT_2D_AVX2;
+    run_test();
+  }
+# endif
+#endif
   return od_exit_code;
 }
 

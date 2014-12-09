@@ -61,19 +61,24 @@ int od_mc_compute_sad_4x4_xstride_1_sse(const unsigned char *src,
     "punpckldq %%mm3, %%mm1\n"
     "psadbw %%mm1, %%mm0\n"
     "lea (%[src], %[systride], 2), %[srow]\n"
+    "lea (%[ref], %[dystride], 2), %[drow]\n"
+    : [srow]"=&r"(srow), [drow]"=r"(drow)
+    : [src]"r"(src), [systride]"r"((ptrdiff_t)systride), [ref]"r"(ref),
+     [dystride]"r"((ptrdiff_t)dystride)
+  );
+  __asm__ __volatile__(
     "movd (%[srow]), %%mm4\n"
     "movd (%[srow], %[systride]), %%mm5\n"
     "punpckldq %%mm5, %%mm4\n"
-    "lea (%[ref], %[dystride], 2), %[drow]\n"
     "movd (%[drow]), %%mm6\n"
     "movd (%[drow], %[dystride]), %%mm7\n"
     "punpckldq %%mm7, %%mm6\n"
     "psadbw %%mm6, %%mm4\n"
     "paddd %%mm4, %%mm0\n"
     "movd %%mm0, %[ret]\n"
-    : [srow]"=&r"(srow), [drow]"=&r"(drow), [ret]"=&r"(ret)
-    : [src]"r"(src), [systride]"r"((ptrdiff_t)systride), [ref]"r"(ref),
-     [dystride]"r"((ptrdiff_t)dystride)
+    : [ret]"=r"(ret)
+    : [systride]"r"((ptrdiff_t)systride),
+     [dystride]"r"((ptrdiff_t)dystride), [srow]"r"(srow), [drow]"r"(drow)
   );
 # if defined(OD_CHECKASM)
   od_mc_compute_sad_check(src, systride, ref, dystride, 1, 4, 4, ret);

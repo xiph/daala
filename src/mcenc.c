@@ -45,169 +45,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # define ANI_FRAME (69)
 #endif
 
-/*Flag indicating we include the chroma planes in our SAD calculations.*/
-#define OD_MC_USE_CHROMA (1 << 0)
-
-typedef struct od_mv_node od_mv_node;
-typedef struct od_mv_dp_state od_mv_dp_state;
-typedef struct od_mv_dp_node od_mv_dp_node;
 typedef struct od_mv_err_node od_mv_err_node;
 
 #include "logging.h"
-#include "mc.h"
-#include "encint.h"
+#include "mcenc.h"
 
 typedef int od_offset[2];
 typedef int od_pattern[8];
-typedef ogg_uint16_t od_sad4[4];
-
-/*The state information used by the motion estimation process that is not
-   required by the decoder.
-  Some of this information corresponds to a vertex in the MV mesh.
-  Other pieces correspond to a block whose upper-left corner is located at that
-   vertex.*/
-struct od_mv_node {
-  /*The historical motion vectors for EPZS^2, stored at full-pel resolution.
-    Indexed by [time][reference_type][component].*/
-  int mvs[3][2][2];
-  /*The current estimated rate of this MV.*/
-  unsigned mv_rate:16;
-  /*The current estimated rate of the edge labels.*/
-  unsigned lb_rate:4;
-  /*The number of blocks influenced by this MV who failed their SAD checks.*/
-  unsigned needs_check:4;
-  /*The current size of the block with this MV at its upper-left.*/
-  unsigned log_mvb_sz:2;
-  /*The index of the exterior corner of that block.*/
-  unsigned oc:2;
-  /*The edge splitting index of that block.*/
-  unsigned s:2;
-  /*The current distortion of that block.*/
-  ogg_int32_t sad;
-  /*The SAD for BMA predictor centered on this node.
-    Used for the dynamic thresholds of the initial EPZS^2 pass.*/
-  ogg_int32_t bma_sad;
-  /*The location of this node in the grid.*/
-  int vx;
-  int vy;
-  /*The change in global distortion for decimating this node.*/
-  ogg_int32_t dd;
-  /*The change in global rate for decimating this node.*/
-  int dr;
-  /*The position of this node in the heap.*/
-  int heapi;
-};
-
-/*The square pattern, the largest we use, has 9 states.*/
-#define OD_DP_NSTATES_MAX (9)
-/*Up to 8 blocks can be influenced by this MV and the previous MV.*/
-#define OD_DP_NBLOCKS_MAX (8)
-/*Up to 20 MVs can be predicted by this one, but 3 of those are MVs on the
-   DP trellis whose value we have yet to determine.*/
-#define OD_DP_NPREDICTED_MAX (17)
-/*At most 6 of them can be changed by a subsequent MV on the DP path.*/
-#define OD_DP_NCHANGEABLE_MAX (6)
-
-/*One of the trellis states in the dynamic prgram.*/
-struct od_mv_dp_state {
-  /*The MV to install for this state.*/
-  int mv[2];
-  /*The best state in the previous DP node to use with this one, or -1 to
-     indicate the start of the path.*/
-  int prevsi;
-  /*The total rate change (thus far) produced by choosing this path.*/
-  int dr;
-  /*The total distortion change (thus far) produced by choosing this path.*/
-  ogg_int32_t dd;
-  /*The new SAD of each block affected by the the DP between this node and the
-     previous node.
-    These are installed if the path is selected.*/
-  ogg_int32_t block_sads[OD_DP_NBLOCKS_MAX];
-  /*The new rate of each MV predicted by this node.
-    These are installed if the path is selected.
-    These may supersede the rates reported in previous nodes on the path.*/
-  int pred_mv_rates[OD_DP_NPREDICTED_MAX];
-  /*The new rate of this MV.*/
-  int mv_rate;
-};
-
-/*A node on the dynamic programming path.*/
-struct od_mv_dp_node {
-  od_mv_grid_pt *mvg;
-  od_mv_node *mv;
-  /*The number of states considered in this node.*/
-  int nstates;
-  /*The number of blocks affected by states in this node.*/
-  int nblocks;
-  /*The number of MVs predicted by this node.*/
-  int npredicted;
-  /*The number of those MVs that are potentially changeable by future DP
-     states.*/
-  int npred_changeable;
-  /*The original MV used by this node.*/
-  int original_mv[2];
-  /*The original rate of this MV.*/
-  int original_mv_rate;
-  /*The original MV rates before predictors were changed by this node.
-    This only includes the ones that are actually changeable.*/
-  int original_mv_rates[OD_DP_NCHANGEABLE_MAX];
-  /*The last node we save/restore in order to perform prediction.*/
-  od_mv_dp_node *min_predictor_node;
-  /*The set of trellis states.*/
-  od_mv_dp_state states[OD_DP_NSTATES_MAX];
-  /*The blocks influenced by this MV and the previous MV.*/
-  od_mv_node *blocks[OD_DP_NBLOCKS_MAX];
-  /*The vertices whose MV we predict.*/
-  od_mv_grid_pt *predicted_mvgs[OD_DP_NPREDICTED_MAX];
-  od_mv_node *predicted_mvs[OD_DP_NPREDICTED_MAX];
-};
-
-struct od_mv_est_ctx {
-  od_enc_ctx *enc;
-  /*A cache of the SAD values used during decimation.
-    Indexed by [log_mvb_sz][vy >> log_mvb_sz][vx >> log_mvb_sz][s], where s is
-     the edge split state.
-    The SAD of top-level blocks (log_mvb_sz == 2) is not stored in this cache,
-     since it is only needed once.*/
-  od_sad4 **sad_cache[2];
-  /*The state of the MV mesh specific to the encoder.*/
-  od_mv_node **mvs;
-  /*A temporary copy of the decoder-side MV grid used to save-and-restore the
-     MVs when attempting sub-pel refinement.*/
-  od_mv_grid_pt **refine_grid;
-  /*Space for storing the Viterbi trellis used for DP refinment.*/
-  od_mv_dp_node *dp_nodes;
-  /*The decimation heap.*/
-  od_mv_node **dec_heap;
-  /*The number of vertices in the decimation heap.*/
-  int dec_nheap;
-  /*The number of undecimated vertices in each row.*/
-  unsigned *row_counts;
-  /*The number of undecimated vertices in each column.*/
-  unsigned *col_counts;
-  /*The maximum SAD value for accepting set A predictors for each block size.*/
-  int thresh1[3];
-  /*The offsets to inflate the second threshold by for each block size.*/
-  int thresh2_offs[3];
-  /*The weights used to produce the accelerated MV predictor.*/
-  ogg_int32_t mvapw[2][2];
-  /*Flags indicating which MVs have already been tested during the initial
-     EPZS^2 pass.*/
-  unsigned char hit_cache[64][64];
-  /*The flag used by the current EPZS search iteration.*/
-  unsigned hit_bit;
-  /*The Lagrangian multiplier used for R-D optimization.*/
-  int lambda;
-  /*Configuration.*/
-  /*The flags indicating which feature to use.*/
-  int flags;
-  /*The smallest resolution to refine MVs to.*/
-  int mv_res_min;
-  /*The deepest level to refine to (inclusive).*/
-  int level_max;
-  /*The shallowest level to decimate to (inclusive).*/
-  int level_min;
-};
 
 /*The number of bits to reduce chroma SADs by, if used.*/
 #define OD_MC_CHROMA_SCALE (2)
@@ -336,7 +180,7 @@ static ogg_int32_t od_enc_sad8(od_enc_ctx *enc, const unsigned char *p,
   int h;
   ogg_int32_t ret;
   state = &enc->state;
-  iplane = state->input.planes + pli;
+  iplane = state->io_imgs[OD_FRAME_INPUT].planes + pli;
   /*Compute the block dimensions in the target image plane.*/
   x >>= iplane->xdec;
   y >>= iplane->ydec;
@@ -390,28 +234,53 @@ static ogg_int32_t od_enc_sad8(od_enc_ctx *enc, const unsigned char *p,
   return ret;
 }
 
-static void od_mv_est_init(od_mv_est_ctx *est, od_enc_ctx *enc) {
+static int od_mv_est_init_impl(od_mv_est_ctx *est, od_enc_ctx *enc) {
   int nhmvbs;
   int nvmvbs;
   int vx;
   int vy;
+  if (OD_UNLIKELY(!est)) {
+    return OD_EFAULT;
+  }
+  OD_CLEAR(est, 1);
   est->enc = enc;
   nhmvbs = (enc->state.nhmbs + 1) << 2;
   nvmvbs = (enc->state.nvmbs + 1) << 2;
   est->sad_cache[1] = (od_sad4 **)od_malloc_2d(nvmvbs >> 1, nhmvbs >> 1,
    sizeof(est->sad_cache[1][0][0]));
+  if (OD_UNLIKELY(!est->sad_cache[1])) {
+    return OD_EFAULT;
+  }
   est->sad_cache[0] = (od_sad4 **)od_malloc_2d(nvmvbs, nhmvbs,
    sizeof(est->sad_cache[1][0][0]));
+  if (OD_UNLIKELY(!est->sad_cache[0])) {
+    return OD_EFAULT;
+  }
   est->mvs = (od_mv_node **)od_calloc_2d(nvmvbs + 1, nhmvbs + 1,
    sizeof(est->mvs[0][0]));
+  if (OD_UNLIKELY(!est->mvs)) {
+    return OD_EFAULT;
+  }
   est->refine_grid = (od_mv_grid_pt **)od_malloc_2d(nvmvbs + 1, nhmvbs + 1,
    sizeof(est->refine_grid[0][0]));
+  if (OD_UNLIKELY(!est->refine_grid)) {
+    return OD_EFAULT;
+  }
   est->dp_nodes = (od_mv_dp_node *)_ogg_malloc(
    sizeof(od_mv_dp_node)*(OD_MAXI(nhmvbs, nvmvbs) + 1));
+  if (OD_UNLIKELY(!est->dp_nodes)) {
+    return OD_EFAULT;
+  }
   est->row_counts =
    (unsigned *)_ogg_malloc(sizeof(*est->row_counts)*(nvmvbs + 1));
+  if (OD_UNLIKELY(!est->row_counts)) {
+    return OD_EFAULT;
+  }
   est->col_counts =
    (unsigned *)_ogg_malloc(sizeof(*est->col_counts)*(nhmvbs + 1));
+  if (OD_UNLIKELY(!est->col_counts)) {
+    return OD_EFAULT;
+  }
   for (vy = 0; vy <= nvmvbs; vy++) {
     for (vx = 0; vx <= nhmvbs; vx++) {
       est->mvs[vy][vx].vx = vx;
@@ -422,12 +291,14 @@ static void od_mv_est_init(od_mv_est_ctx *est, od_enc_ctx *enc) {
   }
   est->dec_heap = (od_mv_node **)_ogg_malloc(
    sizeof(*est->dec_heap)*(nvmvbs + 1)*(nhmvbs + 1));
-  est->hit_bit = 0;
-  /*TODO: Allow configuration.*/
+  if (OD_UNLIKELY(!est->dec_heap)) {
+    return OD_EFAULT;
+  }
+  /*Set to UCHAR_MAX so that od_mv_est_clear_hit_cache initializes hit_cache.*/
+  est->hit_bit = UCHAR_MAX;
   est->mv_res_min = 0;
   est->flags = OD_MC_USE_CHROMA;
-  est->level_max = 4;
-  est->level_min = 0;
+  return OD_SUCCESS;
 }
 
 static void od_mv_est_clear(od_mv_est_ctx *est) {
@@ -439,6 +310,15 @@ static void od_mv_est_clear(od_mv_est_ctx *est) {
   od_free_2d(est->mvs);
   od_free_2d(est->sad_cache[0]);
   od_free_2d(est->sad_cache[1]);
+}
+
+static int od_mv_est_init(od_mv_est_ctx *est, od_enc_ctx *enc) {
+  int ret;
+  ret = od_mv_est_init_impl(est, enc);
+  if (OD_UNLIKELY(ret < 0)) {
+    od_mv_est_clear(est);
+  }
+  return ret;
 }
 
 /*STAGE 1: INITIAL MV ESTIMATES (via EPZS^2).*/
@@ -691,8 +571,10 @@ static const int OD_SEARCH_STATES[6][13] = {
 
 /*Clear the cache of motion vectors we've examined.*/
 static void od_mv_est_clear_hit_cache(od_mv_est_ctx *est) {
-  if (est->hit_bit++ == 0) memset(est->hit_cache, 0, sizeof(est->hit_cache));
-  else est->hit_bit &= UCHAR_MAX;
+  if (++est->hit_bit == UCHAR_MAX + 1) {
+    memset(est->hit_cache, 0, sizeof(est->hit_cache));
+    est->hit_bit = 1;
+  }
 }
 
 /*Test if a motion vector has been examined.*/
@@ -705,9 +587,14 @@ static void od_mv_est_set_hit(od_mv_est_ctx *est, int mvx, int mvy) {
   est->hit_cache[mvy + 32][mvx + 32] = (unsigned char)est->hit_bit;
 }
 
-/*Estimated rate (in units of OD_BITRES) of a MV component of a given length.
-  TODO: This should be replaced with more realistic estimates.*/
-static const int OD_MV_EST_RATE[256] = {
+/*Estimated rate (in units of OD_BITRES) of the >=3 part of a MV component of a
+   given length.
+  There is no theoretical basis for the current values, they were
+   supposed to estimate the rate of a complete MV component (not just the >=3
+   part) encoded using a Huffman code.
+  TODO: This should be replaced with more realistic estimates (so far, attempts
+  to do so have resulted in worse quality).*/
+static const int OD_MV_GE3_EST_RATE[256] = {
     8,  32,  32,  48,  48,  48,  48,  64,
    64,  64,  64,  64,  64,  64,  64,  80,
    80,  80,  80,  80,  80,  80,  80,  80,
@@ -744,15 +631,27 @@ static const int OD_MV_EST_RATE[256] = {
 
 /*Estimate the number of bits that will be used to encode the given MV and its
    predictor.*/
-static int od_mv_est_bits(int dx, int dy, int predx, int predy) {
-  int pdx;
-  int pdy;
-  pdx = OD_MINI(abs(dx - predx), 255);
-  pdy = OD_MINI(abs(dy - predy), 255);
-  dx = OD_MINI(abs(dx), 255);
-  dy = OD_MINI(abs(dy), 255);
-  return (1 << OD_BITRES) + OD_MINI(OD_MV_EST_RATE[dx] + OD_MV_EST_RATE[dy],
-   OD_MV_EST_RATE[pdx] + OD_MV_EST_RATE[pdy]);
+static int od_mv_est_bits(od_mv_est_ctx *est,
+ int dx, int dy, int predx, int predy) {
+  int ox;
+  int oy;
+  int id;
+  int cost;
+  int sign_cost;
+  cost = 0;
+  sign_cost = 1 << OD_BITRES;
+  ox = dx - predx;
+  oy = dy - predy;
+  id = OD_MINI(abs(oy), 3)*4 + OD_MINI(abs(ox), 3);
+  cost += ((ox != 0) + (oy != 0))*sign_cost;
+  cost += est->mv_small_rate_est[id];
+  if (abs(ox) >= 3) {
+    cost += OD_MV_GE3_EST_RATE[OD_MINI(abs(ox) - 3, 255)];
+  }
+  if (abs(oy) >= 3) {
+    cost += OD_MV_GE3_EST_RATE[OD_MINI(abs(oy) - 3, 255)];
+  }
+  return cost;
 }
 
 /*Computes the SAD of a whole-pel BMA block with the given parameters.*/
@@ -781,7 +680,7 @@ static ogg_int32_t od_mv_est_bma_sad8(od_mv_est_ctx *est,
    iplane->ystride << 1, 2, 0, pbx, pby, log_mvb_sz + 2);
   if (est->flags & OD_MC_USE_CHROMA) {
     int pli;
-    for (pli = 1; pli < state->input.nplanes; pli++) {
+    for (pli = 1; pli < state->io_imgs[OD_FRAME_INPUT].nplanes; pli++) {
       iplane = state->ref_imgs[refi].planes + pli;
       pmvx = OD_DIV_POW2_RE(mvx << 1, iplane->xdec);
       pmvy = OD_DIV_POW2_RE(mvy << 1, iplane->ydec);
@@ -810,7 +709,7 @@ static ogg_int32_t od_mv_est_sad8(od_mv_est_ctx *est,
    (vx - 2) << 2, (vy - 2) << 2, log_mvb_sz + 2);
   if (est->flags & OD_MC_USE_CHROMA) {
     int pli;
-    for (pli = 1; pli < state->input.nplanes; pli++) {
+    for (pli = 1; pli < state->io_imgs[OD_FRAME_INPUT].nplanes; pli++) {
       od_state_pred_block_from_setup(state, pred[0], sizeof(pred[0]), ref, pli,
        vx, vy, oc, s, log_mvb_sz);
       ret += od_enc_sad8(est->enc, pred[0], sizeof(pred[0]), 1, pli,
@@ -917,8 +816,8 @@ void od_mv_est_check_rd_state(od_mv_est_ctx *est, int ref, int mv_res) {
       if (vx >= 2 && vx <= nhmvbs - 2 && vy >= 2 && vy <= nvmvbs - 2) {
         od_state_get_predictor(state, pred, vx, vy,
          OD_MC_LEVEL[vy & 3][vx & 3], mv_res);
-        mv_rate = od_mv_est_bits(mvg->mv[0] >> mv_res, mvg->mv[1] >> mv_res,
-         pred[0], pred[1]);
+        mv_rate = od_mv_est_bits(est,
+         mvg->mv[0] >> mv_res, mvg->mv[1] >> mv_res, pred[0], pred[1]);
       }
       else pred[0] = pred[1] = mv_rate = 0;
       if (mv_rate != mv->mv_rate) {
@@ -1039,8 +938,8 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
   }
   /*Spatially correlated predictors (from the current frame):*/
   for (ci = 0; ci < ncns; ci++) {
-    a[ci][0] = cneighbors[ci]->mvs[0][ref][0];
-    a[ci][1] = cneighbors[ci]->mvs[0][ref][1];
+    a[ci][0] = cneighbors[ci]->bma_mvs[0][ref][0];
+    a[ci][1] = cneighbors[ci]->bma_mvs[0][ref][1];
     cands[ci][0] = OD_CLAMPI(mvxmin, a[ci][0], mvxmax);
     cands[ci][1] = OD_CLAMPI(mvymin, a[ci][1], mvymax);
   }
@@ -1057,8 +956,8 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
     OD_SORT2I(a[1][1], a[3][1]);
     predx = a[1][0] + a[2][0];
     predy = a[1][1] + a[2][1];
-    candx = OD_CLAMPI(mvxmin, OD_DIV2(predx), mvxmax);
-    candy = OD_CLAMPI(mvymin, OD_DIV2(predy), mvymax);
+    candx = OD_CLAMPI(mvxmin, OD_DIV2_RE(predx), mvxmax);
+    candy = OD_CLAMPI(mvymin, OD_DIV2_RE(predy), mvymax);
   }
   else {
     /*Median-of-3.*/
@@ -1081,7 +980,7 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
   }
 #endif
   best_sad = od_mv_est_bma_sad8(est, ref, bx, by, candx, candy, log_mvb_sz);
-  best_rate = od_mv_est_bits(candx << 1, candy << 1, predx, predy);
+  best_rate = od_mv_est_bits(est, candx << 1, candy << 1, predx, predy);
   best_cost = (best_sad << OD_ERROR_SCALE) + best_rate*est->lambda;
   OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
    "Median predictor: (%i, %i)   Cost: %i", candx, candy, best_cost));
@@ -1108,8 +1007,10 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
     }
     t2 = t2 + (t2 >> OD_MC_THRESH2_SCALE_BITS) + est->thresh2_offs[log_mvb_sz];
     /*Constant velocity predictor:*/
-    cands[ncns][0] = OD_CLAMPI(mvxmin, OD_DIV8(mv->mvs[1][ref][0]), mvxmax);
-    cands[ncns][1] = OD_CLAMPI(mvymin, OD_DIV8(mv->mvs[1][ref][1]), mvymax);
+    cands[ncns][0] =
+     OD_CLAMPI(mvxmin, mv->bma_mvs[1][ref][0], mvxmax);
+    cands[ncns][1] =
+     OD_CLAMPI(mvymin, mv->bma_mvs[1][ref][1], mvymax);
     ncns++;
     /*Zero predictor.*/
     cands[ncns][0] = 0;
@@ -1133,7 +1034,7 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
       }
 #endif
       sad = od_mv_est_bma_sad8(est, ref, bx, by, candx, candy, log_mvb_sz);
-      rate = od_mv_est_bits(candx << 1, candy << 1, predx, predy);
+      rate = od_mv_est_bits(est, candx << 1, candy << 1, predx, predy);
       cost = (sad << OD_ERROR_SCALE) + rate*est->lambda;
       OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
        "Set B predictor %i: (%i, %i)    Cost: %i", ci, candx, candy, cost));
@@ -1150,17 +1051,17 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
       /*Constant velocity predictors from the previous frame:*/
       for (ci = 0; ci < 4; ci++) {
         cands[ci][0] =
-         OD_CLAMPI(mvxmin, OD_DIV8(pneighbors[ci]->mvs[1][ref][0]), mvxmax);
+         OD_CLAMPI(mvxmin, pneighbors[ci]->bma_mvs[1][ref][0], mvxmax);
         cands[ci][1] =
-         OD_CLAMPI(mvymin, OD_DIV8(pneighbors[ci]->mvs[1][ref][1]), mvymax);
+         OD_CLAMPI(mvymin, pneighbors[ci]->bma_mvs[1][ref][1], mvymax);
       }
       /*The constant acceleration predictor:*/
       cands[4][0] = OD_CLAMPI(mvxmin,
-       OD_DIV_ROUND_POW2(mv->mvs[1][ref][0]*est->mvapw[ref][0]
-       - mv->mvs[2][ref][0]*est->mvapw[ref][1], 16, 0x8000), mvxmax);
+       OD_DIV_ROUND_POW2(mv->bma_mvs[1][ref][0]*est->mvapw[ref][0]
+       - mv->bma_mvs[2][ref][0]*est->mvapw[ref][1], 16, 0x8000), mvxmax);
       cands[4][1] = OD_CLAMPI(mvymin,
-       OD_DIV_ROUND_POW2(mv->mvs[1][ref][1]*est->mvapw[ref][0]
-       - mv->mvs[2][ref][1]*est->mvapw[ref][1], 16, 0x8000), mvymax);
+       OD_DIV_ROUND_POW2(mv->bma_mvs[1][ref][1]*est->mvapw[ref][0]
+       - mv->bma_mvs[2][ref][1]*est->mvapw[ref][1], 16, 0x8000), mvymax);
       /*Examine the candidates in Set C.*/
       for (ci = 0; ci < 5; ci++) {
         candx = cands[ci][0];
@@ -1179,7 +1080,7 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
         }
 #endif
         sad = od_mv_est_bma_sad8(est, ref, bx, by, candx, candy, log_mvb_sz);
-        rate = od_mv_est_bits(candx << 1, candy << 1, predx, predy);
+        rate = od_mv_est_bits(est, candx << 1, candy << 1, predx, predy);
         cost = (sad << OD_ERROR_SCALE) + rate*est->lambda;
         OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
          "Set C predictor %i: (%i, %i)    Cost: %i", ci, candx, candy, cost));
@@ -1238,7 +1139,7 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
 #endif
             sad = od_mv_est_bma_sad8(est,
              ref, bx, by, candx, candy, log_mvb_sz);
-            rate = od_mv_est_bits(candx << 1, candy << 1, predx, predy);
+            rate = od_mv_est_bits(est, candx << 1, candy << 1, predx, predy);
             cost = (sad << OD_ERROR_SCALE) + rate*est->lambda;
             OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
              "Pattern search %i: (%i, %i)    Cost: %i",
@@ -1261,8 +1162,8 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
   OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
    "Finished. Best vector: (%i, %i)  Best cost %i",
    best_vec[0], best_vec[1], best_cost));
-  mv->mvs[0][ref][0] = best_vec[0];
-  mv->mvs[0][ref][1] = best_vec[1];
+  mv->bma_mvs[0][ref][0] = best_vec[0];
+  mv->bma_mvs[0][ref][1] = best_vec[1];
   mvg->mv[0] = best_vec[0] << 3;
   mvg->mv[1] = best_vec[1] << 3;
 #if defined(OD_DUMP_IMAGES) && defined(OD_ANIMATE)
@@ -1300,7 +1201,7 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
      "Failure in MV predictor init: (%i, %i) != (%i, %i)",
      a[0][0], a[0][1], predx, predy));
   }
-  mv->mv_rate = od_mv_est_bits(mvg->mv[0] >> 2, mvg->mv[1] >> 2,
+  mv->mv_rate = od_mv_est_bits(est, mvg->mv[0] >> 2, mvg->mv[1] >> 2,
    a[0][0], a[0][1]);
   if (mv->mv_rate != best_rate) {
     OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
@@ -1323,7 +1224,7 @@ static void od_mv_est_init_mvs(od_mv_est_ctx *est, int ref) {
     for (vx = 2; vx <= nhmvbs - 2; vx++) {
       od_mv_node *mv;
       mv = est->mvs[vy] + vx;
-      OD_MOVE(mv->mvs + 1, mv->mvs + 0, 2);
+      OD_MOVE(mv->bma_mvs + 1, mv->bma_mvs + 0, 2);
     }
   }
   /*We initialize MVs a MVB at a time for cache coherency.
@@ -2448,9 +2349,10 @@ static ogg_int32_t od_mv_dp_get_sad_change8(od_mv_est_ctx *est, int ref,
   prevsi: The state index to follow in the previous DP node.
   mv_res: The motion vector resolution (0 = 1/8th pel to 2 = 1/2 pel).
   Return: The change in rate for the preceding MVs.*/
-static int od_mv_dp_get_rate_change(od_state *state, od_mv_dp_node *dp,
+static int od_mv_dp_get_rate_change(od_mv_est_ctx *est, od_mv_dp_node *dp,
  int *cur_mv_rate, int pred_mv_rates[OD_DP_NPREDICTED_MAX],
  int prevsi, int mv_res) {
+  od_state *state;
   od_mv_node *mv;
   od_mv_grid_pt *mvg;
   int nhmvbs;
@@ -2458,6 +2360,7 @@ static int od_mv_dp_get_rate_change(od_state *state, od_mv_dp_node *dp,
   int pred[2];
   int pi;
   int dr;
+  state = &est->enc->state;
   /*Move the state from the current trellis path into the grid.*/
   if (dp->min_predictor_node != NULL) {
     int pred_sis[OD_PRED_HIST_SIZE_MAX];
@@ -2504,8 +2407,8 @@ static int od_mv_dp_get_rate_change(od_state *state, od_mv_dp_node *dp,
     od_state_get_predictor(state, pred, mv->vx, mv->vy,
      OD_MC_LEVEL[mv->vy & 3][mv->vx & 3], mv_res);
     mvg = dp->mvg;
-    *cur_mv_rate = od_mv_est_bits(mvg->mv[0] >> mv_res, mvg->mv[1] >> mv_res,
-     pred[0], pred[1]);
+    *cur_mv_rate = od_mv_est_bits(est,
+     mvg->mv[0] >> mv_res, mvg->mv[1] >> mv_res, pred[0], pred[1]);
     OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
      "Current MV rate: %i - %i = %i",
      *cur_mv_rate, mv->mv_rate, *cur_mv_rate - mv->mv_rate));
@@ -2519,7 +2422,7 @@ static int od_mv_dp_get_rate_change(od_state *state, od_mv_dp_node *dp,
       mvg = dp->predicted_mvgs[pi];
       od_state_get_predictor(state, pred, mv->vx, mv->vy,
        OD_MC_LEVEL[mv->vy & 3][mv->vx & 3], mv_res);
-      pred_mv_rates[pi] = od_mv_est_bits(
+      pred_mv_rates[pi] = od_mv_est_bits(est,
        mvg->mv[0] >> mv_res, mvg->mv[1] >> mv_res, pred[0], pred[1]);
       OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
        "Calculated predicted mv_rate of %i for (%i, %i)",
@@ -3165,7 +3068,7 @@ static ogg_int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
       cstate->prevsi = -1;
       mvg->mv[0] = cstate->mv[0];
       mvg->mv[1] = cstate->mv[1];
-      cstate->dr = od_mv_dp_get_rate_change(state, dp_node,
+      cstate->dr = od_mv_dp_get_rate_change(est, dp_node,
        &cstate->mv_rate, cstate->pred_mv_rates, -1, mv_res);
       cstate->dd = od_mv_dp_get_sad_change8(est, ref, dp_node,
        cstate->block_sads);
@@ -3239,7 +3142,7 @@ static ogg_int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
           /*Get the rate change for this state using previous state si.
             This automatically loads the required bits of the trellis path into
              the grid, like the previous MV.*/
-          cstate->dr = od_mv_dp_get_rate_change(state, dp_node + 1,
+          cstate->dr = od_mv_dp_get_rate_change(est, dp_node + 1,
            cur_mv_rates + si, pred_mv_rates[si], si, mv_res);
           /*Test against the previous state.*/
           dr = pstate->dr + cstate->dr;
@@ -3816,7 +3719,7 @@ static ogg_int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
       cstate->prevsi = -1;
       mvg->mv[0] = cstate->mv[0];
       mvg->mv[1] = cstate->mv[1];
-      cstate->dr = od_mv_dp_get_rate_change(state, dp_node,
+      cstate->dr = od_mv_dp_get_rate_change(est, dp_node,
        &cstate->mv_rate, cstate->pred_mv_rates, -1, mv_res);
       cstate->dd = od_mv_dp_get_sad_change8(est, ref, dp_node,
        cstate->block_sads);
@@ -3888,7 +3791,7 @@ static ogg_int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
           /*Get the rate change for this state using previous state si.
             This automatically loads the required bits of the trellis path into
              the grid, like the previous MV.*/
-          cstate->dr = od_mv_dp_get_rate_change(state, dp_node + 1,
+          cstate->dr = od_mv_dp_get_rate_change(est, dp_node + 1,
            cur_mv_rates + si, pred_mv_rates[si], si, mv_res);
           /*Test against the previous state.*/
           dr = pstate->dr + cstate->dr;
@@ -4060,8 +3963,8 @@ void od_mv_est_update_fullpel_mvs(od_mv_est_ctx *est, int ref) {
       mvg = state->mv_grid[vy] + vx;
       if (!mvg->valid) continue;
       mv = est->mvs[vy] + vx;
-      mv->mvs[0][ref][0] = mvg->mv[0] >> 3;
-      mv->mvs[0][ref][1] = mvg->mv[1] >> 3;
+      mv->bma_mvs[0][ref][0] = mvg->mv[0] >> 3;
+      mv->bma_mvs[0][ref][1] = mvg->mv[1] >> 3;
     }
   }
 }
@@ -4090,8 +3993,8 @@ int od_mv_est_update_mv_rates(od_mv_est_ctx *est, int mv_res) {
       od_state_get_predictor(state, pred,
        vx, vy, OD_MC_LEVEL[vy & 3][vx & 3], mv_res);
       dr -= mv->mv_rate;
-      mv->mv_rate = od_mv_est_bits(mvg->mv[0] >> mv_res, mvg->mv[1] >> mv_res,
-       pred[0], pred[1]);
+      mv->mv_rate = od_mv_est_bits(est,
+       mvg->mv[0] >> mv_res, mvg->mv[1] >> mv_res, pred[0], pred[1]);
       dr += mv->mv_rate;
     }
   }
@@ -4101,7 +4004,10 @@ int od_mv_est_update_mv_rates(od_mv_est_ctx *est, int mv_res) {
 od_mv_est_ctx *od_mv_est_alloc(od_enc_ctx *enc) {
   od_mv_est_ctx *ret;
   ret = (od_mv_est_ctx *)_ogg_malloc(sizeof(*ret));
-  od_mv_est_init(ret, enc);
+  if (od_mv_est_init(ret, enc) < 0) {
+    _ogg_free(ret);
+    return NULL;
+  }
   return ret;
 }
 
@@ -4163,7 +4069,7 @@ void od_mv_subpel_refine(od_mv_est_ctx *est, int ref, int cost_thresh) {
       best_mv_res = mv_res;
     }
   }
-  state->mv_res = best_mv_res;
+  od_state_set_mv_res(state, best_mv_res);
 }
 
 void od_mv_est(od_mv_est_ctx *est, int ref, int lambda) {
@@ -4174,10 +4080,22 @@ void od_mv_est(od_mv_est_ctx *est, int ref, int lambda) {
   int nhmvbs;
   int nvmvbs;
   int pli;
+  int i;
   state = &est->enc->state;
   nhmvbs = (state->nhmbs + 1) << 2;
   nvmvbs = (state->nvmbs + 1) << 2;
-  iplane = state->input.planes + 0;
+  iplane = state->io_imgs[OD_FRAME_INPUT].planes + 0;
+  /*Sanitize user parameters*/
+  est->level_min = OD_MINI(est->enc->params.mv_level_min,
+   est->enc->params.mv_level_max);
+  est->level_max = est->enc->params.mv_level_max;
+  /*Rate estimations*/
+  for (i = 0; i < 16; i++) {
+    est->mv_small_rate_est[i] = (int)((1 << OD_BITRES)
+     *(OD_LOG2(est->enc->state.adapt.mv_small_cdf[15])
+     - (OD_LOG2(est->enc->state.adapt.mv_small_cdf[i]
+     - (i > 0 ? est->enc->state.adapt.mv_small_cdf[i - 1] : 0)))) + 0.5);
+  }
   /*If the luma plane is decimated for some reason, then our distortions will
      be smaller, so scale lambda appropriately.*/
   est->lambda = lambda >> (iplane->xdec + iplane->ydec);
@@ -4188,8 +4106,8 @@ void od_mv_est(od_mv_est_ctx *est, int ref, int lambda) {
   /*If we're using the chroma planes, then our distortions will be larger.
     Compensate by increasing lambda and the termination thresholds.*/
   if (est->flags & OD_MC_USE_CHROMA) {
-    for (pli = 1; pli < state->input.nplanes; pli++) {
-      iplane = state->input.planes + pli;
+    for (pli = 1; pli < state->io_imgs[OD_FRAME_INPUT].nplanes; pli++) {
+      iplane = state->io_imgs[OD_FRAME_INPUT].planes + pli;
       est->lambda +=
        lambda >> (iplane->xdec + iplane->ydec + OD_MC_CHROMA_SCALE);
       est->thresh1[0] +=

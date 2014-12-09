@@ -41,7 +41,7 @@ static daala_comment dc2;
 
 static char *make_string(const char *str) {
   size_t len = strlen(str);
-  char *ret = _ogg_malloc(len + 1);
+  char *ret = (char *)_ogg_malloc(len + 1);
   memcpy(ret, str, len);
   ret[len] = '\0';
   return ret;

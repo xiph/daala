@@ -26,8 +26,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # define _entenc_H (1)
 # include <stddef.h>
 # include "entcode.h"
-
+#if defined(OD_EC_ACCOUNTING)
+# include "accounting.h"
+#endif
 typedef struct od_ec_enc od_ec_enc;
+
+#define OD_MEASURE_EC_OVERHEAD (0)
 
 /*The entropy encoder context.*/
 struct od_ec_enc {
@@ -57,6 +61,12 @@ struct od_ec_enc {
   ogg_int16_t cnt;
   /*Nonzero if an error occurred.*/
   int error;
+#if OD_MEASURE_EC_OVERHEAD
+  double entropy;
+#endif
+#if defined(OD_EC_ACCOUNTING)
+  od_ec_acct acct;
+#endif
 };
 
 /*See entenc.c for further documentation.*/

@@ -366,17 +366,17 @@ int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh
   }
 #endif
 #endif
-  /* Replace decision with the one from process_block_size32() */
+  /* Replace decision with the one from `od_split_superblock` */
   if (1)
   {
-    BlockSizeComp bs;
+    od_block_size_comp bs;
 
     for(i=1;i<h32-1;i++){
       for(j=1;j<w32-1;j++){
         int k,m;
         int dec[4][4];
-        process_block_size32(&bs, img+32*stride*i+32*j, stride, NULL, 0, dec,
-         21);
+        od_split_superblock(&bs, img+32*stride*i+32*j, stride, NULL, 0,
+         dec, 21);
         for(k=0;k<4;k++)
           for(m=0;m<4;m++)
             dec8[4*i+k][4*j+m]=dec[k][m];
@@ -758,7 +758,7 @@ static void process_plane(od_coeff *_img, od_coeff *_refi, int _w, int _h, int _
   _w = ROUNDUP_32(_w);
   _h = ROUNDUP_32(_h);
   if(!_refi){
-    _refi=calloc(ROUNDUP_32(_w)*ROUNDUP_32(_h),sizeof(od_coeff));
+    _refi = (od_coeff *)calloc(ROUNDUP_32(_w)*ROUNDUP_32(_h),sizeof(*_refi));
     free_ref=1;
   }else free_ref=0;
 
@@ -961,10 +961,10 @@ int main(int _argc,char **_argv){
     ydec[pli]=pli&&!(info1.pixel_fmt&2);
     h[pli]=ROUNDUP_32(info1.pic_h>>ydec[pli]);
     w[pli]=ROUNDUP_32(info1.pic_w>>xdec[pli]);
-    refi[pli]=malloc(w[pli]*h[pli]*sizeof(od_coeff));
-    iimg[pli]=malloc(w[pli]*h[pli]*sizeof(od_coeff));
+    refi[pli] = (od_coeff *)malloc(w[pli]*h[pli]*sizeof(*refi[pli]));
+    iimg[pli] = (od_coeff *)malloc(w[pli]*h[pli]*sizeof(*iimg[pli]));
   }
-  outline=malloc(sizeof(*outline)*info1.pic_w);
+  outline = (unsigned char *)malloc(sizeof(*outline)*info1.pic_w);
   fout=strcmp(_argv[optind+1],"-")==0?stdout:fopen(_argv[optind+1],"wb");
   if(fout==NULL){
     fprintf(stderr,"Error opening output file \"%s\".\n",_argv[optind+1]);

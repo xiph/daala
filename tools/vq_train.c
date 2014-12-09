@@ -122,7 +122,7 @@ double vq_train(const double *data, int nb_vectors, double *codebook,
   int iter;
   double rms[NUM_PROCS];
   double *accum;
-  accum = malloc(MAX_ENTRIES*MAX_DIMS*NUM_PROCS*sizeof(*accum));
+  accum = (double *)malloc(MAX_ENTRIES*MAX_DIMS*NUM_PROCS*sizeof(*accum));
   for (iter = 0; iter < nb_iter; iter++) {
     for (i = 0; i < NUM_PROCS; i++) rms[i] = 0;
     memset(accum,0,nb_entries*n*NUM_PROCS*sizeof(*accum));
@@ -185,8 +185,8 @@ int main(int argc, char **argv)
   nb_entries = 1<<atoi(argv[3]);
   OD_OMP_SET_THREADS(NUM_PROCS);
 
-  data = malloc(nb_vectors*ndim*sizeof(*data));
-  codebook = malloc(nb_entries*ndim*sizeof(*codebook));
+  data = (double *)malloc(nb_vectors*ndim*sizeof(*data));
+  codebook = (double *)malloc(nb_entries*ndim*sizeof(*codebook));
   if (data == NULL || codebook == NULL) {
     fprintf(stderr, "malloc() failed, giving up.\n");
     return 1;

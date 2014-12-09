@@ -1,6 +1,6 @@
 prefix=
 exec_prefix=
-libdir=${pcfiledir}/.libs
+libdir=${pcfiledir}/src/.libs
 includedir=${pcfiledir}/@top_srcdir@/include
 
 Name: daaladec uninstalled

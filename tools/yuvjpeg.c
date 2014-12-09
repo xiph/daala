@@ -94,7 +94,7 @@ void extend_edge(JSAMPLE *image, int width, int height, unsigned char *yuv,
 int main(int argc, char *argv[]) {
   long quality;
   const char *size;
-  char *x;
+  const char *x;
   int luma_width;
   int luma_height;
   int chroma_width;
@@ -178,7 +178,7 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  yuv_buffer = malloc(yuv_size);
+  yuv_buffer = (unsigned char *)malloc(yuv_size);
   if (fread(yuv_buffer, yuv_size, 1, yuv_fd) != 1) {
     fprintf(stderr, "Error reading yuv file\n");
   };
@@ -188,8 +188,8 @@ int main(int argc, char *argv[]) {
   frame_width = (luma_width + (16 - 1)) & ~(16 - 1);
   frame_height = (luma_height + (16 - 1)) & ~(16 - 1);
 
-  image_buffer =
-   malloc(frame_width*frame_height + 2*(frame_width/2)*(frame_height/2));
+  image_buffer = (JSAMPLE *)malloc(frame_width*frame_height
+   + 2*(frame_width/2)*(frame_height/2));
 
   extend_edge(image_buffer, frame_width, frame_height,
    yuv_buffer, luma_width, luma_height, chroma_width, chroma_height);

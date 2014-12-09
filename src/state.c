@@ -38,13 +38,37 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 const od_coeff OD_DC_RES[3] = {14, 12, 18};
 
+static void *od_aligned_malloc(size_t _sz,size_t _align) {
+  unsigned char *p;
+  if (_align - 1 > UCHAR_MAX || (_align&_align-1) || _sz > ~(size_t)0-_align)
+    return NULL;
+  p = (unsigned char *)_ogg_malloc(_sz + _align);
+  if (p != NULL) {
+    int offs;
+    offs = ((p-(unsigned char *)0) - 1 & _align - 1);
+    p[offs] = offs;
+    p += offs+1;
+  }
+  return p;
+}
+
+static void od_aligned_free(void *_ptr) {
+  unsigned char *p;
+  p = (unsigned char *)_ptr;
+  if (p != NULL) {
+    int offs;
+    offs = *--p;
+    _ogg_free(p - offs);
+  }
+}
+
 /*Initializes the buffers used for reference frames.
   These buffers are padded with 16 extra pixels on each side, to allow
    (relatively) unrestricted motion vectors without special casing reading
    outside the image boundary.
   If chroma is decimated in either direction, the padding is reduced by an
    appropriate factor on the appropriate sides.*/
-static void od_state_ref_imgs_init(od_state *state, int nrefs, int nio) {
+static int od_state_ref_imgs_init(od_state *state, int nrefs, int nio) {
   daala_info *info;
   od_img *img;
   od_img_plane *iplane;
@@ -79,7 +103,11 @@ static void od_state_ref_imgs_init(od_state *state, int nrefs, int nio) {
   }
   /*Reserve space for the line buffer in the up-sampler.*/
   data_sz += (frame_buf_width << 1)*8;
-  state->ref_img_data = ref_img_data = (unsigned char *)_ogg_malloc(data_sz);
+  state->ref_img_data = ref_img_data =
+    (unsigned char *)od_aligned_malloc(data_sz, 32);
+  if (OD_UNLIKELY(!ref_img_data)) {
+    return OD_EFAULT;
+  }
   /*Fill in the reference image structures.*/
   for (imgi = 0; imgi < nrefs; imgi++) {
     img = state->ref_imgs + imgi;
@@ -145,15 +173,20 @@ static void od_state_ref_imgs_init(od_state *state, int nrefs, int nio) {
     iplane->ystride = plane_buf_width;
   }
 #endif
+  return OD_SUCCESS;
 }
 
-static void od_state_mvs_init(od_state *state) {
+static int od_state_mvs_init(od_state *state) {
   int nhmvbs;
   int nvmvbs;
   nhmvbs = (state->nhmbs + 1) << 2;
   nvmvbs = (state->nvmbs + 1) << 2;
   state->mv_grid = (od_mv_grid_pt **)od_calloc_2d(nvmvbs + 1, nhmvbs + 1,
    sizeof(**state->mv_grid));
+  if (OD_UNLIKELY(!state->mv_grid)) {
+    return OD_EFAULT;
+  }
+  return OD_SUCCESS;
 }
 
 static void od_restore_fpu_c(void) {}
@@ -167,6 +200,8 @@ void od_state_opt_vtbl_init_c(od_state *state) {
   state->opt_vtbl.mc_blend_full8 = od_mc_blend_full8_c;
   state->opt_vtbl.mc_blend_full_split8 = od_mc_blend_full_split8_c;
   state->opt_vtbl.restore_fpu = od_restore_fpu_c;
+  OD_COPY(state->opt_vtbl.fdct_2d, OD_FDCT_2D_C, OD_NBSIZES + 1);
+  OD_COPY(state->opt_vtbl.idct_2d, OD_IDCT_2D_C, OD_NBSIZES + 1);
 }
 
 static void od_state_opt_vtbl_init(od_state *state) {
@@ -177,7 +212,7 @@ static void od_state_opt_vtbl_init(od_state *state) {
 #endif
 }
 
-int od_state_init(od_state *state, const daala_info *info) {
+static int od_state_init_impl(od_state *state, const daala_info *info) {
   int nplanes;
   int pli;
   /*First validate the parameters.*/
@@ -196,16 +231,81 @@ int od_state_init(od_state *state, const daala_info *info) {
   state->nhmbs = state->frame_width >> 4;
   state->nvmbs = state->frame_height >> 4;
   od_state_opt_vtbl_init(state);
-  od_state_ref_imgs_init(state, 4, 2);
-  od_state_mvs_init(state);
+  if (OD_UNLIKELY(od_state_ref_imgs_init(state, 4, 2))) {
+    return OD_EFAULT;
+  }
+  if (OD_UNLIKELY(od_state_mvs_init(state))) {
+    return OD_EFAULT;
+  }
   state->nhsb = state->frame_width >> 5;
   state->nvsb = state->frame_height >> 5;
   for (pli = 0; pli < nplanes; pli++) {
+    int xdec;
+    int ydec;
+    int w;
+    int h;
     state->sb_dc_mem[pli] = (od_coeff*)_ogg_malloc(
      sizeof(state->sb_dc_mem[pli][0])*state->nhsb*state->nvsb);
+    if (OD_UNLIKELY(!state->sb_dc_mem[pli])) {
+      return OD_EFAULT;
+    }
+    xdec = info->plane_info[pli].xdec;
+    ydec = info->plane_info[pli].ydec;
+    w = state->frame_width >> xdec;
+    h = state->frame_height >> ydec;
+    state->ctmp[pli] = (od_coeff *)_ogg_malloc(w*h*sizeof(*state->ctmp[pli]));
+    if (OD_UNLIKELY(!state->ctmp[pli])) {
+      return OD_EFAULT;
+    }
+    state->dtmp[pli] = (od_coeff *)_ogg_malloc(w*h*sizeof(*state->dtmp[pli]));
+    if (OD_UNLIKELY(!state->dtmp[pli])) {
+      return OD_EFAULT;
+    }
+    state->mctmp[pli] = (od_coeff *)_ogg_malloc(w*h*sizeof(*state->mctmp[pli]));
+    if (OD_UNLIKELY(!state->mctmp[pli])) {
+      return OD_EFAULT;
+    }
+    state->mdtmp[pli] = (od_coeff *)_ogg_malloc(w*h*sizeof(*state->mdtmp[pli]));
+    if (OD_UNLIKELY(!state->mdtmp[pli])) {
+      return OD_EFAULT;
+    }
+    /*We predict chroma planes from the luma plane.  Since chroma can be
+      subsampled, we cache subsampled versions of the luma plane in the
+      frequency domain.  We can share buffers with the same subsampling.*/
+    if (pli > 0) {
+      int plj;
+      if (xdec || ydec) {
+        for (plj = 1; plj < pli; plj++) {
+          if (xdec == info->plane_info[plj].xdec
+           && ydec == info->plane_info[plj].ydec) {
+            state->ltmp[pli] = NULL;
+            state->lbuf[pli] = state->ltmp[plj];
+          }
+        }
+        if (plj >= pli) {
+          state->lbuf[pli] = state->ltmp[pli] = (od_coeff *)_ogg_malloc(w*h*
+           sizeof(*state->ltmp[pli]));
+          if (OD_UNLIKELY(!state->lbuf[pli])) {
+            return OD_EFAULT;
+          }
+        }
+      }
+      else {
+        state->ltmp[pli] = NULL;
+        state->lbuf[pli] = state->ctmp[pli];
+      }
+    }
+    else state->lbuf[pli] = state->ltmp[pli] = NULL;
+    if (pli == 0 || OD_DISABLE_CFL) {
+      xdec = state->info.plane_info[pli].xdec;
+      ydec = state->info.plane_info[pli].ydec;
+    }
   }
   state->bsize = (unsigned char *)_ogg_malloc(
    sizeof(*state->bsize)*(state->nhsb + 2)*4*(state->nvsb + 2)*4);
+  if (OD_UNLIKELY(!state->bsize)) {
+    return OD_EFAULT;
+  }
   state->bstride = (state->nhsb + 2)*4;
   state->bsize += 4*state->bstride + 4;
 #if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
@@ -231,10 +331,20 @@ int od_state_init(od_state *state, const daala_info *info) {
     state->mode32 = (unsigned char *)malloc(w32*h32*sizeof(*state->mode32)<<0);
   }
 #endif
-  return 0;
+  return OD_SUCCESS;
+}
+
+int od_state_init(od_state *state, const daala_info *info) {
+  int ret;
+  ret = od_state_init_impl(state, info);
+  if (OD_UNLIKELY(ret < 0)) {
+    od_state_clear(state);
+  }
+  return ret;
 }
 
 void od_state_clear(od_state *state) {
+  int pli;
 #if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
   int i;
   if (state->dump_tags > 0) {
@@ -245,8 +355,16 @@ void od_state_clear(od_state *state) {
   }
 #endif
   od_free_2d(state->mv_grid);
-  _ogg_free(state->ref_img_data);
+  od_aligned_free(state->ref_img_data);
   state->bsize -= 4*state->bstride + 4;
+  for (pli = 0; pli < state->info.nplanes; pli++) {
+    _ogg_free(state->sb_dc_mem[pli]);
+    _ogg_free(state->ltmp[pli]);
+    _ogg_free(state->dtmp[pli]);
+    _ogg_free(state->ctmp[pli]);
+    _ogg_free(state->mctmp[pli]);
+    _ogg_free(state->mdtmp[pli]);
+  }
   _ogg_free(state->bsize);
 #if !OD_DISABLE_PAINT
   _ogg_free(state->edge_sum - 4096);
@@ -270,6 +388,8 @@ void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe) {
   state->pvq_adapt[OD_ADAPT_SUM_EX_Q8] = 256;
   state->pvq_adapt[OD_ADAPT_COUNT_Q8] = 104;
   state->pvq_adapt[OD_ADAPT_COUNT_EX_Q8] = 128;
+  state->pvq_k1_increment = 128;
+  OD_CDFS_INIT(state->pvq_k1_cdf, state->pvq_k1_increment);
   for (pli = 0; pli < OD_NPLANES_MAX; pli++) {
     for (ln = 0; ln < OD_NBSIZES; ln++)
     for (i = 0; i < PVQ_MAX_PARTITIONS; i++) {
@@ -278,7 +398,6 @@ void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe) {
   }
   for (i = 0; i < OD_NBSIZES*PVQ_MAX_PARTITIONS; i++) {
     state->pvq_ext[i] = is_keyframe ? 24576 : 2 << 16;
-    state->pvq_noref_prob[i] = 26376;
   }
   state->bsize_range_increment = 128;
   for (i = 0; i < 7; i++) {
@@ -290,38 +409,21 @@ void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe) {
   state->bsize16_increment = 128;
   state->bsize8_increment = 128;
   for (i = 0; i < 16; i++) {
-    state->bsize8_cdf[i] = (i+1)*state->bsize8_increment;
     /* Shifting makes the initial adaptation faster. */
     state->bsize16_cdf[0][i] = split16_cdf_init[0][i]>>6;
     state->bsize16_cdf[1][i] = split16_cdf_init[1][i]>>6;
   }
+  OD_SINGLE_CDF_INIT(state->bsize8_cdf, state->bsize8_increment);
   generic_model_init(&state->mv_model);
-  for (i = 0; i < 5; i++) state->mv_ex[i] = state->mv_ey[i] = 24 << 16;
   state->skip_increment = 128;
-  for (ln = 0; ln < OD_NPLANES_MAX; ln++) {
-    for (i = 0; i < 4; i++) {
-      /* The >> 2 makes early adaptation faster. */
-      state->skip_cdf[ln][i] = (i + 1)*state->skip_increment >> 2;
-    }
-  }
+  OD_CDFS_INIT(state->skip_cdf, state->skip_increment >> 2);
   state->mv_small_increment = 128;
-  state->mv_small_cdf[0] = 10*state->mv_small_increment;
-  for (i = 1; i < 16; i++) {
-    state->mv_small_cdf[i] = state->mv_small_cdf[i - 1]
-     + state->mv_small_increment;
-  }
-  state->pvq_noref_joint_increment = 128;
-  for (i = 0; i < 16; i++) {
-    state->pvq_noref_joint_cdf[0][i] = state->pvq_noref_joint_cdf[1][i] =
-     (i + 1)*state->pvq_noref_joint_increment >> 2;
-  }
-  for (i = 0; i < 8; i++) {
-    int j;
-    for (j = 0; j < 5; j++) {
-      state->pvq_noref2_joint_cdf[j][i] = (i + 1)*
-       state->pvq_noref_joint_increment >> 2;
-    }
-  }
+  OD_SINGLE_CDF_INIT_FIRST(state->mv_small_cdf, state->mv_small_increment,
+   10*state->mv_small_increment);
+  state->pvq_gaintheta_increment = 128;
+  OD_CDFS_INIT(state->pvq_gaintheta_cdf, state->pvq_gaintheta_increment >> 2);
+  state->pvq_skip_dir_increment = 128;
+  OD_CDFS_INIT(state->pvq_skip_dir_cdf, state->pvq_skip_dir_increment >> 2);
   for (pli = 0; pli < OD_NPLANES_MAX; pli++) {
     generic_model_init(&state->model_dc[pli]);
     generic_model_init(&state->model_g[pli]);
@@ -338,7 +440,14 @@ void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe) {
   }
   generic_model_init(&state->paint_edge_k_model);
   generic_model_init(&state->paint_dc_model);
-  memcpy(state->mode_probs, OD_INTRA_PRED_PROB_4x4, 3*OD_INTRA_NMODES*OD_INTRA_NCONTEXTS);
+}
+
+void od_state_set_mv_res(od_state *state, int mv_res) {
+  int i;
+  state->mv_res = mv_res;
+  for (i = 0; i < 5; i++) {
+    state->adapt.mv_ex[i] = state->adapt.mv_ey[i] = (24 << 16) >> mv_res;
+  }
 }
 
 #if 0
@@ -718,7 +827,7 @@ int od_state_dump_yuv(od_state *state, od_img *img, const char *tag) {
   for (i = 0; i < state->dump_tags &&
     strcmp(tag,state->dump_files[i].tag) != 0; i++);
   if(i>=state->dump_tags) {
-    char *suf;
+    const char *suf;
     OD_ASSERT(strlen(tag)<16);
     state->dump_tags++;
     state->dump_files = _ogg_realloc(state->dump_files,
@@ -727,7 +836,7 @@ int od_state_dump_yuv(od_state *state, od_img *img, const char *tag) {
     strncpy(state->dump_files[i].tag,tag,16);
 #else
   {
-    char *suf;
+    const char *suf;
 #endif
     needs_header = 1;
     suf = getenv("OD_DUMP_IMAGES_SUFFIX");
@@ -849,46 +958,10 @@ static void od_state_draw_mv_grid_block(od_state *state,
      log_mvb_sz - 1);
   }
   else {
-    od_mv_grid_pt *grid[4];
-    ogg_int32_t mvx[4];
-    ogg_int32_t mvy[4];
-    const int *dxp;
-    const int *dyp;
     int mvb_sz;
     int x0;
     int y0;
-    int k;
-    int oc;
-    int s;
     mvb_sz = 1 << log_mvb_sz;
-    if (log_mvb_sz < 2) {
-      int mask;
-      int s1vx;
-      int s1vy;
-      int s3vx;
-      int s3vy;
-      mask = (1 << log_mvb_sz + 1) - 1;
-      oc = !!(vx & mask);
-      if (vy & mask) oc = 3 - oc;
-      s1vx = vx + (OD_VERT_DX[(oc + 1) & 3] << log_mvb_sz);
-      s1vy = vy + (OD_VERT_DY[(oc + 1) & 3] << log_mvb_sz);
-      s3vx = vx + (OD_VERT_DX[(oc + 3) & 3] << log_mvb_sz);
-      s3vy = vy + (OD_VERT_DY[(oc + 3) & 3] << log_mvb_sz);
-      s = state->mv_grid[s1vy][s1vx].valid |
-       state->mv_grid[s3vy][s3vx].valid << 1;
-    }
-    else {
-      oc = 0;
-      s = 3;
-    }
-    dxp = OD_VERT_SETUP_DX[oc][s];
-    dyp = OD_VERT_SETUP_DY[oc][s];
-    for (k = 0; k < 4; k++) {
-      grid[k] = state->mv_grid[vy + (dyp[k] << log_mvb_sz)]
-       + vx + (dxp[k] << log_mvb_sz);
-      mvx[k] = grid[k]->mv[0];
-      mvy[k] = grid[k]->mv[1];
-    }
     x0 = ((vx - 2) << 3) + (OD_UMV_PADDING << 1);
     y0 = ((vy - 2) << 3) + (OD_UMV_PADDING << 1);
     od_img_draw_line(&state->vis_img, x0, y0, x0 + (mvb_sz << 3), y0,
@@ -930,8 +1003,6 @@ static void od_state_draw_mvs_block(od_state *state,
   }
   else {
     od_mv_grid_pt *grid[4];
-    ogg_int32_t mvx[4];
-    ogg_int32_t mvy[4];
     const int *dxp;
     const int *dyp;
     int x0;
@@ -964,8 +1035,6 @@ static void od_state_draw_mvs_block(od_state *state,
     for (k = 0; k < 4; k++) {
       grid[k] = state->mv_grid[vy + (dyp[k] << log_mvb_sz)]
        + vx + (dxp[k] << log_mvb_sz);
-      mvx[k] = grid[k]->mv[0];
-      mvy[k] = grid[k]->mv[1];
     }
     for (k = 0; k < 4; k++) {
       x0 = (vx - 2 + (dxp[k] << log_mvb_sz) << 3) + (OD_UMV_PADDING << 1);
@@ -1014,7 +1083,7 @@ void od_state_fill_vis(od_state *state) {
   /*Upsample the input image, as well, and subtract it to get a difference
      image.*/
   ref_img = state->ref_imgs + state->ref_imgi[OD_FRAME_SELF];
-  od_state_upsample8(state, ref_img, &state->input);
+  od_state_upsample8(state, ref_img, &state->io_imgs[OD_FRAME_INPUT]);
   xdec = state->info.plane_info[0].xdec;
   ydec = state->info.plane_info[0].ydec;
   for (y = 0; y < ref_img->height; y++) {
@@ -1181,7 +1250,6 @@ int od_state_dump_img(od_state *state, od_img *img, const char *tag) {
 #endif
 
 void od_state_mc_predict(od_state *state, int ref) {
-  unsigned char __attribute__((aligned(16))) buf[16][16];
   od_img *img;
   int nhmvbs;
   int nvmvbs;
@@ -1202,14 +1270,14 @@ void od_state_mc_predict(od_state *state, int ref) {
         int blk_y;
         int y;
         od_state_pred_block(state,
-         buf[0], sizeof(buf[0]), ref, pli, vx, vy, 2);
+         state->mc_buf[4], OD_MCBSIZE_MAX, ref, pli, vx, vy, 2);
         /*Copy the predictor into the image, with clipping.*/
         iplane = img->planes + pli;
         blk_w = 16 >> iplane->xdec;
         blk_h = 16 >> iplane->ydec;
         blk_x = (vx - 2) << (2 - iplane->xdec);
         blk_y = (vy - 2) << (2 - iplane->ydec);
-        p = buf[0];
+        p = state->mc_buf[4];
         if (blk_x < 0) {
           blk_w += blk_x;
           p -= blk_x;
@@ -1217,7 +1285,7 @@ void od_state_mc_predict(od_state *state, int ref) {
         }
         if (blk_y < 0) {
           blk_h += blk_y;
-          p -= blk_y*sizeof(buf[0]);
+          p -= blk_y*OD_MCBSIZE_MAX;
           blk_y = 0;
         }
         if (blk_x + blk_w > img->width >> iplane->xdec) {
@@ -1228,7 +1296,7 @@ void od_state_mc_predict(od_state *state, int ref) {
         }
         for (y = blk_y; y < blk_y + blk_h; y++) {
           OD_COPY(iplane->data + y*iplane->ystride + blk_x, p, blk_w);
-          p += sizeof(buf[0]);
+          p += OD_MCBSIZE_MAX;
         }
       }
     }
@@ -1253,18 +1321,18 @@ void od_state_init_border(od_state *state) {
   bstride = state->bstride;
   for (i = -4; i < (nhsb+1)*4; i++) {
     for (j = -4; j < 0; j++) {
-      bsize[(j*bstride) + i] = OD_LIMIT_LOG_BSIZE_MAX - OD_LOG_BSIZE0;
+      bsize[(j*bstride) + i] = OD_LIMIT_BSIZE_MAX;
     }
     for (j = nvsb*4; j < (nvsb+1)*4; j++) {
-      bsize[(j*bstride) + i] = OD_LIMIT_LOG_BSIZE_MAX - OD_LOG_BSIZE0;
+      bsize[(j*bstride) + i] = OD_LIMIT_BSIZE_MAX;
     }
   }
   for (j = -4; j < (nvsb+1)*4; j++) {
     for (i = -4; i < 0; i++) {
-      bsize[(j*bstride) + i] = OD_LIMIT_LOG_BSIZE_MAX - OD_LOG_BSIZE0;
+      bsize[(j*bstride) + i] = OD_LIMIT_BSIZE_MAX;
     }
     for (i = nhsb*4; i < (nhsb+1)*4; i++) {
-      bsize[(j*bstride) + i] = OD_LIMIT_LOG_BSIZE_MAX - OD_LOG_BSIZE0;
+      bsize[(j*bstride) + i] = OD_LIMIT_BSIZE_MAX;
     }
   }
 }

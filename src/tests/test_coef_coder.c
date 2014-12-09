@@ -37,7 +37,6 @@
 
 #define EC_BUF_SIZE (32)
 #define MAX_VECTORS 10000
-#define MAXN 256
 
 
 typedef struct od_pvq_adapt_ctx od_pvq_adapt_ctx;
@@ -100,7 +99,7 @@ void pvq_coder_bitstreams(int n, int type){
   for (i = 0; i < n; i++) k += rand()%n;
   while (k > 1024) k >>= 1;
   buf_sz = 1 + (rand() & 1023);
-  buf = malloc(buf_sz*sizeof(*buf));
+  buf = (unsigned char *)malloc(buf_sz*sizeof(*buf));
   buf[0] = 0;
   if (type == 0) for (i = 0; i < buf_sz; i++) buf[i] = 0;
   else if (type == 1) for (i = 0; i < buf_sz; i++) buf[i] = 255;
@@ -161,7 +160,7 @@ int run_pvq(od_coeff *X,int len,int N,int fuzz){
   int EK=65536;
   int bits_used;
 
-  Ki = malloc(sizeof(*Ki)*len);
+  Ki = (int *)malloc(sizeof(*Ki)*len);
   pvq_adapt.mean_k_q8=163;
   pvq_adapt.mean_sum_ex_q8=64;
   pvq_adapt.mean_count_q8=100*4;
@@ -280,7 +279,7 @@ void test_pvq_sequence(int len,int N,float std)
   int i,j;
   int bits;
   od_coeff *X;
-  X = malloc(sizeof(*X)*len*N);
+  X = (od_coeff *)malloc(sizeof(*X)*len*N);
   for(i=0;i<len;i++){
     for(j=0;j<N;j++){
       X[i*N+j]=-floor(.5+std*exp(-j*3./N)*log((rand()+1)/(float)RAND_MAX));
@@ -307,7 +306,7 @@ void test_pvq_basic(int N) {
   od_coeff *X;
   int len;
   len = 4*N + 1;
-  X = malloc(sizeof(*X)*N*len);
+  X = (od_coeff *)malloc(sizeof(*X)*N*len);
   for (i = 0; i<N; i++) X[i] = 0;
   for (i = 0; i<N; i++) {
     for (j = 0; j < N; j++) {
@@ -344,7 +343,7 @@ void test_pvq_huge(int N) {
   od_coeff *X;
   int len;
   len = 4*N;
-  X = malloc(sizeof(*X)*N*len);
+  X = (od_coeff *)malloc(sizeof(*X)*N*len);
   for (i = 0; i < N; i++) {
     for (j = 0; j < N; j++) {
       X[i*N + j] = (j == i)*65535;
@@ -390,7 +389,7 @@ int main(int argc, char **argv){
       fprintf(stderr, "N must be at least 2\n");
       return 1;
     }
-    X=malloc(sizeof(*X)*len*N);
+    X=(od_coeff *)malloc(sizeof(*X)*len*N);
     if(X==NULL){
       fprintf(stderr, "cannot allocate buffer\n");
       return 1;

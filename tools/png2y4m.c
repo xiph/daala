@@ -87,10 +87,10 @@ static int pixel_format=PIXEL_FMT_420;
 
 static char *input_filter;
 
-const char *OPTSTRING="o:hs:S:f:F:\5\6";
+const char *OPTSTRING="ho:s:S:f:F:";
 struct option OPTIONS[]={
-  {"output",required_argument,NULL,'o'},
   {"help",no_argument,NULL,'h'},
+  {"output",required_argument,NULL,'o'},
   {"chroma-444",no_argument,NULL,'\5'},
   {"chroma-422",no_argument,NULL,'\6'},
   {"aspect-numerator",required_argument,NULL,'s'},

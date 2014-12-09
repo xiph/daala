@@ -123,7 +123,6 @@ generic_decoder.c \
 info.c \
 internal.c \
 intra.c \
-intradata.c \
 laplace_decoder.c \
 laplace_tables.c \
 logging.c \
@@ -139,6 +138,7 @@ tf.c \
 zigzag4.c \
 zigzag8.c \
 zigzag16.c \
+zigzag32.c \
 $(if $(findstring -DOD_X86ASM,${CFLAGS}), \
 x86/cpu.c \
 x86/sse2mc.c \
@@ -162,6 +162,7 @@ internal.h \
 intra.h \
 logging.h \
 mc.h \
+mcenc.h \
 odintrin.h \
 pvq.h \
 state.h \
@@ -210,6 +211,7 @@ PLAYER_EXAMPLE_CSOURCES = player_example.c
 DCTTEST_CSOURCES = \
 dct.c \
 filter.c \
+tf.c \
 $(if $(findstring -DOD_ENABLE_ASSERTIONS,${CFLAGS}), \
 internal.c \
 )

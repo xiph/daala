@@ -79,19 +79,12 @@ typedef void (*od_fdct_func_1d)(od_coeff *out, const od_coeff *in,
 typedef void (*od_idct_func_1d)(od_coeff *out, int out_stride,
  const od_coeff *in);
 
-extern const od_dct_func_2d OD_FDCT_2D[OD_NBSIZES + 1];
-extern const od_dct_func_2d OD_IDCT_2D[OD_NBSIZES + 1];
+extern const od_dct_func_2d OD_FDCT_2D_C[OD_NBSIZES + 1];
+extern const od_dct_func_2d OD_IDCT_2D_C[OD_NBSIZES + 1];
 
 extern const od_fdct_func_1d OD_FDCT_1D[OD_NBSIZES + 1];
 
 extern const od_idct_func_1d OD_IDCT_1D[OD_NBSIZES + 1];
-
-extern const int OD_TRANS_QUANT_ADJ[3];
-
-extern const unsigned char OD_ZIG4[16];
-extern const unsigned char OD_ZIG8[64];
-extern const unsigned char OD_ZIG16[256];
-extern const unsigned char *OD_DCT_ZIGS[OD_NBSIZES + 1];
 
 /*A reversible integer approximation of a 4-point type-II DCT.
   y:       The destination vector (of size 4).
@@ -154,5 +147,15 @@ void od_bin_fdct16x16(od_coeff *y, int ystride,
  const od_coeff *x, int xstride);
 void od_bin_idct16x16(od_coeff *x, int xstride,
  const od_coeff *y, int ystride);
+
+void od_bin_fxform32x32(od_coeff *y, int ystride,
+ const od_coeff *x, int xstride);
+void od_bin_ixform32x32(od_coeff *x, int xstride,
+ const od_coeff *y, int ystride);
+
+# if defined(OD_CHECKASM)
+void od_dct_check(int ln, const od_coeff *ref, const od_coeff *x,
+ int xstride);
+# endif
 
 #endif

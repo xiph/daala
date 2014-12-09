@@ -33,7 +33,7 @@ void od_block_size_decode(od_ec_dec *dec, od_adapt_ctx *adapt,
  unsigned char *bsize, int stride) {
   int i, j;
   int split16;
-  int range_id;
+  int bsize_range_id;
   int min_size;
   int max_size;
   int min_ctx_size;
@@ -42,31 +42,32 @@ void od_block_size_decode(od_ec_dec *dec, od_adapt_ctx *adapt,
     min_ctx_size = OD_MINI(min_ctx_size, bsize[i*stride - 1]);
     min_ctx_size = OD_MINI(min_ctx_size, bsize[-stride + i]);
   }
-  range_id = od_decode_cdf_adapt(dec, adapt->bsize_range_cdf[min_ctx_size], 7,
-   adapt->bsize_range_increment);
-  min_size = od_range_ids[range_id][0];
-  max_size = od_range_ids[range_id][1];
-  if (min_size == 3) {
+  bsize_range_id = od_decode_cdf_adapt(dec,
+   adapt->bsize_range_cdf[min_ctx_size], 7, adapt->bsize_range_increment);
+  min_size = od_bsize_range[bsize_range_id][0];
+  max_size = od_bsize_range[bsize_range_id][1];
+  if (min_size == OD_BLOCK_32X32) {
     for (i = 0; i < 4; i++) {
       for (j = 0; j < 4; j++) {
-        bsize[i*stride + j] = 3;
+        bsize[i*stride + j] = OD_BLOCK_32X32;
       }
     }
   }
   else {
-    if (max_size >= 2 && min_size < 2) {
+    if (max_size >= OD_BLOCK_16X16 && min_size < OD_BLOCK_16X16) {
       split16 = od_decode_cdf_adapt(dec, adapt->bsize16_cdf[min_size], 16,
          adapt->bsize16_increment);
     }
-    else if (min_size == 2) split16 = 0xf;
+    else if (min_size == OD_BLOCK_16X16) split16 = 0xf;
     else split16 = 0;
-    bsize[0] = (split16&8) ? 2 : 1;
-    bsize[2] = (split16&4) ? 2 : 1;
-    bsize[2*stride] = (split16&2) ? 2 : 1;
-    bsize[2*stride + 2] = (split16&1) ? 2 : 1;
+    bsize[0] = (split16 & 8) ? OD_BLOCK_16X16 : OD_BLOCK_8X8;
+    bsize[2] = (split16 & 4) ? OD_BLOCK_16X16 : OD_BLOCK_8X8;
+    bsize[2*stride] = (split16 & 2) ? OD_BLOCK_16X16 : OD_BLOCK_8X8;
+    bsize[2*stride + 2] = (split16 & 1) ? OD_BLOCK_16X16 : OD_BLOCK_8X8;
     for (i = 0; i < 2; i++) {
       for (j = 0; j < 2; j++) {
-        if (min_size == 0 && max_size > 0 && bsize[2*i*stride + 2*j] != 2) {
+        if (min_size == OD_BLOCK_4X4 && max_size > OD_BLOCK_4X4
+         && bsize[2*i*stride + 2*j] != OD_BLOCK_16X16) {
           int split8;
           split8 = od_decode_cdf_adapt(dec, adapt->bsize8_cdf, 16,
            adapt->bsize8_increment);
@@ -76,7 +77,7 @@ void od_block_size_decode(od_ec_dec *dec, od_adapt_ctx *adapt,
           bsize[(2*i + 1)*stride + 2*j + 1] = (split8 >> 3) & 1;
         }
         else {
-          if (max_size == 0) bsize[2*i*stride + 2*j] = 0;
+          if (max_size == OD_BLOCK_4X4) bsize[2*i*stride + 2*j] = OD_BLOCK_4X4;
           /* Copy the same value to all four 8x8 blocks in the 16x16. */
           bsize[(2*i + 1)*stride + 2*j] = bsize[2*i*stride + 2*j + 1] =
            bsize[(2*i + 1)*stride + 2*j + 1] = bsize[2*i*stride + 2*j];

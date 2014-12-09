@@ -26,6 +26,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # define _x86_x86int_H (1)
 # include "../state.h"
 
+# if OD_GNUC_PREREQ(3, 0, 0)
+#  define OD_SIMD_INLINE static __inline __attribute__((always_inline))
+# else
+#  define OD_SIMD_INLINE static
+# endif
+
 void od_state_opt_vtbl_init_x86(od_state *_state);
 
 void od_mc_predict1fmv8_sse2(unsigned char *_dst,const unsigned char *_src,
@@ -35,5 +41,25 @@ void od_mc_blend_full8_sse2(unsigned char *_dst,int _dystride,
  const unsigned char *_src[4],int _log_xblk_sz,int _log_yblk_sz);
 void od_mc_blend_full_split8_sse2(unsigned char *_dst,int _dystride,
  const unsigned char *_src[4],int _c,int _s,int _log_xblk_sz,int _log_yblk_sz);
+void od_bin_fdct4x4_sse2(od_coeff *y, int ystride,
+ const od_coeff *x, int xstride);
+void od_bin_fdct4x4_sse41(od_coeff *y, int ystride,
+ const od_coeff *x, int xstride);
+void od_bin_idct4x4_sse2(od_coeff *y, int ystride,
+ const od_coeff *x, int xstride);
+void od_bin_idct4x4_sse41(od_coeff *y, int ystride,
+ const od_coeff *x, int xstride);
+void od_bin_fdct8x8_sse2(od_coeff *y, int ystride,
+ const od_coeff *x, int xstride);
+void od_bin_fdct8x8_sse41(od_coeff *y, int ystride,
+ const od_coeff *x, int xstride);
+void od_bin_idct8x8_sse2(od_coeff *y, int ystride,
+ const od_coeff *x, int xstride);
+void od_bin_idct8x8_sse41(od_coeff *y, int ystride,
+ const od_coeff *x, int xstride);
+void od_bin_fdct8x8_avx2(od_coeff *y, int ystride,
+ const od_coeff *x, int xstride);
+void od_bin_idct8x8_avx2(od_coeff *x, int xstride,
+ const od_coeff *y, int ystride);
 
 #endif

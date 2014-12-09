@@ -32,6 +32,7 @@ typedef struct od_adapt_ctx      od_adapt_ctx;
 
 # include <stdio.h>
 # include "internal.h"
+# include "dct.h"
 # include "mc.h"
 # include "pvq.h"
 # include "adapt.h"
@@ -42,8 +43,6 @@ extern const od_coeff OD_DC_RES[3];
 
 /*Adaptation speed of scalar Laplace encoding.*/
 # define OD_SCALAR_ADAPT_SPEED (4)
-/*Adaptation speed of intra mode encoding.*/
-# define OD_INTRA_ADAPT_SPEED (4)
 
 /*The golden reference frame.*/
 # define OD_FRAME_GOLD (0)
@@ -98,6 +97,8 @@ struct od_state_opt_vtbl{
    const unsigned char *_src[4], int _c, int _s,
    int _log_xblk_sz, int _log_yblk_sz);
   void (*restore_fpu)(void);
+  od_dct_func_2d fdct_2d[OD_NBSIZES + 1];
+  od_dct_func_2d idct_2d[OD_NBSIZES + 1];
 };
 
 # if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
@@ -107,13 +108,56 @@ struct od_yuv_dumpfile{
 };
 # endif
 
+struct od_adapt_ctx {
+  /* Support for PVQ encode/decode */
+  int                 pvq_adapt[OD_NSB_ADAPT_CTXS];
+  int                 pvq_k1_increment;
+  /* CDFs are size 16 despite the fact that we're using less than that. */
+  ogg_uint16_t        pvq_k1_cdf[4][16];
+  generic_encoder     pvq_param_model[3];
+  int                 pvq_ext[OD_NBSIZES*PVQ_MAX_PARTITIONS];
+  int                 pvq_exg[OD_NPLANES_MAX][OD_NBSIZES][PVQ_MAX_PARTITIONS];
+  int                 pvq_gaintheta_increment;
+  ogg_uint16_t        pvq_gaintheta_cdf[2*OD_NBSIZES*PVQ_MAX_PARTITIONS][16];
+  int                 pvq_skip_dir_increment;
+  ogg_uint16_t        pvq_skip_dir_cdf[2*(OD_NBSIZES-1)][7];
+
+  int                 bsize_range_increment;
+  ogg_uint16_t        bsize_range_cdf[OD_NBSIZES][7];
+  int                 bsize16_increment;
+  ogg_uint16_t        bsize16_cdf[2][16];
+  int                 bsize8_increment;
+  ogg_uint16_t        bsize8_cdf[16];
+
+  /* Motion vectors */
+  generic_encoder     mv_model;
+  int                 mv_ex[5];
+  int                 mv_ey[5];
+  ogg_uint16_t        mv_small_cdf[16];
+  int                 mv_small_increment;
+
+  generic_encoder model_dc[OD_NPLANES_MAX];
+  generic_encoder model_g[OD_NPLANES_MAX];
+
+  int ex_sb_dc[OD_NPLANES_MAX];
+  int ex_dc[OD_NPLANES_MAX][OD_NBSIZES][3];
+  int ex_g[OD_NPLANES_MAX][OD_NBSIZES];
+
+  /* Joint skip flag for DC and AC */
+  ogg_uint16_t skip_cdf[OD_NPLANES_MAX][4];
+  int skip_increment;
+  generic_encoder paint_dc_model;
+  generic_encoder paint_edge_k_model;
+};
+
 struct od_state{
+  od_adapt_ctx        adapt;
   daala_info          info;
+  OD_ALIGN16(unsigned char mc_buf[5][OD_MCBSIZE_MAX*OD_MCBSIZE_MAX]);
   od_state_opt_vtbl   opt_vtbl;
   ogg_uint32_t        cpu_flags;
   ogg_int32_t         frame_width;
   ogg_int32_t         frame_height;
-  od_img              input;
   /** Buffer for the 4 ref images. */
   int                 ref_imgi[4];
   /** Pointers to the ref images so one can move them around without coping
@@ -163,6 +207,13 @@ struct od_state{
   int                 ani_iter;
 #  endif
 # endif
+  od_coeff *ctmp[OD_NPLANES_MAX];
+  od_coeff *dtmp[OD_NPLANES_MAX];
+  od_coeff *mctmp[OD_NPLANES_MAX];
+  od_coeff *mdtmp[OD_NPLANES_MAX];
+  od_coeff *ltmp[OD_NPLANES_MAX];
+  od_coeff *lbuf[OD_NPLANES_MAX];
+  /* Holds a TF'd copy of the transform coefficients in 4x4 blocks. */
 # if !OD_DISABLE_PAINT
   /* intra_paint buffers */
   /* TODO high bit depth */
@@ -176,50 +227,11 @@ struct od_state{
 # endif
 };
 
-struct od_adapt_ctx {
-  /* Support for PVQ encode/decode */
-  int                 pvq_adapt[OD_NSB_ADAPT_CTXS];
-  generic_encoder     pvq_param_model[3];
-  int                 pvq_ext[OD_NBSIZES*PVQ_MAX_PARTITIONS];
-  int                 pvq_exg[OD_NPLANES_MAX][OD_NBSIZES][PVQ_MAX_PARTITIONS];
-  unsigned            pvq_noref_prob[OD_NBSIZES*PVQ_MAX_PARTITIONS];
-  int                 pvq_noref_joint_increment;
-  ogg_uint16_t        pvq_noref_joint_cdf[OD_NBSIZES - 1][16];
-  ogg_uint16_t        pvq_noref2_joint_cdf[5][8];
-
-  int                 bsize_range_increment;
-  ogg_uint16_t        bsize_range_cdf[OD_NBSIZES][7];
-  int                 bsize16_increment;
-  ogg_uint16_t        bsize16_cdf[2][16];
-  int                 bsize8_increment;
-  ogg_uint16_t        bsize8_cdf[16];
-
-  /* Motion vectors */
-  generic_encoder     mv_model;
-  int                 mv_ex[5];
-  int                 mv_ey[5];
-  ogg_uint16_t        mv_small_cdf[16];
-  int                 mv_small_increment;
-
-  generic_encoder model_dc[OD_NPLANES_MAX];
-  generic_encoder model_g[OD_NPLANES_MAX];
-
-  int ex_sb_dc[OD_NPLANES_MAX];
-  int ex_dc[OD_NPLANES_MAX][OD_NBSIZES][3];
-  int ex_g[OD_NPLANES_MAX][OD_NBSIZES];
-
-  unsigned char mode_probs[3][OD_INTRA_NMODES][OD_INTRA_NCONTEXTS];
-  /* Joint skip flag for DC and AC */
-  ogg_uint16_t skip_cdf[OD_NPLANES_MAX][4];
-  int skip_increment;
-  generic_encoder paint_dc_model;
-  generic_encoder paint_edge_k_model;
-};
-
 int od_state_init(od_state *_state, const daala_info *_info);
 void od_state_clear(od_state *_state);
 
 void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe);
+void od_state_set_mv_res(od_state *state, int mv_res);
 void od_state_pred_block_from_setup(od_state *_state, unsigned char *_buf,
  int _ystride, int _ref, int _pli, int _vx, int _vy, int _c, int _s,
  int _log_mvb_sz);

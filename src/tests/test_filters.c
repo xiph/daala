@@ -60,7 +60,7 @@ void randomize_bsize(unsigned char *bsize, int stride, int w, int h) {
         int y;
         for (x = 0;x < 2; x++) {
           for (y = 0; y < 2; y++) {
-            bsize[(i + x)*stride + j + y]=2;
+            bsize[(i + x)*stride + j + y]=OD_BLOCK_16X16;
           }
         }
       }
@@ -73,7 +73,7 @@ void randomize_bsize(unsigned char *bsize, int stride, int w, int h) {
         int y;
         for (x = 0;x < 4; x++) {
           for (y = 0; y< 4; y++) {
-            bsize[(i + x)*stride + j + y]=3;
+            bsize[(i + x)*stride + j + y]=OD_BLOCK_32X32;
           }
         }
       }
@@ -271,12 +271,12 @@ int main(int argc, char *argv[]) {
 
   /*Set the block size decision of the image padding to 32x32.*/
   for (j = 0; j < ROWS*4 + 2; j++){
-    bsize[bstride*j + 0] = 3;
-    bsize[bstride*j + (COLS*4 + 2) - 1] = 3;
+    bsize[bstride*j + 0] = OD_BLOCK_32X32;
+    bsize[bstride*j + (COLS*4 + 2) - 1] = OD_BLOCK_32X32;
   }
   for (i = 0; i < COLS*4 + 2; i++) {
-    bsize[bstride*0 + i] = 3;
-    bsize[bstride*((ROWS*4 + 2) - 1) + i] = 3;
+    bsize[bstride*0 + i] = OD_BLOCK_32X32;
+    bsize[bstride*((ROWS*4 + 2) - 1) + i] = OD_BLOCK_32X32;
   }
   bsize += bstride*1 + 1;
 

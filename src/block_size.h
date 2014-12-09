@@ -29,9 +29,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # include <ogg/ogg.h>
 # include "entenc.h"
 
-extern const ogg_uint16_t od_switch_size8_cdf[][16];
-
-extern const int od_range_ids[7][2];
+extern const int od_bsize_range[7][2];
 extern const ogg_uint16_t range_cdf_init[7];
 extern const ogg_uint16_t split16_cdf_init[2][16];
 
@@ -40,10 +38,11 @@ extern const ogg_uint16_t split16_cdf_init[2][16];
 # define OD_BLOCK_SIZE8x8(bsize, bstride, bx, by)\
    ((bsize)[(by)*(bstride) + (bx)])
 
-int od_block_size_prob32(const unsigned char *bsize, int stride);
-
-int od_block_size_prob16(const unsigned char *bsize, int stride);
-
-int od_block_size_cdf8_id(const unsigned char *bsize, int stride);
+/*Possible block sizes, note that OD_BLOCK_NXN = log2(N) - 2.*/
+#define OD_BLOCK_4X4 (0)
+#define OD_BLOCK_8X8 (1)
+#define OD_BLOCK_16X16 (2)
+#define OD_BLOCK_32X32 (3)
+#define OD_BLOCK_SIZES (OD_BLOCK_32X32+1)
 
 #endif

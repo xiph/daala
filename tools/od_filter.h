@@ -26,6 +26,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # define _od_filter_H (0)
 
 #include "od_defs.h"
+#include "../src/filter.h"
 
 extern int NE_FILTER_PARAMS4[4];
 extern int NE_FILTER_PARAMS8[10];

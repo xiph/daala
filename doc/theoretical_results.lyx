@@ -158,6 +158,62 @@ Or, if
 
 \end_inset
 
+
+\end_layout
+
+\begin_layout Section*
+Quantization threshold
+\end_layout
+
+\begin_layout Standard
+When we have a value between 0 and 1 and consider whether to round up or
+ down, we can compute the optimal decision threshold 
+\begin_inset Formula $x$
+\end_inset
+
+ for which the RD cost for the decision is equal
+\begin_inset Formula 
+\[
+x^{2}+\lambda R_{0}=\left(1-x\right)^{2}+\lambda R_{1}\ ,
+\]
+
+\end_inset
+
+where 
+\begin_inset Formula $R_{0}$
+\end_inset
+
+ and 
+\begin_inset Formula $R_{1}$
+\end_inset
+
+ are the costs for coding a zero and a one, respectively.
+ Solving for 
+\begin_inset Formula $x$
+\end_inset
+
+ we have
+\begin_inset Formula 
+\begin{align*}
+x^{2}+\lambda R_{0} & =\left(1-x\right)^{2}+\lambda R_{1}\\
+x^{2}+\lambda R_{0} & =x^{2}-2x+1+\lambda R_{1}\\
+2x & =1+\lambda\left(R_{1}-R_{0}\right)\\
+x & =\frac{1}{2}+\frac{\lambda\Delta R}{2}\ ,
+\end{align*}
+
+\end_inset
+
+where 
+\begin_inset Formula $\Delta R=R_{1}-R_{0}$
+\end_inset
+
+.
+ In other words, it's like round-to-nearest, but with an additional bias
+ of 
+\begin_inset Formula $\lambda\Delta R/2$
+\end_inset
+
+ towards zero.
  
 \end_layout
 

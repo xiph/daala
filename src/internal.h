@@ -30,7 +30,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 # if defined(_MSC_VER)
 #  define _USE_MATH_DEFINES
-# elif OD_GNUC_PREREQ(4, 2)
+# elif OD_GNUC_PREREQ(4, 2, 0)
 #  pragma GCC diagnostic ignored "-Wlong-long"
 #  pragma GCC diagnostic ignored "-Woverlength-strings"
 # endif
@@ -44,23 +44,27 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 /*Smallest blocks are 4x4*/
 # define OD_LOG_BSIZE0 (2)
 /*There are 3 block sizes total (4x4, 8x8, 16x16).*/
-# define OD_NBSIZES    (3)
-/*The largest block size.*/
+# define OD_NBSIZES    (4)
+/*The maximum length of the side of a block.*/
 # define OD_BSIZE_MAX  (1<<OD_LOG_BSIZE0+OD_NBSIZES-1)
 
-# define OD_LIMIT_LOG_BSIZE_MIN (2)
-# define OD_LIMIT_LOG_BSIZE_MAX (4)
-# if OD_LIMIT_LOG_BSIZE_MIN > 4 || OD_LIMIT_LOG_BSIZE_MAX > 4
-#  error "block sizes above 16x16 not supported"
+/*Largest motion compensation partition sizes are 16x16.*/
+# define OD_LOG_MCBSIZE_MAX (4)
+# define OD_MCBSIZE_MAX (1 << OD_LOG_MCBSIZE_MAX)
+
+# define OD_LIMIT_BSIZE_MIN (OD_BLOCK_4X4)
+# define OD_LIMIT_BSIZE_MAX (OD_BLOCK_32X32)
+# if OD_LIMIT_BSIZE_MIN > OD_BLOCK_32X32 || OD_LIMIT_BSIZE_MAX > OD_BLOCK_32X32
+#  error "block sizes above 32x32 not supported"
 # endif
 # define OD_DISABLE_FILTER (0)
-# define OD_DISABLE_INTRA (1)
 # define OD_DISABLE_HAAR_DC (0)
-# define OD_DISABLE_PVQ (0)
 # define OD_DISABLE_CFL (0)
 # define OD_DISABLE_MASKING (0)
 # define OD_DISABLE_QM (0)
 # define OD_DISABLE_PAINT (0)
+
+# define OD_ROBUST_STREAM (0)
 
 # define OD_COEFF_SHIFT (4)
 /*OD_QUALITY_SHIFT specifies the number of fractional bits in a
@@ -72,7 +76,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # if defined(OD_ENABLE_ASSERTIONS)
 #  include <stdio.h>
 #  include <stdlib.h>
-#  if OD_GNUC_PREREQ(2, 5)
+#  if OD_GNUC_PREREQ(2, 5, 0)
 __attribute__((noreturn))
 #  endif
 void od_fatal_impl(const char *_str, const char *_file, int _line);
@@ -105,6 +109,17 @@ void od_fatal_impl(const char *_str, const char *_file, int _line);
 
 # define OD_MEM_SIZE_MAX (~(size_t)0 >> 1)
 # define OD_MEM_DIFF_MAX ((ptrdiff_t)OD_MEM_SIZE_MAX)
+
+# if OD_GNUC_PREREQ(3, 0, 0)
+/*Another alternative is
+    (__builtin_constant_p(_x)?!!(_x):__builtin_expect(!!(_x),1))
+   but that evaluates _x multiple times, which may be bad.*/
+#  define OD_LIKELY(_x) (__builtin_expect(!!(_x),1))
+#  define OD_UNLIKELY(_x) (__builtin_expect(!!(_x),0))
+# else
+#  define OD_LIKELY(_x)   (!!(_x))
+#  define OD_UNLIKELY(_x) (!!(_x))
+# endif
 
 /*Currently this structure is only in Tremor, and is read-only.*/
 typedef struct oggbyte_buffer oggbyte_buffer;

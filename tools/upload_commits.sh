@@ -17,5 +17,7 @@ shift
 for i in $(seq $COMMITS -1 1)
 do
     msg=$(git log --pretty=format:%s -n 1 HEAD~$((i - 1)))
-    ${dir}/upload.py -y --send_mail $@ --rev HEAD~$i..HEAD~$((i - 1)) -m "$msg"
+    desc=$(git log -n 1 --pretty=%B HEAD~$((i - 1))|tail -n +3)
+    ${dir}/upload.py -y --send_mail $@ --rev HEAD~$i..HEAD~$((i - 1))\
+     -m "$msg" -d "$desc"
 done

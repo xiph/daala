@@ -25,8 +25,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #if !defined(_partition_H)
 # define _partition_H
 
-# define USE_BAND_PARTITIONS (1)
-
 typedef unsigned char index_pair[2];
 
 typedef struct {
@@ -40,7 +38,7 @@ extern const band_layout od_layout4;
 extern const band_layout od_layout8;
 extern const band_layout od_layout16;
 
-extern const int * const od_band_offsets[3];
+extern const int * const od_band_offsets[OD_NBSIZES];
 
 void od_raster_to_coding_order(od_coeff *dst,  int n, od_coeff *src, int stride,
                        int interleave);

@@ -26,17 +26,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <math.h>
 #include <limits.h>
 #include <string.h>
+#include "../include/daala/codec.h"
+
 #if !defined(_odintrin_H)
 # define _odintrin_H (1)
-
-# if !defined(OD_GNUC_PREREQ)
-#  if defined(__GNUC__) && defined(__GNUC_MINOR__)
-#   define OD_GNUC_PREREQ(maj, min) \
-  ((__GNUC__ << 16) + __GNUC_MINOR__ >= ((maj) << 16) + (min))
-#  else
-#   define OD_GNUC_PREREQ(maj, min) (0)
-#  endif
-# endif
 
 # if !defined(M_LOG2E)
 #  define M_LOG2E (1.4426950408889634073599246810019)
@@ -145,7 +138,7 @@ static __inline int od_bsr(unsigned long x) {
 #  include "dsplib.h"
 #  define OD_CLZ0 (31)
 #  define OD_CLZ(x) (_lnorm(x))
-# elif OD_GNUC_PREREQ(3, 4)
+# elif OD_GNUC_PREREQ(3, 4, 0)
 #  if INT_MAX >= 2147483647
 #   define OD_CLZ0 ((int)sizeof(unsigned)*CHAR_BIT)
 #   define OD_CLZ(x) (__builtin_clz(x))
@@ -227,5 +220,37 @@ static __inline int od_bsr(unsigned long x) {
 #if !defined(OVERRIDE_OD_CLEAR)
 # define OD_CLEAR(dst, n) (memset((dst), 0, sizeof(*(dst))*(n)))
 #endif
+
+/** Linkage will break without this if using a C++ compiler, and will issue
+ * warnings without this for a C compiler*/
+#if defined(__cplusplus)
+# define OD_EXTERN extern
+#else
+# define OD_EXTERN
+#endif
+
+/*Some assembly constructs require aligned operands.
+  The following macros are _only_ intended for structure member declarations.
+  Although they will sometimes work on stack variables, gcc will often silently
+   ignore them.
+  A separate set of macros could be made for manual stack alignment, but we
+   don't actually require it anywhere.*/
+# if defined(OD_X86ASM)||defined(OD_ARMASM)
+#  if defined(__GNUC__)
+#   define OD_ALIGN8(expr) expr __attribute__((aligned(8)))
+#   define OD_ALIGN16(expr) expr __attribute__((aligned(16)))
+#  elif defined(_MSC_VER)
+#   define OD_ALIGN8(expr) __declspec (align(8)) expr
+#   define OD_ALIGN16(expr) __declspec (align(16)) expr
+#  else
+#   error "Alignment macros required for this platform."
+#  endif
+# endif
+# if !defined(OD_ALIGN8)
+#  define OD_ALIGN8(expr) expr
+# endif
+# if !defined(OD_ALIGN16)
+#  define OD_ALIGN16(expr) expr
+# endif
 
 #endif

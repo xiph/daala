@@ -37,7 +37,23 @@ typedef struct {
   int increment;
 } generic_encoder;
 
+#define OD_IIR_DIADIC(y, x, shift) ((y) += ((x) - (y)) >> (shift))
+
 void generic_model_init(generic_encoder *model);
+
+#define OD_CDFS_INIT(cdf, val) od_cdf_init(&cdf[0][0],\
+ sizeof(cdf)/sizeof(cdf[0]), sizeof(cdf[0])/sizeof(cdf[0][0]), val, val)
+
+#define OD_CDFS_INIT_FIRST(cdf, val, first) od_cdf_init(&cdf[0][0],\
+ sizeof(cdf)/sizeof(cdf[0]), sizeof(cdf[0])/sizeof(cdf[0][0]), val, first)
+
+#define OD_SINGLE_CDF_INIT(cdf, val) od_cdf_init(cdf,\
+ 1, sizeof(cdf)/sizeof(cdf[0]), val, val)
+
+#define OD_SINGLE_CDF_INIT_FIRST(cdf, val, first) od_cdf_init(cdf,\
+ 1, sizeof(cdf)/sizeof(cdf[0]), val, first)
+
+void od_cdf_init(ogg_uint16_t *cdf, int ncdfs, int nsyms, int val, int first);
 
 void od_encode_cdf_adapt(od_ec_enc *ec, int val, ogg_uint16_t *cdf, int n,
  int increment);

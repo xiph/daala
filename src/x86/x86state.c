@@ -41,6 +41,27 @@ void od_state_opt_vtbl_init_x86(od_state *_state){
     _state->opt_vtbl.mc_predict1fmv8=od_mc_predict1fmv8_sse2;
     _state->opt_vtbl.mc_blend_full8=od_mc_blend_full8_sse2;
     _state->opt_vtbl.mc_blend_full_split8=od_mc_blend_full_split8_sse2;
+
+#if defined(OD_SSE2_INTRINSICS)
+    _state->opt_vtbl.fdct_2d[0]=od_bin_fdct4x4_sse2;
+    _state->opt_vtbl.idct_2d[0]=od_bin_idct4x4_sse2;
+    _state->opt_vtbl.fdct_2d[1] = od_bin_fdct8x8_sse2;
+    _state->opt_vtbl.idct_2d[1] = od_bin_idct8x8_sse2;
+#endif
+#if defined(OD_SSE41_INTRINSICS)
+    if (_state->cpu_flags&OD_CPU_X86_SSE4_1){
+      _state->opt_vtbl.fdct_2d[0]=od_bin_fdct4x4_sse41;
+      _state->opt_vtbl.idct_2d[0]=od_bin_idct4x4_sse41;
+      _state->opt_vtbl.fdct_2d[1] = od_bin_fdct8x8_sse41;
+      _state->opt_vtbl.idct_2d[1] = od_bin_idct8x8_sse41;
+    }
+#endif
+#if defined(OD_AVX2_INTRINSICS)
+    if (_state->cpu_flags & OD_CPU_X86_AVX2) {
+      _state->opt_vtbl.fdct_2d[1] = od_bin_fdct8x8_avx2;
+      _state->opt_vtbl.idct_2d[1] = od_bin_idct8x8_avx2;
+    }
+#endif
   }
   if(_state->cpu_flags&OD_CPU_X86_MMX){
     _state->opt_vtbl.restore_fpu=od_restore_fpu_mmx;

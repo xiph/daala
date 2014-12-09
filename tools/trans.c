@@ -29,7 +29,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <stdlib.h>
 #include "od_defs.h"
 #include "od_filter.h"
-#include "stats_tools.h"
 #include "trans_tools.h"
 #include "int_search.h"
 #include "kiss99.h"

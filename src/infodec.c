@@ -37,7 +37,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #define OD_UINT32_MAX (0xFFFFFFFFUL)
 
 static daala_setup_info *daala_setup_create() {
-  return _ogg_malloc(sizeof(daala_setup_info));
+  return (daala_setup_info *)_ogg_malloc(sizeof(daala_setup_info));
 }
 
 void daala_setup_free(daala_setup_info *setup) {
@@ -56,7 +56,7 @@ static int daala_read_length_and_string(oggbyte_buffer *obb, int *lenp,
   /*Check that enough bytes are left.*/
   if ((int)len > oggbyte_bytes_left(obb)) return OD_EBADHEADER;
   /*This is safe because oggbyte_bytes_left() is less than OD_MEM_DIFF_MAX.*/
-  str = _ogg_malloc(len + 1);
+  str = (char *)_ogg_malloc(len + 1);
   if (!str) return OD_EFAULT;
   str[len] = '\0';
   /*Since we made sure we had enough space above, this function should never

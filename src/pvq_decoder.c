@@ -36,6 +36,89 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "laplace_code.h"
 #include "pvq_code.h"
 
+static void od_decode_pvq_codeword(od_ec_dec *ec, od_adapt_ctx *adapt,
+ od_coeff *y, int n, int k, int noref) {
+  if (k == 1 && n < 16) {
+    int cdf_id;
+    int pos;
+    cdf_id = 2*(n == 15) + !noref;
+    OD_CLEAR(y, n);
+    pos = od_decode_cdf_adapt(ec, adapt->pvq_k1_cdf[cdf_id], n - !noref,
+     adapt->pvq_k1_increment);
+    y[pos] = 1;
+    if (od_ec_dec_bits(ec, 1)) y[pos] = -y[pos];
+  }
+  else {
+    int speed = 5;
+    int *pvq_adapt;
+    int adapt_curr[OD_NSB_ADAPT_CTXS] = { 0 };
+    pvq_adapt = adapt->pvq_adapt;
+    laplace_decode_vector(ec, y, n - !noref, k, adapt_curr,
+     pvq_adapt);
+    if (adapt_curr[OD_ADAPT_K_Q8] > 0) {
+      pvq_adapt[OD_ADAPT_K_Q8] += (256*adapt_curr[OD_ADAPT_K_Q8]
+       - pvq_adapt[OD_ADAPT_K_Q8]) >> speed;
+      pvq_adapt[OD_ADAPT_SUM_EX_Q8] += (adapt_curr[OD_ADAPT_SUM_EX_Q8]
+       - pvq_adapt[OD_ADAPT_SUM_EX_Q8]) >> speed;
+    }
+    if (adapt_curr[OD_ADAPT_COUNT_Q8] > 0) {
+      pvq_adapt[OD_ADAPT_COUNT_Q8] += (adapt_curr[OD_ADAPT_COUNT_Q8]
+       - pvq_adapt[OD_ADAPT_COUNT_Q8]) >> speed;
+      pvq_adapt[OD_ADAPT_COUNT_EX_Q8] += (adapt_curr[OD_ADAPT_COUNT_EX_Q8]
+       - pvq_adapt[OD_ADAPT_COUNT_EX_Q8]) >> speed;
+    }
+  }
+}
+
+/** Inverse of neg_interleave; decodes the interleaved gain.
+ *
+ * @param [in]      x      quantized/interleaved gain to decode
+ * @param [in]      ref    quantized gain of the reference
+ * @return                 original quantized gain value
+ */
+static int neg_deinterleave(int x, int ref) {
+  if (x < 2*ref-1) {
+    if (x & 1) return ref - 1 - (x >> 1);
+    else return ref + (x >> 1);
+  }
+  else return x+1;
+}
+
+/** Synthesizes one parition of coefficient values from a PVQ-encoded
+ * vector.
+ *
+ * @param [out]     xcoeff  output coefficient partition (x in math doc)
+ * @param [in]      ypulse  PVQ-encoded values (y in math doc); in the noref
+ *                          case, this vector has n entries, in the
+ *                          reference case it contains n-1 entries
+ *                          (the m-th entry is not included)
+ * @param [in]      ref     reference vector (prediction)
+ * @param [in]      n       number of elements in this partition
+ * @param [in]      gr      gain of the reference vector (prediction)
+ * @param [in]      noref   indicates presence or lack of prediction
+ * @param [in]      qg      decoded quantized vector gain
+ * @param [in]      theta   decoded theta (prediction error)
+ * @param [in]      m       alignment dimension of Householder reflection
+ * @param [in]      s       sign of Householder reflection
+ */
+static void pvq_synthesis(od_coeff *xcoeff, od_coeff *ypulse, od_coeff *ref,
+ int n, double gr, int noref, double g, double theta) {
+  int i;
+  int s;
+  int m;
+  double r[MAXN];
+  s = 0;
+  if (!noref) for (i = 0; i < n; i++) r[i] = ref[i];
+  m = noref ? 0 : compute_householder(r, n, gr, &s);
+  pvq_synthesis_partial(xcoeff, ypulse, r, n, noref, g, theta, m, s);
+}
+
+typedef struct {
+  od_coeff *ref;
+  int nb_coeffs;
+  int allow_flip;
+} cfl_ctx;
+
 /** Decodes a single vector of integers (eg, a partition within a
  *  coefficient block) encoded using PVQ
  *
@@ -49,26 +132,33 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
  * @param [in]     ref     'reference' (prediction) vector
  * @param [out]    out     decoded partition
  * @param [in]     noref   boolean indicating absence of reference
- * @param [in,out] mask_gain input masking from other bands, output masking for
- *                           other bands
  * @param [in]     beta    per-band activity masking beta param
+ * @param [in]     robust  stream is robust to error in the reference
  * @param [in]     is_keyframe whether we're encoding a keyframe
+ * @param [in]     pli     plane index
+ * @param [in]     cdf_ctx selects which cdf context to use
+ * @param [in,out] skip_rest whether to skip further bands in each direction
+ * @param [in]     band    index of the band being decoded
  */
 static void pvq_decode_partition(od_ec_dec *ec,
                                  int q0,
                                  int n,
                                  generic_encoder model[3],
-                                 int *adapt,
+                                 od_adapt_ctx *adapt,
                                  int *exg,
                                  int *ext,
                                  od_coeff *ref,
                                  od_coeff *out,
                                  int noref,
-                                 double *mask_gain,
                                  double beta,
-                                 int is_keyframe) {
-  int adapt_curr[OD_NSB_ADAPT_CTXS] = {0};
-  int speed;
+                                 int robust,
+                                 int is_keyframe,
+                                 int pli,
+                                 int cdf_ctx,
+                                 cfl_ctx *cfl,
+                                 int has_skip,
+                                 int *skip_rest,
+                                 int band) {
   int k;
   double qcg;
   int max_theta;
@@ -77,89 +167,114 @@ static void pvq_decode_partition(od_ec_dec *ec,
   double gr;
   double gain_offset;
   od_coeff y[1024];
-  double r[1024];
   int qg;
-  double q;
-  double mask_ratio;
-  /* Quantization step calibration to account for the activity masking. */
-  q = q0*pow(256<<OD_COEFF_SHIFT, 1./beta - 1);
-  speed = 5;
+  int nodesync;
+  int skip;
+  int id;
   theta = 0;
   gr = 0;
   gain_offset = 0;
-
-  /* read quantized gain */
-  qg = generic_decode(ec, &model[!noref], -1, exg, 2);
-
+  itheta = 0;
+  /* We always use the robust bitstream for keyframes to avoid having
+     PVQ and entropy decoding depending on each other, hurting parallelism. */
+  nodesync = robust || is_keyframe;
+  /* Skip is per-direction. For band=0, we can use any of the flags. */
+  if (skip_rest[(band + 2) % 3]) {
+    qg = 0;
+    if (is_keyframe) {
+      itheta = -1;
+      noref = 1;
+    }
+    else {
+      itheta = 0;
+      noref = 0;
+    }
+  }
+  else {
+    /* Jointly decode gain, itheta and noref for small values. Then we handle
+       larger gain. We need to wait for itheta because in the !nodesync case
+       it depends on max_theta, which depends on the gain. */
+    id = od_decode_cdf_adapt(ec, &adapt->pvq_gaintheta_cdf[cdf_ctx][0],
+     8 + (8 - !is_keyframe)*has_skip, adapt->pvq_gaintheta_increment);
+    if (!is_keyframe && id >= 10) id++;
+    if (id >= 8) {
+      id -= 8;
+      skip_rest[0] = skip_rest[1] = skip_rest[2] = 1;
+    }
+    qg = id & 1;
+    itheta = (id >> 1) - 1;
+    noref = (itheta == -1);
+  }
+  if (qg > 0) {
+    int tmp;
+    tmp = *exg;
+    qg = 1 + generic_decode(ec, &model[!noref], -1, &tmp, 2);
+    OD_IIR_DIADIC(*exg, qg << 16, 2);
+  }
+  skip = 0;
   if(!noref){
     /* we have a reference; compute its gain */
     double cgr;
     int icgr;
-    int i;
-    cgr = pvq_compute_gain(ref, n, q, &gr, beta);
-    icgr = floor(.5+cgr);
+    int cfl_enabled;
+    cfl_enabled = pli != 0 && is_keyframe && !OD_DISABLE_CFL;
+    cgr = pvq_compute_gain(ref, n, q0, &gr, beta);
+    if (cfl_enabled) cgr = 1;
+    icgr = (int)floor(.5+cgr);
     /* quantized gain is interleave encoded when there's a reference;
        deinterleave it now */
-    qg = neg_deinterleave(qg, icgr);
+    if (is_keyframe) qg = neg_deinterleave(qg, icgr);
+    else {
+      qg = neg_deinterleave(qg, icgr + 1) - 1;
+      if (qg == 0) skip = (icgr ? OD_PVQ_SKIP_ZERO : OD_PVQ_SKIP_COPY);
+    }
+    if (qg == icgr && itheta == 0 && !cfl_enabled) skip = OD_PVQ_SKIP_COPY;
     gain_offset = cgr-icgr;
     qcg = qg + gain_offset;
-    mask_ratio = pvq_interband_masking(*mask_gain, pow(q*qcg, 2*beta), beta);
     /* read and decode first-stage PVQ error theta */
-    max_theta = pvq_compute_max_theta(mask_ratio*qcg, beta);
-    if (max_theta > 1) {
-      if (is_keyframe) {
-        int tmp;
-        tmp = max_theta**ext;
-        itheta = generic_decode(ec, &model[2], max_theta-1, &tmp, 2);
-        /* Adapt expectation as fraction of max_theta */
-        *ext += (itheta*65536/max_theta - *ext) >> 5;
-      }
-      else itheta = generic_decode(ec, &model[2], max_theta - 1, ext, 2);
+    max_theta = pvq_compute_max_theta(qcg, beta);
+    if (itheta > 1 && (nodesync || max_theta > 3)) {
+      int tmp;
+      tmp = *ext;
+      itheta = 2 + generic_decode(ec, &model[2], nodesync ? -1 : max_theta - 3,
+       &tmp, 2);
+      OD_IIR_DIADIC(*ext, itheta << 16, 2);
     }
-    else itheta = 0;
     theta = pvq_compute_theta(itheta, max_theta);
-    for (i = 0; i < n; i++) r[i] = ref[i];
   }
   else{
-    qcg=qg;
-    mask_ratio = pvq_interband_masking(*mask_gain, pow(q*qcg, 2*beta), beta);
+    itheta = 0;
+    if (!is_keyframe) qg++;
+    qcg = qg;
+    if (qg == 0) skip = OD_PVQ_SKIP_ZERO;
   }
 
-  if (qg != 0) {
-    k = pvq_compute_k(mask_ratio*qcg, theta, noref, n, beta);
+  k = pvq_compute_k(qcg, itheta, theta, noref, n, beta, nodesync);
+  if (k != 0) {
     /* when noref==0, y is actually size n-1 */
-    laplace_decode_vector(ec, y, n-(!noref), k, adapt_curr, adapt);
+    od_decode_pvq_codeword(ec, adapt, y, n, k, noref);
   } else {
     OD_CLEAR(y, n);
   }
-  *mask_gain = pvq_synthesis(out, y, r, n, gr, noref, qg, gain_offset, theta,
-   q, beta);
-
-  if (adapt_curr[OD_ADAPT_K_Q8] > 0) {
-    adapt[OD_ADAPT_K_Q8]
-      += 256*adapt_curr[OD_ADAPT_K_Q8]-adapt[OD_ADAPT_K_Q8]>>speed;
-    adapt[OD_ADAPT_SUM_EX_Q8]
-      += adapt_curr[OD_ADAPT_SUM_EX_Q8]-adapt[OD_ADAPT_SUM_EX_Q8]>>speed;
+  /* The CfL flip bit is only decoded on the first band that has noref=0. */
+  if (cfl->allow_flip && !noref) {
+    int flip;
+    int i;
+    flip = od_ec_dec_bits(ec, 1);
+    if (flip) {
+      for (i = 0; i < cfl->nb_coeffs; i++) cfl->ref[i] = -cfl->ref[i];
+    }
+    cfl->allow_flip = 0;
   }
-  if (adapt_curr[OD_ADAPT_COUNT_Q8] > 0) {
-    adapt[OD_ADAPT_COUNT_Q8]
-      += adapt_curr[OD_ADAPT_COUNT_Q8]-adapt[OD_ADAPT_COUNT_Q8]>>speed;
-    adapt[OD_ADAPT_COUNT_EX_Q8]
-      += adapt_curr[OD_ADAPT_COUNT_EX_Q8]-adapt[OD_ADAPT_COUNT_EX_Q8]>>speed;
-  }
-}
-
-static int decode_flag(od_ec_dec *ec, unsigned *prob0)
-{
-  int val;
-  val = od_ec_decode_bool_q15(ec, *prob0);
-  if (val) {
-    *prob0 = *prob0 - (*prob0 >> OD_NOREF_ADAPT_SPEED);
+  if (skip) {
+    if (skip == OD_PVQ_SKIP_COPY) OD_COPY(out, ref, n);
+    else OD_CLEAR(out, n);
   }
   else {
-    *prob0 = *prob0 + ((32768 - *prob0) >> OD_NOREF_ADAPT_SPEED);
+    double g;
+    g = od_gain_expand(qg + gain_offset, q0, beta);
+    pvq_synthesis(out, y, ref, n, gr, noref, g, theta);
   }
-  return val;
 }
 
 /** Decodes a coefficient block (except for DC) encoded using PVQ
@@ -168,9 +283,11 @@ static int decode_flag(od_ec_dec *ec, unsigned *prob0)
  * @param [in]     ref     'reference' (prediction) vector
  * @param [out]    out     decoded partition
  * @param [in]     q       quantizer
+ * @param [in]     pli     plane index
  * @param [in]     ln      log of the block size minus two
  * @param [in]     qm      per-band quantization matrix
  * @param [in]     beta    per-band activity masking beta param
+ * @param [in]     robust  stream is robust to error in the reference
  * @param [in]     is_keyframe whether we're encoding a keyframe
  */
 void pvq_decode(daala_dec_ctx *dec,
@@ -181,32 +298,29 @@ void pvq_decode(daala_dec_ctx *dec,
                 int ln,
                 const int *qm,
                 const double *beta,
-                const double *inter_band,
+                int robust,
                 int is_keyframe){
 
   int noref[PVQ_MAX_PARTITIONS];
-  int *adapt;
   int *exg;
   int *ext;
   int nb_bands;
   int i;
   const int *off;
   int size[PVQ_MAX_PARTITIONS];
-  double g[PVQ_MAX_PARTITIONS] = {0};
   generic_encoder *model;
-  unsigned *noref_prob;
   int skip;
-  adapt = dec->adapt.pvq_adapt;
-  exg = &dec->adapt.pvq_exg[pli][ln][0];
-  ext = dec->adapt.pvq_ext + ln*PVQ_MAX_PARTITIONS;
-  noref_prob = dec->adapt.pvq_noref_prob + ln*PVQ_MAX_PARTITIONS;
-  model = dec->adapt.pvq_param_model;
+  int skip_rest[3] = {0};
+  cfl_ctx cfl;
+  exg = &dec->state.adapt.pvq_exg[pli][ln][0];
+  ext = dec->state.adapt.pvq_ext + ln*PVQ_MAX_PARTITIONS;
+  model = dec->state.adapt.pvq_param_model;
   nb_bands = od_band_offsets[ln][0];
   off = &od_band_offsets[ln][1];
   if (is_keyframe) skip = 0;
   else {
-    skip = od_decode_cdf_adapt(&dec->ec, dec->adapt.skip_cdf[pli], 4,
-     dec->adapt.skip_increment);
+    skip = od_decode_cdf_adapt(&dec->ec, dec->state.adapt.skip_cdf[pli], 4,
+     dec->state.adapt.skip_increment);
     out[0] = skip&1;
     skip >>= 1;
   }
@@ -215,37 +329,24 @@ void pvq_decode(daala_dec_ctx *dec,
   }
   else {
     for (i = 0; i < nb_bands; i++) size[i] = off[i+1] - off[i];
-    if (!is_keyframe && ln > 0) {
-      int id;
-      id = od_decode_cdf_adapt(&dec->ec,
-       dec->adapt.pvq_noref_joint_cdf[ln - 1], 16,
-       dec->adapt.pvq_noref_joint_increment);
-      for (i = 0; i < 4; i++) noref[i] = (id >> (3 - i)) & 1;
-      if (ln >= 2) {
-        int nb_norefs;
-        nb_norefs = 0;
-        for (i = 0; i < 4; i++) nb_norefs += noref[i];
-        id = od_decode_cdf_adapt(&dec->ec,
-         dec->adapt.pvq_noref2_joint_cdf[nb_norefs], 8,
-         dec->adapt.pvq_noref_joint_increment);
-        for (i = 0; i < 3; i++) noref[i + 4] = (id >> (2 - i)) & 1;
-      }
-    }
-    else {
-      for (i = 0; i < nb_bands; i++) {
-        if (is_keyframe && vector_is_null(ref + off[i], size[i])) noref[i] = 1;
-        else noref[i] = !decode_flag(&dec->ec, &noref_prob[i]);
-      }
-    }
+    cfl.ref = ref;
+    cfl.nb_coeffs = off[nb_bands];
+    cfl.allow_flip = pli != 0 && is_keyframe;
     for (i = 0; i < nb_bands; i++) {
-      int j;
-      double mask;
-      mask = 0;
-      for (j = 0; j < i; j++) mask += *inter_band++*g[j];
-      g[i] = mask;
       pvq_decode_partition(&dec->ec, OD_MAXI(1, q*qm[i + 1] >> 4), size[i],
-       model, adapt, exg + i, ext + i, ref + off[i], out + off[i], noref[i],
-       &g[i], beta[i], is_keyframe);
+       model, &dec->state.adapt, exg + i, ext + i, ref + off[i], out + off[i],
+       noref[i], beta[i], robust, is_keyframe, pli,
+       (pli != 0)*OD_NBSIZES*PVQ_MAX_PARTITIONS + ln*PVQ_MAX_PARTITIONS + i,
+       &cfl, i == 0 && (i < nb_bands - 1), skip_rest, i);
+      if (i == 0 && !skip_rest[0] && ln > 0) {
+        int skip_dir;
+        int j;
+        skip_dir = od_decode_cdf_adapt(&dec->ec,
+         &dec->state.adapt.pvq_skip_dir_cdf[(pli != 0) + 2*(ln - 1)][0], 7,
+         dec->state.adapt.pvq_skip_dir_increment);
+        for (j = 0; j < 3; j++) skip_rest[j] = !!(skip_dir & (1 << j));
+      }
+
     }
   }
 }

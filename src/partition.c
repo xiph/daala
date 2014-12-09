@@ -31,6 +31,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 /* The tables below specify how coefficient blocks are translated to
    and from PVQ partition coding scan order for 4x4, 8x8 and 16x16 */
+static const int od_layout32_offsets[4] = { 0, 128, 256, 768};
+extern const index_pair od_zigzag32[];
+const band_layout od_layout32 = {
+  od_zigzag32,
+  32,
+  3,
+  od_layout32_offsets
+};
+
 static const int od_layout16_offsets[4] = { 0, 32, 64, 192 };
 extern const index_pair od_zigzag16[];
 const band_layout od_layout16 = {
@@ -63,11 +72,14 @@ const band_layout od_layout4 = {
 static const int od_band_offsets4[] = {1, 1, 16};
 static const int od_band_offsets8[] = {4, 1, 16, 24, 32, 64};
 static const int od_band_offsets16[] = {7, 1, 16, 24, 32, 64, 96, 128, 256};
+static const int od_band_offsets32[] = {10, 1, 16, 24, 32, 64, 96, 128, 256,
+ 384, 512, 1024};
 
-const int * const od_band_offsets[3] = {
+const int * const od_band_offsets[OD_NBSIZES] = {
  &od_band_offsets4[0],
  &od_band_offsets8[0],
- &od_band_offsets16[0]
+ &od_band_offsets16[0],
+ &od_band_offsets32[0]
 };
 
 /** Perform a single stage of conversion from a coefficient block in
@@ -150,6 +162,19 @@ void od_raster_to_coding_order(od_coeff *dst,  int n, od_coeff *src, int stride,
       }
     }
   }
+  if (n >= 32) {
+    int i;
+    od_band_from_raster(&od_layout32, dst+256, src, stride);
+    if (interleave) {
+      for (i = 0; i < 128; i++) {
+        tmp1[2*i] = dst[256+i];
+        tmp1[2*i+1] = dst[384+i];
+      }
+      for (i = 0; i < 256; i++) {
+        dst[256+i] = tmp1[i];
+      }
+    }
+  }
   dst[0] = src[0];
 }
 
@@ -197,6 +222,20 @@ void od_coding_order_to_raster(od_coeff *dst,  int stride, od_coeff *src,
       }
     }
     od_raster_from_band(&od_layout16, dst, stride, src+64);
+  }
+  if (n >= 32) {
+    if (interleave) {
+      int i;
+      od_coeff tmp1[1024];
+      for (i = 0; i < 256; i++) {
+        tmp1[i] = src[256 + i];
+      }
+      for (i = 0; i < 128; i++) {
+        src[256+i] = tmp1[2*i];
+        src[384+i] = tmp1[2*i + 1];
+      }
+    }
+    od_raster_from_band(&od_layout32, dst, stride, src+256);
   }
   dst[0] = src[0];
 }

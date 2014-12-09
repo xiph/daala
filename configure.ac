@@ -96,7 +96,6 @@ AS_IF([test "$enable_player" = "yes"], [
 AM_CONDITIONAL([ENABLE_PLAYER_EXAMPLE], [test "$enable_player" = "yes"])
 
 PKG_CHECK_MODULES([OGG], [ogg >= 1.3])
-PKG_CHECK_MODULES([PNG], [libpng])
 
 #CC_ATTRIBUTE_VISIBILITY([default], [
 #  CC_FLAG_VISIBILITY([CFLAGS="${CFLAGS} -fvisibility=hidden"])
@@ -110,6 +109,7 @@ AC_ARG_ENABLE([tools],
 if test "$enable_tools" = "yes" ; then
    AC_CHECK_LIB([jpeg],[jpeg_start_compress],[JPEG_LIBS="-ljpeg"],[AC_MSG_ERROR([libjpeg needed for building tools])])
    AC_SUBST([JPEG_LIBS])
+   PKG_CHECK_MODULES([PNG], [libpng])
 
    AC_OPENMP
 fi
@@ -170,10 +170,48 @@ case $host_cpu in
     ;;
 esac
 
-AM_CONDITIONAL([ENABLE_X86ASM], [test "$enable_asm" = "yes" -a "$cpu_x86" = "true"])
 AS_IF([test "$enable_asm" = "yes" -a "$cpu_x86" = "true"], [
   AC_DEFINE([OD_X86ASM], [1], [Enable asm optimisations])
+  AC_TRY_LINK([
+#include <xmmintrin.h>
+   ], [
+    return _mm_cvtsi128_si32(_mm_setzero_si128());
+   ], [
+    enable_sse2_intrinsics=yes
+    AC_DEFINE([OD_SSE2_INTRINSICS], [1],
+     [Enable SSE2 intrinsics optimisations])
+    AC_TRY_LINK([
+#include <smmintrin.h>
+     ], [
+      return _mm_cvtsi128_si32(_mm_mullo_epi32(_mm_setzero_si128(),
+       _mm_setzero_si128()));
+     ], [
+       enable_sse41_intrinsics=yes
+       AC_DEFINE([OD_SSE41_INTRINSICS], [1],
+        [Enable SSE4.1 intrinsics optimisations])
+       AC_TRY_LINK([
+#include <immintrin.h>
+       ], [
+        return _mm_cvtsi128_si32(_mm_broadcastb_epi8(_mm_setzero_si128()));
+       ], [
+         enable_avx2_intrinsics=yes
+         AC_DEFINE([OD_AVX2_INTRINSICS], [1],
+          [Enable AVX2 intrinsics optimisations])
+       ], [enable_avx2_intrinsics=no]
+      )
+     ], [enable_sse41_intrinsics=no]
+    )
+   ], [enable_sse2_intrinsics=no]
+  )
 ])
+AM_CONDITIONAL([ENABLE_X86ASM],
+ [test "$enable_asm" = "yes" -a "$cpu_x86" = "true"])
+AM_CONDITIONAL([ENABLE_SSE2_INTRINSICS],
+ [test "$enable_asm" = "yes" -a "$cpu_x86" = "true" -a "$enable_sse2_intrinsics" = "yes"])
+AM_CONDITIONAL([ENABLE_SSE41_INTRINSICS],
+ [test "$enable_asm" = "yes" -a "$cpu_x86" = "true" -a "$enable_sse41_intrinsics" = "yes"])
+AM_CONDITIONAL([ENABLE_AVX2_INTRINSICS],
+ [test "$enable_asm" = "yes" -a "$cpu_x86" = "true" -a "$enable_avx2_intrinsics" = "yes"])
 
 AC_ARG_ENABLE([encoder-check],
   AS_HELP_STRING([--enable-encoder-check], [Compare reconstructed frames]),,
@@ -189,6 +227,9 @@ AC_ARG_ENABLE([dump-images],
   [enable_dump_images=no])
 AS_IF([test "$enable_dump_images" = "yes"], [
   AC_DEFINE([OD_DUMP_IMAGES], [1], [Enable image dumping])
+  if test "$enable_tools" != "yes" ; then
+    PKG_CHECK_MODULES([PNG], [libpng])
+  fi
   PC_PNG_REQUIRES="libpng"
   PC_PNG_LIBS="$PNG_LIBS"
 ])
@@ -203,12 +244,25 @@ AS_IF([test "$enable_dump_recons" = "yes"], [
   AC_DEFINE([OD_DUMP_RECONS], [1], [Enable reconstructed video dumping])
 ])
 
+AC_ARG_ENABLE([dump-coeffs],
+  AS_HELP_STRING([--enable-dump-coeffs], [Dump transform coefficients]),,
+  [enable_dump_coeffs=no])
+AS_IF([test "$enable_dump_coeffs" = "yes"], [
+  AC_DEFINE([OD_DUMP_COEFFS], [1], [Enable transform coefficient dumping])
+])
+
 AC_ARG_ENABLE([accounting],
   AS_HELP_STRING([--enable-accounting], [Enable bit accounting]),
   [if test "$host_mingw" = "true"; then AC_MSG_ERROR([accounting not supported on Windows]); fi],
   [enable_accounting=no])
 AS_IF([test "$enable_accounting" = "yes"], [
   AC_DEFINE([OD_ACCOUNTING], [1], [Enable bit accounting])])
+
+AC_ARG_ENABLE([ec-accounting],
+  AS_HELP_STRING([--enable-ec-accounting], [Enable entropy coder accounting]),,
+  [enable_ec_accounting=no])
+AS_IF([test "$enable_ec_accounting" = "yes"], [
+  AC_DEFINE([OD_EC_ACCOUNTING], [1], [Enable entropy coder accounting])])
 
 AC_CONFIG_FILES([
   Makefile
@@ -217,6 +271,7 @@ AC_CONFIG_FILES([
   daalaenc-uninstalled.pc
   daaladec-uninstalled.pc
   doc/Doxyfile
+  doc/Makefile
 ])
 AC_CONFIG_HEADERS([config.h])
 AC_OUTPUT
@@ -231,8 +286,10 @@ AC_MSG_NOTICE([
     Assembly optimizations ....... ${enable_asm}
     Image dumping ................ ${enable_dump_images}
     Reconstructed video dumping .. ${enable_dump_recons}
+    Transform coeffs dumping ..... ${enable_dump_coeffs}
     Check encoder ................ ${enable_encoder_check}
     Bit accounting ............... ${enable_accounting}
+    Entropy coder accounting ..... ${enable_ec_accounting}
     Tools ........................ ${enable_tools}
     Unit tests ................... ${enable_unit_tests}
     Example Player................ ${enable_player}

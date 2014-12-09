@@ -25,9 +25,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #if !defined(_od_defs_H)
 # define _od_defs_H (0)
 
-#include "intra_fit_tools.h"
-#include "../src/filter.h"
-
 #if defined(_OPENMP)
 # include <omp.h>
 # define NUM_PROCS (4)
@@ -46,17 +43,5 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #define USE_TYPE3 (1)
 #define NN_SEARCH (1)
-
-#define APPLY_FILTER (1)
-#define APPLY_DCT    (1)
-#define APPLY_PRED   (1)
-#define APPLY_PCA    (1)
-
-#define INPUT_SCALE_BITS (4)
-#define INPUT_SCALE (1<<INPUT_SCALE_BITS)
-
-#define ZERO_MEAN   (1)
-#define MASK_BLOCKS (0)
-#define TF_BLOCKS   (1)
 
 #endif

@@ -201,7 +201,7 @@ void od_free_2d(void *_ptr) {
 
 void oggbyte_writeinit(oggbyte_buffer *_b) {
   OD_CLEAR(_b, 1);
-  _b->ptr = _b->buf = _ogg_malloc(BUFFER_INCREMENT);
+  _b->ptr = _b->buf = (unsigned char *)_ogg_malloc(BUFFER_INCREMENT);
   _b->storage = BUFFER_INCREMENT;
 }
 
@@ -214,7 +214,8 @@ void oggbyte_write1(oggbyte_buffer *_b, unsigned _value) {
   ptrdiff_t endbyte;
   endbyte = _b->ptr-_b->buf;
   if (endbyte >= _b->storage) {
-    _b->buf = _ogg_realloc(_b->buf, _b->storage + BUFFER_INCREMENT);
+    _b->buf = (unsigned char *)_ogg_realloc(_b->buf,
+            _b->storage + BUFFER_INCREMENT);
     _b->storage += BUFFER_INCREMENT;
     _b->ptr = _b->buf+endbyte;
   }
@@ -225,7 +226,8 @@ void oggbyte_write4(oggbyte_buffer *_b, ogg_uint32_t _value) {
   ptrdiff_t endbyte;
   endbyte = _b->ptr - _b->buf;
   if (endbyte+4 > _b->storage) {
-    _b->buf = _ogg_realloc(_b->buf, _b->storage + BUFFER_INCREMENT);
+    _b->buf = (unsigned char *)_ogg_realloc(_b->buf,
+            _b->storage + BUFFER_INCREMENT);
     _b->storage += BUFFER_INCREMENT;
     _b->ptr = _b->buf + endbyte;
   }
@@ -244,7 +246,7 @@ void oggbyte_writecopy(oggbyte_buffer *_b, const void *_source,
   endbyte = _b->ptr-_b->buf;
   if (endbyte+_bytes > _b->storage) {
     _b->storage = endbyte+_bytes+BUFFER_INCREMENT;
-    _b->buf = _ogg_realloc(_b->buf, _b->storage);
+    _b->buf = (unsigned char *)_ogg_realloc((void *)_b->buf, _b->storage);
     _b->ptr = _b->buf+endbyte;
   }
   memmove(_b->ptr, _source, _bytes);
@@ -369,11 +371,10 @@ ogg_uint32_t daala_version_number(void) {
   return OD_VERSION_MAJOR<<16|OD_VERSION_MINOR<<8|OD_VERSION_SUB;
 }
 
-int daala_packet_isheader(ogg_packet *_op) {
-  return _op->bytes > 0 ? _op->packet[0]>>7 : 0;
+int daala_packet_isheader(const unsigned char *packet, int len) {
+  return len > 0 ? packet[0]>>7 : 0;
 }
 
-int daala_packet_iskeyframe(ogg_packet *_op) {
-  return _op->bytes <= 0 ? 0 : _op->packet[0]&0x80 ?
-   -1 : !(_op->packet[0]&0x40);
+int daala_packet_iskeyframe(const unsigned char *packet, int len) {
+  return len <= 0 || packet[0] & 0x80 ? -1 : !!(packet[0] & 0x40);
 }

@@ -53,6 +53,11 @@ void od_tf_up_v_lp(od_coeff *dst, int dstride,
 void od_tf_up_hv_lp(od_coeff *dst, int dstride,
  const od_coeff *src, int sstride, int dx, int dy, int n);
 
+void od_tf_up_hv(od_coeff *dst, int dstride,
+ const od_coeff *src, int sstride, int n);
+void od_tf_down_hv(od_coeff *dst, int dstride,
+ const od_coeff *src, int sstride, int n);
+
 void od_convert_block_down(od_coeff *dst, int dstride, const od_coeff *src,
  int sstride, int curr_size, int dest_size, int filter);
 

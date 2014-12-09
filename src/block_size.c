@@ -31,21 +31,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "internal.h"
 #include "entenc.h"
 
-/* Meaning of the range IDs:
- 0: 4x4 only
- 1: 4x4 to 8x8
- 2: 4x4 to 16x16
- 3: 8x8 only
- 4: 8x8 to 16x16
- 5: 16x16 only
- 6: 32x32
- */
-const int od_range_ids[7][2] = {
-  {0, 0},
-  {0, 1},
-  {0, 2},
-  {1, 1},
-  {1, 2},
-  {2, 2},
-  {3, 3},
+/*Minimum and maximum block sizes used.*/
+const int od_bsize_range[7][2] = {
+  { OD_BLOCK_4X4, OD_BLOCK_4X4 },
+  { OD_BLOCK_4X4, OD_BLOCK_8X8 },
+  { OD_BLOCK_4X4, OD_BLOCK_16X16},
+  { OD_BLOCK_8X8, OD_BLOCK_8X8 },
+  { OD_BLOCK_8X8, OD_BLOCK_16X16 },
+  { OD_BLOCK_16X16, OD_BLOCK_16X16 },
+  { OD_BLOCK_32X32, OD_BLOCK_32X32 },
 };

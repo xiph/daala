@@ -24,12 +24,10 @@ noinst_HEADERS = \
 	src/internal.h \
 	src/intra.h \
 	src/intra_paint.h \
-	src/intradata_4x4.h \
-	src/intradata_8x8.h \
-	src/intradata_16x16.h \
 	src/laplace_code.h \
 	src/logging.h \
 	src/mc.h \
+	src/mcenc.h \
 	src/odintrin.h \
 	src/partition.h \
 	src/pvq.h \
@@ -39,7 +37,22 @@ noinst_HEADERS = \
 	src/accounting.h \
 	src/x86/cpu.h \
 	src/x86/x86enc.h \
+	src/x86/x86dct.h \
 	src/x86/x86int.h
+
+src_dct_SOURCES = src/dct.c src/tf.c src/internal.c
+if ENABLE_X86ASM
+src_dct_SOURCES += src/x86/cpu.c
+if ENABLE_SSE2_INTRINSICS
+src_dct_SOURCES += src/x86/sse2dct.c
+endif
+if ENABLE_SSE41_INTRINSICS
+src_dct_SOURCES += src/x86/sse41dct.c
+endif
+if ENABLE_AVX2_INTRINSICS
+src_dct_SOURCES += src/x86/avx2dct.c
+endif
+endif
 
 src_libdaalabase_la_CFLAGS = $(OGG_CFLAGS)
 src_libdaalabase_la_LIBADD = $(OGG_LIBS) $(LIBM)
@@ -52,16 +65,13 @@ src_libdaalabase_la_LDFLAGS +=
 src_libdaalabase_la_SOURCES = \
 	src/adapt.c \
 	src/block_size.c \
-	src/dct.c \
 	src/entcode.c \
 	src/entdec.c \
 	src/filter.c \
 	src/generic_code.c \
 	src/generic_decoder.c \
 	src/info.c \
-	src/internal.c \
 	src/intra.c \
-	src/intradata.c \
 	src/laplace_decoder.c \
 	src/laplace_tables.c \
 	src/logging.c \
@@ -72,13 +82,13 @@ src_libdaalabase_la_SOURCES = \
 	src/pvq_decoder.c \
 	src/state.c \
 	src/switch_table.c \
-	src/tf.c \
 	src/zigzag4.c \
 	src/zigzag8.c \
-	src/zigzag16.c
+	src/zigzag16.c \
+	src/zigzag32.c \
+	$(src_dct_SOURCES)
 if ENABLE_X86ASM
 src_libdaalabase_la_SOURCES += \
-	src/x86/cpu.c \
 	src/x86/sse2mc.c \
 	src/x86/x86state.c
 endif
@@ -163,15 +173,9 @@ tools_TARGETS = \
 	tools/dump_psnrhvs \
 	tools/block_size_analysis \
 	tools/divu_const \
-	tools/plot_intra_maps \
-	tools/init_intra_maps \
-	tools/intra_stats \
-	tools/intra_pred \
-	tools/intra_trace \
 	tools/trans \
 	tools/trans2d \
 	tools/trans_gain \
-	tools/init_intra_xform \
 	tools/gen_cdf \
 	tools/gen_laplace_tables \
 	tools/dump_ssim \
@@ -186,18 +190,12 @@ tools_TARGETS = \
 
 noinst_HEADERS += \
 	tools/cholesky.h \
-	tools/image.h \
-	tools/image_tools.h \
 	tools/int_search.h \
-	tools/intra_fit_tools.h \
 	tools/kiss99.h \
 	tools/matidx.h \
-	tools/od_covmat.h \
 	tools/od_defs.h \
 	tools/od_filter.h \
-	tools/od_intra.h \
 	tools/pythag.h \
-	tools/stats_tools.h \
 	tools/svd.h \
 	tools/trans_tools.h \
 	tools/vidinput.h
@@ -224,7 +222,7 @@ tools_y4m2png_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS)
 tools_dump_psnrhvs_SOURCES = \
 	tools/vidinput.c \
 	tools/y4m_input.c \
-	src/dct.c \
+	$(src_dct_SOURCES) \
 	tools/dump_psnrhvs.c
 tools_dump_psnrhvs_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS)
 tools_dump_psnrhvs_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
@@ -260,8 +258,7 @@ tools_block_size_analysis_SOURCES = \
 	src/block_size_enc.c \
 	tools/vidinput.c \
 	tools/y4m_input.c \
-	src/dct.c \
-	src/internal.c \
+	$(src_dct_SOURCES) \
 	src/generic_encoder.c \
 	src/generic_code.c \
 	src/laplace_encoder.c \
@@ -280,204 +277,51 @@ tools_divu_const_SOURCES = \
 tools_divu_const_CFLAGS = $(OGG_CFLAGS)
 tools_divu_const_LDADD = $(OGG_LIBS) $(LIBM)
 
-# plot_intra_maps
-tools_plot_intra_maps_SOURCES = \
-	tools/image.c \
-	tools/plot_intra_maps.c \
-	tools/intra_fit_tools.c \
-	tools/vidinput.c \
-	tools/y4m_input.c
-tools_plot_intra_maps_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS)
-tools_plot_intra_maps_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
-
-# init_intra_maps
-tools_init_intra_maps_SOURCES = \
-	tools/init_intra_maps.c \
-	tools/intra_fit_tools.c \
-	tools/vidinput.c \
-	tools/y4m_input.c
-tools_init_intra_maps_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS)
-tools_init_intra_maps_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
-
-# intra_stats
-tools_intra_stats_SOURCES = \
-	tools/intra_stats.c \
-	tools/intra_fit_tools.c \
-	tools/od_covmat.c \
-	tools/od_filter.c \
-	tools/od_intra.c \
-	tools/od_intra_data.c \
-	tools/image_tools.c \
-	tools/stats_tools.c \
-	tools/vidinput.c \
-	tools/y4m_input.c \
-	tools/image.c \
-	src/block_size.c \
-	src/block_size_enc.c \
-	src/generic_encoder.c \
-	src/generic_code.c \
-	src/laplace_encoder.c \
-	src/logging.c \
-	src/laplace_tables.c \
-	src/entenc.c \
-	src/entcode.c \
-	src/filter.c \
-	src/dct.c \
-	src/intra.c \
-	src/switch_table.c \
-	src/tf.c \
-	src/internal.c \
-	src/intradata.c
-tools_intra_stats_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS) $(OPENMP_CFLAGS)
-tools_intra_stats_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
-
-# intra_pred
-tools_intra_pred_SOURCES = \
-	tools/intra_pred.c \
-	tools/intra_fit_tools.c \
-	tools/od_covmat.c \
-	tools/od_filter.c \
-	tools/od_intra.c \
-	tools/od_intra_data.c \
-	tools/image_tools.c \
-	tools/stats_tools.c \
-	tools/vidinput.c \
-	tools/y4m_input.c \
-	tools/image.c \
-	tools/svd.c \
-	tools/cholesky.c \
-	src/block_size.c \
-	src/block_size_enc.c \
-	src/generic_encoder.c \
-	src/generic_code.c \
-	src/laplace_encoder.c \
-	src/logging.c \
-	src/laplace_tables.c \
-	src/entenc.c \
-	src/entcode.c \
-	src/filter.c \
-	src/dct.c \
-	src/intra.c \
-	src/intradata.c \
-	src/internal.c \
-	src/switch_table.c \
-	src/tf.c
-tools_intra_pred_CFLAGS = $(OGG_CFLAGS) $(PNG_CFLAGS) $(OPENMP_CFLAGS)
-tools_intra_pred_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
-
-# intra_trace
-tools_intra_trace_SOURCES = \
-	tools/intra_trace.c \
-	tools/intra_fit_tools.c \
-	tools/od_covmat.c \
-	tools/od_filter.c \
-	tools/od_intra.c \
-	tools/od_intra_data.c \
-	tools/image_tools.c \
-	tools/stats_tools.c \
-	tools/trans_tools.c \
-	tools/vidinput.c \
-	tools/y4m_input.c \
-	tools/image.c \
-	src/block_size.c \
-	src/block_size_enc.c \
-	src/generic_encoder.c \
-	src/generic_code.c \
-	src/laplace_encoder.c \
-	src/logging.c \
-	src/laplace_tables.c \
-	src/entenc.c \
-	src/entcode.c \
-	src/filter.c \
-	src/dct.c \
-	src/intra.c \
-	src/switch_table.c \
-	src/tf.c \
-	src/internal.c \
-	src/intradata.c
-tools_intra_trace_CFLAGS = $(OGG_CFLAGS) $(PNG_CFLAGS) $(OPENMP_CFLAGS)
-tools_intra_trace_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
-
 # trans
 tools_trans_SOURCES = \
 	tools/trans.c \
-	src/internal.c \
-	tools/intra_fit_tools.c \
 	tools/vidinput.c \
 	tools/y4m_input.c \
-	tools/od_covmat.c \
 	tools/od_filter.c \
-	tools/od_intra.c \
-	tools/od_intra_data.c \
-	tools/stats_tools.c \
 	tools/trans_tools.c \
 	tools/int_search.c \
 	tools/trans_data.c \
 	tools/kiss99.c \
-	tools/image.c \
 	tools/svd.c \
 	tools/cholesky.c \
 	src/filter.c \
-	src/dct.c \
-	src/intradata.c
+	$(src_dct_SOURCES)
 tools_trans_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS) $(OPENMP_CFLAGS)
 tools_trans_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
 
 # trans_gain
 tools_trans_gain_SOURCES = \
 	tools/trans_gain.c \
-	src/internal.c \
 	tools/vidinput.c \
 	tools/y4m_input.c \
 	tools/od_filter.c \
 	tools/trans_tools.c \
 	src/filter.c \
-	src/dct.c \
-	src/intradata.c
+	$(src_dct_SOURCES)
 tools_trans_gain_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS) $(OPENMP_CFLAGS)
 tools_trans_gain_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
 
 #trans2d
 tools_trans2d_SOURCES = \
 	tools/trans2d.c \
-	src/internal.c \
-	tools/intra_fit_tools.c \
 	tools/vidinput.c \
 	tools/y4m_input.c \
-	tools/od_covmat.c \
 	tools/od_filter.c \
-	tools/od_intra.c \
-	tools/od_intra_data.c \
-	tools/stats_tools.c \
 	tools/trans_tools.c \
 	tools/int_search.c \
 	tools/trans_data.c \
 	tools/kiss99.c \
-	tools/image.c \
 	tools/svd.c \
 	tools/cholesky.c \
 	src/filter.c \
-	src/dct.c \
-	src/intradata.c
+	$(src_dct_SOURCES)
 tools_trans2d_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS) $(OPENMP_CFLAGS)
 tools_trans2d_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
-
-# init_intra_xform
-tools_init_intra_xform_SOURCES = \
-	tools/cholesky.c \
-	tools/init_intra_xform.c \
-	tools/intra_fit_tools.c \
-	tools/svd.c \
-	tools/vidinput.c \
-	tools/y4m_input.c \
-	src/filter.c \
-	src/dct.c \
-	src/intra.c \
-	src/tf.c \
-	src/internal.c \
-	src/intradata.c
-tools_init_intra_xform_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS)
-tools_init_intra_xform_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
 
 # gen_cdf
 tools_gen_cdf_SOURCES = \
@@ -531,6 +375,7 @@ endif # ENABLE_TOOLS
 if ENABLE_UNIT_TESTS
 noinst_PROGRAMS += \
 	src/tests/dcttest \
+	src/tests/test_32x32 \
 	src/tests/ectest \
 	src/tests/test_coef_coder \
 	src/tests/logging_test \
@@ -540,6 +385,7 @@ noinst_PROGRAMS += \
 
 TESTS = \
 	src/tests/dcttest \
+	src/tests/test_32x32 \
 	src/tests/ectest \
 	src/tests/test_coef_coder \
 	src/tests/logging_test \
@@ -547,20 +393,27 @@ TESTS = \
 	src/tests/test_filters \
 	src/tests/check_tests
 
-src_tests_dcttest_SOURCES = src/dct.c src/filter.c src/internal.c
+src_tests_dcttest_SOURCES = $(src_dct_SOURCES) src/filter.c
 src_tests_dcttest_CFLAGS = $(OGG_CFLAGS) \
  -DOD_DCT_CHECK_OVERFLOW -DOD_DCT_TEST -DOD_ENABLE_ASSERTIONS
 src_tests_dcttest_LDADD = $(LIBM)
 
+src_tests_test_32x32_SOURCES = src/tests/test_32x32.c
+src_tests_test_32x32_CFLAGS = $(OGG_CFLAGS) -D_GNU_SOURCE
+src_tests_test_32x32_LDADD = $(LIBM)
+
 src_tests_ectest_SOURCES = src/tests/ectest.c
 src_tests_ectest_CFLAGS = $(OGG_CFLAGS)
-src_tests_ectest_LDADD = $(LIBM)
+src_tests_ectest_LDADD = \
+ src/libdaalaenc.la \
+ $(LIBM)
 
 src_tests_test_coef_coder_SOURCES = src/tests/test_coef_coder.c
 src_tests_test_coef_coder_CFLAGS = $(OGG_CFLAGS)
 src_tests_test_coef_coder_LDADD = \
  src/libdaalabase.la \
  src/libdaaladec.la \
+ src/libdaalaenc.la \
  $(OGG_LIBS) \
  $(LIBM)
 
@@ -597,65 +450,7 @@ src_tests_check_tests_LDADD = \
 
 endif
 
-# Docs
-
-if HAVE_FIG2DEV
-# Generate the paper from its sources.
-# Requires transfig and pdflatex.
-
-PAPER_SRCS = \
-	doc/mc.tex \
-	doc/daala.bib
-
-FIG_SRCS = \
-	doc/4-8sub.fig \
-	doc/mvpred.fig
-FIG_TEX_SRCS = blockidx.fig vbunsplit.fig
-
-FIG_OBJS = \
-	$(FIG_SRCS:.fig=.pdf) \
-	$(FIG_TEX_SRCS:.fig=.pdftex) \
-	$(FIG_TEX_SRCS:.fig=.pdftex_t)
-
-#noinst_DATA = mc.pdf
-
-CLEANFILES += \
-	doc/mc.pdf \
-	doc/mc.out \
-	doc/mc.log \
-	doc/mc.blg \
-	doc/mc.bbl \
-	doc/mc.aux \
-	doc/blockidx.pdftex \
-	doc/blockidx.pdftex_t \
-	doc/vbunsplit.pdftex \
-	doc/vbunsplit.pdftex_t \
-	doc/mvpred.pdf \
-	doc/4-8sub.pdf
-
-mc.pdf : $(PAPER_SRCS) $(FIG_OBJS) $(EXTRA_FIGS) mc.bbl
-	pdflatex mc
-	pdflatex mc
-
-mc.bbl : $(PAPER_SRCS) $(FIG_OBJS) $(EXTRA_FIGS)
-	if [ mc.tex -nt mc.aux ] ; then pdflatex mc ; fi
-	bibtex mc
-
-figures : $(FIG_OBJS)
-
-# rule to generate latex versions of the xfig figures
-%.tex : %.fig
-	fig2dev -L latex $< $@
-
-%.pdf : %.fig
-	fig2dev -L pdf -p 0 $< $@
-
-%.pdftex : %.fig
-	fig2dev -L pdftex -p 0 $< $@
-
-%.pdftex_t : %.fig
-	fig2dev -L pdftex_t -p $(<:.fig=.pdftex) $< $@
-endif
+SUBDIRS=doc
 
 ACLOCAL_AMFLAGS = -I m4
 

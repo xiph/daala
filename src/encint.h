@@ -24,18 +24,21 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #if !defined(_encint_H)
 # define _encint_H (1)
+
+typedef struct daala_enc_ctx od_enc_ctx;
+typedef struct od_params_ctx od_params_ctx;
+typedef struct od_mv_est_ctx od_mv_est_ctx;
+typedef struct od_enc_opt_vtbl od_enc_opt_vtbl;
+typedef struct od_rollback_buffer od_rollback_buffer;
+
 # include "../include/daala/daaladec.h"
 # include "../include/daala/daalaenc.h"
 # include "state.h"
 # include "entenc.h"
+# include "block_size_enc.h"
 #if defined(OD_ACCOUNTING)
 # include "accounting.h"
 #endif
-
-typedef struct daala_enc_ctx od_enc_ctx;
-typedef struct od_mv_est_ctx od_mv_est_ctx;
-typedef struct od_enc_opt_vtbl od_enc_opt_vtbl;
-typedef struct od_rollback_buffer od_rollback_buffer;
 
 /*Constants for the packet state machine specific to the encoder.*/
 /*No packet currently ready to output.*/
@@ -57,15 +60,24 @@ struct od_enc_opt_vtbl {
    int systride, const unsigned char *ref, int dystride);
 };
 
+/*Unsanitized user parameters*/
+struct od_params_ctx {
+  /*Set using OD_SET_MV_LEVEL_MIN*/
+  int mv_level_min;
+  /*Set using OD_SET_MV_LEVEL_MAX*/
+  int mv_level_max;
+};
+
 struct daala_enc_ctx{
   od_state state;
-  od_adapt_ctx adapt;
   od_enc_opt_vtbl opt_vtbl;
   oggbyte_buffer obb;
   od_ec_enc ec;
   int packet_state;
+  int quality[OD_NPLANES_MAX];
   int quantizer[OD_NPLANES_MAX];
   od_mv_est_ctx *mvest;
+  od_params_ctx params;
 #if defined(OD_ENCODER_CHECK)
   struct daala_dec_ctx *dec;
 #endif
@@ -73,6 +85,7 @@ struct daala_enc_ctx{
   /*Account for where bits are spent in encoding.*/
   od_acct acct;
 #endif
+  od_block_size_comp *bs;
 };
 
 /** Holds important encoder information so we can roll back decisions */

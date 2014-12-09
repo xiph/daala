@@ -23,7 +23,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+# include "config.h"
 #endif
 
 #include <stdio.h>
@@ -44,7 +44,7 @@ typedef struct {
   daala_comment dc;
   ogg_sync_state oy;
   FILE *input;
-  char *input_path;
+  const char *input_path;
   ogg_stream_state os;
   daala_dec_ctx *dctx;
   SDL_Surface *surf;
@@ -59,9 +59,18 @@ typedef struct {
   int loop;
   int step;
   int valid;
+  int plane_mask;
 } player_example;
 
-static void img_to_rgb(SDL_Surface *surf, const od_img *img);
+enum {
+  OD_LUMA_MASK = 1 << 0,
+  OD_CB_MASK = 1 << 1,
+  OD_CR_MASK = 1 << 2,
+  OD_ALL_MASK = OD_LUMA_MASK | OD_CB_MASK | OD_CR_MASK
+};
+
+static void img_to_rgb(SDL_Surface *surf, const od_img *img, int plane_mask);
+static int next_plane(int plane_mask);
 
 int player_example_init(player_example *player);
 player_example *player_example_create();
@@ -110,6 +119,7 @@ int player_example_init(player_example *player) {
   player->step = 0;
   player->valid = 0;
   player->od_state = ODS_NONE;
+  player->plane_mask = OD_ALL_MASK;
   return 0;
 }
 
@@ -122,10 +132,10 @@ int player_example_clear(player_example *player) {
 player_example *player_example_create() {
   int ret;
   player_example *player;
-  player = malloc(sizeof(player_example));
+  player = (player_example *)malloc(sizeof(player_example));
   if (player == NULL) return NULL;
   ret = player_example_init(player);
-  if (ret != 0) { 
+  if (ret != 0) {
     free(player);
     return NULL;
   }
@@ -153,11 +163,12 @@ int player_example_reset(player_example *player) {
   return 0;
 }
 
-int player_example_open_input(player_example *player, char *path) {
+int player_example_open_input(player_example *player, const char *path) {
   if ((player == NULL) || ((path == NULL) || (path[0] == '\0'))) return -1;
   if ((path[0] == '-') && (path[1] == '\0')) {
     player->input = stdin;
-  } else {
+  }
+  else {
     player->input = fopen(path, "rb");
   }
   if (player->input == NULL) {
@@ -192,40 +203,53 @@ int player_example_input_restart(player_example *player) {
 
 void player_example_handle_event(player_example *player, SDL_Event *event) {
   switch (event->type) {
-    case SDL_QUIT:
+    case SDL_QUIT: {
       player->done = 1;
       break;
-    case SDL_KEYDOWN:
+    }
+    case SDL_KEYDOWN: {
       switch (event->key.keysym.sym) {
-        case SDLK_q:
+        case SDLK_q: {
           player->done = 1;
           break;
-        case SDLK_s:
+        }
+        case SDLK_s: {
           player->slow = !player->slow;
           break;
-        case SDLK_l:
+        }
+        case SDLK_p: {
+          player->plane_mask = next_plane(player->plane_mask);
+          break;
+        }
+        case SDLK_l: {
           player->loop = !player->loop;
           break;
-        case SDLK_ESCAPE:
+        }
+        case SDLK_ESCAPE: {
           player->done = 1;
           break;
-        case SDLK_SPACE:
+        }
+        case SDLK_SPACE: {
           player->paused = !player->paused;
           player->step = 0;
           break;
-        case SDLK_PERIOD:
+        }
+        case SDLK_PERIOD: {
           player->step = 1;
           player->paused = 1;
           break;
-        case SDLK_r:
+        }
+        case SDLK_r: {
           player->restart = 1;
           if (player->paused) {
             player->step = 1;
           }
           break;
-        default:
-          break;
+        }
+        default: break;
       }
+      break;
+    }
   }
 }
 
@@ -258,8 +282,9 @@ int player_example_play(player_example *player) {
       bytes = fread(buffer, 1, 4096, player->input);
       if (bytes > 0) {
         ret = ogg_sync_wrote(&player->oy, bytes);
-        if (ret != 0) return -1; 
-      } else {
+        if (ret != 0) return -1;
+      }
+      else {
         if (!player->valid) {
           fprintf(stderr, "Invalid Ogg\n");
           exit(1);
@@ -291,56 +316,67 @@ int player_example_play(player_example *player) {
     }
     if (ogg_page_bos(&page)) {
       ret = player_example_daala_stream_init(player,
-             ogg_page_serialno(&page));
-      if (ret != 0) return -1; 
+       ogg_page_serialno(&page));
+      if (ret != 0) return -1;
     }
     ret = ogg_stream_pagein(&player->os, &page);
     if (ret != 0) return -1;
     while (ogg_stream_packetout(&player->os, &packet) == 1) {
       switch (player->od_state) {
-      case ODS_HEADER:
-        ret = daala_decode_header_in(&player->di, &player->dc, &dsi, &packet);
-        if (ret < 0) return -1;
-        if (ret != 0) break;
-        player->dctx = daala_decode_alloc(&player->di, dsi);
-        if (player->dctx == NULL) return -1;
-        daala_setup_free(dsi);
-        dsi = NULL;
-        player->od_state = ODS_DATA;
-      case ODS_DATA:
-        if ((player->screen == NULL)
-            || (player->width != player->di.pic_width)
-            || (player->height != player->di.pic_height)) {
-          player->width = player->di.pic_width;
-          player->height = player->di.pic_height;
-          player->screen = SDL_SetVideoMode(player->width, player->height, 24, 
-           SDL_HWSURFACE | SDL_DOUBLEBUF);
-          if (player->screen == NULL) return -1;
-          player->surf = SDL_GetVideoSurface();
-          if (player->surf == NULL) return -1;
-        }
-        ret = daala_decode_packet_in(player->dctx, &player->img, &packet);
-        if (ret != 0) return -1;
-        player->valid = 1;
-        if ((player->slow) && (!player->step)) {
-          SDL_Delay(420);
-        }
-        player_example_check_user_input(player);
-        while ((player->paused) && (!player->done)) {
-          if (player->restart) {
-            break;
+        case ODS_HEADER: {
+          ret =
+           daala_decode_header_in(&player->di, &player->dc, &dsi, &packet);
+          if (ret < 0) {
+            if (memcmp(packet.packet, "fishead", packet.bytes)) {
+              fprintf(stderr, "Ogg Skeleton streams not supported\n");
+            }
+            return -1;
           }
-          if (player->step) {
-            player->step = 0;
-            break;
-          }
-          player_example_wait_user_input(player);
+          if (ret != 0) break;
+          player->dctx = daala_decode_alloc(&player->di, dsi);
+          if (player->dctx == NULL) return -1;
+          daala_setup_free(dsi);
+          dsi = NULL;
+          player->od_state = ODS_DATA;
+          /* Falling through */
         }
-        if ((!player->restart) && (!player->done)) {
-          SDL_LockSurface(player->surf);
-          img_to_rgb(player->surf, &player->img);
-          SDL_UnlockSurface(player->surf);
-          SDL_Flip(player->screen);
+        case ODS_DATA: {
+          if ((player->screen == NULL)
+           || (player->width != player->di.pic_width)
+           || (player->height != player->di.pic_height)) {
+            player->width = player->di.pic_width;
+            player->height = player->di.pic_height;
+            player->screen = SDL_SetVideoMode(player->width, player->height,
+             24,
+             SDL_HWSURFACE | SDL_DOUBLEBUF);
+            if (player->screen == NULL) return -1;
+            player->surf = SDL_GetVideoSurface();
+            if (player->surf == NULL) return -1;
+          }
+          ret = daala_decode_packet_in(player->dctx, &player->img, &packet);
+          if (ret != 0) return -1;
+          player->valid = 1;
+          if ((player->slow) && (!player->step)) {
+            SDL_Delay(420);
+          }
+          player_example_check_user_input(player);
+          while ((player->paused) && (!player->done)) {
+            if (player->restart) {
+              break;
+            }
+            if (player->step) {
+              player->step = 0;
+              break;
+            }
+            player_example_wait_user_input(player);
+          }
+          if ((!player->restart) && (!player->done)) {
+            SDL_LockSurface(player->surf);
+            img_to_rgb(player->surf, &player->img, player->plane_mask);
+            SDL_UnlockSurface(player->surf);
+            SDL_Flip(player->screen);
+          }
+          break;
         }
       }
     }
@@ -362,7 +398,6 @@ int player_example_play(player_example *player) {
 }
 
 int main(int argc, char *argv[]) {
-
   int ret;
   char *input;
   int start_paused;
@@ -371,21 +406,21 @@ int main(int argc, char *argv[]) {
   if ((argc == 3) && (memcmp(argv[1], "-p", 2) == 0)) {
     start_paused = 1;
     input = argv[2];
-  } else {
+  }
+  else {
     if ((argc != 2) || ((argc == 2)
-      && ((memcmp(argv[1], "-h", 2) == 0)
-        || (memcmp(argv[1] + 1, "-h", 2) == 0)))) {
+     && ((memcmp(argv[1], "-h", 2) == 0)
+     || (memcmp(argv[1] + 1, "-h", 2) == 0)))) {
       fprintf(stderr, "usage: %s input.ogg\n%s\n", argv[0],
        "\nProgram Options:\n-p to start paused\n- to read from stdin\n\n"
        "Playback Control: \n"
        "r to restart\nl to loop\ns for slow\n. to step\nspace to pause\n"
-       "q to quit");
+       "p to switch planes\nq to quit");
       exit(1);
     }
     start_paused = 0;
     input = argv[1];
   }
-
   if (SDL_Init(SDL_INIT_VIDEO) < 0) {
     fprintf(stderr, "error: unable to init SDL\n");
     exit(1);
@@ -398,54 +433,51 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "player example error: create player\n");
     return -1;
   }
-
   ret = player_example_open_input(player, input);
   if (ret != 0) {
     fprintf(stderr, "player example error: could not open: %s\n", input);
     player_example_free(player);
     return -1;
   }
-
   if (start_paused == 1) {
     player->step = 1;
     player->paused = 1;
   }
-
   ret = player_example_play(player);
   if (ret != 0) {
     fprintf(stderr, "player example error: playback error\n");
     exit(1);
   }
-
   ret = player_example_free(player);
 
   return ret;
 }
 
-#define OD_MINI(_a,_b)      ((_a)<(_b)?(_a):(_b))
-#define OD_MAXI(_a,_b)      ((_a)>(_b)?(_a):(_b))
-#define OD_CLAMPI(_a,_b,_c) (OD_MAXI(_a,OD_MINI(_b,_c)))
-#define OD_SIGNMASK(_a)     (-((_a)<0))
-#define OD_FLIPSIGNI(_a,_b) (((_a)+OD_SIGNMASK(_b))^OD_SIGNMASK(_b))
-#define OD_DIV_ROUND(_x,_y) (((_x)+OD_FLIPSIGNI((_y)>>1,_x))/(_y))
-#define OD_CLAMP255(_x)     ((unsigned char)((((_x)<0)-1)&((_x)|-((_x)>255))))
+#define OD_MINI(a, b) ((a) < (b) ? (a) : (b))
+#define OD_MAXI(a, b) ((a) > (b) ? (a) : (b))
+#define OD_CLAMPI(a, b, c) (OD_MAXI(a, OD_MINI(b, c)))
+#define OD_SIGNMASK(a) (-((a) < 0))
+#define OD_FLIPSIGNI(a, b) (((a) + OD_SIGNMASK(b)) ^ OD_SIGNMASK(b))
+#define OD_DIV_ROUND(x, y) (((x) + OD_FLIPSIGNI((y)  >>  1, x))/(y))
+#define OD_CLAMP255(x) \
+  ((unsigned char)((((x) < 0) - 1) & ((x) | -((x) > 255))))
 
-void img_to_rgb(SDL_Surface *surf, const od_img *img) {
+void img_to_rgb(SDL_Surface *surf, const od_img *img, int plane_mask) {
   unsigned char *y_row;
   unsigned char *cb_row;
   unsigned char *cr_row;
   unsigned char *y;
   unsigned char *cb;
   unsigned char *cr;
-  int            y_stride;
-  int            cb_stride;
-  int            cr_stride;
-  int            width;
-  int            height;
-  int            xdec;
-  int            ydec;
-  int            i;
-  int            j;
+  int y_stride;
+  int cb_stride;
+  int cr_stride;
+  int width;
+  int height;
+  int xdec;
+  int ydec;
+  int i;
+  int j;
   unsigned char *pixels;
   int pitch;
   pixels = (unsigned char *)surf->pixels;
@@ -472,26 +504,27 @@ void img_to_rgb(SDL_Surface *surf, const od_img *img) {
     cb = cb_row;
     cr = cr_row;
     for (i = 0; i < 3 * width;) {
-      int64_t  yval;
-      int64_t  cbval;
-      int64_t  crval;
+      int64_t yval;
+      int64_t cbval;
+      int64_t crval;
       unsigned rval;
       unsigned gval;
       unsigned bval;
-      yval=*y-16;
-      cbval=*cb-128;
-      crval=*cr-128;
+      yval = (plane_mask & OD_LUMA_MASK) * (*y - 16)
+       + (((plane_mask & OD_LUMA_MASK) ^ OD_LUMA_MASK) << 7);
+      cbval = ((plane_mask & OD_CB_MASK) >> 1) * (*cb - 128);
+      crval = ((plane_mask & OD_CR_MASK) >> 2) * (*cr - 128);
       /*This is intentionally slow and very accurate.*/
-      rval=OD_CLAMPI(0,(int32_t)OD_DIV_ROUND(
-       2916394880000LL*yval+4490222169144LL*crval,9745792000LL),65535);
-      gval=OD_CLAMPI(0,(int32_t)OD_DIV_ROUND(
-       2916394880000LL*yval-534117096223LL*cbval-1334761232047LL*crval,
-       9745792000LL),65535);
-      bval=OD_CLAMPI(0,(int32_t)OD_DIV_ROUND(
-       2916394880000LL*yval+5290866304968LL*cbval,9745792000LL),65535);
-      *(pixels + pitch*j + i++)=(unsigned char)(bval>>8);
-      *(pixels + pitch*j + i++)=(unsigned char)(gval>>8);
-      *(pixels + pitch*j + i++)=(unsigned char)(rval>>8);
+      rval = OD_CLAMPI(0, (int32_t)OD_DIV_ROUND(
+       2916394880000LL*yval + 4490222169144LL*crval, 9745792000LL), 65535);
+      gval = OD_CLAMPI(0, (int32_t)OD_DIV_ROUND(
+       2916394880000LL*yval - 534117096223LL*cbval - 1334761232047LL*crval,
+       9745792000LL), 65535);
+      bval = OD_CLAMPI(0, (int32_t)OD_DIV_ROUND(
+       2916394880000LL*yval + 5290866304968LL*cbval, 9745792000LL), 65535);
+      *(pixels + pitch*j + i++) = (unsigned char)(bval >> 8);
+      *(pixels + pitch*j + i++) = (unsigned char)(gval >> 8);
+      *(pixels + pitch*j + i++) = (unsigned char)(rval >> 8);
       dc = ((y - y_row) & 1) | (1 - xdec);
       y++;
       cb += dc;
@@ -502,4 +535,9 @@ void img_to_rgb(SDL_Surface *surf, const od_img *img) {
     cb_row += dc & cb_stride;
     cr_row += dc & cr_stride;
   }
+}
+
+int next_plane(int plane_mask) {
+  return OD_MINI(plane_mask << 1, OD_ALL_MASK) >>
+   ((plane_mask == OD_ALL_MASK) << 1);
 }
