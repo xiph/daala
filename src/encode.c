@@ -361,11 +361,7 @@ static void od_encode_compute_pred(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, od_co
     is better than always using luma's tf.*/
   md = ctx->md;
   l = ctx->l;
-#if 1
   if (ctx->is_keyframe) {
-#else
-  if (ctx->is_keyframe && (pli != 0)) {
-#endif
     if (pli == 0 || OD_DISABLE_CFL) {
       OD_CLEAR(pred, n2);
     }
@@ -459,7 +455,7 @@ static void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   md = ctx->md;
   mc = ctx->mc;
   /* Apply forward transform. */
-  if (1) {
+  if (!ctx->is_keyframe) {
     (*enc->state.opt_vtbl.fdct_2d[ln])(md + (by << 2)*w + (bx << 2), w,
      mc + (by << 2)*w + (bx << 2), w);
   }
@@ -1186,7 +1182,7 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx) {
         for (x = 0; x < w; x++) {
           state->ctmp[pli][y*w + x] = (data[ystride*y + x] - 128) <<
            coeff_shift;
-          if (1) {
+          if (!mbctx->is_keyframe) {
             state->mctmp[pli][y*w + x] = (mdata[ystride*y + x] - 128)
              << coeff_shift;
           }
@@ -1200,7 +1196,7 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx) {
          state->bsize, state->bstride, xdec, ydec,
          (sbx > 0 ? OD_LEFT_EDGE : 0) |
          (sby < nvsb - 1 ? OD_BOTTOM_EDGE : 0));
-        if (1) {
+        if (!mbctx->is_keyframe) {
           od_apply_prefilter(state->mctmp[pli], w, sbx, sby, 3, state->bsize,
            state->bstride, xdec, ydec, (sbx > 0 ? OD_LEFT_EDGE : 0) |
            (sby < nvsb - 1 ? OD_BOTTOM_EDGE : 0));

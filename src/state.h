@@ -146,8 +146,6 @@ struct od_adapt_ctx {
   /* Joint skip flag for DC and AC */
   ogg_uint16_t skip_cdf[OD_NPLANES_MAX][4];
   int skip_increment;
-  generic_encoder paint_dc_model;
-  generic_encoder paint_edge_k_model;
 };
 
 struct od_state{

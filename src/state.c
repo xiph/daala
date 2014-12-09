@@ -438,8 +438,6 @@ void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe) {
       }
     }
   }
-  generic_model_init(&state->paint_edge_k_model);
-  generic_model_init(&state->paint_dc_model);
 }
 
 void od_state_set_mv_res(od_state *state, int mv_res) {
