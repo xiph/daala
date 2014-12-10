@@ -694,14 +694,16 @@ static void od_decode_residual(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
     }
     {
       unsigned char *data;
+      od_coeff *ctmp;
       int ystride;
+      int coeff_shift;
+      coeff_shift = dec->quantizer[pli] == 0 ? 0 : OD_COEFF_SHIFT;
       data = state->io_imgs[OD_FRAME_REC].planes[pli].data;
+      ctmp = state->ctmp[pli];
       ystride = state->io_imgs[OD_FRAME_REC].planes[pli].ystride;
       for (y = 0; y < h; y++) {
         for (x = 0; x < w; x++) {
-          int coeff_shift;
-          coeff_shift = dec->quantizer[pli] == 0 ? 0 : OD_COEFF_SHIFT;
-          data[ystride*y + x] = OD_CLAMP255(((state->ctmp[pli][y*w + x]
+          data[ystride*y + x] = OD_CLAMP255(((ctmp[y*w + x]
            + (1 << coeff_shift >> 1)) >> coeff_shift) + 128);
         }
       }
