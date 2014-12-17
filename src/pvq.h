@@ -44,6 +44,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #define OD_COMPAND_SCALE (256 << OD_COEFF_SHIFT)
 #define OD_COMPAND_SCALE_1 (1./OD_COMPAND_SCALE)
 
+#define OD_QM_SIZE (20)
+
+int od_qm_get_index(int ln, int band);
+
+extern const unsigned char OD_PVQ_QM_DEFAULT_Q4[OD_NPLANES_MAX][OD_QM_SIZE];
 extern const int *const OD_PVQ_QM_Q4[OD_NPLANES_MAX][OD_NBSIZES];
 extern const double *const OD_PVQ_BETA[OD_NPLANES_MAX][OD_NBSIZES];
 extern const double *const OD_PVQ_INTER_BAND_MASKING[OD_NBSIZES];

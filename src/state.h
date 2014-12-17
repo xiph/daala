@@ -211,6 +211,7 @@ struct od_state{
   od_coeff *mdtmp[OD_NPLANES_MAX];
   od_coeff *ltmp[OD_NPLANES_MAX];
   od_coeff *lbuf[OD_NPLANES_MAX];
+  unsigned char pvq_qm_q4[OD_NPLANES_MAX][OD_QM_SIZE];
   /* Holds a TF'd copy of the transform coefficients in 4x4 blocks. */
 };
 

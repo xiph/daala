@@ -293,10 +293,9 @@ static void pvq_decode_partition(od_ec_dec *ec,
 void pvq_decode(daala_dec_ctx *dec,
                 od_coeff *ref,
                 od_coeff *out,
-                int q,
+                int q0,
                 int pli,
                 int ln,
-                const int *qm,
                 const double *beta,
                 int robust,
                 int is_keyframe){
@@ -312,6 +311,8 @@ void pvq_decode(daala_dec_ctx *dec,
   int skip;
   int skip_rest[3] = {0};
   cfl_ctx cfl;
+  const unsigned char *qm;
+  qm = &dec->state.pvq_qm_q4[pli][0];
   exg = &dec->state.adapt.pvq_exg[pli][ln][0];
   ext = dec->state.adapt.pvq_ext + ln*PVQ_MAX_PARTITIONS;
   model = dec->state.adapt.pvq_param_model;
@@ -333,7 +334,9 @@ void pvq_decode(daala_dec_ctx *dec,
     cfl.nb_coeffs = off[nb_bands];
     cfl.allow_flip = pli != 0 && is_keyframe;
     for (i = 0; i < nb_bands; i++) {
-      pvq_decode_partition(&dec->ec, OD_MAXI(1, q*qm[i + 1] >> 4), size[i],
+      int q;
+      q = OD_MAXI(1, q0*qm[od_qm_get_index(ln, i + 1)] >> 4);
+      pvq_decode_partition(&dec->ec, q, size[i],
        model, &dec->state.adapt, exg + i, ext + i, ref + off[i], out + off[i],
        noref[i], beta[i], robust, is_keyframe, pli,
        (pli != 0)*OD_NBSIZES*PVQ_MAX_PARTITIONS + ln*PVQ_MAX_PARTITIONS + i,

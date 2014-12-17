@@ -42,18 +42,89 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #if OD_DISABLE_MASKING
 
 # if OD_DISABLE_QM
-static const int OD_PVQ_QM4_LUMA_Q4[2] = {16, 16};
-static const int OD_PVQ_QM8_LUMA_Q4[5] = {16, 16, 16, 16, 16};
-static const int OD_PVQ_QM16_LUMA_Q4[8] = {16, 16, 16, 16, 16, 16, 16, 16};
-static const int OD_PVQ_QM32_LUMA_Q4[11] = {16, 16, 16, 16, 16, 16, 16, 16,
- 16, 16, 16};
+
+const unsigned char OD_PVQ_QM_DEFAULT_Q4[OD_NPLANES_MAX][OD_QM_SIZE] = {
+  /* Luma */
+  {16, 16,
+   16, 16, 16, 16,
+   16, 16, 16, 16, 16, 16,
+   16, 16, 16, 16, 16, 16, 16, 16},
+  /* Cb */
+  {16, 16,
+   16, 16, 16, 16,
+   16, 16, 16, 16, 16, 16,
+   16, 16, 16, 16, 16, 16, 16, 16},
+  /* Cr */
+  {16, 16,
+   16, 16, 16, 16,
+   16, 16, 16, 16, 16, 16,
+   16, 16, 16, 16, 16, 16, 16, 16},
+  /* alpha */
+  {16, 16,
+   16, 16, 16, 16,
+   16, 16, 16, 16, 16, 16,
+   16, 16, 16, 16, 16, 16, 16, 16}
+};
+
 # else
-static const int OD_PVQ_QM4_LUMA_Q4[2] = {8, 16};
-static const int OD_PVQ_QM8_LUMA_Q4[5] = {16, 16, 32, 32, 64};
-static const int OD_PVQ_QM16_LUMA_Q4[8] = {16, 16, 16, 16, 32, 32, 32, 64};
-static const int OD_PVQ_QM32_LUMA_Q4[11] = {16, 16, 16, 16, 16, 16, 16, 32,
- 32, 32, 64};
+
+const unsigned char OD_PVQ_QM_DEFAULT_Q4[OD_NPLANES_MAX][OD_QM_SIZE] = {
+  /* Luma */
+  {8, 16,
+   16, 16, 32, 64,
+   16, 16, 16, 32, 32, 64,
+   16, 16, 16, 16, 16, 32, 32, 64},
+  /* Cb */
+  {14, 32,
+   10, 48, 64, 100,
+   16, 32, 48, 64, 64, 100,
+   16, 32, 32, 32, 48, 64, 64, 100},
+  /* Cr */
+  {12, 16,
+   8, 24, 64, 100,
+   8, 16, 24, 32, 64, 100,
+   8, 16, 16, 16, 24, 32, 64, 100},
+  /* alpha */
+  {12, 16,
+   8, 24, 64, 100,
+   8, 16, 24, 32, 64, 100,
+   8, 16, 16, 16, 24, 32, 64, 100}
+};
+
 # endif
+
+#else
+
+# if OD_DISABLE_QM
+# error "Can't enable activity masking while disabling quantization matrix"
+# endif
+
+const unsigned char OD_PVQ_QM_DEFAULT_Q4[OD_NPLANES_MAX][OD_QM_SIZE] = {
+  /* Luma */
+  {19, 19,
+   16, 16, 44, 72,
+   16, 13, 18, 36, 40, 80,
+   16, 12, 14, 12, 14, 32, 36, 64},
+  /* Cb */
+  {14, 32,
+   10, 48, 64, 100,
+   16, 32, 48, 64, 64, 100,
+   16, 32, 32, 32, 48, 64, 64, 100},
+  /* Cr */
+  {12, 16,
+   8, 24, 64, 100,
+   8, 16, 24, 32, 64, 100,
+   8, 16, 16, 16, 24, 32, 64, 100},
+  /* alpha */
+  {12, 16,
+   8, 24, 64, 100,
+   8, 16, 24, 32, 64, 100,
+   8, 16, 16, 16, 24, 32, 64, 100}
+};
+
+#endif
+
+#if OD_DISABLE_MASKING
 
 static const double OD_PVQ_BETA4_LUMA[1] = {1.};
 static const double OD_PVQ_BETA8_LUMA[4] = {1., 1., 1., 1.};
@@ -63,16 +134,6 @@ static const double OD_PVQ_BETA32_LUMA[10] = {1., 1., 1., 1., 1., 1., 1.,
 
 #else
 
-# if OD_DISABLE_QM
-# error "Can't enable activity masking while disabling quantization matrix"
-# endif
-
-static const int OD_PVQ_QM4_LUMA_Q4[2] = {19, 19};
-static const int OD_PVQ_QM8_LUMA_Q4[5] = {16, 16, 44, 44, 72};
-static const int OD_PVQ_QM16_LUMA_Q4[8] = {16, 13, 18, 18, 36, 40, 40, 80};
-static const int OD_PVQ_QM32_LUMA_Q4[11] = {16, 12, 14, 14, 12, 14, 14, 32,
- 36, 36, 64};
-
 static const double OD_PVQ_BETA4_LUMA[1] = {1.};
 static const double OD_PVQ_BETA8_LUMA[4] = {1.5, 1.5, 1.5, 1.5};
 static const double OD_PVQ_BETA16_LUMA[7] = {1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5};
@@ -81,50 +142,11 @@ static const double OD_PVQ_BETA32_LUMA[10] = {1.5, 1.5, 1.5, 1.5, 1.5, 1.5,
 
 #endif
 
-
-#if OD_DISABLE_QM
-static const int OD_PVQ_QM4_CB_Q4[2] = {8, 16};
-static const int OD_PVQ_QM8_CB_Q4[5] = {8, 16, 16, 16, 16};
-static const int OD_PVQ_QM16_CB_Q4[8] = {8, 16, 16, 16, 16, 16, 16, 16};
-static const int OD_PVQ_QM32_CB_Q4[11] = {8, 16, 16, 16, 16, 16, 16, 16,
- 16, 16, 16};
-
-#define OD_PVQ_QM4_CR_Q4 OD_PVQ_QM4_CB_Q4
-#define OD_PVQ_QM8_CR_Q4 OD_PVQ_QM8_CB_Q4
-#define OD_PVQ_QM16_CR_Q4 OD_PVQ_QM16_CB_Q4
-#define OD_PVQ_QM32_CR_Q4 OD_PVQ_QM32_CB_Q4
-#else
-static const int OD_PVQ_QM4_CB_Q4[2] = {14, 32};
-static const int OD_PVQ_QM8_CB_Q4[5] = {10, 48, 64, 64, 100};
-static const int OD_PVQ_QM16_CB_Q4[8] = {16, 32, 48, 48, 64, 64, 64, 100};
-static const int OD_PVQ_QM32_CB_Q4[11] = {16, 32, 32, 32, 32, 48, 48, 64,
- 64, 64, 100};
-
-static const int OD_PVQ_QM4_CR_Q4[2] = {12, 16};
-static const int OD_PVQ_QM8_CR_Q4[5] = {8, 24, 64, 64, 100};
-static const int OD_PVQ_QM16_CR_Q4[8] = {8, 16, 24, 24, 32, 64, 64, 100};
-static const int OD_PVQ_QM32_CR_Q4[11] = {8, 16, 16, 16, 16, 24, 24, 32,
- 64, 64, 100};
-#endif
-
 static const double OD_PVQ_BETA4_CHROMA[1] = {1.};
 static const double OD_PVQ_BETA8_CHROMA[4] = {1., 1., 1., 1.};
 static const double OD_PVQ_BETA16_CHROMA[7] = {1., 1., 1., 1., 1., 1., 1.};
 static const double OD_PVQ_BETA32_CHROMA[10] = {1., 1., 1., 1., 1., 1., 1.,
  1., 1., 1.};
-
-/* We use the chroma params for the alpha channel. Not sure whether it's
-   a good idea. */
-const int *const OD_PVQ_QM_Q4[OD_NPLANES_MAX][OD_NBSIZES] = {
-  {OD_PVQ_QM4_LUMA_Q4, OD_PVQ_QM8_LUMA_Q4,
-   OD_PVQ_QM16_LUMA_Q4, OD_PVQ_QM32_LUMA_Q4},
-  {OD_PVQ_QM4_CB_Q4, OD_PVQ_QM8_CB_Q4,
-   OD_PVQ_QM16_CB_Q4, OD_PVQ_QM32_CB_Q4},
-  {OD_PVQ_QM4_CR_Q4, OD_PVQ_QM8_CR_Q4,
-   OD_PVQ_QM16_CR_Q4, OD_PVQ_QM32_CR_Q4},
-  {OD_PVQ_QM4_CR_Q4, OD_PVQ_QM8_CR_Q4,
-   OD_PVQ_QM16_CR_Q4, OD_PVQ_QM32_CR_Q4}
-};
 
 const double *const OD_PVQ_BETA[OD_NPLANES_MAX][OD_NBSIZES] = {
   {OD_PVQ_BETA4_LUMA, OD_PVQ_BETA8_LUMA,
@@ -136,6 +158,14 @@ const double *const OD_PVQ_BETA[OD_NPLANES_MAX][OD_NBSIZES] = {
   {OD_PVQ_BETA4_CHROMA, OD_PVQ_BETA8_CHROMA,
    OD_PVQ_BETA16_CHROMA, OD_PVQ_BETA32_CHROMA}
 };
+
+/* Indexing for the packed quantization matrices. */
+int od_qm_get_index(int ln, int band) {
+  static const int offsets[OD_NPLANES_MAX] = {0, 2, 6, 12};
+  /* The -band/3 term is due to the fact that we force corresponding horizontal
+     and vertical bands to have the same quantization. */
+  return offsets[ln] + band - band/3;
+}
 
 /** Computes Householder reflection that aligns the reference r to the
  *  dimension in r with the greatest absolute value. The reflection

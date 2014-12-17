@@ -473,7 +473,10 @@ static void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
      with a 'quantizer' of 0. */
   quant = OD_MAXI(1, enc->quantizer[pli]);
   if (lossless) dc_quant = quant;
-  else dc_quant = OD_MAXI(1, quant*OD_PVQ_QM_Q4[pli][ln][0] >> 4);
+  else {
+    dc_quant = OD_MAXI(1, quant*
+     enc->state.pvq_qm_q4[pli][od_qm_get_index(ln, 0)] >> 4);
+  }
   /* This quantization may be overridden in the PVQ code for full RDO. */
   if (OD_DISABLE_HAAR_DC || !ctx->is_keyframe) {
     if (abs(cblock[0] - predt[0]) < dc_quant * 141 / 256) { /* 0.55 */
@@ -490,8 +493,7 @@ static void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   }
   else {
     pvq_encode(enc, predt, cblock, scalar_out, quant, pli, ln,
-     OD_PVQ_QM_Q4[pli][ln], OD_PVQ_BETA[pli][ln],
-     OD_ROBUST_STREAM, ctx->is_keyframe);
+     OD_PVQ_BETA[pli][ln], OD_ROBUST_STREAM, ctx->is_keyframe);
   }
   OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
    OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
@@ -1394,6 +1396,14 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   od_ec_encode_bool_q15(&enc->ec, 0, 16384);
   /*Code the keyframe bit.*/
   od_ec_encode_bool_q15(&enc->ec, mbctx.is_keyframe, 16384);
+  if (mbctx.is_keyframe) {
+    for (pli = 0; pli < nplanes; pli++) {
+      int i;
+      for (i = 0; i < OD_QM_SIZE; i++) {
+        od_ec_enc_bits(&enc->ec, enc->state.pvq_qm_q4[pli][i], 7);
+      }
+    }
+  }
   OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO, "is_keyframe=%d", mbctx.is_keyframe));
   OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
    OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);

@@ -308,6 +308,10 @@ static int od_state_init_impl(od_state *state, const daala_info *info) {
   }
   state->bstride = (state->nhsb + 2)*4;
   state->bsize += 4*state->bstride + 4;
+  for (pli = 0; pli < OD_NPLANES_MAX; pli++) {
+    OD_COPY(&state->pvq_qm_q4[pli][0], &OD_PVQ_QM_DEFAULT_Q4[pli][0],
+     OD_QM_SIZE);
+  }
 #if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
   state->dump_tags = 0;
   state->dump_files = 0;

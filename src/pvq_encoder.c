@@ -578,10 +578,9 @@ void pvq_encode(daala_enc_ctx *enc,
                 od_coeff *ref,
                 od_coeff *in,
                 od_coeff *out,
-                int q,
+                int q0,
                 int pli,
                 int ln,
-                const int *qm,
                 const double *beta,
                 int robust,
                 int is_keyframe){
@@ -607,13 +606,15 @@ void pvq_encode(daala_enc_ctx *enc,
   int skip_rest;
   int skip_dir;
   int skip_theta_value;
+  const unsigned char *qm;
+  qm = &enc->state.pvq_qm_q4[pli][0];
   exg = &enc->state.adapt.pvq_exg[pli][ln][0];
   ext = enc->state.adapt.pvq_ext + ln*PVQ_MAX_PARTITIONS;
   skip_cdf = enc->state.adapt.skip_cdf[pli];
   model = enc->state.adapt.pvq_param_model;
   nb_bands = od_band_offsets[ln][0];
   off = &od_band_offsets[ln][1];
-  dc_quant = OD_MAXI(1, q*qm[0] >> 4);
+  dc_quant = OD_MAXI(1, q0*qm[od_qm_get_index(ln, 0)] >> 4);
   tell = 0;
   for (i = 0; i < nb_bands; i++) size[i] = off[i+1] - off[i];
   skip_diff = 0;
@@ -628,8 +629,10 @@ void pvq_encode(daala_enc_ctx *enc,
     }
   }
   for (i = 0; i < nb_bands; i++) {
+    int q;
+    q = OD_MAXI(1, q0*qm[od_qm_get_index(ln, i + 1)] >> 4);
     qg[i] = pvq_theta(out + off[i], in + off[i], ref + off[i], size[i],
-     OD_MAXI(1, q*qm[i + 1] >> 4), y + off[i], &theta[i], &max_theta[i],
+     q, y + off[i], &theta[i], &max_theta[i],
      &k[i], beta[i], &skip_diff, robust, is_keyframe, pli, &enc->state.adapt);
   }
   if (!is_keyframe) {

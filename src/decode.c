@@ -245,14 +245,16 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   od_raster_to_coding_order(predt,  n, &pred[0], n, lossless);
   quant = OD_MAXI(1, dec->quantizer[pli]);
   if (lossless) dc_quant = 1;
-  else dc_quant = OD_MAXI(1, quant*OD_PVQ_QM_Q4[pli][ln][0] >> 4);
+  else {
+    dc_quant = OD_MAXI(1, quant*
+     dec->state.pvq_qm_q4[pli][od_qm_get_index(ln, 0)] >> 4);
+  }
   if (lossless) {
     od_block_lossless_decode(dec, ln, pred, predt, pli);
   }
   else {
     pvq_decode(dec, predt, pred, quant, pli, ln,
-     OD_PVQ_QM_Q4[pli][ln], OD_PVQ_BETA[pli][ln],
-     OD_ROBUST_STREAM, ctx->is_keyframe);
+     OD_PVQ_BETA[pli][ln], OD_ROBUST_STREAM, ctx->is_keyframe);
   }
   if (OD_DISABLE_HAAR_DC || !ctx->is_keyframe) {
     int has_dc_skip;
@@ -722,6 +724,17 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
   /*Read the packet type bit.*/
   if (od_ec_decode_bool_q15(&dec->ec, 16384)) return OD_EBADPACKET;
   mbctx.is_keyframe = od_ec_decode_bool_q15(&dec->ec, 16384);
+  if (mbctx.is_keyframe) {
+    int nplanes;
+    int pli;
+    nplanes = dec->state.info.nplanes;
+    for (pli = 0; pli < nplanes; pli++) {
+      int i;
+      for (i = 0; i < OD_QM_SIZE; i++) {
+        dec->state.pvq_qm_q4[pli][i] = od_ec_dec_bits(&dec->ec, 7);
+      }
+    }
+  }
   /*Update the buffer state.*/
   if (dec->state.ref_imgi[OD_FRAME_SELF] >= 0) {
     dec->state.ref_imgi[OD_FRAME_PREV] =
