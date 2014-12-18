@@ -376,7 +376,7 @@ int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh
         int k,m;
         int dec[4][4];
         od_split_superblock(&bs, img+32*stride*i+32*j, stride, NULL, 0,
-         dec, 21);
+         dec, 21 << OD_COEFF_SHIFT);
         for(k=0;k<4;k++)
           for(m=0;m<4;m++)
             dec8[4*i+k][4*j+m]=dec[k][m];
