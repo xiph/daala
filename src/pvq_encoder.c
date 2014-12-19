@@ -53,6 +53,7 @@ static void od_encode_pvq_codeword(od_ec_enc *ec, od_adapt_ctx *adapt,
         break;
       }
     }
+    OD_ASSERT(pos < n - !noref);
     od_encode_cdf_adapt(ec, pos, adapt->pvq_k1_cdf[cdf_id], n - !noref,
      adapt->pvq_k1_increment);
     od_ec_enc_bits(ec, in[pos] < 0, 1);
@@ -220,7 +221,7 @@ int vector_is_null(const od_coeff *x, int len) {
 }
 
 static double od_pvq_rate(int qg, int icgr, int theta, int ts,
- const od_adapt_ctx *adapt, const od_coeff *y0, int m, int k, int n,
+ const od_adapt_ctx *adapt, const od_coeff *y0, int k, int n,
  int is_keyframe, int pli) {
   double rate;
 #if OD_PVQ_RATE_APPROX
@@ -233,18 +234,12 @@ static double od_pvq_rate(int qg, int icgr, int theta, int ts,
 #else
   if (k > 0){
     od_ec_enc ec;
-    od_coeff in[MAXN];
     od_adapt_ctx ad;
     int tell;
     od_ec_enc_init(&ec, 1000);
     OD_COPY(&ad, adapt, 1);
-    OD_COPY(in, y0, n);
-    if (theta >= 0) {
-      int i;
-      for (i = m; i < n - 1; i++) in[i] = in[i+1];
-    }
     tell = od_ec_enc_tell_frac(&ec);
-    od_encode_pvq_codeword(&ec, &ad, in, n, k, theta == -1);
+    od_encode_pvq_codeword(&ec, &ad, y0, n, k, theta == -1);
     rate = (od_ec_enc_tell_frac(&ec)-tell)/8.;
     od_ec_enc_clear(&ec);
   }
@@ -339,7 +334,7 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   qg = 0;
   dist = cg*cg;
   best_dist = dist;
-  best_cost = dist + lambda*od_pvq_rate(0, 0, -1, 0, adapt, NULL, 0, 0, n,
+  best_cost = dist + lambda*od_pvq_rate(0, 0, -1, 0, adapt, NULL, 0, n,
    is_keyframe, pli);
   noref = 1;
   best_k = 0;
@@ -359,7 +354,7 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
     if (icgr == 0) {
       best_dist = best_cost = (cg - scgr)*(cg - scgr) + scgr*cg*(2 - 2*corr);
     }
-    best_cost = best_dist + lambda*od_pvq_rate(0, icgr, 0, 0, adapt, NULL, 0,
+    best_cost = best_dist + lambda*od_pvq_rate(0, icgr, 0, 0, adapt, NULL,
      0, n, is_keyframe, pli);
     best_qtheta = 0;
     *itheta = 0;
@@ -371,7 +366,7 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
     theta = acos(corr);
     m = compute_householder(r, n, gr, &s);
     apply_householder(x, r, n);
-    x[m] = 0;
+    for (i = m; i < n - 1; i++) x[i] = x[i + 1];
     /* Search for the best gain within a reasonable range. */
     for (i = OD_MAXI(1, (int)floor(cg-gain_offset));
      i <= (int)ceil(cg-gain_offset); i++) {
@@ -393,14 +388,14 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
         /* PVQ search, using a gain of qcg*cg*sin(theta)*sin(qtheta) since
            that's the factor by which cos_dist is multiplied to get the
            distortion metric. */
-        cos_dist = pvq_search_rdo_double(x, n, k, y_tmp,
+        cos_dist = pvq_search_rdo_double(x, n - 1, k, y_tmp,
          qcg*cg*sin(theta)*sin(qtheta));
         /* See Jmspeex' Journal of Dubious Theoretical Results. */
         dist_theta = 2 - 2*cos(theta - qtheta)
          + sin(theta)*sin(qtheta)*(2 - 2*cos_dist);
         dist = (qcg - cg)*(qcg - cg) + qcg*cg*dist_theta;
         /* Do approximate RDO. */
-        cost = dist + lambda*od_pvq_rate(i, icgr, j, ts, adapt, y_tmp, m, k, n,
+        cost = dist + lambda*od_pvq_rate(i, icgr, j, ts, adapt, y_tmp, k, n,
          is_keyframe, pli);
         if (cost < best_cost) {
           best_cost = cost;
@@ -411,7 +406,7 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
           *itheta = j;
           *max_theta = ts;
           noref = 0;
-          OD_COPY(y, y_tmp, n);
+          OD_COPY(y, y_tmp, n - 1);
         }
       }
     }
@@ -432,7 +427,7 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
       /* See Jmspeex' Journal of Dubious Theoretical Results. */
       dist = (qcg - cg)*(qcg - cg) + qcg*cg*(2 - 2*cos_dist);
       /* Do approximate RDO. */
-      cost = dist + lambda*od_pvq_rate(i, 0, -1, 0, adapt, y_tmp, 0, k, n,
+      cost = dist + lambda*od_pvq_rate(i, 0, -1, 0, adapt, y_tmp, k, n,
        is_keyframe, pli);
       if (cost <= best_cost) {
         best_cost = cost;
@@ -448,10 +443,6 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   }
   k = best_k;
   theta = best_qtheta;
-  /* Remove dimension m if we're using theta. */
-  if (!noref) {
-    for (i = m; i < n - 1; i++) y[i] = y[i+1];
-  }
   skip = 0;
   if (noref) {
     if (qg == 0) skip = OD_PVQ_SKIP_ZERO;
