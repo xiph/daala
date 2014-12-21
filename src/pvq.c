@@ -70,7 +70,7 @@ const unsigned char OD_PVQ_QM_DEFAULT_Q4[OD_NPLANES_MAX][OD_QM_SIZE] = {
 
 const unsigned char OD_PVQ_QM_DEFAULT_Q4[OD_NPLANES_MAX][OD_QM_SIZE] = {
   /* Luma */
-  {8, 16,
+  {19, 19,
    16, 16, 32, 64,
    16, 16, 16, 32, 32, 64,
    16, 16, 16, 16, 16, 32, 32, 64},
