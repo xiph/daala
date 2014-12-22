@@ -38,12 +38,17 @@ if key is None:
 daala_root = os.environ['DAALA_ROOT']
 os.chdir(daala_root)
 
-branch = subprocess.check_output('git symbolic-ref -q --short HEAD',shell=True).strip()
-
 parser = argparse.ArgumentParser(description='Submit test to arewecompressedyet.com')
-parser.add_argument('-prefix',default=branch)
+parser.add_argument('-branch',default=None)
+parser.add_argument('-prefix',default=None)
 parser.add_argument('-master',action='store_true',default=False)
 args = parser.parse_args()
+
+if args.branch is None:
+    args.branch = subprocess.check_output('git symbolic-ref -q --short HEAD',shell=True).strip()
+
+if args.prefix is None:
+    args.prefix = args.branch
 
 commit = subprocess.check_output('git rev-parse HEAD',shell=True).strip()
 short = subprocess.check_output('git rev-parse --short HEAD',shell=True).strip()

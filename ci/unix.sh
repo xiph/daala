@@ -4,4 +4,4 @@
 
 make -C unix check
 make -C unix clean
-#DAALA_ROOT=. tools/submit_awcy.py -master
+DAALA_ROOT=. tools/submit_awcy.py -master -branch master
