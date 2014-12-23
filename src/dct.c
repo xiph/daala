@@ -1568,7 +1568,7 @@ static void check_bias(int bszi) {
       q8acc[j] += x2[j] - x[j];
     }
     for (j = 0; j < n; j++) {
-      y2[j] = (y[j] + ((y[j] < 0 ? -7 : 7) << OD_COEFF_SHIFT >> 1))/
+      y2[j] = (y[j] + (((y[j] < 0 ? -7 : 7) << OD_COEFF_SHIFT)/2))/
        (7 << OD_COEFF_SHIFT)*(7 << OD_COEFF_SHIFT);
     }
     (*OD_IDCT_1D[bszi])(x2, 1, y2);
