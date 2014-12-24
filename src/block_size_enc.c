@@ -181,8 +181,8 @@ static unsigned int od_overlap_var4x4[OD_BLOCK_SIZES] = { 1, 1, 2, 3 };
  *   |    |  |    |  |    |  |    |  |    |  |    |  |XX  |  | XX |  |  XX|
  *   +----+  +----+  +----+  +----+  +----+  +----+  +----+  +----+  +----+
  *
- * @param img_stats Image on which to compute the psy model (should not be a
- *                   residual)
+ * @param img_stats Residual if we're in inter or the image itself if we're in
+ *                   intra
  * @param bsize     Size of the block (see `od_block_size`)
  * @param y         y offset of the block inside the 32x32 superblock
  * @param x         x offset of the block inside the 32x32 superblock
@@ -215,8 +215,8 @@ static int od_noise_var4x4(od_superblock_stats *img_stats,
  * proportional to the amount of residual we have to code (or the image itself
  * if we're in intra).
  *
- * @param psy_stats Residual if we're in inter or the image itself if we're in
- *                   intra
+ * @param psy_stats Image on which to compute the psy model (should not be a
+ *                   residual)
  * @param bsize     Size of the block (see `od_block_size`)
  * @param y         y offset of the block inside the 32x32 superblock
  * @param x         x offset of the block inside the 32x32 superblock
