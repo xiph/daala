@@ -4091,10 +4091,21 @@ void od_mv_est(od_mv_est_ctx *est, int ref, int lambda) {
   est->level_max = est->enc->params.mv_level_max;
   /*Rate estimations*/
   for (i = 0; i < 16; i++) {
+    int j;
+    int pi;
+    int tot;
+    pi = 0;
+    tot = 0;
+    /* Average all the CDFs to get the rates estimates. This doesn't
+       consider the relative weighting of the CDFs, but it's good enough
+       for now. */
+    for (j = 0; j < 5; j++) {
+      tot += est->enc->state.adapt.mv_small_cdf[j][15];
+      pi += est->enc->state.adapt.mv_small_cdf[j][i]
+       - (i > 0 ? est->enc->state.adapt.mv_small_cdf[j][i - 1] : 0);
+    }
     est->mv_small_rate_est[i] = (int)((1 << OD_BITRES)
-     *(OD_LOG2(est->enc->state.adapt.mv_small_cdf[15])
-     - (OD_LOG2(est->enc->state.adapt.mv_small_cdf[i]
-     - (i > 0 ? est->enc->state.adapt.mv_small_cdf[i - 1] : 0)))) + 0.5);
+     *(OD_LOG2(tot) - (OD_LOG2(pi))) + 0.5);
   }
   /*If the luma plane is decimated for some reason, then our distortions will
      be smaller, so scale lambda appropriately.*/

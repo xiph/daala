@@ -396,7 +396,7 @@ void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe) {
   state->skip_increment = 128;
   OD_CDFS_INIT(state->skip_cdf, state->skip_increment >> 2);
   state->mv_small_increment = 128;
-  OD_SINGLE_CDF_INIT_FIRST(state->mv_small_cdf, state->mv_small_increment,
+  OD_CDFS_INIT_FIRST(state->mv_small_cdf, state->mv_small_increment,
    10*state->mv_small_increment);
   state->pvq_gaintheta_increment = 128;
   OD_CDFS_INIT(state->pvq_gaintheta_cdf, state->pvq_gaintheta_increment >> 2);

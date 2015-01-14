@@ -94,9 +94,11 @@ static void od_decode_mv(daala_dec_ctx *dec, od_mv_grid_pt *mvg, int vx,
   int ox;
   int oy;
   int id;
+  int equal_mvs;
+  equal_mvs = od_state_get_predictor(&dec->state, pred, vx, vy, level, mv_res);
   model = &dec->state.adapt.mv_model;
-  id = od_decode_cdf_adapt(&dec->ec, dec->state.adapt.mv_small_cdf, 16,
-   dec->state.adapt.mv_small_increment);
+  id = od_decode_cdf_adapt(&dec->ec, dec->state.adapt.mv_small_cdf[equal_mvs],
+   16, dec->state.adapt.mv_small_increment);
   oy = id >> 2;
   ox = id & 0x3;
   if (ox == 3) {
@@ -109,7 +111,6 @@ static void od_decode_mv(daala_dec_ctx *dec, od_mv_grid_pt *mvg, int vx,
   }
   if (ox && od_ec_dec_bits(&dec->ec, 1)) ox = -ox;
   if (oy && od_ec_dec_bits(&dec->ec, 1)) oy = -oy;
-  od_state_get_predictor(&dec->state, pred, vx, vy, level, mv_res);
   mvg->mv[0] = (pred[0] + ox) << mv_res;
   mvg->mv[1] = (pred[1] + oy) << mv_res;
 }

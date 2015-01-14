@@ -2376,10 +2376,12 @@ void od_mc_predict8(od_state *state, unsigned char *dst, int dystride,
 }
 
 /*Gets the predictor for a given MV node at the given MV resolution.*/
-void od_state_get_predictor(od_state *state,
+int od_state_get_predictor(od_state *state,
  int pred[2], int vx, int vy, int level, int mv_res) {
   int nhmvbs;
   int nvmvbs;
+  int equal_mvs;
+  equal_mvs = 0;
   nhmvbs = (state->nhmbs + 1) << 2;
   nvmvbs = (state->nvmbs + 1) << 2;
   if (vx < 2 || vy < 2 || vx > nhmvbs - 2 || vy > nvmvbs - 2) {
@@ -2477,7 +2479,15 @@ This last compare is unneeded for a median:
       pred[0] = OD_DIV_POW2_RE(a[1][0], mv_res);
       pred[1] = OD_DIV_POW2_RE(a[1][1], mv_res);
     }
+    for (ci = 0; ci < ncns; ci++)
+    {
+      if (pred[0] == cneighbors[ci]->mv[0] &&
+       pred[1] == cneighbors[ci]->mv[1]) {
+        equal_mvs++;
+      }
+    }
   }
+  return equal_mvs;
 }
 
 /*Probabilities that a motion vector is not coded given two neighbors and the

@@ -133,7 +133,7 @@ struct od_adapt_ctx {
   generic_encoder     mv_model;
   int                 mv_ex[5];
   int                 mv_ey[5];
-  ogg_uint16_t        mv_small_cdf[16];
+  ogg_uint16_t        mv_small_cdf[5][16];
   int                 mv_small_increment;
 
   generic_encoder model_dc[OD_NPLANES_MAX];

@@ -746,14 +746,15 @@ static void od_encode_mv(daala_enc_ctx *enc, od_mv_grid_pt *mvg, int vx,
   int ox;
   int oy;
   int id;
-  od_state_get_predictor(&enc->state, pred, vx, vy, level, mv_res);
+  int equal_mvs;
+  equal_mvs = od_state_get_predictor(&enc->state, pred, vx, vy, level, mv_res);
   ox = (mvg->mv[0] >> mv_res) - pred[0];
   oy = (mvg->mv[1] >> mv_res) - pred[1];
   /*Interleave positive and negative values.*/
   model = &enc->state.adapt.mv_model;
   id = OD_MINI(abs(oy), 3)*4 + OD_MINI(abs(ox), 3);
-  od_encode_cdf_adapt(&enc->ec, id, enc->state.adapt.mv_small_cdf, 16,
-   enc->state.adapt.mv_small_increment);
+  od_encode_cdf_adapt(&enc->ec, id, enc->state.adapt.mv_small_cdf[equal_mvs],
+   16, enc->state.adapt.mv_small_increment);
   if (abs(ox) >= 3) {
     generic_encode(&enc->ec, model, abs(ox) - 3, width << (3 - mv_res),
      &enc->state.adapt.mv_ex[level], 6);
