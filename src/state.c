@@ -36,7 +36,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #endif
 #include "block_size.h"
 
-const od_coeff OD_DC_RES[3] = {14, 12, 18};
+/* These values are based on manual tuning to optimize PSNR-HVS, while also
+   attempting to keep a good visual balance between the relative resolution
+   of luma, and chroma. */
+const od_coeff OD_DC_RES[3] = {11, 16, 11};
 
 static void *od_aligned_malloc(size_t _sz,size_t _align) {
   unsigned char *p;
@@ -308,10 +311,6 @@ static int od_state_init_impl(od_state *state, const daala_info *info) {
   }
   state->bstride = (state->nhsb + 2)*4;
   state->bsize += 4*state->bstride + 4;
-  for (pli = 0; pli < OD_NPLANES_MAX; pli++) {
-    OD_COPY(&state->pvq_qm_q4[pli][0], &OD_PVQ_QM_DEFAULT_Q4[pli][0],
-     OD_QM_SIZE);
-  }
 #if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
   state->dump_tags = 0;
   state->dump_files = 0;

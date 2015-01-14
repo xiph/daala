@@ -629,6 +629,11 @@ static void od_quantize_haar_dc(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
     od_coeff sb_dc_pred;
     od_coeff sb_dc_curr;
     od_coeff *sb_dc_mem;
+    /* Giving a small resolution boost to 32x32 because its reduced overlap
+       means a larger synthesis magnitude. */
+    if (enc->quantizer[pli] != 0 && d - xdec == 3) {
+      dc_quant = OD_MAXI(1, enc->quantizer[pli]*12*OD_DC_RES[pli] >> 8);
+    }
     nhsb = enc->state.nhsb;
     sb_dc_mem = enc->state.sb_dc_mem[pli];
     l2 = l - xdec + 2;
@@ -1352,6 +1357,45 @@ static void od_dump_frame_metrics(od_state *state) {
 }
 #endif
 
+static void od_interp_qm(unsigned char *out, int q, const od_qm_entry *entry1,
+  const od_qm_entry *entry2) {
+  int i;
+  if (entry2 == NULL || entry2->qm_q4 == NULL
+   || q < entry1->interp_q << OD_COEFF_SHIFT) {
+    /* Use entry1. */
+    for (i = 0; i < OD_QM_SIZE; i++) {
+      out[i] = OD_MINI(255, entry1->qm_q4[i]*entry1->scale_q8 >> 8);
+    }
+  }
+  else if (entry1 == NULL || entry1->qm_q4 == NULL
+   || q > entry2->interp_q << OD_COEFF_SHIFT) {
+    /* Use entry2. */
+    for (i = 0; i < OD_QM_SIZE; i++) {
+      out[i] = OD_MINI(255, entry2->qm_q4[i]*entry2->scale_q8 >> 8);
+    }
+  }
+  else {
+    /* Interpolate between entry1 and entry2. The interpolation is linear
+       in terms of log(q) vs log(m*scale). Considering that we're ultimately
+       multiplying the result it makes sense, but we haven't tried other
+       interpolation methods. */
+    double x;
+    const unsigned char *m1;
+    const unsigned char *m2;
+    int q1;
+    int q2;
+    m1 = entry1->qm_q4;
+    m2 = entry2->qm_q4;
+    q1 = entry1->interp_q << OD_COEFF_SHIFT;
+    q2 = entry2->interp_q << OD_COEFF_SHIFT;
+    x = (log(q)-log(q1))/(log(q2)-log(q1));
+    for (i = 0; i < OD_QM_SIZE; i++) {
+      out[i] = OD_MINI(255, (int)floor(.5 + (1./256)*exp(
+       x*log(m2[i]*entry2->scale_q8) + (1 - x)*log(m1[i]*entry1->scale_q8))));
+    }
+  }
+}
+
 int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   int refi;
   int nplanes;
@@ -1412,14 +1456,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       /*TODO: Mark keyframe timebase.*/
     }
   }
-  for (pli = 0; pli < nplanes; pli++) {
-    enc->quantizer[pli] = od_quantizer_from_quality(enc->quality[pli]);
-    /* At low rate, boost the keyframe quality by multiplying the quantizer
-       by 29/32 (~0.9). */
-    if (mbctx.is_keyframe && enc->quantizer[pli] > 20 << OD_COEFF_SHIFT) {
-      enc->quantizer[pli] = (16+29*enc->quantizer[pli]) >> 5;
-    }
-  }
   /*Select a free buffer to use for this reference frame.*/
   for (refi = 0; refi == enc->state.ref_imgi[OD_FRAME_GOLD]
    || refi == enc->state.ref_imgi[OD_FRAME_PREV]
@@ -1435,12 +1471,40 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   od_ec_encode_bool_q15(&enc->ec, 0, 16384);
   /*Code the keyframe bit.*/
   od_ec_encode_bool_q15(&enc->ec, mbctx.is_keyframe, 16384);
+  for (pli = 0; pli < nplanes; pli++) {
+    enc->quantizer[pli] = od_quantizer_from_quality(enc->quality[pli]);
+  }
   if (mbctx.is_keyframe) {
     for (pli = 0; pli < nplanes; pli++) {
       int i;
-      for (i = 0; i < OD_QM_SIZE; i++) {
-        od_ec_enc_bits(&enc->ec, enc->state.pvq_qm_q4[pli][i], 7);
+      int q;
+      q = enc->quantizer[pli];
+      if (q <= OD_DEFAULT_QMS[0][pli].interp_q << OD_COEFF_SHIFT) {
+        od_interp_qm(&enc->state.pvq_qm_q4[pli][0], q, &OD_DEFAULT_QMS[0][pli],
+         NULL);
       }
+      else {
+        i = 0;
+        while (OD_DEFAULT_QMS[i + 1][pli].qm_q4 != NULL &&
+         q > OD_DEFAULT_QMS[i + 1][pli].interp_q << OD_COEFF_SHIFT) {
+          i++;
+        }
+        od_interp_qm(&enc->state.pvq_qm_q4[pli][0], q,
+         &OD_DEFAULT_QMS[i][pli], &OD_DEFAULT_QMS[i + 1][pli]);
+      }
+    }
+    for (pli = 0; pli < nplanes; pli++) {
+      int i;
+      for (i = 0; i < OD_QM_SIZE; i++) {
+        od_ec_enc_bits(&enc->ec, enc->state.pvq_qm_q4[pli][i], 8);
+      }
+    }
+  }
+  for (pli = 0; pli < nplanes; pli++) {
+    /* At low rate, boost the keyframe quality by multiplying the quantizer
+       by 29/32 (~0.9). */
+    if (mbctx.is_keyframe && enc->quantizer[pli] > 20 << OD_COEFF_SHIFT) {
+      enc->quantizer[pli] = (16+29*enc->quantizer[pli]) >> 5;
     }
   }
   OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO, "is_keyframe=%d", mbctx.is_keyframe));

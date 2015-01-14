@@ -306,6 +306,9 @@ static void od_decode_haar_dc(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
     od_coeff sb_dc_pred;
     od_coeff sb_dc_curr;
     od_coeff *sb_dc_mem;
+    if (dec->quantizer[pli] != 0 && d - xdec == 3) {
+      dc_quant = OD_MAXI(1, dec->quantizer[pli]*12*OD_DC_RES[pli] >> 8);
+    }
     nhsb = dec->state.nhsb;
     sb_dc_mem = dec->state.sb_dc_mem[pli];
     l2 = l - xdec + 2;
@@ -732,7 +735,7 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
     for (pli = 0; pli < nplanes; pli++) {
       int i;
       for (i = 0; i < OD_QM_SIZE; i++) {
-        dec->state.pvq_qm_q4[pli][i] = od_ec_dec_bits(&dec->ec, 7);
+        dec->state.pvq_qm_q4[pli][i] = od_ec_dec_bits(&dec->ec, 8);
       }
     }
   }

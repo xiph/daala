@@ -36,92 +36,54 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #define EPSILON 1e-30
 
-/* This is the PVQ equivalent of a quantization matrix, except that
+/* These are the PVQ equivalent of quantization matrices, except that
    the values are per-band. */
 
-#if OD_DISABLE_MASKING
+#if OD_DISABLE_QM
 
-# if OD_DISABLE_QM
-
-const unsigned char OD_PVQ_QM_DEFAULT_Q4[OD_NPLANES_MAX][OD_QM_SIZE] = {
-  /* Luma */
-  {16, 16,
-   16, 16, 16, 16,
-   16, 16, 16, 16, 16, 16,
-   16, 16, 16, 16, 16, 16, 16, 16},
-  /* Cb */
-  {16, 16,
-   16, 16, 16, 16,
-   16, 16, 16, 16, 16, 16,
-   16, 16, 16, 16, 16, 16, 16, 16},
-  /* Cr */
-  {16, 16,
-   16, 16, 16, 16,
-   16, 16, 16, 16, 16, 16,
-   16, 16, 16, 16, 16, 16, 16, 16},
-  /* alpha */
-  {16, 16,
-   16, 16, 16, 16,
-   16, 16, 16, 16, 16, 16,
-   16, 16, 16, 16, 16, 16, 16, 16}
+static const unsigned char od_flat_qm_q4[OD_QM_SIZE] = {
+  16, 16,
+  16, 16, 16, 16,
+  15, 15, 15, 15, 15, 15,
+  13, 13, 13, 13, 13, 13, 13, 13
 };
 
-# else
-
-const unsigned char OD_PVQ_QM_DEFAULT_Q4[OD_NPLANES_MAX][OD_QM_SIZE] = {
-  /* Luma */
-  {19, 19,
-   16, 16, 32, 64,
-   16, 16, 16, 32, 32, 64,
-   16, 16, 16, 16, 16, 32, 32, 64},
-  /* Cb */
-  {14, 32,
-   10, 48, 64, 100,
-   16, 32, 48, 64, 64, 100,
-   16, 32, 32, 32, 48, 64, 64, 100},
-  /* Cr */
-  {12, 16,
-   8, 24, 64, 100,
-   8, 16, 24, 32, 64, 100,
-   8, 16, 16, 16, 24, 32, 64, 100},
-  /* alpha */
-  {12, 16,
-   8, 24, 64, 100,
-   8, 16, 24, 32, 64, 100,
-   8, 16, 16, 16, 24, 32, 64, 100}
+const od_qm_entry OD_DEFAULT_QMS[][OD_NPLANES_MAX] = {
+  {{15, 256, od_flat_qm_q4},
+   {15, 448, od_flat_qm_q4},
+   {15, 320, od_flat_qm_q4}},
+  {{0, 0, NULL},
+   {0, 0, NULL},
+   {0, 0, NULL}}
 };
-
-# endif
 
 #else
 
-# if OD_DISABLE_QM
-# error "Can't enable activity masking while disabling quantization matrix"
-# endif
-
-const unsigned char OD_PVQ_QM_DEFAULT_Q4[OD_NPLANES_MAX][OD_QM_SIZE] = {
-  /* Luma */
-  {19, 19,
-   16, 16, 44, 72,
-   16, 13, 18, 36, 40, 80,
-   16, 12, 14, 12, 14, 32, 36, 64},
-  /* Cb */
-  {14, 32,
-   10, 48, 64, 100,
-   16, 32, 48, 64, 64, 100,
-   16, 32, 32, 32, 48, 64, 64, 100},
-  /* Cr */
-  {12, 16,
-   8, 24, 64, 100,
-   8, 16, 24, 32, 64, 100,
-   8, 16, 16, 16, 24, 32, 64, 100},
-  /* alpha */
-  {12, 16,
-   8, 24, 64, 100,
-   8, 16, 24, 32, 64, 100,
-   8, 16, 16, 16, 24, 32, 64, 100}
+static const unsigned char od_low_rate_qm_q4[OD_QM_SIZE] = {
+  16, 16,
+  16, 16, 24, 32,
+  16, 16, 18, 20, 24, 32,
+  16, 16, 16, 18, 18, 20, 24, 32
 };
 
+static const unsigned char od_high_rate_qm_q4[OD_QM_SIZE] = {
+  19, 22,
+  15, 17, 52, 83,
+  11, 11, 14, 18, 42, 70,
+  7, 7, 8, 9, 12, 18, 38, 60
+};
+
+const od_qm_entry OD_DEFAULT_QMS[][OD_NPLANES_MAX] = {
+  {{20, 256, od_high_rate_qm_q4},
+   {20, 448, od_high_rate_qm_q4},
+   {20, 320, od_high_rate_qm_q4}},
+  {{70, 256, od_low_rate_qm_q4},
+   {70, 256, od_low_rate_qm_q4},
+   {70, 256, od_low_rate_qm_q4}},
+  {{0, 0, NULL},
+   {0, 0, NULL},
+   {0, 0, NULL}}
+};
 #endif
 
 #if OD_DISABLE_MASKING

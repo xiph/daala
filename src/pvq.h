@@ -52,10 +52,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 int od_qm_get_index(int ln, int band);
 
-extern const unsigned char OD_PVQ_QM_DEFAULT_Q4[OD_NPLANES_MAX][OD_QM_SIZE];
-extern const int *const OD_PVQ_QM_Q4[OD_NPLANES_MAX][OD_NBSIZES];
+typedef struct od_qm_entry {
+  int interp_q;
+  int scale_q8;
+  const unsigned char *qm_q4;
+} od_qm_entry;
+
+extern const od_qm_entry OD_DEFAULT_QMS[][OD_NPLANES_MAX];
+
 extern const double *const OD_PVQ_BETA[OD_NPLANES_MAX][OD_NBSIZES];
-extern const double *const OD_PVQ_INTER_BAND_MASKING[OD_NBSIZES];
 
 int compute_householder(double *r, int n, double gr, int *sign);
 void apply_householder(double *x, const double *r, int n);
