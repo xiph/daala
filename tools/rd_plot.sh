@@ -22,6 +22,8 @@ if [ ! -x "$GNUPLOT" ]; then
   exit 1
 fi
 
+#Uncomment to generate eps files for use with LaTeX
+#CMDS="$CMDS set term eps size 6, 4.5;"
 CMDS="$CMDS set term png size 1024,768;"
 CMDS="$CMDS set log x;"
 CMDS="$CMDS set xlabel 'Bits/Pixel';"
