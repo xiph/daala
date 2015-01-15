@@ -924,6 +924,58 @@ static void od_split_superblocks(daala_enc_ctx *enc, int is_keyframe) {
     }
     OD_LOG_PARTIAL((OD_LOG_GENERIC, OD_LOG_INFO, "\n"));
   }
+#if defined(OD_DUMP_IMAGES)
+  {
+    od_img copy;
+    int size;
+    unsigned char *img;
+    int i;
+    int j;
+    int stride;
+    copy = enc->state.io_imgs[OD_FRAME_INPUT];
+    stride = copy.planes[0].ystride;
+    size = stride*copy.height;
+    /* Pad by one pixel to make code simpler. */
+    img = copy.planes[0].data = malloc(size + stride + 1);
+    OD_COPY(img, enc->state.io_imgs[OD_FRAME_INPUT].planes[0].data, size);
+    /* Draw black borders around the blocks. */
+    for(i = 0; i < 4*nvsb; i++) {
+      for(j = 0; j < 4*nhsb; j++) {
+        if ((i & 3) == 0 && (j & 3) == 0) {
+          int k;
+          for(k = 0; k < 32; k++)
+            img[i*stride*8 + j*8 + k] = 0;
+          for(k = 0; k < 32; k++)
+            img[(8*i + k)*stride + j*8] = 0;
+        }
+        if ((i & 1) == 0 && (j & 1) == 0 && state->bsize[i*state->bstride + j]
+         == OD_BLOCK_16X16) {
+          int k;
+          for(k = 0; k < 16; k++)
+            img[i*stride*8 + j*8 + k] = 0;
+          for(k = 0; k < 16; k++)
+            img[(8*i + k)*stride + j*8] = 0;
+        }
+        if (state->bsize[i*state->bstride + j] <= OD_BLOCK_8X8) {
+          int k;
+          for(k = 0; k < 8; k++)
+            img[i*stride*8 + j*8 + k] = 0;
+          for(k = 0; k < 8; k++)
+            img[(8*i + k)*stride + j*8] = 0;
+          if (state->bsize[i*state->bstride + j] == OD_BLOCK_4X4) {
+            img[(8*i + 4)*stride + j*8 + 3] = 0;
+            img[(8*i + 4)*stride + j*8 + 4] = 0;
+            img[(8*i + 4)*stride + j*8 + 5] = 0;
+            img[(8*i + 3)*stride + j*8 + 4] = 0;
+            img[(8*i + 5)*stride + j*8 + 4] = 0;
+          }
+        }
+      }
+    }
+    od_state_dump_img(&enc->state, &copy, "bsize");
+    free(img);
+  }
+#endif
 }
 
 static void od_encode_mvs(daala_enc_ctx *enc) {
