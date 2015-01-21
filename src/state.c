@@ -360,10 +360,12 @@ void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe) {
   generic_model_init(&state->pvq_param_model[0]);
   generic_model_init(&state->pvq_param_model[1]);
   generic_model_init(&state->pvq_param_model[2]);
-  state->pvq_adapt[OD_ADAPT_K_Q8] = 384;
-  state->pvq_adapt[OD_ADAPT_SUM_EX_Q8] = 256;
-  state->pvq_adapt[OD_ADAPT_COUNT_Q8] = 104;
-  state->pvq_adapt[OD_ADAPT_COUNT_EX_Q8] = 128;
+  for (i = 0; i < 2*OD_NBSIZES; i++) {
+    state->pvq_adapt[4*i + OD_ADAPT_K_Q8] = 384;
+    state->pvq_adapt[4*i + OD_ADAPT_SUM_EX_Q8] = 256;
+    state->pvq_adapt[4*i + OD_ADAPT_COUNT_Q8] = 104;
+    state->pvq_adapt[4*i + OD_ADAPT_COUNT_EX_Q8] = 128;
+  }
   state->pvq_k1_increment = 128;
   OD_CDFS_INIT(state->pvq_k1_cdf, state->pvq_k1_increment);
   for (pli = 0; pli < OD_NPLANES_MAX; pli++) {

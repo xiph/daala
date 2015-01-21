@@ -37,7 +37,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "pvq_code.h"
 
 static void od_decode_pvq_codeword(od_ec_dec *ec, od_adapt_ctx *adapt,
- od_coeff *y, int n, int k, int noref) {
+ od_coeff *y, int n, int k, int noref, int ln) {
   if (k == 1 && n < 16) {
     int cdf_id;
     int pos;
@@ -52,7 +52,7 @@ static void od_decode_pvq_codeword(od_ec_dec *ec, od_adapt_ctx *adapt,
     int speed = 5;
     int *pvq_adapt;
     int adapt_curr[OD_NSB_ADAPT_CTXS] = { 0 };
-    pvq_adapt = adapt->pvq_adapt;
+    pvq_adapt = adapt->pvq_adapt + 4*(2*ln + noref);
     laplace_decode_vector(ec, y, n - !noref, k, adapt_curr,
      pvq_adapt);
     if (adapt_curr[OD_ADAPT_K_Q8] > 0) {
@@ -158,7 +158,8 @@ static void pvq_decode_partition(od_ec_dec *ec,
                                  cfl_ctx *cfl,
                                  int has_skip,
                                  int *skip_rest,
-                                 int band) {
+                                 int band,
+                                 int ln) {
   int k;
   double qcg;
   int max_theta;
@@ -252,7 +253,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
   k = pvq_compute_k(qcg, itheta, theta, noref, n, beta, nodesync);
   if (k != 0) {
     /* when noref==0, y is actually size n-1 */
-    od_decode_pvq_codeword(ec, adapt, y, n, k, noref);
+    od_decode_pvq_codeword(ec, adapt, y, n, k, noref, ln);
   } else {
     OD_CLEAR(y, n);
   }
@@ -340,7 +341,7 @@ void pvq_decode(daala_dec_ctx *dec,
        model, &dec->state.adapt, exg + i, ext + i, ref + off[i], out + off[i],
        noref[i], beta[i], robust, is_keyframe, pli,
        (pli != 0)*OD_NBSIZES*PVQ_MAX_PARTITIONS + ln*PVQ_MAX_PARTITIONS + i,
-       &cfl, i == 0 && (i < nb_bands - 1), skip_rest, i);
+       &cfl, i == 0 && (i < nb_bands - 1), skip_rest, i, ln);
       if (i == 0 && !skip_rest[0] && ln > 0) {
         int skip_dir;
         int j;
