@@ -43,7 +43,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 /*Smallest blocks are 4x4*/
 # define OD_LOG_BSIZE0 (2)
-/*There are 3 block sizes total (4x4, 8x8, 16x16).*/
+/*There are 4 block sizes total (4x4, 8x8, 16x16, 32x32).*/
 # define OD_NBSIZES    (4)
 /*The maximum length of the side of a block.*/
 # define OD_BSIZE_MAX  (1<<OD_LOG_BSIZE0+OD_NBSIZES-1)
