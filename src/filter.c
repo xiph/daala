@@ -111,13 +111,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 const od_filter_func OD_PRE_FILTER[OD_NBSIZES] = {
   od_pre_filter4,
   od_pre_filter8,
-  od_pre_filter16
+  od_pre_filter16,
+  od_pre_filter32
 };
 
 const od_filter_func OD_POST_FILTER[OD_NBSIZES] = {
   od_post_filter4,
   od_post_filter8,
-  od_post_filter16
+  od_post_filter16,
+  od_post_filter32
 };
 
 /*Filter parameters for the pre/post filters.
@@ -775,6 +777,22 @@ void od_post_filter16(od_coeff _x[16],const od_coeff _y[16]){
 #endif
 }
 
+void od_pre_filter32(od_coeff _y[32], const od_coeff _x[32]) {
+  int i;
+  for (i = 0; i < 32; i++) {
+    _y[i] = _x[i];
+  }
+  od_pre_filter16(&_y[8], &_x[8]);
+}
+
+void od_post_filter32(od_coeff _x[32], const od_coeff _y[32]) {
+  int i;
+  for (i = 0; i < 32; i++) {
+    _x[i] = _y[i];
+  }
+  od_post_filter16(&_x[8], &_y[8]);
+}
+
 #define ZERO_FILTERS (0)
 
 /*Remove OD_MINI if we ever support 32-point filters.*/
@@ -817,6 +835,8 @@ static void od_apply_filter_cols(od_coeff *c, int stride, int bx, int by,
   /*Filter size in c is f - xdec.*/
   f -= xdec;
   OD_ASSERT(0 <= f && f <= OD_NBSIZES);
+  /*Remove if we ever support 32-point filters.*/
+  f = OD_MINI(f, OD_NFILTER_SIZES - 1);
   c += (((by + out) << (l + 2)) - (2 << f))*stride + (bx << (l + 2));
   /*Apply the column filter across the edge.*/
   for (i = 0; i < 4 << l; i++) {
@@ -871,6 +891,8 @@ static void od_apply_filter_rows(od_coeff *c, int stride, int bx, int by,
   /*Filter size in c is f - xdec.*/
   f -= xdec;
   OD_ASSERT(0 <= f && f <= OD_NBSIZES);
+  /*Remove if we ever support 32-point filters.*/
+  f = OD_MINI(f, OD_NFILTER_SIZES - 1);
   c += (by << (l + 2))*stride + ((bx + out) << (l + 2)) - (2 << f);
   /* Apply the row filter down the edge. */
   for (i = 0; i < 4 << l; i++) {
