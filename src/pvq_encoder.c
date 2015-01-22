@@ -315,7 +315,10 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   double skip_dist;
   int cfl_enabled;
   int skip;
+  double gain_weight;
   lambda = OD_PVQ_LAMBDA;
+  /* Give more weight to gain error when calculating the total distortion. */
+  gain_weight = 1.4;
   OD_ASSERT(n > 1);
   corr = 0;
   for (i = 0; i < n; i++) {
@@ -333,7 +336,7 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   gain_offset = cgr-icgr;
   /* Start search with null case: gain=0, no pulse. */
   qg = 0;
-  dist = cg*cg;
+  dist = gain_weight*cg*cg;
   best_dist = dist;
   best_cost = dist + lambda*od_pvq_rate(0, 0, -1, 0, adapt, NULL, 0, n,
    is_keyframe, pli, ln);
@@ -347,13 +350,13 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   s = 1;
   corr = corr/(1e-100 + g*gr);
   corr = OD_MAXF(OD_MINF(corr, 1.), -1.);
-  skip_dist = (cg - cgr)*(cg - cgr) + cgr*cg*(2 - 2*corr);
+  skip_dist = gain_weight*(cg - cgr)*(cg - cgr) + cgr*cg*(2 - 2*corr);
   if (!is_keyframe) {
     /* noref, gain=0 isn't allowed, but skip is allowed. */
     double scgr;
     scgr = OD_MAXF(0,gain_offset);
     if (icgr == 0) {
-      best_dist = best_cost = (cg - scgr)*(cg - scgr) + scgr*cg*(2 - 2*corr);
+      best_dist = gain_weight*(cg - scgr)*(cg - scgr) + scgr*cg*(2 - 2*corr);
     }
     best_cost = best_dist + lambda*od_pvq_rate(0, icgr, 0, 0, adapt, NULL,
      0, n, is_keyframe, pli, ln);
@@ -394,7 +397,7 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
         /* See Jmspeex' Journal of Dubious Theoretical Results. */
         dist_theta = 2 - 2*cos(theta - qtheta)
          + sin(theta)*sin(qtheta)*(2 - 2*cos_dist);
-        dist = (qcg - cg)*(qcg - cg) + qcg*cg*dist_theta;
+        dist = gain_weight*(qcg - cg)*(qcg - cg) + qcg*cg*dist_theta;
         /* Do approximate RDO. */
         cost = dist + lambda*od_pvq_rate(i, icgr, j, ts, adapt, y_tmp, k, n,
          is_keyframe, pli, ln);
@@ -426,7 +429,7 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
       k = pvq_compute_k(qcg, -1, -1, 1, n, beta, robust || is_keyframe);
       cos_dist = pvq_search_rdo_double(x1, n, k, y_tmp, qcg*cg);
       /* See Jmspeex' Journal of Dubious Theoretical Results. */
-      dist = (qcg - cg)*(qcg - cg) + qcg*cg*(2 - 2*cos_dist);
+      dist = gain_weight*(qcg - cg)*(qcg - cg) + qcg*cg*(2 - 2*cos_dist);
       /* Do approximate RDO. */
       cost = dist + lambda*od_pvq_rate(i, 0, -1, 0, adapt, y_tmp, k, n,
        is_keyframe, pli, ln);
