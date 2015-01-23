@@ -53,6 +53,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # include "x86/x86int.h"
 #endif
 
+# define OD_ENC_ACCT_UPDATE(enc, cat, value) \
+ OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec), cat, value)
+
 static int od_quantizer_from_quality(int quality) {
   return quality == 0 ? 0 :
    (quality << OD_COEFF_SHIFT >> OD_QUALITY_SHIFT) +
@@ -486,8 +489,7 @@ static void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
       scalar_out[0] = OD_DIV_R0(cblock[0] - predt[0], dc_quant);
     }
   }
-  OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
-    OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_AC_COEFFS);
+  OD_ENC_ACCT_UPDATE(enc, OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_AC_COEFFS);
   if (lossless) {
     od_single_band_lossless_encode(enc, ln, scalar_out, cblock, predt, pli);
   }
@@ -495,20 +497,17 @@ static void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
     pvq_encode(enc, predt, cblock, scalar_out, quant, pli, ln,
      OD_PVQ_BETA[pli][ln], OD_ROBUST_STREAM, ctx->is_keyframe);
   }
-  OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
-   OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
+  OD_ENC_ACCT_UPDATE(enc, OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
   if (OD_DISABLE_HAAR_DC || !ctx->is_keyframe) {
     int has_dc_skip;
     has_dc_skip = !ctx->is_keyframe && !lossless;
-    OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
-     OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_DC_COEFF);
+    OD_ENC_ACCT_UPDATE(enc, OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_DC_COEFF);
     if (!has_dc_skip || scalar_out[0]) {
       generic_encode(&enc->ec, &enc->state.adapt.model_dc[pli],
        abs(scalar_out[0]) - has_dc_skip, -1, &enc->state.adapt.ex_dc[pli][ln][0], 2);
     }
     if (scalar_out[0]) od_ec_enc_bits(&enc->ec, scalar_out[0] < 0, 1);
-    OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
-     OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
+    OD_ENC_ACCT_UPDATE(enc, OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
     scalar_out[0] = scalar_out[0]*dc_quant;
     scalar_out[0] += predt[0];
   }
@@ -617,8 +616,7 @@ static void od_quantize_haar_dc(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
   else {
     dc_quant = OD_MAXI(1, enc->quantizer[pli]*OD_DC_RES[pli] >> 4);
   }
-  OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
-     OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_DC_COEFF);
+  OD_ENC_ACCT_UPDATE(enc, OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_DC_COEFF);
   if (l == 3) {
     int nhsb;
     int quant;
@@ -699,8 +697,7 @@ static void od_quantize_haar_dc(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
     od_quantize_haar_dc(enc, ctx, pli, bx + 1, by + 1, l, xdec, ydec, hgrad,
      vgrad, 0);
   }
-  OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
-   OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
+  OD_ENC_ACCT_UPDATE(enc, OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
 }
 #endif
 
@@ -918,10 +915,8 @@ static void od_split_superblocks(daala_enc_ctx *enc, int is_keyframe) {
    state->io_imgs[OD_FRAME_INPUT].planes[0].data -
    16*state->io_imgs[OD_FRAME_INPUT].planes[0].ystride - 16,
    state->io_imgs[OD_FRAME_INPUT].planes[0].ystride, (nvsb + 1)*32);
-  OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
-   OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_BLOCK_SIZE);
-  OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
-   OD_ACCT_CAT_PLANE, OD_ACCT_PLANE_FRAME);
+  OD_ENC_ACCT_UPDATE(enc, OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_BLOCK_SIZE);
+  OD_ENC_ACCT_UPDATE(enc, OD_ACCT_CAT_PLANE, OD_ACCT_PLANE_FRAME);
   for (i = 0; i < nvsb; i++) {
     unsigned char *bimg;
     unsigned char *rimg;
@@ -960,8 +955,7 @@ static void od_split_superblocks(daala_enc_ctx *enc, int is_keyframe) {
       }
     }
   }
-  OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
-  OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
+  OD_ENC_ACCT_UPDATE(enc, OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
   od_log_matrix_uchar(OD_LOG_GENERIC, OD_LOG_INFO, "bsize ", state->bsize,
    state->bstride, (nvsb + 1)*4);
   for (i = 0; i < nvsb*4; i++) {
@@ -988,8 +982,7 @@ static void od_encode_mvs(daala_enc_ctx *enc) {
   od_mv_grid_pt *mvp;
   od_mv_grid_pt *other;
   od_mv_grid_pt **grid;
-  OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
-   OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_MOTION_VECTORS);
+  OD_ENC_ACCT_UPDATE(enc, OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_MOTION_VECTORS);
   nhmvbs = (enc->state.nhmbs + 1) << 2;
   nvmvbs = (enc->state.nvmbs + 1) << 2;
   mvimg = enc->state.io_imgs + OD_FRAME_REC;
@@ -1170,8 +1163,7 @@ static void od_encode_mvs(daala_enc_ctx *enc) {
       }
     }
   }
-  OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
-   OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
+  OD_ENC_ACCT_UPDATE(enc, OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
 }
 
 static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx) {
@@ -1200,17 +1192,13 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx) {
     ydec = state->io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
     w = frame_width >> xdec;
     h = frame_height >> ydec;
-    OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
-     OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_FRAME);
-    OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
-     OD_ACCT_CAT_PLANE, OD_ACCT_PLANE_FRAME);
+    OD_ENC_ACCT_UPDATE(enc, OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_FRAME);
+    OD_ENC_ACCT_UPDATE(enc, OD_ACCT_CAT_PLANE, OD_ACCT_PLANE_FRAME);
     /* TODO: We shouldn't be encoding the full, linear quantizer range. */
     od_ec_enc_uint(&enc->ec, enc->quantizer[pli], 512<<OD_COEFF_SHIFT);
     /*If the quantizer is zero (lossless), force scalar.*/
-    OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
-     OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
-    OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
-     OD_ACCT_CAT_PLANE, OD_ACCT_PLANE_UNKNOWN);
+    OD_ENC_ACCT_UPDATE(enc, OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
+    OD_ENC_ACCT_UPDATE(enc, OD_ACCT_CAT_PLANE, OD_ACCT_PLANE_UNKNOWN);
   }
   for (pli = 0; pli < nplanes; pli++) {
     xdec = state->io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
@@ -1256,8 +1244,7 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx) {
   for (sby = 0; sby < nvsb; sby++) {
     for (sbx = 0; sbx < nhsb; sbx++) {
       for (pli = 0; pli < nplanes; pli++) {
-        OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
-         OD_ACCT_CAT_PLANE, OD_ACCT_PLANE_LUMA + pli);
+        OD_ENC_ACCT_UPDATE(enc, OD_ACCT_CAT_PLANE, OD_ACCT_PLANE_LUMA + pli);
         mbctx->c = state->ctmp[pli];
         mbctx->d = state->dtmp;
         mbctx->mc = state->mctmp[pli];
@@ -1277,8 +1264,7 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx) {
         od_encode_recursive(enc, mbctx, pli, sbx, sby, 3, xdec, ydec);
 #endif
       }
-        OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
-         OD_ACCT_CAT_PLANE, OD_ACCT_PLANE_UNKNOWN);
+        OD_ENC_ACCT_UPDATE(enc, OD_ACCT_CAT_PLANE, OD_ACCT_PLANE_UNKNOWN);
     }
   }
   for (pli = 0; pli < nplanes; pli++) {
@@ -1438,10 +1424,8 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   mbctx.is_keyframe |= !(enc->state.ref_imgi[OD_FRAME_PREV] >= 0);
   /*Initialize the entropy coder.*/
   od_ec_enc_reset(&enc->ec);
-  OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
-   OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_FRAME);
-  OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
-   OD_ACCT_CAT_PLANE, OD_ACCT_PLANE_FRAME);
+  OD_ENC_ACCT_UPDATE(enc, OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_FRAME);
+  OD_ENC_ACCT_UPDATE(enc, OD_ACCT_CAT_PLANE, OD_ACCT_PLANE_FRAME);
   /*Write a bit to mark this as a data packet.*/
   od_ec_encode_bool_q15(&enc->ec, 0, 16384);
   /*Code the keyframe bit.*/
@@ -1455,10 +1439,8 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     }
   }
   OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO, "is_keyframe=%d", mbctx.is_keyframe));
-  OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
-   OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
-  OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec),
-   OD_ACCT_CAT_PLANE, OD_ACCT_TECH_UNKNOWN);
+  OD_ENC_ACCT_UPDATE(enc, OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
+  OD_ENC_ACCT_UPDATE(enc, OD_ACCT_CAT_PLANE, OD_ACCT_TECH_UNKNOWN);
   /*TODO: Increment frame count.*/
   od_adapt_ctx_reset(&enc->state.adapt, mbctx.is_keyframe);
   if (!mbctx.is_keyframe) {
