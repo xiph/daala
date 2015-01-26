@@ -1,4 +1,9 @@
-function [rate,psnr] = bjontegaard(rd1,rd2,type)
+% rd1, rd2: tables of rate/distortion pairs, in units of dB and bits per pixel
+% type: 1 = piecewise-linear, 2 = cubic-polyfit
+% min_bpp, max_bpp: constraints on the bitrates to compare.
+%               Set to 0 for automatic selection.
+
+function [rate,psnr] = bjontegaard(rd1,rd2,type,min_bpp,max_bpp)
 
     function [p] = pwl_fit(x,y)
         n=size(x,1)-1;
@@ -185,9 +190,9 @@ function [rate,psnr] = bjontegaard(rd1,rd2,type)
         end
     end
 
-    function val = avg_diff(x1,y1,x2,y2,type)
-        min_x=max(min(x1),min(x2));
-        max_x=min(max(x1),max(x2));
+    function val = avg_diff(x1,y1,x2,y2,type,min_x,max_x)
+        min_x=max(max(min(x1),min(x2)),min_x);
+        max_x=min(min(max(x1),max(x2)),max_x);
 
         switch type
             case 1
@@ -224,8 +229,11 @@ function [rate,psnr] = bjontegaard(rd1,rd2,type)
     rate2=log(rd2(:,1));
     psnr2=rd2(:,2);
 
-    psnr=avg_diff(rate1,psnr1,rate2,psnr2,type);
-    rate=(exp(avg_diff(psnr1,rate1,psnr2,rate2,type))-1)*100;
+    min_bpp=log(min_bpp);
+    max_bpp=log(max_bpp);
+
+    psnr=avg_diff(rate1,psnr1,rate2,psnr2,type,min_bpp,max_bpp);
+    rate=(exp(avg_diff(psnr1,rate1,psnr2,rate2,type,0,Inf))-1)*100;
 
     %p_pwl=pwl_fit(x1,y1);
     %p_cubic=cubic_fit(x1,y1);
