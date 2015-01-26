@@ -2321,18 +2321,63 @@ static void check_transform(int bszi) {
   int j;
   int n;
   n = 1 << (OD_LOG_BSIZE0 + bszi);
-  for (j = 0; j < n; j++) min[j] = max[j] = 0;
-  for (i = 0; i < 1 << n; i++) {
+  for (i = 0; i < n; i++) {
     od_coeff x[OD_BSIZE_MAX];
     od_coeff y[OD_BSIZE_MAX];
     od_coeff x2[OD_BSIZE_MAX];
-    for (j = 0; j < n; j++) x[j] = (i >> j & 1) ? 255 : -256;
-    (*OD_FDCT_1D[bszi])(y, x, 1);
-    (*OD_IDCT_1D[bszi])(x2, 1, y);
     for (j = 0; j < n; j++) {
-      if (y[j] < min[j]) min[j] = y[j];
-      else if (y[j] > max[j]) max[j] = y[j];
+      x[j] = (i == j) << (8 + OD_COEFF_SHIFT);
     }
+    OD_FDCT_1D[bszi](y, x, 1);
+    OD_IDCT_1D[bszi](x2, 1, y);
+    for (j = 0; j < n; j++) {
+      basis[i][j] = y[j]/(256.0*(1 << OD_COEFF_SHIFT));
+    }
+    for (j = 0; j < n; j++) {
+      if (x[j] != x2[j]) {
+        od_exit_code = EXIT_FAILURE;
+        printf("Mismatch:\n");
+        printf("in:    ");
+        for (j = 0; j < n; j++) printf(" %i", x[j]);
+        printf("\nxform: ");
+        for (j = 0; j < n; j++) printf(" %i", y[j]);
+        printf("\nout:   ");
+        for (j = 0; j < n; j++) printf(" %i", x2[j]);
+        printf("\n\n");
+        break;
+      }
+    }
+  }
+  for (i = 0; i < n; i++) {
+    od_coeff x[OD_BSIZE_MAX];
+    od_coeff y[OD_BSIZE_MAX];
+    od_coeff x2[OD_BSIZE_MAX];
+    for (j = 0; j < n; j++) {
+      x[j] = basis[j][i] < 0 ? -256 : 255;
+    }
+    OD_FDCT_1D[bszi](y, x, 1);
+    OD_IDCT_1D[bszi](x2, 1, y);
+    max[i] = y[i];
+    for (j = 0; j < n; j++) {
+      if (x[j] != x2[j]) {
+        od_exit_code = EXIT_FAILURE;
+        printf("Mismatch:\n");
+        printf("in:    ");
+        for (j = 0; j < n; j++) printf(" %i", x[j]);
+        printf("\nxform: ");
+        for (j = 0; j < n; j++) printf(" %i", y[j]);
+        printf("\nout:   ");
+        for (j = 0; j < n; j++) printf(" %i", x2[j]);
+        printf("\n\n");
+        break;
+      }
+    }
+    for (j = 0; j < n; j++) {
+      x[j] = basis[j][i] > 0 ? -256 : 255;
+    }
+    OD_FDCT_1D[bszi](y, x, 1);
+    OD_IDCT_1D[bszi](x2, 1, y);
+    min[i] = y[i];
     for (j = 0; j < n; j++) {
       if (x[j] != x2[j]) {
         od_exit_code = EXIT_FAILURE;
