@@ -631,7 +631,7 @@ static const int OD_MV_GE3_EST_RATE[256] = {
 
 /*Estimate the number of bits that will be used to encode the given MV and its
    predictor.*/
-static int od_mv_est_bits(od_mv_est_ctx *est,
+static int od_mv_est_bits(od_mv_est_ctx *est, int equal_mvs,
  int dx, int dy, int predx, int predy) {
   int ox;
   int oy;
@@ -644,7 +644,7 @@ static int od_mv_est_bits(od_mv_est_ctx *est,
   oy = dy - predy;
   id = OD_MINI(abs(oy), 3)*4 + OD_MINI(abs(ox), 3);
   cost += ((ox != 0) + (oy != 0))*sign_cost;
-  cost += est->mv_small_rate_est[id];
+  cost += est->mv_small_rate_est[equal_mvs][id];
   if (abs(ox) >= 3) {
     cost += OD_MV_GE3_EST_RATE[OD_MINI(abs(ox) - 3, 255)];
   }
@@ -813,9 +813,10 @@ void od_mv_est_check_rd_state(od_mv_est_ctx *est, int ref, int mv_res) {
       if (!mvg->valid) continue;
       mv = est->mvs[vy] + vx;
       if (vx >= 2 && vx <= nhmvbs - 2 && vy >= 2 && vy <= nvmvbs - 2) {
-        od_state_get_predictor(state, pred, vx, vy,
+        int equal_mvs;
+        equal_mvs = od_state_get_predictor(state, pred, vx, vy,
          OD_MC_LEVEL[vy & 3][vx & 3], mv_res);
-        mv_rate = od_mv_est_bits(est,
+        mv_rate = od_mv_est_bits(est, equal_mvs,
          mvg->mv[0] >> mv_res, mvg->mv[1] >> mv_res, pred[0], pred[1]);
       }
       else pred[0] = pred[1] = mv_rate = 0;
@@ -855,6 +856,7 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
   int bx;
   int by;
   int ncns;
+  int equal_mvs;
   int mvxmin;
   int mvxmax;
   int mvymin;
@@ -902,6 +904,7 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
   bx -= mvb_sz << 1;
   by -= mvb_sz << 1;
   ncns = 4;
+  equal_mvs = 0;
   if (level == 0) {
     cneighbors[0] = est->mvs[vy - 4] + vx - 4;
     cneighbors[1] = est->mvs[vy - 4] + vx;
@@ -971,6 +974,12 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
     candx = OD_CLAMPI(mvxmin, a[1][0], mvxmax);
     candy = OD_CLAMPI(mvymin, a[1][1], mvymax);
   }
+  for (ci = 0; ci < ncns; ci++) {
+    if (predx == (cneighbors[ci]->bma_mvs[0][ref][0] << 1) &&
+     predy == (cneighbors[ci]->bma_mvs[0][ref][1] << 1)) {
+      equal_mvs++;
+    }
+  }
   od_mv_est_clear_hit_cache(est);
 #if defined(OD_DUMP_IMAGES) && defined(OD_ANIMATE)
   if (animating) {
@@ -979,7 +988,8 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
   }
 #endif
   best_sad = od_mv_est_bma_sad8(est, ref, bx, by, candx, candy, log_mvb_sz);
-  best_rate = od_mv_est_bits(est, candx << 1, candy << 1, predx, predy);
+  best_rate = od_mv_est_bits(est, equal_mvs,
+   candx << 1, candy << 1, predx, predy);
   best_cost = (best_sad << OD_ERROR_SCALE) + best_rate*est->lambda;
   OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
    "Median predictor: (%i, %i)   Cost: %i", candx, candy, best_cost));
@@ -1033,7 +1043,8 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
       }
 #endif
       sad = od_mv_est_bma_sad8(est, ref, bx, by, candx, candy, log_mvb_sz);
-      rate = od_mv_est_bits(est, candx << 1, candy << 1, predx, predy);
+      rate = od_mv_est_bits(est, equal_mvs,
+       candx << 1, candy << 1, predx, predy);
       cost = (sad << OD_ERROR_SCALE) + rate*est->lambda;
       OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
        "Set B predictor %i: (%i, %i)    Cost: %i", ci, candx, candy, cost));
@@ -1079,7 +1090,8 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
         }
 #endif
         sad = od_mv_est_bma_sad8(est, ref, bx, by, candx, candy, log_mvb_sz);
-        rate = od_mv_est_bits(est, candx << 1, candy << 1, predx, predy);
+        rate = od_mv_est_bits(est, equal_mvs,
+         candx << 1, candy << 1, predx, predy);
         cost = (sad << OD_ERROR_SCALE) + rate*est->lambda;
         OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
          "Set C predictor %i: (%i, %i)    Cost: %i", ci, candx, candy, cost));
@@ -1138,7 +1150,8 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
 #endif
             sad = od_mv_est_bma_sad8(est,
              ref, bx, by, candx, candy, log_mvb_sz);
-            rate = od_mv_est_bits(est, candx << 1, candy << 1, predx, predy);
+            rate = od_mv_est_bits(est, equal_mvs,
+             candx << 1, candy << 1, predx, predy);
             cost = (sad << OD_ERROR_SCALE) + rate*est->lambda;
             OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
              "Pattern search %i: (%i, %i)    Cost: %i",
@@ -2403,10 +2416,11 @@ static int od_mv_dp_get_rate_change(od_mv_est_ctx *est, od_mv_dp_node *dp,
     *cur_mv_rate = dr = 0;
   }
   else {
-    od_state_get_predictor(state, pred, mv->vx, mv->vy,
-     OD_MC_LEVEL[mv->vy & 3][mv->vx & 3], mv_res);
+    int equal_mvs;
+    equal_mvs = od_state_get_predictor(state, pred,
+     mv->vx, mv->vy, OD_MC_LEVEL[mv->vy & 3][mv->vx & 3], mv_res);
     mvg = dp->mvg;
-    *cur_mv_rate = od_mv_est_bits(est,
+    *cur_mv_rate = od_mv_est_bits(est, equal_mvs,
      mvg->mv[0] >> mv_res, mvg->mv[1] >> mv_res, pred[0], pred[1]);
     OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
      "Current MV rate: %i - %i = %i",
@@ -2419,9 +2433,9 @@ static int od_mv_dp_get_rate_change(od_mv_est_ctx *est, od_mv_dp_node *dp,
     for (pi = 0; pi < dp->npredicted; pi++) {
       mv = dp->predicted_mvs[pi];
       mvg = dp->predicted_mvgs[pi];
-      od_state_get_predictor(state, pred, mv->vx, mv->vy,
+      equal_mvs = od_state_get_predictor(state, pred, mv->vx, mv->vy,
        OD_MC_LEVEL[mv->vy & 3][mv->vx & 3], mv_res);
-      pred_mv_rates[pi] = od_mv_est_bits(est,
+      pred_mv_rates[pi] = od_mv_est_bits(est, equal_mvs,
        mvg->mv[0] >> mv_res, mvg->mv[1] >> mv_res, pred[0], pred[1]);
       OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
        "Calculated predicted mv_rate of %i for (%i, %i)",
@@ -3986,13 +4000,14 @@ int od_mv_est_update_mv_rates(od_mv_est_ctx *est, int mv_res) {
       od_mv_grid_pt *mvg;
       od_mv_node *mv;
       int pred[2];
+      int equal_mvs;
       mvg = state->mv_grid[vy] + vx;
       if (!mvg->valid) continue;
       mv = est->mvs[vy] + vx;
-      od_state_get_predictor(state, pred,
+      equal_mvs = od_state_get_predictor(state, pred,
        vx, vy, OD_MC_LEVEL[vy & 3][vx & 3], mv_res);
       dr -= mv->mv_rate;
-      mv->mv_rate = od_mv_est_bits(est,
+      mv->mv_rate = od_mv_est_bits(est, equal_mvs,
        mvg->mv[0] >> mv_res, mvg->mv[1] >> mv_res, pred[0], pred[1]);
       dr += mv->mv_rate;
     }
@@ -4080,6 +4095,7 @@ void od_mv_est(od_mv_est_ctx *est, int ref, int lambda) {
   int nvmvbs;
   int pli;
   int i;
+  int j;
   state = &est->enc->state;
   nhmvbs = (state->nhmbs + 1) << 2;
   nvmvbs = (state->nvmbs + 1) << 2;
@@ -4088,23 +4104,15 @@ void od_mv_est(od_mv_est_ctx *est, int ref, int lambda) {
   est->level_min = OD_MINI(est->enc->params.mv_level_min,
    est->enc->params.mv_level_max);
   est->level_max = est->enc->params.mv_level_max;
-  /*Rate estimations*/
-  for (i = 0; i < 16; i++) {
-    int j;
-    int pi;
-    int tot;
-    pi = 0;
-    tot = 0;
-    /* Average all the CDFs to get the rates estimates. This doesn't
-       consider the relative weighting of the CDFs, but it's good enough
-       for now. */
-    for (j = 0; j < 5; j++) {
-      tot += est->enc->state.adapt.mv_small_cdf[j][15];
-      pi += est->enc->state.adapt.mv_small_cdf[j][i]
-       - (i > 0 ? est->enc->state.adapt.mv_small_cdf[j][i - 1] : 0);
+  /*Rate estimations. Note that this does not depend on the previous frame: at
+     this point, the probabilities have been reset by od_adapt_ctx_reset.*/
+  for (i = 0; i < 5; i++) {
+    for (j = 0; j < 16; j++) {
+      est->mv_small_rate_est[i][j] = (int)((1 << OD_BITRES)
+       *(OD_LOG2(est->enc->state.adapt.mv_small_cdf[i][15])
+       - (OD_LOG2(est->enc->state.adapt.mv_small_cdf[i][j]
+       - (j > 0 ? est->enc->state.adapt.mv_small_cdf[i][j - 1] : 0)))) + 0.5);
     }
-    est->mv_small_rate_est[i] = (int)((1 << OD_BITRES)
-     *(OD_LOG2(tot) - (OD_LOG2(pi))) + 0.5);
   }
   /*If the luma plane is decimated for some reason, then our distortions will
      be smaller, so scale lambda appropriately.*/
