@@ -53,8 +53,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # include "x86/x86int.h"
 #endif
 
+#if defined(OD_ACCOUNTING)
 # define OD_ENC_ACCT_UPDATE(enc, cat, value) \
  OD_ACCT_UPDATE(&enc->acct, od_ec_enc_tell_frac(&enc->ec), cat, value)
+#else
+# define OD_ENC_ACCT_UPDATE(enc, cat, value)
+#endif
 
 static int od_quantizer_from_quality(int quality) {
   return quality == 0 ? 0 :
