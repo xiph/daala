@@ -28,7 +28,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #include "block_size.h"
 #include "dct.h"
-#include "tf.h"
 
 /*Making function pointer tables at least one entry
    longer than needed makes it highly likely that an
@@ -1967,38 +1966,6 @@ void od_bin_idct32x32(od_coeff *x, int xstride,
   int i;
   for (i = 0; i < 32; i++) od_bin_idct32(z + i, 32, y + ystride*i);
   for (i = 0; i < 32; i++) od_bin_idct32(x + i, xstride, z + 32*i);
-}
-
-void od_bin_fxform32x32(od_coeff *y, int ystride,
- const od_coeff *x, int xstride) {
-  od_coeff t[32*32];
-  od_coeff z[16*16];
-  int i;
-  int j;
-  int rc;
-  for (j = 0; j < 2; j++) for (i = 0; i < 2; i++) {
-    for (rc = 0; rc < 16; rc++)
-     od_bin_fdct16(z + 16*rc, x + 16*j*xstride + 16*i + rc, xstride);
-    for (rc = 0; rc < 16; rc++)
-     od_bin_fdct16(t + 16*j*32 + 16*i + 32*rc, z + rc, 16);
-  }
-  od_tf_up_hv(y, ystride, t, 32, 16);
-}
-
-void od_bin_ixform32x32(od_coeff *x, int xstride,
- const od_coeff *y, int ystride) {
-  od_coeff t[32*32];
-  od_coeff z[16*16];
-  int i;
-  int j;
-  int rc;
-  od_tf_down_hv(t, 32, y, ystride, 32);
-  for (j = 0; j < 2; j++) for (i = 0; i < 2; i++) {
-    for (rc = 0; rc < 16; rc++)
-     od_bin_idct16(z + rc, 16, t + 16*j*32 + 16*i + 32*rc);
-    for (rc = 0; rc < 16; rc++)
-     od_bin_idct16(x + 16*j*xstride + 16*i + rc, xstride, z + 16*rc);
-  }
 }
 
 #if defined(OD_CHECKASM)

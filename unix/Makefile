@@ -211,7 +211,6 @@ PLAYER_EXAMPLE_CSOURCES = player_example.c
 DCTTEST_CSOURCES = \
 dct.c \
 filter.c \
-tf.c \
 $(if $(findstring -DOD_ENABLE_ASSERTIONS,${CFLAGS}), \
 internal.c \
 )

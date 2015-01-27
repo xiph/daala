@@ -169,11 +169,6 @@ void od_bin_fdct32x32(od_coeff *y, int ystride,
 void od_bin_idct32x32(od_coeff *x, int xstride,
  const od_coeff *y, int ystride);
 
-void od_bin_fxform32x32(od_coeff *y, int ystride,
- const od_coeff *x, int xstride);
-void od_bin_ixform32x32(od_coeff *x, int xstride,
- const od_coeff *y, int ystride);
-
 # if defined(OD_CHECKASM)
 void od_dct_check(int ln, const od_coeff *ref, const od_coeff *x,
  int xstride);

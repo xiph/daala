@@ -21,7 +21,7 @@ int main() {
     printf("\n");
   }
   printf("\n");
-  od_bin_fxform32x32(t, 32, v, 32);
+  od_bin_fdct32x32(t, 32, v, 32);
   printf("Transformed block:\n");
   for (i = 0; i < 32; i++) {
     printf("    ");
@@ -31,7 +31,7 @@ int main() {
     printf("\n");
   }
   printf("\n");
-  od_bin_ixform32x32(o, 32, t, 32);
+  od_bin_idct32x32(o, 32, t, 32);
   printf("Reconstructed block:\n");
   for (i = 0; i < 32; i++) {
     printf("    ");

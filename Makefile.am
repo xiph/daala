@@ -39,7 +39,7 @@ noinst_HEADERS = \
 	src/x86/x86dct.h \
 	src/x86/x86int.h
 
-src_dct_SOURCES = src/dct.c src/tf.c src/internal.c
+src_dct_SOURCES = src/dct.c src/internal.c
 if ENABLE_X86ASM
 src_dct_SOURCES += src/x86/cpu.c
 if ENABLE_SSE2_INTRINSICS
@@ -81,6 +81,7 @@ src_libdaalabase_la_SOURCES = \
 	src/pvq_decoder.c \
 	src/state.c \
 	src/switch_table.c \
+	src/tf.c \
 	src/zigzag4.c \
 	src/zigzag8.c \
 	src/zigzag16.c \
