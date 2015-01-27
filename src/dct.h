@@ -148,6 +148,27 @@ void od_bin_fdct16x16(od_coeff *y, int ystride,
 void od_bin_idct16x16(od_coeff *x, int xstride,
  const od_coeff *y, int ystride);
 
+/*A reversible integer approximation of a 32-point type-II DCT based on
+   Loeffler's factorization.
+  y:       The destination vector (of size 32).
+           This may be the same as the source.
+  x:       The source vector (of size 32).
+  xstride: The stride of the source.*/
+void od_bin_fdct32(od_coeff y[32], const od_coeff *x, int xstride);
+
+/*An inverse of the reversible integer approximation of a 32-point type-II DCT
+   above.
+  x:       The destination vector (of size 32).
+           This may be the same as the source.
+  xstride: The stride of the destination.
+  y:       The source vector (of size 32).*/
+void od_bin_idct32(od_coeff *x, int xstride, const od_coeff y[32]);
+
+void od_bin_fdct32x32(od_coeff *y, int ystride,
+ const od_coeff *x, int xstride);
+void od_bin_idct32x32(od_coeff *x, int xstride,
+ const od_coeff *y, int ystride);
+
 void od_bin_fxform32x32(od_coeff *y, int ystride,
  const od_coeff *x, int xstride);
 void od_bin_ixform32x32(od_coeff *x, int xstride,

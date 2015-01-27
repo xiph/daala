@@ -795,9 +795,8 @@ void od_post_filter32(od_coeff _x[32], const od_coeff _y[32]) {
 
 #define ZERO_FILTERS (0)
 
-/*Remove OD_MINI if we ever support 32-point filters.*/
 #define OD_BLOCK_SIZE4x4_DEC(bsize, bstride, bx, by, dec) \
- OD_MAXI(OD_MINI(OD_BLOCK_SIZE4x4(bsize, bstride, bx, by), 2 + (dec)), dec)
+ OD_MAXI(OD_BLOCK_SIZE4x4(bsize, bstride, bx, by), dec)
 
 static void od_apply_filter_cols(od_coeff *c, int stride, int bx, int by,
  int out, unsigned char l, const unsigned char *bsize, int bstride, int xdec,

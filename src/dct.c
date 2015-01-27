@@ -43,26 +43,28 @@ const od_dct_func_2d OD_FDCT_2D_C[OD_NBSIZES + 1] = {
   od_bin_fdct4x4,
   od_bin_fdct8x8,
   od_bin_fdct16x16,
-  od_bin_fxform32x32
+  od_bin_fdct32x32
 };
 
 const od_dct_func_2d OD_IDCT_2D_C[OD_NBSIZES + 1] = {
   od_bin_idct4x4,
   od_bin_idct8x8,
   od_bin_idct16x16,
-  od_bin_ixform32x32
+  od_bin_idct32x32
 };
 
 const od_fdct_func_1d OD_FDCT_1D[OD_NBSIZES + 1] = {
   od_bin_fdct4,
   od_bin_fdct8,
-  od_bin_fdct16
+  od_bin_fdct16,
+  od_bin_fdct32
 };
 
 const od_idct_func_1d OD_IDCT_1D[OD_NBSIZES + 1] = {
   od_bin_idct4,
   od_bin_idct8,
-  od_bin_idct16
+  od_bin_idct16,
+  od_bin_idct32
 };
 
 void od_bin_fdct4(od_coeff y[4], const od_coeff *x, int xstride) {
@@ -779,6 +781,1192 @@ void od_bin_idct16x16(od_coeff *x, int xstride,
   int i;
   for (i = 0; i < 16; i++) od_bin_idct16(z + i, 16, y + ystride*i);
   for (i = 0; i < 16; i++) od_bin_idct16(x + i, xstride, z + 16*i);
+}
+
+#define OD_FDCT_2(t0, t1) \
+  /* Embedded 2-point orthonormal Type-II fDCT. */ \
+  do { \
+    /* 13573/32768 ~= Tan[pi/8] ~= 0.414213562373095 */ \
+    OD_DCT_OVERFLOW_CHECK(t1, 13573, 16384, 100); \
+    t0 -= (t1*13573 + 16384) >> 15; \
+    /* 5793/8192 ~= Sin[pi/4] ~= 0.707106781186547 */ \
+    OD_DCT_OVERFLOW_CHECK(t0, 5793, 4096, 101); \
+    t1 += (t0*5793 + 4096) >> 13; \
+    /* 3393/8192 ~= Tan[pi/8] ~= 0.414213562373095 */ \
+    OD_DCT_OVERFLOW_CHECK(t1, 3393, 4096, 102); \
+    t0 -= (t1*3393 + 4096) >> 13; \
+  } \
+  while (0)
+
+#define OD_IDCT_2(t0, t1) \
+  /* Embedded 2-point orthonormal Type-II iDCT. */ \
+  do { \
+    /* 3393/8192 ~= Tan[pi/8] ~= 0.414213562373095 */ \
+    t0 += (t1*3393 + 4096) >> 13; \
+    /* 5793/8192 ~= Sin[pi/4] ~= 0.707106781186547 */ \
+    t1 -= (t0*5793 + 4096) >> 13; \
+    /* 13573/32768 ~= Tan[pi/8] ~= 0.414213562373095 */ \
+    t0 += (t1*13573 + 16384) >> 15; \
+  } \
+  while (0)
+
+#define OD_FDST_2(t0, t1) \
+  /* Embedded 2-point orthonormal Type-IV fDST. */ \
+  do { \
+    /* 10947/16384 ~= Tan[3*Pi/16] ~= 0.668178637919299 */ \
+    OD_DCT_OVERFLOW_CHECK(t1, 10947, 8192, 103); \
+    t0 -= (t1*10947 + 8192) >> 14; \
+    /* 473/512 ~= Sin[3*Pi/8] ~= 0.923879532511287 */ \
+    OD_DCT_OVERFLOW_CHECK(t0, 473, 256, 104); \
+    t1 += (t0*473 + 256) >> 9; \
+    /* 10947/16384 ~= Tan[3*Pi/16] ~= 0.668178637919299 */ \
+    OD_DCT_OVERFLOW_CHECK(t1, 10947, 8192, 105); \
+    t0 -= (t1*10947 + 8192) >> 14; \
+  } \
+  while (0)
+
+#define OD_IDST_2(t0, t1) \
+  /* Embedded 2-point orthonormal Type-IV iDST. */ \
+  do { \
+    /* 10947/16384 ~= Tan[3*Pi/16]) ~= 0.668178637919299 */ \
+    t0 += (t1*10947 + 8192) >> 14; \
+    /* 473/512 ~= Sin[3*Pi/8] ~= 0.923879532511287 */ \
+    t1 -= (t0*473 + 256) >> 9; \
+    /* 10947/16384 ~= Tan[3*Pi/16] ~= 0.668178637919299 */ \
+    t0 += (t1*10947 + 8192) >> 14; \
+  } \
+  while (0)
+
+#define OD_FDCT_4_ASYM(t0, t2, t2h, t1, t3, t3h) \
+  /* Embedded 4-point asymmetric Type-II fDCT. */ \
+  do { \
+    t0 += t3h; \
+    t3 = t0 - t3; \
+    t1 = t2h - t1; \
+    t2 = t1 - t2; \
+    OD_FDCT_2(t0, t2); \
+    OD_FDST_2(t3, t1); \
+  } \
+  while (0)
+
+#define OD_IDCT_4_ASYM(t0, t2, t1, t1h, t3, t3h) \
+  /* Embedded 4-point asymmetric Type-II iDCT. */ \
+  do { \
+    OD_IDST_2(t3, t2); \
+    OD_IDCT_2(t0, t1); \
+    t1 = t2 - t1; \
+    t1h = OD_DCT_RSHIFT(t1, 1); \
+    t2 = t1h - t2; \
+    t3 = t0 - t3; \
+    t3h = OD_DCT_RSHIFT(t3, 1); \
+    t0 -= t3h; \
+  } \
+  while (0)
+
+#define OD_FDST_4_ASYM(t0, t0h, t2, t1, t3) \
+  /* Embedded 4-point asymmetric Type-IV fDST. */ \
+  do { \
+    /* 7489/8192 ~= Tan[Pi/8] + Tan[Pi/4]/2 ~= 0.914213562373095 */ \
+    OD_DCT_OVERFLOW_CHECK(t1, 7489, 4096, 106); \
+    t2 -= (t1*7489 + 4096) >> 13; \
+    /* 11585/16384 ~= Sin[Pi/4] ~= 0.707106781186548 */ \
+    OD_DCT_OVERFLOW_CHECK(t1, 11585, 8192, 107); \
+    t1 += (t2*11585 + 8192) >> 14; \
+    /* -19195/32768 ~= Tan[Pi/8] - Tan[Pi/4] ~= -0.585786437626905 */ \
+    OD_DCT_OVERFLOW_CHECK(t1, 19195, 16384, 108); \
+    t2 += (t1*19195 + 16384) >> 15; \
+    t3 += OD_DCT_RSHIFT(t2, 1); \
+    t2 -= t3; \
+    t1 = t0h - t1; \
+    t0 -= t1; \
+    /* 6723/8192 ~= Tan[7*Pi/32] ~= 0.820678790828660 */ \
+    OD_DCT_OVERFLOW_CHECK(t0, 6723, 4096, 109); \
+    t3 += (t0*6723 + 4096) >> 13; \
+    /* 8035/8192 ~= Sin[7*Pi/16] ~= 0.980785280403230 */ \
+    OD_DCT_OVERFLOW_CHECK(t3, 8035, 4096, 110); \
+    t0 -= (t3*8035 + 4096) >> 13; \
+    /* 6723/8192 ~= Tan[7*Pi/32] ~= 0.820678790828660 */ \
+    OD_DCT_OVERFLOW_CHECK(t0, 6723, 4096, 111); \
+    t3 += (t0*6723 + 4096) >> 13; \
+    /* 8757/16384 ~= Tan[5*Pi/32] ~= 0.534511135950792 */ \
+    OD_DCT_OVERFLOW_CHECK(t1, 8757, 8192, 112); \
+    t2 += (t1*8757 + 8192) >> 14; \
+    /* 6811/8192 ~= Sin[5*Pi/16] ~= 0.831469612302545 */ \
+    OD_DCT_OVERFLOW_CHECK(t2, 6811, 4096, 113); \
+    t1 -= (t2*6811 + 4096) >> 13; \
+    /* 8757/16384 ~= Tan[5*Pi/32] ~= 0.534511135950792 */ \
+    OD_DCT_OVERFLOW_CHECK(t1, 8757, 8192, 114); \
+    t2 += (t1*8757 + 8192) >> 14; \
+  } \
+  while (0)
+
+#define OD_IDST_4_ASYM(t0, t0h, t2, t1, t3) \
+  /* Embedded 4-point asymmetric Type-IV iDST. */ \
+  do { \
+    /* 8757/16384 ~= Tan[5*Pi/32] ~= 0.534511135950792 */ \
+    t1 -= (t2*8757 + 8192) >> 14; \
+    /* 6811/8192 ~= Sin[5*Pi/16] ~= 0.831469612302545 */ \
+    t2 += (t1*6811 + 4096) >> 13; \
+    /* 8757/16384 ~= Tan[5*Pi/32] ~= 0.534511135950792 */ \
+    t1 -= (t2*8757 + 8192) >> 14; \
+    /* 6723/8192 ~= Tan[7*Pi/32] ~= 0.820678790828660 */ \
+    t3 -= (t0*6723 + 4096) >> 13; \
+    /* 8035/8192 ~= Sin[7*Pi/16] ~= 0.980785280403230 */ \
+    t0 += (t3*8035 + 4096) >> 13; \
+    /* 6723/8192 ~= Tan[7*Pi/32] ~= 0.820678790828660 */ \
+    t3 -= (t0*6723 + 4096) >> 13; \
+    t0 += t2; \
+    t0h = OD_DCT_RSHIFT(t0, 1); \
+    t2 = t0h - t2; \
+    t1 += t3; \
+    t3 -= OD_DCT_RSHIFT(t1, 1); \
+    /* -19195/32768 ~= Tan[Pi/8] - Tan[Pi/4] ~= -0.585786437626905 */ \
+    t1 -= (t2*19195 + 16384) >> 15; \
+    /* 11585/16384 ~= Sin[Pi/4] ~= 0.707106781186548 */ \
+    t2 -= (t1*11585 + 8192) >> 14; \
+    /* 7489/8192 ~= Tan[Pi/8] + Tan[Pi/4]/2 ~= 0.914213562373095 */ \
+    t1 += (t2*7489 + 4096) >> 13; \
+  } \
+  while (0)
+
+#define OD_FDCT_8(t0, t4, t2, t6, t1, t5, t3, t7) \
+  /* Embedded 8-point orthonormal Type-II fDCT. */ \
+  do { \
+    int t4h; \
+    int t6h; \
+    int t7h; \
+    t7 = t0 - t7; \
+    t7h = OD_DCT_RSHIFT(t7, 1); \
+    t0 -= t7h; \
+    t4 += t3; \
+    t4h = OD_DCT_RSHIFT(t4, 1); \
+    t3 = t4h - t3; \
+    t5 = t2 - t5; \
+    t2 -= OD_DCT_RSHIFT(t5, 1); \
+    t6 += t1; \
+    t6h = OD_DCT_RSHIFT(t6, 1); \
+    t1 = t6h - t1; \
+    OD_FDCT_4_ASYM(t0, t4, t4h, t2, t6, t6h); \
+    OD_FDST_4_ASYM(t7, t7h, t3, t5, t1); \
+  } \
+  while (0)
+
+#define OD_IDCT_8(t0, t4, t2, t6, t1, t5, t3, t7) \
+  /* Embedded 8-point orthonormal Type-II iDCT. */ \
+  do { \
+    int t1h; \
+    int t3h; \
+    int t7h; \
+    OD_IDST_4_ASYM(t7, t7h, t5, t6, t4); \
+    OD_IDCT_4_ASYM(t0, t2, t1, t1h, t3, t3h); \
+    t4 = t3h - t4; \
+    t3 -= t4; \
+    t2 += OD_DCT_RSHIFT(t5, 1); \
+    t5 = t2 - t5; \
+    t6 = t1h - t6; \
+    t1 -= t6; \
+    t0 += t7h; \
+    t7 = t0 - t7; \
+  } \
+  while (0)
+
+#define OD_FDST_8(t0, t4, t2, t6, t1, t5, t3, t7) \
+  /* Embedded 8-point orthonormal Type-IV fDST. */ \
+  do { \
+    int t0h; \
+    int t2h; \
+    int t5h; \
+    int t7h; \
+    /* 13573/32768 ~= Tan[Pi/8] ~= 0.414213562373095 */ \
+    OD_DCT_OVERFLOW_CHECK(t1, 13573, 16384, 115); \
+    t6 -= (t1*13573 + 16384) >> 15; \
+    /* 11585/16384 ~= Sin[Pi/4] ~= 0.707106781186547 */ \
+    OD_DCT_OVERFLOW_CHECK(t6, 11585, 8192, 116); \
+    t1 += (t6*11585 + 8192) >> 14; \
+    /* 13573/32768 ~= Tan[Pi/8] ~= 0.414213562373095 */ \
+    OD_DCT_OVERFLOW_CHECK(t1, 13573, 16384, 117); \
+    t6 -= (t1*13573 + 16384) >> 15; \
+    /* 21895/32768 ~= Tan[3*Pi/16] ~= 0.668178637919299 */ \
+    OD_DCT_OVERFLOW_CHECK(t2, 21895, 16384, 118); \
+    t5 -= (t2*21895 + 16384) >> 15; \
+    /* 15137/16384 ~= Sin[3*Pi/8] ~= 0.923879532511287 */ \
+    OD_DCT_OVERFLOW_CHECK(t5, 15137, 8192, 119); \
+    t2 += (t5*15137 + 8192) >> 14; \
+    /* 10947/16384 ~= Tan[3*Pi/16] ~= 0.668178637919299 */ \
+    OD_DCT_OVERFLOW_CHECK(t2, 10947, 8192, 120); \
+    t5 -= (t2*10947 + 8192) >> 14; \
+    /* 3259/16384 ~= Tan[Pi/16] ~= 0.198912367379658 */ \
+    OD_DCT_OVERFLOW_CHECK(t3, 3259, 8192, 121); \
+    t4 -= (t3*3259 + 8192) >> 14; \
+    /* 3135/8192 ~= Sin[Pi/8] ~= 0.382683432365090 */ \
+    OD_DCT_OVERFLOW_CHECK(t4, 3135, 4096, 122); \
+    t3 += (t4*3135 + 4096) >> 13; \
+    /* 3259/16384 ~= Tan[Pi/16] ~= 0.198912367379658 */ \
+    OD_DCT_OVERFLOW_CHECK(t3, 3259, 8192, 123); \
+    t4 -= (t3*3259 + 8192) >> 14; \
+    t7 += t1; \
+    t7h = OD_DCT_RSHIFT(t7, 1); \
+    t1 -= t7h; \
+    t2 = t3 - t2; \
+    t2h = OD_DCT_RSHIFT(t2, 1); \
+    t3 -= t2h; \
+    t0 -= t6; \
+    t0h = OD_DCT_RSHIFT(t0, 1); \
+    t6 += t0h; \
+    t5 = t4 - t5; \
+    t5h = OD_DCT_RSHIFT(t5, 1); \
+    t4 -= t5h; \
+    t1 += t5h; \
+    t5 = t1 - t5; \
+    t4 += t0h; \
+    t0 -= t4; \
+    t6 -= t2h; \
+    t2 += t6; \
+    t3 -= t7h; \
+    t7 += t3; \
+    /* TODO: Can we move this into another operation */ \
+    t7 = -t7; \
+    /* 7425/8192 ~= Tan[15*Pi/64] ~= 0.906347169019147 */ \
+    OD_DCT_OVERFLOW_CHECK(t7, 7425, 4096, 124); \
+    t0 -= (t7*7425 + 4096) >> 13; \
+    /* 8153/8192 ~= Sin[15*Pi/32] ~= 0.995184726672197 */ \
+    OD_DCT_OVERFLOW_CHECK(t0, 8153, 4096, 125); \
+    t7 += (t0*8153 + 4096) >> 13; \
+    /* 7425/8192 ~= Tan[15*Pi/64] ~= 0.906347169019147 */ \
+    OD_DCT_OVERFLOW_CHECK(t7, 7425, 4096, 126); \
+    t0 -= (t7*7425 + 4096) >> 13; \
+    /* 4861/32768 ~= Tan[3*Pi/64] ~= 0.148335987538347 */ \
+    OD_DCT_OVERFLOW_CHECK(t1, 4861, 16384, 127); \
+    t6 -= (t1*4861 + 16384) >> 15; \
+    /* 1189/4096 ~= Sin[3*Pi/32] ~= 0.290284677254462 */ \
+    OD_DCT_OVERFLOW_CHECK(t6, 1189, 2048, 128); \
+    t1 += (t6*1189 + 2048) >> 12; \
+    /* 4861/32768 ~= Tan[3*Pi/64] ~= 0.148335987538347 */ \
+    OD_DCT_OVERFLOW_CHECK(t1, 4861, 16384, 129); \
+    t6 -= (t1*4861 + 16384) >> 15; \
+    /* 2455/4096 ~= Tan[11*Pi/64] ~= 0.599376933681924 */ \
+    OD_DCT_OVERFLOW_CHECK(t5, 2455, 2048, 130); \
+    t2 -= (t5*2455 + 2048) >> 12; \
+    /* 7225/8192 ~= Sin[11*Pi/32] ~= 0.881921264348355 */ \
+    OD_DCT_OVERFLOW_CHECK(t2, 7225, 4096, 131); \
+    t5 += (t2*7225 + 4096) >> 13; \
+    /* 2455/4096 ~= Tan[11*Pi/64] ~= 0.599376933681924 */ \
+    OD_DCT_OVERFLOW_CHECK(t5, 2455, 2048, 132); \
+    t2 -= (t5*2455 + 2048) >> 12; \
+    /* 11725/32768 ~= Tan[7*Pi/64] ~= 0.357805721314524 */ \
+    OD_DCT_OVERFLOW_CHECK(t3, 11725, 16384, 133); \
+    t4 -= (t3*11725 + 16384) >> 15; \
+    /* 5197/8192 ~= Sin[7*Pi/32] ~= 0.634393284163645 */ \
+    OD_DCT_OVERFLOW_CHECK(t4, 5197, 4096, 134); \
+    t3 += (t4*5197 + 4096) >> 13; \
+    /* 11725/32768 ~= Tan[7*Pi/64] ~= 0.357805721314524 */ \
+    OD_DCT_OVERFLOW_CHECK(t3, 11725, 16384, 135); \
+    t4 -= (t3*11725 + 16384) >> 15; \
+  } \
+  while (0)
+
+#define OD_IDST_8(t0, t4, t2, t6, t1, t5, t3, t7) \
+  /* Embedded 8-point orthonormal Type-IV iDST. */ \
+  do { \
+    int t0h; \
+    int t2h; \
+    int t5h; \
+    int t7h; \
+    /* 11725/32768 ~= Tan[7*Pi/64] ~= 0.357805721314524 */ \
+    t1 += (t6*11725 + 16384) >> 15; \
+    /* 5197/8192 ~= Sin[7*Pi/32] ~= 0.634393284163645 */ \
+    t6 -= (t1*5197 + 4096) >> 13; \
+    /* 11725/32768 ~= Tan[7*Pi/64] ~= 0.357805721314524 */ \
+    t1 += (t6*11725 + 16384) >> 15; \
+    /* 2455/4096 ~= Tan[11*Pi/64] ~= 0.599376933681924 */ \
+    t2 += (t5*2455 + 2048) >> 12; \
+    /* 7225/8192 ~= Sin[11*Pi/32] ~= 0.881921264348355 */ \
+    t5 -= (t2*7225 + 4096) >> 13; \
+    /* 2455/4096 ~= Tan[11*Pi/64] ~= 0.599376933681924 */ \
+    t2 += (t5*2455 + 2048) >> 12; \
+    /* 4861/32768 ~= Tan[3*Pi/64] ~= 0.148335987538347 */ \
+    t3 += (t4*4861 + 16384) >> 15; \
+    /* 1189/4096 ~= Sin[3*Pi/32] ~= 0.290284677254462 */ \
+    t4 -= (t3*1189 + 2048) >> 12; \
+    /* 4861/32768 ~= Tan[3*Pi/64] ~= 0.148335987538347 */ \
+    t3 += (t4*4861 + 16384) >> 15; \
+    /* 7425/8192 ~= Tan[15*Pi/64] ~= 0.906347169019147 */ \
+    t0 += (t7*7425 + 4096) >> 13; \
+    /* 8153/8192 ~= Sin[15*Pi/32] ~= 0.995184726672197 */ \
+    t7 -= (t0*8153 + 4096) >> 13; \
+    /* 7425/8192 ~= Tan[15*Pi/64] ~= 0.906347169019147 */ \
+    t0 += (t7*7425 + 4096) >> 13; \
+    /* TODO: Can we move this into another operation */ \
+    t7 = -t7; \
+    t7 -= t6; \
+    t7h = OD_DCT_RSHIFT(t7, 1); \
+    t6 += t7h; \
+    t2 -= t3; \
+    t2h = OD_DCT_RSHIFT(t2, 1); \
+    t3 += t2h; \
+    t0 += t1; \
+    t0h = OD_DCT_RSHIFT(t0, 1); \
+    t1 -= t0h; \
+    t5 = t4 - t5; \
+    t5h = OD_DCT_RSHIFT(t5, 1); \
+    t4 -= t5h; \
+    t1 += t5h; \
+    t5 = t1 - t5; \
+    t3 -= t0h; \
+    t0 += t3; \
+    t6 += t2h; \
+    t2 = t6 - t2; \
+    t4 += t7h; \
+    t7 -= t4; \
+    /* 3259/16384 ~= Tan[Pi/16] ~= 0.198912367379658 */ \
+    t1 += (t6*3259 + 8192) >> 14; \
+    /* 3135/8192 ~= Sin[Pi/8] ~= 0.382683432365090 */ \
+    t6 -= (t1*3135 + 4096) >> 13; \
+    /* 3259/16384 ~= Tan[Pi/16] ~= 0.198912367379658 */ \
+    t1 += (t6*3259 + 8192) >> 14; \
+    /* 10947/16384 ~= Tan[3*Pi/16] ~= 0.668178637919299 */ \
+    t5 += (t2*10947 + 8192) >> 14; \
+    /* 15137/16384 ~= Sin[3*Pi/8] ~= 0.923879532511287 */ \
+    t2 -= (t5*15137 + 8192) >> 14; \
+    /* 21895/32768 ~= Tan[3*Pi/16] ~= 0.668178637919299 */ \
+    t5 += (t2*21895 + 16384) >> 15; \
+    /* 13573/32768 ~= Tan[Pi/8] ~= 0.414213562373095 */ \
+    t3 += (t4*13573 + 16384) >> 15; \
+    /* 11585/16384 ~= Sin[Pi/4] ~= 0.707106781186547 */ \
+    t4 -= (t3*11585 + 8192) >> 14; \
+    /* 13573/32768 ~= Tan[Pi/8] ~= 0.414213562373095 */ \
+    t3 += (t4*13573 + 16384) >> 15; \
+  } \
+  while (0)
+
+#define OD_FDCT_16_ASYM(t0, t8, t8h, t4, tc, tch, t2, ta, tah, t6, te, teh, \
+ t1, t9, t9h, t5, td, tdh, t3, tb, tbh, t7, tf, tfh) \
+  /* Embedded 16-point asymmetric Type-II fDCT. */ \
+  do { \
+    t0 += tfh; \
+    tf = t0 - tf; \
+    t1 -= teh; \
+    te += t1; \
+    t2 += tdh; \
+    td = t2 - td; \
+    t3 -= tch; \
+    tc += t3; \
+    t4 += tbh; \
+    tb = t4 - tb; \
+    t5 -= tah; \
+    ta += t5; \
+    t6 += t9h; \
+    t9 = t6 - t9; \
+    t7 -= t8h; \
+    t8 += t7; \
+    OD_FDCT_8(t0, t8, t4, tc, t2, ta, t6, te); \
+    OD_FDST_8(tf, t7, tb, t3, td, t5, t9, t1); \
+  } \
+  while (0)
+
+#define OD_IDCT_16_ASYM(t0, t8, t4, tc, t2, ta, t6, te, \
+ t1, t1h, t9, t9h, t5, t5h, td, tdh, t3, t3h, tb, tbh, t7, t7h, tf, tfh) \
+  /* Embedded 16-point asymmetric Type-II iDCT. */ \
+  do { \
+    OD_IDST_8(tf, tb, td, t9, te, ta, tc, t8); \
+    OD_IDCT_8(t0, t4, t2, t6, t1, t5, t3, t7); \
+    t1 -= te; \
+    t1h = OD_DCT_RSHIFT(t1, 1); \
+    te += t1h; \
+    t9 = t6 - t9; \
+    t9h = OD_DCT_RSHIFT(t9, 1); \
+    t6 -= t9h; \
+    t5 -= ta; \
+    t5h = OD_DCT_RSHIFT(t5, 1); \
+    ta += t5h; \
+    td = t2 - td; \
+    tdh = OD_DCT_RSHIFT(td, 1); \
+    t2 -= tdh; \
+    t3 -= tc; \
+    t3h = OD_DCT_RSHIFT(t3, 1); \
+    tc += t3h; \
+    tb = t4 - tb; \
+    tbh = OD_DCT_RSHIFT(tb, 1); \
+    t4 -= tbh; \
+    t7 -= t8; \
+    t7h = OD_DCT_RSHIFT(t7, 1); \
+    t8 += t7h; \
+    tf = t0 - tf; \
+    tfh = OD_DCT_RSHIFT(tf, 1); \
+    t0 -= tfh; \
+  } \
+  while (0)
+
+#define OD_FDST_16_ASYM(t0, t0h, t8, t4, t4h, tc, t2, ta, t6, te, \
+ t1, t9, t5, td, t3, tb, t7, t7h, tf) \
+  /* Embedded 16-point asymmetric Type-IV fDST. */ \
+  do { \
+    int t2h; \
+    int t3h; \
+    int t6h; \
+    int t8h; \
+    int t9h; \
+    int tch; \
+    int tdh; \
+    /* TODO: Can we move these into another operation */ \
+    t8 = -t8; \
+    t9 = -t9; \
+    ta = -ta; \
+    tb = -tb; \
+    td = -td; \
+    /* 13573/16384 ~= 2*Tan[Pi/8] ~= 0.828427124746190 */ \
+    OD_DCT_OVERFLOW_CHECK(te, 13573, 8192, 136); \
+    t1 -= (te*13573 + 8192) >> 14; \
+    /* 11585/32768 ~= Sin[Pi/4]/2 ~= 0.353553390593274 */ \
+    OD_DCT_OVERFLOW_CHECK(t1, 11585, 16384, 137); \
+    te += (t1*11585 + 16384) >> 15; \
+    /* 13573/16384 ~= 2*Tan[Pi/8] ~= 0.828427124746190 */ \
+    OD_DCT_OVERFLOW_CHECK(te, 13573, 8192, 138); \
+    t1 -= (te*13573 + 8192) >> 14; \
+    /* 4161/16384 ~= Tan[3*Pi/16] - Tan[Pi/8] ~= 0.253965075546204 */ \
+    OD_DCT_OVERFLOW_CHECK(td, 4161, 8192, 139); \
+    t2 += (td*4161 + 8192) >> 14; \
+    /* 15137/16384 ~= Sin[3*Pi/8] ~= 0.923879532511287 */ \
+    OD_DCT_OVERFLOW_CHECK(t2, 15137, 8192, 140); \
+    td -= (t2*15137 + 8192) >> 14; \
+    /* 14341/16384 ~= Tan[3*Pi/16] + Tan[Pi/8]/2 ~= 0.875285419105846 */ \
+    OD_DCT_OVERFLOW_CHECK(td, 14341, 8192, 141); \
+    t2 += (td*14341 + 8192) >> 14; \
+    /* 28681/32768 ~= Tan[3*Pi/16] + Tan[Pi/8]/2 ~= 0.875285419105846 */ \
+    OD_DCT_OVERFLOW_CHECK(t3, 28681, 16384, 142); \
+    tc -= (t3*28681 + 16384) >> 15; \
+    /* 15137/16384 ~= Sin[3*Pi/8] ~= 0.923879532511287 */ \
+    OD_DCT_OVERFLOW_CHECK(tc, 15137, 8192, 143); \
+    t3 += (tc*15137 + 8192) >> 14; \
+    /* 4161/16384 ~= Tan[3*Pi/16] - Tan[Pi/8] ~= 0.253965075546204 */ \
+    OD_DCT_OVERFLOW_CHECK(t3, 4161, 8192, 144); \
+    tc -= (t3*4161 + 8192) >> 14; \
+    te = t0h - te; \
+    t0 -= te; \
+    tf = OD_DCT_RSHIFT(t1, 1) - tf; \
+    t1 -= tf; \
+    /* TODO: Can we move this into another operation */ \
+    tc = -tc; \
+    t2 = OD_DCT_RSHIFT(tc, 1) - t2; \
+    tc -= t2; \
+    t3 = OD_DCT_RSHIFT(td, 1) - t3; \
+    td = t3 - td; \
+    /* 7489/8192 ~= Tan[Pi/8] + Tan[Pi/4]/2 ~= 0.914213562373095 */ \
+    OD_DCT_OVERFLOW_CHECK(t6, 7489, 4096, 145); \
+    t9 -= (t6*7489 + 4096) >> 13; \
+    /* 11585/16384 ~= Sin[Pi/4] ~= 0.707106781186548 */ \
+    OD_DCT_OVERFLOW_CHECK(t9, 11585, 8192, 146); \
+    t6 += (t9*11585 + 8192) >> 14; \
+    /* -19195/32768 ~= Tan[Pi/8] - Tan[Pi/4] ~= -0.585786437626905 */ \
+    OD_DCT_OVERFLOW_CHECK(t6, 19195, 16384, 147); \
+    t9 += (t6*19195 + 16384) >> 15; \
+    t8 += OD_DCT_RSHIFT(t9, 1); \
+    t9 -= t8; \
+    t6 = t7h - t6; \
+    t7 -= t6; \
+    /* 6723/8192 ~= Tan[7*Pi/32] ~= 0.820678790828660 */ \
+    OD_DCT_OVERFLOW_CHECK(t7, 6723, 4096, 148); \
+    t8 += (t7*6723 + 4096) >> 13; \
+    /* 16069/16384 ~= Sin[7*Pi/16] ~= 0.980785280403230 */ \
+    OD_DCT_OVERFLOW_CHECK(t8, 16069, 8192, 149); \
+    t7 -= (t8*16069 + 8192) >> 14; \
+    /* 6723/8192 ~= Tan[7*Pi/32]) ~= 0.820678790828660 */ \
+    OD_DCT_OVERFLOW_CHECK(t7, 6723, 4096, 150); \
+    t8 += (t7*6723 + 4096) >> 13; \
+    /* 17515/32768 ~= Tan[5*Pi/32]) ~= 0.534511135950792 */ \
+    OD_DCT_OVERFLOW_CHECK(t6, 17515, 16384, 151); \
+    t9 += (t6*17515 + 16384) >> 15; \
+    /* 13623/16384 ~= Sin[5*Pi/16] ~= 0.831469612302545 */ \
+    OD_DCT_OVERFLOW_CHECK(t9, 13623, 8192, 152); \
+    t6 -= (t9*13623 + 8192) >> 14; \
+    /* 17515/32768 ~= Tan[5*Pi/32] ~= 0.534511135950792 */ \
+    OD_DCT_OVERFLOW_CHECK(t6, 17515, 16384, 153); \
+    t9 += (t6*17515 + 16384) >> 15; \
+    /* 13573/16384 ~= 2*Tan[Pi/8] ~= 0.828427124746190 */ \
+    OD_DCT_OVERFLOW_CHECK(ta, 13573, 8192, 154); \
+    t5 += (ta*13573 + 8192) >> 14; \
+    /* 11585/32768 ~= Sin[Pi/4]/2 ~= 0.353553390593274 */ \
+    OD_DCT_OVERFLOW_CHECK(t5, 11585, 16384, 155); \
+    ta -= (t5*11585 + 16384) >> 15; \
+    /* 13573/16384 ~= 2*Tan[Pi/8] ~= 0.828427124746190 */ \
+    OD_DCT_OVERFLOW_CHECK(ta, 13573, 8192, 156); \
+    t5 += (ta*13573 + 8192) >> 14; \
+    tb += OD_DCT_RSHIFT(t5, 1); \
+    t5 = tb - t5; \
+    ta += t4h; \
+    t4 -= ta; \
+    /* 2485/8192 ~= Tan[3*Pi/32] ~= 0.303346683607342 */ \
+    OD_DCT_OVERFLOW_CHECK(t5, 2485, 4096, 157); \
+    ta += (t5*2485 + 4096) >> 13; \
+    /* 18205/32768 ~= Sin[3*Pi/16] ~= 0.555570233019602 */ \
+    OD_DCT_OVERFLOW_CHECK(ta, 18205, 16384, 158); \
+    t5 -= (ta*18205 + 16384) >> 15; \
+    /* 2485/8192 ~= Tan[3*Pi/32] ~= 0.303346683607342 */ \
+    OD_DCT_OVERFLOW_CHECK(t5, 2485, 4096, 159); \
+    ta += (t5*2485 + 4096) >> 13; \
+    /* 6723/8192 ~= Tan[7*Pi/32] ~= 0.820678790828660 */ \
+    OD_DCT_OVERFLOW_CHECK(t4, 6723, 4096, 160); \
+    tb -= (t4*6723 + 4096) >> 13; \
+    /* 16069/16384 ~= Sin[7*Pi/16] ~= 0.980785280403230 */ \
+    OD_DCT_OVERFLOW_CHECK(tb, 16069, 8192, 161); \
+    t4 += (tb*16069 + 8192) >> 14; \
+    /* 6723/8192 ~= Tan[7*Pi/32] ~= 0.820678790828660 */ \
+    OD_DCT_OVERFLOW_CHECK(t4, 6723, 4096, 162); \
+    tb -= (t4*6723 + 4096) >> 13; \
+    /* TODO: Can we move this into another operation */ \
+    t5 = -t5; \
+    tc -= tf; \
+    tch = OD_DCT_RSHIFT(tc, 1); \
+    tf += tch; \
+    t3 += t0; \
+    t3h = OD_DCT_RSHIFT(t3, 1); \
+    t0 -= t3h; \
+    td -= t1; \
+    tdh = OD_DCT_RSHIFT(td, 1); \
+    t1 += tdh; \
+    t2 += te; \
+    t2h = OD_DCT_RSHIFT(t2, 1); \
+    te -= t2h; \
+    t8 += t4; \
+    t8h = OD_DCT_RSHIFT(t8, 1); \
+    t4 = t8h - t4; \
+    t7 = tb - t7; \
+    t7h = OD_DCT_RSHIFT(t7, 1); \
+    tb = t7h - tb; \
+    t6 -= ta; \
+    t6h = OD_DCT_RSHIFT(t6, 1); \
+    ta += t6h; \
+    t9 = t5 - t9; \
+    t9h = OD_DCT_RSHIFT(t9, 1); \
+    t5 -= t9h; \
+    t0 -= t7h; \
+    t7 += t0; \
+    tf += t8h; \
+    t8 -= tf; \
+    te -= t6h; \
+    t6 += te; \
+    t1 += t9h; \
+    t9 -= t1; \
+    tb -= tch; \
+    tc += tb; \
+    t4 += t3h; \
+    t3 -= t4; \
+    ta -= tdh; \
+    td += ta; \
+    t5 = t2h - t5; \
+    t2 -= t5; \
+    /* TODO: Can we move these into another operation */ \
+    t8 = -t8; \
+    t9 = -t9; \
+    ta = -ta; \
+    tb = -tb; \
+    tc = -tc; \
+    td = -td; \
+    tf = -tf; \
+    /* 7799/8192 ~= Tan[31*Pi/128] ~= 0.952079146700925 */ \
+    OD_DCT_OVERFLOW_CHECK(tf, 7799, 4096, 163); \
+    t0 -= (tf*7799 + 4096) >> 13; \
+    /* 4091/4096 ~= Sin[31*Pi/64] ~= 0.998795456205172 */ \
+    OD_DCT_OVERFLOW_CHECK(t0, 4091, 2048, 164); \
+    tf += (t0*4091 + 2048) >> 12; \
+    /* 7799/8192 ~= Tan[31*Pi/128] ~= 0.952079146700925 */ \
+    OD_DCT_OVERFLOW_CHECK(tf, 7799, 4096, 165); \
+    t0 -= (tf*7799 + 4096) >> 13; \
+    /* 2417/32768 ~= Tan[3*Pi/128] ~= 0.0737644315224493 */ \
+    OD_DCT_OVERFLOW_CHECK(te, 2417, 16384, 166); \
+    t1 += (te*2417 + 16384) >> 15; \
+    /* 601/4096 ~= Sin[3*Pi/64] ~= 0.146730474455362 */ \
+    OD_DCT_OVERFLOW_CHECK(t1, 601, 2048, 167); \
+    te -= (t1*601 + 2048) >> 12; \
+    /* 2417/32768 ~= Tan[3*Pi/128] ~= 0.0737644315224493 */ \
+    OD_DCT_OVERFLOW_CHECK(te, 2417, 16384, 168); \
+    t1 += (te*2417 + 16384) >> 15; \
+    /* 14525/32768 ~= Tan[17*Pi/128] ~= 0.443269513890864 */ \
+    OD_DCT_OVERFLOW_CHECK(t8, 14525, 16384, 169); \
+    t7 -= (t8*14525 + 16384) >> 15; \
+    /* 3035/4096 ~= Sin[17*Pi/64] ~= 0.740951125354959 */ \
+    OD_DCT_OVERFLOW_CHECK(t7, 3035, 2048, 170); \
+    t8 += (t7*3035 + 2048) >> 12; \
+    /* 7263/16384 ~= Tan[17*Pi/128] ~= 0.443269513890864 */ \
+    OD_DCT_OVERFLOW_CHECK(t8, 7263, 8192, 171); \
+    t7 -= (t8*7263 + 8192) >> 14; \
+    /* 6393/8192 ~= Tan[27*Pi/128] ~= 0.780407659653944 */ \
+    OD_DCT_OVERFLOW_CHECK(td, 6393, 4096, 172); \
+    t2 -= (td*6393 + 4096) >> 13; \
+    /* 3973/4096 ~= Sin[27*Pi/64] ~= 0.970031253194544 */ \
+    OD_DCT_OVERFLOW_CHECK(t2, 3973, 2048, 173); \
+    td += (t2*3973 + 2048) >> 12; \
+    /* 6393/8192 ~= Tan[27*Pi/128] ~= 0.780407659653944 */ \
+    OD_DCT_OVERFLOW_CHECK(td, 6393, 4096, 174); \
+    t2 -= (td*6393 + 4096) >> 13; \
+    /* 9281/16384 ~= Tan[21*Pi/128] ~= 0.566493002730344 */ \
+    OD_DCT_OVERFLOW_CHECK(ta, 9281, 8192, 175); \
+    t5 -= (ta*9281 + 8192) >> 14; \
+    /* 7027/8192 ~= Sin[21*Pi/64] ~= 0.857728610000272 */ \
+    OD_DCT_OVERFLOW_CHECK(t5, 7027, 4096, 176); \
+    ta += (t5*7027 + 4096) >> 13; \
+    /* 9281/16384 ~= Tan[21*Pi/128] ~= 0.566493002730344 */ \
+    OD_DCT_OVERFLOW_CHECK(ta, 9281, 8192, 177); \
+    t5 -= (ta*9281 + 8192) >> 14; \
+    /* 11539/16384 ~= Tan[25*Pi/128] ~= 0.704279460865044 */ \
+    OD_DCT_OVERFLOW_CHECK(tc, 11539, 8192, 178); \
+    t3 -= (tc*11539 + 8192) >> 14; \
+    /* 7713/8192 ~= Sin[25*Pi/64] ~= 0.941544065183021 */ \
+    OD_DCT_OVERFLOW_CHECK(t3, 7713, 4096, 179); \
+    tc += (t3*7713 + 4096) >> 13; \
+    /* 11539/16384 ~= Tan[25*Pi/128] ~= 0.704279460865044 */ \
+    OD_DCT_OVERFLOW_CHECK(tc, 11539, 8192, 180); \
+    t3 -= (tc*11539 + 8192) >> 14; \
+    /* 10375/16384 ~= Tan[23*Pi/128] ~= 0.633243016177569 */ \
+    OD_DCT_OVERFLOW_CHECK(tb, 10375, 8192, 181); \
+    t4 -= (tb*10375 + 8192) >> 14; \
+    /* 7405/8192 ~= Sin[23*Pi/64] ~= 0.903989293123443 */ \
+    OD_DCT_OVERFLOW_CHECK(t4, 7405, 4096, 182); \
+    tb += (t4*7405 + 4096) >> 13; \
+    /* 10375/16384 ~= Tan[23*Pi/128] ~= 0.633243016177569 */ \
+    OD_DCT_OVERFLOW_CHECK(tb, 10375, 8192, 183); \
+    t4 -= (tb*10375 + 8192) >> 14; \
+    /* 8247/16384 ~= Tan[19*Pi/128] ~= 0.503357699799294 */ \
+    OD_DCT_OVERFLOW_CHECK(t9, 8247, 8192, 184); \
+    t6 -= (t9*8247 + 8192) >> 14; \
+    /* 1645/2048 ~= Sin[19*Pi/64] ~= 0.803207531480645 */ \
+    OD_DCT_OVERFLOW_CHECK(t6, 1645, 1024, 185); \
+    t9 += (t6*1645 + 1024) >> 11; \
+    /* 8247/16384 ~= Tan[19*Pi/128] ~= 0.503357699799294 */ \
+    OD_DCT_OVERFLOW_CHECK(t9, 8247, 8192, 186); \
+    t6 -= (t9*8247 + 8192) >> 14; \
+  } \
+  while (0)
+
+#define OD_IDST_16_ASYM(t0, t0h, t8, t4, tc, t2, t2h, ta, t6, te, teh, \
+ t1, t9, t5, td, t3, tb, t7, tf) \
+  /* Embedded 16-point asymmetric Type-IV iDST. */ \
+  do { \
+    int t1h; \
+    int t3h; \
+    int t4h; \
+    int t6h; \
+    int t9h; \
+    int tbh; \
+    int tch; \
+    /* 8247/16384 ~= Tan[19*Pi/128] ~= 0.503357699799294 */ \
+    t6 += (t9*8247 + 8192) >> 14; \
+    /* 1645/2048 ~= Sin[19*Pi/64] ~= 0.803207531480645 */ \
+    t9 -= (t6*1645 + 1024) >> 11; \
+    /* 8247/16384 ~= Tan[19*Pi/128] ~= 0.503357699799294 */ \
+    t6 += (t9*8247 + 8192) >> 14; \
+    /* 10375/16384 ~= Tan[23*Pi/128] ~= 0.633243016177569 */ \
+    t2 += (td*10375 + 8192) >> 14; \
+    /* 7405/8192 ~= Sin[23*Pi/64] ~= 0.903989293123443 */ \
+    td -= (t2*7405 + 4096) >> 13; \
+    /* 10375/16384 ~= Tan[23*Pi/128] ~= 0.633243016177569 */ \
+    t2 += (td*10375 + 8192) >> 14; \
+    /* 11539/16384 ~= Tan[25*Pi/128] ~= 0.704279460865044 */ \
+    tc += (t3*11539 + 8192) >> 14; \
+    /* 7713/8192 ~= Sin[25*Pi/64] ~= 0.941544065183021 */ \
+    t3 -= (tc*7713 + 4096) >> 13; \
+    /* 11539/16384 ~= Tan[25*Pi/128] ~= 0.704279460865044 */ \
+    tc += (t3*11539 + 8192) >> 14; \
+    /* 9281/16384 ~= Tan[21*Pi/128] ~= 0.566493002730344 */ \
+    ta += (t5*9281 + 8192) >> 14; \
+    /* 7027/8192 ~= Sin[21*Pi/64] ~= 0.857728610000272 */ \
+    t5 -= (ta*7027 + 4096) >> 13; \
+    /* 9281/16384 ~= Tan[21*Pi/128] ~= 0.566493002730344 */ \
+    ta += (t5*9281 + 8192) >> 14; \
+    /* 6393/8192 ~= Tan[27*Pi/128] ~= 0.780407659653944 */ \
+    t4 += (tb*6393 + 4096) >> 13; \
+    /* 3973/4096 ~= Sin[27*Pi/64] ~= 0.970031253194544 */ \
+    tb -= (t4*3973 + 2048) >> 12; \
+    /* 6393/8192 ~= Tan[27*Pi/128] ~= 0.780407659653944 */ \
+    t4 += (tb*6393 + 4096) >> 13; \
+    /* 7263/16384 ~= Tan[17*Pi/128] ~= 0.443269513890864 */ \
+    te += (t1*7263 + 8192) >> 14; \
+    /* 3035/4096 ~= Sin[17*Pi/64] ~= 0.740951125354959 */ \
+    t1 -= (te*3035 + 2048) >> 12; \
+    /* 14525/32768 ~= Tan[17*Pi/128] ~= 0.443269513890864 */ \
+    te += (t1*14525 + 16384) >> 15; \
+    /* 2417/32768 ~= Tan[3*Pi/128] ~= 0.0737644315224493 */ \
+    t8 -= (t7*2417 + 16384) >> 15; \
+    /* 601/4096 ~= Sin[3*Pi/64] ~= 0.146730474455362 */ \
+    t7 += (t8*601 + 2048) >> 12; \
+    /* 2417/32768 ~= Tan[3*Pi/128] ~= 0.0737644315224493 */ \
+    t8 -= (t7*2417 + 16384) >> 15; \
+    /* 7799/8192 ~= Tan[31*Pi/128] ~= 0.952079146700925 */ \
+    t0 += (tf*7799 + 4096) >> 13; \
+    /* 4091/4096 ~= Sin[31*Pi/64] ~= 0.998795456205172 */ \
+    tf -= (t0*4091 + 2048) >> 12; \
+    /* 7799/8192 ~= Tan[31*Pi/128] ~= 0.952079146700925 */ \
+    t0 += (tf*7799 + 4096) >> 13; \
+    /* TODO: Can we move these into another operation */ \
+    t1 = -t1; \
+    t3 = -t3; \
+    t5 = -t5; \
+    t9 = -t9; \
+    tb = -tb; \
+    td = -td; \
+    tf = -tf; \
+    t4 += ta; \
+    t4h = OD_DCT_RSHIFT(t4, 1); \
+    ta = t4h - ta; \
+    tb -= t5; \
+    tbh = OD_DCT_RSHIFT(tb, 1); \
+    t5 += tbh; \
+    tc += t2; \
+    tch = OD_DCT_RSHIFT(tc, 1); \
+    t2 -= tch; \
+    t3 -= td; \
+    t3h = OD_DCT_RSHIFT(t3, 1); \
+    td += t3h; \
+    t9 += t8; \
+    t9h = OD_DCT_RSHIFT(t9, 1); \
+    t8 -= t9h; \
+    t6 -= t7; \
+    t6h = OD_DCT_RSHIFT(t6, 1); \
+    t7 += t6h; \
+    t1 += tf; \
+    t1h = OD_DCT_RSHIFT(t1, 1); \
+    tf -= t1h; \
+    te -= t0; \
+    teh = OD_DCT_RSHIFT(te, 1); \
+    t0 += teh; \
+    ta += t9h; \
+    t9 = ta - t9; \
+    t5 -= t6h; \
+    t6 += t5; \
+    td = teh - td; \
+    te = td - te; \
+    t2 = t1h - t2; \
+    t1 -= t2; \
+    t7 += t4h; \
+    t4 -= t7; \
+    t8 -= tbh; \
+    tb += t8; \
+    t0 += tch; \
+    tc -= t0; \
+    tf -= t3h; \
+    t3 += tf; \
+    /* TODO: Can we move this into another operation */ \
+    ta = -ta; \
+    /* 6723/8192 ~= Tan[7*Pi/32] ~= 0.820678790828660 */ \
+    td += (t2*6723 + 4096) >> 13; \
+    /* 16069/16384 ~= Sin[7*Pi/16] ~= 0.980785280403230 */ \
+    t2 -= (td*16069 + 8192) >> 14; \
+    /* 6723/8192 ~= Tan[7*Pi/32] ~= 0.820678790828660 */ \
+    td += (t2*6723 + 4096) >> 13; \
+    /* 2485/8192 ~= Tan[3*Pi/32] ~= 0.303346683607342 */ \
+    t5 -= (ta*2485 + 4096) >> 13; \
+    /* 18205/32768 ~= Sin[3*Pi/16] ~= 0.555570233019602 */ \
+    ta += (t5*18205 + 16384) >> 15; \
+    /* 2485/8192 ~= Tan[3*Pi/32] ~= 0.303346683607342 */ \
+    t5 -= (ta*2485 + 4096) >> 13; \
+    t2 += t5; \
+    t2h = OD_DCT_RSHIFT(t2, 1); \
+    t5 -= t2h; \
+    ta = td - ta; \
+    td -= OD_DCT_RSHIFT(ta, 1); \
+    /* 13573/16384 ~= 2*Tan[Pi/8] ~= 0.828427124746190 */ \
+    ta -= (t5*13573 + 8192) >> 14; \
+    /* 11585/32768 ~= Sin[Pi/4]/2 ~= 0.353553390593274 */ \
+    t5 += (ta*11585 + 16384) >> 15; \
+    /* 13573/16384 ~= 2*Tan[Pi/8] ~= 0.828427124746190 */ \
+    ta -= (t5*13573 + 8192) >> 14; \
+    /* 17515/32768 ~= Tan[5*Pi/32] ~= 0.534511135950792 */ \
+    t9 -= (t6*17515 + 16384) >> 15; \
+    /* 13623/16384 ~= Sin[5*Pi/16] ~= 0.831469612302545 */ \
+    t6 += (t9*13623 + 8192) >> 14; \
+    /* 17515/32768 ~= Tan[5*Pi/32]) ~= 0.534511135950792 */ \
+    t9 -= (t6*17515 + 16384) >> 15; \
+    /* 6723/8192 ~= Tan[7*Pi/32]) ~= 0.820678790828660 */ \
+    t1 -= (te*6723 + 4096) >> 13; \
+    /* 16069/16384 ~= Sin[7*Pi/16] ~= 0.980785280403230 */ \
+    te += (t1*16069 + 8192) >> 14; \
+    /* 6723/8192 ~= Tan[7*Pi/32]) ~= 0.820678790828660 */ \
+    t1 -= (te*6723 + 4096) >> 13; \
+    te += t6; \
+    teh = OD_DCT_RSHIFT(te, 1); \
+    t6 = teh - t6; \
+    t9 += t1; \
+    t1 -= OD_DCT_RSHIFT(t9, 1); \
+    /* -19195/32768 ~= Tan[Pi/8] - Tan[Pi/4] ~= -0.585786437626905 */ \
+    t9 -= (t6*19195 + 16384) >> 15; \
+    /* 11585/16384 ~= Sin[Pi/4] ~= 0.707106781186548 */ \
+    t6 -= (t9*11585 + 8192) >> 14; \
+    /* 7489/8192 ~= Tan[Pi/8] + Tan[Pi/4]/2 ~= 0.914213562373095 */ \
+    t9 += (t6*7489 + 4096) >> 13; \
+    tb = tc - tb; \
+    tc = OD_DCT_RSHIFT(tb, 1) - tc; \
+    t3 += t4; \
+    t4 = OD_DCT_RSHIFT(t3, 1) - t4; \
+    /* TODO: Can we move this into another operation */ \
+    t3 = -t3; \
+    t8 += tf; \
+    tf = OD_DCT_RSHIFT(t8, 1) - tf; \
+    t0 += t7; \
+    t0h = OD_DCT_RSHIFT(t0, 1); \
+    t7 = t0h - t7; \
+    /* 4161/16384 ~= Tan[3*Pi/16] - Tan[Pi/8] ~= 0.253965075546204 */ \
+    t3 += (tc*4161 + 8192) >> 14; \
+    /* 15137/16384 ~= Sin[3*Pi/8] ~= 0.923879532511287 */ \
+    tc -= (t3*15137 + 8192) >> 14; \
+    /* 28681/32768 ~= Tan[3*Pi/16] + Tan[Pi/8]/2 ~= 0.875285419105846 */ \
+    t3 += (tc*28681 + 16384) >> 15; \
+    /* 14341/16384 ~= Tan[3*Pi/16] + Tan[Pi/8]/2 ~= 0.875285419105846 */ \
+    t4 -= (tb*14341 + 8192) >> 14; \
+    /* 15137/16384 ~= Sin[3*Pi/8] ~= 0.923879532511287 */ \
+    tb += (t4*15137 + 8192) >> 14; \
+    /* 4161/16384 ~= Tan[3*Pi/16] - Tan[Pi/8] ~= 0.253965075546204 */ \
+    t4 -= (tb*4161 + 8192) >> 14; \
+    /* 13573/16384 ~= 2*Tan[Pi/8] ~= 0.828427124746190 */ \
+    t8 += (t7*13573 + 8192) >> 14; \
+    /* 11585/32768 ~= Sin[Pi/4]/2 ~= 0.353553390593274 */ \
+    t7 -= (t8*11585 + 16384) >> 15; \
+    /* 13573/16384 ~= 2*Tan[Pi/8] ~= 0.828427124746190 */ \
+    t8 += (t7*13573 + 8192) >> 14; \
+    /* TODO: Can we move these into another operation */ \
+    t1 = -t1; \
+    t5 = -t5; \
+    t9 = -t9; \
+    tb = -tb; \
+    td = -td; \
+  } \
+  while (0)
+
+#define OD_FDCT_32(t0, tg, t8, to, t4, tk, tc, ts, t2, ti, ta, tq, t6, tm, \
+ te, tu, t1, th, t9, tp, t5, tl, td, tt, t3, tj, tb, tr, t7, tn, tf, tv) \
+  /* Embedded 32-point orthonormal Type-II fDCT. */ \
+  do { \
+    int tgh; \
+    int thh; \
+    int tih; \
+    int tkh; \
+    int tmh; \
+    int tnh; \
+    int toh; \
+    int tqh; \
+    int tsh; \
+    int tuh; \
+    int tvh; \
+    tv = t0 - tv; \
+    tvh = OD_DCT_RSHIFT(tv, 1); \
+    t0 -= tvh; \
+    tu += t1; \
+    tuh = OD_DCT_RSHIFT(tu, 1); \
+    t1 = tuh - t1; \
+    tt = t2 - tt; \
+    t2 -= OD_DCT_RSHIFT(tt, 1); \
+    ts += t3; \
+    tsh = OD_DCT_RSHIFT(ts, 1); \
+    t3 = tsh - t3; \
+    tr = t4 - tr; \
+    t4 -= OD_DCT_RSHIFT(tr, 1); \
+    tq += t5; \
+    tqh = OD_DCT_RSHIFT(tq, 1); \
+    t5 = tqh - t5; \
+    tp = t6 - tp; \
+    t6 -= OD_DCT_RSHIFT(tp, 1); \
+    to += t7; \
+    toh = OD_DCT_RSHIFT(to, 1); \
+    t7 = toh - t7; \
+    tn = t8 - tn; \
+    tnh = OD_DCT_RSHIFT(tn, 1); \
+    t8 -= tnh; \
+    tm += t9; \
+    tmh = OD_DCT_RSHIFT(tm, 1); \
+    t9 = tmh - t9; \
+    tl = ta - tl; \
+    ta -= OD_DCT_RSHIFT(tl, 1); \
+    tk += tb; \
+    tkh = OD_DCT_RSHIFT(tk, 1); \
+    tb = tkh - tb; \
+    tj = tc - tj; \
+    tc -= OD_DCT_RSHIFT(tj, 1); \
+    ti += td; \
+    tih = OD_DCT_RSHIFT(ti, 1); \
+    td = tih - td; \
+    th = te - th; \
+    thh = OD_DCT_RSHIFT(th, 1); \
+    te -= thh; \
+    tg += tf; \
+    tgh = OD_DCT_RSHIFT(tg, 1); \
+    tf = tgh - tf; \
+    OD_FDCT_16_ASYM(t0, tg, tgh, t8, to, toh, t4, tk, tkh, tc, ts, tsh, \
+     t2, ti, tih, ta, tq, tqh, t6, tm, tmh, te, tu, tuh); \
+    OD_FDST_16_ASYM(tv, tvh, tf, tn, tnh, t7, tr, tb, tj, t3, \
+     tt, td, tl, t5, tp, t9, th, thh, t1); \
+  } \
+  while (0)
+
+#define OD_IDCT_32(t0, tg, t8, to, t4, tk, tc, ts, t2, ti, ta, tq, t6, tm, \
+ te, tu, t1, th, t9, tp, t5, tl, td, tt, t3, tj, tb, tr, t7, tn, tf, tv) \
+  /* Embedded 32-point orthonormal Type-II iDCT. */ \
+  do { \
+    int t1h; \
+    int t3h; \
+    int t5h; \
+    int t7h; \
+    int t9h; \
+    int tbh; \
+    int tdh; \
+    int tfh; \
+    int thh; \
+    int tth; \
+    int tvh; \
+    OD_IDST_16_ASYM(tv, tvh, tn, tr, tj, tt, tth, tl, tp, th, thh, \
+     tu, tm, tq, ti, ts, tk, to, tg); \
+    OD_IDCT_16_ASYM(t0, t8, t4, tc, t2, ta, t6, te, \
+     t1, t1h, t9, t9h, t5, t5h, td, tdh, t3, t3h, tb, tbh, t7, t7h, tf, tfh); \
+    tu = t1h - tu; \
+    t1 -= tu; \
+    te += thh; \
+    th = te - th; \
+    tm = t9h - tm; \
+    t9 -= tm; \
+    t6 += OD_DCT_RSHIFT(tp, 1); \
+    tp = t6 - tp; \
+    tq = t5h - tq; \
+    t5 -= tq; \
+    ta += OD_DCT_RSHIFT(tl, 1); \
+    tl = ta - tl; \
+    ti = tdh - ti; \
+    td -= ti; \
+    t2 += tth; \
+    tt = t2 - tt; \
+    ts = t3h - ts; \
+    t3 -= ts; \
+    tc += OD_DCT_RSHIFT(tj, 1); \
+    tj = tc - tj; \
+    tk = tbh - tk; \
+    tb -= tk; \
+    t4 += OD_DCT_RSHIFT(tr, 1); \
+    tr = t4 - tr; \
+    to = t7h - to; \
+    t7 -= to; \
+    t8 += OD_DCT_RSHIFT(tn, 1); \
+    tn = t8 - tn; \
+    tg = tfh - tg; \
+    tf -= tg; \
+    t0 += tvh; \
+    tv = t0 - tv; \
+  } \
+  while (0)
+
+void od_bin_fdct32(od_coeff y[32], const od_coeff *x, int xstride) {
+  /*215 adds, 38 shifts, 87 "muls".*/
+  int t0;
+  int t1;
+  int t2;
+  int t3;
+  int t4;
+  int t5;
+  int t6;
+  int t7;
+  int t8;
+  int t9;
+  int ta;
+  int tb;
+  int tc;
+  int td;
+  int te;
+  int tf;
+  int tg;
+  int th;
+  int ti;
+  int tj;
+  int tk;
+  int tl;
+  int tm;
+  int tn;
+  int to;
+  int tp;
+  int tq;
+  int tr;
+  int ts;
+  int tt;
+  int tu;
+  int tv;
+  t0 = x[0*xstride];
+  tg = x[1*xstride];
+  t8 = x[2*xstride];
+  to = x[3*xstride];
+  t4 = x[4*xstride];
+  tk = x[5*xstride];
+  tc = x[6*xstride];
+  ts = x[7*xstride];
+  t2 = x[8*xstride];
+  ti = x[9*xstride];
+  ta = x[10*xstride];
+  tq = x[11*xstride];
+  t6 = x[12*xstride];
+  tm = x[13*xstride];
+  te = x[14*xstride];
+  tu = x[15*xstride];
+  t1 = x[16*xstride];
+  th = x[17*xstride];
+  t9 = x[18*xstride];
+  tp = x[19*xstride];
+  t5 = x[20*xstride];
+  tl = x[21*xstride];
+  td = x[22*xstride];
+  tt = x[23*xstride];
+  t3 = x[24*xstride];
+  tj = x[25*xstride];
+  tb = x[26*xstride];
+  tr = x[27*xstride];
+  t7 = x[28*xstride];
+  tn = x[29*xstride];
+  tf = x[30*xstride];
+  tv = x[31*xstride];
+  OD_FDCT_32(t0, tg, t8, to, t4, tk, tc, ts, t2, ti, ta, tq, t6, tm, te, tu,
+   t1, th, t9, tp, t5, tl, td, tt, t3, tj, tb, tr, t7, tn, tf, tv);
+  y[0] = (od_coeff)t0;
+  y[1] = (od_coeff)t1;
+  y[2] = (od_coeff)t2;
+  y[3] = (od_coeff)t3;
+  y[4] = (od_coeff)t4;
+  y[5] = (od_coeff)t5;
+  y[6] = (od_coeff)t6;
+  y[7] = (od_coeff)t7;
+  y[8] = (od_coeff)t8;
+  y[9] = (od_coeff)t9;
+  y[10] = (od_coeff)ta;
+  y[11] = (od_coeff)tb;
+  y[12] = (od_coeff)tc;
+  y[13] = (od_coeff)td;
+  y[14] = (od_coeff)te;
+  y[15] = (od_coeff)tf;
+  y[16] = (od_coeff)tg;
+  y[17] = (od_coeff)th;
+  y[18] = (od_coeff)ti;
+  y[19] = (od_coeff)tj;
+  y[20] = (od_coeff)tk;
+  y[21] = (od_coeff)tl;
+  y[22] = (od_coeff)tm;
+  y[23] = (od_coeff)tn;
+  y[24] = (od_coeff)to;
+  y[25] = (od_coeff)tp;
+  y[26] = (od_coeff)tq;
+  y[27] = (od_coeff)tr;
+  y[28] = (od_coeff)ts;
+  y[29] = (od_coeff)tt;
+  y[30] = (od_coeff)tu;
+  y[31] = (od_coeff)tv;
+}
+
+void od_bin_idct32(od_coeff *x, int xstride, const od_coeff y[32]) {
+  int t0;
+  int t1;
+  int t2;
+  int t3;
+  int t4;
+  int t5;
+  int t6;
+  int t7;
+  int t8;
+  int t9;
+  int ta;
+  int tb;
+  int tc;
+  int td;
+  int te;
+  int tf;
+  int tg;
+  int th;
+  int ti;
+  int tj;
+  int tk;
+  int tl;
+  int tm;
+  int tn;
+  int to;
+  int tp;
+  int tq;
+  int tr;
+  int ts;
+  int tt;
+  int tu;
+  int tv;
+  t0 = y[0];
+  tg = y[1];
+  t8 = y[2];
+  to = y[3];
+  t4 = y[4];
+  tk = y[5];
+  tc = y[6];
+  ts = y[7];
+  t2 = y[8];
+  ti = y[9];
+  ta = y[10];
+  tq = y[11];
+  t6 = y[12];
+  tm = y[13];
+  te = y[14];
+  tu = y[15];
+  t1 = y[16];
+  th = y[17];
+  t9 = y[18];
+  tp = y[19];
+  t5 = y[20];
+  tl = y[21];
+  td = y[22];
+  tt = y[23];
+  t3 = y[24];
+  tj = y[25];
+  tb = y[26];
+  tr = y[27];
+  t7 = y[28];
+  tn = y[29];
+  tf = y[30];
+  tv = y[31];
+  OD_IDCT_32(t0, tg, t8, to, t4, tk, tc, ts, t2, ti, ta, tq, t6, tm, te, tu,
+   t1, th, t9, tp, t5, tl, td, tt, t3, tj, tb, tr, t7, tn, tf, tv);
+  x[0*xstride] = (od_coeff)t0;
+  x[1*xstride] = (od_coeff)t1;
+  x[2*xstride] = (od_coeff)t2;
+  x[3*xstride] = (od_coeff)t3;
+  x[4*xstride] = (od_coeff)t4;
+  x[5*xstride] = (od_coeff)t5;
+  x[6*xstride] = (od_coeff)t6;
+  x[7*xstride] = (od_coeff)t7;
+  x[8*xstride] = (od_coeff)t8;
+  x[9*xstride] = (od_coeff)t9;
+  x[10*xstride] = (od_coeff)ta;
+  x[11*xstride] = (od_coeff)tb;
+  x[12*xstride] = (od_coeff)tc;
+  x[13*xstride] = (od_coeff)td;
+  x[14*xstride] = (od_coeff)te;
+  x[15*xstride] = (od_coeff)tf;
+  x[16*xstride] = (od_coeff)tg;
+  x[17*xstride] = (od_coeff)th;
+  x[18*xstride] = (od_coeff)ti;
+  x[19*xstride] = (od_coeff)tj;
+  x[20*xstride] = (od_coeff)tk;
+  x[21*xstride] = (od_coeff)tl;
+  x[22*xstride] = (od_coeff)tm;
+  x[23*xstride] = (od_coeff)tn;
+  x[24*xstride] = (od_coeff)to;
+  x[25*xstride] = (od_coeff)tp;
+  x[26*xstride] = (od_coeff)tq;
+  x[27*xstride] = (od_coeff)tr;
+  x[28*xstride] = (od_coeff)ts;
+  x[29*xstride] = (od_coeff)tt;
+  x[30*xstride] = (od_coeff)tu;
+  x[31*xstride] = (od_coeff)tv;
+}
+
+void od_bin_fdct32x32(od_coeff *y, int ystride,
+ const od_coeff *x, int xstride) {
+  od_coeff z[32*32];
+  int i;
+  for (i = 0; i < 32; i++) od_bin_fdct32(z + 32*i, x + i, xstride);
+  for (i = 0; i < 32; i++) od_bin_fdct32(y + ystride*i, z + i, 32);
+}
+
+void od_bin_idct32x32(od_coeff *x, int xstride,
+ const od_coeff *y, int ystride) {
+  od_coeff z[32*32];
+  int i;
+  for (i = 0; i < 32; i++) od_bin_idct32(z + i, 32, y + ystride*i);
+  for (i = 0; i < 32; i++) od_bin_idct32(x + i, xstride, z + 32*i);
 }
 
 void od_bin_fxform32x32(od_coeff *y, int ystride,
@@ -2219,8 +3407,8 @@ static void check_bias(int bszi) {
 
 # if defined(OD_DCT_CHECK_OVERFLOW)
 
-int od_dct_check_min[86];
-int od_dct_check_max[86];
+int od_dct_check_min[187];
+int od_dct_check_max[187];
 
 static void od_bin_fxform_2d(od_coeff x[OD_BSIZE_MAX*2][OD_BSIZE_MAX*2],
  int bszi) {
@@ -2421,7 +3609,7 @@ static void check_transform(int bszi) {
 
 void run_test(void) {
   int bszi;
-  for (bszi = 0; bszi < OD_BLOCK_32X32; bszi++) check_transform(bszi);
+  for (bszi = 0; bszi <= OD_BLOCK_32X32; bszi++) check_transform(bszi);
 }
 
 int main(void) {
@@ -2434,12 +3622,14 @@ int main(void) {
     static const od_dct_func_2d OD_FDCT_2D_SSE2[OD_NBSIZES + 1] = {
       od_bin_fdct4x4_sse2,
       od_bin_fdct8x8,
-      od_bin_fdct16x16
+      od_bin_fdct16x16,
+      od_bin_fdct32x32
     };
     static const od_dct_func_2d OD_IDCT_2D_SSE2[OD_NBSIZES + 1] = {
       od_bin_idct4x4_sse2,
       od_bin_idct8x8,
-      od_bin_idct16x16
+      od_bin_idct16x16,
+      od_bin_idct32x32
     };
     test_fdct_2d = OD_FDCT_2D_SSE2;
     test_idct_2d = OD_IDCT_2D_SSE2;
@@ -2451,12 +3641,14 @@ int main(void) {
     static const od_dct_func_2d OD_FDCT_2D_SSE41[OD_NBSIZES + 1] = {
       od_bin_fdct4x4_sse41,
       od_bin_fdct8x8,
-      od_bin_fdct16x16
+      od_bin_fdct16x16,
+      od_bin_fdct32x32
     };
     static const od_dct_func_2d OD_IDCT_2D_SSE41[OD_NBSIZES + 1] = {
       od_bin_idct4x4_sse41,
       od_bin_idct8x8,
-      od_bin_idct16x16
+      od_bin_idct16x16,
+      od_bin_idct32x32
     };
     test_fdct_2d = OD_FDCT_2D_SSE41;
     test_idct_2d = OD_IDCT_2D_SSE41;
@@ -2468,12 +3660,14 @@ int main(void) {
     static const od_dct_func_2d OD_FDCT_2D_AVX2[OD_NBSIZES + 1] = {
       od_bin_fdct4x4_sse41,
       od_bin_fdct8x8_avx2,
-      od_bin_fdct16x16
+      od_bin_fdct16x16,
+      od_bin_fdct32x32
     };
     static const od_dct_func_2d OD_IDCT_2D_AVX2[OD_NBSIZES + 1] = {
       od_bin_idct4x4_sse41,
       od_bin_idct8x8_avx2,
-      od_bin_idct16x16
+      od_bin_idct16x16,
+      od_bin_idct32x32
     };
     test_fdct_2d = OD_FDCT_2D_AVX2;
     test_idct_2d = OD_IDCT_2D_AVX2;
