@@ -2481,8 +2481,8 @@ This last compare is unneeded for a median:
     }
     for (ci = 0; ci < ncns; ci++)
     {
-      if (pred[0] == cneighbors[ci]->mv[0] &&
-       pred[1] == cneighbors[ci]->mv[1]) {
+      if (pred[0] == OD_DIV_POW2_RE(cneighbors[ci]->mv[0], mv_res) &&
+       pred[1] == OD_DIV_POW2_RE(cneighbors[ci]->mv[1], mv_res)) {
         equal_mvs++;
       }
     }
