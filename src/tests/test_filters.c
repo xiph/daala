@@ -96,10 +96,9 @@ static void print_block(const char *label, od_coeff *_c,int _stride,int _sz,
 }
 #endif
 
-/*Remove OD_MINI if we ever support 32-point filters.*/
 #define OD_BLOCK_SIZE4x4_DEC(bsize, bstride, bx, by, dec) \
- OD_MAXI(0, OD_MINI(2 + (dec), \
-  OD_BLOCK_SIZE4x4(bsize, bstride, (bx) << (dec), (by) << (dec))) - (dec))
+ OD_MAXI(0, \
+  OD_BLOCK_SIZE4x4(bsize, bstride, (bx) << (dec), (by) << (dec)) - (dec))
 
 static void filter_cols(od_coeff *c, unsigned char *bsize, int bstride,
  int inv, int dec) {
