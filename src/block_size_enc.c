@@ -337,6 +337,8 @@ void od_split_superblock(od_block_size_comp *bs,
       blocks) */
   double psy_lambda;
   const unsigned char *x0;
+  double cg4;
+  double cg8;
   x0 = psy_img - OD_BLOCK_OFFSET(stride);
   /* The passed in q value is now a quantizer with the same scaling as
      the coefficients. */
@@ -346,6 +348,8 @@ void od_split_superblock(od_block_size_comp *bs,
       bs->res[i][j] = (int)x0[i*stride + j] - 128;
     }
   }
+  cg4 = OD_CG4;
+  cg8 = OD_CG8;
   od_compute_stats(&bs->res[2*OD_MAX_OVERLAP][2*OD_MAX_OVERLAP],
    2*OD_SIZE2_SUMS, &bs->psy_stats);
   if (psy_img == pred || pred == NULL) {
@@ -353,6 +357,8 @@ void od_split_superblock(od_block_size_comp *bs,
   }
   else {
     const unsigned char *p0;
+    cg4 -= .01*OD_MAXI((q >> OD_COEFF_SHIFT) - 40, 0);
+    cg8 -= .005*OD_MAXI(((q >> OD_COEFF_SHIFT) - 40), 0);
     p0 = pred - OD_BLOCK_OFFSET(pred_stride);
     for (i = 0; i < 2*OD_SIZE2_SUMS; i++) {
       for (j = 0; j < 2*OD_SIZE2_SUMS; j++) {
@@ -383,8 +389,8 @@ void od_split_superblock(od_block_size_comp *bs,
        OD_BLOCK_8X8, 8*i, 8*j, bs->noise4_8[i][j]);
       psy4_avg = .25f*(bs->psy4[2*i][2*j] + bs->psy4[2*i][2*j + 1]
        + bs->psy4[2*i + 1][2*j] + bs->psy4[2*i + 1][2*j + 1]);
-      gain4 = OD_CG4 - psy_lambda*(psy4_avg);
-      gain8 = OD_CG8 - psy_lambda*(bs->psy8[i][j]);
+      gain4 = cg4 - psy_lambda*(psy4_avg);
+      gain8 = cg8 - psy_lambda*(bs->psy8[i][j]);
       if (gain8 >= gain4) {
         bsize[i][j] = OD_BLOCK_8X8;
         bs->dec_gain8[i][j] = gain8;
