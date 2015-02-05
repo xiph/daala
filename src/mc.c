@@ -2546,8 +2546,8 @@ int od_mv_level1_ctx(od_mv_grid_pt **grid, int vx, int vy) {
   vur = &(grid[vy - 2][vx + 2]);
   vdr = &(grid[vy + 2][vx + 2]);
   vdl = &(grid[vy + 2][vx - 2]);
-  lf = vx > 3 ? grid[vy][vx - 4].valid : 0;
-  uf = vy > 3 ? grid[vy - 4][vx].valid : 0;
+  lf = vx >= 4 ? grid[vy][vx - 4].valid : 0;
+  uf = vy >= 4 ? grid[vy - 4][vx].valid : 0;
   rf = (vur->mv[0] == vdr->mv[0]) && (vur->mv[1] == vdr->mv[1]);
   bf = (vdr->mv[0] == vdl->mv[0]) && (vdr->mv[1] == vdl->mv[1]);
   return 3 * (lf + uf) + rf + bf;
@@ -2567,14 +2567,14 @@ int od_mv_level2_ctx(od_mv_grid_pt **grid, int vx, int vy) {
   int nv2;
   int same1;
   int same2;
-  v1 = &(grid[vy - 2][vx]);
-  v2 = &(grid[vy][vx - 2]);
+  v1 = vy >= 2 ? &(grid[vy - 2][vx]) : NULL;
+  v2 = vx >= 2 ? &(grid[vy][vx - 2]) : NULL;
   v3 = vx & 2 ? &(grid[vy][vx + 2]) : &(grid[vy + 2][vx]);
-  nv1 = vx > 3 ? grid[vy][vx - 4].valid : 0;
-  nv2 = vy > 3 ? grid[vy - 4][vx].valid : 0;
-  same1 = vy > 1 && vx > 1 && (v1->mv[0] == v2->mv[0])
+  nv1 = vx >= 4 ? grid[vy][vx - 4].valid : 0;
+  nv2 = vy >= 4 ? grid[vy - 4][vx].valid : 0;
+  same1 = vy >= 2 && vx >= 2 && (v1->mv[0] == v2->mv[0])
    && (v1->mv[1] == v2->mv[1]);
-  same2 = vx > 1 && (v2->mv[0] == v3->mv[0]) && (v2->mv[1] == v3->mv[1]);
+  same2 = vx >= 2 && (v2->mv[0] == v3->mv[0]) && (v2->mv[1] == v3->mv[1]);
   return 3 * (nv1 + nv2) + same1 + same2;
 }
 
@@ -2595,8 +2595,8 @@ int od_mv_level3_ctx(od_mv_grid_pt **grid, int vx, int vy) {
   vur = &(grid[vy - 1][vx + 1]);
   vdr = &(grid[vy + 1][vx + 1]);
   vdl = &(grid[vy + 1][vx - 1]);
-  lf = vx > 1 ? grid[vy][vx - 2].valid : 0;
-  uf = vy > 1 ? grid[vy - 2][vx].valid : 0;
+  lf = vx >= 2 ? grid[vy][vx - 2].valid : 0;
+  uf = vy >= 2 ? grid[vy - 2][vx].valid : 0;
   rf = (vur->mv[0] == vdr->mv[0]) && (vur->mv[1] == vdr->mv[1]);
   bf = (vdr->mv[0] == vdl->mv[0]) && (vdr->mv[1] == vdl->mv[1]);
   return 3 * (lf + uf) + rf + bf;
@@ -2619,11 +2619,11 @@ int od_mv_level4_ctx(od_mv_grid_pt **grid, int vx, int vy) {
   v1 = &(grid[vy - 1][vx]);
   v2 = &(grid[vy][vx - 1]);
   v3 = vx & 1 ? &(grid[vy][vx + 1]) : &(grid[vy + 1][vx]);
-  nv1 = vx > 1 ? grid[vy][vx - 2].valid : 0;
-  nv2 = vy > 1 ? grid[vy - 2][vx].valid : 0;
-  same1 = vy > 0 && vx > 0 && (v1->mv[0] == v2->mv[0])
+  nv1 = vx >= 2 ? grid[vy][vx - 2].valid : 0;
+  nv2 = vy >= 2 ? grid[vy - 2][vx].valid : 0;
+  same1 = vy >= 1 && vx >= 1 && (v1->mv[0] == v2->mv[0])
    && (v1->mv[1] == v2->mv[1]);
-  same2 = vx > 0 && (v2->mv[0] == v3->mv[0]) && (v2->mv[1] == v3->mv[1]);
+  same2 = vx >= 1 && (v2->mv[0] == v3->mv[0]) && (v2->mv[1] == v3->mv[1]);
   return 3 * (nv1 + nv2) + same1 + same2;
 }
 
