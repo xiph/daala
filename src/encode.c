@@ -1277,6 +1277,28 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx) {
         OD_ENC_ACCT_UPDATE(enc, OD_ACCT_CAT_PLANE, OD_ACCT_PLANE_UNKNOWN);
     }
   }
+#if defined(OD_DUMP_IMAGES)
+  /*Dump the lapped frame (before the postfilter has been applied)*/
+  for (pli = 0; pli < nplanes; pli++) {
+    unsigned char *data;
+    int ystride;
+    int coeff_shift;
+    xdec = state->io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
+    ydec = state->io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
+    w = frame_width >> xdec;
+    h = frame_height >> ydec;
+    coeff_shift = enc->quantizer[pli] == 0 ? 0 : OD_COEFF_SHIFT;
+    data = state->io_imgs[OD_FRAME_REC].planes[pli].data;
+    ystride = state->io_imgs[OD_FRAME_INPUT].planes[pli].ystride;
+    for (y = 0; y < h; y++) {
+      for (x = 0; x < w; x++) {
+        data[ystride*y + x] = OD_CLAMP255(((state->ctmp[pli][y*w + x]
+         + (1 << coeff_shift >> 1)) >> coeff_shift) + 128);
+      }
+    }
+  }
+  od_state_dump_img(&enc->state, enc->state.io_imgs + OD_FRAME_REC, "lapped");
+#endif
   for (pli = 0; pli < nplanes; pli++) {
     xdec = state->io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
     ydec = state->io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
