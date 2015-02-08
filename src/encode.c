@@ -1536,8 +1536,8 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   od_adapt_ctx_reset(&enc->state.adapt, mbctx.is_keyframe);
   if (!mbctx.is_keyframe) {
     od_predict_frame(enc);
-    od_split_superblocks(enc, 0);
     od_encode_mvs(enc);
+    od_split_superblocks(enc, 0);
   }
   else {
     od_split_superblocks(enc, 1);

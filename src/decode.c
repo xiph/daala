@@ -756,11 +756,11 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
    || refi == dec->state.ref_imgi[OD_FRAME_NEXT]; refi++);
   dec->state.ref_imgi[OD_FRAME_SELF] = refi;
   od_adapt_ctx_reset(&dec->state.adapt, mbctx.is_keyframe);
-  od_decode_block_sizes(dec);
   if (!mbctx.is_keyframe) {
     od_dec_mv_unpack(dec);
     od_state_mc_predict(&dec->state, OD_FRAME_PREV);
   }
+  od_decode_block_sizes(dec);
   od_decode_residual(dec, &mbctx);
 #if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
   /*Dump YUV*/
