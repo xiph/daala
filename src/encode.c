@@ -1264,7 +1264,6 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx) {
         ydec = state->io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
         mbctx->nk = mbctx->k_total = mbctx->sum_ex_total_q8 = 0;
         mbctx->ncount = mbctx->count_total_q8 = mbctx->count_ex_total_q8 = 0;
-        /*Need to update this to decay based on superblocks width.*/
         od_compute_dcts(enc, mbctx, pli, sbx, sby, 3, xdec, ydec);
         if (!OD_DISABLE_HAAR_DC && mbctx->is_keyframe) {
           od_quantize_haar_dc(enc, mbctx, pli, sbx, sby, 3, xdec, ydec, 0,
