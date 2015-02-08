@@ -959,6 +959,30 @@ static void od_split_superblocks(daala_enc_ctx *enc, int is_keyframe) {
           }
         }
       }
+    }
+  }
+}
+
+static void od_encode_block_sizes(daala_enc_ctx *enc) {
+  int nhsb;
+  int nvsb;
+  int i;
+  int j;
+  od_state *state;
+  state = &enc->state;
+  nhsb = state->nhsb;
+  nvsb = state->nvsb;
+  od_state_init_border(state);
+  OD_ENC_ACCT_UPDATE(enc, OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_BLOCK_SIZE);
+  OD_ENC_ACCT_UPDATE(enc, OD_ACCT_CAT_PLANE, OD_ACCT_PLANE_FRAME);
+  /* Allocate a blockSizeComp for scratch space and then calculate the block
+     sizes eventually store them in bsize. */
+  for (i = 0; i < nvsb; i++) {
+    int bstride;
+    bstride = state->bstride;
+    for (j = 0; j < nhsb; j++) {
+      unsigned char *state_bsize;
+      state_bsize = &state->bsize[i*4*state->bstride + j*4];
       if (OD_LIMIT_BSIZE_MIN != OD_LIMIT_BSIZE_MAX) {
         od_block_size_encode(&enc->ec, &enc->state.adapt, &state_bsize[0],
          bstride);
@@ -1541,6 +1565,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   else {
     od_split_superblocks(enc, 1);
   }
+  od_encode_block_sizes(enc);
   od_encode_residual(enc, &mbctx);
 #if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
   /*Dump YUV*/
