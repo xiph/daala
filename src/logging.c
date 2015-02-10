@@ -235,6 +235,7 @@ int od_log_matrix_##N(od_log_facility facility, \
   size_t current_size; \
   int rv; \
   char *buffer; \
+  char *tmp; \
   int h; \
   int w; \
  \
@@ -259,9 +260,11 @@ re_format: \
                     w != (width-1) ? ' ' : '\n'); \
       if (((size_t)rv) >= (buffer_size - current_size)) { \
         buffer_size *= 2; \
-        if (!(buffer = (char *)_ogg_realloc(buffer, buffer_size))) { \
+        if (!(tmp = (char *)_ogg_realloc(buffer, buffer_size))) { \
+          _ogg_free(buffer); \
           return OD_EFAULT;  /* Out of memory */ \
         } \
+        buffer = tmp; \
         goto re_format; \
       } \
       current_size += rv; \
