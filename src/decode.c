@@ -254,7 +254,7 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
     od_block_lossless_decode(dec, ln, pred, predt, pli);
   }
   else {
-    pvq_decode(dec, predt, pred, quant, pli, ln,
+    od_pvq_decode(dec, predt, pred, quant, pli, ln,
      OD_PVQ_BETA[pli][ln], OD_ROBUST_STREAM, ctx->is_keyframe);
   }
   if (OD_DISABLE_HAAR_DC || !ctx->is_keyframe) {

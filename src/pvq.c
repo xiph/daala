@@ -140,7 +140,7 @@ int od_qm_get_index(int ln, int band) {
  * @param [out]     sign   sign of reflection
  * @return                 dimension number to which reflection aligns
  **/
-int compute_householder(double *r, int n, double gr, int *sign) {
+int od_compute_householder(double *r, int n, double gr, int *sign) {
   int m;
   int i;
   int s;
@@ -171,7 +171,7 @@ int compute_householder(double *r, int n, double gr, int *sign) {
  * @param [in]      r      reflection
  * @param [in]      n      number of dimensions in x,r
  */
-void apply_householder(double *x, const double *r, int n) {
+void od_apply_householder(double *x, const double *r, int n) {
   int i;
   double proj;
   double proj_1;
@@ -231,7 +231,7 @@ double od_gain_expand(double cg, int q0, double beta) {
  * @param [in]      beta   activity masking beta param
  * @return                 quantized/companded gain
  */
-double pvq_compute_gain(od_coeff *x, int n, int q0, double *g, double beta){
+double od_pvq_compute_gain(od_coeff *x, int n, int q0, double *g, double beta){
   int i;
   double acc=0;
   for (i = 0; i < n; i++) acc += x[i]*(double)x[i];
@@ -246,7 +246,7 @@ double pvq_compute_gain(od_coeff *x, int n, int q0, double *g, double beta){
  * @param [in]      qcg    quantized companded gain value
  * @return                 max theta value
  */
-int pvq_compute_max_theta(double qcg, double beta){
+int od_pvq_compute_max_theta(double qcg, double beta){
   /* Set angular resolution (in ra) to match the encoded gain */
   int ts = (int)floor(.5 + qcg*M_PI/(2*beta));
   /* Special case for low gains -- will need to be tuned anyway */
@@ -260,7 +260,7 @@ int pvq_compute_max_theta(double qcg, double beta){
  * @param [in]      max_theta  maximum theta value
  * @return                     decoded theta value
  */
-double pvq_compute_theta(int t, int max_theta) {
+double od_pvq_compute_theta(int t, int max_theta) {
   if (max_theta != 0) return OD_MINI(t, max_theta - 1)*.5*M_PI/max_theta;
   return 0;
 }
@@ -278,7 +278,7 @@ double pvq_compute_theta(int t, int max_theta) {
  * @param [in]      nodesync   do not use info that depend on the reference
  * @return                     number of pulses to use for coding
  */
-int pvq_compute_k(double qcg, int itheta, double theta, int noref, int n,
+int od_pvq_compute_k(double qcg, int itheta, double theta, int noref, int n,
  double beta, int nodesync) {
   if (noref) {
     if (qcg == 0) return 0;
@@ -321,7 +321,7 @@ int pvq_compute_k(double qcg, int itheta, double theta, int noref, int n,
  * @param [in]      m       alignment dimension of Householder reflection
  * @param [in]      s       sign of Householder reflection
  */
-void pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,
+void od_pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,
  const double *r, int n, int noref, double g, double theta, int m, int s) {
   int i;
   int yy;
@@ -345,7 +345,7 @@ void pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,
     x[m] = -s*g*cos(theta);
     for (i = m; i < nn; i++)
       x[i+1] = ypulse[i]*scale;
-    apply_householder(x, r, n);
+    od_apply_householder(x, r, n);
     for (i = 0; i < n; i++) xcoeff[i] = (od_coeff)floor(.5 + x[i]);
   }
 }

@@ -109,8 +109,8 @@ static void pvq_synthesis(od_coeff *xcoeff, od_coeff *ypulse, od_coeff *ref,
   double r[MAXN];
   s = 0;
   if (!noref) for (i = 0; i < n; i++) r[i] = ref[i];
-  m = noref ? 0 : compute_householder(r, n, gr, &s);
-  pvq_synthesis_partial(xcoeff, ypulse, r, n, noref, g, theta, m, s);
+  m = noref ? 0 : od_compute_householder(r, n, gr, &s);
+  od_pvq_synthesis_partial(xcoeff, ypulse, r, n, noref, g, theta, m, s);
 }
 
 typedef struct {
@@ -219,7 +219,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
     int icgr;
     int cfl_enabled;
     cfl_enabled = pli != 0 && is_keyframe && !OD_DISABLE_CFL;
-    cgr = pvq_compute_gain(ref, n, q0, &gr, beta);
+    cgr = od_pvq_compute_gain(ref, n, q0, &gr, beta);
     if (cfl_enabled) cgr = 1;
     icgr = (int)floor(.5+cgr);
     /* quantized gain is interleave encoded when there's a reference;
@@ -233,7 +233,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
     gain_offset = cgr-icgr;
     qcg = qg + gain_offset;
     /* read and decode first-stage PVQ error theta */
-    max_theta = pvq_compute_max_theta(qcg, beta);
+    max_theta = od_pvq_compute_max_theta(qcg, beta);
     if (itheta > 1 && (nodesync || max_theta > 3)) {
       int tmp;
       tmp = *ext;
@@ -241,7 +241,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
        &tmp, 2);
       OD_IIR_DIADIC(*ext, itheta << 16, 2);
     }
-    theta = pvq_compute_theta(itheta, max_theta);
+    theta = od_pvq_compute_theta(itheta, max_theta);
   }
   else{
     itheta = 0;
@@ -250,7 +250,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
     if (qg == 0) skip = OD_PVQ_SKIP_ZERO;
   }
 
-  k = pvq_compute_k(qcg, itheta, theta, noref, n, beta, nodesync);
+  k = od_pvq_compute_k(qcg, itheta, theta, noref, n, beta, nodesync);
   if (k != 0) {
     /* when noref==0, y is actually size n-1 */
     od_decode_pvq_codeword(ec, adapt, y, n, k, noref, ln);
@@ -291,15 +291,15 @@ static void pvq_decode_partition(od_ec_dec *ec,
  * @param [in]     robust  stream is robust to error in the reference
  * @param [in]     is_keyframe whether we're encoding a keyframe
  */
-void pvq_decode(daala_dec_ctx *dec,
-                od_coeff *ref,
-                od_coeff *out,
-                int q0,
-                int pli,
-                int ln,
-                const double *beta,
-                int robust,
-                int is_keyframe){
+void od_pvq_decode(daala_dec_ctx *dec,
+                   od_coeff *ref,
+                   od_coeff *out,
+                   int q0,
+                   int pli,
+                   int ln,
+                   const double *beta,
+                   int robust,
+                   int is_keyframe){
 
   int noref[PVQ_MAX_PARTITIONS];
   int *exg;

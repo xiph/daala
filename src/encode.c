@@ -498,7 +498,7 @@ static void od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
     od_single_band_lossless_encode(enc, ln, scalar_out, cblock, predt, pli);
   }
   else {
-    pvq_encode(enc, predt, cblock, scalar_out, quant, pli, ln,
+    od_pvq_encode(enc, predt, cblock, scalar_out, quant, pli, ln,
      OD_PVQ_BETA[pli][ln], OD_ROBUST_STREAM, ctx->is_keyframe);
   }
   OD_ENC_ACCT_UPDATE(enc, OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);

@@ -214,7 +214,7 @@ static int neg_interleave(int x, int ref) {
   else return x-1;
 }
 
-int vector_is_null(const od_coeff *x, int len) {
+int od_vector_is_null(const od_coeff *x, int len) {
   int i;
   for (i = 0; i < len; i++) if (x[i]) return 0;
   return 1;
@@ -327,8 +327,8 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
     corr += x[i]*r[i];
   }
   cfl_enabled = is_keyframe && pli != 0 && !OD_DISABLE_CFL;
-  cg  = pvq_compute_gain(x0, n, q0, &g, beta);
-  cgr = pvq_compute_gain(r0, n, q0, &gr, beta);
+  cg  = od_pvq_compute_gain(x0, n, q0, &g, beta);
+  cgr = od_pvq_compute_gain(r0, n, q0, &gr, beta);
   if (pli != 0 && is_keyframe && !OD_DISABLE_CFL) cgr = 1;
   /* gain_offset is meant to make sure one of the quantized gains has
      exactly the same gain as the reference. */
@@ -365,11 +365,11 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
     *max_theta = 0;
     noref = 0;
   }
-  if (!vector_is_null(r0, n) && corr > 0) {
+  if (!od_vector_is_null(r0, n) && corr > 0) {
     /* Perform theta search only if prediction is useful. */
     theta = acos(corr);
-    m = compute_householder(r, n, gr, &s);
-    apply_householder(x, r, n);
+    m = od_compute_householder(r, n, gr, &s);
+    od_apply_householder(x, r, n);
     for (i = m; i < n - 1; i++) x[i] = x[i + 1];
     /* Search for the best gain within a reasonable range. */
     for (i = OD_MAXI(1, (int)floor(cg-gain_offset));
@@ -380,15 +380,15 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
       /* Quantized companded gain */
       qcg = i+gain_offset;
       /* Set angular resolution (in ra) to match the encoded gain */
-      ts = pvq_compute_max_theta(qcg, beta);
+      ts = od_pvq_compute_max_theta(qcg, beta);
       /* Search for the best angle within a reasonable range. */
       for (j = OD_MAXI(0, (int)floor(.5+theta*2/M_PI*ts)-1);
        j <= OD_MINI(ts-1, (int)ceil(theta*2/M_PI*ts)); j++) {
         double cos_dist;
         double cost;
         double dist_theta;
-        double qtheta = pvq_compute_theta(j, ts);
-        k = pvq_compute_k(qcg, j, qtheta, 0, n, beta, robust || is_keyframe);
+        double qtheta = od_pvq_compute_theta(j, ts);
+        k = od_pvq_compute_k(qcg, j, qtheta, 0, n, beta, robust || is_keyframe);
         /* PVQ search, using a gain of qcg*cg*sin(theta)*sin(qtheta) since
            that's the factor by which cos_dist is multiplied to get the
            distortion metric. */
@@ -426,7 +426,7 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
       double cost;
       double qcg;
       qcg = i;
-      k = pvq_compute_k(qcg, -1, -1, 1, n, beta, robust || is_keyframe);
+      k = od_pvq_compute_k(qcg, -1, -1, 1, n, beta, robust || is_keyframe);
       cos_dist = pvq_search_rdo_double(x1, n, k, y_tmp, qcg*cg);
       /* See Jmspeex' Journal of Dubious Theoretical Results. */
       dist = gain_weight*(qcg - cg)*(qcg - cg) + qcg*cg*(2 - 2*cos_dist);
@@ -465,7 +465,7 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   else {
     if (noref) gain_offset = 0;
     g = od_gain_expand(qg + gain_offset, q0, beta);
-    pvq_synthesis_partial(out, y, r, n, noref, g, theta, m, s);
+    od_pvq_synthesis_partial(out, y, r, n, noref, g, theta, m, s);
   }
   *vk = k;
   *skip_diff += skip_dist - best_dist;
@@ -573,16 +573,16 @@ int od_rdo_quant(od_coeff x, int q, double delta0) {
  * @param [in]     robust  make stream robust to error in the reference
  * @param [in]     is_keyframe whether we're encoding a keyframe
  */
-void pvq_encode(daala_enc_ctx *enc,
-                od_coeff *ref,
-                od_coeff *in,
-                od_coeff *out,
-                int q0,
-                int pli,
-                int ln,
-                const double *beta,
-                int robust,
-                int is_keyframe){
+void od_pvq_encode(daala_enc_ctx *enc,
+                   od_coeff *ref,
+                   od_coeff *in,
+                   od_coeff *out,
+                   int q0,
+                   int pli,
+                   int ln,
+                   const double *beta,
+                   int robust,
+                   int is_keyframe){
   int theta[PVQ_MAX_PARTITIONS];
   int max_theta[PVQ_MAX_PARTITIONS];
   int qg[PVQ_MAX_PARTITIONS];

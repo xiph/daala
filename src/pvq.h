@@ -62,21 +62,21 @@ extern const od_qm_entry OD_DEFAULT_QMS[][OD_NPLANES_MAX];
 
 extern const double *const OD_PVQ_BETA[OD_NPLANES_MAX][OD_NBSIZES];
 
-int compute_householder(double *r, int n, double gr, int *sign);
-void apply_householder(double *x, const double *r, int n);
-void pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,
+int od_compute_householder(double *r, int n, double gr, int *sign);
+void od_apply_householder(double *x, const double *r, int n);
+void od_pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,
                                   const double *r, int n,
                                   int noref, double g,
                                   double theta, int m, int s);
 
 double od_gain_expand(double cg, int q0, double beta);
 
-double pvq_compute_gain(od_coeff *x, int n, int q0, double *g, double beta);
-int pvq_compute_max_theta(double qcg, double beta);
-double pvq_compute_theta(int t, int max_theta);
-int pvq_compute_k(double qcg, int itheta, double theta, int noref, int n,
+double od_pvq_compute_gain(od_coeff *x, int n, int q0, double *g, double beta);
+int od_pvq_compute_max_theta(double qcg, double beta);
+double od_pvq_compute_theta(int t, int max_theta);
+int od_pvq_compute_k(double qcg, int itheta, double theta, int noref, int n,
  double beta, int nodesync);
 
-int vector_is_null(const od_coeff *x, int len);
+int od_vector_is_null(const od_coeff *x, int len);
 
 #endif
