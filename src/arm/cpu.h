@@ -26,7 +26,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # define _arm_cpu_H (1)
 #include "../internal.h"
 
-#define OD_CPU_ARM_NEON    (1<<0)
+#define OD_CPU_ARM_V4    (1)
+#define OD_CPU_ARM_EDSP  (1<<1)
+#define OD_CPU_ARM_MEDIA (1<<2)
+#define OD_CPU_ARM_NEON  (1<<3)
 
 ogg_uint32_t od_cpu_flags_get(void);
 
