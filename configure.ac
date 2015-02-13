@@ -170,8 +170,11 @@ case $host_cpu in
     ;;
 esac
 
+TMP_CFLAGS="$CFLAGS"
+
 AS_IF([test "$enable_asm" = "yes" -a "$cpu_x86" = "true"], [
   AC_DEFINE([OD_X86ASM], [1], [Enable asm optimisations])
+  CFLAGS="$CFLAGS -msse2"
   AC_TRY_LINK([
 #include <xmmintrin.h>
    ], [
@@ -180,6 +183,8 @@ AS_IF([test "$enable_asm" = "yes" -a "$cpu_x86" = "true"], [
     enable_sse2_intrinsics=yes
     AC_DEFINE([OD_SSE2_INTRINSICS], [1],
      [Enable SSE2 intrinsics optimisations])
+    TMP_CFLAGS="$CFLAGS"
+    CFLAGS="$CFLAGS -msse4.1"
     AC_TRY_LINK([
 #include <smmintrin.h>
      ], [
@@ -189,6 +194,8 @@ AS_IF([test "$enable_asm" = "yes" -a "$cpu_x86" = "true"], [
        enable_sse41_intrinsics=yes
        AC_DEFINE([OD_SSE41_INTRINSICS], [1],
         [Enable SSE4.1 intrinsics optimisations])
+       TMP_CFLAGS="$CFLAGS"
+       CFLAGS="$CFLAGS -mavx2"
        AC_TRY_LINK([
 #include <immintrin.h>
        ], [
@@ -204,6 +211,7 @@ AS_IF([test "$enable_asm" = "yes" -a "$cpu_x86" = "true"], [
    ], [enable_sse2_intrinsics=no]
   )
 ])
+CFLAGS="$TMP_CFLAGS"
 AM_CONDITIONAL([ENABLE_X86ASM],
  [test "$enable_asm" = "yes" -a "$cpu_x86" = "true"])
 AM_CONDITIONAL([ENABLE_SSE2_INTRINSICS],

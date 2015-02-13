@@ -44,12 +44,15 @@ if ENABLE_X86ASM
 src_dct_SOURCES += src/x86/cpu.c
 if ENABLE_SSE2_INTRINSICS
 src_dct_SOURCES += src/x86/sse2dct.c
+%sse2dct.o %sse2dct.lo: CFLAGS += -msse2
 endif
 if ENABLE_SSE41_INTRINSICS
 src_dct_SOURCES += src/x86/sse41dct.c
+%sse41dct.o %sse41dct.lo: CFLAGS += -msse4.1
 endif
 if ENABLE_AVX2_INTRINSICS
 src_dct_SOURCES += src/x86/avx2dct.c
+%avx2dct.o %avx2dct.lo: CFLAGS += -mavx2
 endif
 endif
 
