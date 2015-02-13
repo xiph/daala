@@ -122,6 +122,8 @@ const od_filter_func OD_POST_FILTER[OD_NBSIZES] = {
   od_post_filter32
 };
 
+const int OD_FILT_SIZE[OD_NBSIZES] = {0, 1, 1, 1};
+
 /*Filter parameters for the pre/post filters.
   When changing these the intra-predictors in
   initdata.c must be updated.*/
@@ -1395,6 +1397,62 @@ void od_apply_filter_cols(od_coeff *c, int w, int bx, int by, int l,
         b[w*k + j] = t[k];
       }
     }
+  }
+}
+
+void od_apply_filter_hsplit(od_coeff *c0, int stride, int inv, int ln, int f) {
+  int j;
+  od_coeff *c;
+  c = c0 + ((2 << ln) - (2 << f))*stride;
+  for (j = 0; j < 4 << ln; j++) {
+    int k;
+    od_coeff t[4 << OD_NBSIZES];
+    for (k = 0; k < 4 << f; k++) t[k] = c[stride*k + j];
+    (*(inv ? OD_POST_FILTER : OD_PRE_FILTER)[f])(t, t);
+    for (k = 0; k < 4 << f; k++) c[stride*k + j] = t[k];
+  }
+}
+
+void od_apply_filter_vsplit(od_coeff *c0, int stride, int inv, int ln, int f) {
+  int i;
+  od_coeff *c;
+  c = c0 + (2 << ln) - (2 << f);
+  for (i = 0; i < 4 << ln; i++) {
+    (*(inv ? OD_POST_FILTER : OD_PRE_FILTER)[f])(c + i*stride, c + i*stride);
+  }
+}
+
+void od_apply_filter_sb_rows(od_coeff *c, int stride, int nhsb, int nvsb,
+ int xdec, int ydec, int inv, int ln) {
+  int sby;
+  int j;
+  int f;
+  f = OD_FILT_SIZE[ln];
+  c += ((32 >> ydec) - (2 << f))*stride;
+  for (sby = 1; sby < nvsb; sby++) {
+    for (j = 0; j < nhsb << 5 >> xdec; j++) {
+      int k;
+      od_coeff t[4 << OD_NBSIZES];
+      for (k = 0; k < 4 << f; k++) t[k] = c[stride*k + j];
+      (*(inv ? OD_POST_FILTER : OD_PRE_FILTER)[f])(t, t);
+      for (k = 0; k < 4 << f; k++) c[stride*k + j] = t[k];
+    }
+    c += 32*stride >> ydec;
+  }
+}
+
+void od_apply_filter_sb_cols(od_coeff *c, int stride, int nhsb, int nvsb,
+ int xdec, int ydec, int inv, int ln) {
+  int sbx;
+  int i;
+  int f;
+  f = OD_FILT_SIZE[ln];
+  c += ((32 >> xdec) - (2 << f));
+  for (sbx = 1; sbx < nhsb; sbx++) {
+    for (i = 0; i < nvsb << 5 >> ydec; i++) {
+      (*(inv ? OD_POST_FILTER : OD_PRE_FILTER)[f])(c + i*stride, c + i*stride);
+    }
+    c += 32 >> xdec;
   }
 }
 
