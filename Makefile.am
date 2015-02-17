@@ -189,6 +189,7 @@ tools_TARGETS = \
 	tools/trans2d \
 	tools/trans_gain \
 	tools/gen_cdf \
+	tools/compute_basis \
 	tools/gen_laplace_tables \
 	tools/dump_ssim \
 	tools/dump_fastssim \
@@ -340,6 +341,15 @@ tools_gen_cdf_SOURCES = \
 	tools/gen_cdf.c
 tools_gen_cdf_CFLAGS = $(OGG_CFLAGS) $(PNG_CFLAGS)
 tools_gen_cdf_LDADD = $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
+
+# compute_basis
+tools_compute_basis_SOURCES = \
+	tools/compute_basis.c \
+	src/dct.c \
+	src/filter.c \
+	src/internal.c
+tools_compute_basis_CFLAGS = $(OGG_CFLAGS)
+tools_compute_basis_LDADD = $(OGG_LIBS) $(LIBM)
 
 # gen_laplace_tables
 tools_gen_laplace_tables_SOURCES = \
