@@ -1126,7 +1126,7 @@ int od_state_dump_img(od_state *state, od_img *img, const char *tag) {
   png_infop info;
   png_bytep *data;
   FILE *fp;
-  char fname[128];
+  char fname[1024];
   unsigned char *p_rows[3];
   unsigned char *p[3];
   int nplanes;
