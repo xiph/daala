@@ -573,7 +573,7 @@ int od_rdo_quant(od_coeff x, int q, double delta0) {
  * @param [in]     robust  make stream robust to error in the reference
  * @param [in]     is_keyframe whether we're encoding a keyframe
  */
-void od_pvq_encode(daala_enc_ctx *enc,
+int od_pvq_encode(daala_enc_ctx *enc,
                    od_coeff *ref,
                    od_coeff *in,
                    od_coeff *out,
@@ -701,6 +701,8 @@ void od_pvq_encode(daala_enc_ctx *enc,
       od_encode_cdf_adapt(&enc->ec, 2 + (out[0] != 0), skip_cdf,
        4, enc->state.adapt.skip_increment);
       for (i = 1; i < 1 << (2*ln + 4); i++) out[i] = ref[i];
+      if ((out[0] == 0)) return 1;
     }
   }
+  return 0;
 }
