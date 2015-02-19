@@ -445,7 +445,7 @@ static void od_decode_recursive(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
     int f;
     int bo;
     d = l - xdec;
-    f = OD_FILT_SIZE[d - 1];
+    f = OD_MAXI(0, OD_FILT_SIZE[d - 1] - xdec);
     bo = (by << (OD_LOG_BSIZE0 + d))*w + (bx << (OD_LOG_BSIZE0 + d));
     if (!ctx->is_keyframe) {
       od_apply_filter_hsplit(ctx->mc + bo, w, 0, d, f);
@@ -459,7 +459,6 @@ static void od_decode_recursive(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
     od_decode_recursive(dec, ctx, pli, bx + 0, by + 1, l, xdec, ydec);
     od_decode_recursive(dec, ctx, pli, bx + 1, by + 1, l, xdec, ydec);
     d = l - xdec;
-    f = OD_FILT_SIZE[d];
     bo = (by << (OD_LOG_BSIZE0 + d))*w + (bx << (OD_LOG_BSIZE0 + d));
     od_apply_filter_vsplit(ctx->c + bo, w, 1, d + 1, f);
     od_apply_filter_hsplit(ctx->c + bo, w, 1, d + 1, f);

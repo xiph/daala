@@ -574,7 +574,7 @@ static void od_compute_dcts(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
   else {
     int f;
     d = l - xdec;
-    f = OD_FILT_SIZE[d - 1];
+    f = OD_MAXI(0, OD_FILT_SIZE[d - 1] - xdec);
     bo = (by << (OD_LOG_BSIZE0 + d))*w + (bx << (OD_LOG_BSIZE0 + d));
     od_apply_filter_hsplit(ctx->c + bo, w, 0, d, f);
     od_apply_filter_vsplit(ctx->c + bo, w, 0, d, f);
@@ -744,7 +744,7 @@ static void od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
     int f;
     int bo;
     d = l - xdec;
-    f = OD_FILT_SIZE[d - 1];
+    f = OD_MAXI(0, OD_FILT_SIZE[d - 1] - xdec);
     bo = (by << (OD_LOG_BSIZE0 + d))*w + (bx << (OD_LOG_BSIZE0 + d));
     od_apply_filter_hsplit(ctx->c + bo, w, 0, d, f);
     od_apply_filter_vsplit(ctx->c + bo, w, 0, d, f);

@@ -1427,7 +1427,7 @@ void od_apply_filter_sb_rows(od_coeff *c, int stride, int nhsb, int nvsb,
   int sby;
   int j;
   int f;
-  f = OD_FILT_SIZE[ln];
+  f = OD_MAXI(0, OD_FILT_SIZE[ln] - xdec);
   c += ((32 >> ydec) - (2 << f))*stride;
   for (sby = 1; sby < nvsb; sby++) {
     for (j = 0; j < nhsb << 5 >> xdec; j++) {
@@ -1446,7 +1446,7 @@ void od_apply_filter_sb_cols(od_coeff *c, int stride, int nhsb, int nvsb,
   int sbx;
   int i;
   int f;
-  f = OD_FILT_SIZE[ln];
+  f = OD_MAXI(0, OD_FILT_SIZE[ln] - xdec);
   c += ((32 >> xdec) - (2 << f));
   for (sbx = 1; sbx < nhsb; sbx++) {
     for (i = 0; i < nvsb << 5 >> ydec; i++) {
