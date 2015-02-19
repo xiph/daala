@@ -60,17 +60,17 @@ const od_qm_entry OD_DEFAULT_QMS[][OD_NPLANES_MAX] = {
 #else
 
 static const unsigned char od_low_rate_qm_q4[OD_QM_SIZE] = {
-  16, 16,
+  16, 19,
   16, 16, 24, 32,
-  16, 16, 18, 20, 24, 32,
-  16, 16, 16, 18, 18, 20, 24, 32
+  16, 15, 17, 19, 23, 31,
+  16, 14, 14, 16, 16, 18, 21, 29
 };
 
 static const unsigned char od_high_rate_qm_q4[OD_QM_SIZE] = {
-  19, 22,
+  19, 26,
   15, 17, 52, 83,
-  11, 11, 14, 18, 42, 70,
-  7, 7, 8, 9, 11, 16, 32, 55
+  11, 11, 13, 16, 39, 65,
+  7, 7, 8, 9, 11, 16, 35, 54
 };
 
 const od_qm_entry OD_DEFAULT_QMS[][OD_NPLANES_MAX] = {
