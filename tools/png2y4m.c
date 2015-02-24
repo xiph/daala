@@ -40,6 +40,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #if !defined(_FILE_OFFSET_BITS)
 # define _FILE_OFFSET_BITS 64
 #endif
+#if !defined(_BSD_SOURCE)
+# define _BSD_SOURCE
+# define _DEFAULT_SOURCE
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
