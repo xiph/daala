@@ -793,180 +793,205 @@ void od_post_filter32(od_coeff _x[32], const od_coeff _y[32]) {
   od_post_filter16(&_x[8], &_y[8]);
 }
 
-#define ZERO_FILTERS (0)
-
 #define OD_BLOCK_SIZE4x4_DEC(bsize, bstride, bx, by, dec) \
  OD_MAXI(OD_BLOCK_SIZE4x4(bsize, bstride, bx, by), dec)
 
-static void od_apply_filter_cols(od_coeff *c, int stride, int bx, int by,
- int out, unsigned char l, const unsigned char *bsize, int bstride, int xdec,
- int ydec, int inv) {
-  int nbx;
-  int nby;
-  unsigned char n;
-  int f;
+/*Apply the column filter along the horizontal edge starting directly above
+ bx, by.  The filter is applied for 1 << l + OD_LOG_BSIZE0 columns, a block at
+ a time (based on bsize) using the correct filter size for that block.*/
+void od_apply_filter_cols(od_coeff *c, int w, int bx, int by, int l,
+ const unsigned char *bsize, int bstride, int dec, int inv) {
   int i;
-  /*This code assumes 4:4:4 or 4:2:0 input.*/
-  OD_ASSERT(xdec == ydec);
-  /*Compute the neighbor's block size.*/
-  nbx = bx << l;
-  nby = ((by + out) << l) + (out - 1);
-  n = OD_BLOCK_SIZE4x4_DEC(bsize, bstride, nbx, nby, xdec);
-  /*Assume we use the filter for the current block's size.*/
-  f = l;
-  /*If this block is larger, search *my* neighbors for smallest block size.*/
-  if (l > n) {
-    for (i = 0; i < 1 << l; i++) {
-      f = OD_MINI(f, OD_BLOCK_SIZE4x4_DEC(bsize, bstride, nbx + i, nby, ydec));
-    }
-  }
-  /*If neighbor is larger, search *its* neighbors for smallest block size.*/
-  if (l < n) {
-    /*Compute the start of the edge in the neighboring block.*/
-    nbx &= ~((1 << n) - 1);
-    nby += out ? -1 : 1;
-    for (i = 0; i < 1 << n; i++) {
-      f = OD_MINI(f, OD_BLOCK_SIZE4x4_DEC(bsize, bstride, nbx + i, nby, ydec));
-    }
-  }
-  /*Block size in c is l - xdec.*/
-  l -= xdec;
-  /*Filter size in c is f - xdec.*/
-  f -= xdec;
-  OD_ASSERT(0 <= f && f <= OD_NBSIZES);
-  /*Remove if we ever support 32-point filters.*/
-  f = OD_MINI(f, OD_NFILTER_SIZES - 1);
-  c += (((by + out) << (l + 2)) - (2 << f))*stride + (bx << (l + 2));
-  /*Apply the column filter across the edge.*/
-  for (i = 0; i < 4 << l; i++) {
+  int d;
+  for (i = 0; i < 1 << l - dec; i += 1 << d - dec) {
+    int nbx;
+    int nby;
+    int n;
+    int f;
     int j;
-    od_coeff t[4 << OD_NBSIZES];
-    for (j = 0; j < 4 << f; j++) {
-      t[j] = c[stride*j + i];
-    }
-    (*(inv ? OD_POST_FILTER : OD_PRE_FILTER)[f])(t, t);
-    for (j = 0; j < 4 << f; j++) {
-      c[stride*j + i] = t[j];
-#if ZERO_FILTERS
-      c[stride*j + i] = 0;
-#endif
-    }
-  }
-}
-
-static void od_apply_filter_rows(od_coeff *c, int stride, int bx, int by,
- int out, unsigned char l, const unsigned char *bsize, int bstride, int xdec,
- int ydec, int inv) {
-  int nbx;
-  int nby;
-  unsigned char n;
-  int f;
-  int i;
-  /*This code assumes 4:4:4 or 4:2:0 input.*/
-  OD_ASSERT(xdec == ydec);
-  /*Compute the neighbor's block size.*/
-  nbx = ((bx + out) << l) + (out - 1);
-  nby = by << l;
-  n = OD_BLOCK_SIZE4x4_DEC(bsize, bstride, nbx, nby, xdec);
-  /*Assume we use the filter for the current block's size.*/
-  f = l;
-  /*If this block is larger, search *my* neighbors for smallest block size.*/
-  if (l > n) {
-    for (i = 0; i < 1 << l; i++) {
-      f = OD_MINI(f, OD_BLOCK_SIZE4x4_DEC(bsize, bstride, nbx, nby + i, ydec));
-    }
-  }
-  /*If neighbor is larger, search *its* neighbors for smallest block size.*/
-  if (l < n) {
-    /*Compute the start of the edge in the neighboring block.*/
-    nbx += out ? -1 : 1;
-    nby &= ~((1 << n) - 1);
-    for (i = 0; i < 1 << n; i++) {
-      f = OD_MINI(f, OD_BLOCK_SIZE4x4_DEC(bsize, bstride, nbx, nby + i, ydec));
-    }
-  }
-  /*Block size in c is l - xdec.*/
-  l -= xdec;
-  /*Filter size in c is f - xdec.*/
-  f -= xdec;
-  OD_ASSERT(0 <= f && f <= OD_NBSIZES);
-  /*Remove if we ever support 32-point filters.*/
-  f = OD_MINI(f, OD_NFILTER_SIZES - 1);
-  c += (by << (l + 2))*stride + ((bx + out) << (l + 2)) - (2 << f);
-  /* Apply the row filter down the edge. */
-  for (i = 0; i < 4 << l; i++) {
-    (*(inv ? OD_POST_FILTER : OD_PRE_FILTER)[f])(c, c);
-#if ZERO_FILTERS
-    {
-      int j;
-      for (j = 0; j < 4 << f; j++) {
-        c[j] = 0;
+    od_coeff *b;
+    nbx = (bx << l) + (i << dec);
+    nby = by << l;
+    d = OD_BLOCK_SIZE4x4_DEC(bsize, bstride, nbx, nby, dec);
+    n = OD_BLOCK_SIZE4x4_DEC(bsize, bstride, nbx, nby - 1, dec);
+    /*Assume we use the filter for the current block's size*/
+    f = d;
+    /*If this block is larger, search *my* neighbors for smallest block size.*/
+    if (d > n) {
+      nbx &= ~((1 << d) - 1);
+      for (j = 0; j < 1 << d - dec; j++) {
+        f = OD_MINI(f,
+         OD_BLOCK_SIZE4x4_DEC(bsize, bstride, nbx + (j << dec), nby - 1, dec));
       }
     }
-#endif
-    c += stride;
+    /*If neighbor is larger, search *its* neighbors for smallest block size.*/
+    if (d < n) {
+      nbx &= ~((1 << n) - 1);
+      for (j = 0; j < 1 << n - dec; j++) {
+        f = OD_MINI(f,
+         OD_BLOCK_SIZE4x4_DEC(bsize, bstride, nbx + (j << dec), nby, dec));
+      }
+    }
+    f -= dec;
+    OD_ASSERT(0 <= f && f <= OD_NBSIZES);
+    /*Remove if we ever support 32-point filters.*/
+    f = OD_MINI(f, OD_NFILTER_SIZES - 1);
+    b = c + ((by << l + 2 - dec) - (2 << f))*w + (bx << l + 2 - dec) +
+     (i << 2);
+    for (j = 0; j < 1 << d + 2 - dec; j++) {
+      int k;
+      od_coeff t[4 << OD_NBSIZES];
+      for (k = 0; k < 4 << f; k++) {
+        t[k] = b[w*k + j];
+      }
+      (*(inv ? OD_POST_FILTER : OD_PRE_FILTER)[f])(t, t);
+      for (k = 0; k < 4 << f; k++) {
+        b[w*k + j] = t[k];
+      }
+    }
   }
 }
 
-void od_apply_prefilter(od_coeff *c, int w, int bx, int by, unsigned char l,
- const unsigned char *bsize, int bstride, int xdec, int ydec, int edge) {
-  unsigned d;
-  OD_ASSERT((edge & ~(OD_BOTTOM_EDGE | OD_LEFT_EDGE)) == 0);
-  /*This code assumes 4:4:4 or 4:2:0 input.*/
-  OD_ASSERT(xdec == ydec);
-  d = OD_BLOCK_SIZE4x4_DEC(bsize, bstride, bx << l, by << l, xdec);
-  OD_ASSERT(d <= l);
-  if (d == l) {
-    if (edge & OD_BOTTOM_EDGE) {
-      od_apply_filter_cols(c, w, bx, by, 1, l, bsize, bstride, xdec, ydec, 0);
+/*Apply the row filter along the vertical edge starting directly left of
+ bx, by.  The filter is applied for 1 << l + OD_LOG_BSIZE0 rows, a block at
+ a time (based on bsize) using the correct filter size for that block.*/
+void od_apply_filter_rows(od_coeff *c, int w, int bx, int by, int l,
+ const unsigned char *bsize, int bstride, int dec, int inv) {
+  int i;
+  int d;
+  for (i = 0; i < 1 << l - dec; i += 1 << d - dec) {
+    int nbx;
+    int nby;
+    int n;
+    int f;
+    int j;
+    od_coeff *b;
+    nbx = bx << l;
+    nby = (by << l) + (i << dec);
+    d = OD_BLOCK_SIZE4x4_DEC(bsize, bstride, nbx, nby, dec);
+    n = OD_BLOCK_SIZE4x4_DEC(bsize, bstride, nbx - 1, nby, dec);
+    /*Assume we use the filter for the current block's size*/
+    f = d;
+    /*If this block is larger, search *my* neighbors for smallest block size.*/
+    if (d > n) {
+      nby &= ~((1 << d) - 1);
+      for (j = 0; j < 1 << d - dec; j++) {
+        f = OD_MINI(f,
+         OD_BLOCK_SIZE4x4_DEC(bsize, bstride, nbx - 1, nby + (j << dec), dec));
+      }
     }
-    if (edge & OD_LEFT_EDGE) {
-      od_apply_filter_rows(c, w, bx, by, 0, l, bsize, bstride, xdec, ydec, 0);
+    /*If neighbor is larger, search *its* neighbors for smallest block size.*/
+    if (d < n) {
+      nby &= ~((1 << n) - 1);
+      for (j = 0; j < 1 << n - dec; j++) {
+        f = OD_MINI(f,
+         OD_BLOCK_SIZE4x4_DEC(bsize, bstride, nbx, nby + (j << dec), dec));
+      }
     }
-  }
-  else {
-    l--;
-    bx <<= 1;
-    by <<= 1;
-    od_apply_prefilter(c, w, bx + 0, by + 0, l, bsize, bstride, xdec, ydec,
-     edge | OD_BOTTOM_EDGE);
-    od_apply_prefilter(c, w, bx + 1, by + 0, l, bsize, bstride, xdec, ydec,
-     OD_BOTTOM_EDGE | OD_LEFT_EDGE);
-    od_apply_prefilter(c, w, bx + 0, by + 1, l, bsize, bstride, xdec, ydec,
-     edge);
-    od_apply_prefilter(c, w, bx + 1, by + 1, l, bsize, bstride, xdec, ydec,
-     edge | OD_LEFT_EDGE);
+    f -= dec;
+    OD_ASSERT(0 <= f && f <= OD_NBSIZES);
+    /*Remove if we ever support 32-point filters.*/
+    f = OD_MINI(f, OD_NFILTER_SIZES - 1);
+    b = c + ((by << l + 2 - dec) + (i << 2))*w + (bx << l + 2 - dec) -
+     (2 << f);
+    for (j = 0; j < 1 << d + 2 - dec; j++) {
+      (*(inv ? OD_POST_FILTER : OD_PRE_FILTER)[f])(b, b);
+      b += w;
+    }
   }
 }
 
-void od_apply_postfilter(od_coeff *c, int w, int bx, int by, unsigned char l,
- const unsigned char *bsize, int bstride, int xdec, int ydec, int edge) {
+void od_apply_prefilter_block(od_coeff *c, int w, int bx, int by, int l,
+ const unsigned char *bsize, int bstride, int dec) {
   unsigned char d;
-  OD_ASSERT((edge & ~(OD_RIGHT_EDGE | OD_TOP_EDGE)) == 0);
-  /*This code assumes 4:4:4 or 4:2:0 input.*/
-  OD_ASSERT(xdec == ydec);
-  d = OD_BLOCK_SIZE4x4_DEC(bsize, bstride, bx << l, by << l, xdec);
-  OD_ASSERT(d <= l);
-  if (d == l) {
-    if (edge & OD_RIGHT_EDGE) {
-      od_apply_filter_rows(c, w, bx, by, 1, l, bsize, bstride, xdec, ydec, 1);
-    }
-    if (edge & OD_TOP_EDGE) {
-      od_apply_filter_cols(c, w, bx, by, 0, l, bsize, bstride, xdec, ydec, 1);
-    }
-  }
-  else {
+  d = OD_BLOCK_SIZE4x4_DEC(bsize, bstride, bx << l, by << l, dec);
+  if (d < l) {
     l--;
     bx <<= 1;
     by <<= 1;
-    od_apply_postfilter(c, w, bx + 0, by + 0, l, bsize, bstride, xdec, ydec,
-     edge | OD_RIGHT_EDGE);
-    od_apply_postfilter(c, w, bx + 1, by + 0, l, bsize, bstride, xdec, ydec,
-     edge);
-    od_apply_postfilter(c, w, bx + 0, by + 1, l, bsize, bstride, xdec, ydec,
-     OD_TOP_EDGE | OD_RIGHT_EDGE);
-    od_apply_postfilter(c, w, bx + 1, by + 1, l, bsize, bstride, xdec, ydec,
-     edge | OD_TOP_EDGE);
+    /*Apply prefilter along interior block edges*/
+    od_apply_filter_cols(c, w, bx + 0, by + 1, l, bsize, bstride, dec, 0);
+    od_apply_filter_cols(c, w, bx + 1, by + 1, l, bsize, bstride, dec, 0);
+    od_apply_filter_rows(c, w, bx + 1, by + 0, l, bsize, bstride, dec, 0);
+    od_apply_filter_rows(c, w, bx + 1, by + 1, l, bsize, bstride, dec, 0);
+    /*Apply prefilter on interior blocks*/
+    od_apply_prefilter_block(c, w, bx + 0, by + 0, l, bsize, bstride, dec);
+    od_apply_prefilter_block(c, w, bx + 1, by + 0, l, bsize, bstride, dec);
+    od_apply_prefilter_block(c, w, bx + 0, by + 1, l, bsize, bstride, dec);
+    od_apply_prefilter_block(c, w, bx + 1, by + 1, l, bsize, bstride, dec);
+  }
+}
+
+void od_apply_prefilter_frame(od_coeff *c, int w, int nhsb, int nvsb,
+ const unsigned char *bsize, int bstride, int dec) {
+  int bx;
+  int by;
+  /*Apply prefilter along superblock edges*/
+  for (by = 1; by < nvsb; by++) {
+    for (bx = 0; bx < nhsb; bx++) {
+      od_apply_filter_cols(c, w, bx, by, OD_NBSIZES - 1, bsize, bstride, dec,
+       0);
+    }
+  }
+  for (by = 0; by < nvsb; by++) {
+    for (bx = 1; bx < nhsb; bx++) {
+      od_apply_filter_rows(c, w, bx, by, OD_NBSIZES - 1, bsize, bstride, dec,
+       0);
+    }
+  }
+  /*Apply prefilter top-down by block*/
+  for (by = 0; by < nvsb; by++) {
+    for (bx = 0; bx < nhsb; bx++) {
+      od_apply_prefilter_block(c, w, bx, by, OD_NBSIZES - 1, bsize, bstride,
+       dec);
+    }
+  }
+}
+
+void od_apply_postfilter_block(od_coeff *c, int w, int bx, int by, int l,
+ const unsigned char *bsize, int bstride, int dec) {
+  unsigned char d;
+  d = OD_BLOCK_SIZE4x4_DEC(bsize, bstride, bx << l, by << l, dec);
+  if (d < l) {
+    l--;
+    bx <<= 1;
+    by <<= 1;
+    /*Apply postfilter on interior blocks*/
+    od_apply_postfilter_block(c, w, bx + 0, by + 0, l, bsize, bstride, dec);
+    od_apply_postfilter_block(c, w, bx + 1, by + 0, l, bsize, bstride, dec);
+    od_apply_postfilter_block(c, w, bx + 0, by + 1, l, bsize, bstride, dec);
+    od_apply_postfilter_block(c, w, bx + 1, by + 1, l, bsize, bstride, dec);
+    /*Apply postfilter along interior block edges*/
+    od_apply_filter_rows(c, w, bx + 1, by + 0, l, bsize, bstride, dec, 1);
+    od_apply_filter_rows(c, w, bx + 1, by + 1, l, bsize, bstride, dec, 1);
+    od_apply_filter_cols(c, w, bx + 0, by + 1, l, bsize, bstride, dec, 1);
+    od_apply_filter_cols(c, w, bx + 1, by + 1, l, bsize, bstride, dec, 1);
+  }
+}
+
+void od_apply_postfilter_frame(od_coeff *c, int w, int nhsb, int nvsb,
+ const unsigned char *bsize, int bstride, int dec) {
+  int bx;
+  int by;
+  /*Apply postfilter bottom-up by block*/
+  for (by = 0; by < nvsb; by++) {
+    for (bx = 0; bx < nhsb; bx++) {
+      od_apply_postfilter_block(c, w, bx, by, OD_NBSIZES - 1, bsize, bstride,
+       dec);
+    }
+  }
+  for (by = 0; by < nvsb; by++) {
+    for (bx = 1; bx < nhsb; bx++) {
+      od_apply_filter_rows(c, w, bx, by, OD_NBSIZES - 1, bsize, bstride, dec,
+       1);
+    }
+  }
+  /*Apply postfilter along superblock edges*/
+  for (by = 1; by < nvsb; by++) {
+    for (bx = 0; bx < nhsb; bx++) {
+      od_apply_filter_cols(c, w, bx, by, OD_NBSIZES - 1, bsize, bstride, dec,
+       1);
+    }
   }
 }
 

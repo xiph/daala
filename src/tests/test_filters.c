@@ -40,7 +40,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #define PRINT_BSIZE  (0)
 #define PRINT_LUMA   (0)
 #define PRINT_CHROMA (0)
-#define ZERO_FILTERS (0)
 
 #define BX (0)
 #define BY (0)
@@ -100,7 +99,7 @@ static void print_block(const char *label, od_coeff *_c,int _stride,int _sz,
  OD_MAXI(0, \
   OD_BLOCK_SIZE4x4(bsize, bstride, (bx) << (dec), (by) << (dec)) - (dec))
 
-static void filter_cols(od_coeff *c, unsigned char *bsize, int bstride,
+static void filter_cols(od_coeff *c, unsigned char *bsize, int bstride, int p,
  int inv, int dec) {
   int i;
   int j;
@@ -116,7 +115,10 @@ static void filter_cols(od_coeff *c, unsigned char *bsize, int bstride,
   for (i = 0; i < COLS << 3 - dec; i++) {
     for (j = 1; j < ROWS << 3 - dec; j++) {
       d = OD_BLOCK_SIZE4x4_DEC(bsize, bstride, i, j, dec);
-      if (!(j & ((1 << d) - 1))) {
+      /*If j is on the block size boundary d and is on the block size boundary
+       p but not the boundary p + 1 (unless we are at the top level 3 - dec)*/
+      if (!(j & ((1 << d) - 1)) &&
+       !(j & ((1 << p) - 1)) && (p == 3 - dec || (j & ((1 << p + 1) - 1)))) {
         f = d;
         n = OD_BLOCK_SIZE4x4_DEC(bsize, bstride, i, j - 1, dec);
         /*If current block is larger, then search *my* neighbors.*/
@@ -143,9 +145,6 @@ static void filter_cols(od_coeff *c, unsigned char *bsize, int bstride,
           (*(inv ? OD_POST_FILTER : OD_PRE_FILTER)[f])(t, s);
           for (l = 0; l < 4 << f; l++) {
             c[(COLS << 5 - dec)*(4*j - (2 << f) + l) + 4*i + k] = t[l];
-#if ZERO_FILTERS
-            c[(COLS << 5 - dec)*(4*j - (2 << f) + l) + 4*i + k] = 0;
-#endif
           }
         }
       }
@@ -153,7 +152,7 @@ static void filter_cols(od_coeff *c, unsigned char *bsize, int bstride,
   }
 }
 
-static void filter_rows(od_coeff *c, unsigned char *bsize, int bstride,
+static void filter_rows(od_coeff *c, unsigned char *bsize, int bstride, int p,
  int inv, int dec) {
   int i;
   int j;
@@ -168,7 +167,10 @@ static void filter_rows(od_coeff *c, unsigned char *bsize, int bstride,
   for (j = 0; j < ROWS << 3 - dec; j++) {
     for (i = 1; i < COLS << 3 - dec; i++) {
       d = OD_BLOCK_SIZE4x4_DEC(bsize, bstride, i, j, dec);
-      if (!(i & ((1 << d) - 1))) {
+      /*If i is on the block size boundary d and is on the block size boundary
+       p but not the boundary p + 1 (unless we are at the top level 3 - dec)*/
+      if (!(i & ((1 << d) - 1)) &&
+       !(i & ((1 << p) - 1)) && (p == 3 - dec || (i & ((1 << p + 1) - 1)))) {
         f = d;
         n = OD_BLOCK_SIZE4x4_DEC(bsize, bstride, i - 1, j, dec);
         /*If current block is larger, then search *my* neighbors.*/
@@ -194,9 +196,6 @@ static void filter_rows(od_coeff *c, unsigned char *bsize, int bstride,
           (*(inv ? OD_POST_FILTER : OD_PRE_FILTER)[f])(t, s);
           for (l = 0; l < 4 << f; l++) {
             s[l] = t[l];
-#if ZERO_FILTERS
-            s[l] = 0;
-#endif
           }
         }
       }
@@ -232,6 +231,7 @@ int main(int argc, char *argv[]) {
   od_coeff *chroma_test;
   int i;
   int j;
+  int p;
   int img;
 
   if (argc > 2) {
@@ -309,18 +309,16 @@ int main(int argc, char *argv[]) {
     print_block("Original luma", luma, COLS*32, 32, BX, BY);
 #endif
     /*Apply reference prefilter.*/
-    filter_cols(luma_ref, bsize, bstride, 0, 0);
-    filter_rows(luma_ref, bsize, bstride, 0, 0);
+    for (p = 3; p >= 0; p--) {
+      filter_cols(luma_ref, bsize, bstride, p, 0, 0);
+      filter_rows(luma_ref, bsize, bstride, p, 0, 0);
+    }
 #if PRINT_LUMA
     print_block("Pre-filtered luma (ref)",luma_ref, COLS*32, 32, BX, BY);
 #endif
-    /*Apply per-block prefilter.*/
-    for (j = 0; j < ROWS; j++) {
-      for (i = 0; i < COLS; i++) {
-        od_apply_prefilter(luma_test, COLS*32, i, j, 3, bsize, bstride, 0, 0,
-         (i > 0 ? OD_LEFT_EDGE : 0) | (j < ROWS - 1 ? OD_BOTTOM_EDGE : 0));
-      }
-    }
+    /*Apply prefilter across the luma frame.*/
+    od_apply_prefilter_frame(luma_test, COLS*32, COLS, ROWS, bsize, bstride,
+     0);
 #if PRINT_LUMA
     print_block("Pre-filtered luma (test)", luma_test, COLS*32, 32, BX, BY);
 #endif
@@ -330,18 +328,16 @@ int main(int argc, char *argv[]) {
       break;
     }
     /*Apply reference postfilter.*/
-    filter_rows(luma_ref, bsize, bstride, 1, 0);
-    filter_cols(luma_ref, bsize, bstride, 1, 0);
+    for (p = 0; p <= 3; p++) {
+      filter_rows(luma_ref, bsize, bstride, p, 1, 0);
+      filter_cols(luma_ref, bsize, bstride, p, 1, 0);
+    }
 #if PRINT_LUMA
     print_block("Post-filtered luma (ref)", luma_ref, COLS*32, 32, BX, BY);
 #endif
-    /*Apply per-block postfilter.*/
-    for (j = 0; j < ROWS; j++) {
-      for (i = 0; i < COLS; i++) {
-        od_apply_postfilter(luma_test, COLS*32, i, j, 3, bsize, bstride, 0, 0,
-         (i < COLS - 1 ? OD_RIGHT_EDGE : 0) | (j > 0 ? OD_TOP_EDGE : 0));
-      }
-    }
+    /*Apply postfilter across the luma frame.*/
+    od_apply_postfilter_frame(luma_test, COLS*32, COLS, ROWS, bsize, bstride,
+     0);
 #if PRINT_LUMA
     print_block("Post-filtered luma (test)", luma_test, COLS*32, 32, BX, BY);
 #endif
@@ -368,18 +364,16 @@ int main(int argc, char *argv[]) {
     print_block("Original chroma", chroma, COLS*16, 16, BX, BY);
 #endif
     /*Apply reference prefilter.*/
-    filter_cols(chroma_ref, bsize, bstride, 0, 1);
-    filter_rows(chroma_ref, bsize, bstride, 0, 1);
+    for (p = 2; p >= 0; p--) {
+      filter_cols(chroma_ref, bsize, bstride, p, 0, 1);
+      filter_rows(chroma_ref, bsize, bstride, p, 0, 1);
+    }
 #if PRINT_CHROMA
     print_block("Pre-filtered chroma (ref)", chroma_ref, COLS*16, 16, BX, BY);
 #endif
-    /*Apply per-block prefilter.*/
-    for (j = 0; j < ROWS; j++) {
-      for (i = 0; i < COLS; i++) {
-        od_apply_prefilter(chroma_test, COLS*16, i, j, 3, bsize, bstride, 1, 1,
-         (i > 0 ? OD_LEFT_EDGE : 0) | (j < ROWS - 1 ? OD_BOTTOM_EDGE : 0));
-      }
-    }
+    /*Apply prefilter across the chroma frame.*/
+    od_apply_prefilter_frame(chroma_test, COLS*16, COLS, ROWS, bsize, bstride,
+     1);
 #if PRINT_CHROMA
     print_block("Pre-filtered chroma (test)", chroma_test, COLS*16, 16, BX, BY);
 #endif
@@ -389,18 +383,16 @@ int main(int argc, char *argv[]) {
       break;
     }
     /*Apply reference postfilter.*/
-    filter_rows(chroma_ref, bsize, bstride, 1, 1);
-    filter_cols(chroma_ref, bsize, bstride, 1, 1);
+    for (p = 0; p <= 2; p++) {
+      filter_rows(chroma_ref, bsize, bstride, p, 1, 1);
+      filter_cols(chroma_ref, bsize, bstride, p, 1, 1);
+    }
 #if PRINT_CHROMA
     print_block("Post-filtered chroma (ref)", chroma_ref, COLS*16, 16, BX, BY);
 #endif
-    /*Apply per-block postfilter.*/
-    for (j = 0; j < ROWS; j++) {
-      for (i = 0; i < COLS; i++) {
-        od_apply_postfilter(chroma_test, COLS*16, i, j, 3, bsize, bstride, 1, 1,
-         (i < COLS - 1 ? OD_RIGHT_EDGE : 0) | (j > 0 ? OD_TOP_EDGE : 0));
-      }
-    }
+    /*Apply postfilter across the chroma frame.*/
+    od_apply_postfilter_frame(chroma_test, COLS*16, COLS, ROWS, bsize, bstride,
+     1);
 #if PRINT_CHROMA
     print_block("Post-filtered chroma (test)", chroma_test, COLS*16, 16, BX, BY);
 #endif

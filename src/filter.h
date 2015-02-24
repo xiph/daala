@@ -63,15 +63,10 @@ void od_post_filter16(od_coeff _x[16], const od_coeff _y[16]);
 void od_pre_filter32(od_coeff _y[32], const od_coeff _x[32]);
 void od_post_filter32(od_coeff _x[32], const od_coeff _y[32]);
 
-# define OD_TOP_EDGE    (1<<3)
-# define OD_RIGHT_EDGE  (1<<2)
-# define OD_BOTTOM_EDGE (1<<1)
-# define OD_LEFT_EDGE   (1<<0)
-
-void od_apply_prefilter(od_coeff *c, int w, int bx, int by, unsigned char l,
- const unsigned char *bsize, int bstride, int xdec, int ydec, int edge);
-void od_apply_postfilter(od_coeff *c, int w, int bx, int by, unsigned char l,
- const unsigned char *bsize, int bstride, int xdec, int ydec, int edge);
+void od_apply_prefilter_frame(od_coeff *c, int w, int nhsb, int nvsb,
+ const unsigned char *bsize, int bstride, int dec);
+void od_apply_postfilter_frame(od_coeff *c, int w, int nhsb, int nvsb,
+ const unsigned char *bsize, int bstride, int dec);
 
 # if defined(OD_DCT_TEST) && defined(OD_DCT_CHECK_OVERFLOW)
 #  include <stdio.h>
