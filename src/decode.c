@@ -240,6 +240,7 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   int n;
   int xdec;
   int w;
+  int bo;
   int frame_width;
   od_coeff *c;
   od_coeff *d;
@@ -258,14 +259,15 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   xdec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
   frame_width = dec->state.frame_width;
   w = frame_width >> xdec;
+  bo = (by << 2)*w + (bx << 2);
   c = ctx->c;
   d = ctx->d[pli];
   md = ctx->md;
   mc = ctx->mc;
   /*Apply forward transform to MC predictor.*/
   if (!ctx->is_keyframe) {
-    (*dec->state.opt_vtbl.fdct_2d[ln])(md + (by << 2)*w + (bx << 2), w,
-     mc + (by << 2)*w + (bx << 2), w);
+    (*dec->state.opt_vtbl.fdct_2d[ln])(md + bo, w, mc + bo, w);
+    if (!lossless) od_apply_qm(md + bo, w, md + bo, w, ln, xdec, 0);
   }
   od_decode_compute_pred(dec, ctx, pred, ln, pli, bx, by);
   if (ctx->is_keyframe && pli == 0) {
@@ -301,13 +303,12 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
     pred[0] = pred[0]*dc_quant + predt[0];
   }
   else {
-    pred[0] = d[((by << 2))*w + ((bx << 2))];
+    pred[0] = d[bo];
   }
-  od_coding_order_to_raster(&d[((by << 2))*w + (bx << 2)], w, pred, n,
-   lossless);
+  od_coding_order_to_raster(&d[bo], w, pred, n, lossless);
+  if (!lossless) od_apply_qm(d + bo, w, d + bo, w, ln, xdec, 1);
   /*Apply the inverse transform.*/
-  (*dec->state.opt_vtbl.idct_2d[ln])(c + (by << 2)*w + (bx << 2), w,
-   d + (by << 2)*w + (bx << 2), w);
+  (*dec->state.opt_vtbl.idct_2d[ln])(c + bo, w, d + bo, w);
 }
 
 #if !OD_DISABLE_HAAR_DC
@@ -339,9 +340,6 @@ static void od_decode_haar_dc(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
     od_coeff sb_dc_pred;
     od_coeff sb_dc_curr;
     od_coeff *sb_dc_mem;
-    if (dec->quantizer[pli] != 0 && d - xdec == 3) {
-      dc_quant = OD_MAXI(1, dec->quantizer[pli]*12*OD_DC_RES[pli] >> 8);
-    }
     nhsb = dec->state.nhsb;
     sb_dc_mem = dec->state.sb_dc_mem[pli];
     l2 = l - xdec + 2;
@@ -376,6 +374,12 @@ static void od_decode_haar_dc(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
   if (l > d) {
     od_coeff x[4];
     int l2;
+    int ac_quant[2];
+    if (dec->quantizer[pli] == 0) ac_quant[0] = ac_quant[1] = 1;
+    else {
+      ac_quant[0] = dc_quant*OD_DC_QM[xdec][l - xdec - 1][0] >> 4;
+      ac_quant[1] = dc_quant*OD_DC_QM[xdec][l - xdec - 1][1] >> 4;
+    }
     l--;
     bx <<= 1;
     by <<= 1;
@@ -391,7 +395,7 @@ static void od_decode_haar_dc(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
       if (quant) {
         if (od_ec_dec_bits(&dec->ec, 1)) quant = -quant;
       }
-      x[i] = quant*dc_quant;
+      x[i] = quant*ac_quant[i == 3];
     }
     /* Gives best results for subset1, more conservative than the
        theoretical /4 of a pure gradient. */

@@ -41,6 +41,8 @@ typedef struct od_adapt_ctx      od_adapt_ctx;
 
 extern const od_coeff OD_DC_RES[3];
 
+extern const od_coeff OD_DC_QM[2][OD_NBSIZES - 1][2];
+
 /*Adaptation speed of scalar Laplace encoding.*/
 # define OD_SCALAR_ADAPT_SPEED (4)
 

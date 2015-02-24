@@ -27,9 +27,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # include "internal.h"
 # include "filter.h"
 
+extern const double *od_basis_mag[2][OD_NBSIZES];
+extern const int OD_QM8[];
+
 # define PVQ_MAX_PARTITIONS (1 + 3*(OD_NBSIZES-1))
 
 # define OD_NOREF_ADAPT_SPEED (4)
+/* FIXME: this comment is no longer accurate, we're using a smaller lambda */
 /* Normalized lambda. Since we normalize the gain by q, the distortion is
    normalized by q^2 and lambda does not need the q^2 factor. At high rate,
    this would be log(2)/6, but we're using a slightly more aggressive value
@@ -38,7 +42,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
    optimization for hybrid video coding." Circuits and Systems for Video
    Technology, IEEE Transactions on 19.2 (2009): 193-205.
    */
-# define OD_PVQ_LAMBDA (.136)
+# define OD_PVQ_LAMBDA (.106)
 
 #define OD_PVQ_SKIP_ZERO 1
 #define OD_PVQ_SKIP_COPY 2
@@ -62,6 +66,8 @@ extern const od_qm_entry OD_DEFAULT_QMS[][OD_NPLANES_MAX];
 
 extern const double *const OD_PVQ_BETA[OD_NPLANES_MAX][OD_NBSIZES];
 
+void od_apply_qm(od_coeff *out, int out_stride, od_coeff *in, int in_stride,
+ int ln, int dec, int inverse);
 int od_compute_householder(double *r, int n, double gr, int *sign);
 void od_apply_householder(double *x, const double *r, int n);
 void od_pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,

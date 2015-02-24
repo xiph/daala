@@ -122,6 +122,10 @@ const od_filter_func OD_POST_FILTER[OD_NBSIZES] = {
   od_post_filter32
 };
 
+/*The length in pixel of the lapping of an NXN block is
+   4 << OD_FILT_SIZE[OD_BLOCK_NXN].
+  If this array is changed, the values in od_basis_mag have to be
+   regenerated.*/
 const int OD_FILT_SIZE[OD_NBSIZES] = {0, 1, 1, 1};
 
 /*Filter parameters for the pre/post filters.

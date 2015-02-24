@@ -69,7 +69,7 @@ void od_apply_prefilter_frame(od_coeff *c, int w, int nhsb, int nvsb,
 void od_apply_postfilter_frame(od_coeff *c, int w, int nhsb, int nvsb,
  const unsigned char *bsize, int bstride, int dec);
 
-const int OD_FILT_SIZE[OD_NBSIZES];
+extern const int OD_FILT_SIZE[OD_NBSIZES];
 void od_apply_filter_sb_rows(od_coeff *c, int stride, int nhsb, int nvsb,
  int xdec, int ydec, int inv, int ln);
 void od_apply_filter_sb_cols(od_coeff *c, int stride, int nhsb, int nvsb,
