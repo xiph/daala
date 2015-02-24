@@ -51,11 +51,20 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
           )
 # endif
 
+# define xgetbv(xcr0) \
+   __asm__ ( \
+          "xgetbv\n\t" \
+          :"=a"(xcr0) \
+          :"c"(0)  \
+          :"%edx" \
+         )
+
 ogg_uint32_t od_cpu_flags_get(void){
   ogg_uint32_t eax;
   ogg_uint32_t ebx;
   ogg_uint32_t ecx;
   ogg_uint32_t edx;
+  ogg_uint32_t xcr0;
   ogg_uint32_t flags;
 #if !defined(__amd64__)&&!defined(__x86_64__)
   /*x86-32: Check to see if we have the cpuid instruction.
@@ -91,8 +100,15 @@ ogg_uint32_t od_cpu_flags_get(void){
     if(edx&0x04000000)flags|=OD_CPU_X86_SSE2;
     if(ecx&0x00000001)flags|=OD_CPU_X86_PNI;
     if(ecx&0x00080000)flags|=OD_CPU_X86_SSE4_1;
-    cpuid(7,0,eax,ebx,ecx,edx);
-    if(ebx&0x00000020)flags|=OD_CPU_X86_AVX2;
+    /* Check for OSXSAVE. */
+    if (ecx & 0x08000000) {
+      /* Check for XMM and YMM save/restore. */
+      xgetbv(xcr0);
+      if ((xcr0 & 6) == 6) {
+        cpuid(7, 0, eax, ebx, ecx, edx);
+        if (ebx & 0x00000020) flags |= OD_CPU_X86_AVX2;
+      }
+    }
   }
   /*Also          R E T T          E B S I            D M A
      is found in some engineering samples c. 1994.
