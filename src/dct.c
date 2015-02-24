@@ -3582,6 +3582,7 @@ void run_test(void) {
 int main(void) {
   test_fdct_2d = OD_FDCT_2D_C;
   test_idct_2d = OD_IDCT_2D_C;
+  printf("Testing unoptimized DCT...\n");
   run_test();
 #if defined(OD_X86ASM)
 # if defined(OD_SSE2_INTRINSICS)
@@ -3600,6 +3601,7 @@ int main(void) {
     };
     test_fdct_2d = OD_FDCT_2D_SSE2;
     test_idct_2d = OD_IDCT_2D_SSE2;
+    printf("Testing SSE2 DCT...\n");
     run_test();
   }
 # endif
@@ -3619,6 +3621,7 @@ int main(void) {
     };
     test_fdct_2d = OD_FDCT_2D_SSE41;
     test_idct_2d = OD_IDCT_2D_SSE41;
+    printf("Testing SSE4.1 DCT...\n");
     run_test();
   }
 # endif
@@ -3638,6 +3641,7 @@ int main(void) {
     };
     test_fdct_2d = OD_FDCT_2D_AVX2;
     test_idct_2d = OD_IDCT_2D_AVX2;
+    printf("Testing AVX2 DCT...\n");
     run_test();
   }
 # endif
