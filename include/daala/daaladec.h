@@ -35,6 +35,8 @@ extern "C" {
 #  pragma GCC visibility push(default)
 # endif
 
+#define OD_DECCTL_SET_BSIZE_BUFFER (1)
+
 /**\name Decoder state
    The following data structures are opaque, and their contents are not
     publicly defined by this API.

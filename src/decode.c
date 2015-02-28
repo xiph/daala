@@ -52,6 +52,7 @@ static int od_dec_init(od_dec_ctx *dec, const daala_info *info,
   ret = od_state_init(&dec->state, info);
   if (ret < 0) return ret;
   dec->packet_state = OD_PACKET_DATA;
+  dec->user_bsize = NULL;
   return 0;
 }
 
@@ -83,6 +84,16 @@ int daala_decode_ctl(daala_dec_ctx *dec, int req, void *buf, size_t buf_sz) {
   (void)buf;
   (void)buf_sz;
   switch (req) {
+    case OD_DECCTL_SET_BSIZE_BUFFER : {
+      if(dec == NULL || buf == NULL) return OD_EFAULT;
+      /*Check that buf is large enough to hold the block sizes for a frame.*/
+      if (buf_sz != sizeof(unsigned char)*dec->state.nvsb*dec->state.nhsb*16) {
+        return OD_EINVAL;
+      }
+      dec->user_bsize = (unsigned char *)buf;
+      dec->user_bstride = dec->state.nhsb*4;
+      return 0;
+    }
     default: return OD_EIMPL;
   }
 }
@@ -597,6 +608,12 @@ static void od_decode_block_sizes(od_dec_ctx *dec) {
       for (j = 0; j < nhsb*4; j++) {
         dec->state.bsize[dec->state.bstride*i + j] = OD_LIMIT_BSIZE_MIN;
       }
+    }
+  }
+  if (dec->user_bsize != NULL) {
+    for (j = 0; j < nvsb*4; j++) {
+      memcpy(&dec->user_bsize[dec->user_bstride*j],
+       &dec->state.bsize[dec->state.bstride*j], nhsb*4);
     }
   }
 }

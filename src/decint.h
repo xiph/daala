@@ -39,6 +39,10 @@ struct daala_dec_ctx {
   od_ec_dec ec;
   int quantizer[OD_NPLANES_MAX];
   int packet_state;
+  /*User provided buffer for storing per frame block size information. These
+   are set via daala_decode_ctl with OD_DECCTL_SET_BSIZE_BUFFER.*/
+  unsigned char *user_bsize;
+  int user_bstride;
 };
 
 /*Stub for the daala_setup_info.*/
