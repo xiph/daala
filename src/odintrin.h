@@ -23,13 +23,20 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 /*Some common macros for potential platform-specific optimization.*/
+#if !defined(_odintrin_H)
+# define _odintrin_H (1)
+
+#if defined(_MSC_VER)
+#  define _USE_MATH_DEFINES
+#endif
+
+
 #include <math.h>
 #include <limits.h>
 #include <string.h>
 #include "../include/daala/codec.h"
 
-#if !defined(_odintrin_H)
-# define _odintrin_H (1)
+
 
 # if !defined(M_LOG2E)
 #  define M_LOG2E (1.4426950408889634073599246810019)
@@ -124,6 +131,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
   All other code should use OD_ILOG() instead.*/
 # if defined(_MSC_VER)
 #  include <intrin.h>
+#if !defined(snprintf) 
+	#define snprintf _snprintf
+#endif
 /*In _DEBUG mode this is not an intrinsic by default.*/
 #  pragma intrinsic(_BitScanReverse)
 

@@ -699,20 +699,19 @@ static ogg_int32_t od_mv_est_bma_sad8(od_mv_est_ctx *est,
 /*Computes the SAD of a block with the given parameters.*/
 static ogg_int32_t od_mv_est_sad8(od_mv_est_ctx *est,
  int ref, int vx, int vy, int oc, int s, int log_mvb_sz) {
-  unsigned char __attribute((aligned(16))) pred[16][16];
   od_state *state;
   ogg_int32_t ret;
   state = &est->enc->state;
-  od_state_pred_block_from_setup(state, pred[0], sizeof(pred[0]), ref, 0,
+  od_state_pred_block_from_setup(state, state->mc_buf[0], OD_MCBSIZE_MAX, ref, 0,
    vx, vy, oc, s, log_mvb_sz);
-  ret = od_enc_sad8(est->enc, pred[0], sizeof(pred[0]), 1, 0,
+  ret = od_enc_sad8(est->enc, state->mc_buf[0], OD_MCBSIZE_MAX, 1, 0,
    (vx - 2) << 2, (vy - 2) << 2, log_mvb_sz + 2);
   if (est->flags & OD_MC_USE_CHROMA) {
     int pli;
     for (pli = 1; pli < state->io_imgs[OD_FRAME_INPUT].nplanes; pli++) {
-      od_state_pred_block_from_setup(state, pred[0], sizeof(pred[0]), ref, pli,
+      od_state_pred_block_from_setup(state, state->mc_buf[0], OD_MCBSIZE_MAX, ref, pli,
        vx, vy, oc, s, log_mvb_sz);
-      ret += od_enc_sad8(est->enc, pred[0], sizeof(pred[0]), 1, pli,
+      ret += od_enc_sad8(est->enc, state->mc_buf[0], OD_MCBSIZE_MAX, 1, pli,
        (vx - 2) << 2, (vy - 2) << 2, log_mvb_sz + 2) >> OD_MC_CHROMA_SCALE;
     }
   }
