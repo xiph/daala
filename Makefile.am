@@ -33,6 +33,7 @@ noinst_HEADERS = \
 	src/pvq_code.h \
 	src/state.h \
 	src/tf.h \
+	src/zigzag.h \
 	src/accounting.h \
 	src/x86/cpu.h \
 	src/x86/x86enc.h \
