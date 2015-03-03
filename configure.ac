@@ -108,8 +108,8 @@ AS_IF([test "$enable_analyzer" = "yes"], [
   WX_CONFIG_CHECK([2.8.0], [wxWin=1])
   if test "$wxWin" != 1 || test "$wx_ver_ok" != "yes"; then
     AC_MSG_ERROR([
-      wxWidgets ver.2.8.0 or later must be installed on your system
-      Please install or update your wxWidgets
+      wxWidgets 2.8.0 must be installed on your system to build the stream
+      analyzer. Please install or update your wxWidgets.
     ])
   fi
 ])
