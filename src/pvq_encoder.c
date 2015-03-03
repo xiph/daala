@@ -611,8 +611,8 @@ void od_pvq_encode(daala_enc_ctx *enc,
   ext = enc->state.adapt.pvq_ext + ln*PVQ_MAX_PARTITIONS;
   skip_cdf = enc->state.adapt.skip_cdf[pli];
   model = enc->state.adapt.pvq_param_model;
-  nb_bands = od_band_offsets[ln][0];
-  off = &od_band_offsets[ln][1];
+  nb_bands = OD_BAND_OFFSETS[ln][0];
+  off = &OD_BAND_OFFSETS[ln][1];
   dc_quant = OD_MAXI(1, q0*qm[od_qm_get_index(ln, 0)] >> 4);
   tell = 0;
   for (i = 0; i < nb_bands; i++) size[i] = off[i+1] - off[i];

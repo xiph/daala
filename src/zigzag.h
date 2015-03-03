@@ -1,5 +1,5 @@
 /*Daala video codec
-Copyright (c) 2012 Daala project contributors.  All rights reserved.
+Copyright (c) 2015 Daala project contributors.  All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -22,28 +22,12 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
-#if !defined(_partition_H)
-# define _partition_H
+#if !defined(_zigzag_H)
+# define _zigzag_H (1)
 
-typedef unsigned char index_pair[2];
-
-typedef struct {
-  const index_pair *const dst_table;
-  int size;
-  int nb_bands;
-  const int *const band_offsets;
-} band_layout;
-
-extern const band_layout OD_LAYOUT4;
-extern const band_layout OD_LAYOUT8;
-extern const band_layout OD_LAYOUT16;
-
-extern const int *const OD_BAND_OFFSETS[OD_NBSIZES];
-
-void od_raster_to_coding_order(od_coeff *dst, int n, od_coeff *src, int stride,
- int interleave);
-
-void od_coding_order_to_raster(od_coeff *dst, int stride, od_coeff *src,
- int n, int interleave);
+extern const unsigned char OD_ZIGZAG4[15][2];
+extern const unsigned char OD_ZIGZAG8[48][2];
+extern const unsigned char OD_ZIGZAG16[192][2];
+extern const unsigned char OD_ZIGZAG32[768][2];
 
 #endif

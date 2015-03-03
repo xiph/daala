@@ -317,8 +317,8 @@ void od_pvq_decode(daala_dec_ctx *dec,
   exg = &dec->state.adapt.pvq_exg[pli][ln][0];
   ext = dec->state.adapt.pvq_ext + ln*PVQ_MAX_PARTITIONS;
   model = dec->state.adapt.pvq_param_model;
-  nb_bands = od_band_offsets[ln][0];
-  off = &od_band_offsets[ln][1];
+  nb_bands = OD_BAND_OFFSETS[ln][0];
+  off = &OD_BAND_OFFSETS[ln][1];
   if (is_keyframe) skip = 0;
   else {
     skip = od_decode_cdf_adapt(&dec->ec, dec->state.adapt.skip_cdf[pli], 4,
