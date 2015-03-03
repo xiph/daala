@@ -19,6 +19,8 @@ AC_CONFIG_AUX_DIR([build-aux])
 AC_USE_SYSTEM_EXTENSIONS
 AC_SYS_LARGEFILE
 
+AC_PROG_CXX
+
 AM_INIT_AUTOMAKE([1.11 foreign no-define subdir-objects])
 AM_MAINTAINER_MODE([enable])
 LT_INIT
@@ -96,6 +98,22 @@ AS_IF([test "$enable_player" = "yes"], [
 AM_CONDITIONAL([ENABLE_PLAYER_EXAMPLE], [test "$enable_player" = "yes"])
 
 PKG_CHECK_MODULES([OGG], [ogg >= 1.3])
+
+AC_ARG_ENABLE([analyzer],
+  AS_HELP_STRING([--disable-analyzer], [Disable the stream analyzer]),,
+  enable_analyzer=no)
+
+AS_IF([test "$enable_analyzer" = "yes"], [
+  WX_CONFIG_OPTIONS
+  WX_CONFIG_CHECK([2.8.0], [wxWin=1])
+  if test "$wxWin" != 1 || test "$wx_ver_ok" != "yes"; then
+    AC_MSG_ERROR([
+      wxWidgets ver.2.8.0 or later must be installed on your system
+      Please install or update your wxWidgets
+    ])
+  fi
+])
+AM_CONDITIONAL([ENABLE_ANALYZER], [test "$enable_analyzer" = "yes"])
 
 #CC_ATTRIBUTE_VISIBILITY([default], [
 #  CC_FLAG_VISIBILITY([CFLAGS="${CFLAGS} -fvisibility=hidden"])
@@ -301,6 +319,7 @@ AC_MSG_NOTICE([
     Tools ........................ ${enable_tools}
     Unit tests ................... ${enable_unit_tests}
     Example Player................ ${enable_player}
+    Stream Analyzer .............. ${enable_analyzer}
 ------------------------------------------------------------------------
 
  Use "make tools" to compile the tools.

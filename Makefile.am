@@ -140,6 +140,10 @@ if ENABLE_PLAYER_EXAMPLE
   noinst_PROGRAMS += examples/player_example
 endif
 
+if ENABLE_ANALYZER
+  noinst_PROGRAMS += examples/analyzer
+endif
+
 examples_dump_video_SOURCES = examples/dump_video.c
 examples_dump_video_CFLAGS = $(OGG_CFLAGS)
 examples_dump_video_LDADD = src/libdaalabase.la src/libdaaladec.la  $(OGG_LIBS)
@@ -152,6 +156,12 @@ if ENABLE_PLAYER_EXAMPLE
 examples_player_example_SOURCES = examples/player_example.c
 examples_player_example_CFLAGS = $(OGG_CFLAGS) $(SDL_CFLAGS)
 examples_player_example_LDADD = src/libdaalabase.la src/libdaaladec.la $(OGG_LIBS) $(SDL_LIBS)
+endif
+
+if ENABLE_ANALYZER
+examples_analyzer_SOURCES = examples/analyzer.cc
+examples_analyzer_CXXFLAGS = $(OGG_CFLAGS) $(WX_CPPFLAGS)
+examples_analyzer_LDADD = src/libdaalabase.la src/libdaaladec.la $(OGG_LIBS) $(WX_LIBS)
 endif
 
 # Includes
