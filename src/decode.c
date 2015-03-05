@@ -279,7 +279,7 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
     unsigned int flags;
     od_pvq_decode(dec, predt, pred, quant, pli, ln,
      OD_PVQ_BETA[pli][ln], OD_ROBUST_STREAM, ctx->is_keyframe, &flags);
-    if (dec->user_flags != NULL) {
+    if (pli == 0 && dec->user_flags != NULL) {
       dec->user_flags[by*dec->user_fstride + bx] = flags;
     }
   }
