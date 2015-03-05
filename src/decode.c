@@ -53,6 +53,7 @@ static int od_dec_init(od_dec_ctx *dec, const daala_info *info,
   if (ret < 0) return ret;
   dec->packet_state = OD_PACKET_DATA;
   dec->user_bsize = NULL;
+  dec->user_flags = NULL;
   return 0;
 }
 
@@ -92,6 +93,16 @@ int daala_decode_ctl(daala_dec_ctx *dec, int req, void *buf, size_t buf_sz) {
       }
       dec->user_bsize = (unsigned char *)buf;
       dec->user_bstride = dec->state.nhsb*4;
+      return 0;
+    }
+    case OD_DECCTL_SET_FLAGS_BUFFER : {
+      if (dec == NULL || buf == NULL) return OD_EFAULT;
+      /*Check that buf is large enough to hold the band flags for a frame.*/
+      if (buf_sz != sizeof(unsigned int)*dec->state.nvsb*8*dec->state.nhsb*8) {
+        return OD_EINVAL;
+      }
+      dec->user_flags = (unsigned int *)buf;
+      dec->user_fstride = dec->state.nhsb*8;
       return 0;
     }
     default: return OD_EIMPL;
@@ -265,8 +276,12 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
     od_block_lossless_decode(dec, ln, pred, predt, pli);
   }
   else {
+    unsigned int flags;
     od_pvq_decode(dec, predt, pred, quant, pli, ln,
-     OD_PVQ_BETA[pli][ln], OD_ROBUST_STREAM, ctx->is_keyframe);
+     OD_PVQ_BETA[pli][ln], OD_ROBUST_STREAM, ctx->is_keyframe, &flags);
+    if (dec->user_flags != NULL) {
+      dec->user_flags[by*dec->user_fstride + bx] = flags;
+    }
   }
   if (OD_DISABLE_HAAR_DC || !ctx->is_keyframe) {
     int has_dc_skip;

@@ -43,6 +43,10 @@ struct daala_dec_ctx {
    are set via daala_decode_ctl with OD_DECCTL_SET_BSIZE_BUFFER.*/
   unsigned char *user_bsize;
   int user_bstride;
+  /*User provided buffer for storing the band flags per block per frame.  These
+   are set via daala_decode_ctl with OD_DECCTL_SET_FLAGS_BUFFER.*/
+  unsigned int *user_flags;
+  int user_fstride;
 };
 
 /*Stub for the daala_setup_info.*/
