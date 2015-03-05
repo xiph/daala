@@ -224,11 +224,11 @@ private:
   bool show_skip;
   bool show_noref;
 
-  int getWidth();
-  int getHeight();
+  int getWidth() const;
+  int getHeight() const;
   bool nextFrame();
 
-  int getBand(int x, int y);
+  int getBand(int x, int y) const;
 public:
   TestPanel(wxWindow *parent);
   ~TestPanel();
@@ -314,15 +314,15 @@ void TestPanel::close() {
   flags = NULL;
 }
 
-int TestPanel::getWidth() {
+int TestPanel::getWidth() const {
   return zoom*dd.getWidth();
 }
 
-int TestPanel::getHeight() {
+int TestPanel::getHeight() const {
   return zoom*dd.getHeight();
 }
 
-int TestPanel::getBand(int x, int y) {
+int TestPanel::getBand(int x, int y) const {
   if (x == 0 && y == 0) return -1;
   if (x < 4 && y < 4) return 0;
   if (x < 8 && y < 2) return 1;
