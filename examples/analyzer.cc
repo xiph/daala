@@ -59,6 +59,7 @@ public:
   int getFrameHeight() const;
 
   bool setBlockSizeBuffer(unsigned char *buf, size_t buf_sz);
+  bool setBandFlagsBuffer(unsigned int *buf, size_t buf_sz);
 };
 
 bool DaalaDecoder::readPage() {
@@ -196,6 +197,13 @@ bool DaalaDecoder::setBlockSizeBuffer(unsigned char *buf, size_t buf_sz) {
   return daala_decode_ctl(dctx, OD_DECCTL_SET_BSIZE_BUFFER, buf, buf_sz) == 0;
 }
 
+bool DaalaDecoder::setBandFlagsBuffer(unsigned int *buf, size_t buf_sz) {
+  if (dctx == NULL) {
+    return false;
+  }
+  return daala_decode_ctl(dctx, OD_DECCTL_SET_FLAGS_BUFFER, buf, buf_sz) == 0;
+}
+
 #define MIN_ZOOM (1)
 #define MAX_ZOOM (4)
 
@@ -211,9 +219,16 @@ private:
   int bstride;
   bool show_blocks;
 
+  unsigned int *flags;
+  int fstride;
+  bool show_skip;
+  bool show_noref;
+
   int getWidth();
   int getHeight();
   bool nextFrame();
+
+  int getBand(int x, int y);
 public:
   TestPanel(wxWindow *parent);
   ~TestPanel();
@@ -226,6 +241,9 @@ public:
   bool setZoom(int zoom);
 
   void setShowBlocks(bool show_blocks);
+  void setShowSkip(bool show_skip);
+  void setShowNoRef(bool show_noref);
+
 
   void onKeyDown(wxKeyEvent &event);
   void onPaint(wxPaintEvent &event);
@@ -239,7 +257,8 @@ BEGIN_EVENT_TABLE(TestPanel, wxPanel)
 END_EVENT_TABLE()
 
 TestPanel::TestPanel(wxWindow *parent) : wxPanel(parent), pixels(NULL),
- zoom(0), bsize(NULL), show_blocks(false) {
+ zoom(0), bsize(NULL), show_blocks(false), flags(NULL), show_skip(false),
+ show_noref(false) {
 }
 
 TestPanel::~TestPanel() {
@@ -265,6 +284,18 @@ bool TestPanel::open(const char *path) {
     close();
     return false;
   }
+  flags = (unsigned int *)malloc(sizeof(*flags)*nhsb*8*nvsb*8);
+  if (flags == NULL) {
+    fprintf(stderr,"Could not allocate memory\n");
+    close();
+    return false;
+  }
+  fstride = nhsb*8;
+  if (!dd.setBandFlagsBuffer(flags, sizeof(unsigned int)*nhsb*8*nvsb*8)) {
+    fprintf(stderr,"Could not set flags buffer\n");
+    close();
+    return false;
+  }
   if (!nextFrame()) {
     close();
     return false;
@@ -279,6 +310,8 @@ void TestPanel::close() {
   pixels = NULL;
   free(bsize);
   bsize = NULL;
+  free(flags);
+  flags = NULL;
 }
 
 int TestPanel::getWidth() {
@@ -287,6 +320,20 @@ int TestPanel::getWidth() {
 
 int TestPanel::getHeight() {
   return zoom*dd.getHeight();
+}
+
+int TestPanel::getBand(int x, int y) {
+  if (x == 0 && y == 0) return -1;
+  if (x < 4 && y < 4) return 0;
+  if (x < 8 && y < 2) return 1;
+  if (x < 2 && y < 8) return 2;
+  if (x < 8 && y < 8) return 3;
+  if (x < 16 && y < 4) return 4;
+  if (x < 4 && y < 16) return 5;
+  if (x < 16 && y < 16) return 6;
+  if (x < 32 && y < 8) return 7;
+  if (x < 8 && y < 32) return 8;
+  return 9;
 }
 
 void TestPanel::render() {
@@ -322,6 +369,32 @@ void TestPanel::render() {
         int mask = (1 << d + OD_LOG_BSIZE0) - 1;
         if (!(i & mask) || !(j & mask)) {
           yval >>= 1;
+        }
+      }
+      if (show_skip || show_noref) {
+        unsigned char d = OD_BLOCK_SIZE4x4(bsize, bstride, i >> 2, j >> 2);
+        int band = getBand(i & ((1 << d + 2) - 1), j & ((1 << d + 2) - 1));
+        int bx = i & ~((1 << d + 2) - 1);
+        int by = j & ~((1 << d + 2) - 1);
+        unsigned int flag = flags[fstride*(by >> 2) + (bx >> 2)];
+        cbval = 128;
+        crval = 128;
+        if (band >= 0) {
+          /*R: U=84, V=255, B: U=255, V=107, G: U=43, V=21*/
+          bool skip = (flag >> 2*band)&1;
+          bool noref = (flag >> 2*band + 1)&1;
+          if (skip && show_skip && noref && show_noref) {
+            cbval = 43;
+            crval = 21;
+          }
+          if ((!skip || !show_skip) && noref && show_noref) {
+            cbval = 84;
+            crval = 255;
+          }
+          if (skip && show_skip && (!noref || !show_noref)) {
+            cbval = 255;
+            crval = 107;
+          }
         }
       }
       yval -= 16;
@@ -384,6 +457,14 @@ void TestPanel::setShowBlocks(bool show_blocks) {
   this->show_blocks = show_blocks;
 }
 
+void TestPanel::setShowSkip(bool show_skip) {
+  this->show_skip = show_skip;
+}
+
+void TestPanel::setShowNoRef(bool show_noref) {
+  this->show_noref = show_noref;
+}
+
 bool TestPanel::nextFrame() {
   if (dd.step()) {
     render();
@@ -431,13 +512,21 @@ public:
   bool open(wxString path);
 };
 
+enum {
+  wxID_SHOW_BLOCKS = 6000,
+  wxID_SHOW_SKIP,
+  wxID_SHOW_NOREF
+};
+
 BEGIN_EVENT_TABLE(TestFrame, wxFrame)
   EVT_MENU(wxID_OPEN, TestFrame::onOpen)
   EVT_MENU(wxID_CLOSE, TestFrame::onClose)
   EVT_MENU(wxID_EXIT, TestFrame::onQuit)
   EVT_MENU(wxID_ZOOM_IN, TestFrame::onZoomIn)
   EVT_MENU(wxID_ZOOM_OUT, TestFrame::onZoomOut)
-  EVT_MENU(wxID_VIEW_DETAILS, TestFrame::onFilter)
+  EVT_MENU(wxID_SHOW_BLOCKS, TestFrame::onFilter)
+  EVT_MENU(wxID_SHOW_SKIP, TestFrame::onFilter)
+  EVT_MENU(wxID_SHOW_NOREF, TestFrame::onFilter)
   EVT_MENU(wxID_ABOUT, TestFrame::onAbout)
 END_EVENT_TABLE()
 
@@ -455,8 +544,12 @@ TestFrame::TestFrame() : wxFrame(NULL, wxID_ANY, _T("Daala Stream Analyzer"),
    _T("Double image size"));
   viewMenu->Append(wxID_ZOOM_OUT, _T("Zoom-Out\tCtrl--"),
    _T("Half image size"));
-  viewMenu->AppendCheckItem(wxID_VIEW_DETAILS, _T("&Blocks\tAlt-B"),
-   _("Show blocks"));
+  viewMenu->AppendCheckItem(wxID_SHOW_BLOCKS, _T("&Blocks\tAlt-B"),
+   _("Show block sizes"));
+  viewMenu->AppendCheckItem(wxID_SHOW_SKIP, _T("&Skip\tAlt-S"),
+   _("Show skip bands"));
+  viewMenu->AppendCheckItem(wxID_SHOW_NOREF, _T("&No-Ref\tAlt-N"),
+   _("Show no-ref bands"));
   mb->Append(viewMenu, _T("&View"));
   wxMenu *helpMenu=new wxMenu();
   helpMenu->Append(wxID_ABOUT, _T("&About...\tF1"), _T("Show about dialog"));
@@ -499,7 +592,9 @@ void TestFrame::onZoomOut(wxCommandEvent &WXUNUSED(event)) {
 }
 
 void TestFrame::onFilter(wxCommandEvent &WXUNUSED(event)) {
-  panel->setShowBlocks(GetMenuBar()->IsChecked(wxID_VIEW_DETAILS));
+  panel->setShowBlocks(GetMenuBar()->IsChecked(wxID_SHOW_BLOCKS));
+  panel->setShowSkip(GetMenuBar()->IsChecked(wxID_SHOW_SKIP));
+  panel->setShowNoRef(GetMenuBar()->IsChecked(wxID_SHOW_NOREF));
   panel->render();
   panel->Refresh(false);
 }
