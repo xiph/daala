@@ -196,11 +196,15 @@ bool DaalaDecoder::setBlockSizeBuffer(unsigned char *buf, size_t buf_sz) {
   return daala_decode_ctl(dctx, OD_DECCTL_SET_BSIZE_BUFFER, buf, buf_sz) == 0;
 }
 
+#define MIN_ZOOM (1)
+#define MAX_ZOOM (4)
+
 class TestPanel : public wxPanel {
   DECLARE_EVENT_TABLE()
 private:
   DaalaDecoder dd;
 
+  int zoom;
   unsigned char *pixels;
 
   unsigned char *bsize;
@@ -218,6 +222,9 @@ public:
   void close();
   void render();
 
+  int getZoom() const;
+  bool setZoom(int zoom);
+
   void setShowBlocks(bool show_blocks);
 
   void onKeyDown(wxKeyEvent &event);
@@ -232,7 +239,7 @@ BEGIN_EVENT_TABLE(TestPanel, wxPanel)
 END_EVENT_TABLE()
 
 TestPanel::TestPanel(wxWindow *parent) : wxPanel(parent), pixels(NULL),
- bsize(NULL), show_blocks(false) {
+ zoom(0), bsize(NULL), show_blocks(false) {
 }
 
 TestPanel::~TestPanel() {
@@ -243,9 +250,7 @@ bool TestPanel::open(const char *path) {
   if (!dd.open(path)) {
     return false;
   }
-  pixels =
-   (unsigned char *)malloc(sizeof(*pixels)*3*dd.getWidth()*dd.getHeight());
-  if (pixels == NULL) {
+  if (!setZoom(MIN_ZOOM)) {
     return false;
   }
   int nhsb = dd.getFrameWidth() >> OD_LOG_BSIZE0 + OD_NBSIZES - 1;
@@ -264,7 +269,6 @@ bool TestPanel::open(const char *path) {
     close();
     return false;
   }
-  SetSize(getWidth(), getHeight());
   SetFocus();
   return true;
 }
@@ -278,46 +282,32 @@ void TestPanel::close() {
 }
 
 int TestPanel::getWidth() {
-  return dd.getWidth();
+  return zoom*dd.getWidth();
 }
 
 int TestPanel::getHeight() {
-  return dd.getHeight();
+  return zoom*dd.getHeight();
 }
 
 void TestPanel::render() {
-  od_img *img;
-  int xdec;
-  int ydec;
-  unsigned char *y_row;
-  unsigned char *cb_row;
-  unsigned char *cr_row;
-  unsigned char *y;
-  unsigned char *cb;
-  unsigned char *cr;
-  int y_stride;
-  int cb_stride;
-  int cr_stride;
-  unsigned char *p;
-  int pitch;
-  img = &dd.img;
+  od_img *img = &dd.img;
   /* Assume both chroma planes are decimated the same */
-  xdec = img->planes[1].xdec;
-  ydec = img->planes[1].ydec;
-  y_stride = img->planes[0].ystride;
-  cb_stride = img->planes[1].ystride;
-  cr_stride = img->planes[2].ystride;
-  y_row = img->planes[0].data;
-  cb_row = img->planes[1].data;
-  cr_row = img->planes[2].data;
-  p = pixels;
-  pitch = 3*getWidth();
-  for (int j = 0; j < getHeight(); j++) {
-    int dc;
-    y = y_row;
-    cb = cb_row;
-    cr = cr_row;
-    for (int i = 0, k = 0; i < 3*getWidth(); i += 3, k++) {
+  int xdec = img->planes[1].xdec;
+  int ydec = img->planes[1].ydec;
+  int y_stride = img->planes[0].ystride;
+  int cb_stride = img->planes[1].ystride;
+  int cr_stride = img->planes[2].ystride;
+  int p_stride = zoom*3*dd.getWidth();
+  unsigned char *y_row = img->planes[0].data;
+  unsigned char *cb_row = img->planes[1].data;
+  unsigned char *cr_row = img->planes[2].data;
+  unsigned char *p_row = pixels;
+  for (int j = 0; j < dd.getHeight(); j++) {
+    unsigned char *y = y_row;
+    unsigned char *cb = cb_row;
+    unsigned char *cr = cr_row;
+    unsigned char *p = p_row;
+    for (int i = 0; i < dd.getWidth(); i++) {
       int64_t yval;
       int64_t cbval;
       int64_t crval;
@@ -325,16 +315,18 @@ void TestPanel::render() {
       unsigned gval;
       unsigned bval;
       yval = *y;
+      cbval = *cb;
+      crval = *cr;
       if (show_blocks) {
-        unsigned char d = OD_BLOCK_SIZE4x4(bsize, bstride, k >> 2, j >> 2);
+        unsigned char d = OD_BLOCK_SIZE4x4(bsize, bstride, i >> 2, j >> 2);
         int mask = (1 << d + OD_LOG_BSIZE0) - 1;
-        if (!(k & mask) || !(j & mask)) {
+        if (!(i & mask) || !(j & mask)) {
           yval >>= 1;
         }
       }
       yval -= 16;
-      cbval = *cb - 128;
-      crval = *cr - 128;
+      cbval -= 128;
+      crval -= 128;
       /*This is intentionally slow and very accurate.*/
       rval = OD_CLAMPI(0, (int32_t)OD_DIV_ROUND(
        2916394880000LL*yval + 4490222169144LL*crval, 9745792000LL), 65535);
@@ -343,19 +335,49 @@ void TestPanel::render() {
        9745792000LL), 65535);
       bval = OD_CLAMPI(0, (int32_t)OD_DIV_ROUND(
        2916394880000LL*yval + 5290866304968LL*cbval, 9745792000LL), 65535);
-      *(p + pitch*j + i + 0) = (unsigned char)(rval >> 8);
-      *(p + pitch*j + i + 1) = (unsigned char)(gval >> 8);
-      *(p + pitch*j + i + 2) = (unsigned char)(bval >> 8);
-      dc = ((y - y_row) & 1) | (1 - xdec);
+      unsigned char *px_row = p;
+      for (int v = 0; v < zoom; v++) {
+        unsigned char *px = px_row;
+        for (int u = 0; u < zoom; u++) {
+          *(px + 0) = (unsigned char)(rval >> 8);
+          *(px + 1) = (unsigned char)(gval >> 8);
+          *(px + 2) = (unsigned char)(bval >> 8);
+          px += 3;
+        }
+        px_row += p_stride;
+      }
+      int dc = ((y - y_row) & 1) | (1 - xdec);
       y++;
       cb += dc;
       cr += dc;
+      p += zoom*3;
     }
-    dc = -((j & 1) | (1 - ydec));
+    int dc = -((j & 1) | (1 - ydec));
     y_row += y_stride;
     cb_row += dc & cb_stride;
     cr_row += dc & cr_stride;
+    p_row += zoom*p_stride;
   }
+}
+
+int TestPanel::getZoom() const {
+  return zoom;
+}
+
+bool TestPanel::setZoom(int z) {
+  if (z <= MAX_ZOOM && z >= MIN_ZOOM && zoom != z) {
+    unsigned char *p =
+     (unsigned char *)malloc(sizeof(*p)*3*z*dd.getWidth()*z*dd.getHeight());
+    if (p == NULL) {
+      return false;
+    }
+    free(pixels);
+    pixels = p;
+    zoom = z;
+    SetSize(getWidth(), getHeight());
+    return true;
+  }
+  return false;
 }
 
 void TestPanel::setShowBlocks(bool show_blocks) {
@@ -401,6 +423,8 @@ public:
   void onOpen(wxCommandEvent &event);
   void onClose(wxCommandEvent &event);
   void onQuit(wxCommandEvent &event);
+  void onZoomIn(wxCommandEvent &event);
+  void onZoomOut(wxCommandEvent &event);
   void onFilter(wxCommandEvent &event);
   void onAbout(wxCommandEvent &event);
 
@@ -411,6 +435,8 @@ BEGIN_EVENT_TABLE(TestFrame, wxFrame)
   EVT_MENU(wxID_OPEN, TestFrame::onOpen)
   EVT_MENU(wxID_CLOSE, TestFrame::onClose)
   EVT_MENU(wxID_EXIT, TestFrame::onQuit)
+  EVT_MENU(wxID_ZOOM_IN, TestFrame::onZoomIn)
+  EVT_MENU(wxID_ZOOM_OUT, TestFrame::onZoomOut)
   EVT_MENU(wxID_VIEW_DETAILS, TestFrame::onFilter)
   EVT_MENU(wxID_ABOUT, TestFrame::onAbout)
 END_EVENT_TABLE()
@@ -425,6 +451,10 @@ TestFrame::TestFrame() : wxFrame(NULL, wxID_ANY, _T("Daala Stream Analyzer"),
   fileMenu->Append(wxID_EXIT, _T("E&xit\tAlt-X"), _T("Quit this program"));
   mb->Append(fileMenu, _T("&File"));
   wxMenu *viewMenu=new wxMenu();
+  viewMenu->Append(wxID_ZOOM_IN, _T("Zoom-In\tCtrl-+"),
+   _T("Double image size"));
+  viewMenu->Append(wxID_ZOOM_OUT, _T("Zoom-Out\tCtrl--"),
+   _T("Half image size"));
   viewMenu->AppendCheckItem(wxID_VIEW_DETAILS, _T("&Blocks\tAlt-B"),
    _("Show blocks"));
   mb->Append(viewMenu, _T("&View"));
@@ -452,6 +482,22 @@ void TestFrame::onQuit(wxCommandEvent &WXUNUSED(event)) {
   Close(true);
 }
 
+void TestFrame::onZoomIn(wxCommandEvent &WXUNUSED(event)) {
+  if (panel->setZoom(panel->getZoom() + 1)) {
+    Fit();
+    panel->render();
+    panel->Refresh();
+  }
+}
+
+void TestFrame::onZoomOut(wxCommandEvent &WXUNUSED(event)) {
+  if (panel->setZoom(panel->getZoom() - 1)) {
+    Fit();
+    panel->render();
+    panel->Refresh();
+  }
+}
+
 void TestFrame::onFilter(wxCommandEvent &WXUNUSED(event)) {
   panel->setShowBlocks(GetMenuBar()->IsChecked(wxID_VIEW_DETAILS));
   panel->render();
@@ -467,9 +513,7 @@ bool TestFrame::open(wxString path) {
   const char *filename = buffer.data();
   panel = new TestPanel(this);
   if (panel->open(filename)) {
-    wxBoxSizer *main = new wxBoxSizer(wxHORIZONTAL);
-    main->Add(panel);
-    SetSizerAndFit(main);
+    Fit();
     SetStatusText(_T("loaded file: ") + path);
     return true;
   }
