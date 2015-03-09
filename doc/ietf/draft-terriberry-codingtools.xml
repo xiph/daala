@@ -2,7 +2,7 @@
 <!DOCTYPE rfc SYSTEM 'rfc2629.dtd'>
 <?rfc toc="yes" symrefs="yes" ?>
 
-<rfc ipr="trust200902" category="info" docName="draft-terriberry-codingtools-01">
+<rfc ipr="trust200902" category="info" docName="draft-terriberry-codingtools-02">
 
 <front>
 <title abbrev="Coding Tools">Coding Tools for a Next Generation Video Codec</title>
@@ -21,7 +21,7 @@
 </address>
 </author>
 
-<date day="4" month="July" year="2014"/>
+<date day="9" month="March" year="2015"/>
 <area>RAI</area>
 
 <abstract>
@@ -57,7 +57,7 @@ Nevertheless, it still serves to outline some possibilities an eventual working
 <t>
 The basic theory of entropy coding was well-established by the late
  1970's&nbsp;<xref target="Pas76"/>.
-Modern video codecs have focused on Huffman (or "Variable-Length
+Modern video codecs have focused on Huffman codes (or "Variable-Length
  Codes"/VLCs) and binary arithmetic coding.
 Huffman codes are limited in the amount of compression they can provide and the
  design flexibility they allow, but as each code word consists of an integer
@@ -417,12 +417,6 @@ This gives a lossy codec, which normally quantizes the coefficients before
  lossless compression without requiring any new coding tools.
 This approach has been used successfully by JPEG XR, for
  example&nbsp;<xref target="TSSRM08"/>.
-Even when the goal is still lossy compression, the ability to selectively
- enable lossless compression for some parts of the frame can be beneficial.
-For example, in very dark areas, single pixel value differences are sometimes
- visible.
-In very still areas (particularly from synthetic content), coding a region
- losslessly allows it to perfectly predict that region in many future frames.
 </t>
 <t>
 Such reversible transforms can be constructed using "lifting steps", a series
@@ -758,9 +752,17 @@ The dynamic range expansion is only 2&nbsp;bits (again the smallest possible),
  and the MSE is 1.495E-5.
 </t>
 <t>
-Code for both of these transforms (as well as the four-point transform) is
- available in the development repository listed
- in&nbsp;<xref target="development_repository"/>.
+We also have a reversible 32-point DCT approximation with uniform,
+ orthonormal scaling using 87&nbsp;multiplies, 215&nbsp;additions, and
+ 38&nbsp;shifts.
+By comparison, the 32-point transform in VP9 uses 116&nbsp;multiplies,
+ 194&nbsp;additions, and 66&nbsp;shifts.
+Our dynamic range expansion is still the minimal 2.5&nbsp;bits, and the MSE is
+ 8.006E-05
+</t>
+<t>
+Code for all of these transforms is available in the development repository
+ listed in&nbsp;<xref target="development_repository"/>.
 </t>
 </section>
 
@@ -895,7 +897,8 @@ This document has no actions for IANA.
 <section anchor="Acknowledgments" title="Acknowledgments">
 <t>
 Thanks to Nathan Egge, Gregory Maxwell, and Jean-Marc Valin for their
- assistance in the experimentation and in preparing this draft.
+ assistance in the implementation and experimentation, and in preparing this
+ draft.
 </t>
 </section>
 
