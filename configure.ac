@@ -256,6 +256,14 @@ AS_IF([test "$enable_dct_check_overflow" = "yes"], [
   AC_DEFINE([OD_DCT_CHECK_OVERFLOW], [1], [Check for DCT overflow])
 ])
 
+AC_ARG_ENABLE([check-asm],
+  AS_HELP_STRING([--enable-check-asm], [Validate assembly code]),,
+  [enable_check_asm=no])
+
+AS_IF([test "$enable_check_asm" = "yes"], [
+  AC_DEFINE([OD_CHECKASM], [1], [Validate assembly code])
+])
+
 AC_ARG_ENABLE([dump-images],
   AS_HELP_STRING([--enable-dump-images], [Dump debugging images]),,
   [enable_dump_images=no])
@@ -323,6 +331,7 @@ AC_MSG_NOTICE([
     Transform coeffs dumping ..... ${enable_dump_coeffs}
     Check encoder ................ ${enable_encoder_check}
     Check DCT overflow............ ${enable_dct_check_overflow}
+    Check assembly................ ${enable_check_asm}
     Bit accounting ............... ${enable_accounting}
     Entropy coder accounting ..... ${enable_ec_accounting}
     Tools ........................ ${enable_tools}

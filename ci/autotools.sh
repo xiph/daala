@@ -6,7 +6,7 @@ OGG_PATH=/srv/jenkins/jobs/libogg/workspace
 VIDEOS=/usr/local/share/videos
 
 ./autogen.sh
-CFLAGS='-O2 -DOD_CHECKASM -g' ./configure --enable-assertions --enable-logging --enable-accounting PKG_CONFIG_PATH=${OGG_PATH}
+CFLAGS='-O2 -g' ./configure --enable-assertions --enable-check-asm --enable-logging --enable-accounting PKG_CONFIG_PATH=${OGG_PATH}
 make clean
 make distcheck PKG_CONFIG_PATH=${OGG_PATH}
 make docs
