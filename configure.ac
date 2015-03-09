@@ -248,6 +248,14 @@ AS_IF([test "$enable_encoder_check" = "yes"], [
 ])
 AM_CONDITIONAL([ENCODER_CHECK], [test "$enable_encoder_check" = "yes"])
 
+AC_ARG_ENABLE([dct-check-overflow],
+  AS_HELP_STRING([--enable-dct-check-overflow], [Check for DCT overflow]),,
+  [enable_dct_check_overflow=no])
+
+AS_IF([test "$enable_dct_check_overflow" = "yes"], [
+  AC_DEFINE([OD_DCT_CHECK_OVERFLOW], [1], [Check for DCT overflow])
+])
+
 AC_ARG_ENABLE([dump-images],
   AS_HELP_STRING([--enable-dump-images], [Dump debugging images]),,
   [enable_dump_images=no])
@@ -314,6 +322,7 @@ AC_MSG_NOTICE([
     Reconstructed video dumping .. ${enable_dump_recons}
     Transform coeffs dumping ..... ${enable_dump_coeffs}
     Check encoder ................ ${enable_encoder_check}
+    Check DCT overflow............ ${enable_dct_check_overflow}
     Bit accounting ............... ${enable_accounting}
     Entropy coder accounting ..... ${enable_ec_accounting}
     Tools ........................ ${enable_tools}
