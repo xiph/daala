@@ -71,6 +71,7 @@ enum {
 
 static void img_to_rgb(SDL_Surface *surf, const od_img *img, int plane_mask);
 static int next_plane(int plane_mask);
+static void wait_to_refresh(uint32_t *previous_ticks, uint32_t ms_per_frame);
 
 int player_example_init(player_example *player);
 player_example *player_example_create();
@@ -274,6 +275,9 @@ int player_example_play(player_example *player) {
   ogg_page page;
   ogg_packet packet;
   daala_setup_info *dsi;
+  uint32_t ms_per_frame;
+  uint32_t ticks = 0;
+  ms_per_frame = 0;
   dsi = NULL;
   while (!player->done) {
     while (ogg_sync_pageout(&player->oy, &page) != 1) {
@@ -338,6 +342,12 @@ int player_example_play(player_example *player) {
           daala_setup_free(dsi);
           dsi = NULL;
           player->od_state = ODS_DATA;
+          if (player->di.timebase_numerator
+           && player->di.timebase_denominator) {
+            ms_per_frame = 1000 /
+             (player->di.timebase_numerator / player->di.timebase_denominator);
+            ticks = SDL_GetTicks();
+          }
           /* Falling through */
         }
         case ODS_DATA: {
@@ -371,6 +381,7 @@ int player_example_play(player_example *player) {
             player_example_wait_user_input(player);
           }
           if ((!player->restart) && (!player->done)) {
+            wait_to_refresh(&ticks, ms_per_frame);
             SDL_LockSurface(player->surf);
             img_to_rgb(player->surf, &player->img, player->plane_mask);
             SDL_UnlockSurface(player->surf);
@@ -540,4 +551,19 @@ void img_to_rgb(SDL_Surface *surf, const od_img *img, int plane_mask) {
 int next_plane(int plane_mask) {
   return OD_MINI(plane_mask << 1, OD_ALL_MASK) >>
    ((plane_mask == OD_ALL_MASK) << 1);
+}
+
+void wait_to_refresh(uint32_t *previous_ticks, uint32_t ms_per_frame)
+{
+  uint32_t tmp;
+  /* play dumb until we've parsed the frame rate */
+  if (!*previous_ticks)
+      return;
+
+  tmp = SDL_GetTicks();
+  while (tmp - *previous_ticks < ms_per_frame) {
+      SDL_Delay(ms_per_frame - (tmp - *previous_ticks));
+      tmp = SDL_GetTicks();
+  }
+  *previous_ticks = tmp;
 }
