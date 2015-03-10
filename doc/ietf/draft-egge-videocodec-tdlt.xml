@@ -3,7 +3,7 @@
 <?rfc toc="yes" symrefs="yes" ?>
 <?rfc compact="yes"?>
 
-<rfc ipr="noDerivativesTrust200902" category="info" docName="draft-egge-videocodec-tdlt-00">
+<rfc ipr="noDerivativesTrust200902" category="info" docName="draft-egge-videocodec-tdlt-01">
 
 <front>
 <title abbrev="TDLT">Time Domain Lapped Transforms for Video Coding</title>
@@ -35,7 +35,7 @@
 </address>
 </author>
 
-<date day="15" month="October" year="2012"/>
+<date day="9" month="March" year="2015"/>
 <area>RAI</area>
 
 <abstract>
@@ -83,19 +83,19 @@ The idea is to place an invertible filter along the block boundaries outside
 <!--figure anchor="filter_diagram" title="Filter Diagram" align="center"-->
 <figure align="center">
 <artwork align="center"><![CDATA[
-+----+                 +----+
-|    |        Q        |    |
-| P  |+----+  u  +----+|P^-1|
+      +----+     +----+
+      |    |  Q  |    |
++----+|DCT |  u  |iDCT|+----+
 |    ||    |  a  |    ||    |
-+----+|DCT |  n  |iDCT|+----+
+| P  |+----+  n  +----+|P^-1|
 |    ||    |  t  |    ||    |
-| P  |+----+  i  +----+|P^-1|
++----+|DCT |  i  |iDCT|+----+
 |    ||    |  z  |    ||    |
-+----+|DCT |  a  |iDCT|+----+
+| P  |+----+  a  +----+|P^-1|
 |    ||    |  t  |    ||    |
-| P  |+----+  i  +----+|P^-1|
-|    |        o        |    |
-+----+        n        +----+
++----+|DCT |  i  |iDCT|+----+
+      |    |  o  |    |
+      +----+  n  +----+
 ]]></artwork>
 </figure>
 
@@ -319,8 +319,8 @@ Additional constraints allowed us to further reduce the search space.
 Because the p's and q's are liftings steps that represent rotations in the plane
  their, values are between -1.0 and 1.0.
 Likewise the limitation that the pre- and post-filter steps be reversible
- requires that the scale factors be &gte; 1.0, otherwise information would be
- lost during the transform.
+ requires that the scale factors be greater than or equal 1.0, otherwise
+ information would be lost during the transform.
 Finally, all things equal we prefer smaller scale factors as it makes quantizing
  and encoding the coefficients cheaper. 
 We thus cap the scale factors at 2.0.
@@ -529,14 +529,8 @@ Again, we use an integer programming model to solve for the integer parameters
 </t>
 </section>
 </section>
-
-<section anchor="future_work" title="Future Work">
+<section anchor="intra_prediction" title="Intra Prediction">
 <t>
-There are a number of challenges that must be addressed to incorporate TDLTs
- into a codec.
-<list style="numbers">
-<t>
-Intra Prediction.
 Since the final pixel values of a block are not available until after the
  post-filter runs, they cannot be used to predict neighboring blocks.
 There are a number of possible solutions to this.
@@ -545,12 +539,44 @@ However, as these pixels are farther away, they are poorer predictors, and the
  extra distance reduces the range of prediction directions which have enough
  neighbors available to form an adequate
  extrapolation&nbsp;<xref target="OP11"/>.
-An alternate approach is to perform the prediction in the frequency domain.
-Initial experiments suggest that this is just as effective as prediction in the
- time domain, and has similar computational requirements.
 </t>
 <t>
-Motion Compensation.
+An alternate approach is to perform the prediction in the frequency domain.
+Initial experiments suggest that this is just as effective as prediction in the
+ time domain, and has similar computational
+ requirements&nbsp;<xref target="Egge13"/>.
+However, because the frequency domain coefficients of a neighboring block are
+ impacted both by what size DCT was used, and the lapping across all four of
+ its edges, directional predictors can only be so good.
+At low rates, this meant more bits were spent correcting an incorrect predictor
+ than were saved by coding only a directional mode.
+</t>
+<t>
+A signal free technique was developed for doing limited intra prediction in
+ the frequency domain when using lapped transforms.
+Note that when the spatial prediction mode is exactly horizontal or vertical,
+ applying the filters described in this draft along the orthogonal direction
+ is the identity.
+Thus it is possible to look at the horizontal coefficients of the neighboring
+ block to the left, and the vertical energy of the neighboring block above and
+ simply use the coefficients where the energy is larger.
+When this technique is coupled with a quantization and coefficient coder that
+ makes signaling no predictor cheap&nbsp;<xref target="Vali15"/>, this becomes
+ an effective frequency domain intra predictor.
+</t>
+<t>
+Finally, a technique was developed for intra predicting chroma frequency domain
+ coefficients from decoded coincident luma
+ coefficients&nbsp;<xref target="Egge15"/>.
+While this technique does not strictly require the use of lapped transforms,
+ because the block size extent (and thus the lapping region) for both the
+ chroma and luma planes is the same, the use of a lapped transform does not
+ change the effectiveness of this technique.
+</t>
+</section>
+
+<section anchor="motion_comp" title="Motion Compensation">
+<t>
 There have been several lapped transform proposals that perform block-by-block
  motion compensation by simply expanding the size of the prediction region for
  each block&nbsp;<xref target="TT01"/>,&nbsp;<xref target="OPT11"/>.
@@ -559,8 +585,11 @@ However, in addition to increasing the amount of motion-compensated prediction
  number of applications of the pre- and post-filter by a factor of four, since
  this must now be done separately for each block, using the motion-compensated
  frame difference for that block.
+</t>
+<t>
 An alternate approach is simply perform motion compensation of the frame in a
- completely separate step, prior to any transform, using any method desired.
+ completely separate step, prior to any transform, using any method
+ desired&nbsp;<xref target="Terr15"/>.
 The lapping can then be applied to this motion-compensated prediction,
  producing per-block predictors.
 This still allows the prediction mode (inter, intra, bi-prediction, etc.) to be
@@ -568,6 +597,8 @@ This still allows the prediction mode (inter, intra, bi-prediction, etc.) to be
 It also interacts well with other techniques designed to operate in the
  frequency domain, such as the Pyramid Vector Quantization (PVQ) proposed
  elsewhere.
+</t>
+<t>
 The downside is that motion estimation in the encoder needs to be performed for
  regions slightly beyond the current block.
 However, this is already required by blocking-artifact-free motion compensation
@@ -576,24 +607,191 @@ Experience with OBMC has shown that an encoder can mostly ignore look-ahead and
  still get acceptable results, unlike other techniques, such as control-grid
  interpolation (CGI).
 </t>
+</section>
+<section anchor="multiple_blocks" title="Multiple Block Sizes">
 <t>
-Multiple Block Sizes.
 Multiple block size support is important for lapped transforms, since the
  larger support region increases their susceptibility to ringing artifacts
  compared to a non-overlapped transform with the same number of coefficients
  (though it is greatly reduced compared to a non-overlapped transform with a
  support region of the same size).
-The simplest approach is to require that the size of the overlap filter be
+</t>
+<section anchor="variable_lapping" title="Variable Sized Lapping">
+<t>
+The most obvious approach is to require that the size of the overlap filter be
  constrained by the smallest block adjacent to a given edge.
-This also requires some amount of look-ahead in the encoder, but in addition
- has an effect on the coding syntax, since this constraint must be communicated
- to the decoder in order for it to perform motion compensation.
-It is straightforward to make this information non-redundant, i.e., to use it
- to constraint the actual block sizes of future blocks when they are eventually
- decoded.
+This requires some amount of look-ahead in the encoder, but has the benefit of
+ using the largest lapping possible in regions where all blocks are the same
+ size while not introducing discontinuities where blocks of different sizes
+ meet.
+Note that this has an effect on the coding syntax, as the block size decision
+ for the block below the one being coded must made and communicated to the
+ decoder prior to coding.
+Using this convention no additional information need to be communicated other
+ than the block size decision to completely describe how the variable sized
+ lapping should be applied.
 </t>
-</list>
+<t>
+Consider an example image that is 32x32 with the following block size
+ decisions.
+We apply the lapping recursively to blocks of 32x32 at a time until we reach
+ a block that is not subdivided into smaller blocks.
+At each step in the recursions, we apply a filter vertically across the
+ block edges that run left to right splitting the block in half.
+We then apply a horizontal filter across the block edges that split the block
+ in half top to bottom.
 </t>
+<figure align="left">
+<artwork align="left"><![CDATA[
++-------+-------+---------------+-------------------------------+
+|       |       |               |                               |
+|       |       |               |                               |
+|       |       |               |                               |
++-------+-------+               |                               |
+|       |       |               |                               |
+|       |       |               |                               |
+|       |       |               |                               |
++-------+-------+---------------+                               |
+|               |               |                               |
+|               |               |                               |
+|               |               |                               |
+|               |               |                               |
+|               |               |                               |
+|               |               |                               |
+|               |               |                               |
++---------------+-------+-------+-------------------------------+
+|               |       |       |                               |
+|               |       |       |                               |
+|               |       |       |                               |
+|               +-------+-------+                               |
+|               |       |       |                               |
+|               |       |       |                               |
+|               |       |       |                               |
++---------------+-------+-------+                               |
+|               |               |                               |
+|               |               |                               |
+|               |               |                               |
+|               |               |                               |
+|               |               |                               |
+|               |               |                               |
+|               |               |                               |
++-------------------------------+-------------------------------+
+]]></artwork>
+<postamble>Block size decision for a 32x32 frame.</postamble>
+</figure>
+<figure align="left">
+<artwork align="left"><![CDATA[
++-------+-------+---------------+-------------------------------+
+|       |       |               |                               |
+|       |       |               |                               |
+|       |       |               |                               |
++-------+-------+               |                               |
+|       |       |               |                               |
+|       |       |               |                               |
+|       |       |               |                               |
++-------+-------+---------------+                               |
+|               |               |X X X X X X X X X X X X X X X X|
+|               |               |X X X X X X X X X X X X X X X X|
+|               |               |X X X X X X X X X X X X X X X X|
+|               |               |X X X X X X X X X X X X X X X X|
+|X X X X X X X X|               |X X X X X X X X X X X X X X X X|
+|X X X X X X X X|               |X X X X X X X X X X X X X X X X|
+|X X X X X X X X|X X X X X X X X|X X X X X X X X X X X X X X X X|
++X-X-X-X-X-X X-X+X-X-X-X+X-X-X-X+X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X+
+|X X X X X X X X|X X X X|X X X X|X X X X X X X X X X X X X X X X|
+|X X X X X X X X|X X X X|X X X X|X X X X X X X X X X X X X X X X|
+|X X X X X X X X|       |       |X X X X X X X X X X X X X X X X|
+|X X X X X X X X+-------+-------+X X X X X X X X X X X X X X X X|
+|               |       |       |X X X X X X X X X X X X X X X X|
+|               |       |       |X X X X X X X X X X X X X X X X|
+|               |       |       |X X X X X X X X X X X X X X X X|
++---------------+-------+-------+X X X X X X X X X X X X X X X X|
+|               |               |                               |
+|               |               |                               |
+|               |               |                               |
+|               |               |                               |
+|               |               |                               |
+|               |               |                               |
+|               |               |                               |
++-------------------------------+-------------------------------+
+]]></artwork>
+<postamble>Apply the filter vertically across the horizontal internal
+ edge.</postamble>
+</figure>
+<figure align="left">
+<artwork align="left"><![CDATA[
++-------+-------+---------------+-------------------------------+
+|       |       |        X X X X|X X X X                        |
+|       |       |        X X X X|X X X X                        |
+|       |       |        X X X X|X X X X                        |
++-------+-------+        X X X X|X X X X                        |
+|       |       |        X X X X|X X X X                        |
+|       |       |        X X X X|X X X X                        |
+|       |       |        X X X X|X X X X                        |
++-------+-------+--------X-X-X-X+X X X X                        |
+|               |        X X X X|X X X X                        |
+|               |        X X X X|X X X X                        |
+|               |        X X X X|X X X X                        |
+|               |        X X X X|X X X X                        |
+|               |        X X X X|X X X X                        |
+|               |        X X X X|X X X X                        |
+|               |        X X X X|X X X X                        |
++---------------+-------+X-X-X-X+X-X-X-X------------------------+
+|               |       |    X X|X X                            |
+|               |       |    X X|X X                            |
+|               |       |    X X|X X                            |
+|               +-------+----X-X+X X                            |
+|               |       |    X X|X X                            |
+|               |       |    X X|X X                            |
+|               |       |    X X|X X                            |
++---------------+-------+----X-X+X X                            |
+|               |            X X|X X                            |
+|               |            X X|X X                            |
+|               |            X X|X X                            |
+|               |            X X|X X                            |
+|               |            X X|X X                            |
+|               |            X X|X X                            |
+|               |            X X|X X                            |
++----------------------------X-X+X-X----------------------------+
+]]></artwork>
+<postamble>Apply the filter horizontally across the vertical internal
+ edge.</postamble>
+</figure>
+<t>
+The filters are then applied recursively in this manner to the four quadrants
+ of the block.
+By applying the filters recursively this way, we have prevented any
+ discontinuities from appearing where block is split but its neighbor is not.
+</t>
+</section>
+<section anchor="fixed_lapping" title="Fixed Sized Lapping">
+<t>
+One of the challenges using variable sized lapping is that changing the block
+ size decision (either splitting a block into four blocks a quarter as big, or
+ merging four blocks into one four times the size) can have an impact on the
+ coding performance outside the block considered.
+This makes computing the optimal block size decision for a frame computationally
+ difficult as traditional rate-distortion optimization (RDO) algorithms exploit
+ this locality to iteratively improve an initial decision.
+</t>
+<t>
+One way to simplify the problem is to assume a fixed sized lapping across the
+ entire image.
+If only the 4-point filter is used across block boundaries, then it is
+ possible to compare the distortion of an 8x8 block with that of four 4x4
+ blocks by simply computing the mean squared error (MSE) of the 64 spatial
+ domain coefficients after applying the inverse lapped transform.
+Because changing the block size decision, and thus the interior lapping has no
+ impact on the lap decision on the border of the 8x8 block, then just looking
+ at the rate and distortion of the interior coefficients is sufficient.
+</t>
+<t>
+This approach has does not leverage the additional coding gain and deblocking
+ achieved by using larger lapping filters but may make up for this by allowing
+ computationally cheap block size decision heuristics in real-time encoding
+ environments.
+</t>
+</section>
 </section>
 
 <section title="IANA Considerations">
@@ -633,6 +831,23 @@ Thanks to Greg Maxwell and Jean-Marc Valin for their assistance in the
 		<date month="October" year="2003"/>
 	</front>
 	<seriesInfo name="IEEE Transactions on Signal Processing" value="51(10):2568--2581"/>
+</reference>
+
+<reference anchor="Egge13" target="http://people.xiph.org/~unlord/Daala-Intra.pdf">
+	<front>
+		<title>Intra-Prediction in Daala</title>
+		<author initials="N.E." surname="Egge"/>
+		<date month="October" year="2013"/>
+	</front>
+</reference>
+
+<reference anchor="Egge15" target="http://people.xiph.org/~unlord/spie_cfl.pdf">
+	<front>
+		<title>Predicting Chroma from Luma with Frequency Domain Intra Prediction</title>
+		<author initials="N.E." surname="Egge"/>
+		<author initials="J.M." surname="Valin"/>
+		<date month="February" year="2015"/>
+	</front>
 </reference>
 
 <reference anchor="Malv89" target="http://research.microsoft.com/apps/pubs/default.aspx?id=102073">
@@ -690,6 +905,22 @@ Thanks to Greg Maxwell and Jean-Marc Valin for their assistance in the
 		<title>Introduction to Video Coding Part 1: Transform Coding</title>
 		<author initials="T.B." surname="Terriberry"/>
 		<date month="February" year="2012"/>
+	</front>
+</reference>
+
+<reference anchor="Terr15" target="https://people.xiph.org/~tterribe/daala/vbsobmc.pdf">
+	<front>
+		<title>Adaptive Motion Compensation Without Blocking Artifacts</title>
+		<author initials="T.B." surname="Terriberry"/>
+		<date month="February" year="2015"/>
+	</front>
+</reference>
+
+<reference anchor="Vali15" target="http://jmvalin.ca/video/spie_pvq.pdf">
+	<front>
+		<title>Perceptual Vector Quantization for Video Coding</title>
+		<author initials="J.M." surname="Valin"/>
+		<date month="February" year="2015"/>
 	</front>
 </reference>
 
