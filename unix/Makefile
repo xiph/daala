@@ -56,7 +56,7 @@ CINCLUDE = `sdl-config --cflags` `pkg-config ogg --cflags`
 # You may get speed increases by including flags such as -O2 or -O3 or
 #  -ffast-math, or additional flags, depending on your system and compiler.
 # The -g flag will generally include debugging information.
-CFLAGS := -g $(CFLAGS)
+CFLAGS := -g $(CFLAGS) $(OD_CFLAGS)
 CFLAGS := -DOD_LOGGING_ENABLED $(CFLAGS)
 CFLAGS := -DOD_ENABLE_ASSERTIONS $(CFLAGS)
 #CFLAGS := -DOD_CHECKASM $(CFLAGS)
