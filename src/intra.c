@@ -62,10 +62,10 @@ void od_hv_intra_pred(od_coeff *pred, od_coeff *d, int w, int bx, int by,
 
 /* Trained using a linear regression on subset3. See dump_cfl_scaling4.*/
 static ogg_int16_t od_cfl_scaling4[4][4] = {
-  { 128, 128, 114, 68 },
-  { 128, 104, 86, 68 },
-  { 114, 86, 77, 62 },
-  { 68, 68, 62, 51 }
+  { 128, 128, 100, 36},
+  { 128, 80, 71, 35},
+  { 100, 71, 35, 31},
+  { 36, 35, 31, 18},
 };
 
 void od_resample_luma_coeffs(od_coeff *l, int lstride,
