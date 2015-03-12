@@ -716,8 +716,10 @@ static void od_decode_residual(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
        state->bsize, state->bstride, xdec);
 #else
       if (!mbctx->is_keyframe) {
-        od_apply_filter_sb_rows(state->mctmp[pli], w, nhsb, nvsb, xdec, ydec, 0, 3);
-        od_apply_filter_sb_cols(state->mctmp[pli], w, nhsb, nvsb, xdec, ydec, 0, 3);
+        od_apply_filter_sb_rows(state->mctmp[pli], w, nhsb, nvsb, xdec, ydec,
+         0, 3);
+        od_apply_filter_sb_cols(state->mctmp[pli], w, nhsb, nvsb, xdec, ydec,
+         0, 3);
       }
 #endif
     }

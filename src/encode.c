@@ -496,7 +496,8 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   }
   OD_ENC_ACCT_UPDATE(enc, OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_AC_COEFFS);
   if (lossless) {
-    skip = od_single_band_lossless_encode(enc, ln, scalar_out, cblock, predt, pli);
+    skip = od_single_band_lossless_encode(enc, ln, scalar_out, cblock, predt,
+     pli);
   }
   else {
     skip = od_pvq_encode(enc, predt, cblock, scalar_out, quant, pli, ln,
@@ -839,7 +840,8 @@ static double od_compute_dist(daala_enc_ctx *enc, od_coeff *x, od_coeff *y,
 
 #if !defined(OD_DUMP_COEFFS)
 static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
- int pli, int bx, int by, int l, int xdec, int ydec, int rdo_only, od_coeff **dc, od_coeff **dc_rate) {
+ int pli, int bx, int by, int l, int xdec, int ydec, int rdo_only, od_coeff **dc,
+ od_coeff **dc_rate) {
   int od;
   int d;
   int frame_width;
@@ -893,7 +895,8 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
         for (j = 0; j < n; j++) morig[n*i + j] = ctx->mc[bo + i*w + j];
       }
       od_encode_checkpoint(enc, &buf1);
-      skip_nosplit = od_block_encode(enc, ctx, d, pli, bx, by, rdo_only ? dc : NULL);
+      skip_nosplit = od_block_encode(enc, ctx, d, pli, bx, by, rdo_only ? dc :
+       NULL);
       rate_nosplit = od_ec_enc_tell_frac(&enc->ec) - tell;
       od_encode_checkpoint(enc, &buf2);
       od_encode_rollback(enc, &buf1);
@@ -921,10 +924,14 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
     bx <<= 1;
     by <<= 1;
     skip_split = 1;
-    skip_split &= od_encode_recursive(enc, ctx, pli, bx + 0, by + 0, l, xdec, ydec, rdo_only, dc, dc_rate);
-    skip_split &= od_encode_recursive(enc, ctx, pli, bx + 1, by + 0, l, xdec, ydec, rdo_only, dc, dc_rate);
-    skip_split &= od_encode_recursive(enc, ctx, pli, bx + 0, by + 1, l, xdec, ydec, rdo_only, dc, dc_rate);
-    skip_split &= od_encode_recursive(enc, ctx, pli, bx + 1, by + 1, l, xdec, ydec, rdo_only, dc, dc_rate);
+    skip_split &= od_encode_recursive(enc, ctx, pli, bx + 0, by + 0, l, xdec,
+     ydec, rdo_only, dc, dc_rate);
+    skip_split &= od_encode_recursive(enc, ctx, pli, bx + 1, by + 0, l, xdec,
+     ydec, rdo_only, dc, dc_rate);
+    skip_split &= od_encode_recursive(enc, ctx, pli, bx + 0, by + 1, l, xdec,
+     ydec, rdo_only, dc, dc_rate);
+    skip_split &= od_encode_recursive(enc, ctx, pli, bx + 1, by + 1, l, xdec,
+     ydec, rdo_only, dc, dc_rate);
     od_apply_filter_vsplit(ctx->c + bo, w, 1, d, f);
     od_apply_filter_hsplit(ctx->c + bo, w, 1, d, f);
     if (rdo_only) {
@@ -940,7 +947,8 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
       dist_split = od_compute_dist(enc, orig, split, n);
       dist_nosplit = od_compute_dist(enc, orig, nosplit, n);
       lambda = .125*OD_PVQ_LAMBDA*enc->quantizer[pli]*enc->quantizer[pli];
-      if (skip_split || dist_nosplit + lambda*rate_nosplit < dist_split + lambda*rate_split) {
+      if (skip_split || dist_nosplit + lambda*rate_nosplit < dist_split
+       + lambda*rate_split) {
         /* This rollback call leaves the entropy coder in an inconsistent state
            because the bytes in the buffer are not being copied back. This is
            not a problem here because we are only tracking the rate and we will
@@ -951,7 +959,8 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
         }
         for (i = 0; i < 1 << (d - 1); i++) {
           for (j = 0; j < 1 << (d - 1); j++) {
-            enc->state.bsize[((by<<l>>1)+i)*enc->state.bstride + (bx<<l>>1) + j] = OD_MINI(OD_LIMIT_BSIZE_MAX, d);
+            enc->state.bsize[((by << l >> 1) + i)*enc->state.bstride
+             + (bx << l >> 1) + j] = OD_MINI(OD_LIMIT_BSIZE_MAX, d);
           }
         }
         skip_split = skip_nosplit;
@@ -1493,8 +1502,10 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
     od_apply_filter_sb_rows(state->ctmp[pli], w, nhsb, nvsb, xdec, ydec, 0, 3);
     od_apply_filter_sb_cols(state->ctmp[pli], w, nhsb, nvsb, xdec, ydec, 0, 3);
     if (!mbctx->is_keyframe) {
-      od_apply_filter_sb_rows(state->mctmp[pli], w, nhsb, nvsb, xdec, ydec, 0, 3);
-      od_apply_filter_sb_cols(state->mctmp[pli], w, nhsb, nvsb, xdec, ydec, 0, 3);
+      od_apply_filter_sb_rows(state->mctmp[pli], w, nhsb, nvsb, xdec, ydec, 0,
+       3);
+      od_apply_filter_sb_cols(state->mctmp[pli], w, nhsb, nvsb, xdec, ydec, 0,
+       3);
     }
 #endif
   }
@@ -1523,21 +1534,26 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
           for (i = 0; i < 32; i++) {
             int w;
             w = enc->state.frame_width;
-            for (j = 0; j < 32; j++) orig[i*32 + j] = mbctx->c[(32*sby+i)*w + 32*sbx + j];
+            for (j = 0; j < 32; j++) {
+              orig[i*32 + j] = mbctx->c[(32*sby + i)*w + 32*sbx + j];
+            }
           }
         }
         if (!OD_DISABLE_HAAR_DC && mbctx->is_keyframe) {
           if (rdo_only) od_encode_checkpoint(enc, &buf);
           od_compute_dcts(enc, mbctx, pli, sbx, sby, 3, xdec, ydec);
           od_quantize_haar_dc(enc, mbctx, pli, sbx, sby, 3, xdec, ydec, 0,
-           0, sby > 0 && sbx < nhsb - 1, rdo_only ? &dc : NULL, rdo_only ? &dc_rate : NULL);
+           0, sby > 0 && sbx < nhsb - 1, rdo_only ? &dc : NULL,
+           rdo_only ? &dc_rate : NULL);
           if (rdo_only) od_encode_rollback(enc, &buf);
         }
         if (rdo_only && mbctx->is_keyframe) {
           for (i = 0; i < 32; i++) {
             int w;
             w = enc->state.frame_width;
-            for (j = 0; j < 32; j++) mbctx->c[(32*sby+i)*w + 32*sbx + j] = orig[i*32 + j];
+            for (j = 0; j < 32; j++) {
+              mbctx->c[(32*sby + i)*w + 32*sbx + j] = orig[i*32 + j];
+            }
           }
         }
 #if !defined(OD_DUMP_COEFFS)
@@ -1547,7 +1563,9 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
         } else {
           dc = dc_rate = NULL;
         }
-        od_encode_recursive(enc, mbctx, pli, sbx, sby, 3, xdec, ydec, rdo_only, mbctx->is_keyframe ? &dc : NULL, mbctx->is_keyframe ? &dc_rate : NULL);
+        od_encode_recursive(enc, mbctx, pli, sbx, sby, 3, xdec, ydec, rdo_only,
+         mbctx->is_keyframe ? &dc : NULL,
+         mbctx->is_keyframe ? &dc_rate : NULL);
 #endif
       }
         OD_ENC_ACCT_UPDATE(enc, OD_ACCT_CAT_PLANE, OD_ACCT_PLANE_UNKNOWN);
