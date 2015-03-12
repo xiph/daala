@@ -29,8 +29,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 typedef ogg_int32_t od_coeff;
 # define OD_COEFF_BITS (32)
 
-/*There are 3 filter sizes total (4-point, 8-point, 16-point).*/
-# define OD_NFILTER_SIZES (3)
+/*There are 4 filter sizes total (4-point, 8-point, 16-point and 32-point).*/
+# define OD_NFILTER_SIZES (4)
 
 /*This is the strength reduced version of ((_a)/(1 << (_b))).
   This will not work for _b == 0, however currently this is only used for
@@ -53,6 +53,7 @@ extern const od_filter_func OD_POST_FILTER[OD_NBSIZES];
 extern const int OD_FILTER_PARAMS4[4];
 extern const int OD_FILTER_PARAMS8[10];
 extern const int OD_FILTER_PARAMS16[22];
+extern const int OD_FILTER_PARAMS32[46];
 
 void od_pre_filter4(od_coeff _y[4], const od_coeff _x[4]);
 void od_post_filter4(od_coeff _x[4], const od_coeff _y[4]);

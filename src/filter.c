@@ -777,20 +777,568 @@ void od_post_filter16(od_coeff _x[16],const od_coeff _y[16]){
 #endif
 }
 
+/* "Optimal" 1D AR95 cg = 10.0537088081722175 */
+# define OD_FILTER32_TYPE3 (1)
+# define OD_FILTER_PARAMS32_0 (91)
+# define OD_FILTER_PARAMS32_1 (70)
+# define OD_FILTER_PARAMS32_2 (68)
+# define OD_FILTER_PARAMS32_3 (67)
+# define OD_FILTER_PARAMS32_4 (67)
+# define OD_FILTER_PARAMS32_5 (67)
+# define OD_FILTER_PARAMS32_6 (67)
+# define OD_FILTER_PARAMS32_7 (66)
+# define OD_FILTER_PARAMS32_8 (66)
+# define OD_FILTER_PARAMS32_9 (67)
+# define OD_FILTER_PARAMS32_10 (67)
+# define OD_FILTER_PARAMS32_11 (66)
+# define OD_FILTER_PARAMS32_12 (67)
+# define OD_FILTER_PARAMS32_13 (67)
+# define OD_FILTER_PARAMS32_14 (67)
+# define OD_FILTER_PARAMS32_15 (70)
+# define OD_FILTER_PARAMS32_16 (-32)
+# define OD_FILTER_PARAMS32_17 (-41)
+# define OD_FILTER_PARAMS32_18 (-42)
+# define OD_FILTER_PARAMS32_19 (-41)
+# define OD_FILTER_PARAMS32_20 (-40)
+# define OD_FILTER_PARAMS32_21 (-38)
+# define OD_FILTER_PARAMS32_22 (-36)
+# define OD_FILTER_PARAMS32_23 (-34)
+# define OD_FILTER_PARAMS32_24 (-32)
+# define OD_FILTER_PARAMS32_25 (-29)
+# define OD_FILTER_PARAMS32_26 (-24)
+# define OD_FILTER_PARAMS32_27 (-19)
+# define OD_FILTER_PARAMS32_28 (-14)
+# define OD_FILTER_PARAMS32_29 (-9)
+# define OD_FILTER_PARAMS32_30 (-5)
+# define OD_FILTER_PARAMS32_31 (58)
+# define OD_FILTER_PARAMS32_32 (52)
+# define OD_FILTER_PARAMS32_33 (50)
+# define OD_FILTER_PARAMS32_34 (48)
+# define OD_FILTER_PARAMS32_35 (45)
+# define OD_FILTER_PARAMS32_36 (43)
+# define OD_FILTER_PARAMS32_37 (40)
+# define OD_FILTER_PARAMS32_38 (38)
+# define OD_FILTER_PARAMS32_39 (35)
+# define OD_FILTER_PARAMS32_40 (32)
+# define OD_FILTER_PARAMS32_41 (29)
+# define OD_FILTER_PARAMS32_42 (24)
+# define OD_FILTER_PARAMS32_43 (18)
+# define OD_FILTER_PARAMS32_44 (13)
+# define OD_FILTER_PARAMS32_45 (8)
+
+const int OD_FILTER_PARAMS32[46] = {
+  OD_FILTER_PARAMS32_0, OD_FILTER_PARAMS32_1, OD_FILTER_PARAMS32_2,
+  OD_FILTER_PARAMS32_3, OD_FILTER_PARAMS32_4, OD_FILTER_PARAMS32_5,
+  OD_FILTER_PARAMS32_6, OD_FILTER_PARAMS32_7, OD_FILTER_PARAMS32_8,
+  OD_FILTER_PARAMS32_9, OD_FILTER_PARAMS32_10, OD_FILTER_PARAMS32_11,
+  OD_FILTER_PARAMS32_12, OD_FILTER_PARAMS32_13, OD_FILTER_PARAMS32_14,
+  OD_FILTER_PARAMS32_15, OD_FILTER_PARAMS32_16, OD_FILTER_PARAMS32_17,
+  OD_FILTER_PARAMS32_18, OD_FILTER_PARAMS32_19, OD_FILTER_PARAMS32_20,
+  OD_FILTER_PARAMS32_21, OD_FILTER_PARAMS32_22, OD_FILTER_PARAMS32_23,
+  OD_FILTER_PARAMS32_24, OD_FILTER_PARAMS32_25, OD_FILTER_PARAMS32_26,
+  OD_FILTER_PARAMS32_27, OD_FILTER_PARAMS32_28, OD_FILTER_PARAMS32_29,
+  OD_FILTER_PARAMS32_30, OD_FILTER_PARAMS32_31, OD_FILTER_PARAMS32_32,
+  OD_FILTER_PARAMS32_33, OD_FILTER_PARAMS32_34, OD_FILTER_PARAMS32_35,
+  OD_FILTER_PARAMS32_36, OD_FILTER_PARAMS32_37, OD_FILTER_PARAMS32_38,
+  OD_FILTER_PARAMS32_39, OD_FILTER_PARAMS32_40, OD_FILTER_PARAMS32_41,
+  OD_FILTER_PARAMS32_42, OD_FILTER_PARAMS32_43, OD_FILTER_PARAMS32_44,
+  OD_FILTER_PARAMS32_45
+};
+
 void od_pre_filter32(od_coeff _y[32], const od_coeff _x[32]) {
+#if OD_DISABLE_FILTER
   int i;
   for (i = 0; i < 32; i++) {
     _y[i] = _x[i];
   }
-  od_pre_filter16(&_y[8], &_x[8]);
+#else
+  int t[32];
+  t[31] = _x[0] - _x[31];
+  t[30] = _x[1] - _x[30];
+  t[29] = _x[2] - _x[29];
+  t[28] = _x[3] - _x[28];
+  t[27] = _x[4] - _x[27];
+  t[26] = _x[5] - _x[26];
+  t[25] = _x[6] - _x[25];
+  t[24] = _x[7] - _x[24];
+  t[23] = _x[8] - _x[23];
+  t[22] = _x[9] - _x[22];
+  t[21] = _x[10] - _x[21];
+  t[20] = _x[11] - _x[20];
+  t[19] = _x[12] - _x[19];
+  t[18] = _x[13] - _x[18];
+  t[17] = _x[14] - _x[17];
+  t[16] = _x[15] - _x[16];
+  t[15] = _x[15] - (t[16] >> 1);
+  t[14] = _x[14] - (t[17] >> 1);
+  t[13] = _x[13] - (t[18] >> 1);
+  t[12] = _x[12] - (t[19] >> 1);
+  t[11] = _x[11] - (t[20] >> 1);
+  t[10] = _x[10] - (t[21] >> 1);
+  t[9] = _x[9] - (t[22] >> 1);
+  t[8] = _x[8] - (t[23] >> 1);
+  t[7] = _x[7] - (t[24] >> 1);
+  t[6] = _x[6] - (t[25] >> 1);
+  t[5] = _x[5] - (t[26] >> 1);
+  t[4] = _x[4] - (t[27] >> 1);
+  t[3] = _x[3] - (t[28] >> 1);
+  t[2] = _x[2] - (t[29] >> 1);
+  t[1] = _x[1] - (t[30] >> 1);
+  t[0] = _x[0] - (t[31] >> 1);
+#if OD_FILTER_PARAMS32_0 != 64
+  OD_DCT_OVERFLOW_CHECK(t[16], OD_FILTER_PARAMS32_0, 0, 87);
+  t[16] = (t[16]*OD_FILTER_PARAMS32_0) >> 6;
+  t[16] += -t[16] >> (OD_COEFF_BITS - 1)&1;
+#endif
+#if OD_FILTER_PARAMS32_1 != 64
+  OD_DCT_OVERFLOW_CHECK(t[17], OD_FILTER_PARAMS32_1, 0, 88);
+  t[17] = (t[17]*OD_FILTER_PARAMS32_1) >> 6;
+  t[17] += -t[17] >> (OD_COEFF_BITS - 1)&1;
+#endif
+#if OD_FILTER_PARAMS32_2 != 64
+  OD_DCT_OVERFLOW_CHECK(t[18], OD_FILTER_PARAMS32_2, 0, 89);
+  t[18] = (t[18]*OD_FILTER_PARAMS32_2) >> 6;
+  t[18] += -t[18] >> (OD_COEFF_BITS - 1)&1;
+#endif
+#if OD_FILTER_PARAMS32_3 != 64
+  OD_DCT_OVERFLOW_CHECK(t[19], OD_FILTER_PARAMS32_3, 0, 90);
+  t[19] = (t[19]*OD_FILTER_PARAMS32_3) >> 6;
+  t[19] += -t[19] >> (OD_COEFF_BITS - 1)&1;
+#endif
+#if OD_FILTER_PARAMS32_4 != 64
+  OD_DCT_OVERFLOW_CHECK(t[20], OD_FILTER_PARAMS32_4, 0, 91);
+  t[20] = (t[20]*OD_FILTER_PARAMS32_4) >> 6;
+  t[20] += -t[20] >> (OD_COEFF_BITS - 1)&1;
+#endif
+#if OD_FILTER_PARAMS32_5 != 64
+  OD_DCT_OVERFLOW_CHECK(t[21], OD_FILTER_PARAMS32_5, 0, 92);
+  t[21] = (t[21]*OD_FILTER_PARAMS32_5) >> 6;
+  t[21] += -t[21] >> (OD_COEFF_BITS - 1)&1;
+#endif
+#if OD_FILTER_PARAMS32_6 != 64
+  OD_DCT_OVERFLOW_CHECK(t[22], OD_FILTER_PARAMS32_6, 0, 93);
+  t[22] = (t[22]*OD_FILTER_PARAMS32_6) >> 6;
+  t[22] += -t[22] >> (OD_COEFF_BITS - 1)&1;
+#endif
+#if OD_FILTER_PARAMS32_7 != 64
+  OD_DCT_OVERFLOW_CHECK(t[23], OD_FILTER_PARAMS32_7, 0, 94);
+  t[23] = (t[23]*OD_FILTER_PARAMS32_7) >> 6;
+  t[23] += -t[23] >> (OD_COEFF_BITS - 1)&1;
+#endif
+#if OD_FILTER_PARAMS32_8 != 64
+  OD_DCT_OVERFLOW_CHECK(t[24], OD_FILTER_PARAMS32_8, 0, 95);
+  t[24] = (t[24]*OD_FILTER_PARAMS32_8) >> 6;
+  t[24] += -t[24] >> (OD_COEFF_BITS - 1)&1;
+#endif
+#if OD_FILTER_PARAMS32_9 != 64
+  OD_DCT_OVERFLOW_CHECK(t[25], OD_FILTER_PARAMS32_9, 0, 96);
+  t[25] = (t[25]*OD_FILTER_PARAMS32_9) >> 6;
+  t[25] += -t[25] >> (OD_COEFF_BITS - 1)&1;
+#endif
+#if OD_FILTER_PARAMS32_10 != 64
+  OD_DCT_OVERFLOW_CHECK(t[26], OD_FILTER_PARAMS32_10, 0, 97);
+  t[26] = (t[26]*OD_FILTER_PARAMS32_10) >> 6;
+  t[26] += -t[26] >> (OD_COEFF_BITS - 1)&1;
+#endif
+#if OD_FILTER_PARAMS32_11 != 64
+  OD_DCT_OVERFLOW_CHECK(t[27], OD_FILTER_PARAMS32_11, 0, 98);
+  t[27] = (t[27]*OD_FILTER_PARAMS32_11) >> 6;
+  t[27] += -t[27] >> (OD_COEFF_BITS - 1)&1;
+#endif
+#if OD_FILTER_PARAMS32_12 != 64
+  OD_DCT_OVERFLOW_CHECK(t[28], OD_FILTER_PARAMS32_12, 0, 99);
+  t[28] = (t[28]*OD_FILTER_PARAMS32_12) >> 6;
+  t[28] += -t[28] >> (OD_COEFF_BITS - 1)&1;
+#endif
+#if OD_FILTER_PARAMS32_13 != 64
+  OD_DCT_OVERFLOW_CHECK(t[29], OD_FILTER_PARAMS32_13, 0, 100);
+  t[29] = (t[29]*OD_FILTER_PARAMS32_13) >> 6;
+  t[29] += -t[29] >> (OD_COEFF_BITS - 1)&1;
+#endif
+#if OD_FILTER_PARAMS32_14 != 64
+  OD_DCT_OVERFLOW_CHECK(t[30], OD_FILTER_PARAMS32_14, 0, 101);
+  t[30] = (t[30]*OD_FILTER_PARAMS32_14) >> 6;
+  t[30] += -t[30] >> (OD_COEFF_BITS - 1)&1;
+#endif
+#if OD_FILTER_PARAMS32_15 != 64
+  OD_DCT_OVERFLOW_CHECK(t[31], OD_FILTER_PARAMS32_15, 0, 102);
+  t[31] = (t[31]*OD_FILTER_PARAMS32_15) >> 6;
+  t[31] += -t[31] >> (OD_COEFF_BITS - 1)&1;
+#endif
+#if OD_FILTER32_TYPE3
+  OD_DCT_OVERFLOW_CHECK(t[30], OD_FILTER_PARAMS32_30, 32, 103);
+  t[31] += (t[30]*OD_FILTER_PARAMS32_30 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[31], OD_FILTER_PARAMS32_45, 32, 104);
+  t[30] += (t[31]*OD_FILTER_PARAMS32_45 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[29], OD_FILTER_PARAMS32_29, 32, 105);
+  t[30] += (t[29]*OD_FILTER_PARAMS32_29 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[30], OD_FILTER_PARAMS32_44, 32, 106);
+  t[29] += (t[30]*OD_FILTER_PARAMS32_44 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[28], OD_FILTER_PARAMS32_28, 32, 107);
+  t[29] += (t[28]*OD_FILTER_PARAMS32_28 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[29], OD_FILTER_PARAMS32_43, 32, 108);
+  t[28] += (t[29]*OD_FILTER_PARAMS32_43 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[27], OD_FILTER_PARAMS32_27, 32, 109);
+  t[28] += (t[27]*OD_FILTER_PARAMS32_27 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[28], OD_FILTER_PARAMS32_42, 32, 110);
+  t[27] += (t[28]*OD_FILTER_PARAMS32_42 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[26], OD_FILTER_PARAMS32_26, 32, 111);
+  t[27] += (t[26]*OD_FILTER_PARAMS32_26 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[27], OD_FILTER_PARAMS32_41, 32, 112);
+  t[26] += (t[27]*OD_FILTER_PARAMS32_41 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[25], OD_FILTER_PARAMS32_25, 32, 113);
+  t[26] += (t[25]*OD_FILTER_PARAMS32_25 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[26], OD_FILTER_PARAMS32_40, 32, 114);
+  t[25] += (t[26]*OD_FILTER_PARAMS32_40 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[24], OD_FILTER_PARAMS32_24, 32, 115);
+  t[25] += (t[24]*OD_FILTER_PARAMS32_24 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[25], OD_FILTER_PARAMS32_39, 32, 116);
+  t[24] += (t[25]*OD_FILTER_PARAMS32_39 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[23], OD_FILTER_PARAMS32_23, 32, 117);
+  t[24] += (t[23]*OD_FILTER_PARAMS32_23 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[24], OD_FILTER_PARAMS32_38, 32, 118);
+  t[23] += (t[24]*OD_FILTER_PARAMS32_38 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[22], OD_FILTER_PARAMS32_22, 32, 119);
+  t[23] += (t[22]*OD_FILTER_PARAMS32_22 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[23], OD_FILTER_PARAMS32_37, 32, 120);
+  t[22] += (t[23]*OD_FILTER_PARAMS32_37 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[21], OD_FILTER_PARAMS32_21, 32, 121);
+  t[22] += (t[21]*OD_FILTER_PARAMS32_21 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[22], OD_FILTER_PARAMS32_36, 32, 122);
+  t[21] += (t[22]*OD_FILTER_PARAMS32_36 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[20], OD_FILTER_PARAMS32_20, 32, 123);
+  t[21] += (t[20]*OD_FILTER_PARAMS32_20 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[21], OD_FILTER_PARAMS32_35, 32, 124);
+  t[20] += (t[21]*OD_FILTER_PARAMS32_35 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[19], OD_FILTER_PARAMS32_19, 32, 125);
+  t[20] += (t[19]*OD_FILTER_PARAMS32_19 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[20], OD_FILTER_PARAMS32_34, 32, 126);
+  t[19] += (t[20]*OD_FILTER_PARAMS32_34 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[18], OD_FILTER_PARAMS32_18, 32, 127);
+  t[19] += (t[18]*OD_FILTER_PARAMS32_18 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[19], OD_FILTER_PARAMS32_33, 32, 128);
+  t[18] += (t[19]*OD_FILTER_PARAMS32_33 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[17], OD_FILTER_PARAMS32_17, 32, 129);
+  t[18] += (t[17]*OD_FILTER_PARAMS32_17 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[18], OD_FILTER_PARAMS32_32, 32, 130);
+  t[17] += (t[18]*OD_FILTER_PARAMS32_32 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[16], OD_FILTER_PARAMS32_16, 32, 131);
+  t[17] += (t[16]*OD_FILTER_PARAMS32_16 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[17], OD_FILTER_PARAMS32_31, 32, 132);
+  t[16] += (t[17]*OD_FILTER_PARAMS32_31 + 32) >> 6;
+#else
+  OD_DCT_OVERFLOW_CHECK(t[16], OD_FILTER_PARAMS32_16, 32, 103);
+  t[17] += (t[16]*OD_FILTER_PARAMS32_16 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[17], OD_FILTER_PARAMS32_17, 32, 104);
+  t[18] += (t[17]*OD_FILTER_PARAMS32_17 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[18], OD_FILTER_PARAMS32_18, 32, 105);
+  t[19] += (t[18]*OD_FILTER_PARAMS32_18 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[19], OD_FILTER_PARAMS32_19, 32, 106);
+  t[20] += (t[19]*OD_FILTER_PARAMS32_19 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[20], OD_FILTER_PARAMS32_20, 32, 107);
+  t[21] += (t[20]*OD_FILTER_PARAMS32_20 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[21], OD_FILTER_PARAMS32_21, 32, 108);
+  t[22] += (t[21]*OD_FILTER_PARAMS32_21 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[22], OD_FILTER_PARAMS32_22, 32, 109);
+  t[23] += (t[22]*OD_FILTER_PARAMS32_22 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[23], OD_FILTER_PARAMS32_23, 32, 110);
+  t[24] += (t[23]*OD_FILTER_PARAMS32_23 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[24], OD_FILTER_PARAMS32_24, 32, 111);
+  t[25] += (t[24]*OD_FILTER_PARAMS32_24 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[25], OD_FILTER_PARAMS32_25, 32, 112);
+  t[26] += (t[25]*OD_FILTER_PARAMS32_25 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[26], OD_FILTER_PARAMS32_26, 32, 113);
+  t[27] += (t[26]*OD_FILTER_PARAMS32_26 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[27], OD_FILTER_PARAMS32_27, 32, 114);
+  t[28] += (t[27]*OD_FILTER_PARAMS32_27 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[28], OD_FILTER_PARAMS32_28, 32, 115);
+  t[29] += (t[28]*OD_FILTER_PARAMS32_28 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[29], OD_FILTER_PARAMS32_29, 32, 116);
+  t[30] += (t[29]*OD_FILTER_PARAMS32_29 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[30], OD_FILTER_PARAMS32_30, 32, 117);
+  t[31] += (t[30]*OD_FILTER_PARAMS32_30 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[31], OD_FILTER_PARAMS32_45, 32, 118);
+  t[30] += (t[31]*OD_FILTER_PARAMS32_45 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[30], OD_FILTER_PARAMS32_44, 32, 119);
+  t[29] += (t[30]*OD_FILTER_PARAMS32_44 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[29], OD_FILTER_PARAMS32_43, 32, 120);
+  t[28] += (t[29]*OD_FILTER_PARAMS32_43 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[28], OD_FILTER_PARAMS32_42, 32, 121);
+  t[27] += (t[28]*OD_FILTER_PARAMS32_42 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[27], OD_FILTER_PARAMS32_41, 32, 122);
+  t[26] += (t[27]*OD_FILTER_PARAMS32_41 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[26], OD_FILTER_PARAMS32_40, 32, 123);
+  t[25] += (t[26]*OD_FILTER_PARAMS32_40 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[25], OD_FILTER_PARAMS32_39, 32, 124);
+  t[24] += (t[25]*OD_FILTER_PARAMS32_39 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[24], OD_FILTER_PARAMS32_38, 32, 125);
+  t[23] += (t[24]*OD_FILTER_PARAMS32_38 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[23], OD_FILTER_PARAMS32_37, 32, 126);
+  t[22] += (t[23]*OD_FILTER_PARAMS32_37 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[22], OD_FILTER_PARAMS32_36, 32, 127);
+  t[21] += (t[22]*OD_FILTER_PARAMS32_36 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[21], OD_FILTER_PARAMS32_35, 32, 128);
+  t[20] += (t[21]*OD_FILTER_PARAMS32_35 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[20], OD_FILTER_PARAMS32_34, 32, 129);
+  t[19] += (t[20]*OD_FILTER_PARAMS32_34 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[19], OD_FILTER_PARAMS32_33, 32, 130);
+  t[18] += (t[19]*OD_FILTER_PARAMS32_33 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[18], OD_FILTER_PARAMS32_32, 32, 131);
+  t[17] += (t[18]*OD_FILTER_PARAMS32_32 + 32) >> 6;
+  OD_DCT_OVERFLOW_CHECK(t[17], OD_FILTER_PARAMS32_31, 32, 132);
+  t[16] += (t[17]*OD_FILTER_PARAMS32_31 + 32) >> 6;
+#endif
+  t[0] += t[31] >> 1;
+  _y[0] = (od_coeff)t[0];
+  t[1] += t[30] >> 1;
+  _y[1] = (od_coeff)t[1];
+  t[2] += t[29] >> 1;
+  _y[2] = (od_coeff)t[2];
+  t[3] += t[28] >> 1;
+  _y[3] = (od_coeff)t[3];
+  t[4] += t[27] >> 1;
+  _y[4] = (od_coeff)t[4];
+  t[5] += t[26] >> 1;
+  _y[5] = (od_coeff)t[5];
+  t[6] += t[25] >> 1;
+  _y[6] = (od_coeff)t[6];
+  t[7] += t[24] >> 1;
+  _y[7] = (od_coeff)t[7];
+  t[8] += t[23] >> 1;
+  _y[8] = (od_coeff)t[8];
+  t[9] += t[22] >> 1;
+  _y[9] = (od_coeff)t[9];
+  t[10] += t[21] >> 1;
+  _y[10] = (od_coeff)t[10];
+  t[11] += t[20] >> 1;
+  _y[11] = (od_coeff)t[11];
+  t[12] += t[19] >> 1;
+  _y[12] = (od_coeff)t[12];
+  t[13] += t[18] >> 1;
+  _y[13] = (od_coeff)t[13];
+  t[14] += t[17] >> 1;
+  _y[14] = (od_coeff)t[14];
+  t[15] += t[16] >> 1;
+  _y[15] = (od_coeff)t[15];
+  _y[16] = (od_coeff)(t[15] - t[16]);
+  _y[17] = (od_coeff)(t[14] - t[17]);
+  _y[18] = (od_coeff)(t[13] - t[18]);
+  _y[19] = (od_coeff)(t[12] - t[19]);
+  _y[20] = (od_coeff)(t[11] - t[20]);
+  _y[21] = (od_coeff)(t[10] - t[21]);
+  _y[22] = (od_coeff)(t[9] - t[22]);
+  _y[23] = (od_coeff)(t[8] - t[23]);
+  _y[24] = (od_coeff)(t[7] - t[24]);
+  _y[25] = (od_coeff)(t[6] - t[25]);
+  _y[26] = (od_coeff)(t[5] - t[26]);
+  _y[27] = (od_coeff)(t[4] - t[27]);
+  _y[28] = (od_coeff)(t[3] - t[28]);
+  _y[29] = (od_coeff)(t[2] - t[29]);
+  _y[30] = (od_coeff)(t[1] - t[30]);
+  _y[31] = (od_coeff)(t[0] - t[31]);
+#endif
 }
 
 void od_post_filter32(od_coeff _x[32], const od_coeff _y[32]) {
+#if OD_DISABLE_FILTER
   int i;
   for (i = 0; i < 32; i++) {
     _x[i] = _y[i];
   }
-  od_post_filter16(&_x[8], &_y[8]);
+#else
+  int t[32];
+  t[31] = _y[0] - _y[31];
+  t[30] = _y[1] - _y[30];
+  t[29] = _y[2] - _y[29];
+  t[28] = _y[3] - _y[28];
+  t[27] = _y[4] - _y[27];
+  t[26] = _y[5] - _y[26];
+  t[25] = _y[6] - _y[25];
+  t[24] = _y[7] - _y[24];
+  t[23] = _y[8] - _y[23];
+  t[22] = _y[9] - _y[22];
+  t[21] = _y[10] - _y[21];
+  t[20] = _y[11] - _y[20];
+  t[19] = _y[12] - _y[19];
+  t[18] = _y[13] - _y[18];
+  t[17] = _y[14] - _y[17];
+  t[16] = _y[15] - _y[16];
+  t[15] = _y[15] - (t[16] >> 1);
+  t[14] = _y[14] - (t[17] >> 1);
+  t[13] = _y[13] - (t[18] >> 1);
+  t[12] = _y[12] - (t[19] >> 1);
+  t[11] = _y[11] - (t[20] >> 1);
+  t[10] = _y[10] - (t[21] >> 1);
+  t[9] = _y[9] - (t[22] >> 1);
+  t[8] = _y[8] - (t[23] >> 1);
+  t[7] = _y[7] - (t[24] >> 1);
+  t[6] = _y[6] - (t[25] >> 1);
+  t[5] = _y[5] - (t[26] >> 1);
+  t[4] = _y[4] - (t[27] >> 1);
+  t[3] = _y[3] - (t[28] >> 1);
+  t[2] = _y[2] - (t[29] >> 1);
+  t[1] = _y[1] - (t[30] >> 1);
+  t[0] = _y[0] - (t[31] >> 1);
+#if OD_FILTER32_TYPE3
+  t[16] -= (t[17]*OD_FILTER_PARAMS32_31 + 32) >> 6;
+  t[17] -= (t[16]*OD_FILTER_PARAMS32_16 + 32) >> 6;
+  t[17] -= (t[18]*OD_FILTER_PARAMS32_32 + 32) >> 6;
+  t[18] -= (t[17]*OD_FILTER_PARAMS32_17 + 32) >> 6;
+  t[18] -= (t[19]*OD_FILTER_PARAMS32_33 + 32) >> 6;
+  t[19] -= (t[18]*OD_FILTER_PARAMS32_18 + 32) >> 6;
+  t[19] -= (t[20]*OD_FILTER_PARAMS32_34 + 32) >> 6;
+  t[20] -= (t[19]*OD_FILTER_PARAMS32_19 + 32) >> 6;
+  t[20] -= (t[21]*OD_FILTER_PARAMS32_35 + 32) >> 6;
+  t[21] -= (t[20]*OD_FILTER_PARAMS32_20 + 32) >> 6;
+  t[21] -= (t[22]*OD_FILTER_PARAMS32_36 + 32) >> 6;
+  t[22] -= (t[21]*OD_FILTER_PARAMS32_21 + 32) >> 6;
+  t[22] -= (t[23]*OD_FILTER_PARAMS32_37 + 32) >> 6;
+  t[23] -= (t[22]*OD_FILTER_PARAMS32_22 + 32) >> 6;
+  t[23] -= (t[24]*OD_FILTER_PARAMS32_38 + 32) >> 6;
+  t[24] -= (t[23]*OD_FILTER_PARAMS32_23 + 32) >> 6;
+  t[24] -= (t[25]*OD_FILTER_PARAMS32_39 + 32) >> 6;
+  t[25] -= (t[24]*OD_FILTER_PARAMS32_24 + 32) >> 6;
+  t[25] -= (t[26]*OD_FILTER_PARAMS32_40 + 32) >> 6;
+  t[26] -= (t[25]*OD_FILTER_PARAMS32_25 + 32) >> 6;
+  t[26] -= (t[27]*OD_FILTER_PARAMS32_41 + 32) >> 6;
+  t[27] -= (t[26]*OD_FILTER_PARAMS32_26 + 32) >> 6;
+  t[27] -= (t[28]*OD_FILTER_PARAMS32_42 + 32) >> 6;
+  t[28] -= (t[27]*OD_FILTER_PARAMS32_27 + 32) >> 6;
+  t[28] -= (t[29]*OD_FILTER_PARAMS32_43 + 32) >> 6;
+  t[29] -= (t[28]*OD_FILTER_PARAMS32_28 + 32) >> 6;
+  t[29] -= (t[30]*OD_FILTER_PARAMS32_44 + 32) >> 6;
+  t[30] -= (t[29]*OD_FILTER_PARAMS32_29 + 32) >> 6;
+  t[30] -= (t[31]*OD_FILTER_PARAMS32_45 + 32) >> 6;
+  t[31] -= (t[30]*OD_FILTER_PARAMS32_30 + 32) >> 6;
+#else
+  t[16] -= (t[17]*OD_FILTER_PARAMS32_31 + 32) >> 6;
+  t[17] -= (t[18]*OD_FILTER_PARAMS32_32 + 32) >> 6;
+  t[18] -= (t[19]*OD_FILTER_PARAMS32_33 + 32) >> 6;
+  t[19] -= (t[20]*OD_FILTER_PARAMS32_34 + 32) >> 6;
+  t[20] -= (t[21]*OD_FILTER_PARAMS32_35 + 32) >> 6;
+  t[21] -= (t[22]*OD_FILTER_PARAMS32_36 + 32) >> 6;
+  t[22] -= (t[23]*OD_FILTER_PARAMS32_37 + 32) >> 6;
+  t[23] -= (t[24]*OD_FILTER_PARAMS32_38 + 32) >> 6;
+  t[24] -= (t[25]*OD_FILTER_PARAMS32_39 + 32) >> 6;
+  t[25] -= (t[26]*OD_FILTER_PARAMS32_40 + 32) >> 6;
+  t[26] -= (t[27]*OD_FILTER_PARAMS32_41 + 32) >> 6;
+  t[27] -= (t[28]*OD_FILTER_PARAMS32_42 + 32) >> 6;
+  t[28] -= (t[29]*OD_FILTER_PARAMS32_43 + 32) >> 6;
+  t[29] -= (t[30]*OD_FILTER_PARAMS32_44 + 32) >> 6;
+  t[30] -= (t[31]*OD_FILTER_PARAMS32_45 + 32) >> 6;
+  t[31] -= (t[30]*OD_FILTER_PARAMS32_30 + 32) >> 6;
+  t[30] -= (t[29]*OD_FILTER_PARAMS32_29 + 32) >> 6;
+  t[29] -= (t[28]*OD_FILTER_PARAMS32_28 + 32) >> 6;
+  t[28] -= (t[27]*OD_FILTER_PARAMS32_27 + 32) >> 6;
+  t[27] -= (t[26]*OD_FILTER_PARAMS32_26 + 32) >> 6;
+  t[26] -= (t[25]*OD_FILTER_PARAMS32_25 + 32) >> 6;
+  t[25] -= (t[24]*OD_FILTER_PARAMS32_24 + 32) >> 6;
+  t[24] -= (t[23]*OD_FILTER_PARAMS32_23 + 32) >> 6;
+  t[23] -= (t[22]*OD_FILTER_PARAMS32_22 + 32) >> 6;
+  t[22] -= (t[21]*OD_FILTER_PARAMS32_21 + 32) >> 6;
+  t[21] -= (t[20]*OD_FILTER_PARAMS32_20 + 32) >> 6;
+  t[20] -= (t[19]*OD_FILTER_PARAMS32_19 + 32) >> 6;
+  t[19] -= (t[18]*OD_FILTER_PARAMS32_18 + 32) >> 6;
+  t[18] -= (t[17]*OD_FILTER_PARAMS32_17 + 32) >> 6;
+  t[17] -= (t[16]*OD_FILTER_PARAMS32_16 + 32) >> 6;
+#endif
+#if OD_FILTER_PARAMS32_15 != 64
+  t[31] = (t[31] << 6)/OD_FILTER_PARAMS32_15;
+#endif
+#if OD_FILTER_PARAMS32_14 != 64
+  t[30] = (t[30] << 6)/OD_FILTER_PARAMS32_14;
+#endif
+#if OD_FILTER_PARAMS32_13 != 64
+  t[29] = (t[29] << 6)/OD_FILTER_PARAMS32_13;
+#endif
+#if OD_FILTER_PARAMS32_12 != 64
+  t[28] = (t[28] << 6)/OD_FILTER_PARAMS32_12;
+#endif
+#if OD_FILTER_PARAMS32_11 != 64
+  t[27] = (t[27] << 6)/OD_FILTER_PARAMS32_11;
+#endif
+#if OD_FILTER_PARAMS32_10 != 64
+  t[26] = (t[26] << 6)/OD_FILTER_PARAMS32_10;
+#endif
+#if OD_FILTER_PARAMS32_9 != 64
+  t[25] = (t[25] << 6)/OD_FILTER_PARAMS32_9;
+#endif
+#if OD_FILTER_PARAMS32_8 != 64
+  t[24] = (t[24] << 6)/OD_FILTER_PARAMS32_8;
+#endif
+#if OD_FILTER_PARAMS32_7 != 64
+  t[23] = (t[23] << 6)/OD_FILTER_PARAMS32_7;
+#endif
+#if OD_FILTER_PARAMS32_6 != 64
+  t[22] = (t[22] << 6)/OD_FILTER_PARAMS32_6;
+#endif
+#if OD_FILTER_PARAMS32_5 != 64
+  t[21] = (t[21] << 6)/OD_FILTER_PARAMS32_5;
+#endif
+#if OD_FILTER_PARAMS32_4 != 64
+  t[20] = (t[20] << 6)/OD_FILTER_PARAMS32_4;
+#endif
+#if OD_FILTER_PARAMS32_3 != 64
+  t[19] = (t[19] << 6)/OD_FILTER_PARAMS32_3;
+#endif
+#if OD_FILTER_PARAMS32_2 != 64
+  t[18] = (t[18] << 6)/OD_FILTER_PARAMS32_2;
+#endif
+#if OD_FILTER_PARAMS32_1 != 64
+  t[17] = (t[17] << 6)/OD_FILTER_PARAMS32_1;
+#endif
+#if OD_FILTER_PARAMS32_0 != 64
+  t[16] = (t[16] << 6)/OD_FILTER_PARAMS32_0;
+#endif
+  t[0] += t[31] >> 1;
+  _x[0] = (od_coeff)t[0];
+  t[1] += t[30] >> 1;
+  _x[1] = (od_coeff)t[1];
+  t[2] += t[29] >> 1;
+  _x[2] = (od_coeff)t[2];
+  t[3] += t[28] >> 1;
+  _x[3] = (od_coeff)t[3];
+  t[4] += t[27] >> 1;
+  _x[4] = (od_coeff)t[4];
+  t[5] += t[26] >> 1;
+  _x[5] = (od_coeff)t[5];
+  t[6] += t[25] >> 1;
+  _x[6] = (od_coeff)t[6];
+  t[7] += t[24] >> 1;
+  _x[7] = (od_coeff)t[7];
+  t[8] += t[23] >> 1;
+  _x[8] = (od_coeff)t[8];
+  t[9] += t[22] >> 1;
+  _x[9] = (od_coeff)t[9];
+  t[10] += t[21] >> 1;
+  _x[10] = (od_coeff)t[10];
+  t[11] += t[20] >> 1;
+  _x[11] = (od_coeff)t[11];
+  t[12] += t[19] >> 1;
+  _x[12] = (od_coeff)t[12];
+  t[13] += t[18] >> 1;
+  _x[13] = (od_coeff)t[13];
+  t[14] += t[17] >> 1;
+  _x[14] = (od_coeff)t[14];
+  t[15] += t[16] >> 1;
+  _x[15] = (od_coeff)t[15];
+  _x[16] = (od_coeff)(t[15] - t[16]);
+  _x[17] = (od_coeff)(t[14] - t[17]);
+  _x[18] = (od_coeff)(t[13] - t[18]);
+  _x[19] = (od_coeff)(t[12] - t[19]);
+  _x[20] = (od_coeff)(t[11] - t[20]);
+  _x[21] = (od_coeff)(t[10] - t[21]);
+  _x[22] = (od_coeff)(t[9] - t[22]);
+  _x[23] = (od_coeff)(t[8] - t[23]);
+  _x[24] = (od_coeff)(t[7] - t[24]);
+  _x[25] = (od_coeff)(t[6] - t[25]);
+  _x[26] = (od_coeff)(t[5] - t[26]);
+  _x[27] = (od_coeff)(t[4] - t[27]);
+  _x[28] = (od_coeff)(t[3] - t[28]);
+  _x[29] = (od_coeff)(t[2] - t[29]);
+  _x[30] = (od_coeff)(t[1] - t[30]);
+  _x[31] = (od_coeff)(t[0] - t[31]);
+#endif
 }
 
 #define OD_BLOCK_SIZE4x4_DEC(bsize, bstride, bx, by, dec) \
@@ -834,8 +1382,6 @@ void od_apply_filter_cols(od_coeff *c, int w, int bx, int by, int l,
     }
     f -= dec;
     OD_ASSERT(0 <= f && f <= OD_NBSIZES);
-    /*Remove if we ever support 32-point filters.*/
-    f = OD_MINI(f, OD_NFILTER_SIZES - 1);
     b = c + ((by << l + 2 - dec) - (2 << f))*w + (bx << l + 2 - dec) +
      (i << 2);
     for (j = 0; j < 1 << d + 2 - dec; j++) {
@@ -890,8 +1436,6 @@ void od_apply_filter_rows(od_coeff *c, int w, int bx, int by, int l,
     }
     f -= dec;
     OD_ASSERT(0 <= f && f <= OD_NBSIZES);
-    /*Remove if we ever support 32-point filters.*/
-    f = OD_MINI(f, OD_NFILTER_SIZES - 1);
     b = c + ((by << l + 2 - dec) + (i << 2))*w + (bx << l + 2 - dec) -
      (2 << f);
     for (j = 0; j < 1 << d + 2 - dec; j++) {

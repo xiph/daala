@@ -70,7 +70,7 @@ static const unsigned char od_high_rate_qm_q4[OD_QM_SIZE] = {
   19, 22,
   15, 17, 52, 83,
   11, 11, 14, 18, 42, 70,
-  7, 7, 8, 9, 12, 18, 38, 60
+  7, 7, 8, 9, 11, 16, 32, 55
 };
 
 const od_qm_entry OD_DEFAULT_QMS[][OD_NPLANES_MAX] = {
