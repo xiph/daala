@@ -1,9 +1,14 @@
 #!/bin/bash
 set -e
 
-# TODO - add a test for this
-export CODEC=$1
-shift
+if [[ !( $CODEC == 'vp8' || $CODEC == 'vp9' ) ]]; then
+  if [ -z $CODEC ]; then
+    CODEC=vp8
+  else
+    echo "Please set CODEC to vp8 or vp9, or leave it blank to default to VP8."
+    exit 1
+  fi
+fi
 
 if [ -z $DAALA_ROOT ]; then
   DAALA_ROOT=.
