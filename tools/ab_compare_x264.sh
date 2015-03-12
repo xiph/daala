@@ -74,30 +74,45 @@ for FILE in $@; do
   WIDTH=$(head -1 $FILE | cut -d\  -f 2 | tr -d 'W')
   HEIGHT=$(head -1 $FILE | cut -d\  -f 3 | tr -d 'H')
   QSTR="--preset placebo --crf=\$x"
-  for i in {51..1}; do
-    X264_FILE=$BASENAME-$i.x264.tmp
-    $X264 --dump-yuv $X264_FILE.yuv $(echo $QSTR | sed 's/\$x/'$i'/g') -o $X264_FILE $FILE 2> /dev/null > /dev/null
+  # With x264, the lowest quantizer number yields the highest quality and vice
+  # versa. Here, MAX_QUALITY produces the best looking image, so it's the
+  # lowest number.
+  MIN_QUALITY=51
+  MAX_QUALITY=1
+  while (( $MIN_QUALITY - $MAX_QUALITY > 1 )); do
+    QUALITY=$(( ($MIN_QUALITY + $MAX_QUALITY) / 2 ))
+    X264_FILE=$BASENAME-$QUALITY.x264.tmp
+    $X264 --dump-yuv $X264_FILE.yuv $(echo $QSTR | sed 's/\$x/'$QUALITY'/g') -o $X264_FILE $FILE 2> /dev/null > /dev/null
     X264_SIZE=$(stat -c %s $X264_FILE)
     if (($X264_SIZE > $OGV_SIZE)); then
-      if [[ -z $X264_LAST_SIZE ]]; then
-        mv $X264_FILE $BASENAME-$i.x264
-        mv $X264_FILE.yuv $BASENAME-$i.x264.yuv
-      else
-        if (($X264_SIZE - $OGV_SIZE < $OGV_SIZE - $X264_LAST_SIZE)); then
-          mv $X264_FILE $BASENAME-$i.x264
-          mv $X264_FILE.yuv $BASENAME-$i.x264.yuv
-        else
-          mv $X264_LAST_FILE $BASENAME-$i.x264
-          mv $X264_LAST_FILE.yuv $BASENAME-$i.x264.yuv
-        fi
-      fi
-      $YUV2YUV4MPEG $BASENAME-$i.x264 -w$WIDTH -h$HEIGHT -an0 -ad0 -c420mpeg2
-      $Y4M2PNG -o $BASENAME-$i.x264.png $BASENAME-$i.x264.y4m
-      rm $BASENAME-$i.x264.yuv $BASENAME-$i.x264.y4m
-      break
+      MAX_QUALITY=$QUALITY
+      MAX_QUALITY_SIZE=$X264_SIZE
+    else
+      MIN_QUALITY=$QUALITY
+      MIN_QUALITY_SIZE=$X264_SIZE
     fi
-    X264_LAST_SIZE=$X264_SIZE
-    X264_LAST_FILE=$X264_FILE
   done
+
+  if [ $MIN_QUALITY -eq 51 ]; then
+    $X264 --dump-yuv $BASENAME-$MIN_QUALITY.tmp.yuv $(echo $QSTR | sed 's/\$x/'$MIN_QUALITY'/g') -o $BASENAME-$MIN_QUALITY.tmp $FILE 2> /dev/null > /dev/null
+    MIN_QUALITY_SIZE=$(stat -c %s $BASENAME-$MIN_QUALITY.tmp)
+  fi
+
+  if [ $MAX_QUALITY -eq 1 ]; then
+    $X264 --dump-yuv $BASENAME-$MAX_QUALITY.tmp.yuv $(echo $QSTR | sed 's/\$x/'$MAX_QUALITY'/g') -o $BASENAME-$MAX_QUALITY.tmp $FILE 2> /dev/null > /dev/null
+    MAX_QUALITY_SIZE=$(stat -c %s $BASENAME-$MAX_QUALITY.tmp)
+  fi
+
+  if (( $MAX_QUALITY_SIZE - $OGV_SIZE < $OGV_SIZE - $MIN_QUALITY_SIZE )); then
+    BEST_QUALITY=$MAX_QUALITY
+  else
+    BEST_QUALITY=$MIN_QUALITY
+  fi
+
+  BEST_FILE=$BASENAME-$BEST_QUALITY.x264
+  mv $BEST_FILE.tmp $BEST_FILE
+  $YUV2YUV4MPEG $BEST_FILE.tmp -w$WIDTH -h$HEIGHT -an0 -ad0 -c420mpeg2
+  $Y4M2PNG -o $BEST_FILE.png $BEST_FILE.tmp.y4m
+  rm $BEST_FILE.tmp.y4m
   rm $BASENAME-*.x264.tmp $BASENAME-*.x264.tmp.yuv $BASENAME-$V.ogv.y4m
 done

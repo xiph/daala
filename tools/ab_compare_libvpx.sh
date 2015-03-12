@@ -75,27 +75,46 @@ for FILE in $@; do
   $DUMP_VIDEO -o $BASENAME-$V.ogv.y4m $BASENAME-$V.ogv 2> /dev/null
   $Y4M2PNG -o $BASENAME-$V.ogv.png $BASENAME-$V.ogv.y4m
   OGV_SIZE=$(stat -c %s $BASENAME-$V.ogv)
-  for i in {63..3}; do
-    VPX_FILE=$BASENAME-$i.$CODEC.tmp
-    $VPXENC --codec=$CODEC --good --cpu-used=0 -y --min-q=$i --max-q=$i -o $VPX_FILE $FILE 2> /dev/null
+  # With libvpx, the lowest quantizer number yields the highest quality and
+  # vice versa. Here, MAX_QUALITY produces the best looking image, so it's the
+  # lowest number.
+  MAX_QUALITY=3
+  MIN_QUALITY=63
+  while (( $MIN_QUALITY - $MAX_QUALITY > 1 )); do
+    QUALITY=$(( ($MIN_QUALITY + $MAX_QUALITY) / 2 ))
+    VPX_FILE=$BASENAME-$QUALITY.$CODEC.tmp
+    $VPXENC --codec=$CODEC --good --cpu-used=0 -y --min-q=$QUALITY --max-q=$QUALITY -o $VPX_FILE $FILE 2> /dev/null
     VPX_SIZE=$(stat -c %s $VPX_FILE)
     if (($VPX_SIZE > $OGV_SIZE)); then
-      if [[ -z $VPX_LAST_SIZE ]]; then
-        mv $VPX_FILE $BASENAME-$i.$CODEC
-      else
-        if (($VPX_SIZE - $OGV_SIZE < $OGV_SIZE - $VPX_LAST_SIZE)); then
-          mv $VPX_FILE $BASENAME-$i.$CODEC
-        else
-          mv $VPX_LAST_FILE $BASENAME-$i.$CODEC
-        fi
-      fi
-      $VPXDEC --codec=$CODEC -o $BASENAME-$i.$CODEC.y4m $BASENAME-$i.$CODEC
-      $Y4M2PNG -o $BASENAME-$i.$CODEC.png $BASENAME-$i.$CODEC.y4m
-      rm $BASENAME-$i.$CODEC.y4m
-      break
+      MAX_QUALITY=$QUALITY
+      MAX_QUALITY_SIZE=$VPX_SIZE
+    else
+      MIN_QUALITY=$QUALITY
+      MIN_QUALITY_SIZE=$VPX_SIZE
     fi
-    VPX_LAST_SIZE=$VPX_SIZE
-    VPX_LAST_FILE=$VPX_FILE
   done
-  rm $BASENAME-*.$CODEC.tmp $BASENAME-$V.ogv.y4m
+
+  if [ $MIN_QUALITY -eq 63 ]; then
+    $VPXENC --codec=$CODEC --good --cpu-used=0 -y --min-q=$MIN_QUALITY --max-q=$MIN_QUALITY -o $BASENAME-$MIN_QUALITY.$CODEC.tmp $FILE 2> /dev/null
+    MIN_QUALITY_SIZE=$(stat -c %s $BASENAME-$MIN_QUALITY.$CODEC.tmp)
+  fi
+
+  if [ $MAX_QUALITY -eq 3 ]; then
+    $VPXENC --codec=$CODEC --good --cpu-used=0 -y --min-q=$MAX_QUALITY --max-q=$MAX_QUALITY -o $BASENAME-$MAX_QUALITY.$CODEC.tmp $FILE 2> /dev/null
+    MAX_QUALITY_SIZE=$(stat -c %s $BASENAME-$MAX_QUALITY.$CODEC.tmp)
+  fi
+
+  if (( $MAX_QUALITY_SIZE - $OGV_SIZE < $OGV_SIZE - $MIN_QUALITY_SIZE )); then
+    VPX_SIZE=$MAX_QUALITY_SIZE
+    BEST_QUALITY=$MAX_QUALITY
+  else
+    BEST_QUALITY=$MIN_QUALITY
+    VPX_SIZE=$MIN_QUALITY_SIZE
+  fi
+
+  BEST_FILE=$BASENAME-$BEST_QUALITY.$CODEC
+  $VPXDEC --codec=$CODEC -o $BEST_FILE.y4m $BEST_FILE.tmp
+  $Y4M2PNG -o $BEST_FILE.png $BEST_FILE.y4m
+  mv $BEST_FILE.tmp $BEST_FILE
+  rm $BEST_FILE.y4m $BASENAME-*.$CODEC.tmp $BASENAME-$V.ogv.y4m
 done

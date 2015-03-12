@@ -64,29 +64,43 @@ for FILE in $@; do
   WIDTH=$(head -1 $FILE | cut -d\  -f 2 | tr -d 'W')
   HEIGHT=$(head -1 $FILE | cut -d\  -f 3 | tr -d 'H')
   QSTR="--crf=\$x"
-  for i in {51..1}; do
-    X265_FILE=$BASENAME-$i.x265.tmp
-    $X265 -r $X265_FILE.y4m $(echo $QSTR | sed 's/\$x/'$i'/g') -o $X265_FILE $FILE 2> /dev/null > /dev/null
+  # With x265, the lowest quantizer number yields the highest quality and vice
+  # versa. Here, MAX_QUALITY produces the best looking image, so it's the
+  # lowest number.
+  MAX_QUALITY=1
+  MIN_QUALITY=51
+  while (( $MIN_QUALITY - $MAX_QUALITY > 1 )); do
+    QUALITY=$(( ($MIN_QUALITY + $MAX_QUALITY) / 2 ))
+    X265_FILE=$BASENAME-$QUALITY.x265.tmp
+    $X265 -r $X265_FILE.y4m $(echo $QSTR | sed 's/\$x/'$QUALITY'/g') -o $X265_FILE $FILE 2> /dev/null > /dev/null
     X265_SIZE=$(stat -c %s $X265_FILE)
     if (($X265_SIZE > $OGV_SIZE)); then
-      if [[ -z $X265_LAST_SIZE ]]; then
-        mv $X265_FILE $BASENAME-$i.x265
-        mv $X265_FILE.y4m $BASENAME-$i.x265.y4m
-      else
-        if (($X265_SIZE - $OGV_SIZE < $OGV_SIZE - $X265_LAST_SIZE)); then
-          mv $X265_FILE $BASENAME-$i.x265
-          mv $X265_FILE.y4m $BASENAME-$i.x265.y4m
-        else
-          mv $X265_LAST_FILE $BASENAME-$i.x265
-          mv $X265_LAST_FILE.y4m $BASENAME-$i.x265.y4m
-        fi
-      fi
-      $Y4M2PNG -o $BASENAME-$i.x265.png $BASENAME-$i.x265.y4m
-      rm $BASENAME-$i.x265.y4m
-      break
+      MAX_QUALITY=$QUALITY
+      MAX_QUALITY_SIZE=$X265_SIZE
+    else
+      MIN_QUALITY=$QUALITY
+      MIN_QUALITY_SIZE=$X265_SIZE
     fi
-    X265_LAST_SIZE=$X265_SIZE
-    X265_LAST_FILE=$X265_FILE
   done
+
+  if [ $MIN_QUALITY -eq 51 ]; then
+    $X265 -r $BASENAME-$MIN_QUALITY.x265.tmp.y4m $(echo $QSTR | sed 's/\$x/'$MIN_QUALITY'/g') -o $BASENAME-$MIN_QUALITY.x265.tmp $FILE 2> /dev/null > /dev/null
+    MIN_QUALITY_SIZE=$(stat -c %s $BASENAME-$MIN_QUALITY.tmp)
+  fi
+
+  if [ $MAX_QUALITY -eq 1 ]; then
+    $X265 -r $BASENAME-$MAX_QUALITY.x265.tmp.y4m $(echo $QSTR | sed 's/\$x/'$MAX_QUALITY'/g') -o $X265_FILE $FILE 2> /dev/null > /dev/null
+    MAX_QUALITY_SIZE=$(stat -c %s $BASENAME-$MAX_QUALITY.tmp)
+  fi
+
+  if (( $MAX_QUALITY_SIZE - $OGV_SIZE < $OGV_SIZE - $MIN_QUALITY_SIZE )); then
+    BEST_QUALITY=$MAX_QUALITY
+  else
+    BEST_QUALITY=$MIN_QUALITY
+  fi
+
+  mv $BASENAME-$BEST_QUALITY.x265.tmp $BASENAME-$BEST_QUALITY.x265
+  $Y4M2PNG -o $BASENAME-$BEST_QUALITY.x265.png $BASENAME-$BEST_QUALITY.x265.tmp.y4m
+  rm $BASENAME-$BEST_QUALITY.x265.tmp.y4m
   rm $BASENAME-*.x265.tmp $BASENAME-*.x265.tmp.y4m $BASENAME-$V.ogv.y4m
 done
