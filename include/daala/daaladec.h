@@ -36,8 +36,8 @@ extern "C" {
 # endif
 
 #define OD_DECCTL_SET_BSIZE_BUFFER (1)
-
 #define OD_DECCTL_SET_FLAGS_BUFFER (2)
+#define OD_DECCTL_SET_MV_BUFFER (3)
 
 /**\name Decoder state
    The following data structures are opaque, and their contents are not

@@ -54,6 +54,7 @@ static int od_dec_init(od_dec_ctx *dec, const daala_info *info,
   dec->packet_state = OD_PACKET_DATA;
   dec->user_bsize = NULL;
   dec->user_flags = NULL;
+  dec->user_mv_grid = NULL;
   return 0;
 }
 
@@ -103,6 +104,18 @@ int daala_decode_ctl(daala_dec_ctx *dec, int req, void *buf, size_t buf_sz) {
       }
       dec->user_flags = (unsigned int *)buf;
       dec->user_fstride = dec->state.nhsb*8;
+      return 0;
+    }
+    case OD_DECCTL_SET_MV_BUFFER : {
+      int nhmvbs;
+      int nvmvbs;
+      if (dec== NULL || buf == NULL) return OD_EFAULT;
+      nhmvbs = (dec->state.nhmbs + 1) << 2;
+      nvmvbs = (dec->state.nvmbs + 1) << 2;
+      if (buf_sz != sizeof(od_mv_grid_pt)*nhmvbs*nvmvbs) {
+        return OD_EINVAL;
+      }
+      dec->user_mv_grid = buf;
       return 0;
     }
     default: return OD_EIMPL;
@@ -594,6 +607,14 @@ static void od_dec_mv_unpack(daala_dec_ctx *dec) {
         if (mvp->valid && od_dec_mv_in_frame(vx, vy, nhmvbs, nvmvbs)) {
           od_decode_mv(dec, mvp, vx, vy, 4, mv_res, width, height);
         }
+      }
+    }
+  }
+  if (dec->user_mv_grid != NULL) {
+    for (vy = 0; vy < nvmvbs; vy++) {
+      for (vx = 0; vx < nhmvbs; vx++) {
+        memcpy(&dec->user_mv_grid[vy*nvmvbs + vx], &grid[vy][vx],
+         sizeof(od_mv_grid_pt));
       }
     }
   }

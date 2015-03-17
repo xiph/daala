@@ -47,6 +47,7 @@ struct daala_dec_ctx {
    are set via daala_decode_ctl with OD_DECCTL_SET_FLAGS_BUFFER.*/
   unsigned int *user_flags;
   int user_fstride;
+  od_mv_grid_pt *user_mv_grid;
 };
 
 /*Stub for the daala_setup_info.*/
