@@ -758,6 +758,17 @@ static void od_decode_residual(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
 #else
     od_apply_postfilter_frame_sbs(state->ctmp[pli], w, nhsb, nvsb, xdec, ydec);
 #endif
+    for (sby = 0; sby < nvsb; sby++) {
+      for (sbx = 0; sbx < nhsb; sbx++) {
+        if (mbctx->is_keyframe && OD_BLOCK_SIZE4x4(dec->state.bsize,
+          dec->state.bstride, sbx << 3, sby << 3) == 3) {
+          int ln;
+          ln = OD_BLOCK_32X32 + 2 - xdec;
+          od_bilinear_smooth(&state->ctmp[pli][(sby << ln)*w + (sbx << ln)],
+           ln, w, dec->quantizer[pli], pli);
+        }
+      }
+    }
     {
       unsigned char *data;
       od_coeff *ctmp;

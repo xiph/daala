@@ -78,6 +78,7 @@ void od_apply_postfilter_frame(od_coeff *c, int w, int nhsb, int nvsb,
 #define OD_FILT_SIZE(ln, xdec) (OD_MAXI(0, ((ln) > 0) - (xdec)))
 
 extern const int OD_FILT_SIZE[OD_NBSIZES];
+void od_bilinear_smooth(od_coeff *x, int ln, int stride, int q, int pli);
 void od_prefilter_split(od_coeff *c0, int stride, int ln, int f);
 void od_postfilter_split(od_coeff *c0, int stride, int ln, int f);
 void od_apply_prefilter_frame_sbs(od_coeff *c, int stride, int nhsb, int nvsb,

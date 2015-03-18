@@ -122,6 +122,9 @@ const od_filter_func OD_POST_FILTER[OD_NBSIZES] = {
   od_post_filter32
 };
 
+/** Strength of the bilinear smoothing for each plane. */
+static const int OD_BILINEAR_STRENGTH[OD_NPLANES_MAX] = {5, 20, 20, 5};
+
 /*Filter parameters for the pre/post filters.
   When changing these the intra-predictors in
   initdata.c must be updated.*/
@@ -1492,6 +1495,66 @@ void od_apply_filter_cols(od_coeff *c, int w, int bx, int by, int l,
       for (k = 0; k < 4 << f; k++) {
         b[w*k + j] = t[k];
       }
+    }
+  }
+}
+
+/** Smoothes a block using bilinear interpolation from its four corners.
+ *  The interpolation is applied using a weight that depends on the amount
+ *  amount of distortion it causes to the signal compared to the quantization
+ *  noise.
+ * @param [in,out] x      block pixels
+ * @param [in]     ln     log2 of block size
+ * @param [in]     stride stride of x
+ * @param [in]     q      quantizer
+ * @param [in]     pli    plane index
+ */
+void od_bilinear_smooth(od_coeff *x, int ln, int stride, int q, int pli) {
+  od_coeff x00;
+  od_coeff x01;
+  od_coeff x10;
+  od_coeff x11;
+  od_coeff a00;
+  od_coeff a01;
+  od_coeff a10;
+  od_coeff a11;
+  od_coeff y[32][32];
+  od_coeff dist;
+  int w;
+  int i;
+  int j;
+  int n;
+  n = 1 << ln;
+  x00 = x[0];
+  x01 = x[n - 1];
+  x10 = x[(n - 1)*stride];
+  x11 = x[(n - 1)*stride + (n - 1)];
+  a00 = x00;
+  a01 = x01 - x00;
+  a10 = x10 - x00;
+  a11 = x11 + x00 - x10 - x01;
+  /* Multiply by 1+1/n (approximation of n/(n-1)) here so that we can divide
+     by n in the loop instead of dividing by n-1. */
+  a01 += (a01 + n/2) >> ln;
+  a10 += (a10 + n/2) >> ln;
+  a11 += (2*a10 + n/2) >> ln;
+  dist = 0;
+  /* Bilinear interpolation with non-linear x*y term. */
+  for (i = 0; i < n; i++) {
+    for (j = 0; j < n; j++) {
+      y[i][j] = a00 + ((j*a01 + i*a10 + (j*i*a11 >> ln) + n/2) >> ln);
+      dist += (y[i][j] - x[i*stride + j])*(y[i][j] - x[i*stride + j]);
+    }
+  }
+  dist >>= 2*ln;
+  /* Compute 1 - Wiener filter gain = strength * (q^2/12) / dist. */
+  w = OD_MINI(1024, OD_BILINEAR_STRENGTH[pli]*q*q/(1 + 12*dist));
+  /* Square the theoretical gain to attenuate the effect when we're unsure
+     whether it's useful. */
+  w = w*w >> 12;
+  for (i = 0; i < n; i++) {
+    for (j = 0; j < n; j++) {
+      x[i*stride + j] -= (w*(x[i*stride + j]-y[i][j]) + 128) >> 8;
     }
   }
 }
