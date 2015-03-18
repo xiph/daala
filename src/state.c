@@ -277,25 +277,19 @@ static int od_state_init_impl(od_state *state, const daala_info *info) {
       frequency domain.  We can share buffers with the same subsampling.*/
     if (pli > 0) {
       int plj;
-      if (xdec || ydec) {
-        for (plj = 1; plj < pli; plj++) {
-          if (xdec == info->plane_info[plj].xdec
-           && ydec == info->plane_info[plj].ydec) {
-            state->ltmp[pli] = NULL;
-            state->lbuf[pli] = state->ltmp[plj];
-          }
-        }
-        if (plj >= pli) {
-          state->lbuf[pli] = state->ltmp[pli] = (od_coeff *)_ogg_malloc(w*h*
-           sizeof(*state->ltmp[pli]));
-          if (OD_UNLIKELY(!state->lbuf[pli])) {
-            return OD_EFAULT;
-          }
+      for (plj = 1; plj < pli; plj++) {
+        if (xdec == info->plane_info[plj].xdec
+          && ydec == info->plane_info[plj].ydec) {
+          state->ltmp[pli] = NULL;
+          state->lbuf[pli] = state->ltmp[plj];
         }
       }
-      else {
-        state->ltmp[pli] = NULL;
-        state->lbuf[pli] = state->ctmp[pli];
+      if (plj >= pli) {
+        state->lbuf[pli] = state->ltmp[pli] = (od_coeff *)_ogg_malloc(w*h*
+          sizeof(*state->ltmp[pli]));
+        if (OD_UNLIKELY(!state->lbuf[pli])) {
+          return OD_EFAULT;
+        }
       }
     }
     else state->lbuf[pli] = state->ltmp[pli] = NULL;
