@@ -157,12 +157,6 @@ struct od_mb_dec_ctx {
   od_coeff *mc;
   od_coeff *l;
   int is_keyframe;
-  int nk;
-  int k_total;
-  int sum_ex_total_q8;
-  int ncount;
-  int count_total_q8;
-  int count_ex_total_q8;
 };
 typedef struct od_mb_dec_ctx od_mb_dec_ctx;
 
@@ -722,8 +716,6 @@ static void od_decode_residual(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
         mbctx->l = state->lbuf[pli];
         xdec = state->io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
         ydec = state->io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
-        mbctx->nk = mbctx->k_total = mbctx->sum_ex_total_q8 = 0;
-        mbctx->ncount = mbctx->count_total_q8 = mbctx->count_ex_total_q8 = 0;
         if (!OD_DISABLE_HAAR_DC && mbctx->is_keyframe) {
           od_decode_haar_dc(dec, mbctx, pli, sbx, sby, 3, xdec, ydec, 0, 0,
            sby > 0 && sbx < nhsb - 1);
