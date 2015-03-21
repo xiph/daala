@@ -368,13 +368,6 @@ void TestPanel::render() {
       yval = *y;
       cbval = *cb;
       crval = *cr;
-      if (show_blocks) {
-        unsigned char d = OD_BLOCK_SIZE4x4(bsize, bstride, i >> 2, j >> 2);
-        int mask = (1 << d + OD_LOG_BSIZE0) - 1;
-        if (!(i & mask) || !(j & mask)) {
-          yval = block_edge_luma(yval);
-        }
-      }
       if (show_skip || show_noref) {
         unsigned char d = OD_BLOCK_SIZE4x4(bsize, bstride, i >> 2, j >> 2);
         int band = getBand(i & ((1 << d + 2) - 1), j & ((1 << d + 2) - 1));
@@ -399,6 +392,15 @@ void TestPanel::render() {
             cbval = 255;
             crval = 107;
           }
+        }
+      }
+      if (show_blocks) {
+        unsigned char d = OD_BLOCK_SIZE4x4(bsize, bstride, i >> 2, j >> 2);
+        int mask = (1 << d + OD_LOG_BSIZE0) - 1;
+        if (!(i & mask) || !(j & mask)) {
+          yval = block_edge_luma(yval);
+          cbval = (cbval + 128) >> 1;
+          crval = (crval + 128) >> 1;
         }
       }
       yval -= 16;
