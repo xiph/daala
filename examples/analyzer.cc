@@ -529,10 +529,10 @@ void TestPanel::onKeyDown(wxKeyEvent &event) {
 
 void TestPanel::onMouseMotion(wxMouseEvent& event) {
   const wxPoint pt = wxGetMousePosition();
-  int mouseX = pt.x - this->GetScreenPosition().x;
-  int mouseY = pt.y - this->GetScreenPosition().y;
-  ((TestFrame* )GetParent())->SetStatusText(wxString::Format(wxT("X:%d,Y%d"),
-  mouseY, mouseY), 1);
+  int mouse_x = pt.x - this->GetScreenPosition().x;
+  int mouse_y = pt.y - this->GetScreenPosition().y;
+  ((TestFrame *)GetParent())->SetStatusText(wxString::Format(wxT("X:%d,Y:%d"),
+   mouse_x, mouse_y), 1);
 }
 
 void TestPanel::onPaint(wxPaintEvent &) {
