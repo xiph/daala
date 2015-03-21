@@ -348,7 +348,7 @@ int main(int argc, char *argv[]) {
       exit(1);
     }
     /*Store header information*/
-    fprintf(outfile, "YUV4MPEG2 W%d H%d F%d:%d A%d:%d C%s\n",
+    fprintf(outfile, "YUV4MPEG2 W%d H%d F%d:%d Ip A%d:%d C%s\n",
      pic_width, pic_height, fps_num, fps_denom,
      di.pixel_aspect_numerator, di.pixel_aspect_denominator,
      CHROMA_TYPES[pix_fmt]);
