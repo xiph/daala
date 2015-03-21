@@ -68,10 +68,11 @@ OD_SIMD_INLINE od_m256i od_mm256_unpackhi_epi64(od_m256i a, od_m256i b) {
   return _mm256_unpackhi_epi64(a, b);
 }
 
-OD_SIMD_INLINE od_m256i od_mm256_permute2x128_si256(od_m256i a,
- od_m256i b, const int c) {
-  return _mm256_permute2x128_si256(a, b, c);
-}
+/*This needs to be a macro because with a real function, clang does not honor
+   always_inline, and then fails to compile because c is not a compile-time
+   constant.*/
+#define od_mm256_permute2x128_si256(a, b, c) \
+ (_mm256_permute2x128_si256(a, b, c))
 
 OD_SIMD_INLINE od_m256i od_mm256_loadu_si256(const od_m256i *ptr) {
   return _mm256_loadu_si256(ptr);
