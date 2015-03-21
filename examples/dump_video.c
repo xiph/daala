@@ -327,7 +327,7 @@ int main(int argc, char *argv[]) {
   /*Either way, we're done with the codec setup data.*/
   daala_setup_free(ds);
   if (!raw && outfile) {
-    static const char *CHROMA_TYPES[4] = { "420jpeg", NULL, "422", "444" };
+    static const char *CHROMA_TYPES[4] = { "420jpeg", NULL, "422jpeg", "444" };
     pic_width = di.pic_width;
     pic_height = di.pic_height;
     fps_num = di.timebase_numerator;
