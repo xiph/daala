@@ -348,9 +348,10 @@ int main(int argc, char *argv[]) {
       exit(1);
     }
     /*Store header information*/
-    fprintf(outfile, "YUV4MPEG2 C%s W%d H%d F%d:%d A%d:%d\n",
-     CHROMA_TYPES[pix_fmt], pic_width, pic_height, fps_num, fps_denom,
-     di.pixel_aspect_numerator, di.pixel_aspect_denominator);
+    fprintf(outfile, "YUV4MPEG2 W%d H%d F%d:%d A%d:%d C%s\n",
+     pic_width, pic_height, fps_num, fps_denom,
+     di.pixel_aspect_numerator, di.pixel_aspect_denominator,
+     CHROMA_TYPES[pix_fmt]);
   }
   /* install signal handler */
   signal(SIGINT, sigint_handler);
