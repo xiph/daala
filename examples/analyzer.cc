@@ -57,6 +57,7 @@ public:
 
   int getFrameWidth() const;
   int getFrameHeight() const;
+  int getRunningFrameCount() const;
 
   bool setBlockSizeBuffer(unsigned char *buf, size_t buf_sz);
   bool setBandFlagsBuffer(unsigned int *buf, size_t buf_sz);
@@ -204,6 +205,10 @@ bool DaalaDecoder::setBandFlagsBuffer(unsigned int *buf, size_t buf_sz) {
   return daala_decode_ctl(dctx, OD_DECCTL_SET_FLAGS_BUFFER, buf, buf_sz) == 0;
 }
 
+int DaalaDecoder::getRunningFrameCount() const {
+	return frame;
+}
+
 #define MIN_ZOOM (1)
 #define MAX_ZOOM (4)
 
@@ -228,7 +233,7 @@ private:
   int getHeight() const;
   bool nextFrame();
 
-  int getBand(int x, int y) const;
+  int getBand(int x, int y) const; 
 public:
   TestPanel(wxWindow *parent);
   ~TestPanel();
@@ -250,10 +255,49 @@ public:
   void onIdle(wxIdleEvent &event);
 };
 
+class TestFrame : public wxFrame {
+  DECLARE_EVENT_TABLE()
+private:
+  TestPanel *panel;
+public:
+  TestFrame();
+
+  void onOpen(wxCommandEvent &event);
+  void onClose(wxCommandEvent &event);
+  void onQuit(wxCommandEvent &event);
+  void onZoomIn(wxCommandEvent &event);
+  void onZoomOut(wxCommandEvent &event);
+  void onFilter(wxCommandEvent &event);
+  void onAbout(wxCommandEvent &event);
+
+  bool open(wxString path);
+  void showFrameCount(int frame);
+};
+
+// Event table for TestPanel
 BEGIN_EVENT_TABLE(TestPanel, wxPanel)
   EVT_KEY_DOWN(TestPanel::onKeyDown)
   EVT_PAINT(TestPanel::onPaint)
   //EVT_IDLE(TestPanel::onIdle)
+END_EVENT_TABLE()
+
+// Event table for TestFrame
+enum {
+  wxID_SHOW_BLOCKS = 6000,
+  wxID_SHOW_SKIP,
+  wxID_SHOW_NOREF
+};
+
+BEGIN_EVENT_TABLE(TestFrame, wxFrame)
+  EVT_MENU(wxID_OPEN, TestFrame::onOpen)
+  EVT_MENU(wxID_CLOSE, TestFrame::onClose)
+  EVT_MENU(wxID_EXIT, TestFrame::onQuit)
+  EVT_MENU(wxID_ZOOM_IN, TestFrame::onZoomIn)
+  EVT_MENU(wxID_ZOOM_OUT, TestFrame::onZoomOut)
+  EVT_MENU(wxID_SHOW_BLOCKS, TestFrame::onFilter)
+  EVT_MENU(wxID_SHOW_SKIP, TestFrame::onFilter)
+  EVT_MENU(wxID_SHOW_NOREF, TestFrame::onFilter)
+  EVT_MENU(wxID_ABOUT, TestFrame::onAbout)
 END_EVENT_TABLE()
 
 TestPanel::TestPanel(wxWindow *parent) : wxPanel(parent), pixels(NULL),
@@ -468,6 +512,7 @@ void TestPanel::setShowNoRef(bool show_noref) {
 bool TestPanel::nextFrame() {
   if (dd.step()) {
     render();
+    ((TestFrame* )GetParent())->showFrameCount(dd.getRunningFrameCount());
     return true;
   }
   return false;
@@ -494,42 +539,6 @@ void TestPanel::onIdle(wxIdleEvent &) {
   /*wxMilliSleep(input.video_fps_n*1000/input.video_fps_n);*/
 }
 
-class TestFrame : public wxFrame {
-  DECLARE_EVENT_TABLE()
-private:
-  TestPanel *panel;
-public:
-  TestFrame();
-
-  void onOpen(wxCommandEvent &event);
-  void onClose(wxCommandEvent &event);
-  void onQuit(wxCommandEvent &event);
-  void onZoomIn(wxCommandEvent &event);
-  void onZoomOut(wxCommandEvent &event);
-  void onFilter(wxCommandEvent &event);
-  void onAbout(wxCommandEvent &event);
-
-  bool open(wxString path);
-};
-
-enum {
-  wxID_SHOW_BLOCKS = 6000,
-  wxID_SHOW_SKIP,
-  wxID_SHOW_NOREF
-};
-
-BEGIN_EVENT_TABLE(TestFrame, wxFrame)
-  EVT_MENU(wxID_OPEN, TestFrame::onOpen)
-  EVT_MENU(wxID_CLOSE, TestFrame::onClose)
-  EVT_MENU(wxID_EXIT, TestFrame::onQuit)
-  EVT_MENU(wxID_ZOOM_IN, TestFrame::onZoomIn)
-  EVT_MENU(wxID_ZOOM_OUT, TestFrame::onZoomOut)
-  EVT_MENU(wxID_SHOW_BLOCKS, TestFrame::onFilter)
-  EVT_MENU(wxID_SHOW_SKIP, TestFrame::onFilter)
-  EVT_MENU(wxID_SHOW_NOREF, TestFrame::onFilter)
-  EVT_MENU(wxID_ABOUT, TestFrame::onAbout)
-END_EVENT_TABLE()
-
 TestFrame::TestFrame() : wxFrame(NULL, wxID_ANY, _T("Daala Stream Analyzer"),
  wxDefaultPosition, wxDefaultSize, wxDEFAULT_FRAME_STYLE), panel(NULL) {
   wxMenuBar *mb = new wxMenuBar();
@@ -555,8 +564,10 @@ TestFrame::TestFrame() : wxFrame(NULL, wxID_ANY, _T("Daala Stream Analyzer"),
   helpMenu->Append(wxID_ABOUT, _T("&About...\tF1"), _T("Show about dialog"));
   mb->Append(helpMenu, _T("&Help"));
   SetMenuBar(mb);
-  CreateStatusBar(1);
-  SetStatusText(_T("another day, another daala"));
+  CreateStatusBar(2);
+  int status_widths[2] = {-1, -1};
+  SetStatusWidths(2, status_widths);
+  SetStatusText(_T("another day, another daala"),0);
 }
 
 void TestFrame::onOpen(wxCommandEvent& WXUNUSED(event)) {
@@ -618,6 +629,10 @@ bool TestFrame::open(wxString path) {
     SetStatusText(_T("error loading file") + path);
     return false;
   }
+}
+
+void TestFrame::showFrameCount(int frame) {
+	SetStatusText(wxString::Format(wxT("%d"), frame-1), 1);
 }
 
 class TestApp : public wxApp {
