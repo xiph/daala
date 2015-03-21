@@ -248,12 +248,50 @@ public:
   void onKeyDown(wxKeyEvent &event);
   void onPaint(wxPaintEvent &event);
   void onIdle(wxIdleEvent &event);
+  void onMouseMotion(wxMouseEvent &event);
 };
 
 BEGIN_EVENT_TABLE(TestPanel, wxPanel)
   EVT_KEY_DOWN(TestPanel::onKeyDown)
   EVT_PAINT(TestPanel::onPaint)
+  EVT_MOTION(TestPanel::onMouseMotion)
   //EVT_IDLE(TestPanel::onIdle)
+END_EVENT_TABLE()
+
+class TestFrame : public wxFrame {
+  DECLARE_EVENT_TABLE()
+private:
+  TestPanel *panel;
+public:
+  TestFrame();
+
+  void onOpen(wxCommandEvent &event);
+  void onClose(wxCommandEvent &event);
+  void onQuit(wxCommandEvent &event);
+  void onZoomIn(wxCommandEvent &event);
+  void onZoomOut(wxCommandEvent &event);
+  void onFilter(wxCommandEvent &event);
+  void onAbout(wxCommandEvent &event);
+
+  bool open(wxString path);
+};
+
+enum {
+  wxID_SHOW_BLOCKS = 6000,
+  wxID_SHOW_SKIP,
+  wxID_SHOW_NOREF
+};
+
+BEGIN_EVENT_TABLE(TestFrame, wxFrame)
+  EVT_MENU(wxID_OPEN, TestFrame::onOpen)
+  EVT_MENU(wxID_CLOSE, TestFrame::onClose)
+  EVT_MENU(wxID_EXIT, TestFrame::onQuit)
+  EVT_MENU(wxID_ZOOM_IN, TestFrame::onZoomIn)
+  EVT_MENU(wxID_ZOOM_OUT, TestFrame::onZoomOut)
+  EVT_MENU(wxID_SHOW_BLOCKS, TestFrame::onFilter)
+  EVT_MENU(wxID_SHOW_SKIP, TestFrame::onFilter)
+  EVT_MENU(wxID_SHOW_NOREF, TestFrame::onFilter)
+  EVT_MENU(wxID_ABOUT, TestFrame::onAbout)
 END_EVENT_TABLE()
 
 TestPanel::TestPanel(wxWindow *parent) : wxPanel(parent), pixels(NULL),
@@ -489,6 +527,14 @@ void TestPanel::onKeyDown(wxKeyEvent &event) {
   }
 }
 
+void TestPanel::onMouseMotion(wxMouseEvent& event) {
+  const wxPoint pt = wxGetMousePosition();
+  int mouseX = pt.x - this->GetScreenPosition().x;
+  int mouseY = pt.y - this->GetScreenPosition().y;
+  ((TestFrame* )GetParent())->SetStatusText(wxString::Format(wxT("X:%d,Y%d"),
+  mouseY, mouseY), 1);
+}
+
 void TestPanel::onPaint(wxPaintEvent &) {
   wxBitmap bmp(wxImage(getWidth(), getHeight(), pixels, true));
   wxBufferedPaintDC dc(this, bmp);
@@ -500,41 +546,6 @@ void TestPanel::onIdle(wxIdleEvent &) {
   /*wxMilliSleep(input.video_fps_n*1000/input.video_fps_n);*/
 }
 
-class TestFrame : public wxFrame {
-  DECLARE_EVENT_TABLE()
-private:
-  TestPanel *panel;
-public:
-  TestFrame();
-
-  void onOpen(wxCommandEvent &event);
-  void onClose(wxCommandEvent &event);
-  void onQuit(wxCommandEvent &event);
-  void onZoomIn(wxCommandEvent &event);
-  void onZoomOut(wxCommandEvent &event);
-  void onFilter(wxCommandEvent &event);
-  void onAbout(wxCommandEvent &event);
-
-  bool open(wxString path);
-};
-
-enum {
-  wxID_SHOW_BLOCKS = 6000,
-  wxID_SHOW_SKIP,
-  wxID_SHOW_NOREF
-};
-
-BEGIN_EVENT_TABLE(TestFrame, wxFrame)
-  EVT_MENU(wxID_OPEN, TestFrame::onOpen)
-  EVT_MENU(wxID_CLOSE, TestFrame::onClose)
-  EVT_MENU(wxID_EXIT, TestFrame::onQuit)
-  EVT_MENU(wxID_ZOOM_IN, TestFrame::onZoomIn)
-  EVT_MENU(wxID_ZOOM_OUT, TestFrame::onZoomOut)
-  EVT_MENU(wxID_SHOW_BLOCKS, TestFrame::onFilter)
-  EVT_MENU(wxID_SHOW_SKIP, TestFrame::onFilter)
-  EVT_MENU(wxID_SHOW_NOREF, TestFrame::onFilter)
-  EVT_MENU(wxID_ABOUT, TestFrame::onAbout)
-END_EVENT_TABLE()
 
 TestFrame::TestFrame() : wxFrame(NULL, wxID_ANY, _T("Daala Stream Analyzer"),
  wxDefaultPosition, wxDefaultSize, wxDEFAULT_FRAME_STYLE), panel(NULL) {
@@ -561,7 +572,9 @@ TestFrame::TestFrame() : wxFrame(NULL, wxID_ANY, _T("Daala Stream Analyzer"),
   helpMenu->Append(wxID_ABOUT, _T("&About...\tF1"), _T("Show about dialog"));
   mb->Append(helpMenu, _T("&Help"));
   SetMenuBar(mb);
-  CreateStatusBar(1);
+  CreateStatusBar(2);
+  int status_widths[2] = {-1, 100};
+  SetStatusWidths(2, status_widths);
   SetStatusText(_T("another day, another daala"));
 }
 
