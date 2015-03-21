@@ -336,6 +336,10 @@ int TestPanel::getBand(int x, int y) const {
   return 9;
 }
 
+int64_t block_edge_luma(int64_t yval) {
+  return yval > 50 ? yval >> 1 : yval + 15;
+}
+
 void TestPanel::render() {
   od_img *img = &dd.img;
   /* Assume both chroma planes are decimated the same */
@@ -368,7 +372,7 @@ void TestPanel::render() {
         unsigned char d = OD_BLOCK_SIZE4x4(bsize, bstride, i >> 2, j >> 2);
         int mask = (1 << d + OD_LOG_BSIZE0) - 1;
         if (!(i & mask) || !(j & mask)) {
-          yval >>= 1;
+          yval = block_edge_luma(yval);
         }
       }
       if (show_skip || show_noref) {
