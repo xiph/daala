@@ -223,9 +223,17 @@ private:
   int fstride;
   bool show_skip;
   bool show_noref;
+  bool show_padding;
 
-  int getWidth() const;
-  int getHeight() const;
+  // The decode size is the picture size or frame size.
+  int getDecodeWidth() const;
+  int getDecodeHeight() const;
+
+  // The display size is the decode size, scaled by the zoom.
+  int getDisplayWidth() const;
+  int getDisplayHeight() const;
+
+  bool updateDisplaySize();
   bool nextFrame();
 
   int getBand(int x, int y) const;
@@ -243,7 +251,9 @@ public:
   void setShowBlocks(bool show_blocks);
   void setShowSkip(bool show_skip);
   void setShowNoRef(bool show_noref);
+  void setShowPadding(bool show_padding);
 
+  bool hasPadding();
 
   void onKeyDown(wxKeyEvent &event);
   void onPaint(wxPaintEvent &event);
@@ -262,6 +272,7 @@ class TestFrame : public wxFrame {
   DECLARE_EVENT_TABLE()
 private:
   TestPanel *panel;
+  wxMenu *viewMenu;
 public:
   TestFrame();
 
@@ -271,6 +282,7 @@ public:
   void onZoomIn(wxCommandEvent &event);
   void onZoomOut(wxCommandEvent &event);
   void onFilter(wxCommandEvent &event);
+  void onPaddingChange(wxCommandEvent &event);
   void onAbout(wxCommandEvent &event);
 
   bool open(wxString path);
@@ -279,7 +291,8 @@ public:
 enum {
   wxID_SHOW_BLOCKS = 6000,
   wxID_SHOW_SKIP,
-  wxID_SHOW_NOREF
+  wxID_SHOW_NOREF,
+  wxID_SHOW_PADDING
 };
 
 BEGIN_EVENT_TABLE(TestFrame, wxFrame)
@@ -291,12 +304,13 @@ BEGIN_EVENT_TABLE(TestFrame, wxFrame)
   EVT_MENU(wxID_SHOW_BLOCKS, TestFrame::onFilter)
   EVT_MENU(wxID_SHOW_SKIP, TestFrame::onFilter)
   EVT_MENU(wxID_SHOW_NOREF, TestFrame::onFilter)
+  EVT_MENU(wxID_SHOW_PADDING, TestFrame::onPaddingChange)
   EVT_MENU(wxID_ABOUT, TestFrame::onAbout)
 END_EVENT_TABLE()
 
 TestPanel::TestPanel(wxWindow *parent) : wxPanel(parent), pixels(NULL),
  zoom(0), bsize(NULL), show_blocks(false), flags(NULL), show_skip(false),
- show_noref(false) {
+ show_noref(false), show_padding(false) {
 }
 
 TestPanel::~TestPanel() {
@@ -352,12 +366,20 @@ void TestPanel::close() {
   flags = NULL;
 }
 
-int TestPanel::getWidth() const {
-  return zoom*dd.getWidth();
+int TestPanel::getDecodeWidth() const {
+  return show_padding ? dd.getFrameWidth() : dd.getWidth();
 }
 
-int TestPanel::getHeight() const {
-  return zoom*dd.getHeight();
+int TestPanel::getDecodeHeight() const {
+  return show_padding ? dd.getFrameHeight() : dd.getHeight();
+}
+
+int TestPanel::getDisplayWidth() const {
+  return zoom*getDecodeWidth();
+}
+
+int TestPanel::getDisplayHeight() const {
+  return zoom*getDecodeHeight();
 }
 
 int TestPanel::getBand(int x, int y) const {
@@ -386,17 +408,17 @@ void TestPanel::render() {
   int y_stride = img->planes[0].ystride;
   int cb_stride = img->planes[1].ystride;
   int cr_stride = img->planes[2].ystride;
-  int p_stride = zoom*3*dd.getWidth();
+  int p_stride = 3*getDisplayWidth();
   unsigned char *y_row = img->planes[0].data;
   unsigned char *cb_row = img->planes[1].data;
   unsigned char *cr_row = img->planes[2].data;
   unsigned char *p_row = pixels;
-  for (int j = 0; j < dd.getHeight(); j++) {
+  for (int j = 0; j < getDecodeHeight(); j++) {
     unsigned char *y = y_row;
     unsigned char *cb = cb_row;
     unsigned char *cr = cr_row;
     unsigned char *p = p_row;
-    for (int i = 0; i < dd.getWidth(); i++) {
+    for (int i = 0; i < getDecodeWidth(); i++) {
       int64_t yval;
       int64_t cbval;
       int64_t crval;
@@ -441,6 +463,10 @@ void TestPanel::render() {
           crval = (crval + 128) >> 1;
         }
       }
+      if (i == dd.getWidth() || j == dd.getHeight()) {
+        /* Display a checkerboard pattern at the padding edge */
+        yval = 255 * ((i + j) & 1);
+      }
       yval -= 16;
       cbval -= 128;
       crval -= 128;
@@ -481,17 +507,26 @@ int TestPanel::getZoom() const {
   return zoom;
 }
 
+bool TestPanel::updateDisplaySize() {
+  unsigned char *p =
+   (unsigned char *)malloc(sizeof(*p)*3*getDisplayWidth()*getDisplayHeight());
+  if (p == NULL) {
+    return false;
+  }
+  free(pixels);
+  pixels = p;
+  SetSize(getDisplayWidth(), getDisplayHeight());
+  return true;
+}
+
 bool TestPanel::setZoom(int z) {
   if (z <= MAX_ZOOM && z >= MIN_ZOOM && zoom != z) {
-    unsigned char *p =
-     (unsigned char *)malloc(sizeof(*p)*3*z*dd.getWidth()*z*dd.getHeight());
-    if (p == NULL) {
+    int old_zoom = zoom;
+    zoom = z;
+    if (!updateDisplaySize()) {
+      zoom = old_zoom;
       return false;
     }
-    free(pixels);
-    pixels = p;
-    zoom = z;
-    SetSize(getWidth(), getHeight());
     return true;
   }
   return false;
@@ -503,6 +538,19 @@ void TestPanel::setShowBlocks(bool show_blocks) {
 
 void TestPanel::setShowSkip(bool show_skip) {
   this->show_skip = show_skip;
+}
+
+void TestPanel::setShowPadding(bool show_padding) {
+  bool old_show_padding = show_padding;
+  this->show_padding = show_padding;
+  if (!updateDisplaySize()) {
+    this->show_padding = old_show_padding;
+  }
+}
+
+bool TestPanel::hasPadding() {
+  return dd.getFrameWidth() > dd.getWidth() ||
+         dd.getFrameHeight() > dd.getHeight();
 }
 
 void TestPanel::setShowNoRef(bool show_noref) {
@@ -536,7 +584,7 @@ void TestPanel::onMouseMotion(wxMouseEvent& event) {
 }
 
 void TestPanel::onPaint(wxPaintEvent &) {
-  wxBitmap bmp(wxImage(getWidth(), getHeight(), pixels, true));
+  wxBitmap bmp(wxImage(getDisplayWidth(), getDisplayHeight(), pixels, true));
   wxBufferedPaintDC dc(this, bmp);
 }
 
@@ -556,7 +604,7 @@ TestFrame::TestFrame() : wxFrame(NULL, wxID_ANY, _T("Daala Stream Analyzer"),
   fileMenu->Enable(wxID_CLOSE, false);
   fileMenu->Append(wxID_EXIT, _T("E&xit\tAlt-X"), _T("Quit this program"));
   mb->Append(fileMenu, _T("&File"));
-  wxMenu *viewMenu=new wxMenu();
+  viewMenu = new wxMenu();
   viewMenu->Append(wxID_ZOOM_IN, _T("Zoom-In\tCtrl-+"),
    _T("Double image size"));
   viewMenu->Append(wxID_ZOOM_OUT, _T("Zoom-Out\tCtrl--"),
@@ -567,6 +615,8 @@ TestFrame::TestFrame() : wxFrame(NULL, wxID_ANY, _T("Daala Stream Analyzer"),
    _("Show skip bands"));
   viewMenu->AppendCheckItem(wxID_SHOW_NOREF, _T("&No-Ref\tAlt-N"),
    _("Show no-ref bands"));
+  viewMenu->AppendCheckItem(wxID_SHOW_PADDING, _T("&Padding\tAlt-P"),
+   _("Show padding area"));
   mb->Append(viewMenu, _T("&View"));
   wxMenu *helpMenu=new wxMenu();
   helpMenu->Append(wxID_ABOUT, _T("&About...\tF1"), _T("Show about dialog"));
@@ -618,6 +668,13 @@ void TestFrame::onFilter(wxCommandEvent &WXUNUSED(event)) {
   panel->Refresh(false);
 }
 
+void TestFrame::onPaddingChange(wxCommandEvent &WXUNUSED(event)) {
+  panel->setShowPadding(GetMenuBar()->IsChecked(wxID_SHOW_PADDING));
+  Fit();
+  panel->render();
+  panel->Refresh();
+}
+
 void TestFrame::onAbout(wxCommandEvent& WXUNUSED(event)) {
   wxMessageBox(_T("asdf"), _T("basdf"), wxOK | wxICON_INFORMATION, this);
 }
@@ -629,6 +686,7 @@ bool TestFrame::open(wxString path) {
   if (panel->open(filename)) {
     Fit();
     SetStatusText(_T("loaded file: ") + path);
+    viewMenu->Enable(wxID_SHOW_PADDING, panel->hasPadding());
     return true;
   }
   else {
