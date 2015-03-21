@@ -101,7 +101,7 @@ AM_CONDITIONAL([ENABLE_PLAYER_EXAMPLE], [test "$enable_player" = "yes"])
 PKG_CHECK_MODULES([OGG], [ogg >= 1.3])
 
 AC_ARG_ENABLE([analyzer],
-  AS_HELP_STRING([--disable-analyzer], [Disable the stream analyzer]),,
+  AS_HELP_STRING([--enable-analyzer], [Enable the stream analyzer]),,
   enable_analyzer=no)
 
 AS_IF([test "$enable_analyzer" = "yes"], [
