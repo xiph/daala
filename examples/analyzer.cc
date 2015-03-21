@@ -253,6 +253,8 @@ public:
   void onKeyDown(wxKeyEvent &event);
   void onPaint(wxPaintEvent &event);
   void onIdle(wxIdleEvent &event);
+  int getImageWidth() const;
+  int getImageHeight() const;
 };
 
 class TestFrame : public wxFrame {
@@ -299,6 +301,14 @@ BEGIN_EVENT_TABLE(TestFrame, wxFrame)
   EVT_MENU(wxID_SHOW_NOREF, TestFrame::onFilter)
   EVT_MENU(wxID_ABOUT, TestFrame::onAbout)
 END_EVENT_TABLE()
+
+// Enum for different aspects of Status display
+enum {
+  wxID_STATUS_FILE = 0,
+  wxID_STATUS_FRAME_WIDTH,
+  wxID_STATUS_FRAME_HEIGHT,
+  wxID_STATUS_FRAME_COUNT
+}
 
 TestPanel::TestPanel(wxWindow *parent) : wxPanel(parent), pixels(NULL),
  zoom(0), bsize(NULL), show_blocks(false), flags(NULL), show_skip(false),
@@ -518,6 +528,14 @@ bool TestPanel::nextFrame() {
   return false;
 }
 
+int TestPanel::getImageWidth() const {
+  return dd.getWidth();
+}
+
+int TestPanel::getImageHeight() const {
+  return dd.getHeight();
+}
+
 void TestPanel::onKeyDown(wxKeyEvent &event) {
   switch (event.GetKeyCode()) {
     case '.' : {
@@ -564,10 +582,11 @@ TestFrame::TestFrame() : wxFrame(NULL, wxID_ANY, _T("Daala Stream Analyzer"),
   helpMenu->Append(wxID_ABOUT, _T("&About...\tF1"), _T("Show about dialog"));
   mb->Append(helpMenu, _T("&Help"));
   SetMenuBar(mb);
-  CreateStatusBar(2);
-  int status_widths[2] = {-1, -1};
-  SetStatusWidths(2, status_widths);
-  SetStatusText(_T("another day, another daala"),0);
+  //File, Frame number, Width, Height
+  CreateStatusBar(4);
+  int status_widths[4] = {-1, -1, -1, -1};
+  SetStatusWidths(4, status_widths);
+  SetStatusText(_T("another day, another daala"));
 }
 
 void TestFrame::onOpen(wxCommandEvent& WXUNUSED(event)) {
@@ -620,19 +639,21 @@ bool TestFrame::open(wxString path) {
   panel = new TestPanel(this);
   if (panel->open(filename)) {
     Fit();
-    SetStatusText(_T("loaded file: ") + path);
+    SetStatusText(path, wxID_STATUS_FILE);
+    SetStatusText(wxString::Format(wxT("W:%d"), panel->getImageWidth()), wxID_STATUS_FRAME_WIDTH);
+    SetStatusText(wxString::Format(wxT("H:%d"), panel->getImageHeight()), wxID_STATUS_FRAME_HEIGHT);
     return true;
   }
   else {
     delete panel;
     panel = NULL;
-    SetStatusText(_T("error loading file") + path);
+    SetStatusText(_T("error loading file") + path, wxID_STATUS_FILE);
     return false;
   }
 }
 
 void TestFrame::showFrameCount(int frame) {
-	SetStatusText(wxString::Format(wxT("%d"), frame-1), 1);
+  SetStatusText(wxString::Format(wxT("Frame:%d"), frame-1), wxID_STATUS_FRAME_COUNT);
 }
 
 class TestApp : public wxApp {
