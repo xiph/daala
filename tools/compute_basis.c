@@ -52,8 +52,8 @@ int main(int argc, char **argv) {
     return 1;
   }
   n = 4 << ln;
-  left = OD_MAXI(0, OD_FILT_SIZE[OD_MINI(OD_NBSIZES - 1, ln + 1)] - dec);
-  right = OD_MAXI(0, OD_FILT_SIZE[ln] - dec);
+  left = OD_FILT_SIZE(OD_MINI(OD_NBSIZES - 1, ln + 1), dec);
+  right = OD_FILT_SIZE(ln, dec);
   for (i = 0; i < n; i++) {
     OD_CLEAR(x0, OD_BASIS_SIZE);
     OD_CLEAR(y0, OD_BASIS_SIZE);

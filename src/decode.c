@@ -449,7 +449,7 @@ static void od_decode_recursive(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
     int f;
     int bo;
     d = l - xdec;
-    f = OD_MAXI(0, OD_FILT_SIZE[d - 1] - xdec);
+    f = OD_FILT_SIZE(d - 1, xdec);
     bo = (by << (OD_LOG_BSIZE0 + d))*w + (bx << (OD_LOG_BSIZE0 + d));
     if (!ctx->is_keyframe) {
       od_prefilter_split(ctx->mc + bo, w, d, f);

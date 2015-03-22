@@ -585,7 +585,7 @@ static void od_compute_dcts(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
   else {
     int f;
     d = l - xdec;
-    f = OD_MAXI(0, OD_FILT_SIZE[d - 1] - xdec);
+    f = OD_FILT_SIZE(d - 1, xdec);
     bo = (by << (OD_LOG_BSIZE0 + d))*w + (bx << (OD_LOG_BSIZE0 + d));
     od_prefilter_split(ctx->c + bo, w, d, f);
     l--;
@@ -912,7 +912,7 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
         od_ec_enc_bits(&enc->ec, 0, OD_MINI(20, bits));
       }
     }
-    f = OD_MAXI(0, OD_FILT_SIZE[d - 1] - xdec);
+    f = OD_FILT_SIZE(d - 1, xdec);
     od_prefilter_split(ctx->c + bo, w, d, f);
     if (!ctx->is_keyframe) od_prefilter_split(ctx->mc + bo, w, d, f);
     l--;

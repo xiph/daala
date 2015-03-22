@@ -122,12 +122,6 @@ const od_filter_func OD_POST_FILTER[OD_NBSIZES] = {
   od_post_filter32
 };
 
-/*The length in pixel of the lapping of an NXN block is
-   4 << OD_FILT_SIZE[OD_BLOCK_NXN].
-  If this array is changed, the values in od_basis_mag have to be
-   regenerated.*/
-const int OD_FILT_SIZE[OD_NBSIZES] = {0, 1, 1, 1};
-
 /*Filter parameters for the pre/post filters.
   When changing these the intra-predictors in
   initdata.c must be updated.*/
@@ -1398,7 +1392,7 @@ void od_apply_prefilter_frame_sbs(od_coeff *c0, int stride, int nhsb, int nvsb,
   int j;
   int f;
   od_coeff *c;
-  f = OD_MAXI(0, OD_FILT_SIZE[OD_NBSIZES - 1] - xdec);
+  f = OD_FILT_SIZE(OD_NBSIZES - 1, xdec);
   c = c0 + ((OD_BSIZE_MAX >> ydec) - (2 << f))*stride;
   for (sby = 1; sby < nvsb; sby++) {
     for (j = 0; j < nhsb << 5 >> xdec; j++) {
@@ -1427,7 +1421,7 @@ void od_apply_postfilter_frame_sbs(od_coeff *c0, int stride, int nhsb,
   int j;
   int f;
   od_coeff *c;
-  f = OD_MAXI(0, OD_FILT_SIZE[OD_NBSIZES - 1] - xdec);
+  f = OD_FILT_SIZE(OD_NBSIZES - 1, xdec);
   c = c0 + (OD_BSIZE_MAX >> ydec) - (2 << f);
   for (sbx = 1; sbx < nhsb; sbx++) {
     for (i = 0; i < nvsb << 5 >> ydec; i++) {
