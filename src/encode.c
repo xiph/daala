@@ -871,14 +871,18 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
     int tell;
     int skip_split;
     int skip_nosplit;
-    od_rollback_buffer buf1;
-    od_rollback_buffer buf2;
-    od_coeff morig[1024];
-    od_coeff orig[1024];
-    od_coeff nosplit[1024];
-    od_coeff split[1024];
+    od_rollback_buffer pre_encode_buf;
+    od_rollback_buffer post_nosplit_buf;
+    od_coeff *mc_orig;
+    od_coeff *c_orig;
+    od_coeff *nosplit;
+    od_coeff *split;
     int rate_nosplit;
     int rate_split;
+    c_orig = enc->c_orig[l - 1];
+    mc_orig = enc->mc_orig[l - 1];
+    nosplit = enc->nosplit[l - 1];
+    split = enc->split[l - 1];
     rate_nosplit = skip_nosplit = 0; /* Silence gcc -Wmaybe-uninitialized */
     d = l - xdec;
     bo = (by << (OD_LOG_BSIZE0 + d))*w + (bx << (OD_LOG_BSIZE0 + d));
@@ -888,22 +892,22 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
       int j;
       tell = od_ec_enc_tell_frac(&enc->ec);
       for (i = 0; i < n; i++) {
-        for (j = 0; j < n; j++) orig[n*i + j] = ctx->c[bo + i*w + j];
+        for (j = 0; j < n; j++) c_orig[n*i + j] = ctx->c[bo + i*w + j];
       }
       for (i = 0; i < n; i++) {
-        for (j = 0; j < n; j++) morig[n*i + j] = ctx->mc[bo + i*w + j];
+        for (j = 0; j < n; j++) mc_orig[n*i + j] = ctx->mc[bo + i*w + j];
       }
-      od_encode_checkpoint(enc, &buf1);
+      od_encode_checkpoint(enc, &pre_encode_buf);
       skip_nosplit = od_block_encode(enc, ctx, d, pli, bx, by, rdo_only ? dc :
        NULL);
       rate_nosplit = od_ec_enc_tell_frac(&enc->ec) - tell;
-      od_encode_checkpoint(enc, &buf2);
-      od_encode_rollback(enc, &buf1);
+      od_encode_checkpoint(enc, &post_nosplit_buf);
+      od_encode_rollback(enc, &pre_encode_buf);
       for (i = 0; i < n; i++) {
         for (j = 0; j < n; j++) nosplit[n*i + j] = ctx->c[bo + i*w + j];
       }
       for (i = 0; i < n; i++) {
-        for (j = 0; j < n; j++) ctx->c[bo + i*w + j] = orig[n*i + j];
+        for (j = 0; j < n; j++) ctx->c[bo + i*w + j] = c_orig[n*i + j];
       }
       if (dc_rate) {
         int bits;
@@ -938,8 +942,8 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
         for (j = 0; j < n; j++) split[n*i + j] = ctx->c[bo + i*w + j];
       }
       rate_split = 16+od_ec_enc_tell_frac(&enc->ec) - tell;
-      dist_split = od_compute_dist(enc, orig, split, n);
-      dist_nosplit = od_compute_dist(enc, orig, nosplit, n);
+      dist_split = od_compute_dist(enc, c_orig, split, n);
+      dist_nosplit = od_compute_dist(enc, c_orig, nosplit, n);
       lambda = .125*OD_PVQ_LAMBDA*enc->quantizer[pli]*enc->quantizer[pli];
       if (skip_split || dist_nosplit + lambda*rate_nosplit < dist_split
        + lambda*rate_split) {
@@ -947,7 +951,7 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
            because the bytes in the buffer are not being copied back. This is
            not a problem here because we are only tracking the rate and we will
            rollback everything at the end of the RDO stage anyway. */
-        od_encode_rollback(enc, &buf2);
+        od_encode_rollback(enc, &post_nosplit_buf);
         for (i = 0; i < n; i++) {
           for (j = 0; j < n; j++) ctx->c[bo + i*w + j] = nosplit[n*i + j];
         }
@@ -960,7 +964,7 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
         skip_split = skip_nosplit;
       }
       for (i = 0; i < n; i++) {
-        for (j = 0; j < n; j++) ctx->mc[bo + i*w + j] = morig[n*i + j];
+        for (j = 0; j < n; j++) ctx->mc[bo + i*w + j] = mc_orig[n*i + j];
       }
     }
     return skip_split;
@@ -1505,12 +1509,13 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
       for (pli = 0; pli < nplanes; pli++) {
         od_coeff dc0[85];
         od_coeff dc_rate0[85];
-        od_coeff orig[1024];
+        od_coeff *c_orig;
         int i;
         int j;
         od_coeff *dc;
         od_coeff *dc_rate;
         od_rollback_buffer buf;
+        c_orig = enc->c_orig[0];
         dc = dc0;
         dc_rate = dc_rate0;
         OD_ENC_ACCT_UPDATE(enc, OD_ACCT_CAT_PLANE, OD_ACCT_PLANE_LUMA + pli);
@@ -1521,29 +1526,29 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
         mbctx->l = state->lbuf[pli];
         xdec = state->io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
         ydec = state->io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
-        if (rdo_only) {
-          for (i = 0; i < 32; i++) {
-            int w;
-            w = enc->state.frame_width;
-            for (j = 0; j < 32; j++) {
-              orig[i*32 + j] = mbctx->c[(32*sby + i)*w + 32*sbx + j];
-            }
-          }
-        }
         if (!OD_DISABLE_HAAR_DC && mbctx->is_keyframe) {
-          if (rdo_only) od_encode_checkpoint(enc, &buf);
+          if (rdo_only) {
+            for (i = 0; i < 32; i++) {
+              int w;
+              w = enc->state.frame_width;
+              for (j = 0; j < 32; j++) {
+                c_orig[i*32 + j] = mbctx->c[(32*sby + i)*w + 32*sbx + j];
+              }
+            }
+            od_encode_checkpoint(enc, &buf);
+          }
           od_compute_dcts(enc, mbctx, pli, sbx, sby, 3, xdec, ydec);
           od_quantize_haar_dc(enc, mbctx, pli, sbx, sby, 3, xdec, ydec, 0,
            0, sby > 0 && sbx < nhsb - 1, rdo_only ? &dc : NULL,
            rdo_only ? &dc_rate : NULL);
-          if (rdo_only) od_encode_rollback(enc, &buf);
-        }
-        if (rdo_only && mbctx->is_keyframe) {
-          for (i = 0; i < 32; i++) {
+          if (rdo_only) {
             int w;
             w = enc->state.frame_width;
-            for (j = 0; j < 32; j++) {
-              mbctx->c[(32*sby + i)*w + 32*sbx + j] = orig[i*32 + j];
+            od_encode_rollback(enc, &buf);
+            for (i = 0; i < 32; i++) {
+              for (j = 0; j < 32; j++) {
+                mbctx->c[(32*sby + i)*w + 32*sbx + j] = c_orig[i*32 + j];
+              }
             }
           }
         }

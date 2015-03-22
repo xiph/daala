@@ -86,6 +86,11 @@ struct daala_enc_ctx{
   od_acct acct;
 #endif
   od_block_size_comp *bs;
+  /* These buffers are for saving pixel data during block size RDO. */
+  od_coeff mc_orig[OD_NBSIZES-1][OD_BSIZE_MAX*OD_BSIZE_MAX];
+  od_coeff c_orig[OD_NBSIZES-1][OD_BSIZE_MAX*OD_BSIZE_MAX];
+  od_coeff nosplit[OD_NBSIZES-1][OD_BSIZE_MAX*OD_BSIZE_MAX];
+  od_coeff split[OD_NBSIZES-1][OD_BSIZE_MAX*OD_BSIZE_MAX];
 };
 
 /** Holds important encoder information so we can roll back decisions */
