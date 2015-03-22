@@ -1350,6 +1350,104 @@ void od_post_filter32(od_coeff _x[32], const od_coeff _y[32]) {
 #define OD_BLOCK_SIZE4x4_DEC(bsize, bstride, bx, by, dec) \
  OD_MAXI(OD_BLOCK_SIZE4x4(bsize, bstride, bx, by), dec)
 
+void od_prefilter_split(od_coeff *c0, int stride, int ln, int f) {
+#if !OD_DISABLE_FIXED_LAPPING
+  int i;
+  int j;
+  od_coeff *c;
+  c = c0 + ((2 << ln) - (2 << f))*stride;
+  for (j = 0; j < 4 << ln; j++) {
+    int k;
+    od_coeff t[4 << OD_NBSIZES];
+    for (k = 0; k < 4 << f; k++) t[k] = c[stride*k + j];
+    (*OD_PRE_FILTER[f])(t, t);
+    for (k = 0; k < 4 << f; k++) c[stride*k + j] = t[k];
+  }
+  c = c0 + (2 << ln) - (2 << f);
+  for (i = 0; i < 4 << ln; i++) {
+    (*OD_PRE_FILTER[f])(c + i*stride, c + i*stride);
+  }
+#endif
+}
+
+void od_postfilter_split(od_coeff *c0, int stride, int ln, int f) {
+#if !OD_DISABLE_FIXED_LAPPING
+  int i;
+  int j;
+  od_coeff *c;
+  c = c0 + (2 << ln) - (2 << f);
+  for (i = 0; i < 4 << ln; i++) {
+    (*OD_POST_FILTER[f])(c + i*stride, c + i*stride);
+  }
+  c = c0 + ((2 << ln) - (2 << f))*stride;
+  for (j = 0; j < 4 << ln; j++) {
+    int k;
+    od_coeff t[4 << OD_NBSIZES];
+    for (k = 0; k < 4 << f; k++) t[k] = c[stride*k + j];
+    (*OD_POST_FILTER[f])(t, t);
+    for (k = 0; k < 4 << f; k++) c[stride*k + j] = t[k];
+  }
+#endif
+}
+
+void od_apply_prefilter_frame_sbs(od_coeff *c0, int stride, int nhsb, int nvsb,
+ int xdec, int ydec) {
+  int sbx;
+  int sby;
+  int i;
+  int j;
+  int f;
+  od_coeff *c;
+  f = OD_MAXI(0, OD_FILT_SIZE[OD_NBSIZES - 1] - xdec);
+  c = c0 + ((OD_BSIZE_MAX >> ydec) - (2 << f))*stride;
+  for (sby = 1; sby < nvsb; sby++) {
+    for (j = 0; j < nhsb << 5 >> xdec; j++) {
+      int k;
+      od_coeff t[4 << OD_NBSIZES];
+      for (k = 0; k < 4 << f; k++) t[k] = c[stride*k + j];
+      (*OD_PRE_FILTER[f])(t, t);
+      for (k = 0; k < 4 << f; k++) c[stride*k + j] = t[k];
+    }
+    c += OD_BSIZE_MAX*stride >> ydec;
+  }
+  c = c0 + (OD_BSIZE_MAX >> ydec) - (2 << f);
+  for (sbx = 1; sbx < nhsb; sbx++) {
+    for (i = 0; i < nvsb << 5 >> ydec; i++) {
+      (*OD_PRE_FILTER[f])(c + i*stride, c + i*stride);
+    }
+    c += OD_BSIZE_MAX >> xdec;
+  }
+}
+
+void od_apply_postfilter_frame_sbs(od_coeff *c0, int stride, int nhsb,
+ int nvsb, int xdec, int ydec) {
+  int sbx;
+  int sby;
+  int i;
+  int j;
+  int f;
+  od_coeff *c;
+  f = OD_MAXI(0, OD_FILT_SIZE[OD_NBSIZES - 1] - xdec);
+  c = c0 + (OD_BSIZE_MAX >> ydec) - (2 << f);
+  for (sbx = 1; sbx < nhsb; sbx++) {
+    for (i = 0; i < nvsb << 5 >> ydec; i++) {
+      (*OD_POST_FILTER[f])(c + i*stride, c + i*stride);
+    }
+    c += OD_BSIZE_MAX >> xdec;
+  }
+  c = c0 + ((OD_BSIZE_MAX >> ydec) - (2 << f))*stride;
+  for (sby = 1; sby < nvsb; sby++) {
+    for (j = 0; j < nhsb << 5 >> xdec; j++) {
+      int k;
+      od_coeff t[4 << OD_NBSIZES];
+      for (k = 0; k < 4 << f; k++) t[k] = c[stride*k + j];
+      (*OD_POST_FILTER[f])(t, t);
+      for (k = 0; k < 4 << f; k++) c[stride*k + j] = t[k];
+    }
+    c += OD_BSIZE_MAX*stride >> ydec;
+  }
+}
+
 /*Apply the column filter along the horizontal edge starting directly above
  bx, by.  The filter is applied for 1 << l + OD_LOG_BSIZE0 columns, a block at
  a time (based on bsize) using the correct filter size for that block.*/
@@ -1401,62 +1499,6 @@ void od_apply_filter_cols(od_coeff *c, int w, int bx, int by, int l,
         b[w*k + j] = t[k];
       }
     }
-  }
-}
-
-void od_apply_filter_hsplit(od_coeff *c0, int stride, int inv, int ln, int f) {
-  int j;
-  od_coeff *c;
-  c = c0 + ((2 << ln) - (2 << f))*stride;
-  for (j = 0; j < 4 << ln; j++) {
-    int k;
-    od_coeff t[4 << OD_NBSIZES];
-    for (k = 0; k < 4 << f; k++) t[k] = c[stride*k + j];
-    (*(inv ? OD_POST_FILTER : OD_PRE_FILTER)[f])(t, t);
-    for (k = 0; k < 4 << f; k++) c[stride*k + j] = t[k];
-  }
-}
-
-void od_apply_filter_vsplit(od_coeff *c0, int stride, int inv, int ln, int f) {
-  int i;
-  od_coeff *c;
-  c = c0 + (2 << ln) - (2 << f);
-  for (i = 0; i < 4 << ln; i++) {
-    (*(inv ? OD_POST_FILTER : OD_PRE_FILTER)[f])(c + i*stride, c + i*stride);
-  }
-}
-
-void od_apply_filter_sb_rows(od_coeff *c, int stride, int nhsb, int nvsb,
- int xdec, int ydec, int inv, int ln) {
-  int sby;
-  int j;
-  int f;
-  f = OD_MAXI(0, OD_FILT_SIZE[ln] - xdec);
-  c += ((32 >> ydec) - (2 << f))*stride;
-  for (sby = 1; sby < nvsb; sby++) {
-    for (j = 0; j < nhsb << 5 >> xdec; j++) {
-      int k;
-      od_coeff t[4 << OD_NBSIZES];
-      for (k = 0; k < 4 << f; k++) t[k] = c[stride*k + j];
-      (*(inv ? OD_POST_FILTER : OD_PRE_FILTER)[f])(t, t);
-      for (k = 0; k < 4 << f; k++) c[stride*k + j] = t[k];
-    }
-    c += 32*stride >> ydec;
-  }
-}
-
-void od_apply_filter_sb_cols(od_coeff *c, int stride, int nhsb, int nvsb,
- int xdec, int ydec, int inv, int ln) {
-  int sbx;
-  int i;
-  int f;
-  f = OD_MAXI(0, OD_FILT_SIZE[ln] - xdec);
-  c += ((32 >> xdec) - (2 << f));
-  for (sbx = 1; sbx < nhsb; sbx++) {
-    for (i = 0; i < nvsb << 5 >> ydec; i++) {
-      (*(inv ? OD_POST_FILTER : OD_PRE_FILTER)[f])(c + i*stride, c + i*stride);
-    }
-    c += 32 >> xdec;
   }
 }
 

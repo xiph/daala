@@ -587,8 +587,7 @@ static void od_compute_dcts(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
     d = l - xdec;
     f = OD_MAXI(0, OD_FILT_SIZE[d - 1] - xdec);
     bo = (by << (OD_LOG_BSIZE0 + d))*w + (bx << (OD_LOG_BSIZE0 + d));
-    od_apply_filter_hsplit(ctx->c + bo, w, 0, d, f);
-    od_apply_filter_vsplit(ctx->c + bo, w, 0, d, f);
+    od_prefilter_split(ctx->c + bo, w, d, f);
     l--;
     bx <<= 1;
     by <<= 1;
@@ -914,12 +913,8 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
       }
     }
     f = OD_MAXI(0, OD_FILT_SIZE[d - 1] - xdec);
-    od_apply_filter_hsplit(ctx->c + bo, w, 0, d, f);
-    od_apply_filter_vsplit(ctx->c + bo, w, 0, d, f);
-    if (!ctx->is_keyframe) {
-      od_apply_filter_hsplit(ctx->mc + bo, w, 0, d, f);
-      od_apply_filter_vsplit(ctx->mc + bo, w, 0, d, f);
-    }
+    od_prefilter_split(ctx->c + bo, w, d, f);
+    if (!ctx->is_keyframe) od_prefilter_split(ctx->mc + bo, w, d, f);
     l--;
     bx <<= 1;
     by <<= 1;
@@ -932,8 +927,7 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
      ydec, rdo_only, dc, dc_rate);
     skip_split &= od_encode_recursive(enc, ctx, pli, bx + 1, by + 1, l, xdec,
      ydec, rdo_only, dc, dc_rate);
-    od_apply_filter_vsplit(ctx->c + bo, w, 1, d, f);
-    od_apply_filter_hsplit(ctx->c + bo, w, 1, d, f);
+    od_postfilter_split(ctx->c + bo, w, d, f);
     if (rdo_only) {
       int i;
       int j;
@@ -1133,7 +1127,7 @@ static void od_bsize_dump_img(od_state *state, int nvsb, int nhsb) {
 }
 #endif
 
-#if 0
+#if OD_DISABLE_FIXED_LAPPING
 static void od_split_superblocks(daala_enc_ctx *enc, int is_keyframe) {
   int nhsb;
   int nvsb;
@@ -1490,7 +1484,7 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
         }
       }
     }
-#if 0
+#if OD_DISABLE_FIXED_LAPPING
     /*Apply the prefilter across the entire image.*/
     od_apply_prefilter_frame(state->ctmp[pli], w, nhsb, nvsb,
      state->bsize, state->bstride, xdec);
@@ -1499,13 +1493,10 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
        state->bsize, state->bstride, xdec);
     }
 #else
-    od_apply_filter_sb_rows(state->ctmp[pli], w, nhsb, nvsb, xdec, ydec, 0, 3);
-    od_apply_filter_sb_cols(state->ctmp[pli], w, nhsb, nvsb, xdec, ydec, 0, 3);
+    od_apply_prefilter_frame_sbs(state->ctmp[pli], w, nhsb, nvsb, xdec, ydec);
     if (!mbctx->is_keyframe) {
-      od_apply_filter_sb_rows(state->mctmp[pli], w, nhsb, nvsb, xdec, ydec, 0,
-       3);
-      od_apply_filter_sb_cols(state->mctmp[pli], w, nhsb, nvsb, xdec, ydec, 0,
-       3);
+      od_apply_prefilter_frame_sbs(state->mctmp[pli], w, nhsb, nvsb, xdec,
+       ydec);
     }
 #endif
   }
@@ -1600,13 +1591,12 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
     ydec = state->io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
     w = frame_width >> xdec;
     h = frame_height >> ydec;
-#if 0
+#if OD_DISABLE_FIXED_LAPPING
     /*Apply the postfilter across the entire image.*/
     od_apply_postfilter_frame(state->ctmp[pli], w, nhsb, nvsb,
      state->bsize, state->bstride, xdec);
 #else
-    od_apply_filter_sb_cols(state->ctmp[pli], w, nhsb, nvsb, xdec, ydec, 1, 3);
-    od_apply_filter_sb_rows(state->ctmp[pli], w, nhsb, nvsb, xdec, ydec, 1, 3);
+    od_apply_postfilter_frame_sbs(state->ctmp[pli], w, nhsb, nvsb, xdec, ydec);
 #endif
     if (!rdo_only) {
       unsigned char *data;
@@ -1854,14 +1844,14 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   if (!mbctx.is_keyframe) {
     od_predict_frame(enc);
     od_encode_mvs(enc);
-#if 1
+#if !OD_DISABLE_FIXED_LAPPING
     od_split_superblocks_rdo(enc, &mbctx);
 #else
     od_split_superblocks(enc, 0);
 #endif
   }
   else {
-#if 1
+#if !OD_DISABLE_FIXED_LAPPING
     od_split_superblocks_rdo(enc, &mbctx);
 #else
     od_split_superblocks(enc, 1);

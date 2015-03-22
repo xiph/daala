@@ -452,8 +452,7 @@ static void od_decode_recursive(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
     f = OD_MAXI(0, OD_FILT_SIZE[d - 1] - xdec);
     bo = (by << (OD_LOG_BSIZE0 + d))*w + (bx << (OD_LOG_BSIZE0 + d));
     if (!ctx->is_keyframe) {
-      od_apply_filter_hsplit(ctx->mc + bo, w, 0, d, f);
-      od_apply_filter_vsplit(ctx->mc + bo, w, 0, d, f);
+      od_prefilter_split(ctx->mc + bo, w, d, f);
     }
     l--;
     bx <<= 1;
@@ -464,8 +463,7 @@ static void od_decode_recursive(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
     od_decode_recursive(dec, ctx, pli, bx + 1, by + 1, l, xdec, ydec);
     d = l - xdec;
     bo = (by << (OD_LOG_BSIZE0 + d))*w + (bx << (OD_LOG_BSIZE0 + d));
-    od_apply_filter_vsplit(ctx->c + bo, w, 1, d + 1, f);
-    od_apply_filter_hsplit(ctx->c + bo, w, 1, d + 1, f);
+    od_postfilter_split(ctx->c + bo, w, d + 1, f);
   }
 }
 
@@ -710,16 +708,14 @@ static void od_decode_residual(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
           }
         }
       }
-#if 0
+#if OD_DISABLE_FIXED_LAPPING
       /*Apply the prefilter across the entire image.*/
       od_apply_prefilter_frame(state->mctmp[pli], w, nhsb, nvsb,
        state->bsize, state->bstride, xdec);
 #else
       if (!mbctx->is_keyframe) {
-        od_apply_filter_sb_rows(state->mctmp[pli], w, nhsb, nvsb, xdec, ydec,
-         0, 3);
-        od_apply_filter_sb_cols(state->mctmp[pli], w, nhsb, nvsb, xdec, ydec,
-         0, 3);
+        od_apply_prefilter_frame_sbs(state->mctmp[pli], w, nhsb, nvsb, xdec,
+         ydec);
       }
 #endif
     }
@@ -755,13 +751,12 @@ static void od_decode_residual(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
     ydec = state->io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
     w = frame_width >> xdec;
     h = frame_height >> ydec;
-#if 0
+#if OD_DISABLE_FIXED_LAPPING
     /*Apply the postfilter across the entire image.*/
     od_apply_postfilter_frame(state->ctmp[pli], w, nhsb, nvsb,
      state->bsize, state->bstride, xdec);
 #else
-    od_apply_filter_sb_cols(state->ctmp[pli], w, nhsb, nvsb, xdec, ydec, 1, 3);
-    od_apply_filter_sb_rows(state->ctmp[pli], w, nhsb, nvsb, xdec, ydec, 1, 3);
+    od_apply_postfilter_frame_sbs(state->ctmp[pli], w, nhsb, nvsb, xdec, ydec);
 #endif
     {
       unsigned char *data;
