@@ -1524,13 +1524,13 @@ void od_apply_postfilter_frame(od_coeff *c, int w, int nhsb, int nvsb,
        dec);
     }
   }
+  /*Apply postfilter along superblock edges*/
   for (by = 0; by < nvsb; by++) {
     for (bx = 1; bx < nhsb; bx++) {
       od_apply_filter_rows(c, w, bx, by, OD_NBSIZES - 1, bsize, bstride, dec,
        1);
     }
   }
-  /*Apply postfilter along superblock edges*/
   for (by = 1; by < nvsb; by++) {
     for (bx = 0; bx < nhsb; bx++) {
       od_apply_filter_cols(c, w, bx, by, OD_NBSIZES - 1, bsize, bstride, dec,
