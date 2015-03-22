@@ -299,7 +299,7 @@ static void id_file(av_input *avin, const char *file) {
 
 int fetch_and_process_video(av_input *avin, ogg_page *page,
  ogg_stream_state *vo, daala_enc_ctx *dd, int video_ready,
- int *limit) {
+ int *limit, int *skip) {
   ogg_packet op;
   while (!video_ready) {
     size_t ret;
@@ -343,6 +343,10 @@ int fetch_and_process_video(av_input *avin, ogg_page *page,
           exit(1);
         }
       }
+      if (skip && (*skip) > 0) {
+        (*skip)--;
+        continue;
+      }
       if (limit) {
         last = (*limit) == 0;
         (*limit)--;
@@ -362,7 +366,7 @@ int fetch_and_process_video(av_input *avin, ogg_page *page,
   return video_ready;
 }
 
-static const char *OPTSTRING = "ho:k:v:V:s:l:";
+static const char *OPTSTRING = "ho:k:v:V:s:S:l:";
 
 static const struct option OPTIONS[] = {
   { "help", no_argument, NULL, 'h' },
@@ -371,6 +375,7 @@ static const struct option OPTIONS[] = {
   { "video-quality", required_argument, NULL, 'v' },
   { "video-rate-target", required_argument, NULL, 'V' },
   { "serial", required_argument, NULL, 's' },
+  { "skip", required_argument, NULL, 'S' },
   { "limit", required_argument, NULL, 'l' },
   { "mc-use-chroma", no_argument, NULL, 0 },
   { "no-mc-use-chroma", no_argument, NULL, 0 },
@@ -399,6 +404,7 @@ static void usage(void) {
    "                                 as -v gives higher quality for a given\n"
    "                                 bitrate.\n\n"
    "  -s --serial <n>                Specify a serial number for the stream.\n"
+   "  -S --skip <n>                  Number of input frames to skip before encoding.\n"
    "  -l --limit <n>                 Maximum number of frames to encode.\n"
    "     --[no-]mc-use-chroma        Control whether the chroma planes should\n"
    "                                 be used in the motion compensation search.\n"
@@ -437,6 +443,7 @@ int main(int argc, char **argv) {
   int pli;
   int fixedserial;
   unsigned int serial;
+  int skip;
   int limit;
   int interactive;
   int mc_use_chroma;
@@ -462,6 +469,7 @@ int main(int argc, char **argv) {
   video_r = -1;
   video_bytesout = 0;
   fixedserial = 0;
+  skip = 0;
   limit = -1;
   mc_use_chroma = 1;
   mv_res_min = 0;
@@ -511,6 +519,15 @@ int main(int argc, char **argv) {
         }
         else {
           fixedserial = 1;
+        }
+        break;
+      }
+      case 'S': {
+        skip = atoi(optarg);
+        if (skip < 0) {
+          fprintf(stderr,
+           "Illegal number of frames to skip (must be non-negative)\n");
+          exit(1);
         }
         break;
       }
@@ -653,8 +670,8 @@ int main(int argc, char **argv) {
     ogg_page video_page;
     double video_time;
     size_t bytes_written;
-    video_ready = fetch_and_process_video(&avin, &video_page,
-     &vo, dd, video_ready, limit >= 0 ? &limit : NULL);
+    video_ready = fetch_and_process_video(&avin, &video_page, &vo,
+     dd, video_ready, limit >= 0 ? &limit : NULL, skip > 0 ? &skip : NULL);
     /*TODO: Fetch the next video page.*/
     /*If no more pages are available, we've hit the end of the stream.*/
     if (!video_ready) break;
