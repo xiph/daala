@@ -327,6 +327,11 @@ static void od_img_plane_edge_ext8(od_img_plane *dst_p,
   }
 }
 
+/* All DCs for each level: 1 + 4 + 16 + 64 */
+#define OD_NB_SAVED_DCS (((1 << 2*OD_NBSIZES) - 1)/3)
+/* There's one rate for 4 DCs, and no toplevel rate. */
+#define OD_NB_SAVED_DC_RATES ((OD_NB_SAVED_DCS-1)/4)
+
 struct od_mb_enc_ctx {
   od_coeff *c;
   od_coeff **d;
@@ -334,6 +339,19 @@ struct od_mb_enc_ctx {
   od_coeff *mc;
   od_coeff *l;
   int is_keyframe;
+  /** The quantized DC (dc) is saved in this buffer in recursive raster order,
+      with higher levels sub-blocks stored just before the smaller subblocks
+      they contain. We save all the DCs for each of the levels we consider.
+      The ordering is important because it has to be matched between
+      od_quantize_haar_dc that writes the values and od_encode_recursive()
+      that consumes the values.*/
+  od_coeff dc[OD_NB_SAVED_DCS];
+  int dc_idx;
+  /** We save the rates for DC quantization. The ordering is the same as for
+      DC above, except that we don't save the top-level rate and we only save
+      one rate for all 3 Haar coefficients we code at each level. */
+  int dc_rate[OD_NB_SAVED_DC_RATES];
+  int dc_rate_idx;
 };
 typedef struct od_mb_enc_ctx od_mb_enc_ctx;
 
@@ -424,7 +442,7 @@ static int od_single_band_lossless_encode(daala_enc_ctx *enc, int ln,
 
 /* Returns 1 if the block is skipped, zero otherwise. */
 static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
- int pli, int bx, int by, od_coeff **dc) {
+ int pli, int bx, int by, int rdo_only) {
   int n;
   int xdec;
   int w;
@@ -460,7 +478,7 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   mc = ctx->mc;
   lossless = (enc->quantizer[pli] == 0);
   /* Apply forward transform. */
-  if (OD_DISABLE_HAAR_DC || dc || !ctx->is_keyframe) {
+  if (OD_DISABLE_HAAR_DC || rdo_only || !ctx->is_keyframe) {
     (*enc->state.opt_vtbl.fdct_2d[ln])(d + bo, w, c + bo, w);
     if (!lossless) od_apply_qm(d + bo, w, d + bo, w, ln, xdec, 0);
   }
@@ -524,7 +542,8 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   }
   else {
     scalar_out[0] = cblock[0];
-    if (dc) scalar_out[0] = *(*dc)++;
+    OD_ASSERT(ctx->dc_idx < OD_NB_SAVED_DCS);
+    if (rdo_only && ctx->is_keyframe) scalar_out[0] = ctx->dc[ctx->dc_idx++];
   }
   od_coding_order_to_raster(&d[bo], w, scalar_out, n, lossless);
   /*Apply the inverse transform.*/
@@ -619,10 +638,8 @@ static void od_compute_dcts(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
  *  This code also computes the distortion and rate to allow block size RDO
  *  on intra. This is made possible because the combination of 4 DC basis
  *  functions of size NxN is exactly equal (outside of rounding error) to the
- *  DC basis function of size 2Nx2N. The quantized DC (dc) and rates (dc_rate)
- *  are saved in recursive raster order, with higher levels sub-blocks stored
- *  just before the smaller subblocks they contain. The ordering is important
- *  because it has to match how od_encode_recursive() consumes those values.
+ *  DC basis function of size 2Nx2N. We also save the quantized DC (dc) and
+ *  rates (dc_rate) in recursive raster order.
  * @param [in,out] enc    Daala encoder context
  * @param [in,out] ctx    encoder scratch context
  * @param [in]     pli    plane index
@@ -641,7 +658,7 @@ static void od_compute_dcts(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
  */
 static void od_quantize_haar_dc(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
  int pli, int bx, int by, int l, int xdec, int ydec, od_coeff hgrad,
- od_coeff vgrad, int has_ur, od_coeff **dc, int **dc_rate) {
+ od_coeff vgrad, int has_ur, int rdo_only) {
   int od;
   int d;
   int w;
@@ -697,7 +714,8 @@ static void od_quantize_haar_dc(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
     sb_dc_curr = quant*dc_quant + sb_dc_pred;
     c[(by << l2)*w + (bx << l2)] = sb_dc_curr;
     sb_dc_mem[by*nhsb + bx] = sb_dc_curr;
-    if (dc) *(*dc)++ = sb_dc_curr;
+    OD_ASSERT(ctx->dc_idx == 0);
+    if (rdo_only) ctx->dc[ctx->dc_idx++] = sb_dc_curr;
     if (by > 0) vgrad = sb_dc_mem[(by - 1)*nhsb + bx] - sb_dc_curr;
     if (bx > 0) hgrad = sb_dc_mem[by*nhsb + bx - 1]- sb_dc_curr;
   }
@@ -731,7 +749,10 @@ static void od_quantize_haar_dc(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
       if (quant) od_ec_enc_bits(&enc->ec, quant < 0, 1);
       x[i] = quant*ac_quant[i == 3];
     }
-    if (dc_rate) *(*dc_rate)++ = od_ec_enc_tell_frac(&enc->ec) - tell;
+    if (rdo_only) {
+      OD_ASSERT(ctx->dc_rate_idx < OD_NB_SAVED_DC_RATES);
+      ctx->dc_rate[ctx->dc_rate_idx++] = od_ec_enc_tell_frac(&enc->ec) - tell;
+    }
     /* Gives best results for subset1, more conservative than the
        theoretical /4 of a pure gradient. */
     x[1] += hgrad/5;
@@ -743,18 +764,19 @@ static void od_quantize_haar_dc(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
     c[(by << l2)*w + ((bx + 1) << l2)] = x[1];
     c[((by + 1) << l2)*w + (bx << l2)] = x[2];
     c[((by + 1) << l2)*w + ((bx + 1) << l2)] = x[3];
-    if (dc) *(*dc)++ = x[0];
+    if (rdo_only) ctx->dc[ctx->dc_idx++] = x[0];
     od_quantize_haar_dc(enc, ctx, pli, bx + 0, by + 0, l, xdec, ydec, hgrad,
-     vgrad, 0, dc, dc_rate);
-    if (dc) *(*dc)++ = x[1];
+     vgrad, 0, rdo_only);
+    if (rdo_only) ctx->dc[ctx->dc_idx++] = x[1];
     od_quantize_haar_dc(enc, ctx, pli, bx + 1, by + 0, l, xdec, ydec, hgrad,
-     vgrad, 0, dc, dc_rate);
-    if (dc) *(*dc)++ = x[2];
+     vgrad, 0, rdo_only);
+    if (rdo_only) ctx->dc[ctx->dc_idx++] = x[2];
     od_quantize_haar_dc(enc, ctx, pli, bx + 0, by + 1, l, xdec, ydec, hgrad,
-     vgrad, 0, dc, dc_rate);
-    if (dc) *(*dc)++ = x[3];
+     vgrad, 0, rdo_only);
+    if (rdo_only) ctx->dc[ctx->dc_idx++] = x[3];
     od_quantize_haar_dc(enc, ctx, pli, bx + 1, by + 1, l, xdec, ydec, hgrad,
-     vgrad, 0, dc, dc_rate);
+     vgrad, 0, rdo_only);
+    OD_ASSERT(ctx->dc_idx <= OD_NB_SAVED_DCS);
   }
   OD_ENC_ACCT_UPDATE(enc, OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
 }
@@ -843,8 +865,7 @@ static double od_compute_dist(daala_enc_ctx *enc, od_coeff *x, od_coeff *y,
 #if !defined(OD_DUMP_COEFFS)
 /* Returns 1 if the block is skipped, zero otherwise. */
 static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
- int pli, int bx, int by, int l, int xdec, int ydec, int rdo_only,
- od_coeff **dc, int **dc_rate) {
+ int pli, int bx, int by, int l, int xdec, int ydec, int rdo_only) {
   int od;
   int d;
   int frame_width;
@@ -866,7 +887,7 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
        ctx->d[0] + (by << (2 + l))*frame_width + (bx << (2 + l)),
        frame_width, xdec, ydec, d, od);
     }
-    return od_block_encode(enc, ctx, d, pli, bx, by, rdo_only ? dc : NULL);
+    return od_block_encode(enc, ctx, d, pli, bx, by, rdo_only);
   }
   else {
     int f;
@@ -904,8 +925,7 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
         for (j = 0; j < n; j++) mc_orig[n*i + j] = ctx->mc[bo + i*w + j];
       }
       od_encode_checkpoint(enc, &pre_encode_buf);
-      skip_nosplit = od_block_encode(enc, ctx, d, pli, bx, by, rdo_only ? dc :
-       NULL);
+      skip_nosplit = od_block_encode(enc, ctx, d, pli, bx, by, rdo_only);
       rate_nosplit = od_ec_enc_tell_frac(&enc->ec) - tell;
       od_encode_checkpoint(enc, &post_nosplit_buf);
       od_encode_rollback(enc, &pre_encode_buf);
@@ -915,9 +935,10 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
       for (i = 0; i < n; i++) {
         for (j = 0; j < n; j++) ctx->c[bo + i*w + j] = c_orig[n*i + j];
       }
-      if (dc_rate) {
+      if (rdo_only && ctx->is_keyframe) {
         int bits;
-        bits = (*(*dc_rate)++ + 4)/8;
+        OD_ASSERT(ctx->dc_rate_idx < OD_NB_SAVED_DC_RATES);
+        bits = (ctx->dc_rate[ctx->dc_rate_idx++] + 4)/8;
         /* Encode "dummy bits" so that we can account for the rate. Integer
            numbers should be good enough for now and we don't have to account
            for the entropy coder overhead. */
@@ -932,13 +953,13 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
     by <<= 1;
     skip_split = 1;
     skip_split &= od_encode_recursive(enc, ctx, pli, bx + 0, by + 0, l, xdec,
-     ydec, rdo_only, dc, dc_rate);
+     ydec, rdo_only);
     skip_split &= od_encode_recursive(enc, ctx, pli, bx + 1, by + 0, l, xdec,
-     ydec, rdo_only, dc, dc_rate);
+     ydec, rdo_only);
     skip_split &= od_encode_recursive(enc, ctx, pli, bx + 0, by + 1, l, xdec,
-     ydec, rdo_only, dc, dc_rate);
+     ydec, rdo_only);
     skip_split &= od_encode_recursive(enc, ctx, pli, bx + 1, by + 1, l, xdec,
-     ydec, rdo_only, dc, dc_rate);
+     ydec, rdo_only);
     skip_block = skip_split;
     od_postfilter_split(ctx->c + bo, w, d, f);
     if (rdo_only) {
@@ -1521,19 +1542,13 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
   for (sby = 0; sby < nvsb; sby++) {
     for (sbx = 0; sbx < nhsb; sbx++) {
       for (pli = 0; pli < nplanes; pli++) {
-        /* All DCs for each level: 1 + 4 + 16 + 64 */
-        od_coeff dc0[((1 << 2*OD_NBSIZES) - 1)/3];
-        /* There's fewer rates than DC, so we'll never overflow. */
-        int dc_rate0[((1 << 2*OD_NBSIZES) - 1)/3];
         od_coeff *c_orig;
         int i;
         int j;
-        od_coeff *dc;
-        int *dc_rate;
         od_rollback_buffer buf;
         c_orig = enc->c_orig[0];
-        dc = dc0;
-        dc_rate = dc_rate0;
+        mbctx->dc_idx = 0;
+        mbctx->dc_rate_idx = 0;
         OD_ENC_ACCT_UPDATE(enc, OD_ACCT_CAT_PLANE, OD_ACCT_PLANE_LUMA + pli);
         mbctx->c = state->ctmp[pli];
         mbctx->d = state->dtmp;
@@ -1555,8 +1570,7 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
           }
           od_compute_dcts(enc, mbctx, pli, sbx, sby, 3, xdec, ydec);
           od_quantize_haar_dc(enc, mbctx, pli, sbx, sby, 3, xdec, ydec, 0,
-           0, sby > 0 && sbx < nhsb - 1, rdo_only ? &dc : NULL,
-           rdo_only ? &dc_rate : NULL);
+           0, sby > 0 && sbx < nhsb - 1, rdo_only);
           if (rdo_only) {
             od_encode_rollback(enc, &buf);
             for (i = 0; i < 32; i++) {
@@ -1567,15 +1581,10 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
           }
         }
 #if !defined(OD_DUMP_COEFFS)
-        if (mbctx->is_keyframe) {
-          dc = dc0;
-          dc_rate = dc_rate0;
-        } else {
-          dc = dc_rate = NULL;
-        }
-        od_encode_recursive(enc, mbctx, pli, sbx, sby, 3, xdec, ydec, rdo_only,
-         mbctx->is_keyframe ? &dc : NULL,
-         mbctx->is_keyframe ? &dc_rate : NULL);
+        mbctx->dc_idx = 0;
+        mbctx->dc_rate_idx = 0;
+        od_encode_recursive(enc, mbctx, pli, sbx, sby, 3, xdec, ydec,
+         rdo_only);
 #endif
       }
         OD_ENC_ACCT_UPDATE(enc, OD_ACCT_CAT_PLANE, OD_ACCT_PLANE_UNKNOWN);
