@@ -783,57 +783,59 @@ static void od_quantize_haar_dc(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
 #endif
 
 #if !OD_DISABLE_QM
-static double od_compute_var_4x4(od_coeff *x, int stride) {
-  double sum;
-  double s2;
+static int od_compute_var_4x4(od_coeff *x, int stride) {
+  int sum;
+  int s2;
   int i;
   sum = 0;
   s2 = 0;
   for (i = 0; i < 4; i++) {
     int j;
     for (j = 0; j < 4; j++) {
-      double t;
+      int t;
       t = x[i*stride + j];
       sum += t;
       s2 += t*t;
     }
   }
-  return 0.0625*(s2 - 0.0625*sum*sum);
+  return (s2 - (sum*sum >> 4)) >> 4;
 }
 
 static double od_compute_dist_8x8(daala_enc_ctx *enc, od_coeff *x, od_coeff *y,
  int stride) {
-  od_coeff e[8][8];
-  od_coeff E[8][8];
+  od_coeff e[8*8];
+  od_coeff et[8*8];
   double sum;
-  double min_var;
+  int min_var;
   double activity;
   int i;
   int j;
 #if 1
-  min_var = 1e15;
+  min_var = INT_MAX;
   for (i = 0; i < 3; i++) {
     for (j = 0; j < 3; j++) {
-      double tmp;
-      tmp = od_compute_var_4x4(x + 2*i*stride + 2*j, stride);
-      min_var = OD_MINF(min_var, tmp);
+      int var;
+      var = od_compute_var_4x4(x + 2*i*stride + 2*j, stride);
+      min_var = OD_MINI(min_var, var);
     }
   }
-  activity = 1.62*pow(.25 + min_var/256., -1./6);
+  /* 1.62 is a calibration constant, 0.25 is a noise floor and 1/6 is the
+     activity masking constant. */
+  activity = 1.62*pow(.25 + (double)min_var/(1 << 2*OD_COEFF_SHIFT), -1./6);
 #else
   activity = 1;
 #endif
   for (i = 0; i < 8; i++) {
-    for (j = 0; j < 8; j++) e[i][j] = x[i*stride + j] - y[i*stride + j];
+    for (j = 0; j < 8; j++) e[8*i + j] = x[i*stride + j] - y[i*stride + j];
   }
-  (*enc->state.opt_vtbl.fdct_2d[OD_BLOCK_8X8])(&E[0][0], 8, &e[0][0], 8);
+  (*enc->state.opt_vtbl.fdct_2d[OD_BLOCK_8X8])(&et[0], 8, &e[0], 8);
   sum = 0;
   for (i = 0; i < 8; i++) {
     for (j = 0; j < 8; j++) {
       double mag;
       mag = 16./OD_QM8_Q4[i*8 + j];
       mag *= mag;
-      sum += E[i][j]*(double)E[i][j]*mag;
+      sum += et[8*i + j]*(double)et[8*i + j]*mag;
     }
   }
   return activity*activity*sum;
