@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 #include "../src/dct.h"
 #include "../src/filter.h"
 
@@ -13,7 +14,10 @@ void usage(char *str) {
 #define OD_BASIS_SIZE (3*OD_BSIZE_MAX)
 #define OD_BASIS_PULSE 1024
 
-/* Computes the synthesis basis functions and their magnitudes. */
+/* Computes the synthesis basis functions and their magnitudes. The lapping
+   filter is selected exactly as it would in the codec, including the 4x4
+   blocks that have 8x8 lapping on one side and 4x4 on the other. The exact
+   lapping filters are controlled by the "left" and "right" variables. */
 int main(int argc, char **argv) {
   int i;
   int j;
@@ -52,6 +56,8 @@ int main(int argc, char **argv) {
     return 1;
   }
   n = 4 << ln;
+  /* The first lapping filter is applied based on a larger (unsplit)
+     block size. */
   left = OD_FILT_SIZE(OD_MINI(OD_NBSIZES - 1, ln + 1), dec);
   right = OD_FILT_SIZE(ln, dec);
   for (i = 0; i < n; i++) {
@@ -61,6 +67,8 @@ int main(int argc, char **argv) {
     y = &y0[n];
     x[i] = OD_BASIS_PULSE;
     OD_IDCT_1D[ln](y, 1, x);
+    /* We need to apply left before right for 4x4 because the wider lapping
+       is always applied first. */
     OD_POST_FILTER[left](y - (2 << left), y - (2 << left));
     OD_POST_FILTER[right](y + n - (2 << right), y + n - (2 << right));
     if (magnitude) {

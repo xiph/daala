@@ -46,12 +46,8 @@ const od_coeff OD_DC_RES[3] = {17, 24, 17};
 /* Scaling compensation for the Haar equivalent basis function. Left is
    for horizontal/vertical. Right is for diagonal. */
 const od_coeff OD_DC_QM[2][OD_NBSIZES - 1][2] = {
-  {{25, 30},
-  {21, 27},
-  {17, 19}},
-  {{21, 25},
-  {18, 20},
-  {17, 18}}
+  {{25, 30}, {21, 27}, {17, 19}},
+  {{21, 25}, {18, 20}, {17, 18}}
 };
 
 static void *od_aligned_malloc(size_t _sz,size_t _align) {

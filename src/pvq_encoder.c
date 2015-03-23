@@ -572,6 +572,7 @@ int od_rdo_quant(od_coeff x, int q, double delta0) {
  * @param [in]     beta    per-band activity masking beta param
  * @param [in]     robust  make stream robust to error in the reference
  * @param [in]     is_keyframe whether we're encoding a keyframe
+ * @return         Returns 1 if the AC coefficients are skipped, zero otherwise
  */
 int od_pvq_encode(daala_enc_ctx *enc,
                    od_coeff *ref,

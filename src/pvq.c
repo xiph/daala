@@ -36,20 +36,20 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #define EPSILON 1e-30
 
-/*These tables were generated using compute_basis.c, if OD_FILT_SIZE is
+/*These tables were generated using compute_basis.c. If OD_FILT_SIZE is
    changed, they have to be regenerated.*/
-static const double mag4[] = {0.774125, 0.877780, 0.925934, 0.951682};
-static const double mag8[] = {
+static const double MAG4[] = {0.774125, 0.877780, 0.925934, 0.951682};
+static const double MAG8[] = {
   0.836776, 0.844316, 0.917307, 0.924980,
   0.948172, 0.936507, 0.968913, 0.967917
 };
-static const double mag16[] = {
+static const double MAG16[] = {
   0.921737, 0.868401, 0.925373, 0.958481,
   0.959319, 0.954073, 0.962690, 0.975782,
   0.974046, 0.967441, 0.968526, 0.979529,
   0.985361, 0.982844, 0.983440, 0.993243
 };
-static const double mag32[] = {
+static const double MAG32[] = {
   0.961865, 0.926229, 0.935907, 0.950836,
   0.962498, 0.972889, 0.979745, 0.979867,
   0.980251, 0.978192, 0.976537, 0.978706,
@@ -60,20 +60,20 @@ static const double mag32[] = {
   0.992098, 0.994740, 0.995867, 1.000695
 };
 
-static const double mag4_chroma_420[] = {
+static const double MAG4_CHROMA_420[] = {
   0.870774, 0.872037, 0.949493, 0.947936
 };
-static const double mag8_chroma_420[] = {
+static const double MAG8_CHROMA_420[] = {
   0.936496, 0.892830, 0.938452, 0.970087,
   0.974272, 0.967954, 0.974035, 0.990480
 };
-static const double mag16_chroma_420[] = {
+static const double MAG16_CHROMA_420[] = {
   0.968807, 0.940969, 0.947977, 0.957741,
   0.969762, 0.978644, 0.984885, 0.988009,
   0.987424, 0.985569, 0.984215, 0.984462,
   0.987205, 0.991415, 0.994985, 0.998237
 };
-static const double mag32_chroma_420[] = {
+static const double MAG32_CHROMA_420[] = {
   0.985068, 0.970006, 0.969893, 0.973192,
   0.973444, 0.975881, 0.979601, 0.981070,
   0.984989, 0.987520, 0.988830, 0.990983,
@@ -84,16 +84,16 @@ static const double mag32_chroma_420[] = {
   0.997475, 0.999027, 0.998303, 1.001413
 };
 
-const double *od_basis_mag[2][OD_NBSIZES] = {
-  {mag4, mag8, mag16, mag32},
-  {mag4_chroma_420, mag8_chroma_420, mag16_chroma_420, mag32_chroma_420}
+const double *OD_BASIS_MAG[2][OD_NBSIZES] = {
+  {MAG4, MAG8, MAG16, MAG32},
+  {MAG4_CHROMA_420, MAG8_CHROMA_420, MAG16_CHROMA_420, MAG32_CHROMA_420}
 };
 
 /* Quantization matrices for 8x8. For other block sizes, we currently just do
    resampling. */
 #if OD_DISABLE_QM
 /* Flat quantization, i.e. optimize for PSNR. */
-const int OD_QM8[] = {
+const int OD_QM8_Q4[] = {
   16, 16, 16, 16, 16, 16, 16, 16,
   16, 16, 16, 16, 16, 16, 16, 16,
   16, 16, 16, 16, 16, 16, 16, 16,
@@ -106,7 +106,7 @@ const int OD_QM8[] = {
 #else
 # if 0
 /* M1: MPEG2 matrix for inter (which has a dead zone). */
-const int OD_QM8[] = {
+const int OD_QM8_Q4[] = {
   16, 17, 18, 19, 20, 21, 22, 23,
   17, 18, 19, 20, 21, 22, 23, 24,
   18, 19, 20, 21, 22, 23, 24, 25,
@@ -118,7 +118,7 @@ const int OD_QM8[] = {
 # endif
 # if 0
 /* M2: MPEG2 matrix for intra (no dead zone). */
-const int OD_QM8[] = {
+const int OD_QM8_Q4[] = {
   16, 16, 19, 22, 22, 26, 26, 27,
   16, 16, 22, 22, 26, 27, 27, 29,
   19, 22, 26, 26, 27, 29, 29, 35,
@@ -131,7 +131,7 @@ const int OD_QM8[] = {
 # endif
 # if 0
 /* M3: Taken from dump_psnrhvs. */
-const int OD_QM8[] = {
+const int OD_QM8_Q4[] = {
   16, 16, 17, 20, 24, 29, 36, 42,
   16, 17, 17, 19, 22, 26, 31, 37,
   17, 17, 21, 23, 26, 30, 34, 40,
@@ -144,7 +144,7 @@ const int OD_QM8[] = {
 # endif
 # if 1
 /* M4: a compromise equal to .5*(M3 + .5*(M2+transpose(M2))) */
-const int OD_QM8[] = {
+const int OD_QM8_Q4[] = {
   16, 16, 18, 21, 24, 28, 32, 36,
   16, 17, 20, 21, 24, 27, 31, 35,
   18, 20, 24, 25, 27, 31, 33, 38,
@@ -274,12 +274,12 @@ void od_apply_qm(od_coeff *out, int out_stride, od_coeff *in, int in_stride,
   for (i = 0; i < 4 << ln; i++) {
     for (j = 0; j < 4 << ln; j++) {
       double mag;
-      mag = od_basis_mag[dec][ln][i]*od_basis_mag[dec][ln][j];
+      mag = OD_BASIS_MAG[dec][ln][i]*OD_BASIS_MAG[dec][ln][j];
       if (i == 0 && j == 0) {
         mag = 1;
       }
       else {
-        mag /= 0.0625*OD_QM8[(i << 1 >> ln)*8 + (j << 1 >> ln)];
+        mag /= 0.0625*OD_QM8_Q4[(i << 1 >> ln)*8 + (j << 1 >> ln)];
       }
       if (inverse) {
         out[i*out_stride + j] = (od_coeff)floor(.5 + in[i*in_stride + j]/mag);

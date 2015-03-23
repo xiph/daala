@@ -384,6 +384,7 @@ static void od_encode_compute_pred(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, od_co
   }
 }
 
+/* Returns 1 if the AC coefficients are skipped, zero otherwise. */
 static int od_single_band_lossless_encode(daala_enc_ctx *enc, int ln,
  od_coeff *scalar_out, const od_coeff *cblock, const od_coeff *predt,
  int pli) {
@@ -421,6 +422,7 @@ static int od_single_band_lossless_encode(daala_enc_ctx *enc, int ln,
   return vk == 0;
 }
 
+/* Returns 1 if the block is skipped, zero otherwise. */
 static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
  int pli, int bx, int by, od_coeff **dc) {
   int n;
@@ -639,7 +641,7 @@ static void od_compute_dcts(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
  */
 static void od_quantize_haar_dc(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
  int pli, int bx, int by, int l, int xdec, int ydec, od_coeff hgrad,
- od_coeff vgrad, int has_ur, od_coeff **dc, od_coeff **dc_rate) {
+ od_coeff vgrad, int has_ur, od_coeff **dc, int **dc_rate) {
   int od;
   int d;
   int w;
@@ -706,6 +708,7 @@ static void od_quantize_haar_dc(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
     int ac_quant[2];
     if (enc->quantizer[pli] == 0) ac_quant[0] = ac_quant[1] = 1;
     else {
+      /* Not rounding because it seems to slightly hurt. */
       ac_quant[0] = dc_quant*OD_DC_QM[xdec][l - xdec - 1][0] >> 4;
       ac_quant[1] = dc_quant*OD_DC_QM[xdec][l - xdec - 1][1] >> 4;
     }
@@ -806,7 +809,7 @@ static double od_compute_dist_8x8(daala_enc_ctx *enc, od_coeff *x, od_coeff *y,
   for (i = 0; i < 8; i++) {
     for (j = 0; j < 8; j++) {
       double mag;
-      mag = 16./OD_QM8[i*8 + j];
+      mag = 16./OD_QM8_Q4[i*8 + j];
       mag *= mag;
       sum += E[i][j]*(double)E[i][j]*mag;
     }
@@ -838,9 +841,10 @@ static double od_compute_dist(daala_enc_ctx *enc, od_coeff *x, od_coeff *y,
 }
 
 #if !defined(OD_DUMP_COEFFS)
+/* Returns 1 if the block is skipped, zero otherwise. */
 static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
- int pli, int bx, int by, int l, int xdec, int ydec, int rdo_only, od_coeff **dc,
- od_coeff **dc_rate) {
+ int pli, int bx, int by, int l, int xdec, int ydec, int rdo_only,
+ od_coeff **dc, int **dc_rate) {
   int od;
   int d;
   int frame_width;
@@ -871,6 +875,7 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
     int tell;
     int skip_split;
     int skip_nosplit;
+    int skip_block;
     od_rollback_buffer pre_encode_buf;
     od_rollback_buffer post_nosplit_buf;
     od_coeff *mc_orig;
@@ -883,7 +888,8 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
     mc_orig = enc->mc_orig[l - 1];
     nosplit = enc->nosplit[l - 1];
     split = enc->split[l - 1];
-    rate_nosplit = skip_nosplit = 0; /* Silence gcc -Wmaybe-uninitialized */
+    /* Silence gcc -Wmaybe-uninitialized */
+    rate_nosplit = skip_nosplit = 0;
     d = l - xdec;
     bo = (by << (OD_LOG_BSIZE0 + d))*w + (bx << (OD_LOG_BSIZE0 + d));
     n = 4 << d;
@@ -912,7 +918,9 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
       if (dc_rate) {
         int bits;
         bits = (*(*dc_rate)++ + 4)/8;
-        /* Encode "dummy bits" so that we can account for the rate. */
+        /* Encode "dummy bits" so that we can account for the rate. Integer
+           numbers should be good enough for now and we don't have to account
+           for the entropy coder overhead. */
         od_ec_enc_bits(&enc->ec, 0, OD_MINI(20, bits));
       }
     }
@@ -931,6 +939,7 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
      ydec, rdo_only, dc, dc_rate);
     skip_split &= od_encode_recursive(enc, ctx, pli, bx + 1, by + 1, l, xdec,
      ydec, rdo_only, dc, dc_rate);
+    skip_block = skip_split;
     od_postfilter_split(ctx->c + bo, w, d, f);
     if (rdo_only) {
       int i;
@@ -941,10 +950,13 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
       for (i = 0; i < n; i++) {
         for (j = 0; j < n; j++) split[n*i + j] = ctx->c[bo + i*w + j];
       }
-      rate_split = 16+od_ec_enc_tell_frac(&enc->ec) - tell;
+      /* Adds a 2-bit cost to splitting (that doesn't propagate) that biases
+         towards larger blocks. We do not yet understand why it helps. */
+      rate_split = 16 + od_ec_enc_tell_frac(&enc->ec) - tell;
       dist_split = od_compute_dist(enc, c_orig, split, n);
       dist_nosplit = od_compute_dist(enc, c_orig, nosplit, n);
-      lambda = .125*OD_PVQ_LAMBDA*enc->quantizer[pli]*enc->quantizer[pli];
+      lambda = (1./(1 << OD_BITRES))*OD_PVQ_LAMBDA*enc->quantizer[pli]*
+       enc->quantizer[pli];
       if (skip_split || dist_nosplit + lambda*rate_nosplit < dist_split
        + lambda*rate_split) {
         /* This rollback call leaves the entropy coder in an inconsistent state
@@ -961,13 +973,13 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
              + (bx << l >> 1) + j] = OD_MINI(OD_LIMIT_BSIZE_MAX, d);
           }
         }
-        skip_split = skip_nosplit;
+        skip_block = skip_nosplit;
       }
       for (i = 0; i < n; i++) {
         for (j = 0; j < n; j++) ctx->mc[bo + i*w + j] = mc_orig[n*i + j];
       }
     }
-    return skip_split;
+    return skip_block;
   }
 }
 #endif
@@ -1426,6 +1438,8 @@ static void od_encode_mvs(daala_enc_ctx *enc) {
   OD_ENC_ACCT_UPDATE(enc, OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
 }
 
+#define OD_ENCODE_REAL (0)
+#define OD_ENCODE_RDO (1)
 static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
  int rdo_only) {
   int xdec;
@@ -1507,13 +1521,15 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
   for (sby = 0; sby < nvsb; sby++) {
     for (sbx = 0; sbx < nhsb; sbx++) {
       for (pli = 0; pli < nplanes; pli++) {
-        od_coeff dc0[85];
-        od_coeff dc_rate0[85];
+        /* All DCs for each level: 1 + 4 + 16 + 64 */
+        od_coeff dc0[((1 << 2*OD_NBSIZES) - 1)/3];
+        /* There's fewer rates than DC, so we'll never overflow. */
+        int dc_rate0[((1 << 2*OD_NBSIZES) - 1)/3];
         od_coeff *c_orig;
         int i;
         int j;
         od_coeff *dc;
-        od_coeff *dc_rate;
+        int *dc_rate;
         od_rollback_buffer buf;
         c_orig = enc->c_orig[0];
         dc = dc0;
@@ -1527,10 +1543,10 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
         xdec = state->io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
         ydec = state->io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
         if (!OD_DISABLE_HAAR_DC && mbctx->is_keyframe) {
+          int w;
+          w = enc->state.frame_width;
           if (rdo_only) {
             for (i = 0; i < 32; i++) {
-              int w;
-              w = enc->state.frame_width;
               for (j = 0; j < 32; j++) {
                 c_orig[i*32 + j] = mbctx->c[(32*sby + i)*w + 32*sbx + j];
               }
@@ -1542,8 +1558,6 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
            0, sby > 0 && sbx < nhsb - 1, rdo_only ? &dc : NULL,
            rdo_only ? &dc_rate : NULL);
           if (rdo_only) {
-            int w;
-            w = enc->state.frame_width;
             od_encode_rollback(enc, &buf);
             for (i = 0; i < 32; i++) {
               for (j = 0; j < 32; j++) {
@@ -1588,7 +1602,8 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
         }
       }
     }
-    od_state_dump_img(&enc->state, enc->state.io_imgs + OD_FRAME_REC, "lapped");
+    od_state_dump_img(&enc->state, enc->state.io_imgs + OD_FRAME_REC,
+     "lapped");
   }
 #endif
   for (pli = 0; pli < nplanes; pli++) {
@@ -1726,7 +1741,7 @@ static void od_split_superblocks_rdo(daala_enc_ctx *enc,
       state->bsize[i*state->bstride + j] = OD_LIMIT_BSIZE_MIN;
     }
   }
-  od_encode_residual(enc, mbctx, 1);
+  od_encode_residual(enc, mbctx, OD_ENCODE_RDO);
   od_encode_rollback(enc, &rbuf);
 }
 
@@ -1863,7 +1878,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
 #endif
   }
   od_encode_block_sizes(enc);
-  od_encode_residual(enc, &mbctx, 0);
+  od_encode_residual(enc, &mbctx, OD_ENCODE_REAL);
 #if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
   /*Dump YUV*/
   od_state_dump_yuv(&enc->state, enc->state.io_imgs + OD_FRAME_REC, "out");
