@@ -58,6 +58,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #define OD_MASKING_DISABLED 0
 #define OD_MASKING_ENABLED 1
 
+#define OD_GOLDEN_FRAME_INTERVAL 10
+
 static const unsigned char OD_LUMA_QM_Q4[2][OD_QM_SIZE] = {
 /* Flat quantization for PSNR. The DC component isn't 16 because the DC
    magnitude compensation is done here for inter (Haar DC doesn't need it).
@@ -416,6 +418,7 @@ struct od_mb_enc_ctx {
   int use_activity_masking;
   int qm;
   int use_haar_wavelet;
+  int is_golden_frame;
 };
 typedef struct od_mb_enc_ctx od_mb_enc_ctx;
 
@@ -1331,7 +1334,15 @@ static void od_encode_mv(daala_enc_ctx *enc, od_mv_grid_pt *mvg, int vx,
   int oy;
   int id;
   int equal_mvs;
-  equal_mvs = od_state_get_predictor(&enc->state, pred, vx, vy, level, mv_res);
+  int ref_pred;
+  /* Code reference index. */
+  ref_pred = od_mc_get_ref_predictor(&enc->state, vx, vy, level);
+  OD_ASSERT(ref_pred >= 0);
+  OD_ASSERT(ref_pred < OD_MAX_CODED_REFS);
+  od_encode_cdf_adapt(&enc->ec, mvg->ref,
+   enc->state.adapt.mv_ref_cdf[ref_pred], OD_MAX_CODED_REFS, 256);
+  equal_mvs = od_state_get_predictor(&enc->state, pred, vx, vy, level,
+   mv_res, mvg->ref);
   ox = (mvg->mv[0] >> mv_res) - pred[0];
   oy = (mvg->mv[1] >> mv_res) - pred[1];
   /*Interleave positive and negative values.*/
@@ -1405,10 +1416,10 @@ static void od_predict_frame(daala_enc_ctx *enc) {
     flags during the motion search, so we waste far too many bits trying to
     predict unpredictable areas when lambda is too small.
    Hopefully when we fix that, we can remove the limit.*/
-  od_mv_est(enc->mvest, OD_FRAME_PREV,
+  od_mv_est(enc->mvest,
    OD_MAXI((4000000 + (((1 << OD_COEFF_SHIFT) - 1) >> 1) >> OD_COEFF_SHIFT)*
    enc->quantizer[0] >> (23 - OD_LAMBDA_SCALE), 40));
-  od_state_mc_predict(&enc->state, OD_FRAME_PREV);
+  od_state_mc_predict(&enc->state);
   /*Do edge extension here because the block-size analysis needs to read
     outside the frame, but otherwise isn't read from.*/
   od_img_edge_ext(enc->state.io_imgs + OD_FRAME_REC);
@@ -1999,16 +2010,15 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   /* Check if the frame should be a keyframe. */
   mbctx.is_keyframe = (enc->state.cur_time %
    (enc->state.info.keyframe_rate) == 0) ? 1 : 0;
+  mbctx.is_golden_frame = (enc->state.cur_time %
+   (OD_GOLDEN_FRAME_INTERVAL) == 0) ? 1 : 0;
+  if (enc->state.ref_imgi[OD_FRAME_GOLD] < 0) {
+    mbctx.is_golden_frame = 1;
+  }
   /*Update the buffer state.*/
   if (enc->state.ref_imgi[OD_FRAME_SELF] >= 0) {
     enc->state.ref_imgi[OD_FRAME_PREV] =
      enc->state.ref_imgi[OD_FRAME_SELF];
-    /*TODO: Update golden frame.*/
-    if (enc->state.ref_imgi[OD_FRAME_GOLD] < 0) {
-      enc->state.ref_imgi[OD_FRAME_GOLD] =
-       enc->state.ref_imgi[OD_FRAME_SELF];
-      /*TODO: Mark keyframe timebase.*/
-    }
   }
   /*Select a free buffer to use for this reference frame.*/
   for (refi = 0; refi == enc->state.ref_imgi[OD_FRAME_GOLD]
@@ -2036,6 +2046,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
    * FIXME: will need to be a wider type if other QMs get added */
   od_ec_encode_bool_q15(&enc->ec, mbctx.qm, 16384);
   od_ec_encode_bool_q15(&enc->ec, mbctx.use_haar_wavelet, 16384);
+  od_ec_encode_bool_q15(&enc->ec, mbctx.is_golden_frame, 16384);
   for (pli = 0; pli < nplanes; pli++) {
     enc->coded_quantizer[pli] =
      od_quantizer_to_codedquantizer(
@@ -2106,6 +2117,10 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   OD_ASSERT(ref_img);
   od_img_copy(ref_img, enc->state.io_imgs + OD_FRAME_REC);
   od_img_edge_ext(ref_img);
+  if (mbctx.is_golden_frame) {
+    enc->state.ref_imgi[OD_FRAME_GOLD] =
+     enc->state.ref_imgi[OD_FRAME_SELF];
+  }
 #if defined(OD_DUMP_IMAGES)
   /*Dump reference frame.*/
   /*od_state_dump_img(&enc->state,

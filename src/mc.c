@@ -2405,8 +2405,9 @@ static void od_mc_blend8(od_state *state, unsigned char *dst, int dystride,
   }
 }
 
-void od_mc_predict8(od_state *state, unsigned char *dst, int dystride,
- const unsigned char *src, int systride,
+
+void od_mc_predict8_singleref(od_state *state, unsigned char *dst,
+ int dystride, const unsigned char *src, int systride,
  const int32_t mvx[4], /* This is x coord for the four
                             motion vectors of the four corners
                             (in rotation not raster order). */
@@ -2445,10 +2446,97 @@ void od_mc_predict8(od_state *state, unsigned char *dst, int dystride,
    oc, s, log_xblk_sz, log_yblk_sz);
 }
 
+/* TODO: Identical MV optimizations like od_mc_predict8_singleref. */
+void od_mc_predict8(od_state *state, unsigned char *dst,
+ int dystride, const unsigned char *src[4], int systride,
+ const int32_t mvx[4], const int32_t mvy[4],
+ int oc,  /* index of outside corner  */
+ int s, /* two split flags that indicate if the corners are split*/
+ int log_xblk_sz,   /* log 2 of block size */
+ int log_yblk_sz) {
+  const unsigned char *pred[4];
+  if ((src[0] == src[1]) && (src[0] == src[2]) && (src[0] == src[3])) {
+    od_mc_predict8_singleref(state, dst, dystride, src[0], systride, mvx, mvy,
+     oc, s, log_xblk_sz, log_yblk_sz);
+    return;
+  }
+  od_mc_predict1fmv8(state, state->mc_buf[0], src[0], systride,
+   mvx[0], mvy[0], log_xblk_sz, log_yblk_sz);
+  pred[0] = state->mc_buf[0];
+  od_mc_predict1fmv8(state, state->mc_buf[1], src[1], systride,
+   mvx[1], mvy[1], log_xblk_sz, log_yblk_sz);
+  pred[1] = state->mc_buf[1];
+  od_mc_predict1fmv8(state, state->mc_buf[2], src[2], systride,
+   mvx[2], mvy[2], log_xblk_sz, log_yblk_sz);
+  pred[2] = state->mc_buf[2];
+  od_mc_predict1fmv8(state, state->mc_buf[3], src[3], systride,
+   mvx[3], mvy[3], log_xblk_sz, log_yblk_sz);
+  pred[3] = state->mc_buf[3];
+
+  od_mc_blend8(state, dst, dystride, pred,
+   oc, s, log_xblk_sz, log_yblk_sz);
+}
+
+int od_mc_get_ref_predictor(od_state *state, int vx, int vy, int level) {
+  static const od_mv_grid_pt ZERO_GRID_PT = { {0, 0}, 1, OD_FRAME_PREV};
+  int mvb_sz;
+  const od_mv_grid_pt *cneighbors[4];
+  int ncns;
+  int ci;
+  int hist[2] = {0, 0};
+  int max_count = 0;
+  int max_ref = OD_FRAME_PREV;
+  ncns = 4;
+  mvb_sz = 1 << ((4 - level) >> 1);
+  mvb_sz = 1 << ((OD_MC_LEVEL_MAX - level) >> 1);
+  if (level == 0) {
+    if (vy >= mvb_sz) {
+      cneighbors[0] = vx >= mvb_sz ?
+       state->mv_grid[vy - mvb_sz] + vx - mvb_sz : &ZERO_GRID_PT;
+      cneighbors[1] = state->mv_grid[vy - mvb_sz] + vx;
+      cneighbors[2] = vx + mvb_sz <= state->nhmvbs ?
+       state->mv_grid[vy - mvb_sz] + vx + mvb_sz : &ZERO_GRID_PT;
+    }
+    else cneighbors[2] = cneighbors[1] = cneighbors[0] = &ZERO_GRID_PT;
+    cneighbors[3] = vx >= mvb_sz ?
+     state->mv_grid[vy] + vx - mvb_sz : &ZERO_GRID_PT;
+  }
+  else {
+    if (level & 1) {
+      cneighbors[0] = state->mv_grid[vy - mvb_sz] + vx - mvb_sz;
+      cneighbors[1] = state->mv_grid[vy - mvb_sz] + vx + mvb_sz;
+      cneighbors[2] = state->mv_grid[vy + mvb_sz] + vx - mvb_sz;
+      cneighbors[3] = state->mv_grid[vy + mvb_sz] + vx + mvb_sz;
+    }
+    else {
+      cneighbors[0] = vy >= mvb_sz ?
+       state->mv_grid[vy - mvb_sz] + vx : &ZERO_GRID_PT;
+      cneighbors[1] = vx >= mvb_sz ?
+       state->mv_grid[vy] + vx - mvb_sz : &ZERO_GRID_PT;
+      /*NOTE: Only one of these candidates can be excluded at a time, so
+         there will always be at least 3.*/
+      if (vx > 0 && vx + mvb_sz > ((vx + OD_MVB_MASK) & ~OD_MVB_MASK)) ncns--;
+      else cneighbors[2] = state->mv_grid[vy] + vx + mvb_sz;
+      if (vy > 0 && vy + mvb_sz > ((vy + OD_MVB_MASK) & ~OD_MVB_MASK)) ncns--;
+      else cneighbors[ncns - 1] = state->mv_grid[vy + mvb_sz] + vx;
+    }
+  }
+  for (ci = 0; ci < ncns; ci++) {
+    int ref = cneighbors[ci]->ref;
+    OD_ASSERT(ref < 2);
+    hist[ref]++;
+    if (hist[ref] > max_count) {
+      max_ref = ref;
+      max_count = hist[ref];
+    }
+  }
+  return max_ref;
+}
+
 /*Gets the predictor for a given MV node at the given MV resolution.*/
 int od_state_get_predictor(od_state *state,
- int pred[2], int vx, int vy, int level, int mv_res) {
-  static const od_mv_grid_pt ZERO_GRID_PT = { {0, 0}, 1};
+ int pred[2], int vx, int vy, int level, int mv_res, int ref) {
+  static const od_mv_grid_pt ZERO_GRID_PT = { {0, 0}, 1, OD_FRAME_PREV};
   const od_mv_grid_pt *cneighbors[4];
   int a[4][2];
   int equal_mvs;

@@ -54,6 +54,8 @@ extern const int OD_HAAR_QM[2][OD_LOG_BSIZE_MAX];
 /*Adaptation speed of scalar Laplace encoding.*/
 # define OD_SCALAR_ADAPT_SPEED (4)
 
+#define OD_MAX_CODED_REFS (2)
+
 /*The golden reference frame.*/
 # define OD_FRAME_GOLD (0)
 /*The previous reference frame.*/
@@ -129,6 +131,7 @@ struct od_adapt_ctx {
   uint16_t        pvq_skip_dir_cdf[2*(OD_NBSIZES-1)][7];
   /* Motion vectors */
   generic_encoder     mv_model;
+  uint16_t        mv_ref_cdf[5][16];
   int                 mv_ex[OD_MC_NLEVELS];
   int                 mv_ey[OD_MC_NLEVELS];
   uint16_t        mv_small_cdf[5][16];
@@ -233,11 +236,11 @@ void od_img_copy(od_img* dest, od_img* src);
 void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe);
 void od_state_set_mv_res(od_state *state, int mv_res);
 void od_state_pred_block_from_setup(od_state *_state, unsigned char *_buf,
- int _ystride, int _ref, int _pli, int _vx, int _vy, int _c, int _s,
+ int _ystride, int _pli, int _vx, int _vy, int _c, int _s,
  int _log_mvb_sz);
 void od_state_pred_block(od_state *_state, unsigned char *_buf, int _ystride,
- int _ref, int _pli, int _vx, int _vy, int _log_mvb_sz);
-void od_state_mc_predict(od_state *_state, int _ref);
+ int _pli, int _vx, int _vy, int _log_mvb_sz);
+void od_state_mc_predict(od_state *_state);
 void od_state_init_border(od_state *_state);
 void od_state_upsample8(od_state *_state, od_img *_dst, const od_img *_src);
 int od_state_dump_yuv(od_state *_state, od_img *_img, const char *_tag);

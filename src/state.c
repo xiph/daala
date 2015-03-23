@@ -487,6 +487,7 @@ void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe) {
     state->pvq_ext[i] = is_keyframe ? 24576 : 2 << 16;
   }
   generic_model_init(&state->mv_model);
+  OD_CDFS_INIT(state->mv_ref_cdf, 128);
   state->skip_increment = 128;
   OD_CDFS_INIT(state->skip_cdf, state->skip_increment >> 2);
   state->mv_small_increment = 128;
@@ -821,36 +822,43 @@ const int *const OD_VERT_SETUP_DY[4][4] = {
 };
 
 void od_state_pred_block_from_setup(od_state *state,
- unsigned char *buf, int ystride, int ref, int pli,
+ unsigned char *buf, int ystride, int pli,
  int vx, int vy, int oc, int s, int log_mvb_sz) {
   od_img_plane *iplane;
   od_mv_grid_pt *grid[4];
   int32_t mvx[4];
   int32_t mvy[4];
+  const unsigned char *src[4];
   const int *dxp;
   const int *dyp;
   int x;
   int y;
   int k;
-  iplane = state->ref_imgs[state->ref_imgi[ref]].planes+pli;
+  int xdec;
+  int ydec;
+  /* Assumes that xdec and ydec are the same on all references. */
+  xdec = state->ref_imgs[state->ref_imgi[OD_FRAME_PREV]].planes[pli].xdec;
+  ydec = state->ref_imgs[state->ref_imgi[OD_FRAME_PREV]].planes[pli].ydec;
   dxp = OD_VERT_SETUP_DX[oc][s];
   dyp = OD_VERT_SETUP_DY[oc][s];
   for (k = 0; k < 4; k++) {
     grid[k] = state->mv_grid[vy + (dyp[k] << log_mvb_sz)]
      + vx + (dxp[k] << log_mvb_sz);
-    mvx[k] = (int32_t)OD_DIV_POW2_RE(grid[k]->mv[0], iplane->xdec);
-    mvy[k] = (int32_t)OD_DIV_POW2_RE(grid[k]->mv[1], iplane->ydec);
+    mvx[k] = (int32_t)OD_DIV_POW2_RE(grid[k]->mv[0], xdec);
+    mvy[k] = (int32_t)OD_DIV_POW2_RE(grid[k]->mv[1], ydec);
+    iplane = state->ref_imgs[state->ref_imgi[grid[k]->ref]].planes+pli;
+    x = vx << (OD_LOG_MVBSIZE_MIN - iplane->xdec);
+    y = vy << (OD_LOG_MVBSIZE_MIN - iplane->ydec);
+    src[k] = iplane->data + y*iplane->ystride + x;
   }
-  x = vx << (OD_LOG_MVBSIZE_MIN - iplane->xdec);
-  y = vy << (OD_LOG_MVBSIZE_MIN - iplane->ydec);
-  od_mc_predict8(state, buf, ystride, iplane->data + y*iplane->ystride + x,
+  od_mc_predict8(state, buf, ystride, src,
    iplane->ystride, mvx, mvy, oc, s,
    log_mvb_sz + OD_LOG_MVBSIZE_MIN - iplane->xdec,
    log_mvb_sz + OD_LOG_MVBSIZE_MIN - iplane->ydec);
 }
 
 void od_state_pred_block(od_state *state, unsigned char *buf, int ystride,
- int ref, int pli, int vx, int vy, int log_mvb_sz) {
+ int pli, int vx, int vy, int log_mvb_sz) {
   int half_mvb_sz;
   half_mvb_sz = 1 << log_mvb_sz >> 1;
   if (log_mvb_sz > 0
@@ -858,17 +866,17 @@ void od_state_pred_block(od_state *state, unsigned char *buf, int ystride,
     od_img_plane *iplane;
     int half_xblk_sz;
     int half_yblk_sz;
-    iplane = state->ref_imgs[state->ref_imgi[ref]].planes + pli;
+    iplane = state->ref_imgs[state->ref_imgi[OD_FRAME_PREV]].planes + pli;
     half_xblk_sz = 1 << (log_mvb_sz + OD_LOG_MVBSIZE_MIN - 1 - iplane->xdec);
     half_yblk_sz = 1 << (log_mvb_sz + OD_LOG_MVBSIZE_MIN - 1 - iplane->ydec);
     od_state_pred_block(state, buf,
-     ystride, ref, pli, vx, vy, log_mvb_sz - 1);
+     ystride, pli, vx, vy, log_mvb_sz - 1);
     od_state_pred_block(state, buf + half_xblk_sz,
-     ystride, ref, pli, vx + half_mvb_sz, vy, log_mvb_sz - 1);
+     ystride, pli, vx + half_mvb_sz, vy, log_mvb_sz - 1);
     od_state_pred_block(state, buf + half_yblk_sz*ystride,
-     ystride, ref, pli, vx, vy + half_mvb_sz, log_mvb_sz - 1);
+     ystride, pli, vx, vy + half_mvb_sz, log_mvb_sz - 1);
     od_state_pred_block(state, buf + half_yblk_sz*ystride + half_xblk_sz,
-     ystride, ref, pli, vx + half_mvb_sz, vy + half_mvb_sz, log_mvb_sz - 1);
+     ystride, pli, vx + half_mvb_sz, vy + half_mvb_sz, log_mvb_sz - 1);
   }
   else {
     int oc;
@@ -894,7 +902,7 @@ void od_state_pred_block(od_state *state, unsigned char *buf, int ystride,
       s = 3;
     }
     od_state_pred_block_from_setup(state,
-     buf, ystride, ref, pli, vx, vy, oc, s, log_mvb_sz);
+     buf, ystride, pli, vx, vy, oc, s, log_mvb_sz);
   }
 }
 
@@ -1343,7 +1351,7 @@ int od_state_dump_img(od_state *state, od_img *img, const char *tag) {
 }
 #endif
 
-void od_state_mc_predict(od_state *state, int ref) {
+void od_state_mc_predict(od_state *state) {
   od_img *img;
   int nhmvbs;
   int nvmvbs;
@@ -1365,7 +1373,7 @@ void od_state_mc_predict(od_state *state, int ref) {
         blk_y = vy << OD_LOG_MVBSIZE_MIN >> iplane->ydec;
         ystride = iplane->ystride;
         od_state_pred_block(state, iplane->data + blk_y*ystride + blk_x,
-         ystride, ref, pli, vx, vy, OD_LOG_MVB_DELTA0);
+         ystride, pli, vx, vy, OD_LOG_MVB_DELTA0);
       }
     }
   }

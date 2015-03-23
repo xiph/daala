@@ -179,7 +179,15 @@ static void od_decode_mv(daala_dec_ctx *dec, od_mv_grid_pt *mvg, int vx,
   int oy;
   int id;
   int equal_mvs;
-  equal_mvs = od_state_get_predictor(&dec->state, pred, vx, vy, level, mv_res);
+  int ref_pred;
+  ref_pred = od_mc_get_ref_predictor(&dec->state, vx, vy, level);
+  OD_ASSERT(ref_pred >= 0);
+  OD_ASSERT(ref_pred < OD_MAX_CODED_REFS);
+  mvg->ref = od_decode_cdf_adapt(&dec->ec,
+   dec->state.adapt.mv_ref_cdf[ref_pred], OD_MAX_CODED_REFS, 256,
+   "mv:ref");
+  equal_mvs = od_state_get_predictor(&dec->state, pred, vx, vy, level,
+   mv_res, mvg->ref);
   model = &dec->state.adapt.mv_model;
   id = od_decode_cdf_adapt(&dec->ec, dec->state.adapt.mv_small_cdf[equal_mvs],
    16, dec->state.adapt.mv_small_increment, "mv:low");
@@ -209,6 +217,7 @@ struct od_mb_dec_ctx {
   int use_activity_masking;
   int qm;
   int use_haar_wavelet;
+  int is_golden_frame;
 };
 typedef struct od_mb_dec_ctx od_mb_dec_ctx;
 
@@ -1013,6 +1022,7 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
   mbctx.use_activity_masking = od_ec_decode_bool_q15(&dec->ec, 16384, "flags");
   mbctx.qm = od_ec_decode_bool_q15(&dec->ec, 16384, "flags");
   mbctx.use_haar_wavelet = od_ec_decode_bool_q15(&dec->ec, 16384, "flags");
+  mbctx.is_golden_frame = od_ec_decode_bool_q15(&dec->ec, 16384, "flags");
   if (mbctx.is_keyframe) {
     int nplanes;
     int pli;
@@ -1028,12 +1038,6 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
   if (dec->state.ref_imgi[OD_FRAME_SELF] >= 0) {
     dec->state.ref_imgi[OD_FRAME_PREV] =
      dec->state.ref_imgi[OD_FRAME_SELF];
-    /*TODO: Update golden frame.*/
-    if (dec->state.ref_imgi[OD_FRAME_GOLD] < 0) {
-      dec->state.ref_imgi[OD_FRAME_GOLD] =
-       dec->state.ref_imgi[OD_FRAME_SELF];
-      /*TODO: Mark keyframe timebase.*/
-    }
   }
   if (!mbctx.is_keyframe) {
     /*If there have been no reference frames, and we need one,
@@ -1051,7 +1055,7 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
   od_adapt_ctx_reset(&dec->state.adapt, mbctx.is_keyframe);
   if (!mbctx.is_keyframe) {
     od_dec_mv_unpack(dec);
-    od_state_mc_predict(&dec->state, OD_FRAME_PREV);
+    od_state_mc_predict(&dec->state);
     if (dec->user_mc_img != NULL) {
       od_img_copy(dec->user_mc_img, &dec->state.io_imgs[OD_FRAME_REC]);
     }
@@ -1081,5 +1085,9 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
   img->width = dec->state.info.pic_width;
   img->height = dec->state.info.pic_height;
   dec->state.cur_time++;
+  if (mbctx.is_golden_frame) {
+    dec->state.ref_imgi[OD_FRAME_GOLD] =
+     dec->state.ref_imgi[OD_FRAME_SELF];
+  }
   return 0;
 }

@@ -75,6 +75,8 @@ struct od_mv_grid_pt {
   int mv[2];
   /*Whether or not this MV actually has a valid value.*/
   unsigned valid:1;
+  /*The ref image that this MV points into.*/
+  unsigned ref:3;
 };
 
 extern const int16_t OD_SUBPEL_FILTER_SET[8][8];
@@ -92,12 +94,16 @@ extern const int16_t OD_SUBPEL_FILTER_SET[8][8];
 #define OD_SUBPEL_BUFF_APRON_SZ (OD_SUBPEL_TOP_APRON_SZ \
  + OD_SUBPEL_BOTTOM_APRON_SZ)
 
-void od_mc_predict8(od_state *state, unsigned char *dst, int dystride,
+void od_mc_predict8_singleref(od_state *state, unsigned char *dst, int dystride,
  const unsigned char *src, int systride, const int32_t mvx[4],
  const int32_t mvy[4], int oc, int s, int log_xblk_sz, int log_yblk_sz);
+void od_mc_predict8(od_state *state, unsigned char *dst, int dystride,
+ const unsigned char *src[4], int systride, const int32_t mvx[4],
+ const int32_t mvy[4], int oc, int s, int log_xblk_sz, int log_yblk_sz);
 void od_state_mvs_clear(od_state *state);
+int od_mc_get_ref_predictor(od_state *state, int vx, int vy, int level);
 int od_state_get_predictor(od_state *state, int pred[2],
- int vx, int vy, int level, int mv_res);
+ int vx, int vy, int level, int mv_res, int ref);
 
 int od_mv_split_flag_ctx(od_mv_grid_pt **grid, int vx, int vy,int level);
 uint16_t *od_mv_split_flag_cdf(od_state *state, int vx, int vy, int level);
