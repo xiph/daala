@@ -1561,9 +1561,10 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
           int w;
           w = enc->state.frame_width;
           if (rdo_only) {
-            for (i = 0; i < 32; i++) {
-              for (j = 0; j < 32; j++) {
-                c_orig[i*32 + j] = mbctx->c[(32*sby + i)*w + 32*sbx + j];
+            for (i = 0; i < OD_BSIZE_MAX; i++) {
+              for (j = 0; j < OD_BSIZE_MAX; j++) {
+                c_orig[i*OD_BSIZE_MAX + j] = mbctx->c[(OD_BSIZE_MAX*sby + i)*w
+                 + OD_BSIZE_MAX*sbx + j];
               }
             }
             od_encode_checkpoint(enc, &buf);
@@ -1573,9 +1574,10 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
            0, sby > 0 && sbx < nhsb - 1, rdo_only);
           if (rdo_only) {
             od_encode_rollback(enc, &buf);
-            for (i = 0; i < 32; i++) {
-              for (j = 0; j < 32; j++) {
-                mbctx->c[(32*sby + i)*w + 32*sbx + j] = c_orig[i*32 + j];
+            for (i = 0; i < OD_BSIZE_MAX; i++) {
+              for (j = 0; j < OD_BSIZE_MAX; j++) {
+                mbctx->c[(OD_BSIZE_MAX*sby + i)*w + OD_BSIZE_MAX*sbx + j] =
+                 c_orig[i*OD_BSIZE_MAX + j];
               }
             }
           }
