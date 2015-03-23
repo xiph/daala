@@ -355,7 +355,6 @@ struct od_mb_enc_ctx {
 };
 typedef struct od_mb_enc_ctx od_mb_enc_ctx;
 
-#if !defined(OD_DUMP_COEFFS)
 static void od_encode_compute_pred(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, od_coeff *pred,
   int ln, int pli, int bx, int by) {
   int n;
@@ -565,7 +564,6 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
 #endif
   return skip;
 }
-#endif
 
 static void od_compute_dcts(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
   int bx, int by, int l, int xdec, int ydec) {
@@ -589,19 +587,6 @@ static void od_compute_dcts(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
     bo = (by << (OD_LOG_BSIZE0 + d))*w + (bx << (OD_LOG_BSIZE0 + d));
     (*enc->state.opt_vtbl.fdct_2d[d])(c + bo, w, ctx->c + bo, w);
     if (!lossless) od_apply_qm(c + bo, w, c + bo, w, d, xdec, 0);
-#if defined(OD_DUMP_COEFFS)
-    {
-      int i;
-      int j;
-      int n;
-      n = 1 << (OD_LOG_BSIZE0 + d);
-      printf("%d ", n);
-      for (j = 0; j < n; j++) for (i = 0; i < n; i++) {
-        printf("%d ", c[bo + j*w + i]);
-      }
-      printf("\n");
-    }
-#endif
   }
   else {
     int f;
@@ -864,7 +849,6 @@ static double od_compute_dist(daala_enc_ctx *enc, od_coeff *x, od_coeff *y,
   return sum;
 }
 
-#if !defined(OD_DUMP_COEFFS)
 /* Returns 1 if the block is skipped, zero otherwise. */
 static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
  int pli, int bx, int by, int l, int xdec, int ydec, int rdo_only) {
@@ -1005,7 +989,6 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
     return skip_block;
   }
 }
-#endif
 
 static void od_encode_mv(daala_enc_ctx *enc, od_mv_grid_pt *mvg, int vx,
  int vy, int level, int mv_res, int width, int height) {
@@ -1584,12 +1567,10 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
             }
           }
         }
-#if !defined(OD_DUMP_COEFFS)
         mbctx->dc_idx = 0;
         mbctx->dc_rate_idx = 0;
         od_encode_recursive(enc, mbctx, pli, sbx, sby, 3, xdec, ydec,
          rdo_only);
-#endif
       }
         OD_ENC_ACCT_UPDATE(enc, OD_ACCT_CAT_PLANE, OD_ACCT_PLANE_UNKNOWN);
     }
