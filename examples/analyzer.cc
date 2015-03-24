@@ -272,6 +272,7 @@ class TestFrame : public wxFrame {
   DECLARE_EVENT_TABLE()
 private:
   TestPanel *panel;
+  wxMenu *fileMenu;
   wxMenu *viewMenu;
 public:
   TestFrame();
@@ -598,7 +599,7 @@ void TestPanel::onIdle(wxIdleEvent &) {
 TestFrame::TestFrame() : wxFrame(NULL, wxID_ANY, _T("Daala Stream Analyzer"),
  wxDefaultPosition, wxDefaultSize, wxDEFAULT_FRAME_STYLE), panel(NULL) {
   wxMenuBar *mb = new wxMenuBar();
-  wxMenu *fileMenu = new wxMenu();
+  fileMenu = new wxMenu();
   fileMenu->Append(wxID_OPEN, _T("&Open...\tAlt-O"), _T("Open daala file"));
   fileMenu->Append(wxID_CLOSE, _T("&Close\tAlt-C"), _T("Close daala file"));
   fileMenu->Enable(wxID_CLOSE, false);
@@ -686,6 +687,7 @@ bool TestFrame::open(wxString path) {
   if (panel->open(filename)) {
     Fit();
     SetStatusText(_T("loaded file: ") + path);
+    fileMenu->Enable(wxID_OPEN, false);
     viewMenu->Enable(wxID_SHOW_PADDING, panel->hasPadding());
     return true;
   }
