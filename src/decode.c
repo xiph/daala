@@ -112,7 +112,7 @@ int daala_decode_ctl(daala_dec_ctx *dec, int req, void *buf, size_t buf_sz) {
       if (dec== NULL || buf == NULL) return OD_EFAULT;
       nhmvbs = (dec->state.nhmbs + 1) << 2;
       nvmvbs = (dec->state.nvmbs + 1) << 2;
-      if (buf_sz != sizeof(od_mv_grid_pt)*nhmvbs*nvmvbs) {
+      if (buf_sz != sizeof(od_mv_grid_pt)*(nhmvbs + 1)*(nvmvbs + 1)) {
         return OD_EINVAL;
       }
       dec->user_mv_grid = buf;
@@ -620,9 +620,9 @@ static void od_dec_mv_unpack(daala_dec_ctx *dec) {
     }
   }
   if (dec->user_mv_grid != NULL) {
-    for (vy = 0; vy < nvmvbs; vy++) {
-      for (vx = 0; vx < nhmvbs; vx++) {
-        memcpy(&dec->user_mv_grid[vy*nvmvbs + vx], &grid[vy][vx],
+    for (vy = 0; vy < (nvmvbs + 1); vy++) {
+      for (vx = 0; vx < (nhmvbs + 1); vx++) {
+        memcpy(&dec->user_mv_grid[vy*(nhmvbs + 1) + vx], &grid[vy][vx],
          sizeof(od_mv_grid_pt));
       }
     }
