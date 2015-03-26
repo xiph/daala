@@ -600,23 +600,23 @@ TestFrame::TestFrame() : wxFrame(NULL, wxID_ANY, _T("Daala Stream Analyzer"),
  wxDefaultPosition, wxDefaultSize, wxDEFAULT_FRAME_STYLE), panel(NULL) {
   wxMenuBar *mb = new wxMenuBar();
   fileMenu = new wxMenu();
-  fileMenu->Append(wxID_OPEN, _T("&Open...\tAlt-O"), _T("Open daala file"));
-  fileMenu->Append(wxID_CLOSE, _T("&Close\tAlt-C"), _T("Close daala file"));
+  fileMenu->Append(wxID_OPEN, _T("&Open...\tCtrl-O"), _T("Open daala file"));
+  fileMenu->Append(wxID_CLOSE, _T("&Close\tCtrl-W"), _T("Close daala file"));
   fileMenu->Enable(wxID_CLOSE, false);
-  fileMenu->Append(wxID_EXIT, _T("E&xit\tAlt-X"), _T("Quit this program"));
+  fileMenu->Append(wxID_EXIT, _T("E&xit\tCtrl-Q"), _T("Quit this program"));
   mb->Append(fileMenu, _T("&File"));
   viewMenu = new wxMenu();
   viewMenu->Append(wxID_ZOOM_IN, _T("Zoom-In\tCtrl-+"),
    _T("Double image size"));
   viewMenu->Append(wxID_ZOOM_OUT, _T("Zoom-Out\tCtrl--"),
    _T("Half image size"));
-  viewMenu->AppendCheckItem(wxID_SHOW_BLOCKS, _T("&Blocks\tAlt-B"),
+  viewMenu->AppendCheckItem(wxID_SHOW_BLOCKS, _T("&Blocks\tCtrl-B"),
    _("Show block sizes"));
-  viewMenu->AppendCheckItem(wxID_SHOW_SKIP, _T("&Skip\tAlt-S"),
+  viewMenu->AppendCheckItem(wxID_SHOW_SKIP, _T("&Skip\tCtrl-S"),
    _("Show skip bands"));
-  viewMenu->AppendCheckItem(wxID_SHOW_NOREF, _T("&No-Ref\tAlt-N"),
+  viewMenu->AppendCheckItem(wxID_SHOW_NOREF, _T("&No-Ref\tCtrl-N"),
    _("Show no-ref bands"));
-  viewMenu->AppendCheckItem(wxID_SHOW_PADDING, _T("&Padding\tAlt-P"),
+  viewMenu->AppendCheckItem(wxID_SHOW_PADDING, _T("&Padding\tCtrl-P"),
    _("Show padding area"));
   mb->Append(viewMenu, _T("&View"));
   wxMenu *helpMenu=new wxMenu();
