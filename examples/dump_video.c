@@ -405,8 +405,7 @@ int main(int argc, char *argv[]) {
     ogg_stream_clear(&to);
     daala_decode_free(dd);
     daala_comment_clear(&dc);
-    /*TODO: Uncomment once implemetned
-      daala_info_clear(&ti);*/
+    daala_info_clear(&di);
   }
   ogg_sync_clear(&oy);
   if (infile && infile != stdin) fclose(infile);
