@@ -21,7 +21,7 @@ if [ -z $DAALA_ROOT ]; then
 fi
 
 if [ ! -d $DAALA_ROOT ]; then
-  echo "Please set DAALA_ROOT to the location of your libvpx git clone"
+  echo "Please set DAALA_ROOT to the location of your daala git clone"
   exit 1
 fi
 
