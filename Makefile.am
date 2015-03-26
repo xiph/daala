@@ -228,8 +228,8 @@ tools_y4m2png_SOURCES = \
 	tools/vidinput.c \
 	tools/y4m_input.c \
 	tools/y4m2png.c
-tools_y4m2png_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS)
-tools_y4m2png_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS)
+tools_y4m2png_CFLAGS = $(OGG_CFLAGS) $(PNG_CFLAGS)
+tools_y4m2png_LDADD = $(OGG_LIBS) $(PNG_LIBS)
 
 # dump_psnrhvs
 tools_dump_psnrhvs_SOURCES = \
@@ -237,32 +237,32 @@ tools_dump_psnrhvs_SOURCES = \
 	tools/y4m_input.c \
 	$(src_dct_SOURCES) \
 	tools/dump_psnrhvs.c
-tools_dump_psnrhvs_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS)
-tools_dump_psnrhvs_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
+tools_dump_psnrhvs_CFLAGS = $(OGG_CFLAGS) $(PNG_CFLAGS)
+tools_dump_psnrhvs_LDADD = $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
 
 # dump_ssim
 tools_dump_ssim_SOURCES = \
 	tools/vidinput.c \
 	tools/y4m_input.c \
 	tools/dump_ssim.c
-tools_dump_ssim_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS)
-tools_dump_ssim_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(LIBM)
+tools_dump_ssim_CFLAGS = $(OGG_CFLAGS)
+tools_dump_ssim_LDADD = $(OGG_LIBS) $(LIBM)
 
 # dump_fastssim
 tools_dump_fastssim_SOURCES = \
 	tools/vidinput.c \
 	tools/y4m_input.c \
 	tools/dump_fastssim.c
-tools_dump_fastssim_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS)
-tools_dump_fastssim_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(LIBM)
+tools_dump_fastssim_CFLAGS = $(OGG_CFLAGS)
+tools_dump_fastssim_LDADD = $(OGG_LIBS) $(LIBM)
 
 # dump_psnr
 tools_dump_psnr_SOURCES = \
 	tools/vidinput.c \
 	tools/y4m_input.c \
 	tools/dump_psnr.c
-tools_dump_psnr_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS)
-tools_dump_psnr_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
+tools_dump_psnr_CFLAGS = $(OGG_CFLAGS) $(PNG_CFLAGS)
+tools_dump_psnr_LDADD = $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
 
 # block_size_analysis
 tools_block_size_analysis_SOURCES = \
@@ -281,8 +281,8 @@ tools_block_size_analysis_SOURCES = \
 	src/entenc.c \
 	src/filter.c \
 	src/switch_table.c
-tools_block_size_analysis_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS)
-tools_block_size_analysis_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
+tools_block_size_analysis_CFLAGS = $(OGG_CFLAGS) $(PNG_CFLAGS)
+tools_block_size_analysis_LDADD = $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
 
 # divu_const
 tools_divu_const_SOURCES = \
@@ -304,8 +304,8 @@ tools_trans_SOURCES = \
 	tools/cholesky.c \
 	src/filter.c \
 	$(src_dct_SOURCES)
-tools_trans_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS) $(OPENMP_CFLAGS)
-tools_trans_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
+tools_trans_CFLAGS = $(OGG_CFLAGS) $(PNG_CFLAGS) $(OPENMP_CFLAGS)
+tools_trans_LDADD = $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
 
 # trans_gain
 tools_trans_gain_SOURCES = \
@@ -316,8 +316,8 @@ tools_trans_gain_SOURCES = \
 	tools/trans_tools.c \
 	src/filter.c \
 	$(src_dct_SOURCES)
-tools_trans_gain_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS) $(OPENMP_CFLAGS)
-tools_trans_gain_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
+tools_trans_gain_CFLAGS = $(OGG_CFLAGS) $(PNG_CFLAGS) $(OPENMP_CFLAGS)
+tools_trans_gain_LDADD = $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
 
 #trans2d
 tools_trans2d_SOURCES = \
@@ -333,8 +333,8 @@ tools_trans2d_SOURCES = \
 	tools/cholesky.c \
 	src/filter.c \
 	$(src_dct_SOURCES)
-tools_trans2d_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS) $(OPENMP_CFLAGS)
-tools_trans2d_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
+tools_trans2d_CFLAGS = $(OGG_CFLAGS) $(PNG_CFLAGS) $(OPENMP_CFLAGS)
+tools_trans2d_LDADD = $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
 
 # gen_cdf
 tools_gen_cdf_SOURCES = \
