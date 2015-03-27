@@ -89,11 +89,9 @@ typedef struct daala_setup_info daala_setup_info;
               passed in on all subsequent calls.
  * \param op The current header packet to process.
  * \return A positive value indicates that a Daala header was successfully
-            processed.
- * \retval 0 The first video data packet was encountered after all required
-              header packets were parsed.
-             The packet just passed to this call should be saved and fed to
-              daaala_decode_packet_in() to begin decoding video data.
+            processed and indicates the remaining number of headers to be read.
+ * \retval 0 The first last header was processed and the next packet will
+              contain video.
  * \retval OD_EFAULT One of \a info, \a dc, or \a ds was <tt>NULL</tt>, or
                       there was a memory allocation failure.
  * \retval OD_EBADHEADER \a op was <tt>NULL</tt>, the packet was not the next

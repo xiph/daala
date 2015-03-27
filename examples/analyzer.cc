@@ -105,7 +105,7 @@ bool DaalaDecoder::readHeaders() {
       return false;
     }
     ogg_packet packet;
-    while (!done && ogg_stream_packetpeek(&os, &packet) != 0) {
+    while (!done && readPacket(&packet) != 0) {
       int ret = daala_decode_header_in(&di, &dc, &dsi, &packet);
       if (ret < 0) {
         if (memcmp(packet.packet, "fishead", packet.bytes)) {
@@ -117,11 +117,6 @@ bool DaalaDecoder::readHeaders() {
         done = true;
         dctx = daala_decode_alloc(&di, dsi);
         if (dctx == NULL) {
-          return false;
-        }
-      }
-      if (!done) {
-        if (ogg_stream_packetout(&os, &packet) != 1) {
           return false;
         }
       }

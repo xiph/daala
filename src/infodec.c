@@ -187,7 +187,7 @@ int daala_decode_header_in(daala_info *info,
         if (tmpi < 0) return OD_EBADHEADER;
         info->plane_info[pli].ydec = !!tmpi;
       }
-      return 3;
+      return 2;
     }
     case 0x81:
     {
@@ -198,7 +198,7 @@ int daala_decode_header_in(daala_info *info,
         daala_comment_clear(dc);
         return OD_EBADHEADER;
       }
-      return 2;
+      return 1;
     }
     case 0x82:
     {
@@ -208,7 +208,7 @@ int daala_decode_header_in(daala_info *info,
         return OD_EBADHEADER;
       }
       *ds = daala_setup_create();
-      return 1;
+      return 0;
     }
   }
   return OD_EBADHEADER;

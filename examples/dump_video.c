@@ -289,7 +289,7 @@ int main(int argc, char *argv[]) {
          "corrupt stream?\n");
         exit(1);
       }
-      else if (daala_processing_headers > 0) {
+      else if (daala_processing_headers >= 0) {
         /*Advance past the successfully processed header.*/
         ogg_stream_packetout(&to, NULL);
       }

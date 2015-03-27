@@ -348,7 +348,7 @@ int player_example_play(player_example *player) {
              (player->di.timebase_numerator / player->di.timebase_denominator);
             ticks = SDL_GetTicks();
           }
-          /* Falling through */
+          break;
         }
         case ODS_DATA: {
           if ((player->screen == NULL)
