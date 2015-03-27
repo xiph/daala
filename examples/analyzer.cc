@@ -619,6 +619,7 @@ TestFrame::TestFrame() : wxFrame(NULL, wxID_ANY, _T("Daala Stream Analyzer"),
   viewMenu->AppendCheckItem(wxID_SHOW_PADDING, _T("&Padding\tCtrl-P"),
    _("Show padding area"));
   mb->Append(viewMenu, _T("&View"));
+  mb->EnableTop(1, false);
   wxMenu *helpMenu=new wxMenu();
   helpMenu->Append(wxID_ABOUT, _T("&About...\tF1"), _T("Show about dialog"));
   mb->Append(helpMenu, _T("&Help"));
@@ -689,6 +690,7 @@ bool TestFrame::open(wxString path) {
     SetStatusText(_T("loaded file: ") + path);
     fileMenu->Enable(wxID_OPEN, false);
     viewMenu->Enable(wxID_SHOW_PADDING, panel->hasPadding());
+    GetMenuBar()->EnableTop(1, true);
     return true;
   }
   else {
