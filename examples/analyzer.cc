@@ -202,6 +202,13 @@ bool DaalaDecoder::setBandFlagsBuffer(unsigned int *buf, size_t buf_sz) {
 #define MIN_ZOOM (1)
 #define MAX_ZOOM (4)
 
+enum {
+  OD_LUMA_MASK = 1 << 0,
+  OD_CB_MASK = 1 << 1,
+  OD_CR_MASK = 1 << 2,
+  OD_ALL_MASK = OD_LUMA_MASK | OD_CB_MASK | OD_CR_MASK
+};
+
 class TestPanel : public wxPanel {
   DECLARE_EVENT_TABLE()
 private:
@@ -219,6 +226,7 @@ private:
   bool show_skip;
   bool show_noref;
   bool show_padding;
+  int plane_mask;
 
   // The decode size is the picture size or frame size.
   int getDecodeWidth() const;
@@ -247,6 +255,7 @@ public:
   void setShowSkip(bool show_skip);
   void setShowNoRef(bool show_noref);
   void setShowPadding(bool show_padding);
+  void setShowPlane(bool show_plane, int mask);
 
   bool hasPadding();
 
@@ -279,6 +288,9 @@ public:
   void onZoomOut(wxCommandEvent &event);
   void onFilter(wxCommandEvent &event);
   void onPaddingChange(wxCommandEvent &event);
+  void onYChange(wxCommandEvent &event);
+  void onUChange(wxCommandEvent &event);
+  void onVChange(wxCommandEvent &event);
   void onAbout(wxCommandEvent &event);
 
   bool open(wxString path);
@@ -288,7 +300,10 @@ enum {
   wxID_SHOW_BLOCKS = 6000,
   wxID_SHOW_SKIP,
   wxID_SHOW_NOREF,
-  wxID_SHOW_PADDING
+  wxID_SHOW_PADDING,
+  wxID_SHOW_Y,
+  wxID_SHOW_U,
+  wxID_SHOW_V
 };
 
 BEGIN_EVENT_TABLE(TestFrame, wxFrame)
@@ -301,12 +316,15 @@ BEGIN_EVENT_TABLE(TestFrame, wxFrame)
   EVT_MENU(wxID_SHOW_SKIP, TestFrame::onFilter)
   EVT_MENU(wxID_SHOW_NOREF, TestFrame::onFilter)
   EVT_MENU(wxID_SHOW_PADDING, TestFrame::onPaddingChange)
+  EVT_MENU(wxID_SHOW_Y, TestFrame::onYChange)
+  EVT_MENU(wxID_SHOW_U, TestFrame::onUChange)
+  EVT_MENU(wxID_SHOW_V, TestFrame::onVChange)
   EVT_MENU(wxID_ABOUT, TestFrame::onAbout)
 END_EVENT_TABLE()
 
 TestPanel::TestPanel(wxWindow *parent) : wxPanel(parent), pixels(NULL),
  zoom(0), bsize(NULL), show_blocks(false), flags(NULL), show_skip(false),
- show_noref(false), show_padding(false) {
+ show_noref(false), show_padding(false), plane_mask(OD_ALL_MASK) {
 }
 
 TestPanel::~TestPanel() {
@@ -421,9 +439,11 @@ void TestPanel::render() {
       unsigned rval;
       unsigned gval;
       unsigned bval;
+      int pmask;
       yval = *y;
       cbval = *cb;
       crval = *cr;
+      pmask = plane_mask;
       if (show_skip || show_noref) {
         unsigned char d = OD_BLOCK_SIZE4x4(bsize, bstride, i >> 2, j >> 2);
         int band = getBand(i & ((1 << d + 2) - 1), j & ((1 << d + 2) - 1));
@@ -432,6 +452,7 @@ void TestPanel::render() {
         unsigned int flag = flags[fstride*(by >> 2) + (bx >> 2)];
         cbval = 128;
         crval = 128;
+        pmask = OD_ALL_MASK;
         if (band >= 0) {
           /*R: U=84, V=255, B: U=255, V=107, G: U=43, V=21*/
           bool skip = (flag >> 2*band)&1;
@@ -457,15 +478,21 @@ void TestPanel::render() {
           yval = block_edge_luma(yval);
           cbval = (cbval + 128) >> 1;
           crval = (crval + 128) >> 1;
+          pmask = OD_ALL_MASK;
         }
       }
       if (i == dd.getWidth() || j == dd.getHeight()) {
         /* Display a checkerboard pattern at the padding edge */
         yval = 255 * ((i + j) & 1);
+        pmask = OD_ALL_MASK;
       }
-      yval -= 16;
-      cbval -= 128;
-      crval -= 128;
+      if (pmask & OD_LUMA_MASK) {
+        yval -= 16;
+      } else {
+        yval = 128;
+      }
+      cbval = ((pmask & OD_CB_MASK) >> 1) * (cbval - 128);
+      crval = ((pmask & OD_CR_MASK) >> 2) * (crval - 128);
       /*This is intentionally slow and very accurate.*/
       rval = OD_CLAMPI(0, (int32_t)OD_DIV_ROUND(
        2916394880000LL*yval + 4490222169144LL*crval, 9745792000LL), 65535);
@@ -544,6 +571,14 @@ void TestPanel::setShowPadding(bool show_padding) {
   }
 }
 
+void TestPanel::setShowPlane(bool show_plane, int mask) {
+  if (show_plane) {
+    plane_mask |= mask;
+  } else {
+    plane_mask &= ~mask;
+  }
+}
+
 bool TestPanel::hasPadding() {
   return dd.getFrameWidth() > dd.getWidth() ||
          dd.getFrameHeight() > dd.getHeight();
@@ -613,6 +648,13 @@ TestFrame::TestFrame() : wxFrame(NULL, wxID_ANY, _T("Daala Stream Analyzer"),
    _("Show no-ref bands"));
   viewMenu->AppendCheckItem(wxID_SHOW_PADDING, _T("&Padding\tCtrl-P"),
    _("Show padding area"));
+  viewMenu->AppendSeparator();
+  viewMenu->AppendCheckItem(wxID_SHOW_Y, _T("&Y plane\tCtrl-Y"),
+   _("Show Y plane"));
+  viewMenu->AppendCheckItem(wxID_SHOW_U, _T("&U plane\tCtrl-U"),
+   _("Show U plane"));
+  viewMenu->AppendCheckItem(wxID_SHOW_V, _T("&V plane\tCtrl-V"),
+   _("Show V plane"));
   mb->Append(viewMenu, _T("&View"));
   mb->EnableTop(1, false);
   wxMenu *helpMenu=new wxMenu();
@@ -623,6 +665,9 @@ TestFrame::TestFrame() : wxFrame(NULL, wxID_ANY, _T("Daala Stream Analyzer"),
   int status_widths[2] = {-1, 100};
   SetStatusWidths(2, status_widths);
   SetStatusText(_T("another day, another daala"));
+  GetMenuBar()->Check(wxID_SHOW_Y, true);
+  GetMenuBar()->Check(wxID_SHOW_U, true);
+  GetMenuBar()->Check(wxID_SHOW_V, true);
 }
 
 void TestFrame::onOpen(wxCommandEvent& WXUNUSED(event)) {
@@ -667,6 +712,27 @@ void TestFrame::onFilter(wxCommandEvent &WXUNUSED(event)) {
 
 void TestFrame::onPaddingChange(wxCommandEvent &WXUNUSED(event)) {
   panel->setShowPadding(GetMenuBar()->IsChecked(wxID_SHOW_PADDING));
+  Fit();
+  panel->render();
+  panel->Refresh();
+}
+
+void TestFrame::onYChange(wxCommandEvent &WXUNUSED(event)) {
+  panel->setShowPlane(GetMenuBar()->IsChecked(wxID_SHOW_Y), OD_LUMA_MASK);
+  Fit();
+  panel->render();
+  panel->Refresh();
+}
+
+void TestFrame::onUChange(wxCommandEvent &WXUNUSED(event)) {
+  panel->setShowPlane(GetMenuBar()->IsChecked(wxID_SHOW_U), OD_CB_MASK);
+  Fit();
+  panel->render();
+  panel->Refresh();
+}
+
+void TestFrame::onVChange(wxCommandEvent &WXUNUSED(event)) {
+  panel->setShowPlane(GetMenuBar()->IsChecked(wxID_SHOW_V), OD_CR_MASK);
   Fit();
   panel->render();
   panel->Refresh();
