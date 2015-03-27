@@ -175,7 +175,6 @@ static void pvq_decode_partition(od_ec_dec *ec,
   theta = 0;
   gr = 0;
   gain_offset = 0;
-  itheta = 0;
   /* We always use the robust bitstream for keyframes to avoid having
      PVQ and entropy decoding depending on each other, hurting parallelism. */
   nodesync = robust || is_keyframe;

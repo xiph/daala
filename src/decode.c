@@ -723,8 +723,6 @@ static void od_decode_residual(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
   for (pli = 0; pli < nplanes; pli++) {
     xdec = state->io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
     ydec = state->io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
-    w = frame_width >> xdec;
-    h = frame_height >> ydec;
     /* TODO: We shouldn't be encoding the full, linear quantizer range. */
     dec->quantizer[pli] = od_ec_dec_uint(&dec->ec, 512 << OD_COEFF_SHIFT);
   }

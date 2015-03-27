@@ -302,10 +302,6 @@ static int od_state_init_impl(od_state *state, const daala_info *info) {
       }
     }
     else state->lbuf[pli] = state->ltmp[pli] = NULL;
-    if (pli == 0 || OD_DISABLE_CFL) {
-      xdec = state->info.plane_info[pli].xdec;
-      ydec = state->info.plane_info[pli].ydec;
-    }
   }
   state->bsize = (unsigned char *)_ogg_malloc(
    sizeof(*state->bsize)*(state->nhsb + 2)*4*(state->nvsb + 2)*4);

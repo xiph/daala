@@ -1422,8 +1422,6 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
   for (pli = 0; pli < nplanes; pli++) {
     xdec = state->io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
     ydec = state->io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
-    w = frame_width >> xdec;
-    h = frame_height >> ydec;
     OD_ENC_ACCT_UPDATE(enc, OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_FRAME);
     OD_ENC_ACCT_UPDATE(enc, OD_ACCT_CAT_PLANE, OD_ACCT_PLANE_FRAME);
     /* TODO: We shouldn't be encoding the full, linear quantizer range. */
