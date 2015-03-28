@@ -70,7 +70,7 @@ CFLAGS := -fPIC $(CFLAGS)
 CFLAGS := -std=c89 -pedantic $(CFLAGS)
 CFLAGS := -fvisibility=hidden $(CFLAGS)
 CFLAGS := -Wextra -Wno-parentheses -Wno-long-long -Wno-overlength-strings $(CFLAGS)
-CFLAGS := -Wall $(CFLAGS)
+CFLAGS := -Wall -Wshadow $(CFLAGS)
 CFLAGS := -I/opt/local/include $(CFLAGS)
 # Set machine-specific flags
 HOST := $(shell uname -m)
