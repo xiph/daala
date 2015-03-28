@@ -90,7 +90,7 @@ typedef struct daala_setup_info daala_setup_info;
  * \param op The current header packet to process.
  * \return A positive value indicates that a Daala header was successfully
             processed and indicates the remaining number of headers to be read.
- * \retval 0 The first last header was processed and the next packet will
+ * \retval 0 The last header was processed and the next packet will
               contain video.
  * \retval OD_EFAULT One of \a info, \a dc, or \a ds was <tt>NULL</tt>, or
                       there was a memory allocation failure.
