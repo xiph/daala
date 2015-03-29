@@ -57,6 +57,7 @@ public:
 
   int getFrameWidth() const;
   int getFrameHeight() const;
+  int getRunningFrameCount() const;
 
   bool setBlockSizeBuffer(unsigned char *buf, size_t buf_sz);
   bool setBandFlagsBuffer(unsigned int *buf, size_t buf_sz);
@@ -185,6 +186,10 @@ int DaalaDecoder::getFrameHeight() const {
   return di.pic_height + (OD_BSIZE_MAX - 1) & ~(OD_BSIZE_MAX - 1);
 }
 
+int DaalaDecoder::getRunningFrameCount() const {
+  return frame;
+}
+
 bool DaalaDecoder::setBlockSizeBuffer(unsigned char *buf, size_t buf_sz) {
   if (dctx == NULL) {
     return false;
@@ -219,6 +224,7 @@ private:
   bool show_skip;
   bool show_noref;
   bool show_padding;
+  char *filename;
 
   // The decode size is the picture size or frame size.
   int getDecodeWidth() const;
@@ -306,7 +312,7 @@ END_EVENT_TABLE()
 
 TestPanel::TestPanel(wxWindow *parent) : wxPanel(parent), pixels(NULL),
  zoom(0), bsize(NULL), show_blocks(false), flags(NULL), show_skip(false),
- show_noref(false), show_padding(false) {
+ show_noref(false), show_padding(false), filename(NULL) {
 }
 
 TestPanel::~TestPanel() {
@@ -314,7 +320,12 @@ TestPanel::~TestPanel() {
 }
 
 bool TestPanel::open(const char *path) {
-  if (!dd.open(path)) {
+  filename = (char *)malloc(strlen(path)+1);
+  if(filename == NULL) {
+    return false;
+  }
+  strcpy(filename, path);
+  if (!dd.open(filename)) {
     return false;
   }
   if (!setZoom(MIN_ZOOM)) {
@@ -360,6 +371,8 @@ void TestPanel::close() {
   bsize = NULL;
   free(flags);
   flags = NULL;
+  free(filename);
+  filename = NULL;
 }
 
 int TestPanel::getDecodeWidth() const {
@@ -556,6 +569,11 @@ void TestPanel::setShowNoRef(bool show_noref) {
 bool TestPanel::nextFrame() {
   if (dd.step()) {
     render();
+    wxString status;
+    status.Printf(wxString::Format(wxT("%s (%d,%d) Frame:%d"),
+    filename, dd.getWidth(), dd.getHeight(), dd.getRunningFrameCount()-1));
+    ((TestFrame *)GetParent())->SetLabel(status);
+    ((TestFrame *)GetParent())->SetStatusText(status);
     return true;
   }
   return false;
@@ -630,7 +648,7 @@ void TestFrame::onOpen(wxCommandEvent& WXUNUSED(event)) {
    wxEmptyString, _T("Daala files (*.ogv)|*.ogv"),
    wxFD_OPEN | wxFD_FILE_MUST_EXIST);
   if (openFileDialog.ShowModal() != wxID_CANCEL) {
-    open(openFileDialog.GetPath());
+    open(openFileDialog.GetFilename());
   }
 }
 
