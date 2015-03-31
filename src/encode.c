@@ -95,6 +95,7 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
   for (i = 0; i < OD_NPLANES_MAX; i++){
     enc->quality[i] = 10;
   }
+  enc->complexity = 10;
   enc->mvest = od_mv_est_alloc(enc);
   if (OD_UNLIKELY(!enc->mvest)) {
     return OD_EFAULT;
@@ -159,6 +160,23 @@ int daala_encode_ctl(daala_enc_ctx *enc, int req, void *buf, size_t buf_sz) {
         int tmp = *(int *)buf;
         enc->quality[i] = tmp > 0 ? (tmp << OD_QUALITY_SHIFT) - 8 : 0;
       }
+      return OD_SUCCESS;
+    }
+    case OD_SET_COMPLEXITY: {
+      int complexity;
+      OD_ASSERT(enc);
+      OD_ASSERT(buf);
+      OD_ASSERT(buf_sz == sizeof(enc->complexity));
+      complexity = *(const int *)buf;
+      if (complexity < 0 || complexity > 10) return OD_EINVAL;
+      enc->complexity = complexity;
+      return OD_SUCCESS;
+    }
+    case OD_GET_COMPLEXITY: {
+      OD_ASSERT(enc);
+      OD_ASSERT(buf);
+      OD_ASSERT(buf_sz == sizeof(enc->complexity));
+      *(int *)buf = enc->complexity;
       return OD_SUCCESS;
     }
     case OD_SET_MC_USE_CHROMA:

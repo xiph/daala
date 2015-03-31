@@ -76,6 +76,7 @@ struct daala_enc_ctx{
   int packet_state;
   int quality[OD_NPLANES_MAX];
   int quantizer[OD_NPLANES_MAX];
+  int complexity;
   od_mv_est_ctx *mvest;
   od_params_ctx params;
 #if defined(OD_ENCODER_CHECK)

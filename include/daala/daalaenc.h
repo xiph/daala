@@ -151,6 +151,21 @@ extern void daala_encode_free(daala_enc_ctx *enc);
  * The passed buffer is interpreted as containing a single <tt>int</tt>.
  * The valid range is 0-511. */
 #define OD_SET_QUANT 4000
+/** Configure the encoder's computational complexity level.
+ * \see OD_GET_COMPLEXITY
+ * \param[in]  _buf <tt>int</tt>: The new encoder complexity level.
+ *                  Values must lie in the range 0...10, inclusive, with
+ *                   higher values requiring more CPU but generally producing
+ *                   better quality at a given bitrate. */
+#define OD_SET_COMPLEXITY 4002
+/** Get the encoder's computational complexity level.
+ * \see OD_SET_COMPLEXITY
+ * \param[in]  _buf <tt>int</tt>: Returns a value in the range 0...10,
+ *                   inclusive.
+ *                  Higher values indicate higher CPU requirements, but
+ *                   generally producing better quality at a given bitrate. */
+#define OD_GET_COMPLEXITY 4004
+
 /** Whether the motion compensation search should use the chroma planes in
     addition to the luma plane.
  * \param[in]  _buf <tt>int</tt>: 0 to disable the use of the chroma planes,
