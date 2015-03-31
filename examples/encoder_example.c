@@ -366,7 +366,7 @@ int fetch_and_process_video(av_input *avin, ogg_page *page,
   return video_ready;
 }
 
-static const char *OPTSTRING = "ho:k:v:V:s:S:l:";
+static const char *OPTSTRING = "ho:k:v:V:s:S:l:z:";
 
 static const struct option OPTIONS[] = {
   { "help", no_argument, NULL, 'h' },
@@ -377,6 +377,7 @@ static const struct option OPTIONS[] = {
   { "serial", required_argument, NULL, 's' },
   { "skip", required_argument, NULL, 'S' },
   { "limit", required_argument, NULL, 'l' },
+  { "complexity", required_argument, NULL, 'z' },
   { "mc-use-chroma", no_argument, NULL, 0 },
   { "no-mc-use-chroma", no_argument, NULL, 0 },
   { "mv-res-min", required_argument, NULL, 0 },
@@ -406,6 +407,8 @@ static void usage(void) {
    "  -s --serial <n>                Specify a serial number for the stream.\n"
    "  -S --skip <n>                  Number of input frames to skip before encoding.\n"
    "  -l --limit <n>                 Maximum number of frames to encode.\n"
+   "  -z --complexity <n>            Computational complexity: 0...10\n"
+   "                                 inclusive, default 10 (slowest).\n"
    "     --[no-]mc-use-chroma        Control whether the chroma planes should\n"
    "                                 be used in the motion compensation search.\n"
    "                                 --mc-use-chroma is implied by default.\n"
@@ -445,6 +448,7 @@ int main(int argc, char **argv) {
   unsigned int serial;
   int skip;
   int limit;
+  int complexity;
   int interactive;
   int mc_use_chroma;
   int mv_res_min;
@@ -471,6 +475,7 @@ int main(int argc, char **argv) {
   fixedserial = 0;
   skip = 0;
   limit = -1;
+  complexity = 10;
   mc_use_chroma = 1;
   mv_res_min = 0;
   mv_level_min = 0;
@@ -536,6 +541,15 @@ int main(int argc, char **argv) {
         if (limit < 1) {
           fprintf(stderr,
            "Illegal maximum frame limit (must be greater than 0)\n");
+          exit(1);
+        }
+        break;
+      }
+      case 'z': {
+        complexity = atoi(optarg);
+        if (complexity < 0 || complexity > 10) {
+          fprintf(stderr,
+           "Illegal complexity setting (must be 0...10, inclusive)\n");
           exit(1);
         }
         break;
@@ -612,6 +626,7 @@ int main(int argc, char **argv) {
   daala_comment_init(&dc);
   /*Set up encoder.*/
   daala_encode_ctl(dd, OD_SET_QUANT, &video_q, sizeof(int));
+  daala_encode_ctl(dd, OD_SET_COMPLEXITY, &complexity, sizeof(complexity));
   daala_encode_ctl(dd, OD_SET_MC_USE_CHROMA, &mc_use_chroma, sizeof(int));
   daala_encode_ctl(dd, OD_SET_MV_RES_MIN, &mv_res_min, sizeof(int));
   daala_encode_ctl(dd, OD_SET_MV_LEVEL_MIN, &mv_level_min, sizeof(int));
