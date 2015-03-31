@@ -339,13 +339,10 @@ static const int OD_SITE_DY[13] = {
 };
 
 /*Set to do the initial search with a square search pattern instead of the 3-D
-   predict hexagon state machine.*/
+   predict hexagon state machine.
+  We still need the square pattern tables below even if this is unset, since
+   we may use them for MV refinement in stages 3 and 4*/
 #undef OD_USE_SQUARE_SEARCH
-/*Set to use logarithmicly scaled search radius instead of a fixed search
-   radius during motion vector refinement.*/
-#undef OD_USE_LOGARITHMIC_REFINEMENT
-
-#if defined(OD_USE_SQUARE_SEARCH) || defined(OD_USE_LOGARITHMIC_REFINEMENT)
 
 /*The number of sites to search of each boundary condition in the square
    pattern.
@@ -381,8 +378,6 @@ static const od_pattern OD_SQUARE_SITES[11] = {
   /*       dx == 31,        dy == 31*/
   { 0, 1, 3 }
 };
-
-#endif
 
 /*The number of sites to search of each boundary condition in the diamond
    pattern.
@@ -4039,6 +4034,9 @@ void od_mv_subpel_refine(od_mv_est_ctx *est, int ref, int cost_thresh) {
   ogg_int32_t subpel_cost;
   int nhmvbs;
   int nvmvbs;
+  int complexity;
+  const int *pattern_nsites;
+  const od_pattern *pattern;
   int mv_res;
   int best_mv_res;
   state = &est->enc->state;
@@ -4048,9 +4046,18 @@ void od_mv_subpel_refine(od_mv_est_ctx *est, int ref, int cost_thresh) {
     We could also try rounding the results after refinement, I guess.
     I'm not sure it makes much difference*/
   od_mv_est_update_fullpel_mvs(est, ref);
+  complexity = est->enc->complexity;
+  if (complexity >= OD_MC_SQUARE_SUBPEL_REFINEMENT_COMPLEXITY) {
+    pattern_nsites = OD_SQUARE_NSITES;
+    pattern = OD_SQUARE_SITES;
+  }
+  else {
+    /*This speeds up each iteration by over 3x compared to a square pattern.*/
+    pattern_nsites = OD_DIAMOND_NSITES;
+    pattern = OD_DIAMOND_SITES;
+  }
   do {
-    dcost = od_mv_est_refine(est, ref, 2, 2,
-     OD_DIAMOND_NSITES, OD_DIAMOND_SITES);
+    dcost = od_mv_est_refine(est, ref, 2, 2, pattern_nsites, pattern);
   }
   while (dcost < cost_thresh);
   for (best_mv_res = mv_res = 2; mv_res-- > est->mv_res_min;) {
@@ -4065,7 +4072,7 @@ void od_mv_subpel_refine(od_mv_est_ctx *est, int ref, int cost_thresh) {
      (nhmvbs + 1)*(nvmvbs + 1));
     do {
       dcost = od_mv_est_refine(est, ref, mv_res, mv_res,
-       OD_DIAMOND_NSITES, OD_DIAMOND_SITES);
+       pattern_nsites, pattern);
       subpel_cost += dcost;
     }
     while (dcost < cost_thresh);
@@ -4093,6 +4100,9 @@ void od_mv_est(od_mv_est_ctx *est, int ref, int lambda) {
   int cost_thresh;
   int nhmvbs;
   int nvmvbs;
+  int complexity;
+  const int *pattern_nsites;
+  const od_pattern *pattern;
   int pli;
   int i;
   int j;
@@ -4164,28 +4174,28 @@ void od_mv_est(od_mv_est_ctx *est, int ref, int lambda) {
      more appropriate value, however that gives a PSNR improvement of less than
      0.01 dB, and requires almost twice as many iterations to achieve.*/
   cost_thresh = -nhmvbs*nvmvbs << OD_ERROR_SCALE;
-#if defined(OD_USE_LOGARITHMIC_REFINEMENT)
-  /*Logarithmic search.*/
+  complexity = est->enc->complexity;
+  if (complexity >= OD_MC_SQUARE_REFINEMENT_COMPLEXITY) {
+    pattern_nsites = OD_SQUARE_NSITES;
+    pattern = OD_SQUARE_SITES;
+  }
+  else {
+    /*This speeds up each iteration by over 3x compared to a square pattern.*/
+    pattern_nsites = OD_DIAMOND_NSITES;
+    pattern = OD_DIAMOND_SITES;
+  }
   do {
     dcost = 0;
-    dcost += od_mv_est_refine(est, ref, 5, 2,
-     OD_SQUARE_NSITES, OD_SQUARE_SITES);
-    dcost += od_mv_est_refine(est, ref, 4, 2,
-     OD_SQUARE_NSITES, OD_SQUARE_SITES);
-    dcost += od_mv_est_refine(est, ref, 3, 2,
-     OD_SQUARE_NSITES, OD_SQUARE_SITES);
+    /*Logarithmic (telescoping) search.
+      This is 3x more expensive than basic refinement, but can help escape
+       local minima.*/
+    if (complexity >= OD_MC_LOGARITHMIC_REFINEMENT_COMPLEXITY) {
+      dcost += od_mv_est_refine(est, ref, 5, 2, pattern_nsites, pattern);
+      dcost += od_mv_est_refine(est, ref, 4, 2, pattern_nsites, pattern);
+    }
+    dcost += od_mv_est_refine(est, ref, 3, 2, pattern_nsites, pattern);
   }
   while (dcost < cost_thresh);
-#else
-  /*Diamond search.
-    This appears to give the same quality as the logarithmic search, but at
-     nearly 10 times the speed.*/
-  do {
-    dcost = od_mv_est_refine(est, ref, 3, 2,
-     OD_DIAMOND_NSITES, OD_DIAMOND_SITES);
-  }
-  while (dcost < cost_thresh);
-#endif
   od_mv_subpel_refine(est, ref, cost_thresh);
   od_restore_fpu(state);
 }

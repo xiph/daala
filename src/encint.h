@@ -51,6 +51,17 @@ typedef struct od_rollback_buffer od_rollback_buffer;
    \lambda*R.*/
 # define OD_ERROR_SCALE        (OD_LAMBDA_SCALE + OD_BITRES)
 
+/*The complexity setting where we enable a square pattern in basic (fullpel)
+   MV refinement.*/
+# define OD_MC_SQUARE_REFINEMENT_COMPLEXITY (8)
+/*The complexity setting where we enable logarithmic (telescoping) MV
+   refinement.*/
+# define OD_MC_LOGARITHMIC_REFINEMENT_COMPLEXITY (9)
+/*The complexity setting where we switch to a square pattern in subpel
+   refinement.*/
+# define OD_MC_SQUARE_SUBPEL_REFINEMENT_COMPLEXITY (10)
+
+
 struct od_enc_opt_vtbl {
   int (*mc_compute_sad_4x4_xstride_1)(const unsigned char *src,
    int systride, const unsigned char *ref, int dystride);
