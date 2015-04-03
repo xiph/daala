@@ -1,10 +1,14 @@
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
+
+#include <stdio.h>
+#include <string.h>
 #include <wx/wx.h>
 #include <wx/dcbuffer.h>
 
-extern "C" {
-#include <daala/codec.h>
-#include <daala/daaladec.h>
-}
+#include "daala/codec.h"
+#include "daala/daaladec.h"
 
 /*Smallest blocks are 4x4*/
 # define OD_LOG_BSIZE0 (2)
