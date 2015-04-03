@@ -71,7 +71,7 @@ typedef struct daala_enc_ctx daala_enc_ctx;
  *              parameters.
  * \return The initialized #daala_enc_ctx handle.
  * \retval NULL if the encoding parameters were invalid.*/
-extern daala_enc_ctx *daala_encode_create(const daala_info *info);
+daala_enc_ctx *daala_encode_create(const daala_info *info);
 /**Encoder control function.
  * This is used to provide advanced control of the encoding process.
  * \param enc A #daala_enc_ctx handle.
@@ -80,7 +80,7 @@ extern daala_enc_ctx *daala_encode_create(const daala_info *info);
  *             for details.
  * \param buf The parameters for this control code.
  * \param buf_sz The size of the parameter buffer.*/
-extern int daala_encode_ctl(daala_enc_ctx *enc,
+int daala_encode_ctl(daala_enc_ctx *enc,
  int req, void *buf, size_t buf_sz);
 /**Outputs the next header packet.
  * This should be called repeatedly after encoder initialization until it
@@ -98,7 +98,7 @@ extern int daala_encode_ctl(daala_enc_ctx *enc,
  *          produced.
  * \retval 0 No packet was produced, and no more header packets remain.
  * \retval OD_EFAULT \a enc, \a comments or \a op was <tt>NULL</tt>.*/
-extern int daala_encode_flush_header(daala_enc_ctx *enc,
+int daala_encode_flush_header(daala_enc_ctx *enc,
  daala_comment *comments, ogg_packet *op);
 /**Submits an uncompressed frame to the encoder.
  * \param enc A #daala_enc_ctx handle.
@@ -111,7 +111,7 @@ extern int daala_encode_flush_header(daala_enc_ctx *enc,
  * \retval OD_EINVAL The image size does not match the frame size the encoder
  *                   was initialized with, or encoding has already
  *                    completed.*/
-extern int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration);
+int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration);
 /**Retrieves encoded video data packets.
  * This should be called repeatedly after each frame is submitted to flush any
  *  encoded packets, until it returns 0.
@@ -133,11 +133,11 @@ extern int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration);
  * \retval 0 No packet was produced, and no more encoded video data
  *            remains.
  * \retval OD_EFAULT \a enc or \a op was <tt>NULL</tt>.*/
-extern int daala_encode_packet_out(daala_enc_ctx *enc,
+int daala_encode_packet_out(daala_enc_ctx *enc,
  int last, ogg_packet *op);
 /**Frees an allocated encoder instance.
  * \param enc A #daala_enc_ctx handle.*/
-extern void daala_encode_free(daala_enc_ctx *enc);
+void daala_encode_free(daala_enc_ctx *enc);
 /*@}*/
 
 /** \defgroup encctlcodes Configuration keys for the encoder ctl interface.

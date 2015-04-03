@@ -33,14 +33,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 extern const ogg_uint16_t EXP_CDF_TABLE[][16];
 extern const ogg_uint16_t LAPLACE_OFFSET[];
 
-extern void laplace_encode_special(od_ec_enc *enc, int x, unsigned decay, int max);
-extern void laplace_encode(od_ec_enc *enc, int x, int ex_q8, int k);
-extern void laplace_encode_vector(od_ec_enc *enc, const od_coeff *y, int n, int k,
+void laplace_encode_special(od_ec_enc *enc, int x, unsigned decay, int max);
+void laplace_encode(od_ec_enc *enc, int x, int ex_q8, int k);
+void laplace_encode_vector(od_ec_enc *enc, const od_coeff *y, int n, int k,
                                   ogg_int32_t *curr, const ogg_int32_t *means);
 
-extern int laplace_decode_special(od_ec_dec *dec, unsigned decay, int max);
-extern int laplace_decode(od_ec_dec *dec, int ex_q8, int k);
-extern void laplace_decode_vector(od_ec_dec *dec, od_coeff *y, int n, int k,
+int laplace_decode_special(od_ec_dec *dec, unsigned decay, int max);
+int laplace_decode(od_ec_dec *dec, int ex_q8, int k);
+void laplace_decode_vector(od_ec_dec *dec, od_coeff *y, int n, int k,
                                   ogg_int32_t *curr, const ogg_int32_t *means);
 
 #endif

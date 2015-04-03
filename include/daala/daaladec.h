@@ -110,14 +110,14 @@ int daala_decode_header_in(daala_info *info,
  *               daala_decode_header_in().
  * \return The initialized #daala_dec_ctx handle.
  * \retval NULL If the decoding parameters were invalid.*/
-extern daala_dec_ctx *daala_decode_alloc(const daala_info *info,
+daala_dec_ctx *daala_decode_alloc(const daala_info *info,
  const daala_setup_info *setup);
 /**Releases all storage used for the decoder setup information.
  * This should be called after you no longer want to create any decoders for
  *  a stream whose headers you have parsed with daala_decode_header_in().
  * \param setup The setup information to free.
  *              This can safely be <tt>NULL</tt>.*/
-extern void daala_setup_free(daala_setup_info *setup);
+void daala_setup_free(daala_setup_info *setup);
 /**Decoder control function.
  * This is used to provide advanced control of the decoding process.
  * \param dec A #daala_dec_ctx handle.
@@ -126,16 +126,16 @@ extern void daala_setup_free(daala_setup_info *setup);
  *             for details.
  * \param buf The parameters for this control code.
  * \param buf_sz The size of the parameter buffer.*/
-extern int daala_decode_ctl(daala_dec_ctx *dec,
+int daala_decode_ctl(daala_dec_ctx *dec,
  int req, void *buf, size_t buf_sz);
 /**Frees an allocated decoder instance.
  * \param dec A #daala_dec_ctx handle.*/
-extern void daala_decode_free(daala_dec_ctx *dec);
+void daala_decode_free(daala_dec_ctx *dec);
 /**Retrieves decoded video data frames.
  * \param dec A #daala_dec_ctx handle.
  * \param img A buffer to receive the decoded image data.
  * \param op An incoming Ogg packet.*/
-extern int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
+int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
  const ogg_packet *op);
 /*@}*/
 
