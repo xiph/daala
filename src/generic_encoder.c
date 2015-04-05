@@ -121,3 +121,47 @@ void generic_encode(od_ec_enc *enc, generic_encoder *model, int x, int max,
   OD_LOG((OD_LOG_ENTROPY_CODER, OD_LOG_DEBUG,
    "enc: %d %d %d %d %d %x", *ex_q16, x, shift, id, xs, enc->rng));
 }
+
+/** Estimates the cost of encoding a value with generic_encode().
+ *
+ * @param [in,out] model generic probability model
+ * @param [in]     x     variable being encoded
+ * @param [in]     max   largest value possible
+ * @param [in,out] ExQ16 expectation of x (adapted)
+ * @return number of bits (approximation)
+ */
+double generic_encode_cost(generic_encoder *model, int x, int max,
+ int *ex_q16) {
+  int lg_q1;
+  int shift;
+  int id;
+  ogg_uint16_t *cdf;
+  int xs;
+  int ms;
+  int extra;
+  if (max == 0) return 0;
+  lg_q1 = log_ex(*ex_q16);
+  /* If expectation is too large, shift x to ensure that
+       all we have past xs=15 is the exponentially decaying tail
+       of the distribution */
+  shift = OD_MAXI(0, (lg_q1 - 5) >> 1);
+  /* Choose the cdf to use: we have two per "octave" of ExQ16 */
+  id = OD_MINI(GENERIC_TABLES - 1, lg_q1);
+  cdf = model->cdf[id];
+  xs = (x + (1 << shift >> 1)) >> shift;
+  ms = (max + (1 << shift >> 1)) >> shift;
+  OD_ASSERT(max == -1 || xs <= ms);
+  extra = 0;
+  if (shift) extra = shift - (xs == 0);
+  xs = OD_MINI(15, xs);
+  /* Shortcut: assume it's going to cost 2 bits for the Laplace coder. */
+  if (xs == 15) extra += 2;
+  if (max == -1) {
+    return extra - OD_LOG2((double)(cdf[xs] - (xs == 0 ? 0 : cdf[xs - 1]))/
+     cdf[15]);
+  }
+  else {
+    return extra - OD_LOG2((double)(cdf[xs] - (xs == 0 ? 0 : cdf[xs - 1]))/
+     cdf[OD_MINI(ms, 15)]);
+  }
+}
