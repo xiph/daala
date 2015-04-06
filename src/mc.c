@@ -2463,6 +2463,7 @@ This last compare is unneeded for a median:
     }
     /*Median-of-3.*/
     else {
+      OD_ASSERT(ncns == 3);
       OD_LOG((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG, "Median of 3:"));
       OD_LOG((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG,
        "(%i, %i) (%i, %i) (%i, %i)",
