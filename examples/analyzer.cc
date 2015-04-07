@@ -743,7 +743,7 @@ void TestFrame::onVChange(wxCommandEvent &WXUNUSED(event)) {
 }
 
 void TestFrame::onAbout(wxCommandEvent& WXUNUSED(event)) {
-  wxMessageBox(_T("asdf"), _T("basdf"), wxOK | wxICON_INFORMATION, this);
+  wxMessageBox(_T("This program is a bitstream analyzer for Daala."), _T("About"), wxOK | wxICON_INFORMATION, this);
 }
 
 bool TestFrame::open(wxString path) {
