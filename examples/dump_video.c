@@ -59,8 +59,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "../src/logging.h"
 #include "../include/daala/daaladec.h"
 
-#define OD_SUPERBLOCK_SIZE (32)
-
 const char *optstring = "o:r";
 struct option options [] = {
   { "output", required_argument, NULL, 'o' },

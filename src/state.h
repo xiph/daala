@@ -86,8 +86,6 @@ extern const int *const OD_VERT_SETUP_DY[4][4];
 /*This should be a power of 2, and at least 8.*/
 # define OD_UMV_PADDING (32)
 
-# define OD_SUPERBLOCK_SIZE (32)
-
 /*The shared (encoder and decoder) functions that have accelerated variants.*/
 struct od_state_opt_vtbl{
   void (*mc_predict1fmv8)(unsigned char *_dst, const unsigned char *_src,

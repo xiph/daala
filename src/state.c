@@ -236,10 +236,10 @@ static int od_state_init_impl(od_state *state, const daala_info *info) {
   OD_CLEAR(state, 1);
   OD_COPY(&state->info, info, 1);
   /*Frame size is a multiple of a super block.*/
-  state->frame_width = (info->pic_width + (OD_SUPERBLOCK_SIZE - 1)) &
-   ~(OD_SUPERBLOCK_SIZE - 1);
-  state->frame_height = (info->pic_height + (OD_SUPERBLOCK_SIZE - 1)) &
-   ~(OD_SUPERBLOCK_SIZE - 1);
+  state->frame_width = (info->pic_width + (OD_BSIZE_MAX - 1)) &
+   ~(OD_BSIZE_MAX - 1);
+  state->frame_height = (info->pic_height + (OD_BSIZE_MAX - 1)) &
+   ~(OD_BSIZE_MAX - 1);
   state->nhmbs = state->frame_width >> 4;
   state->nvmbs = state->frame_height >> 4;
   od_state_opt_vtbl_init(state);
