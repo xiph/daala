@@ -29,6 +29,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "block_size.h"
 #include "dct.h"
 
+/*Ignore shadowed variables in macros.*/
+#pragma GCC diagnostic ignored "-Wshadow"
+
 /*Making function pointer tables at least one entry
    longer than needed makes it highly likely that an
    off-by-one will result in a null-pointer rather than
