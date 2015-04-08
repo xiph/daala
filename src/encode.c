@@ -1353,7 +1353,6 @@ static void od_encode_mvs(daala_enc_ctx *enc) {
         }
       }
       else if (vx < 2 || vx > nhmvbs - 2) {
-        od_mv_grid_pt *other;
         if ((vy == 3 && grid[vy - 1][vx == 1 ? vx - 1 : vx + 1].valid)
          || (vy == nvmvbs - 3
           && grid[vy + 1][vx == 1 ? vx - 1 : vx + 1].valid)) {
@@ -1527,12 +1526,12 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
         xdec = state->io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
         ydec = state->io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
         if (!OD_DISABLE_HAAR_DC && mbctx->is_keyframe) {
-          int w;
-          w = enc->state.frame_width;
+          int width;
+          width = enc->state.frame_width;
           if (rdo_only) {
             for (i = 0; i < OD_BSIZE_MAX; i++) {
               for (j = 0; j < OD_BSIZE_MAX; j++) {
-                c_orig[i*OD_BSIZE_MAX + j] = mbctx->c[(OD_BSIZE_MAX*sby + i)*w
+                c_orig[i*OD_BSIZE_MAX + j] = mbctx->c[(OD_BSIZE_MAX*sby + i)*width
                  + OD_BSIZE_MAX*sbx + j];
               }
             }
@@ -1545,7 +1544,7 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
             od_encode_rollback(enc, &buf);
             for (i = 0; i < OD_BSIZE_MAX; i++) {
               for (j = 0; j < OD_BSIZE_MAX; j++) {
-                mbctx->c[(OD_BSIZE_MAX*sby + i)*w + OD_BSIZE_MAX*sbx + j] =
+                mbctx->c[(OD_BSIZE_MAX*sby + i)*width + OD_BSIZE_MAX*sbx + j] =
                  c_orig[i*OD_BSIZE_MAX + j];
               }
             }

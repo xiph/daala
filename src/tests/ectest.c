@@ -252,14 +252,14 @@ int main(int _argc,char **_argv){
   /*Test compatibility between multiple different encode/decode routines.*/
   for(i=0;i<409600;i++){
     unsigned *fz;
-    unsigned *ftb;
+    unsigned *ftbs;
     unsigned *data;
     unsigned *tell;
     unsigned *enc_method;
     int       j;
     sz=rand()/((RAND_MAX>>(rand()%9U))+1U);
     fz=(unsigned *)malloc(sz*sizeof(*fz));
-    ftb=(unsigned *)malloc(sz*sizeof(*ftb));
+    ftbs=(unsigned *)malloc(sz*sizeof(*ftbs));
     data=(unsigned *)malloc(sz*sizeof(*data));
     tell=(unsigned *)malloc((sz+1)*sizeof(*tell));
     enc_method=(unsigned *)malloc(sz*sizeof(*enc_method));
@@ -267,20 +267,20 @@ int main(int _argc,char **_argv){
     tell[0]=od_ec_enc_tell_frac(&enc);
     for(j=0;j<sz;j++){
       data[j]=rand()/((RAND_MAX>>1)+1);
-      ftb[j]=(rand()%15)+1;
-      fz[j]=rand()%32766>>15-ftb[j];
+      ftbs[j]=(rand()%15)+1;
+      fz[j]=rand()%32766>>15-ftbs[j];
       fz[j]=OD_MAXI(fz[j],1);
       enc_method[j]=rand()&1;
       switch(enc_method[j]){
         case 0:{
-          if(rand()&1)od_ec_encode_bool_q15(&enc,data[j],fz[j]<<15-ftb[j]);
-          else od_ec_encode_bool(&enc,data[j],fz[j]<<15-ftb[j],32768);
+          if(rand()&1)od_ec_encode_bool_q15(&enc,data[j],fz[j]<<15-ftbs[j]);
+          else od_ec_encode_bool(&enc,data[j],fz[j]<<15-ftbs[j],32768);
         }break;
         case 1:{
           ogg_uint16_t cdf[2];
           cdf[0]=fz[j];
-          cdf[1]=1U<<ftb[j];
-          od_ec_encode_cdf_unscaled_dyadic(&enc,data[j],cdf,2,ftb[j]);
+          cdf[1]=1U<<ftbs[j];
+          od_ec_encode_cdf_unscaled_dyadic(&enc,data[j],cdf,2,ftbs[j]);
         }break;
       }
       tell[j+1]=od_ec_enc_tell_frac(&enc);
@@ -304,20 +304,20 @@ int main(int _argc,char **_argv){
       dec_method=rand()&1;
       switch(dec_method){
         case 0:{
-          if(rand()&1)sym=od_ec_decode_bool_q15(&dec,fz[j]<<15-ftb[j]);
-          else sym=od_ec_decode_bool(&dec,fz[j]<<15-ftb[j],32768);
+          if(rand()&1)sym=od_ec_decode_bool_q15(&dec,fz[j]<<15-ftbs[j]);
+          else sym=od_ec_decode_bool(&dec,fz[j]<<15-ftbs[j],32768);
         }break;
         case 1:{
           ogg_uint16_t cdf[2];
           cdf[0]=fz[j];
-          cdf[1]=1U<<ftb[j];
-          sym=od_ec_decode_cdf_unscaled_dyadic(&dec,cdf,2,ftb[j]);
+          cdf[1]=1U<<ftbs[j];
+          sym=od_ec_decode_cdf_unscaled_dyadic(&dec,cdf,2,ftbs[j]);
         }break;
       }
       if(sym!=data[j]){
         fprintf(stderr,"Decoded %i instead of %i with fz=%i and ftb=%i "
          "at position %i of %i (Random seed: %u).\n",
-         sym,data[j],fz[j],ftb[j],j,sz,seed);
+         sym,data[j],fz[j],ftbs[j],j,sz,seed);
         fprintf(stderr,"Encoding method: %i, decoding method: %i\n",
          enc_method[j],dec_method);
         ret=EXIT_FAILURE;
@@ -332,7 +332,7 @@ int main(int _argc,char **_argv){
     free(enc_method);
     free(tell);
     free(data);
-    free(ftb);
+    free(ftbs);
     free(fz);
   }
   od_ec_enc_reset(&enc);

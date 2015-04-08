@@ -538,7 +538,7 @@ unsigned char *od_ec_enc_done(od_ec_enc *enc, ogg_uint32_t *nbytes) {
   offs = enc->offs;
   buf = enc->precarry_buf;
   if (s > 0) {
-    unsigned m;
+    unsigned n;
     storage = enc->precarry_storage;
     if (offs + ((s + 7) >> 3) > storage) {
       storage = storage*2 + ((s + 7) >> 3);
@@ -550,14 +550,14 @@ unsigned char *od_ec_enc_done(od_ec_enc *enc, ogg_uint32_t *nbytes) {
       enc->precarry_buf = buf;
       enc->precarry_storage = storage;
     }
-    m = (1 << (c + 16)) - 1;
+    n = (1 << (c + 16)) - 1;
     do {
       OD_ASSERT(offs < storage);
       buf[offs++] = (ogg_uint16_t)(e >> (c + 16));
-      e &= m;
+      e &= n;
       s -= 8;
       c -= 8;
-      m >>= 8;
+      n >>= 8;
     }
     while (s > 0);
   }
