@@ -265,7 +265,6 @@ private:
   int getDisplayHeight() const;
 
   bool updateDisplaySize();
-  bool nextFrame();
 
   int getBand(int x, int y) const;
 public:
@@ -275,6 +274,7 @@ public:
   bool open(const char *path);
   void close();
   void render();
+  bool nextFrame();
 
   int getZoom() const;
   bool setZoom(int zoom);
@@ -306,6 +306,7 @@ private:
   TestPanel *panel;
   wxMenu *fileMenu;
   wxMenu *viewMenu;
+  wxMenu *playbackMenu;
 public:
   TestFrame();
 
@@ -319,6 +320,7 @@ public:
   void onYChange(wxCommandEvent &event);
   void onUChange(wxCommandEvent &event);
   void onVChange(wxCommandEvent &event);
+  void onNextFrame(wxCommandEvent &event);
   void onAbout(wxCommandEvent &event);
 
   bool open(wxString path);
@@ -331,7 +333,8 @@ enum {
   wxID_SHOW_PADDING,
   wxID_SHOW_Y,
   wxID_SHOW_U,
-  wxID_SHOW_V
+  wxID_SHOW_V,
+  wxID_NEXT_FRAME
 };
 
 BEGIN_EVENT_TABLE(TestFrame, wxFrame)
@@ -347,6 +350,7 @@ BEGIN_EVENT_TABLE(TestFrame, wxFrame)
   EVT_MENU(wxID_SHOW_Y, TestFrame::onYChange)
   EVT_MENU(wxID_SHOW_U, TestFrame::onUChange)
   EVT_MENU(wxID_SHOW_V, TestFrame::onVChange)
+  EVT_MENU(wxID_NEXT_FRAME, TestFrame::onNextFrame)
   EVT_MENU(wxID_ABOUT, TestFrame::onAbout)
 END_EVENT_TABLE()
 
@@ -657,12 +661,14 @@ void TestPanel::onIdle(wxIdleEvent &) {
 TestFrame::TestFrame() : wxFrame(NULL, wxID_ANY, _T("Daala Stream Analyzer"),
  wxDefaultPosition, wxDefaultSize, wxDEFAULT_FRAME_STYLE), panel(NULL) {
   wxMenuBar *mb = new wxMenuBar();
+
   fileMenu = new wxMenu();
   fileMenu->Append(wxID_OPEN, _T("&Open...\tCtrl-O"), _T("Open daala file"));
   fileMenu->Append(wxID_CLOSE, _T("&Close\tCtrl-W"), _T("Close daala file"));
   fileMenu->Enable(wxID_CLOSE, false);
   fileMenu->Append(wxID_EXIT, _T("E&xit\tCtrl-Q"), _T("Quit this program"));
   mb->Append(fileMenu, _T("&File"));
+
   viewMenu = new wxMenu();
   viewMenu->Append(wxID_ZOOM_IN, _T("Zoom-In\tCtrl-+"),
    _T("Double image size"));
@@ -685,9 +691,16 @@ TestFrame::TestFrame() : wxFrame(NULL, wxID_ANY, _T("Daala Stream Analyzer"),
    _("Show V plane"));
   mb->Append(viewMenu, _T("&View"));
   mb->EnableTop(1, false);
+
+  playbackMenu = new wxMenu();
+  playbackMenu->Append(wxID_NEXT_FRAME, _T("Next frame\t."), _("Go to next frame"));
+  mb->Append(playbackMenu, _T("&Playback"));
+  mb->EnableTop(2, false);
+
   wxMenu *helpMenu=new wxMenu();
   helpMenu->Append(wxID_ABOUT, _T("&About...\tF1"), _T("Show about dialog"));
   mb->Append(helpMenu, _T("&Help"));
+
   SetMenuBar(mb);
   CreateStatusBar(2);
   int status_widths[2] = {-1, 100};
@@ -766,6 +779,11 @@ void TestFrame::onVChange(wxCommandEvent &WXUNUSED(event)) {
   panel->Refresh();
 }
 
+void TestFrame::onNextFrame(wxCommandEvent &WXUNUSED(event)) {
+  panel->nextFrame();
+  panel->Refresh(false);
+}
+
 void TestFrame::onAbout(wxCommandEvent& WXUNUSED(event)) {
   wxMessageBox(_T("This program is a bitstream analyzer for Daala."), _T("About"), wxOK | wxICON_INFORMATION, this);
 }
@@ -780,6 +798,7 @@ bool TestFrame::open(wxString path) {
     fileMenu->Enable(wxID_OPEN, false);
     viewMenu->Enable(wxID_SHOW_PADDING, panel->hasPadding());
     GetMenuBar()->EnableTop(1, true);
+    GetMenuBar()->EnableTop(2, true);
     return true;
   }
   else {
