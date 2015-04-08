@@ -130,19 +130,19 @@ static void video_write(void) {
 }
 
 /* dump the daala comment header */
-static int dump_comments(daala_comment *dc) {
+static int dump_comments(daala_comment *comment) {
   int i;
   int len;
   FILE *out;
   out = stderr;
-  fprintf(out, "Encoded by %s\n", dc->vendor);
-  if (dc->comments) {
+  fprintf(out, "Encoded by %s\n", comment->vendor);
+  if (comment->comments) {
     fprintf(out, "daala comment header:\n");
-    for (i = 0; i < dc->comments; i++) {
-      if (dc->user_comments[i]) {
-        len = dc->comment_lengths[i] < INT_MAX ?
-         dc->comment_lengths[i] : INT_MAX;
-        fprintf(out, "\t%.*s\n", len, dc->user_comments[i]);
+    for (i = 0; i < comment->comments; i++) {
+      if (comment->user_comments[i]) {
+        len = comment->comment_lengths[i] < INT_MAX ?
+         comment->comment_lengths[i] : INT_MAX;
+        fprintf(out, "\t%.*s\n", len, comment->user_comments[i]);
       }
     }
   }
@@ -304,8 +304,7 @@ int main(int argc, char *argv[]) {
       queue_page(&og); /* demux into the appropriate stream */
     }
     else {
-      int ret = buffer_data(infile, &oy); /* someone needs more data */
-      if (ret == 0) {
+      if (buffer_data(infile, &oy) == 0) { /* someone needs more data */
         fprintf(stderr, "End of file while searching for codec headers.\n");
         exit(1);
       }
