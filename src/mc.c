@@ -2555,9 +2555,9 @@ int od_mv_level1_ctx(od_mv_grid_pt **grid, int vx, int vy) {
 }
 
 int od_mv_level1_probz(od_mv_grid_pt **grid, int vx, int vy) {
-  const int probs[9] =
+  static const int PROBS[9] =
    {30512, 31715, 32546, 19755, 22768, 25170, 8822, 11180, 13710};
-  return probs[od_mv_level1_ctx(grid, vx, vy)];
+  return PROBS[od_mv_level1_ctx(grid, vx, vy)];
 }
 
 int od_mv_level2_ctx(od_mv_grid_pt **grid, int vx, int vy) {
@@ -2580,9 +2580,9 @@ int od_mv_level2_ctx(od_mv_grid_pt **grid, int vx, int vy) {
 }
 
 int od_mv_level2_probz(od_mv_grid_pt **grid, int vx, int vy) {
-  const int probs[9] =
+  static const int PROBS[9] =
    {15025, 11377, 11630, 11771, 13799, 17357, 9106, 12384, 14943};
-  return probs[od_mv_level2_ctx(grid, vx, vy)];
+  return PROBS[od_mv_level2_ctx(grid, vx, vy)];
 }
 
 int od_mv_level3_ctx(od_mv_grid_pt **grid, int vx, int vy) {
@@ -2604,9 +2604,9 @@ int od_mv_level3_ctx(od_mv_grid_pt **grid, int vx, int vy) {
 }
 
 int od_mv_level3_probz(od_mv_grid_pt **grid, int vx, int vy) {
-  const int probs[9] =
+  static const int PROBS[9] =
    {20517, 21744, 24679, 12351, 12900, 16429, 8029, 9085, 12245};
-  return probs[od_mv_level3_ctx(grid, vx, vy)];
+  return PROBS[od_mv_level3_ctx(grid, vx, vy)];
 }
 
 int od_mv_level4_ctx(od_mv_grid_pt **grid, int vx, int vy) {
@@ -2629,7 +2629,7 @@ int od_mv_level4_ctx(od_mv_grid_pt **grid, int vx, int vy) {
 }
 
 int od_mv_level4_probz(od_mv_grid_pt **grid, int vx, int vy) {
-  const int probs[9] =
+  static const int PROBS[9] =
    {9803, 8953, 10887, 11962, 12496, 18801, 11424, 17400, 24094};
-  return probs[od_mv_level4_ctx(grid, vx, vy)];
+  return PROBS[od_mv_level4_ctx(grid, vx, vy)];
 }
