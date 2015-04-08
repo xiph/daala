@@ -59,6 +59,7 @@ m4/ltsugar.m4
 m4/ltversion.m4
 m4/lt~obsolete.m4
 package_version
+examples/analyzer
 examples/dump_video
 examples/encoder_example
 examples/player_example
@@ -70,6 +71,9 @@ src/tests/logging_test
 src/tests/test_coef_coder
 src/tests/test_divu_small
 src/tests/test_filters
+src/tests/*.log
+src/tests/*.trs
+test-suite.log
 tools/block_size_analysis
 tools/dump_psnrhvs
 tools/gen_cdf
