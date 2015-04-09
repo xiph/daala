@@ -14,8 +14,8 @@ int main() {
   for (i = 0; i < 32; i++) {
     printf("    ");
     for (j = 0; j < 32; j++) {
-      v[i*32 + j] = random();
-      if (random() & 1) v[i*32 + j] = -v[i*32 + j];
+      v[i*32 + j] = rand();
+      if (rand() & 1) v[i*32 + j] = -v[i*32 + j];
       printf("%d ", v[i*32 + j]);
     }
     printf("\n");
