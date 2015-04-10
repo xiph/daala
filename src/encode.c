@@ -95,7 +95,7 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
   for (i = 0; i < OD_NPLANES_MAX; i++){
     enc->quality[i] = 10;
   }
-  enc->complexity = 10;
+  enc->complexity = 7;
   enc->mvest = od_mv_est_alloc(enc);
   if (OD_UNLIKELY(!enc->mvest)) {
     return OD_EFAULT;

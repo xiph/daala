@@ -408,7 +408,7 @@ static void usage(void) {
    "  -S --skip <n>                  Number of input frames to skip before encoding.\n"
    "  -l --limit <n>                 Maximum number of frames to encode.\n"
    "  -z --complexity <n>            Computational complexity: 0...10\n"
-   "                                 inclusive, default 10 (slowest).\n"
+   "                                 Fastest: 0, slowest: 10, default: 7\n"
    "     --[no-]mc-use-chroma        Control whether the chroma planes should\n"
    "                                 be used in the motion compensation search.\n"
    "                                 --mc-use-chroma is implied by default.\n"
@@ -475,7 +475,7 @@ int main(int argc, char **argv) {
   fixedserial = 0;
   skip = 0;
   limit = -1;
-  complexity = 10;
+  complexity = 7;
   mc_use_chroma = 1;
   mv_res_min = 0;
   mv_level_min = 0;
