@@ -526,10 +526,10 @@ static void od_dec_mv_unpack(daala_dec_ctx *dec) {
   for (vy = 0; vy <= nvmvbs; vy += 2) {
     for (vx = 2*((vy & 3) == 0); vx <= nhmvbs; vx += 4) {
       mvp = &grid[vy][vx];
-      if ((vy-2 < 0 || grid[vy-2][vx].valid)
-       && (vx-2 < 0 || grid[vy][vx-2].valid)
-       && (vy+2 > nvmvbs || grid[vy+2][vx].valid)
-       && (vx+2 > nhmvbs || grid[vy][vx+2].valid)) {
+      if ((vy - 2 < 0 || grid[vy - 2][vx].valid)
+       && (vx - 2 < 0 || grid[vy][vx - 2].valid)
+       && (vy + 2 > nvmvbs || grid[vy + 2][vx].valid)
+       && (vx + 2 > nhmvbs || grid[vy][vx + 2].valid)) {
         int p_invalid;
         p_invalid = od_mv_level2_probz(grid, vx, vy);
         if (p_invalid >= 16834) {
@@ -603,8 +603,8 @@ static void od_dec_mv_unpack(daala_dec_ctx *dec) {
   for (vy = 2; vy <= nvmvbs - 2; vy += 1) {
     for (vx = 3 - (vy & 1); vx <= nhmvbs - 2; vx += 2) {
       mvp = &grid[vy][vx];
-      if (grid[vy-1][vx].valid && grid[vy][vx-1].valid
-       && grid[vy+1][vx].valid && grid[vy][vx+1].valid) {
+      if (grid[vy - 1][vx].valid && grid[vy][vx - 1].valid
+       && grid[vy + 1][vx].valid && grid[vy][vx + 1].valid) {
         int p_invalid;
         p_invalid = od_mv_level4_probz(grid, vx, vy);
         if (p_invalid >= 16384) {
