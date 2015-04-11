@@ -620,8 +620,8 @@ static void od_dec_mv_unpack(daala_dec_ctx *dec) {
     }
   }
   if (dec->user_mv_grid != NULL) {
-    for (vy = 0; vy < (nvmvbs + 1); vy++) {
-      for (vx = 0; vx < (nhmvbs + 1); vx++) {
+    for (vy = 0; vy <= nvmvbs; vy++) {
+      for (vx = 0; vx <= nhmvbs; vx++) {
         memcpy(&dec->user_mv_grid[vy*(nhmvbs + 1) + vx], &grid[vy][vx],
          sizeof(od_mv_grid_pt));
       }
