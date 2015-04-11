@@ -174,8 +174,8 @@ void od_state_mvs_clear(od_state *state) {
   int vy;
   int nhmvbs;
   int nvmvbs;
-  nhmvbs = (state->nhmbs + 1) << 2;
-  nvmvbs = (state->nvmbs + 1) << 2;
+  nhmvbs = state->nhmbs << 2;
+  nvmvbs = state->nvmbs << 2;
   for (vy = 0; vy <= nvmvbs; vy++) {
     od_mv_grid_pt *grid;
     grid = state->mv_grid[vy];
@@ -2378,57 +2378,58 @@ void od_mc_predict8(od_state *state, unsigned char *dst, int dystride,
 /*Gets the predictor for a given MV node at the given MV resolution.*/
 int od_state_get_predictor(od_state *state,
  int pred[2], int vx, int vy, int level, int mv_res) {
+  static const od_mv_grid_pt ZERO_GRID_PT;
+  const od_mv_grid_pt *cneighbors[4];
+  int a[4][2];
   int nhmvbs;
-  int nvmvbs;
   int equal_mvs;
-  equal_mvs = 0;
-  nhmvbs = (state->nhmbs + 1) << 2;
-  nvmvbs = (state->nvmbs + 1) << 2;
-  if (vx < 2 || vy < 2 || vx > nhmvbs - 2 || vy > nvmvbs - 2) {
-    pred[0] = pred[1] = 0;
+  int mvb_sz;
+  int ncns;
+  int ci;
+  nhmvbs = state->nhmbs << 2;
+  ncns = 4;
+  mvb_sz = 1 << ((4 - level) >> 1);
+  if (level == 0) {
+    if (vy >= 4) {
+      cneighbors[0] = vx >= 4 ?
+       state->mv_grid[vy - 4] + vx - 4 : &ZERO_GRID_PT;
+      cneighbors[1] = state->mv_grid[vy - 4] + vx;
+      cneighbors[2] = vx + 4 <= nhmvbs ?
+       state->mv_grid[vy - 4] + vx + 4 : &ZERO_GRID_PT;
+    }
+    else cneighbors[2] = cneighbors[1] = cneighbors[0] = &ZERO_GRID_PT;
+    cneighbors[3] = vx >= 4 ? state->mv_grid[vy] + vx - 4 : &ZERO_GRID_PT;
   }
   else {
-    int mvb_sz;
-    od_mv_grid_pt *cneighbors[4];
-    int a[4][2];
-    int ncns;
-    int ci;
-    ncns = 4;
-    mvb_sz = 1 << ((4 - level) >> 1);
-    if (level == 0) {
-      cneighbors[0] = state->mv_grid[vy - 4] + vx - 4;
-      cneighbors[1] = state->mv_grid[vy - 4] + vx;
-      cneighbors[2] = state->mv_grid[vy - 4] + vx + 4;
-      cneighbors[3] = state->mv_grid[vy] + vx - 4;
+    if (level & 1) {
+      cneighbors[0] = state->mv_grid[vy - mvb_sz] + vx - mvb_sz;
+      cneighbors[1] = state->mv_grid[vy - mvb_sz] + vx + mvb_sz;
+      cneighbors[2] = state->mv_grid[vy + mvb_sz] + vx - mvb_sz;
+      cneighbors[3] = state->mv_grid[vy + mvb_sz] + vx + mvb_sz;
     }
     else {
-      if (level & 1) {
-        cneighbors[0] = state->mv_grid[vy - mvb_sz] + vx - mvb_sz;
-        cneighbors[1] = state->mv_grid[vy - mvb_sz] + vx + mvb_sz;
-        cneighbors[2] = state->mv_grid[vy + mvb_sz] + vx - mvb_sz;
-        cneighbors[3] = state->mv_grid[vy + mvb_sz] + vx + mvb_sz;
-      }
-      else {
-        cneighbors[0] = state->mv_grid[vy - mvb_sz] + vx;
-        cneighbors[1] = state->mv_grid[vy] + vx - mvb_sz;
-        /*NOTE: Only one of these candidates can be excluded at a time, so
-           there will always be at least 3.*/
-        if (vx + mvb_sz > ((vx + 3) & ~3)) ncns--;
-        else cneighbors[2] = state->mv_grid[vy] + vx + mvb_sz;
-        if (vy + mvb_sz > ((vy + 3) & ~3)) ncns--;
-        else cneighbors[ncns - 1] = state->mv_grid[vy + mvb_sz] + vx;
-      }
+      cneighbors[0] = vy >= mvb_sz ?
+       state->mv_grid[vy - mvb_sz] + vx : &ZERO_GRID_PT;
+      cneighbors[1] = vx >= mvb_sz ?
+       state->mv_grid[vy] + vx - mvb_sz : &ZERO_GRID_PT;
+      /*NOTE: Only one of these candidates can be excluded at a time, so
+         there will always be at least 3.*/
+      if (vx > 0 && vx + mvb_sz > ((vx + 3) & ~3)) ncns--;
+      else cneighbors[2] = state->mv_grid[vy] + vx + mvb_sz;
+      if (vy > 0 && vy + mvb_sz > ((vy + 3) & ~3)) ncns--;
+      else cneighbors[ncns - 1] = state->mv_grid[vy + mvb_sz] + vx;
     }
-    for (ci = 0; ci < ncns; ci++) {
-      a[ci][0] = cneighbors[ci]->mv[0];
-      a[ci][1] = cneighbors[ci]->mv[1];
-    }
-    /*Median-of-4.*/
-    if (ncns > 3) {
-      OD_LOG((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG, "Median of 4:"));
-      OD_LOG((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG,
-       "(%i, %i) (%i, %i) (%i, %i) (%i, %i)", a[0][0], a[0][1],
-       a[1][0], a[1][1], a[2][0], a[2][1], a[3][0], a[3][1]));
+  }
+  for (ci = 0; ci < ncns; ci++) {
+    a[ci][0] = cneighbors[ci]->mv[0];
+    a[ci][1] = cneighbors[ci]->mv[1];
+  }
+  /*Median-of-4.*/
+  if (ncns > 3) {
+    OD_LOG((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG, "Median of 4:"));
+    OD_LOG((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG,
+     "(%i, %i) (%i, %i) (%i, %i) (%i, %i)", a[0][0], a[0][1],
+     a[1][0], a[1][1], a[2][0], a[2][1], a[3][0], a[3][1]));
 /*Sorting network for 4 elements:
 0000 0001 0010 0011 0100 0101 0110 0111 1000 1001 1010 1011 1100 1101 1110 1111
 0001 0010 0011 0100 0101 0110 0111 1001 1010 1011 1101
@@ -2447,45 +2448,44 @@ int od_state_get_predictor(od_state *state,
 This last compare is unneeded for a median:
 1:2
 1100*/
-      OD_SORT2I(a[0][0], a[1][0]);
-      OD_SORT2I(a[0][1], a[1][1]);
-      OD_SORT2I(a[2][0], a[3][0]);
-      OD_SORT2I(a[2][1], a[3][1]);
-      OD_SORT2I(a[0][0], a[2][0]);
-      OD_SORT2I(a[0][1], a[2][1]);
-      OD_SORT2I(a[1][0], a[3][0]);
-      OD_SORT2I(a[1][1], a[3][1]);
-      OD_LOG((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG,
-       "(%i, %i) (%i, %i) (%i, %i) (%i, %i)", a[0][0], a[0][1],
-       a[1][0], a[1][1], a[2][0], a[2][1], a[3][0], a[3][1]));
-      pred[0] = OD_DIV_POW2_RE(a[1][0] + a[2][0], mv_res + 1);
-      pred[1] = OD_DIV_POW2_RE(a[1][1] + a[2][1], mv_res + 1);
-    }
-    /*Median-of-3.*/
-    else {
-      OD_ASSERT(ncns == 3);
-      OD_LOG((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG, "Median of 3:"));
-      OD_LOG((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG,
-       "(%i, %i) (%i, %i) (%i, %i)",
-       a[0][0], a[0][1], a[1][0], a[1][1], a[2][0], a[2][1]));
-      OD_SORT2I(a[0][0], a[1][0]);
-      OD_SORT2I(a[0][1], a[1][1]);
-      OD_SORT2I(a[1][0], a[2][0]);
-      OD_SORT2I(a[1][1], a[2][1]);
-      OD_SORT2I(a[0][0], a[1][0]);
-      OD_SORT2I(a[0][1], a[1][1]);
-      OD_LOG((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG,
-       "(%i, %i) (%i, %i) (%i, %i)",
-       a[0][0], a[0][1], a[1][0], a[1][1], a[2][0], a[2][1]));
-      pred[0] = OD_DIV_POW2_RE(a[1][0], mv_res);
-      pred[1] = OD_DIV_POW2_RE(a[1][1], mv_res);
-    }
-    for (ci = 0; ci < ncns; ci++)
-    {
-      if (pred[0] == OD_DIV_POW2_RE(cneighbors[ci]->mv[0], mv_res) &&
-       pred[1] == OD_DIV_POW2_RE(cneighbors[ci]->mv[1], mv_res)) {
-        equal_mvs++;
-      }
+    OD_SORT2I(a[0][0], a[1][0]);
+    OD_SORT2I(a[0][1], a[1][1]);
+    OD_SORT2I(a[2][0], a[3][0]);
+    OD_SORT2I(a[2][1], a[3][1]);
+    OD_SORT2I(a[0][0], a[2][0]);
+    OD_SORT2I(a[0][1], a[2][1]);
+    OD_SORT2I(a[1][0], a[3][0]);
+    OD_SORT2I(a[1][1], a[3][1]);
+    OD_LOG((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG,
+     "(%i, %i) (%i, %i) (%i, %i) (%i, %i)", a[0][0], a[0][1],
+     a[1][0], a[1][1], a[2][0], a[2][1], a[3][0], a[3][1]));
+    pred[0] = OD_DIV_POW2_RE(a[1][0] + a[2][0], mv_res + 1);
+    pred[1] = OD_DIV_POW2_RE(a[1][1] + a[2][1], mv_res + 1);
+  }
+  /*Median-of-3.*/
+  else {
+    OD_ASSERT(ncns == 3);
+    OD_LOG((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG, "Median of 3:"));
+    OD_LOG((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG,
+     "(%i, %i) (%i, %i) (%i, %i)",
+     a[0][0], a[0][1], a[1][0], a[1][1], a[2][0], a[2][1]));
+    OD_SORT2I(a[0][0], a[1][0]);
+    OD_SORT2I(a[0][1], a[1][1]);
+    OD_SORT2I(a[1][0], a[2][0]);
+    OD_SORT2I(a[1][1], a[2][1]);
+    OD_SORT2I(a[0][0], a[1][0]);
+    OD_SORT2I(a[0][1], a[1][1]);
+    OD_LOG((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG,
+     "(%i, %i) (%i, %i) (%i, %i)",
+     a[0][0], a[0][1], a[1][0], a[1][1], a[2][0], a[2][1]));
+    pred[0] = OD_DIV_POW2_RE(a[1][0], mv_res);
+    pred[1] = OD_DIV_POW2_RE(a[1][1], mv_res);
+  }
+  equal_mvs = 0;
+  for (ci = 0; ci < ncns; ci++) {
+    if (pred[0] == OD_DIV_POW2_RE(cneighbors[ci]->mv[0], mv_res) &&
+     pred[1] == OD_DIV_POW2_RE(cneighbors[ci]->mv[1], mv_res)) {
+      equal_mvs++;
     }
   }
   return equal_mvs;
@@ -2617,8 +2617,8 @@ int od_mv_level4_ctx(od_mv_grid_pt **grid, int vx, int vy) {
   int nv2;
   int same1;
   int same2;
-  v1 = &(grid[vy - 1][vx]);
-  v2 = &(grid[vy][vx - 1]);
+  v1 = vy >= 1 ? &(grid[vy - 1][vx]) : NULL;
+  v2 = vx >= 1 ? &(grid[vy][vx - 1]) : NULL;
   v3 = vx & 1 ? &(grid[vy][vx + 1]) : &(grid[vy + 1][vx]);
   nv1 = vx >= 2 ? grid[vy][vx - 2].valid : 0;
   nv2 = vy >= 2 ? grid[vy - 2][vx].valid : 0;

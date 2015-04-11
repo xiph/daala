@@ -191,8 +191,8 @@ static int od_state_ref_imgs_init(od_state *state, int nrefs, int nio) {
 static int od_state_mvs_init(od_state *state) {
   int nhmvbs;
   int nvmvbs;
-  nhmvbs = (state->nhmbs + 1) << 2;
-  nvmvbs = (state->nvmbs + 1) << 2;
+  nhmvbs = state->nhmbs << 2;
+  nvmvbs = state->nvmbs << 2;
   state->mv_grid = (od_mv_grid_pt **)od_calloc_2d(nvmvbs + 1, nhmvbs + 1,
    sizeof(**state->mv_grid));
   if (OD_UNLIKELY(!state->mv_grid)) {
@@ -728,8 +728,8 @@ void od_state_pred_block_from_setup(od_state *state,
     mvx[k] = (ogg_int32_t)grid[k]->mv[0] << (14 - iplane->xdec);
     mvy[k] = (ogg_int32_t)grid[k]->mv[1] << (14 - iplane->ydec);
   }
-  x = (vx - 2) << (3 - iplane->xdec);
-  y = (vy - 2) << (3 - iplane->ydec);
+  x = vx << (3 - iplane->xdec);
+  y = vy << (3 - iplane->ydec);
   od_mc_predict8(state, buf, ystride, iplane->data + y*iplane->ystride + x,
    iplane->ystride, mvx, mvy, oc, s,
    log_mvb_sz + 2 - iplane->xdec, log_mvb_sz + 2 - iplane->ydec);
@@ -936,8 +936,8 @@ static void od_state_draw_mv_grid_block(od_state *state,
     int x0;
     int y0;
     mvb_sz = 1 << log_mvb_sz;
-    x0 = ((vx - 2) << 3) + (OD_UMV_PADDING << 1);
-    y0 = ((vy - 2) << 3) + (OD_UMV_PADDING << 1);
+    x0 = (vx << 3) + (OD_UMV_PADDING << 1);
+    y0 = (vy << 3) + (OD_UMV_PADDING << 1);
     od_img_draw_line(&state->vis_img, x0, y0, x0 + (mvb_sz << 3), y0,
      OD_YCbCr_EDGE);
     od_img_draw_line(&state->vis_img, x0 + (mvb_sz << 3), y0,
@@ -954,8 +954,8 @@ void od_state_draw_mv_grid(od_state *state) {
   int vy;
   int nhmvbs;
   int nvmvbs;
-  nhmvbs = (state->nhmbs + 1) << 2;
-  nvmvbs = (state->nvmbs + 1) << 2;
+  nhmvbs = state->nhmbs << 2;
+  nvmvbs = state->nvmbs << 2;
   for (vy = 0; vy < nvmvbs; vy += 4) {
     for (vx = 0; vx < nhmvbs; vx += 4) {
       od_state_draw_mv_grid_block(state, vx, vy, 2);
@@ -1011,8 +1011,8 @@ static void od_state_draw_mvs_block(od_state *state,
        + vx + (dxp[k] << log_mvb_sz);
     }
     for (k = 0; k < 4; k++) {
-      x0 = (vx - 2 + (dxp[k] << log_mvb_sz) << 3) + (OD_UMV_PADDING << 1);
-      y0 = (vy - 2 + (dyp[k] << log_mvb_sz) << 3) + (OD_UMV_PADDING << 1);
+      x0 = ((vx + (dxp[k] << log_mvb_sz)) << 3) + (OD_UMV_PADDING << 1);
+      y0 = ((vy + (dyp[k] << log_mvb_sz)) << 3) + (OD_UMV_PADDING << 1);
       /*od_img_draw_point(&state->vis_img, x0, y0, OD_YCbCr_MV);*/
       od_img_draw_line(&state->vis_img, x0, y0,
        x0 + OD_DIV_ROUND_POW2(grid[k]->mv[0], 2, 2),
@@ -1026,8 +1026,8 @@ void od_state_draw_mvs(od_state *state) {
   int vy;
   int nhmvbs;
   int nvmvbs;
-  nhmvbs = (state->nhmbs + 1) << 2;
-  nvmvbs = (state->nvmbs + 1) << 2;
+  nhmvbs = state->nhmbs << 2;
+  nvmvbs = state->nvmbs << 2;
   for (vy = 0; vy < nvmvbs; vy += 4) {
     for (vx = 0; vx < nhmvbs; vx += 4) {
       od_state_draw_mvs_block(state, vx, vy, 2);
@@ -1230,48 +1230,22 @@ void od_state_mc_predict(od_state *state, int ref) {
   int pli;
   int vx;
   int vy;
-  nhmvbs = (state->nhmbs + 1) << 2;
-  nvmvbs = (state->nvmbs + 1) << 2;
+  nhmvbs = state->nhmbs << 2;
+  nvmvbs = state->nvmbs << 2;
   img = state->io_imgs + OD_FRAME_REC;
   for (vy = 0; vy < nvmvbs; vy += 4) {
     for (vx = 0; vx < nhmvbs; vx += 4) {
       for (pli = 0; pli < img->nplanes; pli++) {
         od_img_plane *iplane;
-        unsigned char *p;
-        int blk_w;
-        int blk_h;
         int blk_x;
         int blk_y;
-        int y;
-        od_state_pred_block(state,
-         state->mc_buf[4], OD_MCBSIZE_MAX, ref, pli, vx, vy, 2);
-        /*Copy the predictor into the image, with clipping.*/
+        int ystride;
         iplane = img->planes + pli;
-        blk_w = 16 >> iplane->xdec;
-        blk_h = 16 >> iplane->ydec;
-        blk_x = (vx - 2) << (2 - iplane->xdec);
-        blk_y = (vy - 2) << (2 - iplane->ydec);
-        p = state->mc_buf[4];
-        if (blk_x < 0) {
-          blk_w += blk_x;
-          p -= blk_x;
-          blk_x = 0;
-        }
-        if (blk_y < 0) {
-          blk_h += blk_y;
-          p -= blk_y*OD_MCBSIZE_MAX;
-          blk_y = 0;
-        }
-        if (blk_x + blk_w > img->width >> iplane->xdec) {
-          blk_w = (img->width >> iplane->xdec) - blk_x;
-        }
-        if (blk_y + blk_h > img->height >> iplane->ydec) {
-          blk_h = (img->height >> iplane->ydec) - blk_y;
-        }
-        for (y = blk_y; y < blk_y + blk_h; y++) {
-          OD_COPY(iplane->data + y*iplane->ystride + blk_x, p, blk_w);
-          p += OD_MCBSIZE_MAX;
-        }
+        blk_x = vx << (2 - iplane->xdec);
+        blk_y = vy << (2 - iplane->ydec);
+        ystride = iplane->ystride;
+        od_state_pred_block(state, iplane->data + blk_y*ystride + blk_x,
+         ystride, ref, pli, vx, vy, 2);
       }
     }
   }
