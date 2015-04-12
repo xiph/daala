@@ -223,6 +223,7 @@ AS_IF([test "$enable_asm" = "yes" -a "$cpu_x86" = "true"], [
          enable_avx2_intrinsics=yes
          AC_DEFINE([OD_AVX2_INTRINSICS], [1],
           [Enable AVX2 intrinsics optimisations])
+         TMP_CFLAGS="$CFLAGS"
        ], [enable_avx2_intrinsics=no]
       )
      ], [enable_sse41_intrinsics=no]
