@@ -104,6 +104,7 @@ doc/Doxyfile
 doc/Makefile
 doc/Makefile.in
 doc/doxygen-build.stamp
+doc/doxygen_sqlite3.db
 doc/4-8sub.pdf
 doc/blockidx.pdftex
 doc/blockidx.pdftex_t

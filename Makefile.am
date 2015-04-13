@@ -537,6 +537,7 @@ clean-local:
 	$(RM) -r doc/latex
 	$(RM) -r doc/man
 	$(RM) doc/doxygen-build.stamp
+	$(RM) doc/doxygen_sqlite3.db
 
 uninstall-local:
 	$(RM) -r $(DESTDIR)$(docdir)/html
