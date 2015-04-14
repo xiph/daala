@@ -107,12 +107,9 @@ int daala_decode_ctl(daala_dec_ctx *dec, int req, void *buf, size_t buf_sz) {
       return 0;
     }
     case OD_DECCTL_SET_MV_BUFFER : {
-      int nhmvbs;
-      int nvmvbs;
       if (dec== NULL || buf == NULL) return OD_EFAULT;
-      nhmvbs = dec->state.nhmbs << 2;
-      nvmvbs = dec->state.nvmbs << 2;
-      if (buf_sz != sizeof(od_mv_grid_pt)*(nhmvbs + 1)*(nvmvbs + 1)) {
+      if (buf_sz !=
+       sizeof(od_mv_grid_pt)*(dec->state.nhmvbs + 1)*(dec->state.nvmvbs + 1)) {
         return OD_EINVAL;
       }
       dec->user_mv_grid = buf;
@@ -480,8 +477,8 @@ static void od_dec_mv_unpack(daala_dec_ctx *dec) {
   od_mv_grid_pt **grid;
   OD_ASSERT(dec->state.ref_imgi[OD_FRAME_PREV] >= 0);
   od_state_mvs_clear(&dec->state);
-  nhmvbs = dec->state.nhmbs << 2;
-  nvmvbs = dec->state.nvmbs << 2;
+  nhmvbs = dec->state.nhmvbs;
+  nvmvbs = dec->state.nvmvbs;
   img = dec->state.io_imgs + OD_FRAME_REC;
   mv_res = od_ec_dec_uint(&dec->ec, 3);
   od_state_set_mv_res(&dec->state, mv_res);

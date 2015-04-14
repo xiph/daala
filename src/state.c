@@ -189,12 +189,8 @@ static int od_state_ref_imgs_init(od_state *state, int nrefs, int nio) {
 }
 
 static int od_state_mvs_init(od_state *state) {
-  int nhmvbs;
-  int nvmvbs;
-  nhmvbs = state->nhmbs << 2;
-  nvmvbs = state->nvmbs << 2;
-  state->mv_grid = (od_mv_grid_pt **)od_calloc_2d(nvmvbs + 1, nhmvbs + 1,
-   sizeof(**state->mv_grid));
+  state->mv_grid = (od_mv_grid_pt **)od_calloc_2d(state->nvmvbs + 1,
+   state->nhmvbs + 1, sizeof(**state->mv_grid));
   if (OD_UNLIKELY(!state->mv_grid)) {
     return OD_EFAULT;
   }
@@ -240,8 +236,8 @@ static int od_state_init_impl(od_state *state, const daala_info *info) {
    ~(OD_BSIZE_MAX - 1);
   state->frame_height = (info->pic_height + (OD_BSIZE_MAX - 1)) &
    ~(OD_BSIZE_MAX - 1);
-  state->nhmbs = state->frame_width >> 4;
-  state->nvmbs = state->frame_height >> 4;
+  state->nhmvbs = state->frame_width >> 2;
+  state->nvmvbs = state->frame_height >> 2;
   od_state_opt_vtbl_init(state);
   if (OD_UNLIKELY(od_state_ref_imgs_init(state, 4, 2))) {
     return OD_EFAULT;
@@ -954,8 +950,8 @@ void od_state_draw_mv_grid(od_state *state) {
   int vy;
   int nhmvbs;
   int nvmvbs;
-  nhmvbs = state->nhmbs << 2;
-  nvmvbs = state->nvmbs << 2;
+  nhmvbs = state->nhmvbs;
+  nvmvbs = state->nvmvbs;
   for (vy = 0; vy < nvmvbs; vy += 4) {
     for (vx = 0; vx < nhmvbs; vx += 4) {
       od_state_draw_mv_grid_block(state, vx, vy, 2);
@@ -1026,8 +1022,8 @@ void od_state_draw_mvs(od_state *state) {
   int vy;
   int nhmvbs;
   int nvmvbs;
-  nhmvbs = state->nhmbs << 2;
-  nvmvbs = state->nvmbs << 2;
+  nhmvbs = state->nhmvbs;
+  nvmvbs = state->nvmvbs;
   for (vy = 0; vy < nvmvbs; vy += 4) {
     for (vx = 0; vx < nhmvbs; vx += 4) {
       od_state_draw_mvs_block(state, vx, vy, 2);
@@ -1230,8 +1226,8 @@ void od_state_mc_predict(od_state *state, int ref) {
   int pli;
   int vx;
   int vy;
-  nhmvbs = state->nhmbs << 2;
-  nvmvbs = state->nvmbs << 2;
+  nhmvbs = state->nhmvbs;
+  nvmvbs = state->nvmvbs;
   img = state->io_imgs + OD_FRAME_REC;
   for (vy = 0; vy < nvmvbs; vy += 4) {
     for (vx = 0; vx < nhmvbs; vx += 4) {

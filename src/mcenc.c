@@ -244,8 +244,8 @@ static int od_mv_est_init_impl(od_mv_est_ctx *est, od_enc_ctx *enc) {
   }
   OD_CLEAR(est, 1);
   est->enc = enc;
-  nhmvbs = enc->state.nhmbs << 2;
-  nvmvbs = enc->state.nvmbs << 2;
+  nhmvbs = enc->state.nhmvbs;
+  nvmvbs = enc->state.nvmvbs;
   est->sad_cache[1] = (od_sad4 **)od_malloc_2d(nvmvbs >> 1, nhmvbs >> 1,
    sizeof(est->sad_cache[1][0][0]));
   if (OD_UNLIKELY(!est->sad_cache[1])) {
@@ -791,8 +791,8 @@ void od_mv_est_check_rd_state(od_mv_est_ctx *est, int ref, int mv_res) {
   int vx;
   int vy;
   state = &est->enc->state;
-  nhmvbs = state->nhmbs << 2;
-  nvmvbs = state->nvmbs << 2;
+  nhmvbs = state->nhmvbs;
+  nvmvbs = state->nvmvbs;
   for (vy = 0; vy < nvmvbs; vy += 4) {
     for (vx = 0; vx < nhmvbs; vx += 4) {
       od_mv_est_check_rd_block_state(est, ref, vx, vy, 2);
@@ -930,8 +930,8 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
   bx -= mvb_sz << 1;
   by -= mvb_sz << 1;
   ncns = 4;
-  nhmvbs = state->nhmbs << 2;
-  nvmvbs = state->nvmbs << 2;
+  nhmvbs = state->nhmvbs;
+  nvmvbs = state->nvmvbs;
   if (level == 0) {
     if (vy >= 4) {
       cneighbors[0] = vx >= 4 ? est->mvs[vy - 4] + vx - 4 : &ZERO_NODE;
@@ -1228,9 +1228,9 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
     anc = OD_ANCESTORS[vy & 3][vx & 3];
     for (ai = 0; ai < nanc; ai++) {
       ax = vx + anc[ai][0];
-      if (ax < 0 || ax > (state->nhmbs << 2)) continue;
+      if (ax < 0 || ax > state->nhmvbs) continue;
       ay = vy + anc[ai][1];
-      if (ay < 0 || ay > (state->nvmbs << 2)) continue;
+      if (ay < 0 || ay > state->nvmvbs) continue;
       amvg = state->mv_grid[ay] + ax;
       amvg->valid = 1;
     }
@@ -1265,8 +1265,8 @@ static void od_mv_est_init_mvs(od_mv_est_ctx *est, int ref) {
   int vx;
   int vy;
   state = &est->enc->state;
-  nhmvbs = state->nhmbs << 2;
-  nvmvbs = state->nvmbs << 2;
+  nhmvbs = state->nhmvbs;
+  nvmvbs = state->nvmvbs;
   /*Move the motion vector predictors back a frame.*/
   for (vy = 0; vy <= nvmvbs; vy++) {
     for (vx = 0; vx <= nhmvbs; vx++) {
@@ -1656,8 +1656,8 @@ static void od_mv_est_init_nodes(od_mv_est_ctx *est) {
   int vx;
   int vy;
   state = &est->enc->state;
-  nhmvbs = state->nhmbs << 2;
-  nvmvbs = state->nvmbs << 2;
+  nhmvbs = state->nhmvbs;
+  nvmvbs = state->nvmvbs;
   for (vy = 0; vy <= nvmvbs; vy++) {
     mv_row = est->mvs[vy];
     grid = state->mv_grid[vy];
@@ -1697,8 +1697,8 @@ static void od_mv_est_calc_sads(od_mv_est_ctx *est, int ref) {
   state = &est->enc->state;
   /*TODO: Interleaved evaluation would probably provide better cache
      coherency.*/
-  nhmvbs = state->nhmbs << 2;
-  nvmvbs = state->nvmbs << 2;
+  nhmvbs = state->nhmvbs;
+  nvmvbs = state->nvmvbs;
   if (est->level_max >= 3) {
     for (vy = 0; vy < nvmvbs; vy++) {
       od_mv_node *mv_row;
@@ -1794,8 +1794,8 @@ static void od_mv_est_init_du(od_mv_est_ctx *est, int ref, int vx, int vy) {
   OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
    "Computing du's for (%i, %i)", vx, vy));
   state = &est->enc->state;
-  nhmvbs = state->nhmbs << 2;
-  nvmvbs = state->nvmbs << 2;
+  nhmvbs = state->nhmvbs;
+  nvmvbs = state->nvmvbs;
   dec = est->mvs[vy] + vx;
   level = OD_MC_LEVEL[vy & 3][vx & 3];
   dlev = est->level_max <= 2;
@@ -1918,8 +1918,8 @@ static void od_mv_est_init_dus(od_mv_est_ctx *est, int ref) {
   int vx;
   int vy;
   state = &est->enc->state;
-  nhmvbs = state->nhmbs << 2;
-  nvmvbs = state->nvmbs << 2;
+  nhmvbs = state->nhmvbs;
+  nvmvbs = state->nvmvbs;
   OD_CLEAR(est->row_counts, nvmvbs + 1);
   OD_CLEAR(est->col_counts, nhmvbs + 1);
   od_mv_est_init_nodes(est);
@@ -2000,8 +2000,8 @@ static void od_mv_est_decimate(od_mv_est_ctx *est, int ref) {
   }
 #endif
   state = &est->enc->state;
-  nhmvbs = state->nhmbs << 2;
-  nvmvbs = state->nvmbs << 2;
+  nhmvbs = state->nhmvbs;
+  nvmvbs = state->nvmvbs;
   dlev = est->level_max <= 2;
   for (;;) {
     const od_offset *mergedom;
@@ -2548,7 +2548,7 @@ static void od_mv_dp_animate_state(od_state *state,
                x0 + (mvb_sz << 3), y0 - (mvb_sz << 3), x0 + (mvb_sz << 3), y1,
                OD_YCbCr_EDGE);
             }
-            if (dp[0].mv->vy <= (state->nvmbs << 2) - mvb_sz
+            if (dp[0].mv->vy <= state->nvmvbs - mvb_sz
              && state->mv_grid[d0vy + mvb_sz][d0vx + mvb_sz].valid) {
               od_img_draw_line(&state->vis_img,
                x0 + (mvb_sz << 3), y0 + (mvb_sz << 3),
@@ -2566,7 +2566,7 @@ static void od_mv_dp_animate_state(od_state *state,
                x0 - (mvb_sz << 3), y0 + (mvb_sz << 3), x1, y0 + (mvb_sz << 3),
                OD_YCbCr_EDGE);
             }
-            if (d0vx <= (state->nhmbs << 2) - mvb_sz
+            if (d0vx <= state->nhmvbs - mvb_sz
              && state->mv_grid[d0vy + mvb_sz][d0vx + mvb_sz].valid) {
               od_img_draw_line(&state->vis_img,
                x0 + (mvb_sz << 3), y0 + (mvb_sz << 3), x1, y0 + (mvb_sz << 3),
@@ -2668,8 +2668,8 @@ static void od_mv_dp_row_init(od_mv_est_ctx *est,
   dp->original_mv[0] = dp->mvg->mv[0];
   dp->original_mv[1] = dp->mvg->mv[1];
   dp->original_mv_rate = dp->mv->mv_rate;
-  nhmvbs = state->nhmbs << 2;
-  nvmvbs = state->nvmbs << 2;
+  nhmvbs = state->nhmvbs;
+  nvmvbs = state->nvmvbs;
   /*Get the list of MVs we help predict.*/
   level = OD_MC_LEVEL[vy & 3][vx & 3];
   OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
@@ -2740,7 +2740,7 @@ static void od_mv_dp_first_row_block_setup(od_mv_est_ctx *est,
   int mvb_sz;
   int nblocks;
   state = &est->enc->state;
-  nvmvbs = state->nvmbs << 2;
+  nvmvbs = state->nvmvbs;
   level = OD_MC_LEVEL[vy & 3][vx & 3];
   log_mvb_sz = (4 - level) >> 1;
   mvb_sz = 1 << log_mvb_sz;
@@ -2816,7 +2816,7 @@ static void od_mv_dp_prev_row_block_setup(od_mv_est_ctx *est,
   int mvb_sz;
   int nblocks;
   state = &est->enc->state;
-  nvmvbs = state->nvmbs << 2;
+  nvmvbs = state->nvmvbs;
   level = OD_MC_LEVEL[vy & 3][vx & 3];
   log_mvb_sz = (4 - level) >> 1;
   mvb_sz = 1 << log_mvb_sz;
@@ -2916,7 +2916,7 @@ static void od_mv_dp_last_row_block_setup(od_mv_est_ctx *est,
   int mvb_sz;
   int nblocks;
   state = &est->enc->state;
-  nvmvbs = state->nvmbs << 2;
+  nvmvbs = state->nvmvbs;
   level = OD_MC_LEVEL[vy & 3][vx & 3];
   log_mvb_sz = (4 - level) >> 1;
   mvb_sz = 1 << log_mvb_sz;
@@ -3064,7 +3064,7 @@ static ogg_int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
   int vx;
   int b;
   state = &est->enc->state;
-  nhmvbs = state->nhmbs << 2;
+  nhmvbs = state->nhmvbs;
   grid = state->mv_grid[vy];
   dcost = 0;
   OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
@@ -3316,8 +3316,8 @@ static void od_mv_dp_col_init(od_mv_est_ctx *est,
   dp->original_mv[0] = dp->mvg->mv[0];
   dp->original_mv[1] = dp->mvg->mv[1];
   dp->original_mv_rate = dp->mv->mv_rate;
-  nhmvbs = state->nhmbs << 2;
-  nvmvbs = state->nvmbs << 2;
+  nhmvbs = state->nhmvbs;
+  nvmvbs = state->nvmvbs;
   /*Get the list of MVs we help predict.*/
   level = OD_MC_LEVEL[vy & 3][vx & 3];
   OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
@@ -3372,7 +3372,7 @@ static void od_mv_dp_first_col_block_setup(od_mv_est_ctx *est,
   int mvb_sz;
   int nblocks;
   state = &est->enc->state;
-  nhmvbs = state->nhmbs << 2;
+  nhmvbs = state->nhmvbs;
   level = OD_MC_LEVEL[vy & 3][vx & 3];
   log_mvb_sz = (4 - level) >> 1;
   mvb_sz = 1 << log_mvb_sz;
@@ -3450,7 +3450,7 @@ static void od_mv_dp_prev_col_block_setup(od_mv_est_ctx *est,
   int mvb_sz;
   int nblocks;
   state = &est->enc->state;
-  nhmvbs = state->nhmbs << 2;
+  nhmvbs = state->nhmvbs;
   level = OD_MC_LEVEL[vy & 3][vx & 3];
   log_mvb_sz = (4 - level) >> 1;
   mvb_sz = 1 << log_mvb_sz;
@@ -3552,7 +3552,7 @@ static void od_mv_dp_last_col_block_setup(od_mv_est_ctx *est,
   int mvb_sz;
   int nblocks;
   state = &est->enc->state;
-  nhmvbs = state->nhmbs << 2;
+  nhmvbs = state->nhmvbs;
   level = OD_MC_LEVEL[vy & 3][vx & 3];
   log_mvb_sz = (4 - level) >> 1;
   mvb_sz = 1 << log_mvb_sz;
@@ -3691,7 +3691,7 @@ static ogg_int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
   int vy;
   int b;
   state = &est->enc->state;
-  nvmvbs = state->nvmbs << 2;
+  nvmvbs = state->nvmvbs;
   grid = state->mv_grid;
   dcost = 0;
   OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
@@ -3936,8 +3936,8 @@ static ogg_int32_t od_mv_est_refine(od_mv_est_ctx *est, int ref, int log_dsz,
   int vx;
   int vy;
   state = &est->enc->state;
-  nhmvbs = state->nhmbs << 2;
-  nvmvbs = state->nvmbs << 2;
+  nhmvbs = state->nhmvbs;
+  nvmvbs = state->nvmvbs;
   OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
    "Refining with displacements of %0g and 1/%i pel MV resolution.",
    (1 << log_dsz)*0.125, 1 << (3 - mv_res)));
@@ -3968,8 +3968,8 @@ void od_mv_est_update_fullpel_mvs(od_mv_est_ctx *est, int ref) {
   int vx;
   int vy;
   state = &est->enc->state;
-  nhmvbs = state->nhmbs << 2;
-  nvmvbs = state->nvmbs << 2;
+  nhmvbs = state->nhmvbs;
+  nvmvbs = state->nvmvbs;
   for (vy = 0; vy <= nvmvbs; vy++) {
     for (vx = 0; vx <= nhmvbs; vx++) {
       od_mv_grid_pt *mvg;
@@ -3993,8 +3993,8 @@ int od_mv_est_update_mv_rates(od_mv_est_ctx *est, int mv_res) {
   int vy;
   int dr;
   state = &est->enc->state;
-  nhmvbs = state->nhmbs << 2;
-  nvmvbs = state->nvmbs << 2;
+  nhmvbs = state->nhmvbs;
+  nvmvbs = state->nvmvbs;
   dr = 0;
   for (vy = 0; vy <= nvmvbs; vy++) {
     for (vx = 0; vx <= nhmvbs; vx++) {
@@ -4046,8 +4046,8 @@ void od_mv_subpel_refine(od_mv_est_ctx *est, int ref, int cost_thresh) {
   int mv_res;
   int best_mv_res;
   state = &est->enc->state;
-  nhmvbs = state->nhmbs << 2;
-  nvmvbs = state->nvmbs << 2;
+  nhmvbs = state->nhmvbs;
+  nvmvbs = state->nvmvbs;
   /*Save the fullpell MVs now for use by EPZS^2 on the next frame.
     We could also try rounding the results after refinement, I guess.
     I'm not sure it makes much difference*/
@@ -4113,8 +4113,8 @@ void od_mv_est(od_mv_est_ctx *est, int ref, int lambda) {
   int i;
   int j;
   state = &est->enc->state;
-  nhmvbs = state->nhmbs << 2;
-  nvmvbs = state->nvmbs << 2;
+  nhmvbs = state->nhmvbs;
+  nvmvbs = state->nvmvbs;
   iplane = state->io_imgs[OD_FRAME_INPUT].planes + 0;
   /*Sanitize user parameters*/
   est->level_min = OD_MINI(est->enc->params.mv_level_min,

@@ -1246,8 +1246,8 @@ static void od_encode_mvs(daala_enc_ctx *enc) {
   od_mv_grid_pt *mvp;
   od_mv_grid_pt **grid;
   OD_ENC_ACCT_UPDATE(enc, OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_MOTION_VECTORS);
-  nhmvbs = enc->state.nhmbs << 2;
-  nvmvbs = enc->state.nvmbs << 2;
+  nhmvbs = enc->state.nhmvbs;
+  nvmvbs = enc->state.nvmvbs;
   mvimg = enc->state.io_imgs + OD_FRAME_REC;
   mv_res = enc->state.mv_res;
   OD_ASSERT(0 <= mv_res && mv_res < 3);

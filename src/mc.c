@@ -174,8 +174,8 @@ void od_state_mvs_clear(od_state *state) {
   int vy;
   int nhmvbs;
   int nvmvbs;
-  nhmvbs = state->nhmbs << 2;
-  nvmvbs = state->nvmbs << 2;
+  nhmvbs = state->nhmvbs;
+  nvmvbs = state->nvmvbs;
   for (vy = 0; vy <= nvmvbs; vy++) {
     od_mv_grid_pt *grid;
     grid = state->mv_grid[vy];
@@ -2381,12 +2381,10 @@ int od_state_get_predictor(od_state *state,
   static const od_mv_grid_pt ZERO_GRID_PT;
   const od_mv_grid_pt *cneighbors[4];
   int a[4][2];
-  int nhmvbs;
   int equal_mvs;
   int mvb_sz;
   int ncns;
   int ci;
-  nhmvbs = state->nhmbs << 2;
   ncns = 4;
   mvb_sz = 1 << ((4 - level) >> 1);
   if (level == 0) {
@@ -2394,7 +2392,7 @@ int od_state_get_predictor(od_state *state,
       cneighbors[0] = vx >= 4 ?
        state->mv_grid[vy - 4] + vx - 4 : &ZERO_GRID_PT;
       cneighbors[1] = state->mv_grid[vy - 4] + vx;
-      cneighbors[2] = vx + 4 <= nhmvbs ?
+      cneighbors[2] = vx + 4 <= state->nhmvbs ?
        state->mv_grid[vy - 4] + vx + 4 : &ZERO_GRID_PT;
     }
     else cneighbors[2] = cneighbors[1] = cneighbors[0] = &ZERO_GRID_PT;

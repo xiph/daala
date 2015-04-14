@@ -167,10 +167,10 @@ struct od_state{
   ogg_int64_t         cur_time;
   od_mv_grid_pt **mv_grid;
 
-  /** number of horizontal macro blocks. */
-  int                 nhmbs;
-  /** number of vertical macro blocks. */
-  int                 nvmbs;
+  /** Number of horizontal motion-vector blocks. */
+  int                 nhmvbs;
+  /** Number of vertical motion-vector blocks. */
+  int                 nvmvbs;
   int                 nhsb;
   int                 nvsb;
   /** Each 8x8 block of pixels in the image (+ one superblock of
