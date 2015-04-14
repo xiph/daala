@@ -2534,22 +2534,37 @@ This last compare is unneeded for a median:
      51862 4492 671
      7260 371 68]*/
 
+static int od_mv_ctx(od_mv_grid_pt **grid, int vx, int vy,int level) {
+  od_mv_grid_pt *v1;
+  od_mv_grid_pt *v2;
+  od_mv_grid_pt *v3;
+  int split1;
+  int split2;
+  int same1;
+  int same2;
+  int mvb_sz;
+  mvb_sz = 1 << ((OD_MC_LEVEL_MAX - level) >> 1);
+  if (level & 1) {
+    v1 = grid[vy - mvb_sz] + vx + mvb_sz;
+    v2 = grid[vy + mvb_sz] + vx + mvb_sz;
+    v3 = grid[vy + mvb_sz] + vx - mvb_sz;
+  }
+  else {
+    v1 = vy >= mvb_sz ? grid[vy - mvb_sz] + vx : NULL;
+    v2 = vx >= mvb_sz ? grid[vy] + vx - mvb_sz : NULL;
+    v3 = vx & mvb_sz ? grid[vy] + vx + mvb_sz : grid[vy + mvb_sz] + vx;
+  }
+  split1 = vx >= 2*mvb_sz ? grid[vy][vx - 2*mvb_sz].valid : 0;
+  split2 = vy >= 2*mvb_sz ? grid[vy - 2*mvb_sz][vx].valid : 0;
+  same1 = v1 != NULL && v2 != NULL
+   && (v1->mv[0] == v2->mv[0]) && (v1->mv[1] == v2->mv[1]);
+  same2 = v2 != NULL
+   && (v2->mv[0] == v3->mv[0]) && (v2->mv[1] == v3->mv[1]);
+  return 3 * (split1 + split2) + same1 + same2;
+}
+
 int od_mv_level1_ctx(od_mv_grid_pt **grid, int vx, int vy) {
-  od_mv_grid_pt *vur;
-  od_mv_grid_pt *vdr;
-  od_mv_grid_pt *vdl;
-  int lf;
-  int uf;
-  int rf;
-  int bf;
-  vur = &(grid[vy - 2][vx + 2]);
-  vdr = &(grid[vy + 2][vx + 2]);
-  vdl = &(grid[vy + 2][vx - 2]);
-  lf = vx >= 4 ? grid[vy][vx - 4].valid : 0;
-  uf = vy >= 4 ? grid[vy - 4][vx].valid : 0;
-  rf = (vur->mv[0] == vdr->mv[0]) && (vur->mv[1] == vdr->mv[1]);
-  bf = (vdr->mv[0] == vdl->mv[0]) && (vdr->mv[1] == vdl->mv[1]);
-  return 3 * (lf + uf) + rf + bf;
+  return od_mv_ctx(grid, vx, vy, 1);
 }
 
 int od_mv_level1_probz(od_mv_grid_pt **grid, int vx, int vy) {
@@ -2559,22 +2574,7 @@ int od_mv_level1_probz(od_mv_grid_pt **grid, int vx, int vy) {
 }
 
 int od_mv_level2_ctx(od_mv_grid_pt **grid, int vx, int vy) {
-  od_mv_grid_pt *v1;
-  od_mv_grid_pt *v2;
-  od_mv_grid_pt *v3;
-  int nv1;
-  int nv2;
-  int same1;
-  int same2;
-  v1 = vy >= 2 ? &(grid[vy - 2][vx]) : NULL;
-  v2 = vx >= 2 ? &(grid[vy][vx - 2]) : NULL;
-  v3 = vx & 2 ? &(grid[vy][vx + 2]) : &(grid[vy + 2][vx]);
-  nv1 = vx >= 4 ? grid[vy][vx - 4].valid : 0;
-  nv2 = vy >= 4 ? grid[vy - 4][vx].valid : 0;
-  same1 = vy >= 2 && vx >= 2 && (v1->mv[0] == v2->mv[0])
-   && (v1->mv[1] == v2->mv[1]);
-  same2 = vx >= 2 && (v2->mv[0] == v3->mv[0]) && (v2->mv[1] == v3->mv[1]);
-  return 3 * (nv1 + nv2) + same1 + same2;
+  return od_mv_ctx(grid, vx, vy, 2);
 }
 
 int od_mv_level2_probz(od_mv_grid_pt **grid, int vx, int vy) {
@@ -2584,21 +2584,7 @@ int od_mv_level2_probz(od_mv_grid_pt **grid, int vx, int vy) {
 }
 
 int od_mv_level3_ctx(od_mv_grid_pt **grid, int vx, int vy) {
-  od_mv_grid_pt *vur;
-  od_mv_grid_pt *vdr;
-  od_mv_grid_pt *vdl;
-  int lf;
-  int uf;
-  int rf;
-  int bf;
-  vur = &(grid[vy - 1][vx + 1]);
-  vdr = &(grid[vy + 1][vx + 1]);
-  vdl = &(grid[vy + 1][vx - 1]);
-  lf = vx >= 2 ? grid[vy][vx - 2].valid : 0;
-  uf = vy >= 2 ? grid[vy - 2][vx].valid : 0;
-  rf = (vur->mv[0] == vdr->mv[0]) && (vur->mv[1] == vdr->mv[1]);
-  bf = (vdr->mv[0] == vdl->mv[0]) && (vdr->mv[1] == vdl->mv[1]);
-  return 3 * (lf + uf) + rf + bf;
+  return od_mv_ctx(grid, vx, vy, 3);
 }
 
 int od_mv_level3_probz(od_mv_grid_pt **grid, int vx, int vy) {
@@ -2608,22 +2594,7 @@ int od_mv_level3_probz(od_mv_grid_pt **grid, int vx, int vy) {
 }
 
 int od_mv_level4_ctx(od_mv_grid_pt **grid, int vx, int vy) {
-  od_mv_grid_pt *v1;
-  od_mv_grid_pt *v2;
-  od_mv_grid_pt *v3;
-  int nv1;
-  int nv2;
-  int same1;
-  int same2;
-  v1 = vy >= 1 ? &(grid[vy - 1][vx]) : NULL;
-  v2 = vx >= 1 ? &(grid[vy][vx - 1]) : NULL;
-  v3 = vx & 1 ? &(grid[vy][vx + 1]) : &(grid[vy + 1][vx]);
-  nv1 = vx >= 2 ? grid[vy][vx - 2].valid : 0;
-  nv2 = vy >= 2 ? grid[vy - 2][vx].valid : 0;
-  same1 = vy >= 1 && vx >= 1 && (v1->mv[0] == v2->mv[0])
-   && (v1->mv[1] == v2->mv[1]);
-  same2 = vx >= 1 && (v2->mv[0] == v3->mv[0]) && (v2->mv[1] == v3->mv[1]);
-  return 3 * (nv1 + nv2) + same1 + same2;
+  return od_mv_ctx(grid, vx, vy, 4);
 }
 
 int od_mv_level4_probz(od_mv_grid_pt **grid, int vx, int vy) {
