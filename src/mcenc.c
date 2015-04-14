@@ -697,16 +697,16 @@ static ogg_int32_t od_mv_est_sad8(od_mv_est_ctx *est,
   od_state *state;
   ogg_int32_t ret;
   state = &est->enc->state;
-  od_state_pred_block_from_setup(state, state->mc_buf[4], OD_MCBSIZE_MAX, ref, 0,
-   vx, vy, oc, s, log_mvb_sz);
-  ret = od_enc_sad8(est->enc, state->mc_buf[4], OD_MCBSIZE_MAX, 1, 0,
+  od_state_pred_block_from_setup(state, state->mc_buf[4], OD_MVBSIZE_MAX,
+   ref, 0, vx, vy, oc, s, log_mvb_sz);
+  ret = od_enc_sad8(est->enc, state->mc_buf[4], OD_MVBSIZE_MAX, 1, 0,
    vx << 2, vy << 2, log_mvb_sz + 2);
   if (est->flags & OD_MC_USE_CHROMA) {
     int pli;
     for (pli = 1; pli < state->io_imgs[OD_FRAME_INPUT].nplanes; pli++) {
-      od_state_pred_block_from_setup(state, state->mc_buf[4], OD_MCBSIZE_MAX, ref, pli,
-       vx, vy, oc, s, log_mvb_sz);
-      ret += od_enc_sad8(est->enc, state->mc_buf[4], OD_MCBSIZE_MAX, 1, pli,
+      od_state_pred_block_from_setup(state, state->mc_buf[4], OD_MVBSIZE_MAX,
+       ref, pli, vx, vy, oc, s, log_mvb_sz);
+      ret += od_enc_sad8(est->enc, state->mc_buf[4], OD_MVBSIZE_MAX, 1, pli,
        vx << 2, vy << 2, log_mvb_sz + 2) >> OD_MC_CHROMA_SCALE;
     }
   }

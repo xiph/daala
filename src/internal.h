@@ -51,8 +51,24 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # define OD_BSIZE_MAX     (1 << OD_LOG_BSIZE_MAX)
 
 /*Largest motion compensation partition sizes are 16x16.*/
-# define OD_LOG_MCBSIZE_MAX (4)
-# define OD_MCBSIZE_MAX (1 << OD_LOG_MCBSIZE_MAX)
+# define OD_LOG_MVBSIZE_MAX (4)
+# define OD_MVBSIZE_MAX (1 << OD_LOG_MVBSIZE_MAX)
+/*Smallest motion compensation partition sizes are 4x4.*/
+# define OD_LOG_MVBSIZE_MIN (2)
+# define OD_MVBSIZE_MIN (1 << OD_LOG_MVBSIZE_MIN)
+/*log(2) of the spacing between level-0 MV grid points.*/
+# define OD_LOG_MVB_DELTA0 (OD_LOG_MVBSIZE_MAX - OD_LOG_MVBSIZE_MIN)
+/*The number of different MV block sizes.*/
+# define OD_NMVBSIZES (OD_LOG_MVB_DELTA0 + 1)
+/*The spacing between level-0 MV grid points.*/
+# define OD_MVB_DELTA0 (1 << OD_LOG_MVB_DELTA0)
+/*A mask used to get an MV grid point's offset relative to a level-0 grid
+   point.*/
+# define OD_MVB_MASK (OD_MVB_DELTA0 - 1)
+/*The largest subdivision level.*/
+# define OD_MC_LEVEL_MAX (2*OD_LOG_MVB_DELTA0)
+/*The total number of subdivision levels.*/
+# define OD_MC_NLEVELS (OD_MC_LEVEL_MAX + 1)
 
 # define OD_LIMIT_BSIZE_MIN (OD_BLOCK_4X4)
 # define OD_LIMIT_BSIZE_MAX (OD_BLOCK_32X32)
