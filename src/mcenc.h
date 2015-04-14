@@ -139,9 +139,9 @@ struct od_mv_est_ctx {
   /*A cache of the SAD values used during decimation.
     Indexed by [log_mvb_sz][vy >> log_mvb_sz][vx >> log_mvb_sz][s], where s is
      the edge split state.
-    The SAD of top-level blocks (log_mvb_sz == 2) is not stored in this cache,
-     since it is only needed once.*/
-  od_sad4 **sad_cache[2];
+    The SAD of top-level blocks (log_mvb_sz == OD_LOG_MVB_DELTA0) is not stored
+     in this cache, since it is only needed once.*/
+  od_sad4 **sad_cache[OD_LOG_MVB_DELTA0];
   /*The state of the MV mesh specific to the encoder.*/
   od_mv_node **mvs;
   /*A temporary copy of the decoder-side MV grid used to save-and-restore the

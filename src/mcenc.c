@@ -238,6 +238,7 @@ static ogg_int32_t od_enc_sad8(od_enc_ctx *enc, const unsigned char *p,
 static int od_mv_est_init_impl(od_mv_est_ctx *est, od_enc_ctx *enc) {
   int nhmvbs;
   int nvmvbs;
+  int log_mvb_sz;
   int vx;
   int vy;
   if (OD_UNLIKELY(!est)) {
@@ -247,15 +248,10 @@ static int od_mv_est_init_impl(od_mv_est_ctx *est, od_enc_ctx *enc) {
   est->enc = enc;
   nhmvbs = enc->state.nhmvbs;
   nvmvbs = enc->state.nvmvbs;
-  est->sad_cache[1] = (od_sad4 **)od_malloc_2d(nvmvbs >> 1, nhmvbs >> 1,
-   sizeof(est->sad_cache[1][0][0]));
-  if (OD_UNLIKELY(!est->sad_cache[1])) {
-    return OD_EFAULT;
-  }
-  est->sad_cache[0] = (od_sad4 **)od_malloc_2d(nvmvbs, nhmvbs,
-   sizeof(est->sad_cache[1][0][0]));
-  if (OD_UNLIKELY(!est->sad_cache[0])) {
-    return OD_EFAULT;
+  for (log_mvb_sz = 0; log_mvb_sz < OD_LOG_MVB_DELTA0 ; log_mvb_sz++) {
+    est->sad_cache[log_mvb_sz] = (od_sad4 **)od_malloc_2d(nvmvbs >> log_mvb_sz,
+     nhmvbs >> log_mvb_sz, sizeof(est->sad_cache[log_mvb_sz][0][0]));
+    if (OD_UNLIKELY(!est->sad_cache[log_mvb_sz])) return OD_EFAULT;
   }
   est->mvs = (od_mv_node **)od_calloc_2d(nvmvbs + 1, nhmvbs + 1,
    sizeof(est->mvs[0][0]));
@@ -303,14 +299,16 @@ static int od_mv_est_init_impl(od_mv_est_ctx *est, od_enc_ctx *enc) {
 }
 
 static void od_mv_est_clear(od_mv_est_ctx *est) {
+  int log_mvb_sz;
   _ogg_free(est->dec_heap);
   _ogg_free(est->col_counts);
   _ogg_free(est->row_counts);
   _ogg_free(est->dp_nodes);
   od_free_2d(est->refine_grid);
   od_free_2d(est->mvs);
-  od_free_2d(est->sad_cache[0]);
-  od_free_2d(est->sad_cache[1]);
+  for (log_mvb_sz = OD_LOG_MVB_DELTA0; log_mvb_sz-- > 0; ) {
+    od_free_2d(est->sad_cache[log_mvb_sz]);
+  }
 }
 
 static int od_mv_est_init(od_mv_est_ctx *est, od_enc_ctx *enc) {
@@ -1715,6 +1713,9 @@ static void od_mv_est_calc_sads(od_mv_est_ctx *est, int ref) {
   od_state *state;
   int nhmvbs;
   int nvmvbs;
+  int level_max;
+  int level_min;
+  int log_mvb_sz;
   int vx;
   int vy;
   int oc;
@@ -1724,75 +1725,49 @@ static void od_mv_est_calc_sads(od_mv_est_ctx *est, int ref) {
      coherency.*/
   nhmvbs = state->nhmvbs;
   nvmvbs = state->nvmvbs;
-  if (est->level_max >= 3) {
-    for (vy = 0; vy < nvmvbs; vy++) {
-      od_mv_node *mv_row;
-      mv_row = est->mvs[vy];
-      for (vx = 0; vx < nhmvbs; vx++) {
-        oc = (vx & 1) ^ ((vy & 1) << 1 | (vy & 1));
-        /*While we're here, fill in the block's setup state.*/
-        mv_row[vx].oc = oc;
-        mv_row[vx].log_mvb_sz = 0;
-        if (est->level_max >= 4) {
-          for (s = 0; s < 4; s++) {
-            est->sad_cache[0][vy][vx][s] =
-             (ogg_uint16_t)od_mv_est_sad8(est, ref, vx, vy, oc, s, 0);
-          }
-          mv_row[vx].s = 3;
-          mv_row[vx].sad = est->sad_cache[0][vy][vx][3];
-        }
-        else {
-          mv_row[vx].s = 0;
-          mv_row[vx].sad = od_mv_est_sad8(est, ref, vx, vy, oc, 0, 0);
-        }
-      }
-    }
-  }
-  nhmvbs >>= 1;
-  nvmvbs >>= 1;
-  if (est->level_max >= 1) {
-    if (est->level_min < 3) {
+  level_max = est->level_max;
+  level_min = est->level_min;
+  for (log_mvb_sz = 0; log_mvb_sz < OD_LOG_MVB_DELTA0; log_mvb_sz++) {
+    if (level_max >= OD_MC_LEVEL_MAX - 1 - 2*log_mvb_sz
+     && level_min <= OD_MC_LEVEL_MAX - 2*log_mvb_sz) {
+      od_sad4 **sad_cache;
+      int smax;
+      sad_cache = est->sad_cache[log_mvb_sz];
+      smax = level_max >= OD_MC_LEVEL_MAX - 2*log_mvb_sz ? 4 : 1;
       for (vy = 0; vy < nvmvbs; vy++) {
+        od_sad4 *sad_cache_row;
         od_mv_node *mv_row;
-        mv_row = est->mvs[vy << 1];
+        sad_cache_row = sad_cache[vy];
+        mv_row = est->mvs[vy << log_mvb_sz];
         for (vx = 0; vx < nhmvbs; vx++) {
           oc = (vx & 1) ^ ((vy & 1) << 1 | (vy & 1));
-          if (est->level_max >= 2) {
-            for (s = 0; s < 4; s++) {
-              est->sad_cache[1][vy][vx][s] =
-               (ogg_uint16_t)od_mv_est_sad8(est,
-               ref, vx << 1, vy << 1, oc, s, 1);
-            }
-            if (est->level_max <= 2) {
-              mv_row[vx << 1].oc = oc;
-              mv_row[vx << 1].s = 3;
-              mv_row[vx << 1].log_mvb_sz = 1;
-              mv_row[vx << 1].sad = est->sad_cache[1][vy][vx][3];
-            }
+          for (s = 0; s < smax; s++) {
+            sad_cache_row[vx][s] = (ogg_uint16_t)od_mv_est_sad8(est, ref,
+             vx << log_mvb_sz, vy << log_mvb_sz, oc, s, log_mvb_sz);
           }
-          else {
-            mv_row[vx << 1].oc = oc;
-            mv_row[vx << 1].s = 0;
-            mv_row[vx << 1].log_mvb_sz = 1;
-            mv_row[vx << 1].sad = od_mv_est_sad8(est,
-             ref, vx << 1, vy << 1, oc, 0, 1);
+          /*While we're here, fill in the block's setup state.*/
+          if (level_max <= OD_MC_LEVEL_MAX - 2*log_mvb_sz) {
+            mv_row[vx << log_mvb_sz].oc = oc;
+            mv_row[vx << log_mvb_sz].log_mvb_sz = log_mvb_sz;
+            mv_row[vx << log_mvb_sz].s = smax - 1;
+            mv_row[vx << log_mvb_sz].sad = sad_cache_row[vx][smax - 1];
           }
         }
       }
     }
-  }
-  else {
     nhmvbs >>= 1;
     nvmvbs >>= 1;
+  }
+  if (level_max <= 0) {
     for (vy = 0; vy < nvmvbs; vy++) {
       od_mv_node *mv_row;
-      mv_row = est->mvs[vy << 2];
+      mv_row = est->mvs[vy << log_mvb_sz];
       for (vx = 0; vx < nhmvbs; vx++) {
-        mv_row[vx << 2].oc = 0;
-        mv_row[vx << 2].s = 3;
-        mv_row[vx << 2].log_mvb_sz = 2;
-        mv_row[vx << 2].sad = od_mv_est_sad8(est,
-         ref, vx << 2, vy << 2, 0, 3, 2);
+        mv_row[vx << log_mvb_sz].oc = 0;
+        mv_row[vx << log_mvb_sz].s = 3;
+        mv_row[vx << log_mvb_sz].log_mvb_sz = log_mvb_sz;
+        mv_row[vx << log_mvb_sz].sad = od_mv_est_sad8(est, ref,
+         vx << OD_LOG_MVBSIZE_MIN, vy << OD_LOG_MVBSIZE_MIN, 0, 3, log_mvb_sz);
       }
     }
   }
