@@ -194,7 +194,7 @@ struct od_state{
   unsigned char *bsize;
   int                 bstride;
   od_coeff           *(sb_dc_mem[OD_NPLANES_MAX]);
-  int                 mv_res;
+  int                 mv_res; /* 0: 1/8, 1:1/4, 2: 1/2 pel */
 # if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
   int                 dump_tags;
   od_yuv_dumpfile    *dump_files;
