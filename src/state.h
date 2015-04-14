@@ -129,8 +129,8 @@ struct od_adapt_ctx {
 
   /* Motion vectors */
   generic_encoder     mv_model;
-  int                 mv_ex[5];
-  int                 mv_ey[5];
+  int                 mv_ex[OD_MC_NLEVELS];
+  int                 mv_ey[OD_MC_NLEVELS];
   ogg_uint16_t        mv_small_cdf[5][16];
   int                 mv_small_increment;
 
