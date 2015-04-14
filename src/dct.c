@@ -953,18 +953,18 @@ void od_bin_idct16x16(od_coeff *x, int xstride,
 #define OD_IDCT_8(t0, t4, t2, t6, t1, t5, t3, t7) \
   /* Embedded 8-point orthonormal Type-II iDCT. */ \
   do { \
-    int t1h; \
-    int t3h; \
-    int t7h; \
-    OD_IDST_4_ASYM(t7, t7h, t5, t6, t4); \
-    OD_IDCT_4_ASYM(t0, t2, t1, t1h, t3, t3h); \
-    t4 = t3h - t4; \
+    int t1h_; \
+    int t3h_; \
+    int t7h_; \
+    OD_IDST_4_ASYM(t7, t7h_, t5, t6, t4); \
+    OD_IDCT_4_ASYM(t0, t2, t1, t1h_, t3, t3h_); \
+    t4 = t3h_ - t4; \
     t3 -= t4; \
     t2 += OD_DCT_RSHIFT(t5, 1); \
     t5 = t2 - t5; \
-    t6 = t1h - t6; \
+    t6 = t1h_ - t6; \
     t1 -= t6; \
-    t0 += t7h; \
+    t0 += t7h_; \
     t7 = t0 - t7; \
   } \
   while (0)
@@ -1069,8 +1069,8 @@ void od_bin_idct16x16(od_coeff *x, int xstride,
   do { \
     int t0h; \
     int t2h; \
-    int t5h; \
-    int t7h; \
+    int t5h_; \
+    int t7h_; \
     /* 11725/32768 ~= Tan[7*Pi/64] ~= 0.357805721314524 */ \
     t1 += (t6*11725 + 16384) >> 15; \
     /* 5197/8192 ~= Sin[7*Pi/32] ~= 0.634393284163645 */ \
@@ -1098,8 +1098,8 @@ void od_bin_idct16x16(od_coeff *x, int xstride,
     /* TODO: Can we move this into another operation */ \
     t7 = -t7; \
     t7 -= t6; \
-    t7h = OD_DCT_RSHIFT(t7, 1); \
-    t6 += t7h; \
+    t7h_ = OD_DCT_RSHIFT(t7, 1); \
+    t6 += t7h_; \
     t2 -= t3; \
     t2h = OD_DCT_RSHIFT(t2, 1); \
     t3 += t2h; \
@@ -1107,15 +1107,15 @@ void od_bin_idct16x16(od_coeff *x, int xstride,
     t0h = OD_DCT_RSHIFT(t0, 1); \
     t1 -= t0h; \
     t5 = t4 - t5; \
-    t5h = OD_DCT_RSHIFT(t5, 1); \
-    t4 -= t5h; \
-    t1 += t5h; \
+    t5h_ = OD_DCT_RSHIFT(t5, 1); \
+    t4 -= t5h_; \
+    t1 += t5h_; \
     t5 = t1 - t5; \
     t3 -= t0h; \
     t0 += t3; \
     t6 += t2h; \
     t2 = t6 - t2; \
-    t4 += t7h; \
+    t4 += t7h_; \
     t7 -= t4; \
     /* 3259/16384 ~= Tan[Pi/16] ~= 0.198912367379658 */ \
     t1 += (t6*3259 + 8192) >> 14; \
@@ -1441,12 +1441,12 @@ void od_bin_idct16x16(od_coeff *x, int xstride,
  t1, t9, t5, td, t3, tb, t7, tf) \
   /* Embedded 16-point asymmetric Type-IV iDST. */ \
   do { \
-    int t1h; \
-    int t3h; \
+    int t1h_; \
+    int t3h_; \
     int t4h; \
     int t6h; \
-    int t9h; \
-    int tbh; \
+    int t9h_; \
+    int tbh_; \
     int tch; \
     /* 8247/16384 ~= Tan[19*Pi/128] ~= 0.503357699799294 */ \
     t6 += (t9*8247 + 8192) >> 14; \
@@ -1508,41 +1508,41 @@ void od_bin_idct16x16(od_coeff *x, int xstride,
     t4h = OD_DCT_RSHIFT(t4, 1); \
     ta = t4h - ta; \
     tb -= t5; \
-    tbh = OD_DCT_RSHIFT(tb, 1); \
-    t5 += tbh; \
+    tbh_ = OD_DCT_RSHIFT(tb, 1); \
+    t5 += tbh_; \
     tc += t2; \
     tch = OD_DCT_RSHIFT(tc, 1); \
     t2 -= tch; \
     t3 -= td; \
-    t3h = OD_DCT_RSHIFT(t3, 1); \
-    td += t3h; \
+    t3h_ = OD_DCT_RSHIFT(t3, 1); \
+    td += t3h_; \
     t9 += t8; \
-    t9h = OD_DCT_RSHIFT(t9, 1); \
-    t8 -= t9h; \
+    t9h_ = OD_DCT_RSHIFT(t9, 1); \
+    t8 -= t9h_; \
     t6 -= t7; \
     t6h = OD_DCT_RSHIFT(t6, 1); \
     t7 += t6h; \
     t1 += tf; \
-    t1h = OD_DCT_RSHIFT(t1, 1); \
-    tf -= t1h; \
+    t1h_ = OD_DCT_RSHIFT(t1, 1); \
+    tf -= t1h_; \
     te -= t0; \
     teh = OD_DCT_RSHIFT(te, 1); \
     t0 += teh; \
-    ta += t9h; \
+    ta += t9h_; \
     t9 = ta - t9; \
     t5 -= t6h; \
     t6 += t5; \
     td = teh - td; \
     te = td - te; \
-    t2 = t1h - t2; \
+    t2 = t1h_ - t2; \
     t1 -= t2; \
     t7 += t4h; \
     t4 -= t7; \
-    t8 -= tbh; \
+    t8 -= tbh_; \
     tb += t8; \
     t0 += tch; \
     tc -= t0; \
-    tf -= t3h; \
+    tf -= t3h_; \
     t3 += tf; \
     /* TODO: Can we move this into another operation */ \
     ta = -ta; \
