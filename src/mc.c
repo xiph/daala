@@ -2386,17 +2386,18 @@ int od_state_get_predictor(od_state *state,
   int ncns;
   int ci;
   ncns = 4;
-  mvb_sz = 1 << ((4 - level) >> 1);
+  mvb_sz = 1 << ((OD_MC_LEVEL_MAX - level) >> 1);
   if (level == 0) {
-    if (vy >= 4) {
-      cneighbors[0] = vx >= 4 ?
-       state->mv_grid[vy - 4] + vx - 4 : &ZERO_GRID_PT;
-      cneighbors[1] = state->mv_grid[vy - 4] + vx;
-      cneighbors[2] = vx + 4 <= state->nhmvbs ?
-       state->mv_grid[vy - 4] + vx + 4 : &ZERO_GRID_PT;
+    if (vy >= mvb_sz) {
+      cneighbors[0] = vx >= mvb_sz ?
+       state->mv_grid[vy - mvb_sz] + vx - mvb_sz : &ZERO_GRID_PT;
+      cneighbors[1] = state->mv_grid[vy - mvb_sz] + vx;
+      cneighbors[2] = vx + mvb_sz <= state->nhmvbs ?
+       state->mv_grid[vy - mvb_sz] + vx + mvb_sz : &ZERO_GRID_PT;
     }
     else cneighbors[2] = cneighbors[1] = cneighbors[0] = &ZERO_GRID_PT;
-    cneighbors[3] = vx >= 4 ? state->mv_grid[vy] + vx - 4 : &ZERO_GRID_PT;
+    cneighbors[3] = vx >= mvb_sz ?
+     state->mv_grid[vy] + vx - mvb_sz : &ZERO_GRID_PT;
   }
   else {
     if (level & 1) {
@@ -2412,9 +2413,9 @@ int od_state_get_predictor(od_state *state,
        state->mv_grid[vy] + vx - mvb_sz : &ZERO_GRID_PT;
       /*NOTE: Only one of these candidates can be excluded at a time, so
          there will always be at least 3.*/
-      if (vx > 0 && vx + mvb_sz > ((vx + 3) & ~3)) ncns--;
+      if (vx > 0 && vx + mvb_sz > ((vx + OD_MVB_MASK) & ~OD_MVB_MASK)) ncns--;
       else cneighbors[2] = state->mv_grid[vy] + vx + mvb_sz;
-      if (vy > 0 && vy + mvb_sz > ((vy + 3) & ~3)) ncns--;
+      if (vy > 0 && vy + mvb_sz > ((vy + OD_MVB_MASK) & ~OD_MVB_MASK)) ncns--;
       else cneighbors[ncns - 1] = state->mv_grid[vy + mvb_sz] + vx;
     }
   }

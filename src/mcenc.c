@@ -890,8 +890,8 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
    "Initial search for MV (%i, %i):", vx, vy));
   state = &est->enc->state;
   mv = est->mvs[vy] + vx;
-  level = OD_MC_LEVEL[vy & 3][vx & 3];
-  log_mvb_sz = (4 - level) >> 1;
+  level = OD_MC_LEVEL[vy & OD_MVB_MASK][vx & OD_MVB_MASK];
+  log_mvb_sz = (OD_MC_LEVEL_MAX - level) >> 1;
   mvb_sz = 1 << log_mvb_sz;
   mvg = state->mv_grid[vy] + vx;
 #if defined(OD_DUMP_IMAGES) && defined(OD_ANIMATE)
@@ -933,21 +933,24 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
   nhmvbs = state->nhmvbs;
   nvmvbs = state->nvmvbs;
   if (level == 0) {
-    if (vy >= 4) {
-      cneighbors[0] = vx >= 4 ? est->mvs[vy - 4] + vx - 4 : &ZERO_NODE;
-      cneighbors[1] = est->mvs[vy - 4] + vx;
-      cneighbors[2] = vx + 4 <= nhmvbs ?
-       est->mvs[vy - 4] + vx + 4 : &ZERO_NODE;
-      pneighbors[0] = est->mvs[vy - 4] + vx;
+    if (vy >= mvb_sz) {
+      cneighbors[0] = vx >= mvb_sz ?
+       est->mvs[vy - mvb_sz] + vx - mvb_sz : &ZERO_NODE;
+      cneighbors[1] = est->mvs[vy - mvb_sz] + vx;
+      cneighbors[2] = vx + mvb_sz <= nhmvbs ?
+       est->mvs[vy - mvb_sz] + vx + mvb_sz : &ZERO_NODE;
+      pneighbors[0] = est->mvs[vy - mvb_sz] + vx;
     }
     else {
       cneighbors[2] = cneighbors[1] = cneighbors[0] = &ZERO_NODE;
       pneighbors[0] = &ZERO_NODE;
     }
-    cneighbors[3] = vx >= 4 ? est->mvs[vy] + vx - 4 : &ZERO_NODE;
-    pneighbors[1] = vx >= 4 ? est->mvs[vy] + vx - 4 : &ZERO_NODE;
-    pneighbors[2] = vx + 4 <= nhmvbs ? est->mvs[vy] + vx + 4 : &ZERO_NODE;
-    pneighbors[3] = vy + 4 <= nvmvbs ? est->mvs[vy + 4] + vx : &ZERO_NODE;
+    cneighbors[3] = vx >= mvb_sz ? est->mvs[vy] + vx - mvb_sz : &ZERO_NODE;
+    pneighbors[1] = vx >= mvb_sz ? est->mvs[vy] + vx - mvb_sz : &ZERO_NODE;
+    pneighbors[2] = vx + mvb_sz <= nhmvbs ?
+     est->mvs[vy] + vx + mvb_sz : &ZERO_NODE;
+    pneighbors[3] = vy + mvb_sz <= nvmvbs ?
+     est->mvs[vy + OD_MVB_DELTA0] + vx : &ZERO_NODE;
   }
   else {
     if (level & 1) {
@@ -968,9 +971,9 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
       cneighbors[1] = pneighbors[1];
       /*NOTE: Only one of these candidates can be excluded at a time, so
          there will always be at least 3.*/
-      if (vx > 0 && vx + mvb_sz > ((vx + 3) & ~3)) ncns--;
+      if (vx > 0 && vx + mvb_sz > ((vx + OD_MVB_MASK) & ~OD_MVB_MASK)) ncns--;
       else cneighbors[2] = pneighbors[2];
-      if (vy > 0 && vy + mvb_sz > ((vy + 3) & ~3)) ncns--;
+      if (vy > 0 && vy + mvb_sz > ((vy + OD_MVB_MASK) & ~OD_MVB_MASK)) ncns--;
       else cneighbors[ncns - 1] = pneighbors[3];
     }
   }
