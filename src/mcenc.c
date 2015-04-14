@@ -56,8 +56,9 @@ typedef int od_pattern[8];
 /*The number of bits to reduce chroma SADs by, if used.*/
 #define OD_MC_CHROMA_SCALE (2)
 
-/*The subdivision level of a MV in the mesh, given its position (mod 4).*/
-static const int OD_MC_LEVEL[4][4] = {
+/*The subdivision level of a MV in the mesh, given its position
+   (mod OD_MVB_DELTA0).*/
+static const int OD_MC_LEVEL[OD_MVB_DELTA0][OD_MVB_DELTA0] = {
   { 0, 4, 2, 4 },
   { 4, 3, 4, 3 },
   { 2, 4, 1, 4 },
@@ -116,14 +117,14 @@ static const od_offset OD_ANCESTORS4[8][9] = {
 };
 
 /*The number of ancestors in each list in the grid pattern.*/
-static const int OD_NANCESTORS[4][4] = {
+static const int OD_NANCESTORS[OD_MVB_DELTA0][OD_MVB_DELTA0] = {
   { 0, 9, 2, 9 },
   { 9, 5, 9, 5 },
   { 2, 9, 0, 9 },
   { 9, 5, 9, 5 }
 };
 /*The lists for each vertex in the grid pattern.*/
-static const od_offset *OD_ANCESTORS[4][4] = {
+static const od_offset *OD_ANCESTORS[OD_MVB_DELTA0][OD_MVB_DELTA0] = {
   {             NULL, OD_ANCESTORS4[0], OD_ANCESTORS2[0], OD_ANCESTORS4[1] },
   { OD_ANCESTORS4[2], OD_ANCESTORS3[0], OD_ANCESTORS4[3], OD_ANCESTORS3[1] },
   { OD_ANCESTORS2[1], OD_ANCESTORS4[4],             NULL, OD_ANCESTORS4[5] },
@@ -700,14 +701,16 @@ static ogg_int32_t od_mv_est_sad8(od_mv_est_ctx *est,
   od_state_pred_block_from_setup(state, state->mc_buf[4], OD_MVBSIZE_MAX,
    ref, 0, vx, vy, oc, s, log_mvb_sz);
   ret = od_enc_sad8(est->enc, state->mc_buf[4], OD_MVBSIZE_MAX, 1, 0,
-   vx << 2, vy << 2, log_mvb_sz + 2);
+   vx << OD_LOG_MVBSIZE_MIN, vy << OD_LOG_MVBSIZE_MIN,
+   log_mvb_sz + OD_LOG_MVBSIZE_MIN);
   if (est->flags & OD_MC_USE_CHROMA) {
     int pli;
     for (pli = 1; pli < state->io_imgs[OD_FRAME_INPUT].nplanes; pli++) {
       od_state_pred_block_from_setup(state, state->mc_buf[4], OD_MVBSIZE_MAX,
        ref, pli, vx, vy, oc, s, log_mvb_sz);
       ret += od_enc_sad8(est->enc, state->mc_buf[4], OD_MVBSIZE_MAX, 1, pli,
-       vx << 2, vy << 2, log_mvb_sz + 2) >> OD_MC_CHROMA_SCALE;
+       vx << OD_LOG_MVBSIZE_MIN, vy << OD_LOG_MVBSIZE_MIN,
+       log_mvb_sz + OD_LOG_MVBSIZE_MIN) >> OD_MC_CHROMA_SCALE;
     }
   }
   return ret;
@@ -743,7 +746,7 @@ void od_mv_est_check_rd_block_state(od_mv_est_ctx *est,
        "Failure at node (%i, %i): log_mvb_sz should be %i (is %i)",
        vx, vy, log_mvb_sz, block->log_mvb_sz));
     }
-    if (log_mvb_sz < 2) {
+    if (log_mvb_sz < OD_LOG_MVB_DELTA0) {
       int mask;
       int s1vx;
       int s1vy;
@@ -793,9 +796,9 @@ void od_mv_est_check_rd_state(od_mv_est_ctx *est, int ref, int mv_res) {
   state = &est->enc->state;
   nhmvbs = state->nhmvbs;
   nvmvbs = state->nvmvbs;
-  for (vy = 0; vy < nvmvbs; vy += 4) {
-    for (vx = 0; vx < nhmvbs; vx += 4) {
-      od_mv_est_check_rd_block_state(est, ref, vx, vy, 2);
+  for (vy = 0; vy < nvmvbs; vy += OD_MVB_DELTA0) {
+    for (vx = 0; vx < nhmvbs; vx += OD_MVB_DELTA0) {
+      od_mv_est_check_rd_block_state(est, ref, vx, vy, OD_LOG_MVB_DELTA0);
     }
   }
   for (vy = 0; vy < nvmvbs; vy++) {
@@ -809,8 +812,8 @@ void od_mv_est_check_rd_state(od_mv_est_ctx *est, int ref, int mv_res) {
       int mvb_sz;
       mvg = state->mv_grid[vy] + vx;
       if (!mvg->valid) continue;
-      level = OD_MC_LEVEL[vy & 3][vx & 3];
-      mvb_sz = 1 << ((4 - level) >> 1);
+      level = OD_MC_LEVEL[vy & OD_MVB_MASK][vx & OD_MVB_MASK];
+      mvb_sz = 1 << ((OD_MC_LEVEL_MAX - level) >> 1);
       if (level & 1) {
         OD_ASSERT(state->mv_grid[vy - mvb_sz][vx - mvb_sz].valid
          && state->mv_grid[vy - mvb_sz][vx + mvb_sz].valid
@@ -825,7 +828,7 @@ void od_mv_est_check_rd_state(od_mv_est_ctx *est, int ref, int mv_res) {
       }
       mv = est->mvs[vy] + vx;
       equal_mvs = od_state_get_predictor(state, pred, vx, vy,
-       OD_MC_LEVEL[vy & 3][vx & 3], mv_res);
+       OD_MC_LEVEL[vy & OD_MVB_MASK][vx & OD_MVB_MASK], mv_res);
       mv_rate = od_mv_est_bits(est, equal_mvs,
        mvg->mv[0] >> mv_res, mvg->mv[1] >> mv_res, pred[0], pred[1]);
       if (mv_rate != mv->mv_rate) {
@@ -899,14 +902,14 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
   if (animating) {
     od_state_mc_predict(state, ref);
     od_state_fill_vis(state);
-    x0 = (vx << 3) + (OD_UMV_PADDING << 1);
-    y0 = (vy << 3) + (OD_UMV_PADDING << 1);
+    x0 = (vx << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_UMV_PADDING << 1);
+    y0 = (vy << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_UMV_PADDING << 1);
   }
 #endif
-  OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
-   "Level %i (%ix%i block)", level, mvb_sz << 2, mvb_sz << 2));
-  bx = vx << 2;
-  by = vy << 2;
+  OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG, "Level %i (%ix%i block)",
+   level, mvb_sz << OD_LOG_MVBSIZE_MIN, mvb_sz << OD_LOG_MVBSIZE_MIN));
+  bx = vx << OD_LOG_MVBSIZE_MIN;
+  by = vy << OD_LOG_MVBSIZE_MIN;
   /*Each grid point can contribute to 4 blocks around it at the current block
      size, _except_ at the border of the frame, since we do not construct a
      prediction for blocks completely outside the frame.
@@ -916,13 +919,13 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
     So this MV can affect a block of pixels bounded by
      [bxmin, bmax) x [bymin, bymax), and MVs within that area must point no
      farther than OD_UMV_PADDING pixels outside of the frame.*/
-  bxmin = OD_MAXI(bx - (mvb_sz << 2), 0);
+  bxmin = OD_MAXI(bx - (mvb_sz << OD_LOG_MVBSIZE_MIN), 0);
   mvxmin = OD_MAXI(bxmin - 32, -OD_UMV_PADDING) - bxmin;
-  bxmax = OD_MINI(bx + (mvb_sz << 2), state->frame_width);
+  bxmax = OD_MINI(bx + (mvb_sz << OD_LOG_MVBSIZE_MIN), state->frame_width);
   mvxmax = OD_MINI(bxmax + 31, state->frame_width + OD_UMV_PADDING) - bxmax;
-  bymin = OD_MAXI(by - (mvb_sz << 2), 0);
+  bymin = OD_MAXI(by - (mvb_sz << OD_LOG_MVBSIZE_MIN), 0);
   mvymin = OD_MAXI(bymin - 32, -OD_UMV_PADDING) - bymin;
-  bymax = OD_MINI(by + (mvb_sz << 2), state->frame_height);
+  bymax = OD_MINI(by + (mvb_sz << OD_LOG_MVBSIZE_MIN), state->frame_height);
   mvymax = OD_MINI(bymax + 31, state->frame_height + OD_UMV_PADDING) - bymax;
   OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
    "(%i, %i): Search range: [%i, %i]x[%i, %i]",
@@ -1046,11 +1049,13 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
     t2 = mv->bma_sad;
     for (ci = 0; ci < ncns; ci++) {
       int log_cnb_sz;
+      int clevel;
       int cvx;
       int cvy;
       cvx = cneighbors[ci]->vy;
       cvy = cneighbors[ci]->vx;
-      log_cnb_sz = (4 - OD_MC_LEVEL[cvy & 3][cvx & 3]) >> 1;
+      clevel = OD_MC_LEVEL[cvy & OD_MVB_MASK][cvx & OD_MVB_MASK];
+      log_cnb_sz = (OD_MC_LEVEL_MAX - clevel) >> 1;
       t2 = OD_MINI(t2,
        cneighbors[ci]->bma_sad >> ((log_cnb_sz - log_mvb_sz) << 1));
     }
@@ -1227,8 +1232,8 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
     int ax;
     int ay;
     mvg->valid = 1;
-    nanc = OD_NANCESTORS[vy & 3][vx & 3];
-    anc = OD_ANCESTORS[vy & 3][vx & 3];
+    nanc = OD_NANCESTORS[vy & OD_MVB_MASK][vx & OD_MVB_MASK];
+    anc = OD_ANCESTORS[vy & OD_MVB_MASK][vx & OD_MVB_MASK];
     for (ai = 0; ai < nanc; ai++) {
       ax = vx + anc[ai][0];
       if (ax < 0 || ax > state->nhmvbs) continue;
@@ -1288,15 +1293,18 @@ static void od_mv_est_init_mvs(od_mv_est_ctx *est, int ref) {
      and must proceed in raster order, one row/column _ahead_ of the
      rest of the MVB (so that we have all four corners available to predict
      the lower levels in the current MVB).*/
-  for (vx = 0; vx <= nhmvbs; vx += 4) od_mv_est_init_mv(est, ref, vx, 0);
-  for (vy = 0; vy < nvmvbs; vy += 4) {
-    od_mv_est_init_mv(est, ref, 0, vy + 4);
-    for (vx = 0; vx < nhmvbs; vx += 4) {
+  for (vx = 0; vx <= nhmvbs; vx += OD_MVB_DELTA0) {
+    od_mv_est_init_mv(est, ref, vx, 0);
+  }
+  for (vy = 0; vy < nvmvbs; vy += OD_MVB_DELTA0) {
+    od_mv_est_init_mv(est, ref, 0, vy + OD_MVB_DELTA0);
+    for (vx = 0; vx < nhmvbs; vx += OD_MVB_DELTA0) {
       /*Level 0 vertex.*/
-      od_mv_est_init_mv(est, ref, vx + 4, vy + 4);
+      od_mv_est_init_mv(est, ref, vx + OD_MVB_DELTA0, vy + OD_MVB_DELTA0);
       if (est->level_max < 1) continue;
       /*Level 1 vertex.*/
-      od_mv_est_init_mv(est, ref, vx + 2, vy + 2);
+      od_mv_est_init_mv(est, ref,
+       vx + (OD_MVB_DELTA0 >> 1), vy + (OD_MVB_DELTA0 >> 1));
       if (est->level_max < 2) continue;
       /*Level 2 vertices.*/
       /*Add even-level vertices on the top/left edges of the frame as extra
@@ -1304,32 +1312,46 @@ static void od_mv_est_init_mvs(od_mv_est_ctx *est, int ref) {
         Unlike other vertices on the edges of an MVB, they can use parents to
          the right/below them as predictors (or otherwise they would have no
          predictors).*/
-      if (!vx) od_mv_est_init_mv(est, ref, vx, vy + 2);
-      if (!vy) od_mv_est_init_mv(est, ref, vx + 2, vy);
-      od_mv_est_init_mv(est, ref, vx + 4, vy + 2);
-      od_mv_est_init_mv(est, ref, vx + 2, vy + 4);
+      if (!vx) od_mv_est_init_mv(est, ref, vx, vy + (OD_MVB_DELTA0 >> 1));
+      if (!vy) od_mv_est_init_mv(est, ref, vx + (OD_MVB_DELTA0 >> 1), vy);
+      od_mv_est_init_mv(est, ref,
+       vx + OD_MVB_DELTA0, vy + (OD_MVB_DELTA0 >> 1));
+      od_mv_est_init_mv(est, ref,
+       vx + (OD_MVB_DELTA0 >> 1), vy + OD_MVB_DELTA0);
       if (est->level_max < 3) continue;
       /*Level 3 vertices.*/
-      od_mv_est_init_mv(est, ref, vx + 1, vy + 1);
-      od_mv_est_init_mv(est, ref, vx + 3, vy + 1);
-      od_mv_est_init_mv(est, ref, vx + 1, vy + 3);
-      od_mv_est_init_mv(est, ref, vx + 3, vy + 3);
+      od_mv_est_init_mv(est, ref,
+       vx + (OD_MVB_DELTA0 >> 2), vy + (OD_MVB_DELTA0 >> 2));
+      od_mv_est_init_mv(est, ref,
+       vx + 3*(OD_MVB_DELTA0 >> 2), vy + (OD_MVB_DELTA0 >> 2));
+      od_mv_est_init_mv(est, ref,
+       vx + (OD_MVB_DELTA0 >> 2), vy + 3*(OD_MVB_DELTA0 >> 2));
+      od_mv_est_init_mv(est, ref,
+       vx + 3*(OD_MVB_DELTA0 >> 2), vy + 3*(OD_MVB_DELTA0 >> 2));
       if (est->level_max < 4) continue;
       /*Level 4 vertices.*/
       if (!vy) {
-        od_mv_est_init_mv(est, ref, vx + 1, vy);
-        od_mv_est_init_mv(est, ref, vx + 3, vy);
+        od_mv_est_init_mv(est, ref, vx + (OD_MVB_DELTA0 >> 2), vy);
+        od_mv_est_init_mv(est, ref, vx + 3*(OD_MVB_DELTA0 >> 2), vy);
       }
-      if (!vx) od_mv_est_init_mv(est, ref, vx, vy + 1);
-      od_mv_est_init_mv(est, ref, vx + 2, vy + 1);
-      od_mv_est_init_mv(est, ref, vx + 4, vy + 1);
-      od_mv_est_init_mv(est, ref, vx + 1, vy + 2);
-      od_mv_est_init_mv(est, ref, vx + 3, vy + 2);
-      if (!vx) od_mv_est_init_mv(est, ref, vx, vy + 3);
-      od_mv_est_init_mv(est, ref, vx + 2, vy + 3);
-      od_mv_est_init_mv(est, ref, vx + 4, vy + 3);
-      od_mv_est_init_mv(est, ref, vx + 1, vy + 4);
-      od_mv_est_init_mv(est, ref, vx + 3, vy + 4);
+      if (!vx) od_mv_est_init_mv(est, ref, vx, vy + (OD_MVB_DELTA0 >> 2));
+      od_mv_est_init_mv(est, ref,
+       vx + (OD_MVB_DELTA0 >> 1), vy + (OD_MVB_DELTA0 >> 2));
+      od_mv_est_init_mv(est, ref,
+       vx + OD_MVB_DELTA0, vy + (OD_MVB_DELTA0 >> 2));
+      od_mv_est_init_mv(est, ref,
+       vx + (OD_MVB_DELTA0 >> 2), vy + (OD_MVB_DELTA0 >> 1));
+      od_mv_est_init_mv(est, ref,
+       vx + 3*(OD_MVB_DELTA0 >> 2), vy + (OD_MVB_DELTA0 >> 1));
+      if (!vx) od_mv_est_init_mv(est, ref, vx, vy + 3*(OD_MVB_DELTA0 >> 2));
+      od_mv_est_init_mv(est, ref,
+       vx + (OD_MVB_DELTA0 >> 1), vy + 3*(OD_MVB_DELTA0 >> 2));
+      od_mv_est_init_mv(est, ref,
+       vx + OD_MVB_DELTA0, vy + 3*(OD_MVB_DELTA0 >> 2));
+      od_mv_est_init_mv(est, ref,
+       vx + (OD_MVB_DELTA0 >> 2), vy + OD_MVB_DELTA0);
+      od_mv_est_init_mv(est, ref,
+       vx + 3*(OD_MVB_DELTA0 >> 2), vy + OD_MVB_DELTA0);
     }
   }
 }
@@ -4112,6 +4134,7 @@ void od_mv_est(od_mv_est_ctx *est, int ref, int lambda) {
   int complexity;
   const int *pattern_nsites;
   const od_pattern *pattern;
+  int log_mvb_sz;
   int pli;
   int i;
   int j;
@@ -4137,9 +4160,10 @@ void od_mv_est(od_mv_est_ctx *est, int ref, int lambda) {
      be smaller, so scale lambda appropriately.*/
   est->lambda = lambda >> (iplane->xdec + iplane->ydec);
   /*Compute termination thresholds for EPZS^2.*/
-  est->thresh1[0] = 16 >> (iplane->xdec + iplane->ydec);
-  est->thresh1[1] = 64 >> (iplane->xdec + iplane->ydec);
-  est->thresh1[2] = 256 >> (iplane->xdec + iplane->ydec);
+  for (log_mvb_sz = 0; log_mvb_sz < OD_NMVBSIZES; log_mvb_sz++) {
+    est->thresh1[log_mvb_sz] =
+     1 << 2*(log_mvb_sz + OD_LOG_MVBSIZE_MIN) >> (iplane->xdec + iplane->ydec);
+  }
   /*If we're using the chroma planes, then our distortions will be larger.
     Compensate by increasing lambda and the termination thresholds.*/
   if (est->flags & OD_MC_USE_CHROMA) {
@@ -4147,18 +4171,16 @@ void od_mv_est(od_mv_est_ctx *est, int ref, int lambda) {
       iplane = state->io_imgs[OD_FRAME_INPUT].planes + pli;
       est->lambda +=
        lambda >> (iplane->xdec + iplane->ydec + OD_MC_CHROMA_SCALE);
-      est->thresh1[0] +=
-       16 >> (iplane->xdec + iplane->ydec + OD_MC_CHROMA_SCALE);
-      est->thresh1[1] +=
-       64 >> (iplane->xdec + iplane->ydec + OD_MC_CHROMA_SCALE);
-      est->thresh1[2] +=
-       256 >> (iplane->xdec + iplane->ydec + OD_MC_CHROMA_SCALE);
+      for (log_mvb_sz = 0; log_mvb_sz < OD_NMVBSIZES; log_mvb_sz++) {
+        est->thresh1[log_mvb_sz] += 1 << 2*(log_mvb_sz + OD_LOG_MVBSIZE_MIN) >>
+         (iplane->xdec + iplane->ydec + OD_MC_CHROMA_SCALE);
+      }
     }
   }
   OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG, "lambda: %i", est->lambda));
-  est->thresh2_offs[0] = est->thresh1[0] >> 1;
-  est->thresh2_offs[1] = est->thresh1[1] >> 1;
-  est->thresh2_offs[2] = est->thresh1[2] >> 1;
+  for (log_mvb_sz = 0; log_mvb_sz < OD_NMVBSIZES; log_mvb_sz++) {
+    est->thresh2_offs[log_mvb_sz] = est->thresh1[log_mvb_sz] >> 1;
+  }
   /*Accelerated predictor weights.*/
   est->mvapw[ref][0] = 0x20000;
   est->mvapw[ref][1] = 0x10000;

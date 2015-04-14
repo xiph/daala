@@ -158,9 +158,9 @@ struct od_mv_est_ctx {
   /*The number of undecimated vertices in each column.*/
   unsigned *col_counts;
   /*The maximum SAD value for accepting set A predictors for each block size.*/
-  int thresh1[3];
+  int thresh1[OD_NMVBSIZES];
   /*The offsets to inflate the second threshold by for each block size.*/
-  int thresh2_offs[3];
+  int thresh2_offs[OD_NMVBSIZES];
   /*The weights used to produce the accelerated MV predictor.*/
   ogg_int32_t mvapw[2][2];
   /*Flags indicating which MVs have already been tested during the initial
