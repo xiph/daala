@@ -1027,7 +1027,7 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
 }
 
 static void od_encode_mv(daala_enc_ctx *enc, od_mv_grid_pt *mvg, int vx,
- int vy, int level, int mv_res, int width, int height) {
+ int vy, int level, int mv_res, int mv_range_x, int mv_range_y) {
   generic_encoder *model;
   int pred[2];
   int ox;
@@ -1043,11 +1043,11 @@ static void od_encode_mv(daala_enc_ctx *enc, od_mv_grid_pt *mvg, int vx,
   od_encode_cdf_adapt(&enc->ec, id, enc->state.adapt.mv_small_cdf[equal_mvs],
    16, enc->state.adapt.mv_small_increment);
   if (abs(ox) >= 3) {
-    generic_encode(&enc->ec, model, abs(ox) - 3, width << (3 - mv_res),
+    generic_encode(&enc->ec, model, abs(ox) - 3, mv_range_x,
      &enc->state.adapt.mv_ex[level], 6);
   }
   if (abs(oy) >= 3) {
-    generic_encode(&enc->ec, model, abs(oy) - 3, height << (3 - mv_res),
+    generic_encode(&enc->ec, model, abs(oy) - 3, mv_range_y,
      &enc->state.adapt.mv_ey[level], 6);
   }
   if (abs(ox)) od_ec_enc_bits(&enc->ec, ox < 0, 1);
@@ -1253,8 +1253,8 @@ static void od_encode_mvs(daala_enc_ctx *enc) {
   mv_res = enc->state.mv_res;
   OD_ASSERT(0 <= mv_res && mv_res < 3);
   od_ec_enc_uint(&enc->ec, mv_res, 3);
-  width = (mvimg->width + 32) << (3 - mv_res);
-  height = (mvimg->height + 32) << (3 - mv_res);
+  width = (mvimg->width + 32) << (3 - mv_res) + 1; /* delta mvx range */
+  height = (mvimg->height + 32) << (3 - mv_res) + 1;/* delta mvy range */
   grid = enc->state.mv_grid;
   /*Code the motion vectors and flags. At each level, the MVs are zero
     outside of the frame, so don't code them.*/
