@@ -1436,7 +1436,8 @@ typedef void (*od_mc_predict1fmv8_fixed_func)(unsigned char *_dst,
 void od_mc_predict1fmv8_sse2(unsigned char *_dst,const unsigned char *_src,
  int _systride,ogg_int32_t _mvx,ogg_int32_t _mvy,
  int _log_xblk_sz,int _log_yblk_sz){
-  static const od_mc_predict1fmv8_fixed_func VTBL[5][5]={
+  static const od_mc_predict1fmv8_fixed_func
+   VTBL[OD_LOG_MVBSIZE_MAX + 1][OD_LOG_MVBSIZE_MAX + 1]={
     {
       od_mc_predict1fmv8_1x1,
       od_mc_predict1fmv8_1x2,
@@ -1948,7 +1949,8 @@ typedef void (*od_mc_blend_full8_fixed_func)(unsigned char *_dst,int _dystride,
 /*Perform normal bilinear blending.*/
 void od_mc_blend_full8_sse2(unsigned char *_dst,int _dystride,
  const unsigned char *_src[4],int _log_xblk_sz,int _log_yblk_sz){
-  static const od_mc_blend_full8_fixed_func VTBL[5][5]={
+  static const od_mc_blend_full8_fixed_func
+   VTBL[OD_LOG_MVBSIZE_MAX + 1][OD_LOG_MVBSIZE_MAX + 1]={
     {
       od_mc_blend_full8_1x1,od_mc_blend_full8_1x2,
       od_mc_blend_full8_1x4,od_mc_blend_full8_1x8,
@@ -2369,7 +2371,8 @@ static void od_mc_setup_split_ptrs(const unsigned char *_drc[4],
 /*Perform normal bilinear blending.*/
 void od_mc_blend_full_split8_sse2(unsigned char *_dst,int _dystride,
  const unsigned char *_src[4],int _c,int _s,int _log_xblk_sz,int _log_yblk_sz){
-  static const od_mc_blend_full_split8_fixed_func VTBL[4][4]={
+  static const od_mc_blend_full_split8_fixed_func
+   VTBL[OD_LOG_MVBSIZE_MAX][OD_LOG_MVBSIZE_MAX]={
     {
       od_mc_blend_full_split8_1x1,od_mc_blend_full_split8_1x2,
       od_mc_blend_full_split8_1x4,od_mc_blend_full_split8_1x8,
