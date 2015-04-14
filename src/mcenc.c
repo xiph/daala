@@ -1027,7 +1027,6 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
       if (od_mv_est_is_hit(est, candx, candy)) {
         OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
          "Set B predictor %i: (%i, %i) ...Skipping.", ci, candx, candy));
-        OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG, "...Skipping."));
         continue;
       }
       od_mv_est_set_hit(est, candx, candy);
