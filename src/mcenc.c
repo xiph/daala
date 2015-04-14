@@ -1525,9 +1525,9 @@ static const od_mv_err_node OD_ERRDOM1[37] = {
 };
 
 /*The number of blocks in each decimated error domain.*/
-static const int OD_NERRDOM[4] = { 37, 20, 9, 4 };
-/*The error domain for a vertex, indexed by level-1.*/
-static const od_mv_err_node *OD_ERRDOM[4] = {
+static const int OD_NERRDOM[OD_MC_LEVEL_MAX] = { 37, 20, 9, 4 };
+/*The error domain for a vertex, indexed by level - 1.*/
+static const od_mv_err_node *OD_ERRDOM[OD_MC_LEVEL_MAX] = {
   OD_ERRDOM1,
   OD_ERRDOM2,
   OD_ERRDOM3,
@@ -1686,7 +1686,7 @@ static void od_mv_est_init_nodes(od_mv_est_ctx *est) {
     grid = state->mv_grid[vy];
     for (vx = 0; vx <= nhmvbs; vx++) {
       int level;
-      level = OD_MC_LEVEL[vy & 3][vx & 3];
+      level = OD_MC_LEVEL[vy & OD_MVB_MASK][vx & OD_MVB_MASK];
       if (level <= est->level_max) {
         int flag_rate;
         /*While we're here, reset the MV state.*/
@@ -1797,9 +1797,9 @@ static void od_mv_est_init_du(od_mv_est_ctx *est, int ref, int vx, int vy) {
   nhmvbs = state->nhmvbs;
   nvmvbs = state->nvmvbs;
   dec = est->mvs[vy] + vx;
-  level = OD_MC_LEVEL[vy & 3][vx & 3];
-  dlev = est->level_max <= 2;
-  log_mvb_sz_min = (5 - est->level_max) >> 1;
+  level = OD_MC_LEVEL[vy & OD_MVB_MASK][vx & OD_MVB_MASK];
+  dlev = (OD_MC_LEVEL_MAX - est->level_max) >> 1;
+  log_mvb_sz_min = (OD_MC_LEVEL_MAX - est->level_max + 1) >> 1;
   errdom = OD_ERRDOM[level - 1 + (dlev << 1)];
   nerrdom = OD_NERRDOM[level - 1 + (dlev << 1)];
   mergedom = OD_MERGEDOM[level - 1 + (dlev << 1)];
@@ -1820,7 +1820,8 @@ static void od_mv_est_init_du(od_mv_est_ctx *est, int ref, int vx, int vy) {
            [(dvx >> dlev) + dx][undecs];*/
           OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
            "Added error (%i, %i) [%ix%i]: %i", dvx + (dx << dlev),
-           dvy + (dy << dlev), 4 << dlev, 4 << dlev, dec->dd));
+           dvy + (dy << dlev), OD_MVBSIZE_MIN << dlev, OD_MVBSIZE_MIN << dlev,
+           dec->dd));
         }
       }
     }
@@ -1839,7 +1840,9 @@ static void od_mv_est_init_du(od_mv_est_ctx *est, int ref, int vx, int vy) {
     if (dvx < 0 || dvx > nhmvbs) continue;
     dvy = vy + (mergedom[di][1] << dlev);
     if (dvy < 0 || dvy > nvmvbs) continue;
-    if (OD_MC_LEVEL[dvy & 3][dvx & 3] > est->level_max) continue;
+    if (OD_MC_LEVEL[dvy & OD_MVB_MASK][dvx & OD_MVB_MASK] > est->level_max) {
+      continue;
+    }
     state->mv_grid[dvy][dvx].valid = 0;
     merge = est->mvs[dvy] + dvx;
     if (merge == dec) break;
@@ -1858,7 +1861,7 @@ static void od_mv_est_init_du(od_mv_est_ctx *est, int ref, int vx, int vy) {
     if (dvx >= 0 && dvy >= 0 && dvx < nhmvbs && dvy < nvmvbs) {
       log_mvb_sz = errdom[di].log_mvb_sz + dlev;
       if (log_mvb_sz < log_mvb_sz_min) continue;
-      else if (log_mvb_sz < 2) {
+      else if (log_mvb_sz < OD_LOG_MVB_DELTA0) {
         int mask;
         int s1vx;
         int s1vy;
@@ -1879,16 +1882,18 @@ static void od_mv_est_init_du(od_mv_est_ctx *est, int ref, int vx, int vy) {
          est->sad_cache[log_mvb_sz][dvy >> log_mvb_sz][dvx >> log_mvb_sz][s];
         OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
          "Added error (%i, %i) [%ix%i] {%i, %i}: %i", dvx, dvy,
-         1 << (log_mvb_sz + 2), 1 << (log_mvb_sz + 2), oc, s, dec->dd));
+         OD_MVBSIZE_MIN << log_mvb_sz, OD_MVBSIZE_MIN << log_mvb_sz,
+         oc, s, dec->dd));
       }
       else {
         /*Cache the SAD for top-level blocks in the dd field, which is
            otherwise unused (since they cannot be decimated).*/
-        est->mvs[dvy][dvx].dd = od_mv_est_sad8(est, ref, dvx, dvy, 0, 3, 2);
+        est->mvs[dvy][dvx].dd = od_mv_est_sad8(est, ref,
+         dvx, dvy, 0, 3, OD_LOG_MVB_DELTA0);
         dec->dd += est->mvs[dvy][dvx].dd;
         OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
          "Added error (%i, %i) [%ix%i]: %i", dvx, dvy,
-         1 << (log_mvb_sz + 2), 1 << (log_mvb_sz + 2), dec->dd));
+         OD_MVBSIZE_MIN << log_mvb_sz, OD_MVBSIZE_MIN << log_mvb_sz, dec->dd));
       }
     }
   }
@@ -1900,7 +1905,9 @@ static void od_mv_est_init_du(od_mv_est_ctx *est, int ref, int vx, int vy) {
     if (dvx < 0 || dvx > nhmvbs) continue;
     dvy = vy + (mergedom[di][1] << dlev);
     if (dvy < 0 || dvy > nvmvbs) continue;
-    if (OD_MC_LEVEL[dvy & 3][dvx & 3] > est->level_max) continue;
+    if (OD_MC_LEVEL[dvy & OD_MVB_MASK][dvx & OD_MVB_MASK] > est->level_max) {
+      continue;
+    }
     state->mv_grid[dvy][dvx].valid = 1;
     if (dvx == vx && dvy == vy) break;
   }
@@ -1915,6 +1922,8 @@ static void od_mv_est_init_dus(od_mv_est_ctx *est, int ref) {
   od_state *state;
   int nhmvbs;
   int nvmvbs;
+  int log_mvb_sz;
+  int level;
   int vx;
   int vy;
   state = &est->enc->state;
@@ -1931,52 +1940,30 @@ static void od_mv_est_init_dus(od_mv_est_ctx *est, int ref) {
   est->dec_heap[0] = NULL;
   /*The initialization is destructive to dr, and so must proceed by level from
      top to bottom.*/
-  if (est->level_max >= 1) {
-    /*Level 1 vertices.*/
-    if (est->level_min < 1) {
-      for (vy = 2; vy <= nvmvbs; vy += 4) {
-        for (vx = 2; vx <= nhmvbs; vx += 4) {
+  for (log_mvb_sz = OD_LOG_MVB_DELTA0, level = 1; log_mvb_sz-- > 0; level++) {
+    int mvb_sz;
+    mvb_sz = 1 << log_mvb_sz;
+    /*Odd-level vertices.*/
+    if (est->level_max < level) break;
+    if (est->level_min < level) {
+      for (vy = mvb_sz; vy <= nvmvbs; vy += 2*mvb_sz) {
+        for (vx = mvb_sz; vx <= nhmvbs; vx += 2*mvb_sz) {
           od_mv_est_init_du(est, ref, vx, vy);
         }
       }
     }
-    if (est->level_max >= 2) {
-      /*Level 2 vertices.*/
-      if (est->level_min < 2) {
-        for (vy = 0;; vy += 2) {
-          for (vx = 2; vx <= nhmvbs; vx += 4) {
-            od_mv_est_init_du(est, ref, vx, vy);
-          }
-          vy += 2;
-          if (vy > nvmvbs) break;
-          for (vx = 0; vx <= nhmvbs; vx += 4) {
-            od_mv_est_init_du(est, ref, vx, vy);
-          }
+    /*Even-level vertices.*/
+    level++;
+    if (est->level_max < level) break;
+    if (est->level_min < level) {
+      for (vy = 0;; vy += mvb_sz) {
+        for (vx = mvb_sz; vx <= nhmvbs; vx += 2*mvb_sz) {
+          od_mv_est_init_du(est, ref, vx, vy);
         }
-      }
-      if (est->level_max >= 3) {
-        if (est->level_min < 3) {
-          /*Level 3 vertices.*/
-          for (vy = 1; vy <= nvmvbs; vy += 2) {
-            for (vx = 1; vx <= nhmvbs; vx += 2) {
-              od_mv_est_init_du(est, ref, vx, vy);
-            }
-          }
-        }
-        if (est->level_max >= 4) {
-          /*Level 4 vertices.*/
-          if (est->level_min < 4) {
-            for (vy = 0;; vy++) {
-              for (vx = 1; vx <= nhmvbs; vx += 2) {
-                od_mv_est_init_du(est, ref, vx, vy);
-              }
-              vy++;
-              if (vy > nvmvbs) break;
-              for (vx = 0; vx <= nhmvbs; vx += 2) {
-                od_mv_est_init_du(est, ref, vx, vy);
-              }
-            }
-          }
+        vy += mvb_sz;
+        if (vy > nvmvbs) break;
+        for (vx = 0; vx <= nhmvbs; vx += 2*mvb_sz) {
+          od_mv_est_init_du(est, ref, vx, vy);
         }
       }
     }
@@ -2002,7 +1989,7 @@ static void od_mv_est_decimate(od_mv_est_ctx *est, int ref) {
   state = &est->enc->state;
   nhmvbs = state->nhmvbs;
   nvmvbs = state->nvmvbs;
-  dlev = est->level_max <= 2;
+  dlev = (OD_MC_LEVEL_MAX - est->level_max) >> 1;
   for (;;) {
     const od_offset *mergedom;
     int level;
@@ -2023,7 +2010,7 @@ static void od_mv_est_decimate(od_mv_est_ctx *est, int ref) {
      || dec->dr*est->lambda + (dec->dd << OD_ERROR_SCALE) > 0) {
       break;
     }
-    level = OD_MC_LEVEL[dec->vy & 3][dec->vx & 3];
+    level = OD_MC_LEVEL[dec->vy & OD_MVB_MASK][dec->vx & OD_MVB_MASK];
     OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
      "Merging node (%2i, %2i), level %i, dd %5i, dr %5i, dopt %5i:",
      dec->vx, dec->vy, level, dec->dd, dec->dr,
@@ -2061,8 +2048,8 @@ static void od_mv_est_decimate(od_mv_est_ctx *est, int ref) {
         The simple rule applied below handles overlapped domains with an
          inclusion-exclusion approach.
         See Balmelli 2001 for details.*/
-      nanc = OD_NANCESTORS[vy & 3][vx & 3];
-      anc = OD_ANCESTORS[vy & 3][vx & 3];
+      nanc = OD_NANCESTORS[vy & OD_MVB_MASK][vx & OD_MVB_MASK];
+      anc = OD_ANCESTORS[vy & OD_MVB_MASK][vx & OD_MVB_MASK];
       for (ai = 0; ai < nanc; ai++) {
         ax = vx + anc[ai][0];
         if (ax < 0 || ax > nhmvbs) continue;
@@ -2079,8 +2066,8 @@ static void od_mv_est_decimate(od_mv_est_ctx *est, int ref) {
       od_mv_dec_heap_del(est, merge);
       est->row_counts[vy]--;
       est->col_counts[vx]--;
-      level = OD_MC_LEVEL[vy & 3][vx & 3];
-      log_mvb_sz = (4 - level) >> 1;
+      level = OD_MC_LEVEL[vy & OD_MVB_MASK][vx & OD_MVB_MASK];
+      log_mvb_sz = (OD_MC_LEVEL_MAX - level) >> 1;
       /*Account for quadrilaterals which may have only partially belonged to
          the merging domain (e.g., that would not have belonged were we using
          triangles).*/
@@ -2132,8 +2119,8 @@ static void od_mv_est_decimate(od_mv_est_ctx *est, int ref) {
           /*Update the opposing corner's ancestors, which also, of
              necessity, must contain the affected quadrilateral, and must
              not have been decimated yet.*/
-          nanc = OD_NANCESTORS[cy & 3][cx & 3];
-          anc = OD_ANCESTORS[cy & 3][cx & 3];
+          nanc = OD_NANCESTORS[cy & OD_MVB_MASK][cx & OD_MVB_MASK];
+          anc = OD_ANCESTORS[cy & OD_MVB_MASK][cx & OD_MVB_MASK];
           for (ai = 0; ai < nanc; ai++) {
             ax = cx + anc[ai][0];
             if (ax < 0 || ax > nhmvbs) continue;
@@ -2160,8 +2147,8 @@ static void od_mv_est_decimate(od_mv_est_ctx *est, int ref) {
           /*And update all the interior corner's ancestors, which also, of
              necessity, must contain the affected quadrilateral, and must not
              have been decimated yet.*/
-          nanc = OD_NANCESTORS[cy & 3][cx & 3];
-          anc = OD_ANCESTORS[cy & 3][cx & 3];
+          nanc = OD_NANCESTORS[cy & OD_MVB_MASK][cx & OD_MVB_MASK];
+          anc = OD_ANCESTORS[cy & OD_MVB_MASK][cx & OD_MVB_MASK];
           for (ai = 0; ai < nanc; ai++) {
             ax = cx + anc[ai][0];
             if (ax < 0 || ax > nhmvbs) continue;
@@ -2190,7 +2177,7 @@ static void od_mv_est_decimate(od_mv_est_ctx *est, int ref) {
         block->log_mvb_sz = log_mvb_sz;
         block->oc = oc;
         block->s = 3;
-        if (log_mvb_sz < 2) {
+        if (log_mvb_sz < OD_LOG_MVB_DELTA0) {
           block->sad =
            est->sad_cache[log_mvb_sz][by >> log_mvb_sz][bx >> log_mvb_sz][3];
         }
