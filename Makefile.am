@@ -238,7 +238,7 @@ tools_dump_psnrhvs_SOURCES = \
 	$(src_dct_SOURCES) \
 	tools/dump_psnrhvs.c
 tools_dump_psnrhvs_CFLAGS = $(OGG_CFLAGS) $(PNG_CFLAGS)
-tools_dump_psnrhvs_LDADD = $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
+tools_dump_psnrhvs_LDADD = $(OGG_LIBS) $(LIBM)
 
 # dump_ssim
 tools_dump_ssim_SOURCES = \
@@ -262,7 +262,7 @@ tools_dump_psnr_SOURCES = \
 	tools/y4m_input.c \
 	tools/dump_psnr.c
 tools_dump_psnr_CFLAGS = $(OGG_CFLAGS) $(PNG_CFLAGS)
-tools_dump_psnr_LDADD = $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
+tools_dump_psnr_LDADD = $(OGG_LIBS) $(LIBM)
 
 # block_size_analysis
 tools_block_size_analysis_SOURCES = \
