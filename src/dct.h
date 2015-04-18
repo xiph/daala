@@ -27,18 +27,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # include <math.h>
 # include "filter.h"
 
-# if !defined(M_PI)
-#  define M_PI      (3.1415926535897932384626433832795)
-# endif
-
-# if !defined(M_SQRT2)
-#  define M_SQRT2 (1.41421356237309504880168872420970)
-# endif
-
-# if !defined(M_SQRT1_2)
-#  define M_SQRT1_2 (0.70710678118654752440084436210485)
-# endif
-
 /*These are approximations of a true type-II DCT that can be computed entirely
    with integer operations.
   The integerization is done with lifting steps to allow them to be perfectly

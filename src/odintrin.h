@@ -36,7 +36,17 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <string.h>
 #include "../include/daala/codec.h"
 
+# if !defined(M_PI)
+#  define M_PI      (3.1415926535897932384626433832795)
+# endif
 
+# if !defined(M_SQRT2)
+#  define M_SQRT2 (1.41421356237309504880168872420970)
+# endif
+
+# if !defined(M_SQRT1_2)
+#  define M_SQRT1_2 (0.70710678118654752440084436210485)
+# endif
 
 # if !defined(M_LOG2E)
 #  define M_LOG2E (1.4426950408889634073599246810019)
