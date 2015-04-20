@@ -1430,6 +1430,8 @@ static void od_mc_predict1fmv8_16x16(unsigned char *_dst,
   }
 }
 
+OD_MC_PREDICT1FMV8_C(32,32,4,4)
+
 typedef void (*od_mc_predict1fmv8_fixed_func)(unsigned char *_dst,
  const unsigned char *_src,int _systride,unsigned _mvxf,unsigned _mvyf);
 
@@ -1472,6 +1474,12 @@ void od_mc_predict1fmv8_sse2(unsigned char *_dst,const unsigned char *_src,
       od_mc_predict1fmv8_16x4,
       od_mc_predict1fmv8_16x8,
       od_mc_predict1fmv8_16x16
+    },
+    /*These NULLs are placeholders because we do not currently call this
+       function for these sizes.
+      If you need one of them, add another OD_MC_PREDICT1FMV8_C() line above.*/
+    {
+      NULL, NULL, NULL, NULL, NULL, od_mc_predict1fmv8_32x32
     }
   };
   (*VTBL[_log_xblk_sz][_log_yblk_sz])(_dst,
@@ -1943,6 +1951,8 @@ static void od_mc_blend_full8_16x16(unsigned char *_dst,int _dystride,
   }
 }
 
+OD_MC_BLEND_FULL8_C(32,32,5,5)
+
 typedef void (*od_mc_blend_full8_fixed_func)(unsigned char *_dst,int _dystride,
  const unsigned char *_src[4]);
 
@@ -1975,6 +1985,12 @@ void od_mc_blend_full8_sse2(unsigned char *_dst,int _dystride,
       od_mc_blend_full8_16x1,od_mc_blend_full8_16x2,
       od_mc_blend_full8_16x4,od_mc_blend_full8_16x8,
       od_mc_blend_full8_16x16
+    },
+    /*These NULLs are placeholders because we do not currently call this
+       function for these sizes.
+      If you need one of them, add another OD_MC_BLEND_FULL8_C() line above.*/
+    {
+      NULL, NULL, NULL, NULL, NULL, od_mc_blend_full8_32x32
     }
   };
   (*VTBL[_log_xblk_sz][_log_yblk_sz])(_dst,_dystride,_src);
@@ -2348,6 +2364,8 @@ static void od_mc_blend_full_split8_8x8(unsigned char *_dst,int _dystride,
   }
 }
 
+OD_MC_BLEND_FULL_SPLIT8_C(16,16,4,4)
+
 typedef void (*od_mc_blend_full_split8_fixed_func)(unsigned char *_dst,
  int _dystride,const unsigned char *_src[8]);
 
@@ -2388,6 +2406,13 @@ void od_mc_blend_full_split8_sse2(unsigned char *_dst,int _dystride,
     {
       od_mc_blend_full_split8_8x1,od_mc_blend_full_split8_8x2,
       od_mc_blend_full_split8_8x4,od_mc_blend_full_split8_8x8,
+    },
+    /*These NULLs are placeholders because we do not currently call this
+       function for these sizes.
+      If you need one of them, add another OD_MC_BLEND_FULL_SPLIT8_C() line
+       above.*/
+    {
+      NULL, NULL, NULL, NULL, od_mc_blend_full_split8_16x16
     }
   };
   /*We pack all the image pointers in one array to save a register.*/

@@ -147,8 +147,8 @@ void od_mc_blend_full8_c(unsigned char *dst, int dystride,
   round = 1 << (log_blk_sz2 - 1);
   for (j = 0; j < yblk_sz; j++) {
     for (i = 0; i < xblk_sz; i++) {
-      unsigned a;
-      unsigned b;
+      ogg_int32_t a;
+      ogg_int32_t b;
       a = src[0][j*xblk_sz + i];
       b = src[3][j*xblk_sz + i];
       a = (a << log_xblk_sz) + (src[1][j*xblk_sz + i] - a)*i;
@@ -760,10 +760,10 @@ void od_mc_blend_full_split8_c(unsigned char *dst, int dystride,
   for (k = 0; k < 4; k++) sw[k] = s0[k];
   for (j = 0; j < yblk_sz; j++) {
     for (i = 0; i < xblk_sz; i++) {
-      int a;
-      int b;
-      int c;
-      int d;
+      ogg_int32_t a;
+      ogg_int32_t b;
+      ogg_int32_t c;
+      ogg_int32_t d;
       a = src[0][j*xblk_sz + i];
       b = (src[1][j*xblk_sz + i] - a)*sw[1];
       c = (src[2][j*xblk_sz + i] - a)*sw[2];
