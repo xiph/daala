@@ -291,12 +291,14 @@ public:
   void onPaint(wxPaintEvent &event);
   void onIdle(wxIdleEvent &event);
   void onMouseMotion(wxMouseEvent &event);
+  void onMouseLeaveWindow(wxMouseEvent &event);
 };
 
 BEGIN_EVENT_TABLE(TestPanel, wxPanel)
   EVT_KEY_DOWN(TestPanel::onKeyDown)
   EVT_PAINT(TestPanel::onPaint)
   EVT_MOTION(TestPanel::onMouseMotion)
+  EVT_LEAVE_WINDOW(TestPanel::onMouseLeaveWindow)
   //EVT_IDLE(TestPanel::onIdle)
 END_EVENT_TABLE()
 
@@ -642,8 +644,32 @@ void TestPanel::onMouseMotion(wxMouseEvent& event) {
   const wxPoint pt = wxGetMousePosition();
   int mouse_x = pt.x - this->GetScreenPosition().x;
   int mouse_y = pt.y - this->GetScreenPosition().y;
-  ((TestFrame *)GetParent())->SetStatusText(wxString::Format(wxT("X:%d,Y:%d"),
-   mouse_x, mouse_y), 1);
+  TestFrame *parent = static_cast<TestFrame*>(GetParent());
+  int row = mouse_y/zoom;
+  int col = mouse_x/zoom;
+  if (row >= 0 && col >= 0 && row < getDecodeHeight()
+   && col < getDecodeWidth()) {
+    const od_img_plane *planes = dd.img.planes;
+    /* Assume both chroma planes are decimated the same */
+    int xdec = planes[1].xdec;
+    int ydec = planes[1].ydec;
+    int cb_stride = planes[1].ystride;
+    int cr_stride = planes[2].ystride;
+    int64_t y = planes[0].data[planes[0].ystride*row + col];
+    int64_t cb = planes[1].data[cb_stride*(row >> ydec) + (col >> xdec)];
+    int64_t cr = planes[2].data[cr_stride*(row >> ydec) + (col >> xdec)];
+    parent->SetStatusText(wxString::Format(wxT("Y:%lld,U:%lld,V:%lld"),
+     y, cb, cr), 1);
+  } else {
+    parent->SetStatusText(wxString::Format(wxT("")), 1);
+  }
+  parent->SetStatusText(wxString::Format(wxT("X:%d,Y:%d"),
+   mouse_x, mouse_y), 2);
+}
+
+void TestPanel::onMouseLeaveWindow(wxMouseEvent& event) {
+    TestFrame *parent = static_cast<TestFrame*>(GetParent());
+    parent->SetStatusText(wxString::Format(wxT("")), 1);
 }
 
 void TestPanel::onPaint(wxPaintEvent &) {
@@ -702,9 +728,9 @@ TestFrame::TestFrame() : wxFrame(NULL, wxID_ANY, _T("Daala Stream Analyzer"),
   mb->Append(helpMenu, _T("&Help"));
 
   SetMenuBar(mb);
-  CreateStatusBar(2);
-  int status_widths[2] = {-1, 100};
-  SetStatusWidths(2, status_widths);
+  CreateStatusBar(3);
+  int status_widths[3] = {-1, 130, 100};
+  SetStatusWidths(3, status_widths);
   SetStatusText(_T("another day, another daala"));
   GetMenuBar()->Check(wxID_SHOW_Y, true);
   GetMenuBar()->Check(wxID_SHOW_U, true);
