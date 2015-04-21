@@ -75,8 +75,12 @@ if [ -n "$V" ]; then
   echo "$FILE"
   $ENCODER_EXAMPLE -v $V "$FILE" -o "$BASENAME-$V.ogv" 2> /dev/null
   $DUMP_VIDEO -o "$BASENAME-$V.ogv.y4m" "$BASENAME-$V.ogv" 2> /dev/null
-  $Y4M2PNG -o "$BASENAME-$V.ogv.png" "$BASENAME-$V.ogv.y4m"
-  rm "$BASENAME-$V.ogv.y4m"
+
+  if [ $FRAMES -eq 1 ]; then
+    $Y4M2PNG -o "$BASENAME-$V.ogv.png" "$BASENAME-$V.ogv.y4m"
+    rm "$BASENAME-$V.ogv.y4m"
+  fi
+
 else
   # With Daala, the lowest quantizer number yields the highest quality and
   # vice versa. Here, MAX_QUALITY produces the best looking image, so it's the
