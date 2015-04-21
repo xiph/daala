@@ -2490,52 +2490,7 @@ This last compare is unneeded for a median:
   return equal_mvs;
 }
 
-/*Probabilities that a motion vector is not coded given two neighbors and the
-  consistency of the nearby motion field. Which MVs are used varies by
-  level due to the grid geometry, but critically, we never look at MVs in
-  blocks to our right or below.
-
-  This data was compiled from video-subset1-short using
-  tools/collect_mvf_ec.sh and tools/mv_ec_stats.jl:
-
-  LEVEL 1:
-   Probabilties:
-    [30512 31715 32546
-     19755 22768 25170
-     8822 11180 13710]
-   Totals:
-    [2865820 1304318 1970291
-     844820 196641 65383
-     311051 50215 11931]
-  LEVEL 2:
-   Probabilties:
-    [15025 11377 11630
-     11771 13799 17357
-     9106 12384 14943]
-   Totals:
-    [429074 69682 11586
-     329998 44923 6228
-     104242 9983 978]
-  LEVEL 3:
-   Probabilties:
-    [20517 21744 24679
-     12351 12900 16429
-     8029 9085 12245]
-   Totals:
-    [188607 29632 5623
-     145680 24551 3265
-     44420 6687 867]
-  LEVEL 4:
-   Probabilties:
-    [9803 8953 10887
-     11962 12496 18801
-     11424 17400 24094]
-   Totals:
-    [107908 10753 1833
-     51862 4492 671
-     7260 371 68]*/
-
-static int od_mv_ctx(od_mv_grid_pt **grid, int vx, int vy,int level) {
+int od_mv_split_flag_ctx(od_mv_grid_pt **grid, int vx, int vy,int level) {
   od_mv_grid_pt *v1;
   od_mv_grid_pt *v2;
   od_mv_grid_pt *v3;
@@ -2564,42 +2519,10 @@ static int od_mv_ctx(od_mv_grid_pt **grid, int vx, int vy,int level) {
   return 3 * (split1 + split2) + same1 + same2;
 }
 
-int od_mv_level1_ctx(od_mv_grid_pt **grid, int vx, int vy) {
-  return od_mv_ctx(grid, vx, vy, 1);
-}
-
-int od_mv_level1_probz(od_mv_grid_pt **grid, int vx, int vy) {
-  static const int PROBS[9] =
-   {30512, 31715, 32546, 19755, 22768, 25170, 8822, 11180, 13710};
-  return PROBS[od_mv_level1_ctx(grid, vx, vy)];
-}
-
-int od_mv_level2_ctx(od_mv_grid_pt **grid, int vx, int vy) {
-  return od_mv_ctx(grid, vx, vy, 2);
-}
-
-int od_mv_level2_probz(od_mv_grid_pt **grid, int vx, int vy) {
-  static const int PROBS[9] =
-   {15025, 11377, 11630, 11771, 13799, 17357, 9106, 12384, 14943};
-  return PROBS[od_mv_level2_ctx(grid, vx, vy)];
-}
-
-int od_mv_level3_ctx(od_mv_grid_pt **grid, int vx, int vy) {
-  return od_mv_ctx(grid, vx, vy, 3);
-}
-
-int od_mv_level3_probz(od_mv_grid_pt **grid, int vx, int vy) {
-  static const int PROBS[9] =
-   {20517, 21744, 24679, 12351, 12900, 16429, 8029, 9085, 12245};
-  return PROBS[od_mv_level3_ctx(grid, vx, vy)];
-}
-
-int od_mv_level4_ctx(od_mv_grid_pt **grid, int vx, int vy) {
-  return od_mv_ctx(grid, vx, vy, 4);
-}
-
-int od_mv_level4_probz(od_mv_grid_pt **grid, int vx, int vy) {
-  static const int PROBS[9] =
-   {9803, 8953, 10887, 11962, 12496, 18801, 11424, 17400, 24094};
-  return PROBS[od_mv_level4_ctx(grid, vx, vy)];
+ogg_uint16_t *od_mv_split_flag_cdf(od_state *state,
+ int vx, int vy, int level) {
+  int ctx;
+  ctx = od_mv_split_flag_ctx(state->mv_grid, vx, vy, level);
+  OD_ASSERT(0 < level && level <= OD_MC_LEVEL_MAX);
+  return state->adapt.split_flag_cdf[level - 1][ctx];
 }

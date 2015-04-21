@@ -1245,6 +1245,7 @@ static void od_encode_mvs(daala_enc_ctx *enc) {
   int mv_res;
   od_mv_grid_pt *mvp;
   od_mv_grid_pt **grid;
+  ogg_uint16_t *cdf;
   OD_ENC_ACCT_UPDATE(enc, OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_MOTION_VECTORS);
   nhmvbs = enc->state.nhmvbs;
   nvmvbs = enc->state.nvmvbs;
@@ -1271,17 +1272,12 @@ static void od_encode_mvs(daala_enc_ctx *enc) {
   /*Level 1.*/
   for (vy = 2; vy <= nvmvbs; vy += 4) {
     for (vx = 2; vx <= nhmvbs; vx += 4) {
-      int p_invalid;
-      p_invalid = od_mv_level1_probz(grid, vx, vy);
+      cdf = od_mv_split_flag_cdf(&enc->state, vx, vy, 1);
       mvp = &(grid[vy][vx]);
       /*od_ec_acct_record(&enc->ec.acct, "mvf-l1", mvp->valid, 2,
-         od_mv_level1_ctx(grid, vx, vy));*/
-      if (p_invalid >= 16384) {
-        od_ec_encode_bool_q15(&enc->ec, mvp->valid, p_invalid);
-      }
-      else {
-        od_ec_encode_bool_q15(&enc->ec, !mvp->valid, 32768 - p_invalid);
-      }
+         od_mv_split_flag_ctx(grid, vx, vy, 1));*/
+      od_encode_cdf_adapt(&enc->ec, mvp->valid,
+       cdf, 2, enc->state.adapt.split_flag_increment);
       if (mvp->valid) {
         od_encode_mv(enc, mvp, vx, vy, 1, mv_res, width, height);
       }
@@ -1295,16 +1291,11 @@ static void od_encode_mvs(daala_enc_ctx *enc) {
        && (vx - 2 < 0 || grid[vy][vx - 2].valid)
        && (vy + 2 > nvmvbs || grid[vy + 2][vx].valid)
        && (vx + 2 > nhmvbs || grid[vy][vx + 2].valid)) {
-        int p_invalid;
-        p_invalid = od_mv_level2_probz(grid, vx, vy);
+        cdf = od_mv_split_flag_cdf(&enc->state, vx, vy, 2);
         /*od_ec_acct_record(&enc->ec.acct, "mvf-l2", mvp->valid, 2,
-           od_mv_level2_ctx(grid, vx, vy));*/
-        if (p_invalid >= 16384) {
-          od_ec_encode_bool_q15(&enc->ec, mvp->valid, p_invalid);
-        }
-        else {
-          od_ec_encode_bool_q15(&enc->ec, !mvp->valid, 32768 - p_invalid);
-        }
+           od_mv_split_flag_ctx(grid, vx, vy, 2));*/
+        od_encode_cdf_adapt(&enc->ec, mvp->valid,
+         cdf, 2, enc->state.adapt.split_flag_increment);
         if (mvp->valid) {
           od_encode_mv(enc, mvp, vx, vy, 2, mv_res, width, height);
         }
@@ -1320,16 +1311,11 @@ static void od_encode_mvs(daala_enc_ctx *enc) {
       mvp = &grid[vy][vx];
       if (grid[vy - 1][vx - 1].valid && grid[vy - 1][vx + 1].valid
        && grid[vy + 1][vx + 1].valid && grid[vy + 1][vx - 1].valid) {
-        int p_invalid;
-        p_invalid = od_mv_level3_probz(grid, vx, vy);
+        cdf = od_mv_split_flag_cdf(&enc->state, vx, vy, 3);
         /*od_ec_acct_record(&enc->ec.acct, "mvf-l3", mvp->valid, 2,
-           od_mv_level3_ctx(grid, vx, vy));*/
-        if (p_invalid >= 16384) {
-          od_ec_encode_bool_q15(&enc->ec, mvp->valid, p_invalid);
-        }
-        else {
-          od_ec_encode_bool_q15(&enc->ec, !mvp->valid, 32768 - p_invalid);
-        }
+           od_mv_split_flag_ctx(grid, vx, vy, 3));*/
+        od_encode_cdf_adapt(&enc->ec, mvp->valid,
+         cdf, 2, enc->state.adapt.split_flag_increment);
         if (mvp->valid) {
           od_encode_mv(enc, mvp, vx, vy, 3, mv_res, width, height);
         }
@@ -1347,16 +1333,11 @@ static void od_encode_mvs(daala_enc_ctx *enc) {
        && (vx - 1 < 0 || grid[vy][vx - 1].valid)
        && (vy + 1 > nvmvbs || grid[vy + 1][vx].valid)
        && (vx + 1 > nhmvbs || grid[vy][vx + 1].valid)) {
-        int p_invalid;
-        p_invalid = od_mv_level4_probz(grid, vx, vy);
+        cdf = od_mv_split_flag_cdf(&enc->state, vx, vy, 4);
         /*od_ec_acct_record(&enc->ec.acct, "mvf-l4", mvp->valid, 2,
-           od_mv_level4_ctx(grid, vx, vy));*/
-        if (p_invalid >= 16384) {
-          od_ec_encode_bool_q15(&enc->ec, mvp->valid, p_invalid);
-        }
-        else {
-          od_ec_encode_bool_q15(&enc->ec, !mvp->valid, 32768 - p_invalid);
-        }
+           od_mv_split_flag_ctx(grid, vx, vy, 4));*/
+        od_encode_cdf_adapt(&enc->ec, mvp->valid,
+         cdf, 2, enc->state.adapt.split_flag_increment);
         if (mvp->valid) {
           od_encode_mv(enc, mvp, vx, vy, 4, mv_res, width, height);
         }

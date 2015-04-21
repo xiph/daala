@@ -475,6 +475,7 @@ static void od_dec_mv_unpack(daala_dec_ctx *dec) {
   int mv_res;
   od_mv_grid_pt *mvp;
   od_mv_grid_pt **grid;
+  ogg_uint16_t *cdf;
   OD_ASSERT(dec->state.ref_imgi[OD_FRAME_PREV] >= 0);
   od_state_mvs_clear(&dec->state);
   nhmvbs = dec->state.nhmvbs;
@@ -499,15 +500,10 @@ static void od_dec_mv_unpack(daala_dec_ctx *dec) {
   /*Level 1.*/
   for (vy = 2; vy <= nvmvbs; vy += 4) {
     for (vx = 2; vx <= nhmvbs; vx += 4) {
-      int p_invalid;
-      p_invalid = od_mv_level1_probz(grid, vx, vy);
+      cdf = od_mv_split_flag_cdf(&dec->state, vx, vy, 1);
       mvp = &grid[vy][vx];
-      if (p_invalid >= 16384) {
-        mvp->valid = od_ec_decode_bool_q15(&dec->ec, p_invalid);
-      }
-      else {
-        mvp->valid = !od_ec_decode_bool_q15(&dec->ec, 32768 - p_invalid);
-      }
+      mvp->valid = od_decode_cdf_adapt(&dec->ec,
+       cdf, 2, dec->state.adapt.split_flag_increment);
       if (mvp->valid) {
         od_decode_mv(dec, mvp, vx, vy, 1, mv_res, width, height);
       }
@@ -521,14 +517,9 @@ static void od_dec_mv_unpack(daala_dec_ctx *dec) {
        && (vx - 2 < 0 || grid[vy][vx - 2].valid)
        && (vy + 2 > nvmvbs || grid[vy + 2][vx].valid)
        && (vx + 2 > nhmvbs || grid[vy][vx + 2].valid)) {
-        int p_invalid;
-        p_invalid = od_mv_level2_probz(grid, vx, vy);
-        if (p_invalid >= 16834) {
-          mvp->valid = od_ec_decode_bool_q15(&dec->ec, p_invalid);
-        }
-        else {
-          mvp->valid = !od_ec_decode_bool_q15(&dec->ec, 32768 - p_invalid);
-        }
+        cdf = od_mv_split_flag_cdf(&dec->state, vx, vy, 2);
+        mvp->valid = od_decode_cdf_adapt(&dec->ec,
+         cdf, 2, dec->state.adapt.split_flag_increment);
         if (mvp->valid) {
           od_decode_mv(dec, mvp, vx, vy, 2, mv_res, width, height);
         }
@@ -543,14 +534,9 @@ static void od_dec_mv_unpack(daala_dec_ctx *dec) {
       mvp = &grid[vy][vx];
       if (grid[vy - 1][vx - 1].valid && grid[vy - 1][vx + 1].valid
        && grid[vy + 1][vx + 1].valid && grid[vy + 1][vx - 1].valid) {
-        int p_invalid;
-        p_invalid = od_mv_level3_probz(grid, vx, vy);
-        if (p_invalid >= 16384) {
-          mvp->valid = od_ec_decode_bool_q15(&dec->ec, p_invalid);
-        }
-        else {
-          mvp->valid = !od_ec_decode_bool_q15(&dec->ec, 32768 - p_invalid);
-        }
+        cdf = od_mv_split_flag_cdf(&dec->state, vx, vy, 3);
+        mvp->valid = od_decode_cdf_adapt(&dec->ec,
+         cdf, 2, dec->state.adapt.split_flag_increment);
         if (mvp->valid) {
           od_decode_mv(dec, mvp, vx, vy, 3, mv_res, width, height);
         }
@@ -565,14 +551,9 @@ static void od_dec_mv_unpack(daala_dec_ctx *dec) {
        && (vx - 1 < 0 || grid[vy][vx - 1].valid)
        && (vy + 1 > nvmvbs || grid[vy + 1][vx].valid)
        && (vx + 1 > nhmvbs || grid[vy][vx + 1].valid)) {
-        int p_invalid;
-        p_invalid = od_mv_level4_probz(grid, vx, vy);
-        if (p_invalid >= 16384) {
-          mvp->valid = od_ec_decode_bool_q15(&dec->ec, p_invalid);
-        }
-        else {
-          mvp->valid = !od_ec_decode_bool_q15(&dec->ec, 32768 - p_invalid);
-        }
+        cdf = od_mv_split_flag_cdf(&dec->state, vx, vy, 4);
+        mvp->valid = od_decode_cdf_adapt(&dec->ec,
+         cdf, 2, dec->state.adapt.split_flag_increment);
         if (mvp->valid) {
           od_decode_mv(dec, mvp, vx, vy, 4, mv_res, width, height);
         }
