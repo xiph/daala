@@ -1234,9 +1234,9 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
     anc = OD_ANCESTORS[vy & OD_MVB_MASK][vx & OD_MVB_MASK];
     for (ai = 0; ai < nanc; ai++) {
       ax = vx + anc[ai][0];
-      if (ax < 0 || ax > state->nhmvbs) continue;
+      if (ax < 0 || ax > ((vx + OD_MVB_MASK) & ~OD_MVB_MASK)) continue;
       ay = vy + anc[ai][1];
-      if (ay < 0 || ay > state->nvmvbs) continue;
+      if (ay < 0 || ay > ((vy + OD_MVB_MASK) & ~OD_MVB_MASK)) continue;
       amvg = state->mv_grid[ay] + ax;
       amvg->valid = 1;
     }
