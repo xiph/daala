@@ -714,7 +714,7 @@ static ogg_int32_t od_mv_est_sad8(od_mv_est_ctx *est,
   return ret;
 }
 
-#if defined(OD_LOGGING_ENABLED)
+#if defined(OD_ENABLE_ASSERTIONS) || defined(OD_LOGGING_ENABLED)
 /*Checks to make sure our current mv_rate and sad values are correct.
   This is used for debugging only.*/
 void od_mv_est_check_rd_block_state(od_mv_est_ctx *est,
@@ -743,6 +743,7 @@ void od_mv_est_check_rd_block_state(od_mv_est_ctx *est,
       OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_WARN,
        "Failure at node (%i, %i): log_mvb_sz should be %i (is %i)",
        vx, vy, log_mvb_sz, block->log_mvb_sz));
+      OD_ASSERT(block->log_mvb_sz == log_mvb_sz);
     }
     if (log_mvb_sz < OD_LOG_MVB_DELTA0) {
       int mask;
@@ -757,6 +758,7 @@ void od_mv_est_check_rd_block_state(od_mv_est_ctx *est,
         OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_WARN,
          "Failure at node (%i, %i): oc should be %i (is %i)",
          vx, vy, oc, block->oc));
+        OD_ASSERT(block->oc == oc);
       }
       s1vx = vx + (OD_VERT_DX[(oc + 1) & 3] << log_mvb_sz);
       s1vy = vy + (OD_VERT_DY[(oc + 1) & 3] << log_mvb_sz);
@@ -773,12 +775,14 @@ void od_mv_est_check_rd_block_state(od_mv_est_ctx *est,
       OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_WARN,
        "Failure at node (%i, %i): s should be %i (is %i)",
        vx, vy, s, block->s));
+      OD_ASSERT(block->s == s);
     }
     sad = od_mv_est_sad8(est, ref, vx, vy, oc, s, log_mvb_sz);
     if (block->sad != sad) {
       OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_WARN,
        "Failure at node (%i, %i): sad should be %i (is %i)",
        vx, vy, sad, block->sad));
+      OD_ASSERT(block->sad == sad);
     }
   }
 }
@@ -791,6 +795,9 @@ void od_mv_est_check_rd_state(od_mv_est_ctx *est, int ref, int mv_res) {
   int nvmvbs;
   int vx;
   int vy;
+# if !defined(OD_ENABLE_ASSERTIONS)
+  if (!od_logging_active(OD_LOG_MOTION_ESTIMATION, OD_LOG_WARN)) return;
+# endif
   state = &est->enc->state;
   nhmvbs = state->nhmvbs;
   nvmvbs = state->nvmvbs;
@@ -836,6 +843,7 @@ void od_mv_est_check_rd_state(od_mv_est_ctx *est, int ref, int mv_res) {
         OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_WARN,
          "Predictor was: (%i, %i)   MV was: (%i, %i)",
          pred[0], pred[1], mvg->mv[0] >> mv_res, mvg->mv[1] >> mv_res));
+        OD_ASSERT(mv_rate == mv->mv_rate);
       }
     }
   }
@@ -1249,19 +1257,23 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
   OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
    "Initialized MV (%2i, %2i): (%3i, %3i), SAD: %i",
    vx, vy, best_vec[0], best_vec[1], best_sad));
-  /*od_state_get_predictor(state, a[0], vx, vy, level, 2);
+#if defined(OD_ENABLE_ASSERTIONS) || defined(OD_ENABLE_LOGGING)
+  equal_mvs = od_state_get_predictor(state, a[0], vx, vy, level, 2);
   if (a[0][0] != predx || a[0][1] != predy) {
-    OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
+    OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_ERR,
      "Failure in MV predictor init: (%i, %i) != (%i, %i)",
      a[0][0], a[0][1], predx, predy));
+    OD_ASSERT(a[0][0] == predx && a[0][1] == predy);
   }
-  mv->mv_rate = od_mv_est_bits(est, mvg->mv[0] >> 2, mvg->mv[1] >> 2,
-   a[0][0], a[0][1]);
+  mv->mv_rate = od_mv_est_bits(est, equal_mvs,
+   mvg->mv[0] >> 2, mvg->mv[1] >> 2, a[0][0], a[0][1]);
   if (mv->mv_rate != best_rate) {
-    OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
+    OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_ERR,
      "Failure in MV rate init: %i != %i",
      mv->mv_rate, best_rate));
-  }*/
+    OD_ASSERT(mv->mv_rate == best_rate);
+  }
+#endif
 }
 
 static void od_mv_est_init_mvs(od_mv_est_ctx *est, int ref) {
@@ -1981,10 +1993,8 @@ static void od_mv_est_decimate(od_mv_est_ctx *est, int ref) {
   int vx;
   int vy;
   od_mv_est_init_dus(est, ref);
-#if defined(OD_LOGGING_ENABLED)
-  if (od_logging_active(OD_LOG_MOTION_ESTIMATION, OD_LOG_WARN)) {
-    od_mv_est_check_rd_state(est, ref, 2);
-  }
+#if defined(OD_ENABLE_ASSERTIONS) || defined(OD_LOGGING_ENABLED)
+  od_mv_est_check_rd_state(est, ref, 2);
 #endif
   state = &est->enc->state;
   nhmvbs = state->nhmvbs;
@@ -2188,10 +2198,8 @@ static void od_mv_est_decimate(od_mv_est_ctx *est, int ref) {
       if (merge == dec) break;
     }
   }
-#if defined(OD_LOGGING_ENABLED)
-  if (od_logging_active(OD_LOG_MOTION_ESTIMATION, OD_LOG_WARN)) {
-    od_mv_est_check_rd_state(est, ref, 2);
-  }
+#if defined(OD_ENABLE_ASSERTIONS) || defined(OD_LOGGING_ENABLED)
+  od_mv_est_check_rd_state(est, ref, 2);
 #endif
   OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG, "Finished merging."));
   /*if (dec != NULL) {
@@ -3287,10 +3295,8 @@ static ogg_int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
       dcost += best_cost;
     }
   }
-#if defined(OD_LOGGING_ENABLED)
-  if (od_logging_active(OD_LOG_MOTION_ESTIMATION, OD_LOG_WARN)) {
-    od_mv_est_check_rd_state(est, ref, mv_res);
-  }
+#if defined(OD_ENABLE_ASSERTIONS) || defined(OD_LOGGING_ENABLED)
+  od_mv_est_check_rd_state(est, ref, mv_res);
 #endif
   return dcost;
 }
@@ -3918,10 +3924,8 @@ static ogg_int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
       dcost += best_cost;
     }
   }
-#if defined(OD_LOGGING_ENABLED)
-  if (od_logging_active(OD_LOG_MOTION_ESTIMATION, OD_LOG_WARN)) {
-    od_mv_est_check_rd_state(est, ref, mv_res);
-  }
+#if defined(OD_ENABLE_ASSERTIONS) || defined(OD_LOGGING_ENABLED)
+  od_mv_est_check_rd_state(est, ref, mv_res);
 #endif
   return dcost;
 }
