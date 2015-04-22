@@ -782,5 +782,167 @@ Let's see what happens with a slowly varying sequence rather than a constant
  one...
 \end_layout
 
+\begin_layout Part
+Motion Compensation RDO
+\end_layout
+
+\begin_layout Standard
+Ideally, we'd want the MC RDO to consider the final rate and distortion
+ after quantization.
+ This is hard to do with PVQ, so let's do it by assuming a scalar quantizer
+ instead.
+ For each DCT coefficient 
+\begin_inset Formula $x_{i}$
+\end_inset
+
+ there are two choices: either the coefficient quantizes to zero, or it
+ doesn't.
+ If it does, then the RD cost 
+\begin_inset Formula $Z_{i}$
+\end_inset
+
+ is
+\begin_inset Formula 
+\begin{equation}
+Z_{i}=x_{i}^{2}+\lambda r_{i,0}
+\end{equation}
+
+\end_inset
+
+where 
+\begin_inset Formula $r_{i,0}$
+\end_inset
+
+ is the rate for coding a zero.
+ Assuming the coefficients are Laplace-distributed, we have
+\begin_inset Formula 
+\begin{equation}
+p\left(x_{i}\right)=K_{i}\exp\left(-\sqrt{2}\left|x_{i}\right|/\sigma_{i}\right)
+\end{equation}
+
+\end_inset
+
+where 
+\begin_inset Formula $K_{i}$
+\end_inset
+
+ is a normalization constant.
+ Assuming a high rate, then the rate is 
+\begin_inset Formula 
+\begin{equation}
+r_{i}=-\log_{2}p\left(x_{i}\right)=r_{i,0}+\frac{\sqrt{2}\left|x_{i}\right|}{\sigma_{i}\log2}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Considering that 
+\begin_inset Formula $r_{i,0}=-\log K_{i}/\log2$
+\end_inset
+
+ does not depend on the value 
+\begin_inset Formula $x_{i}$
+\end_inset
+
+, it will be constant for all MV candidates, so it is safe to ignore it.
+ The only term remaining is what the distortion should be for the case where
+ the coefficient is encoded to a non-zero value.
+ Since we don't want the distortion to oscillate, then a good choice is
+ simply the average 
+\begin_inset Formula $Q^{2}/12$
+\end_inset
+
+.
+ So the RD-cost for a non-zero coefficient is
+\begin_inset Formula 
+\begin{equation}
+N_{i}=\frac{Q^{2}}{12}+\lambda\frac{\sqrt{2}\left|x_{i}\right|}{\sigma_{i}\log2}
+\end{equation}
+
+\end_inset
+
+Also, since the ideal 
+\begin_inset Formula $\lambda$
+\end_inset
+
+ is approximately 
+\begin_inset Formula $Q^{2}\log2/6$
+\end_inset
+
+, we can rewrite the above as
+\begin_inset Formula 
+\begin{equation}
+N_{i}=\lambda\left(\frac{\sqrt{2}\left|x_{i}\right|}{\sigma_{i}\log2}+d\right)
+\end{equation}
+
+\end_inset
+
+where 
+\begin_inset Formula $d=1/\left(2\log2\right)=0.72$
+\end_inset
+
+, which we might want to tune.
+ 
+\end_layout
+
+\begin_layout Standard
+The final RD-cost for a coefficient 
+\begin_inset Formula $i$
+\end_inset
+
+ is simply the min of the zero and non-zero case, so
+\begin_inset Formula 
+\begin{align}
+C_{i} & =\min\left[Z_{i},N_{i}\right]\\
+ & =\min\left[x_{i}^{2},\lambda\left(\frac{\sqrt{2}\left|x_{i}\right|}{\sigma_{i}\log2}+d\right)\right]\label{eq:MV_cost}
+\end{align}
+
+\end_inset
+
+Considering an entire block, all we need to do is sum the cost of each coefficie
+nt, along with the cost of coding the motion vector, so
+\begin_inset Formula 
+\begin{equation}
+C_{total}=\sum_{i}C_{i}+\lambda rate_{mv}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The key equation here is 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:MV_cost"
+
+\end_inset
+
+.
+ At high rate, the right side term 
+\begin_inset Formula $N_{i}$
+\end_inset
+
+ will dominate, but since it also includes a 
+\begin_inset Formula $\lambda$
+\end_inset
+
+factor, the cost function should never have the effect of completely ignoring
+ the cost of coding the MV, even at very high bitrate.
+ On the other hand, at very low bit-rate when we skip very often, then the
+ RDO cost tends toward plain MSE.
+ The 
+\begin_inset Formula $N_{i}$
+\end_inset
+
+ term looks like SATD, except that each coefficient is weighted by the inverse
+ of its standard deviation.
+ This may be why pure SATD has been found to work well in many codecs.
+\end_layout
+
 \end_body
 \end_document
