@@ -2600,6 +2600,8 @@ static void od_mv_dp_animate_state(od_state *state,
       x0 = (d0vx << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_UMV_PADDING << 1);
       y0 = (d0vy << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_UMV_PADDING << 1);
       if (!has_gap || dp + 1 != dp0) {
+        d1vx = dp[1].mv->vx;
+        d1vy = dp[1].mv->vy;
         x0 = (d1vx << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_UMV_PADDING << 1);
         y0 = (d1vy << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_UMV_PADDING << 1);
         for (si = 0; si < nactive_states; si++) {
