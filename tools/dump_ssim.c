@@ -124,16 +124,16 @@ static double calc_ssim(const unsigned char *_src,int _systride,
         for(k=k_min;k<k_max;k++){
           unsigned s;
           unsigned d;
-          unsigned w;
+          unsigned window;
           s=_src[x-hkernel_offs+k];
           d=_dst[x-hkernel_offs+k];
-          w=hkernel[k];
-          m.mux+=w*s;
-          m.muy+=w*d;
-          m.x2+=w*s*s;
-          m.xy+=w*s*d;
-          m.y2+=w*d*d;
-          m.w+=w;
+          window=hkernel[k];
+          m.mux+=window*s;
+          m.muy+=window*d;
+          m.x2+=window*s*s;
+          m.xy+=window*s*d;
+          m.y2+=window*d*d;
+          m.w+=window;
         }
         *(buf+x)=*&m;
       }
@@ -153,15 +153,15 @@ static double calc_ssim(const unsigned char *_src,int _systride,
         double       w;
         memset(&m,0,sizeof(m));
         for(k=k_min;k<k_max;k++){
-          unsigned w;
+          unsigned window;
           buf=lines[y+1-vkernel_sz+k&line_mask]+x;
-          w=vkernel[k];
-          m.mux+=w*buf->mux;
-          m.muy+=w*buf->muy;
-          m.x2+=w*buf->x2;
-          m.xy+=w*buf->xy;
-          m.y2+=w*buf->y2;
-          m.w+=w*buf->w;
+          window=vkernel[k];
+          m.mux+=window*buf->mux;
+          m.muy+=window*buf->muy;
+          m.x2+=window*buf->x2;
+          m.xy+=window*buf->xy;
+          m.y2+=window*buf->y2;
+          m.w+=window*buf->w;
         }
         w=m.w;
         c1=SSIM_C1*w*w;

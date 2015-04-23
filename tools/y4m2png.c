@@ -296,14 +296,14 @@ static int write_png(FILE *_fout,const video_input_info *_info,video_input_ycbcr
 
 static FILE *open_png_file(const char *_name,int _frameno){
   FILE *fout;
-  char  output_filename[8192];
-  snprintf(output_filename,8191,_name,_frameno);
-  fout=fopen(output_filename,"wb");
+  char  output_png_filename[8192];
+  snprintf(output_png_filename,8191,_name,_frameno);
+  fout=fopen(output_png_filename,"wb");
   if(fout==NULL){
     fprintf(stderr,"Error opening output file \"%s\": %s\n",
-     output_filename,strerror(errno));
+     output_png_filename,strerror(errno));
   }
-  fprintf(stderr,"%s\n",output_filename);
+  fprintf(stderr,"%s\n",output_png_filename);
   return fout;
 }
 
