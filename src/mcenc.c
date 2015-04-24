@@ -1309,59 +1309,43 @@ static void od_mv_est_init_mvs(od_mv_est_ctx *est, int ref) {
   for (vy = 0; vy < nvmvbs; vy += OD_MVB_DELTA0) {
     od_mv_est_init_mv(est, ref, 0, vy + OD_MVB_DELTA0);
     for (vx = 0; vx < nhmvbs; vx += OD_MVB_DELTA0) {
+      int log_mvb_sz;
+      int level;
       /*Level 0 vertex.*/
       od_mv_est_init_mv(est, ref, vx + OD_MVB_DELTA0, vy + OD_MVB_DELTA0);
-      if (est->level_max < 1) continue;
-      /*Level 1 vertex.*/
-      od_mv_est_init_mv(est, ref,
-       vx + (OD_MVB_DELTA0 >> 1), vy + (OD_MVB_DELTA0 >> 1));
-      if (est->level_max < 2) continue;
-      /*Level 2 vertices.*/
-      /*Add even-level vertices on the top/left edges of the frame as extra
-         vertices in the first row/column of MVBs.
-        Unlike other vertices on the edges of an MVB, they can use parents to
-         the right/below them as predictors (or otherwise they would have no
-         predictors).*/
-      if (!vx) od_mv_est_init_mv(est, ref, vx, vy + (OD_MVB_DELTA0 >> 1));
-      if (!vy) od_mv_est_init_mv(est, ref, vx + (OD_MVB_DELTA0 >> 1), vy);
-      od_mv_est_init_mv(est, ref,
-       vx + OD_MVB_DELTA0, vy + (OD_MVB_DELTA0 >> 1));
-      od_mv_est_init_mv(est, ref,
-       vx + (OD_MVB_DELTA0 >> 1), vy + OD_MVB_DELTA0);
-      if (est->level_max < 3) continue;
-      /*Level 3 vertices.*/
-      od_mv_est_init_mv(est, ref,
-       vx + (OD_MVB_DELTA0 >> 2), vy + (OD_MVB_DELTA0 >> 2));
-      od_mv_est_init_mv(est, ref,
-       vx + 3*(OD_MVB_DELTA0 >> 2), vy + (OD_MVB_DELTA0 >> 2));
-      od_mv_est_init_mv(est, ref,
-       vx + (OD_MVB_DELTA0 >> 2), vy + 3*(OD_MVB_DELTA0 >> 2));
-      od_mv_est_init_mv(est, ref,
-       vx + 3*(OD_MVB_DELTA0 >> 2), vy + 3*(OD_MVB_DELTA0 >> 2));
-      if (est->level_max < 4) continue;
-      /*Level 4 vertices.*/
-      if (!vy) {
-        od_mv_est_init_mv(est, ref, vx + (OD_MVB_DELTA0 >> 2), vy);
-        od_mv_est_init_mv(est, ref, vx + 3*(OD_MVB_DELTA0 >> 2), vy);
+      /*All other levels.*/
+      for(log_mvb_sz = OD_LOG_MVB_DELTA0, level = 1;
+       log_mvb_sz-- > 0 && est->level_max >= level; level++) {
+        int cx;
+        int cy;
+        int mvb_sz;
+        mvb_sz = 1 << log_mvb_sz;
+        /*Odd level vertices.*/
+        for (cy = vy + mvb_sz; cy < vy + OD_MVB_DELTA0; cy += 2*mvb_sz) {
+          for( cx = vx + mvb_sz; cx < vx + OD_MVB_DELTA0; cx += 2*mvb_sz) {
+            od_mv_est_init_mv(est, ref, cx, cy);
+          }
+        }
+        level++;
+        if (est->level_max < level) break;
+        /*Even level vertices.*/
+        /*Add even-level vertices on the top/left edges of the frame as extra
+           vertices in the first row/column of MVBs.
+          Unlike other vertices on the edges of an MVB, they can use parents to
+           the right/below them as predictors (or otherwise they would have no
+           predictors).*/
+        /*Skip the cy == vy row unless we're at the top of the frame.*/
+        for (cy = vy + mvb_sz*!!vy; cy <= vy + OD_MVB_DELTA0; cy += mvb_sz) {
+          /*Even level vertices appear in a quincunx pattern.
+            We want to start every other row at an mvb_sz offset, and also to
+             skip the first column on the rows flush with the edge of the block
+             unless we're on the left edge of the whole frame.*/
+          for( cx = vx + (cy & mvb_sz ? 2*mvb_sz*!!vx : mvb_sz);
+           cx <= vx + OD_MVB_DELTA0; cx += 2*mvb_sz) {
+            od_mv_est_init_mv(est, ref, cx, cy);
+          }
+        }
       }
-      if (!vx) od_mv_est_init_mv(est, ref, vx, vy + (OD_MVB_DELTA0 >> 2));
-      od_mv_est_init_mv(est, ref,
-       vx + (OD_MVB_DELTA0 >> 1), vy + (OD_MVB_DELTA0 >> 2));
-      od_mv_est_init_mv(est, ref,
-       vx + OD_MVB_DELTA0, vy + (OD_MVB_DELTA0 >> 2));
-      od_mv_est_init_mv(est, ref,
-       vx + (OD_MVB_DELTA0 >> 2), vy + (OD_MVB_DELTA0 >> 1));
-      od_mv_est_init_mv(est, ref,
-       vx + 3*(OD_MVB_DELTA0 >> 2), vy + (OD_MVB_DELTA0 >> 1));
-      if (!vx) od_mv_est_init_mv(est, ref, vx, vy + 3*(OD_MVB_DELTA0 >> 2));
-      od_mv_est_init_mv(est, ref,
-       vx + (OD_MVB_DELTA0 >> 1), vy + 3*(OD_MVB_DELTA0 >> 2));
-      od_mv_est_init_mv(est, ref,
-       vx + OD_MVB_DELTA0, vy + 3*(OD_MVB_DELTA0 >> 2));
-      od_mv_est_init_mv(est, ref,
-       vx + (OD_MVB_DELTA0 >> 2), vy + OD_MVB_DELTA0);
-      od_mv_est_init_mv(est, ref,
-       vx + 3*(OD_MVB_DELTA0 >> 2), vy + OD_MVB_DELTA0);
     }
   }
 }
