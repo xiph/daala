@@ -214,7 +214,7 @@ int daala_encode_ctl(daala_enc_ctx *enc, int req, void *buf, size_t buf_sz) {
       OD_ASSERT(buf);
       OD_ASSERT(buf_sz == sizeof(mv_level_min));
       mv_level_min = *(int *)buf;
-      if (mv_level_min < 0 || mv_level_min > 4) {
+      if (mv_level_min < 0 || mv_level_min > OD_MC_LEVEL_MAX) {
         return OD_EINVAL;
       }
       enc->params.mv_level_min = mv_level_min;
@@ -227,7 +227,7 @@ int daala_encode_ctl(daala_enc_ctx *enc, int req, void *buf, size_t buf_sz) {
       OD_ASSERT(buf);
       OD_ASSERT(buf_sz == sizeof(mv_level_max));
       mv_level_max = *(int *)buf;
-      if (mv_level_max < 0 || mv_level_max > 4) {
+      if (mv_level_max < 0 || mv_level_max > OD_MC_LEVEL_MAX) {
         return OD_EINVAL;
       }
       enc->params.mv_level_max = mv_level_max;
