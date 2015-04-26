@@ -63,6 +63,7 @@ const char *optstring = "o:r";
 struct option options [] = {
   { "output", required_argument, NULL, 'o' },
   { "raw", no_argument, NULL, 'r' }, /*Disable YUV4MPEG2 headers:*/
+  { "version", no_argument, NULL, 0},
   { NULL, 0, NULL, 0 }
 };
 
@@ -164,8 +165,14 @@ static void usage(void) {
    "                            this option is not given, the\n"
    "                            decompressed data is sent to stdout.\n"
    "  -r --raw                  Output raw YUV with no framing instead\n"
-   "                            of YUV4MPEG2 (the default).\n");
+   "                            of YUV4MPEG2 (the default).\n"
+   "     --version              Displays version information.\n");
   exit(EXIT_FAILURE);
+}
+
+static void version(void) {
+  fprintf(stderr, "%s\n", PACKAGE_STRING);
+  exit(EXIT_SUCCESS);
 }
 
 int main(int argc, char *argv[]) {
@@ -208,6 +215,12 @@ int main(int argc, char *argv[]) {
       }
       case 'r': {
         raw = 1;
+        break;
+      }
+      case 0: {
+        if (strcmp(options[long_option_index].name, "version") == 0) {
+          version();
+        }
         break;
       }
       default: usage(); break;

@@ -377,6 +377,7 @@ static const struct option OPTIONS[] = {
   { "mv-res-min", required_argument, NULL, 0 },
   { "mv-level-min", required_argument, NULL, 0 },
   { "mv-level-max", required_argument, NULL, 0 },
+  { "version", no_argument, NULL, 0},
   { NULL, 0, NULL, 0 }
 };
 
@@ -414,8 +415,14 @@ static void usage(void) {
    "                                 0 (default) and 4.\n"
    "     --mv-level-max <n>          Maximum motion vectors level between\n"
    "                                 0 and 4 (default).\n"
+   "     --version                   Displays version information."
    " encoder_example accepts only uncompressed YUV4MPEG2 video.\n\n");
   exit(1);
+}
+
+static void version(void) {
+  fprintf(stderr, "%s\n", PACKAGE_STRING);
+  exit(0);
 }
 
 int main(int argc, char **argv) {
@@ -585,6 +592,9 @@ int main(int argc, char **argv) {
              "--mv-level-max must be greater than or equal to --mv-level-min\n");
             exit(1);
           }
+        }
+        else if (strcmp(OPTIONS[loi].name, "version") == 0) {
+          version();
         }
         break;
       }

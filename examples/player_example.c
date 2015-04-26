@@ -446,6 +446,11 @@ int main(int argc, char *argv[]) {
        "r to restart\nl to loop\ns for slow\n. to step\nspace to pause\n"
        "p to switch planes\nq to quit");
       exit(1);
+    } else if ((argc == 2)
+            && memcmp(argv[1], "--version", 9) == 0
+            && strlen(argv[1]) == strlen("--version")) {
+      fprintf(stderr, "%s\n", PACKAGE_STRING);
+      exit(0);
     }
     start_paused = 0;
     input = argv[1];
