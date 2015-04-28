@@ -193,7 +193,6 @@ int main(int argc, char **argv) {
   bogus_fmt_string[sizeof(bogus_fmt_string) - 1] = '\0';
   OD_LOG((OD_LOG_ENTROPY_CODER, OD_LOG_DEBUG, bogus_fmt_string, "XXX", 9));
 
-
   /* Test matrices */
   for (i=0; i<(BUFFER_WIDTH * BUFFER_HEIGHT); ++i) {
     int16_buffer[i] = 1000 + i;

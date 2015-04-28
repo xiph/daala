@@ -47,11 +47,7 @@ static double rint(double x) {
 }
 #endif
 
-
-
 typedef struct av_input av_input;
-
-
 
 struct av_input{
   int has_video;
@@ -69,8 +65,6 @@ struct av_input{
   od_img video_img;
   int video_cur_img;
 };
-
-
 
 static int y4m_parse_tags(av_input *avin, char *tags) {
   int got_w;

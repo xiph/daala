@@ -28,7 +28,6 @@
 </address>
 </author>
 
-
 <date day="15" month="October" year="2012" />
 
 <area>RAI</area>
@@ -241,7 +240,6 @@ alternatively over XMPP <xref target="RFC6120"/>/Jingle <xref target="XEP-0167"/
 
 </section>
 
-
 <section title="Detailed Basic Requirements">
 <t>
 This section summarizes all the constraints imposed by the target applications
@@ -299,7 +297,6 @@ efficiency gains.
 
 </section>
 
-
 <section title="Additional considerations">
 
 <t>
@@ -350,7 +347,6 @@ However, compatibility with commonly used video color formats is desirable.
 
 </section>
 
-
 <section anchor="Security Considerations" title="Security Considerations">
 <t>
 Although this document itself does not have security considerations,
@@ -373,7 +369,6 @@ infinite) time to decode.
 
 </section>
 
-
 <section title="IANA Considerations ">
 <t>
 This document has no actions for IANA.
@@ -383,7 +378,6 @@ This document has no actions for IANA.
 </middle>
 
 <back>
-
 
 <references title="Informative References">
 
@@ -415,7 +409,6 @@ This document has no actions for IANA.
 <format type='TXT' octets='647976' target='http://www.rfc-editor.org/rfc/rfc3261.txt' />
 </reference>
 
-
 <reference anchor='RFC4566'>
 
 <front>
@@ -434,7 +427,6 @@ This document has no actions for IANA.
 <format type='TXT' octets='108820' target='http://www.rfc-editor.org/rfc/rfc4566.txt' />
 </reference>
 
-
 <reference anchor='RFC6120'>
 
 <front>
@@ -448,7 +440,6 @@ This document has no actions for IANA.
 <seriesInfo name='RFC' value='6120' />
 <format type='TXT' octets='451942' target='http://www.rfc-editor.org/rfc/rfc6120.txt' />
 </reference>
-
 
 <reference anchor="XEP-0167">
   <front>

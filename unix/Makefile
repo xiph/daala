@@ -93,7 +93,6 @@ ifeq ($(findstring -DOD_ENCODER_CHECK,${CFLAGS}),-DOD_ENCODER_CHECK)
     LIBDAALAENC_LIBS += ${LIBDAALADEC_TARGET}
 endif
 
-
 CHECK_LIBS := -pthread $(shell pkg-config check --libs)
 
 DCTTEST_LIBS = -lm

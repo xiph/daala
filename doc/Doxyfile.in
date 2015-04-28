@@ -7,7 +7,6 @@ PROJECT_BRIEF          = "Experimental Daala video codec API reference."
 INPUT                  = @top_srcdir@/include/daala
 STRIP_FROM_PATH        = @top_srcdir@/include
 
-
 OPTIMIZE_OUTPUT_FOR_C  = YES
 GENERATE_MAN           = YES
 

@@ -32,7 +32,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <stdio.h>
 #include <string.h>
 
-
 #include "daala/codec.h"
 #include "internal.h"
 
@@ -56,7 +55,6 @@ static const char *od_log_level_names[OD_LOG_LEVEL_MAX] = {
   "DEBUG",
 };
 
-
 static int od_log_fprintf_stderr(od_log_facility facility,
  od_log_level level,
  unsigned int flags,
@@ -65,7 +63,6 @@ static const char *od_log_facility_name(od_log_facility facility);
 static const char *od_log_level_name(od_log_level level);
 
 static od_logger_function od_logger = od_log_fprintf_stderr;
-
 
 static const char *od_log_facility_name(od_log_facility fac) {
   /* Check for invalid input */
@@ -193,7 +190,6 @@ int od_log_partial(od_log_facility fac, od_log_level level,
   return rv;
 }
 
-
 static int od_log_fprintf_stderr(od_log_facility facility,
  od_log_level level, unsigned int flags, const char *fmt, va_list ap) {
   char fmt_buffer[1024];
@@ -213,8 +209,6 @@ static int od_log_fprintf_stderr(od_log_facility facility,
 
   return 0;
 }
-
-
 
 /* Log various matrix types. Parameters are:
 

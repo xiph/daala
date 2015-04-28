@@ -80,7 +80,6 @@ struct y4m_input{
   unsigned char    *aux_buf;
 };
 
-
 static int y4m_parse_tags(y4m_input *_y4m,char *_tags){
   int   got_w;
   int   got_h;
@@ -796,7 +795,6 @@ static void y4m_input_close(y4m_input *_y4m){
   free(_y4m->dst_buf);
   free(_y4m->aux_buf);
 }
-
 
 OC_EXTERN const video_input_vtbl Y4M_INPUT_VTBL={
   (video_input_open_func)y4m_input_open,

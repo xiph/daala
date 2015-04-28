@@ -66,16 +66,12 @@ typedef unsigned short ec_probs[16];
 typedef struct ec_tree       ec_tree;
 typedef struct ec_code_entry ec_code_entry;
 
-
-
 struct ec_tree{
   ec_bitree       t;
   ec_bitree_probs p;
   ec_probs        f;
   int             s;
 };
-
-
 
 struct ec_code_entry{
   int           tree;
@@ -84,16 +80,12 @@ struct ec_code_entry{
   unsigned char l;
 };
 
-
-
 static ec_tree       *trees;
 static int            ntrees;
 static int            ctrees;
 static ec_code_entry *entries;
 static int            nentries;
 static int            centries;
-
-
 
 static int ec_tree_count_leaves(const signed char *_t,const unsigned char *_p,
  int _i){
@@ -132,7 +124,6 @@ static void ec_tree_init(ec_tree *_tree,
   for(;l<16;l++)_tree->f[l]=_tree->f[l-1];
   _tree->s=_s;
 }
-
 
 static int tree_read(signed char *_t,unsigned char *_p){
   int s;
@@ -196,8 +187,6 @@ static int entry_read(void){
   return 1;
 }
 
-
-
 typedef size_t ec_window;
 
 typedef struct ec_enc ec_enc;
@@ -209,8 +198,6 @@ typedef struct ec_dec ec_dec;
   Even relatively modest values like 100 would work fine.*/
 #define EC_LOTS_OF_BITS (0x4000)
 
-
-
 struct ec_enc{
   unsigned short *buf;
   size_t          cbuf;
@@ -220,8 +207,6 @@ struct ec_enc{
   unsigned short  rng;
 };
 
-
-
 struct ec_dec{
   const unsigned char *buf;
   const unsigned char *end;
@@ -229,8 +214,6 @@ struct ec_dec{
   short                cnt;
   unsigned short       rng;
 };
-
-
 
 #if defined(EC_MULTISYM)
 static void ec_enc_init(ec_enc *_this){
@@ -245,7 +228,6 @@ static void ec_enc_init(ec_enc *_this){
 static void ec_enc_clear(ec_enc *_this){
   free(_this->buf);
 }
-
 
 static int ec_encode(ec_enc *_this,unsigned _fl,unsigned _fh,unsigned _ftb){
   unsigned l;
@@ -382,8 +364,6 @@ static int ec_enc_done(ec_enc *_this,unsigned char **_out){
   return nbuf;
 }
 
-
-
 static void ec_dec_init(ec_dec *_this,const unsigned char *_buf,size_t _sz){
   const unsigned char *end;
   ec_window            dif;
@@ -478,8 +458,6 @@ static int ec_decode(ec_dec *_this,const unsigned short _f[16],unsigned _ftb){
 }
 #endif
 
-
-
 #if defined(EC_BINARY)
 static void ec_enc_bool_init(ec_enc *_this){
   _this->buf=NULL;
@@ -493,7 +471,6 @@ static void ec_enc_bool_init(ec_enc *_this){
 static void ec_enc_bool_clear(ec_enc *_this){
   free(_this->buf);
 }
-
 
 static int ec_encode_bool(ec_enc *_this,int _b,unsigned _p){
   unsigned l;
@@ -577,8 +554,6 @@ static int ec_enc_bool_done(ec_enc *_this,unsigned char **_out){
   return nbuf;
 }
 
-
-
 static void ec_dec_bool_init(ec_dec *_this,
  const unsigned char *_buf,size_t _sz){
   const unsigned char *end;
@@ -656,8 +631,6 @@ static int ec_decode_bool_tree(ec_dec *_this,
   return -i-1;
 }
 #endif
-
-
 
 int main(void){
   ec_enc         enc;

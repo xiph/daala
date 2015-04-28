@@ -46,7 +46,6 @@ for k=1:length(p16)
 end
 fprintf(file, "};\n\n");
 
-
 fprintf(file, "const ogg_uint16_t od_switch_size8_cdf[][16] = {\n");
 for k=1:length(p8)
    p = max(1,round(p8(:,k)*32768));

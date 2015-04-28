@@ -133,7 +133,6 @@ else
   USE_DAALA="false"
 fi
 
-
 if [[ -n "$V" && "$USE_DAALA" == "false" ]]; then
   echo "If you give a Daala quality setting, Daala must be one of the
 codecs used in the comparison"

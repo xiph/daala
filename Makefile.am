@@ -200,7 +200,6 @@ tools_TARGETS = \
 	tools/dump_psnr \
 	tools/vq_train
 
-
 noinst_HEADERS += \
 	tools/cholesky.h \
 	tools/int_search.h \
@@ -523,7 +522,6 @@ install-docs:
 
 doc/doxygen-build.stamp: doc/Doxyfile $(daalainclude_HEADERS)
 	@[ -n "$(NO_DOXYGEN)" ] || ( cd doc && doxygen && touch $(@F) )
-
 
 if HAVE_DOXYGEN
 

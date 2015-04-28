@@ -693,7 +693,6 @@ void TestPanel::onIdle(wxIdleEvent &) {
   /*wxMilliSleep(input.video_fps_n*1000/input.video_fps_n);*/
 }
 
-
 TestFrame::TestFrame() : wxFrame(NULL, wxID_ANY, _T("Daala Stream Analyzer"),
  wxDefaultPosition, wxDefaultSize, wxDEFAULT_FRAME_STYLE), panel(NULL) {
   wxMenuBar *mb = new wxMenuBar();

@@ -268,8 +268,6 @@ static int calc_y(int32_t _r,int32_t _g,int32_t _b,int _cb,int _cr){
   return y0+16;
 }
 
-
-
 static void rgb_to_ycbcr(img_plane _ycbcr[3],png_bytep *_png){
   kiss99_ctx     kiss;
   unsigned char *ydata;

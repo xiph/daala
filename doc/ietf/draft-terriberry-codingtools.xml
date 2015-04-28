@@ -695,7 +695,6 @@ N              N
              = - * E[tr(D.x.x^T.D^T)]
                N
 
-
                1
              = - * E[tr(D.Rxx.D^T)]
                N

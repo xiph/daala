@@ -28,8 +28,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #include "kiss99.h"
 
-
-
 void kiss99_srand(kiss99_ctx *_this,const unsigned char *_data,int _ndata){
   int i;
   _this->z=362436069;

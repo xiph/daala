@@ -98,8 +98,6 @@
       </t>
     </section>
 
-
-
     <section title="Householder Reflection">
       <t>Let vector x_d denote the (pre-normalization) DCT band to be coded in
       the current block and vector r_d denote the corresponding reference
@@ -145,8 +143,6 @@
       projected pyramid.
       </t>
     </section>
-
-
 
     <section title="Angle-Based Encoding">
       <t>Assuming no quantization, the similarity can be represented by the angle

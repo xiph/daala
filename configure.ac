@@ -67,7 +67,6 @@ dnl These two are entirely unused at present.
 dnl AM_CONDITIONAL(OD_WIN32, test "$host_mingw" = "true")
 dnl AM_CONDITIONAL(OD_OS_DARWIN, test "$os_darwin" = "true")
 
-
 AC_ARG_ENABLE([assertions],
   AS_HELP_STRING([--enable-assertions], [Enable assertions in code]),,
   enable_assertions=no)

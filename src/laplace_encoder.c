@@ -136,7 +136,6 @@ void laplace_encode(od_ec_enc *enc, int x, int ex_q8, int k) {
   if (xs >= 15) laplace_encode_special(enc, xs - 15, decay, k - 15);
 }
 
-
 static void laplace_encode_vector_delta(od_ec_enc *enc, const od_coeff *y, int n, int k,
                                         ogg_int32_t *curr, const ogg_int32_t *means) {
   int i;

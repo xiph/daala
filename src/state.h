@@ -81,8 +81,6 @@ extern const int        OD_VERT_D[];
 extern const int *const OD_VERT_SETUP_DX[4][4];
 extern const int *const OD_VERT_SETUP_DY[4][4];
 
-
-
 /*This should be a power of 2, and at least 8.*/
 # define OD_UMV_PADDING (32)
 

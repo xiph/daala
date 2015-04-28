@@ -61,7 +61,6 @@ typedef struct od_rollback_buffer od_rollback_buffer;
    refinement.*/
 # define OD_MC_SQUARE_SUBPEL_REFINEMENT_COMPLEXITY (10)
 
-
 struct od_enc_opt_vtbl {
   int (*mc_compute_sad_4x4_xstride_1)(const unsigned char *src,
    int systride, const unsigned char *ref, int dystride);

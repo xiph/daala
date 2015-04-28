@@ -1483,8 +1483,6 @@ void od_mc_predict1fmv8_sse2(unsigned char *_dst,const unsigned char *_src,
 #endif
 }
 
-
-
 #if defined(OD_CHECKASM)
 static void od_mc_blend_full8_check(unsigned char *_dst,int _dystride,
  const unsigned char *_src[4],int _log_xblk_sz,int _log_yblk_sz){
@@ -1947,7 +1945,6 @@ static void od_mc_blend_full8_16x16(unsigned char *_dst,int _dystride,
 typedef void (*od_mc_blend_full8_fixed_func)(unsigned char *_dst,int _dystride,
  const unsigned char *_src[4]);
 
-
 /*Perform normal bilinear blending.*/
 void od_mc_blend_full8_sse2(unsigned char *_dst,int _dystride,
  const unsigned char *_src[4],int _log_xblk_sz,int _log_yblk_sz){
@@ -1986,8 +1983,6 @@ void od_mc_blend_full8_sse2(unsigned char *_dst,int _dystride,
 #endif
 }
 
-
-
 #if defined(OD_CHECKASM)
 void od_mc_blend_full_split8_check(unsigned char *_dst,int _dystride,
  const unsigned char *_src[4],int _c,int _s,int _log_xblk_sz,int _log_yblk_sz){
@@ -2018,7 +2013,6 @@ void od_mc_blend_full_split8_check(unsigned char *_dst,int _dystride,
   OD_ASSERT(!failed);
 }
 #endif
-
 
 /*Loads a block of 16 bytes from each the first 2 images into xmm0...xmm3.
   xmm2 and xmm3 contain duplicate copies of xmm0 and xmm1, or not, depending on
@@ -2352,11 +2346,8 @@ static void od_mc_blend_full_split8_8x8(unsigned char *_dst,int _dystride,
   }
 }
 
-
 typedef void (*od_mc_blend_full_split8_fixed_func)(unsigned char *_dst,
  int _dystride,const unsigned char *_src[8]);
-
-
 
 /*Sets up a second set of image pointers based on the given split state to
    properly shift weight from one image to another.*/

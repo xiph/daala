@@ -36,8 +36,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
    LappedDCT       8.5523    9.4871    9.8929
 
-
-
    Subset 1           4x4       8x8     16x16
    ------------------------------------------
    KLT original    8.7714   10.2588   11.0039
@@ -59,7 +57,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
    LappedDCT       9.6213   10.7832   11.3230
                    9.6214   10.7839   11.3272
                    9.6232   10.8028   11.3698
-
 
    Subset 3           4x4       8x8     16x16
    ------------------------------------------
@@ -99,8 +96,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
    LappedDCT      17.1047   18.9741   19.7858
 
-
-
    Subset 1           4x4       8x8     16x16
    ------------------------------------------
    KLT original   12.4432   -------   -------
@@ -123,8 +118,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
                   13.2685   -------   -------
                   13.3330   14.1215   14.3981
 
-
-
    Subset 3           4x4       8x8     16x16
    ------------------------------------------
    KLT monty      14.9078   16.2416   16.7839
@@ -136,7 +129,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
    LappedKLT      15.9763   16.8549   17.1181
 
    LappedDCT      15.9627   16.8507   17.1152
-
 
 */
 
@@ -161,7 +153,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #define USE_AR95       (0)
 #define COMPUTE_NATHAN (1)
 #define PRINT_COV      (0)
-
 
 #define BLOCKSIZE      (1<<BLOCKSIZE_LOG)
 #if USE_WAVELET
@@ -727,7 +718,6 @@ void flap_4d(double out[BLOCKSIZE*BLOCKSIZE][BLOCKSIZE*BLOCKSIZE],
     }
   }
 
-
   for(i=SUPPORT/2-BLOCKSIZE;i<SUPPORT/2+BLOCKSIZE;i++){
     for(j=SUPPORT/2-BLOCKSIZE;j<SUPPORT/2+BLOCKSIZE;j++){
       for(k=SUPPORT/2-BLOCKSIZE;k<SUPPORT/2+BLOCKSIZE;k++){
@@ -942,7 +932,6 @@ void b_analysis_2d(double *_out,int _out_stride_i,int _out_stride_j,
 #endif
 
 }
-
 
 void b_synthesis_1d(double *_out,int _out_stride,const double *_in,int _in_stride,
                     const int *_f, double _klt[BLOCKSIZE][BLOCKSIZE]){

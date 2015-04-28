@@ -94,7 +94,6 @@ int main(int argc, char **argv)
     }
     pi[maxj] += 32768-sum;
 
-
     cdf = 0;
     printf("  {");
     for(j=0;j<16;j++)

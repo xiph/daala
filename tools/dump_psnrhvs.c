@@ -18,7 +18,6 @@
 #include "getopt.h"
 #include "../src/dct.h"
 
-
 const char *optstring = "frsy";
 const struct option options[]={
   {"frame-type",no_argument,NULL,'f'},

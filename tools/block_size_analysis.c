@@ -57,7 +57,6 @@ static void usage(char **_argv){
 
 static const char *CHROMA_TAGS[4]={" C420jpeg",""," C422jpeg"," C444"};
 
-
 /* Warning, this will fail for images larger than 2024 x 2024 */
 #define MAX_VAR_BLOCKS 1024
 #define SQUARE(x) ((int)(x)*(int)(x))
@@ -68,7 +67,6 @@ static const char *CHROMA_TAGS[4]={" C420jpeg",""," C422jpeg"," C444"};
 #define CG16 (16.9986/6)
 #define CG32 (17.1/6)
 
-
 #define OFF8   (1)
 #define OFF16  (2)
 
@@ -77,7 +75,6 @@ static const char *CHROMA_TAGS[4]={" C420jpeg",""," C422jpeg"," C444"};
 
 #define COUNT16_8  (3+2*OFF16_8)
 #define COUNT32_8  (7+2*OFF32_8)
-
 
 #define PSY_LAMBDA .65
 
@@ -99,7 +96,6 @@ int switch_decision(unsigned char *img, int w, int h, int stride, int ow, int oh
   static int var8_1[MAX_VAR_BLOCKS>>1][MAX_VAR_BLOCKS>>1];
   static float dummy[MAX_VAR_BLOCKS][MAX_VAR_BLOCKS];
   static float dummy8[MAX_VAR_BLOCKS][MAX_VAR_BLOCKS];
-
 
   static float nmr4[MAX_VAR_BLOCKS>>1][MAX_VAR_BLOCKS>>1];
   static float nmr8[MAX_VAR_BLOCKS>>2][MAX_VAR_BLOCKS>>2];
@@ -695,8 +691,6 @@ static const int izig16[256] = {0,2,3,9,10,20,21,35,36,54,55,77,78,104,105,135,1
 
 #define ROUNDUP_32(x) (((x)+31)&~31)
 
-
-
 #define MAXB 16
 #define SQUARE(x) ((int)(x)*(int)(x))
 
@@ -716,8 +710,6 @@ int oc_ilog32(unsigned _v){
   return ret;
 
 }
-
-
 
 void quant_scalar_gain(ogg_int32_t *_x,ogg_int16_t *_scale,int *y,int N,int Q){
   float gain0, gain1;
@@ -746,7 +738,6 @@ void quant_scalar_gain(ogg_int32_t *_x,ogg_int16_t *_scale,int *y,int N,int Q){
     _x[i] *= gain0;
 }
 
-
 static void process_plane(od_coeff *_img, od_coeff *_refi, int _w, int _h, int _pli, int _pvq_k){
   int x;
   int y;
@@ -763,7 +754,6 @@ static void process_plane(od_coeff *_img, od_coeff *_refi, int _w, int _h, int _
   }else free_ref=0;
 
   prefilter_image(_img,_w,_h,16);
-
 
   /*for (i=0;i<1000000;i++){
     int tmp[16];

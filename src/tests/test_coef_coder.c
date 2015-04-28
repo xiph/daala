@@ -38,7 +38,6 @@
 #define EC_BUF_SIZE (32)
 #define MAX_VECTORS 10000
 
-
 typedef struct od_pvq_adapt_ctx od_pvq_adapt_ctx;
 
 /* FIXME: This is an old version of the pvq adaptation code,
@@ -145,7 +144,6 @@ void pvq_coder_bitstreams(int n, int type){
   }
   free(buf);
 }
-
 
 int run_pvq(od_coeff *X,int len,int N,int fuzz){
   od_pvq_adapt_ctx pvq_adapt;

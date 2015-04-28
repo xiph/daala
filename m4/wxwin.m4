@@ -84,7 +84,6 @@ dnl The special "WX_DEBUG_CONFIGURE" variable can be set to 1 to enable extra
 dnl debug output on stdout from these macros.
 dnl ===========================================================================
 
-
 dnl ---------------------------------------------------------------------------
 dnl Macros for wxWidgets detection. Typically used in configure.in as:
 dnl
@@ -141,7 +140,6 @@ dnl     # optional: just to show a message to the user
 dnl     WX_STANDARD_OPTIONS_SUMMARY_MSG
 dnl
 dnl ---------------------------------------------------------------------------
-
 
 dnl ---------------------------------------------------------------------------
 dnl WX_CONFIG_OPTIONS
@@ -605,7 +603,6 @@ AC_DEFUN([WX_ARG_WITH_YESNOAUTO],
             fi
          ])
 
-
 dnl ---------------------------------------------------------------------------
 dnl WX_STANDARD_OPTIONS([options-to-add])
 dnl
@@ -753,7 +750,6 @@ AC_DEFUN([WX_STANDARD_OPTIONS],
         fi
     ])
 
-
 dnl ---------------------------------------------------------------------------
 dnl WX_CONVERT_STANDARD_OPTIONS_TO_WXCONFIG_FLAGS
 dnl
@@ -797,7 +793,6 @@ AC_DEFUN([WX_CONVERT_STANDARD_OPTIONS_TO_WXCONFIG_FLAGS],
             echo "[[dbg]] WXCONFIG_FLAGS: $WXCONFIG_FLAGS"
         fi
     ])
-
 
 dnl ---------------------------------------------------------------------------
 dnl _WX_SELECTEDCONFIG_CHECKFOR([RESULTVAR], [STRING], [MSG]
@@ -874,7 +869,6 @@ AC_DEFUN([WX_DETECT_STANDARD_OPTION_VALUES],
             echo "[[dbg]] Using wx-config --selected-config"
             echo "[[dbg]] WX_SELECTEDCONFIG: $WX_SELECTEDCONFIG"
         fi
-
 
         dnl we could test directly for WX_SHARED with a line like:
         dnl    _WX_SELECTEDCONFIG_CHECKFOR([SHARED], [shared],
@@ -1064,7 +1058,6 @@ AC_DEFUN([WX_STANDARD_OPTIONS_SUMMARY_MSG],
         echo "  - PORT: $WX_PORT"
     ])
 
-
 dnl ---------------------------------------------------------------------------
 dnl WX_STANDARD_OPTIONS_SUMMARY_MSG_BEGIN, WX_STANDARD_OPTIONS_SUMMARY_MSG_END
 dnl
@@ -1098,7 +1091,6 @@ AC_DEFUN([WX_STANDARD_OPTIONS_SUMMARY_MSG_END],
         echo " ----------------------------------------------------------------"
         echo
     ])
-
 
 dnl ---------------------------------------------------------------------------
 dnl Deprecated macro wrappers

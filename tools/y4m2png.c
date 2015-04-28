@@ -107,8 +107,6 @@ void od_free_2d(void *_ptr){
   _ogg_free(_ptr);
 }
 
-
-
 static void usage(const char *_argv0){
   fprintf(stderr,
    "Usage: %s [options] <input>\n\n"
@@ -127,7 +125,6 @@ static void usage(const char *_argv0){
    "  --rec709                        Use ITU-R BT.709 matrix.\n"*/
    _argv0);
 }
-
 
 static void ycbcr_to_rgb(png_bytep *_image,const video_input_info *_info,
  video_input_ycbcr _ycbcr){

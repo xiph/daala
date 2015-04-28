@@ -22,7 +22,6 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
-
 #if !defined(_logging_H)
 # define _logging_H (1)
 
@@ -88,7 +87,6 @@ typedef int (*od_logger_function)(od_log_facility facility,
 
 int od_log_init(od_logger_function logger);
 
-
 /* To log a message, use OD_LOG, as follows:
 
    OD_LOG((OD_LOG_GENERIC, OD_LOG_WARN, "Error code = %d", 22));
@@ -128,7 +126,6 @@ int od_log_partial(od_log_facility fac, od_log_level level,
 /* Ask whether a given logging facility/level is active */
 int od_logging_active_impl(od_log_facility fac, od_log_level level);
 
-
 /* Log various matrix types. Parameters are:
 
    T == the type of the array it takes
@@ -142,7 +139,6 @@ int od_logging_active_impl(od_log_facility fac, od_log_level level);
                         T *values, \
                         int width, \
                         int height);
-
 
 DECLARE_OD_LOG_MATRIX(char, char)
 DECLARE_OD_LOG_MATRIX(unsigned char, uchar)

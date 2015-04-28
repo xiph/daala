@@ -68,7 +68,6 @@ if [ -z "$KEYINT" ]; then
   KEYINT=256
 fi
 
-
 FILE=$1
 BASENAME=$(basename "$FILE")
 if [ -n "$V" ]; then

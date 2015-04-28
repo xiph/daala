@@ -195,8 +195,6 @@ void od_free_2d(void *_ptr) {
   _ogg_free(_ptr);
 }
 
-
-
 #define BUFFER_INCREMENT (256)
 
 void oggbyte_writeinit(oggbyte_buffer *_b) {
@@ -360,8 +358,6 @@ ptrdiff_t oggbyte_bytes_left(oggbyte_buffer *_b) {
 unsigned char *oggbyte_get_buffer(oggbyte_buffer *_b) {
   return _b->buf;
 }
-
-
 
 const char *daala_version_string(void) {
   return OD_VENDOR_STRING;

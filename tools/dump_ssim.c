@@ -14,8 +14,6 @@
 #include <ogg/os_types.h>
 #include "getopt.h"
 
-
-
 const char *optstring = "frsy";
 const struct option options[]={
   {"frame-type",no_argument,NULL,'f'},
@@ -28,7 +26,6 @@ const struct option options[]={
 static int show_frame_type;
 static int summary_only;
 static int luma_only;
-
 
 #define KERNEL_SHIFT (8)
 #define KERNEL_WEIGHT (1<<KERNEL_SHIFT)
@@ -179,8 +176,6 @@ static double calc_ssim(const unsigned char *_src,int _systride,
   _ogg_free(lines);
   return ssim/ssimw;
 }
-
-
 
 static void usage(char *_argv[]){
   fprintf(stderr,"Usage: %s [options] <video1> <video2>\n"

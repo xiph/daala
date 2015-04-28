@@ -30,7 +30,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #  define _USE_MATH_DEFINES
 #endif
 
-
 #include <math.h>
 #include <limits.h>
 #include <string.h>
@@ -220,7 +219,6 @@ static __inline int od_bsr(unsigned long x) {
 #  define OD_IFLOORF(f) ((int)floor(f))
 #  define OD_ICEILF(f)  ((int)ceil(f))
 # endif
-
 
 /** Copy n elements of memory from src to dst. The 0* term provides
     compile-time type checking  */

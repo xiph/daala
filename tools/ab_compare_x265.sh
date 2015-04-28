@@ -48,7 +48,6 @@ if [ -z "$KEYINT" ]; then
   KEYINT=256
 fi
 
-
 FILE=$1
 echo $FILE
 BASENAME=$(basename $FILE)
