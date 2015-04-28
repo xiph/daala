@@ -2718,37 +2718,64 @@ static void od_mv_dp_row_init(od_mv_est_ctx *est,
   else dp->min_predictor_node = NULL;
 }
 
+/*Each DP node holds a list of blocks between it and the previous node that
+   either MV affects.
+  There can be up to 8 of them, e.g. the following grid,
+
+  A---B---C                                      A--BB--C
+  |\  |   |                                      |  ||  |
+  | \ |   |                                      |  ||  |
+  |  \|   |                                      E--DD--F
+  |   D   |                                      A--DD--C
+  |    \  |                                      |  ||  |
+  |     \ |                                      |  ||  |
+  |      \|                                      E--FE--F
+  E-------F produces blocks that use these MVs:  E--FE--F
+  |      /|                                      |  ||  |
+  |     / |                                      |  ||  |
+  |    /  |                                      H--GG--J
+  |   G   |                                      E--GG--F
+  |  /|   |                                      |  ||  |
+  | / |   |                                      |  ||  |
+  |/  |   |                                      H--II--J
+  H---I---J
+
+  If E and F are the MVs on the DP path, then at least one of the two affects
+   all 8 blocks.*/
+
+/*Finds which blocks to the left of the first node in a DP row are affected by
+   that MV.*/
 static void od_mv_dp_first_row_block_setup(od_mv_est_ctx *est,
  od_mv_dp_node *dp, int vx, int vy) {
-  od_state *state;
-  int nvmvbs;
-  int level;
-  int log_mvb_sz;
-  int mvb_sz;
   int nblocks;
-  state = &est->enc->state;
-  nvmvbs = state->nvmvbs;
-  level = OD_MC_LEVEL[vy & OD_MVB_MASK][vx & OD_MVB_MASK];
-  log_mvb_sz = (OD_MC_LEVEL_MAX - level) >> 1;
-  mvb_sz = 1 << log_mvb_sz;
   nblocks = 0;
   if (vx > 0) {
+    od_state *state;
+    int nvmvbs;
+    int level;
+    int log_mvb_sz;
+    int mvb_sz;
+    state = &est->enc->state;
+    nvmvbs = state->nvmvbs;
+    level = OD_MC_LEVEL[vy & OD_MVB_MASK][vx & OD_MVB_MASK];
+    log_mvb_sz = (OD_MC_LEVEL_MAX - level) >> 1;
+    mvb_sz = 1 << log_mvb_sz;
+    /*If the current MV is at the bottom of the hierarchy, then we always want
+       exactly one block up-left and down-left from it.*/
     if (level >= OD_MC_LEVEL_MAX - 1) {
-      if (vy >= mvb_sz) {
-        dp->blocks[nblocks++] = est->mvs[vy - mvb_sz] + vx - mvb_sz;
-      }
-      if (vy <= nvmvbs - mvb_sz) {
-        dp->blocks[nblocks++] = est->mvs[vy] + vx - mvb_sz;
-      }
+      if (vy > 0) dp->blocks[nblocks++] = est->mvs[vy - 1] + vx - 1;
+      if (vy < nvmvbs) dp->blocks[nblocks++] = est->mvs[vy] + vx - 1;
     }
     else {
       int half_mvb_sz;
       int mvb_off;
       half_mvb_sz = mvb_sz >> 1;
       if (vy >= mvb_sz) {
+        /*Figure out if the up-left block has been split at all.*/
         if (state->mv_grid[vy - half_mvb_sz][vx - half_mvb_sz].valid) {
           int ulvx;
           int ulvy;
+          /*It has, now figure out how far down.*/
           ulvx = vx - (half_mvb_sz >> 1);
           ulvy = vy - (half_mvb_sz >> 1);
           if (level > 0 || !state->mv_grid[ulvy][ulvx].valid) {
@@ -2756,6 +2783,8 @@ static void od_mv_dp_first_row_block_setup(od_mv_est_ctx *est,
           }
           else mvb_off = half_mvb_sz >> 1;
           dp->blocks[nblocks++] = est->mvs[vy - mvb_off] + vx - mvb_off;
+          /*If we were only partially split at this level, then this MV might
+             be used for an extra block above or to the left.*/
           if (!state->mv_grid[vy - mvb_off][vx].valid) {
             dp->blocks[nblocks++] =
              est->mvs[vy - (mvb_off << 1)] + vx - mvb_off;
@@ -2765,12 +2794,16 @@ static void od_mv_dp_first_row_block_setup(od_mv_est_ctx *est,
              est->mvs[vy - mvb_off] + vx - (mvb_off << 1);
           }
         }
+        /*If it has not been split, then we want exactly one block on this
+           side.*/
         else dp->blocks[nblocks++] = est->mvs[vy - mvb_sz] + vx - mvb_sz;
       }
       if (vy <= nvmvbs - mvb_sz) {
+        /*Figure out if the down-left block has been split at all.*/
         if (state->mv_grid[vy + half_mvb_sz][vx - half_mvb_sz].valid) {
           int dlvx;
           int dlvy;
+          /*It has, now figure out how far down.*/
           dlvx = vx - (half_mvb_sz >> 1);
           dlvy = vy + (half_mvb_sz >> 1);
           if (level > 0 || !state->mv_grid[dlvy][dlvx].valid) {
@@ -2778,6 +2811,8 @@ static void od_mv_dp_first_row_block_setup(od_mv_est_ctx *est,
           }
           else mvb_off = half_mvb_sz >> 1;
           dp->blocks[nblocks++] = est->mvs[vy] + vx - mvb_off;
+          /*If we were only partially split at this level, then this MV might
+             be used for an extra block below or to the left.*/
           if (!state->mv_grid[vy + mvb_off][vx].valid) {
             dp->blocks[nblocks++] = est->mvs[vy + mvb_off] + vx - mvb_off;
           }
@@ -2785,6 +2820,8 @@ static void od_mv_dp_first_row_block_setup(od_mv_est_ctx *est,
             dp->blocks[nblocks++] = est->mvs[vy] + vx - (mvb_off << 1);
           }
         }
+        /*If it has not been split, then we want exactly one block on this
+           side.*/
         else dp->blocks[nblocks++] = est->mvs[vy] + vx - mvb_sz;
       }
     }
@@ -2792,6 +2829,8 @@ static void od_mv_dp_first_row_block_setup(od_mv_est_ctx *est,
   dp->nblocks = nblocks;
 }
 
+/*Finds which blocks to the left of each subsequent node in a DP row are
+   affected by that MV or the previous one.*/
 static void od_mv_dp_prev_row_block_setup(od_mv_est_ctx *est,
  od_mv_dp_node *dp, int vx, int vy) {
   od_state *state;
@@ -2811,18 +2850,25 @@ static void od_mv_dp_prev_row_block_setup(od_mv_est_ctx *est,
   prev_log_mvb_sz = (OD_MC_LEVEL_MAX - prev_level) >> 1;
   nblocks = 0;
   if (level >= OD_MC_LEVEL_MAX - 1) {
-    if (vy >= mvb_sz) {
-      dp->blocks[nblocks++] = est->mvs[vy - mvb_sz] + vx - mvb_sz;
-      if (prev_log_mvb_sz > log_mvb_sz
-       && !state->mv_grid[vy - mvb_sz][vx - mvb_sz].valid) {
-        dp->blocks[nblocks++] = est->mvs[vy - (mvb_sz << 1)] + vx - mvb_sz;
+    /*If the current MV is at the bottom of the hierarchy, then we always want
+       one block up-left and down-left from it.*/
+    if (vy > 0) {
+      dp->blocks[nblocks++] = est->mvs[vy - 1] + vx - 1;
+      /*But if the _previous_ node was not, then
+         a) level must be OD_MC_LEVEL_MAX, and
+         b) If the MV up-left from us is not present, then the previous MV also
+          affects one more block above us.*/
+      if (prev_log_mvb_sz > 0 && !state->mv_grid[vy - 1][vx - 1].valid) {
+        OD_ASSERT(level == OD_MC_LEVEL_MAX);
+        dp->blocks[nblocks++] = est->mvs[vy - 2] + vx - 1;
       }
     }
-    if (vy <= nvmvbs - mvb_sz) {
-      dp->blocks[nblocks++] = est->mvs[vy] + vx - mvb_sz;
-      if (prev_log_mvb_sz > log_mvb_sz
-       && !state->mv_grid[vy + mvb_sz][vx - mvb_sz].valid) {
-        dp->blocks[nblocks++] = est->mvs[vy + mvb_sz] + vx - mvb_sz;
+    if (vy < nvmvbs) {
+      dp->blocks[nblocks++] = est->mvs[vy] + vx - 1;
+      /*The same case for a missing down-left MV.*/
+      if (prev_log_mvb_sz > 0 && !state->mv_grid[vy + 1][vx - 1].valid) {
+        OD_ASSERT(level == OD_MC_LEVEL_MAX);
+        dp->blocks[nblocks++] = est->mvs[vy + 1] + vx - 1;
       }
     }
   }
@@ -2831,9 +2877,11 @@ static void od_mv_dp_prev_row_block_setup(od_mv_est_ctx *est,
     int mvb_off;
     half_mvb_sz = mvb_sz >> 1;
     if (vy >= mvb_sz) {
+      /*Figure out if the up-left block has been split at all.*/
       if (state->mv_grid[vy - half_mvb_sz][vx - half_mvb_sz].valid) {
         int ulvx;
         int ulvy;
+        /*It has, now figure out how far down.*/
         ulvx = vx - (half_mvb_sz >> 1);
         ulvy = vy - (half_mvb_sz >> 1);
         if (level > 0 || !state->mv_grid[ulvy][ulvx].valid) {
@@ -2841,11 +2889,16 @@ static void od_mv_dp_prev_row_block_setup(od_mv_est_ctx *est,
         }
         else mvb_off = half_mvb_sz >> 1;
         dp->blocks[nblocks++] = est->mvs[vy - mvb_off] + vx - mvb_off;
+        /*If we were only partially split at this level, then this MV might
+           be used for an extra block above.*/
         if (!state->mv_grid[vy - mvb_off][vx].valid) {
           dp->blocks[nblocks++] = est->mvs[vy - (mvb_off << 1)] + vx - mvb_off;
         }
+        /*Or for an extra block to the left.*/
         if (!state->mv_grid[vy][vx - mvb_off].valid) {
           dp->blocks[nblocks++] = est->mvs[vy - mvb_off] + vx - (mvb_off << 1);
+          /*And if so, if the _previous_ MV might have affected an extra block
+             above it.*/
           if (!state->mv_grid[vy - mvb_off][vx - (mvb_off << 1)].valid) {
             dp->blocks[nblocks++] =
              est->mvs[vy - (mvb_off << 1)] + vx - (mvb_off << 1);
@@ -2853,17 +2906,26 @@ static void od_mv_dp_prev_row_block_setup(od_mv_est_ctx *est,
         }
       }
       else {
+        /*If it has not been split, then this MV affects exactly one block on
+           this side.*/
         dp->blocks[nblocks++] = est->mvs[vy - mvb_sz] + vx - mvb_sz;
+        /*But if the previous node was at a higher level of the hierarchy, then
+           a) level must be even, and
+           b) If the MV up-left from us is not present, then the previous MV
+            also affects one more block above us.*/
         if (prev_log_mvb_sz > log_mvb_sz
          && !state->mv_grid[vy - mvb_sz][vx - mvb_sz].valid) {
+          OD_ASSERT(!(level & 1));
           dp->blocks[nblocks++] = est->mvs[vy - (mvb_sz << 1)] + vx - mvb_sz;
         }
       }
     }
     if (vy <= nvmvbs - mvb_sz) {
+      /*Figure out if the down-left block has been split at all.*/
       if (state->mv_grid[vy + half_mvb_sz][vx - half_mvb_sz].valid) {
         int dlvx;
         int dlvy;
+        /*It has, now figure out how far down.*/
         dlvx = vx - (half_mvb_sz >> 1);
         dlvy = vy + (half_mvb_sz >> 1);
         if (level > 0 || !state->mv_grid[dlvy][dlvx].valid) {
@@ -2871,11 +2933,16 @@ static void od_mv_dp_prev_row_block_setup(od_mv_est_ctx *est,
         }
         else mvb_off = half_mvb_sz >> 1;
         dp->blocks[nblocks++] = est->mvs[vy] + vx - mvb_off;
+        /*If we were only partially split at this level, then this MV might
+           be used for an extra block below.*/
         if (!state->mv_grid[vy + mvb_off][vx].valid) {
           dp->blocks[nblocks++] = est->mvs[vy + mvb_off] + vx - mvb_off;
         }
+        /*Or for an extra block to the left.*/
         if (!state->mv_grid[vy][vx - mvb_off].valid) {
           dp->blocks[nblocks++] = est->mvs[vy] + vx - (mvb_off << 1);
+          /*And if so, if the _previous_ MV might have affected an extra block
+             below it.*/
           if (!state->mv_grid[vy + mvb_off][vx - (mvb_off << 1)].valid) {
             dp->blocks[nblocks++] =
              est->mvs[vy + mvb_off] + vx - (mvb_off << 1);
@@ -2883,9 +2950,16 @@ static void od_mv_dp_prev_row_block_setup(od_mv_est_ctx *est,
         }
       }
       else {
+        /*If it has not been split, then this MV affects exactly one block on
+           this side.*/
         dp->blocks[nblocks++] = est->mvs[vy] + vx - mvb_sz;
+        /*But if the previous node was at a higher level of the hierarchy, then
+           a) level must be even, and
+           b) If the MV down-left from us is not present, then the previous MV
+            also affects one more block below us.*/
         if (prev_log_mvb_sz > log_mvb_sz
          && !state->mv_grid[vy + mvb_sz][vx - mvb_sz].valid) {
+          OD_ASSERT(!(level & 1));
           dp->blocks[nblocks++] = est->mvs[vy + mvb_sz] + vx - mvb_sz;
         }
       }
@@ -2894,6 +2968,11 @@ static void od_mv_dp_prev_row_block_setup(od_mv_est_ctx *est,
   dp->nblocks = nblocks;
 }
 
+/*Finds which blocks to the right of the last node in a DP row are affected by
+   that MV.
+  The caller special-cases the case where there are no following blocks, so we
+   don't need to check if we're on the edge of the frame (it has already done
+   so).*/
 static void od_mv_dp_last_row_block_setup(od_mv_est_ctx *est,
  od_mv_dp_node *dp, int vx, int vy) {
   od_state *state;
@@ -2909,17 +2988,21 @@ static void od_mv_dp_last_row_block_setup(od_mv_est_ctx *est,
   mvb_sz = 1 << log_mvb_sz;
   nblocks = 0;
   if (level >= OD_MC_LEVEL_MAX - 1) {
-    if (vy >= mvb_sz) dp->blocks[nblocks++] = est->mvs[vy - mvb_sz] + vx;
-    if (vy <= nvmvbs - mvb_sz) dp->blocks[nblocks++] = est->mvs[vy] + vx;
+    /*If the current MV is at the bottom of the hierarchy, then we always want
+       one block up-right and down-right from it.*/
+    if (vy > 0) dp->blocks[nblocks++] = est->mvs[vy - 1] + vx;
+    if (vy < nvmvbs) dp->blocks[nblocks++] = est->mvs[vy] + vx;
   }
   else {
     int half_mvb_sz;
     int mvb_off;
     half_mvb_sz = mvb_sz >> 1;
     if (vy >= mvb_sz) {
+      /*Figure out if the up-right block has been split at all.*/
       if (state->mv_grid[vy - half_mvb_sz][vx + half_mvb_sz].valid) {
         int urvx;
         int urvy;
+        /*It has, now figure out how far down.*/
         urvx = vx + (half_mvb_sz >> 1);
         urvy = vy - (half_mvb_sz >> 1);
         if (level > 0
@@ -2928,6 +3011,8 @@ static void od_mv_dp_last_row_block_setup(od_mv_est_ctx *est,
         }
         else mvb_off = half_mvb_sz >> 1;
         dp->blocks[nblocks++] = est->mvs[vy - mvb_off] + vx;
+        /*If we were only partially split at this level, then this MV might
+           be used for an extra block above or to the right.*/
         if (!state->mv_grid[vy][vx + mvb_off].valid) {
           dp->blocks[nblocks++] = est->mvs[vy - mvb_off] + vx + mvb_off;
         }
@@ -2935,12 +3020,16 @@ static void od_mv_dp_last_row_block_setup(od_mv_est_ctx *est,
           dp->blocks[nblocks++] = est->mvs[vy - (mvb_off << 1)] + vx;
         }
       }
+      /*If it has not been split, then we want exactly one block on this
+         side.*/
       else dp->blocks[nblocks++] = est->mvs[vy - mvb_sz] + vx;
     }
     if (vy <= nvmvbs - mvb_sz) {
+      /*Figure out if the down-right block has been split at all.*/
       if (state->mv_grid[vy + half_mvb_sz][vx + half_mvb_sz].valid) {
         int drvx;
         int drvy;
+        /*It has, now figure out how far down.*/
         drvx = vx + (half_mvb_sz >> 1);
         drvy = vy + (half_mvb_sz >> 1);
         if (level > 0
@@ -2949,6 +3038,8 @@ static void od_mv_dp_last_row_block_setup(od_mv_est_ctx *est,
         }
         else mvb_off = half_mvb_sz >> 1;
         dp->blocks[nblocks++] = est->mvs[vy] + vx;
+        /*If we were only partially split at this level, then this MV might
+           be used for an extra block below or to the right.*/
         if (!state->mv_grid[vy][vx + mvb_off].valid) {
           dp->blocks[nblocks++] = est->mvs[vy] + vx + mvb_off;
         }
@@ -2956,6 +3047,8 @@ static void od_mv_dp_last_row_block_setup(od_mv_est_ctx *est,
           dp->blocks[nblocks++] = est->mvs[vy + mvb_off] + vx;
         }
       }
+      /*If it has not been split, then we want exactly one block on this
+         side.*/
       else dp->blocks[nblocks++] = est->mvs[vy] + vx;
     }
   }
@@ -3350,37 +3443,39 @@ static void od_mv_dp_col_init(od_mv_est_ctx *est,
   else dp->min_predictor_node = NULL;
 }
 
+/*Finds which blocks above the first node in a DP column are affected by that
+   MV.*/
 static void od_mv_dp_first_col_block_setup(od_mv_est_ctx *est,
  od_mv_dp_node *dp, int vx, int vy) {
-  od_state *state;
-  int nhmvbs;
-  int level;
-  int log_mvb_sz;
-  int mvb_sz;
   int nblocks;
-  state = &est->enc->state;
-  nhmvbs = state->nhmvbs;
-  level = OD_MC_LEVEL[vy & OD_MVB_MASK][vx & OD_MVB_MASK];
-  log_mvb_sz = (OD_MC_LEVEL_MAX - level) >> 1;
-  mvb_sz = 1 << log_mvb_sz;
   nblocks = 0;
   if (vy > 0) {
+    od_state *state;
+    int nhmvbs;
+    int level;
+    int log_mvb_sz;
+    int mvb_sz;
+    state = &est->enc->state;
+    nhmvbs = state->nhmvbs;
+    level = OD_MC_LEVEL[vy & OD_MVB_MASK][vx & OD_MVB_MASK];
+    log_mvb_sz = (OD_MC_LEVEL_MAX - level) >> 1;
+    mvb_sz = 1 << log_mvb_sz;
+    /*If the current MV is at the bottom of the hierarchy, then we always want
+       exactly one block up-left and up-right from it.*/
     if (level >= OD_MC_LEVEL_MAX - 1) {
-      if (vx >= mvb_sz) {
-        dp->blocks[nblocks++] = est->mvs[vy - mvb_sz] + vx - mvb_sz;
-      }
-      if (vx <= nhmvbs - mvb_sz) {
-        dp->blocks[nblocks++] = est->mvs[vy - mvb_sz] + vx;
-      }
+      if (vx > 0) dp->blocks[nblocks++] = est->mvs[vy - 1] + vx - 1;
+      if (vx < nhmvbs) dp->blocks[nblocks++] = est->mvs[vy - 1] + vx;
     }
     else {
       int half_mvb_sz;
       int mvb_off;
       half_mvb_sz = mvb_sz >> 1;
       if (vx >= mvb_sz) {
+        /*Figure out if the up-left block has been split at all.*/
         if (state->mv_grid[vy - half_mvb_sz][vx - half_mvb_sz].valid) {
           int ulvx;
           int ulvy;
+          /*It has, now figure out how far down.*/
           ulvx = vx - (half_mvb_sz >> 1);
           ulvy = vy - (half_mvb_sz >> 1);
           if (level > 0
@@ -3389,6 +3484,8 @@ static void od_mv_dp_first_col_block_setup(od_mv_est_ctx *est,
           }
           else mvb_off = half_mvb_sz >> 1;
           dp->blocks[nblocks++] = est->mvs[vy - mvb_off] + vx - mvb_off;
+          /*If we were only partially split at this level, then this MV might
+             be used for an extra block to the left or above.*/
           if (!state->mv_grid[vy][vx - mvb_off].valid) {
             dp->blocks[nblocks++] =
              est->mvs[vy - mvb_off] + vx - (mvb_off << 1);
@@ -3398,12 +3495,16 @@ static void od_mv_dp_first_col_block_setup(od_mv_est_ctx *est,
              est->mvs[vy - (mvb_off << 1)] + vx - mvb_off;
           }
         }
+        /*If it has not been split, then we want exactly one block on this
+           side.*/
         else dp->blocks[nblocks++] = est->mvs[vy - mvb_sz] + vx - mvb_sz;
       }
       if (vx <= nhmvbs - mvb_sz) {
+        /*Figure out if the up-right block has been split at all.*/
         if (state->mv_grid[vy - half_mvb_sz][vx + half_mvb_sz].valid) {
           int urvx;
           int urvy;
+          /*It has, now figure out how far down.*/
           urvx = vx + (half_mvb_sz >> 1);
           urvy = vy - (half_mvb_sz >> 1);
           if (level > 0
@@ -3412,6 +3513,8 @@ static void od_mv_dp_first_col_block_setup(od_mv_est_ctx *est,
           }
           else mvb_off = half_mvb_sz >> 1;
           dp->blocks[nblocks++] = est->mvs[vy - mvb_off] + vx;
+          /*If we were only partially split at this level, then this MV might
+             be used for an extra block to the right or above.*/
           if (!state->mv_grid[vy][vx + mvb_off].valid) {
             dp->blocks[nblocks++] = est->mvs[vy - mvb_off] + vx + mvb_off;
           }
@@ -3419,6 +3522,8 @@ static void od_mv_dp_first_col_block_setup(od_mv_est_ctx *est,
             dp->blocks[nblocks++] = est->mvs[vy - (mvb_off << 1)] + vx;
           }
         }
+        /*If it has not been split, then we want exactly one block on this
+           side.*/
         else dp->blocks[nblocks++] = est->mvs[vy - mvb_sz] + vx;
       }
     }
@@ -3426,6 +3531,8 @@ static void od_mv_dp_first_col_block_setup(od_mv_est_ctx *est,
   dp->nblocks = nblocks;
 }
 
+/*Finds which blocks above each subsequent node in a DP row are affected by
+   that MV or the previous one.*/
 static void od_mv_dp_prev_col_block_setup(od_mv_est_ctx *est,
  od_mv_dp_node *dp, int vx, int vy) {
   od_state *state;
@@ -3445,18 +3552,23 @@ static void od_mv_dp_prev_col_block_setup(od_mv_est_ctx *est,
   prev_log_mvb_sz = (OD_MC_LEVEL_MAX - prev_level) >> 1;
   nblocks = 0;
   if (level >= OD_MC_LEVEL_MAX - 1) {
-    if (vx >= mvb_sz) {
-      dp->blocks[nblocks++] = est->mvs[vy - mvb_sz] + vx - mvb_sz;
-      if (prev_log_mvb_sz > log_mvb_sz
-       && !state->mv_grid[vy - mvb_sz][vx - mvb_sz].valid) {
-        dp->blocks[nblocks++] = est->mvs[vy - mvb_sz] + vx - (mvb_sz << 1);
+    /*If the current MV is at the bottom of the hierarchy, then we always want
+       one block up-left and up-right from it.*/
+    if (vx > 0) {
+      dp->blocks[nblocks++] = est->mvs[vy - 1] + vx - 1;
+      /*But if the _previous_ node was not, then
+         a) level must be OD_MC_LEVEL_MAX, and
+         b) If the MV up-left from us is not present, then the previous MV also
+          affects one more block to the left of us.*/
+      if (prev_log_mvb_sz > 0 && !state->mv_grid[vy - 1][vx - 1].valid) {
+        dp->blocks[nblocks++] = est->mvs[vy - 1] + vx - 2;
       }
     }
-    if (vx <= nhmvbs - mvb_sz) {
-      dp->blocks[nblocks++] = est->mvs[vy - mvb_sz] + vx;
-      if (prev_log_mvb_sz > log_mvb_sz
-       && !state->mv_grid[vy - mvb_sz][vx + mvb_sz].valid) {
-        dp->blocks[nblocks++] = est->mvs[vy - mvb_sz] + vx + mvb_sz;
+    if (vx < nhmvbs) {
+      dp->blocks[nblocks++] = est->mvs[vy - 1] + vx;
+      /*The same case for a missing up-right MV.*/
+      if (prev_log_mvb_sz > 0 && !state->mv_grid[vy - 1][vx + 1].valid) {
+        dp->blocks[nblocks++] = est->mvs[vy - 1] + vx + 1;
       }
     }
   }
@@ -3465,9 +3577,11 @@ static void od_mv_dp_prev_col_block_setup(od_mv_est_ctx *est,
     int mvb_off;
     half_mvb_sz = mvb_sz >> 1;
     if (vx >= mvb_sz) {
+      /*Figure out if the up-left block has been split at all.*/
       if (state->mv_grid[vy - half_mvb_sz][vx - half_mvb_sz].valid) {
         int ulvx;
         int ulvy;
+        /*It has, now figure out how far down.*/
         ulvx = vx - (half_mvb_sz >> 1);
         ulvy = vy - (half_mvb_sz >> 1);
         if (level > 0
@@ -3476,11 +3590,16 @@ static void od_mv_dp_prev_col_block_setup(od_mv_est_ctx *est,
         }
         else mvb_off = half_mvb_sz >> 1;
         dp->blocks[nblocks++] = est->mvs[vy - mvb_off] + vx - mvb_off;
+        /*If we were only partially split at this level, then this MV might
+           be used for an extra block to the left.*/
         if (!state->mv_grid[vy][vx - mvb_off].valid) {
           dp->blocks[nblocks++] = est->mvs[vy - mvb_off] + vx - (mvb_off << 1);
         }
+        /*Or for an extra block above.*/
         if (!state->mv_grid[vy - mvb_off][vx].valid) {
           dp->blocks[nblocks++] = est->mvs[vy - (mvb_off << 1)] + vx - mvb_off;
+          /*And if so, if the _previous_ MV might have affected an extra block
+             to the left of it.*/
           if (!state->mv_grid[vy - (mvb_off << 1)][vx - mvb_off].valid) {
             dp->blocks[nblocks++] =
              est->mvs[vy - (mvb_off << 1)] + vx - (mvb_off << 1);
@@ -3488,7 +3607,13 @@ static void od_mv_dp_prev_col_block_setup(od_mv_est_ctx *est,
         }
       }
       else {
+        /*If it has not been split, then this MV affects exactly one block on
+           this side.*/
         dp->blocks[nblocks++] = est->mvs[vy - mvb_sz] + vx - mvb_sz;
+        /*But if the previous node was at a higher level of the hierarchy, then
+           a) level must be even, and
+           b) If the MV up-left from us is not present, then the previous MV
+            also affects one more block to the left of us.*/
         if (prev_log_mvb_sz > log_mvb_sz
          && !state->mv_grid[vy - mvb_sz][vx - mvb_sz].valid) {
           dp->blocks[nblocks++] = est->mvs[vy - mvb_sz] + vx - (mvb_sz << 1);
@@ -3496,9 +3621,11 @@ static void od_mv_dp_prev_col_block_setup(od_mv_est_ctx *est,
       }
     }
     if (vx <= nhmvbs - mvb_sz) {
+      /*Figure out if the up-right block has been split at all.*/
       if (state->mv_grid[vy - half_mvb_sz][vx + half_mvb_sz].valid) {
         int urvx;
         int urvy;
+        /*It has, now figure out how far down.*/
         urvx = vx + (half_mvb_sz >> 1);
         urvy = vy - (half_mvb_sz >> 1);
         if (level > 0
@@ -3507,11 +3634,16 @@ static void od_mv_dp_prev_col_block_setup(od_mv_est_ctx *est,
         }
         else mvb_off = half_mvb_sz >> 1;
         dp->blocks[nblocks++] = est->mvs[vy - mvb_off] + vx;
+        /*If we were only partially split at this level, then this MV might
+           be used for an extra block to the right.*/
         if (!state->mv_grid[vy][vx + mvb_off].valid) {
           dp->blocks[nblocks++] = est->mvs[vy - mvb_off] + vx + mvb_off;
         }
+        /*Or for an extra block above.*/
         if (!state->mv_grid[vy - mvb_off][vx].valid) {
           dp->blocks[nblocks++] = est->mvs[vy - (mvb_off << 1)] + vx;
+          /*And if so, if the _previous_ MV might have affected an extra block
+             to the right of it.*/
           if (!state->mv_grid[vy - (mvb_off << 1)][vx + mvb_off].valid) {
             dp->blocks[nblocks++] =
              est->mvs[vy - (mvb_off << 1)] + vx + mvb_off;
@@ -3519,7 +3651,13 @@ static void od_mv_dp_prev_col_block_setup(od_mv_est_ctx *est,
         }
       }
       else {
+        /*If it has not been split, then this MV affects exactly one block on
+           this side.*/
         dp->blocks[nblocks++] = est->mvs[vy - mvb_sz] + vx;
+        /*But if the previous node was at a higher level of the hierarchy, then
+           a) level must be even, and
+           b) If the MV up-right from us is not present, then the previous MV
+            also affects one more block to the right of us.*/
         if (prev_log_mvb_sz > log_mvb_sz
          && !state->mv_grid[vy - mvb_sz][vx + mvb_sz].valid) {
           dp->blocks[nblocks++] = est->mvs[vy - mvb_sz] + vx + mvb_sz;
@@ -3530,6 +3668,11 @@ static void od_mv_dp_prev_col_block_setup(od_mv_est_ctx *est,
   dp->nblocks = nblocks;
 }
 
+/*Finds which blocks above the last node in a DP column are affected by that
+   MV.
+  The caller special-cases the case where there are no following blocks, so we
+   don't need to check if we're on the edge of the frame (it has already done
+   so).*/
 static void od_mv_dp_last_col_block_setup(od_mv_est_ctx *est,
  od_mv_dp_node *dp, int vx, int vy) {
   od_state *state;
@@ -3545,17 +3688,21 @@ static void od_mv_dp_last_col_block_setup(od_mv_est_ctx *est,
   mvb_sz = 1 << log_mvb_sz;
   nblocks = 0;
   if (level >= OD_MC_LEVEL_MAX - 1) {
-    if (vx >= mvb_sz) dp->blocks[nblocks++] = est->mvs[vy] + vx - mvb_sz;
-    if (vx <= nhmvbs - mvb_sz) dp->blocks[nblocks++] = est->mvs[vy] + vx;
+    /*If the current MV is at the bottom of the hierarchy, then we always want
+       one block down-left and down-right from it.*/
+    if (vx > 0) dp->blocks[nblocks++] = est->mvs[vy] + vx - 1;
+    if (vx < nhmvbs) dp->blocks[nblocks++] = est->mvs[vy] + vx;
   }
   else {
     int half_mvb_sz;
     int mvb_off;
     half_mvb_sz = mvb_sz >> 1;
     if (vx >= mvb_sz) {
+      /*Figure out if the down-left block has been split at all.*/
       if (state->mv_grid[vy + half_mvb_sz][vx - half_mvb_sz].valid) {
         int dlvx;
         int dlvy;
+        /*It has, now figure out how far down.*/
         dlvx = vx - (half_mvb_sz >> 1);
         dlvy = vy + (half_mvb_sz >> 1);
         if (level > 0
@@ -3564,6 +3711,8 @@ static void od_mv_dp_last_col_block_setup(od_mv_est_ctx *est,
         }
         else mvb_off = half_mvb_sz >> 1;
         dp->blocks[nblocks++] = est->mvs[vy] + vx - mvb_off;
+        /*If we were only partially split at this level, then this MV might
+           be used for an extra block to the left or below.*/
         if (!state->mv_grid[vy][vx - mvb_off].valid) {
           dp->blocks[nblocks++] = est->mvs[vy] + vx - (mvb_off << 1);
         }
@@ -3571,12 +3720,16 @@ static void od_mv_dp_last_col_block_setup(od_mv_est_ctx *est,
           dp->blocks[nblocks++] = est->mvs[vy + mvb_off] + vx - mvb_off;
         }
       }
+      /*If it has not been split, then we want exactly one block on this
+         side.*/
       else dp->blocks[nblocks++] = est->mvs[vy] + vx - mvb_sz;
     }
     if (vx <= nhmvbs - mvb_sz) {
+      /*Figure out if the down-right block has been split at all.*/
       if (state->mv_grid[vy + half_mvb_sz][vx + half_mvb_sz].valid) {
         int drvx;
         int drvy;
+        /*It has, now figure out how far down.*/
         drvx = vx + (half_mvb_sz >> 1);
         drvy = vy + (half_mvb_sz >> 1);
         if (level > 0
@@ -3592,6 +3745,8 @@ static void od_mv_dp_last_col_block_setup(od_mv_est_ctx *est,
           dp->blocks[nblocks++] = est->mvs[vy + mvb_off] + vx;
         }
       }
+      /*If it has not been split, then we want exactly one block on this
+         side.*/
       else dp->blocks[nblocks++] = est->mvs[vy] + vx;
     }
   }
