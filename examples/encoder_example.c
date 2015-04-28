@@ -473,7 +473,7 @@ int main(int argc, char **argv) {
   mc_use_chroma = 1;
   mv_res_min = 0;
   mv_level_min = 0;
-  mv_level_max = 4;
+  mv_level_max = 6;
   while ((c = getopt_long(argc, argv, OPTSTRING, OPTIONS, &loi)) != EOF) {
     switch (c) {
       case 'o': {
@@ -564,7 +564,7 @@ int main(int argc, char **argv) {
         }
         else if (strcmp(OPTIONS[loi].name, "mv-level-min") == 0) {
           mv_level_min = atoi(optarg);
-          if (mv_level_min < 0 || mv_level_min > 4) {
+          if (mv_level_min < 0 || mv_level_min > 6) {
             fprintf(stderr, "Illegal value for --mv-level-min\n");
             exit(1);
           }
@@ -576,7 +576,7 @@ int main(int argc, char **argv) {
         }
         else if (strcmp(OPTIONS[loi].name, "mv-level-max") == 0) {
           mv_level_max = atoi(optarg);
-          if (mv_level_max < 0 || mv_level_max > 4) {
+          if (mv_level_max < 0 || mv_level_max > 6) {
             fprintf(stderr, "Illegal value for --mv-level-max\n");
             exit(1);
           }

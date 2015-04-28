@@ -74,11 +74,11 @@ struct od_mv_node {
 # define OD_DP_NSTATES_MAX (9)
 /*Up to 8 blocks can be influenced by this MV and the previous MV.*/
 # define OD_DP_NBLOCKS_MAX (8)
-/*Up to 20 MVs can be predicted by this one, but 3 of those are MVs on the
+/*Up to 28 MVs can be predicted by this one, but 4 of those are MVs on the
    DP trellis whose value we have yet to determine.*/
-# define OD_DP_NPREDICTED_MAX (17)
-/*At most 6 of them can be changed by a subsequent MV on the DP path.*/
-# define OD_DP_NCHANGEABLE_MAX (6)
+# define OD_DP_NPREDICTED_MAX (24)
+/*At most 8 of them can be changed by a subsequent MV on the DP path.*/
+# define OD_DP_NCHANGEABLE_MAX (8)
 
 /*One of the trellis states in the dynamic prgram.*/
 struct od_mv_dp_state {
