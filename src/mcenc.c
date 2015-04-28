@@ -3183,20 +3183,13 @@ static ogg_int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
     pmvg = mvg;
     while (vx < nhmvbs) {
       /*Find the next available MV to advance to.*/
-      if (level & 1) {
-        if (!grid[vx + mvb_sz].valid) {
-          OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
-           "Gap found at %i (%i), stopping", vx, vx << OD_LOG_MVBSIZE_MIN));
-          break;
-        }
-        else if (level >= 3) vx++;
-        else if (!grid[vx + 1].valid) vx += mvb_sz;
-        else vx++;
+      if ((level & 1) && !grid[vx + mvb_sz].valid) {
+        OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
+         "Gap found at %i (%i), stopping", vx, vx << OD_LOG_MVBSIZE_MIN));
+        break;
       }
-      else if (level >= 4) vx++;
-      else if (!grid[vx + (mvb_sz >> 1)].valid) vx += mvb_sz;
-      else if (level >= 2 || !grid[vx + 1].valid) vx += mvb_sz >> 1;
-      else vx++;
+      while (mvb_sz > 1 && grid[vx + (mvb_sz >> 1)].valid) mvb_sz >>= 1;
+      vx += mvb_sz;
 #if defined(OD_DUMP_IMAGES) && defined(OD_ANIMATE)
       if (daala_granule_basetime(state, state->cur_time) == ANI_FRAME) {
         od_mv_dp_restore_row_state(dp_node);
@@ -3849,20 +3842,13 @@ static ogg_int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
     pmvg = mvg;
     while (vy < nvmvbs) {
       /*Find the next available MV to advance to.*/
-      if (level & 1) {
-        if (!grid[vy + mvb_sz][vx].valid) {
-          OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
-           "Gap found at %i (%i), stopping", vy, vy << OD_LOG_MVBSIZE_MIN));
-          break;
-        }
-        else if (level >= 3) vy++;
-        else if (!grid[vy + 1][vx].valid) vy += mvb_sz;
-        else vy++;
+      if ((level & 1) && !grid[vy + mvb_sz][vx].valid) {
+        OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
+         "Gap found at %i (%i), stopping", vy, vy << OD_LOG_MVBSIZE_MIN));
+        break;
       }
-      else if (level >= 4) vy++;
-      else if (!grid[vy + (mvb_sz >> 1)][vx].valid) vy += mvb_sz;
-      else if (level >= 2 || !grid[vy + 1][vx].valid) vy += mvb_sz >> 1;
-      else vy++;
+      while (mvb_sz > 1 && grid[vy + (mvb_sz >> 1)][vx].valid) mvb_sz >>= 1;
+      vy += mvb_sz;
 #if defined(OD_DUMP_IMAGES) && defined(OD_ANIMATE)
       if (daala_granule_basetime(state, state->cur_time) == ANI_FRAME) {
         od_mv_dp_restore_col_state(dp_node);
