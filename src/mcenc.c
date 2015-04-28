@@ -2691,20 +2691,20 @@ static void od_mv_dp_row_init(od_mv_est_ctx *est,
   pred_hist = OD_ROW_PRED_HIST_SIZE[level];
   OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
    "Marking history up to %i back: %i>=%i",
-   pred_hist, prev_dp != NULL ? prev_dp->mv->vx : -1, vx-pred_hist));
+   pred_hist, prev_dp != NULL ? prev_dp->mv->vx : -1, vx - pred_hist));
   if (prev_dp != NULL && prev_dp->mv->vx >= vx - pred_hist) {
     od_mv_dp_node *dp_pred;
     dp_pred = prev_dp;
-    while (dp_pred->mv->vx > vx-pred_hist
+    while (dp_pred->mv->vx > vx - pred_hist
      && dp_pred->states[0].prevsi >= 0) {
       dp_pred--;
     }
     OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
      "Stopped at (%i, %i) (%i <= %i? %i) (%i < 0? %i)",
-     dp_pred->mv->vx, dp_pred->mv->vy, dp_pred->mv->vx, vx-pred_hist,
-     dp_pred->mv->vx <= vx-pred_hist,
+     dp_pred->mv->vx, dp_pred->mv->vy, dp_pred->mv->vx, vx - pred_hist,
+     dp_pred->mv->vx <= vx - pred_hist,
      dp_pred->states[0].prevsi, dp_pred->states[0].prevsi < 0));
-    if (dp_pred->mv->vx < vx-pred_hist) {
+    if (dp_pred->mv->vx < vx - pred_hist) {
       dp_pred++;
       OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
        "Too far, incrementing to (%i, %i).",
@@ -3339,7 +3339,7 @@ static void od_mv_dp_col_init(od_mv_est_ctx *est,
   pred_hist = OD_COL_PRED_HIST_SIZE[level];
   if (prev_dp != NULL && prev_dp->mv->vy >= vy - pred_hist) {
     od_mv_dp_node *dp_pred;
-    for (dp_pred = prev_dp; dp_pred->mv->vy > vy-pred_hist
+    for (dp_pred = prev_dp; dp_pred->mv->vy > vy - pred_hist
      && dp_pred->states[0].prevsi >= 0; dp_pred--);
     if (dp_pred->mv->vy < vy - pred_hist) dp_pred++;
     dp->min_predictor_node = dp_pred;
