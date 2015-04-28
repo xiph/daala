@@ -3405,7 +3405,7 @@ static void od_mv_dp_first_col_block_setup(od_mv_est_ctx *est,
           int urvx;
           int urvy;
           urvx = vx + (half_mvb_sz >> 1);
-          urvy = vy + (half_mvb_sz >> 1);
+          urvy = vy - (half_mvb_sz >> 1);
           if (level > 0
            || !state->mv_grid[urvy][urvx].valid) {
             mvb_off = half_mvb_sz;
