@@ -85,6 +85,7 @@ public:
 
   int getFrameWidth() const;
   int getFrameHeight() const;
+  int getRunningFrameCount() const;
 
   bool setBlockSizeBuffer(unsigned char *buf, size_t buf_sz);
   bool setBandFlagsBuffer(unsigned int *buf, size_t buf_sz);
@@ -213,6 +214,10 @@ int DaalaDecoder::getFrameHeight() const {
   return di.pic_height + (OD_BSIZE_MAX - 1) & ~(OD_BSIZE_MAX - 1);
 }
 
+int DaalaDecoder::getRunningFrameCount() const {
+  return frame;
+}
+
 bool DaalaDecoder::setBlockSizeBuffer(unsigned char *buf, size_t buf_sz) {
   if (dctx == NULL) {
     return false;
@@ -255,6 +260,7 @@ private:
   bool show_noref;
   bool show_padding;
   int plane_mask;
+  wxString path;
 
   // The decode size is the picture size or frame size.
   int getDecodeWidth() const;
@@ -268,7 +274,7 @@ private:
 
   int getBand(int x, int y) const;
 public:
-  TestPanel(wxWindow *parent);
+  TestPanel(wxWindow *parent, wxString &path);
   ~TestPanel();
 
   bool open(const char *path);
@@ -356,9 +362,10 @@ BEGIN_EVENT_TABLE(TestFrame, wxFrame)
   EVT_MENU(wxID_ABOUT, TestFrame::onAbout)
 END_EVENT_TABLE()
 
-TestPanel::TestPanel(wxWindow *parent) : wxPanel(parent), pixels(NULL),
- zoom(0), bsize(NULL), show_blocks(false), flags(NULL), show_skip(false),
- show_noref(false), show_padding(false), plane_mask(OD_ALL_MASK) {
+TestPanel::TestPanel(wxWindow *parent, wxString &path) : wxPanel(parent),
+ pixels(NULL), zoom(0), bsize(NULL), show_blocks(false), flags(NULL),
+ show_skip(false), show_noref(false), show_padding(false),
+ plane_mask(OD_ALL_MASK), path(path) {
 }
 
 TestPanel::~TestPanel() {
@@ -625,6 +632,9 @@ void TestPanel::setShowNoRef(bool show_noref) {
 bool TestPanel::nextFrame() {
   if (dd.step()) {
     render();
+    ((TestFrame *)GetParent())->SetTitle(path +
+     wxString::Format(wxT(" (%d,%d) Frame %d - Daala Stream Analyzer"),
+     dd.getWidth(), dd.getHeight(), dd.getRunningFrameCount()-1));
     return true;
   }
   return false;
@@ -817,7 +827,7 @@ void TestFrame::onAbout(wxCommandEvent& WXUNUSED(event)) {
 bool TestFrame::open(wxString path) {
   wxCharBuffer buffer = path.ToUTF8();
   const char *filename = buffer.data();
-  panel = new TestPanel(this);
+  panel = new TestPanel(this, path);
   if (panel->open(filename)) {
     Fit();
     SetStatusText(_T("loaded file: ") + path);
