@@ -814,12 +814,16 @@ static int od_compute_var_4x4(od_coeff *x, int stride) {
     int j;
     for (j = 0; j < 4; j++) {
       int t;
-      t = x[i*stride + j];
+      /* Avoids overflow in the sum^2 below because the pre-filtered input
+         can be much larger than +/-128 << OD_COEFF_SHIFT. Shifting the sum
+         itself is a bad idea because it leads to large error on low
+         variance. */
+      t = x[i*stride + j] >> 2;
       sum += t;
       s2 += t*t;
     }
   }
-  return (s2 - (sum*sum >> 4)) >> 4;
+  return (s2 - (sum*sum >> 4));
 }
 
 static double od_compute_dist_8x8(daala_enc_ctx *enc, od_coeff *x, od_coeff *y,
