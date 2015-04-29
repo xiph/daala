@@ -451,7 +451,7 @@ int TestPanel::getBand(int x, int y) const {
   return 9;
 }
 
-int64_t block_edge_luma(int64_t yval) {
+ogg_int64_t block_edge_luma(ogg_int64_t yval) {
   return yval > 50 ? yval >> 1 : yval + 15;
 }
 
@@ -474,9 +474,9 @@ void TestPanel::render() {
     unsigned char *cr = cr_row;
     unsigned char *p = p_row;
     for (int i = 0; i < getDecodeWidth(); i++) {
-      int64_t yval;
-      int64_t cbval;
-      int64_t crval;
+      ogg_int64_t yval;
+      ogg_int64_t cbval;
+      ogg_int64_t crval;
       unsigned rval;
       unsigned gval;
       unsigned bval;
@@ -535,12 +535,12 @@ void TestPanel::render() {
       cbval = ((pmask & OD_CB_MASK) >> 1) * (cbval - 128);
       crval = ((pmask & OD_CR_MASK) >> 2) * (crval - 128);
       /*This is intentionally slow and very accurate.*/
-      rval = OD_CLAMPI(0, (int32_t)OD_DIV_ROUND(
+      rval = OD_CLAMPI(0, (ogg_int32_t)OD_DIV_ROUND(
        2916394880000LL*yval + 4490222169144LL*crval, 9745792000LL), 65535);
-      gval = OD_CLAMPI(0, (int32_t)OD_DIV_ROUND(
+      gval = OD_CLAMPI(0, (ogg_int32_t)OD_DIV_ROUND(
        2916394880000LL*yval - 534117096223LL*cbval - 1334761232047LL*crval,
        9745792000LL), 65535);
-      bval = OD_CLAMPI(0, (int32_t)OD_DIV_ROUND(
+      bval = OD_CLAMPI(0, (ogg_int32_t)OD_DIV_ROUND(
        2916394880000LL*yval + 5290866304968LL*cbval, 9745792000LL), 65535);
       unsigned char *px_row = p;
       for (int v = 0; v < zoom; v++) {
@@ -665,9 +665,9 @@ void TestPanel::onMouseMotion(wxMouseEvent& event) {
     int ydec = planes[1].ydec;
     int cb_stride = planes[1].ystride;
     int cr_stride = planes[2].ystride;
-    int64_t y = planes[0].data[planes[0].ystride*row + col];
-    int64_t cb = planes[1].data[cb_stride*(row >> ydec) + (col >> xdec)];
-    int64_t cr = planes[2].data[cr_stride*(row >> ydec) + (col >> xdec)];
+    ogg_int64_t y = planes[0].data[planes[0].ystride*row + col];
+    ogg_int64_t cb = planes[1].data[cb_stride*(row >> ydec) + (col >> xdec)];
+    ogg_int64_t cr = planes[2].data[cr_stride*(row >> ydec) + (col >> xdec)];
     parent->SetStatusText(wxString::Format(wxT("Y:%lld,U:%lld,V:%lld"),
      y, cb, cr), 1);
   } else {
