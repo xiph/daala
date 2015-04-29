@@ -110,7 +110,7 @@ static const unsigned short __attribute__((aligned(16),used)) OD_BILV[128]={
 void od_mc_predict1fmv8_check(unsigned char *_dst,const unsigned char *_src,
  int _systride,ogg_int32_t _mvx,ogg_int32_t _mvy,
  int _log_xblk_sz,int _log_yblk_sz){
-  unsigned char dst[16*16];
+  unsigned char dst[OD_MVBSIZE_MAX*OD_MVBSIZE_MAX];
   int           xblk_sz;
   int           yblk_sz;
   int           failed;
@@ -1430,7 +1430,7 @@ static void od_mc_predict1fmv8_16x16(unsigned char *_dst,
   }
 }
 
-OD_MC_PREDICT1FMV8_C(32,32,4,4)
+OD_MC_PREDICT1FMV8_C(32,32,5,5)
 
 typedef void (*od_mc_predict1fmv8_fixed_func)(unsigned char *_dst,
  const unsigned char *_src,int _systride,unsigned _mvxf,unsigned _mvyf);
@@ -1495,7 +1495,7 @@ void od_mc_predict1fmv8_sse2(unsigned char *_dst,const unsigned char *_src,
 #if defined(OD_CHECKASM)
 static void od_mc_blend_full8_check(unsigned char *_dst,int _dystride,
  const unsigned char *_src[4],int _log_xblk_sz,int _log_yblk_sz){
-  unsigned char  dst[16*16];
+  unsigned char  dst[OD_MVBSIZE_MAX*OD_MVBSIZE_MAX];
   int            xblk_sz;
   int            yblk_sz;
   int            failed;
@@ -2004,7 +2004,7 @@ void od_mc_blend_full8_sse2(unsigned char *_dst,int _dystride,
 #if defined(OD_CHECKASM)
 void od_mc_blend_full_split8_check(unsigned char *_dst,int _dystride,
  const unsigned char *_src[4],int _c,int _s,int _log_xblk_sz,int _log_yblk_sz){
-  unsigned char dst[16][16];
+  unsigned char dst[OD_MVBSIZE_MAX][OD_MVBSIZE_MAX];
   int           xblk_sz;
   int           yblk_sz;
   int           failed;
