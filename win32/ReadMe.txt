@@ -1,5 +1,5 @@
 /*Daala video codec
-Copyright (c) 2001-2013 Daala project contributors.  All rights reserved.
+Copyright (c) 2001-2015 Daala project contributors.  All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -76,7 +76,7 @@ Your folder structure should now look like this:
 
 This will generate 3 executables and 3 static libraries:
 
-* encoder_example.exe
+* analyser.exe
 * encoder_example.exe
 * decoder_example.exe
 * LibDaalaBase.lib
