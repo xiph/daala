@@ -725,18 +725,19 @@ TestFrame::TestFrame() : wxFrame(NULL, wxID_ANY, _T("Daala Stream Analyzer"),
   viewMenu->AppendCheckItem(wxID_SHOW_V, _T("&V plane\tCtrl-V"),
    _("Show V plane"));
   mb->Append(viewMenu, _T("&View"));
-  mb->EnableTop(1, false);
 
   playbackMenu = new wxMenu();
   playbackMenu->Append(wxID_NEXT_FRAME, _T("Next frame\t."), _("Go to next frame"));
   mb->Append(playbackMenu, _T("&Playback"));
-  mb->EnableTop(2, false);
 
   wxMenu *helpMenu=new wxMenu();
   helpMenu->Append(wxID_ABOUT, _T("&About...\tF1"), _T("Show about dialog"));
   mb->Append(helpMenu, _T("&Help"));
 
   SetMenuBar(mb);
+  mb->EnableTop(1, false);
+  mb->EnableTop(2, false);
+
   CreateStatusBar(3);
   int status_widths[3] = {-1, 130, 100};
   SetStatusWidths(3, status_widths);
