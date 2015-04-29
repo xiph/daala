@@ -59,6 +59,7 @@ typedef struct {
   int slow;
   int loop;
   int step;
+  int fullscreen;
   int valid;
   int plane_mask;
 } player_example;
@@ -120,6 +121,7 @@ int player_example_init(player_example *player) {
   player->loop = 0;
   player->done = 0;
   player->step = 0;
+  player->fullscreen = 0;
   player->valid = 0;
   player->od_state = ODS_NONE;
   player->plane_mask = OD_ALL_MASK;
@@ -249,6 +251,12 @@ void player_example_handle_event(player_example *player, SDL_Event *event) {
           if (player->paused) {
             player->step = 1;
           }
+          break;
+        }
+        case SDLK_f: {
+          player->fullscreen = !player->fullscreen;
+          SDL_SetWindowFullscreen(player->screen,
+              player->fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
           break;
         }
         default: break;
