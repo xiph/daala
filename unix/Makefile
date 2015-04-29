@@ -50,7 +50,7 @@ MAKEDEPEND = $(CC) -MM
 # The location of include files.
 # Modify these to point to your Ogg and Vorbis include directories if they are
 #  not installed in a standard location.
-CINCLUDE = `sdl-config --cflags` `pkg-config ogg --cflags`
+CINCLUDE = `pkg-config sdl2 ogg --cflags`
 # These are gcc-only, but not actually critical.
 # Extra compilation flags.
 # You may get speed increases by including flags such as -O2 or -O3 or
@@ -83,7 +83,7 @@ endif
 
 # Libraries to link with, and the location of library files.
 # Add -lpng -lz if you want to use -DOD_DUMP_IMAGES.
-LIBS = `pkg-config ogg --libs` `sdl-config --libs` -lm
+LIBS = `pkg-config ogg sdl2 --libs` -lm
 ifeq ($(findstring -DOD_DUMP_IMAGES,${CFLAGS}),-DOD_DUMP_IMAGES)
     LIBS += -lpng -lz
 endif

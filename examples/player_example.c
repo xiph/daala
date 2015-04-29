@@ -39,7 +39,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #define ODS_DATA 2
 
 typedef struct {
-  SDL_Surface *screen;
+  SDL_Window *screen;
+  SDL_Renderer *renderer;
   daala_info di;
   daala_comment dc;
   ogg_sync_state oy;
@@ -47,7 +48,7 @@ typedef struct {
   const char *input_path;
   ogg_stream_state os;
   daala_dec_ctx *dctx;
-  SDL_Surface *surf;
+  SDL_Texture *texture;
   od_img img;
   int width;
   int height;
@@ -69,7 +70,7 @@ enum {
   OD_ALL_MASK = OD_LUMA_MASK | OD_CB_MASK | OD_CR_MASK
 };
 
-static void img_to_rgb(SDL_Surface *surf, const od_img *img, int plane_mask);
+static void img_to_rgb(SDL_Texture *tex, const od_img *img, int plane_mask);
 static int next_plane(int plane_mask);
 static void wait_to_refresh(uint32_t *previous_ticks, uint32_t ms_per_frame);
 
@@ -109,7 +110,8 @@ int player_example_daala_stream_clear(player_example *player) {
 int player_example_init(player_example *player) {
   if (player == NULL) return -1;
   player->screen = NULL;
-  player->surf = NULL;
+  player->renderer = NULL;
+  player->texture = NULL;
   player->width = 0;
   player->height = 0;
   player->paused = 0;
@@ -358,12 +360,18 @@ int player_example_play(player_example *player) {
            || (player->height != player->di.pic_height)) {
             player->width = player->di.pic_width;
             player->height = player->di.pic_height;
-            player->screen = SDL_SetVideoMode(player->width, player->height,
-             24,
-             SDL_HWSURFACE | SDL_DOUBLEBUF);
+            player->screen = SDL_CreateWindow("Daala example player",
+                SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+                player->width, player->height,
+                SDL_WINDOW_ALLOW_HIGHDPI);
             if (player->screen == NULL) return -1;
-            player->surf = SDL_GetVideoSurface();
-            if (player->surf == NULL) return -1;
+            player->renderer = SDL_CreateRenderer(player->screen, -1, 0);
+            if (player->renderer == NULL) return -1;
+            player->texture = SDL_CreateTexture(player->renderer,
+                SDL_PIXELFORMAT_ARGB8888,
+                SDL_TEXTUREACCESS_STREAMING,
+                player->width, player->height);
+            if (player->texture == NULL) return -1;
           }
           ret = daala_decode_packet_in(player->dctx, &player->img, &packet);
           if (ret != 0) return -1;
@@ -384,10 +392,10 @@ int player_example_play(player_example *player) {
           }
           if ((!player->restart) && (!player->done)) {
             wait_to_refresh(&ticks, ms_per_frame);
-            SDL_LockSurface(player->surf);
-            img_to_rgb(player->surf, &player->img, player->plane_mask);
-            SDL_UnlockSurface(player->surf);
-            SDL_Flip(player->screen);
+            img_to_rgb(player->texture, &player->img, player->plane_mask);
+            SDL_RenderClear(player->renderer);
+            SDL_RenderCopy(player->renderer, player->texture, NULL, NULL);
+            SDL_RenderPresent(player->renderer);
           }
           break;
         }
@@ -439,7 +447,6 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
   atexit(SDL_Quit);
-  SDL_EnableKeyRepeat(222, 100);
 
   player = player_example_create();
   if (player == NULL) {
@@ -475,7 +482,7 @@ int main(int argc, char *argv[]) {
 #define OD_CLAMP255(x) \
   ((unsigned char)((((x) < 0) - 1) & ((x) | -((x) > 255))))
 
-void img_to_rgb(SDL_Surface *surf, const od_img *img, int plane_mask) {
+void img_to_rgb(SDL_Texture *texture, const od_img *img, int plane_mask) {
   unsigned char *y_row;
   unsigned char *cb_row;
   unsigned char *cr_row;
@@ -493,10 +500,6 @@ void img_to_rgb(SDL_Surface *surf, const od_img *img, int plane_mask) {
   int j;
   unsigned char *pixels;
   int pitch;
-  pixels = (unsigned char *)surf->pixels;
-  pitch = surf->pitch;
-  width = img->width;
-  height = img->height;
   /*Assume both C planes are decimated.*/
   xdec = img->planes[1].xdec;
   ydec = img->planes[1].ydec;
@@ -506,6 +509,13 @@ void img_to_rgb(SDL_Surface *surf, const od_img *img, int plane_mask) {
   y_row = img->planes[0].data;
   cb_row = img->planes[1].data;
   cr_row = img->planes[2].data;
+  /*Lock the texture in video memory for update.*/
+  if (SDL_LockTexture(texture, NULL, (void**)&pixels, &pitch)) {
+    fprintf(stderr, "Couldn't lock video texture!");
+    exit(1);
+  }
+  width = img->width;
+  height = img->height;
   /*Chroma up-sampling is just done with a box filter.
     This is very likely what will actually be used in practice on a real
      display, and also removes one more layer to search in for the source of
@@ -516,7 +526,7 @@ void img_to_rgb(SDL_Surface *surf, const od_img *img, int plane_mask) {
     y = y_row;
     cb = cb_row;
     cr = cr_row;
-    for (i = 0; i < 3 * width;) {
+    for (i = 0; i < 4 * width;) {
       int64_t yval;
       int64_t cbval;
       int64_t crval;
@@ -538,6 +548,7 @@ void img_to_rgb(SDL_Surface *surf, const od_img *img, int plane_mask) {
       *(pixels + pitch*j + i++) = (unsigned char)(bval >> 8);
       *(pixels + pitch*j + i++) = (unsigned char)(gval >> 8);
       *(pixels + pitch*j + i++) = (unsigned char)(rval >> 8);
+      *(pixels + pitch*j + i++) = 0;
       dc = ((y - y_row) & 1) | (1 - xdec);
       y++;
       cb += dc;
@@ -548,6 +559,7 @@ void img_to_rgb(SDL_Surface *surf, const od_img *img, int plane_mask) {
     cb_row += dc & cb_stride;
     cr_row += dc & cr_stride;
   }
+  SDL_UnlockTexture(texture);
 }
 
 int next_plane(int plane_mask) {

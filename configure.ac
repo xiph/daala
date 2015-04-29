@@ -93,7 +93,7 @@ LT_LIB_M
 AC_CHECK_FUNCS([gettimeofday ftime],[break])
 
 AS_IF([test "$enable_player" = "yes"], [
-  PKG_CHECK_MODULES([SDL], [sdl])
+  PKG_CHECK_MODULES([SDL], [sdl2])
 ])
 AM_CONDITIONAL([ENABLE_PLAYER_EXAMPLE], [test "$enable_player" = "yes"])
 
