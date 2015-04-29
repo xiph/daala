@@ -235,11 +235,13 @@ void player_example_handle_event(player_example *player, SDL_Event *event) {
           player->step = 0;
           break;
         }
+        case SDLK_RIGHT:
         case SDLK_PERIOD: {
           player->step = 1;
           player->paused = 1;
           break;
         }
+        case SDLK_HOME:
         case SDLK_r: {
           player->restart = 1;
           if (player->paused) {
