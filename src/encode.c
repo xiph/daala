@@ -1293,7 +1293,9 @@ static void od_encode_mvs(daala_enc_ctx *enc) {
             od_encode_mv(enc, mvp, vx, vy, level, mv_res, width, height);
           }
         }
-        else OD_ASSERT(!mvp->valid);
+        else {
+          OD_ASSERT(!mvp->valid);
+        }
       }
     }
     level++;
@@ -1312,7 +1314,9 @@ static void od_encode_mvs(daala_enc_ctx *enc) {
             od_encode_mv(enc, mvp, vx, vy, level, mv_res, width, height);
           }
         }
-        else OD_ASSERT(!mvp->valid);
+        else {
+          OD_ASSERT(!mvp->valid);
+        }
       }
     }
   }
