@@ -85,6 +85,7 @@ static int fps_denominator=1;
 static int aspect_numerator=0;
 static int aspect_denominator=0;
 static int pixel_format=PIXEL_FMT_420;
+static int dither = 1;
 
 static char *input_filter;
 
@@ -98,6 +99,7 @@ struct option OPTIONS[]={
   {"aspect-denominator",required_argument,NULL,'S'},
   {"framerate-numerator",required_argument,NULL,'f'},
   {"framerate-denominator",required_argument,NULL,'F'},
+  {"no-dither",no_argument,NULL,'\7'},
   {NULL,0,NULL,0}
 };
 
@@ -123,7 +125,8 @@ static void usage(const char *_argv0){
    "                                  Determines the frame rate in frames per\n"
    "                                  second when divided by the framerate\n"
    "                                  denominator.\n"
-   "  -F --framerate-denominator <n>  Frame rate denominator (default 1).\n",
+   "  -F --framerate-denominator <n>  Frame rate denominator (default 1).\n"
+   "  --no-dither                     Do not dither (default is to dither).\n",
    _argv0);
 }
 
@@ -322,9 +325,15 @@ static void rgb_to_ycbcr(img_plane _ycbcr[3],png_bytep *_png){
         /*The size of the dither here is chosen to be the largest divisor of
            all the corresponding coefficients in the transform that still fits
            in 31 bits.*/
-        yd[k]=triangle_rand(&kiss,1223320000);
-        cbd[k]=triangle_rand(&kiss,1479548743);
-        crd[k]=triangle_rand(&kiss,1255654969);
+        if (dither) {
+          yd[k]=triangle_rand(&kiss,1223320000);
+          cbd[k]=triangle_rand(&kiss,1479548743);
+          crd[k]=triangle_rand(&kiss,1255654969);
+        } else {
+          yd[k] = 0;
+          cbd[k] = 0;
+          crd[k] = 0;
+        }
       }
       get_dithered_pixel(&r0,&g0,&b0,_png[j]+6*i,yd[0],cbd[0],crd[0]);
       if(i+1<w){
@@ -630,6 +639,7 @@ int main(int _argc,char **_argv){
       case 'F':fps_denominator=atol(optarg);break;
       case '\5':pixel_format=PIXEL_FMT_444;break;
       case '\6':pixel_format=PIXEL_FMT_422;break;
+      case '\7': dither = 0; break;
       default:{
         usage(_argv[0]);
         return EXIT_FAILURE;
