@@ -2377,7 +2377,7 @@ void od_mc_predict8(od_state *state, unsigned char *dst, int dystride,
 /*Gets the predictor for a given MV node at the given MV resolution.*/
 int od_state_get_predictor(od_state *state,
  int pred[2], int vx, int vy, int level, int mv_res) {
-  static const od_mv_grid_pt ZERO_GRID_PT;
+  static const od_mv_grid_pt ZERO_GRID_PT = { {0, 0}, 1};
   const od_mv_grid_pt *cneighbors[4];
   int a[4][2];
   int equal_mvs;
@@ -2421,6 +2421,14 @@ int od_state_get_predictor(od_state *state,
   for (ci = 0; ci < ncns; ci++) {
     a[ci][0] = cneighbors[ci]->mv[0];
     a[ci][1] = cneighbors[ci]->mv[1];
+#if defined(OD_ENABLE_LOGGING)
+    if (!cneighbors[ci]->valid) {
+      OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_ERR,
+       "Failure in MV pred: predictor (%i, %i) for (%i, %i) is not valid",
+	     a[ci][0], a[ci][1], vx, vy));
+    }
+#endif
+    OD_ASSERT(cneighbors[ci]->valid);
   }
   /*Median-of-4.*/
   if (ncns > 3) {

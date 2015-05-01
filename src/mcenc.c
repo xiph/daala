@@ -2361,7 +2361,6 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
   int best_rate;
   int cands[6][2];
   int best_vec[2];
-  int a[4][2];
   int nhmvbs;
   int nvmvbs;
   int level;
@@ -2381,8 +2380,7 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
   int mvymax;
   int candx;
   int candy;
-  int predx;
-  int predy;
+  int pred[2];
   int ci;
 #if defined(OD_DUMP_IMAGES) && defined(OD_ANIMATE)
   int animating;
@@ -2437,6 +2435,10 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
   ncns = 4;
   nhmvbs = state->nhmvbs;
   nvmvbs = state->nvmvbs;
+  equal_mvs = od_state_get_predictor(state, pred, vx, vy, level, 2);
+  candx = OD_CLAMPI(mvxmin, OD_DIV2_RE(pred[0]), mvxmax);
+  candy = OD_CLAMPI(mvymin, OD_DIV2_RE(pred[1]), mvymax);
+  /*Find additional candidates.*/
   if (level == 0) {
     if (vy >= mvb_sz) {
       cneighbors[0] = vx >= mvb_sz ?
@@ -2484,46 +2486,10 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
   }
   /*Spatially correlated predictors (from the current frame):*/
   for (ci = 0; ci < ncns; ci++) {
-    a[ci][0] = cneighbors[ci]->bma_mvs[0][ref][0];
-    a[ci][1] = cneighbors[ci]->bma_mvs[0][ref][1];
-    cands[ci][0] = OD_CLAMPI(mvxmin, a[ci][0], mvxmax);
-    cands[ci][1] = OD_CLAMPI(mvymin, a[ci][1], mvymax);
-  }
-  /*Compute the median predictor:*/
-  if (ncns > 3) {
-    /*Median-of-4.*/
-    OD_SORT2I(a[0][0], a[1][0]);
-    OD_SORT2I(a[0][1], a[1][1]);
-    OD_SORT2I(a[2][0], a[3][0]);
-    OD_SORT2I(a[2][1], a[3][1]);
-    OD_SORT2I(a[0][0], a[2][0]);
-    OD_SORT2I(a[0][1], a[2][1]);
-    OD_SORT2I(a[1][0], a[3][0]);
-    OD_SORT2I(a[1][1], a[3][1]);
-    predx = a[1][0] + a[2][0];
-    predy = a[1][1] + a[2][1];
-    candx = OD_CLAMPI(mvxmin, OD_DIV2_RE(predx), mvxmax);
-    candy = OD_CLAMPI(mvymin, OD_DIV2_RE(predy), mvymax);
-  }
-  else {
-    /*Median-of-3.*/
-    OD_SORT2I(a[0][0], a[1][0]);
-    OD_SORT2I(a[0][1], a[1][1]);
-    OD_SORT2I(a[1][0], a[2][0]);
-    OD_SORT2I(a[1][1], a[2][1]);
-    OD_SORT2I(a[0][0], a[1][0]);
-    OD_SORT2I(a[0][1], a[1][1]);
-    predx = a[1][0] << 1;
-    predy = a[1][1] << 1;
-    candx = OD_CLAMPI(mvxmin, a[1][0], mvxmax);
-    candy = OD_CLAMPI(mvymin, a[1][1], mvymax);
-  }
-  equal_mvs = 0;
-  for (ci = 0; ci < ncns; ci++) {
-    if (predx == (cneighbors[ci]->bma_mvs[0][ref][0] << 1) &&
-     predy == (cneighbors[ci]->bma_mvs[0][ref][1] << 1)) {
-      equal_mvs++;
-    }
+    cands[ci][0] = OD_CLAMPI(mvxmin, cneighbors[ci]->bma_mvs[0][ref][0],
+     mvxmax);
+    cands[ci][1] = OD_CLAMPI(mvymin, cneighbors[ci]->bma_mvs[0][ref][1],
+     mvymax);
   }
   od_mv_est_clear_hit_cache(est);
 #if defined(OD_DUMP_IMAGES) && defined(OD_ANIMATE)
@@ -2534,7 +2500,7 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
 #endif
   best_sad = od_mv_est_bma_sad8(est, ref, bx, by, candx, candy, log_mvb_sz);
   best_rate = od_mv_est_bits(est, equal_mvs,
-   candx << 1, candy << 1, predx, predy);
+   candx << 1, candy << 1, pred[0], pred[1]);
   best_cost = (best_sad << OD_ERROR_SCALE) + best_rate*est->lambda;
   OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
    "Median predictor: (%i, %i)   Cost: %i", candx, candy, best_cost));
@@ -2590,7 +2556,7 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
 #endif
       sad = od_mv_est_bma_sad8(est, ref, bx, by, candx, candy, log_mvb_sz);
       rate = od_mv_est_bits(est, equal_mvs,
-       candx << 1, candy << 1, predx, predy);
+       candx << 1, candy << 1, pred[0], pred[1]);
       cost = (sad << OD_ERROR_SCALE) + rate*est->lambda;
       OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
        "Set B predictor %i: (%i, %i)    Cost: %i", ci, candx, candy, cost));
@@ -2637,7 +2603,7 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
 #endif
         sad = od_mv_est_bma_sad8(est, ref, bx, by, candx, candy, log_mvb_sz);
         rate = od_mv_est_bits(est, equal_mvs,
-         candx << 1, candy << 1, predx, predy);
+         candx << 1, candy << 1, pred[0], pred[1]);
         cost = (sad << OD_ERROR_SCALE) + rate*est->lambda;
         OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
          "Set C predictor %i: (%i, %i)    Cost: %i", ci, candx, candy, cost));
@@ -2697,7 +2663,7 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
             sad = od_mv_est_bma_sad8(est,
              ref, bx, by, candx, candy, log_mvb_sz);
             rate = od_mv_est_bits(est, equal_mvs,
-             candx << 1, candy << 1, predx, predy);
+             candx << 1, candy << 1, pred[0], pred[1]);
             cost = (sad << OD_ERROR_SCALE) + rate*est->lambda;
             OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
              "Pattern search %i: (%i, %i)    Cost: %i",
@@ -2724,6 +2690,7 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
   mv->bma_mvs[0][ref][1] = best_vec[1];
   mvg->mv[0] = best_vec[0] << 3;
   mvg->mv[1] = best_vec[1] << 3;
+  mvg->valid = 1;
 #if defined(OD_DUMP_IMAGES) && defined(OD_ANIMATE)
   if (animating) {
     char iter_label[16];
@@ -2754,15 +2721,9 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
    "Initialized MV (%2i, %2i): (%3i, %3i), SAD: %i",
    vx, vy, best_vec[0], best_vec[1], best_sad));
 #if defined(OD_ENABLE_ASSERTIONS) || defined(OD_ENABLE_LOGGING)
-  equal_mvs = od_state_get_predictor(state, a[0], vx, vy, level, 2);
-  if (a[0][0] != predx || a[0][1] != predy) {
-    OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_ERR,
-     "Failure in MV predictor init: (%i, %i) != (%i, %i)",
-     a[0][0], a[0][1], predx, predy));
-    OD_ASSERT(a[0][0] == predx && a[0][1] == predy);
-  }
+  equal_mvs = od_state_get_predictor(state, pred, vx, vy, level, 2);
   mv->mv_rate = od_mv_est_bits(est, equal_mvs,
-   mvg->mv[0] >> 2, mvg->mv[1] >> 2, a[0][0], a[0][1]);
+   mvg->mv[0] >> 2, mvg->mv[1] >> 2, pred[0], pred[1]);
   if (mv->mv_rate != best_rate) {
     OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_ERR,
      "Failure in MV rate init: %i != %i",
@@ -3459,7 +3420,7 @@ static void od_mv_est_init_nodes(od_mv_est_ctx *est) {
       if (level <= est->level_max) {
         int flag_rate;
         /*While we're here, reset the MV state.*/
-        grid[vx].valid = 1;
+        OD_ASSERT(grid[vx].valid == 1);
         est->row_counts[vy]++;
         est->col_counts[vx]++;
         /*Inbetween the level limits, vertices require on average 2 bits to
