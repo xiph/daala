@@ -16,7 +16,7 @@ WIDTH=$(head -1 $FILE | cut -d\  -f 2 | tr -d 'W')
 HEIGHT=$(head -1 $FILE | cut -d\  -f 3 | tr -d 'H')
 
 RANGE=$(seq 1 51)
-QSTR="--preset slow --threads 1 --min-keyint 256 --keyint 256 --no-scenecut --crf=\$x"
+QSTR="--preset slow --frame-threads 1 --min-keyint 256 --keyint 256 --no-scenecut --crf=\$x"
 
 for x in $RANGE; do
   $X265 -r $BASENAME.y4m $(echo $QSTR | sed 's/\$x/'$x'/g') -o $BASENAME.x265 $FILE 2> $BASENAME-$x-enc.out > /dev/null
