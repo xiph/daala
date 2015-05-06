@@ -16,7 +16,7 @@ WIDTH=$(head -1 $FILE | cut -d\  -f 2 | tr -d 'W')
 HEIGHT=$(head -1 $FILE | cut -d\  -f 3 | tr -d 'H')
 
 RANGE=$(seq 1 51)
-QSTR="--preset placebo --crf=\$x"
+QSTR="--preset placebo --min-keyint 256 --keyint 256 --no-scenecut --crf=\$x"
 
 for x in $RANGE; do
   $X264 --dump-yuv $BASENAME.yuv $(echo $QSTR | sed 's/\$x/'$x'/g') -o $BASENAME.x264 $FILE 2> $BASENAME-$x-enc.out > /dev/null
