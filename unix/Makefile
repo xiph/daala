@@ -57,6 +57,9 @@ CINCLUDE = `pkg-config sdl2 ogg --cflags`
 #  -ffast-math, or additional flags, depending on your system and compiler.
 # The -g flag will generally include debugging information.
 CFLAGS := -g $(CFLAGS) $(OD_CFLAGS)
+CFLAGS := -DPACKAGE_STRING=\"$(shell git status > /dev/null 2>&1 \
+            && git describe --tags --match 'v*' --dirty 2> /dev/null \
+           || echo unknown)\"
 CFLAGS := -DOD_LOGGING_ENABLED $(CFLAGS)
 CFLAGS := -DOD_ENABLE_ASSERTIONS $(CFLAGS)
 #CFLAGS := -DOD_CHECKASM $(CFLAGS)
