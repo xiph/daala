@@ -74,6 +74,24 @@ static void od_aligned_free(void *_ptr) {
   }
 }
 
+void od_img_copy(od_img* dest, od_img* src) {
+  int pli;
+  OD_ASSERT(dest->width == src->width);
+  OD_ASSERT(dest->height == src->height);
+  OD_ASSERT(dest->nplanes == src->nplanes);
+  for (pli = 0; pli < src->nplanes; pli++) {
+    int width;
+    int height;
+    int row;
+    width = dest->width >> dest->planes[pli].xdec;
+    height = dest->height >> dest->planes[pli].ydec;
+    for (row = 0; row < height; row++) {
+      memcpy(dest->planes[pli].data + dest->planes[pli].ystride * row,
+       src->planes[pli].data + src->planes[pli].ystride * row, width);
+    }
+  }
+}
+
 /*Initializes the buffers used for reference frames.
   These buffers are padded with 16 extra pixels on each side, to allow
    (relatively) unrestricted motion vectors without special casing reading

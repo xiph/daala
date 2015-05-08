@@ -48,6 +48,7 @@ struct daala_dec_ctx {
   unsigned int *user_flags;
   int user_fstride;
   od_mv_grid_pt *user_mv_grid;
+  od_img *user_mc_img;
 };
 
 /*Stub for the daala_setup_info.*/

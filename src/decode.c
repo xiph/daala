@@ -55,6 +55,7 @@ static int od_dec_init(od_dec_ctx *dec, const daala_info *info,
   dec->user_bsize = NULL;
   dec->user_flags = NULL;
   dec->user_mv_grid = NULL;
+  dec->user_mc_img = NULL;
   return 0;
 }
 
@@ -113,6 +114,12 @@ int daala_decode_ctl(daala_dec_ctx *dec, int req, void *buf, size_t buf_sz) {
         return OD_EINVAL;
       }
       dec->user_mv_grid = buf;
+      return 0;
+    }
+    case OD_DECCTL_SET_MC_IMG : {
+      if (dec == NULL || buf == NULL) return OD_EFAULT;
+      if (buf_sz != sizeof(od_img)) return OD_EINVAL;
+      dec->user_mc_img = buf;
       return 0;
     }
     default: return OD_EIMPL;
@@ -745,6 +752,9 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
   if (!mbctx.is_keyframe) {
     od_dec_mv_unpack(dec);
     od_state_mc_predict(&dec->state, OD_FRAME_PREV);
+    if (dec->user_mc_img != NULL) {
+      od_img_copy(dec->user_mc_img, &dec->state.io_imgs[OD_FRAME_REC]);
+    }
   }
   od_decode_block_sizes(dec);
   od_decode_residual(dec, &mbctx);

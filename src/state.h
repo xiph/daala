@@ -218,6 +218,7 @@ struct od_state{
 int od_state_init(od_state *_state, const daala_info *_info);
 void od_state_clear(od_state *_state);
 
+void od_img_copy(od_img* dest, od_img* src);
 void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe);
 void od_state_set_mv_res(od_state *state, int mv_res);
 void od_state_pred_block_from_setup(od_state *_state, unsigned char *_buf,

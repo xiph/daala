@@ -38,6 +38,11 @@ extern "C" {
 #define OD_DECCTL_SET_BSIZE_BUFFER (7001)
 #define OD_DECCTL_SET_FLAGS_BUFFER (7003)
 #define OD_DECCTL_SET_MV_BUFFER    (7005)
+/** Copy the motion compensated reference into a user supplied od_img.
+ * \param[in]  <tt>od_img*</tt>: Pointer to the user supplied od_img.
+ *              Image must be allocated by the caller, and must be the
+ *              same format as the decoder output images. */
+#define OD_DECCTL_SET_MC_IMG       (7007)
 
 /**\name Decoder state
    The following data structures are opaque, and their contents are not
