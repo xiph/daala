@@ -2064,12 +2064,14 @@ static void od_mv_est_clear_hit_cache(od_mv_est_ctx *est) {
 
 /*Test if a motion vector has been examined.*/
 static int od_mv_est_is_hit(od_mv_est_ctx *est, int mvx, int mvy) {
-  return est->hit_cache[mvy + 32][mvx + 32] == est->hit_bit;
+  return est->hit_cache[mvy + OD_MC_SEARCH_RANGE][mvx + OD_MC_SEARCH_RANGE] 
+   == est->hit_bit;
 }
 
 /*Mark a motion vector examined.*/
 static void od_mv_est_set_hit(od_mv_est_ctx *est, int mvx, int mvy) {
-  est->hit_cache[mvy + 32][mvx + 32] = (unsigned char)est->hit_bit;
+  est->hit_cache[mvy + OD_MC_SEARCH_RANGE][mvx + OD_MC_SEARCH_RANGE] = 
+   (unsigned char)est->hit_bit;
 }
 
 /*Estimated rate (in units of OD_BITRES) of the >=3 part of a MV component of a
@@ -2418,13 +2420,15 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
      [bxmin, bmax) x [bymin, bymax), and MVs within that area must point no
      farther than OD_UMV_PADDING pixels outside of the frame.*/
   bxmin = OD_MAXI(bx - (mvb_sz << OD_LOG_MVBSIZE_MIN), 0);
-  mvxmin = OD_MAXI(bxmin - 32, -OD_UMV_PADDING) - bxmin;
+  mvxmin = OD_MAXI(bxmin - OD_MC_SEARCH_RANGE, -OD_UMV_PADDING) - bxmin;
   bxmax = OD_MINI(bx + (mvb_sz << OD_LOG_MVBSIZE_MIN), state->frame_width);
-  mvxmax = OD_MINI(bxmax + 31, state->frame_width + OD_UMV_PADDING) - bxmax;
+  mvxmax = OD_MINI(bxmax + OD_MC_SEARCH_RANGE - 1,
+   state->frame_width + OD_UMV_PADDING) - bxmax;
   bymin = OD_MAXI(by - (mvb_sz << OD_LOG_MVBSIZE_MIN), 0);
-  mvymin = OD_MAXI(bymin - 32, -OD_UMV_PADDING) - bymin;
+  mvymin = OD_MAXI(bymin - OD_MC_SEARCH_RANGE, -OD_UMV_PADDING) - bymin;
   bymax = OD_MINI(by + (mvb_sz << OD_LOG_MVBSIZE_MIN), state->frame_height);
-  mvymax = OD_MINI(bymax + 31, state->frame_height + OD_UMV_PADDING) - bymax;
+  mvymax = OD_MINI(bymax + OD_MC_SEARCH_RANGE - 1,
+   state->frame_height + OD_UMV_PADDING) - bymax;
   OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
    "(%i, %i): Search range: [%i, %i]x[%i, %i]",
    bx, by, mvxmin, mvymin, mvxmax, mvymax));
@@ -4243,15 +4247,15 @@ static int od_mv_est_get_boundary_case(od_state *state,
      [bxmin, bmax) x [bymin, bymax), and MVs within that area must point no
      farther than OD_UMV_PADDING pixels outside of the frame.*/
   bxmin = OD_MAXI(bx - blk_sz, 0);
-  mvxmin = (OD_MAXI(bxmin - 32, -OD_UMV_PADDING) - bxmin) << 3;
+  mvxmin = (OD_MAXI(bxmin - OD_MC_SEARCH_RANGE, -OD_UMV_PADDING) - bxmin) << 3;
   bxmax = OD_MINI(bx + blk_sz, state->frame_width);
-  mvxmax =
-   (OD_MINI(bxmax + 31, state->frame_width + OD_UMV_PADDING) - bxmax) << 3;
+  mvxmax = (OD_MINI(bxmax + OD_MC_SEARCH_RANGE - 1,
+   state->frame_width + OD_UMV_PADDING) - bxmax) << 3;
   bymin = OD_MAXI(by - blk_sz, 0);
-  mvymin = (OD_MAXI(bymin - 32, -OD_UMV_PADDING) - bymin) << 3;
+  mvymin = (OD_MAXI(bymin - OD_MC_SEARCH_RANGE, -OD_UMV_PADDING) - bymin) << 3;
   bymax = OD_MINI(by + blk_sz, state->frame_height);
-  mvymax =
-   (OD_MINI(bymax + 31, state->frame_height + OD_UMV_PADDING) - bymax) << 3;
+  mvymax = (OD_MINI(bymax + OD_MC_SEARCH_RANGE - 1,
+   state->frame_height + OD_UMV_PADDING) - bymax) << 3;
   return (dx - dsz < mvxmin) | (dx + dsz > mvxmax) << 1 |
    (dy - dsz < mvymin) << 2 | (dy  + dsz > mvymax) << 3;
 }

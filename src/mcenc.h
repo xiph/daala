@@ -28,6 +28,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 /*Flag indicating we include the chroma planes in our SAD calculations.*/
 # define OD_MC_USE_CHROMA (1 << 0)
 
+/* The maximum search range for BMA. Also controls hit cache size. */
+#define OD_MC_SEARCH_RANGE (64)
+
 typedef struct od_mv_node od_mv_node;
 typedef struct od_mv_dp_state od_mv_dp_state;
 typedef struct od_mv_dp_node od_mv_dp_node;
@@ -165,7 +168,7 @@ struct od_mv_est_ctx {
   ogg_int32_t mvapw[2][2];
   /*Flags indicating which MVs have already been tested during the initial
      EPZS^2 pass.*/
-  unsigned char hit_cache[64][64];
+  unsigned char hit_cache[OD_MC_SEARCH_RANGE*2][OD_MC_SEARCH_RANGE*2];
   /*The flag used by the current EPZS search iteration.*/
   unsigned hit_bit;
   /*The Lagrangian multiplier used for R-D optimization.*/
