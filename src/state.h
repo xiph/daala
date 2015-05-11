@@ -72,7 +72,7 @@ extern const od_coeff OD_DC_QM[2][OD_NBSIZES - 1][2];
 # define OD_PACKET_DONE        (INT_MAX)
 
 extern const int        OD_VERT_D[];
-/*The vector offsets in the X direction for each motion comepnsation block
+/*The vector offsets in the X direction for each motion compensation block
    vertex from the upper-left.*/
 # define OD_VERT_DX (OD_VERT_D+1)
 /*The vector offsets in the Y direction for each motion compensation block

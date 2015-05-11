@@ -80,7 +80,7 @@ struct od_mv_node {
 /*At most 8 of them can be changed by a subsequent MV on the DP path.*/
 # define OD_DP_NCHANGEABLE_MAX (8)
 
-/*One of the trellis states in the dynamic prgram.*/
+/*One of the trellis states in the dynamic program.*/
 struct od_mv_dp_state {
   /*The MV to install for this state.*/
   int mv[2];
@@ -147,7 +147,7 @@ struct od_mv_est_ctx {
   /*A temporary copy of the decoder-side MV grid used to save-and-restore the
      MVs when attempting sub-pel refinement.*/
   od_mv_grid_pt **refine_grid;
-  /*Space for storing the Viterbi trellis used for DP refinment.*/
+  /*Space for storing the Viterbi trellis used for DP refinement.*/
   od_mv_dp_node *dp_nodes;
   /*The decimation heap.*/
   od_mv_node **dec_heap;

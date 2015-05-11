@@ -412,9 +412,9 @@ static void usage(void) {
    "                                 0 => 1/8 pel (default), 1 => 1/4 pel,\n"
    "                                 2 => 1/2 pel\n"
    "     --mv-level-min <n>          Minimum motion vectors level between\n"
-   "                                 0 (default) and 4.\n"
+   "                                 0 (default) and 6.\n"
    "     --mv-level-max <n>          Maximum motion vectors level between\n"
-   "                                 0 and 4 (default).\n"
+   "                                 0 and 6 (default).\n"
    "     --version                   Displays version information."
    " encoder_example accepts only uncompressed YUV4MPEG2 video.\n\n");
   exit(1);
