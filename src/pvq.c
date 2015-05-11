@@ -36,6 +36,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #define EPSILON 1e-30
 
+#define OD_MASKING_DISABLED 0
+#define OD_MASKING_ENABLED 1
+
 /*These tables were generated using compute_basis.c. If OD_FILT_SIZE is
    changed, they have to be regenerated.*/
 static const double MAG4[] = {0.774125, 0.877780, 0.925934, 0.951682};
@@ -160,74 +163,69 @@ const int OD_QM8_Q4[] = {
 /* These are the PVQ equivalent of quantization matrices, except that
    the values are per-band. */
 
-#if OD_DISABLE_MASKING
-
+static const unsigned char OD_FLAT_LUMA_QM_Q4[2][OD_QM_SIZE] = {
 /* Flat quantization for PSNR. The DC component isn't 16 because the DC
-   magnitude compensation is done here for inter (Haar DC doesn't need it). */
-static const unsigned char od_flat_luma_qm_q4[OD_QM_SIZE] = {
+   magnitude compensation is done here for inter (Haar DC doesn't need it).
+   Masking disabled: */
+ {
   27, 16,
   23, 16, 16, 16,
   19, 16, 16, 16, 16, 16,
   17, 16, 16, 16, 16, 16, 16, 16
-};
-
-/* Chroma quantization is different because of the reduced lapping.
-   FIXME: Use the same matrix as luma for 4:4:4. */
-static const unsigned char od_flat_chroma_qm_q4[OD_QM_SIZE] = {
-  21, 16,
-  18, 16, 16, 16,
-  17, 16, 16, 16, 16, 16,
-  16, 16, 16, 16, 16, 16, 16, 16
-};
-
-/* No interpolation, always use od_flat_qm_q4, but use a different scale for
-   each plane.
-   FIXME: Add interpolation and properly tune chroma. */
-const od_qm_entry OD_DEFAULT_QMS[][OD_NPLANES_MAX] = {
-  {{15, 256, od_flat_luma_qm_q4},
-   {15, 448, od_flat_chroma_qm_q4},
-   {15, 320, od_flat_chroma_qm_q4}},
-  {{0, 0, NULL},
-   {0, 0, NULL},
-   {0, 0, NULL}}
-};
-
-#else
-
+ },
 /* The non-flat AC coefficients compensate for the non-linear scaling caused
    by activity masking. The values are currently hand-tuned so that the rate
    of each band remains roughly constant when enabling activity masking
-   on intra. */
-static const unsigned char od_flat_qm_q4[OD_QM_SIZE] = {
+   on intra.
+   Masking enabled: */
+ {
   27, 16,
   23, 18, 28, 32,
   19, 14, 20, 20, 28, 32,
   17, 11, 16, 14, 16, 16, 23, 28
+ }
 };
 
-/* The AC part is flat for chroma because it has no activity masking. */
-static const unsigned char od_flat_chroma_qm_q4[OD_QM_SIZE] = {
+static const unsigned char OD_FLAT_CHROMA_QM_Q4[2][OD_QM_SIZE] = {
+/* Chroma quantization is different because of the reduced lapping.
+   FIXME: Use the same matrix as luma for 4:4:4.
+   Masking disabled: */
+ {
   21, 16,
   18, 16, 16, 16,
   17, 16, 16, 16, 16, 16,
   16, 16, 16, 16, 16, 16, 16, 16
+ },
+/* The AC part is flat for chroma because it has no activity masking.
+   Masking enabled: */
+ {
+  21, 16,
+  18, 16, 16, 16,
+  17, 16, 16, 16, 16, 16,
+  16, 16, 16, 16, 16, 16, 16, 16
+ }
 };
 
 /* No interpolation, always use od_flat_qm_q4, but use a different scale for
    each plane.
    FIXME: Add interpolation and properly tune chroma. */
-const od_qm_entry OD_DEFAULT_QMS[][OD_NPLANES_MAX] = {
-  {{15, 256, od_flat_qm_q4},
-   {15, 448, od_flat_chroma_qm_q4},
-   {15, 320, od_flat_chroma_qm_q4}},
+const od_qm_entry OD_DEFAULT_QMS[2][2][OD_NPLANES_MAX] = {
+ /* Masking disabled */
+ {{{15, 256, OD_FLAT_LUMA_QM_Q4[OD_MASKING_DISABLED]},
+   {15, 448, OD_FLAT_CHROMA_QM_Q4[OD_MASKING_DISABLED]},
+   {15, 320, OD_FLAT_CHROMA_QM_Q4[OD_MASKING_DISABLED]}},
   {{0, 0, NULL},
    {0, 0, NULL},
-   {0, 0, NULL}}
+   {0, 0, NULL}}},
+ /* Masking enabled */
+ {{{15, 256, OD_FLAT_LUMA_QM_Q4[OD_MASKING_ENABLED]},
+   {15, 448, OD_FLAT_CHROMA_QM_Q4[OD_MASKING_ENABLED]},
+   {15, 320, OD_FLAT_CHROMA_QM_Q4[OD_MASKING_ENABLED]}},
+  {{0, 0, NULL},
+   {0, 0, NULL},
+   {0, 0, NULL}}}
 };
 
-#endif
-
-#if OD_DISABLE_MASKING
 
 static const double OD_PVQ_BETA4_LUMA[1] = {1.};
 static const double OD_PVQ_BETA8_LUMA[4] = {1., 1., 1., 1.};
@@ -235,15 +233,12 @@ static const double OD_PVQ_BETA16_LUMA[7] = {1., 1., 1., 1., 1., 1., 1.};
 static const double OD_PVQ_BETA32_LUMA[10] = {1., 1., 1., 1., 1., 1., 1.,
  1., 1., 1.};
 
-#else
-
-static const double OD_PVQ_BETA4_LUMA[1] = {1.};
-static const double OD_PVQ_BETA8_LUMA[4] = {1.5, 1.5, 1.5, 1.5};
-static const double OD_PVQ_BETA16_LUMA[7] = {1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5};
-static const double OD_PVQ_BETA32_LUMA[10] = {1.5, 1.5, 1.5, 1.5, 1.5, 1.5,
-1.5, 1.5, 1.5, 1.5};
-
-#endif
+static const double OD_PVQ_BETA4_LUMA_MASKING[1] = {1.};
+static const double OD_PVQ_BETA8_LUMA_MASKING[4] = {1.5, 1.5, 1.5, 1.5};
+static const double OD_PVQ_BETA16_LUMA_MASKING[7] = {1.5, 1.5, 1.5, 1.5, 1.5,
+ 1.5, 1.5};
+static const double OD_PVQ_BETA32_LUMA_MASKING[10] = {1.5, 1.5, 1.5, 1.5,
+ 1.5, 1.5, 1.5, 1.5, 1.5, 1.5};
 
 static const double OD_PVQ_BETA4_CHROMA[1] = {1.};
 static const double OD_PVQ_BETA8_CHROMA[4] = {1., 1., 1., 1.};
@@ -251,15 +246,23 @@ static const double OD_PVQ_BETA16_CHROMA[7] = {1., 1., 1., 1., 1., 1., 1.};
 static const double OD_PVQ_BETA32_CHROMA[10] = {1., 1., 1., 1., 1., 1., 1.,
  1., 1., 1.};
 
-const double *const OD_PVQ_BETA[OD_NPLANES_MAX][OD_NBSIZES] = {
-  {OD_PVQ_BETA4_LUMA, OD_PVQ_BETA8_LUMA,
+const double *const OD_PVQ_BETA[2][OD_NPLANES_MAX][OD_NBSIZES] = {
+ {{OD_PVQ_BETA4_LUMA, OD_PVQ_BETA8_LUMA,
    OD_PVQ_BETA16_LUMA, OD_PVQ_BETA32_LUMA},
   {OD_PVQ_BETA4_CHROMA, OD_PVQ_BETA8_CHROMA,
    OD_PVQ_BETA16_CHROMA, OD_PVQ_BETA32_CHROMA},
   {OD_PVQ_BETA4_CHROMA, OD_PVQ_BETA8_CHROMA,
    OD_PVQ_BETA16_CHROMA, OD_PVQ_BETA32_CHROMA},
   {OD_PVQ_BETA4_CHROMA, OD_PVQ_BETA8_CHROMA,
-   OD_PVQ_BETA16_CHROMA, OD_PVQ_BETA32_CHROMA}
+   OD_PVQ_BETA16_CHROMA, OD_PVQ_BETA32_CHROMA}},
+ {{OD_PVQ_BETA4_LUMA_MASKING, OD_PVQ_BETA8_LUMA_MASKING,
+   OD_PVQ_BETA16_LUMA_MASKING, OD_PVQ_BETA32_LUMA_MASKING},
+  {OD_PVQ_BETA4_CHROMA, OD_PVQ_BETA8_CHROMA,
+   OD_PVQ_BETA16_CHROMA, OD_PVQ_BETA32_CHROMA},
+  {OD_PVQ_BETA4_CHROMA, OD_PVQ_BETA8_CHROMA,
+   OD_PVQ_BETA16_CHROMA, OD_PVQ_BETA32_CHROMA},
+  {OD_PVQ_BETA4_CHROMA, OD_PVQ_BETA8_CHROMA,
+   OD_PVQ_BETA16_CHROMA, OD_PVQ_BETA32_CHROMA}}
 };
 
 /* Apply the quantization matrix and the magnitude compensation. We need to

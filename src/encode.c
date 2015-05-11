@@ -96,6 +96,7 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
     enc->quality[i] = 10;
   }
   enc->complexity = 7;
+  enc->use_activity_masking = 1;
   enc->mvest = od_mv_est_alloc(enc);
   if (OD_UNLIKELY(!enc->mvest)) {
     return OD_EFAULT;
@@ -192,6 +193,13 @@ int daala_encode_ctl(daala_enc_ctx *enc, int req, void *buf, size_t buf_sz) {
       else {
         enc->mvest->flags &= ~OD_MC_USE_CHROMA;
       }
+      return OD_SUCCESS;
+    }
+    case OD_SET_USE_ACTIVITY_MASKING: {
+      OD_ASSERT(enc);
+      OD_ASSERT(buf);
+      OD_ASSERT(buf_sz == sizeof(enc->use_activity_masking));
+      enc->use_activity_masking = !!*(const int *)buf;
       return OD_SUCCESS;
     }
     case OD_SET_MV_RES_MIN:
@@ -357,6 +365,7 @@ struct od_mb_enc_ctx {
   od_coeff *mc;
   od_coeff *l;
   int is_keyframe;
+  int use_activity_masking;
   /** The quantized DC (dc) is saved in this buffer in recursive raster order,
       with higher levels sub-blocks stored just before the smaller subblocks
       they contain. We save all the DCs for each of the levels we consider.
@@ -465,6 +474,7 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   int w;
   int bo;
   int frame_width;
+  int use_masking;
   od_coeff *c;
   od_coeff *d;
   od_coeff *md;
@@ -487,6 +497,7 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   by <<= ln;
   xdec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
   frame_width = enc->state.frame_width;
+  use_masking = enc->use_activity_masking;
   w = frame_width >> xdec;
   bo = (by << 2)*w + (bx << 2);
   c = ctx->c;
@@ -538,7 +549,7 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   }
   else {
     skip = od_pvq_encode(enc, predt, cblock, scalar_out, quant, pli, ln,
-     OD_PVQ_BETA[pli][ln], OD_ROBUST_STREAM, ctx->is_keyframe);
+     OD_PVQ_BETA[use_masking][pli][ln], OD_ROBUST_STREAM, ctx->is_keyframe);
   }
   OD_ENC_ACCT_UPDATE(enc, OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
   if (OD_DISABLE_HAAR_DC || !ctx->is_keyframe) {
@@ -1635,6 +1646,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   int frame_height;
   int pic_width;
   int pic_height;
+  int use_masking;
   od_mb_enc_ctx mbctx;
 #if defined(OD_ACCOUNTING)
   od_acct_reset(&enc->acct);
@@ -1654,6 +1666,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       return OD_EINVAL;
     }
   }
+  use_masking = enc->use_activity_masking;
   frame_width = enc->state.frame_width;
   frame_height = enc->state.frame_height;
   pic_width = enc->state.info.pic_width;
@@ -1694,6 +1707,8 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   enc->state.ref_imgi[OD_FRAME_SELF] = refi;
   /*We must be a keyframe if we don't have a reference.*/
   mbctx.is_keyframe |= !(enc->state.ref_imgi[OD_FRAME_PREV] >= 0);
+  /* FIXME: This should be dynamic */
+  mbctx.use_activity_masking = enc->use_activity_masking;
   /*Initialize the entropy coder.*/
   od_ec_enc_reset(&enc->ec);
   OD_ENC_ACCT_UPDATE(enc, OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_FRAME);
@@ -1702,6 +1717,8 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   od_ec_encode_bool_q15(&enc->ec, 0, 16384);
   /*Code the keyframe bit.*/
   od_ec_encode_bool_q15(&enc->ec, mbctx.is_keyframe, 16384);
+  /*Code whether or not activity masking is being used.*/
+  od_ec_encode_bool_q15(&enc->ec, mbctx.use_activity_masking, 16384);
   for (pli = 0; pli < nplanes; pli++) {
     enc->quantizer[pli] = od_quantizer_from_quality(enc->quality[pli]);
   }
@@ -1710,18 +1727,20 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       int i;
       int q;
       q = enc->quantizer[pli];
-      if (q <= OD_DEFAULT_QMS[0][pli].interp_q << OD_COEFF_SHIFT) {
-        od_interp_qm(&enc->state.pvq_qm_q4[pli][0], q, &OD_DEFAULT_QMS[0][pli],
-         NULL);
+      if (q <= OD_DEFAULT_QMS[use_masking][0][pli].interp_q << OD_COEFF_SHIFT) {
+        od_interp_qm(&enc->state.pvq_qm_q4[pli][0], q,
+         &OD_DEFAULT_QMS[use_masking][0][pli], NULL);
       }
       else {
         i = 0;
-        while (OD_DEFAULT_QMS[i + 1][pli].qm_q4 != NULL &&
-         q > OD_DEFAULT_QMS[i + 1][pli].interp_q << OD_COEFF_SHIFT) {
+        while (OD_DEFAULT_QMS[use_masking][i + 1][pli].qm_q4 != NULL &&
+         q > OD_DEFAULT_QMS[use_masking][i + 1][pli].interp_q
+         << OD_COEFF_SHIFT) {
           i++;
         }
         od_interp_qm(&enc->state.pvq_qm_q4[pli][0], q,
-         &OD_DEFAULT_QMS[i][pli], &OD_DEFAULT_QMS[i + 1][pli]);
+         &OD_DEFAULT_QMS[use_masking][i][pli],
+         &OD_DEFAULT_QMS[use_masking][i + 1][pli]);
       }
     }
     for (pli = 0; pli < nplanes; pli++) {

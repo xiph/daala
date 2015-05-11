@@ -165,6 +165,10 @@ void daala_encode_free(daala_enc_ctx *enc);
  *                  Higher values indicate higher CPU requirements, but
  *                   generally producing better quality at a given bitrate. */
 #define OD_GET_COMPLEXITY 4004
+/** Whether activity masking should be used or not.
+ * \param[in]  _buf <tt>int</tt>: 0 to disable the use of activity masking,
+ *                   a non-zero value otherwise (the default). */
+#define OD_SET_USE_ACTIVITY_MASKING 4006
 
 /** Whether the motion compensation search should use the chroma planes in
     addition to the luma plane.

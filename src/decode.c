@@ -161,6 +161,7 @@ struct od_mb_dec_ctx {
   od_coeff *mc;
   od_coeff *l;
   int is_keyframe;
+  int use_activity_masking;
 };
 typedef struct od_mb_dec_ctx od_mb_dec_ctx;
 
@@ -255,9 +256,11 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   int lossless;
   int quant;
   int dc_quant;
+  int use_masking;
   OD_ASSERT(ln >= 0 && ln <= 3);
   n = 1 << (ln + 2);
   lossless = (dec->quantizer[pli] == 0);
+  use_masking = ctx->use_activity_masking;
   bx <<= ln;
   by <<= ln;
   xdec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
@@ -291,7 +294,7 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   else {
     unsigned int flags;
     od_pvq_decode(dec, predt, pred, quant, pli, ln,
-     OD_PVQ_BETA[pli][ln], OD_ROBUST_STREAM, ctx->is_keyframe, &flags);
+     OD_PVQ_BETA[use_masking][pli][ln], OD_ROBUST_STREAM, ctx->is_keyframe, &flags);
     if (pli == 0 && dec->user_flags != NULL) {
       dec->user_flags[by*dec->user_fstride + bx] = flags;
     }
@@ -721,6 +724,7 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
   /*Read the packet type bit.*/
   if (od_ec_decode_bool_q15(&dec->ec, 16384)) return OD_EBADPACKET;
   mbctx.is_keyframe = od_ec_decode_bool_q15(&dec->ec, 16384);
+  mbctx.use_activity_masking = od_ec_decode_bool_q15(&dec->ec, 16384);
   if (mbctx.is_keyframe) {
     int nplanes;
     int pli;
