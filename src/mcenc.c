@@ -4377,82 +4377,30 @@ static void od_mv_dp_first_row_block_setup(od_mv_est_ctx *est,
     level = OD_MC_LEVEL[vy & OD_MVB_MASK][vx & OD_MVB_MASK];
     log_mvb_sz = (OD_MC_LEVEL_MAX - level) >> 1;
     mvb_sz = 1 << log_mvb_sz;
-    /*If the current MV is at the bottom of the hierarchy, then we always want
-       exactly one block up-left and down-left from it.*/
-    if (level >= OD_MC_LEVEL_MAX - 1) {
-      if (vy > 0) {
-        dp->blocks[nblocks++] = est->mvs[vy - 1] + vx - 1;
-        OD_ASSERT(dp->blocks[nblocks - 1]->log_mvb_sz == 0);
-      }
-      if (vy < nvmvbs) {
-        dp->blocks[nblocks++] = est->mvs[vy] + vx - 1;
-        OD_ASSERT(dp->blocks[nblocks - 1]->log_mvb_sz == 0);
-      }
+    /*DP chains begin either at the left of the frame or after a gap.
+      vx > 0, so this is the first vertex after a gap.
+      It's impossible to start a DP chain on an even level vertex
+       after a gap as every even vertex has an odd vertex as parent
+       left of it.
+      Therefore this vertex is an odd level.
+      This odd level vertex has no left even child, else it would not be
+       the first vertex after a gap.
+      There can be no split without that missing even child acting as
+       parent for the odd vertex the next level down.
+      Thus any block UL or LL of this vertex is unsplit.
+      We need only check that the blocks exist (not off top or bottom
+       of the frame.)*/
+    if (vy >= mvb_sz) {
+      OD_ASSERT(mvb_sz == 1
+       || !state->mv_grid[vy - (mvb_sz >> 1)][vx - (mvb_sz >> 1)].valid);
+      dp->blocks[nblocks++] = est->mvs[vy - mvb_sz] + vx - mvb_sz;
+      OD_ASSERT(1 << dp->blocks[nblocks - 1]->log_mvb_sz == mvb_sz);
     }
-    else {
-      int half_mvb_sz;
-      int mvb_off;
-      half_mvb_sz = mvb_sz >> 1;
-      if (vy >= mvb_sz) {
-        /*Figure out if the up-left block has been split at all.*/
-        if (state->mv_grid[vy - half_mvb_sz][vx - half_mvb_sz].valid) {
-          /*It has, now figure out how far down.*/
-          mvb_off = half_mvb_sz;
-          while (mvb_off > 1
-           && state->mv_grid[vy - (mvb_off >> 1)][vx - (mvb_off >> 1)].valid) {
-            mvb_off >>= 1;
-          }
-          dp->blocks[nblocks++] = est->mvs[vy - mvb_off] + vx - mvb_off;
-          OD_ASSERT(1 << dp->blocks[nblocks - 1]->log_mvb_sz == mvb_off);
-          /*If we were only partially split at this level, then this MV might
-             be used for an extra block above or to the left.*/
-          if (!state->mv_grid[vy - mvb_off][vx].valid) {
-            dp->blocks[nblocks++] =
-             est->mvs[vy - (mvb_off << 1)] + vx - mvb_off;
-            OD_ASSERT(1 << dp->blocks[nblocks - 1]->log_mvb_sz == mvb_off);
-          }
-          if (!state->mv_grid[vy][vx - mvb_off].valid) {
-            dp->blocks[nblocks++] =
-             est->mvs[vy - mvb_off] + vx - (mvb_off << 1);
-            OD_ASSERT(1 << dp->blocks[nblocks - 1]->log_mvb_sz == mvb_off);
-          }
-        }
-        /*If it has not been split, then we want exactly one block on this
-           side.*/
-        else {
-          dp->blocks[nblocks++] = est->mvs[vy - mvb_sz] + vx - mvb_sz;
-          OD_ASSERT(1 << dp->blocks[nblocks - 1]->log_mvb_sz == mvb_sz);
-        }
-      }
-      if (vy <= nvmvbs - mvb_sz) {
-        /*Figure out if the down-left block has been split at all.*/
-        if (state->mv_grid[vy + half_mvb_sz][vx - half_mvb_sz].valid) {
-          /*It has, now figure out how far down.*/
-          mvb_off = half_mvb_sz;
-          while (mvb_off > 1
-           && state->mv_grid[vy + (mvb_off >> 1)][vx - (mvb_off >> 1)].valid) {
-            mvb_off >>= 1;
-          }
-          dp->blocks[nblocks++] = est->mvs[vy] + vx - mvb_off;
-          OD_ASSERT(1 << dp->blocks[nblocks - 1]->log_mvb_sz == mvb_off);
-          /*If we were only partially split at this level, then this MV might
-             be used for an extra block below or to the left.*/
-          if (!state->mv_grid[vy + mvb_off][vx].valid) {
-            dp->blocks[nblocks++] = est->mvs[vy + mvb_off] + vx - mvb_off;
-            OD_ASSERT(1 << dp->blocks[nblocks - 1]->log_mvb_sz == mvb_off);
-          }
-          if (!state->mv_grid[vy][vx - mvb_off].valid) {
-            dp->blocks[nblocks++] = est->mvs[vy] + vx - (mvb_off << 1);
-            OD_ASSERT(1 << dp->blocks[nblocks - 1]->log_mvb_sz == mvb_off);
-          }
-        }
-        /*If it has not been split, then we want exactly one block on this
-           side.*/
-        else {
-          dp->blocks[nblocks++] = est->mvs[vy] + vx - mvb_sz;
-          OD_ASSERT(1 << dp->blocks[nblocks - 1]->log_mvb_sz == mvb_sz);
-        }
-      }
+    if (vy <= nvmvbs - mvb_sz) {
+      OD_ASSERT(mvb_sz == 1
+       || !state->mv_grid[vy + (mvb_sz >> 1)][vx - (mvb_sz >> 1)].valid);
+      dp->blocks[nblocks++] = est->mvs[vy] + vx - mvb_sz;
+      OD_ASSERT(1 << dp->blocks[nblocks - 1]->log_mvb_sz == mvb_sz);
     }
   }
   dp->nblocks = nblocks;
@@ -5102,82 +5050,30 @@ static void od_mv_dp_first_col_block_setup(od_mv_est_ctx *est,
     level = OD_MC_LEVEL[vy & OD_MVB_MASK][vx & OD_MVB_MASK];
     log_mvb_sz = (OD_MC_LEVEL_MAX - level) >> 1;
     mvb_sz = 1 << log_mvb_sz;
-    /*If the current MV is at the bottom of the hierarchy, then we always want
-       exactly one block up-left and up-right from it.*/
-    if (level >= OD_MC_LEVEL_MAX - 1) {
-      if (vx > 0) {
-        dp->blocks[nblocks++] = est->mvs[vy - 1] + vx - 1;
-        OD_ASSERT(dp->blocks[nblocks - 1]->log_mvb_sz == 0);
-      }
-      if (vx < nhmvbs) {
-        dp->blocks[nblocks++] = est->mvs[vy - 1] + vx;
-        OD_ASSERT(dp->blocks[nblocks - 1]->log_mvb_sz == 0);
-      }
+    /*DP chains begin either at the top of the frame or after a gap.
+      vy > 0, so this is the first vertex after a gap.
+      It's impossible to start a DP chain on an even level vertex
+       after a gap as every even vertex has an odd vertex as parent
+       above it.
+      Therefore this vertex is an odd level.
+      This odd level vertex has no even child above, else it would not
+       be the first vertex after a gap.
+      There can be no split without that missing even child acting as
+       parent for the odd vertex the next level down.
+      Thus any block UL or UR of this vertex is unsplit.
+      We need only check that the blocks exist (not off left or right
+       of the frame.)*/
+    if (vx >= mvb_sz) {
+      OD_ASSERT(mvb_sz == 1
+       || !state->mv_grid[vy - (mvb_sz >> 1)][vx - (mvb_sz >> 1)].valid);
+      dp->blocks[nblocks++] = est->mvs[vy - mvb_sz] + vx - mvb_sz;
+      OD_ASSERT(1 << dp->blocks[nblocks - 1]->log_mvb_sz == mvb_sz);
     }
-    else {
-      int half_mvb_sz;
-      int mvb_off;
-      half_mvb_sz = mvb_sz >> 1;
-      if (vx >= mvb_sz) {
-        /*Figure out if the up-left block has been split at all.*/
-        if (state->mv_grid[vy - half_mvb_sz][vx - half_mvb_sz].valid) {
-          /*It has, now figure out how far down.*/
-          mvb_off = half_mvb_sz;
-          while (mvb_off > 1
-           && state->mv_grid[vy - (mvb_off >> 1)][vx - (mvb_off >> 1)].valid) {
-            mvb_off >>= 1;
-          }
-          dp->blocks[nblocks++] = est->mvs[vy - mvb_off] + vx - mvb_off;
-          OD_ASSERT(1 << dp->blocks[nblocks - 1]->log_mvb_sz == mvb_off);
-          /*If we were only partially split at this level, then this MV might
-             be used for an extra block to the left or above.*/
-          if (!state->mv_grid[vy][vx - mvb_off].valid) {
-            dp->blocks[nblocks++] =
-             est->mvs[vy - mvb_off] + vx - (mvb_off << 1);
-            OD_ASSERT(1 << dp->blocks[nblocks - 1]->log_mvb_sz == mvb_off);
-          }
-          if (!state->mv_grid[vy - mvb_off][vx].valid) {
-            dp->blocks[nblocks++] =
-             est->mvs[vy - (mvb_off << 1)] + vx - mvb_off;
-            OD_ASSERT(1 << dp->blocks[nblocks - 1]->log_mvb_sz == mvb_off);
-          }
-        }
-        /*If it has not been split, then we want exactly one block on this
-           side.*/
-        else {
-          dp->blocks[nblocks++] = est->mvs[vy - mvb_sz] + vx - mvb_sz;
-          OD_ASSERT(1 << dp->blocks[nblocks - 1]->log_mvb_sz == mvb_sz);
-        }
-      }
-      if (vx <= nhmvbs - mvb_sz) {
-        /*Figure out if the up-right block has been split at all.*/
-        if (state->mv_grid[vy - half_mvb_sz][vx + half_mvb_sz].valid) {
-          /*It has, now figure out how far down.*/
-          mvb_off = half_mvb_sz;
-          while (mvb_off > 1
-           && state->mv_grid[vy - (mvb_off >> 1)][vx + (mvb_off >> 1)].valid) {
-            mvb_off >>= 1;
-          }
-          dp->blocks[nblocks++] = est->mvs[vy - mvb_off] + vx;
-          OD_ASSERT(1 << dp->blocks[nblocks - 1]->log_mvb_sz == mvb_off);
-          /*If we were only partially split at this level, then this MV might
-             be used for an extra block to the right or above.*/
-          if (!state->mv_grid[vy][vx + mvb_off].valid) {
-            dp->blocks[nblocks++] = est->mvs[vy - mvb_off] + vx + mvb_off;
-            OD_ASSERT(1 << dp->blocks[nblocks - 1]->log_mvb_sz == mvb_off);
-          }
-          if (!state->mv_grid[vy - mvb_off][vx].valid) {
-            dp->blocks[nblocks++] = est->mvs[vy - (mvb_off << 1)] + vx;
-            OD_ASSERT(1 << dp->blocks[nblocks - 1]->log_mvb_sz == mvb_off);
-          }
-        }
-        /*If it has not been split, then we want exactly one block on this
-           side.*/
-        else {
-          dp->blocks[nblocks++] = est->mvs[vy - mvb_sz] + vx;
-          OD_ASSERT(1 << dp->blocks[nblocks - 1]->log_mvb_sz == mvb_sz);
-        }
-      }
+    if (vx <= nhmvbs - mvb_sz) {
+      OD_ASSERT(mvb_sz ==1
+       || !state->mv_grid[vy - (mvb_sz >> 1)][vx + (mvb_sz >> 1)].valid);
+      dp->blocks[nblocks++] = est->mvs[vy - mvb_sz] + vx;
+      OD_ASSERT(1 << dp->blocks[nblocks - 1]->log_mvb_sz == mvb_sz);
     }
   }
   dp->nblocks = nblocks;
