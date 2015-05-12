@@ -1519,8 +1519,8 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
     }
       /* Apply deringing */
       if (pli == 0) {
-          int i;
-          int w8,h32,w32;
+          int i, j;
+          int w8, h32, w32;
           int bstride;
           int mstride;
           xdec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
@@ -1537,20 +1537,15 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
           /* intra paint */
           OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO, "Intra paint frame %i:",
            (int)daala_granule_basetime(enc, enc->state.cur_time)));
-          /* Replace decision with the one from process_block_size32() */
-          for(i=0;i<h32;i++){
-            int j;
-            for(j=0;j<w32;j++){
-              int k,m;
-              int dec[2][2];
-      # if 0
-              od_intra_paint_choose_block_size(enc->state.io_imgs[OD_FRAME_INPUT].planes[0].data+32*enc->state.io_imgs[OD_FRAME_REC].planes[0].ystride*i+32*j, enc->state.io_imgs[OD_FRAME_REC].planes[0].ystride, dec);
-      # else
-              dec[0][0] = dec[0][1] = dec[1][0] = dec[1][1] = 1;
-      # endif
-              for(k=0;k<4;k++)
-                for(m=0;m<4;m++)
-                  enc->state.dec8[(4*i + k)*bstride + (4*j + m)]=dec[k>>1][m>>1];
+          for (i = 0; i < h32; i++) {
+            for (j = 0; j < w32; j++) {
+              int k, m;
+              /* Always use 8x8 blocks for painting. */
+              for (k = 0; k < 4; k++) {
+                for (m = 0; m < 4; m++) {
+                  enc->state.dec8[(4*i + k)*bstride + (4*j + m)] = 1;
+                }
+              }
             }
           }
           od_paint_dering(&enc->state.adapt, &enc->ec,
@@ -1559,7 +1554,7 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
            enc->state.io_imgs[OD_FRAME_REC].planes[pli].ystride, enc->state.dec8,
            bstride, enc->state.mode, mstride, enc->state.edge_sum,
            enc->state.edge_count, enc->quantizer[pli]>>OD_COEFF_SHIFT, 2);
-      # if 0&&defined(OD_DUMP_IMAGES)
+      # if 0 && defined(OD_DUMP_IMAGES)
           /*Dump painted frame.*/
           od_state_dump_img(&enc->state,enc->state.io_imgs + OD_FRAME_REC,"paint");
           od_state_dump_img(&enc->state,enc->state.io_imgs + OD_FRAME_INPUT,"input");
