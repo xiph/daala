@@ -1520,18 +1520,15 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
       /* Apply deringing */
       if (pli == 0) {
           int i;
-          int w,h;
-          int h8,w8,h32,w32;
+          int w8,h32,w32;
           int bstride;
           int mstride;
-          int xdec;
           xdec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
-          w = enc->state.frame_width>>xdec;
-          h = enc->state.frame_height>>xdec;
+          w = frame_width >> xdec;
+          h = frame_height >> xdec;
           w32 = w>>5;
           h32 = h>>5;
           w8 = w32<<2;
-          h8 = h32<<2;
           bstride = w8;
           mstride = w8<<1;
           /* clear intra paint buffers */

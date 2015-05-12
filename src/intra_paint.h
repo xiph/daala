@@ -39,7 +39,6 @@ extern int dc_prob[8];
 
 /* Warning, this will fail for images larger than 2048 x 2048 */
 #define MAX_VAR_BLOCKS 1024
-#define MAXN 64
 
 void pixel_interp(int pi[4], int pj[4], int w[4], int m, int i, int j, int ln);
 

@@ -83,7 +83,7 @@ static int mode_select(const unsigned char *img, int *dist, int n, int stride,
   ln = 0;
   while (1 << ln < n) ln++;
   for (m = 0; m <= 4*n; m += 1 << res) {
-    int dist;
+    int cur_dist;
     for (i = 0; i <= n; i++) for (j = 0; j <= n; j++) edge_accum[i][j] = 0;
     for (i = 0; i <= n; i++) for (j = 0; j <= n; j++) edge_count[i][j] = 0;
     for (i = 0; i < n; i++) {
@@ -106,15 +106,14 @@ static int mode_select(const unsigned char *img, int *dist, int n, int stride,
       }
     }
     interp_block(&block[1][1], &block[1][1], n, MAXN + 1, m);
-    compare_mode(block, best_block, &dist, &best_dist, m, &best_id, n, img,
+    compare_mode(block, best_block, &cur_dist, &best_dist, m, &best_id, n, img,
      stride);
   }
   if (dist) *dist = best_dist;
   return best_id;
 }
 
-static int mode_select8b(const unsigned char *img, int *dist, int n, int stride,
- int res) {
+static int mode_select8b(const unsigned char *img, int n, int stride) {
   int i;
   int cost[9] = {0};
   int partial[9][2*MAXN + 1] = {{0}};
@@ -251,7 +250,7 @@ void od_paint_mode_select(const unsigned char *img, const unsigned char *paint,
     int curr_mode;
     ln = 2 + bs;
     n = 1 << ln;
-    curr_mode = mode_select8b(&img[stride*n*by + n*bx], NULL, n, stride, res);
+    curr_mode = mode_select8b(&img[stride*n*by + n*bx], n, stride);
     curr_mode >>= 0;
     for (k=0;k<1<<bs;k++) {
       for (m=0;m<1<<bs;m++) {
