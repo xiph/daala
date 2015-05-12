@@ -23,6 +23,7 @@ noinst_HEADERS = \
 	src/generic_code.h \
 	src/internal.h \
 	src/intra.h \
+	src/intra_paint.h \
 	src/laplace_code.h \
 	src/logging.h \
 	src/mc.h \
@@ -123,6 +124,8 @@ src_libdaalaenc_la_SOURCES = \
 	src/laplace_encoder.c \
 	src/mcenc.c \
 	src/accounting.c \
+	src/intra_paint.c \
+	src/intra_paint_enc.c \
 	src/pvq_encoder.c
 if ENABLE_X86ASM
 src_libdaalaenc_la_SOURCES += \

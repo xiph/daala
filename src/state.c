@@ -328,6 +328,25 @@ static int od_state_init_impl(od_state *state, const daala_info *info) {
   state->dump_tags = 0;
   state->dump_files = 0;
 #endif
+#if !OD_DISABLE_PAINT
+  {
+    int w,h,h8,w8,h32,w32;
+    /* intra_paint */
+    w = state->frame_width;
+    h = state->frame_height;
+    w32 = w>>5;
+    h32 = h>>5;
+    w8 = w32<<2;
+    h8 = h32<<2;
+    state->edge_sum = (int*)calloc((w+64)*(h+64), sizeof(*state->edge_sum)) + 4096;
+    state->edge_count = (int*)calloc((w+64)*(h+64), sizeof(*state->edge_count)) + 4096;
+    state->dec8 = (unsigned char*)malloc(w8*h8*sizeof(*state->dec8));
+    state->mode = (unsigned char*)malloc(w8*h8*sizeof(*state->mode)<<2);
+    state->mode8 = (unsigned char *)malloc(w32*h32*sizeof(*state->mode8)<<4);
+    state->mode16 = (unsigned char *)malloc(w32*h32*sizeof(*state->mode16)<<2);
+    state->mode32 = (unsigned char *)malloc(w32*h32*sizeof(*state->mode32)<<0);
+  }
+#endif
   return OD_SUCCESS;
 }
 
@@ -363,6 +382,15 @@ void od_state_clear(od_state *state) {
     _ogg_free(state->mdtmp[pli]);
   }
   _ogg_free(state->bsize);
+#if !OD_DISABLE_PAINT
+  _ogg_free(state->edge_sum - 4096);
+  _ogg_free(state->edge_count - 4096);
+  _ogg_free(state->dec8);
+  _ogg_free(state->mode);
+  _ogg_free(state->mode8);
+  _ogg_free(state->mode16);
+  _ogg_free(state->mode32);
+#endif
 }
 
 /*Probabilities that a motion vector is not coded given two neighbors and the
