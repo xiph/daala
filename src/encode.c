@@ -1533,6 +1533,7 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
           mstride = w8<<1;
           /* clear intra paint buffers */
           memset(enc->state.edge_sum,0,(w+32)*(h+32)*sizeof(*enc->state.edge_sum));
+          memset(enc->state.edge_sum2,0,(w+32)*(h+32)*sizeof(*enc->state.edge_sum2));
           memset(enc->state.edge_count,0,(w+32)*(h+32)*sizeof(*enc->state.edge_count));
           /* intra paint */
           OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO, "Intra paint frame %i:",
@@ -1553,7 +1554,8 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
            enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].data, w32, h32,
            enc->state.io_imgs[OD_FRAME_REC].planes[pli].ystride, enc->state.dec8,
            bstride, enc->state.mode, mstride, enc->state.edge_sum,
-           enc->state.edge_count, enc->quantizer[pli]>>OD_COEFF_SHIFT);
+           enc->state.edge_sum2, enc->state.edge_count,
+           enc->quantizer[pli]>>OD_COEFF_SHIFT);
       # if 0 && defined(OD_DUMP_IMAGES)
           /*Dump painted frame.*/
           od_state_dump_img(&enc->state,enc->state.io_imgs + OD_FRAME_REC,"paint");

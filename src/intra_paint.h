@@ -73,6 +73,6 @@ void od_intra_paint_encode2(od_adapt_ctx *adapt, od_ec_enc *enc,
 
 void od_paint_dering(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *paint, const unsigned char *img,
  int w, int h, int stride, const unsigned char *dec8, int bstride,
- unsigned char *mode, int mstride, int *edge_sum, int *edge_count, int q);
+ unsigned char *mode, int mstride, int *edge_sum, int *edge_sum2, int *edge_count, int q);
 
 #endif

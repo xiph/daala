@@ -449,10 +449,8 @@ static void od_paint_block(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *p
   }
 }
 
-static int var2[1<<24];
 static unsigned char mask[1<<24];
 static unsigned char paint_buf[1<<24];
-int *var2_edge_sum = var2+4096;
 unsigned char *paint_mask=mask+4096;
 unsigned char *paint_out=paint_buf+4096;
 
@@ -460,7 +458,7 @@ ogg_uint16_t gain_cdf[] = {128, 256, 384, 512, 640, 768, 896, 1024, 1152};
 
 void od_paint_dering(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *paint, const unsigned char *img,
  int w, int h, int stride, const unsigned char *dec8, int bstride,
- unsigned char *mode, int mstride, int *edge_sum, int *edge_count, int q) {
+ unsigned char *mode, int mstride, int *edge_sum, int *edge_sum2, int *edge_count, int q) {
   int i, j;
   for(i = 0; i < 32*w; i++) paint[-stride + i] = paint[i];
   for(i = 0; i < 32*h; i++) paint[stride*i - 1] = paint[stride*i];
@@ -476,7 +474,7 @@ void od_paint_dering(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *paint, 
        mstride, edge_sum, edge_count, j, i, 3);
       /* Accumulates sums of squared pixel values for each edge. */
       od_paint_var_analysis(paint, stride, dec8, bstride, mode,
-       mstride, var2_edge_sum, j, i, 3);
+       mstride, edge_sum2, j, i, 3);
     }
   }
 #if 0
@@ -496,7 +494,7 @@ void od_paint_dering(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *paint, 
         mstride, edge_sum, edge_count, j, i, 3);
       /* Computes the Wiener filter gain for each edge. */
       od_paint_compute_edge_mask(adapt, enc, paint_mask, paint_mask, stride, dec8, bstride, mode,
-        mstride, edge_sum, var2_edge_sum, edge_count, q, j, i, 3);
+        mstride, edge_sum, edge_sum2, edge_count, q, j, i, 3);
       /* Does the actual painting from the edges. */
       od_paint_block(adapt, enc, paint_out, paint_out, stride, dec8, bstride, mode,
        mstride, edge_sum, edge_count, q, j, i, 3);

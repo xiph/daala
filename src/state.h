@@ -222,6 +222,7 @@ struct od_state{
   unsigned char *mode16;
   unsigned char *mode32;
   int *edge_sum;
+  int *edge_sum2;
   int *edge_count;
 # endif
 };
