@@ -34,6 +34,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "intra_paint.h"
 #include "state.h"
 
+/* This function finds the optimal paint direction by looking at the direction
+   that minimizes the sum of the squared error caused by replacing each pixel
+   of a line by the line average. For each line we would normally compute
+   this as sum(x^2) - sum(x)^2/N, but since over the entire block the sum(x^2)
+   terms summed over all lines will be the same regardless of the direction,
+   then we don't need to compute that term and we can simply maximize
+   sum(x^2)/N summed over all lines for a given direction. */
 static int mode_select8b(const unsigned char *img, int n, int stride) {
   int i;
   int cost[9] = {0};
@@ -465,14 +472,17 @@ void od_paint_dering(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *paint, 
   paint[-stride - 1] = paint[0];
   for(i = 0; i < h; i++) {
     for(j = 0; j < w; j++) {
+      /* Computes the direction for each block. */
       od_paint_mode_select(paint, paint, stride, dec8, bstride, mode,
         mstride, edge_sum, edge_count, j, i, 3);
+      /* Accumulates sums for each edge. */
       od_intra_paint_analysis(paint, paint, stride, dec8, bstride, mode,
        mstride, edge_sum, edge_count, j, i, 3);
     }
   }
   for(i = 0; i < h; i++) {
     for(j = 0; j < w; j++) {
+      /* Accumulates sums of squared pixel values for each edge. */
       od_paint_var_analysis(paint, stride, dec8, bstride, mode,
        mstride, var2_edge_sum, j, i, 3);
     }
@@ -489,8 +499,10 @@ void od_paint_dering(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *paint, 
 
   for(i = 0; i < h; i++) {
     for(j = 0; j < w; j++) {
+      /* Computes the edge pixels that will be used for painting. */
       od_intra_paint_compute_edges(adapt, enc, paint_out, paint, stride, dec8, bstride, mode,
         mstride, edge_sum, edge_count, j, i, 3);
+      /* Computes the Wiener filter gain for each edge. */
       od_paint_compute_edge_mask(adapt, enc, paint_mask, paint_mask, stride, dec8, bstride, mode,
         mstride, edge_sum, var2_edge_sum, edge_count, q, j, i, 3);
     }
@@ -498,9 +510,12 @@ void od_paint_dering(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *paint, 
   for(i = 0; i < h; i++) {
     for(j = 0; j < w; j++) {
 #if 1
+      /* Does the actual painting from the edges. */
       od_paint_block(adapt, enc, paint_out, paint_out, stride, dec8, bstride, mode,
        mstride, edge_sum, edge_count, q, j, i, 3);
 #endif
+      /* Take the Wiener filter edge gains and "paints" them into the block so
+         that we have one gain per pixel. */
       od_paint_block(adapt, enc, paint_mask, paint_mask, stride, dec8, bstride, mode,
        mstride, edge_sum, edge_count, q, j, i, 3);
     }
@@ -517,6 +532,8 @@ void od_paint_dering(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *paint, 
       int best_gain;
       best_gain = 0;
       dist = 0;
+      /* We start by computing the distortion of the coded image without
+         deringing. */
       for (k = 0; k < 32; k++) {
         for (m = 0; m < 32; m++) {
           idx = (32*i+k)*stride + 32*j + m;
@@ -524,6 +541,7 @@ void od_paint_dering(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *paint, 
         }
       }
       best_dist = dist;
+      /* We compute the distortion for 4 different deringing strengths. */
       for (gi = 1; gi <= 4; gi++) {
         dist = 0;
         for (k = 0; k < 32; k++) {
