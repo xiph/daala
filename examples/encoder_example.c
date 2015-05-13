@@ -629,12 +629,13 @@ int main(int argc, char **argv) {
   dd = daala_encode_create(&di);
   daala_comment_init(&dc);
   /*Set up encoder.*/
-  daala_encode_ctl(dd, OD_SET_QUANT, &video_q, sizeof(int));
+  daala_encode_ctl(dd, OD_SET_QUANT, &video_q, sizeof(video_q));
   daala_encode_ctl(dd, OD_SET_COMPLEXITY, &complexity, sizeof(complexity));
-  daala_encode_ctl(dd, OD_SET_MC_USE_CHROMA, &mc_use_chroma, sizeof(int));
-  daala_encode_ctl(dd, OD_SET_MV_RES_MIN, &mv_res_min, sizeof(int));
-  daala_encode_ctl(dd, OD_SET_MV_LEVEL_MIN, &mv_level_min, sizeof(int));
-  daala_encode_ctl(dd, OD_SET_MV_LEVEL_MAX, &mv_level_max, sizeof(int));
+  daala_encode_ctl(dd, OD_SET_MC_USE_CHROMA, &mc_use_chroma,
+   sizeof(mc_use_chroma));
+  daala_encode_ctl(dd, OD_SET_MV_RES_MIN, &mv_res_min, sizeof(mv_res_min));
+  daala_encode_ctl(dd, OD_SET_MV_LEVEL_MIN, &mv_level_min, sizeof(mv_level_min));
+  daala_encode_ctl(dd, OD_SET_MV_LEVEL_MAX, &mv_level_max, sizeof(mv_level_max));
   /*Write the bitstream header packets with proper page interleave.*/
   /*The first packet for each logical stream will get its own page
      automatically.*/
