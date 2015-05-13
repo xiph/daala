@@ -138,8 +138,6 @@ static void compute_edge_variance(const unsigned char *paint, int stride,
   }
 }
 
-
-
 void od_paint_mode_select(const unsigned char *img, const unsigned char *paint,
  int stride, const unsigned char *dec8, int bstride,
  unsigned char *mode, int mstride, int *edge_sum, int *edge_count,
@@ -449,115 +447,10 @@ static void od_paint_block(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *p
   }
 }
 
-static void od_paint_switch(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *img1, const unsigned char *img2, const unsigned char *ref,
- int stride, const unsigned char *dec8, int bstride,
- unsigned char *mode, int mstride, int *edge_sum, int *edge_count, int q,
- int bx, int by, int level) {
-  int bs;
-  bs = dec8[(by<<level>>1)*bstride + (bx<<level>>1)];
-
-  OD_ASSERT(bs <= level);
-  if (bs < level) {
-    level--;
-    bx <<= 1;
-    by <<= 1;
-    od_paint_switch(adapt, enc, img1, img2, ref, stride, dec8, bstride,
-     mode, mstride, edge_sum, edge_count, q, bx, by, level);
-    od_paint_switch(adapt, enc, img1, img2, ref, stride, dec8, bstride,
-     mode, mstride, edge_sum, edge_count, q, bx + 1, by, level);
-    od_paint_switch(adapt, enc, img1, img2, ref, stride, dec8, bstride,
-     mode, mstride, edge_sum, edge_count, q, bx, by + 1, level);
-    od_paint_switch(adapt, enc, img1, img2, ref, stride, dec8, bstride,
-     mode, mstride, edge_sum, edge_count, q, bx + 1, by + 1, level);
-  }
-  else {
-    int ln;
-    int n;
-    int i;
-    int j;
-    int dist1;
-    int dist2;
-    ln = 2 + bs;
-    n = 1 << ln;
-    dist1 = dist2 = 0;
-    for (i = 0; i < n; i++) {
-      for (j = 0; j < n; j++) {
-        int x1;
-        int x2;
-        int r;
-        r = ref[stride*(n*by + i) + n*bx + j];
-        x1 = img1[stride*(n*by + i) + n*bx + j];
-        x2 = img2[stride*(n*by + i) + n*bx + j];
-        dist1 += (x1-r)*(x1-r);
-        dist2 += (x2-r)*(x2-r);
-      }
-    }
-    if (dist2 < dist1) {
-      for (i = 0; i < n; i++) {
-        for (j = 0; j < n; j++) {
-          img1[stride*(n*by + i) + n*bx + j] = img2[stride*(n*by + i) + n*bx + j];
-        }
-      }
-    }
-#if 0
-    for (i = 0; i < n; i++) for (j = 0; j < n; j++) img1[stride*(n*by + i) + n*bx + j] = 255;
-#endif
-#if 0
-    for (i = 0; i < n; i++) img1[stride*(n*by + i) + n*bx + n - 1] = 0;
-    for (i = 0; i < n; i++) img1[stride*(n*by + i) + n*bx + n - 2] = 0;
-    for (i = 0; i < n; i++) img1[stride*(n*by + n - 1) + n*bx + i] = 0;
-    for (i = 0; i < n; i++) img1[stride*(n*by + n - 2) + n*bx + i] = 0;
-#endif
-#if 0
-    for (i = 0; i < n; i++) img1[stride*(n*by + i) + n*bx + n - 2] = img1[stride*(n*by + i) + n*bx + n - 1];
-    for (i = 0; i < n; i++) img1[stride*(n*by + n - 2) + n*bx + i] = img1[stride*(n*by + n - 1) + n*bx + i];
-#endif
-#if 0
-    {
-      int m;
-      int n2;
-      m = mode[(by*mstride + bx) << ln >> 2];
-      n2 = n/2;
-      if (m == 4*n) {
-        img1[stride*(n*by + n2) + n*bx + n2] = 0;
-        img1[stride*(n*by + n2) + n*bx + n2 - 1] = 0;
-        img1[stride*(n*by + n2 - 1) + n*bx + n2] = 0;
-        img1[stride*(n*by + n2 - 1) + n*bx + n2 - 1] = 0;
-      } else if (m <= 2*n) {
-        double r;
-        r = (double)m/n - 1;
-        for (i = 0; i < n; i++) {
-          int y;
-          y = floor(.5 + n2 + r*(i-n2));
-          img1[stride*(n*by + y) + n*bx + i] = 0;
-          img1[stride*(n*by + y - 1) + n*bx + i] = 0;
-          img1[stride*(n*by + y + 1) + n*bx + i] = 0;
-        }
-      }
-      else {
-        double r;
-        r = 3 - (double)m/n;
-        for (i = 0; i < n; i++) {
-          int x;
-          x = floor(.5 + n2 + r*(i-n2));
-          img1[stride*(n*by + i) + n*bx + x] = 0;
-          img1[stride*(n*by + i) + n*bx + x - 1] = 0;
-          img1[stride*(n*by + i) + n*bx + x + 1] = 0;
-        }
-      }
-    }
-#endif
-  }
-}
-
-static int var1[1<<24];
 static int var2[1<<24];
-static int var_count[1<<24];
 static unsigned char mask[1<<24];
 static unsigned char paint_buf[1<<24];
-int *orig_edge_sum = var1+4096;
 int *var2_edge_sum = var2+4096;
-int *edge_corr = var_count+4096;
 unsigned char *paint_mask=mask+4096;
 unsigned char *paint_out=paint_buf+4096;
 
