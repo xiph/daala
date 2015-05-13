@@ -69,7 +69,8 @@ void od_paint_dering_decode(od_adapt_ctx *adapt, od_ec_dec *dec, unsigned char *
          block, by first computing edges, then painting. */
       od_paint_compute_edge_mask(adapt, paint_out, paint, paint_mask, stride, dec8, bstride, mode,
         mstride, edge_sum, edge_sum2, edge_count, q, j, i, 3);
-      gi = od_decode_cdf_adapt(dec, gain_cdf, 9, 128);
+      gi = od_decode_cdf_adapt(dec, adapt->deringing_gain_cdf, 5,
+       adapt->deringing_gain_increment);
       if (gi != 0) {
         for (k = 0; k < 32; k++) {
           for (m = 0; m < 32; m++) {

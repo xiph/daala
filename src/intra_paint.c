@@ -473,5 +473,3 @@ static unsigned char mask[1<<24];
 static unsigned char paint_buf[1<<24];
 unsigned char *paint_mask=mask+4096;
 unsigned char *paint_out=paint_buf+4096;
-
-ogg_uint16_t gain_cdf[] = {128, 256, 384, 512, 640, 768, 896, 1024, 1152};

@@ -146,6 +146,8 @@ struct od_adapt_ctx {
   /* Joint skip flag for DC and AC */
   ogg_uint16_t skip_cdf[OD_NPLANES_MAX][4];
   int skip_increment;
+  ogg_uint16_t deringing_gain_cdf[5];
+  int deringing_gain_increment;
 };
 
 struct od_state{

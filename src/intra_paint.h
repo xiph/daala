@@ -59,6 +59,4 @@ void od_paint_dering_decode(od_adapt_ctx *adapt, od_ec_dec *dec, unsigned char *
 extern unsigned char *paint_mask;
 extern unsigned char *paint_out;
 
-extern ogg_uint16_t gain_cdf[];
-
 #endif

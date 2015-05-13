@@ -112,7 +112,7 @@ void od_paint_dering(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *paint, 
           }
         }
       }
-      od_encode_cdf_adapt(enc, best_gain, gain_cdf, 9, 128);
+      od_encode_cdf_adapt(enc, best_gain, adapt->deringing_gain_cdf, 5, adapt->deringing_gain_increment);
       /*printf("%d ", best_gain);*/
     }
     /*printf("\n");*/
