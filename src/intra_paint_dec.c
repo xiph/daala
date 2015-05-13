@@ -34,7 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "intra_paint.h"
 #include "state.h"
 
-void od_paint_dering(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *paint, const unsigned char *img,
+void od_paint_dering_decode(od_adapt_ctx *adapt, od_ec_dec *dec, unsigned char *paint,
  int w, int h, int stride, const unsigned char *dec8, int bstride,
  unsigned char *mode, int mstride, int *edge_sum, int *edge_sum2, int *edge_count, int q) {
   int i, j;
@@ -65,53 +65,19 @@ void od_paint_dering(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *paint, 
       int gi;
       int k;
       int m;
-      int dist;
-      int best_dist;
-      int best_gain;
       /* Computes both the painted image and the Wiener filter gains for each
          block, by first computing edges, then painting. */
       od_paint_compute_edge_mask(adapt, paint_out, paint, paint_mask, stride, dec8, bstride, mode,
         mstride, edge_sum, edge_sum2, edge_count, q, j, i, 3);
-      best_gain = 0;
-      dist = 0;
-      /* Now we find the optimal deringing strength. We start by computing the
-         distortion of the coded image without deringing. */
+      gi = od_decode_cdf_adapt(dec, gain_cdf, 9, 128);
       for (k = 0; k < 32; k++) {
         for (m = 0; m < 32; m++) {
+          int y;
           idx = (32*i+k)*stride + 32*j + m;
-          dist += (img[idx] - paint[idx])*(int)(img[idx] - paint[idx]);
+          y = OD_CLAMPI(0, paint[idx] + ((OD_MINI((int)paint_mask[idx]<<gi>>1, 255)*(paint_out[idx] - paint[idx]) + 128) >> 8), 255);
+          paint[idx] = y;
         }
       }
-      best_dist = dist;
-      /* We compute the distortion for 4 different deringing strengths. */
-      for (gi = 1; gi <= 4; gi++) {
-        dist = 0;
-        for (k = 0; k < 32; k++) {
-          for (m = 0; m < 32; m++) {
-            int x;
-            int y;
-            idx = (32*i+k)*stride + 32*j + m;
-            x = img[idx];
-            y = OD_CLAMPI(0, paint[idx] + ((OD_MINI((int)paint_mask[idx]<<gi>>1, 255)*(paint_out[idx] - paint[idx]) + 128) >> 8), 255);
-            dist += (x - y)*(int)(x - y);
-          }
-        }
-        if (dist < best_dist) {
-          best_dist = dist;
-          best_gain = gi;
-          for (k = 0; k < 32; k++) {
-            for (m = 0; m < 32; m++) {
-              int y;
-              idx = (32*i+k)*stride + 32*j + m;
-              y = OD_CLAMPI(0, paint[idx] + ((OD_MINI((int)paint_mask[idx]<<gi>>1, 255)*(paint_out[idx] - paint[idx]) + 128) >> 8), 255);
-              paint[idx] = y;
-            }
-          }
-        }
-      }
-      od_encode_cdf_adapt(enc, best_gain, gain_cdf, 9, 128);
-      /*printf("%d ", best_gain);*/
     }
-    /*printf("\n");*/
   }
 }

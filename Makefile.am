@@ -76,6 +76,7 @@ src_libdaalabase_la_SOURCES = \
 	src/generic_decoder.c \
 	src/info.c \
 	src/intra.c \
+	src/intra_paint.c \
 	src/laplace_decoder.c \
 	src/laplace_tables.c \
 	src/logging.c \
@@ -105,6 +106,7 @@ src_libdaaladec_la_LDFLAGS = -no-undefined \
 src_libdaaladec_la_SOURCES = \
 	src/block_size_dec.c \
 	src/decode.c \
+	src/intra_paint_dec.c \
 	src/infodec.c
 
 src_libdaalaenc_la_CFLAGS = $(OGG_CFLAGS)
@@ -124,7 +126,6 @@ src_libdaalaenc_la_SOURCES = \
 	src/laplace_encoder.c \
 	src/mcenc.c \
 	src/accounting.c \
-	src/intra_paint.c \
 	src/intra_paint_enc.c \
 	src/pvq_encoder.c
 if ENABLE_X86ASM

@@ -375,7 +375,7 @@ void od_intra_paint_analysis(const unsigned char *paint, int stride,
   paint_gain[idx] = OD_CLAMPI(0, (int)(256.*((q)*(q)/12./64)/(10+yy)), 255);} \
   while(0)
 
-void od_paint_compute_edge_mask(od_adapt_ctx *adapt, od_ec_enc *enc,
+void od_paint_compute_edge_mask(od_adapt_ctx *adapt,
  unsigned char *paint, const unsigned char *img, unsigned char *paint_gain,
  int stride, const unsigned char *dec8, int bstride, unsigned char *mode,
  int mstride, int *edge_sum1, int *edge_sum2, int *edge_count, int q, int bx,
@@ -388,13 +388,13 @@ void od_paint_compute_edge_mask(od_adapt_ctx *adapt, od_ec_enc *enc,
     level--;
     bx <<= 1;
     by <<= 1;
-    od_paint_compute_edge_mask(adapt, enc, paint, img, paint_gain, stride, dec8, bstride,
+    od_paint_compute_edge_mask(adapt, paint, img, paint_gain, stride, dec8, bstride,
      mode, mstride, edge_sum1, edge_sum2, edge_count, q, bx, by, level);
-    od_paint_compute_edge_mask(adapt, enc, paint, img, paint_gain, stride, dec8, bstride,
+    od_paint_compute_edge_mask(adapt, paint, img, paint_gain, stride, dec8, bstride,
      mode, mstride, edge_sum1, edge_sum2, edge_count, q, bx + 1, by, level);
-    od_paint_compute_edge_mask(adapt, enc, paint, img, paint_gain, stride, dec8, bstride,
+    od_paint_compute_edge_mask(adapt, paint, img, paint_gain, stride, dec8, bstride,
      mode, mstride, edge_sum1, edge_sum2, edge_count, q, bx, by + 1, level);
-    od_paint_compute_edge_mask(adapt, enc, paint, img, paint_gain, stride, dec8, bstride,
+    od_paint_compute_edge_mask(adapt, paint, img, paint_gain, stride, dec8, bstride,
      mode, mstride, edge_sum1, edge_sum2, edge_count, q, bx + 1, by + 1, level);
   }
   else {
