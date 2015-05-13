@@ -372,7 +372,7 @@ void od_intra_paint_analysis(const unsigned char *paint, int stride,
   do {int yy;\
   yy = ((double)edge_sum2[idx] \
    - (double)edge_sum1[idx]*edge_sum1[idx]/edge_count[idx])/edge_count[idx]; \
-  paint_gain[idx] = OD_CLAMPI(0, (int)(256.*((q)*(q)/12./64)/(10+yy)), 255);} \
+  paint_gain[idx] = OD_CLAMPI(0, (int)(256.*((q)*(q)/12./32)/(10+yy)), 255);} \
   while(0)
 
 void od_paint_compute_edge_mask(od_adapt_ctx *adapt,

@@ -99,13 +99,16 @@ void od_paint_dering(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *paint, 
         if (dist < best_dist) {
           best_dist = dist;
           best_gain = gi;
-          for (k = 0; k < 32; k++) {
-            for (m = 0; m < 32; m++) {
-              int y;
-              idx = (32*i+k)*stride + 32*j + m;
-              y = OD_CLAMPI(0, paint[idx] + ((OD_MINI((int)paint_mask[idx]<<gi>>1, 255)*(paint_out[idx] - paint[idx]) + 128) >> 8), 255);
-              paint[idx] = y;
-            }
+        }
+      }
+      gi = best_gain;
+      if (gi != 0) {
+        for (k = 0; k < 32; k++) {
+          for (m = 0; m < 32; m++) {
+            int y;
+            idx = (32*i+k)*stride + 32*j + m;
+            y = OD_CLAMPI(0, paint[idx] + ((OD_MINI((int)paint_mask[idx]<<gi>>1, 255)*(paint_out[idx] - paint[idx]) + 128) >> 8), 255);
+            paint[idx] = y;
           }
         }
       }
