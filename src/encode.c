@@ -1518,7 +1518,7 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
       }
     }
       /* Apply deringing */
-      if (pli == 0) {
+      if (pli == 0 && !rdo_only) {
           int i, j;
           int w8, h32, w32;
           int bstride;

@@ -52,6 +52,10 @@ void od_paint_compute_edge_mask(od_adapt_ctx *adapt,
  int mstride, int *edge_sum1, int *edge_sum2, int *edge_count, int q, int bx,
  int by, int level);
 
+void od_paint_dering_decode(od_adapt_ctx *adapt, od_ec_dec *dec, unsigned char *paint,
+ int w, int h, int stride, const unsigned char *dec8, int bstride,
+ unsigned char *mode, int mstride, int *edge_sum, int *edge_sum2, int *edge_count, int q);
+
 extern unsigned char *paint_mask;
 extern unsigned char *paint_out;
 

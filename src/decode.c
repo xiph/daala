@@ -44,6 +44,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "block_size_dec.h"
 #include "tf.h"
 #include "state.h"
+#include "intra_paint.h"
 
 static int od_dec_init(od_dec_ctx *dec, const daala_info *info,
  const daala_setup_info *setup) {
@@ -707,6 +708,50 @@ static void od_decode_residual(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
         }
       }
     }
+
+    /* Apply deringing */
+    if (pli == 0) {
+        int i, j;
+        int w8, h32, w32;
+        int bstride;
+        int mstride;
+        xdec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
+        w = frame_width >> xdec;
+        h = frame_height >> xdec;
+        w32 = w>>5;
+        h32 = h>>5;
+        w8 = w32<<2;
+        bstride = w8;
+        mstride = w8<<1;
+        /* clear intra paint buffers */
+        memset(dec->state.edge_sum,0,(w+32)*(h+32)*sizeof(*dec->state.edge_sum));
+        memset(dec->state.edge_sum2,0,(w+32)*(h+32)*sizeof(*dec->state.edge_sum2));
+        memset(dec->state.edge_count,0,(w+32)*(h+32)*sizeof(*dec->state.edge_count));
+        /* intra paint */
+        for (i = 0; i < h32; i++) {
+          for (j = 0; j < w32; j++) {
+            int k, m;
+            /* Always use 8x8 blocks for painting. */
+            for (k = 0; k < 4; k++) {
+              for (m = 0; m < 4; m++) {
+                dec->state.dec8[(4*i + k)*bstride + (4*j + m)] = 1;
+              }
+            }
+          }
+        }
+        od_paint_dering_decode(&dec->state.adapt, &dec->ec,
+         dec->state.io_imgs[OD_FRAME_REC].planes[pli].data, w32, h32,
+         dec->state.io_imgs[OD_FRAME_REC].planes[pli].ystride, dec->state.dec8,
+         bstride, dec->state.mode, mstride, dec->state.edge_sum,
+         dec->state.edge_sum2, dec->state.edge_count,
+         dec->quantizer[pli]>>OD_COEFF_SHIFT);
+    # if 0 && defined(OD_DUMP_IMAGES)
+        /*Dump painted frame.*/
+        od_state_dump_img(&enc->state,enc->state.io_imgs + OD_FRAME_REC,"paint");
+        od_state_dump_img(&enc->state,enc->state.io_imgs + OD_FRAME_INPUT,"input");
+    # endif
+      }
+
   }
 }
 
