@@ -164,97 +164,6 @@ void od_intra_paint_analysis(const unsigned char *paint,
   }
 }
 
-void od_intra_paint_compute_edges(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *paint, const unsigned char *img,
- int stride, const unsigned char *dec8, int bstride,
- unsigned char *mode, int mstride, int *edge_sum, int *edge_count,
- int bx, int by, int level) {
-  int bs;
-  bs = dec8[(by<<level>>1)*bstride + (bx<<level>>1)];
-
-  OD_ASSERT(bs <= level);
-  if (bs < level) {
-    level--;
-    bx <<= 1;
-    by <<= 1;
-    od_intra_paint_compute_edges(adapt, enc, paint, img, stride, dec8, bstride,
-     mode, mstride, edge_sum, edge_count, bx, by, level);
-    od_intra_paint_compute_edges(adapt, enc, paint, img, stride, dec8, bstride,
-     mode, mstride, edge_sum, edge_count, bx + 1, by, level);
-    od_intra_paint_compute_edges(adapt, enc, paint, img, stride, dec8, bstride,
-     mode, mstride, edge_sum, edge_count, bx, by + 1, level);
-    od_intra_paint_compute_edges(adapt, enc, paint, img, stride, dec8, bstride,
-     mode, mstride, edge_sum, edge_count, bx + 1, by + 1, level);
-  }
-  else {
-    int ln;
-    int n;
-    int k;
-    int idx;
-    ln = 2 + bs;
-    n = 1 << ln;
-    if (bx == 0 && by == 0) {
-      idx = -stride - 1;
-      if (edge_count[idx] > 0) paint[idx] = edge_sum[idx]/edge_count[idx];
-      else paint[idx] = img[idx];
-    }
-    /* Compute left edge (left column only). */
-    if (bx == 0) {
-      for (k = 0; k < n; k++) {
-        idx = stride*(n*by + k) - 1;
-        if (edge_count[idx] > 0) paint[idx] = edge_sum[idx]/edge_count[idx];
-        else paint[idx] = img[idx];
-      }
-    }
-    /* Compute top edge (top row only). */
-    if (by == 0) {
-      for (k = 0; k < n; k++) {
-        idx = -stride + n*bx + k;
-        if (edge_count[idx] > 0) paint[idx] = edge_sum[idx]/edge_count[idx];
-        else paint[idx] = img[idx];
-      }
-    }
-    /* Compute right edge stats. */
-    for (k = 0; k < n - 1; k++) {
-      idx = stride*(n*by + k) + n*(bx + 1) - 1;
-      if (edge_count[idx] > 0) paint[idx] = edge_sum[idx]/edge_count[idx];
-      else paint[idx] = img[idx];
-    }
-    /* Compute bottom edge stats. */
-    for (k = 0; k < n; k++) {
-      idx = stride*(n*(by + 1) - 1) + n*bx + k;
-      if (edge_count[idx] > 0) paint[idx] = edge_sum[idx]/edge_count[idx];
-      else paint[idx] = img[idx];
-    }
-#if 0
-    /* Refinement: one last chance to pick DC. */
-    if (mode[(by*mstride + bx) << ln >> 2] != 4*n) {
-      int i;
-      int j;
-      unsigned char block[MAXN + 1][MAXN + 1];
-      unsigned char best_block[MAXN][MAXN];
-      int dist;
-      int best_dist;
-      int best_id = 0;
-      int m;
-      m = mode[(by*mstride + bx) << ln >> 2];
-      best_dist = 1 << 30;
-      for (i = 0; i <= n; i++) {
-        for (j = 0; j <= n; j++) {
-          block[i][j] = paint[stride*(n*by + i - 1) + n*bx + j - 1];
-        }
-      }
-      interp_block(&block[1][1], &block[1][1], n, MAXN + 1, m);
-      compare_mode(block, best_block, &dist, &best_dist, m, &best_id, n,
-       &img[stride*n*by + n*bx], stride);
-      interp_block(&block[1][1], &block[1][1], n, MAXN + 1, 4*n);
-      compare_mode(block, best_block, &dist, &best_dist, 4*n, &best_id, n,
-       &img[stride*n*by + n*bx], stride);
-      mode[(by*mstride + bx) << ln >> 2] = best_id;
-    }
-#endif
-  }
-}
-
 /* Computes the Wiener filter gain in Q8 considering (1/64)*q^2/12 as the
    noise. The 1/64 factor factor takes into consideration the fact that
    q^2/12 is really the worst case noise estimate and the fact that we'll be
@@ -264,10 +173,12 @@ void od_intra_paint_compute_edges(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned 
   do {int yy;\
   yy = ((double)edge_sum2[idx] \
    - (double)edge_sum1[idx]*edge_sum1[idx]/edge_count[idx])/edge_count[idx]; \
-  paint[idx] = OD_CLAMPI(0, (int)(256.*((q)*(q)/12./64)/(10+yy)), 255);} \
+  paint_mask[idx] = OD_CLAMPI(0, (int)(256.*((q)*(q)/12./64)/(10+yy)), 255);} \
   while(0)
 
-void od_paint_compute_edge_mask(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *paint, const unsigned char *img,
+void od_paint_compute_edge_mask(od_adapt_ctx *adapt, od_ec_enc *enc,
+ unsigned char *paint, const unsigned char *img,
+ unsigned char *paint_mask,
  int stride, const unsigned char *dec8, int bstride,
  unsigned char *mode, int mstride, int *edge_sum1, int *edge_sum2, int *edge_count,
  int q, int bx, int by, int level) {
@@ -279,13 +190,13 @@ void od_paint_compute_edge_mask(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned ch
     level--;
     bx <<= 1;
     by <<= 1;
-    od_paint_compute_edge_mask(adapt, enc, paint, img, stride, dec8, bstride,
+    od_paint_compute_edge_mask(adapt, enc, paint, img, paint_mask, stride, dec8, bstride,
      mode, mstride, edge_sum1, edge_sum2, edge_count, q, bx, by, level);
-    od_paint_compute_edge_mask(adapt, enc, paint, img, stride, dec8, bstride,
+    od_paint_compute_edge_mask(adapt, enc, paint, img, paint_mask, stride, dec8, bstride,
      mode, mstride, edge_sum1, edge_sum2, edge_count, q, bx + 1, by, level);
-    od_paint_compute_edge_mask(adapt, enc, paint, img, stride, dec8, bstride,
+    od_paint_compute_edge_mask(adapt, enc, paint, img, paint_mask, stride, dec8, bstride,
      mode, mstride, edge_sum1, edge_sum2, edge_count, q, bx, by + 1, level);
-    od_paint_compute_edge_mask(adapt, enc, paint, img, stride, dec8, bstride,
+    od_paint_compute_edge_mask(adapt, enc, paint, img, paint_mask, stride, dec8, bstride,
      mode, mstride, edge_sum1, edge_sum2, edge_count, q, bx + 1, by + 1, level);
   }
   else {
@@ -297,68 +208,65 @@ void od_paint_compute_edge_mask(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned ch
     n = 1 << ln;
     if (bx == 0 && by == 0) {
       idx = -stride - 1;
-      if (edge_count[idx] > 0) VAR2(q);
-      else paint[idx] = img[idx];
+      if (edge_count[idx] > 0) {
+        paint[idx] = edge_sum1[idx]/edge_count[idx];
+        VAR2(q);
+      }
+      else {
+        paint[idx] = img[idx];
+      }
     }
     /* Compute left edge (left column only). */
     if (bx == 0) {
       for (k = 0; k < n; k++) {
         idx = stride*(n*by + k) - 1;
-        if (edge_count[idx] > 0) VAR2(q);
-        else paint[idx] = img[idx];
+        if (edge_count[idx] > 0) {
+          paint[idx] = edge_sum1[idx]/edge_count[idx];
+          VAR2(q);
+        }
+        else {
+          paint[idx] = img[idx];
+        }
       }
     }
     /* Compute top edge (top row only). */
     if (by == 0) {
       for (k = 0; k < n; k++) {
         idx = -stride + n*bx + k;
-        if (edge_count[idx] > 0) VAR2(q);
-        else paint[idx] = img[idx];
+        if (edge_count[idx] > 0) {
+          paint[idx] = edge_sum1[idx]/edge_count[idx];
+          VAR2(q);
+        }
+        else {
+          paint[idx] = img[idx];
+        }
       }
     }
     /* Compute right edge stats. */
     for (k = 0; k < n - 1; k++) {
       idx = stride*(n*by + k) + n*(bx + 1) - 1;
-      if (edge_count[idx] > 0) VAR2(q);
-      else paint[idx] = img[idx];
+      if (edge_count[idx] > 0) {
+        paint[idx] = edge_sum1[idx]/edge_count[idx];
+        VAR2(q);
+      }
+      else {
+        paint[idx] = img[idx];
+      }
     }
     /* Compute bottom edge stats. */
     for (k = 0; k < n; k++) {
       idx = stride*(n*(by + 1) - 1) + n*bx + k;
-      if (edge_count[idx] > 0) VAR2(q);
-      else paint[idx] = img[idx];
+      if (edge_count[idx] > 0) {
+        paint[idx] = edge_sum1[idx]/edge_count[idx];
+        VAR2(q);
+      }
+      else {
+        paint[idx] = img[idx];
+      }
     }
-  }
-}
-
-
-static void od_paint_block(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *paint, const unsigned char *img,
- int stride, const unsigned char *dec8, int bstride,
- unsigned char *mode, int mstride, int *edge_sum, int *edge_count, int q,
- int bx, int by, int level) {
-  int bs;
-  bs = dec8[(by<<level>>1)*bstride + (bx<<level>>1)];
-
-  OD_ASSERT(bs <= level);
-  if (bs < level) {
-    level--;
-    bx <<= 1;
-    by <<= 1;
-    od_paint_block(adapt, enc, paint, img, stride, dec8, bstride,
-     mode, mstride, edge_sum, edge_count, q, bx, by, level);
-    od_paint_block(adapt, enc, paint, img, stride, dec8, bstride,
-     mode, mstride, edge_sum, edge_count, q, bx + 1, by, level);
-    od_paint_block(adapt, enc, paint, img, stride, dec8, bstride,
-     mode, mstride, edge_sum, edge_count, q, bx, by + 1, level);
-    od_paint_block(adapt, enc, paint, img, stride, dec8, bstride,
-     mode, mstride, edge_sum, edge_count, q, bx + 1, by + 1, level);
-  }
-  else {
-    int ln;
-    int n;
-    ln = 2 + bs;
-    n = 1 << ln;
     interp_block(&paint[stride*n*by + n*bx], &paint[stride*n*by + n*bx],
+     n, stride, mode[(by*mstride + bx) << ln >> 2]);
+    interp_block(&paint_mask[stride*n*by + n*bx], &paint_mask[stride*n*by + n*bx],
      n, stride, mode[(by*mstride + bx) << ln >> 2]);
   }
 }
@@ -404,19 +312,10 @@ void od_paint_dering(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *paint, 
       int dist;
       int best_dist;
       int best_gain;
-      /* Computes the edge pixels that will be used for painting. */
-      od_intra_paint_compute_edges(adapt, enc, paint_out, paint, stride, dec8, bstride, mode,
-        mstride, edge_sum, edge_count, j, i, 3);
-      /* Computes the Wiener filter gain for each edge. */
-      od_paint_compute_edge_mask(adapt, enc, paint_mask, paint_mask, stride, dec8, bstride, mode,
+      /* Computes both the painted image and the Wiener filter gains for each
+         block, by first computing edges, then painting. */
+      od_paint_compute_edge_mask(adapt, enc, paint_out, paint, paint_mask, stride, dec8, bstride, mode,
         mstride, edge_sum, edge_sum2, edge_count, q, j, i, 3);
-      /* Does the actual painting from the edges. */
-      od_paint_block(adapt, enc, paint_out, paint_out, stride, dec8, bstride, mode,
-       mstride, edge_sum, edge_count, q, j, i, 3);
-      /* Take the Wiener filter edge gains and "paints" them into the block so
-         that we have one gain per pixel. */
-      od_paint_block(adapt, enc, paint_mask, paint_mask, stride, dec8, bstride, mode,
-       mstride, edge_sum, edge_count, q, j, i, 3);
       best_gain = 0;
       dist = 0;
       /* Now we find the optimal deringing strength. We start by computing the
