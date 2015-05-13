@@ -489,6 +489,13 @@ void od_paint_dering(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *paint, 
   /* Second pass on the image: do the painting and compute the gains. */
   for(i = 0; i < h; i++) {
     for(j = 0; j < w; j++) {
+      int idx;
+      int gi;
+      int k;
+      int m;
+      int dist;
+      int best_dist;
+      int best_gain;
       /* Computes the edge pixels that will be used for painting. */
       od_intra_paint_compute_edges(adapt, enc, paint_out, paint, stride, dec8, bstride, mode,
         mstride, edge_sum, edge_count, j, i, 3);
@@ -502,22 +509,10 @@ void od_paint_dering(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *paint, 
          that we have one gain per pixel. */
       od_paint_block(adapt, enc, paint_mask, paint_mask, stride, dec8, bstride, mode,
        mstride, edge_sum, edge_count, q, j, i, 3);
-    }
-  }
-#if 1
-  for(i = 0; i < h; i++) {
-    for(j = 0; j < w; j++) {
-      int idx;
-      int gi;
-      int k;
-      int m;
-      int dist;
-      int best_dist;
-      int best_gain;
       best_gain = 0;
       dist = 0;
-      /* We start by computing the distortion of the coded image without
-         deringing. */
+      /* Now we find the optimal deringing strength. We start by computing the
+         distortion of the coded image without deringing. */
       for (k = 0; k < 32; k++) {
         for (m = 0; m < 32; m++) {
           idx = (32*i+k)*stride + 32*j + m;
@@ -556,25 +551,4 @@ void od_paint_dering(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *paint, 
     }
     /*printf("\n");*/
   }
-#else
-  for(i = 0; i < 32*h; i++) {
-    for(j = 0; j < 32*w; j++) {
-      int idx;
-      idx = i*stride + j;
-#if 1
-      paint_mask[idx] = OD_CLAMPI(0, paint[idx] + (((int)paint_mask[idx]*(paint_out[idx] - paint[idx]) + 128) >> 8), 255);
-#else
-      paint[idx] = paint_out[idx];
-#endif
-    }
-  }
-#if 1
-  for(i = 0; i < h; i++) {
-    for(j = 0; j < w; j++) {
-      od_paint_switch(adapt, enc, paint, paint_mask, img, stride, dec8, bstride, mode,
-        mstride, edge_sum, edge_count, q, j, i, 3);
-    }
-  }
-#endif
-#endif
 }
