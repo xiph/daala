@@ -44,7 +44,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
    pixel (i,j) within an block of size 2^ln. The weights w[] are in Q7. We
    always use two edges when interpolating so we can make a smooth transition
    across edges. */
-void pixel_interp(int pi[4], int pj[4], int w[4], int m, int i, int j,
+static void pixel_interp(int pi[4], int pj[4], int w[4], int m, int i, int j,
  int ln) {
   int k;
   int n;
@@ -212,7 +212,7 @@ void pixel_interp(int pi[4], int pj[4], int w[4], int m, int i, int j,
 }
 
 /* Compute the actual interpolation (reconstruction) for a block. */
-void interp_block(unsigned char *img, const unsigned char *edge_accum, int n,
+static void interp_block(unsigned char *img, const unsigned char *edge_accum, int n,
  int stride, int m) {
   int i;
   int j;
@@ -234,3 +234,244 @@ void interp_block(unsigned char *img, const unsigned char *edge_accum, int n,
   }
 }
 
+/* This function finds the optimal paint direction by looking at the direction
+   that minimizes the sum of the squared error caused by replacing each pixel
+   of a line by the line average. For each line we would normally compute
+   this as sum(x^2) - sum(x)^2/N, but since over the entire block the sum(x^2)
+   terms summed over all lines will be the same regardless of the direction,
+   then we don't need to compute that term and we can simply maximize
+   sum(x^2)/N summed over all lines for a given direction. */
+static int mode_select8b(const unsigned char *img, int n, int stride) {
+  int i;
+  int cost[9] = {0};
+  int partial[9][2*MAXN + 1] = {{0}};
+  int best_cost = 0;
+  int best_dir = 0;
+  for (i = 0; i < n; i++) {
+    int j;
+    for (j = 0; j < n; j++) {
+      int x;
+      x = img[i*stride + j] - 128;
+      partial[0][i + j] += x;
+      partial[1][i + j/2] += x;
+      partial[2][i] += x;
+      partial[3][n/2 - 1 + i - j/2] += x;
+      partial[4][n - 1 + i - j] += x;
+      partial[5][n/2 - 1 - i/2 + j] += x;
+      partial[6][j] += x;
+      partial[7][i/2 + j] += x;
+      partial[8][0] += x;
+    }
+  }
+  for (i = 0; i < n; i++) {
+    cost[2] += partial[2][i]*partial[2][i]/n;
+    cost[6] += partial[6][i]*partial[6][i]/n;
+  }
+  for (i = 0; i < n - 1; i++) {
+    cost[0] += partial[0][i]*partial[0][i]/(i + 1)
+     + partial[0][2*n - 2 - i]*partial[0][2*n - 2 - i]/(i + 1);
+    cost[4] += partial[4][i]*partial[4][i]/(i + 1)
+     + partial[4][2*n - 2 - i]*partial[4][2*n - 2 - i]/(i + 1);
+  }
+  cost[0] += partial[0][n - 1]*partial[0][n - 1]/n;
+  cost[4] += partial[4][n - 1]*partial[4][n - 1]/n;
+  for (i = 1; i < 8; i+=2) {
+    int j;
+    for (j = 0; j < n/2 + 1; j++) {
+      cost[i] += partial[i][n/2 - 1 + j]*partial[i][n/2 - 1 + j]/n;
+    }
+    for (j = 0; j < n/2 - 1; j++) {
+      cost[i] += partial[i][j]*partial[i][j]/(2*j+2);
+      cost[i] += partial[i][3*n/2 - j]*partial[i][3*n/2 - j]/(2*j+2);
+    }
+  }
+  cost[8] = (partial[8][0]/n)*(partial[8][0]/n) + 2*n*n;
+  for (i = 0; i < 9; i++) {
+    if (cost[i] > best_cost) {
+      best_cost = cost[i];
+      best_dir = i;
+    }
+  }
+  /* Convert to a max of 4*N. */
+  return best_dir*(4*n/8);
+}
+
+/* Accumulate sums on block edges so that we can later compute pixel values.
+   There's usually two blocks used for each edge, but there can be up to 4
+   in the corners. */
+static void compute_edges(const unsigned char *img, int stride,
+ int *edge_accum, int *edge_accum2, int *edge_count, int edge_stride, int n, int mode) {
+  int i;
+  int j;
+  int pi[4];
+  int pj[4];
+  int w[4];
+  int ln;
+  ln = 0;
+  while (1 << ln < n) ln++;
+  for (i = 0; i < n; i++) {
+    for (j = 0; j < n; j++) {
+      int k;
+      pixel_interp(pi, pj, w, mode, i, j, ln);
+      for (k = 0; k < 4; k++) {
+        edge_accum[pi[k]*edge_stride+pj[k]] += (int)img[i*stride+j]*w[k];
+        edge_accum2[pi[k]*edge_stride+pj[k]] += (int)img[i*stride+j]*
+          img[i*stride+j]*w[k];
+        edge_count[pi[k]*edge_stride+pj[k]] += w[k];
+      }
+    }
+  }
+}
+
+void od_intra_paint_analysis(const unsigned char *paint, int stride,
+ const unsigned char *dec8, int bstride, unsigned char *mode, int mstride,
+ int *edge_sum, int *edge_sum2, int *edge_count, int bx, int by, int level) {
+  int bs;
+  bs = dec8[(by<<level>>1)*bstride + (bx<<level>>1)];
+
+  OD_ASSERT(bs <= level);
+  if (bs < level) {
+    level--;
+    bx <<= 1;
+    by <<= 1;
+    od_intra_paint_analysis(paint, stride, dec8, bstride,
+     mode, mstride, edge_sum, edge_sum2, edge_count, bx, by, level);
+    od_intra_paint_analysis(paint, stride, dec8, bstride,
+     mode, mstride, edge_sum, edge_sum2, edge_count, bx + 1, by, level);
+    od_intra_paint_analysis(paint, stride, dec8, bstride,
+     mode, mstride, edge_sum, edge_sum2, edge_count, bx, by + 1, level);
+    od_intra_paint_analysis(paint, stride, dec8, bstride,
+     mode, mstride, edge_sum, edge_sum2, edge_count, bx + 1, by + 1, level);
+  }
+  else {
+    int curr_mode;
+    int ln;
+    int n;
+    int k;
+    int m;
+    ln = 2 + bs;
+    n = 1 << ln;
+    curr_mode = mode_select8b(&paint[stride*n*by + n*bx], n, stride);
+    for (k=0;k<1<<bs;k++) {
+      for (m=0;m<1<<bs;m++) {
+        mode[((by << bs) + k)*mstride + (bx << bs) + m] = curr_mode;
+      }
+    }
+    compute_edges(&paint[stride*n*by + n*bx], stride,
+     &edge_sum[stride*n*by + n*bx], &edge_sum2[stride*n*by + n*bx],
+     &edge_count[stride*n*by + n*bx], stride, n, curr_mode);
+  }
+}
+
+/* Computes the Wiener filter gain in Q8 considering (1/64)*q^2/12 as the
+   noise. The 1/64 factor factor takes into consideration the fact that
+   q^2/12 is really the worst case noise estimate and the fact that we'll be
+   multiplying the filter gain by up to 16 when coding the strength of the
+   deringing. */
+#define VAR2(q) \
+  do {int yy;\
+  yy = ((double)edge_sum2[idx] \
+   - (double)edge_sum1[idx]*edge_sum1[idx]/edge_count[idx])/edge_count[idx]; \
+  paint_gain[idx] = OD_CLAMPI(0, (int)(256.*((q)*(q)/12./64)/(10+yy)), 255);} \
+  while(0)
+
+void od_paint_compute_edge_mask(od_adapt_ctx *adapt, od_ec_enc *enc,
+ unsigned char *paint, const unsigned char *img, unsigned char *paint_gain,
+ int stride, const unsigned char *dec8, int bstride, unsigned char *mode,
+ int mstride, int *edge_sum1, int *edge_sum2, int *edge_count, int q, int bx,
+ int by, int level) {
+  int bs;
+  bs = dec8[(by<<level>>1)*bstride + (bx<<level>>1)];
+
+  OD_ASSERT(bs <= level);
+  if (bs < level) {
+    level--;
+    bx <<= 1;
+    by <<= 1;
+    od_paint_compute_edge_mask(adapt, enc, paint, img, paint_gain, stride, dec8, bstride,
+     mode, mstride, edge_sum1, edge_sum2, edge_count, q, bx, by, level);
+    od_paint_compute_edge_mask(adapt, enc, paint, img, paint_gain, stride, dec8, bstride,
+     mode, mstride, edge_sum1, edge_sum2, edge_count, q, bx + 1, by, level);
+    od_paint_compute_edge_mask(adapt, enc, paint, img, paint_gain, stride, dec8, bstride,
+     mode, mstride, edge_sum1, edge_sum2, edge_count, q, bx, by + 1, level);
+    od_paint_compute_edge_mask(adapt, enc, paint, img, paint_gain, stride, dec8, bstride,
+     mode, mstride, edge_sum1, edge_sum2, edge_count, q, bx + 1, by + 1, level);
+  }
+  else {
+    int ln;
+    int n;
+    int k;
+    int idx;
+    ln = 2 + bs;
+    n = 1 << ln;
+    if (bx == 0 && by == 0) {
+      idx = -stride - 1;
+      if (edge_count[idx] > 0) {
+        paint[idx] = edge_sum1[idx]/edge_count[idx];
+        VAR2(q);
+      }
+      else {
+        paint[idx] = img[idx];
+      }
+    }
+    /* Compute left edge (left column only). */
+    if (bx == 0) {
+      for (k = 0; k < n; k++) {
+        idx = stride*(n*by + k) - 1;
+        if (edge_count[idx] > 0) {
+          paint[idx] = edge_sum1[idx]/edge_count[idx];
+          VAR2(q);
+        }
+        else {
+          paint[idx] = img[idx];
+        }
+      }
+    }
+    /* Compute top edge (top row only). */
+    if (by == 0) {
+      for (k = 0; k < n; k++) {
+        idx = -stride + n*bx + k;
+        if (edge_count[idx] > 0) {
+          paint[idx] = edge_sum1[idx]/edge_count[idx];
+          VAR2(q);
+        }
+        else {
+          paint[idx] = img[idx];
+        }
+      }
+    }
+    /* Compute right edge stats. */
+    for (k = 0; k < n - 1; k++) {
+      idx = stride*(n*by + k) + n*(bx + 1) - 1;
+      if (edge_count[idx] > 0) {
+        paint[idx] = edge_sum1[idx]/edge_count[idx];
+        VAR2(q);
+      }
+      else {
+        paint[idx] = img[idx];
+      }
+    }
+    /* Compute bottom edge stats. */
+    for (k = 0; k < n; k++) {
+      idx = stride*(n*(by + 1) - 1) + n*bx + k;
+      if (edge_count[idx] > 0) {
+        paint[idx] = edge_sum1[idx]/edge_count[idx];
+        VAR2(q);
+      }
+      else {
+        paint[idx] = img[idx];
+      }
+    }
+    interp_block(&paint[stride*n*by + n*bx], &paint[stride*n*by + n*bx],
+     n, stride, mode[(by*mstride + bx) << ln >> 2]);
+    interp_block(&paint_gain[stride*n*by + n*bx], &paint_gain[stride*n*by + n*bx],
+     n, stride, mode[(by*mstride + bx) << ln >> 2]);
+  }
+}
+
+static unsigned char mask[1<<24];
+static unsigned char paint_buf[1<<24];
+unsigned char *paint_mask=mask+4096;
+unsigned char *paint_out=paint_buf+4096;
+
+ogg_uint16_t gain_cdf[] = {128, 256, 384, 512, 640, 768, 896, 1024, 1152};
