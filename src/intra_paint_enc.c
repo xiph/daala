@@ -96,11 +96,11 @@ static int mode_select8b(const unsigned char *img, int n, int stride) {
   return best_dir*(4*n/8);
 }
 
-/* Compute the final edges once the contribution of all blocks are counted.
+/* Accumulate sums on block edges so that we can later compute pixel values.
    There's usually two blocks used for each edge, but there can be up to 4
    in the corners. */
 static void compute_edges(const unsigned char *img, int stride,
- int *edge_accum, int *edge_count, int edge_stride, int n, int mode) {
+ int *edge_accum, int *edge_accum2, int *edge_count, int edge_stride, int n, int mode) {
   int i;
   int j;
   int pi[4];
@@ -115,31 +115,9 @@ static void compute_edges(const unsigned char *img, int stride,
       pixel_interp(pi, pj, w, mode, i, j, ln);
       for (k = 0; k < 4; k++) {
         edge_accum[pi[k]*edge_stride+pj[k]] += (int)img[i*stride+j]*w[k];
+        edge_accum2[pi[k]*edge_stride+pj[k]] += (int)img[i*stride+j]*
+          img[i*stride+j]*w[k];
         edge_count[pi[k]*edge_stride+pj[k]] += w[k];
-      }
-    }
-  }
-}
-
-/* Compute edge variance. */
-static void compute_edge_variance(const unsigned char *paint, int stride,
- int *edge_accum2, int edge_stride, int n,
- int mode) {
-  int i;
-  int j;
-  int pi[4];
-  int pj[4];
-  int w[4];
-  int ln;
-  ln = 0;
-  while (1 << ln < n) ln++;
-  for (i = 0; i < n; i++) {
-    for (j = 0; j < n; j++) {
-      int k;
-      pixel_interp(pi, pj, w, mode, i, j, ln);
-      for (k = 0; k < 4; k++) {
-        edge_accum2[pi[k]*edge_stride+pj[k]] += (int)paint[i*stride+j]*
-          paint[i*stride+j]*w[k];
       }
     }
   }
@@ -181,10 +159,8 @@ void od_intra_paint_analysis(const unsigned char *paint,
       }
     }
     compute_edges(&paint[stride*n*by + n*bx], stride,
-     &edge_sum[stride*n*by + n*bx], &edge_count[stride*n*by + n*bx], stride,
-     n, curr_mode);
-    compute_edge_variance(&paint[stride*n*by + n*bx], stride,
-     &edge_sum2[stride*n*by + n*bx], stride, n, curr_mode);
+     &edge_sum[stride*n*by + n*bx], &edge_sum2[stride*n*by + n*bx],
+     &edge_count[stride*n*by + n*bx], stride, n, curr_mode);
   }
 }
 
