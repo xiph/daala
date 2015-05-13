@@ -341,22 +341,17 @@ void od_intra_paint_compute_edges(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned 
   }
 }
 
-#define SQUARE(x) ((x)*(x))
-#define COVAR(xy,x,y,c) ((double)(xy)/(c) - ((double)(x)*(y)/((c)*(c))))
-
-#define VAR(q) do {paint[idx] = OD_MINI(255, (int)(256./12/64.*(q)*(q)/(1+(double)edge_sum2[idx]/edge_count[idx] \
-  - SQUARE((double)edge_sum1[idx]/edge_count[idx]))));} while(0)
-
-#if 1
-#define VAR2(q) do {int yy;\
-                yy = COVAR(edge_sum2[idx], edge_sum1[idx], edge_sum1[idx], edge_count[idx]); \
-                paint[idx] = OD_CLAMPI(0, (int)(256.*((q)*(q)/12./64)/(10+yy)), 255);} while(0)
-#else
-#define VAR2(q) do {int yy, xy;\
-                yy = COVAR(edge_sum2[idx], edge_sum1[idx], edge_sum1[idx], edge_count[idx]); \
-                xy = COVAR(edge_corr[idx], orig_edge_sum[idx], edge_sum1[idx], edge_count[idx]); \
-                paint[idx] = OD_CLAMPI(0, (int)(256.*(yy-xy)/(10+yy)), 255);} while(0)
-#endif
+/* Computes the Wiener filter gain in Q8 considering (1/64)*q^2/12 as the
+   noise. The 1/64 factor factor takes into consideration the fact that
+   q^2/12 is really the worst case noise estimate and the fact that we'll be
+   multiplying the filter gain by up to 16 when coding the strength of the
+   deringing. */
+#define VAR2(q) \
+  do {int yy;\
+  yy = ((double)edge_sum2[idx] \
+   - (double)edge_sum1[idx]*edge_sum1[idx]/edge_count[idx])/edge_count[idx]; \
+  paint[idx] = OD_CLAMPI(0, (int)(256.*((q)*(q)/12./64)/(10+yy)), 255);} \
+  while(0)
 
 void od_paint_compute_edge_mask(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *paint, const unsigned char *img,
  int stride, const unsigned char *dec8, int bstride,
