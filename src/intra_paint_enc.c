@@ -465,6 +465,7 @@ void od_paint_dering(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *paint, 
   for(i = 0; i < 32*w; i++) paint[-stride + i] = paint[i];
   for(i = 0; i < 32*h; i++) paint[stride*i - 1] = paint[stride*i];
   paint[-stride - 1] = paint[0];
+  /* First pass on the image: collect the stats. */
   for(i = 0; i < h; i++) {
     for(j = 0; j < w; j++) {
       /* Computes the direction for each block. */
@@ -473,10 +474,6 @@ void od_paint_dering(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *paint, 
       /* Accumulates sums for each edge. */
       od_intra_paint_analysis(paint, paint, stride, dec8, bstride, mode,
        mstride, edge_sum, edge_count, j, i, 3);
-    }
-  }
-  for(i = 0; i < h; i++) {
-    for(j = 0; j < w; j++) {
       /* Accumulates sums of squared pixel values for each edge. */
       od_paint_var_analysis(paint, stride, dec8, bstride, mode,
        mstride, var2_edge_sum, j, i, 3);
@@ -491,7 +488,7 @@ void od_paint_dering(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *paint, 
     printf("\n");
   }
 #endif
-
+  /* Second pass on the image: do the painting and compute the gains. */
   for(i = 0; i < h; i++) {
     for(j = 0; j < w; j++) {
       /* Computes the edge pixels that will be used for painting. */
@@ -500,15 +497,9 @@ void od_paint_dering(od_adapt_ctx *adapt, od_ec_enc *enc, unsigned char *paint, 
       /* Computes the Wiener filter gain for each edge. */
       od_paint_compute_edge_mask(adapt, enc, paint_mask, paint_mask, stride, dec8, bstride, mode,
         mstride, edge_sum, var2_edge_sum, edge_count, q, j, i, 3);
-    }
-  }
-  for(i = 0; i < h; i++) {
-    for(j = 0; j < w; j++) {
-#if 1
       /* Does the actual painting from the edges. */
       od_paint_block(adapt, enc, paint_out, paint_out, stride, dec8, bstride, mode,
        mstride, edge_sum, edge_count, q, j, i, 3);
-#endif
       /* Take the Wiener filter edge gains and "paints" them into the block so
          that we have one gain per pixel. */
       od_paint_block(adapt, enc, paint_mask, paint_mask, stride, dec8, bstride, mode,
