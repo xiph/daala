@@ -843,21 +843,38 @@ static double od_compute_dist_8x8(daala_enc_ctx *enc, od_coeff *x, od_coeff *y,
   od_coeff et[8*8];
   double sum;
   int min_var;
+  double mean_var;
+  double var_stat;
   double activity;
+  double calibration;
   int i;
   int j;
 #if 1
   min_var = INT_MAX;
+  mean_var = 0;
   for (i = 0; i < 3; i++) {
     for (j = 0; j < 3; j++) {
       int var;
       var = od_compute_var_4x4(x + 2*i*stride + 2*j, stride);
       min_var = OD_MINI(min_var, var);
+      mean_var += 1./(1+var);
     }
+  }
+  /* We use a different variance statistic depending on whether activity
+     masking is used, since the harmonic mean appeared slghtly worse with
+     masking off. The calibration constant just ensures that we preserve the
+     rate compared to activity=1. */
+  if (enc->use_activity_masking) {
+    calibration = 1.95;
+    var_stat = 9./mean_var;
+  }
+  else {
+    calibration = 1.62;
+    var_stat = min_var;
   }
   /* 1.62 is a calibration constant, 0.25 is a noise floor and 1/6 is the
      activity masking constant. */
-  activity = 1.62*pow(.25 + (double)min_var/(1 << 2*OD_COEFF_SHIFT), -1./6);
+  activity = calibration*pow(.25 + var_stat/(1 << 2*OD_COEFF_SHIFT), -1./6);
 #else
   activity = 1;
 #endif
