@@ -374,6 +374,8 @@ static const struct option OPTIONS[] = {
   { "complexity", required_argument, NULL, 'z' },
   { "mc-use-chroma", no_argument, NULL, 0 },
   { "no-mc-use-chroma", no_argument, NULL, 0 },
+  { "activity-masking", no_argument, NULL, 0 },
+  { "no-activity-masking", no_argument, NULL, 0 },
   { "mv-res-min", required_argument, NULL, 0 },
   { "mv-level-min", required_argument, NULL, 0 },
   { "mv-level-max", required_argument, NULL, 0 },
@@ -407,6 +409,9 @@ static void usage(void) {
    "     --[no-]mc-use-chroma        Control whether the chroma planes should\n"
    "                                 be used in the motion compensation search.\n"
    "                                 --mc-use-chroma is implied by default.\n"
+   "     --[no-]activity-masking     Control whether activity masking should\n"
+   "                                 be used in quantization.\n"
+   "                                 --activity-masking is implied by default.\n"
    "     --mv-res-min <n>            Minimum motion vectors resolution for the\n"
    "                                 motion compensation search.\n"
    "                                 0 => 1/8 pel (default), 1 => 1/4 pel,\n"
@@ -452,6 +457,7 @@ int main(int argc, char **argv) {
   int complexity;
   int interactive;
   int mc_use_chroma;
+  int use_activity_masking;
   int mv_res_min;
   int mv_level_min;
   int mv_level_max;
@@ -478,6 +484,7 @@ int main(int argc, char **argv) {
   limit = -1;
   complexity = 7;
   mc_use_chroma = 1;
+  use_activity_masking = 1;
   mv_res_min = 0;
   mv_level_min = 0;
   mv_level_max = 6;
@@ -562,6 +569,12 @@ int main(int argc, char **argv) {
         else if (strcmp(OPTIONS[loi].name, "no-mc-use-chroma") == 0) {
           mc_use_chroma = 0;
         }
+        else if (strcmp(OPTIONS[loi].name, "activity-masking") == 0) {
+          use_activity_masking = 1;
+        }
+        else if (strcmp(OPTIONS[loi].name, "no-activity-masking") == 0) {
+          use_activity_masking = 0;
+        }
         else if (strcmp(OPTIONS[loi].name, "mv-res-min") == 0) {
           mv_res_min = atoi(optarg);
           if (mv_res_min < 0 || mv_res_min > 2) {
@@ -633,6 +646,8 @@ int main(int argc, char **argv) {
   daala_encode_ctl(dd, OD_SET_COMPLEXITY, &complexity, sizeof(complexity));
   daala_encode_ctl(dd, OD_SET_MC_USE_CHROMA, &mc_use_chroma,
    sizeof(mc_use_chroma));
+  daala_encode_ctl(dd, OD_SET_USE_ACTIVITY_MASKING, &use_activity_masking,
+   sizeof(int));
   daala_encode_ctl(dd, OD_SET_MV_RES_MIN, &mv_res_min, sizeof(mv_res_min));
   daala_encode_ctl(dd, OD_SET_MV_LEVEL_MIN, &mv_level_min, sizeof(mv_level_min));
   daala_encode_ctl(dd, OD_SET_MV_LEVEL_MAX, &mv_level_max, sizeof(mv_level_max));
