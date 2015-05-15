@@ -96,7 +96,7 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
     enc->quality[i] = 10;
   }
   enc->complexity = 7;
-  enc->use_activity_masking = 1;
+  enc->use_activity_masking = 0;
   enc->mvest = od_mv_est_alloc(enc);
   if (OD_UNLIKELY(!enc->mvest)) {
     return OD_EFAULT;
@@ -864,7 +864,7 @@ static double od_compute_dist_8x8(daala_enc_ctx *enc, od_coeff *x, od_coeff *y,
      masking is used, since the harmonic mean appeared slghtly worse with
      masking off. The calibration constant just ensures that we preserve the
      rate compared to activity=1. */
-  if (enc->use_activity_masking) {
+  if (1||enc->use_activity_masking) {
     calibration = 1.95;
     var_stat = 1./(mean_var/9.);
   }
