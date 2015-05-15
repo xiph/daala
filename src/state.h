@@ -146,6 +146,8 @@ struct od_adapt_ctx {
   /* Joint skip flag for DC and AC */
   ogg_uint16_t skip_cdf[OD_NPLANES_MAX][4];
   int skip_increment;
+  ogg_uint16_t deringing_gain_cdf[5];
+  int deringing_gain_increment;
 };
 
 struct od_state{
@@ -213,6 +215,18 @@ struct od_state{
   od_coeff *lbuf[OD_NPLANES_MAX];
   unsigned char pvq_qm_q4[OD_NPLANES_MAX][OD_QM_SIZE];
   /* Holds a TF'd copy of the transform coefficients in 4x4 blocks. */
+# if !OD_DISABLE_PAINT
+  /* intra_paint buffers */
+  /* TODO high bit depth */
+  unsigned char *dec8;
+  unsigned char *mode;
+  unsigned char *mode8;
+  unsigned char *mode16;
+  unsigned char *mode32;
+  int *edge_sum;
+  int *edge_sum2;
+  int *edge_count;
+# endif
 };
 
 int od_state_init(od_state *_state, const daala_info *_info);

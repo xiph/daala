@@ -49,6 +49,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "accounting.h"
 #include "state.h"
 #include "mcenc.h"
+#if !OD_DISABLE_PAINT
+#include "intra_paint.h"
+#endif
 #if defined(OD_X86ASM)
 # include "x86/x86int.h"
 #endif
@@ -1525,7 +1528,56 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
         }
       }
     }
+      /* Apply deringing */
+      if (pli == 0 && !rdo_only) {
+          int i, j;
+          int w8, h32, w32;
+          int bstride;
+          int mstride;
+          xdec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
+          w = frame_width >> xdec;
+          h = frame_height >> xdec;
+          w32 = w>>5;
+          h32 = h>>5;
+          w8 = w32<<2;
+          bstride = w8;
+          mstride = w8<<1;
+          /* clear intra paint buffers */
+          memset(enc->state.edge_sum,0,(w+32)*(h+32)*sizeof(*enc->state.edge_sum));
+          memset(enc->state.edge_sum2,0,(w+32)*(h+32)*sizeof(*enc->state.edge_sum2));
+          memset(enc->state.edge_count,0,(w+32)*(h+32)*sizeof(*enc->state.edge_count));
+          /* intra paint */
+          OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO, "Intra paint frame %i:",
+           (int)daala_granule_basetime(enc, enc->state.cur_time)));
+          for (i = 0; i < h32; i++) {
+            for (j = 0; j < w32; j++) {
+              int k, m;
+              /* Always use 8x8 blocks for painting. */
+              for (k = 0; k < 4; k++) {
+                for (m = 0; m < 4; m++) {
+                  enc->state.dec8[(4*i + k)*bstride + (4*j + m)] = 1;
+                }
+              }
+            }
+          }
+          od_paint_dering(&enc->state.adapt, &enc->ec,
+           enc->state.io_imgs[OD_FRAME_REC].planes[pli].data,
+           enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].data, w32, h32,
+           enc->state.io_imgs[OD_FRAME_REC].planes[pli].ystride, enc->state.dec8,
+           bstride, enc->state.mode, mstride, enc->state.edge_sum,
+           enc->state.edge_sum2, enc->state.edge_count,
+           enc->quantizer[pli]>>OD_COEFF_SHIFT);
+      # if 0 && defined(OD_DUMP_IMAGES)
+          /*Dump painted frame.*/
+          od_state_dump_img(&enc->state,enc->state.io_imgs + OD_FRAME_REC,"paint");
+          od_state_dump_img(&enc->state,enc->state.io_imgs + OD_FRAME_INPUT,"input");
+      # endif
+        }
   }
+#if 0
+    memset(enc->state.io_imgs[OD_FRAME_REC].planes[1].data, 128, enc->state.frame_height/2*enc->state.io_imgs[OD_FRAME_REC].planes[1].ystride );
+    memset(enc->state.io_imgs[OD_FRAME_REC].planes[2].data, 128, enc->state.frame_height/2*enc->state.io_imgs[OD_FRAME_REC].planes[2].ystride );
+#endif
 }
 
 #if defined(OD_LOGGING_ENABLED)
