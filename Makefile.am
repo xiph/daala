@@ -181,6 +181,7 @@ if ENABLE_TOOLS
 
 tools_TARGETS = \
 	tools/png2y4m \
+	tools/tiff2y4m \
 	tools/y4m2png \
 	tools/y4m2tiff \
 	tools/dump_psnrhvs \
@@ -225,6 +226,13 @@ tools_png2y4m_SOURCES = \
 	tools/png2y4m.c
 tools_png2y4m_CFLAGS = $(OGG_CFLAGS) $(PNG_CFLAGS)
 tools_png2y4m_LDADD = $(OGG_LIBS) $(PNG_LIBS)
+
+# tiff2y4m
+tools_tiff2y4m_SOURCES = \
+	tools/kiss99.c \
+	tools/tiff2y4m.c
+tools_tiff2y4m_CFLAGS = $(OGG_CFLAGS) $(TIFF_CFLAGS)
+tools_tiff2y4m_LDADD = $(OGG_LIBS) $(TIFF_LIBS)
 
 # y4m2png
 tools_y4m2png_SOURCES = \
