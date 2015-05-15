@@ -647,7 +647,7 @@ int main(int argc, char **argv) {
   daala_encode_ctl(dd, OD_SET_MC_USE_CHROMA, &mc_use_chroma,
    sizeof(mc_use_chroma));
   daala_encode_ctl(dd, OD_SET_USE_ACTIVITY_MASKING, &use_activity_masking,
-   sizeof(int));
+   sizeof(use_activity_masking));
   daala_encode_ctl(dd, OD_SET_MV_RES_MIN, &mv_res_min, sizeof(mv_res_min));
   daala_encode_ctl(dd, OD_SET_MV_LEVEL_MIN, &mv_level_min, sizeof(mv_level_min));
   daala_encode_ctl(dd, OD_SET_MV_LEVEL_MAX, &mv_level_max, sizeof(mv_level_max));
