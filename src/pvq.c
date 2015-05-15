@@ -169,9 +169,9 @@ static const unsigned char OD_FLAT_LUMA_QM_Q4[2][OD_QM_SIZE] = {
    Masking disabled: */
  {
   27, 16,
-  23, 16, 16, 16,
-  19, 16, 16, 16, 16, 16,
-  17, 16, 16, 16, 16, 16, 16, 16
+  23, 18, 16, 16,
+  19, 14, 16, 16, 16, 16,
+  17, 11, 16, 16, 16, 16, 16, 16
  },
 /* The non-flat AC coefficients compensate for the non-linear scaling caused
    by activity masking. The values are currently hand-tuned so that the rate
@@ -228,9 +228,9 @@ const od_qm_entry OD_DEFAULT_QMS[2][2][OD_NPLANES_MAX] = {
 
 
 static const double OD_PVQ_BETA4_LUMA[1] = {1.};
-static const double OD_PVQ_BETA8_LUMA[4] = {1., 1., 1., 1.};
-static const double OD_PVQ_BETA16_LUMA[7] = {1., 1., 1., 1., 1., 1., 1.};
-static const double OD_PVQ_BETA32_LUMA[10] = {1., 1., 1., 1., 1., 1., 1.,
+static const double OD_PVQ_BETA8_LUMA[4] = {1.5, 1., 1., 1.};
+static const double OD_PVQ_BETA16_LUMA[7] = {1.5, 1., 1., 1., 1., 1., 1.};
+static const double OD_PVQ_BETA32_LUMA[10] = {1.5, 1., 1., 1., 1., 1., 1.,
  1., 1., 1.};
 
 static const double OD_PVQ_BETA4_LUMA_MASKING[1] = {1.};
