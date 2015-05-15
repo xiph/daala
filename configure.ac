@@ -128,6 +128,7 @@ if test "$enable_tools" = "yes" ; then
    AC_CHECK_LIB([jpeg],[jpeg_start_compress],[JPEG_LIBS="-ljpeg"],[AC_MSG_ERROR([libjpeg needed for building tools])])
    AC_SUBST([JPEG_LIBS])
    PKG_CHECK_MODULES([PNG], [libpng])
+   PKG_CHECK_MODULES([TIFF], [libtiff-4])
 
    AC_OPENMP
 fi

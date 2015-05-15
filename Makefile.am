@@ -182,6 +182,7 @@ if ENABLE_TOOLS
 tools_TARGETS = \
 	tools/png2y4m \
 	tools/y4m2png \
+	tools/y4m2tiff \
 	tools/dump_psnrhvs \
 	tools/block_size_analysis \
 	tools/to_monochrome \
@@ -232,6 +233,14 @@ tools_y4m2png_SOURCES = \
 	tools/y4m2png.c
 tools_y4m2png_CFLAGS = $(OGG_CFLAGS) $(PNG_CFLAGS)
 tools_y4m2png_LDADD = $(OGG_LIBS) $(PNG_LIBS)
+
+# y4m2tiff
+tools_y4m2tiff_SOURCES = \
+	tools/vidinput.c \
+	tools/y4m_input.c \
+	tools/y4m2tiff.c
+tools_y4m2tiff_CFLAGS = $(OGG_CFLAGS) $(TIFF_CFLAGS)
+tools_y4m2tiff_LDADD = $(OGG_LIBS) $(TIFF_LIBS)
 
 # dump_psnrhvs
 tools_dump_psnrhvs_SOURCES = \
