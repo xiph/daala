@@ -535,6 +535,7 @@ int main(int _argc,char **_argv){
   char           *input_directory;
   char           *scratch;
   int             i;
+  char  input_filename[8192];
 #ifdef _WIN32
   /*We need to set stdin/stdout to binary mode.
     Damn Windows.*/
@@ -593,7 +594,8 @@ int main(int _argc,char **_argv){
     fprintf(stderr,"No input files found. Run with -h for help.\n");
     return EXIT_FAILURE;
   }
-  fin=TIFFOpen(tiff_files[0]->d_name,"r");
+  snprintf(input_filename,8191,"%s/%s",input_directory,tiff_files[i]->d_name);
+  fin=TIFFOpen(input_filename,"r");
   if(fin==NULL)return EXIT_FAILURE;
 
   if(output_filename==NULL){
@@ -618,7 +620,7 @@ int main(int _argc,char **_argv){
     int pli;
     int j;
     if(i>0){
-      fin=TIFFOpen(tiff_files[i]->d_name,"r");
+      fin=TIFFOpen(input_filename,"r");
       if(fin==NULL)return EXIT_FAILURE;
       fprintf(stderr,"%s\n",tiff_files[i]->d_name);
       if(read_tiff(ycbcr,fin)<0)return EXIT_FAILURE;
