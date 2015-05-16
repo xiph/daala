@@ -169,6 +169,10 @@ void daala_encode_free(daala_enc_ctx *enc);
  * \param[in]  _buf <tt>int</tt>: 0 to disable the use of activity masking,
  *                   a non-zero value otherwise (the default). */
 #define OD_SET_USE_ACTIVITY_MASKING 4006
+/** Which quantization matrix to use.
+ * \param[in]  _buf <tt>int</tt>: 0 => flat quantization matrix,
+ *                   1 => HVS (the default). */
+#define OD_SET_QM 4008
 
 /** Whether the motion compensation search should use the chroma planes in
     addition to the luma plane.

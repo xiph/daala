@@ -88,6 +88,7 @@ struct daala_enc_ctx{
   int quantizer[OD_NPLANES_MAX];
   int complexity;
   int use_activity_masking;
+  od_qm qm;
   od_mv_est_ctx *mvest;
   od_params_ctx params;
 #if defined(OD_ENCODER_CHECK)

@@ -187,6 +187,7 @@ struct od_mb_dec_ctx {
   od_coeff *l;
   int is_keyframe;
   int use_activity_masking;
+  od_qm qm;
 };
 typedef struct od_mb_dec_ctx od_mb_dec_ctx;
 
@@ -282,10 +283,12 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   int quant;
   int dc_quant;
   int use_masking;
+  const int *qm;
   OD_ASSERT(ln >= 0 && ln <= 3);
   n = 1 << (ln + 2);
   lossless = (dec->quantizer[pli] == 0);
   use_masking = ctx->use_activity_masking;
+  qm = ctx->qm == OD_HVS_QM ? OD_QM8_Q4_QM_HVS : OD_QM8_Q4_QM_FLAT;
   bx <<= ln;
   by <<= ln;
   xdec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
@@ -299,7 +302,7 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   /*Apply forward transform to MC predictor.*/
   if (!ctx->is_keyframe) {
     (*dec->state.opt_vtbl.fdct_2d[ln])(md + bo, w, mc + bo, w);
-    if (!lossless) od_apply_qm(md + bo, w, md + bo, w, ln, xdec, 0);
+    if (!lossless) od_apply_qm(md + bo, w, md + bo, w, ln, xdec, 0, qm);
   }
   od_decode_compute_pred(dec, ctx, pred, ln, pli, bx, by);
   if (ctx->is_keyframe && pli == 0) {
@@ -338,7 +341,7 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
     pred[0] = d[bo];
   }
   od_coding_order_to_raster(&d[bo], w, pred, n, lossless);
-  if (!lossless) od_apply_qm(d + bo, w, d + bo, w, ln, xdec, 1);
+  if (!lossless) od_apply_qm(d + bo, w, d + bo, w, ln, xdec, 1, qm);
   /*Apply the inverse transform.*/
   (*dec->state.opt_vtbl.idct_2d[ln])(c + bo, w, d + bo, w);
 }
@@ -750,6 +753,7 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
   if (od_ec_decode_bool_q15(&dec->ec, 16384)) return OD_EBADPACKET;
   mbctx.is_keyframe = od_ec_decode_bool_q15(&dec->ec, 16384);
   mbctx.use_activity_masking = od_ec_decode_bool_q15(&dec->ec, 16384);
+  mbctx.qm = od_ec_decode_bool_q15(&dec->ec, 16384);
   if (mbctx.is_keyframe) {
     int nplanes;
     int pli;

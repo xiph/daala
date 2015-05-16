@@ -94,9 +94,8 @@ const double *OD_BASIS_MAG[2][OD_NBSIZES] = {
 
 /* Quantization matrices for 8x8. For other block sizes, we currently just do
    resampling. */
-#if OD_DISABLE_QM
 /* Flat quantization, i.e. optimize for PSNR. */
-const int OD_QM8_Q4[] = {
+const int OD_QM8_Q4_QM_FLAT[] = {
   16, 16, 16, 16, 16, 16, 16, 16,
   16, 16, 16, 16, 16, 16, 16, 16,
   16, 16, 16, 16, 16, 16, 16, 16,
@@ -106,7 +105,6 @@ const int OD_QM8_Q4[] = {
   16, 16, 16, 16, 16, 16, 16, 16,
   16, 16, 16, 16, 16, 16, 16, 16
 };
-#else
 # if 0
 /* M1: MPEG2 matrix for inter (which has a dead zone). */
 const int OD_QM8_Q4[] = {
@@ -147,7 +145,7 @@ const int OD_QM8_Q4[] = {
 # endif
 # if 1
 /* M4: a compromise equal to .5*(M3 + .5*(M2+transpose(M2))) */
-const int OD_QM8_Q4[] = {
+const int OD_QM8_Q4_QM_HVS[] = {
   16, 16, 18, 21, 24, 28, 32, 36,
   16, 17, 20, 21, 24, 27, 31, 35,
   18, 20, 24, 25, 27, 31, 33, 38,
@@ -157,7 +155,6 @@ const int OD_QM8_Q4[] = {
   32, 31, 33, 37, 43, 50, 58, 68,
   36, 35, 38, 42, 49, 58, 68, 78
 };
-# endif
 #endif
 
 /* These are the PVQ equivalent of quantization matrices, except that
@@ -271,7 +268,7 @@ const double *const OD_PVQ_BETA[2][OD_NPLANES_MAX][OD_NBSIZES] = {
    error in the quantized domain would result in a smaller pixel domain
    error). */
 void od_apply_qm(od_coeff *out, int out_stride, od_coeff *in, int in_stride,
- int ln, int dec, int inverse) {
+ int ln, int dec, int inverse, const int *qm) {
   int i;
   int j;
   for (i = 0; i < 4 << ln; i++) {
@@ -282,7 +279,7 @@ void od_apply_qm(od_coeff *out, int out_stride, od_coeff *in, int in_stride,
         mag = 1;
       }
       else {
-        mag /= 0.0625*OD_QM8_Q4[(i << 1 >> ln)*8 + (j << 1 >> ln)];
+        mag /= 0.0625*qm[(i << 1 >> ln)*8 + (j << 1 >> ln)];
       }
       if (inverse) {
         out[i*out_stride + j] = (od_coeff)floor(.5 + in[i*in_stride + j]/mag);

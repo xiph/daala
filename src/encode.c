@@ -97,6 +97,7 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
   }
   enc->complexity = 7;
   enc->use_activity_masking = 1;
+  enc->qm = OD_HVS_QM;
   enc->mvest = od_mv_est_alloc(enc);
   if (OD_UNLIKELY(!enc->mvest)) {
     return OD_EFAULT;
@@ -200,6 +201,18 @@ int daala_encode_ctl(daala_enc_ctx *enc, int req, void *buf, size_t buf_sz) {
       OD_ASSERT(buf);
       OD_ASSERT(buf_sz == sizeof(enc->use_activity_masking));
       enc->use_activity_masking = !!*(const int *)buf;
+      return OD_SUCCESS;
+    }
+    case OD_SET_QM: {
+      od_qm qm;
+      OD_ASSERT(enc);
+      OD_ASSERT(buf);
+      OD_ASSERT(buf_sz == sizeof(qm));
+      qm = *(const int *)buf;
+      if (qm < OD_FLAT_QM || qm > OD_HVS_QM) {
+          return OD_EINVAL;
+      }
+      enc->qm = qm;
       return OD_SUCCESS;
     }
     case OD_SET_MV_RES_MIN:
@@ -366,6 +379,7 @@ struct od_mb_enc_ctx {
   od_coeff *l;
   int is_keyframe;
   int use_activity_masking;
+  od_qm qm;
   /** The quantized DC (dc) is saved in this buffer in recursive raster order,
       with higher levels sub-blocks stored just before the smaller subblocks
       they contain. We save all the DCs for each of the levels we consider.
@@ -487,6 +501,8 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   int dc_quant;
   int lossless;
   int skip;
+  const int *qm;
+  qm = ctx->qm == OD_HVS_QM ? OD_QM8_Q4_QM_HVS : OD_QM8_Q4_QM_FLAT;
 #if defined(OD_OUTPUT_PRED)
   od_coeff preds[OD_BSIZE_MAX*OD_BSIZE_MAX];
   int zzi;
@@ -508,11 +524,11 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   /* Apply forward transform. */
   if (OD_DISABLE_HAAR_DC || rdo_only || !ctx->is_keyframe) {
     (*enc->state.opt_vtbl.fdct_2d[ln])(d + bo, w, c + bo, w);
-    if (!lossless) od_apply_qm(d + bo, w, d + bo, w, ln, xdec, 0);
+    if (!lossless) od_apply_qm(d + bo, w, d + bo, w, ln, xdec, 0, qm);
   }
   if (!ctx->is_keyframe) {
     (*enc->state.opt_vtbl.fdct_2d[ln])(md + bo, w, mc + bo, w);
-    if (!lossless) od_apply_qm(md + bo, w, md + bo, w, ln, xdec, 0);
+    if (!lossless) od_apply_qm(md + bo, w, md + bo, w, ln, xdec, 0, qm);
   }
   od_encode_compute_pred(enc, ctx, pred, ln, pli, bx, by);
   if (ctx->is_keyframe && pli == 0) {
@@ -576,7 +592,7 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   od_coding_order_to_raster(&d[bo], w, scalar_out, n, lossless);
   /*Apply the inverse transform.*/
 #if !defined(OD_OUTPUT_PRED)
-  if (!lossless) od_apply_qm(d + bo, w, d + bo, w, ln, xdec, 1);
+  if (!lossless) od_apply_qm(d + bo, w, d + bo, w, ln, xdec, 1, qm);
   (*enc->state.opt_vtbl.idct_2d[ln])(c + bo, w, d + bo, w);
 #else
 # if 0
@@ -602,6 +618,8 @@ static void od_compute_dcts(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
   int bo;
   int lossless;
   od_coeff *c;
+  const int *qm;
+  qm = ctx->qm == OD_HVS_QM ? OD_QM8_Q4_QM_HVS : OD_QM8_Q4_QM_FLAT;
   lossless = (enc->quantizer[pli] == 0);
   c = ctx->d[pli];
   w = enc->state.frame_width >> xdec;
@@ -615,7 +633,9 @@ static void od_compute_dcts(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
     d -= xdec;
     bo = (by << (OD_LOG_BSIZE0 + d))*w + (bx << (OD_LOG_BSIZE0 + d));
     (*enc->state.opt_vtbl.fdct_2d[d])(c + bo, w, ctx->c + bo, w);
-    if (!lossless) od_apply_qm(c + bo, w, c + bo, w, d, xdec, 0);
+    if (!lossless) {
+      od_apply_qm(c + bo, w, c + bo, w, d, xdec, 0, qm);
+    }
   }
   else {
     int f;
@@ -814,7 +834,6 @@ static void od_quantize_haar_dc(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
 }
 #endif
 
-#if !OD_DISABLE_QM
 static int od_compute_var_4x4(od_coeff *x, int stride) {
   int sum;
   int s2;
@@ -849,6 +868,7 @@ static double od_compute_dist_8x8(daala_enc_ctx *enc, od_coeff *x, od_coeff *y,
   double calibration;
   int i;
   int j;
+  OD_ASSERT(enc->qm != OD_FLAT_QM);
 #if 1
   min_var = INT_MAX;
   mean_var = 0;
@@ -886,34 +906,34 @@ static double od_compute_dist_8x8(daala_enc_ctx *enc, od_coeff *x, od_coeff *y,
   for (i = 0; i < 8; i++) {
     for (j = 0; j < 8; j++) {
       double mag;
-      mag = 16./OD_QM8_Q4[i*8 + j];
+      mag = 16./OD_QM8_Q4_QM_HVS[i*8 + j];
       mag *= mag;
       sum += et[8*i + j]*(double)et[8*i + j]*mag;
     }
   }
   return activity*activity*sum;
 }
-#endif
 
 static double od_compute_dist(daala_enc_ctx *enc, od_coeff *x, od_coeff *y,
  int n) {
   int i;
   double sum;
   sum = 0;
-#if OD_DISABLE_QM
-  for (i = 0; i < n*n; i++) {
-    double tmp;
-    tmp = x[i] - y[i];
-    sum += tmp*tmp;
-  }
-#else
-  for (i = 0; i < n; i += 8) {
-    int j;
-    for (j = 0; j < n; j += 8) {
-      sum += od_compute_dist_8x8(enc, &x[i*n + j], &y[i*n + j], n);
+  if (enc->qm == OD_FLAT_QM) {
+    for (i = 0; i < n*n; i++) {
+      double tmp;
+      tmp = x[i] - y[i];
+      sum += tmp*tmp;
     }
   }
-#endif
+  else {
+    for (i = 0; i < n; i += 8) {
+      int j;
+      for (j = 0; j < n; j += 8) {
+        sum += od_compute_dist_8x8(enc, &x[i*n + j], &y[i*n + j], n);
+      }
+    }
+  }
   return sum;
 }
 
@@ -1726,6 +1746,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   mbctx.is_keyframe |= !(enc->state.ref_imgi[OD_FRAME_PREV] >= 0);
   /* FIXME: This should be dynamic */
   mbctx.use_activity_masking = enc->use_activity_masking;
+  mbctx.qm = enc->qm;
   /*Initialize the entropy coder.*/
   od_ec_enc_reset(&enc->ec);
   OD_ENC_ACCT_UPDATE(enc, OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_FRAME);
@@ -1736,6 +1757,9 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   od_ec_encode_bool_q15(&enc->ec, mbctx.is_keyframe, 16384);
   /*Code whether or not activity masking is being used.*/
   od_ec_encode_bool_q15(&enc->ec, mbctx.use_activity_masking, 16384);
+  /*Code whether flat or hvs quantization matrices are being used.
+   * FIXME: will need to be a wider type if other QMs get added */
+  od_ec_encode_bool_q15(&enc->ec, mbctx.qm, 16384);
   for (pli = 0; pli < nplanes; pli++) {
     enc->quantizer[pli] = od_quantizer_from_quality(enc->quality[pli]);
   }
