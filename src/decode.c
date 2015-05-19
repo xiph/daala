@@ -126,6 +126,31 @@ int daala_decode_ctl(daala_dec_ctx *dec, int req, void *buf, size_t buf_sz) {
   }
 }
 
+static void od_dec_blank_img(od_img *img) {
+  int pli;
+  int frame_buf_width;
+  int frame_buf_height;
+  int plane_buf_width;
+  int plane_buf_height;
+  frame_buf_width = img->width + (OD_UMV_PADDING << 1);
+  frame_buf_height = img->height + (OD_UMV_PADDING << 1);
+  for (pli = 0; pli < img->nplanes; pli++) {
+    plane_buf_width = (frame_buf_width << 1) >> img->planes[pli].xdec;
+    plane_buf_height = (frame_buf_height << 1) >> img->planes[pli].ydec;
+    memset(img->planes[pli].data, 128, plane_buf_width*plane_buf_height);
+  }
+}
+
+/*We're decoding an INTER frame, but have no initialized reference
+   buffers (i.e., decoding did not start on a key frame).
+  We initialize them to a solid gray here.*/
+static void od_dec_init_dummy_frame(daala_dec_ctx *dec) {
+  dec->state.ref_imgi[OD_FRAME_GOLD] =
+   dec->state.ref_imgi[OD_FRAME_PREV] =
+   dec->state.ref_imgi[OD_FRAME_SELF] = 0;
+  od_dec_blank_img(dec->state.ref_imgs + dec->state.ref_imgi[OD_FRAME_SELF]);
+}
+
 static void od_decode_mv(daala_dec_ctx *dec, od_mv_grid_pt *mvg, int vx,
  int vy, int level, int mv_res, int width, int height) {
   generic_encoder *model;
@@ -745,6 +770,14 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
       dec->state.ref_imgi[OD_FRAME_GOLD] =
        dec->state.ref_imgi[OD_FRAME_SELF];
       /*TODO: Mark keyframe timebase.*/
+    }
+  }
+  if (!mbctx.is_keyframe) {
+    /*If there have been no reference frames, and we need one,
+       initialize one.*/
+    if (dec->state.ref_imgi[OD_FRAME_GOLD] < 0 ||
+     dec->state.ref_imgi[OD_FRAME_PREV] < 0 ) {
+      od_dec_init_dummy_frame(dec);
     }
   }
   /*Select a free buffer to use for this reference frame.*/
