@@ -610,7 +610,7 @@ int od_pvq_encode(daala_enc_ctx *enc,
   qm = &enc->state.pvq_qm_q4[pli][0];
   exg = &enc->state.adapt.pvq_exg[pli][ln][0];
   ext = enc->state.adapt.pvq_ext + ln*PVQ_MAX_PARTITIONS;
-  skip_cdf = enc->state.adapt.skip_cdf[pli];
+  skip_cdf = enc->state.adapt.skip_cdf[pli*OD_NBSIZES + ln];
   model = enc->state.adapt.pvq_param_model;
   nb_bands = OD_BAND_OFFSETS[ln][0];
   off = &OD_BAND_OFFSETS[ln][1];
@@ -643,7 +643,7 @@ int od_pvq_encode(daala_enc_ctx *enc,
     out[0] = od_rdo_quant(in[0] - ref[0], dc_quant, dc_rate);
     /* Code as if we're not skipping. */
     od_encode_cdf_adapt(&enc->ec, (out[0] != 0), skip_cdf,
-     4, enc->state.adapt.skip_increment);
+     5, enc->state.adapt.skip_increment);
     /* Excluding skip flag from the rate since it's minor and would be prone
        to greedy decision issues. */
     tell = od_ec_enc_tell_frac(&enc->ec);
@@ -700,7 +700,7 @@ int od_pvq_encode(daala_enc_ctx *enc,
       /* We decide to skip, roll back everything as it was before. */
       od_encode_rollback(enc, &buf);
       od_encode_cdf_adapt(&enc->ec, 2 + (out[0] != 0), skip_cdf,
-       4, enc->state.adapt.skip_increment);
+       5, enc->state.adapt.skip_increment);
       for (i = 1; i < 1 << (2*ln + 4); i++) out[i] = ref[i];
       if ((out[0] == 0)) return 1;
     }

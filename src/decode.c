@@ -267,7 +267,7 @@ static void od_block_lossless_decode(daala_dec_ctx *dec, int ln,
 }
 
 static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
- int pli, int bx, int by) {
+ int pli, int bx, int by, int skip) {
   int n;
   int xdec;
   int w;
@@ -322,7 +322,8 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   else {
     unsigned int flags;
     od_pvq_decode(dec, predt, pred, quant, pli, ln,
-     OD_PVQ_BETA[use_masking][pli][ln], OD_ROBUST_STREAM, ctx->is_keyframe, &flags);
+     OD_PVQ_BETA[use_masking][pli][ln], OD_ROBUST_STREAM, ctx->is_keyframe,
+     &flags, skip);
     if (pli == 0 && dec->user_flags != NULL) {
       dec->user_flags[by*dec->user_fstride + bx] = flags;
     }
@@ -460,6 +461,7 @@ static void od_decode_recursive(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
   int od;
   int d;
   int w;
+  int skip;
   int frame_width;
   /*This code assumes 4:4:4 or 4:2:0 input.*/
   OD_ASSERT(xdec == ydec);
@@ -467,10 +469,34 @@ static void od_decode_recursive(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
    dec->state.bstride, bx << l, by << l);
   frame_width = dec->state.frame_width;
   w = frame_width >> xdec;
+  skip = 0;
+  /* Read the luma skip symbol. A value of 4 means "split the block", while < 4
+     means that we code the block. In the latter case, we need to forward
+     the skip value to the PVQ decoder. */
+  if (!ctx->is_keyframe && pli==0) {
+    skip = od_decode_cdf_adapt(&dec->ec,
+     dec->state.adapt.skip_cdf[pli*OD_NBSIZES + l], 5,
+     dec->state.adapt.skip_increment);
+    if (skip < 4) od = l;
+    else od = -1;
+  }
   d = OD_MAXI(od, xdec);
   OD_ASSERT(d <= l);
   if (d == l) {
     d -= xdec;
+    if (pli == 0) {
+      int i;
+      int j;
+      int n4;
+      n4 = 1 << l;
+      /* Save the block size decision so that chroma can reuse it. */
+      for (i = 0; i < n4; i++) {
+        for (j = 0; j < n4; j++) {
+          OD_BLOCK_SIZE4x4(dec->state.bsize, dec->state.bstride, (bx << l) + i,
+           (by << l) + j) = l;
+        }
+      }
+    }
     /*Construct the luma predictors for chroma planes.*/
     if (ctx->l != NULL) {
       OD_ASSERT(pli > 0);
@@ -478,7 +504,13 @@ static void od_decode_recursive(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
        ctx->d[0] + (by << (2 + l))*frame_width + (bx << (2 + l)),
        frame_width, xdec, ydec, d, od);
     }
-    od_block_decode(dec, ctx, d, pli, bx, by);
+    if (!ctx->is_keyframe && pli > 0) {
+      /* Decode the skip for chroma. */
+      skip = od_decode_cdf_adapt(&dec->ec,
+       dec->state.adapt.skip_cdf[pli*OD_NBSIZES + l], 5,
+       dec->state.adapt.skip_increment);
+    }
+    od_block_decode(dec, ctx, d, pli, bx, by, skip);
   }
   else {
     int f;
@@ -610,12 +642,6 @@ static void od_decode_block_sizes(od_dec_ctx *dec) {
       for (j = 0; j < nhsb*4; j++) {
         dec->state.bsize[dec->state.bstride*i + j] = OD_LIMIT_BSIZE_MIN;
       }
-    }
-  }
-  if (dec->user_bsize != NULL) {
-    for (j = 0; j < nvsb*4; j++) {
-      memcpy(&dec->user_bsize[dec->user_bstride*j],
-       &dec->state.bsize[dec->state.bstride*j], nhsb*4);
     }
   }
 }
@@ -797,8 +823,19 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
       od_img_copy(dec->user_mc_img, &dec->state.io_imgs[OD_FRAME_REC]);
     }
   }
-  od_decode_block_sizes(dec);
+  if (mbctx.is_keyframe) od_decode_block_sizes(dec);
   od_decode_residual(dec, &mbctx);
+  if (dec->user_bsize != NULL) {
+    int j;
+    int nhsb;
+    int nvsb;
+    nhsb = dec->state.nhsb;
+    nvsb = dec->state.nvsb;
+    for (j = 0; j < nvsb*4; j++) {
+      memcpy(&dec->user_bsize[dec->user_bstride*j],
+       &dec->state.bsize[dec->state.bstride*j], nhsb*4);
+    }
+  }
 #if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
   /*Dump YUV*/
   od_state_dump_yuv(&dec->state, dec->state.io_imgs + OD_FRAME_REC, "out");

@@ -144,7 +144,7 @@ struct od_adapt_ctx {
   int ex_g[OD_NPLANES_MAX][OD_NBSIZES];
 
   /* Joint skip flag for DC and AC */
-  ogg_uint16_t skip_cdf[OD_NPLANES_MAX][4];
+  ogg_uint16_t skip_cdf[OD_NPLANES_MAX*OD_NBSIZES][5];
   int skip_increment;
 };
 

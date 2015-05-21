@@ -43,6 +43,6 @@ int od_pvq_encode(daala_enc_ctx *enc, od_coeff *predt, od_coeff *cblock,
 
 void od_pvq_decode(daala_dec_ctx *dec, od_coeff *ref, od_coeff *out, int scale,
                    int pli, int ln, const double *beta, int robust,
-                   int is_keyframe, unsigned int *flags);
+                   int is_keyframe, unsigned int *flags, int block_skip);
 
 #endif
