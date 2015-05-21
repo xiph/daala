@@ -376,6 +376,7 @@ static const struct option OPTIONS[] = {
   { "no-mc-use-chroma", no_argument, NULL, 0 },
   { "activity-masking", no_argument, NULL, 0 },
   { "no-activity-masking", no_argument, NULL, 0 },
+  { "qm", required_argument, NULL, 0 },
   { "mv-res-min", required_argument, NULL, 0 },
   { "mv-level-min", required_argument, NULL, 0 },
   { "mv-level-max", required_argument, NULL, 0 },
@@ -416,6 +417,8 @@ static void usage(void) {
    "                                 motion compensation search.\n"
    "                                 0 => 1/8 pel (default), 1 => 1/4 pel,\n"
    "                                 2 => 1/2 pel\n"
+   "     --qm <n>                    Select quantization matrix\n"
+   "                                 0 => flat, 1 => hvs (default)\n"
    "     --mv-level-min <n>          Minimum motion vectors level between\n"
    "                                 0 (default) and 6.\n"
    "     --mv-level-max <n>          Maximum motion vectors level between\n"
@@ -458,6 +461,7 @@ int main(int argc, char **argv) {
   int interactive;
   int mc_use_chroma;
   int use_activity_masking;
+  int qm;
   int mv_res_min;
   int mv_level_min;
   int mv_level_max;
@@ -485,6 +489,7 @@ int main(int argc, char **argv) {
   complexity = 7;
   mc_use_chroma = 1;
   use_activity_masking = 1;
+  qm = 1;
   mv_res_min = 0;
   mv_level_min = 0;
   mv_level_max = 6;
@@ -582,6 +587,13 @@ int main(int argc, char **argv) {
             exit(1);
           }
         }
+        else if (strcmp(OPTIONS[loi].name, "qm") == 0) {
+          qm = atoi(optarg);
+          if (qm < 0 || qm > 1) {
+            fprintf(stderr, "Illegal value for --qm\n");
+            exit(1);
+          }
+        }
         else if (strcmp(OPTIONS[loi].name, "mv-level-min") == 0) {
           mv_level_min = atoi(optarg);
           if (mv_level_min < 0 || mv_level_min > 6) {
@@ -649,6 +661,7 @@ int main(int argc, char **argv) {
   daala_encode_ctl(dd, OD_SET_USE_ACTIVITY_MASKING, &use_activity_masking,
    sizeof(use_activity_masking));
   daala_encode_ctl(dd, OD_SET_MV_RES_MIN, &mv_res_min, sizeof(mv_res_min));
+  daala_encode_ctl(dd, OD_SET_QM, &qm, sizeof(qm));
   daala_encode_ctl(dd, OD_SET_MV_LEVEL_MIN, &mv_level_min, sizeof(mv_level_min));
   daala_encode_ctl(dd, OD_SET_MV_LEVEL_MAX, &mv_level_max, sizeof(mv_level_max));
   /*Write the bitstream header packets with proper page interleave.*/
