@@ -41,6 +41,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 # define OD_VENDOR_STRING "Xiph's experimental encoder library " __DATE__
 
+# ifndef PACKAGE_STRING
+#  define PACKAGE_STRING "unknown"
+# endif
+
 /*Smallest blocks are 4x4*/
 # define OD_LOG_BSIZE0 (2)
 /*There are 4 block sizes total (4x4, 8x8, 16x16, 32x32).*/
