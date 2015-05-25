@@ -98,8 +98,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # define OD_QUALITY_SHIFT (4)
 
 # if defined(OD_ENABLE_ASSERTIONS)
-#  include <stdio.h>
-#  include <stdlib.h>
 #  if OD_GNUC_PREREQ(2, 5, 0)
 __attribute__((noreturn))
 #  endif

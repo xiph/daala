@@ -111,6 +111,8 @@ uint32_t OD_DIVU_SMALL_CONSTS[OD_DIVU_DMAX][2] = {
 };
 
 #if defined(OD_ENABLE_ASSERTIONS)
+# include <stdio.h>
+
 void od_fatal_impl(const char *_str, const char *_file, int _line) {
   fprintf(stderr, "Fatal (internal) error in %s, line %d: %s\n",
    _file, _line, _str);
