@@ -482,6 +482,10 @@ void od_ec_enc_patch_initial_bits(od_ec_enc *enc, unsigned val, int nbits) {
   else enc->error = -1;
 }
 
+#if OD_MEASURE_EC_OVERHEAD
+# include <stdio.h>
+#endif
+
 /*Indicates that there are no more symbols to encode.
   All remaining output bytes are flushed to the output buffer.
   od_ec_enc_reset() should be called before using the encoder again.
