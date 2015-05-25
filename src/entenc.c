@@ -191,8 +191,17 @@ static void od_ec_encode(od_ec_enc *enc,
   fh <<= s;
   d = r - ft;
   OD_ASSERT(d < ft);
+#if OD_EC_REDUCED_OVERHEAD
+  {
+    unsigned e;
+    e = OD_SUBSATU(2*d, ft);
+    u = fl + OD_MINI(fl, e) + OD_MINI(OD_SUBSATU(fl, e) >> 1, d);
+    v = fh + OD_MINI(fh, e) + OD_MINI(OD_SUBSATU(fh, e) >> 1, d);
+  }
+#else
   u = fl + OD_MINI(fl, d);
   v = fh + OD_MINI(fh, d);
+#endif
   r = v - u;
   l += u;
   od_ec_enc_normalize(enc, l, r);
@@ -220,8 +229,17 @@ static void od_ec_encode_q15(od_ec_enc *enc, unsigned fl, unsigned fh) {
   OD_ASSERT(32768U <= r);
   d = r - 32768U;
   OD_ASSERT(d < 32768U);
+#if OD_EC_REDUCED_OVERHEAD
+  {
+    unsigned e;
+    e = OD_SUBSATU(2*d, 32768U);
+    u = fl + OD_MINI(fl, e) + OD_MINI(OD_SUBSATU(fl, e) >> 1, d);
+    v = fh + OD_MINI(fh, e) + OD_MINI(OD_SUBSATU(fh, e) >> 1, d);
+  }
+#else
   u = fl + OD_MINI(fl, d);
   v = fh + OD_MINI(fh, d);
+#endif
   r = v - u;
   l += u;
   od_ec_enc_normalize(enc, l, r);
@@ -272,7 +290,17 @@ void od_ec_encode_bool(od_ec_enc *enc, int val, unsigned fz, unsigned ft) {
   ft <<= s;
   fz <<= s;
   OD_ASSERT(r - ft < ft);
+#if OD_EC_REDUCED_OVERHEAD
+  {
+    unsigned d;
+    unsigned e;
+    d = r - ft;
+    e = OD_SUBSATU(2*d, ft);
+    v = fz + OD_MINI(fz, e) + OD_MINI(OD_SUBSATU(fz, e) >> 1, d);
+  }
+#else
   v = fz + OD_MINI(fz, r - ft);
+#endif
   if (val) l += v;
   r = val ? r - v : v;
   od_ec_enc_normalize(enc, l, r);
@@ -294,7 +322,17 @@ void od_ec_encode_bool_q15(od_ec_enc *enc, int val, unsigned fz) {
   l = enc->low;
   r = enc->rng;
   OD_ASSERT(32768U <= r);
+#if OD_EC_REDUCED_OVERHEAD
+  {
+    unsigned d;
+    unsigned e;
+    d = r - 32768U;
+    e = OD_SUBSATU(2*d, 32768U);
+    v = fz + OD_MINI(fz, e) + OD_MINI(OD_SUBSATU(fz, e) >> 1, d);
+  }
+#else
   v = fz + OD_MINI(fz, r - 32768U);
+#endif
   if (val) l += v;
   r = val ? r - v : v;
   od_ec_enc_normalize(enc, l, r);

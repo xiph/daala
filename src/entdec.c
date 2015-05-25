@@ -198,7 +198,17 @@ int od_ec_decode_bool_(od_ec_dec *dec, unsigned fz, unsigned ft OD_ACC_STR) {
   ft <<= s;
   fz <<= s;
   OD_ASSERT(r - ft < ft);
+#if OD_EC_REDUCED_OVERHEAD
+  {
+    unsigned d;
+    unsigned e;
+    d = r - ft;
+    e = OD_SUBSATU(2*d, ft);
+    v = fz + OD_MINI(fz, e) + OD_MINI(OD_SUBSATU(fz, e) >> 1, d);
+  }
+#else
   v = fz + OD_MINI(fz, r - ft);
+#endif
   vw = (od_ec_window)v << (OD_EC_WINDOW_SIZE - 16);
   ret = dif >= vw;
   if (ret) dif -= vw;
@@ -221,7 +231,17 @@ int od_ec_decode_bool_q15_(od_ec_dec *dec, unsigned fz OD_ACC_STR) {
   r = dec->rng;
   OD_ASSERT(dif >> (OD_EC_WINDOW_SIZE - 16) < r);
   OD_ASSERT(32768U <= r);
+#if OD_EC_REDUCED_OVERHEAD
+  {
+    unsigned d;
+    unsigned e;
+    d = r - 32768U;
+    e = OD_SUBSATU(2*d, 32768U);
+    v = fz + OD_MINI(fz, e) + OD_MINI(OD_SUBSATU(fz, e) >> 1, d);
+  }
+#else
   v = fz + OD_MINI(fz, r - 32768U);
+#endif
   vw = (od_ec_window)v << (OD_EC_WINDOW_SIZE - 16);
   ret = dif >= vw;
   if (ret) dif -= vw;
@@ -240,7 +260,11 @@ int od_ec_decode_bool_q15_(od_ec_dec *dec, unsigned fz OD_ACC_STR) {
 int od_ec_decode_cdf_(od_ec_dec *dec, const uint16_t *cdf, int nsyms OD_ACC_STR) {
   od_ec_window dif;
   unsigned r;
+  unsigned c;
   unsigned d;
+#if OD_EC_REDUCED_OVERHEAD
+  unsigned e;
+#endif
   int s;
   unsigned u;
   unsigned v;
@@ -261,8 +285,20 @@ int od_ec_decode_cdf_(od_ec_dec *dec, const uint16_t *cdf, int nsyms OD_ACC_STR)
   ft <<= s;
   d = r - ft;
   OD_ASSERT(d < ft);
-  q = OD_MAXI((int)(dif >> (OD_EC_WINDOW_SIZE - 15)),
-   (int)((dif >> (OD_EC_WINDOW_SIZE - 16)) - d)) >> s;
+  c = (unsigned)(dif >> (OD_EC_WINDOW_SIZE - 16));
+  q = OD_MAXI((int)(c >> 1), (int)(c - d));
+#if OD_EC_REDUCED_OVERHEAD
+  e = OD_SUBSATU(2*d, ft);
+  /*The correctness of this inverse partition function is not obvious, but it
+     was checked exhaustively for all possible values of r, ft, and c.
+    TODO: It should be possible to optimize this better than the compiler,
+     given that we do not care about the accuracy of negative results (as we
+     will not use them).
+    It would also be nice to get rid of the 32-bit dividend, as it requires a
+     32x32->64 bit multiply to invert.*/
+  q = OD_MAXI((int)q, (int)((2*(int32_t)c + 1 - (int32_t)e)/3));
+#endif
+  q >>= s;
   OD_ASSERT(q < ft >> s);
   fl = 0;
   ret = 0;
@@ -270,8 +306,13 @@ int od_ec_decode_cdf_(od_ec_dec *dec, const uint16_t *cdf, int nsyms OD_ACC_STR)
   OD_ASSERT(fh <= ft >> s);
   fl <<= s;
   fh <<= s;
+#if OD_EC_REDUCED_OVERHEAD
+  u = fl + OD_MINI(fl, e) + OD_MINI(OD_SUBSATU(fl, e) >> 1, d);
+  v = fh + OD_MINI(fh, e) + OD_MINI(OD_SUBSATU(fh, e) >> 1, d);
+#else
   u = fl + OD_MINI(fl, d);
   v = fh + OD_MINI(fh, d);
+#endif
   r = v - u;
   dif -= (od_ec_window)u << (OD_EC_WINDOW_SIZE - 16);
   return od_ec_dec_normalize(dec, dif, r, ret, acc_str);
@@ -288,7 +329,11 @@ int od_ec_decode_cdf_(od_ec_dec *dec, const uint16_t *cdf, int nsyms OD_ACC_STR)
 int od_ec_decode_cdf_q15_(od_ec_dec *dec, const uint16_t *cdf, int nsyms OD_ACC_STR) {
   od_ec_window dif;
   unsigned r;
+  unsigned c;
   unsigned d;
+#if OD_EC_REDUCED_OVERHEAD
+  unsigned e;
+#endif
   unsigned u;
   unsigned v;
   unsigned q;
@@ -304,15 +349,25 @@ int od_ec_decode_cdf_q15_(od_ec_dec *dec, const uint16_t *cdf, int nsyms OD_ACC_
   OD_ASSERT(32768U <= r);
   d = r - 32768U;
   OD_ASSERT(d < 32768U);
-  q = OD_MAXI((int)(dif >> (OD_EC_WINDOW_SIZE -15)),
-   (int)((dif >> (OD_EC_WINDOW_SIZE - 16)) - d));
+  c = (unsigned)(dif >> (OD_EC_WINDOW_SIZE - 16));
+  q = OD_MAXI((int)(c >> 1), (int)(c - d));
+#if OD_EC_REDUCED_OVERHEAD
+  e = OD_SUBSATU(2*d, 32768U);
+  /*TODO: See TODO above.*/
+  q = OD_MAXI((int)q, (int)((2*(int32_t)c + 1 - (int32_t)e)/3));
+#endif
   OD_ASSERT(q < 32768U);
   fl = 0;
   ret = 0;
   for (fh = cdf[ret]; fh <= q; fh = cdf[++ret]) fl = fh;
   OD_ASSERT(fh <= 32768U);
+#if OD_EC_REDUCED_OVERHEAD
+  u = fl + OD_MINI(fl, e) + OD_MINI(OD_SUBSATU(fl, e) >> 1, d);
+  v = fh + OD_MINI(fh, e) + OD_MINI(OD_SUBSATU(fh, e) >> 1, d);
+#else
   u = fl + OD_MINI(fl, d);
   v = fh + OD_MINI(fh, d);
+#endif
   r = v - u;
   dif -= (od_ec_window)u << (OD_EC_WINDOW_SIZE - 16);
   return od_ec_dec_normalize(dec, dif, r, ret, acc_str);
@@ -330,7 +385,11 @@ int od_ec_decode_cdf_unscaled_(od_ec_dec *dec,
  const uint16_t *cdf, int nsyms OD_ACC_STR) {
   od_ec_window dif;
   unsigned r;
+  unsigned c;
   unsigned d;
+#if OD_EC_REDUCED_OVERHEAD
+  unsigned e;
+#endif
   int s;
   unsigned u;
   unsigned v;
@@ -355,8 +414,14 @@ int od_ec_decode_cdf_unscaled_(od_ec_dec *dec,
   }
   d = r - ft;
   OD_ASSERT(d < ft);
-  q = OD_MAXI((int)(dif >> (OD_EC_WINDOW_SIZE - 15)),
-   (int)((dif >> (OD_EC_WINDOW_SIZE - 16)) - d)) >> s;
+  c = (unsigned)(dif >> (OD_EC_WINDOW_SIZE - 16));
+  q = OD_MAXI((int)(c >> 1), (int)(c - d));
+#if OD_EC_REDUCED_OVERHEAD
+  e = OD_SUBSATU(2*d, ft);
+  /*TODO: See TODO above.*/
+  q = OD_MAXI((int)q, (int)((2*(int32_t)c + 1 - (int32_t)e)/3));
+#endif
+  q >>= s;
   OD_ASSERT(q < ft >> s);
   fl = 0;
   ret = 0;
@@ -364,8 +429,13 @@ int od_ec_decode_cdf_unscaled_(od_ec_dec *dec,
   OD_ASSERT(fh <= ft >> s);
   fl <<= s;
   fh <<= s;
+#if OD_EC_REDUCED_OVERHEAD
+  u = fl + OD_MINI(fl, e) + OD_MINI(OD_SUBSATU(fl, e) >> 1, d);
+  v = fh + OD_MINI(fh, e) + OD_MINI(OD_SUBSATU(fh, e) >> 1, d);
+#else
   u = fl + OD_MINI(fl, d);
   v = fh + OD_MINI(fh, d);
+#endif
   r = v - u;
   dif -= (od_ec_window)u << (OD_EC_WINDOW_SIZE - 16);
   return od_ec_dec_normalize(dec, dif, r, ret, acc_str);
@@ -385,7 +455,11 @@ int od_ec_decode_cdf_unscaled_dyadic_(od_ec_dec *dec,
  const uint16_t *cdf, int nsyms, unsigned ftb OD_ACC_STR) {
   od_ec_window dif;
   unsigned r;
+  unsigned c;
   unsigned d;
+#if OD_EC_REDUCED_OVERHEAD
+  unsigned e;
+#endif
   int s;
   unsigned u;
   unsigned v;
@@ -403,8 +477,14 @@ int od_ec_decode_cdf_unscaled_dyadic_(od_ec_dec *dec,
   OD_ASSERT(32768U <= r);
   d = r - 32768U;
   OD_ASSERT(d < 32768U);
-  q = OD_MAXI((int)(dif >> (OD_EC_WINDOW_SIZE - 15)),
-   (int)((dif >> (OD_EC_WINDOW_SIZE - 16)) - d)) >> s;
+  c = (unsigned)(dif >> (OD_EC_WINDOW_SIZE - 16));
+  q = OD_MAXI((int)(c >> 1), (int)(c - d));
+#if OD_EC_REDUCED_OVERHEAD
+  e = OD_SUBSATU(2*d, 32768U);
+  /*TODO: See TODO above.*/
+  q = OD_MAXI((int)q, (int)((2*(int32_t)c + 1 - (int32_t)e)/3));
+#endif
+  q >>= s;
   OD_ASSERT(q < 1U << ftb);
   fl = 0;
   ret = 0;
@@ -412,8 +492,13 @@ int od_ec_decode_cdf_unscaled_dyadic_(od_ec_dec *dec,
   OD_ASSERT(fh <= 1U << ftb);
   fl <<= s;
   fh <<= s;
+#if OD_EC_REDUCED_OVERHEAD
+  u = fl + OD_MINI(fl, e) + OD_MINI(OD_SUBSATU(fl, e) >> 1, d);
+  v = fh + OD_MINI(fh, e) + OD_MINI(OD_SUBSATU(fh, e) >> 1, d);
+#else
   u = fl + OD_MINI(fl, d);
   v = fh + OD_MINI(fh, d);
+#endif
   r = v - u;
   dif -= (od_ec_window)u << (OD_EC_WINDOW_SIZE - 16);
   return od_ec_dec_normalize(dec, dif, r, ret, acc_str);
