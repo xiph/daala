@@ -197,6 +197,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
     id = od_decode_cdf_adapt(ec, &adapt->pvq_gaintheta_cdf[cdf_ctx][0],
      8 + (8 - !is_keyframe)*has_skip, adapt->pvq_gaintheta_increment);
     if (!is_keyframe && id >= 10) id++;
+    if (is_keyframe && id >= 8) id++;
     if (id >= 8) {
       id -= 8;
       skip_rest[0] = skip_rest[1] = skip_rest[2] = 1;
@@ -328,12 +329,11 @@ void od_pvq_decode(daala_dec_ctx *dec,
   nb_bands = OD_BAND_OFFSETS[ln][0];
   off = &OD_BAND_OFFSETS[ln][1];
   skip[0] = block_skip;
-  if (!is_keyframe) {
-    out[0] = skip[0]&1;
-    skip[0] >>= 1;
-  }
+  out[0] = skip[0] & 1;
+  skip[0] >>= 1;
   if (skip[0]) {
-    for (i = 1; i < 1 << (2*ln + 4); i++) out[i] = ref[i];
+    if (is_keyframe) for (i = 1; i < 1 << (2*ln + 4); i++) out[i] = 0;
+    else for (i = 1; i < 1 << (2*ln + 4); i++) out[i] = ref[i];
   }
   else {
     for (i = 0; i < nb_bands; i++) size[i] = off[i+1] - off[i];

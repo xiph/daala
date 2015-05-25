@@ -350,7 +350,8 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   s = 1;
   corr = corr/(1e-100 + g*gr);
   corr = OD_MAXF(OD_MINF(corr, 1.), -1.);
-  skip_dist = gain_weight*(cg - cgr)*(cg - cgr) + cgr*cg*(2 - 2*corr);
+  if (is_keyframe) skip_dist = gain_weight*cg*cg;
+  else skip_dist = gain_weight*(cg - cgr)*(cg - cgr) + cgr*cg*(2 - 2*corr);
   if (!is_keyframe) {
     /* noref, gain=0 isn't allowed, but skip is allowed. */
     double scgr;
@@ -517,7 +518,11 @@ static void pvq_encode_partition(od_ec_enc *ec,
   int id;
   noref = (theta == -1);
   id = (qg > 0) + 2*OD_MINI(theta + 1,3) + 8*code_skip*skip_rest;
-  if (!is_keyframe) {
+  if (is_keyframe) {
+    OD_ASSERT(id != 8);
+    if (id >= 8) id--;
+  }
+  else {
     OD_ASSERT(id != 10);
     if (id >= 10) id--;
   }
@@ -607,6 +612,7 @@ int od_pvq_encode(daala_enc_ctx *enc,
   int skip_dir;
   int skip_theta_value;
   const unsigned char *qm;
+  double dc_rate;
   qm = &enc->state.pvq_qm_q4[pli][0];
   exg = &enc->state.adapt.pvq_exg[pli][ln][0];
   ext = enc->state.adapt.pvq_ext + ln*PVQ_MAX_PARTITIONS;
@@ -636,18 +642,19 @@ int od_pvq_encode(daala_enc_ctx *enc,
      &k[i], beta[i], &skip_diff, robust, is_keyframe, pli, &enc->state.adapt,
      ln);
   }
-  if (!is_keyframe) {
-    double dc_rate;
-    od_encode_checkpoint(enc, &buf);
-    dc_rate = -OD_LOG2((double)(skip_cdf[1]-skip_cdf[0])/(double)skip_cdf[0]);
+  od_encode_checkpoint(enc, &buf);
+  if (is_keyframe) out[0] = 0;
+  else {
+    dc_rate = -OD_LOG2((double)(skip_cdf[1] - skip_cdf[0])/
+     (double)skip_cdf[0]);
     out[0] = od_rdo_quant(in[0] - ref[0], dc_quant, dc_rate);
-    /* Code as if we're not skipping. */
-    od_encode_cdf_adapt(&enc->ec, (out[0] != 0), skip_cdf,
-     5, enc->state.adapt.skip_increment);
-    /* Excluding skip flag from the rate since it's minor and would be prone
-       to greedy decision issues. */
-    tell = od_ec_enc_tell_frac(&enc->ec);
   }
+  /* Code as if we're not skipping. */
+  od_encode_cdf_adapt(&enc->ec, (out[0] != 0), skip_cdf,
+   5, enc->state.adapt.skip_increment);
+  /* Excluding skip flag from the rate since it's minor and would be prone
+     to greedy decision issues. */
+  tell = od_ec_enc_tell_frac(&enc->ec);
   cfl_encoded = 0;
   skip_rest = 1;
   skip_theta_value = is_keyframe ? -1 : 0;
@@ -667,6 +674,7 @@ int od_pvq_encode(daala_enc_ctx *enc,
     }
   }
   if (!is_keyframe && theta[0] == 0 && qg[0] == 0 && skip_rest) nb_bands = 0;
+  if (is_keyframe && theta[0] == -1 && qg[0] == 0 && skip_rest) nb_bands = 0;
   for (i = 0; i < nb_bands; i++) {
     if (i == 0 || (!skip_rest && !(skip_dir & (1 << ((i - 1)%3))))) {
       pvq_encode_partition(&enc->ec, qg[i], theta[i], max_theta[i], y + off[i],
@@ -690,20 +698,21 @@ int od_pvq_encode(daala_enc_ctx *enc,
       cfl_encoded = 1;
     }
   }
-  if (!is_keyframe) {
-    tell = od_ec_enc_tell_frac(&enc->ec) - tell;
-    if (nb_bands == 0 || skip_diff <= OD_PVQ_LAMBDA/8*tell) {
-      double dc_rate;
+  tell = od_ec_enc_tell_frac(&enc->ec) - tell;
+  if (nb_bands == 0 || skip_diff <= OD_PVQ_LAMBDA/8*tell) {
+    if (is_keyframe) out[0] = 0;
+    else {
       dc_rate = -OD_LOG2((double)(skip_cdf[3]-skip_cdf[2])/
        (double)(skip_cdf[2]-skip_cdf[1]));
       out[0] = od_rdo_quant(in[0] - ref[0], dc_quant, dc_rate);
-      /* We decide to skip, roll back everything as it was before. */
-      od_encode_rollback(enc, &buf);
-      od_encode_cdf_adapt(&enc->ec, 2 + (out[0] != 0), skip_cdf,
-       5, enc->state.adapt.skip_increment);
-      for (i = 1; i < 1 << (2*ln + 4); i++) out[i] = ref[i];
-      if ((out[0] == 0)) return 1;
     }
+    /* We decide to skip, roll back everything as it was before. */
+    od_encode_rollback(enc, &buf);
+    od_encode_cdf_adapt(&enc->ec, 2 + (out[0] != 0), skip_cdf,
+     5, enc->state.adapt.skip_increment);
+    if (is_keyframe) for (i = 1; i < 1 << (2*ln + 4); i++) out[i] = 0;
+    else for (i = 1; i < 1 << (2*ln + 4); i++) out[i] = ref[i];
+    if ((out[0] == 0)) return 1;
   }
   return 0;
 }
