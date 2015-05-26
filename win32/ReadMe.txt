@@ -26,8 +26,10 @@ Before you can build this Daala source code on a Windows machine,
 you have to obtain and build a few required dependencies.
 
 === Dependencies ===
-* http://www.visualstudio.com/en-us/downloads/download-visual-studio-vs.aspx
-  Visual Studio versions 2008 or 2010 are recommended
+* https://www.visualstudio.com/products/visual-studio-community-vs
+  Visual Studio Community Edition is recommended.
+  If you can't use that, try Visual Studio 2010 or 2008 instead:  
+  http://www.visualstudio.com/en-us/downloads/download-visual-studio-vs.aspx
 * http://downloads.xiph.org/releases/ogg/?C=M;O=D
   libogg v1.3.0 or later is recommended. The VS solutions have been tested
   using libogg 1.3.2: http://downloads.xiph.org/releases/ogg/libogg-1.3.2.zip
