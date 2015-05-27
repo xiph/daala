@@ -1,5 +1,5 @@
 #Daala video codec
-#Copyright (c) 2002-2013 Daala project contributors.  All rights reserved.
+#Copyright (c) 2002-2015 Daala project contributors.  All rights reserved.
 #
 #Redistribution and use in source and binary forms, with or without
 #modification, are permitted provided that the following conditions are met:
@@ -57,9 +57,9 @@ CINCLUDE = `pkg-config sdl2 ogg --cflags`
 #  -ffast-math, or additional flags, depending on your system and compiler.
 # The -g flag will generally include debugging information.
 CFLAGS := -g $(CFLAGS) $(OD_CFLAGS)
-CFLAGS := -DPACKAGE_STRING=\"$(shell git status > /dev/null 2>&1 \
+CFLAGS := -DPACKAGE_STRING=\"daala\ $(shell git status > /dev/null 2>&1 \
             && git describe --tags --match 'v*' --dirty 2> /dev/null \
-           || echo unknown)\"
+           || echo unknown)\" $(CFLAGS)
 CFLAGS := -DOD_LOGGING_ENABLED $(CFLAGS)
 CFLAGS := -DOD_ENABLE_ASSERTIONS $(CFLAGS)
 #CFLAGS := -DOD_CHECKASM $(CFLAGS)
