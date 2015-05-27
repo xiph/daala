@@ -59,7 +59,7 @@ CINCLUDE = `pkg-config sdl2 ogg --cflags`
 CFLAGS := -g $(CFLAGS) $(OD_CFLAGS)
 CFLAGS := -DPACKAGE_STRING=\"daala\ $(shell git status > /dev/null 2>&1 \
             && git describe --tags --match 'v*' --dirty 2> /dev/null \
-           || echo unknown)\" $(CFLAGS)
+            | sed -e 's/^v//' || echo unknown)\" $(CFLAGS)
 CFLAGS := -DOD_LOGGING_ENABLED $(CFLAGS)
 CFLAGS := -DOD_ENABLE_ASSERTIONS $(CFLAGS)
 #CFLAGS := -DOD_CHECKASM $(CFLAGS)
