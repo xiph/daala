@@ -689,7 +689,7 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   lossless = (enc->quantizer[pli] == 0);
   /* Apply forward transform. */
   if (ctx->use_haar_wavelet) {
-    if (OD_DISABLE_HAAR_DC || rdo_only || !ctx->is_keyframe) {
+    if (rdo_only || !ctx->is_keyframe) {
       od_haar(d + bo, w, c + bo, w, ln + 2);
     }
     if (!ctx->is_keyframe) {
@@ -697,7 +697,7 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
     }
   }
   else {
-    if (OD_DISABLE_HAAR_DC || rdo_only || !ctx->is_keyframe) {
+    if (rdo_only || !ctx->is_keyframe) {
       int quantized_dc;
       quantized_dc = d[bo];
       (*enc->state.opt_vtbl.fdct_2d[ln])(d + bo, w, c + bo, w);
@@ -741,7 +741,7 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
      enc->state.pvq_qm_q4[pli][od_qm_get_index(ln, 0)] >> 4);
   }
   /* This quantization may be overridden in the PVQ code for full RDO. */
-  if (OD_DISABLE_HAAR_DC || !ctx->is_keyframe) {
+  if (!ctx->is_keyframe) {
     if (abs(cblock[0] - predt[0]) < dc_quant * 141 / 256) { /* 0.55 */
       scalar_out[0] = 0;
     }
@@ -763,7 +763,7 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
        OD_PVQ_BETA[use_masking][pli][ln], OD_ROBUST_STREAM, ctx->is_keyframe);
     }
   }
-  if (OD_DISABLE_HAAR_DC || !ctx->is_keyframe) {
+  if (!ctx->is_keyframe) {
     int has_dc_skip;
     has_dc_skip = !ctx->is_keyframe && !lossless && !ctx->use_haar_wavelet;
     if (!has_dc_skip || scalar_out[0]) {
@@ -860,7 +860,7 @@ static void od_compute_dcts(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
     od_compute_dcts(enc, ctx, pli, bx + 1, by + 0, l, xdec, ydec, use_haar);
     od_compute_dcts(enc, ctx, pli, bx + 0, by + 1, l, xdec, ydec, use_haar);
     od_compute_dcts(enc, ctx, pli, bx + 1, by + 1, l, xdec, ydec, use_haar);
-    if (!OD_DISABLE_HAAR_DC && ctx->is_keyframe) {
+    if (ctx->is_keyframe) {
       od_coeff x[4];
       int l2;
       l2 = l - xdec + 2;
@@ -1660,7 +1660,7 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
         mbctx->l = state->lbuf[pli];
         xdec = state->io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
         ydec = state->io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
-        if (!OD_DISABLE_HAAR_DC && mbctx->is_keyframe) {
+        if (mbctx->is_keyframe) {
           int width;
           width = enc->state.frame_width;
           if (rdo_only) {

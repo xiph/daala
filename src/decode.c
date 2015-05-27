@@ -509,7 +509,7 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
       }
     }
   }
-  if (OD_DISABLE_HAAR_DC || !ctx->is_keyframe) {
+  if (!ctx->is_keyframe) {
     int has_dc_skip;
     has_dc_skip = !ctx->is_keyframe && !lossless && !ctx->use_haar_wavelet;
     if (!has_dc_skip || pred[0]) {
@@ -915,7 +915,7 @@ static void od_decode_residual(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
         mbctx->l = state->lbuf[pli];
         xdec = state->io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
         ydec = state->io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
-        if (!OD_DISABLE_HAAR_DC && mbctx->is_keyframe) {
+        if (mbctx->is_keyframe) {
           od_decode_haar_dc_sb(dec, mbctx, pli, sbx, sby, 3, xdec, ydec,
            sby > 0 && sbx < nhsb - 1, &hgrad, &vgrad);
         }
