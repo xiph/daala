@@ -1976,21 +1976,21 @@ void od_dct_check(int ln, const od_coeff *ref, const od_coeff *x,
   int failed;
   int i;
   int j;
-  int ref_stride;
-  ref_stride = 4 << ln;
+  int n;
+  n = 4 << ln;
   failed = 0;
-  for (j = 0; j < 4; j++) {
-    for (i = 0; i < 4; i++) {
-      if (ref[i + j*ref_stride] != x[i + j*xstride]) {
+  for (j = 0; j < n; j++) {
+    for (i = 0; i < n; i++) {
+      if (ref[i + j*n] != x[i + j*xstride]) {
         fprintf(stderr, "ASM mismatch: 0x%02X!=0x%02X @ (%2i,%2i)\n",
-         ref[i + j*ref_stride], x[i + j*xstride], i, j);
+         ref[i + j*n], x[i + j*xstride], i, j);
         failed = 1;
       }
     }
   }
   if (failed) {
     fprintf(stderr, "od_bin %ix%i check failed.\n",
-     ref_stride, ref_stride);
+     n, n);
   }
   OD_ASSERT(!failed);
 }
