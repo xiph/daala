@@ -28,6 +28,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #include "block_size.h"
 #include "dct.h"
+#include "tf.h"
 
 /*Making function pointer tables at least one entry
    longer than needed makes it highly likely that an
@@ -1950,6 +1951,74 @@ void od_bin_idct32(od_coeff *x, int xstride, const od_coeff y[32]) {
   x[29*xstride] = (od_coeff)tt;
   x[30*xstride] = (od_coeff)tu;
   x[31*xstride] = (od_coeff)tv;
+}
+
+void od_haar(od_coeff *y, int ystride,
+  const od_coeff *x, int xstride, int ln) {
+  int i;
+  int j;
+  int level;
+  int tstride;
+  int n;
+  od_coeff tmp[OD_BSIZE_MAX*OD_BSIZE_MAX];
+  n = 1 << ln;
+  tstride = n;
+  for (i = 0; i < n; i++) {
+    for (j = 0; j < n; j++) {
+      tmp[i*tstride + j] = x[i*xstride + j];
+    }
+  }
+  for (level = 0; level < ln; level++) {
+    int npairs;
+    npairs = n >> level >> 1;
+    for (i = 0; i < npairs; i++) {
+      for (j = 0; j < npairs; j++) {
+        od_coeff a;
+        od_coeff b;
+        od_coeff c;
+        od_coeff d;
+        a = tmp[2*i*tstride + 2*j];
+        b = tmp[(2*i + 1)*tstride + 2*j];
+        c = tmp[2*i*tstride + 2*j + 1];
+        d = tmp[(2*i + 1)*tstride + 2*j + 1];
+        OD_HAAR_KERNEL(a, b, c, d);
+        tmp[i*tstride + j] = a;
+        y[i*ystride + j + npairs] = b;
+        y[(i + npairs)*ystride + j] = c;
+        y[(i + npairs)*ystride + j + npairs] = d;
+      }
+    }
+  }
+  y[0] = tmp[0];
+}
+
+void od_haar_inv(od_coeff *x, int xstride,
+ const od_coeff *y, int ystride, int ln) {
+  int i;
+  int j;
+  int level;
+  x[0] = y[0];
+  for (level = ln - 1; level >= 0; level--) {
+    int npairs;
+    npairs = 1 << (ln - 1 - level);
+    for (i = npairs - 1; i >= 0; i--) {
+      for (j = npairs - 1; j >= 0; j--) {
+        od_coeff a;
+        od_coeff b;
+        od_coeff c;
+        od_coeff d;
+        a = x[i*xstride + j];
+        b = y[i*ystride + j + npairs];
+        c = y[(i + npairs)*ystride + j];
+        d = y[(i + npairs)*ystride + j + npairs];
+        OD_HAAR_KERNEL(a, b, c, d);
+        x[2*i*xstride + 2*j] = a;
+        x[(2*i + 1)*xstride + 2*j] = b;
+        x[2*i*xstride + 2*j + 1] = c;
+        x[(2*i + 1)*xstride + 2*j + 1] = d;
+      }
+    }
+  }
 }
 
 void od_bin_fdct32x32(od_coeff *y, int ystride,

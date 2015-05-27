@@ -43,6 +43,8 @@ extern const od_coeff OD_DC_RES[3];
 
 extern const od_coeff OD_DC_QM[2][OD_NBSIZES - 1][2];
 
+extern const int OD_HAAR_QM[2][5];
+
 /*Adaptation speed of scalar Laplace encoding.*/
 # define OD_SCALAR_ADAPT_SPEED (4)
 
@@ -146,6 +148,12 @@ struct od_adapt_ctx {
   /* Joint skip flag for DC and AC */
   ogg_uint16_t skip_cdf[OD_NPLANES_MAX*OD_NBSIZES][5];
   int skip_increment;
+  ogg_uint16_t haar_coeff_cdf[15*3*(OD_NBSIZES + 1)][16];
+  int haar_coeff_increment;
+  ogg_uint16_t haar_split_cdf[15*2*5][16];
+  int haar_split_increment;
+  ogg_uint16_t haar_bits_cdf[3][16];
+  int haar_bits_increment;
 };
 
 struct od_state{

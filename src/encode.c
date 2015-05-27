@@ -98,6 +98,7 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
   enc->complexity = 7;
   enc->use_activity_masking = 1;
   enc->qm = OD_HVS_QM;
+  enc->use_haar_wavelet = OD_USE_HAAR_WAVELET;
   enc->mvest = od_mv_est_alloc(enc);
   if (OD_UNLIKELY(!enc->mvest)) {
     return OD_EFAULT;
@@ -380,11 +381,12 @@ struct od_mb_enc_ctx {
   int is_keyframe;
   int use_activity_masking;
   od_qm qm;
+  int use_haar_wavelet;
 };
 typedef struct od_mb_enc_ctx od_mb_enc_ctx;
 
-static void od_encode_compute_pred(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, od_coeff *pred,
-  int ln, int pli, int bx, int by) {
+static void od_encode_compute_pred(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
+ od_coeff *pred, int ln, int pli, int bx, int by) {
   int n;
   int n2;
   int xdec;
@@ -405,7 +407,7 @@ static void od_encode_compute_pred(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, od_co
   md = ctx->md;
   l = ctx->l;
   if (ctx->is_keyframe) {
-    if (pli == 0 || OD_DISABLE_CFL) {
+    if (pli == 0 || OD_DISABLE_CFL || ctx->use_haar_wavelet) {
       OD_CLEAR(pred, n2);
     }
     else {
@@ -467,6 +469,190 @@ static int od_single_band_lossless_encode(daala_enc_ctx *enc, int ln,
   return vk == 0;
 }
 
+/* Compute the sum of the tree (parent and descendents) at each level. */
+static int od_compute_max_tree(od_coeff tree_sum[OD_BSIZE_MAX][OD_BSIZE_MAX],
+ int x, int y, const od_coeff *c, int ln) {
+  int n;
+  int maxval;
+  n = 1 << ln;
+  maxval = 0;
+  if (2*x < n && 2*y < n) {
+    int tmp;
+    tmp = od_compute_max_tree(tree_sum, 2*x, 2*y, c, ln);
+    maxval = maxval + tmp;
+    tmp = od_compute_max_tree(tree_sum, 2*x + 1, 2*y, c, ln);
+    maxval = maxval + tmp;
+    tmp = od_compute_max_tree(tree_sum, 2*x, 2*y + 1, c, ln);
+    maxval = maxval + tmp;
+    tmp = od_compute_max_tree(tree_sum, 2*x + 1, 2*y + 1, c, ln);
+    maxval = maxval + tmp;
+  }
+  maxval = maxval + abs(c[y*n + x]);
+  tree_sum[y][x] = maxval;
+  return maxval;
+}
+
+/* Encode with unary (Rice) code.
+   FIXME: This should go away. */
+static void od_ec_enc_unary(od_ec_enc *ec, int x) {
+  if (x) od_ec_enc_bits(ec, 0, x);
+  od_ec_enc_bits(ec, 1, 1);
+}
+
+/* Encodes the magnitude of the coefficient at the root of a tree based
+   on the sum for the entire tree (distribution can be highly biased). */
+static void od_encode_coeff_split(daala_enc_ctx *enc, int a, int sum,
+ int ctx) {
+  int shift;
+  if (sum == 0) return;
+  shift = OD_MAXI(0, OD_ILOG(sum) - 4);
+  if (shift) {
+    od_ec_enc_bits(&enc->ec, a & ((1 << shift) - 1), shift);
+    a >>= shift;
+    sum >>= shift;
+  }
+  od_encode_cdf_adapt(&enc->ec, a, enc->state.adapt.haar_coeff_cdf[15*ctx + sum
+   - 1], sum + 1, enc->state.adapt.haar_coeff_increment);
+}
+
+/* Encodes the magnitude of one side of a tree split based on the sum of the
+   two sides. The distribution should be roughly symmetric. */
+static void od_encode_tree_split(daala_enc_ctx *enc, int a, int sum, int ctx) {
+  int shift;
+  if (sum == 0) return;
+  shift = OD_MAXI(0, OD_ILOG(sum) - 4);
+  if (shift) {
+    od_ec_enc_bits(&enc->ec, a & ((1 << shift) - 1), shift);
+    a >>= shift;
+    sum >>= shift;
+  }
+  od_encode_cdf_adapt(&enc->ec, a, enc->state.adapt.haar_split_cdf[15*
+   (2*ctx + OD_MINI(shift, 1)) + sum - 1], sum + 1,
+   enc->state.adapt.haar_split_increment);
+}
+
+static void od_encode_sum_tree(daala_enc_ctx *enc, const od_coeff *c, int ln,
+ od_coeff tree_sum[OD_BSIZE_MAX][OD_BSIZE_MAX], int x, int y, int dir,
+ int pli) {
+  int n;
+  int coeff_mag;
+  int children_sum;
+  n = 1 << ln;
+  if (tree_sum[y][x] == 0) return;
+  coeff_mag = abs(c[y*n + x]);
+  od_encode_coeff_split(enc, coeff_mag, tree_sum[y][x], dir
+   + 3*(OD_ILOG(OD_MAXI(x,y)) - 1));
+  /* Encode max of each four children relative to tree. */
+  children_sum = tree_sum[2*y][2*x] + tree_sum[2*y][2*x + 1]
+   + tree_sum[2*y + 1][2*x] + tree_sum[2*y + 1][2*x + 1];
+  if (children_sum) {
+    OD_ASSERT(coeff_mag + children_sum == tree_sum[y][x]);
+    /* Split in a different order depending on direction. */
+    if (dir == 0) {
+      od_encode_tree_split(enc, tree_sum[2*y][2*x] + tree_sum[2*y][2*x + 1],
+       children_sum, 0);
+      od_encode_tree_split(enc, tree_sum[2*y][2*x], tree_sum[2*y][2*x]
+       + tree_sum[2*y][2*x + 1], 2);
+      od_encode_tree_split(enc, tree_sum[2*y + 1][2*x], tree_sum[2*y + 1][2*x]
+       + tree_sum[2*y + 1][2*x + 1], 2);
+    }
+    else {
+      od_encode_tree_split(enc, tree_sum[2*y][2*x] + tree_sum[2*y + 1][2*x],
+       children_sum, 1);
+      od_encode_tree_split(enc, tree_sum[2*y][2*x], tree_sum[2*y][2*x]
+       + tree_sum[2*y + 1][2*x], 2);
+      od_encode_tree_split(enc, tree_sum[2*y][2*x + 1], tree_sum[2*y][2*x + 1]
+       + tree_sum[2*y + 1][2*x + 1], 2);
+    }
+  }
+  if (4*x < n && 4*y < n) {
+    /* Recursive calls. */
+    od_encode_sum_tree(enc, c, ln, tree_sum, 2*x, 2*y, dir, pli);
+    od_encode_sum_tree(enc, c, ln, tree_sum, 2*x + 1, 2*y, dir, pli);
+    od_encode_sum_tree(enc, c, ln, tree_sum, 2*x, 2*y + 1, dir, pli);
+    od_encode_sum_tree(enc, c, ln, tree_sum, 2*x + 1, 2*y + 1, dir, pli);
+  }
+}
+
+static int od_wavelet_quantize(daala_enc_ctx *enc, int ln,
+ od_coeff *out, const od_coeff *cblock, const od_coeff *predt,
+ int quant, int pli) {
+  int n;
+  int i, j;
+  int dir;
+  od_coeff tree_sum[OD_BSIZE_MAX][OD_BSIZE_MAX];
+  n = 1 << ln;
+  /* Quantize everything but DC. */
+  for (dir = 0; dir < 3; dir++) {
+    int level;
+    for (level = 0; level < ln; level++) {
+      int bo;
+      int q;
+      bo = (((dir + 1) >> 1) << level)*n + (((dir + 1) & 1) << level);
+      if (quant == 0) q = 1;
+      else q = quant*OD_HAAR_QM[dir == 2][level] >> 4;
+      for (i = 0; i < 1 << level; i++) {
+        for (j = 0; j < 1 << level; j++) {
+          out[bo + i*n + j] = OD_DIV_R0(cblock[bo + i*n + j]
+           - predt[bo + i*n + j], q);
+        }
+      }
+    }
+  }
+  /* Compute magnitude at each level of each tree. */
+  od_compute_max_tree(tree_sum, 1, 0, out, ln);
+  od_compute_max_tree(tree_sum, 0, 1, out, ln);
+  od_compute_max_tree(tree_sum, 1, 1, out, ln);
+  /* Encode magnitude for the top of each tree */
+  tree_sum[0][0] = tree_sum[0][1] + tree_sum[1][0] + tree_sum[1][1];
+  {
+    int bits;
+    bits = OD_ILOG(tree_sum[0][0]);
+    /* Encode the sum of quantized coefficients for the entire block as log2(x)
+       followed by the LSBs. */
+    od_encode_cdf_adapt(&enc->ec, OD_MINI(bits, 15),
+     enc->state.adapt.haar_bits_cdf[pli], 16,
+     enc->state.adapt.haar_bits_increment);
+    if (bits >= 15) od_ec_enc_unary(&enc->ec, bits - 15);
+    if (bits > 1) {
+      od_ec_enc_bits(&enc->ec, tree_sum[0][0] & ((1 << (bits - 1)) - 1),
+       bits - 1);
+    }
+    /* Encode diagonal tree sum. */
+    od_encode_tree_split(enc, tree_sum[1][1], tree_sum[0][0], 3);
+    /* Horizontal vs vertical. */
+    od_encode_tree_split(enc, tree_sum[0][1], tree_sum[0][0] - tree_sum[1][1],
+     4);
+  }
+  /* Encode all 3 trees. */
+  od_encode_sum_tree(enc, out, ln, tree_sum, 1, 0, 0, pli);
+  od_encode_sum_tree(enc, out, ln, tree_sum, 0, 1, 1, pli);
+  od_encode_sum_tree(enc, out, ln, tree_sum, 1, 1, 2, pli);
+  /* For all significant coeffs, encode sign. */
+  for (i = 0; i < n; i++) {
+    for (j = 0; j < n; j++) if (i + j) {
+      od_coeff in;
+      in = out[i*n + j];
+      if (in) od_ec_enc_bits(&enc->ec, in < 0, 1);
+    }
+  }
+  for (dir = 0; dir < 3; dir++) {
+    int level;
+    for (level = 0; level < ln; level++) {
+      int bo;
+      int q;
+      bo = (((dir + 1) >> 1) << level)*n + (((dir + 1) & 1) << level);
+      if (quant == 0) q = 1;
+      else q = quant*OD_HAAR_QM[dir == 2][level] >> 4;
+      for (i = 0; i < 1 << level; i++) {
+        for (j = 0; j < 1 << level; j++)
+          out[bo + i*n + j] = q*out[bo + i*n + j] + predt[bo + i*n + j];
+      }
+    }
+  }
+  return 0;
+}
+
 /* Returns 1 if the block is skipped, zero otherwise. */
 static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
  int pli, int bx, int by, int rdo_only) {
@@ -509,28 +695,50 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   mc = ctx->mc;
   lossless = (enc->quantizer[pli] == 0);
   /* Apply forward transform. */
-  if (OD_DISABLE_HAAR_DC || rdo_only || !ctx->is_keyframe) {
-    int quantized_dc;
-    quantized_dc = d[bo];
-    (*enc->state.opt_vtbl.fdct_2d[ln])(d + bo, w, c + bo, w);
-    if (ctx->is_keyframe) d[bo] = quantized_dc;
-    if (!lossless) od_apply_qm(d + bo, w, d + bo, w, ln, xdec, 0, qm);
+  if (ctx->use_haar_wavelet) {
+    if (OD_DISABLE_HAAR_DC || rdo_only || !ctx->is_keyframe) {
+      od_haar(d + bo, w, c + bo, w, ln + 2);
+    }
+    if (!ctx->is_keyframe) {
+      od_haar(md + bo, w, mc + bo, w, ln + 2);
+    }
   }
-  if (!ctx->is_keyframe) {
-    (*enc->state.opt_vtbl.fdct_2d[ln])(md + bo, w, mc + bo, w);
-    if (!lossless) od_apply_qm(md + bo, w, md + bo, w, ln, xdec, 0, qm);
+  else {
+    if (OD_DISABLE_HAAR_DC || rdo_only || !ctx->is_keyframe) {
+      int quantized_dc;
+      quantized_dc = d[bo];
+      (*enc->state.opt_vtbl.fdct_2d[ln])(d + bo, w, c + bo, w);
+      if (ctx->is_keyframe) d[bo] = quantized_dc;
+      if (!lossless) od_apply_qm(d + bo, w, d + bo, w, ln, xdec, 0, qm);
+    }
+    if (!ctx->is_keyframe) {
+      (*enc->state.opt_vtbl.fdct_2d[ln])(md + bo, w, mc + bo, w);
+      if (!lossless) od_apply_qm(md + bo, w, md + bo, w, ln, xdec, 0, qm);
+    }
   }
   od_encode_compute_pred(enc, ctx, pred, ln, pli, bx, by);
-  if (ctx->is_keyframe && pli == 0) {
+  if (ctx->is_keyframe && pli == 0 && !ctx->use_haar_wavelet) {
     od_hv_intra_pred(pred, d, w, bx, by, enc->state.bsize,
      enc->state.bstride, ln);
   }
 #if defined(OD_OUTPUT_PRED)
   for (zzi = 0; zzi < (n*n); zzi++) preds[zzi] = pred[zzi];
 #endif
-  /* Change ordering for encoding. */
-  od_raster_to_coding_order(cblock,  n, &d[bo], w, lossless);
-  od_raster_to_coding_order(predt,  n, &pred[0], n, lossless);
+  if (ctx->use_haar_wavelet) {
+    int i;
+    int j;
+    for (i = 0; i < n; i++) {
+      for (j = 0; j < n; j++) {
+        cblock[i*n + j] = d[bo + i*w + j];
+        predt[i*n + j] = pred[i*n + j];
+      }
+    }
+  }
+  else {
+    /* Change ordering for encoding. */
+    od_raster_to_coding_order(cblock,  n, &d[bo], w, lossless);
+    od_raster_to_coding_order(predt,  n, &pred[0], n, lossless);
+  }
   /* Lossless encoding uses an actual quantizer of 1, but is signalled
      with a 'quantizer' of 0. */
   quant = OD_MAXI(1, enc->quantizer[pli]);
@@ -549,18 +757,24 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
     }
   }
   OD_ENC_ACCT_UPDATE(enc, OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_AC_COEFFS);
-  if (lossless) {
-    skip = od_single_band_lossless_encode(enc, ln, scalar_out, cblock, predt,
-     pli);
+  if (ctx->use_haar_wavelet) {
+    skip = od_wavelet_quantize(enc, ln + 2, scalar_out, cblock, predt,
+     enc->quantizer[pli], pli);
   }
   else {
-    skip = od_pvq_encode(enc, predt, cblock, scalar_out, quant, pli, ln,
-     OD_PVQ_BETA[use_masking][pli][ln], OD_ROBUST_STREAM, ctx->is_keyframe);
+    if (lossless) {
+      skip = od_single_band_lossless_encode(enc, ln, scalar_out, cblock, predt,
+        pli);
+    }
+    else {
+      skip = od_pvq_encode(enc, predt, cblock, scalar_out, quant, pli, ln,
+       OD_PVQ_BETA[use_masking][pli][ln], OD_ROBUST_STREAM, ctx->is_keyframe);
+    }
   }
   OD_ENC_ACCT_UPDATE(enc, OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_UNKNOWN);
   if (OD_DISABLE_HAAR_DC || !ctx->is_keyframe) {
     int has_dc_skip;
-    has_dc_skip = !ctx->is_keyframe && !lossless;
+    has_dc_skip = !ctx->is_keyframe && !lossless && !ctx->use_haar_wavelet;
     OD_ENC_ACCT_UPDATE(enc, OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_DC_COEFF);
     if (!has_dc_skip || scalar_out[0]) {
       generic_encode(&enc->ec, &enc->state.adapt.model_dc[pli],
@@ -577,11 +791,27 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   else {
     scalar_out[0] = cblock[0];
   }
-  od_coding_order_to_raster(&d[bo], w, scalar_out, n, lossless);
+  if (ctx->use_haar_wavelet) {
+    int i;
+    int j;
+    for (i = 0; i < n; i++) {
+      for (j = 0; j < n; j++) {
+        d[bo + i*w + j] = scalar_out[i*n + j];
+      }
+    }
+  }
+  else {
+    od_coding_order_to_raster(&d[bo], w, scalar_out, n, lossless);
+  }
   /*Apply the inverse transform.*/
 #if !defined(OD_OUTPUT_PRED)
-  if (!lossless) od_apply_qm(d + bo, w, d + bo, w, ln, xdec, 1, qm);
-  (*enc->state.opt_vtbl.idct_2d[ln])(c + bo, w, d + bo, w);
+  if (ctx->use_haar_wavelet) {
+    od_haar_inv(c + bo, w, d + bo, w, ln + 2);
+  }
+  else {
+    if (!lossless) od_apply_qm(d + bo, w, d + bo, w, ln, xdec, 1, qm);
+    (*enc->state.opt_vtbl.idct_2d[ln])(c + bo, w, d + bo, w);
+  }
 #else
 # if 0
   /*Output the resampled luma plane.*/
@@ -599,7 +829,7 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
 }
 
 static void od_compute_dcts(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
-  int bx, int by, int l, int xdec, int ydec) {
+  int bx, int by, int l, int xdec, int ydec, int use_haar) {
   int od;
   int d;
   int w;
@@ -620,9 +850,12 @@ static void od_compute_dcts(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
   if (d == l) {
     d -= xdec;
     bo = (by << (OD_LOG_BSIZE0 + d))*w + (bx << (OD_LOG_BSIZE0 + d));
-    (*enc->state.opt_vtbl.fdct_2d[d])(c + bo, w, ctx->c + bo, w);
-    if (!lossless) {
-      od_apply_qm(c + bo, w, c + bo, w, d, xdec, 0, qm);
+    if (use_haar) {
+      od_haar(c + bo, w, ctx->c + bo, w, d + 2);
+    }
+    else {
+      (*enc->state.opt_vtbl.fdct_2d[d])(c + bo, w, ctx->c + bo, w);
+      if (!lossless) od_apply_qm(c + bo, w, c + bo, w, d, xdec, 0, qm);
     }
   }
   else {
@@ -634,10 +867,10 @@ static void od_compute_dcts(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
     l--;
     bx <<= 1;
     by <<= 1;
-    od_compute_dcts(enc, ctx, pli, bx + 0, by + 0, l, xdec, ydec);
-    od_compute_dcts(enc, ctx, pli, bx + 1, by + 0, l, xdec, ydec);
-    od_compute_dcts(enc, ctx, pli, bx + 0, by + 1, l, xdec, ydec);
-    od_compute_dcts(enc, ctx, pli, bx + 1, by + 1, l, xdec, ydec);
+    od_compute_dcts(enc, ctx, pli, bx + 0, by + 0, l, xdec, ydec, use_haar);
+    od_compute_dcts(enc, ctx, pli, bx + 1, by + 0, l, xdec, ydec, use_haar);
+    od_compute_dcts(enc, ctx, pli, bx + 0, by + 1, l, xdec, ydec, use_haar);
+    od_compute_dcts(enc, ctx, pli, bx + 1, by + 1, l, xdec, ydec, use_haar);
     if (!OD_DISABLE_HAAR_DC && ctx->is_keyframe) {
       od_coeff x[4];
       int l2;
@@ -1423,10 +1656,13 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
        state->bsize, state->bstride, xdec);
     }
 #else
-    od_apply_prefilter_frame_sbs(state->ctmp[pli], w, nhsb, nvsb, xdec, ydec);
-    if (!mbctx->is_keyframe) {
-      od_apply_prefilter_frame_sbs(state->mctmp[pli], w, nhsb, nvsb, xdec,
+    if (!mbctx->use_haar_wavelet) {
+      od_apply_prefilter_frame_sbs(state->ctmp[pli], w, nhsb, nvsb, xdec,
        ydec);
+      if (!mbctx->is_keyframe) {
+        od_apply_prefilter_frame_sbs(state->mctmp[pli], w, nhsb, nvsb, xdec,
+         ydec);
+      }
     }
 #endif
   }
@@ -1461,7 +1697,8 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
             }
             od_encode_checkpoint(enc, &buf);
           }
-          od_compute_dcts(enc, mbctx, pli, sbx, sby, 3, xdec, ydec);
+          od_compute_dcts(enc, mbctx, pli, sbx, sby, 3, xdec, ydec,
+           mbctx->use_haar_wavelet && !rdo_only);
           od_quantize_haar_dc_sb(enc, mbctx, pli, sbx, sby, 3, xdec, ydec,
            sby > 0 && sbx < nhsb - 1, &hgrad, &vgrad);
           if (rdo_only) {
@@ -1515,7 +1752,10 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
     od_apply_postfilter_frame(state->ctmp[pli], w, nhsb, nvsb,
      state->bsize, state->bstride, xdec);
 #else
-    od_apply_postfilter_frame_sbs(state->ctmp[pli], w, nhsb, nvsb, xdec, ydec);
+    if (!mbctx->use_haar_wavelet) {
+      od_apply_postfilter_frame_sbs(state->ctmp[pli], w, nhsb, nvsb, xdec,
+       ydec);
+    }
 #endif
     if (!rdo_only) {
       for (sby = 0; sby < nvsb; sby++) {
@@ -1650,7 +1890,8 @@ static void od_split_superblocks_rdo(daala_enc_ctx *enc,
   od_encode_checkpoint(enc, &rbuf);
   for (i = 0; i < 4*nvsb; i++) {
     for (j = 0; j < 4*nhsb; j++) {
-      state->bsize[i*state->bstride + j] = OD_LIMIT_BSIZE_MIN;
+      state->bsize[i*state->bstride + j] = mbctx->use_haar_wavelet ?
+       OD_BLOCK_32X32 :  OD_LIMIT_BSIZE_MIN;
     }
   }
   od_encode_residual(enc, mbctx, OD_ENCODE_RDO);
@@ -1729,6 +1970,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   /* FIXME: This should be dynamic */
   mbctx.use_activity_masking = enc->use_activity_masking;
   mbctx.qm = enc->qm;
+  mbctx.use_haar_wavelet = enc->use_haar_wavelet;
   /*Initialize the entropy coder.*/
   od_ec_enc_reset(&enc->ec);
   OD_ENC_ACCT_UPDATE(enc, OD_ACCT_CAT_TECHNIQUE, OD_ACCT_TECH_FRAME);
@@ -1742,6 +1984,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   /*Code whether flat or hvs quantization matrices are being used.
    * FIXME: will need to be a wider type if other QMs get added */
   od_ec_encode_bool_q15(&enc->ec, mbctx.qm, 16384);
+  od_ec_encode_bool_q15(&enc->ec, mbctx.use_haar_wavelet, 16384);
   for (pli = 0; pli < nplanes; pli++) {
     enc->quantizer[pli] = od_quantizer_from_quality(enc->quality[pli]);
   }

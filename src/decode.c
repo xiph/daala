@@ -188,6 +188,7 @@ struct od_mb_dec_ctx {
   int is_keyframe;
   int use_activity_masking;
   od_qm qm;
+  int use_haar_wavelet;
 };
 typedef struct od_mb_dec_ctx od_mb_dec_ctx;
 
@@ -213,7 +214,7 @@ static void od_decode_compute_pred(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, od_co
   md = ctx->md;
   l = ctx->l;
   if (ctx->is_keyframe) {
-    if (pli == 0 || OD_DISABLE_CFL) {
+    if (pli == 0 || OD_DISABLE_CFL || ctx->use_haar_wavelet) {
       OD_CLEAR(pred, n2);
     }
     else {
@@ -266,6 +267,165 @@ static void od_block_lossless_decode(daala_dec_ctx *dec, int ln,
   }
 }
 
+static int od_ec_dec_unary(od_ec_dec *ec) {
+  int ret;
+  ret = 0;
+  while (od_ec_dec_bits(ec, 1) == 0) ret++;
+  return ret;
+}
+
+static int od_decode_coeff_split(daala_dec_ctx *dec, int sum, int ctx) {
+  int shift;
+  int a;
+  a = 0;
+  if (sum == 0) return 0;
+  shift = OD_MAXI(0, OD_ILOG(sum) - 4);
+  if (shift) {
+    a = od_ec_dec_bits(&dec->ec, shift);
+  }
+  a += od_decode_cdf_adapt(&dec->ec, dec->state.adapt.haar_coeff_cdf[15*ctx
+   + (sum >> shift) - 1], (sum >> shift) + 1,
+   dec->state.adapt.haar_coeff_increment) << shift;
+  if (a > sum) {
+    a = sum;
+    dec->ec.error = 1;
+  }
+  return a;
+}
+
+static int od_decode_tree_split(daala_dec_ctx *dec, int sum, int ctx) {
+  int shift;
+  int a;
+  a = 0;
+  if (sum == 0) return 0;
+  shift = OD_MAXI(0, OD_ILOG(sum) - 4);
+  if (shift) {
+    a = od_ec_dec_bits(&dec->ec, shift);
+  }
+  a += od_decode_cdf_adapt(&dec->ec, dec->state.adapt.haar_split_cdf[15*(2*ctx
+   + OD_MINI(shift, 1)) + (sum >> shift) - 1], (sum >> shift) + 1,
+   dec->state.adapt.haar_split_increment) << shift;
+  if (a > sum) {
+    a = sum;
+    dec->ec.error = 1;
+  }
+  return a;
+}
+
+static void od_decode_sum_tree(daala_dec_ctx *dec, od_coeff *c, int ln,
+ od_coeff tree_sum, int x, int y, int dir, int pli) {
+  int n;
+  int coeff_mag;
+  od_coeff children_sum;
+  od_coeff children[2][2];
+  n = 1 << ln;
+  if (tree_sum == 0) return;
+  coeff_mag = od_decode_coeff_split(dec, tree_sum, dir
+   + 3*(OD_ILOG(OD_MAXI(x,y)) - 1));
+  c[y*n + x] = coeff_mag;
+  children_sum = tree_sum - coeff_mag;
+  /* Decode sum of each four children relative to tree. */
+  if (children_sum) {
+    int sum1;
+    if (dir == 0) {
+      sum1 = od_decode_tree_split(dec, children_sum, 0);
+      children[0][0] = od_decode_tree_split(dec, sum1, 2);
+      children[0][1] = sum1 - children[0][0];
+      children[1][0] = od_decode_tree_split(dec, children_sum - sum1, 2);
+      children[1][1] = children_sum - sum1 - children[1][0];
+    }
+    else {
+      sum1 = od_decode_tree_split(dec, children_sum, 1);
+      children[0][0] = od_decode_tree_split(dec, sum1, 2);
+      children[1][0] = sum1 - children[0][0];
+      children[0][1] = od_decode_tree_split(dec, children_sum - sum1, 2);
+      children[1][1] = children_sum - sum1 - children[0][1];
+    }
+  }
+  else {
+    children[0][0] = children[0][1] = children[1][0] = children[1][1] = 0;
+  }
+  if (4*x < n && 4*y < n) {
+    /* Recursive calls. */
+    od_decode_sum_tree(dec, c, ln, children[0][0], 2*x, 2*y, dir, pli);
+    od_decode_sum_tree(dec, c, ln, children[0][1], 2*x + 1, 2*y, dir, pli);
+    od_decode_sum_tree(dec, c, ln, children[1][0], 2*x, 2*y + 1, dir, pli);
+    od_decode_sum_tree(dec, c, ln, children[1][1], 2*x + 1, 2*y + 1, dir, pli);
+  }
+  else {
+    c[2*y*n + 2*x] = children[0][0];
+    c[2*y*n + 2*x + 1] = children[0][1];
+    c[(2*y + 1)*n + 2*x] = children[1][0];
+    c[(2*y + 1)*n + 2*x + 1] = children[1][1];
+  }
+}
+
+static void od_wavelet_unquantize(daala_dec_ctx *dec, int ln, od_coeff *pred,
+ const od_coeff *predt, int quant, int pli) {
+  int n;
+  int i;
+  int dir;
+  od_coeff tree_sum[2][2];
+  n = 1 << ln;
+  for (i = 0; i < n; i++) {
+    int j;
+    for (j = 0; j < n; j++) if (i + j) pred[i*n + j] = 0;
+  }
+  {
+    int bits;
+    bits = od_decode_cdf_adapt(&dec->ec, dec->state.adapt.haar_bits_cdf[pli],
+     16, dec->state.adapt.haar_bits_increment);
+    if (bits == 15) bits += od_ec_dec_unary(&dec->ec);
+    /* Theoretical maximum sum is around 2^7 * 2^OD_COEFF_SHIFT * 32x32,
+       so 2^21, but let's play safe. */
+    if (bits > 24) {
+      /* This can't happen, must be a bit-stream desync/corruption. */
+      dec->ec.error = 1;
+      return;
+    }
+    else if (bits > 1) {
+      tree_sum[0][0] = (1 << (bits - 1)) | od_ec_dec_bits(&dec->ec, bits - 1);
+    }
+    else tree_sum[0][0] = bits;
+    /* Handle diagonal first to make H/V symmetric. */
+    tree_sum[1][1] = od_decode_tree_split(dec, tree_sum[0][0], 3);
+    tree_sum[0][1] = od_decode_tree_split(dec, tree_sum[0][0] - tree_sum[1][1],
+     4);
+    tree_sum[1][0] = tree_sum[0][0] - tree_sum[1][1] - tree_sum[0][1];
+  }
+  od_decode_sum_tree(dec, pred, ln, tree_sum[0][1], 1, 0, 0, pli);
+  od_decode_sum_tree(dec, pred, ln, tree_sum[1][0], 0, 1, 1, pli);
+  od_decode_sum_tree(dec, pred, ln, tree_sum[1][1], 1, 1, 2, pli);
+  for (i = 0; i < n; i++) {
+    int j;
+    for (j = (i == 0); j < n; j++) {
+      int sign;
+      od_coeff in;
+      in = pred[i*n + j];
+      if (in) {
+        sign = od_ec_dec_bits(&dec->ec, 1);
+        if (sign) in = -in;
+      }
+      pred[i*n + j] = in;
+    }
+  }
+  for (dir = 0; dir < 3; dir++) {
+    int level;
+    for (level = 0; level < ln; level++) {
+      int bo;
+      int q;
+      bo = (((dir + 1) >> 1) << level)*n + (((dir + 1) & 1) << level);
+      if (quant == 0) q = 1;
+      else q = quant*OD_HAAR_QM[dir == 2][level] >> 4;
+      for (i = 0; i < 1 << level; i++) {
+        int j;
+        for (j = 0; j < 1 << level; j++)
+          pred[bo + i*n + j] = q*pred[bo + i*n + j] + predt[bo + i*n + j];
+      }
+    }
+  }
+}
+
 static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
  int pli, int bx, int by, int skip) {
   int n;
@@ -301,36 +461,57 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   mc = ctx->mc;
   /*Apply forward transform to MC predictor.*/
   if (!ctx->is_keyframe) {
-    (*dec->state.opt_vtbl.fdct_2d[ln])(md + bo, w, mc + bo, w);
-    if (!lossless) od_apply_qm(md + bo, w, md + bo, w, ln, xdec, 0, qm);
+    if (ctx->use_haar_wavelet) {
+      od_haar(md + bo, w, mc + bo, w, ln + 2);
+    }
+    else {
+      (*dec->state.opt_vtbl.fdct_2d[ln])(md + bo, w, mc + bo, w);
+      if (!lossless) od_apply_qm(md + bo, w, md + bo, w, ln, xdec, 0, qm);
+    }
   }
   od_decode_compute_pred(dec, ctx, pred, ln, pli, bx, by);
-  if (ctx->is_keyframe && pli == 0) {
+  if (ctx->is_keyframe && pli == 0 && !ctx->use_haar_wavelet) {
     od_hv_intra_pred(pred, d, w, bx, by, dec->state.bsize,
      dec->state.bstride, ln);
   }
-  od_raster_to_coding_order(predt,  n, &pred[0], n, lossless);
+  if (ctx->use_haar_wavelet) {
+    int i;
+    int j;
+    for (i = 0; i < n; i++) {
+      for (j = 0; j < n; j++) {
+        predt[i*n + j] = pred[i*n + j];
+      }
+    }
+  }
+  else {
+    od_raster_to_coding_order(predt,  n, &pred[0], n, lossless);
+  }
   quant = OD_MAXI(1, dec->quantizer[pli]);
   if (lossless) dc_quant = 1;
   else {
     dc_quant = OD_MAXI(1, quant*
      dec->state.pvq_qm_q4[pli][od_qm_get_index(ln, 0)] >> 4);
   }
-  if (lossless) {
-    od_block_lossless_decode(dec, ln, pred, predt, pli);
+  if (ctx->use_haar_wavelet) {
+    od_wavelet_unquantize(dec, ln + 2, pred, predt, dec->quantizer[pli], pli);
   }
   else {
-    unsigned int flags;
-    od_pvq_decode(dec, predt, pred, quant, pli, ln,
-     OD_PVQ_BETA[use_masking][pli][ln], OD_ROBUST_STREAM, ctx->is_keyframe,
-     &flags, skip);
-    if (pli == 0 && dec->user_flags != NULL) {
-      dec->user_flags[by*dec->user_fstride + bx] = flags;
+    if (lossless) {
+      od_block_lossless_decode(dec, ln, pred, predt, pli);
+    }
+    else {
+      unsigned int flags;
+      od_pvq_decode(dec, predt, pred, quant, pli, ln,
+       OD_PVQ_BETA[use_masking][pli][ln], OD_ROBUST_STREAM, ctx->is_keyframe,
+       &flags, skip);
+      if (pli == 0 && dec->user_flags != NULL) {
+        dec->user_flags[by*dec->user_fstride + bx] = flags;
+      }
     }
   }
   if (OD_DISABLE_HAAR_DC || !ctx->is_keyframe) {
     int has_dc_skip;
-    has_dc_skip = !ctx->is_keyframe && !lossless;
+    has_dc_skip = !ctx->is_keyframe && !lossless && !ctx->use_haar_wavelet;
     if (!has_dc_skip || pred[0]) {
       pred[0] = has_dc_skip + generic_decode(&dec->ec,
        &dec->state.adapt.model_dc[pli], -1, &dec->state.adapt.ex_dc[pli][ln][0], 2);
@@ -341,10 +522,26 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   else {
     pred[0] = d[bo];
   }
-  od_coding_order_to_raster(&d[bo], w, pred, n, lossless);
-  if (!lossless) od_apply_qm(d + bo, w, d + bo, w, ln, xdec, 1, qm);
-  /*Apply the inverse transform.*/
-  (*dec->state.opt_vtbl.idct_2d[ln])(c + bo, w, d + bo, w);
+  if (ctx->use_haar_wavelet) {
+    int i;
+    int j;
+    for (i = 0; i < n; i++) {
+      for (j = 0; j < n; j++) {
+        d[bo + i*w + j] = pred[i*n + j];
+      }
+    }
+  }
+  else {
+    od_coding_order_to_raster(&d[bo], w, pred, n, lossless);
+  }
+  if (ctx->use_haar_wavelet) {
+    od_haar_inv(c + bo, w, d + bo, w, ln + 2);
+  }
+  else {
+    if (!lossless) od_apply_qm(d + bo, w, d + bo, w, ln, xdec, 1, qm);
+    /*Apply the inverse transform.*/
+    (*dec->state.opt_vtbl.idct_2d[ln])(c + bo, w, d + bo, w);
+  }
 }
 
 #if !OD_DISABLE_HAAR_DC
@@ -463,7 +660,8 @@ static void od_decode_recursive(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
   /* Read the luma skip symbol. A value of 4 means "split the block", while < 4
      means that we code the block. In the latter case, we need to forward
      the skip value to the PVQ decoder. */
-  if (pli==0) {
+  if (ctx->use_haar_wavelet) od = l;
+  else if (pli==0) {
     skip = od_decode_cdf_adapt(&dec->ec,
      dec->state.adapt.skip_cdf[pli*OD_NBSIZES + l], 5,
      dec->state.adapt.skip_increment);
@@ -494,7 +692,7 @@ static void od_decode_recursive(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
        ctx->d[0] + (by << (2 + l))*frame_width + (bx << (2 + l)),
        frame_width, xdec, ydec, d, od);
     }
-    if (pli > 0) {
+    if (pli > 0 && !ctx->use_haar_wavelet) {
       /* Decode the skip for chroma. */
       skip = od_decode_cdf_adapt(&dec->ec,
        dec->state.adapt.skip_cdf[pli*OD_NBSIZES + l], 5,
@@ -693,7 +891,7 @@ static void od_decode_residual(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
       od_apply_prefilter_frame(state->mctmp[pli], w, nhsb, nvsb,
        state->bsize, state->bstride, xdec);
 #else
-      if (!mbctx->is_keyframe) {
+      if (!mbctx->is_keyframe && !mbctx->use_haar_wavelet) {
         od_apply_prefilter_frame_sbs(state->mctmp[pli], w, nhsb, nvsb, xdec,
          ydec);
       }
@@ -736,7 +934,10 @@ static void od_decode_residual(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
     od_apply_postfilter_frame(state->ctmp[pli], w, nhsb, nvsb,
      state->bsize, state->bstride, xdec);
 #else
-    od_apply_postfilter_frame_sbs(state->ctmp[pli], w, nhsb, nvsb, xdec, ydec);
+    if (!mbctx->use_haar_wavelet) {
+      od_apply_postfilter_frame_sbs(state->ctmp[pli], w, nhsb, nvsb, xdec,
+       ydec);
+    }
 #endif
     for (sby = 0; sby < nvsb; sby++) {
       for (sbx = 0; sbx < nhsb; sbx++) {
@@ -781,6 +982,7 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
   mbctx.is_keyframe = od_ec_decode_bool_q15(&dec->ec, 16384);
   mbctx.use_activity_masking = od_ec_decode_bool_q15(&dec->ec, 16384);
   mbctx.qm = od_ec_decode_bool_q15(&dec->ec, 16384);
+  mbctx.use_haar_wavelet = od_ec_decode_bool_q15(&dec->ec, 16384);
   if (mbctx.is_keyframe) {
     int nplanes;
     int pli;

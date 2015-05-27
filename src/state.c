@@ -45,9 +45,25 @@ const od_coeff OD_DC_RES[3] = {17, 24, 17};
 
 /* Scaling compensation for the Haar equivalent basis function. Left is
    for horizontal/vertical. Right is for diagonal. */
+#if OD_DISABLE_FILTER
+const od_coeff OD_DC_QM[2][OD_NBSIZES - 1][2] = {
+  {{16, 16}, {16, 16}, {16, 16}},
+  {{16, 16}, {16, 16}, {16, 16}}
+};
+#else
 const od_coeff OD_DC_QM[2][OD_NBSIZES - 1][2] = {
   {{25, 30}, {21, 27}, {17, 19}},
   {{21, 25}, {18, 20}, {17, 18}}
+};
+#endif
+
+/* Haar "quantization matrix" for each decomposition level (starting from LF).
+   */
+const int OD_HAAR_QM[2][5] = {
+  /* horizontal/vertical direction. */
+  {16, 16, 16, 24, 32},
+  /* "diagonal" direction. */
+  {16, 16, 24, 32, 48},
 };
 
 static void *od_aligned_malloc(size_t _sz,size_t _align) {
@@ -481,6 +497,12 @@ void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe) {
   OD_CDFS_INIT(state->pvq_gaintheta_cdf, state->pvq_gaintheta_increment >> 2);
   state->pvq_skip_dir_increment = 128;
   OD_CDFS_INIT(state->pvq_skip_dir_cdf, state->pvq_skip_dir_increment >> 2);
+  state->haar_coeff_increment = 128;
+  OD_CDFS_INIT(state->haar_coeff_cdf, state->haar_coeff_increment >> 2);
+  state->haar_split_increment = 128;
+  OD_CDFS_INIT(state->haar_split_cdf, state->haar_split_increment >> 2);
+  state->haar_bits_increment = 128;
+  OD_CDFS_INIT(state->haar_bits_cdf, state->haar_bits_increment >> 2);
   for (pli = 0; pli < OD_NPLANES_MAX; pli++) {
     generic_model_init(&state->model_dc[pli]);
     generic_model_init(&state->model_g[pli]);

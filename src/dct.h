@@ -157,6 +157,10 @@ void od_bin_fdct32x32(od_coeff *y, int ystride,
 void od_bin_idct32x32(od_coeff *x, int xstride,
  const od_coeff *y, int ystride);
 
+void od_haar(od_coeff *y, int ystride, const od_coeff *x, int xstride, int ln);
+void od_haar_inv(od_coeff *x, int xstride, const od_coeff *y, int ystride,
+ int ln);
+
 # if defined(OD_CHECKASM)
 void od_dct_check(int ln, const od_coeff *ref, const od_coeff *x,
  int xstride);

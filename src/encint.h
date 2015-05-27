@@ -89,6 +89,7 @@ struct daala_enc_ctx{
   int complexity;
   int use_activity_masking;
   od_qm qm;
+  int use_haar_wavelet;
   od_mv_est_ctx *mvest;
   od_params_ctx params;
 #if defined(OD_ENCODER_CHECK)
