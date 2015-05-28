@@ -1406,41 +1406,6 @@ static void od_split_superblocks(daala_enc_ctx *enc, int is_keyframe) {
 }
 #endif
 
-static void od_encode_block_sizes(daala_enc_ctx *enc) {
-  int nhsb;
-  int nvsb;
-  int i;
-  int j;
-  od_state *state;
-  state = &enc->state;
-  nhsb = state->nhsb;
-  nvsb = state->nvsb;
-  od_state_init_border(state);
-  /* Allocate a blockSizeComp for scratch space and then calculate the block
-     sizes eventually store them in bsize. */
-  for (i = 0; i < nvsb; i++) {
-    int bstride;
-    bstride = state->bstride;
-    for (j = 0; j < nhsb; j++) {
-      unsigned char *state_bsize;
-      state_bsize = &state->bsize[i*4*state->bstride + j*4];
-      if (OD_LIMIT_BSIZE_MIN != OD_LIMIT_BSIZE_MAX) {
-        od_block_size_encode(&enc->ec, &enc->state.adapt, &state_bsize[0],
-         bstride);
-      }
-    }
-  }
-  od_log_matrix_uchar(OD_LOG_GENERIC, OD_LOG_INFO, "bsize ", state->bsize,
-   state->bstride, (nvsb + 1)*4);
-  for (i = 0; i < nvsb*4; i++) {
-    for (j = 0; j < nhsb*4; j++) {
-      OD_LOG_PARTIAL((OD_LOG_GENERIC, OD_LOG_INFO, "%d ",
-       state->bsize[i*state->bstride + j]));
-    }
-    OD_LOG_PARTIAL((OD_LOG_GENERIC, OD_LOG_INFO, "\n"));
-  }
-}
-
 static void od_encode_mvs(daala_enc_ctx *enc) {
   int nhmvbs;
   int nvmvbs;

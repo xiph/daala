@@ -29,10 +29,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # include <ogg/ogg.h>
 # include "entenc.h"
 
-extern const int od_bsize_range[7][2];
-extern const ogg_uint16_t range_cdf_init[7];
-extern const ogg_uint16_t split16_cdf_init[2][16];
-
 # define OD_BLOCK_SIZE4x4(bsize, bstride, bx, by)\
    ((bsize)[((by)>>1)*(bstride) + ((bx)>>1)])
 # define OD_BLOCK_SIZE8x8(bsize, bstride, bx, by)\

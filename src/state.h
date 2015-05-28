@@ -121,14 +121,6 @@ struct od_adapt_ctx {
   ogg_uint16_t        pvq_gaintheta_cdf[2*OD_NBSIZES*PVQ_MAX_PARTITIONS][16];
   int                 pvq_skip_dir_increment;
   ogg_uint16_t        pvq_skip_dir_cdf[2*(OD_NBSIZES-1)][7];
-
-  int                 bsize_range_increment;
-  ogg_uint16_t        bsize_range_cdf[OD_NBSIZES][7];
-  int                 bsize16_increment;
-  ogg_uint16_t        bsize16_cdf[2][16];
-  int                 bsize8_increment;
-  ogg_uint16_t        bsize8_cdf[16];
-
   /* Motion vectors */
   generic_encoder     mv_model;
   int                 mv_ex[OD_MC_NLEVELS];

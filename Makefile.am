@@ -11,7 +11,6 @@ AM_CPPFLAGS = -I$(srcdir)/include
 noinst_HEADERS = \
 	src/adapt.h \
 	src/block_size.h \
-	src/block_size_dec.h \
 	src/block_size_enc.h \
 	src/dct.h \
 	src/decint.h \
@@ -67,7 +66,6 @@ src_libdaalabase_la_LDFLAGS = -no-undefined \
 src_libdaalabase_la_LDFLAGS += 
 src_libdaalabase_la_SOURCES = \
 	src/adapt.c \
-	src/block_size.c \
 	src/entcode.c \
 	src/entdec.c \
 	src/filter.c \
@@ -102,7 +100,6 @@ src_libdaaladec_la_LIBADD = src/libdaalabase.la $(OGG_LIBS) $(LIBM)
 src_libdaaladec_la_LDFLAGS = -no-undefined \
  -version-info @OD_LT_CURRENT@:@OD_LT_REVISION@:@OD_LT_AGE@
 src_libdaaladec_la_SOURCES = \
-	src/block_size_dec.c \
 	src/decode.c \
 	src/infodec.c
 
@@ -114,7 +111,6 @@ endif
 src_libdaalaenc_la_LDFLAGS = -no-undefined \
  -version-info @OD_LT_CURRENT@:@OD_LT_REVISION@:@OD_LT_AGE@
 src_libdaalaenc_la_SOURCES = \
-	src/block_size_dec.c \
 	src/block_size_enc.c \
 	src/encode.c \
 	src/entenc.c \
@@ -269,7 +265,6 @@ tools_dump_psnr_LDADD = $(OGG_LIBS) $(LIBM)
 # block_size_analysis
 tools_block_size_analysis_SOURCES = \
 	tools/block_size_analysis.c \
-	src/block_size.c \
 	src/block_size_enc.c \
 	tools/vidinput.c \
 	tools/y4m_input.c \

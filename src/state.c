@@ -463,21 +463,6 @@ void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe) {
   for (i = 0; i < OD_NBSIZES*PVQ_MAX_PARTITIONS; i++) {
     state->pvq_ext[i] = is_keyframe ? 24576 : 2 << 16;
   }
-  state->bsize_range_increment = 128;
-  for (i = 0; i < 7; i++) {
-    int j;
-    for (j = 0; j < OD_NBSIZES; j++) {
-      state->bsize_range_cdf[j][i] = range_cdf_init[i] >> 6;
-    }
-  }
-  state->bsize16_increment = 128;
-  state->bsize8_increment = 128;
-  for (i = 0; i < 16; i++) {
-    /* Shifting makes the initial adaptation faster. */
-    state->bsize16_cdf[0][i] = split16_cdf_init[0][i]>>6;
-    state->bsize16_cdf[1][i] = split16_cdf_init[1][i]>>6;
-  }
-  OD_SINGLE_CDF_INIT(state->bsize8_cdf, state->bsize8_increment);
   generic_model_init(&state->mv_model);
   state->skip_increment = 128;
   OD_CDFS_INIT(state->skip_cdf, state->skip_increment >> 2);

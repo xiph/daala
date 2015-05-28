@@ -117,7 +117,6 @@ WORKDIR = objs
 # C source file lists
 LIBDAALABASE_CSOURCES = \
 adapt.c \
-block_size.c \
 entcode.c \
 entdec.c \
 filter.c \
@@ -173,7 +172,6 @@ tf.h \
 ../include/daala/codec.h \
 
 LIBDAALADEC_CSOURCES = \
-block_size_dec.c \
 decode.c \
 infodec.c \
 
@@ -183,7 +181,6 @@ decint.h \
 ../include/daala/daaladec.h \
 
 LIBDAALAENC_CSOURCES = \
-block_size_dec.c \
 block_size_enc.c \
 encode.c \
 entenc.c \

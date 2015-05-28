@@ -41,7 +41,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "pvq.h"
 #include "pvq_code.h"
 #include "block_size.h"
-#include "block_size_dec.h"
 #include "tf.h"
 #include "state.h"
 
@@ -774,34 +773,6 @@ static void od_dec_mv_unpack(daala_dec_ctx *dec) {
       for (vx = 0; vx <= nhmvbs; vx++) {
         memcpy(&dec->user_mv_grid[vy*(nhmvbs + 1) + vx], &grid[vy][vx],
          sizeof(od_mv_grid_pt));
-      }
-    }
-  }
-}
-
-/*Decode the blocks sizes into their corresponding form in dec->state.bsize.
-  See the comment for the `bsize` member of `od_state` for more information
-   about the data layout and meaning.*/
-static void od_decode_block_sizes(od_dec_ctx *dec) {
-  int i;
-  int j;
-  int nhsb;
-  int nvsb;
-  od_state_init_border(&dec->state);
-  nhsb = dec->state.nhsb;
-  nvsb = dec->state.nvsb;
-  if (OD_LIMIT_BSIZE_MIN != OD_LIMIT_BSIZE_MAX) {
-    for (i = 0; i < nvsb; i++) {
-      for (j = 0; j < nhsb; j++) {
-        od_block_size_decode(&dec->ec, &dec->state.adapt,
-         &dec->state.bsize[4*dec->state.bstride*i + 4*j], dec->state.bstride);
-      }
-    }
-  }
-  else {
-    for (i = 0; i < nvsb*4; i++) {
-      for (j = 0; j < nhsb*4; j++) {
-        dec->state.bsize[dec->state.bstride*i + j] = OD_LIMIT_BSIZE_MIN;
       }
     }
   }
