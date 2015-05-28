@@ -401,7 +401,7 @@ static void usage(void) {
    "  -V --video-rate-target <n>     bitrate target for Daala video;\n"
    "                                 use -v and not -V if at all possible,\n"
    "                                 as -v gives higher quality for a given\n"
-   "                                 bitrate.\n\n"
+   "                                 bitrate. (Not yet implemented)\n\n"
    "  -s --serial <n>                Specify a serial number for the stream.\n"
    "  -S --skip <n>                  Number of input frames to skip before encoding.\n"
    "  -l --limit <n>                 Maximum number of frames to encode.\n"
@@ -449,7 +449,6 @@ int main(int argc, char **argv) {
   int ret;
   int video_kbps;
   int video_q;
-  int video_r;
   int video_keyframe_rate;
   int video_ready;
   int pli;
@@ -481,7 +480,6 @@ int main(int argc, char **argv) {
   avin.video_par_d = -1;
   video_q = 10;
   video_keyframe_rate = 256;
-  video_r = -1;
   video_bytesout = 0;
   fixedserial = 0;
   skip = 0;
@@ -518,17 +516,12 @@ int main(int argc, char **argv) {
           fprintf(stderr, "Illegal video quality (use 0 through 511)\n");
           exit(1);
         }
-        video_r = 0;
         break;
       }
       case 'V': {
-        video_r = (int)rint(atof(optarg)*1000);
-        if (video_r < 45000 || video_r > 2000000) {
-          fprintf(stderr,
-           "Illegal video bitrate (use 45kbps through 2000kbps)\n");
-          exit(1);
-        }
-        video_q = 0;
+        fprintf(stderr,
+         "Target video bitrate is not yet implemented, use -v instead.\n");
+        exit(1);
         break;
       }
       case 's': {
