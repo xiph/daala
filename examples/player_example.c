@@ -449,7 +449,7 @@ int main(int argc, char *argv[]) {
     } else if ((argc == 2)
             && memcmp(argv[1], "--version", 9) == 0
             && strlen(argv[1]) == strlen("--version")) {
-      fprintf(stderr, "%s\n", PACKAGE_STRING);
+      fprintf(stderr, "%s\n", daala_version_string());
       exit(0);
     }
     start_paused = 0;

@@ -171,7 +171,7 @@ static void usage(void) {
 }
 
 static void version(void) {
-  fprintf(stderr, "%s\n", PACKAGE_STRING);
+  fprintf(stderr, "%s\n", daala_version_string());
   exit(EXIT_SUCCESS);
 }
 
