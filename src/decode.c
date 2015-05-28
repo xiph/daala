@@ -238,35 +238,6 @@ static void od_decode_compute_pred(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, od_co
   }
 }
 
-static void od_block_lossless_decode(daala_dec_ctx *dec, int ln,
- od_coeff *pred, const od_coeff *predt, int pli) {
-  int *adapt;
-  int vk;
-  int zzi;
-  int n2;
-  ogg_int32_t adapt_curr[OD_NSB_ADAPT_CTXS];
-  adapt = dec->state.adapt.pvq_adapt;
-  n2 = 1 << (2*ln + 4);
-  vk = generic_decode(&dec->ec, &dec->state.adapt.model_g[pli], -1,
-   &dec->state.adapt.ex_g[pli][ln], 0);
-  laplace_decode_vector(&dec->ec, pred + 1, n2 - 1, vk, adapt_curr, adapt);
-  for (zzi = 1; zzi < n2; zzi++) {
-    pred[zzi] = pred[zzi] + predt[zzi];
-  }
-  if (adapt_curr[OD_ADAPT_K_Q8] > 0) {
-    adapt[OD_ADAPT_K_Q8] += 256*adapt_curr[OD_ADAPT_K_Q8] -
-     adapt[OD_ADAPT_K_Q8] >> OD_SCALAR_ADAPT_SPEED;
-    adapt[OD_ADAPT_SUM_EX_Q8] += adapt_curr[OD_ADAPT_SUM_EX_Q8] -
-     adapt[OD_ADAPT_SUM_EX_Q8] >> OD_SCALAR_ADAPT_SPEED;
-  }
-  if (adapt_curr[OD_ADAPT_COUNT_Q8] > 0) {
-    adapt[OD_ADAPT_COUNT_Q8] += adapt_curr[OD_ADAPT_COUNT_Q8]-
-     adapt[OD_ADAPT_COUNT_Q8] >> OD_SCALAR_ADAPT_SPEED;
-    adapt[OD_ADAPT_COUNT_EX_Q8] += adapt_curr[OD_ADAPT_COUNT_EX_Q8]-
-     adapt[OD_ADAPT_COUNT_EX_Q8] >> OD_SCALAR_ADAPT_SPEED;
-  }
-}
-
 static int od_ec_dec_unary(od_ec_dec *ec) {
   int ret;
   ret = 0;
@@ -466,7 +437,7 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
     }
     else {
       (*dec->state.opt_vtbl.fdct_2d[ln])(md + bo, w, mc + bo, w);
-      if (!lossless) od_apply_qm(md + bo, w, md + bo, w, ln, xdec, 0, qm);
+      od_apply_qm(md + bo, w, md + bo, w, ln, xdec, 0, qm);
     }
   }
   od_decode_compute_pred(dec, ctx, pred, ln, pli, bx, by);
@@ -484,7 +455,7 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
     }
   }
   else {
-    od_raster_to_coding_order(predt,  n, &pred[0], n, lossless);
+    od_raster_to_coding_order(predt,  n, &pred[0], n, 0);
   }
   quant = OD_MAXI(1, dec->quantizer[pli]);
   if (lossless) dc_quant = 1;
@@ -496,22 +467,17 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
     od_wavelet_unquantize(dec, ln + 2, pred, predt, dec->quantizer[pli], pli);
   }
   else {
-    if (lossless) {
-      od_block_lossless_decode(dec, ln, pred, predt, pli);
-    }
-    else {
-      unsigned int flags;
-      od_pvq_decode(dec, predt, pred, quant, pli, ln,
-       OD_PVQ_BETA[use_masking][pli][ln], OD_ROBUST_STREAM, ctx->is_keyframe,
-       &flags, skip);
-      if (pli == 0 && dec->user_flags != NULL) {
-        dec->user_flags[by*dec->user_fstride + bx] = flags;
-      }
+    unsigned int flags;
+    od_pvq_decode(dec, predt, pred, quant, pli, ln,
+     OD_PVQ_BETA[use_masking][pli][ln], OD_ROBUST_STREAM, ctx->is_keyframe,
+     &flags, skip);
+    if (pli == 0 && dec->user_flags != NULL) {
+      dec->user_flags[by*dec->user_fstride + bx] = flags;
     }
   }
   if (!ctx->is_keyframe) {
     int has_dc_skip;
-    has_dc_skip = !ctx->is_keyframe && !lossless && !ctx->use_haar_wavelet;
+    has_dc_skip = !ctx->is_keyframe && !ctx->use_haar_wavelet;
     if (!has_dc_skip || pred[0]) {
       pred[0] = has_dc_skip + generic_decode(&dec->ec,
        &dec->state.adapt.model_dc[pli], -1, &dec->state.adapt.ex_dc[pli][ln][0], 2);
@@ -532,13 +498,13 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
     }
   }
   else {
-    od_coding_order_to_raster(&d[bo], w, pred, n, lossless);
+    od_coding_order_to_raster(&d[bo], w, pred, n, 0);
   }
   if (ctx->use_haar_wavelet) {
     od_haar_inv(c + bo, w, d + bo, w, ln + 2);
   }
   else {
-    if (!lossless) od_apply_qm(d + bo, w, d + bo, w, ln, xdec, 1, qm);
+    od_apply_qm(d + bo, w, d + bo, w, ln, xdec, 1, qm);
     /*Apply the inverse transform.*/
     (*dec->state.opt_vtbl.idct_2d[ln])(c + bo, w, d + bo, w);
   }

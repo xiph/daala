@@ -424,44 +424,6 @@ static void od_encode_compute_pred(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
   }
 }
 
-/* Returns 1 if the AC coefficients are skipped, zero otherwise. */
-static int od_single_band_lossless_encode(daala_enc_ctx *enc, int ln,
- od_coeff *scalar_out, const od_coeff *cblock, const od_coeff *predt,
- int pli) {
-  int *adapt;
-  int vk;
-  int zzi;
-  int n2;
-  ogg_int32_t adapt_curr[OD_NSB_ADAPT_CTXS];
-  adapt = enc->state.adapt.pvq_adapt;
-  vk = 0;
-  n2 = 1 << (2*ln + 4);
-  for (zzi = 1; zzi < n2; zzi++) {
-    scalar_out[zzi] = cblock[zzi] - predt[zzi];
-    vk += abs(scalar_out[zzi]);
-  }
-  generic_encode(&enc->ec, &enc->state.adapt.model_g[pli], vk, -1,
-   &enc->state.adapt.ex_g[pli][ln], 0);
-  laplace_encode_vector(&enc->ec, scalar_out + 1, n2 - 1, vk, adapt_curr,
-   adapt);
-  for (zzi = 1; zzi < n2; zzi++) {
-    scalar_out[zzi] = scalar_out[zzi] + predt[zzi];
-  }
-  if (adapt_curr[OD_ADAPT_K_Q8] > 0) {
-    adapt[OD_ADAPT_K_Q8] += 256*adapt_curr[OD_ADAPT_K_Q8] -
-     adapt[OD_ADAPT_K_Q8] >> OD_SCALAR_ADAPT_SPEED;
-    adapt[OD_ADAPT_SUM_EX_Q8] += adapt_curr[OD_ADAPT_SUM_EX_Q8] -
-     adapt[OD_ADAPT_SUM_EX_Q8] >> OD_SCALAR_ADAPT_SPEED;
-  }
-  if (adapt_curr[OD_ADAPT_COUNT_Q8] > 0) {
-    adapt[OD_ADAPT_COUNT_Q8] += adapt_curr[OD_ADAPT_COUNT_Q8]-
-     adapt[OD_ADAPT_COUNT_Q8] >> OD_SCALAR_ADAPT_SPEED;
-    adapt[OD_ADAPT_COUNT_EX_Q8] += adapt_curr[OD_ADAPT_COUNT_EX_Q8]-
-     adapt[OD_ADAPT_COUNT_EX_Q8] >> OD_SCALAR_ADAPT_SPEED;
-  }
-  return vk == 0;
-}
-
 /* Compute the sum of the tree (parent and descendents) at each level. */
 static int od_compute_max_tree(od_coeff tree_sum[OD_BSIZE_MAX][OD_BSIZE_MAX],
  int x, int y, const od_coeff *c, int ln) {
@@ -702,11 +664,11 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
       quantized_dc = d[bo];
       (*enc->state.opt_vtbl.fdct_2d[ln])(d + bo, w, c + bo, w);
       if (ctx->is_keyframe) d[bo] = quantized_dc;
-      if (!lossless) od_apply_qm(d + bo, w, d + bo, w, ln, xdec, 0, qm);
+      od_apply_qm(d + bo, w, d + bo, w, ln, xdec, 0, qm);
     }
     if (!ctx->is_keyframe) {
       (*enc->state.opt_vtbl.fdct_2d[ln])(md + bo, w, mc + bo, w);
-      if (!lossless) od_apply_qm(md + bo, w, md + bo, w, ln, xdec, 0, qm);
+      od_apply_qm(md + bo, w, md + bo, w, ln, xdec, 0, qm);
     }
   }
   od_encode_compute_pred(enc, ctx, pred, ln, pli, bx, by);
@@ -729,8 +691,8 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   }
   else {
     /* Change ordering for encoding. */
-    od_raster_to_coding_order(cblock,  n, &d[bo], w, lossless);
-    od_raster_to_coding_order(predt,  n, &pred[0], n, lossless);
+    od_raster_to_coding_order(cblock,  n, &d[bo], w, 0);
+    od_raster_to_coding_order(predt,  n, &pred[0], n, 0);
   }
   /* Lossless encoding uses an actual quantizer of 1, but is signalled
      with a 'quantizer' of 0. */
@@ -754,18 +716,12 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
      enc->quantizer[pli], pli);
   }
   else {
-    if (lossless) {
-      skip = od_single_band_lossless_encode(enc, ln, scalar_out, cblock, predt,
-        pli);
-    }
-    else {
-      skip = od_pvq_encode(enc, predt, cblock, scalar_out, quant, pli, ln,
-       OD_PVQ_BETA[use_masking][pli][ln], OD_ROBUST_STREAM, ctx->is_keyframe);
-    }
+    skip = od_pvq_encode(enc, predt, cblock, scalar_out, quant, pli, ln,
+     OD_PVQ_BETA[use_masking][pli][ln], OD_ROBUST_STREAM, ctx->is_keyframe);
   }
   if (!ctx->is_keyframe) {
     int has_dc_skip;
-    has_dc_skip = !ctx->is_keyframe && !lossless && !ctx->use_haar_wavelet;
+    has_dc_skip = !ctx->is_keyframe && !ctx->use_haar_wavelet;
     if (!has_dc_skip || scalar_out[0]) {
       generic_encode(&enc->ec, &enc->state.adapt.model_dc[pli],
        abs(scalar_out[0]) - has_dc_skip, -1, &enc->state.adapt.ex_dc[pli][ln][0], 2);
@@ -790,7 +746,7 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
     }
   }
   else {
-    od_coding_order_to_raster(&d[bo], w, scalar_out, n, lossless);
+    od_coding_order_to_raster(&d[bo], w, scalar_out, n, 0);
   }
   /*Apply the inverse transform.*/
 #if !defined(OD_OUTPUT_PRED)
@@ -798,7 +754,7 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
     od_haar_inv(c + bo, w, d + bo, w, ln + 2);
   }
   else {
-    if (!lossless) od_apply_qm(d + bo, w, d + bo, w, ln, xdec, 1, qm);
+    od_apply_qm(d + bo, w, d + bo, w, ln, xdec, 1, qm);
     (*enc->state.opt_vtbl.idct_2d[ln])(c + bo, w, d + bo, w);
   }
 #else
@@ -1944,7 +1900,10 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   /* FIXME: This should be dynamic */
   mbctx.use_activity_masking = enc->use_activity_masking;
   mbctx.qm = enc->qm;
-  mbctx.use_haar_wavelet = enc->use_haar_wavelet;
+  /* Use Haar for lossless since 1) it's more efficient than the DCT and 2)
+     PVQ isn't lossless. We only look at luma quality based on the assumption
+     that it's silly to have just some planes be lossless. */
+  mbctx.use_haar_wavelet = enc->use_haar_wavelet || enc->quality[0] == 0;
   /*Initialize the entropy coder.*/
   od_ec_enc_reset(&enc->ec);
   /*Write a bit to mark this as a data packet.*/
