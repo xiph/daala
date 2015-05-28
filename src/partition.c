@@ -129,48 +129,20 @@ static void od_raster_from_band(const band_layout *layout, od_coeff *dst,
  * @param [in]     interleave interleaves entries for the scalar
                               (non-pvq) case
  */
-void od_raster_to_coding_order(od_coeff *dst,  int n, od_coeff *src, int stride,
- int interleave) {
-  od_coeff tmp1[1024];
+void od_raster_to_coding_order(od_coeff *dst,  int n, od_coeff *src,
+ int stride) {
   od_band_from_raster(&OD_LAYOUT4, dst+1, src, stride);
   if (n >= 8) {
     int i;
     od_band_from_raster(&OD_LAYOUT8, dst+16, src, stride);
-    if (interleave) {
-      for (i = 0; i < 8; i++) {
-        tmp1[2*i] = dst[16+i];
-        tmp1[2*i+1] = dst[24+i];
-      }
-      for (i = 0; i < 16; i++) {
-        dst[16+i] = tmp1[i];
-      }
-    }
   }
   if (n >= 16) {
     int i;
     od_band_from_raster(&OD_LAYOUT16, dst+64, src, stride);
-    if (interleave) {
-      for (i = 0; i < 32; i++) {
-        tmp1[2*i] = dst[64+i];
-        tmp1[2*i+1] = dst[96+i];
-      }
-      for (i = 0; i < 64; i++) {
-        dst[64+i] = tmp1[i];
-      }
-    }
   }
   if (n >= 32) {
     int i;
     od_band_from_raster(&OD_LAYOUT32, dst+256, src, stride);
-    if (interleave) {
-      for (i = 0; i < 128; i++) {
-        tmp1[2*i] = dst[256+i];
-        tmp1[2*i+1] = dst[384+i];
-      }
-      for (i = 0; i < 256; i++) {
-        dst[256+i] = tmp1[i];
-      }
-    }
   }
   dst[0] = src[0];
 }
@@ -190,48 +162,15 @@ void od_raster_to_coding_order(od_coeff *dst,  int n, od_coeff *src, int stride,
                               the scalar (non-pvq) case
  */
 void od_coding_order_to_raster(od_coeff *dst,  int stride, od_coeff *src,
- int n, int interleave) {
+ int n) {
   od_raster_from_band(&OD_LAYOUT4, dst, stride, src+1);
   if (n >= 8) {
-    if (interleave) {
-      int i;
-      od_coeff tmp1[1024];
-      for (i = 0; i < 16; i++) {
-        tmp1[i] = src[16 + i];
-      }
-      for (i = 0; i < 8; i++) {
-        src[16+i] = tmp1[2*i];
-        src[24+i] = tmp1[2*i + 1];
-      }
-    }
     od_raster_from_band(&OD_LAYOUT8, dst, stride, src+16);
   }
   if (n >= 16) {
-    if (interleave) {
-      int i;
-      od_coeff tmp1[1024];
-      for (i = 0; i < 64; i++) {
-        tmp1[i] = src[64 + i];
-      }
-      for (i = 0; i < 32; i++) {
-        src[64+i] = tmp1[2*i];
-        src[96+i] = tmp1[2*i + 1];
-      }
-    }
     od_raster_from_band(&OD_LAYOUT16, dst, stride, src+64);
   }
   if (n >= 32) {
-    if (interleave) {
-      int i;
-      od_coeff tmp1[1024];
-      for (i = 0; i < 256; i++) {
-        tmp1[i] = src[256 + i];
-      }
-      for (i = 0; i < 128; i++) {
-        src[256+i] = tmp1[2*i];
-        src[384+i] = tmp1[2*i + 1];
-      }
-    }
     od_raster_from_band(&OD_LAYOUT32, dst, stride, src+256);
   }
   dst[0] = src[0];

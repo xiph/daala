@@ -691,8 +691,8 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   }
   else {
     /* Change ordering for encoding. */
-    od_raster_to_coding_order(cblock,  n, &d[bo], w, 0);
-    od_raster_to_coding_order(predt,  n, &pred[0], n, 0);
+    od_raster_to_coding_order(cblock,  n, &d[bo], w);
+    od_raster_to_coding_order(predt,  n, &pred[0], n);
   }
   /* Lossless encoding uses an actual quantizer of 1, but is signalled
      with a 'quantizer' of 0. */
@@ -746,7 +746,7 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
     }
   }
   else {
-    od_coding_order_to_raster(&d[bo], w, scalar_out, n, 0);
+    od_coding_order_to_raster(&d[bo], w, scalar_out, n);
   }
   /*Apply the inverse transform.*/
 #if !defined(OD_OUTPUT_PRED)

@@ -455,7 +455,7 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
     }
   }
   else {
-    od_raster_to_coding_order(predt,  n, &pred[0], n, 0);
+    od_raster_to_coding_order(predt,  n, &pred[0], n);
   }
   quant = OD_MAXI(1, dec->quantizer[pli]);
   if (lossless) dc_quant = 1;
@@ -498,7 +498,7 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
     }
   }
   else {
-    od_coding_order_to_raster(&d[bo], w, pred, n, 0);
+    od_coding_order_to_raster(&d[bo], w, pred, n);
   }
   if (ctx->use_haar_wavelet) {
     od_haar_inv(c + bo, w, d + bo, w, ln + 2);

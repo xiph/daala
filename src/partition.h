@@ -40,10 +40,10 @@ extern const band_layout OD_LAYOUT16;
 
 extern const int *const OD_BAND_OFFSETS[OD_NBSIZES];
 
-void od_raster_to_coding_order(od_coeff *dst, int n, od_coeff *src, int stride,
- int interleave);
+void od_raster_to_coding_order(od_coeff *dst, int n, od_coeff *src,
+ int stride);
 
 void od_coding_order_to_raster(od_coeff *dst, int stride, od_coeff *src,
- int n, int interleave);
+ int n);
 
 #endif
