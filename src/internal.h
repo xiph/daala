@@ -39,10 +39,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # define OD_VERSION_MINOR (0)
 # define OD_VERSION_SUB   (0)
 
-# define OD_VENDOR_STRING "Xiph's experimental encoder library " __DATE__
-
-# ifndef PACKAGE_STRING
-#  define PACKAGE_STRING "unknown"
+/* PACKAGE_STRING needs to be defined for deterministic builds */
+# if defined(PACKAGE_STRING)
+#  define OD_VENDOR_STRING "Xiph's experimental encoder library " \
+    PACKAGE_STRING
+# else
+#  define OD_VENDOR_STRING "Xiph's experimental encoder library " __DATE__
 # endif
 
 /*Smallest blocks are 4x4*/
