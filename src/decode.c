@@ -823,16 +823,10 @@ static void od_decode_residual(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
           }
         }
       }
-#if OD_DISABLE_FIXED_LAPPING
-      /*Apply the prefilter across the entire image.*/
-      od_apply_prefilter_frame(state->mctmp[pli], w, nhsb, nvsb,
-       state->bsize, state->bstride, xdec);
-#else
       if (!mbctx->is_keyframe && !mbctx->use_haar_wavelet) {
         od_apply_prefilter_frame_sbs(state->mctmp[pli], w, nhsb, nvsb, xdec,
          ydec);
       }
-#endif
     }
   }
   for (pli = 0; pli < nplanes; pli++) {
@@ -866,16 +860,10 @@ static void od_decode_residual(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
     ydec = state->io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
     w = frame_width >> xdec;
     h = frame_height >> ydec;
-#if OD_DISABLE_FIXED_LAPPING
-    /*Apply the postfilter across the entire image.*/
-    od_apply_postfilter_frame(state->ctmp[pli], w, nhsb, nvsb,
-     state->bsize, state->bstride, xdec);
-#else
     if (!mbctx->use_haar_wavelet) {
       od_apply_postfilter_frame_sbs(state->ctmp[pli], w, nhsb, nvsb, xdec,
        ydec);
     }
-#endif
     for (sby = 0; sby < nvsb; sby++) {
       for (sbx = 0; sbx < nhsb; sbx++) {
         if (mbctx->is_keyframe && OD_BLOCK_SIZE4x4(dec->state.bsize,

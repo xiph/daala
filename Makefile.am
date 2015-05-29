@@ -436,7 +436,6 @@ noinst_PROGRAMS += \
 	src/tests/test_coef_coder \
 	src/tests/logging_test \
 	src/tests/test_divu_small \
-	src/tests/test_filters \
 	src/tests/check_tests
 
 TESTS = \
@@ -446,7 +445,6 @@ TESTS = \
 	src/tests/test_coef_coder \
 	src/tests/logging_test \
 	src/tests/test_divu_small \
-	src/tests/test_filters \
 	src/tests/check_tests
 
 src_tests_dcttest_SOURCES = $(src_dct_SOURCES) src/filter.c
@@ -483,12 +481,6 @@ src_tests_logging_test_LDADD = \
 src_tests_test_divu_small_SOURCES = src/tests/test_divu_small.c
 src_tests_test_divu_small_CFLAGS = $(OGG_CFLAGS)
 src_tests_test_divu_small_LDADD = \
- src/libdaalabase.la \
- $(OGG_LIBS)
-
-src_tests_test_filters_SOURCES = src/tests/test_filters.c
-src_tests_test_filters_CFLAGS = $(OGG_CFLAGS)
-src_tests_test_filters_LDADD = \
  src/libdaalabase.la \
  $(OGG_LIBS)
 

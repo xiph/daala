@@ -1350,7 +1350,7 @@ static void od_predict_frame(daala_enc_ctx *enc) {
 #endif
 }
 
-#if OD_DISABLE_FIXED_LAPPING
+#if 0
 static void od_split_superblocks(daala_enc_ctx *enc, int is_keyframe) {
   int nhsb;
   int nvsb;
@@ -1544,15 +1544,6 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
         }
       }
     }
-#if OD_DISABLE_FIXED_LAPPING
-    /*Apply the prefilter across the entire image.*/
-    od_apply_prefilter_frame(state->ctmp[pli], w, nhsb, nvsb,
-     state->bsize, state->bstride, xdec);
-    if (!mbctx->is_keyframe) {
-      od_apply_prefilter_frame(state->mctmp[pli], w, nhsb, nvsb,
-       state->bsize, state->bstride, xdec);
-    }
-#else
     if (!mbctx->use_haar_wavelet) {
       od_apply_prefilter_frame_sbs(state->ctmp[pli], w, nhsb, nvsb, xdec,
        ydec);
@@ -1561,7 +1552,6 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
          ydec);
       }
     }
-#endif
   }
   for (sby = 0; sby < nvsb; sby++) {
     for (sbx = 0; sbx < nhsb; sbx++) {
@@ -1642,16 +1632,10 @@ static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
     ydec = state->io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
     w = frame_width >> xdec;
     h = frame_height >> ydec;
-#if OD_DISABLE_FIXED_LAPPING
-    /*Apply the postfilter across the entire image.*/
-    od_apply_postfilter_frame(state->ctmp[pli], w, nhsb, nvsb,
-     state->bsize, state->bstride, xdec);
-#else
     if (!mbctx->use_haar_wavelet) {
       od_apply_postfilter_frame_sbs(state->ctmp[pli], w, nhsb, nvsb, xdec,
        ydec);
     }
-#endif
     if (!rdo_only) {
       for (sby = 0; sby < nvsb; sby++) {
         for (sbx = 0; sbx < nhsb; sbx++) {
@@ -1925,14 +1909,14 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   if (!mbctx.is_keyframe) {
     od_predict_frame(enc);
     od_encode_mvs(enc);
-#if !OD_DISABLE_FIXED_LAPPING
+#if 1
     od_split_superblocks_rdo(enc, &mbctx);
 #else
     od_split_superblocks(enc, 0);
 #endif
   }
   else {
-#if !OD_DISABLE_FIXED_LAPPING
+#if 1
     od_split_superblocks_rdo(enc, &mbctx);
 #else
     od_split_superblocks(enc, 1);
