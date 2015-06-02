@@ -249,8 +249,10 @@ static double od_pvq_rate(int qg, int icgr, int theta, int ts,
     /* Approximate cost of entropy-coding theta */
     rate += .9*OD_LOG2(ts);
     /* Adding a cost to using the H/V pred because it's going to be off
-       most of the time. Cost is optimized on subset1. */
-    if (is_keyframe && pli == 0) rate += 2.5;
+       most of the time. Cost is optimized on subset1, while making
+       sure we don't hurt the checkerboard image too much.
+       FIXME: Do real RDO instead of this arbitrary cost. */
+    if (is_keyframe && pli == 0) rate += 6;
     if (qg == icgr) rate -= .5;
   }
   return rate;
@@ -417,8 +419,9 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
     }
   }
   /* Don't bother with no-reference version if there's a reasonable
-     correlation */
-  if (corr < .5 || cg < 2.) {
+     correlation. The only exception is luma on a keyframe because
+     H/V prediction is unreliable. */
+  if ((is_keyframe && pli == 0) || corr < .5 || cg < 2.) {
     double x1[MAXN];
     for (i = 0; i < n; i++) x1[i] = x0[i];
     /* Search for the best gain (haven't determined reasonable range yet). */
