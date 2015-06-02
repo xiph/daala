@@ -440,7 +440,7 @@ static const ogg_uint16_t OD_MV_SPLIT_FLAG_PROBZ_Q15[OD_MC_LEVEL_MAX][9] = {
 
 void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe) {
   int i;
-  int ln;
+  int bs;
   int level;
   int pli;
   generic_model_init(&state->pvq_param_model[0]);
@@ -455,9 +455,9 @@ void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe) {
   state->pvq_k1_increment = 128;
   OD_CDFS_INIT(state->pvq_k1_cdf, state->pvq_k1_increment);
   for (pli = 0; pli < OD_NPLANES_MAX; pli++) {
-    for (ln = 0; ln < OD_NBSIZES; ln++)
+    for (bs = 0; bs < OD_NBSIZES; bs++)
     for (i = 0; i < PVQ_MAX_PARTITIONS; i++) {
-      state->pvq_exg[pli][ln][i] = 2 << 16;
+      state->pvq_exg[pli][bs][i] = 2 << 16;
     }
   }
   for (i = 0; i < OD_NBSIZES*PVQ_MAX_PARTITIONS; i++) {

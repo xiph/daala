@@ -60,7 +60,7 @@ typedef enum {
   OD_HVS_QM
 } od_qm;
 
-int od_qm_get_index(int ln, int band);
+int od_qm_get_index(int bs, int band);
 
 typedef struct od_qm_entry {
   int interp_q;
@@ -73,7 +73,7 @@ extern const od_qm_entry OD_DEFAULT_QMS[2][2][OD_NPLANES_MAX];
 extern const double *const OD_PVQ_BETA[2][OD_NPLANES_MAX][OD_NBSIZES];
 
 void od_apply_qm(od_coeff *out, int out_stride, od_coeff *in, int in_stride,
- int ln, int dec, int inverse, const int *qm);
+ int bs, int dec, int inverse, const int *qm);
 int od_compute_householder(double *r, int n, double gr, int *sign);
 void od_apply_householder(double *x, const double *r, int n);
 void od_pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,

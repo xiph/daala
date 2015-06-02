@@ -379,7 +379,7 @@ struct od_mb_enc_ctx {
 typedef struct od_mb_enc_ctx od_mb_enc_ctx;
 
 static void od_encode_compute_pred(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
- od_coeff *pred, int ln, int pli, int bx, int by) {
+ od_coeff *pred, int bs, int pli, int bx, int by) {
   int n;
   int n2;
   int xdec;
@@ -389,8 +389,8 @@ static void od_encode_compute_pred(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
   od_coeff *l;
   int x;
   int y;
-  OD_ASSERT(ln >= 0 && ln <= 3);
-  n = 1 << (ln + 2);
+  OD_ASSERT(bs >= 0 && bs <= 3);
+  n = 1 << (bs + 2);
   n2 = n*n;
   xdec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
   frame_width = enc->state.frame_width;
@@ -609,7 +609,7 @@ static int od_wavelet_quantize(daala_enc_ctx *enc, int ln,
 }
 
 /* Returns 1 if the block is skipped, zero otherwise. */
-static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
+static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int bs,
  int pli, int bx, int by, int rdo_only) {
   int n;
   int xdec;
@@ -635,10 +635,10 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   od_coeff preds[OD_BSIZE_MAX*OD_BSIZE_MAX];
   int zzi;
 #endif
-  OD_ASSERT(ln >= 0 && ln <= 3);
-  n = 1 << (ln + 2);
-  bx <<= ln;
-  by <<= ln;
+  OD_ASSERT(bs >= 0 && bs <= 3);
+  n = 1 << (bs + 2);
+  bx <<= bs;
+  by <<= bs;
   xdec = enc->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
   frame_width = enc->state.frame_width;
   use_masking = enc->use_activity_masking;
@@ -652,29 +652,29 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   /* Apply forward transform. */
   if (ctx->use_haar_wavelet) {
     if (rdo_only || !ctx->is_keyframe) {
-      od_haar(d + bo, w, c + bo, w, ln + 2);
+      od_haar(d + bo, w, c + bo, w, bs + 2);
     }
     if (!ctx->is_keyframe) {
-      od_haar(md + bo, w, mc + bo, w, ln + 2);
+      od_haar(md + bo, w, mc + bo, w, bs + 2);
     }
   }
   else {
     if (rdo_only || !ctx->is_keyframe) {
       int quantized_dc;
       quantized_dc = d[bo];
-      (*enc->state.opt_vtbl.fdct_2d[ln])(d + bo, w, c + bo, w);
+      (*enc->state.opt_vtbl.fdct_2d[bs])(d + bo, w, c + bo, w);
       if (ctx->is_keyframe) d[bo] = quantized_dc;
-      od_apply_qm(d + bo, w, d + bo, w, ln, xdec, 0, qm);
+      od_apply_qm(d + bo, w, d + bo, w, bs, xdec, 0, qm);
     }
     if (!ctx->is_keyframe) {
-      (*enc->state.opt_vtbl.fdct_2d[ln])(md + bo, w, mc + bo, w);
-      od_apply_qm(md + bo, w, md + bo, w, ln, xdec, 0, qm);
+      (*enc->state.opt_vtbl.fdct_2d[bs])(md + bo, w, mc + bo, w);
+      od_apply_qm(md + bo, w, md + bo, w, bs, xdec, 0, qm);
     }
   }
-  od_encode_compute_pred(enc, ctx, pred, ln, pli, bx, by);
+  od_encode_compute_pred(enc, ctx, pred, bs, pli, bx, by);
   if (ctx->is_keyframe && pli == 0 && !ctx->use_haar_wavelet) {
     od_hv_intra_pred(pred, d, w, bx, by, enc->state.bsize,
-     enc->state.bstride, ln);
+     enc->state.bstride, bs);
   }
 #if defined(OD_OUTPUT_PRED)
   for (zzi = 0; zzi < (n*n); zzi++) preds[zzi] = pred[zzi];
@@ -700,7 +700,7 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   if (lossless) dc_quant = quant;
   else {
     dc_quant = OD_MAXI(1, quant*
-     enc->state.pvq_qm_q4[pli][od_qm_get_index(ln, 0)] >> 4);
+     enc->state.pvq_qm_q4[pli][od_qm_get_index(bs, 0)] >> 4);
   }
   /* This quantization may be overridden in the PVQ code for full RDO. */
   if (!ctx->is_keyframe) {
@@ -712,19 +712,20 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
     }
   }
   if (ctx->use_haar_wavelet) {
-    skip = od_wavelet_quantize(enc, ln + 2, scalar_out, cblock, predt,
+    skip = od_wavelet_quantize(enc, bs + 2, scalar_out, cblock, predt,
      enc->quantizer[pli], pli);
   }
   else {
-    skip = od_pvq_encode(enc, predt, cblock, scalar_out, quant, pli, ln,
-     OD_PVQ_BETA[use_masking][pli][ln], OD_ROBUST_STREAM, ctx->is_keyframe);
+    skip = od_pvq_encode(enc, predt, cblock, scalar_out, quant, pli, bs,
+     OD_PVQ_BETA[use_masking][pli][bs], OD_ROBUST_STREAM, ctx->is_keyframe);
   }
   if (!ctx->is_keyframe) {
     int has_dc_skip;
     has_dc_skip = !ctx->is_keyframe && !ctx->use_haar_wavelet;
     if (!has_dc_skip || scalar_out[0]) {
       generic_encode(&enc->ec, &enc->state.adapt.model_dc[pli],
-       abs(scalar_out[0]) - has_dc_skip, -1, &enc->state.adapt.ex_dc[pli][ln][0], 2);
+       abs(scalar_out[0]) - has_dc_skip, -1,
+       &enc->state.adapt.ex_dc[pli][bs][0], 2);
     }
     if (scalar_out[0]) {
       od_ec_enc_bits(&enc->ec, scalar_out[0] < 0, 1);
@@ -751,11 +752,11 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
   /*Apply the inverse transform.*/
 #if !defined(OD_OUTPUT_PRED)
   if (ctx->use_haar_wavelet) {
-    od_haar_inv(c + bo, w, d + bo, w, ln + 2);
+    od_haar_inv(c + bo, w, d + bo, w, bs + 2);
   }
   else {
-    od_apply_qm(d + bo, w, d + bo, w, ln, xdec, 1, qm);
-    (*enc->state.opt_vtbl.idct_2d[ln])(c + bo, w, d + bo, w);
+    od_apply_qm(d + bo, w, d + bo, w, bs, xdec, 1, qm);
+    (*enc->state.opt_vtbl.idct_2d[bs])(c + bo, w, d + bo, w);
   }
 #else
 # if 0
@@ -768,7 +769,7 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int ln,
     }
   }
 # endif
-  (*enc->state.opt_vtbl.idct_2d[ln])(c + bo, w, preds, n);
+  (*enc->state.opt_vtbl.idct_2d[bs])(c + bo, w, preds, n);
 #endif
   return skip;
 }

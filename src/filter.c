@@ -1347,34 +1347,34 @@ void od_post_filter32(od_coeff _x[32], const od_coeff _y[32]) {
 #define OD_BLOCK_SIZE4x4_DEC(bsize, bstride, bx, by, dec) \
  OD_MAXI(OD_BLOCK_SIZE4x4(bsize, bstride, bx, by), dec)
 
-void od_prefilter_split(od_coeff *c0, int stride, int ln, int f) {
+void od_prefilter_split(od_coeff *c0, int stride, int bs, int f) {
   int i;
   int j;
   od_coeff *c;
-  c = c0 + ((2 << ln) - (2 << f))*stride;
-  for (j = 0; j < 4 << ln; j++) {
+  c = c0 + ((2 << bs) - (2 << f))*stride;
+  for (j = 0; j < 4 << bs; j++) {
     int k;
     od_coeff t[4 << OD_NBSIZES];
     for (k = 0; k < 4 << f; k++) t[k] = c[stride*k + j];
     (*OD_PRE_FILTER[f])(t, t);
     for (k = 0; k < 4 << f; k++) c[stride*k + j] = t[k];
   }
-  c = c0 + (2 << ln) - (2 << f);
-  for (i = 0; i < 4 << ln; i++) {
+  c = c0 + (2 << bs) - (2 << f);
+  for (i = 0; i < 4 << bs; i++) {
     (*OD_PRE_FILTER[f])(c + i*stride, c + i*stride);
   }
 }
 
-void od_postfilter_split(od_coeff *c0, int stride, int ln, int f) {
+void od_postfilter_split(od_coeff *c0, int stride, int bs, int f) {
   int i;
   int j;
   od_coeff *c;
-  c = c0 + (2 << ln) - (2 << f);
-  for (i = 0; i < 4 << ln; i++) {
+  c = c0 + (2 << bs) - (2 << f);
+  for (i = 0; i < 4 << bs; i++) {
     (*OD_POST_FILTER[f])(c + i*stride, c + i*stride);
   }
-  c = c0 + ((2 << ln) - (2 << f))*stride;
-  for (j = 0; j < 4 << ln; j++) {
+  c = c0 + ((2 << bs) - (2 << f))*stride;
+  for (j = 0; j < 4 << bs; j++) {
     int k;
     od_coeff t[4 << OD_NBSIZES];
     for (k = 0; k < 4 << f; k++) t[k] = c[stride*k + j];

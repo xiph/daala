@@ -192,7 +192,7 @@ struct od_mb_dec_ctx {
 typedef struct od_mb_dec_ctx od_mb_dec_ctx;
 
 static void od_decode_compute_pred(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, od_coeff *pred,
-  int ln, int pli, int bx, int by) {
+  int bs, int pli, int bx, int by) {
   int n;
   int n2;
   int xdec;
@@ -202,8 +202,8 @@ static void od_decode_compute_pred(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, od_co
   od_coeff *l;
   int x;
   int y;
-  OD_ASSERT(ln >= 0 && ln <= 3);
-  n = 1 << (ln + 2);
+  OD_ASSERT(bs >= 0 && bs <= 3);
+  n = 1 << (bs + 2);
   n2 = n*n;
   xdec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
   frame_width = dec->state.frame_width;
@@ -396,7 +396,7 @@ static void od_wavelet_unquantize(daala_dec_ctx *dec, int ln, od_coeff *pred,
   }
 }
 
-static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
+static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int bs,
  int pli, int bx, int by, int skip) {
   int n;
   int xdec;
@@ -414,13 +414,13 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   int dc_quant;
   int use_masking;
   const int *qm;
-  OD_ASSERT(ln >= 0 && ln <= 3);
-  n = 1 << (ln + 2);
+  OD_ASSERT(bs >= 0 && bs <= 3);
+  n = 1 << (bs + 2);
   lossless = (dec->quantizer[pli] == 0);
   use_masking = ctx->use_activity_masking;
   qm = ctx->qm == OD_HVS_QM ? OD_QM8_Q4_QM_HVS : OD_QM8_Q4_QM_FLAT;
-  bx <<= ln;
-  by <<= ln;
+  bx <<= bs;
+  by <<= bs;
   xdec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
   frame_width = dec->state.frame_width;
   w = frame_width >> xdec;
@@ -432,17 +432,17 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   /*Apply forward transform to MC predictor.*/
   if (!ctx->is_keyframe) {
     if (ctx->use_haar_wavelet) {
-      od_haar(md + bo, w, mc + bo, w, ln + 2);
+      od_haar(md + bo, w, mc + bo, w, bs + 2);
     }
     else {
-      (*dec->state.opt_vtbl.fdct_2d[ln])(md + bo, w, mc + bo, w);
-      od_apply_qm(md + bo, w, md + bo, w, ln, xdec, 0, qm);
+      (*dec->state.opt_vtbl.fdct_2d[bs])(md + bo, w, mc + bo, w);
+      od_apply_qm(md + bo, w, md + bo, w, bs, xdec, 0, qm);
     }
   }
-  od_decode_compute_pred(dec, ctx, pred, ln, pli, bx, by);
+  od_decode_compute_pred(dec, ctx, pred, bs, pli, bx, by);
   if (ctx->is_keyframe && pli == 0 && !ctx->use_haar_wavelet) {
     od_hv_intra_pred(pred, d, w, bx, by, dec->state.bsize,
-     dec->state.bstride, ln);
+     dec->state.bstride, bs);
   }
   if (ctx->use_haar_wavelet) {
     int i;
@@ -460,15 +460,15 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
   if (lossless) dc_quant = 1;
   else {
     dc_quant = OD_MAXI(1, quant*
-     dec->state.pvq_qm_q4[pli][od_qm_get_index(ln, 0)] >> 4);
+     dec->state.pvq_qm_q4[pli][od_qm_get_index(bs, 0)] >> 4);
   }
   if (ctx->use_haar_wavelet) {
-    od_wavelet_unquantize(dec, ln + 2, pred, predt, dec->quantizer[pli], pli);
+    od_wavelet_unquantize(dec, bs + 2, pred, predt, dec->quantizer[pli], pli);
   }
   else {
     unsigned int flags;
-    od_pvq_decode(dec, predt, pred, quant, pli, ln,
-     OD_PVQ_BETA[use_masking][pli][ln], OD_ROBUST_STREAM, ctx->is_keyframe,
+    od_pvq_decode(dec, predt, pred, quant, pli, bs,
+     OD_PVQ_BETA[use_masking][pli][bs], OD_ROBUST_STREAM, ctx->is_keyframe,
      &flags, skip);
     if (pli == 0 && dec->user_flags != NULL) {
       dec->user_flags[by*dec->user_fstride + bx] = flags;
@@ -479,7 +479,7 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
     has_dc_skip = !ctx->is_keyframe && !ctx->use_haar_wavelet;
     if (!has_dc_skip || pred[0]) {
       pred[0] = has_dc_skip + generic_decode(&dec->ec,
-       &dec->state.adapt.model_dc[pli], -1, &dec->state.adapt.ex_dc[pli][ln][0], 2);
+       &dec->state.adapt.model_dc[pli], -1, &dec->state.adapt.ex_dc[pli][bs][0], 2);
       if (pred[0]) pred[0] *= od_ec_dec_bits(&dec->ec, 1) ? -1 : 1;
     }
     pred[0] = pred[0]*dc_quant + predt[0];
@@ -500,12 +500,12 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int ln,
     od_coding_order_to_raster(&d[bo], w, pred, n);
   }
   if (ctx->use_haar_wavelet) {
-    od_haar_inv(c + bo, w, d + bo, w, ln + 2);
+    od_haar_inv(c + bo, w, d + bo, w, bs + 2);
   }
   else {
-    od_apply_qm(d + bo, w, d + bo, w, ln, xdec, 1, qm);
+    od_apply_qm(d + bo, w, d + bo, w, bs, xdec, 1, qm);
     /*Apply the inverse transform.*/
-    (*dec->state.opt_vtbl.idct_2d[ln])(c + bo, w, d + bo, w);
+    (*dec->state.opt_vtbl.idct_2d[bs])(c + bo, w, d + bo, w);
   }
 }
 

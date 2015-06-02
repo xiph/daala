@@ -35,7 +35,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "state.h"
 
 void od_hv_intra_pred(od_coeff *pred, od_coeff *d, int w, int bx, int by,
- unsigned char *bsize, int bstride, int ln) {
+ unsigned char *bsize, int bstride, int bs) {
   int i;
   od_coeff *t;
   double g1;
@@ -43,9 +43,9 @@ void od_hv_intra_pred(od_coeff *pred, od_coeff *d, int w, int bx, int by,
   int top;
   int left;
   int n;
-  n = 1 << (ln + OD_LOG_BSIZE0);
-  top = by > 0 && OD_BLOCK_SIZE4x4(bsize, bstride, bx, by - 1) == ln;
-  left = bx > 0 && OD_BLOCK_SIZE4x4(bsize, bstride, bx - 1, by) == ln;
+  n = 1 << (bs + OD_LOG_BSIZE0);
+  top = by > 0 && OD_BLOCK_SIZE4x4(bsize, bstride, bx, by - 1) == bs;
+  left = bx > 0 && OD_BLOCK_SIZE4x4(bsize, bstride, bx - 1, by) == bs;
   t = &d[((by << OD_LOG_BSIZE0))*w + (bx << OD_LOG_BSIZE0)];
   g1 = g2 = 0;
   if (top) for (i = 1; i < 4; i++) g1 += t[-n*w + i]*(double)t[-n*w + i];
@@ -69,10 +69,10 @@ static ogg_int16_t od_cfl_scaling4[4][4] = {
 };
 
 void od_resample_luma_coeffs(od_coeff *l, int lstride,
- const od_coeff *c, int cstride, int xdec, int ydec, int ln, int cln) {
+ const od_coeff *c, int cstride, int xdec, int ydec, int bs, int cbs) {
   int n;
-  n = 4 << ln;
-  if (cln == 0 && (xdec || ydec)) {
+  n = 4 << bs;
+  if (cbs == 0 && (xdec || ydec)) {
     if (xdec) {
       if (ydec) {
         int i;

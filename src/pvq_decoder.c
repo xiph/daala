@@ -37,7 +37,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "pvq_code.h"
 
 static void od_decode_pvq_codeword(od_ec_dec *ec, od_adapt_ctx *adapt,
- od_coeff *y, int n, int k, int noref, int ln) {
+ od_coeff *y, int n, int k, int noref, int bs) {
   if (k == 1 && n < 16) {
     int cdf_id;
     int pos;
@@ -52,7 +52,7 @@ static void od_decode_pvq_codeword(od_ec_dec *ec, od_adapt_ctx *adapt,
     int speed = 5;
     int *pvq_adapt;
     int adapt_curr[OD_NSB_ADAPT_CTXS] = { 0 };
-    pvq_adapt = adapt->pvq_adapt + 4*(2*ln + noref);
+    pvq_adapt = adapt->pvq_adapt + 4*(2*bs + noref);
     laplace_decode_vector(ec, y, n - !noref, k, adapt_curr,
      pvq_adapt);
     if (adapt_curr[OD_ADAPT_K_Q8] > 0) {
@@ -159,7 +159,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
                                  int has_skip,
                                  int *skip_rest,
                                  int band,
-                                 int ln,
+                                 int bs,
                                  int *skip) {
   int k;
   double qcg;
@@ -253,7 +253,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
   k = od_pvq_compute_k(qcg, itheta, theta, *noref, n, beta, nodesync);
   if (k != 0) {
     /* when noref==0, y is actually size n-1 */
-    od_decode_pvq_codeword(ec, adapt, y, n, k, *noref, ln);
+    od_decode_pvq_codeword(ec, adapt, y, n, k, *noref, bs);
   } else {
     OD_CLEAR(y, n);
   }
@@ -298,7 +298,7 @@ void od_pvq_decode(daala_dec_ctx *dec,
                    od_coeff *out,
                    int q0,
                    int pli,
-                   int ln,
+                   int bs,
                    const double *beta,
                    int robust,
                    int is_keyframe,
@@ -323,17 +323,17 @@ void od_pvq_decode(daala_dec_ctx *dec,
     skip[i] = 1;
   }
   qm = &dec->state.pvq_qm_q4[pli][0];
-  exg = &dec->state.adapt.pvq_exg[pli][ln][0];
-  ext = dec->state.adapt.pvq_ext + ln*PVQ_MAX_PARTITIONS;
+  exg = &dec->state.adapt.pvq_exg[pli][bs][0];
+  ext = dec->state.adapt.pvq_ext + bs*PVQ_MAX_PARTITIONS;
   model = dec->state.adapt.pvq_param_model;
-  nb_bands = OD_BAND_OFFSETS[ln][0];
-  off = &OD_BAND_OFFSETS[ln][1];
+  nb_bands = OD_BAND_OFFSETS[bs][0];
+  off = &OD_BAND_OFFSETS[bs][1];
   skip[0] = block_skip;
   out[0] = skip[0] & 1;
   skip[0] >>= 1;
   if (skip[0]) {
-    if (is_keyframe) for (i = 1; i < 1 << (2*ln + 4); i++) out[i] = 0;
-    else for (i = 1; i < 1 << (2*ln + 4); i++) out[i] = ref[i];
+    if (is_keyframe) for (i = 1; i < 1 << (2*bs + 4); i++) out[i] = 0;
+    else for (i = 1; i < 1 << (2*bs + 4); i++) out[i] = ref[i];
   }
   else {
     for (i = 0; i < nb_bands; i++) size[i] = off[i+1] - off[i];
@@ -342,17 +342,17 @@ void od_pvq_decode(daala_dec_ctx *dec,
     cfl.allow_flip = pli != 0 && is_keyframe;
     for (i = 0; i < nb_bands; i++) {
       int q;
-      q = OD_MAXI(1, q0*qm[od_qm_get_index(ln, i + 1)] >> 4);
+      q = OD_MAXI(1, q0*qm[od_qm_get_index(bs, i + 1)] >> 4);
       pvq_decode_partition(&dec->ec, q, size[i],
        model, &dec->state.adapt, exg + i, ext + i, ref + off[i], out + off[i],
        &noref[i], beta[i], robust, is_keyframe, pli,
-       (pli != 0)*OD_NBSIZES*PVQ_MAX_PARTITIONS + ln*PVQ_MAX_PARTITIONS + i,
-       &cfl, i == 0 && (i < nb_bands - 1), skip_rest, i, ln, &skip[i]);
-      if (i == 0 && !skip_rest[0] && ln > 0) {
+       (pli != 0)*OD_NBSIZES*PVQ_MAX_PARTITIONS + bs*PVQ_MAX_PARTITIONS + i,
+       &cfl, i == 0 && (i < nb_bands - 1), skip_rest, i, bs, &skip[i]);
+      if (i == 0 && !skip_rest[0] && bs > 0) {
         int skip_dir;
         int j;
         skip_dir = od_decode_cdf_adapt(&dec->ec,
-         &dec->state.adapt.pvq_skip_dir_cdf[(pli != 0) + 2*(ln - 1)][0], 7,
+         &dec->state.adapt.pvq_skip_dir_cdf[(pli != 0) + 2*(bs - 1)][0], 7,
          dec->state.adapt.pvq_skip_dir_increment);
         for (j = 0; j < 3; j++) skip_rest[j] = !!(skip_dir & (1 << j));
       }

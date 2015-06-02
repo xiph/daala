@@ -27,9 +27,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # include "filter.h"
 
 void od_hv_intra_pred(od_coeff *pred, od_coeff *d, int w, int bx, int by,
-  unsigned char *bsize, int bstride, int ln);
+  unsigned char *bsize, int bstride, int bs);
 
 void od_resample_luma_coeffs(od_coeff *l, int lstride,
- const od_coeff *c, int cstride, int xdec, int ydec, int ln, int cln);
+ const od_coeff *c, int cstride, int xdec, int ydec, int bs, int cbs);
 
 #endif

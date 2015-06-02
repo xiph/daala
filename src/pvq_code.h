@@ -38,11 +38,11 @@ extern const ogg_uint16_t pred8_cdf[16];
 extern const ogg_uint16_t pred16_cdf[16][8];
 
 int od_pvq_encode(daala_enc_ctx *enc, od_coeff *predt, od_coeff *cblock,
-                   od_coeff *scalar_out, int scale, int pli, int ln,
+                   od_coeff *scalar_out, int scale, int pli, int bs,
                    const double *beta, int robust, int is_keyframe);
 
 void od_pvq_decode(daala_dec_ctx *dec, od_coeff *ref, od_coeff *out, int scale,
-                   int pli, int ln, const double *beta, int robust,
+                   int pli, int bs, const double *beta, int robust,
                    int is_keyframe, unsigned int *flags, int block_skip);
 
 #endif

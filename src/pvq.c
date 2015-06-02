@@ -268,18 +268,18 @@ const double *const OD_PVQ_BETA[2][OD_NPLANES_MAX][OD_NBSIZES] = {
    error in the quantized domain would result in a smaller pixel domain
    error). */
 void od_apply_qm(od_coeff *out, int out_stride, od_coeff *in, int in_stride,
- int ln, int dec, int inverse, const int *qm) {
+ int bs, int dec, int inverse, const int *qm) {
   int i;
   int j;
-  for (i = 0; i < 4 << ln; i++) {
-    for (j = 0; j < 4 << ln; j++) {
+  for (i = 0; i < 4 << bs; i++) {
+    for (j = 0; j < 4 << bs; j++) {
       double mag;
-      mag = OD_BASIS_MAG[dec][ln][i]*OD_BASIS_MAG[dec][ln][j];
+      mag = OD_BASIS_MAG[dec][bs][i]*OD_BASIS_MAG[dec][bs][j];
       if (i == 0 && j == 0) {
         mag = 1;
       }
       else {
-        mag /= 0.0625*qm[(i << 1 >> ln)*8 + (j << 1 >> ln)];
+        mag /= 0.0625*qm[(i << 1 >> bs)*8 + (j << 1 >> bs)];
       }
       if (inverse) {
         out[i*out_stride + j] = (od_coeff)floor(.5 + in[i*in_stride + j]/mag);
@@ -292,11 +292,11 @@ void od_apply_qm(od_coeff *out, int out_stride, od_coeff *in, int in_stride,
 }
 
 /* Indexing for the packed quantization matrices. */
-int od_qm_get_index(int ln, int band) {
+int od_qm_get_index(int bs, int band) {
   static const int offsets[OD_NPLANES_MAX] = {0, 2, 6, 12};
   /* The -band/3 term is due to the fact that we force corresponding horizontal
      and vertical bands to have the same quantization. */
-  return offsets[ln] + band - band/3;
+  return offsets[bs] + band - band/3;
 }
 
 /** Computes Householder reflection that aligns the reference r to the

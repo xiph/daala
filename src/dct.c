@@ -2040,13 +2040,13 @@ void od_bin_idct32x32(od_coeff *x, int xstride,
 #if defined(OD_CHECKASM)
 # include <stdio.h>
 
-void od_dct_check(int ln, const od_coeff *ref, const od_coeff *x,
+void od_dct_check(int bs, const od_coeff *ref, const od_coeff *x,
  int xstride) {
   int failed;
   int i;
   int j;
   int n;
-  n = 4 << ln;
+  n = 4 << bs;
   failed = 0;
   for (j = 0; j < n; j++) {
     for (i = 0; i < n; i++) {

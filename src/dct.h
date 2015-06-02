@@ -162,7 +162,7 @@ void od_haar_inv(od_coeff *x, int xstride, const od_coeff *y, int ystride,
  int ln);
 
 # if defined(OD_CHECKASM)
-void od_dct_check(int ln, const od_coeff *ref, const od_coeff *x,
+void od_dct_check(int bs, const od_coeff *ref, const od_coeff *x,
  int xstride);
 # endif
 
