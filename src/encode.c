@@ -904,7 +904,7 @@ static void od_quantize_haar_dc_sb(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
 }
 #endif
 
-void od_quantize_haar_dc_level(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
+static void od_quantize_haar_dc_level(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
   int pli, int bx, int by, int bsi, int xdec, od_coeff *hgrad,
   od_coeff *vgrad) {
   od_coeff x[4];

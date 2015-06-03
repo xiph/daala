@@ -564,7 +564,7 @@ static void od_decode_haar_dc_sb(daala_dec_ctx *dec, od_mb_dec_ctx *ctx,
 }
 #endif
 
-void od_decode_haar_dc_level(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
+static void od_decode_haar_dc_level(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
   int bx, int by, int bsi, int xdec, od_coeff *hgrad, od_coeff *vgrad) {
   int i;
   od_coeff x[4];
