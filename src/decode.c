@@ -626,7 +626,7 @@ static void od_decode_recursive(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
      means that we code the block. In the latter case, we need to forward
      the skip value to the PVQ decoder. */
   if (ctx->use_haar_wavelet) od = l;
-  else if (pli==0) {
+  else if (pli == 0) {
     skip = od_decode_cdf_adapt(&dec->ec,
      dec->state.adapt.skip_cdf[pli*OD_NBSIZES + l], 5,
      dec->state.adapt.skip_increment);

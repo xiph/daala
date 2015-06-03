@@ -4586,7 +4586,7 @@ static void od_mv_dp_last_row_block_setup(od_mv_est_ctx *est,
   }
 
   if (vy <= nvmvbs - mvb_sz) {
-    OD_ASSERT(mvb_sz ==1
+    OD_ASSERT(mvb_sz == 1
      || !state->mv_grid[vy + (mvb_sz >> 1)][vx + (mvb_sz >> 1)].valid);
     dp->blocks[nblocks++] = est->mvs[vy] + vx;
     OD_ASSERT(1 << dp->blocks[nblocks - 1]->log_mvb_sz == mvb_sz);
@@ -5012,7 +5012,7 @@ static void od_mv_dp_first_col_block_setup(od_mv_est_ctx *est,
       OD_ASSERT(1 << dp->blocks[nblocks - 1]->log_mvb_sz == mvb_sz);
     }
     if (vx <= nhmvbs - mvb_sz) {
-      OD_ASSERT(mvb_sz ==1
+      OD_ASSERT(mvb_sz == 1
        || !state->mv_grid[vy - (mvb_sz >> 1)][vx + (mvb_sz >> 1)].valid);
       dp->blocks[nblocks++] = est->mvs[vy - mvb_sz] + vx;
       OD_ASSERT(1 << dp->blocks[nblocks - 1]->log_mvb_sz == mvb_sz);
@@ -5196,7 +5196,7 @@ static void od_mv_dp_last_col_block_setup(od_mv_est_ctx *est,
     OD_ASSERT(1 << dp->blocks[nblocks - 1]->log_mvb_sz == mvb_sz);
   }
   if (vx <= nhmvbs - mvb_sz) {
-    OD_ASSERT(mvb_sz ==1
+    OD_ASSERT(mvb_sz == 1
      || !state->mv_grid[vy + (mvb_sz >> 1)][vx + (mvb_sz >> 1)].valid);
     dp->blocks[nblocks++] = est->mvs[vy] + vx;
     OD_ASSERT(1 << dp->blocks[nblocks - 1]->log_mvb_sz == mvb_sz);
