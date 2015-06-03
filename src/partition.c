@@ -133,15 +133,12 @@ void od_raster_to_coding_order(od_coeff *dst,  int n, od_coeff *src,
  int stride) {
   od_band_from_raster(&OD_LAYOUT4, dst+1, src, stride);
   if (n >= 8) {
-    int i;
     od_band_from_raster(&OD_LAYOUT8, dst+16, src, stride);
   }
   if (n >= 16) {
-    int i;
     od_band_from_raster(&OD_LAYOUT16, dst+64, src, stride);
   }
   if (n >= 32) {
-    int i;
     od_band_from_raster(&OD_LAYOUT32, dst+256, src, stride);
   }
   dst[0] = src[0];
