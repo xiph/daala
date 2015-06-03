@@ -360,11 +360,6 @@ static void od_img_plane_edge_ext8(od_img_plane *dst_p,
   }
 }
 
-/* All DCs for each level: 1 + 4 + 16 + 64 */
-#define OD_NB_SAVED_DCS (((1 << 2*OD_NBSIZES) - 1)/3)
-/* There's one rate for 4 DCs, and no toplevel rate. */
-#define OD_NB_SAVED_DC_RATES ((OD_NB_SAVED_DCS-1)/4)
-
 struct od_mb_enc_ctx {
   od_coeff *c;
   od_coeff **d;
@@ -858,17 +853,15 @@ static void od_compute_dcts(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
  * RDO purposes
  */
 static void od_quantize_haar_dc_sb(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
- int pli, int bx, int by, int l, int xdec, int ydec, int has_ur,
+ int pli, int bx, int by, int xdec, int ydec, int has_ur,
  od_coeff *ohgrad, od_coeff *ovgrad) {
-  int obs;
-  int bs;
   int w;
   int dc_quant;
   od_coeff *c;
   int nhsb;
   int quant;
   int dc0;
-  int l2;
+  int ln;
   od_coeff sb_dc_pred;
   od_coeff sb_dc_curr;
   od_coeff *sb_dc_mem;
@@ -876,17 +869,13 @@ static void od_quantize_haar_dc_sb(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
   w = enc->state.frame_width >> xdec;
   /*This code assumes 4:4:4 or 4:2:0 input.*/
   OD_ASSERT(xdec == ydec);
-  obs = OD_BLOCK_SIZE4x4(enc->state.bsize,
-   enc->state.bstride, bx << l, by << l);
-  bs = OD_MAXI(obs, xdec);
-  OD_ASSERT(bs <= l);
   if (enc->quantizer[pli] == 0) dc_quant = 1;
   else {
     dc_quant = OD_MAXI(1, enc->quantizer[pli]*OD_DC_RES[pli] >> 4);
   }
   nhsb = enc->state.nhsb;
   sb_dc_mem = enc->state.sb_dc_mem[pli];
-  l2 = l - xdec + 2;
+  ln = 5 - xdec;
   if (by > 0 && bx > 0) {
     /* These coeffs were LS-optimized on subset 1. */
     if (has_ur) {
@@ -904,13 +893,13 @@ static void od_quantize_haar_dc_sb(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
   else if (by > 0) sb_dc_pred = sb_dc_mem[(by - 1)*nhsb + bx];
   else if (bx > 0) sb_dc_pred = sb_dc_mem[by*nhsb + bx - 1];
   else sb_dc_pred = 0;
-  dc0 = c[(by << l2)*w + (bx << l2)] - sb_dc_pred;
+  dc0 = c[(by << ln)*w + (bx << ln)] - sb_dc_pred;
   quant = OD_DIV_R0(dc0, dc_quant);
   generic_encode(&enc->ec, &enc->state.adapt.model_dc[pli], abs(quant), -1,
    &enc->state.adapt.ex_sb_dc[pli], 2);
   if (quant) od_ec_enc_bits(&enc->ec, quant < 0, 1);
   sb_dc_curr = quant*dc_quant + sb_dc_pred;
-  c[(by << l2)*w + (bx << l2)] = sb_dc_curr;
+  c[(by << ln)*w + (bx << ln)] = sb_dc_curr;
   sb_dc_mem[by*nhsb + bx] = sb_dc_curr;
   if (by > 0) *ovgrad = sb_dc_mem[(by - 1)*nhsb + bx] - sb_dc_curr;
   if (bx > 0) *ohgrad = sb_dc_mem[by*nhsb + bx - 1]- sb_dc_curr;
@@ -921,7 +910,7 @@ void od_quantize_haar_dc_level(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
   int pli, int bx, int by, int l, int xdec, od_coeff *hgrad,
   od_coeff *vgrad) {
   od_coeff x[4];
-  int l2;
+  int ln;
   int ac_quant[2];
   int i;
   int dc_quant;
@@ -937,11 +926,11 @@ void od_quantize_haar_dc_level(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
     ac_quant[0] = dc_quant*OD_DC_QM[xdec][l - xdec][0] >> 4;
     ac_quant[1] = dc_quant*OD_DC_QM[xdec][l - xdec][1] >> 4;
   }
-  l2 = l - xdec + 2;
-  x[0] = ctx->d[pli][(by << l2)*w + (bx << l2)];
-  x[1] = ctx->d[pli][(by << l2)*w + ((bx + 1) << l2)];
-  x[2] = ctx->d[pli][((by + 1) << l2)*w + (bx << l2)];
-  x[3] = ctx->d[pli][((by + 1) << l2)*w + ((bx + 1) << l2)];
+  ln = l - xdec + 2;
+  x[0] = ctx->d[pli][(by << ln)*w + (bx << ln)];
+  x[1] = ctx->d[pli][(by << ln)*w + ((bx + 1) << ln)];
+  x[2] = ctx->d[pli][((by + 1) << ln)*w + (bx << ln)];
+  x[3] = ctx->d[pli][((by + 1) << ln)*w + ((bx + 1) << ln)];
   x[1] -= *hgrad/5;
   x[2] -= *vgrad/5;
   for (i = 1; i < 4; i++) {
@@ -977,10 +966,10 @@ void od_quantize_haar_dc_level(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
   *hgrad = x[1];
   *vgrad = x[2];
   OD_HAAR_KERNEL(x[0], x[1], x[2], x[3]);
-  ctx->d[pli][(by << l2)*w + (bx << l2)] = x[0];
-  ctx->d[pli][(by << l2)*w + ((bx + 1) << l2)] = x[1];
-  ctx->d[pli][((by + 1) << l2)*w + (bx << l2)] = x[2];
-  ctx->d[pli][((by + 1) << l2)*w + ((bx + 1) << l2)] = x[3];
+  ctx->d[pli][(by << ln)*w + (bx << ln)] = x[0];
+  ctx->d[pli][(by << ln)*w + ((bx + 1) << ln)] = x[1];
+  ctx->d[pli][((by + 1) << ln)*w + (bx << ln)] = x[2];
+  ctx->d[pli][((by + 1) << ln)*w + ((bx + 1) << ln)] = x[3];
 }
 
 static int od_compute_var_4x4(od_coeff *x, int stride) {
@@ -1586,7 +1575,7 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
           }
           od_compute_dcts(enc, mbctx, pli, sbx, sby, 3, xdec, ydec,
            mbctx->use_haar_wavelet && !rdo_only);
-          od_quantize_haar_dc_sb(enc, mbctx, pli, sbx, sby, 3, xdec, ydec,
+          od_quantize_haar_dc_sb(enc, mbctx, pli, sbx, sby, xdec, ydec,
            sby > 0 && sbx < nhsb - 1, &hgrad, &vgrad);
           if (rdo_only) {
             od_encode_rollback(enc, &buf);
