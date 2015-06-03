@@ -1492,7 +1492,7 @@ static void od_encode_mvs(daala_enc_ctx *enc) {
 
 #define OD_ENCODE_REAL (0)
 #define OD_ENCODE_RDO (1)
-static void od_encode_residual(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
+static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
  int rdo_only) {
   int xdec;
   int ydec;
@@ -1774,7 +1774,7 @@ static void od_split_superblocks_rdo(daala_enc_ctx *enc,
        OD_BLOCK_32X32 :  OD_LIMIT_BSIZE_MIN;
     }
   }
-  od_encode_residual(enc, mbctx, OD_ENCODE_RDO);
+  od_encode_coefficients(enc, mbctx, OD_ENCODE_RDO);
   od_encode_rollback(enc, &rbuf);
 }
 
@@ -1923,7 +1923,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     od_split_superblocks(enc, 1);
 #endif
   }
-  od_encode_residual(enc, &mbctx, OD_ENCODE_REAL);
+  od_encode_coefficients(enc, &mbctx, OD_ENCODE_REAL);
 #if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
   /*Dump YUV*/
   od_state_dump_yuv(&enc->state, enc->state.io_imgs + OD_FRAME_REC, "out");

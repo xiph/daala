@@ -778,7 +778,7 @@ static void od_dec_mv_unpack(daala_dec_ctx *dec) {
   }
 }
 
-static void od_decode_residual(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
+static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
   int nplanes;
   int pli;
   int xdec;
@@ -951,7 +951,7 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
       od_img_copy(dec->user_mc_img, &dec->state.io_imgs[OD_FRAME_REC]);
     }
   }
-  od_decode_residual(dec, &mbctx);
+  od_decode_coefficients(dec, &mbctx);
   if (dec->user_bsize != NULL) {
     int j;
     int nhsb;
