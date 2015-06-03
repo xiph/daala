@@ -48,10 +48,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "tf.h"
 #include "state.h"
 #include "mcenc.h"
+#include "quantizer.h"
 #if defined(OD_X86ASM)
 # include "x86/x86int.h"
 #endif
 
+/*TODO: This makes little sense with the coded quantizer mapping
+   changes, but that's a problem for later.
+  Maintain current quality setting handling both here and in the
+   encode_ctl.*/
 static int od_quantizer_from_quality(int quality) {
   return quality == 0 ? 0 :
    (quality << OD_COEFF_SHIFT >> OD_QUALITY_SHIFT) +
@@ -1498,8 +1503,7 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
   nhsb = state->nhsb;
   nvsb = state->nvsb;
   for (pli = 0; pli < nplanes; pli++) {
-    /* TODO: We shouldn't be encoding the full, linear quantizer range. */
-    od_ec_enc_uint(&enc->ec, enc->quantizer[pli], 512<<OD_COEFF_SHIFT);
+    od_ec_enc_uint(&enc->ec, enc->coded_quantizer[pli], OD_N_CODED_QUANTIZERS);
   }
   for (pli = 0; pli < nplanes; pli++) {
     xdec = state->io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
@@ -1843,7 +1847,11 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   od_ec_encode_bool_q15(&enc->ec, mbctx.qm, 16384);
   od_ec_encode_bool_q15(&enc->ec, mbctx.use_haar_wavelet, 16384);
   for (pli = 0; pli < nplanes; pli++) {
-    enc->quantizer[pli] = od_quantizer_from_quality(enc->quality[pli]);
+    enc->coded_quantizer[pli] =
+     od_quantizer_to_codedquantizer(
+      od_quantizer_from_quality(enc->quality[pli]));
+    enc->quantizer[pli] =
+     od_codedquantizer_to_quantizer(enc->coded_quantizer[pli]);
   }
   if (mbctx.is_keyframe) {
     for (pli = 0; pli < nplanes; pli++) {
@@ -1874,10 +1882,12 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     }
   }
   for (pli = 0; pli < nplanes; pli++) {
-    /* At low rate, boost the keyframe quality by multiplying the quantizer
-       by 29/32 (~0.9). */
+    /*At low rate, boost the keyframe quality slightly (one coded quantizer
+      step is the minimum possible).*/
     if (mbctx.is_keyframe && enc->quantizer[pli] > 20 << OD_COEFF_SHIFT) {
-      enc->quantizer[pli] = (16+29*enc->quantizer[pli]) >> 5;
+      enc->coded_quantizer[pli] -= 1;
+      enc->quantizer[pli] =
+       od_codedquantizer_to_quantizer(enc->coded_quantizer[pli]);
     }
   }
   OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO, "is_keyframe=%d", mbctx.is_keyframe));

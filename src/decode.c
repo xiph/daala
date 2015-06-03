@@ -43,6 +43,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "block_size.h"
 #include "tf.h"
 #include "state.h"
+#include "quantizer.h"
 
 static int od_dec_init(od_dec_ctx *dec, const daala_info *info,
  const daala_setup_info *setup) {
@@ -830,8 +831,9 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
     }
   }
   for (pli = 0; pli < nplanes; pli++) {
-    /* TODO: We shouldn't be encoding the full, linear quantizer range. */
-    dec->quantizer[pli] = od_ec_dec_uint(&dec->ec, 512 << OD_COEFF_SHIFT);
+    dec->quantizer[pli] =
+     od_codedquantizer_to_quantizer(od_ec_dec_uint(&dec->ec,
+     OD_N_CODED_QUANTIZERS));
   }
   for (sby = 0; sby < nvsb; sby++) {
     for (sbx = 0; sbx < nhsb; sbx++) {

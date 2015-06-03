@@ -30,6 +30,7 @@ noinst_HEADERS = \
 	src/partition.h \
 	src/pvq.h \
 	src/pvq_code.h \
+	src/quantizer.h \
 	src/state.h \
 	src/tf.h \
 	src/zigzag.h \
@@ -81,6 +82,7 @@ src_libdaalabase_la_SOURCES = \
 	src/pvq.c \
 	src/pvq_code.c \
 	src/pvq_decoder.c \
+	src/quantizer.c \
 	src/state.c \
 	src/switch_table.c \
 	src/tf.c \

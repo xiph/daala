@@ -83,6 +83,7 @@ struct daala_enc_ctx{
   int packet_state;
   int quality[OD_NPLANES_MAX];
   int quantizer[OD_NPLANES_MAX];
+  int coded_quantizer[OD_NPLANES_MAX];
   int complexity;
   int use_activity_masking;
   od_qm qm;

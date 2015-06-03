@@ -133,6 +133,7 @@ partition.c \
 pvq.c \
 pvq_code.c \
 pvq_decoder.c \
+quantizer.c \
 state.c \
 switch_table.c \
 tf.c \
@@ -166,6 +167,7 @@ mc.h \
 mcenc.h \
 odintrin.h \
 pvq.h \
+quantizer.h \
 state.h \
 tf.h \
 ../include/daala/codec.h \
