@@ -770,7 +770,7 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int bs,
 }
 
 static void od_compute_dcts(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
-  int bx, int by, int l, int xdec, int ydec, int use_haar) {
+  int bx, int by, int bsi, int xdec, int ydec, int use_haar) {
   int obs;
   int bs;
   int w;
@@ -785,10 +785,10 @@ static void od_compute_dcts(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
   /*This code assumes 4:4:4 or 4:2:0 input.*/
   OD_ASSERT(xdec == ydec);
   obs = OD_BLOCK_SIZE4x4(enc->state.bsize,
-   enc->state.bstride, bx << l, by << l);
+   enc->state.bstride, bx << bsi, by << bsi);
   bs = OD_MAXI(obs, xdec);
-  OD_ASSERT(bs <= l);
-  if (bs == l) {
+  OD_ASSERT(bs <= bsi);
+  if (bs == bsi) {
     bs -= xdec;
     bo = (by << (OD_LOG_BSIZE0 + bs))*w + (bx << (OD_LOG_BSIZE0 + bs));
     if (use_haar) {
@@ -801,21 +801,21 @@ static void od_compute_dcts(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
   }
   else {
     int f;
-    bs = l - xdec;
+    bs = bsi - xdec;
     f = OD_FILT_SIZE(bs - 1, xdec);
     bo = (by << (OD_LOG_BSIZE0 + bs))*w + (bx << (OD_LOG_BSIZE0 + bs));
     od_prefilter_split(ctx->c + bo, w, bs, f);
-    l--;
+    bsi--;
     bx <<= 1;
     by <<= 1;
-    od_compute_dcts(enc, ctx, pli, bx + 0, by + 0, l, xdec, ydec, use_haar);
-    od_compute_dcts(enc, ctx, pli, bx + 1, by + 0, l, xdec, ydec, use_haar);
-    od_compute_dcts(enc, ctx, pli, bx + 0, by + 1, l, xdec, ydec, use_haar);
-    od_compute_dcts(enc, ctx, pli, bx + 1, by + 1, l, xdec, ydec, use_haar);
+    od_compute_dcts(enc, ctx, pli, bx + 0, by + 0, bsi, xdec, ydec, use_haar);
+    od_compute_dcts(enc, ctx, pli, bx + 1, by + 0, bsi, xdec, ydec, use_haar);
+    od_compute_dcts(enc, ctx, pli, bx + 0, by + 1, bsi, xdec, ydec, use_haar);
+    od_compute_dcts(enc, ctx, pli, bx + 1, by + 1, bsi, xdec, ydec, use_haar);
     if (ctx->is_keyframe) {
       od_coeff x[4];
       int l2;
-      l2 = l - xdec + 2;
+      l2 = bsi - xdec + 2;
       x[0] = c[(by << l2)*w + (bx << l2)];
       x[1] = c[(by << l2)*w + ((bx + 1) << l2)];
       x[2] = c[((by + 1) << l2)*w + (bx << l2)];

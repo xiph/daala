@@ -564,7 +564,7 @@ static void od_decode_haar_dc_sb(daala_dec_ctx *dec, od_mb_dec_ctx *ctx,
 #endif
 
 void od_decode_haar_dc_level(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
-  int bx, int by, int l, int xdec, od_coeff *hgrad, od_coeff *vgrad) {
+  int bx, int by, int bsi, int xdec, od_coeff *hgrad, od_coeff *vgrad) {
   int i;
   od_coeff x[4];
   int ln;
@@ -578,10 +578,10 @@ void od_decode_haar_dc_level(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
   }
   if (dec->quantizer[pli] == 0) ac_quant[0] = ac_quant[1] = 1;
   else {
-    ac_quant[0] = dc_quant*OD_DC_QM[xdec][l - xdec][0] >> 4;
-    ac_quant[1] = dc_quant*OD_DC_QM[xdec][l - xdec][1] >> 4;
+    ac_quant[0] = dc_quant*OD_DC_QM[xdec][bsi - xdec][0] >> 4;
+    ac_quant[1] = dc_quant*OD_DC_QM[xdec][bsi - xdec][1] >> 4;
   }
-  ln = l - xdec + 2;
+  ln = bsi - xdec + 2;
   x[0] = ctx->d[pli][(by << ln)*w + (bx << ln)];
   x[1] = ctx->d[pli][(by << ln)*w + ((bx + 1) << ln)];
   x[2] = ctx->d[pli][((by + 1) << ln)*w + (bx << ln)];
@@ -589,7 +589,7 @@ void od_decode_haar_dc_level(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
   for (i = 1; i < 4; i++) {
     int quant;
     quant = generic_decode(&dec->ec, &dec->state.adapt.model_dc[pli], -1,
-     &dec->state.adapt.ex_dc[pli][l][i-1], 2);
+     &dec->state.adapt.ex_dc[pli][bsi][i-1], 2);
     if (quant) {
       if (od_ec_dec_bits(&dec->ec, 1)) quant = -quant;
     }
@@ -609,7 +609,7 @@ void od_decode_haar_dc_level(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
 }
 
 static void od_decode_recursive(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
- int bx, int by, int l, int xdec, int ydec, od_coeff hgrad, od_coeff vgrad) {
+ int bx, int by, int bsi, int xdec, int ydec, od_coeff hgrad, od_coeff vgrad) {
   int obs;
   int bs;
   int w;
@@ -618,35 +618,35 @@ static void od_decode_recursive(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
   /*This code assumes 4:4:4 or 4:2:0 input.*/
   OD_ASSERT(xdec == ydec);
   obs = OD_BLOCK_SIZE4x4(dec->state.bsize,
-   dec->state.bstride, bx << l, by << l);
+   dec->state.bstride, bx << bsi, by << bsi);
   frame_width = dec->state.frame_width;
   w = frame_width >> xdec;
   skip = 0;
   /* Read the luma skip symbol. A value of 4 means "split the block", while < 4
      means that we code the block. In the latter case, we need to forward
      the skip value to the PVQ decoder. */
-  if (ctx->use_haar_wavelet) obs = l;
+  if (ctx->use_haar_wavelet) obs = bsi;
   else if (pli == 0) {
     skip = od_decode_cdf_adapt(&dec->ec,
-     dec->state.adapt.skip_cdf[pli*OD_NBSIZES + l], 5,
+     dec->state.adapt.skip_cdf[pli*OD_NBSIZES + bsi], 5,
      dec->state.adapt.skip_increment);
-    if (skip < 4) obs = l;
+    if (skip < 4) obs = bsi;
     else obs = -1;
   }
   bs = OD_MAXI(obs, xdec);
-  OD_ASSERT(bs <= l);
-  if (bs == l) {
+  OD_ASSERT(bs <= bsi);
+  if (bs == bsi) {
     bs -= xdec;
     if (pli == 0) {
       int i;
       int j;
       int n4;
-      n4 = 1 << l;
+      n4 = 1 << bsi;
       /* Save the block size decision so that chroma can reuse it. */
       for (i = 0; i < n4; i++) {
         for (j = 0; j < n4; j++) {
-          OD_BLOCK_SIZE4x4(dec->state.bsize, dec->state.bstride, (bx << l) + i,
-           (by << l) + j) = l;
+          OD_BLOCK_SIZE4x4(dec->state.bsize, dec->state.bstride, (bx << bsi) + i,
+           (by << bsi) + j) = bsi;
         }
       }
     }
@@ -654,13 +654,13 @@ static void od_decode_recursive(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
     if (ctx->l != NULL) {
       OD_ASSERT(pli > 0);
       od_resample_luma_coeffs(ctx->l + (by << (2 + bs))*w + (bx << (2 + bs)), w,
-       ctx->d[0] + (by << (2 + l))*frame_width + (bx << (2 + l)),
+       ctx->d[0] + (by << (2 + bsi))*frame_width + (bx << (2 + bsi)),
        frame_width, xdec, ydec, bs, obs);
     }
     if (pli > 0 && !ctx->use_haar_wavelet) {
       /* Decode the skip for chroma. */
       skip = od_decode_cdf_adapt(&dec->ec,
-       dec->state.adapt.skip_cdf[pli*OD_NBSIZES + l], 5,
+       dec->state.adapt.skip_cdf[pli*OD_NBSIZES + bsi], 5,
        dec->state.adapt.skip_increment);
     }
     od_block_decode(dec, ctx, bs, pli, bx, by, skip);
@@ -668,27 +668,27 @@ static void od_decode_recursive(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
   else {
     int f;
     int bo;
-    bs = l - xdec;
+    bs = bsi - xdec;
     f = OD_FILT_SIZE(bs - 1, xdec);
     bo = (by << (OD_LOG_BSIZE0 + bs))*w + (bx << (OD_LOG_BSIZE0 + bs));
     if (!ctx->is_keyframe) {
       od_prefilter_split(ctx->mc + bo, w, bs, f);
     }
-    l--;
+    bsi--;
     bx <<= 1;
     by <<= 1;
     if (ctx->is_keyframe) {
-      od_decode_haar_dc_level(dec, ctx, pli, bx, by, l, xdec, &hgrad, &vgrad);
+      od_decode_haar_dc_level(dec, ctx, pli, bx, by, bsi, xdec, &hgrad, &vgrad);
     }
-    od_decode_recursive(dec, ctx, pli, bx + 0, by + 0, l, xdec, ydec, hgrad,
+    od_decode_recursive(dec, ctx, pli, bx + 0, by + 0, bsi, xdec, ydec, hgrad,
      vgrad);
-    od_decode_recursive(dec, ctx, pli, bx + 1, by + 0, l, xdec, ydec, hgrad,
+    od_decode_recursive(dec, ctx, pli, bx + 1, by + 0, bsi, xdec, ydec, hgrad,
      vgrad);
-    od_decode_recursive(dec, ctx, pli, bx + 0, by + 1, l, xdec, ydec, hgrad,
+    od_decode_recursive(dec, ctx, pli, bx + 0, by + 1, bsi, xdec, ydec, hgrad,
      vgrad);
-    od_decode_recursive(dec, ctx, pli, bx + 1, by + 1, l, xdec, ydec, hgrad,
+    od_decode_recursive(dec, ctx, pli, bx + 1, by + 1, bsi, xdec, ydec, hgrad,
      vgrad);
-    bs = l - xdec;
+    bs = bsi - xdec;
     bo = (by << (OD_LOG_BSIZE0 + bs))*w + (bx << (OD_LOG_BSIZE0 + bs));
     od_postfilter_split(ctx->c + bo, w, bs + 1, f);
   }
