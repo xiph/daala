@@ -26,9 +26,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # define _entenc_H (1)
 # include <stddef.h>
 # include "entcode.h"
-#if defined(OD_EC_ACCOUNTING)
-# include "accounting.h"
-#endif
 typedef struct od_ec_enc od_ec_enc;
 
 #define OD_MEASURE_EC_OVERHEAD (0)
@@ -64,9 +61,6 @@ struct od_ec_enc {
 #if OD_MEASURE_EC_OVERHEAD
   double entropy;
   int nb_symbols;
-#endif
-#if defined(OD_EC_ACCOUNTING)
-  od_ec_acct acct;
 #endif
 };
 

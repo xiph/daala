@@ -46,7 +46,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "block_size.h"
 #include "logging.h"
 #include "tf.h"
-#include "accounting.h"
 #include "state.h"
 #include "mcenc.h"
 #if defined(OD_X86ASM)
@@ -98,9 +97,6 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
   }
   enc->params.mv_level_min = 0;
   enc->params.mv_level_max = 4;
-#if defined(OD_ACCOUNTING)
-  od_acct_init(&enc->acct);
-#endif
   enc->bs = (od_block_size_comp *)_ogg_malloc(sizeof(*enc->bs));
 #if defined(OD_ENCODER_CHECK)
   enc->dec = daala_decode_alloc(info, NULL);
@@ -113,9 +109,6 @@ static void od_enc_clear(od_enc_ctx *enc) {
   od_ec_enc_clear(&enc->ec);
   oggbyte_writeclear(&enc->obb);
   od_state_clear(&enc->state);
-#if defined(OD_ACCOUNTING)
-  od_acct_clear(&enc->acct);
-#endif
 }
 
 daala_enc_ctx *daala_encode_create(const daala_info *info) {
@@ -1777,12 +1770,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   int pic_height;
   int use_masking;
   od_mb_enc_ctx mbctx;
-#if defined(OD_ACCOUNTING)
-  od_acct_reset(&enc->acct);
-#endif
-#if defined(OD_EC_ACCOUNTING)
-  od_ec_acct_reset(&enc->ec.acct);
-#endif
   if (enc == NULL || img == NULL) return OD_EFAULT;
   if (enc->packet_state == OD_PACKET_DONE) return OD_EINVAL;
   /*Check the input image dimensions to make sure they're compatible with the
@@ -1928,13 +1915,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   /*Dump reference frame.*/
   /*od_state_dump_img(&enc->state,
    enc->state.ref_img + enc->state.ref_imigi[OD_FRAME_SELF], "ref");*/
-#endif
-#if defined(OD_ACCOUNTING)
-  OD_ASSERT(enc->acct.last_frac_bits == od_ec_enc_tell_frac(&enc->ec));
-  od_acct_write(&enc->acct, enc->state.cur_time);
-#endif
-#if defined(OD_EC_ACCOUNTING)
-  od_ec_acct_write(&enc->ec.acct);
 #endif
   if (enc->state.info.frame_duration == 0) enc->state.cur_time += duration;
   else enc->state.cur_time += enc->state.info.frame_duration;

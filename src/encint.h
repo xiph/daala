@@ -36,9 +36,6 @@ typedef struct od_rollback_buffer od_rollback_buffer;
 # include "state.h"
 # include "entenc.h"
 # include "block_size_enc.h"
-#if defined(OD_ACCOUNTING)
-# include "accounting.h"
-#endif
 
 /*Constants for the packet state machine specific to the encoder.*/
 /*No packet currently ready to output.*/
@@ -94,10 +91,6 @@ struct daala_enc_ctx{
   od_params_ctx params;
 #if defined(OD_ENCODER_CHECK)
   struct daala_dec_ctx *dec;
-#endif
-#if defined(OD_ACCOUNTING)
-  /*Account for where bits are spent in encoding.*/
-  od_acct acct;
 #endif
   od_block_size_comp *bs;
   /* These buffers are for saving pixel data during block size RDO. */
