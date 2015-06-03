@@ -278,7 +278,7 @@ static double od_pvq_rate(int qg, int icgr, int theta, int ts,
  * @param [in]     is_keyframe whether we're encoding a keyframe
  * @param [in]     pli       plane index
  * @param [in]     adapt     probability adaptation context
- * @param [in]     ln        log of the block size minus two
+ * @param [in]     bs        log of the block size minus two
  * @return         gain      index of the quatized gain
 */
 static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
@@ -498,7 +498,7 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
  * @param [in]     is_keyframe whether we're encoding a keyframe
  * @param [in]     code_skip  whether the "skip rest" flag is allowed
  * @param [in]     skip_rest  when set, we skip all higher bands
- * @param [in]     ln         log of the block size minus two
+ * @param [in]     bs         log of the block size minus two
  */
 static void pvq_encode_partition(od_ec_enc *ec,
                                  int qg,
