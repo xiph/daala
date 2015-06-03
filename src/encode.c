@@ -807,17 +807,17 @@ static void od_compute_dcts(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
     od_compute_dcts(enc, ctx, pli, bx + 1, by + 1, bsi, xdec, ydec, use_haar);
     if (ctx->is_keyframe) {
       od_coeff x[4];
-      int l2;
-      l2 = bsi - xdec + 2;
-      x[0] = c[(by << l2)*w + (bx << l2)];
-      x[1] = c[(by << l2)*w + ((bx + 1) << l2)];
-      x[2] = c[((by + 1) << l2)*w + (bx << l2)];
-      x[3] = c[((by + 1) << l2)*w + ((bx + 1) << l2)];
+      int ln;
+      ln = bsi - xdec + 2;
+      x[0] = c[(by << ln)*w + (bx << ln)];
+      x[1] = c[(by << ln)*w + ((bx + 1) << ln)];
+      x[2] = c[((by + 1) << ln)*w + (bx << ln)];
+      x[3] = c[((by + 1) << ln)*w + ((bx + 1) << ln)];
       OD_HAAR_KERNEL(x[0], x[2], x[1], x[3]);
-      c[(by << l2)*w + (bx << l2)] = x[0];
-      c[(by << l2)*w + ((bx + 1) << l2)] = x[1];
-      c[((by + 1) << l2)*w + (bx << l2)] = x[2];
-      c[((by + 1) << l2)*w + ((bx + 1) << l2)] = x[3];
+      c[(by << ln)*w + (bx << ln)] = x[0];
+      c[(by << ln)*w + ((bx + 1) << ln)] = x[1];
+      c[((by + 1) << ln)*w + (bx << ln)] = x[2];
+      c[((by + 1) << ln)*w + ((bx + 1) << ln)] = x[3];
     }
   }
 }
@@ -900,7 +900,7 @@ static void od_quantize_haar_dc_sb(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
 #endif
 
 void od_quantize_haar_dc_level(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
-  int pli, int bx, int by, int l, int xdec, od_coeff *hgrad,
+  int pli, int bx, int by, int bsi, int xdec, od_coeff *hgrad,
   od_coeff *vgrad) {
   od_coeff x[4];
   int ln;
@@ -916,10 +916,10 @@ void od_quantize_haar_dc_level(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
   if (enc->quantizer[pli] == 0) ac_quant[0] = ac_quant[1] = 1;
   else {
     /* Not rounding because it seems to slightly hurt. */
-    ac_quant[0] = dc_quant*OD_DC_QM[xdec][l - xdec][0] >> 4;
-    ac_quant[1] = dc_quant*OD_DC_QM[xdec][l - xdec][1] >> 4;
+    ac_quant[0] = dc_quant*OD_DC_QM[xdec][bsi - xdec][0] >> 4;
+    ac_quant[1] = dc_quant*OD_DC_QM[xdec][bsi - xdec][1] >> 4;
   }
-  ln = l - xdec + 2;
+  ln = bsi - xdec + 2;
   x[0] = ctx->d[pli][(by << ln)*w + (bx << ln)];
   x[1] = ctx->d[pli][(by << ln)*w + ((bx + 1) << ln)];
   x[2] = ctx->d[pli][((by + 1) << ln)*w + (bx << ln)];
@@ -937,9 +937,9 @@ void od_quantize_haar_dc_level(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
 #if 1 /* Set to zero to disable RDO. */
     quant = x[i]/q;
     cost = generic_encode_cost(&enc->state.adapt.model_dc[pli], quant + 1,
-     -1, &enc->state.adapt.ex_dc[pli][l][i-1]);
+     -1, &enc->state.adapt.ex_dc[pli][bsi][i-1]);
     cost -= generic_encode_cost(&enc->state.adapt.model_dc[pli], quant,
-     -1, &enc->state.adapt.ex_dc[pli][l][i-1]);
+     -1, &enc->state.adapt.ex_dc[pli][bsi][i-1]);
     /* Count cost of sign bit. */
     if (quant == 0) cost += 1;
     if (q*q - 2*q*(x[i] - quant*q) + q*q*OD_PVQ_LAMBDA*cost < 0) quant++;
@@ -947,7 +947,7 @@ void od_quantize_haar_dc_level(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
     quant = OD_DIV_R0(x[i], q);
 #endif
     generic_encode(&enc->ec, &enc->state.adapt.model_dc[pli], quant, -1,
-     &enc->state.adapt.ex_dc[pli][l][i-1], 2);
+     &enc->state.adapt.ex_dc[pli][bsi][i-1], 2);
     if (quant) od_ec_enc_bits(&enc->ec, sign, 1);
     x[i] = quant*ac_quant[i == 3];
     if (sign) x[i] = -x[i];
@@ -1070,7 +1070,7 @@ static double od_compute_dist(daala_enc_ctx *enc, od_coeff *x, od_coeff *y,
 
 /* Returns 1 if the block is skipped, zero otherwise. */
 static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
- int pli, int bx, int by, int l, int xdec, int ydec, int rdo_only,
+ int pli, int bx, int by, int bsi, int xdec, int ydec, int rdo_only,
  od_coeff hgrad, od_coeff vgrad) {
   int obs;
   int bs;
@@ -1079,18 +1079,18 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
   /*This code assumes 4:4:4 or 4:2:0 input.*/
   OD_ASSERT(xdec == ydec);
   obs = OD_BLOCK_SIZE4x4(enc->state.bsize,
-   enc->state.bstride, bx << l, by << l);
+   enc->state.bstride, bx << bsi, by << bsi);
   frame_width = enc->state.frame_width;
   w = frame_width >> xdec;
   bs = OD_MAXI(obs, xdec);
-  OD_ASSERT(bs <= l);
-  if (bs == l) {
+  OD_ASSERT(bs <= bsi);
+  if (bs == bsi) {
     bs -= xdec;
     /*Construct the luma predictors for chroma planes.*/
     if (ctx->l != NULL) {
       OD_ASSERT(pli > 0);
       od_resample_luma_coeffs(ctx->l + (by << (2 + bs))*w + (bx << (2 + bs)), w,
-       ctx->d[0] + (by << (2 + l))*frame_width + (bx << (2 + l)),
+       ctx->d[0] + (by << (2 + bsi))*frame_width + (bx << (2 + bsi)),
        frame_width, xdec, ydec, bs, obs);
     }
     return od_block_encode(enc, ctx, bs, pli, bx, by, rdo_only);
@@ -1111,13 +1111,13 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
     od_coeff *split;
     int rate_nosplit;
     int rate_split;
-    c_orig = enc->c_orig[l - 1];
-    mc_orig = enc->mc_orig[l - 1];
-    nosplit = enc->nosplit[l - 1];
-    split = enc->split[l - 1];
+    c_orig = enc->c_orig[bsi - 1];
+    mc_orig = enc->mc_orig[bsi - 1];
+    nosplit = enc->nosplit[bsi - 1];
+    split = enc->split[bsi - 1];
     /* Silence gcc -Wmaybe-uninitialized */
     rate_nosplit = skip_nosplit = 0;
-    bs = l - xdec;
+    bs = bsi - xdec;
     bo = (by << (OD_LOG_BSIZE0 + bs))*w + (bx << (OD_LOG_BSIZE0 + bs));
     n = 4 << bs;
     if (rdo_only) {
@@ -1157,27 +1157,27 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
     f = OD_FILT_SIZE(bs - 1, xdec);
     od_prefilter_split(ctx->c + bo, w, bs, f);
     if (!ctx->is_keyframe) od_prefilter_split(ctx->mc + bo, w, bs, f);
-    l--;
+    bsi--;
     bx <<= 1;
     by <<= 1;
     skip_split = 1;
     if (pli == 0) {
       /* Code the "split this block" symbol (4). */
       od_encode_cdf_adapt(&enc->ec, 4,
-       enc->state.adapt.skip_cdf[pli*OD_NBSIZES + l + 1], 5,
+       enc->state.adapt.skip_cdf[pli*OD_NBSIZES + bsi + 1], 5,
        enc->state.adapt.skip_increment);
     }
     if (ctx->is_keyframe) {
-      od_quantize_haar_dc_level(enc, ctx, pli, bx, by, l, xdec, &hgrad,
+      od_quantize_haar_dc_level(enc, ctx, pli, bx, by, bsi, xdec, &hgrad,
        &vgrad);
     }
-    skip_split &= od_encode_recursive(enc, ctx, pli, bx + 0, by + 0, l, xdec,
+    skip_split &= od_encode_recursive(enc, ctx, pli, bx + 0, by + 0, bsi, xdec,
      ydec, rdo_only, hgrad, vgrad);
-    skip_split &= od_encode_recursive(enc, ctx, pli, bx + 1, by + 0, l, xdec,
+    skip_split &= od_encode_recursive(enc, ctx, pli, bx + 1, by + 0, bsi, xdec,
      ydec, rdo_only, hgrad, vgrad);
-    skip_split &= od_encode_recursive(enc, ctx, pli, bx + 0, by + 1, l, xdec,
+    skip_split &= od_encode_recursive(enc, ctx, pli, bx + 0, by + 1, bsi, xdec,
      ydec, rdo_only, hgrad, vgrad);
-    skip_split &= od_encode_recursive(enc, ctx, pli, bx + 1, by + 1, l, xdec,
+    skip_split &= od_encode_recursive(enc, ctx, pli, bx + 1, by + 1, bsi, xdec,
      ydec, rdo_only, hgrad, vgrad);
     skip_block = skip_split;
     od_postfilter_split(ctx->c + bo, w, bs, f);
@@ -1207,8 +1207,8 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
         }
         for (i = 0; i < 1 << (bs - 1); i++) {
           for (j = 0; j < 1 << (bs - 1); j++) {
-            enc->state.bsize[((by << l >> 1) + i)*enc->state.bstride
-             + (bx << l >> 1) + j] = OD_MINI(OD_LIMIT_BSIZE_MAX, bs);
+            enc->state.bsize[((by << bsi >> 1) + i)*enc->state.bstride
+             + (bx << bsi >> 1) + j] = OD_MINI(OD_LIMIT_BSIZE_MAX, bs);
           }
         }
         skip_block = skip_nosplit;
