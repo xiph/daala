@@ -60,47 +60,49 @@ void od_hv_intra_pred(od_coeff *pred, od_coeff *d, int w, int bx, int by,
   }
 }
 
-/* Trained using a linear regression on subset3. See dump_cfl_scaling4.*/
-static ogg_int16_t od_cfl_scaling4[4][4] = {
-  { 128, 128, 100, 36},
-  { 128, 80, 71, 35},
-  { 100, 71, 35, 31},
-  { 36, 35, 31, 18},
+/*Trained using a linear regression on subset3.
+  See the dump_cfl_scaling4 branch.*/
+static const ogg_int16_t OD_CFL_SCALING4[4][4] = {
+  { 128, 128, 100, 36 },
+  { 128, 80, 71, 35 },
+  { 100, 71, 35, 31 },
+  { 36, 35, 31, 18 },
 };
 
-void od_resample_luma_coeffs(od_coeff *l, int lstride,
- const od_coeff *c, int cstride, int xdec, int ydec, int bs, int cbs) {
+void od_resample_luma_coeffs(od_coeff *chroma_pred, int cpstride,
+ const od_coeff *decoded_luma, int dlstride, int xdec, int ydec, int bs,
+ int chroma_bs) {
   int n;
   n = 4 << bs;
-  if (cbs == 0 && (xdec || ydec)) {
+  if (chroma_bs == 0 && (xdec || ydec)) {
     if (xdec) {
       if (ydec) {
         int i;
-        od_tf_up_hv_lp(l, lstride, c, cstride, n, n, n);
+        od_tf_up_hv_lp(chroma_pred, cpstride, decoded_luma, dlstride, n, n, n);
         for (i = 0; i < 4; i++) {
           int j;
           for (j = 0; j < 4; j++) {
-            l[i*lstride + j] = (od_cfl_scaling4[j][i] * l[i*lstride + j]
-             + 64) >> 7;
+            chroma_pred[i*cpstride + j] =
+             (OD_CFL_SCALING4[j][i] * chroma_pred[i*cpstride + j] + 64) >> 7;
           }
         }
       }
-      else od_tf_up_h_lp(l, lstride, c, cstride, n, n);
+      else od_tf_up_h_lp(chroma_pred, cpstride, decoded_luma, dlstride, n, n);
     }
     else {
       OD_ASSERT(ydec);
-      od_tf_up_v_lp(l, lstride, c, cstride, n, n);
+      od_tf_up_v_lp(chroma_pred, cpstride, decoded_luma, dlstride, n, n);
     }
   }
   else {
-    /*When the transform we code chroma with is smaller than the luma one,
-       downsampling just requires copying the upper lower quarter coeffs.*/
     int x;
     int y;
     OD_ASSERT(xdec == ydec);
+    /*When the transform we code chroma with is smaller than the luma one,
+       downsampling just requires copying the upper-left quarter coeffs.*/
     for (y = 0; y < n; y++) {
       for (x = 0; x < n; x++) {
-        l[y*lstride + x] = c[y*cstride + x];
+        chroma_pred[y*cpstride + x] = decoded_luma[y*dlstride + x];
       }
     }
   }
