@@ -1369,6 +1369,226 @@ int od_mc_compute_sad_16x16_xstride_1_c(const unsigned char *src, int systride,
   return od_mc_compute_sad_c(src, systride, ref, dystride, 1, 16, 16);
 }
 
+#if !OD_DISABLE_SATD
+static const od_coeff OD_HADAMARD_4X4[] = {
+  1, 1, 1, 1,
+  1,-1, 1,-1,
+  1, 1,-1,-1,
+  1,-1,-1, 1
+};
+
+static const od_coeff OD_HADAMARD_8X8[] = {
+  1, 1, 1, 1, 1, 1, 1, 1,
+  1,-1, 1,-1, 1,-1, 1,-1,
+  1, 1,-1,-1, 1, 1,-1,-1,
+  1,-1,-1, 1, 1,-1,-1, 1,
+  1, 1, 1, 1,-1,-1,-1,-1,
+  1,-1, 1,-1,-1, 1,-1, 1,
+  1, 1,-1,-1,-1,-1, 1, 1,
+  1,-1,-1, 1,-1, 1, 1,-1
+};
+
+static const od_coeff OD_HADAMARD_16X16[] = {
+  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+  1,-1, 1,-1, 1,-1, 1,-1, 1,-1, 1,-1, 1,-1, 1,-1,
+  1, 1,-1,-1, 1, 1,-1,-1, 1, 1,-1,-1, 1, 1,-1,-1,
+  1,-1,-1, 1, 1,-1,-1, 1, 1,-1,-1, 1, 1,-1,-1, 1,
+  1, 1, 1, 1,-1,-1,-1,-1, 1, 1, 1, 1,-1,-1,-1,-1,
+  1,-1, 1,-1,-1, 1,-1, 1, 1,-1, 1,-1,-1, 1,-1, 1,
+  1, 1,-1,-1,-1,-1, 1, 1, 1, 1,-1,-1,-1,-1, 1, 1,
+  1,-1,-1, 1,-1, 1, 1,-1, 1,-1,-1, 1,-1, 1, 1,-1,
+  1, 1, 1, 1, 1, 1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1,
+  1,-1, 1,-1, 1,-1, 1,-1,-1, 1,-1, 1,-1, 1,-1, 1,
+  1, 1,-1,-1, 1, 1,-1,-1,-1,-1, 1, 1,-1,-1, 1, 1,
+  1,-1,-1, 1, 1,-1,-1, 1,-1, 1, 1,-1,-1, 1, 1,-1,
+  1, 1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1, 1, 1, 1, 1,
+  1,-1, 1,-1,-1, 1,-1, 1,-1, 1,-1, 1, 1,-1, 1,-1,
+  1, 1,-1,-1,-1,-1, 1, 1,-1,-1, 1, 1, 1, 1,-1,-1,
+  1,-1,-1, 1,-1, 1, 1,-1,-1, 1, 1,-1, 1,-1,-1, 1
+};
+
+static const od_coeff OD_HADAMARD_32X32[] = {
+  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+  1,-1, 1,-1, 1,-1, 1,-1, 1,-1, 1,-1, 1,-1, 1,-1,
+  1,-1, 1,-1, 1,-1, 1,-1, 1,-1, 1,-1, 1,-1, 1,-1,
+  1, 1,-1,-1, 1, 1,-1,-1, 1, 1,-1,-1, 1, 1,-1,-1,
+  1, 1,-1,-1, 1, 1,-1,-1, 1, 1,-1,-1, 1, 1,-1,-1,
+  1,-1,-1, 1, 1,-1,-1, 1, 1,-1,-1, 1, 1,-1,-1, 1,
+  1,-1,-1, 1, 1,-1,-1, 1, 1,-1,-1, 1, 1,-1,-1, 1,
+  1, 1, 1, 1,-1,-1,-1,-1, 1, 1, 1, 1,-1,-1,-1,-1,
+  1, 1, 1, 1,-1,-1,-1,-1, 1, 1, 1, 1,-1,-1,-1,-1,
+  1,-1, 1,-1,-1, 1,-1, 1, 1,-1, 1,-1,-1, 1,-1, 1,
+  1,-1, 1,-1,-1, 1,-1, 1, 1,-1, 1,-1,-1, 1,-1, 1,
+  1, 1,-1,-1,-1,-1, 1, 1, 1, 1,-1,-1,-1,-1, 1, 1,
+  1, 1,-1,-1,-1,-1, 1, 1, 1, 1,-1,-1,-1,-1, 1, 1,
+  1,-1,-1, 1,-1, 1, 1,-1, 1,-1,-1, 1,-1, 1, 1,-1,
+  1,-1,-1, 1,-1, 1, 1,-1, 1,-1,-1, 1,-1, 1, 1,-1,
+  1, 1, 1, 1, 1, 1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1,
+  1, 1, 1, 1, 1, 1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1,
+  1,-1, 1,-1, 1,-1, 1,-1,-1, 1,-1, 1,-1, 1,-1, 1,
+  1,-1, 1,-1, 1,-1, 1,-1,-1, 1,-1, 1,-1, 1,-1, 1,
+  1, 1,-1,-1, 1, 1,-1,-1,-1,-1, 1, 1,-1,-1, 1, 1,
+  1, 1,-1,-1, 1, 1,-1,-1,-1,-1, 1, 1,-1,-1, 1, 1,
+  1,-1,-1, 1, 1,-1,-1, 1,-1, 1, 1,-1,-1, 1, 1,-1,
+  1,-1,-1, 1, 1,-1,-1, 1,-1, 1, 1,-1,-1, 1, 1,-1,
+  1, 1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1, 1, 1, 1, 1,
+  1, 1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1, 1, 1, 1, 1,
+  1,-1, 1,-1,-1, 1,-1, 1,-1, 1,-1, 1, 1,-1, 1,-1,
+  1,-1, 1,-1,-1, 1,-1, 1,-1, 1,-1, 1, 1,-1, 1,-1,
+  1, 1,-1,-1,-1,-1, 1, 1,-1,-1, 1, 1, 1, 1,-1,-1,
+  1, 1,-1,-1,-1,-1, 1, 1,-1,-1, 1, 1, 1, 1,-1,-1,
+  1,-1,-1, 1,-1, 1, 1,-1,-1, 1, 1,-1, 1,-1,-1, 1,
+  1,-1,-1, 1,-1, 1, 1,-1,-1, 1, 1,-1, 1,-1,-1, 1,
+  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+  -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+  1,-1, 1,-1, 1,-1, 1,-1, 1,-1, 1,-1, 1,-1, 1,-1,
+  -1, 1,-1, 1,-1, 1,-1, 1,-1, 1,-1, 1,-1, 1,-1, 1,
+  1, 1,-1,-1, 1, 1,-1,-1, 1, 1,-1,-1, 1, 1,-1,-1,
+  -1,-1, 1, 1,-1,-1, 1, 1,-1,-1, 1, 1,-1,-1, 1, 1,
+  1,-1,-1, 1, 1,-1,-1, 1, 1,-1,-1, 1, 1,-1,-1, 1,
+  -1, 1, 1,-1,-1, 1, 1,-1,-1, 1, 1,-1,-1, 1, 1,-1,
+  1, 1, 1, 1,-1,-1,-1,-1, 1, 1, 1, 1,-1,-1,-1,-1,
+  -1,-1,-1,-1, 1, 1, 1, 1,-1,-1,-1,-1, 1, 1, 1, 1,
+  1,-1, 1,-1,-1, 1,-1, 1, 1,-1, 1,-1,-1, 1,-1, 1,
+  -1, 1,-1, 1, 1,-1, 1,-1,-1, 1,-1, 1, 1,-1, 1,-1,
+  1, 1,-1,-1,-1,-1, 1, 1, 1, 1,-1,-1,-1,-1, 1, 1,
+  -1,-1, 1, 1, 1, 1,-1,-1,-1,-1, 1, 1, 1, 1,-1,-1,
+  1,-1,-1, 1,-1, 1, 1,-1, 1,-1,-1, 1,-1, 1, 1,-1,
+  -1, 1, 1,-1, 1,-1,-1, 1,-1, 1, 1,-1, 1,-1,-1, 1,
+  1, 1, 1, 1, 1, 1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1,
+  -1,-1,-1,-1,-1,-1,-1,-1, 1, 1, 1, 1, 1, 1, 1, 1,
+  1,-1, 1,-1, 1,-1, 1,-1,-1, 1,-1, 1,-1, 1,-1, 1,
+  -1, 1,-1, 1,-1, 1,-1, 1, 1,-1, 1,-1, 1,-1, 1,-1,
+  1, 1,-1,-1, 1, 1,-1,-1,-1,-1, 1, 1,-1,-1, 1, 1,
+  -1,-1, 1, 1,-1,-1, 1, 1, 1, 1,-1,-1, 1, 1,-1,-1,
+  1,-1,-1, 1, 1,-1,-1, 1,-1, 1, 1,-1,-1, 1, 1,-1,
+  -1, 1, 1,-1,-1, 1, 1,-1, 1,-1,-1, 1, 1,-1,-1, 1,
+  1, 1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1, 1, 1, 1, 1,
+  -1,-1,-1,-1, 1, 1, 1, 1, 1, 1, 1, 1,-1,-1,-1,-1,
+  1,-1, 1,-1,-1, 1,-1, 1,-1, 1,-1, 1, 1,-1, 1,-1,
+  -1, 1,-1, 1, 1,-1, 1,-1, 1,-1, 1,-1,-1, 1,-1, 1,
+  1, 1,-1,-1,-1,-1, 1, 1,-1,-1, 1, 1, 1, 1,-1,-1,
+  -1,-1, 1, 1, 1, 1,-1,-1, 1, 1,-1,-1,-1,-1, 1, 1,
+  1,-1,-1, 1,-1, 1, 1,-1,-1, 1, 1,-1, 1,-1,-1, 1,
+  -1, 1, 1,-1, 1,-1,-1, 1, 1,-1,-1, 1,-1, 1, 1,-1
+};
+static const od_coeff *OD_HADAMARD_T[] = {
+  OD_HADAMARD_4X4,
+  OD_HADAMARD_8X8,
+  OD_HADAMARD_16X16,
+  OD_HADAMARD_32X32,
+  NULL
+};
+
+/* Multiplication of two square matrices with the size blk_size * blk_size. */
+static void od_muliply_matrix(od_coeff *out, const od_coeff *in1,
+ const od_coeff *in2, int blk_size) {
+  int i;
+  int j;
+  int k;
+  for(j = 0; j < blk_size; j++) {
+    for(i = 0; i < blk_size; i++) {
+      int sum = 0;
+      for(k = 0; k < blk_size; k++) {
+        sum += in1[j*blk_size + k] * in2[k*blk_size + i];
+      }
+      out[j*blk_size + i] = sum;
+    }
+  }
+}
+
+/* Transpose a square matrix. */
+static void od_transpose_matrix(od_coeff *in_out, int blk_size) {
+  int i;
+  int j;
+  int tmp;
+  for(j = 1; j < blk_size; j++) {
+    for (i = 0; i < j; i++) {
+      tmp = in_out[j*blk_size + i];
+      in_out[j*blk_size + i] = in_out[i*blk_size + j];
+      in_out[i*blk_size + j] = tmp;
+    }
+  }
+}
+
+static void od_apply_transform_matrix_2d(od_coeff *out, const od_coeff *src,
+ const od_coeff *transform, int log_blk_sz) {
+  od_coeff buf[32*32];
+  int blk_size = 1 << log_blk_sz;
+  /* Apply vertical 1D transform. */
+  od_muliply_matrix(buf, transform, src, blk_size);
+  /* Transpose vertically transformed result,
+      so that the same transform basis matrix
+      can be multiplied to it to obtain horizontal 1D transform result. */
+  od_transpose_matrix(buf, blk_size);
+  /* Apply horizontal 1D transform. */
+  od_muliply_matrix(out, transform, buf, blk_size);
+}
+
+/* Compute SATD for the block sizes 4x4, 8x8, 16x16, 32x32.
+    Note : The strides for src and dest are blk_size. */
+static void od_hadamard_2d(od_coeff *dest, const od_coeff *diff,
+ int log_blk_sz) {
+  /* Index for HadamardT[]:  0 for 4x4, ..., 3 for 32x32. */
+  OD_ASSERT2(HadamardT[log_blk_sz - 2], "Hadamard not defined for this size");
+  od_apply_transform_matrix_2d(dest, diff, OD_HADAMARD_T[log_blk_sz - 2],
+   log_blk_sz);
+}
+
+static int od_mc_compute_satd_generic_size_c(const unsigned char *src,
+ int systride, const unsigned char *ref, int dystride, const int log_blk_sz) {
+  od_coeff diff[OD_MVBSIZE_MAX*OD_MVBSIZE_MAX];
+  od_coeff dest[OD_MVBSIZE_MAX*OD_MVBSIZE_MAX];
+  int satd;
+  int x;
+  int y;
+  int blk_size = 1 << log_blk_sz;
+  for (y = 0; y < blk_size; y++) {
+    for (x = 0; x < blk_size; x++) {
+      diff[y*blk_size + x] = src[systride*y + x] - ref[dystride*y + x];
+    }
+  }
+  od_hadamard_2d(dest, diff, log_blk_sz);/* 2D Hadamard transform. */
+  /* Absolute sum of transformed coefficients. */
+  satd = 0;
+  for (x = 0; x < blk_size*blk_size; x++) {
+    satd += abs(dest[x]);
+  }
+  /* Normalize (for orthogonality) by block size, i.e. 2d transform gain. */
+  satd >>= log_blk_sz;
+  return satd;
+}
+
+int od_mc_compute_satd_4x4_c(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride) {
+  int satd;
+  satd = od_mc_compute_satd_generic_size_c(src, systride, ref, dystride, 2);
+  return satd;
+}
+
+int od_mc_compute_satd_8x8_c(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride) {
+  int satd;
+  satd = od_mc_compute_satd_generic_size_c(src, systride, ref, dystride, 3);
+  return satd;
+}
+
+int od_mc_compute_satd_16x16_c(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride) {
+  int satd;
+  satd = od_mc_compute_satd_generic_size_c(src, systride, ref, dystride, 4);
+  return satd;
+}
+
+int od_mc_compute_satd_32x32_c(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride) {
+  int satd;
+  satd = od_mc_compute_satd_generic_size_c(src, systride, ref, dystride, 5);
+  return satd;
+}
+#endif
+
 /*Computes the SAD of the input image against the given predictor.*/
 static ogg_int32_t od_enc_sad8(od_enc_ctx *enc, const unsigned char *p,
  int pystride, int pxstride, int pli, int x, int y, int log_blk_sz) {
@@ -1436,6 +1656,79 @@ static ogg_int32_t od_enc_sad8(od_enc_ctx *enc, const unsigned char *p,
   }
   return ret;
 }
+
+#if !OD_DISABLE_SATD
+/*Computes the SATD of the input image block against the given predictor.*/
+static ogg_int32_t od_enc_satd8(od_enc_ctx *enc, const unsigned char *p,
+ int pystride, int pxstride, int pli, int x, int y, int log_blk_sz) {
+  od_state *state;
+  od_img_plane *iplane;
+  unsigned char *src;
+  int clipx;
+  int clipy;
+  int clipw;
+  int cliph;
+  int w;
+  int h;
+  ogg_int32_t ret;
+  state = &enc->state;
+  iplane = state->io_imgs[OD_FRAME_INPUT].planes + pli;
+  /*Compute the block dimensions in the target image plane.*/
+  x >>= iplane->xdec;
+  y >>= iplane->ydec;
+  w = 1 << (log_blk_sz - iplane->xdec);
+  h = 1 << (log_blk_sz - iplane->ydec);
+  /*Clip the block against the active picture region.*/
+  clipx = -x;
+  if (clipx > 0) {
+    w -= clipx;
+    p += clipx*pxstride;
+    x += clipx;
+  }
+  clipy = -y;
+  if (clipy > 0) {
+    h -= clipy;
+    p += clipy*pystride;
+    y += clipy;
+  }
+  clipw = ((state->info.pic_width + (1 << iplane->xdec) - 1) >> iplane->xdec)
+   - x;
+  w = OD_MINI(w, clipw);
+  cliph = ((state->info.pic_height + (1 << iplane->ydec) - 1) >> iplane->ydec)
+   - y;
+  h = OD_MINI(h, cliph);
+  /*OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
+   "[%i, %i]x[%i, %i]", x, y, w, h));*/
+  /*Compute the SATD.*/
+  src = iplane->data + y*iplane->ystride + x*iplane->xstride;
+  if (w == 4 && h == 4) {
+    ret = (*enc->opt_vtbl.mc_compute_satd_4x4)(src, iplane->ystride,
+     p, pystride);
+  }
+  else if (w == 8 && h == 8) {
+    ret = (*enc->opt_vtbl.mc_compute_satd_8x8)(src, iplane->ystride,
+     p, pystride);
+  }
+  else if (w == 16 && h == 16) {
+    ret = (*enc->opt_vtbl.mc_compute_satd_16x16)(src, iplane->ystride,
+     p, pystride);
+  }
+  else {
+    /*Default C implementation.*/
+    if  (w == 32 && h == 32)
+      ret = (*enc->opt_vtbl.mc_compute_satd_32x32)(src, iplane->ystride,
+          p, pystride);
+    else {
+      /*If not square SATD (on boundary always), run sad for now.
+         TODO: Try padding 0's for undefined area of difference image,
+         then apply square SATD.*/
+      ret = od_mc_compute_sad_c(src, iplane->ystride,
+       p, pystride, pxstride, w, h);
+    }
+  }
+  return ret;
+}
+#endif
 
 static int od_mv_est_init_impl(od_mv_est_ctx *est, od_enc_ctx *enc) {
   int nhmvbs;
@@ -1900,17 +2193,18 @@ static ogg_int32_t od_mv_est_sad8(od_mv_est_ctx *est,
   state = &est->enc->state;
   od_state_pred_block_from_setup(state, state->mc_buf[4], OD_MVBSIZE_MAX,
    ref, 0, vx, vy, oc, s, log_mvb_sz);
-  ret = od_enc_sad8(est->enc, state->mc_buf[4], OD_MVBSIZE_MAX, 1, 0,
-   vx << OD_LOG_MVBSIZE_MIN, vy << OD_LOG_MVBSIZE_MIN,
+  ret = est->compute_distortion(est->enc, state->mc_buf[4], OD_MVBSIZE_MAX,
+   1, 0, vx << OD_LOG_MVBSIZE_MIN, vy << OD_LOG_MVBSIZE_MIN,
    log_mvb_sz + OD_LOG_MVBSIZE_MIN);
   if (est->flags & OD_MC_USE_CHROMA) {
     int pli;
     for (pli = 1; pli < state->io_imgs[OD_FRAME_INPUT].nplanes; pli++) {
       od_state_pred_block_from_setup(state, state->mc_buf[4], OD_MVBSIZE_MAX,
        ref, pli, vx, vy, oc, s, log_mvb_sz);
-      ret += od_enc_sad8(est->enc, state->mc_buf[4], OD_MVBSIZE_MAX, 1, pli,
-       vx << OD_LOG_MVBSIZE_MIN, vy << OD_LOG_MVBSIZE_MIN,
-       log_mvb_sz + OD_LOG_MVBSIZE_MIN) >> OD_MC_CHROMA_SCALE;
+      ret += est->compute_distortion(est->enc, state->mc_buf[4],
+       OD_MVBSIZE_MAX, 1, pli, vx << OD_LOG_MVBSIZE_MIN,
+       vy << OD_LOG_MVBSIZE_MIN, log_mvb_sz + OD_LOG_MVBSIZE_MIN)
+       >> OD_MC_CHROMA_SCALE;
     }
   }
   return ret;
@@ -5619,6 +5913,53 @@ void od_mv_est_free(od_mv_est_ctx *est) {
   }
 }
 
+void od_mv_est_reset_rd_block_state(od_mv_est_ctx *est,
+ int ref, int vx, int vy, int log_mvb_sz) {
+  od_state *state;
+  int half_mvb_sz;
+  state = &est->enc->state;
+  half_mvb_sz = 1 << log_mvb_sz >> 1;
+  if (log_mvb_sz > 0
+   && state->mv_grid[vy + half_mvb_sz][vx + half_mvb_sz].valid) {
+    od_mv_est_reset_rd_block_state(est, ref, vx, vy, log_mvb_sz - 1);
+    od_mv_est_reset_rd_block_state(est, ref,
+     vx + half_mvb_sz, vy, log_mvb_sz - 1);
+    od_mv_est_reset_rd_block_state(est, ref,
+     vx, vy + half_mvb_sz, log_mvb_sz - 1);
+    od_mv_est_reset_rd_block_state(est, ref,
+     vx + half_mvb_sz, vy + half_mvb_sz, log_mvb_sz - 1);
+  }
+  else {
+    od_mv_node *block;
+    ogg_int32_t sad;
+    int oc;
+    int s;
+    block = est->mvs[vy] + vx;
+    if (log_mvb_sz < OD_LOG_MVB_DELTA0) {
+      int mask;
+      int s1vx;
+      int s1vy;
+      int s3vx;
+      int s3vy;
+      mask = (1 << (log_mvb_sz + 1)) - 1;
+      oc = !!(vx & mask);
+      if (vy & mask) oc = 3 - oc;
+      s1vx = vx + (OD_VERT_DX[(oc + 1) & 3] << log_mvb_sz);
+      s1vy = vy + (OD_VERT_DY[(oc + 1) & 3] << log_mvb_sz);
+      s3vx = vx + (OD_VERT_DX[(oc + 3) & 3] << log_mvb_sz);
+      s3vy = vy + (OD_VERT_DY[(oc + 3) & 3] << log_mvb_sz);
+      s = state->mv_grid[s1vy][s1vx].valid |
+       state->mv_grid[s3vy][s3vx].valid << 1;
+    }
+    else {
+      oc = 0;
+      s = 3;
+    }
+    sad = od_mv_est_sad8(est, ref, vx, vy, oc, s, log_mvb_sz);
+    block->sad = sad;
+  }
+}
+
 void od_mv_subpel_refine(od_mv_est_ctx *est, int ref, int cost_thresh) {
   od_state *state;
   od_mv_grid_pt **grid;
@@ -5756,6 +6097,8 @@ void od_mv_est(od_mv_est_ctx *est, int ref, int lambda) {
   }
 #endif
   od_mv_est_init_mvs(est, ref);
+  /*Use SAD for stages here after.*/
+  est->compute_distortion = od_enc_sad8;
   od_mv_est_decimate(est, ref);
   /*This threshold is somewhat arbitrary.
     Chen and Willson use 6000 (with SSD as an error metric).
@@ -5788,6 +6131,25 @@ void od_mv_est(od_mv_est_ctx *est, int ref, int lambda) {
     dcost += od_mv_est_refine(est, ref, 3, 2, pattern_nsites, pattern);
   }
   while (dcost < cost_thresh);
+#if !OD_DISABLE_SATD
+  /* The two #defines below apply to sub-pel ME only. */
+# define OD_ME_SATD_THRESH_SCALE (0.7) /* 1.0 means the same as SAD. */
+# define OD_ME_SATD_LAMBDA_SCALE (0.6)
+  est->compute_distortion = od_enc_satd8;/* Use SATD from this stage. */
+  est->lambda = (int)(est->lambda * OD_ME_SATD_LAMBDA_SCALE);
+  cost_thresh = (int)(cost_thresh * OD_ME_SATD_THRESH_SCALE);
+  /* Reset sad values for each ME block since those are used as base
+      when measuring the change in ME error in the next stage. */
+  {
+    int vx;
+    int vy;
+    for (vy = 0; vy < nvmvbs; vy += OD_MVB_DELTA0) {
+      for (vx = 0; vx < nhmvbs; vx += OD_MVB_DELTA0) {
+        od_mv_est_reset_rd_block_state(est, ref, vx, vy, OD_LOG_MVB_DELTA0);
+      }
+    }
+  }
+#endif
   od_mv_subpel_refine(est, ref, cost_thresh);
   od_restore_fpu(state);
 }

@@ -181,6 +181,11 @@ struct od_mv_est_ctx {
   int level_max;
   /*The shallowest level to decimate to (inclusive).*/
   int level_min;
+  /*This function is set switchable between SAD and SATD based on the current
+     stage of ME/MC. At present, SAD function is called for stage 1, 2, and 3,
+     and SATD functions are called for stage 4 (i.e. sub-pel refine).*/
+  int (*compute_distortion)(od_enc_ctx *enc, const unsigned char *p,
+   int pystride, int pxstride, int pli, int x, int y, int log_blk_sz);
 };
 
 #endif

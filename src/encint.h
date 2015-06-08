@@ -65,6 +65,14 @@ struct od_enc_opt_vtbl {
    int systride, const unsigned char *ref, int dystride);
   int (*mc_compute_sad_16x16_xstride_1)(const unsigned char *src,
    int systride, const unsigned char *ref, int dystride);
+  int (*mc_compute_satd_4x4)(const unsigned char *src,
+   int systride, const unsigned char *ref, int dystride);
+  int (*mc_compute_satd_8x8)(const unsigned char *src,
+   int systride, const unsigned char *ref, int dystride);
+  int (*mc_compute_satd_16x16)(const unsigned char *src,
+   int systride, const unsigned char *ref, int dystride);
+  int (*mc_compute_satd_32x32)(const unsigned char *src,
+   int systride, const unsigned char *ref, int dystride);
 };
 
 /*Unsanitized user parameters*/
@@ -122,7 +130,14 @@ int od_mc_compute_sad_16x16_xstride_1_c(const unsigned char *src, int systride,
  const unsigned char *ref, int dystride);
 int od_mc_compute_sad_c(const unsigned char *_src, int _systride,
  const unsigned char *_ref, int _dystride, int _dxstride, int _w, int _h);
-
+int od_mc_compute_satd_4x4_c(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride);
+int od_mc_compute_satd_8x8_c(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride);
+int od_mc_compute_satd_16x16_c(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride);
+int od_mc_compute_satd_32x32_c(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride);
 void od_enc_opt_vtbl_init_c(od_enc_ctx *enc);
 
 # if defined(OD_X86ASM)
