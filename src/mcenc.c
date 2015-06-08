@@ -1530,8 +1530,8 @@ static void od_apply_transform_matrix_2d(od_coeff *out, const od_coeff *src,
     Note : The strides for src and dest are blk_size. */
 static void od_hadamard_2d(od_coeff *dest, const od_coeff *diff,
  int log_blk_sz) {
-  /* Index for HadamardT[]:  0 for 4x4, ..., 3 for 32x32. */
-  OD_ASSERT2(HadamardT[log_blk_sz - 2], "Hadamard not defined for this size");
+  /* Index for OD_HADAMARD_T[]:  0 for 4x4, ..., 3 for 32x32. */
+  OD_ASSERT2(OD_HADAMARD_T[log_blk_sz - 2], "Hadamard not defined for this size");
   od_apply_transform_matrix_2d(dest, diff, OD_HADAMARD_T[log_blk_sz - 2],
    log_blk_sz);
 }
