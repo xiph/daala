@@ -10,7 +10,7 @@
 <?rfc inline="yes"?>
 <?rfc compact="yes"?>
 <?rfc subcompact="no"?>
-<rfc category="std" docName="draft-valin-videocodec-pvq-02"
+<rfc category="std" docName="draft-valin-netvc-pvq-00"
      ipr="noDerivativesTrust200902">
   <front>
     <title abbrev="Video PVQ">Pyramid Vector Quantization for Video Coding</title>
@@ -30,7 +30,7 @@
  </author>
  
 
-    <date day="9" month="March" year="2015" />
+    <date day="9" month="June" year="2015" />
 
     <abstract>
       <t>This proposes applying pyramid vector quantization (PVQ) to video coding.</t>
