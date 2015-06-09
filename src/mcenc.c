@@ -1369,7 +1369,6 @@ int od_mc_compute_sad_16x16_xstride_1_c(const unsigned char *src, int systride,
   return od_mc_compute_sad_c(src, systride, ref, dystride, 1, 16, 16);
 }
 
-#if !OD_DISABLE_SATD
 static const od_coeff OD_HADAMARD_4X4[] = {
   1, 1, 1, 1,
   1,-1, 1,-1,
@@ -1587,7 +1586,6 @@ int od_mc_compute_satd_32x32_c(const unsigned char *src, int systride,
   satd = od_mc_compute_satd_generic_size_c(src, systride, ref, dystride, 5);
   return satd;
 }
-#endif
 
 /*Computes the SAD of the input image against the given predictor.*/
 static ogg_int32_t od_enc_sad8(od_enc_ctx *enc, const unsigned char *p,
@@ -1657,7 +1655,6 @@ static ogg_int32_t od_enc_sad8(od_enc_ctx *enc, const unsigned char *p,
   return ret;
 }
 
-#if !OD_DISABLE_SATD
 /*Computes the SATD of the input image block against the given predictor.*/
 static ogg_int32_t od_enc_satd8(od_enc_ctx *enc, const unsigned char *p,
  int pystride, int pxstride, int pli, int x, int y, int log_blk_sz) {
@@ -1728,7 +1725,6 @@ static ogg_int32_t od_enc_satd8(od_enc_ctx *enc, const unsigned char *p,
   }
   return ret;
 }
-#endif
 
 static int od_mv_est_init_impl(od_mv_est_ctx *est, od_enc_ctx *enc) {
   int nhmvbs;
@@ -6034,12 +6030,14 @@ void od_mv_est(od_mv_est_ctx *est, int ref, int lambda) {
   int nhmvbs;
   int nvmvbs;
   int complexity;
+  int use_satd;
   const int *pattern_nsites;
   const od_pattern *pattern;
   int log_mvb_sz;
   int pli;
   int i;
   int j;
+  use_satd = est->enc->use_satd;
   state = &est->enc->state;
   nhmvbs = state->nhmvbs;
   nvmvbs = state->nvmvbs;
@@ -6131,25 +6129,25 @@ void od_mv_est(od_mv_est_ctx *est, int ref, int lambda) {
     dcost += od_mv_est_refine(est, ref, 3, 2, pattern_nsites, pattern);
   }
   while (dcost < cost_thresh);
-#if !OD_DISABLE_SATD
-  /* The two #defines below apply to sub-pel ME only. */
+  if (use_satd) {
+    /* The two #defines below apply to sub-pel ME only. */
 # define OD_ME_SATD_THRESH_SCALE (0.7) /* 1.0 means the same as SAD. */
 # define OD_ME_SATD_LAMBDA_SCALE (0.6)
-  est->compute_distortion = od_enc_satd8;/* Use SATD from this stage. */
-  est->lambda = (int)(est->lambda * OD_ME_SATD_LAMBDA_SCALE);
-  cost_thresh = (int)(cost_thresh * OD_ME_SATD_THRESH_SCALE);
-  /* Reset sad values for each ME block since those are used as base
-      when measuring the change in ME error in the next stage. */
-  {
-    int vx;
-    int vy;
-    for (vy = 0; vy < nvmvbs; vy += OD_MVB_DELTA0) {
-      for (vx = 0; vx < nhmvbs; vx += OD_MVB_DELTA0) {
-        od_mv_est_reset_rd_block_state(est, ref, vx, vy, OD_LOG_MVB_DELTA0);
+    est->compute_distortion = od_enc_satd8;/* Use SATD from this stage. */
+    est->lambda = (int)(est->lambda * OD_ME_SATD_LAMBDA_SCALE);
+    cost_thresh = (int)(cost_thresh * OD_ME_SATD_THRESH_SCALE);
+    /* Reset sad values for each ME block since those are used as base
+        when measuring the change in ME error in the next stage. */
+    {
+      int vx;
+      int vy;
+      for (vy = 0; vy < nvmvbs; vy += OD_MVB_DELTA0) {
+        for (vx = 0; vx < nhmvbs; vx += OD_MVB_DELTA0) {
+          od_mv_est_reset_rd_block_state(est, ref, vx, vy, OD_LOG_MVB_DELTA0);
+        }
       }
     }
   }
-#endif
   od_mv_subpel_refine(est, ref, cost_thresh);
   od_restore_fpu(state);
 }

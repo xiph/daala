@@ -94,6 +94,7 @@ struct daala_enc_ctx{
   int coded_quantizer[OD_NPLANES_MAX];
   int complexity;
   int use_activity_masking;
+  int use_satd;
   od_qm qm;
   int use_haar_wavelet;
   od_mv_est_ctx *mvest;

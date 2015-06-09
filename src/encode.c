@@ -70,7 +70,6 @@ void od_enc_opt_vtbl_init_c(od_enc_ctx *enc) {
    od_mc_compute_sad_8x8_xstride_1_c;
   enc->opt_vtbl.mc_compute_sad_16x16_xstride_1 =
    od_mc_compute_sad_16x16_xstride_1_c;
-#if !OD_DISABLE_SATD
   enc->opt_vtbl.mc_compute_satd_4x4 =
    od_mc_compute_satd_4x4_c;
   enc->opt_vtbl.mc_compute_satd_8x8 =
@@ -79,7 +78,6 @@ void od_enc_opt_vtbl_init_c(od_enc_ctx *enc) {
    od_mc_compute_satd_16x16_c;
   enc->opt_vtbl.mc_compute_satd_32x32 =
    od_mc_compute_satd_32x32_c;
-#endif
 }
 
 static void od_enc_opt_vtbl_init(od_enc_ctx *enc) {
@@ -95,6 +93,7 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
   int ret;
   ret = od_state_init(&enc->state, info);
   if (ret < 0) return ret;
+  enc->use_satd = 0;
   od_enc_opt_vtbl_init(enc);
   oggbyte_writeinit(&enc->obb);
   od_ec_enc_init(&enc->ec, 65025);
@@ -196,6 +195,13 @@ int daala_encode_ctl(daala_enc_ctx *enc, int req, void *buf, size_t buf_sz) {
       else {
         enc->mvest->flags &= ~OD_MC_USE_CHROMA;
       }
+      return OD_SUCCESS;
+    }
+    case OD_SET_MC_USE_SATD: {
+      OD_ASSERT(enc);
+      OD_ASSERT(buf);
+      OD_ASSERT(buf_sz == sizeof(enc->use_satd));
+      enc->use_satd = !!*(const int *)buf;
       return OD_SUCCESS;
     }
     case OD_SET_USE_ACTIVITY_MASKING: {

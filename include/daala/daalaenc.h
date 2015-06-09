@@ -193,6 +193,10 @@ void daala_encode_free(daala_enc_ctx *enc);
  * \param[in]  _buf <tt>int</tt>: level between 0 and 4
  *                   Default: 4 */
 #define OD_SET_MV_LEVEL_MAX 4106
+/** Whether the SATD metric should be used in motion compensation or not.
+ * \param[in]  _buf <tt>int</tt>: 0 to disable the use of SATD (the default),
+ *                   a non-zero value otherwise. */
+#define OD_SET_MC_USE_SATD 4108
 
 /*@}*/
 
