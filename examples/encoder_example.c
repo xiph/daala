@@ -374,6 +374,8 @@ static const struct option OPTIONS[] = {
   { "complexity", required_argument, NULL, 'z' },
   { "mc-use-chroma", no_argument, NULL, 0 },
   { "no-mc-use-chroma", no_argument, NULL, 0 },
+  { "mc-use-satd", no_argument, NULL, 0 },
+  { "no-mc-use-satd", no_argument, NULL, 0 },
   { "activity-masking", no_argument, NULL, 0 },
   { "no-activity-masking", no_argument, NULL, 0 },
   { "qm", required_argument, NULL, 0 },
@@ -410,6 +412,9 @@ static void usage(void) {
    "     --[no-]mc-use-chroma        Control whether the chroma planes should\n"
    "                                 be used in the motion compensation search.\n"
    "                                 --mc-use-chroma is implied by default.\n"
+   "     --[no-]mc-use-satd          Control whether the SATD metric should\n"
+   "                                 be used in the motion estimation.\n"
+   "                                 --no-mc-use-satd is implied by default.\n"
    "     --[no-]activity-masking     Control whether activity masking should\n"
    "                                 be used in quantization.\n"
    "                                 --activity-masking is implied by default.\n"
@@ -459,6 +464,7 @@ int main(int argc, char **argv) {
   int complexity;
   int interactive;
   int mc_use_chroma;
+  int mc_use_satd;
   int use_activity_masking;
   int qm;
   int mv_res_min;
@@ -486,6 +492,7 @@ int main(int argc, char **argv) {
   limit = -1;
   complexity = 7;
   mc_use_chroma = 1;
+  mc_use_satd = 0;
   use_activity_masking = 1;
   qm = 1;
   mv_res_min = 0;
@@ -566,6 +573,12 @@ int main(int argc, char **argv) {
         }
         else if (strcmp(OPTIONS[loi].name, "no-mc-use-chroma") == 0) {
           mc_use_chroma = 0;
+        }
+        else if (strcmp(OPTIONS[loi].name, "mc-use-satd") == 0) {
+          mc_use_satd = 1;
+        }
+        else if (strcmp(OPTIONS[loi].name, "no-mc-use-satd") == 0) {
+          mc_use_satd = 0;
         }
         else if (strcmp(OPTIONS[loi].name, "activity-masking") == 0) {
           use_activity_masking = 1;
@@ -651,6 +664,8 @@ int main(int argc, char **argv) {
   daala_encode_ctl(dd, OD_SET_COMPLEXITY, &complexity, sizeof(complexity));
   daala_encode_ctl(dd, OD_SET_MC_USE_CHROMA, &mc_use_chroma,
    sizeof(mc_use_chroma));
+  daala_encode_ctl(dd, OD_SET_MC_USE_SATD, &mc_use_satd,
+   sizeof(mc_use_satd));
   daala_encode_ctl(dd, OD_SET_USE_ACTIVITY_MASKING, &use_activity_masking,
    sizeof(use_activity_masking));
   daala_encode_ctl(dd, OD_SET_MV_RES_MIN, &mv_res_min, sizeof(mv_res_min));
