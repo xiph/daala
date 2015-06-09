@@ -70,6 +70,7 @@ void od_enc_opt_vtbl_init_c(od_enc_ctx *enc) {
    od_mc_compute_sad_8x8_xstride_1_c;
   enc->opt_vtbl.mc_compute_sad_16x16_xstride_1 =
    od_mc_compute_sad_16x16_xstride_1_c;
+#if !OD_DISABLE_SATD
   enc->opt_vtbl.mc_compute_satd_4x4 =
    od_mc_compute_satd_4x4_c;
   enc->opt_vtbl.mc_compute_satd_8x8 =
@@ -78,6 +79,7 @@ void od_enc_opt_vtbl_init_c(od_enc_ctx *enc) {
    od_mc_compute_satd_16x16_c;
   enc->opt_vtbl.mc_compute_satd_32x32 =
    od_mc_compute_satd_32x32_c;
+#endif
 }
 
 static void od_enc_opt_vtbl_init(od_enc_ctx *enc) {
