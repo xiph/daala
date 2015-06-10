@@ -95,7 +95,7 @@ struct daala_enc_ctx{
   int complexity;
   int use_activity_masking;
   int use_satd;
-  od_qm qm;
+  int qm;
   int use_haar_wavelet;
   od_mv_est_ctx *mvest;
   od_params_ctx params;

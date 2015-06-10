@@ -212,7 +212,7 @@ int daala_encode_ctl(daala_enc_ctx *enc, int req, void *buf, size_t buf_sz) {
       return OD_SUCCESS;
     }
     case OD_SET_QM: {
-      od_qm qm;
+      int qm;
       OD_ASSERT(enc);
       OD_ASSERT(buf);
       OD_ASSERT(buf_sz == sizeof(qm));
@@ -382,7 +382,7 @@ struct od_mb_enc_ctx {
   od_coeff *l;
   int is_keyframe;
   int use_activity_masking;
-  od_qm qm;
+  int qm;
   int use_haar_wavelet;
 };
 typedef struct od_mb_enc_ctx od_mb_enc_ctx;

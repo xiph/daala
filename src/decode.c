@@ -187,7 +187,7 @@ struct od_mb_dec_ctx {
   od_coeff *l;
   int is_keyframe;
   int use_activity_masking;
-  od_qm qm;
+  int qm;
   int use_haar_wavelet;
 };
 typedef struct od_mb_dec_ctx od_mb_dec_ctx;

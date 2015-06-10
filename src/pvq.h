@@ -55,10 +55,8 @@ extern const int OD_QM8_Q4_QM_HVS[];
 
 #define OD_QM_SIZE (20)
 
-typedef enum {
-  OD_FLAT_QM,
-  OD_HVS_QM
-} od_qm;
+#define OD_FLAT_QM 0
+#define OD_HVS_QM  1
 
 int od_qm_get_index(int bs, int band);
 
