@@ -1354,7 +1354,6 @@ static void od_predict_frame(daala_enc_ctx *enc) {
 #endif
 }
 
-#if 0
 static void od_split_superblocks(daala_enc_ctx *enc, int is_keyframe) {
   int nhsb;
   int nvsb;
@@ -1408,7 +1407,6 @@ static void od_split_superblocks(daala_enc_ctx *enc, int is_keyframe) {
     }
   }
 }
-#endif
 
 static void od_encode_mvs(daala_enc_ctx *enc) {
   int nhmvbs;
@@ -1912,19 +1910,11 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   if (!mbctx.is_keyframe) {
     od_predict_frame(enc);
     od_encode_mvs(enc);
-#if 1
-    od_split_superblocks_rdo(enc, &mbctx);
-#else
-    od_split_superblocks(enc, 0);
-#endif
   }
-  else {
-#if 1
-    od_split_superblocks_rdo(enc, &mbctx);
-#else
-    od_split_superblocks(enc, 1);
-#endif
-  }
+  /* Enable block size RDO for all but complexity 0 and 1. We might want to
+     revise that choice if we get a better open-loop block size algorithm. */
+  if (enc->complexity >= 2) od_split_superblocks_rdo(enc, &mbctx);
+  else od_split_superblocks(enc, mbctx.is_keyframe);
   od_encode_coefficients(enc, &mbctx, OD_ENCODE_REAL);
 #if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
   /*Dump YUV*/
