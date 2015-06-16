@@ -186,8 +186,7 @@ case $host_cpu in
   x86_64)
     cpu_x86=true
     ;;
-  arm)
-  armhf)
+  arm|armhf)
     cpu_arm=true
     ;;
 esac
