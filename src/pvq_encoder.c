@@ -573,10 +573,9 @@ int od_rdo_quant(od_coeff x, int q, double delta0) {
  * @param [in]     ref     'reference' (prediction) vector
  * @param [in]     in      coefficient block to quantize and encode
  * @param [out]    out     quantized coefficient block
- * @param [in]     q       scale/quantizer
+ * @param [in]     q0      scale/quantizer
  * @param [in]     pli     plane index
- * @param [in]     ln      log of the block size minus two
- * @param [in]     qm      per-band quantization matrix
+ * @param [in]     bs      log of the block size minus two
  * @param [in]     beta    per-band activity masking beta param
  * @param [in]     robust  make stream robust to error in the reference
  * @param [in]     is_keyframe whether we're encoding a keyframe
