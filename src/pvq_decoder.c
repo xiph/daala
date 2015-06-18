@@ -284,14 +284,14 @@ static void pvq_decode_partition(od_ec_dec *ec,
  * @param [in,out] dec     daala decoder context
  * @param [in]     ref     'reference' (prediction) vector
  * @param [out]    out     decoded partition
- * @param [in]     q       quantizer
+ * @param [in]     q0      quantizer
  * @param [in]     pli     plane index
- * @param [in]     ln      log of the block size minus two
- * @param [in]     qm      per-band quantization matrix
+ * @param [in]     bs      log of the block size minus two
  * @param [in]     beta    per-band activity masking beta param
  * @param [in]     robust  stream is robust to error in the reference
  * @param [in]     is_keyframe whether we're encoding a keyframe
  * @param [out]    flags   bitmask of the per band skip and noref flags
+ * @param [in]     block_skip skip flag for the block (range 0-4)
  */
 void od_pvq_decode(daala_dec_ctx *dec,
                    od_coeff *ref,
