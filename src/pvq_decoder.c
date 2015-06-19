@@ -291,7 +291,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
  * @param [in]     robust  stream is robust to error in the reference
  * @param [in]     is_keyframe whether we're encoding a keyframe
  * @param [out]    flags   bitmask of the per band skip and noref flags
- * @param [in]     block_skip skip flag for the block (range 0-4)
+ * @param [in]     block_skip skip flag for the block (range 0-3)
  */
 void od_pvq_decode(daala_dec_ctx *dec,
                    od_coeff *ref,
@@ -328,6 +328,7 @@ void od_pvq_decode(daala_dec_ctx *dec,
   model = dec->state.adapt.pvq_param_model;
   nb_bands = OD_BAND_OFFSETS[bs][0];
   off = &OD_BAND_OFFSETS[bs][1];
+  OD_ASSERT(block_skip < 4);
   skip[0] = block_skip;
   out[0] = skip[0] & 1;
   skip[0] >>= 1;
