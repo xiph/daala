@@ -489,6 +489,7 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
  * @param [in]     max_theta  maximum possible quantized theta value
  * @param [in]     in         coefficient vector to code
  * @param [in]     n          number of coefficients in partition
+ * @param [in]     k          number of pulses in partition
  * @param [in,out] model      entropy encoder state
  * @param [in,out] adapt      adaptation context
  * @param [in,out] exg        ExQ16 expectation of gain value

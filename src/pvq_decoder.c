@@ -96,10 +96,8 @@ static int neg_deinterleave(int x, int ref) {
  * @param [in]      n       number of elements in this partition
  * @param [in]      gr      gain of the reference vector (prediction)
  * @param [in]      noref   indicates presence or lack of prediction
- * @param [in]      qg      decoded quantized vector gain
+ * @param [in]      g       decoded quantized vector gain
  * @param [in]      theta   decoded theta (prediction error)
- * @param [in]      m       alignment dimension of Householder reflection
- * @param [in]      s       sign of Householder reflection
  */
 static void pvq_synthesis(od_coeff *xcoeff, od_coeff *ypulse, od_coeff *ref,
  int n, double gr, int noref, double g, double theta) {
@@ -107,8 +105,10 @@ static void pvq_synthesis(od_coeff *xcoeff, od_coeff *ypulse, od_coeff *ref,
   int s;
   int m;
   double r[MAXN];
+  /* Sign of the Householder reflection vector */
   s = 0;
   if (!noref) for (i = 0; i < n; i++) r[i] = ref[i];
+  /* Direction of the Householder reflection vector */
   m = noref ? 0 : od_compute_householder(r, n, gr, &s);
   od_pvq_synthesis_partial(xcoeff, ypulse, r, n, noref, g, theta, m, s);
 }
@@ -123,7 +123,7 @@ typedef struct {
  *  coefficient block) encoded using PVQ
  *
  * @param [in,out] ec      range encoder
- * @param [in]     q       scale/quantizer
+ * @param [in]     q0      scale/quantizer
  * @param [in]     n       number of coefficients in partition
  * @param [in,out] model   entropy decoder state
  * @param [in,out] adapt   adaptation context
@@ -139,6 +139,9 @@ typedef struct {
  * @param [in]     cdf_ctx selects which cdf context to use
  * @param [in,out] skip_rest whether to skip further bands in each direction
  * @param [in]     band    index of the band being decoded
+ * @param [in]     bs      log of the block size minus 2
+ * @param [in]     band    index of the band being decoded
+ * @param [out]    skip    skip flag with range [0,1]
  */
 static void pvq_decode_partition(od_ec_dec *ec,
                                  int q0,

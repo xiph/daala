@@ -414,6 +414,7 @@ double od_pvq_compute_gain(od_coeff *x, int n, int q0, double *g, double beta){
 /** Compute theta quantization range from quantized/companded gain
  *
  * @param [in]      qcg    quantized companded gain value
+ * @param [in]      beta   activity masking beta param
  * @return                 max theta value
  */
 int od_pvq_compute_max_theta(double qcg, double beta){
@@ -486,7 +487,7 @@ int od_pvq_compute_k(double qcg, int itheta, double theta, int noref, int n,
  * @param [in]      r       reference vector (prediction)
  * @param [in]      n       number of elements in this partition
  * @param [in]      noref   indicates presence or lack of prediction
- * @param [in]      qg      decoded quantized vector gain
+ * @param [in]      g       decoded quantized vector gain
  * @param [in]      theta   decoded theta (prediction error)
  * @param [in]      m       alignment dimension of Householder reflection
  * @param [in]      s       sign of Householder reflection
