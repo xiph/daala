@@ -36,8 +36,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # define WIN32_EXTRA_LEAN
 # include <windows.h>
 
-static OD_INLINE ogg_uint32_t od_cpu_flags_get(void){
-  ogg_uint32_t flags;
+static OD_INLINE uint32_t od_cpu_flags_get(void){
+  uint32_t flags;
   flags=0;
   /* MSVC has no OD_INLINE __asm support for ARM, but it does let you __emit
    * instructions via their assembled hex code.
@@ -77,9 +77,9 @@ static OD_INLINE ogg_uint32_t od_cpu_flags_get(void){
 
 #elif defined(__linux__)
 /* Linux based */
-ogg_uint32_t od_cpu_flags_get(void)
+uint32_t od_cpu_flags_get(void)
 {
-  ogg_uint32_t flags = 0;
+  uint32_t flags = 0;
   FILE *cpuinfo;
 
   /* Reading /proc/self/auxv would be easier, but that doesn't work reliably on

@@ -50,10 +50,10 @@ void daala_comment_init(daala_comment *_dc) {
 void daala_comment_clear(daala_comment *_dc) {
   if (_dc != NULL) {
     int ci;
-    for (ci = 0; ci < _dc->comments; ci++) _ogg_free(_dc->user_comments[ci]);
-    _ogg_free(_dc->user_comments);
-    _ogg_free(_dc->comment_lengths);
-    _ogg_free(_dc->vendor);
+    for (ci = 0; ci < _dc->comments; ci++) free(_dc->user_comments[ci]);
+    free(_dc->user_comments);
+    free(_dc->comment_lengths);
+    free(_dc->vendor);
     OD_CLEAR(_dc, 1);
   }
 }

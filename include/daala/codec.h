@@ -47,12 +47,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
  * The shared <tt>libdaala</tt> C API.*/
 #if !defined(_daala_codec_H)
 # define _daala_codec_H (1)
-/*Pick up typedefs.*/
-# include <ogg/ogg.h>
 
 # if defined(__cplusplus)
 extern "C" {
 # endif
+
+#include "daala_integer.h"
 
 /*Enable special features for gcc and compatible compilers.*/
 # if defined(__GNUC__) && defined(__GNUC_MINOR__) && defined(__GNUC_PATCHLEVEL__)
@@ -165,8 +165,8 @@ struct od_img {
   /** Number of planes (1 for greyscale, 3 for YCbCr, 4 for YCbCr+Alpha ) */
   int nplanes;
   /** Width and height in pixels */
-  ogg_int32_t width;
-  ogg_int32_t height;
+  int32_t width;
+  int32_t height;
 };
 
 /** Subsampling factors for a plane as a power of 2.
@@ -182,13 +182,13 @@ struct daala_info {
   unsigned char version_minor;
   unsigned char version_sub;
   /** pic_width,_height form a region of interest to encode */
-  ogg_int32_t pic_width;
-  ogg_int32_t pic_height;
-  ogg_uint32_t pixel_aspect_numerator;
-  ogg_uint32_t pixel_aspect_denominator;
-  ogg_uint32_t timebase_numerator;
-  ogg_uint32_t timebase_denominator;
-  ogg_uint32_t frame_duration;
+  int32_t pic_width;
+  int32_t pic_height;
+  uint32_t pixel_aspect_numerator;
+  uint32_t pixel_aspect_denominator;
+  uint32_t timebase_numerator;
+  uint32_t timebase_denominator;
+  uint32_t frame_duration;
   int keyframe_granule_shift;
   int nplanes;
   daala_plane_info plane_info[OD_NPLANES_MAX];
@@ -237,8 +237,8 @@ struct daala_comment {
 void daala_comment_init(daala_comment *dc);
 void daala_comment_clear(daala_comment *dc);
 
-ogg_int64_t daala_granule_basetime(void *encdec, ogg_int64_t granpos);
-double daala_granule_time(void *encdec, ogg_int64_t granpos);
+int64_t daala_granule_basetime(void *encdec, int64_t granpos);
+double daala_granule_time(void *encdec, int64_t granpos);
 /**Determines whether a Daala packet is a header or not.
    This function does no verification beyond checking the packet type bit, so
     it should not be used for bitstream identification.

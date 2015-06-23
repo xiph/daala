@@ -110,7 +110,7 @@ static const unsigned short __attribute__((aligned(16),used)) OD_BILV[128]={
 
 #if defined(OD_CHECKASM)
 void od_mc_predict1fmv8_check(unsigned char *_dst,const unsigned char *_src,
- int _systride,ogg_int32_t _mvx,ogg_int32_t _mvy,
+ int _systride,int32_t _mvx,int32_t _mvy,
  int _log_xblk_sz,int _log_yblk_sz){
   unsigned char dst[OD_MVBSIZE_MAX*OD_MVBSIZE_MAX];
   int           xblk_sz;
@@ -141,7 +141,7 @@ void od_mc_predict1fmv8_check(unsigned char *_dst,const unsigned char *_src,
 #endif
 
 void od_mc_predict1fmv8_sse2(unsigned char *dst,const unsigned char *src,
- int systride, ogg_int32_t mvx, ogg_int32_t mvy,
+ int systride, int32_t mvx, int32_t mvy,
  int log_xblk_sz, int log_yblk_sz) {
   int mvxf;
   int mvyf;
@@ -154,7 +154,7 @@ void od_mc_predict1fmv8_sse2(unsigned char *dst,const unsigned char *src,
      area of the image block.
     Used as output for 1st stage horizontal filtering then as input for
      2nd stage vertical filtering.*/
-  ogg_int16_t *buff_p;
+  int16_t *buff_p;
   /*A pointer to input row for both 1st and 2nd stage filtering.*/
   const unsigned char *src_p;
   unsigned char *dst_p;
@@ -164,7 +164,7 @@ void od_mc_predict1fmv8_sse2(unsigned char *dst,const unsigned char *src,
      filtering (i.e vertical) requires support region on those apron pixels.
     The size of the buffer is :
      wxh = OD_MVBSIZE_MAX x (OD_MVBSIZE_MAX + BUFF_APRON_SZ).*/
-  ogg_int16_t buff[(OD_MVBSIZE_MAX + OD_SUBPEL_BUFF_APRON_SZ)
+  int16_t buff[(OD_MVBSIZE_MAX + OD_SUBPEL_BUFF_APRON_SZ)
    *OD_MVBSIZE_MAX + 16];
   int k;
   xblk_sz = 1 << log_xblk_sz;
@@ -202,7 +202,7 @@ void od_mc_predict1fmv8_sse2(unsigned char *dst,const unsigned char *src,
             sums = _mm_add_epi32(sums, _mm_unpackhi_epi64(sums, sums));
             sums = _mm_add_epi32(sums,
              _mm_shufflelo_epi16(sums, _MM_SHUFFLE(0, 0, 3, 2)));
-            buff_p[i + k] = (ogg_int16_t)_mm_cvtsi128_si32(_mm_sub_epi32(sums,
+            buff_p[i + k] = (int16_t)_mm_cvtsi128_si32(_mm_sub_epi32(sums,
              _mm_cvtsi32_si128(128 << OD_SUBPEL_COEFF_SCALE)));
             tmp = _mm_srli_si128(tmp, 1);
           }
@@ -234,8 +234,8 @@ void od_mc_predict1fmv8_sse2(unsigned char *dst,const unsigned char *src,
           }
           else {
             OD_ASSERT(i + 2 <= xblk_sz);
-            *((ogg_uint32_t *)(buff_p + i)) =
-             (ogg_uint32_t)_mm_cvtsi128_si32(src8pels);
+            *((uint32_t *)(buff_p + i)) =
+             (uint32_t)_mm_cvtsi128_si32(src8pels);
           }
         }
         src_p += systride;
@@ -340,14 +340,14 @@ void od_mc_predict1fmv8_sse2(unsigned char *dst,const unsigned char *src,
             OD_ASSERT(i + 4 <= xblk_sz);
             out = _mm_packs_epi32(sums32_0to3, sums32_0to3);
             out = _mm_packus_epi16(out, out);
-            *((ogg_uint32_t *)(dst_p + i)) = _mm_cvtsi128_si32(out);
+            *((uint32_t *)(dst_p + i)) = _mm_cvtsi128_si32(out);
           }
           else {
             OD_ASSERT(i + 2 <= xblk_sz);
             out = _mm_packs_epi32(sums32_0to3, sums32_0to3);
             out = _mm_packus_epi16(out, out);
-            *((ogg_uint16_t *)(dst_p + i)) =
-             (ogg_uint16_t)_mm_cvtsi128_si32(out);
+            *((uint16_t *)(dst_p + i)) =
+             (uint16_t)_mm_cvtsi128_si32(out);
           }
         }
         buff_p += xblk_sz;
@@ -376,12 +376,12 @@ void od_mc_predict1fmv8_sse2(unsigned char *dst,const unsigned char *src,
           }
           else if (xblk_sz >= 4) {
             OD_ASSERT(i + 4 <= xblk_sz);
-            *((ogg_uint32_t *)(dst_p + i)) = _mm_cvtsi128_si32(p);
+            *((uint32_t *)(dst_p + i)) = _mm_cvtsi128_si32(p);
           }
           else {
             OD_ASSERT(i + 2 <= xblk_sz);
-            *((ogg_uint16_t *)(dst_p + i)) =
-             (ogg_uint16_t)_mm_cvtsi128_si32(p);
+            *((uint16_t *)(dst_p + i)) =
+             (uint16_t)_mm_cvtsi128_si32(p);
           }
         }
         buff_p += xblk_sz;

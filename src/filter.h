@@ -26,7 +26,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # define _filter_H (1)
 # include "internal.h"
 
-typedef ogg_int32_t od_coeff;
+typedef int32_t od_coeff;
 # define OD_COEFF_BITS (32)
 
 /*There are 4 filter sizes total (4-point, 8-point, 16-point and 32-point).*/
@@ -36,7 +36,7 @@ typedef ogg_int32_t od_coeff;
   This will not work for _b == 0, however currently this is only used for
    b == 1 anyway.*/
 # define OD_UNBIASED_RSHIFT32(_a, _b) \
- (((ogg_int32_t)(((ogg_uint32_t)(_a) >> (32 - (_b))) + (_a))) >> (_b))
+ (((int32_t)(((uint32_t)(_a) >> (32 - (_b))) + (_a))) >> (_b))
 
 # define OD_DCT_RSHIFT(_a, _b) OD_UNBIASED_RSHIFT32(_a, _b)
 

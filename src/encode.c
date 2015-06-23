@@ -111,7 +111,7 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
   }
   enc->params.mv_level_min = 0;
   enc->params.mv_level_max = 4;
-  enc->bs = (od_block_size_comp *)_ogg_malloc(sizeof(*enc->bs));
+  enc->bs = (od_block_size_comp *)malloc(sizeof(*enc->bs));
 #if defined(OD_ENCODER_CHECK)
   enc->dec = daala_decode_alloc(info, NULL);
 #endif
@@ -128,9 +128,9 @@ static void od_enc_clear(od_enc_ctx *enc) {
 daala_enc_ctx *daala_encode_create(const daala_info *info) {
   od_enc_ctx *enc;
   if (info == NULL) return NULL;
-  enc = (od_enc_ctx *)_ogg_malloc(sizeof(*enc));
+  enc = (od_enc_ctx *)malloc(sizeof(*enc));
   if (od_enc_init(enc, info) < 0) {
-    _ogg_free(enc);
+    free(enc);
     return NULL;
   }
   return enc;
@@ -143,9 +143,9 @@ void daala_encode_free(daala_enc_ctx *enc) {
       daala_decode_free(enc->dec);
     }
 #endif
-    _ogg_free(enc->bs);
+    free(enc->bs);
     od_enc_clear(enc);
-    _ogg_free(enc);
+    free(enc);
   }
 }
 
@@ -1362,7 +1362,7 @@ static void od_encode_mvs(daala_enc_ctx *enc) {
   int level;
   od_mv_grid_pt *mvp;
   od_mv_grid_pt **grid;
-  ogg_uint16_t *cdf;
+  uint16_t *cdf;
   nhmvbs = enc->state.nhmvbs;
   nvmvbs = enc->state.nvmvbs;
   mvimg = enc->state.io_imgs + OD_FRAME_REC;
@@ -1620,8 +1620,8 @@ static void od_dump_frame_metrics(od_state *state) {
   frame_height = state->frame_height;
   for (pli = 0; pli < nplanes; pli++) {
     unsigned char *data;
-    ogg_int64_t enc_sqerr;
-    ogg_uint32_t npixels;
+    int64_t enc_sqerr;
+    uint32_t npixels;
     int ystride;
     int xdec;
     int ydec;
@@ -1922,7 +1922,7 @@ static void daala_encoder_check(daala_enc_ctx *ctx, od_img *img,
 #endif
 
 int daala_encode_packet_out(daala_enc_ctx *enc, int last, ogg_packet *op) {
-  ogg_uint32_t nbytes;
+  uint32_t nbytes;
   if (enc == NULL || op == NULL) return OD_EFAULT;
   else if (enc->packet_state <= 0 || enc->packet_state == OD_PACKET_DONE) {
     return 0;

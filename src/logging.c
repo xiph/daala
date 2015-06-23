@@ -239,7 +239,7 @@ int od_log_matrix_##N(od_log_facility facility, \
   /* Take an initial stab at buffer size */ \
   buffer_size = sizeof(T)*2*width*height; \
   current_size = 0; \
-  buffer = (char *)_ogg_malloc(buffer_size); \
+  buffer = (char *)malloc(buffer_size); \
   if (!buffer) \
     return 0;  /* TODO: Real error value */ \
  \
@@ -254,8 +254,8 @@ re_format: \
                     w != (width-1) ? ' ' : '\n'); \
       if (((size_t)rv) >= (buffer_size - current_size)) { \
         buffer_size *= 2; \
-        if (!(tmp = (char *)_ogg_realloc(buffer, buffer_size))) { \
-          _ogg_free(buffer); \
+        if (!(tmp = (char *)realloc(buffer, buffer_size))) { \
+          free(buffer); \
           return OD_EFAULT;  /* Out of memory */ \
         } \
         buffer = tmp; \
@@ -266,14 +266,14 @@ re_format: \
   } \
  \
   od_log(facility, level, "%s", buffer); \
-  _ogg_free(buffer); \
+  free(buffer); \
   return 0; \
 }
 
 DEFINE_OD_LOG_MATRIX(char, char, "%s%d%c")
 DEFINE_OD_LOG_MATRIX(unsigned char, uchar, "%s%u%c")
-DEFINE_OD_LOG_MATRIX(ogg_int16_t, int16, "%s%d%c")
-DEFINE_OD_LOG_MATRIX(ogg_uint16_t, uint16, "%s%u%c")
-DEFINE_OD_LOG_MATRIX(ogg_int32_t, int32, "%s%d%c")
-DEFINE_OD_LOG_MATRIX(ogg_uint32_t, uint32, "%s%u%c")
+DEFINE_OD_LOG_MATRIX(int16_t, int16, "%s%d%c")
+DEFINE_OD_LOG_MATRIX(uint16_t, uint16, "%s%u%c")
+DEFINE_OD_LOG_MATRIX(int32_t, int32, "%s%d%c")
+DEFINE_OD_LOG_MATRIX(uint32_t, uint32, "%s%u%c")
 DEFINE_OD_LOG_MATRIX(float, float, "%s%g%c")
