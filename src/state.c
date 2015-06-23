@@ -70,7 +70,7 @@ static void *od_aligned_malloc(size_t _sz,size_t _align) {
   unsigned char *p;
   if (_align - 1 > UCHAR_MAX || (_align&_align-1) || _sz > ~(size_t)0-_align)
     return NULL;
-  p = (unsigned char *)_ogg_malloc(_sz + _align);
+  p = (unsigned char *)malloc(_sz + _align);
   if (p != NULL) {
     int offs;
     offs = ((p-(unsigned char *)0) - 1 & _align - 1);
@@ -86,7 +86,7 @@ static void od_aligned_free(void *_ptr) {
   if (p != NULL) {
     int offs;
     offs = *--p;
-    _ogg_free(p - offs);
+    free(p - offs);
   }
 }
 
@@ -305,7 +305,7 @@ static int od_state_init_impl(od_state *state, const daala_info *info) {
     int ydec;
     int w;
     int h;
-    state->sb_dc_mem[pli] = (od_coeff*)_ogg_malloc(
+    state->sb_dc_mem[pli] = (od_coeff*)malloc(
      sizeof(state->sb_dc_mem[pli][0])*state->nhsb*state->nvsb);
     if (OD_UNLIKELY(!state->sb_dc_mem[pli])) {
       return OD_EFAULT;
@@ -314,19 +314,19 @@ static int od_state_init_impl(od_state *state, const daala_info *info) {
     ydec = info->plane_info[pli].ydec;
     w = state->frame_width >> xdec;
     h = state->frame_height >> ydec;
-    state->ctmp[pli] = (od_coeff *)_ogg_malloc(w*h*sizeof(*state->ctmp[pli]));
+    state->ctmp[pli] = (od_coeff *)malloc(w*h*sizeof(*state->ctmp[pli]));
     if (OD_UNLIKELY(!state->ctmp[pli])) {
       return OD_EFAULT;
     }
-    state->dtmp[pli] = (od_coeff *)_ogg_malloc(w*h*sizeof(*state->dtmp[pli]));
+    state->dtmp[pli] = (od_coeff *)malloc(w*h*sizeof(*state->dtmp[pli]));
     if (OD_UNLIKELY(!state->dtmp[pli])) {
       return OD_EFAULT;
     }
-    state->mctmp[pli] = (od_coeff *)_ogg_malloc(w*h*sizeof(*state->mctmp[pli]));
+    state->mctmp[pli] = (od_coeff *)malloc(w*h*sizeof(*state->mctmp[pli]));
     if (OD_UNLIKELY(!state->mctmp[pli])) {
       return OD_EFAULT;
     }
-    state->mdtmp[pli] = (od_coeff *)_ogg_malloc(w*h*sizeof(*state->mdtmp[pli]));
+    state->mdtmp[pli] = (od_coeff *)malloc(w*h*sizeof(*state->mdtmp[pli]));
     if (OD_UNLIKELY(!state->mdtmp[pli])) {
       return OD_EFAULT;
     }
@@ -343,7 +343,7 @@ static int od_state_init_impl(od_state *state, const daala_info *info) {
         }
       }
       if (plj >= pli) {
-        state->lbuf[pli] = state->ltmp[pli] = (od_coeff *)_ogg_malloc(w*h*
+        state->lbuf[pli] = state->ltmp[pli] = (od_coeff *)malloc(w*h*
           sizeof(*state->ltmp[pli]));
         if (OD_UNLIKELY(!state->lbuf[pli])) {
           return OD_EFAULT;
@@ -352,7 +352,7 @@ static int od_state_init_impl(od_state *state, const daala_info *info) {
     }
     else state->lbuf[pli] = state->ltmp[pli] = NULL;
   }
-  state->bsize = (unsigned char *)_ogg_malloc(
+  state->bsize = (unsigned char *)malloc(
    sizeof(*state->bsize)*(state->nhsb + 2)*4*(state->nvsb + 2)*4);
   if (OD_UNLIKELY(!state->bsize)) {
     return OD_EFAULT;
@@ -381,7 +381,7 @@ void od_state_clear(od_state *state) {
   int i;
   if (state->dump_tags > 0) {
     for (i = 0; i < state->dump_tags; i++) fclose(state->dump_files[i].fd);
-    _ogg_free(state->dump_files);
+    free(state->dump_files);
     state->dump_files = 0;
     state->dump_tags = 0;
   }
@@ -390,14 +390,14 @@ void od_state_clear(od_state *state) {
   od_aligned_free(state->ref_img_data);
   state->bsize -= 4*state->bstride + 4;
   for (pli = 0; pli < state->info.nplanes; pli++) {
-    _ogg_free(state->sb_dc_mem[pli]);
-    _ogg_free(state->ltmp[pli]);
-    _ogg_free(state->dtmp[pli]);
-    _ogg_free(state->ctmp[pli]);
-    _ogg_free(state->mctmp[pli]);
-    _ogg_free(state->mdtmp[pli]);
+    free(state->sb_dc_mem[pli]);
+    free(state->ltmp[pli]);
+    free(state->dtmp[pli]);
+    free(state->ctmp[pli]);
+    free(state->mctmp[pli]);
+    free(state->mdtmp[pli]);
   }
-  _ogg_free(state->bsize);
+  free(state->bsize);
 }
 
 /*Probabilities that a motion vector is not coded given two neighbors and the
@@ -448,7 +448,7 @@ void od_state_clear(od_state *state) {
   These statistics should be regenerated if the number of levels or the size
    of the levels change.*/
 
-static const ogg_uint16_t OD_MV_SPLIT_FLAG_PROBZ_Q15[OD_MC_LEVEL_MAX][9] = {
+static const uint16_t OD_MV_SPLIT_FLAG_PROBZ_Q15[OD_MC_LEVEL_MAX][9] = {
   { 30512, 31715, 32546, 19755, 22768, 25170, 8822, 11180, 13710 },
   { 15025, 11377, 11630, 11771, 13799, 17357, 9106, 12384, 14943 },
   { 20517, 21744, 24679, 12351, 12900, 16429, 8029, 9085, 12245 },
@@ -491,8 +491,8 @@ void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe) {
   state->split_flag_increment = 128;
   for (level = 0; level < OD_MC_LEVEL_MAX; level++) {
     for (i = 0; i < 9; i++) {
-      state->split_flag_cdf[level][i][0] = (ogg_uint16_t)(
-       (ogg_uint32_t)OD_MV_SPLIT_FLAG_PROBZ_Q15[level][i]*
+      state->split_flag_cdf[level][i][0] = (uint16_t)(
+       (uint32_t)OD_MV_SPLIT_FLAG_PROBZ_Q15[level][i]*
        (state->split_flag_increment >> 1) >> 15);
       state->split_flag_cdf[level][i][1] = state->split_flag_increment >> 1;
     }
@@ -819,8 +819,8 @@ void od_state_pred_block_from_setup(od_state *state,
  int vx, int vy, int oc, int s, int log_mvb_sz) {
   od_img_plane *iplane;
   od_mv_grid_pt *grid[4];
-  ogg_int32_t mvx[4];
-  ogg_int32_t mvy[4];
+  int32_t mvx[4];
+  int32_t mvy[4];
   const int *dxp;
   const int *dyp;
   int x;
@@ -832,8 +832,8 @@ void od_state_pred_block_from_setup(od_state *state,
   for (k = 0; k < 4; k++) {
     grid[k] = state->mv_grid[vy + (dyp[k] << log_mvb_sz)]
      + vx + (dxp[k] << log_mvb_sz);
-    mvx[k] = (ogg_int32_t)OD_DIV_POW2_RE(grid[k]->mv[0], iplane->xdec);
-    mvy[k] = (ogg_int32_t)OD_DIV_POW2_RE(grid[k]->mv[1], iplane->ydec);
+    mvx[k] = (int32_t)OD_DIV_POW2_RE(grid[k]->mv[0], iplane->xdec);
+    mvy[k] = (int32_t)OD_DIV_POW2_RE(grid[k]->mv[1], iplane->ydec);
   }
   x = vx << (OD_LOG_MVBSIZE_MIN - iplane->xdec);
   y = vy << (OD_LOG_MVBSIZE_MIN - iplane->ydec);
@@ -912,7 +912,7 @@ int od_state_dump_yuv(od_state *state, od_img *img, const char *tag) {
     const char *suf;
     OD_ASSERT(strlen(tag)<16);
     state->dump_tags++;
-    state->dump_files = _ogg_realloc(state->dump_files,
+    state->dump_files = realloc(state->dump_files,
      state->dump_tags*sizeof(od_yuv_dumpfile));
     OD_ASSERT(state->dump_files);
     strncpy(state->dump_files[i].tag,tag,16);
@@ -1399,12 +1399,12 @@ void od_state_init_border(od_state *state) {
   }
 }
 
-ogg_int64_t daala_granule_basetime(void *encdec, ogg_int64_t granpos) {
+int64_t daala_granule_basetime(void *encdec, int64_t granpos) {
   od_state *state;
   state = (od_state *)encdec;
   if (granpos >= 0) {
-    ogg_int64_t key_time;
-    ogg_int64_t delta_time;
+    int64_t key_time;
+    int64_t delta_time;
     key_time = granpos >> state->info.keyframe_granule_shift;
     delta_time = granpos - (key_time << state->info.keyframe_granule_shift);
     return key_time + delta_time;
@@ -1412,9 +1412,9 @@ ogg_int64_t daala_granule_basetime(void *encdec, ogg_int64_t granpos) {
   return -1;
 }
 
-double daala_granule_time(void *encdec, ogg_int64_t granpos) {
+double daala_granule_time(void *encdec, int64_t granpos) {
   od_state *state;
-  ogg_int64_t base_time;
+  int64_t base_time;
   state = (od_state *)encdec;
   base_time = daala_granule_basetime(encdec, granpos);
   if (base_time >= 0) {

@@ -55,32 +55,32 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 typedef struct {
   /*Sx2[OD_MAX_OVERLAP + y][OD_MAX_OVERLAP + x] =
      Sum of the values in the 2x2 block at offset (2*x, 2*y).*/
-  ogg_int32_t Sx2[OD_SIZE2_SUMS][OD_SIZE2_SUMS];
+  int32_t Sx2[OD_SIZE2_SUMS][OD_SIZE2_SUMS];
   /*Sxx2[OD_MAX_OVERLAP + y][OD_MAX_OVERLAP + x] =
      Sum of the squared values in the 2x2 block at offset (2*x, 2*y).*/
-  ogg_int32_t Sxx2[OD_SIZE2_SUMS][OD_SIZE2_SUMS];
+  int32_t Sxx2[OD_SIZE2_SUMS][OD_SIZE2_SUMS];
   /*Sx4[OD_MAX_OVERLAP + y][OD_MAX_OVERLAP + x] =
      Sum of the values in the 4x4 block at offset (2*x, 2*y).*/
-  ogg_int32_t Sx4[OD_SIZE4_SUMS][OD_SIZE4_SUMS];
+  int32_t Sx4[OD_SIZE4_SUMS][OD_SIZE4_SUMS];
   /*Sxx4[OD_MAX_OVERLAP + y][OD_MAX_OVERLAP + x] =
      Sum of the squared values in the 2x2 block at offset (2*x, 2*y).*/
-  ogg_int32_t Sxx4[OD_SIZE4_SUMS][OD_SIZE4_SUMS];
+  int32_t Sxx4[OD_SIZE4_SUMS][OD_SIZE4_SUMS];
   /*Sx8[OD_MAX_OVERLAP_8 + y][OD_MAX_OVERLAP_8 + x] =
      Sum of the values in the 8x8 block at offset (4*x, 4*y).*/
-  ogg_int32_t Sx8[OD_SIZE8_SUMS][OD_SIZE8_SUMS];
+  int32_t Sx8[OD_SIZE8_SUMS][OD_SIZE8_SUMS];
   /*Sxx8[OD_MAX_OVERLAP_8 + y][OD_MAX_OVERLAP_8 + x] =
      Sum of the squared values in the 8x8 block at offset (4*x, 4*y).*/
-  ogg_int32_t Sxx8[OD_SIZE8_SUMS][OD_SIZE8_SUMS];
+  int32_t Sxx8[OD_SIZE8_SUMS][OD_SIZE8_SUMS];
   /*Var4[OD_MAX_OVERLAP + y][OD_MAX_OVERLAP + x] =
      Variance of the 4x4 block at offset (2*x, 2*y).*/
-  ogg_int32_t Var4[OD_SIZE4_SUMS][OD_SIZE4_SUMS];
+  int32_t Var4[OD_SIZE4_SUMS][OD_SIZE4_SUMS];
   /*invVar4[y][x] = 16384/Var4[y][x]*/
-  ogg_int32_t invVar4[OD_SIZE4_SUMS][OD_SIZE4_SUMS];
+  int32_t invVar4[OD_SIZE4_SUMS][OD_SIZE4_SUMS];
   /*Var8[OD_MAX_OVERLAP_8 + y][OD_MAX_OVERLAP_8 + x] =
      Variance of the 8x8 block at offset (4*x, 4*y).*/
-  ogg_int32_t Var8[OD_SIZE8_SUMS][OD_SIZE8_SUMS];
+  int32_t Var8[OD_SIZE8_SUMS][OD_SIZE8_SUMS];
   /*invVar8[y][x] = 16384/Var8[y][x]*/
-  ogg_int32_t invVar8[OD_SIZE8_SUMS][OD_SIZE8_SUMS];
+  int32_t invVar8[OD_SIZE8_SUMS][OD_SIZE8_SUMS];
 } od_superblock_stats;
 
 typedef struct {
@@ -90,14 +90,14 @@ typedef struct {
   signed char res[2*OD_SIZE2_SUMS][2*OD_SIZE2_SUMS];
 
   /* 4x4 metrics */
-  ogg_int32_t noise4_4[8][8];
-  ogg_int32_t noise4_8[4][4];
-  ogg_int32_t noise4_16[2][2];
-  ogg_int32_t noise4_32;
+  int32_t noise4_4[8][8];
+  int32_t noise4_8[4][4];
+  int32_t noise4_16[2][2];
+  int32_t noise4_32;
 
   /* 8x8 metrics */
-  ogg_int32_t noise8_16[2][2];
-  ogg_int32_t noise8_32;
+  int32_t noise8_16[2][2];
+  int32_t noise8_32;
 
   float psy4[8][8];
   float psy8[4][4];

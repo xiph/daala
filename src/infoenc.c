@@ -66,7 +66,7 @@ int daala_encode_flush_header(daala_enc_ctx *_enc, daala_comment *_dc,
     case OD_PACKET_COMMENT_HDR:
     {
       const char *vendor;
-      ogg_uint32_t  vendor_len;
+      uint32_t  vendor_len;
       int           ci;
       oggbyte_reset(&_enc->obb);
       oggbyte_write1(&_enc->obb, 0x81);

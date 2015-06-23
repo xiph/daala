@@ -95,7 +95,7 @@ extern const int *const OD_VERT_SETUP_DY[4][4];
 /*The shared (encoder and decoder) functions that have accelerated variants.*/
 struct od_state_opt_vtbl{
   void (*mc_predict1fmv8)(unsigned char *_dst, const unsigned char *_src,
-   int _systride, ogg_int32_t _mvx, ogg_int32_t _mvy,
+   int _systride, int32_t _mvx, int32_t _mvy,
    int _log_xblk_sz, int _log_yblk_sz);
   void (*mc_blend_full8)(unsigned char *_dst, int _dystride,
    const unsigned char *_src[4], int _log_xblk_sz, int _log_yblk_sz);
@@ -119,21 +119,21 @@ struct od_adapt_ctx {
   int                 pvq_adapt[2*OD_NBSIZES*OD_NSB_ADAPT_CTXS];
   int                 pvq_k1_increment;
   /* CDFs are size 16 despite the fact that we're using less than that. */
-  ogg_uint16_t        pvq_k1_cdf[4][16];
+  uint16_t        pvq_k1_cdf[4][16];
   generic_encoder     pvq_param_model[3];
   int                 pvq_ext[OD_NBSIZES*PVQ_MAX_PARTITIONS];
   int                 pvq_exg[OD_NPLANES_MAX][OD_NBSIZES][PVQ_MAX_PARTITIONS];
   int                 pvq_gaintheta_increment;
-  ogg_uint16_t        pvq_gaintheta_cdf[2*OD_NBSIZES*PVQ_MAX_PARTITIONS][16];
+  uint16_t        pvq_gaintheta_cdf[2*OD_NBSIZES*PVQ_MAX_PARTITIONS][16];
   int                 pvq_skip_dir_increment;
-  ogg_uint16_t        pvq_skip_dir_cdf[2*(OD_NBSIZES-1)][7];
+  uint16_t        pvq_skip_dir_cdf[2*(OD_NBSIZES-1)][7];
   /* Motion vectors */
   generic_encoder     mv_model;
   int                 mv_ex[OD_MC_NLEVELS];
   int                 mv_ey[OD_MC_NLEVELS];
-  ogg_uint16_t        mv_small_cdf[5][16];
+  uint16_t        mv_small_cdf[5][16];
   int                 mv_small_increment;
-  ogg_uint16_t        split_flag_cdf[OD_MC_LEVEL_MAX][9][2];
+  uint16_t        split_flag_cdf[OD_MC_LEVEL_MAX][9][2];
   int                 split_flag_increment;
 
   generic_encoder model_dc[OD_NPLANES_MAX];
@@ -144,13 +144,13 @@ struct od_adapt_ctx {
   int ex_g[OD_NPLANES_MAX][OD_NBSIZES];
 
   /* Joint skip flag for DC and AC */
-  ogg_uint16_t skip_cdf[OD_NBSIZES*2][5];
+  uint16_t skip_cdf[OD_NBSIZES*2][5];
   int skip_increment;
-  ogg_uint16_t haar_coeff_cdf[15*3*(OD_NBSIZES + 1)][16];
+  uint16_t haar_coeff_cdf[15*3*(OD_NBSIZES + 1)][16];
   int haar_coeff_increment;
-  ogg_uint16_t haar_split_cdf[15*2*5][16];
+  uint16_t haar_split_cdf[15*2*5][16];
   int haar_split_increment;
-  ogg_uint16_t haar_bits_cdf[3][16];
+  uint16_t haar_bits_cdf[3][16];
   int haar_bits_increment;
 };
 
@@ -159,9 +159,9 @@ struct od_state{
   daala_info          info;
   OD_ALIGN16(unsigned char mc_buf[5][OD_MVBSIZE_MAX*OD_MVBSIZE_MAX]);
   od_state_opt_vtbl   opt_vtbl;
-  ogg_uint32_t        cpu_flags;
-  ogg_int32_t         frame_width;
-  ogg_int32_t         frame_height;
+  uint32_t        cpu_flags;
+  int32_t         frame_width;
+  int32_t         frame_height;
   /** Buffer for the 4 ref images. */
   int                 ref_imgi[4];
   /** Pointers to the ref images so one can move them around without coping
@@ -172,7 +172,7 @@ struct od_state{
   unsigned char *ref_line_buf[8];
   unsigned char *ref_img_data;
   /** Increments by 1 for each frame. */
-  ogg_int64_t         cur_time;
+  int64_t         cur_time;
   od_mv_grid_pt **mv_grid;
 
   /** Number of horizontal motion-vector blocks. */
@@ -253,7 +253,7 @@ void od_state_fill_vis(od_state *_state);
 
 /*Default pure-C implementations.*/
 void od_mc_predict1fmv8_c(unsigned char *_dst, const unsigned char *_src,
- int _systride, ogg_int32_t _mvx, ogg_int32_t _mvy,
+ int _systride, int32_t _mvx, int32_t _mvy,
  int _log_xblk_sz, int _log_yblk_sz);
 void od_mc_blend_full8_c(unsigned char *_dst, int _dystride,
  const unsigned char *_src[4], int _log_xblk_sz, int _log_yblk_sz);

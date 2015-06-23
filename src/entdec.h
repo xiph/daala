@@ -43,7 +43,7 @@ struct od_ec_dec {
     This is constant throughout most of the decoding process, but becomes
      important once we hit the end of the buffer and stop incrementing pointers
      (and instead pretend cnt/nend_bits have lots of bits).*/
-  ogg_int32_t tell_offs;
+  int32_t tell_offs;
   /*The end of the current input buffer.*/
   const unsigned char *end;
   /*The read pointer for the entropy-coded bits.*/
@@ -52,9 +52,9 @@ struct od_ec_dec {
      range.*/
   od_ec_window dif;
   /*The number of values in the current range.*/
-  ogg_uint16_t rng;
+  uint16_t rng;
   /*The number of bits of data in the current value.*/
-  ogg_int16_t cnt;
+  int16_t cnt;
   /*Nonzero if an error occurred.*/
   int error;
 };
@@ -62,7 +62,7 @@ struct od_ec_dec {
 /*See entdec.c for further documentation.*/
 
 void od_ec_dec_init(od_ec_dec *dec,
- const unsigned char *buf, ogg_uint32_t storage)
+ const unsigned char *buf, uint32_t storage)
  OD_ARG_NONNULL(1) OD_ARG_NONNULL(2);
 
 OD_WARN_UNUSED_RESULT int od_ec_decode_bool(od_ec_dec *dec, unsigned fz,
@@ -70,22 +70,22 @@ OD_WARN_UNUSED_RESULT int od_ec_decode_bool(od_ec_dec *dec, unsigned fz,
 OD_WARN_UNUSED_RESULT int od_ec_decode_bool_q15(od_ec_dec *dec, unsigned fz)
  OD_ARG_NONNULL(1);
 OD_WARN_UNUSED_RESULT int od_ec_decode_cdf(od_ec_dec *dec,
- const ogg_uint16_t *cdf, int nsyms) OD_ARG_NONNULL(1) OD_ARG_NONNULL(2);
+ const uint16_t *cdf, int nsyms) OD_ARG_NONNULL(1) OD_ARG_NONNULL(2);
 OD_WARN_UNUSED_RESULT int od_ec_decode_cdf_q15(od_ec_dec *dec,
- const ogg_uint16_t *cdf, int nsyms) OD_ARG_NONNULL(1) OD_ARG_NONNULL(2);
+ const uint16_t *cdf, int nsyms) OD_ARG_NONNULL(1) OD_ARG_NONNULL(2);
 OD_WARN_UNUSED_RESULT int od_ec_decode_cdf_unscaled(od_ec_dec *dec,
- const ogg_uint16_t *cdf, int nsyms) OD_ARG_NONNULL(1) OD_ARG_NONNULL(2);
+ const uint16_t *cdf, int nsyms) OD_ARG_NONNULL(1) OD_ARG_NONNULL(2);
 OD_WARN_UNUSED_RESULT int od_ec_decode_cdf_unscaled_dyadic(od_ec_dec *dec,
- const ogg_uint16_t *cdf, int nsyms, unsigned _ftb)
+ const uint16_t *cdf, int nsyms, unsigned _ftb)
  OD_ARG_NONNULL(1) OD_ARG_NONNULL(2);
 
-OD_WARN_UNUSED_RESULT ogg_uint32_t od_ec_dec_uint(od_ec_dec *dec,
- ogg_uint32_t ft) OD_ARG_NONNULL(1);
+OD_WARN_UNUSED_RESULT uint32_t od_ec_dec_uint(od_ec_dec *dec,
+ uint32_t ft) OD_ARG_NONNULL(1);
 
-OD_WARN_UNUSED_RESULT ogg_uint32_t od_ec_dec_bits(od_ec_dec *dec,
+OD_WARN_UNUSED_RESULT uint32_t od_ec_dec_bits(od_ec_dec *dec,
  unsigned ftb) OD_ARG_NONNULL(1);
 
 OD_WARN_UNUSED_RESULT int od_ec_dec_tell(od_ec_dec *dec) OD_ARG_NONNULL(1);
-ogg_uint32_t od_ec_dec_tell_frac(od_ec_dec *dec) OD_ARG_NONNULL(1);
+uint32_t od_ec_dec_tell_frac(od_ec_dec *dec) OD_ARG_NONNULL(1);
 
 #endif

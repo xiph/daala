@@ -136,8 +136,8 @@ static int od_acct_index(unsigned int state[OD_ACCT_NCATS]) {
   return index;
 }
 
-void od_acct_update_frac_bits(od_acct *acct, ogg_uint32_t frac_bits) {
-  ogg_uint32_t frac_bits_diff;
+void od_acct_update_frac_bits(od_acct *acct, uint32_t frac_bits) {
+  uint32_t frac_bits_diff;
   frac_bits_diff = frac_bits - acct->last_frac_bits;
   acct->frac_bits[od_acct_index(acct->state)] += frac_bits_diff;
   acct->last_frac_bits = frac_bits;
@@ -150,7 +150,7 @@ void od_acct_set_category(od_acct *acct, od_acct_category cat,
   acct->state[cat] = value;
 }
 
-void od_acct_update(od_acct *acct, ogg_uint32_t frac_bits,
+void od_acct_update(od_acct *acct, uint32_t frac_bits,
  od_acct_category cat, unsigned int value) {
   od_acct_update_frac_bits(acct, frac_bits);
   od_acct_set_category(acct, cat, value);
@@ -174,10 +174,10 @@ static int od_acct_next_state(unsigned int state[OD_ACCT_NCATS],
   return 0;
 }
 
-static ogg_uint32_t od_acct_get_total(od_acct *acct,
+static uint32_t od_acct_get_total(od_acct *acct,
  int cat, unsigned int value) {
   unsigned int state[OD_ACCT_NCATS];
-  ogg_uint32_t total;
+  uint32_t total;
   int i;
   for (i = 0; i < OD_ACCT_NCATS; i++) {
     state[i] = 0;
@@ -214,7 +214,7 @@ void od_acct_print(od_acct *acct, FILE *_fp) {
   while (od_acct_next_state(state, OD_ACCT_NCATS));
 }
 
-void od_acct_write(od_acct *acct, ogg_int64_t cur_time) {
+void od_acct_write(od_acct *acct, int64_t cur_time) {
   int cat;
   unsigned int value;
   long fsize;
@@ -271,10 +271,10 @@ void od_ec_acct_clear(od_ec_acct *acct) {
   data = acct->data;
   acct->data = NULL;
   while (data) {
-    _ogg_free(data->values);
+    free(data->values);
     old = data;
     data = data->next;
-    _ogg_free(old);
+    free(old);
   }
 }
 
@@ -301,16 +301,16 @@ void od_ec_acct_add_label(od_ec_acct *acct, const char *label) {
     data = data->next;
   }
   if (data == NULL) {
-    data = (od_ec_acct_data *)_ogg_malloc(sizeof(od_ec_acct_data));
+    data = (od_ec_acct_data *)malloc(sizeof(od_ec_acct_data));
     OD_ASSERT(data);
     data->label = label;
     data->capacity = 128;
     data->used = 0;
     /*Records are composed of a symbol, the number of possible symbols, and
       ncontext items of context.*/
-    data->values = (int **)_ogg_malloc(128*sizeof(*data->values));
+    data->values = (int **)malloc(128*sizeof(*data->values));
     for (i = 0; i < 128; i++) {
-      data->values[i] = (int *)_ogg_malloc(3*sizeof(*data->values[i]));
+      data->values[i] = (int *)malloc(3*sizeof(*data->values[i]));
     }
     OD_ASSERT(data->values);
     data->next = NULL;
@@ -338,10 +338,10 @@ void od_ec_acct_record(od_ec_acct *acct, const char *label, int val, int n,
   if (data->used >= data->capacity) {
     old_capacity = data->capacity;
     data->capacity *= 2;
-    data->values = (int **)_ogg_realloc(data->values,
+    data->values = (int **)realloc(data->values,
      data->capacity*sizeof(*data->values));
     for (i = old_capacity; i < data->capacity; i++) {
-      data->values[i] = (int *)_ogg_malloc(3*sizeof(*data->values[i]));
+      data->values[i] = (int *)malloc(3*sizeof(*data->values[i]));
     }
   }
   data->values[data->used][0] = val;

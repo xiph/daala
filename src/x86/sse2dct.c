@@ -34,10 +34,10 @@ OD_SIMD_INLINE __m128i od_unbiased_rshift_epi32(__m128i a, int b) {
   return _mm_srai_epi32(_mm_add_epi32(_mm_srli_epi32(a, 32 - b), a), b);
 }
 
-OD_SIMD_INLINE void od_overflow_check_epi32(__m128i val, ogg_int32_t scale,
- ogg_int32_t offset, int idx) {
+OD_SIMD_INLINE void od_overflow_check_epi32(__m128i val, int32_t scale,
+ int32_t offset, int idx) {
 #if defined(OD_DCT_TEST) && defined(OD_DCT_CHECK_OVERFLOW)
-  ogg_int32_t mem[4];
+  int32_t mem[4];
   int n;
   _mm_store_si128((__m128i *)mem, val);
   for (n = 0; n < 4; n++) {
@@ -63,8 +63,8 @@ OD_SIMD_INLINE __m128i od_mullo_epi32_sse2(__m128i a, int b1) {
 # define OD_MULLO_EPI32 od_mullo_epi32_sse2
 #endif
 
-OD_SIMD_INLINE __m128i od_dct_mul_epi32(__m128i val, ogg_int32_t scale,
- ogg_int32_t offset, ogg_int32_t shift) {
+OD_SIMD_INLINE __m128i od_dct_mul_epi32(__m128i val, int32_t scale,
+ int32_t offset, int32_t shift) {
   return _mm_srai_epi32(_mm_add_epi32(OD_MULLO_EPI32(val, scale),
    _mm_set1_epi32(offset)), shift);
 }

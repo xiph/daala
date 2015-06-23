@@ -32,7 +32,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 typedef struct {
   /** cdf for multiple expectations of x */
-  ogg_uint16_t cdf[GENERIC_TABLES][16];
+  uint16_t cdf[GENERIC_TABLES][16];
   /** Frequency increment for learning the cdfs */
   int increment;
 } generic_encoder;
@@ -53,12 +53,12 @@ void generic_model_init(generic_encoder *model);
 #define OD_SINGLE_CDF_INIT_FIRST(cdf, val, first) od_cdf_init(cdf,\
  1, sizeof(cdf)/sizeof(cdf[0]), val, first)
 
-void od_cdf_init(ogg_uint16_t *cdf, int ncdfs, int nsyms, int val, int first);
+void od_cdf_init(uint16_t *cdf, int ncdfs, int nsyms, int val, int first);
 
-void od_encode_cdf_adapt(od_ec_enc *ec, int val, ogg_uint16_t *cdf, int n,
+void od_encode_cdf_adapt(od_ec_enc *ec, int val, uint16_t *cdf, int n,
  int increment);
 
-int od_decode_cdf_adapt(od_ec_dec *ec, ogg_uint16_t *cdf, int n,
+int od_decode_cdf_adapt(od_ec_dec *ec, uint16_t *cdf, int n,
  int increment);
 
 void generic_encode(od_ec_enc *enc, generic_encoder *model, int x, int max,

@@ -33,10 +33,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #define OD_UNBIASED_RSHIFT(a, b) \
   vshrq_n_s32(vaddq_s32(vshlq_n_s32(a, 32 - b), a), b)
 
-OD_SIMD_INLINE void od_overflow_check_epi32(int32x4_t val, ogg_int32_t scale,
- ogg_int32_t offset, int idx) {
+OD_SIMD_INLINE void od_overflow_check_epi32(int32x4_t val, int32_t scale,
+ int32_t offset, int idx) {
 #if defined(OD_DCT_TEST) && defined(OD_DCT_CHECK_OVERFLOW)
-  ogg_int32_t mem[4];
+  int32_t mem[4];
   int n;
   vst1q_s32((int *)mem, val);
   for (n = 0; n < 4; n++) {

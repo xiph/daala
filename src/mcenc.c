@@ -1588,7 +1588,7 @@ int od_mc_compute_satd_32x32_c(const unsigned char *src, int systride,
 }
 
 /*Computes the SAD of the input image against the given predictor.*/
-static ogg_int32_t od_enc_sad8(od_enc_ctx *enc, const unsigned char *p,
+static int32_t od_enc_sad8(od_enc_ctx *enc, const unsigned char *p,
  int pystride, int pxstride, int pli, int x, int y, int log_blk_sz) {
   od_state *state;
   od_img_plane *iplane;
@@ -1599,7 +1599,7 @@ static ogg_int32_t od_enc_sad8(od_enc_ctx *enc, const unsigned char *p,
   int cliph;
   int w;
   int h;
-  ogg_int32_t ret;
+  int32_t ret;
   state = &enc->state;
   iplane = state->io_imgs[OD_FRAME_INPUT].planes + pli;
   /*Compute the block dimensions in the target image plane.*/
@@ -1656,7 +1656,7 @@ static ogg_int32_t od_enc_sad8(od_enc_ctx *enc, const unsigned char *p,
 }
 
 /*Computes the SATD of the input image block against the given predictor.*/
-static ogg_int32_t od_enc_satd8(od_enc_ctx *enc, const unsigned char *p,
+static int32_t od_enc_satd8(od_enc_ctx *enc, const unsigned char *p,
  int pystride, int pxstride, int pli, int x, int y, int log_blk_sz) {
   od_state *state;
   od_img_plane *iplane;
@@ -1667,7 +1667,7 @@ static ogg_int32_t od_enc_satd8(od_enc_ctx *enc, const unsigned char *p,
   int cliph;
   int w;
   int h;
-  ogg_int32_t ret;
+  int32_t ret;
   state = &enc->state;
   iplane = state->io_imgs[OD_FRAME_INPUT].planes + pli;
   /*Compute the block dimensions in the target image plane.*/
@@ -1754,18 +1754,18 @@ static int od_mv_est_init_impl(od_mv_est_ctx *est, od_enc_ctx *enc) {
   if (OD_UNLIKELY(!est->refine_grid)) {
     return OD_EFAULT;
   }
-  est->dp_nodes = (od_mv_dp_node *)_ogg_malloc(
+  est->dp_nodes = (od_mv_dp_node *)malloc(
    sizeof(od_mv_dp_node)*(OD_MAXI(nhmvbs, nvmvbs) + 1));
   if (OD_UNLIKELY(!est->dp_nodes)) {
     return OD_EFAULT;
   }
   est->row_counts =
-   (unsigned *)_ogg_malloc(sizeof(*est->row_counts)*(nvmvbs + 1));
+   (unsigned *)malloc(sizeof(*est->row_counts)*(nvmvbs + 1));
   if (OD_UNLIKELY(!est->row_counts)) {
     return OD_EFAULT;
   }
   est->col_counts =
-   (unsigned *)_ogg_malloc(sizeof(*est->col_counts)*(nhmvbs + 1));
+   (unsigned *)malloc(sizeof(*est->col_counts)*(nhmvbs + 1));
   if (OD_UNLIKELY(!est->col_counts)) {
     return OD_EFAULT;
   }
@@ -1777,7 +1777,7 @@ static int od_mv_est_init_impl(od_mv_est_ctx *est, od_enc_ctx *enc) {
       enc->state.mv_grid[vy][vx].valid = 1;
     }
   }
-  est->dec_heap = (od_mv_node **)_ogg_malloc(
+  est->dec_heap = (od_mv_node **)malloc(
    sizeof(*est->dec_heap)*(nvmvbs + 1)*(nhmvbs + 1));
   if (OD_UNLIKELY(!est->dec_heap)) {
     return OD_EFAULT;
@@ -1791,10 +1791,10 @@ static int od_mv_est_init_impl(od_mv_est_ctx *est, od_enc_ctx *enc) {
 
 static void od_mv_est_clear(od_mv_est_ctx *est) {
   int log_mvb_sz;
-  _ogg_free(est->dec_heap);
-  _ogg_free(est->col_counts);
-  _ogg_free(est->row_counts);
-  _ogg_free(est->dp_nodes);
+  free(est->dec_heap);
+  free(est->col_counts);
+  free(est->row_counts);
+  free(est->dp_nodes);
   od_free_2d(est->refine_grid);
   od_free_2d(est->mvs);
   for (log_mvb_sz = OD_LOG_MVB_DELTA0; log_mvb_sz-- > 0; ) {
@@ -2144,11 +2144,11 @@ static int od_mv_est_bits(od_mv_est_ctx *est, int equal_mvs,
 /*Computes the SAD of a whole-pel BMA block with the given parameters.*/
 /*Note: The od_enc_sad8() is now always called with xstride = 1,
    because MC ref image is NOT upsampled at frame level.*/
-static ogg_int32_t od_mv_est_bma_sad8(od_mv_est_ctx *est,
+static int32_t od_mv_est_bma_sad8(od_mv_est_ctx *est,
  int ref, int bx, int by, int mvx, int mvy, int log_mvb_sz) {
   od_state *state;
   od_img_plane *iplane;
-  ogg_int32_t ret;
+  int32_t ret;
   int refi;
   int dx;
   int dy;
@@ -2188,10 +2188,10 @@ static ogg_int32_t od_mv_est_bma_sad8(od_mv_est_ctx *est,
 }
 
 /*Computes the SAD of a block with the given parameters.*/
-static ogg_int32_t od_mv_est_sad8(od_mv_est_ctx *est,
+static int32_t od_mv_est_sad8(od_mv_est_ctx *est,
  int ref, int vx, int vy, int oc, int s, int log_mvb_sz) {
   od_state *state;
-  ogg_int32_t ret;
+  int32_t ret;
   state = &est->enc->state;
   od_state_pred_block_from_setup(state, state->mc_buf[4], OD_MVBSIZE_MAX,
    ref, 0, vx, vy, oc, s, log_mvb_sz);
@@ -2233,7 +2233,7 @@ void od_mv_est_check_rd_block_state(od_mv_est_ctx *est,
   }
   else {
     od_mv_node *block;
-    ogg_int32_t sad;
+    int32_t sad;
     int oc;
     int s;
     block = est->mvs[vy] + vx;
@@ -2359,9 +2359,9 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
   od_mv_node *mv;
   const od_mv_node *cneighbors[4];
   const od_mv_node *pneighbors[4];
-  ogg_int32_t t2;
-  ogg_int32_t best_sad;
-  ogg_int32_t best_cost;
+  int32_t t2;
+  int32_t best_sad;
+  int32_t best_cost;
   int best_rate;
   int cands[6][2];
   int best_vec[2];
@@ -2514,8 +2514,8 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
   OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
    "Threshold: %i", est->thresh1[log_mvb_sz]));
   if (best_sad > est->thresh1[log_mvb_sz]) {
-    ogg_int32_t sad;
-    ogg_int32_t cost;
+    int32_t sad;
+    int32_t cost;
     int rate;
     /*Compute the early termination threshold for set B.*/
     t2 = mv->bma_sad;
@@ -3270,16 +3270,16 @@ static const od_mv_err_node *OD_ERRDOM[OD_MC_LEVEL_MAX] = {
 
 /*Returns a negative value, 0, or a positive value, depending on whether
   -dd1/dr1 is less, equal or greater than -dd2/dr2.*/
-static int od_mv_dddr_cmp(ogg_int32_t dd1, int dr1,
- ogg_int32_t dd2, int dr2) {
-  ogg_int64_t diff;
+static int od_mv_dddr_cmp(int32_t dd1, int dr1,
+ int32_t dd2, int dr2) {
+  int64_t diff;
   /*dr == 0 and dd != 0 should not be possible, but we check for it anyway just
      in case, to prevent a bug from trashing the whole optimization process.*/
   if (dr1 == 0) {
     return dr2 == 0 ? OD_SIGNI(dd2 - dd1) : (OD_SIGNI(dd1) << 1) - 1;
   }
   else if (dr2 == 0) return (OD_SIGNI(-dd2) << 1) + 1;
-  diff = dd2*(ogg_int64_t)dr1 - dd1*(ogg_int64_t)dr2;
+  diff = dd2*(int64_t)dr1 - dd1*(int64_t)dr2;
   return OD_SIGNI(diff);
 }
 
@@ -3476,7 +3476,7 @@ static void od_mv_est_calc_sads(od_mv_est_ctx *est, int ref) {
         for (vx = 0; vx < nhmvbs; vx++) {
           oc = (vx & 1) ^ ((vy & 1) << 1 | (vy & 1));
           for (s = 0; s < smax; s++) {
-            sad_cache_row[vx][s] = (ogg_uint16_t)od_mv_est_sad8(est, ref,
+            sad_cache_row[vx][s] = (uint16_t)od_mv_est_sad8(est, ref,
              vx << log_mvb_sz, vy << log_mvb_sz, oc, s, log_mvb_sz);
           }
           /*While we're here, fill in the block's setup state.*/
@@ -4226,9 +4226,9 @@ static int od_mv_est_get_boundary_case(od_state *state,
 }
 
 /*Computes the SAD of the specified block.*/
-static ogg_int32_t od_mv_est_block_sad8(od_mv_est_ctx *est, int ref,
+static int32_t od_mv_est_block_sad8(od_mv_est_ctx *est, int ref,
  od_mv_node *block) {
-  ogg_int32_t ret;
+  int32_t ret;
   ret = od_mv_est_sad8(est, ref, block->vx, block->vy,
    block->oc, block->s, block->log_mvb_sz);
   OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
@@ -4240,10 +4240,10 @@ static ogg_int32_t od_mv_est_block_sad8(od_mv_est_ctx *est, int ref,
 
 /*Gets the change in SAD for the blocks affected by the given DP node, using
    the current state of the grid.*/
-static ogg_int32_t od_mv_dp_get_sad_change8(od_mv_est_ctx *est, int ref,
- od_mv_dp_node *dp, ogg_int32_t block_sads[OD_DP_NBLOCKS_MAX]) {
+static int32_t od_mv_dp_get_sad_change8(od_mv_est_ctx *est, int ref,
+ od_mv_dp_node *dp, int32_t block_sads[OD_DP_NBLOCKS_MAX]) {
   int bi;
-  ogg_int32_t dd;
+  int32_t dd;
   dd = 0;
   for (bi = 0; bi < dp->nblocks; bi++) {
     od_mv_node *block;
@@ -4919,7 +4919,7 @@ static void od_mv_dp_install_row_state(od_mv_dp_node *dp, int prevsi) {
   }
 }
 
-static ogg_int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
+static int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
  int ref, int vy, int log_dsz, int mv_res, const int *pattern_nsites,
  const od_pattern *pattern) {
   od_state *state;
@@ -4929,7 +4929,7 @@ static ogg_int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
   od_mv_dp_node *dp_node;
   od_mv_dp_state *cstate;
   od_mv_dp_state *pstate;
-  ogg_int32_t dcost;
+  int32_t dcost;
   int nhmvbs;
   int level;
   int log_mvb_sz;
@@ -4948,11 +4948,11 @@ static ogg_int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
   OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
    "Refining row %i (%i)...", vy, vy << OD_LOG_MVBSIZE_MIN));
   for (vx = 0;; vx++) {
-    ogg_int32_t block_sads[OD_DP_NSTATES_MAX][OD_DP_NBLOCKS_MAX];
-    ogg_int32_t best_cost;
-    ogg_int32_t cost;
-    ogg_int32_t best_dd;
-    ogg_int32_t dd;
+    int32_t block_sads[OD_DP_NSTATES_MAX][OD_DP_NBLOCKS_MAX];
+    int32_t best_cost;
+    int32_t cost;
+    int32_t best_dd;
+    int32_t dd;
     int cur_mv_rates[OD_DP_NSTATES_MAX];
     int pred_mv_rates[OD_DP_NSTATES_MAX][OD_DP_NPREDICTED_MAX];
     int best_dr;
@@ -5520,7 +5520,7 @@ static void od_mv_dp_install_col_state(od_mv_dp_node *dp, int prevsi) {
   }
 }
 
-static ogg_int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
+static int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
  int ref, int vx, int log_dsz, int mv_res, const int *pattern_nsites,
  const od_pattern *pattern) {
   od_state *state;
@@ -5530,7 +5530,7 @@ static ogg_int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
   od_mv_dp_node *dp_node;
   od_mv_dp_state *cstate;
   od_mv_dp_state *pstate;
-  ogg_int32_t dcost;
+  int32_t dcost;
   int nvmvbs;
   int level;
   int log_mvb_sz;
@@ -5549,11 +5549,11 @@ static ogg_int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
   OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
    "Refining column %i (%i)...", vx, vx << OD_LOG_MVBSIZE_MIN));
   for (vy = 0;; vy++) {
-    ogg_int32_t block_sads[OD_DP_NSTATES_MAX][OD_DP_NBLOCKS_MAX];
-    ogg_int32_t best_cost;
-    ogg_int32_t cost;
-    ogg_int32_t best_dd;
-    ogg_int32_t dd;
+    int32_t block_sads[OD_DP_NSTATES_MAX][OD_DP_NBLOCKS_MAX];
+    int32_t best_cost;
+    int32_t cost;
+    int32_t best_dd;
+    int32_t dd;
     int cur_mv_rates[OD_DP_NSTATES_MAX];
     int pred_mv_rates[OD_DP_NSTATES_MAX][OD_DP_NPREDICTED_MAX];
     int best_dr;
@@ -5772,10 +5772,10 @@ static ogg_int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
   return dcost;
 }
 
-static ogg_int32_t od_mv_est_refine(od_mv_est_ctx *est, int ref, int log_dsz,
+static int32_t od_mv_est_refine(od_mv_est_ctx *est, int ref, int log_dsz,
  int mv_res, const int *pattern_nsites, const od_pattern *pattern) {
   od_state *state;
-  ogg_int32_t dcost;
+  int32_t dcost;
   int nhmvbs;
   int nvmvbs;
   int vx;
@@ -5863,9 +5863,9 @@ int od_mv_est_update_mv_rates(od_mv_est_ctx *est, int mv_res) {
 
 od_mv_est_ctx *od_mv_est_alloc(od_enc_ctx *enc) {
   od_mv_est_ctx *ret;
-  ret = (od_mv_est_ctx *)_ogg_malloc(sizeof(*ret));
+  ret = (od_mv_est_ctx *)malloc(sizeof(*ret));
   if (od_mv_est_init(ret, enc) < 0) {
-    _ogg_free(ret);
+    free(ret);
     return NULL;
   }
   return ret;
@@ -5874,7 +5874,7 @@ od_mv_est_ctx *od_mv_est_alloc(od_enc_ctx *enc) {
 void od_mv_est_free(od_mv_est_ctx *est) {
   if (est != NULL) {
     od_mv_est_clear(est);
-    _ogg_free(est);
+    free(est);
   }
 }
 
@@ -5896,7 +5896,7 @@ void od_mv_est_reset_rd_block_state(od_mv_est_ctx *est,
   }
   else {
     od_mv_node *block;
-    ogg_int32_t sad;
+    int32_t sad;
     int oc;
     int s;
     block = est->mvs[vy] + vx;
@@ -5928,8 +5928,8 @@ void od_mv_est_reset_rd_block_state(od_mv_est_ctx *est,
 void od_mv_subpel_refine(od_mv_est_ctx *est, int ref, int cost_thresh) {
   od_state *state;
   od_mv_grid_pt **grid;
-  ogg_int32_t dcost;
-  ogg_int32_t subpel_cost;
+  int32_t dcost;
+  int32_t subpel_cost;
   int nhmvbs;
   int nvmvbs;
   int complexity;
@@ -5994,7 +5994,7 @@ void od_mv_subpel_refine(od_mv_est_ctx *est, int ref, int cost_thresh) {
 void od_mv_est(od_mv_est_ctx *est, int ref, int lambda) {
   od_state *state;
   od_img_plane *iplane;
-  ogg_int32_t dcost;
+  int32_t dcost;
   int cost_thresh;
   int nhmvbs;
   int nvmvbs;

@@ -41,9 +41,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 /*Initializes a 2D moving average filter.*/
 void od_adapt2d_init(od_adapt2d_ctx *ctx, int nhv,
- int nctx, const ogg_int32_t *params) {
+ int nctx, const int32_t *params) {
   OD_ASSERT(nctx <= OD_NADAPT_CTXS_MAX);
-  ctx->data = (od_adapt2d_data *)_ogg_malloc(sizeof(*ctx->data)*nhv*nctx);
+  ctx->data = (od_adapt2d_data *)malloc(sizeof(*ctx->data)*nhv*nctx);
   ctx->nhv = nhv;
   ctx->nctx = nctx;
   ctx->params = params;
@@ -51,14 +51,14 @@ void od_adapt2d_init(od_adapt2d_ctx *ctx, int nhv,
 
 /*Frees a 2D moving average filter.*/
 void od_adapt2d_clear(od_adapt2d_ctx *ctx) {
-  _ogg_free(ctx->data);
+  free(ctx->data);
   ctx->data = NULL;
 }
 
 /*Reinitializes a row context.
   This must be called once per-frame per filter.*/
 void od_adapt2d_row_init(od_adapt2d_ctx *ctx) {
-  const ogg_int32_t *params;
+  const int32_t *params;
   od_adapt2d_data *data;
   int nhv;
   int nctx;
@@ -77,8 +77,8 @@ void od_adapt2d_row_init(od_adapt2d_ctx *ctx) {
 }
 
 /*Initializes a set of running average means for the 2D moving average.*/
-void od_adapt2d_hmean_init(const od_adapt2d_ctx *ctx, ogg_int32_t *hmean) {
-  const ogg_int32_t *inits;
+void od_adapt2d_hmean_init(const od_adapt2d_ctx *ctx, int32_t *hmean) {
+  const int32_t *inits;
   int nctx;
   int i;
   nctx = ctx->nctx;
@@ -93,8 +93,8 @@ void od_adapt2d_hmean_init(const od_adapt2d_ctx *ctx, ogg_int32_t *hmean) {
   hmeans: horizontal running averages.
   means: current values.*/
 void od_adapt2d_get_stats(const od_adapt2d_ctx *ctx, int xpos,
- const ogg_int32_t *hmean, ogg_int32_t *means) {
-  const ogg_int32_t *adapts;
+ const int32_t *hmean, int32_t *means) {
+  const int32_t *adapts;
   od_adapt2d_data *data;
   int i;
   int nctx;
@@ -111,9 +111,9 @@ void od_adapt2d_get_stats(const od_adapt2d_ctx *ctx, int xpos,
   hmeans: horizontal running averages.
   curr: current values.*/
 void od_adapt2d_forward(od_adapt2d_ctx *ctx, int xpos,
- ogg_int32_t *hmean, const ogg_int32_t *curr) {
+ int32_t *hmean, const int32_t *curr) {
   od_adapt2d_data *data;
-  const ogg_int32_t *adapts;
+  const int32_t *adapts;
   int i;
   int nctx;
   nctx = ctx->nctx;
@@ -121,7 +121,7 @@ void od_adapt2d_forward(od_adapt2d_ctx *ctx, int xpos,
   adapts = ctx->params;
   for (i = 0; i < nctx; i++) {
     if (curr[i] != OD_ADAPT_NO_VALUE) {
-      ogg_int32_t adapt;
+      int32_t adapt;
       adapt = adapts[i];
       data[i].curr = curr[i] >> 1;
       hmean[i] += (data[i].curr - hmean[i]) >> adapt;
@@ -136,9 +136,9 @@ void od_adapt2d_forward(od_adapt2d_ctx *ctx, int xpos,
 /*Update the 2D filter for a finished row.
   This must be run at the end of every horizontal scan.*/
 void od_adapt2d_row_backward(od_adapt2d_ctx *ctx) {
-  const ogg_int32_t *adapts;
+  const int32_t *adapts;
   od_adapt2d_data *data;
-  ogg_int32_t hmean[OD_NADAPT_CTXS_MAX];
+  int32_t hmean[OD_NADAPT_CTXS_MAX];
   int r;
   int nctx;
   int nhv;
@@ -153,7 +153,7 @@ void od_adapt2d_row_backward(od_adapt2d_ctx *ctx) {
     roff = r*nctx;
     for (i = 0; i < nctx; i++) {
       if (data[roff + i].curr != OD_ADAPT_NO_VALUE) {
-        ogg_int32_t adapt;
+        int32_t adapt;
         adapt = adapts[i];
         data[roff + i].mean += (hmean[i] >> adapt) - (hmean[i] >> 2*adapt);
         hmean[i] += (data[roff + i].curr - hmean[i]) >> adapt;

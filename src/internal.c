@@ -43,7 +43,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
     month=Jun,
     year=2005
   }*/
-ogg_uint32_t OD_DIVU_SMALL_CONSTS[OD_DIVU_DMAX][2] = {
+uint32_t OD_DIVU_SMALL_CONSTS[OD_DIVU_DMAX][2] = {
   { 0xFFFFFFFF, 0xFFFFFFFF },
   { 0xFFFFFFFF, 0xFFFFFFFF },
   { 0xAAAAAAAB,         0 },
@@ -118,7 +118,7 @@ void od_fatal_impl(const char *_str, const char *_file, int _line) {
 }
 #endif
 
-int od_ilog(ogg_uint32_t _v) {
+int od_ilog(uint32_t _v) {
 #if defined(OD_CLZ)
   return (OD_CLZ0-OD_CLZ(_v))&-!!_v;
 #else
@@ -154,7 +154,7 @@ void **od_malloc_2d(size_t _height, size_t _width, size_t _sz) {
   rowsz = _sz*_width;
   datsz = rowsz*_height;
   /*Alloc array and row pointers.*/
-  ret = (char *)_ogg_malloc(datsz+colsz);
+  ret = (char *)malloc(datsz+colsz);
   /*Initialize the array.*/
   if (ret != NULL) {
     size_t   i;
@@ -177,7 +177,7 @@ void **od_calloc_2d(size_t _height, size_t _width, size_t _sz) {
   rowsz = _sz*_width;
   datsz = rowsz*_height;
   /*Alloc array and row pointers.*/
-  ret = (char *)_ogg_calloc(datsz + colsz, 1);
+  ret = (char *)calloc(datsz + colsz, 1);
   /*Initialize the array.*/
   if (ret != NULL) {
     size_t   i;
@@ -192,14 +192,14 @@ void **od_calloc_2d(size_t _height, size_t _width, size_t _sz) {
 }
 
 void od_free_2d(void *_ptr) {
-  _ogg_free(_ptr);
+  free(_ptr);
 }
 
 #define BUFFER_INCREMENT (256)
 
 void oggbyte_writeinit(oggbyte_buffer *_b) {
   OD_CLEAR(_b, 1);
-  _b->ptr = _b->buf = (unsigned char *)_ogg_malloc(BUFFER_INCREMENT);
+  _b->ptr = _b->buf = (unsigned char *)malloc(BUFFER_INCREMENT);
   _b->storage = BUFFER_INCREMENT;
 }
 
@@ -212,7 +212,7 @@ void oggbyte_write1(oggbyte_buffer *_b, unsigned _value) {
   ptrdiff_t endbyte;
   endbyte = _b->ptr-_b->buf;
   if (endbyte >= _b->storage) {
-    _b->buf = (unsigned char *)_ogg_realloc(_b->buf,
+    _b->buf = (unsigned char *)realloc(_b->buf,
             _b->storage + BUFFER_INCREMENT);
     _b->storage += BUFFER_INCREMENT;
     _b->ptr = _b->buf+endbyte;
@@ -220,11 +220,11 @@ void oggbyte_write1(oggbyte_buffer *_b, unsigned _value) {
   *(_b->ptr++) = (unsigned char)_value;
 }
 
-void oggbyte_write4(oggbyte_buffer *_b, ogg_uint32_t _value) {
+void oggbyte_write4(oggbyte_buffer *_b, uint32_t _value) {
   ptrdiff_t endbyte;
   endbyte = _b->ptr - _b->buf;
   if (endbyte+4 > _b->storage) {
-    _b->buf = (unsigned char *)_ogg_realloc(_b->buf,
+    _b->buf = (unsigned char *)realloc(_b->buf,
             _b->storage + BUFFER_INCREMENT);
     _b->storage += BUFFER_INCREMENT;
     _b->ptr = _b->buf + endbyte;
@@ -244,7 +244,7 @@ void oggbyte_writecopy(oggbyte_buffer *_b, const void *_source,
   endbyte = _b->ptr-_b->buf;
   if (endbyte+_bytes > _b->storage) {
     _b->storage = endbyte+_bytes+BUFFER_INCREMENT;
-    _b->buf = (unsigned char *)_ogg_realloc((void *)_b->buf, _b->storage);
+    _b->buf = (unsigned char *)realloc((void *)_b->buf, _b->storage);
     _b->ptr = _b->buf+endbyte;
   }
   memmove(_b->ptr, _source, _bytes);
@@ -256,7 +256,7 @@ void oggbyte_reset(oggbyte_buffer *_b) {
 }
 
 void oggbyte_writeclear(oggbyte_buffer *_b) {
-  _ogg_free(_b->buf);
+  free(_b->buf);
   OD_CLEAR(_b, 1);
 }
 
@@ -275,7 +275,7 @@ int oggbyte_look1(oggbyte_buffer *_b) {
   else return _b->ptr[0];
 }
 
-int oggbyte_look4(oggbyte_buffer *_b, ogg_uint32_t *_val) {
+int oggbyte_look4(oggbyte_buffer *_b, uint32_t *_val) {
   ptrdiff_t endbyte;
   endbyte = _b->ptr-_b->buf;
   if (endbyte > _b->storage-4) {
@@ -283,18 +283,18 @@ int oggbyte_look4(oggbyte_buffer *_b, ogg_uint32_t *_val) {
       *_val = _b->ptr[0];
       endbyte++;
       if (endbyte < _b->storage) {
-        *_val |= (ogg_uint32_t)_b->ptr[1]<<8;
+        *_val |= (uint32_t)_b->ptr[1]<<8;
         endbyte++;
-        if (endbyte < _b->storage) *_val |= (ogg_uint32_t)_b->ptr[2]<<16;
+        if (endbyte < _b->storage) *_val |= (uint32_t)_b->ptr[2]<<16;
       }
     }
     return -1;
   }
   else {
     *_val = _b->ptr[0];
-    *_val |= (ogg_uint32_t)_b->ptr[1]<<8;
-    *_val |= (ogg_uint32_t)_b->ptr[2]<<16;
-    *_val |= (ogg_uint32_t)_b->ptr[3]<<24;
+    *_val |= (uint32_t)_b->ptr[1]<<8;
+    *_val |= (uint32_t)_b->ptr[2]<<16;
+    *_val |= (uint32_t)_b->ptr[3]<<24;
   }
   return 0;
 }
@@ -314,29 +314,29 @@ int oggbyte_read1(oggbyte_buffer *_b) {
   else return *(_b->ptr++);
 }
 
-int oggbyte_read4(oggbyte_buffer *_b, ogg_uint32_t *_val) {
+int oggbyte_read4(oggbyte_buffer *_b, uint32_t *_val) {
   unsigned char *end;
   end = _b->buf+_b->storage;
   if (_b->ptr+4 > end) {
     if (_b->ptr < end) {
       *_val = *(_b->ptr++);
       if (_b->ptr < end) {
-        *_val |= (ogg_uint32_t)*(_b->ptr++)<<8;
-        if (_b->ptr < end) *_val |= (ogg_uint32_t)*(_b->ptr++)<<16;
+        *_val |= (uint32_t)*(_b->ptr++)<<8;
+        if (_b->ptr < end) *_val |= (uint32_t)*(_b->ptr++)<<16;
       }
     }
     return -1;
   }
   else {
     *_val = (*_b->ptr++);
-    *_val |= (ogg_uint32_t)*(_b->ptr++)<<8;
-    *_val |= (ogg_uint32_t)*(_b->ptr++)<<16;
-    *_val |= (ogg_uint32_t)*(_b->ptr++)<<24;
+    *_val |= (uint32_t)*(_b->ptr++)<<8;
+    *_val |= (uint32_t)*(_b->ptr++)<<16;
+    *_val |= (uint32_t)*(_b->ptr++)<<24;
   }
   return 0;
 }
 
-int oggbyte_readcopy(oggbyte_buffer *_b, void *_dest, ogg_uint32_t _bytes) {
+int oggbyte_readcopy(oggbyte_buffer *_b, void *_dest, uint32_t _bytes) {
   ptrdiff_t endbyte;
   endbyte = _b->ptr - _b->buf;
   OD_ASSERT(endbyte >= 0);
@@ -363,7 +363,7 @@ const char *daala_version_string(void) {
   return OD_VENDOR_STRING;
 }
 
-ogg_uint32_t daala_version_number(void) {
+uint32_t daala_version_number(void) {
   return OD_VERSION_MAJOR<<16|OD_VERSION_MINOR<<8|OD_VERSION_SUB;
 }
 
