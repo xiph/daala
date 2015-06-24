@@ -332,48 +332,6 @@ static void od_img_plane_copy_pad8(od_img_plane *dst_p,
   }
 }
 
-/*Extend the edge into the padding.*/
-static void od_img_plane_edge_ext8(od_img_plane *dst_p,
- int plane_width, int plane_height, int horz_padding, int vert_padding) {
-  ptrdiff_t dstride;
-  unsigned char *dst_data;
-  unsigned char *dst;
-  int x;
-  int y;
-  dstride = dst_p->ystride;
-  dst_data = dst_p->data;
-  /*Left side.*/
-  for (y = 0; y < plane_height; y++) {
-    dst = dst_data + dstride * y;
-    for (x = 1; x <= horz_padding; x++) {
-      (dst-x)[0] = dst[0];
-    }
-  }
-  /*Right side.*/
-  for (y = 0; y < plane_height; y++) {
-    dst = dst_data + plane_width - 1 + dstride * y;
-    for (x = 1; x <= horz_padding; x++) {
-      dst[x] = dst[0];
-    }
-  }
-  /*Top.*/
-  dst = dst_data - horz_padding;
-  for (y = 0; y < vert_padding; y++) {
-    for (x = 0; x < plane_width + 2 * horz_padding; x++) {
-      (dst - dstride)[x] = dst[x];
-    }
-    dst -= dstride;
-  }
-  /*Bottom.*/
-  dst = dst_data - horz_padding + plane_height * dstride;
-  for (y = 0; y < vert_padding; y++) {
-    for (x = 0; x < plane_width + 2 * horz_padding; x++) {
-      dst[x] = (dst - dstride)[x];
-    }
-    dst += dstride;
-  }
-}
-
 struct od_mb_enc_ctx {
   od_coeff *c;
   od_coeff **d;
@@ -1289,10 +1247,8 @@ static void od_img_copy_pad(od_state *state, od_img *img) {
     od_img_plane_copy_pad8(&state->io_imgs[OD_FRAME_INPUT].planes[pli],
      state->frame_width >> xdec, state->frame_height >> ydec,
      &plane, plane_width, plane_height);
-    od_img_plane_edge_ext8(&state->io_imgs[OD_FRAME_INPUT].planes[pli],
-     state->frame_width >> xdec, state->frame_height >> ydec,
-     OD_UMV_PADDING >> xdec, OD_UMV_PADDING >> ydec);
   }
+  od_img_edge_ext(state->io_imgs + OD_FRAME_INPUT);
 }
 
 #if defined(OD_DUMP_IMAGES)
@@ -1316,13 +1272,6 @@ static void od_img_dump_padded(od_state *state) {
 #endif
 
 static void od_predict_frame(daala_enc_ctx *enc) {
-  int nplanes;
-  int pli;
-  int frame_width;
-  int frame_height;
-  nplanes = enc->state.info.nplanes;
-  frame_width = enc->state.frame_width;
-  frame_height = enc->state.frame_height;
 #if defined(OD_DUMP_IMAGES) && defined(OD_ANIMATE)
   enc->state.ani_iter = 0;
 #endif
@@ -1339,13 +1288,7 @@ static void od_predict_frame(daala_enc_ctx *enc) {
   od_state_mc_predict(&enc->state, OD_FRAME_PREV);
   /*Do edge extension here because the block-size analysis needs to read
     outside the frame, but otherwise isn't read from.*/
-  for (pli = 0; pli < nplanes; pli++) {
-    od_img_plane plane;
-    *&plane = *(enc->state.io_imgs[OD_FRAME_REC].planes + pli);
-    od_img_plane_edge_ext8(&plane, frame_width >> plane.xdec,
-     frame_height >> plane.ydec, OD_UMV_PADDING >> plane.xdec,
-     OD_UMV_PADDING >> plane.ydec);
-  }
+  od_img_edge_ext(enc->state.io_imgs + OD_FRAME_REC);
 #if defined(OD_DUMP_IMAGES)
   /*Dump reconstructed frame.*/
   /*od_state_dump_img(&enc->state,enc->state.io_imgs + OD_FRAME_REC,"rec");*/
@@ -1788,6 +1731,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   int pic_height;
   int use_masking;
   od_mb_enc_ctx mbctx;
+  od_img *ref_img;
   if (enc == NULL || img == NULL) return OD_EFAULT;
   if (enc->packet_state == OD_PACKET_DONE) return OD_EINVAL;
   /*Check the input image dimensions to make sure they're compatible with the
@@ -1924,9 +1868,12 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   od_dump_frame_metrics(&enc->state);
 #endif
   enc->packet_state = OD_PACKET_READY;
-  od_state_upsample8(&enc->state,
-   enc->state.ref_imgs + enc->state.ref_imgi[OD_FRAME_SELF],
-   enc->state.io_imgs + OD_FRAME_REC);
+  /*Copy full-pel ref image from state.io_imgs[OD_FRAME_REC]
+     to state.ref_imgs[].*/
+  ref_img = enc->state.ref_imgs + enc->state.ref_imgi[OD_FRAME_SELF];
+  OD_ASSERT(ref_img);
+  od_img_copy(ref_img, enc->state.io_imgs + OD_FRAME_REC);
+  od_img_edge_ext(ref_img);
 #if defined(OD_DUMP_IMAGES)
   /*Dump reference frame.*/
   /*od_state_dump_img(&enc->state,

@@ -230,6 +230,7 @@ void od_state_mc_predict(od_state *_state, int _ref);
 void od_state_init_border(od_state *_state);
 void od_state_upsample8(od_state *_state, od_img *_dst, const od_img *_src);
 int od_state_dump_yuv(od_state *_state, od_img *_img, const char *_tag);
+void od_img_edge_ext(od_img* src);
 # if defined(OD_DUMP_IMAGES)
 int od_state_dump_img(od_state *_state, od_img *_img, const char *_tag);
 void od_img_draw_point(od_img *_img, int _x, int _y,

@@ -900,6 +900,7 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
  const ogg_packet *op) {
   int refi;
   od_mb_dec_ctx mbctx;
+  od_img *ref_img;
   if (dec == NULL || img == NULL || op == NULL) return OD_EFAULT;
   if (dec->packet_state != OD_PACKET_DATA) return OD_EINVAL;
   if (op->e_o_s) dec->packet_state = OD_PACKET_DONE;
@@ -969,9 +970,10 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
   /*Dump YUV*/
   od_state_dump_yuv(&dec->state, dec->state.io_imgs + OD_FRAME_REC, "out");
 #endif
-  od_state_upsample8(&dec->state,
-   dec->state.ref_imgs + dec->state.ref_imgi[OD_FRAME_SELF],
-   dec->state.io_imgs + OD_FRAME_REC);
+  ref_img = dec->state.ref_imgs + dec->state.ref_imgi[OD_FRAME_SELF];
+  OD_ASSERT(ref_img);
+  od_img_copy(ref_img, dec->state.io_imgs + OD_FRAME_REC);
+  od_img_edge_ext(ref_img);
   /*Return decoded frame.*/
   *img = dec->state.io_imgs[OD_FRAME_REC];
   img->width = dec->state.info.pic_width;

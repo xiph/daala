@@ -2142,42 +2142,46 @@ static int od_mv_est_bits(od_mv_est_ctx *est, int equal_mvs,
 }
 
 /*Computes the SAD of a whole-pel BMA block with the given parameters.*/
+/*Note: The od_enc_sad8() is now always called with xstride = 1,
+   because MC ref image is NOT upsampled at frame level.*/
 static ogg_int32_t od_mv_est_bma_sad8(od_mv_est_ctx *est,
  int ref, int bx, int by, int mvx, int mvy, int log_mvb_sz) {
   od_state *state;
   od_img_plane *iplane;
   ogg_int32_t ret;
   int refi;
-  int pmvx;
-  int pmvy;
-  int pbx;
-  int pby;
   int dx;
   int dy;
   state = &est->enc->state;
   refi = state->ref_imgi[ref];
   iplane = state->ref_imgs[refi].planes + 0;
-  pmvx = OD_DIV_POW2_RE(mvx << 1, iplane->xdec);
-  pmvy = OD_DIV_POW2_RE(mvy << 1, iplane->ydec);
-  pbx = (bx + (1 << iplane->xdec) - 1) & ~((1 << iplane->xdec) - 1);
-  pby = (by + (1 << iplane->ydec) - 1) & ~((1 << iplane->ydec) - 1);
-  dx = (pbx << 1 >> iplane->xdec) + pmvx;
-  dy = (pby << 1 >> iplane->ydec) + pmvy;
-  ret = od_enc_sad8(est->enc, iplane->data + dy*iplane->ystride + dx,
-   iplane->ystride << 1, 2, 0, pbx, pby, log_mvb_sz + 2);
+  OD_ASSERT(iplane->xdec == 0 && iplane->ydec == 0);
+  dx = bx + mvx;
+  dy = by + mvy;
+  ret = od_enc_sad8(est->enc, iplane->data + dy *iplane->ystride + dx,
+   iplane->ystride, 1, 0, bx, by, log_mvb_sz + OD_LOG_MVBSIZE_MIN);
   if (est->flags & OD_MC_USE_CHROMA) {
     int pli;
+    unsigned char *ref_img;
     for (pli = 1; pli < state->io_imgs[OD_FRAME_INPUT].nplanes; pli++) {
       iplane = state->ref_imgs[refi].planes + pli;
-      pmvx = OD_DIV_POW2_RE(mvx << 1, iplane->xdec);
-      pmvy = OD_DIV_POW2_RE(mvy << 1, iplane->ydec);
-      pbx = (bx + (1 << iplane->xdec) - 1) & ~((1 << iplane->xdec) - 1);
-      pby = (by + (1 << iplane->ydec) - 1) & ~((1 << iplane->ydec) - 1);
-      dx = (pbx << 1 >> iplane->xdec) + pmvx;
-      dy = (pby << 1 >> iplane->ydec) + pmvy;
-      ret += od_enc_sad8(est->enc, iplane->data + dy*iplane->ystride + dx,
-       iplane->ystride << 1, 2, pli, pbx, pby, log_mvb_sz + 2) >>
-       OD_MC_CHROMA_SCALE;
+      OD_ASSERT(((bx + (1 << iplane->xdec) - 1) & ~((1 << iplane->xdec) - 1))
+       == bx);
+      OD_ASSERT(((by + (1 << iplane->ydec) - 1) & ~((1 << iplane->ydec) - 1))
+       == by);
+      /*If the input chroma plane is sub-sampled, then the candidate block with
+         subpel position for BMA search is interpolated at block level.*/
+      ref_img = iplane->data + (by >> iplane->ydec)*iplane->ystride
+       + (bx >> iplane->xdec);
+      od_mc_predict1fmv8_c(state->mc_buf[4], ref_img, iplane->ystride,
+       mvx << (3 - iplane->xdec), mvy << (3 - iplane->ydec),
+       log_mvb_sz + OD_LOG_MVBSIZE_MIN - iplane->xdec,
+       log_mvb_sz + OD_LOG_MVBSIZE_MIN - iplane->ydec);
+      /*Then, calculate SAD between a target block and the subpel interpolated
+         MC block.*/
+      ret += od_enc_sad8(est->enc, state->mc_buf[4],
+       1 << (log_mvb_sz + OD_LOG_MVBSIZE_MIN - iplane->xdec),
+       1, pli, bx, by, log_mvb_sz + OD_LOG_MVBSIZE_MIN) >> OD_MC_CHROMA_SCALE;
     }
   }
   return ret;

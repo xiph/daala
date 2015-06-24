@@ -139,7 +139,7 @@ static int od_state_ref_imgs_init(od_state *state, int nrefs, int nio) {
     /*Reserve space for this plane in nrefs reference images.*/
     plane_buf_width = frame_buf_width >> info->plane_info[pli].xdec;
     plane_buf_height = frame_buf_height >> info->plane_info[pli].ydec;
-    data_sz += plane_buf_width*plane_buf_height*nrefs << 2;
+    data_sz += plane_buf_width*plane_buf_height*nrefs;
 #if defined(OD_DUMP_IMAGES)
     /*Reserve space for this plane in 1 visualization image.*/
     data_sz += plane_buf_width*plane_buf_height << 2;
@@ -158,15 +158,15 @@ static int od_state_ref_imgs_init(od_state *state, int nrefs, int nio) {
   for (imgi = 0; imgi < nrefs; imgi++) {
     img = state->ref_imgs + imgi;
     img->nplanes = info->nplanes;
-    img->width = state->frame_width << 1;
-    img->height = state->frame_height << 1;
+    img->width = state->frame_width;
+    img->height = state->frame_height;
     for (pli = 0; pli < img->nplanes; pli++) {
-      plane_buf_width = (frame_buf_width << 1) >> info->plane_info[pli].xdec;
-      plane_buf_height = (frame_buf_height << 1) >> info->plane_info[pli].ydec;
+      plane_buf_width = frame_buf_width >> info->plane_info[pli].xdec;
+      plane_buf_height = frame_buf_height >> info->plane_info[pli].ydec;
       iplane = img->planes + pli;
       iplane->data = ref_img_data
-       + ((OD_UMV_PADDING << 1) >> info->plane_info[pli].xdec)
-       + plane_buf_width*((OD_UMV_PADDING << 1) >> info->plane_info[pli].ydec);
+       + (OD_UMV_PADDING >> info->plane_info[pli].xdec)
+       + plane_buf_width*(OD_UMV_PADDING >> info->plane_info[pli].ydec);
       ref_img_data += plane_buf_width*plane_buf_height;
       iplane->xdec = info->plane_info[pli].xdec;
       iplane->ydec = info->plane_info[pli].ydec;
@@ -813,11 +813,11 @@ void od_state_pred_block_from_setup(od_state *state,
   for (k = 0; k < 4; k++) {
     grid[k] = state->mv_grid[vy + (dyp[k] << log_mvb_sz)]
      + vx + (dxp[k] << log_mvb_sz);
-    mvx[k] = (ogg_int32_t)grid[k]->mv[0] << (14 - iplane->xdec);
-    mvy[k] = (ogg_int32_t)grid[k]->mv[1] << (14 - iplane->ydec);
+    mvx[k] = (ogg_int32_t)OD_DIV_POW2_RE(grid[k]->mv[0], iplane->xdec);
+    mvy[k] = (ogg_int32_t)OD_DIV_POW2_RE(grid[k]->mv[1], iplane->ydec);
   }
-  x = vx << (OD_LOG_MVBSIZE_MIN + 1 - iplane->xdec);
-  y = vy << (OD_LOG_MVBSIZE_MIN + 1 - iplane->ydec);
+  x = vx << (OD_LOG_MVBSIZE_MIN - iplane->xdec);
+  y = vy << (OD_LOG_MVBSIZE_MIN - iplane->ydec);
   od_mc_predict8(state, buf, ystride, iplane->data + y*iplane->ystride + x,
    iplane->ystride, mvx, mvy, oc, s,
    log_mvb_sz + OD_LOG_MVBSIZE_MIN - iplane->xdec,
@@ -1403,4 +1403,59 @@ double daala_granule_time(void *encdec, ogg_int64_t granpos) {
      state->info.timebase_numerator;
   }
   return -1;
+}
+
+/*Extend the edge into the padding.*/
+static void od_img_plane_edge_ext8(od_img_plane *dst_p,
+ int plane_width, int plane_height, int horz_padding, int vert_padding) {
+  ptrdiff_t dstride;
+  unsigned char *dst_data;
+  unsigned char *dst;
+  int x;
+  int y;
+  dstride = dst_p->ystride;
+  dst_data = dst_p->data;
+  /*Left side.*/
+  for (y = 0; y < plane_height; y++) {
+    dst = dst_data + dstride * y;
+    for (x = 1; x <= horz_padding; x++) {
+      (dst - x)[0] = dst[0];
+    }
+  }
+  /*Right side.*/
+  for (y = 0; y < plane_height; y++) {
+    dst = dst_data + plane_width - 1 + dstride * y;
+    for (x = 1; x <= horz_padding; x++) {
+      dst[x] = dst[0];
+    }
+  }
+  /*Top.*/
+  dst = dst_data - horz_padding;
+  for (y = 0; y < vert_padding; y++) {
+    for (x = 0; x < plane_width + 2 * horz_padding; x++) {
+      (dst - dstride)[x] = dst[x];
+    }
+    dst -= dstride;
+  }
+  /*Bottom.*/
+  dst = dst_data - horz_padding + plane_height * dstride;
+  for (y = 0; y < vert_padding; y++) {
+    for (x = 0; x < plane_width + 2 * horz_padding; x++) {
+      dst[x] = (dst - dstride)[x];
+    }
+    dst += dstride;
+  }
+}
+
+void od_img_edge_ext(od_img* src) {
+  int pli;
+  for (pli = 0; pli < src->nplanes; pli++) {
+    int xdec;
+    int ydec;
+    xdec = (src->planes + pli)->xdec;
+    ydec = (src->planes + pli)->ydec;
+    od_img_plane_edge_ext8(&src->planes[pli],
+     src->width >> xdec, src->height >> ydec,
+     OD_UMV_PADDING >> xdec, OD_UMV_PADDING >> ydec);
+  }
 }

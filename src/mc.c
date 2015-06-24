@@ -45,84 +45,132 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 void od_mc_predict1fmv8_c(unsigned char *dst, const unsigned char *src,
  int systride, ogg_int32_t mvx, ogg_int32_t mvy,
  int log_xblk_sz, int log_yblk_sz) {
-  ogg_uint32_t mvxf;
-  ogg_uint32_t mvyf;
+  int mvxf;
+  int mvyf;
   int xblk_sz;
   int yblk_sz;
-  int p00;
-  int p01;
-  int p10;
   int i;
   int j;
+  /*Pointer to the start of an image block in local buffer (defined
+     below, buff[]), where the buffer contans the top and bottom apron
+     area of the image block.
+    Used as output for 1st stage horizontal filtering then as input for
+     2nd stage vertical filtering.*/
+  ogg_int16_t *buff_p;
+  /*A pointer to input row for both 1st and 2nd stage filtering*/
+  const unsigned char *src_p;
+  unsigned char *dst_p;
+  /*1D filter chosen for the current fractional position of x mv.*/
+  const ogg_int16_t *fx;
+  const ogg_int16_t *fy;
+  /*ME/MC Subpel interpolation filter set.*/
+  /*Based on fractional part of MV, which is 000, 001, ..., 111
+     for 1/8 pel precision, apply corresponding filter.
+    For this, we need 8 kinds of 1D filter, each corresponds to
+     one of eight fractional positions.*/
+# define OD_FILTER_TAP_SIZE (6)
+# if 1
+  /*6-tap filter #1 :
+    Windowed-sinc 6-tap for 1/2 pel, and bilinear for 1/4 and 1/8 pel.
+     (Same design as adopted in frame level upsampling function,
+     which is currently used in master branch.)
+    Filter coefficient is scaled up by 7 bit.*/
+# define OD_COEFF_SCALE (7)
+  static const ogg_int16_t OD_FILTER_SET[8][OD_FILTER_TAP_SIZE] = {
+    /*-2  -1  [ 0    1]   2  3  : pixel position in support region.*/
+    { 0,   0, 128,   0,   0, 0 },
+    { 1,  -5, 116,  20,  -5, 1 },
+    { 2, -10, 104,  40, -10, 2 },
+    { 3, -15,  92,  60, -15, 3 },
+    { 4, -20,  80,  80, -20, 4 },
+    { 3, -15,  60,  92, -15, 3 },
+    { 2, -10,  40, 104, -10, 2 },
+    { 1,  -5,  20, 116,  -5, 1 }
+  };
+# else
+  /*6-tap filter #2 :
+    Windowed-sinc 6-tap for 1/2 pel and 1/4 pel, and bilinear for 1/8 pel.
+    Filter coefficient is scaled up by 7 bit.*/
+# define OD_COEFF_SCALE (7)
+  static const ogg_int16_t OD_FILTER_SET[8][OD_FILTER_TAP_SIZE] = {
+    { 0,   0, 128,   0,   0, 0 },
+    { 2,  -8, 119,  19,  -5, 1 },
+    { 3, -15, 111,  37, -10, 2 },
+    { 3, -16,  95,  58, -14, 2 },
+    { 3, -17,  78,  78, -17, 3 },
+    { 2, -14,  58,  95, -16, 3 },
+    { 2, -10,  37, 111, -15, 3 },
+    { 1,  -5,  19, 119,  -8, 2 }
+  };
+# endif
+# define OD_COEFF_SCALE2 (OD_COEFF_SCALE << 1)
+# define OD_ROUNDING_OFFSET2 (1 << (OD_COEFF_SCALE2 - 1))
+# define OD_ROUNDING_OFFSET3 (OD_ROUNDING_OFFSET2 + (128 << OD_COEFF_SCALE2))
+# define OD_TOP_APRON_SZ (OD_FILTER_TAP_SIZE/2 - 1)
+# define OD_BOTTOM_APRON_SZ (OD_FILTER_TAP_SIZE/2)
+# define OD_BUFF_APRON_SZ (OD_TOP_APRON_SZ + OD_BOTTOM_APRON_SZ)
+  /*2D buffer to store the result of 1st stage (i.e. horizontal) 1D filtering
+     of a block. The 1st stage filtering requires to output results for
+     top and bottom aprons of input image block, because the 2nd stage
+     filtering (i.e vertical) requires support region on those apron pixels.
+    The size of the buffer is :
+     wxh = OD_MVBSIZE_MAX x (OD_MVBSIZE_MAX + OD_BUFF_APRON_SZ).*/
+  ogg_int16_t buff[(OD_MVBSIZE_MAX + OD_BUFF_APRON_SZ)*OD_MVBSIZE_MAX];
+  ogg_int32_t sum;
+  int k;
   xblk_sz = 1 << log_xblk_sz;
   yblk_sz = 1 << log_yblk_sz;
-  src += (mvx >> 16) + (mvy >> 16)*systride;
-  mvxf = (ogg_uint32_t)(mvx & 0xFFFF);
-  mvyf = (ogg_uint32_t)(mvy & 0xFFFF);
-  if (mvxf != 0) {
-    if (mvyf != 0) {
-      for (j = 0; j < yblk_sz; j++) {
-        for (i = 0; i < xblk_sz; i++) {
-          ogg_uint32_t a;
-          ogg_uint32_t b;
-          int p11;
-          /*printf("<%16.12f, %16.12f>%s", mvx/(double)0x40000,
-           mvy/(double)0x40000, i + 1 < xblk_sz ? "::" : "\n");*/
-          p00 = src[i<<1];
-          p01 = src[i<<1 | 1];
-          p10 = (src + systride)[i<<1];
-          p11 = (src + systride)[i<<1 | 1];
-          a = (((ogg_uint32_t)p00 << 16) + (p01 - p00)*mvxf) >> 16;
-          b = (((ogg_uint32_t)p10 << 16) + (p11 - p10)*mvxf) >> 16;
-          dst[j*xblk_sz + i] = (unsigned char)(((a<<16) + (b - a)*mvyf) >> 16);
+  src += (mvx >> 3) + (mvy >> 3)*systride;
+  /*Fetch LSB 3 bits, i.e. fractional MV.*/
+  mvxf = mvx & 0x07;
+  mvyf = mvy & 0x07;
+  /*Check whether mvxf and mvyf are in the range [0...7],
+     i.e. downto 1/8 precision.*/
+  OD_ASSERT(mvxf <= 7);
+  fx = OD_FILTER_SET[mvxf];
+  OD_ASSERT(mvyf <= 7);
+  fy = OD_FILTER_SET[mvyf];
+  /*MC with subpel MV?*/
+  if (mvxf || mvyf) {
+    buff_p = buff;
+    src_p = src - systride*OD_TOP_APRON_SZ;
+    /*1st stage 1D filtering, Horizontal.*/
+    for (j = -OD_TOP_APRON_SZ; j < yblk_sz + OD_BOTTOM_APRON_SZ; j++) {
+      for (i = 0; i < xblk_sz; i++) {
+        sum = 0;
+        for (k = 0; k < OD_FILTER_TAP_SIZE; k++) {
+          sum += src_p[i + k - OD_TOP_APRON_SZ]*fx[k];
         }
-        src += systride << 1;
+        buff_p[i] = sum - (128 << OD_COEFF_SCALE);
       }
+      src_p += systride;
+      buff_p += xblk_sz;
     }
-    else {
-      for (j = 0; j < yblk_sz; j++) {
-        for (i = 0; i < xblk_sz; i++) {
-          /*printf("<%16.12f, %16.12f>%s", mvx/(double)0x40000,
-           mvy/(double)0x40000, i + 1 < xblk_sz ? "::" : "\n");*/
-          p00 = src[i<<1];
-          p01 = src[i<<1 | 1];
-          dst[j*xblk_sz + i] = (unsigned char)(
-           (((ogg_uint32_t)p00 << 16) + (p01 - p00)*mvxf) >> 16);
+    /*2nd stage 1D filtering, Vertical.*/
+    buff_p = buff + xblk_sz*OD_TOP_APRON_SZ;
+    dst_p = dst;
+    for (j = 0; j < yblk_sz; j++) {
+      for (i = 0; i < xblk_sz; i++) {
+        sum = 0;
+        for (k = 0; k < OD_FILTER_TAP_SIZE; k++) {
+          sum += buff_p[i + (k - OD_TOP_APRON_SZ)*xblk_sz] * fy[k];
         }
-        src += systride << 1;
+        dst_p[i] = OD_CLAMP255((sum + OD_ROUNDING_OFFSET3) >> OD_COEFF_SCALE2);
       }
+      buff_p += xblk_sz;
+      dst_p += xblk_sz;
     }
   }
+  /*MC with full-pel MV, i.e. integer position.*/
   else {
-    if (mvyf != 0) {
-      for (j = 0; j < yblk_sz; j++) {
-        for (i = 0; i < xblk_sz; i++) {
-          /*printf("<%16.12f, %16.12f>%s", mvx/(double)0x40000,
-           mvy/(double)0x40000, i + 1 < xblk_sz ? "::" : "\n");*/
-          p00 = src[i<<1];
-          p10 = (src + systride)[i<<1];
-          dst[j*xblk_sz + i] = (unsigned char)(
-           (((ogg_uint32_t)p00 << 16) + (p10 - p00)*mvyf) >> 16);
-        }
-        src += systride << 1;
-      }
-    }
-    else {
-      for (j = 0; j < yblk_sz; j++) {
-        for (i = 0; i < xblk_sz; i++) {
-          /*printf("<%16.12f, %16.12f>%s", mvx/(double)0x40000,
-           mvy/(double)0x40000, i + 1 < xblk_sz ? "::" : "\n");*/
-          dst[j*xblk_sz + i] = src[i<<1];
-        }
-        src += systride << 1;
-      }
+    src_p = src;
+    dst_p = dst;
+    for (j = 0; j < yblk_sz; j++) {
+      OD_COPY(dst_p, src_p, xblk_sz);
+      src_p += systride;
+      dst_p += xblk_sz;
     }
   }
-  /*dst -= xblk_sz*yblk_sz;
-  for (j = 0; j < yblk_sz; j++) {
-    for (i = 0; i < xblk_sz; i++) printf("%2X ", *(dst + i + j*xblk_sz));
-    printf("\n");
-  }*/
 }
 
 static void od_mc_predict1fmv8(od_state *state, unsigned char *dst,
