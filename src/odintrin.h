@@ -134,7 +134,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # define OD_DIV2_RE(x) ((x) + ((x) >> 1 & 1) >> 1)
 /*Divides a x by (1 << (shift)), rounding towards even numbers.*/
 # define OD_DIV_POW2_RE(x, shift) \
-  (((x) + ((x) >> (shift) & 1) + (((1 << (shift)) - 1) >> 1)) >> (shift))
+  ((x) + (((1 << (shift)) + ((x) >> (shift) & 1) - 1) >> 1) >> (shift))
 /*Count leading zeros.
   This macro should only be used for implementing od_ilog(), if it is defined.
   All other code should use OD_ILOG() instead.*/
