@@ -140,9 +140,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
   All other code should use OD_ILOG() instead.*/
 # if defined(_MSC_VER)
 #  include <intrin.h>
-#if !defined(snprintf) 
-	#define snprintf _snprintf
-#endif
+#  if !defined(snprintf)
+#   define snprintf _snprintf
+#  endif
 /*In _DEBUG mode this is not an intrinsic by default.*/
 #  pragma intrinsic(_BitScanReverse)
 
@@ -223,15 +223,15 @@ static __inline int od_bsr(unsigned long x) {
 /** Copy n elements of memory from src to dst. The 0* term provides
     compile-time type checking  */
 #if !defined(OVERRIDE_OD_COPY)
-# define OD_COPY(dst, src, n) (memcpy((dst), (src), sizeof(*(dst))*(n) \
- + 0*((dst)-(src)) ))
+# define OD_COPY(dst, src, n) \
+  (memcpy((dst), (src), sizeof(*(dst))*(n) + 0*((dst) - (src))))
 #endif
 
 /** Copy n elements of memory from src to dst, allowing overlapping regions.
     The 0* term provides compile-time type checking */
 #if !defined(OVERRIDE_OD_MOVE)
-# define OD_MOVE(dst, src, n) (memmove((dst), (src), sizeof(*(dst))*(n) \
- + 0*((dst)-(src)) ))
+# define OD_MOVE(dst, src, n) \
+ (memmove((dst), (src), sizeof(*(dst))*(n) + 0*((dst) - (src)) ))
 #endif
 
 /** Set n elements of dst to zero */
