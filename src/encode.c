@@ -1584,9 +1584,10 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
       for (sby = 0; sby < nvsb; sby++) {
         for (sbx = 0; sbx < nhsb; sbx++) {
           if (mbctx->is_keyframe && OD_BLOCK_SIZE4x4(enc->state.bsize,
-            enc->state.bstride, sbx << 3, sby << 3) == 3) {
+           enc->state.bstride, sbx << (OD_NBSIZES - 1),
+           sby << (OD_NBSIZES - 1)) == OD_NBSIZES - 1) {
             int ln;
-            ln = OD_BLOCK_32X32 + 2 - xdec;
+            ln = OD_LOG_BSIZE_MAX - xdec;
             od_bilinear_smooth(&state->ctmp[pli][(sby << ln)*w + (sbx << ln)],
              ln, w, enc->quantizer[pli], pli);
           }
