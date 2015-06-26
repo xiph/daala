@@ -192,47 +192,41 @@ struct od_mb_dec_ctx {
 };
 typedef struct od_mb_dec_ctx od_mb_dec_ctx;
 
-static void od_decode_compute_pred(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, od_coeff *pred,
-  int bs, int pli, int bx, int by) {
+static void od_decode_compute_pred(daala_dec_ctx *dec, od_mb_dec_ctx *ctx,
+ od_coeff *pred, int bs, int pli, int bx, int by) {
   int n;
-  int n2;
   int xdec;
   int w;
-  int frame_width;
-  od_coeff *md;
-  od_coeff *l;
-  int x;
+  int bo;
   int y;
-  OD_ASSERT(bs >= 0 && bs <= 3);
-  n = 1 << (bs + 2);
-  n2 = n*n;
+  int x;
+  OD_ASSERT(bs >= 0 && bs < OD_NBSIZES);
+  n = 1 << bs + OD_LOG_BSIZE0;
   xdec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
-  frame_width = dec->state.frame_width;
-  w = frame_width >> xdec;
+  w = dec->state.frame_width >> xdec;
+  bo = (by << OD_LOG_BSIZE0)*w + (bx << OD_LOG_BSIZE0);
   /*We never use tf on the chroma planes, but if we do it will blow up, which
     is better than always using luma's tf.*/
-  md = ctx->md;
-  l = ctx->l;
   if (ctx->is_keyframe) {
     if (pli == 0 || OD_DISABLE_CFL || ctx->use_haar_wavelet) {
-      OD_CLEAR(pred, n2);
+      OD_CLEAR(pred, n*n);
     }
     else {
-      int i;
-      int j;
-      for (i = 0; i < n; i++) {
-        for (j = 0; j < n; j++) {
-          pred[i*n + j] = l[((by << 2) + i)*w + (bx << 2) + j];
+      od_coeff *l;
+      l = ctx->l;
+      for (y = 0; y < n; y++) {
+        for (x = 0; x < n; x++) {
+          pred[n*y + x] = l[bo + y*w + x];
         }
       }
     }
   }
   else {
-    int ci;
-    ci = 0;
+    od_coeff *md;
+    md = ctx->md;
     for (y = 0; y < n; y++) {
       for (x = 0; x < n; x++) {
-        pred[ci++] = md[(y + (by << 2))*w + (x + (bx << 2))];
+        pred[n*y + x] = md[bo + y*w + x];
       }
     }
   }
