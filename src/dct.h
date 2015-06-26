@@ -157,6 +157,27 @@ void od_bin_fdct32x32(od_coeff *y, int ystride,
 void od_bin_idct32x32(od_coeff *x, int xstride,
  const od_coeff *y, int ystride);
 
+/*A reversible integer approximation of a 64-point type-II DCT based on
+   Loeffler's factorization.
+  y:       The destination vector (of size 64).
+           This may be the same as the source.
+  x:       The source vector (of size 64).
+  xstride: The stride of the source.*/
+void od_bin_fdct64(od_coeff y[64], const od_coeff *x, int xstride);
+
+/*An inverse of the reversible integer approximation of a 64-point type-II DCT
+   above.
+  x:       The destination vector (of size 64).
+           This may be the same as the source.
+  xstride: The stride of the destination.
+  y:       The source vector (of size 64).*/
+void od_bin_idct64(od_coeff *x, int xstride, const od_coeff y[64]);
+
+void od_bin_fdct64x64(od_coeff *y, int ystride,
+ const od_coeff *x, int xstride);
+void od_bin_idct64x64(od_coeff *x, int xstride,
+ const od_coeff *y, int ystride);
+
 void od_haar(od_coeff *y, int ystride, const od_coeff *x, int xstride, int ln);
 void od_haar_inv(od_coeff *x, int xstride, const od_coeff *y, int ystride,
  int ln);
