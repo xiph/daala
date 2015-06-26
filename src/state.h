@@ -201,6 +201,7 @@ struct od_state{
 # endif
 # if defined(OD_DUMP_IMAGES)
   od_img              vis_img;
+  od_img              tmp_vis_img;
 #  if defined(OD_ANIMATE)
   int                 ani_iter;
 #  endif

@@ -143,6 +143,9 @@ static int od_state_ref_imgs_init(od_state *state, int nrefs, int nio) {
 #if defined(OD_DUMP_IMAGES)
     /*Reserve space for this plane in 1 visualization image.*/
     data_sz += plane_buf_width*plane_buf_height << 2;
+    /*Reserve space for this plane in 1 temporary image used to obtain
+       the visualization image.*/
+    data_sz += plane_buf_width*plane_buf_height << 2;
 #endif
     /*Reserve space for this plane in nio input/output images.*/
     data_sz += plane_buf_width*plane_buf_height*nio;
@@ -204,6 +207,22 @@ static int od_state_ref_imgs_init(od_state *state, int nrefs, int nio) {
 #if defined(OD_DUMP_IMAGES)
   /*Fill in the visualization image structure.*/
   img = &state->vis_img;
+  img->nplanes = info->nplanes;
+  img->width = frame_buf_width << 1;
+  img->height = frame_buf_height << 1;
+  for (pli = 0; pli < img->nplanes; pli++) {
+    iplane = img->planes + pli;
+    plane_buf_width = img->width >> info->plane_info[pli].xdec;
+    plane_buf_height = img->height >> info->plane_info[pli].ydec;
+    iplane->data = ref_img_data;
+    ref_img_data += plane_buf_width*plane_buf_height;
+    iplane->xdec = info->plane_info[pli].xdec;
+    iplane->ydec = info->plane_info[pli].ydec;
+    iplane->xstride = 1;
+    iplane->ystride = plane_buf_width;
+  }
+  /*Fill in the temporary image structure.*/
+  img = &state->tmp_vis_img;
   img->nplanes = info->nplanes;
   img->width = frame_buf_width << 1;
   img->height = frame_buf_height << 1;
@@ -1151,7 +1170,7 @@ void od_state_fill_vis(od_state *state) {
   od_state_upsample8(state, img, state->io_imgs + OD_FRAME_REC);
   /*Upsample the input image, as well, and subtract it to get a difference
      image.*/
-  ref_img = state->ref_imgs + state->ref_imgi[OD_FRAME_SELF];
+  ref_img = &state->tmp_vis_img;
   od_state_upsample8(state, ref_img, &state->io_imgs[OD_FRAME_INPUT]);
   xdec = state->info.plane_info[0].xdec;
   ydec = state->info.plane_info[0].ydec;
