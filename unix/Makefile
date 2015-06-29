@@ -141,6 +141,7 @@ zigzag4.c \
 zigzag8.c \
 zigzag16.c \
 zigzag32.c \
+zigzag64.c \
 $(if $(findstring -DOD_X86ASM,${CFLAGS}), \
 x86/cpu.c \
 x86/sse2mc.c \

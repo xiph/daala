@@ -90,6 +90,7 @@ src_libdaalabase_la_SOURCES = \
 	src/zigzag8.c \
 	src/zigzag16.c \
 	src/zigzag32.c \
+	src/zigzag64.c \
 	$(src_dct_SOURCES)
 if ENABLE_X86ASM
 src_libdaalabase_la_SOURCES += \

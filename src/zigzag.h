@@ -29,5 +29,6 @@ extern const unsigned char OD_ZIGZAG4[15][2];
 extern const unsigned char OD_ZIGZAG8[48][2];
 extern const unsigned char OD_ZIGZAG16[192][2];
 extern const unsigned char OD_ZIGZAG32[768][2];
+extern const unsigned char OD_ZIGZAG64[3072][2];
 
 #endif
