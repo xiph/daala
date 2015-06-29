@@ -200,7 +200,8 @@ tools_TARGETS = \
 	tools/jpegyuv \
 	tools/yuv2yuv4mpeg \
 	tools/dump_psnr \
-	tools/vq_train
+	tools/vq_train \
+	tools/draw_zigzags
 
 noinst_HEADERS += \
 	tools/cholesky.h \
@@ -426,6 +427,18 @@ tools_vq_train_SOURCES = \
 	tools/vq_train.c
 tools_vq_train_CFLAGS = $(OPENMP_CFLAGS)
 tools_vq_train_LDADD = $(LIBM)
+
+# draw_zigzags
+tools_draw_zigzags_SOURCES = \
+	tools/draw_zigzags.c \
+	src/zigzag4.c \
+	src/zigzag8.c \
+	src/zigzag16.c \
+	src/zigzag32.c \
+	src/zigzag64.c
+tools_draw_zigzags_CFLAGS =
+tools_draw_zigzags_LDADD =
+
 
 endif # ENABLE_TOOLS
 
