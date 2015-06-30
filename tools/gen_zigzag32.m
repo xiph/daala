@@ -27,7 +27,7 @@ for k=1:length(order)
       fprintf(file, ",");
    end
    if (mod(k,4)==0)
-      fprintf(file, "\n");
+      fprintf(file, "\n  ");
    else
       fprintf(file, " ");
    end
