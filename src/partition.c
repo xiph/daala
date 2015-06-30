@@ -32,6 +32,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 /* The tables below specify how coefficient blocks are translated to
    and from PVQ partition coding scan order for 4x4, 8x8 and 16x16 */
+static const int OD_LAYOUT64_OFFSETS[4] = { 0, 512, 1024, 3072 };
+const band_layout OD_LAYOUT64 = {
+  OD_ZIGZAG64,
+  64,
+  3,
+  OD_LAYOUT64_OFFSETS
+};
+
 static const int OD_LAYOUT32_OFFSETS[4] = { 0, 128, 256, 768};
 const band_layout OD_LAYOUT32 = {
   OD_ZIGZAG32,
@@ -71,12 +79,15 @@ static const int OD_BAND_OFFSETS8[] = {4, 1, 16, 24, 32, 64};
 static const int OD_BAND_OFFSETS16[] = {7, 1, 16, 24, 32, 64, 96, 128, 256};
 static const int OD_BAND_OFFSETS32[] = {10, 1, 16, 24, 32, 64, 96, 128, 256,
  384, 512, 1024};
+static const int OD_BAND_OFFSETS64[] = {13, 1, 16, 24, 32, 64, 96, 128, 256,
+ 384, 512, 1024, 1536, 2048, 4096};
 
-const int *const OD_BAND_OFFSETS[OD_NBSIZES] = {
+const int *const OD_BAND_OFFSETS[OD_NBSIZES + 1] = {
   OD_BAND_OFFSETS4,
   OD_BAND_OFFSETS8,
   OD_BAND_OFFSETS16,
-  OD_BAND_OFFSETS32
+  OD_BAND_OFFSETS32,
+  OD_BAND_OFFSETS64
 };
 
 /** Perform a single stage of conversion from a coefficient block in
@@ -131,15 +142,19 @@ static void od_raster_from_band(const band_layout *layout, od_coeff *dst,
  */
 void od_raster_to_coding_order(od_coeff *dst,  int n, od_coeff *src,
  int stride) {
-  od_band_from_raster(&OD_LAYOUT4, dst+1, src, stride);
+  /* TODO - Rewrite these as a loop. */
+  od_band_from_raster(&OD_LAYOUT4, dst + 1, src, stride);
   if (n >= 8) {
-    od_band_from_raster(&OD_LAYOUT8, dst+16, src, stride);
+    od_band_from_raster(&OD_LAYOUT8, dst + 16, src, stride);
   }
   if (n >= 16) {
-    od_band_from_raster(&OD_LAYOUT16, dst+64, src, stride);
+    od_band_from_raster(&OD_LAYOUT16, dst + 64, src, stride);
   }
   if (n >= 32) {
-    od_band_from_raster(&OD_LAYOUT32, dst+256, src, stride);
+    od_band_from_raster(&OD_LAYOUT32, dst + 256, src, stride);
+  }
+  if (n >= 64) {
+    od_band_from_raster(&OD_LAYOUT64, dst + 1024, src, stride);
   }
   dst[0] = src[0];
 }
@@ -160,15 +175,19 @@ void od_raster_to_coding_order(od_coeff *dst,  int n, od_coeff *src,
  */
 void od_coding_order_to_raster(od_coeff *dst,  int stride, od_coeff *src,
  int n) {
-  od_raster_from_band(&OD_LAYOUT4, dst, stride, src+1);
+  /* TODO - Rewrite these as a loop. */
+  od_raster_from_band(&OD_LAYOUT4, dst, stride, src + 1);
   if (n >= 8) {
-    od_raster_from_band(&OD_LAYOUT8, dst, stride, src+16);
+    od_raster_from_band(&OD_LAYOUT8, dst, stride, src + 16);
   }
   if (n >= 16) {
-    od_raster_from_band(&OD_LAYOUT16, dst, stride, src+64);
+    od_raster_from_band(&OD_LAYOUT16, dst, stride, src + 64);
   }
   if (n >= 32) {
-    od_raster_from_band(&OD_LAYOUT32, dst, stride, src+256);
+    od_raster_from_band(&OD_LAYOUT32, dst, stride, src + 256);
+  }
+  if (n >= 64) {
+    od_raster_from_band(&OD_LAYOUT64, dst, stride, src + 1024);
   }
   dst[0] = src[0];
 }
