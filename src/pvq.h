@@ -27,7 +27,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # include "internal.h"
 # include "filter.h"
 
-extern const double *OD_BASIS_MAG[2][OD_NBSIZES];
+extern const double *OD_BASIS_MAG[2][OD_NBSIZES + 1];
 extern const int OD_QM8_Q4_QM_FLAT[];
 extern const int OD_QM8_Q4_QM_HVS[];
 
@@ -67,7 +67,7 @@ typedef struct od_qm_entry {
 
 extern const od_qm_entry OD_DEFAULT_QMS[2][2][OD_NPLANES_MAX];
 
-extern const double *const OD_PVQ_BETA[2][OD_NPLANES_MAX][OD_NBSIZES];
+extern const double *const OD_PVQ_BETA[2][OD_NPLANES_MAX][OD_NBSIZES + 1];
 
 void od_apply_qm(od_coeff *out, int out_stride, od_coeff *in, int in_stride,
  int bs, int dec, int inverse, const int *qm);
