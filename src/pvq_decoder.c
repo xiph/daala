@@ -171,7 +171,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
   double theta;
   double gr;
   double gain_offset;
-  od_coeff y[1024];
+  od_coeff y[MAXN];
   int qg;
   int nodesync;
   int id;

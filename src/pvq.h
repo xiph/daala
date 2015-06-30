@@ -47,7 +47,8 @@ extern const int OD_QM8_Q4_QM_HVS[];
 #define OD_PVQ_SKIP_ZERO 1
 #define OD_PVQ_SKIP_COPY 2
 
-#define MAXN 512
+/* Largest PVQ partition is half the coefficients of largest block size. */
+#define MAXN (OD_BSIZE_MAX*OD_BSIZE_MAX/2)
 
 #define OD_COMPAND_SCALE (256 << OD_COEFF_SHIFT)
 #define OD_COMPAND_SCALE_1 (1./OD_COMPAND_SCALE)

@@ -108,7 +108,9 @@ static double pvq_search_rdo_double(const double *xcoeff, int n, int k,
   int i, j;
   double xy;
   double yy;
-  double x[1024];
+  /* TODO - This blows our 8kB stack space budget and should be fixed when
+   converting PVQ to fixed point. */
+  double x[MAXN];
   double xx;
   double lambda;
   double norm_1;
