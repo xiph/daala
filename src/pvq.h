@@ -53,7 +53,7 @@ extern const int OD_QM8_Q4_HVS[];
 #define OD_COMPAND_SCALE (256 << OD_COEFF_SHIFT)
 #define OD_COMPAND_SCALE_1 (1./OD_COMPAND_SCALE)
 
-#define OD_QM_SIZE (20)
+#define OD_QM_SIZE (OD_NBSIZES*(OD_NBSIZES + 1))
 
 #define OD_FLAT_QM 0
 #define OD_HVS_QM  1

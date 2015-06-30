@@ -286,10 +286,10 @@ void od_apply_qm(od_coeff *out, int out_stride, od_coeff *in, int in_stride,
 
 /* Indexing for the packed quantization matrices. */
 int od_qm_get_index(int bs, int band) {
-  static const int offsets[OD_NPLANES_MAX] = {0, 2, 6, 12};
   /* The -band/3 term is due to the fact that we force corresponding horizontal
      and vertical bands to have the same quantization. */
-  return offsets[bs] + band - band/3;
+  OD_ASSERT(bs >= 0 && bs < OD_NBSIZES);
+  return bs*(bs + 1) + band - band/3;
 }
 
 /** Computes Householder reflection that aligns the reference r to the
