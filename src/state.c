@@ -59,7 +59,7 @@ const od_coeff OD_DC_QM[2][OD_NBSIZES - 1][2] = {
 
 /* Haar "quantization matrix" for each decomposition level (starting from LF).
    */
-const int OD_HAAR_QM[2][5] = {
+const int OD_HAAR_QM[2][OD_LOG_BSIZE_MAX] = {
   /* horizontal/vertical direction. */
   {16, 16, 16, 24, 32},
   /* "diagonal" direction. */
@@ -298,8 +298,8 @@ static int od_state_init_impl(od_state *state, const daala_info *info) {
   if (OD_UNLIKELY(od_state_mvs_init(state))) {
     return OD_EFAULT;
   }
-  state->nhsb = state->frame_width >> 5;
-  state->nvsb = state->frame_height >> 5;
+  state->nhsb = state->frame_width >> OD_LOG_BSIZE_MAX;
+  state->nvsb = state->frame_height >> OD_LOG_BSIZE_MAX;
   for (pli = 0; pli < nplanes; pli++) {
     int xdec;
     int ydec;

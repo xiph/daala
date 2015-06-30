@@ -1394,7 +1394,7 @@ void od_apply_prefilter_frame_sbs(od_coeff *c0, int stride, int nhsb, int nvsb,
   f = OD_FILT_SIZE(OD_NBSIZES - 1, xdec);
   c = c0 + ((OD_BSIZE_MAX >> ydec) - (2 << f))*stride;
   for (sby = 1; sby < nvsb; sby++) {
-    for (j = 0; j < nhsb << 5 >> xdec; j++) {
+    for (j = 0; j < nhsb << OD_LOG_BSIZE_MAX >> xdec; j++) {
       int k;
       od_coeff t[4 << OD_NBSIZES];
       for (k = 0; k < 4 << f; k++) t[k] = c[stride*k + j];
@@ -1405,7 +1405,7 @@ void od_apply_prefilter_frame_sbs(od_coeff *c0, int stride, int nhsb, int nvsb,
   }
   c = c0 + (OD_BSIZE_MAX >> ydec) - (2 << f);
   for (sbx = 1; sbx < nhsb; sbx++) {
-    for (i = 0; i < nvsb << 5 >> ydec; i++) {
+    for (i = 0; i < nvsb << OD_LOG_BSIZE_MAX >> ydec; i++) {
       (*OD_PRE_FILTER[f])(c + i*stride, c + i*stride);
     }
     c += OD_BSIZE_MAX >> xdec;
@@ -1423,14 +1423,14 @@ void od_apply_postfilter_frame_sbs(od_coeff *c0, int stride, int nhsb,
   f = OD_FILT_SIZE(OD_NBSIZES - 1, xdec);
   c = c0 + (OD_BSIZE_MAX >> ydec) - (2 << f);
   for (sbx = 1; sbx < nhsb; sbx++) {
-    for (i = 0; i < nvsb << 5 >> ydec; i++) {
+    for (i = 0; i < nvsb << OD_LOG_BSIZE_MAX >> ydec; i++) {
       (*OD_POST_FILTER[f])(c + i*stride, c + i*stride);
     }
     c += OD_BSIZE_MAX >> xdec;
   }
   c = c0 + ((OD_BSIZE_MAX >> ydec) - (2 << f))*stride;
   for (sby = 1; sby < nvsb; sby++) {
-    for (j = 0; j < nhsb << 5 >> xdec; j++) {
+    for (j = 0; j < nhsb << OD_LOG_BSIZE_MAX >> xdec; j++) {
       int k;
       od_coeff t[4 << OD_NBSIZES];
       for (k = 0; k < 4 << f; k++) t[k] = c[stride*k + j];
@@ -1460,7 +1460,7 @@ void od_bilinear_smooth(od_coeff *x, int ln, int stride, int q, int pli) {
   od_coeff a01;
   od_coeff a10;
   od_coeff a11;
-  od_coeff y[32][32];
+  od_coeff y[OD_BSIZE_MAX][OD_BSIZE_MAX];
   od_coeff dist;
   int w;
   int i;

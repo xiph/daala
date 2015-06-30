@@ -409,7 +409,7 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int bs,
   int dc_quant;
   int use_masking;
   const int *qm;
-  OD_ASSERT(bs >= 0 && bs <= 3);
+  OD_ASSERT(bs >= 0 && bs < OD_NBSIZES);
   n = 1 << (bs + 2);
   lossless = (dec->quantizer[pli] == 0);
   use_masking = ctx->use_activity_masking;
@@ -527,7 +527,7 @@ static void od_decode_haar_dc_sb(daala_dec_ctx *dec, od_mb_dec_ctx *ctx,
   }
   nhsb = dec->state.nhsb;
   sb_dc_mem = dec->state.sb_dc_mem[pli];
-  ln = 5 - xdec;
+  ln = OD_LOG_BSIZE_MAX - xdec;
   if (by > 0 && bx > 0) {
     /* These coeffs were LS-optimized on subset 1. */
     if (has_ur) {
@@ -846,8 +846,8 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
           od_decode_haar_dc_sb(dec, mbctx, pli, sbx, sby, xdec, ydec,
            sby > 0 && sbx < nhsb - 1, &hgrad, &vgrad);
         }
-        od_decode_recursive(dec, mbctx, pli, sbx, sby, 3, xdec, ydec, hgrad,
-         vgrad);
+        od_decode_recursive(dec, mbctx, pli, sbx, sby, OD_NBSIZES - 1, xdec,
+         ydec, hgrad, vgrad);
       }
     }
   }

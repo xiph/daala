@@ -49,7 +49,7 @@ extern const od_coeff OD_DC_RES[3];
 
 extern const od_coeff OD_DC_QM[2][OD_NBSIZES - 1][2];
 
-extern const int OD_HAAR_QM[2][5];
+extern const int OD_HAAR_QM[2][OD_LOG_BSIZE_MAX];
 
 /*Adaptation speed of scalar Laplace encoding.*/
 # define OD_SCALAR_ADAPT_SPEED (4)

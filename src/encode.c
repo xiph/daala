@@ -592,7 +592,7 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int bs,
   od_coeff preds[OD_BSIZE_MAX*OD_BSIZE_MAX];
   int zzi;
 #endif
-  OD_ASSERT(bs >= 0 && bs <= 3);
+  OD_ASSERT(bs >= 0 && bs < OD_NBSIZES);
   n = 1 << (bs + 2);
   bx <<= bs;
   by <<= bs;
@@ -837,7 +837,7 @@ static void od_quantize_haar_dc_sb(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
   }
   nhsb = enc->state.nhsb;
   sb_dc_mem = enc->state.sb_dc_mem[pli];
-  ln = 5 - xdec;
+  ln = OD_LOG_BSIZE_MAX - xdec;
   if (by > 0 && bx > 0) {
     /* These coeffs were LS-optimized on subset 1. */
     if (has_ur) {
@@ -1320,14 +1320,17 @@ static void od_split_superblocks(daala_enc_ctx *enc, int is_keyframe) {
     istride = state->io_imgs[OD_FRAME_INPUT].planes[0].ystride;
     rstride = is_keyframe ? 0 :
      state->io_imgs[OD_FRAME_REC].planes[0].ystride;
-    bimg = state->io_imgs[OD_FRAME_INPUT].planes[0].data + i*istride*32;
-    rimg = state->io_imgs[OD_FRAME_REC].planes[0].data + i*rstride*32;
+    bimg = state->io_imgs[OD_FRAME_INPUT].planes[0].data
+     + i*istride*OD_BSIZE_MAX;
+    rimg = state->io_imgs[OD_FRAME_REC].planes[0].data
+     + i*rstride*OD_BSIZE_MAX;
     for (j = 0; j < nhsb; j++) {
       int bsize[4][4];
       unsigned char *state_bsize;
       state_bsize = &state->bsize[i*4*state->bstride + j*4];
-      od_split_superblock(enc->bs, bimg + j*32, istride,
-       is_keyframe ? NULL : rimg + j*32, rstride, bsize, enc->quantizer[0]);
+      od_split_superblock(enc->bs, bimg + j*OD_BSIZE_MAX, istride,
+       is_keyframe ? NULL : rimg + j*OD_BSIZE_MAX, rstride, bsize,
+       enc->quantizer[0]);
       /* Grab the 4x4 information returned from `od_split_superblock` in bsize
          and store it in the od_state bsize. */
       for (k = 0; k < 4; k++) {
@@ -1516,14 +1519,14 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
           if (rdo_only) {
             for (i = 0; i < OD_BSIZE_MAX; i++) {
               for (j = 0; j < OD_BSIZE_MAX; j++) {
-                c_orig[i*OD_BSIZE_MAX + j] = mbctx->c[(OD_BSIZE_MAX*sby + i)*width
-                 + OD_BSIZE_MAX*sbx + j];
+                c_orig[i*OD_BSIZE_MAX + j] =
+                 mbctx->c[(OD_BSIZE_MAX*sby + i)*width + OD_BSIZE_MAX*sbx + j];
               }
             }
             od_encode_checkpoint(enc, &buf);
           }
-          od_compute_dcts(enc, mbctx, pli, sbx, sby, 3, xdec, ydec,
-           mbctx->use_haar_wavelet && !rdo_only);
+          od_compute_dcts(enc, mbctx, pli, sbx, sby, OD_NBSIZES - 1, xdec,
+           ydec, mbctx->use_haar_wavelet && !rdo_only);
           od_quantize_haar_dc_sb(enc, mbctx, pli, sbx, sby, xdec, ydec,
            sby > 0 && sbx < nhsb - 1, &hgrad, &vgrad);
           if (rdo_only) {
@@ -1536,8 +1539,8 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
             }
           }
         }
-        od_encode_recursive(enc, mbctx, pli, sbx, sby, 3, xdec, ydec,
-         rdo_only, hgrad, vgrad);
+        od_encode_recursive(enc, mbctx, pli, sbx, sby, OD_NBSIZES - 1, xdec,
+         ydec, rdo_only, hgrad, vgrad);
       }
     }
   }
