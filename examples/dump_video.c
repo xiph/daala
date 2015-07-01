@@ -337,23 +337,30 @@ int main(int argc, char *argv[]) {
   /*Either way, we're done with the codec setup data.*/
   daala_setup_free(ds);
   if (!raw && outfile) {
-    static const char *CHROMA_TYPES[4] = { "420jpeg", NULL, "422jpeg", "444" };
+    static const char *CHROMA_TYPES[5] = {
+      "420jpeg", NULL, "422jpeg", "444", "mono"
+    };
     pic_width = di.pic_width;
     pic_height = di.pic_height;
     fps_num = di.timebase_numerator;
     fps_denom = di.timebase_denominator*di.frame_duration;
-    /*calculate pixel_fmt based on the xdec & ydec values from one of the
-      chroma planes.*/
-    if (di.plane_info[1].xdec == 1 && di.plane_info[1].ydec == 1) {
-      pix_fmt = 0;
+    if (di.nplanes > 1) {
+      /*calculate pixel_fmt based on the xdec & ydec values from one of the
+        chroma planes.*/
+      if (di.plane_info[1].xdec == 1 && di.plane_info[1].ydec == 1) {
+        pix_fmt = 0;
+      }
+      else if (di.plane_info[1].xdec == 1 && di.plane_info[1].ydec == 0) {
+        pix_fmt = 2;
+      }
+      else if (di.plane_info[1].xdec == 0 && di.plane_info[1].ydec == 0) {
+        pix_fmt = 3;
+      }
     }
-    else if (di.plane_info[1].xdec == 1 && di.plane_info[1].ydec == 0) {
-      pix_fmt = 2;
+    else {
+      pix_fmt = 4;
     }
-    else if (di.plane_info[1].xdec == 0 && di.plane_info[1].ydec == 0) {
-      pix_fmt = 3;
-    }
-    if (pix_fmt >= 4 || pix_fmt == 1) {
+    if (pix_fmt >= 5 || pix_fmt == 1) {
       fprintf(stderr, "Unknown pixel format: %i\n", pix_fmt);
       exit(1);
     }
