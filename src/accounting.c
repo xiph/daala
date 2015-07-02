@@ -308,9 +308,9 @@ void od_ec_acct_add_label(od_ec_acct *acct, const char *label) {
     data->used = 0;
     /*Records are composed of a symbol, the number of possible symbols, and
       ncontext items of context.*/
-    data->values = (int **)_ogg_malloc(128*sizeof(int *));
+    data->values = (int **)_ogg_malloc(128*sizeof(*data->values));
     for (i = 0; i < 128; i++) {
-      data->values[i] = (int *)_ogg_malloc(3*sizeof(int));
+      data->values[i] = (int *)_ogg_malloc(3*sizeof(*data->values[i]));
     }
     OD_ASSERT(data->values);
     data->next = NULL;
@@ -339,9 +339,9 @@ void od_ec_acct_record(od_ec_acct *acct, const char *label, int val, int n,
     old_capacity = data->capacity;
     data->capacity *= 2;
     data->values = (int **)_ogg_realloc(data->values,
-     data->capacity*sizeof(int *));
+     data->capacity*sizeof(*data->values));
     for (i = old_capacity; i < data->capacity; i++) {
-      data->values[i] = (int *)_ogg_malloc(3*sizeof(int));
+      data->values[i] = (int *)_ogg_malloc(3*sizeof(*data->values[i]));
     }
   }
   data->values[data->used][0] = val;
