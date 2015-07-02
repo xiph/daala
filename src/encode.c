@@ -957,7 +957,7 @@ static int od_compute_var_4x4(od_coeff *x, int stride) {
 }
 
 static double od_compute_dist_8x8(daala_enc_ctx *enc, od_coeff *x, od_coeff *y,
- int stride) {
+ int stride, int bs) {
   od_coeff e[8*8];
   od_coeff et[8*8];
   double sum;
@@ -1007,6 +1007,11 @@ static double od_compute_dist_8x8(daala_enc_ctx *enc, od_coeff *x, od_coeff *y,
     for (j = 0; j < 8; j++) {
       double mag;
       mag = 16./OD_QM8_Q4_QM_HVS[i*8 + j];
+      /* We attempt to consider the basis magnitudes here, though that's not
+         perfect for block size 16x16 and above since only some edges are
+         filtered then. */
+      mag *= OD_BASIS_MAG[0][bs][i << (bs - 1)]*
+       OD_BASIS_MAG[0][bs][j << (bs - 1)];
       mag *= mag;
       sum += et[8*i + j]*(double)et[8*i + j]*mag;
     }
@@ -1015,7 +1020,7 @@ static double od_compute_dist_8x8(daala_enc_ctx *enc, od_coeff *x, od_coeff *y,
 }
 
 static double od_compute_dist(daala_enc_ctx *enc, od_coeff *x, od_coeff *y,
- int n) {
+ int n, int bs) {
   int i;
   double sum;
   sum = 0;
@@ -1030,7 +1035,7 @@ static double od_compute_dist(daala_enc_ctx *enc, od_coeff *x, od_coeff *y,
     for (i = 0; i < n; i += 8) {
       int j;
       for (j = 0; j < n; j += 8) {
-        sum += od_compute_dist_8x8(enc, &x[i*n + j], &y[i*n + j], n);
+        sum += od_compute_dist_8x8(enc, &x[i*n + j], &y[i*n + j], n, bs);
       }
     }
   }
@@ -1160,9 +1165,9 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
         for (j = 0; j < n; j++) split[n*i + j] = ctx->c[bo + i*w + j];
       }
       rate_split = od_ec_enc_tell_frac(&enc->ec) - tell;
-      dist_split = od_compute_dist(enc, c_orig, split, n);
-      dist_nosplit = od_compute_dist(enc, c_orig, nosplit, n);
-      lambda = (1./(1 << OD_BITRES))*OD_PVQ_LAMBDA*enc->quantizer[pli]*
+      dist_split = od_compute_dist(enc, c_orig, split, n, bs);
+      dist_nosplit = od_compute_dist(enc, c_orig, nosplit, n, bs);
+      lambda = OD_BS_RDO_LAMBDA*(1./(1 << OD_BITRES))*enc->quantizer[pli]*
        enc->quantizer[pli];
       if (skip_split || dist_nosplit + lambda*rate_nosplit < dist_split
        + lambda*rate_split) {
