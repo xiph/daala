@@ -153,7 +153,7 @@ void od_mc_predict1fmv8_c(unsigned char *dst, const unsigned char *src,
       for (i = 0; i < xblk_sz; i++) {
         sum = 0;
         for (k = 0; k < OD_FILTER_TAP_SIZE; k++) {
-          sum += buff_p[i + (k - OD_TOP_APRON_SZ)*xblk_sz] * fy[k];
+          sum += buff_p[i + (k - OD_TOP_APRON_SZ)*xblk_sz]*fy[k];
         }
         dst_p[i] = OD_CLAMP255((sum + OD_ROUNDING_OFFSET3) >> OD_COEFF_SCALE2);
       }
@@ -2571,7 +2571,7 @@ int od_mv_split_flag_ctx(od_mv_grid_pt **grid, int vx, int vy,int level) {
    && (v1->mv[0] == v2->mv[0]) && (v1->mv[1] == v2->mv[1]);
   same2 = v2 != NULL
    && (v2->mv[0] == v3->mv[0]) && (v2->mv[1] == v3->mv[1]);
-  return 3 * (split1 + split2) + same1 + same2;
+  return 3*(split1 + split2) + same1 + same2;
 }
 
 ogg_uint16_t *od_mv_split_flag_cdf(od_state *state,

@@ -102,8 +102,8 @@ void od_img_copy(od_img* dest, od_img* src) {
     width = dest->width >> dest->planes[pli].xdec;
     height = dest->height >> dest->planes[pli].ydec;
     for (row = 0; row < height; row++) {
-      memcpy(dest->planes[pli].data + dest->planes[pli].ystride * row,
-       src->planes[pli].data + src->planes[pli].ystride * row, width);
+      memcpy(dest->planes[pli].data + dest->planes[pli].ystride*row,
+       src->planes[pli].data + src->planes[pli].ystride*row, width);
     }
   }
 }
@@ -1436,14 +1436,14 @@ static void od_img_plane_edge_ext8(od_img_plane *dst_p,
   dst_data = dst_p->data;
   /*Left side.*/
   for (y = 0; y < plane_height; y++) {
-    dst = dst_data + dstride * y;
+    dst = dst_data + dstride*y;
     for (x = 1; x <= horz_padding; x++) {
       (dst - x)[0] = dst[0];
     }
   }
   /*Right side.*/
   for (y = 0; y < plane_height; y++) {
-    dst = dst_data + plane_width - 1 + dstride * y;
+    dst = dst_data + plane_width - 1 + dstride*y;
     for (x = 1; x <= horz_padding; x++) {
       dst[x] = dst[0];
     }
@@ -1451,15 +1451,15 @@ static void od_img_plane_edge_ext8(od_img_plane *dst_p,
   /*Top.*/
   dst = dst_data - horz_padding;
   for (y = 0; y < vert_padding; y++) {
-    for (x = 0; x < plane_width + 2 * horz_padding; x++) {
+    for (x = 0; x < plane_width + 2*horz_padding; x++) {
       (dst - dstride)[x] = dst[x];
     }
     dst -= dstride;
   }
   /*Bottom.*/
-  dst = dst_data - horz_padding + plane_height * dstride;
+  dst = dst_data - horz_padding + plane_height*dstride;
   for (y = 0; y < vert_padding; y++) {
-    for (x = 0; x < plane_width + 2 * horz_padding; x++) {
+    for (x = 0; x < plane_width + 2*horz_padding; x++) {
       dst[x] = (dst - dstride)[x];
     }
     dst += dstride;

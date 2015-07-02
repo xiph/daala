@@ -1490,7 +1490,7 @@ static void od_muliply_matrix(od_coeff *out, const od_coeff *in1,
     for(i = 0; i < blk_size; i++) {
       int sum = 0;
       for(k = 0; k < blk_size; k++) {
-        sum += in1[j*blk_size + k] * in2[k*blk_size + i];
+        sum += in1[j*blk_size + k]*in2[k*blk_size + i];
       }
       out[j*blk_size + i] = sum;
     }
@@ -6103,8 +6103,8 @@ void od_mv_est(od_mv_est_ctx *est, int ref, int lambda) {
 # define OD_ME_SATD_THRESH_SCALE (0.7) /* 1.0 means the same as SAD. */
 # define OD_ME_SATD_LAMBDA_SCALE (0.6)
     est->compute_distortion = od_enc_satd8;/* Use SATD from this stage. */
-    est->lambda = (int)(est->lambda * OD_ME_SATD_LAMBDA_SCALE);
-    cost_thresh = (int)(cost_thresh * OD_ME_SATD_THRESH_SCALE);
+    est->lambda = (int)(est->lambda*OD_ME_SATD_LAMBDA_SCALE);
+    cost_thresh = (int)(cost_thresh*OD_ME_SATD_THRESH_SCALE);
     /* Reset sad values for each ME block since those are used as base
         when measuring the change in ME error in the next stage. */
     {

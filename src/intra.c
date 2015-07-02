@@ -83,7 +83,7 @@ void od_resample_luma_coeffs(od_coeff *chroma_pred, int cpstride,
           int j;
           for (j = 0; j < 4; j++) {
             chroma_pred[i*cpstride + j] =
-             (OD_CFL_SCALING4[j][i] * chroma_pred[i*cpstride + j] + 64) >> 7;
+             (OD_CFL_SCALING4[j][i]*chroma_pred[i*cpstride + j] + 64) >> 7;
           }
         }
       }

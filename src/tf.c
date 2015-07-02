@@ -239,7 +239,7 @@ void od_convert_block_down(od_coeff *dst, int dstride, const od_coeff *src,
   int n;
   int j;
   int i;
-  od_coeff scratch[OD_BSIZE_MAX * OD_BSIZE_MAX];
+  od_coeff scratch[OD_BSIZE_MAX*OD_BSIZE_MAX];
   n = 1 << (curr_size + OD_LOG_BSIZE0);
   if (curr_size == dest_size) {
     if (dst != src) {
@@ -263,7 +263,7 @@ void od_convert_block_down(od_coeff *dst, int dstride, const od_coeff *src,
     od_tf_down_hv(dst, dstride, scratch, OD_BSIZE_MAX, n);
   }
   else {
-    od_coeff scratch2[OD_BSIZE_MAX * OD_BSIZE_MAX];
+    od_coeff scratch2[OD_BSIZE_MAX*OD_BSIZE_MAX];
     od_tf_down_hv(scratch2, OD_BSIZE_MAX, scratch, OD_BSIZE_MAX, n);
     n >>= 1;
     for (j = 0; j < 2; j++) {

@@ -237,7 +237,7 @@ int od_log_matrix_##N(od_log_facility facility, \
     return 0; \
  \
   /* Take an initial stab at buffer size */ \
-  buffer_size = sizeof(T) * 2 * width * height; \
+  buffer_size = sizeof(T)*2*width*height; \
   current_size = 0; \
   buffer = (char *)_ogg_malloc(buffer_size); \
   if (!buffer) \
@@ -250,7 +250,7 @@ re_format: \
                     buffer_size - current_size, \
                     F, \
                     !w ? prefix : "", \
-                    values[(width * h) + w], \
+                    values[width*h + w], \
                     w != (width-1) ? ' ' : '\n'); \
       if (((size_t)rv) >= (buffer_size - current_size)) { \
         buffer_size *= 2; \

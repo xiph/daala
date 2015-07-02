@@ -661,7 +661,7 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int bs,
   }
   /* This quantization may be overridden in the PVQ code for full RDO. */
   if (!ctx->is_keyframe) {
-    if (abs(cblock[0] - predt[0]) < dc_quant * 141 / 256) { /* 0.55 */
+    if (abs(cblock[0] - predt[0]) < dc_quant*141/256) { /* 0.55 */
       scalar_out[0] = 0;
     }
     else {
@@ -1926,7 +1926,8 @@ int daala_encode_packet_out(daala_enc_ctx *enc, int last, ogg_packet *op) {
   }
   op->packet = od_ec_enc_done(&enc->ec, &nbytes);
   op->bytes = nbytes;
-  OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO, "Output Bytes: %ld (%ld Kbits)", op->bytes, op->bytes * 8 / 1024));
+  OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO, "Output Bytes: %ld (%ld Kbits)",
+   op->bytes, op->bytes*8/1024));
   op->b_o_s = 0;
   op->e_o_s = last;
   op->packetno = 0;
