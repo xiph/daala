@@ -33,6 +33,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <string.h>
 #include <time.h>
 #include <getopt.h>
+#include <ogg/ogg.h>
 #include "../src/logging.h"
 #include "daala/daalaenc.h"
 #if defined(_WIN32)

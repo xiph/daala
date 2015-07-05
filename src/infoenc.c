@@ -30,7 +30,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "encint.h"
 
 int daala_encode_flush_header(daala_enc_ctx *_enc, daala_comment *_dc,
- ogg_packet *_op) {
+ daala_packet *_op) {
   daala_info *info = &_enc->state.info;
   if (_enc == NULL || _op == NULL) return OD_EFAULT;
   switch (_enc->packet_state) {

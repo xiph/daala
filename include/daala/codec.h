@@ -259,6 +259,21 @@ int daala_packet_isheader(const unsigned char *packet, int len);
    \retval -1 The packet is not a video data packet.*/
 int daala_packet_iskeyframe(const unsigned char *packet, int len);
 
+/**The daala_packet struct encapsulates the data for a single raw packet of
+   data and is used to transfer data between the framing layer and the handling
+   codec.*/
+typedef struct {
+  unsigned char *packet;
+  long  bytes;
+  long  b_o_s;
+  long  e_o_s;
+
+  int64_t  granulepos;
+  int64_t  packetno;
+
+} daala_packet;
+
+
 # if OD_GNUC_PREREQ(4, 0, 0)
 #  pragma GCC visibility pop
 # endif

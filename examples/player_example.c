@@ -28,6 +28,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <ogg/ogg.h>
 
 #include <daala/codec.h>
 #include <daala/daaladec.h>

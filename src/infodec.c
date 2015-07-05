@@ -109,7 +109,7 @@ static int od_comment_unpack(daala_comment *dc, oggbyte_buffer *obb) {
 }
 
 int daala_decode_header_in(daala_info *info,
- daala_comment *dc, daala_setup_info **ds, const ogg_packet *op) {
+ daala_comment *dc, daala_setup_info **ds, const daala_packet *op) {
   oggbyte_buffer obb;
   int packtype;
   int rv;

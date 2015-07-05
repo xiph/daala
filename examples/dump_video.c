@@ -55,6 +55,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <limits.h>
 #include <math.h>
 #include <signal.h>
+#include <ogg/ogg.h>
 #include "getopt.h"
 #include "../src/logging.h"
 #include "../include/daala/daaladec.h"

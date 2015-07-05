@@ -892,7 +892,7 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
 }
 
 int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
- const ogg_packet *op) {
+ const daala_packet *op) {
   int refi;
   od_mb_dec_ctx mbctx;
   od_img *ref_img;

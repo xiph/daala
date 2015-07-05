@@ -30,6 +30,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <string.h>
 #include <wx/wx.h>
 #include <wx/dcbuffer.h>
+#include <ogg/ogg.h>
 
 #include "daala/codec.h"
 #include "daala/daaladec.h"
