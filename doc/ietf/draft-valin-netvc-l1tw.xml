@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<!DOCTYPE rfc SYSTEM "rfc2629.dtd">
+<?rfc toc="yes"?>
+<?rfc tocompact="yes"?>
+<?rfc tocdepth="3"?>
+<?rfc tocindent="yes"?>
+<?rfc symrefs="yes"?>
+<?rfc sortrefs="yes"?>
+<?rfc comments="yes"?>
+<?rfc inline="yes"?>
+<?rfc compact="yes"?>
+<?rfc subcompact="no"?>
+<rfc category="std" docName="draft-valin-netvc-l1tw-00"
+     ipr="noDerivativesTrust200902">
+  <front>
+    <title abbrev="Screencasting and L1TW">Screencasting Considerations and L1-Tree Wavelet Coding</title>
+
+ <author initials="JM." surname="Valin" fullname="Jean-Marc Valin">
+   <organization>Mozilla</organization>
+   <address>
+     <postal>
+       <street>331 E. Evelyn Avenue</street>
+       <city>Mountain View</city>
+       <region>CA</region>
+       <code>94041</code>
+       <country>USA</country>
+     </postal>
+     <email>jmvalin@jmvalin.ca</email>
+   </address>
+ </author>
+
+
+    <date day="6" month="July" year="2015" />
+
+    <abstract>
+      <t>This document proposes a screencasting encoding mode based on the Haar wavelet
+      transform and L1-tree wavelet (L1TW) coding.</t>
+    </abstract>
+  </front>
+
+  <middle>
+    <section title="Introduction">
+      <t>Screensharing is an important application for an Internet video codec.
+      Screensharing content differs from photographic images in many ways, including:
+      <list style="symbols">
+        <t>Text: screenshots often contain anti-aliased text on a perfectly flat background.
+        This makes ringing artefacts highly perceptible. Also, typical DCT-based
+        codecs designed for photographic content cannot take advantage of the
+        fact that the background often has a constant colour.</t>
+        <t>Lines and edges. Screenshots often contain perfectly straight horizontal and/or
+        vertical lines. They appear in window frames, toolbars, widgets, spreadsheets, etc.
+        DCT-based codecs can represent those lines and edges, but not as compactly as
+        codecs like PNG.</t>
+        <t>Reduced number of colours: Screenshots are much less "noisy" than photographic
+        images. It is common for a certain region of an image to only contain a handful of
+        different colours, another property we would like to exploit in a video codec.</t>
+        <t>A very common motion pattern in screensharing content is the displacement of
+        windows. This typically involve rectangular boundaries.</t>
+      </list>
+      The technique described in this document only deal with still images for now and
+      focuses on the problem of efficiently coding anti-aliased text. 
+      </t>
+    </section>
+
+    <section title="The Haar Wavelet">
+      <t>The Haar wavelet <eref target="https://en.wikipedia.org/wiki/Haar_wavelet"/>
+      is the simplest of all orthogonal wavelet, and also the only one with linear
+      phase. We use the Haar transform both because it is spatially compact and because
+      it makes it easy to switch between a wavelet transform and the discrete cosine
+      transform (DCT). 
+      </t>
+
+      <t>In 1-D, a single level of the Haar transform is expressed as:
+<figure align="center">
+<artwork align="center"><![CDATA[
+[ y0 ]     / 1  [  1 1 ] [ x0 ]
+[    ] =  / --- [      ] [    ]
+[ y1 ]   v   2  [ -1 1 ] [ x1 ]
+]]></artwork>
+</figure>
+      </t>
+
+      <t>The 2-D Haar transform is implemented from a 2x2 lifting Haar kernel:
+<figure align="center">
+<artwork align="center"><![CDATA[
+inputs: x0, x1, x2, x3
+x0 <= x0 + x2
+x3 <= x3 - x1
+tmp <= (x0 - x3) >> 1
+x1 <= tmp - x1
+x2 <= tmp - x2
+x0 <= x0 - x1
+x3 <= x3 + x2
+outputs: x0, x1, x2, x3
+]]></artwork>
+</figure>
+      This kernel has perfect reconstruction, making it also useful for lossless compression. 
+      </t>
+
+      <t>The kernel above is applied on 5 levels for 32x32 superblocks. The
+      resulting wavelet coefficients are quantized non-uniformly using the
+      following quantization scales relative to the DC quantizer (from low
+      frequency to high frequency):
+<figure align="center">
+<artwork align="center"><![CDATA[
+horizontal/vertical: [1.0, 1.0, 1.0, 1.5, 2.0]
+diagonal:            [1.0, 1.0, 1.5, 2.0, 3.0]
+]]></artwork>
+</figure>
+
+      </t>
+    </section>
+
+    <section title="L1-Tree Coding">
+      <t>Like other wavelet coding methods such as EZW and SPIHT, we code the wavelet
+      coefficients using trees. The main difference however is that rather than being
+      based on the maximum coefficient value in a tree, this technique is based on
+      the sum of the absolute values of all coefficients in the tree. Let x(i,j)
+      denote the quantized wavelet coefficient at position (i,j), the children of x(i,j)
+      are x(2*i,2*j), x(2*i,2*j+1), x(2*i+1,2*j), and x(2*i+1,2*j+1). The absolute sum
+      of the tree rooted in (i,j) is defined recursively as:
+<figure align="center">
+<artwork align="center"><![CDATA[
+S(i,j) = |x(i,j)| + S(2*i,2*j) + S(2*i,2*j+1)
+       + S(2*i+1,2*j) + S(2*i+1,2*j+1),
+]]></artwork>
+</figure>
+      with S(i,j)=0 for i or j >= N. C(i,j) is defined as S(i,j) - |x(i,j)|.
+      </t>
+
+      <t>Coefficients coding starts at the root of each of the three "direction trees":
+      (1,0), (0,1), and (1,1). At each level we code the value of |x(i,j)| using a
+      cumulative desity function adapted based on the value of S(i,j). Coding |x(i,j)|
+      implies that the value of C(i,j) is known to the decoder, so it does not need
+      to be coded. Three symbols are then required to encode each of the new roots:
+      S(2*i,2*j), S(2*i,2*j+1), S(2*i+1,2*j), and S(2*i+1,2*j+1). </t>
+
+      <t>At the top level, we have S(0,0) = S(1,0) + S(0,1) + S(1,1), so that completely
+      flat blocks can be coded with a single S(0,0)=0 symbol. The DC is coded separately.
+      </t>
+    </section>
+
+    <section title="Results">
+      <t>The coded images obtained with the Haar transform and L1TW have far better
+      visual quality than those obtained with the lapped DCT or with JPEG, and of
+      comparable quality to those obtained with x264 and x265. An example image at
+      around 0.35 bit/pixel is provided at
+      <eref target="http://jmvalin.ca/video/haar_example/"/>.</t>
+
+      <t>While the technique
+      presented were works relatively well on the example above, there are still
+      cases where it performs significantly worse than x265. These include gradients,
+      such as those in toolbars and window titlebars, and long horizontal and vertical
+      lines such as those found in spreadsheets. These cases should improve once we
+      implement the ability to dynamically switch between the lapped DCT and the Haar
+      transform. Other ways of improving performance on long lines and edges would be
+      to extend to use a different 2D wavelet decomposition, or use an overcomplete
+      basis.
+      </t>
+    </section>
+
+    <section title="Objective Evaluation">
+      <t>As a first step for evaluating screensharing quality, we have added a small
+        collection of screenshot images to the "Are We Compressed Yet?"
+        <eref target="https://arewecompressedyet.com/"/> website, under the
+        "screenshots" set name. 
+      </t>
+    </section>
+
+
+    <section title="Development Repository">
+      <t>The algorithms in this proposal are being developed as part of
+      Xiph.Org's Daala project. The code is available in the Daala git
+      repository at <eref target="https://git.xiph.org/daala.git"/>.
+      See <eref target="https://xiph.org/daala/"/> for more information.
+      </t>
+    </section>
+
+    <section anchor="IANA" title="IANA Considerations">
+      <t>This document makes no request of IANA.</t>
+    </section>
+
+    <section anchor="Security" title="Security Considerations">
+      <t>This draft has no security considerations.</t>
+    </section>
+
+    <section anchor="Acknowledgements" title="Acknowledgements">
+      <t>Thanks to Timothy B. Terriberry for useful feedback and for designing
+      the 2-D Haar lifting kernel.</t>
+    </section>
+  </middle>
+
+  <back>
+<!--
+    <references title="Informative References">
+
+    <reference anchor="PVQ-demo" target="https://people.xiph.org/~jm/daala/pvq_demo/">
+      <front>
+        <title>Daala: Perceptual Vector Quantization (PVQ)</title>
+        <author initials="JM." surname="Valin" fullname=""><organization/></author>
+        <date month="November" year="2014" />
+      </front>
+    </reference>
+
+    </references>
+    -->
+</back>
+</rfc>
