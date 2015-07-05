@@ -266,6 +266,11 @@ const od_qm_entry OD_DEFAULT_QMS[2][2][OD_NPLANES_MAX] = {
    {0, 0, NULL}}}
 };
 
+/* Constants for the beta parameter, which controls how activity masking is
+   used.
+   beta = 1 / (1 - alpha), so when beta is 1, alpha is 0 and activity
+   masking is disabled. When beta is 1.5, activity masking is used. Note that
+   activity masking is neither used for 4x4 blocks nor for chroma. */
 
 static const double OD_PVQ_BETA4_LUMA[1] = {1.};
 static const double OD_PVQ_BETA8_LUMA[4] = {1., 1., 1., 1.};
