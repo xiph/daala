@@ -3,7 +3,7 @@
 <?rfc toc="yes" symrefs="yes" ?>
 <?rfc compact="yes"?>
 
-<rfc ipr="noDerivativesTrust200902" category="info" docName="draft-egge-videocodec-tdlt-01">
+<rfc ipr="noDerivativesTrust200902" category="info" docName="draft-egge-netvc-tdlt-00">
 
 <front>
 <title abbrev="TDLT">Time Domain Lapped Transforms for Video Coding</title>
@@ -11,20 +11,21 @@
 <organization>Mozilla Corporation</organization>
 <address>
 <postal>
-<street>650 Castro Street</street>
+<street>331 E. Evelyn Avenue</street>
 <city>Mountain View</city>
 <region>CA</region>
 <code>94041</code>
 <country>USA</country>
 </postal>
-<email>negge@dgql.org</email>
+<phone>+1 650 903-0800</phone>
+<email>negge@xiph.org</email>
 </address>
 </author>
 <author initials="T.B." surname="Terriberry" fullname="Timothy B. Terriberry">
 <organization>Mozilla Corporation</organization>
 <address>
 <postal>
-<street>650 Castro Street</street>
+<street>331 E. Evelyn Avenue</street>
 <city>Mountain View</city>
 <region>CA</region>
 <code>94041</code>
@@ -35,7 +36,7 @@
 </address>
 </author>
 
-<date day="9" month="March" year="2015"/>
+<date day="6" month="July" year="2015"/>
 <area>RAI</area>
 
 <abstract>
