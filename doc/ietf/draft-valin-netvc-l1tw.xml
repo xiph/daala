@@ -44,8 +44,8 @@
       Screensharing content differs from photographic images in many ways, including:
       <list style="symbols">
         <t>Text: screenshots often contain anti-aliased text on a perfectly flat background.
-        This makes ringing artefacts highly perceptible. Also, typical DCT-based
-        codecs designed for photographic content cannot take advantage of the
+        This makes ringing artefacts highly perceptible. Also, typical photographic codecs
+        based on the discrete cosine transform (DCT) cannot take advantage of the
         fact that the background often has a constant colour.</t>
         <t>Lines and edges. Screenshots often contain perfectly straight horizontal and/or
         vertical lines. They appear in window frames, toolbars, widgets, spreadsheets, etc.
@@ -55,24 +55,25 @@
         images. It is common for a certain region of an image to only contain a handful of
         different colours, another property we would like to exploit in a video codec.</t>
         <t>A very common motion pattern in screensharing content is the displacement of
-        windows. This typically involve rectangular boundaries.</t>
+        windows. This typically involves rectangular boundaries.</t>
       </list>
-      The technique described in this document only deal with still images for now and
-      focuses on the problem of efficiently coding anti-aliased text. 
+      The technique described in this document only deals with still images for now and
+      focuses on the problem of efficiently coding anti-aliased text. While it is implemented
+      for the Daala <xref target="Daala-website"/> codec.
       </t>
     </section>
 
     <section title="The Haar Wavelet">
       <t>The Haar wavelet <eref target="https://en.wikipedia.org/wiki/Haar_wavelet"/>
-      is the simplest of all orthogonal wavelet, and also the only one with linear
+      is the simplest of all orthogonal wavelets, and also the only one with linear
       phase. We use the Haar transform both because it is spatially compact and because
-      it makes it easy to switch between a wavelet transform and the discrete cosine
-      transform (DCT). 
+      it makes it easy to switch between a wavelet transform and the DCT. 
       </t>
 
       <t>In 1-D, a single level of the Haar transform is expressed as:
 <figure align="center">
 <artwork align="center"><![CDATA[
+            ___
 [ y0 ]     / 1  [  1 1 ] [ x0 ]
 [    ] =  / --- [      ] [    ]
 [ y1 ]   v   2  [ -1 1 ] [ x1 ]
@@ -128,9 +129,9 @@ S(i,j) = |x(i,j)| + S(2*i,2*j) + S(2*i,2*j+1)
       with S(i,j)=0 for i or j >= N. C(i,j) is defined as S(i,j) - |x(i,j)|.
       </t>
 
-      <t>Coefficients coding starts at the root of each of the three "direction trees":
+      <t>Coefficient coding starts at the root of each of the three "direction trees":
       (1,0), (0,1), and (1,1). At each level we code the value of |x(i,j)| using a
-      cumulative desity function adapted based on the value of S(i,j). Coding |x(i,j)|
+      cumulative density function adapted based on the value of S(i,j). Coding |x(i,j)|
       implies that the value of C(i,j) is known to the decoder, so it does not need
       to be coded. Three symbols are then required to encode each of the new roots:
       S(2*i,2*j), S(2*i,2*j+1), S(2*i+1,2*j), and S(2*i+1,2*j+1). </t>
@@ -142,13 +143,15 @@ S(i,j) = |x(i,j)| + S(2*i,2*j) + S(2*i,2*j+1)
 
     <section title="Results">
       <t>The coded images obtained with the Haar transform and L1TW have far better
-      visual quality than those obtained with the lapped DCT or with JPEG, and of
-      comparable quality to those obtained with x264 and x265. An example image at
+      subjective visual quality than those obtained with the lapped DCT or with JPEG, and of
+      comparable quality to those obtained with x264
+      <eref target="http://www.videolan.org/developers/x264.html"/> and x265
+      <eref target="http://x265.org/"/>. An example image at
       around 0.35 bit/pixel is provided at
       <eref target="http://jmvalin.ca/video/haar_example/"/>.</t>
 
       <t>While the technique
-      presented were works relatively well on the example above, there are still
+      presented here works relatively well on the example above, there are still
       cases where it performs significantly worse than x265. These include gradients,
       such as those in toolbars and window titlebars, and long horizontal and vertical
       lines such as those found in spreadsheets. These cases should improve once we
@@ -172,7 +175,7 @@ S(i,j) = |x(i,j)| + S(2*i,2*j) + S(2*i,2*j+1)
       <t>The algorithms in this proposal are being developed as part of
       Xiph.Org's Daala project. The code is available in the Daala git
       repository at <eref target="https://git.xiph.org/daala.git"/>.
-      See <eref target="https://xiph.org/daala/"/> for more information.
+      See <xref target="Daala-website"/> for more information.
       </t>
     </section>
 
@@ -191,18 +194,18 @@ S(i,j) = |x(i,j)| + S(2*i,2*j) + S(2*i,2*j+1)
   </middle>
 
   <back>
-<!--
+
     <references title="Informative References">
 
-    <reference anchor="PVQ-demo" target="https://people.xiph.org/~jm/daala/pvq_demo/">
+    <reference anchor="Daala-website" target="https://xiph.org/daala/">
       <front>
-        <title>Daala: Perceptual Vector Quantization (PVQ)</title>
-        <author initials="JM." surname="Valin" fullname=""><organization/></author>
-        <date month="November" year="2014" />
+        <title>Daala website</title>
+        <author><organization/></author>
+        <date/>
       </front>
+        <seriesInfo name="Xiph.Org Foundation" value=""/>
     </reference>
 
     </references>
-    -->
 </back>
 </rfc>
