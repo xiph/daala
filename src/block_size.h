@@ -26,7 +26,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # define _block_size_h
 
 # include "odintrin.h"
-# include <ogg/ogg.h>
+# include "../include/daala/daala_integer.h"
 # include "entenc.h"
 
 # define OD_BLOCK_SIZE4x4(bsize, bstride, bx, by)\

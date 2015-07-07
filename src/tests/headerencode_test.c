@@ -41,7 +41,7 @@ static daala_comment dc2;
 
 static char *make_string(const char *str) {
   size_t len = strlen(str);
-  char *ret = (char *)_ogg_malloc(len + 1);
+  char *ret = (char *)malloc(len + 1);
   memcpy(ret, str, len);
   ret[len] = '\0';
   return ret;
@@ -62,9 +62,9 @@ void setup(void) {
   ck_assert(dd != NULL);
   daala_comment_init(&dc);
   dc.comments = 2;
-  dc.user_comments = (char **)_ogg_malloc(sizeof(*dc.user_comments)*2);
+  dc.user_comments = (char **)malloc(sizeof(*dc.user_comments)*2);
   ck_assert(dc.user_comments != NULL);
-  dc.comment_lengths = (int *)_ogg_malloc(sizeof(*dc.comment_lengths)*2);
+  dc.comment_lengths = (int *)malloc(sizeof(*dc.comment_lengths)*2);
   ck_assert(dc.comment_lengths != NULL);
   dc.user_comments[0] = make_string("COMMENT=Comment 0");
   ck_assert(dc.user_comments[0] != NULL);

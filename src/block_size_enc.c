@@ -59,16 +59,16 @@ static void od_compute_stats(const signed char *img, int stride,
   int i;
   int j;
   int off8;
-  ogg_int32_t (*Sx2)[OD_SIZE2_SUMS];
-  ogg_int32_t (*Sxx2)[OD_SIZE2_SUMS];
-  ogg_int32_t (*Sx4)[OD_SIZE4_SUMS];
-  ogg_int32_t (*Sxx4)[OD_SIZE4_SUMS];
-  ogg_int32_t (*Sx8)[OD_SIZE8_SUMS];
-  ogg_int32_t (*Sxx8)[OD_SIZE8_SUMS];
-  ogg_int32_t (*Var4)[OD_SIZE4_SUMS];
-  ogg_int32_t (*invVar4)[OD_SIZE4_SUMS];
-  ogg_int32_t (*Var8)[OD_SIZE8_SUMS];
-  ogg_int32_t (*invVar8)[OD_SIZE8_SUMS];
+  int32_t (*Sx2)[OD_SIZE2_SUMS];
+  int32_t (*Sxx2)[OD_SIZE2_SUMS];
+  int32_t (*Sx4)[OD_SIZE4_SUMS];
+  int32_t (*Sxx4)[OD_SIZE4_SUMS];
+  int32_t (*Sx8)[OD_SIZE8_SUMS];
+  int32_t (*Sxx8)[OD_SIZE8_SUMS];
+  int32_t (*Var4)[OD_SIZE4_SUMS];
+  int32_t (*invVar4)[OD_SIZE4_SUMS];
+  int32_t (*Var8)[OD_SIZE8_SUMS];
+  int32_t (*invVar8)[OD_SIZE8_SUMS];
 
   Sx2 = stats->Sx2;
   Sxx2 = stats->Sxx2;
@@ -112,7 +112,7 @@ static void od_compute_stats(const signed char *img, int stride,
   }
   for (i = 0; i < OD_SIZE4_SUMS; i++) {
     for (j = 0; j < OD_SIZE4_SUMS; j++) {
-      ogg_int32_t var_floor;
+      int32_t var_floor;
       Var4[i][j] = (Sxx4[i][j] - (OD_SQUARE(Sx4[i][j]) >> 4)) >> 5;
       var_floor = 4 + ((Sx4[i][j]+(128<<4)) >> 8);
       if (Var4[i][j] < var_floor) Var4[i][j] = var_floor;
@@ -121,7 +121,7 @@ static void od_compute_stats(const signed char *img, int stride,
   }
   for (i = 0; i < OD_SIZE8_SUMS; i++) {
     for (j = 0; j < OD_SIZE8_SUMS; j++) {
-      ogg_int32_t var_floor;
+      int32_t var_floor;
       Var8[i][j] = (Sxx8[i][j] - (OD_SQUARE(Sx8[i][j]) >> 6)) >> 5;
       var_floor = 4 + ((Sx8[i][j]+(128<<6)) >> 8);
       if (Var8[i][j] < var_floor) Var8[i][j] = var_floor;

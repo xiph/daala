@@ -91,7 +91,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 static void od_ec_dec_refill(od_ec_dec *dec) {
   int s;
   od_ec_window dif;
-  ogg_int16_t cnt;
+  int16_t cnt;
   const unsigned char *bptr;
   const unsigned char *end;
   dif = dec->dif;
@@ -137,7 +137,7 @@ static int od_ec_dec_normalize(od_ec_dec *dec,
   buf: The input buffer to use.
   Return: 0 on success, or a negative value on error.*/
 void od_ec_dec_init(od_ec_dec *dec,
- const unsigned char *buf, ogg_uint32_t storage) {
+ const unsigned char *buf, uint32_t storage) {
   dec->buf = buf;
   dec->eptr = buf + storage;
   dec->end_window = 0;
@@ -215,7 +215,7 @@ int od_ec_decode_bool_q15(od_ec_dec *dec, unsigned fz) {
   nsyms: The number of symbols in the alphabet.
          This should be at most 16.
   Return: The decoded symbol s.*/
-int od_ec_decode_cdf(od_ec_dec *dec, const ogg_uint16_t *cdf, int nsyms) {
+int od_ec_decode_cdf(od_ec_dec *dec, const uint16_t *cdf, int nsyms) {
   od_ec_window dif;
   unsigned r;
   unsigned d;
@@ -263,7 +263,7 @@ int od_ec_decode_cdf(od_ec_dec *dec, const ogg_uint16_t *cdf, int nsyms) {
   nsyms: The number of symbols in the alphabet.
          This should be at most 16.
   Return: The decoded symbol s.*/
-int od_ec_decode_cdf_q15(od_ec_dec *dec, const ogg_uint16_t *cdf, int nsyms) {
+int od_ec_decode_cdf_q15(od_ec_dec *dec, const uint16_t *cdf, int nsyms) {
   od_ec_window dif;
   unsigned r;
   unsigned d;
@@ -305,7 +305,7 @@ int od_ec_decode_cdf_q15(od_ec_dec *dec, const ogg_uint16_t *cdf, int nsyms) {
          This should be at most 16.
   Return: The decoded symbol s.*/
 int od_ec_decode_cdf_unscaled(od_ec_dec *dec,
- const ogg_uint16_t *cdf, int nsyms) {
+ const uint16_t *cdf, int nsyms) {
   od_ec_window dif;
   unsigned r;
   unsigned d;
@@ -360,7 +360,7 @@ int od_ec_decode_cdf_unscaled(od_ec_dec *dec,
        This must be no more than 15.
   Return: The decoded symbol s.*/
 int od_ec_decode_cdf_unscaled_dyadic(od_ec_dec *dec,
- const ogg_uint16_t *cdf, int nsyms, unsigned ftb) {
+ const uint16_t *cdf, int nsyms, unsigned ftb) {
   od_ec_window dif;
   unsigned r;
   unsigned d;
@@ -402,11 +402,11 @@ int od_ec_decode_cdf_unscaled_dyadic(od_ec_dec *dec,
   ft: The number of integers that can be decoded (one more than the max).
       This must be at least 2, and no more than 2**29.
   Return: The decoded bits.*/
-ogg_uint32_t od_ec_dec_uint(od_ec_dec *dec, ogg_uint32_t ft) {
+uint32_t od_ec_dec_uint(od_ec_dec *dec, uint32_t ft) {
   OD_ASSERT(ft >= 2);
-  OD_ASSERT(ft <= (ogg_uint32_t)1 << (25 + OD_EC_UINT_BITS));
+  OD_ASSERT(ft <= (uint32_t)1 << (25 + OD_EC_UINT_BITS));
   if (ft > 1U << OD_EC_UINT_BITS) {
-    ogg_uint32_t t;
+    uint32_t t;
     int ft1;
     int ftb;
     ft--;
@@ -426,10 +426,10 @@ ogg_uint32_t od_ec_dec_uint(od_ec_dec *dec, ogg_uint32_t ft) {
   ftb: The number of bits to extract.
        This must be between 0 and 25, inclusive.
   Return: The decoded bits.*/
-ogg_uint32_t od_ec_dec_bits(od_ec_dec *dec, unsigned ftb) {
+uint32_t od_ec_dec_bits(od_ec_dec *dec, unsigned ftb) {
   od_ec_window window;
   int available;
-  ogg_uint32_t ret;
+  uint32_t ret;
   OD_ASSERT(ftb <= 25);
   window = dec->end_window;
   available = dec->nend_bits;
@@ -451,7 +451,7 @@ ogg_uint32_t od_ec_dec_bits(od_ec_dec *dec, unsigned ftb) {
     while (available <= OD_EC_WINDOW_SIZE - 8);
     dec->eptr = eptr;
   }
-  ret = (ogg_uint32_t)window & (((ogg_uint32_t)1 << ftb) - 1);
+  ret = (uint32_t)window & (((uint32_t)1 << ftb) - 1);
   window >>= ftb;
   available -= ftb;
   dec->end_window = window;
@@ -476,6 +476,6 @@ int od_ec_dec_tell(od_ec_dec *dec) {
   Return: The number of bits scaled by 2**OD_BITRES.
           This will always be slightly larger than the exact value (e.g., all
            rounding error is in the positive direction).*/
-ogg_uint32_t od_ec_dec_tell_frac(od_ec_dec *dec) {
+uint32_t od_ec_dec_tell_frac(od_ec_dec *dec) {
   return od_ec_tell_frac(od_ec_dec_tell(dec), dec->rng);
 }

@@ -30,12 +30,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 /* Table of combined "use prediction" pvq flags for 8x8 trained on
    subset1. Should eventually make this adaptive. */
-const ogg_uint16_t pred8_cdf[16] = {
+const uint16_t pred8_cdf[16] = {
   22313, 22461, 22993, 23050, 23418, 23468, 23553, 23617,
   29873, 30181, 31285, 31409, 32380, 32525, 32701, 32768
 };
 
-const ogg_uint16_t pred16_cdf[16][8] = {
+const uint16_t pred16_cdf[16][8] = {
   { 4096,  8192, 12288, 16384, 20480, 24576, 28672, 32768 },
   { 4096,  8192, 12288, 16384, 20480, 24576, 28672, 32768 },
   { 4096,  8192, 12288, 16384, 20480, 24576, 28672, 32768 },

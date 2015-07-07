@@ -30,17 +30,17 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # include "filter.h"
 # include "adapt.h"
 
-extern const ogg_uint16_t EXP_CDF_TABLE[][16];
-extern const ogg_uint16_t LAPLACE_OFFSET[];
+extern const uint16_t EXP_CDF_TABLE[][16];
+extern const uint16_t LAPLACE_OFFSET[];
 
 void laplace_encode_special(od_ec_enc *enc, int x, unsigned decay, int max);
 void laplace_encode(od_ec_enc *enc, int x, int ex_q8, int k);
 void laplace_encode_vector(od_ec_enc *enc, const od_coeff *y, int n, int k,
-                                  ogg_int32_t *curr, const ogg_int32_t *means);
+                                  int32_t *curr, const int32_t *means);
 
 int laplace_decode_special(od_ec_dec *dec, unsigned decay, int max);
 int laplace_decode(od_ec_dec *dec, int ex_q8, int k);
 void laplace_decode_vector(od_ec_dec *dec, od_coeff *y, int n, int k,
-                                  ogg_int32_t *curr, const ogg_int32_t *means);
+                                  int32_t *curr, const int32_t *means);
 
 #endif

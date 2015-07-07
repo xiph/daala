@@ -28,6 +28,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # include "../include/daala/codec.h"
 # include "odintrin.h"
 
+# include <stddef.h>
+
 # if defined(_MSC_VER)
 #  define _USE_MATH_DEFINES
 # elif OD_GNUC_PREREQ(4, 2, 0)
@@ -157,7 +159,7 @@ struct oggbyte_buffer{
 void oggbyte_writeinit(oggbyte_buffer *_b);
 void oggbyte_writetrunc(oggbyte_buffer *_b, ptrdiff_t _bytes);
 void oggbyte_write1(oggbyte_buffer *_b, unsigned _value);
-void oggbyte_write4(oggbyte_buffer *_b, ogg_uint32_t _value);
+void oggbyte_write4(oggbyte_buffer *_b, uint32_t _value);
 void oggbyte_writecopy(oggbyte_buffer *_b, const void *_source,
  ptrdiff_t _bytes);
 void oggbyte_writeclear(oggbyte_buffer *_b);
@@ -165,12 +167,12 @@ void oggbyte_writeclear(oggbyte_buffer *_b);
 void oggbyte_readinit(oggbyte_buffer *_b, unsigned char *_buf,
  ptrdiff_t _bytes);
 int oggbyte_look1(oggbyte_buffer *_b);
-int oggbyte_look4(oggbyte_buffer *_b, ogg_uint32_t *_val);
+int oggbyte_look4(oggbyte_buffer *_b, uint32_t *_val);
 void oggbyte_adv1(oggbyte_buffer *_b);
 void oggbyte_adv4(oggbyte_buffer *_b);
 int oggbyte_read1(oggbyte_buffer *_b);
-int oggbyte_read4(oggbyte_buffer *_b, ogg_uint32_t *_val);
-int oggbyte_readcopy(oggbyte_buffer *_b, void *_dest, ogg_uint32_t _bytes);
+int oggbyte_read4(oggbyte_buffer *_b, uint32_t *_val);
+int oggbyte_readcopy(oggbyte_buffer *_b, void *_dest, uint32_t _bytes);
 
 /*Shared functions.*/
 void oggbyte_reset(oggbyte_buffer *_b);
@@ -178,18 +180,18 @@ ptrdiff_t oggbyte_bytes(oggbyte_buffer *_b);
 unsigned char *oggbyte_get_buffer(oggbyte_buffer *_b);
 ptrdiff_t oggbyte_bytes_left(oggbyte_buffer *_b);
 
-int od_ilog(ogg_uint32_t _v);
+int od_ilog(uint32_t _v);
 void **od_malloc_2d(size_t _height, size_t _width, size_t _sz);
 void **od_calloc_2d(size_t _height, size_t _width, size_t _sz);
 void od_free_2d(void *_ptr);
 
 # define OD_DIVU_DMAX (64)
 
-extern ogg_uint32_t OD_DIVU_SMALL_CONSTS[OD_DIVU_DMAX][2];
+extern uint32_t OD_DIVU_SMALL_CONSTS[OD_DIVU_DMAX][2];
 
 /*Translate unsigned division by small divisors into multiplications.*/
 # define OD_DIVU_SMALL(_x, _d) \
-  ((ogg_uint32_t)((OD_DIVU_SMALL_CONSTS[(_d)-1][0]* \
+  ((uint32_t)((OD_DIVU_SMALL_CONSTS[(_d)-1][0]* \
   (unsigned long long)(_x)+OD_DIVU_SMALL_CONSTS[(_d)-1][1])>>32)>> \
   (OD_ILOG(_d)-1))
 

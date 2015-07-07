@@ -28,7 +28,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #include "generic_code.h"
 
-void od_cdf_init(ogg_uint16_t *cdf, int ncdfs, int nsyms, int val, int first) {
+void od_cdf_init(uint16_t *cdf, int ncdfs, int nsyms, int val, int first) {
   int i;
   int j;
   for (i = 0; i < ncdfs; i++) {
@@ -92,7 +92,7 @@ void generic_model_update(generic_encoder *model, int *ex_q16, int x, int xs,
  int id, int integration) {
   int i;
   int xenc;
-  ogg_uint16_t *cdf;
+  uint16_t *cdf;
   cdf = model->cdf[id];
   /* Renormalize if we cannot add increment */
   if (cdf[15] + model->increment > 32767) {

@@ -27,6 +27,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #if !defined(_daala_daalaenc_H)
 # define _daala_daalaenc_H (1)
 # include "codec.h"
+# include <ogg/ogg.h>
 
 # if defined(__cplusplus)
 extern "C" {

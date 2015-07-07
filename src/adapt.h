@@ -25,7 +25,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #if !defined(_adapt_H)
 # define _adapt_H (1)
 
-# include <ogg/ogg.h>
+# include "../include/daala/daala_integer.h"
 
 # define OD_NSB_ADAPT_CTXS (4)
 
@@ -38,14 +38,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # define OD_NADAPT_CTXS_MAX (OD_NSB_ADAPT_CTXS)
 
 typedef struct {
-  ogg_int32_t curr;
-  ogg_int32_t mean;
+  int32_t curr;
+  int32_t mean;
 } od_adapt2d_data;
 
 typedef struct {
   od_adapt2d_data *data;
   /*Adaptation rates and initial values.*/
-  const ogg_int32_t *params;
+  const int32_t *params;
   /*Number of values in a row.*/
   int nhv;
   /*Number of contexts being modeled.*/
@@ -53,18 +53,18 @@ typedef struct {
 } od_adapt2d_ctx;
 
 void od_adapt2d_init(od_adapt2d_ctx *ctx, int nhv,
- int nctx, const ogg_int32_t *params);
+ int nctx, const int32_t *params);
 void od_adapt2d_clear(od_adapt2d_ctx *ctx);
 
 void od_adapt2d_row_init(od_adapt2d_ctx *ctx);
 
-void od_adapt2d_hmean_init(const od_adapt2d_ctx *ctx, ogg_int32_t *hmean);
+void od_adapt2d_hmean_init(const od_adapt2d_ctx *ctx, int32_t *hmean);
 
 void od_adapt2d_get_stats(const od_adapt2d_ctx *ctx, int xpos,
- const ogg_int32_t *hmean, ogg_int32_t *means);
+ const int32_t *hmean, int32_t *means);
 
-void od_adapt2d_forward(od_adapt2d_ctx *ctx, int xpos, ogg_int32_t *hmean,
- const ogg_int32_t *curr);
+void od_adapt2d_forward(od_adapt2d_ctx *ctx, int xpos, int32_t *hmean,
+ const int32_t *curr);
 
 void od_adapt2d_row_backward(od_adapt2d_ctx *ctx);
 

@@ -30,7 +30,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 /*CDFs for uniform probability distributions of small sizes (2 through 16,
    inclusive).*/
-const ogg_uint16_t OD_UNIFORM_CDFS_Q15[135] = {
+const uint16_t OD_UNIFORM_CDFS_Q15[135] = {
   16384, 32768,
   10923, 21845, 32768,
    8192, 16384, 24576, 32768,
@@ -62,8 +62,8 @@ const ogg_uint16_t OD_UNIFORM_CDFS_Q15[135] = {
   Return: The number of bits scaled by 2**OD_BITRES.
           This will always be slightly larger than the exact value (e.g., all
            rounding error is in the positive direction).*/
-ogg_uint32_t od_ec_tell_frac(ogg_uint32_t nbits_total, ogg_uint32_t rng) {
-  ogg_uint32_t nbits;
+uint32_t od_ec_tell_frac(uint32_t nbits_total, uint32_t rng) {
+  uint32_t nbits;
   int l;
   int i;
   /*To handle the non-integral number of bits still left in the encoder/decoder

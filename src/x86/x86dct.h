@@ -26,10 +26,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
    into avx2dct.c and sse2dct.c which provide implementations of the
    od_mm256_* functions. */
 
-OD_SIMD_INLINE void od_mm256_overflow_check(od_m256i val, ogg_int32_t scale,
- ogg_int32_t offset, int idx) {
+OD_SIMD_INLINE void od_mm256_overflow_check(od_m256i val, int32_t scale,
+ int32_t offset, int idx) {
 #if defined(OD_DCT_TEST) && defined(OD_DCT_CHECK_OVERFLOW)
-  ogg_int32_t mem[8];
+  int32_t mem[8];
   int n;
   od_mm256_storeu_si256((od_m256i *)mem, val);
   for (n = 0; n < 4; n++) {
