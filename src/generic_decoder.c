@@ -44,7 +44,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
  *
  * @retval decoded variable
  */
-int od_decode_cdf_adapt(od_ec_dec *ec, ogg_uint16_t *cdf, int n,
+int od_decode_cdf_adapt(od_ec_dec *ec, uint16_t *cdf, int n,
  int increment) {
   int i;
   int val;
@@ -77,7 +77,7 @@ int generic_decode(od_ec_dec *dec, generic_encoder *model, int max,
   int lg_q1;
   int shift;
   int id;
-  ogg_uint16_t *cdf;
+  uint16_t *cdf;
   int xs;
   int lsb;
   int x;

@@ -78,13 +78,13 @@ struct od_mv_grid_pt {
 };
 
 void od_mc_predict8(od_state *state, unsigned char *dst, int dystride,
- const unsigned char *src, int systride, const ogg_int32_t mvx[4],
- const ogg_int32_t mvy[4], int oc, int s, int log_xblk_sz, int log_yblk_sz);
+ const unsigned char *src, int systride, const int32_t mvx[4],
+ const int32_t mvy[4], int oc, int s, int log_xblk_sz, int log_yblk_sz);
 void od_state_mvs_clear(od_state *state);
 int od_state_get_predictor(od_state *state, int pred[2],
  int vx, int vy, int level, int mv_res);
 
 int od_mv_split_flag_ctx(od_mv_grid_pt **grid, int vx, int vy,int level);
-ogg_uint16_t *od_mv_split_flag_cdf(od_state *state, int vx, int vy, int level);
+uint16_t *od_mv_split_flag_cdf(od_state *state, int vx, int vy, int level);
 
 #endif

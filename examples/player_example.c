@@ -28,6 +28,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <ogg/ogg.h>
 
 #include <daala/codec.h>
 #include <daala/daaladec.h>
@@ -341,7 +342,8 @@ int player_example_play(player_example *player) {
       switch (player->od_state) {
         case ODS_HEADER: {
           ret =
-           daala_decode_header_in(&player->di, &player->dc, &dsi, &packet);
+           daala_decode_header_in(&player->di, &player->dc, &dsi,
+             (daala_packet*)&packet);
           if (ret < 0) {
             if (memcmp(packet.packet, "fishead", packet.bytes)) {
               fprintf(stderr, "Ogg Skeleton streams not supported\n");
@@ -381,7 +383,8 @@ int player_example_play(player_example *player) {
                 player->width, player->height);
             if (player->texture == NULL) return -1;
           }
-          ret = daala_decode_packet_in(player->dctx, &player->img, &packet);
+          ret = daala_decode_packet_in(player->dctx, &player->img,
+            (daala_packet*)&packet);
           if (ret != 0) return -1;
           player->valid = 1;
           if ((player->slow) && (!player->step)) {

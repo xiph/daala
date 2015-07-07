@@ -67,9 +67,9 @@ daala_dec_ctx *daala_decode_alloc(const daala_info *info,
  const daala_setup_info *setup) {
   od_dec_ctx *dec;
   if (info == NULL) return NULL;
-  dec = (od_dec_ctx *)_ogg_malloc(sizeof(*dec));
+  dec = (od_dec_ctx *)malloc(sizeof(*dec));
   if (od_dec_init(dec, info, setup) < 0) {
-    _ogg_free(dec);
+    free(dec);
     return NULL;
   }
   return dec;
@@ -78,7 +78,7 @@ daala_dec_ctx *daala_decode_alloc(const daala_info *info,
 void daala_decode_free(daala_dec_ctx *dec) {
   if (dec != NULL) {
     od_dec_clear(dec);
-    _ogg_free(dec);
+    free(dec);
   }
 }
 
@@ -702,7 +702,7 @@ static void od_dec_mv_unpack(daala_dec_ctx *dec) {
   int level;
   od_mv_grid_pt *mvp;
   od_mv_grid_pt **grid;
-  ogg_uint16_t *cdf;
+  uint16_t *cdf;
   OD_ASSERT(dec->state.ref_imgi[OD_FRAME_PREV] >= 0);
   od_state_mvs_clear(&dec->state);
   nhmvbs = dec->state.nhmvbs;
@@ -892,7 +892,7 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
 }
 
 int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
- const ogg_packet *op) {
+ const daala_packet *op) {
   int refi;
   od_mb_dec_ctx mbctx;
   od_img *ref_img;

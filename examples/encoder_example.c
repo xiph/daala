@@ -33,6 +33,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <string.h>
 #include <time.h>
 #include <getopt.h>
+#include <ogg/ogg.h>
 #include "../src/logging.h"
 #include "daala/daalaenc.h"
 #if defined(_WIN32)
@@ -351,7 +352,7 @@ int fetch_and_process_video(av_input *avin, ogg_page *page,
     /*Pull the packets from the previous frame, now that we know whether or not
        we can read the current one.
       This is used to set the e_o_s bit on the final packet.*/
-    while (daala_encode_packet_out(dd, last, &op)) {
+    while (daala_encode_packet_out(dd, last, (daala_packet*)&op)) {
       ogg_stream_packetin(vo, &op);
     }
     /*Submit the current frame for encoding.*/
@@ -675,7 +676,7 @@ int main(int argc, char **argv) {
   /*Write the bitstream header packets with proper page interleave.*/
   /*The first packet for each logical stream will get its own page
      automatically.*/
-  if (daala_encode_flush_header(dd, &dc, &op) <= 0) {
+  if (daala_encode_flush_header(dd, &dc, (daala_packet*)&op) <= 0) {
     fprintf(stderr, "Internal Daala library error.\n");
     exit(1);
   }
@@ -694,7 +695,7 @@ int main(int argc, char **argv) {
   }
   /*Create and buffer the remaining Daala headers.*/
   for (;;) {
-    ret = daala_encode_flush_header(dd, &dc, &op);
+    ret = daala_encode_flush_header(dd, &dc, (daala_packet*)&op);
     if (ret < 0) {
       fprintf(stderr, "Internal Daala library error.\n");
       exit(1);

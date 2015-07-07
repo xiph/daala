@@ -44,7 +44,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
  * @param [in]     n     number of values possible
  * @param [in]     increment adaptation speed (Q15)
  */
-void od_encode_cdf_adapt(od_ec_enc *ec, int val, ogg_uint16_t *cdf, int n,
+void od_encode_cdf_adapt(od_ec_enc *ec, int val, uint16_t *cdf, int n,
  int increment) {
   int i;
   od_ec_encode_cdf_unscaled(ec, val, cdf, n);
@@ -74,7 +74,7 @@ void generic_encode(od_ec_enc *enc, generic_encoder *model, int x, int max,
   int lg_q1;
   int shift;
   int id;
-  ogg_uint16_t *cdf;
+  uint16_t *cdf;
   int xs;
   int ms;
   if (max == 0) return;
@@ -135,7 +135,7 @@ double generic_encode_cost(generic_encoder *model, int x, int max,
   int lg_q1;
   int shift;
   int id;
-  ogg_uint16_t *cdf;
+  uint16_t *cdf;
   int xs;
   int ms;
   int extra;

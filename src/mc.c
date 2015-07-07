@@ -43,7 +43,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
   log_xblk_sz: The log base 2 of the horizontal block dimension.
   log_yblk_sz: The log base 2 of the vertical block dimension.*/
 void od_mc_predict1fmv8_c(unsigned char *dst, const unsigned char *src,
- int systride, ogg_int32_t mvx, ogg_int32_t mvy,
+ int systride, int32_t mvx, int32_t mvy,
  int log_xblk_sz, int log_yblk_sz) {
   int mvxf;
   int mvyf;
@@ -56,13 +56,13 @@ void od_mc_predict1fmv8_c(unsigned char *dst, const unsigned char *src,
      area of the image block.
     Used as output for 1st stage horizontal filtering then as input for
      2nd stage vertical filtering.*/
-  ogg_int16_t *buff_p;
+  int16_t *buff_p;
   /*A pointer to input row for both 1st and 2nd stage filtering*/
   const unsigned char *src_p;
   unsigned char *dst_p;
   /*1D filter chosen for the current fractional position of x mv.*/
-  const ogg_int16_t *fx;
-  const ogg_int16_t *fy;
+  const int16_t *fx;
+  const int16_t *fy;
   /*ME/MC Subpel interpolation filter set.*/
   /*Based on fractional part of MV, which is 000, 001, ..., 111
      for 1/8 pel precision, apply corresponding filter.
@@ -76,7 +76,7 @@ void od_mc_predict1fmv8_c(unsigned char *dst, const unsigned char *src,
      which is currently used in master branch.)
     Filter coefficient is scaled up by 7 bit.*/
 # define OD_COEFF_SCALE (7)
-  static const ogg_int16_t OD_FILTER_SET[8][OD_FILTER_TAP_SIZE] = {
+  static const int16_t OD_FILTER_SET[8][OD_FILTER_TAP_SIZE] = {
     /*-2  -1  [ 0    1]   2  3  : pixel position in support region.*/
     { 0,   0, 128,   0,   0, 0 },
     { 1,  -5, 116,  20,  -5, 1 },
@@ -92,7 +92,7 @@ void od_mc_predict1fmv8_c(unsigned char *dst, const unsigned char *src,
     Windowed-sinc 6-tap for 1/2 pel and 1/4 pel, and bilinear for 1/8 pel.
     Filter coefficient is scaled up by 7 bit.*/
 # define OD_COEFF_SCALE (7)
-  static const ogg_int16_t OD_FILTER_SET[8][OD_FILTER_TAP_SIZE] = {
+  static const int16_t OD_FILTER_SET[8][OD_FILTER_TAP_SIZE] = {
     { 0,   0, 128,   0,   0, 0 },
     { 2,  -8, 119,  19,  -5, 1 },
     { 3, -15, 111,  37, -10, 2 },
@@ -115,8 +115,8 @@ void od_mc_predict1fmv8_c(unsigned char *dst, const unsigned char *src,
      filtering (i.e vertical) requires support region on those apron pixels.
     The size of the buffer is :
      wxh = OD_MVBSIZE_MAX x (OD_MVBSIZE_MAX + OD_BUFF_APRON_SZ).*/
-  ogg_int16_t buff[(OD_MVBSIZE_MAX + OD_BUFF_APRON_SZ)*OD_MVBSIZE_MAX];
-  ogg_int32_t sum;
+  int16_t buff[(OD_MVBSIZE_MAX + OD_BUFF_APRON_SZ)*OD_MVBSIZE_MAX];
+  int32_t sum;
   int k;
   xblk_sz = 1 << log_xblk_sz;
   yblk_sz = 1 << log_yblk_sz;
@@ -174,7 +174,7 @@ void od_mc_predict1fmv8_c(unsigned char *dst, const unsigned char *src,
 }
 
 static void od_mc_predict1fmv8(od_state *state, unsigned char *dst,
- const unsigned char *src, int systride, ogg_int32_t mvx, ogg_int32_t mvy,
+ const unsigned char *src, int systride, int32_t mvx, int32_t mvy,
  int log_xblk_sz, int log_yblk_sz) {
   (*state->opt_vtbl.mc_predict1fmv8)(dst, src, systride, mvx, mvy,
    log_xblk_sz, log_yblk_sz);
@@ -195,8 +195,8 @@ void od_mc_blend_full8_c(unsigned char *dst, int dystride,
   round = 1 << (log_blk_sz2 - 1);
   for (j = 0; j < yblk_sz; j++) {
     for (i = 0; i < xblk_sz; i++) {
-      ogg_int32_t a;
-      ogg_int32_t b;
+      int32_t a;
+      int32_t b;
       a = src[0][j*xblk_sz + i];
       b = src[3][j*xblk_sz + i];
       a = (a << log_xblk_sz) + (src[1][j*xblk_sz + i] - a)*i;
@@ -289,8 +289,8 @@ static void od_mc_blend_multi8(unsigned char *dst, int dystride,
       /*LL blending.*/
       a = (ll[0] << log_xblk_sz) + (ll[1] - ll[0])*i;
       b = (ll[3] << log_xblk_sz) + (ll[2] - ll[3])*i;
-      a = (int)((((ogg_int32_t)a << log_yblk_sz) +
-       (ogg_int32_t)(b - a)*j) >> log_blk_sz2);
+      a = (int)((((int32_t)a << log_yblk_sz) +
+       (int32_t)(b - a)*j) >> log_blk_sz2);
       /*Inverse Haar wavelet.*/
       c = (a - hl + 1) >> 1;
       a = (a + hl + 1) >> 1;
@@ -326,8 +326,8 @@ static void od_mc_blend_multi8(unsigned char *dst, int dystride,
       /*LL blending.*/
       a = (ll[0] << log_xblk_sz) + (ll[1] - ll[0])*i;
       b = (ll[3] << log_xblk_sz) + (ll[2] - ll[3])*i;
-      a = (int)((((ogg_int32_t)a << log_yblk_sz)
-       + (ogg_int32_t)(b - a)*j) >> log_blk_sz2);
+      a = (int)((((int32_t)a << log_yblk_sz)
+       + (int32_t)(b - a)*j) >> log_blk_sz2);
       /*Inverse Haar wavelet.*/
       c = (a - hl + 1) >> 1;
       a = (a + hl + 1) >> 1;
@@ -369,8 +369,8 @@ static void od_mc_blend_multi8(unsigned char *dst, int dystride,
       /*LL blending.*/
       a = (ll[0] << log_xblk_sz) + (ll[1] - ll[0])*i;
       b = (ll[3] << log_xblk_sz) + (ll[2] - ll[3])*i;
-      a = (int)(((ogg_int32_t)a << log_yblk_sz)
-       + (ogg_int32_t)(b - a)*j >> log_blk_sz2);
+      a = (int)(((int32_t)a << log_yblk_sz)
+       + (int32_t)(b - a)*j >> log_blk_sz2);
       /*Inverse Haar wavelet.*/
       c = (a - hl + 1) >> 1;
       a = (a + hl + 1) >> 1;
@@ -406,8 +406,8 @@ static void od_mc_blend_multi8(unsigned char *dst, int dystride,
       /*LL blending.*/
       a = (ll[0] << log_xblk_sz) + (ll[1] - ll[0])*i;
       b = (ll[3] << log_xblk_sz) + (ll[2] - ll[3])*i;
-      a = (int)((((ogg_int32_t)a << log_yblk_sz)
-       + (ogg_int32_t)(b - a)*j) >> log_blk_sz2);
+      a = (int)((((int32_t)a << log_yblk_sz)
+       + (int32_t)(b - a)*j) >> log_blk_sz2);
       /*Inverse Haar wavelet.*/
       c = (a - hl + 1) >> 1;
       a = (a + hl + 1) >> 1;
@@ -808,10 +808,10 @@ void od_mc_blend_full_split8_c(unsigned char *dst, int dystride,
   for (k = 0; k < 4; k++) sw[k] = s0[k];
   for (j = 0; j < yblk_sz; j++) {
     for (i = 0; i < xblk_sz; i++) {
-      ogg_int32_t a;
-      ogg_int32_t b;
-      ogg_int32_t c;
-      ogg_int32_t d;
+      int32_t a;
+      int32_t b;
+      int32_t c;
+      int32_t d;
       a = src[0][j*xblk_sz + i];
       b = (src[1][j*xblk_sz + i] - a)*sw[1];
       c = (src[2][j*xblk_sz + i] - a)*sw[2];
@@ -2384,10 +2384,10 @@ static void od_mc_blend8(od_state *state, unsigned char *dst, int dystride,
 
 void od_mc_predict8(od_state *state, unsigned char *dst, int dystride,
  const unsigned char *src, int systride,
- const ogg_int32_t mvx[4], /* This is x coord for the four
+ const int32_t mvx[4], /* This is x coord for the four
                             motion vectors of the four corners
                             (in rotation not raster order). */
- const ogg_int32_t mvy[4],
+ const int32_t mvy[4],
  int oc, /* Index of outside corner. */
  int s, /* Two split flags that indicate if the corners are split. */
  int log_xblk_sz,   /* Log 2 of block size. */
@@ -2574,7 +2574,7 @@ int od_mv_split_flag_ctx(od_mv_grid_pt **grid, int vx, int vy,int level) {
   return 3*(split1 + split2) + same1 + same2;
 }
 
-ogg_uint16_t *od_mv_split_flag_cdf(od_state *state,
+uint16_t *od_mv_split_flag_cdf(od_state *state,
  int vx, int vy, int level) {
   int ctx;
   ctx = od_mv_split_flag_ctx(state->mv_grid, vx, vy, level);

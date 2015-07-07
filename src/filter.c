@@ -1508,8 +1508,8 @@ int minv[32];
 int maxv[32];
 
 int main(void) {
-  ogg_int32_t min[16];
-  ogg_int32_t max[16];
+  int32_t min[16];
+  int32_t max[16];
   int mini[16];
   int maxi[16];
   int dims;

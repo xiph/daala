@@ -37,18 +37,18 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #define OD_UINT32_MAX (0xFFFFFFFFUL)
 
 static daala_setup_info *daala_setup_create() {
-  return (daala_setup_info *)_ogg_malloc(sizeof(daala_setup_info));
+  return (daala_setup_info *)malloc(sizeof(daala_setup_info));
 }
 
 void daala_setup_free(daala_setup_info *setup) {
   if (setup != NULL) {
-    _ogg_free(setup);
+    free(setup);
   }
 }
 
 static int daala_read_length_and_string(oggbyte_buffer *obb, int *lenp,
  char **strp) {
-  ogg_uint32_t len;
+  uint32_t len;
   char *str;
   if (oggbyte_read4(obb, &len)) return OD_EBADHEADER;
   /*Check that it is in bounds for where it is going, i.e., an int.*/
@@ -56,7 +56,7 @@ static int daala_read_length_and_string(oggbyte_buffer *obb, int *lenp,
   /*Check that enough bytes are left.*/
   if ((int)len > oggbyte_bytes_left(obb)) return OD_EBADHEADER;
   /*This is safe because oggbyte_bytes_left() is less than OD_MEM_DIFF_MAX.*/
-  str = (char *)_ogg_malloc(len + 1);
+  str = (char *)malloc(len + 1);
   if (!str) return OD_EFAULT;
   str[len] = '\0';
   /*Since we made sure we had enough space above, this function should never
@@ -68,7 +68,7 @@ static int daala_read_length_and_string(oggbyte_buffer *obb, int *lenp,
 }
 
 static int od_comment_unpack(daala_comment *dc, oggbyte_buffer *obb) {
-  ogg_uint32_t tmp;
+  uint32_t tmp;
   long comments;
   int rv;
   int i;
@@ -88,9 +88,9 @@ static int od_comment_unpack(daala_comment *dc, oggbyte_buffer *obb) {
   }
   dc->comments = comments;
   dc->comment_lengths =
-   (int *)_ogg_malloc(sizeof(*dc->comment_lengths)*dc->comments);
+   (int *)malloc(sizeof(*dc->comment_lengths)*dc->comments);
   dc->user_comments =
-   (char **)_ogg_malloc(sizeof(*dc->user_comments)*dc->comments);
+   (char **)malloc(sizeof(*dc->user_comments)*dc->comments);
   if (dc->comment_lengths == NULL || dc->user_comments == NULL) {
     dc->comments = 0;
     return OD_EFAULT;
@@ -109,7 +109,7 @@ static int od_comment_unpack(daala_comment *dc, oggbyte_buffer *obb) {
 }
 
 int daala_decode_header_in(daala_info *info,
- daala_comment *dc, daala_setup_info **ds, const ogg_packet *op) {
+ daala_comment *dc, daala_setup_info **ds, const daala_packet *op) {
   oggbyte_buffer obb;
   int packtype;
   int rv;
@@ -134,7 +134,7 @@ int daala_decode_header_in(daala_info *info,
     case 0x80:
     {
       int pli;
-      ogg_uint32_t tmp;
+      uint32_t tmp;
       int tmpi;
       /*This should be the first packet, and we should not have already read
          the info header packet yet.*/

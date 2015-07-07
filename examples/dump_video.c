@@ -55,6 +55,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <limits.h>
 #include <math.h>
 #include <signal.h>
+#include <ogg/ogg.h>
 #include "getopt.h"
 #include "../src/logging.h"
 #include "../include/daala/daaladec.h"
@@ -273,7 +274,7 @@ int main(int argc, char *argv[]) {
       got_packet = ogg_stream_packetpeek(&test, &op);
       /* identify the codec: try daala */
       if ((got_packet == 1) && !daala_p && (daala_processing_headers =
-       daala_decode_header_in(&di, &dc, &ds, &op)) >= 0) {
+       daala_decode_header_in(&di, &dc, &ds, (daala_packet*)&op)) >= 0) {
         /* it is daala -- save this stream state */
         memcpy(&to, &test, sizeof(test));
         daala_p = 1;
@@ -294,7 +295,8 @@ int main(int argc, char *argv[]) {
     while (daala_processing_headers &&
      (ret = ogg_stream_packetpeek(&to, &op))) {
       if (ret < 0) continue;
-      daala_processing_headers = daala_decode_header_in(&di, &dc, &ds, &op);
+      daala_processing_headers = daala_decode_header_in(&di, &dc, &ds,
+        (daala_packet*)&op);
       if (daala_processing_headers < 0) {
         fprintf(stderr, "Error parsing Daala stream headers; "
          "corrupt stream?\n");
@@ -397,7 +399,7 @@ int main(int argc, char *argv[]) {
   }
   while (!got_sigint) {
     while (daala_p && !videobuf_ready) {
-      if (ogg_stream_packetout(&to, &op) > 0) {
+      if (ogg_stream_packetout(&to, (daala_packet*)&op) > 0) {
         if (daala_decode_packet_in(dd, &img, &op) >= 0) {
           videobuf_ready = 1;
           frames++;

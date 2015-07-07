@@ -34,8 +34,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # include "partition.h"
 
 # define PRED4_PROB (26376)
-extern const ogg_uint16_t pred8_cdf[16];
-extern const ogg_uint16_t pred16_cdf[16][8];
+extern const uint16_t pred8_cdf[16];
+extern const uint16_t pred16_cdf[16][8];
 
 int od_pvq_encode(daala_enc_ctx *enc, od_coeff *predt, od_coeff *cblock,
                    od_coeff *scalar_out, int scale, int pli, int bs,
