@@ -455,12 +455,12 @@ reference "fig:Reconstructed-painted-image"
  Each pixel is reconstructed from up to 4 boundary pixels as
 \begin_inset Formula 
 \[
-x_{p}=\sum_{i=1}^{4}w_{p,i,d}x_{p_{i,d}}
+y_{p}=\sum_{i=1}^{4}w_{p,i,d}x_{p_{i,d}}
 \]
 
 \end_inset
 
-
+where 
 \end_layout
 
 \begin_layout Standard
@@ -551,15 +551,10 @@ Intra paint can be used as a post-processing step to attenuate the coding
 \end_layout
 
 \begin_layout Standard
-First, the painting part is easy.
- Instead of running the paint algorithm on the original image and sending
- information about the directions and edges, we can simply run the algorithm
- on the decoded image.
- The result is not nearly as good, but hey we have a free lunch here.
-\end_layout
-
-\begin_layout Standard
-The second part is trickier.
+For deringing purposes, instead of running the paint algorithm on the original
+ image and sending information about the directions and edges, we can simply
+ run the algorithm on the decoded image.
+ The second part is trickier.
  How can we know which pixels should be replaced with the painted pixels
  and which ones are best unmodified? Intuitively, we see that in regions
  of the image that have clear directional patterns, the painted image should
@@ -572,17 +567,37 @@ The second part is trickier.
 \end_layout
 
 \begin_layout Standard
-The actual equations look disturbingly similar to noise suppression equations
- in audio signals.
- After about a page of least squares derivations, we get this very simple
- expression for the optimal weight to apply to the painted image: 
-\end_layout
+Let 
+\begin_inset Formula $\mathbf{x}_{k}$
+\end_inset
 
-\begin_layout Standard
+ be the decoded pixels on a line 
+\begin_inset Formula $k$
+\end_inset
+
+ and 
+\begin_inset Formula $\mathbf{y}_{k}$
+\end_inset
+
+ be the painted version of the same line, the deringing output is given
+ by
 \begin_inset Formula 
-\[
-w=\min\left[1,\ \frac{\alpha Q^{2}}{12\sigma^{2}}\right]
-\]
+\begin{equation}
+\mathbf{z}_{k}=\left(1-w_{k}\right)\mathbf{x}_{k}+w_{k}\mathbf{y}_{k}\ ,\label{eq:deringing-output}
+\end{equation}
+
+\end_inset
+
+where 
+\begin_inset Formula $w_{k}$
+\end_inset
+
+ is the filter gain.
+ The gain that minimizes the expected mean squared error is given by
+\begin_inset Formula 
+\begin{equation}
+w_{k}=\min\left[1,\ \frac{\alpha Q^{2}}{12\sigma_{k}^{2}}\right]\label{eq:deringing-weight}
+\end{equation}
 
 \end_inset
 
@@ -591,7 +606,7 @@ where
 \end_inset
 
  is the image quality (quantization step size), 
-\begin_inset Formula $\sigma^{2}$
+\begin_inset Formula $\sigma_{k}^{2}=\left\Vert \mathbf{x}_{k}-\mathbf{y}_{k}\right\Vert ^{2}$
 \end_inset
 
  is the mean squared distance between decoded image and the painted image,
@@ -599,28 +614,65 @@ where
 \begin_inset Formula $\alpha$
 \end_inset
 
- is a tunable parameter between 0 and 1.
- For each boundary pixel, we compute a weight along the direction of each
- adjacent block.
- This gives us more control than computing the weight at the block level.
+ is a per-superblock tunable parameter between 0 and 1.
+ Computing a weight along each line of a diven direction provides more control
+ than computing the weight at the block level.
  
 \end_layout
 
-\begin_layout Subsection
-Signaling
-\end_layout
-
 \begin_layout Standard
-There are still cases where we might get it wrong and where our deringing
- would hurt image quality by blurring texture.
- For these cases, there is also a per-subperblock control that needs to
- be signaled.
- It is the only information that needs signaling when using intra paint
- as a deringing filter.
+Instead of computing 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:deringing-output"
+
+\end_inset
+
+ and 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:deringing-weight"
+
+\end_inset
+
+ separately on each line of each block, we can compute 
+\begin_inset Formula $\sigma_{k}^{2}$
+\end_inset
+
+ on block boundary pixels in the same way as we computed the pixel averages
+ in Step 3.
+ This allows us to compute the partial gain 
+\begin_inset Formula 
+\[
+w_{k}^{*}=\frac{Q^{2}}{12\sigma_{k}^{2}}
+\]
+
+\end_inset
+
+ on each boundary pixel and apply the paint algorithm in Step 4 to obtain
+ a smooth gain across block boundaries.
+ The final gain then becomes 
+\begin_inset Formula 
+\[
+w_{k}=\min\left[1,\ \alpha w_{k}^{*}\right]
+\]
+
+\end_inset
+
+where the 
+\begin_inset Formula $\alpha$
+\end_inset
+
+ parameter is the only information coded for the deringing filter.
+ 
 \end_layout
 
 \begin_layout Section
 Conclusion
+\end_layout
+
+\begin_layout Standard
+Future work: 
 \end_layout
 
 \end_body

@@ -13,7 +13,7 @@
 <?rfc inline="yes"?>
 <?rfc compact="yes"?>
 <?rfc subcompact="no"?>
-<rfc category="std" docName="draft-valin-netvc-l1tw-00"
+<rfc category="std" docName="draft-valin-netvc-l1tw-01"
      ipr="noDerivativesTrust200902">
   <front>
     <title abbrev="Screencasting and L1TW">Screencasting Considerations and L1-Tree Wavelet Coding</title>
@@ -62,7 +62,8 @@
       </list>
       The technique described in this document only deals with still images for now and
       focuses on the problem of efficiently coding anti-aliased text. While it is implemented
-      for the Daala <xref target="Daala-website"/> codec.
+      for the Daala <xref target="Daala-website"/> codec, it should be applicable to most
+      other video codecs.
       </t>
     </section>
 
