@@ -147,14 +147,14 @@ S(i,j) = |x(i,j)| + S(2*i,2*j) + S(2*i,2*j+1)
 
     <section title="Results">
       <t>The coded images obtained with the Haar transform and L1TW have far better
-      subjective visual quality than those obtained with the lapped DCT or with JPEG, and of
+      subjective visual quality than those obtained with the lapped DCT or with JPEG, and
       comparable quality to those obtained with x264
       <eref target="http://www.videolan.org/developers/x264.html"/> and x265
       <eref target="http://x265.org/"/>. An example image at
       around 0.35 bit/pixel is provided at
       <eref target="http://jmvalin.ca/video/haar_example/"/>. The x264 image encoded with
       options "--preset placebo --crf=27" and the x265 image is encoded with
-      "--preset slow --crf=29".</t>
+      "--preset slow --crf 29".</t>
 
       <t>While the technique
       presented here works relatively well on the example above, there are still
@@ -163,7 +163,7 @@ S(i,j) = |x(i,j)| + S(2*i,2*j) + S(2*i,2*j+1)
       lines such as those found in spreadsheets. These cases should improve once we
       implement the ability to dynamically switch between the lapped DCT and the Haar
       transform. Other ways of improving performance on long lines and edges would be
-      to extend to use a different 2D wavelet decomposition, or use an overcomplete
+      to use a different 2D wavelet decomposition, or an overcomplete
       basis.
       </t>
     </section>
