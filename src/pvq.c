@@ -138,7 +138,7 @@ const double *OD_BASIS_MAG[2][OD_NBSIZES + 1] = {
 /* Quantization matrices for 8x8. For other block sizes, we currently just do
    resampling. */
 /* Flat quantization, i.e. optimize for PSNR. */
-const int OD_QM8_Q4_QM_FLAT[] = {
+const int OD_QM8_Q4_FLAT[] = {
   16, 16, 16, 16, 16, 16, 16, 16,
   16, 16, 16, 16, 16, 16, 16, 16,
   16, 16, 16, 16, 16, 16, 16, 16,
@@ -188,7 +188,7 @@ const int OD_QM8_Q4[] = {
 # endif
 # if 1
 /* M4: a compromise equal to .5*(M3 + .5*(M2+transpose(M2))) */
-const int OD_QM8_Q4_QM_HVS[] = {
+const int OD_QM8_Q4_HVS[] = {
   16, 16, 18, 21, 24, 28, 32, 36,
   16, 17, 20, 21, 24, 27, 31, 35,
   18, 20, 24, 25, 27, 31, 33, 38,
@@ -203,7 +203,7 @@ const int OD_QM8_Q4_QM_HVS[] = {
 /* These are the PVQ equivalent of quantization matrices, except that
    the values are per-band. */
 
-static const unsigned char OD_FLAT_LUMA_QM_Q4[2][OD_QM_SIZE] = {
+static const unsigned char OD_LUMA_QM_Q4[2][OD_QM_SIZE] = {
 /* Flat quantization for PSNR. The DC component isn't 16 because the DC
    magnitude compensation is done here for inter (Haar DC doesn't need it).
    Masking disabled: */
@@ -226,7 +226,7 @@ static const unsigned char OD_FLAT_LUMA_QM_Q4[2][OD_QM_SIZE] = {
  }
 };
 
-static const unsigned char OD_FLAT_CHROMA_QM_Q4[2][OD_QM_SIZE] = {
+static const unsigned char OD_CHROMA_QM_Q4[2][OD_QM_SIZE] = {
 /* Chroma quantization is different because of the reduced lapping.
    FIXME: Use the same matrix as luma for 4:4:4.
    Masking disabled: */
@@ -251,16 +251,16 @@ static const unsigned char OD_FLAT_CHROMA_QM_Q4[2][OD_QM_SIZE] = {
    FIXME: Add interpolation and properly tune chroma. */
 const od_qm_entry OD_DEFAULT_QMS[2][2][OD_NPLANES_MAX] = {
  /* Masking disabled */
- {{{15, 256, OD_FLAT_LUMA_QM_Q4[OD_MASKING_DISABLED]},
-   {15, 448, OD_FLAT_CHROMA_QM_Q4[OD_MASKING_DISABLED]},
-   {15, 320, OD_FLAT_CHROMA_QM_Q4[OD_MASKING_DISABLED]}},
+ {{{15, 256, OD_LUMA_QM_Q4[OD_MASKING_DISABLED]},
+   {15, 448, OD_CHROMA_QM_Q4[OD_MASKING_DISABLED]},
+   {15, 320, OD_CHROMA_QM_Q4[OD_MASKING_DISABLED]}},
   {{0, 0, NULL},
    {0, 0, NULL},
    {0, 0, NULL}}},
  /* Masking enabled */
- {{{15, 256, OD_FLAT_LUMA_QM_Q4[OD_MASKING_ENABLED]},
-   {15, 448, OD_FLAT_CHROMA_QM_Q4[OD_MASKING_ENABLED]},
-   {15, 320, OD_FLAT_CHROMA_QM_Q4[OD_MASKING_ENABLED]}},
+ {{{15, 256, OD_LUMA_QM_Q4[OD_MASKING_ENABLED]},
+   {15, 448, OD_CHROMA_QM_Q4[OD_MASKING_ENABLED]},
+   {15, 320, OD_CHROMA_QM_Q4[OD_MASKING_ENABLED]}},
   {{0, 0, NULL},
    {0, 0, NULL},
    {0, 0, NULL}}}

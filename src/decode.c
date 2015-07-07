@@ -413,7 +413,7 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int bs,
   n = 1 << (bs + 2);
   lossless = (dec->quantizer[pli] == 0);
   use_masking = ctx->use_activity_masking;
-  qm = ctx->qm == OD_HVS_QM ? OD_QM8_Q4_QM_HVS : OD_QM8_Q4_QM_FLAT;
+  qm = ctx->qm == OD_HVS_QM ? OD_QM8_Q4_HVS : OD_QM8_Q4_FLAT;
   bx <<= bs;
   by <<= bs;
   xdec = dec->state.io_imgs[OD_FRAME_INPUT].planes[pli].xdec;

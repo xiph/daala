@@ -587,7 +587,7 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int bs,
   int lossless;
   int skip;
   const int *qm;
-  qm = ctx->qm == OD_HVS_QM ? OD_QM8_Q4_QM_HVS : OD_QM8_Q4_QM_FLAT;
+  qm = ctx->qm == OD_HVS_QM ? OD_QM8_Q4_HVS : OD_QM8_Q4_FLAT;
 #if defined(OD_OUTPUT_PRED)
   od_coeff preds[OD_BSIZE_MAX*OD_BSIZE_MAX];
   int zzi;
@@ -740,7 +740,7 @@ static void od_compute_dcts(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
   int lossless;
   od_coeff *c;
   const int *qm;
-  qm = ctx->qm == OD_HVS_QM ? OD_QM8_Q4_QM_HVS : OD_QM8_Q4_QM_FLAT;
+  qm = ctx->qm == OD_HVS_QM ? OD_QM8_Q4_HVS : OD_QM8_Q4_FLAT;
   lossless = (enc->quantizer[pli] == 0);
   c = ctx->d[pli];
   w = enc->state.frame_width >> xdec;
@@ -1006,7 +1006,7 @@ static double od_compute_dist_8x8(daala_enc_ctx *enc, od_coeff *x, od_coeff *y,
   for (i = 0; i < 8; i++) {
     for (j = 0; j < 8; j++) {
       double mag;
-      mag = 16./OD_QM8_Q4_QM_HVS[i*8 + j];
+      mag = 16./OD_QM8_Q4_HVS[i*8 + j];
       /* We attempt to consider the basis magnitudes here, though that's not
          perfect for block size 16x16 and above since only some edges are
          filtered then. */
