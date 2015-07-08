@@ -467,7 +467,11 @@ where
 \begin_inset Formula $x_{p,i,d}$
 \end_inset
 
- are the 4 boundary pixel values used to predict pixel 
+ are the 4
+\begin_inset space ~
+\end_inset
+
+boundary pixel values used to predict pixel 
 \begin_inset Formula $p$
 \end_inset
 
@@ -512,7 +516,15 @@ input{interp.pspdftex}}}
 \begin_inset Caption Standard
 
 \begin_layout Plain Layout
-Interpolation of pixel (2,4)
+Interpolation of pixel (2,4) from pixels (0,2), (0,3), (7,6), and (7,7).
+ Current block shown in gray.
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:Interpolation-of-pixel"
+
+\end_inset
+
+
 \end_layout
 
 \end_inset
