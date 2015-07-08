@@ -77,6 +77,21 @@ struct od_mv_grid_pt {
   unsigned valid:1;
 };
 
+extern const ogg_int16_t OD_SUBPEL_FILTER_SET[8][8];
+
+#define OD_SUBPEL_FILTER_TAP_SIZE (6)
+#define OD_SUBPEL_COEFF_SCALE (7)
+#define OD_SUBPEL_COEFF_SCALE2 (OD_SUBPEL_COEFF_SCALE << 1)
+#define OD_SUBPEL_RND_OFFSET2 (1 << (OD_SUBPEL_COEFF_SCALE2 - 1))
+#define OD_SUBPEL_RND_OFFSET3 (OD_SUBPEL_RND_OFFSET2 \
+ + (128 << OD_SUBPEL_COEFF_SCALE2))
+#define OD_SUBPEL_RND_OFFSET4 ((1 << (OD_SUBPEL_COEFF_SCALE - 1)) \
+ + (128 << OD_SUBPEL_COEFF_SCALE))
+#define OD_SUBPEL_TOP_APRON_SZ (OD_SUBPEL_FILTER_TAP_SIZE/2 - 1)
+#define OD_SUBPEL_BOTTOM_APRON_SZ (OD_SUBPEL_FILTER_TAP_SIZE/2)
+#define OD_SUBPEL_BUFF_APRON_SZ (OD_SUBPEL_TOP_APRON_SZ \
+ + OD_SUBPEL_BOTTOM_APRON_SZ)
+
 void od_mc_predict8(od_state *state, unsigned char *dst, int dystride,
  const unsigned char *src, int systride, const ogg_int32_t mvx[4],
  const ogg_int32_t mvy[4], int oc, int s, int log_xblk_sz, int log_yblk_sz);

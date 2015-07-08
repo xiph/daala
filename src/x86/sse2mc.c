@@ -31,8 +31,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <string.h>
 #include "x86int.h"
 #include "cpu.h"
+#include "../mc.h"
 
 #if defined(OD_X86ASM)
+#include <xmmintrin.h>
 
 /*So here are the constraints we have:
   We want (as much as possible) the same code to compile on x86-32 and x86-64.
@@ -105,6 +107,305 @@ static const unsigned short __attribute__((aligned(16),used)) OD_BILV[128]={
   0xE,0xE,0xE,0xE,0xE,0xE,0xE,0xE,
   0xF,0xF,0xF,0xF,0xF,0xF,0xF,0xF
 };
+
+#if defined(OD_CHECKASM)
+void od_mc_predict1fmv8_check(unsigned char *_dst,const unsigned char *_src,
+ int _systride,ogg_int32_t _mvx,ogg_int32_t _mvy,
+ int _log_xblk_sz,int _log_yblk_sz){
+  unsigned char dst[OD_MVBSIZE_MAX*OD_MVBSIZE_MAX];
+  int           xblk_sz;
+  int           yblk_sz;
+  int           failed;
+  int           i;
+  int           j;
+  xblk_sz=1<<_log_xblk_sz;
+  yblk_sz=1<<_log_yblk_sz;
+  failed=0;
+  od_mc_predict1fmv8_c(dst,_src,_systride,_mvx,_mvy,
+   _log_xblk_sz,_log_yblk_sz);
+  for(j=0;j<yblk_sz;j++){
+    for(i=0;i<xblk_sz;i++){
+      if(_dst[i+(j<<_log_xblk_sz)]!=dst[i+(j<<_log_xblk_sz)]){
+        fprintf(stderr,"ASM mismatch: 0x%02X!=0x%02X @ (%2i,%2i)\n",
+         _dst[i+(j<<_log_xblk_sz)],dst[i+(j<<_log_xblk_sz)],i,j);
+        failed=1;
+      }
+    }
+  }
+  if(failed){
+    fprintf(stderr,"od_mc_predict1fmv8 %ix%i check failed.\n",
+     (1<<_log_xblk_sz),(1<<_log_yblk_sz));
+  }
+  OD_ASSERT(!failed);
+}
+#endif
+
+void od_mc_predict1fmv8_sse2(unsigned char *dst,const unsigned char *src,
+ int systride, ogg_int32_t mvx, ogg_int32_t mvy,
+ int log_xblk_sz, int log_yblk_sz) {
+  int mvxf;
+  int mvyf;
+  int xblk_sz;
+  int yblk_sz;
+  int i;
+  int j;
+  /*Pointer to the start of an image block in local buffer (defined
+     below, buff[]), where the buffer contains the top and bottom apron
+     area of the image block.
+    Used as output for 1st stage horizontal filtering then as input for
+     2nd stage vertical filtering.*/
+  ogg_int16_t *buff_p;
+  /*A pointer to input row for both 1st and 2nd stage filtering.*/
+  const unsigned char *src_p;
+  unsigned char *dst_p;
+  /*2D buffer to store the result of 1st stage (i.e. horizontal) 1D filtering
+     of a block. The 1st stage filtering requires to output results for
+     top and bottom aprons of input image block, because the 2nd stage
+     filtering (i.e vertical) requires support region on those apron pixels.
+    The size of the buffer is :
+     wxh = OD_MVBSIZE_MAX x (OD_MVBSIZE_MAX + BUFF_APRON_SZ).*/
+  ogg_int16_t buff[(OD_MVBSIZE_MAX + OD_SUBPEL_BUFF_APRON_SZ)
+   *OD_MVBSIZE_MAX + 16];
+  int k;
+  xblk_sz = 1 << log_xblk_sz;
+  yblk_sz = 1 << log_yblk_sz;
+  src += (mvx >> 3) + (mvy >> 3)*systride;
+  /*Fetch LSB 3 bits, i.e. fractional MV.*/
+  mvxf = mvx & 0x07;
+  mvyf = mvy & 0x07;
+  /*Check whether mvxf and mvyf are in the range [0...7],
+     i.e. downto 1/8 precision.*/
+  OD_ASSERT(mvxf <= 7);
+  OD_ASSERT(mvyf <= 7);
+  /*MC with subpel MV?*/
+  if (mvxf || mvyf) {
+    /*1st stage 1D filtering, Horizontal.*/
+    buff_p = buff;
+    src_p = src - systride*OD_SUBPEL_TOP_APRON_SZ;
+    if (mvxf) {
+      /*1D filter chosen for the current fractional position of x mv.*/
+      __m128i fx;
+      fx = _mm_load_si128((__m128i *)OD_SUBPEL_FILTER_SET[mvxf]);
+      for (j = -OD_SUBPEL_TOP_APRON_SZ;
+       j < yblk_sz + OD_SUBPEL_BOTTOM_APRON_SZ; j++) {
+        for (i = 0; i < xblk_sz; i += 11) {
+          __m128i tmp;
+          __m128i src8pels;
+          __m128i sums;
+          tmp = _mm_loadu_si128(
+           (__m128i *)(src_p + i - OD_SUBPEL_TOP_APRON_SZ));
+          for (k = 0; k < 11 && (i + k) < xblk_sz; k++) {
+            src8pels = _mm_unpacklo_epi8(tmp, _mm_setzero_si128());
+            sums = _mm_madd_epi16(fx, src8pels);
+            /*Adding three 32 bits int operands.*/
+            sums = _mm_add_epi32(sums, _mm_unpackhi_epi64(sums, sums));
+            sums = _mm_add_epi32(sums,
+             _mm_shufflelo_epi16(sums, _MM_SHUFFLE(0, 0, 3, 2)));
+            buff_p[i + k] = (ogg_int16_t)_mm_cvtsi128_si32(_mm_sub_epi32(sums,
+             _mm_cvtsi32_si128(128 << OD_SUBPEL_COEFF_SCALE)));
+            tmp = _mm_srli_si128(tmp, 1);
+          }
+        }
+        src_p += systride;
+        buff_p += xblk_sz;
+      }
+    }
+    /*The mvx is of integer position.*/
+    else {
+      __m128i normalize_128;
+      normalize_128 = _mm_set1_epi16(128);
+      for (j = -OD_SUBPEL_TOP_APRON_SZ;
+       j < yblk_sz + OD_SUBPEL_BOTTOM_APRON_SZ; j++) {
+        for (i = 0; i < xblk_sz; i += 8) {
+          __m128i tmp;
+          __m128i src8pels;
+          tmp = _mm_loadl_epi64((__m128i *)(src_p + i));
+          src8pels = _mm_unpacklo_epi8(tmp, _mm_setzero_si128());
+          src8pels = _mm_slli_epi16(
+           _mm_subs_epi16(src8pels, normalize_128),
+           OD_SUBPEL_COEFF_SCALE);
+          if (xblk_sz >= 8)  {
+            _mm_store_si128((__m128i *)(buff_p + i), src8pels);
+          }
+          else if (xblk_sz >= 4) {
+            OD_ASSERT(i + 4 <= xblk_sz);
+            _mm_storel_epi64((__m128i *)(buff_p + i), src8pels);
+          }
+          else {
+            OD_ASSERT(i + 2 <= xblk_sz);
+            *((ogg_uint32_t *)(buff_p + i)) =
+             (ogg_uint32_t)_mm_cvtsi128_si32(src8pels);
+          }
+        }
+        src_p += systride;
+        buff_p += xblk_sz;
+      }
+    }
+    /*2nd stage 1D filtering, Vertical.*/
+    buff_p = buff + xblk_sz*OD_SUBPEL_TOP_APRON_SZ;
+    dst_p = dst;
+    if (mvyf)
+    {
+      __m128i fy0;
+      __m128i fy1;
+      __m128i fy2;
+      __m128i fy3;
+      __m128i fy4;
+      __m128i fy5;
+      __m128i fy01;
+      __m128i fy23;
+      __m128i fy45;
+      __m128i rounding_offset;
+      fy0 = _mm_set1_epi16(OD_SUBPEL_FILTER_SET[mvyf][0]);
+      fy1 = _mm_set1_epi16(OD_SUBPEL_FILTER_SET[mvyf][1]);
+      fy2 = _mm_set1_epi16(OD_SUBPEL_FILTER_SET[mvyf][2]);
+      fy3 = _mm_set1_epi16(OD_SUBPEL_FILTER_SET[mvyf][3]);
+      fy4 = _mm_set1_epi16(OD_SUBPEL_FILTER_SET[mvyf][4]);
+      fy5 = _mm_set1_epi16(OD_SUBPEL_FILTER_SET[mvyf][5]);
+      fy01 = _mm_unpacklo_epi16(fy0, fy1);
+      fy23 = _mm_unpacklo_epi16(fy2, fy3);
+      fy45 = _mm_unpacklo_epi16(fy4, fy5);
+      rounding_offset = _mm_set1_epi32(OD_SUBPEL_RND_OFFSET3);
+      for (j = 0; j < yblk_sz; j++) {
+        for (i = 0; i < xblk_sz; i += 8) {
+          /*Keeps 8 shorts from each row.*/
+          __m128i row0_src;
+          __m128i row1_src;
+          __m128i row2_src;
+          __m128i row3_src;
+          __m128i row4_src;
+          __m128i row5_src;
+          __m128i sums32_0to3;
+          __m128i sums32_4to7;
+          __m128i row01_lo;
+          __m128i row01_hi;
+          __m128i out;
+          OD_ASSERT((buff_p + i + ((0 - OD_SUBPEL_TOP_APRON_SZ)*xblk_sz) + 15)
+           < buff + sizeof(buff));
+          OD_ASSERT((buff_p + i + ((1 - OD_SUBPEL_TOP_APRON_SZ)*xblk_sz) + 15)
+           < buff + sizeof(buff));
+          OD_ASSERT((buff_p + i + ((2 - OD_SUBPEL_TOP_APRON_SZ)*xblk_sz) + 15)
+           < buff + sizeof(buff));
+          OD_ASSERT((buff_p + i + ((3 - OD_SUBPEL_TOP_APRON_SZ)*xblk_sz) + 15)
+           < buff + sizeof(buff));
+          OD_ASSERT((buff_p + i + ((4 - OD_SUBPEL_TOP_APRON_SZ)*xblk_sz) + 15)
+           < buff + sizeof(buff));
+          OD_ASSERT((buff_p + i + ((5 - OD_SUBPEL_TOP_APRON_SZ)*xblk_sz) + 15)
+           < buff + sizeof(buff));
+          /*Load input coeffs from each row, 8 shorts at one time.*/
+          row0_src = _mm_loadu_si128((__m128i *)
+           (buff_p + i + ((0 - OD_SUBPEL_TOP_APRON_SZ) << log_xblk_sz)));
+          row1_src = _mm_loadu_si128((__m128i *)
+           (buff_p + i + ((1 - OD_SUBPEL_TOP_APRON_SZ) << log_xblk_sz)));
+          row2_src = _mm_loadu_si128((__m128i *)
+           (buff_p + i + ((2 - OD_SUBPEL_TOP_APRON_SZ) << log_xblk_sz)));
+          row3_src = _mm_loadu_si128((__m128i *)
+           (buff_p + i + ((3 - OD_SUBPEL_TOP_APRON_SZ) << log_xblk_sz)));
+          row4_src = _mm_loadu_si128((__m128i *)
+           (buff_p + i + ((4 - OD_SUBPEL_TOP_APRON_SZ) << log_xblk_sz)));
+          row5_src = _mm_loadu_si128((__m128i *)
+           (buff_p + i + ((5 - OD_SUBPEL_TOP_APRON_SZ) << log_xblk_sz)));
+          /*Row 0 and 1 together.*/
+          row01_lo = _mm_unpacklo_epi16(row0_src, row1_src);
+          row01_hi = _mm_unpackhi_epi16(row0_src, row1_src);
+          sums32_0to3 = _mm_madd_epi16(row01_lo, fy01);
+          sums32_4to7 = _mm_madd_epi16(row01_hi, fy01);
+          /*Row 2 and 3 together.*/
+          row01_lo = _mm_unpacklo_epi16(row2_src, row3_src);
+          row01_hi = _mm_unpackhi_epi16(row2_src, row3_src);
+          sums32_0to3 = _mm_add_epi32(sums32_0to3,
+           _mm_madd_epi16(row01_lo, fy23));
+          sums32_4to7 = _mm_add_epi32(sums32_4to7,
+           _mm_madd_epi16(row01_hi, fy23));
+          /*Row 4 and 5 together.*/
+          row01_lo = _mm_unpacklo_epi16(row4_src, row5_src);
+          row01_hi = _mm_unpackhi_epi16(row4_src, row5_src);
+          sums32_0to3 = _mm_add_epi32(sums32_0to3,
+           _mm_madd_epi16(row01_lo, fy45));
+          sums32_4to7 = _mm_add_epi32(sums32_4to7,
+           _mm_madd_epi16(row01_hi, fy45));
+          /*Add rounding offset, then scale down.*/
+          sums32_0to3 = _mm_add_epi32(sums32_0to3, rounding_offset);
+          sums32_0to3 = _mm_srai_epi32(sums32_0to3, OD_SUBPEL_COEFF_SCALE2);
+          /*Write four filter output values to destination.*/
+          /*if (i + 8 <= xblk_sz) {*/
+          if (xblk_sz >= 8) {
+            sums32_4to7 = _mm_add_epi32(sums32_4to7, rounding_offset);
+            sums32_4to7 = _mm_srai_epi32(sums32_4to7, OD_SUBPEL_COEFF_SCALE2);
+            out = _mm_packs_epi32(sums32_0to3, sums32_4to7);
+            out = _mm_packus_epi16(out, out);
+            _mm_storel_epi64((__m128i *)(dst_p + i), out);
+          }
+          else if (xblk_sz >= 4) {
+            OD_ASSERT(i + 4 <= xblk_sz);
+            out = _mm_packs_epi32(sums32_0to3, sums32_0to3);
+            out = _mm_packus_epi16(out, out);
+            *((ogg_uint32_t *)(dst_p + i)) = _mm_cvtsi128_si32(out);
+          }
+          else {
+            OD_ASSERT(i + 2 <= xblk_sz);
+            out = _mm_packs_epi32(sums32_0to3, sums32_0to3);
+            out = _mm_packus_epi16(out, out);
+            *((ogg_uint16_t *)(dst_p + i)) =
+             (ogg_uint16_t)_mm_cvtsi128_si32(out);
+          }
+        }
+        buff_p += xblk_sz;
+        dst_p += xblk_sz;
+      }
+    }
+    /*The mvy is of integer position.*/
+    else {
+      __m128i rounding_offset4;
+      /*Note the sign!*/
+      rounding_offset4 = _mm_set1_epi16(-OD_SUBPEL_RND_OFFSET4);
+      for (j = 0; j < yblk_sz; j++) {
+        for (i = 0; i < xblk_sz; i += 8) {
+          __m128i p;
+          p = _mm_loadu_si128((__m128i *)(buff_p + i));
+          /*p is in the range [-26584, 26456].*/
+          p = _mm_max_epi16(p, rounding_offset4);
+          /*p is in the range [-16448, 26456].*/
+          p = _mm_sub_epi16(p, rounding_offset4);
+          /*p is in the range [0, 42904].*/
+          p = _mm_srli_epi16(p, OD_SUBPEL_COEFF_SCALE);
+          /*p is in the range [0, 335].*/
+          p = _mm_packus_epi16(p, p);
+          if (xblk_sz >= 8) {
+            _mm_storel_epi64((__m128i *)(dst_p + i), p);
+          }
+          else if (xblk_sz >= 4) {
+            OD_ASSERT(i + 4 <= xblk_sz);
+            *((ogg_uint32_t *)(dst_p + i)) = _mm_cvtsi128_si32(p);
+          }
+          else {
+            OD_ASSERT(i + 2 <= xblk_sz);
+            *((ogg_uint16_t *)(dst_p + i)) =
+             (ogg_uint16_t)_mm_cvtsi128_si32(p);
+          }
+        }
+        buff_p += xblk_sz;
+        dst_p += xblk_sz;
+      }
+    }
+  }
+  /*MC with full-pel MV, i.e. integer position.*/
+  else {
+    src_p = src;
+    dst_p = dst;
+    for (j = 0; j < yblk_sz; j++) {
+      OD_COPY(dst_p, src_p, xblk_sz);
+      src_p += systride;
+      dst_p += xblk_sz;
+    }
+  }
+#if defined(OD_CHECKASM)
+  od_mc_predict1fmv8_check(dst, src, systride, mvx, mvy,
+   log_xblk_sz, log_yblk_sz);
+  /*fprintf(stderr,"od_mc_predict1fmv8 %ix%i check finished.\n",
+   1<<_log_xblk_sz,1<<_log_yblk_sz);*/
+#endif
+}
 
 #if defined(OD_CHECKASM)
 static void od_mc_blend_full8_check(unsigned char *_dst,int _dystride,
