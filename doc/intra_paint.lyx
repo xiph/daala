@@ -3,6 +3,9 @@
 \begin_document
 \begin_header
 \textclass article
+\begin_preamble
+\usepackage{color}
+\end_preamble
 \use_default_options true
 \maintain_unincluded_children false
 \language english
@@ -98,7 +101,7 @@ Intra Paint Algorithm
 \end_layout
 
 \begin_layout Standard
-The algorithm works in four steps:
+The intra paint algorithm works in four steps:
 \end_layout
 
 \begin_layout Subsection*
@@ -455,12 +458,75 @@ reference "fig:Reconstructed-painted-image"
  Each pixel is reconstructed from up to 4 boundary pixels as
 \begin_inset Formula 
 \[
-y_{p}=\sum_{i=1}^{4}w_{p,i,d}x_{p_{i,d}}
+y_{p}=\sum_{i=1}^{4}w_{p,i,d}\cdot x_{p,i,d}
 \]
 
 \end_inset
 
 where 
+\begin_inset Formula $x_{p,i,d}$
+\end_inset
+
+ are the 4 boundary pixel values used to predict pixel 
+\begin_inset Formula $p$
+\end_inset
+
+ for direction 
+\begin_inset Formula $d$
+\end_inset
+
+ and 
+\begin_inset Formula $w_{p,i,d}$
+\end_inset
+
+ are the corresponding weights and sum to one.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+centering{
+\backslash
+scalebox{1.0}{
+\backslash
+input{interp.pspdftex}}}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Interpolation of pixel (2,4)
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
@@ -583,20 +649,20 @@ Let
  by
 \begin_inset Formula 
 \begin{equation}
-\mathbf{z}_{k}=\left(1-w_{k}\right)\mathbf{x}_{k}+w_{k}\mathbf{y}_{k}\ ,\label{eq:deringing-output}
+\mathbf{z}_{k}=\left(1-g_{k}\right)\mathbf{x}_{k}+g_{k}\mathbf{y}_{k}\ ,\label{eq:deringing-output}
 \end{equation}
 
 \end_inset
 
 where 
-\begin_inset Formula $w_{k}$
+\begin_inset Formula $g_{k}$
 \end_inset
 
  is the filter gain.
  The gain that minimizes the expected mean squared error is given by
 \begin_inset Formula 
 \begin{equation}
-w_{k}=\min\left[1,\ \frac{\alpha Q^{2}}{12\sigma_{k}^{2}}\right]\label{eq:deringing-weight}
+g_{k}=\min\left[1,\ \frac{\alpha Q^{2}}{12\sigma_{k}^{2}}\right]\label{eq:deringing-weight}
 \end{equation}
 
 \end_inset
@@ -643,9 +709,9 @@ reference "eq:deringing-weight"
  in Step 3.
  This allows us to compute the partial gain 
 \begin_inset Formula 
-\[
-w_{k}^{*}=\frac{Q^{2}}{12\sigma_{k}^{2}}
-\]
+\begin{equation}
+g_{k}^{*}=\frac{Q^{2}}{12\sigma_{k}^{2}}\label{eq:partial-gain}
+\end{equation}
 
 \end_inset
 
@@ -653,9 +719,9 @@ w_{k}^{*}=\frac{Q^{2}}{12\sigma_{k}^{2}}
  a smooth gain across block boundaries.
  The final gain then becomes 
 \begin_inset Formula 
-\[
-w_{k}=\min\left[1,\ \alpha w_{k}^{*}\right]
-\]
+\begin{equation}
+g_{k}=\min\left[1,\ \alpha g_{k}^{*}\right]\label{eq:final_gain}
+\end{equation}
 
 \end_inset
 
@@ -664,7 +730,43 @@ where the
 \end_inset
 
  parameter is the only information coded for the deringing filter.
+ Typically, the encoder selects 
+\begin_inset Formula $\alpha$
+\end_inset
+
+ by comparing the filter output to the original image and picking the 
+\begin_inset Formula $\alpha$
+\end_inset
+
+ value that minimizes a certain cost metric (e.g.
+ PSNR).
  
+\end_layout
+
+\begin_layout Subsection
+Simplifications
+\end_layout
+
+\begin_layout Standard
+In some applications, applying the algorithm as described above may require
+ too much CPU time.
+ In that case, some simplifications are possible.
+ It is possible to reduce complexity by skipping Step 3 of the paint algorithm
+ and painting each block independently.
+ Although this may increase boundary effects around blocks, it may still
+ be acceptable for deringing purposes.
+ Alternatively, the painting may be performed on overlapping blocks, which
+ would reduce blocking artefacts at the cost or higher complexity.
+ 
+\end_layout
+
+\begin_layout Standard
+It is also possible to reduce the complexity of the filter gain computation
+ by only computing 
+\begin_inset Formula $g$
+\end_inset
+
+ on a block-by-block basis, rather than on a line-by-line basis.
 \end_layout
 
 \begin_layout Section
@@ -672,7 +774,12 @@ Conclusion
 \end_layout
 
 \begin_layout Standard
-Future work: 
+We have demonstrated an effective algorithm to remove ringing artefacts
+ from coded images and videos.
+ While this algorithm does not significantly improve objective quality metrics
+ we have been using on Daala (PSNR, PSNR-HVS, SSIM, FAST-SSIM), the improvement
+ in subjective quality is significant, mostly on edges.
+ 
 \end_layout
 
 \end_body
