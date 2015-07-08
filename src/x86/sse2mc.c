@@ -169,7 +169,7 @@ void od_mc_predict1fmv8_sse2(unsigned char *dst,const unsigned char *src,
   int k;
   xblk_sz = 1 << log_xblk_sz;
   yblk_sz = 1 << log_yblk_sz;
-  src += (mvx >> 3) + (mvy >> 3)*systride;
+  src_p = src + (mvx >> 3) + (mvy >> 3)*systride;
   /*Fetch LSB 3 bits, i.e. fractional MV.*/
   mvxf = mvx & 0x07;
   mvyf = mvy & 0x07;
@@ -181,7 +181,7 @@ void od_mc_predict1fmv8_sse2(unsigned char *dst,const unsigned char *src,
   if (mvxf || mvyf) {
     /*1st stage 1D filtering, Horizontal.*/
     buff_p = buff;
-    src_p = src - systride*OD_SUBPEL_TOP_APRON_SZ;
+    src_p -= systride*OD_SUBPEL_TOP_APRON_SZ;
     if (mvxf) {
       /*1D filter chosen for the current fractional position of x mv.*/
       __m128i fx;
@@ -391,7 +391,6 @@ void od_mc_predict1fmv8_sse2(unsigned char *dst,const unsigned char *src,
   }
   /*MC with full-pel MV, i.e. integer position.*/
   else {
-    src_p = src;
     dst_p = dst;
     for (j = 0; j < yblk_sz; j++) {
       OD_COPY(dst_p, src_p, xblk_sz);
