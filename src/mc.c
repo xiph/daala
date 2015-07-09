@@ -155,8 +155,6 @@ void od_mc_predict1fmv8_c(unsigned char *dst, const unsigned char *src,
         src_p += systride;
         buff_p += xblk_sz;
       }
-      buff_p += xblk_sz;
-      dst_p += xblk_sz;
     }
     /*2nd stage 1D filtering, Vertical.*/
     buff_p = buff + xblk_sz*OD_SUBPEL_TOP_APRON_SZ;
