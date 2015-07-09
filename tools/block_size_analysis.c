@@ -711,7 +711,7 @@ int oc_ilog32(unsigned _v){
 
 }
 
-void quant_scalar_gain(ogg_int32_t *_x,ogg_int16_t *_scale,int *y,int N,int Q){
+void quant_scalar_gain(int32_t *_x,int16_t *_scale,int *y,int N,int Q){
   float gain0, gain1;
   float Q_1;
   int i;
@@ -768,9 +768,9 @@ static void process_plane(od_coeff *_img, od_coeff *_refi, int _w, int _h, int _
   for(y=0;y<_h;y+=16){
     for(x=0;x<_w;x+=16){
       od_coeff coeffs[256];
-      ogg_int32_t zi[256];
+      int32_t zi[256];
 /*      int         out[256];*/
-/*      ogg_int16_t scale[256];*/
+/*      int16_t scale[256];*/
 
 /*      for(j=0;j<256;j++)scale[j]=1;*/
       od_bin_fdct16x16(coeffs,16,&_img[(y)*_w+x],_w);
@@ -783,7 +783,7 @@ static void process_plane(od_coeff *_img, od_coeff *_refi, int _w, int _h, int _
       if (_pli==-1){
 #if 0
         int foo[256];
-        ogg_int32_t x[256];
+        int32_t x[256];
         /*quant_scalar_gain(&zi[1],NULL,foo,255,200);*/
         extract(&zi[4], x, 2, 4, 16);
         quant_scalar_gain(x,NULL,foo,8,200);
@@ -936,12 +936,12 @@ int main(int _argc,char **_argv){
       fprintf(stderr,"Chroma subsampling offsets do not match.\n");
       exit(EXIT_FAILURE);
     }
-    if(info1.fps_n*(ogg_int64_t)info2.fps_d!=
-     info2.fps_n*(ogg_int64_t)info1.fps_d){
+    if(info1.fps_n*(int64_t)info2.fps_d!=
+     info2.fps_n*(int64_t)info1.fps_d){
       fprintf(stderr,"Warning: framerates do not match.\n");
     }
-    if(info1.par_n*(ogg_int64_t)info2.par_d!=
-     info2.par_n*(ogg_int64_t)info1.par_d){
+    if(info1.par_n*(int64_t)info2.par_d!=
+     info2.par_n*(int64_t)info1.par_d){
      fprintf(stderr,"Warning: aspect ratios do not match.\n");
     }
   }

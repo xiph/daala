@@ -232,12 +232,12 @@ int main(int _argc,char *_argv[]){
     fprintf(stderr,"Chroma subsampling offsets do not match.\n");
     exit(EXIT_FAILURE);
   }
-  if(info1.fps_n*(ogg_int64_t)info2.fps_d!=
-   info2.fps_n*(ogg_int64_t)info1.fps_d){
+  if(info1.fps_n*(int64_t)info2.fps_d!=
+   info2.fps_n*(int64_t)info1.fps_d){
     fprintf(stderr,"Warning: framerates do not match.\n");
   }
-  if(info1.par_n*(ogg_int64_t)info2.par_d!=
-   info2.par_n*(ogg_int64_t)info1.par_d){
+  if(info1.par_n*(int64_t)info2.par_d!=
+   info2.par_n*(int64_t)info1.par_d){
     fprintf(stderr,"Warning: aspect ratios do not match.\n");
   }
   par=info1.par_n>0&&info2.par_d>0?

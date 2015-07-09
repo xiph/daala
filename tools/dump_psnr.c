@@ -48,7 +48,6 @@
 #include <math.h>
 #include <signal.h>
 #include "vidinput.h"
-#include <ogg/os_types.h>
 
 const char *optstring = "fsy";
 struct option options [] = {
@@ -76,10 +75,10 @@ int main(int _argc,char *_argv[]){
   video_input_info info1;
   video_input  vid2;
   video_input_info info2;
-  ogg_int64_t  gsqerr;
-  ogg_int64_t  gnpixels;
-  ogg_int64_t  gplsqerr[3];
-  ogg_int64_t  gplnpixels[3];
+  int64_t  gsqerr;
+  int64_t  gnpixels;
+  int64_t  gplsqerr[3];
+  int64_t  gplnpixels[3];
   int          frameno;
   FILE        *fin;
   int          long_option_index;
@@ -134,12 +133,12 @@ int main(int _argc,char *_argv[]){
     fprintf(stderr,"Chroma subsampling offsets do not match.\n");
     exit(1);
   }
-  if(info1.fps_n*(ogg_int64_t)info2.fps_d!=
-   info2.fps_n*(ogg_int64_t)info1.fps_d){
+  if(info1.fps_n*(int64_t)info2.fps_d!=
+   info2.fps_n*(int64_t)info1.fps_d){
     fprintf(stderr,"Warning: framerates do not match.\n");
   }
-  if(info1.par_n*(ogg_int64_t)info2.par_d!=
-   info2.par_n*(ogg_int64_t)info1.par_d){
+  if(info1.par_n*(int64_t)info2.par_d!=
+   info2.par_n*(int64_t)info1.par_d){
     fprintf(stderr,"Warning: aspect ratios do not match.\n");
   }
   gsqerr=gplsqerr[0]=gplsqerr[1]=gplsqerr[2]=0;
@@ -147,9 +146,9 @@ int main(int _argc,char *_argv[]){
   for(frameno=0;;frameno++){
     video_input_ycbcr f1;
     video_input_ycbcr f2;
-    ogg_int64_t     plsqerr[3];
+    int64_t     plsqerr[3];
     long            plnpixels[3];
-    ogg_int64_t     sqerr;
+    int64_t     sqerr;
     long            npixels;
     int             ret1;
     int             ret2;

@@ -11,7 +11,6 @@
 #include <io.h>
 #include <fcntl.h>
 #endif
-#include <ogg/os_types.h>
 #include "getopt.h"
 
 const char *optstring = "frsy";
@@ -51,7 +50,7 @@ static int gaussian_filter_init(unsigned **_kernel,double _sigma,int _max_len){
   else len=floor(_sigma*sqrt(-2*log(s)));
   kernel_len=len>=_max_len?_max_len-1:(int)len;
   kernel_sz=kernel_len<<1|1;
-  kernel=(unsigned *)_ogg_malloc(kernel_sz*sizeof(*kernel));
+  kernel=(unsigned *)malloc(kernel_sz*sizeof(*kernel));
   sum=0;
   for(ci=kernel_len;ci>0;ci--){
     kernel[kernel_len-ci]=kernel[kernel_len+ci]=
@@ -98,8 +97,8 @@ static double calc_ssim(const unsigned char *_src,int _systride,
   vkernel_offs=vkernel_sz>>1;
   for(line_sz=1,log_line_sz=0;line_sz<vkernel_sz;line_sz<<=1,log_line_sz++);
   line_mask=line_sz-1;
-  lines=(ssim_moments **)_ogg_malloc(line_sz*sizeof(*lines));
-  lines[0]=line_buf=(ssim_moments *)_ogg_malloc(line_sz*_w*sizeof(*line_buf));
+  lines=(ssim_moments **)malloc(line_sz*sizeof(*lines));
+  lines[0]=line_buf=(ssim_moments *)malloc(line_sz*_w*sizeof(*line_buf));
   for(y=1;y<line_sz;y++)lines[y]=lines[y-1]+_w;
   hkernel_sz=gaussian_filter_init(&hkernel,_h*(1.5/256)/_par,_w<_h?_w:_h);
   hkernel_offs=hkernel_sz>>1;
@@ -172,8 +171,8 @@ static double calc_ssim(const unsigned char *_src,int _systride,
       }
     }
   }
-  _ogg_free(line_buf);
-  _ogg_free(lines);
+  free(line_buf);
+  free(lines);
   return ssim/ssimw;
 }
 
@@ -266,13 +265,13 @@ int main(int _argc,char *_argv[]){
     fprintf(stderr,"Chroma subsampling offsets do not match.\n");
     exit(EXIT_FAILURE);
   }
-  if(info1.fps_n*(ogg_int64_t)info2.fps_d!=
-   info2.fps_n*(ogg_int64_t)info1.fps_d){
+  if(info1.fps_n*(int64_t)info2.fps_d!=
+   info2.fps_n*(int64_t)info1.fps_d){
     fprintf(stderr,"Warning: framerates do not match.\n");
     fprintf(stderr,"info1.fps_n=%i info1.fps_d=%i info2.fps_n=%i info2.fps_d=%i\n",info1.fps_n,info1.fps_d,info2.fps_n,info2.fps_d);
   }
-  if(info1.par_n*(ogg_int64_t)info2.par_d!=
-   info2.par_n*(ogg_int64_t)info1.par_d){
+  if(info1.par_n*(int64_t)info2.par_d!=
+   info2.par_n*(int64_t)info1.par_d){
     fprintf(stderr,"Warning: aspect ratios do not match.\n");
   }
   par=info1.par_n>0&&info2.par_d>0?
