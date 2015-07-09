@@ -170,7 +170,7 @@ status open
 \begin_inset Caption Standard
 
 \begin_layout Plain Layout
-Input image divided into fixed 32x32 blocks
+Input image divided into fixed 32x32 blocks.
 \begin_inset CommandInset label
 LatexCommand label
 name "fig:Input-image-divided"
@@ -210,14 +210,92 @@ reference "fig:Dominant-direction"
 ).
  The direction is only signaled when operating as an image encoder.
  One way to determine the direction is to minimize the pixel variance.
- For each direction 
+ For each direction, we assign a line number to each pixel, as shown in
+ Fig.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:Lines-for-direction"
+
+\end_inset
+
+.
+ 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+centering{
+\end_layout
+
+\end_inset
+
+
+\begin_inset Graphics
+	filename dlines.eps
+	scale 80
+
+\end_inset
+
+
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Line numbers for pixels following one direction in an 8x8 block.
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:Lines-for-direction"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+For each direction 
 \begin_inset Formula $d$
 \end_inset
 
 , the variance is defined as:
 \begin_inset Formula 
 \begin{equation}
-\sigma_{d}^{2}=\frac{1}{N}\left[\sum_{p\in\mathrm{block}}x_{p}^{2}-\sum_{k\in\mathrm{block},d}\frac{1}{N_{d,k}}\left(\sum_{p\in P_{d,k}}x_{p}\right)^{2}\right]\,,\label{eq:direction-variance1}
+\sigma_{d}^{2}=\frac{1}{N}\sum_{k\in\mathrm{block},d}\left[\sum_{p\in P_{d,k}}\left(x_{p}-\mu_{d,k}\right)^{2}\right]\ ,\label{eq:direction-variance0}
 \end{equation}
 
 \end_inset
@@ -243,6 +321,26 @@ where
 \end_inset
 
 , 
+\begin_inset Formula $N$
+\end_inset
+
+ is the total number of pixels in the block, and 
+\begin_inset Formula $\mu_{k}$
+\end_inset
+
+ is the pixel average for line 
+\begin_inset Formula $k$
+\end_inset
+
+:
+\begin_inset Formula 
+\begin{equation}
+\mu_{d,k}=\frac{1}{N_{d,k}}\sum_{p\in P_{d,k}}x_{p}\label{eq:pixel-average}
+\end{equation}
+
+\end_inset
+
+where 
 \begin_inset Formula $N_{d,k}$
 \end_inset
 
@@ -250,12 +348,30 @@ where
 \begin_inset Formula $P_{d,k}$
 \end_inset
 
-, and 
-\begin_inset Formula $N$
+.
+ Substituting 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:pixel-average"
+
 \end_inset
 
- is the total number of pixels in the block.
- Considering that the first term of Eq.
+ into 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:direction-variance0"
+
+\end_inset
+
+ and simplifying, we get 
+\begin_inset Formula 
+\begin{equation}
+\sigma_{d}^{2}=\frac{1}{N}\left[\sum_{p\in\mathrm{block}}x_{p}^{2}-\sum_{k\in\mathrm{block},d}\frac{1}{N_{d,k}}\left(\sum_{p\in P_{d,k}}x_{p}\right)^{2}\right]\,,\label{eq:direction-variance1}
+\end{equation}
+
+\end_inset
+
+Considering that the first term of Eq.
  
 \begin_inset CommandInset ref
 LatexCommand eqref
@@ -360,15 +476,24 @@ reference "fig:Optimal-pixel-values"
 
 \end_inset
 
-) that optimally match the image using the directions found in step 2.
- While directly using the pixels that lie on the block boundaries, we can
- generate a better image when also considering the pixels within the blocks.
+) that optimally match the image using the directions found in step
+\begin_inset space ~
+\end_inset
+
+2.
+ While directly using the pixels that lie on the block boundaries would
+ work to some extent, we can generate a better image when also considering
+ the pixels within the blocks.
  
 \end_layout
 
 \begin_layout Standard
 When operating as an encoder, we need to code these pixels, but we can use
  intra prediction from other block boundaries to help save bits.
+ This can be done by copying already coded pixels in the same line as the
+ pixels being predicted -- in a similar way to existing video codecs, except
+ that only boundary pixels are predicted.
+ 
 \end_layout
 
 \begin_layout Standard
@@ -450,12 +575,19 @@ reference "fig:Reconstructed-painted-image"
 \end_inset
 
 ).
- The boundary pixels encoded in step 3 are not taken directly from the original
- image, but rather optimized to give the best prediction of the original
- image at this stage.
+ The boundary pixels encoded in step
+\begin_inset space ~
+\end_inset
+
+3 are not taken directly from the original image, but rather optimized to
+ give the best prediction of the original image at this stage.
  Block discontinuities are avoided by blending within blocks based on the
  distance to each boundary.
- Each pixel is reconstructed from up to 4 boundary pixels as
+ Each pixel is reconstructed from up to 4
+\begin_inset space ~
+\end_inset
+
+boundary pixels as
 \begin_inset Formula 
 \[
 y_{p}=\sum_{i=1}^{4}w_{p,i,d}\cdot x_{p,i,d}
@@ -484,6 +616,18 @@ boundary pixel values used to predict pixel
 \end_inset
 
  are the corresponding weights and sum to one.
+ An example is provided in Fig.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:Interpolation-of-pixel"
+
+\end_inset
+
+.
 \end_layout
 
 \begin_layout Standard
@@ -516,7 +660,7 @@ input{interp.pspdftex}}}
 \begin_inset Caption Standard
 
 \begin_layout Plain Layout
-Interpolation of pixel (2,4) from pixels (0,2), (0,3), (7,6), and (7,7).
+Interpolation of pixel (2,4) from pixels (-1,2), (-1,3), (7,6), and (7,7).
  Current block shown in gray.
 \begin_inset CommandInset label
 LatexCommand label
@@ -727,8 +871,13 @@ g_{k}^{*}=\frac{Q^{2}}{12\sigma_{k}^{2}}\label{eq:partial-gain}
 
 \end_inset
 
- on each boundary pixel and apply the paint algorithm in Step 4 to obtain
- a smooth gain across block boundaries.
+ on each boundary pixel.
+ From there, we can treat the 
+\begin_inset Formula $g_{k}^{*}$
+\end_inset
+
+ values in the same way as pixels and  apply the paint algorithm in Step
+ 4 to obtain a smooth gain across block boundaries.
  The final gain then becomes 
 \begin_inset Formula 
 \begin{equation}
