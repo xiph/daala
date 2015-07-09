@@ -169,7 +169,8 @@ daalaincludedir = $(includedir)/daala
 daalainclude_HEADERS = \
 	include/daala/codec.h \
 	include/daala/daaladec.h \
-	include/daala/daalaenc.h
+	include/daala/daalaenc.h \
+	include/daala/daala_integer.h
 
 # Tools
 

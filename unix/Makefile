@@ -172,6 +172,7 @@ quantizer.h \
 state.h \
 tf.h \
 ../include/daala/codec.h \
+../include/daala/daala_integer.h \
 
 LIBDAALADEC_CSOURCES = \
 decode.c \
