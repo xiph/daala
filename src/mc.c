@@ -116,7 +116,8 @@ void od_mc_predict1fmv8_c(unsigned char *dst, const unsigned char *src,
   int k;
   xblk_sz = 1 << log_xblk_sz;
   yblk_sz = 1 << log_yblk_sz;
-  src += (mvx >> 3) + (mvy >> 3)*systride;
+  src_p = src + (mvx >> 3) + (mvy >> 3)*systride;
+  dst_p = dst;
   /*Fetch LSB 3 bits, i.e. fractional MV.*/
   mvxf = mvx & 0x07;
   mvyf = mvy & 0x07;
@@ -129,7 +130,7 @@ void od_mc_predict1fmv8_c(unsigned char *dst, const unsigned char *src,
   /*MC with subpel MV?*/
   if (mvxf || mvyf) {
     buff_p = buff;
-    src_p = src - systride*OD_SUBPEL_TOP_APRON_SZ;
+    src_p -= systride*OD_SUBPEL_TOP_APRON_SZ;
     /*1st stage 1D filtering, Horizontal.*/
     if (mvxf) {
       for (j = -OD_SUBPEL_TOP_APRON_SZ;
@@ -158,7 +159,6 @@ void od_mc_predict1fmv8_c(unsigned char *dst, const unsigned char *src,
     }
     /*2nd stage 1D filtering, Vertical.*/
     buff_p = buff + xblk_sz*OD_SUBPEL_TOP_APRON_SZ;
-    dst_p = dst;
     if (mvyf) {
       for (j = 0; j < yblk_sz; j++) {
         for (i = 0; i < xblk_sz; i++) {
@@ -187,8 +187,6 @@ void od_mc_predict1fmv8_c(unsigned char *dst, const unsigned char *src,
   }
   /*MC with full-pel MV, i.e. integer position.*/
   else {
-    src_p = src;
-    dst_p = dst;
     for (j = 0; j < yblk_sz; j++) {
       OD_COPY(dst_p, src_p, xblk_sz);
       src_p += systride;
