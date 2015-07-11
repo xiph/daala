@@ -206,6 +206,12 @@ int player_example_input_restart(player_example *player) {
   return ret;
 }
 
+void player_example_display_frame(player_example *player) {
+  SDL_RenderClear(player->renderer);
+  SDL_RenderCopy(player->renderer, player->texture, NULL, NULL);
+  SDL_RenderPresent(player->renderer);
+}
+
 void player_example_handle_event(player_example *player, SDL_Event *event) {
   switch (event->type) {
     case SDL_QUIT: {
@@ -257,11 +263,22 @@ void player_example_handle_event(player_example *player, SDL_Event *event) {
           player->fullscreen = !player->fullscreen;
           SDL_SetWindowFullscreen(player->screen,
               player->fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
+          img_to_rgb(player->texture, &player->img, player->plane_mask);
+          player_example_display_frame(player);
           break;
         }
         default: break;
       }
       break;
+    }
+    case SDL_WINDOWEVENT: {
+      switch (event->window.event) {
+        case SDL_WINDOWEVENT_RESIZED: {
+          player_example_display_frame(player);
+          break;
+        }
+        default: break;
+      }
     }
   }
 }
@@ -401,9 +418,7 @@ int player_example_play(player_example *player) {
           if ((!player->restart) && (!player->done)) {
             wait_to_refresh(&ticks, ms_per_frame);
             img_to_rgb(player->texture, &player->img, player->plane_mask);
-            SDL_RenderClear(player->renderer);
-            SDL_RenderCopy(player->renderer, player->texture, NULL, NULL);
-            SDL_RenderPresent(player->renderer);
+            player_example_display_frame(player);
           }
           break;
         }
