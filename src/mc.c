@@ -39,7 +39,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
    for 1/8 pel precision, apply corresponding filter.
   For this, we need 8 kinds of 1D filter, each corresponds to
    one of eight fractional positions.*/
-# if 1
+# if 0
   /*6-tap filter #1 :
     Windowed-sinc 6-tap for 1/2 pel, and bilinear for 1/4 and 1/8 pel.
      (Same design as adopted in frame level upsampling function,
@@ -58,20 +58,21 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
     { 1,  -5,  20, 116,  -5, 1, 0, 0 }
   };
 # else
-  /*6-tap filter #2 :
-    Windowed-sinc 6-tap for 1/2 pel and 1/4 pel, and bilinear for 1/8 pel.
+  /*6-tap filter #2 : sinc(x) * sinc(x/3)
+    Windowed-sinc 6-tap: sinc(x) * sinc(x/3) for 1/4 pel and 1/8 pel.
+    We keep the 1/2 pel filter from set #1 above.
     Filter coefficient is scaled up by 7 bit.*/
   const __attribute__((aligned(16))) ogg_int16_t OD_SUBPEL_FILTER_SET[8][8] = {
   /*Extra 0's are padded to make each row have 8 elements.*/
   /* -2   -1  [ 0    1]   2  3  : pixel position in support region.*/
-    { 0,   0, 128,   0,   0, 0, 0, 0 },
-    { 2,  -8, 119,  19,  -5, 1, 0, 0 },
-    { 3, -15, 111,  37, -10, 2, 0, 0 },
-    { 3, -16,  95,  58, -14, 2, 0, 0 },
-    { 3, -17,  78,  78, -17, 3, 0, 0 },
-    { 2, -14,  58,  95, -16, 3, 0, 0 },
-    { 2, -10,  37, 111, -15, 3, 0, 0 },
-    { 1,  -5,  19, 119,  -8, 2, 0, 0 }
+    { 0, 0, 128, 0, 0, 0, 0, 0},
+    { 1, -9, 122, 18, -5, 1, 0, 0},
+    { 3, -15, 112, 37, -11, 2, 0, 0},
+    { 3, -18, 97, 58, -15, 3, 0, 0},
+    { 4, -20, 80, 80, -20, 4, 0, 0},
+    { 3, -15, 58, 97, -18, 3, 0, 0},
+    { 2, -11, 37, 112, -15, 3, 0, 0},
+    { 1, -5, 18, 122, -9, 1, 0, 0},
   };
 # endif
 
