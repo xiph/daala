@@ -27,7 +27,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 # include <stdlib.h>
 # include <stdarg.h>
-# include <stdint.h>
 
 # include "daala/daala_integer.h"
 
