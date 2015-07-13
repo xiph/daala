@@ -264,6 +264,7 @@ static __inline int od_bsr(unsigned long x) {
 #   error "Alignment macros required for this platform."
 #  endif
 # endif
+
 # if !defined(OD_ALIGN8)
 #  define OD_ALIGN8(expr) expr
 # endif

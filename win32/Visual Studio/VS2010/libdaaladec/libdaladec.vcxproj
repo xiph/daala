@@ -78,7 +78,6 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\..\src\block_size_dec.c" />
     <ClCompile Include="..\..\..\..\src\decode.c" />
     <ClCompile Include="..\..\..\..\src\infodec.c" />
   </ItemGroup>
@@ -86,6 +85,7 @@
     <ClInclude Include="..\..\..\..\src\block_size_dec.h" />
     <ClInclude Include="..\..\..\..\include\daala\daaladec.h" />
     <ClInclude Include="..\..\..\..\src\decint.h" />
+    <ClInclude Include="..\..\..\..\src\quantizer.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="ReadMe.txt" />

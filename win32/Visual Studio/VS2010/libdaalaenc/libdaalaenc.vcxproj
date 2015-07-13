@@ -77,7 +77,6 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\..\src\block_size_dec.c" />
     <ClCompile Include="..\..\..\..\src\block_size_enc.c" />
     <ClCompile Include="..\..\..\..\src\encode.c" />
     <ClCompile Include="..\..\..\..\src\entenc.c" />
@@ -91,6 +90,7 @@
     <ClInclude Include="..\..\..\..\include\daala\daalaenc.h" />
     <ClInclude Include="..\..\..\..\src\encint.h" />
     <ClInclude Include="..\..\..\..\src\entenc.h" />
+    <ClInclude Include="..\..\..\..\src\quantizer.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="ReadMe.txt" />

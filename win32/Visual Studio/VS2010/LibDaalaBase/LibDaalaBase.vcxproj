@@ -81,7 +81,6 @@
   <ItemGroup>
     <ClCompile Include="..\..\..\..\src\accounting.c" />
     <ClCompile Include="..\..\..\..\src\adapt.c" />
-    <ClCompile Include="..\..\..\..\src\block_size.c" />
     <ClCompile Include="..\..\..\..\src\dct.c" />
     <ClCompile Include="..\..\..\..\src\entcode.c" />
     <ClCompile Include="..\..\..\..\src\entdec.c" />
@@ -99,12 +98,14 @@
     <ClCompile Include="..\..\..\..\src\pvq.c" />
     <ClCompile Include="..\..\..\..\src\pvq_code.c" />
     <ClCompile Include="..\..\..\..\src\pvq_decoder.c" />
+    <ClCompile Include="..\..\..\..\src\quantizer.c" />
     <ClCompile Include="..\..\..\..\src\state.c" />
     <ClCompile Include="..\..\..\..\src\switch_table.c" />
     <ClCompile Include="..\..\..\..\src\tf.c" />
     <ClCompile Include="..\..\..\..\src\zigzag16.c" />
     <ClCompile Include="..\..\..\..\src\zigzag32.c" />
     <ClCompile Include="..\..\..\..\src\zigzag4.c" />
+    <ClCompile Include="..\..\..\..\src\zigzag64.c" />
     <ClCompile Include="..\..\..\..\src\zigzag8.c" />
   </ItemGroup>
   <ItemGroup>
@@ -126,8 +127,10 @@
     <ClInclude Include="..\..\..\..\src\partition.h" />
     <ClInclude Include="..\..\..\..\src\pvq.h" />
     <ClInclude Include="..\..\..\..\src\pvq_code.h" />
+    <ClInclude Include="..\..\..\..\src\quantizer.h" />
     <ClInclude Include="..\..\..\..\src\state.h" />
     <ClInclude Include="..\..\..\..\src\tf.h" />
+    <ClInclude Include="..\..\..\..\src\zigzag.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="ReadMe.txt" />

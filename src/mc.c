@@ -45,7 +45,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
      (Same design as adopted in frame level upsampling function,
      which is currently used in master branch.)
     Filter coefficient is scaled up by 7 bit.*/
-  const __attribute__((aligned(16))) ogg_int16_t OD_SUBPEL_FILTER_SET[8][8] = {
+  const OD_ALIGN16(int16_t) OD_SUBPEL_FILTER_SET[8][8] = {
   /*Padded with extra 0's to make each row have 8 elements.*/
   /* -2   -1  [ 0    1]   2  3  : pixel position in support region.*/
     { 0,   0, 128,   0,   0, 0, 0, 0 },
@@ -62,7 +62,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
     Windowed-sinc 6-tap: sinc(x) * sinc(x/3) for 1/4 pel and 1/8 pel.
     We keep the 1/2 pel filter from set #1 above.
     Filter coefficient is scaled up by 7 bit.*/
-  const __attribute__((aligned(16))) ogg_int16_t OD_SUBPEL_FILTER_SET[8][8] = {
+  const OD_ALIGN16(int16_t) OD_SUBPEL_FILTER_SET[8][8] = {
   /*Extra 0's are padded to make each row have 8 elements.*/
   /* -2   -1  [ 0    1]   2  3  : pixel position in support region.*/
     { 0, 0, 128, 0, 0, 0, 0, 0},
