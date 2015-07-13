@@ -194,6 +194,7 @@ tools_TARGETS = \
 	tools/gen_cdf \
 	tools/compute_basis \
 	tools/gen_laplace_tables \
+	tools/daalainfo \
 	tools/dump_ssim \
 	tools/dump_fastssim \
 	tools/bjontegaard \
@@ -218,6 +219,10 @@ noinst_HEADERS += \
 
 EXTRA_PROGRAMS += $(tools_TARGETS)
 CLEANFILES += $(tools_TARGETS)
+
+tools_daalainfo_SOURCES = tools/daalainfo.c
+tools_daalainfo_CFLAGS = $(OGG_CFLAGS)
+tools_daalainfo_LDADD = $(OGG_LIBS) src/libdaalabase.la src/libdaaladec.la
 
 # png2y4m
 tools_png2y4m_SOURCES = \
