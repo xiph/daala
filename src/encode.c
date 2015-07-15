@@ -53,6 +53,74 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # include "x86/x86int.h"
 #endif
 
+/* These are the PVQ equivalent of quantization matrices, except that
+   the values are per-band. */
+#define OD_MASKING_DISABLED 0
+#define OD_MASKING_ENABLED 1
+
+static const unsigned char OD_LUMA_QM_Q4[2][OD_QM_SIZE] = {
+/* Flat quantization for PSNR. The DC component isn't 16 because the DC
+   magnitude compensation is done here for inter (Haar DC doesn't need it).
+   Masking disabled: */
+ {
+  27, 16,
+  23, 16, 16, 16,
+  19, 16, 16, 16, 16, 16,
+  17, 16, 16, 16, 16, 16, 16, 16
+ },
+/* The non-flat AC coefficients compensate for the non-linear scaling caused
+   by activity masking. The values are currently hand-tuned so that the rate
+   of each band remains roughly constant when enabling activity masking
+   on intra.
+   Masking enabled: */
+ {
+  27, 16,
+  23, 18, 28, 32,
+  19, 14, 20, 20, 28, 32,
+  17, 11, 16, 14, 16, 16, 23, 28
+ }
+};
+
+static const unsigned char OD_CHROMA_QM_Q4[2][OD_QM_SIZE] = {
+/* Chroma quantization is different because of the reduced lapping.
+   FIXME: Use the same matrix as luma for 4:4:4.
+   Masking disabled: */
+ {
+  21, 16,
+  18, 16, 16, 16,
+  17, 16, 16, 16, 16, 16,
+  16, 16, 16, 16, 16, 16, 16, 16
+ },
+/* The AC part is flat for chroma because it has no activity masking.
+   Masking enabled: */
+ {
+  21, 16,
+  18, 16, 16, 16,
+  17, 16, 16, 16, 16, 16,
+  16, 16, 16, 16, 16, 16, 16, 16
+ }
+};
+
+/* No interpolation, always use od_flat_qm_q4, but use a different scale for
+   each plane.
+   FIXME: Add interpolation and properly tune chroma. */
+static const od_qm_entry OD_DEFAULT_QMS[2][2][OD_NPLANES_MAX] = {
+ /* Masking disabled */
+ {{{15, 256, OD_LUMA_QM_Q4[OD_MASKING_DISABLED]},
+   {15, 448, OD_CHROMA_QM_Q4[OD_MASKING_DISABLED]},
+   {15, 320, OD_CHROMA_QM_Q4[OD_MASKING_DISABLED]}},
+  {{0, 0, NULL},
+   {0, 0, NULL},
+   {0, 0, NULL}}},
+ /* Masking enabled */
+ {{{15, 256, OD_LUMA_QM_Q4[OD_MASKING_ENABLED]},
+   {15, 448, OD_CHROMA_QM_Q4[OD_MASKING_ENABLED]},
+   {15, 320, OD_CHROMA_QM_Q4[OD_MASKING_ENABLED]}},
+  {{0, 0, NULL},
+   {0, 0, NULL},
+   {0, 0, NULL}}}
+};
+
 /*TODO: This makes little sense with the coded quantizer mapping
    changes, but that's a problem for later.
   Maintain current quality setting handling both here and in the

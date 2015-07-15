@@ -66,8 +66,6 @@ typedef struct od_qm_entry {
   const unsigned char *qm_q4;
 } od_qm_entry;
 
-extern const od_qm_entry OD_DEFAULT_QMS[2][2][OD_NPLANES_MAX];
-
 extern const double *const OD_PVQ_BETA[2][OD_NPLANES_MAX][OD_NBSIZES + 1];
 
 void od_apply_qm(od_coeff *out, int out_stride, od_coeff *in, int in_stride,
