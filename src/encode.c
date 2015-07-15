@@ -101,6 +101,12 @@ static const unsigned char OD_CHROMA_QM_Q4[2][OD_QM_SIZE] = {
  }
 };
 
+typedef struct od_qm_entry {
+  int interp_q;
+  int scale_q8;
+  const unsigned char *qm_q4;
+} od_qm_entry;
+
 /* No interpolation, always use od_flat_qm_q4, but use a different scale for
    each plane.
    FIXME: Add interpolation and properly tune chroma. */

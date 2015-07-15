@@ -60,12 +60,6 @@ extern const int OD_QM8_Q4_HVS[];
 
 int od_qm_get_index(int bs, int band);
 
-typedef struct od_qm_entry {
-  int interp_q;
-  int scale_q8;
-  const unsigned char *qm_q4;
-} od_qm_entry;
-
 extern const double *const OD_PVQ_BETA[2][OD_NPLANES_MAX][OD_NBSIZES + 1];
 
 void od_apply_qm(od_coeff *out, int out_stride, od_coeff *in, int in_stride,
