@@ -292,13 +292,6 @@ AS_IF([test "$enable_dump_recons" = "yes"], [
   AC_DEFINE([OD_DUMP_RECONS], [1], [Enable reconstructed video dumping])
 ])
 
-AC_ARG_ENABLE([dump-coeffs],
-  AS_HELP_STRING([--enable-dump-coeffs], [Dump transform coefficients]),,
-  [enable_dump_coeffs=no])
-AS_IF([test "$enable_dump_coeffs" = "yes"], [
-  AC_DEFINE([OD_DUMP_COEFFS], [1], [Enable transform coefficient dumping])
-])
-
 AC_ARG_ENABLE([accounting],
   AS_HELP_STRING([--enable-accounting], [Enable bit accounting]),
   [if test "$host_mingw" = "true"; then AC_MSG_ERROR([accounting not supported on Windows]); fi],
