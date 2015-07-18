@@ -275,6 +275,23 @@ AS_IF([test "$enable_check_asm" = "yes"], [
   AC_DEFINE([OD_CHECKASM], [1], [Validate assembly code])
 ])
 
+AC_ARG_ENABLE([mc-animate],
+  AS_HELP_STRING([--enable-mc-animate],
+    [Animate mc. ./configure ANIFRAME=12 --enable-dump-images --enable-mc-animate
+     animates the frame pointed by ANIFRAME]),,
+  [enable_mc_animate=no])
+AS_IF([test "$enable_mc_animate" = "yes"], [
+  AC_DEFINE([OD_ANIMATE], [1], [Enable MC frame animation])
+  AC_ARG_VAR([ANIFRAME],[the frame to be set to animate])
+  if test "x$ANIFRAME" = "x" ; then
+    AC_MSG_NOTICE([==> ANI FRAME IS NOT Set, defaulting to 69])
+    AC_DEFINE([ANI_FRAME],[69], [Frame to animate])
+  else
+    AC_MSG_NOTICE([==> ANI FRAME IS Set to $ANIFRAME])
+    AC_DEFINE_UNQUOTED([ANI_FRAME], [$ANIFRAME], [Frame to animate])
+  fi
+])
+
 AC_ARG_ENABLE([dump-images],
   AS_HELP_STRING([--enable-dump-images], [Dump debugging images]),,
   [enable_dump_images=no])
@@ -331,6 +348,7 @@ AC_MSG_NOTICE([
     API documentation ............ ${enable_doc}
     Assembly optimizations ....... ${enable_asm}
     Image dumping ................ ${enable_dump_images}
+    MC Animation  ................ ${enable_mc_animate}
     Reconstructed video dumping .. ${enable_dump_recons}
     Transform coeffs dumping ..... ${enable_dump_coeffs}
     Check encoder ................ ${enable_encoder_check}
