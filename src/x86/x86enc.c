@@ -46,7 +46,7 @@ void od_enc_opt_vtbl_init_x86(od_enc_ctx *enc) {
     enc->opt_vtbl.mc_compute_sad_16x16_xstride_1 =
      od_mc_compute_sad_16x16_xstride_1_sse2;
   }
-}
 #endif
+}
 
 #endif
