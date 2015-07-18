@@ -40,10 +40,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
    + How do we calculate them?
    + How do they propagate between frames (block sizes change)*/
 
-/*The frame number to animate.*/
-#if defined(OD_DUMP_IMAGES) && defined(OD_ANIMATE)
-# define ANI_FRAME (69)
-#endif
 
 typedef struct od_mv_err_node od_mv_err_node;
 
