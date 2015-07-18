@@ -195,6 +195,9 @@ TMP_CFLAGS="$CFLAGS"
 
 AS_IF([test "$enable_asm" = "yes" -a "$cpu_x86" = "true"], [
   AC_DEFINE([OD_X86ASM], [1], [Enable asm optimisations])
+  enable_gcc_inline_assembly=yes
+  AC_DEFINE([OD_GCC_INLINE_ASSEMBLY], [1],
+   [Enable gcc inline assembly optimisations])
   CFLAGS="$CFLAGS -msse2"
   AC_TRY_LINK([
 #include <xmmintrin.h>
@@ -233,6 +236,8 @@ AS_IF([test "$enable_asm" = "yes" -a "$cpu_x86" = "true"], [
 CFLAGS="$TMP_CFLAGS"
 AM_CONDITIONAL([ENABLE_X86ASM],
  [test "$enable_asm" = "yes" -a "$cpu_x86" = "true"])
+AM_CONDITIONAL([ENABLE_GCC_INLINE_ASSEMBLY],
+ [test "$enable_asm" = "yes" -a "$cpu_x86" = "true" -a "$enable_gcc_inline_assembly" = "yes"])
 AM_CONDITIONAL([ENABLE_SSE2_INTRINSICS],
  [test "$enable_asm" = "yes" -a "$cpu_x86" = "true" -a "$enable_sse2_intrinsics" = "yes"])
 AM_CONDITIONAL([ENABLE_SSE41_INTRINSICS],

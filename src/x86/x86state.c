@@ -30,19 +30,23 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "cpu.h"
 #if defined(OD_X86ASM)
 
+#if defined(OD_GCC_INLINE_ASSEMBLY)
 static void od_restore_fpu_mmx(void){
   __asm__ __volatile__("emms\n\t");
 }
+#endif
 
 void od_state_opt_vtbl_init_x86(od_state *_state){
   od_state_opt_vtbl_init_c(_state);
   _state->cpu_flags=od_cpu_flags_get();
   if (_state->cpu_flags&OD_CPU_X86_SSE2) {
-    _state->opt_vtbl.mc_predict1fmv8 = od_mc_predict1fmv8_sse2;
+#if defined(OD_GCC_INLINE_ASSEMBLY)
     _state->opt_vtbl.mc_blend_full8 = od_mc_blend_full8_sse2;
     _state->opt_vtbl.mc_blend_full_split8 = od_mc_blend_full_split8_sse2;
+#endif
 
 #if defined(OD_SSE2_INTRINSICS)
+    _state->opt_vtbl.mc_predict1fmv8 = od_mc_predict1fmv8_sse2;
     _state->opt_vtbl.fdct_2d[0] = od_bin_fdct4x4_sse2;
     _state->opt_vtbl.idct_2d[0] = od_bin_idct4x4_sse2;
     _state->opt_vtbl.fdct_2d[1] = od_bin_fdct8x8_sse2;
@@ -63,9 +67,11 @@ void od_state_opt_vtbl_init_x86(od_state *_state){
     }
 #endif
   }
+#if defined(OD_GCC_INLINE_ASSEMBLY)
   if (_state->cpu_flags&OD_CPU_X86_MMX) {
     _state->opt_vtbl.restore_fpu=od_restore_fpu_mmx;
   }
+#endif
 }
 
 #endif
