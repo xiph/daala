@@ -35,6 +35,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 void od_enc_opt_vtbl_init_x86(od_enc_ctx *enc) {
   od_enc_opt_vtbl_init_c(enc);
+#if defined(OD_GCC_INLINE_ASSEMBLY)
   if (enc->state.cpu_flags & OD_CPU_X86_SSE) {
     enc->opt_vtbl.mc_compute_sad_4x4_xstride_1 =
      od_mc_compute_sad_4x4_xstride_1_sse;
@@ -46,5 +47,6 @@ void od_enc_opt_vtbl_init_x86(od_enc_ctx *enc) {
      od_mc_compute_sad_16x16_xstride_1_sse2;
   }
 }
+#endif
 
 #endif
