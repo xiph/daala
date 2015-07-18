@@ -1136,7 +1136,7 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
   if (bs == bsi) {
     bs -= xdec;
     /*Construct the luma predictors for chroma planes. We only need to do
-      this one for all chroma planes.*/
+      this once for all chroma planes.*/
     if (ctx->l != NULL && pli == 1) {
       od_resample_luma_coeffs(ctx->l, 1 << (bs + OD_LOG_BSIZE0),
        ctx->d[0] + (by << (2 + bsi))*frame_width + (bx << (2 + bsi)),
