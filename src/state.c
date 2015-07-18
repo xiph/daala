@@ -343,8 +343,8 @@ static int od_state_init_impl(od_state *state, const daala_info *info) {
         }
       }
       if (plj >= pli) {
-        state->lbuf[pli] = state->ltmp[pli] = (od_coeff *)malloc(w*h*
-          sizeof(*state->ltmp[pli]));
+        state->lbuf[pli] = state->ltmp[pli] = (od_coeff *)malloc(OD_BSIZE_MAX*
+         OD_BSIZE_MAX*sizeof(*state->ltmp[pli]));
         if (OD_UNLIKELY(!state->lbuf[pli])) {
           return OD_EFAULT;
         }

@@ -441,7 +441,7 @@ static void od_encode_compute_pred(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
     else {
       for (y = 0; y < n; y++) {
         for (x = 0; x < n; x++) {
-          pred[n*y + x] = ctx->l[bo + y*w + x];
+          pred[n*y + x] = ctx->l[n*y + x];
         }
       }
     }
@@ -1138,7 +1138,7 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
     /*Construct the luma predictors for chroma planes.*/
     if (ctx->l != NULL) {
       OD_ASSERT(pli > 0);
-      od_resample_luma_coeffs(ctx->l + (by << (2 + bs))*w + (bx << (2 + bs)), w,
+      od_resample_luma_coeffs(ctx->l, 1 << (bs + OD_LOG_BSIZE0),
        ctx->d[0] + (by << (2 + bsi))*frame_width + (bx << (2 + bsi)),
        frame_width, xdec, ydec, bs, obs);
     }
