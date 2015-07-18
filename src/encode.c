@@ -901,6 +901,7 @@ static void od_quantize_haar_dc_sb(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
   od_coeff sb_dc_pred;
   od_coeff sb_dc_curr;
   od_coeff *sb_dc_mem;
+  (void)ydec;
   c = ctx->d[pli];
   w = enc->state.frame_width >> xdec;
   /*This code assumes 4:4:4 or 4:2:0 input.*/

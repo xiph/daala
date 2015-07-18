@@ -293,11 +293,6 @@ OD_SIMD_INLINE void od_mm256_storeu_si256(od_m256i *ptr, od_m256i a) {
   _mm_store_si128(((__m128i *)ptr) + 1, a.hi);
 }
 
-OD_SIMD_INLINE od_m256i unbiased_rshift32_256(od_m256i a, int b) {
-  return od_mm256_srai_epi32(od_mm256_add_epi32(
-   od_mm256_srli_epi32(a, 32 - b), a), b);
-}
-
 OD_SIMD_INLINE od_m256i mul_epi32_256(od_m256i a, int b1) {
   od_m256i x;
   x.lo = OD_MULLO_EPI32(a.lo, b1);
