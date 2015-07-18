@@ -140,6 +140,7 @@ void od_mc_predict1fmv8_check(unsigned char *_dst,const unsigned char *_src,
 }
 #endif
 
+#if defined(OD_SSE2_INTRINSICS)
 void od_mc_predict1fmv8_sse2(unsigned char *dst,const unsigned char *src,
  int systride, int32_t mvx, int32_t mvy,
  int log_xblk_sz, int log_yblk_sz) {
@@ -404,6 +405,10 @@ void od_mc_predict1fmv8_sse2(unsigned char *dst,const unsigned char *src,
    1<<_log_xblk_sz,1<<_log_yblk_sz);*/
 #endif
 }
+
+#endif
+
+#if defined(OD_GCC_INLINE_ASSEMBLY)
 
 #if defined(OD_CHECKASM)
 static void od_mc_blend_full8_check(unsigned char *_dst,int _dystride,
@@ -1340,5 +1345,6 @@ void od_mc_blend_full_split8_sse2(unsigned char *_dst,int _dystride,
    1<<_log_xblk_sz,1<<_log_yblk_sz);*/
 #endif
 }
+#endif
 
 #endif
