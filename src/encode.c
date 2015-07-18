@@ -1914,9 +1914,9 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     }
   }
   for (pli = 0; pli < nplanes; pli++) {
-    /*At low rate, boost the keyframe quality slightly (one coded quantizer
+    /*Boost the keyframe quality slightly (one coded quantizer
       step is the minimum possible).*/
-    if (mbctx.is_keyframe && enc->quantizer[pli] > 20 << OD_COEFF_SHIFT) {
+    if (mbctx.is_keyframe) {
       enc->coded_quantizer[pli] -= 1;
       enc->quantizer[pli] =
        od_codedquantizer_to_quantizer(enc->coded_quantizer[pli]);
