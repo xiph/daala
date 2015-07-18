@@ -77,7 +77,7 @@ CFLAGS := -I/opt/local/include $(CFLAGS)
 # Set machine-specific flags
 HOST := $(shell uname -m)
 ifneq (,$(findstring 86,${HOST}))
-CFLAGS := -DOD_X86ASM $(CFLAGS)
+CFLAGS := -DOD_X86ASM -DOD_GCC_INLINE_ASSEMBLY $(CFLAGS)
 else ifneq (,$(findstring arm,${HOST}))
 CFLAGS := -DOD_ARMASM $(CFLAGS)
 #CFLAGS := -march=armv7 $(CFLAGS)
