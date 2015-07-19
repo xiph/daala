@@ -363,6 +363,8 @@ static int od_state_init_impl(od_state *state, const daala_info *info) {
   state->dump_tags = 0;
   state->dump_files = 0;
 #endif
+  state->clpf_flags = (unsigned char *)malloc(state->nhsb * state->nvsb);
+  state->sb_skip_flags = (unsigned char *)malloc(state->nhsb * state->nvsb);
   return OD_SUCCESS;
 }
 
@@ -398,6 +400,8 @@ void od_state_clear(od_state *state) {
     free(state->mdtmp[pli]);
   }
   free(state->bsize);
+  free(state->clpf_flags);
+  free(state->sb_skip_flags);
 }
 
 /*Probabilities that a motion vector is not coded given two neighbors and the
@@ -521,6 +525,8 @@ void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe) {
       }
     }
   }
+  state->clpf_increment = 128;
+  OD_CDFS_INIT(state->clpf_cdf, state->clpf_increment >> 2);
 }
 
 void od_state_set_mv_res(od_state *state, int mv_res) {

@@ -165,3 +165,20 @@ double generic_encode_cost(generic_encoder *model, int x, int max,
      cdf[OD_MINI(ms, 15)]);
   }
 }
+
+/*Estimates the cost of encoding a value with a given CDF.*/
+double od_encode_cdf_cost(int val, uint16_t *cdf, int n) {
+  int total_prob;
+  int prev_prob;
+  double val_prob;
+  OD_ASSERT(n > 0);
+  total_prob = cdf[n - 1];
+  if (val == 0) {
+    prev_prob = 0;
+  }
+  else {
+    prev_prob = cdf[val - 1];
+  }
+  val_prob = (cdf[val] - prev_prob) / (double)total_prob;
+  return -OD_LOG2(val_prob);
+}

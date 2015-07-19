@@ -1263,7 +1263,7 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
         for (j = 0; j < n; j++) ctx->mc[bo + i*w + j] = mc_orig[n*i + j];
       }
     }
-    return skip_block;
+    return skip_block && rdo_only;
   }
 }
 
@@ -1522,6 +1522,7 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
   int frame_height;
   int nhsb;
   int nvsb;
+  int skipped;
   od_state *state = &enc->state;
   nplanes = state->info.nplanes;
   if (rdo_only) nplanes = 1;
@@ -1611,8 +1612,12 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
             }
           }
         }
-        od_encode_recursive(enc, mbctx, pli, sbx, sby, OD_NBSIZES - 1, xdec,
-         ydec, rdo_only, hgrad, vgrad);
+        skipped = od_encode_recursive(enc, mbctx, pli, sbx, sby,
+         OD_NBSIZES - 1, xdec, ydec, rdo_only, hgrad, vgrad);
+        /*Save superblock skip value for use by CLP filter.*/
+        if (pli == 0) {
+          enc->state.sb_skip_flags[sby*nhsb + sbx] = skipped;
+        }
       }
     }
   }
@@ -1650,6 +1655,105 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
       od_apply_postfilter_frame_sbs(state->ctmp[pli], w, nhsb, nvsb, xdec,
        ydec);
     }
+  }
+  if (!rdo_only && enc->quantizer[0] > 0) {
+    for (sby = 0; sby < nvsb; sby++) {
+      for (sbx = 0; sbx < nhsb; sbx++) {
+        int ln;
+        int n;
+        od_coeff buf[OD_BSIZE_MAX*OD_BSIZE_MAX];
+        double unfiltered_error;
+        double filtered_error;
+        int ystride;
+        unsigned char *input;
+        od_coeff *output;
+        int filtered;
+        int up;
+        int left;
+        int c;
+        int q2;
+        double filtered_rate;
+        double unfiltered_rate;
+        if (state->sb_skip_flags[sby*nhsb + sbx]) {
+          state->clpf_flags[sby*nhsb + sbx] = 0;
+          continue;
+        }
+        pli = 0;
+        xdec = state->io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
+        w = frame_width >> xdec;
+        OD_ASSERT(xdec == state->io_imgs[OD_FRAME_INPUT].planes[pli].ydec);
+        ln = OD_LOG_BSIZE_MAX - xdec;
+        n = 1 << ln;
+        od_clpf(buf, OD_BSIZE_MAX, &state->ctmp[pli][(sby << ln)*w +
+         (sbx << ln)], w, ln, sbx, sby, nhsb, nvsb);
+        ystride = state->io_imgs[OD_FRAME_INPUT].planes[pli].ystride;
+        input = (unsigned char *)&state->io_imgs[OD_FRAME_INPUT].planes[pli].
+         data[(sby << ln)*ystride + (sbx << ln)];
+        output = &state->ctmp[pli][(sby << ln)*w + (sbx << ln)];
+        unfiltered_error = 0;
+        filtered_error = 0;
+        for (y = 0; y < n; y++) {
+          for (x = 0; x < n; x++) {
+            int r;
+            od_coeff p;
+            od_coeff o;
+            r = (input[y*ystride + x] - 128) << OD_COEFF_SHIFT;
+            p = buf[y*OD_BSIZE_MAX + x];
+            filtered_error += (r - p)*(double)(r - p);
+            o = output[y*w + x];
+            unfiltered_error += (r - o)*(double)(r - o);
+          }
+        }
+        up = 0;
+        if (sby > 0) {
+          up = state->clpf_flags[(sby-1)*nhsb + sbx];
+        }
+        left = 0;
+        if (sbx > 0) {
+          left = state->clpf_flags[sby*nhsb + (sbx-1)];
+        }
+        c = (up << 1) + left;
+        filtered_rate = od_encode_cdf_cost(1, state->adapt.clpf_cdf[c], 2);
+        unfiltered_rate = od_encode_cdf_cost(0, state->adapt.clpf_cdf[c], 2);
+        q2 = enc->quantizer[0] * enc->quantizer[0];
+        filtered = (filtered_error + 0.1*q2*filtered_rate) <
+         (unfiltered_error + 0.1*q2*unfiltered_rate);
+        state->clpf_flags[sby*nhsb + sbx] = filtered;
+        od_encode_cdf_adapt(&enc->ec, filtered, state->adapt.clpf_cdf[c], 2,
+         state->adapt.clpf_increment);
+        if (filtered) {
+          for (y = 0; y < n; y++) {
+            for (x = 0; x < n; x++) {
+              output[y*w + x] = buf[y*OD_BSIZE_MAX + x];
+            }
+          }
+          for (pli = 1; pli < nplanes; pli++) {
+            xdec = state->io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
+            w = frame_width >> xdec;
+            ln = OD_LOG_BSIZE_MAX - xdec;
+            n = 1 << ln;
+            /*buf is used for output so that we don't use filtered pixels in
+              the input to the filter, but because we look past block edges,
+              we do this anyway on the edge pixels. Unfortunately, this limits
+              potential parallelism.*/
+            od_clpf(buf, OD_BSIZE_MAX, &state->ctmp[pli][(sby << ln)*w +
+             (sbx << ln)], w, ln, sbx, sby, nhsb, nvsb);
+            output = &state->ctmp[pli][(sby << ln)*w + (sbx << ln)];
+            for (y = 0; y < n; y++) {
+              for (x = 0; x < n; x++) {
+                output[y*w + x] = buf[y*OD_BSIZE_MAX + x];
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  for (pli = 0; pli < nplanes; pli++) {
+    xdec = state->io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
+    ydec = state->io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
+    w = frame_width >> xdec;
+    h = frame_height >> ydec;
     if (!rdo_only) {
       for (sby = 0; sby < nvsb; sby++) {
         for (sbx = 0; sbx < nhsb; sbx++) {

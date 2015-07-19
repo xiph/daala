@@ -66,6 +66,8 @@ void generic_encode(od_ec_enc *enc, generic_encoder *model, int x, int max,
 double generic_encode_cost(generic_encoder *model, int x, int max,
  int *ex_q16);
 
+double od_encode_cdf_cost(int val, uint16_t *cdf, int n);
+
 int generic_decode(od_ec_dec *dec, generic_encoder *model, int max,
  int *ex_q16, int integration);
 

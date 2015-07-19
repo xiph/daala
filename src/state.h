@@ -152,6 +152,8 @@ struct od_adapt_ctx {
   int haar_split_increment;
   uint16_t haar_bits_cdf[3][16];
   int haar_bits_increment;
+  uint16_t clpf_cdf[4][2];
+  int clpf_increment;
 };
 
 struct od_state{
@@ -219,7 +221,9 @@ struct od_state{
   od_coeff *ltmp[OD_NPLANES_MAX];
   od_coeff *lbuf[OD_NPLANES_MAX];
   unsigned char pvq_qm_q4[OD_NPLANES_MAX][OD_QM_SIZE];
-  /* Holds a TF'd copy of the transform coefficients in 4x4 blocks. */
+  /*These flags provide context for the CLP filter.*/
+  unsigned char *clpf_flags;
+  unsigned char *sb_skip_flags;
 };
 
 int od_state_init(od_state *_state, const daala_info *_info);
