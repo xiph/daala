@@ -656,7 +656,7 @@ int od_pvq_encode(daala_enc_ctx *enc,
   }
   /* Code as if we're not skipping. */
   od_encode_cdf_adapt(&enc->ec, (out[0] != 0), skip_cdf,
-   5, enc->state.adapt.skip_increment);
+   4 + (pli == 0 && bs > 0), enc->state.adapt.skip_increment);
   /* Excluding skip flag from the rate since it's minor and would be prone
      to greedy decision issues. */
   tell = od_ec_enc_tell_frac(&enc->ec);
@@ -714,7 +714,7 @@ int od_pvq_encode(daala_enc_ctx *enc,
     /* We decide to skip, roll back everything as it was before. */
     od_encode_rollback(enc, &buf);
     od_encode_cdf_adapt(&enc->ec, 2 + (out[0] != 0), skip_cdf,
-     5, enc->state.adapt.skip_increment);
+     4 + (pli == 0 && bs > 0), enc->state.adapt.skip_increment);
     if (is_keyframe) for (i = 1; i < 1 << (2*bs + 4); i++) out[i] = 0;
     else for (i = 1; i < 1 << (2*bs + 4); i++) out[i] = ref[i];
     if ((out[0] == 0)) return 1;

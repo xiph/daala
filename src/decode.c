@@ -624,7 +624,7 @@ static void od_decode_recursive(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
   if (ctx->use_haar_wavelet) obs = bsi;
   else if (pli == 0) {
     skip = od_decode_cdf_adapt(&dec->ec,
-     dec->state.adapt.skip_cdf[2*bsi + (pli != 0)], 5,
+     dec->state.adapt.skip_cdf[2*bsi + (pli != 0)], 4 + (bsi > 0),
      dec->state.adapt.skip_increment);
     if (skip < 4) obs = bsi;
     else obs = -1;
@@ -656,7 +656,7 @@ static void od_decode_recursive(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
     if (pli > 0 && !ctx->use_haar_wavelet) {
       /* Decode the skip for chroma. */
       skip = od_decode_cdf_adapt(&dec->ec,
-       dec->state.adapt.skip_cdf[2*bsi + (pli != 0)], 5,
+       dec->state.adapt.skip_cdf[2*bsi + (pli != 0)], 4,
        dec->state.adapt.skip_increment);
     }
     od_block_decode(dec, ctx, bs, pli, bx, by, skip);
