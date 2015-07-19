@@ -472,6 +472,7 @@ int main(int argc, char *argv[]) {
   }
   if (SDL_Init(SDL_INIT_VIDEO) < 0) {
     fprintf(stderr, "error: unable to init SDL\n");
+    fprintf(stderr, "SDL_Error: %s\n", SDL_GetError());
     exit(1);
   }
   atexit(SDL_Quit);
