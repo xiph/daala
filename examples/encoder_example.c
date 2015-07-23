@@ -744,6 +744,7 @@ int main(int argc, char **argv) {
       fprintf(stderr, "Could not write page body to file.\n");
       exit(1);
     }
+    fflush(outfile);
     video_bytesout += bytes_written;
     video_ready = 0;
     if (video_time == -1) continue;
