@@ -510,7 +510,7 @@ static void od_decode_haar_dc_sb(daala_dec_ctx *dec, od_mb_dec_ctx *ctx,
  od_coeff *ovgrad) {
   int w;
   int dc_quant;
-  od_coeff *c;
+  od_coeff *d;
   int nhsb;
   int quant;
   int ln;
@@ -518,7 +518,7 @@ static void od_decode_haar_dc_sb(daala_dec_ctx *dec, od_mb_dec_ctx *ctx,
   od_coeff sb_dc_curr;
   od_coeff *sb_dc_mem;
   (void)ydec;
-  c = ctx->d[pli];
+  d = ctx->d[pli];
   w = dec->state.frame_width >> xdec;
   /*This code assumes 4:4:4 or 4:2:0 input.*/
   OD_ASSERT(xdec == ydec);
@@ -552,7 +552,7 @@ static void od_decode_haar_dc_sb(daala_dec_ctx *dec, od_mb_dec_ctx *ctx,
     if (od_ec_dec_bits(&dec->ec, 1)) quant = -quant;
   }
   sb_dc_curr = quant*dc_quant + sb_dc_pred;
-  c[(by << ln)*w + (bx << ln)] = sb_dc_curr;
+  d[(by << ln)*w + (bx << ln)] = sb_dc_curr;
   sb_dc_mem[by*nhsb + bx] = sb_dc_curr;
   if (by > 0) *ovgrad = sb_dc_mem[(by - 1)*nhsb + bx] - sb_dc_curr;
   if (bx > 0) *ohgrad = sb_dc_mem[by*nhsb + bx - 1] - sb_dc_curr;
