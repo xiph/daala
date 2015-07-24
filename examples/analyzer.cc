@@ -55,7 +55,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 class DaalaDecoder {
 private:
   FILE *input;
-  const char *path;
+  wxString path;
 
   ogg_page page;
   ogg_sync_state oy;
@@ -76,7 +76,7 @@ public:
   DaalaDecoder();
   ~DaalaDecoder();
 
-  bool open(const char *path);
+  bool open(const wxString &path);
   bool step();
   void reset();
 
@@ -167,12 +167,9 @@ DaalaDecoder::~DaalaDecoder() {
   daala_decode_free(dctx);
 }
 
-bool DaalaDecoder::open(const char *path) {
-  if (path == NULL) {
-    return false;
-  }
+bool DaalaDecoder::open(const wxString &path) {
   ogg_sync_init(&oy);
-  input = fopen(path,"rb");
+  input = fopen(path.mb_str(), "rb");
   if (input == NULL) {
     return false;
   }
@@ -260,7 +257,7 @@ private:
   bool show_noref;
   bool show_padding;
   int plane_mask;
-  wxString path;
+  const wxString path;
 
   // The decode size is the picture size or frame size.
   int getDecodeWidth() const;
@@ -274,10 +271,10 @@ private:
 
   int getBand(int x, int y) const;
 public:
-  TestPanel(wxWindow *parent, wxString &path);
+  TestPanel(wxWindow *parent, const wxString &path);
   ~TestPanel();
 
-  bool open(const char *path);
+  bool open(const wxString &path);
   void close();
   void render();
   bool nextFrame();
@@ -331,7 +328,7 @@ public:
   void onNextFrame(wxCommandEvent &event);
   void onAbout(wxCommandEvent &event);
 
-  bool open(wxString path);
+  bool open(const wxString &path);
 };
 
 enum {
@@ -362,7 +359,7 @@ BEGIN_EVENT_TABLE(TestFrame, wxFrame)
   EVT_MENU(wxID_ABOUT, TestFrame::onAbout)
 END_EVENT_TABLE()
 
-TestPanel::TestPanel(wxWindow *parent, wxString &path) : wxPanel(parent),
+TestPanel::TestPanel(wxWindow *parent, const wxString &path) : wxPanel(parent),
  pixels(NULL), zoom(0), bsize(NULL), show_blocks(false), flags(NULL),
  show_skip(false), show_noref(false), show_padding(false),
  plane_mask(OD_ALL_MASK), path(path) {
@@ -372,7 +369,7 @@ TestPanel::~TestPanel() {
   close();
 }
 
-bool TestPanel::open(const char *path) {
+bool TestPanel::open(const wxString &path) {
   if (!dd.open(path)) {
     return false;
   }
@@ -824,11 +821,9 @@ void TestFrame::onAbout(wxCommandEvent& WXUNUSED(event)) {
   wxMessageBox(_T("This program is a bitstream analyzer for Daala."), _T("About"), wxOK | wxICON_INFORMATION, this);
 }
 
-bool TestFrame::open(wxString path) {
-  wxCharBuffer buffer = path.ToUTF8();
-  const char *filename = buffer.data();
+bool TestFrame::open(const wxString &path) {
   panel = new TestPanel(this, path);
-  if (panel->open(filename)) {
+  if (panel->open(path)) {
     Fit();
     SetStatusText(_T("loaded file: ") + path);
     fileMenu->Enable(wxID_OPEN, false);
