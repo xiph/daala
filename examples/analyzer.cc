@@ -77,8 +77,9 @@ public:
   ~DaalaDecoder();
 
   bool open(const wxString &path);
+  void close();
   bool step();
-  void reset();
+  void restart();
 
   int getWidth() const;
   int getHeight() const;
@@ -160,11 +161,7 @@ DaalaDecoder::DaalaDecoder() : input(NULL), dsi(NULL), dctx(NULL) {
 }
 
 DaalaDecoder::~DaalaDecoder() {
-  daala_info_clear(&di);
-  daala_comment_clear(&dc);
-  ogg_sync_clear(&oy);
-  daala_setup_free(dsi);
-  daala_decode_free(dctx);
+  close();
 }
 
 bool DaalaDecoder::open(const wxString &path) {
@@ -176,6 +173,25 @@ bool DaalaDecoder::open(const wxString &path) {
   this->path = path;
   frame = 0;
   return readHeaders();
+}
+
+void DaalaDecoder::close() {
+  if (input) {
+    fclose(input);
+    input = NULL;
+  }
+  if (dsi) {
+    daala_setup_free(dsi);
+    dsi = NULL;
+  }
+  if (dctx) {
+    daala_decode_free(dctx);
+    dctx = NULL;
+  }
+  ogg_sync_clear(&oy);
+  ogg_stream_clear(&os);
+  daala_info_clear(&di);
+  daala_comment_clear(&dc);
 }
 
 bool DaalaDecoder::step() {
@@ -191,8 +207,11 @@ bool DaalaDecoder::step() {
   return false;
 }
 
-// TODO: Move cleanup code from destructor to here
-void DaalaDecoder::reset() {
+void DaalaDecoder::restart() {
+  close();
+  daala_info_init(&di);
+  daala_comment_init(&dc);
+  open(path);
 }
 
 int DaalaDecoder::getWidth() const {
@@ -248,10 +267,12 @@ private:
   unsigned char *pixels;
 
   unsigned char *bsize;
+  unsigned int bsize_len;
   int bstride;
   bool show_blocks;
 
   unsigned int *flags;
+  unsigned int flags_len;
   int fstride;
   bool show_skip;
   bool show_noref;
@@ -360,9 +381,9 @@ BEGIN_EVENT_TABLE(TestFrame, wxFrame)
 END_EVENT_TABLE()
 
 TestPanel::TestPanel(wxWindow *parent, const wxString &path) : wxPanel(parent),
- pixels(NULL), zoom(0), bsize(NULL), show_blocks(false), flags(NULL),
- show_skip(false), show_noref(false), show_padding(false),
- plane_mask(OD_ALL_MASK), path(path) {
+ pixels(NULL), zoom(0), bsize(NULL), bsize_len(0), show_blocks(false),
+ flags(NULL), flags_len(0), show_skip(false), show_noref(false),
+ show_padding(false), plane_mask(OD_ALL_MASK), path(path) {
 }
 
 TestPanel::~TestPanel() {
@@ -378,24 +399,28 @@ bool TestPanel::open(const wxString &path) {
   }
   int nhsb = dd.getFrameWidth() >> OD_LOG_BSIZE0 + OD_NBSIZES - 1;
   int nvsb = dd.getFrameHeight() >> OD_LOG_BSIZE0 + OD_NBSIZES - 1;
-  bsize = (unsigned char *)malloc(sizeof(*bsize)*nhsb*4*nvsb*4);
+  bsize_len = sizeof(*bsize)*nhsb*4*nvsb*4;
+  bsize = (unsigned char *)malloc(bsize_len);
   if (bsize == NULL) {
+    bsize_len = 0;
     close();
     return false;
   }
   bstride = nhsb*4;
-  if (!dd.setBlockSizeBuffer(bsize, sizeof(*bsize)*nhsb*4*nvsb*4)) {
+  if (!dd.setBlockSizeBuffer(bsize, bsize_len)) {
     close();
     return false;
   }
-  flags = (unsigned int *)malloc(sizeof(*flags)*nhsb*8*nvsb*8);
+  flags_len = sizeof(*flags)*nhsb*8*nvsb*8;
+  flags = (unsigned int *)malloc(flags_len);
   if (flags == NULL) {
+    flags_len = 0;
     fprintf(stderr,"Could not allocate memory\n");
     close();
     return false;
   }
   fstride = nhsb*8;
-  if (!dd.setBandFlagsBuffer(flags, sizeof(unsigned int)*nhsb*8*nvsb*8)) {
+  if (!dd.setBandFlagsBuffer(flags, flags_len)) {
     fprintf(stderr,"Could not set flags buffer\n");
     close();
     return false;
@@ -409,7 +434,7 @@ bool TestPanel::open(const wxString &path) {
 }
 
 void TestPanel::close() {
-  dd.reset();
+  dd.close();
   free(pixels);
   pixels = NULL;
   free(bsize);
@@ -640,6 +665,15 @@ bool TestPanel::nextFrame() {
 void TestPanel::onKeyDown(wxKeyEvent &event) {
   switch (event.GetKeyCode()) {
     case '.' : {
+      nextFrame();
+      Refresh(false);
+      break;
+    }
+    /* Catches 'r' and 'R' */
+    case 'R' : {
+      dd.restart();
+      dd.setBlockSizeBuffer(bsize, bsize_len);
+      dd.setBandFlagsBuffer(flags, flags_len);
       nextFrame();
       Refresh(false);
       break;
