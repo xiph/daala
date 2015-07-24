@@ -1169,7 +1169,7 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
     bs = bsi - xdec;
     bo = (by << (OD_LOG_BSIZE0 + bs))*w + (bx << (OD_LOG_BSIZE0 + bs));
     n = 4 << bs;
-    if (rdo_only) {
+    if (rdo_only && bsi <= OD_LIMIT_BSIZE_MAX) {
       int i;
       int j;
       od_coeff dc_orig[(OD_BSIZE_MAX/4)*(OD_BSIZE_MAX/4)];
@@ -1227,7 +1227,7 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
      bsi - 1, xdec, ydec, rdo_only, hgrad, vgrad);
     skip_block = skip_split;
     od_postfilter_split(ctx->c + bo, w, bs, f);
-    if (rdo_only) {
+    if (rdo_only && bsi <= OD_LIMIT_BSIZE_MAX) {
       int i;
       int j;
       double lambda;
@@ -1254,7 +1254,7 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
         for (i = 0; i < 1 << (bs - 1); i++) {
           for (j = 0; j < 1 << (bs - 1); j++) {
             enc->state.bsize[((by << bsi >> 1) + i)*enc->state.bstride
-             + (bx << bsi >> 1) + j] = OD_MINI(OD_LIMIT_BSIZE_MAX, bs);
+             + (bx << bsi >> 1) + j] = bs;
           }
         }
         skip_block = skip_nosplit;
