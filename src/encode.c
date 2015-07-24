@@ -1206,9 +1206,6 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
     f = OD_FILT_SIZE(bs - 1, xdec);
     od_prefilter_split(ctx->c + bo, w, bs, f);
     if (!ctx->is_keyframe) od_prefilter_split(ctx->mc + bo, w, bs, f);
-    bsi--;
-    bx <<= 1;
-    by <<= 1;
     skip_split = 1;
     if (pli == 0) {
       /* Code the "split this block" symbol (4). */
@@ -1217,17 +1214,17 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
        enc->state.adapt.skip_increment);
     }
     if (ctx->is_keyframe) {
-      od_quantize_haar_dc_level(enc, ctx, pli, bx, by, bsi, xdec, &hgrad,
-       &vgrad);
+      od_quantize_haar_dc_level(enc, ctx, pli, 2*bx, 2*by, bsi - 1, xdec,
+       &hgrad, &vgrad);
     }
-    skip_split &= od_encode_recursive(enc, ctx, pli, bx + 0, by + 0, bsi, xdec,
-     ydec, rdo_only, hgrad, vgrad);
-    skip_split &= od_encode_recursive(enc, ctx, pli, bx + 1, by + 0, bsi, xdec,
-     ydec, rdo_only, hgrad, vgrad);
-    skip_split &= od_encode_recursive(enc, ctx, pli, bx + 0, by + 1, bsi, xdec,
-     ydec, rdo_only, hgrad, vgrad);
-    skip_split &= od_encode_recursive(enc, ctx, pli, bx + 1, by + 1, bsi, xdec,
-     ydec, rdo_only, hgrad, vgrad);
+    skip_split &= od_encode_recursive(enc, ctx, pli, 2*bx + 0, 2*by + 0,
+     bsi - 1, xdec, ydec, rdo_only, hgrad, vgrad);
+    skip_split &= od_encode_recursive(enc, ctx, pli, 2*bx + 1, 2*by + 0,
+     bsi - 1, xdec, ydec, rdo_only, hgrad, vgrad);
+    skip_split &= od_encode_recursive(enc, ctx, pli, 2*bx + 0, 2*by + 1,
+     bsi - 1, xdec, ydec, rdo_only, hgrad, vgrad);
+    skip_split &= od_encode_recursive(enc, ctx, pli, 2*bx + 1, 2*by + 1,
+     bsi - 1, xdec, ydec, rdo_only, hgrad, vgrad);
     skip_block = skip_split;
     od_postfilter_split(ctx->c + bo, w, bs, f);
     if (rdo_only) {

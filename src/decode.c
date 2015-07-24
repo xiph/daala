@@ -670,23 +670,21 @@ static void od_decode_recursive(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
     if (!ctx->is_keyframe) {
       od_prefilter_split(ctx->mc + bo, w, bs, f);
     }
-    bsi--;
-    bx <<= 1;
-    by <<= 1;
     if (ctx->is_keyframe) {
-      od_decode_haar_dc_level(dec, ctx, pli, bx, by, bsi, xdec, &hgrad, &vgrad);
+      od_decode_haar_dc_level(dec, ctx, pli, 2*bx, 2*by, bsi - 1, xdec, &hgrad,
+       &vgrad);
     }
-    od_decode_recursive(dec, ctx, pli, bx + 0, by + 0, bsi, xdec, ydec, hgrad,
-     vgrad);
-    od_decode_recursive(dec, ctx, pli, bx + 1, by + 0, bsi, xdec, ydec, hgrad,
-     vgrad);
-    od_decode_recursive(dec, ctx, pli, bx + 0, by + 1, bsi, xdec, ydec, hgrad,
-     vgrad);
-    od_decode_recursive(dec, ctx, pli, bx + 1, by + 1, bsi, xdec, ydec, hgrad,
-     vgrad);
+    od_decode_recursive(dec, ctx, pli, 2*bx + 0, 2*by + 0, bsi - 1, xdec, ydec,
+     hgrad, vgrad);
+    od_decode_recursive(dec, ctx, pli, 2*bx + 1, 2*by + 0, bsi - 1, xdec, ydec,
+     hgrad, vgrad);
+    od_decode_recursive(dec, ctx, pli, 2*bx + 0, 2*by + 1, bsi - 1, xdec, ydec,
+     hgrad, vgrad);
+    od_decode_recursive(dec, ctx, pli, 2*bx + 1, 2*by + 1, bsi - 1, xdec, ydec,
+     hgrad, vgrad);
     bs = bsi - xdec;
     bo = (by << (OD_LOG_BSIZE0 + bs))*w + (bx << (OD_LOG_BSIZE0 + bs));
-    od_postfilter_split(ctx->c + bo, w, bs + 1, f);
+    od_postfilter_split(ctx->c + bo, w, bs, f);
   }
 }
 
