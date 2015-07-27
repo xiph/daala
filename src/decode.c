@@ -864,51 +864,53 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
        ydec);
     }
   }
-  for (sby = 0; sby < nvsb; sby++) {
-    for (sbx = 0; sbx < nhsb; sbx++) {
-      int filtered;
-      int c;
-      int up;
-      int left;
-      if (state->sb_skip_flags[sby*nhsb + sbx]) {
-        state->clpf_flags[sby*nhsb + sbx] = 0;
-        continue;
-      }
-      up = 0;
-      if (sby > 0) {
-        up = state->clpf_flags[(sby-1)*nhsb + sbx];
-      }
-      left = 0;
-      if (sbx > 0) {
-        left = state->clpf_flags[sby*nhsb + (sbx-1)];
-      }
-      c = (up << 1) + left;
-      filtered = od_decode_cdf_adapt(&dec->ec, state->adapt.clpf_cdf[c], 2,
-       state->adapt.clpf_increment);
-      state->clpf_flags[sby*nhsb + sbx] = filtered;
-      if (filtered) {
-        for (pli = 0; pli < nplanes; pli++) {
-          od_coeff buf[OD_BSIZE_MAX*OD_BSIZE_MAX];
-          od_coeff *output;
-          int ln;
-          int n;
-          xdec = state->io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
-          ydec = state->io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
-          w = frame_width >> xdec;
-          h = frame_height >> ydec;
-          ln = OD_LOG_BSIZE_MAX - xdec;
-          n = 1 << ln;
-          OD_ASSERT(xdec == ydec);
-          /*buf is used for output so that we don't use filtered pixels in
-            the input to the filter, but because we look past block edges,
-            we do this anyway on the edge pixels. Unfortunately, this limits
-            potential parallelism.*/
-          od_clpf(buf, OD_BSIZE_MAX, &state->ctmp[pli][(sby << ln)*w +
-           (sbx << ln)], w, ln, sbx, sby, nhsb, nvsb);
-          output = &state->ctmp[pli][(sby << ln)*w + (sbx << ln)];
-          for (y = 0; y < n; y++) {
-            for (x = 0; x < n; x++) {
-              output[y*w + x] = buf[y*OD_BSIZE_MAX + x];
+  if (dec->quantizer[0] > 0) {
+    for (sby = 0; sby < nvsb; sby++) {
+      for (sbx = 0; sbx < nhsb; sbx++) {
+        int filtered;
+        int c;
+        int up;
+        int left;
+        if (state->sb_skip_flags[sby*nhsb + sbx]) {
+          state->clpf_flags[sby*nhsb + sbx] = 0;
+          continue;
+        }
+        up = 0;
+        if (sby > 0) {
+          up = state->clpf_flags[(sby-1)*nhsb + sbx];
+        }
+        left = 0;
+        if (sbx > 0) {
+          left = state->clpf_flags[sby*nhsb + (sbx-1)];
+        }
+        c = (up << 1) + left;
+        filtered = od_decode_cdf_adapt(&dec->ec, state->adapt.clpf_cdf[c], 2,
+         state->adapt.clpf_increment);
+        state->clpf_flags[sby*nhsb + sbx] = filtered;
+        if (filtered) {
+          for (pli = 0; pli < nplanes; pli++) {
+            od_coeff buf[OD_BSIZE_MAX*OD_BSIZE_MAX];
+            od_coeff *output;
+            int ln;
+            int n;
+            xdec = state->io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
+            ydec = state->io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
+            w = frame_width >> xdec;
+            h = frame_height >> ydec;
+            ln = OD_LOG_BSIZE_MAX - xdec;
+            n = 1 << ln;
+            OD_ASSERT(xdec == ydec);
+            /*buf is used for output so that we don't use filtered pixels in
+              the input to the filter, but because we look past block edges,
+              we do this anyway on the edge pixels. Unfortunately, this limits
+              potential parallelism.*/
+            od_clpf(buf, OD_BSIZE_MAX, &state->ctmp[pli][(sby << ln)*w +
+             (sbx << ln)], w, ln, sbx, sby, nhsb, nvsb);
+            output = &state->ctmp[pli][(sby << ln)*w + (sbx << ln)];
+            for (y = 0; y < n; y++) {
+              for (x = 0; x < n; x++) {
+                output[y*w + x] = buf[y*OD_BSIZE_MAX + x];
+              }
             }
           }
         }
