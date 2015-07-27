@@ -188,7 +188,7 @@ for FILE in $@; do
   if [ $USE_DAALA == "true" ]; then
     if [ -n "$V" ]; then
       $AB_ROOT/ab_compare_daala.sh -d "$DAALA_ROOT" -n "$FRAMES" -v "$V" "$FILE"
-      SIZE=$(stat -c %s $(basename "$FILE")-$V.ogv )
+      SIZE=$(wc -c $(basename "$FILE")-$V.ogv | awk '{ print $1 }')
     else
       $AB_ROOT/ab_compare_daala.sh -d "$DAALA_ROOT" -n "$FRAMES" -s "$SIZE" "$FILE"
     fi

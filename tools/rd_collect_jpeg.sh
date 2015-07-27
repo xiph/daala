@@ -21,7 +21,7 @@ for x in $(seq 100 -1 0); do
   $YUVJPEG $x "$WIDTH"x$HEIGHT $BASENAME-in.yuv $BASENAME.jpeg
   $JPEGYUV $BASENAME.jpeg $BASENAME.yuv
   $YUV2YUV4MPEG $BASENAME -w$WIDTH -h$HEIGHT -an0 -ad0 -c420mpeg2
-  SIZE=$(stat -c %s $BASENAME.jpeg)
+  SIZE=$(wc -c $BASENAME.jpeg | awk '{ print $1 }')
   PSNR=$($DUMP_PSNR $FILE $BASENAME.y4m 2> /dev/null | grep Total | tr -s ' ' | cut -d\  -f $((4+$PLANE*2)))
   PSNRHVS=$($DUMP_PSNRHVS $FILE $BASENAME.y4m 2> /dev/null | grep Total | tr -s ' ' | cut -d\  -f $((4+$PLANE*2)))
   SSIM=$($DUMP_SSIM $FILE $BASENAME.y4m 2> /dev/null | grep Total | tr -s ' ' | cut -d\  -f $((4+$PLANE*2)))

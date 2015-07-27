@@ -94,7 +94,7 @@ else
       OGV_FILE="$BASENAME-$QUALITY.ogv.tmp"
     fi
     $ENCODER_EXAMPLE -v $QUALITY "$FILE" -k $KEYINT -o "$OGV_FILE" 2> /dev/null
-    OGV_SIZE=$(stat -c %s "$OGV_FILE")
+    OGV_SIZE=$(wc -c "$OGV_FILE" | awk '{ print $1 }')
     if (($OGV_SIZE > $SIZE)); then
       MAX_QUALITY=$QUALITY
       MAX_QUALITY_SIZE=$OGV_SIZE

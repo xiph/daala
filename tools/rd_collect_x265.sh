@@ -20,7 +20,7 @@ QSTR="--preset slow --frame-threads 1 --min-keyint 256 --keyint 256 --no-scenecu
 
 for x in $RANGE; do
   $X265 -r $BASENAME.y4m $(echo $QSTR | sed 's/\$x/'$x'/g') -o $BASENAME.x265 $FILE 2> $BASENAME-$x-enc.out > /dev/null
-  SIZE=$(stat -c %s $BASENAME.x265)
+  SIZE=$(wc -c $BASENAME.x265 | awk '{ print $1 }')
   $DUMP_PSNR $FILE $BASENAME.y4m > $BASENAME-$x-psnr.out 2> /dev/null
   FRAMES=$(cat $BASENAME-$x-psnr.out | grep ^0 | wc -l)
   PIXELS=$(($WIDTH*$HEIGHT*$FRAMES))

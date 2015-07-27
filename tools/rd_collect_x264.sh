@@ -21,7 +21,7 @@ QSTR="--preset placebo --min-keyint 256 --keyint 256 --no-scenecut --crf=\$x"
 for x in $RANGE; do
   $X264 --dump-yuv $BASENAME.yuv $(echo $QSTR | sed 's/\$x/'$x'/g') -o $BASENAME.x264 $FILE 2> $BASENAME-$x-enc.out > /dev/null
   $YUV2YUV4MPEG $BASENAME -w$WIDTH -h$HEIGHT -an0 -ad0 -c420mpeg2
-  SIZE=$(stat -c %s $BASENAME.x264)
+  SIZE=$(wc -c $BASENAME.x264 | awk '{ print $1 }')
   $DUMP_PSNR $FILE $BASENAME.y4m > $BASENAME-$x-psnr.out 2> /dev/null
   FRAMES=$(cat $BASENAME-$x-psnr.out | grep ^0 | wc -l)
   PIXELS=$(($WIDTH*$HEIGHT*$FRAMES))

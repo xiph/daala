@@ -21,7 +21,7 @@ QSTR="-y --min-q=\$x --max-q=\$x"
 for x in $RANGE; do
   $VPXENC --codec=$CODEC --good --cpu-used=0 $(echo $QSTR | sed 's/\$x/'$x'/g') -o $BASENAME.vpx $FILE 2> $BASENAME-$x-enc.out
   $VPXDEC --codec=$CODEC -o $BASENAME.y4m $BASENAME.vpx
-  SIZE=$(stat -c %s $BASENAME.vpx)
+  SIZE=$(wc -c $BASENAME.vpx | awk '{ print $1 }')
   $DUMP_PSNR $FILE $BASENAME.y4m > $BASENAME-$x-psnr.out 2> /dev/null
   FRAMES=$(cat $BASENAME-$x-psnr.out | grep ^0 | wc -l)
   PIXELS=$(($WIDTH*$HEIGHT*$FRAMES))

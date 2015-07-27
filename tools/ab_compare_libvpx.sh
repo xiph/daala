@@ -77,7 +77,7 @@ while (( $MIN_QUALITY - $MAX_QUALITY > 1 )); do
   QUALITY=$(( ($MIN_QUALITY + $MAX_QUALITY) / 2 ))
   VPX_FILE=$BASENAME-$QUALITY.$CODEC.tmp
   $VPXENC --codec=$CODEC --good --cpu-used=0 -y --min-q=$QUALITY --max-q=$QUALITY --kf-max-dist=$KEYINT -o $VPX_FILE $FILE 2> /dev/null
-  VPX_SIZE=$(stat -c %s $VPX_FILE)
+  VPX_SIZE=$(wc -c $VPX_FILE | awk '{ print $1 }')
   if (($VPX_SIZE > $SIZE)); then
     MAX_QUALITY=$QUALITY
     MAX_QUALITY_SIZE=$VPX_SIZE

@@ -262,7 +262,11 @@ if [ ! -x "$DUMP_FASTSSIM" ]; then
 fi
 
 if [ -z "$CORES" ]; then
-  CORES=`grep -i processor /proc/cpuinfo | wc -l`
+  if [ "$(uname -s)" = "Darwin" ]; then
+    CORES=$(sysctl -n hw.ncpu)
+  else
+    CORES=$(grep -i processor /proc/cpuinfo | wc -l)
+  fi
   #echo "CORES not set, using $CORES"
 fi
 

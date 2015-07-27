@@ -11,7 +11,11 @@ if [ -z $DAALA_ROOT ]; then
 fi
 
 if [ -z $CHECKSUM]; then
-  CHECKSUM=md5sum
+  if [ "$(uname -s)" == "Darwin" ]; then
+    CHECKSUM=md5
+  else
+    CHECKSUM=md5sum
+  fi
 fi
 
 if [ -z "$ENCODER_EXAMPLE" ]; then

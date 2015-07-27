@@ -63,7 +63,7 @@ while (( $MIN_QUALITY - $MAX_QUALITY > 1 )); do
   QUALITY=$(( ($MIN_QUALITY + $MAX_QUALITY) / 2 ))
   X265_FILE=$BASENAME-$QUALITY.x265.tmp
   $X265 -r $X265_FILE.y4m $(echo $QSTR | sed 's/\$x/'$QUALITY'/g') --keyint $KEYINT -o $X265_FILE $FILE 2> /dev/null > /dev/null
-  X265_SIZE=$(stat -c %s $X265_FILE)
+  X265_SIZE=$(wc -c $X265_FILE | awk '{ print $1 }')
   if (($X265_SIZE > $SIZE)); then
     MAX_QUALITY=$QUALITY
     MAX_QUALITY_SIZE=$X265_SIZE
