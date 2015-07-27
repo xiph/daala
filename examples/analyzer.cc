@@ -299,6 +299,7 @@ public:
   void close();
   void render();
   bool nextFrame();
+  void restart();
 
   int getZoom() const;
   bool setZoom(int zoom);
@@ -347,6 +348,7 @@ public:
   void onUChange(wxCommandEvent &event);
   void onVChange(wxCommandEvent &event);
   void onNextFrame(wxCommandEvent &event);
+  void onRestart(wxCommandEvent &event);
   void onAbout(wxCommandEvent &event);
 
   bool open(const wxString &path);
@@ -360,7 +362,8 @@ enum {
   wxID_SHOW_Y,
   wxID_SHOW_U,
   wxID_SHOW_V,
-  wxID_NEXT_FRAME
+  wxID_NEXT_FRAME,
+  wxID_RESTART
 };
 
 BEGIN_EVENT_TABLE(TestFrame, wxFrame)
@@ -377,6 +380,7 @@ BEGIN_EVENT_TABLE(TestFrame, wxFrame)
   EVT_MENU(wxID_SHOW_U, TestFrame::onUChange)
   EVT_MENU(wxID_SHOW_V, TestFrame::onVChange)
   EVT_MENU(wxID_NEXT_FRAME, TestFrame::onNextFrame)
+  EVT_MENU(wxID_RESTART, TestFrame::onRestart)
   EVT_MENU(wxID_ABOUT, TestFrame::onAbout)
 END_EVENT_TABLE()
 
@@ -662,6 +666,13 @@ bool TestPanel::nextFrame() {
   return false;
 }
 
+void TestPanel::restart() {
+  dd.restart();
+  dd.setBlockSizeBuffer(bsize, bsize_len);
+  dd.setBandFlagsBuffer(flags, flags_len);
+  nextFrame();
+}
+
 void TestPanel::onKeyDown(wxKeyEvent &event) {
   switch (event.GetKeyCode()) {
     case '.' : {
@@ -671,10 +682,7 @@ void TestPanel::onKeyDown(wxKeyEvent &event) {
     }
     /* Catches 'r' and 'R' */
     case 'R' : {
-      dd.restart();
-      dd.setBlockSizeBuffer(bsize, bsize_len);
-      dd.setBandFlagsBuffer(flags, flags_len);
-      nextFrame();
+      restart();
       Refresh(false);
       break;
     }
@@ -758,7 +766,10 @@ TestFrame::TestFrame() : wxFrame(NULL, wxID_ANY, _T("Daala Stream Analyzer"),
   mb->Append(viewMenu, _T("&View"));
 
   playbackMenu = new wxMenu();
-  playbackMenu->Append(wxID_NEXT_FRAME, _T("Next frame\t."), _("Go to next frame"));
+  playbackMenu->Append(wxID_NEXT_FRAME, _T("Next frame\t."),
+   _("Go to next frame"));
+  playbackMenu->Append(wxID_RESTART, _T("&Restart\tr"),
+   _("Set video to frame 0"));
   mb->Append(playbackMenu, _T("&Playback"));
 
   wxMenu *helpMenu=new wxMenu();
@@ -848,6 +859,11 @@ void TestFrame::onVChange(wxCommandEvent &WXUNUSED(event)) {
 
 void TestFrame::onNextFrame(wxCommandEvent &WXUNUSED(event)) {
   panel->nextFrame();
+  panel->Refresh(false);
+}
+
+void TestFrame::onRestart(wxCommandEvent &WXUNUSED(event)) {
+  panel->restart();
   panel->Refresh(false);
 }
 
