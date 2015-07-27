@@ -77,7 +77,7 @@ int main(int argc, char **argv) {
       for (j = 0; j < n + (2 << left) + (2 << right); j++) {
         sum += y[j - (2 << left)]*y[j - (2 << left)];
       }
-      printf("%f ", sqrt(sum)/OD_BASIS_PULSE);
+      printf("%f, ", sqrt(sum)/OD_BASIS_PULSE);
     }
     else {
       for (j = 0; j < n + (2 << left) + (2 << right); j++) {
