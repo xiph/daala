@@ -26,6 +26,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # include "config.h"
 #endif
 
+#include <stdlib.h>
 #include "filter.h"
 #include "block_size.h"
 
