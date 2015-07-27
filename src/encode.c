@@ -1761,6 +1761,7 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
            enc->state.bstride, sbx << (OD_NBSIZES - 1),
            sby << (OD_NBSIZES - 1)) == OD_NBSIZES - 1) {
             int ln;
+            OD_ASSERT(xdec == ydec);
             ln = OD_LOG_BSIZE_MAX - xdec;
             od_bilinear_smooth(&state->ctmp[pli][(sby << ln)*w + (sbx << ln)],
              ln, w, enc->quantizer[pli], pli);
