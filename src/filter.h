@@ -69,6 +69,9 @@ void od_apply_prefilter_frame(od_coeff *c, int w, int nhsb, int nvsb,
 void od_apply_postfilter_frame(od_coeff *c, int w, int nhsb, int nvsb,
  const unsigned char *bsize, int bstride, int dec);
 
+/* Largest filter size used is 8-point. */
+#define OD_MAX_FILT_SIZE (1)
+
 /* The length in pixel of the lapping of a block is
    4 << OD_FILT_SIZE(ln, xdec). Right now, we use 4-point lapping for
    all block sizes and for all planes.

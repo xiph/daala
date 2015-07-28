@@ -3651,26 +3651,34 @@ static void od_bin_fxform_2d(od_coeff x[OD_BSIZE_MAX*2][OD_BSIZE_MAX*2],
   int u;
   int v;
   int n;
+  int f;
   n = 1 << (OD_LOG_BSIZE0 + bszi);
-  /*Perform pre-filtering.*/
-  for (v = 0; v < n*2; v++) {
-    for (u = 0; u < n*2; u++) y[u] = x[u][v];
-    (*OD_PRE_FILTER[bszi])(y, y);
-    (*OD_PRE_FILTER[bszi])(y+n, y+n);
-    for (u = 0; u < n*2; u++) x[u][v] = y[u];
-  }
-  for (u = 0; u < n*2; u++) {
-    (*OD_PRE_FILTER[bszi])(x[u], x[u]);
-    (*OD_PRE_FILTER[bszi])(x[u] + n, x[u] + n);
-  }
-  /*Perform DCT.*/
-  for (u = n >> 1; u < n*3 >> 1; u++) {
-    (*OD_FDCT_1D[bszi])(x[u] + (n >> 1), x[u] + (n >> 1), 1);
-  }
-  for (v = n >> 1; v < n*3 >> 1; v++) {
-    for (u = n >> 1; u < n*3 >> 1; u++) y[u] = x[u][v];
-    (*OD_FDCT_1D[bszi])(y + (n >> 1), y + (n >> 1), 1);
-    for (u = n >> 1; u < n*3 >> 1; u++) x[u][v] = y[u];
+  /*Test with all filters up to OD_MAX_FILT_SIZE.*/
+  for (f = 0; f <= OD_MINI(bszi, OD_MAX_FILT_SIZE); f++) {
+    int fn;
+    int o;
+    fn = 1 << (OD_LOG_BSIZE0 + f);
+    o = (n >> 1) - (fn >> 1);
+    /*Perform pre-filtering.*/
+    for (v = 0; v < n*2; v++) {
+      for (u = 0; u < n*2; u++) y[u] = x[u][v];
+      (*OD_PRE_FILTER[f])(y + o, y + o);
+      (*OD_PRE_FILTER[f])(y + n + o, y + n + o);
+      for (u = 0; u < n*2; u++) x[u][v] = y[u];
+    }
+    for (u = 0; u < n*2; u++) {
+      (*OD_PRE_FILTER[f])(x[u] + o, x[u] + o);
+      (*OD_PRE_FILTER[f])(x[u] + n + o, x[u] + n + o);
+    }
+    /*Perform DCT.*/
+    for (u = n >> 1; u < n*3 >> 1; u++) {
+      (*OD_FDCT_1D[bszi])(x[u] + (n >> 1), x[u] + (n >> 1), 1);
+    }
+    for (v = n >> 1; v < n*3 >> 1; v++) {
+      for (u = n >> 1; u < n*3 >> 1; u++) y[u] = x[u][v];
+      (*OD_FDCT_1D[bszi])(y + (n >> 1), y + (n >> 1), 1);
+      for (u = n >> 1; u < n*3 >> 1; u++) x[u][v] = y[u];
+    }
   }
 }
 
