@@ -1,5 +1,5 @@
 /*Daala video codec
-Copyright (c) 2006-2010 Daala project contributors.  All rights reserved.
+Copyright (c) 2006-2015 Daala project contributors.  All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -140,10 +140,163 @@ void od_mc_predict1fmv8_check(unsigned char *_dst,const unsigned char *_src,
 }
 #endif
 
+/*Fills 3 vectors with pairs of alternating 16 bit values for the 1D filter
+   chosen for the fractional position of x or y mv.*/
+OD_SIMD_INLINE void od_setup_alternating_filter_variables(
+ __m128i *filter_01, __m128i *filter_23, __m128i *filter_45, int mvf) {
+  uint32_t* f;
+  /*Load 3 pairs of 16 bit values as 32 bit values.
+    Fill each filter with these 32 values as to create a vector that
+     alternates between the 2 16 bit values.*/
+  f = (uint32_t *)(OD_SUBPEL_FILTER_SET[mvf]);
+  *filter_01 = _mm_set1_epi32(f[0]);
+  *filter_23 = _mm_set1_epi32(f[1]);
+  *filter_45 = _mm_set1_epi32(f[2]);
+}
+
+OD_SIMD_INLINE __m128i od_mc_multiply_reduce_add_horizontal_4(
+ __m128i src_vec, __m128i fx01, __m128i fx23, __m128i fx45) {
+  __m128i src8pels;
+  __m128i sums;
+  __m128i madd01;
+  __m128i madd23;
+  __m128i madd45;
+  /*Create a pattern of 0,1, 1,2, 2,3 ... 7,8*/
+  src_vec = _mm_unpacklo_epi8(src_vec, _mm_srli_si128(src_vec, 1));
+  /*Unpack src_vec from 8 bit unsigned integers to 16 bit integers.
+    Multiply by each set of filters and then add the two horizontally adjacent
+     products together.
+    This results in 4 32 bit integers.
+    Perform these operations for each pair of filter values.*/
+  src8pels = _mm_unpacklo_epi8(src_vec, _mm_setzero_si128());
+  madd01 = _mm_madd_epi16(fx01, src8pels);
+  src_vec = _mm_srli_si128(src_vec, 4);
+  src8pels = _mm_unpacklo_epi8(src_vec, _mm_setzero_si128());
+  madd23 = _mm_madd_epi16(fx23, src8pels);
+  src_vec = _mm_srli_si128(src_vec, 4);
+  src8pels = _mm_unpacklo_epi8(src_vec, _mm_setzero_si128());
+  madd45 = _mm_madd_epi16(fx45, src8pels);
+  /*Subtract from one of the summands instead of the final value to avoid
+    data hazards.*/
+  madd45 = _mm_sub_epi32(madd45, _mm_set1_epi32(128 << OD_SUBPEL_COEFF_SCALE));
+  /*Sum together the 3 summands.*/
+  sums = _mm_add_epi32(madd01, madd23);
+  sums = _mm_add_epi32(sums, madd45);
+  /*Subtraction would occur here if it wasn't performed earlier.*/
+  sums = _mm_packs_epi32(sums, sums);
+  return sums;
+}
+
+OD_SIMD_INLINE void od_mc_predict1fmv8_horizontal_nxm(int16_t *buff_p,
+ const unsigned char *src_p, int systride, int mvxf, int mvyf,
+ const int xblk_sz, const int yblk_sz) {
+  int i;
+  int j;
+  if (mvxf) {
+    __m128i fx01;
+    __m128i fx23;
+    __m128i fx45;
+    od_setup_alternating_filter_variables(&fx01, &fx23, &fx45, mvxf);
+    j = -OD_SUBPEL_TOP_APRON_SZ;
+    /*The mvy is of integer position*/
+    if (!mvyf) {
+      /*Change j such that the loop is done yblk_sz times.*/
+      j = OD_SUBPEL_TOP_APRON_SZ;
+      buff_p += xblk_sz*OD_SUBPEL_TOP_APRON_SZ;
+      src_p += systride*OD_SUBPEL_TOP_APRON_SZ;
+    }
+    for (; j < yblk_sz + OD_SUBPEL_BOTTOM_APRON_SZ; j++) {
+      for (i = 0; i < xblk_sz; i += 4) {
+        __m128i tmp;
+        __m128i sums;
+        tmp = _mm_loadu_si128((__m128i *)(src_p + i - OD_SUBPEL_TOP_APRON_SZ));
+        sums = od_mc_multiply_reduce_add_horizontal_4(tmp, fx01, fx23, fx45);
+        /*Only store as many values as xblk_sz.*/
+        if(xblk_sz >= 4) {
+          OD_ASSERT(i + 4 <= xblk_sz);
+          _mm_storel_epi64((__m128i *) (buff_p + i), sums);
+        }
+        else {
+          OD_ASSERT(i + 2 <= xblk_sz);
+          *((uint32_t *)(buff_p + i)) = (uint32_t)_mm_cvtsi128_si32(sums);
+        }
+      }
+      src_p += systride;
+      buff_p += xblk_sz;
+    }
+  }
+  /*The mvx is of integer position.*/
+  else {
+    __m128i normalize_128;
+    normalize_128 = _mm_set1_epi16(128);
+    for (j = -OD_SUBPEL_TOP_APRON_SZ;
+     j < yblk_sz + OD_SUBPEL_BOTTOM_APRON_SZ; j++) {
+      for (i = 0; i < xblk_sz; i += 8) {
+        __m128i tmp;
+        __m128i src8pels;
+        tmp = _mm_loadl_epi64((__m128i *)(src_p + i));
+        src8pels = _mm_unpacklo_epi8(tmp, _mm_setzero_si128());
+        src8pels = _mm_slli_epi16(
+         _mm_subs_epi16(src8pels, normalize_128),
+         OD_SUBPEL_COEFF_SCALE);
+        /*Only store as many values as xblk_sz.*/
+        if (xblk_sz >= 8)  {
+          _mm_store_si128((__m128i *)(buff_p + i), src8pels);
+        }
+        else if (xblk_sz >= 4) {
+          OD_ASSERT(i + 4 <= xblk_sz);
+          _mm_storel_epi64((__m128i *)(buff_p + i), src8pels);
+        }
+        else {
+          OD_ASSERT(i + 2 <= xblk_sz);
+          *((uint32_t *)(buff_p + i)) = (uint32_t)_mm_cvtsi128_si32(src8pels);
+        }
+      }
+      src_p += systride;
+      buff_p += xblk_sz;
+    }
+  }
+}
+
+void od_mc_predict1fmv8_horizontal_2x2(int16_t *buff_p,
+ const unsigned char *src_p, int systride, int mvxf, int mvyf) {
+  od_mc_predict1fmv8_horizontal_nxm(buff_p, src_p, systride, mvxf, mvyf, 2, 2);
+}
+
+void od_mc_predict1fmv8_horizontal_4x4(int16_t *buff_p,
+ const unsigned char *src_p, int systride, int mvxf, int mvyf) {
+  od_mc_predict1fmv8_horizontal_nxm(buff_p, src_p, systride, mvxf, mvyf, 4, 4);
+}
+
+void od_mc_predict1fmv8_horizontal_8x8(int16_t *buff_p,
+ const unsigned char *src_p, int systride, int mvxf, int mvyf) {
+  od_mc_predict1fmv8_horizontal_nxm(buff_p, src_p, systride, mvxf, mvyf, 8, 8);
+}
+
+void od_mc_predict1fmv8_horizontal_16x16(int16_t *buff_p,
+ const unsigned char *src_p, int systride, int mvxf, int mvyf) {
+  od_mc_predict1fmv8_horizontal_nxm(buff_p, src_p, systride, mvxf, mvyf,
+   16, 16);
+}
+
+void od_mc_predict1fmv8_horizontal_32x32(int16_t *buff_p,
+ const unsigned char *src_p, int systride, int mvxf, int mvyf) {
+  od_mc_predict1fmv8_horizontal_nxm(buff_p, src_p, systride, mvxf, mvyf,
+   32, 32);
+}
+
+typedef void (*od_mc_predict1fmv8_horizontal_fixed_func)(int16_t *buff_p,
+ const unsigned char *src_p, int systride, int mvxf, int mvyf);
+
 #if defined(OD_SSE2_INTRINSICS)
 void od_mc_predict1fmv8_sse2(unsigned char *dst,const unsigned char *src,
  int systride, int32_t mvx, int32_t mvy,
  int log_xblk_sz, int log_yblk_sz) {
+  static const od_mc_predict1fmv8_horizontal_fixed_func VTBL_HORIZONTAL[5] = {
+    od_mc_predict1fmv8_horizontal_2x2, od_mc_predict1fmv8_horizontal_4x4,
+    od_mc_predict1fmv8_horizontal_8x8, od_mc_predict1fmv8_horizontal_16x16,
+    od_mc_predict1fmv8_horizontal_32x32
+  };
   int mvxf;
   int mvyf;
   int xblk_sz;
@@ -167,7 +320,6 @@ void od_mc_predict1fmv8_sse2(unsigned char *dst,const unsigned char *src,
      wxh = OD_MVBSIZE_MAX x (OD_MVBSIZE_MAX + BUFF_APRON_SZ).*/
   int16_t buff[(OD_MVBSIZE_MAX + OD_SUBPEL_BUFF_APRON_SZ)
    *OD_MVBSIZE_MAX + 16];
-  int k;
   xblk_sz = 1 << log_xblk_sz;
   yblk_sz = 1 << log_yblk_sz;
   src_p = src + (mvx >> 3) + (mvy >> 3)*systride;
@@ -184,88 +336,17 @@ void od_mc_predict1fmv8_sse2(unsigned char *dst,const unsigned char *src,
     /*1st stage 1D filtering, Horizontal.*/
     buff_p = buff;
     src_p -= systride*OD_SUBPEL_TOP_APRON_SZ;
-    if (mvxf) {
-      /*1D filter chosen for the current fractional position of x mv.*/
-      __m128i fx;
-      fx = _mm_load_si128((__m128i *)OD_SUBPEL_FILTER_SET[mvxf]);
-      for (j = -OD_SUBPEL_TOP_APRON_SZ;
-       j < yblk_sz + OD_SUBPEL_BOTTOM_APRON_SZ; j++) {
-        for (i = 0; i < xblk_sz; i += 11) {
-          __m128i tmp;
-          __m128i src8pels;
-          __m128i sums;
-          tmp = _mm_loadu_si128(
-           (__m128i *)(src_p + i - OD_SUBPEL_TOP_APRON_SZ));
-          for (k = 0; k < 11 && (i + k) < xblk_sz; k++) {
-            src8pels = _mm_unpacklo_epi8(tmp, _mm_setzero_si128());
-            sums = _mm_madd_epi16(fx, src8pels);
-            /*Adding three 32 bits int operands.*/
-            sums = _mm_add_epi32(sums, _mm_unpackhi_epi64(sums, sums));
-            sums = _mm_add_epi32(sums,
-             _mm_shufflelo_epi16(sums, _MM_SHUFFLE(0, 0, 3, 2)));
-            buff_p[i + k] = (int16_t)_mm_cvtsi128_si32(_mm_sub_epi32(sums,
-             _mm_cvtsi32_si128(128 << OD_SUBPEL_COEFF_SCALE)));
-            tmp = _mm_srli_si128(tmp, 1);
-          }
-        }
-        src_p += systride;
-        buff_p += xblk_sz;
-      }
-    }
-    /*The mvx is of integer position.*/
-    else {
-      __m128i normalize_128;
-      normalize_128 = _mm_set1_epi16(128);
-      for (j = -OD_SUBPEL_TOP_APRON_SZ;
-       j < yblk_sz + OD_SUBPEL_BOTTOM_APRON_SZ; j++) {
-        for (i = 0; i < xblk_sz; i += 8) {
-          __m128i tmp;
-          __m128i src8pels;
-          tmp = _mm_loadl_epi64((__m128i *)(src_p + i));
-          src8pels = _mm_unpacklo_epi8(tmp, _mm_setzero_si128());
-          src8pels = _mm_slli_epi16(
-           _mm_subs_epi16(src8pels, normalize_128),
-           OD_SUBPEL_COEFF_SCALE);
-          if (xblk_sz >= 8)  {
-            _mm_store_si128((__m128i *)(buff_p + i), src8pels);
-          }
-          else if (xblk_sz >= 4) {
-            OD_ASSERT(i + 4 <= xblk_sz);
-            _mm_storel_epi64((__m128i *)(buff_p + i), src8pels);
-          }
-          else {
-            OD_ASSERT(i + 2 <= xblk_sz);
-            *((uint32_t *)(buff_p + i)) =
-             (uint32_t)_mm_cvtsi128_si32(src8pels);
-          }
-        }
-        src_p += systride;
-        buff_p += xblk_sz;
-      }
-    }
+    OD_ASSERT(log_xblk_sz == log_yblk_sz);
+    (*VTBL_HORIZONTAL[log_xblk_sz - 1])(buff_p, src_p, systride, mvxf, mvyf);
     /*2nd stage 1D filtering, Vertical.*/
     buff_p = buff + xblk_sz*OD_SUBPEL_TOP_APRON_SZ;
     if (mvyf)
     {
-      __m128i fy0;
-      __m128i fy1;
-      __m128i fy2;
-      __m128i fy3;
-      __m128i fy4;
-      __m128i fy5;
       __m128i fy01;
       __m128i fy23;
       __m128i fy45;
       __m128i rounding_offset;
-      fy0 = _mm_set1_epi16(OD_SUBPEL_FILTER_SET[mvyf][0]);
-      fy1 = _mm_set1_epi16(OD_SUBPEL_FILTER_SET[mvyf][1]);
-      fy2 = _mm_set1_epi16(OD_SUBPEL_FILTER_SET[mvyf][2]);
-      fy3 = _mm_set1_epi16(OD_SUBPEL_FILTER_SET[mvyf][3]);
-      fy4 = _mm_set1_epi16(OD_SUBPEL_FILTER_SET[mvyf][4]);
-      fy5 = _mm_set1_epi16(OD_SUBPEL_FILTER_SET[mvyf][5]);
-      fy01 = _mm_unpacklo_epi16(fy0, fy1);
-      fy23 = _mm_unpacklo_epi16(fy2, fy3);
-      fy45 = _mm_unpacklo_epi16(fy4, fy5);
+      od_setup_alternating_filter_variables(&fy01, &fy23, &fy45, mvyf);
       rounding_offset = _mm_set1_epi32(OD_SUBPEL_RND_OFFSET3);
       for (j = 0; j < yblk_sz; j++) {
         for (i = 0; i < xblk_sz; i += 8) {
