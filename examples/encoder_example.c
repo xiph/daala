@@ -33,6 +33,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <string.h>
 #include <time.h>
 #include <getopt.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+
 #include "../src/logging.h"
 #include "daala/daalaenc.h"
 #if defined(_WIN32)
@@ -65,6 +68,12 @@ struct av_input{
   od_img video_img;
   int video_cur_img;
 };
+
+int file_exists(const char *filename) {
+    struct stat st;
+    int result = stat(filename, &st);
+    return result == 0;
+}
 
 static int y4m_parse_tags(av_input *avin, char *tags) {
   int got_w;
@@ -449,6 +458,7 @@ int main(int argc, char **argv) {
   daala_comment dc;
   ogg_int64_t video_bytesout;
   double time_base;
+  double time_spent;
   int c;
   int loi;
   int ret;
@@ -470,6 +480,12 @@ int main(int argc, char **argv) {
   int mv_res_min;
   int mv_level_min;
   int mv_level_max;
+  int current_frame_no;
+  int previous_frame_no;
+  int output_provided;
+  char default_filename[1024];
+  clock_t t0;
+  clock_t t1;
   daala_log_init();
 #if defined(_WIN32)
   _setmode(_fileno(stdin), _O_BINARY);
@@ -498,10 +514,23 @@ int main(int argc, char **argv) {
   mv_res_min = 0;
   mv_level_min = 0;
   mv_level_max = 6;
+  output_provided = 0;
   while ((c = getopt_long(argc, argv, OPTSTRING, OPTIONS, &loi)) != EOF) {
     switch (c) {
       case 'o': {
+        if(file_exists(optarg))
+        {
+          char answer;
+          fprintf(stderr, "%s already exists, overwrite?[y/n]\n", optarg);
+          answer = fgetc(stdin);
+          if(answer != 'y')
+          {
+            fprintf(stderr, "Not overwriting the existing file\n");
+            exit(1);
+          }
+        }
         outfile = fopen(optarg, "wb");
+        output_provided = 1;
         if (outfile == NULL) {
           fprintf(stderr, "Unable to open output file '%s'\n", optarg);
           exit(1);
@@ -635,6 +664,26 @@ int main(int argc, char **argv) {
   }
   /*Assume anything following the options must be a file name.*/
   for (; optind < argc; optind++) id_file(&avin, argv[optind]);
+  if(output_provided == 0){
+    snprintf(default_filename, 1024, "%s.out.ogv", argv[argc-1]);
+    if(file_exists(default_filename))
+    {
+      char answer;
+      fprintf(stderr, "%s already exists, overwrite?[y/n]\n", default_filename);
+      answer = fgetc(stdin);
+      if(answer != 'y')
+      {
+        fprintf(stderr, "Not overwriting the existing file\n");
+        exit(1);
+      }
+    }
+        
+    outfile = fopen(default_filename, "wb");
+    if (outfile == NULL) {
+      fprintf(stderr, "Unable to open output file '%s'\n", default_filename);
+      exit(1);
+    }
+  }
   if (!avin.has_video) {
     fprintf(stderr, "No video files submitted for compression.\n");
     exit(1);
@@ -722,9 +771,12 @@ int main(int argc, char **argv) {
      Main compression loop.*/
   fprintf(stderr, "Compressing...\n");
   video_ready = 0;
+  previous_frame_no = 0;
   for (;;) {
+    t0 = clock();
     ogg_page video_page;
     double video_time;
+    double video_fps = avin.video_fps_n / avin.video_fps_d;
     size_t bytes_written;
     video_ready = fetch_and_process_video(&avin, &video_page, &vo,
      dd, video_ready, limit >= 0 ? &limit : NULL, skip > 0 ? &skip : NULL);
@@ -750,16 +802,20 @@ int main(int argc, char **argv) {
     if (video_time == -1) continue;
     video_kbps = (int)rint(video_bytesout*8*0.001/video_time);
     time_base = video_time;
+    current_frame_no = time_base*video_fps;
     if (interactive) {
       fprintf(stderr, "\r");
     }
     else {
       fprintf(stderr, "\n");
     }
+    t1 = clock();
+    time_spent = (double)(t1 - t0) / CLOCKS_PER_SEC;
     fprintf(stderr,
-     "     %i:%02i:%02i.%02i video: %ikbps          ",
+     "     %i:%02i:%02i.%02i video: %ikbps - Frame %i - %f FPS - %f FPM         ",
      (int)time_base/3600, ((int)time_base/60)%60, (int)time_base % 60,
-     (int)(time_base*100 - (long)time_base*100), video_kbps);
+     (int)(time_base*100 - (long)time_base*100), video_kbps, current_frame_no, (current_frame_no-previous_frame_no)/time_spent, (current_frame_no-previous_frame_no)/time_spent * 60);
+    previous_frame_no = current_frame_no;
   }
   ogg_stream_clear(&vo);
   daala_encode_free(dd);
