@@ -143,8 +143,7 @@ void od_mc_predict1fmv8_check(unsigned char *_dst,const unsigned char *_src,
 /*Fills 3 vectors with pairs of alternating 16 bit values for the 1D filter
    chosen for the fractional position of x or y mv.*/
 OD_SIMD_INLINE void od_setup_alternating_filter_variables(
- __m128i *filter_01, __m128i *filter_23, __m128i *filter_45, int mvf)
-{
+ __m128i *filter_01, __m128i *filter_23, __m128i *filter_45, int mvf) {
   uint32_t* f;
   /*Load 3 pairs of 16 bit values as 32 bit values.
     Fill each filter with these 32 values as to create a vector that
@@ -156,8 +155,7 @@ OD_SIMD_INLINE void od_setup_alternating_filter_variables(
 }
 
 OD_SIMD_INLINE __m128i od_mc_multiply_reduce_add_horizontal_4(
- __m128i src_vec, __m128i fx01, __m128i fx23, __m128i fx45)
-{
+ __m128i src_vec, __m128i fx01, __m128i fx23, __m128i fx45) {
   __m128i src8pels;
   __m128i sums;
   __m128i madd01;
@@ -298,7 +296,7 @@ void od_mc_predict1fmv8_sse2(unsigned char *dst,const unsigned char *src,
     od_mc_predict1fmv8_horizontal_2x2, od_mc_predict1fmv8_horizontal_4x4,
     od_mc_predict1fmv8_horizontal_8x8, od_mc_predict1fmv8_horizontal_16x16,
     od_mc_predict1fmv8_horizontal_32x32
-  }; 
+  };
   int mvxf;
   int mvyf;
   int xblk_sz;
@@ -321,7 +319,7 @@ void od_mc_predict1fmv8_sse2(unsigned char *dst,const unsigned char *src,
     The size of the buffer is :
      wxh = OD_MVBSIZE_MAX x (OD_MVBSIZE_MAX + BUFF_APRON_SZ).*/
   int16_t buff[(OD_MVBSIZE_MAX + OD_SUBPEL_BUFF_APRON_SZ)
-   *OD_MVBSIZE_MAX + 16]; 
+   *OD_MVBSIZE_MAX + 16];
   xblk_sz = 1 << log_xblk_sz;
   yblk_sz = 1 << log_yblk_sz;
   src_p = src + (mvx >> 3) + (mvy >> 3)*systride;
