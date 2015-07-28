@@ -179,7 +179,6 @@ OD_SIMD_INLINE __m128i od_mc_multiply_reduce_add_horizontal_4(
   /*Subtract from one of the summands instead of the final value to avoid
     data hazards.*/
   madd45 = _mm_sub_epi32(madd45, _mm_set1_epi32(128 << OD_SUBPEL_COEFF_SCALE));
-
   /*Sum together the 3 summands.*/
   sums = _mm_add_epi32(madd01, madd23);
   sums = _mm_add_epi32(sums, madd45);
@@ -193,20 +192,19 @@ OD_SIMD_INLINE void od_mc_predict1fmv8_horizontal_nxm(int16_t *buff_p,
  const int xblk_sz, const int yblk_sz) {
   int i;
   int j;
-  if (mvyf) {
-    j = -OD_SUBPEL_TOP_APRON_SZ;
-  }
-  else {
-    j = OD_SUBPEL_TOP_APRON_SZ;
-    buff_p += yblk_sz*OD_SUBPEL_TOP_APRON_SZ;
-    src_p += systride*OD_SUBPEL_TOP_APRON_SZ;
-  }
   if (mvxf) {
     __m128i fx01;
     __m128i fx23;
     __m128i fx45;
     od_setup_alternating_filter_variables(&fx01, &fx23, &fx45, mvxf);
-
+    j = -OD_SUBPEL_TOP_APRON_SZ;
+    /*The mvy is of integer position*/
+    if (!mvyf) {
+      /*Change j such that the loop is done yblk_sz times.*/
+      j = OD_SUBPEL_TOP_APRON_SZ;
+      buff_p += xblk_sz*OD_SUBPEL_TOP_APRON_SZ;
+      src_p += systride*OD_SUBPEL_TOP_APRON_SZ;
+    }
     for (; j < yblk_sz + OD_SUBPEL_BOTTOM_APRON_SZ; j++) {
       for (i = 0; i < xblk_sz; i += 4) {
         __m128i tmp;
@@ -215,9 +213,10 @@ OD_SIMD_INLINE void od_mc_predict1fmv8_horizontal_nxm(int16_t *buff_p,
         sums = od_mc_multiply_reduce_add_horizontal_4(tmp, fx01, fx23, fx45);
         /*Only store as many values as xblk_sz.*/
         if(xblk_sz >= 4) {
+          OD_ASSERT(i + 4 <= xblk_sz);
           _mm_storel_epi64((__m128i *) (buff_p + i), sums);
         }
-        else if (xblk_sz == 2) {
+        else {
           OD_ASSERT(i + 2 <= xblk_sz);
           *((uint32_t *)(buff_p + i)) = (uint32_t)_mm_cvtsi128_si32(sums);
         }
@@ -230,7 +229,8 @@ OD_SIMD_INLINE void od_mc_predict1fmv8_horizontal_nxm(int16_t *buff_p,
   else {
     __m128i normalize_128;
     normalize_128 = _mm_set1_epi16(128);
-    for (; j < yblk_sz + OD_SUBPEL_BOTTOM_APRON_SZ; j++) {
+    for (j = -OD_SUBPEL_TOP_APRON_SZ;
+     j < yblk_sz + OD_SUBPEL_BOTTOM_APRON_SZ; j++) {
       for (i = 0; i < xblk_sz; i += 8) {
         __m128i tmp;
         __m128i src8pels;
@@ -337,8 +337,7 @@ void od_mc_predict1fmv8_sse2(unsigned char *dst,const unsigned char *src,
     buff_p = buff;
     src_p -= systride*OD_SUBPEL_TOP_APRON_SZ;
     OD_ASSERT(log_xblk_sz == log_yblk_sz);
-    (*VTBL_HORIZONTAL[log_xblk_sz-1])(buff_p, src_p, systride, mvxf, mvyf);
-
+    (*VTBL_HORIZONTAL[log_xblk_sz - 1])(buff_p, src_p, systride, mvxf, mvyf);
     /*2nd stage 1D filtering, Vertical.*/
     buff_p = buff + xblk_sz*OD_SUBPEL_TOP_APRON_SZ;
     if (mvyf)
