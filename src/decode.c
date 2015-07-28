@@ -650,6 +650,33 @@ static void od_decode_haar_dc_level(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int 
   ctx->d[pli][((by + 1) << ln)*w + ((bx + 1) << ln)] = x[3];
 }
 
+#if OD_SIGNAL_Q_SCALING
+static void od_decode_quantizer_scaling(daala_dec_ctx *dec, int bx, int by,
+ int skip) {
+  int sbx;
+  int sby;
+  int q_scaling;
+  OD_ASSERT(skip == !!skip);
+  sbx = bx;
+  sby = by;
+  if (!skip) {
+    int above;
+    int left;
+    above = sby > 0 ? dec->state.sb_q_scaling[(sby - 1)*dec->state.nhsb + sbx]
+     : 0;
+    left = sbx > 0 ? dec->state.sb_q_scaling[sby*dec->state.nhsb + (sbx - 1)]
+     : 0;
+    q_scaling = od_decode_cdf_adapt(&dec->ec,
+     dec->state.adapt.q_cdf[above + left*4], 4,
+     dec->state.adapt.q_increment, "quant");
+  }
+  else {
+    q_scaling = 0;
+  }
+  dec->state.sb_q_scaling[sby*dec->state.nhsb + sbx] = q_scaling;
+}
+#endif
+
 static void od_decode_recursive(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
  int bx, int by, int bsi, int xdec, int ydec, od_coeff hgrad, od_coeff vgrad) {
   int obs;
@@ -676,6 +703,9 @@ static void od_decode_recursive(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
     /*Save superblock skip value for use by CLP filter.*/
     if (bsi == OD_NBSIZES - 1) {
       dec->state.sb_skip_flags[by*dec->state.nhsb + bx] = skip == 2;
+#if OD_SIGNAL_Q_SCALING
+      od_decode_quantizer_scaling(dec, bx, by, skip == 2);
+#endif
     }
     if (skip < 4) obs = bsi;
     else obs = -1;

@@ -570,6 +570,31 @@ int od_rdo_quant(od_coeff x, int q, double delta0) {
   }
 }
 
+#if OD_SIGNAL_Q_SCALING
+void od_encode_quantizer_scaling(daala_enc_ctx *enc, int q_scaling,
+ int sbx, int sby, int skip) {
+  int nhsb;
+  OD_ASSERT(skip == !!skip);
+  nhsb = enc->state.nhsb;
+  OD_ASSERT(sbx < nhsb);
+  OD_ASSERT(sby < enc->state.nvsb);
+  OD_ASSERT(!skip || q_scaling == 0);
+  enc->state.sb_q_scaling[sby*nhsb + sbx] = q_scaling;
+  if (!skip) {
+    int above;
+    int left;
+    /* use value from neighbour if possible, otherwise use 0 */
+    above = sby > 0 ? enc->state.sb_q_scaling[(sby - 1)*enc->state.nhsb + sbx]
+     : 0;
+    left = sbx > 0 ? enc->state.sb_q_scaling[sby*enc->state.nhsb + (sbx - 1)]
+     : 0;
+    od_encode_cdf_adapt(&enc->ec, q_scaling,
+     enc->state.adapt.q_cdf[above + left*4], 4,
+     enc->state.adapt.q_increment);
+  }
+}
+#endif
+
 /** Encode a coefficient block (excepting DC) using PVQ
  *
  * @param [in,out] enc     daala encoder context
@@ -582,6 +607,9 @@ int od_rdo_quant(od_coeff x, int q, double delta0) {
  * @param [in]     beta    per-band activity masking beta param
  * @param [in]     robust  make stream robust to error in the reference
  * @param [in]     is_keyframe whether we're encoding a keyframe
+ * @param [in]     q_scaling scaling factor to apply to quantizer
+ * @param [in]     bx      x-coordinate of this block
+ * @param [in]     by      y-coordinate of this block
  * @return         Returns 1 if the AC coefficients are skipped, zero otherwise
  */
 int od_pvq_encode(daala_enc_ctx *enc,
@@ -593,7 +621,10 @@ int od_pvq_encode(daala_enc_ctx *enc,
                    int bs,
                    const double *beta,
                    int robust,
-                   int is_keyframe){
+                   int is_keyframe,
+                   int q_scaling,
+                   int bx,
+                   int by){
   int theta[PVQ_MAX_PARTITIONS];
   int max_theta[PVQ_MAX_PARTITIONS];
   int qg[PVQ_MAX_PARTITIONS];
@@ -657,6 +688,12 @@ int od_pvq_encode(daala_enc_ctx *enc,
   /* Code as if we're not skipping. */
   od_encode_cdf_adapt(&enc->ec, (out[0] != 0), skip_cdf,
    4 + (pli == 0 && bs > 0), enc->state.adapt.skip_increment);
+#if OD_SIGNAL_Q_SCALING
+  if (bs == OD_NBSIZES - 1 && pli == 0) {
+    od_encode_quantizer_scaling(enc, q_scaling, bx >> (OD_NBSIZES - 1),
+     by >> (OD_NBSIZES - 1), 0);
+  }
+#endif
   /* Excluding skip flag from the rate since it's minor and would be prone
      to greedy decision issues. */
   tell = od_ec_enc_tell_frac(&enc->ec);
@@ -715,6 +752,17 @@ int od_pvq_encode(daala_enc_ctx *enc,
     od_encode_rollback(enc, &buf);
     od_encode_cdf_adapt(&enc->ec, 2 + (out[0] != 0), skip_cdf,
      4 + (pli == 0 && bs > 0), enc->state.adapt.skip_increment);
+#if OD_SIGNAL_Q_SCALING
+    if (bs == OD_NBSIZES - 1 && pli == 0) {
+      int skip;
+      skip = out[0] == 0;
+      if (skip) {
+        q_scaling = 0;
+      }
+      od_encode_quantizer_scaling(enc, q_scaling, bx >> (OD_NBSIZES - 1),
+       by >> (OD_NBSIZES - 1), skip);
+    }
+#endif
     if (is_keyframe) for (i = 1; i < 1 << (2*bs + 4); i++) out[i] = 0;
     else for (i = 1; i < 1 << (2*bs + 4); i++) out[i] = ref[i];
     if ((out[0] == 0)) return 1;

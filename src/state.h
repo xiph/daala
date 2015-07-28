@@ -151,6 +151,10 @@ struct od_adapt_ctx {
   int haar_bits_increment;
   uint16_t clpf_cdf[4][2];
   int clpf_increment;
+  /* 4 possible values for the sblock above (or skip), 4 for the sblock to the
+     left (or skip). */
+  uint16_t q_cdf[4*4][4];
+  int q_increment;
 };
 
 struct od_state{
@@ -223,6 +227,8 @@ struct od_state{
   /*These flags provide context for the CLP filter.*/
   unsigned char *clpf_flags;
   unsigned char *sb_skip_flags;
+  /*This provides context for the quantizer CDF.*/
+  unsigned char *sb_q_scaling;
 };
 
 int od_state_init(od_state *_state, const daala_info *_info);

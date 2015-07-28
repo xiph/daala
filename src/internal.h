@@ -91,6 +91,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 # define OD_USE_HAAR_WAVELET (0)
 
+# define OD_SIGNAL_Q_SCALING (1)
+
 # define OD_COEFF_SHIFT (4)
 /*OD_QUALITY_SHIFT specifies the number of fractional bits in a
    passed in 'quality' parameter.

@@ -453,6 +453,7 @@ struct od_mb_enc_ctx {
   int qm;
   int use_haar_wavelet;
   int is_golden_frame;
+  int q_scaling;
 };
 typedef struct od_mb_enc_ctx od_mb_enc_ctx;
 
@@ -922,7 +923,8 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int bs,
   }
   else {
     skip = od_pvq_encode(enc, predt, dblock, scalar_out, quant, pli, bs,
-     OD_PVQ_BETA[use_masking][pli][bs], OD_ROBUST_STREAM, ctx->is_keyframe);
+     OD_PVQ_BETA[use_masking][pli][bs], OD_ROBUST_STREAM, ctx->is_keyframe,
+     ctx->q_scaling, bx, by);
   }
   if (!ctx->is_keyframe) {
     int has_dc_skip;
@@ -999,6 +1001,12 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int bs,
       od_encode_cdf_adapt(&enc->ec, 2,
        enc->state.adapt.skip_cdf[2*bs + (pli != 0)], 4 + (pli == 0 && bs > 0),
        enc->state.adapt.skip_increment);
+#if OD_SIGNAL_Q_SCALING
+      if (bs == (OD_NBSIZES - 1) && pli == 0) {
+        od_encode_quantizer_scaling(enc, 0,
+         bx >> (OD_NBSIZES - 1), by >> (OD_NBSIZES - 1), 1);
+      }
+#endif
       skip = 1;
       for (i = 0; i < n; i++) {
         for (j = 0; j < n; j++) {
@@ -1321,6 +1329,11 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
       od_encode_cdf_adapt(&enc->ec, 4,
        enc->state.adapt.skip_cdf[2*bs + (pli != 0)], 5,
        enc->state.adapt.skip_increment);
+#if OD_SIGNAL_Q_SCALING
+      if (bs == (OD_NBSIZES - 1)) {
+        od_encode_quantizer_scaling(enc, ctx->q_scaling, bx, by, 0);
+      }
+#endif
     }
     if (ctx->is_keyframe) {
       od_quantize_haar_dc_level(enc, ctx, pli, 2*bx, 2*by, bsi - 1, xdec,
@@ -1643,6 +1656,15 @@ static void od_encode_mvs(daala_enc_ctx *enc, int num_refs) {
   }
 }
 
+/* FIXME: add a real scaling calculation */
+static int od_compute_superblock_q_scaling(daala_enc_ctx *enc, od_coeff *x,
+ int stride) {
+  (void)enc;
+  (void)x;
+  (void)stride;
+  return 0;
+}
+
 #define OD_ENCODE_REAL (0)
 #define OD_ENCODE_RDO (1)
 static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
@@ -1713,9 +1735,11 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
         od_coeff *c_orig;
         int i;
         int j;
+        int width;
         od_rollback_buffer buf;
         od_coeff hgrad;
         od_coeff vgrad;
+        width = enc->state.frame_width;
         hgrad = vgrad = 0;
         c_orig = enc->c_orig[0];
         mbctx->c = state->ctmp[pli];
@@ -1725,16 +1749,16 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
         mbctx->l = state->lbuf[pli];
         xdec = state->io_imgs[OD_FRAME_INPUT].planes[pli].xdec;
         ydec = state->io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
-        if (mbctx->is_keyframe) {
-          int width;
-          width = enc->state.frame_width;
-          if (rdo_only) {
-            for (i = 0; i < OD_BSIZE_MAX; i++) {
-              for (j = 0; j < OD_BSIZE_MAX; j++) {
-                c_orig[i*OD_BSIZE_MAX + j] =
-                 mbctx->c[(OD_BSIZE_MAX*sby + i)*width + OD_BSIZE_MAX*sbx + j];
-              }
+        if (pli == 0 || rdo_only && mbctx->is_keyframe) {
+          for (i = 0; i < OD_BSIZE_MAX; i++) {
+            for (j = 0; j < OD_BSIZE_MAX; j++) {
+              c_orig[i*OD_BSIZE_MAX + j] =
+               mbctx->c[(OD_BSIZE_MAX*sby + i)*width + OD_BSIZE_MAX*sbx + j];
             }
+          }
+        }
+        if (mbctx->is_keyframe) {
+          if (rdo_only) {
             od_encode_checkpoint(enc, &buf);
           }
           od_compute_dcts(enc, mbctx, pli, sbx, sby, OD_NBSIZES - 1, xdec,
@@ -1750,6 +1774,10 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
               }
             }
           }
+        }
+        if (pli == 0 && enc->quantizer[pli] != 0) {
+          mbctx->q_scaling =
+           od_compute_superblock_q_scaling(enc, c_orig, OD_BSIZE_MAX);
         }
         skipped = od_encode_recursive(enc, mbctx, pli, sbx, sby,
          OD_NBSIZES - 1, xdec, ydec, rdo_only, hgrad, vgrad);
