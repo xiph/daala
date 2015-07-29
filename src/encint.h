@@ -108,6 +108,9 @@ struct daala_enc_ctx{
   od_coeff c_orig[OD_NBSIZES-1][OD_BSIZE_MAX*OD_BSIZE_MAX];
   od_coeff nosplit[OD_NBSIZES-1][OD_BSIZE_MAX*OD_BSIZE_MAX];
   od_coeff split[OD_NBSIZES-1][OD_BSIZE_MAX*OD_BSIZE_MAX];
+  od_coeff block_c_orig[OD_BSIZE_MAX*OD_BSIZE_MAX];
+  od_coeff block_mc_orig[OD_BSIZE_MAX*OD_BSIZE_MAX];
+  od_coeff block_c_noskip[OD_BSIZE_MAX*OD_BSIZE_MAX];
 };
 
 /** Holds important encoder information so we can roll back decisions */

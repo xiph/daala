@@ -639,6 +639,119 @@ static int od_wavelet_quantize(daala_enc_ctx *enc, int ln,
   return 0;
 }
 
+static int od_compute_var_4x4(od_coeff *x, int stride) {
+  int sum;
+  int s2;
+  int i;
+  sum = 0;
+  s2 = 0;
+  for (i = 0; i < 4; i++) {
+    int j;
+    for (j = 0; j < 4; j++) {
+      int t;
+      /* Avoids overflow in the sum^2 below because the pre-filtered input
+         can be much larger than +/-128 << OD_COEFF_SHIFT. Shifting the sum
+         itself is a bad idea because it leads to large error on low
+         variance. */
+      t = x[i*stride + j] >> 2;
+      sum += t;
+      s2 += t*t;
+    }
+  }
+  return (s2 - (sum*sum >> 4));
+}
+
+static double od_compute_dist_8x8(daala_enc_ctx *enc, od_coeff *x, od_coeff *y,
+ int stride, int bs) {
+  od_coeff e[8*8];
+  od_coeff et[8*8];
+  double sum;
+  int min_var;
+  double mean_var;
+  double var_stat;
+  double activity;
+  double calibration;
+  int i;
+  int j;
+  OD_ASSERT(enc->qm != OD_FLAT_QM);
+#if 1
+  min_var = INT_MAX;
+  mean_var = 0;
+  for (i = 0; i < 3; i++) {
+    for (j = 0; j < 3; j++) {
+      int var;
+      var = od_compute_var_4x4(x + 2*i*stride + 2*j, stride);
+      min_var = OD_MINI(min_var, var);
+      mean_var += 1./(1+var);
+    }
+  }
+  /* We use a different variance statistic depending on whether activity
+     masking is used, since the harmonic mean appeared slghtly worse with
+     masking off. The calibration constant just ensures that we preserve the
+     rate compared to activity=1. */
+  if (enc->use_activity_masking) {
+    calibration = 1.95;
+    var_stat = 9./mean_var;
+  }
+  else {
+    calibration = 1.62;
+    var_stat = min_var;
+  }
+  /* 1.62 is a calibration constant, 0.25 is a noise floor and 1/6 is the
+     activity masking constant. */
+  activity = calibration*pow(.25 + var_stat/(1 << 2*OD_COEFF_SHIFT), -1./6);
+#else
+  activity = 1;
+#endif
+  for (i = 0; i < 8; i++) {
+    for (j = 0; j < 8; j++) e[8*i + j] = x[i*stride + j] - y[i*stride + j];
+  }
+  (*enc->state.opt_vtbl.fdct_2d[OD_BLOCK_8X8])(&et[0], 8, &e[0], 8);
+  sum = 0;
+  for (i = 0; i < 8; i++) {
+    for (j = 0; j < 8; j++) {
+      double mag;
+      mag = 16./OD_QM8_Q4_HVS[i*8 + j];
+      /* We attempt to consider the basis magnitudes here, though that's not
+         perfect for block size 16x16 and above since only some edges are
+         filtered then. */
+      mag *= OD_BASIS_MAG[0][bs][i << (bs - 1)]*
+       OD_BASIS_MAG[0][bs][j << (bs - 1)];
+      mag *= mag;
+      sum += et[8*i + j]*(double)et[8*i + j]*mag;
+    }
+  }
+  return activity*activity*sum;
+}
+
+static double od_compute_dist(daala_enc_ctx *enc, od_coeff *x, od_coeff *y,
+ int n, int bs) {
+  int i;
+  double sum;
+  sum = 0;
+  if (enc->qm == OD_FLAT_QM) {
+    for (i = 0; i < n*n; i++) {
+      double tmp;
+      tmp = x[i] - y[i];
+      sum += tmp*tmp;
+    }
+  }
+  else {
+    for (i = 0; i < n; i += 8) {
+      int j;
+      for (j = 0; j < n; j += 8) {
+        sum += od_compute_dist_8x8(enc, &x[i*n + j], &y[i*n + j], n, bs);
+      }
+    }
+  }
+  return sum;
+}
+
+/* Computes block size RDO lambda (for 1/8 bits) from the quantizer. */
+static double od_bs_rdo_lambda(int q) {
+  return OD_BS_RDO_LAMBDA*(1./(1 << OD_BITRES))*q*q;
+}
+
 /* Returns 1 if the block is skipped, zero otherwise. */
 static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int bs,
  int pli, int bx, int by, int rdo_only) {
@@ -661,6 +774,14 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int bs,
   int lossless;
   int skip;
   const int *qm;
+  double dist_noskip;
+  int tell;
+  int i;
+  int j;
+  int has_late_skip_rdo;
+  od_rollback_buffer pre_encode_buf;
+  od_coeff *c_orig;
+  od_coeff *mc_orig;
   qm = ctx->qm == OD_HVS_QM ? OD_QM8_Q4_HVS : OD_QM8_Q4_FLAT;
 #if defined(OD_OUTPUT_PRED)
   od_coeff preds[OD_BSIZE_MAX*OD_BSIZE_MAX];
@@ -680,6 +801,19 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int bs,
   md = ctx->md;
   mc = ctx->mc;
   lossless = (enc->quantizer[pli] == 0);
+  c_orig = enc->block_c_orig;
+  mc_orig = enc->block_mc_orig;
+  has_late_skip_rdo = !ctx->is_keyframe && !ctx->use_haar_wavelet && bs > 0;
+  if (has_late_skip_rdo) {
+    for (i = 0; i < n; i++) {
+      for (j = 0; j < n; j++) c_orig[n*i + j] = c[bo + i*w + j];
+    }
+    for (i = 0; i < n; i++) {
+      for (j = 0; j < n; j++) mc_orig[n*i + j] = mc[bo + i*w + j];
+    }
+    tell = od_ec_enc_tell_frac(&enc->ec);
+    od_encode_checkpoint(enc, &pre_encode_buf);
+  }
   /* Apply forward transform. */
   if (ctx->use_haar_wavelet) {
     if (rdo_only || !ctx->is_keyframe) {
@@ -711,8 +845,6 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int bs,
   for (zzi = 0; zzi < (n*n); zzi++) preds[zzi] = pred[zzi];
 #endif
   if (ctx->use_haar_wavelet) {
-    int i;
-    int j;
     for (i = 0; i < n; i++) {
       for (j = 0; j < n; j++) {
         dblock[i*n + j] = d[bo + i*w + j];
@@ -769,8 +901,6 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int bs,
     scalar_out[0] = dblock[0];
   }
   if (ctx->use_haar_wavelet) {
-    int i;
-    int j;
     for (i = 0; i < n; i++) {
       for (j = 0; j < n; j++) {
         d[bo + i*w + j] = scalar_out[i*n + j];
@@ -802,6 +932,41 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int bs,
 # endif
   (*enc->state.opt_vtbl.idct_2d[bs])(c + bo, w, preds, n);
 #endif
+  /* Allow skipping if it helps the RDO metric, even if the PVQ metric didn't
+     skip. */
+  if (!skip && has_late_skip_rdo) {
+    double lambda;
+    double dist_skip;
+    double rate_skip;
+    int rate_noskip;
+    od_coeff *c_noskip;
+    c_noskip = enc->block_c_noskip;
+    for (i = 0; i < n; i++) {
+      for (j = 0; j < n; j++) c_noskip[n*i + j] = c[bo + i*w + j];
+    }
+    dist_noskip = od_compute_dist(enc, c_orig, c_noskip, n, bs);
+    lambda = od_bs_rdo_lambda(enc->quantizer[pli]);
+    rate_noskip = od_ec_enc_tell_frac(&enc->ec) - tell;
+    dist_skip = od_compute_dist(enc, c_orig, mc_orig, n, bs);
+    rate_skip = (1 << OD_BITRES)*od_encode_cdf_cost(2,
+     enc->state.adapt.skip_cdf[2*bs + (pli != 0)],
+     4 + (pli == 0 && bs > 0));
+    if (dist_skip + lambda*rate_skip < dist_noskip + lambda*rate_noskip) {
+      od_encode_rollback(enc, &pre_encode_buf);
+      /* Code the "skip this block" symbol (2). */
+      od_encode_cdf_adapt(&enc->ec, 2,
+       enc->state.adapt.skip_cdf[2*bs + (pli != 0)], 4 + (pli == 0 && bs > 0),
+       enc->state.adapt.skip_increment);
+      skip = 1;
+      for (i = 0; i < n; i++) {
+        for (j = 0; j < n; j++) {
+          d[bo + i*w + j] = md[bo + i*w + j];
+        }
+      }
+      od_apply_qm(d + bo, w, d + bo, w, bs, xdec, 1, qm);
+      (*enc->state.opt_vtbl.idct_2d[bs])(c + bo, w, d + bo, w);
+    }
+  }
   return skip;
 }
 
@@ -1009,114 +1174,6 @@ static void od_quantize_haar_dc_level(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
   ctx->d[pli][((by + 1) << ln)*w + ((bx + 1) << ln)] = x[3];
 }
 
-static int od_compute_var_4x4(od_coeff *x, int stride) {
-  int sum;
-  int s2;
-  int i;
-  sum = 0;
-  s2 = 0;
-  for (i = 0; i < 4; i++) {
-    int j;
-    for (j = 0; j < 4; j++) {
-      int t;
-      /* Avoids overflow in the sum^2 below because the pre-filtered input
-         can be much larger than +/-128 << OD_COEFF_SHIFT. Shifting the sum
-         itself is a bad idea because it leads to large error on low
-         variance. */
-      t = x[i*stride + j] >> 2;
-      sum += t;
-      s2 += t*t;
-    }
-  }
-  return (s2 - (sum*sum >> 4));
-}
-
-static double od_compute_dist_8x8(daala_enc_ctx *enc, od_coeff *x, od_coeff *y,
- int stride, int bs) {
-  od_coeff e[8*8];
-  od_coeff et[8*8];
-  double sum;
-  int min_var;
-  double mean_var;
-  double var_stat;
-  double activity;
-  double calibration;
-  int i;
-  int j;
-  OD_ASSERT(enc->qm != OD_FLAT_QM);
-#if 1
-  min_var = INT_MAX;
-  mean_var = 0;
-  for (i = 0; i < 3; i++) {
-    for (j = 0; j < 3; j++) {
-      int var;
-      var = od_compute_var_4x4(x + 2*i*stride + 2*j, stride);
-      min_var = OD_MINI(min_var, var);
-      mean_var += 1./(1+var);
-    }
-  }
-  /* We use a different variance statistic depending on whether activity
-     masking is used, since the harmonic mean appeared slghtly worse with
-     masking off. The calibration constant just ensures that we preserve the
-     rate compared to activity=1. */
-  if (enc->use_activity_masking) {
-    calibration = 1.95;
-    var_stat = 9./mean_var;
-  }
-  else {
-    calibration = 1.62;
-    var_stat = min_var;
-  }
-  /* 1.62 is a calibration constant, 0.25 is a noise floor and 1/6 is the
-     activity masking constant. */
-  activity = calibration*pow(.25 + var_stat/(1 << 2*OD_COEFF_SHIFT), -1./6);
-#else
-  activity = 1;
-#endif
-  for (i = 0; i < 8; i++) {
-    for (j = 0; j < 8; j++) e[8*i + j] = x[i*stride + j] - y[i*stride + j];
-  }
-  (*enc->state.opt_vtbl.fdct_2d[OD_BLOCK_8X8])(&et[0], 8, &e[0], 8);
-  sum = 0;
-  for (i = 0; i < 8; i++) {
-    for (j = 0; j < 8; j++) {
-      double mag;
-      mag = 16./OD_QM8_Q4_HVS[i*8 + j];
-      /* We attempt to consider the basis magnitudes here, though that's not
-         perfect for block size 16x16 and above since only some edges are
-         filtered then. */
-      mag *= OD_BASIS_MAG[0][bs][i << (bs - 1)]*
-       OD_BASIS_MAG[0][bs][j << (bs - 1)];
-      mag *= mag;
-      sum += et[8*i + j]*(double)et[8*i + j]*mag;
-    }
-  }
-  return activity*activity*sum;
-}
-
-static double od_compute_dist(daala_enc_ctx *enc, od_coeff *x, od_coeff *y,
- int n, int bs) {
-  int i;
-  double sum;
-  sum = 0;
-  if (enc->qm == OD_FLAT_QM) {
-    for (i = 0; i < n*n; i++) {
-      double tmp;
-      tmp = x[i] - y[i];
-      sum += tmp*tmp;
-    }
-  }
-  else {
-    for (i = 0; i < n; i += 8) {
-      int j;
-      for (j = 0; j < n; j += 8) {
-        sum += od_compute_dist_8x8(enc, &x[i*n + j], &y[i*n + j], n, bs);
-      }
-    }
-  }
-  return sum;
-}
-
 /* Returns 1 if the block is skipped, zero otherwise. */
 static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
  int pli, int bx, int by, int bsi, int xdec, int ydec, int rdo_only,
@@ -1239,8 +1296,7 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
       rate_split = od_ec_enc_tell_frac(&enc->ec) - tell;
       dist_split = od_compute_dist(enc, c_orig, split, n, bs);
       dist_nosplit = od_compute_dist(enc, c_orig, nosplit, n, bs);
-      lambda = OD_BS_RDO_LAMBDA*(1./(1 << OD_BITRES))*enc->quantizer[pli]*
-       enc->quantizer[pli];
+      lambda = od_bs_rdo_lambda(enc->quantizer[pli]);
       if (skip_split || dist_nosplit + lambda*rate_nosplit < dist_split
        + lambda*rate_split) {
         /* This rollback call leaves the entropy coder in an inconsistent state
