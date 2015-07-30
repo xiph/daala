@@ -33,8 +33,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <string.h>
 #include <time.h>
 #include <getopt.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 
 #include "../src/logging.h"
 #include "daala/daalaenc.h"
@@ -68,12 +66,6 @@ struct av_input{
   od_img video_img;
   int video_cur_img;
 };
-
-int file_exists(const char *filename) {
-    struct stat st;
-    int result = stat(filename, &st);
-    return result == 0;
-}
 
 static int y4m_parse_tags(av_input *avin, char *tags) {
   int got_w;
@@ -481,7 +473,6 @@ int main(int argc, char **argv) {
   int mv_level_min;
   int mv_level_max;
   int current_frame_no;
-  int previous_frame_no;
   int output_provided;
   char default_filename[1024];
   clock_t t0;
@@ -518,17 +509,6 @@ int main(int argc, char **argv) {
   while ((c = getopt_long(argc, argv, OPTSTRING, OPTIONS, &loi)) != EOF) {
     switch (c) {
       case 'o': {
-        if(file_exists(optarg))
-        {
-          char answer;
-          fprintf(stderr, "%s already exists, overwrite?[y/n]\n", optarg);
-          answer = fgetc(stdin);
-          if(answer != 'y')
-          {
-            fprintf(stderr, "Not overwriting the existing file\n");
-            exit(1);
-          }
-        }
         outfile = fopen(optarg, "wb");
         output_provided = 1;
         if (outfile == NULL) {
@@ -666,18 +646,6 @@ int main(int argc, char **argv) {
   for (; optind < argc; optind++) id_file(&avin, argv[optind]);
   if(output_provided == 0){
     snprintf(default_filename, 1024, "%s.out.ogv", argv[argc-1]);
-    if(file_exists(default_filename))
-    {
-      char answer;
-      fprintf(stderr, "%s already exists, overwrite?[y/n]\n", default_filename);
-      answer = fgetc(stdin);
-      if(answer != 'y')
-      {
-        fprintf(stderr, "Not overwriting the existing file\n");
-        exit(1);
-      }
-    }
-        
     outfile = fopen(default_filename, "wb");
     if (outfile == NULL) {
       fprintf(stderr, "Unable to open output file '%s'\n", default_filename);
@@ -771,9 +739,8 @@ int main(int argc, char **argv) {
      Main compression loop.*/
   fprintf(stderr, "Compressing...\n");
   video_ready = 0;
-  previous_frame_no = 0;
+  t0 = clock();
   for (;;) {
-    t0 = clock();
     ogg_page video_page;
     double video_time;
     double video_fps = avin.video_fps_n / avin.video_fps_d;
@@ -812,10 +779,11 @@ int main(int argc, char **argv) {
     t1 = clock();
     time_spent = (double)(t1 - t0) / CLOCKS_PER_SEC;
     fprintf(stderr,
-     "     %i:%02i:%02i.%02i video: %ikbps - Frame %i - %f FPS - %f FPM         ",
+     "     %i:%02i:%02i.%02i video: %ikbps - Frame %i - %f FPS - %f FPM     ",
      (int)time_base/3600, ((int)time_base/60)%60, (int)time_base % 60,
-     (int)(time_base*100 - (long)time_base*100), video_kbps, current_frame_no, (current_frame_no-previous_frame_no)/time_spent, (current_frame_no-previous_frame_no)/time_spent * 60);
-    previous_frame_no = current_frame_no;
+     (int)(time_base*100 - (long)time_base*100), video_kbps, current_frame_no, 
+     (current_frame_no)/time_spent, 
+     (current_frame_no)/time_spent * 60);
   }
   ogg_stream_clear(&vo);
   daala_encode_free(dd);
