@@ -393,7 +393,8 @@ static void usage(void) {
    "  -h --help                      Display this help and exit.\n"
    "  -o --output <filename.ogg>     file name for encoded output;\n"
    "                                 If this option is not given, the\n"
-   "                                 compressed data is sent to stdout.\n\n"
+   "                                 compressed data is written to.\n"
+   "                                 a file named video_file.out.ogv.\n\n"
    "  -k --keyframe-rate <n>         Frequency of keyframes in output.\n\n"
    "  -v --video-quality <n>         Daala quality selector from 0 to 511.\n"
    "                                 511 yields the smallest files, but\n"
@@ -449,6 +450,7 @@ int main(int argc, char **argv) {
   daala_comment dc;
   ogg_int64_t video_bytesout;
   double time_base;
+  double time_spent;
   int c;
   int loi;
   int ret;
@@ -470,6 +472,11 @@ int main(int argc, char **argv) {
   int mv_res_min;
   int mv_level_min;
   int mv_level_max;
+  int current_frame_no;
+  int output_provided;
+  char default_filename[1024];
+  clock_t t0;
+  clock_t t1;
   daala_log_init();
 #if defined(_WIN32)
   _setmode(_fileno(stdin), _O_BINARY);
@@ -498,10 +505,12 @@ int main(int argc, char **argv) {
   mv_res_min = 0;
   mv_level_min = 0;
   mv_level_max = 6;
+  output_provided = 0;
   while ((c = getopt_long(argc, argv, OPTSTRING, OPTIONS, &loi)) != EOF) {
     switch (c) {
       case 'o': {
         outfile = fopen(optarg, "wb");
+        output_provided = 1;
         if (outfile == NULL) {
           fprintf(stderr, "Unable to open output file '%s'\n", optarg);
           exit(1);
@@ -635,6 +644,14 @@ int main(int argc, char **argv) {
   }
   /*Assume anything following the options must be a file name.*/
   for (; optind < argc; optind++) id_file(&avin, argv[optind]);
+  if(!output_provided){
+    snprintf(default_filename, 1024, "%s.out.ogv", argv[argc-1]);
+    outfile = fopen(default_filename, "wb");
+    if (outfile == NULL) {
+      fprintf(stderr, "Unable to open output file '%s'\n", default_filename);
+      exit(1);
+    }
+  }
   if (!avin.has_video) {
     fprintf(stderr, "No video files submitted for compression.\n");
     exit(1);
@@ -722,9 +739,11 @@ int main(int argc, char **argv) {
      Main compression loop.*/
   fprintf(stderr, "Compressing...\n");
   video_ready = 0;
+  t0 = clock();
   for (;;) {
     ogg_page video_page;
     double video_time;
+    double video_fps = avin.video_fps_n/avin.video_fps_d;
     size_t bytes_written;
     video_ready = fetch_and_process_video(&avin, &video_page, &vo,
      dd, video_ready, limit >= 0 ? &limit : NULL, skip > 0 ? &skip : NULL);
@@ -750,16 +769,21 @@ int main(int argc, char **argv) {
     if (video_time == -1) continue;
     video_kbps = (int)rint(video_bytesout*8*0.001/video_time);
     time_base = video_time;
+    current_frame_no = time_base*video_fps;
     if (interactive) {
       fprintf(stderr, "\r");
     }
     else {
       fprintf(stderr, "\n");
     }
+    t1 = clock();
+    time_spent = (double)(t1 - t0)/CLOCKS_PER_SEC;
     fprintf(stderr,
-     "     %i:%02i:%02i.%02i video: %ikbps          ",
+     "     %i:%02i:%02i.%02i video: %ikbps - Frame %i - %0.2f FPS - %0.2f FPM     ",
      (int)time_base/3600, ((int)time_base/60)%60, (int)time_base % 60,
-     (int)(time_base*100 - (long)time_base*100), video_kbps);
+     (int)(time_base*100 - (long)time_base*100), video_kbps, current_frame_no, 
+     (current_frame_no)/time_spent, 
+     (current_frame_no)/time_spent*60);
   }
   ogg_stream_clear(&vo);
   daala_encode_free(dd);
