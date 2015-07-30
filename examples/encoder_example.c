@@ -33,7 +33,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <string.h>
 #include <time.h>
 #include <getopt.h>
-
 #include "../src/logging.h"
 #include "daala/daalaenc.h"
 #if defined(_WIN32)
@@ -644,7 +643,7 @@ int main(int argc, char **argv) {
   }
   /*Assume anything following the options must be a file name.*/
   for (; optind < argc; optind++) id_file(&avin, argv[optind]);
-  if(output_provided == 0){
+  if(!output_provided){
     snprintf(default_filename, 1024, "%s.out.ogv", argv[argc-1]);
     outfile = fopen(default_filename, "wb");
     if (outfile == NULL) {
@@ -743,7 +742,7 @@ int main(int argc, char **argv) {
   for (;;) {
     ogg_page video_page;
     double video_time;
-    double video_fps = avin.video_fps_n / avin.video_fps_d;
+    double video_fps = avin.video_fps_n/avin.video_fps_d;
     size_t bytes_written;
     video_ready = fetch_and_process_video(&avin, &video_page, &vo,
      dd, video_ready, limit >= 0 ? &limit : NULL, skip > 0 ? &skip : NULL);
@@ -777,13 +776,13 @@ int main(int argc, char **argv) {
       fprintf(stderr, "\n");
     }
     t1 = clock();
-    time_spent = (double)(t1 - t0) / CLOCKS_PER_SEC;
+    time_spent = (double)(t1 - t0)/CLOCKS_PER_SEC;
     fprintf(stderr,
-     "     %i:%02i:%02i.%02i video: %ikbps - Frame %i - %f FPS - %f FPM     ",
+     "     %i:%02i:%02i.%02i video: %ikbps - Frame %i - %0.2f FPS - %0.2f FPM     ",
      (int)time_base/3600, ((int)time_base/60)%60, (int)time_base % 60,
      (int)(time_base*100 - (long)time_base*100), video_kbps, current_frame_no, 
      (current_frame_no)/time_spent, 
-     (current_frame_no)/time_spent * 60);
+     (current_frame_no)/time_spent*60);
   }
   ogg_stream_clear(&vo);
   daala_encode_free(dd);
