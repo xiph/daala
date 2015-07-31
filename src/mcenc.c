@@ -2520,8 +2520,8 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy) {
       int clevel;
       int cvx;
       int cvy;
-      cvx = cneighbors[ci]->vy;
-      cvy = cneighbors[ci]->vx;
+      cvx = cneighbors[ci]->vx;
+      cvy = cneighbors[ci]->vy;
       clevel = OD_MC_LEVEL[cvy & OD_MVB_MASK][cvx & OD_MVB_MASK];
       log_cnb_sz = (OD_MC_LEVEL_MAX - clevel) >> 1;
       t2 = OD_MINI(t2,
