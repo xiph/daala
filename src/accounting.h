@@ -29,6 +29,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # include "internal.h"
 # include "../include/daala/daaladec.h"
 
+#define OD_ACCT_HASH_SIZE (1021)
+
 typedef struct {
   od_accounting acct;
   /** Size allocated for syms (not all may be used). */
@@ -40,9 +42,10 @@ typedef struct {
   int curr_layer;
   /* Last value returned from od_ec_dec_tell_frac(). */
   uint32_t last_tell;
+  short hash_dict[OD_ACCT_HASH_SIZE];
 } od_accounting_internal;
 
-int od_accounting_dict_lookup(od_accounting_dict *dict, const char *str);
+int od_accounting_dict_lookup(od_accounting_internal *acct, const char *str);
 
 void od_accounting_init(od_accounting_internal *acct);
 

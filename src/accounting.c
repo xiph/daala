@@ -31,26 +31,46 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "logging.h"
 #include "accounting.h"
 
-/* Simple linear-time lookup in the dictionary. This could be made much
-   faster, but it's fine for now. */
-int od_accounting_dict_lookup(od_accounting_dict *dict, const char *str) {
-  int i;
-  for (i = 0; i < dict->nb_str; i++) {
-    if (strcmp(dict->str[i], str) == 0) break;
+static int od_acct_hash(const char *str) {
+  uint32_t val;
+  const unsigned char *ustr;
+  val = 0;
+  ustr = (const unsigned char*)str;
+  /* This is about the worst hash one can design, but it should be good enough
+     here. */
+  while (*ustr) val += *ustr++;
+  return val % OD_ACCT_HASH_SIZE;
+}
+
+/* Dictionary lookup based on an open-addressing hash table. */
+int od_accounting_dict_lookup(od_accounting_internal *acct, const char *str) {
+  int hash;
+  od_accounting_dict *dict;
+  dict = &acct->acct.dict;
+  hash = od_acct_hash(str);
+  while (acct->hash_dict[hash] != -1) {
+    if (strcmp(dict->str[acct->hash_dict[hash]], str) == 0) {
+      return acct->hash_dict[hash];
+    }
+    hash++;
+    if (hash == OD_ACCT_HASH_SIZE) hash = 0;
   }
-  OD_ASSERT(i < MAX_SYMBOL_TYPES);
-  if (i == dict->nb_str) {
-    dict->str[i] = malloc(strlen(str) + 1);
-    strcpy(dict->str[i], str);
-    dict->nb_str++;
-  }
-  return i;
+  /* No match found. */
+  OD_ASSERT(dict->nb_str + 1 < MAX_SYMBOL_TYPES);
+  acct->hash_dict[hash] = dict->nb_str;
+  dict->str[dict->nb_str] = malloc(strlen(str) + 1);
+  strcpy(dict->str[dict->nb_str], str);
+  dict->nb_str++;
+  return dict->nb_str - 1;
 }
 
 void od_accounting_init(od_accounting_internal *acct) {
+  int i;
   acct->nb_syms_alloc = 1000;
   acct->acct.syms = malloc(sizeof(acct->acct.syms[0])*acct->nb_syms_alloc);
   acct->acct.dict.nb_str = 0;
+  OD_ASSERT(OD_ACCT_HASH_SIZE > 2*MAX_SYMBOL_TYPES);
+  for (i = 0; i < OD_ACCT_HASH_SIZE; i++) acct->hash_dict[i] = -1;
   od_accounting_reset(acct);
 }
 
@@ -89,7 +109,7 @@ void od_accounting_record(od_accounting_internal *acct, char *str,
   curr.level = acct->curr_level;
   curr.layer = acct->curr_layer;
   curr.bits_q3 = bits_q3;
-  id = od_accounting_dict_lookup(&acct->acct.dict, str);
+  id = od_accounting_dict_lookup(acct, str);
   OD_ASSERT(id <= 255);
   curr.id = id;
   if (acct->acct.nb_syms == acct->nb_syms_alloc) {
