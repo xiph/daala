@@ -100,7 +100,7 @@ int daala_decode_ctl(daala_dec_ctx *dec, int req, void *buf, size_t buf_sz) {
       }
       dec->user_bsize = (unsigned char *)buf;
       dec->user_bstride = dec->state.nhsb*4;
-      return 0;
+      return OD_SUCCESS;
     }
     case OD_DECCTL_SET_FLAGS_BUFFER : {
       if (dec == NULL || buf == NULL) return OD_EFAULT;
@@ -110,7 +110,7 @@ int daala_decode_ctl(daala_dec_ctx *dec, int req, void *buf, size_t buf_sz) {
       }
       dec->user_flags = (unsigned int *)buf;
       dec->user_fstride = dec->state.nhsb*8;
-      return 0;
+      return OD_SUCCESS;
     }
     case OD_DECCTL_SET_MV_BUFFER : {
       if (dec== NULL || buf == NULL) return OD_EFAULT;
@@ -119,26 +119,26 @@ int daala_decode_ctl(daala_dec_ctx *dec, int req, void *buf, size_t buf_sz) {
         return OD_EINVAL;
       }
       dec->user_mv_grid = buf;
-      return 0;
+      return OD_SUCCESS;
     }
     case OD_DECCTL_SET_MC_IMG : {
       if (dec == NULL || buf == NULL) return OD_EFAULT;
       if (buf_sz != sizeof(od_img)) return OD_EINVAL;
       dec->user_mc_img = buf;
-      return 0;
+      return OD_SUCCESS;
     }
 #if OD_ACCOUNTING
     case OD_DECCTL_SET_ACCOUNTING_ENABLED: {
       if(dec == NULL || buf == NULL || buf_sz != sizeof(int)) return OD_EFAULT;
       dec->acct_enabled = *(int*)buf != 0;
-      return 0;
+      return OD_SUCCESS;
     }
     case OD_DECCTL_GET_ACCOUNTING : {
       if (!dec->acct_enabled) return OD_EINVAL;
       if (dec == NULL || buf == NULL) return OD_EFAULT;
       if (buf_sz != sizeof(od_accounting *)) return OD_EINVAL;
       *(od_accounting **)buf = &dec->acct.acct;
-      return 0;
+      return OD_SUCCESS;
     }
 #endif
     default: return OD_EIMPL;
