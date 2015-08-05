@@ -217,10 +217,9 @@ filter.c \
 $(if $(findstring -DOD_ENABLE_ASSERTIONS,${CFLAGS}), \
 internal.c \
 )
-ECTEST_CSOURCES = tests/ectest.c
+ECTEST_CSOURCES = tests/ectest.c accounting.c
 TEST_COEF_CODER_CSOURCES = \
 tests/test_coef_coder.c \
-accounting.c \
 $(if $(findstring -DOD_LOGGING_ENABLED,${CFLAGS}), \
 logging.c \
 )
