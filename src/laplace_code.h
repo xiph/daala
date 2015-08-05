@@ -30,6 +30,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # include "filter.h"
 # include "adapt.h"
 
+#if OD_ACCOUNTING
+# define laplace_decode_special(dec, decay, max, str) laplace_decode_special_(dec, decay, max, str)
+# define laplace_decode(dec, ex_q8, k, str) laplace_decode_(dec, ex_q8, k, str)
+#define laplace_decode_vector(dec, y, n, k, curr, means, str) laplace_decode_vector_(dec, y, n, k, curr, means, str)
+#else
+# define laplace_decode_special(dec, decay, max, str) laplace_decode_special_(dec, decay, max)
+# define laplace_decode(dec, ex_q8, k, str) laplace_decode_(dec, ex_q8, k)
+#define laplace_decode_vector(dec, y, n, k, curr, means, str) laplace_decode_vector_(dec, y, n, k, curr, means)
+#endif
+
 extern const uint16_t EXP_CDF_TABLE[][16];
 extern const uint16_t LAPLACE_OFFSET[];
 
@@ -38,9 +48,10 @@ void laplace_encode(od_ec_enc *enc, int x, int ex_q8, int k);
 void laplace_encode_vector(od_ec_enc *enc, const od_coeff *y, int n, int k,
                                   int32_t *curr, const int32_t *means);
 
-int laplace_decode_special(od_ec_dec *dec, unsigned decay, int max);
-int laplace_decode(od_ec_dec *dec, int ex_q8, int k);
-void laplace_decode_vector(od_ec_dec *dec, od_coeff *y, int n, int k,
-                                  int32_t *curr, const int32_t *means);
+int laplace_decode_special_(od_ec_dec *dec, unsigned decay, int max OD_ACC_STR);
+int laplace_decode_(od_ec_dec *dec, int ex_q8, int k OD_ACC_STR);
+void laplace_decode_vector_(od_ec_dec *dec, od_coeff *y, int n, int k,
+                                  int32_t *curr, const int32_t *means
+                                  OD_ACC_STR);
 
 #endif

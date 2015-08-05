@@ -31,352 +31,72 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "logging.h"
 #include "accounting.h"
 
-/*Entropy accounting:
-  The main function you will use is od_ec_acct_record(), which takes the
-   symbol, the number of possible symbols, and the index of the context.
-   Use this right before you call od_ec_encode_*() for the symbol.
-  Before you call od_ec_acct_record(), you must create a label to hold the
-   events. Use od_ec_acct_add_label() to add a new label and tell the system
-   how many contexts you will use.
-  For simply recording the symbol and having no context it would look like:
-    od_ec_acct_add_label(&enc->ec.acct, "motion-flags-level-2", 0);
-    ...
-    od_ec_acct_record(&enc->ec.acct, "motion-flags-level-2", mvp->valid, 2, 0);
-    od_ec_encode_bool_q15(&enc->ec, mvp->valid, 16384);
-  Here's an example record cal of the same thing but with 9 contexts:
-   od_ec_acct_record(&enc->ec.acct, "motion-flags-level-4", mvp->valid, 2,
-    3 * (vx > 0 && vy > 0 ? grid[vy - 1][vx - 1].valid : 0)
-     + (vy > 0 ? grid[vy - 1][vx + 1].valid : 0)
-     + (grid[vy - 1][vx].mv[0] == grid[vy][vx + 1].mv[0] &&
-     grid[vy - 1][vx].mv[1] == grid[vy][vx + 1].mv[1])
-     + (grid[vy + 1][vx].mv[0] == grid[vy][vx + 1].mv[0] &&
-     grid[vy + 1][vx].mv[1] == grid[vy][vx + 1].mv[1]));
-  By default these results will be written out per frame into
-   ec-acct.json. You can override the filename with OD_EC_ACCT_SUFFIX in the
-   environment.*/
-
-static const char *OD_ACCT_CATEGORY_NAMES[OD_ACCT_NCATS] = {
-  "technique",
-  "plane"
-};
-
-static const char *OD_ACCT_TECHNIQUE_NAMES[OD_ACCT_NTECHS] = {
-  "unknown",
-  "frame",
-  "block-size",
-  "intra-mode",
-  "dc-coeff",
-  "ac-coeffs",
-  "motion-vectors"
-};
-
-static const char *OD_ACCT_PLANE_NAMES[OD_ACCT_NPLANES] = {
-  "unknown",
-  "frame",
-  "luma",
-  "cb",
-  "cr",
-  "alpha"
-};
-
-static const char * const *OD_ACCT_CATEGORY_VALUE_NAMES[OD_ACCT_NCATS] = {
-  OD_ACCT_TECHNIQUE_NAMES,
-  OD_ACCT_PLANE_NAMES
-};
-
-static const unsigned int OD_ACCT_INDICES[OD_ACCT_NCATS] = {
-  OD_ACCT_NTECHS,
-  OD_ACCT_NPLANES
-};
-
-void od_acct_init(od_acct *acct) {
-  char  fname[1024];
-  const char *pre;
-  const char *suf;
-  int   rv;
-  pre = "acct-";
-  suf = getenv("OD_ACCT_SUFFIX");
-  if (!suf) {
-    pre = "acct";
-    suf = "";
-  }
-  rv = snprintf(fname, sizeof(fname), "%s%s.json", pre, suf);
-  (void)rv;
-  OD_ASSERT(rv >= 0 && ((size_t)rv) < sizeof(fname));
-  acct->fp = fopen(fname, "w");
-  OD_ASSERT(acct->fp);
-  od_acct_reset(acct);
-}
-
-void od_acct_clear(od_acct *acct) {
-  OD_ASSERT(acct->fp);
-  fclose(acct->fp);
-}
-
-void od_acct_reset(od_acct *acct) {
+/* Simple linear-time lookup in the dictionary. This could be made much
+   faster, but it's fine for now. */
+int od_accounting_dict_lookup(od_accounting_dict *dict, const char *str) {
   int i;
-  /* Calling od_ec_enc_tell_frac() on a reset od_ec_enc struct returns 8. */
-  acct->last_frac_bits = 8;
-  /* Set the initial state for each category to unknown. */
-  for (i = 0; i < OD_ACCT_NCATS; i++) {
-    acct->state[i] = 0;
+  for (i = 0; i < dict->nb_str; i++) {
+    if (strcmp(dict->str[i], str) == 0) break;
   }
-  for (i = 0; i < OD_ACCT_SIZE; i++) {
-    acct->frac_bits[i] = 0;
+  OD_ASSERT(i < MAX_SYMBOL_TYPES);
+  if (i == dict->nb_str) {
+    dict->str[i] = malloc(strlen(str) + 1);
+    strcpy(dict->str[i], str);
+    dict->nb_str++;
   }
+  return i;
 }
 
-static int od_acct_index(unsigned int state[OD_ACCT_NCATS]) {
-  int index;
-  int cat;
-  index = state[0];
-  for (cat = (int)OD_ACCT_CAT_PLANE; cat < OD_ACCT_NCATS; cat++) {
-    index = (index*OD_ACCT_INDICES[OD_ACCT_NCATS - cat]) + state[cat];
-  }
-  return index;
+void od_accounting_init(od_accounting_internal *acct) {
+  acct->nb_syms_alloc = 1000;
+  acct->acct.syms = malloc(sizeof(acct->acct.syms[0])*acct->nb_syms_alloc);
+  acct->acct.dict.nb_str = 0;
+  od_accounting_reset(acct);
 }
 
-void od_acct_update_frac_bits(od_acct *acct, uint32_t frac_bits) {
-  uint32_t frac_bits_diff;
-  frac_bits_diff = frac_bits - acct->last_frac_bits;
-  acct->frac_bits[od_acct_index(acct->state)] += frac_bits_diff;
-  acct->last_frac_bits = frac_bits;
+void od_accounting_reset(od_accounting_internal *acct) {
+  acct->acct.nb_syms = 0;
+  acct->curr_x = acct->curr_y = acct->curr_level = acct->curr_layer = -1;
+  acct->last_tell = 0;
 }
 
-void od_acct_set_category(od_acct *acct, od_acct_category cat,
- unsigned int value) {
-  OD_ASSERT(cat < OD_ACCT_NCATS);
-  OD_ASSERT(value < OD_ACCT_INDICES[cat]);
-  acct->state[cat] = value;
-}
-
-void od_acct_update(od_acct *acct, uint32_t frac_bits,
- od_acct_category cat, unsigned int value) {
-  od_acct_update_frac_bits(acct, frac_bits);
-  od_acct_set_category(acct, cat, value);
-}
-
-static int od_acct_next_state(unsigned int state[OD_ACCT_NCATS],
- int skip) {
+void od_accounting_clear(od_accounting_internal *acct) {
   int i;
-  i = skip == 0;
-  while (i < OD_ACCT_NCATS) {
-    state[i]++;
-    if (state[i] < OD_ACCT_INDICES[i]) {
-      return 1;
-    }
-    state[i] = 0;
-    i++;
-    if (skip != OD_ACCT_NCATS && i == skip) {
-      i++;
-    }
-  }
-  return 0;
-}
-
-static uint32_t od_acct_get_total(od_acct *acct,
- int cat, unsigned int value) {
-  unsigned int state[OD_ACCT_NCATS];
-  uint32_t total;
-  int i;
-  for (i = 0; i < OD_ACCT_NCATS; i++) {
-    state[i] = 0;
-  }
-  state[cat] = value;
-  total = 0;
-  do {
-    total += acct->frac_bits[od_acct_index(state)];
-  }
-  while (od_acct_next_state(state, cat));
-  return total;
-}
-
-void od_acct_print_state(FILE *_fp, unsigned int state[OD_ACCT_NCATS]) {
-  int cat;
-  for (cat = OD_ACCT_CAT_TECHNIQUE; cat < OD_ACCT_NCATS; cat++) {
-    fprintf(_fp, "%s%s", cat > 0 ? "," : "",
-     OD_ACCT_CATEGORY_VALUE_NAMES[cat][state[cat]]);
+  free(acct->acct.syms);
+  for (i = 0; i < acct->acct.dict.nb_str; i++) {
+    free(acct->acct.dict.str[i]);
   }
 }
 
-void od_acct_print(od_acct *acct, FILE *_fp) {
-  unsigned int state[OD_ACCT_NCATS];
-  int i;
-  for (i = 0; i < OD_ACCT_NCATS; i++) {
-    state[i] = 0;
-  }
-  do {
-    int index;
-    index = od_acct_index(state);
-    od_acct_print_state(_fp, state);
-    fprintf(_fp, " (%i): %i\n", index, acct->frac_bits[index]);
-  }
-  while (od_acct_next_state(state, OD_ACCT_NCATS));
+void od_accounting_set_location(od_accounting_internal *acct, int layer,
+ int level, int x, int y) {
+  acct->curr_x = x;
+  acct->curr_y = y;
+  acct->curr_level = level;
+  acct->curr_layer = layer;
+
 }
 
-void od_acct_write(od_acct *acct, int64_t cur_time) {
-  int cat;
-  unsigned int value;
-  long fsize;
-  OD_ASSERT(acct->fp);
-  fsize = ftell(acct->fp);
-  if (fsize == 0) {
-    fprintf(acct->fp, "[");
+void od_accounting_record(od_accounting_internal *acct, char *str,
+ int bits_q3) {
+  od_acct_symbol curr;
+  int id;
+  OD_ASSERT(acct->curr_x >= 0);
+  OD_ASSERT(acct->curr_y >= 0);
+  OD_ASSERT(bits_q3 <= 255);
+  curr.x = acct->curr_x;
+  curr.y = acct->curr_y;
+  curr.level = acct->curr_level;
+  curr.layer = acct->curr_layer;
+  curr.bits_q3 = bits_q3;
+  id = od_accounting_dict_lookup(&acct->acct.dict, str);
+  OD_ASSERT(id <= 255);
+  curr.id = id;
+  if (acct->acct.nb_syms == acct->nb_syms_alloc) {
+    acct->nb_syms_alloc *= 2;
+    acct->acct.syms = realloc(acct->acct.syms,
+     sizeof(acct->acct.syms[0])*acct->nb_syms_alloc);
+    OD_ASSERT(acct->acct.syms != NULL);
   }
-  else {
-    fseek(acct->fp, fsize - 1, SEEK_SET);
-    fprintf(acct->fp, ",\n");
-  }
-  fprintf(acct->fp, "{\n");
-  fprintf(acct->fp, "  \"frame\": %" OD_I64FMT ",\n", (long long)cur_time);
-  fprintf(acct->fp, "  \"total\": %u,\n", acct->last_frac_bits-8);
-  for (cat = 0; cat < OD_ACCT_NCATS; cat++) {
-    fprintf(acct->fp, "%s  \"%s\": {\n", cat > 0 ? ",\n" : "",
-     OD_ACCT_CATEGORY_NAMES[cat]);
-    for (value = 0; value < OD_ACCT_INDICES[cat]; value++) {
-      fprintf(acct->fp, "%s    \"%s\": %i", value > 0 ? ",\n" : "",
-       OD_ACCT_CATEGORY_VALUE_NAMES[cat][value],
-       od_acct_get_total(acct, cat, value));
-    }
-    fprintf(acct->fp, "\n  }");
-  }
-  fprintf(acct->fp, "\n}]");
-}
-
-void od_ec_acct_init(od_ec_acct *acct) {
-  char  fname[1024];
-  const char *pre;
-  const char *suf;
-  int   rv;
-  pre = "ec-acct-";
-  suf = getenv("OD_EC_ACCT_SUFFIX");
-  if (!suf) {
-    pre = "ec-acct";
-    suf = "";
-  }
-  rv = snprintf(fname, sizeof(fname), "%s%s.json", pre, suf);
-  (void)rv;
-  OD_ASSERT(rv >= 0 && ((size_t)rv) < sizeof(fname));
-  acct->fp = fopen(fname, "w");
-  OD_ASSERT(acct->fp);
-  acct->data = NULL;
-  od_ec_acct_reset(acct);
-}
-
-void od_ec_acct_clear(od_ec_acct *acct) {
-  od_ec_acct_data *data;
-  od_ec_acct_data *old;
-  OD_ASSERT(acct->fp);
-  fclose(acct->fp);
-  data = acct->data;
-  acct->data = NULL;
-  while (data) {
-    free(data->values);
-    old = data;
-    data = data->next;
-    free(old);
-  }
-}
-
-void od_ec_acct_reset(od_ec_acct *acct) {
-  od_ec_acct_data *data;
-  data = acct->data;
-  while (data) {
-    data->used = 0;
-    data = data->next;
-  }
-}
-
-void od_ec_acct_add_label(od_ec_acct *acct, const char *label) {
-  od_ec_acct_data *data;
-  od_ec_acct_data *old_data;
-  int i;
-  old_data = NULL;
-  data = acct->data;
-  while (data) {
-    if (strcmp(label, data->label) == 0) {
-      break;
-    }
-    old_data = data;
-    data = data->next;
-  }
-  if (data == NULL) {
-    data = (od_ec_acct_data *)malloc(sizeof(od_ec_acct_data));
-    OD_ASSERT(data);
-    data->label = label;
-    data->capacity = 128;
-    data->used = 0;
-    /*Records are composed of a symbol, the number of possible symbols, and
-      ncontext items of context.*/
-    data->values = (int **)malloc(128*sizeof(*data->values));
-    for (i = 0; i < 128; i++) {
-      data->values[i] = (int *)malloc(3*sizeof(*data->values[i]));
-    }
-    OD_ASSERT(data->values);
-    data->next = NULL;
-    if (old_data == NULL) {
-      acct->data = data;
-    } else {
-      old_data->next = data;
-    }
-  }
-}
-
-void od_ec_acct_record(od_ec_acct *acct, const char *label, int val, int n,
- int context) {
-  od_ec_acct_data *data;
-  int i;
-  int old_capacity;
-  data = acct->data;
-  while (data) {
-    if (strcmp(label, data->label) == 0) {
-      break;
-    }
-    data = data->next;
-  }
-  OD_ASSERT(data);
-  if (data->used >= data->capacity) {
-    old_capacity = data->capacity;
-    data->capacity *= 2;
-    data->values = (int **)realloc(data->values,
-     data->capacity*sizeof(*data->values));
-    for (i = old_capacity; i < data->capacity; i++) {
-      data->values[i] = (int *)malloc(3*sizeof(*data->values[i]));
-    }
-  }
-  data->values[data->used][0] = val;
-  data->values[data->used][1] = n;
-  data->values[data->used][2] = context;
-  data->used++;
-}
-
-void od_ec_acct_write(od_ec_acct *acct) {
-  long fsize;
-  od_ec_acct_data *data;
-  int i;
-  int j;
-  OD_ASSERT(acct->fp);
-  fsize = ftell(acct->fp);
-  if (fsize == 0) {
-    fprintf(acct->fp, "[");
-  }
-  else {
-    fseek(acct->fp, fsize - 1, SEEK_SET);
-    fprintf(acct->fp, ",\n");
-  }
-  fprintf(acct->fp, "{\n");
-  data = acct->data;
-  while (data) {
-    fprintf(acct->fp, "  \"%s\": [\n", data->label);
-    for (i = 0; i < data->used; i++) {
-      fprintf(acct->fp, "    [");
-      for (j = 0; j < 3; j++) {
-        fprintf(acct->fp, "%s%d", j > 0 ? "," : "", data->values[i][j]);
-      }
-      fprintf(acct->fp, "]%s\n", i == (data->used - 1) ? "" : ",");
-    }
-    fprintf(acct->fp, "  ]%s", data->next ? ",\n" : "");
-    data = data->next;
-  }
-  fprintf(acct->fp, "\n}]");
+  acct->acct.syms[acct->acct.nb_syms++] = curr;
 }

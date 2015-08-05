@@ -115,6 +115,9 @@ WORKDIR = objs
 
 # C source file lists
 LIBDAALABASE_CSOURCES = \
+$(if $(findstring -DOD_ACCOUNTING,${CFLAGS}), \
+accounting.c \
+) \
 adapt.c \
 entcode.c \
 entdec.c \
@@ -191,9 +194,6 @@ generic_encoder.c \
 infoenc.c \
 laplace_encoder.c \
 mcenc.c \
-$(if $(findstring -DOD_ACCOUNTING,${CFLAGS}), \
-accounting.c \
-) \
 pvq_encoder.c \
 $(if $(findstring -DOD_X86ASM,${CFLAGS}), \
 x86/x86enc.c \
@@ -220,6 +220,7 @@ internal.c \
 ECTEST_CSOURCES = tests/ectest.c
 TEST_COEF_CODER_CSOURCES = \
 tests/test_coef_coder.c \
+accounting.c \
 $(if $(findstring -DOD_LOGGING_ENABLED,${CFLAGS}), \
 logging.c \
 )

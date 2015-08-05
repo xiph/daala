@@ -44,6 +44,51 @@ extern "C" {
  *              Image must be allocated by the caller, and must be the
  *              same format as the decoder output images. */
 #define OD_DECCTL_SET_MC_IMG       (7007)
+#define OD_DECCTL_GET_ACCOUNTING   (7009)
+#define OD_DECCTL_SET_ACCOUNTING_ENABLED (7011)
+
+
+#define OD_ACCT_FRAME (10)
+#define OD_ACCT_MV (11)
+
+typedef struct {
+  /** x position in units of 4x4 luma blocks for layers 0-3, or vx for
+     OD_ACCT_MV. Has no meaning for OD_ACCT_FRAME.*/
+  int16_t x;
+  /** y position in units of 4x4 luma blocks for layers 0-3, or vy for
+     OD_ACCT_MV. Has no meaning for OD_ACCT_FRAME.*/
+  int16_t y;
+  /** layers (0..NPLANES) for color plane coefficients, or one of
+      OD_ACCT_FRAME and OD_ACCT_MV. */
+  unsigned char layer;
+  /** For layers 0-3, 0 means 4x4, 1, means 8x8, and so on. For OD_ACCT_MV,
+     it is the motion vector level. Has no meaning for OD_ACCT_FRAME. */
+  unsigned char level;
+  /** Integer id in the dictionary. */
+  unsigned char id;
+  /** Number of bits in units of 1/8 bit. */
+  unsigned char bits_q3;
+} od_acct_symbol;
+
+/* Max number of entries for symbol types in the dictionary (increase as
+   necessary). */
+#define MAX_SYMBOL_TYPES (256)
+
+/** Dictionary for translating strings into id. */
+typedef struct {
+  char *(str[MAX_SYMBOL_TYPES]);
+  int nb_str;
+} od_accounting_dict;
+
+typedef struct {
+  /** All recorded symbols decoded. */
+  od_acct_symbol *syms;
+  /** Number of symbols actually recorded. */
+  int nb_syms;
+  /** Dictionary for translating strings into id. */
+  od_accounting_dict dict;
+} od_accounting;
+
 
 /**\name Decoder state
    The following data structures are opaque, and their contents are not

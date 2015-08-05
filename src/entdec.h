@@ -26,8 +26,31 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # define _entdec_H (1)
 # include <limits.h>
 # include "entcode.h"
+# include "accounting.h"
 
 typedef struct od_ec_dec od_ec_dec;
+
+#if OD_ACCOUNTING
+# define OD_ACC_STR , char *acc_str
+# define od_ec_decode_bool(dec, fz, ft, str) od_ec_decode_bool_(dec, fz, ft, str)
+# define od_ec_decode_bool_q15(dec, fz, str) od_ec_decode_bool_q15_(dec, fz, str)
+# define od_ec_decode_cdf(dec, cdf, nsyms, str) od_ec_decode_cdf_(dec, cdf, nsyms, str)
+# define od_ec_decode_cdf_q15(dec, cdf, nsyms, str) od_ec_decode_cdf_q15_(dec, cdf, nsyms, str)
+# define od_ec_decode_cdf_unscaled(dec, cdf, nsyms, str) od_ec_decode_cdf_unscaled_(dec, cdf, nsyms, str)
+# define od_ec_decode_cdf_unscaled_dyadic(dec, cdf, nsyms, ftb, str) od_ec_decode_cdf_unscaled_dyadic_(dec, cdf, nsyms, ftb, str)
+# define od_ec_dec_uint(dec, ft, str) od_ec_dec_uint_(dec, ft, str)
+# define od_ec_dec_bits(dec, ftb, str) od_ec_dec_bits_(dec, ftb, str)
+#else
+# define OD_ACC_STR
+# define od_ec_decode_bool(dec, fz, ft, str) od_ec_decode_bool_(dec, fz, ft)
+# define od_ec_decode_bool_q15(dec, fz, str) od_ec_decode_bool_q15_(dec, fz)
+# define od_ec_decode_cdf(dec, cdf, nsyms, str) od_ec_decode_cdf_(dec, cdf, nsyms)
+# define od_ec_decode_cdf_q15(dec, cdf, nsyms, str) od_ec_decode_cdf_q15_(dec, cdf, nsyms)
+# define od_ec_decode_cdf_unscaled(dec, cdf, nsyms, str) od_ec_decode_cdf_unscaled_(dec, cdf, nsyms)
+# define od_ec_decode_cdf_unscaled_dyadic(dec, cdf, nsyms, ftb, str) od_ec_decode_cdf_unscaled_dyadic_(dec, cdf, nsyms, ftb)
+# define od_ec_dec_uint(dec, ft, str) od_ec_dec_uint_(dec, ft)
+# define od_ec_dec_bits(dec, ftb, str) od_ec_dec_bits_(dec, ftb)
+#endif
 
 /*The entropy decoder context.*/
 struct od_ec_dec {
@@ -57,6 +80,9 @@ struct od_ec_dec {
   int16_t cnt;
   /*Nonzero if an error occurred.*/
   int error;
+#if OD_ACCOUNTING
+  od_accounting_internal *acct;
+#endif
 };
 
 /*See entdec.c for further documentation.*/
@@ -65,25 +91,25 @@ void od_ec_dec_init(od_ec_dec *dec,
  const unsigned char *buf, uint32_t storage)
  OD_ARG_NONNULL(1) OD_ARG_NONNULL(2);
 
-OD_WARN_UNUSED_RESULT int od_ec_decode_bool(od_ec_dec *dec, unsigned fz,
- unsigned ft) OD_ARG_NONNULL(1);
-OD_WARN_UNUSED_RESULT int od_ec_decode_bool_q15(od_ec_dec *dec, unsigned fz)
+OD_WARN_UNUSED_RESULT int od_ec_decode_bool_(od_ec_dec *dec, unsigned fz,
+ unsigned ft OD_ACC_STR) OD_ARG_NONNULL(1);
+OD_WARN_UNUSED_RESULT int od_ec_decode_bool_q15_(od_ec_dec *dec, unsigned fz OD_ACC_STR)
  OD_ARG_NONNULL(1);
-OD_WARN_UNUSED_RESULT int od_ec_decode_cdf(od_ec_dec *dec,
- const uint16_t *cdf, int nsyms) OD_ARG_NONNULL(1) OD_ARG_NONNULL(2);
-OD_WARN_UNUSED_RESULT int od_ec_decode_cdf_q15(od_ec_dec *dec,
- const uint16_t *cdf, int nsyms) OD_ARG_NONNULL(1) OD_ARG_NONNULL(2);
-OD_WARN_UNUSED_RESULT int od_ec_decode_cdf_unscaled(od_ec_dec *dec,
- const uint16_t *cdf, int nsyms) OD_ARG_NONNULL(1) OD_ARG_NONNULL(2);
-OD_WARN_UNUSED_RESULT int od_ec_decode_cdf_unscaled_dyadic(od_ec_dec *dec,
- const uint16_t *cdf, int nsyms, unsigned _ftb)
+OD_WARN_UNUSED_RESULT int od_ec_decode_cdf_(od_ec_dec *dec,
+ const uint16_t *cdf, int nsyms OD_ACC_STR) OD_ARG_NONNULL(1) OD_ARG_NONNULL(2);
+OD_WARN_UNUSED_RESULT int od_ec_decode_cdf_q15_(od_ec_dec *dec,
+ const uint16_t *cdf, int nsyms OD_ACC_STR) OD_ARG_NONNULL(1) OD_ARG_NONNULL(2);
+OD_WARN_UNUSED_RESULT int od_ec_decode_cdf_unscaled_(od_ec_dec *dec,
+ const uint16_t *cdf, int nsyms OD_ACC_STR) OD_ARG_NONNULL(1) OD_ARG_NONNULL(2);
+OD_WARN_UNUSED_RESULT int od_ec_decode_cdf_unscaled_dyadic_(od_ec_dec *dec,
+ const uint16_t *cdf, int nsyms, unsigned _ftb OD_ACC_STR)
  OD_ARG_NONNULL(1) OD_ARG_NONNULL(2);
 
-OD_WARN_UNUSED_RESULT uint32_t od_ec_dec_uint(od_ec_dec *dec,
- uint32_t ft) OD_ARG_NONNULL(1);
+OD_WARN_UNUSED_RESULT uint32_t od_ec_dec_uint_(od_ec_dec *dec,
+ uint32_t ft OD_ACC_STR) OD_ARG_NONNULL(1);
 
-OD_WARN_UNUSED_RESULT uint32_t od_ec_dec_bits(od_ec_dec *dec,
- unsigned ftb) OD_ARG_NONNULL(1);
+OD_WARN_UNUSED_RESULT uint32_t od_ec_dec_bits_(od_ec_dec *dec,
+ unsigned ftb OD_ACC_STR) OD_ARG_NONNULL(1);
 
 OD_WARN_UNUSED_RESULT int od_ec_dec_tell(od_ec_dec *dec) OD_ARG_NONNULL(1);
 uint32_t od_ec_dec_tell_frac(od_ec_dec *dec) OD_ARG_NONNULL(1);

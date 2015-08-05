@@ -49,6 +49,10 @@ struct daala_dec_ctx {
   int user_fstride;
   od_mv_grid_pt *user_mv_grid;
   od_img *user_mc_img;
+#if OD_ACCOUNTING
+  int acct_enabled;
+  od_accounting_internal acct;
+#endif
 };
 
 /*Stub for the daala_setup_info.*/

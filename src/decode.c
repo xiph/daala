@@ -44,6 +44,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "tf.h"
 #include "state.h"
 #include "quantizer.h"
+#include "accounting.h"
 
 static int od_dec_init(od_dec_ctx *dec, const daala_info *info,
  const daala_setup_info *setup) {
@@ -56,6 +57,10 @@ static int od_dec_init(od_dec_ctx *dec, const daala_info *info,
   dec->user_flags = NULL;
   dec->user_mv_grid = NULL;
   dec->user_mc_img = NULL;
+#if OD_ACCOUNTING
+  od_accounting_init(&dec->acct);
+  dec->acct_enabled = 0;
+#endif
   return 0;
 }
 
@@ -122,6 +127,20 @@ int daala_decode_ctl(daala_dec_ctx *dec, int req, void *buf, size_t buf_sz) {
       dec->user_mc_img = buf;
       return 0;
     }
+#if OD_ACCOUNTING
+    case OD_DECCTL_SET_ACCOUNTING_ENABLED: {
+      if(dec == NULL || buf == NULL || buf_sz != sizeof(int)) return OD_EFAULT;
+      dec->acct_enabled = *(int*)buf != 0;
+      return 0;
+    }
+    case OD_DECCTL_GET_ACCOUNTING : {
+      if (!dec->acct_enabled) return OD_EINVAL;
+      if (dec == NULL || buf == NULL) return OD_EFAULT;
+      if (buf_sz != sizeof(od_accounting *)) return OD_EINVAL;
+      *(od_accounting **)buf = &dec->acct.acct;
+      return 0;
+    }
+#endif
     default: return OD_EIMPL;
   }
 }
@@ -162,19 +181,19 @@ static void od_decode_mv(daala_dec_ctx *dec, od_mv_grid_pt *mvg, int vx,
   equal_mvs = od_state_get_predictor(&dec->state, pred, vx, vy, level, mv_res);
   model = &dec->state.adapt.mv_model;
   id = od_decode_cdf_adapt(&dec->ec, dec->state.adapt.mv_small_cdf[equal_mvs],
-   16, dec->state.adapt.mv_small_increment);
+   16, dec->state.adapt.mv_small_increment, "mv:low");
   oy = id >> 2;
   ox = id & 0x3;
   if (ox == 3) {
     ox += generic_decode(&dec->ec, model, width << (3 - mv_res),
-     &dec->state.adapt.mv_ex[level], 6);
+     &dec->state.adapt.mv_ex[level], 6, "mv:high:x");
   }
   if (oy == 3) {
     oy += generic_decode(&dec->ec, model, height << (3 - mv_res),
-     &dec->state.adapt.mv_ey[level], 6);
+     &dec->state.adapt.mv_ey[level], 6, "mv:high:y");
   }
-  if (ox && od_ec_dec_bits(&dec->ec, 1)) ox = -ox;
-  if (oy && od_ec_dec_bits(&dec->ec, 1)) oy = -oy;
+  if (ox && od_ec_dec_bits(&dec->ec, 1, "mv:sign:x")) ox = -ox;
+  if (oy && od_ec_dec_bits(&dec->ec, 1, "mv:sign:y")) oy = -oy;
   mvg->mv[0] = (pred[0] + ox) << mv_res;
   mvg->mv[1] = (pred[1] + oy) << mv_res;
 }
@@ -232,25 +251,35 @@ static void od_decode_compute_pred(daala_dec_ctx *dec, od_mb_dec_ctx *ctx,
   }
 }
 
-static int od_ec_dec_unary(od_ec_dec *ec) {
+#if OD_ACCOUNTING
+# define od_ec_dec_unary(ec, str) od_ec_dec_unary_(ec, str)
+# define od_decode_coeff_split(dec, sum, ctx, str) od_decode_coeff_split_(dec, sum, ctx, str)
+# define od_decode_tree_split(dec, sum, ctx, str) od_decode_tree_split_(dec, sum, ctx, str)
+#else
+# define od_ec_dec_unary(ec, str) od_ec_dec_unary_(ec)
+# define od_decode_coeff_split(dec, sum, ctx, str) od_decode_coeff_split_(dec, sum, ctx)
+# define od_decode_tree_split(dec, sum, ctx, str) od_decode_tree_split_(dec, sum, ctx)
+#endif
+
+static int od_ec_dec_unary_(od_ec_dec *ec OD_ACC_STR) {
   int ret;
   ret = 0;
-  while (od_ec_dec_bits(ec, 1) == 0) ret++;
+  while (od_ec_dec_bits(ec, 1, acc_str) == 0) ret++;
   return ret;
 }
 
-static int od_decode_coeff_split(daala_dec_ctx *dec, int sum, int ctx) {
+static int od_decode_coeff_split_(daala_dec_ctx *dec, int sum, int ctx OD_ACC_STR) {
   int shift;
   int a;
   a = 0;
   if (sum == 0) return 0;
   shift = OD_MAXI(0, OD_ILOG(sum) - 4);
   if (shift) {
-    a = od_ec_dec_bits(&dec->ec, shift);
+    a = od_ec_dec_bits(&dec->ec, shift, acc_str);
   }
   a += od_decode_cdf_adapt(&dec->ec, dec->state.adapt.haar_coeff_cdf[15*ctx
    + (sum >> shift) - 1], (sum >> shift) + 1,
-   dec->state.adapt.haar_coeff_increment) << shift;
+   dec->state.adapt.haar_coeff_increment, acc_str) << shift;
   if (a > sum) {
     a = sum;
     dec->ec.error = 1;
@@ -258,18 +287,18 @@ static int od_decode_coeff_split(daala_dec_ctx *dec, int sum, int ctx) {
   return a;
 }
 
-static int od_decode_tree_split(daala_dec_ctx *dec, int sum, int ctx) {
+static int od_decode_tree_split_(daala_dec_ctx *dec, int sum, int ctx OD_ACC_STR) {
   int shift;
   int a;
   a = 0;
   if (sum == 0) return 0;
   shift = OD_MAXI(0, OD_ILOG(sum) - 4);
   if (shift) {
-    a = od_ec_dec_bits(&dec->ec, shift);
+    a = od_ec_dec_bits(&dec->ec, shift, acc_str);
   }
   a += od_decode_cdf_adapt(&dec->ec, dec->state.adapt.haar_split_cdf[15*(2*ctx
    + OD_MINI(shift, 1)) + (sum >> shift) - 1], (sum >> shift) + 1,
-   dec->state.adapt.haar_split_increment) << shift;
+   dec->state.adapt.haar_split_increment, acc_str) << shift;
   if (a > sum) {
     a = sum;
     dec->ec.error = 1;
@@ -286,24 +315,24 @@ static void od_decode_sum_tree(daala_dec_ctx *dec, od_coeff *c, int ln,
   n = 1 << ln;
   if (tree_sum == 0) return;
   coeff_mag = od_decode_coeff_split(dec, tree_sum, dir
-   + 3*(OD_ILOG(OD_MAXI(x,y)) - 1));
+   + 3*(OD_ILOG(OD_MAXI(x,y)) - 1), "haar:coeffsplit");
   c[y*n + x] = coeff_mag;
   children_sum = tree_sum - coeff_mag;
   /* Decode sum of each four children relative to tree. */
   if (children_sum) {
     int sum1;
     if (dir == 0) {
-      sum1 = od_decode_tree_split(dec, children_sum, 0);
-      children[0][0] = od_decode_tree_split(dec, sum1, 2);
+      sum1 = od_decode_tree_split(dec, children_sum, 0, "haar:split");
+      children[0][0] = od_decode_tree_split(dec, sum1, 2, "haar:split");
       children[0][1] = sum1 - children[0][0];
-      children[1][0] = od_decode_tree_split(dec, children_sum - sum1, 2);
+      children[1][0] = od_decode_tree_split(dec, children_sum - sum1, 2, "haar:split");
       children[1][1] = children_sum - sum1 - children[1][0];
     }
     else {
-      sum1 = od_decode_tree_split(dec, children_sum, 1);
-      children[0][0] = od_decode_tree_split(dec, sum1, 2);
+      sum1 = od_decode_tree_split(dec, children_sum, 1, "haar:split");
+      children[0][0] = od_decode_tree_split(dec, sum1, 2, "haar:split");
       children[1][0] = sum1 - children[0][0];
-      children[0][1] = od_decode_tree_split(dec, children_sum - sum1, 2);
+      children[0][1] = od_decode_tree_split(dec, children_sum - sum1, 2, "haar:split");
       children[1][1] = children_sum - sum1 - children[0][1];
     }
   }
@@ -339,8 +368,8 @@ static void od_wavelet_unquantize(daala_dec_ctx *dec, int ln, od_coeff *pred,
   {
     int bits;
     bits = od_decode_cdf_adapt(&dec->ec, dec->state.adapt.haar_bits_cdf[pli],
-     16, dec->state.adapt.haar_bits_increment);
-    if (bits == 15) bits += od_ec_dec_unary(&dec->ec);
+     16, dec->state.adapt.haar_bits_increment, "haar:top");
+    if (bits == 15) bits += od_ec_dec_unary(&dec->ec, "haar:top");
     /* Theoretical maximum sum is around 2^7 * 2^OD_COEFF_SHIFT * 32x32,
        so 2^21, but let's play safe. */
     if (bits > 24) {
@@ -349,13 +378,14 @@ static void od_wavelet_unquantize(daala_dec_ctx *dec, int ln, od_coeff *pred,
       return;
     }
     else if (bits > 1) {
-      tree_sum[0][0] = (1 << (bits - 1)) | od_ec_dec_bits(&dec->ec, bits - 1);
+      tree_sum[0][0] = (1 << (bits - 1)) | od_ec_dec_bits(&dec->ec, bits - 1,
+       "haar:top");
     }
     else tree_sum[0][0] = bits;
     /* Handle diagonal first to make H/V symmetric. */
-    tree_sum[1][1] = od_decode_tree_split(dec, tree_sum[0][0], 3);
+    tree_sum[1][1] = od_decode_tree_split(dec, tree_sum[0][0], 3, "haar:top");
     tree_sum[0][1] = od_decode_tree_split(dec, tree_sum[0][0] - tree_sum[1][1],
-     4);
+     4, "haar:top");
     tree_sum[1][0] = tree_sum[0][0] - tree_sum[1][1] - tree_sum[0][1];
   }
   od_decode_sum_tree(dec, pred, ln, tree_sum[0][1], 1, 0, 0, pli);
@@ -368,7 +398,7 @@ static void od_wavelet_unquantize(daala_dec_ctx *dec, int ln, od_coeff *pred,
       od_coeff in;
       in = pred[i*n + j];
       if (in) {
-        sign = od_ec_dec_bits(&dec->ec, 1);
+        sign = od_ec_dec_bits(&dec->ec, 1, "haar:sign");
         if (sign) in = -in;
       }
       pred[i*n + j] = in;
@@ -474,8 +504,9 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int bs,
     has_dc_skip = !ctx->is_keyframe && !ctx->use_haar_wavelet;
     if (!has_dc_skip || pred[0]) {
       pred[0] = has_dc_skip + generic_decode(&dec->ec,
-       &dec->state.adapt.model_dc[pli], -1, &dec->state.adapt.ex_dc[pli][bs][0], 2);
-      if (pred[0]) pred[0] *= od_ec_dec_bits(&dec->ec, 1) ? -1 : 1;
+       &dec->state.adapt.model_dc[pli], -1,
+       &dec->state.adapt.ex_dc[pli][bs][0], 2, "dc:mag");
+      if (pred[0]) pred[0] *= od_ec_dec_bits(&dec->ec, 1, "dc:sign") ? -1 : 1;
     }
     pred[0] = pred[0]*dc_quant + predt[0];
   }
@@ -547,9 +578,9 @@ static void od_decode_haar_dc_sb(daala_dec_ctx *dec, od_mb_dec_ctx *ctx,
   else if (bx > 0) sb_dc_pred = sb_dc_mem[by*nhsb + bx - 1];
   else sb_dc_pred = 0;
   quant = generic_decode(&dec->ec, &dec->state.adapt.model_dc[pli], -1,
-   &dec->state.adapt.ex_sb_dc[pli], 2);
+   &dec->state.adapt.ex_sb_dc[pli], 2, "haardc:mag:top");
   if (quant) {
-    if (od_ec_dec_bits(&dec->ec, 1)) quant = -quant;
+    if (od_ec_dec_bits(&dec->ec, 1, "haardc:sign:top")) quant = -quant;
   }
   sb_dc_curr = quant*dc_quant + sb_dc_pred;
   d[(by << ln)*w + (bx << ln)] = sb_dc_curr;
@@ -585,9 +616,9 @@ static void od_decode_haar_dc_level(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int 
   for (i = 1; i < 4; i++) {
     int quant;
     quant = generic_decode(&dec->ec, &dec->state.adapt.model_dc[pli], -1,
-     &dec->state.adapt.ex_dc[pli][bsi][i-1], 2);
+     &dec->state.adapt.ex_dc[pli][bsi][i-1], 2, "haardc:mag:level");
     if (quant) {
-      if (od_ec_dec_bits(&dec->ec, 1)) quant = -quant;
+      if (od_ec_dec_bits(&dec->ec, 1, "haardc:sign:level")) quant = -quant;
     }
     x[i] = quant*ac_quant[i == 3];
   }
@@ -618,6 +649,7 @@ static void od_decode_recursive(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
   frame_width = dec->state.frame_width;
   w = frame_width >> xdec;
   skip = 0;
+  OD_ACCOUNTING_SET_LOCATION(dec, pli, bsi, bx << bsi, by << bsi);
   /* Read the luma skip symbol. A value of 4 means "split the block", while < 4
      means that we code the block. In the latter case, we need to forward
      the skip value to the PVQ decoder. */
@@ -625,7 +657,7 @@ static void od_decode_recursive(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
   else if (pli == 0) {
     skip = od_decode_cdf_adapt(&dec->ec,
      dec->state.adapt.skip_cdf[2*bsi + (pli != 0)], 4 + (bsi > 0),
-     dec->state.adapt.skip_increment);
+     dec->state.adapt.skip_increment, "skip");
     /*Save superblock skip value for use by CLP filter.*/
     if (bsi == OD_NBSIZES - 1) {
       dec->state.sb_skip_flags[by*dec->state.nhsb + bx] = skip == 2;
@@ -661,7 +693,7 @@ static void od_decode_recursive(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
       /* Decode the skip for chroma. */
       skip = od_decode_cdf_adapt(&dec->ec,
        dec->state.adapt.skip_cdf[2*bsi + (pli != 0)], 4,
-       dec->state.adapt.skip_increment);
+       dec->state.adapt.skip_increment, "skip");
     }
     od_block_decode(dec, ctx, bs, pli, bx, by, skip);
   }
@@ -711,7 +743,7 @@ static void od_dec_mv_unpack(daala_dec_ctx *dec) {
   nhmvbs = dec->state.nhmvbs;
   nvmvbs = dec->state.nvmvbs;
   img = dec->state.io_imgs + OD_FRAME_REC;
-  mv_res = od_ec_dec_uint(&dec->ec, 3);
+  mv_res = od_ec_dec_uint(&dec->ec, 3, "mv:res");
   od_state_set_mv_res(&dec->state, mv_res);
   width = (img->width + 32) << (3 - mv_res);
   height = (img->height + 32) << (3 - mv_res);
@@ -722,6 +754,7 @@ static void od_dec_mv_unpack(daala_dec_ctx *dec) {
     set all level 0 MVs valid.*/
   for (vy = 0; vy <= nvmvbs; vy += OD_MVB_DELTA0) {
     for (vx = 0; vx <= nhmvbs; vx += OD_MVB_DELTA0) {
+      OD_ACCOUNTING_SET_LOCATION(dec, OD_ACCT_MV, 0, vx, vy);
       mvp = grid[vy] + vx;
       mvp->valid = 1;
       od_decode_mv(dec, mvp, vx, vy, 0, mv_res, width, height);
@@ -733,6 +766,7 @@ static void od_dec_mv_unpack(daala_dec_ctx *dec) {
     /*Odd levels.*/
     for (vy = mvb_sz; vy <= nvmvbs; vy += 2*mvb_sz) {
       for (vx = mvb_sz; vx <= nhmvbs; vx += 2*mvb_sz) {
+        OD_ACCOUNTING_SET_LOCATION(dec, OD_ACCT_MV, level, vx, vy);
         if (grid[vy - mvb_sz][vx - mvb_sz].valid
          && grid[vy - mvb_sz][vx + mvb_sz].valid
          && grid[vy + mvb_sz][vx + mvb_sz].valid
@@ -740,7 +774,7 @@ static void od_dec_mv_unpack(daala_dec_ctx *dec) {
           cdf = od_mv_split_flag_cdf(&dec->state, vx, vy, level);
           mvp = grid[vy] + vx;
           mvp->valid = od_decode_cdf_adapt(&dec->ec,
-           cdf, 2, dec->state.adapt.split_flag_increment);
+           cdf, 2, dec->state.adapt.split_flag_increment, "mv:valid");
           if (mvp->valid) {
             od_decode_mv(dec, mvp, vx, vy, level, mv_res, width, height);
           }
@@ -751,6 +785,7 @@ static void od_dec_mv_unpack(daala_dec_ctx *dec) {
     /*Even Levels.*/
     for (vy = 0; vy <= nvmvbs; vy += mvb_sz) {
       for (vx = mvb_sz*!(vy & mvb_sz); vx <= nhmvbs; vx += 2*mvb_sz) {
+        OD_ACCOUNTING_SET_LOCATION(dec, OD_ACCT_MV, level, vx, vy);
         if ((vy - mvb_sz < 0 || grid[vy - mvb_sz][vx].valid)
          && (vx - mvb_sz < 0 || grid[vy][vx - mvb_sz].valid)
          && (vy + mvb_sz > nvmvbs || grid[vy + mvb_sz][vx].valid)
@@ -758,7 +793,7 @@ static void od_dec_mv_unpack(daala_dec_ctx *dec) {
           cdf = od_mv_split_flag_cdf(&dec->state, vx, vy, level);
           mvp = grid[vy] + vx;
           mvp->valid = od_decode_cdf_adapt(&dec->ec,
-           cdf, 2, dec->state.adapt.split_flag_increment);
+           cdf, 2, dec->state.adapt.split_flag_increment, "mv:valid");
           if (mvp->valid) {
             od_decode_mv(dec, mvp, vx, vy, level, mv_res, width, height);
           }
@@ -830,7 +865,7 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
   for (pli = 0; pli < nplanes; pli++) {
     dec->quantizer[pli] =
      od_codedquantizer_to_quantizer(od_ec_dec_uint(&dec->ec,
-     OD_N_CODED_QUANTIZERS));
+     OD_N_CODED_QUANTIZERS, "quantizer"));
   }
   for (sby = 0; sby < nvsb; sby++) {
     for (sbx = 0; sbx < nhsb; sbx++) {
@@ -885,7 +920,7 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
         }
         c = (up << 1) + left;
         filtered = od_decode_cdf_adapt(&dec->ec, state->adapt.clpf_cdf[c], 2,
-         state->adapt.clpf_increment);
+         state->adapt.clpf_increment, "clp");
         state->clpf_flags[sby*nhsb + sbx] = filtered;
         if (filtered) {
           for (pli = 0; pli < nplanes; pli++) {
@@ -963,12 +998,20 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
   if (dec->packet_state != OD_PACKET_DATA) return OD_EINVAL;
   if (op->e_o_s) dec->packet_state = OD_PACKET_DONE;
   od_ec_dec_init(&dec->ec, op->packet, op->bytes);
+#if OD_ACCOUNTING
+  if (dec->acct_enabled) {
+    od_accounting_reset(&dec->acct);
+    dec->ec.acct = &dec->acct;
+  }
+  else dec->ec.acct = NULL;
+#endif
+  OD_ACCOUNTING_SET_LOCATION(dec, OD_ACCT_FRAME, 0, 0, 0);
   /*Read the packet type bit.*/
-  if (od_ec_decode_bool_q15(&dec->ec, 16384)) return OD_EBADPACKET;
-  mbctx.is_keyframe = od_ec_decode_bool_q15(&dec->ec, 16384);
-  mbctx.use_activity_masking = od_ec_decode_bool_q15(&dec->ec, 16384);
-  mbctx.qm = od_ec_decode_bool_q15(&dec->ec, 16384);
-  mbctx.use_haar_wavelet = od_ec_decode_bool_q15(&dec->ec, 16384);
+  if (od_ec_decode_bool_q15(&dec->ec, 16384, "flags")) return OD_EBADPACKET;
+  mbctx.is_keyframe = od_ec_decode_bool_q15(&dec->ec, 16384, "flags");
+  mbctx.use_activity_masking = od_ec_decode_bool_q15(&dec->ec, 16384, "flags");
+  mbctx.qm = od_ec_decode_bool_q15(&dec->ec, 16384, "flags");
+  mbctx.use_haar_wavelet = od_ec_decode_bool_q15(&dec->ec, 16384, "flags");
   if (mbctx.is_keyframe) {
     int nplanes;
     int pli;
@@ -976,7 +1019,7 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
     for (pli = 0; pli < nplanes; pli++) {
       int i;
       for (i = 0; i < OD_QM_SIZE; i++) {
-        dec->state.pvq_qm_q4[pli][i] = od_ec_dec_bits(&dec->ec, 8);
+        dec->state.pvq_qm_q4[pli][i] = od_ec_dec_bits(&dec->ec, 8, "qm");
       }
     }
   }

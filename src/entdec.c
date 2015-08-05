@@ -27,6 +27,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #endif
 
 #include "entdec.h"
+#include "accounting.h"
 
 /*A range decoder.
   This is an entropy decoder based upon \cite{Mar79}, which is itself a
@@ -83,6 +84,23 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
    URL="http://researchcommons.waikato.ac.nz/bitstream/handle/10289/78/content.pdf"
   }*/
 
+#if OD_ACCOUNTING
+# define OD_PROCESS_ACCOUNTING(dec, str) od_process_accounting(dec, str)
+# define od_ec_dec_normalize(dec, dif, rng, ret, str) od_ec_dec_normalize_(dec, dif, rng, ret, str)
+static void od_process_accounting(od_ec_dec *dec, char *str) {
+  if (dec->acct != NULL) {
+    uint32_t tell;
+    tell = od_ec_dec_tell_frac(dec);
+    OD_ASSERT(tell >= dec->acct->last_tell);
+    od_accounting_record(dec->acct, str, tell - dec->acct->last_tell);
+    dec->acct->last_tell = tell;
+  }
+}
+#else
+# define OD_PROCESS_ACCOUNTING(dec, str) do {} while(0)
+# define od_ec_dec_normalize(dec, dif, rng, ret, str) od_ec_dec_normalize_(dec, dif, rng, ret)
+#endif
+
 /*This is meant to be a large, positive constant that can still be efficiently
    loaded as an immediate (on platforms like ARM, for example).
   Even relatively modest values like 100 would work fine.*/
@@ -121,8 +139,8 @@ static void od_ec_dec_refill(od_ec_dec *dec) {
   ret: The value to return.
   Return: ret.
           This allows the compiler to jump to this function via a tail-call.*/
-static int od_ec_dec_normalize(od_ec_dec *dec,
- od_ec_window dif, unsigned rng, int ret) {
+static int od_ec_dec_normalize_(od_ec_dec *dec,
+ od_ec_window dif, unsigned rng, int ret OD_ACC_STR) {
   int d;
   OD_ASSERT(rng <= 65535U);
   d = 16 - OD_ILOG_NZ(rng);
@@ -130,6 +148,7 @@ static int od_ec_dec_normalize(od_ec_dec *dec,
   dec->dif = dif << d;
   dec->rng = rng << d;
   if (dec->cnt < 0) od_ec_dec_refill(dec);
+  OD_PROCESS_ACCOUNTING(dec, acc_str);
   return ret;
 }
 
@@ -150,6 +169,9 @@ void od_ec_dec_init(od_ec_dec *dec,
   dec->cnt = -15;
   dec->error = 0;
   od_ec_dec_refill(dec);
+#if OD_ACCOUNTING
+  dec->acct = NULL;
+#endif
 }
 
 /*Decode a bit that has an fz/ft probability of being a zero.
@@ -157,7 +179,7 @@ void od_ec_dec_init(od_ec_dec *dec,
   ft: The total probability.
       This must be at least 16384 and no more than 32768.
   Return: The value decoded (0 or 1).*/
-int od_ec_decode_bool(od_ec_dec *dec, unsigned fz, unsigned ft) {
+int od_ec_decode_bool_(od_ec_dec *dec, unsigned fz, unsigned ft OD_ACC_STR) {
   od_ec_window dif;
   od_ec_window vw;
   unsigned r;
@@ -181,13 +203,13 @@ int od_ec_decode_bool(od_ec_dec *dec, unsigned fz, unsigned ft) {
   ret = dif >= vw;
   if (ret) dif -= vw;
   r = ret ? r - v : v;
-  return od_ec_dec_normalize(dec, dif, r, ret);
+  return od_ec_dec_normalize(dec, dif, r, ret, acc_str);
 }
 
 /*Equivalent to od_ec_decode_bool() with ft == 32768.
   fz: The probability that the bit is zero, scaled by 32768.
   Return: The value decoded (0 or 1).*/
-int od_ec_decode_bool_q15(od_ec_dec *dec, unsigned fz) {
+int od_ec_decode_bool_q15_(od_ec_dec *dec, unsigned fz OD_ACC_STR) {
   od_ec_window dif;
   od_ec_window vw;
   unsigned r;
@@ -204,7 +226,7 @@ int od_ec_decode_bool_q15(od_ec_dec *dec, unsigned fz) {
   ret = dif >= vw;
   if (ret) dif -= vw;
   r = ret ? r - v : v;
-  return od_ec_dec_normalize(dec, dif, r, ret);
+  return od_ec_dec_normalize(dec, dif, r, ret, acc_str);
 }
 
 /*Decodes a symbol given a cumulative distribution function (CDF) table.
@@ -215,7 +237,7 @@ int od_ec_decode_bool_q15(od_ec_dec *dec, unsigned fz) {
   nsyms: The number of symbols in the alphabet.
          This should be at most 16.
   Return: The decoded symbol s.*/
-int od_ec_decode_cdf(od_ec_dec *dec, const uint16_t *cdf, int nsyms) {
+int od_ec_decode_cdf_(od_ec_dec *dec, const uint16_t *cdf, int nsyms OD_ACC_STR) {
   od_ec_window dif;
   unsigned r;
   unsigned d;
@@ -252,7 +274,7 @@ int od_ec_decode_cdf(od_ec_dec *dec, const uint16_t *cdf, int nsyms) {
   v = fh + OD_MINI(fh, d);
   r = v - u;
   dif -= (od_ec_window)u << (OD_EC_WINDOW_SIZE - 16);
-  return od_ec_dec_normalize(dec, dif, r, ret);
+  return od_ec_dec_normalize(dec, dif, r, ret, acc_str);
 }
 
 /*Decodes a symbol given a cumulative distribution function (CDF) table.
@@ -263,7 +285,7 @@ int od_ec_decode_cdf(od_ec_dec *dec, const uint16_t *cdf, int nsyms) {
   nsyms: The number of symbols in the alphabet.
          This should be at most 16.
   Return: The decoded symbol s.*/
-int od_ec_decode_cdf_q15(od_ec_dec *dec, const uint16_t *cdf, int nsyms) {
+int od_ec_decode_cdf_q15_(od_ec_dec *dec, const uint16_t *cdf, int nsyms OD_ACC_STR) {
   od_ec_window dif;
   unsigned r;
   unsigned d;
@@ -293,7 +315,7 @@ int od_ec_decode_cdf_q15(od_ec_dec *dec, const uint16_t *cdf, int nsyms) {
   v = fh + OD_MINI(fh, d);
   r = v - u;
   dif -= (od_ec_window)u << (OD_EC_WINDOW_SIZE - 16);
-  return od_ec_dec_normalize(dec, dif, r, ret);
+  return od_ec_dec_normalize(dec, dif, r, ret, acc_str);
 }
 
 /*Decodes a symbol given a cumulative distribution function (CDF) table.
@@ -304,8 +326,8 @@ int od_ec_decode_cdf_q15(od_ec_dec *dec, const uint16_t *cdf, int nsyms) {
   nsyms: The number of symbols in the alphabet.
          This should be at most 16.
   Return: The decoded symbol s.*/
-int od_ec_decode_cdf_unscaled(od_ec_dec *dec,
- const uint16_t *cdf, int nsyms) {
+int od_ec_decode_cdf_unscaled_(od_ec_dec *dec,
+ const uint16_t *cdf, int nsyms OD_ACC_STR) {
   od_ec_window dif;
   unsigned r;
   unsigned d;
@@ -346,7 +368,7 @@ int od_ec_decode_cdf_unscaled(od_ec_dec *dec,
   v = fh + OD_MINI(fh, d);
   r = v - u;
   dif -= (od_ec_window)u << (OD_EC_WINDOW_SIZE - 16);
-  return od_ec_dec_normalize(dec, dif, r, ret);
+  return od_ec_dec_normalize(dec, dif, r, ret, acc_str);
 }
 
 /*Decodes a symbol given a cumulative distribution function (CDF) table.
@@ -359,8 +381,8 @@ int od_ec_decode_cdf_unscaled(od_ec_dec *dec,
   ftb: The number of bits of precision in the cumulative distribution.
        This must be no more than 15.
   Return: The decoded symbol s.*/
-int od_ec_decode_cdf_unscaled_dyadic(od_ec_dec *dec,
- const uint16_t *cdf, int nsyms, unsigned ftb) {
+int od_ec_decode_cdf_unscaled_dyadic_(od_ec_dec *dec,
+ const uint16_t *cdf, int nsyms, unsigned ftb OD_ACC_STR) {
   od_ec_window dif;
   unsigned r;
   unsigned d;
@@ -394,7 +416,7 @@ int od_ec_decode_cdf_unscaled_dyadic(od_ec_dec *dec,
   v = fh + OD_MINI(fh, d);
   r = v - u;
   dif -= (od_ec_window)u << (OD_EC_WINDOW_SIZE - 16);
-  return od_ec_dec_normalize(dec, dif, r, ret);
+  return od_ec_dec_normalize(dec, dif, r, ret, acc_str);
 }
 
 /*Extracts a raw unsigned integer with a non-power-of-2 range from the stream.
@@ -402,7 +424,7 @@ int od_ec_decode_cdf_unscaled_dyadic(od_ec_dec *dec,
   ft: The number of integers that can be decoded (one more than the max).
       This must be at least 2, and no more than 2**29.
   Return: The decoded bits.*/
-uint32_t od_ec_dec_uint(od_ec_dec *dec, uint32_t ft) {
+uint32_t od_ec_dec_uint_(od_ec_dec *dec, uint32_t ft OD_ACC_STR) {
   OD_ASSERT(ft >= 2);
   OD_ASSERT(ft <= (uint32_t)1 << (25 + OD_EC_UINT_BITS));
   if (ft > 1U << OD_EC_UINT_BITS) {
@@ -412,13 +434,13 @@ uint32_t od_ec_dec_uint(od_ec_dec *dec, uint32_t ft) {
     ft--;
     ftb = OD_ILOG_NZ(ft) - OD_EC_UINT_BITS;
     ft1 = (int)(ft >> ftb) + 1;
-    t = od_ec_decode_cdf_q15(dec, OD_UNIFORM_CDF_Q15(ft1), ft1);
-    t = t << ftb | od_ec_dec_bits(dec, ftb);
+    t = od_ec_decode_cdf_q15(dec, OD_UNIFORM_CDF_Q15(ft1), ft1, acc_str);
+    t = t << ftb | od_ec_dec_bits(dec, ftb, acc_str);
     if (t <= ft) return t;
     dec->error = 1;
     return ft;
   }
-  return od_ec_decode_cdf_q15(dec, OD_UNIFORM_CDF_Q15(ft), (int)ft);
+  return od_ec_decode_cdf_q15(dec, OD_UNIFORM_CDF_Q15(ft), (int)ft, acc_str);
 }
 
 /*Extracts a sequence of raw bits from the stream.
@@ -426,7 +448,7 @@ uint32_t od_ec_dec_uint(od_ec_dec *dec, uint32_t ft) {
   ftb: The number of bits to extract.
        This must be between 0 and 25, inclusive.
   Return: The decoded bits.*/
-uint32_t od_ec_dec_bits(od_ec_dec *dec, unsigned ftb) {
+uint32_t od_ec_dec_bits_(od_ec_dec *dec, unsigned ftb OD_ACC_STR) {
   od_ec_window window;
   int available;
   uint32_t ret;
@@ -456,6 +478,7 @@ uint32_t od_ec_dec_bits(od_ec_dec *dec, unsigned ftb) {
   available -= ftb;
   dec->end_window = window;
   dec->nend_bits = available;
+  OD_PROCESS_ACCOUNTING(dec, acc_str);
   return ret;
 }
 

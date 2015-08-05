@@ -44,11 +44,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
  *
  * @retval decoded variable
  */
-int od_decode_cdf_adapt(od_ec_dec *ec, uint16_t *cdf, int n,
- int increment) {
+int od_decode_cdf_adapt_(od_ec_dec *ec, uint16_t *cdf, int n,
+ int increment OD_ACC_STR) {
   int i;
   int val;
-  val = od_ec_decode_cdf_unscaled(ec, cdf, n);
+  val = od_ec_decode_cdf_unscaled(ec, cdf, n, acc_str);
   if (cdf[n-1] + increment > 32767) {
     for (i = 0; i < n; i++) {
       /* Second term ensures that the pdf is non-null */
@@ -72,8 +72,8 @@ int od_decode_cdf_adapt(od_ec_dec *ec, uint16_t *cdf, int n,
  *
  * @retval decoded variable x
  */
-int generic_decode(od_ec_dec *dec, generic_encoder *model, int max,
- int *ex_q16, int integration) {
+int generic_decode_(od_ec_dec *dec, generic_encoder *model, int max,
+ int *ex_q16, int integration OD_ACC_STR) {
   int lg_q1;
   int shift;
   int id;
@@ -93,8 +93,8 @@ int generic_decode(od_ec_dec *dec, generic_encoder *model, int max,
   id = OD_MINI(GENERIC_TABLES - 1, lg_q1);
   cdf = model->cdf[id];
   ms = (max + (1 << shift >> 1)) >> shift;
-  if (max == -1) xs = od_ec_decode_cdf_unscaled(dec, cdf, 16);
-  else xs = od_ec_decode_cdf_unscaled(dec, cdf, OD_MINI(ms + 1, 16));
+  if (max == -1) xs = od_ec_decode_cdf_unscaled(dec, cdf, 16, acc_str);
+  else xs = od_ec_decode_cdf_unscaled(dec, cdf, OD_MINI(ms + 1, 16), acc_str);
   if (xs == 15) {
     int e;
     unsigned decay;
@@ -104,14 +104,14 @@ int generic_decode(od_ec_dec *dec, generic_encoder *model, int max,
        yet. */
     e = ((2**ex_q16 >> 8) + (1 << shift >> 1)) >> shift;
     decay = OD_MAXI(2, OD_MINI(254, 256*e/(e + 256)));
-    xs += laplace_decode_special(dec, decay, (max == -1) ? -1 : ms - 15);
+    xs += laplace_decode_special(dec, decay, (max == -1) ? -1 : ms - 15, acc_str);
   }
   if (shift != 0) {
     int special;
     /* Because of the rounding, there's only half the number of possibilities
        for xs=0 */
     special = xs == 0;
-    if (shift - special > 0) lsb = od_ec_dec_bits(dec, shift - special);
+    if (shift - special > 0) lsb = od_ec_dec_bits(dec, shift - special, acc_str);
     lsb -= !special << (shift - 1);
   }
   x = (xs << shift) + lsb;

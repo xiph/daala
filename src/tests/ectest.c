@@ -51,7 +51,7 @@ int main(int _argc,char **_argv){
       nbits=od_ec_enc_tell_frac(&enc);
       ptr=od_ec_enc_done(&enc,&ptr_sz);
       od_ec_dec_init(&dec,ptr,ptr_sz);
-      sym=od_ec_dec_uint(&dec,ft);
+      sym=od_ec_dec_uint(&dec,ft, "test");
       if(sym!=(unsigned)i){
         fprintf(stderr,"Decoded %i instead of %i with ft of %i.\n",sym,i,ft);
         ret=EXIT_FAILURE;
@@ -84,7 +84,7 @@ int main(int _argc,char **_argv){
         ret=EXIT_FAILURE;
       }
       od_ec_dec_init(&dec,ptr,ptr_sz);
-      sym=od_ec_dec_bits(&dec,ftb);
+      sym=od_ec_dec_bits(&dec,ftb, "test");
       if(sym!=(unsigned)i){
         fprintf(stderr,"Decoded %i instead of %i with ftb of %i.\n",sym,i,ftb);
         ret=EXIT_FAILURE;
@@ -108,7 +108,7 @@ int main(int _argc,char **_argv){
   for(i=0;i<256;i++){
     ptr[ptr_sz-1]=i;
     od_ec_dec_init(&dec,ptr,ptr_sz);
-    sym=od_ec_dec_uint(&dec,129);
+    sym=od_ec_dec_uint(&dec,129, "test");
     if(i>=228 && i!=240 && !dec.error){
       fprintf(stderr,"Failed to detect uint error with %i.\n",i);
       ret=EXIT_FAILURE;
@@ -157,7 +157,7 @@ int main(int _argc,char **_argv){
   od_ec_dec_init(&dec,ptr,ptr_sz);
   for(ft=2;ft<1024;ft++){
     for(i=0;i<ft;i++){
-      sym=od_ec_dec_uint(&dec,ft);
+      sym=od_ec_dec_uint(&dec,ft, "test");
       if(sym!=(unsigned)i){
         fprintf(stderr,"Decoded %i instead of %i with ft of %i.\n",sym,i,ft);
         ret=EXIT_FAILURE;
@@ -166,7 +166,7 @@ int main(int _argc,char **_argv){
   }
   for(ftb=1;ftb<16;ftb++){
     for(i=0;i<(1<<ftb);i++){
-      sym=od_ec_dec_bits(&dec,ftb);
+      sym=od_ec_dec_bits(&dec,ftb, "test");
       if(sym!=(unsigned)i){
         fprintf(stderr,"Decoded %i instead of %i with ftb of %i.\n",sym,i,ftb);
         ret=EXIT_FAILURE;
@@ -232,7 +232,7 @@ int main(int _argc,char **_argv){
       ret=EXIT_FAILURE;
     }
     for(j=0;j<sz;j++){
-      sym=od_ec_dec_uint(&dec,ft);
+      sym=od_ec_dec_uint(&dec,ft, "test");
       if(sym!=data[j]){
         fprintf(stderr,"Decoded %i instead of %i with ft of %i "
          "at position %i of %i (Random seed: %u).\n",
@@ -304,14 +304,14 @@ int main(int _argc,char **_argv){
       dec_method=rand()&1;
       switch(dec_method){
         case 0:{
-          if(rand()&1)sym=od_ec_decode_bool_q15(&dec,fz[j]<<15-ftbs[j]);
-          else sym=od_ec_decode_bool(&dec,fz[j]<<15-ftbs[j],32768);
+          if(rand()&1)sym=od_ec_decode_bool_q15(&dec,fz[j]<<15-ftbs[j], "test");
+          else sym=od_ec_decode_bool(&dec,fz[j]<<15-ftbs[j],32768, "test");
         }break;
         case 1:{
           uint16_t cdf[2];
           cdf[0]=fz[j];
           cdf[1]=1U<<ftbs[j];
-          sym=od_ec_decode_cdf_unscaled_dyadic(&dec,cdf,2,ftbs[j]);
+          sym=od_ec_decode_cdf_unscaled_dyadic(&dec,cdf,2,ftbs[j], "test");
         }break;
       }
       if(sym!=data[j]){

@@ -44,9 +44,9 @@ static void od_decode_pvq_codeword(od_ec_dec *ec, od_adapt_ctx *adapt,
     cdf_id = 2*(n == 15) + !noref;
     OD_CLEAR(y, n);
     pos = od_decode_cdf_adapt(ec, adapt->pvq_k1_cdf[cdf_id], n - !noref,
-     adapt->pvq_k1_increment);
+     adapt->pvq_k1_increment, "pvq:k1");
     y[pos] = 1;
-    if (od_ec_dec_bits(ec, 1)) y[pos] = -y[pos];
+    if (od_ec_dec_bits(ec, 1, "pvq:k1")) y[pos] = -y[pos];
   }
   else {
     int speed = 5;
@@ -54,7 +54,7 @@ static void od_decode_pvq_codeword(od_ec_dec *ec, od_adapt_ctx *adapt,
     int adapt_curr[OD_NSB_ADAPT_CTXS] = { 0 };
     pvq_adapt = adapt->pvq_adapt + 4*(2*bs + noref);
     laplace_decode_vector(ec, y, n - !noref, k, adapt_curr,
-     pvq_adapt);
+     pvq_adapt, "pvq:ktok");
     if (adapt_curr[OD_ADAPT_K_Q8] > 0) {
       pvq_adapt[OD_ADAPT_K_Q8] += (256*adapt_curr[OD_ADAPT_K_Q8]
        - pvq_adapt[OD_ADAPT_K_Q8]) >> speed;
@@ -198,7 +198,8 @@ static void pvq_decode_partition(od_ec_dec *ec,
        larger gain. We need to wait for itheta because in the !nodesync case
        it depends on max_theta, which depends on the gain. */
     id = od_decode_cdf_adapt(ec, &adapt->pvq_gaintheta_cdf[cdf_ctx][0],
-     8 + (8 - !is_keyframe)*has_skip, adapt->pvq_gaintheta_increment);
+     8 + (8 - !is_keyframe)*has_skip, adapt->pvq_gaintheta_increment,
+     "pvq:gaintheta");
     if (!is_keyframe && id >= 10) id++;
     if (is_keyframe && id >= 8) id++;
     if (id >= 8) {
@@ -212,7 +213,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
   if (qg > 0) {
     int tmp;
     tmp = *exg;
-    qg = 1 + generic_decode(ec, &model[!*noref], -1, &tmp, 2);
+    qg = 1 + generic_decode(ec, &model[!*noref], -1, &tmp, 2, "pvq:gain");
     OD_IIR_DIADIC(*exg, qg << 16, 2);
   }
   *skip = 0;
@@ -241,7 +242,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
       int tmp;
       tmp = *ext;
       itheta = 2 + generic_decode(ec, &model[2], nodesync ? -1 : max_theta - 3,
-       &tmp, 2);
+       &tmp, 2, "pvq:theta");
       OD_IIR_DIADIC(*ext, itheta << 16, 2);
     }
     theta = od_pvq_compute_theta(itheta, max_theta);
@@ -264,7 +265,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
   if (cfl->allow_flip && !*noref) {
     int flip;
     int i;
-    flip = od_ec_dec_bits(ec, 1);
+    flip = od_ec_dec_bits(ec, 1, "cfl:flip");
     if (flip) {
       for (i = 0; i < cfl->nb_coeffs; i++) cfl->ref[i] = -cfl->ref[i];
     }
@@ -357,7 +358,7 @@ void od_pvq_decode(daala_dec_ctx *dec,
         int j;
         skip_dir = od_decode_cdf_adapt(&dec->ec,
          &dec->state.adapt.pvq_skip_dir_cdf[(pli != 0) + 2*(bs - 1)][0], 7,
-         dec->state.adapt.pvq_skip_dir_increment);
+         dec->state.adapt.pvq_skip_dir_increment, "pvq:skiprest");
         for (j = 0; j < 3; j++) skip_rest[j] = !!(skip_dir & (1 << j));
       }
     }

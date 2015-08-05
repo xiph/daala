@@ -66,6 +66,7 @@ src_libdaalabase_la_LDFLAGS = -no-undefined \
  -version-info @OD_LT_CURRENT@:@OD_LT_REVISION@:@OD_LT_AGE@
 src_libdaalabase_la_LDFLAGS += 
 src_libdaalabase_la_SOURCES = \
+	src/accounting.c \
 	src/adapt.c \
 	src/entcode.c \
 	src/entdec.c \
@@ -121,7 +122,6 @@ src_libdaalaenc_la_SOURCES = \
 	src/infoenc.c \
 	src/laplace_encoder.c \
 	src/mcenc.c \
-	src/accounting.c \
 	src/pvq_encoder.c
 if ENABLE_X86ASM
 src_libdaalaenc_la_SOURCES += \
@@ -482,6 +482,7 @@ src_tests_ectest_SOURCES = src/tests/ectest.c
 src_tests_ectest_CFLAGS = $(OGG_CFLAGS)
 src_tests_ectest_LDADD = \
  src/libdaalaenc.la \
+ src/libdaalabase.la \
  $(LIBM)
 
 src_tests_test_coef_coder_SOURCES = src/tests/test_coef_coder.c

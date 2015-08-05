@@ -42,7 +42,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
  *
  * @retval decoded variable x
  */
-int laplace_decode_special(od_ec_dec *dec, unsigned decay, int max) {
+int laplace_decode_special_(od_ec_dec *dec, unsigned decay, int max OD_ACC_STR) {
   int pos;
   int shift;
   int xs;
@@ -75,14 +75,14 @@ int laplace_decode_special(od_ec_dec *dec, unsigned decay, int max) {
     }
     if (ms > 0 && ms < 15) {
       /* Simple way of truncating the pdf when we have a bound. */
-      sym = od_ec_decode_cdf_unscaled(dec, cdf, ms + 1);
+      sym = od_ec_decode_cdf_unscaled(dec, cdf, ms + 1, acc_str);
     }
-    else sym = od_ec_decode_cdf_q15(dec, cdf, 16);
+    else sym = od_ec_decode_cdf_q15(dec, cdf, 16, acc_str);
     xs += sym;
     ms -= 15;
   }
   while (sym >= 15 && ms != 0);
-  if (shift) pos = (xs << shift) + od_ec_dec_bits(dec, shift);
+  if (shift) pos = (xs << shift) + od_ec_dec_bits(dec, shift, acc_str);
   else pos = xs;
   OD_ASSERT(pos >> shift <= max >> shift || max == -1);
   if (max != -1 && pos > max) {
@@ -101,7 +101,7 @@ int laplace_decode_special(od_ec_dec *dec, unsigned decay, int max) {
  *
  * @retval decoded variable (including sign)
  */
-int laplace_decode(od_ec_dec *dec, int ex_q8, int k) {
+int laplace_decode_(od_ec_dec *dec, int ex_q8, int k OD_ACC_STR) {
   int j;
   int shift;
   uint16_t cdf[16];
@@ -123,22 +123,29 @@ int laplace_decode(od_ec_dec *dec, int ex_q8, int k) {
   }
   /* Simple way of truncating the pdf when we have a bound */
   if (k == 0) sym = 0;
-  else sym = od_ec_decode_cdf_unscaled(dec, cdf, OD_MINI(k + 1, 16));
+  else sym = od_ec_decode_cdf_unscaled(dec, cdf, OD_MINI(k + 1, 16), acc_str);
   if (shift) {
     int special;
     /* Because of the rounding, there's only half the number of possibilities
        for xs=0 */
     special = (sym == 0);
-    if (shift - special > 0) lsb = od_ec_dec_bits(dec, shift - special);
+    if (shift - special > 0) lsb = od_ec_dec_bits(dec, shift - special, acc_str);
     lsb -= (!special << (shift - 1));
   }
   /* Handle the exponentially-decaying tail of the distribution */
-  if (sym == 15) sym += laplace_decode_special(dec, decay, k - 15);
+  if (sym == 15) sym += laplace_decode_special(dec, decay, k - 15, acc_str);
   return (sym << shift) + lsb;
 }
 
-static void laplace_decode_vector_delta(od_ec_dec *dec, od_coeff *y, int n, int k,
-                                        int32_t *curr, const int32_t *means) {
+#if OD_ACCOUNTING
+# define laplace_decode_vector_delta(dec, y, n, k, curr, means, str) laplace_decode_vector_delta_(dec, y, n, k, curr, means, str)
+#else
+# define laplace_decode_vector_delta(dec, y, n, k, curr, means, str) laplace_decode_vector_delta_(dec, y, n, k, curr, means)
+#endif
+
+static void laplace_decode_vector_delta_(od_ec_dec *dec, od_coeff *y, int n, int k,
+                                        int32_t *curr, const int32_t *means
+                                        OD_ACC_STR) {
   int i;
   int prev;
   int sum_ex;
@@ -172,16 +179,16 @@ static void laplace_decode_vector_delta(od_ec_dec *dec, od_coeff *y, int n, int 
          (int)((256*ex/(ex + 256) + (ex>>5)*ex/((n + 1)*(n - 1)*(n - 1)))));
       }
       /*Update mean position.*/
-      count = laplace_decode_special(dec, decay, n - 1);
+      count = laplace_decode_special(dec, decay, n - 1, acc_str);
       first = 0;
     }
-    else count = laplace_decode(dec, coef*(n - prev)/k_left, n - prev - 1);
+    else count = laplace_decode(dec, coef*(n - prev)/k_left, n - prev - 1, acc_str);
     sum_ex += 256*(n - prev);
     sum_c += count*k_left;
     pos += count;
     OD_ASSERT(pos < n);
     if (y[pos] == 0)
-      sign = od_ec_dec_bits(dec, 1);
+      sign = od_ec_dec_bits(dec, 1, acc_str);
     y[pos] += sign ? -1 : 1;
     prev = pos;
     k_left--;
@@ -209,8 +216,8 @@ static void laplace_decode_vector_delta(od_ec_dec *dec, od_coeff *y, int n, int 
  * @param [out]    curr  Adaptation context output, may alias means.
  * @param [in]     means Adaptation context input.
  */
-void laplace_decode_vector(od_ec_dec *dec, od_coeff *y, int n, int k,
-                           int32_t *curr, const int32_t *means) {
+void laplace_decode_vector_(od_ec_dec *dec, od_coeff *y, int n, int k,
+                           int32_t *curr, const int32_t *means OD_ACC_STR) {
   int i;
   int sum_ex;
   int kn;
@@ -220,7 +227,7 @@ void laplace_decode_vector(od_ec_dec *dec, od_coeff *y, int n, int k,
   int ran_delta;
   ran_delta = 0;
   if (k <= 1) {
-    laplace_decode_vector_delta(dec, y, n, k, curr, means);
+    laplace_decode_vector_delta(dec, y, n, k, curr, means, acc_str);
     return;
   }
   if (k == 0) {
@@ -243,7 +250,7 @@ void laplace_decode_vector(od_ec_dec *dec, od_coeff *y, int n, int k,
     int x;
     if (kn == 0) break;
     if (kn <= 1 && i != n - 1) {
-      laplace_decode_vector_delta(dec, y + i, n - i, kn, curr, means);
+      laplace_decode_vector_delta(dec, y + i, n - i, kn, curr, means, acc_str);
       ran_delta = 1;
       i = n;
       break;
@@ -254,10 +261,10 @@ void laplace_decode_vector(od_ec_dec *dec, od_coeff *y, int n, int k,
     if (ex > kn*256) ex = kn*256;
     sum_ex += (2*256*kn + (n - i))/(2*(n - i));
     /* No need to encode the magnitude for the last bin. */
-    if (i != n - 1) x = laplace_decode(dec, ex, kn);
+    if (i != n - 1) x = laplace_decode(dec, ex, kn, acc_str);
     else x = kn;
     if (x != 0) {
-      if (od_ec_dec_bits(dec, 1)) x = -x;
+      if (od_ec_dec_bits(dec, 1, acc_str)) x = -x;
     }
     y[i] = x;
     kn -= abs(x);

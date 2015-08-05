@@ -123,7 +123,7 @@ void pvq_coder_bitstreams(int n, int type){
     adapt[OD_ADAPT_SUM_EX_Q8] = pvq_adapt.mean_sum_ex_q8;
     adapt[OD_ADAPT_COUNT_Q8] = pvq_adapt.mean_count_q8;
     adapt[OD_ADAPT_COUNT_EX_Q8] = pvq_adapt.mean_count_ex_q8;
-    laplace_decode_vector(&dec, y, n, k, adapt, adapt);
+    laplace_decode_vector(&dec, y, n, k, adapt, adapt, "test");
     pvq_adapt.k = adapt[OD_ADAPT_K_Q8];
     pvq_adapt.sum_ex_q8 = adapt[OD_ADAPT_SUM_EX_Q8];
     pvq_adapt.count_q8 = adapt[OD_ADAPT_COUNT_Q8];
@@ -225,7 +225,7 @@ int run_pvq(od_coeff *X,int len,int N,int fuzz){
   {
     od_coeff y[MAXN];
     int K;
-    K=generic_decode(&dec, &model, -1, &EK, 4);
+    K=generic_decode(&dec, &model, -1, &EK, 4, "test");
     if (!fuzz && K != Ki[i]) {
       fprintf(stderr, "mismatch for K of vector %d (N=%d)\n", i, N);
     }
@@ -233,7 +233,7 @@ int run_pvq(od_coeff *X,int len,int N,int fuzz){
     adapt[OD_ADAPT_SUM_EX_Q8] = pvq_adapt.mean_sum_ex_q8;
     adapt[OD_ADAPT_COUNT_Q8] = pvq_adapt.mean_count_q8;
     adapt[OD_ADAPT_COUNT_EX_Q8] = pvq_adapt.mean_count_ex_q8;
-    laplace_decode_vector(&dec, y, N, Ki[i], adapt, adapt);
+    laplace_decode_vector(&dec, y, N, Ki[i], adapt, adapt, "test");
     pvq_adapt.k = adapt[OD_ADAPT_K_Q8];
     pvq_adapt.sum_ex_q8 = adapt[OD_ADAPT_SUM_EX_Q8];
     pvq_adapt.count_q8 = adapt[OD_ADAPT_COUNT_Q8];
