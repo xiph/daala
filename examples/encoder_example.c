@@ -41,11 +41,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #else
 # include <unistd.h>
 #endif
-#if defined(_MSC_VER)
-static double rint(double x) {
-  return (int)(x < 0 ? x - 0.5 : x + 0.5);
-}
-#endif
 
 typedef struct av_input av_input;
 
@@ -454,7 +449,7 @@ int main(int argc, char **argv) {
   int c;
   int loi;
   int ret;
-  int video_kbps;
+  double video_kbps;
   int video_q;
   int video_keyframe_rate;
   int video_ready;
@@ -767,7 +762,7 @@ int main(int argc, char **argv) {
     video_bytesout += bytes_written;
     video_ready = 0;
     if (video_time == -1) continue;
-    video_kbps = (int)rint(video_bytesout*8*0.001/video_time);
+    video_kbps = video_bytesout*8*0.001/video_time;
     time_base = video_time;
     current_frame_no = time_base*video_fps;
     if (interactive) {
@@ -779,7 +774,7 @@ int main(int argc, char **argv) {
     t1 = clock();
     time_spent = (double)(t1 - t0)/CLOCKS_PER_SEC;
     fprintf(stderr,
-     "     %i:%02i:%02i.%02i video: %ikbps - Frame %i - %0.2f FPS - %0.2f FPM     ",
+     "     %i:%02i:%02i.%02i video: %0.0fkbps - Frame %i - %0.2f FPS - %0.2f FPM     ",
      (int)time_base/3600, ((int)time_base/60)%60, (int)time_base % 60,
      (int)(time_base*100 - (long)time_base*100), video_kbps, current_frame_no, 
      (current_frame_no)/time_spent, 
