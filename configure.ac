@@ -317,7 +317,7 @@ AS_IF([test "$enable_dump_recons" = "yes"], [
 AC_ARG_ENABLE([accounting],
   AS_HELP_STRING([--enable-accounting], [Enable bit accounting]),
   [if test "$host_mingw" = "true"; then AC_MSG_ERROR([accounting not supported on Windows]); fi],
-  [enable_accounting=no])
+  [enable_accounting=yes])
 AS_IF([test "$enable_accounting" = "yes"], [
   AC_DEFINE([OD_ACCOUNTING], [1], [Enable bit accounting])])
 
