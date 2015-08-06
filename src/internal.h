@@ -51,8 +51,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 /*Smallest blocks are 4x4*/
 # define OD_LOG_BSIZE0 (2)
-/*There are 4 block sizes total (4x4, 8x8, 16x16, 32x32).*/
-# define OD_NBSIZES    (4)
+/*There are 5 block sizes total (4x4, 8x8, 16x16, 32x32 and 64x64).*/
+# define OD_NBSIZES    (5)
 /*The log of the maximum length of the side of a block.*/
 # define OD_LOG_BSIZE_MAX (OD_LOG_BSIZE0 + OD_NBSIZES - 1)
 /*The maximum length of the side of a block.*/
@@ -101,8 +101,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 # define OD_LIMIT_BSIZE_MIN (OD_BLOCK_4X4)
 # define OD_LIMIT_BSIZE_MAX (OD_BLOCK_32X32)
-# if OD_LIMIT_BSIZE_MIN > OD_BLOCK_32X32 || OD_LIMIT_BSIZE_MAX > OD_BLOCK_32X32
-#  error "block sizes above 32x32 not supported"
+# if OD_LIMIT_BSIZE_MIN > OD_BLOCK_64X64 || OD_LIMIT_BSIZE_MAX > OD_BLOCK_64X64
+#  error "block sizes above 64x64 not supported"
 # endif
 # define OD_DISABLE_FILTER (0)
 # define OD_DEBLOCKING (0)

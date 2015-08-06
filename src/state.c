@@ -41,11 +41,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
    for horizontal/vertical. Right is for diagonal. */
 #if OD_DISABLE_FILTER || OD_DEBLOCKING
 const od_coeff OD_DC_QM[OD_NBSIZES - 1][2] = {
-  {16, 16}, {16, 16}, {16, 16}
+  {16, 16}, {16, 16}, {16, 16}, {16, 16}
 };
 #else
 const od_coeff OD_DC_QM[OD_NBSIZES - 1][2] = {
-  {21, 25}, {18, 20}, {17, 18}
+  {21, 25}, {18, 20}, {17, 18}, {17, 17}
 };
 #endif
 
@@ -53,9 +53,9 @@ const od_coeff OD_DC_QM[OD_NBSIZES - 1][2] = {
    */
 const int OD_HAAR_QM[2][OD_LOG_BSIZE_MAX] = {
   /* horizontal/vertical direction. */
-  {16, 16, 16, 24, 32},
+  {16, 16, 16, 16, 24, 32},
   /* "diagonal" direction. */
-  {16, 16, 24, 32, 48},
+  {16, 16, 16, 24, 32, 48},
 };
 
 void *od_aligned_malloc(size_t _sz,size_t _align) {
@@ -369,10 +369,10 @@ static int od_state_init_impl(od_state *state, const daala_info *info) {
   OD_CLEAR(state, 1);
   OD_COPY(&state->info, info, 1);
   /*Frame size is a multiple of a super block.*/
-  state->frame_width = (info->pic_width + (2*OD_BSIZE_MAX - 1)) &
-   ~(2*OD_BSIZE_MAX - 1);
-  state->frame_height = (info->pic_height + (2*OD_BSIZE_MAX - 1)) &
-   ~(2*OD_BSIZE_MAX - 1);
+  state->frame_width = (info->pic_width + (OD_BSIZE_MAX - 1)) &
+   ~(OD_BSIZE_MAX - 1);
+  state->frame_height = (info->pic_height + (OD_BSIZE_MAX - 1)) &
+   ~(OD_BSIZE_MAX - 1);
   state->nhmvbs = state->frame_width >> OD_LOG_MVBSIZE_MIN;
   state->nvmvbs = state->frame_height >> OD_LOG_MVBSIZE_MIN;
   /*The master switch; once FPR is ready to go, this can be set to always-on,

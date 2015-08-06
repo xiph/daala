@@ -67,7 +67,8 @@ static const unsigned char OD_LUMA_QM_Q4[2][OD_QM_SIZE] = {
   21, 16,
   18, 16, 16, 16,
   17, 16, 16, 16, 16, 16,
-  16, 16, 16, 16, 16, 16, 16, 16
+  16, 16, 16, 16, 16, 16, 16, 16,
+  16, 16, 16, 16, 16, 16, 16, 16, 16, 16
  },
 /* The non-flat AC coefficients compensate for the non-linear scaling caused
    by activity masking. The values are currently hand-tuned so that the rate
@@ -78,7 +79,10 @@ static const unsigned char OD_LUMA_QM_Q4[2][OD_QM_SIZE] = {
   21, 16,
   18, 18, 28, 32,
   17, 14, 20, 20, 28, 32,
-  16, 11, 16, 14, 16, 16, 23, 28
+  16, 11, 16, 14, 16, 16, 23, 28,
+  /*TODO - The quality of these 64x64 AM quantization constants is not known
+     and should be retuned by JM.*/
+  16, 9, 13, 13, 13, 13, 15, 15, 19, 23
  }
 };
 
@@ -90,7 +94,8 @@ static const unsigned char OD_CHROMA_QM_Q4[2][OD_QM_SIZE] = {
   21, 16,
   18, 16, 16, 16,
   17, 16, 16, 16, 16, 16,
-  16, 16, 16, 16, 16, 16, 16, 16
+  16, 16, 16, 16, 16, 16, 16, 16,
+  16, 16, 16, 16, 16, 16, 16, 16, 16, 16
  },
 /* The AC part is flat for chroma because it has no activity masking.
    Masking enabled: */
@@ -98,7 +103,8 @@ static const unsigned char OD_CHROMA_QM_Q4[2][OD_QM_SIZE] = {
   21, 16,
   18, 16, 16, 16,
   17, 16, 16, 16, 16, 16,
-  16, 16, 16, 16, 16, 16, 16, 16
+  16, 16, 16, 16, 16, 16, 16, 16,
+  16, 16, 16, 16, 16, 16, 16, 16, 16, 16
  }
 };
 
@@ -3051,7 +3057,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration,
     }
     for (pli = 0; pli < nplanes; pli++) {
       int i;
-      for (i = 0; i < OD_QM_SIZE; i++) {
+      for (i = 0; i < OD_QM_SIZE - 2*OD_NBSIZES; i++) {
         od_ec_enc_bits(&enc->ec, enc->state.pvq_qm_q4[pli][i], 8);
       }
     }
@@ -3088,7 +3094,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration,
     od_encode_mvs(enc, num_refs);
   }
   if (mbctx.use_haar_wavelet) {
-    od_state_init_superblock_split(&enc->state, OD_BLOCK_32X32);
+    od_state_init_superblock_split(&enc->state, OD_BLOCK_64X64);
   }
   else {
     /* Enable block size RDO for all but complexity 0 and 1. We might want to
