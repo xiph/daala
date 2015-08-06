@@ -57,6 +57,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # define OD_LOG_BSIZE_MAX (OD_LOG_BSIZE0 + OD_NBSIZES - 1)
 /*The maximum length of the side of a block.*/
 # define OD_BSIZE_MAX     (1 << OD_LOG_BSIZE_MAX)
+/*The maximum number of quad tree levels when splitting a super block.*/
+# define OD_MAX_SB_SPLITS (OD_NBSIZES - 1)
 
 /*Largest motion compensation partition sizes are 64x64.*/
 # define OD_LOG_MVBSIZE_MAX (6)
@@ -68,6 +70,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 /*The deringing filter is applied on 8x8 blocks, but it's application
    is signaled on a 32x32 grid.*/
 # define OD_LOG_DERING_GRID (OD_BLOCK_32X32)
+
+/*The superblock resolution of the block size array.  Because four 4x4 blocks
+   and one 8x8 can be resolved with a single entry, this is the maximum number
+   of 8x8 blocks that can lie along a superblock edge.*/
+# define OD_BSIZE_GRID (1 << (OD_MAX_SB_SPLITS - 1))
+
+/*The number of 4x4 blocks that lie along a superblock edge.*/
+# define OD_FLAGS_GRID (1 << OD_MAX_SB_SPLITS)
 
 /*The log of the maximum length of the side of a block that
    has optimized copy variants.*/

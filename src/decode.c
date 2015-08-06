@@ -146,10 +146,10 @@ int daala_decode_ctl(daala_dec_ctx *dec, int req, void *buf, size_t buf_sz) {
       OD_RETURN_CHECK(buf, OD_EFAULT);
       /*Check that buf is large enough to hold the block sizes for a frame.*/
       OD_RETURN_CHECK(
-       buf_sz == sizeof(unsigned char)*dec->state.nvsb*dec->state.nhsb*16,
-       OD_EINVAL);
+       buf_sz == sizeof(unsigned char)*dec->state.nvsb*OD_BSIZE_GRID*
+       dec->state.nhsb*OD_BSIZE_GRID, OD_EINVAL);
       dec->user_bsize = (unsigned char *)buf;
-      dec->user_bstride = dec->state.nhsb*4;
+      dec->user_bstride = dec->state.nhsb*OD_BSIZE_GRID;
       return OD_SUCCESS;
     }
     case OD_DECCTL_SET_FLAGS_BUFFER : {
@@ -157,10 +157,10 @@ int daala_decode_ctl(daala_dec_ctx *dec, int req, void *buf, size_t buf_sz) {
       OD_RETURN_CHECK(buf, OD_EFAULT);
       /*Check that buf is large enough to hold the band flags for a frame.*/
       OD_RETURN_CHECK(
-       buf_sz == sizeof(unsigned int)*dec->state.nvsb*8*dec->state.nhsb*8,
-       OD_EINVAL);
+       buf_sz == sizeof(unsigned int)*dec->state.nvsb*OD_FLAGS_GRID*
+       dec->state.nhsb*OD_FLAGS_GRID, OD_EINVAL);
       dec->user_flags = (unsigned int *)buf;
-      dec->user_fstride = dec->state.nhsb*8;
+      dec->user_fstride = dec->state.nhsb*OD_FLAGS_GRID;
       return OD_SUCCESS;
     }
     case OD_DECCTL_SET_MV_BUFFER : {
@@ -1208,9 +1208,9 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
     int nvsb;
     nhsb = dec->state.nhsb;
     nvsb = dec->state.nvsb;
-    for (j = 0; j < nvsb*4; j++) {
+    for (j = 0; j < nvsb*OD_BSIZE_GRID; j++) {
       memcpy(&dec->user_bsize[dec->user_bstride*j],
-       &dec->state.bsize[dec->state.bstride*j], nhsb*4);
+       &dec->state.bsize[dec->state.bstride*j], nhsb*OD_BSIZE_GRID);
     }
   }
   ref_img = dec->state.ref_imgs + dec->state.ref_imgi[OD_FRAME_SELF];

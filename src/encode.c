@@ -2152,16 +2152,17 @@ static void od_split_superblocks(daala_enc_ctx *enc, int is_keyframe) {
     rimg = state->ref_imgs[state->ref_imgi[OD_FRAME_SELF]].planes[0].data
      + i*rstride*OD_BSIZE_MAX;
     for (j = 0; j < nhsb; j++) {
-      int bsize[4][4];
+      int bsize[OD_BSIZE_GRID][OD_BSIZE_GRID];
       unsigned char *state_bsize;
-      state_bsize = &state->bsize[i*4*state->bstride + j*4];
+      state_bsize =
+       &state->bsize[i*OD_BSIZE_GRID*state->bstride + j*OD_BSIZE_GRID];
       od_split_superblock(enc->bs, bimg + j*OD_BSIZE_MAX, istride,
        is_keyframe ? NULL : rimg + j*OD_BSIZE_MAX, rstride, bsize,
        state->quantizer[0]);
       /* Grab the 4x4 information returned from `od_split_superblock` in bsize
          and store it in the od_state bsize. */
-      for (k = 0; k < 4; k++) {
-        for (m = 0; m < 4; m++) {
+      for (k = 0; k < OD_BSIZE_GRID; k++) {
+        for (m = 0; m < OD_BSIZE_GRID; m++) {
           if (OD_LIMIT_BSIZE_MIN != OD_LIMIT_BSIZE_MAX) {
             state_bsize[k*bstride + m] =
              OD_MAXI(OD_MINI(bsize[k][m], OD_LIMIT_BSIZE_MAX),

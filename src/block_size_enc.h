@@ -114,6 +114,7 @@ typedef struct {
 
 void od_split_superblock(od_block_size_comp *bs,
  const unsigned char *psy_img, int stride,
- const unsigned char *pred, int pred_stride, int dec[4][4], int q);
+ const unsigned char *pred, int pred_stride,
+  int dec[OD_BSIZE_GRID][OD_BSIZE_GRID], int q);
 
 #endif

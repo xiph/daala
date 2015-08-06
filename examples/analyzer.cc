@@ -43,12 +43,22 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # define OD_NBSIZES    (4)
 /*The maximum length of the side of a block.*/
 # define OD_BSIZE_MAX  (1 << OD_LOG_BSIZE0 + OD_NBSIZES - 1)
+/*The maximum number of quad tree levels when splitting a super block.*/
+# define OD_MAX_SB_SPLITS (OD_NBSIZES - 1)
 
 #define OD_BLOCK_32X32 (3)
 
 /*The deringing filter is applied on 8x8 blocks, but it's application
    is signaled on a 32x32 grid.*/
 # define OD_LOG_DERING_GRID (OD_BLOCK_32X32)
+
+/*The superblock resolution of the block size array.  Because four 4x4 blocks
+   and one 8x8 can be resolved with a single entry, this is the maximum number
+   of 8x8 blocks that can lie along a superblock edge.*/
+# define OD_BSIZE_GRID (1 << (OD_MAX_SB_SPLITS - 1))
+
+/*The number of 4x4 blocks that lie along a superblock edge.*/
+# define OD_FLAGS_GRID (1 << OD_MAX_SB_SPLITS)
 
 # define OD_MAXI(a, b) ((a) ^ (((a) ^ (b)) & -((b) > (a))))
 # define OD_MINI(a, b) ((a) ^ (((b) ^ (a)) & -((b) < (a))))
@@ -488,19 +498,19 @@ bool TestPanel::open(const wxString &path) {
   int nvsb = dd.getFrameHeight() >> OD_LOG_BSIZE0 + OD_NBSIZES - 1;
   int nhdr = dd.getFrameWidth() >> (OD_LOG_DERING_GRID + OD_LOG_BSIZE0);
   int nvdr = dd.getFrameHeight() >> (OD_LOG_DERING_GRID + OD_LOG_BSIZE0);
-  bsize_len = sizeof(*bsize)*nhsb*4*nvsb*4;
+  bsize_len = sizeof(*bsize)*nhsb*OD_BSIZE_GRID*nvsb*OD_BSIZE_GRID;
   bsize = (unsigned char *)malloc(bsize_len);
   if (bsize == NULL) {
     bsize_len = 0;
     close();
     return false;
   }
-  bstride = nhsb*4;
+  bstride = nhsb*OD_BSIZE_GRID;
   if (!dd.setBlockSizeBuffer(bsize, bsize_len)) {
     close();
     return false;
   }
-  flags_len = sizeof(*flags)*nhsb*8*nvsb*8;
+  flags_len = sizeof(*flags)*nhsb*OD_FLAGS_GRID*nvsb*OD_FLAGS_GRID;
   flags = (unsigned int *)malloc(flags_len);
   if (flags == NULL) {
     flags_len = 0;
@@ -508,7 +518,7 @@ bool TestPanel::open(const wxString &path) {
     close();
     return false;
   }
-  fstride = nhsb*8;
+  fstride = nhsb*OD_FLAGS_GRID;
   if (!dd.setBandFlagsBuffer(flags, flags_len)) {
     fprintf(stderr,"Could not set flags buffer\n");
     close();
