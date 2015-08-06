@@ -765,6 +765,8 @@ void TestPanel::restart() {
   dd.restart();
   dd.setBlockSizeBuffer(bsize, bsize_len);
   dd.setBandFlagsBuffer(flags, flags_len);
+  dd.setAccountingEnabled(true);
+  dd.getAccountingStruct(&acct);
   nextFrame();
 }
 
