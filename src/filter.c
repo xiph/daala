@@ -1713,6 +1713,37 @@ void od_bilinear_smooth(od_coeff *x, int ln, int stride, int q, int pli) {
   }
 }
 
+void od_smooth_recursive(od_coeff *c, unsigned char *bsize, int bstride,
+ int bx, int by, int bsi, int w, int xdec, int ydec, int min_bs,
+ int quantizer, int pli) {
+  int obs;
+  int bs;
+  /*This code assumes 4:4:4 or 4:2:0 input.*/
+  OD_ASSERT(xdec == ydec);
+  obs = OD_BLOCK_SIZE4x4(bsize, bstride, bx << bsi, by << bsi);
+  bs = OD_MAXI(obs, xdec);
+  OD_ASSERT(bs <= bsi);
+  if (bs == bsi) {
+    if (bs >= min_bs) {
+      bs += OD_LOG_BSIZE0 - xdec;
+      od_bilinear_smooth(&c[(by << bs)*w + (bx << bs)], bs, w, quantizer, pli);
+    }
+  }
+  else {
+    bx <<= 1;
+    by <<= 1;
+    bsi--;
+    od_smooth_recursive(c, bsize, bstride, bx + 0, by + 0, bsi, w, xdec, ydec,
+     min_bs, quantizer, pli);
+    od_smooth_recursive(c, bsize, bstride, bx + 1, by + 0, bsi, w, xdec, ydec,
+     min_bs, quantizer, pli);
+    od_smooth_recursive(c, bsize, bstride, bx + 0, by + 1, bsi, w, xdec, ydec,
+     min_bs, quantizer, pli);
+    od_smooth_recursive(c, bsize, bstride, bx + 1, by + 1, bsi, w, xdec, ydec,
+     min_bs, quantizer, pli);
+  }
+}
+
 #if defined(TEST)
 # include <stdio.h>
 

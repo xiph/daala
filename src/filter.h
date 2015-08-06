@@ -83,6 +83,9 @@ extern const int OD_FILT_SIZE[OD_NBSIZES];
 void od_clpf(od_coeff *y, int ystride, od_coeff *x, int xstride, int ln,
  int sbx, int sby, int nhsb, int nvsb);
 void od_bilinear_smooth(od_coeff *x, int ln, int stride, int q, int pli);
+void od_smooth_recursive(od_coeff *c, unsigned char *bsize, int bstride,
+ int bx, int by, int bsi, int w, int xdec, int ydec, int min_bs,
+  int quantizer, int pli);
 void od_prefilter_split(od_coeff *c0, int stride, int bs, int f);
 void od_postfilter_split(od_coeff *c0, int stride, int bs, int f, int q,
  unsigned char *skip, int skip_stride);
