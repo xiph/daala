@@ -112,6 +112,11 @@ AS_IF([test "$enable_analyzer" = "yes"], [
       analyzer. Please install or update your wxWidgets.
     ])
   fi
+  if test "$enable_accounting" != "yes"; then
+    AC_MSG_ERROR([
+      The analyzer requires --enable-accounting to function properly.
+    ])
+  fi
 ])
 AM_CONDITIONAL([ENABLE_ANALYZER], [test "$enable_analyzer" = "yes"])
 

@@ -90,6 +90,8 @@ public:
 
   bool setBlockSizeBuffer(unsigned char *buf, size_t buf_sz);
   bool setBandFlagsBuffer(unsigned int *buf, size_t buf_sz);
+  bool setAccountingEnabled(bool enable);
+  bool getAccountingStruct(od_accounting **acct);
 };
 
 bool DaalaDecoder::readPage() {
@@ -238,14 +240,34 @@ bool DaalaDecoder::setBlockSizeBuffer(unsigned char *buf, size_t buf_sz) {
   if (dctx == NULL) {
     return false;
   }
-  return daala_decode_ctl(dctx, OD_DECCTL_SET_BSIZE_BUFFER, buf, buf_sz) == 0;
+  return daala_decode_ctl(dctx, OD_DECCTL_SET_BSIZE_BUFFER, buf, buf_sz) ==
+   OD_SUCCESS;
 }
 
 bool DaalaDecoder::setBandFlagsBuffer(unsigned int *buf, size_t buf_sz) {
   if (dctx == NULL) {
     return false;
   }
-  return daala_decode_ctl(dctx, OD_DECCTL_SET_FLAGS_BUFFER, buf, buf_sz) == 0;
+  return daala_decode_ctl(dctx, OD_DECCTL_SET_FLAGS_BUFFER, buf, buf_sz) ==
+   OD_SUCCESS;
+}
+
+bool DaalaDecoder::setAccountingEnabled(bool enable) {
+  if (dctx == NULL) {
+    return false;
+  }
+  int e = enable ? 1 : 0;
+  return daala_decode_ctl(dctx, OD_DECCTL_SET_ACCOUNTING_ENABLED, &e,
+   sizeof(e)) == OD_SUCCESS;
+}
+
+bool DaalaDecoder::getAccountingStruct(od_accounting **acct) {
+  if (dctx == NULL) {
+    return false;
+  }
+  return
+   daala_decode_ctl(dctx, OD_DECCTL_GET_ACCOUNTING, acct, sizeof(acct)) ==
+   OD_SUCCESS;
 }
 
 #define MIN_ZOOM (1)
@@ -277,6 +299,11 @@ private:
   bool show_skip;
   bool show_noref;
   bool show_padding;
+
+  od_accounting *acct;
+  bool show_bits;
+  double *bpp_q3;
+
   int plane_mask;
   const wxString path;
 
@@ -291,6 +318,7 @@ private:
   bool updateDisplaySize();
 
   int getBand(int x, int y) const;
+  void computeBitsPerPixel();
 public:
   TestPanel(wxWindow *parent, const wxString &path);
   ~TestPanel();
@@ -308,6 +336,7 @@ public:
   void setShowSkip(bool show_skip);
   void setShowNoRef(bool show_noref);
   void setShowPadding(bool show_padding);
+  void setShowBits(bool show_bits);
   void setShowPlane(bool show_plane, int mask);
 
   bool hasPadding();
@@ -344,6 +373,7 @@ public:
   void onZoomOut(wxCommandEvent &event);
   void onFilter(wxCommandEvent &event);
   void onPaddingChange(wxCommandEvent &event);
+  void onBitsChange(wxCommandEvent &event);
   void onYChange(wxCommandEvent &event);
   void onUChange(wxCommandEvent &event);
   void onVChange(wxCommandEvent &event);
@@ -359,6 +389,7 @@ enum {
   wxID_SHOW_SKIP,
   wxID_SHOW_NOREF,
   wxID_SHOW_PADDING,
+  wxID_SHOW_BITS,
   wxID_SHOW_Y,
   wxID_SHOW_U,
   wxID_SHOW_V,
@@ -376,6 +407,7 @@ BEGIN_EVENT_TABLE(TestFrame, wxFrame)
   EVT_MENU(wxID_SHOW_SKIP, TestFrame::onFilter)
   EVT_MENU(wxID_SHOW_NOREF, TestFrame::onFilter)
   EVT_MENU(wxID_SHOW_PADDING, TestFrame::onPaddingChange)
+  EVT_MENU(wxID_SHOW_BITS, TestFrame::onBitsChange)
   EVT_MENU(wxID_SHOW_Y, TestFrame::onYChange)
   EVT_MENU(wxID_SHOW_U, TestFrame::onUChange)
   EVT_MENU(wxID_SHOW_V, TestFrame::onVChange)
@@ -387,7 +419,8 @@ END_EVENT_TABLE()
 TestPanel::TestPanel(wxWindow *parent, const wxString &path) : wxPanel(parent),
  pixels(NULL), zoom(0), bsize(NULL), bsize_len(0), show_blocks(false),
  flags(NULL), flags_len(0), show_skip(false), show_noref(false),
- show_padding(false), plane_mask(OD_ALL_MASK), path(path) {
+ show_padding(false), acct(NULL), show_bits(false), bpp_q3(NULL),
+ plane_mask(OD_ALL_MASK), path(path) {
 }
 
 TestPanel::~TestPanel() {
@@ -429,6 +462,18 @@ bool TestPanel::open(const wxString &path) {
     close();
     return false;
   }
+  bpp_q3 =
+   (double *)malloc(sizeof(*bpp_q3)*dd.getFrameWidth()*dd.getFrameHeight());
+  if (!dd.setAccountingEnabled(true)) {
+    fprintf(stderr, "Could not enable accounting\n");
+    close();
+    return false;
+  }
+  if (!dd.getAccountingStruct(&acct)) {
+    fprintf(stderr,"Could not get accounting struct\n");
+    close();
+    return false;
+  }
   if (!nextFrame()) {
     close();
     return false;
@@ -445,6 +490,8 @@ void TestPanel::close() {
   bsize = NULL;
   free(flags);
   flags = NULL;
+  free(bpp_q3);
+  bpp_q3 = NULL;
 }
 
 int TestPanel::getDecodeWidth() const {
@@ -537,6 +584,12 @@ void TestPanel::render() {
             crval = 107;
           }
         }
+      }
+      if (show_bits) {
+        double bpp = bpp_q3[j*dd.getFrameWidth() + i];
+        double index = log10l(bpp + 1);
+        cbval = 128 + (int64_t)(127*sqrt(index));
+        crval = 128 + (int64_t)(127*index*index*index);
       }
       if (show_blocks) {
         unsigned char d = OD_BLOCK_SIZE4x4(bsize, bstride, i >> 2, j >> 2);
@@ -638,6 +691,10 @@ void TestPanel::setShowPadding(bool show_padding) {
   }
 }
 
+void TestPanel::setShowBits(bool show_bits) {
+  this->show_bits = show_bits;
+}
+
 void TestPanel::setShowPlane(bool show_plane, int mask) {
   if (show_plane) {
     plane_mask |= mask;
@@ -655,8 +712,46 @@ void TestPanel::setShowNoRef(bool show_noref) {
   this->show_noref = show_noref;
 }
 
+void TestPanel::computeBitsPerPixel() {
+  int i, j;
+  double bpp_total;
+  for (j = 0; j < dd.getFrameHeight(); j++) {
+    for (i = 0; i < dd.getFrameWidth(); i++) {
+      bpp_q3[j*dd.getFrameWidth() + i] = 0;
+    }
+  }
+  bpp_total = 0;
+  for (i = 0; i < acct->nb_syms; i++) {
+    od_acct_symbol *s;
+    s = &acct->syms[i];
+    switch (s->layer) {
+      case 0:
+      case 1:
+      case 2:
+      case 3: {
+        int n, u, v;
+        double bpp;
+        n = 1 << (s->level + 2);
+        bpp = ((double)s->bits_q3)/(n*n);
+        for (v = 0; v < n; v++) {
+          for (u = 0; u < n; u++) {
+            bpp_q3[dd.getFrameWidth()*((s->y << 2) + u) + ((s->x << 2) + v)] +=
+             bpp;
+            bpp_total += bpp;
+          }
+        }
+        break;
+      }
+    }
+  }
+  fprintf(stderr, "nb_syms = %i\n", acct->nb_syms);
+  fprintf(stderr, "bpp_total = %lf\n", bpp_total);
+}
+
 bool TestPanel::nextFrame() {
   if (dd.step()) {
+    /* For now just compute the unfiltered bits per pixel. */
+    computeBitsPerPixel();
     render();
     ((TestFrame *)GetParent())->SetTitle(path +
      wxString::Format(wxT(" (%d,%d) Frame %d - Daala Stream Analyzer"),
@@ -756,6 +851,8 @@ TestFrame::TestFrame() : wxFrame(NULL, wxID_ANY, _T("Daala Stream Analyzer"),
    _("Show no-ref bands"));
   viewMenu->AppendCheckItem(wxID_SHOW_PADDING, _T("&Padding\tCtrl-P"),
    _("Show padding area"));
+  viewMenu->AppendCheckItem(wxID_SHOW_BITS, _T("Bit &Accounting\tCtrl-A"),
+   _("Show bit accounting"));
   viewMenu->AppendSeparator();
   viewMenu->AppendCheckItem(wxID_SHOW_Y, _T("&Y plane\tCtrl-Y"),
    _("Show Y plane"));
@@ -834,6 +931,12 @@ void TestFrame::onPaddingChange(wxCommandEvent &WXUNUSED(event)) {
   Fit();
   panel->render();
   panel->Refresh();
+}
+
+void TestFrame::onBitsChange(wxCommandEvent &WXUNUSED(event)) {
+  panel->setShowBits(GetMenuBar()->IsChecked(wxID_SHOW_BITS));
+  panel->render();
+  panel->Refresh(false);
 }
 
 void TestFrame::onYChange(wxCommandEvent &WXUNUSED(event)) {
