@@ -58,6 +58,18 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
           :"c"(0)  \
           :"%edx" \
          )
+         
+static uint32_t od_parse_cpu_flags(uint32_t edx, uint32_t ecx){
+  uint32_t flags;
+  /*If there isn't even MMX, give up.*/
+  if (!(edx&0x00800000)) return 0;
+  flags = OD_CPU_X86_MMX;
+  if (edx & 0x02000000 ) flags |= OD_CPU_X86_MMXEXT|OD_CPU_X86_SSE;
+  if (edx & 0x04000000 ) flags |= OD_CPU_X86_SSE2;
+  if (ecx & 0x00080000 ) flags |= OD_CPU_X86_SSE4_1;
+  if (ecx & 0x00000001 ) flags |= OD_CPU_X86_PNI;
+  return flags;
+}
 
 uint32_t od_cpu_flags_get(void){
   uint32_t eax;
@@ -93,13 +105,7 @@ uint32_t od_cpu_flags_get(void){
   if(ecx==0x6C65746E&&edx==0x49656E69&&ebx==0x756E6547){
     /*Intel:*/
     cpuid(1,0,eax,ebx,ecx,edx);
-    /*If there isn't even MMX, give up.*/
-    if(!(edx&0x00800000))return 0;
-    flags=OD_CPU_X86_MMX;
-    if(edx&0x02000000)flags|=OD_CPU_X86_MMXEXT|OD_CPU_X86_SSE;
-    if(edx&0x04000000)flags|=OD_CPU_X86_SSE2;
-    if(ecx&0x00000001)flags|=OD_CPU_X86_PNI;
-    if(ecx&0x00080000)flags|=OD_CPU_X86_SSE4_1;
+    flags = od_parse_cpu_flags(edx, ecx);
     /* Check for OSXSAVE. */
     if (ecx & 0x08000000) {
       /* Check for XMM and YMM save/restore. */
@@ -118,30 +124,8 @@ uint32_t od_cpu_flags_get(void){
    /*      C S N            y b   e          d o e G*/
    (ecx==0x43534E20&&edx==0x79622065&&ebx==0x646F6547)){
     /*AMD:*/
-    cpuid(0x80000000,0,eax,ebx,ecx,edx);
-    if(eax<=0x80000000){
-      /*No extended functions supported.
-        Use normal cpuid flags.*/
-      cpuid(1,0,eax,ebx,ecx,edx);
-      /*If there isn't even MMX, give up.*/
-      if(!(edx&0x00800000))return 0;
-      flags=OD_CPU_X86_MMX;
-      if(edx&0x02000000)flags|=OD_CPU_X86_MMXEXT|OD_CPU_X86_SSE;
-    }
-    else{
-      cpuid(0x80000001,0,eax,ebx,ecx,edx);
-      /*If there isn't even MMX, give up.*/
-      if(!(edx&0x00800000))return 0;
-      flags=OD_CPU_X86_MMX;
-      if(edx&0x80000000)flags|=OD_CPU_X86_3DNOW;
-      if(edx&0x40000000)flags|=OD_CPU_X86_3DNOW2;
-      if(edx&0x00400000)flags|=OD_CPU_X86_MMXEXT;
-      /*Also check for SSE.*/
-      cpuid(1,0,eax,ebx,ecx,edx);
-      if(edx&0x02000000)flags|=OD_CPU_X86_SSE;
-    }
-    if(edx&0x04000000)flags|=OD_CPU_X86_SSE2;
-    if(ecx&0x00000001)flags|=OD_CPU_X86_PNI;
+    cpuid(1,0,eax,ebx,ecx,edx);
+    flags = od_parse_cpu_flags(edx, ecx);
   }
   /*Unhandled processor manufacturers.*/
   /*Transmeta:
