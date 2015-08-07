@@ -541,6 +541,15 @@ void TestPanel::render() {
   unsigned char *cb_row = img->planes[1].data;
   unsigned char *cr_row = img->planes[2].data;
   unsigned char *p_row = pixels;
+  double maxval=0;
+  double norm;
+  for (int j = 0; j < getDecodeHeight(); j++) {
+    for (int i = 0; i < getDecodeWidth(); i++) {
+      double bpp = bpp_q3[j*dd.getFrameWidth() + i];
+      if (bpp > maxval) maxval = bpp;
+    }
+  }
+  norm = 1./(1e-4+maxval);
   for (int j = 0; j < getDecodeHeight(); j++) {
     unsigned char *y = y_row;
     unsigned char *cb = cb_row;
@@ -586,10 +595,43 @@ void TestPanel::render() {
         }
       }
       if (show_bits) {
-        double bpp = bpp_q3[j*dd.getFrameWidth() + i];
-        double index = log10l(bpp + 1);
-        cbval = 128 + (int64_t)(127*sqrt(index));
-        crval = 128 + (int64_t)(127*index*index*index);
+        double bpp = sqrt(bpp_q3[j*dd.getFrameWidth() + i]*norm);
+#if 1 /* Make this zero for an alternate colormap. */
+        double theta = 2*M_PI*bpp;
+        double radius = 1.2*sqrt(bpp);
+        cbval = 128 + (int64_t)(127*radius*cos(theta));
+        crval = 128 - (int64_t)(127*radius*sin(theta));
+        if (cbval < 0) cbval = 0;
+        if (cbval > 255) cbval = 255;
+        if (crval < 0) crval = 0;
+        if (crval > 255) crval = 255;
+#else
+        bpp *= 9;
+        if (bpp < 2) {
+          cbval = 128 + (int64_t)(63*bpp);
+          crval = 128 - (int64_t)(63*bpp);
+        }
+        else if (bpp < 4) {
+          bpp -= 2;
+          cbval = 255 - (int64_t)(127*bpp);
+          crval = 0;
+        }
+        else if (bpp < 6) {
+          bpp -= 4;
+          cbval = 0;
+          crval = (int64_t)(127*bpp);
+        }
+        else if (bpp < 8) {
+          bpp -= 6;
+          cbval = (int64_t)(127*bpp);
+          crval = 255;
+        }
+        else if (bpp < 9) {
+          bpp -= 8;
+          cbval = 255;
+          crval = 255 - (int64_t)(127*bpp);
+        }
+#endif
       }
       if (show_blocks) {
         unsigned char d = OD_BLOCK_SIZE4x4(bsize, bstride, i >> 2, j >> 2);
