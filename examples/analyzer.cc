@@ -784,6 +784,67 @@ void TestPanel::computeBitsPerPixel() {
         }
         break;
       }
+      case OD_ACCT_MV: {
+        if ((s->level & 1) == 0) {
+          /* Even-level MVs*/
+          int n = 32 >> (s->level/2);
+          int x, y;
+          int x0;
+          int y0;
+          int x1;
+          int y1;
+          double n_4 = 1./(n*n*n*n);
+          x0 = 4*s->x - (n - 1);
+          x1 = 4*s->x + (n - 1);
+          y0 = 4*s->y - (n - 1);
+          y1 = 4*s->y + (n - 1);
+          if (x0 < 0) x0 = 0;
+          if (y0 < 0) y0 = 0;
+          if (x1 >= dd.getFrameWidth()) x1 = dd.getFrameWidth() - 1;
+          if (y1 >= dd.getFrameHeight()) y1 = dd.getFrameHeight() - 1;
+          int bits = ((double)s->bits_q3);
+          for (y = y0; y <= y1; y++) {
+            for (x = x0; x <= x1; x++) {
+              /* We spread the bits as (1-x)*(1-y) like the bilinear blending.
+                 FIXME: Do exact normalization when we're on the border of the
+                 image. */
+              bpp_q3[dd.getFrameWidth()*y + x] +=
+               bits*(n - abs(x - 4*s->x))*(n - abs(y - 4*s->y))*n_4;
+              bpp_total += bpp_q3[dd.getFrameWidth()*y + x];
+            }
+          }
+        }
+        else {
+          /* Odd-level MVs. */
+          int n = 32 >> ((1 + s->level)/2);
+          int x, y;
+          int x0;
+          int y0;
+          int x1;
+          int y1;
+          double n_2 = 1./((2*n + 1)*(2*n + 1));
+          x0 = 4*s->x - (n - 1);
+          x1 = 4*s->x + (n - 1);
+          y0 = 4*s->y - (n - 1);
+          y1 = 4*s->y + (n - 1);
+          if (x0 < 0) x0 = 0;
+          if (y0 < 0) y0 = 0;
+          if (x1 >= dd.getFrameWidth()) x1 = dd.getFrameWidth() - 1;
+          if (y1 >= dd.getFrameHeight()) y1 = dd.getFrameHeight() - 1;
+          int bits = ((double)s->bits_q3);
+          for (y = y0; y <= y1; y++) {
+            for (x = x0; x <= x1; x++) {
+              /* FIXME: Spread the bits in the same was as the blending instead
+                 of as a square. */
+              bpp_q3[dd.getFrameWidth()*y + x] +=
+               bits*n_2;
+              bpp_total += bpp_q3[dd.getFrameWidth()*y + x];
+            }
+          }
+
+        }
+        break;
+      }
     }
   }
   fprintf(stderr, "nb_syms = %i\n", acct->nb_syms);
