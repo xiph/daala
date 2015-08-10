@@ -99,27 +99,6 @@ AM_CONDITIONAL([ENABLE_PLAYER_EXAMPLE], [test "$enable_player" = "yes"])
 
 PKG_CHECK_MODULES([OGG], [ogg >= 1.3])
 
-AC_ARG_ENABLE([analyzer],
-  AS_HELP_STRING([--enable-analyzer], [Enable the stream analyzer]),,
-  enable_analyzer=no)
-
-AS_IF([test "$enable_analyzer" = "yes"], [
-  WX_CONFIG_OPTIONS
-  WX_CONFIG_CHECK([2.8.0], [wxWin=1])
-  if test "$wxWin" != 1 || test "$wx_ver_ok" != "yes"; then
-    AC_MSG_ERROR([
-      wxWidgets 2.8.0 must be installed on your system to build the stream
-      analyzer. Please install or update your wxWidgets.
-    ])
-  fi
-  if test "$enable_accounting" != "yes"; then
-    AC_MSG_ERROR([
-      The analyzer requires --enable-accounting to function properly.
-    ])
-  fi
-])
-AM_CONDITIONAL([ENABLE_ANALYZER], [test "$enable_analyzer" = "yes"])
-
 #CC_ATTRIBUTE_VISIBILITY([default], [
 #  CC_FLAG_VISIBILITY([CFLAGS="${CFLAGS} -fvisibility=hidden"])
 #])
@@ -331,6 +310,27 @@ AC_ARG_ENABLE([ec-accounting],
   [enable_ec_accounting=no])
 AS_IF([test "$enable_ec_accounting" = "yes"], [
   AC_DEFINE([OD_EC_ACCOUNTING], [1], [Enable entropy coder accounting])])
+
+AC_ARG_ENABLE([analyzer],
+  AS_HELP_STRING([--enable-analyzer], [Enable the stream analyzer]),,
+  enable_analyzer=no)
+
+AS_IF([test "$enable_analyzer" = "yes"], [
+  WX_CONFIG_OPTIONS
+  WX_CONFIG_CHECK([2.8.0], [wxWin=1])
+  if test "$wxWin" != 1 || test "$wx_ver_ok" != "yes"; then
+    AC_MSG_ERROR([
+      wxWidgets 2.8.0 must be installed on your system to build the stream
+      analyzer. Please install or update your wxWidgets.
+    ])
+  fi
+  if test "$enable_accounting" != "yes"; then
+    AC_MSG_ERROR([
+      The analyzer requires --enable-accounting to function properly.
+    ])
+  fi
+])
+AM_CONDITIONAL([ENABLE_ANALYZER], [test "$enable_analyzer" = "yes"])
 
 AC_CONFIG_FILES([
   Makefile
