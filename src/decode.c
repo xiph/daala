@@ -147,16 +147,17 @@ int daala_decode_ctl(daala_dec_ctx *dec, int req, void *buf, size_t buf_sz) {
 
 static void od_dec_blank_img(od_img *img) {
   int pli;
-  int frame_buf_width;
   int frame_buf_height;
-  int plane_buf_width;
-  int plane_buf_height;
-  frame_buf_width = img->width + (OD_UMV_PADDING << 1);
   frame_buf_height = img->height + (OD_UMV_PADDING << 1);
   for (pli = 0; pli < img->nplanes; pli++) {
-    plane_buf_width = (frame_buf_width << 1) >> img->planes[pli].xdec;
-    plane_buf_height = (frame_buf_height << 1) >> img->planes[pli].ydec;
-    memset(img->planes[pli].data, 128, plane_buf_width*plane_buf_height);
+    int plane_buf_size;
+    int plane_buf_offset;
+    plane_buf_size =
+     (frame_buf_height >> img->planes[pli].ydec) * img->planes[pli].ystride;
+    plane_buf_offset =
+      (OD_UMV_PADDING >> img->planes[pli].ydec) * img->planes[pli].ystride
+      + (OD_UMV_PADDING >> img->planes[pli].xdec);
+    memset(img->planes[pli].data - plane_buf_offset, 128, plane_buf_size);
   }
 }
 
