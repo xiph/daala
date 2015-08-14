@@ -2085,7 +2085,8 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   for (pli = 0; pli < nplanes; pli++) {
     /*Boost the keyframe quality slightly (one coded quantizer
       step is the minimum possible).*/
-    if (mbctx.is_keyframe && enc->coded_quantizer[pli] != 0) {
+    if ((mbctx.is_keyframe || mbctx.is_golden_frame)
+     && enc->coded_quantizer[pli] != 0) {
       enc->coded_quantizer[pli] = OD_MAXI(1, enc->coded_quantizer[pli] - 1);
       enc->quantizer[pli] =
        od_codedquantizer_to_quantizer(enc->coded_quantizer[pli]);
