@@ -37,4 +37,13 @@ int od_mc_compute_sad_16x16_xstride_1_sse2(const unsigned char *src,
 int od_mc_compute_sad_32x32_xstride_1_sse2(const unsigned char *src,
  int systride, const unsigned char *ref, int dystride);
 
+int od_mc_compute_satd_4x4_sse2(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride);
+int od_mc_compute_satd_8x8_sse2(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride);
+int od_mc_compute_satd_16x16_sse2(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride);
+int od_mc_compute_satd_32x32_sse2(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride);
+
 #endif
