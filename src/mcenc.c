@@ -1365,221 +1365,302 @@ int od_mc_compute_sad_16x16_xstride_1_c(const unsigned char *src, int systride,
   return od_mc_compute_sad_c(src, systride, ref, dystride, 1, 16, 16);
 }
 
-static const od_coeff OD_HADAMARD_4X4[] = {
-  1, 1, 1, 1,
-  1,-1, 1,-1,
-  1, 1,-1,-1,
-  1,-1,-1, 1
-};
-
-static const od_coeff OD_HADAMARD_8X8[] = {
-  1, 1, 1, 1, 1, 1, 1, 1,
-  1,-1, 1,-1, 1,-1, 1,-1,
-  1, 1,-1,-1, 1, 1,-1,-1,
-  1,-1,-1, 1, 1,-1,-1, 1,
-  1, 1, 1, 1,-1,-1,-1,-1,
-  1,-1, 1,-1,-1, 1,-1, 1,
-  1, 1,-1,-1,-1,-1, 1, 1,
-  1,-1,-1, 1,-1, 1, 1,-1
-};
-
-static const od_coeff OD_HADAMARD_16X16[] = {
-  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-  1,-1, 1,-1, 1,-1, 1,-1, 1,-1, 1,-1, 1,-1, 1,-1,
-  1, 1,-1,-1, 1, 1,-1,-1, 1, 1,-1,-1, 1, 1,-1,-1,
-  1,-1,-1, 1, 1,-1,-1, 1, 1,-1,-1, 1, 1,-1,-1, 1,
-  1, 1, 1, 1,-1,-1,-1,-1, 1, 1, 1, 1,-1,-1,-1,-1,
-  1,-1, 1,-1,-1, 1,-1, 1, 1,-1, 1,-1,-1, 1,-1, 1,
-  1, 1,-1,-1,-1,-1, 1, 1, 1, 1,-1,-1,-1,-1, 1, 1,
-  1,-1,-1, 1,-1, 1, 1,-1, 1,-1,-1, 1,-1, 1, 1,-1,
-  1, 1, 1, 1, 1, 1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1,
-  1,-1, 1,-1, 1,-1, 1,-1,-1, 1,-1, 1,-1, 1,-1, 1,
-  1, 1,-1,-1, 1, 1,-1,-1,-1,-1, 1, 1,-1,-1, 1, 1,
-  1,-1,-1, 1, 1,-1,-1, 1,-1, 1, 1,-1,-1, 1, 1,-1,
-  1, 1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1, 1, 1, 1, 1,
-  1,-1, 1,-1,-1, 1,-1, 1,-1, 1,-1, 1, 1,-1, 1,-1,
-  1, 1,-1,-1,-1,-1, 1, 1,-1,-1, 1, 1, 1, 1,-1,-1,
-  1,-1,-1, 1,-1, 1, 1,-1,-1, 1, 1,-1, 1,-1,-1, 1
-};
-
-static const od_coeff OD_HADAMARD_32X32[] = {
-  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-  1,-1, 1,-1, 1,-1, 1,-1, 1,-1, 1,-1, 1,-1, 1,-1,
-  1,-1, 1,-1, 1,-1, 1,-1, 1,-1, 1,-1, 1,-1, 1,-1,
-  1, 1,-1,-1, 1, 1,-1,-1, 1, 1,-1,-1, 1, 1,-1,-1,
-  1, 1,-1,-1, 1, 1,-1,-1, 1, 1,-1,-1, 1, 1,-1,-1,
-  1,-1,-1, 1, 1,-1,-1, 1, 1,-1,-1, 1, 1,-1,-1, 1,
-  1,-1,-1, 1, 1,-1,-1, 1, 1,-1,-1, 1, 1,-1,-1, 1,
-  1, 1, 1, 1,-1,-1,-1,-1, 1, 1, 1, 1,-1,-1,-1,-1,
-  1, 1, 1, 1,-1,-1,-1,-1, 1, 1, 1, 1,-1,-1,-1,-1,
-  1,-1, 1,-1,-1, 1,-1, 1, 1,-1, 1,-1,-1, 1,-1, 1,
-  1,-1, 1,-1,-1, 1,-1, 1, 1,-1, 1,-1,-1, 1,-1, 1,
-  1, 1,-1,-1,-1,-1, 1, 1, 1, 1,-1,-1,-1,-1, 1, 1,
-  1, 1,-1,-1,-1,-1, 1, 1, 1, 1,-1,-1,-1,-1, 1, 1,
-  1,-1,-1, 1,-1, 1, 1,-1, 1,-1,-1, 1,-1, 1, 1,-1,
-  1,-1,-1, 1,-1, 1, 1,-1, 1,-1,-1, 1,-1, 1, 1,-1,
-  1, 1, 1, 1, 1, 1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1,
-  1, 1, 1, 1, 1, 1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1,
-  1,-1, 1,-1, 1,-1, 1,-1,-1, 1,-1, 1,-1, 1,-1, 1,
-  1,-1, 1,-1, 1,-1, 1,-1,-1, 1,-1, 1,-1, 1,-1, 1,
-  1, 1,-1,-1, 1, 1,-1,-1,-1,-1, 1, 1,-1,-1, 1, 1,
-  1, 1,-1,-1, 1, 1,-1,-1,-1,-1, 1, 1,-1,-1, 1, 1,
-  1,-1,-1, 1, 1,-1,-1, 1,-1, 1, 1,-1,-1, 1, 1,-1,
-  1,-1,-1, 1, 1,-1,-1, 1,-1, 1, 1,-1,-1, 1, 1,-1,
-  1, 1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1, 1, 1, 1, 1,
-  1, 1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1, 1, 1, 1, 1,
-  1,-1, 1,-1,-1, 1,-1, 1,-1, 1,-1, 1, 1,-1, 1,-1,
-  1,-1, 1,-1,-1, 1,-1, 1,-1, 1,-1, 1, 1,-1, 1,-1,
-  1, 1,-1,-1,-1,-1, 1, 1,-1,-1, 1, 1, 1, 1,-1,-1,
-  1, 1,-1,-1,-1,-1, 1, 1,-1,-1, 1, 1, 1, 1,-1,-1,
-  1,-1,-1, 1,-1, 1, 1,-1,-1, 1, 1,-1, 1,-1,-1, 1,
-  1,-1,-1, 1,-1, 1, 1,-1,-1, 1, 1,-1, 1,-1,-1, 1,
-  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-  -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-  1,-1, 1,-1, 1,-1, 1,-1, 1,-1, 1,-1, 1,-1, 1,-1,
-  -1, 1,-1, 1,-1, 1,-1, 1,-1, 1,-1, 1,-1, 1,-1, 1,
-  1, 1,-1,-1, 1, 1,-1,-1, 1, 1,-1,-1, 1, 1,-1,-1,
-  -1,-1, 1, 1,-1,-1, 1, 1,-1,-1, 1, 1,-1,-1, 1, 1,
-  1,-1,-1, 1, 1,-1,-1, 1, 1,-1,-1, 1, 1,-1,-1, 1,
-  -1, 1, 1,-1,-1, 1, 1,-1,-1, 1, 1,-1,-1, 1, 1,-1,
-  1, 1, 1, 1,-1,-1,-1,-1, 1, 1, 1, 1,-1,-1,-1,-1,
-  -1,-1,-1,-1, 1, 1, 1, 1,-1,-1,-1,-1, 1, 1, 1, 1,
-  1,-1, 1,-1,-1, 1,-1, 1, 1,-1, 1,-1,-1, 1,-1, 1,
-  -1, 1,-1, 1, 1,-1, 1,-1,-1, 1,-1, 1, 1,-1, 1,-1,
-  1, 1,-1,-1,-1,-1, 1, 1, 1, 1,-1,-1,-1,-1, 1, 1,
-  -1,-1, 1, 1, 1, 1,-1,-1,-1,-1, 1, 1, 1, 1,-1,-1,
-  1,-1,-1, 1,-1, 1, 1,-1, 1,-1,-1, 1,-1, 1, 1,-1,
-  -1, 1, 1,-1, 1,-1,-1, 1,-1, 1, 1,-1, 1,-1,-1, 1,
-  1, 1, 1, 1, 1, 1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1,
-  -1,-1,-1,-1,-1,-1,-1,-1, 1, 1, 1, 1, 1, 1, 1, 1,
-  1,-1, 1,-1, 1,-1, 1,-1,-1, 1,-1, 1,-1, 1,-1, 1,
-  -1, 1,-1, 1,-1, 1,-1, 1, 1,-1, 1,-1, 1,-1, 1,-1,
-  1, 1,-1,-1, 1, 1,-1,-1,-1,-1, 1, 1,-1,-1, 1, 1,
-  -1,-1, 1, 1,-1,-1, 1, 1, 1, 1,-1,-1, 1, 1,-1,-1,
-  1,-1,-1, 1, 1,-1,-1, 1,-1, 1, 1,-1,-1, 1, 1,-1,
-  -1, 1, 1,-1,-1, 1, 1,-1, 1,-1,-1, 1, 1,-1,-1, 1,
-  1, 1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1, 1, 1, 1, 1,
-  -1,-1,-1,-1, 1, 1, 1, 1, 1, 1, 1, 1,-1,-1,-1,-1,
-  1,-1, 1,-1,-1, 1,-1, 1,-1, 1,-1, 1, 1,-1, 1,-1,
-  -1, 1,-1, 1, 1,-1, 1,-1, 1,-1, 1,-1,-1, 1,-1, 1,
-  1, 1,-1,-1,-1,-1, 1, 1,-1,-1, 1, 1, 1, 1,-1,-1,
-  -1,-1, 1, 1, 1, 1,-1,-1, 1, 1,-1,-1,-1,-1, 1, 1,
-  1,-1,-1, 1,-1, 1, 1,-1,-1, 1, 1,-1, 1,-1,-1, 1,
-  -1, 1, 1,-1, 1,-1,-1, 1, 1,-1,-1, 1,-1, 1, 1,-1
-};
-static const od_coeff *OD_HADAMARD_T[] = {
-  OD_HADAMARD_4X4,
-  OD_HADAMARD_8X8,
-  OD_HADAMARD_16X16,
-  OD_HADAMARD_32X32,
-  NULL
-};
-
-/* Multiplication of two square matrices with the size blk_size * blk_size. */
-static void od_muliply_matrix(od_coeff *out, const od_coeff *in1,
- const od_coeff *in2, int blk_size) {
-  int i;
-  int j;
-  int k;
-  for(j = 0; j < blk_size; j++) {
-    for(i = 0; i < blk_size; i++) {
-      int sum = 0;
-      for(k = 0; k < blk_size; k++) {
-        sum += in1[j*blk_size + k]*in2[k*blk_size + i];
-      }
-      out[j*blk_size + i] = sum;
-    }
-  }
-}
-
-/* Transpose a square matrix. */
-static void od_transpose_matrix(od_coeff *in_out, int blk_size) {
-  int i;
-  int j;
-  int tmp;
-  for(j = 1; j < blk_size; j++) {
-    for (i = 0; i < j; i++) {
-      tmp = in_out[j*blk_size + i];
-      in_out[j*blk_size + i] = in_out[i*blk_size + j];
-      in_out[i*blk_size + j] = tmp;
-    }
-  }
-}
-
-static void od_apply_transform_matrix_2d(od_coeff *out, const od_coeff *src,
- const od_coeff *transform, int log_blk_sz) {
-  od_coeff buf[32*32];
-  int blk_size = 1 << log_blk_sz;
-  /* Apply vertical 1D transform. */
-  od_muliply_matrix(buf, transform, src, blk_size);
-  /* Transpose vertically transformed result,
-      so that the same transform basis matrix
-      can be multiplied to it to obtain horizontal 1D transform result. */
-  od_transpose_matrix(buf, blk_size);
-  /* Apply horizontal 1D transform. */
-  od_muliply_matrix(out, transform, buf, blk_size);
-}
-
-/* Compute SATD for the block sizes 4x4, 8x8, 16x16, 32x32.
-    Note : The strides for src and dest are blk_size. */
-static void od_hadamard_2d(od_coeff *dest, const od_coeff *diff,
- int log_blk_sz) {
-  /* Index for OD_HADAMARD_T[]:  0 for 4x4, ..., 3 for 32x32. */
-  OD_ASSERT2(OD_HADAMARD_T[log_blk_sz - 2], "Hadamard not defined for this size");
-  od_apply_transform_matrix_2d(dest, diff, OD_HADAMARD_T[log_blk_sz - 2],
-   log_blk_sz);
-}
-
-static int od_mc_compute_satd_generic_size_c(const unsigned char *src,
- int systride, const unsigned char *ref, int dystride, const int log_blk_sz) {
-  od_coeff diff[OD_MVBSIZE_MAX*OD_MVBSIZE_MAX];
-  od_coeff dest[OD_MVBSIZE_MAX*OD_MVBSIZE_MAX];
-  int satd;
-  int x;
-  int y;
-  int blk_size = 1 << log_blk_sz;
-  for (y = 0; y < blk_size; y++) {
-    for (x = 0; x < blk_size; x++) {
-      diff[y*blk_size + x] = src[systride*y + x] - ref[dystride*y + x];
-    }
-  }
-  od_hadamard_2d(dest, diff, log_blk_sz);/* 2D Hadamard transform. */
-  /* Absolute sum of transformed coefficients. */
-  satd = 0;
-  for (x = 0; x < blk_size*blk_size; x++) {
-    satd += abs(dest[x]);
-  }
-  /* Normalize (for orthogonality) by block size, i.e. 2d transform gain. */
-  satd >>= log_blk_sz;
-  return satd;
-}
+#define OD_BUTTERFLY_2x2(out0, out1, out2, out3, in0, in1, in2, in3) \
+  out0 = in0 + in1; \
+  out1 = in2 + in3; \
+  out2 = in0 - in1; \
+  out3 = in2 - in3;
 
 int od_mc_compute_satd_4x4_c(const unsigned char *src, int systride,
  const unsigned char *ref, int dystride) {
   int satd;
-  satd = od_mc_compute_satd_generic_size_c(src, systride, ref, dystride, 2);
+  int16_t diff[4*4];
+  int16_t *diff_p;
+  int16_t buff[4*4];
+  int16_t *buff_p;
+  int16_t a;
+  int16_t b;
+  int16_t c;
+  int16_t d;
+  int i;
+  satd = 0;
+  diff_p = diff;
+  for (i = 0; i < 4; i ++) {
+    diff_p[0] = (int16_t)src[0] - ref[0];
+    diff_p[1] = (int16_t)src[1] - ref[1];
+    diff_p[2] = (int16_t)src[2] - ref[2];
+    diff_p[3] = (int16_t)src[3] - ref[3];
+    diff_p += 4;
+    src += systride;
+    ref += dystride;
+  }
+  /*Horizontal 1D transform.*/
+  buff_p = buff;
+  diff_p = diff;
+  for (i = 0; i < 4; i++) {
+    OD_BUTTERFLY_2x2(a, b, c, d, diff_p[0], diff_p[1], diff_p[2], diff_p[3]);
+    OD_BUTTERFLY_2x2(buff_p[0], buff_p[1], buff_p[2], buff_p[3], a, b, c, d);
+    buff_p += 4;
+    diff_p += 4;
+  }
+  /*Vertical 1D transform.*/
+  buff_p = buff;
+  diff_p = diff;
+  for (i = 0; i < 4; i++) {
+    OD_BUTTERFLY_2x2(a, b, c, d,
+     buff_p[0*4], buff_p[1*4], buff_p[2*4], buff_p[3*4]);
+    OD_BUTTERFLY_2x2(diff_p[0*4], diff_p[1*4], diff_p[2*4], diff_p[3*4],
+     a, b, c, d);
+    buff_p++;
+    diff_p++;
+  }
+  for (i = 0; i < 4*4; i++) satd += abs(diff[i]);
+  satd = (satd + 2) >> 2;
   return satd;
+}
+
+static void od_mc_compute_satd_8x8_hor_c(int16_t *dest, int dystride,
+ const unsigned char *src, int systride,
+ const unsigned char *ref, int rystride) {
+  int16_t *diff_p;
+  int16_t diff[8*8];
+  int16_t *dest_p;
+  int16_t a;
+  int16_t b;
+  int16_t c;
+  int16_t d;
+  int16_t e;
+  int16_t f;
+  int16_t g;
+  int16_t h;
+  int16_t a1;
+  int16_t b1;
+  int16_t c1;
+  int16_t d1;
+  int16_t e1;
+  int16_t f1;
+  int16_t g1;
+  int16_t h1;
+  int i;
+  diff_p = diff;
+  for (i = 0; i < 8; i ++) {
+    diff_p[0] = (int16_t)src[0] - ref[0];
+    diff_p[1] = (int16_t)src[1] - ref[1];
+    diff_p[2] = (int16_t)src[2] - ref[2];
+    diff_p[3] = (int16_t)src[3] - ref[3];
+    diff_p[4] = (int16_t)src[4] - ref[4];
+    diff_p[5] = (int16_t)src[5] - ref[5];
+    diff_p[6] = (int16_t)src[6] - ref[6];
+    diff_p[7] = (int16_t)src[7] - ref[7];
+    diff_p += 8;
+    src += systride;
+    ref += rystride;
+  }
+  /*Horizontal 1D transform.*/
+  dest_p = dest;
+  diff_p = diff;
+  for (i = 0; i < 8; i++) {
+    OD_BUTTERFLY_2x2(a, b, c, d, diff_p[0], diff_p[1], diff_p[2], diff_p[3]);
+    OD_BUTTERFLY_2x2(e, f, g, h, diff_p[4], diff_p[5], diff_p[6], diff_p[7]);
+    OD_BUTTERFLY_2x2(a1, b1, e1, f1, a, b, e, f);
+    OD_BUTTERFLY_2x2(c1, d1, g1, h1, c, d, g, h);
+    OD_BUTTERFLY_2x2(dest_p[0], dest_p[2], dest_p[4], dest_p[6],
+     a1, b1, e1, f1);
+    OD_BUTTERFLY_2x2(dest_p[1], dest_p[3], dest_p[5], dest_p[7],
+     c1, d1, g1, h1);
+    dest_p += dystride;
+    diff_p += 8;
+  }
+}
+
+static void od_mc_compute_satd_8x8_ver_c(int32_t *dest, int dystride,
+  int16_t *src, int systride) {
+  int32_t *dest_p;
+  int16_t *src_p;
+  int16_t a;
+  int16_t b;
+  int16_t c;
+  int16_t d;
+  int16_t e;
+  int16_t f;
+  int16_t g;
+  int16_t h;
+  int16_t a1;
+  int16_t b1;
+  int16_t c1;
+  int16_t d1;
+  int16_t e1;
+  int16_t f1;
+  int16_t g1;
+  int16_t h1;
+  int i;
+  /*Vertical 1D transform.*/
+  src_p = src;
+  dest_p = dest;
+  for (i = 0; i < 8; i++) {
+    OD_BUTTERFLY_2x2(a, b, c, d, src_p[0*systride], src_p[1*systride],
+     src_p[2*systride], src_p[3*systride]);
+    OD_BUTTERFLY_2x2(e, f, g, h, src_p[4*systride], src_p[5*systride],
+     src_p[6*systride], src_p[7*systride]);
+    OD_BUTTERFLY_2x2(a1, b1, e1, f1, a, b, e, f);
+    OD_BUTTERFLY_2x2(c1, d1, g1, h1, c, d, g, h);
+    OD_BUTTERFLY_2x2(dest_p[0*dystride], dest_p[2*dystride],
+     dest_p[4*dystride], dest_p[6*dystride], a1, b1, e1, f1);
+    OD_BUTTERFLY_2x2(dest_p[1*dystride], dest_p[3*dystride],
+     dest_p[5*dystride], dest_p[7*dystride], c1, d1, g1, h1);
+    src_p++;
+    dest_p++;
+  }
 }
 
 int od_mc_compute_satd_8x8_c(const unsigned char *src, int systride,
  const unsigned char *ref, int dystride) {
   int satd;
-  satd = od_mc_compute_satd_generic_size_c(src, systride, ref, dystride, 3);
+  int16_t buff[8*8];
+  int32_t buff2[8*8];
+  int i;
+  satd = 0;
+  od_mc_compute_satd_8x8_hor_c(buff, 8, src, systride, ref, dystride);
+  od_mc_compute_satd_8x8_ver_c(buff2, 8, buff, 8);
+  for (i = 0; i < 8*8; i++) satd += abs(buff2[i]);
+  satd = (satd + 4) >> 3;
   return satd;
+}
+
+static void od_mc_compute_satd_16x16_hor_c(int16_t *dest, int dystride,
+ const unsigned char *src, int systride,
+ const unsigned char *ref, int rystride) {
+  int16_t buff[16*16];
+  int blk_size;
+  int i;
+  int j;
+  int row_ptr;
+  int row_ptr2;
+  int dest_row_ptr;
+  int dest_row_ptr2;
+  blk_size = 16;
+  od_mc_compute_satd_8x8_hor_c(buff, blk_size, src, systride, ref, rystride);
+  od_mc_compute_satd_8x8_hor_c(buff + 8, blk_size,
+   src + 8, systride, ref + 8, rystride);
+  od_mc_compute_satd_8x8_hor_c(buff + blk_size*8, blk_size,
+   src + systride*8, systride, ref + rystride*8, rystride);
+  od_mc_compute_satd_8x8_hor_c(buff + blk_size*8 + 8, blk_size,
+   src + systride*8 + 8, systride, ref + rystride*8 + 8, rystride);
+  for (j = 0; j < 8; j++) {
+    row_ptr = j*blk_size;
+    row_ptr2 = (j + 8)*blk_size;
+    dest_row_ptr = j*dystride;
+    dest_row_ptr2 = (j + 8)*dystride;
+    for (i = 0; i < 8; i++) {
+      dest[dest_row_ptr + i] = buff[row_ptr + i] + buff[row_ptr + i + 8];
+      dest[dest_row_ptr + i + 8] = buff[row_ptr + i] - buff[row_ptr + i + 8];
+      dest[dest_row_ptr2 + i] = buff[row_ptr2 + i] + buff[row_ptr2 + i + 8];
+      dest[dest_row_ptr2 + i + 8] = buff[row_ptr2 + i]
+       - buff[row_ptr2 + i + 8];
+    }
+  }
+}
+
+static void od_mc_compute_satd_16x16_ver_c(int32_t *dest, int dystride,
+ int16_t *src, int systride) {
+  int32_t buff[16*16];
+  int blk_size;
+  int i;
+  int j;
+  int row_ptr;
+  int row_ptr2;
+  int dest_row_ptr;
+  int dest_row_ptr2;
+  blk_size = 16;
+  od_mc_compute_satd_8x8_ver_c(buff, blk_size, src, systride);
+  od_mc_compute_satd_8x8_ver_c(buff + 8, blk_size, src + 8, systride);
+  od_mc_compute_satd_8x8_ver_c(buff + blk_size*8, blk_size,
+   src + systride*8, systride);
+  od_mc_compute_satd_8x8_ver_c(buff + blk_size*8 + 8, blk_size,
+   src + systride*8 + 8, systride);
+  for (j = 0; j < 8; j++) {
+    row_ptr = j*blk_size;
+    row_ptr2 = (j + 8)*blk_size;
+    dest_row_ptr = j*dystride;
+    dest_row_ptr2 = (j + 8)*dystride;
+    for (i = 0; i < 8; i++) {
+      dest[dest_row_ptr + i] = buff[row_ptr + i] + buff[row_ptr2 + i];
+      dest[dest_row_ptr2 + i] = buff[row_ptr + i] - buff[row_ptr2 + i];
+      dest[dest_row_ptr + i + 8] = buff[row_ptr + i + 8]
+       + buff[row_ptr2 + i + 8];
+      dest[dest_row_ptr2 + i + 8] = buff[row_ptr + i + 8]
+       - buff[row_ptr2 + i + 8];
+    }
+  }
 }
 
 int od_mc_compute_satd_16x16_c(const unsigned char *src, int systride,
  const unsigned char *ref, int dystride) {
-  int satd;
-  satd = od_mc_compute_satd_generic_size_c(src, systride, ref, dystride, 4);
+  int32_t satd;
+  int16_t buff[16*16];
+  int32_t buff2[16*16];
+  int i;
+  satd = 0;
+  od_mc_compute_satd_16x16_hor_c(buff, 16, src, systride, ref, dystride);
+  od_mc_compute_satd_16x16_ver_c(buff2, 16, buff, 16);
+  for (i = 0; i < 16*16; i++) satd += abs(buff2[i]);
+  satd = (satd + 8) >> 4;
   return satd;
 }
 
 int od_mc_compute_satd_32x32_c(const unsigned char *src, int systride,
  const unsigned char *ref, int dystride) {
-  int satd;
-  satd = od_mc_compute_satd_generic_size_c(src, systride, ref, dystride, 5);
+  int32_t satd;
+  int16_t buff[32*32];
+  int16_t buff2[32*32];
+  int32_t buff3[32*32];
+  int32_t buff4[32*32];
+  int blk_size;
+  int i;
+  int j;
+  int row_ptr;
+  int row_ptr2;
+  satd = 0;
+  blk_size = 32;
+  /*Horizontal 1D transform.*/
+  od_mc_compute_satd_16x16_hor_c(buff, blk_size, src, systride, ref, dystride);
+  od_mc_compute_satd_16x16_hor_c(buff + 16, blk_size,
+   src + 16, systride, ref + 16, dystride);
+  od_mc_compute_satd_16x16_hor_c(buff + blk_size*16, blk_size,
+   src + systride*16, systride, ref + dystride*16, dystride);
+  od_mc_compute_satd_16x16_hor_c(buff + blk_size*16 + 16, blk_size,
+   src + systride*16 + 16, systride, ref + dystride*16 + 16, dystride);
+  for (j = 0; j < 16; j++) {
+    row_ptr = j*blk_size;
+    row_ptr2 = (j + 16)*blk_size;
+    for (i = 0; i < 16; i++) {
+      buff2[row_ptr + i] = buff[row_ptr + i] + buff[row_ptr + i + 16];
+      buff2[row_ptr + i + 16] = buff[row_ptr + i] - buff[row_ptr + i + 16];
+      buff2[row_ptr2 + i] = buff[row_ptr2 + i] + buff[row_ptr2 + i + 16];
+      buff2[row_ptr2 + i + 16] = buff[row_ptr2 + i] - buff[row_ptr2 + i + 16];
+    }
+  }
+  /*Vertical 1D transform.*/
+  od_mc_compute_satd_16x16_ver_c(buff3, blk_size, buff2, blk_size);
+  od_mc_compute_satd_16x16_ver_c(buff3 + 16, blk_size, buff2 + 16, blk_size);
+  od_mc_compute_satd_16x16_ver_c(buff3 + blk_size*16, blk_size,
+   buff2 + blk_size*16, blk_size);
+  od_mc_compute_satd_16x16_ver_c(buff3 + blk_size*16 + 16, blk_size,
+   buff2 + blk_size*16 + 16, blk_size);
+  for (j = 0; j < 16; j++) {
+    row_ptr = j*blk_size;
+    row_ptr2 = (j + 16)*blk_size;
+    for (i = 0; i < 16; i++) {
+      buff4[row_ptr + i] = buff3[row_ptr + i] + buff3[row_ptr2 + i];
+      buff4[row_ptr2 + i] = buff3[row_ptr + i] - buff3[row_ptr2 + i];
+      buff4[row_ptr + i + 16] = buff3[row_ptr + i + 16]
+       + buff3[row_ptr2 + i + 16];
+      buff4[row_ptr2 + i + 16] = buff3[row_ptr + i + 16]
+       - buff3[row_ptr2 + i + 16];
+    }
+  }
+  for (i = 0; i < blk_size*blk_size; i++) satd += abs(buff4[i]);
+  satd = (satd + 16) >> 5;
   return satd;
 }
 
