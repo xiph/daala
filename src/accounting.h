@@ -42,7 +42,7 @@ typedef struct {
   int curr_layer;
   /* Last value returned from od_ec_dec_tell_frac(). */
   uint32_t last_tell;
-  short hash_dict[OD_ACCT_HASH_SIZE];
+  int16_t hash_dict[OD_ACCT_HASH_SIZE];
 } od_accounting_internal;
 
 int od_accounting_dict_lookup(od_accounting_internal *acct, const char *str);
