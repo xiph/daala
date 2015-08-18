@@ -157,6 +157,52 @@ int od_mc_compute_sad_16x16_xstride_1_sse2(const unsigned char *src,
 # endif
   return ret;
 }
+
+/*Handle one 32x32 block with dxstride == 1.*/
+int od_mc_compute_sad_32x32_xstride_1_sse2(const unsigned char *src,
+ int systride, const unsigned char *ref, int dystride){
+  const unsigned char *srow;
+  const unsigned char *drow;
+  int ret;
+  int i;
+  srow = src;
+  drow = ref;
+  __asm__ __volatile__(
+    "pxor %xmm2, %xmm2\n\t"
+  );
+  for (i = 0; i < 32; i++) {
+    __asm__ __volatile__(
+      "movdqu (%[drow]), %%xmm1\n"
+      "movdqu (%[srow]), %%xmm0\n"
+      "psadbw %%xmm1, %%xmm0\n"
+      "paddq %%xmm0, %%xmm2\n"
+      :
+      : [srow]"r"(srow), [drow]"r"(drow)
+    );
+    __asm__ __volatile__(
+      "movdqu 16(%[drow]), %%xmm1\n"
+      "movdqu 16(%[srow]), %%xmm0\n"
+      "psadbw %%xmm1, %%xmm0\n"
+      "paddq %%xmm0, %%xmm2\n"
+      :
+      : [srow]"r"(srow), [drow]"r"(drow)
+    );
+    srow += systride;
+    drow += dystride;
+  }
+  __asm__ __volatile__(
+    "movdqa %%xmm2, %%xmm0\n"
+    "punpckhqdq %%xmm2, %%xmm0\n"
+    "paddq %%xmm2, %%xmm0\n"
+    "movd %%xmm0, %[ret]\n"
+    : [ret]"=r"(ret)
+  );
+# if defined(OD_CHECKASM)
+  od_mc_compute_sad_check(src, systride, ref, dystride, 1, 32, 32, ret);
+# endif
+  return ret;
+}
+
 #endif
 
 #endif
