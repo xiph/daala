@@ -45,6 +45,8 @@ void od_enc_opt_vtbl_init_x86(od_enc_ctx *enc) {
   if (enc->state.cpu_flags & OD_CPU_X86_SSE2) {
     enc->opt_vtbl.mc_compute_sad_16x16_xstride_1 =
      od_mc_compute_sad_16x16_xstride_1_sse2;
+    enc->opt_vtbl.mc_compute_sad_32x32_xstride_1 =
+     od_mc_compute_sad_32x32_xstride_1_sse2;
   }
 #endif
 }

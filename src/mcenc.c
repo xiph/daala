@@ -1365,6 +1365,11 @@ int od_mc_compute_sad_16x16_xstride_1_c(const unsigned char *src, int systride,
   return od_mc_compute_sad_c(src, systride, ref, dystride, 1, 16, 16);
 }
 
+int od_mc_compute_sad_32x32_xstride_1_c(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride) {
+  return od_mc_compute_sad_c(src, systride, ref, dystride, 1, 32, 32);
+}
+
 #define OD_BUTTERFLY_2x2(out0, out1, out2, out3, in0, in1, in2, in3) \
   out0 = in0 + in1; \
   out1 = in2 + in3; \
@@ -1722,6 +1727,10 @@ static int32_t od_enc_sad8(od_enc_ctx *enc, const unsigned char *p,
   }
   else if (w == 16 && h == 16) {
     ret = (*enc->opt_vtbl.mc_compute_sad_16x16_xstride_1)(src, iplane->ystride,
+     p, pystride);
+  }
+  else if (w == 32 && h == 32) {
+    ret = (*enc->opt_vtbl.mc_compute_sad_32x32_xstride_1)(src, iplane->ystride,
      p, pystride);
   }
   else {

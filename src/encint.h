@@ -65,6 +65,8 @@ struct od_enc_opt_vtbl {
    int systride, const unsigned char *ref, int dystride);
   int (*mc_compute_sad_16x16_xstride_1)(const unsigned char *src,
    int systride, const unsigned char *ref, int dystride);
+  int (*mc_compute_sad_32x32_xstride_1)(const unsigned char *src,
+   int systride, const unsigned char *ref, int dystride);
   int (*mc_compute_satd_4x4)(const unsigned char *src,
    int systride, const unsigned char *ref, int dystride);
   int (*mc_compute_satd_8x8)(const unsigned char *src,
@@ -131,6 +133,8 @@ int od_mc_compute_sad_4x4_xstride_1_c(const unsigned char *src, int systride,
 int od_mc_compute_sad_8x8_xstride_1_c(const unsigned char *src, int systride,
  const unsigned char *ref, int dystride);
 int od_mc_compute_sad_16x16_xstride_1_c(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride);
+int od_mc_compute_sad_32x32_xstride_1_c(const unsigned char *src, int systride,
  const unsigned char *ref, int dystride);
 int od_mc_compute_sad_c(const unsigned char *_src, int _systride,
  const unsigned char *_ref, int _dystride, int _dxstride, int _w, int _h);
