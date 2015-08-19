@@ -82,14 +82,19 @@ OD_SIMD_INLINE void od_mc_butterfly_2x2_16x4(__m64 *t0, __m64 *t1,
   *t3 = _mm_sub_pi16(in2, in3);
 }
 
+/*Convert 4 unsigned 8 bit values to 4 unsigned 16 bit.
+  Both input and output are 64 bit (mmx) vectors.*/
 OD_SIMD_INLINE __m64 od_cvtu8x4_u16x4(__m64 in) {
   return _mm_unpacklo_pi8(in, _mm_setzero_si64());
 }
 
+/*Convert 8 unsigned 8 bit values to 8 unsigned 16 bit.
+  Both input and output are 128 bit (sse) integer vectors.*/
 OD_SIMD_INLINE __m128i od_cvtu8x8_u16x8(__m128i in) {
   return _mm_unpacklo_epi8(in, _mm_setzero_si128());
 }
 
+/*Convert 16 unsigned integers to */
 OD_SIMD_INLINE void od_cvtu8x16_2xu16x8(__m128i *outlo, __m128i *outhi,
  __m128i in)
 {
@@ -97,29 +102,35 @@ OD_SIMD_INLINE void od_cvtu8x16_2xu16x8(__m128i *outlo, __m128i *outhi,
   *outhi = _mm_unpackhi_epi8(in, _mm_setzero_si128());
 }
 
+/*Corresponds to _mm_cvtepi16_epi32 (sse4.1).*/
 OD_SIMD_INLINE __m128i od_cvti16x4_i32x4(__m128i in) {
+  /*_mm_cmplt_epi16 returns */
   __m128i extend = _mm_cmplt_epi16(in, _mm_setzero_si128());
   return _mm_unpacklo_epi16(in, extend);
 }
 
-OD_SIMD_INLINE __m128i od_abs16x8(__m128i in) {
-  __m128i mask;
-  mask = _mm_srai_epi16(in, 15);
-  return _mm_xor_si128(_mm_add_epi16(in, mask), mask);
-}
-
+/*Corresponds to _mm_abs_pi16 (ssse3).*/
 OD_SIMD_INLINE __m64 od_abs16x4(__m64 in) {
   __m64 mask;
   mask = _mm_srai_pi16(in, 15);
   return _mm_xor_si64(_mm_add_pi16(in, mask), mask);
 }
 
+/*Corresponds to _mm_abs_epi16 (ssse3).*/
+OD_SIMD_INLINE __m128i od_abs16x8(__m128i in) {
+  __m128i mask;
+  mask = _mm_srai_epi16(in, 15);
+  return _mm_xor_si128(_mm_add_epi16(in, mask), mask);
+}
+
+/*Corresponds to _mm_abs_epi32 (ssse3).*/
 OD_SIMD_INLINE __m128i od_abs32x4(__m128i in) {
   __m128i mask;
   mask = _mm_srai_epi32(in, 31);
   return _mm_xor_si128(_mm_add_epi32(in, mask), mask);
 }
 
+/*Add all the 32 values of a vector into a single integer.*/
 OD_SIMD_INLINE int od_reduce_add32x4(__m128i in) {
   __m128i sums = in;
   sums = _mm_add_epi32(sums, _mm_srli_si128(sums, 8));
@@ -127,6 +138,7 @@ OD_SIMD_INLINE int od_reduce_add32x4(__m128i in) {
   return _mm_cvtsi128_si32(sums);
 }
 
+/*Transpose 8 vectors with 8 16 bit vectors each.*/
 OD_SIMD_INLINE void od_transpose16x8(__m128i *t0, __m128i *t1,
  __m128i *t2, __m128i *t3,  __m128i *t4, __m128i *t5, __m128i *t6, __m128i *t7) {
   __m128i a1;
@@ -169,6 +181,7 @@ OD_SIMD_INLINE void od_transpose16x8(__m128i *t0, __m128i *t1,
   *t7 = _mm_unpackhi_epi64(g1, h1);
 }
 
+/*Transpose 4 vectors with 4 16 bit vectors each.*/
 OD_SIMD_INLINE void od_transpose16x4(__m64 *t0, __m64 *t1,
  __m64 *t2, __m64 *t3) {
   __m64 a = _mm_unpacklo_pi16(*t0, *t1);
@@ -179,6 +192,33 @@ OD_SIMD_INLINE void od_transpose16x4(__m64 *t0, __m64 *t1,
   *t1 = _mm_unpackhi_pi32(a, b);
   *t2 = _mm_unpacklo_pi32(c, d);
   *t3 = _mm_unpackhi_pi32(c, d);
+}
+
+/*Get the sum of length elements in src.*/
+OD_SIMD_INLINE int od_sum_array_32i(const int32_t *src, const int length)
+{
+  int sum;
+  __m128i sums;
+  const int32_t *src_p;
+  int i;
+  /*Length should be a power of 2 and greater than or equal to 4.*/
+  OD_ASSERT(!((length - 1) & length));
+  OD_ASSERT(a >= 4);
+  sum = 0;
+  sums = _mm_setzero_si128();
+  src_p = src;
+  /*Vertically sum the elements of the array into one vector.*/
+  for(i = 0; i < length; i+=4) {
+    __m128i tmp = _mm_load_si128((__m128i *)src_p);
+    tmp = od_abs32x4(tmp);
+    sums = _mm_add_epi32(sums, tmp);
+    src_p += 4;
+  }
+  /*Sum the elements of the vector.*/
+  sums = _mm_add_epi32(sums, _mm_srli_si128(sums, 8));
+  sums = _mm_add_epi32(sums, _mm_srli_si128(sums, 4));
+  sum = _mm_cvtsi128_si32(sums);
+  return sum;
 }
 
 int od_mc_compute_satd_4x4_sse2(const unsigned char *src, int systride,
@@ -235,8 +275,6 @@ int od_mc_compute_satd_4x4_sse2(const unsigned char *src, int systride,
   sums = _mm_add_pi32(sums, _mm_srli_si64(sums, 4*8));
   satd = _mm_cvtsi64_si32(sums);
   satd = (satd + 2) >> 2;
-/*QUESTION: Since satd has no generic method I do this for each method. What
-   should I do about this?*/
 #if defined(OD_CHECKASM)
   {
     int c_satd = od_mc_compute_satd_4x4_c(src, systride, ref, rystride);
@@ -369,23 +407,11 @@ void od_mc_compute_satd_8x8_ver_sse2(int32_t *dest, int dystride,
 int od_mc_compute_satd_8x8_sse2(const unsigned char *src, int systride,
  const unsigned char *ref, int rystride) {
   int satd;
-  __m128i sums;
   int16_t buff1[8*8];
   int32_t buff2[8*8];
-  int32_t *buff2_p;
-  int i;
-  satd = 0;
-  sums = _mm_setzero_si128();
   od_mc_compute_satd_8x8_hor_sse2(buff1, 8, src, systride, ref, rystride);
   od_mc_compute_satd_8x8_ver_sse2(buff2, 8, buff1, 8);
-  buff2_p = buff2;
-  for(i = 0; i < 8*8; i+=4) {
-    __m128i tmp = _mm_load_si128((__m128i *)buff2_p);
-    tmp = od_abs32x4(tmp);
-    sums = _mm_add_epi32(sums, tmp);
-    buff2_p += 4;
-  }
-  satd = od_reduce_add32x4(sums);
+  satd = od_sum_array_32i(buff2, 8*8);
   satd = (satd + 4) >> 3;
 #if defined(OD_CHECKASM)
   {
@@ -437,7 +463,6 @@ void od_mc_compute_satd_16x16_hor_sse2(int16_t *dest, int dystride,
       b0 = _mm_load_si128((__m128i *)(buff + row_ptr + i + 8));
       c0 = _mm_load_si128((__m128i *)(buff + row_ptr2 + i));
       d0 = _mm_load_si128((__m128i *)(buff + row_ptr2 + i + 8));
-      /*QUESTION: Should I just use the butterfly transform for these?*/
       a1 = _mm_add_epi16(a0, b0);
       b1 = _mm_sub_epi16(a0, b0);
       c1 = _mm_add_epi16(c0, d0);
@@ -500,23 +525,11 @@ void od_mc_compute_satd_16x16_ver_sse2(int32_t *dest, int dystride,
 int od_mc_compute_satd_16x16_sse2(const unsigned char *src, int systride,
  const unsigned char *ref, int rystride) {
   int satd;
-  __m128i sums;
   int16_t buff1[16*16];
   int32_t buff2[16*16];
-  int32_t *buff2_p;
-  int i;
-  satd = 0;
-  sums = _mm_setzero_si128();
   od_mc_compute_satd_16x16_hor_sse2(buff1, 16, src, systride, ref, rystride);
   od_mc_compute_satd_16x16_ver_sse2(buff2, 16, buff1, 16);
-  buff2_p = buff2;
-  for(i = 0; i < 16*16; i += 4) {
-    __m128i tmp = _mm_load_si128((__m128i *)buff2_p);
-    tmp = od_abs32x4(tmp);
-    sums = _mm_add_epi32(sums, tmp);
-    buff2_p += 4;
-  }
-  satd = od_reduce_add32x4(sums);
+  satd = od_sum_array_32i(buff2, 16*16);
   satd = (satd + 8) >> 4;
 #if defined(OD_CHECKASM)
   {
@@ -533,19 +546,15 @@ int od_mc_compute_satd_16x16_sse2(const unsigned char *src, int systride,
 int od_mc_compute_satd_32x32_sse2(const unsigned char *src, int systride,
  const unsigned char *ref, int rystride) {
   int32_t satd;
-  __m128i sums;
   int16_t buff[32*32];
   int16_t buff2[32*32];
   int32_t buff3[32*32];
   int32_t buff4[32*32];
-  int32_t *buff4_p;
   int blk_size;
   int i;
   int j;
   int row_ptr;
   int row_ptr2;
-  satd = 0;
-  sums = _mm_setzero_si128();
   blk_size = 32;
   /*Horizontal 1D transform.*/
   od_mc_compute_satd_16x16_hor_sse2(buff, blk_size, src, systride,
@@ -616,14 +625,7 @@ int od_mc_compute_satd_32x32_sse2(const unsigned char *src, int systride,
       _mm_store_si128((__m128i *)(buff4 + row_ptr2 + i + 16), d1);
     }
   }
-  buff4_p = buff4;
-  for(i = 0; i < blk_size*blk_size; i+=4) {
-    __m128i tmp = _mm_load_si128((__m128i *)buff4_p);
-    tmp = od_abs32x4(tmp);
-    sums = _mm_add_epi32(sums, tmp);
-    buff4_p += 4;
-  }
-  satd = od_reduce_add32x4(sums);
+  satd = od_sum_array_32i(buff4, 32*32);
   satd = (satd + 16) >> 5;
 #if defined(OD_CHECKASM)
   {
