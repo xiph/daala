@@ -45,6 +45,7 @@ if ENABLE_X86ASM
 src_dct_SOURCES += src/x86/cpu.c
 if ENABLE_SSE2_INTRINSICS
 src_dct_SOURCES += src/x86/sse2dct.c
+%sse2dct.o %sse2dct.lo: CFLAGS += -msse2
 endif
 if ENABLE_SSE41_INTRINSICS
 src_dct_SOURCES += src/x86/sse41dct.c
@@ -125,8 +126,12 @@ src_libdaalaenc_la_SOURCES = \
 if ENABLE_X86ASM
 src_libdaalaenc_la_SOURCES += \
         src/x86/x86enc.c \
-        src/x86/sse2mcenc.c \
         src/x86/x86mcenc.c
+if ENABLE_SSE2_INTRINSICS
+src_libdaalaenc_la_SOURCES += \
+        src/x86/sse2mcenc.c
+        %sse2mcenc.o %sse2mcenc.lo: CFLAGS += -msse2
+endif
 endif
 
 # Example programs
