@@ -1,5 +1,5 @@
 /*Daala video codec
-Copyright (c) 2015-2015 Daala project contributors.  All rights reserved.
+Copyright (c) 2015 Daala project contributors.  All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -274,7 +274,7 @@ int od_mc_compute_satd_4x4_sse2(const unsigned char *src, int systride,
   return satd;
 }
 
-void od_mc_compute_satd_8x8_hor_sse2(int16_t *dest, int dystride,
+static void od_mc_compute_satd_8x8_hor_sse2(int16_t *dest, int dystride,
  const unsigned char *src, int systride,
  const unsigned char *ref, int rystride) {
   __m128i *diff_p;
@@ -339,7 +339,7 @@ void od_mc_compute_satd_8x8_hor_sse2(int16_t *dest, int dystride,
   }
 }
 
-void od_mc_compute_satd_8x8_ver_sse2(int32_t *dest, int dystride,
+static void od_mc_compute_satd_8x8_ver_sse2(int32_t *dest, int dystride,
   int16_t *src, int systride) {
   int32_t *dest_p;
   int16_t *src_p;
@@ -412,7 +412,7 @@ int od_mc_compute_satd_8x8_sse2(const unsigned char *src, int systride,
   return satd;
 }
 
-void od_mc_compute_satd_16x16_hor_sse2(int16_t *dest, int dystride,
+static void od_mc_compute_satd_16x16_hor_sse2(int16_t *dest, int dystride,
  const unsigned char *src, int systride,
  const unsigned char *ref, int rystride) {
   int16_t buff[16*16];
@@ -462,7 +462,7 @@ void od_mc_compute_satd_16x16_hor_sse2(int16_t *dest, int dystride,
   }
 }
 
-void od_mc_compute_satd_16x16_ver_sse2(int32_t *dest, int dystride,
+static void od_mc_compute_satd_16x16_ver_sse2(int32_t *dest, int dystride,
  int16_t *src, int systride) {
   int32_t buff[16*16];
   int blk_size;
