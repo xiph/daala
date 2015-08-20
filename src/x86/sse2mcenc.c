@@ -103,26 +103,11 @@ OD_SIMD_INLINE __m64 od_abs16x4(__m64 in) {
   return _mm_xor_si64(_mm_add_pi16(in, mask), mask);
 }
 
-/*Corresponds to _mm_abs_epi16 (ssse3).*/
-OD_SIMD_INLINE __m128i od_abs16x8(__m128i in) {
-  __m128i mask;
-  mask = _mm_srai_epi16(in, 15);
-  return _mm_xor_si128(_mm_add_epi16(in, mask), mask);
-}
-
 /*Corresponds to _mm_abs_epi32 (ssse3).*/
 OD_SIMD_INLINE __m128i od_abs32x4(__m128i in) {
   __m128i mask;
   mask = _mm_srai_epi32(in, 31);
   return _mm_xor_si128(_mm_add_epi32(in, mask), mask);
-}
-
-/*Add all the 32 values of a vector into a single integer.*/
-OD_SIMD_INLINE int od_reduce_add32x4(__m128i in) {
-  __m128i sums = in;
-  sums = _mm_add_epi32(sums, _mm_srli_si128(sums, 8));
-  sums = _mm_add_epi32(sums, _mm_srli_si128(sums, 4));
-  return _mm_cvtsi128_si32(sums);
 }
 
 /*Transpose 8 vectors with 8 16 bit vectors each.*/
