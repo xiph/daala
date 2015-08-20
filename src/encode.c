@@ -1823,7 +1823,7 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
     ydec = state->io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
     w = frame_width >> xdec;
     h = frame_height >> ydec;
-    if (!rdo_only) {
+    if (!rdo_only && enc->quantizer[0] > 0) {
       for (sby = 0; sby < nvsb; sby++) {
         for (sbx = 0; sbx < nhsb; sbx++) {
           if (mbctx->is_keyframe && OD_BLOCK_SIZE4x4(enc->state.bsize,

@@ -967,16 +967,19 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
     ydec = state->io_imgs[OD_FRAME_INPUT].planes[pli].ydec;
     w = frame_width >> xdec;
     h = frame_height >> ydec;
-    for (sby = 0; sby < nvsb; sby++) {
-      for (sbx = 0; sbx < nhsb; sbx++) {
-        if (mbctx->is_keyframe &&
-         OD_BLOCK_SIZE4x4(dec->state.bsize, dec->state.bstride,
-         sbx << (OD_NBSIZES - 1), sby << (OD_NBSIZES - 1)) == OD_NBSIZES - 1) {
-          int ln;
-          OD_ASSERT(xdec == ydec);
-          ln = OD_LOG_BSIZE_MAX - xdec;
-          od_bilinear_smooth(&state->ctmp[pli][(sby << ln)*w + (sbx << ln)],
-           ln, w, dec->quantizer[pli], pli);
+    if (dec->quantizer[0] > 0)
+    {
+      for (sby = 0; sby < nvsb; sby++) {
+        for (sbx = 0; sbx < nhsb; sbx++) {
+          if (mbctx->is_keyframe &&
+           OD_BLOCK_SIZE4x4(dec->state.bsize, dec->state.bstride,
+           sbx << (OD_NBSIZES - 1), sby << (OD_NBSIZES - 1)) == OD_NBSIZES - 1) {
+            int ln;
+            OD_ASSERT(xdec == ydec);
+            ln = OD_LOG_BSIZE_MAX - xdec;
+            od_bilinear_smooth(&state->ctmp[pli][(sby << ln)*w + (sbx << ln)],
+             ln, w, dec->quantizer[pli], pli);
+          }
         }
       }
     }
