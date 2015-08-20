@@ -267,7 +267,11 @@ void od_apply_qm(od_coeff *out, int out_stride, od_coeff *in, int in_stride,
   for (i = 0; i < 4 << bs; i++) {
     for (j = 0; j < 4 << bs; j++) {
       double mag;
+#if OD_DEBLOCKING || OD_DISABLE_FILTER
+      mag = 1;
+#else
       mag = OD_BASIS_MAG[dec][bs][i]*OD_BASIS_MAG[dec][bs][j];
+#endif
       if (i == 0 && j == 0) {
         mag = 1;
       }

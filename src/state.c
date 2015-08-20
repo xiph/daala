@@ -45,7 +45,7 @@ const od_coeff OD_DC_RES[3] = {17, 24, 17};
 
 /* Scaling compensation for the Haar equivalent basis function. Left is
    for horizontal/vertical. Right is for diagonal. */
-#if OD_DISABLE_FILTER
+#if OD_DISABLE_FILTER || OD_DEBLOCKING
 const od_coeff OD_DC_QM[2][OD_NBSIZES - 1][2] = {
   {{16, 16}, {16, 16}, {16, 16}},
   {{16, 16}, {16, 16}, {16, 16}}
@@ -351,6 +351,8 @@ static int od_state_init_impl(od_state *state, const daala_info *info) {
       }
     }
     else state->lbuf[pli] = state->ltmp[pli] = NULL;
+    state->bskip[pli] = (unsigned char *)malloc(sizeof(*state->bskip)*
+     state->nhsb*state->nvsb<<(2*(OD_NBSIZES-1) - xdec - ydec));
   }
   state->bsize = (unsigned char *)malloc(
    sizeof(*state->bsize)*(state->nhsb + 2)*4*(state->nvsb + 2)*4);
@@ -359,6 +361,7 @@ static int od_state_init_impl(od_state *state, const daala_info *info) {
   }
   state->bstride = (state->nhsb + 2)*4;
   state->bsize += 4*state->bstride + 4;
+  state->skip_stride = state->nhsb*8;
 #if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
   state->dump_tags = 0;
   state->dump_files = 0;
@@ -400,6 +403,7 @@ void od_state_clear(od_state *state) {
     free(state->mdtmp[pli]);
   }
   free(state->bsize);
+  for (pli = 0; pli < 3; pli++) free(state->bskip[pli]);
   free(state->clpf_flags);
   free(state->sb_skip_flags);
 }

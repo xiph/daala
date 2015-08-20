@@ -678,10 +678,10 @@ static void od_decode_recursive(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
   bs = OD_MAXI(obs, xdec);
   OD_ASSERT(bs <= bsi);
   if (bs == bsi) {
+    int i;
+    int j;
     bs -= xdec;
     if (pli == 0) {
-      int i;
-      int j;
       int n4;
       n4 = 1 << bsi;
       /* Save the block size decision so that chroma can reuse it. */
@@ -706,6 +706,13 @@ static void od_decode_recursive(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
        dec->state.adapt.skip_increment, "skip");
     }
     od_block_decode(dec, ctx, bs, pli, bx, by, skip);
+    for (i = 0; i < 1 << bs; i++) {
+      for (j = 0; j < 1 << bs; j++) {
+        dec->state.bskip[pli][((by << bs) + i)*dec->state.skip_stride
+         + (bx << bs) + j] = (skip == 2) && !ctx->is_keyframe;
+      }
+    }
+
   }
   else {
     int f;
@@ -730,7 +737,9 @@ static void od_decode_recursive(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
      hgrad, vgrad);
     bs = bsi - xdec;
     bo = (by << (OD_LOG_BSIZE0 + bs))*w + (bx << (OD_LOG_BSIZE0 + bs));
-    od_postfilter_split(ctx->c + bo, w, bs, f);
+    od_postfilter_split(ctx->c + bo, w, bs, f, dec->coded_quantizer[pli],
+     &dec->state.bskip[pli][(by << bs)*dec->state.skip_stride + (bx << bs)],
+     dec->state.skip_stride);
   }
 }
 
@@ -868,14 +877,15 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
       }
       if (!mbctx->is_keyframe && !mbctx->use_haar_wavelet) {
         od_apply_prefilter_frame_sbs(state->mctmp[pli], w, nhsb, nvsb, xdec,
-         ydec);
+          ydec);
       }
     }
   }
   for (pli = 0; pli < nplanes; pli++) {
+    dec->coded_quantizer[pli] = od_ec_dec_uint(&dec->ec,
+      OD_N_CODED_QUANTIZERS, "quantizer");
     dec->quantizer[pli] =
-     od_codedquantizer_to_quantizer(od_ec_dec_uint(&dec->ec,
-     OD_N_CODED_QUANTIZERS, "quantizer"));
+     od_codedquantizer_to_quantizer(dec->coded_quantizer[pli]);
   }
   for (sby = 0; sby < nvsb; sby++) {
     for (sbx = 0; sbx < nhsb; sbx++) {
@@ -906,7 +916,8 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
     h = frame_height >> ydec;
     if (!mbctx->use_haar_wavelet) {
       od_apply_postfilter_frame_sbs(state->ctmp[pli], w, nhsb, nvsb, xdec,
-       ydec);
+       ydec, dec->coded_quantizer[pli], &dec->state.bskip[pli][0],
+       dec->state.skip_stride);
     }
   }
   if (dec->quantizer[0] > 0) {

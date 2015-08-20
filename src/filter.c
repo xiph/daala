@@ -1,5 +1,6 @@
 /*Daala video codec
 Copyright (c) 2003-2013 Daala project contributors.  All rights reserved.
+Copyright (c) 2015, Cisco Systems (Thor deblocking filter)
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -1345,10 +1346,120 @@ void od_post_filter32(od_coeff _x[32], const od_coeff _y[32]) {
 #endif
 }
 
+#if OD_DEBLOCKING
+
+/* This is a slightly modified implementation of the Thor deblocking filter
+   adapted for use in Daala. See draft-fuldseth-netvc-thor-00 or the Thor
+   codebase for more details. */
+
+int beta_table[52] = {
+     0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
+     16, 17, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64
+};
+
+static const int tc_table[56] =
+{
+    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,2,2,2,2,3,3,3,3,4,4,4,5,5,6,6,7,8,9,9,10,10,11,11,12,12,13,13,14,14
+};
+
+#define OD_DEBLOCK_BETA(q) (beta_table[OD_CLAMPI(0, (q) - 8, 51)] << OD_COEFF_SHIFT)
+#define OD_DEBLOCK_TC(q) (tc_table[OD_CLAMPI(0, (q) - 8, 51)] << OD_COEFF_SHIFT)
+
+void od_thor_deblock_col8(od_coeff *c0, int stride, int q) {
+  od_coeff p12;
+  od_coeff p02;
+  od_coeff q12;
+  od_coeff q02;
+  od_coeff p15;
+  od_coeff p05;
+  od_coeff q15;
+  od_coeff q05;
+  od_coeff d;
+
+  p12 = c0[2*stride - 2];
+  p02 = c0[2*stride - 1];
+  q02 = c0[2*stride + 0];
+  q12 = c0[2*stride + 1];
+  p15 = c0[5*stride - 2];
+  p05 = c0[5*stride - 1];
+  q05 = c0[5*stride + 0];
+  q15 = c0[5*stride + 1];
+  d = abs(p12-p02) + abs(q12-q02) + abs(p15-p05) + abs(q15-q05);
+  if (d < OD_DEBLOCK_BETA(q)) {
+    int k;
+    od_coeff tc;
+    tc = OD_DEBLOCK_TC(q);
+    for (k = 0; k < 8; k++) {
+      od_coeff p0;
+      od_coeff p1;
+      od_coeff q0;
+      od_coeff q1;
+      od_coeff delta;
+      p1 = c0[k*stride - 2];
+      p0 = c0[k*stride - 1];
+      q0 = c0[k*stride + 0];
+      q1 = c0[k*stride + 1];
+      delta = (18*(q0-p0) - 6*(q1-p1) + 16)>>5;
+      delta = OD_CLAMPI(-tc, delta,tc);
+      c0[k*stride - 2] = p1 + delta/2;
+      c0[k*stride - 1] = p0 + delta;
+      c0[k*stride + 0] = q0 - delta;
+      c0[k*stride + 1] = q1 - delta/2;
+    }
+  }
+}
+
+void od_thor_deblock_row8(od_coeff *c0, int stride, int q) {
+  od_coeff p12;
+  od_coeff p02;
+  od_coeff q12;
+  od_coeff q02;
+  od_coeff p15;
+  od_coeff p05;
+  od_coeff q15;
+  od_coeff q05;
+  od_coeff d;
+
+  p12 = c0[2 - 2*stride];
+  p02 = c0[2 - 1*stride];
+  q02 = c0[2 + 0*stride];
+  q12 = c0[2 + 1*stride];
+  p15 = c0[5 - 2*stride];
+  p05 = c0[5 - 1*stride];
+  q05 = c0[5 + 0*stride];
+  q15 = c0[5 + 1*stride];
+  d = abs(p12-p02) + abs(q12-q02) + abs(p15-p05) + abs(q15-q05);
+  if (d < OD_DEBLOCK_BETA(q)) {
+    int k;
+    od_coeff tc;
+    tc = OD_DEBLOCK_TC(q);
+    for (k = 0; k < 8; k++) {
+      od_coeff p0;
+      od_coeff p1;
+      od_coeff q0;
+      od_coeff q1;
+      od_coeff delta;
+      p1 = c0[k - 2*stride];
+      p0 = c0[k - 1*stride];
+      q0 = c0[k + 0*stride];
+      q1 = c0[k + 1*stride];
+      delta = (18*(q0-p0) - 6*(q1-p1) + 16)>>5;
+      delta = OD_CLAMPI(-tc, delta,tc);
+      c0[k - 2*stride] = p1 + delta/2;
+      c0[k - 1*stride] = p0 + delta;
+      c0[k + 0*stride] = q0 - delta;
+      c0[k + 1*stride] = q1 - delta/2;
+    }
+  }
+}
+#endif
+
 #define OD_BLOCK_SIZE4x4_DEC(bsize, bstride, bx, by, dec) \
  OD_MAXI(OD_BLOCK_SIZE4x4(bsize, bstride, bx, by), dec)
 
 void od_prefilter_split(od_coeff *c0, int stride, int bs, int f) {
+#if OD_DEBLOCKING
+#else
   int i;
   int j;
   od_coeff *c;
@@ -1364,12 +1475,34 @@ void od_prefilter_split(od_coeff *c0, int stride, int bs, int f) {
   for (i = 0; i < 4 << bs; i++) {
     (*OD_PRE_FILTER[f])(c + i*stride, c + i*stride);
   }
+#endif
 }
 
-void od_postfilter_split(od_coeff *c0, int stride, int bs, int f) {
+void od_postfilter_split(od_coeff *c0, int stride, int bs, int f, int q,
+ unsigned char *skip, int skip_stride) {
   int i;
-  int j;
   od_coeff *c;
+#if OD_DEBLOCKING
+  if (bs==0) return;
+  c = c0 + (2 << bs);
+  for (i = 0; i < 4 << bs; i += 8) {
+    if (!skip[(i >> 2)*skip_stride + (1 << bs >> 1) - 1]
+     || !skip[(i >> 2)*skip_stride + (1 << bs >> 1)]) {
+      od_thor_deblock_col8(c + i*stride, stride, q);
+    }
+  }
+  c = c0 + (2 << bs)*stride;
+  for (i = 0; i < 4 << bs; i += 8) {
+    if (!skip[((1 << bs >> 1) - 1)*skip_stride + (i >> 2)]
+     || !skip[(1 << bs >> 1)*skip_stride + (i >> 2)]) {
+      od_thor_deblock_row8(c + i, stride, q);
+    }
+  }
+#else
+  int j;
+  (void)q;
+  (void)skip;
+  (void)skip_stride;
   c = c0 + (2 << bs) - (2 << f);
   for (i = 0; i < 4 << bs; i++) {
     (*OD_POST_FILTER[f])(c + i*stride, c + i*stride);
@@ -1382,10 +1515,13 @@ void od_postfilter_split(od_coeff *c0, int stride, int bs, int f) {
     (*OD_POST_FILTER[f])(t, t);
     for (k = 0; k < 4 << f; k++) c[stride*k + j] = t[k];
   }
+#endif
 }
 
 void od_apply_prefilter_frame_sbs(od_coeff *c0, int stride, int nhsb, int nvsb,
  int xdec, int ydec) {
+#if OD_DEBLOCKING
+#else
   int sbx;
   int sby;
   int i;
@@ -1411,16 +1547,47 @@ void od_apply_prefilter_frame_sbs(od_coeff *c0, int stride, int nhsb, int nvsb,
     }
     c += OD_BSIZE_MAX >> xdec;
   }
+#endif
 }
 
 void od_apply_postfilter_frame_sbs(od_coeff *c0, int stride, int nhsb,
- int nvsb, int xdec, int ydec) {
+ int nvsb, int xdec, int ydec, int q, unsigned char *skip, int skip_stride) {
+#if OD_DEBLOCKING
+  od_coeff *c;
+  int sbx;
+  int sby;
+  c = c0 + (OD_BSIZE_MAX >> ydec);
+  for (sbx = 1; sbx < nhsb; sbx++) {
+    int i;
+    for (i = 0; i < nvsb << OD_LOG_BSIZE_MAX >> ydec; i+=8) {
+      if (!skip[(i >> 2)*skip_stride + (sbx << 3 >> xdec) - 1]
+       || !skip[(i >> 2)*skip_stride + (sbx << 3 >> xdec)]) {
+        od_thor_deblock_col8(c + i*stride, stride, q);
+      }
+    }
+    c += OD_BSIZE_MAX >> xdec;
+  }
+  c = c0 + (OD_BSIZE_MAX >> ydec)*stride;
+  for (sby = 1; sby < nvsb; sby++) {
+    int j;
+    for (j = 0; j < nhsb << OD_LOG_BSIZE_MAX >> xdec; j+=8) {
+      if (!skip[((sby << 3 >> xdec) - 1)*skip_stride + (j >> 2)]
+       || !skip[(sby << 3 >> xdec)*skip_stride + (j >> 2)]) {
+        od_thor_deblock_row8(c + j, stride, q);
+      }
+    }
+    c += OD_BSIZE_MAX*stride >> ydec;
+  }
+#else
   int sbx;
   int sby;
   int i;
   int j;
   int f;
   od_coeff *c;
+  (void)q;
+  (void)skip;
+  (void)skip_stride;
   f = OD_FILT_SIZE(OD_NBSIZES - 1, xdec);
   c = c0 + (OD_BSIZE_MAX >> ydec) - (2 << f);
   for (sbx = 1; sbx < nhsb; sbx++) {
@@ -1440,6 +1607,7 @@ void od_apply_postfilter_frame_sbs(od_coeff *c0, int stride, int nhsb,
     }
     c += OD_BSIZE_MAX*stride >> ydec;
   }
+#endif
 }
 
 /*Smooths a block using the constrained lowpass filter from Thor

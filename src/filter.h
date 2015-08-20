@@ -84,11 +84,12 @@ void od_clpf(od_coeff *y, int ystride, od_coeff *x, int xstride, int ln,
  int sbx, int sby, int nhsb, int nvsb);
 void od_bilinear_smooth(od_coeff *x, int ln, int stride, int q, int pli);
 void od_prefilter_split(od_coeff *c0, int stride, int bs, int f);
-void od_postfilter_split(od_coeff *c0, int stride, int bs, int f);
+void od_postfilter_split(od_coeff *c0, int stride, int bs, int f, int q,
+ unsigned char *skip, int skip_stride);
 void od_apply_prefilter_frame_sbs(od_coeff *c, int stride, int nhsb, int nvsb,
  int xdec, int ydec);
 void od_apply_postfilter_frame_sbs(od_coeff *c, int stride, int nhsb, int nvsb,
- int xdec, int ydec);
+ int xdec, int ydec, int q, unsigned char *skip, int skip_stride);
 void od_apply_filter_sb_rows(od_coeff *c, int stride, int nhsb, int nvsb,
  int xdec, int ydec, int inv, int bs);
 void od_apply_filter_sb_cols(od_coeff *c, int stride, int nhsb, int nvsb,

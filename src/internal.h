@@ -84,6 +84,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #  error "block sizes above 32x32 not supported"
 # endif
 # define OD_DISABLE_FILTER (0)
+# define OD_DEBLOCKING (0)
 # define OD_DISABLE_CFL (0)
 
 # define OD_ROBUST_STREAM (0)

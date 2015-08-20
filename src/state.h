@@ -204,6 +204,8 @@ struct od_state{
       entries (horizontally adjacent entries are adjacent in memory). */
   unsigned char *bsize;
   int                 bstride;
+  unsigned char *bskip[3];
+  int                 skip_stride;
   od_coeff           *(sb_dc_mem[OD_NPLANES_MAX]);
   int                 mv_res; /* 0: 1/8, 1:1/4, 2: 1/2 pel */
 # if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)

@@ -1196,6 +1196,9 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
   bs = OD_MAXI(obs, xdec);
   OD_ASSERT(bs <= bsi);
   if (bs == bsi) {
+    int skip;
+    int i;
+    int j;
     bs -= xdec;
     /*Construct the luma predictors for chroma planes.*/
     if (ctx->l != NULL) {
@@ -1204,7 +1207,14 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
        ctx->d[0] + (by << (2 + bsi))*frame_width + (bx << (2 + bsi)),
        frame_width, xdec, ydec, bs, obs);
     }
-    return od_block_encode(enc, ctx, bs, pli, bx, by, rdo_only);
+    skip = od_block_encode(enc, ctx, bs, pli, bx, by, rdo_only);
+    for (i = 0; i < 1 << bs; i++) {
+      for (j = 0; j < 1 << bs; j++) {
+        enc->state.bskip[pli][((by << bs) + i)*enc->state.skip_stride
+         + (bx << bs) + j] = skip && !ctx->is_keyframe;
+      }
+    }
+    return skip;
   }
   else {
     int f;
@@ -1288,7 +1298,9 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
     skip_split &= od_encode_recursive(enc, ctx, pli, 2*bx + 1, 2*by + 1,
      bsi - 1, xdec, ydec, rdo_only, hgrad, vgrad);
     skip_block = skip_split;
-    od_postfilter_split(ctx->c + bo, w, bs, f);
+    od_postfilter_split(ctx->c + bo, w, bs, f, enc->coded_quantizer[pli],
+     &enc->state.bskip[pli][(by << bs)*enc->state.skip_stride + (bx << bs)],
+     enc->state.skip_stride);
     if (rdo_only && bsi <= OD_LIMIT_BSIZE_MAX) {
       int i;
       int j;
@@ -1316,6 +1328,12 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
           for (j = 0; j < 1 << (bs - 1); j++) {
             enc->state.bsize[((by << bsi >> 1) + i)*enc->state.bstride
              + (bx << bsi >> 1) + j] = bs;
+          }
+        }
+        for (i = 0; i < 1 << bs; i++) {
+          for (j = 0; j < 1 << bs; j++) {
+            enc->state.bskip[pli][((by << bs) + i)*enc->state.skip_stride
+             + (bx << bs) + j] = skip_nosplit && !ctx->is_keyframe;
           }
         }
         skip_block = skip_nosplit;
@@ -1722,7 +1740,8 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
     h = frame_height >> ydec;
     if (!mbctx->use_haar_wavelet) {
       od_apply_postfilter_frame_sbs(state->ctmp[pli], w, nhsb, nvsb, xdec,
-       ydec);
+       ydec, enc->coded_quantizer[pli], &enc->state.bskip[pli][0],
+       enc->state.skip_stride);
     }
   }
   if (!rdo_only && enc->quantizer[0] > 0) {
