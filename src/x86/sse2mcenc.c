@@ -33,19 +33,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #if defined(OD_X86ASM)
 #include <immintrin.h>
 
-void print128_num16(__m128i var) {
-    int16_t *val = (int16_t*) &var;
-    printf("Numerical: %i %i %i %i %i %i %i %i \n", 
-           val[0], val[1], val[2], val[3], val[4], val[5], 
-           val[6], val[7]);
-}
-
-void print128_num32(__m128i var) {
-    int32_t *val = (int32_t*) &var;
-    printf("Numerical: %i %i %i %i \n", 
-           val[0], val[1], val[2], val[3]);
-}
-
 OD_SIMD_INLINE void od_mc_butterfly_2x2_16x8(__m128i *t0, __m128i *t1,
  __m128i *t2, __m128i *t3) {
   __m128i in0 = *t0;
