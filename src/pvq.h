@@ -37,12 +37,12 @@ extern const int OD_QM8_Q4_HVS[];
 /* Normalized lambda for PVQ quantizer. Since we normalize the gain by q, the
    distortion is normalized by q^2 and lambda does not need the q^2 factor.
    At high rate, this would be log(2)/6, but we're using a slightly more
-   aggressive value taken from:
+   aggressive value, closer to:
    Li, Xiang, et al. "Laplace distribution based Lagrangian rate distortion
    optimization for hybrid video coding." Circuits and Systems for Video
    Technology, IEEE Transactions on 19.2 (2009): 193-205.
    */
-# define OD_PVQ_LAMBDA (.136)
+# define OD_PVQ_LAMBDA (.147)
 
 #define OD_PVQ_SKIP_ZERO 1
 #define OD_PVQ_SKIP_COPY 2

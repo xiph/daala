@@ -39,12 +39,6 @@ typedef struct od_adapt_ctx      od_adapt_ctx;
 # include "generic_code.h"
 #include "intra.h"
 
-/* Normalized RDO lambda used for the block size decision
-   (different from quantization lambda). Tuned on subset1 and ntt-short
-   although it's hard to tune since FASTSSIM and PSNRHVS go in opposite
-   directions (did some visual inspection). */
-#define OD_BS_RDO_LAMBDA (.08)
-
 extern const od_coeff OD_DC_RES[3];
 
 extern const od_coeff OD_DC_QM[2][OD_NBSIZES - 1][2];

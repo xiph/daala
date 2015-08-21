@@ -779,13 +779,18 @@ static double od_compute_dist(daala_enc_ctx *enc, od_coeff *x, od_coeff *y,
         sum += od_compute_dist_8x8(enc, &x[i*n + j], &y[i*n + j], n, bs);
       }
     }
+    /* Compensate for the fact that the quantization matrix lowers the
+       distortion value. We tried a half-dozen values and picked the one where
+       we liked the ntt-short1 curves best. The tuning is approximate since
+       the different metrics go in different directions. */
+    sum *= 1.7;
   }
   return sum;
 }
 
 /* Computes block size RDO lambda (for 1/8 bits) from the quantizer. */
 static double od_bs_rdo_lambda(int q) {
-  return OD_BS_RDO_LAMBDA*(1./(1 << OD_BITRES))*q*q;
+  return OD_PVQ_LAMBDA*(1./(1 << OD_BITRES))*q*q;
 }
 
 /* Returns 1 if the block is skipped, zero otherwise. */
@@ -1472,13 +1477,13 @@ static void od_predict_frame(daala_enc_ctx *enc) {
 #endif
   OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO, "Predicting frame %i:",
    (int)daala_granule_basetime(enc, enc->state.cur_time)));
-  /*4000000 ~= 0.47684 (or sqrt(0.22738)) in Q23.
+  /*4640000 ~= 0.55313 (or sqrt(0.30595)) in Q23.
    The lower bound of 40 is there because we do not yet consider PVQ noref
     flags during the motion search, so we waste far too many bits trying to
     predict unpredictable areas when lambda is too small.
    Hopefully when we fix that, we can remove the limit.*/
   od_mv_est(enc->mvest,
-   OD_MAXI((4000000 + (((1 << OD_COEFF_SHIFT) - 1) >> 1) >> OD_COEFF_SHIFT)*
+   OD_MAXI((4640000 + (((1 << OD_COEFF_SHIFT) - 1) >> 1) >> OD_COEFF_SHIFT)*
    enc->quantizer[0] >> (23 - OD_LAMBDA_SCALE), 40));
   od_state_mc_predict(&enc->state);
   /*Do edge extension here because the block-size analysis needs to read
