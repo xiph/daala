@@ -169,6 +169,10 @@ static void od_enc_opt_vtbl_init(od_enc_ctx *enc) {
 static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
   int i;
   int ret;
+#if defined(OD_DUMP_BSIZE_DIST)
+  char dist_fname[1024];
+  const char *suf;
+#endif
   ret = od_state_init(&enc->state, info);
   if (ret < 0) return ret;
   enc->use_satd = 0;
@@ -193,6 +197,23 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
 #if defined(OD_ENCODER_CHECK)
   enc->dec = daala_decode_alloc(info, NULL);
 #endif
+#if defined(OD_DUMP_BSIZE_DIST)
+  suf = getenv("OD_DUMP_BSIZE_DIST_SUFFIX");
+  if (!suf) {
+    suf = "dist";
+  }
+  sprintf(dist_fname, "%08i-%s.out",
+   (int)daala_granule_basetime(&enc->state, enc->state.cur_time), suf);
+  for (i = 0; i < OD_NPLANES_MAX; i++){
+    enc->bsize_dist[i] = 0.0;
+    enc->bsize_dist_total[i] = 0.0;
+  }
+  /* FIXME: something unique-ish maybe? */
+  enc->bsize_dist_file = fopen(dist_fname, "wb");
+  if (OD_UNLIKELY(enc->bsize_dist_file == NULL)) {
+    return OD_EFAULT;
+  }
+#endif
   return 0;
 }
 
@@ -215,6 +236,16 @@ daala_enc_ctx *daala_encode_create(const daala_info *info) {
 }
 
 void daala_encode_free(daala_enc_ctx *enc) {
+#if defined(OD_DUMP_BSIZE_DIST)
+    int i;
+    fprintf(enc->bsize_dist_file, "Total: ");
+    for (i = 0; i < enc->state.info.nplanes; i++){
+      fprintf(enc->bsize_dist_file, "%-7G\t",
+       10*log10(enc->bsize_dist_total[i]));
+    }
+    fprintf(enc->bsize_dist_file, "\n");
+    fclose(enc->bsize_dist_file);
+#endif
   if (enc != NULL) {
 #if defined(OD_ENCODER_CHECK)
     if (enc->dec != NULL) {
@@ -1337,7 +1368,17 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
           }
         }
         skip_block = skip_nosplit;
+#if defined(OD_DUMP_BSIZE_DIST)
+        if (bsi == OD_NBSIZES - 2) {
+          enc->bsize_dist[pli] += dist_nosplit;
+        }
+#endif
       }
+#if defined(OD_DUMP_BSIZE_DIST)
+      else if (bsi == OD_NBSIZES - 2) {
+        enc->bsize_dist[pli] += dist_split;
+      }
+#endif
       for (i = 0; i < n; i++) {
         for (j = 0; j < n; j++) ctx->mc[bo + i*w + j] = mc_orig[n*i + j];
       }
@@ -2150,6 +2191,16 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
 #endif
   if (enc->state.info.frame_duration == 0) enc->state.cur_time += duration;
   else enc->state.cur_time += enc->state.info.frame_duration;
+#if defined(OD_DUMP_BSIZE_DIST)
+  for (pli = 0; pli < nplanes; pli++){
+    /* Write value for this frame and reset it */
+    fprintf(enc->bsize_dist_file, "%-7G\t",
+     10*log10(enc->bsize_dist[pli]));
+    enc->bsize_dist_total[pli] += enc->bsize_dist[pli];
+    enc->bsize_dist[pli] = 0.0;
+  }
+  fprintf(enc->bsize_dist_file, "\n");
+#endif
   return 0;
 }
 

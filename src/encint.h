@@ -104,6 +104,13 @@ struct daala_enc_ctx{
 #if defined(OD_ENCODER_CHECK)
   struct daala_dec_ctx *dec;
 #endif
+#if defined(OD_DUMP_BSIZE_DIST)
+  /* per frame */
+  double bsize_dist[OD_NPLANES_MAX];
+  /* per encoder lifetime */
+  double bsize_dist_total[OD_NPLANES_MAX];
+  FILE *bsize_dist_file;
+#endif
   od_block_size_comp *bs;
   /* These buffers are for saving pixel data during block size RDO. */
   od_coeff mc_orig[OD_NBSIZES-1][OD_BSIZE_MAX*OD_BSIZE_MAX];
