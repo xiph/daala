@@ -171,8 +171,8 @@ static void od_dec_init_dummy_frame(daala_dec_ctx *dec) {
   od_dec_blank_img(dec->state.ref_imgs + dec->state.ref_imgi[OD_FRAME_SELF]);
 }
 
-static void od_decode_mv(daala_dec_ctx *dec, od_mv_grid_pt *mvg, int vx,
- int vy, int level, int mv_res, int width, int height) {
+static void od_decode_mv(daala_dec_ctx *dec, int num_refs, od_mv_grid_pt *mvg,
+ int vx, int vy, int level, int mv_res, int width, int height) {
   generic_encoder *model;
   int pred[2];
   int ox;
@@ -180,12 +180,16 @@ static void od_decode_mv(daala_dec_ctx *dec, od_mv_grid_pt *mvg, int vx,
   int id;
   int equal_mvs;
   int ref_pred;
-  ref_pred = od_mc_get_ref_predictor(&dec->state, vx, vy, level);
-  OD_ASSERT(ref_pred >= 0);
-  OD_ASSERT(ref_pred < OD_MAX_CODED_REFS);
-  mvg->ref = od_decode_cdf_adapt(&dec->ec,
-   dec->state.adapt.mv_ref_cdf[ref_pred], OD_MAX_CODED_REFS, 256,
-   "mv:ref");
+  if (num_refs > 1) {
+    ref_pred = od_mc_get_ref_predictor(&dec->state, vx, vy, level);
+    OD_ASSERT(ref_pred >= 0);
+    OD_ASSERT(ref_pred < num_refs);
+    mvg->ref = od_decode_cdf_adapt(&dec->ec,
+     dec->state.adapt.mv_ref_cdf[ref_pred], num_refs, 256,
+     "mv:ref");
+  } else {
+    mvg->ref = OD_FRAME_PREV;
+  }
   equal_mvs = od_state_get_predictor(&dec->state, pred, vx, vy, level,
    mv_res, mvg->ref);
   model = &dec->state.adapt.mv_model;
@@ -214,6 +218,7 @@ struct od_mb_dec_ctx {
   od_coeff *mc;
   od_coeff *l;
   int is_keyframe;
+  int num_refs;
   int use_activity_masking;
   int qm;
   int use_haar_wavelet;
@@ -743,7 +748,7 @@ static void od_decode_recursive(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
   }
 }
 
-static void od_dec_mv_unpack(daala_dec_ctx *dec) {
+static void od_dec_mv_unpack(daala_dec_ctx *dec, int num_refs) {
   int nhmvbs;
   int nvmvbs;
   int vx;
@@ -776,7 +781,7 @@ static void od_dec_mv_unpack(daala_dec_ctx *dec) {
       OD_ACCOUNTING_SET_LOCATION(dec, OD_ACCT_MV, 0, vx, vy);
       mvp = grid[vy] + vx;
       mvp->valid = 1;
-      od_decode_mv(dec, mvp, vx, vy, 0, mv_res, width, height);
+      od_decode_mv(dec, num_refs, mvp, vx, vy, 0, mv_res, width, height);
     }
   }
   for (log_mvb_sz = OD_LOG_MVB_DELTA0, level = 1; log_mvb_sz-- > 0; level++) {
@@ -795,7 +800,8 @@ static void od_dec_mv_unpack(daala_dec_ctx *dec) {
           mvp->valid = od_decode_cdf_adapt(&dec->ec,
            cdf, 2, dec->state.adapt.split_flag_increment, "mv:valid");
           if (mvp->valid) {
-            od_decode_mv(dec, mvp, vx, vy, level, mv_res, width, height);
+            od_decode_mv(dec, num_refs, mvp, vx, vy, level, mv_res,
+             width, height);
           }
         }
       }
@@ -814,7 +820,8 @@ static void od_dec_mv_unpack(daala_dec_ctx *dec) {
           mvp->valid = od_decode_cdf_adapt(&dec->ec,
            cdf, 2, dec->state.adapt.split_flag_increment, "mv:valid");
           if (mvp->valid) {
-            od_decode_mv(dec, mvp, vx, vy, level, mv_res, width, height);
+            od_decode_mv(dec, num_refs, mvp, vx, vy, level, mv_res,
+             width, height);
           }
         }
       }
@@ -1029,6 +1036,11 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
   /*Read the packet type bit.*/
   if (od_ec_decode_bool_q15(&dec->ec, 16384, "flags")) return OD_EBADPACKET;
   mbctx.is_keyframe = od_ec_decode_bool_q15(&dec->ec, 16384, "flags");
+  if (!mbctx.is_keyframe) {
+    mbctx.num_refs = od_ec_dec_uint(&dec->ec, OD_MAX_CODED_REFS, "flags") + 1;
+  } else {
+    mbctx.num_refs = 0;
+  }
   mbctx.use_activity_masking = od_ec_decode_bool_q15(&dec->ec, 16384, "flags");
   mbctx.qm = od_ec_decode_bool_q15(&dec->ec, 16384, "flags");
   mbctx.use_haar_wavelet = od_ec_decode_bool_q15(&dec->ec, 16384, "flags");
@@ -1064,7 +1076,7 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
   dec->state.ref_imgi[OD_FRAME_SELF] = refi;
   od_adapt_ctx_reset(&dec->state.adapt, mbctx.is_keyframe);
   if (!mbctx.is_keyframe) {
-    od_dec_mv_unpack(dec);
+    od_dec_mv_unpack(dec, mbctx.num_refs);
     od_state_mc_predict(&dec->state);
     if (dec->user_mc_img != NULL) {
       od_img_copy(dec->user_mc_img, &dec->state.io_imgs[OD_FRAME_REC]);

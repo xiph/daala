@@ -448,6 +448,7 @@ struct od_mb_enc_ctx {
   od_coeff *mc;
   od_coeff *l;
   int is_keyframe;
+  int num_refs;
   int use_activity_masking;
   int qm;
   int use_haar_wavelet;
@@ -1392,8 +1393,8 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
   }
 }
 
-static void od_encode_mv(daala_enc_ctx *enc, od_mv_grid_pt *mvg, int vx,
- int vy, int level, int mv_res, int mv_range_x, int mv_range_y) {
+static void od_encode_mv(daala_enc_ctx *enc, int num_refs, od_mv_grid_pt *mvg,
+ int vx, int vy, int level, int mv_res, int mv_range_x, int mv_range_y) {
   generic_encoder *model;
   int pred[2];
   int ox;
@@ -1401,12 +1402,15 @@ static void od_encode_mv(daala_enc_ctx *enc, od_mv_grid_pt *mvg, int vx,
   int id;
   int equal_mvs;
   int ref_pred;
-  /* Code reference index. */
-  ref_pred = od_mc_get_ref_predictor(&enc->state, vx, vy, level);
-  OD_ASSERT(ref_pred >= 0);
-  OD_ASSERT(ref_pred < OD_MAX_CODED_REFS);
-  od_encode_cdf_adapt(&enc->ec, mvg->ref,
-   enc->state.adapt.mv_ref_cdf[ref_pred], OD_MAX_CODED_REFS, 256);
+  if (num_refs > 1) {
+    /* Code reference index. */
+    ref_pred = od_mc_get_ref_predictor(&enc->state, vx, vy, level);
+    OD_ASSERT(ref_pred >= 0);
+    OD_ASSERT(ref_pred < num_refs);
+    OD_ASSERT(mvg->ref < num_refs);
+    od_encode_cdf_adapt(&enc->ec, mvg->ref,
+     enc->state.adapt.mv_ref_cdf[ref_pred], num_refs, 256);
+  }
   equal_mvs = od_state_get_predictor(&enc->state, pred, vx, vy, level,
    mv_res, mvg->ref);
   ox = (mvg->mv[0] >> mv_res) - pred[0];
@@ -1554,7 +1558,7 @@ static void od_split_superblocks(daala_enc_ctx *enc, int is_keyframe) {
   }
 }
 
-static void od_encode_mvs(daala_enc_ctx *enc) {
+static void od_encode_mvs(daala_enc_ctx *enc, int num_refs) {
   int nhmvbs;
   int nvmvbs;
   int vx;
@@ -1583,7 +1587,7 @@ static void od_encode_mvs(daala_enc_ctx *enc) {
   for (vy = 0; vy <= nvmvbs; vy += OD_MVB_DELTA0) {
     for (vx = 0; vx <= nhmvbs; vx += OD_MVB_DELTA0) {
       mvp = grid[vy] + vx;
-      od_encode_mv(enc, mvp, vx, vy, 0, mv_res, width, height);
+      od_encode_mv(enc, num_refs, mvp, vx, vy, 0, mv_res, width, height);
     }
   }
   /*od_ec_acct_add_label(&enc->ec.acct, "mvf-l1");
@@ -1605,7 +1609,8 @@ static void od_encode_mvs(daala_enc_ctx *enc) {
           od_encode_cdf_adapt(&enc->ec, mvp->valid,
            cdf, 2, enc->state.adapt.split_flag_increment);
           if (mvp->valid) {
-            od_encode_mv(enc, mvp, vx, vy, level, mv_res, width, height);
+            od_encode_mv(enc, num_refs, mvp, vx, vy, level, mv_res,
+             width, height);
           }
         }
         else {
@@ -1626,7 +1631,8 @@ static void od_encode_mvs(daala_enc_ctx *enc) {
           od_encode_cdf_adapt(&enc->ec, mvp->valid,
            cdf, 2, enc->state.adapt.split_flag_increment);
           if (mvp->valid) {
-            od_encode_mv(enc, mvp, vx, vy, level, mv_res, width, height);
+            od_encode_mv(enc, num_refs, mvp, vx, vy, level, mv_res,
+             width, height);
           }
         }
         else {
@@ -2090,6 +2096,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   enc->state.ref_imgi[OD_FRAME_SELF] = refi;
   /*We must be a keyframe if we don't have a reference.*/
   mbctx.is_keyframe |= !(enc->state.ref_imgi[OD_FRAME_PREV] >= 0);
+  mbctx.num_refs = mbctx.is_keyframe ? 0 : OD_MAX_CODED_REFS;
   /* FIXME: This should be dynamic */
   mbctx.use_activity_masking = enc->use_activity_masking;
   mbctx.qm = enc->qm;
@@ -2103,6 +2110,10 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   od_ec_encode_bool_q15(&enc->ec, 0, 16384);
   /*Code the keyframe bit.*/
   od_ec_encode_bool_q15(&enc->ec, mbctx.is_keyframe, 16384);
+  /* Code the number of references. */
+  if (!mbctx.is_keyframe) {
+    od_ec_enc_uint(&enc->ec, mbctx.num_refs - 1, OD_MAX_CODED_REFS);
+  }
   /*Code whether or not activity masking is being used.*/
   od_ec_encode_bool_q15(&enc->ec, mbctx.use_activity_masking, 16384);
   /*Code whether flat or hvs quantization matrices are being used.
@@ -2160,7 +2171,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   od_adapt_ctx_reset(&enc->state.adapt, mbctx.is_keyframe);
   if (!mbctx.is_keyframe) {
     od_predict_frame(enc);
-    od_encode_mvs(enc);
+    od_encode_mvs(enc, mbctx.num_refs);
   }
   /* Enable block size RDO for all but complexity 0 and 1. We might want to
      revise that choice if we get a better open-loop block size algorithm. */
