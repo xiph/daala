@@ -363,7 +363,6 @@ AC_MSG_NOTICE([
     Image dumping ................ ${enable_dump_images}
     MC Animation  ................ ${enable_mc_animate}
     Reconstructed video dumping .. ${enable_dump_recons}
-    Transform coeffs dumping ..... ${enable_dump_coeffs}
     Check encoder ................ ${enable_encoder_check}
     Check DCT overflow............ ${enable_dct_check_overflow}
     Check assembly................ ${enable_check_asm}
