@@ -711,16 +711,23 @@ static double od_compute_dist_8x8(daala_enc_ctx *enc, od_coeff *x, od_coeff *y,
   double calibration;
   int i;
   int j;
+  double vardist;
+  vardist = 0;
   OD_ASSERT(enc->qm != OD_FLAT_QM);
 #if 1
   min_var = INT_MAX;
   mean_var = 0;
   for (i = 0; i < 3; i++) {
     for (j = 0; j < 3; j++) {
-      int var;
-      var = od_compute_var_4x4(x + 2*i*stride + 2*j, stride);
-      min_var = OD_MINI(min_var, var);
-      mean_var += 1./(1+var);
+      int varx;
+      int vary;
+      double diff;
+      varx = od_compute_var_4x4(x + 2*i*stride + 2*j, stride);
+      vary = od_compute_var_4x4(y + 2*i*stride + 2*j, stride);
+      min_var = OD_MINI(min_var, varx);
+      mean_var += 1./(1 + varx);
+      diff = sqrt(varx) - sqrt(vary);
+      vardist += diff*diff;
     }
   }
   /* We use a different variance statistic depending on whether activity
@@ -759,7 +766,7 @@ static double od_compute_dist_8x8(daala_enc_ctx *enc, od_coeff *x, od_coeff *y,
       sum += et[8*i + j]*(double)et[8*i + j]*mag;
     }
   }
-  return activity*activity*sum;
+  return activity*activity*(sum + vardist);
 }
 
 static double od_compute_dist(daala_enc_ctx *enc, od_coeff *x, od_coeff *y,
