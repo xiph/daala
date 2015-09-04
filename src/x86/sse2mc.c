@@ -650,41 +650,50 @@ static void od_mc_blend_full8_check(unsigned char *_dst,int _dystride,
   "paddw " _reg1b "," _reg0b "\n\t" \
 
 /*Bilinearly blends 2 pairs of 16-bit registers and rounds, shifts, and packs
-  the result in an 8-bit register. This is a special case version that
-  handles overflow in 32x32 blocks.
+  the result in an 8-bit register. This is a special case version of
+  OD_IM_BLEND that handles 16-bit overflow.
   It implements the following expression:
-    ((a << 5) + (b - a)*scale + (1 << 9)) >> 10
-  The ((b - a)*scale) expression overflows a 16-bit integer, so we need
-   to rewrite it as
-    (a + (((b - a) * (scale << 11)) >> 16) + (1 << 4)) >> 5
+   ((a << x) + (b - a) * scale + (1 << (y - 1))) >> y
+  Expressions (a << x) and ((b - a)*scale) can potentially overflow 16-bit
+   integers, so we need to rewrite them as
+    (a + (((b - a) * (scale << (16 - x))) >> 16) + (1 << (y - 1 - x)))
+     >> (y - x)
    in order to use pmulhw
-    (a + (pmulhw((b - a), (scale << 11))) + (1 << 4)) >> 5
-  The (scale << 11) expression can overflow a signed 16-bit integer, and
-   there is no signed-unsigned multiply instruction, so we further
-   rewrite it as
-    (a + (pmulhw((b - a) << 1, (scale << 10))) + (1 << 4)) >> 5
+    (a + (pmulhw((b - a), (scale << (16 - x)))) + (1 << (y - 1 - x)))
+     >> (y - x)
+  The (scale << (16 - x)) expression can also overflow a signed 16-bit
+   integer, and there is no signed-unsigned multiply instruction, so we
+   further rewrite it as
+    (a + (pmulhw((b - a) << w, (scale << (16 - x - w)))) + (1 << (y - 1 - x)))
+     >> (y - x)
 
   _reg0a:  The low-order register of the first pair, which will contain the
             output.
   _reg0b:  The high-order register of the first pair.
   _reg1a:  The low-order register of the second pair.
   _reg1b:  The high-order register of the second pair.
-  _scale:  The weights to apply to the low-order and high-order registers.*/
-#define OD_IM_BLEND_AND_PACK_32(_reg0a,_reg0b,_reg1a,_reg1b,_scale) \
-  "#OD_IM_BLEND_AND_PACK_32\n\t" \
+  _scale:  The weights to apply to the low-order and high-order registers.
+  _x:      Precision of the weights.
+  _y:      Pack shift amount.
+  _z:      Used to prevent overflow. Callers of this macro must choose a value
+           for z such that ((b - a) << w) and (scale << (16 - x - w)) don't
+           overflow 16-bit registers.
+  */
+#define OD_IM_BLEND_AND_PACK(_reg0a,_reg0b,_reg1a,_reg1b,_scale,_x,_y,_z) \
+  "#OD_IM_BLEND_AND_PACK\n\t" \
   "psubw " _reg0a "," _reg1a "\n\t" \
   "psubw " _reg0b "," _reg1b "\n\t" \
-  "psllw $1," _reg1a "\n\t" \
-  "psllw $1," _reg1b "\n\t" \
-  "psllw $10," _scale "\n\t" \
+  "psllw $" _z "," _reg1a "\n\t" \
+  "psllw $" _z "," _reg1b "\n\t" \
+  "psllw $16-" _x "-" _z "," _scale "\n\t" \
   "pmulhw " _scale "," _reg1a "\n\t" \
   "pmulhw " _scale "," _reg1b "\n\t" \
   "paddw " _reg1a "," _reg0a "\n\t" \
   "paddw " _reg1b "," _reg0b "\n\t" \
   "pcmpeqw %%xmm1,%%xmm1\n\t" \
   "psubw %%xmm1,%%xmm7\n\t" \
-  "psllw $4,%%xmm7\n\t" \
-  OD_IM_PACK(_reg0a,_reg0b,"%%xmm7","$5") \
+  "psllw $" _y "-1-" _x ",%%xmm7\n\t" \
+  OD_IM_PACK(_reg0a,_reg0b,"%%xmm7","$" _y "-" _x) \
 
 /*Rounds, shifts, and packs two 16-bit registers into one 8 bit register.
   _rega:  The low-order register, which will contain the output.
@@ -830,7 +839,8 @@ static void od_mc_blend_full8_check(unsigned char *_dst,int _dystride,
   /*Blend, shift, and re-pack images 0+1 and 2+3.*/ \
   "lea %[OD_BIL16V],%[a]\n\t" \
   "movdqa (%[a],%[row]),%%xmm6\n\t" \
-  OD_IM_BLEND_AND_PACK_32("%%xmm0","%%xmm4","%%xmm2","%%xmm5","%%xmm6") \
+  OD_IM_BLEND_AND_PACK("%%xmm0","%%xmm4","%%xmm2","%%xmm5","%%xmm6", \
+   "5","10","1") \
   /*Get it back out to memory.*/ \
   "movdqa %%xmm0," _dst_offset "(%[dst])\n\t" \
 
@@ -1348,6 +1358,63 @@ void od_mc_blend_full_split8_check(unsigned char *_dst,int _dystride,
   "psrldq $8,%%xmm0\n\t" \
   "movq %%xmm0,(%[dst],%[dystride])\n\t" \
 
+/*Blends 1 row of an 16xN block with split edges (N up to 16).
+  %[dst] must be manually advanced to the proper row beforehand because of its
+   stride.*/
+#define OD_MC_BLEND_FULL_SPLIT8_16x1(_log_yblk_sz) \
+  "pxor %%xmm7,%%xmm7\n\t" \
+  /*Load the first two images to blend.*/ \
+  OD_IM_LOAD16A \
+  /*Unpack and merge the 0 image.*/ \
+  OD_IM_UNPACK("%%xmm0","%%xmm4","%%xmm7") \
+  OD_IM_UNPACK("%%xmm2","%%xmm6","%%xmm7") \
+  "paddw %%xmm2,%%xmm0\n\t" \
+  "paddw %%xmm6,%%xmm4\n\t" \
+  /*Unpack and merge the 1 image.*/ \
+  OD_IM_UNPACK("%%xmm1","%%xmm5","%%xmm7") \
+  OD_IM_UNPACK("%%xmm3","%%xmm6","%%xmm7") \
+  "lea %[OD_BILH],%[a]\n\t" \
+  "paddw %%xmm3,%%xmm1\n\t" \
+  "paddw %%xmm6,%%xmm5\n\t" \
+  "movdqa 0x10(%[a]),%%xmm6\n\t" \
+  /*Blend the 0 and 1 images.*/ \
+  OD_IM_BLEND("%%xmm0","%%xmm4","%%xmm1","%%xmm5","$4","(%[a])","%%xmm6") \
+  /*Load, unpack, and merge the 2 image.*/ \
+  OD_IM_LOAD16B \
+  OD_IM_UNPACK("%%xmm2","%%xmm5","%%xmm7") \
+  OD_IM_UNPACK("%%xmm1","%%xmm6","%%xmm7") \
+  "paddw %%xmm1,%%xmm2\n\t" \
+  "paddw %%xmm6,%%xmm5\n\t" \
+  /*Load, unpack, and merge the 3 image.*/ \
+  OD_IM_LOAD16C \
+  OD_IM_UNPACK("%%xmm3","%%xmm6","%%xmm7") \
+  /*"lea %[OD_BILV],%[a]\n\t" \
+  OD_IM_UNPACK("%%xmm1","%%xmm7","(%[a])") \
+  "paddw %%xmm1,%%xmm3\n\t" \
+  "pcmpeqw %%xmm1,%%xmm1\n\t" \
+  "paddw %%xmm7,%%xmm6\n\t" \
+  "pxor %%xmm7,%%xmm7\n\t"*/ \
+  /*Alternate version: Saves 1 memory reference, but has a longer dependency \
+     chain.*/ \
+  "movdqa %%xmm1,%%xmm7\n\t" \
+  "punpcklbw %[OD_BILV],%%xmm7\n\t" \
+  "paddw %%xmm7,%%xmm3\n\t" \
+  "pxor %%xmm7,%%xmm7\n\t" \
+  "punpckhbw %%xmm7,%%xmm1\n\t" \
+  "paddw %%xmm1,%%xmm6\n\t" \
+  "pcmpeqw %%xmm1,%%xmm1\n\t" \
+  /*End alternate version.*/ \
+  "lea %[OD_BILH],%[a]\n\t" \
+  "movdqa 0x10(%[a]),%%xmm1\n\t" \
+  OD_IM_BLEND("%%xmm2","%%xmm5","%%xmm3","%%xmm6","$4","(%[a])","%%xmm1") \
+  /*Blend, shift, and re-pack images 0+1 and 2+3.*/ \
+  "lea %[OD_BILV],%[a]\n\t" \
+  "movdqa (%[a],%[row]),%%xmm6\n\t" \
+  OD_IM_BLEND_AND_PACK("%%xmm0","%%xmm4","%%xmm2","%%xmm5", "%%xmm6", \
+   "4","9","1") \
+  /*Get it back out to memory.*/ \
+  "movdqa %%xmm0,(%[dst])\n\t" \
+
 #if 0
 /*Defines a pure-C implementation with hard-coded loop limits for block sizes
    we don't want to implement manually (e.g., that have fewer than 16 bytes,
@@ -1512,7 +1579,21 @@ static void od_mc_blend_full_split8_8x8(unsigned char *_dst,int _dystride,
   }
 }
 
-OD_MC_BLEND_FULL_SPLIT8_C(16,16,4,4)
+static void od_mc_blend_full_split8_16x16(unsigned char *_dst,int _dystride,
+ const unsigned char *_src[8]){
+  ptrdiff_t a;
+  ptrdiff_t row;
+  for(row=0;row<0x100;row+=0x10){
+    __asm__ __volatile__(
+      OD_MC_BLEND_FULL_SPLIT8_16x1(4)
+      "lea (%[dst],%[dystride]),%[dst]\t\n"
+      :[dst]"+r"(_dst),[row]"+r"(row),[a]"=&r"(a)
+      :[src]"r"(_src),[dystride]"r"((ptrdiff_t)_dystride),
+       [OD_BILH]"m"(*OD_BILH),[OD_BILV]"m"(*OD_BILV),
+       [pstride]"i"(sizeof(*_src))
+    );
+  }
+}
 
 typedef void (*od_mc_blend_full_split8_fixed_func)(unsigned char *_dst,
  int _dystride,const unsigned char *_src[8]);
