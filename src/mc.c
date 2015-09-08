@@ -152,7 +152,8 @@ void od_mc_predict1fmv8_c(unsigned char *dst, const unsigned char *src,
       for (j = -OD_SUBPEL_TOP_APRON_SZ;
        j < yblk_sz + OD_SUBPEL_BOTTOM_APRON_SZ; j++) {
         for (i = 0; i < xblk_sz; i++) {
-          buff_p[i] = (uint16_t)(src_p[i] - 128) << OD_SUBPEL_COEFF_SCALE;
+          buff_p[i] = (src_p[i] << OD_SUBPEL_COEFF_SCALE)
+           - OD_SUBPEL_COEFF_NORMALIZE;
         }
         src_p += systride;
         buff_p += xblk_sz;

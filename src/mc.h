@@ -93,6 +93,7 @@ extern const int16_t OD_SUBPEL_FILTER_SET[8][8];
 #define OD_SUBPEL_BOTTOM_APRON_SZ (OD_SUBPEL_FILTER_TAP_SIZE/2)
 #define OD_SUBPEL_BUFF_APRON_SZ (OD_SUBPEL_TOP_APRON_SZ \
  + OD_SUBPEL_BOTTOM_APRON_SZ)
+#define OD_SUBPEL_COEFF_NORMALIZE (128 << OD_SUBPEL_COEFF_SCALE)
 
 void od_mc_predict8_singleref(od_state *state, unsigned char *dst, int dystride,
  const unsigned char *src, int systride, const int32_t mvx[4],
