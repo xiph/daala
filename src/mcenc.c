@@ -2575,8 +2575,29 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy,
   OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
    "(%i, %i): Search range: [%i, %i]x[%i, %i]",
    bx, by, mvxmin, mvymin, mvxmax, mvymax));
-  bx -= mvb_sz << 1;
-  by -= mvb_sz << 1;
+  /*For the purposes of the BMA search, we match against a block of size
+     mvb_sz << LOG_MVBSIZE_MIN centered on the current grid point:
+
+      (bx - (mvb_sz << (LOG_MVBSIZE_MIN - 1)),
+       by - (mvb_sz << (LOG_MVBSIZE_MIN - 1)))
+          |
+          V
+          +---------------+
+          |               |
+          |               |
+          |               |
+          |       +       |
+          |    (bx,by)    |
+          |               |
+          |               |
+          +---------------+
+
+          <--------------->
+      mvb_sz << LOG_MVBSIZE_MIN
+
+    Adjust (bx, by) here to point to the upper-left corner of that block.*/
+  bx -= mvb_sz << (OD_LOG_MVBSIZE_MIN - 1);
+  by -= mvb_sz << (OD_LOG_MVBSIZE_MIN - 1);
   ncns = 4;
   nhmvbs = state->nhmvbs;
   nvmvbs = state->nvmvbs;
