@@ -2251,6 +2251,30 @@ static int od_mv_est_bits(od_mv_est_ctx *est, int vx, int vy, int mv_res) {
   return mv_rate;
 }
 
+#if defined(OD_LOGGING_ENABLED)
+# define OD_MV_EST_LOG_PRED(est, vx, vy, mv_res) \
+   od_mv_est_log_pred(est, vx, vy, mv_res)
+static void od_mv_est_log_pred(od_mv_est_ctx *est, int vx, int vy,
+ int mv_res) {
+  od_state *state;
+  int pred[2];
+  int equal_mvs;
+  int ref_pred;
+  od_mv_grid_pt *mvg;
+  state = &est->enc->state;
+  mvg = state->mv_grid[vy] + vx;
+  equal_mvs = od_state_get_predictor(state, pred, vx, vy,
+   OD_MC_LEVEL[vy & OD_MVB_MASK][vx & OD_MVB_MASK], mv_res, mvg->ref);
+  ref_pred = od_mc_get_ref_predictor(state,  vx, vy,
+   OD_MC_LEVEL[vy & OD_MVB_MASK][vx & OD_MVB_MASK]);
+  OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
+   "Predictor was: (%i, %i)@%i, %i equal_mvs",
+   pred[0], pred[1], ref_pred, equal_mvs));
+}
+#else
+# define OD_MV_EST_LOG_PRED(est, vx, vy, mv_res)
+#endif
+
 /*Computes the SAD of a whole-pel BMA block with the given parameters.*/
 /*Note: The od_enc_sad8() is now always called with xstride = 1,
    because MC ref image is NOT upsampled at frame level.*/
@@ -2443,9 +2467,9 @@ void od_mv_est_check_rd_state(od_mv_est_ctx *est, int mv_res) {
         OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_WARN,
          "Failure at node (%i, %i): mv_rate should be %i (is %i)",
          vx, vy, mv_rate, mv->mv_rate));
+        OD_MV_EST_LOG_PRED(est, vx, vy, mv_res);
         OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_WARN,
-         "Predictor was: (%i, %i)@%i   MV was: (%i, %i)@%i",
-         pred[0], pred[1], ref_pred, mvg->mv[0] >> mv_res,
+         "MV was: (%i, %i)@%i", mvg->mv[0] >> mv_res,
          mvg->mv[1] >> mv_res, mvg->ref));
         OD_ASSERT(mv_rate == mv->mv_rate);
       }
@@ -2854,8 +2878,9 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy,
       mv->mv_rate = od_mv_est_bits(est, vx, vy, 2);
       if (mv->mv_rate != best_rate) {
         OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_ERR,
-         "Failure in MV rate init: %i != %i (predictor (%i, %i)@%i)",
-         mv->mv_rate, best_rate, pred[0], pred[1], pred_ref));
+         "Failure in MV rate init: %i != %i",
+         mv->mv_rate, best_rate));
+        OD_MV_EST_LOG_PRED(est, vx, vy, 2);
         OD_ASSERT(mv->mv_rate == best_rate);
       }
     }
@@ -4401,15 +4426,10 @@ static int32_t od_mv_dp_get_sad_change8(od_mv_est_ctx *est,
 static int od_mv_dp_get_rate_change(od_mv_est_ctx *est, od_mv_dp_node *dp,
  int *cur_mv_rate, int pred_mv_rates[OD_DP_NPREDICTED_MAX],
  int prevsi, int mv_res) {
-  od_state *state;
   od_mv_node *mv;
   od_mv_grid_pt *mvg;
-  int equal_mvs;
-  int pred[2];
-  int ref_pred;
   int pi;
   int dr;
-  state = &est->enc->state;
   /*Move the state from the current trellis path into the grid.*/
   if (dp->min_predictor_node != NULL) {
     int pred_sis[OD_PRED_HIST_SIZE_MAX];
@@ -4460,20 +4480,14 @@ static int od_mv_dp_get_rate_change(od_mv_est_ctx *est, od_mv_dp_node *dp,
   for (pi = 0; pi < dp->npredicted; pi++) {
     mv = dp->predicted_mvs[pi];
     mvg = dp->predicted_mvgs[pi];
-    equal_mvs = od_state_get_predictor(state, pred, mv->vx, mv->vy,
-     OD_MC_LEVEL[mv->vy & OD_MVB_MASK][mv->vx & OD_MVB_MASK], mv_res,
-     mvg->ref);
-    ref_pred = od_mc_get_ref_predictor(state, mv->vx, mv->vy,
-     OD_MC_LEVEL[mv->vy & OD_MVB_MASK][mv->vx & OD_MVB_MASK]);
-    pred_mv_rates[pi] = od_mv_est_cand_bits(est, equal_mvs,
-     mvg->mv[0] >> mv_res, mvg->mv[1] >> mv_res, pred[0], pred[1],
-     mvg->ref, ref_pred);
+    pred_mv_rates[pi] = od_mv_est_bits(est, mv->vx, mv->vy, mv_res);
     OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
      "Calculated predicted mv_rate of %i for (%i, %i)",
      pred_mv_rates[pi], mv->vx, mv->vy));
+    OD_MV_EST_LOG_PRED(est, mv->vx, mv->vy, mv_res);
     OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
-     "Predictor was: (%i, %i)   MV was: (%i, %i)",
-     pred[0], pred[1], mvg->mv[0] >> mv_res, mvg->mv[1] >> mv_res));
+     "MV was: (%i, %i)",
+     mvg->mv[0] >> mv_res, mvg->mv[1] >> mv_res));
     OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
      "Predicted MV (%i, %i) rate: %i - %i = %i", mv->vx, mv->vy,
      pred_mv_rates[pi], mv->mv_rate, pred_mv_rates[pi] - mv->mv_rate));
