@@ -13,3 +13,6 @@ make
 ./examples/encoder_example -k 4 ${VIDEOS}/claire_qcif-2frames.y4m -o out.$$.ogv
 ./examples/dump_video out.$$.ogv -o /dev/null
 rm -f out.$$.ogv
+./examples/encoder_example -k 4 ${VIDEOS}/tos444.y4m -o out.$$.ogv
+./examples/dump_video out.$$.ogv -o /dev/null
+rm -f out.$$.ogv
