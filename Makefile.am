@@ -56,6 +56,10 @@ src_dct_SOURCES += src/x86/avx2dct.c
 %avx2dct.o %avx2dct.lo: CFLAGS += -mavx2
 endif
 endif
+if ENABLE_ARMASM
+src_dct_SOURCES += src/arm/cpu.c
+endif
+
 
 src_libdaalabase_la_CFLAGS = $(OGG_CFLAGS)
 src_libdaalabase_la_LIBADD = $(OGG_LIBS) $(LIBM)

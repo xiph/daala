@@ -170,7 +170,7 @@ case $host_cpu in
   x86_64)
     cpu_x86=true
     ;;
-  arm|armhf)
+  arm*)
     cpu_arm=true
     ;;
 esac
@@ -228,7 +228,9 @@ AM_CONDITIONAL([ENABLE_SSE41_INTRINSICS],
  [test "$enable_asm" = "yes" -a "$cpu_x86" = "true" -a "$enable_sse41_intrinsics" = "yes"])
 AM_CONDITIONAL([ENABLE_AVX2_INTRINSICS],
  [test "$enable_asm" = "yes" -a "$cpu_x86" = "true" -a "$enable_avx2_intrinsics" = "yes"])
- 
+AM_CONDITIONAL([ENABLE_ARMASM],
+ [test "$enable_asm" = "yes" -a "$cpu_arm" = "true"])
+
 AS_IF([test "$enable_asm" = "yes" -a "$cpu_arm" = "true"], [
   AC_DEFINE([OD_ARMASM], [1], [Enable ARM asm optimisations])
   AC_DEFINE([OD_ARM_MAY_HAVE_NEON], [1], [Enable ARM NEON optimisations])
