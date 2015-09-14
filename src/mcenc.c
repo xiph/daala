@@ -5171,7 +5171,7 @@ static int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
       OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG, "TESTING block SADs:"));
       if (od_logging_active(OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG)) {
         pmvg->mv[0] = dp_node[0].original_mv[0];
-        pmvg->mv[0] = dp_node[0].original_mv[0];
+        pmvg->mv[1] = dp_node[0].original_mv[1];
         od_mv_dp_get_sad_change8(est, dp_node + 1, block_sads[0]);
       }
       /*Compute the set of states for this node.*/
@@ -5773,7 +5773,7 @@ static int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
       OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG, "TESTING block SADs:"));
       if (od_logging_active(OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG)) {
         pmvg->mv[0] = dp_node[0].original_mv[0];
-        pmvg->mv[0] = dp_node[0].original_mv[0];
+        pmvg->mv[1] = dp_node[0].original_mv[1];
         od_mv_dp_get_sad_change8(est, dp_node + 1, block_sads[0]);
       }
       /*Compute the set of states for this node.*/
