@@ -3927,12 +3927,14 @@ int main(void) {
     static const od_dct_func_2d OD_FDCT_2D_NEON[OD_NBSIZES + 1] = {
       od_bin_fdct4x4_neon,
       od_bin_fdct8x8,
-      od_bin_fdct16x16
+      od_bin_fdct16x16,
+      od_bin_fdct32x32
     };
     static const od_dct_func_2d OD_IDCT_2D_NEON[OD_NBSIZES + 1] = {
       od_bin_idct4x4_neon,
       od_bin_idct8x8,
-      od_bin_idct16x16
+      od_bin_idct16x16,
+      od_bin_idct32x32
     };
     test_fdct_2d = OD_FDCT_2D_NEON;
     test_idct_2d = OD_IDCT_2D_NEON;
