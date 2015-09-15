@@ -38,7 +38,9 @@ noinst_HEADERS = \
 	src/x86/cpu.h \
 	src/x86/x86enc.h \
 	src/x86/x86dct.h \
-	src/x86/x86int.h
+	src/x86/x86int.h \
+	src/arm/cpu.h \
+	src/arm/armint.h
 
 src_dct_SOURCES = src/dct.c src/internal.c
 if ENABLE_X86ASM
