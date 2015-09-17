@@ -1673,52 +1673,35 @@ static void od_dering_direction(od_coeff *y, int ystride, od_coeff *in,
  int bstride, int n, int threshold, int dir) {
   int i;
   int j;
+  int k;
   int f;
-  static const int taps[4] = {2, 3, 2, 2};
+  static const int taps[4] = {3, 2, 2};
+  int offset[4];
   if (dir <= 4) {
-    for (i = 0; i < n; i++) {
-      for (j = 0; j < n; j++) {
-        od_coeff sum;
-        od_coeff xx;
-        od_coeff yy;
-        int k;
-        xx = in[i*bstride + j];
-        sum= 0;
-        f = dir - 2;
-        for (k = 1; k <= 3; k++) {
-          od_coeff p0;
-          od_coeff p1;
-          p0 = in[(i + f*k/2)*bstride + j + k] - xx;
-          p1 = in[(i - f*k/2)*bstride + j - k] - xx;
-          if (abs(p0) < threshold) sum += taps[k]*p0;
-          if (abs(p1) < threshold) sum += taps[k]*p1;
-        }
-        yy = xx + (sum + 8)/16;
-        y[i*ystride + j] = yy;
-      }
-    }
+    f = dir - 2;
+    for (k = 1; k <= 3; k++) offset[k - 1] = f*k/2*bstride + k;
   }
   else {
-    for (i = 0; i < n; i++) {
-      for (j = 0; j < n; j++) {
-        od_coeff sum;
-        od_coeff xx;
-        od_coeff yy;
-        int k;
-        xx = in[i*bstride + j];
-        sum= 0;
-        f = 6 - dir;
-        for (k = 1; k <= 3; k++) {
-          od_coeff p0;
-          od_coeff p1;
-          p0 = in[(i + k)*bstride + j + f*k/2] - xx;
-          p1 = in[(i - k)*bstride + j - f*k/2] - xx;
-          if (abs(p0) < threshold) sum += taps[k]*p0;
-          if (abs(p1) < threshold) sum += taps[k]*p1;
-        }
-        yy = xx + (sum + 8)/16;
-        y[i*ystride + j] = yy;
+    f = 6 - dir;
+    for (k = 1; k <= 3; k++) offset[k - 1] = k*bstride + f*k/2;
+  }
+  for (i = 0; i < n; i++) {
+    for (j = 0; j < n; j++) {
+      od_coeff sum;
+      od_coeff xx;
+      od_coeff yy;
+      xx = in[i*bstride + j];
+      sum= 0;
+      for (k = 0; k < 3; k++) {
+        od_coeff p0;
+        od_coeff p1;
+        p0 = in[i*bstride + j + offset[k]] - xx;
+        p1 = in[i*bstride + j - offset[k]] - xx;
+        if (abs(p0) < threshold) sum += taps[k]*p0;
+        if (abs(p1) < threshold) sum += taps[k]*p1;
       }
+      yy = xx + (sum + 8)/16;
+      y[i*ystride + j] = yy;
     }
   }
 }
@@ -1728,55 +1711,39 @@ static void od_dering_orthogonal(od_coeff *y, int ystride, od_coeff *in,
  int bstride, od_coeff *x, int xstride, int n, int threshold, int dir) {
   int i;
   int j;
-  if (dir <= 4) {
-    for (i = 0; i < n; i++) {
-      for (j = 0; j < n; j++) {
-        od_coeff athresh;
-        od_coeff yy;
-        od_coeff sum;
-        /* Deringing orthogonal to the direction uses a tighter threshold
-           because we want to be conservative. We've presumably already
-           achieved some deringing, so the amount of change is expected
-           to be low. Also, since we might be filtering across an edge, we
-           want to make sure not to blur it. That being said, we might want
-           to be a little bit more aggressive on pure horizontal/vertical
-           since the ringing there tends to be directional, so it doesn't
-           get removed by the directional filtering. */
-        athresh = OD_MINI(threshold, threshold/3
-         + abs(in[i*bstride + j] - x[i*xstride + j]));
-        yy = in[i*bstride + j];
-        sum = in[i*bstride + j];
-        if (abs(in[(i + 1)*bstride + j] - yy) < athresh)
-          sum += in[(i + 1)*bstride + j];
-        else sum += yy;
-        if (abs(in[(i - 1)*bstride + j] - yy) < athresh)
-          sum += in[(i - 1)*bstride + j];
-        else sum += yy;
-        y[i*ystride + j] = (sum + 1)/3;
+  int offset;
+  if (dir <= 4) offset = bstride;
+  else offset = 1;
+  for (i = 0; i < n; i++) {
+    for (j = 0; j < n; j++) {
+      od_coeff athresh;
+      od_coeff yy;
+      od_coeff sum;
+      /* Deringing orthogonal to the direction uses a tighter threshold
+         because we want to be conservative. We've presumably already
+         achieved some deringing, so the amount of change is expected
+         to be low. Also, since we might be filtering across an edge, we
+         want to make sure not to blur it. That being said, we might want
+         to be a little bit more aggressive on pure horizontal/vertical
+         since the ringing there tends to be directional, so it doesn't
+         get removed by the directional filtering. */
+      athresh = OD_MINI(threshold, threshold/3
+       + abs(in[i*bstride + j] - x[i*xstride + j]));
+      yy = in[i*bstride + j];
+      sum = in[i*bstride + j];
+      if (abs(in[i*bstride + j + offset] - yy) < athresh) {
+        sum += in[i*bstride + j + offset];
       }
-    }
-  }
-  else {
-    for (i = 0; i < n; i++) {
-      for (j = 0; j < n; j++) {
-        od_coeff athresh;
-        od_coeff yy;
-        od_coeff sum;
-        athresh = OD_MINI(threshold, threshold/3
-         + abs(in[i*bstride + j] - x[i*xstride + j]));
-        yy = in[i*bstride + j];
-        sum = in[i*bstride + j];
-        if (abs(in[i*bstride + j + 1] - yy) < athresh)
-          sum += in[i*bstride + j + 1];
-        else sum += yy;
-        if (abs(in[i*bstride + j - 1] - yy) < athresh)
-          sum += in[i*bstride + j - 1];
-        else sum += yy;
-        y[i*ystride + j] = (sum + 1)/3;
+      else sum += yy;
+      if (abs(in[i*bstride + j - offset] - yy) < athresh) {
+        sum += in[i*bstride + j - offset];
       }
+      else sum += yy;
+      y[i*ystride + j] = (sum + 1)/3;
     }
   }
 }
+
 void od_dering(od_coeff *y, int ystride, od_coeff *x, int xstride, int ln,
  int sbx, int sby, int nhsb, int nvsb, int q, int xdec,
  int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS], int pli) {
