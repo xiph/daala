@@ -1720,6 +1720,7 @@ static void od_dering_orthogonal(od_coeff *y, int ystride, od_coeff *in,
       od_coeff athresh;
       od_coeff yy;
       od_coeff sum;
+      od_coeff p;
       /* Deringing orthogonal to the direction uses a tighter threshold
          because we want to be conservative. We've presumably already
          achieved some deringing, so the amount of change is expected
@@ -1731,16 +1732,16 @@ static void od_dering_orthogonal(od_coeff *y, int ystride, od_coeff *in,
       athresh = OD_MINI(threshold, threshold/3
        + abs(in[i*bstride + j] - x[i*xstride + j]));
       yy = in[i*bstride + j];
-      sum = in[i*bstride + j];
-      if (abs(in[i*bstride + j + offset] - yy) < athresh) {
-        sum += in[i*bstride + j + offset];
-      }
-      else sum += yy;
-      if (abs(in[i*bstride + j - offset] - yy) < athresh) {
-        sum += in[i*bstride + j - offset];
-      }
-      else sum += yy;
-      y[i*ystride + j] = (sum + 1)/3;
+      sum = 0;
+      p = in[i*bstride + j + offset] - yy;
+      if (abs(p) < athresh) sum += p;
+      p = in[i*bstride + j - offset] - yy;
+      if (abs(p) < athresh) sum += p;
+      p = in[i*bstride + j + 2*offset] - yy;
+      if (abs(p) < athresh) sum += p;
+      p = in[i*bstride + j - 2*offset] - yy;
+      if (abs(p) < athresh) sum += p;
+      y[i*ystride + j] = yy + (sum + 2)/5;
     }
   }
 }
