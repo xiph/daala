@@ -322,6 +322,10 @@ static int od_state_init_impl(od_state *state, const daala_info *info) {
     if (OD_UNLIKELY(!state->dtmp[pli])) {
       return OD_EFAULT;
     }
+    state->etmp[pli] = (od_coeff *)malloc(w*h*sizeof(*state->etmp[pli]));
+    if (OD_UNLIKELY(!state->etmp[pli])) {
+      return OD_EFAULT;
+    }
     state->mctmp[pli] = (od_coeff *)malloc(w*h*sizeof(*state->mctmp[pli]));
     if (OD_UNLIKELY(!state->mctmp[pli])) {
       return OD_EFAULT;
@@ -399,6 +403,7 @@ void od_state_clear(od_state *state) {
     free(state->sb_dc_mem[pli]);
     free(state->ltmp[pli]);
     free(state->dtmp[pli]);
+    free(state->etmp[pli]);
     free(state->ctmp[pli]);
     free(state->mctmp[pli]);
     free(state->mdtmp[pli]);

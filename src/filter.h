@@ -78,8 +78,12 @@ void od_apply_postfilter_frame(od_coeff *c, int w, int nhsb, int nvsb,
    If this macro is changed, the values in od_basis_mag have to be
    regenerated.*/
 #define OD_FILT_SIZE(ln, xdec) (0)
+#define OD_DERING_NBLOCKS (OD_BSIZE_MAX/8)
 
 extern const int OD_FILT_SIZE[OD_NBSIZES];
+void od_dering(od_coeff *y, int ystride, od_coeff *x, int xstride, int ln,
+ int sbx, int sby, int nhsb, int nvsb, int q, int xdec,
+ int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS], int pli);
 void od_clpf(od_coeff *y, int ystride, od_coeff *x, int xstride, int ln,
  int sbx, int sby, int nhsb, int nvsb);
 void od_bilinear_smooth(od_coeff *x, int ln, int stride, int q, int pli);

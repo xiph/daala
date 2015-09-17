@@ -1610,45 +1610,238 @@ void od_apply_postfilter_frame_sbs(od_coeff *c0, int stride, int nhsb,
 #endif
 }
 
-/*Smooths a block using the constrained lowpass filter from Thor
-  (https://tools.ietf.org/html/draft-fuldseth-netvc-thor-00#section-8.2).*/
-void od_clpf(od_coeff *y, int ystride, od_coeff *x, int xstride, int ln,
- int sbx, int sby, int nhsb, int nvsb) {
+/* Detect direction. 0 means 45-degree up-right, 2 is horizontal, and so on. */
+static int od_dir_find8(const od_coeff *img, int stride) {
+  int i;
+  int cost[8] = {0};
+  int partial[8][15] = {{0}};
+  int best_cost = 0;
+  int best_dir = 0;
+  for (i = 0; i < 8; i++) {
+    int j;
+    for (j = 0; j < 8; j++) {
+      int x;
+      x = img[i*stride + j] >> OD_COEFF_SHIFT;
+      partial[0][i + j] += x;
+      partial[1][i + j/2] += x;
+      partial[2][i] += x;
+      partial[3][3 + i - j/2] += x;
+      partial[4][7 + i - j] += x;
+      partial[5][3 - i/2 + j] += x;
+      partial[6][j] += x;
+      partial[7][i/2 + j] += x;
+    }
+  }
+  for (i = 0; i < 8; i++) {
+    cost[2] += partial[2][i]*partial[2][i] >> 3;
+    cost[6] += partial[6][i]*partial[6][i] >> 3;
+  }
+  for (i = 0; i < 7; i++) {
+    cost[0] += OD_DIVU_SMALL(partial[0][i]*partial[0][i], i + 1)
+     + OD_DIVU_SMALL(partial[0][14 - i]*partial[0][14 - i], i + 1);
+    cost[4] += OD_DIVU_SMALL(partial[4][i]*partial[4][i], i + 1)
+     + OD_DIVU_SMALL(partial[4][14 - i]*partial[4][14 - i], i + 1);
+  }
+  cost[0] += partial[0][7]*partial[0][8 - 1] >> 3;
+  cost[4] += partial[4][7]*partial[4][8 - 1] >> 3;
+  for (i = 1; i < 8; i += 2) {
+    int j;
+    for (j = 0; j < 4 + 1; j++) {
+      cost[i] += partial[i][3 + j]*partial[i][3 + j] >> 3;
+    }
+    for (j = 0; j < 4 - 1; j++) {
+      cost[i] += OD_DIVU_SMALL(partial[i][j]*partial[i][j], 2*j + 2)
+       + OD_DIVU_SMALL(partial[i][10 - j]*partial[i][10 - j], 2*j + 2);
+    }
+  }
+  for (i = 0; i < 8; i++) {
+    if (cost[i] > best_cost) {
+      best_cost = cost[i];
+      best_dir = i;
+    }
+  }
+  return best_dir;
+}
+
+#define OD_FILT_BORDER (3)
+#define OD_DERING_VERY_LARGE (1000000000)
+#define OD_DERING_INBUF_SIZE ((OD_BSIZE_MAX + 2*OD_FILT_BORDER)*\
+ (OD_BSIZE_MAX + 2*OD_FILT_BORDER))
+
+/* Smooth in the direction detected. */
+static void od_dering_direction(od_coeff *y, int ystride, od_coeff *in,
+ int bstride, int n, int threshold, int dir) {
+  int i;
+  int j;
+  int f;
+  static const int taps[4] = {2, 3, 2, 2};
+  if (dir <= 4) {
+    for (i = 0; i < n; i++) {
+      for (j = 0; j < n; j++) {
+        od_coeff sum;
+        od_coeff xx;
+        od_coeff yy;
+        int k;
+        xx = in[i*bstride + j];
+        sum= 0;
+        f = dir - 2;
+        for (k = 1; k <= 3; k++) {
+          od_coeff p0;
+          od_coeff p1;
+          p0 = in[(i + f*k/2)*bstride + j + k] - xx;
+          p1 = in[(i - f*k/2)*bstride + j - k] - xx;
+          if (abs(p0) < threshold) sum += taps[k]*p0;
+          if (abs(p1) < threshold) sum += taps[k]*p1;
+        }
+        yy = xx + (sum + 8)/16;
+        y[i*ystride + j] = yy;
+      }
+    }
+  }
+  else {
+    for (i = 0; i < n; i++) {
+      for (j = 0; j < n; j++) {
+        od_coeff sum;
+        od_coeff xx;
+        od_coeff yy;
+        int k;
+        xx = in[i*bstride + j];
+        sum= 0;
+        f = 6 - dir;
+        for (k = 1; k <= 3; k++) {
+          od_coeff p0;
+          od_coeff p1;
+          p0 = in[(i + k)*bstride + j + f*k/2] - xx;
+          p1 = in[(i - k)*bstride + j - f*k/2] - xx;
+          if (abs(p0) < threshold) sum += taps[k]*p0;
+          if (abs(p1) < threshold) sum += taps[k]*p1;
+        }
+        yy = xx + (sum + 8)/16;
+        y[i*ystride + j] = yy;
+      }
+    }
+  }
+}
+
+/* Smooth in the direction orthogonal to what was detected. */
+static void od_dering_orthogonal(od_coeff *y, int ystride, od_coeff *in,
+ int bstride, od_coeff *x, int xstride, int n, int threshold, int dir) {
+  int i;
+  int j;
+  if (dir <= 4) {
+    for (i = 0; i < n; i++) {
+      for (j = 0; j < n; j++) {
+        od_coeff athresh;
+        od_coeff yy;
+        od_coeff sum;
+        /* Deringing orthogonal to the direction uses a tighter threshold
+           because we want to be conservative. We've presumably already
+           achieved some deringing, so the amount of change is expected
+           to be low. Also, since we might be filtering across an edge, we
+           want to make sure not to blur it. That being said, we might want
+           to be a little bit more aggressive on pure horizontal/vertical
+           since the ringing there tends to be directional, so it doesn't
+           get removed by the directional filtering. */
+        athresh = OD_MINI(threshold, threshold/3
+         + abs(in[i*bstride + j] - x[i*xstride + j]));
+        yy = in[i*bstride + j];
+        sum = in[i*bstride + j];
+        if (abs(in[(i + 1)*bstride + j] - yy) < athresh)
+          sum += in[(i + 1)*bstride + j];
+        else sum += yy;
+        if (abs(in[(i - 1)*bstride + j] - yy) < athresh)
+          sum += in[(i - 1)*bstride + j];
+        else sum += yy;
+        y[i*ystride + j] = (sum + 1)/3;
+      }
+    }
+  }
+  else {
+    for (i = 0; i < n; i++) {
+      for (j = 0; j < n; j++) {
+        od_coeff athresh;
+        od_coeff yy;
+        od_coeff sum;
+        athresh = OD_MINI(threshold, threshold/3
+         + abs(in[i*bstride + j] - x[i*xstride + j]));
+        yy = in[i*bstride + j];
+        sum = in[i*bstride + j];
+        if (abs(in[i*bstride + j + 1] - yy) < athresh)
+          sum += in[i*bstride + j + 1];
+        else sum += yy;
+        if (abs(in[i*bstride + j - 1] - yy) < athresh)
+          sum += in[i*bstride + j - 1];
+        else sum += yy;
+        y[i*ystride + j] = (sum + 1)/3;
+      }
+    }
+  }
+}
+void od_dering(od_coeff *y, int ystride, od_coeff *x, int xstride, int ln,
+ int sbx, int sby, int nhsb, int nvsb, int q, int xdec,
+ int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS], int pli) {
   int i;
   int j;
   int n;
-  int delta;
-  int sum;
-  int sign;
-  od_coeff aa;
-  od_coeff bb;
-  od_coeff cc;
-  od_coeff dd;
-  od_coeff xx;
+  int threshold;
+  int bx;
+  int by;
+  od_coeff inbuf[OD_DERING_INBUF_SIZE];
+  od_coeff *in;
+  int bstride;
+  int nhb;
+  int nvb;
+  int bsize;
   n = 1 << ln;
+  bsize = 3 - xdec;
+  nhb = nvb = n >> bsize;
+  bstride = (OD_BSIZE_MAX + 2*OD_FILT_BORDER);
+  in = inbuf + OD_FILT_BORDER*bstride + OD_FILT_BORDER;
+  /* We avoid filtering the pixels for which some of the pixels to average
+     are outside the frame. We could change the filter instead, but it would
+     add special cases for any future vectorization. */
+  for (i = 0; i < OD_DERING_INBUF_SIZE; i++) inbuf[i] = OD_DERING_VERY_LARGE;
+  for (i = -OD_FILT_BORDER*(sby != 0); i < n
+   + OD_FILT_BORDER*(sby != nvsb - 1); i++) {
+    for (j = -OD_FILT_BORDER*(sbx != 0); j < n
+     + OD_FILT_BORDER*(sbx != nhsb - 1); j++) {
+      in[i*bstride + j] = x[i*xstride + j];
+    }
+  }
+  if (pli == 0) {
+    for (by = 0; by < nvb; by++) {
+      for (bx = 0; bx < nhb; bx++) {
+        dir[by][bx] = od_dir_find8(&x[8*by*xstride + 8*bx], xstride);
+      }
+    }
+  }
+  /* The threshold is meant to be the estimated amount of ringing for a given
+     quantizer. Ringing is mostly proportional to the quantizer, but we
+     use an exponent slightly smaller than unity because as quantization
+     becomes coarser, the relative effect of quantization becomes slightly
+     smaller as many unquantized coefficients are already close to zero. The
+     value here comes from observing that on ntt-short, the best threshold for
+     -v 5 appeared to be around 0.5*q, while the best threshold for -v 400
+     was 0.25*q, i.e. 1-log(.5/.25)/log(400/5) = 0.84182 */
+  threshold = 1.0*pow(q, 0.84182);
+  for (by = 0; by < nvb; by++) {
+    for (bx = 0; bx < nhb; bx++) {
+      od_dering_direction(&y[(by*ystride << bsize) + (bx << bsize)], ystride,
+       &in[(by*bstride << bsize) + (bx << bsize)], bstride, 1 << bsize,
+       threshold, dir[by][bx]);
+    }
+  }
   for (i = 0; i < n; i++) {
     for (j = 0; j < n; j++) {
-      xx = x[i*xstride + j];
-      if (sby > 0 || i > 0) aa = x[(i - 1)*xstride + j];
-      else aa = xx;
-      if (sbx > 0 || j > 0) bb = x[i*xstride + (j - 1)];
-      else bb = xx;
-      if (sbx < nhsb - 1 || j < n - 1) cc = x[i*xstride + (j + 1)];
-      else cc = xx;
-      if (sby < nvsb - 1 || i < n - 1) dd = x[(i + 1)*xstride + j];
-      else dd = xx;
-      sum = aa + bb + cc + dd - 4*xx;
-      sign = sum < 0 ? -1 : 1;
-      if (abs(sum) > (16 << OD_COEFF_SHIFT)) {
-        /*Turn off the filter at a threshold of 16 pixels. This gives an
-          improvement over Thor's, but needs more tuning probably. Values of 8,
-          16, 32, and 64 were tried, with this being the best.*/
-        delta = 0;
-      }
-      else {
-        delta = sign * OD_MINI(1 << OD_COEFF_SHIFT, (abs(sum) + 2) >> 2);
-      }
-      y[i*ystride + j] = xx + delta;
+      in[i*bstride + j] = y[i*ystride + j];
+    }
+  }
+  for (by = 0; by < nvb; by++) {
+    for (bx = 0; bx < nhb; bx++) {
+      od_dering_orthogonal(&y[(by*ystride << bsize) + (bx << bsize)], ystride,
+       &in[(by*bstride << bsize) + (bx << bsize)], bstride,
+       &x[(by*xstride << bsize) + (bx << bsize)], xstride, 1 << bsize,
+       threshold, dir[by][bx]);
     }
   }
 }
