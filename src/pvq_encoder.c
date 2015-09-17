@@ -91,6 +91,22 @@ static double od_rsqrt_table(int i) {
   else return 1./sqrt(i);
 }
 
+/*Computes 1/sqrt(start+2*i+1) using a lookup table containing the results
+   where 0 <= i < table_size.*/
+static double od_custom_rsqrt_dynamic_table(const double* table,
+ const int table_size, const double start, const int i) {
+  if (i < table_size) return table[i];
+  else return od_rsqrt_table(start + 2*i + 1);
+}
+
+/*Fills tables used in od_custom_rsqrt_dynamic_table for a given start.*/
+static void od_fill_dynamic_rqrt_table(double *table, const int table_size,
+ const double start) {
+  int i;
+  for (i = 0; i < table_size; i++)
+    table[i] = od_rsqrt_table(start + 2*i + 1);
+}
+
 /** Find the codepoint on the given PSphere closest to the desired
  * vector. Double-precision PVQ search just to make sure our tests
  * aren't limited by numerical accuracy.
@@ -176,16 +192,24 @@ static double pvq_search_rdo_double(const double *xcoeff, int n, int k,
      lambda*rate term. Note that since x and y aren't normalized here,
      we need to divide by sqrt(x^2)*sqrt(y^2). */
   for (; i < k; i++) {
+    double rsqrt_table[4];
+    int rsqrt_table_size = 4;
     int pos;
     double best_cost;
     pos = 0;
     best_cost = -1e5;
+    /*Fill the small rsqrt lookup table with inputs relative to yy.
+      Specifically, the table of n values is filled with
+       rsqrt(yy + 1), rsqrt(yy + 2 + 1) .. rsqrt(yy + 2*(n-1) + 1).*/
+    od_fill_dynamic_rqrt_table(rsqrt_table, rsqrt_table_size, yy);
     for (j = 0; j < n; j++) {
       double tmp_xy;
       double tmp_yy;
       tmp_xy = xy + x[j];
-      tmp_yy = yy + 2*ypulse[j] + 1;
-      tmp_xy = 2*tmp_xy*norm_1*od_rsqrt_table(tmp_yy) - lambda*j*delta_rate;
+      /*Calculate rsqrt(yy + 2*ypulse[j] + 1) using an optimized method.*/
+      tmp_yy = od_custom_rsqrt_dynamic_table(rsqrt_table, rsqrt_table_size,
+       yy, ypulse[j]);
+      tmp_xy = 2*tmp_xy*norm_1*tmp_yy - lambda*j*delta_rate;
       if (j == 0 || tmp_xy > best_cost) {
         best_cost = tmp_xy;
         pos = j;
