@@ -452,12 +452,12 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int bs,
   int lossless;
   int quant;
   int dc_quant;
-  int use_masking;
+  int use_activity_masking;
   const int *qm;
   OD_ASSERT(bs >= 0 && bs < OD_NBSIZES);
   n = 1 << (bs + 2);
   lossless = (dec->quantizer[pli] == 0);
-  use_masking = ctx->use_activity_masking;
+  use_activity_masking = ctx->use_activity_masking;
   qm = ctx->qm == OD_HVS_QM ? OD_QM8_Q4_HVS : OD_QM8_Q4_FLAT;
   bx <<= bs;
   by <<= bs;
@@ -508,8 +508,8 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int bs,
   else {
     unsigned int flags;
     od_pvq_decode(dec, predt, pred, quant, pli, bs,
-     OD_PVQ_BETA[use_masking][pli][bs], OD_ROBUST_STREAM, ctx->is_keyframe,
-     &flags, skip);
+     OD_PVQ_BETA[use_activity_masking][pli][bs], OD_ROBUST_STREAM,
+     ctx->is_keyframe, &flags, skip);
     if (pli == 0 && dec->user_flags != NULL) {
       dec->user_flags[by*dec->user_fstride + bx] = flags;
     }
