@@ -27,7 +27,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #if !defined(_daala_daaladec_H)
 # define _daala_daaladec_H (1)
 # include "codec.h"
-# include <ogg/ogg.h>
 
 # if defined(__cplusplus)
 extern "C" {
@@ -153,7 +152,7 @@ typedef struct daala_setup_info daala_setup_info;
                         <tt>libdaaladec</tt>.
  * \retval OD_ENOTFORMAT The packet was not a Daala header.*/
 int daala_decode_header_in(daala_info *info,
- daala_comment *dc, daala_setup_info **ds, const ogg_packet *op);
+ daala_comment *dc, daala_setup_info **ds, const daala_packet *op);
 
 /**Allocates a decoder instance.
  * \param info A #daala_info struct filled via daala_decode_header_in().
@@ -187,7 +186,7 @@ void daala_decode_free(daala_dec_ctx *dec);
  * \param img A buffer to receive the decoded image data.
  * \param op An incoming Ogg packet.*/
 int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
- const ogg_packet *op);
+ const daala_packet *op);
 /*@}*/
 
 /** \defgroup decctlcodes Configuration keys for the decoder ctl interface.

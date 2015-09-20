@@ -238,8 +238,22 @@ static void check_xiph_comment(stream_processor *stream, int i,
   }
 }
 
+static void ogg_to_daala_packet(daala_packet *dp, ogg_packet *op)
+{
+
+  dp->packet     = op->packet;
+  dp->bytes      = op->bytes;
+
+  dp->b_o_s      = op->b_o_s;
+  dp->e_o_s      = op->e_o_s;
+
+  dp->granulepos = op->granulepos;
+  dp->packetno   = op->packetno;
+}
+
 static void daala_process(stream_processor *stream, ogg_page *page) {
-  ogg_packet packet;
+  daala_packet dp;
+  ogg_packet op;
   misc_daala_info *inf;
   int i, header=0;
   int res;
@@ -249,7 +263,7 @@ static void daala_process(stream_processor *stream, ogg_page *page) {
     header = 1;
   }
   while(1) {
-    res = ogg_stream_packetout(&stream->os, &packet);
+    res = ogg_stream_packetout(&stream->os, &op);
     if (res < 0) {
       fprintf(stderr, "WARNING: discontinuity in stream (%d)\n", stream->num);
       continue;
@@ -257,8 +271,9 @@ static void daala_process(stream_processor *stream, ogg_page *page) {
     else if (res == 0) {
       break;
     }
+    ogg_to_daala_packet(&dp, &op);
     if (inf->doneheaders < 3) {
-      if (daala_decode_header_in(&inf->di, &inf->dc, &inf->ds, &packet) < 0) {
+      if (daala_decode_header_in(&inf->di, &inf->dc, &inf->ds, &dp) < 0) {
         fprintf(stderr, "WARNING: Could not decode Daala header packet - "
          "invalid Daala stream (%d)\n", stream->num);
         continue;
@@ -326,7 +341,7 @@ static void daala_process(stream_processor *stream, ogg_page *page) {
       ogg_int64_t framenum;
       ogg_int64_t iframe, pframe;
       ogg_int64_t gp;
-      gp = packet.granulepos;
+      gp = op.granulepos;
       if (gp > 0) {
         iframe = gp >> inf->di.keyframe_granule_shift;
         pframe = gp - (iframe << inf->di.keyframe_granule_shift);
@@ -401,9 +416,9 @@ static void process_null(stream_processor *stream, ogg_page *page) {
 }
 
 static void process_other(stream_processor *stream, ogg_page *page ) {
-  ogg_packet packet;
+  ogg_packet op;
   ogg_stream_pagein(&stream->os, page);
-  while (ogg_stream_packetout(&stream->os, &packet) > 0) {
+  while (ogg_stream_packetout(&stream->os, &op) > 0) {
     /* Should we do anything here? Currently, we don't */
   }
 }
@@ -514,23 +529,23 @@ static stream_processor *find_stream_processor(stream_set *set,
   stream->constraint_violated = constraint;
   {
     int res;
-    ogg_packet packet;
+    ogg_packet op;
     /* We end up processing the header page twice, but that's ok. */
     ogg_stream_init(&stream->os, serial);
     ogg_stream_pagein(&stream->os, page);
-    res = ogg_stream_packetout(&stream->os, &packet);
+    res = ogg_stream_packetout(&stream->os, &op);
     if (res <= 0) {
       fprintf(stderr, "WARNING: Invalid header page, no packet found\n");
       null_start(stream);
     }
-    else if (packet.bytes >= 6
-     && memcmp(packet.packet, "\x80""daala", 6) == 0) {
+    else if (op.bytes >= 6
+     && memcmp(op.packet, "\x80""daala", 6) == 0) {
       daala_start(stream);
     }
     else {
       other_start(stream, NULL);
     }
-    res = ogg_stream_packetout(&stream->os, &packet);
+    res = ogg_stream_packetout(&stream->os, &op);
     if (res > 0) {
       fprintf(stderr, "WARNING: Invalid header page in stream %d, "
        "contains multiple packets\n", stream->num);

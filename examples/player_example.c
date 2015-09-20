@@ -32,6 +32,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <daala/codec.h>
 #include <daala/daaladec.h>
 
+#include <ogg/ogg.h>
+
 #include "SDL.h"
 
 #define ODS_NONE 0
@@ -63,6 +65,19 @@ typedef struct {
   int valid;
   int plane_mask;
 } player_example;
+
+static void ogg_to_daala_packet(daala_packet *dp, ogg_packet *op)
+{
+
+  dp->packet     = op->packet;
+  dp->bytes      = op->bytes;
+
+  dp->b_o_s      = op->b_o_s;
+  dp->e_o_s      = op->e_o_s;
+
+  dp->granulepos = op->granulepos;
+  dp->packetno   = op->packetno;
+}
 
 enum {
   OD_LUMA_MASK = 1 << 0,
@@ -302,7 +317,8 @@ int player_example_play(player_example *player) {
   char *buffer;
   int ret;
   ogg_page page;
-  ogg_packet packet;
+  ogg_packet op;
+  daala_packet dp;
   daala_setup_info *dsi;
   uint32_t ms_per_frame;
   uint32_t ticks = 0;
@@ -354,13 +370,14 @@ int player_example_play(player_example *player) {
     }
     ret = ogg_stream_pagein(&player->os, &page);
     if (ret != 0) return -1;
-    while (ogg_stream_packetout(&player->os, &packet) == 1) {
+    while (ogg_stream_packetout(&player->os, &op) == 1) {
+      ogg_to_daala_packet(&dp, &op);
       switch (player->od_state) {
         case ODS_HEADER: {
           ret =
-           daala_decode_header_in(&player->di, &player->dc, &dsi, &packet);
+           daala_decode_header_in(&player->di, &player->dc, &dsi, &dp);
           if (ret < 0) {
-            if (memcmp(packet.packet, "fishead", packet.bytes)) {
+            if (memcmp(dp.packet, "fishead", dp.bytes)) {
               fprintf(stderr, "Ogg Skeleton streams not supported\n");
             }
             return -1;
@@ -398,7 +415,7 @@ int player_example_play(player_example *player) {
                 player->width, player->height);
             if (player->texture == NULL) return -1;
           }
-          ret = daala_decode_packet_in(player->dctx, &player->img, &packet);
+          ret = daala_decode_packet_in(player->dctx, &player->img, &dp);
           if (ret != 0) return -1;
           player->valid = 1;
           if ((player->slow) && (!player->step)) {

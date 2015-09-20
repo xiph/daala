@@ -197,6 +197,21 @@ struct daala_info {
   int keyframe_rate;
 };
 
+typedef struct {
+  unsigned char *packet;
+  long  bytes;
+  long  b_o_s;
+  long  e_o_s;
+
+  int64_t  granulepos;
+
+  int64_t  packetno;     /* sequence number for decode; the framing
+                            knows where there's a hole in the data,
+                            but we need coupling so that the codec
+                            (which is in a separate abstraction
+                            layer) also knows about the gap */
+} daala_packet;
+
 void daala_info_init(daala_info *info);
 void daala_info_clear(daala_info *info);
 

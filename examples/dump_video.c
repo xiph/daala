@@ -55,6 +55,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <limits.h>
 #include <math.h>
 #include <signal.h>
+#include <ogg/ogg.h>
 #include "getopt.h"
 #include "../src/logging.h"
 #include "../include/daala/daaladec.h"
@@ -85,6 +86,19 @@ daala_comment dc;
 daala_setup_info *ds;
 daala_dec_ctx *dd;
 od_img img;
+
+static void ogg_to_daala_packet(daala_packet *dp, ogg_packet *op)
+{
+
+  dp->packet     = op->packet;
+  dp->bytes      = op->bytes;
+
+  dp->b_o_s      = op->b_o_s;
+  dp->e_o_s      = op->e_o_s;
+
+  dp->granulepos = op->granulepos;
+  dp->packetno   = op->packetno;
+}
 
 int daala_p = 0;
 int daala_processing_headers;
@@ -176,6 +190,7 @@ static void version(void) {
 }
 
 int main(int argc, char *argv[]) {
+  daala_packet dp;
   ogg_packet op;
 
   int long_option_index;
@@ -271,9 +286,11 @@ int main(int argc, char *argv[]) {
       ogg_stream_init(&test, ogg_page_serialno(&og));
       ogg_stream_pagein(&test, &og);
       got_packet = ogg_stream_packetpeek(&test, &op);
+
+      ogg_to_daala_packet(&dp, &op);
       /* identify the codec: try daala */
       if ((got_packet == 1) && !daala_p && (daala_processing_headers =
-       daala_decode_header_in(&di, &dc, &ds, &op)) >= 0) {
+       daala_decode_header_in(&di, &dc, &ds, &dp)) >= 0) {
         /* it is daala -- save this stream state */
         memcpy(&to, &test, sizeof(test));
         daala_p = 1;
@@ -294,7 +311,8 @@ int main(int argc, char *argv[]) {
     while (daala_processing_headers &&
      (ret = ogg_stream_packetpeek(&to, &op))) {
       if (ret < 0) continue;
-      daala_processing_headers = daala_decode_header_in(&di, &dc, &ds, &op);
+      ogg_to_daala_packet(&dp, &op);
+      daala_processing_headers = daala_decode_header_in(&di, &dc, &ds, &dp);
       if (daala_processing_headers < 0) {
         fprintf(stderr, "Error parsing Daala stream headers; "
          "corrupt stream?\n");
@@ -398,7 +416,8 @@ int main(int argc, char *argv[]) {
   while (!got_sigint) {
     while (daala_p && !videobuf_ready) {
       if (ogg_stream_packetout(&to, &op) > 0) {
-        if (daala_decode_packet_in(dd, &img, &op) >= 0) {
+        ogg_to_daala_packet(&dp, &op);
+        if (daala_decode_packet_in(dd, &img, &dp) >= 0) {
           videobuf_ready = 1;
           frames++;
         }
