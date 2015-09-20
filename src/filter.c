@@ -28,6 +28,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #endif
 
 #include <stdlib.h>
+#include <limits.h>
 #include "filter.h"
 #include "block_size.h"
 
@@ -1931,8 +1932,8 @@ int main(void) {
   for (dims = 4; dims <= 16; dims <<= 1) {
     printf("filter%d:\n", dims);
     for (j = 0; j < dims; j++) {
-      min[j] = mini[j] = 2147483647;
-      max[j] = maxi[j] = -2147483647-1;
+      min[j] = mini[j] = INT_MAX;
+      max[j] = maxi[j] = INT_MIN;
     }
     for (i = 0; i < (1<<dims); i++) {
       od_coeff x[16];
