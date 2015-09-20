@@ -973,21 +973,21 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
         int up;
         int left;
         if (state->sb_skip_flags[sby*nhsb + sbx]) {
-          state->clpf_flags[sby*nhsb + sbx] = 0;
+          state->dering_flags[sby*nhsb + sbx] = 0;
           continue;
         }
         up = 0;
         if (sby > 0) {
-          up = state->clpf_flags[(sby-1)*nhsb + sbx];
+          up = state->dering_flags[(sby - 1)*nhsb + sbx];
         }
         left = 0;
         if (sbx > 0) {
-          left = state->clpf_flags[sby*nhsb + (sbx-1)];
+          left = state->dering_flags[sby*nhsb + (sbx - 1)];
         }
         c = (up << 1) + left;
         filtered = od_decode_cdf_adapt(&dec->ec, state->adapt.clpf_cdf[c], 2,
          state->adapt.clpf_increment, "clp");
-        state->clpf_flags[sby*nhsb + sbx] = filtered;
+        state->dering_flags[sby*nhsb + sbx] = filtered;
         if (filtered) {
           for (pli = 0; pli < nplanes; pli++) {
             od_coeff buf[OD_BSIZE_MAX*OD_BSIZE_MAX];

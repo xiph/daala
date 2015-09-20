@@ -225,8 +225,9 @@ struct od_state{
   od_coeff *ltmp[OD_NPLANES_MAX];
   od_coeff *lbuf[OD_NPLANES_MAX];
   unsigned char pvq_qm_q4[OD_NPLANES_MAX][OD_QM_SIZE];
-  /*These flags provide context for the CLP filter.*/
-  unsigned char *clpf_flags;
+  /*Array of flags to enable the dering filter per block.
+    1 to enable (default), 0 to disable.*/
+  unsigned char *dering_flags;
   unsigned char *sb_skip_flags;
   /*This provides context for the quantizer CDF.*/
   unsigned char *sb_q_scaling;

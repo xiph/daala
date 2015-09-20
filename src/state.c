@@ -370,7 +370,7 @@ static int od_state_init_impl(od_state *state, const daala_info *info) {
   state->dump_tags = 0;
   state->dump_files = 0;
 #endif
-  state->clpf_flags = (unsigned char *)malloc(state->nhsb * state->nvsb);
+  state->dering_flags = (unsigned char *)malloc(state->nhsb * state->nvsb);
   state->sb_skip_flags = (unsigned char *)malloc(state->nhsb * state->nvsb);
   state->sb_q_scaling = (unsigned char *)malloc(state->nhsb * state->nvsb);
   return OD_SUCCESS;
@@ -410,7 +410,7 @@ void od_state_clear(od_state *state) {
   }
   free(state->bsize);
   for (pli = 0; pli < 3; pli++) free(state->bskip[pli]);
-  free(state->clpf_flags);
+  free(state->dering_flags);
   free(state->sb_skip_flags);
   free(state->sb_q_scaling);
 }
