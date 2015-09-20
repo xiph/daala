@@ -373,6 +373,8 @@ static const struct option OPTIONS[] = {
   { "no-mc-use-satd", no_argument, NULL, 0 },
   { "activity-masking", no_argument, NULL, 0 },
   { "no-activity-masking", no_argument, NULL, 0 },
+  { "dering", no_argument, NULL, 0 },
+  { "no-dering", no_argument, NULL, 0 },
   { "qm", required_argument, NULL, 0 },
   { "mv-res-min", required_argument, NULL, 0 },
   { "mv-level-min", required_argument, NULL, 0 },
@@ -413,6 +415,8 @@ static void usage(void) {
    "                                 --no-mc-use-satd is implied by default.\n"
    "     --[no-]activity-masking     Control whether activity masking should\n"
    "                                 be used in quantization.\n"
+   "     --[no-]dering               Enable (default) or disable the dering\n"
+   "                                 postprocessing filter.\n"
    "     --qm <n>                    Select quantization matrix\n"
    "                                 0 => flat, 1 => hvs (default)\n"
    "                                 --activity-masking is implied by default.\n"
@@ -463,6 +467,7 @@ int main(int argc, char **argv) {
   int mc_use_chroma;
   int mc_use_satd;
   int use_activity_masking;
+  int use_dering;
   int qm;
   int mv_res_min;
   int mv_level_min;
@@ -486,6 +491,7 @@ int main(int argc, char **argv) {
   avin.video_fps_d = -1;
   avin.video_par_n = -1;
   avin.video_par_d = -1;
+  /* Set default options */
   video_q = 10;
   video_keyframe_rate = 256;
   video_bytesout = 0;
@@ -496,6 +502,7 @@ int main(int argc, char **argv) {
   mc_use_chroma = 1;
   mc_use_satd = 0;
   use_activity_masking = 1;
+  use_dering = 1;
   qm = 1;
   mv_res_min = 0;
   mv_level_min = 0;
@@ -590,6 +597,12 @@ int main(int argc, char **argv) {
         else if (strcmp(OPTIONS[loi].name, "no-activity-masking") == 0) {
           use_activity_masking = 0;
         }
+        else if (strcmp(OPTIONS[loi].name, "dering") == 0) {
+          use_dering = 1;
+        }
+        else if (strcmp(OPTIONS[loi].name, "no-dering") == 0) {
+          use_dering = 0;
+        }
         else if (strcmp(OPTIONS[loi].name, "mv-res-min") == 0) {
           mv_res_min = atoi(optarg);
           if (mv_res_min < 0 || mv_res_min > 2) {
@@ -680,6 +693,8 @@ int main(int argc, char **argv) {
    sizeof(mc_use_satd));
   daala_encode_ctl(dd, OD_SET_USE_ACTIVITY_MASKING, &use_activity_masking,
    sizeof(use_activity_masking));
+  daala_encode_ctl(dd, OD_SET_USE_DERING, &use_dering,
+   sizeof(use_dering));
   daala_encode_ctl(dd, OD_SET_MV_RES_MIN, &mv_res_min, sizeof(mv_res_min));
   daala_encode_ctl(dd, OD_SET_QM, &qm, sizeof(qm));
   daala_encode_ctl(dd, OD_SET_MV_LEVEL_MIN, &mv_level_min, sizeof(mv_level_min));

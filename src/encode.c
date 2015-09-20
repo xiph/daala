@@ -320,6 +320,13 @@ int daala_encode_ctl(daala_enc_ctx *enc, int req, void *buf, size_t buf_sz) {
       enc->use_activity_masking = !!*(const int *)buf;
       return OD_SUCCESS;
     }
+    case OD_SET_USE_DERING: {
+      OD_ASSERT(enc);
+      OD_ASSERT(buf);
+      OD_ASSERT(buf_sz == sizeof(enc->use_dering));
+      enc->use_dering = !!*(const int *)buf;
+      return OD_SUCCESS;
+    }
     case OD_SET_QM: {
       int qm;
       OD_ASSERT(enc);
@@ -1860,7 +1867,9 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
         double filtered_rate;
         double unfiltered_rate;
         int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS];
-        if (state->sb_skip_flags[sby*nhsb + sbx]) {
+        /*Disable the dering filter if either 1) manually disabled by
+	   configuration or 2) sb_skip_flags is active for this block.*/
+        if (!enc->use_dering || state->sb_skip_flags[sby*nhsb + sbx]) {
           state->dering_flags[sby*nhsb + sbx] = 0;
           continue;
         }
