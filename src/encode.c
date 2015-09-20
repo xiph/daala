@@ -441,6 +441,8 @@ static void od_img_plane_copy_pad8(od_img_plane *dst_p,
   }
 }
 
+/*Block-level encoder context information.
+  Global encoder context information is in od_enc_ctx.*/
 struct od_mb_enc_ctx {
   od_coeff *c;
   od_coeff **d;

@@ -211,6 +211,8 @@ static void od_decode_mv(daala_dec_ctx *dec, int num_refs, od_mv_grid_pt *mvg,
   mvg->mv[1] = (pred[1] + oy) << mv_res;
 }
 
+/*Block-level decoder context information.
+  Global decoder context information is in od_dec_ctx.*/
 struct od_mb_dec_ctx {
   od_coeff *c;
   od_coeff **d;
