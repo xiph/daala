@@ -245,7 +245,6 @@ int od_log_matrix_##N(od_log_facility facility, \
  \
   for (h=0; h<height; ++h) { \
     for (w=0; w<width; ++w) { \
-re_format: \
       rv = snprintf(buffer + current_size, \
                     buffer_size - current_size, \
                     F, \
@@ -259,7 +258,7 @@ re_format: \
           return OD_EFAULT;  /* Out of memory */ \
         } \
         buffer = tmp; \
-        goto re_format; \
+        continue; \
       } \
       current_size += rv; \
     } \
