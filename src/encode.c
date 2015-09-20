@@ -350,9 +350,9 @@ int daala_encode_ctl(daala_enc_ctx *enc, int req, void *buf, size_t buf_sz) {
     case OD_SET_QUANT:
     {
       int i;
-      OD_ASSERT(enc);
-      OD_ASSERT(buf);
-      OD_ASSERT(buf_sz == sizeof(*enc->quality));
+      OD_RETURN_CHECK(enc, OD_EFAULT);
+      OD_RETURN_CHECK(buf, OD_EFAULT);
+      OD_RETURN_CHECK(buf_sz == sizeof(*enc->quality), OD_EINVAL);
       for (i = 0; i < OD_NPLANES_MAX; i++){
         int tmp = *(int *)buf;
         enc->quality[i] = tmp > 0 ? (tmp << OD_QUALITY_SHIFT) - 8 : 0;
@@ -361,27 +361,27 @@ int daala_encode_ctl(daala_enc_ctx *enc, int req, void *buf, size_t buf_sz) {
     }
     case OD_SET_COMPLEXITY: {
       int complexity;
-      OD_ASSERT(enc);
-      OD_ASSERT(buf);
-      OD_ASSERT(buf_sz == sizeof(enc->complexity));
+      OD_RETURN_CHECK(enc, OD_EFAULT);
+      OD_RETURN_CHECK(buf, OD_EFAULT);
+      OD_RETURN_CHECK(buf_sz == sizeof(enc->complexity), OD_EINVAL);
       complexity = *(const int *)buf;
       if (complexity < 0 || complexity > 10) return OD_EINVAL;
       enc->complexity = complexity;
       return OD_SUCCESS;
     }
     case OD_GET_COMPLEXITY: {
-      OD_ASSERT(enc);
-      OD_ASSERT(buf);
-      OD_ASSERT(buf_sz == sizeof(enc->complexity));
+      OD_RETURN_CHECK(enc, OD_EFAULT);
+      OD_RETURN_CHECK(buf, OD_EFAULT);
+      OD_RETURN_CHECK(buf_sz == sizeof(enc->complexity), OD_EINVAL);
       *(int *)buf = enc->complexity;
       return OD_SUCCESS;
     }
     case OD_SET_MC_USE_CHROMA:
     {
       int mc_use_chroma;
-      OD_ASSERT(enc);
-      OD_ASSERT(buf);
-      OD_ASSERT(buf_sz == sizeof(mc_use_chroma));
+      OD_RETURN_CHECK(enc, OD_EFAULT);
+      OD_RETURN_CHECK(buf, OD_EFAULT);
+      OD_RETURN_CHECK(buf_sz == sizeof(mc_use_chroma), OD_EINVAL);
       mc_use_chroma = *(int *)buf;
       if (mc_use_chroma) {
         enc->mvest->flags |= OD_MC_USE_CHROMA;
@@ -392,31 +392,31 @@ int daala_encode_ctl(daala_enc_ctx *enc, int req, void *buf, size_t buf_sz) {
       return OD_SUCCESS;
     }
     case OD_SET_MC_USE_SATD: {
-      OD_ASSERT(enc);
-      OD_ASSERT(buf);
-      OD_ASSERT(buf_sz == sizeof(enc->use_satd));
+      OD_RETURN_CHECK(enc, OD_EFAULT);
+      OD_RETURN_CHECK(buf, OD_EFAULT);
+      OD_RETURN_CHECK(buf_sz == sizeof(enc->use_satd), OD_EINVAL);
       enc->use_satd = !!*(const int *)buf;
       return OD_SUCCESS;
     }
     case OD_SET_USE_ACTIVITY_MASKING: {
-      OD_ASSERT(enc);
-      OD_ASSERT(buf);
-      OD_ASSERT(buf_sz == sizeof(enc->use_activity_masking));
+      OD_RETURN_CHECK(enc, OD_EFAULT);
+      OD_RETURN_CHECK(buf, OD_EFAULT);
+      OD_RETURN_CHECK(buf_sz == sizeof(enc->use_activity_masking), OD_EINVAL);
       enc->use_activity_masking = !!*(const int *)buf;
       return OD_SUCCESS;
     }
     case OD_SET_USE_DERING: {
-      OD_ASSERT(enc);
-      OD_ASSERT(buf);
-      OD_ASSERT(buf_sz == sizeof(enc->use_dering));
+      OD_RETURN_CHECK(enc, OD_EFAULT);
+      OD_RETURN_CHECK(buf, OD_EFAULT);
+      OD_RETURN_CHECK(buf_sz == sizeof(enc->use_dering), OD_EINVAL);
       enc->use_dering = !!*(const int *)buf;
       return OD_SUCCESS;
     }
     case OD_SET_QM: {
       int qm;
-      OD_ASSERT(enc);
-      OD_ASSERT(buf);
-      OD_ASSERT(buf_sz == sizeof(qm));
+      OD_RETURN_CHECK(enc, OD_EFAULT);
+      OD_RETURN_CHECK(buf, OD_EFAULT);
+      OD_RETURN_CHECK(buf_sz == sizeof(qm), OD_EINVAL);
       qm = *(const int *)buf;
       if (qm < OD_FLAT_QM || qm > OD_HVS_QM) {
           return OD_EINVAL;
@@ -427,9 +427,9 @@ int daala_encode_ctl(daala_enc_ctx *enc, int req, void *buf, size_t buf_sz) {
     case OD_SET_MV_RES_MIN:
     {
       int mv_res_min;
-      OD_ASSERT(enc);
-      OD_ASSERT(buf);
-      OD_ASSERT(buf_sz == sizeof(mv_res_min));
+      OD_RETURN_CHECK(enc, OD_EFAULT);
+      OD_RETURN_CHECK(buf, OD_EFAULT);
+      OD_RETURN_CHECK(buf_sz == sizeof(mv_res_min), OD_EINVAL);
       mv_res_min = *(int *)buf;
       if (mv_res_min < 0 || mv_res_min > 2) {
         return OD_EINVAL;
@@ -440,9 +440,9 @@ int daala_encode_ctl(daala_enc_ctx *enc, int req, void *buf, size_t buf_sz) {
     case OD_SET_MV_LEVEL_MIN:
     {
       int mv_level_min;
-      OD_ASSERT(enc);
-      OD_ASSERT(buf);
-      OD_ASSERT(buf_sz == sizeof(mv_level_min));
+      OD_RETURN_CHECK(enc, OD_EFAULT);
+      OD_RETURN_CHECK(buf, OD_EFAULT);
+      OD_RETURN_CHECK(buf_sz == sizeof(mv_level_min), OD_EINVAL);
       mv_level_min = *(int *)buf;
       if (mv_level_min < 0 || mv_level_min > OD_MC_LEVEL_MAX) {
         return OD_EINVAL;
@@ -453,9 +453,9 @@ int daala_encode_ctl(daala_enc_ctx *enc, int req, void *buf, size_t buf_sz) {
     case OD_SET_MV_LEVEL_MAX:
     {
       int mv_level_max;
-      OD_ASSERT(enc);
-      OD_ASSERT(buf);
-      OD_ASSERT(buf_sz == sizeof(mv_level_max));
+      OD_RETURN_CHECK(enc, OD_EFAULT);
+      OD_RETURN_CHECK(buf, OD_EFAULT);
+      OD_RETURN_CHECK(buf_sz == sizeof(mv_level_max), OD_EINVAL);
       mv_level_max = *(int *)buf;
       if (mv_level_max < 0 || mv_level_max > OD_MC_LEVEL_MAX) {
         return OD_EINVAL;

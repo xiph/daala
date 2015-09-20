@@ -132,6 +132,14 @@ void od_fatal_impl(const char *_str, const char *_file, int _line);
 #  define OD_ALWAYS_TRUE(_cond) ((void)(_cond))
 # endif
 
+/*Like OD_ASSERT, but return an error code instead of terminating.*/
+# define OD_RETURN_CHECK(_cond, _err) \
+  do { \
+    if (!(_cond)) { \
+      return (_err); \
+    } \
+  } while(0)
+
 # define OD_MEM_SIZE_MAX (~(size_t)0 >> 1)
 # define OD_MEM_DIFF_MAX ((ptrdiff_t)OD_MEM_SIZE_MAX)
 

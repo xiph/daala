@@ -138,50 +138,56 @@ int daala_decode_ctl(daala_dec_ctx *dec, int req, void *buf, size_t buf_sz) {
   (void)buf_sz;
   switch (req) {
     case OD_DECCTL_SET_BSIZE_BUFFER : {
-      if(dec == NULL || buf == NULL) return OD_EFAULT;
+      OD_RETURN_CHECK(dec, OD_EFAULT);
+      OD_RETURN_CHECK(buf, OD_EFAULT);
       /*Check that buf is large enough to hold the block sizes for a frame.*/
-      if (buf_sz != sizeof(unsigned char)*dec->state.nvsb*dec->state.nhsb*16) {
-        return OD_EINVAL;
-      }
+      OD_RETURN_CHECK(
+       buf_sz == sizeof(unsigned char)*dec->state.nvsb*dec->state.nhsb*16,
+       OD_EINVAL);
       dec->user_bsize = (unsigned char *)buf;
       dec->user_bstride = dec->state.nhsb*4;
       return OD_SUCCESS;
     }
     case OD_DECCTL_SET_FLAGS_BUFFER : {
-      if (dec == NULL || buf == NULL) return OD_EFAULT;
+      OD_RETURN_CHECK(dec, OD_EFAULT);
+      OD_RETURN_CHECK(buf, OD_EFAULT);
       /*Check that buf is large enough to hold the band flags for a frame.*/
-      if (buf_sz != sizeof(unsigned int)*dec->state.nvsb*8*dec->state.nhsb*8) {
-        return OD_EINVAL;
-      }
+      OD_RETURN_CHECK(
+       buf_sz == sizeof(unsigned int)*dec->state.nvsb*8*dec->state.nhsb*8,
+       OD_EINVAL);
       dec->user_flags = (unsigned int *)buf;
       dec->user_fstride = dec->state.nhsb*8;
       return OD_SUCCESS;
     }
     case OD_DECCTL_SET_MV_BUFFER : {
-      if (dec== NULL || buf == NULL) return OD_EFAULT;
-      if (buf_sz !=
-       sizeof(od_mv_grid_pt)*(dec->state.nhmvbs + 1)*(dec->state.nvmvbs + 1)) {
-        return OD_EINVAL;
-      }
+      OD_RETURN_CHECK(dec, OD_EFAULT);
+      OD_RETURN_CHECK(buf, OD_EFAULT);
+      OD_RETURN_CHECK(buf_sz ==
+       sizeof(od_mv_grid_pt)*(dec->state.nhmvbs + 1)*(dec->state.nvmvbs + 1),
+       OD_EINVAL);
       dec->user_mv_grid = buf;
       return OD_SUCCESS;
     }
     case OD_DECCTL_SET_MC_IMG : {
-      if (dec == NULL || buf == NULL) return OD_EFAULT;
-      if (buf_sz != sizeof(od_img)) return OD_EINVAL;
+      OD_RETURN_CHECK(dec, OD_EFAULT);
+      OD_RETURN_CHECK(buf, OD_EFAULT);
+      OD_RETURN_CHECK((buf_sz == sizeof(od_img)), OD_EINVAL);
       dec->user_mc_img = buf;
       return OD_SUCCESS;
     }
 #if OD_ACCOUNTING
     case OD_DECCTL_SET_ACCOUNTING_ENABLED: {
-      if(dec == NULL || buf == NULL || buf_sz != sizeof(int)) return OD_EFAULT;
+      OD_RETURN_CHECK(dec, OD_EFAULT);
+      OD_RETURN_CHECK(buf, OD_EFAULT);
+      OD_RETURN_CHECK(buf_sz == sizeof(int), OD_EINVAL);
       dec->acct_enabled = *(int*)buf != 0;
       return OD_SUCCESS;
     }
     case OD_DECCTL_GET_ACCOUNTING : {
-      if (!dec->acct_enabled) return OD_EINVAL;
-      if (dec == NULL || buf == NULL) return OD_EFAULT;
-      if (buf_sz != sizeof(od_accounting *)) return OD_EINVAL;
+      OD_RETURN_CHECK(dec, OD_EFAULT);
+      OD_RETURN_CHECK(buf, OD_EFAULT);
+      OD_RETURN_CHECK(dec->acct_enabled, OD_EINVAL);
+      OD_RETURN_CHECK(buf_sz == sizeof(od_accounting *), OD_EINVAL);
       *(od_accounting **)buf = &dec->acct.acct;
       return OD_SUCCESS;
     }
