@@ -1275,9 +1275,8 @@ static void od_quantize_haar_dc_level(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
   }
   if (enc->quantizer[pli] == 0) ac_quant[0] = ac_quant[1] = 1;
   else {
-    /* Not rounding because it seems to slightly hurt. */
-    ac_quant[0] = dc_quant*OD_DC_QM[xdec][bsi - xdec][0] >> 4;
-    ac_quant[1] = dc_quant*OD_DC_QM[xdec][bsi - xdec][1] >> 4;
+    ac_quant[0] = (dc_quant*OD_DC_QM[bsi - xdec][0] + 8) >> 4;
+    ac_quant[1] = (dc_quant*OD_DC_QM[bsi - xdec][1] + 8) >> 4;
   }
   ln = bsi - xdec + 2;
   x[0] = ctx->d[pli][(by << ln)*w + (bx << ln)];

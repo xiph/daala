@@ -46,14 +46,12 @@ const od_coeff OD_DC_RES[3] = {17, 24, 17};
 /* Scaling compensation for the Haar equivalent basis function. Left is
    for horizontal/vertical. Right is for diagonal. */
 #if OD_DISABLE_FILTER || OD_DEBLOCKING
-const od_coeff OD_DC_QM[2][OD_NBSIZES - 1][2] = {
-  {{16, 16}, {16, 16}, {16, 16}},
-  {{16, 16}, {16, 16}, {16, 16}}
+const od_coeff OD_DC_QM[OD_NBSIZES - 1][2] = {
+  {16, 16}, {16, 16}, {16, 16}
 };
 #else
-const od_coeff OD_DC_QM[2][OD_NBSIZES - 1][2] = {
-  {{25, 30}, {21, 27}, {17, 19}},
-  {{21, 25}, {18, 20}, {17, 18}}
+const od_coeff OD_DC_QM[OD_NBSIZES - 1][2] = {
+  {21, 25}, {18, 20}, {17, 18}
 };
 #endif
 

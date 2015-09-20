@@ -667,8 +667,8 @@ static void od_decode_haar_dc_level(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int 
   }
   if (dec->quantizer[pli] == 0) ac_quant[0] = ac_quant[1] = 1;
   else {
-    ac_quant[0] = dc_quant*OD_DC_QM[xdec][bsi - xdec][0] >> 4;
-    ac_quant[1] = dc_quant*OD_DC_QM[xdec][bsi - xdec][1] >> 4;
+    ac_quant[0] = (dc_quant*OD_DC_QM[bsi - xdec][0] + 8) >> 4;
+    ac_quant[1] = (dc_quant*OD_DC_QM[bsi - xdec][1] + 8) >> 4;
   }
   ln = bsi - xdec + 2;
   x[0] = ctx->d[pli][(by << ln)*w + (bx << ln)];
