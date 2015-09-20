@@ -413,18 +413,18 @@ static void usage(void) {
    "                                 --no-mc-use-satd is implied by default.\n"
    "     --[no-]activity-masking     Control whether activity masking should\n"
    "                                 be used in quantization.\n"
+   "     --qm <n>                    Select quantization matrix\n"
+   "                                 0 => flat, 1 => hvs (default)\n"
    "                                 --activity-masking is implied by default.\n"
    "     --mv-res-min <n>            Minimum motion vectors resolution for the\n"
    "                                 motion compensation search.\n"
    "                                 0 => 1/8 pel (default), 1 => 1/4 pel,\n"
    "                                 2 => 1/2 pel\n"
-   "     --qm <n>                    Select quantization matrix\n"
-   "                                 0 => flat, 1 => hvs (default)\n"
    "     --mv-level-min <n>          Minimum motion vectors level between\n"
    "                                 0 (default) and 6.\n"
    "     --mv-level-max <n>          Maximum motion vectors level between\n"
    "                                 0 and 6 (default).\n"
-   "     --version                   Displays version information."
+   "     --version                   Displays version information.\n"
    " encoder_example accepts only uncompressed YUV4MPEG2 video.\n\n");
   exit(1);
 }
