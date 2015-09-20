@@ -70,7 +70,7 @@ if DUMP_IMAGES
 endif
 src_libdaalabase_la_LDFLAGS = -no-undefined \
  -version-info @OD_LT_CURRENT@:@OD_LT_REVISION@:@OD_LT_AGE@
-src_libdaalabase_la_LDFLAGS += 
+src_libdaalabase_la_LDFLAGS +=
 src_libdaalabase_la_SOURCES = \
 	src/accounting.c \
 	src/adapt.c \
