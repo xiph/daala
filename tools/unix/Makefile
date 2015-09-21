@@ -103,7 +103,6 @@ PSNRHVS_TARGET:=dump_psnrhvs
 #block_size_analysis
 BSIZE_LOCAL_CSOURCES = \
 block_size_analysis.c \
-block_size.c \
 block_size_enc.c \
 generic_encoder.c \
 generic_code.c \
