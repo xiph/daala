@@ -196,19 +196,19 @@ extern const ne_fdct_func_1d OD_FDCT_1D_DOUBLE[OD_NBSIZES];
 
 typedef struct {
   int sz;
-  u_int64_t *n;
-  u_int64_t *acc_i;
-  u_int64_t *acc_j;
-  u_int64_t *acc_ij;
+  uint64_t *n;
+  uint64_t *acc_i;
+  uint64_t *acc_j;
+  uint64_t *acc_ij;
   double *cov;
 } cov_state;
 
 static void cov_init(cov_state *_this, int _sz){
   _this->sz    = _sz;
-  _this->n     = (u_int64_t *)calloc(_sz,sizeof(*_this->n));
-  _this->acc_i = (u_int64_t *)calloc(_sz,sizeof(*_this->acc_i));
-  _this->acc_j = (u_int64_t *)calloc(_sz,sizeof(*_this->acc_j));
-  _this->acc_ij= (u_int64_t *)calloc(_sz,sizeof(*_this->acc_ij));
+  _this->n     = (uint64_t *)calloc(_sz,sizeof(*_this->n));
+  _this->acc_i = (uint64_t *)calloc(_sz,sizeof(*_this->acc_i));
+  _this->acc_j = (uint64_t *)calloc(_sz,sizeof(*_this->acc_j));
+  _this->acc_ij= (uint64_t *)calloc(_sz,sizeof(*_this->acc_ij));
   _this->cov   = (double *)calloc(_sz,sizeof(*_this->cov));
 }
 
