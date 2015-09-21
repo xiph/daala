@@ -244,7 +244,7 @@ int od_log_matrix_##N(od_log_facility facility, \
     return 0;  /* TODO: Real error value */ \
  \
   for (h=0; h<height; ++h) { \
-    for (w=0; w<width; ++w) { \
+    for (w=0; w<width;) { \
       rv = snprintf(buffer + current_size, \
                     buffer_size - current_size, \
                     F, \
@@ -261,6 +261,7 @@ int od_log_matrix_##N(od_log_facility facility, \
         continue; \
       } \
       current_size += rv; \
+      ++w; \
     } \
   } \
  \
