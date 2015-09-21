@@ -43,15 +43,10 @@ rm *.y4m
 # This returns the filename without the `.y4m` extension.
 file=${basename%.*}
 
-if [[ $workset != *"video"* ]]
-then
-    # Remove newly generated files ending with .ogv
-    rm "$file"*.ogv
+# Remove newly generated files ending with .ogv
+rm "$file"*.ogv
 
-    ext="png"
-else
-    ext="ogv"
-fi
+ext="png"
 
 # ab_compare renames `a.y4m` to something like `a-70.ogv.png` so
 # get `a` off the original filename and append `.png` to it.
