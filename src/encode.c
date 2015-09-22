@@ -3057,7 +3057,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration,
     }
     for (pli = 0; pli < nplanes; pli++) {
       int i;
-      for (i = 0; i < OD_QM_SIZE - 2*OD_NBSIZES; i++) {
+      for (i = 0; i < OD_QM_SIZE; i++) {
         od_ec_enc_bits(&enc->ec, enc->state.pvq_qm_q4[pli][i], 8);
       }
     }
