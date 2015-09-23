@@ -83,7 +83,8 @@ void od_apply_postfilter_frame(od_coeff *c, int w, int nhsb, int nvsb,
 extern const int OD_FILT_SIZE[OD_NBSIZES];
 void od_dering(od_coeff *y, int ystride, od_coeff *x, int xstride, int ln,
  int sbx, int sby, int nhsb, int nvsb, int q, int xdec,
- int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS], int pli);
+ int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS], int pli, unsigned char *bskip,
+ int skip_stride);
 void od_clpf(od_coeff *y, int ystride, od_coeff *x, int xstride, int ln,
  int sbx, int sby, int nhsb, int nvsb);
 void od_bilinear_smooth(od_coeff *x, int ln, int stride, int q, int pli);

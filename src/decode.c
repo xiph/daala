@@ -1008,7 +1008,9 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
               potential parallelism.*/
             od_dering(buf, OD_BSIZE_MAX, &state->etmp[pli][(sby << ln)*w +
              (sbx << ln)], w, ln, sbx, sby, nhsb, nvsb, dec->quantizer[pli],
-             xdec, dir, pli);
+             xdec, dir, pli, &dec->state.bskip[pli]
+             [(sby << (OD_NBSIZES - 1 - ydec))*dec->state.skip_stride
+             + (sbx << (OD_NBSIZES - 1 - xdec))], dec->state.skip_stride);
             output = &state->ctmp[pli][(sby << ln)*w + (sbx << ln)];
             for (y = 0; y < n; y++) {
               for (x = 0; x < n; x++) {
