@@ -543,8 +543,14 @@ void img_to_rgb(SDL_Texture *texture, const od_img *img, int plane_mask) {
     fprintf(stderr, "Couldn't lock video texture!");
     exit(1);
   }
-  width = img->width;
-  height = img->height;
+  /*The texture memory is only allocated for the cropped frame.  The
+    od_img is rounded up to superblock. */
+  if(SDL_QueryTexture(texture, NULL, NULL, &width, &height)){
+    fprintf(stderr, "Couldn't query video texture!");
+    exit(1);
+  }
+  width = OD_MINI(img->width, width);
+  height = OD_MINI(img->height, height);
   /*Chroma up-sampling is just done with a box filter.
     This is very likely what will actually be used in practice on a real
      display, and also removes one more layer to search in for the source of
