@@ -1191,6 +1191,8 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
   od_img_edge_ext(ref_img);
   /*Return decoded frame.*/
   *img = *ref_img;
+  img->width = dec->state.info.pic_width;
+  img->height = dec->state.info.pic_height;
   dec->state.cur_time++;
   if (mbctx.is_golden_frame) {
     dec->state.ref_imgi[OD_FRAME_GOLD] =
