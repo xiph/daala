@@ -1485,6 +1485,392 @@ static void od_img_copy_pad(od_state *state, od_img *img) {
 }
 
 #if defined(OD_DUMP_IMAGES)
+/*State visualization.
+  None of this is particularly fast.*/
+
+/*static const unsigned char OD_YCbCr_BORDER[3] = {49, 109, 184};*/
+static const unsigned char OD_YCbCr_BORDER[3] = {113, 72, 137};
+static const unsigned char OD_YCbCr_EDGE[3] = {41, 240, 110};
+static const unsigned char OD_YCbCr_MV[3] = {81, 90, 240};
+
+/*Upsamples the reconstructed image to a reference image.
+  TODO: Pipeline with reconstruction.*/
+void od_img_upsample8(od_state *state, od_img *dimg, const od_img *simg) {
+  int pli;
+  for (pli = 0; pli < state->io_imgs[OD_FRAME_REC].nplanes; pli++) {
+    const od_img_plane *siplane;
+    od_img_plane *diplane;
+    const unsigned char *src;
+    unsigned char *dst;
+    int xpad;
+    int ypad;
+    int w;
+    int h;
+    int x;
+    int y;
+    siplane = simg->planes + pli;
+    diplane = dimg->planes + pli;
+    xpad = OD_UMV_PADDING >> siplane->xdec;
+    ypad = OD_UMV_PADDING >> siplane->ydec;
+    w = simg->width >> siplane->xdec;
+    h = simg->height >> siplane->ydec;
+    src = siplane->data;
+    dst = diplane->data - (diplane->ystride << 1)*ypad;
+    for (y = -ypad; y < h + ypad + 3; y++) {
+      /*Horizontal filtering:*/
+      if (y < h + ypad) {
+        unsigned char *buf;
+        buf = state->ref_line_buf[y & 7];
+        memset(buf - (xpad << 1), src[0], (xpad - 2) << 1);
+        /*for (x = -xpad; x < -2; x++) {
+          *(buf + (x << 1)) = src[0];
+          *(buf + (x << 1 | 1)) = src[0];
+        }*/
+        *(buf - 4) = src[0];
+        *(buf - 3) = OD_CLAMP255((31*src[0] + src[1] + 16) >> 5);
+        *(buf - 2) = src[0];
+        *(buf - 1) = OD_CLAMP255((36*src[0] - 5*src[1] + src[1] + 16) >> 5);
+        buf[0] = src[0];
+        buf[1] = OD_CLAMP255((20*(src[0] + src[1])
+         - 5*(src[0] + src[2]) + src[0] + src[3] + 16) >> 5);
+        buf[2] = src[1];
+        buf[3] = OD_CLAMP255((20*(src[1] + src[2])
+         - 5*(src[0] + src[3]) + src[0] + src[4] + 16) >> 5);
+        for (x = 2; x < w - 3; x++) {
+          buf[x << 1] = src[x];
+          buf[x << 1 | 1] = OD_CLAMP255((20*(src[x] + src[x + 1])
+           - 5*(src[x - 1] + src[x + 2]) + src[x - 2] + src[x + 3] + 16) >> 5);
+        }
+        buf[x << 1] = src[x];
+        buf[x << 1 | 1] = OD_CLAMP255((20*(src[x] + src[x + 1])
+         - 5*(src[x - 1] + src[x + 2]) + src[x - 2] + src[x + 2] + 16) >> 5);
+        x++;
+        buf[x << 1] = src[x];
+        buf[x << 1 | 1] = OD_CLAMP255((20*(src[x] + src[x + 1])
+         - 5*(src[x - 1] + src[x + 1]) + src[x - 2] + src[x + 1] + 16) >> 5);
+        x++;
+        buf[x << 1] = src[x];
+        buf[x << 1 | 1] =
+         OD_CLAMP255((36*src[x] - 5*src[x - 1] + src[x - 2] + 16) >> 5);
+        x++;
+        buf[x << 1] = src[w - 1];
+        buf[x << 1 | 1] = OD_CLAMP255((31*src[w - 1] + src[w - 2] + 16) >> 5);
+        memset(buf + (++x << 1), src[w - 1], (xpad - 1) << 1);
+        /*for (x++; x < w + xpad; x++) {
+          buf[x << 1] = src[w - 1];
+          buf[x << 1 | 1]=src[w - 1];
+        }*/
+        if (y >= 0 && y + 1 < h) src += siplane->ystride;
+      }
+      /*Vertical filtering:*/
+      if (y >= -ypad + 3) {
+        if (y < 1 || y > h + 3) {
+          OD_COPY(dst - (xpad << 1),
+           state->ref_line_buf[(y - 3) & 7] - (xpad << 1),
+           (w + (xpad << 1)) << 1);
+          /*fprintf(stderr, "%3i: ", (y - 3) << 1);
+          for (x = -xpad << 1; x < (w + xpad) << 1; x++) {
+            fprintf(stderr, "%02X", *(dst + x));
+          }
+          fprintf(stderr, "\n");*/
+          dst += diplane->ystride;
+          OD_COPY(dst - (xpad << 1),
+           state->ref_line_buf[(y - 3) & 7] - (xpad << 1),
+           (w + (xpad << 1)) << 1);
+          /*fprintf(stderr, "%3i: ", (y - 3) << 1 | 1);
+          for (x = -xpad << 1; x < (w + xpad) << 1; x++) {
+            fprintf(stderr, "%02X", *(dst + x));
+          }
+          fprintf(stderr, "\n");*/
+          dst += diplane->ystride;
+        }
+        else {
+          unsigned char *buf[6];
+          buf[0] = state->ref_line_buf[(y - 5) & 7];
+          buf[1] = state->ref_line_buf[(y - 4) & 7];
+          buf[2] = state->ref_line_buf[(y - 3) & 7];
+          buf[3] = state->ref_line_buf[(y - 2) & 7];
+          buf[4] = state->ref_line_buf[(y - 1) & 7];
+          buf[5] = state->ref_line_buf[(y - 0) & 7];
+          OD_COPY(dst - (xpad << 1),
+           state->ref_line_buf[(y - 3) & 7] - (xpad << 1),
+           (w + (xpad << 1)) << 1);
+          /*fprintf(stderr, "%3i: ", (y - 3) << 1);
+          for (x = -xpad << 1; x < (w + xpad) << 1; x++) {
+            fprintf(stderr, "%02X", *(dst + x));
+          }
+          fprintf(stderr, "\n");*/
+          dst += diplane->ystride;
+          for (x = -xpad << 1; x < (w + xpad) << 1; x++) {
+            *(dst + x) = OD_CLAMP255((20*(*(buf[2] + x) + *(buf[3] + x))
+             - 5*(*(buf[1] + x) + *(buf[4] + x))
+             + *(buf[0] + x) + *(buf[5] + x) + 16) >> 5);
+          }
+          /*fprintf(stderr, "%3i: ", (y - 3) << 1 | 1);
+          for (x = -xpad << 1; x < (w + xpad) << 1; x++) {
+            fprintf(stderr, "%02X", *(dst + x));
+          }
+          fprintf(stderr, "\n");*/
+          dst += diplane->ystride;
+        }
+      }
+    }
+  }
+}
+
+static void od_img_draw_point(od_img *img, int x, int y,
+ const unsigned char ycbcr[3]) {
+  if (x < 0 || y < 0 || x >= img->width || y >= img->height) return;
+  *(img->planes[0].data + img->planes[0].ystride*(y >> img->planes[0].ydec)
+   + (x >> img->planes[0].xdec)) = ycbcr[0];
+  if (img->nplanes >= 3) {
+    *(img->planes[1].data + img->planes[1].ystride*(y >> img->planes[1].ydec)
+     + (x >> img->planes[1].xdec)) = ycbcr[1];
+    *(img->planes[2].data + img->planes[2].ystride*(y >> img->planes[2].ydec)
+     + (x >> img->planes[2].xdec)) = ycbcr[2];
+  }
+}
+
+void od_img_draw_line(od_img *img,
+ int x0, int y0, int x1, int y1, const unsigned char ycbcr[3]) {
+  int p0[2];
+  int p1[2];
+  int dx[2];
+  int step[2];
+  int steep;
+  int err;
+  int derr;
+  steep = abs(y1 - y0) > abs(x1 - x0);
+  p0[0] = x0;
+  p0[1] = y0;
+  p1[0] = x1;
+  p1[1] = y1;
+  dx[0] = abs(p1[0] - p0[0]);
+  dx[1] = abs(p1[1] - p0[1]);
+  err = 0;
+  derr = dx[1 - steep];
+  step[0] = ((p0[0] < p1[0]) << 1) - 1;
+  step[1] = ((p0[1] < p1[1]) << 1) - 1;
+  od_img_draw_point(img, p0[0], p0[1], ycbcr);
+  while (p0[steep] != p1[steep]) {
+    p0[steep] += step[steep];
+    err += derr;
+    if (err << 1 > dx[steep]) {
+      p0[1 - steep] += step[1 - steep];
+      err -= dx[steep];
+    }
+    od_img_draw_point(img, p0[0], p0[1], ycbcr);
+  }
+}
+
+static void od_state_draw_mv_grid_block(od_state *state,
+ int vx, int vy, int log_mvb_sz) {
+  int half_mvb_sz;
+  half_mvb_sz = 1 << log_mvb_sz >> 1;
+  if (log_mvb_sz > 0
+   && state->mv_grid[vy + half_mvb_sz][vx + half_mvb_sz].valid) {
+    od_state_draw_mv_grid_block(state, vx, vy, log_mvb_sz - 1);
+    od_state_draw_mv_grid_block(state, vx + half_mvb_sz, vy, log_mvb_sz - 1);
+    od_state_draw_mv_grid_block(state, vx, vy + half_mvb_sz, log_mvb_sz - 1);
+    od_state_draw_mv_grid_block(state, vx + half_mvb_sz, vy + half_mvb_sz,
+     log_mvb_sz - 1);
+  }
+  else {
+    int mvb_sz;
+    int x0;
+    int y0;
+    mvb_sz = 1 << log_mvb_sz;
+    x0 = (vx << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_UMV_PADDING << 1);
+    y0 = (vy << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_UMV_PADDING << 1);
+    od_img_draw_line(&state->vis_img, x0, y0,
+     x0 + (mvb_sz << (OD_LOG_MVBSIZE_MIN + 1)), y0, OD_YCbCr_EDGE);
+    od_img_draw_line(&state->vis_img,
+     x0 + (mvb_sz << (OD_LOG_MVBSIZE_MIN + 1)), y0,
+     x0 + (mvb_sz << (OD_LOG_MVBSIZE_MIN + 1)),
+     y0 + (mvb_sz << (OD_LOG_MVBSIZE_MIN + 1)), OD_YCbCr_EDGE);
+    od_img_draw_line(&state->vis_img,
+     x0, y0 + (mvb_sz << (OD_LOG_MVBSIZE_MIN + 1)),
+     x0 + (mvb_sz << (OD_LOG_MVBSIZE_MIN + 1)),
+     y0 + (mvb_sz << (OD_LOG_MVBSIZE_MIN + 1)), OD_YCbCr_EDGE);
+    od_img_draw_line(&state->vis_img, x0, y0,
+     x0, y0 + (mvb_sz << (OD_LOG_MVBSIZE_MIN + 1)), OD_YCbCr_EDGE);
+  }
+}
+
+static void od_state_draw_mv_grid(od_state *state) {
+  int vx;
+  int vy;
+  int nhmvbs;
+  int nvmvbs;
+  nhmvbs = state->nhmvbs;
+  nvmvbs = state->nvmvbs;
+  for (vy = 0; vy < nvmvbs; vy += OD_MVB_DELTA0) {
+    for (vx = 0; vx < nhmvbs; vx += OD_MVB_DELTA0) {
+      od_state_draw_mv_grid_block(state, vx, vy, OD_LOG_MVB_DELTA0);
+    }
+  }
+}
+
+static void od_state_draw_mvs_block(od_state *state,
+ int vx, int vy, int log_mvb_sz) {
+  int half_mvb_sz;
+  half_mvb_sz = 1 << log_mvb_sz >> 1;
+  if (log_mvb_sz > 0
+   && state->mv_grid[vy + half_mvb_sz][vx + half_mvb_sz].valid) {
+    od_state_draw_mvs_block(state, vx, vy, log_mvb_sz - 1);
+    od_state_draw_mvs_block(state, vx + half_mvb_sz, vy, log_mvb_sz - 1);
+    od_state_draw_mvs_block(state, vx, vy + half_mvb_sz, log_mvb_sz - 1);
+    od_state_draw_mvs_block(state, vx + half_mvb_sz, vy + half_mvb_sz,
+     log_mvb_sz - 1);
+  }
+  else {
+    od_mv_grid_pt *grid[4];
+    const int *dxp;
+    const int *dyp;
+    int x0;
+    int y0;
+    int k;
+    int oc;
+    int s;
+    if (log_mvb_sz < OD_LOG_MVB_DELTA0) {
+      int mask;
+      int s1vx;
+      int s1vy;
+      int s3vx;
+      int s3vy;
+      mask = (1 << (log_mvb_sz + 1)) - 1;
+      oc = !!(vx & mask);
+      if (vy & mask) oc = 3 - oc;
+      s1vx = vx + (OD_VERT_DX[(oc + 1) & 3] << log_mvb_sz);
+      s1vy = vy + (OD_VERT_DY[(oc + 1) & 3] << log_mvb_sz);
+      s3vx = vx + (OD_VERT_DX[(oc + 3) & 3] << log_mvb_sz);
+      s3vy = vy + (OD_VERT_DY[(oc + 3) & 3] << log_mvb_sz);
+      s = state->mv_grid[s1vy][s1vx].valid |
+       state->mv_grid[s3vy][s3vx].valid << 1;
+    }
+    else {
+      oc = 0;
+      s = 3;
+    }
+    dxp = OD_VERT_SETUP_DX[oc][s];
+    dyp = OD_VERT_SETUP_DY[oc][s];
+    for (k = 0; k < 4; k++) {
+      grid[k] = state->mv_grid[vy + (dyp[k] << log_mvb_sz)]
+       + vx + (dxp[k] << log_mvb_sz);
+    }
+    for (k = 0; k < 4; k++) {
+      x0 = ((vx + (dxp[k] << log_mvb_sz)) << (OD_LOG_MVBSIZE_MIN + 1))
+       + (OD_UMV_PADDING << 1);
+      y0 = ((vy + (dyp[k] << log_mvb_sz)) << (OD_LOG_MVBSIZE_MIN + 1))
+       + (OD_UMV_PADDING << 1);
+      /*od_img_draw_point(&state->vis_img, x0, y0, OD_YCbCr_MV);*/
+      od_img_draw_line(&state->vis_img, x0, y0,
+       x0 + OD_DIV_ROUND_POW2(grid[k]->mv[0], 2, 2),
+       y0 + OD_DIV_ROUND_POW2(grid[k]->mv[1], 2, 2), OD_YCbCr_MV);
+    }
+  }
+}
+
+void od_state_draw_mvs(od_state *state) {
+  int vx;
+  int vy;
+  int nhmvbs;
+  int nvmvbs;
+  nhmvbs = state->nhmvbs;
+  nvmvbs = state->nvmvbs;
+  for (vy = 0; vy < nvmvbs; vy += OD_MVB_DELTA0) {
+    for (vx = 0; vx < nhmvbs; vx += OD_MVB_DELTA0) {
+      od_state_draw_mvs_block(state, vx, vy, OD_LOG_MVB_DELTA0);
+    }
+  }
+}
+
+void od_encode_fill_vis(od_enc_ctx *enc) {
+  od_state *state;
+  od_img *img;
+  od_img *ref_img;
+  int pli;
+  int xdec;
+  int ydec;
+  int border;
+  int x;
+  int y;
+  state = &enc->state;
+  img = &state->vis_img;
+  /*Upsample the reconstructed image for better quality.*/
+  /*Adjust the data pointers so that the padding works like the reference
+     images.*/
+  border = OD_UMV_PADDING << 1;
+  for (pli = 0; pli < img->nplanes; pli++) {
+    img->planes[pli].data += (border >> img->planes[pli].xdec)
+     + img->planes[pli].ystride*(border >> img->planes[pli].ydec);
+  }
+  od_img_upsample8(state, img, state->io_imgs + OD_FRAME_REC);
+  /*Upsample the input image, as well, and subtract it to get a difference
+     image.*/
+  ref_img = &state->tmp_vis_img;
+  od_img_upsample8(state, ref_img, &state->io_imgs[OD_FRAME_INPUT]);
+  xdec = state->info.plane_info[0].xdec;
+  ydec = state->info.plane_info[0].ydec;
+  for (y = 0; y < ref_img->height; y++) {
+    for (x = 0; x < ref_img->width; x++) {
+      int diff;
+      int px;
+      int py;
+      px = x >> xdec;
+      py = y >> ydec;
+      diff = *(img->planes[0].data + img->planes[0].ystride*py + px)
+       - *(ref_img->planes[0].data + ref_img->planes[0].ystride*py + px);
+      /*Scale the differences by 2 to make them visible.*/
+      diff = OD_CLAMP255((diff << 1) + 128);
+      *(img->planes[0].data + img->planes[0].ystride*py + px) =
+       (unsigned char)diff;
+    }
+  }
+  /*Undo the adjustment.*/
+  for (pli = 0; pli < img->nplanes; pli++) {
+    img->planes[pli].data -= (border >> img->planes[pli].xdec) +
+     img->planes[pli].ystride*(border >> img->planes[pli].ydec);
+  }
+  /*Clear the border region.*/
+  for (y = 0; y < (border >> ydec); y++) {
+    OD_CLEAR(img->planes[0].data + (img->planes[0].ystride)*y,
+     img->width >> xdec);
+  }
+  for (; y < (img->height - border) >> ydec; y++) {
+    OD_CLEAR(img->planes[0].data + img->planes[0].ystride*y, border >> xdec);
+    OD_CLEAR(img->planes[0].data + img->planes[0].ystride*y
+     + ((img->width - border) >> xdec), border >> xdec);
+  }
+  for (; y < img->height >> ydec; y++) {
+    OD_CLEAR(img->planes[0].data + (img->planes[0].ystride)*y,
+     img->width >> xdec);
+  }
+  /*Clear the chroma planes.*/
+  for (pli = 1; pli < img->nplanes; pli++) {
+    memset(img->planes[pli].data, 128, (img->height >> img->planes[pli].ydec)*
+     (img->width >> img->planes[pli].xdec));
+  }
+  od_img_draw_line(img, border - 1, border - 1,
+   img->width - border, border - 1, OD_YCbCr_BORDER);
+  od_img_draw_line(img, border - 2, border - 2,
+   img->width - border + 1, border - 2, OD_YCbCr_BORDER);
+  od_img_draw_line(img, img->width - border, border - 1,
+   img->width - border, img->height - border, OD_YCbCr_BORDER);
+  od_img_draw_line(img, img->width - border + 1, border - 2,
+   img->width - border + 1, img->height - border + 1, OD_YCbCr_BORDER);
+  od_img_draw_line(img, border - 1, img->height - border,
+   img->width - border, img->height - border, OD_YCbCr_BORDER);
+  od_img_draw_line(img, border - 2, img->height - border + 1,
+   img->width - border + 1, img->height - border + 1, OD_YCbCr_BORDER);
+  od_img_draw_line(img, border - 1, border - 1,
+   border - 1, img->height - border, OD_YCbCr_BORDER);
+  od_img_draw_line(img, border - 2, border - 2,
+   border - 2, img->height - border + 1, OD_YCbCr_BORDER);
+  od_state_draw_mv_grid(state);
+  od_state_draw_mvs(state);
+}
+
 static void od_img_dump_padded(od_state *state) {
   daala_info *info;
   od_img img;
@@ -1525,7 +1911,7 @@ static void od_predict_frame(daala_enc_ctx *enc) {
 #if defined(OD_DUMP_IMAGES)
   /*Dump reconstructed frame.*/
   /*od_state_dump_img(&enc->state,enc->state.io_imgs + OD_FRAME_REC,"rec");*/
-  od_state_fill_vis(&enc->state);
+  od_encode_fill_vis(enc);
   od_state_dump_img(&enc->state, &enc->state.vis_img, "vis");
 #endif
 }

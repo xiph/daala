@@ -156,6 +156,14 @@ int od_mc_compute_satd_32x32_c(const unsigned char *src, int systride,
  const unsigned char *ref, int dystride);
 void od_enc_opt_vtbl_init_c(od_enc_ctx *enc);
 
+# if defined(OD_DUMP_IMAGES)
+void od_img_upsample8(od_state *_state, od_img *_dst, const od_img *_src);
+void od_encode_fill_vis(od_enc_ctx *enc);
+void od_img_draw_line(od_img *_img, int _x0, int _y0, int _x1, int _y1,
+ const unsigned char _ycbcr[3]);
+void od_state_draw_mvs(od_state *_state);
+# endif
+
 # if defined(OD_X86ASM)
 void od_enc_opt_vtbl_init_x86(od_enc_ctx *enc);
 # endif

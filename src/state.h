@@ -246,18 +246,10 @@ void od_state_pred_block(od_state *_state, unsigned char *_buf, int _ystride,
  int _pli, int _vx, int _vy, int _log_mvb_sz);
 void od_state_mc_predict(od_state *_state);
 void od_state_init_border(od_state *_state);
-void od_state_upsample8(od_state *_state, od_img *_dst, const od_img *_src);
 int od_state_dump_yuv(od_state *_state, od_img *_img, const char *_tag);
 void od_img_edge_ext(od_img* src);
 # if defined(OD_DUMP_IMAGES)
 int od_state_dump_img(od_state *_state, od_img *_img, const char *_tag);
-void od_img_draw_point(od_img *_img, int _x, int _y,
- const unsigned char _ycbcr[3]);
-void od_img_draw_line(od_img *_img, int _x0, int _y0, int _x1, int _y1,
- const unsigned char _ycbcr[3]);
-void od_state_draw_mv_grid(od_state *_state);
-void od_state_draw_mvs(od_state *_state);
-void od_state_fill_vis(od_state *_state);
 # endif
 
 /*Shared accelerated functions.*/

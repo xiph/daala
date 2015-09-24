@@ -2536,7 +2536,7 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy,
   animating = daala_granule_basetime(state, state->cur_time) == ANI_FRAME;
   if (animating) {
     od_state_mc_predict(state);
-    od_state_fill_vis(state);
+    od_encode_fill_vis(est->enc);
     x0 = (vx << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_UMV_PADDING << 1);
     y0 = (vy << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_UMV_PADDING << 1);
   }
@@ -3882,7 +3882,7 @@ static void od_mv_est_decimate(od_mv_est_ctx *est) {
     if (daala_granule_basetime(state, state->cur_time) == ANI_FRAME) {
       char iter_label[16];
       od_state_mc_predict(state);
-      od_state_fill_vis(state);
+      od_encode_fill_vis(est->enc);
       sprintf(iter_label, "ani%08i", state->ani_iter++);
       od_state_dump_img(state, &state->vis_img, iter_label);
     }
@@ -4499,8 +4499,9 @@ static int od_mv_dp_get_rate_change(od_mv_est_ctx *est, od_mv_dp_node *dp,
 #if defined(OD_DUMP_IMAGES) && defined(OD_ANIMATE)
 static const unsigned char OD_YCbCr_EDGE[3] = { 41, 240, 110 };
 
-static void od_mv_dp_animate_state(od_state *state,
+static void od_mv_dp_animate_encode(od_enc_ctx *enc,
  od_mv_dp_node *dp, int has_gap) {
+  od_state *state;
   od_mv_dp_node *dp0;
   char iter_label[16];
   int active_states[OD_DP_NSTATES_MAX];
@@ -4515,8 +4516,9 @@ static void od_mv_dp_animate_state(od_state *state,
   int d1vy;
   int x0;
   int y0;
+  state = &enc->state;
   od_state_mc_predict(state);
-  od_state_fill_vis(state);
+  od_encode_fill_vis(enc);
   /*Now, draw the current state of the DP.*/
   dp0 = dp;
   /*First draw the candidate edge labels for the active trellis paths.*/
@@ -5154,7 +5156,7 @@ static int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
 #if defined(OD_DUMP_IMAGES) && defined(OD_ANIMATE)
       if (daala_granule_basetime(state, state->cur_time) == ANI_FRAME) {
         od_mv_dp_restore_row_state(dp_node);
-        od_mv_dp_animate_state(state, dp_node, 0);
+        od_mv_dp_animate_encode(est->enc, dp_node, 0);
       }
 #endif
       level = OD_MC_LEVEL[vy & OD_MVB_MASK][vx & OD_MVB_MASK];
@@ -5289,10 +5291,10 @@ static int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
       if (daala_granule_basetime(state, state->cur_time) == ANI_FRAME) {
         char iter_label[16];
         od_mv_dp_restore_row_state(dp_node);
-        od_mv_dp_animate_state(state, dp_node, 0);
+        od_mv_dp_animate_encode(est->enc, dp_node, 0);
         od_mv_dp_install_row_state(dp_node + 1, best_si);
         od_state_mc_predict(state);
-        od_state_fill_vis(state);
+        od_encode_fill_vis(est->enc);
         sprintf(iter_label, "ani%08i", state->ani_iter++);
         od_state_dump_img(state, &state->vis_img, iter_label);
       }
@@ -5756,7 +5758,7 @@ static int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
 #if defined(OD_DUMP_IMAGES) && defined(OD_ANIMATE)
       if (daala_granule_basetime(state, state->cur_time) == ANI_FRAME) {
         od_mv_dp_restore_col_state(dp_node);
-        od_mv_dp_animate_state(state, dp_node, 0);
+        od_mv_dp_animate_encode(est->enc, dp_node, 0);
       }
 #endif
       level = OD_MC_LEVEL[vy & OD_MVB_MASK][vx & OD_MVB_MASK];
@@ -5892,10 +5894,10 @@ static int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
       if (daala_granule_basetime(state, state->cur_time) == ANI_FRAME) {
         char iter_label[16];
         od_mv_dp_restore_col_state(dp_node);
-        od_mv_dp_animate_state(state, dp_node, 0);
+        od_mv_dp_animate_encode(est->enc, dp_node, 0);
         od_mv_dp_install_col_state(dp_node + 1, best_si);
         od_state_mc_predict(state);
-        od_state_fill_vis(state);
+        od_encode_fill_vis(est->enc);
         sprintf(iter_label, "ani%08i", state->ani_iter++);
         od_state_dump_img(state, &state->vis_img, iter_label);
       }
