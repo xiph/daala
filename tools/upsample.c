@@ -30,7 +30,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <stdlib.h>
 #include <string.h>
 #include "vidinput.h"
-#include "../src/state.h"
+#include "../src/encint.h"
 #if defined(_WIN32)
 # include <io.h>
 # include <fcntl.h>
@@ -41,11 +41,137 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 static void usage(char **_argv) {
   fprintf(stderr, "Usage: %s <input> <output>\n"
    "    <input> must be a YUV4MPEG file.\n"
-   "    <output> will be <input> upsampled using od_state_upsample8.\n"
+   "    <output> will be <input> upsampled using od_img_upsample8.\n"
    , _argv[0]);
 }
 
 static const char *CHROMA_TAGS[4] = { " C420jpeg", "", " C422jpeg", " C444" };
+
+/*Upsamples the reconstructed image to a reference image.
+  TODO: Pipeline with reconstruction.*/
+void od_img_upsample8(od_state *state, od_img *dimg, const od_img *simg) {
+  int pli;
+  for (pli = 0; pli < simg->nplanes; pli++) {
+    const od_img_plane *siplane;
+    od_img_plane *diplane;
+    const unsigned char *src;
+    unsigned char *dst;
+    int xpad;
+    int ypad;
+    int w;
+    int h;
+    int x;
+    int y;
+    siplane = simg->planes + pli;
+    diplane = dimg->planes + pli;
+    xpad = OD_UMV_PADDING >> siplane->xdec;
+    ypad = OD_UMV_PADDING >> siplane->ydec;
+    w = simg->width >> siplane->xdec;
+    h = simg->height >> siplane->ydec;
+    src = siplane->data;
+    dst = diplane->data - (diplane->ystride << 1)*ypad;
+    for (y = -ypad; y < h + ypad + 3; y++) {
+      /*Horizontal filtering:*/
+      if (y < h + ypad) {
+        unsigned char *buf;
+        buf = state->ref_line_buf[y & 7];
+        memset(buf - (xpad << 1), src[0], (xpad - 2) << 1);
+        /*for (x = -xpad; x < -2; x++) {
+          *(buf + (x << 1)) = src[0];
+          *(buf + (x << 1 | 1)) = src[0];
+        }*/
+        *(buf - 4) = src[0];
+        *(buf - 3) = OD_CLAMP255((31*src[0] + src[1] + 16) >> 5);
+        *(buf - 2) = src[0];
+        *(buf - 1) = OD_CLAMP255((36*src[0] - 5*src[1] + src[1] + 16) >> 5);
+        buf[0] = src[0];
+        buf[1] = OD_CLAMP255((20*(src[0] + src[1])
+         - 5*(src[0] + src[2]) + src[0] + src[3] + 16) >> 5);
+        buf[2] = src[1];
+        buf[3] = OD_CLAMP255((20*(src[1] + src[2])
+         - 5*(src[0] + src[3]) + src[0] + src[4] + 16) >> 5);
+        for (x = 2; x < w - 3; x++) {
+          buf[x << 1] = src[x];
+          buf[x << 1 | 1] = OD_CLAMP255((20*(src[x] + src[x + 1])
+           - 5*(src[x - 1] + src[x + 2]) + src[x - 2] + src[x + 3] + 16) >> 5);
+        }
+        buf[x << 1] = src[x];
+        buf[x << 1 | 1] = OD_CLAMP255((20*(src[x] + src[x + 1])
+         - 5*(src[x - 1] + src[x + 2]) + src[x - 2] + src[x + 2] + 16) >> 5);
+        x++;
+        buf[x << 1] = src[x];
+        buf[x << 1 | 1] = OD_CLAMP255((20*(src[x] + src[x + 1])
+         - 5*(src[x - 1] + src[x + 1]) + src[x - 2] + src[x + 1] + 16) >> 5);
+        x++;
+        buf[x << 1] = src[x];
+        buf[x << 1 | 1] =
+         OD_CLAMP255((36*src[x] - 5*src[x - 1] + src[x - 2] + 16) >> 5);
+        x++;
+        buf[x << 1] = src[w - 1];
+        buf[x << 1 | 1] = OD_CLAMP255((31*src[w - 1] + src[w - 2] + 16) >> 5);
+        memset(buf + (++x << 1), src[w - 1], (xpad - 1) << 1);
+        /*for (x++; x < w + xpad; x++) {
+          buf[x << 1] = src[w - 1];
+          buf[x << 1 | 1]=src[w - 1];
+        }*/
+        if (y >= 0 && y + 1 < h) src += siplane->ystride;
+      }
+      /*Vertical filtering:*/
+      if (y >= -ypad + 3) {
+        if (y < 1 || y > h + 3) {
+          OD_COPY(dst - (xpad << 1),
+           state->ref_line_buf[(y - 3) & 7] - (xpad << 1),
+           (w + (xpad << 1)) << 1);
+          /*fprintf(stderr, "%3i: ", (y - 3) << 1);
+          for (x = -xpad << 1; x < (w + xpad) << 1; x++) {
+            fprintf(stderr, "%02X", *(dst + x));
+          }
+          fprintf(stderr, "\n");*/
+          dst += diplane->ystride;
+          OD_COPY(dst - (xpad << 1),
+           state->ref_line_buf[(y - 3) & 7] - (xpad << 1),
+           (w + (xpad << 1)) << 1);
+          /*fprintf(stderr, "%3i: ", (y - 3) << 1 | 1);
+          for (x = -xpad << 1; x < (w + xpad) << 1; x++) {
+            fprintf(stderr, "%02X", *(dst + x));
+          }
+          fprintf(stderr, "\n");*/
+          dst += diplane->ystride;
+        }
+        else {
+          unsigned char *buf[6];
+          buf[0] = state->ref_line_buf[(y - 5) & 7];
+          buf[1] = state->ref_line_buf[(y - 4) & 7];
+          buf[2] = state->ref_line_buf[(y - 3) & 7];
+          buf[3] = state->ref_line_buf[(y - 2) & 7];
+          buf[4] = state->ref_line_buf[(y - 1) & 7];
+          buf[5] = state->ref_line_buf[(y - 0) & 7];
+          OD_COPY(dst - (xpad << 1),
+           state->ref_line_buf[(y - 3) & 7] - (xpad << 1),
+           (w + (xpad << 1)) << 1);
+          /*fprintf(stderr, "%3i: ", (y - 3) << 1);
+          for (x = -xpad << 1; x < (w + xpad) << 1; x++) {
+            fprintf(stderr, "%02X", *(dst + x));
+          }
+          fprintf(stderr, "\n");*/
+          dst += diplane->ystride;
+          for (x = -xpad << 1; x < (w + xpad) << 1; x++) {
+            *(dst + x) = OD_CLAMP255((20*(*(buf[2] + x) + *(buf[3] + x))
+             - 5*(*(buf[1] + x) + *(buf[4] + x))
+             + *(buf[0] + x) + *(buf[5] + x) + 16) >> 5);
+          }
+          /*fprintf(stderr, "%3i: ", (y - 3) << 1 | 1);
+          for (x = -xpad << 1; x < (w + xpad) << 1; x++) {
+            fprintf(stderr, "%02X", *(dst + x));
+          }
+          fprintf(stderr, "\n");*/
+          dst += diplane->ystride;
+        }
+      }
+    }
+  }
+}
+
 
 int main(int _argc, char **_argv) {
   const char *optstring = "";
@@ -119,7 +245,7 @@ int main(int _argc, char **_argv) {
     video_input_ycbcr in;
     int ret = 0;
     char tag[5];
-    od_img *simg = &state.io_imgs[OD_FRAME_REC];
+    od_img *simg = &state.ref_imgs[1];
     od_img *dimg = &state.ref_imgs[0];
     int x, y;
     ret = video_input_fetch_frame(&vid, in, tag);
@@ -157,7 +283,7 @@ int main(int _argc, char **_argv) {
         src += src_stride;
       }
     }
-    od_state_upsample8(&state, dimg, simg);
+    od_img_upsample8(&state, dimg, simg);
     fprintf(fout, "FRAME\n");
     for (pli = 0; pli < 3; pli++) {
       od_img_plane *diplane = dimg->planes + pli;
