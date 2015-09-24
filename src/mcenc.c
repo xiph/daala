@@ -1683,7 +1683,7 @@ static int32_t od_enc_sad8(od_enc_ctx *enc, const unsigned char *p,
   int h;
   int32_t ret;
   state = &enc->state;
-  iplane = state->io_imgs[OD_FRAME_INPUT].planes + pli;
+  iplane = enc->input_img.planes + pli;
   /*Compute the block dimensions in the target image plane.*/
   x >>= iplane->xdec;
   y >>= iplane->ydec;
@@ -1755,7 +1755,7 @@ static int32_t od_enc_satd8(od_enc_ctx *enc, const unsigned char *p,
   int h;
   int32_t ret;
   state = &enc->state;
-  iplane = state->io_imgs[OD_FRAME_INPUT].planes + pli;
+  iplane = enc->input_img.planes + pli;
   /*Compute the block dimensions in the target image plane.*/
   x >>= iplane->xdec;
   y >>= iplane->ydec;
@@ -2280,13 +2280,15 @@ static void od_mv_est_log_pred(od_mv_est_ctx *est, int vx, int vy,
    because MC ref image is NOT upsampled at frame level.*/
 static int32_t od_mv_est_bma_sad8(od_mv_est_ctx *est,
  int ref, int bx, int by, int mvx, int mvy, int log_mvb_sz) {
+  daala_enc_ctx *enc;
   od_state *state;
   od_img_plane *iplane;
   int32_t ret;
   int refi;
   int dx;
   int dy;
-  state = &est->enc->state;
+  enc = est->enc;
+  state = &enc->state;
   refi = state->ref_imgi[ref];
   iplane = state->ref_imgs[refi].planes + 0;
   OD_ASSERT(iplane->xdec == 0 && iplane->ydec == 0);
@@ -2297,7 +2299,7 @@ static int32_t od_mv_est_bma_sad8(od_mv_est_ctx *est,
   if (est->flags & OD_MC_USE_CHROMA) {
     int pli;
     unsigned char *ref_img;
-    for (pli = 1; pli < state->io_imgs[OD_FRAME_INPUT].nplanes; pli++) {
+    for (pli = 1; pli < enc->input_img.nplanes; pli++) {
       iplane = state->ref_imgs[refi].planes + pli;
       OD_ASSERT(((bx + (1 << iplane->xdec) - 1) & ~((1 << iplane->xdec) - 1))
        == bx);
@@ -2334,7 +2336,7 @@ static int32_t od_mv_est_sad8(od_mv_est_ctx *est,
    log_mvb_sz + OD_LOG_MVBSIZE_MIN);
   if (est->flags & OD_MC_USE_CHROMA) {
     int pli;
-    for (pli = 1; pli < state->io_imgs[OD_FRAME_INPUT].nplanes; pli++) {
+    for (pli = 1; pli < est->enc->input_img.nplanes; pli++) {
       od_state_pred_block_from_setup(state, state->mc_buf[4], OD_MVBSIZE_MAX,
        pli, vx, vy, oc, s, log_mvb_sz);
       ret += est->compute_distortion(est->enc, state->mc_buf[4],
@@ -2535,7 +2537,8 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy,
 #if defined(OD_DUMP_IMAGES) && defined(OD_ANIMATE)
   animating = daala_granule_basetime(state, state->cur_time) == ANI_FRAME;
   if (animating) {
-    od_state_mc_predict(state);
+    od_state_mc_predict(state, state->ref_imgs
+     + state->ref_imgi[OD_FRAME_SELF]);
     od_encode_fill_vis(est->enc);
     x0 = (vx << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_UMV_PADDING << 1);
     y0 = (vy << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_UMV_PADDING << 1);
@@ -2637,7 +2640,7 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy,
   od_mv_est_clear_hit_cache(est);
 #if defined(OD_DUMP_IMAGES) && defined(OD_ANIMATE)
   if (animating) {
-    od_img_draw_line(&state->vis_img, x0, y0,
+    od_img_draw_line(&est->enc->vis_img, x0, y0,
      x0 + (candx << 1), y0 + (candy << 1), OD_YCbCr_MVCAND);
   }
 #endif
@@ -2693,7 +2696,7 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy,
       od_mv_est_set_hit(est, candx, candy);
 #if defined(OD_DUMP_IMAGES) && defined(OD_ANIMATE)
       if (animating) {
-        od_img_draw_line(&state->vis_img, x0, y0,
+        od_img_draw_line(&est->enc->vis_img, x0, y0,
          x0 + (candx << 1), y0 + (candy << 1), OD_YCbCr_MVCAND);
       }
 #endif
@@ -2740,7 +2743,7 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy,
         od_mv_est_set_hit(est, candx, candy);
 #if defined(OD_DUMP_IMAGES) && defined(OD_ANIMATE)
         if (animating) {
-          od_img_draw_line(&state->vis_img, x0, y0,
+          od_img_draw_line(&est->enc->vis_img, x0, y0,
            x0 + (candx << 1), y0 + (candy << 1), OD_YCbCr_MVCAND);
         }
 #endif
@@ -2799,7 +2802,7 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy,
             od_mv_est_set_hit(est, candx, candy);
 #if defined(OD_DUMP_IMAGES) && defined(OD_ANIMATE)
             if (animating) {
-              od_img_draw_line(&state->vis_img, x0, y0,
+              od_img_draw_line(&est->enc->vis_img, x0, y0,
                x0 + (candx << 1), y0 + (candy << 1), OD_YCbCr_MVCAND);
             }
 #endif
@@ -2849,8 +2852,8 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy,
       amvg = state->mv_grid[ay] + ax;
       amvg->valid = 1;
     }
-    sprintf(iter_label, "ani%08i", state->ani_iter++);
-    od_state_dump_img(state, &state->vis_img, iter_label);
+    sprintf(iter_label, "ani%08i", est->enc->ani_iter++);
+    od_state_dump_img(state, &est->enc->vis_img, iter_label);
   }
 #endif
   /*previous_cost is our previous best cost from a previous pass of phase 1.*/
@@ -3881,10 +3884,11 @@ static void od_mv_est_decimate(od_mv_est_ctx *est) {
 #if defined(OD_DUMP_IMAGES) && defined(OD_ANIMATE)
     if (daala_granule_basetime(state, state->cur_time) == ANI_FRAME) {
       char iter_label[16];
-      od_state_mc_predict(state);
+      od_state_mc_predict(state, state->ref_imgs
+       + state->ref_imgi[OD_FRAME_SELF]);
       od_encode_fill_vis(est->enc);
-      sprintf(iter_label, "ani%08i", state->ani_iter++);
-      od_state_dump_img(state, &state->vis_img, iter_label);
+      sprintf(iter_label, "ani%08i", est->enc->ani_iter++);
+      od_state_dump_img(state, &est->enc->vis_img, iter_label);
     }
 #endif
     dec = od_mv_dec_heap_delhead(est);
@@ -4517,7 +4521,8 @@ static void od_mv_dp_animate_encode(od_enc_ctx *enc,
   int x0;
   int y0;
   state = &enc->state;
-  od_state_mc_predict(state);
+  od_state_mc_predict(state, state->ref_imgs
+   + state->ref_imgi[OD_FRAME_SELF]);
   od_encode_fill_vis(enc);
   /*Now, draw the current state of the DP.*/
   dp0 = dp;
@@ -4539,21 +4544,21 @@ static void od_mv_dp_animate_encode(od_enc_ctx *enc,
         d1vy = dp[1].mv->vy;
         x1 = (d1vx << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_UMV_PADDING << 1);
         y1 = (d1vy << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_UMV_PADDING << 1);
-        od_img_draw_line(&state->vis_img, x0, y0, x1, y1, OD_YCbCr_EDGE);
+        od_img_draw_line(&enc->vis_img, x0, y0, x1, y1, OD_YCbCr_EDGE);
         if (d1vx - d0vx > 1) {
           mvb_sz = d1vx - d0vx;
           if (!has_gap || dp + 1 != dp0) mvb_sz >>= 1;
           if (!state->mv_grid[d0vy][d0vx + mvb_sz].valid) {
             if (d0vy >= mvb_sz
              && state->mv_grid[d0vy - mvb_sz][d0vx + mvb_sz].valid) {
-              od_img_draw_line(&state->vis_img,
+              od_img_draw_line(&enc->vis_img,
                x0 + (mvb_sz << (OD_LOG_MVBSIZE_MIN + 1)),
                y0 - (mvb_sz << (OD_LOG_MVBSIZE_MIN + 1)),
                x0 + (mvb_sz << (OD_LOG_MVBSIZE_MIN + 1)), y1, OD_YCbCr_EDGE);
             }
             if (dp[0].mv->vy <= state->nvmvbs - mvb_sz
              && state->mv_grid[d0vy + mvb_sz][d0vx + mvb_sz].valid) {
-              od_img_draw_line(&state->vis_img,
+              od_img_draw_line(&enc->vis_img,
                x0 + (mvb_sz << (OD_LOG_MVBSIZE_MIN + 1)),
                y0 + (mvb_sz << (OD_LOG_MVBSIZE_MIN + 1)),
                x0 + (mvb_sz << (OD_LOG_MVBSIZE_MIN + 1)), y1, OD_YCbCr_EDGE);
@@ -4566,14 +4571,14 @@ static void od_mv_dp_animate_encode(od_enc_ctx *enc,
           if (!state->mv_grid[d0vy + mvb_sz][d0vx].valid) {
             if (d0vx >= mvb_sz
              && state->mv_grid[d0vy + mvb_sz][d0vx - mvb_sz].valid) {
-              od_img_draw_line(&state->vis_img,
+              od_img_draw_line(&enc->vis_img,
                x0 - (mvb_sz << (OD_LOG_MVBSIZE_MIN + 1)),
                y0 + (mvb_sz << (OD_LOG_MVBSIZE_MIN + 1)),
                x1, y0 + (mvb_sz << (OD_LOG_MVBSIZE_MIN + 1)), OD_YCbCr_EDGE);
             }
             if (d0vx <= state->nhmvbs - mvb_sz
              && state->mv_grid[d0vy + mvb_sz][d0vx + mvb_sz].valid) {
-              od_img_draw_line(&state->vis_img,
+              od_img_draw_line(&enc->vis_img,
                x0 + (mvb_sz << (OD_LOG_MVBSIZE_MIN + 1)),
                y0 + (mvb_sz << (OD_LOG_MVBSIZE_MIN + 1)),
                x1, y0 + (mvb_sz << (OD_LOG_MVBSIZE_MIN + 1)), OD_YCbCr_EDGE);
@@ -4601,7 +4606,7 @@ static void od_mv_dp_animate_encode(od_enc_ctx *enc,
     These two steps used to be together; now they're apart.
     Sorry for the mess that caused.*/
   /*Redraw the MVs, so they appear over the edge labels above.*/
-  od_state_draw_mvs(state);
+  od_state_draw_mvs(enc);
   for (si = 0; si < dp0->nstates; si++) prev_active_states[si] = si;
   nprev_active_states = dp0->nstates;
   nactive_states = 0;
@@ -4619,7 +4624,7 @@ static void od_mv_dp_animate_encode(od_enc_ctx *enc,
         y0 = (d1vy << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_UMV_PADDING << 1);
         for (si = 0; si < nactive_states; si++) {
           dp_state = active_states[si];
-          od_img_draw_line(&state->vis_img, x0, y0,
+          od_img_draw_line(&enc->vis_img, x0, y0,
            x0 + OD_DIV_ROUND_POW2(dp[1].states[dp_state].mv[0], 2, 2),
            y0 + OD_DIV_ROUND_POW2(dp[1].states[dp_state].mv[1], 2, 2),
            OD_YCbCr_MVCAND);
@@ -4648,13 +4653,13 @@ static void od_mv_dp_animate_encode(od_enc_ctx *enc,
   y0 = (d1vy << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_UMV_PADDING << 1);
   for (si = 0; si < nactive_states; si++) {
     dp_state = active_states[si];
-    od_img_draw_line(&state->vis_img, x0, y0,
+    od_img_draw_line(&enc->vis_img, x0, y0,
      x0 + OD_DIV_ROUND_POW2(dp[1].states[dp_state].mv[0], 2, 2),
      y0 + OD_DIV_ROUND_POW2(dp[1].states[dp_state].mv[1], 2, 2),
      OD_YCbCr_MVCAND);
   }
-  sprintf(iter_label, "ani%08i", state->ani_iter++);
-  od_state_dump_img(state, &state->vis_img, iter_label);
+  sprintf(iter_label, "ani%08i", enc->ani_iter++);
+  od_state_dump_img(state, &enc->vis_img, iter_label);
 }
 #endif
 
@@ -5293,10 +5298,11 @@ static int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
         od_mv_dp_restore_row_state(dp_node);
         od_mv_dp_animate_encode(est->enc, dp_node, 0);
         od_mv_dp_install_row_state(dp_node + 1, best_si);
-        od_state_mc_predict(state);
+        od_state_mc_predict(state, state->ref_imgs
+         + state->ref_imgi[OD_FRAME_SELF]);
         od_encode_fill_vis(est->enc);
-        sprintf(iter_label, "ani%08i", state->ani_iter++);
-        od_state_dump_img(state, &state->vis_img, iter_label);
+        sprintf(iter_label, "ani%08i", est->enc->ani_iter++);
+        od_state_dump_img(state, &est->enc->vis_img, iter_label);
       }
 #endif
       /*Update the state along the optimal path.*/
@@ -5896,10 +5902,11 @@ static int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
         od_mv_dp_restore_col_state(dp_node);
         od_mv_dp_animate_encode(est->enc, dp_node, 0);
         od_mv_dp_install_col_state(dp_node + 1, best_si);
-        od_state_mc_predict(state);
+        od_state_mc_predict(state, state->ref_imgs
+         + state->ref_imgi[OD_FRAME_SELF]);
         od_encode_fill_vis(est->enc);
-        sprintf(iter_label, "ani%08i", state->ani_iter++);
-        od_state_dump_img(state, &state->vis_img, iter_label);
+        sprintf(iter_label, "ani%08i", est->enc->ani_iter++);
+        od_state_dump_img(state, &est->enc->vis_img, iter_label);
       }
 #endif
       /*Update the state along the optimal path.*/
@@ -6150,7 +6157,7 @@ void od_mv_est(od_mv_est_ctx *est, int lambda) {
   state = &est->enc->state;
   nhmvbs = state->nhmvbs;
   nvmvbs = state->nvmvbs;
-  iplane = state->io_imgs[OD_FRAME_INPUT].planes + 0;
+  iplane = est->enc->input_img.planes + 0;
   /*Sanitize user parameters*/
   est->level_min = OD_MINI(est->enc->params.mv_level_min,
    est->enc->params.mv_level_max);
@@ -6176,8 +6183,8 @@ void od_mv_est(od_mv_est_ctx *est, int lambda) {
   /*If we're using the chroma planes, then our distortions will be larger.
     Compensate by increasing lambda and the termination thresholds.*/
   if (est->flags & OD_MC_USE_CHROMA) {
-    for (pli = 1; pli < state->io_imgs[OD_FRAME_INPUT].nplanes; pli++) {
-      iplane = state->io_imgs[OD_FRAME_INPUT].planes + pli;
+    for (pli = 1; pli < est->enc->input_img.nplanes; pli++) {
+      iplane = est->enc->input_img.planes + pli;
       est->lambda +=
        lambda >> (iplane->xdec + iplane->ydec + OD_MC_CHROMA_SCALE);
       for (log_mvb_sz = 0; log_mvb_sz < OD_NMVBSIZES; log_mvb_sz++) {

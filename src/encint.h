@@ -121,6 +121,16 @@ struct daala_enc_ctx{
   od_coeff block_c_orig[OD_BSIZE_MAX*OD_BSIZE_MAX];
   od_coeff block_mc_orig[OD_BSIZE_MAX*OD_BSIZE_MAX];
   od_coeff block_c_noskip[OD_BSIZE_MAX*OD_BSIZE_MAX];
+  /* Buffer for the input frame, scaled to reference resolution. */
+  od_img input_img;
+  unsigned char *input_img_data;
+#if defined(OD_DUMP_IMAGES)
+  od_img              vis_img;
+  od_img              tmp_vis_img;
+# if defined(OD_ANIMATE)
+  int                 ani_iter;
+# endif
+#endif
 };
 
 /** Holds important encoder information so we can roll back decisions */
@@ -157,11 +167,11 @@ int od_mc_compute_satd_32x32_c(const unsigned char *src, int systride,
 void od_enc_opt_vtbl_init_c(od_enc_ctx *enc);
 
 # if defined(OD_DUMP_IMAGES)
-void od_img_upsample8(od_state *_state, od_img *_dst, const od_img *_src);
-void od_encode_fill_vis(od_enc_ctx *enc);
-void od_img_draw_line(od_img *_img, int _x0, int _y0, int _x1, int _y1,
- const unsigned char _ycbcr[3]);
-void od_state_draw_mvs(od_state *_state);
+void od_img_upsample8(od_state *state, od_img *dst, const od_img *src);
+void od_encode_fill_vis(daala_enc_ctx *enc);
+void od_img_draw_line(od_img *img, int x0, int y0, int x1, int y1,
+ const unsigned char ycbcr[3]);
+void od_state_draw_mvs(daala_enc_ctx *enc);
 # endif
 
 # if defined(OD_X86ASM)
