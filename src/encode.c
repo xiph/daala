@@ -2488,11 +2488,13 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
 }
 
 #if defined(OD_LOGGING_ENABLED)
-static void od_dump_frame_metrics(od_state *state) {
+static void od_dump_frame_metrics(daala_enc_ctx *enc) {
+  od_state *state;
   int pli;
   int nplanes;
   int frame_width;
   int frame_height;
+  state = &enc->state;
   nplanes = state->info.nplanes;
   frame_width = state->frame_width;
   frame_height = state->frame_height;
@@ -2749,7 +2751,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   od_state_dump_yuv(&enc->state, ref_img, "out");
 #endif
 #if defined(OD_LOGGING_ENABLED)
-  od_dump_frame_metrics(&enc->state);
+  od_dump_frame_metrics(enc);
 #endif
   enc->packet_state = OD_PACKET_READY;
   od_img_edge_ext(ref_img);
