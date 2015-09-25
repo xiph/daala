@@ -64,8 +64,8 @@ void od_img_upsample8(od_state *state, od_img *dimg, const od_img *simg) {
     int y;
     siplane = simg->planes + pli;
     diplane = dimg->planes + pli;
-    xpad = OD_UMV_PADDING >> siplane->xdec;
-    ypad = OD_UMV_PADDING >> siplane->ydec;
+    xpad = OD_BUFFER_PADDING >> siplane->xdec;
+    ypad = OD_BUFFER_PADDING >> siplane->ydec;
     w = simg->width >> siplane->xdec;
     h = simg->height >> siplane->ydec;
     src = siplane->data;

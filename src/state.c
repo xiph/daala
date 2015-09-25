@@ -129,8 +129,8 @@ static int od_state_ref_imgs_init(od_state *state, int nrefs) {
   info = &state->info;
   data_sz = 0;
   /*TODO: Check for overflow before allocating.*/
-  frame_buf_width = state->frame_width + (OD_UMV_PADDING << 1);
-  frame_buf_height = state->frame_height + (OD_UMV_PADDING << 1);
+  frame_buf_width = state->frame_width + (OD_BUFFER_PADDING << 1);
+  frame_buf_height = state->frame_height + (OD_BUFFER_PADDING << 1);
   for (pli = 0; pli < info->nplanes; pli++) {
     /*Reserve space for this plane in nrefs reference images.*/
     plane_buf_width = frame_buf_width >> info->plane_info[pli].xdec;
@@ -155,8 +155,8 @@ static int od_state_ref_imgs_init(od_state *state, int nrefs) {
       plane_buf_height = frame_buf_height >> info->plane_info[pli].ydec;
       iplane = img->planes + pli;
       iplane->data = ref_img_data
-       + (OD_UMV_PADDING >> info->plane_info[pli].xdec)
-       + plane_buf_width*(OD_UMV_PADDING >> info->plane_info[pli].ydec);
+       + (OD_BUFFER_PADDING >> info->plane_info[pli].xdec)
+       + plane_buf_width*(OD_BUFFER_PADDING >> info->plane_info[pli].ydec);
       ref_img_data += plane_buf_width*plane_buf_height;
       iplane->xdec = info->plane_info[pli].xdec;
       iplane->ydec = info->plane_info[pli].ydec;
@@ -166,7 +166,7 @@ static int od_state_ref_imgs_init(od_state *state, int nrefs) {
   }
   /*Fill in the line buffers.*/
   for (y = 0; y < 8; y++) {
-    state->ref_line_buf[y] = ref_img_data + (OD_UMV_PADDING << 1);
+    state->ref_line_buf[y] = ref_img_data + (OD_BUFFER_PADDING << 1);
     ref_img_data += frame_buf_width << 1;
   }
   /*Mark all of the reference image buffers available.*/
@@ -931,6 +931,6 @@ void od_img_edge_ext(od_img* src) {
     ydec = (src->planes + pli)->ydec;
     od_img_plane_edge_ext8(&src->planes[pli],
      src->width >> xdec, src->height >> ydec,
-     OD_UMV_PADDING >> xdec, OD_UMV_PADDING >> ydec);
+     OD_BUFFER_PADDING >> xdec, OD_BUFFER_PADDING >> ydec);
   }
 }

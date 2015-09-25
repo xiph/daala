@@ -82,7 +82,15 @@ extern const int *const OD_VERT_SETUP_DX[4][4];
 extern const int *const OD_VERT_SETUP_DY[4][4];
 
 /*This should be a power of 2, and at least 8.*/
-# define OD_UMV_PADDING (32)
+# define OD_UMV_CLAMP (32)
+/*Half the value of OD_SUBPEL_FILTER_TAP_SIZE in mc.h.*/
+# define OD_RESAMPLE_PADDING (3)
+/*Buffer padding alignment dictated by SIMD.*/
+# define OD_PADDING_ALIGN (32)
+/*Actual size of padding on all sides of reference buffers.*/
+# define OD_BUFFER_PADDING \
+ ((OD_UMV_CLAMP + OD_RESAMPLE_PADDING + OD_PADDING_ALIGN - 1) \
+ /OD_PADDING_ALIGN*OD_PADDING_ALIGN)
 
 /*The shared (encoder and decoder) functions that have accelerated variants.*/
 struct od_state_opt_vtbl{

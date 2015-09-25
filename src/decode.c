@@ -68,8 +68,8 @@ static int od_dec_init(od_dec_ctx *dec, const daala_info *info,
   dec->user_mc_img = NULL;
   data_sz = 0;
   /*TODO: Check for overflow before allocating.*/
-  frame_buf_width = dec->state.frame_width + (OD_UMV_PADDING << 1);
-  frame_buf_height = dec->state.frame_height + (OD_UMV_PADDING << 1);
+  frame_buf_width = dec->state.frame_width + (OD_BUFFER_PADDING << 1);
+  frame_buf_height = dec->state.frame_height + (OD_BUFFER_PADDING << 1);
   for (pli = 0; pli < info->nplanes; pli++) {
     plane_buf_width = frame_buf_width >> info->plane_info[pli].xdec;
     plane_buf_height = frame_buf_height >> info->plane_info[pli].ydec;
@@ -90,8 +90,8 @@ static int od_dec_init(od_dec_ctx *dec, const daala_info *info,
     plane_buf_height = frame_buf_height >> info->plane_info[pli].ydec;
     iplane = img->planes + pli;
     iplane->data = output_img_data
-      + (OD_UMV_PADDING >> info->plane_info[pli].xdec)
-      + plane_buf_width*(OD_UMV_PADDING >> info->plane_info[pli].ydec);
+     + (OD_BUFFER_PADDING >> info->plane_info[pli].xdec)
+     + plane_buf_width*(OD_BUFFER_PADDING >> info->plane_info[pli].ydec);
     output_img_data += plane_buf_width*plane_buf_height;
     iplane->xdec = info->plane_info[pli].xdec;
     iplane->ydec = info->plane_info[pli].ydec;
@@ -193,15 +193,15 @@ int daala_decode_ctl(daala_dec_ctx *dec, int req, void *buf, size_t buf_sz) {
 static void od_dec_blank_img(od_img *img) {
   int pli;
   int frame_buf_height;
-  frame_buf_height = img->height + (OD_UMV_PADDING << 1);
+  frame_buf_height = img->height + (OD_BUFFER_PADDING << 1);
   for (pli = 0; pli < img->nplanes; pli++) {
     int plane_buf_size;
     int plane_buf_offset;
     plane_buf_size =
      (frame_buf_height >> img->planes[pli].ydec) * img->planes[pli].ystride;
     plane_buf_offset =
-      (OD_UMV_PADDING >> img->planes[pli].ydec) * img->planes[pli].ystride
-      + (OD_UMV_PADDING >> img->planes[pli].xdec);
+      (OD_BUFFER_PADDING >> img->planes[pli].ydec) * img->planes[pli].ystride
+      + (OD_BUFFER_PADDING >> img->planes[pli].xdec);
     memset(img->planes[pli].data - plane_buf_offset, 128, plane_buf_size);
   }
 }

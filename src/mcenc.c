@@ -2540,8 +2540,8 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy,
     od_state_mc_predict(state, state->ref_imgs
      + state->ref_imgi[OD_FRAME_SELF]);
     od_encode_fill_vis(est->enc);
-    x0 = (vx << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_UMV_PADDING << 1);
-    y0 = (vy << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_UMV_PADDING << 1);
+    x0 = (vx << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_BUFFER_PADDING << 1);
+    y0 = (vy << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_BUFFER_PADDING << 1);
   }
 #endif
   OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG, "Level %i (%ix%i block)",
@@ -2561,17 +2561,17 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy,
      ultimately split.
     So this MV can affect a block of pixels bounded by
      [bxmin, bmax) x [bymin, bymax), and MVs within that area must point no
-     farther than OD_UMV_PADDING pixels outside of the frame.*/
+     farther than OD_UMV_CLAMP pixels outside of the frame.*/
   bxmin = OD_MAXI(bx - (mvb_sz << OD_LOG_MVBSIZE_MIN), 0);
-  mvxmin = OD_MAXI(bxmin - OD_MC_SEARCH_RANGE, -OD_UMV_PADDING) - bxmin;
+  mvxmin = OD_MAXI(bxmin - OD_MC_SEARCH_RANGE, -OD_UMV_CLAMP) - bxmin;
   bxmax = OD_MINI(bx + (mvb_sz << OD_LOG_MVBSIZE_MIN), state->frame_width);
   mvxmax = OD_MINI(bxmax + OD_MC_SEARCH_RANGE - 1,
-   state->frame_width + OD_UMV_PADDING) - bxmax;
+   state->frame_width + OD_UMV_CLAMP) - bxmax;
   bymin = OD_MAXI(by - (mvb_sz << OD_LOG_MVBSIZE_MIN), 0);
-  mvymin = OD_MAXI(bymin - OD_MC_SEARCH_RANGE, -OD_UMV_PADDING) - bymin;
+  mvymin = OD_MAXI(bymin - OD_MC_SEARCH_RANGE, -OD_UMV_CLAMP) - bymin;
   bymax = OD_MINI(by + (mvb_sz << OD_LOG_MVBSIZE_MIN), state->frame_height);
   mvymax = OD_MINI(bymax + OD_MC_SEARCH_RANGE - 1,
-   state->frame_height + OD_UMV_PADDING) - bymax;
+   state->frame_height + OD_UMV_CLAMP) - bymax;
   OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
    "(%i, %i): Search range: [%i, %i]x[%i, %i]",
    bx, by, mvxmin, mvymin, mvxmax, mvymax));
@@ -4368,15 +4368,15 @@ static int od_mv_est_get_boundary_case(od_state *state,
      [bxmin, bmax) x [bymin, bymax), and MVs within that area must point no
      farther than OD_UMV_PADDING pixels outside of the frame.*/
   bxmin = OD_MAXI(bx - blk_sz, 0);
-  mvxmin = (OD_MAXI(bxmin - OD_MC_SEARCH_RANGE, -OD_UMV_PADDING) - bxmin) << 3;
+  mvxmin = (OD_MAXI(bxmin - OD_MC_SEARCH_RANGE, -OD_UMV_CLAMP) - bxmin) << 3;
   bxmax = OD_MINI(bx + blk_sz, state->frame_width);
   mvxmax = (OD_MINI(bxmax + OD_MC_SEARCH_RANGE - 1,
-   state->frame_width + OD_UMV_PADDING) - bxmax) << 3;
+   state->frame_width + OD_UMV_CLAMP) - bxmax) << 3;
   bymin = OD_MAXI(by - blk_sz, 0);
-  mvymin = (OD_MAXI(bymin - OD_MC_SEARCH_RANGE, -OD_UMV_PADDING) - bymin) << 3;
+  mvymin = (OD_MAXI(bymin - OD_MC_SEARCH_RANGE, -OD_UMV_CLAMP) - bymin) << 3;
   bymax = OD_MINI(by + blk_sz, state->frame_height);
   mvymax = (OD_MINI(bymax + OD_MC_SEARCH_RANGE - 1,
-   state->frame_height + OD_UMV_PADDING) - bymax) << 3;
+   state->frame_height + OD_UMV_CLAMP) - bymax) << 3;
   return (dx - dsz < mvxmin) | (dx + dsz > mvxmax) << 1 |
    (dy - dsz < mvymin) << 2 | (dy  + dsz > mvymax) << 3;
 }
@@ -4534,16 +4534,16 @@ static void od_mv_dp_animate_encode(od_enc_ctx *enc,
     if (nactive_states > 0) {
       d0vx = dp[0].mv->vx;
       d0vy = dp[0].mv->vy;
-      x0 = (d0vx << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_UMV_PADDING << 1);
-      y0 = (d0vy << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_UMV_PADDING << 1);
+      x0 = (d0vx << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_BUFFER_PADDING << 1);
+      y0 = (d0vy << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_BUFFER_PADDING << 1);
       if (nprev_active_states > 0) {
         int mvb_sz;
         int x1;
         int y1;
         d1vx = dp[1].mv->vx;
         d1vy = dp[1].mv->vy;
-        x1 = (d1vx << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_UMV_PADDING << 1);
-        y1 = (d1vy << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_UMV_PADDING << 1);
+        x1 = (d1vx << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_BUFFER_PADDING << 1);
+        y1 = (d1vy << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_BUFFER_PADDING << 1);
         od_img_draw_line(&enc->vis_img, x0, y0, x1, y1, OD_YCbCr_EDGE);
         if (d1vx - d0vx > 1) {
           mvb_sz = d1vx - d0vx;
@@ -4615,13 +4615,13 @@ static void od_mv_dp_animate_encode(od_enc_ctx *enc,
     if (nactive_states > 0) {
       d0vx = dp[0].mv->vx;
       d0vy = dp[0].mv->vy;
-      x0 = (d0vx << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_UMV_PADDING << 1);
-      y0 = (d0vy << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_UMV_PADDING << 1);
+      x0 = (d0vx << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_BUFFER_PADDING << 1);
+      y0 = (d0vy << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_BUFFER_PADDING << 1);
       if (!has_gap || dp + 1 != dp0) {
         d1vx = dp[1].mv->vx;
         d1vy = dp[1].mv->vy;
-        x0 = (d1vx << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_UMV_PADDING << 1);
-        y0 = (d1vy << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_UMV_PADDING << 1);
+        x0 = (d1vx << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_BUFFER_PADDING << 1);
+        y0 = (d1vy << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_BUFFER_PADDING << 1);
         for (si = 0; si < nactive_states; si++) {
           dp_state = active_states[si];
           od_img_draw_line(&enc->vis_img, x0, y0,
@@ -4649,8 +4649,8 @@ static void od_mv_dp_animate_encode(od_enc_ctx *enc,
   /*Draw the first state's MV's.*/
   d1vx = dp[1].mv->vx;
   d1vy = dp[1].mv->vy;
-  x0 = (d1vx << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_UMV_PADDING << 1);
-  y0 = (d1vy << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_UMV_PADDING << 1);
+  x0 = (d1vx << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_BUFFER_PADDING << 1);
+  y0 = (d1vy << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_BUFFER_PADDING << 1);
   for (si = 0; si < nactive_states; si++) {
     dp_state = active_states[si];
     od_img_draw_line(&enc->vis_img, x0, y0,

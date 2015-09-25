@@ -205,8 +205,8 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
   enc->bs = (od_block_size_comp *)malloc(sizeof(*enc->bs));
   data_sz = 0;
   /*TODO: Check for overflow before allocating.*/
-  frame_buf_width = enc->state.frame_width + (OD_UMV_PADDING << 1);
-  frame_buf_height = enc->state.frame_height + (OD_UMV_PADDING << 1);
+  frame_buf_width = enc->state.frame_width + (OD_BUFFER_PADDING << 1);
+  frame_buf_height = enc->state.frame_height + (OD_BUFFER_PADDING << 1);
   for (pli = 0; pli < info->nplanes; pli++) {
     plane_buf_width = frame_buf_width >> info->plane_info[pli].xdec;
     plane_buf_height = frame_buf_height >> info->plane_info[pli].ydec;
@@ -236,8 +236,8 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
     plane_buf_height = frame_buf_height >> info->plane_info[pli].ydec;
     iplane = img->planes + pli;
     iplane->data = input_img_data
-      + (OD_UMV_PADDING >> info->plane_info[pli].xdec)
-      + plane_buf_width*(OD_UMV_PADDING >> info->plane_info[pli].ydec);
+     + (OD_BUFFER_PADDING >> info->plane_info[pli].xdec)
+     + plane_buf_width*(OD_BUFFER_PADDING >> info->plane_info[pli].ydec);
     input_img_data += plane_buf_width*plane_buf_height;
     iplane->xdec = info->plane_info[pli].xdec;
     iplane->ydec = info->plane_info[pli].ydec;
@@ -1596,8 +1596,8 @@ void od_img_upsample8(od_state *state, od_img *dimg, const od_img *simg) {
     int y;
     siplane = simg->planes + pli;
     diplane = dimg->planes + pli;
-    xpad = OD_UMV_PADDING >> siplane->xdec;
-    ypad = OD_UMV_PADDING >> siplane->ydec;
+    xpad = OD_BUFFER_PADDING >> siplane->xdec;
+    ypad = OD_BUFFER_PADDING >> siplane->ydec;
     w = simg->width >> siplane->xdec;
     h = simg->height >> siplane->ydec;
     src = siplane->data;
@@ -1768,8 +1768,8 @@ static void od_state_draw_mv_grid_block(daala_enc_ctx *enc,
     int x0;
     int y0;
     mvb_sz = 1 << log_mvb_sz;
-    x0 = (vx << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_UMV_PADDING << 1);
-    y0 = (vy << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_UMV_PADDING << 1);
+    x0 = (vx << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_BUFFER_PADDING << 1);
+    y0 = (vy << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_BUFFER_PADDING << 1);
     od_img_draw_line(&enc->vis_img, x0, y0,
      x0 + (mvb_sz << (OD_LOG_MVBSIZE_MIN + 1)), y0, OD_YCbCr_EDGE);
     od_img_draw_line(&enc->vis_img,
@@ -1852,9 +1852,9 @@ static void od_state_draw_mvs_block(daala_enc_ctx *enc,
     }
     for (k = 0; k < 4; k++) {
       x0 = ((vx + (dxp[k] << log_mvb_sz)) << (OD_LOG_MVBSIZE_MIN + 1))
-       + (OD_UMV_PADDING << 1);
+       + (OD_BUFFER_PADDING << 1);
       y0 = ((vy + (dyp[k] << log_mvb_sz)) << (OD_LOG_MVBSIZE_MIN + 1))
-       + (OD_UMV_PADDING << 1);
+       + (OD_BUFFER_PADDING << 1);
       /*od_img_draw_point(&enc->vis_img, x0, y0, OD_YCbCr_MV);*/
       od_img_draw_line(&enc->vis_img, x0, y0,
        x0 + OD_DIV_ROUND_POW2(grid[k]->mv[0], 2, 2),
@@ -1894,7 +1894,7 @@ void od_encode_fill_vis(od_enc_ctx *enc) {
   /*Upsample the reconstructed image for better quality.*/
   /*Adjust the data pointers so that the padding works like the reference
      images.*/
-  border = OD_UMV_PADDING << 1;
+  border = OD_BUFFER_PADDING << 1;
   for (pli = 0; pli < img->nplanes; pli++) {
     img->planes[pli].data += (border >> img->planes[pli].xdec)
      + img->planes[pli].ystride*(border >> img->planes[pli].ydec);
@@ -1978,11 +1978,11 @@ static void od_img_dump_padded(daala_enc_ctx *enc) {
   /*Modify the image offsets to include the padding.*/
   *&img = enc->input_img;
   for (pli = 0; pli < nplanes; pli++) {
-    img.planes[pli].data -= (OD_UMV_PADDING>>info->plane_info[pli].xdec)
-        +img.planes[pli].ystride*(OD_UMV_PADDING>>info->plane_info[pli].ydec);
+    img.planes[pli].data -= (OD_BUFFER_PADDING>>info->plane_info[pli].xdec)
+     +img.planes[pli].ystride*(OD_BUFFER_PADDING>>info->plane_info[pli].ydec);
   }
-  img.width += OD_UMV_PADDING<<1;
-  img.height += OD_UMV_PADDING<<1;
+  img.width += OD_BUFFER_PADDING<<1;
+  img.height += OD_BUFFER_PADDING<<1;
   od_state_dump_img(state, &img, "pad");
 }
 #endif

@@ -84,6 +84,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
   mvy: The Y component of the motion vector.
   log_xblk_sz: The log base 2 of the horizontal block dimension.
   log_yblk_sz: The log base 2 of the vertical block dimension.*/
+/*TODO: this code does not currently special-case the boundaries of the buffer.
+  It simply assumes there's sufficient extra padding to not cause a bounds
+   overrun.
+  For now, we add the extra padding, but we should eventually add
+   special-casing to the code to avoid the additional ~useless buffer
+   overhead. */
 void od_mc_predict1fmv8_c(unsigned char *dst, const unsigned char *src,
  int systride, int32_t mvx, int32_t mvy,
  int log_xblk_sz, int log_yblk_sz) {
@@ -200,6 +206,8 @@ void od_mc_predict1fmv8_c(unsigned char *dst, const unsigned char *src,
 static void od_mc_predict1fmv8(od_state *state, unsigned char *dst,
  const unsigned char *src, int systride, int32_t mvx, int32_t mvy,
  int log_xblk_sz, int log_yblk_sz) {
+  OD_ASSERT(OD_SUBPEL_TOP_APRON_SZ <= OD_RESAMPLE_PADDING
+   && OD_SUBPEL_BOTTOM_APRON_SZ <= OD_RESAMPLE_PADDING);
   (*state->opt_vtbl.mc_predict1fmv8)(dst, src, systride, mvx, mvy,
    log_xblk_sz, log_yblk_sz);
 }
