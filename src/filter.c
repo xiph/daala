@@ -1750,7 +1750,7 @@ static void od_dering_orthogonal(od_coeff *y, int ystride, od_coeff *in,
       if (abs(p) < athresh) sum += p;
       p = in[i*bstride + j - 2*offset] - yy;
       if (abs(p) < athresh) sum += p;
-      y[i*ystride + j] = yy + OD_DIV_ROUND(sum, 5);
+      y[i*ystride + j] = yy + ((3*sum + 8) >> 4);
     }
   }
 }
