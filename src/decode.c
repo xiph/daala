@@ -106,6 +106,9 @@ static int od_dec_init(od_dec_ctx *dec, const daala_info *info,
 }
 
 static void od_dec_clear(od_dec_ctx *dec) {
+#if OD_ACCOUNTING
+  od_accounting_clear(&dec->acct);
+#endif
   od_aligned_free(dec->output_img_data);
   od_state_clear(&dec->state);
 }
