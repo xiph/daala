@@ -27,7 +27,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #if !defined(_daala_daalaenc_H)
 # define _daala_daalaenc_H (1)
 # include "codec.h"
-# include <ogg/ogg.h>
 
 # if defined(__cplusplus)
 extern "C" {
@@ -90,7 +89,7 @@ int daala_encode_ctl(daala_enc_ctx *enc,
  * \param enc A #daala_enc_ctx handle.
  * \param comments The metadata to place in the comment header, when it is
  *                  encoded.
- * \param op An <tt>ogg_packet</tt> structure to fill.
+ * \param op A <tt>daala_packet</tt> structure to fill.
  *           All of the elements of this structure will be set,
  *            including a pointer to the header data.
  *           The memory for the header data is owned by
@@ -100,7 +99,7 @@ int daala_encode_ctl(daala_enc_ctx *enc,
  * \retval 0 No packet was produced, and no more header packets remain.
  * \retval OD_EFAULT \a enc, \a comments or \a op was <tt>NULL</tt>.*/
 int daala_encode_flush_header(daala_enc_ctx *enc,
- daala_comment *comments, ogg_packet *op);
+ daala_comment *comments, daala_packet *op);
 /**Submits an uncompressed frame to the encoder.
  * \param enc A #daala_enc_ctx handle.
  * \param img A buffer of image data to encode.
@@ -125,7 +124,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration);
  * \param last Set this flag to a non-zero value if no more uncompressed
  *              frames will be submitted.
  *             This ensures that a proper EOS flag is set on the last packet.
- * \param op An <tt>ogg_packet</tt> structure to fill.
+ * \param op A <tt>daala_packet</tt> structure to fill.
  *           All of the elements of this structure will be set, including a
  *            pointer to the video data.
  *           The memory for the video data is owned by <tt>libdaala</tt>.
@@ -135,7 +134,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration);
  *            remains.
  * \retval OD_EFAULT \a enc or \a op was <tt>NULL</tt>.*/
 int daala_encode_packet_out(daala_enc_ctx *enc,
- int last, ogg_packet *op);
+ int last, daala_packet *op);
 /**Frees an allocated encoder instance.
  * \param enc A #daala_enc_ctx handle.*/
 void daala_encode_free(daala_enc_ctx *enc);

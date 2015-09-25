@@ -31,6 +31,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <wx/wx.h>
 #include <wx/dcbuffer.h>
 
+#include <ogg/ogg.h>
+
 #include "daala/codec.h"
 #include "daala/daaladec.h"
 
@@ -94,6 +96,19 @@ public:
   bool getAccountingStruct(od_accounting **acct);
 };
 
+static void ogg_to_daala_packet(daala_packet *dp, ogg_packet *op)
+{
+
+  dp->packet     = op->packet;
+  dp->bytes      = op->bytes;
+
+  dp->b_o_s      = op->b_o_s;
+  dp->e_o_s      = op->e_o_s;
+
+  dp->granulepos = op->granulepos;
+  dp->packetno   = op->packetno;
+}
+
 bool DaalaDecoder::readPage() {
   while (ogg_sync_pageout(&oy, &page) != 1) {
     char *buffer = ogg_sync_buffer(&oy, 4096);
@@ -136,11 +151,13 @@ bool DaalaDecoder::readHeaders() {
     if (ogg_stream_pagein(&os, &page) != 0) {
       return false;
     }
-    ogg_packet packet;
-    while (!done && readPacket(&packet) != 0) {
-      int ret = daala_decode_header_in(&di, &dc, &dsi, &packet);
+    ogg_packet op;
+    while (!done && readPacket(&op) != 0) {
+      daala_packet dp;
+      ogg_to_daala_packet(&dp, &op);
+      int ret = daala_decode_header_in(&di, &dc, &dsi, &dp);
       if (ret < 0) {
-        if (memcmp(packet.packet, "fishead", packet.bytes)) {
+        if (memcmp(dp.packet, "fishead", dp.bytes)) {
           fprintf(stderr, "Ogg Skeleton streams not supported\n");
         }
         return false;
@@ -198,9 +215,11 @@ void DaalaDecoder::close() {
 
 bool DaalaDecoder::step() {
   //fprintf(stderr, "reading frame %i\n", frame);
-  ogg_packet packet;
-  if (readPacket(&packet)) {
-    if (daala_decode_packet_in(dctx, &img, &packet) != 0) {
+  ogg_packet op;
+  daala_packet dp;
+  if (readPacket(&op)) {
+    ogg_to_daala_packet(&dp, &op);
+    if (daala_decode_packet_in(dctx, &img, &dp) != 0) {
       return false;
     }
     frame++;

@@ -33,7 +33,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 static daala_info di;
 static daala_enc_ctx *dd;
-static ogg_packet op;
+static daala_packet op;
 static daala_comment dc;
 static daala_setup_info *dsi;
 static daala_info di2;

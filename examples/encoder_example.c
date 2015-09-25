@@ -33,6 +33,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <string.h>
 #include <time.h>
 #include <getopt.h>
+#include <ogg/ogg.h>
 #include "../src/logging.h"
 #include "daala/daalaenc.h"
 #if defined(_WIN32)
@@ -60,6 +61,19 @@ struct av_input{
   od_img video_img;
   int video_cur_img;
 };
+
+static void daala_to_ogg_packet(ogg_packet *op, daala_packet *dp)
+{
+
+  op->packet     = dp->packet;
+  op->bytes      = dp->bytes;
+
+  op->b_o_s      = dp->b_o_s;
+  op->e_o_s      = dp->e_o_s;
+
+  op->granulepos = dp->granulepos;
+  op->packetno   = dp->packetno;
+}
 
 static int y4m_parse_tags(av_input *avin, char *tags) {
   int got_w;
@@ -289,7 +303,7 @@ static void id_file(av_input *avin, const char *file) {
 int fetch_and_process_video(av_input *avin, ogg_page *page,
  ogg_stream_state *vo, daala_enc_ctx *dd, int video_ready,
  int *limit, int *skip) {
-  ogg_packet op;
+  daala_packet dp;
   while (!video_ready) {
     size_t ret;
     char frame[6];
@@ -346,7 +360,11 @@ int fetch_and_process_video(av_input *avin, ogg_page *page,
     /*Pull the packets from the previous frame, now that we know whether or not
        we can read the current one.
       This is used to set the e_o_s bit on the final packet.*/
-    while (daala_encode_packet_out(dd, last, &op)) {
+    while (daala_encode_packet_out(dd, last, &dp)) {
+      ogg_packet op;
+
+      daala_to_ogg_packet(&op, &dp);
+
       ogg_stream_packetin(vo, &op);
     }
     /*Submit the current frame for encoding.*/
@@ -444,6 +462,7 @@ int main(int argc, char **argv) {
   ogg_stream_state vo;
   ogg_page og;
   ogg_packet op;
+  daala_packet dp;
   daala_enc_ctx *dd;
   daala_info di;
   daala_comment dc;
@@ -702,10 +721,11 @@ int main(int argc, char **argv) {
   /*Write the bitstream header packets with proper page interleave.*/
   /*The first packet for each logical stream will get its own page
      automatically.*/
-  if (daala_encode_flush_header(dd, &dc, &op) <= 0) {
+  if (daala_encode_flush_header(dd, &dc, &dp) <= 0) {
     fprintf(stderr, "Internal Daala library error.\n");
     exit(1);
   }
+  daala_to_ogg_packet(&op, &dp);
   ogg_stream_packetin(&vo, &op);
   if (ogg_stream_pageout(&vo, &og) != 1) {
     fprintf(stderr, "Internal Ogg library error.\n");
@@ -721,12 +741,13 @@ int main(int argc, char **argv) {
   }
   /*Create and buffer the remaining Daala headers.*/
   for (;;) {
-    ret = daala_encode_flush_header(dd, &dc, &op);
+    ret = daala_encode_flush_header(dd, &dc, &dp);
     if (ret < 0) {
       fprintf(stderr, "Internal Daala library error.\n");
       exit(1);
     }
     else if (!ret) break;
+    daala_to_ogg_packet(&op, &dp);
     ogg_stream_packetin(&vo, &op);
   }
   for (;;) {
@@ -791,8 +812,8 @@ int main(int argc, char **argv) {
     fprintf(stderr,
      "     %i:%02i:%02i.%02i video: %0.0fkbps - Frame %i - %0.2f FPS - %0.2f FPM     ",
      (int)time_base/3600, ((int)time_base/60)%60, (int)time_base % 60,
-     (int)(time_base*100 - (long)time_base*100), video_kbps, current_frame_no, 
-     (current_frame_no)/time_spent, 
+     (int)(time_base*100 - (long)time_base*100), video_kbps, current_frame_no,
+     (current_frame_no)/time_spent,
      (current_frame_no)/time_spent*60);
   }
   ogg_stream_clear(&vo);

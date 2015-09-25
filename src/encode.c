@@ -2780,7 +2780,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
 
 #if defined(OD_ENCODER_CHECK)
 static void daala_encoder_check(daala_enc_ctx *ctx, od_img *img,
- ogg_packet *op) {
+ daala_packet *op) {
   int pli;
   od_img dec_img;
   OD_ASSERT(ctx->dec);
@@ -2816,7 +2816,7 @@ static void daala_encoder_check(daala_enc_ctx *ctx, od_img *img,
 }
 #endif
 
-int daala_encode_packet_out(daala_enc_ctx *enc, int last, ogg_packet *op) {
+int daala_encode_packet_out(daala_enc_ctx *enc, int last, daala_packet *op) {
   uint32_t nbytes;
   if (enc == NULL || op == NULL) return OD_EFAULT;
   else if (enc->packet_state <= 0 || enc->packet_state == OD_PACKET_DONE) {
