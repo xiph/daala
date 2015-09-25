@@ -1,0 +1,1275 @@
+#LyX 2.1 created this file. For more info see http://www.lyx.org/
+\lyxformat 474
+\begin_document
+\begin_header
+\textclass article
+\begin_preamble
+\usepackage{color}
+\usepackage{url}
+\usepackage[pdfpagemode=None,pdfstartview=FitH,pdfview=FitH,colorlinks=true,pdftitle=Perceptual Vector Quantization for Video Coding,pdfauthor=Jean-Marc Valin]{hyperref}
+\end_preamble
+\use_default_options true
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman default
+\font_sans default
+\font_typewriter default
+\font_math auto
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100
+\font_tt_scale 100
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize default
+\spacing single
+\use_hyperref false
+\papersize default
+\use_geometry true
+\use_package amsmath 1
+\use_package amssymb 1
+\use_package cancel 1
+\use_package esint 1
+\use_package mathdots 1
+\use_package mathtools 1
+\use_package mhchem 1
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
+\cite_engine basic
+\cite_engine_type default
+\biblio_style plain
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\justification true
+\use_refstyle 1
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\leftmargin 2cm
+\topmargin 2cm
+\rightmargin 2cm
+\bottommargin 2cm
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\quotes_language english
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Title
+Directional Deringing Filter
+\end_layout
+
+\begin_layout Author
+Jean-Marc Valin
+\end_layout
+
+\begin_layout Section
+Introduction
+\end_layout
+
+\begin_layout Section
+Direction Search
+\end_layout
+
+\begin_layout Standard
+The first step is to divide the image into blocks of fixed or variable size.
+ Variable-size blocks make it possible to use large blocks on long, continuous
+ edges and small blocks where edges intersect or change direction.
+ Fixed block size is easier to implement and does not require signalling
+ the sizes on a block-by-block basis.
+ For this work, we consider a fixed block size of 8x8.
+\end_layout
+
+\begin_layout Standard
+Once the image is divided into blocks, we determine which direction best
+ matches the pattern in each block.
+ The direction is only signaled when operating as an image encoder.
+ One way to determine the direction is to minimize mean squared difference
+ (MSD) between the input block and perfectly directional block.
+ A perfectly directional block is a block for which each line along a certain
+ direction has a constant value.
+ For each direction, we assign a line number to each pixel, as shown in
+ Fig.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:Lines-for-direction"
+
+\end_inset
+
+.
+ 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+centering{
+\end_layout
+
+\end_inset
+
+
+\begin_inset Graphics
+	filename dlines.eps
+	scale 70
+
+\end_inset
+
+
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Line numbers for pixels following one direction in an 8x8 block.
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:Lines-for-direction"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+For each direction 
+\begin_inset Formula $d$
+\end_inset
+
+, the MSD is defined as:
+\begin_inset Formula 
+\begin{equation}
+\sigma_{d}^{2}=\frac{1}{N}\sum_{k\in\mathrm{block},d}\left[\sum_{p\in P_{d,k}}\left(x_{p}-\mu_{d,k}\right)^{2}\right]\ ,\label{eq:direction-variance0}
+\end{equation}
+
+\end_inset
+
+where 
+\begin_inset Formula $x_{p}$
+\end_inset
+
+ is the value of pixel 
+\begin_inset Formula $p$
+\end_inset
+
+, 
+\begin_inset Formula $P_{d,k}$
+\end_inset
+
+ is the set of pixels in line 
+\begin_inset Formula $k$
+\end_inset
+
+ following direction 
+\begin_inset Formula $d$
+\end_inset
+
+, 
+\begin_inset Formula $N$
+\end_inset
+
+ is the total number of pixels in the block, and 
+\begin_inset Formula $\mu_{k}$
+\end_inset
+
+ is the pixel average for line 
+\begin_inset Formula $k$
+\end_inset
+
+:
+\begin_inset Formula 
+\begin{equation}
+\mu_{d,k}=\frac{1}{N_{d,k}}\sum_{p\in P_{d,k}}x_{p}\ ,\label{eq:pixel-average}
+\end{equation}
+
+\end_inset
+
+where 
+\begin_inset Formula $N_{d,k}$
+\end_inset
+
+ is the cardinality of 
+\begin_inset Formula $P_{d,k}$
+\end_inset
+
+.
+ Substituting 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:pixel-average"
+
+\end_inset
+
+ into 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:direction-variance0"
+
+\end_inset
+
+ and simplifying, we get 
+\begin_inset Formula 
+\begin{equation}
+\sigma_{d}^{2}=\frac{1}{N}\left[\sum_{p\in\mathrm{block}}x_{p}^{2}-\sum_{k\in\mathrm{block},d}\frac{1}{N_{d,k}}\left(\sum_{p\in P_{d,k}}x_{p}\right)^{2}\right]\,,\label{eq:direction-variance1}
+\end{equation}
+
+\end_inset
+
+Considering that the first term of Eq.
+ 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:direction-variance1"
+
+\end_inset
+
+ is constant with respect to 
+\begin_inset Formula $d$
+\end_inset
+
+, we simply find the optimal direction 
+\begin_inset Formula $d_{opt}$
+\end_inset
+
+ as:
+\begin_inset Formula 
+\begin{equation}
+d_{opt}=\max_{d}\sum_{k\in\mathrm{block},d}\frac{1}{N_{d,k}}\left(\sum_{p\in P_{d,k}}x_{p}\right)^{2}\,.\label{eq:direction-variance2}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Directional Filter
+\end_layout
+
+\begin_layout Standard
+The directional filter for pixel 
+\begin_inset Formula $\left(i,j\right)$
+\end_inset
+
+ is defined as the 7-tap non-linear filter 
+\begin_inset Formula 
+\begin{gather}
+y\left(i,j\right)=x\left(i,j\right)+\frac{1}{W}\sum_{k=1}^{3}w_{k}\left[f\left(x\left(i,j\right)-\left(i+\left\lfloor kd_{y}\right\rfloor ,j+\left\lfloor kd_{x}\right\rfloor \right),T_{d}\right)\right.\nonumber \\
+\left.+f\left(x\left(i,j\right)-\left(i-\left\lfloor kd_{y}\right\rfloor ,j-\left\lfloor kd_{x}\right\rfloor \right),T_{d}\right)\right]\label{eq:directional_filter}
+\end{gather}
+
+\end_inset
+
+where 
+\begin_inset Formula $d_{x}$
+\end_inset
+
+ and 
+\begin_inset Formula $d_{y}$
+\end_inset
+
+ define the direction, 
+\begin_inset Formula $W$
+\end_inset
+
+ is a constant normalizing factor, 
+\begin_inset Formula $T_{d}$
+\end_inset
+
+ is the filtering threshold for the block, and 
+\begin_inset Formula $f\left(d,T_{d}\right)$
+\end_inset
+
+ is defined as
+\begin_inset Formula 
+\begin{equation}
+f\left(d,T\right)=\left\{ \begin{array}{ll}
+d & ,\left|d\right|<T_{d}\\
+0 & ,\mathrm{otherwise}
+\end{array}\right.\ .\label{eq:threshold-function}
+\end{equation}
+
+\end_inset
+
+The direction parameters are shown in Table
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "tab:Direction-parameters"
+
+\end_inset
+
+.
+ The weights 
+\begin_inset Formula $w_{k}$
+\end_inset
+
+ can be chosen so that 
+\begin_inset Formula $W$
+\end_inset
+
+ is a power of two.
+ For example, Daala currently uses 
+\begin_inset Formula $\mathbf{w}=\left[\begin{array}{ccc}
+3 & 2 & 2\end{array}\right]$
+\end_inset
+
+ with 
+\begin_inset Formula $W=16$
+\end_inset
+
+.
+ Since the direction is constant over 8x8 blocks, all operations in this
+ filter are directly vectorizable over the blocks.
+ 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float table
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+centering{
+\end_layout
+
+\end_inset
+
+
+\begin_inset Tabular
+<lyxtabular version="3" rows="9" columns="3">
+<features rotate="0" tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Direction
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $d_{x}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $d_{y}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+-1
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-1/2$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+2
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+3
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $1/2$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+4
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+5
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $1/2$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+6
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+7
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $-1/2$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Direction parameters
+\begin_inset CommandInset label
+LatexCommand label
+name "tab:Direction-parameters"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Orthogonal Direction Filter
+\end_layout
+
+\begin_layout Standard
+The 7-tap directional filter is sometimes not enough to eliminate all ringing,
+ so we use an additional filtering step in the direction orthgonal to that
+ used in the first filter.
+ Considering that the input of the second filter has considerably less ringing
+ than the input of the second filter, and the fact that the second filter
+ risks blurring edges, the position-dependent threshold 
+\begin_inset Formula $T_{2}\left(i,j\right)$
+\end_inset
+
+ for the second filter is set lower than that of the first filter 
+\begin_inset Formula $T_{d}$
+\end_inset
+
+.
+ The filter structure is the same as the one in Eq.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:directional_filter"
+
+\end_inset
+
+.
+ 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float table
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+centering{
+\end_layout
+
+\end_inset
+
+
+\begin_inset Tabular
+<lyxtabular version="3" rows="9" columns="3">
+<features rotate="0" tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Direction
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $d_{x}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $d_{y}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+2
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+3
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+4
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+5
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+6
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+7
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Orthogonal direction parameters
+\begin_inset CommandInset label
+LatexCommand label
+name "tab:Ortho-parameters"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Setting Thresholds
+\end_layout
+
+\begin_layout Standard
+The thresholds 
+\begin_inset Formula $T_{d}$
+\end_inset
+
+ and 
+\begin_inset Formula $T_{2}$
+\end_inset
+
+ must be set high enough to smooth out ringing artefacts, but low enough
+ to avoid blurring important details in the image.
+ Although the ringing is 
+\emph on
+roughly
+\emph default
+ proportional to the quantization step size 
+\begin_inset Formula $Q$
+\end_inset
+
+, as the quantizer increases the error grows slightly less than linearly
+ because the unquantized coefficients become very small compared to 
+\begin_inset Formula $Q$
+\end_inset
+
+.
+ We use a power model of the form
+\begin_inset Formula 
+\begin{equation}
+T_{d}=\alpha Q^{\beta}\ .\label{eq:setting-Td}
+\end{equation}
+
+\end_inset
+
+For the second filter, we use
+\begin_inset Formula 
+\begin{equation}
+T_{2}\left(i,j\right)=\min\left(T_{d},\left|y\left(i,j\right)-x\left(i,j\right)\right|\right)\ .\label{eq:setting-T2}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Superblock Boundaries
+\end_layout
+
+\begin_layout Section
+Results
+\end_layout
+
+\begin_layout Standard
+The deringing filter described here has been implemented for the Daala
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset citation
+LatexCommand cite
+key "Daala"
+
+\end_inset
+
+ codec.
+ It is available from the Daala Git repository
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset citation
+LatexCommand cite
+key "Daala-Git"
+
+\end_inset
+
+.
+ 
+\end_layout
+
+\begin_layout Section
+Conclusion
+\end_layout
+
+\begin_layout Standard
+We have demonstrated an effective algorithm to remove ringing artefacts
+ from coded images and videos.
+\end_layout
+
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+key "Daala"
+
+\end_inset
+
+Daala website, Xiph.Org Foundation.
+ 
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+url{http://xiph.org/daala/}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+key "Daala-Git"
+
+\end_inset
+
+Daala Git repository.
+ 
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+url{http://git.xiph.org/?p=daala.git;a=summary}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+key "Testing-draft"
+
+\end_inset
+
+T.
+ Daede, J.
+ Moffitt, 
+\emph on
+Video Codec Testing and Quality Measurement
+\emph default
+, IETF Internet draft, 2015.
+ 
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+url{https://tools.ietf.org/html/draft-daede-netvc-testing}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_body
+\end_document
