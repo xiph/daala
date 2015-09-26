@@ -137,9 +137,14 @@ endif
 
 # Example programs
 
-noinst_PROGRAMS = \
+noinst_PROGRAMS =
+
+if ENABLE_EXAMPLES
+  noinst_PROGRAMS += \
 	examples/dump_video \
 	examples/encoder_example
+endif
+
 
 if ENABLE_PLAYER_EXAMPLE
   noinst_PROGRAMS += examples/player_example

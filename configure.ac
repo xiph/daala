@@ -82,10 +82,23 @@ AC_ARG_ENABLE([logging],
 AS_IF([test "$enable_logging" = "yes"], [
   AC_DEFINE([OD_LOGGING_ENABLED], [1], [Enable logging])
 ])
+dnl Check for examples
+AC_ARG_ENABLE([examples],
+  AC_HELP_STRING([--disable-examples], [Disable the basic examples]),,
+  [enable_examples=yes])
+
+AS_IF([test "$enable_examples" = "yes"], [
+    PKG_CHECK_MODULES([OGG], [ogg >= 1.3])
+])
+
+AM_CONDITIONAL(ENABLE_EXAMPLES, [test $enable_examples = "yes"])
 
 AC_ARG_ENABLE([player],
   AS_HELP_STRING([--disable-player], [Disable the example player]),,
   enable_player=yes)
+
+AS_IF([test "$enable_examples" = "no"],
+      [enable_player = no])
 
 dnl Set LIBM to the math library if needed.
 LT_LIB_M
@@ -372,6 +385,7 @@ AC_MSG_NOTICE([
     Entropy coder accounting ..... ${enable_ec_accounting}
     Tools ........................ ${enable_tools}
     Unit tests ................... ${enable_unit_tests}
+    Examples...................... ${enable_examples}
     Example Player................ ${enable_player}
     Stream Analyzer .............. ${enable_analyzer}
 ------------------------------------------------------------------------
