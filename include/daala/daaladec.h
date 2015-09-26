@@ -137,7 +137,7 @@ typedef struct daala_setup_info daala_setup_info;
              The contents of this pointer must be initialized to <tt>NULL</tt>
               on the first call, and the returned value must continue to be
               passed in on all subsequent calls.
- * \param op The current header packet to process.
+ * \param dp The current header packet to process.
  * \return A positive value indicates that a Daala header was successfully
             processed and indicates the remaining number of headers to be read.
  * \retval 0 The last header was processed and the next packet will
@@ -184,7 +184,7 @@ void daala_decode_free(daala_dec_ctx *dec);
 /**Retrieves decoded video data frames.
  * \param dec A #daala_dec_ctx handle.
  * \param img A buffer to receive the decoded image data.
- * \param op An incoming Ogg packet.*/
+ * \param dp An incoming Daala packet.*/
 int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
  const daala_packet *dp);
 /*@}*/
