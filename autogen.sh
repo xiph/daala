@@ -7,6 +7,5 @@ test -n "$srcdir" && cd "$srcdir"
 
 echo "Updating build configuration files for daala, please wait...."
 
-ACLOCAL_FLAGS="-I m4"
 autoreconf -if
 
