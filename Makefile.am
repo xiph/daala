@@ -63,8 +63,7 @@ src_dct_SOURCES += src/arm/cpu.c
 endif
 
 
-src_libdaalabase_la_CFLAGS = $(OGG_CFLAGS)
-src_libdaalabase_la_LIBADD = $(OGG_LIBS) $(LIBM)
+src_libdaalabase_la_LIBADD = $(LIBM)
 if DUMP_IMAGES
   src_libdaalabase_la_LIBADD += $(PNG_LIBS)
 endif
@@ -105,16 +104,14 @@ src_libdaalabase_la_SOURCES += \
 	src/x86/x86state.c
 endif
 
-src_libdaaladec_la_CFLAGS = $(OGG_CFLAGS)
-src_libdaaladec_la_LIBADD = src/libdaalabase.la $(OGG_LIBS) $(LIBM)
+src_libdaaladec_la_LIBADD = src/libdaalabase.la $(LIBM)
 src_libdaaladec_la_LDFLAGS = -no-undefined \
  -version-info @OD_LT_CURRENT@:@OD_LT_REVISION@:@OD_LT_AGE@
 src_libdaaladec_la_SOURCES = \
 	src/decode.c \
 	src/infodec.c
 
-src_libdaalaenc_la_CFLAGS = $(OGG_CFLAGS)
-src_libdaalaenc_la_LIBADD = src/libdaalabase.la $(OGG_LIBS) $(LIBM)
+src_libdaalaenc_la_LIBADD = src/libdaalabase.la $(LIBM)
 if ENCODER_CHECK
   src_libdaalaenc_la_LIBADD += src/libdaaladec.la
 endif

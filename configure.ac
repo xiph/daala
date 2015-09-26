@@ -107,10 +107,9 @@ AC_CHECK_FUNCS([gettimeofday ftime],[break])
 
 AS_IF([test "$enable_player" = "yes"], [
   PKG_CHECK_MODULES([SDL], [sdl2])
+  PKG_CHECK_MODULES([OGG], [ogg >= 1.3])
 ])
 AM_CONDITIONAL([ENABLE_PLAYER_EXAMPLE], [test "$enable_player" = "yes"])
-
-PKG_CHECK_MODULES([OGG], [ogg >= 1.3])
 
 #CC_ATTRIBUTE_VISIBILITY([default], [
 #  CC_FLAG_VISIBILITY([CFLAGS="${CFLAGS} -fvisibility=hidden"])
@@ -125,6 +124,7 @@ if test "$enable_tools" = "yes" ; then
    AC_CHECK_LIB([jpeg],[jpeg_start_compress],[JPEG_LIBS="-ljpeg"],[AC_MSG_ERROR([libjpeg needed for building tools])])
    AC_SUBST([JPEG_LIBS])
    PKG_CHECK_MODULES([PNG], [libpng])
+   PKG_CHECK_MODULES([OGG], [ogg >= 1.3])
 
    AC_OPENMP
 fi
@@ -339,6 +339,7 @@ AC_ARG_ENABLE([analyzer],
   enable_analyzer=no)
 
 AS_IF([test "$enable_analyzer" = "yes"], [
+  PKG_CHECK_MODULES([OGG], [ogg >= 1.3])
   WX_CONFIG_OPTIONS
   WX_CONFIG_CHECK([2.8.0], [wxWin=1])
   if test "$wxWin" != 1 || test "$wx_ver_ok" != "yes"; then

@@ -197,6 +197,16 @@ struct daala_info {
   int keyframe_rate;
 };
 
+typedef struct {
+  unsigned char *packet;
+  long bytes;
+  long b_o_s;
+  long e_o_s;
+
+  int64_t granulepos;
+  int64_t packetno;
+} daala_packet;
+
 void daala_info_init(daala_info *info);
 void daala_info_clear(daala_info *info);
 
