@@ -28,7 +28,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 /*Flag indicating we include the chroma planes in our SAD calculations.*/
 # define OD_MC_USE_CHROMA (1 << 0)
 
-/* The maximum search range for BMA. Also controls hit cache size. */
+/*The maximum search range for BMA in fullpel units. Also controls hit cache
+   size.*/
 #define OD_MC_SEARCH_RANGE (64)
 
 typedef struct od_mv_limits od_mv_limits;
@@ -174,9 +175,10 @@ struct od_mv_est_ctx {
   int thresh2_offs[OD_NMVBSIZES];
   /*The weights used to produce the accelerated MV predictor.*/
   int32_t mvapw[2][2];
-  /*Flags indicating which MVs have already been tested during the initial
-     EPZS^2 pass.*/
-  unsigned char hit_cache[OD_MC_SEARCH_RANGE*2][OD_MC_SEARCH_RANGE*2];
+  /*Flags indicating which halfpel MVs have already been tested during the initial
+     BMA search. Valid halfpel MVs must be in the range -OD_MC_SEARCH_RANGE*2 to
+     OD_MC_SEARCH_RANGE*2, this determines the size of this cache.*/
+  unsigned char hit_cache[OD_MC_SEARCH_RANGE*2*2][OD_MC_SEARCH_RANGE*2*2];
   /*The flag used by the current EPZS search iteration.*/
   unsigned hit_bit;
   /*The Lagrangian multiplier used for R-D optimization.*/
