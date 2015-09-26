@@ -810,8 +810,8 @@ int main(int argc, char **argv) {
     fprintf(stderr,
      "     %i:%02i:%02i.%02i video: %0.0fkbps - Frame %i - %0.2f FPS - %0.2f FPM     ",
      (int)time_base/3600, ((int)time_base/60)%60, (int)time_base % 60,
-     (int)(time_base*100 - (long)time_base*100), video_kbps, current_frame_no, 
-     (current_frame_no)/time_spent, 
+     (int)(time_base*100 - (long)time_base*100), video_kbps, current_frame_no,
+     (current_frame_no)/time_spent,
      (current_frame_no)/time_spent*60);
   }
   ogg_stream_clear(&vo);
