@@ -48,7 +48,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
    in the 8x8 case.
   However, that test uses evenly distributed random inputs.
   For natural images, samples are much more correlated, and a common model is
-   an AR(0) process with a correlation coefficient of 0.95.
+   an AR(1) process with a correlation coefficient of 0.95.
   For this model, the mean squared error is very small, less then 2E-5 in the
    8x8 case.
 
