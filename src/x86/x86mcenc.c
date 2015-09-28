@@ -34,10 +34,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #  include <stdio.h>
 
-void od_mc_compute_sad_check(const unsigned char *src, int systride,
- const unsigned char *ref, int dystride, int dxstride, int w, int h, int sad) {
+void od_mc_compute_sad8_check(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride, int w, int h, int sad) {
   int c_sad;
-  c_sad = od_mc_compute_sad_c(src, systride, ref, dystride, dxstride, w, h);
+  c_sad = od_mc_compute_sad8_c(src, systride, ref, dystride, w, h);
   if (sad != c_sad) {
     fprintf(stderr, "od_mc_compute_sad %ix%i check failed: %i!=%i\n",
      w, h, sad, c_sad);
@@ -48,7 +48,7 @@ void od_mc_compute_sad_check(const unsigned char *src, int systride,
 
 #if defined(OD_GCC_INLINE_ASSEMBLY)
 /*Handle one 4x4 block with dxstride == 1.*/
-int od_mc_compute_sad_4x4_xstride_1_sse(const unsigned char *src,
+int od_mc_compute_sad8_4x4_sse(const unsigned char *src,
  int systride, const unsigned char *ref, int dystride){
   ptrdiff_t srow;
   ptrdiff_t drow;
@@ -82,13 +82,13 @@ int od_mc_compute_sad_4x4_xstride_1_sse(const unsigned char *src,
      [dystride]"r"((ptrdiff_t)dystride), [srow]"r"(srow), [drow]"r"(drow)
   );
 # if defined(OD_CHECKASM)
-  od_mc_compute_sad_check(src, systride, ref, dystride, 1, 4, 4, ret);
+  od_mc_compute_sad8_check(src, systride, ref, dystride, 4, 4, ret);
 # endif
   return ret;
 }
 
 /*Handle one 8x8 block with dxstride == 1.*/
-int od_mc_compute_sad_8x8_xstride_1_sse(const unsigned char *src,
+int od_mc_compute_sad8_8x8_sse(const unsigned char *src,
  int systride, const unsigned char *ref, int dystride){
   const unsigned char *srow;
   const unsigned char *drow;
@@ -116,13 +116,13 @@ int od_mc_compute_sad_8x8_xstride_1_sse(const unsigned char *src,
     :[ret]"=r"(ret)
   );
 # if defined(OD_CHECKASM)
-  od_mc_compute_sad_check(src, systride, ref, dystride, 1, 8, 8, ret);
+  od_mc_compute_sad8_check(src, systride, ref, dystride, 8, 8, ret);
 # endif
   return ret;
 }
 
 /*Handle one 16x16 block with dxstride == 1.*/
-int od_mc_compute_sad_16x16_xstride_1_sse2(const unsigned char *src,
+int od_mc_compute_sad8_16x16_sse2(const unsigned char *src,
  int systride, const unsigned char *ref, int dystride){
   const unsigned char *srow;
   const unsigned char *drow;
@@ -153,13 +153,13 @@ int od_mc_compute_sad_16x16_xstride_1_sse2(const unsigned char *src,
     : [ret]"=r"(ret)
   );
 # if defined(OD_CHECKASM)
-  od_mc_compute_sad_check(src, systride, ref, dystride, 1, 16, 16, ret);
+  od_mc_compute_sad8_check(src, systride, ref, dystride, 16, 16, ret);
 # endif
   return ret;
 }
 
 /*Handle one 32x32 block with dxstride == 1.*/
-int od_mc_compute_sad_32x32_xstride_1_sse2(const unsigned char *src,
+int od_mc_compute_sad8_32x32_sse2(const unsigned char *src,
  int systride, const unsigned char *ref, int dystride){
   const unsigned char *srow;
   const unsigned char *drow;
@@ -198,7 +198,7 @@ int od_mc_compute_sad_32x32_xstride_1_sse2(const unsigned char *src,
     : [ret]"=r"(ret)
   );
 # if defined(OD_CHECKASM)
-  od_mc_compute_sad_check(src, systride, ref, dystride, 1, 32, 32, ret);
+  od_mc_compute_sad8_check(src, systride, ref, dystride, 32, 32, ret);
 # endif
   return ret;
 }

@@ -37,16 +37,16 @@ void od_enc_opt_vtbl_init_x86(od_enc_ctx *enc) {
   od_enc_opt_vtbl_init_c(enc);
 #if defined(OD_GCC_INLINE_ASSEMBLY)
   if (enc->state.cpu_flags & OD_CPU_X86_SSE) {
-    enc->opt_vtbl.mc_compute_sad_4x4_xstride_1 =
-     od_mc_compute_sad_4x4_xstride_1_sse;
-    enc->opt_vtbl.mc_compute_sad_8x8_xstride_1 =
-     od_mc_compute_sad_8x8_xstride_1_sse;
+    enc->opt_vtbl.mc_compute_sad_4x4 =
+     od_mc_compute_sad8_4x4_sse;
+    enc->opt_vtbl.mc_compute_sad_8x8 =
+     od_mc_compute_sad8_8x8_sse;
   }
   if (enc->state.cpu_flags & OD_CPU_X86_SSE2) {
-    enc->opt_vtbl.mc_compute_sad_16x16_xstride_1 =
-     od_mc_compute_sad_16x16_xstride_1_sse2;
-    enc->opt_vtbl.mc_compute_sad_32x32_xstride_1 =
-     od_mc_compute_sad_32x32_xstride_1_sse2;
+    enc->opt_vtbl.mc_compute_sad_16x16 =
+     od_mc_compute_sad8_16x16_sse2;
+    enc->opt_vtbl.mc_compute_sad_32x32 =
+     od_mc_compute_sad8_32x32_sse2;
   }
 #endif
 }

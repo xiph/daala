@@ -203,12 +203,12 @@ void od_mc_predict1fmv8_c(unsigned char *dst, const unsigned char *src,
   }
 }
 
-static void od_mc_predict1fmv8(od_state *state, unsigned char *dst,
+static void od_mc_predict1fmv(od_state *state, unsigned char *dst,
  const unsigned char *src, int systride, int32_t mvx, int32_t mvy,
  int log_xblk_sz, int log_yblk_sz) {
   OD_ASSERT(OD_SUBPEL_TOP_APRON_SZ <= OD_RESAMPLE_PADDING
    && OD_SUBPEL_BOTTOM_APRON_SZ <= OD_RESAMPLE_PADDING);
-  (*state->opt_vtbl.mc_predict1fmv8)(dst, src, systride, mvx, mvy,
+  (*state->opt_vtbl.mc_predict1fmv)(dst, src, systride, mvx, mvy,
    log_xblk_sz, log_yblk_sz);
 }
 
@@ -241,9 +241,9 @@ void od_mc_blend_full8_c(unsigned char *dst, int dystride,
 }
 
 /*Perform normal bilinear blending.*/
-static void od_mc_blend_full8(od_state *state, unsigned char *dst,
+static void od_mc_blend_full(od_state *state, unsigned char *dst,
  int dystride, const unsigned char *src[4], int log_xblk_sz, int log_yblk_sz) {
-  (*state->opt_vtbl.mc_blend_full8)(dst, dystride, src,
+  (*state->opt_vtbl.mc_blend_full)(dst, dystride, src,
    log_xblk_sz, log_yblk_sz);
 }
 
@@ -268,7 +268,7 @@ void od_state_mvs_clear(od_state *state) {
 }
 #if 0
 /*Perform multiresolution bilinear blending.*/
-static void od_mc_blend_multi8(unsigned char *dst, int dystride,
+void od_mc_blend_multi8_c(unsigned char *dst, int dystride,
  const unsigned char *src[4], int log_xblk_sz, int log_yblk_sz) {
   const unsigned char *p;
   unsigned char *dst0;
@@ -461,7 +461,7 @@ static void od_mc_blend_multi8(unsigned char *dst, int dystride,
 #else
 
 /*Perform multiresolution bilinear blending.*/
-static void od_mc_blend_multi8(unsigned char *dst, int dystride,
+void od_mc_blend_multi8_c(unsigned char *dst, int dystride,
  const unsigned char *src[4], int log_xblk_sz, int log_yblk_sz) {
   unsigned char src_ll[4][8][8];
   int dst_ll[8][8];
@@ -864,10 +864,10 @@ void od_mc_blend_full_split8_c(unsigned char *dst, int dystride,
 }
 
 /*Perform normal blending with bilinear weights modified for unsplit edges.*/
-void od_mc_blend_full_split8(od_state *state, unsigned char *dst,
+void od_mc_blend_full_split(od_state *state, unsigned char *dst,
  int dystride, const unsigned char *src[4], int oc, int s,
  int log_xblk_sz, int log_yblk_sz) {
-  (*state->opt_vtbl.mc_blend_full_split8)(dst, dystride, src, oc, s,
+  (*state->opt_vtbl.mc_blend_full_split)(dst, dystride, src, oc, s,
    log_xblk_sz, log_yblk_sz);
 }
 
@@ -1938,7 +1938,7 @@ static const unsigned char *OD_MC_SIDXS[3][3][3][4] = {
 
 /*Perform multiresolution blending with bilinear weights modified for unsplit
    edges.*/
-static void od_mc_blend_multi_split8(unsigned char *dst, int dystride,
+void od_mc_blend_multi_split8_c(unsigned char *dst, int dystride,
  const unsigned char *src[4], int oc, int s,
  int log_xblk_sz, int log_yblk_sz) {
   const unsigned char *p;
@@ -2051,7 +2051,7 @@ static void od_mc_setup_split_ptrs(const unsigned char *drc[4],
 }
 
 /*Perform multiresolution bilinear blending.*/
-static void od_mc_blend_multi_split8(unsigned char *dst, int dystride,
+void od_mc_blend_multi_split8_c(unsigned char *dst, int dystride,
  const unsigned char *src[4], int oc, int s,
  int log_xblk_sz, int log_yblk_sz) {
   unsigned char src_ll[4][8][8];
@@ -2388,34 +2388,47 @@ static void od_mc_blend_multi_split8(unsigned char *dst, int dystride,
 }
 #endif
 
-static void od_mc_blend8(od_state *state, unsigned char *dst, int dystride,
+static void od_mc_blend_multi(od_state *state, unsigned char *dst,
+ int dystride, const unsigned char *src[4], int log_xblk_sz, int log_yblk_sz) {
+  (*state->opt_vtbl.mc_blend_multi)(dst, dystride, src,
+   log_xblk_sz, log_yblk_sz);
+}
+
+void od_mc_blend_multi_split(od_state *state, unsigned char *dst,
+ int dystride, const unsigned char *src[4], int oc, int s,
+ int log_xblk_sz, int log_yblk_sz) {
+  (*state->opt_vtbl.mc_blend_multi_split)(dst, dystride, src, oc, s,
+   log_xblk_sz, log_yblk_sz);
+}
+
+static void od_mc_blend(od_state *state, unsigned char *dst, int dystride,
  const unsigned char *src[4], int oc, int s,
  int log_xblk_sz, int log_yblk_sz) {
   if (0 && log_xblk_sz > 1 && log_yblk_sz > 1) {
     /*Perform multiresolution blending.*/
     if (s == 3) {
-      od_mc_blend_multi8(dst, dystride, src, log_xblk_sz, log_yblk_sz);
+      od_mc_blend_multi(state, dst, dystride, src, log_xblk_sz, log_yblk_sz);
     }
     else {
-      od_mc_blend_multi_split8(dst, dystride, src,
+      od_mc_blend_multi_split(state, dst, dystride, src,
        oc, s, log_xblk_sz, log_yblk_sz);
     }
   }
   else {
     /*The block is too small; perform normal blending.*/
     if (s == 3) {
-      od_mc_blend_full8(state, dst, dystride, src,
+      od_mc_blend_full(state, dst, dystride, src,
        log_xblk_sz, log_yblk_sz);
     }
     else {
-      od_mc_blend_full_split8(state, dst, dystride, src,
+      od_mc_blend_full_split(state, dst, dystride, src,
        oc, s, log_xblk_sz, log_yblk_sz);
     }
   }
 }
 
 
-void od_mc_predict8_singleref(od_state *state, unsigned char *dst,
+void od_mc_predict_singleref(od_state *state, unsigned char *dst,
  int dystride, const unsigned char *src, int systride,
  const int32_t mvx[4], /* This is x coord for the four
                             motion vectors of the four corners
@@ -2427,19 +2440,19 @@ void od_mc_predict8_singleref(od_state *state, unsigned char *dst,
  int log_yblk_sz
 ) {
   const unsigned char *pred[4];
-  od_mc_predict1fmv8(state, state->mc_buf[0], src, systride,
+  od_mc_predict1fmv(state, state->mc_buf[0], src, systride,
    mvx[0], mvy[0], log_xblk_sz, log_yblk_sz);
   pred[0] = state->mc_buf[0];
   if (mvx[1] == mvx[0] && mvy[1] == mvy[0]) pred[1] = pred[0];
   else {
-    od_mc_predict1fmv8(state, state->mc_buf[1], src, systride,
+    od_mc_predict1fmv(state, state->mc_buf[1], src, systride,
      mvx[1], mvy[1], log_xblk_sz, log_yblk_sz);
     pred[1] = state->mc_buf[1];
   }
   if (mvx[2] == mvx[0] && mvy[2] == mvy[0]) pred[2] = pred[0];
   else if (mvx[2] == mvx[1] && mvy[2] == mvy[1]) pred[2] = pred[1];
   else {
-    od_mc_predict1fmv8(state, state->mc_buf[2], src, systride,
+    od_mc_predict1fmv(state, state->mc_buf[2], src, systride,
      mvx[2], mvy[2], log_xblk_sz, log_yblk_sz);
     pred[2] = state->mc_buf[2];
   }
@@ -2447,16 +2460,16 @@ void od_mc_predict8_singleref(od_state *state, unsigned char *dst,
   else if (mvx[3] == mvx[1] && mvy[3] == mvy[1]) pred[3] = pred[1];
   else if (mvx[3] == mvx[2] && mvy[3] == mvy[2]) pred[3] = pred[2];
   else {
-    od_mc_predict1fmv8(state, state->mc_buf[3], src, systride,
+    od_mc_predict1fmv(state, state->mc_buf[3], src, systride,
      mvx[3], mvy[3], log_xblk_sz, log_yblk_sz);
     pred[3] = state->mc_buf[3];
   }
-  od_mc_blend8(state, dst, dystride, pred,
+  od_mc_blend(state, dst, dystride, pred,
    oc, s, log_xblk_sz, log_yblk_sz);
 }
 
-/* TODO: Identical MV optimizations like od_mc_predict8_singleref. */
-void od_mc_predict8(od_state *state, unsigned char *dst,
+/* TODO: Identical MV optimizations like od_mc_predict_singleref. */
+void od_mc_predict(od_state *state, unsigned char *dst,
  int dystride, const unsigned char *src[4], int systride,
  const int32_t mvx[4], const int32_t mvy[4],
  int oc,  /* index of outside corner  */
@@ -2465,24 +2478,24 @@ void od_mc_predict8(od_state *state, unsigned char *dst,
  int log_yblk_sz) {
   const unsigned char *pred[4];
   if ((src[0] == src[1]) && (src[0] == src[2]) && (src[0] == src[3])) {
-    od_mc_predict8_singleref(state, dst, dystride, src[0], systride, mvx, mvy,
+    od_mc_predict_singleref(state, dst, dystride, src[0], systride, mvx, mvy,
      oc, s, log_xblk_sz, log_yblk_sz);
     return;
   }
-  od_mc_predict1fmv8(state, state->mc_buf[0], src[0], systride,
+  od_mc_predict1fmv(state, state->mc_buf[0], src[0], systride,
    mvx[0], mvy[0], log_xblk_sz, log_yblk_sz);
   pred[0] = state->mc_buf[0];
-  od_mc_predict1fmv8(state, state->mc_buf[1], src[1], systride,
+  od_mc_predict1fmv(state, state->mc_buf[1], src[1], systride,
    mvx[1], mvy[1], log_xblk_sz, log_yblk_sz);
   pred[1] = state->mc_buf[1];
-  od_mc_predict1fmv8(state, state->mc_buf[2], src[2], systride,
+  od_mc_predict1fmv(state, state->mc_buf[2], src[2], systride,
    mvx[2], mvy[2], log_xblk_sz, log_yblk_sz);
   pred[2] = state->mc_buf[2];
-  od_mc_predict1fmv8(state, state->mc_buf[3], src[3], systride,
+  od_mc_predict1fmv(state, state->mc_buf[3], src[3], systride,
    mvx[3], mvy[3], log_xblk_sz, log_yblk_sz);
   pred[3] = state->mc_buf[3];
 
-  od_mc_blend8(state, dst, dystride, pred,
+  od_mc_blend(state, dst, dystride, pred,
    oc, s, log_xblk_sz, log_yblk_sz);
 }
 

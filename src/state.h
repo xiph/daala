@@ -94,12 +94,17 @@ extern const int *const OD_VERT_SETUP_DY[4][4];
 
 /*The shared (encoder and decoder) functions that have accelerated variants.*/
 struct od_state_opt_vtbl{
-  void (*mc_predict1fmv8)(unsigned char *_dst, const unsigned char *_src,
+  void (*mc_predict1fmv)(unsigned char *_dst, const unsigned char *_src,
    int _systride, int32_t _mvx, int32_t _mvy,
    int _log_xblk_sz, int _log_yblk_sz);
-  void (*mc_blend_full8)(unsigned char *_dst, int _dystride,
+  void (*mc_blend_full)(unsigned char *_dst, int _dystride,
    const unsigned char *_src[4], int _log_xblk_sz, int _log_yblk_sz);
-  void (*mc_blend_full_split8)(unsigned char *_dst, int _dystride,
+  void (*mc_blend_full_split)(unsigned char *_dst, int _dystride,
+   const unsigned char *_src[4], int _c, int _s,
+   int _log_xblk_sz, int _log_yblk_sz);
+  void (*mc_blend_multi)(unsigned char *_dst, int _dystride,
+   const unsigned char *_src[4], int _log_xblk_sz, int _log_yblk_sz);
+  void (*mc_blend_multi_split)(unsigned char *_dst, int _dystride,
    const unsigned char *_src[4], int _c, int _s,
    int _log_xblk_sz, int _log_yblk_sz);
   void (*restore_fpu)(void);
@@ -236,17 +241,16 @@ void od_state_clear(od_state *_state);
 void od_img_copy(od_img* dest, od_img* src);
 void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe);
 void od_state_set_mv_res(od_state *state, int mv_res);
-void od_state_pred_block_from_setup(od_state *_state, unsigned char *_buf,
- int _ystride, int _pli, int _vx, int _vy, int _c, int _s,
- int _log_mvb_sz);
-void od_state_pred_block(od_state *_state, unsigned char *_buf, int _ystride,
- int _pli, int _vx, int _vy, int _log_mvb_sz);
-void od_state_mc_predict(od_state *_state, od_img *dst);
-void od_state_init_border(od_state *_state);
-int od_state_dump_yuv(od_state *_state, od_img *_img, const char *_tag);
+void od_state_pred_block_from_setup(od_state *state, unsigned char *buf,
+ int ystride, int pli, int vx, int vy, int c, int s, int log_mvb_sz);
+void od_state_pred_block(od_state *state, unsigned char *buf,
+ int ystride, int xstride, int pli, int vx, int vy, int log_mvb_sz);
+void od_state_mc_predict(od_state *state, od_img *dst);
+void od_state_init_border(od_state *state);
+int od_state_dump_yuv(od_state *state, od_img *img, const char *tag);
 void od_img_edge_ext(od_img* src);
 # if defined(OD_DUMP_IMAGES)
-int od_state_dump_img(od_state *_state, od_img *_img, const char *_tag);
+int od_state_dump_img(od_state *state, od_img *img, const char *tag);
 # endif
 
 /*Shared accelerated functions.*/
@@ -258,6 +262,11 @@ void od_mc_predict1fmv8_c(unsigned char *_dst, const unsigned char *_src,
 void od_mc_blend_full8_c(unsigned char *_dst, int _dystride,
  const unsigned char *_src[4], int _log_xblk_sz, int _log_yblk_sz);
 void od_mc_blend_full_split8_c(unsigned char *_dst, int _dystride,
+ const unsigned char *_src[4], int _c, int _s, int _log_xblk_sz,
+ int _log_yblk_sz);
+void od_mc_blend_multi8_c(unsigned char *_dst, int _dystride,
+ const unsigned char *_src[4], int _log_xblk_sz, int _log_yblk_sz);
+void od_mc_blend_multi_split8_c(unsigned char *_dst, int _dystride,
  const unsigned char *_src[4], int _c, int _s, int _log_xblk_sz,
  int _log_yblk_sz);
 void od_restore_fpu(od_state *state);

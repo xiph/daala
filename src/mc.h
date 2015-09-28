@@ -95,10 +95,10 @@ extern const int16_t OD_SUBPEL_FILTER_SET[8][8];
  + OD_SUBPEL_BOTTOM_APRON_SZ)
 #define OD_SUBPEL_COEFF_NORMALIZE (128 << OD_SUBPEL_COEFF_SCALE)
 
-void od_mc_predict8_singleref(od_state *state, unsigned char *dst, int dystride,
+void od_mc_predict_singleref(od_state *state, unsigned char *dst, int dystride,
  const unsigned char *src, int systride, const int32_t mvx[4],
  const int32_t mvy[4], int oc, int s, int log_xblk_sz, int log_yblk_sz);
-void od_mc_predict8(od_state *state, unsigned char *dst, int dystride,
+void od_mc_predict(od_state *state, unsigned char *dst, int dystride,
  const unsigned char *src[4], int systride, const int32_t mvx[4],
  const int32_t mvy[4], int oc, int s, int log_xblk_sz, int log_yblk_sz);
 void od_state_mvs_clear(od_state *state);
