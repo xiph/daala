@@ -300,7 +300,7 @@ static int od_state_init_impl(od_state *state, const daala_info *info) {
   }
   state->bstride = (state->nhsb + 2)*4;
   state->bsize += 4*state->bstride + 4;
-  state->skip_stride = state->nhsb*8;
+  state->skip_stride = state->nhsb << (OD_NBSIZES - 1);
 #if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
   state->dump_tags = 0;
   state->dump_files = 0;
