@@ -39,7 +39,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #define OD_PVQ_RATE_APPROX (0)
 
-static void od_encode_pvq_codeword(od_ec_enc *ec, od_adapt_ctx *adapt,
+static void od_encode_pvq_codeword(od_ec_enc *ec, od_pvq_codeword_ctx *adapt,
  const od_coeff *in, int n, int k, int noref, int bs) {
   if (k == 1 && n < 16) {
     int cdf_id;
@@ -260,12 +260,12 @@ static double od_pvq_rate(int qg, int icgr, int theta, int ts,
 #else
   if (k > 0){
     od_ec_enc ec;
-    od_adapt_ctx ad;
+    od_pvq_codeword_ctx cd;
     int tell;
     od_ec_enc_init(&ec, 1000);
-    OD_COPY(&ad, adapt, 1);
+    OD_COPY(&cd, &adapt->pvq_codeword_ctx, 1);
     tell = od_ec_enc_tell_frac(&ec);
-    od_encode_pvq_codeword(&ec, &ad, y0, n, k, theta == -1, bs);
+    od_encode_pvq_codeword(&ec, &cd, y0, n, k, theta == -1, bs);
     rate = (od_ec_enc_tell_frac(&ec)-tell)/8.;
     od_ec_enc_clear(&ec);
   }
@@ -573,7 +573,7 @@ static void pvq_encode_partition(od_ec_enc *ec,
      &tmp, 2);
     OD_IIR_DIADIC(*ext, theta << 16, 2);
   }
-  od_encode_pvq_codeword(ec, adapt, in, n, k, theta == -1, bs);
+  od_encode_pvq_codeword(ec, &adapt->pvq_codeword_ctx, in, n, k, theta == -1, bs);
 }
 
 /** Quantizes a scalar with rate-distortion optimization (RDO)

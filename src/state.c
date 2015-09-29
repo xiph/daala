@@ -412,17 +412,19 @@ void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe) {
   int bs;
   int level;
   int pli;
+  od_pvq_codeword_ctx *ctx;
+  ctx = &state->pvq_codeword_ctx;
   generic_model_init(&state->pvq_param_model[0]);
   generic_model_init(&state->pvq_param_model[1]);
   generic_model_init(&state->pvq_param_model[2]);
   for (i = 0; i < 2*OD_NBSIZES; i++) {
-    state->pvq_adapt[4*i + OD_ADAPT_K_Q8] = 384;
-    state->pvq_adapt[4*i + OD_ADAPT_SUM_EX_Q8] = 256;
-    state->pvq_adapt[4*i + OD_ADAPT_COUNT_Q8] = 104;
-    state->pvq_adapt[4*i + OD_ADAPT_COUNT_EX_Q8] = 128;
+    ctx->pvq_adapt[4*i + OD_ADAPT_K_Q8] = 384;
+    ctx->pvq_adapt[4*i + OD_ADAPT_SUM_EX_Q8] = 256;
+    ctx->pvq_adapt[4*i + OD_ADAPT_COUNT_Q8] = 104;
+    ctx->pvq_adapt[4*i + OD_ADAPT_COUNT_EX_Q8] = 128;
   }
-  state->pvq_k1_increment = 128;
-  OD_CDFS_INIT(state->pvq_k1_cdf, state->pvq_k1_increment);
+  ctx->pvq_k1_increment = 128;
+  OD_CDFS_INIT(ctx->pvq_k1_cdf, ctx->pvq_k1_increment);
   for (pli = 0; pli < OD_NPLANES_MAX; pli++) {
     for (bs = 0; bs < OD_NBSIZES; bs++)
     for (i = 0; i < PVQ_MAX_PARTITIONS; i++) {
