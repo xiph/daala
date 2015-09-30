@@ -64,6 +64,10 @@ typedef struct {
   int fullscreen;
   int valid;
   int plane_mask;
+  /*Lookup tables for YUV-to-RGB conversion.*/
+  uint8_t rval_table[256][256];
+  uint8_t gval_table[256][256][256];
+  uint8_t bval_table[256][256];
 } player_example;
 
 static void ogg_to_daala_packet(daala_packet *dp, ogg_packet *op) {
@@ -84,11 +88,13 @@ enum {
   OD_ALL_MASK = OD_LUMA_MASK | OD_CB_MASK | OD_CR_MASK
 };
 
-static void img_to_rgb(SDL_Texture *tex, const od_img *img, int plane_mask);
+static void img_to_rgb(player_example *player, SDL_Texture *tex,
+ const od_img *img, int plane_mask);
 static int next_plane(int plane_mask);
 static void wait_to_refresh(uint32_t *previous_ticks, uint32_t ms_per_frame);
 
 int player_example_init(player_example *player);
+void build_yuv_to_rgb_table(player_example *player);
 player_example *player_example_create();
 int player_example_clear(player_example *player);
 int player_example_free(player_example *player);
@@ -138,6 +144,7 @@ int player_example_init(player_example *player) {
   player->valid = 0;
   player->od_state = ODS_NONE;
   player->plane_mask = OD_ALL_MASK;
+  build_yuv_to_rgb_table(player);
   return 0;
 }
 
@@ -276,7 +283,7 @@ void player_example_handle_event(player_example *player, SDL_Event *event) {
           player->fullscreen = !player->fullscreen;
           SDL_SetWindowFullscreen(player->screen,
               player->fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
-          img_to_rgb(player->texture, &player->img, player->plane_mask);
+          img_to_rgb(player, player->texture, &player->img, player->plane_mask);
           player_example_display_frame(player);
           break;
         }
@@ -435,7 +442,7 @@ int player_example_play(player_example *player) {
           }
           if ((!player->restart) && (!player->done)) {
             wait_to_refresh(&ticks, ms_per_frame);
-            img_to_rgb(player->texture, &player->img, player->plane_mask);
+            img_to_rgb(player, player->texture, &player->img, player->plane_mask);
             player_example_display_frame(player);
           }
           break;
@@ -529,7 +536,54 @@ int main(int argc, char *argv[]) {
 #define OD_CLAMP255(x) \
   ((unsigned char)((((x) < 0) - 1) & ((x) | -((x) > 255))))
 
-void img_to_rgb(SDL_Texture *texture, const od_img *img, int plane_mask) {
+unsigned rgb_rval(int64_t yval, int64_t crval) {
+  return OD_CLAMPI(0, (int32_t)OD_DIV_ROUND(
+   2916394880000LL*yval + 4490222169144LL*crval, 9745792000LL), 65535);
+}
+
+unsigned rgb_bval(int64_t yval, int64_t cbval) {
+  return OD_CLAMPI(0, (int32_t)OD_DIV_ROUND(
+   2916394880000LL*yval + 5290866304968LL*cbval, 9745792000LL), 65535);
+}
+
+unsigned rgb_gval(int64_t yval, int64_t cbval, int64_t crval) {
+  return OD_CLAMPI(0, (int32_t)OD_DIV_ROUND(
+   2916394880000LL*yval - 534117096223LL*cbval - 1334761232047LL*crval,
+   9745792000LL), 65535);
+}
+
+void build_yuv_to_rgb_table(player_example *player) {
+  int y;
+  int cr;
+  int cb;
+  int64_t yval;
+  int64_t cbval;
+  int64_t crval;
+  int plane_mask;
+  plane_mask = OD_ALL_MASK;
+  for (y = 0; y < 256; y++) {
+    yval = (plane_mask & OD_LUMA_MASK) * (y - 16)
+           + (((plane_mask & OD_LUMA_MASK) ^ OD_LUMA_MASK) << 7);
+    for (cr = 0; cr < 256; cr++) {
+      crval = ((plane_mask & OD_CR_MASK) >> 2) * (cr - 128);
+      player->rval_table[y][cr] = rgb_rval(yval, crval) >> 8;
+    }
+    for (cb = 0; cb < 256; cb++) {
+      cbval = ((plane_mask & OD_CB_MASK) >> 1) * (cb - 128);
+      player->bval_table[y][cb] = rgb_rval(yval, cbval) >> 8;
+    }
+    for (cb = 0; cb < 256; cb++) {
+      for (cr = 0; cr < 256; cr++) {
+        crval = ((plane_mask & OD_CR_MASK) >> 2) * (cr - 128);
+        cbval = ((plane_mask & OD_CB_MASK) >> 1) * (cb - 128);
+        player->gval_table[y][cb][cr] = rgb_gval(yval, cbval, crval) >> 8;
+      }
+    }
+  }
+}
+
+void img_to_rgb(player_example *player, SDL_Texture *texture,
+ const od_img *img, int plane_mask) {
   unsigned char *y_row;
   unsigned char *cb_row;
   unsigned char *cr_row;
@@ -586,21 +640,24 @@ void img_to_rgb(SDL_Texture *texture, const od_img *img, int plane_mask) {
       unsigned rval;
       unsigned gval;
       unsigned bval;
-      yval = (plane_mask & OD_LUMA_MASK) * (*y - 16)
-       + (((plane_mask & OD_LUMA_MASK) ^ OD_LUMA_MASK) << 7);
-      cbval = ((plane_mask & OD_CB_MASK) >> 1) * (*cb - 128);
-      crval = ((plane_mask & OD_CR_MASK) >> 2) * (*cr - 128);
-      /*This is intentionally slow and very accurate.*/
-      rval = OD_CLAMPI(0, (int32_t)OD_DIV_ROUND(
-       2916394880000LL*yval + 4490222169144LL*crval, 9745792000LL), 65535);
-      gval = OD_CLAMPI(0, (int32_t)OD_DIV_ROUND(
-       2916394880000LL*yval - 534117096223LL*cbval - 1334761232047LL*crval,
-       9745792000LL), 65535);
-      bval = OD_CLAMPI(0, (int32_t)OD_DIV_ROUND(
-       2916394880000LL*yval + 5290866304968LL*cbval, 9745792000LL), 65535);
-      *(pixels + pitch*j + i++) = (unsigned char)(bval >> 8);
-      *(pixels + pitch*j + i++) = (unsigned char)(gval >> 8);
-      *(pixels + pitch*j + i++) = (unsigned char)(rval >> 8);
+      if (plane_mask == OD_ALL_MASK) {
+        /*Use precomputed lookup table, only available for OD_ALL_MASK.*/
+        rval = player->rval_table[*y][*cr];
+        gval = player->gval_table[*y][*cb][*cr];
+        bval = player->bval_table[*y][*cb];
+      } else {
+        yval = (plane_mask & OD_LUMA_MASK) * (*y - 16)
+         + (((plane_mask & OD_LUMA_MASK) ^ OD_LUMA_MASK) << 7);
+        cbval = ((plane_mask & OD_CB_MASK) >> 1) * (*cb - 128);
+        crval = ((plane_mask & OD_CR_MASK) >> 2) * (*cr - 128);
+        /*This is intentionally slow and very accurate.*/
+        rval = rgb_rval(yval, crval) >> 8;
+        gval = rgb_gval(yval, cbval, crval) >> 8;
+        bval = rgb_bval(yval, cbval) >> 8;
+      }
+      *(pixels + pitch*j + i++) = (unsigned char)(bval);
+      *(pixels + pitch*j + i++) = (unsigned char)(gval);
+      *(pixels + pitch*j + i++) = (unsigned char)(rval);
       *(pixels + pitch*j + i++) = 0;
       dc = ((y - y_row) & 1) | (1 - xdec);
       y++;
