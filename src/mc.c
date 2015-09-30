@@ -2565,6 +2565,7 @@ int od_state_get_predictor(od_state *state,
   int mvb_sz;
   int ncns;
   int ci;
+  int an;
   ncns = 4;
   mvb_sz = 1 << ((OD_MC_LEVEL_MAX - level) >> 1);
   if (level == 0) {
@@ -2599,20 +2600,24 @@ int od_state_get_predictor(od_state *state,
       else cneighbors[ncns - 1] = state->mv_grid[vy + mvb_sz] + vx;
     }
   }
+  an = 0;
   for (ci = 0; ci < ncns; ci++) {
-    a[ci][0] = cneighbors[ci]->mv[0];
-    a[ci][1] = cneighbors[ci]->mv[1];
+    if (cneighbors[ci]->ref == ref) {
+      a[an][0] = cneighbors[ci]->mv[0];
+      a[an][1] = cneighbors[ci]->mv[1];
+      an++;
+    }
 #if defined(OD_ENABLE_LOGGING)
     if (!cneighbors[ci]->valid) {
       OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_ERR,
        "Failure in MV pred: predictor (%i, %i) for (%i, %i) is not valid",
-	     a[ci][0], a[ci][1], vx, vy));
+       a[an][0], a[an][1], vx, vy));
     }
 #endif
     OD_ASSERT(cneighbors[ci]->valid);
   }
   /*Median-of-4.*/
-  if (ncns > 3) {
+  if (an > 3) {
     OD_LOG((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG, "Median of 4:"));
     OD_LOG((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG,
      "(%i, %i) (%i, %i) (%i, %i) (%i, %i)", a[0][0], a[0][1],
@@ -2650,8 +2655,7 @@ This last compare is unneeded for a median:
     pred[1] = OD_DIV_POW2_RE(a[1][1] + a[2][1], mv_res + 1);
   }
   /*Median-of-3.*/
-  else {
-    OD_ASSERT(ncns == 3);
+  else if (an > 2) {
     OD_LOG((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG, "Median of 3:"));
     OD_LOG((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG,
      "(%i, %i) (%i, %i) (%i, %i)",
@@ -2667,6 +2671,18 @@ This last compare is unneeded for a median:
      a[0][0], a[0][1], a[1][0], a[1][1], a[2][0], a[2][1]));
     pred[0] = OD_DIV_POW2_RE(a[1][0], mv_res);
     pred[1] = OD_DIV_POW2_RE(a[1][1], mv_res);
+  }
+  else if (an > 1) {
+    pred[0] = OD_DIV_POW2_RE(a[0][0] + a[1][0], mv_res + 1);
+    pred[1] = OD_DIV_POW2_RE(a[0][1] + a[1][1], mv_res + 1);
+  }
+  else if (an > 0) {
+    pred[0] = OD_DIV_POW2_RE(a[0][0], mv_res);
+    pred[1] = OD_DIV_POW2_RE(a[0][1], mv_res);
+  }
+  else {
+    pred[0] = 0;
+    pred[1] = 0;
   }
   equal_mvs = 0;
   for (ci = 0; ci < ncns; ci++) {
