@@ -31,6 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "logging.h"
 #include "mc.h"
 #include "state.h"
+#include "util.h"
 
 /*Motion compensation routines shared between the encoder and decoder.*/
 
@@ -195,10 +196,17 @@ void od_mc_predict1fmv8_c(unsigned char *dst, const unsigned char *src,
   }
   /*MC with full-pel MV, i.e. integer position.*/
   else {
-    for (j = 0; j < yblk_sz; j++) {
-      OD_COPY(dst_p, src_p, xblk_sz);
-      src_p += systride;
-      dst_p += xblk_sz;
+    if (yblk_sz == xblk_sz && log_yblk_sz == 16) {
+      od_copy_16x16(dst_p, xblk_sz, src_p, systride);
+    }
+    else if (yblk_sz == xblk_sz && log_yblk_sz == 32) {
+      od_copy_32x32(dst_p, xblk_sz, src_p, systride);
+    }
+    else if (yblk_sz == xblk_sz && log_yblk_sz == 64) {
+      od_copy_64x64(dst_p, xblk_sz, src_p, systride);
+    }
+    else {
+      od_copy_nxm(dst_p, xblk_sz, src_p, systride, xblk_sz, yblk_sz);
     }
   }
 }

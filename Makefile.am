@@ -9,6 +9,7 @@ lib_LTLIBRARIES = src/libdaalabase.la src/libdaaladec.la src/libdaalaenc.la
 AM_CPPFLAGS = -I$(srcdir)/include
 
 noinst_HEADERS = \
+	src/util.h \
 	src/adapt.h \
 	src/block_size.h \
 	src/block_size_enc.h \
@@ -72,6 +73,7 @@ src_libdaalabase_la_LDFLAGS = -no-undefined \
 src_libdaalabase_la_LDFLAGS +=
 src_libdaalabase_la_SOURCES = \
 	src/accounting.c \
+	src/util.c \
 	src/adapt.c \
 	src/entcode.c \
 	src/entdec.c \
@@ -100,6 +102,7 @@ src_libdaalabase_la_SOURCES = \
 	$(src_dct_SOURCES)
 if ENABLE_X86ASM
 src_libdaalabase_la_SOURCES += \
+	src/x86/x86util.c \
 	src/x86/sse2mc.c \
 	src/x86/x86state.c
 endif
@@ -331,6 +334,7 @@ tools_upsample_SOURCES = \
 	tools/upsample.c
 if ENABLE_X86ASM
 tools_upsample_SOURCES += \
+	src/x86/c86util.c \
 	src/x86/sse2mc.c \
 	src/x86/x86state.c
 endif
