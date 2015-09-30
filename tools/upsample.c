@@ -48,9 +48,22 @@ static void usage(char **_argv) {
 static const char *CHROMA_TAGS[4] = { " C420jpeg", "", " C422jpeg", " C444" };
 
 /*Upsamples the reconstructed image to a reference image.
-  TODO: Pipeline with reconstruction.*/
-void od_img_upsample8(od_state *state, od_img *dimg, const od_img *simg) {
+  Forked version of code once used by the encoder, but is now only used
+   in conditionally compiled visualization output.*/
+void upsample8(od_img *dimg, const od_img *simg) {
+  int i;
   int pli;
+  unsigned char *line_buf[8];
+  int buf_width;
+  buf_width = simg->width + (OD_BUFFER_PADDING << 1);
+  line_buf[0] = (unsigned char *)od_aligned_malloc(buf_width << 4, 32);
+  if (OD_UNLIKELY(!line_buf[0])) {
+    return;
+  }
+  /*Fill in the line buffers.*/
+  for (i = 1; i < 8; i++) {
+    line_buf[i] = line_buf[i-1] + (buf_width << 1);
+  }
   for (pli = 0; pli < simg->nplanes; pli++) {
     const od_img_plane *siplane;
     od_img_plane *diplane;
@@ -74,12 +87,8 @@ void od_img_upsample8(od_state *state, od_img *dimg, const od_img *simg) {
       /*Horizontal filtering:*/
       if (y < h + ypad) {
         unsigned char *buf;
-        buf = state->ref_line_buf[y & 7];
+        buf = line_buf[y & 7];
         memset(buf - (xpad << 1), src[0], (xpad - 2) << 1);
-        /*for (x = -xpad; x < -2; x++) {
-          *(buf + (x << 1)) = src[0];
-          *(buf + (x << 1 | 1)) = src[0];
-        }*/
         *(buf - 4) = src[0];
         *(buf - 3) = OD_CLAMP255((31*src[0] + src[1] + 16) >> 5);
         *(buf - 2) = src[0];
@@ -110,66 +119,43 @@ void od_img_upsample8(od_state *state, od_img *dimg, const od_img *simg) {
         buf[x << 1] = src[w - 1];
         buf[x << 1 | 1] = OD_CLAMP255((31*src[w - 1] + src[w - 2] + 16) >> 5);
         memset(buf + (++x << 1), src[w - 1], (xpad - 1) << 1);
-        /*for (x++; x < w + xpad; x++) {
-          buf[x << 1] = src[w - 1];
-          buf[x << 1 | 1]=src[w - 1];
-        }*/
         if (y >= 0 && y + 1 < h) src += siplane->ystride;
       }
       /*Vertical filtering:*/
       if (y >= -ypad + 3) {
         if (y < 1 || y > h + 3) {
           OD_COPY(dst - (xpad << 1),
-           state->ref_line_buf[(y - 3) & 7] - (xpad << 1),
+           line_buf[(y - 3) & 7] - (xpad << 1),
            (w + (xpad << 1)) << 1);
-          /*fprintf(stderr, "%3i: ", (y - 3) << 1);
-          for (x = -xpad << 1; x < (w + xpad) << 1; x++) {
-            fprintf(stderr, "%02X", *(dst + x));
-          }
-          fprintf(stderr, "\n");*/
           dst += diplane->ystride;
           OD_COPY(dst - (xpad << 1),
-           state->ref_line_buf[(y - 3) & 7] - (xpad << 1),
+           line_buf[(y - 3) & 7] - (xpad << 1),
            (w + (xpad << 1)) << 1);
-          /*fprintf(stderr, "%3i: ", (y - 3) << 1 | 1);
-          for (x = -xpad << 1; x < (w + xpad) << 1; x++) {
-            fprintf(stderr, "%02X", *(dst + x));
-          }
-          fprintf(stderr, "\n");*/
           dst += diplane->ystride;
         }
         else {
           unsigned char *buf[6];
-          buf[0] = state->ref_line_buf[(y - 5) & 7];
-          buf[1] = state->ref_line_buf[(y - 4) & 7];
-          buf[2] = state->ref_line_buf[(y - 3) & 7];
-          buf[3] = state->ref_line_buf[(y - 2) & 7];
-          buf[4] = state->ref_line_buf[(y - 1) & 7];
-          buf[5] = state->ref_line_buf[(y - 0) & 7];
+          buf[0] = line_buf[(y - 5) & 7];
+          buf[1] = line_buf[(y - 4) & 7];
+          buf[2] = line_buf[(y - 3) & 7];
+          buf[3] = line_buf[(y - 2) & 7];
+          buf[4] = line_buf[(y - 1) & 7];
+          buf[5] = line_buf[(y - 0) & 7];
           OD_COPY(dst - (xpad << 1),
-           state->ref_line_buf[(y - 3) & 7] - (xpad << 1),
+           line_buf[(y - 3) & 7] - (xpad << 1),
            (w + (xpad << 1)) << 1);
-          /*fprintf(stderr, "%3i: ", (y - 3) << 1);
-          for (x = -xpad << 1; x < (w + xpad) << 1; x++) {
-            fprintf(stderr, "%02X", *(dst + x));
-          }
-          fprintf(stderr, "\n");*/
           dst += diplane->ystride;
           for (x = -xpad << 1; x < (w + xpad) << 1; x++) {
             *(dst + x) = OD_CLAMP255((20*(*(buf[2] + x) + *(buf[3] + x))
              - 5*(*(buf[1] + x) + *(buf[4] + x))
              + *(buf[0] + x) + *(buf[5] + x) + 16) >> 5);
           }
-          /*fprintf(stderr, "%3i: ", (y - 3) << 1 | 1);
-          for (x = -xpad << 1; x < (w + xpad) << 1; x++) {
-            fprintf(stderr, "%02X", *(dst + x));
-          }
-          fprintf(stderr, "\n");*/
           dst += diplane->ystride;
         }
       }
     }
   }
+  od_aligned_free(line_buf[0]);
 }
 
 
@@ -283,7 +269,7 @@ int main(int _argc, char **_argv) {
         src += src_stride;
       }
     }
-    od_img_upsample8(&state, dimg, simg);
+    upsample8(dimg, simg);
     fprintf(fout, "FRAME\n");
     for (pli = 0; pli < 3; pli++) {
       od_img_plane *diplane = dimg->planes + pli;

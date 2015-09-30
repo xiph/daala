@@ -124,7 +124,6 @@ static int od_state_ref_imgs_init(od_state *state, int nrefs) {
   int plane_buf_height;
   int imgi;
   int pli;
-  int y;
   OD_ASSERT(nrefs == 4);
   info = &state->info;
   data_sz = 0;
@@ -137,8 +136,6 @@ static int od_state_ref_imgs_init(od_state *state, int nrefs) {
     plane_buf_height = frame_buf_height >> info->plane_info[pli].ydec;
     data_sz += plane_buf_width*plane_buf_height*nrefs;
   }
-  /*Reserve space for the line buffer in the up-sampler.*/
-  data_sz += (frame_buf_width << 1)*8;
   state->ref_img_data = ref_img_data =
     (unsigned char *)od_aligned_malloc(data_sz, 32);
   if (OD_UNLIKELY(!ref_img_data)) {
@@ -163,11 +160,6 @@ static int od_state_ref_imgs_init(od_state *state, int nrefs) {
       iplane->xstride = 1;
       iplane->ystride = plane_buf_width;
     }
-  }
-  /*Fill in the line buffers.*/
-  for (y = 0; y < 8; y++) {
-    state->ref_line_buf[y] = ref_img_data + (OD_BUFFER_PADDING << 1);
-    ref_img_data += frame_buf_width << 1;
   }
   /*Mark all of the reference image buffers available.*/
   for (imgi = 0; imgi < nrefs; imgi++) state->ref_imgi[imgi] = -1;

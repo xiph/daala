@@ -184,7 +184,6 @@ struct od_state{
   /** Pointers to the ref images so one can move them around without coping
       them. */
   od_img              ref_imgs[OD_FRAME_MAX+1];
-  unsigned char *ref_line_buf[8];
   unsigned char *ref_img_data;
   /** Increments by 1 for each frame. */
   int64_t         cur_time;

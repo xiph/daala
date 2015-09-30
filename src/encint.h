@@ -125,8 +125,9 @@ struct daala_enc_ctx{
   od_img input_img;
   unsigned char *input_img_data;
 #if defined(OD_DUMP_IMAGES)
-  od_img              vis_img;
-  od_img              tmp_vis_img;
+  od_img vis_img;
+  od_img tmp_vis_img;
+  unsigned char *upsample_line_buf[8];
 # if defined(OD_ANIMATE)
   int                 ani_iter;
 # endif
@@ -167,7 +168,6 @@ int od_mc_compute_satd8_32x32_c(const unsigned char *src, int systride,
 void od_enc_opt_vtbl_init_c(od_enc_ctx *enc);
 
 # if defined(OD_DUMP_IMAGES)
-void od_img_upsample8(od_state *state, od_img *dst, const od_img *src);
 void od_encode_fill_vis(daala_enc_ctx *enc);
 void od_img_draw_line(od_img *img, int x0, int y0, int x1, int y1,
  const unsigned char ycbcr[3]);

@@ -218,6 +218,9 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
     /*Reserve space for this plane in 1 temporary image used to obtain
        the visualization image.*/
     data_sz += plane_buf_width*plane_buf_height << 2;
+    /*Reserve space for the line buffer in the up-sampler.*/
+    /*Upsampler is vis-only and always runs at 8 bits.*/
+    data_sz += (frame_buf_width << 1) * 8;
 #endif
   }
   enc->input_img_data = input_img_data =
@@ -245,6 +248,14 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
     iplane->ystride = plane_buf_width;
   }
 #if defined(OD_DUMP_IMAGES)
+  /*Fill in the line buffers.*/
+  {
+    int y;
+    for (y = 0; y < 8; y++) {
+      enc->upsample_line_buf[y] = input_img_data + (OD_BUFFER_PADDING << 1);
+      input_img_data += frame_buf_width << 1;
+    }
+  }
   /*Fill in the visualization image structure.*/
   img = &enc->vis_img;
   img->nplanes = info->nplanes;
@@ -1581,7 +1592,8 @@ static const unsigned char OD_YCbCr_MV[3] = {81, 90, 240};
 
 /*Upsamples the reconstructed image to a reference image.
   TODO: Pipeline with reconstruction.*/
-void od_img_upsample8(od_state *state, od_img *dimg, const od_img *simg) {
+static void od_img_upsample8(daala_enc_ctx *enc, od_img *dimg,
+ const od_img *simg) {
   int pli;
   for (pli = 0; pli < simg->nplanes; pli++) {
     const od_img_plane *siplane;
@@ -1606,7 +1618,7 @@ void od_img_upsample8(od_state *state, od_img *dimg, const od_img *simg) {
       /*Horizontal filtering:*/
       if (y < h + ypad) {
         unsigned char *buf;
-        buf = state->ref_line_buf[y & 7];
+        buf = enc->upsample_line_buf[y & 7];
         memset(buf - (xpad << 1), src[0], (xpad - 2) << 1);
         /*for (x = -xpad; x < -2; x++) {
           *(buf + (x << 1)) = src[0];
@@ -1652,7 +1664,7 @@ void od_img_upsample8(od_state *state, od_img *dimg, const od_img *simg) {
       if (y >= -ypad + 3) {
         if (y < 1 || y > h + 3) {
           OD_COPY(dst - (xpad << 1),
-           state->ref_line_buf[(y - 3) & 7] - (xpad << 1),
+           enc->upsample_line_buf[(y - 3) & 7] - (xpad << 1),
            (w + (xpad << 1)) << 1);
           /*fprintf(stderr, "%3i: ", (y - 3) << 1);
           for (x = -xpad << 1; x < (w + xpad) << 1; x++) {
@@ -1661,7 +1673,7 @@ void od_img_upsample8(od_state *state, od_img *dimg, const od_img *simg) {
           fprintf(stderr, "\n");*/
           dst += diplane->ystride;
           OD_COPY(dst - (xpad << 1),
-           state->ref_line_buf[(y - 3) & 7] - (xpad << 1),
+           enc->upsample_line_buf[(y - 3) & 7] - (xpad << 1),
            (w + (xpad << 1)) << 1);
           /*fprintf(stderr, "%3i: ", (y - 3) << 1 | 1);
           for (x = -xpad << 1; x < (w + xpad) << 1; x++) {
@@ -1672,14 +1684,14 @@ void od_img_upsample8(od_state *state, od_img *dimg, const od_img *simg) {
         }
         else {
           unsigned char *buf[6];
-          buf[0] = state->ref_line_buf[(y - 5) & 7];
-          buf[1] = state->ref_line_buf[(y - 4) & 7];
-          buf[2] = state->ref_line_buf[(y - 3) & 7];
-          buf[3] = state->ref_line_buf[(y - 2) & 7];
-          buf[4] = state->ref_line_buf[(y - 1) & 7];
-          buf[5] = state->ref_line_buf[(y - 0) & 7];
+          buf[0] = enc->upsample_line_buf[(y - 5) & 7];
+          buf[1] = enc->upsample_line_buf[(y - 4) & 7];
+          buf[2] = enc->upsample_line_buf[(y - 3) & 7];
+          buf[3] = enc->upsample_line_buf[(y - 2) & 7];
+          buf[4] = enc->upsample_line_buf[(y - 1) & 7];
+          buf[5] = enc->upsample_line_buf[(y - 0) & 7];
           OD_COPY(dst - (xpad << 1),
-           state->ref_line_buf[(y - 3) & 7] - (xpad << 1),
+           enc->upsample_line_buf[(y - 3) & 7] - (xpad << 1),
            (w + (xpad << 1)) << 1);
           /*fprintf(stderr, "%3i: ", (y - 3) << 1);
           for (x = -xpad << 1; x < (w + xpad) << 1; x++) {
@@ -1899,12 +1911,12 @@ void od_encode_fill_vis(od_enc_ctx *enc) {
     img->planes[pli].data += (border >> img->planes[pli].xdec)
      + img->planes[pli].ystride*(border >> img->planes[pli].ydec);
   }
-  od_img_upsample8(state, img,
+  od_img_upsample8(enc, img,
    state->ref_imgs + state->ref_imgi[OD_FRAME_SELF]);
   /*Upsample the input image, as well, and subtract it to get a difference
      image.*/
   ref_img = &enc->tmp_vis_img;
-  od_img_upsample8(state, ref_img, &enc->input_img);
+  od_img_upsample8(enc, ref_img, &enc->input_img);
   xdec = state->info.plane_info[0].xdec;
   ydec = state->info.plane_info[0].ydec;
   for (y = 0; y < ref_img->height; y++) {
