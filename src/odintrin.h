@@ -247,6 +247,9 @@ static __inline int od_bsr(unsigned long x) {
 # define OD_EXTERN
 #endif
 
+/** Silence unused parameter/variable warnings */
+# define OD_UNUSED(expr) (void)(expr)
+
 /*Some assembly constructs require aligned operands.
   The following macros are _only_ intended for structure member declarations.
   Although they will sometimes work on stack variables, gcc will often silently
