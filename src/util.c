@@ -62,6 +62,9 @@ void od_copy_64x64_c(unsigned char *_dst, int _dstride,
   }
 }
 
+/*Block copy functions. Copying of overlapping regions has undefined
+   behavior.*/
+
 void od_copy_16x16(unsigned char *_dst, int _dstride,
  const unsigned char *_src, int _sstride) {
 #if defined(OD_SSE2_INTRINSICS)
