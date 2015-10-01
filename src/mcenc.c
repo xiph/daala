@@ -1731,6 +1731,7 @@ static int32_t od_enc_sad(od_enc_ctx *enc, const unsigned char *p,
     }
     else {
       OD_ASSERT(0);
+      ret = 0;
     }
   }
   return ret;
@@ -1804,6 +1805,7 @@ static int32_t od_enc_satd(od_enc_ctx *enc, const unsigned char *p,
     }
     else{
       OD_ASSERT(0);
+      ret = 0;
     }
   }
   return ret;
