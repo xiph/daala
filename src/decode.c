@@ -85,8 +85,8 @@ static int od_dec_init(od_dec_ctx *dec, const daala_info *info,
   }
   img = &dec->output_img;
   img->nplanes = info->nplanes;
-  img->width = dec->state.frame_width;
-  img->height = dec->state.frame_height;
+  img->width = dec->state.info.pic_width;
+  img->height = dec->state.info.pic_height;
   for (pli = 0; pli < img->nplanes; pli++) {
     plane_buf_width = frame_buf_width >> info->plane_info[pli].xdec;
     plane_buf_height = frame_buf_height >> info->plane_info[pli].ydec;
@@ -217,10 +217,10 @@ static void od_dec_blank_img(od_img *img) {
     int plane_buf_size;
     int plane_buf_offset;
     plane_buf_size =
-     (frame_buf_height >> img->planes[pli].ydec) * img->planes[pli].ystride;
+     (frame_buf_height >> img->planes[pli].ydec)*img->planes[pli].ystride;
     plane_buf_offset =
-      (OD_BUFFER_PADDING >> img->planes[pli].ydec) * img->planes[pli].ystride
-      + (OD_BUFFER_PADDING >> img->planes[pli].xdec);
+     (OD_BUFFER_PADDING >> img->planes[pli].ydec)*img->planes[pli].ystride
+     + (OD_BUFFER_PADDING >> img->planes[pli].xdec)*img->planes[pli].xstride;
     memset(img->planes[pli].data - plane_buf_offset, 128, plane_buf_size);
   }
 }
@@ -941,12 +941,10 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
   int ydec;
   int sby;
   int sbx;
-  int h;
   int w;
   int y;
   int x;
   int frame_width;
-  int frame_height;
   int nvsb;
   int nhsb;
   od_state *state;
@@ -957,42 +955,30 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
   nhsb = state->nhsb;
   nvsb = state->nvsb;
   frame_width = state->frame_width;
-  frame_height = state->frame_height;
   rec = state->ref_imgs + state->ref_imgi[OD_FRAME_SELF];
+  OD_ACCOUNTING_SET_LOCATION(dec, OD_ACCT_FRAME, 0, 0, 0);
+  /* Map our quantizers; we potentially need them to know what reference
+     resolution we're working at. */
+  for (pli = 0; pli < nplanes; pli++) {
+    dec->coded_quantizer[pli] = od_ec_dec_uint(&dec->ec,
+     OD_N_CODED_QUANTIZERS, "quantizer");
+    dec->quantizer[pli] =
+     od_codedquantizer_to_quantizer(dec->coded_quantizer[pli]);
+  }
   /*Apply the prefilter to the motion-compensated reference.*/
   if (!mbctx->is_keyframe) {
     for (pli = 0; pli < nplanes; pli++) {
       xdec = rec->planes[pli].xdec;
       ydec = rec->planes[pli].ydec;
       w = frame_width >> xdec;
-      h = frame_height >> ydec;
       /*Collect the image data needed for this plane.*/
-      {
-        unsigned char *mdata;
-        int ystride;
-        int coeff_shift;
-        coeff_shift = dec->quantizer[pli] == 0 ? 0 : OD_COEFF_SHIFT;
-        mdata = rec->planes[pli].data;
-        ystride = rec->planes[pli].ystride;
-        for (y = 0; y < h; y++) {
-          for (x = 0; x < w; x++) {
-            state->mctmp[pli][y*w + x] = (mdata[ystride*y + x] - 128)
-             << coeff_shift;
-          }
-        }
-      }
-      if (!mbctx->is_keyframe && !mbctx->use_haar_wavelet) {
+      od_ref_plane_to_coeff(state,
+       state->mctmp[pli], dec->quantizer[pli] == 0, rec, pli);
+      if (!mbctx->use_haar_wavelet) {
         od_apply_prefilter_frame_sbs(state->mctmp[pli], w, nhsb, nvsb, xdec,
-          ydec);
+         ydec);
       }
     }
-  }
-  OD_ACCOUNTING_SET_LOCATION(dec, OD_ACCT_FRAME, 0, 0, 0);
-  for (pli = 0; pli < nplanes; pli++) {
-    dec->coded_quantizer[pli] = od_ec_dec_uint(&dec->ec,
-      OD_N_CODED_QUANTIZERS, "quantizer");
-    dec->quantizer[pli] =
-     od_codedquantizer_to_quantizer(dec->coded_quantizer[pli]);
   }
   for (sby = 0; sby < nvsb; sby++) {
     for (sbx = 0; sbx < nhsb; sbx++) {
@@ -1020,7 +1006,6 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
     xdec = dec->output_img.planes[pli].xdec;
     ydec = dec->output_img.planes[pli].ydec;
     w = frame_width >> xdec;
-    h = frame_height >> ydec;
     if (!mbctx->use_haar_wavelet) {
       od_apply_postfilter_frame_sbs(state->ctmp[pli], w, nhsb, nvsb, xdec,
        ydec, dec->coded_quantizer[pli], &dec->state.bskip[pli][0],
@@ -1070,7 +1055,6 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
             xdec = dec->output_img.planes[pli].xdec;
             ydec = dec->output_img.planes[pli].ydec;
             w = frame_width >> xdec;
-            h = frame_height >> ydec;
             ln = OD_LOG_BSIZE_MAX - xdec;
             n = 1 << ln;
             OD_ASSERT(xdec == ydec);
@@ -1112,9 +1096,7 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
     xdec = dec->output_img.planes[pli].xdec;
     ydec = dec->output_img.planes[pli].ydec;
     w = frame_width >> xdec;
-    h = frame_height >> ydec;
-    if (dec->quantizer[0] > 0)
-    {
+    if (dec->quantizer[0] > 0) {
       for (sby = 0; sby < nvsb; sby++) {
         for (sbx = 0; sbx < nhsb; sbx++) {
           if (mbctx->is_keyframe) {
@@ -1125,22 +1107,10 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
         }
       }
     }
-    {
-      unsigned char *data;
-      od_coeff *ctmp;
-      int ystride;
-      int coeff_shift;
-      coeff_shift = dec->quantizer[pli] == 0 ? 0 : OD_COEFF_SHIFT;
-      data = rec->planes[pli].data;
-      ctmp = state->ctmp[pli];
-      ystride = rec->planes[pli].ystride;
-      for (y = 0; y < h; y++) {
-        for (x = 0; x < w; x++) {
-          data[ystride*y + x] = OD_CLAMP255(((ctmp[y*w + x]
-           + (1 << coeff_shift >> 1)) >> coeff_shift) + 128);
-        }
-      }
-    }
+    /*Move/scale/shift reconstructed data values from transform
+      storage back into the SELF reference frame.*/
+    od_coeff_to_ref_plane(state, rec, pli,
+     state->ctmp[pli], dec->quantizer[pli] == 0);
   }
 }
 
@@ -1232,9 +1202,8 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
 #endif
   od_img_edge_ext(ref_img);
   /*Return decoded frame.*/
-  *img = *ref_img;
-  img->width = dec->state.info.pic_width;
-  img->height = dec->state.info.pic_height;
+  od_img_copy(&dec->output_img, ref_img);
+  *img = dec->output_img;
   dec->state.cur_time++;
   if (mbctx.is_golden_frame) {
     dec->state.ref_imgi[OD_FRAME_GOLD] =

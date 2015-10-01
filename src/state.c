@@ -89,21 +89,146 @@ void od_aligned_free(void *_ptr) {
   }
 }
 
-void od_img_copy(od_img* dest, od_img* src) {
-  int pli;
-  OD_ASSERT(dest->width == src->width);
-  OD_ASSERT(dest->height == src->height);
-  OD_ASSERT(dest->nplanes == src->nplanes);
-  for (pli = 0; pli < src->nplanes; pli++) {
-    int width;
-    int height;
-    int row;
-    width = dest->width >> dest->planes[pli].xdec;
-    height = dest->height >> dest->planes[pli].ydec;
-    for (row = 0; row < height; row++) {
-      memcpy(dest->planes[pli].data + dest->planes[pli].ystride*row,
-       src->planes[pli].data + src->planes[pli].ystride*row, width);
+/*This is a smart copy that copies the intersection of the two img planes
+   and performs any needed bitdepth or packing conversion.
+  Note that this copy performs clamping as it's only used for copying into
+   and out of the codec, not for internal reference->reference copies.
+  Does not touch any padding/border/unintersected area.*/
+void od_img_plane_copy(od_img* dst, od_img* src, int pli) {
+  od_img_plane *dst_plane;
+  od_img_plane *src_plane;
+  unsigned char *dst_data;
+  unsigned char *src_data;
+  int dst_xstride;
+  int dst_ystride;
+  int src_xstride;
+  int src_ystride;
+  int dst_xdec;
+  int dst_ydec;
+  int src_xdec;
+  int src_ydec;
+  int dst_plane_width;
+  int dst_plane_height;
+  int src_plane_width;
+  int src_plane_height;
+  int w;
+  int h;
+  int x;
+  int y;
+  if (pli >= dst->nplanes || pli >= src->nplanes) {
+    return;
+  }
+  dst_plane = dst->planes+pli;
+  src_plane = src->planes+pli;
+  dst_xstride = dst_plane->xstride;
+  dst_ystride = dst_plane->ystride;
+  src_xstride = src_plane->xstride;
+  src_ystride = src_plane->ystride;
+
+  OD_ASSERT(dst_xstride == 1 || dst_xstride == 2);
+  OD_ASSERT(src_xstride == 1 || src_xstride == 2);
+  dst_xdec = dst_plane->xdec;
+  dst_ydec = dst_plane->ydec;
+  src_xdec = src_plane->xdec;
+  src_ydec = src_plane->ydec;
+  dst_data = dst_plane->data;
+  src_data = src_plane->data;
+  dst_plane_width = ((dst->width + (1 << dst_xdec) - 1) >> dst_xdec);
+  dst_plane_height = ((dst->height + (1 << dst_ydec) - 1) >> dst_ydec);
+  src_plane_width = ((src->width + (1 << src_xdec) - 1) >> src_xdec);
+  src_plane_height = ((src->height + (1 << src_ydec) - 1) >> src_ydec);
+  w = OD_MINI(dst_plane_width, src_plane_width);
+  h = OD_MINI(dst_plane_height, src_plane_height);
+  for (y = 0; y < h; y++) {
+    unsigned char *src_ptr;
+    unsigned char *dst_ptr;
+    src_ptr = src_data;
+    dst_ptr = dst_data;
+    if (src_plane->bitdepth > 8) {
+      if (dst_plane->bitdepth > 8) {
+        /*Both source and destination are multibyte.*/
+        if (dst_plane->bitdepth >= src_plane->bitdepth) {
+          /*Shift source up into destination.*/
+          int upshift;
+          upshift = dst_plane->bitdepth - src_plane->bitdepth;
+          for (x = 0; x < w; x++) {
+            *(int16_t *)dst_ptr = OD_CLAMPI(0,
+             *(int16_t *)src_ptr << upshift,
+             (1 << dst_plane->bitdepth) - 1);
+            src_ptr += src_xstride;
+            dst_ptr += dst_xstride;
+          }
+        }
+        else {
+          /*Round source down into destination.*/
+          int dnshift;
+          dnshift = src_plane->bitdepth - dst_plane->bitdepth;
+          for (x = 0; x < w; x++) {
+            *(int16_t *)dst_ptr = OD_CLAMPI(0,
+             *(int16_t *)src_ptr + (1 << dnshift >> 1) >> dnshift,
+             (1 << dst_plane->bitdepth) - 1);
+            src_ptr += src_xstride;
+            dst_ptr += dst_xstride;
+          }
+        }
+      }
+      else {
+        /*Round multibyte source down into 8-bit destination.*/
+        int dnshift;
+        dnshift = src_plane->bitdepth - 8;
+        OD_ASSERT(dst_plane->bitdepth == 8);
+        for (x = 0; x < w; x++) {
+          *dst_ptr = OD_CLAMP255(*(int16_t *)src_ptr
+           + (1 << dnshift >> 1) >> dnshift);
+          src_ptr += src_xstride;
+          dst_ptr += dst_xstride;
+        }
+      }
     }
+    else {
+      OD_ASSERT(src_plane->bitdepth == 8);
+      if (dst_plane->bitdepth > 8) {
+        /*Shift 8-bit source up into multibyte destination.*/
+        int upshift;
+        upshift = dst_plane->bitdepth - 8;
+        for (x = 0; x < w; x++) {
+          *(int16_t *)dst_ptr = OD_CLAMPI(0,
+           *src_ptr << upshift, (1 << dst_plane->bitdepth) - 1);
+          src_ptr += src_xstride;
+          dst_ptr += dst_xstride;
+        }
+      }
+      else {
+        /*Source and destination are both 8-bit buffers.*/
+        OD_ASSERT(dst_plane->bitdepth == 8);
+        if (src_xstride == 1 && dst_xstride == 1) {
+          /*Neither source nor dest are packed; this can be a simple copy.*/
+          OD_COPY(dst_data, src_data, w);
+        }
+        else {
+          /*General purpose case: One or both of source and destination have
+            an xstride > 1 despite being 8-bit buffers.*/
+          for (x = 0; x < w; x++) {
+            *dst_ptr = *src_ptr;
+            src_ptr += src_xstride;
+            dst_ptr += dst_xstride;
+          }
+        }
+      }
+    }
+    dst_data += dst_ystride;
+    src_data += src_ystride;
+  }
+}
+
+/*This is a smart copy that copies the intersection of the two od_img
+   and performs any needed bitdepth conversion.
+  Does not touch any padding/border/unintersected area, nor unintersected
+   planes.*/
+void od_img_copy(od_img* dst, od_img* src) {
+  int pli;
+  for (pli = 0; pli < OD_MINI(dst->nplanes, src->nplanes); pli++) {
+    od_img_plane_copy(dst, src, pli);
   }
 }
 
@@ -252,7 +377,10 @@ static int od_state_init_impl(od_state *state, const daala_info *info) {
   state->nvmvbs = state->frame_height >> OD_LOG_MVBSIZE_MIN;
   /*The master switch; once FPR is ready to go, this can be set to always-on,
      or on only when encoding high-depth.
-    FPR must be on for lossless high-depth.*/
+    FPR must be on for high-depth, including lossless high-depth.
+    When FPR is on for 8-bit or 10-bit content, lossless frames are still
+     stored with 8 + OD_COEFF_SHIFT bit depth to allow streams with mixed lossy
+     and lossless frames.*/
   state->full_precision_references = 0;
   od_state_opt_vtbl_init(state);
   if (OD_UNLIKELY(od_state_ref_imgs_init(state, 4))) {
@@ -695,9 +823,10 @@ int od_state_dump_yuv(od_state *state, od_img *img, const char *tag) {
     xstride = img->planes[pli].xstride;
     ystride = img->planes[pli].ystride;
     for (y = 0; y < (pic_height + ydec) >> ydec; y++) {
-      if(xstride>1){
+      if (xstride>1) {
         OD_ASSERT(0);
-      }else{
+      }
+      else {
         if (fwrite(img->planes[pli].data + ystride*y,
                    (pic_width + xdec) >> xdec, 1, fp) < 1) {
           fprintf(stderr, "Error writing to \"%s\".\n", fname);
@@ -921,6 +1050,9 @@ double daala_granule_time(void *encdec, int64_t granpos) {
 }
 
 /*Extend the edge into the padding.*/
+/*This is used on internal and thus planar buffers only.
+  We can assume depth == 8 implies xstride == 1 and depth > 8 implies
+   xstride == 2.*/
 static void od_img_plane_edge_ext(od_img_plane *dst_p,
  int plane_width, int plane_height, int horz_padding, int vert_padding) {
   ptrdiff_t xstride;
@@ -934,6 +1066,8 @@ static void od_img_plane_edge_ext(od_img_plane *dst_p,
   dst_data = dst_p->data;
 
   OD_ASSERT((horz_padding&1) == 0);
+  OD_ASSERT(xstride == 1 && dst_p->bitdepth == 8
+   || xstride == 2 && dst_p->bitdepth > 8);
   /*Left side.*/
   for (y = 0; y < plane_height; y++) {
     dst = dst_data + ystride*y;
@@ -991,4 +1125,135 @@ void od_img_edge_ext(od_img* src) {
      src->width >> xdec, src->height >> ydec,
      OD_BUFFER_PADDING >> xdec, OD_BUFFER_PADDING >> ydec);
   }
+}
+
+/*General purpose reference od_img block to coefficient block
+  conversion routine.*/
+void od_ref_buf_to_coeff(od_state *state,
+ od_coeff *dst, int dst_ystride, int lossless_p,
+ unsigned char *src, int src_xstride, int src_ystride,
+ int w, int h) {
+  int x;
+  int y;
+  int coeff_shift;
+  OD_ASSERT(src_xstride == 1 || src_xstride == 2);
+  if (src_xstride == 1) {
+    /*The references are running at 8 bits.
+      The transforms and coefficients may be operating at 8 bits (during
+       lossless coding) or 8 + OD_COEFF_SHIFT bits (during lossy coding).*/
+    coeff_shift = lossless_p ?
+     (state->info.bitdepth_mode - OD_BITDEPTH_MODE_8)*2 :
+     OD_COEFF_SHIFT;
+    for (y = 0; y < h; y++) {
+      for (x = 0; x < w; x++) {
+        dst[x] = src[x] - 128 << coeff_shift;
+      }
+      dst += dst_ystride;
+      src += src_ystride;
+    }
+  }
+  else {
+    /*The references are running at greater than 8 bits, implying FPR.
+      The transforms and coefficients may be operating at any supported
+       bit depth (8, 10 or 12) */
+    coeff_shift = lossless_p ?
+     OD_COEFF_SHIFT - (state->info.bitdepth_mode - OD_BITDEPTH_MODE_8)*2 :
+     0;
+    for (y = 0; y < h; y++) {
+      for (x = 0; x < w; x++) {
+        dst[x] = ((int16_t *)src)[x] - (1 << 8 + OD_COEFF_SHIFT >> 1)
+         + (1 << coeff_shift >> 1) >> coeff_shift;
+      }
+      dst += dst_ystride;
+      src += src_ystride;
+    }
+  }
+}
+
+/*Convenience version of the general reference->coeff copying routine
+   for a whole-visible-buffer copy.*/
+void od_ref_plane_to_coeff(od_state *state, od_coeff *dst, int lossless_p,
+ od_img *src, int pli) {
+  od_img_plane *iplane;
+  int xdec;
+  int ydec;
+  int h;
+  int w;
+  int src_xstride;
+  int src_ystride;
+  iplane = src->planes + pli;
+  xdec = iplane->xdec;
+  ydec = iplane->ydec;
+  w = src->width >> xdec;
+  h = src->height >> ydec;
+  src_xstride = iplane->xstride;
+  src_ystride = iplane->ystride;
+  od_ref_buf_to_coeff(state, dst, w, lossless_p,
+   iplane->data, src_xstride, src_ystride, w, h);
+}
+
+/*General purpose coefficient block to reference od_img block
+  conversion routine.*/
+void od_coeff_to_ref_buf(od_state *state,
+ unsigned char *dst, int dst_xstride, int dst_ystride,
+ od_coeff *src, int src_ystride, int lossless_p,
+ int w, int h) {
+  int x;
+  int y;
+  int coeff_shift;
+  OD_ASSERT(dst_xstride == 1 || dst_xstride == 2);
+  if (dst_xstride == 1) {
+    /*The references are running at 8 bits.
+      The transforms and coefficients may be operating at 8 bits (during
+       lossless coding) or 8 + OD_COEFF_SHIFT bits (during lossy coding).*/
+    coeff_shift = lossless_p ?
+     (state->info.bitdepth_mode - OD_BITDEPTH_MODE_8)*2 :
+     OD_COEFF_SHIFT;
+    for (y = 0; y < h; y++) {
+      for (x = 0; x < w; x++) {
+        *(dst + x) =
+         OD_CLAMP255((src[x] + (1 << coeff_shift >> 1) >> coeff_shift) + 128);
+      }
+      dst += dst_ystride;
+      src += src_ystride;
+    }
+  }
+  else {
+    /*The references are running at greater than 8 bits, implying FPR.
+      The transforms and coefficients may be operating at any supported
+       bit depth (8, 10 or 12) */
+    coeff_shift = lossless_p
+     ? OD_COEFF_SHIFT - (state->info.bitdepth_mode - OD_BITDEPTH_MODE_8)*2
+     : 0;
+    for (y = 0; y < h; y++) {
+      for (x = 0; x < w; x++) {
+        ((int16_t *)dst)[x] =
+         (src[x] << coeff_shift) + (1 << 8 + OD_COEFF_SHIFT >> 1);
+      }
+      dst += dst_ystride;
+      src += src_ystride;
+    }
+  }
+}
+
+/*Convenience version of the general coeff->reference copying routine
+   for a whole-visible-buffer copy.*/
+void od_coeff_to_ref_plane(od_state *state, od_img *dst, int pli,
+ od_coeff *src, int lossless_p) {
+  od_img_plane *iplane;
+  int xdec;
+  int ydec;
+  int h;
+  int w;
+  int dst_xstride;
+  int dst_ystride;
+  iplane = dst->planes + pli;
+  xdec = iplane->xdec;
+  ydec = iplane->ydec;
+  w = dst->width >> xdec;
+  h = dst->height >> ydec;
+  dst_xstride = iplane->xstride;
+  dst_ystride = iplane->ystride;
+  od_coeff_to_ref_buf(state, iplane->data, dst_xstride, dst_ystride,
+   src, w, lossless_p, w, h);
 }
