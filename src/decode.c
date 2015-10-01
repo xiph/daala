@@ -56,6 +56,8 @@ static int od_dec_init(od_dec_ctx *dec, const daala_info *info,
   int frame_buf_height;
   int plane_buf_width;
   int plane_buf_height;
+  int output_bytes;
+  int output_bits;
   int ret;
   int pli;
   (void)setup;
@@ -67,20 +69,21 @@ static int od_dec_init(od_dec_ctx *dec, const daala_info *info,
   dec->user_mv_grid = NULL;
   dec->user_mc_img = NULL;
   data_sz = 0;
+  output_bits = 8 + (info->bitdepth_mode - OD_BITDEPTH_MODE_8)*2;
+  output_bytes = output_bits > 8 ? 2 : 1;
   /*TODO: Check for overflow before allocating.*/
   frame_buf_width = dec->state.frame_width + (OD_BUFFER_PADDING << 1);
   frame_buf_height = dec->state.frame_height + (OD_BUFFER_PADDING << 1);
   for (pli = 0; pli < info->nplanes; pli++) {
     plane_buf_width = frame_buf_width >> info->plane_info[pli].xdec;
     plane_buf_height = frame_buf_height >> info->plane_info[pli].ydec;
-    data_sz += plane_buf_width*plane_buf_height;
+    data_sz += plane_buf_width*plane_buf_height*output_bytes;
   }
   dec->output_img_data = output_img_data =
     (unsigned char *)od_aligned_malloc(data_sz, 32);
   if (OD_UNLIKELY(!dec->output_img_data)) {
     return OD_EFAULT;
   }
-  /*8-bit only for now.*/
   img = &dec->output_img;
   img->nplanes = info->nplanes;
   img->width = dec->state.frame_width;
@@ -89,14 +92,16 @@ static int od_dec_init(od_dec_ctx *dec, const daala_info *info,
     plane_buf_width = frame_buf_width >> info->plane_info[pli].xdec;
     plane_buf_height = frame_buf_height >> info->plane_info[pli].ydec;
     iplane = img->planes + pli;
-    iplane->data = output_img_data
-     + (OD_BUFFER_PADDING >> info->plane_info[pli].xdec)
-     + plane_buf_width*(OD_BUFFER_PADDING >> info->plane_info[pli].ydec);
-    output_img_data += plane_buf_width*plane_buf_height;
     iplane->xdec = info->plane_info[pli].xdec;
     iplane->ydec = info->plane_info[pli].ydec;
-    iplane->xstride = 1;
-    iplane->ystride = plane_buf_width;
+    iplane->bitdepth = output_bits;
+    /*At this moment, our output is always planar.*/
+    iplane->xstride = output_bytes;
+    iplane->ystride = plane_buf_width*iplane->xstride;
+    iplane->data = output_img_data
+      + iplane->xstride*(OD_BUFFER_PADDING >> info->plane_info[pli].xdec)
+      + iplane->ystride*(OD_BUFFER_PADDING >> info->plane_info[pli].ydec);
+    output_img_data += plane_buf_height*iplane->ystride;
   }
 #if OD_ACCOUNTING
   od_accounting_init(&dec->acct);

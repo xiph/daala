@@ -60,7 +60,21 @@ struct av_input{
   daala_plane_info video_plane_info[OD_NPLANES_MAX];
   od_img video_img;
   int video_cur_img;
+  int video_depth;
+  int video_swapendian;
 };
+
+#define SWAP(a, b)  do {a ^= b; b ^= a; a ^= b;} while(0)
+
+static int host_is_big_endian() {
+  union {
+    uint16_t pattern;
+    unsigned char bytewise[2];
+  } m;
+  m.pattern = (uint16_t)0xdead; /* beef */
+  if (m.bytewise[0] == 0xde) return 1;
+  return 0;
+}
 
 static void daala_to_ogg_packet(ogg_packet *op, daala_packet *dp) {
   op->packet     = dp->packet;
@@ -198,8 +212,46 @@ static void id_y4m_file(av_input *avin, const char *file, FILE *test) {
   /*TODO: Specify chroma offsets.*/
   avin->video_plane_info[0].xdec = 0;
   avin->video_plane_info[0].ydec = 0;
+  avin->video_depth = 8;
+  avin->video_swapendian = 0;
   if (strcmp(avin->video_chroma_type, "444") == 0) {
     avin->video_nplanes = 3;
+    avin->video_plane_info[1].xdec = 0;
+    avin->video_plane_info[1].ydec = 0;
+    avin->video_plane_info[2].xdec = 0;
+    avin->video_plane_info[2].ydec = 0;
+  }
+  else if (strcmp(avin->video_chroma_type, "444p10") == 0) {
+    avin->video_nplanes = 3;
+    avin->video_depth = 10;
+    avin->video_swapendian = host_is_big_endian();
+    avin->video_plane_info[1].xdec = 0;
+    avin->video_plane_info[1].ydec = 0;
+    avin->video_plane_info[2].xdec = 0;
+    avin->video_plane_info[2].ydec = 0;
+  }
+  else if (strcmp(avin->video_chroma_type, "444p12") == 0) {
+    avin->video_nplanes = 3;
+    avin->video_depth = 12;
+    avin->video_swapendian = host_is_big_endian();
+    avin->video_plane_info[1].xdec = 0;
+    avin->video_plane_info[1].ydec = 0;
+    avin->video_plane_info[2].xdec = 0;
+    avin->video_plane_info[2].ydec = 0;
+  }
+  else if (strcmp(avin->video_chroma_type, "444p14") == 0) {
+    avin->video_nplanes = 3;
+    avin->video_depth = 14;
+    avin->video_swapendian = host_is_big_endian();
+    avin->video_plane_info[1].xdec = 0;
+    avin->video_plane_info[1].ydec = 0;
+    avin->video_plane_info[2].xdec = 0;
+    avin->video_plane_info[2].ydec = 0;
+  }
+  else if (strcmp(avin->video_chroma_type, "444p16") == 0) {
+    avin->video_nplanes = 3;
+    avin->video_depth = 16;
+    avin->video_swapendian = host_is_big_endian();
     avin->video_plane_info[1].xdec = 0;
     avin->video_plane_info[1].ydec = 0;
     avin->video_plane_info[2].xdec = 0;
@@ -216,6 +268,42 @@ static void id_y4m_file(av_input *avin, const char *file, FILE *test) {
   }
   else if (strcmp(avin->video_chroma_type, "422") == 0) {
     avin->video_nplanes = 3;
+    avin->video_plane_info[1].xdec = 1;
+    avin->video_plane_info[1].ydec = 0;
+    avin->video_plane_info[2].xdec = 1;
+    avin->video_plane_info[2].ydec = 0;
+  }
+  else if (strcmp(avin->video_chroma_type, "422p10") == 0) {
+    avin->video_nplanes = 3;
+    avin->video_depth = 10;
+    avin->video_swapendian = host_is_big_endian();
+    avin->video_plane_info[1].xdec = 1;
+    avin->video_plane_info[1].ydec = 0;
+    avin->video_plane_info[2].xdec = 1;
+    avin->video_plane_info[2].ydec = 0;
+  }
+  else if (strcmp(avin->video_chroma_type, "422p12") == 0) {
+    avin->video_nplanes = 3;
+    avin->video_depth = 12;
+    avin->video_swapendian = host_is_big_endian();
+    avin->video_plane_info[1].xdec = 1;
+    avin->video_plane_info[1].ydec = 0;
+    avin->video_plane_info[2].xdec = 1;
+    avin->video_plane_info[2].ydec = 0;
+  }
+  else if (strcmp(avin->video_chroma_type, "422p14") == 0) {
+    avin->video_nplanes = 3;
+    avin->video_depth = 14;
+    avin->video_swapendian = host_is_big_endian();
+    avin->video_plane_info[1].xdec = 1;
+    avin->video_plane_info[1].ydec = 0;
+    avin->video_plane_info[2].xdec = 1;
+    avin->video_plane_info[2].ydec = 0;
+  }
+  else if (strcmp(avin->video_chroma_type, "422p16") == 0) {
+    avin->video_nplanes = 3;
+    avin->video_depth = 16;
+    avin->video_swapendian = host_is_big_endian();
     avin->video_plane_info[1].xdec = 1;
     avin->video_plane_info[1].ydec = 0;
     avin->video_plane_info[2].xdec = 1;
@@ -238,6 +326,42 @@ static void id_y4m_file(av_input *avin, const char *file, FILE *test) {
     avin->video_plane_info[2].xdec = 1;
     avin->video_plane_info[2].ydec = 1;
   }
+  else if (strcmp(avin->video_chroma_type, "420p10") == 0){
+    avin->video_nplanes = 3;
+    avin->video_depth = 10;
+    avin->video_swapendian = host_is_big_endian();
+    avin->video_plane_info[1].xdec = 1;
+    avin->video_plane_info[1].ydec = 1;
+    avin->video_plane_info[2].xdec = 1;
+    avin->video_plane_info[2].ydec = 1;
+  }
+  else if (strcmp(avin->video_chroma_type, "420p12") == 0) {
+    avin->video_nplanes = 3;
+    avin->video_depth = 12;
+    avin->video_swapendian = host_is_big_endian();
+    avin->video_plane_info[1].xdec = 1;
+    avin->video_plane_info[1].ydec = 1;
+    avin->video_plane_info[2].xdec = 1;
+    avin->video_plane_info[2].ydec = 1;
+  }
+  else if (strcmp(avin->video_chroma_type, "420p14") == 0) {
+    avin->video_nplanes = 3;
+    avin->video_depth = 14;
+    avin->video_swapendian = host_is_big_endian();
+    avin->video_plane_info[1].xdec = 1;
+    avin->video_plane_info[1].ydec = 1;
+    avin->video_plane_info[2].xdec = 1;
+    avin->video_plane_info[2].ydec = 1;
+  }
+  else if (strcmp(avin->video_chroma_type, "420p16") == 0) {
+    avin->video_nplanes = 3;
+    avin->video_depth = 16;
+    avin->video_swapendian = host_is_big_endian();
+    avin->video_plane_info[1].xdec = 1;
+    avin->video_plane_info[1].ydec = 1;
+    avin->video_plane_info[2].xdec = 1;
+    avin->video_plane_info[2].ydec = 1;
+  }
   else if (strcmp(avin->video_chroma_type, "mono") == 0) {
     avin->video_nplanes = 1;
   }
@@ -255,11 +379,16 @@ static void id_y4m_file(av_input *avin, const char *file, FILE *test) {
     iplane = img->planes + pli;
     iplane->xdec = avin->video_plane_info[pli].xdec;
     iplane->ydec = avin->video_plane_info[pli].ydec;
-    iplane->xstride = 1;
-    iplane->ystride = (avin->video_pic_w
-     + (1 << iplane->xdec) - 1)  >>  iplane->xdec;
-    iplane->data = (unsigned char *)_ogg_malloc(iplane->ystride*
-     ((avin->video_pic_h + (1 << iplane->ydec) - 1)  >>  iplane->ydec));
+    /*At this moment, Y4M input is always planar.*/
+    /*The input depth need not match the encoded depth.
+      The input copy will convert to whatever was set for
+       di.bitdepth_mode.*/
+    iplane->xstride = avin->video_depth > 8 ? 2 : 1;
+    iplane->ystride = ((avin->video_pic_w
+     + (1<<iplane->xdec)-1)>>iplane->xdec)*iplane->xstride;
+    iplane->bitdepth = avin->video_depth;
+    iplane->data = _ogg_malloc(iplane->ystride*
+     ((avin->video_pic_h + (1<<iplane->ydec) - 1)>>iplane->ydec));
   }
 }
 
@@ -331,17 +460,23 @@ int fetch_and_process_video(av_input *avin, ogg_page *page,
       img = &avin->video_img;
       for (pli = 0; pli < img->nplanes; pli++) {
         od_img_plane *iplane;
+        int bytes;
         size_t plane_sz;
         iplane = img->planes + pli;
+        bytes = iplane->bitdepth > 8 ? 2 : 1;
         plane_sz = ((avin->video_pic_w + (1 << iplane->xdec) - 1)
          >> iplane->xdec)*((avin->video_pic_h + (1 << iplane->ydec)
-         - 1) >> iplane->ydec);
-        ret = fread(iplane->data/* + (avin->video_pic_y >> iplane->ydec)
-         *iplane->ystride + (avin->video_picx >> iplane->xdec)*/, 1, plane_sz,
-         avin->video_infile);
+         - 1) >> iplane->ydec)*bytes;
+        ret = fread(iplane->data, 1, plane_sz, avin->video_infile);
         if (ret != plane_sz) {
           fprintf(stderr, "Error reading YUV frame data.\n");
           exit(1);
+        }
+        if (bytes == 2 && avin->video_swapendian) {
+          size_t i;
+          for (i = 0; i < plane_sz; i += 2) {
+            SWAP(iplane->data[i], iplane->data[i + 1]);
+          }
         }
       }
       if (skip && (*skip) > 0) {
@@ -689,6 +824,30 @@ int main(int argc, char **argv) {
   daala_info_init(&di);
   di.pic_width = avin.video_pic_w;
   di.pic_height = avin.video_pic_h;
+  switch (avin.video_depth) {
+    case 8: {
+      di.bitdepth_mode = OD_BITDEPTH_MODE_8;
+      break;
+    }
+    case 10: {
+      di.bitdepth_mode = OD_BITDEPTH_MODE_10;
+      break;
+    }
+    case 14:
+    case 16: {
+      fprintf(stderr, "Daala natively supports only 8, 10 and 12 bit depth\n"
+       "Input will be truncated to 12 bit depth for encoding\b\n");
+    }
+    /* Fall through */
+    case 12: {
+      di.bitdepth_mode = OD_BITDEPTH_MODE_12;
+      break;
+    }
+    default: {
+      fprintf(stderr, "Unsupported input bit depth (%d)\n", avin.video_depth);
+      exit(1);
+    }
+  }
   di.timebase_numerator = avin.video_fps_n;
   di.timebase_denominator = avin.video_fps_d;
   di.frame_duration = 1;

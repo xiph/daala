@@ -122,11 +122,17 @@ static int od_state_ref_imgs_init(od_state *state, int nrefs) {
   int frame_buf_height;
   int plane_buf_width;
   int plane_buf_height;
+  int reference_bytes;
+  int reference_bits;
   int imgi;
   int pli;
   OD_ASSERT(nrefs == 4);
   info = &state->info;
   data_sz = 0;
+  /*Reference bit depth is constant over the lifetime of od_state, and by
+    extension, an encode or decode ctx.*/
+  reference_bytes = state->full_precision_references ? 2 : 1;
+  reference_bits = state->full_precision_references ? 8 + OD_COEFF_SHIFT : 8;
   /*TODO: Check for overflow before allocating.*/
   frame_buf_width = state->frame_width + (OD_BUFFER_PADDING << 1);
   frame_buf_height = state->frame_height + (OD_BUFFER_PADDING << 1);
@@ -134,7 +140,7 @@ static int od_state_ref_imgs_init(od_state *state, int nrefs) {
     /*Reserve space for this plane in nrefs reference images.*/
     plane_buf_width = frame_buf_width >> info->plane_info[pli].xdec;
     plane_buf_height = frame_buf_height >> info->plane_info[pli].ydec;
-    data_sz += plane_buf_width*plane_buf_height*nrefs;
+    data_sz += plane_buf_width*plane_buf_height*reference_bytes*nrefs;
   }
   state->ref_img_data = ref_img_data =
     (unsigned char *)od_aligned_malloc(data_sz, 32);
@@ -148,17 +154,18 @@ static int od_state_ref_imgs_init(od_state *state, int nrefs) {
     img->width = state->frame_width;
     img->height = state->frame_height;
     for (pli = 0; pli < img->nplanes; pli++) {
-      plane_buf_width = frame_buf_width >> info->plane_info[pli].xdec;
-      plane_buf_height = frame_buf_height >> info->plane_info[pli].ydec;
       iplane = img->planes + pli;
-      iplane->data = ref_img_data
-       + (OD_BUFFER_PADDING >> info->plane_info[pli].xdec)
-       + plane_buf_width*(OD_BUFFER_PADDING >> info->plane_info[pli].ydec);
-      ref_img_data += plane_buf_width*plane_buf_height;
       iplane->xdec = info->plane_info[pli].xdec;
       iplane->ydec = info->plane_info[pli].ydec;
-      iplane->xstride = 1;
-      iplane->ystride = plane_buf_width;
+      plane_buf_width = frame_buf_width >> iplane->xdec;
+      plane_buf_height = frame_buf_height >> iplane->ydec;
+      iplane->bitdepth = reference_bits;
+      iplane->xstride = reference_bytes;
+      iplane->ystride = plane_buf_width*reference_bytes;
+      iplane->data = ref_img_data
+       + (OD_BUFFER_PADDING >> iplane->xdec)*iplane->xstride
+       + (OD_BUFFER_PADDING >> iplane->ydec)*iplane->ystride;
+      ref_img_data += plane_buf_height*iplane->ystride;
     }
   }
   /*Mark all of the reference image buffers available.*/
@@ -182,11 +189,22 @@ void od_restore_fpu(od_state *state) {
 }
 
 void od_state_opt_vtbl_init_c(od_state *state) {
-  state->opt_vtbl.mc_predict1fmv = od_mc_predict1fmv8_c;
-  state->opt_vtbl.mc_blend_full = od_mc_blend_full8_c;
-  state->opt_vtbl.mc_blend_full_split = od_mc_blend_full_split8_c;
-  state->opt_vtbl.mc_blend_multi = od_mc_blend_multi8_c;
-  state->opt_vtbl.mc_blend_multi_split = od_mc_blend_multi_split8_c;
+  if (state->full_precision_references) {
+    OD_ASSERT(0);
+    /*Incoming:
+      state->opt_vtbl.mc_predict1fmv = od_mc_predict1fmv16_c;
+      state->opt_vtbl.mc_blend_full = od_mc_blend_full16_c;
+      state->opt_vtbl.mc_blend_full_split = od_mc_blend_full_split16_c;
+      state->opt_vtbl.mc_blend_multi = od_mc_blend_multi16_c;
+      state->opt_vtbl.mc_blend_multi_split = od_mc_blend_multi_split16_c;*/
+  }
+  else {
+    state->opt_vtbl.mc_predict1fmv = od_mc_predict1fmv8_c;
+    state->opt_vtbl.mc_blend_full = od_mc_blend_full8_c;
+    state->opt_vtbl.mc_blend_full_split = od_mc_blend_full_split8_c;
+    state->opt_vtbl.mc_blend_full = od_mc_blend_multi8_c;
+    state->opt_vtbl.mc_blend_full_split = od_mc_blend_multi_split8_c;
+  }
   state->opt_vtbl.restore_fpu = od_restore_fpu_c;
   OD_COPY(state->opt_vtbl.fdct_2d, OD_FDCT_2D_C, OD_NBSIZES + 1);
   OD_COPY(state->opt_vtbl.idct_2d, OD_IDCT_2D_C, OD_NBSIZES + 1);
@@ -209,6 +227,11 @@ static int od_state_init_impl(od_state *state, const daala_info *info) {
   if (nplanes <= 0 || nplanes > OD_NPLANES_MAX) return OD_EINVAL;
   /*The first plane (the luma plane) must not be subsampled.*/
   if (info->plane_info[0].xdec || info->plane_info[0].ydec) return OD_EINVAL;
+  /*The bitdepth is restricted to a few allowed values.*/
+  if (info->bitdepth_mode < OD_BITDEPTH_MODE_8
+   || info->bitdepth_mode > OD_BITDEPTH_MODE_12) {
+    return OD_EINVAL;
+  }
   OD_CLEAR(state, 1);
   OD_COPY(&state->info, info, 1);
   /*Frame size is a multiple of a super block.*/
@@ -218,6 +241,10 @@ static int od_state_init_impl(od_state *state, const daala_info *info) {
    ~(OD_BSIZE_MAX - 1);
   state->nhmvbs = state->frame_width >> OD_LOG_MVBSIZE_MIN;
   state->nvmvbs = state->frame_height >> OD_LOG_MVBSIZE_MIN;
+  /*The master switch; once FPR is ready to go, this can be set to always-on,
+     or on only when encoding high-depth.
+    FPR must be on for lossless high-depth.*/
+  state->full_precision_references = 0;
   od_state_opt_vtbl_init(state);
   if (OD_UNLIKELY(od_state_ref_imgs_init(state, 4))) {
     return OD_EFAULT;
@@ -585,8 +612,8 @@ void od_state_pred_block(od_state *state,
     od_state_pred_block(state, buf + half_yblk_sz*ystride,
      ystride, xstride, pli, vx, vy + half_mvb_sz, log_mvb_sz - 1);
     od_state_pred_block(state,
-     buf + half_yblk_sz*ystride + half_xblk_sz*xstride,
-     ystride, xstride, pli, vx + half_mvb_sz, vy + half_mvb_sz, log_mvb_sz - 1);
+     buf + half_yblk_sz*ystride + half_xblk_sz*xstride, ystride, xstride,
+     pli, vx + half_mvb_sz, vy + half_mvb_sz, log_mvb_sz - 1);
   }
   else {
     int oc;

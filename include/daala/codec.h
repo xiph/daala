@@ -144,18 +144,31 @@ int daala_log_init(void);
 
 /** Representation of a single component within an image or frame. */
 struct od_img_plane {
+  /** Image data is stored as an unsigned octet type whether it's
+      actually 8 bit or a multi-byte depth. */
   unsigned char *data;
-  /** The decimation factor in x direction. Pixels are reduced by a factor of
-      2^xdec so 0 is none, 1 is decimated by a factor of 2. ( YUV420 will
-      have xdec of 1 and ydec also of 1. YUV444 will have xdec and ydec set to
-      zero ). */
+  /** The decimation factor in the x and y direction. Pixels are reduced
+      by a factor of 2^xdec so 0 is none, 1 is decimated by a factor of 2.
+      ( YUV420 will  have xdec of 1 and ydec also of 1. YUV444 will have
+      xdec and ydec set to zero ). */
   unsigned char xdec;
   unsigned char ydec;
-  /** Distance in memory between two pixels horizontally next to each other in
-      (is always 1 in encoder). */
+  /** Distance in memory between two pixels horizontally next to each other.
+      The value is in bytes regardless of the 'actual' underlying depth
+      (either unsigned bytes for 8 bit video or unsigned 16 bit shorts for
+      high-depth video). The xstride may be larger than the actual data
+      width calculated from the bitdepth; this implies packed rather than
+      planar data. */
   int xstride;
-  /** Distance in memory between two pixels vertically next to each other. */
+  /** Distance in memory between two pixels vertically next to each other.
+      As with xstride, this value is always in bytes. */
   int ystride;
+  /** 8 for 'normal' video precision; data is unsigned bytes centered on 128.
+      Greater-than-8 indicates high-depth video; data is unnormalized
+      host-endian order unsigned signed 16-bit shorts (two octets).
+      For example, 10 bit video would declare a bit depth of 10, use the
+      lower 10 bits of each 16 bit short, and center on 512. */
+  int bitdepth;
 };
 
 /** Representation of an image or video frame. */
@@ -176,6 +189,17 @@ struct daala_plane_info {
   unsigned char ydec;
 };
 
+/**\name Bit Depths
+ * The three video bit depths currently supported by Daala.*/
+/*@{*/
+/**8-bit mode.*/
+#define OD_BITDEPTH_MODE_8 (1)
+/**10-bit mode.*/
+#define OD_BITDEPTH_MODE_10 (2)
+/**12-bit mode.*/
+#define OD_BITDEPTH_MODE_12 (3)
+/*@}*/
+
 /** Configuration parameters for a codec instance. */
 struct daala_info {
   unsigned char version_major;
@@ -190,6 +214,9 @@ struct daala_info {
   uint32_t timebase_denominator;
   uint32_t frame_duration;
   int keyframe_granule_shift;
+  /** bitdepth_mode is one of the three OD_BITDEPTH_MODE_X choices allowed
+   * above. */
+  int bitdepth_mode;
   int nplanes;
   daala_plane_info plane_info[OD_NPLANES_MAX];
    /** key frame rate defined how often a key frame is emitted by encoder in

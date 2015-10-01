@@ -179,7 +179,8 @@ struct od_state{
   uint32_t        cpu_flags;
   int32_t         frame_width;
   int32_t         frame_height;
-  /** Buffer for the 4 ref images. */
+  int             full_precision_references;
+  /** Buffer for the reference images. */
   int                 ref_imgi[OD_FRAME_MAX+1];
   /** Pointers to the ref images so one can move them around without coping
       them. */

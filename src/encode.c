@@ -177,6 +177,8 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
   int frame_buf_height;
   int plane_buf_width;
   int plane_buf_height;
+  int reference_bytes;
+  int reference_bits;
   int ret;
 #if defined(OD_DUMP_BSIZE_DIST)
   char dist_fname[1024];
@@ -204,6 +206,9 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
   enc->params.mv_level_max = 4;
   enc->bs = (od_block_size_comp *)malloc(sizeof(*enc->bs));
   data_sz = 0;
+  reference_bytes = enc->state.full_precision_references ? 2 : 1;
+  reference_bits =
+   enc->state.full_precision_references ? 8 + OD_COEFF_SHIFT : 8;
   /*TODO: Check for overflow before allocating.*/
   frame_buf_width = enc->state.frame_width + (OD_BUFFER_PADDING << 1);
   frame_buf_height = enc->state.frame_height + (OD_BUFFER_PADDING << 1);
@@ -211,7 +216,7 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
     plane_buf_width = frame_buf_width >> info->plane_info[pli].xdec;
     plane_buf_height = frame_buf_height >> info->plane_info[pli].ydec;
     /*Reserve space for input plane buffer */
-    data_sz += plane_buf_width*plane_buf_height;
+    data_sz += plane_buf_width*plane_buf_height*reference_bytes;
 #if defined(OD_DUMP_IMAGES)
     /*Reserve space for this plane in 1 visualization image.*/
     data_sz += plane_buf_width*plane_buf_height << 2;
@@ -228,8 +233,7 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
   if (OD_UNLIKELY(!input_img_data)) {
     return OD_EFAULT;
   }
-  /*Fill in the input img structure.
-    8-bit only for now.*/
+  /*Fill in the input img structure.*/
   img = &enc->input_img;
   img->nplanes = info->nplanes;
   img->width = enc->state.frame_width;
@@ -244,7 +248,9 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
     input_img_data += plane_buf_width*plane_buf_height;
     iplane->xdec = info->plane_info[pli].xdec;
     iplane->ydec = info->plane_info[pli].ydec;
-    iplane->xstride = 1;
+    iplane->bitdepth = reference_bits;
+    /*Internal buffers are always planar.*/
+    iplane->xstride = reference_bytes;
     iplane->ystride = plane_buf_width;
   }
 #if defined(OD_DUMP_IMAGES)
@@ -269,6 +275,7 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
     input_img_data += plane_buf_width*plane_buf_height;
     iplane->xdec = info->plane_info[pli].xdec;
     iplane->ydec = info->plane_info[pli].ydec;
+    iplane->bitdepth = 8;
     iplane->xstride = 1;
     iplane->ystride = plane_buf_width;
   }
@@ -285,6 +292,7 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
     input_img_data += plane_buf_width*plane_buf_height;
     iplane->xdec = info->plane_info[pli].xdec;
     iplane->ydec = info->plane_info[pli].ydec;
+    iplane->bitdepth = 8;
     iplane->xstride = 1;
     iplane->ystride = plane_buf_width;
   }
@@ -517,8 +525,28 @@ static void od_img_plane_copy_pad8(od_img_plane *dst_p,
     src_data = src_p->data;
     dst = dst_data;
     for (y = 0; y < pic_height; y++) {
-      if (sxstride == 1) OD_COPY(dst, src_data, pic_width);
-      else for (x = 0; x < pic_width; x++) dst[x] = *(src_data + sxstride*x);
+      if (sxstride == 1) {
+        OD_COPY(dst, src_data, pic_width);
+      }
+      else {
+        if (src_p->bitdepth <= 8) {
+          /*1 byte per pixel*/
+          for (x = 0; x < pic_width; x++) {
+            dst[x] = *(src_data + sxstride*x);
+          }
+        }
+        else {
+          /*2 bytes per pixel*/
+          /*This is effectively a temporary placeholder until next commit when
+             we add a smart copy.
+            For now, just don't crash or produce gibberish;
+             accept the high-depth input and truncate it. */
+          for (x = 0; x < pic_width; x++) {
+            dst[x] = *(src_data + sxstride*x) +
+             (*(src_data + sxstride*x + 1) << 8) >> src_p->bitdepth - 8;
+          }
+        }
+      }
       dst += dstride;
       src_data += systride;
     }
