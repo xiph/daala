@@ -32,6 +32,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "x86int.h"
 #include "cpu.h"
 #include "../mc.h"
+#include "../util.h"
 
 #if defined(OD_X86ASM)
 #include <xmmintrin.h>
@@ -541,10 +542,17 @@ void od_mc_predict1fmv8_sse2(unsigned char *dst,const unsigned char *src,
   }
   /*MC with full-pel MV, i.e. integer position.*/
   else {
-    for (j = 0; j < yblk_sz; j++) {
-      OD_COPY(dst_p, src_p, xblk_sz);
-      src_p += systride;
-      dst_p += xblk_sz;
+    if (yblk_sz == xblk_sz && yblk_sz == 16) {
+      od_copy_16x16_sse2(dst_p, xblk_sz, src_p, systride);
+    }
+    else if (yblk_sz == xblk_sz && yblk_sz == 32) {
+      od_copy_32x32_sse2(dst_p, xblk_sz, src_p, systride);
+    }
+    else if (yblk_sz == xblk_sz && yblk_sz == 64) {
+      od_copy_64x64_sse2(dst_p, xblk_sz, src_p, systride);
+    }
+    else {
+      od_copy_nxm(dst_p, xblk_sz, src_p, systride, xblk_sz, yblk_sz);
     }
   }
 #if defined(OD_CHECKASM)

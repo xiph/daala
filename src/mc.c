@@ -196,13 +196,13 @@ void od_mc_predict1fmv8_c(unsigned char *dst, const unsigned char *src,
   }
   /*MC with full-pel MV, i.e. integer position.*/
   else {
-    if (yblk_sz == xblk_sz && log_yblk_sz == 16) {
+    if (yblk_sz == xblk_sz && yblk_sz == 16) {
       od_copy_16x16(dst_p, xblk_sz, src_p, systride);
     }
-    else if (yblk_sz == xblk_sz && log_yblk_sz == 32) {
+    else if (yblk_sz == xblk_sz && yblk_sz == 32) {
       od_copy_32x32(dst_p, xblk_sz, src_p, systride);
     }
-    else if (yblk_sz == xblk_sz && log_yblk_sz == 64) {
+    else if (yblk_sz == xblk_sz && yblk_sz == 64) {
       od_copy_64x64(dst_p, xblk_sz, src_p, systride);
     }
     else {
