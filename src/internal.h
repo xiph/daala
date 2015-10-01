@@ -58,11 +58,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 /*The maximum length of the side of a block.*/
 # define OD_BSIZE_MAX     (1 << OD_LOG_BSIZE_MAX)
 
-/*Largest motion compensation partition sizes are 32x32.*/
-# define OD_LOG_MVBSIZE_MAX (5)
+/*Largest motion compensation partition sizes are 64x64.*/
+# define OD_LOG_MVBSIZE_MAX (6)
 # define OD_MVBSIZE_MAX (1 << OD_LOG_MVBSIZE_MAX)
-/*Smallest motion compensation partition sizes are 4x4.*/
-# define OD_LOG_MVBSIZE_MIN (2)
+/*Smallest motion compensation partition sizes are 8x8.*/
+# define OD_LOG_MVBSIZE_MIN (3)
 # define OD_MVBSIZE_MIN (1 << OD_LOG_MVBSIZE_MIN)
 /*log(2) of the spacing between level-0 MV grid points.*/
 # define OD_LOG_MVB_DELTA0 (OD_LOG_MVBSIZE_MAX - OD_LOG_MVBSIZE_MIN)

@@ -75,6 +75,8 @@ struct od_enc_opt_vtbl {
    int systride, const unsigned char *ref, int dystride);
   int (*mc_compute_satd_32x32)(const unsigned char *src,
    int systride, const unsigned char *ref, int dystride);
+  int (*mc_compute_satd_64x64)(const unsigned char *src,
+   int systride, const unsigned char *ref, int dystride);
 };
 
 /*Unsanitized user parameters*/
@@ -164,6 +166,8 @@ int od_mc_compute_satd8_8x8_c(const unsigned char *src, int systride,
 int od_mc_compute_satd8_16x16_c(const unsigned char *src, int systride,
  const unsigned char *ref, int dystride);
 int od_mc_compute_satd8_32x32_c(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride);
+int od_mc_compute_satd8_64x64_c(const unsigned char *src, int systride,
  const unsigned char *ref, int dystride);
 void od_enc_opt_vtbl_init_c(od_enc_ctx *enc);
 

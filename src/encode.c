@@ -156,6 +156,8 @@ void od_enc_opt_vtbl_init_c(od_enc_ctx *enc) {
    od_mc_compute_satd8_16x16_c;
   enc->opt_vtbl.mc_compute_satd_32x32 =
    od_mc_compute_satd8_32x32_c;
+  enc->opt_vtbl.mc_compute_satd_64x64 =
+   od_mc_compute_satd8_64x64_c;
 }
 
 static void od_enc_opt_vtbl_init(od_enc_ctx *enc) {

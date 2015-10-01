@@ -75,11 +75,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 static const unsigned short __attribute__((aligned(16),used)) OD_BIL4H[8]={
   0x0,0x1,0x2,0x3,0x0,0x1,0x2,0x3
 };
-static const unsigned short __attribute__((aligned(16),used)) OD_BILH[32]={
+static const unsigned short __attribute__((aligned(16),used)) OD_BILH[64]={
   0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
   0x08,0x09,0x0A,0x0B,0x0C,0x0D,0x0E,0x0F,
   0x10,0x11,0x12,0x13,0x14,0x15,0x16,0x17,
   0x18,0x19,0x1A,0x1B,0x1C,0x1D,0x1E,0x1F,
+  0x20,0x21,0x22,0x23,0x24,0x25,0x26,0x27,
+  0x28,0x29,0x2A,0x2B,0x2C,0x2D,0x2E,0x2F,
+  0x30,0x31,0x32,0x33,0x34,0x35,0x36,0x37,
+  0x38,0x39,0x3A,0x3B,0x3C,0x3D,0x3E,0x3F
 };
 static const unsigned short __attribute__((aligned(16),used)) OD_BIL4V[64]={
   0x0,0x0,0x0,0x0,0x1,0x1,0x1,0x1,
@@ -91,7 +95,7 @@ static const unsigned short __attribute__((aligned(16),used)) OD_BIL4V[64]={
   0xC,0xC,0xC,0xC,0xD,0xD,0xD,0xD,
   0xE,0xE,0xE,0xE,0xF,0xF,0xF,0xF
 };
-static const unsigned short __attribute__((aligned(16),used)) OD_BILV[256]={
+static const unsigned short __attribute__((aligned(16),used)) OD_BILV[512]={
   0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
   0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,
   0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02,
@@ -123,7 +127,39 @@ static const unsigned short __attribute__((aligned(16),used)) OD_BILV[256]={
   0x1C,0x1C,0x1C,0x1C,0x1C,0x1C,0x1C,0x1C,
   0x1D,0x1D,0x1D,0x1D,0x1D,0x1D,0x1D,0x1D,
   0x1E,0x1E,0x1E,0x1E,0x1E,0x1E,0x1E,0x1E,
-  0x1F,0x1F,0x1F,0x1F,0x1F,0x1F,0x1F,0x1F
+  0x1F,0x1F,0x1F,0x1F,0x1F,0x1F,0x1F,0x1F,
+  0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,
+  0x21,0x21,0x21,0x21,0x21,0x21,0x21,0x21,
+  0x22,0x22,0x22,0x22,0x22,0x22,0x22,0x22,
+  0x23,0x23,0x23,0x23,0x23,0x23,0x23,0x23,
+  0x24,0x24,0x24,0x24,0x24,0x24,0x24,0x24,
+  0x25,0x25,0x25,0x25,0x25,0x25,0x25,0x25,
+  0x26,0x26,0x26,0x26,0x26,0x26,0x26,0x26,
+  0x27,0x27,0x27,0x27,0x27,0x27,0x27,0x27,
+  0x28,0x28,0x28,0x28,0x28,0x28,0x28,0x28,
+  0x29,0x29,0x29,0x29,0x29,0x29,0x29,0x29,
+  0x2A,0x2A,0x2A,0x2A,0x2A,0x2A,0x2A,0x2A,
+  0x2B,0x2B,0x2B,0x2B,0x2B,0x2B,0x2B,0x2B,
+  0x2C,0x2C,0x2C,0x2C,0x2C,0x2C,0x2C,0x2C,
+  0x2D,0x2D,0x2D,0x2D,0x2D,0x2D,0x2D,0x2D,
+  0x2E,0x2E,0x2E,0x2E,0x2E,0x2E,0x2E,0x2E,
+  0x2F,0x2F,0x2F,0x2F,0x2F,0x2F,0x2F,0x2F,
+  0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,
+  0x31,0x31,0x31,0x31,0x31,0x31,0x31,0x31,
+  0x32,0x32,0x32,0x32,0x32,0x32,0x32,0x32,
+  0x33,0x33,0x33,0x33,0x33,0x33,0x33,0x33,
+  0x34,0x34,0x34,0x34,0x34,0x34,0x34,0x34,
+  0x35,0x35,0x35,0x35,0x35,0x35,0x35,0x35,
+  0x36,0x36,0x36,0x36,0x36,0x36,0x36,0x36,
+  0x37,0x37,0x37,0x37,0x37,0x37,0x37,0x37,
+  0x38,0x38,0x38,0x38,0x38,0x38,0x38,0x38,
+  0x39,0x39,0x39,0x39,0x39,0x39,0x39,0x39,
+  0x3A,0x3A,0x3A,0x3A,0x3A,0x3A,0x3A,0x3A,
+  0x3B,0x3B,0x3B,0x3B,0x3B,0x3B,0x3B,0x3B,
+  0x3C,0x3C,0x3C,0x3C,0x3C,0x3C,0x3C,0x3C,
+  0x3D,0x3D,0x3D,0x3D,0x3D,0x3D,0x3D,0x3D,
+  0x3E,0x3E,0x3E,0x3E,0x3E,0x3E,0x3E,0x3E,
+  0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F,0x3F
 };
 
 #if defined(OD_CHECKASM)
@@ -303,6 +339,12 @@ void od_mc_predict1fmv8_horizontal_32x32(int16_t *buff_p,
    32, 32);
 }
 
+void od_mc_predict1fmv8_horizontal_64x64(int16_t *buff_p,
+ const unsigned char *src_p, int systride, int mvxf, int mvyf) {
+  od_mc_predict1fmv8_horizontal_nxm(buff_p, src_p, systride, mvxf, mvyf,
+   64, 64);
+}
+
 typedef void (*od_mc_predict1fmv8_horizontal_fixed_func)(int16_t *buff_p,
  const unsigned char *src_p, int systride, int mvxf, int mvyf);
 
@@ -310,10 +352,11 @@ typedef void (*od_mc_predict1fmv8_horizontal_fixed_func)(int16_t *buff_p,
 void od_mc_predict1fmv8_sse2(unsigned char *dst,const unsigned char *src,
  int systride, int32_t mvx, int32_t mvy,
  int log_xblk_sz, int log_yblk_sz) {
-  static const od_mc_predict1fmv8_horizontal_fixed_func VTBL_HORIZONTAL[5] = {
+  static const od_mc_predict1fmv8_horizontal_fixed_func
+   VTBL_HORIZONTAL[OD_LOG_MVBSIZE_MAX] = {
     od_mc_predict1fmv8_horizontal_2x2, od_mc_predict1fmv8_horizontal_4x4,
     od_mc_predict1fmv8_horizontal_8x8, od_mc_predict1fmv8_horizontal_16x16,
-    od_mc_predict1fmv8_horizontal_32x32
+    od_mc_predict1fmv8_horizontal_32x32, od_mc_predict1fmv8_horizontal_64x64
   };
   int mvxf;
   int mvyf;
@@ -796,6 +839,38 @@ static void od_mc_blend_full8_check(unsigned char *_dst,int _dystride,
   /*Get it back out to memory.*/ \
   "movdqa %%xmm0," _dst_offset "(%[dst])\n\t" \
 
+/*Blends a quarter of a row of a 64x64 block.
+  We can't blend an entire row at a time in SSE2 so we need to split it four
+   quarters.
+  _bilh_offset: Offset in the BILH table where to read the weights from.
+  _bilv_offset: Offset in the BILV table where to read the weights from.
+  _dst_offset: Offset in the dst pointer where to write the blended row.*/
+#define OD_MC_BLEND_FULL8_64_QUARTER(_bilh_offset, _bilv_offset, _dst_offset) \
+  "pxor %%xmm7,%%xmm7\n\t" \
+  /*Load the 4 images to blend.*/ \
+  OD_IM_LOAD16 \
+  /*Unpack and blend the 0 and 1 images.*/ \
+  OD_IM_UNPACK("%%xmm0","%%xmm4","%%xmm7") \
+  "lea %[OD_BILH],%[a]\n\t" \
+  OD_IM_UNPACK("%%xmm1","%%xmm5","%%xmm7") \
+  "movdqa " _bilh_offset "+0x10(%[a]),%%xmm6\n\t" \
+  OD_IM_BLEND("%%xmm0","%%xmm4","%%xmm1","%%xmm5","$6", \
+   _bilh_offset "(%[a])","%%xmm6") \
+  /*Unpack and blend the 2 and 3 images.*/ \
+  OD_IM_UNPACK("%%xmm2","%%xmm5","%%xmm7") \
+  OD_IM_UNPACK("%%xmm3","%%xmm1","%%xmm7") \
+  OD_IM_BLEND("%%xmm2","%%xmm5","%%xmm3","%%xmm1","$6", \
+   _bilh_offset "(%[a])","%%xmm6") \
+  /*Blend, shift, and re-pack images 0+1 and 2+3.*/ \
+  "lea %[OD_BILV],%[a]\n\t" \
+  "movdqa " _bilv_offset "(%[a],%[row]),%%xmm6\n\t" \
+  /*(b - a) << w requires 8 + 6 + 1 + 1 == 16 bits (signed). \
+    scale << (16 - x - w) requires 6 + (16 - 6 - 1) == 15 bits (unsigned).*/ \
+  OD_IM_BLEND_AND_PACK("%%xmm0","%%xmm4","%%xmm2","%%xmm5","%%xmm6", \
+   "6","12","1") \
+  /*Get it back out to memory.*/ \
+  "movdqa %%xmm0," _dst_offset "(%[dst])\n\t" \
+
 #if 0
 /*Defines a pure-C implementation with hard-coded loop limits for block sizes
    we don't want to implement manually (e.g., that have fewer than 16 bytes,
@@ -1064,6 +1139,32 @@ static void od_mc_blend_full8_32x32(unsigned char *_dst,int _dystride,
   }
 }
 
+static void od_mc_blend_full8_64x64(unsigned char *_dst,int _dystride,
+ const unsigned char *_src[4]){
+  ptrdiff_t a;
+  ptrdiff_t row;
+  for(row=0;row<64*64/4;row+=4){
+    __asm__ __volatile__(
+      /*First 16 bytes.*/ \
+      OD_MC_BLEND_FULL8_64_QUARTER("0x00","0","0x00") \
+      /*Second 16 bytes.*/ \
+      "lea 4(%[row]),%[row]\t\n" \
+      OD_MC_BLEND_FULL8_64_QUARTER("0x20","-4","0x10") \
+      /*Third 16 bytes.*/ \
+      "lea 4(%[row]),%[row]\t\n" \
+      OD_MC_BLEND_FULL8_64_QUARTER("0x40","-8","0x20") \
+      /*Fourth 16 bytes.*/ \
+      "lea 4(%[row]),%[row]\t\n" \
+      OD_MC_BLEND_FULL8_64_QUARTER("0x60","-12","0x30") \
+      "lea (%[dst],%[dystride]),%[dst]\t\n"
+      :[dst]"+r"(_dst),[row]"+r"(row),[a]"=&r"(a)
+      :[src]"r"(_src),[dystride]"r"((ptrdiff_t)_dystride),
+       [OD_BILH]"m"(*OD_BILH),[OD_BILV]"m"(*OD_BILV),
+       [pstride]"i"(sizeof(*_src))
+    );
+  }
+}
+
 typedef void (*od_mc_blend_full8_fixed_func)(unsigned char *_dst,int _dystride,
  const unsigned char *_src[4]);
 
@@ -1102,6 +1203,9 @@ void od_mc_blend_full8_sse2(unsigned char *_dst,int _dystride,
       If you need one of them, add another OD_MC_BLEND_FULL8_C() line above.*/
     {
       NULL, NULL, NULL, NULL, NULL, od_mc_blend_full8_32x32
+    },
+    {
+      NULL, NULL, NULL, NULL, NULL, NULL, od_mc_blend_full8_64x64
     }
   };
   (*VTBL[_log_xblk_sz][_log_yblk_sz])(_dst,_dystride,_src);
@@ -1367,6 +1471,61 @@ void od_mc_blend_full_split8_check(unsigned char *_dst,int _dystride,
   /*Get it back out to memory.*/ \
   "movdqa %%xmm0,(%[dst])\n\t" \
 
+/*Blends half of a row of a 32xN block with split edges (N up to 32).
+  %[dst] must be manually advanced to the proper row beforehand because of its
+   stride.
+  _bilh_offset: Offset in the BILH table where to read the weights from.
+  _bilv_offset: Offset in the BILV table where to read the weights from.
+  _dst_offset: Offset in the dst pointer where to write the blended row.*/
+#define OD_MC_BLEND_FULL_SPLIT8_32_HALF(_bilh_offset, _bilv_offset, \
+ _dst_offset) \
+  "pxor %%xmm7,%%xmm7\n\t" \
+  /*Load the first two images to blend.*/ \
+  OD_IM_LOAD16A \
+  /*Unpack and merge the 0 image.*/ \
+  OD_IM_UNPACK("%%xmm0","%%xmm4","%%xmm7") \
+  OD_IM_UNPACK("%%xmm2","%%xmm6","%%xmm7") \
+  "paddw %%xmm2,%%xmm0\n\t" \
+  "paddw %%xmm6,%%xmm4\n\t" \
+  /*Unpack and merge the 1 image.*/ \
+  OD_IM_UNPACK("%%xmm1","%%xmm5","%%xmm7") \
+  OD_IM_UNPACK("%%xmm3","%%xmm6","%%xmm7") \
+  "lea %[OD_BILH],%[a]\n\t" \
+  "paddw %%xmm3,%%xmm1\n\t" \
+  "paddw %%xmm6,%%xmm5\n\t" \
+  "movdqa " _bilh_offset "+0x10(%[a]),%%xmm6\n\t" \
+  /*Blend the 0 and 1 images.*/ \
+  OD_IM_BLEND("%%xmm0","%%xmm4","%%xmm1","%%xmm5","$5", \
+   _bilh_offset "(%[a])","%%xmm6") \
+  /*Load, unpack, and merge the 2 image.*/ \
+  OD_IM_LOAD16B \
+  OD_IM_UNPACK("%%xmm2","%%xmm5","%%xmm7") \
+  OD_IM_UNPACK("%%xmm1","%%xmm6","%%xmm7") \
+  "paddw %%xmm1,%%xmm2\n\t" \
+  "paddw %%xmm6,%%xmm5\n\t" \
+  /*Load, unpack, and merge the 3 image.*/ \
+  OD_IM_LOAD16C \
+  OD_IM_UNPACK("%%xmm3","%%xmm6","%%xmm7") \
+  "movdqa %%xmm1,%%xmm7\n\t" \
+  "punpcklbw %[OD_BILV],%%xmm7\n\t" \
+  "paddw %%xmm7,%%xmm3\n\t" \
+  "pxor %%xmm7,%%xmm7\n\t" \
+  "punpckhbw %%xmm7,%%xmm1\n\t" \
+  "paddw %%xmm1,%%xmm6\n\t" \
+  "lea %[OD_BILH],%[a]\n\t" \
+  "movdqa " _bilh_offset "+0x10(%[a]),%%xmm1\n\t" \
+  OD_IM_BLEND("%%xmm2","%%xmm5","%%xmm3","%%xmm6","$5", \
+   _bilh_offset "(%[a])","%%xmm1") \
+  /*Blend, shift, and re-pack images 0+1 and 2+3.*/ \
+  "lea %[OD_BILV],%[a]\n\t" \
+  "movdqa " _bilv_offset "(%[a],%[row],2),%%xmm6\n\t" \
+  /*(b - a) << w requires 8 + 1 + 5 + 1 + 1 == 16 bits (signed). \
+    scale << (16 - x - w) requires 5 + (16 - 5 - 1) == 15 bits (unsigned).*/ \
+  OD_IM_BLEND_AND_PACK("%%xmm0","%%xmm4","%%xmm2","%%xmm5", "%%xmm6", \
+   "5","11","1") \
+  /*Get it back out to memory.*/ \
+  "movdqa %%xmm0," _dst_offset "(%[dst])\n\t" \
+
 #if 0
 /*Defines a pure-C implementation with hard-coded loop limits for block sizes
    we don't want to implement manually (e.g., that have fewer than 16 bytes,
@@ -1547,6 +1706,26 @@ static void od_mc_blend_full_split8_16x16(unsigned char *_dst,int _dystride,
   }
 }
 
+static void od_mc_blend_full_split8_32x32(unsigned char *_dst,int _dystride,
+ const unsigned char *_src[8]){
+  ptrdiff_t a;
+  ptrdiff_t row;
+  for(row=0;row<32*32/4;row+=4){
+    __asm__ __volatile__(
+      /*First 16 bytes.*/ \
+      OD_MC_BLEND_FULL_SPLIT8_32_HALF("0x00","0","0x00") \
+      /*Second 16 bytes.*/ \
+      "lea 4(%[row]),%[row]\t\n" \
+      OD_MC_BLEND_FULL_SPLIT8_32_HALF("0x20","-8","0x10") \
+      "lea (%[dst],%[dystride]),%[dst]\t\n"
+      :[dst]"+r"(_dst),[row]"+r"(row),[a]"=&r"(a)
+      :[src]"r"(_src),[dystride]"r"((ptrdiff_t)_dystride),
+       [OD_BILH]"m"(*OD_BILH),[OD_BILV]"m"(*OD_BILV),
+       [pstride]"i"(sizeof(*_src))
+    );
+  }
+}
+
 typedef void (*od_mc_blend_full_split8_fixed_func)(unsigned char *_dst,
  int _dystride,const unsigned char *_src[8]);
 
@@ -1594,6 +1773,9 @@ void od_mc_blend_full_split8_sse2(unsigned char *_dst,int _dystride,
        above.*/
     {
       NULL, NULL, NULL, NULL, od_mc_blend_full_split8_16x16
+    },
+    {
+      NULL, NULL, NULL, NULL, NULL, od_mc_blend_full_split8_32x32
     }
   };
   /*We pack all the image pointers in one array to save a register.*/
