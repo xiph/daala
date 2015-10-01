@@ -91,88 +91,38 @@ static const unsigned short __attribute__((aligned(16),used)) OD_BIL4V[64]={
   0xC,0xC,0xC,0xC,0xD,0xD,0xD,0xD,
   0xE,0xE,0xE,0xE,0xF,0xF,0xF,0xF
 };
-static const unsigned short __attribute__((aligned(16),used)) OD_BILV[128]={
-  0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,
-  0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1,
-  0x2,0x2,0x2,0x2,0x2,0x2,0x2,0x2,
-  0x3,0x3,0x3,0x3,0x3,0x3,0x3,0x3,
-  0x4,0x4,0x4,0x4,0x4,0x4,0x4,0x4,
-  0x5,0x5,0x5,0x5,0x5,0x5,0x5,0x5,
-  0x6,0x6,0x6,0x6,0x6,0x6,0x6,0x6,
-  0x7,0x7,0x7,0x7,0x7,0x7,0x7,0x7,
-  0x8,0x8,0x8,0x8,0x8,0x8,0x8,0x8,
-  0x9,0x9,0x9,0x9,0x9,0x9,0x9,0x9,
-  0xA,0xA,0xA,0xA,0xA,0xA,0xA,0xA,
-  0xB,0xB,0xB,0xB,0xB,0xB,0xB,0xB,
-  0xC,0xC,0xC,0xC,0xC,0xC,0xC,0xC,
-  0xD,0xD,0xD,0xD,0xD,0xD,0xD,0xD,
-  0xE,0xE,0xE,0xE,0xE,0xE,0xE,0xE,
-  0xF,0xF,0xF,0xF,0xF,0xF,0xF,0xF
-};
-static const unsigned short __attribute__((aligned(16),used)) OD_BIL16V[512]={
-  0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+static const unsigned short __attribute__((aligned(16),used)) OD_BILV[256]={
   0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
   0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,
-  0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,
-  0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02,
   0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02,
   0x03,0x03,0x03,0x03,0x03,0x03,0x03,0x03,
-  0x03,0x03,0x03,0x03,0x03,0x03,0x03,0x03,
-  0x04,0x04,0x04,0x04,0x04,0x04,0x04,0x04,
   0x04,0x04,0x04,0x04,0x04,0x04,0x04,0x04,
   0x05,0x05,0x05,0x05,0x05,0x05,0x05,0x05,
-  0x05,0x05,0x05,0x05,0x05,0x05,0x05,0x05,
-  0x06,0x06,0x06,0x06,0x06,0x06,0x06,0x06,
   0x06,0x06,0x06,0x06,0x06,0x06,0x06,0x06,
   0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x07,
-  0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x07,
-  0x08,0x08,0x08,0x08,0x08,0x08,0x08,0x08,
   0x08,0x08,0x08,0x08,0x08,0x08,0x08,0x08,
   0x09,0x09,0x09,0x09,0x09,0x09,0x09,0x09,
-  0x09,0x09,0x09,0x09,0x09,0x09,0x09,0x09,
-  0x0A,0x0A,0x0A,0x0A,0x0A,0x0A,0x0A,0x0A,
   0x0A,0x0A,0x0A,0x0A,0x0A,0x0A,0x0A,0x0A,
   0x0B,0x0B,0x0B,0x0B,0x0B,0x0B,0x0B,0x0B,
-  0x0B,0x0B,0x0B,0x0B,0x0B,0x0B,0x0B,0x0B,
-  0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,
   0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,0x0C,
   0x0D,0x0D,0x0D,0x0D,0x0D,0x0D,0x0D,0x0D,
-  0x0D,0x0D,0x0D,0x0D,0x0D,0x0D,0x0D,0x0D,
-  0x0E,0x0E,0x0E,0x0E,0x0E,0x0E,0x0E,0x0E,
   0x0E,0x0E,0x0E,0x0E,0x0E,0x0E,0x0E,0x0E,
   0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,
-  0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,
-  0x10,0x10,0x10,0x10,0x10,0x10,0x10,0x10,
   0x10,0x10,0x10,0x10,0x10,0x10,0x10,0x10,
   0x11,0x11,0x11,0x11,0x11,0x11,0x11,0x11,
-  0x11,0x11,0x11,0x11,0x11,0x11,0x11,0x11,
-  0x12,0x12,0x12,0x12,0x12,0x12,0x12,0x12,
   0x12,0x12,0x12,0x12,0x12,0x12,0x12,0x12,
   0x13,0x13,0x13,0x13,0x13,0x13,0x13,0x13,
-  0x13,0x13,0x13,0x13,0x13,0x13,0x13,0x13,
-  0x14,0x14,0x14,0x14,0x14,0x14,0x14,0x14,
   0x14,0x14,0x14,0x14,0x14,0x14,0x14,0x14,
   0x15,0x15,0x15,0x15,0x15,0x15,0x15,0x15,
-  0x15,0x15,0x15,0x15,0x15,0x15,0x15,0x15,
-  0x16,0x16,0x16,0x16,0x16,0x16,0x16,0x16,
   0x16,0x16,0x16,0x16,0x16,0x16,0x16,0x16,
   0x17,0x17,0x17,0x17,0x17,0x17,0x17,0x17,
-  0x17,0x17,0x17,0x17,0x17,0x17,0x17,0x17,
-  0x18,0x18,0x18,0x18,0x18,0x18,0x18,0x18,
   0x18,0x18,0x18,0x18,0x18,0x18,0x18,0x18,
   0x19,0x19,0x19,0x19,0x19,0x19,0x19,0x19,
-  0x19,0x19,0x19,0x19,0x19,0x19,0x19,0x19,
-  0x1A,0x1A,0x1A,0x1A,0x1A,0x1A,0x1A,0x1A,
   0x1A,0x1A,0x1A,0x1A,0x1A,0x1A,0x1A,0x1A,
   0x1B,0x1B,0x1B,0x1B,0x1B,0x1B,0x1B,0x1B,
-  0x1B,0x1B,0x1B,0x1B,0x1B,0x1B,0x1B,0x1B,
-  0x1C,0x1C,0x1C,0x1C,0x1C,0x1C,0x1C,0x1C,
   0x1C,0x1C,0x1C,0x1C,0x1C,0x1C,0x1C,0x1C,
   0x1D,0x1D,0x1D,0x1D,0x1D,0x1D,0x1D,0x1D,
-  0x1D,0x1D,0x1D,0x1D,0x1D,0x1D,0x1D,0x1D,
   0x1E,0x1E,0x1E,0x1E,0x1E,0x1E,0x1E,0x1E,
-  0x1E,0x1E,0x1E,0x1E,0x1E,0x1E,0x1E,0x1E,
-  0x1F,0x1F,0x1F,0x1F,0x1F,0x1F,0x1F,0x1F,
   0x1F,0x1F,0x1F,0x1F,0x1F,0x1F,0x1F,0x1F
 };
 
@@ -596,7 +546,7 @@ static void od_mc_blend_full8_check(unsigned char *_dst,int _dystride,
 #define OD_IM_LOAD16 \
   "#OD_IM_LOAD16\n\t" \
   "mov (%[src]),%[a]\n\t" \
-  "movdqa (%[a],%[row]),%%xmm0\n\t" \
+  "movdqa (%[a],%[row],4),%%xmm0\n\t" \
   /*The "c" prefix here means to leave off the leading $ normally used for \
      immediates (since we want to move from an address, not an immediate). \
     Currently, this is not documented in the gcc manual, and my editor doesn't \
@@ -607,11 +557,11 @@ static void od_mc_blend_full8_check(unsigned char *_dst,int _dystride,
     I found it on this thread: \
      http://gcc.gnu.org/ml/gcc-help/2006-09/msg00301.html*/ \
   "mov %c[pstride](%[src]),%[a]\n\t" \
-  "movdqa (%[a],%[row]),%%xmm1\n\t" \
+  "movdqa (%[a],%[row],4),%%xmm1\n\t" \
   "mov %c[pstride]*3(%[src]),%[a]\n\t" \
-  "movdqa (%[a],%[row]),%%xmm2\n\t" \
+  "movdqa (%[a],%[row],4),%%xmm2\n\t" \
   "mov %c[pstride]*2(%[src]),%[a]\n\t" \
-  "movdqa (%[a],%[row]),%%xmm3\n\t" \
+  "movdqa (%[a],%[row],4),%%xmm3\n\t" \
 
 /*Unpacks an 8-bit register into two 16-bit registers.
   _rega: The input register, which will contain the low-order output.
@@ -741,7 +691,7 @@ static void od_mc_blend_full8_check(unsigned char *_dst,int _dystride,
   "lea %[OD_BIL4V],%[a]\n\t" \
   "psllw $" #_log_yblk_sz "+1,%%xmm7\n\t" \
   OD_IM_BLEND("%%xmm0","%%xmm4","%%xmm2","%%xmm5","$" #_log_yblk_sz, \
-   "(%[a],%[row])","0x10(%[a],%[row])") \
+   "(%[a],%[row],4)","0x10(%[a],%[row],4)") \
   OD_IM_PACK("%%xmm0","%%xmm4","%%xmm7","$" #_log_yblk_sz "+2") \
   /*Get it back out to memory. \
     We have to do this 4 bytes at a time because the destination will not in \
@@ -779,7 +729,7 @@ static void od_mc_blend_full8_check(unsigned char *_dst,int _dystride,
   "lea %[OD_BILV],%[a]\n\t" \
   "psllw $" #_log_yblk_sz "+2,%%xmm7\n\t" \
   OD_IM_BLEND("%%xmm0","%%xmm4","%%xmm2","%%xmm5","$" #_log_yblk_sz, \
-   "(%[a],%[row],2)","0x10(%[a],%[row],2)") \
+   "(%[a],%[row],8)","0x10(%[a],%[row],8)") \
   OD_IM_PACK("%%xmm0","%%xmm4","%%xmm7","$" #_log_yblk_sz "+3") \
   /*Get it back out to memory. \
     We have to do this 8 bytes at a time because the destination will not in \
@@ -809,7 +759,7 @@ static void od_mc_blend_full8_check(unsigned char *_dst,int _dystride,
   "pcmpeqw %%xmm1,%%xmm1\n\t" \
   "lea %[OD_BILV],%[a]\n\t" \
   "psubw %%xmm1,%%xmm7\n\t" \
-  "movdqa (%[a],%[row]),%%xmm6\n\t" \
+  "movdqa (%[a],%[row],4),%%xmm6\n\t" \
   "psllw $" #_log_yblk_sz "+3,%%xmm7\n\t" \
   OD_IM_BLEND("%%xmm0","%%xmm4","%%xmm2","%%xmm5","$" #_log_yblk_sz, \
    "%%xmm6","%%xmm6") \
@@ -820,25 +770,27 @@ static void od_mc_blend_full8_check(unsigned char *_dst,int _dystride,
 /*Blends half a row of a 32x32 block. We can't blend an entire row at a time
   in SSE2 so we need to split it two havles.
  _bilh_offset: Offset in the BILH table where to read the weights from.
+ _bilv_offset: Offset in the BILV table where to read the weights from.
  _dst_offset: Offset in the dst pointer where to write the blended row. */
-#define OD_MC_BLEND_FULL8_32_HALF(_bilh_offset, _dst_offset) \
+#define OD_MC_BLEND_FULL8_32_HALF(_bilh_offset, _bilv_offset, _dst_offset) \
   "pxor %%xmm7,%%xmm7\n\t" \
   /*Load the 4 images to blend.*/ \
   OD_IM_LOAD16 \
   /*Unpack and blend the 0 and 1 images.*/ \
   OD_IM_UNPACK("%%xmm0","%%xmm4","%%xmm7") \
   "lea %[OD_BILH],%[a]\n\t" \
-  "lea " _bilh_offset "(%[a]),%[a]\t\n" \
   OD_IM_UNPACK("%%xmm1","%%xmm5","%%xmm7") \
-  "movdqa 0x10(%[a]),%%xmm6\n\t" \
-  OD_IM_BLEND("%%xmm0","%%xmm4","%%xmm1","%%xmm5","$5","(%[a])","%%xmm6") \
+  "movdqa " _bilh_offset "+0x10(%[a]),%%xmm6\n\t" \
+  OD_IM_BLEND("%%xmm0","%%xmm4","%%xmm1","%%xmm5","$5", \
+   _bilh_offset "(%[a])","%%xmm6") \
   /*Unpack and blend the 2 and 3 images.*/ \
   OD_IM_UNPACK("%%xmm2","%%xmm5","%%xmm7") \
   OD_IM_UNPACK("%%xmm3","%%xmm1","%%xmm7") \
-  OD_IM_BLEND("%%xmm2","%%xmm5","%%xmm3","%%xmm1","$5","(%[a])","%%xmm6") \
+  OD_IM_BLEND("%%xmm2","%%xmm5","%%xmm3","%%xmm1","$5", \
+   _bilh_offset "(%[a])","%%xmm6") \
   /*Blend, shift, and re-pack images 0+1 and 2+3.*/ \
-  "lea %[OD_BIL16V],%[a]\n\t" \
-  "movdqa (%[a],%[row]),%%xmm6\n\t" \
+  "lea %[OD_BILV],%[a]\n\t" \
+  "movdqa " _bilv_offset "(%[a],%[row],2),%%xmm6\n\t" \
   OD_IM_BLEND_AND_PACK("%%xmm0","%%xmm4","%%xmm2","%%xmm5","%%xmm6", \
    "5","10","1") \
   /*Get it back out to memory.*/ \
@@ -922,10 +874,11 @@ static void od_mc_blend_full8_4x8(unsigned char *_dst,int _dystride,
      how to put that in a macro).
     row can't count by 1, because (in the 8x2 versions below) we will need to
      scale it by either 16 or 32, and an index register can only be scaled by
-     16.
-    Therefore we pre-scale it by 16, and do so everywhere (even for the 4x4 and
+     16, and in the 32x32 and 64x64 versions we will want to scale it by 1/2
+     and 1/4 (respectively) to reduce the size of our tables.
+    Therefore we pre-scale it by 4, and do so everywhere (even for the 4x4 and
      8x2 versions) so that things are consistent.*/
-  for(row=0;row<0x20;row+=0x10){
+  for(row=0;row<8;row+=4){
     __asm__ __volatile__(
       OD_MC_BLEND_FULL8_4x4(3)
       "lea (%[dst],%[dystride],4),%[dst]\t\n"
@@ -941,7 +894,7 @@ static void od_mc_blend_full8_4x16(unsigned char *_dst,int _dystride,
  const unsigned char *_src[4]){
   ptrdiff_t a;
   ptrdiff_t row;
-  for(row=0;row<0x40;row+=0x10){
+  for(row=0;row<16;row+=4){
     __asm__ __volatile__(
       OD_MC_BLEND_FULL8_4x4(4)
       "lea (%[dst],%[dystride],4),%[dst]\t\n"
@@ -971,7 +924,7 @@ static void od_mc_blend_full8_8x4(unsigned char *_dst,int _dystride,
  const unsigned char *_src[4]){
   ptrdiff_t a;
   ptrdiff_t row;
-  for(row=0;row<0x20;row+=0x10){
+  for(row=0;row<8;row+=4){
     __asm__ __volatile__(
       OD_MC_BLEND_FULL8_8x2(2)
       "lea (%[dst],%[dystride],2),%[dst]\t\n"
@@ -987,7 +940,7 @@ static void od_mc_blend_full8_8x8(unsigned char *_dst,int _dystride,
  const unsigned char *_src[4]){
   ptrdiff_t a;
   ptrdiff_t row;
-  for(row=0;row<0x40;row+=0x10){
+  for(row=0;row<8*8/4;row+=4){
     __asm__ __volatile__(
       OD_MC_BLEND_FULL8_8x2(3)
       "lea (%[dst],%[dystride],2),%[dst]\t\n"
@@ -1003,7 +956,7 @@ static void od_mc_blend_full8_8x16(unsigned char *_dst,int _dystride,
  const unsigned char *_src[4]){
   ptrdiff_t a;
   ptrdiff_t row;
-  for(row=0;row<0x80;row+=0x10){
+  for(row=0;row<8*16/4;row+=4){
     __asm__ __volatile__(
       OD_MC_BLEND_FULL8_8x2(4)
       "lea (%[dst],%[dystride],2),%[dst]\t\n"
@@ -1031,7 +984,7 @@ static void od_mc_blend_full8_16x2(unsigned char *_dst,int _dystride,
  const unsigned char *_src[4]){
   ptrdiff_t a;
   ptrdiff_t row;
-  for(row=0;row<0x20;row+=0x10){
+  for(row=0;row<16*2/4;row+=4){
     __asm__ __volatile__(
       OD_MC_BLEND_FULL8_16x1(1)
       "lea (%[dst],%[dystride]),%[dst]\t\n"
@@ -1047,7 +1000,7 @@ static void od_mc_blend_full8_16x4(unsigned char *_dst,int _dystride,
  const unsigned char *_src[4]){
   ptrdiff_t a;
   ptrdiff_t row;
-  for(row=0;row<0x40;row+=0x10){
+  for(row=0;row<16;row+=4){
     __asm__ __volatile__(
       OD_MC_BLEND_FULL8_16x1(2)
       "lea (%[dst],%[dystride]),%[dst]\t\n"
@@ -1063,7 +1016,7 @@ static void od_mc_blend_full8_16x8(unsigned char *_dst,int _dystride,
  const unsigned char *_src[4]){
   ptrdiff_t a;
   ptrdiff_t row;
-  for(row=0;row<0x80;row+=0x10){
+  for(row=0;row<16*8/4;row+=4){
     __asm__ __volatile__(
       OD_MC_BLEND_FULL8_16x1(3)
       "lea (%[dst],%[dystride]),%[dst]\t\n"
@@ -1079,7 +1032,7 @@ static void od_mc_blend_full8_16x16(unsigned char *_dst,int _dystride,
  const unsigned char *_src[4]){
   ptrdiff_t a;
   ptrdiff_t row;
-  for(row=0;row<0x100;row+=0x10){
+  for(row=0;row<16*16/4;row+=4){
     __asm__ __volatile__(
       OD_MC_BLEND_FULL8_16x1(4)
       "lea (%[dst],%[dystride]),%[dst]\t\n"
@@ -1095,17 +1048,17 @@ static void od_mc_blend_full8_32x32(unsigned char *_dst,int _dystride,
  const unsigned char *_src[4]){
   ptrdiff_t a;
   ptrdiff_t row;
-  for(row=0;row<0x400;row+=0x10){
+  for(row=0;row<32*32/4;row+=4){
     __asm__ __volatile__(
       /*First 16 bytes.*/ \
-      OD_MC_BLEND_FULL8_32_HALF("0x00","0x00") \
+      OD_MC_BLEND_FULL8_32_HALF("0x00","0","0x00") \
       /*Second 16 bytes.*/ \
-      "lea 0x10(%[row]),%[row]\t\n" \
-      OD_MC_BLEND_FULL8_32_HALF("0x20","0x10") \
+      "lea 4(%[row]),%[row]\t\n" \
+      OD_MC_BLEND_FULL8_32_HALF("0x20","-8","0x10") \
       "lea (%[dst],%[dystride]),%[dst]\t\n"
       :[dst]"+r"(_dst),[row]"+r"(row),[a]"=&r"(a)
       :[src]"r"(_src),[dystride]"r"((ptrdiff_t)_dystride),
-       [OD_BILH]"m"(*OD_BILH),[OD_BIL16V]"m"(*OD_BIL16V),
+       [OD_BILH]"m"(*OD_BILH),[OD_BILV]"m"(*OD_BILV),
        [pstride]"i"(sizeof(*_src))
     );
   }
@@ -1196,13 +1149,13 @@ void od_mc_blend_full_split8_check(unsigned char *_dst,int _dystride,
 #define OD_IM_LOAD16A \
   "#OD_IM_LOAD16A\n\t" \
   "mov (%[src]),%[a]\n\t" \
-  "movdqa (%[a],%[row]),%%xmm0\n\t" \
+  "movdqa (%[a],%[row],4),%%xmm0\n\t" \
   "mov %c[pstride](%[src]),%[a]\n\t" \
-  "movdqa (%[a],%[row]),%%xmm1\n\t" \
+  "movdqa (%[a],%[row],4),%%xmm1\n\t" \
   "mov %c[pstride]*4(%[src]),%[a]\n\t" \
-  "movdqa (%[a],%[row]),%%xmm2\n\t" \
+  "movdqa (%[a],%[row],4),%%xmm2\n\t" \
   "mov %c[pstride]*5(%[src]),%[a]\n\t" \
-  "movdqa (%[a],%[row]),%%xmm3\n\t" \
+  "movdqa (%[a],%[row],4),%%xmm3\n\t" \
 
 /*Loads a block of 16 bytes from the third image into xmm2 and xmm1.
   xmm1 contains a duplicate copy of xmm2, or not, depending on whether the
@@ -1210,9 +1163,9 @@ void od_mc_blend_full_split8_check(unsigned char *_dst,int _dystride,
 #define OD_IM_LOAD16B \
   "#OD_IM_LOAD16B\n\t" \
   "mov %c[pstride]*3(%[src]),%[a]\n\t" \
-  "movdqa (%[a],%[row]),%%xmm2\n\t" \
+  "movdqa (%[a],%[row],4),%%xmm2\n\t" \
   "mov %c[pstride]*7(%[src]),%[a]\n\t" \
-  "movdqa (%[a],%[row]),%%xmm1\n\t" \
+  "movdqa (%[a],%[row],4),%%xmm1\n\t" \
 
 /*Loads a block of 16 bytes from the fourth image into xmm3 and xmm1.
   xmm1 contains a duplicate copy of xmm3, or not, depending on whether the
@@ -1220,9 +1173,9 @@ void od_mc_blend_full_split8_check(unsigned char *_dst,int _dystride,
 #define OD_IM_LOAD16C \
   "#OD_IM_LOAD16C\n\t" \
   "mov %c[pstride]*2(%[src]),%[a]\n\t" \
-  "movdqa (%[a],%[row]),%%xmm3\n\t" \
+  "movdqa (%[a],%[row],4),%%xmm3\n\t" \
   "mov %c[pstride]*6(%[src]),%[a]\n\t" \
-  "movdqa (%[a],%[row]),%%xmm1\n\t" \
+  "movdqa (%[a],%[row],4),%%xmm1\n\t" \
 
 /*Blends 4 rows of a 4xN block with split edges (N up to 32).
   %[dst] must be manually advanced to the proper row beforehand because of its
@@ -1280,7 +1233,7 @@ void od_mc_blend_full_split8_check(unsigned char *_dst,int _dystride,
   "psllw $" #_log_yblk_sz "+2,%%xmm7\n\t" \
   "lea %[OD_BIL4V],%[a]\n\t" \
   OD_IM_BLEND("%%xmm0","%%xmm4","%%xmm2","%%xmm5","$" #_log_yblk_sz, \
-   "(%[a],%[row])","0x10(%[a],%[row])") \
+   "(%[a],%[row],4)","0x10(%[a],%[row],4)") \
   OD_IM_PACK("%%xmm0","%%xmm4","%%xmm7","$" #_log_yblk_sz "+3") \
   /*Get it back out to memory. \
     We have to do this 4 bytes at a time because the destination will not in \
@@ -1349,7 +1302,7 @@ void od_mc_blend_full_split8_check(unsigned char *_dst,int _dystride,
   "psllw $" #_log_yblk_sz "+3,%%xmm7\n\t" \
   "lea %[OD_BILV],%[a]\n\t" \
   OD_IM_BLEND("%%xmm0","%%xmm4","%%xmm2","%%xmm5","$" #_log_yblk_sz, \
-   "(%[a],%[row],2)","0x10(%[a],%[row],2)") \
+   "(%[a],%[row],8)","0x10(%[a],%[row],8)") \
   OD_IM_PACK("%%xmm0","%%xmm4","%%xmm7","$" #_log_yblk_sz "+4") \
   /*Get it back out to memory. \
     We have to do this 8 bytes at a time because the destination will not in \
@@ -1402,14 +1355,13 @@ void od_mc_blend_full_split8_check(unsigned char *_dst,int _dystride,
   "pxor %%xmm7,%%xmm7\n\t" \
   "punpckhbw %%xmm7,%%xmm1\n\t" \
   "paddw %%xmm1,%%xmm6\n\t" \
-  "pcmpeqw %%xmm1,%%xmm1\n\t" \
   /*End alternate version.*/ \
   "lea %[OD_BILH],%[a]\n\t" \
   "movdqa 0x10(%[a]),%%xmm1\n\t" \
   OD_IM_BLEND("%%xmm2","%%xmm5","%%xmm3","%%xmm6","$4","(%[a])","%%xmm1") \
   /*Blend, shift, and re-pack images 0+1 and 2+3.*/ \
   "lea %[OD_BILV],%[a]\n\t" \
-  "movdqa (%[a],%[row]),%%xmm6\n\t" \
+  "movdqa (%[a],%[row],4),%%xmm6\n\t" \
   OD_IM_BLEND_AND_PACK("%%xmm0","%%xmm4","%%xmm2","%%xmm5", "%%xmm6", \
    "4","9","1") \
   /*Get it back out to memory.*/ \
@@ -1521,7 +1473,7 @@ static void od_mc_blend_full_split8_4x8(unsigned char *_dst,int _dystride,
  const unsigned char *_src[8]){
   ptrdiff_t a;
   ptrdiff_t row;
-  for(row=0;row<0x20;row+=0x10){
+  for(row=0;row<8;row+=4){
     __asm__ __volatile__(
       OD_MC_BLEND_FULL_SPLIT8_4x4(3)
       "lea (%[dst],%[dystride],2),%[dst]\t\n"
@@ -1551,7 +1503,7 @@ static void od_mc_blend_full_split8_8x4(unsigned char *_dst,int _dystride,
  const unsigned char *_src[8]){
   ptrdiff_t a;
   ptrdiff_t row;
-  for(row=0;row<0x20;row+=0x10){
+  for(row=0;row<8;row+=4){
     __asm__ __volatile__(
       OD_MC_BLEND_FULL_SPLIT8_8x2(2)
       "lea (%[dst],%[dystride],2),%[dst]\t\n"
@@ -1567,7 +1519,7 @@ static void od_mc_blend_full_split8_8x8(unsigned char *_dst,int _dystride,
  const unsigned char *_src[8]){
   ptrdiff_t a;
   ptrdiff_t row;
-  for(row=0;row<0x40;row+=0x10){
+  for(row=0;row<8*8/4;row+=4){
     __asm__ __volatile__(
       OD_MC_BLEND_FULL_SPLIT8_8x2(3)
       "lea (%[dst],%[dystride],2),%[dst]\t\n"
@@ -1583,7 +1535,7 @@ static void od_mc_blend_full_split8_16x16(unsigned char *_dst,int _dystride,
  const unsigned char *_src[8]){
   ptrdiff_t a;
   ptrdiff_t row;
-  for(row=0;row<0x100;row+=0x10){
+  for(row=0;row<16*16/4;row+=4){
     __asm__ __volatile__(
       OD_MC_BLEND_FULL_SPLIT8_16x1(4)
       "lea (%[dst],%[dystride]),%[dst]\t\n"
