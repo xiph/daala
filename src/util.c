@@ -95,7 +95,7 @@ void od_copy_log_nxn(unsigned char *_dst, int _dstride,
     od_copy_32x32,
     od_copy_64x64
   };
-  OD_ASSERT(_log_n >= OD_LOG_BSIZE0 || _log_n <= 6);
+  OD_ASSERT(_log_n > 0 || _log_n <= 6);
   (*VTBL[_log_n])(_dst, _dstride, _src, _sstride);
 }
 
