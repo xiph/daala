@@ -1014,10 +1014,14 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
   }
   if (dec->quantizer[0] > 0) {
     for (pli = 0; pli < nplanes; pli++) {
+      int i;
+      int size;
       xdec = dec->output_img.planes[pli].xdec;
       ydec = dec->output_img.planes[pli].ydec;
-      OD_COPY(&state->etmp[pli][0], &state->ctmp[pli][0],
-       nvsb*nhsb*OD_BSIZE_MAX*OD_BSIZE_MAX >> xdec >> ydec);
+      size = nvsb*nhsb*OD_BSIZE_MAX*OD_BSIZE_MAX >> xdec >> ydec;
+      for (i = 0; i < size; i++) {
+        state->etmp[pli][i] = state->ctmp[pli][i];
+      }
     }
     for (sby = 0; sby < nvsb; sby++) {
       for (sbx = 0; sbx < nhsb; sbx++) {
@@ -1043,7 +1047,7 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
         state->dering_flags[sby*nhsb + sbx] = filtered;
         if (filtered) {
           for (pli = 0; pli < nplanes; pli++) {
-            od_coeff buf[OD_BSIZE_MAX*OD_BSIZE_MAX];
+            int16_t buf[OD_BSIZE_MAX*OD_BSIZE_MAX];
             od_coeff *output;
             int ln;
             int n;

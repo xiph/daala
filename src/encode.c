@@ -2341,16 +2341,20 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
     /* We copy ctmp to dtmp so we can use it as an unmodified input
        and avoid filtering some pixels twice. */
     for (pli = 0; pli < nplanes; pli++) {
+      int i;
+      int size;
       xdec = enc->input_img.planes[pli].xdec;
       ydec = enc->input_img.planes[pli].ydec;
-      OD_COPY(&state->etmp[pli][0], &state->ctmp[pli][0],
-       nvsb*nhsb*OD_BSIZE_MAX*OD_BSIZE_MAX >> xdec >> ydec);
+      size = nvsb*nhsb*OD_BSIZE_MAX*OD_BSIZE_MAX >> xdec >> ydec;
+      for (i = 0; i < size; i++) {
+        state->etmp[pli][i] = state->ctmp[pli][i];
+      }
     }
     for (sby = 0; sby < nvsb; sby++) {
       for (sbx = 0; sbx < nhsb; sbx++) {
         int ln;
         int n;
-        od_coeff buf[OD_BSIZE_MAX*OD_BSIZE_MAX];
+        int16_t buf[OD_BSIZE_MAX*OD_BSIZE_MAX];
         double unfiltered_error;
         double filtered_error;
         int ystride;
@@ -2405,15 +2409,17 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
         {
           od_coeff orig[OD_BSIZE_MAX*OD_BSIZE_MAX];
           od_coeff out[OD_BSIZE_MAX*OD_BSIZE_MAX];
+          od_coeff buf32[OD_BSIZE_MAX*OD_BSIZE_MAX];
           for (y = 0; y < n; y++) {
             for (x = 0; x < n; x++) {
               orig[y*OD_BSIZE_MAX + x] = (input[y*ystride + x] - 128)
                << OD_COEFF_SHIFT;
               out[y*OD_BSIZE_MAX + x] = output[y*w + x];
+              buf32[y*OD_BSIZE_MAX + x] = buf[y*OD_BSIZE_MAX + x];
             }
           }
           unfiltered_error = od_compute_dist(enc, orig, out, OD_BSIZE_MAX, 3);
-          filtered_error = od_compute_dist(enc, orig, buf, OD_BSIZE_MAX, 3);
+          filtered_error = od_compute_dist(enc, orig, buf32, OD_BSIZE_MAX, 3);
         }
 #endif
         up = 0;

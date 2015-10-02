@@ -1618,7 +1618,7 @@ void od_apply_postfilter_frame_sbs(od_coeff *c0, int stride, int nhsb,
    in a particular direction. Since each direction have the same sum(x^2) term,
    that term is never computed. See Section 2, step 2, of:
    http://jmvalin.ca/notes/intra_paint.pdf */
-static int od_dir_find8(const od_coeff *img, int stride, int32_t *var) {
+static int od_dir_find8(const int16_t *img, int stride, int32_t *var) {
   int i;
   int cost[8] = {0};
   int partial[8][15] = {{0}};
@@ -1674,12 +1674,12 @@ static int od_dir_find8(const od_coeff *img, int stride, int32_t *var) {
 }
 
 #define OD_FILT_BORDER (3)
-#define OD_DERING_VERY_LARGE (1000000000)
+#define OD_DERING_VERY_LARGE (30000)
 #define OD_DERING_INBUF_SIZE ((OD_BSIZE_MAX + 2*OD_FILT_BORDER)*\
  (OD_BSIZE_MAX + 2*OD_FILT_BORDER))
 
 /* Smooth in the direction detected. */
-static void od_dering_direction(od_coeff *y, int ystride, od_coeff *in,
+static void od_dering_direction(int16_t *y, int ystride, int16_t *in,
  int bstride, int n, int threshold, int dir) {
   int i;
   int j;
@@ -1717,8 +1717,8 @@ static void od_dering_direction(od_coeff *y, int ystride, od_coeff *in,
 }
 
 /* Smooth in the direction orthogonal to what was detected. */
-static void od_dering_orthogonal(od_coeff *y, int ystride, od_coeff *in,
- int bstride, od_coeff *x, int xstride, int n, int threshold, int dir) {
+static void od_dering_orthogonal(int16_t *y, int ystride, int16_t *in,
+ int bstride, int16_t *x, int xstride, int n, int threshold, int dir) {
   int i;
   int j;
   int offset;
@@ -1789,7 +1789,7 @@ static void od_compute_thresh(int thresh[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS],
   }
 }
 
-void od_dering(od_coeff *y, int ystride, od_coeff *x, int xstride, int ln,
+void od_dering(int16_t *y, int ystride, int16_t *x, int xstride, int ln,
  int sbx, int sby, int nhsb, int nvsb, int q, int xdec,
  int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS],
  int pli, unsigned char *bskip, int skip_stride) {
@@ -1799,8 +1799,8 @@ void od_dering(od_coeff *y, int ystride, od_coeff *x, int xstride, int ln,
   int threshold;
   int bx;
   int by;
-  od_coeff inbuf[OD_DERING_INBUF_SIZE];
-  od_coeff *in;
+  int16_t inbuf[OD_DERING_INBUF_SIZE];
+  int16_t *in;
   int bstride;
   int nhb;
   int nvb;

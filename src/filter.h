@@ -81,7 +81,7 @@ void od_apply_postfilter_frame(od_coeff *c, int w, int nhsb, int nvsb,
 #define OD_DERING_NBLOCKS (OD_BSIZE_MAX/8)
 
 extern const int OD_FILT_SIZE[OD_NBSIZES];
-void od_dering(od_coeff *y, int ystride, od_coeff *x, int xstride, int ln,
+void od_dering(int16_t *y, int ystride, int16_t *x, int xstride, int ln,
  int sbx, int sby, int nhsb, int nvsb, int q, int xdec,
  int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS], int pli, unsigned char *bskip,
  int skip_stride);
