@@ -6,7 +6,7 @@ includedir=${pcfiledir}/@top_srcdir@/include
 Name: daaladec uninstalled
 Description: Daala decoding library (not installed)
 Version: @PACKAGE_VERSION@
-Requires.private: ogg >= 1.3 @PC_PNG_REQUIRES@
+Requires.private: @PC_PNG_REQUIRES@
 Conflicts:
-Libs: ${libdir}/libdaaladec.la ${libdir}/libdaalabase.la @OGG_LIBS@ @PC_PNG_LIBS@ @LIBM@
+Libs: ${libdir}/libdaaladec.la ${libdir}/libdaalabase.la @PC_PNG_LIBS@ @LIBM@
 Cflags: -I${includedir}
