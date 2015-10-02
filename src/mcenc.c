@@ -2772,13 +2772,13 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy,
     od_state_dump_img(state, &est->enc->vis_img, iter_label);
   }
 #endif
+  mv->bma_mvs[0][ref][0] = best_vec[0];
+  mv->bma_mvs[0][ref][1] = best_vec[1];
   /*previous_cost is our previous best cost from a previous pass of phase 1.*/
   previous_cost = (mv->bma_sad << OD_ERROR_SCALE) + mv->mv_rate*est->lambda;
   if (must_update || (best_cost < previous_cost)) {
     OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
      "Found a better SAD then previous best."));
-    mv->bma_mvs[0][ref][0] = best_vec[0];
-    mv->bma_mvs[0][ref][1] = best_vec[1];
     mvg->mv[0] = best_vec[0] << 3;
     mvg->mv[1] = best_vec[1] << 3;
     mvg->ref = ref;
