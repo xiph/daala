@@ -31,6 +31,8 @@ void od_copy_32x32(unsigned char *_dst, int _dstride,
  const unsigned char *_src, int _sstride);
 void od_copy_64x64(unsigned char *_dst, int _dstride,
  const unsigned char *_src, int _sstride);
+void od_copy_log_nxn(unsigned char *_dst, int _dstride,
+ const unsigned char *_src, int _sstride, int _log_n);
 void od_copy_log_nxm(unsigned char *_dst, int _dstride,
  const unsigned char *_src, int _sstride, int _log_n, int _log_m);
 #endif

@@ -32,38 +32,26 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "util.h"
 #include "x86/x86int.h"
 
-void od_copy_16x16_c(unsigned char *_dst, int _dstride,
- const unsigned char *_src, int _sstride) {
-  int y;
-  for (y = 0; y < 16; y++) {
-    memcpy(_dst, _src, 16);
-    _dst += _dstride;
-    _src += _sstride;
-  }
-}
+#define OD_COPY_C(_blk_sz) \
+void od_copy_##_blk_sz##x##_blk_sz##_c(unsigned char *_dst, int _dstride, \
+ const unsigned char *_src, int _sstride) { \
+  int y; \
+  for (y = 0; y < _blk_sz; y++) { \
+    memcpy(_dst, _src, _blk_sz); \
+    _dst += _dstride; \
+    _src += _sstride; \
+  } \
+} \
 
-void od_copy_32x32_c(unsigned char *_dst, int _dstride,
- const unsigned char *_src, int _sstride) {
-  int y;
-  for (y = 0; y < 32; y++) {
-    memcpy(_dst, _src, 32);
-    _dst += _dstride;
-    _src += _sstride;
-  }
-}
-
-void od_copy_64x64_c(unsigned char *_dst, int _dstride,
- const unsigned char *_src, int _sstride) {
-  int y;
-  for (y = 0; y < 64; y++) {
-    memcpy(_dst, _src, 64);
-    _dst += _dstride;
-    _src += _sstride;
-  }
-}
+OD_COPY_C(2)
+OD_COPY_C(4)
+OD_COPY_C(8)
+OD_COPY_C(16)
+OD_COPY_C(32)
+OD_COPY_C(64)
 
 /*Block copy functions. Copying of overlapping regions has undefined
-   behavior.*/
+   behavior. Only 16x16, 32x32, 64x64 show a SIMD improvement.*/
 
 void od_copy_16x16(unsigned char *_dst, int _dstride,
  const unsigned char *_src, int _sstride) {
@@ -95,25 +83,28 @@ void od_copy_64x64(unsigned char *_dst, int _dstride,
 typedef void (*od_copy_fixed_func)(unsigned char *_dst, int _dstride,
  const unsigned char *_src, int _sstride);
 
-void od_copy_log_nxm(unsigned char *_dst, int _dstride,
- const unsigned char *_src, int _sstride, int _log_n, int _log_m) {
-  int j;
+void od_copy_log_nxn(unsigned char *_dst, int _dstride,
+ const unsigned char *_src, int _sstride, int _log_n) {
   static const od_copy_fixed_func
-   VTBL[OD_LOG_BSIZE_MAX + 1] = {
+   VTBL[7] = {
     NULL,
-    NULL,
-    NULL,
-    NULL,
+    od_copy_2x2_c,
+    od_copy_4x4_c,
+    od_copy_8x8_c,
     od_copy_16x16,
     od_copy_32x32,
     od_copy_64x64
   };
+  OD_ASSERT(_log_n >= OD_LOG_BSIZE0 || _log_n <= 6);
+  (*VTBL[_log_n])(_dst, _dstride, _src, _sstride);
+}
+
+void od_copy_log_nxm(unsigned char *_dst, int _dstride,
+ const unsigned char *_src, int _sstride, int _log_n, int _log_m) {
+  int j;
   if (_log_n == _log_m) {
-    od_copy_fixed_func func = (*VTBL[_log_n]);
-    if (func != NULL) {
-      func(_dst, _dstride, _src, _sstride);
-      return;
-    }
+    od_copy_log_nxn(_dst, _dstride, _src, _sstride, _log_n);
+    return;
   }
   for (j = 0; j < 1 << _log_m; j++) {
     OD_COPY(_dst, _src, 1 << _log_n);
