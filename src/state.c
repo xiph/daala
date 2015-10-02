@@ -631,7 +631,7 @@ int od_state_dump_yuv(od_state *state, od_img *img, const char *tag) {
   needs_header = 0;
   for (i = 0; i < state->dump_tags &&
     strcmp(tag,state->dump_files[i].tag) != 0; i++);
-  if(i>=state->dump_tags) {
+  if (i>=state->dump_tags) {
     const char *suf;
     OD_ASSERT(strlen(tag)<16);
     state->dump_tags++;
@@ -685,9 +685,10 @@ int od_state_dump_yuv(od_state *state, od_img *img, const char *tag) {
     xstride = img->planes[pli].xstride;
     ystride = img->planes[pli].ystride;
     for (y = 0; y < (pic_height + ydec) >> ydec; y++) {
-      if(xstride>1){
+      if (xstride>1) {
         OD_ASSERT(0);
-      }else{
+      }
+      else {
         if (fwrite(img->planes[pli].data + ystride*y,
                    (pic_width + xdec) >> xdec, 1, fp) < 1) {
           fprintf(stderr, "Error writing to \"%s\".\n", fname);
@@ -912,11 +913,12 @@ static void od_img_plane_edge_ext(od_img_plane *dst_p,
   /*Left side.*/
   for (y = 0; y < plane_height; y++) {
     dst = dst_data + ystride*y;
-    if(xstride == 1){
+    if (xstride == 1) {
       for (x = 1; x <= horz_padding; x++) {
         (dst - x)[0] = dst[0];
       }
-    }else{
+    }
+    else {
       for (x = 1; x <= horz_padding; x++) {
         (dst - (x << 1))[0] = dst[0];
         (dst - (x << 1))[1] = dst[1];
@@ -926,11 +928,12 @@ static void od_img_plane_edge_ext(od_img_plane *dst_p,
   /*Right side.*/
   for (y = 0; y < plane_height; y++) {
     dst = dst_data + ystride*y + xstride*(plane_width - 1);
-    if(xstride == 1){
+    if (xstride == 1) {
       for (x = 1; x <= horz_padding; x++) {
         dst[x] = dst[0];
       }
-    }else{
+    }
+    else {
       for (x = 1; x <= horz_padding; x++) {
         (dst + (x << 1))[0] = dst[0];
         (dst + (x << 1))[1] = dst[1];

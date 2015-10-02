@@ -238,7 +238,8 @@ static void od_decode_mv(daala_dec_ctx *dec, int num_refs, od_mv_grid_pt *mvg,
     mvg->ref = od_decode_cdf_adapt(&dec->ec,
      dec->state.adapt.mv_ref_cdf[ref_pred], num_refs, 256,
      "mv:ref");
-  } else {
+  }
+  else {
     mvg->ref = OD_FRAME_PREV;
   }
   equal_mvs = od_state_get_predictor(&dec->state, pred, vx, vy, level,
@@ -1133,7 +1134,8 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
   mbctx.is_keyframe = od_ec_decode_bool_q15(&dec->ec, 16384, "flags");
   if (!mbctx.is_keyframe) {
     mbctx.num_refs = od_ec_dec_uint(&dec->ec, OD_MAX_CODED_REFS, "flags") + 1;
-  } else {
+  }
+  else {
     mbctx.num_refs = 0;
   }
   mbctx.use_activity_masking = od_ec_decode_bool_q15(&dec->ec, 16384, "flags");

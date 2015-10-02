@@ -398,7 +398,7 @@ double od_gain_expand(double cg, int q0, double beta) {
  * @param [in]      beta   activity masking beta param
  * @return                 quantized/companded gain
  */
-double od_pvq_compute_gain(od_coeff *x, int n, int q0, double *g, double beta){
+double od_pvq_compute_gain(od_coeff *x, int n, int q0, double *g, double beta) {
   int i;
   double acc=0;
   for (i = 0; i < n; i++) acc += x[i]*(double)x[i];
@@ -414,7 +414,7 @@ double od_pvq_compute_gain(od_coeff *x, int n, int q0, double *g, double beta){
  * @param [in]      beta   activity masking beta param
  * @return                 max theta value
  */
-int od_pvq_compute_max_theta(double qcg, double beta){
+int od_pvq_compute_max_theta(double qcg, double beta) {
   /* Set angular resolution (in ra) to match the encoded gain */
   int ts = (int)floor(.5 + qcg*M_PI/(2*beta));
   /* Special case for low gains -- will need to be tuned anyway */
@@ -505,7 +505,7 @@ void od_pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,
   if (noref) {
     for (i = 0; i < n; i++) xcoeff[i] = (od_coeff)floor(.5 + ypulse[i]*scale);
   }
-  else{
+  else {
     double x[MAXN];
     scale *= sin(theta);
     for (i = 0; i < m; i++)

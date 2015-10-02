@@ -271,7 +271,7 @@ OD_SIMD_INLINE od_m256i od_mm256_permute2x128_si256(od_m256i a,
     case 3: r.lo = b.hi; break;
     default: r.lo = _mm_setzero_si128(); break;
   }
-  switch ((c >> 4) & 0xF){
+  switch ((c >> 4) & 0xF) {
     case 0: r.hi = a.lo; break;
     case 1: r.hi = a.hi; break;
     case 2: r.hi = b.lo; break;

@@ -59,7 +59,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
           :"%edx" \
          )
          
-static uint32_t od_parse_cpu_flags(uint32_t edx, uint32_t ecx){
+static uint32_t od_parse_cpu_flags(uint32_t edx, uint32_t ecx) {
   uint32_t flags;
   /*If there isn't even MMX, give up.*/
   if (!(edx&0x00800000)) return 0;
@@ -71,7 +71,7 @@ static uint32_t od_parse_cpu_flags(uint32_t edx, uint32_t ecx){
   return flags;
 }
 
-uint32_t od_cpu_flags_get(void){
+uint32_t od_cpu_flags_get(void) {
   uint32_t eax;
   uint32_t ebx;
   uint32_t ecx;
@@ -97,12 +97,12 @@ uint32_t od_cpu_flags_get(void){
     :
     :"cc"
   );
-  if(eax==ebx)return 0;
+  if (eax==ebx) return 0;
   /*x86-64: All CPUs support cpuid, so there's no need to check.*/
 #endif
   cpuid(0,0,eax,ebx,ecx,edx);
   /*         l e t n          I e n i          u n e G*/
-  if(ecx==0x6C65746E&&edx==0x49656E69&&ebx==0x756E6547){
+  if (ecx==0x6C65746E&&edx==0x49656E69&&ebx==0x756E6547) {
     /*Intel:*/
     cpuid(1,0,eax,ebx,ecx,edx);
     flags = od_parse_cpu_flags(edx, ecx);
@@ -120,9 +120,9 @@ uint32_t od_cpu_flags_get(void){
      is found in some engineering samples c. 1994.
     We don't bother to check for that here.*/
   /*              D M A c          i t n e          h t u A*/
-  else if((ecx==0x444D4163&&edx==0x69746E65&&ebx==0x68747541)||
+  else if ((ecx==0x444D4163&&edx==0x69746E65&&ebx==0x68747541) ||
    /*      C S N            y b   e          d o e G*/
-   (ecx==0x43534E20&&edx==0x79622065&&ebx==0x646F6547)){
+   (ecx==0x43534E20&&edx==0x79622065&&ebx==0x646F6547)) {
     /*AMD:*/
     cpuid(1,0,eax,ebx,ecx,edx);
     flags = od_parse_cpu_flags(edx, ecx);

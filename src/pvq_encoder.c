@@ -258,7 +258,7 @@ static double od_pvq_rate(int qg, int icgr, int theta, int ts,
   (void)m;
   (void)y0;
 #else
-  if (k > 0){
+  if (k > 0) {
     od_ec_enc ec;
     od_pvq_codeword_ctx cd;
     int tell;
@@ -589,7 +589,8 @@ int od_rdo_quant(od_coeff x, int q, double delta0) {
   threshold = 128 + OD_CLAMPI(0, (int)(256*OD_PVQ_LAMBDA*delta0/2), 128);
   if (abs(x) < q*threshold/256) {
     return 0;
-  } else {
+  }
+  else {
     return OD_DIV_R0(x, q);
   }
 }
@@ -648,7 +649,7 @@ int od_pvq_encode(daala_enc_ctx *enc,
                    int is_keyframe,
                    int q_scaling,
                    int bx,
-                   int by){
+                   int by) {
   int theta[PVQ_MAX_PARTITIONS];
   int max_theta[PVQ_MAX_PARTITIONS];
   int qg[PVQ_MAX_PARTITIONS];
@@ -691,7 +692,7 @@ int od_pvq_encode(daala_enc_ctx *enc,
     for (i = 1; i < 16; i++) xy += ref[i]*(double)in[i];
     if (xy < 0) {
       flip = 1;
-      for(i = 1; i < off[nb_bands]; i++) ref[i] = -ref[i];
+      for (i = 1; i < off[nb_bands]; i++) ref[i] = -ref[i];
     }
   }
   for (i = 0; i < nb_bands; i++) {

@@ -49,7 +49,7 @@ void od_mc_compute_sad8_check(const unsigned char *src, int systride,
 #if defined(OD_GCC_INLINE_ASSEMBLY)
 /*Handle one 4x4 block with dxstride == 1.*/
 int od_mc_compute_sad8_4x4_sse(const unsigned char *src,
- int systride, const unsigned char *ref, int dystride){
+ int systride, const unsigned char *ref, int dystride) {
   ptrdiff_t srow;
   ptrdiff_t drow;
   int ret;
@@ -89,7 +89,7 @@ int od_mc_compute_sad8_4x4_sse(const unsigned char *src,
 
 /*Handle one 8x8 block with dxstride == 1.*/
 int od_mc_compute_sad8_8x8_sse(const unsigned char *src,
- int systride, const unsigned char *ref, int dystride){
+ int systride, const unsigned char *ref, int dystride) {
   const unsigned char *srow;
   const unsigned char *drow;
   int ret;
@@ -123,7 +123,7 @@ int od_mc_compute_sad8_8x8_sse(const unsigned char *src,
 
 /*Handle one 16x16 block with dxstride == 1.*/
 int od_mc_compute_sad8_16x16_sse2(const unsigned char *src,
- int systride, const unsigned char *ref, int dystride){
+ int systride, const unsigned char *ref, int dystride) {
   const unsigned char *srow;
   const unsigned char *drow;
   int ret;
@@ -160,7 +160,7 @@ int od_mc_compute_sad8_16x16_sse2(const unsigned char *src,
 
 /*Handle one 32x32 block with dxstride == 1.*/
 int od_mc_compute_sad8_32x32_sse2(const unsigned char *src,
- int systride, const unsigned char *ref, int dystride){
+ int systride, const unsigned char *ref, int dystride) {
   const unsigned char *srow;
   const unsigned char *drow;
   int ret;

@@ -560,7 +560,7 @@ void img_to_rgb(SDL_Texture *texture, const od_img *img, int plane_mask) {
   }
   /*The texture memory is only allocated for the cropped frame.  The
     od_img is rounded up to superblock. */
-  if(SDL_QueryTexture(texture, NULL, NULL, &width, &height)){
+  if (SDL_QueryTexture(texture, NULL, NULL, &width, &height)) {
     fprintf(stderr, "Couldn't query video texture!");
     exit(1);
   }
