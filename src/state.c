@@ -298,8 +298,17 @@ static int od_state_init_impl(od_state *state, const daala_info *info) {
   state->dump_files = 0;
 #endif
   state->dering_flags = (unsigned char *)malloc(state->nhsb * state->nvsb);
+  if (OD_UNLIKELY(!state->dering_flags)) {
+    return OD_EFAULT;
+  }
   state->sb_skip_flags = (unsigned char *)malloc(state->nhsb * state->nvsb);
+  if (OD_UNLIKELY(!state->sb_skip_flags)) {
+    return OD_EFAULT;
+  }
   state->sb_q_scaling = (unsigned char *)malloc(state->nhsb * state->nvsb);
+  if (OD_UNLIKELY(!state->sb_q_scaling)) {
+    return OD_EFAULT;
+  }
   return OD_SUCCESS;
 }
 
