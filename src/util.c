@@ -92,11 +92,25 @@ void od_copy_64x64(unsigned char *_dst, int _dstride,
 #endif
 }
 
-void od_copy_nxm(unsigned char *_dst, int _dstride,
- const unsigned char *_src, int _sstride, int n, int m) {
+void od_copy_log_nxm(unsigned char *_dst, int _dstride,
+ const unsigned char *_src, int _sstride, int _log_n, int _log_m) {
+  if (_log_n == _log_m) {
+    if (_log_n == 4) {
+      od_copy_16x16(_dst, _dstride, _src, _sstride);
+      return;
+    }
+    else if (_log_n == 5) {
+      od_copy_32x32(_dst, _dstride, _src, _sstride);
+      return;
+    }
+    else if (_log_n == 6) {
+      od_copy_64x64(_dst, _dstride, _src, _sstride);
+      return;
+    }
+  }
   int j;
-  for (j = 0; j < m; j++) {
-    OD_COPY(_dst, _src, n);
+  for (j = 0; j < 1 << _log_m; j++) {
+    OD_COPY(_dst, _src, 1 << _log_n);
     _dst += _dstride;
     _src += _sstride;
   }
