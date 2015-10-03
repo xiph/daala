@@ -40,7 +40,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 void od_filter_dering_direction_check(int16_t *y, int ystride, int16_t *in,
  int bstride, int log_n, int threshold, int dir) {
   int16_t dst[OD_BSIZE_MAX*OD_BSIZE_MAX];
-  od_filter_dering_direction_c(dst, OD_BSIZE_MAX, in, bstride, log_n, threshold, dir);
+  od_filter_dering_direction_c(dst, OD_BSIZE_MAX, in, bstride, log_n,
+   threshold, dir);
   int i;
   int j;
   int failed;
@@ -63,13 +64,6 @@ void od_filter_dering_direction_check(int16_t *y, int ystride, int16_t *in,
 
 typedef void (*od_filter_dering_direction_fixed_func)(int16_t *y, int ystride,
  int16_t *in, int bstride, int threshold, int dir);
-
-void print_epi16(const char * name, __m128i var){
-  int16_t *val = (int16_t*) &var;
-  fprintf(stderr, "%8s int16_t: %4i %4i %4i %4i %4i %4i %4i %4i \n",
-   name, val[0], val[1], val[2], val[3], val[4], val[5],
-   val[6], val[7]);
-}
 
 void od_filter_dering_direction_4x4(int16_t *y, int ystride, int16_t *in,
  int bstride, int threshold, int dir) {
@@ -95,7 +89,8 @@ void od_filter_dering_direction_8x8(int16_t *y, int ystride, int16_t *in,
     row = _mm_loadu_si128((__m128i*)&in[i*bstride]);
     for (k = 0; k < 3; k++) {
       /* p0 = in[i*bstride + j + offset[k]] - row */;
-      p0 = _mm_sub_epi16(_mm_loadu_si128((__m128i*)&in[i*bstride + offset[k]]), row);
+      p0 = _mm_sub_epi16(_mm_loadu_si128((__m128i*)&in[i*bstride +
+       offset[k]]), row);
       /* if (abs(p0) < threshold) sum += taps[k]*p0; */
       cmp0 = _mm_cmplt_epi16(_mm_abs_epi16(p0), _mm_set1_epi16(threshold));
       p0 = _mm_mullo_epi16(p0, _mm_set1_epi16(taps[k]));
@@ -103,7 +98,8 @@ void od_filter_dering_direction_8x8(int16_t *y, int ystride, int16_t *in,
       sum = _mm_add_epi16(sum, p0);
 
       /* p0 = in[i*bstride + j + offset[k]] - row */;
-      p1 = _mm_sub_epi16(_mm_loadu_si128((__m128i*)&in[i*bstride - offset[k]]), row);
+      p1 = _mm_sub_epi16(_mm_loadu_si128((__m128i*)&in[i*bstride -
+       offset[k]]), row);
       /* if (abs(p1) < threshold) sum += taps[k]*p1; */
       cmp1 = _mm_cmplt_epi16(_mm_abs_epi16(p1), _mm_set1_epi16(threshold));
       p1 = _mm_mullo_epi16(p1, _mm_set1_epi16(taps[k]));
@@ -133,9 +129,11 @@ void od_filter_dering_direction_sse2(int16_t *y, int ystride, int16_t *in,
     od_filter_dering_direction_8x8,
     od_filter_dering_direction_16x16
   };
+  OD_ASSERT(log_n >= 2 && log_n < 5);
   VTBL[log_n](y, ystride, in, bstride, threshold, dir);
 #if defined(OD_CHECKASM)
-  od_filter_dering_direction_check(y, ystride, in, bstride, log_n, threshold, dir);
+  od_filter_dering_direction_check(y, ystride, in, bstride, log_n, threshold,
+   dir);
 #endif
 }
 
