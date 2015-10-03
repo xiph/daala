@@ -51,6 +51,7 @@ void od_state_opt_vtbl_init_x86(od_state *_state){
     _state->opt_vtbl.idct_2d[0] = od_bin_idct4x4_sse2;
     _state->opt_vtbl.fdct_2d[1] = od_bin_fdct8x8_sse2;
     _state->opt_vtbl.idct_2d[1] = od_bin_idct8x8_sse2;
+    _state->opt_vtbl.filter_dering_direction = od_filter_dering_direction_sse2;
 #endif
 #if defined(OD_SSE41_INTRINSICS)
     if (_state->cpu_flags&OD_CPU_X86_SSE4_1) {

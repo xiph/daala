@@ -30,6 +30,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <stdlib.h>
 #include <limits.h>
 #include "filter.h"
+#include "state.h"
 #include "block_size.h"
 
 /*Pre-/post-filter pairs of various sizes.
@@ -1678,15 +1679,10 @@ static int od_dir_find8(const int16_t *img, int stride, int32_t *var) {
 #define OD_DERING_INBUF_SIZE ((OD_BSIZE_MAX + 2*OD_FILT_BORDER)*\
  (OD_BSIZE_MAX + 2*OD_FILT_BORDER))
 
-/* Smooth in the direction detected. */
-static void od_dering_direction(int16_t *y, int ystride, int16_t *in,
- int bstride, int n, int threshold, int dir) {
-  int i;
-  int j;
+/* Build offset table. */
+void od_filter_dering_direction_offsets(int *offset, int dir, int bstride) {
   int k;
   int f;
-  static const int taps[4] = {3, 2, 2};
-  int offset[4];
   if (dir <= 4) {
     f = dir - 2;
     for (k = 1; k <= 3; k++) offset[k - 1] = f*k/2*bstride + k;
@@ -1695,8 +1691,19 @@ static void od_dering_direction(int16_t *y, int ystride, int16_t *in,
     f = 6 - dir;
     for (k = 1; k <= 3; k++) offset[k - 1] = k*bstride + f*k/2;
   }
-  for (i = 0; i < n; i++) {
-    for (j = 0; j < n; j++) {
+}
+
+/* Smooth in the direction detected. */
+void od_filter_dering_direction_c(int16_t *y, int ystride, int16_t *in,
+ int bstride, int log_n, int threshold, int dir) {
+  int i;
+  int j;
+  int k;
+  static const int taps[4] = {3, 2, 2};
+  int offset[4];
+  od_filter_dering_direction_offsets(offset, dir, bstride);
+  for (i = 0; i < 1 << log_n; i++) {
+    for (j = 0; j < 1 << log_n; j++) {
       od_coeff sum;
       od_coeff xx;
       od_coeff yy;
@@ -1789,7 +1796,7 @@ static void od_compute_thresh(int thresh[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS],
   }
 }
 
-void od_dering(int16_t *y, int ystride, int16_t *x, int xstride, int ln,
+void od_dering(od_state *state, int16_t *y, int ystride, int16_t *x, int xstride, int ln,
  int sbx, int sby, int nhsb, int nvsb, int q, int xdec,
  int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS],
  int pli, unsigned char *bskip, int skip_stride) {
@@ -1876,9 +1883,9 @@ void od_dering(int16_t *y, int ystride, int16_t *x, int xstride, int ln,
   }
   for (by = 0; by < nvb; by++) {
     for (bx = 0; bx < nhb; bx++) {
-      od_dering_direction(&y[(by*ystride << bsize) + (bx << bsize)], ystride,
-       &in[(by*bstride << bsize) + (bx << bsize)], bstride, 1 << bsize,
-       thresh[by][bx], dir[by][bx]);
+      (*state->opt_vtbl.filter_dering_direction)(&y[(by*ystride << bsize) +
+       (bx << bsize)], ystride, &in[(by*bstride << bsize) + (bx << bsize)],
+       bstride, bsize, thresh[by][bx], dir[by][bx]);
     }
   }
   for (i = 0; i < n; i++) {

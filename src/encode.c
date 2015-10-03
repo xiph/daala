@@ -2379,7 +2379,7 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
         OD_ASSERT(xdec == ydec);
         ln = OD_LOG_BSIZE_MAX - xdec;
         n = 1 << ln;
-        od_dering(buf, OD_BSIZE_MAX, &state->etmp[pli][(sby << ln)*w +
+        od_dering(state, buf, OD_BSIZE_MAX, &state->etmp[pli][(sby << ln)*w +
          (sbx << ln)], w, ln, sbx, sby, nhsb, nvsb, enc->quantizer[0], xdec,
          dir, pli, &enc->state.bskip[pli]
          [(sby << (OD_NBSIZES - 1 - ydec))*enc->state.skip_stride
@@ -2455,7 +2455,8 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
             w = frame_width >> xdec;
             ln = OD_LOG_BSIZE_MAX - xdec;
             n = 1 << ln;
-            od_dering(buf, OD_BSIZE_MAX, &state->etmp[pli][(sby << ln)*w +
+            od_dering(state, buf, OD_BSIZE_MAX,
+             &state->etmp[pli][(sby << ln)*w +
              (sbx << ln)], w, ln, sbx, sby, nhsb, nvsb, enc->quantizer[pli],
              xdec, dir, pli, &enc->state.bskip[pli]
              [(sby << (OD_NBSIZES - 1 - ydec))*enc->state.skip_stride

@@ -187,6 +187,7 @@ void od_state_opt_vtbl_init_c(od_state *state) {
   state->opt_vtbl.mc_blend_full_split = od_mc_blend_full_split8_c;
   state->opt_vtbl.mc_blend_multi = od_mc_blend_multi8_c;
   state->opt_vtbl.mc_blend_multi_split = od_mc_blend_multi_split8_c;
+  state->opt_vtbl.filter_dering_direction = od_filter_dering_direction_c;
   state->opt_vtbl.restore_fpu = od_restore_fpu_c;
   OD_COPY(state->opt_vtbl.fdct_2d, OD_FDCT_2D_C, OD_NBSIZES + 1);
   OD_COPY(state->opt_vtbl.idct_2d, OD_IDCT_2D_C, OD_NBSIZES + 1);
