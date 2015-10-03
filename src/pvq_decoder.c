@@ -217,7 +217,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
     OD_IIR_DIADIC(*exg, qg << 16, 2);
   }
   *skip = 0;
-  if(!*noref){
+  if (!*noref) {
     /* we have a reference; compute its gain */
     double cgr;
     int icgr;
@@ -247,7 +247,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
     }
     theta = od_pvq_compute_theta(itheta, max_theta);
   }
-  else{
+  else {
     itheta = 0;
     if (!is_keyframe) qg++;
     qcg = qg;
@@ -258,7 +258,8 @@ static void pvq_decode_partition(od_ec_dec *ec,
   if (k != 0) {
     /* when noref==0, y is actually size n-1 */
     od_decode_pvq_codeword(ec, &adapt->pvq_codeword_ctx, y, n, k, *noref, bs);
-  } else {
+  }
+  else {
     OD_CLEAR(y, n);
   }
   /* The CfL flip bit is only decoded on the first band that has noref=0. */
@@ -307,7 +308,7 @@ void od_pvq_decode(daala_dec_ctx *dec,
                    int robust,
                    int is_keyframe,
                    unsigned int *flags,
-                   int block_skip){
+                   int block_skip) {
 
   int noref[PVQ_MAX_PARTITIONS];
   int skip[PVQ_MAX_PARTITIONS];

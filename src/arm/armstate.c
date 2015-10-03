@@ -30,10 +30,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "cpu.h"
 #if defined(OD_ARMASM)
 
-void od_state_opt_vtbl_init_arm(od_state *_state){
+void od_state_opt_vtbl_init_arm(od_state *_state) {
   od_state_opt_vtbl_init_c(_state);
   _state->cpu_flags=od_cpu_flags_get();
-  if(_state->cpu_flags&OD_CPU_ARM_NEON){
+  if (_state->cpu_flags&OD_CPU_ARM_NEON) {
   }
 }
 

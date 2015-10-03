@@ -1799,10 +1799,10 @@ static int32_t od_enc_satd(od_enc_ctx *enc, const unsigned char *p,
     /*If not square SATD (on boundary always), run sad for now.
       TODO: Try padding 0's for undefined area of difference image,
       then apply square SATD.*/
-    if(pxstride == 1){
+    if (pxstride == 1) {
       ret = od_mc_compute_sad8_c(src, iplane->ystride, p, pystride, w, h);
     }
-    else{
+    else {
       OD_ASSERT(0);
     }
   }
@@ -2954,7 +2954,7 @@ static void od_mv_est_init_mvs(od_mv_est_ctx *est, int ref, int must_update) {
       od_mv_est_init_mv(est, ref, vx + OD_MVB_DELTA0, vy + OD_MVB_DELTA0,
        must_update);
       /*All other levels.*/
-      for(log_mvb_sz = OD_LOG_MVB_DELTA0, level = 1;
+      for (log_mvb_sz = OD_LOG_MVB_DELTA0, level = 1;
        log_mvb_sz-- > 0 && est->level_max >= level; level++) {
         int cx;
         int cy;
@@ -2962,7 +2962,7 @@ static void od_mv_est_init_mvs(od_mv_est_ctx *est, int ref, int must_update) {
         mvb_sz = 1 << log_mvb_sz;
         /*Odd level vertices.*/
         for (cy = vy + mvb_sz; cy < vy + OD_MVB_DELTA0; cy += 2*mvb_sz) {
-          for( cx = vx + mvb_sz; cx < vx + OD_MVB_DELTA0; cx += 2*mvb_sz) {
+          for (cx = vx + mvb_sz; cx < vx + OD_MVB_DELTA0; cx += 2*mvb_sz) {
             od_mv_est_init_mv(est, ref, cx, cy, must_update);
           }
         }
@@ -2980,7 +2980,7 @@ static void od_mv_est_init_mvs(od_mv_est_ctx *est, int ref, int must_update) {
             We want to start every other row at an mvb_sz offset, and also to
              skip the first column on the rows flush with the edge of the block
              unless we're on the left edge of the whole frame.*/
-          for( cx = vx + (cy & mvb_sz ? 2*mvb_sz*!!vx : mvb_sz);
+          for (cx = vx + (cy & mvb_sz ? 2*mvb_sz*!!vx : mvb_sz);
            cx <= vx + OD_MVB_DELTA0; cx += 2*mvb_sz) {
             od_mv_est_init_mv(est, ref, cx, cy, must_update);
           }

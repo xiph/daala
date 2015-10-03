@@ -179,7 +179,7 @@ static const unsigned short __attribute__((aligned(16),used)) OD_BIL16V[512]={
 #if defined(OD_CHECKASM)
 void od_mc_predict1fmv8_check(unsigned char *_dst,const unsigned char *_src,
  int _systride,int32_t _mvx,int32_t _mvy,
- int _log_xblk_sz,int _log_yblk_sz){
+ int _log_xblk_sz,int _log_yblk_sz) {
   unsigned char dst[OD_MVBSIZE_MAX*OD_MVBSIZE_MAX];
   int           xblk_sz;
   int           yblk_sz;
@@ -191,16 +191,16 @@ void od_mc_predict1fmv8_check(unsigned char *_dst,const unsigned char *_src,
   failed=0;
   od_mc_predict1fmv8_c(dst,_src,_systride,_mvx,_mvy,
    _log_xblk_sz,_log_yblk_sz);
-  for(j=0;j<yblk_sz;j++){
-    for(i=0;i<xblk_sz;i++){
-      if(_dst[i+(j<<_log_xblk_sz)]!=dst[i+(j<<_log_xblk_sz)]){
+  for (j=0;j<yblk_sz;j++) {
+    for (i=0;i<xblk_sz;i++) {
+      if (_dst[i+(j<<_log_xblk_sz)]!=dst[i+(j<<_log_xblk_sz)]) {
         fprintf(stderr,"ASM mismatch: 0x%02X!=0x%02X @ (%2i,%2i)\n",
          _dst[i+(j<<_log_xblk_sz)],dst[i+(j<<_log_xblk_sz)],i,j);
         failed=1;
       }
     }
   }
-  if(failed){
+  if (failed) {
     fprintf(stderr,"od_mc_predict1fmv8 %ix%i check failed.\n",
      (1<<_log_xblk_sz),(1<<_log_yblk_sz));
   }
@@ -280,7 +280,7 @@ OD_SIMD_INLINE void od_mc_predict1fmv8_horizontal_nxm(int16_t *buff_p,
         tmp = _mm_loadu_si128((__m128i *)(src_p + i - OD_SUBPEL_TOP_APRON_SZ));
         sums = od_mc_multiply_reduce_add_horizontal_4(tmp, fx01, fx23, fx45);
         /*Only store as many values as xblk_sz.*/
-        if(xblk_sz >= 4) {
+        if (xblk_sz >= 4) {
           OD_ASSERT(i + 4 <= xblk_sz);
           _mm_storel_epi64((__m128i *) (buff_p + i), sums);
         }
@@ -561,7 +561,7 @@ void od_mc_predict1fmv8_sse2(unsigned char *dst,const unsigned char *src,
 
 #if defined(OD_CHECKASM)
 static void od_mc_blend_full8_check(unsigned char *_dst,int _dystride,
- const unsigned char *_src[4],int _log_xblk_sz,int _log_yblk_sz){
+ const unsigned char *_src[4],int _log_xblk_sz,int _log_yblk_sz) {
   unsigned char  dst[OD_MVBSIZE_MAX*OD_MVBSIZE_MAX];
   int            xblk_sz;
   int            yblk_sz;
@@ -572,16 +572,16 @@ static void od_mc_blend_full8_check(unsigned char *_dst,int _dystride,
   yblk_sz=1<<_log_yblk_sz;
   failed=0;
   od_mc_blend_full8_c(dst,xblk_sz,_src,_log_xblk_sz,_log_yblk_sz);
-  for(j=0;j<yblk_sz;j++){
-    for(i=0;i<xblk_sz;i++){
-      if(dst[i+(j<<_log_xblk_sz)]!=(_dst+j*_dystride)[i]){
+  for (j=0;j<yblk_sz;j++) {
+    for (i=0;i<xblk_sz;i++) {
+      if (dst[i+(j<<_log_xblk_sz)]!=(_dst+j*_dystride)[i]) {
         fprintf(stderr,"ASM mismatch: 0x%02X!=0x%02X @ (%2i,%2i)\n",
          dst[i+(j<<_log_xblk_sz)],(_dst+j*_dystride)[i],i,j);
         failed=1;
       }
     }
   }
-  if(failed){
+  if (failed) {
     fprintf(stderr,"od_mc_predict1fmv8 %ix%i check failed.\n",
      (1<<_log_xblk_sz),(1<<_log_yblk_sz));
   }
@@ -852,15 +852,15 @@ static void od_mc_blend_full8_check(unsigned char *_dst,int _dystride,
   It can't vectorize it itself because of the difference in operand sizes.*/
 #define OD_MC_BLEND_FULL8_C(_n,_m,_log_xblk_sz,_log_yblk_sz) \
 static void od_mc_blend_full8_##_n##x##_m(unsigned char *_dst,int _dystride, \
- const unsigned char *_src[4]){ \
+ const unsigned char *_src[4]) { \
   int      o; \
   unsigned a; \
   unsigned b; \
   int      i; \
   int      j; \
   o=0; \
-  for(j=0;j<(_m);j++){ \
-    for(i=0;i<(_n);i++){ \
+  for (j=0;j<(_m);j++) { \
+    for (i=0;i<(_n);i++) { \
       a=(_src[0][o+i]<<(_log_xblk_sz))+(_src[1][o+i]-_src[0][o+i])*i; \
       b=(_src[3][o+i]<<(_log_xblk_sz))+(_src[2][o+i]-_src[3][o+i])*i; \
       _dst[i]=(unsigned char)((a<<(_log_yblk_sz))+(b-a)*j+ \
@@ -876,7 +876,7 @@ static void od_mc_blend_full8_##_n##x##_m(unsigned char *_dst,int _dystride, \
   I'd rather leave the choice to the compiler.*/
 #define OD_MC_BLEND_FULL8_C(_n,_m,_log_xblk_sz,_log_yblk_sz) \
 static void od_mc_blend_full8_##_n##x##_m(unsigned char *_dst,int _dystride, \
- const unsigned char *_src[4]){ \
+ const unsigned char *_src[4]) { \
   od_mc_blend_full8_c(_dst,_dystride,_src,_log_xblk_sz,_log_yblk_sz); \
 } \
 
@@ -898,7 +898,7 @@ OD_MC_BLEND_FULL8_C(4,1,2,0)
 OD_MC_BLEND_FULL8_C(4,2,2,1)
 
 static void od_mc_blend_full8_4x4(unsigned char *_dst,int _dystride,
- const unsigned char *_src[4]){
+ const unsigned char *_src[4]) {
   ptrdiff_t a;
   __asm__ __volatile__(
     OD_MC_BLEND_FULL8_4x4(2)
@@ -914,7 +914,7 @@ static void od_mc_blend_full8_4x4(unsigned char *_dst,int _dystride,
 }
 
 static void od_mc_blend_full8_4x8(unsigned char *_dst,int _dystride,
- const unsigned char *_src[4]){
+ const unsigned char *_src[4]) {
   ptrdiff_t a;
   ptrdiff_t row;
   /*We use loops like these so gcc can decide to unroll them if it wants (and
@@ -925,7 +925,7 @@ static void od_mc_blend_full8_4x8(unsigned char *_dst,int _dystride,
      16.
     Therefore we pre-scale it by 16, and do so everywhere (even for the 4x4 and
      8x2 versions) so that things are consistent.*/
-  for(row=0;row<0x20;row+=0x10){
+  for (row=0;row<0x20;row+=0x10) {
     __asm__ __volatile__(
       OD_MC_BLEND_FULL8_4x4(3)
       "lea (%[dst],%[dystride],4),%[dst]\t\n"
@@ -938,10 +938,10 @@ static void od_mc_blend_full8_4x8(unsigned char *_dst,int _dystride,
 }
 
 static void od_mc_blend_full8_4x16(unsigned char *_dst,int _dystride,
- const unsigned char *_src[4]){
+ const unsigned char *_src[4]) {
   ptrdiff_t a;
   ptrdiff_t row;
-  for(row=0;row<0x40;row+=0x10){
+  for (row=0;row<0x40;row+=0x10) {
     __asm__ __volatile__(
       OD_MC_BLEND_FULL8_4x4(4)
       "lea (%[dst],%[dystride],4),%[dst]\t\n"
@@ -956,7 +956,7 @@ static void od_mc_blend_full8_4x16(unsigned char *_dst,int _dystride,
 OD_MC_BLEND_FULL8_C(8,1,3,0)
 
 static void od_mc_blend_full8_8x2(unsigned char *_dst,int _dystride,
- const unsigned char *_src[4]){
+ const unsigned char *_src[4]) {
   ptrdiff_t a;
   __asm__ __volatile__(
     OD_MC_BLEND_FULL8_8x2(1)
@@ -968,10 +968,10 @@ static void od_mc_blend_full8_8x2(unsigned char *_dst,int _dystride,
 }
 
 static void od_mc_blend_full8_8x4(unsigned char *_dst,int _dystride,
- const unsigned char *_src[4]){
+ const unsigned char *_src[4]) {
   ptrdiff_t a;
   ptrdiff_t row;
-  for(row=0;row<0x20;row+=0x10){
+  for (row=0;row<0x20;row+=0x10) {
     __asm__ __volatile__(
       OD_MC_BLEND_FULL8_8x2(2)
       "lea (%[dst],%[dystride],2),%[dst]\t\n"
@@ -984,10 +984,10 @@ static void od_mc_blend_full8_8x4(unsigned char *_dst,int _dystride,
 }
 
 static void od_mc_blend_full8_8x8(unsigned char *_dst,int _dystride,
- const unsigned char *_src[4]){
+ const unsigned char *_src[4]) {
   ptrdiff_t a;
   ptrdiff_t row;
-  for(row=0;row<0x40;row+=0x10){
+  for (row=0;row<0x40;row+=0x10) {
     __asm__ __volatile__(
       OD_MC_BLEND_FULL8_8x2(3)
       "lea (%[dst],%[dystride],2),%[dst]\t\n"
@@ -1000,10 +1000,10 @@ static void od_mc_blend_full8_8x8(unsigned char *_dst,int _dystride,
 }
 
 static void od_mc_blend_full8_8x16(unsigned char *_dst,int _dystride,
- const unsigned char *_src[4]){
+ const unsigned char *_src[4]) {
   ptrdiff_t a;
   ptrdiff_t row;
-  for(row=0;row<0x80;row+=0x10){
+  for (row=0;row<0x80;row+=0x10) {
     __asm__ __volatile__(
       OD_MC_BLEND_FULL8_8x2(4)
       "lea (%[dst],%[dystride],2),%[dst]\t\n"
@@ -1016,7 +1016,7 @@ static void od_mc_blend_full8_8x16(unsigned char *_dst,int _dystride,
 }
 
 static void od_mc_blend_full8_16x1(unsigned char *_dst,int _dystride,
- const unsigned char *_src[4]){
+ const unsigned char *_src[4]) {
   ptrdiff_t a;
   __asm__ __volatile__(
     OD_MC_BLEND_FULL8_16x1(0)
@@ -1028,10 +1028,10 @@ static void od_mc_blend_full8_16x1(unsigned char *_dst,int _dystride,
 }
 
 static void od_mc_blend_full8_16x2(unsigned char *_dst,int _dystride,
- const unsigned char *_src[4]){
+ const unsigned char *_src[4]) {
   ptrdiff_t a;
   ptrdiff_t row;
-  for(row=0;row<0x20;row+=0x10){
+  for (row=0;row<0x20;row+=0x10) {
     __asm__ __volatile__(
       OD_MC_BLEND_FULL8_16x1(1)
       "lea (%[dst],%[dystride]),%[dst]\t\n"
@@ -1044,10 +1044,10 @@ static void od_mc_blend_full8_16x2(unsigned char *_dst,int _dystride,
 }
 
 static void od_mc_blend_full8_16x4(unsigned char *_dst,int _dystride,
- const unsigned char *_src[4]){
+ const unsigned char *_src[4]) {
   ptrdiff_t a;
   ptrdiff_t row;
-  for(row=0;row<0x40;row+=0x10){
+  for (row=0;row<0x40;row+=0x10) {
     __asm__ __volatile__(
       OD_MC_BLEND_FULL8_16x1(2)
       "lea (%[dst],%[dystride]),%[dst]\t\n"
@@ -1060,10 +1060,10 @@ static void od_mc_blend_full8_16x4(unsigned char *_dst,int _dystride,
 }
 
 static void od_mc_blend_full8_16x8(unsigned char *_dst,int _dystride,
- const unsigned char *_src[4]){
+ const unsigned char *_src[4]) {
   ptrdiff_t a;
   ptrdiff_t row;
-  for(row=0;row<0x80;row+=0x10){
+  for (row=0;row<0x80;row+=0x10) {
     __asm__ __volatile__(
       OD_MC_BLEND_FULL8_16x1(3)
       "lea (%[dst],%[dystride]),%[dst]\t\n"
@@ -1076,10 +1076,10 @@ static void od_mc_blend_full8_16x8(unsigned char *_dst,int _dystride,
 }
 
 static void od_mc_blend_full8_16x16(unsigned char *_dst,int _dystride,
- const unsigned char *_src[4]){
+ const unsigned char *_src[4]) {
   ptrdiff_t a;
   ptrdiff_t row;
-  for(row=0;row<0x100;row+=0x10){
+  for (row=0;row<0x100;row+=0x10) {
     __asm__ __volatile__(
       OD_MC_BLEND_FULL8_16x1(4)
       "lea (%[dst],%[dystride]),%[dst]\t\n"
@@ -1092,10 +1092,10 @@ static void od_mc_blend_full8_16x16(unsigned char *_dst,int _dystride,
 }
 
 static void od_mc_blend_full8_32x32(unsigned char *_dst,int _dystride,
- const unsigned char *_src[4]){
+ const unsigned char *_src[4]) {
   ptrdiff_t a;
   ptrdiff_t row;
-  for(row=0;row<0x400;row+=0x10){
+  for (row=0;row<0x400;row+=0x10) {
     __asm__ __volatile__(
       /*First 16 bytes.*/ \
       OD_MC_BLEND_FULL8_32_HALF("0x00","0x00") \
@@ -1116,7 +1116,7 @@ typedef void (*od_mc_blend_full8_fixed_func)(unsigned char *_dst,int _dystride,
 
 /*Perform normal bilinear blending.*/
 void od_mc_blend_full8_sse2(unsigned char *_dst,int _dystride,
- const unsigned char *_src[4],int _log_xblk_sz,int _log_yblk_sz){
+ const unsigned char *_src[4],int _log_xblk_sz,int _log_yblk_sz) {
   static const od_mc_blend_full8_fixed_func
    VTBL[OD_LOG_MVBSIZE_MAX + 1][OD_LOG_MVBSIZE_MAX + 1]={
     {
@@ -1161,7 +1161,7 @@ void od_mc_blend_full8_sse2(unsigned char *_dst,int _dystride,
 
 #if defined(OD_CHECKASM)
 void od_mc_blend_full_split8_check(unsigned char *_dst,int _dystride,
- const unsigned char *_src[4],int _c,int _s,int _log_xblk_sz,int _log_yblk_sz){
+ const unsigned char *_src[4],int _c,int _s,int _log_xblk_sz,int _log_yblk_sz) {
   unsigned char dst[OD_MVBSIZE_MAX][OD_MVBSIZE_MAX];
   int           xblk_sz;
   int           yblk_sz;
@@ -1173,16 +1173,16 @@ void od_mc_blend_full_split8_check(unsigned char *_dst,int _dystride,
   failed=0;
   od_mc_blend_full_split8_c(dst[0],sizeof(dst[0]),_src,_c,_s,
    _log_xblk_sz,_log_yblk_sz);
-  for(j=0;j<yblk_sz;j++){
-    for(i=0;i<xblk_sz;i++){
-      if((_dst+j*_dystride)[i]!=dst[j][i]){
+  for (j=0;j<yblk_sz;j++) {
+    for (i=0;i<xblk_sz;i++) {
+      if ((_dst+j*_dystride)[i]!=dst[j][i]) {
         fprintf(stderr,"ASM mismatch: 0x%02X!=0x%02X @ (%2i,%2i)\n",
          (_dst+j*_dystride)[i],dst[j][i],i,j);
         failed=1;
       }
     }
   }
-  if(failed){
+  if (failed) {
     fprintf(stderr,"od_mc_blend_full_split8 %ix%i check failed.\n",
      (1<<_log_xblk_sz),(1<<_log_yblk_sz));
   }
@@ -1427,15 +1427,15 @@ void od_mc_blend_full_split8_check(unsigned char *_dst,int _dystride,
   This should be investigated.*/
 #define OD_MC_BLEND_FULL_SPLIT8_C(_n,_m,_log_xblk_sz,_log_yblk_sz) \
 static void od_mc_blend_full_split8_##_n##x##_m(unsigned char *_dst, \
- int _dystride,const unsigned char *_src[8]){ \
+ int _dystride,const unsigned char *_src[8]) { \
   int      o; \
   unsigned a; \
   unsigned b; \
   int      i; \
   int      j; \
   o=0; \
-  for(j=0;j<(_m);j++){ \
-    for(i=0;i<(_n);i++){ \
+  for (j=0;j<(_m);j++) { \
+    for (i=0;i<(_n);i++) { \
       a=(_src[0][o+i]+_src[4+0][o+i]<<(_log_xblk_sz))+ \
        (_src[1][o+i]-_src[0][o+i]+_src[4+1][o+i]-_src[4+0][o+i])*i; \
       b=(_src[3][o+i]+_src[4+3][o+i]<<(_log_xblk_sz))+ \
@@ -1454,7 +1454,7 @@ static void od_mc_blend_full_split8_##_n##x##_m(unsigned char *_dst, \
    currently using, which adjusts the weights.
   This should be investigated.*/
 static void od_mc_blend_full_split8_bil_c(unsigned char *_dst,
- int _dystride,const unsigned char *_src[8],int _log_xblk_sz,int _log_yblk_sz){
+ int _dystride,const unsigned char *_src[8],int _log_xblk_sz,int _log_yblk_sz) {
   int      xblk_sz;
   int      yblk_sz;
   int      round;
@@ -1467,8 +1467,8 @@ static void od_mc_blend_full_split8_bil_c(unsigned char *_dst,
   xblk_sz=1<<_log_xblk_sz;
   yblk_sz=1<<_log_yblk_sz;
   round=1<<(_log_xblk_sz+_log_yblk_sz);
-  for(j=0;j<yblk_sz;j++){
-    for(i=0;i<xblk_sz;i++){
+  for (j=0;j<yblk_sz;j++) {
+    for (i=0;i<xblk_sz;i++) {
       a=((_src[0][o+i]+_src[4+0][o+i])<<_log_xblk_sz)+
        (_src[1][o+i]-_src[0][o+i]+_src[4+1][o+i]-_src[4+0][o+i])*i;
       b=((_src[3][o+i]+_src[4+3][o+i])<<_log_xblk_sz)+
@@ -1485,7 +1485,7 @@ static void od_mc_blend_full_split8_bil_c(unsigned char *_dst,
   I'd rather leave the choice to the compiler.*/
 #define OD_MC_BLEND_FULL_SPLIT8_C(_n,_m,_log_xblk_sz,_log_yblk_sz) \
 static void od_mc_blend_full_split8_##_n##x##_m(unsigned char *_dst, \
- int _dystride,const unsigned char *_src[8]){ \
+ int _dystride,const unsigned char *_src[8]) { \
   od_mc_blend_full_split8_bil_c(_dst,_dystride,_src, \
   _log_xblk_sz,_log_yblk_sz); \
 } \
@@ -1506,7 +1506,7 @@ OD_MC_BLEND_FULL_SPLIT8_C(4,1,2,0)
 OD_MC_BLEND_FULL_SPLIT8_C(4,2,2,1)
 
 static void od_mc_blend_full_split8_4x4(unsigned char *_dst,int _dystride,
- const unsigned char *_src[8]){
+ const unsigned char *_src[8]) {
   ptrdiff_t a;
   __asm__ __volatile__(
     OD_MC_BLEND_FULL_SPLIT8_4x4(2)
@@ -1518,10 +1518,10 @@ static void od_mc_blend_full_split8_4x4(unsigned char *_dst,int _dystride,
 }
 
 static void od_mc_blend_full_split8_4x8(unsigned char *_dst,int _dystride,
- const unsigned char *_src[8]){
+ const unsigned char *_src[8]) {
   ptrdiff_t a;
   ptrdiff_t row;
-  for(row=0;row<0x20;row+=0x10){
+  for (row=0;row<0x20;row+=0x10) {
     __asm__ __volatile__(
       OD_MC_BLEND_FULL_SPLIT8_4x4(3)
       "lea (%[dst],%[dystride],2),%[dst]\t\n"
@@ -1536,7 +1536,7 @@ static void od_mc_blend_full_split8_4x8(unsigned char *_dst,int _dystride,
 OD_MC_BLEND_FULL_SPLIT8_C(8,1,3,0)
 
 static void od_mc_blend_full_split8_8x2(unsigned char *_dst,int _dystride,
- const unsigned char *_src[8]){
+ const unsigned char *_src[8]) {
   ptrdiff_t a;
   __asm__ __volatile__(
     OD_MC_BLEND_FULL_SPLIT8_8x2(1)
@@ -1548,10 +1548,10 @@ static void od_mc_blend_full_split8_8x2(unsigned char *_dst,int _dystride,
 }
 
 static void od_mc_blend_full_split8_8x4(unsigned char *_dst,int _dystride,
- const unsigned char *_src[8]){
+ const unsigned char *_src[8]) {
   ptrdiff_t a;
   ptrdiff_t row;
-  for(row=0;row<0x20;row+=0x10){
+  for (row=0;row<0x20;row+=0x10) {
     __asm__ __volatile__(
       OD_MC_BLEND_FULL_SPLIT8_8x2(2)
       "lea (%[dst],%[dystride],2),%[dst]\t\n"
@@ -1564,10 +1564,10 @@ static void od_mc_blend_full_split8_8x4(unsigned char *_dst,int _dystride,
 }
 
 static void od_mc_blend_full_split8_8x8(unsigned char *_dst,int _dystride,
- const unsigned char *_src[8]){
+ const unsigned char *_src[8]) {
   ptrdiff_t a;
   ptrdiff_t row;
-  for(row=0;row<0x40;row+=0x10){
+  for (row=0;row<0x40;row+=0x10) {
     __asm__ __volatile__(
       OD_MC_BLEND_FULL_SPLIT8_8x2(3)
       "lea (%[dst],%[dystride],2),%[dst]\t\n"
@@ -1580,10 +1580,10 @@ static void od_mc_blend_full_split8_8x8(unsigned char *_dst,int _dystride,
 }
 
 static void od_mc_blend_full_split8_16x16(unsigned char *_dst,int _dystride,
- const unsigned char *_src[8]){
+ const unsigned char *_src[8]) {
   ptrdiff_t a;
   ptrdiff_t row;
-  for(row=0;row<0x100;row+=0x10){
+  for (row=0;row<0x100;row+=0x10) {
     __asm__ __volatile__(
       OD_MC_BLEND_FULL_SPLIT8_16x1(4)
       "lea (%[dst],%[dystride]),%[dst]\t\n"
@@ -1601,7 +1601,7 @@ typedef void (*od_mc_blend_full_split8_fixed_func)(unsigned char *_dst,
 /*Sets up a second set of image pointers based on the given split state to
    properly shift weight from one image to another.*/
 static void od_mc_setup_split_ptrs(const unsigned char *_drc[4],
- const unsigned char *_src[4],int _c,int _s){
+ const unsigned char *_src[4],int _c,int _s) {
   int j;
   int k;
   _drc[_c]=_src[_c];
@@ -1617,7 +1617,7 @@ static void od_mc_setup_split_ptrs(const unsigned char *_drc[4],
 
 /*Perform normal bilinear blending.*/
 void od_mc_blend_full_split8_sse2(unsigned char *_dst,int _dystride,
- const unsigned char *_src[4],int _c,int _s,int _log_xblk_sz,int _log_yblk_sz){
+ const unsigned char *_src[4],int _c,int _s,int _log_xblk_sz,int _log_yblk_sz) {
   static const od_mc_blend_full_split8_fixed_func
    VTBL[OD_LOG_MVBSIZE_MAX][OD_LOG_MVBSIZE_MAX]={
     {

@@ -88,7 +88,7 @@ int od_codedquantizer_to_quantizer(int cq) {
    less than or equal to the one passed in, except for values between 0
    (lossless) and the minimum lossy quantizer, in which case the
    minimum lossy quantizer is returned.*/
-int od_quantizer_to_codedquantizer(int q){
+int od_quantizer_to_codedquantizer(int q) {
   if (q == 0) {
     return 0;
   }

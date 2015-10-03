@@ -518,7 +518,7 @@ const int OD_FILTER_PARAMS16[22]={
   OD_FILTER_PARAMS16_21
 };
 
-void od_pre_filter16(od_coeff _y[16],const od_coeff _x[16]){
+void od_pre_filter16(od_coeff _y[16],const od_coeff _x[16]) {
 #if OD_DISABLE_FILTER
   int i;
   for (i = 0; i < 16; i++) {
@@ -677,7 +677,7 @@ void od_pre_filter16(od_coeff _y[16],const od_coeff _x[16]){
 #endif
 }
 
-void od_post_filter16(od_coeff _x[16],const od_coeff _y[16]){
+void od_post_filter16(od_coeff _x[16],const od_coeff _y[16]) {
 #if OD_DISABLE_FILTER
   int i;
   for (i = 0; i < 16; i++) {

@@ -669,7 +669,7 @@ int main(int argc, char **argv) {
   }
   /*Assume anything following the options must be a file name.*/
   for (; optind < argc; optind++) id_file(&avin, argv[optind]);
-  if(!output_provided){
+  if (!output_provided) {
     snprintf(default_filename, 1024, "%s.out.ogv", argv[argc-1]);
     outfile = fopen(default_filename, "wb");
     if (outfile == NULL) {

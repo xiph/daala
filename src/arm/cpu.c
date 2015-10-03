@@ -86,7 +86,7 @@ uint32_t od_cpu_flags_get(void)
    * Android */
   cpuinfo = fopen("/proc/cpuinfo", "r");
 
-  if(cpuinfo != NULL)
+  if (cpuinfo != NULL)
   {
     /* 512 should be enough for anybody (it's even enough for all the flags that
      * x86 has accumulated... so far). */
@@ -96,18 +96,18 @@ uint32_t od_cpu_flags_get(void)
     {
 # if defined(OD_ARM_MAY_HAVE_EDSP) || defined(OD_ARM_MAY_HAVE_NEON)
       /* Search for edsp and neon flag */
-      if(memcmp(buf, "Features", 8) == 0)
+      if (memcmp(buf, "Features", 8) == 0)
       {
         char *p;
 #  if defined(OD_ARM_MAY_HAVE_EDSP)
         p = strstr(buf, " edsp");
-        if(p != NULL && (p[5] == ' ' || p[5] == '\n'))
+        if (p != NULL && (p[5] == ' ' || p[5] == '\n'))
           flags |= OD_CPU_ARM_EDSP;
 #  endif
 
 #  if defined(OD_ARM_MAY_HAVE_NEON)
         p = strstr(buf, " neon");
-        if(p != NULL && (p[5] == ' ' || p[5] == '\n'))
+        if (p != NULL && (p[5] == ' ' || p[5] == '\n'))
           flags |= OD_CPU_ARM_NEON;
 #  endif
       }
@@ -115,12 +115,12 @@ uint32_t od_cpu_flags_get(void)
 
 # if defined(OD_ARM_MAY_HAVE_MEDIA)
       /* Search for media capabilities (>= ARMv6) */
-      if(memcmp(buf, "CPU architecture:", 17) == 0)
+      if (memcmp(buf, "CPU architecture:", 17) == 0)
       {
         int version;
         version = atoi(buf+17);
 
-        if(version >= 6)
+        if (version >= 6)
           flags |= OD_CPU_ARM_MEDIA;
       }
 # endif

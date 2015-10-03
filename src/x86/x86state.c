@@ -31,12 +31,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #if defined(OD_X86ASM)
 
 #if defined(OD_GCC_INLINE_ASSEMBLY)
-static void od_restore_fpu_mmx(void){
+static void od_restore_fpu_mmx(void) {
   __asm__ __volatile__("emms\n\t");
 }
 #endif
 
-void od_state_opt_vtbl_init_x86(od_state *_state){
+void od_state_opt_vtbl_init_x86(od_state *_state) {
   od_state_opt_vtbl_init_c(_state);
   _state->cpu_flags=od_cpu_flags_get();
   if (_state->cpu_flags&OD_CPU_X86_SSE2) {
