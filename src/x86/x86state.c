@@ -54,6 +54,10 @@ void od_state_opt_vtbl_init_x86(od_state *_state){
     _state->opt_vtbl.od_copy_nxn[4] = od_copy_16x16_sse2;
     _state->opt_vtbl.od_copy_nxn[5] = od_copy_32x32_sse2;
     _state->opt_vtbl.od_copy_nxn[6] = od_copy_64x64_sse2;
+    OD_COPY(_state->opt_vtbl.filter_dering_direction,
+     OD_DERING_DIRECTION_SSE2, OD_DERINGSIZES);
+    OD_COPY(_state->opt_vtbl.filter_dering_orthogonal,
+     OD_DERING_ORTHOGONAL_SSE2, OD_DERINGSIZES);
 #endif
 #if defined(OD_SSE41_INTRINSICS)
     if (_state->cpu_flags&OD_CPU_X86_SSE4_1) {

@@ -33,9 +33,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # endif
 
 void od_state_opt_vtbl_init_x86(od_state *_state);
-
-void od_mc_predict1fmv8_sse2(od_state *state, unsigned char *_dst,const unsigned char *_src,
- int _systride,int32_t _mvx,int32_t _mvy,
+const od_filter_dering_direction_func
+ OD_DERING_DIRECTION_SSE2[OD_DERINGSIZES];
+const od_filter_dering_orthogonal_func
+ OD_DERING_ORTHOGONAL_SSE2[OD_DERINGSIZES];
+void od_mc_predict1fmv8_sse2(od_state *state, unsigned char *_dst,
+ const unsigned char *_src, int _systride,int32_t _mvx,int32_t _mvy,
  int _log_xblk_sz,int _log_yblk_sz);
 void od_mc_blend_full8_sse2(unsigned char *_dst,int _dystride,
  const unsigned char *_src[4],int _log_xblk_sz,int _log_yblk_sz);
@@ -67,4 +70,12 @@ void od_copy_32x32_sse2(unsigned char *_dst, int _dstride,
  const unsigned char *_src, int _sstride);
 void od_copy_64x64_sse2(unsigned char *_dst, int _dstride,
  const unsigned char *_src, int _sstride);
+void od_filter_dering_direction_4x4_sse2(int16_t *y, int ystride,
+ int16_t *in, int threshold, int dir);
+void od_filter_dering_direction_8x8_sse2(int16_t *y, int ystride,
+ int16_t *in, int threshold, int dir);
+void od_filter_dering_orthogonal_4x4_sse2(int16_t *y, int ystride,
+ int16_t *in, int16_t *x, int xstride, int threshold, int dir);
+void od_filter_dering_orthogonal_8x8_sse2(int16_t *y, int ystride,
+ int16_t *in, int16_t *x, int xstride, int threshold, int dir);
 #endif

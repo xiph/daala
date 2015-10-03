@@ -102,6 +102,7 @@ src_libdaalabase_la_SOURCES = \
 	$(src_dct_SOURCES)
 if ENABLE_X86ASM
 src_libdaalabase_la_SOURCES += \
+	src/x86/sse2filter.c \
 	src/x86/sse2mc.c \
 	src/x86/sse2util.c \
 	src/x86/x86state.c
@@ -322,6 +323,7 @@ tools_downsample_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS)
 # upsample
 tools_upsample_SOURCES = \
 	$(src_dct_SOURCES) \
+	src/filter.c \
 	src/generic_code.c \
 	src/switch_table.c \
 	src/logging.c \
@@ -335,6 +337,7 @@ tools_upsample_SOURCES = \
 	tools/upsample.c
 if ENABLE_X86ASM
 tools_upsample_SOURCES += \
+	src/x86/sse2filter.c \
 	src/x86/sse2mc.c \
 	src/x86/sse2util.c \
 	src/x86/x86state.c

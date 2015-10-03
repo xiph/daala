@@ -35,6 +35,7 @@ typedef struct od_pvq_codeword_ctx od_pvq_codeword_ctx;
 # include "internal.h"
 # include "dct.h"
 # include "mc.h"
+# include "filter.h"
 # include "pvq.h"
 # include "adapt.h"
 # include "generic_code.h"
@@ -109,6 +110,8 @@ struct od_state_opt_vtbl{
   void (*mc_blend_multi_split)(unsigned char *_dst, int _dystride,
    const unsigned char *_src[4], int _c, int _s,
    int _log_xblk_sz, int _log_yblk_sz);
+  od_filter_dering_direction_func filter_dering_direction[OD_DERINGSIZES];
+  od_filter_dering_orthogonal_func filter_dering_orthogonal[OD_DERINGSIZES];
   void (*restore_fpu)(void);
   od_dct_func_2d fdct_2d[OD_NBSIZES + 1];
   od_dct_func_2d idct_2d[OD_NBSIZES + 1];

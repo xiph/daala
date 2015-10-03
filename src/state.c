@@ -206,6 +206,10 @@ void od_state_opt_vtbl_init_c(od_state *state) {
     state->opt_vtbl.mc_blend_multi = od_mc_blend_multi8_c;
     state->opt_vtbl.mc_blend_multi_split = od_mc_blend_multi_split8_c;
   }
+  OD_COPY(state->opt_vtbl.filter_dering_direction, OD_DERING_DIRECTION_C,
+   OD_DERINGSIZES);
+  OD_COPY(state->opt_vtbl.filter_dering_orthogonal, OD_DERING_ORTHOGONAL_C,
+   OD_DERINGSIZES);
   state->opt_vtbl.restore_fpu = od_restore_fpu_c;
   OD_COPY(state->opt_vtbl.od_copy_nxn, OD_COPY_NXN_C, OD_LOG_COPYBSIZE_MAX + 1);
   OD_COPY(state->opt_vtbl.fdct_2d, OD_FDCT_2D_C, OD_NBSIZES + 1);
