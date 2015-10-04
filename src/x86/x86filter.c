@@ -1,5 +1,5 @@
 /*Daala video codec
-Copyright (c) 2013 Daala project contributors.  All rights reserved.
+Copyright (c) 2015 Daala project contributors.  All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -83,7 +83,7 @@ void od_filter_dering_direction_4x4(int16_t *y, int ystride, int16_t *in,
     sum = _mm_set1_epi16(0);
     row = _mm_loadl_epi64((__m128i*)&in[i*bstride]);
     for (k = 0; k < 3; k++) {
-      /* p0 = in[i*bstride + j + offset[k]] - row */;
+      /* p0 = in[i*bstride + offset[k]] - row */;
       p0 = _mm_sub_epi16(_mm_loadu_si128((__m128i*)&in[i*bstride +
        offset[k]]), row);
       /* if (abs(p0) < threshold) sum += taps[k]*p0; */
@@ -92,7 +92,7 @@ void od_filter_dering_direction_4x4(int16_t *y, int ystride, int16_t *in,
       p0 = _mm_and_si128(p0, cmp0);
       sum = _mm_add_epi16(sum, p0);
 
-      /* p0 = in[i*bstride + j + offset[k]] - row */;
+      /* p0 = in[i*bstride + offset[k]] - row */;
       p1 = _mm_sub_epi16(_mm_loadu_si128((__m128i*)&in[i*bstride -
        offset[k]]), row);
       /* if (abs(p1) < threshold) sum += taps[k]*p1; */
@@ -128,7 +128,7 @@ void od_filter_dering_direction_8x8(int16_t *y, int ystride, int16_t *in,
     sum = _mm_set1_epi16(0);
     row = _mm_loadu_si128((__m128i*)&in[i*bstride]);
     for (k = 0; k < 3; k++) {
-      /* p0 = in[i*bstride + j + offset[k]] - row */;
+      /* p0 = in[i*bstride + offset[k]] - row */;
       p0 = _mm_sub_epi16(_mm_loadu_si128((__m128i*)&in[i*bstride +
        offset[k]]), row);
       /* if (abs(p0) < threshold) sum += taps[k]*p0; */
@@ -137,7 +137,7 @@ void od_filter_dering_direction_8x8(int16_t *y, int ystride, int16_t *in,
       p0 = _mm_and_si128(p0, cmp0);
       sum = _mm_add_epi16(sum, p0);
 
-      /* p0 = in[i*bstride + j + offset[k]] - row */;
+      /* p0 = in[i*bstride + offset[k]] - row */;
       p1 = _mm_sub_epi16(_mm_loadu_si128((__m128i*)&in[i*bstride -
        offset[k]]), row);
       /* if (abs(p1) < threshold) sum += taps[k]*p1; */
