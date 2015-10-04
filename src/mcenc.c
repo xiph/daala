@@ -1677,7 +1677,6 @@ static int32_t od_enc_sad(od_enc_ctx *enc, const unsigned char *p,
   int cliph;
   int w;
   int h;
-  int32_t ret;
   state = &enc->state;
   iplane = enc->input_img.planes + pli;
   /*Compute the block dimensions in the target image plane.*/
@@ -1709,31 +1708,32 @@ static int32_t od_enc_sad(od_enc_ctx *enc, const unsigned char *p,
   /*Compute the SAD.*/
   src = iplane->data + y*iplane->ystride + x*iplane->xstride;
   if (w == 4 && h == 4) {
-    ret = (*enc->opt_vtbl.mc_compute_sad_4x4)(src, iplane->ystride,
+    return (*enc->opt_vtbl.mc_compute_sad_4x4)(src, iplane->ystride,
      p, pystride);
   }
   else if (w == 8 && h == 8) {
-    ret = (*enc->opt_vtbl.mc_compute_sad_8x8)(src, iplane->ystride,
+    return (*enc->opt_vtbl.mc_compute_sad_8x8)(src, iplane->ystride,
      p, pystride);
   }
   else if (w == 16 && h == 16) {
-    ret = (*enc->opt_vtbl.mc_compute_sad_16x16)(src, iplane->ystride,
+    return (*enc->opt_vtbl.mc_compute_sad_16x16)(src, iplane->ystride,
      p, pystride);
   }
   else if (w == 32 && h == 32) {
-    ret = (*enc->opt_vtbl.mc_compute_sad_32x32)(src, iplane->ystride,
+    return (*enc->opt_vtbl.mc_compute_sad_32x32)(src, iplane->ystride,
      p, pystride);
   }
   else {
     /*Default C implementation.*/
     if (pxstride == 1) {
-      ret = od_mc_compute_sad8_c(src, iplane->ystride, p, pystride, w, h);
+      return od_mc_compute_sad8_c(src, iplane->ystride, p, pystride, w, h);
     }
     else {
       OD_ASSERT(0);
     }
   }
-  return ret;
+  /* never gets here because of OD_ASSERT */
+  return -1;
 }
 
 /*Computes the SATD of the input image block against the given predictor.*/
@@ -1748,7 +1748,6 @@ static int32_t od_enc_satd(od_enc_ctx *enc, const unsigned char *p,
   int cliph;
   int w;
   int h;
-  int32_t ret;
   state = &enc->state;
   iplane = enc->input_img.planes + pli;
   /*Compute the block dimensions in the target image plane.*/
@@ -1780,19 +1779,19 @@ static int32_t od_enc_satd(od_enc_ctx *enc, const unsigned char *p,
   /*Compute the SATD.*/
   src = iplane->data + y*iplane->ystride + x*iplane->xstride;
   if (w == 4 && h == 4) {
-    ret = (*enc->opt_vtbl.mc_compute_satd_4x4)(src, iplane->ystride,
+    return (*enc->opt_vtbl.mc_compute_satd_4x4)(src, iplane->ystride,
      p, pystride);
   }
   else if (w == 8 && h == 8) {
-    ret = (*enc->opt_vtbl.mc_compute_satd_8x8)(src, iplane->ystride,
+    return (*enc->opt_vtbl.mc_compute_satd_8x8)(src, iplane->ystride,
      p, pystride);
   }
   else if (w == 16 && h == 16) {
-    ret = (*enc->opt_vtbl.mc_compute_satd_16x16)(src, iplane->ystride,
+    return (*enc->opt_vtbl.mc_compute_satd_16x16)(src, iplane->ystride,
      p, pystride);
   }
   else if (w == 32 && h == 32) {
-    ret = (*enc->opt_vtbl.mc_compute_satd_32x32)(src, iplane->ystride,
+    return (*enc->opt_vtbl.mc_compute_satd_32x32)(src, iplane->ystride,
      p, pystride);
   }
   else {
@@ -1800,13 +1799,14 @@ static int32_t od_enc_satd(od_enc_ctx *enc, const unsigned char *p,
       TODO: Try padding 0's for undefined area of difference image,
       then apply square SATD.*/
     if(pxstride == 1){
-      ret = od_mc_compute_sad8_c(src, iplane->ystride, p, pystride, w, h);
+      return od_mc_compute_sad8_c(src, iplane->ystride, p, pystride, w, h);
     }
     else{
       OD_ASSERT(0);
     }
   }
-  return ret;
+  /* never gets here because of OD_ASSERT */
+  return -1;
 }
 
 static int od_mv_est_init_impl(od_mv_est_ctx *est, od_enc_ctx *enc) {
