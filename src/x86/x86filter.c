@@ -67,7 +67,47 @@ typedef void (*od_filter_dering_direction_fixed_func)(int16_t *y, int ystride,
 
 void od_filter_dering_direction_4x4(int16_t *y, int ystride, int16_t *in,
  int bstride, int threshold, int dir) {
-  od_filter_dering_direction_c(y, ystride, in, bstride, 2, threshold, dir);
+  int i;
+  int k;
+  static const int taps[3] = {3, 2, 2};
+  int offset[3];
+  __m128i sum;
+  __m128i p0;
+  __m128i cmp0;
+  __m128i p1;
+  __m128i cmp1;
+  __m128i row;
+  __m128i res;
+  od_filter_dering_direction_offsets(offset, dir, bstride);
+  for (i = 0; i < 4; i++) {
+    sum = _mm_set1_epi16(0);
+    row = _mm_loadl_epi64((__m128i*)&in[i*bstride]);
+    for (k = 0; k < 3; k++) {
+      /* p0 = in[i*bstride + j + offset[k]] - row */;
+      p0 = _mm_sub_epi16(_mm_loadu_si128((__m128i*)&in[i*bstride +
+       offset[k]]), row);
+      /* if (abs(p0) < threshold) sum += taps[k]*p0; */
+      cmp0 = _mm_cmplt_epi16(_mm_abs_epi16(p0), _mm_set1_epi16(threshold));
+      p0 = _mm_mullo_epi16(p0, _mm_set1_epi16(taps[k]));
+      p0 = _mm_and_si128(p0, cmp0);
+      sum = _mm_add_epi16(sum, p0);
+
+      /* p0 = in[i*bstride + j + offset[k]] - row */;
+      p1 = _mm_sub_epi16(_mm_loadu_si128((__m128i*)&in[i*bstride -
+       offset[k]]), row);
+      /* if (abs(p1) < threshold) sum += taps[k]*p1; */
+      cmp1 = _mm_cmplt_epi16(_mm_abs_epi16(p1), _mm_set1_epi16(threshold));
+      p1 = _mm_mullo_epi16(p1, _mm_set1_epi16(taps[k]));
+      p1 = _mm_and_si128(p1, cmp1);
+      sum = _mm_add_epi16(sum, p1);
+    }
+    /* res = row + ((sum + 8) >> 4) */
+    res = sum;
+    res = _mm_add_epi16(res, _mm_set1_epi16(8));
+    res = _mm_srai_epi16(res, 4);
+    res = _mm_add_epi16(res, row);
+    _mm_storel_epi64((__m128i*)&y[i*ystride], res);
+  }
 }
 
 void od_filter_dering_direction_8x8(int16_t *y, int ystride, int16_t *in,
