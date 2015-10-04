@@ -26,14 +26,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # include "config.h"
 #endif
 
-#include "x86enc.h"
+#include "x86int.h"
 #include "cpu.h"
 
 #if defined(OD_X86ASM)
 #include <stdio.h>
 #include <emmintrin.h>
-#include <pmmintrin.h>
-#include <tmmintrin.h>
 #include "../filter.h"
 
 #if defined(OD_CHECKASM)
@@ -65,6 +63,14 @@ void od_filter_dering_direction_check(int16_t *y, int ystride, int16_t *in,
 typedef void (*od_filter_dering_direction_fixed_func)(int16_t *y, int ystride,
  int16_t *in, int bstride, int threshold, int dir);
 
+
+/*Corresponds to _mm_abs_epi16 (ssse3).*/
+OD_SIMD_INLINE __m128i od_mm_abs_epi16(__m128i in) {
+  __m128i mask;
+  mask = _mm_cmpgt_epi16(_mm_setzero_si128(), in);
+  return _mm_sub_epi16(_mm_xor_si128(in, mask), mask);
+}
+
 void od_filter_dering_direction_4x4(int16_t *y, int ystride, int16_t *in,
  int bstride, int threshold, int dir) {
   int i;
@@ -87,7 +93,7 @@ void od_filter_dering_direction_4x4(int16_t *y, int ystride, int16_t *in,
       p0 = _mm_sub_epi16(_mm_loadu_si128((__m128i*)&in[i*bstride +
        offset[k]]), row);
       /* if (abs(p0) < threshold) sum += taps[k]*p0; */
-      cmp0 = _mm_cmplt_epi16(_mm_abs_epi16(p0), _mm_set1_epi16(threshold));
+      cmp0 = _mm_cmplt_epi16(od_mm_abs_epi16(p0), _mm_set1_epi16(threshold));
       p0 = _mm_mullo_epi16(p0, _mm_set1_epi16(taps[k]));
       p0 = _mm_and_si128(p0, cmp0);
       sum = _mm_add_epi16(sum, p0);
@@ -96,7 +102,7 @@ void od_filter_dering_direction_4x4(int16_t *y, int ystride, int16_t *in,
       p1 = _mm_sub_epi16(_mm_loadu_si128((__m128i*)&in[i*bstride -
        offset[k]]), row);
       /* if (abs(p1) < threshold) sum += taps[k]*p1; */
-      cmp1 = _mm_cmplt_epi16(_mm_abs_epi16(p1), _mm_set1_epi16(threshold));
+      cmp1 = _mm_cmplt_epi16(od_mm_abs_epi16(p1), _mm_set1_epi16(threshold));
       p1 = _mm_mullo_epi16(p1, _mm_set1_epi16(taps[k]));
       p1 = _mm_and_si128(p1, cmp1);
       sum = _mm_add_epi16(sum, p1);
@@ -132,7 +138,7 @@ void od_filter_dering_direction_8x8(int16_t *y, int ystride, int16_t *in,
       p0 = _mm_sub_epi16(_mm_loadu_si128((__m128i*)&in[i*bstride +
        offset[k]]), row);
       /* if (abs(p0) < threshold) sum += taps[k]*p0; */
-      cmp0 = _mm_cmplt_epi16(_mm_abs_epi16(p0), _mm_set1_epi16(threshold));
+      cmp0 = _mm_cmplt_epi16(od_mm_abs_epi16(p0), _mm_set1_epi16(threshold));
       p0 = _mm_mullo_epi16(p0, _mm_set1_epi16(taps[k]));
       p0 = _mm_and_si128(p0, cmp0);
       sum = _mm_add_epi16(sum, p0);
@@ -141,7 +147,7 @@ void od_filter_dering_direction_8x8(int16_t *y, int ystride, int16_t *in,
       p1 = _mm_sub_epi16(_mm_loadu_si128((__m128i*)&in[i*bstride -
        offset[k]]), row);
       /* if (abs(p1) < threshold) sum += taps[k]*p1; */
-      cmp1 = _mm_cmplt_epi16(_mm_abs_epi16(p1), _mm_set1_epi16(threshold));
+      cmp1 = _mm_cmplt_epi16(od_mm_abs_epi16(p1), _mm_set1_epi16(threshold));
       p1 = _mm_mullo_epi16(p1, _mm_set1_epi16(taps[k]));
       p1 = _mm_and_si128(p1, cmp1);
       sum = _mm_add_epi16(sum, p1);
