@@ -196,7 +196,7 @@ void od_mc_predict1fmv8_c(unsigned char *dst, const unsigned char *src,
   }
   /*MC with full-pel MV, i.e. integer position.*/
   else {
-    od_copy_log_nxm(dst_p, xblk_sz, src_p, systride, log_xblk_sz, log_yblk_sz);
+    od_copy_nxm_c(dst_p, xblk_sz, src_p, systride, log_xblk_sz, log_yblk_sz);
   }
 }
 

@@ -25,14 +25,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #if !defined(_util_H)
 # define _util_H (1)
 
-void od_copy_16x16(unsigned char *_dst, int _dstride,
+void od_copy_2x2_c(unsigned char *_dst, int _dstride,
  const unsigned char *_src, int _sstride);
-void od_copy_32x32(unsigned char *_dst, int _dstride,
+void od_copy_4x4_c(unsigned char *_dst, int _dstride,
  const unsigned char *_src, int _sstride);
-void od_copy_64x64(unsigned char *_dst, int _dstride,
+void od_copy_8x8_c(unsigned char *_dst, int _dstride,
  const unsigned char *_src, int _sstride);
-void od_copy_log_nxn(unsigned char *_dst, int _dstride,
+void od_copy_nxn_c(unsigned char *_dst, int _dstride,
  const unsigned char *_src, int _sstride, int _log_n);
-void od_copy_log_nxm(unsigned char *_dst, int _dstride,
+void od_copy_nxm_c(unsigned char *_dst, int _dstride,
  const unsigned char *_src, int _sstride, int _log_n, int _log_m);
 #endif

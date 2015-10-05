@@ -542,7 +542,7 @@ void od_mc_predict1fmv8_sse2(unsigned char *dst,const unsigned char *src,
   }
   /*MC with full-pel MV, i.e. integer position.*/
   else {
-    od_copy_log_nxm(dst_p, xblk_sz, src_p, systride, log_xblk_sz, log_yblk_sz);
+    od_copy_nxm_sse2(dst_p, xblk_sz, src_p, systride, log_xblk_sz, log_yblk_sz);
   }
 #if defined(OD_CHECKASM)
   od_mc_predict1fmv8_check(dst, src, systride, mvx, mvy,

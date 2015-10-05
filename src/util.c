@@ -50,40 +50,10 @@ OD_COPY_C(16)
 OD_COPY_C(32)
 OD_COPY_C(64)
 
-/*Block copy functions. Copying of overlapping regions has undefined
-   behavior. Only 16x16, 32x32, 64x64 show a SIMD improvement.*/
-
-void od_copy_16x16(unsigned char *_dst, int _dstride,
- const unsigned char *_src, int _sstride) {
-#if defined(OD_SSE2_INTRINSICS)
-  od_copy_16x16_sse2(_dst, _dstride, _src, _sstride);
-#elif
-  od_copy_16x16_c(_dst, _dstride, _src, _sstride);
-#endif
-}
-
-void od_copy_32x32(unsigned char *_dst, int _dstride,
- const unsigned char *_src, int _sstride) {
-#if defined(OD_SSE2_INTRINSICS)
-  od_copy_32x32_sse2(_dst, _dstride, _src, _sstride);
-#elif
-  od_copy_32x32_c(_dst, _dstride, _src, _sstride);
-#endif
-}
-
-void od_copy_64x64(unsigned char *_dst, int _dstride,
- const unsigned char *_src, int _sstride) {
-#if defined(OD_SSE2_INTRINSICS)
-  od_copy_64x64_sse2(_dst, _dstride, _src, _sstride);
-#elif
-  od_copy_64x64_c(_dst, _dstride, _src, _sstride);
-#endif
-}
-
 typedef void (*od_copy_fixed_func)(unsigned char *_dst, int _dstride,
  const unsigned char *_src, int _sstride);
 
-void od_copy_log_nxn(unsigned char *_dst, int _dstride,
+void od_copy_nxn_c(unsigned char *_dst, int _dstride,
  const unsigned char *_src, int _sstride, int _log_n) {
   static const od_copy_fixed_func
    VTBL[7] = {
@@ -91,21 +61,22 @@ void od_copy_log_nxn(unsigned char *_dst, int _dstride,
     od_copy_2x2_c,
     od_copy_4x4_c,
     od_copy_8x8_c,
-    od_copy_16x16,
-    od_copy_32x32,
-    od_copy_64x64
+    od_copy_16x16_c,
+    od_copy_32x32_c,
+    od_copy_64x64_c
   };
   OD_ASSERT(_log_n > 0 || _log_n <= 6);
   (*VTBL[_log_n])(_dst, _dstride, _src, _sstride);
 }
 
-void od_copy_log_nxm(unsigned char *_dst, int _dstride,
+void od_copy_nxm_c(unsigned char *_dst, int _dstride,
  const unsigned char *_src, int _sstride, int _log_n, int _log_m) {
   int j;
   if (_log_n == _log_m) {
-    od_copy_log_nxn(_dst, _dstride, _src, _sstride, _log_n);
+    od_copy_nxn_c(_dst, _dstride, _src, _sstride, _log_n);
     return;
   }
+  /* Handle non-square blocks. */
   for (j = 0; j < 1 << _log_m; j++) {
     OD_COPY(_dst, _src, 1 << _log_n);
     _dst += _dstride;

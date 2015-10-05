@@ -94,7 +94,7 @@ extern const int *const OD_VERT_SETUP_DY[4][4];
  /OD_PADDING_ALIGN*OD_PADDING_ALIGN)
 
 /*The shared (encoder and decoder) functions that have accelerated variants.*/
-struct od_state_opt_vtbl{
+struct od_state_opt_vtbl {
   void (*mc_predict1fmv)(unsigned char *_dst, const unsigned char *_src,
    int _systride, int32_t _mvx, int32_t _mvy,
    int _log_xblk_sz, int _log_yblk_sz);
@@ -111,6 +111,10 @@ struct od_state_opt_vtbl{
   void (*restore_fpu)(void);
   od_dct_func_2d fdct_2d[OD_NBSIZES + 1];
   od_dct_func_2d idct_2d[OD_NBSIZES + 1];
+  void (*od_copy_nxn)(unsigned char *_dst, int _dstride,
+   const unsigned char *_src, int _sstride, int _log_n);
+  void (*od_copy_nxm)(unsigned char *_dst, int _dstride,
+   const unsigned char *_src, int _sstride, int _log_n, int _log_m);
 };
 
 # if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)

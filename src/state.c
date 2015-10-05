@@ -31,6 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <stdlib.h>
 #include <string.h>
 #include "state.h"
+#include "util.h"
 #if defined(OD_X86ASM)
 # include "x86/x86int.h"
 #endif
@@ -196,6 +197,8 @@ void od_state_opt_vtbl_init_c(od_state *state) {
   state->opt_vtbl.mc_blend_multi = od_mc_blend_multi8_c;
   state->opt_vtbl.mc_blend_multi_split = od_mc_blend_multi_split8_c;
   state->opt_vtbl.restore_fpu = od_restore_fpu_c;
+  state->opt_vtbl.od_copy_nxm = od_copy_nxm_c;
+  state->opt_vtbl.od_copy_nxn = od_copy_nxn_c;
   OD_COPY(state->opt_vtbl.fdct_2d, OD_FDCT_2D_C, OD_NBSIZES + 1);
   OD_COPY(state->opt_vtbl.idct_2d, OD_IDCT_2D_C, OD_NBSIZES + 1);
 }
