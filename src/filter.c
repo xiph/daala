@@ -1679,6 +1679,25 @@ static int od_dir_find8(const int16_t *img, int stride, int32_t *var) {
 #define OD_DERING_INBUF_SIZE ((OD_BSIZE_MAX + 2*OD_FILT_BORDER)*\
  (OD_BSIZE_MAX + 2*OD_FILT_BORDER))
 
+static const int direction_offsets_table[16][3] = {
+   {-37, -74,-111 },
+   {  1, -36, -35 },
+   {  1,   2,   3 },
+   {  1,  40,  41 },
+   { 39,  78, 117 },
+   { 38,  77, 115 },
+   { 38,  76, 114 },
+   { 38,  75, 113 },
+   { 37,  74, 111 },
+   { 37,  73, 110 },
+   { 36,  72, 108 },
+   { 36,  71, 107 },
+   { 35,  70, 105 },
+   { 35,  69, 104 },
+   { 34,  68, 102 },
+   { 34,  67, 101 }
+};
+
 /* Build offset table. */
 void od_filter_dering_direction_offsets(int *offset, int dir, int bstride) {
   int k;
@@ -1700,8 +1719,6 @@ void od_filter_dering_direction_c(int16_t *y, int ystride, int16_t *in,
   int j;
   int k;
   static const int taps[4] = {3, 2, 2};
-  int offset[4];
-  od_filter_dering_direction_offsets(offset, dir, bstride);
   for (i = 0; i < 1 << log_n; i++) {
     for (j = 0; j < 1 << log_n; j++) {
       od_coeff sum;
@@ -1712,8 +1729,8 @@ void od_filter_dering_direction_c(int16_t *y, int ystride, int16_t *in,
       for (k = 0; k < 3; k++) {
         od_coeff p0;
         od_coeff p1;
-        p0 = in[i*bstride + j + offset[k]] - xx;
-        p1 = in[i*bstride + j - offset[k]] - xx;
+        p0 = in[i*bstride + j + direction_offsets_table[dir][k]] - xx;
+        p1 = in[i*bstride + j - direction_offsets_table[dir][k]] - xx;
         if (abs(p0) < threshold) sum += taps[k]*p0;
         if (abs(p1) < threshold) sum += taps[k]*p1;
       }

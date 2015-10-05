@@ -82,6 +82,8 @@ void od_apply_postfilter_frame(od_coeff *c, int w, int nhsb, int nvsb,
 #define OD_FILT_SIZE(ln, xdec) (0)
 #define OD_DERING_NBLOCKS (OD_BSIZE_MAX/8)
 
+static const int direction_offsets_table[16][3];
+
 extern const int OD_FILT_SIZE[OD_NBSIZES];
 void od_dering(struct od_state *state, int16_t *y, int ystride, int16_t *x,
  int xstride, int ln, int sbx, int sby, int nhsb, int nvsb, int q, int xdec,
@@ -89,7 +91,6 @@ void od_dering(struct od_state *state, int16_t *y, int ystride, int16_t *x,
  int skip_stride);
 void od_filter_dering_direction_c(int16_t *y, int ystride, int16_t *in,
  int bstride, int log_n, int threshold, int dir);
-void od_filter_dering_direction_offsets(int *offset, int dir, int bstride);
 void od_clpf(od_coeff *y, int ystride, od_coeff *x, int xstride, int ln,
  int sbx, int sby, int nhsb, int nvsb);
 void od_bilinear_smooth(od_coeff *x, int ln, int stride, int q, int pli);

@@ -76,7 +76,6 @@ void od_filter_dering_direction_4x4(int16_t *y, int ystride, int16_t *in,
   int i;
   int k;
   static const int taps[3] = {3, 2, 2};
-  int offset[3];
   __m128i sum;
   __m128i p0;
   __m128i cmp0;
@@ -84,14 +83,13 @@ void od_filter_dering_direction_4x4(int16_t *y, int ystride, int16_t *in,
   __m128i cmp1;
   __m128i row;
   __m128i res;
-  od_filter_dering_direction_offsets(offset, dir, bstride);
   for (i = 0; i < 4; i++) {
     sum = _mm_set1_epi16(0);
     row = _mm_loadl_epi64((__m128i*)&in[i*bstride]);
     for (k = 0; k < 3; k++) {
       /* p0 = in[i*bstride + offset[k]] - row */;
       p0 = _mm_sub_epi16(_mm_loadu_si128((__m128i*)&in[i*bstride +
-       offset[k]]), row);
+       direction_offsets_table[dir][k]]), row);
       /* if (abs(p0) < threshold) sum += taps[k]*p0; */
       cmp0 = _mm_cmplt_epi16(_mm_abs_epi16(p0), _mm_set1_epi16(threshold));
       p0 = _mm_mullo_epi16(p0, _mm_set1_epi16(taps[k]));
@@ -100,7 +98,7 @@ void od_filter_dering_direction_4x4(int16_t *y, int ystride, int16_t *in,
 
       /* p0 = in[i*bstride + offset[k]] - row */;
       p1 = _mm_sub_epi16(_mm_loadu_si128((__m128i*)&in[i*bstride -
-       offset[k]]), row);
+       direction_offsets_table[dir][k]]), row);
       /* if (abs(p1) < threshold) sum += taps[k]*p1; */
       cmp1 = _mm_cmplt_epi16(_mm_abs_epi16(p1), _mm_set1_epi16(threshold));
       p1 = _mm_mullo_epi16(p1, _mm_set1_epi16(taps[k]));
@@ -121,7 +119,6 @@ void od_filter_dering_direction_8x8(int16_t *y, int ystride, int16_t *in,
   int i;
   int k;
   static const int taps[3] = {3, 2, 2};
-  int offset[3];
   __m128i sum;
   __m128i p0;
   __m128i cmp0;
@@ -129,14 +126,13 @@ void od_filter_dering_direction_8x8(int16_t *y, int ystride, int16_t *in,
   __m128i cmp1;
   __m128i row;
   __m128i res;
-  od_filter_dering_direction_offsets(offset, dir, bstride);
   for (i = 0; i < 8; i++) {
     sum = _mm_set1_epi16(0);
     row = _mm_loadu_si128((__m128i*)&in[i*bstride]);
     for (k = 0; k < 3; k++) {
       /* p0 = in[i*bstride + offset[k]] - row */;
       p0 = _mm_sub_epi16(_mm_loadu_si128((__m128i*)&in[i*bstride +
-       offset[k]]), row);
+       direction_offsets_table[dir][k]]), row);
       /* if (abs(p0) < threshold) sum += taps[k]*p0; */
       cmp0 = _mm_cmplt_epi16(_mm_abs_epi16(p0), _mm_set1_epi16(threshold));
       p0 = _mm_mullo_epi16(p0, _mm_set1_epi16(taps[k]));
@@ -145,7 +141,7 @@ void od_filter_dering_direction_8x8(int16_t *y, int ystride, int16_t *in,
 
       /* p0 = in[i*bstride + offset[k]] - row */;
       p1 = _mm_sub_epi16(_mm_loadu_si128((__m128i*)&in[i*bstride -
-       offset[k]]), row);
+       direction_offsets_table[dir][k]]), row);
       /* if (abs(p1) < threshold) sum += taps[k]*p1; */
       cmp1 = _mm_cmplt_epi16(_mm_abs_epi16(p1), _mm_set1_epi16(threshold));
       p1 = _mm_mullo_epi16(p1, _mm_set1_epi16(taps[k]));
