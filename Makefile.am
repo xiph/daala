@@ -333,7 +333,6 @@ tools_upsample_SOURCES = \
 if ENABLE_X86ASM
 tools_upsample_SOURCES += \
 	src/x86/sse2mc.c \
-	src/x86/x86filter.c \
 	src/x86/x86state.c
 endif
 tools_upsample_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS)
