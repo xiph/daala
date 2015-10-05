@@ -132,6 +132,8 @@ void od_fatal_impl(const char *_str, const char *_file, int _line);
 #  define OD_ALWAYS_TRUE(_cond) ((void)(_cond))
 # endif
 
+# define OD_UNUSED(_var) ((void)_var);
+
 /*Like OD_ASSERT, but return an error code instead of terminating.*/
 # define OD_RETURN_CHECK(_cond, _err) \
   do { \

@@ -2565,6 +2565,7 @@ int od_state_get_predictor(od_state *state,
   int mvb_sz;
   int ncns;
   int ci;
+  OD_UNUSED(ref);
   ncns = 4;
   mvb_sz = 1 << ((OD_MC_LEVEL_MAX - level) >> 1);
   if (level == 0) {
