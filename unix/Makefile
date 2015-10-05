@@ -148,7 +148,7 @@ zigzag64.c \
 $(if $(findstring -DOD_X86ASM,${CFLAGS}), \
 x86/cpu.c \
 x86/sse2mc.c \
-x86/x86filter.c \
+x86/sse2filter.c \
 x86/x86state.c \
 ) \
 $(if $(findstring -DOD_LOGGING_ENABLED,${CFLAGS}), \
