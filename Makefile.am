@@ -102,7 +102,7 @@ src_libdaalabase_la_SOURCES = \
 	$(src_dct_SOURCES)
 if ENABLE_X86ASM
 src_libdaalabase_la_SOURCES += \
-	src/x86/x86util.c \
+	src/x86/sse2util.c \
 	src/x86/sse2mc.c \
 	src/x86/x86state.c
 endif
@@ -334,7 +334,7 @@ tools_upsample_SOURCES = \
 	tools/upsample.c
 if ENABLE_X86ASM
 tools_upsample_SOURCES += \
-	src/x86/c86util.c \
+	src/x86/sse2util.c \
 	src/x86/sse2mc.c \
 	src/x86/x86state.c
 endif
