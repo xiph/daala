@@ -1700,13 +1700,13 @@ static const int direction_offsets_table[16][3] = {
 
 /* Smooth in the direction detected. */
 void od_filter_dering_direction_c(int16_t *y, int ystride, int16_t *in,
- int log_n, int threshold, int dir) {
+ int ln, int threshold, int dir) {
   int i;
   int j;
   int k;
   static const int taps[4] = {3, 2, 2};
-  for (i = 0; i < 1 << log_n; i++) {
-    for (j = 0; j < 1 << log_n; j++) {
+  for (i = 0; i < 1 << ln; i++) {
+    for (j = 0; j < 1 << ln; j++) {
       od_coeff sum;
       od_coeff xx;
       od_coeff yy;

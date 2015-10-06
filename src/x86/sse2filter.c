@@ -37,14 +37,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #if defined(OD_CHECKASM)
 void od_filter_dering_direction_check(int16_t *y, int ystride, int16_t *in,
- int log_n, int threshold, int dir) {
+ int ln, int threshold, int dir) {
   int16_t dst[OD_BSIZE_MAX*OD_BSIZE_MAX];
-  od_filter_dering_direction_c(dst, OD_BSIZE_MAX, in, log_n,
+  od_filter_dering_direction_c(dst, OD_BSIZE_MAX, in, ln,
    threshold, dir);
   int i;
   int j;
   int failed;
-  int n = 1 << log_n;
+  int n = 1 << ln;
   failed = 0;
   for (i = 0; i < n; i++) {
     for (j = 0; j < n; j++) {
@@ -158,17 +158,17 @@ void od_filter_dering_direction_8x8(int16_t *y, int ystride, int16_t *in,
 }
 
 void od_filter_dering_direction_sse2(int16_t *y, int ystride, int16_t *in,
- int log_n, int threshold, int dir) {
+ int ln, int threshold, int dir) {
   static const od_filter_dering_direction_fixed_func VTBL[4] = {
     NULL,
     NULL,
     od_filter_dering_direction_4x4,
     od_filter_dering_direction_8x8,
   };
-  OD_ASSERT(log_n >= 2 && log_n < 4);
-  VTBL[log_n](y, ystride, in, threshold, dir);
+  OD_ASSERT(ln >= 2 && ln < 4);
+  VTBL[ln](y, ystride, in, threshold, dir);
 #if defined(OD_CHECKASM)
-  od_filter_dering_direction_check(y, ystride, in, log_n, threshold,
+  od_filter_dering_direction_check(y, ystride, in, ln, threshold,
    dir);
 #endif
 }
