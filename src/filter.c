@@ -30,6 +30,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <stdlib.h>
 #include <limits.h>
 #include "filter.h"
+#include "state.h"
 #include "block_size.h"
 
 /*Pre-/post-filter pairs of various sizes.
@@ -1678,25 +1679,35 @@ static int od_dir_find8(const int16_t *img, int stride, int32_t *var) {
 #define OD_DERING_INBUF_SIZE ((OD_BSIZE_MAX + 2*OD_FILT_BORDER)*\
  (OD_BSIZE_MAX + 2*OD_FILT_BORDER))
 
+static const int direction_offsets_table[16][3] = {
+  { -37, -74,-111 },
+  {   1, -36, -35 },
+  {   1,   2,   3 },
+  {   1,  40,  41 },
+  {  39,  78, 117 },
+  {  38,  77, 115 },
+  {  38,  76, 114 },
+  {  38,  75, 113 },
+  {  37,  74, 111 },
+  {  37,  73, 110 },
+  {  36,  72, 108 },
+  {  36,  71, 107 },
+  {  35,  70, 105 },
+  {  35,  69, 104 },
+  {  34,  68, 102 },
+  {  34,  67, 101 }
+};
+
+
 /* Smooth in the direction detected. */
-static void od_dering_direction(int16_t *y, int ystride, int16_t *in,
- int bstride, int n, int threshold, int dir) {
+void od_filter_dering_direction_c(int16_t *y, int ystride, int16_t *in,
+ int bstride, int log_n, int threshold, int dir) {
   int i;
   int j;
   int k;
-  int f;
   static const int taps[4] = {3, 2, 2};
-  int offset[4];
-  if (dir <= 4) {
-    f = dir - 2;
-    for (k = 1; k <= 3; k++) offset[k - 1] = f*k/2*bstride + k;
-  }
-  else {
-    f = 6 - dir;
-    for (k = 1; k <= 3; k++) offset[k - 1] = k*bstride + f*k/2;
-  }
-  for (i = 0; i < n; i++) {
-    for (j = 0; j < n; j++) {
+  for (i = 0; i < 1 << log_n; i++) {
+    for (j = 0; j < 1 << log_n; j++) {
       od_coeff sum;
       od_coeff xx;
       od_coeff yy;
@@ -1705,8 +1716,8 @@ static void od_dering_direction(int16_t *y, int ystride, int16_t *in,
       for (k = 0; k < 3; k++) {
         od_coeff p0;
         od_coeff p1;
-        p0 = in[i*bstride + j + offset[k]] - xx;
-        p1 = in[i*bstride + j - offset[k]] - xx;
+        p0 = in[i*bstride + j + direction_offsets_table[dir][k]] - xx;
+        p1 = in[i*bstride + j - direction_offsets_table[dir][k]] - xx;
         if (abs(p0) < threshold) sum += taps[k]*p0;
         if (abs(p1) < threshold) sum += taps[k]*p1;
       }
@@ -1789,7 +1800,7 @@ static void od_compute_thresh(int thresh[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS],
   }
 }
 
-void od_dering(int16_t *y, int ystride, int16_t *x, int xstride, int ln,
+void od_dering(od_state *state, int16_t *y, int ystride, int16_t *x, int xstride, int ln,
  int sbx, int sby, int nhsb, int nvsb, int q, int xdec,
  int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS],
  int pli, unsigned char *bskip, int skip_stride) {
@@ -1876,9 +1887,9 @@ void od_dering(int16_t *y, int ystride, int16_t *x, int xstride, int ln,
   }
   for (by = 0; by < nvb; by++) {
     for (bx = 0; bx < nhb; bx++) {
-      od_dering_direction(&y[(by*ystride << bsize) + (bx << bsize)], ystride,
-       &in[(by*bstride << bsize) + (bx << bsize)], bstride, 1 << bsize,
-       thresh[by][bx], dir[by][bx]);
+      (*state->opt_vtbl.filter_dering_direction)(&y[(by*ystride << bsize) +
+       (bx << bsize)], ystride, &in[(by*bstride << bsize) + (bx << bsize)],
+       bstride, bsize, thresh[by][bx], dir[by][bx]);
     }
   }
   for (i = 0; i < n; i++) {

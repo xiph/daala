@@ -41,6 +41,8 @@ void od_mc_blend_full8_sse2(unsigned char *_dst,int _dystride,
  const unsigned char *_src[4],int _log_xblk_sz,int _log_yblk_sz);
 void od_mc_blend_full_split8_sse2(unsigned char *_dst,int _dystride,
  const unsigned char *_src[4],int _c,int _s,int _log_xblk_sz,int _log_yblk_sz);
+void od_filter_dering_direction_sse2(int16_t *y, int ystride, int16_t *in,
+ int bstride, int log_n, int threshold, int dir);
 void od_bin_fdct4x4_sse2(od_coeff *y, int ystride,
  const od_coeff *x, int xstride);
 void od_bin_fdct4x4_sse41(od_coeff *y, int ystride,
