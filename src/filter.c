@@ -1674,7 +1674,6 @@ static int od_dir_find8(const int16_t *img, int stride, int32_t *var) {
   return best_dir;
 }
 
-#define OD_FILT_BORDER (3)
 #define OD_DERING_VERY_LARGE (30000)
 #define OD_DERING_INBUF_SIZE ((OD_BSIZE_MAX + 2*OD_FILT_BORDER)*\
  (OD_BSIZE_MAX + 2*OD_FILT_BORDER))
@@ -1701,7 +1700,7 @@ static const int direction_offsets_table[16][3] = {
 
 /* Smooth in the direction detected. */
 void od_filter_dering_direction_c(int16_t *y, int ystride, int16_t *in,
- int bstride, int log_n, int threshold, int dir) {
+ int log_n, int threshold, int dir) {
   int i;
   int j;
   int k;
@@ -1711,13 +1710,13 @@ void od_filter_dering_direction_c(int16_t *y, int ystride, int16_t *in,
       od_coeff sum;
       od_coeff xx;
       od_coeff yy;
-      xx = in[i*bstride + j];
+      xx = in[i*OD_FILT_BSTRIDE + j];
       sum= 0;
       for (k = 0; k < 3; k++) {
         od_coeff p0;
         od_coeff p1;
-        p0 = in[i*bstride + j + direction_offsets_table[dir][k]] - xx;
-        p1 = in[i*bstride + j - direction_offsets_table[dir][k]] - xx;
+        p0 = in[i*OD_FILT_BSTRIDE + j + direction_offsets_table[dir][k]] - xx;
+        p1 = in[i*OD_FILT_BSTRIDE + j - direction_offsets_table[dir][k]] - xx;
         if (abs(p0) < threshold) sum += taps[k]*p0;
         if (abs(p1) < threshold) sum += taps[k]*p1;
       }
@@ -1729,11 +1728,11 @@ void od_filter_dering_direction_c(int16_t *y, int ystride, int16_t *in,
 
 /* Smooth in the direction orthogonal to what was detected. */
 static void od_dering_orthogonal(int16_t *y, int ystride, int16_t *in,
- int bstride, int16_t *x, int xstride, int n, int threshold, int dir) {
+ int16_t *x, int xstride, int n, int threshold, int dir) {
   int i;
   int j;
   int offset;
-  if (dir <= 4) offset = bstride;
+  if (dir <= 4) offset = OD_FILT_BSTRIDE;
   else offset = 1;
   for (i = 0; i < n; i++) {
     for (j = 0; j < n; j++) {
@@ -1750,16 +1749,16 @@ static void od_dering_orthogonal(int16_t *y, int ystride, int16_t *in,
          since the ringing there tends to be directional, so it doesn't
          get removed by the directional filtering. */
       athresh = OD_MINI(threshold, threshold/3
-       + abs(in[i*bstride + j] - x[i*xstride + j]));
-      yy = in[i*bstride + j];
+       + abs(in[i*OD_FILT_BSTRIDE + j] - x[i*xstride + j]));
+      yy = in[i*OD_FILT_BSTRIDE + j];
       sum = 0;
-      p = in[i*bstride + j + offset] - yy;
+      p = in[i*OD_FILT_BSTRIDE + j + offset] - yy;
       if (abs(p) < athresh) sum += p;
-      p = in[i*bstride + j - offset] - yy;
+      p = in[i*OD_FILT_BSTRIDE + j - offset] - yy;
       if (abs(p) < athresh) sum += p;
-      p = in[i*bstride + j + 2*offset] - yy;
+      p = in[i*OD_FILT_BSTRIDE + j + 2*offset] - yy;
       if (abs(p) < athresh) sum += p;
-      p = in[i*bstride + j - 2*offset] - yy;
+      p = in[i*OD_FILT_BSTRIDE + j - 2*offset] - yy;
       if (abs(p) < athresh) sum += p;
       y[i*ystride + j] = yy + ((3*sum + 8) >> 4);
     }
@@ -1812,7 +1811,6 @@ void od_dering(od_state *state, int16_t *y, int ystride, int16_t *x, int xstride
   int by;
   int16_t inbuf[OD_DERING_INBUF_SIZE];
   int16_t *in;
-  int bstride;
   int nhb;
   int nvb;
   int bsize;
@@ -1822,8 +1820,7 @@ void od_dering(od_state *state, int16_t *y, int ystride, int16_t *x, int xstride
   n = 1 << ln;
   bsize = 3 - xdec;
   nhb = nvb = n >> bsize;
-  bstride = (OD_BSIZE_MAX + 2*OD_FILT_BORDER);
-  in = inbuf + OD_FILT_BORDER*bstride + OD_FILT_BORDER;
+  in = inbuf + OD_FILT_BORDER*OD_FILT_BSTRIDE + OD_FILT_BORDER;
   /* We avoid filtering the pixels for which some of the pixels to average
      are outside the frame. We could change the filter instead, but it would
      add special cases for any future vectorization. */
@@ -1832,7 +1829,7 @@ void od_dering(od_state *state, int16_t *y, int ystride, int16_t *x, int xstride
    + OD_FILT_BORDER*(sby != nvsb - 1); i++) {
     for (j = -OD_FILT_BORDER*(sbx != 0); j < n
      + OD_FILT_BORDER*(sbx != nhsb - 1); j++) {
-      in[i*bstride + j] = x[i*xstride + j];
+      in[i*OD_FILT_BSTRIDE + j] = x[i*xstride + j];
     }
   }
   /* The threshold is meant to be the estimated amount of ringing for a given
@@ -1888,19 +1885,19 @@ void od_dering(od_state *state, int16_t *y, int ystride, int16_t *x, int xstride
   for (by = 0; by < nvb; by++) {
     for (bx = 0; bx < nhb; bx++) {
       (*state->opt_vtbl.filter_dering_direction)(&y[(by*ystride << bsize) +
-       (bx << bsize)], ystride, &in[(by*bstride << bsize) + (bx << bsize)],
-       bstride, bsize, thresh[by][bx], dir[by][bx]);
+       (bx << bsize)], ystride, &in[(by*OD_FILT_BSTRIDE << bsize) + (bx << bsize)],
+       bsize, thresh[by][bx], dir[by][bx]);
     }
   }
   for (i = 0; i < n; i++) {
     for (j = 0; j < n; j++) {
-      in[i*bstride + j] = y[i*ystride + j];
+      in[i*OD_FILT_BSTRIDE + j] = y[i*ystride + j];
     }
   }
   for (by = 0; by < nvb; by++) {
     for (bx = 0; bx < nhb; bx++) {
       od_dering_orthogonal(&y[(by*ystride << bsize) + (bx << bsize)], ystride,
-       &in[(by*bstride << bsize) + (bx << bsize)], bstride,
+       &in[(by*OD_FILT_BSTRIDE << bsize) + (bx << bsize)],
        &x[(by*xstride << bsize) + (bx << bsize)], xstride, 1 << bsize,
        thresh[by][bx], dir[by][bx]);
     }
