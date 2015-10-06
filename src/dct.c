@@ -2154,6 +2154,13 @@ void od_bin_idct64x64(od_coeff *x, int xstride,
   for (i = 0; i < 64; i++) od_bin_idct64(x + i, xstride, z + 64*i);
 }
 
+# if defined(OD_DCT_CHECK_OVERFLOW)
+
+int od_dct_check_min[388];
+int od_dct_check_max[388];
+
+#endif
+
 #if defined(OD_CHECKASM)
 # include <stdio.h>
 
@@ -3641,9 +3648,6 @@ static void check_bias(int bszi) {
 }
 
 # if defined(OD_DCT_CHECK_OVERFLOW)
-
-int od_dct_check_min[187];
-int od_dct_check_max[187];
 
 static void od_bin_fxform_2d(od_coeff x[OD_BSIZE_MAX*2][OD_BSIZE_MAX*2],
  int bszi) {

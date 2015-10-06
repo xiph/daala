@@ -105,7 +105,7 @@ void od_apply_filter_sb_cols(od_coeff *c, int stride, int nhsb, int nvsb,
 void od_apply_filter_hsplit(od_coeff *c0, int stride, int inv, int bs, int f);
 void od_apply_filter_vsplit(od_coeff *c0, int stride, int inv, int bs, int f);
 
-# if defined(OD_DCT_TEST) && defined(OD_DCT_CHECK_OVERFLOW)
+# if defined(OD_DCT_CHECK_OVERFLOW)
 #  include <stdio.h>
 
 extern int od_dct_check_min[];
