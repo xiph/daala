@@ -39,15 +39,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 void od_filter_dering_direction_check(int16_t *y, int ystride, int16_t *in,
  int ln, int threshold, int dir) {
   int16_t dst[OD_BSIZE_MAX*OD_BSIZE_MAX];
-  od_filter_dering_direction_c(dst, OD_BSIZE_MAX, in, ln,
-   threshold, dir);
   int i;
   int j;
   int failed;
-  int n = 1 << ln;
+  od_filter_dering_direction_c(dst, OD_BSIZE_MAX, in, ln,
+   threshold, dir);
   failed = 0;
-  for (i = 0; i < n; i++) {
-    for (j = 0; j < n; j++) {
+  for (i = 0; i < 1 << ln; i++) {
+    for (j = 0; j < 1 << ln; j++) {
       if (dst[i*OD_BSIZE_MAX + j] != y[i*ystride + j]) {
         fprintf(stderr,"ASM mismatch: 0x%02X!=0x%02X @ (%2i,%2i)\n",
          dst[i*OD_BSIZE_MAX + j],y[i*ystride + j],i,j);
@@ -77,39 +76,36 @@ void od_filter_dering_direction_4x4(int16_t *y, int ystride, int16_t *in,
   int k;
   static const int taps[3] = {3, 2, 2};
   __m128i sum;
-  __m128i p0;
-  __m128i cmp0;
-  __m128i p1;
-  __m128i cmp1;
+  __m128i p;
+  __m128i cmp;
   __m128i row;
   __m128i res;
-  for (i = 0; i < 4; i++) {
+  for (i = 0; i < 8; i++) {
     sum = _mm_set1_epi16(0);
     row = _mm_loadl_epi64((__m128i*)&in[i*OD_FILT_BSTRIDE]);
     for (k = 0; k < 3; k++) {
-      /* p0 = in[i*OD_FILT_BSTRIDE + offset[k]] - row */;
-      p0 = _mm_sub_epi16(_mm_loadu_si128((__m128i*)&in[i*OD_FILT_BSTRIDE +
+      /* p = in[i*OD_FILT_BSTRIDE + offset] - row */;
+      p = _mm_sub_epi16(_mm_loadl_epi64((__m128i*)&in[i*OD_FILT_BSTRIDE +
        direction_offsets_table[dir][k]]), row);
-      /* if (abs(p0) < threshold) sum += taps[k]*p0; */
-      cmp0 = _mm_cmplt_epi16(_mm_abs_epi16(p0), _mm_set1_epi16(threshold));
-      p0 = _mm_mullo_epi16(p0, _mm_set1_epi16(taps[k]));
-      p0 = _mm_and_si128(p0, cmp0);
-      sum = _mm_add_epi16(sum, p0);
+      /* if (abs(p) < threshold) sum += taps[k]*p; */
+      cmp = _mm_cmplt_epi16(_mm_abs_epi16(p), _mm_set1_epi16(threshold));
+      p = _mm_mullo_epi16(p, _mm_set1_epi16(taps[k]));
+      p = _mm_and_si128(p, cmp);
+      sum = _mm_add_epi16(sum, p);
 
-      /* p0 = in[i*OD_FILT_BSTRIDE + offset[k]] - row */;
-      p1 = _mm_sub_epi16(_mm_loadu_si128((__m128i*)&in[i*OD_FILT_BSTRIDE -
+      /* p = in[i*OD_FILT_BSTRIDE + offset] - row */;
+      p = _mm_sub_epi16(_mm_loadl_epi64((__m128i*)&in[i*OD_FILT_BSTRIDE -
        direction_offsets_table[dir][k]]), row);
-      /* if (abs(p1) < threshold) sum += taps[k]*p1; */
-      cmp1 = _mm_cmplt_epi16(_mm_abs_epi16(p1), _mm_set1_epi16(threshold));
-      p1 = _mm_mullo_epi16(p1, _mm_set1_epi16(taps[k]));
-      p1 = _mm_and_si128(p1, cmp1);
-      sum = _mm_add_epi16(sum, p1);
+      /* if (abs(p) < threshold) sum += taps[k]*p1; */
+      cmp = _mm_cmplt_epi16(_mm_abs_epi16(p), _mm_set1_epi16(threshold));
+      p = _mm_mullo_epi16(p, _mm_set1_epi16(taps[k]));
+      p = _mm_and_si128(p, cmp);
+      sum = _mm_add_epi16(sum, p);
     }
     /* res = row + ((sum + 8) >> 4) */
-    res = sum;
-    res = _mm_add_epi16(res, _mm_set1_epi16(8));
+    res = _mm_add_epi16(sum, _mm_set1_epi16(8));
     res = _mm_srai_epi16(res, 4);
-    res = _mm_add_epi16(res, row);
+    res = _mm_add_epi16(row, res);
     _mm_storel_epi64((__m128i*)&y[i*ystride], res);
   }
 }
@@ -120,39 +116,36 @@ void od_filter_dering_direction_8x8(int16_t *y, int ystride, int16_t *in,
   int k;
   static const int taps[3] = {3, 2, 2};
   __m128i sum;
-  __m128i p0;
-  __m128i cmp0;
-  __m128i p1;
-  __m128i cmp1;
+  __m128i p;
+  __m128i cmp;
   __m128i row;
   __m128i res;
   for (i = 0; i < 8; i++) {
     sum = _mm_set1_epi16(0);
     row = _mm_loadu_si128((__m128i*)&in[i*OD_FILT_BSTRIDE]);
     for (k = 0; k < 3; k++) {
-      /* p0 = in[i*OD_FILT_BSTRIDE + offset[k]] - row */;
-      p0 = _mm_sub_epi16(_mm_loadu_si128((__m128i*)&in[i*OD_FILT_BSTRIDE +
+      /* p = in[i*OD_FILT_BSTRIDE + offset] - row */;
+      p = _mm_sub_epi16(_mm_loadu_si128((__m128i*)&in[i*OD_FILT_BSTRIDE +
        direction_offsets_table[dir][k]]), row);
-      /* if (abs(p0) < threshold) sum += taps[k]*p0; */
-      cmp0 = _mm_cmplt_epi16(_mm_abs_epi16(p0), _mm_set1_epi16(threshold));
-      p0 = _mm_mullo_epi16(p0, _mm_set1_epi16(taps[k]));
-      p0 = _mm_and_si128(p0, cmp0);
-      sum = _mm_add_epi16(sum, p0);
+      /* if (abs(p) < threshold) sum += taps[k]*p; */
+      cmp = _mm_cmplt_epi16(_mm_abs_epi16(p), _mm_set1_epi16(threshold));
+      p = _mm_mullo_epi16(p, _mm_set1_epi16(taps[k]));
+      p = _mm_and_si128(p, cmp);
+      sum = _mm_add_epi16(sum, p);
 
-      /* p0 = in[i*OD_FILT_BSTRIDE + offset[k]] - row */;
-      p1 = _mm_sub_epi16(_mm_loadu_si128((__m128i*)&in[i*OD_FILT_BSTRIDE -
+      /* p = in[i*OD_FILT_BSTRIDE + offset] - row */;
+      p = _mm_sub_epi16(_mm_loadu_si128((__m128i*)&in[i*OD_FILT_BSTRIDE -
        direction_offsets_table[dir][k]]), row);
-      /* if (abs(p1) < threshold) sum += taps[k]*p1; */
-      cmp1 = _mm_cmplt_epi16(_mm_abs_epi16(p1), _mm_set1_epi16(threshold));
-      p1 = _mm_mullo_epi16(p1, _mm_set1_epi16(taps[k]));
-      p1 = _mm_and_si128(p1, cmp1);
-      sum = _mm_add_epi16(sum, p1);
+      /* if (abs(p) < threshold) sum += taps[k]*p1; */
+      cmp = _mm_cmplt_epi16(_mm_abs_epi16(p), _mm_set1_epi16(threshold));
+      p = _mm_mullo_epi16(p, _mm_set1_epi16(taps[k]));
+      p = _mm_and_si128(p, cmp);
+      sum = _mm_add_epi16(sum, p);
     }
     /* res = row + ((sum + 8) >> 4) */
-    res = sum;
-    res = _mm_add_epi16(res, _mm_set1_epi16(8));
+    res = _mm_add_epi16(sum, _mm_set1_epi16(8));
     res = _mm_srai_epi16(res, 4);
-    res = _mm_add_epi16(res, row);
+    res = _mm_add_epi16(row, res);
     _mm_storeu_si128((__m128i*)&y[i*ystride], res);
   }
 }
@@ -169,6 +162,150 @@ void od_filter_dering_direction_sse2(int16_t *y, int ystride, int16_t *in,
   VTBL[ln](y, ystride, in, threshold, dir);
 #if defined(OD_CHECKASM)
   od_filter_dering_direction_check(y, ystride, in, ln, threshold,
+   dir);
+#endif
+}
+
+#if defined(OD_CHECKASM)
+void od_filter_dering_orthogonal_check(int16_t *y, int ystride, int16_t *in,
+ int16_t *x, int xstride, int ln, int threshold, int dir) {
+  int16_t dst[OD_BSIZE_MAX*OD_BSIZE_MAX];
+  int i;
+  int j;
+  int failed;
+  od_filter_dering_orthogonal_c(dst, OD_BSIZE_MAX, in, x, xstride, ln,
+   threshold, dir);
+  failed = 0;
+  for (i = 0; i < 1 << ln; i++) {
+    for (j = 0; j < 1 << ln; j++) {
+      if (dst[i*OD_BSIZE_MAX + j] != y[i*ystride + j]) {
+        fprintf(stderr,"ASM mismatch: 0x%02X!=0x%02X @ (%2i,%2i)\n",
+         dst[i*OD_BSIZE_MAX + j],y[i*ystride + j],i,j);
+        failed = 1;
+      }
+    }
+  }
+  if (failed) {
+    fprintf(stderr, "od_filter_dering_orthogonal_check check failed.\n");
+  }
+}
+#endif
+
+void od_filter_dering_orthogonal_4x4(int16_t *y, int ystride, int16_t *in,
+ int16_t *x, int xstride, int threshold, int dir) {
+  int i;
+  int k;
+  int offset;
+  __m128i res;
+  __m128i p;
+  __m128i cmp;
+  __m128i row;
+  __m128i sum;
+  __m128i athresh;
+  if (dir <= 4) offset = OD_FILT_BSTRIDE;
+  else offset = 1;
+  for (i = 0; i < 8; i++) {
+    sum = _mm_set1_epi16(0);
+    row = _mm_loadl_epi64((__m128i*)&in[i*OD_FILT_BSTRIDE]);
+    /* athresh = OD_MINI(threshold, threshold/3
+       + abs(in[i*OD_FILT_BSTRIDE] - x[i*xstride])) */
+    athresh = _mm_min_epi16(_mm_set1_epi16(threshold),
+     _mm_add_epi16(_mm_set1_epi16(threshold/3),
+     _mm_abs_epi16(_mm_sub_epi16(row,
+     _mm_loadl_epi64((__m128i*)&x[i*xstride])))));
+
+    for (k = 1; k <= 2; k++) {
+      /* p = in[i*OD_FILT_BSTRIDE + k*offset] - row */
+      p = _mm_sub_epi16(_mm_loadl_epi64((__m128i*)&in[i*OD_FILT_BSTRIDE +
+       k*offset]), row);
+      /* if (abs(p) < athresh) sum += p */
+      cmp = _mm_cmplt_epi16(_mm_abs_epi16(p), athresh);
+      p = _mm_and_si128(p, cmp);
+      sum = _mm_add_epi16(sum, p);
+
+      /* p = in[i*OD_FILT_BSTRIDE - k*offset] - row */
+      p = _mm_sub_epi16(_mm_loadl_epi64((__m128i*)&in[i*OD_FILT_BSTRIDE -
+       k*offset]), row);
+      /* if (abs(p) < athresh) sum += p */
+      cmp = _mm_cmplt_epi16(_mm_abs_epi16(p), athresh);
+      p = _mm_and_si128(p, cmp);
+      sum = _mm_add_epi16(sum, p);
+    }
+
+    /* row + ((3*sum + 8) >> 4) */
+    res = _mm_mullo_epi16(sum, _mm_set1_epi16(3));
+    res = _mm_add_epi16(res, _mm_set1_epi16(8));
+    res = _mm_srai_epi16(res, 4);
+    res = _mm_add_epi16(res, row);
+    _mm_storel_epi64((__m128i*)&y[i*ystride], res);
+  }
+}
+
+void od_filter_dering_orthogonal_8x8(int16_t *y, int ystride, int16_t *in,
+ int16_t *x, int xstride, int threshold, int dir) {
+  int i;
+  int k;
+  int offset;
+  __m128i res;
+  __m128i p;
+  __m128i cmp;
+  __m128i row;
+  __m128i sum;
+  __m128i athresh;
+  if (dir <= 4) offset = OD_FILT_BSTRIDE;
+  else offset = 1;
+  for (i = 0; i < 8; i++) {
+    sum = _mm_set1_epi16(0);
+    row = _mm_loadu_si128((__m128i*)&in[i*OD_FILT_BSTRIDE]);
+    /* athresh = OD_MINI(threshold, threshold/3
+        + abs(in[i*OD_FILT_BSTRIDE] - x[i*xstride])) */
+    athresh = _mm_min_epi16(_mm_set1_epi16(threshold),
+     _mm_add_epi16(_mm_set1_epi16(threshold/3),
+     _mm_abs_epi16(_mm_sub_epi16(row,
+     _mm_loadu_si128((__m128i*)&x[i*xstride])))));
+
+    for (k = 1; k <= 2; k++) {
+      /* p = in[i*OD_FILT_BSTRIDE + k*offset] - row */
+      p = _mm_sub_epi16(_mm_loadu_si128((__m128i*)&in[i*OD_FILT_BSTRIDE +
+       k*offset]), row);
+      /* if (abs(p) < athresh) sum += p */
+      cmp = _mm_cmplt_epi16(_mm_abs_epi16(p), athresh);
+      p = _mm_and_si128(p, cmp);
+      sum = _mm_add_epi16(sum, p);
+
+      /* p = in[i*OD_FILT_BSTRIDE - k*offset] - row */
+      p = _mm_sub_epi16(_mm_loadu_si128((__m128i*)&in[i*OD_FILT_BSTRIDE -
+       k*offset]), row);
+      /* if (abs(p) < athresh) sum += p */
+      cmp = _mm_cmplt_epi16(_mm_abs_epi16(p), athresh);
+      p = _mm_and_si128(p, cmp);
+      sum = _mm_add_epi16(sum, p);
+    }
+
+    /* row + ((3*sum + 8) >> 4) */
+    res = _mm_mullo_epi16(sum, _mm_set1_epi16(3));
+    res = _mm_add_epi16(res, _mm_set1_epi16(8));
+    res = _mm_srai_epi16(res, 4);
+    res = _mm_add_epi16(res, row);
+    _mm_storeu_si128((__m128i*)&y[i*ystride], res);
+  }
+}
+
+typedef void (*od_filter_dering_orthogonal_fixed_func)(int16_t *y,
+ int ystride, int16_t *in, int16_t *x, int xstride, int threshold, int dir);
+
+void od_filter_dering_orthogonal_sse2(int16_t *y, int ystride, int16_t *in,
+ int16_t *x, int xstride, int ln, int threshold, int dir) {
+  static const od_filter_dering_orthogonal_fixed_func VTBL[4] = {
+    NULL,
+    NULL,
+    od_filter_dering_orthogonal_4x4,
+    od_filter_dering_orthogonal_8x8,
+  };
+  OD_ASSERT(ln >= 2 && ln < 4);
+  VTBL[ln](y, ystride, in, x, xstride, threshold, dir);
+#if defined(OD_CHECKASM)
+  od_filter_dering_orthogonal_check(y, ystride, in, x, xstride, ln, threshold,
    dir);
 #endif
 }

@@ -111,6 +111,8 @@ void od_dering(struct od_state *state, int16_t *y, int ystride, int16_t *x,
  int skip_stride);
 void od_filter_dering_direction_c(int16_t *y, int ystride, int16_t *in,
  int ln, int threshold, int dir);
+void od_filter_dering_orthogonal_c(int16_t *y, int ystride, int16_t *in,
+ int16_t *x, int xstride, int ln, int threshold, int dir);
 void od_clpf(od_coeff *y, int ystride, od_coeff *x, int xstride, int ln,
  int sbx, int sby, int nhsb, int nvsb);
 void od_bilinear_smooth(od_coeff *x, int ln, int stride, int q, int pli);

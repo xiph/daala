@@ -111,6 +111,8 @@ struct od_state_opt_vtbl{
    int _log_xblk_sz, int _log_yblk_sz);
   void (*filter_dering_direction)(int16_t *y, int ystride, int16_t *in,
    int ln, int threshold, int dir);
+  void (*filter_dering_orthogonal)(int16_t *y, int ystride, int16_t *in,
+   int16_t *x, int xstride, int ln, int threshold, int dir);
   void (*restore_fpu)(void);
   od_dct_func_2d fdct_2d[OD_NBSIZES + 1];
   od_dct_func_2d idct_2d[OD_NBSIZES + 1];

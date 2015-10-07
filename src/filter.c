@@ -1684,7 +1684,7 @@ void od_filter_dering_direction_c(int16_t *y, int ystride, int16_t *in,
   int i;
   int j;
   int k;
-  static const int taps[4] = {3, 2, 2};
+  static const int taps[3] = {3, 2, 2};
   for (i = 0; i < 1 << ln; i++) {
     for (j = 0; j < 1 << ln; j++) {
       od_coeff sum;
@@ -1707,15 +1707,15 @@ void od_filter_dering_direction_c(int16_t *y, int ystride, int16_t *in,
 }
 
 /* Smooth in the direction orthogonal to what was detected. */
-static void od_dering_orthogonal(int16_t *y, int ystride, int16_t *in,
- int16_t *x, int xstride, int n, int threshold, int dir) {
+void od_filter_dering_orthogonal_c(int16_t *y, int ystride, int16_t *in,
+ int16_t *x, int xstride, int ln, int threshold, int dir) {
   int i;
   int j;
   int offset;
   if (dir <= 4) offset = OD_FILT_BSTRIDE;
   else offset = 1;
-  for (i = 0; i < n; i++) {
-    for (j = 0; j < n; j++) {
+  for (i = 0; i < 1 << ln; i++) {
+    for (j = 0; j < 1 << ln; j++) {
       od_coeff athresh;
       od_coeff yy;
       od_coeff sum;
@@ -1876,9 +1876,9 @@ void od_dering(od_state *state, int16_t *y, int ystride, int16_t *x, int xstride
   }
   for (by = 0; by < nvb; by++) {
     for (bx = 0; bx < nhb; bx++) {
-      od_dering_orthogonal(&y[(by*ystride << bsize) + (bx << bsize)], ystride,
+      (*state->opt_vtbl.filter_dering_orthogonal)(&y[(by*ystride << bsize) + (bx << bsize)], ystride,
        &in[(by*OD_FILT_BSTRIDE << bsize) + (bx << bsize)],
-       &x[(by*xstride << bsize) + (bx << bsize)], xstride, 1 << bsize,
+       &x[(by*xstride << bsize) + (bx << bsize)], xstride, bsize,
        thresh[by][bx], dir[by][bx]);
     }
   }
