@@ -242,16 +242,16 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
     plane_buf_width = frame_buf_width >> info->plane_info[pli].xdec;
     plane_buf_height = frame_buf_height >> info->plane_info[pli].ydec;
     iplane = img->planes + pli;
-    iplane->data = input_img_data
-     + (OD_BUFFER_PADDING >> info->plane_info[pli].xdec)
-     + plane_buf_width*(OD_BUFFER_PADDING >> info->plane_info[pli].ydec);
-    input_img_data += plane_buf_width*plane_buf_height;
     iplane->xdec = info->plane_info[pli].xdec;
     iplane->ydec = info->plane_info[pli].ydec;
     iplane->bitdepth = reference_bits;
     /*Internal buffers are always planar.*/
     iplane->xstride = reference_bytes;
-    iplane->ystride = plane_buf_width;
+    iplane->ystride = plane_buf_width*iplane->xstride;
+    iplane->data = input_img_data
+     + iplane->xstride*(OD_BUFFER_PADDING >> info->plane_info[pli].xdec)
+     + iplane->ystride*(OD_BUFFER_PADDING >> info->plane_info[pli].ydec);
+    input_img_data += plane_buf_width*iplane->ystride;
   }
 #if defined(OD_DUMP_IMAGES)
   /*Fill in the line buffers.*/
