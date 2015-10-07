@@ -1678,26 +1678,6 @@ static int od_dir_find8(const int16_t *img, int stride, int32_t *var) {
 #define OD_DERING_INBUF_SIZE ((OD_BSIZE_MAX + 2*OD_FILT_BORDER)*\
  (OD_BSIZE_MAX + 2*OD_FILT_BORDER))
 
-static const int direction_offsets_table[16][3] = {
-  { -37, -74,-111 },
-  {   1, -36, -35 },
-  {   1,   2,   3 },
-  {   1,  40,  41 },
-  {  39,  78, 117 },
-  {  38,  77, 115 },
-  {  38,  76, 114 },
-  {  38,  75, 113 },
-  {  37,  74, 111 },
-  {  37,  73, 110 },
-  {  36,  72, 108 },
-  {  36,  71, 107 },
-  {  35,  70, 105 },
-  {  35,  69, 104 },
-  {  34,  68, 102 },
-  {  34,  67, 101 }
-};
-
-
 /* Smooth in the direction detected. */
 void od_filter_dering_direction_c(int16_t *y, int ystride, int16_t *in,
  int ln, int threshold, int dir) {
