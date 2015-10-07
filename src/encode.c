@@ -251,7 +251,7 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
     iplane->data = input_img_data
      + iplane->xstride*(OD_BUFFER_PADDING >> info->plane_info[pli].xdec)
      + iplane->ystride*(OD_BUFFER_PADDING >> info->plane_info[pli].ydec);
-    input_img_data += plane_buf_width*iplane->ystride;
+    input_img_data += plane_buf_height*iplane->ystride;
   }
 #if defined(OD_DUMP_IMAGES)
   /*Fill in the line buffers.*/
