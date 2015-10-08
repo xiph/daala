@@ -930,7 +930,7 @@ void TestPanel::onMouseMotion(wxMouseEvent& event) {
     parent->SetStatusText(wxString::Format(wxT("")), 1);
   }
   parent->SetStatusText(wxString::Format(wxT("X:%d,Y:%d"),
-   row, col), 2);
+   col, row), 2);
 }
 
 void TestPanel::onMouseLeaveWindow(wxMouseEvent& event) {
