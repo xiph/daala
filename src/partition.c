@@ -126,6 +126,9 @@ static void od_raster_from_band(const band_layout *layout, od_coeff *dst,
   }
 }
 
+static const band_layout *const OD_LAYOUTS[] = {&OD_LAYOUT4, &OD_LAYOUT8,
+ &OD_LAYOUT16, &OD_LAYOUT32, &OD_LAYOUT64};
+
 /** Converts a coefficient block in raster order into a vector in
  * coding scan order with the PVQ partitions laid out one after
  * another.  This works in stages; the 4x4 conversion is applied to
@@ -142,19 +145,20 @@ static void od_raster_from_band(const band_layout *layout, od_coeff *dst,
  */
 void od_raster_to_coding_order(od_coeff *dst, int n, od_coeff *src,
  int stride) {
-  /* TODO - Rewrite these as a loop. */
-  od_band_from_raster(&OD_LAYOUT4, dst + 1, src, stride);
-  if (n >= 8) {
-    od_band_from_raster(&OD_LAYOUT8, dst + 16, src, stride);
-  }
-  if (n >= 16) {
-    od_band_from_raster(&OD_LAYOUT16, dst + 64, src, stride);
-  }
-  if (n >= 32) {
-    od_band_from_raster(&OD_LAYOUT32, dst + 256, src, stride);
-  }
-  if (n >= 64) {
-    od_band_from_raster(&OD_LAYOUT64, dst + 1024, src, stride);
+  int bs;
+  /* dst + 1 because DC is not included for 4x4 blocks. */
+  od_band_from_raster(OD_LAYOUTS[0], dst + 1, src, stride);
+  for (bs = 1; bs < OD_NBSIZES; bs++) {
+    int size;
+    int offset;
+    /* Length of block size > 4. */
+    size = 1 << (OD_LOG_BSIZE0 + bs);
+    /* Offset is the size of the previous block squared. */
+    offset = 1 << 2*(OD_LOG_BSIZE0 - 1 + bs);
+    if (n >= size) {
+      /* 3 16x16 bands come after 3 8x8 bands, which come after 2 4x4 bands. */
+      od_band_from_raster(OD_LAYOUTS[bs], dst + offset, src, stride);
+    }
   }
   dst[0] = src[0];
 }
@@ -175,19 +179,20 @@ void od_raster_to_coding_order(od_coeff *dst, int n, od_coeff *src,
  */
 void od_coding_order_to_raster(od_coeff *dst, int stride, od_coeff *src,
  int n) {
-  /* TODO - Rewrite these as a loop. */
-  od_raster_from_band(&OD_LAYOUT4, dst, stride, src + 1);
-  if (n >= 8) {
-    od_raster_from_band(&OD_LAYOUT8, dst, stride, src + 16);
-  }
-  if (n >= 16) {
-    od_raster_from_band(&OD_LAYOUT16, dst, stride, src + 64);
-  }
-  if (n >= 32) {
-    od_raster_from_band(&OD_LAYOUT32, dst, stride, src + 256);
-  }
-  if (n >= 64) {
-    od_raster_from_band(&OD_LAYOUT64, dst, stride, src + 1024);
+  int bs;
+  /* src + 1 because DC is not included for 4x4 blocks. */
+  od_raster_from_band(OD_LAYOUTS[0], dst, stride, src + 1);
+  for (bs = 1; bs < OD_NBSIZES; bs++) {
+    int size;
+    int offset;
+    /* Length of block size > 4 */
+    size = 1 << (OD_LOG_BSIZE0 + bs);
+    /* Offset is the size of the previous block squared. */
+    offset = 1 << 2*(OD_LOG_BSIZE0 - 1 + bs);
+    if (n >= size) {
+      /* 3 16x16 bands come after 3 8x8 bands, which come after 2 4x4 bands. */
+      od_raster_from_band(OD_LAYOUTS[bs], dst, stride, src + offset);
+    }
   }
   dst[0] = src[0];
 }
