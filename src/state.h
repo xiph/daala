@@ -245,6 +245,11 @@ struct od_state{
   unsigned char *dering_flags;
   /*This provides context for the quantizer CDF.*/
   unsigned char *sb_q_scaling;
+  /*Magnitude compensated quantization matrices and their inverses.
+   1 per block-size and decimation factor (i.e. OD_NBSIZES*2*(OD_BSIZE_MAX^2)),
+   assuming 2 possible decimation values (see OD_BASIS_MAG).*/
+  int16_t *qm;
+  int16_t *qm_inv;
 };
 
 void *od_aligned_malloc(size_t _sz,size_t _align);

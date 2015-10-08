@@ -331,9 +331,15 @@ tools_upsample_SOURCES = \
 	src/logging.c \
 	src/info.c \
 	src/mc.c \
+	src/partition.c \
 	src/pvq.c \
 	src/state.c \
 	src/util.c \
+	src/zigzag4.c \
+	src/zigzag8.c \
+	src/zigzag16.c \
+	src/zigzag32.c \
+	src/zigzag64.c \
 	tools/vidinput.c \
 	tools/y4m_input.c \
 	tools/upsample.c

@@ -27,6 +27,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #endif
 
 #include "pvq.h"
+#include "partition.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include "logging.h"
@@ -286,35 +287,57 @@ void od_adapt_pvq_ctx_reset(od_pvq_adapt_ctx *state, int is_keyframe) {
 
 }
 
-/* Apply the quantization matrix and the magnitude compensation. We need to
-   compensate for the magnitude because lapping causes some basis functions to
-   be smaller, so they would end up being quantized too finely (the same
-   error in the quantized domain would result in a smaller pixel domain
-   error). */
-void od_apply_qm(od_coeff *out, int out_stride, od_coeff *in, int in_stride,
- int bs, int dec, int inverse, const int *qm) {
+/* QMs are arranged from smallest to largest blocksizes, for decimation=0,
+   and again for decimation=1.*/
+int od_qm_offset(int bs, int xydec)
+{
+    return bs*2*OD_QM_BSIZE + xydec*OD_QM_BSIZE;
+}
+
+/* Initialize the quantization matrix with the magnitude compensation applied.
+   We need to compensate for the magnitude because lapping causes some basis
+   functions to be smaller, so they would end up being quantized too finely
+   (the same error in the quantized domain would result in a smaller pixel
+   domain error). */
+void od_init_qm(int16_t *x, int16_t *x_inv, const int *qm) {
   int i;
   int j;
-  for (i = 0; i < 4 << bs; i++) {
-    for (j = 0; j < 4 << bs; j++) {
-      double mag;
+  int16_t y[OD_QM_BSIZE];
+  int16_t y_inv[OD_QM_BSIZE];
+  int16_t *x1;
+  int16_t *x1_inv;
+  int off;
+  int bs;
+  int xydec;
+  for (bs = 0; bs < OD_NBSIZES; bs++) {
+    for (xydec = 0; xydec < 2; xydec++) {
+      off = od_qm_offset(bs, xydec);
+      x1 = x + off;
+      x1_inv = x_inv + off;
+      for (i = 0; i < 4 << bs; i++) {
+        for (j = 0; j < 4 << bs; j++) {
+          double mag;
 #if OD_DEBLOCKING || OD_DISABLE_FILTER
-      mag = 1;
+          mag = 1.0;
 #else
-      mag = OD_BASIS_MAG[dec][bs][i]*OD_BASIS_MAG[dec][bs][j];
+          mag = OD_BASIS_MAG[xydec][bs][i]*OD_BASIS_MAG[xydec][bs][j];
 #endif
-      if (i == 0 && j == 0) {
-        mag = 1;
+          if (i == 0 && j == 0) {
+            mag = 1.0;
+          }
+          else {
+            mag /= 0.0625*qm[(i << 1 >> bs)*8 + (j << 1 >> bs)];
+            OD_ASSERT(mag > 0.0);
+          }
+          /*Convert to fit in 16 bits.*/
+          y[i*(4 << bs) + j] = (int16_t)OD_MINI(OD_QM_SCALE_MAX,
+           (int16_t)floor(.5 + mag*OD_QM_SCALE));
+          y_inv[i*(4 << bs) + j] = (int16_t)floor(.5
+           + OD_QM_SCALE*OD_QM_INV_SCALE/(double)y[i*(4 << bs) + j]);
+        }
       }
-      else {
-        mag /= 0.0625*qm[(i << 1 >> bs)*8 + (j << 1 >> bs)];
-      }
-      if (inverse) {
-        out[i*out_stride + j] = (od_coeff)floor(.5 + in[i*in_stride + j]/mag);
-      }
-      else {
-        out[i*out_stride + j] = (od_coeff)floor(.5 + in[i*in_stride + j]*mag);
-      }
+      od_raster_to_coding_order_16(x1, 4 << bs, y, 4 << bs);
+      od_raster_to_coding_order_16(x1_inv, 4 << bs, y_inv, 4 << bs);
     }
   }
 }
@@ -427,12 +450,17 @@ double od_gain_expand(double cg, int q0, double beta) {
  * @param [in]      q0     quantizer
  * @param [out]     g      raw gain
  * @param [in]      beta   activity masking beta param
+ * @param [in]      qm     QM with magnitude compensation
  * @return                 quantized/companded gain
  */
-double od_pvq_compute_gain(od_coeff *x, int n, int q0, double *g, double beta){
+double od_pvq_compute_gain(od_coeff *x, int n, int q0, double *g, double beta,
+ const int16_t *qm){
   int i;
   double acc=0;
-  for (i = 0; i < n; i++) acc += x[i]*(double)x[i];
+  for (i = 0; i < n; i++) {
+    acc += x[i]*(double)x[i]*qm[i]*OD_QM_SCALE_1*
+     qm[i]*OD_QM_SCALE_1;
+  }
   *g = sqrt(acc);
   /* Normalize gain by quantization step size and apply companding
      (if ACTIVITY != 1). */
@@ -519,9 +547,11 @@ int od_pvq_compute_k(double qcg, int itheta, double theta, int noref, int n,
  * @param [in]      theta   decoded theta (prediction error)
  * @param [in]      m       alignment dimension of Householder reflection
  * @param [in]      s       sign of Householder reflection
+ * @param [in]      qm_inv  inverse of the QM with magnitude compensation
  */
 void od_pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,
- const double *r, int n, int noref, double g, double theta, int m, int s) {
+ const double *r, int n, int noref, double g, double theta, int m, int s,
+ const int16_t *qm_inv) {
   int i;
   int yy;
   double scale;
@@ -534,7 +564,10 @@ void od_pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,
   if (yy == 0) scale = 0;
   else scale = g/sqrt(yy);
   if (noref) {
-    for (i = 0; i < n; i++) xcoeff[i] = (od_coeff)floor(.5 + ypulse[i]*scale);
+    for (i = 0; i < n; i++) {
+      xcoeff[i] = (od_coeff)floor(.5
+       + (ypulse[i]*scale)*(qm_inv[i]*OD_QM_INV_SCALE_1));
+    }
   }
   else{
     double x[MAXN];
@@ -545,7 +578,9 @@ void od_pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,
     for (i = m; i < nn; i++)
       x[i+1] = ypulse[i]*scale;
     od_apply_householder(x, r, n);
-    for (i = 0; i < n; i++) xcoeff[i] = (od_coeff)floor(.5 + x[i]);
+    for (i = 0; i < n; i++) {
+      xcoeff[i] = (od_coeff)floor(.5 + (x[i]*(qm_inv[i]*OD_QM_INV_SCALE_1)));
+    }
   }
 }
 

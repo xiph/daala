@@ -542,12 +542,10 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int bs,
   int quant;
   int dc_quant;
   int use_activity_masking;
-  const int *qm;
   OD_ASSERT(bs >= 0 && bs < OD_NBSIZES);
   n = 1 << (bs + 2);
   lossless = OD_LOSSLESS(dec, pli);
   use_activity_masking = ctx->use_activity_masking;
-  qm = ctx->qm == OD_HVS_QM ? OD_QM8_Q4_HVS : OD_QM8_Q4_FLAT;
   bx <<= bs;
   by <<= bs;
   xdec = dec->output_img[dec->curr_dec_frame].planes[pli].xdec;
@@ -565,7 +563,6 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int bs,
     }
     else {
       (*dec->state.opt_vtbl.fdct_2d[bs])(md + bo, w, mc + bo, w);
-      od_apply_qm(md + bo, w, md + bo, w, bs, xdec, 0, qm);
     }
   }
   od_decode_compute_pred(dec, ctx, pred, d, bs, pli, bx, by);
@@ -595,9 +592,13 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int bs,
   }
   else {
     unsigned int flags;
+    int off;
+    off = od_qm_offset(bs, xdec);
     od_pvq_decode(dec, predt, pred, quant, pli, bs,
      OD_PVQ_BETA[use_activity_masking][pli][bs], OD_ROBUST_STREAM,
-     ctx->is_keyframe, &flags, skip);
+     ctx->is_keyframe, &flags, skip, dec->state.qm + off,
+     dec->state.qm_inv + off);
+
     if (pli == 0 && dec->user_flags != NULL) {
       dec->user_flags[by*dec->user_fstride + bx] = flags;
     }
@@ -632,7 +633,6 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int bs,
     od_haar_inv(c + bo, w, d + bo, w, bs + 2);
   }
   else {
-    od_apply_qm(d + bo, w, d + bo, w, bs, xdec, 1, qm);
     /*Apply the inverse transform.*/
     (*dec->state.opt_vtbl.idct_2d[bs])(c + bo, w, d + bo, w);
   }
@@ -1200,6 +1200,9 @@ int daala_decode_packet_in(daala_dec_ctx *dec, const daala_packet *op) {
   }
   mbctx.use_activity_masking = od_ec_decode_bool_q15(&dec->ec, 16384, "flags");
   mbctx.qm = od_ec_decode_bool_q15(&dec->ec, 16384, "flags");
+  /*TODO: Cache the previous qm value to avoid calling this every packet.*/
+  od_init_qm(dec->state.qm, dec->state.qm_inv,
+   mbctx.qm == OD_HVS_QM ? OD_QM8_Q4_HVS : OD_QM8_Q4_FLAT);
   mbctx.use_haar_wavelet = od_ec_decode_bool_q15(&dec->ec, 16384, "flags");
   mbctx.is_golden_frame = od_ec_decode_bool_q15(&dec->ec, 16384, "flags");
   if (mbctx.is_keyframe) {

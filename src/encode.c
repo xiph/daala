@@ -237,6 +237,8 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
   enc->complexity = 7;
   enc->use_activity_masking = 1;
   enc->qm = OD_HVS_QM;
+  od_init_qm(enc->state.qm, enc->state.qm_inv,
+   enc->qm == OD_HVS_QM ? OD_QM8_Q4_HVS : OD_QM8_Q4_FLAT);
   enc->use_haar_wavelet = OD_USE_HAAR_WAVELET;
   enc->mvest = od_mv_est_alloc(enc);
   if (OD_UNLIKELY(!enc->mvest)) {
@@ -535,7 +537,11 @@ int daala_encode_ctl(daala_enc_ctx *enc, int req, void *buf, size_t buf_sz) {
       if (qm < OD_FLAT_QM || qm > OD_HVS_QM) {
           return OD_EINVAL;
       }
-      enc->qm = qm;
+      if (enc->qm != qm) {
+        enc->qm = qm;
+        od_init_qm(enc->state.qm, enc->state.qm_inv,
+         enc->qm == OD_HVS_QM ? OD_QM8_Q4_HVS : OD_QM8_Q4_FLAT);
+      }
       return OD_SUCCESS;
     }
     case OD_SET_MV_RES_MIN:
@@ -1077,7 +1083,6 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int bs,
   int dc_quant;
   int lossless;
   int skip;
-  const int *qm;
   double dist_noskip;
   int tell;
   int i;
@@ -1086,7 +1091,6 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int bs,
   od_rollback_buffer pre_encode_buf;
   od_coeff *c_orig;
   od_coeff *mc_orig;
-  qm = ctx->qm == OD_HVS_QM ? OD_QM8_Q4_HVS : OD_QM8_Q4_FLAT;
 #if defined(OD_OUTPUT_PRED)
   od_coeff preds[OD_BSIZE_MAX*OD_BSIZE_MAX];
   int zzi;
@@ -1134,11 +1138,9 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int bs,
       quantized_dc = d[bo];
       (*enc->state.opt_vtbl.fdct_2d[bs])(d + bo, w, c + bo, w);
       if (ctx->is_keyframe) d[bo] = quantized_dc;
-      od_apply_qm(d + bo, w, d + bo, w, bs, xdec, 0, qm);
     }
     if (!ctx->is_keyframe) {
       (*enc->state.opt_vtbl.fdct_2d[bs])(md + bo, w, mc + bo, w);
-      od_apply_qm(md + bo, w, md + bo, w, bs, xdec, 0, qm);
     }
   }
   od_encode_compute_pred(enc, ctx, pred, d, bs, pli, bx, by);
@@ -1180,9 +1182,12 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int bs,
      enc->state.quantizer[pli], pli);
   }
   else {
+    int off;
+    off = od_qm_offset(bs, xdec);
     skip = od_pvq_encode(enc, predt, dblock, scalar_out, quant, pli, bs,
      OD_PVQ_BETA[use_masking][pli][bs], OD_ROBUST_STREAM, ctx->is_keyframe,
-     ctx->q_scaling, bx, by);
+     ctx->q_scaling, bx, by, enc->state.qm + off, enc->state.qm_inv
+     + off);
   }
   if (!ctx->is_keyframe) {
     int has_dc_skip;
@@ -1220,7 +1225,6 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int bs,
     od_haar_inv(c + bo, w, d + bo, w, bs + 2);
   }
   else {
-    od_apply_qm(d + bo, w, d + bo, w, bs, xdec, 1, qm);
     (*enc->state.opt_vtbl.idct_2d[bs])(c + bo, w, d + bo, w);
   }
 #else
@@ -1273,7 +1277,6 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int bs,
           d[bo + i*w + j] = md[bo + i*w + j];
         }
       }
-      od_apply_qm(d + bo, w, d + bo, w, bs, xdec, 1, qm);
       (*enc->state.opt_vtbl.idct_2d[bs])(c + bo, w, d + bo, w);
     }
   }
@@ -1286,11 +1289,7 @@ static void od_compute_dcts(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
   int bs;
   int w;
   int bo;
-  int lossless;
   od_coeff *d;
-  const int *qm;
-  qm = ctx->qm == OD_HVS_QM ? OD_QM8_Q4_HVS : OD_QM8_Q4_FLAT;
-  lossless = OD_LOSSLESS(enc, pli);
   d = ctx->d[pli];
   w = enc->state.frame_width >> xdec;
   /*This code assumes 4:4:4 or 4:2:0 input.*/
@@ -1307,7 +1306,6 @@ static void od_compute_dcts(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
     }
     else {
       (*enc->state.opt_vtbl.fdct_2d[bs])(d + bo, w, ctx->c + bo, w);
-      if (!lossless) od_apply_qm(d + bo, w, d + bo, w, bs, xdec, 0, qm);
     }
   }
   else {

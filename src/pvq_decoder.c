@@ -98,19 +98,23 @@ static int neg_deinterleave(int x, int ref) {
  * @param [in]      noref   indicates presence or lack of prediction
  * @param [in]      g       decoded quantized vector gain
  * @param [in]      theta   decoded theta (prediction error)
+ * @param [in]      qm      QM with magnitude compensation
+ * @param [in]      qm_inv  Inverse of QM with magnitude compensation
  */
 static void pvq_synthesis(od_coeff *xcoeff, od_coeff *ypulse, od_coeff *ref,
- int n, double gr, int noref, double g, double theta) {
+ int n, double gr, int noref, double g, double theta, const int16_t *qm,
+ const int16_t *qm_inv) {
   int i;
   int s;
   int m;
   double r[MAXN];
   /* Sign of the Householder reflection vector */
   s = 0;
-  if (!noref) for (i = 0; i < n; i++) r[i] = ref[i];
+  if (!noref) for (i = 0; i < n; i++) r[i] = ref[i]*qm[i]*OD_QM_SCALE_1;
   /* Direction of the Householder reflection vector */
   m = noref ? 0 : od_compute_householder(r, n, gr, &s);
-  od_pvq_synthesis_partial(xcoeff, ypulse, r, n, noref, g, theta, m, s);
+  od_pvq_synthesis_partial(xcoeff, ypulse, r, n, noref, g, theta, m, s,
+   qm_inv);
 }
 
 typedef struct {
@@ -142,6 +146,8 @@ typedef struct {
  * @param [in]     bs      log of the block size minus 2
  * @param [in]     band    index of the band being decoded
  * @param [out]    skip    skip flag with range [0,1]
+ * @param [in]     qm      QM with magnitude compensation
+ * @param [in]     qm_inv  Inverse of QM with magnitude compensation
  */
 static void pvq_decode_partition(od_ec_dec *ec,
                                  int q0,
@@ -163,7 +169,9 @@ static void pvq_decode_partition(od_ec_dec *ec,
                                  int *skip_rest,
                                  int band,
                                  int bs,
-                                 int *skip) {
+                                 int *skip,
+                                 const int16_t *qm,
+                                 const int16_t *qm_inv) {
   int k;
   double qcg;
   int max_theta;
@@ -223,7 +231,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
     int icgr;
     int cfl_enabled;
     cfl_enabled = pli != 0 && is_keyframe && !OD_DISABLE_CFL;
-    cgr = od_pvq_compute_gain(ref, n, q0, &gr, beta);
+    cgr = od_pvq_compute_gain(ref, n, q0, &gr, beta, qm);
     if (cfl_enabled) cgr = 1;
     icgr = (int)floor(.5+cgr);
     /* quantized gain is interleave encoded when there's a reference;
@@ -278,7 +286,8 @@ static void pvq_decode_partition(od_ec_dec *ec,
   else {
     double g;
     g = od_gain_expand(qg + gain_offset, q0, beta);
-    pvq_synthesis(out, y, ref, n, gr, *noref, g, theta);
+    pvq_synthesis(out, y, ref, n, gr, *noref, g, theta, qm,
+     qm_inv);
   }
   *skip = !!*skip;
 }
@@ -296,6 +305,8 @@ static void pvq_decode_partition(od_ec_dec *ec,
  * @param [in]     is_keyframe whether we're encoding a keyframe
  * @param [out]    flags   bitmask of the per band skip and noref flags
  * @param [in]     block_skip skip flag for the block (range 0-3)
+ * @param [in]     qm      QM with magnitude compensation
+ * @param [in]     qm_inv  Inverse of QM with magnitude compensation
  */
 void od_pvq_decode(daala_dec_ctx *dec,
                    od_coeff *ref,
@@ -307,7 +318,9 @@ void od_pvq_decode(daala_dec_ctx *dec,
                    int robust,
                    int is_keyframe,
                    unsigned int *flags,
-                   int block_skip){
+                   int block_skip,
+                   const int16_t *qm,
+                   const int16_t *qm_inv){
 
   int noref[PVQ_MAX_PARTITIONS];
   int skip[PVQ_MAX_PARTITIONS];
@@ -320,13 +333,13 @@ void od_pvq_decode(daala_dec_ctx *dec,
   generic_encoder *model;
   int skip_rest[3] = {0};
   cfl_ctx cfl;
-  const unsigned char *qm;
+  const unsigned char *pvq_qm;
   /*Default to skip=1 and noref=0 for all bands.*/
   for (i = 0; i < PVQ_MAX_PARTITIONS; i++) {
     noref[i] = 0;
     skip[i] = 1;
   }
-  qm = &dec->state.pvq_qm_q4[pli][0];
+  pvq_qm = &dec->state.pvq_qm_q4[pli][0];
   exg = &dec->state.adapt.pvq.pvq_exg[pli][bs][0];
   ext = dec->state.adapt.pvq.pvq_ext + bs*PVQ_MAX_PARTITIONS;
   model = dec->state.adapt.pvq.pvq_param_model;
@@ -347,12 +360,13 @@ void od_pvq_decode(daala_dec_ctx *dec,
     cfl.allow_flip = pli != 0 && is_keyframe;
     for (i = 0; i < nb_bands; i++) {
       int q;
-      q = OD_MAXI(1, q0*qm[od_qm_get_index(bs, i + 1)] >> 4);
+      q = OD_MAXI(1, q0*pvq_qm[od_qm_get_index(bs, i + 1)] >> 4);
       pvq_decode_partition(&dec->ec, q, size[i],
        model, &dec->state.adapt, exg + i, ext + i, ref + off[i], out + off[i],
        &noref[i], beta[i], robust, is_keyframe, pli,
        (pli != 0)*OD_NBSIZES*PVQ_MAX_PARTITIONS + bs*PVQ_MAX_PARTITIONS + i,
-       &cfl, i == 0 && (i < nb_bands - 1), skip_rest, i, bs, &skip[i]);
+       &cfl, i == 0 && (i < nb_bands - 1), skip_rest, i, bs, &skip[i],
+       qm + off[i], qm_inv + off[i]);
       if (i == 0 && !skip_rest[0] && bs > 0) {
         int skip_dir;
         int j;

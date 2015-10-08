@@ -483,6 +483,15 @@ static int od_state_init_impl(od_state *state, const daala_info *info) {
   if (OD_UNLIKELY(!state->sb_q_scaling)) {
     return OD_EFAULT;
   }
+  state->qm = (int16_t *)malloc(OD_QM_BUFFER_SIZE*sizeof(state->qm[0]));
+  if (OD_UNLIKELY(!state->qm)) {
+    return OD_EFAULT;
+  }
+  state->qm_inv = (int16_t *)malloc(OD_NBSIZES*2*OD_BSIZE_MAX*
+   OD_BSIZE_MAX*sizeof(state->qm_inv[0]));
+  if (OD_UNLIKELY(!state->qm_inv)) {
+    return OD_EFAULT;
+  }
   return OD_SUCCESS;
 }
 
@@ -522,6 +531,8 @@ void od_state_clear(od_state *state) {
   for (pli = 0; pli < 3; pli++) free(state->bskip[pli]);
   free(state->dering_flags);
   free(state->sb_q_scaling);
+  free(state->qm);
+  free(state->qm_inv);
 }
 
 /*Probabilities that a motion vector is not coded given two neighbors and the

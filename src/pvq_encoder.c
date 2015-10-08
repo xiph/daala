@@ -304,12 +304,15 @@ static double od_pvq_rate(int qg, int icgr, int theta, int ts,
  * @param [in]     pli       plane index
  * @param [in]     adapt     probability adaptation context
  * @param [in]     bs        log of the block size minus two
+ * @param [in]     qm        QM with magnitude compensation
+ * @param [in]     qm_inv    Inverse of QM with magnitude compensation
  * @return         gain      index of the quatized gain
 */
 static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
  od_coeff *y, int *itheta, int *max_theta, int *vk,
  double beta, double *skip_diff, int robust, int is_keyframe, int pli,
- const od_adapt_ctx *adapt, int bs) {
+ const od_adapt_ctx *adapt, int bs, const int16_t *qm,
+ const int16_t *qm_inv) {
   double g;
   double gr;
   double x[MAXN];
@@ -349,13 +352,13 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   OD_ASSERT(n > 1);
   corr = 0;
   for (i = 0; i < n; i++) {
-    x[i] = x0[i];
-    r[i] = r0[i];
+    x[i] = x0[i]*qm[i]*OD_QM_SCALE_1;
+    r[i] = r0[i]*qm[i]*OD_QM_SCALE_1;
     corr += x[i]*r[i];
   }
   cfl_enabled = is_keyframe && pli != 0 && !OD_DISABLE_CFL;
-  cg  = od_pvq_compute_gain(x0, n, q0, &g, beta);
-  cgr = od_pvq_compute_gain(r0, n, q0, &gr, beta);
+  cg  = od_pvq_compute_gain(x0, n, q0, &g, beta, qm);
+  cgr = od_pvq_compute_gain(r0, n, q0, &gr, beta, qm);
   if (cfl_enabled) cgr = 1;
   /* gain_offset is meant to make sure one of the quantized gains has
      exactly the same gain as the reference. */
@@ -449,7 +452,7 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   if (n <= OD_MAX_PVQ_SIZE &&
    ((is_keyframe && pli == 0) || corr < .5 || cg < 2.)) {
     double x1[MAXN];
-    for (i = 0; i < n; i++) x1[i] = x0[i];
+    for (i = 0; i < n; i++) x1[i] = x0[i]*qm[i]*OD_QM_SCALE_1;
     /* Search for the best gain (haven't determined reasonable range yet). */
     for (i = OD_MAXI(1, (int)floor(cg)); i <= ceil(cg); i++) {
       double cos_dist;
@@ -495,7 +498,8 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   else {
     if (noref) gain_offset = 0;
     g = od_gain_expand(qg + gain_offset, q0, beta);
-    od_pvq_synthesis_partial(out, y, r, n, noref, g, theta, m, s);
+    od_pvq_synthesis_partial(out, y, r, n, noref, g, theta, m, s,
+     qm_inv);
   }
   *vk = k;
   *skip_diff += skip_dist - best_dist;
@@ -634,6 +638,8 @@ void od_encode_quantizer_scaling(daala_enc_ctx *enc, int q_scaling,
  * @param [in]     q_scaling scaling factor to apply to quantizer
  * @param [in]     bx      x-coordinate of this block
  * @param [in]     by      y-coordinate of this block
+ * @param [in]     qm      QM with magnitude compensation
+ * @param [in]     qm_inv  Inverse of QM with magnitude compensation
  * @return         Returns 1 if the AC coefficients are skipped, zero otherwise
  */
 int od_pvq_encode(daala_enc_ctx *enc,
@@ -648,7 +654,9 @@ int od_pvq_encode(daala_enc_ctx *enc,
                    int is_keyframe,
                    int q_scaling,
                    int bx,
-                   int by){
+                   int by,
+                   const int16_t *qm,
+                   const int16_t *qm_inv){
   int theta[PVQ_MAX_PARTITIONS];
   int max_theta[PVQ_MAX_PARTITIONS];
   int qg[PVQ_MAX_PARTITIONS];
@@ -671,16 +679,16 @@ int od_pvq_encode(daala_enc_ctx *enc,
   int skip_rest;
   int skip_dir;
   int skip_theta_value;
-  const unsigned char *qm;
+  const unsigned char *pvq_qm;
   double dc_rate;
-  qm = &enc->state.pvq_qm_q4[pli][0];
+  pvq_qm = &enc->state.pvq_qm_q4[pli][0];
   exg = &enc->state.adapt.pvq.pvq_exg[pli][bs][0];
   ext = enc->state.adapt.pvq.pvq_ext + bs*PVQ_MAX_PARTITIONS;
   skip_cdf = enc->state.adapt.skip_cdf[2*bs + (pli != 0)];
   model = enc->state.adapt.pvq.pvq_param_model;
   nb_bands = OD_BAND_OFFSETS[bs][0];
   off = &OD_BAND_OFFSETS[bs][1];
-  dc_quant = OD_MAXI(1, q0*qm[od_qm_get_index(bs, 0)] >> 4);
+  dc_quant = OD_MAXI(1, q0*pvq_qm[od_qm_get_index(bs, 0)] >> 4);
   tell = 0;
   for (i = 0; i < nb_bands; i++) size[i] = off[i+1] - off[i];
   skip_diff = 0;
@@ -690,7 +698,9 @@ int od_pvq_encode(daala_enc_ctx *enc,
     double xy;
     xy = 0;
     /*Compute the dot-product of the first band of chroma with the luma ref.*/
-    for (i = off[0]; i < off[1]; i++) xy += ref[i]*(double)in[i];
+    for (i = off[0]; i < off[1]; i++) {
+      xy += ref[i]*qm[i]*OD_QM_SCALE_1*(double)in[i]*qm[i]*OD_QM_SCALE_1;
+    }
     /*If cos(theta) < 0, then |theta| > pi/2 and we should negate the ref.*/
     if (xy < 0) {
       flip = 1;
@@ -699,11 +709,11 @@ int od_pvq_encode(daala_enc_ctx *enc,
   }
   for (i = 0; i < nb_bands; i++) {
     int q;
-    q = OD_MAXI(1, q0*qm[od_qm_get_index(bs, i + 1)] >> 4);
+    q = OD_MAXI(1, q0*pvq_qm[od_qm_get_index(bs, i + 1)] >> 4);
     qg[i] = pvq_theta(out + off[i], in + off[i], ref + off[i], size[i],
      q, y + off[i], &theta[i], &max_theta[i],
      &k[i], beta[i], &skip_diff, robust, is_keyframe, pli, &enc->state.adapt,
-     bs);
+     bs, qm + off[i], qm_inv + off[i]);
   }
   od_encode_checkpoint(enc, &buf);
   if (is_keyframe) out[0] = 0;

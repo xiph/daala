@@ -54,6 +54,15 @@ extern const uint16_t LAPLACE_OFFSET[];
 /* Maximum size for coding a PVQ band. */
 #define OD_MAX_PVQ_SIZE (128)
 
+#define OD_QM_SCALE (1 << 15)
+#define OD_QM_SCALE_MAX (OD_QM_SCALE - 1)
+#define OD_QM_SCALE_1 (1./OD_QM_SCALE_MAX)
+#define OD_QM_INV_SCALE (1 << 12)
+#define OD_QM_INV_SCALE_1 (1./OD_QM_INV_SCALE)
+#define OD_QM_BSIZE (OD_BSIZE_MAX*OD_BSIZE_MAX)
+/*FIXME: Use less space for smaller block sizes.*/
+#define OD_QM_BUFFER_SIZE (OD_NBSIZES*2*OD_QM_BSIZE)
+
 /* Largest PVQ partition is half the coefficients of largest block size. */
 #define MAXN (OD_BSIZE_MAX*OD_BSIZE_MAX/2)
 
@@ -101,23 +110,25 @@ int od_qm_get_index(int bs, int band);
 
 extern const double *const OD_PVQ_BETA[2][OD_NPLANES_MAX][OD_NBSIZES + 1];
 
-void od_apply_qm(od_coeff *out, int out_stride, od_coeff *in, int in_stride,
- int bs, int dec, int inverse, const int *qm);
+void od_init_qm(int16_t *x, int16_t *x_inv, const int *qm);
 int od_compute_householder(double *r, int n, double gr, int *sign);
 void od_apply_householder(double *x, const double *r, int n);
 void od_pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,
                                   const double *r, int n,
                                   int noref, double g,
-                                  double theta, int m, int s);
+                                  double theta, int m, int s,
+                                  const int16_t *qm_inv);
 
 double od_gain_expand(double cg, int q0, double beta);
 
-double od_pvq_compute_gain(od_coeff *x, int n, int q0, double *g, double beta);
+double od_pvq_compute_gain(od_coeff *x, int n, int q0, double *g, double beta,
+ const int16_t *qm);
 int od_pvq_compute_max_theta(double qcg, double beta);
 double od_pvq_compute_theta(int t, int max_theta);
 int od_pvq_compute_k(double qcg, int itheta, double theta, int noref, int n,
  double beta, int nodesync);
 
 int od_vector_is_null(const od_coeff *x, int len);
+int od_qm_offset(int bs, int xydec);
 
 #endif
