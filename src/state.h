@@ -94,7 +94,7 @@ extern const int *const OD_VERT_SETUP_DY[4][4];
  /OD_PADDING_ALIGN*OD_PADDING_ALIGN)
 
 /*The shared (encoder and decoder) functions that have accelerated variants.*/
-struct od_state_opt_vtbl {
+struct od_state_opt_vtbl{
   void (*mc_predict1fmv)(unsigned char *_dst, const unsigned char *_src,
    int _systride, int32_t _mvx, int32_t _mvy,
    int _log_xblk_sz, int _log_yblk_sz);
