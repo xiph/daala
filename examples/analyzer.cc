@@ -242,11 +242,11 @@ int DaalaDecoder::getHeight() const {
 }
 
 int DaalaDecoder::getFrameWidth() const {
-  return di.pic_width + (OD_BSIZE_MAX - 1) & ~(OD_BSIZE_MAX - 1);
+  return di.pic_width + (2*OD_BSIZE_MAX - 1) & ~(2*OD_BSIZE_MAX - 1);
 }
 
 int DaalaDecoder::getFrameHeight() const {
-  return di.pic_height + (OD_BSIZE_MAX - 1) & ~(OD_BSIZE_MAX - 1);
+  return di.pic_height + (2*OD_BSIZE_MAX - 1) & ~(2*OD_BSIZE_MAX - 1);
 }
 
 int DaalaDecoder::getRunningFrameCount() const {
