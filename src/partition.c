@@ -140,7 +140,7 @@ static void od_raster_from_band(const band_layout *layout, od_coeff *dst,
  * @param [in]     interleave interleaves entries for the scalar
                               (non-pvq) case
  */
-void od_raster_to_coding_order(od_coeff *dst,  int n, od_coeff *src,
+void od_raster_to_coding_order(od_coeff *dst, int n, od_coeff *src,
  int stride) {
   /* TODO - Rewrite these as a loop. */
   od_band_from_raster(&OD_LAYOUT4, dst + 1, src, stride);
@@ -173,7 +173,7 @@ void od_raster_to_coding_order(od_coeff *dst,  int n, od_coeff *src,
  * @param [in]     interleave de-interleaves entries for
                               the scalar (non-pvq) case
  */
-void od_coding_order_to_raster(od_coeff *dst,  int stride, od_coeff *src,
+void od_coding_order_to_raster(od_coeff *dst, int stride, od_coeff *src,
  int n) {
   /* TODO - Rewrite these as a loop. */
   od_raster_from_band(&OD_LAYOUT4, dst, stride, src + 1);
