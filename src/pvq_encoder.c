@@ -254,9 +254,9 @@ static double od_pvq_rate(int qg, int icgr, int theta, int ts,
   /* Estimates the number of bits it will cost to encode K pulses in
      N dimensions based on experimental data for bitrate vs K. */
   rate = n*OD_LOG2(1+log(n*2)*k/n);
-  (void)adapt;
-  (void)m;
-  (void)y0;
+  OD_UNUSED(adapt);
+  OD_UNUSED(y0);
+  OD_UNUSED(bs);
 #else
   if (k > 0){
     od_ec_enc ec;
