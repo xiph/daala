@@ -140,8 +140,6 @@ static const band_layout *const OD_LAYOUTS[] = {&OD_LAYOUT4, &OD_LAYOUT8,
  * @param [in]     n          block size (along one side)
  * @param [in]     src        source coefficient block
  * @param [in]     stride     source vector row stride
- * @param [in]     interleave interleaves entries for the scalar
-                              (non-pvq) case
  */
 void od_raster_to_coding_order(od_coeff *dst, int n, const od_coeff *src,
  int stride) {
@@ -174,8 +172,6 @@ void od_raster_to_coding_order(od_coeff *dst, int n, const od_coeff *src,
  * @param [in]     stride     destination vector row stride
  * @param [in]     src        source vector
  * @param [in]     n          block size (along one side)
- * @param [in]     interleave de-interleaves entries for
-                              the scalar (non-pvq) case
  */
 void od_coding_order_to_raster(od_coeff *dst, int stride, const od_coeff *src,
  int n) {
