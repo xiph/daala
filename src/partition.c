@@ -99,7 +99,7 @@ const int *const OD_BAND_OFFSETS[OD_NBSIZES + 1] = {
  * @param [int]    int     source vector row stride
  */
 static void od_band_from_raster(const band_layout *layout, od_coeff *dst,
- od_coeff *src, int stride) {
+ const od_coeff *src, int stride) {
   int i;
   int len;
   len = layout->band_offsets[layout->nb_bands];
@@ -117,7 +117,7 @@ static void od_band_from_raster(const band_layout *layout, od_coeff *dst,
  * @param [int]    stride  destination vector row stride
  */
 static void od_raster_from_band(const band_layout *layout, od_coeff *dst,
- int stride, od_coeff *src) {
+ int stride, const od_coeff *src) {
   int i;
   int len;
   len = layout->band_offsets[layout->nb_bands];
@@ -143,7 +143,7 @@ static const band_layout *const OD_LAYOUTS[] = {&OD_LAYOUT4, &OD_LAYOUT8,
  * @param [in]     interleave interleaves entries for the scalar
                               (non-pvq) case
  */
-void od_raster_to_coding_order(od_coeff *dst, int n, od_coeff *src,
+void od_raster_to_coding_order(od_coeff *dst, int n, const od_coeff *src,
  int stride) {
   int bs;
   /* dst + 1 because DC is not included for 4x4 blocks. */
@@ -177,7 +177,7 @@ void od_raster_to_coding_order(od_coeff *dst, int n, od_coeff *src,
  * @param [in]     interleave de-interleaves entries for
                               the scalar (non-pvq) case
  */
-void od_coding_order_to_raster(od_coeff *dst, int stride, od_coeff *src,
+void od_coding_order_to_raster(od_coeff *dst, int stride, const od_coeff *src,
  int n) {
   int bs;
   /* src + 1 because DC is not included for 4x4 blocks. */

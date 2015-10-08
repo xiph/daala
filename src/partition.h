@@ -36,10 +36,10 @@ typedef struct {
 
 extern const int *const OD_BAND_OFFSETS[OD_NBSIZES + 1];
 
-void od_raster_to_coding_order(od_coeff *dst, int n, od_coeff *src,
+void od_raster_to_coding_order(od_coeff *dst, int n, const od_coeff *src,
  int stride);
 
-void od_coding_order_to_raster(od_coeff *dst, int stride, od_coeff *src,
+void od_coding_order_to_raster(od_coeff *dst, int stride, const od_coeff *src,
  int n);
 
 #endif
