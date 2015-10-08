@@ -9,7 +9,6 @@ lib_LTLIBRARIES = src/libdaalabase.la src/libdaaladec.la src/libdaalaenc.la
 AM_CPPFLAGS = -I$(srcdir)/include
 
 noinst_HEADERS = \
-	src/util.h \
 	src/adapt.h \
 	src/block_size.h \
 	src/block_size_enc.h \
@@ -34,6 +33,7 @@ noinst_HEADERS = \
 	src/quantizer.h \
 	src/state.h \
 	src/tf.h \
+	src/util.h \
 	src/zigzag.h \
 	src/accounting.h \
 	src/x86/cpu.h \
@@ -73,7 +73,6 @@ src_libdaalabase_la_LDFLAGS = -no-undefined \
 src_libdaalabase_la_LDFLAGS +=
 src_libdaalabase_la_SOURCES = \
 	src/accounting.c \
-	src/util.c \
 	src/adapt.c \
 	src/entcode.c \
 	src/entdec.c \
@@ -94,6 +93,7 @@ src_libdaalabase_la_SOURCES = \
 	src/state.c \
 	src/switch_table.c \
 	src/tf.c \
+	src/util.c \
 	src/zigzag4.c \
 	src/zigzag8.c \
 	src/zigzag16.c \
@@ -102,8 +102,8 @@ src_libdaalabase_la_SOURCES = \
 	$(src_dct_SOURCES)
 if ENABLE_X86ASM
 src_libdaalabase_la_SOURCES += \
-	src/x86/sse2util.c \
 	src/x86/sse2mc.c \
+	src/x86/sse2util.c \
 	src/x86/x86state.c
 endif
 
@@ -334,8 +334,8 @@ tools_upsample_SOURCES = \
 	tools/upsample.c
 if ENABLE_X86ASM
 tools_upsample_SOURCES += \
-	src/x86/sse2util.c \
 	src/x86/sse2mc.c \
+	src/x86/sse2util.c \
 	src/x86/x86state.c
 endif
 tools_upsample_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS)
