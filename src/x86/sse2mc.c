@@ -358,8 +358,8 @@ typedef void (*od_mc_predict1fmv8_horizontal_fixed_func)(int16_t *buff_p,
  const unsigned char *src_p, int systride, int mvxf, int mvyf);
 
 #if defined(OD_SSE2_INTRINSICS)
-void od_mc_predict1fmv8_sse2(unsigned char *dst,const unsigned char *src,
- int systride, int32_t mvx, int32_t mvy,
+void od_mc_predict1fmv8_sse2(od_state *state, unsigned char *dst,
+ const unsigned char *src, int systride, int32_t mvx, int32_t mvy,
  int log_xblk_sz, int log_yblk_sz) {
   static const od_mc_predict1fmv8_horizontal_fixed_func VTBL_HORIZONTAL[5] = {
     od_mc_predict1fmv8_horizontal_2x2, od_mc_predict1fmv8_horizontal_4x4,
@@ -542,7 +542,8 @@ void od_mc_predict1fmv8_sse2(unsigned char *dst,const unsigned char *src,
   }
   /*MC with full-pel MV, i.e. integer position.*/
   else {
-    od_copy_nxm_sse2(dst_p, xblk_sz, src_p, systride, log_xblk_sz, log_yblk_sz);
+    OD_ASSERT(log_xblk_sz == log_yblk_sz);
+    (*state->opt_vtbl.od_copy_nxn[log_xblk_sz])(dst_p, xblk_sz, src_p, systride);
   }
 #if defined(OD_CHECKASM)
   od_mc_predict1fmv8_check(dst, src, systride, mvx, mvy,

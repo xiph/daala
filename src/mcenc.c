@@ -2308,7 +2308,7 @@ static int32_t od_mv_est_bma_sad(od_mv_est_ctx *est,
        + (by >> iplane->ydec)*iplane->ystride
        + (bx >> iplane->xdec)*iplane->xstride;
       (*state->opt_vtbl.mc_predict1fmv)
-       (state->mc_buf[4], ref_img, iplane->ystride,
+       (state, state->mc_buf[4], ref_img, iplane->ystride,
        mvx << (3 - iplane->xdec), mvy << (3 - iplane->ydec),
        log_mvb_sz + OD_LOG_MVBSIZE_MIN - iplane->xdec,
        log_mvb_sz + OD_LOG_MVBSIZE_MIN - iplane->ydec);

@@ -150,37 +150,4 @@ void od_copy_64x64_sse2(unsigned char *_dst, int _dstride,
     );
   }
 }
-
-typedef void (*od_copy_fixed_func)(unsigned char *_dst, int _dstride,
- const unsigned char *_src, int _sstride);
-
-void od_copy_nxn_sse2(unsigned char *_dst, int _dstride,
- const unsigned char *_src, int _sstride, int _log_n) {
-  static const od_copy_fixed_func
-   VTBL[7] = {
-    NULL,
-    od_copy_2x2_c,
-    od_copy_4x4_c,
-    od_copy_8x8_c,
-    od_copy_16x16_sse2,
-    od_copy_32x32_sse2,
-    od_copy_64x64_sse2
-  };
-  OD_ASSERT(_log_n > 0 || _log_n <= 6);
-  (*VTBL[_log_n])(_dst, _dstride, _src, _sstride);
-}
-
-void od_copy_nxm_sse2(unsigned char *_dst, int _dstride,
- const unsigned char *_src, int _sstride, int _log_n, int _log_m) {
-  int j;
-  if (_log_n == _log_m) {
-    od_copy_nxn_sse2(_dst, _dstride, _src, _sstride, _log_n);
-    return;
-  }
-  for (j = 0; j < 1 << _log_m; j++) {
-    OD_COPY(_dst, _src, 1 << _log_n);
-    _dst += _dstride;
-    _src += _sstride;
-  }
-}
 #endif

@@ -50,33 +50,20 @@ OD_COPY_C(16)
 OD_COPY_C(32)
 OD_COPY_C(64)
 
-typedef void (*od_copy_fixed_func)(unsigned char *_dst, int _dstride,
- const unsigned char *_src, int _sstride);
+const od_copy_nxn_func OD_COPY_NXN_C[OD_LOG_COPYBSIZE_MAX + 1] = {
+  NULL,
+  od_copy_2x2_c,
+  od_copy_4x4_c,
+  od_copy_8x8_c,
+  od_copy_16x16_c,
+  od_copy_32x32_c,
+  od_copy_64x64_c
+};
 
-void od_copy_nxn_c(unsigned char *_dst, int _dstride,
- const unsigned char *_src, int _sstride, int _log_n) {
-  static const od_copy_fixed_func
-   VTBL[7] = {
-    NULL,
-    od_copy_2x2_c,
-    od_copy_4x4_c,
-    od_copy_8x8_c,
-    od_copy_16x16_c,
-    od_copy_32x32_c,
-    od_copy_64x64_c
-  };
-  OD_ASSERT(_log_n > 0 || _log_n <= 6);
-  (*VTBL[_log_n])(_dst, _dstride, _src, _sstride);
-}
-
-void od_copy_nxm_c(unsigned char *_dst, int _dstride,
+void od_copy_nxm(unsigned char *_dst, int _dstride,
  const unsigned char *_src, int _sstride, int _log_n, int _log_m) {
   int j;
-  if (_log_n == _log_m) {
-    od_copy_nxn_c(_dst, _dstride, _src, _sstride, _log_n);
-    return;
-  }
-  /* Handle non-square blocks. */
+  OD_ASSERT(_log_n != _log_m);
   for (j = 0; j < 1 << _log_m; j++) {
     OD_COPY(_dst, _src, 1 << _log_n);
     _dst += _dstride;
