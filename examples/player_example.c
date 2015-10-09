@@ -375,8 +375,11 @@ int player_example_play(player_example *player) {
           ret =
            daala_decode_header_in(&player->di, &player->dc, &dsi, &dp);
           if (ret < 0) {
-            if (memcmp(dp.packet, "fishead", dp.bytes)) {
+            if (!memcmp(dp.packet, "fishead", dp.bytes)) {
               fprintf(stderr, "Ogg Skeleton streams not supported\n");
+            }
+            else {
+              fprintf(stderr, "Could not decode header. Corrupt stream?\n");
             }
             return -1;
           }
