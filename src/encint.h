@@ -169,6 +169,26 @@ int od_mc_compute_satd8_32x32_c(const unsigned char *src, int systride,
  const unsigned char *ref, int dystride);
 int od_mc_compute_satd8_64x64_c(const unsigned char *src, int systride,
  const unsigned char *ref, int dystride);
+int od_mc_compute_sad16_4x4_c(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride);
+int od_mc_compute_sad16_8x8_c(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride);
+int od_mc_compute_sad16_16x16_c(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride);
+int od_mc_compute_sad16_32x32_c(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride);
+int od_mc_compute_sad16_c(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride, int w, int h);
+int od_mc_compute_satd16_4x4_c(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride);
+int od_mc_compute_satd16_8x8_c(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride);
+int od_mc_compute_satd16_16x16_c(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride);
+int od_mc_compute_satd16_32x32_c(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride);
+int od_mc_compute_satd16_64x64_c(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride);
 void od_enc_opt_vtbl_init_c(od_enc_ctx *enc);
 
 # if defined(OD_DUMP_IMAGES)

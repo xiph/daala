@@ -1366,428 +1366,203 @@ int od_mc_compute_sad8_32x32_c(const unsigned char *src, int systride,
   return od_mc_compute_sad8_c(src, systride, ref, dystride, 32, 32);
 }
 
-#define OD_BUTTERFLY_2x2(out0, out1, out2, out3, in0, in1, in2, in3) \
-  out0 = in0 + in1; \
-  out1 = in2 + in3; \
-  out2 = in0 - in1; \
-  out3 = in2 - in3;
-
-int od_mc_compute_satd8_4x4_c(const unsigned char *src, int systride,
- const unsigned char *ref, int dystride) {
-  int satd;
-  int16_t diff[4*4];
-  int16_t *diff_p;
-  int16_t buff[4*4];
-  int16_t *buff_p;
-  int16_t a;
-  int16_t b;
-  int16_t c;
-  int16_t d;
+int od_mc_compute_sad16_c(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride, int w, int h) {
   int i;
-  satd = 0;
-  diff_p = diff;
-  for (i = 0; i < 4; i ++) {
-    diff_p[0] = (int16_t)src[0] - ref[0];
-    diff_p[1] = (int16_t)src[1] - ref[1];
-    diff_p[2] = (int16_t)src[2] - ref[2];
-    diff_p[3] = (int16_t)src[3] - ref[3];
-    diff_p += 4;
+  int j;
+  int32_t ret;
+  ret = 0;
+  for (j = 0; j < h; j++) {
+    for (i = 0; i < w; i++) {
+      ret += abs(((int16_t *)ref)[i] - ((int16_t *)src)[i]);
+    }
     src += systride;
     ref += dystride;
   }
-  /*Horizontal 1D transform.*/
-  buff_p = buff;
-  diff_p = diff;
-  for (i = 0; i < 4; i++) {
-    OD_BUTTERFLY_2x2(a, b, c, d, diff_p[0], diff_p[1], diff_p[2], diff_p[3]);
-    OD_BUTTERFLY_2x2(buff_p[0], buff_p[1], buff_p[2], buff_p[3], a, b, c, d);
-    buff_p += 4;
-    diff_p += 4;
-  }
-  /*Vertical 1D transform.*/
-  buff_p = buff;
-  diff_p = diff;
-  for (i = 0; i < 4; i++) {
-    OD_BUTTERFLY_2x2(a, b, c, d,
-     buff_p[0*4], buff_p[1*4], buff_p[2*4], buff_p[3*4]);
-    OD_BUTTERFLY_2x2(diff_p[0*4], diff_p[1*4], diff_p[2*4], diff_p[3*4],
-     a, b, c, d);
-    buff_p++;
-    diff_p++;
-  }
-  for (i = 0; i < 4*4; i++) satd += abs(diff[i]);
-  satd = (satd + 2) >> 2;
-  return satd;
+  return ret + (1 << OD_COEFF_SHIFT >> 1) >> OD_COEFF_SHIFT;
 }
 
-static void od_mc_compute_satd8_8x8_hor_c(int16_t *dest, int dystride,
+int od_mc_compute_sad16_4x4_c(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride) {
+  return od_mc_compute_sad16_c(src, systride, ref, dystride, 4, 4);
+}
+
+int od_mc_compute_sad16_8x8_c(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride) {
+  return od_mc_compute_sad16_c(src, systride, ref, dystride, 8, 8);
+}
+
+int od_mc_compute_sad16_16x16_c(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride) {
+  return od_mc_compute_sad16_c(src, systride, ref, dystride, 16, 16);
+}
+
+int od_mc_compute_sad16_32x32_c(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride) {
+  return od_mc_compute_sad16_c(src, systride, ref, dystride, 32, 32);
+}
+
+static void od_mc_hadamard_1int32_t *diff,
+ int n, int stride0, int stride1){
+  int i;
+  if (n == 4) {
+    /*4x4 is the base case as it's our smallest block size.
+      Perform the low-level 2x2 butterflies.*/
+    int32_t a;
+    int32_t b;
+    int32_t c;
+    int32_t d;
+    for (i = 0; i < 4; i++) {
+      a = diff[0*stride1] + diff[1*stride1];
+      b = diff[0*stride1] - diff[1*stride1];
+      c = diff[2*stride1] + diff[3*stride1];
+      d = diff[2*stride1] - diff[3*stride1];
+      diff[0*stride1] = a + c;
+      diff[2*stride1] = a - c;
+      diff[1*stride1] = b + d;
+      diff[3*stride1] = b - d;
+      diff += stride0;
+    }
+  }
+  else {
+    /*Recursive case for 8x8, 16x16, etc.
+      Subdivide then combine.*/
+    int n2;
+    int j;
+    int32_t *ptr0;
+    int32_t *ptr1;
+    n2 = n >> 1;
+    od_mc_hadamard_1d(diff, n2, stride0, stride1);
+    od_mc_hadamard_1d(diff + n2*stride0, n2, stride0, stride1);
+    od_mc_hadamard_1d(diff + n2*stride1, n2, stride0, stride1);
+    od_mc_hadamard_1d(diff + n2*stride0 + n2*stride1, n2, stride0, stride1);
+    ptr0 = diff;
+    ptr1 = diff + stride1*n2;
+    for (i = 0; i < n; i++){
+      for (j = 0; j < n2*stride1; j+=stride1){
+        int32_t temp;
+        temp = ptr0[j] - ptr1[j];
+        ptr0[j] += ptr1[j];
+        ptr1[j] = temp;
+      }
+      ptr0 += stride0;
+      ptr1 += stride0;
+    }
+  }
+}
+
+static int od_mc_compute_satd8(int32_t *work, int ln,
  const unsigned char *src, int systride,
  const unsigned char *ref, int rystride) {
-  int16_t *diff_p;
-  int16_t diff[8*8];
-  int16_t *dest_p;
-  int16_t a;
-  int16_t b;
-  int16_t c;
-  int16_t d;
-  int16_t e;
-  int16_t f;
-  int16_t g;
-  int16_t h;
-  int16_t a1;
-  int16_t b1;
-  int16_t c1;
-  int16_t d1;
-  int16_t e1;
-  int16_t f1;
-  int16_t g1;
-  int16_t h1;
+  int n;
   int i;
-  diff_p = diff;
-  for (i = 0; i < 8; i ++) {
-    diff_p[0] = (int16_t)src[0] - ref[0];
-    diff_p[1] = (int16_t)src[1] - ref[1];
-    diff_p[2] = (int16_t)src[2] - ref[2];
-    diff_p[3] = (int16_t)src[3] - ref[3];
-    diff_p[4] = (int16_t)src[4] - ref[4];
-    diff_p[5] = (int16_t)src[5] - ref[5];
-    diff_p[6] = (int16_t)src[6] - ref[6];
-    diff_p[7] = (int16_t)src[7] - ref[7];
-    diff_p += 8;
+  int j;
+  int32_t satd;
+  int32_t *p;
+  n = 1 << ln;
+  p = work;
+  for (i = 0; i < n; i++) {
+    for (j = 0; j < n; j++) {
+      p[j] = src[j] - ref[j];
+    }
+    p += n;
     src += systride;
     ref += rystride;
   }
-  /*Horizontal 1D transform.*/
-  dest_p = dest;
-  diff_p = diff;
-  for (i = 0; i < 8; i++) {
-    OD_BUTTERFLY_2x2(a, b, c, d, diff_p[0], diff_p[1], diff_p[2], diff_p[3]);
-    OD_BUTTERFLY_2x2(e, f, g, h, diff_p[4], diff_p[5], diff_p[6], diff_p[7]);
-    OD_BUTTERFLY_2x2(a1, b1, e1, f1, a, b, e, f);
-    OD_BUTTERFLY_2x2(c1, d1, g1, h1, c, d, g, h);
-    OD_BUTTERFLY_2x2(dest_p[0], dest_p[2], dest_p[4], dest_p[6],
-     a1, b1, e1, f1);
-    OD_BUTTERFLY_2x2(dest_p[1], dest_p[3], dest_p[5], dest_p[7],
-     c1, d1, g1, h1);
-    dest_p += dystride;
-    diff_p += 8;
-  }
+  /*Horizontal transform.*/
+  od_mc_hadamard_1d(work, n, n, 1);
+  /*Vertical transform.*/
+  od_mc_hadamard_1d(work, n, 1, n);
+  satd = 0;
+  for (i = 0; i < n*n; i++) satd += abs(work[i]);
+  return satd + (1 << ln >> 1) >> ln;
 }
 
-static void od_mc_compute_satd8_8x8_ver_c(int32_t *dest, int dystride,
-  int16_t *src, int systride) {
-  int32_t *dest_p;
-  int16_t *src_p;
-  int16_t a;
-  int16_t b;
-  int16_t c;
-  int16_t d;
-  int16_t e;
-  int16_t f;
-  int16_t g;
-  int16_t h;
-  int32_t a1;
-  int32_t b1;
-  int32_t c1;
-  int32_t d1;
-  int32_t e1;
-  int32_t f1;
-  int32_t g1;
-  int32_t h1;
+static int od_mc_compute_satd16(int32_t *work, int ln,
+ const unsigned char *src, int systride,
+ const unsigned char *ref, int rystride) {
+  int n;
   int i;
-  /*Vertical 1D transform.*/
-  src_p = src;
-  dest_p = dest;
-  for (i = 0; i < 8; i++) {
-    OD_BUTTERFLY_2x2(a, b, c, d, src_p[0*systride], src_p[1*systride],
-     src_p[2*systride], src_p[3*systride]);
-    OD_BUTTERFLY_2x2(e, f, g, h, src_p[4*systride], src_p[5*systride],
-     src_p[6*systride], src_p[7*systride]);
-    OD_BUTTERFLY_2x2(a1, b1, e1, f1, a, b, e, f);
-    OD_BUTTERFLY_2x2(c1, d1, g1, h1, c, d, g, h);
-    OD_BUTTERFLY_2x2(dest_p[0*dystride], dest_p[2*dystride],
-     dest_p[4*dystride], dest_p[6*dystride], a1, b1, e1, f1);
-    OD_BUTTERFLY_2x2(dest_p[1*dystride], dest_p[3*dystride],
-     dest_p[5*dystride], dest_p[7*dystride], c1, d1, g1, h1);
-    src_p++;
-    dest_p++;
+  int j;
+  int32_t satd;
+  int32_t *p;
+  n = 1 << ln;
+  p = work;
+  for (i = 0; i < n; i++) {
+    for (j = 0; j < n; j++) {
+      p[j] = ((int16_t *)src)[j] - ((int16_t *)ref)[j];
+    }
+    p += n;
+    src += systride;
+    ref += rystride;
   }
+  /*Horizontal transform.*/
+  od_mc_hadamard_1d(work, n, n, 1);
+  /*Vertical transform.*/
+  od_mc_hadamard_1d(work, n, 1, n);
+  satd = 0;
+  for (i = 0; i < n*n; i++) satd += abs(work[i]);
+  return satd + (1 << ln + OD_COEFF_SHIFT >> 1) >> ln + OD_COEFF_SHIFT;
+}
+
+int od_mc_compute_satd8_4x4_c(const unsigned char *src, int systride,
+ const unsigned char *ref, int rystride) {
+  int32_t work[4*4];
+  return od_mc_compute_satd8(work, 2, src, systride, ref, rystride);
+}
+
+int od_mc_compute_satd16_4x4_c(const unsigned char *src, int systride,
+ const unsigned char *ref, int rystride) {
+  int32_t work[4*4];
+  return od_mc_compute_satd16(work, 2, src, systride, ref, rystride);
 }
 
 int od_mc_compute_satd8_8x8_c(const unsigned char *src, int systride,
- const unsigned char *ref, int dystride) {
-  int satd;
-  int16_t buff[8*8];
-  int32_t buff2[8*8];
-  int i;
-  satd = 0;
-  od_mc_compute_satd8_8x8_hor_c(buff, 8, src, systride, ref, dystride);
-  od_mc_compute_satd8_8x8_ver_c(buff2, 8, buff, 8);
-  for (i = 0; i < 8*8; i++) satd += abs(buff2[i]);
-  satd = (satd + 4) >> 3;
-  return satd;
-}
-
-static void od_mc_compute_satd8_16x16_hor_c(int16_t *dest, int dystride,
- const unsigned char *src, int systride,
  const unsigned char *ref, int rystride) {
-  int16_t buff[16*16];
-  int blk_size;
-  int i;
-  int j;
-  int row_ptr;
-  int row_ptr2;
-  int dest_row_ptr;
-  int dest_row_ptr2;
-  blk_size = 16;
-  od_mc_compute_satd8_8x8_hor_c(buff, blk_size, src, systride, ref, rystride);
-  od_mc_compute_satd8_8x8_hor_c(buff + 8, blk_size,
-   src + 8, systride, ref + 8, rystride);
-  od_mc_compute_satd8_8x8_hor_c(buff + blk_size*8, blk_size,
-   src + systride*8, systride, ref + rystride*8, rystride);
-  od_mc_compute_satd8_8x8_hor_c(buff + blk_size*8 + 8, blk_size,
-   src + systride*8 + 8, systride, ref + rystride*8 + 8, rystride);
-  for (j = 0; j < 8; j++) {
-    row_ptr = j*blk_size;
-    row_ptr2 = (j + 8)*blk_size;
-    dest_row_ptr = j*dystride;
-    dest_row_ptr2 = (j + 8)*dystride;
-    for (i = 0; i < 8; i++) {
-      dest[dest_row_ptr + i] = buff[row_ptr + i] + buff[row_ptr + i + 8];
-      dest[dest_row_ptr + i + 8] = buff[row_ptr + i] - buff[row_ptr + i + 8];
-      dest[dest_row_ptr2 + i] = buff[row_ptr2 + i] + buff[row_ptr2 + i + 8];
-      dest[dest_row_ptr2 + i + 8] = buff[row_ptr2 + i]
-       - buff[row_ptr2 + i + 8];
-    }
-  }
+  int32_t work[8*8];
+  return od_mc_compute_satd8(work, 3, src, systride, ref, rystride);
 }
 
-static void od_mc_compute_satd8_16x16_ver_c(int32_t *dest, int dystride,
- int16_t *src, int systride) {
-  int32_t buff[16*16];
-  int blk_size;
-  int i;
-  int j;
-  int row_ptr;
-  int row_ptr2;
-  int dest_row_ptr;
-  int dest_row_ptr2;
-  blk_size = 16;
-  od_mc_compute_satd8_8x8_ver_c(buff, blk_size, src, systride);
-  od_mc_compute_satd8_8x8_ver_c(buff + 8, blk_size, src + 8, systride);
-  od_mc_compute_satd8_8x8_ver_c(buff + blk_size*8, blk_size,
-   src + systride*8, systride);
-  od_mc_compute_satd8_8x8_ver_c(buff + blk_size*8 + 8, blk_size,
-   src + systride*8 + 8, systride);
-  for (j = 0; j < 8; j++) {
-    row_ptr = j*blk_size;
-    row_ptr2 = (j + 8)*blk_size;
-    dest_row_ptr = j*dystride;
-    dest_row_ptr2 = (j + 8)*dystride;
-    for (i = 0; i < 8; i++) {
-      dest[dest_row_ptr + i] = buff[row_ptr + i] + buff[row_ptr2 + i];
-      dest[dest_row_ptr2 + i] = buff[row_ptr + i] - buff[row_ptr2 + i];
-      dest[dest_row_ptr + i + 8] = buff[row_ptr + i + 8]
-       + buff[row_ptr2 + i + 8];
-      dest[dest_row_ptr2 + i + 8] = buff[row_ptr + i + 8]
-       - buff[row_ptr2 + i + 8];
-    }
-  }
+int od_mc_compute_satd16_8x8_c(const unsigned char *src, int systride,
+ const unsigned char *ref, int rystride) {
+  int32_t work[8*8];
+  return od_mc_compute_satd16(work, 3, src, systride, ref, rystride);
 }
 
 int od_mc_compute_satd8_16x16_c(const unsigned char *src, int systride,
- const unsigned char *ref, int dystride) {
-  int32_t satd;
-  int16_t buff[16*16];
-  int32_t buff2[16*16];
-  int i;
-  satd = 0;
-  od_mc_compute_satd8_16x16_hor_c(buff, 16, src, systride, ref, dystride);
-  od_mc_compute_satd8_16x16_ver_c(buff2, 16, buff, 16);
-  for (i = 0; i < 16*16; i++) satd += abs(buff2[i]);
-  satd = (satd + 8) >> 4;
-  return satd;
-}
-
-static void od_mc_compute_satd8_32x32_hor_c(int16_t *dest, int dystride,
- const unsigned char *src, int systride,
  const unsigned char *ref, int rystride) {
-  int16_t buff[32*32];
-  int blk_size;
-  int i;
-  int j;
-  int row_ptr;
-  int row_ptr2;
-  int dest_row_ptr;
-  int dest_row_ptr2;
-  blk_size = 32;
-  od_mc_compute_satd8_16x16_hor_c(buff, blk_size,
-   src, systride, ref, rystride);
-  od_mc_compute_satd8_16x16_hor_c(buff + 16, blk_size,
-   src + 16, systride, ref + 16, rystride);
-  od_mc_compute_satd8_16x16_hor_c(buff + blk_size*16, blk_size,
-   src + systride*16, systride, ref + rystride*16, rystride);
-  od_mc_compute_satd8_16x16_hor_c(buff + blk_size*16 + 16, blk_size,
-   src + systride*16 + 16, systride, ref + rystride*16 + 16, rystride);
-  for (j = 0; j < 16; j++) {
-    row_ptr = j*blk_size;
-    row_ptr2 = (j + 16)*blk_size;
-    dest_row_ptr = j*dystride;
-    dest_row_ptr2 = (j + 16)*dystride;
-    for (i = 0; i < 16; i++) {
-      dest[dest_row_ptr + i] = buff[row_ptr + i] + buff[row_ptr + i + 16];
-      dest[dest_row_ptr + i + 16] = buff[row_ptr + i] - buff[row_ptr + i + 16];
-      dest[dest_row_ptr2 + i] = buff[row_ptr2 + i] + buff[row_ptr2 + i + 16];
-      dest[dest_row_ptr2 + i + 16] = buff[row_ptr2 + i]
-       - buff[row_ptr2 + i + 16];
-    }
-  }
+  int32_t work[16*16];
+  return od_mc_compute_satd8(work, 4, src, systride, ref, rystride);
 }
 
-static void od_mc_compute_satd8_32x32_ver_c(int32_t *dest, int dystride,
- int16_t *src, int systride) {
-  int32_t buff[32*32];
-  int blk_size;
-  int i;
-  int j;
-  int row_ptr;
-  int row_ptr2;
-  int dest_row_ptr;
-  int dest_row_ptr2;
-  blk_size = 32;
-  od_mc_compute_satd8_16x16_ver_c(buff, blk_size, src, systride);
-  od_mc_compute_satd8_16x16_ver_c(buff + 16, blk_size, src + 16, systride);
-  od_mc_compute_satd8_16x16_ver_c(buff + blk_size*16, blk_size,
-   src + systride*16, systride);
-  od_mc_compute_satd8_16x16_ver_c(buff + blk_size*16 + 16, blk_size,
-   src + systride*16 + 16, systride);
-  for (j = 0; j < 16; j++) {
-    row_ptr = j*blk_size;
-    row_ptr2 = (j + 16)*blk_size;
-    dest_row_ptr = j*dystride;
-    dest_row_ptr2 = (j + 16)*dystride;
-    for (i = 0; i < 16; i++) {
-      dest[dest_row_ptr + i] = buff[row_ptr + i] + buff[row_ptr2 + i];
-      dest[dest_row_ptr2 + i] = buff[row_ptr + i] - buff[row_ptr2 + i];
-      dest[dest_row_ptr + i + 16] = buff[row_ptr + i + 16]
-       + buff[row_ptr2 + i + 16];
-      dest[dest_row_ptr2 + i + 16] = buff[row_ptr + i + 16]
-       - buff[row_ptr2 + i + 16];
-    }
-  }
+int od_mc_compute_satd16_16x16_c(const unsigned char *src, int systride,
+ const unsigned char *ref, int rystride) {
+  int32_t work[16*16];
+  return od_mc_compute_satd16(work, 4, src, systride, ref, rystride);
 }
 
 int od_mc_compute_satd8_32x32_c(const unsigned char *src, int systride,
- const unsigned char *ref, int dystride) {
-  int32_t satd;
-  int16_t buff[32*32];
-  int16_t buff2[32*32];
-  int32_t buff3[32*32];
-  int32_t buff4[32*32];
-  int blk_size;
-  int i;
-  int j;
-  int row_ptr;
-  int row_ptr2;
-  satd = 0;
-  blk_size = 32;
-  /*Horizontal 1D transform.*/
-  od_mc_compute_satd8_16x16_hor_c(buff, blk_size, src, systride, ref, dystride);
-  od_mc_compute_satd8_16x16_hor_c(buff + 16, blk_size,
-   src + 16, systride, ref + 16, dystride);
-  od_mc_compute_satd8_16x16_hor_c(buff + blk_size*16, blk_size,
-   src + systride*16, systride, ref + dystride*16, dystride);
-  od_mc_compute_satd8_16x16_hor_c(buff + blk_size*16 + 16, blk_size,
-   src + systride*16 + 16, systride, ref + dystride*16 + 16, dystride);
-  for (j = 0; j < 16; j++) {
-    row_ptr = j*blk_size;
-    row_ptr2 = (j + 16)*blk_size;
-    for (i = 0; i < 16; i++) {
-      buff2[row_ptr + i] = buff[row_ptr + i] + buff[row_ptr + i + 16];
-      buff2[row_ptr + i + 16] = buff[row_ptr + i] - buff[row_ptr + i + 16];
-      buff2[row_ptr2 + i] = buff[row_ptr2 + i] + buff[row_ptr2 + i + 16];
-      buff2[row_ptr2 + i + 16] = buff[row_ptr2 + i] - buff[row_ptr2 + i + 16];
-    }
-  }
-  /*Vertical 1D transform.*/
-  od_mc_compute_satd8_16x16_ver_c(buff3, blk_size, buff2, blk_size);
-  od_mc_compute_satd8_16x16_ver_c(buff3 + 16, blk_size, buff2 + 16, blk_size);
-  od_mc_compute_satd8_16x16_ver_c(buff3 + blk_size*16, blk_size,
-   buff2 + blk_size*16, blk_size);
-  od_mc_compute_satd8_16x16_ver_c(buff3 + blk_size*16 + 16, blk_size,
-   buff2 + blk_size*16 + 16, blk_size);
-  for (j = 0; j < 16; j++) {
-    row_ptr = j*blk_size;
-    row_ptr2 = (j + 16)*blk_size;
-    for (i = 0; i < 16; i++) {
-      buff4[row_ptr + i] = buff3[row_ptr + i] + buff3[row_ptr2 + i];
-      buff4[row_ptr2 + i] = buff3[row_ptr + i] - buff3[row_ptr2 + i];
-      buff4[row_ptr + i + 16] = buff3[row_ptr + i + 16]
-       + buff3[row_ptr2 + i + 16];
-      buff4[row_ptr2 + i + 16] = buff3[row_ptr + i + 16]
-       - buff3[row_ptr2 + i + 16];
-    }
-  }
-  for (i = 0; i < blk_size*blk_size; i++) satd += abs(buff4[i]);
-  satd = (satd + 16) >> 5;
-  return satd;
+ const unsigned char *ref, int rystride) {
+  int32_t work[32*32];
+  return od_mc_compute_satd8(work, 5, src, systride, ref, rystride);
+}
+
+int od_mc_compute_satd16_32x32_c(const unsigned char *src, int systride,
+ const unsigned char *ref, int rystride) {
+  int32_t work[32*32];
+  return od_mc_compute_satd16(work, 5, src, systride, ref, rystride);
 }
 
 int od_mc_compute_satd8_64x64_c(const unsigned char *src, int systride,
- const unsigned char *ref, int dystride) {
-  int32_t satd;
-  int16_t buff[64*64];
-  int16_t buff2[64*64];
-  int32_t buff3[64*64];
-  int32_t buff4[64*64];
-  int blk_size;
-  int i;
-  int j;
-  int row_ptr;
-  int row_ptr2;
-  satd = 0;
-  blk_size = 64;
-  /*Horizontal 1D transform.*/
-  od_mc_compute_satd8_32x32_hor_c(buff, blk_size,
-   src, systride, ref, dystride);
-  od_mc_compute_satd8_32x32_hor_c(buff + 32, blk_size,
-   src + 32, systride, ref + 32, dystride);
-  od_mc_compute_satd8_32x32_hor_c(buff + blk_size*32, blk_size,
-   src + systride*32, systride, ref + dystride*32, dystride);
-  od_mc_compute_satd8_32x32_hor_c(buff + blk_size*32 + 32, blk_size,
-   src + systride*32 + 32, systride, ref + dystride*32 + 32, dystride);
-  for (j = 0; j < 32; j++) {
-    row_ptr = j*blk_size;
-    row_ptr2 = (j + 32)*blk_size;
-    for (i = 0; i < 32; i++) {
-      buff2[row_ptr + i] = buff[row_ptr + i] + buff[row_ptr + i + 32];
-      buff2[row_ptr + i + 32] = buff[row_ptr + i] - buff[row_ptr + i + 32];
-      buff2[row_ptr2 + i] = buff[row_ptr2 + i] + buff[row_ptr2 + i + 32];
-      buff2[row_ptr2 + i + 32] = buff[row_ptr2 + i] - buff[row_ptr2 + i + 32];
-    }
-  }
-  /*Vertical 1D transform.*/
-  od_mc_compute_satd8_32x32_ver_c(buff3, blk_size, buff2, blk_size);
-  od_mc_compute_satd8_32x32_ver_c(buff3 + 32, blk_size, buff2 + 32, blk_size);
-  od_mc_compute_satd8_32x32_ver_c(buff3 + blk_size*32, blk_size,
-   buff2 + blk_size*32, blk_size);
-  od_mc_compute_satd8_32x32_ver_c(buff3 + blk_size*32 + 32, blk_size,
-   buff2 + blk_size*32 + 32, blk_size);
-  for (j = 0; j < 32; j++) {
-    row_ptr = j*blk_size;
-    row_ptr2 = (j + 32)*blk_size;
-    for (i = 0; i < 32; i++) {
-      buff4[row_ptr + i] = buff3[row_ptr + i] + buff3[row_ptr2 + i];
-      buff4[row_ptr2 + i] = buff3[row_ptr + i] - buff3[row_ptr2 + i];
-      buff4[row_ptr + i + 32] = buff3[row_ptr + i + 32]
-       + buff3[row_ptr2 + i + 32];
-      buff4[row_ptr2 + i + 32] = buff3[row_ptr + i + 32]
-       - buff3[row_ptr2 + i + 32];
-    }
-  }
-  for (i = 0; i < blk_size*blk_size; i++) satd += abs(buff4[i]);
-  satd = (satd + 32) >> 6;
-  return satd;
+ const unsigned char *ref, int rystride) {
+  int32_t work[64*64];
+  return od_mc_compute_satd8(work, 6, src, systride, ref, rystride);
+}
+
+int od_mc_compute_satd16_64x64_c(const unsigned char *src, int systride,
+ const unsigned char *ref, int rystride) {
+  int32_t work[64*64];
+  return od_mc_compute_satd16(work, 6, src, systride, ref, rystride);
 }
 
 /*Computes the SAD of the input image against the given predictor.*/
@@ -1836,29 +1611,23 @@ static int32_t od_enc_sad(od_enc_ctx *enc, const unsigned char *p,
     return (*enc->opt_vtbl.mc_compute_sad_4x4)(src, iplane->ystride,
      p, pystride);
   }
-  else if (w == 8 && h == 8) {
+  if (w == 8 && h == 8) {
     return (*enc->opt_vtbl.mc_compute_sad_8x8)(src, iplane->ystride,
      p, pystride);
   }
-  else if (w == 16 && h == 16) {
+  if (w == 16 && h == 16) {
     return (*enc->opt_vtbl.mc_compute_sad_16x16)(src, iplane->ystride,
      p, pystride);
   }
-  else if (w == 32 && h == 32) {
+  if (w == 32 && h == 32) {
     return (*enc->opt_vtbl.mc_compute_sad_32x32)(src, iplane->ystride,
      p, pystride);
   }
-  else {
-    /*Default C implementation.*/
-    if (pxstride == 1) {
-      return od_mc_compute_sad8_c(src, iplane->ystride, p, pystride, w, h);
-    }
-    else {
-      OD_ASSERT(0);
-    }
+  /*Default C implementation.*/
+  if (pxstride == 1) {
+    return od_mc_compute_sad8_c(src, iplane->ystride, p, pystride, w, h);
   }
-  /* never gets here because of OD_ASSERT */
-  return -1;
+  return od_mc_compute_sad16_c(src, iplane->ystride, p, pystride, w, h);
 }
 
 /*Computes the SATD of the input image block against the given predictor.*/
@@ -1907,35 +1676,29 @@ static int32_t od_enc_satd(od_enc_ctx *enc, const unsigned char *p,
     return (*enc->opt_vtbl.mc_compute_satd_4x4)(src, iplane->ystride,
      p, pystride);
   }
-  else if (w == 8 && h == 8) {
+  if (w == 8 && h == 8) {
     return (*enc->opt_vtbl.mc_compute_satd_8x8)(src, iplane->ystride,
      p, pystride);
   }
-  else if (w == 16 && h == 16) {
+  if (w == 16 && h == 16) {
     return (*enc->opt_vtbl.mc_compute_satd_16x16)(src, iplane->ystride,
      p, pystride);
   }
-  else if (w == 32 && h == 32) {
+  if (w == 32 && h == 32) {
     return (*enc->opt_vtbl.mc_compute_satd_32x32)(src, iplane->ystride,
      p, pystride);
   }
-  else if (w == 64 && h == 64) {
+  if (w == 64 && h == 64) {
     return (*enc->opt_vtbl.mc_compute_satd_64x64)(src, iplane->ystride,
      p, pystride);
   }
-  else {
-    /*If not square SATD (on boundary always), run sad for now.
-      TODO: Try padding 0's for undefined area of difference image,
-      then apply square SATD.*/
-    if(pxstride == 1){
-      return od_mc_compute_sad8_c(src, iplane->ystride, p, pystride, w, h);
-    }
-    else{
-      OD_ASSERT(0);
-    }
+  /*If not square SATD (on boundary always), run sad for now.
+    TODO: Try padding 0's for undefined area of difference image,
+    then apply square SATD.*/
+  if(pxstride == 1){
+    return od_mc_compute_sad8_c(src, iplane->ystride, p, pystride, w, h);
   }
-  /* never gets here because of OD_ASSERT */
-  return -1;
+  return od_mc_compute_sad16_c(src, iplane->ystride, p, pystride, w, h);
 }
 
 static int od_mv_est_init_impl(od_mv_est_ctx *est, od_enc_ctx *enc) {
