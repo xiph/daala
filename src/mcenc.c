@@ -1402,7 +1402,7 @@ int od_mc_compute_sad16_32x32_c(const unsigned char *src, int systride,
   return od_mc_compute_sad16_c(src, systride, ref, dystride, 32, 32);
 }
 
-static void od_mc_hadamard_1int32_t *diff,
+static void od_mc_hadamard_1d(int32_t *diff,
  int n, int stride0, int stride1){
   int i;
   if (n == 4) {
