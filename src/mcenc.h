@@ -38,7 +38,7 @@ typedef struct od_mv_dp_node od_mv_dp_node;
 # include "mc.h"
 # include "encint.h"
 
-typedef uint16_t od_sad4[4];
+typedef int32_t od_sad4[4];
 
 /*The state information used by the motion estimation process that is not
    required by the decoder.
@@ -187,7 +187,7 @@ struct od_mv_est_ctx {
   /*This function is set switchable between SAD and SATD based on the current
      stage of ME/MC. At present, SAD function is called for stage 1, 2, and 3,
      and SATD functions are called for stage 4 (i.e. sub-pel refine).*/
-  int (*compute_distortion)(od_enc_ctx *enc, const unsigned char *p,
+  int32_t (*compute_distortion)(od_enc_ctx *enc, const unsigned char *p,
    int pystride, int pxstride, int pli, int x, int y, int log_blk_sz);
 };
 

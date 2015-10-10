@@ -35,8 +35,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #  include <stdio.h>
 
 void od_mc_compute_sad8_check(const unsigned char *src, int systride,
- const unsigned char *ref, int dystride, int w, int h, int sad) {
-  int c_sad;
+ const unsigned char *ref, int dystride, int w, int h, int32_t sad) {
+  int32_t c_sad;
   c_sad = od_mc_compute_sad8_c(src, systride, ref, dystride, w, h);
   if (sad != c_sad) {
     fprintf(stderr, "od_mc_compute_sad %ix%i check failed: %i!=%i\n",
@@ -48,11 +48,11 @@ void od_mc_compute_sad8_check(const unsigned char *src, int systride,
 
 #if defined(OD_GCC_INLINE_ASSEMBLY)
 /*Handle one 4x4 block with dxstride == 1.*/
-int od_mc_compute_sad8_4x4_sse(const unsigned char *src,
+int32_t od_mc_compute_sad8_4x4_sse(const unsigned char *src,
  int systride, const unsigned char *ref, int dystride){
   ptrdiff_t srow;
   ptrdiff_t drow;
-  int ret;
+  int32_t ret;
   __asm__ __volatile__(
     "movd (%[src]), %%mm0\n"
     "movd (%[src], %[systride]), %%mm2\n"
@@ -88,11 +88,11 @@ int od_mc_compute_sad8_4x4_sse(const unsigned char *src,
 }
 
 /*Handle one 8x8 block with dxstride == 1.*/
-int od_mc_compute_sad8_8x8_sse(const unsigned char *src,
+int32_t od_mc_compute_sad8_8x8_sse(const unsigned char *src,
  int systride, const unsigned char *ref, int dystride){
   const unsigned char *srow;
   const unsigned char *drow;
-  int ret;
+  int32_t ret;
   int i;
   srow = src;
   drow = ref;
@@ -122,11 +122,11 @@ int od_mc_compute_sad8_8x8_sse(const unsigned char *src,
 }
 
 /*Handle one 16x16 block with dxstride == 1.*/
-int od_mc_compute_sad8_16x16_sse2(const unsigned char *src,
+int32_t od_mc_compute_sad8_16x16_sse2(const unsigned char *src,
  int systride, const unsigned char *ref, int dystride){
   const unsigned char *srow;
   const unsigned char *drow;
-  int ret;
+  int32_t ret;
   int i;
   srow = src;
   drow = ref;
@@ -159,11 +159,11 @@ int od_mc_compute_sad8_16x16_sse2(const unsigned char *src,
 }
 
 /*Handle one 32x32 block with dxstride == 1.*/
-int od_mc_compute_sad8_32x32_sse2(const unsigned char *src,
+int32_t od_mc_compute_sad8_32x32_sse2(const unsigned char *src,
  int systride, const unsigned char *ref, int dystride){
   const unsigned char *srow;
   const unsigned char *drow;
-  int ret;
+  int32_t ret;
   int i;
   srow = src;
   drow = ref;

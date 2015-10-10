@@ -1505,61 +1505,61 @@ static int od_mc_compute_satd16(int32_t *work, int ln,
   return satd + (1 << ln + OD_COEFF_SHIFT >> 1) >> ln + OD_COEFF_SHIFT;
 }
 
-int od_mc_compute_satd8_4x4_c(const unsigned char *src, int systride,
+int32_t od_mc_compute_satd8_4x4_c(const unsigned char *src, int systride,
  const unsigned char *ref, int rystride) {
   int32_t work[4*4];
   return od_mc_compute_satd8(work, 2, src, systride, ref, rystride);
 }
 
-int od_mc_compute_satd16_4x4_c(const unsigned char *src, int systride,
+int32_t od_mc_compute_satd16_4x4_c(const unsigned char *src, int systride,
  const unsigned char *ref, int rystride) {
   int32_t work[4*4];
   return od_mc_compute_satd16(work, 2, src, systride, ref, rystride);
 }
 
-int od_mc_compute_satd8_8x8_c(const unsigned char *src, int systride,
+int32_t od_mc_compute_satd8_8x8_c(const unsigned char *src, int systride,
  const unsigned char *ref, int rystride) {
   int32_t work[8*8];
   return od_mc_compute_satd8(work, 3, src, systride, ref, rystride);
 }
 
-int od_mc_compute_satd16_8x8_c(const unsigned char *src, int systride,
+int32_t od_mc_compute_satd16_8x8_c(const unsigned char *src, int systride,
  const unsigned char *ref, int rystride) {
   int32_t work[8*8];
   return od_mc_compute_satd16(work, 3, src, systride, ref, rystride);
 }
 
-int od_mc_compute_satd8_16x16_c(const unsigned char *src, int systride,
+int32_t od_mc_compute_satd8_16x16_c(const unsigned char *src, int systride,
  const unsigned char *ref, int rystride) {
   int32_t work[16*16];
   return od_mc_compute_satd8(work, 4, src, systride, ref, rystride);
 }
 
-int od_mc_compute_satd16_16x16_c(const unsigned char *src, int systride,
+int32_t od_mc_compute_satd16_16x16_c(const unsigned char *src, int systride,
  const unsigned char *ref, int rystride) {
   int32_t work[16*16];
   return od_mc_compute_satd16(work, 4, src, systride, ref, rystride);
 }
 
-int od_mc_compute_satd8_32x32_c(const unsigned char *src, int systride,
+int32_t od_mc_compute_satd8_32x32_c(const unsigned char *src, int systride,
  const unsigned char *ref, int rystride) {
   int32_t work[32*32];
   return od_mc_compute_satd8(work, 5, src, systride, ref, rystride);
 }
 
-int od_mc_compute_satd16_32x32_c(const unsigned char *src, int systride,
+int32_t od_mc_compute_satd16_32x32_c(const unsigned char *src, int systride,
  const unsigned char *ref, int rystride) {
   int32_t work[32*32];
   return od_mc_compute_satd16(work, 5, src, systride, ref, rystride);
 }
 
-int od_mc_compute_satd8_64x64_c(const unsigned char *src, int systride,
+int32_t od_mc_compute_satd8_64x64_c(const unsigned char *src, int systride,
  const unsigned char *ref, int rystride) {
   int32_t work[64*64];
   return od_mc_compute_satd8(work, 6, src, systride, ref, rystride);
 }
 
-int od_mc_compute_satd16_64x64_c(const unsigned char *src, int systride,
+int32_t od_mc_compute_satd16_64x64_c(const unsigned char *src, int systride,
  const unsigned char *ref, int rystride) {
   int32_t work[64*64];
   return od_mc_compute_satd16(work, 6, src, systride, ref, rystride);
@@ -3547,7 +3547,7 @@ static void od_mv_est_calc_sads(od_mv_est_ctx *est) {
         for (vx = 0; vx < nhmvbs; vx++) {
           oc = (vx & 1) ^ ((vy & 1) << 1 | (vy & 1));
           for (s = 0; s < smax; s++) {
-            sad_cache_row[vx][s] = (uint16_t)od_mv_est_sad(est,
+            sad_cache_row[vx][s] = od_mv_est_sad(est,
              vx << log_mvb_sz, vy << log_mvb_sz, oc, s, log_mvb_sz);
           }
           /*While we're here, fill in the block's setup state.*/
@@ -3881,9 +3881,9 @@ static void od_mv_est_decimate(od_mv_est_ctx *est) {
         int k;
         mask = (1 << (log_mvb_sz + 1)) - 1;
         for (k = 0; k < 4; k++) {
+          int32_t ddd;
           int cx;
           int cy;
-          int ddd;
           int s;
           cx = vx + (OD_CDX[k] << log_mvb_sz);
           if (cx < 0 || cx > nhmvbs) continue;
