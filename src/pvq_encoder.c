@@ -394,7 +394,7 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
     *max_theta = 0;
     noref = 0;
   }
-  if (!od_vector_is_null(r0, n) && corr > 0) {
+  if (n <= OD_MAX_PVQ_SIZE && !od_vector_is_null(r0, n) && corr > 0) {
     /* Perform theta search only if prediction is useful. */
     theta = acos(corr);
     m = od_compute_householder(r, n, gr, &s);
@@ -447,7 +447,8 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   /* Don't bother with no-reference version if there's a reasonable
      correlation. The only exception is luma on a keyframe because
      H/V prediction is unreliable. */
-  if ((is_keyframe && pli == 0) || corr < .5 || cg < 2.) {
+  if (n <= OD_MAX_PVQ_SIZE &&
+   ((is_keyframe && pli == 0) || corr < .5 || cg < 2.)) {
     double x1[MAXN];
     for (i = 0; i < n; i++) x1[i] = x0[i];
     /* Search for the best gain (haven't determined reasonable range yet). */

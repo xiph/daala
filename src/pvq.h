@@ -47,6 +47,9 @@ extern const int OD_QM8_Q4_HVS[];
 #define OD_PVQ_SKIP_ZERO 1
 #define OD_PVQ_SKIP_COPY 2
 
+/* Maximum size for coding a PVQ band. */
+#define OD_MAX_PVQ_SIZE (128)
+
 /* Largest PVQ partition is half the coefficients of largest block size. */
 #define MAXN (OD_BSIZE_MAX*OD_BSIZE_MAX/2)
 
