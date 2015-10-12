@@ -55,10 +55,10 @@ typedef struct daala_enc_ctx daala_enc_ctx;
  * The basic steps are:
  * - Fill in a #daala_info structure with details on the format of the video
  *    you wish to encode.
- * - Allocate a #daala_enc_ctx handle with daala_encode_alloc().
+ * - Allocate a #daala_enc_ctx handle with daala_encode_create().
  * - Perform any additional encoder configuration required with
  *    daala_encode_ctl().
- * - Repeatedly call daala_encode_flusheader() to retrieve all the header
+ * - Repeatedly call daala_encode_flush_header() to retrieve all the header
  *    packets.
  * - For each uncompressed frame:
  *   - Submit the compressed frame via daala_encode_img_in().
