@@ -64,6 +64,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 /*Smallest motion compensation partition sizes are 8x8.*/
 # define OD_LOG_MVBSIZE_MIN (3)
 # define OD_MVBSIZE_MIN (1 << OD_LOG_MVBSIZE_MIN)
+
+/*The log of the maximum length of the side of a block that
+   has optimized copy variants.*/
+# define OD_LOG_COPYBSIZE_MAX (6)
+
 /*log(2) of the spacing between level-0 MV grid points.*/
 # define OD_LOG_MVB_DELTA0 (OD_LOG_MVBSIZE_MAX - OD_LOG_MVBSIZE_MIN)
 /*The number of different MV block sizes.*/

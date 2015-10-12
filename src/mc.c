@@ -31,6 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "logging.h"
 #include "mc.h"
 #include "state.h"
+#include "util.h"
 
 /*Motion compensation routines shared between the encoder and decoder.*/
 
@@ -90,8 +91,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
   For now, we add the extra padding, but we should eventually add
    special-casing to the code to avoid the additional ~useless buffer
    overhead. */
-void od_mc_predict1fmv8_c(unsigned char *dst, const unsigned char *src,
- int systride, int32_t mvx, int32_t mvy,
+void od_mc_predict1fmv8_c(od_state *state, unsigned char *dst,
+ const unsigned char *src, int systride, int32_t mvx, int32_t mvy,
  int log_xblk_sz, int log_yblk_sz) {
   int mvxf;
   int mvyf;
@@ -195,11 +196,8 @@ void od_mc_predict1fmv8_c(unsigned char *dst, const unsigned char *src,
   }
   /*MC with full-pel MV, i.e. integer position.*/
   else {
-    for (j = 0; j < yblk_sz; j++) {
-      OD_COPY(dst_p, src_p, xblk_sz);
-      src_p += systride;
-      dst_p += xblk_sz;
-    }
+    OD_ASSERT(log_xblk_sz == log_yblk_sz);
+    (*state->opt_vtbl.od_copy_nxn[log_xblk_sz])(dst_p, xblk_sz, src_p, systride);
   }
 }
 
@@ -208,7 +206,7 @@ static void od_mc_predict1fmv(od_state *state, unsigned char *dst,
  int log_xblk_sz, int log_yblk_sz) {
   OD_ASSERT(OD_SUBPEL_TOP_APRON_SZ <= OD_RESAMPLE_PADDING
    && OD_SUBPEL_BOTTOM_APRON_SZ <= OD_RESAMPLE_PADDING);
-  (*state->opt_vtbl.mc_predict1fmv)(dst, src, systride, mvx, mvy,
+  (*state->opt_vtbl.mc_predict1fmv)(state, dst, src, systride, mvx, mvy,
    log_xblk_sz, log_yblk_sz);
 }
 

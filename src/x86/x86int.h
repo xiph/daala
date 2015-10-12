@@ -34,7 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 void od_state_opt_vtbl_init_x86(od_state *_state);
 
-void od_mc_predict1fmv8_sse2(unsigned char *_dst,const unsigned char *_src,
+void od_mc_predict1fmv8_sse2(od_state *state, unsigned char *_dst,const unsigned char *_src,
  int _systride,int32_t _mvx,int32_t _mvy,
  int _log_xblk_sz,int _log_yblk_sz);
 void od_mc_blend_full8_sse2(unsigned char *_dst,int _dystride,
@@ -61,5 +61,10 @@ void od_bin_fdct8x8_avx2(od_coeff *y, int ystride,
  const od_coeff *x, int xstride);
 void od_bin_idct8x8_avx2(od_coeff *x, int xstride,
  const od_coeff *y, int ystride);
-
+void od_copy_16x16_sse2(unsigned char *_dst, int _dstride,
+ const unsigned char *_src, int _sstride);
+void od_copy_32x32_sse2(unsigned char *_dst, int _dstride,
+ const unsigned char *_src, int _sstride);
+void od_copy_64x64_sse2(unsigned char *_dst, int _dstride,
+ const unsigned char *_src, int _sstride);
 #endif

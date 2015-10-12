@@ -38,6 +38,7 @@ typedef struct od_pvq_codeword_ctx od_pvq_codeword_ctx;
 # include "pvq.h"
 # include "adapt.h"
 # include "generic_code.h"
+# include "util.h"
 #include "intra.h"
 
 extern const od_coeff OD_DC_RES[3];
@@ -95,8 +96,8 @@ extern const int *const OD_VERT_SETUP_DY[4][4];
 
 /*The shared (encoder and decoder) functions that have accelerated variants.*/
 struct od_state_opt_vtbl{
-  void (*mc_predict1fmv)(unsigned char *_dst, const unsigned char *_src,
-   int _systride, int32_t _mvx, int32_t _mvy,
+  void (*mc_predict1fmv)(od_state *state, unsigned char *_dst,
+   const unsigned char *_src, int _systride, int32_t _mvx, int32_t _mvy,
    int _log_xblk_sz, int _log_yblk_sz);
   void (*mc_blend_full)(unsigned char *_dst, int _dystride,
    const unsigned char *_src[4], int _log_xblk_sz, int _log_yblk_sz);
@@ -111,6 +112,7 @@ struct od_state_opt_vtbl{
   void (*restore_fpu)(void);
   od_dct_func_2d fdct_2d[OD_NBSIZES + 1];
   od_dct_func_2d idct_2d[OD_NBSIZES + 1];
+  od_copy_nxn_func od_copy_nxn[OD_LOG_COPYBSIZE_MAX + 1];
 };
 
 # if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
@@ -261,8 +263,8 @@ int od_state_dump_img(od_state *state, od_img *img, const char *tag);
 /*Shared accelerated functions.*/
 
 /*Default pure-C implementations.*/
-void od_mc_predict1fmv8_c(unsigned char *_dst, const unsigned char *_src,
- int _systride, int32_t _mvx, int32_t _mvy,
+void od_mc_predict1fmv8_c(od_state *state, unsigned char *_dst,
+ const unsigned char *_src, int _systride, int32_t _mvx, int32_t _mvy,
  int _log_xblk_sz, int _log_yblk_sz);
 void od_mc_blend_full8_c(unsigned char *_dst, int _dystride,
  const unsigned char *_src[4], int _log_xblk_sz, int _log_yblk_sz);

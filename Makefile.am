@@ -33,6 +33,7 @@ noinst_HEADERS = \
 	src/quantizer.h \
 	src/state.h \
 	src/tf.h \
+	src/util.h \
 	src/zigzag.h \
 	src/accounting.h \
 	src/x86/cpu.h \
@@ -92,6 +93,7 @@ src_libdaalabase_la_SOURCES = \
 	src/state.c \
 	src/switch_table.c \
 	src/tf.c \
+	src/util.c \
 	src/zigzag4.c \
 	src/zigzag8.c \
 	src/zigzag16.c \
@@ -101,6 +103,7 @@ src_libdaalabase_la_SOURCES = \
 if ENABLE_X86ASM
 src_libdaalabase_la_SOURCES += \
 	src/x86/sse2mc.c \
+	src/x86/sse2util.c \
 	src/x86/x86state.c
 endif
 
@@ -332,6 +335,7 @@ tools_upsample_SOURCES = \
 if ENABLE_X86ASM
 tools_upsample_SOURCES += \
 	src/x86/sse2mc.c \
+	src/x86/sse2util.c \
 	src/x86/x86state.c
 endif
 tools_upsample_CFLAGS = $(THEORA_CFLAGS) $(OGG_CFLAGS) $(PNG_CFLAGS)
