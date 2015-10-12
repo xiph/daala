@@ -493,10 +493,11 @@ int fetch_and_process_video(av_input *avin, ogg_page *page,
     /*Pull the packets from the previous frame, now that we know whether or not
        we can read the current one.
       This is used to set the e_o_s bit on the final packet.*/
-    while (daala_encode_packet_out(dd, last, &dp)) {
+    while (daala_encode_packet_out(dd, &dp)) {
       ogg_packet op;
 
       daala_to_ogg_packet(&op, &dp);
+      op.e_o_s = last;
 
       ogg_stream_packetin(vo, &op);
     }
