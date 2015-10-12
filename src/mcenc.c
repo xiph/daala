@@ -3344,10 +3344,24 @@ static const od_mv_err_node *OD_ERRDOM[OD_MC_LEVEL_MAX] = {
 static int od_mv_dddr_cmp(int32_t dd1, int dr1,
  int32_t dd2, int dr2) {
   int64_t diff;
-  /*dr == 0 and dd != 0 should not be possible, but we check for it anyway just
-     in case, to prevent a bug from trashing the whole optimization process.*/
+  /*dr == 0 (infinite slope) is a special case.
+    We handle it as the limit of the non-infinite case.
+    We remove all vertices where it is free to do so and it helps distortion
+     immediately, and delay looking at vertices that hurt distortion but don't
+     affect rate until they are the only thing left.
+    Vertices that change neither rate nor distortion we are free to remove at
+     any time, but we choose to do so up front, before vertices that do affect
+     rate.
+    Otherwise they would get sandwiched between "things that hurt distortion
+     and hurt rate" and "things that hurt distortion and don't affect rate".
+    This gives the following total ordering (from first to last):
+                      ||                  ||         ||
+      dr == 0, dd < 0 || dr == 0, dd == 0 || dr != 0 || dr == 0, dd > 0
+                      ||                  ||         ||
+    When dr != 0, items are sorted by (-dd/dr), whereas in the
+     classes with dr == 0, they are sorted by dd directly (not negated).*/
   if (dr1 == 0) {
-    return dr2 == 0 ? OD_SIGNI(dd2 - dd1) : (OD_SIGNI(dd1) << 1) - 1;
+    return dr2 == 0 ? OD_SIGNI(dd1 - dd2) : (OD_SIGNI(dd1) << 1) - 1;
   }
   else if (dr2 == 0) return (OD_SIGNI(-dd2) << 1) + 1;
   diff = dd2*(int64_t)dr1 - dd1*(int64_t)dr2;
