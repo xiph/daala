@@ -8,6 +8,6 @@ Description: Daala encoding library
 Version: @PACKAGE_VERSION@
 Requires.private: @PC_PNG_REQUIRES@
 Conflicts:
-Libs: -L${libdir} -ldaalaenc
-Libs.private: -ldaalabase @PC_PNG_LIBS@ @LIBM@
+Libs: -L${libdir} -ldaalaenc -ldaalabase
+Libs.private: @PC_PNG_LIBS@ @LIBM@
 Cflags: -I${includedir}/daala
