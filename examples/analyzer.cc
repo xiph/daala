@@ -94,6 +94,7 @@ public:
   bool setBandFlagsBuffer(unsigned int *buf, size_t buf_sz);
   bool setAccountingEnabled(bool enable);
   bool getAccountingStruct(od_accounting **acct);
+  bool setDeringFlagsBuffer(unsigned char *buf, size_t buf_sz);
 };
 
 static void ogg_to_daala_packet(daala_packet *dp, ogg_packet *op) {
@@ -287,6 +288,14 @@ bool DaalaDecoder::getAccountingStruct(od_accounting **acct) {
    OD_SUCCESS;
 }
 
+bool DaalaDecoder::setDeringFlagsBuffer(unsigned char *buf, size_t buf_sz) {
+  if (dctx == NULL) {
+    return false;
+  }
+  return daala_decode_ctl(dctx, OD_DECCTL_SET_DERING_BUFFER, buf, buf_sz) ==
+   OD_SUCCESS;
+}
+
 #define MIN_ZOOM (1)
 #define MAX_ZOOM (4)
 
@@ -316,10 +325,14 @@ private:
   bool show_skip;
   bool show_noref;
   bool show_padding;
+  bool show_dering;
 
   od_accounting *acct;
   bool show_bits;
   double *bpp_q3;
+
+  unsigned char *dering;
+  unsigned int dering_len;
 
   int plane_mask;
   const wxString path;
@@ -354,6 +367,7 @@ public:
   void setShowNoRef(bool show_noref);
   void setShowPadding(bool show_padding);
   void setShowBits(bool show_bits);
+  void setShowDering(bool show_dering);
   void setShowPlane(bool show_plane, int mask);
 
   bool hasPadding();
@@ -407,6 +421,7 @@ enum {
   wxID_SHOW_NOREF,
   wxID_SHOW_PADDING,
   wxID_SHOW_BITS,
+  wxID_SHOW_DERING,
   wxID_SHOW_Y,
   wxID_SHOW_U,
   wxID_SHOW_V,
@@ -425,6 +440,7 @@ BEGIN_EVENT_TABLE(TestFrame, wxFrame)
   EVT_MENU(wxID_SHOW_NOREF, TestFrame::onFilter)
   EVT_MENU(wxID_SHOW_PADDING, TestFrame::onPaddingChange)
   EVT_MENU(wxID_SHOW_BITS, TestFrame::onBitsChange)
+  EVT_MENU(wxID_SHOW_DERING, TestFrame::onFilter)
   EVT_MENU(wxID_SHOW_Y, TestFrame::onYChange)
   EVT_MENU(wxID_SHOW_U, TestFrame::onUChange)
   EVT_MENU(wxID_SHOW_V, TestFrame::onVChange)
@@ -436,8 +452,9 @@ END_EVENT_TABLE()
 TestPanel::TestPanel(wxWindow *parent, const wxString &path) : wxPanel(parent),
  pixels(NULL), zoom(0), bsize(NULL), bsize_len(0), show_blocks(false),
  flags(NULL), flags_len(0), show_skip(false), show_noref(false),
- show_padding(false), acct(NULL), show_bits(false), bpp_q3(NULL),
- plane_mask(OD_ALL_MASK), path(path) {
+ show_padding(false), show_dering(false), acct(NULL), show_bits(false),
+ bpp_q3(NULL), dering(NULL), dering_len(0), plane_mask(OD_ALL_MASK),
+ path(path) {
 }
 
 TestPanel::~TestPanel() {
@@ -491,6 +508,13 @@ bool TestPanel::open(const wxString &path) {
     close();
     return false;
   }
+  dering_len = nhsb*nvsb;
+  dering = (unsigned char *)malloc(dering_len);
+  if (!dd.setDeringFlagsBuffer(dering, dering_len)) {
+    fprintf(stderr,"Could not set dering flags buffer\n");
+    close();
+    return false;
+  }
   if (!nextFrame()) {
     close();
     return false;
@@ -509,6 +533,8 @@ void TestPanel::close() {
   flags = NULL;
   free(bpp_q3);
   bpp_q3 = NULL;
+  free(dering);
+  dering = NULL;
 }
 
 int TestPanel::getDecodeWidth() const {
@@ -560,6 +586,7 @@ void TestPanel::render() {
   unsigned char *p_row = pixels;
   double maxval=0;
   double norm;
+  int nhsb = dd.getFrameWidth() >> OD_LOG_BSIZE0 + OD_NBSIZES - 1;
   for (int j = 0; j < getDecodeHeight(); j++) {
     for (int i = 0; i < getDecodeWidth(); i++) {
       double bpp = bpp_q3[j*dd.getFrameWidth() + i];
@@ -649,6 +676,15 @@ void TestPanel::render() {
           crval = 255 - (int64_t)(127*bpp);
         }
 #endif
+      }
+      if (show_dering) {
+        int sbx;
+        int sby;
+        sbx = i >> OD_LOG_BSIZE0 + OD_NBSIZES - 1;
+        sby = j >> OD_LOG_BSIZE0 + OD_NBSIZES - 1;
+        if (!dering[sby*nhsb + sbx]) {
+          yval = 0;
+        }
       }
       if (show_blocks) {
         unsigned char d = OD_BLOCK_SIZE4x4(bsize, bstride, i >> 2, j >> 2);
@@ -752,6 +788,10 @@ void TestPanel::setShowPadding(bool show_padding) {
 
 void TestPanel::setShowBits(bool show_bits) {
   this->show_bits = show_bits;
+}
+
+void TestPanel::setShowDering(bool show_dering) {
+  this->show_dering = show_dering;
 }
 
 void TestPanel::setShowPlane(bool show_plane, int mask) {
@@ -887,6 +927,7 @@ void TestPanel::restart() {
   dd.setBandFlagsBuffer(flags, flags_len);
   dd.setAccountingEnabled(true);
   dd.getAccountingStruct(&acct);
+  dd.setDeringFlagsBuffer(dering, dering_len);
   nextFrame();
 }
 
@@ -975,6 +1016,8 @@ TestFrame::TestFrame() : wxFrame(NULL, wxID_ANY, _T("Daala Stream Analyzer"),
    _("Show padding area"));
   viewMenu->AppendCheckItem(wxID_SHOW_BITS, _T("Bit &Accounting\tCtrl-A"),
    _("Show bit accounting"));
+  viewMenu->AppendCheckItem(wxID_SHOW_DERING, _T("&Deringing\tCtrl-D"),
+   _("Show deringing filter"));
   viewMenu->AppendSeparator();
   viewMenu->AppendCheckItem(wxID_SHOW_Y, _T("&Y plane\tCtrl-Y"),
    _("Show Y plane"));
@@ -1044,6 +1087,7 @@ void TestFrame::onFilter(wxCommandEvent &WXUNUSED(event)) {
   panel->setShowBlocks(GetMenuBar()->IsChecked(wxID_SHOW_BLOCKS));
   panel->setShowSkip(GetMenuBar()->IsChecked(wxID_SHOW_SKIP));
   panel->setShowNoRef(GetMenuBar()->IsChecked(wxID_SHOW_NOREF));
+  panel->setShowDering(GetMenuBar()->IsChecked(wxID_SHOW_DERING));
   panel->render();
   panel->Refresh(false);
 }

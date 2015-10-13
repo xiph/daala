@@ -68,6 +68,7 @@ static int od_dec_init(od_dec_ctx *dec, const daala_info *info,
   dec->user_flags = NULL;
   dec->user_mv_grid = NULL;
   dec->user_mc_img = NULL;
+  dec->user_dering = NULL;
   data_sz = 0;
   output_bits = 8 + (info->bitdepth_mode - OD_BITDEPTH_MODE_8)*2;
   output_bytes = output_bits > 8 ? 2 : 1;
@@ -197,6 +198,15 @@ int daala_decode_ctl(daala_dec_ctx *dec, int req, void *buf, size_t buf_sz) {
       return OD_SUCCESS;
     }
 #endif
+    case OD_DECCTL_SET_DERING_BUFFER : {
+      OD_RETURN_CHECK(dec, OD_EFAULT);
+      OD_RETURN_CHECK(buf, OD_EFAULT);
+      OD_RETURN_CHECK(
+       buf_sz == sizeof(unsigned char)*dec->state.nvsb*dec->state.nhsb,
+       OD_EINVAL);
+      dec->user_dering = (unsigned char *)buf;
+      return OD_SUCCESS;
+    }
     default: return OD_EIMPL;
   }
 }
@@ -1082,6 +1092,19 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
           }
         }
       }
+    }
+    if (dec->user_dering != NULL) {
+      for (sby = 0; sby < nvsb; sby++) {
+        for (sbx = 0; sbx < nhsb; sbx++) {
+          dec->user_dering[sby*nhsb + sbx] =
+           state->dering_flags[sby*nhsb + sbx];
+        }
+      }
+    }
+  }
+  else {
+    if (dec->user_dering != NULL) {
+      OD_CLEAR(dec->user_dering, nhsb*nvsb);
     }
   }
   for (pli = 0; pli < nplanes; pli++) {

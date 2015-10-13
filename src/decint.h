@@ -57,6 +57,9 @@ struct daala_dec_ctx {
   int acct_enabled;
   od_accounting_internal acct;
 #endif
+  /*User provided buffer for storing the deringing filter flags per superblock.
+    This is set via daala_decode_ctl with OD_DECCTL_SET_DERING_BUFFER.*/
+  unsigned char *user_dering;
 };
 
 /*Stub for the daala_setup_info.*/
