@@ -164,8 +164,8 @@ static const unsigned short __attribute__((aligned(16),used)) OD_BILV[512]={
 };
 
 #if defined(OD_CHECKASM)
-void od_mc_predict1fmv8_check(unsigned char *_dst,const unsigned char *_src,
- int _systride,int32_t _mvx,int32_t _mvy,
+void od_mc_predict1fmv8_check(od_state *state, unsigned char *_dst,
+ const unsigned char *_src, int _systride,int32_t _mvx,int32_t _mvy,
  int _log_xblk_sz,int _log_yblk_sz){
   unsigned char dst[OD_MVBSIZE_MAX*OD_MVBSIZE_MAX];
   int           xblk_sz;
@@ -176,7 +176,7 @@ void od_mc_predict1fmv8_check(unsigned char *_dst,const unsigned char *_src,
   xblk_sz=1<<_log_xblk_sz;
   yblk_sz=1<<_log_yblk_sz;
   failed=0;
-  od_mc_predict1fmv8_c(dst,_src,_systride,_mvx,_mvy,
+  od_mc_predict1fmv8_c(state, dst,_src,_systride,_mvx,_mvy,
    _log_xblk_sz,_log_yblk_sz);
   for(j=0;j<yblk_sz;j++){
     for(i=0;i<xblk_sz;i++){
@@ -540,7 +540,7 @@ void od_mc_predict1fmv8_sse2(od_state *state, unsigned char *dst,
      systride);
   }
 #if defined(OD_CHECKASM)
-  od_mc_predict1fmv8_check(dst, src, systride, mvx, mvy,
+  od_mc_predict1fmv8_check(state, dst, src, systride, mvx, mvy,
    log_xblk_sz, log_yblk_sz);
   /*fprintf(stderr,"od_mc_predict1fmv8 %ix%i check finished.\n",
    1<<_log_xblk_sz,1<<_log_yblk_sz);*/
