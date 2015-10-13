@@ -100,7 +100,7 @@ typedef struct {
 typedef struct daala_dec_ctx daala_dec_ctx;
 /**Setup information.
    This contains auxiliary information decoded from the setup header by
-    daala_decode_header_in() to be passed to daala_decode_alloc().
+    daala_decode_header_in() to be passed to daala_decode_create().
    It can be re-used to initialize any number of decoders, and can be freed
     via daala_setup_free() at any time.*/
 typedef struct daala_setup_info daala_setup_info;
@@ -162,7 +162,7 @@ int daala_decode_header_in(daala_info *info,
  *               daala_decode_header_in().
  * \return The initialized #daala_dec_ctx handle.
  * \retval NULL If the decoding parameters were invalid.*/
-daala_dec_ctx *daala_decode_alloc(const daala_info *info,
+daala_dec_ctx *daala_decode_create(const daala_info *info,
  const daala_setup_info *setup);
 /**Releases all storage used for the decoder setup information.
  * This should be called after you no longer want to create any decoders for

@@ -322,7 +322,7 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
   }
 #endif
 #if defined(OD_ENCODER_CHECK)
-  enc->dec = daala_decode_alloc(info, NULL);
+  enc->dec = daala_decode_create(info, NULL);
 #endif
 #if defined(OD_DUMP_BSIZE_DIST)
   suf = getenv("OD_DUMP_BSIZE_DIST_SUFFIX");

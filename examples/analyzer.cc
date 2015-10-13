@@ -163,7 +163,7 @@ bool DaalaDecoder::readHeaders() {
       }
       if (ret == 0) {
         done = true;
-        dctx = daala_decode_alloc(&di, dsi);
+        dctx = daala_decode_create(&di, dsi);
         if (dctx == NULL) {
           return false;
         }

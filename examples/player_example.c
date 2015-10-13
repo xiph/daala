@@ -391,7 +391,7 @@ int player_example_play(player_example *player) {
             return -1;
           }
           if (ret != 0) break;
-          player->dctx = daala_decode_alloc(&player->di, dsi);
+          player->dctx = daala_decode_create(&player->di, dsi);
           if (player->dctx == NULL) return -1;
           daala_setup_free(dsi);
           dsi = NULL;
