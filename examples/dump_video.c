@@ -340,7 +340,7 @@ int main(int argc, char *argv[]) {
   /* and now we have it all.  initialize decoders */
   if (daala_p) {
     dump_comments(&dc);
-    dd = daala_decode_alloc(&di, ds);
+    dd = daala_decode_create(&di, ds);
     fprintf(stderr, "Ogg logical stream %lx is Daala %dx%d %.02f fps video\n",
      to.serialno, di.pic_width, di.pic_height,
      di.timebase_numerator/(double)di.timebase_denominator*di.frame_duration);

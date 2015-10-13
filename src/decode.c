@@ -119,7 +119,7 @@ static void od_dec_clear(od_dec_ctx *dec) {
   od_state_clear(&dec->state);
 }
 
-daala_dec_ctx *daala_decode_alloc(const daala_info *info,
+daala_dec_ctx *daala_decode_create(const daala_info *info,
  const daala_setup_info *setup) {
   od_dec_ctx *dec;
   if (info == NULL) return NULL;
