@@ -164,7 +164,9 @@ DS_TARGET:=downsample
 US_LOCAL_CSOURCES = \
 vidinput.c \
 y4m_input.c \
-upsample.c
+upsample.c \
+filter.c \
+util.c
 
 US_LIB_CSOURCES = \
 dct.c \
