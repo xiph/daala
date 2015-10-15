@@ -33,9 +33,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # endif
 
 void od_state_opt_vtbl_init_x86(od_state *_state);
-const od_filter_dering_direction_func
+extern const od_filter_dering_direction_func
  OD_DERING_DIRECTION_SSE2[OD_DERINGSIZES];
-const od_filter_dering_orthogonal_func
+extern const od_filter_dering_orthogonal_func
  OD_DERING_ORTHOGONAL_SSE2[OD_DERINGSIZES];
 void od_mc_predict1fmv8_sse2(od_state *state, unsigned char *_dst,
  const unsigned char *_src, int _systride,int32_t _mvx,int32_t _mvy,
