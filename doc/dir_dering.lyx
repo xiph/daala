@@ -96,7 +96,7 @@ This document describes a deringing filter that takes into account the direction
  The filter works by identifying the direction of each block and then adaptively
  filtering along the identified direction.
  In a second pass, the blocks are also filtered in a different direction,
- with a more conservative thresholds to avoid blurring edges.
+ with more conservative thresholds to avoid blurring edges.
 \end_layout
 
 \begin_layout Section
@@ -107,7 +107,7 @@ Direction Search
 The first step is to divide the image into blocks of fixed or variable size.
  Variable-size blocks make it possible to use large blocks on long, continuous
  edges and small blocks where edges intersect or change direction.
- Fixed block size is easier to implement and does not require signaling
+ A fixed block size is easier to implement and does not require signaling
  the sizes on a block-by-block basis.
  For this work, we consider a fixed block size of 8x8.
 \end_layout
@@ -117,7 +117,7 @@ Once the image is divided into blocks, we determine which direction best
  matches the pattern in each block.
  The direction is only signaled when operating as an image encoder.
  One way to determine the direction is to minimize mean squared difference
- (MSD) between the input block and perfectly directional block.
+ (MSD) between the input block and a perfectly directional block.
  A perfectly directional block is a block for which each line along a certain
  direction has a constant value.
  For each direction, we assign a line number to each pixel, as shown in
@@ -327,7 +327,7 @@ The directional filter for pixel
  is defined as the 7-tap non-linear filter 
 \begin_inset Formula 
 \begin{gather}
-y\left(i,j\right)=x\left(i,j\right)+\frac{1}{W}\sum_{k=1}^{3}w_{k}\left[f\left(x\left(i,j\right)-\left(i+\left\lfloor kd_{y}\right\rfloor ,j+\left\lfloor kd_{x}\right\rfloor \right),T_{d}\right)\right.\nonumber \\
+y\left(i,j\right)=x\left(i,j\right)+\frac{1}{W}\sum_{k=1}^{3}w_{k}\left[f\left(x\left(i,j\right)-x\left(i+\left\lfloor kd_{y}\right\rfloor ,j+\left\lfloor kd_{x}\right\rfloor \right),T_{d}\right)\right.\nonumber \\
 \left.+f\left(x\left(i,j\right)-\left(i-\left\lfloor kd_{y}\right\rfloor ,j-\left\lfloor kd_{x}\right\rfloor \right),T_{d}\right)\right]\label{eq:directional_filter}
 \end{gather}
 
@@ -1375,7 +1375,7 @@ key "Testing-draft"
  rate reduction over that range was 6.5% for PSNR, 4.7% for PSNR-HVS, 5.6%
  for SSIM and -6.0% (regression) for FAST-SSIM.
  Visual inspection confirmed that the quality is indeed improved, despite
- the regression in FAST-SSIM result.
+ the regression in the FAST-SSIM result.
  
 \end_layout
 
