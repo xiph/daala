@@ -89,6 +89,7 @@ static int next_plane(int plane_mask);
 static void wait_to_refresh(uint32_t *previous_ticks, uint32_t ms_per_frame);
 
 int player_example_init(player_example *player);
+void build_yuv_to_rgb_table();
 player_example *player_example_create();
 int player_example_clear(player_example *player);
 int player_example_free(player_example *player);
@@ -464,6 +465,7 @@ int main(int argc, char *argv[]) {
   char *input;
   int start_paused;
   player_example *player;
+  build_yuv_to_rgb_table();
   daala_log_init();
   if ((argc == 3) && (memcmp(argv[1], "-p", 2) == 0)) {
     start_paused = 1;
@@ -529,6 +531,50 @@ int main(int argc, char *argv[]) {
 #define OD_CLAMP255(x) \
   ((unsigned char)((((x) < 0) - 1) & ((x) | -((x) > 255))))
 
+/*Lookup Tables for YUV-to-RGB Conversion*/
+static uint8_t rvalTable [256*256];
+static uint8_t gvalTable [256*256*256];
+static uint8_t bvalTable [256*256];
+
+void build_yuv_to_rgb_table() {
+  int y;
+  int cr;
+  int cb;
+  int64_t yval;
+  int64_t cbval;
+  int64_t crval;
+  unsigned rval;
+  unsigned gval;
+  unsigned bval;
+  int plane_mask = OD_ALL_MASK;
+  for (y = 0; y < 256; y ++) {
+    yval = (plane_mask & OD_LUMA_MASK) * (y - 16)
+           + (((plane_mask & OD_LUMA_MASK) ^ OD_LUMA_MASK) << 7);
+    for (cr = 0; cr < 256; cr ++) {
+      crval = ((plane_mask & OD_CR_MASK) >> 2) * (cr - 128);
+      rval = OD_CLAMPI(0, (int32_t)OD_DIV_ROUND(
+       2916394880000LL*yval + 4490222169144LL*crval, 9745792000LL), 65535);
+      rvalTable[y*256+cr] = rval >> 8;
+    }
+    for (cb = 0; cb < 256; cb ++) {
+      cbval = ((plane_mask & OD_CB_MASK) >> 1) * (cb - 128);
+      bval = OD_CLAMPI(0, (int32_t)OD_DIV_ROUND(
+       2916394880000LL*yval + 5290866304968LL*cbval, 9745792000LL), 65535);
+      bvalTable[y*256+cb] = bval >> 8;
+    }
+    for (cb = 0; cb < 256; cb ++) {
+      for (cr = 0; cr < 256; cr ++) {
+        crval = ((plane_mask & OD_CR_MASK) >> 2) * (cr - 128);
+        cbval = ((plane_mask & OD_CB_MASK) >> 1) * (cb - 128);
+        gval = OD_CLAMPI(0, (int32_t)OD_DIV_ROUND(
+         2916394880000LL*yval - 534117096223LL*cbval - 1334761232047LL*crval,
+         9745792000LL), 65535);
+        gvalTable[y*256*256+cb*256+cr] = gval >> 8;
+      }
+    }
+  }
+}
+
 void img_to_rgb(SDL_Texture *texture, const od_img *img, int plane_mask) {
   unsigned char *y_row;
   unsigned char *cb_row;
@@ -586,21 +632,30 @@ void img_to_rgb(SDL_Texture *texture, const od_img *img, int plane_mask) {
       unsigned rval;
       unsigned gval;
       unsigned bval;
-      yval = (plane_mask & OD_LUMA_MASK) * (*y - 16)
-       + (((plane_mask & OD_LUMA_MASK) ^ OD_LUMA_MASK) << 7);
-      cbval = ((plane_mask & OD_CB_MASK) >> 1) * (*cb - 128);
-      crval = ((plane_mask & OD_CR_MASK) >> 2) * (*cr - 128);
-      /*This is intentionally slow and very accurate.*/
-      rval = OD_CLAMPI(0, (int32_t)OD_DIV_ROUND(
-       2916394880000LL*yval + 4490222169144LL*crval, 9745792000LL), 65535);
-      gval = OD_CLAMPI(0, (int32_t)OD_DIV_ROUND(
-       2916394880000LL*yval - 534117096223LL*cbval - 1334761232047LL*crval,
-       9745792000LL), 65535);
-      bval = OD_CLAMPI(0, (int32_t)OD_DIV_ROUND(
-       2916394880000LL*yval + 5290866304968LL*cbval, 9745792000LL), 65535);
-      *(pixels + pitch*j + i++) = (unsigned char)(bval >> 8);
-      *(pixels + pitch*j + i++) = (unsigned char)(gval >> 8);
-      *(pixels + pitch*j + i++) = (unsigned char)(rval >> 8);
+      if (plane_mask == OD_ALL_MASK) {
+        /*Uuse precomputed lookup table, only available for OD_ALL_MASK*/
+        rval = rvalTable[(*y)*256+(*cr)];
+        gval = gvalTable[(*y)*256*256+(*cb)*256+(*cr)];
+        bval = bvalTable[(*y)*256+(*cb)];
+      } else {
+        yval = (plane_mask & OD_LUMA_MASK) * (*y - 16)
+         + (((plane_mask & OD_LUMA_MASK) ^ OD_LUMA_MASK) << 7);
+        cbval = ((plane_mask & OD_CB_MASK) >> 1) * (*cb - 128);
+        crval = ((plane_mask & OD_CR_MASK) >> 2) * (*cr - 128);
+        /*This is intentionally slow and very accurate.*/
+        rval = OD_CLAMPI(0, (int32_t)OD_DIV_ROUND(
+         2916394880000LL*yval + 4490222169144LL*crval, 9745792000LL),
+         65535) >> 8;
+        gval = OD_CLAMPI(0, (int32_t)OD_DIV_ROUND(
+         2916394880000LL*yval - 534117096223LL*cbval - 1334761232047LL*crval,
+         9745792000LL), 65535) >> 8;
+        bval = OD_CLAMPI(0, (int32_t)OD_DIV_ROUND(
+         2916394880000LL*yval + 5290866304968LL*cbval, 9745792000LL),
+         65535) >> 8;
+      }
+      *(pixels + pitch*j + i++) = (unsigned char)(bval);
+      *(pixels + pitch*j + i++) = (unsigned char)(gval);
+      *(pixels + pitch*j + i++) = (unsigned char)(rval);
       *(pixels + pitch*j + i++) = 0;
       dc = ((y - y_row) & 1) | (1 - xdec);
       y++;
