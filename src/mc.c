@@ -2554,67 +2554,7 @@ int od_mc_get_ref_predictor(od_state *state, int vx, int vy, int level) {
   return max_ref;
 }
 
-/*Gets the predictor for a given MV node at the given MV resolution.*/
-int od_state_get_predictor(od_state *state,
- int pred[2], int vx, int vy, int level, int mv_res, int ref) {
-  static const od_mv_grid_pt ZERO_GRID_PT = { {0, 0}, 1, OD_FRAME_PREV};
-  const od_mv_grid_pt *cneighbors[4];
-  int a[4][2];
-  int equal_mvs;
-  int mvb_sz;
-  int ncns;
-  int ci;
-  int an;
-  ncns = 4;
-  mvb_sz = 1 << ((OD_MC_LEVEL_MAX - level) >> 1);
-  if (level == 0) {
-    if (vy >= mvb_sz) {
-      cneighbors[0] = vx >= mvb_sz ?
-       state->mv_grid[vy - mvb_sz] + vx - mvb_sz : &ZERO_GRID_PT;
-      cneighbors[1] = state->mv_grid[vy - mvb_sz] + vx;
-      cneighbors[2] = vx + mvb_sz <= state->nhmvbs ?
-       state->mv_grid[vy - mvb_sz] + vx + mvb_sz : &ZERO_GRID_PT;
-    }
-    else cneighbors[2] = cneighbors[1] = cneighbors[0] = &ZERO_GRID_PT;
-    cneighbors[3] = vx >= mvb_sz ?
-     state->mv_grid[vy] + vx - mvb_sz : &ZERO_GRID_PT;
-  }
-  else {
-    if (level & 1) {
-      cneighbors[0] = state->mv_grid[vy - mvb_sz] + vx - mvb_sz;
-      cneighbors[1] = state->mv_grid[vy - mvb_sz] + vx + mvb_sz;
-      cneighbors[2] = state->mv_grid[vy + mvb_sz] + vx - mvb_sz;
-      cneighbors[3] = state->mv_grid[vy + mvb_sz] + vx + mvb_sz;
-    }
-    else {
-      cneighbors[0] = vy >= mvb_sz ?
-       state->mv_grid[vy - mvb_sz] + vx : &ZERO_GRID_PT;
-      cneighbors[1] = vx >= mvb_sz ?
-       state->mv_grid[vy] + vx - mvb_sz : &ZERO_GRID_PT;
-      /*NOTE: Only one of these candidates can be excluded at a time, so
-         there will always be at least 3.*/
-      if (vx > 0 && vx + mvb_sz > ((vx + OD_MVB_MASK) & ~OD_MVB_MASK)) ncns--;
-      else cneighbors[2] = state->mv_grid[vy] + vx + mvb_sz;
-      if (vy > 0 && vy + mvb_sz > ((vy + OD_MVB_MASK) & ~OD_MVB_MASK)) ncns--;
-      else cneighbors[ncns - 1] = state->mv_grid[vy + mvb_sz] + vx;
-    }
-  }
-  an = 0;
-  for (ci = 0; ci < ncns; ci++) {
-    if (cneighbors[ci]->ref == ref) {
-      a[an][0] = cneighbors[ci]->mv[0];
-      a[an][1] = cneighbors[ci]->mv[1];
-      an++;
-    }
-#if defined(OD_ENABLE_LOGGING)
-    if (!cneighbors[ci]->valid) {
-      OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_ERR,
-       "Failure in MV pred: predictor (%i, %i) for (%i, %i) is not valid",
-       a[an][0], a[an][1], vx, vy));
-    }
-#endif
-    OD_ASSERT(cneighbors[ci]->valid);
-  }
+static void od_compute_median(int pred[2], int (*a)[2], int an, int mv_res) {
   /*Median-of-4.*/
   if (an > 3) {
     OD_LOG((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG, "Median of 4:"));
@@ -2683,6 +2623,70 @@ This last compare is unneeded for a median:
     pred[0] = 0;
     pred[1] = 0;
   }
+}
+
+/*Gets the predictor for a given MV node at the given MV resolution.*/
+int od_state_get_predictor(od_state *state,
+ int pred[2], int vx, int vy, int level, int mv_res, int ref) {
+  static const od_mv_grid_pt ZERO_GRID_PT = { {0, 0}, 1, OD_FRAME_PREV};
+  const od_mv_grid_pt *cneighbors[4];
+  int a[4][2];
+  int equal_mvs;
+  int mvb_sz;
+  int ncns;
+  int ci;
+  int an;
+  ncns = 4;
+  mvb_sz = 1 << ((OD_MC_LEVEL_MAX - level) >> 1);
+  if (level == 0) {
+    if (vy >= mvb_sz) {
+      cneighbors[0] = vx >= mvb_sz ?
+       state->mv_grid[vy - mvb_sz] + vx - mvb_sz : &ZERO_GRID_PT;
+      cneighbors[1] = state->mv_grid[vy - mvb_sz] + vx;
+      cneighbors[2] = vx + mvb_sz <= state->nhmvbs ?
+       state->mv_grid[vy - mvb_sz] + vx + mvb_sz : &ZERO_GRID_PT;
+    }
+    else cneighbors[2] = cneighbors[1] = cneighbors[0] = &ZERO_GRID_PT;
+    cneighbors[3] = vx >= mvb_sz ?
+     state->mv_grid[vy] + vx - mvb_sz : &ZERO_GRID_PT;
+  }
+  else {
+    if (level & 1) {
+      cneighbors[0] = state->mv_grid[vy - mvb_sz] + vx - mvb_sz;
+      cneighbors[1] = state->mv_grid[vy - mvb_sz] + vx + mvb_sz;
+      cneighbors[2] = state->mv_grid[vy + mvb_sz] + vx - mvb_sz;
+      cneighbors[3] = state->mv_grid[vy + mvb_sz] + vx + mvb_sz;
+    }
+    else {
+      cneighbors[0] = vy >= mvb_sz ?
+       state->mv_grid[vy - mvb_sz] + vx : &ZERO_GRID_PT;
+      cneighbors[1] = vx >= mvb_sz ?
+       state->mv_grid[vy] + vx - mvb_sz : &ZERO_GRID_PT;
+      /*NOTE: Only one of these candidates can be excluded at a time, so
+         there will always be at least 3.*/
+      if (vx > 0 && vx + mvb_sz > ((vx + OD_MVB_MASK) & ~OD_MVB_MASK)) ncns--;
+      else cneighbors[2] = state->mv_grid[vy] + vx + mvb_sz;
+      if (vy > 0 && vy + mvb_sz > ((vy + OD_MVB_MASK) & ~OD_MVB_MASK)) ncns--;
+      else cneighbors[ncns - 1] = state->mv_grid[vy + mvb_sz] + vx;
+    }
+  }
+  an = 0;
+  for (ci = 0; ci < ncns; ci++) {
+    if (cneighbors[ci]->ref == ref) {
+      a[an][0] = cneighbors[ci]->mv[0];
+      a[an][1] = cneighbors[ci]->mv[1];
+      an++;
+    }
+#if defined(OD_ENABLE_LOGGING)
+    if (!cneighbors[ci]->valid) {
+      OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_ERR,
+       "Failure in MV pred: predictor (%i, %i) for (%i, %i) is not valid",
+       a[an][0], a[an][1], vx, vy));
+    }
+#endif
+    OD_ASSERT(cneighbors[ci]->valid);
+  }
+  od_compute_median(pred, a, an, mv_res);
   equal_mvs = 0;
   for (ci = 0; ci < ncns; ci++) {
     if (pred[0] == OD_DIV_POW2_RE(cneighbors[ci]->mv[0], mv_res) &&
