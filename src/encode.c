@@ -111,18 +111,24 @@ typedef struct od_qm_entry {
 /* No interpolation, always use od_flat_qm_q4, but use a different scale for
    each plane.
    FIXME: Add interpolation and properly tune chroma. */
-static const od_qm_entry OD_DEFAULT_QMS[2][2][OD_NPLANES_MAX] = {
+static const od_qm_entry OD_DEFAULT_QMS[2][3][OD_NPLANES_MAX] = {
  /* Masking disabled */
- {{{15, 256, OD_LUMA_QM_Q4[OD_MASKING_DISABLED]},
-   {15, 448, OD_CHROMA_QM_Q4[OD_MASKING_DISABLED]},
-   {15, 320, OD_CHROMA_QM_Q4[OD_MASKING_DISABLED]}},
+ {{{4, 256, OD_LUMA_QM_Q4[OD_MASKING_DISABLED]},
+   {4, 448, OD_CHROMA_QM_Q4[OD_MASKING_DISABLED]},
+   {4, 320, OD_CHROMA_QM_Q4[OD_MASKING_DISABLED]}},
+  {{318, 256, OD_LUMA_QM_Q4[OD_MASKING_DISABLED]},
+   {318, 140, OD_CHROMA_QM_Q4[OD_MASKING_DISABLED]},
+   {318, 100, OD_CHROMA_QM_Q4[OD_MASKING_DISABLED]}},
   {{0, 0, NULL},
    {0, 0, NULL},
    {0, 0, NULL}}},
  /* Masking enabled */
- {{{15, 256, OD_LUMA_QM_Q4[OD_MASKING_ENABLED]},
-   {15, 448, OD_CHROMA_QM_Q4[OD_MASKING_ENABLED]},
-   {15, 320, OD_CHROMA_QM_Q4[OD_MASKING_ENABLED]}},
+ {{{4, 256, OD_LUMA_QM_Q4[OD_MASKING_ENABLED]},
+   {4, 448, OD_CHROMA_QM_Q4[OD_MASKING_ENABLED]},
+   {4, 320, OD_CHROMA_QM_Q4[OD_MASKING_ENABLED]}},
+  {{318, 256, OD_LUMA_QM_Q4[OD_MASKING_ENABLED]},
+   {318, 140, OD_CHROMA_QM_Q4[OD_MASKING_ENABLED]},
+   {318, 100, OD_CHROMA_QM_Q4[OD_MASKING_ENABLED]}},
   {{0, 0, NULL},
    {0, 0, NULL},
    {0, 0, NULL}}}
@@ -1304,7 +1310,8 @@ static void od_quantize_haar_dc_sb(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
   OD_ASSERT(xdec == ydec);
   if (OD_LOSSLESS(enc, pli)) dc_quant = 1;
   else {
-    dc_quant = OD_MAXI(1, enc->state.quantizer[pli]*OD_DC_RES[pli] >> 4);
+    dc_quant = OD_MAXI(1, enc->state.quantizer[pli]*
+     enc->state.pvq_qm_q4[pli][od_qm_get_index(OD_NBSIZES - 1, 0)] >> 4);
   }
   nhsb = enc->state.nhsb;
   sb_dc_mem = enc->state.sb_dc_mem[pli];
@@ -1351,7 +1358,8 @@ static void od_quantize_haar_dc_level(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
   w = enc->state.frame_width >> xdec;
   if (OD_LOSSLESS(enc, pli)) dc_quant = 1;
   else {
-    dc_quant = OD_MAXI(1, enc->state.quantizer[pli]*OD_DC_RES[pli] >> 4);
+    dc_quant = OD_MAXI(1, enc->state.quantizer[pli]*
+     enc->state.pvq_qm_q4[pli][od_qm_get_index(OD_NBSIZES - 1, 0)] >> 4);
   }
   if (OD_LOSSLESS(enc, pli)) ac_quant[0] = ac_quant[1] = 1;
   else {

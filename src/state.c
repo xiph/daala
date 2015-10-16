@@ -37,13 +37,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #endif
 #include "block_size.h"
 
-/* OD_DC_RES[i] adjusts the quantization of DC for the ith plane.
-   These values are based on manual tuning to optimize PSNR-HVS, while also
-   attempting to keep a good visual balance between the relative resolution
-   of luma, and chroma.
-   FIXME: Tune this properly, see also OD_DEFAULT_QMS.*/
-const od_coeff OD_DC_RES[3] = {17, 24, 17};
-
 /* Scaling compensation for the Haar equivalent basis function. Left is
    for horizontal/vertical. Right is for diagonal. */
 #if OD_DISABLE_FILTER || OD_DEBLOCKING

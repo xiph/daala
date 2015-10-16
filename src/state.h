@@ -40,8 +40,6 @@ typedef struct od_adapt_ctx      od_adapt_ctx;
 # include "util.h"
 # include "intra.h"
 
-extern const od_coeff OD_DC_RES[3];
-
 extern const od_coeff OD_DC_QM[OD_NBSIZES - 1][2];
 
 extern const int OD_HAAR_QM[2][OD_LOG_BSIZE_MAX];
