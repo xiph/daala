@@ -639,7 +639,8 @@ static void od_decode_haar_dc_sb(daala_dec_ctx *dec, od_mb_dec_ctx *ctx,
   OD_ASSERT(xdec == ydec);
   if (OD_LOSSLESS(dec, pli)) dc_quant = 1;
   else {
-    dc_quant = OD_MAXI(1, dec->state.quantizer[pli]*OD_DC_RES[pli] >> 4);
+    dc_quant = OD_MAXI(1, dec->state.quantizer[pli]*
+     dec->state.pvq_qm_q4[pli][od_qm_get_index(OD_NBSIZES - 1, 0)] >> 4);
   }
   nhsb = dec->state.nhsb;
   sb_dc_mem = dec->state.sb_dc_mem[pli];
@@ -685,7 +686,8 @@ static void od_decode_haar_dc_level(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int 
   w = dec->state.frame_width >> xdec;
   if (OD_LOSSLESS(dec, pli)) dc_quant = 1;
   else {
-    dc_quant = OD_MAXI(1, dec->state.quantizer[pli]*OD_DC_RES[pli] >> 4);
+    dc_quant = OD_MAXI(1, dec->state.quantizer[pli]*
+     dec->state.pvq_qm_q4[pli][od_qm_get_index(OD_NBSIZES - 1, 0)] >> 4);
   }
   if (OD_LOSSLESS(dec, pli)) ac_quant[0] = ac_quant[1] = 1;
   else {
