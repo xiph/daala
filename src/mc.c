@@ -2554,75 +2554,31 @@ int od_mc_get_ref_predictor(od_state *state, int vx, int vy, int level) {
   return max_ref;
 }
 
-static void od_compute_median(int pred[2], int (*a)[2], int an, int mv_res) {
-  /*Median-of-4.*/
-  if (an > 3) {
-    OD_LOG((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG, "Median of 4:"));
-    OD_LOG((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG,
-     "(%i, %i) (%i, %i) (%i, %i) (%i, %i)", a[0][0], a[0][1],
-     a[1][0], a[1][1], a[2][0], a[2][1], a[3][0], a[3][1]));
-/*Sorting network for 4 elements:
-0000 0001 0010 0011 0100 0101 0110 0111 1000 1001 1010 1011 1100 1101 1110 1111
-0001 0010 0011 0100 0101 0110 0111 1001 1010 1011 1101
-0:1
-0010 0010 0011 0100 0110 0110 0111 1010 1010 1011 1110
-0010 0011 0100 0110 0111 1010 1011
-2:3
-0010 0011 1000 1010 1011 1100 1110
-0010 0011 1010 1011
-0:2
-0010 0110 1010 1110
-0010 0110 1010
-1:3
-1000 1100 1010
-1010
-This last compare is unneeded for a median:
-1:2
-1100*/
-    OD_SORT2I(a[0][0], a[1][0]);
-    OD_SORT2I(a[0][1], a[1][1]);
-    OD_SORT2I(a[2][0], a[3][0]);
-    OD_SORT2I(a[2][1], a[3][1]);
-    OD_SORT2I(a[0][0], a[2][0]);
-    OD_SORT2I(a[0][1], a[2][1]);
-    OD_SORT2I(a[1][0], a[3][0]);
-    OD_SORT2I(a[1][1], a[3][1]);
-    OD_LOG((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG,
-     "(%i, %i) (%i, %i) (%i, %i) (%i, %i)", a[0][0], a[0][1],
-     a[1][0], a[1][1], a[2][0], a[2][1], a[3][0], a[3][1]));
-    pred[0] = OD_DIV_POW2_RE(a[1][0] + a[2][0], mv_res + 1);
-    pred[1] = OD_DIV_POW2_RE(a[1][1] + a[2][1], mv_res + 1);
+static void od_compute_median(int pred[2], int (*neighbors)[2], int n,
+ int mv_res) {
+  int i;
+  int j;
+  int distsum[4] = {0};
+  int first;
+  if (n == 0) {
+    pred[0] = pred[1] = 0;
+    return;
   }
-  /*Median-of-3.*/
-  else if (an > 2) {
-    OD_LOG((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG, "Median of 3:"));
-    OD_LOG((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG,
-     "(%i, %i) (%i, %i) (%i, %i)",
-     a[0][0], a[0][1], a[1][0], a[1][1], a[2][0], a[2][1]));
-    OD_SORT2I(a[0][0], a[1][0]);
-    OD_SORT2I(a[0][1], a[1][1]);
-    OD_SORT2I(a[1][0], a[2][0]);
-    OD_SORT2I(a[1][1], a[2][1]);
-    OD_SORT2I(a[0][0], a[1][0]);
-    OD_SORT2I(a[0][1], a[1][1]);
-    OD_LOG((OD_LOG_MOTION_COMPENSATION, OD_LOG_DEBUG,
-     "(%i, %i) (%i, %i) (%i, %i)",
-     a[0][0], a[0][1], a[1][0], a[1][1], a[2][0], a[2][1]));
-    pred[0] = OD_DIV_POW2_RE(a[1][0], mv_res);
-    pred[1] = OD_DIV_POW2_RE(a[1][1], mv_res);
+  for (i = 0; i < n; i++) {
+    for (j = i + 1; j < n; j++) {
+      int dist;
+      dist = abs(neighbors[j][0] - neighbors[i][0])
+       + abs(neighbors[j][1] - neighbors[i][1]);
+      distsum[i] += dist;
+      distsum[j] += dist;
+    }
   }
-  else if (an > 1) {
-    pred[0] = OD_DIV_POW2_RE(a[0][0] + a[1][0], mv_res + 1);
-    pred[1] = OD_DIV_POW2_RE(a[0][1] + a[1][1], mv_res + 1);
+  first = 0;
+  for (i = 1; i < n; i++) {
+    if (distsum[i] < distsum[first]) first = i;
   }
-  else if (an > 0) {
-    pred[0] = OD_DIV_POW2_RE(a[0][0], mv_res);
-    pred[1] = OD_DIV_POW2_RE(a[0][1], mv_res);
-  }
-  else {
-    pred[0] = 0;
-    pred[1] = 0;
-  }
+  pred[0] = OD_DIV_POW2_RE(neighbors[first][0], mv_res);
+  pred[1] = OD_DIV_POW2_RE(neighbors[first][1], mv_res);
 }
 
 /*Gets the predictor for a given MV node at the given MV resolution.*/
