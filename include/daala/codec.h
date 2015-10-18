@@ -254,8 +254,8 @@ void daala_info_clear(daala_info *info);
  *  names are limited to ASCII, and treated as case-insensitive.
  * See the Daala specification for details.
  *
- * In filling in this structure, daala_decode_header() will null-terminate the
- *  user_comment strings for safety.
+ * In filling in this structure, daala_decode_header_in() will null-terminate
+ *  the user_comment strings for safety.
  * However, the bitstream format itself treats them as 8-bit clean vectors,
  *  possibly containing null characters, and so the length array should be
  *  treated as their authoritative length.*/
@@ -271,7 +271,12 @@ struct daala_comment {
   char *vendor;
 };
 
+/**Initializes a daala_comment section. Users should free the returned
+   data with daala_comment_clear().
+   \param dc A #daala_comment structure.*/
 void daala_comment_init(daala_comment *dc);
+/**Free resources allocated for metadata.
+   \param dc A #daala_comment structure.*/
 void daala_comment_clear(daala_comment *dc);
 
 int64_t daala_granule_basetime(void *encdec, int64_t granpos);
