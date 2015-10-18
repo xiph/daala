@@ -369,10 +369,10 @@ uint32_t daala_version_number(void) {
   return OD_VERSION_MAJOR<<16|OD_VERSION_MINOR<<8|OD_VERSION_SUB;
 }
 
-int daala_packet_isheader(const unsigned char *packet, int len) {
-  return len > 0 ? packet[0]>>7 : 0;
+int daala_packet_isheader(daala_packet *dpkt) {
+  return dpkt->bytes > 0 ? dpkt->packet[0] >> 7 : 0;
 }
 
-int daala_packet_iskeyframe(const unsigned char *packet, int len) {
-  return len > 0 ? packet[0] & 0x40 : 0;
+int daala_packet_iskeyframe(daala_packet *dpkt) {
+  return dpkt->bytes > 0 ? dpkt->packet[0] & 0x40 : 0;
 }
