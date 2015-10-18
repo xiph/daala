@@ -106,7 +106,7 @@ void laplace_encode(od_ec_enc *enc, int x, int ex_q8, int k) {
   int decay;
   int offset;
   /* shift down x if expectation is too high */
-  shift = od_ilog(ex_q8) - 11;
+  shift = OD_ILOG(ex_q8) - 11;
   if (shift < 0) shift = 0;
   /* Apply the shift with rounding to Ex, K and xs */
   ex_q8 = (ex_q8 + (1 << shift >> 1)) >> shift;

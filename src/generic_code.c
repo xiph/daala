@@ -65,7 +65,7 @@ int log_ex(int ex_q16) {
   int lg;
   int lg_q1;
   int odd;
-  lg = od_ilog(ex_q16);
+  lg = OD_ILOG(ex_q16);
   if (lg < 15) {
     odd = ex_q16*ex_q16 > 2 << 2*lg;
   }

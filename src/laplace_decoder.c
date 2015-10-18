@@ -111,7 +111,7 @@ int laplace_decode_(od_ec_dec *dec, int ex_q8, int k OD_ACC_STR) {
   int offset;
   lsb = 0;
   /* Shift down x if expectation is too high. */
-  shift = od_ilog(ex_q8) - 11;
+  shift = OD_ILOG(ex_q8) - 11;
   if (shift < 0) shift = 0;
   /* Apply the shift with rounding to Ex, K and xs. */
   ex_q8 = (ex_q8 + (1 << shift >> 1)) >> shift;
