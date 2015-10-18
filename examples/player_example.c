@@ -398,8 +398,8 @@ int player_example_play(player_example *player) {
           player->od_state = ODS_DATA;
           if (player->di.timebase_numerator
            && player->di.timebase_denominator) {
-            ms_per_frame = 1000 /
-             (player->di.timebase_numerator / player->di.timebase_denominator);
+            float tb = (float)player->di.timebase_numerator / player->di.timebase_denominator;
+            ms_per_frame = 1000 / tb;
             ticks = SDL_GetTicks();
           }
           break;
