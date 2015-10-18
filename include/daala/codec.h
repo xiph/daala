@@ -292,8 +292,7 @@ int daala_packet_isheader(const unsigned char *packet, int len);
    \param packet A buffer containing an encoded Daala packet.
    \param len    The length of the buffer in bytes.
    \retval 1  The packet contains a key frame.
-   \retval 0  The packet contains a delta frame.
-   \retval -1 The packet is not a video data packet.*/
+   \retval 0  The packet contains a delta frame.*/
 int daala_packet_iskeyframe(const unsigned char *packet, int len);
 
 # if OD_GNUC_PREREQ(4, 0, 0)

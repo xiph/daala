@@ -374,5 +374,5 @@ int daala_packet_isheader(const unsigned char *packet, int len) {
 }
 
 int daala_packet_iskeyframe(const unsigned char *packet, int len) {
-  return len <= 0 || packet[0] & 0x80 ? -1 : !!(packet[0] & 0x40);
+  return len > 0 ? packet[0] & 0x40 : 0;
 }
