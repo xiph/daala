@@ -64,6 +64,7 @@ typedef struct daala_enc_ctx daala_enc_ctx;
  *   - Submit the compressed frame via daala_encode_img_in().
  *   - Repeatedly call daala_encode_packet_out() to retrieve any video data
  *      packets that are ready.
+ * - Call daala_comment_clear() to release all comments allocated.
  * - Call daala_encode_free() to release all encoder memory.*/
 /*@{*/
 /**Allocates and initializes an encoder instance.
@@ -88,7 +89,8 @@ int daala_encode_ctl(daala_enc_ctx *enc,
  *  encoding actual video data.
  * \param enc A #daala_enc_ctx handle.
  * \param comments The metadata to place in the comment header, when it is
- *                  encoded.
+ *                  encoded. Users should free the returned data with
+ *                  daala_comment_clear().
  * \param dp A <tt>daala_packet</tt> structure to fill.
  *           All of the elements of this structure will be set,
  *            including a pointer to the header data.

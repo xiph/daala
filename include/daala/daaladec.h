@@ -134,6 +134,7 @@ typedef struct daala_setup_info daala_setup_info;
              The application may immediately begin using the contents of this
               structure after the second header is decoded, though it must
               continue to be passed in on all subsequent calls.
+             Users should free the returned data with daala_comment_clear().
  * \param ds A pointer to a daala_setup_info pointer to fill in.
              The contents of this pointer must be initialized to <tt>NULL</tt>
               on the first call, and the returned value must continue to be
