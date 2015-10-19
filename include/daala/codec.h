@@ -202,6 +202,7 @@ struct daala_plane_info {
 
 /** Configuration parameters for a codec instance. */
 struct daala_info {
+  unsigned char pix_fmt_code;
   unsigned char version_major;
   unsigned char version_minor;
   unsigned char version_sub;
