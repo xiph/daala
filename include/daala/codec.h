@@ -192,12 +192,22 @@ struct daala_plane_info {
 /**\name Bit Depths
  * The three video bit depths currently supported by Daala.*/
 /*@{*/
-/**8-bit mode.*/
-#define OD_BITDEPTH_MODE_8 (1)
-/**10-bit mode.*/
-#define OD_BITDEPTH_MODE_10 (2)
-/**12-bit mode.*/
-#define OD_BITDEPTH_MODE_12 (3)
+enum od_bitdepth {
+    /** Bitdepth not defined. */
+    OD_BITDEPTH_NONE = 0,
+
+    /**8-bit mode.*/
+    OD_BITDEPTH_8    = 1,
+
+    /**10-bit mode.*/
+    OD_BITDEPTH_10   = 2,
+
+    /**12-bit mode.*/
+    OD_BITDEPTH_12   = 3,
+
+    /** Not part of ABI. */
+    OD_BITDEPTH_NB
+};
 /*@}*/
 
 /** Configuration parameters for a codec instance. */
@@ -214,9 +224,7 @@ struct daala_info {
   uint32_t timebase_denominator;
   uint32_t frame_duration;
   int keyframe_granule_shift;
-  /** bitdepth_mode is one of the three OD_BITDEPTH_MODE_X choices allowed
-   * above. */
-  int bitdepth_mode;
+  enum od_bitdepth bitdepth_mode;
   int nplanes;
   daala_plane_info plane_info[OD_NPLANES_MAX];
    /** key frame rate defined how often a key frame is emitted by encoder in

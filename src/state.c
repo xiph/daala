@@ -234,8 +234,8 @@ static int od_state_init_impl(od_state *state, const daala_info *info) {
   /*The first plane (the luma plane) must not be subsampled.*/
   if (info->plane_info[0].xdec || info->plane_info[0].ydec) return OD_EINVAL;
   /*The bitdepth is restricted to a few allowed values.*/
-  if (info->bitdepth_mode < OD_BITDEPTH_MODE_8
-   || info->bitdepth_mode > OD_BITDEPTH_MODE_12) {
+  if (info->bitdepth_mode == OD_BITDEPTH_NONE
+   || info->bitdepth_mode >= OD_BITDEPTH_NB) {
     return OD_EINVAL;
   }
   OD_CLEAR(state, 1);
