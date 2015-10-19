@@ -176,8 +176,8 @@ int daala_decode_header_in(daala_info *info,
       if (tmpi < 0 || tmpi >= 32) return OD_EBADHEADER;
       info->keyframe_granule_shift = tmpi;
       info->bitdepth_mode = oggbyte_read1(&obb);
-      if (info->bitdepth_mode < OD_BITDEPTH_MODE_8
-       || info->bitdepth_mode > OD_BITDEPTH_MODE_12) {
+      if (info->bitdepth_mode == OD_BITDEPTH_NONE
+       || info->bitdepth_mode >= OD_BITDEPTH_NB) {
         return OD_EBADHEADER;
       }
       info->nplanes = oggbyte_read1(&obb);

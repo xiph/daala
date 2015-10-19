@@ -54,8 +54,8 @@ int daala_encode_flush_header(daala_enc_ctx *_enc, daala_comment *_dc,
       oggbyte_write4(&_enc->obb, info->frame_duration);
       OD_ASSERT(info->keyframe_granule_shift < 32);
       oggbyte_write1(&_enc->obb, info->keyframe_granule_shift);
-      OD_ASSERT(info->bitdepth_mode >= OD_BITDEPTH_MODE_8
-       && info->bitdepth_mode <= OD_BITDEPTH_MODE_12);
+      OD_ASSERT(info->bitdepth_mode > OD_BITDEPTH_NONE
+       && info->bitdepth_mode < OD_BITDEPTH_NB);
       oggbyte_write1(&_enc->obb, info->bitdepth_mode);
       OD_ASSERT((info->nplanes >= 1) && (info->nplanes <= OD_NPLANES_MAX));
       oggbyte_write1(&_enc->obb, info->nplanes);

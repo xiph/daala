@@ -36,7 +36,7 @@ void daala_info_init(daala_info *_info) {
   _info->version_minor = OD_VERSION_MINOR;
   _info->version_sub = OD_VERSION_SUB;
   _info->keyframe_granule_shift = 31;
-  _info->bitdepth_mode = OD_BITDEPTH_MODE_8;
+  _info->bitdepth_mode = OD_BITDEPTH_8;
   /*TODO: Set other defaults.*/
 }
 

@@ -70,7 +70,7 @@ static int od_dec_init(od_dec_ctx *dec, const daala_info *info,
   dec->user_mc_img = NULL;
   dec->user_dering = NULL;
   data_sz = 0;
-  output_bits = 8 + (info->bitdepth_mode - OD_BITDEPTH_MODE_8)*2;
+  output_bits = 8 + (info->bitdepth_mode - OD_BITDEPTH_8) * 2;
   output_bytes = output_bits > 8 ? 2 : 1;
   /*TODO: Check for overflow before allocating.*/
   frame_buf_width = dec->state.frame_width + (OD_BUFFER_PADDING << 1);

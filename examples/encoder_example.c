@@ -825,11 +825,11 @@ int main(int argc, char **argv) {
   di.pic_height = avin.video_pic_h;
   switch (avin.video_depth) {
     case 8: {
-      di.bitdepth_mode = OD_BITDEPTH_MODE_8;
+      di.bitdepth_mode = OD_BITDEPTH_8;
       break;
     }
     case 10: {
-      di.bitdepth_mode = OD_BITDEPTH_MODE_10;
+      di.bitdepth_mode = OD_BITDEPTH_10;
       break;
     }
     case 14:
@@ -839,7 +839,7 @@ int main(int argc, char **argv) {
     }
     /* Fall through */
     case 12: {
-      di.bitdepth_mode = OD_BITDEPTH_MODE_12;
+      di.bitdepth_mode = OD_BITDEPTH_12;
       break;
     }
     default: {
