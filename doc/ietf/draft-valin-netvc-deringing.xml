@@ -48,7 +48,7 @@
     <section title="Direction Search">
       <t>The first step is to divide the image into blocks of fixed or variable size. Variable-size blocks make it possible to use large blocks on long, continuous edges and small blocks where edges intersect or change direction. A fixed block size is easier to implement and does not require signaling the sizes on a block-by-block basis. For this work, we consider a fixed block size of 8x8.</t>
 
-      <t>Once the image is divided into blocks, we determine which direction best matches the pattern in each block. The direction is only signaled when operating as an image encoder. One way to determine the direction is to minimize mean squared difference (MSD) between the input block and a perfectly directional block. A perfectly directional block is a block for which each line along a certain direction has a constant value. For each direction, we assign a line number to each pixel, as shown below.
+      <t>Once the image is divided into blocks, we determine which direction best matches the pattern in each block. One way to determine the direction is to minimize mean squared difference (MSD) between the input block and a perfectly directional block. A perfectly directional block is a block for which each line along a certain direction has a constant value. For each direction, we assign a line number to each pixel, as shown below.
 <figure align="center">
 <artwork align="center"><![CDATA[
 +---+---+---+---+---+---+---+---+
@@ -72,7 +72,7 @@
 </figure>
     </t>
 
-    <t>For each direction d, we compute the value s_d related to the MSD (see <xref target="Deringing-Note"/> for detauls) as:
+    <t>For each direction d, we compute the value s_d, which is equal to a direction-independent offset minus the MSD (see <xref target="Deringing-Note"/> for detauls) as:
 <figure align="center">
 <artwork align="center"><![CDATA[
         __                      __           2
@@ -81,7 +81,7 @@ s_d=    /_      ------- * |     /_      x_p | ,
     k in block  N_(d,k)   \ p in P_(d,k)    /
 ]]></artwork>
 </figure>
-where x_p is the value of pixel p, P_(d,k) is the set of pixels in like k along direction d, and N_(d,k) is the cardinality of P_(d,k). From there, the direction is computed as as the value of d that maximizes s_d.
+where x_p is the value of pixel p, P_(d,k) is the set of pixels in like k along direction d, and N_(d,k) is the cardinality of P_(d,k). From there, the direction is computed as the value of d that maximizes s_d.
     </t>
     </section>
 
@@ -128,9 +128,9 @@ y(i,j)=x(i,j)+---*\ w_k*| f| x(i,j)-x(i+floor(k*d_y),j+floor(k*d_x), T|
       </texttable>
     </section>
 
-    <section title="Orthogonal Direction Filter">
-      <t>The 7-tap directional filter is sometimes not enough to eliminate all ringing, so we use an additional filtering step in the direction orthogonal to that used in the first filter. Considering that the input of the second filter has considerably less ringing than the input of the second filter, and the fact that the second filter risks blurring edges, the position-dependent threshold T_2(i,j) for the second filter is set lower than that of the first filter T. The filter structure is the same as the one used for the directional filter. The direction parameters for the orthogonal filter are shown in the table below and the filter weights are w=[1 1] with W=16/3.</t>
-      <texttable anchor="orthogonal-parameters">
+    <section title="Second Stage Filter">
+      <t>The 7-tap directional filter is sometimes not enough to eliminate all ringing, so we use an additional filtering step that operates across the direction lines used in the first filter. Considering that the input of the second filter has considerably less ringing than the input of the second filter, and the fact that the second filter risks blurring edges, the position-dependent threshold T_2(i,j) for the second filter is set lower than that of the first filter T. The filter structure is the same as the one used for the directional filter. The direction parameters for the second stage filter are shown in the table below and the filter weights are w=[1 1] with W=16/3.</t>
+      <texttable anchor="Second-stage-parameters">
         <ttcol align="center">Direction</ttcol>
         <ttcol align="center">d_x</ttcol>
         <ttcol align="center">d_y</ttcol>
@@ -174,7 +174,7 @@ T_2(i,j) = min| T, --- + |y(i,j)-x(i,j)| |.
     <section title="Superblock Filtering">
       <t>The filtering is applied one superblock at a time, conditional on a flag coded in the bit-stream. This binary flag is the only information coded in the bitstream by the deringing filter. The flag is only coded for superblocks that are not skipped and it is entropy-coded based on the neighbour values.</t>
 
-      <t>The deringing process sometimes uses as input pixels that lie outside of the superblock being processed. When these pixels belong to another superblock, the filtering always uses the unfiltered pixel values -- even for the orthogonal direction filter step -- so that no dependency is added between the superblocks. This makes it possible -- in theory -- to filter all superblocks in parallel. When the pixels used for a filter lie outside of the viewable image, we set f(d,T)=0.</t>
+      <t>The deringing process sometimes reads pixels that lie outside of the superblock being processed. When these pixels belong to another superblock, the filtering always uses the unfiltered pixel values -- even for the second stage filter -- so that no dependency is added between the superblocks. This makes it possible -- in theory -- to filter all superblocks in parallel. When the pixels used for a filter lie outside of the viewable image, we set f(d,T)=0.</t>
     </section>
 
     <section title="Results">
@@ -194,10 +194,6 @@ T_2(i,j) = min| T, --- + |y(i,j)-x(i,j)| |.
       <t>This draft has no security considerations.</t>
     </section>
 
-    <section anchor="Acknowledgements" title="Acknowledgements">
-      <t>Thanks to Timothy B. Terriberry for useful feedback and for designing
-      the 2-D Haar lifting kernel.</t>
-    </section>
   </middle>
 
   <back>

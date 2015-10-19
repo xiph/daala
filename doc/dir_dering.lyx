@@ -115,7 +115,6 @@ The first step is to divide the image into blocks of fixed or variable size.
 \begin_layout Standard
 Once the image is divided into blocks, we determine which direction best
  matches the pattern in each block.
- The direction is only signaled when operating as an image encoder.
  One way to determine the direction is to minimize mean squared difference
  (MSD) between the input block and a perfectly directional block.
  A perfectly directional block is a block for which each line along a certain
@@ -328,7 +327,7 @@ The directional filter for pixel
 \begin_inset Formula 
 \begin{gather}
 y\left(i,j\right)=x\left(i,j\right)+\frac{1}{W}\sum_{k=1}^{3}w_{k}\left[f\left(x\left(i,j\right)-x\left(i+\left\lfloor kd_{y}\right\rfloor ,j+\left\lfloor kd_{x}\right\rfloor \right),T_{d}\right)\right.\nonumber \\
-\left.+f\left(x\left(i,j\right)-\left(i-\left\lfloor kd_{y}\right\rfloor ,j-\left\lfloor kd_{x}\right\rfloor \right),T_{d}\right)\right]\label{eq:directional_filter}
+\left.+f\left(x\left(i,j\right)-x\left(i-\left\lfloor kd_{y}\right\rfloor ,j-\left\lfloor kd_{x}\right\rfloor \right),T_{d}\right)\right]\label{eq:directional_filter}
 \end{gather}
 
 \end_inset
@@ -752,13 +751,13 @@ name "tab:Direction-parameters"
 \end_layout
 
 \begin_layout Section
-Orthogonal Direction Filter
+Second Stage Filter
 \end_layout
 
 \begin_layout Standard
 The 7-tap directional filter is sometimes not enough to eliminate all ringing,
- so we use an additional filtering step in the direction orthogonal to that
- used in the first filter.
+ so we use an additional filtering step that operates across the direction
+ lines used in the first filter.
  Considering that the input of the second filter has considerably less ringing
  than the input of the second filter, and the fact that the second filter
  risks blurring edges, the position-dependent threshold 
@@ -782,7 +781,7 @@ reference "eq:directional_filter"
 \end_inset
 
 .
- The direction parameters for the orthogonal filter are shown in Table
+ The direction parameters for the second stage filter are shown in Table
 \begin_inset space ~
 \end_inset
 
@@ -1120,7 +1119,7 @@ status open
 \begin_inset Caption Standard
 
 \begin_layout Plain Layout
-Orthogonal direction parameters
+Second stage filter parameters
 \begin_inset CommandInset label
 LatexCommand label
 name "tab:Ortho-parameters"
@@ -1279,11 +1278,11 @@ oded based on the neighbour values.
 \end_layout
 
 \begin_layout Standard
-The deringing process sometimes uses as input pixels that lie outside of
- the superblock being processed.
+The deringing process sometimes reads pixels that lie outside of the superblock
+ being processed.
  When these pixels belong to another superblock, the filtering always uses
- the unfiltered pixel values -- even for the orthogonal direction filter
- step -- so that no dependency is added between the superblocks.
+ the unfiltered pixel values -- even for the second stage filter -- so that
+ no dependency is added between the superblocks.
  This makes it possible -- in theory -- to filter all superblocks in parallel.
  When the pixels used for a filter lie outside of the viewable image, we
  set 
