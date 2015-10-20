@@ -138,7 +138,7 @@ int daala_decode_header_in(daala_info *info,
       int tmpi;
       /*This should be the first packet, and we should not have already read
          the info header packet yet.*/
-      if (!op->b_o_s || info->pic_width) return OD_EBADHEADER;
+      if (info->pic_width) return OD_EBADHEADER;
       tmpi = oggbyte_read1(&obb);
       if (tmpi < 0) return OD_EBADHEADER;
       info->version_major = tmpi;
