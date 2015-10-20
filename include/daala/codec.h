@@ -213,6 +213,8 @@ struct daala_info {
   uint32_t timebase_numerator;
   uint32_t timebase_denominator;
   uint32_t frame_duration;
+  /**The amount to shift to extract the last keyframe number from the granule
+   *  position. */
   int keyframe_granule_shift;
   /** bitdepth_mode is one of the three OD_BITDEPTH_MODE_X choices allowed
    * above. */
@@ -280,6 +282,17 @@ void daala_comment_init(daala_comment *dc);
 void daala_comment_clear(daala_comment *dc);
 
 int64_t daala_granule_basetime(void *encdec, int64_t granpos);
+/**Converts a granule position to an absolute time in seconds.
+ * The granule position is interpreted in the context of a given
+ *  #daala_enc_ctx or #daala_dec_ctx handle (either will suffice).
+ * \param _encdec  A previously allocated #daala_enc_ctx or #daala_dec_ctx
+ *                  handle.
+ * \param _granpos The granule position to convert.
+ * \return The absolute time in seconds corresponding to \a _granpos.
+ *         This is the "end time" for the frame, or the latest time it should
+ *          be displayed.
+ *         It is not the presentation time.
+ * \retval -1 The given granule position was invalid (i.e. negative).*/
 double daala_granule_time(void *encdec, int64_t granpos);
 /**Determines whether a Daala packet is a header or not.
    This function does no verification beyond checking the packet type bit, so
