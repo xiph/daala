@@ -201,7 +201,7 @@ void **od_malloc_2d(size_t _height, size_t _width, size_t _sz);
 void **od_calloc_2d(size_t _height, size_t _width, size_t _sz);
 void od_free_2d(void *_ptr);
 
-# define OD_DIVU_DMAX (64)
+# define OD_DIVU_DMAX (1024)
 
 extern uint32_t OD_DIVU_SMALL_CONSTS[OD_DIVU_DMAX][2];
 
@@ -210,5 +210,8 @@ extern uint32_t OD_DIVU_SMALL_CONSTS[OD_DIVU_DMAX][2];
   ((uint32_t)((OD_DIVU_SMALL_CONSTS[(_d)-1][0]* \
   (unsigned long long)(_x)+OD_DIVU_SMALL_CONSTS[(_d)-1][1])>>32)>> \
   (OD_ILOG(_d)-1))
+
+# define OD_DIVU(_x, _d) \
+  (((_d) < OD_DIVU_DMAX)?(OD_DIVU_SMALL((_x),(_d))):((_x)/(_d)))
 
 #endif
