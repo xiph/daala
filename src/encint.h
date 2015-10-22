@@ -59,23 +59,23 @@ typedef struct od_rollback_buffer od_rollback_buffer;
 # define OD_MC_SQUARE_SUBPEL_REFINEMENT_COMPLEXITY (10)
 
 struct od_enc_opt_vtbl {
-  int (*mc_compute_sad_4x4)(const unsigned char *src,
+  int32_t (*mc_compute_sad_4x4)(const unsigned char *src,
    int systride, const unsigned char *ref, int dystride);
-  int (*mc_compute_sad_8x8)(const unsigned char *src,
+  int32_t (*mc_compute_sad_8x8)(const unsigned char *src,
    int systride, const unsigned char *ref, int dystride);
-  int (*mc_compute_sad_16x16)(const unsigned char *src,
+  int32_t (*mc_compute_sad_16x16)(const unsigned char *src,
    int systride, const unsigned char *ref, int dystride);
-  int (*mc_compute_sad_32x32)(const unsigned char *src,
+  int32_t (*mc_compute_sad_32x32)(const unsigned char *src,
    int systride, const unsigned char *ref, int dystride);
-  int (*mc_compute_satd_4x4)(const unsigned char *src,
+  int32_t (*mc_compute_satd_4x4)(const unsigned char *src,
    int systride, const unsigned char *ref, int dystride);
-  int (*mc_compute_satd_8x8)(const unsigned char *src,
+  int32_t (*mc_compute_satd_8x8)(const unsigned char *src,
    int systride, const unsigned char *ref, int dystride);
-  int (*mc_compute_satd_16x16)(const unsigned char *src,
+  int32_t (*mc_compute_satd_16x16)(const unsigned char *src,
    int systride, const unsigned char *ref, int dystride);
-  int (*mc_compute_satd_32x32)(const unsigned char *src,
+  int32_t (*mc_compute_satd_32x32)(const unsigned char *src,
    int systride, const unsigned char *ref, int dystride);
-  int (*mc_compute_satd_64x64)(const unsigned char *src,
+  int32_t (*mc_compute_satd_64x64)(const unsigned char *src,
    int systride, const unsigned char *ref, int dystride);
 };
 

@@ -1330,7 +1330,7 @@ static const od_offset *OD_ANCESTORS[OD_MVB_DELTA0][OD_MVB_DELTA0] = {
 };
 
 /*Computes the Sum of Absolute Differences: slow path.*/
-int od_mc_compute_sad8_c(const unsigned char *src, int systride,
+int32_t od_mc_compute_sad8_c(const unsigned char *src, int systride,
  const unsigned char *ref, int dystride, int w, int h) {
   int i;
   int j;
@@ -1346,27 +1346,27 @@ int od_mc_compute_sad8_c(const unsigned char *src, int systride,
   return ret;
 }
 
-int od_mc_compute_sad8_4x4_c(const unsigned char *src, int systride,
+int32_t od_mc_compute_sad8_4x4_c(const unsigned char *src, int systride,
  const unsigned char *ref, int dystride) {
   return od_mc_compute_sad8_c(src, systride, ref, dystride, 4, 4);
 }
 
-int od_mc_compute_sad8_8x8_c(const unsigned char *src, int systride,
+int32_t od_mc_compute_sad8_8x8_c(const unsigned char *src, int systride,
  const unsigned char *ref, int dystride) {
   return od_mc_compute_sad8_c(src, systride, ref, dystride, 8, 8);
 }
 
-int od_mc_compute_sad8_16x16_c(const unsigned char *src, int systride,
+int32_t od_mc_compute_sad8_16x16_c(const unsigned char *src, int systride,
  const unsigned char *ref, int dystride) {
   return od_mc_compute_sad8_c(src, systride, ref, dystride, 16, 16);
 }
 
-int od_mc_compute_sad8_32x32_c(const unsigned char *src, int systride,
+int32_t od_mc_compute_sad8_32x32_c(const unsigned char *src, int systride,
  const unsigned char *ref, int dystride) {
   return od_mc_compute_sad8_c(src, systride, ref, dystride, 32, 32);
 }
 
-int od_mc_compute_sad16_c(const unsigned char *src, int systride,
+int32_t od_mc_compute_sad16_c(const unsigned char *src, int systride,
  const unsigned char *ref, int dystride, int w, int h) {
   int i;
   int j;
@@ -1382,22 +1382,22 @@ int od_mc_compute_sad16_c(const unsigned char *src, int systride,
   return ret + (1 << OD_COEFF_SHIFT >> 1) >> OD_COEFF_SHIFT;
 }
 
-int od_mc_compute_sad16_4x4_c(const unsigned char *src, int systride,
+int32_t od_mc_compute_sad16_4x4_c(const unsigned char *src, int systride,
  const unsigned char *ref, int dystride) {
   return od_mc_compute_sad16_c(src, systride, ref, dystride, 4, 4);
 }
 
-int od_mc_compute_sad16_8x8_c(const unsigned char *src, int systride,
+int32_t od_mc_compute_sad16_8x8_c(const unsigned char *src, int systride,
  const unsigned char *ref, int dystride) {
   return od_mc_compute_sad16_c(src, systride, ref, dystride, 8, 8);
 }
 
-int od_mc_compute_sad16_16x16_c(const unsigned char *src, int systride,
+int32_t od_mc_compute_sad16_16x16_c(const unsigned char *src, int systride,
  const unsigned char *ref, int dystride) {
   return od_mc_compute_sad16_c(src, systride, ref, dystride, 16, 16);
 }
 
-int od_mc_compute_sad16_32x32_c(const unsigned char *src, int systride,
+int32_t od_mc_compute_sad16_32x32_c(const unsigned char *src, int systride,
  const unsigned char *ref, int dystride) {
   return od_mc_compute_sad16_c(src, systride, ref, dystride, 32, 32);
 }

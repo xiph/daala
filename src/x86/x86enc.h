@@ -28,13 +28,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 void od_enc_opt_vtbl_init_x86(od_enc_ctx *enc);
 
-int od_mc_compute_sad8_4x4_sse(const unsigned char *src,
+int32_t od_mc_compute_sad8_4x4_sse(const unsigned char *src,
  int systride, const unsigned char *ref, int dystride);
-int od_mc_compute_sad8_8x8_sse(const unsigned char *_src,
+int32_t od_mc_compute_sad8_8x8_sse(const unsigned char *_src,
  int systride, const unsigned char *ref, int dystride);
-int od_mc_compute_sad8_16x16_sse2(const unsigned char *src,
+int32_t od_mc_compute_sad8_16x16_sse2(const unsigned char *src,
  int systride, const unsigned char *ref, int dystride);
-int od_mc_compute_sad8_32x32_sse2(const unsigned char *src,
+int32_t od_mc_compute_sad8_32x32_sse2(const unsigned char *src,
  int systride, const unsigned char *ref, int dystride);
 
 #endif
