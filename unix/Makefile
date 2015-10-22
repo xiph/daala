@@ -74,6 +74,7 @@ CFLAGS := -fvisibility=hidden $(CFLAGS)
 CFLAGS := -Wextra -Wno-parentheses -Wno-long-long -Wno-overlength-strings $(CFLAGS)
 CFLAGS := -Wall -Wshadow $(CFLAGS)
 CFLAGS := -I/opt/local/include $(CFLAGS)
+CFLAGS := -D_XOPEN_SOURCE=600 $(CFLAGS)
 # Set machine-specific flags
 HOST := $(shell uname -m)
 ifneq (,$(findstring 86,${HOST}))
