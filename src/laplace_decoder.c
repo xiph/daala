@@ -101,7 +101,7 @@ int laplace_decode_special_(od_ec_dec *dec, unsigned decay, int max OD_ACC_STR) 
  *
  * @retval decoded variable (including sign)
  */
-int laplace_decode_(od_ec_dec *dec, int ex_q8, int k OD_ACC_STR) {
+int laplace_decode_(od_ec_dec *dec, unsigned ex_q8, int k OD_ACC_STR) {
   int j;
   int shift;
   uint16_t cdf[16];
@@ -116,7 +116,7 @@ int laplace_decode_(od_ec_dec *dec, int ex_q8, int k OD_ACC_STR) {
   /* Apply the shift with rounding to Ex, K and xs. */
   ex_q8 = (ex_q8 + (1 << shift >> 1)) >> shift;
   k = (k + (1 << shift >> 1)) >> shift;
-  decay = OD_MINI(254, 256*ex_q8/(ex_q8 + 256));
+  decay = OD_MINI(254, OD_DIVU(256*ex_q8, (ex_q8 + 256)));
   offset = LAPLACE_OFFSET[(decay + 1) >> 1];
   for (j = 0; j < 16; j++) {
     cdf[j] = EXP_CDF_TABLE[(decay + 1) >> 1][j] - offset;
