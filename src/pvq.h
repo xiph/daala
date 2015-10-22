@@ -35,7 +35,7 @@ extern const int OD_QM8_Q4_HVS[];
 extern const uint16_t EXP_CDF_TABLE[][16];
 extern const uint16_t LAPLACE_OFFSET[];
 
-# define PVQ_MAX_PARTITIONS (1 + 3*(OD_NBSIZES-1))
+# define PVQ_MAX_PARTITIONS (9)
 
 # define OD_NOREF_ADAPT_SPEED (4)
 /* Normalized lambda for PVQ quantizer. Since we normalize the gain by q, the

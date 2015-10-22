@@ -560,6 +560,8 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int bs,
     }
   }
   else {
+    /*Safely initialize d since some coeffs are skipped by PVQ.*/
+    od_init_skipped_coeffs(d, pred, ctx->is_keyframe, bo, n, w);
     od_raster_to_coding_order(predt,  n, &pred[0], n);
   }
   quant = OD_MAXI(1, dec->quantizer[pli]);

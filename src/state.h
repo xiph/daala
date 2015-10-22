@@ -260,6 +260,9 @@ void od_coeff_to_ref_plane(od_state *state, od_img *dst, int pli,
 # if defined(OD_DUMP_IMAGES)
 int od_state_dump_img(od_state *state, od_img *img, const char *tag);
 # endif
+void od_init_skipped_coeffs(od_coeff *d, od_coeff *pred, int is_keyframe,
+ int bo, int n, int w);
+
 
 /*Shared accelerated functions.*/
 

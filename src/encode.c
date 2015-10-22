@@ -1131,6 +1131,8 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int bs,
     }
   }
   else {
+    /*Safely initialize d since some coeffs are skipped by PVQ.*/
+    od_init_skipped_coeffs(d, pred, ctx->is_keyframe, bo, n, w);
     od_coding_order_to_raster(&d[bo], w, scalar_out, n);
   }
   /*Apply the inverse transform.*/

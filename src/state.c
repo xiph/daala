@@ -1257,3 +1257,23 @@ void od_coeff_to_ref_plane(od_state *state, od_img *dst, int pli,
   od_coeff_to_ref_buf(state, iplane->data, dst_xstride, dst_ystride,
    src, w, lossless_p, w, h);
 }
+
+void od_init_skipped_coeffs(od_coeff *d, od_coeff *pred, int is_keyframe,
+ int bo, int n, int w) {
+  int i;
+  int j;
+  if (is_keyframe) {
+    for (i = 0; i < n; i++) {
+      for (j = 0; j < n; j++) {
+        /* skip DC */
+        if (i || j) d[bo + i*w + j] = 0;
+      }
+    }
+  } else {
+    for (i = 0; i < n; i++) {
+      for (j = 0; j < n; j++) {
+        d[bo + i*w + j] = pred[i*n + j];
+      }
+    }
+  }
+}
