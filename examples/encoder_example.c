@@ -862,13 +862,13 @@ int main(int argc, char **argv) {
   /*Set up encoder.*/
   daala_encode_ctl(dd, OD_SET_QUANT, &video_q, sizeof(video_q));
   daala_encode_ctl(dd, OD_SET_COMPLEXITY, &complexity, sizeof(complexity));
-  daala_encode_ctl(dd, OD_SET_MC_USE_CHROMA, &mc_use_chroma,
+  daala_encode_ctl(dd, OD_SET_MC_CHROMA, &mc_use_chroma,
    sizeof(mc_use_chroma));
-  daala_encode_ctl(dd, OD_SET_MC_USE_SATD, &mc_use_satd,
+  daala_encode_ctl(dd, OD_SET_MC_SATD, &mc_use_satd,
    sizeof(mc_use_satd));
-  daala_encode_ctl(dd, OD_SET_USE_ACTIVITY_MASKING, &use_activity_masking,
+  daala_encode_ctl(dd, OD_SET_ACTIVITY_MASKING, &use_activity_masking,
    sizeof(use_activity_masking));
-  daala_encode_ctl(dd, OD_SET_USE_DERING, &use_dering,
+  daala_encode_ctl(dd, OD_SET_DERING, &use_dering,
    sizeof(use_dering));
   daala_encode_ctl(dd, OD_SET_MV_RES_MIN, &mv_res_min, sizeof(mv_res_min));
   daala_encode_ctl(dd, OD_SET_QM, &qm, sizeof(qm));

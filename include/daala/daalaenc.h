@@ -170,7 +170,7 @@ void daala_encode_free(daala_enc_ctx *enc);
 /** Whether activity masking should be used or not.
  * \param[in]  _buf <tt>int</tt>: 0 to disable the use of activity masking,
  *                   a non-zero value otherwise (the default). */
-#define OD_SET_USE_ACTIVITY_MASKING 4006
+#define OD_SET_ACTIVITY_MASKING 4006
 /** Which quantization matrix to use.
  * \param[in]  _buf <tt>int</tt>: 0 => flat quantization matrix,
  *                   1 => HVS (the default). */
@@ -178,13 +178,13 @@ void daala_encode_free(daala_enc_ctx *enc);
 /** Whether the bilinear postprocessing filter should be used or not.
  * \param[in]  _buf <tt>int</tt>: 0 to disable the bilinear postprocessing filter,
  *                   a non-zero value otherwise (the default). */
-#define OD_SET_USE_DERING 4010
+#define OD_SET_DERING 4010
 
 /** Whether the motion compensation search should use the chroma planes in
     addition to the luma plane.
  * \param[in]  _buf <tt>int</tt>: 0 to disable the use of the chroma planes,
  *                   a non-zero value otherwise (the default). */
-#define OD_SET_MC_USE_CHROMA 4100
+#define OD_SET_MC_CHROMA 4100
 /** Minimum motion vectors resolution for the motion compensation search.
  * \param[in]  _buf <tt>int</tt>: 0 => 1/8 pel (default), 1 => 1/4 pel,
  *                   2 => 1/2 pel */
@@ -202,7 +202,7 @@ void daala_encode_free(daala_enc_ctx *enc);
 /** Whether the SATD metric should be used in motion compensation or not.
  * \param[in]  _buf <tt>int</tt>: 0 to disable the use of SATD (the default),
  *                   a non-zero value otherwise. */
-#define OD_SET_MC_USE_SATD 4108
+#define OD_SET_MC_SATD 4108
 
 /*@}*/
 
