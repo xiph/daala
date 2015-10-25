@@ -163,12 +163,6 @@ struct od_img_plane {
   /** Distance in memory between two pixels vertically next to each other.
       As with xstride, this value is always in bytes. */
   int ystride;
-  /** 8 for 'normal' video precision; data is unsigned bytes centered on 128.
-      Greater-than-8 indicates high-depth video; data is unnormalized
-      host-endian order unsigned signed 16-bit shorts (two octets).
-      For example, 10 bit video would declare a bit depth of 10, use the
-      lower 10 bits of each 16 bit short, and center on 512. */
-  int bitdepth;
 };
 
 /** Representation of an image or video frame. */
@@ -180,6 +174,12 @@ struct od_img {
   /** Width and height in pixels */
   int32_t width;
   int32_t height;
+  /** 8 for 'normal' video precision; data is unsigned bytes centered on 128.
+      Greater-than-8 indicates high-depth video; data is unnormalized
+      host-endian order unsigned signed 16-bit shorts (two octets).
+      For example, 10 bit video would declare a bit depth of 10, use the
+      lower 10 bits of each 16 bit short, and center on 512. */
+  int bitdepth;
 };
 
 /** Subsampling factors for a plane as a power of 2.

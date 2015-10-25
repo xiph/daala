@@ -373,6 +373,7 @@ static void id_y4m_file(av_input *avin, const char *file, FILE *test) {
   img->nplanes = avin->video_nplanes;
   img->width = avin->video_pic_w;
   img->height = avin->video_pic_h;
+  img->bitdepth = avin->video_depth;
   for (pli = 0; pli < img->nplanes; pli++) {
     od_img_plane *iplane;
     iplane = img->planes + pli;
@@ -385,7 +386,6 @@ static void id_y4m_file(av_input *avin, const char *file, FILE *test) {
     iplane->xstride = avin->video_depth > 8 ? 2 : 1;
     iplane->ystride = ((avin->video_pic_w
      + (1<<iplane->xdec)-1)>>iplane->xdec)*iplane->xstride;
-    iplane->bitdepth = avin->video_depth;
     iplane->data = _ogg_malloc(iplane->ystride*
      ((avin->video_pic_h + (1<<iplane->ydec) - 1)>>iplane->ydec));
   }
@@ -462,7 +462,7 @@ int fetch_and_process_video(av_input *avin, ogg_page *page,
         int bytes;
         size_t plane_sz;
         iplane = img->planes + pli;
-        bytes = iplane->bitdepth > 8 ? 2 : 1;
+        bytes = img->bitdepth > 8 ? 2 : 1;
         plane_sz = ((avin->video_pic_w + (1 << iplane->xdec) - 1)
          >> iplane->xdec)*((avin->video_pic_h + (1 << iplane->ydec)
          - 1) >> iplane->ydec)*bytes;

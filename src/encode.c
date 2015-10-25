@@ -262,13 +262,13 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
   img->nplanes = info->nplanes;
   img->width = enc->state.frame_width;
   img->height = enc->state.frame_height;
+  img->bitdepth = reference_bits;
   for (pli = 0; pli < img->nplanes; pli++) {
     plane_buf_width = frame_buf_width >> info->plane_info[pli].xdec;
     plane_buf_height = frame_buf_height >> info->plane_info[pli].ydec;
     iplane = img->planes + pli;
     iplane->xdec = info->plane_info[pli].xdec;
     iplane->ydec = info->plane_info[pli].ydec;
-    iplane->bitdepth = reference_bits;
     /*Internal buffers are always planar.*/
     iplane->xstride = reference_bytes;
     iplane->ystride = plane_buf_width*iplane->xstride;
@@ -521,7 +521,7 @@ void od_encode_rollback(daala_enc_ctx *enc, const od_rollback_buffer *rbuf) {
 }
 
 static void od_img_plane_copy_pad8(od_img_plane *dst_p,
- int plane_width, int plane_height, od_img_plane *src_p,
+ int plane_width, int plane_height, int bitdepth, od_img_plane *src_p,
  int pic_width, int pic_height) {
   unsigned char *dst_data;
   ptrdiff_t dstride;
@@ -553,7 +553,7 @@ static void od_img_plane_copy_pad8(od_img_plane *dst_p,
         OD_COPY(dst, src_data, pic_width);
       }
       else {
-        if (src_p->bitdepth <= 8) {
+        if (bitdepth <= 8) {
           /*1 byte per pixel*/
           for (x = 0; x < pic_width; x++) {
             dst[x] = *(src_data + sxstride*x);
@@ -567,7 +567,7 @@ static void od_img_plane_copy_pad8(od_img_plane *dst_p,
              accept the high-depth input and truncate it. */
           for (x = 0; x < pic_width; x++) {
             dst[x] = *(src_data + sxstride*x) +
-             (*(src_data + sxstride*x + 1) << 8) >> src_p->bitdepth - 8;
+             (*(src_data + sxstride*x + 1) << 8) >> bitdepth - 8;
           }
         }
       }
@@ -1628,7 +1628,7 @@ static void od_img_copy_pad(daala_enc_ctx *enc, od_img *img) {
     plane_height = ((state->info.pic_height + (1 << ydec) - 1) >> ydec);
     od_img_plane_copy_pad8(enc->input_img.planes+pli,
      state->frame_width >> xdec, state->frame_height >> ydec,
-     &plane, plane_width, plane_height);
+     enc->input_img.bitdepth, &plane, plane_width, plane_height);
   }
   od_img_edge_ext(&enc->input_img);
 }

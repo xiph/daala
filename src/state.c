@@ -154,13 +154,13 @@ static int od_state_ref_imgs_init(od_state *state, int nrefs) {
     img->nplanes = info->nplanes;
     img->width = state->frame_width;
     img->height = state->frame_height;
+    img->bitdepth = reference_bits;
     for (pli = 0; pli < img->nplanes; pli++) {
       iplane = img->planes + pli;
       iplane->xdec = info->plane_info[pli].xdec;
       iplane->ydec = info->plane_info[pli].ydec;
       plane_buf_width = frame_buf_width >> iplane->xdec;
       plane_buf_height = frame_buf_height >> iplane->ydec;
-      iplane->bitdepth = reference_bits;
       iplane->xstride = reference_bytes;
       iplane->ystride = plane_buf_width*reference_bytes;
       iplane->data = ref_img_data

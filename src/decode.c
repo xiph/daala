@@ -89,13 +89,13 @@ static int od_dec_init(od_dec_ctx *dec, const daala_info *info,
   img->nplanes = info->nplanes;
   img->width = dec->state.frame_width;
   img->height = dec->state.frame_height;
+  img->bitdepth = output_bits;
   for (pli = 0; pli < img->nplanes; pli++) {
     plane_buf_width = frame_buf_width >> info->plane_info[pli].xdec;
     plane_buf_height = frame_buf_height >> info->plane_info[pli].ydec;
     iplane = img->planes + pli;
     iplane->xdec = info->plane_info[pli].xdec;
     iplane->ydec = info->plane_info[pli].ydec;
-    iplane->bitdepth = output_bits;
     /*At this moment, our output is always planar.*/
     iplane->xstride = output_bytes;
     iplane->ystride = plane_buf_width*iplane->xstride;
