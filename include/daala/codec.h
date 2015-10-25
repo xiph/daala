@@ -121,6 +121,23 @@ extern "C" {
 # define OD_CS_NSPACES (5)
 /*@}*/
 
+/**\name Pixel formats
+ * Describes how pixels are stored in memory. */
+/*@{*/
+/**Y plane followed by U and V planes*/
+# define OD_PIX_YUV444 (1)
+/**Y plane followed 1x1 subsampled U and V planes.*/
+# define OD_PIX_YUV422 (2)
+/**Y plane followed by 2x1 subsampled U and V planes.*/
+# define OD_PIX_YUV411 (3)
+/**Y plane followed by 2x2 subsampled U and V planes.*/
+# define OD_PIX_YUV420 (4)
+/**Y plane only.*/
+# define OD_PIX_YUV400 (5)
+/**Not part of ABI.*/
+# define OD_PIX_NB (6)
+/*@}*/
+
 /**The maximum number of color planes allowed in a single frame.*/
 # define OD_NPLANES_MAX (4)
 
@@ -169,7 +186,7 @@ struct od_img_plane {
 struct od_img {
   /** Typical 3 planes for Y, Cb, and  Cr. Can have a 4th plane for alpha */
   od_img_plane planes[OD_NPLANES_MAX];
-  /** Number of planes (1 for greyscale, 3 for YCbCr, 4 for YCbCr+Alpha ) */
+  /** Number of planes (1 for greyscale, 3 for YUV, 4 for YUV + Alpha) */
   int nplanes;
   /** Width and height in pixels */
   int32_t width;
@@ -185,8 +202,8 @@ struct od_img {
 /** Subsampling factors for a plane as a power of 2.
  *  4:2:0 would have {0, 0} for Y and {1, 1} for Cb and Cr. */
 struct daala_plane_info {
-  unsigned char xdec;
-  unsigned char ydec;
+  unsigned char xdec[OD_NPLANES_MAX];
+  unsigned char ydec[OD_NPLANES_MAX];
 };
 
 /**\name Bit Depths
@@ -220,7 +237,8 @@ struct daala_info {
    * above. */
   int bitdepth_mode;
   int nplanes;
-  daala_plane_info plane_info[OD_NPLANES_MAX];
+  /** pixel_format is one of the three OD_PIX_X choices allowed above. */
+  int pixel_format;
    /** key frame rate defined how often a key frame is emitted by encoder in
     * number of frames. So 10 means every 10th frame is a keyframe.  */
   int keyframe_rate;

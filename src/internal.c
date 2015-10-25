@@ -388,6 +388,15 @@ uint32_t OD_DIVU_SMALL_CONSTS[OD_DIVU_DMAX][2] = {
   {0xFFFFFFFF,0xFFFFFFFF}
 };
 
+const daala_plane_info od_plane_info_tab[OD_PIX_NB] = {
+  {{ 0, 0, 0 }, { 0, 0, 0 }}, /* n/a */
+  {{ 0, 0, 0 }, { 0, 0, 0 }}, /* OD_PIX_YUV444 */
+  {{ 0, 1, 0 }, { 0, 1, 0 }}, /* OD_PIX_YUV422 */
+  {{ 0, 2, 0 }, { 0, 2, 0 }}, /* OD_PIX_YUV411 */
+  {{ 0, 1, 1 }, { 0, 1, 1 }}, /* OD_PIX_YUV420 */
+  {{ 0, 0, 0 }, { 0, 0, 0 }}, /* OD_PIX_YUV400 */
+};
+
 #if defined(OD_ENABLE_ASSERTIONS)
 # include <stdio.h>
 

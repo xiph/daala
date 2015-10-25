@@ -59,6 +59,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "getopt.h"
 #include "../src/logging.h"
 #include "../include/daala/daaladec.h"
+#include "../include/daala/codec.h"
 
 const char *optstring = "o:r";
 struct option options [] = {
@@ -360,22 +361,16 @@ int main(int argc, char *argv[]) {
     pic_height = di.pic_height;
     fps_num = di.timebase_numerator;
     fps_denom = di.timebase_denominator*di.frame_duration;
-    if (di.nplanes > 1) {
-      /*calculate pixel_fmt based on the xdec & ydec values from one of the
-        chroma planes.*/
-      if (di.plane_info[1].xdec == 1 && di.plane_info[1].ydec == 1) {
-        pix_fmt = 0;
-      }
-      else if (di.plane_info[1].xdec == 1 && di.plane_info[1].ydec == 0) {
-        pix_fmt = 2;
-      }
-      else if (di.plane_info[1].xdec == 0 && di.plane_info[1].ydec == 0) {
-        pix_fmt = 3;
-      }
-    }
-    else {
+
+    if (di.pixel_format == OD_PIX_YUV420)
+      pix_fmt = 0;
+    else if (di.pixel_format == OD_PIX_YUV422)
+      pix_fmt = 2;
+    else if (di.pixel_format == OD_PIX_YUV444)
+      pix_fmt = 3;
+    else if (di.pixel_format == OD_PIX_YUV400)
       pix_fmt = 4;
-    }
+
     if (pix_fmt >= 5 || pix_fmt == 1) {
       fprintf(stderr, "Unknown pixel format: %i\n", pix_fmt);
       exit(1);

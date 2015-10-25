@@ -76,8 +76,10 @@ static int od_dec_init(od_dec_ctx *dec, const daala_info *info,
   frame_buf_width = dec->state.frame_width + (OD_BUFFER_PADDING << 1);
   frame_buf_height = dec->state.frame_height + (OD_BUFFER_PADDING << 1);
   for (pli = 0; pli < info->nplanes; pli++) {
-    plane_buf_width = frame_buf_width >> info->plane_info[pli].xdec;
-    plane_buf_height = frame_buf_height >> info->plane_info[pli].ydec;
+    plane_buf_width = frame_buf_width >>
+        od_plane_info_tab[info->pixel_format].xdec[pli];
+    plane_buf_height = frame_buf_height >>
+        od_plane_info_tab[info->pixel_format].ydec[pli];
     data_sz += plane_buf_width*plane_buf_height*output_bytes;
   }
   dec->output_img_data = output_img_data =
@@ -91,17 +93,21 @@ static int od_dec_init(od_dec_ctx *dec, const daala_info *info,
   img->height = dec->state.frame_height;
   img->bitdepth = output_bits;
   for (pli = 0; pli < img->nplanes; pli++) {
-    plane_buf_width = frame_buf_width >> info->plane_info[pli].xdec;
-    plane_buf_height = frame_buf_height >> info->plane_info[pli].ydec;
+    plane_buf_width = frame_buf_width >>
+        od_plane_info_tab[info->pixel_format].xdec[pli];
+    plane_buf_height = frame_buf_height >>
+        od_plane_info_tab[info->pixel_format].ydec[pli];
     iplane = img->planes + pli;
-    iplane->xdec = info->plane_info[pli].xdec;
-    iplane->ydec = info->plane_info[pli].ydec;
+    iplane->xdec = od_plane_info_tab[info->pixel_format].xdec[pli];
+    iplane->ydec = od_plane_info_tab[info->pixel_format].ydec[pli];
     /*At this moment, our output is always planar.*/
     iplane->xstride = output_bytes;
     iplane->ystride = plane_buf_width*iplane->xstride;
     iplane->data = output_img_data
-      + iplane->xstride*(OD_BUFFER_PADDING >> info->plane_info[pli].xdec)
-      + iplane->ystride*(OD_BUFFER_PADDING >> info->plane_info[pli].ydec);
+      + iplane->xstride*(OD_BUFFER_PADDING >>
+                         od_plane_info_tab[info->pixel_format].xdec[pli])
+      + iplane->ystride*(OD_BUFFER_PADDING >>
+                         od_plane_info_tab[info->pixel_format].ydec[pli]);
     output_img_data += plane_buf_height*iplane->ystride;
   }
 #if OD_ACCOUNTING
