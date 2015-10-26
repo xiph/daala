@@ -124,10 +124,19 @@ static void video_write(void) {
     for (pli = 0; pli < img.nplanes; pli++) {
       int plane_width;
       int plane_height;
-      int xdec;
-      int ydec;
-      xdec = img.planes[pli].xdec;
-      ydec = img.planes[pli].ydec;
+      int xdec = 0;
+      int ydec = 0;
+      if (pli && pli != 4)
+        if (img.pixel_format == OD_PIX_YUV422) {
+          xdec = 1;
+        } else if (img.pixel_format == OD_PIX_YUV411) {
+          xdec = 2;
+        } else if (img.pixel_format == OD_PIX_YUV420) {
+          xdec = 1;
+          ydec = 1;
+        }
+      }
+
       plane_width = (img.width + (1 << xdec) - 1) >> xdec;
       plane_height = (img.height + (1 << ydec) - 1) >> ydec;
       for (i = 0; i < plane_height; i++) {

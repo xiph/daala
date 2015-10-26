@@ -328,6 +328,7 @@ static void id_y4m_file(av_input *avin, const char *file, FILE *test) {
   img->width = avin->video_pic_w;
   img->height = avin->video_pic_h;
   img->bitdepth = avin->video_depth;
+  img->pixel_format = avin->video_format;
   for (pli = 0; pli < img->nplanes; pli++) {
     od_img_plane *iplane;
     iplane = img->planes + pli;
@@ -413,11 +414,25 @@ int fetch_and_process_video(av_input *avin, ogg_page *page,
         od_img_plane *iplane;
         int bytes;
         size_t plane_sz;
+        int xdec = 0;
+        int ydec = 0;
         iplane = img->planes + pli;
         bytes = img->bitdepth > 8 ? 2 : 1;
-        plane_sz = ((avin->video_pic_w + (1 << iplane->xdec) - 1)
-         >> iplane->xdec)*((avin->video_pic_h + (1 << iplane->ydec)
-         - 1) >> iplane->ydec)*bytes;
+
+        if (pli && pli != 4) {
+          if (img->pixel_format == OD_PIX_YUV422) {
+            xdec = 1;
+          } else if (img->pixel_format == OD_PIX_YUV411) {
+            xdec = 2;
+          } else if (img->pixel_format == OD_PIX_YUV420) {
+            xdec = 1;
+            ydec = 1;
+          }
+        }
+
+        plane_sz = ((avin->video_pic_w + (1 << xdec) - 1)
+         >> xdec)*((avin->video_pic_h + (1 << ydec)
+         - 1) >> ydec)*bytes;
         ret = fread(iplane->data, 1, plane_sz, avin->video_infile);
         if (ret != plane_sz) {
           fprintf(stderr, "Error reading YUV frame data.\n");

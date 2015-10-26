@@ -1577,13 +1577,15 @@ static int32_t od_enc_sad(od_enc_ctx *enc, const unsigned char *p,
   int cliph;
   int w;
   int h;
+  int xdec = od_plane_info_tab[enc->input_img.pixel_format].xdec[pli];
+  int ydec = od_plane_info_tab[enc->input_img.pixel_format].ydec[pli];
   state = &enc->state;
   iplane = enc->input_img.planes + pli;
   /*Compute the block dimensions in the target image plane.*/
-  x >>= iplane->xdec;
-  y >>= iplane->ydec;
-  w = 1 << (log_blk_sz - iplane->xdec);
-  h = 1 << (log_blk_sz - iplane->ydec);
+  x >>= xdec;
+  y >>= ydec;
+  w = 1 << (log_blk_sz - xdec);
+  h = 1 << (log_blk_sz - ydec);
   /*Clip the block against the active picture region.*/
   clipx = -x;
   if (clipx > 0) {
@@ -1597,10 +1599,10 @@ static int32_t od_enc_sad(od_enc_ctx *enc, const unsigned char *p,
     p += clipy*pystride;
     y += clipy;
   }
-  clipw = ((state->info.pic_width + (1 << iplane->xdec) - 1) >> iplane->xdec)
+  clipw = ((state->info.pic_width + (1 << xdec) - 1) >> xdec)
    - x;
   w = OD_MINI(w, clipw);
-  cliph = ((state->info.pic_height + (1 << iplane->ydec) - 1) >> iplane->ydec)
+  cliph = ((state->info.pic_height + (1 << ydec) - 1) >> ydec)
    - y;
   h = OD_MINI(h, cliph);
   /*OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
@@ -1642,13 +1644,15 @@ static int32_t od_enc_satd(od_enc_ctx *enc, const unsigned char *p,
   int cliph;
   int w;
   int h;
+  int xdec = od_plane_info_tab[enc->input_img.pixel_format].xdec[pli];
+  int ydec = od_plane_info_tab[enc->input_img.pixel_format].ydec[pli];
   state = &enc->state;
   iplane = enc->input_img.planes + pli;
   /*Compute the block dimensions in the target image plane.*/
-  x >>= iplane->xdec;
-  y >>= iplane->ydec;
-  w = 1 << (log_blk_sz - iplane->xdec);
-  h = 1 << (log_blk_sz - iplane->ydec);
+  x >>= xdec;
+  y >>= ydec;
+  w = 1 << (log_blk_sz - xdec);
+  h = 1 << (log_blk_sz - ydec);
   /*Clip the block against the active picture region.*/
   clipx = -x;
   if (clipx > 0) {
@@ -1662,10 +1666,10 @@ static int32_t od_enc_satd(od_enc_ctx *enc, const unsigned char *p,
     p += clipy*pystride;
     y += clipy;
   }
-  clipw = ((state->info.pic_width + (1 << iplane->xdec) - 1) >> iplane->xdec)
+  clipw = ((state->info.pic_width + (1 << xdec) - 1) >> xdec)
    - x;
   w = OD_MINI(w, clipw);
-  cliph = ((state->info.pic_height + (1 << iplane->ydec) - 1) >> iplane->ydec)
+  cliph = ((state->info.pic_height + (1 << ydec) - 1) >> ydec)
    - y;
   h = OD_MINI(h, cliph);
   /*OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
@@ -2174,11 +2178,16 @@ static int32_t od_mv_est_bma_sad(od_mv_est_ctx *est,
   int refi;
   int dx;
   int dy;
+  int xdec;
+  int ydec;
+
   enc = est->enc;
   state = &enc->state;
   refi = state->ref_imgi[ref];
+  xdec = od_plane_info_tab[state->ref_imgs[refi].pixel_format].xdec[0];
+  ydec  = od_plane_info_tab[state->ref_imgs[refi].pixel_format].ydec[0];
   iplane = state->ref_imgs[refi].planes + 0;
-  OD_ASSERT(iplane->xdec == 0 && iplane->ydec == 0);
+  OD_ASSERT(xdec == 0 && ydec == 0);
   dx = bx + mvx;
   dy = by + mvy;
   ret = od_enc_sad(est->enc,
@@ -2189,25 +2198,27 @@ static int32_t od_mv_est_bma_sad(od_mv_est_ctx *est,
     int pli;
     unsigned char *ref_img;
     for (pli = 1; pli < enc->input_img.nplanes; pli++) {
+      xdec = od_plane_info_tab[state->ref_imgs[refi].pixel_format].xdec[pli];
+      ydec = od_plane_info_tab[state->ref_imgs[refi].pixel_format].ydec[pli];
       iplane = state->ref_imgs[refi].planes + pli;
-      OD_ASSERT(((bx + (1 << iplane->xdec) - 1) & ~((1 << iplane->xdec) - 1))
+      OD_ASSERT(((bx + (1 << iplane->xdec) - 1) & ~((1 << xdec) - 1))
        == bx);
-      OD_ASSERT(((by + (1 << iplane->ydec) - 1) & ~((1 << iplane->ydec) - 1))
+      OD_ASSERT(((by + (1 << iplane->ydec) - 1) & ~((1 << ydec) - 1))
        == by);
       /*If the input chroma plane is sub-sampled, then the candidate block with
          subpel position for BMA search is interpolated at block level.*/
       ref_img = iplane->data
-       + (by >> iplane->ydec)*iplane->ystride
-       + (bx >> iplane->xdec)*iplane->xstride;
+       + (by >> ydec)*iplane->ystride
+       + (bx >> xdec)*iplane->xstride;
       (*state->opt_vtbl.mc_predict1fmv)
        (state, state->mc_buf[4], ref_img, iplane->ystride,
-       mvx << (3 - iplane->xdec), mvy << (3 - iplane->ydec),
-       log_mvb_sz + OD_LOG_MVBSIZE_MIN - iplane->xdec,
-       log_mvb_sz + OD_LOG_MVBSIZE_MIN - iplane->ydec);
+       mvx << (3 - xdec), mvy << (3 - ydec),
+       log_mvb_sz + OD_LOG_MVBSIZE_MIN - xdec,
+       log_mvb_sz + OD_LOG_MVBSIZE_MIN - ydec);
       /*Then, calculate SAD between a target block and the subpel interpolated
          MC block.*/
       ret += od_enc_sad(est->enc, state->mc_buf[4],
-       iplane->xstride << (log_mvb_sz + OD_LOG_MVBSIZE_MIN - iplane->xdec),
+       iplane->xstride << (log_mvb_sz + OD_LOG_MVBSIZE_MIN - xdec),
        iplane->xstride,
        pli, bx, by, log_mvb_sz + OD_LOG_MVBSIZE_MIN) >> OD_MC_CHROMA_SCALE;
     }
@@ -6083,10 +6094,15 @@ void od_mv_est(od_mv_est_ctx *est, int lambda) {
   int pli;
   int i;
   int j;
+  int xdec;
+  int ydec;
   use_satd = est->enc->use_satd;
   state = &est->enc->state;
   nhmvbs = state->nhmvbs;
   nvmvbs = state->nvmvbs;
+  xdec = od_plane_info_tab[est->enc->input_img.pixel_format].xdec[0];
+  ydec = od_plane_info_tab[est->enc->input_img.pixel_format].ydec[0];
+
   iplane = est->enc->input_img.planes + 0;
   /*Sanitize user parameters*/
   est->level_min = OD_MINI(est->enc->params.mv_level_min,
@@ -6104,22 +6120,23 @@ void od_mv_est(od_mv_est_ctx *est, int lambda) {
   }
   /*If the luma plane is decimated for some reason, then our distortions will
      be smaller, so scale lambda appropriately.*/
-  est->lambda = lambda >> (iplane->xdec + iplane->ydec);
+  est->lambda = lambda >> (xdec + ydec);
   /*Compute termination thresholds for EPZS^2.*/
   for (log_mvb_sz = 0; log_mvb_sz < OD_NMVBSIZES; log_mvb_sz++) {
     est->thresh1[log_mvb_sz] =
-     1 << 2*(log_mvb_sz + OD_LOG_MVBSIZE_MIN) >> (iplane->xdec + iplane->ydec);
+     1 << 2*(log_mvb_sz + OD_LOG_MVBSIZE_MIN) >> (xdec + ydec);
   }
   /*If we're using the chroma planes, then our distortions will be larger.
     Compensate by increasing lambda and the termination thresholds.*/
   if (est->flags & OD_MC_USE_CHROMA) {
     for (pli = 1; pli < est->enc->input_img.nplanes; pli++) {
-      iplane = est->enc->input_img.planes + pli;
+     xdec = od_plane_info_tab[est->enc->input_img.pixel_format].xdec[pli];
+     ydec = od_plane_info_tab[est->enc->input_img.pixel_format].ydec[pli];
       est->lambda +=
-       lambda >> (iplane->xdec + iplane->ydec + OD_MC_CHROMA_SCALE);
+       lambda >> (xdec + ydec + OD_MC_CHROMA_SCALE);
       for (log_mvb_sz = 0; log_mvb_sz < OD_NMVBSIZES; log_mvb_sz++) {
         est->thresh1[log_mvb_sz] += 1 << 2*(log_mvb_sz + OD_LOG_MVBSIZE_MIN) >>
-         (iplane->xdec + iplane->ydec + OD_MC_CHROMA_SCALE);
+         (xdec + ydec + OD_MC_CHROMA_SCALE);
       }
     }
   }

@@ -164,12 +164,6 @@ struct od_img_plane {
   /** Image data is stored as an unsigned octet type whether it's
       actually 8 bit or a multi-byte depth. */
   unsigned char *data;
-  /** The decimation factor in the x and y direction. Pixels are reduced
-      by a factor of 2^xdec so 0 is none, 1 is decimated by a factor of 2.
-      ( YUV420 will  have xdec of 1 and ydec also of 1. YUV444 will have
-      xdec and ydec set to zero ). */
-  unsigned char xdec;
-  unsigned char ydec;
   /** Distance in memory between two pixels horizontally next to each other.
       The value is in bytes regardless of the 'actual' underlying depth
       (either unsigned bytes for 8 bit video or unsigned 16 bit shorts for
@@ -197,6 +191,8 @@ struct od_img {
       For example, 10 bit video would declare a bit depth of 10, use the
       lower 10 bits of each 16 bit short, and center on 512. */
   int bitdepth;
+  /** pixel_format is one of the OD_PIX_X choices allowed above. */
+  int pixel_format;
 };
 
 /** Subsampling factors for a plane as a power of 2.
@@ -237,7 +233,7 @@ struct daala_info {
    * above. */
   int bitdepth_mode;
   int nplanes;
-  /** pixel_format is one of the three OD_PIX_X choices allowed above. */
+  /** pixel_format is one of the OD_PIX_X choices allowed above. */
   int pixel_format;
    /** key frame rate defined how often a key frame is emitted by encoder in
     * number of frames. So 10 means every 10th frame is a keyframe.  */
