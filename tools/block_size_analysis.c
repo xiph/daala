@@ -45,7 +45,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 static void usage(char **_argv){
   fprintf(stderr,"Usage: %s [options] <input> <output>\n"
-   "    <reference> and <input> may be either YUV4MPEG or Ogg Theora files.\n\n"
+   "    <reference> and <input> must be YUV4MPEG files.\n\n"
    "    Options:\n"
    "      --intra    Intraframes only.\n"
    "      --limit N  Only read N frames from input.\n"
