@@ -1,0 +1,566 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE rfc SYSTEM 'rfc2629.dtd' [
+<!ENTITY I-D.egge-netvc-tdlt PUBLIC '' 'http://xml2rfc.ietf.org/public/rfc/bibxml3/reference.I-D.egge-netvc-tdlt.xml'>
+<!ENTITY I-D.terriberry-netvc-codingtools PUBLIC '' 'http://xml2rfc.ietf.org/public/rfc/bibxml3/reference.I-D.terriberry-netvc-codingtools.xml'>
+<!ENTITY I-D.valin-netvc-pvq PUBLIC '' 'http://xml2rfc.ietf.org/public/rfc/bibxml3/reference.I-D.valin-netvc-pvq.xml'>
+]>
+<?rfc toc="yes" symrefs="yes" ?>
+
+<rfc ipr="trust200902" category="info" docName="draft-egge-netvc-cfl-00">
+
+<front>
+<title abbrev="Coding Tools">Chroma-from-Luma Intraprediction for NETVC</title>
+<author initials="N.E." surname="Egge" fullname="Nathan E. Egge">
+<organization>Mozilla Corporation</organization>
+<address>
+<postal>
+<street>331 E. Evelyn Avenue</street>
+<city>Mountain View</city>
+<region>CA</region>
+<code>94041</code>
+<country>USA</country>
+</postal>
+<phone>+1 650 903-0800</phone>
+<email>negge@xiph.org</email>
+</address>
+</author>
+
+<date day="18" month="October" year="2015"/>
+<area>RAI</area>
+
+<abstract>
+<t>
+This document proposes a scheme for predicting chroma coefficients from
+ reconstructed luma coefficients in the frequency domain.
+When this technique is used with Perceptual Vector Quantization (PVQ),
+ the expensive parameter fitting step can be completely omitted.
+</t>
+</abstract>
+</front>
+
+<middle>
+<section anchor="intro" title="Introduction">
+<t>
+Still image and video codecs typically consider the problem of
+ intra-prediction in the spatial domain.
+A predicted image is generated on a block-by-block basis using the previously
+ reconstructed neighboring blocks for reference, and the residual is encoded
+ using standard entropy coding techniques.
+Modern codecs use the boundary pixels of the neighboring blocks along with a
+ directional mode to predict the pixel values across the target block.
+These directional predictors are cheap to compute (often directly copying pixel
+ values or applying a simple linear kernel), exploit local coherency (with low
+ error near the neighbors) and predict hard to code features (extending sharp
+ directional edges across the block).
+</t>
+<t>
+In codecs that use lapped transforms <xref target="I-D.egge-netvc-tdlt"/>, the
+ reconstructed pixel data is not available.
+The challenge here is that the neighboring spatial image data is not available
+ until after the target block has been decoded and the appropriate unlapping
+ filter has been applied across the block boundaries.
+</t>
+<t>
+A promising technique was proposed in <xref target="Lee09"/> to predict the
+ chroma channels using the spatially coincident reconstructed luma channel.
+We propose a different technique that adapts the spatial chroma-from-luma
+ intra-prediction for use with frequency-domain coefficients.
+We call this algorithm frequency-domain chroma-from-luma.
+</t>
+<t>
+More recently, work on the Daala video codec <xref target="Daala-website"/> has
+ included replacing scalar quantization with gain-shape quantization
+ <xref target="Val15"/>.
+We show that when prediction is used with gain-shape quantization, it is
+ possible to design a frequency-domain chroma-from-luma predictor without the
+ added encoder and decoder overhead.
+</t>
+</section>
+
+<section anchor="sd_cfl" title="Chroma from Luma Prediction">
+<t>
+In spatial-domain chroma-from-luma, the key observation is that the local
+ correlation between luminance and chrominance can be exploited using a linear
+ prediction model.
+For the target block, the chroma values can be estimated from the reconstructed
+ luma values as:
+</t>
+<figure align="center">
+<artwork align="center"><![CDATA[
+chroma(u,v) = alpha * luma(u,v) + beta
+]]></artwork>
+</figure>
+<t>
+where the model parameters alpha and beta are computed as a linear
+ least-squares regression using 2*N pairs of spatially coincident
+ luma and chroma pixel values along the block boundary.
+</t>
+<figure align="left" title="">
+<artwork align="left"><![CDATA[
+        L L L L L L L L
+        L L L L L L L L
+    L L . . . . . . . .
+    L L . . . . . . . .        L L L L         C C C C
+    L L . . . . . . . .      L . . . .       C . . . .
+    L L . . . . . . . .  =>  L . . . .       C . . . .
+    L L . . . . . . . .      L . . . .       C . . . .
+    L L . . . . . . . .      L . . . .       C . . . .
+    L L . . . . . . . .
+    L L . . . . . . . .
+
+Predicting a 4x4 chroma block uses 2*N = 8 pairs of spatially
+coincident pixel values.  When using 4:2:0 input, the 8x8 block
+of luma coefficients must be first down-sampled to 4x4.
+]]></artwork>
+</figure>
+<!--t>
+Talk about computational cost.
+</t-->
+<section anchor="fd_cfl" title="Extension to Frequency Domain">
+<t>
+In codecs that use lapped transforms, the neighboring reconstructed pixel data
+ is not available for use in spatial prediction.
+However the transform coefficients in the lapped frequency domain are the
+ product of two linear transforms: the linear pre-filter followed by the
+ linear forward DCT.
+Thus the same assumption of a linear correlation between luma and chroma
+ coefficients holds.
+In addition, we can take advantage of the fact that prediction is being done
+ in the frequency domain to use only a small subset of coefficients when
+ computing model parameters.
+</t>
+<t>
+The chroma values can thus be estimated using frequency-domain
+ chroma-from-luma:
+</t>
+<figure anchor="fd_cfl_linear_model"
+ title="Predicting chroma from luma using linear regression in the frequency domain" align="center">
+<artwork align="center"><![CDATA[
+     chroma_DC = alpha_DC * luma_DC + beta_DC
+chroma_AC(u,v) = alpha_AC * luma_AC(u,v)
+]]></artwork>
+</figure>
+<t>
+where alpha_DC and beta_DC are computed using a linear regression
+ with the DC coefficients of the three neighboring blocks:
+ up, left and up-left.
+When estimating chroma_AC(u,v) we can omit the constant offset beta_AC as we
+ expect the AC coefficients to be zero mean.
+Additionally, we need not include all of the AC coefficients from the three
+ neighboring blocks when computing alpha_AC.
+</t>
+<figure>
+<artwork align="center"><![CDATA[
+  L . . .|L . . .       C . . .|C . . .
+  . . . .|. . . .       . . . .|. . . .
+  . . . .|. . . .       . . . .|. . . .
+  . . . .|. . . .       . . . .|. . . .
+  -------+-------       -------+-------
+  L . . .|. . . .       C . . .|. . . .
+  . . . .|. . . .       . . . .|. . . .
+  . . . .|. . . .       . . . .|. . . .
+  . . . .|. . . .       . . . .|. . . .
+
+The three pairs of DC coefficients used to compute alpha_DC and
+beta_DC.
+
+  . L . .|. L . .       . C . .|. C . .
+  L L . .|L L . .       C C . .|C C . .
+  . . . .|. . . .       . . . .|. . . .
+  . . . .|. . . .       . . . .|. . . .
+  -------+-------       -------+-------
+  . L . .|. . . .       . C . .|. . . .
+  L L . .|. . . .       C C . .|. . . .
+  . . . .|. . . .       . . . .|. . . .
+  . . . .|. . . .       . . . .|. . . .
+
+The nine pairs of AC coefficients used to compute alpha_AC.
+]]></artwork>
+</figure>
+<t>
+It is sufficient to use the three lowest AC coefficients from the neighboring
+ blocks.
+This means that the number of input pairs is constant regardless of the size
+ of chroma block being predicted.
+Moreover, the input AC coefficients have semantic meaning: we use the strongest
+ horizontal, vertical and diagonal components.
+This has the effect of preserving features across the block as edges are
+ correlated between luma and chroma.
+</t>
+</section>
+<section anchor="tf" title="Time-Frequency Resolution Switching">
+<t>
+When image data is 4:4:4 or 4:2:0, the chroma and luma blocks are aligned so
+ that the lowest 3 AC coefficients describe the same frequency range.
+In codecs that support multiple block sizes (or that support 4:2:2 image data)
+ it is the case that the luma blocks and the chroma blocks are not aligned.
+For example, in the Daala video codec <xref target="Daala-website"/> the
+ smallest block size supported is 4x4.
+In 4:2:0, when an 8x8 block of luma image data is split into four 4x4 blocks,
+ the corresponding 4x4 chroma image data is still coded as a single 4x4 block.
+</t>
+<t>
+This is a problem for frequency-domain chroma-from-luma as it requires the
+ reconstructed luma frequency-domain coefficients to cover the same spatial
+ extent.
+Using Time-Frequency resolution switching (TF) it is possible to trade off
+ resolution in the spatial domain for resolution in the frequency domain.
+Here the four 4x4 luma blocks are merged into a single 8x8 block with half the
+ spatial resolution and twice the frequency resolution.
+We apply the 2x2 Walsh-Hadamard transform described in Section 3.4 of
+ <xref target="I-D.terriberry-netvc-codingtools"/> to corresponding transform
+ coefficients in four 4x4 blocks to merge them into a single 8x8 block.
+The low frequency (LF) coefficients are then used with frequency-domain
+ chroma-from-luma.
+</t>
+</section>
+</section>
+<section anchor="pvq" title="Gain-Shape Quantization">
+<t>
+In codecs that use Perceptual Vector Quantization <xref target="Val15"/>,
+ an entire block of transform coefficients may be grouped together and jointly
+ quantized.
+This is done by considering them as an n-dimensional vector and then separating
+ the vector into two intuitive components: its magnitude (gain) and its
+ direction (shape).
+For an input vector x:
+</t>
+<figure align="center">
+<artwork align="center"><![CDATA[
+  g = |x|     gain
+
+       x
+  u = ---     shape
+      |x|
+]]></artwork>
+</figure>
+<t>
+The gain represents how much energy is contained in the block, and the shape
+ indicates where that energy is distributed among the coefficients.
+The gain is then quantized using scalar quantization, while the shape is
+ quantized by finding the nearest VQ-codeword in an algebraically defined
+ codebook.
+<!--This has the advantage of not needing to explicitly store the VQ-codebook in
+ the decoder as well as allowing the encoder to search only a small set of
+ VQ-codewords around the input vector.-->
+By explicitly signaling the amount of energy in a block, and roughly where
+ that energy is located, gain-shape quantization is texture preserving.
+A complete description of PVQ and its other advantages over scalar
+ quantization can be found in <xref target="Val15"/>.
+</t>
+<section anchor="pvq_pred" title="Prediction with PVQ">
+<!--t>
+In block based codecs, both intra- and inter-prediction can often construct
+ a very good predictor for the block that will be decoded next.
+In the encoder, this predicted block is typically subtracted from the input
+ image and the residual is transformed to the frequency domain, quantized and
+ entropy coded.
+When the transform is linear, as is the case with codecs based on lapped
+ transforms, this is equivalent to transforming the predictor and computing
+ the difference in the frequency domain.
+However, if one were to simply quantize the frequency domain residual using
+ PVQ, the texture preservation property would be lost.
+This is because the energy that would be preserved is no longer that of the
+ block being coded, but instead the gain represents how much the image is
+ different from its predictor.
+</t>
+<t>
+This is avoided by explicitly not computing a residual, but instead extracting
+ another intuitive parameter in gain-shape quantization.
+Ideally, when the predictor is good we would like the cost of coding the
+ gain and shape to be low.
+That is, we would like the entropy of the symbols we code to be as small as
+ possible.
+We can achieve this and retain the energy preserving properties of PVQ by using
+ a Householder reflection.
+Considering the predictor as another n-dimensional vector, a reflection plane
+ is computed that aligns the predictor with one of the axes in the n-dimensional
+vector space making all but one of the components in the predictor equal zero.
+The encoder can then reflect the input vector x across this reflection plane in
+ a way that is perfectly reproducible in the decoder.
+</t-->
+<t>
+As described in Section 3 of <xref target="I-D.valin-netvc-pvq"/>, this
+ gain-shape quantization scheme can be extended to include prediction while
+ maintaining the advantages of PVQ, e.g., texture-preservation, implicit
+ activity masking, etc.
+Consider an n-dimensional vector r of predicted coefficients for x.
+Then the normal to the reflection plane can be computed as:
+</t>
+<figure align="center">
+<artwork align="center"><![CDATA[
+       r
+  v = --- + s * e_m
+      |r|
+]]></artwork>
+</figure>
+<t>
+where s * e_m is the signed unit vector in the direction of the axis we would like
+ to reflect r onto.
+The input vector x can then be reflected across this plane by computing:
+</t>
+<figure align="center">
+<artwork align="center"><![CDATA[
+                v^T x
+  z =  x - 2 * ------- * v
+                v^T v
+]]></artwork>
+</figure>
+<t>
+We can measure how well the predictor r matches our input vector x by computing the
+ cosine of the angle theta between them as
+</t>
+<figure align="center">
+<artwork align="center"><![CDATA[
+                x^T r     z^T r         z_m
+  cos(theta) = ------- = ------- = -s * ---
+               |x| |r|   |z| |r|        |z|
+]]></artwork>
+</figure>
+<t>
+We select e_m to be the dimension of the largest component of our prediction vector r
+ and s = sgn(r_m).
+Thus the largest component lies on the m-axis after reflection.
+When the predictor is good, we expect that the largest component of z will also be in
+ the e_m direction and theta will be small.
+If we code theta using scalar quantization, we can remove the largest dimension of z
+ and reduce the coding of x to a gain-shape quantization of the remaining n − 1
+ coefficients where the gain has been reduced to sin(theta) * g.
+Given a predictor r, the reconstructed coefficients x' are computed as:
+</t>
+<figure align="center">
+<artwork align="center"><![CDATA[
+x' = g' * (-s * cos(theta') * e_m + sin(theta') * u')
+]]></artwork>
+</figure>
+<t>
+Where g', theta' and u' are the reconstructed gain, prediction quality and
+ shape respectively.
+</t>
+<t>
+When the predictor is poor, theta will be large and the reflection is unlikely
+  to improve coding efficiency.
+Thus when theta > pi/2 a flag is coded and PVQ with no predictor is used.
+Conversely when r is exact, theta' is zero and no additional shape information
+ needs to be coded.
+In addition, because we expect r to have roughly the same amount of energy as
+ x, we use |r| as a predictor for the gain.
+</t>
+</section>
+<section anchor="pvq_cfl" title="Chroma-from-Luma using PVQ Prediction">
+<t>
+Let us now return to the frequency-domain chroma-from-luma algorithm from
+ <xref target="fd_cfl"/> and consider what happens when it is used with
+ gain-shape quantization.
+As an example, consider a 4x4 chroma block where the 15 AC coefficients are
+ coded using gain-shape quantization with the chroma_AC predictor from
+ <xref target="fd_cfl_linear_model"/>.
+The 15-dimensional predictor r is simply a linearly scaled vector of the
+ coincident reconstructed luma coefficients:
+</t>
+<figure align="center">
+<artwork align="center"><![CDATA[
+chroma_AC(u,v) = alpha_AC * luma_AC(u,v)  =>  r = alpha_AC * x'_L
+]]></artwork>
+</figure>
+<t>
+Thus the shape of the chroma predictor r is exactly that of the reconstructed
+ luma coefficients x'_L with one exception:
+</t>
+<figure align="center">
+<artwork align="center"><![CDATA[
+ r     alpha_AC * x'_L                     x'_L
+--- = ----------------- = sgn(alpha_AC) * ------
+|r|   |alpha_AC * x'_L|                   |x'_L|
+]]></artwork>
+</figure>
+<t>
+Because the chroma coefficients are sometimes inversely correlated with the
+ coincident luma coefficients, the linear term alpha_AC can be negative.
+In these instances the shape of x'_L points in exactly the wrong direction and
+ must be flipped.
+</t>
+<t>
+Moreover, consider what happens to the gain of x_C when it is predicted from r.
+The PVQ prediction technique assumes that |r| = alpha_AC * |x'_L| is a good
+ predictor of chroma gain g_C = |x_C|.
+Because alpha_AC for a block is learned from its previously decoded neighbors,
+ often it is based on highly quantized or even zeroed coefficients.
+When this happens, alpha_AC * |x'_L| is no longer a good predictor of g_C and
+ the cost to code |x_C| − alpha_AC * |x'_L| using scalar quantization is
+ actually greater than the cost of just coding g_C alone.
+</t>
+</section>
+</section>
+<section anchor="alg" title="Algorithm and Implementation">
+<t>
+Thus we present a modified version of PVQ prediction that is used just for
+ chroma-from-luma intra-prediction.
+For each set of chroma coefficients coded by PVQ, the prediction vector r is
+ exactly the coincident luma coefficients.
+Note that for 4:2:0 video we still need to apply the Time-Frequency resolution
+ switching (TF) described in <xref target="tf"/> to merge the reconstructed
+ coefficients of 4x4 luma blocks to get the coincident predictor x'_L for the
+ corresponding 4x4 chroma block x_C.
+We determine if we need to flip the predictor by computing the sign of the
+ cosine of the angle between x'_L and x_C:
+</t>
+<figure align="center">
+<artwork align="center"><![CDATA[
+                           x'_L^T x_C
+f = sgn(cos(theta)) = sgn(------------) = sgn(x'_L^T x_C)
+                          |x'_L| |x_C|
+]]></artwork>
+</figure>
+<t>
+A negative sign means the angle between the two is greater than pi/2 and
+ negating x'_L is guaranteed to make the angle less than pi/2.
+</t>
+<t>
+We then code f using a single bit, and the gain g_C using scalar quantization
+ with no predictor.
+The shape quantization algorithm for x_C is unchanged except that r = f * x'_L.
+This algorithm has the advantage over frequency-domain chroma-from-luma of
+ being both lower complexity (neither the encoder nor decoder need to compute
+ a linear regression per block) and providing better compression (the chroma
+ gain g_C is never incorrectly predicted).
+</t>
+<t>
+The steps of the encoder algorithm are:
+<list style="numbers">
+<t>Let r = x'_L</t>
+<t>Compute theta, the angle between x'_L and x_C</t>
+<t>If theta = 0 (prediction is exact)
+  <list style="format (%c)">
+  <t>Code theta</t>
+  <t>Stop</t>
+  </list>
+</t>
+<t>Let f = theta > pi/2</t>
+<t>Code f</t>
+<t>If f, negate r</t>
+<t>Code x_C using PVQ with predictor r</t>
+</list>
+</t>
+<section anchor="cfl_bands" title="Chroma-from-Luma with Frequency Bands">
+<t>
+Up to this point we have only examined the case when all of the AC coefficients
+ for an NxN block are considered together as a single input vector for PVQ
+ prediction.
+In practice, it may be better to consider portions of the AC coefficients
+ together so partitions of the block where g' = 0 or theta' = 0 are coded more
+ efficiently.
+Consider the frequency band structure currently used by Daala in
+ <xref target="pvq_bands"/>.
+The chroma-from-luma using PVQ prediction technique in <xref target="alg"/> is
+ trivially modified to work with any arbitrary partitioning of block
+ coefficients into bands.
+</t>
+<figure anchor="pvq_bands"
+ title="The band structure of 4x4, 8x8, 16x16 and 32x32 blocks in Daala."
+ align="center">
+<artwork align="center"><![CDATA[
+   4x4
+++------+    8x8
+++      | +-------+       16x16
+|       | |       | +---------------+               32x32
+|       | +-------+ |               | +-------------------------------+
++-------+ |       | |               | |                               |
+  +---+---+       | |               | |                               |
+  |   |           | +---------------+ |                               |
+  |   |           | |               | |                               |
+  |   |           | |               | |                               |
+  +---+-----------+ |               | |                               |
+    +-------+-------+               | |                               |
+    |       |                       | +-------------------------------+
+    |       |                       | |                               |
+    |       |                       | |                               |
+    |       |                       | |                               |
+    |       |                       | |                               |
+    |       |                       | |                               |
+    |       |                       | |                               |
+    +-------+-----------------------+ |                               |
+      +---------------+---------------+                               |
+      |               |                                               |
+      |               |                                               |
+      |               |                                               |
+      |               |                                               |
+      |               |                                               |
+      |               |                                               |
+      |               |                                               |
+      |               |                                               |
+      |               |                                               |
+      |               |                                               |
+      |               |                                               |
+      |               |                                               |
+      |               |                                               |
+      |               |                                               |
+      |               |                                               |
+      +---------------+-----------------------------------------------+
+]]></artwork>
+</figure>
+<t>
+Instead of considering whether to flip the direction of x_L for each band
+ partition individually (a signaling cost of 10 bits per 32x32 block at best),
+ simply look at the lowest 4x4 AC partition and use the flip decision there
+ for the entire block.
+The assumption is that having those larger low frequency coefficients predicted
+ well is far more important than getting it exactly right at higher
+ frequencies.
+When the quantization step size is large, the high frequency coefficients will
+ be sent to zero regardless.
+</t>
+</section>
+</section>
+
+<section anchor="IANA" title="IANA Considerations">
+<t>This document makes no request of IANA.</t>
+</section>
+
+<section anchor="Security" title="Security Considerations">
+<t>This draft has no security considerations.</t>
+</section>
+
+</middle>
+
+<back>
+
+<references title="Informative References">
+
+&I-D.egge-netvc-tdlt;
+&I-D.terriberry-netvc-codingtools;
+&I-D.valin-netvc-pvq;
+
+<reference anchor="Lee09">
+<front>
+<title>Intra Prediction Method Based on the Linear Relationship between the Channels for YUV 4:2:0 Intra Coding</title>
+<author initials="SH." surname="Lee" fullname=""><organization/></author>
+<author initials="NI." surname="Cho" fullname=""><organization/></author>
+<date month="November" year="2009"/>
+</front>
+<seriesInfo name="Proceedings of the 16th IEEE International Conference on Image Processing" value=""/>
+</reference>
+
+<reference anchor="Val15" target="http://jmvalin.ca/papers/spie_pvq.pdf">
+<front>
+<title>Perceptual Vector Quantization for Video Coding</title>
+<author initials="JM." surname="Valin" fullname=""><organization/></author>
+<author initials="TB." surname="Terriberry" fullname=""><organization/></author>
+<date month="February" year="2015" />
+</front>
+<seriesInfo name="Proceedings of SPIE Visual Information Processing and Communication" value=""/>
+</reference>
+
+<reference anchor="Daala-website" target="https://xiph.org/daala/">
+<front>
+<title>Daala website</title>
+<author><organization/></author>
+<date/>
+</front>
+<seriesInfo name="Xiph.Org Foundation" value=""/>
+</reference>
+
+</references>
+
+</back>
+</rfc>
