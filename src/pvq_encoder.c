@@ -790,7 +790,7 @@ int od_pvq_encode(daala_enc_ctx *enc,
 #endif
     if (is_keyframe) for (i = 1; i < 1 << (2*bs + 4); i++) out[i] = 0;
     else for (i = 1; i < 1 << (2*bs + 4); i++) out[i] = ref[i];
-    if ((out[0] == 0)) return 1;
+    if (out[0] == 0) return 1;
   }
   return 0;
 }
