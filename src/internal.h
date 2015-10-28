@@ -205,6 +205,8 @@ void od_free_2d(void *_ptr);
 
 extern uint32_t OD_DIVU_SMALL_CONSTS[OD_DIVU_DMAX][2];
 
+extern const daala_plane_info od_plane_info_tab[OD_PIX_NB];
+
 /*Translate unsigned division by small divisors into multiplications.*/
 # define OD_DIVU_SMALL(_x, _d) \
   ((uint32_t)((OD_DIVU_SMALL_CONSTS[(_d)-1][0]* \

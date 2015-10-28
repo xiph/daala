@@ -133,7 +133,6 @@ int daala_decode_header_in(daala_info *info,
     /*Codec info header.*/
     case 0x80:
     {
-      int pli;
       uint32_t tmp;
       int tmpi;
       /*This should be the first packet, and we should not have already read
@@ -184,13 +183,9 @@ int daala_decode_header_in(daala_info *info,
       if ((info->nplanes < 1) || (info->nplanes > OD_NPLANES_MAX)) {
         return OD_EBADHEADER;
       }
-      for (pli = 0; pli < info->nplanes; pli++) {
-        tmpi = oggbyte_read1(&obb);
-        if (tmpi < 0) return OD_EBADHEADER;
-        info->plane_info[pli].xdec = !!tmpi;
-        tmpi = oggbyte_read1(&obb);
-        if (tmpi < 0) return OD_EBADHEADER;
-        info->plane_info[pli].ydec = !!tmpi;
+      info->pixel_format = oggbyte_read1(&obb);
+      if ((info->pixel_format == 0) || (info->pixel_format > OD_NPLANES_MAX)) {
+        return OD_EBADHEADER;
       }
       return 2;
     }

@@ -76,8 +76,10 @@ static int od_dec_init(od_dec_ctx *dec, const daala_info *info,
   frame_buf_width = dec->state.frame_width + (OD_BUFFER_PADDING << 1);
   frame_buf_height = dec->state.frame_height + (OD_BUFFER_PADDING << 1);
   for (pli = 0; pli < info->nplanes; pli++) {
-    plane_buf_width = frame_buf_width >> info->plane_info[pli].xdec;
-    plane_buf_height = frame_buf_height >> info->plane_info[pli].ydec;
+    plane_buf_width = frame_buf_width >>
+        od_plane_info_tab[info->pixel_format].xdec[pli];
+    plane_buf_height = frame_buf_height >>
+        od_plane_info_tab[info->pixel_format].ydec[pli];
     data_sz += plane_buf_width*plane_buf_height*output_bytes;
   }
   dec->output_img_data = output_img_data =
@@ -89,19 +91,19 @@ static int od_dec_init(od_dec_ctx *dec, const daala_info *info,
   img->nplanes = info->nplanes;
   img->width = dec->state.frame_width;
   img->height = dec->state.frame_height;
+  img->bitdepth = output_bits;
   for (pli = 0; pli < img->nplanes; pli++) {
-    plane_buf_width = frame_buf_width >> info->plane_info[pli].xdec;
-    plane_buf_height = frame_buf_height >> info->plane_info[pli].ydec;
+    int xdec = od_plane_info_tab[info->pixel_format].xdec[pli];
+    int ydec = od_plane_info_tab[info->pixel_format].ydec[pli];
+    plane_buf_width = frame_buf_width >> xdec;
+    plane_buf_height = frame_buf_height >> ydec;
     iplane = img->planes + pli;
-    iplane->xdec = info->plane_info[pli].xdec;
-    iplane->ydec = info->plane_info[pli].ydec;
-    iplane->bitdepth = output_bits;
     /*At this moment, our output is always planar.*/
     iplane->xstride = output_bytes;
     iplane->ystride = plane_buf_width*iplane->xstride;
     iplane->data = output_img_data
-      + iplane->xstride*(OD_BUFFER_PADDING >> info->plane_info[pli].xdec)
-      + iplane->ystride*(OD_BUFFER_PADDING >> info->plane_info[pli].ydec);
+      + iplane->xstride*(OD_BUFFER_PADDING >> xdec)
+      + iplane->ystride*(OD_BUFFER_PADDING >> ydec);
     output_img_data += plane_buf_height*iplane->ystride;
   }
 #if OD_ACCOUNTING
@@ -218,11 +220,13 @@ static void od_dec_blank_img(od_img *img) {
   for (pli = 0; pli < img->nplanes; pli++) {
     int plane_buf_size;
     int plane_buf_offset;
+    int xdec = od_plane_info_tab[img->pixel_format].xdec[pli];
+    int ydec = od_plane_info_tab[img->pixel_format].ydec[pli];
     plane_buf_size =
-     (frame_buf_height >> img->planes[pli].ydec) * img->planes[pli].ystride;
+     (frame_buf_height >> ydec) * img->planes[pli].ystride;
     plane_buf_offset =
-      (OD_BUFFER_PADDING >> img->planes[pli].ydec) * img->planes[pli].ystride
-      + (OD_BUFFER_PADDING >> img->planes[pli].xdec);
+      (OD_BUFFER_PADDING >> ydec) * img->planes[pli].ystride
+      + (OD_BUFFER_PADDING >> xdec);
     memset(img->planes[pli].data - plane_buf_offset, 128, plane_buf_size);
   }
 }
@@ -304,7 +308,7 @@ static void od_decode_compute_pred(daala_dec_ctx *dec, od_mb_dec_ctx *ctx,
   int x;
   OD_ASSERT(bs >= 0 && bs < OD_NBSIZES);
   n = 1 << bs + OD_LOG_BSIZE0;
-  xdec = dec->output_img.planes[pli].xdec;
+  xdec = od_plane_info_tab[dec->output_img.pixel_format].xdec[pli];
   w = dec->state.frame_width >> xdec;
   bo = (by << OD_LOG_BSIZE0)*w + (bx << OD_LOG_BSIZE0);
   /*We never use tf on the chroma planes, but if we do it will blow up, which
@@ -529,7 +533,7 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int bs,
   qm = ctx->qm == OD_HVS_QM ? OD_QM8_Q4_HVS : OD_QM8_Q4_FLAT;
   bx <<= bs;
   by <<= bs;
-  xdec = dec->output_img.planes[pli].xdec;
+  xdec = od_plane_info_tab[dec->output_img.pixel_format].xdec[pli];
   frame_width = dec->state.frame_width;
   w = frame_width >> xdec;
   bo = (by << 2)*w + (bx << 2);
@@ -963,8 +967,8 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
   /*Apply the prefilter to the motion-compensated reference.*/
   if (!mbctx->is_keyframe) {
     for (pli = 0; pli < nplanes; pli++) {
-      xdec = rec->planes[pli].xdec;
-      ydec = rec->planes[pli].ydec;
+      xdec = od_plane_info_tab[rec->pixel_format].xdec[pli];
+      ydec = od_plane_info_tab[rec->pixel_format].ydec[pli];
       w = frame_width >> xdec;
       h = frame_height >> ydec;
       /*Collect the image data needed for this plane.*/
@@ -1005,8 +1009,8 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
         mbctx->mc = state->mctmp[pli];
         mbctx->md = state->mdtmp[pli];
         mbctx->l = state->lbuf[pli];
-        xdec = dec->output_img.planes[pli].xdec;
-        ydec = dec->output_img.planes[pli].ydec;
+        xdec = od_plane_info_tab[dec->output_img.pixel_format].xdec[pli];
+        ydec = od_plane_info_tab[dec->output_img.pixel_format].ydec[pli];
         if (mbctx->is_keyframe) {
           od_decode_haar_dc_sb(dec, mbctx, pli, sbx, sby, xdec, ydec,
            sby > 0 && sbx < nhsb - 1, &hgrad, &vgrad);
@@ -1017,8 +1021,8 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
     }
   }
   for (pli = 0; pli < nplanes; pli++) {
-    xdec = dec->output_img.planes[pli].xdec;
-    ydec = dec->output_img.planes[pli].ydec;
+    xdec = od_plane_info_tab[dec->output_img.pixel_format].xdec[pli];
+    ydec = od_plane_info_tab[dec->output_img.pixel_format].ydec[pli];
     w = frame_width >> xdec;
     h = frame_height >> ydec;
     if (!mbctx->use_haar_wavelet) {
@@ -1031,8 +1035,8 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
     for (pli = 0; pli < nplanes; pli++) {
       int i;
       int size;
-      xdec = dec->output_img.planes[pli].xdec;
-      ydec = dec->output_img.planes[pli].ydec;
+      xdec = od_plane_info_tab[dec->output_img.pixel_format].xdec[pli];
+      ydec = od_plane_info_tab[dec->output_img.pixel_format].ydec[pli];
       size = nvsb*nhsb*OD_BSIZE_MAX*OD_BSIZE_MAX >> xdec >> ydec;
       for (i = 0; i < size; i++) {
         state->etmp[pli][i] = state->ctmp[pli][i];
@@ -1067,8 +1071,8 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
             int ln;
             int n;
             int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS];
-            xdec = dec->output_img.planes[pli].xdec;
-            ydec = dec->output_img.planes[pli].ydec;
+            xdec = od_plane_info_tab[dec->output_img.pixel_format].xdec[pli];
+            ydec = od_plane_info_tab[dec->output_img.pixel_format].ydec[pli];
             w = frame_width >> xdec;
             h = frame_height >> ydec;
             ln = OD_LOG_BSIZE_MAX - xdec;
@@ -1109,8 +1113,8 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
     }
   }
   for (pli = 0; pli < nplanes; pli++) {
-    xdec = dec->output_img.planes[pli].xdec;
-    ydec = dec->output_img.planes[pli].ydec;
+    xdec = od_plane_info_tab[dec->output_img.pixel_format].xdec[pli];
+    ydec = od_plane_info_tab[dec->output_img.pixel_format].ydec[pli];
     w = frame_width >> xdec;
     h = frame_height >> ydec;
     if (dec->quantizer[0] > 0)

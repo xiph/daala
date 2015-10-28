@@ -94,12 +94,13 @@ void od_img_copy(od_img* dest, od_img* src) {
   OD_ASSERT(dest->width == src->width);
   OD_ASSERT(dest->height == src->height);
   OD_ASSERT(dest->nplanes == src->nplanes);
+  OD_ASSERT(dest->pixel_format == src->pixel_format);
   for (pli = 0; pli < src->nplanes; pli++) {
     int width;
     int height;
     int row;
-    width = dest->width >> dest->planes[pli].xdec;
-    height = dest->height >> dest->planes[pli].ydec;
+    width = dest->width >> od_plane_info_tab[dest->pixel_format].xdec[pli];
+    height = dest->height >> od_plane_info_tab[dest->pixel_format].ydec[pli];
     for (row = 0; row < height; row++) {
       memcpy(dest->planes[pli].data + dest->planes[pli].ystride*row,
        src->planes[pli].data + src->planes[pli].ystride*row, width);
@@ -139,8 +140,10 @@ static int od_state_ref_imgs_init(od_state *state, int nrefs) {
   frame_buf_height = state->frame_height + (OD_BUFFER_PADDING << 1);
   for (pli = 0; pli < info->nplanes; pli++) {
     /*Reserve space for this plane in nrefs reference images.*/
-    plane_buf_width = frame_buf_width >> info->plane_info[pli].xdec;
-    plane_buf_height = frame_buf_height >> info->plane_info[pli].ydec;
+    plane_buf_width = frame_buf_width >>
+        od_plane_info_tab[info->pixel_format].xdec[pli];
+    plane_buf_height = frame_buf_height >>
+        od_plane_info_tab[info->pixel_format].ydec[pli];
     data_sz += plane_buf_width*plane_buf_height*reference_bytes*nrefs;
   }
   state->ref_img_data = ref_img_data =
@@ -154,18 +157,18 @@ static int od_state_ref_imgs_init(od_state *state, int nrefs) {
     img->nplanes = info->nplanes;
     img->width = state->frame_width;
     img->height = state->frame_height;
+    img->bitdepth = reference_bits;
     for (pli = 0; pli < img->nplanes; pli++) {
+      int xdec = od_plane_info_tab[info->pixel_format].xdec[pli];
+      int ydec = od_plane_info_tab[info->pixel_format].ydec[pli];
       iplane = img->planes + pli;
-      iplane->xdec = info->plane_info[pli].xdec;
-      iplane->ydec = info->plane_info[pli].ydec;
-      plane_buf_width = frame_buf_width >> iplane->xdec;
-      plane_buf_height = frame_buf_height >> iplane->ydec;
-      iplane->bitdepth = reference_bits;
+      plane_buf_width = frame_buf_width >> xdec;
+      plane_buf_height = frame_buf_height >> ydec;
       iplane->xstride = reference_bytes;
       iplane->ystride = plane_buf_width*reference_bytes;
       iplane->data = ref_img_data
-       + (OD_BUFFER_PADDING >> iplane->xdec)*iplane->xstride
-       + (OD_BUFFER_PADDING >> iplane->ydec)*iplane->ystride;
+       + (OD_BUFFER_PADDING >> xdec)*iplane->xstride
+       + (OD_BUFFER_PADDING >> ydec)*iplane->ystride;
       ref_img_data += plane_buf_height*iplane->ystride;
     }
   }
@@ -231,8 +234,6 @@ static int od_state_init_impl(od_state *state, const daala_info *info) {
   if (info == NULL) return OD_EFAULT;
   nplanes = info->nplanes;
   if (nplanes <= 0 || nplanes > OD_NPLANES_MAX) return OD_EINVAL;
-  /*The first plane (the luma plane) must not be subsampled.*/
-  if (info->plane_info[0].xdec || info->plane_info[0].ydec) return OD_EINVAL;
   /*The bitdepth is restricted to a few allowed values.*/
   if (info->bitdepth_mode < OD_BITDEPTH_MODE_8
    || info->bitdepth_mode > OD_BITDEPTH_MODE_12) {
@@ -261,8 +262,8 @@ static int od_state_init_impl(od_state *state, const daala_info *info) {
   state->nhsb = state->frame_width >> OD_LOG_BSIZE_MAX;
   state->nvsb = state->frame_height >> OD_LOG_BSIZE_MAX;
   for (pli = 0; pli < nplanes; pli++) {
-    int xdec;
-    int ydec;
+    int xdec = od_plane_info_tab[info->pixel_format].xdec[pli];
+    int ydec = od_plane_info_tab[info->pixel_format].ydec[pli];
     int w;
     int h;
     state->sb_dc_mem[pli] = (od_coeff*)malloc(
@@ -270,8 +271,6 @@ static int od_state_init_impl(od_state *state, const daala_info *info) {
     if (OD_UNLIKELY(!state->sb_dc_mem[pli])) {
       return OD_EFAULT;
     }
-    xdec = info->plane_info[pli].xdec;
-    ydec = info->plane_info[pli].ydec;
     w = state->frame_width >> xdec;
     h = state->frame_height >> ydec;
     state->ctmp[pli] = (od_coeff *)malloc(w*h*sizeof(*state->ctmp[pli]));
@@ -300,8 +299,8 @@ static int od_state_init_impl(od_state *state, const daala_info *info) {
     if (pli > 0) {
       int plj;
       for (plj = 1; plj < pli; plj++) {
-        if (xdec == info->plane_info[plj].xdec
-          && ydec == info->plane_info[plj].ydec) {
+        if (xdec == od_plane_info_tab[info->pixel_format].xdec[plj]
+          && ydec == od_plane_info_tab[info->pixel_format].ydec[plj]) {
           state->ltmp[pli] = NULL;
           state->lbuf[pli] = state->ltmp[plj];
         }
@@ -577,25 +576,26 @@ void od_state_pred_block_from_setup(od_state *state,
   int k;
   int xdec;
   int ydec;
+  int fmt = state->ref_imgs[state->ref_imgi[OD_FRAME_PREV]].pixel_format;
   /* Assumes that xdec and ydec are the same on all references. */
-  xdec = state->ref_imgs[state->ref_imgi[OD_FRAME_PREV]].planes[pli].xdec;
-  ydec = state->ref_imgs[state->ref_imgi[OD_FRAME_PREV]].planes[pli].ydec;
   dxp = OD_VERT_SETUP_DX[oc][s];
   dyp = OD_VERT_SETUP_DY[oc][s];
   for (k = 0; k < 4; k++) {
+    xdec = od_plane_info_tab[fmt].xdec[k];
+    ydec = od_plane_info_tab[fmt].ydec[k];
     grid[k] = state->mv_grid[vy + (dyp[k] << log_mvb_sz)]
      + vx + (dxp[k] << log_mvb_sz);
     mvx[k] = (int32_t)OD_DIV_POW2_RE(grid[k]->mv[0], xdec);
     mvy[k] = (int32_t)OD_DIV_POW2_RE(grid[k]->mv[1], ydec);
     iplane = state->ref_imgs[state->ref_imgi[grid[k]->ref]].planes+pli;
-    x = vx << (OD_LOG_MVBSIZE_MIN - iplane->xdec);
-    y = vy << (OD_LOG_MVBSIZE_MIN - iplane->ydec);
+    x = vx << (OD_LOG_MVBSIZE_MIN - xdec);
+    y = vy << (OD_LOG_MVBSIZE_MIN - ydec);
     src[k] = iplane->data + y*iplane->ystride + x*iplane->xstride;
   }
   od_mc_predict(state, buf, ystride, src,
    iplane->ystride, mvx, mvy, oc, s,
-   log_mvb_sz + OD_LOG_MVBSIZE_MIN - iplane->xdec,
-   log_mvb_sz + OD_LOG_MVBSIZE_MIN - iplane->ydec);
+   log_mvb_sz + OD_LOG_MVBSIZE_MIN - xdec,
+   log_mvb_sz + OD_LOG_MVBSIZE_MIN - ydec);
 }
 
 void od_state_pred_block(od_state *state,
@@ -605,12 +605,13 @@ void od_state_pred_block(od_state *state,
   half_mvb_sz = 1 << log_mvb_sz >> 1;
   if (log_mvb_sz > 0
    && state->mv_grid[vy + half_mvb_sz][vx + half_mvb_sz].valid) {
-    od_img_plane *iplane;
     int half_xblk_sz;
     int half_yblk_sz;
-    iplane = state->ref_imgs[state->ref_imgi[OD_FRAME_PREV]].planes + pli;
-    half_xblk_sz = 1 << (log_mvb_sz + OD_LOG_MVBSIZE_MIN - 1 - iplane->xdec);
-    half_yblk_sz = 1 << (log_mvb_sz + OD_LOG_MVBSIZE_MIN - 1 - iplane->ydec);
+    int fmt = state->ref_imgs[state->ref_imgi[OD_FRAME_PREV]].pixel_format;
+    half_xblk_sz = 1 << (log_mvb_sz + OD_LOG_MVBSIZE_MIN - 1 -
+                          od_plane_info_tab[fmt].xdec[pli]);
+    half_yblk_sz = 1 << (log_mvb_sz + OD_LOG_MVBSIZE_MIN - 1 -
+                          od_plane_info_tab[fmt].ydec[pli]);
     od_state_pred_block(state, buf,
      ystride, xstride, pli, vx, vy, log_mvb_sz - 1);
     od_state_pred_block(state, buf + half_xblk_sz*xstride,
@@ -702,7 +703,8 @@ int od_state_dump_yuv(od_state *state, od_img *img, const char *tag) {
     fps_num = state->info.timebase_numerator;
     fps_denom = state->info.timebase_denominator*state->info.frame_duration;
     chroma = img->nplanes == 1 ? " Cmono" :
-     CHROMA_TAGS[(img->planes[1].xdec == 0) + (img->planes[1].ydec == 0)*2];
+     CHROMA_TAGS[(od_plane_info_tab[state->info.pixel_format].xdec[1] == 0) +
+                 (od_plane_info_tab[state->info.pixel_format].ydec[1] == 0)*2];
     fprintf(fp, "YUV4MPEG2 W%i H%i F%i:%i Ip A%i:%i%s\n",
      pic_width, pic_height, fps_num, fps_denom,
      state->info.pixel_aspect_numerator, state->info.pixel_aspect_denominator,
@@ -710,12 +712,10 @@ int od_state_dump_yuv(od_state *state, od_img *img, const char *tag) {
   }
   fprintf(fp, "FRAME\n");
   for (pli = 0; pli < OD_MINI(img->nplanes, 3); pli++) {
-    int xdec;
-    int ydec;
+    int xdec = od_plane_info_tab[state->info.pixel_format].xdec[pli];
+    int ydec = od_plane_info_tab[state->info.pixel_format].ydec[pli];
     int xstride;
     int ystride;
-    xdec = img->planes[pli].xdec;
-    ydec = img->planes[pli].ydec;
     xstride = img->planes[pli].xstride;
     ystride = img->planes[pli].ystride;
     for (y = 0; y < (pic_height + ydec) >> ydec; y++) {
@@ -858,8 +858,10 @@ void od_state_mc_predict(od_state *state, od_img *img_dst) {
         int xstride;
         int ystride;
         iplane_dst = img_dst->planes + pli;
-        blk_x = vx << OD_LOG_MVBSIZE_MIN >> iplane_dst->xdec;
-        blk_y = vy << OD_LOG_MVBSIZE_MIN >> iplane_dst->ydec;
+        blk_x = vx << OD_LOG_MVBSIZE_MIN >>
+            od_plane_info_tab[img_dst->pixel_format].xdec[pli];
+        blk_y = vy << OD_LOG_MVBSIZE_MIN >>
+            od_plane_info_tab[img_dst->pixel_format].ydec[pli];
         xstride = iplane_dst->xstride;
         ystride = iplane_dst->ystride;
         od_state_pred_block(state,
@@ -992,10 +994,8 @@ static void od_img_plane_edge_ext(od_img_plane *dst_p,
 void od_img_edge_ext(od_img* src) {
   int pli;
   for (pli = 0; pli < src->nplanes; pli++) {
-    int xdec;
-    int ydec;
-    xdec = (src->planes + pli)->xdec;
-    ydec = (src->planes + pli)->ydec;
+    int xdec = od_plane_info_tab[src->pixel_format].xdec[pli];
+    int ydec = od_plane_info_tab[src->pixel_format].ydec[pli];
     od_img_plane_edge_ext(&src->planes[pli],
      src->width >> xdec, src->height >> ydec,
      OD_BUFFER_PADDING >> xdec, OD_BUFFER_PADDING >> ydec);

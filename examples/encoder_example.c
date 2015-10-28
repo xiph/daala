@@ -56,7 +56,7 @@ struct av_input{
   int video_interlacing;
   char video_chroma_type[16];
   int video_nplanes;
-  daala_plane_info video_plane_info[OD_NPLANES_MAX];
+  int video_format;
   od_img video_img;
   int video_cur_img;
   int video_depth;
@@ -176,6 +176,8 @@ static void id_y4m_file(av_input *avin, const char *file, FILE *test) {
   int ret;
   int pli;
   int bi;
+  int xdec[OD_NPLANES_MAX] = { 0 };
+  int ydec[OD_NPLANES_MAX] = { 0 };
   for (bi = 0; bi < 127; bi++) {
     ret = fread(buf + bi, 1, 1, test);
     if (ret < 1) return;
@@ -209,160 +211,112 @@ static void id_y4m_file(av_input *avin, const char *file, FILE *test) {
    (double)avin->video_fps_n/avin->video_fps_d, avin->video_chroma_type);
   /*Allocate buffers for the image data.*/
   /*TODO: Specify chroma offsets.*/
-  avin->video_plane_info[0].xdec = 0;
-  avin->video_plane_info[0].ydec = 0;
   avin->video_depth = 8;
-  avin->video_swapendian = 0;
+  avin->video_nplanes = 3;
+  avin->video_swapendian = host_is_big_endian();
   if (strcmp(avin->video_chroma_type, "444") == 0) {
-    avin->video_nplanes = 3;
-    avin->video_plane_info[1].xdec = 0;
-    avin->video_plane_info[1].ydec = 0;
-    avin->video_plane_info[2].xdec = 0;
-    avin->video_plane_info[2].ydec = 0;
+    avin->video_format = OD_PIX_YUV444;
   }
   else if (strcmp(avin->video_chroma_type, "444p10") == 0) {
-    avin->video_nplanes = 3;
+    avin->video_format = OD_PIX_YUV444;
     avin->video_depth = 10;
-    avin->video_swapendian = host_is_big_endian();
-    avin->video_plane_info[1].xdec = 0;
-    avin->video_plane_info[1].ydec = 0;
-    avin->video_plane_info[2].xdec = 0;
-    avin->video_plane_info[2].ydec = 0;
   }
   else if (strcmp(avin->video_chroma_type, "444p12") == 0) {
-    avin->video_nplanes = 3;
+    avin->video_format = OD_PIX_YUV444;
     avin->video_depth = 12;
-    avin->video_swapendian = host_is_big_endian();
-    avin->video_plane_info[1].xdec = 0;
-    avin->video_plane_info[1].ydec = 0;
-    avin->video_plane_info[2].xdec = 0;
-    avin->video_plane_info[2].ydec = 0;
   }
   else if (strcmp(avin->video_chroma_type, "444p14") == 0) {
-    avin->video_nplanes = 3;
+    avin->video_format = OD_PIX_YUV444;
     avin->video_depth = 14;
-    avin->video_swapendian = host_is_big_endian();
-    avin->video_plane_info[1].xdec = 0;
-    avin->video_plane_info[1].ydec = 0;
-    avin->video_plane_info[2].xdec = 0;
-    avin->video_plane_info[2].ydec = 0;
   }
   else if (strcmp(avin->video_chroma_type, "444p16") == 0) {
-    avin->video_nplanes = 3;
+    avin->video_format = OD_PIX_YUV444;
     avin->video_depth = 16;
-    avin->video_swapendian = host_is_big_endian();
-    avin->video_plane_info[1].xdec = 0;
-    avin->video_plane_info[1].ydec = 0;
-    avin->video_plane_info[2].xdec = 0;
-    avin->video_plane_info[2].ydec = 0;
   }
   else if (strcmp(avin->video_chroma_type, "444alpha") == 0) {
     avin->video_nplanes = 4;
-    avin->video_plane_info[1].xdec = 0;
-    avin->video_plane_info[1].ydec = 0;
-    avin->video_plane_info[2].xdec = 0;
-    avin->video_plane_info[2].ydec = 0;
-    avin->video_plane_info[3].xdec = 0;
-    avin->video_plane_info[3].ydec = 0;
+    avin->video_format = OD_PIX_YUV444;
   }
   else if (strcmp(avin->video_chroma_type, "422") == 0) {
-    avin->video_nplanes = 3;
-    avin->video_plane_info[1].xdec = 1;
-    avin->video_plane_info[1].ydec = 0;
-    avin->video_plane_info[2].xdec = 1;
-    avin->video_plane_info[2].ydec = 0;
+    avin->video_format = OD_PIX_YUV422;
+    xdec[1] = 1;
+    xdec[2] = 1;
   }
   else if (strcmp(avin->video_chroma_type, "422p10") == 0) {
-    avin->video_nplanes = 3;
+    avin->video_format = OD_PIX_YUV422;
     avin->video_depth = 10;
-    avin->video_swapendian = host_is_big_endian();
-    avin->video_plane_info[1].xdec = 1;
-    avin->video_plane_info[1].ydec = 0;
-    avin->video_plane_info[2].xdec = 1;
-    avin->video_plane_info[2].ydec = 0;
+    xdec[1] = 1;
+    xdec[2] = 1;
   }
   else if (strcmp(avin->video_chroma_type, "422p12") == 0) {
-    avin->video_nplanes = 3;
+    avin->video_format = OD_PIX_YUV422;
     avin->video_depth = 12;
-    avin->video_swapendian = host_is_big_endian();
-    avin->video_plane_info[1].xdec = 1;
-    avin->video_plane_info[1].ydec = 0;
-    avin->video_plane_info[2].xdec = 1;
-    avin->video_plane_info[2].ydec = 0;
+    xdec[1] = 1;
+    xdec[2] = 1;
   }
   else if (strcmp(avin->video_chroma_type, "422p14") == 0) {
-    avin->video_nplanes = 3;
+    avin->video_format = OD_PIX_YUV422;
     avin->video_depth = 14;
-    avin->video_swapendian = host_is_big_endian();
-    avin->video_plane_info[1].xdec = 1;
-    avin->video_plane_info[1].ydec = 0;
-    avin->video_plane_info[2].xdec = 1;
-    avin->video_plane_info[2].ydec = 0;
+    xdec[1] = 1;
+    xdec[2] = 1;
   }
   else if (strcmp(avin->video_chroma_type, "422p16") == 0) {
-    avin->video_nplanes = 3;
+    avin->video_format = OD_PIX_YUV422;
     avin->video_depth = 16;
-    avin->video_swapendian = host_is_big_endian();
-    avin->video_plane_info[1].xdec = 1;
-    avin->video_plane_info[1].ydec = 0;
-    avin->video_plane_info[2].xdec = 1;
-    avin->video_plane_info[2].ydec = 0;
+    xdec[1] = 1;
+    xdec[2] = 1;
   }
   else if (strcmp(avin->video_chroma_type, "411") == 0) {
-    avin->video_nplanes = 3;
-    avin->video_plane_info[1].xdec = 2;
-    avin->video_plane_info[1].ydec = 0;
-    avin->video_plane_info[2].xdec = 2;
-    avin->video_plane_info[2].ydec = 0;
+    avin->video_format = OD_PIX_YUV411;
+    xdec[1] = 2;
+    xdec[2] = 2;
   }
   else if (strcmp(avin->video_chroma_type, "420") == 0 ||
    strcmp(avin->video_chroma_type, "420jpeg") == 0 ||
    strcmp(avin->video_chroma_type, "420mpeg2") == 0 ||
    strcmp(avin->video_chroma_type, "420paldv") == 0) {
-    avin->video_nplanes = 3;
-    avin->video_plane_info[1].xdec = 1;
-    avin->video_plane_info[1].ydec = 1;
-    avin->video_plane_info[2].xdec = 1;
-    avin->video_plane_info[2].ydec = 1;
+    avin->video_format = OD_PIX_YUV420;
+    xdec[1] = 1;
+    ydec[1] = 1;
+    xdec[2] = 1;
+    ydec[2] = 1;
   }
   else if (strcmp(avin->video_chroma_type, "420p10") == 0){
-    avin->video_nplanes = 3;
+    avin->video_format = OD_PIX_YUV420;
     avin->video_depth = 10;
     avin->video_swapendian = host_is_big_endian();
-    avin->video_plane_info[1].xdec = 1;
-    avin->video_plane_info[1].ydec = 1;
-    avin->video_plane_info[2].xdec = 1;
-    avin->video_plane_info[2].ydec = 1;
+    xdec[1] = 1;
+    ydec[1] = 1;
+    xdec[2] = 1;
+    ydec[2] = 1;
   }
   else if (strcmp(avin->video_chroma_type, "420p12") == 0) {
-    avin->video_nplanes = 3;
+    avin->video_format = OD_PIX_YUV420;
     avin->video_depth = 12;
-    avin->video_swapendian = host_is_big_endian();
-    avin->video_plane_info[1].xdec = 1;
-    avin->video_plane_info[1].ydec = 1;
-    avin->video_plane_info[2].xdec = 1;
-    avin->video_plane_info[2].ydec = 1;
+    xdec[1] = 1;
+    ydec[1] = 1;
+    xdec[2] = 1;
+    ydec[2] = 1;
   }
   else if (strcmp(avin->video_chroma_type, "420p14") == 0) {
-    avin->video_nplanes = 3;
+    avin->video_format = OD_PIX_YUV420;
     avin->video_depth = 14;
-    avin->video_swapendian = host_is_big_endian();
-    avin->video_plane_info[1].xdec = 1;
-    avin->video_plane_info[1].ydec = 1;
-    avin->video_plane_info[2].xdec = 1;
-    avin->video_plane_info[2].ydec = 1;
+    xdec[1] = 1;
+    ydec[1] = 1;
+    xdec[2] = 1;
+    ydec[2] = 1;
   }
   else if (strcmp(avin->video_chroma_type, "420p16") == 0) {
-    avin->video_nplanes = 3;
+    avin->video_format = OD_PIX_YUV420;
     avin->video_depth = 16;
-    avin->video_swapendian = host_is_big_endian();
-    avin->video_plane_info[1].xdec = 1;
-    avin->video_plane_info[1].ydec = 1;
-    avin->video_plane_info[2].xdec = 1;
-    avin->video_plane_info[2].ydec = 1;
+    xdec[1] = 1;
+    ydec[1] = 1;
+    xdec[2] = 1;
+    ydec[2] = 1;
   }
   else if (strcmp(avin->video_chroma_type, "mono") == 0) {
     avin->video_nplanes = 1;
+    avin->video_format = OD_PIX_YUV400;
   }
   else {
     fprintf(stderr, "Unknown chroma sampling type: '%s'.\n",
@@ -373,21 +327,20 @@ static void id_y4m_file(av_input *avin, const char *file, FILE *test) {
   img->nplanes = avin->video_nplanes;
   img->width = avin->video_pic_w;
   img->height = avin->video_pic_h;
+  img->bitdepth = avin->video_depth;
+  img->pixel_format = avin->video_format;
   for (pli = 0; pli < img->nplanes; pli++) {
     od_img_plane *iplane;
     iplane = img->planes + pli;
-    iplane->xdec = avin->video_plane_info[pli].xdec;
-    iplane->ydec = avin->video_plane_info[pli].ydec;
     /*At this moment, Y4M input is always planar.*/
     /*The input depth need not match the encoded depth.
       The input copy will convert to whatever was set for
        di.bitdepth_mode.*/
     iplane->xstride = avin->video_depth > 8 ? 2 : 1;
     iplane->ystride = ((avin->video_pic_w
-     + (1<<iplane->xdec)-1)>>iplane->xdec)*iplane->xstride;
-    iplane->bitdepth = avin->video_depth;
+     + (1 << xdec[pli]) - 1) >> xdec[pli]) * iplane->xstride;
     iplane->data = _ogg_malloc(iplane->ystride*
-     ((avin->video_pic_h + (1<<iplane->ydec) - 1)>>iplane->ydec));
+     ((avin->video_pic_h + (1 << ydec[pli]) - 1) >> ydec[pli]));
   }
 }
 
@@ -461,11 +414,25 @@ int fetch_and_process_video(av_input *avin, ogg_page *page,
         od_img_plane *iplane;
         int bytes;
         size_t plane_sz;
+        int xdec = 0;
+        int ydec = 0;
         iplane = img->planes + pli;
-        bytes = iplane->bitdepth > 8 ? 2 : 1;
-        plane_sz = ((avin->video_pic_w + (1 << iplane->xdec) - 1)
-         >> iplane->xdec)*((avin->video_pic_h + (1 << iplane->ydec)
-         - 1) >> iplane->ydec)*bytes;
+        bytes = img->bitdepth > 8 ? 2 : 1;
+
+        if (pli && pli != 4) {
+          if (img->pixel_format == OD_PIX_YUV422) {
+            xdec = 1;
+          } else if (img->pixel_format == OD_PIX_YUV411) {
+            xdec = 2;
+          } else if (img->pixel_format == OD_PIX_YUV420) {
+            xdec = 1;
+            ydec = 1;
+          }
+        }
+
+        plane_sz = ((avin->video_pic_w + (1 << xdec) - 1)
+         >> xdec)*((avin->video_pic_h + (1 << ydec)
+         - 1) >> ydec)*bytes;
         ret = fread(iplane->data, 1, plane_sz, avin->video_infile);
         if (ret != plane_sz) {
           fprintf(stderr, "Error reading YUV frame data.\n");
@@ -853,8 +820,7 @@ int main(int argc, char **argv) {
   di.pixel_aspect_numerator = avin.video_par_n;
   di.pixel_aspect_denominator = avin.video_par_d;
   di.nplanes = avin.video_nplanes;
-  memcpy(di.plane_info, avin.video_plane_info,
-   di.nplanes*sizeof(*di.plane_info));
+  di.pixel_format = avin.video_format;
   di.keyframe_rate = video_keyframe_rate;
   /*TODO: Other crap.*/
   dd = daala_encode_create(&di);

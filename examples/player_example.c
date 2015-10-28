@@ -595,15 +595,20 @@ void img_to_rgb(player_example *player, SDL_Texture *texture,
   int cr_stride;
   int width;
   int height;
-  int xdec;
-  int ydec;
+  int xdec = 0;
+  int ydec = 0;
   int i;
   int j;
   unsigned char *pixels;
   int pitch;
   /*Assume both C planes are decimated.*/
-  xdec = img->planes[1].xdec;
-  ydec = img->planes[1].ydec;
+  if (img->pixel_format == OD_PIX_YUV422) {
+    xdec = 1;
+  } else if (img->pixel_format == OD_PIX_YUV420) {
+    xdec = 1;
+    ydec = 1;
+  }
+
   y_stride = img->planes[0].ystride;
   cb_stride = img->planes[1].ystride;
   cr_stride = img->planes[2].ystride;
