@@ -995,6 +995,7 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int bs,
   int zzi;
 #endif
   OD_ASSERT(bs >= 0 && bs < OD_NBSIZES);
+  tell = 0;
   n = 1 << (bs + 2);
   bx <<= bs;
   by <<= bs;
