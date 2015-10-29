@@ -60,32 +60,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "../src/logging.h"
 #include "../include/daala/daaladec.h"
 
-const char *optstring = "o:r";
-struct option options [] = {
-  { "output", required_argument, NULL, 'o' },
-  { "raw", no_argument, NULL, 'r' }, /*Disable YUV4MPEG2 headers:*/
-  { "version", no_argument, NULL, 0},
-  { NULL, 0, NULL, 0 }
-};
-
 /* Helper; just grab some more compressed bitstream and sync it for
    page extraction */
-int buffer_data(FILE *in, ogg_sync_state *oy) {
+static int buffer_data(FILE *in, ogg_sync_state *oy) {
   char *buffer = ogg_sync_buffer(oy, 4096);
   int bytes = fread(buffer, 1, 4096, in);
   ogg_sync_wrote(oy, bytes);
   return bytes;
 }
-
-ogg_sync_state oy;
-ogg_page og;
-ogg_stream_state vo;
-ogg_stream_state to;
-daala_info di;
-daala_comment dc;
-daala_setup_info *ds;
-daala_dec_ctx *dd;
-od_img img;
 
 static void ogg_to_daala_packet(daala_packet *dp, ogg_packet *op) {
   dp->packet     = op->packet;
@@ -98,16 +80,6 @@ static void ogg_to_daala_packet(daala_packet *dp, ogg_packet *op) {
   dp->packetno   = op->packetno;
 }
 
-int daala_p = 0;
-int daala_processing_headers;
-int stateflag = 0;
-
-/* single frame video buffering */
-int videobuf_ready = 0;
-int raw = 0;
-
-FILE *outfile = NULL;
-
 int got_sigint = 0;
 static void sigint_handler(int signal) {
   (void)signal;
@@ -115,22 +87,22 @@ static void sigint_handler(int signal) {
 }
 
 /*Write out the planar YUV frame, uncropped.*/
-static void video_write(void) {
+static void video_write(FILE *outfile, od_img *img, int raw) {
   int pli;
   int i;
   if (outfile) {
     if (!raw) fprintf(outfile, "FRAME\n");
-    for (pli = 0; pli < img.nplanes; pli++) {
+    for (pli = 0; pli < img->nplanes; pli++) {
       int plane_width;
       int plane_height;
       int xdec;
       int ydec;
-      xdec = img.planes[pli].xdec;
-      ydec = img.planes[pli].ydec;
-      plane_width = (img.width + (1 << xdec) - 1) >> xdec;
-      plane_height = (img.height + (1 << ydec) - 1) >> ydec;
+      xdec = img->planes[pli].xdec;
+      ydec = img->planes[pli].ydec;
+      plane_width = (img->width + (1 << xdec) - 1) >> xdec;
+      plane_height = (img->height + (1 << ydec) - 1) >> ydec;
       for (i = 0; i < plane_height; i++) {
-        if (fwrite(img.planes[pli].data + img.planes[pli].ystride*i, 1,
+        if (fwrite(img->planes[pli].data + img->planes[pli].ystride*i, 1,
          plane_width, outfile) < (size_t)plane_width) {
           fprintf(stderr, "Error writing yuv frame");
           return;
@@ -163,8 +135,8 @@ static int dump_comments(daala_comment *comment) {
 /* helper: push a page into the appropriate steam */
 /* this can be done blindly; a stream won't accept a page
                 that doesn't belong to it */
-static int queue_page(ogg_page *page) {
-  if (daala_p) ogg_stream_pagein(&to, page);
+static int queue_page(ogg_page *page, ogg_stream_state *to, int daala_p) {
+  if (daala_p) ogg_stream_pagein(to, page);
   return 0;
 }
 
@@ -193,15 +165,38 @@ int main(int argc, char *argv[]) {
 
   int long_option_index;
   int c;
-
+  ogg_sync_state oy;
+  ogg_page og;
+  ogg_stream_state to;
+  daala_info di;
+  daala_comment dc;
+  daala_setup_info *ds;
+  daala_dec_ctx *dd;
+  od_img img;
+  const char *optstring = "o:r";
+  struct option options [] = {
+   { "output", required_argument, NULL, 'o' },
+   { "raw", no_argument, NULL, 'r' }, /*Disable YUV4MPEG2 headers:*/
+   { "version", no_argument, NULL, 0},
+   { NULL, 0, NULL, 0 }
+  };
   int frames = 0;
   int pix_fmt = 1;
+  int daala_p = 0;
+  int daala_processing_headers = 0;
+  int stateflag = 0;
+  /* single frame video buffering */
+  int videobuf_ready = 0;
+  int raw = 0;
+  FILE *outfile = NULL;
   ogg_int32_t pic_width = 0;
   ogg_int32_t pic_height = 0;
   ogg_int32_t fps_num = 0;
   ogg_int32_t fps_denom = 0;
   FILE *infile = stdin;
   outfile = stdout;
+  dd = NULL;
+  ds = NULL;
   daala_log_init();
 #ifdef _WIN32 /* We need to set stdin/stdout to binary mode on windows. */
   /* Beware the evil ifdef. We avoid these where we can, but this one we
@@ -277,7 +272,7 @@ int main(int argc, char *argv[]) {
       /* is this a mandated initial header? If not, stop parsing */
       if (!ogg_page_bos(&og)) {
         /* don't leak the page; get it into the appropriate stream */
-        queue_page(&og);
+        queue_page(&og, &to, daala_p);
         stateflag = 1;
         break;
       }
@@ -328,7 +323,7 @@ int main(int argc, char *argv[]) {
     /* The header pages/packets will arrive before anything else we
        care about, or the stream is not obeying spec */
     if (ogg_sync_pageout(&oy, &og) > 0) {
-      queue_page(&og); /* demux into the appropriate stream */
+      queue_page(&og, &to, daala_p); /* demux into the appropriate stream */
     }
     else {
       if (buffer_data(infile, &oy) == 0) { /* someone needs more data */
@@ -409,7 +404,7 @@ int main(int argc, char *argv[]) {
   /* queue any remaining pages from data we buffered but that did not
       contain headers */
   while (ogg_sync_pageout(&oy, &og) > 0) {
-    queue_page(&og);
+    queue_page(&og, &to, daala_p);
   }
   while (!got_sigint) {
     while (daala_p && !videobuf_ready) {
@@ -427,11 +422,11 @@ int main(int argc, char *argv[]) {
       /* no data yet for somebody.  Grab another page */
       buffer_data(infile, &oy);
       while (ogg_sync_pageout(&oy, &og) > 0) {
-        queue_page(&og);
+        queue_page(&og, &to, daala_p);
       }
     }
     /* dumpvideo frame, and get new one */
-    else if (outfile) video_write();
+    else if (outfile) video_write(outfile, &img, raw);
     videobuf_ready = 0;
   }
   /* end of decoder loop -- close everything */
