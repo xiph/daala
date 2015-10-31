@@ -31,6 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 /* The maximum search range for BMA. Also controls hit cache size. */
 #define OD_MC_SEARCH_RANGE (64)
 
+typedef struct od_mv_limits od_mv_limits;
 typedef struct od_mv_node od_mv_node;
 typedef struct od_mv_dp_state od_mv_dp_state;
 typedef struct od_mv_dp_node od_mv_dp_node;
@@ -39,6 +40,13 @@ typedef struct od_mv_dp_node od_mv_dp_node;
 # include "encint.h"
 
 typedef int32_t od_sad4[4];
+
+struct od_mv_limits {
+  int xmin;
+  int xmax;
+  int ymin;
+  int ymax;
+};
 
 /*The state information used by the motion estimation process that is not
    required by the decoder.

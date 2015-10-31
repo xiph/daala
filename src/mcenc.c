@@ -2379,6 +2379,75 @@ void od_mv_est_check_rd_state(od_mv_est_ctx *est, int mv_res) {
 static const unsigned char OD_YCbCr_MVCAND[3] = { 210, 16, 214 };
 #endif
 
+/** Compute the limits of valid motion vectors for the current node.
+ *
+ * @param [in]  state       The daala state context
+ * @param [out] limits      The computed limits
+ * @param [in]  vx          The horizontal position of the node.
+ * @param [in]  vy          The vertical position of the node.
+ * @param [in]  log_blk_sz  The log base 2 of the maximum size of a block the
+ *                          vector can belong to.
+ */
+static void od_mv_est_limits(od_state *state, od_mv_limits *limits,
+ int vx, int vy, int log_blk_sz) {
+  int bxmin;
+  int bymin;
+  int bxmax;
+  int bymax;
+  int blk_sz;
+  int bx;
+  int by;
+  blk_sz = 1 << log_blk_sz;
+  bx = vx << OD_LOG_MVBSIZE_MIN;
+  by = vy << OD_LOG_MVBSIZE_MIN;
+  /*Each grid point can contribute to 4 blocks around it at the current block
+     size, _except_ at the border of the frame, since we do not construct a
+     prediction for blocks completely outside the frame.
+    For simplicity, we do not try to take into account that further splitting
+     might restrict the area this MV influences, even though we now know what
+     that splitting is.
+    So this MV can affect a block of pixels bounded by
+     [bxmin, bmax) x [bymin, bymax), and MVs within that area must point no
+     farther than OD_UMV_PADDING pixels outside of the frame.*/
+  bxmin = OD_MAXI(bx - blk_sz, 0);
+  limits->xmin = OD_MAXI(bxmin - OD_MC_SEARCH_RANGE,
+   -OD_UMV_CLAMP) - bxmin;
+  bxmax = OD_MINI(bx + blk_sz, state->frame_width);
+  limits->xmax = OD_MINI(bxmax + OD_MC_SEARCH_RANGE - 1,
+   state->frame_width + OD_UMV_CLAMP) - bxmax;
+  bymin = OD_MAXI(by - blk_sz, 0);
+  limits->ymin = OD_MAXI(bymin - OD_MC_SEARCH_RANGE,
+   -OD_UMV_CLAMP) - bymin;
+  bymax = OD_MINI(by + blk_sz, state->frame_height);
+  limits->ymax = OD_MINI(bymax + OD_MC_SEARCH_RANGE - 1,
+   state->frame_height + OD_UMV_CLAMP) - bymax;
+}
+
+/** Returns the boundary case indicating which motion vector range edges the
+ * current motion vector is abutting.
+ *
+ * @param limits  The limits of valid motion vectors for the current node.
+ * @param dx      The horizontal component of the motion vector.
+ * @param dy      The vertical component of the motion vector.
+ * @param dsz     The amount the vector is being adjusted by.
+ * @param mv_res  The motion vector resolution (0 = 1/8th pel to 3 = fullpel).
+ * @return        A set of flags indicating the boundary conditions, after
+ *                the documentation at OD_SQUARE_SITES.
+ */
+static int od_mv_est_get_boundary_case(od_mv_limits *limits,
+ int dx, int dy, int dsz, int mv_res) {
+  int mvxmin;
+  int mvxmax;
+  int mvymin;
+  int mvymax;
+  mvxmin = limits->xmin << (3 - mv_res);
+  mvxmax = limits->xmax << (3 - mv_res);
+  mvymin = limits->ymin << (3 - mv_res);
+  mvymax = limits->ymax << (3 - mv_res);
+  return (dx - dsz < mvxmin) | (dx + dsz > mvxmax) << 1 |
+   (dy - dsz < mvymin) << 2 | (dy + dsz > mvymax) << 3;
+}
+
 static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy,
  int must_update) {
   static const od_mv_node ZERO_NODE;
@@ -2402,10 +2471,7 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy,
   int by;
   int ncns;
   int equal_mvs;
-  int bxmin;
-  int bymin;
-  int bxmax;
-  int bymax;
+  od_mv_limits limits;
   int mvxmin;
   int mvxmax;
   int mvymin;
@@ -2448,28 +2514,14 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy,
        during this BMA pass */
     mv->mv_rate = od_mv_est_bits(est, vx, vy, 2);
   }
-  /*Each grid point can contribute to 4 blocks around it at the current block
-     size, _except_ at the border of the frame, since we do not construct a
-     prediction for blocks completely outside the frame.
-    We do not try to take into account that further splitting might restrict
-     the area this MV influences, since we do not know how far we will
-     ultimately split.
-    So this MV can affect a block of pixels bounded by
-     [bxmin, bmax) x [bymin, bymax), and MVs within that area must point no
-     farther than OD_UMV_CLAMP pixels outside of the frame.*/
-  bxmin = OD_MAXI(bx - (mvb_sz << OD_LOG_MVBSIZE_MIN), 0);
-  mvxmin = OD_MAXI(bxmin - OD_MC_SEARCH_RANGE, -OD_UMV_CLAMP) - bxmin;
-  bxmax = OD_MINI(bx + (mvb_sz << OD_LOG_MVBSIZE_MIN), state->frame_width);
-  mvxmax = OD_MINI(bxmax + OD_MC_SEARCH_RANGE - 1,
-   state->frame_width + OD_UMV_CLAMP) - bxmax;
-  bymin = OD_MAXI(by - (mvb_sz << OD_LOG_MVBSIZE_MIN), 0);
-  mvymin = OD_MAXI(bymin - OD_MC_SEARCH_RANGE, -OD_UMV_CLAMP) - bymin;
-  bymax = OD_MINI(by + (mvb_sz << OD_LOG_MVBSIZE_MIN), state->frame_height);
-  mvymax = OD_MINI(bymax + OD_MC_SEARCH_RANGE - 1,
-   state->frame_height + OD_UMV_CLAMP) - bymax;
+  od_mv_est_limits(state, &limits, vx, vy, log_mvb_sz + OD_LOG_MVBSIZE_MIN);
   OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
    "(%i, %i): Search range: [%i, %i]x[%i, %i]",
-   bx, by, mvxmin, mvymin, mvxmax, mvymax));
+   bx, by, limits.xmin, limits.ymin, limits.xmax, limits.ymax));
+  mvxmin = limits.xmin;
+  mvxmax = limits.xmax;
+  mvymin = limits.ymin;
+  mvymax = limits.ymax;
   /*For the purposes of the BMA search, we match against a block of size
      mvb_sz << LOG_MVBSIZE_MIN centered on the current grid point:
 
@@ -2691,8 +2743,8 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy,
         mvstate = 0;
         for (;;) {
           best_site = 4;
-          b = (best_vec[0] <= mvxmin) | (best_vec[0] >= mvxmax) << 1 |
-           (best_vec[1] <= mvymin) << 2 | (best_vec[1] >= mvymax) << 3;
+          b = od_mv_est_get_boundary_case(&limits,
+           best_vec[0], best_vec[1], 1, 3);
           pattern = OD_SEARCH_SITES[mvstate][b];
           nsites = OD_SEARCH_NSITES[mvstate][b];
           for (sitei = 0; sitei < nsites; sitei++) {
@@ -4261,56 +4313,6 @@ static const int OD_COL_PRED_HIST_SIZE[OD_MC_NLEVELS] = {
   8, 8, 4, 4, 2, 2, 1
 };
 
-/*Returns the boundary case indicating which motion vector range edges the
-   current motion vector is abutting.
-  vx: The horizontal position of the node.
-  vy: The vertical position of the node.
-  dx: The horizontal component of the motion vector.
-  dy: The vertical component of the motion vector.
-  dsz: The amount the vector is being adjusted by.
-  log_blk_sz: The log base 2 of the maximum size of a block the vector can
-               belong to.
-  Return: A set of flags indicating the boundary conditions, after the
-   documentation at OD_SQUARE_SITES.*/
-static int od_mv_est_get_boundary_case(od_state *state,
- int vx, int vy, int dx, int dy, int dsz, int log_blk_sz) {
-  int bxmin;
-  int bymin;
-  int bxmax;
-  int bymax;
-  int mvxmin;
-  int mvxmax;
-  int mvymin;
-  int mvymax;
-  int blk_sz;
-  int bx;
-  int by;
-  blk_sz = 1 << log_blk_sz;
-  bx = vx << OD_LOG_MVBSIZE_MIN;
-  by = vy << OD_LOG_MVBSIZE_MIN;
-  /*Each grid point can contribute to 4 blocks around it at the current block
-     size, _except_ at the border of the frame, since we do not construct a
-     prediction for blocks completely outside the frame.
-    For simplicity, we do not try to take into account that further splitting
-     might restrict the area this MV influences, even though we now know what
-     that splitting is.
-    So this MV can affect a block of pixels bounded by
-     [bxmin, bmax) x [bymin, bymax), and MVs within that area must point no
-     farther than OD_UMV_PADDING pixels outside of the frame.*/
-  bxmin = OD_MAXI(bx - blk_sz, 0);
-  mvxmin = (OD_MAXI(bxmin - OD_MC_SEARCH_RANGE, -OD_UMV_CLAMP) - bxmin) << 3;
-  bxmax = OD_MINI(bx + blk_sz, state->frame_width);
-  mvxmax = (OD_MINI(bxmax + OD_MC_SEARCH_RANGE - 1,
-   state->frame_width + OD_UMV_CLAMP) - bxmax) << 3;
-  bymin = OD_MAXI(by - blk_sz, 0);
-  mvymin = (OD_MAXI(bymin - OD_MC_SEARCH_RANGE, -OD_UMV_CLAMP) - bymin) << 3;
-  bymax = OD_MINI(by + blk_sz, state->frame_height);
-  mvymax = (OD_MINI(bymax + OD_MC_SEARCH_RANGE - 1,
-   state->frame_height + OD_UMV_CLAMP) - bymax) << 3;
-  return (dx - dsz < mvxmin) | (dx + dsz > mvxmax) << 1 |
-   (dy - dsz < mvymin) << 2 | (dy  + dsz > mvymax) << 3;
-}
-
 /*Computes the SAD of the specified block.*/
 static int32_t od_mv_est_block_sad(od_mv_est_ctx *est,
  od_mv_node *block) {
@@ -5020,6 +5022,7 @@ static int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
   int curx;
   int cury;
   int vx;
+  od_mv_limits limits;
   int b;
   state = &est->enc->state;
   nhmvbs = state->nhmvbs;
@@ -5056,8 +5059,8 @@ static int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
     OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG, "TESTING block SADs:"));
     od_mv_dp_get_sad_change(est, dp_node, block_sads[0]);
     /*Compute the set of states for the first node.*/
-    b = od_mv_est_get_boundary_case(state, vx, vy, curx, cury,
-     1 << log_dsz, log_mvb_sz + OD_LOG_MVBSIZE_MIN);
+    od_mv_est_limits(state, &limits, vx, vy, log_mvb_sz + OD_LOG_MVBSIZE_MIN);
+    b = od_mv_est_get_boundary_case(&limits, curx, cury, 1 << log_dsz, 0);
     nsites = pattern_nsites[b];
     for (sitei = 0, site = 4;; sitei++) {
       cstate = dp_node[0].states + sitei;
@@ -5112,8 +5115,9 @@ static int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
         od_mv_dp_get_sad_change(est, dp_node + 1, block_sads[0]);
       }
       /*Compute the set of states for this node.*/
-      b = od_mv_est_get_boundary_case(state,
-       vx, vy, curx, cury, 1 << log_dsz, log_mvb_sz + OD_LOG_MVBSIZE_MIN);
+      od_mv_est_limits(state, &limits, vx, vy,
+       log_mvb_sz + OD_LOG_MVBSIZE_MIN);
+      b = od_mv_est_get_boundary_case(&limits, curx, cury, 1 << log_dsz, 0);
       nsites = pattern_nsites[b];
       for (sitei = 0, site = 4;; sitei++) {
         cstate = dp_node[1].states + sitei;
@@ -5622,6 +5626,7 @@ static int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
   int curx;
   int cury;
   int vy;
+  od_mv_limits limits;
   int b;
   state = &est->enc->state;
   nvmvbs = state->nvmvbs;
@@ -5660,8 +5665,8 @@ static int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
       od_mv_dp_get_sad_change(est, dp_node, block_sads[0]);
     }
     /*Compute the set of states for the first node.*/
-    b = od_mv_est_get_boundary_case(state,
-     vx, vy, curx, cury, 1 << log_dsz, log_mvb_sz + OD_LOG_MVBSIZE_MIN);
+    od_mv_est_limits(state, &limits, vx, vy, log_mvb_sz + OD_LOG_MVBSIZE_MIN);
+    b = od_mv_est_get_boundary_case(&limits, curx, cury, 1 << log_dsz, 0);
     nsites = pattern_nsites[b];
     for (sitei = 0, site = 4;; sitei++) {
       cstate = dp_node[0].states + sitei;
@@ -5715,8 +5720,9 @@ static int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
         od_mv_dp_get_sad_change(est, dp_node + 1, block_sads[0]);
       }
       /*Compute the set of states for this node.*/
-      b = od_mv_est_get_boundary_case(state,
-       vx, vy, curx, cury, 1 << log_dsz, log_mvb_sz + OD_LOG_MVBSIZE_MIN);
+      od_mv_est_limits(state, &limits, vx, vy,
+       log_mvb_sz + OD_LOG_MVBSIZE_MIN);
+      b = od_mv_est_get_boundary_case(&limits, curx, cury, 1 << log_dsz, 0);
       nsites = pattern_nsites[b];
       for (sitei = 0, site = 4;; sitei++) {
         cstate = dp_node[1].states + sitei;
