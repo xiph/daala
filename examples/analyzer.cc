@@ -682,7 +682,7 @@ void TestPanel::render() {
         int sby;
         sbx = i >> OD_LOG_BSIZE0 + OD_NBSIZES - 1;
         sby = j >> OD_LOG_BSIZE0 + OD_NBSIZES - 1;
-        if (!dering[sby*nhsb + sbx]) {
+        if (dering[sby*nhsb + sbx]) {
           yval = 0;
         }
       }
