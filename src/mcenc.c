@@ -2176,7 +2176,6 @@ static int32_t od_mv_est_bma_sad(od_mv_est_ctx *est,
   enc = est->enc;
   state = &enc->state;
   refi = state->ref_imgi[ref];
-  OD_ASSERT(iplane->xdec == 0 && iplane->ydec == 0);
   ret = 0;
   planes = (est->flags & OD_MC_USE_CHROMA) ? 3 : 1;
   for (pli = 0; pli < planes; pli++) {
