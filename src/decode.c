@@ -770,7 +770,8 @@ static void od_decode_recursive(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
      dec->state.adapt.skip_increment, "skip");
     /*Save superblock skip value for use by CLP filter.*/
     if (bsi == OD_NBSIZES - 1) {
-      dec->state.sb_skip_flags[by*dec->state.nhsb + bx] = skip == 2;
+      dec->state.sb_skip_flags[by*dec->state.nhsb + bx] = skip == 2 &&
+       !ctx->is_keyframe;
 #if OD_SIGNAL_Q_SCALING
       od_decode_quantizer_scaling(dec, bx, by, skip == 2);
 #endif

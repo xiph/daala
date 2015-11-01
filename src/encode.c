@@ -2349,7 +2349,8 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
          OD_NBSIZES - 1, xdec, ydec, rdo_only, hgrad, vgrad);
         /*Save superblock skip value for use by CLP filter.*/
         if (pli == 0) {
-          enc->state.sb_skip_flags[sby*nhsb + sbx] = skipped;
+          enc->state.sb_skip_flags[sby*nhsb + sbx] = skipped &&
+           !mbctx->is_keyframe;
         }
       }
     }
