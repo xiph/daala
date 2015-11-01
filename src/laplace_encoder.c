@@ -28,7 +28,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #include <stdio.h>
 
-#include "laplace_code.h"
+#include "pvq_encoder.h"
 #include "pvq.h"
 #include "entenc.h"
 #include "entdec.h"

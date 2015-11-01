@@ -33,8 +33,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "entdec.h"
 #include "entcode.h"
 #include "logging.h"
-#include "laplace_code.h"
-#include "pvq_code.h"
+#include "pvq_decoder.h"
+#include "partition.h"
 
 static void od_decode_pvq_codeword(od_ec_dec *ec, od_pvq_codeword_ctx *ctx,
  od_coeff *y, int n, int k, int noref, int bs) {

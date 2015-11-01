@@ -134,7 +134,6 @@ mc.c \
 dct.c \
 partition.c \
 pvq.c \
-pvq_code.c \
 pvq_decoder.c \
 quantizer.c \
 state.c \
@@ -163,9 +162,7 @@ entcode.h \
 entdec.h \
 filter.h \
 generic_code.h \
-laplace_code.h \
 partition.h \
-pvq_code.h \
 internal.h \
 intra.h \
 logging.h \
@@ -173,6 +170,8 @@ mc.h \
 mcenc.h \
 odintrin.h \
 pvq.h \
+pvq_decoder.h \
+pvq_encoder.h \
 quantizer.h \
 state.h \
 tf.h \

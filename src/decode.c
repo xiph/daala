@@ -33,13 +33,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <string.h>
 #include "decint.h"
 #include "generic_code.h"
-#include "laplace_code.h"
 #include "filter.h"
 #include "dct.h"
 #include "intra.h"
 #include "partition.h"
 #include "pvq.h"
-#include "pvq_code.h"
 #include "block_size.h"
 #include "tf.h"
 #include "state.h"

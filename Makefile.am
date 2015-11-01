@@ -21,14 +21,14 @@ noinst_HEADERS = \
 	src/generic_code.h \
 	src/internal.h \
 	src/intra.h \
-	src/laplace_code.h \
 	src/logging.h \
 	src/mc.h \
 	src/mcenc.h \
 	src/odintrin.h \
 	src/partition.h \
 	src/pvq.h \
-	src/pvq_code.h \
+	src/pvq_decoder.h \
+	src/pvq_encoder.h \
 	src/quantizer.h \
 	src/state.h \
 	src/tf.h \
@@ -85,7 +85,6 @@ src_libdaalabase_la_SOURCES = \
 	src/mc.c \
 	src/partition.c \
 	src/pvq.c \
-	src/pvq_code.c \
 	src/pvq_decoder.c \
 	src/quantizer.c \
 	src/state.c \

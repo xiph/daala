@@ -28,7 +28,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #include <stdio.h>
 
-#include "laplace_code.h"
 #include "generic_code.h"
 #include "entenc.h"
 #include "entdec.h"

@@ -42,7 +42,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "logging.h"
 #include "partition.h"
 #include "pvq.h"
-#include "pvq_code.h"
 #include "block_size.h"
 #include "logging.h"
 #include "tf.h"

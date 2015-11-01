@@ -32,9 +32,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "logging.h"
 #include "entenc.h"
 #include "entcode.h"
-#include "laplace_code.h"
-#include "pvq_code.h"
 #include "filter.h"
+#include "pvq_encoder.h"
+#include "partition.h"
 
 #define OD_PVQ_RATE_APPROX (0)
 

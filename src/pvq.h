@@ -31,6 +31,9 @@ extern const double *OD_BASIS_MAG[2][OD_NBSIZES + 1];
 extern const int OD_QM8_Q4_FLAT[];
 extern const int OD_QM8_Q4_HVS[];
 
+extern const uint16_t EXP_CDF_TABLE[][16];
+extern const uint16_t LAPLACE_OFFSET[];
+
 # define PVQ_MAX_PARTITIONS (1 + 3*(OD_NBSIZES-1))
 
 # define OD_NOREF_ADAPT_SPEED (4)

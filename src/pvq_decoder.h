@@ -22,29 +22,29 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
-#if !defined(_pvq_code_H)
-# define _pvq_code_H
-
-# include "encint.h"
-# include "entenc.h"
-# include "entdec.h"
+#if !defined(_pvq_decoder_H)
+# define _pvq_decoder_H (1)
+# include "internal.h"
 # include "filter.h"
-# include "generic_code.h"
-# include "laplace_code.h"
-# include "partition.h"
+# include "pvq.h"
+# include "entdec.h"
 
-# define PRED4_PROB (26376)
-extern const uint16_t pred8_cdf[16];
-extern const uint16_t pred16_cdf[16][8];
-
-#if OD_SIGNAL_Q_SCALING
-void od_encode_quantizer_scaling(daala_enc_ctx *enc, int q_scaling, int bx,
- int by, int skip);
+#if OD_ACCOUNTING
+# define laplace_decode_special(dec, decay, max, str) laplace_decode_special_(dec, decay, max, str)
+# define laplace_decode(dec, ex_q8, k, str) laplace_decode_(dec, ex_q8, k, str)
+#define laplace_decode_vector(dec, y, n, k, curr, means, str) laplace_decode_vector_(dec, y, n, k, curr, means, str)
+#else
+# define laplace_decode_special(dec, decay, max, str) laplace_decode_special_(dec, decay, max)
+# define laplace_decode(dec, ex_q8, k, str) laplace_decode_(dec, ex_q8, k)
+#define laplace_decode_vector(dec, y, n, k, curr, means, str) laplace_decode_vector_(dec, y, n, k, curr, means)
 #endif
 
-int od_pvq_encode(daala_enc_ctx *enc, od_coeff *ref, od_coeff *in,
- od_coeff *out, int q0, int pli, int bs, const double *beta, int robust,
- int is_keyframe, int q_scaling, int bx, int by);
+int laplace_decode_special_(od_ec_dec *dec, unsigned decay, int max OD_ACC_STR);
+int laplace_decode_(od_ec_dec *dec, unsigned ex_q8, int k OD_ACC_STR);
+void laplace_decode_vector_(od_ec_dec *dec, od_coeff *y, int n, int k,
+                                  int32_t *curr, const int32_t *means
+                                  OD_ACC_STR);
+
 
 void od_pvq_decode(daala_dec_ctx *dec, od_coeff *ref, od_coeff *out, int q0,
  int pli, int bs, const double *beta, int robust, int is_keyframe,
