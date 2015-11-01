@@ -26,6 +26,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # define _pvq_H (1)
 # include "internal.h"
 # include "filter.h"
+# include "generic_code.h"
 
 extern const double *OD_BASIS_MAG[2][OD_NBSIZES + 1];
 extern const int OD_QM8_Q4_FLAT[];
@@ -72,6 +73,29 @@ extern const uint16_t LAPLACE_OFFSET[];
 # define OD_ADAPT_COUNT_EX_Q8 3
 
 # define OD_ADAPT_NO_VALUE (-2147483647-1)
+
+typedef struct od_pvq_adapt_ctx  od_pvq_adapt_ctx;
+typedef struct od_pvq_codeword_ctx od_pvq_codeword_ctx;
+
+struct od_pvq_codeword_ctx {
+  int                 pvq_adapt[2*OD_NBSIZES*OD_NSB_ADAPT_CTXS];
+  int                 pvq_k1_increment;
+  /* CDFs are size 16 despite the fact that we're using less than that. */
+  uint16_t        pvq_k1_cdf[4][16];
+};
+
+struct od_pvq_adapt_ctx {
+  od_pvq_codeword_ctx pvq_codeword_ctx;
+  generic_encoder     pvq_param_model[3];
+  int                 pvq_ext[OD_NBSIZES*PVQ_MAX_PARTITIONS];
+  int                 pvq_exg[OD_NPLANES_MAX][OD_NBSIZES][PVQ_MAX_PARTITIONS];
+  int                 pvq_gaintheta_increment;
+  uint16_t        pvq_gaintheta_cdf[2*OD_NBSIZES*PVQ_MAX_PARTITIONS][16];
+  int                 pvq_skip_dir_increment;
+  uint16_t        pvq_skip_dir_cdf[2*(OD_NBSIZES-1)][7];
+};
+
+void od_adapt_pvq_ctx_reset(od_pvq_adapt_ctx *state, int is_keyframe);
 
 int od_qm_get_index(int bs, int band);
 

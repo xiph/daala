@@ -29,8 +29,6 @@ typedef struct od_state_opt_vtbl od_state_opt_vtbl;
 typedef struct od_state          od_state;
 typedef struct od_yuv_dumpfile   od_yuv_dumpfile;
 typedef struct od_adapt_ctx      od_adapt_ctx;
-typedef struct od_pvq_adapt_ctx  od_pvq_adapt_ctx;
-typedef struct od_pvq_codeword_ctx od_pvq_codeword_ctx;
 
 # include <stdio.h>
 # include "internal.h"
@@ -125,23 +123,6 @@ struct od_yuv_dumpfile{
 };
 # endif
 
-struct od_pvq_codeword_ctx {
-  int                 pvq_adapt[2*OD_NBSIZES*OD_NSB_ADAPT_CTXS];
-  int                 pvq_k1_increment;
-  /* CDFs are size 16 despite the fact that we're using less than that. */
-  uint16_t        pvq_k1_cdf[4][16];
-};
-
-struct od_pvq_adapt_ctx {
-  od_pvq_codeword_ctx pvq_codeword_ctx;
-  generic_encoder     pvq_param_model[3];
-  int                 pvq_ext[OD_NBSIZES*PVQ_MAX_PARTITIONS];
-  int                 pvq_exg[OD_NPLANES_MAX][OD_NBSIZES][PVQ_MAX_PARTITIONS];
-  int                 pvq_gaintheta_increment;
-  uint16_t        pvq_gaintheta_cdf[2*OD_NBSIZES*PVQ_MAX_PARTITIONS][16];
-  int                 pvq_skip_dir_increment;
-  uint16_t        pvq_skip_dir_cdf[2*(OD_NBSIZES-1)][7];
-};
 
 struct od_adapt_ctx {
   /* Support for PVQ encode/decode */
