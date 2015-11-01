@@ -1451,7 +1451,7 @@ static void od_mc_hadamard_1d(int32_t *diff,
   }
 }
 
-static int od_mc_compute_satd8(int32_t *work, int ln,
+static int32_t od_mc_compute_satd8(int32_t *work, int ln,
  const unsigned char *src, int systride,
  const unsigned char *ref, int rystride) {
   int n;
@@ -1478,7 +1478,7 @@ static int od_mc_compute_satd8(int32_t *work, int ln,
   return satd + (1 << ln >> 1) >> ln;
 }
 
-static int od_mc_compute_satd16(int32_t *work, int ln,
+static int32_t od_mc_compute_satd16(int32_t *work, int ln,
  const unsigned char *src, int systride,
  const unsigned char *ref, int rystride) {
   int n;
@@ -1505,6 +1505,50 @@ static int od_mc_compute_satd16(int32_t *work, int ln,
   return satd + (1 << ln + OD_COEFF_SHIFT >> 1) >> ln + OD_COEFF_SHIFT;
 }
 
+/*Perform SATD on 8x8 blocks within src and ref then sum the results of
+   each one.*/
+static int32_t od_mc_compute_sum_8x8_satd8(int ln,
+ const unsigned char *src, int systride,
+ const unsigned char *ref, int rystride) {
+  int32_t work[8*8];
+  int n;
+  int i;
+  int j;
+  int32_t satd;
+  n = 1 << ln;
+  OD_ASSERT(n >= 8);
+  satd = 0;
+  for (i = 0; i < n; i += 8) {
+    for (j = 0; j < n; j += 8) {
+      satd += od_mc_compute_satd8(work, 3, src + i*systride + j, systride,
+       ref + i*rystride + j, rystride);
+    }
+  }
+  return satd;
+}
+
+/*Perform SATD on 8x8 blocks within src and ref then sum the results of
+   each one.*/
+static int32_t od_mc_compute_sum_8x8_satd16(int ln,
+ const unsigned char *src, int systride,
+ const unsigned char *ref, int rystride) {
+  int32_t work[8*8];
+  int n;
+  int i;
+  int j;
+  int32_t satd;
+  n = 1 << ln;
+  OD_ASSERT(n >= 8);
+  satd = 0;
+  for (i = 0; i < n; i += 8) {
+    for (j = 0; j < n; j += 8) {
+      satd += od_mc_compute_satd16(work, 3, src + i*systride + 2*j, systride,
+       ref + i*rystride + 2*j, rystride);
+    }
+  }
+  return satd;
+}
+
 int32_t od_mc_compute_satd8_4x4_c(const unsigned char *src, int systride,
  const unsigned char *ref, int rystride) {
   int32_t work[4*4];
@@ -1519,50 +1563,42 @@ int32_t od_mc_compute_satd16_4x4_c(const unsigned char *src, int systride,
 
 int32_t od_mc_compute_satd8_8x8_c(const unsigned char *src, int systride,
  const unsigned char *ref, int rystride) {
-  int32_t work[8*8];
-  return od_mc_compute_satd8(work, 3, src, systride, ref, rystride);
+  return od_mc_compute_sum_8x8_satd8(3, src, systride, ref, rystride);
 }
 
 int32_t od_mc_compute_satd16_8x8_c(const unsigned char *src, int systride,
  const unsigned char *ref, int rystride) {
-  int32_t work[8*8];
-  return od_mc_compute_satd16(work, 3, src, systride, ref, rystride);
+  return od_mc_compute_sum_8x8_satd16(3, src, systride, ref, rystride);
 }
 
 int32_t od_mc_compute_satd8_16x16_c(const unsigned char *src, int systride,
  const unsigned char *ref, int rystride) {
-  int32_t work[16*16];
-  return od_mc_compute_satd8(work, 4, src, systride, ref, rystride);
+  return od_mc_compute_sum_8x8_satd8(4, src, systride, ref, rystride);
 }
 
 int32_t od_mc_compute_satd16_16x16_c(const unsigned char *src, int systride,
  const unsigned char *ref, int rystride) {
-  int32_t work[16*16];
-  return od_mc_compute_satd16(work, 4, src, systride, ref, rystride);
+  return od_mc_compute_sum_8x8_satd16(4, src, systride, ref, rystride);
 }
 
 int32_t od_mc_compute_satd8_32x32_c(const unsigned char *src, int systride,
  const unsigned char *ref, int rystride) {
-  int32_t work[32*32];
-  return od_mc_compute_satd8(work, 5, src, systride, ref, rystride);
+  return od_mc_compute_sum_8x8_satd8(5, src, systride, ref, rystride);
 }
 
 int32_t od_mc_compute_satd16_32x32_c(const unsigned char *src, int systride,
  const unsigned char *ref, int rystride) {
-  int32_t work[32*32];
-  return od_mc_compute_satd16(work, 5, src, systride, ref, rystride);
+  return od_mc_compute_sum_8x8_satd16(5, src, systride, ref, rystride);
 }
 
 int32_t od_mc_compute_satd8_64x64_c(const unsigned char *src, int systride,
  const unsigned char *ref, int rystride) {
-  int32_t work[64*64];
-  return od_mc_compute_satd8(work, 6, src, systride, ref, rystride);
+  return od_mc_compute_sum_8x8_satd8(6, src, systride, ref, rystride);
 }
 
 int32_t od_mc_compute_satd16_64x64_c(const unsigned char *src, int systride,
  const unsigned char *ref, int rystride) {
-  int32_t work[64*64];
-  return od_mc_compute_satd16(work, 6, src, systride, ref, rystride);
+  return od_mc_compute_sum_8x8_satd16(6, src, systride, ref, rystride);
 }
 
 /*Computes the SAD of the input image against the given predictor.*/

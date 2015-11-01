@@ -651,7 +651,7 @@ int main(int argc, char **argv) {
   limit = -1;
   complexity = 7;
   mc_use_chroma = 1;
-  mc_use_satd = 0;
+  mc_use_satd = 1;
   use_activity_masking = 1;
   use_dering = 1;
   qm = 1;
