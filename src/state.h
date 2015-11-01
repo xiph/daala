@@ -241,6 +241,7 @@ void od_state_pred_block(od_state *state, unsigned char *buf,
  int ystride, int xstride, int pli, int vx, int vy, int log_mvb_sz);
 void od_state_mc_predict(od_state *state, od_img *dst);
 void od_state_init_border(od_state *state);
+void od_state_init_superblock_split(od_state *state, unsigned char bsize);
 int od_state_dump_yuv(od_state *state, od_img *img, const char *tag);
 void od_img_edge_ext(od_img* src);
 # if defined(OD_DUMP_IMAGES)

@@ -2651,22 +2651,8 @@ static void od_interp_qm(unsigned char *out, int q, const od_qm_entry *entry1,
 
 static void od_split_superblocks_rdo(daala_enc_ctx *enc,
  od_mb_enc_ctx *mbctx) {
-  int nhsb;
-  int nvsb;
-  int i;
-  int j;
-  od_state *state;
   od_rollback_buffer rbuf;
-  state = &enc->state;
-  nhsb = state->nhsb;
-  nvsb = state->nvsb;
   od_encode_checkpoint(enc, &rbuf);
-  for (i = 0; i < 4*nvsb; i++) {
-    for (j = 0; j < 4*nhsb; j++) {
-      state->bsize[i*state->bstride + j] = mbctx->use_haar_wavelet ?
-       OD_BLOCK_32X32 :  OD_LIMIT_BSIZE_MIN;
-    }
-  }
   od_encode_coefficients(enc, mbctx, OD_ENCODE_RDO);
   od_encode_rollback(enc, &rbuf);
 }
@@ -2811,10 +2797,15 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     od_predict_frame(enc);
     od_encode_mvs(enc, mbctx.num_refs);
   }
-  /* Enable block size RDO for all but complexity 0 and 1. We might want to
-     revise that choice if we get a better open-loop block size algorithm. */
-  if (enc->complexity >= 2) od_split_superblocks_rdo(enc, &mbctx);
-  else od_split_superblocks(enc, mbctx.is_keyframe);
+  if (mbctx.use_haar_wavelet) {
+    od_state_init_superblock_split(&enc->state, OD_BLOCK_32X32);
+  } else {
+    /* Enable block size RDO for all but complexity 0 and 1. We might want to
+       revise that choice if we get a better open-loop block size algorithm. */
+    od_state_init_superblock_split(&enc->state, OD_LIMIT_BSIZE_MIN);
+    if (enc->complexity >= 2) od_split_superblocks_rdo(enc, &mbctx);
+    else od_split_superblocks(enc, mbctx.is_keyframe);
+  }
   od_encode_coefficients(enc, &mbctx, OD_ENCODE_REAL);
   ref_img = enc->state.ref_imgs + enc->state.ref_imgi[OD_FRAME_SELF];
 #if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)

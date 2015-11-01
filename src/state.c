@@ -846,6 +846,21 @@ void od_state_mc_predict(od_state *state, od_img *img_dst) {
   }
 }
 
+/* Initialize superblock split decisions. */
+void od_state_init_superblock_split(od_state *state, unsigned char bsize) {
+  int nhsb;
+  int nvsb;
+  int i;
+  int j;
+  nhsb = state->nhsb;
+  nvsb = state->nvsb;
+  for (i = 0; i < 4*nvsb; i++) {
+    for (j = 0; j < 4*nhsb; j++) {
+      state->bsize[i*state->bstride + j] = bsize;
+    }
+  }
+}
+
 /*To avoiding having to special-case superblocks on the edges of the image,
    one superblock of padding is maintained on each side of the image.
   These "dummy" superblocks are notionally not subdivided.
