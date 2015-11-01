@@ -374,7 +374,6 @@ public:
 
   bool hasPadding();
 
-  void onKeyDown(wxKeyEvent &event);
   void onPaint(wxPaintEvent &event);
   void onIdle(wxIdleEvent &event);
   void onMouseMotion(wxMouseEvent &event);
@@ -382,7 +381,6 @@ public:
 };
 
 BEGIN_EVENT_TABLE(TestPanel, wxPanel)
-  EVT_KEY_DOWN(TestPanel::onKeyDown)
   EVT_PAINT(TestPanel::onPaint)
   EVT_MOTION(TestPanel::onMouseMotion)
   EVT_LEAVE_WINDOW(TestPanel::onMouseLeaveWindow)
@@ -926,22 +924,6 @@ bool TestPanel::nextFrame() {
     return true;
   }
   return false;
-}
-
-void TestPanel::onKeyDown(wxKeyEvent &event) {
-  switch (event.GetKeyCode()) {
-    case '.' : {
-      nextFrame();
-      Refresh(false);
-      break;
-    }
-    /* Catches 'r' and 'R' */
-    case 'R' : {
-      restart();
-      Refresh(false);
-      break;
-    }
-  }
 }
 
 bool TestPanel::gotoFrame() {
