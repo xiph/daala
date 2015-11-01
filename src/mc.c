@@ -2508,7 +2508,6 @@ int od_mc_get_ref_predictor(od_state *state, int vx, int vy, int level) {
   int max_count = 0;
   int max_ref = OD_FRAME_PREV;
   ncns = 4;
-  mvb_sz = 1 << ((4 - level) >> 1);
   mvb_sz = 1 << ((OD_MC_LEVEL_MAX - level) >> 1);
   if (level == 0) {
     if (vy >= mvb_sz) {
