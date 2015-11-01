@@ -357,6 +357,8 @@ public:
   void close();
   void render();
   bool nextFrame();
+  void refresh();
+  bool gotoFrame();
   void restart();
 
   int getZoom() const;
@@ -409,6 +411,7 @@ public:
   void onUChange(wxCommandEvent &event);
   void onVChange(wxCommandEvent &event);
   void onNextFrame(wxCommandEvent &event);
+  void onGotoFrame(wxCommandEvent &event);
   void onRestart(wxCommandEvent &event);
   void onAbout(wxCommandEvent &event);
 
@@ -426,6 +429,7 @@ enum {
   wxID_SHOW_U,
   wxID_SHOW_V,
   wxID_NEXT_FRAME,
+  wxID_GOTO_FRAME,
   wxID_RESTART
 };
 
@@ -445,6 +449,7 @@ BEGIN_EVENT_TABLE(TestFrame, wxFrame)
   EVT_MENU(wxID_SHOW_U, TestFrame::onUChange)
   EVT_MENU(wxID_SHOW_V, TestFrame::onVChange)
   EVT_MENU(wxID_NEXT_FRAME, TestFrame::onNextFrame)
+  EVT_MENU(wxID_GOTO_FRAME, TestFrame::onGotoFrame)
   EVT_MENU(wxID_RESTART, TestFrame::onRestart)
   EVT_MENU(wxID_ABOUT, TestFrame::onAbout)
 END_EVENT_TABLE()
@@ -804,7 +809,7 @@ void TestPanel::setShowPlane(bool show_plane, int mask) {
 
 bool TestPanel::hasPadding() {
   return dd.getFrameWidth() > dd.getWidth() ||
-         dd.getFrameHeight() > dd.getHeight();
+    dd.getFrameHeight() > dd.getHeight();
 }
 
 void TestPanel::setShowNoRef(bool show_noref) {
@@ -907,28 +912,20 @@ void TestPanel::computeBitsPerPixel() {
   fprintf(stderr, "nb_syms = %i\n", acct->nb_syms);
   fprintf(stderr, "bpp_total = %lf\n", bpp_total);
 }
-
+void TestPanel::refresh() {
+  computeBitsPerPixel();
+  render();
+  ((TestFrame *)GetParent())->SetTitle(path +
+   wxString::Format(wxT(" (%d,%d) Frame %d - Daala Stream Analyzer"),
+   dd.getWidth(), dd.getHeight(), dd.getRunningFrameCount()-1));
+}
 bool TestPanel::nextFrame() {
   if (dd.step()) {
     /* For now just compute the unfiltered bits per pixel. */
-    computeBitsPerPixel();
-    render();
-    ((TestFrame *)GetParent())->SetTitle(path +
-     wxString::Format(wxT(" (%d,%d) Frame %d - Daala Stream Analyzer"),
-     dd.getWidth(), dd.getHeight(), dd.getRunningFrameCount()-1));
+    refresh();
     return true;
   }
   return false;
-}
-
-void TestPanel::restart() {
-  dd.restart();
-  dd.setBlockSizeBuffer(bsize, bsize_len);
-  dd.setBandFlagsBuffer(flags, flags_len);
-  dd.setAccountingEnabled(true);
-  dd.getAccountingStruct(&acct);
-  dd.setDeringFlagsBuffer(dering, dering_len);
-  nextFrame();
 }
 
 void TestPanel::onKeyDown(wxKeyEvent &event) {
@@ -945,6 +942,48 @@ void TestPanel::onKeyDown(wxKeyEvent &event) {
       break;
     }
   }
+}
+
+bool TestPanel::gotoFrame() {
+  bool toReturn;
+  int nframe;
+  wxTextEntryDialog dlg(this, _T("Jump to which frame?"));
+  dlg.SetTextValidator(wxFILTER_NUMERIC);
+  if (dlg.ShowModal() == wxID_OK) {
+    nframe = wxAtoi(dlg.GetValue());
+  }
+  else {
+    return false;
+  }
+  if (nframe < dd.frame) {
+    restart();
+  }
+  if(nframe <= 0) {
+    return true;
+  }
+  if(nframe == dd.frame+1) {
+    return nextFrame();
+  }
+  while (nframe >= dd.frame) {
+    toReturn = dd.step();
+    if (!toReturn) {
+      wxMessageBox(_T("Error: Video doesn't have that many frames"));
+      restart();
+      return false;
+	}
+  }
+  refresh();
+  return toReturn;
+}
+
+void TestPanel::restart() {
+  dd.restart();
+  dd.setBlockSizeBuffer(bsize, bsize_len);
+  dd.setBandFlagsBuffer(flags, flags_len);
+  dd.setAccountingEnabled(true);
+  dd.getAccountingStruct(&acct);
+  dd.setDeringFlagsBuffer(dering, dering_len);
+  nextFrame();
 }
 
 void TestPanel::onMouseMotion(wxMouseEvent& event) {
@@ -975,8 +1014,8 @@ void TestPanel::onMouseMotion(wxMouseEvent& event) {
 }
 
 void TestPanel::onMouseLeaveWindow(wxMouseEvent& event) {
-    TestFrame *parent = static_cast<TestFrame*>(GetParent());
-    parent->SetStatusText(wxString::Format(wxT("")), 1);
+  TestFrame *parent = static_cast<TestFrame*>(GetParent());
+  parent->SetStatusText(wxString::Format(wxT("")), 1);
 }
 
 void TestPanel::onPaint(wxPaintEvent &) {
@@ -1032,6 +1071,8 @@ TestFrame::TestFrame() : wxFrame(NULL, wxID_ANY, _T("Daala Stream Analyzer"),
    _("Go to next frame"));
   playbackMenu->Append(wxID_RESTART, _T("&Restart\tr"),
    _("Set video to frame 0"));
+  playbackMenu->Append(wxID_GOTO_FRAME, _T("Jump to Frame\tj"),
+   _("Go to frame number"));
   mb->Append(playbackMenu, _T("&Playback"));
 
   wxMenu *helpMenu=new wxMenu();
@@ -1128,6 +1169,11 @@ void TestFrame::onVChange(wxCommandEvent &WXUNUSED(event)) {
 
 void TestFrame::onNextFrame(wxCommandEvent &WXUNUSED(event)) {
   panel->nextFrame();
+  panel->Refresh(false);
+}
+
+void TestFrame::onGotoFrame(wxCommandEvent &WXUNUSED(event)) {
+  panel->gotoFrame();
   panel->Refresh(false);
 }
 
