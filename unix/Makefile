@@ -119,7 +119,6 @@ LIBDAALABASE_CSOURCES = \
 $(if $(findstring -DOD_ACCOUNTING,${CFLAGS}), \
 accounting.c \
 ) \
-adapt.c \
 entcode.c \
 entdec.c \
 filter.c \
@@ -159,7 +158,6 @@ logging.c \
 )
 
 LIBDAALABASE_CHEADERS = \
-adapt.h \
 block_size.h \
 entcode.h \
 entdec.h \

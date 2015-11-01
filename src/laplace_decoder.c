@@ -32,6 +32,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "entdec.h"
 #include "logging.h"
 #include "odintrin.h"
+#include "pvq.h"
 
 /** Decodes the tail of a Laplace-distributed variable, i.e. it doesn't
  * do anything special for the zero case.

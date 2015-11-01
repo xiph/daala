@@ -9,7 +9,6 @@ lib_LTLIBRARIES = src/libdaalabase.la src/libdaaladec.la src/libdaalaenc.la
 AM_CPPFLAGS = -I$(srcdir)/include
 
 noinst_HEADERS = \
-	src/adapt.h \
 	src/block_size.h \
 	src/block_size_enc.h \
 	src/dct.h \
@@ -73,7 +72,6 @@ src_libdaalabase_la_LDFLAGS = -no-undefined \
 src_libdaalabase_la_LDFLAGS +=
 src_libdaalabase_la_SOURCES = \
 	src/accounting.c \
-	src/adapt.c \
 	src/entcode.c \
 	src/entdec.c \
 	src/filter.c \

@@ -37,10 +37,9 @@ typedef struct od_pvq_codeword_ctx od_pvq_codeword_ctx;
 # include "mc.h"
 # include "filter.h"
 # include "pvq.h"
-# include "adapt.h"
 # include "generic_code.h"
 # include "util.h"
-#include "intra.h"
+# include "intra.h"
 
 extern const od_coeff OD_DC_RES[3];
 

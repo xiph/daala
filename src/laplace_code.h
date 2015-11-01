@@ -28,7 +28,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # include "entenc.h"
 # include "entdec.h"
 # include "filter.h"
-# include "adapt.h"
 
 #if OD_ACCOUNTING
 # define laplace_decode_special(dec, decay, max, str) laplace_decode_special_(dec, decay, max, str)

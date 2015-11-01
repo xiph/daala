@@ -34,7 +34,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "entcode.h"
 #include "laplace_code.h"
 #include "pvq_code.h"
-#include "adapt.h"
 #include "filter.h"
 
 #define OD_PVQ_RATE_APPROX (0)

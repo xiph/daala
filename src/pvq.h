@@ -61,6 +61,15 @@ extern const int OD_QM8_Q4_HVS[];
 #define OD_FLAT_QM 0
 #define OD_HVS_QM  1
 
+# define OD_NSB_ADAPT_CTXS (4)
+
+# define OD_ADAPT_K_Q8        0
+# define OD_ADAPT_SUM_EX_Q8   1
+# define OD_ADAPT_COUNT_Q8    2
+# define OD_ADAPT_COUNT_EX_Q8 3
+
+# define OD_ADAPT_NO_VALUE (-2147483647-1)
+
 int od_qm_get_index(int bs, int band);
 
 extern const double *const OD_PVQ_BETA[2][OD_NPLANES_MAX][OD_NBSIZES + 1];
