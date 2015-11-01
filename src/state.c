@@ -441,12 +441,11 @@ static const uint16_t OD_MV_SPLIT_FLAG_PROBZ_Q15[OD_MC_LEVEL_MAX][9] = {
   { 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384 }
 };
 
-void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe) {
-  int i;
-  int bs;
-  int level;
-  int pli;
+void od_adapt_pvq_ctx_reset(od_pvq_adapt_ctx *state, int is_keyframe) {
   od_pvq_codeword_ctx *ctx;
+  int i;
+  int pli;
+  int bs;
   ctx = &state->pvq_codeword_ctx;
   generic_model_init(&state->pvq_param_model[0]);
   generic_model_init(&state->pvq_param_model[1]);
@@ -468,6 +467,18 @@ void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe) {
   for (i = 0; i < OD_NBSIZES*PVQ_MAX_PARTITIONS; i++) {
     state->pvq_ext[i] = is_keyframe ? 24576 : 2 << 16;
   }
+  state->pvq_gaintheta_increment = 128;
+  OD_CDFS_INIT(state->pvq_gaintheta_cdf, state->pvq_gaintheta_increment >> 2);
+  state->pvq_skip_dir_increment = 128;
+  OD_CDFS_INIT(state->pvq_skip_dir_cdf, state->pvq_skip_dir_increment >> 2);
+
+}
+
+void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe) {
+  int i;
+  int level;
+  int pli;
+  od_adapt_pvq_ctx_reset(&state->pvq, is_keyframe);
   generic_model_init(&state->mv_model);
   OD_CDFS_INIT(state->mv_ref_cdf, 128);
   state->skip_increment = 128;
@@ -484,10 +495,6 @@ void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe) {
       state->split_flag_cdf[level][i][1] = state->split_flag_increment >> 1;
     }
   }
-  state->pvq_gaintheta_increment = 128;
-  OD_CDFS_INIT(state->pvq_gaintheta_cdf, state->pvq_gaintheta_increment >> 2);
-  state->pvq_skip_dir_increment = 128;
-  OD_CDFS_INIT(state->pvq_skip_dir_cdf, state->pvq_skip_dir_increment >> 2);
   state->haar_coeff_increment = 128;
   OD_CDFS_INIT(state->haar_coeff_cdf, state->haar_coeff_increment >> 2);
   state->haar_split_increment = 128;
@@ -496,7 +503,6 @@ void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe) {
   OD_CDFS_INIT(state->haar_bits_cdf, state->haar_bits_increment >> 2);
   for (pli = 0; pli < OD_NPLANES_MAX; pli++) {
     generic_model_init(&state->model_dc[pli]);
-    generic_model_init(&state->model_g[pli]);
     for (i = 0; i < OD_NBSIZES; i++) {
       state->ex_g[pli][i] = 8;
     }

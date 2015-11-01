@@ -262,7 +262,7 @@ static double od_pvq_rate(int qg, int icgr, int theta, int ts,
     od_pvq_codeword_ctx cd;
     int tell;
     od_ec_enc_init(&ec, 1000);
-    OD_COPY(&cd, &adapt->pvq_codeword_ctx, 1);
+    OD_COPY(&cd, &adapt->pvq.pvq_codeword_ctx, 1);
     tell = od_ec_enc_tell_frac(&ec);
     od_encode_pvq_codeword(&ec, &cd, y0, n, k, theta == -1, bs);
     rate = (od_ec_enc_tell_frac(&ec)-tell)/8.;
@@ -558,8 +558,8 @@ static void pvq_encode_partition(od_ec_enc *ec,
   }
   /* Jointly code gain, theta and noref for small values. Then we handle
      larger gain and theta values. For noref, theta = -1. */
-  od_encode_cdf_adapt(ec, id, &adapt->pvq_gaintheta_cdf[cdf_ctx][0],
-   8 + (8 - !is_keyframe)*code_skip, adapt->pvq_gaintheta_increment);
+  od_encode_cdf_adapt(ec, id, &adapt->pvq.pvq_gaintheta_cdf[cdf_ctx][0],
+   8 + (8 - !is_keyframe)*code_skip, adapt->pvq.pvq_gaintheta_increment);
   if (qg > 0) {
     int tmp;
     tmp = *exg;
@@ -573,7 +573,7 @@ static void pvq_encode_partition(od_ec_enc *ec,
      &tmp, 2);
     OD_IIR_DIADIC(*ext, theta << 16, 2);
   }
-  od_encode_pvq_codeword(ec, &adapt->pvq_codeword_ctx, in, n, k, theta == -1, bs);
+  od_encode_pvq_codeword(ec, &adapt->pvq.pvq_codeword_ctx, in, n, k, theta == -1, bs);
 }
 
 /** Quantizes a scalar with rate-distortion optimization (RDO)
@@ -674,10 +674,10 @@ int od_pvq_encode(daala_enc_ctx *enc,
   const unsigned char *qm;
   double dc_rate;
   qm = &enc->state.pvq_qm_q4[pli][0];
-  exg = &enc->state.adapt.pvq_exg[pli][bs][0];
-  ext = enc->state.adapt.pvq_ext + bs*PVQ_MAX_PARTITIONS;
+  exg = &enc->state.adapt.pvq.pvq_exg[pli][bs][0];
+  ext = enc->state.adapt.pvq.pvq_ext + bs*PVQ_MAX_PARTITIONS;
   skip_cdf = enc->state.adapt.skip_cdf[2*bs + (pli != 0)];
-  model = enc->state.adapt.pvq_param_model;
+  model = enc->state.adapt.pvq.pvq_param_model;
   nb_bands = OD_BAND_OFFSETS[bs][0];
   off = &OD_BAND_OFFSETS[bs][1];
   dc_quant = OD_MAXI(1, q0*qm[od_qm_get_index(bs, 0)] >> 4);
@@ -751,8 +751,8 @@ int od_pvq_encode(daala_enc_ctx *enc,
     }
     if (i == 0 && !skip_rest && bs > 0) {
       od_encode_cdf_adapt(&enc->ec, skip_dir,
-       &enc->state.adapt.pvq_skip_dir_cdf[(pli != 0) + 2*(bs - 1)][0], 7,
-       enc->state.adapt.pvq_skip_dir_increment);
+       &enc->state.adapt.pvq.pvq_skip_dir_cdf[(pli != 0) + 2*(bs - 1)][0], 7,
+       enc->state.adapt.pvq.pvq_skip_dir_increment);
     }
     /* Encode CFL flip bit just after the first time it's used. */
     if (pli!=0 && is_keyframe && theta[i] != -1 && !cfl_encoded) {

@@ -197,8 +197,8 @@ static void pvq_decode_partition(od_ec_dec *ec,
     /* Jointly decode gain, itheta and noref for small values. Then we handle
        larger gain. We need to wait for itheta because in the !nodesync case
        it depends on max_theta, which depends on the gain. */
-    id = od_decode_cdf_adapt(ec, &adapt->pvq_gaintheta_cdf[cdf_ctx][0],
-     8 + (8 - !is_keyframe)*has_skip, adapt->pvq_gaintheta_increment,
+    id = od_decode_cdf_adapt(ec, &adapt->pvq.pvq_gaintheta_cdf[cdf_ctx][0],
+     8 + (8 - !is_keyframe)*has_skip, adapt->pvq.pvq_gaintheta_increment,
      "pvq:gaintheta");
     if (!is_keyframe && id >= 10) id++;
     if (is_keyframe && id >= 8) id++;
@@ -257,7 +257,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
   k = od_pvq_compute_k(qcg, itheta, theta, *noref, n, beta, nodesync);
   if (k != 0) {
     /* when noref==0, y is actually size n-1 */
-    od_decode_pvq_codeword(ec, &adapt->pvq_codeword_ctx, y, n, k, *noref, bs);
+    od_decode_pvq_codeword(ec, &adapt->pvq.pvq_codeword_ctx, y, n, k, *noref, bs);
   } else {
     OD_CLEAR(y, n);
   }
@@ -327,9 +327,9 @@ void od_pvq_decode(daala_dec_ctx *dec,
     skip[i] = 1;
   }
   qm = &dec->state.pvq_qm_q4[pli][0];
-  exg = &dec->state.adapt.pvq_exg[pli][bs][0];
-  ext = dec->state.adapt.pvq_ext + bs*PVQ_MAX_PARTITIONS;
-  model = dec->state.adapt.pvq_param_model;
+  exg = &dec->state.adapt.pvq.pvq_exg[pli][bs][0];
+  ext = dec->state.adapt.pvq.pvq_ext + bs*PVQ_MAX_PARTITIONS;
+  model = dec->state.adapt.pvq.pvq_param_model;
   nb_bands = OD_BAND_OFFSETS[bs][0];
   off = &OD_BAND_OFFSETS[bs][1];
   OD_ASSERT(block_skip < 4);
@@ -357,8 +357,8 @@ void od_pvq_decode(daala_dec_ctx *dec,
         int skip_dir;
         int j;
         skip_dir = od_decode_cdf_adapt(&dec->ec,
-         &dec->state.adapt.pvq_skip_dir_cdf[(pli != 0) + 2*(bs - 1)][0], 7,
-         dec->state.adapt.pvq_skip_dir_increment, "pvq:skiprest");
+         &dec->state.adapt.pvq.pvq_skip_dir_cdf[(pli != 0) + 2*(bs - 1)][0], 7,
+         dec->state.adapt.pvq.pvq_skip_dir_increment, "pvq:skiprest");
         for (j = 0; j < 3; j++) skip_rest[j] = !!(skip_dir & (1 << j));
       }
     }

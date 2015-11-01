@@ -38,7 +38,7 @@
 #define EC_BUF_SIZE (32)
 #define MAX_VECTORS 10000
 
-typedef struct od_pvq_adapt_ctx od_pvq_adapt_ctx;
+typedef struct od_pvq_test_adapt_ctx od_pvq_test_adapt_ctx;
 
 /* FIXME: This is an old version of the pvq adaptation code,
    it should be rewritten using the 2D code (not yet sure what
@@ -68,7 +68,7 @@ typedef struct od_pvq_adapt_ctx od_pvq_adapt_ctx;
 # define OD_POS_ROW_INIT_Q4 \
  (2*OD_POS_INIT_Q3-(OD_POS_INIT_Q3>>OD_POS_ADAPT_SPEED+1))
 
-struct od_pvq_adapt_ctx{
+struct od_pvq_test_adapt_ctx{
   /*Mean value of K.*/
   int mean_k_q8;
   /*Mean value of the sum of (pulses left)/(positions left) for all
@@ -87,7 +87,7 @@ struct od_pvq_adapt_ctx{
 };
 
 void pvq_coder_bitstreams(int n, int type){
-  od_pvq_adapt_ctx pvq_adapt;
+  od_pvq_test_adapt_ctx pvq_adapt;
   int32_t adapt[OD_NSB_ADAPT_CTXS];
   int i;
   int k;
@@ -146,7 +146,7 @@ void pvq_coder_bitstreams(int n, int type){
 }
 
 int run_pvq(od_coeff *X,int len,int N,int fuzz){
-  od_pvq_adapt_ctx pvq_adapt;
+  od_pvq_test_adapt_ctx pvq_adapt;
   int32_t adapt[OD_NSB_ADAPT_CTXS];
   int i, j;
   od_ec_enc enc;

@@ -29,6 +29,7 @@ typedef struct od_state_opt_vtbl od_state_opt_vtbl;
 typedef struct od_state          od_state;
 typedef struct od_yuv_dumpfile   od_yuv_dumpfile;
 typedef struct od_adapt_ctx      od_adapt_ctx;
+typedef struct od_pvq_adapt_ctx  od_pvq_adapt_ctx;
 typedef struct od_pvq_codeword_ctx od_pvq_codeword_ctx;
 
 # include <stdio.h>
@@ -131,8 +132,7 @@ struct od_pvq_codeword_ctx {
   uint16_t        pvq_k1_cdf[4][16];
 };
 
-struct od_adapt_ctx {
-  /* Support for PVQ encode/decode */
+struct od_pvq_adapt_ctx {
   od_pvq_codeword_ctx pvq_codeword_ctx;
   generic_encoder     pvq_param_model[3];
   int                 pvq_ext[OD_NBSIZES*PVQ_MAX_PARTITIONS];
@@ -141,6 +141,11 @@ struct od_adapt_ctx {
   uint16_t        pvq_gaintheta_cdf[2*OD_NBSIZES*PVQ_MAX_PARTITIONS][16];
   int                 pvq_skip_dir_increment;
   uint16_t        pvq_skip_dir_cdf[2*(OD_NBSIZES-1)][7];
+};
+
+struct od_adapt_ctx {
+  /* Support for PVQ encode/decode */
+  od_pvq_adapt_ctx pvq;
   /* Motion vectors */
   generic_encoder     mv_model;
   uint16_t        mv_ref_cdf[5][16];
@@ -152,7 +157,6 @@ struct od_adapt_ctx {
   int                 split_flag_increment;
 
   generic_encoder model_dc[OD_NPLANES_MAX];
-  generic_encoder model_g[OD_NPLANES_MAX];
 
   int ex_sb_dc[OD_NPLANES_MAX];
   int ex_dc[OD_NPLANES_MAX][OD_NBSIZES][3];
