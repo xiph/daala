@@ -200,6 +200,7 @@ laplace_encoder.c \
 mcenc.c \
 pvq_encoder.c \
 $(if $(findstring -DOD_X86ASM,${CFLAGS}), \
+x86/sse2mcenc.c \
 x86/x86enc.c \
 x86/x86mcenc.c \
 ) \

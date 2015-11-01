@@ -134,6 +134,11 @@ if ENABLE_X86ASM
 src_libdaalaenc_la_SOURCES += \
         src/x86/x86enc.c \
         src/x86/x86mcenc.c
+if ENABLE_SSE2_INTRINSICS
+src_libdaalaenc_la_SOURCES += \
+        src/x86/sse2mcenc.c
+%sse2mcenc.o %sse2mcenc.lo: CFLAGS += -msse2
+endif
 endif
 
 # Example programs
