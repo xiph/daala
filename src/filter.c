@@ -138,23 +138,16 @@ const od_filter_dering_orthogonal_func
   od_filter_dering_orthogonal_8x8_c
 };
 
-const int direction_offsets_table[16][3] = {
-  { -37, -74,-111 },
-  {   1, -36, -35 },
-  {   1,   2,   3 },
-  {   1,  40,  41 },
-  {  39,  78, 117 },
-  {  38,  77, 115 },
-  {  38,  76, 114 },
-  {  38,  75, 113 },
-  {  37,  74, 111 },
-  {  37,  73, 110 },
-  {  36,  72, 108 },
-  {  36,  71, 107 },
-  {  35,  70, 105 },
-  {  35,  69, 104 },
-  {  34,  68, 102 },
-  {  34,  67, 101 }
+/* Generated from gen_filter_tables.c. */
+const int direction_offsets_table[8][3] = {
+  {-1*OD_FILT_BSTRIDE + 1, -2*OD_FILT_BSTRIDE + 2, -3*OD_FILT_BSTRIDE + 3  },
+  { 0*OD_FILT_BSTRIDE + 1, -1*OD_FILT_BSTRIDE + 2, -1*OD_FILT_BSTRIDE + 3  },
+  { 0*OD_FILT_BSTRIDE + 1,  0*OD_FILT_BSTRIDE + 2,  0*OD_FILT_BSTRIDE + 3  },
+  { 0*OD_FILT_BSTRIDE + 1,  1*OD_FILT_BSTRIDE + 2,  1*OD_FILT_BSTRIDE + 3  },
+  { 1*OD_FILT_BSTRIDE + 1,  2*OD_FILT_BSTRIDE + 2,  3*OD_FILT_BSTRIDE + 3  },
+  { 1*OD_FILT_BSTRIDE + 0,  2*OD_FILT_BSTRIDE + 1,  3*OD_FILT_BSTRIDE + 1  },
+  { 1*OD_FILT_BSTRIDE + 0,  2*OD_FILT_BSTRIDE + 0,  3*OD_FILT_BSTRIDE + 0  },
+  { 1*OD_FILT_BSTRIDE + 0,  2*OD_FILT_BSTRIDE - 1,  3*OD_FILT_BSTRIDE - 1  },
 };
 
 /** Strength of the bilinear smoothing for each plane. */
