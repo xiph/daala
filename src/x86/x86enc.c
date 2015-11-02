@@ -51,6 +51,12 @@ void od_enc_opt_vtbl_init_x86(od_enc_ctx *enc) {
      od_mc_compute_satd8_4x4_sse2;
     enc->opt_vtbl.mc_compute_satd_8x8 =
      od_mc_compute_satd8_8x8_sse2;
+    enc->opt_vtbl.mc_compute_satd_16x16 =
+     od_mc_compute_satd8_16x16_sse2;
+    enc->opt_vtbl.mc_compute_satd_32x32 =
+     od_mc_compute_satd8_32x32_sse2;
+    enc->opt_vtbl.mc_compute_satd_64x64 =
+     od_mc_compute_satd8_64x64_sse2;
   }
 #endif
 }

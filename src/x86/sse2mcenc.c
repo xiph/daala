@@ -214,7 +214,7 @@ OD_SIMD_INLINE __m128i od_load_convert_subtract_x8(const unsigned char *src_p,
   return _mm_sub_epi16(src_vec, ref_vec);
 }
 
-int32_t od_mc_compute_satd8_8x8_sse2(const unsigned char *src, int systride,
+OD_SIMD_INLINE int32_t od_mc_compute_satd8_8x8_part(const unsigned char *src, int systride,
  const unsigned char *ref, int rystride) {
   int32_t satd;
   __m128i sums;
@@ -288,6 +288,47 @@ int32_t od_mc_compute_satd8_8x8_sse2(const unsigned char *src, int systride,
   }
 #endif
   return satd;
+}
+
+/*Perform SATD on 8x8 blocks within src and ref then sum the results of
+   each one.*/
+OD_SIMD_INLINE int32_t od_mc_compute_sum_8x8_satd8(int ln,
+ const unsigned char *src, int systride,
+ const unsigned char *ref, int rystride) {
+  int n;
+  int i;
+  int j;
+  int32_t satd;
+  n = 1 << ln;
+  OD_ASSERT(n >= 8);
+  satd = 0;
+  for (i = 0; i < n; i += 8) {
+    for (j = 0; j < n; j += 8) {
+      satd += od_mc_compute_satd8_8x8_part(src + i*systride + j, systride,
+       ref + i*rystride + j, rystride);
+    }
+  }
+  return satd;
+}
+
+int32_t od_mc_compute_satd8_8x8_sse2(const unsigned char *src, int systride,
+ const unsigned char *ref, int rystride) {
+  return od_mc_compute_sum_8x8_satd8(3, src, systride, ref, rystride);
+}
+
+int32_t od_mc_compute_satd8_16x16_sse2(const unsigned char *src, int systride,
+ const unsigned char *ref, int rystride) {
+  return od_mc_compute_sum_8x8_satd8(4, src, systride, ref, rystride);
+}
+
+int32_t od_mc_compute_satd8_32x32_sse2(const unsigned char *src, int systride,
+ const unsigned char *ref, int rystride) {
+  return od_mc_compute_sum_8x8_satd8(5, src, systride, ref, rystride);
+}
+
+int32_t od_mc_compute_satd8_64x64_sse2(const unsigned char *src, int systride,
+ const unsigned char *ref, int rystride) {
+  return od_mc_compute_sum_8x8_satd8(6, src, systride, ref, rystride);
 }
 
 #endif
