@@ -60,7 +60,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
   "movdqu " _regd ",(%[dst]) \n\t" \
   "lea (%[dst],%[dstride]),%[dst]\n\t" \
 
-void od_copy_16x16_sse2(unsigned char *_dst, int _dstride,
+void od_copy_16x16_8_sse2(unsigned char *_dst, int _dstride,
   const unsigned char *_src, int _sstride) {
   __asm__ __volatile__(
     OD_IM_LOAD_1 ("%%xmm0", "%%xmm1", "%%xmm2", "%%xmm3")
@@ -95,7 +95,7 @@ void od_copy_16x16_sse2(unsigned char *_dst, int _dstride,
   "movdqu " _regd ",16(%[dst]) \n\t" \
   "lea (%[dst],%[dstride]),%[dst]\n\t" \
 
-void od_copy_32x32_sse2(unsigned char *_dst, int _dstride,
+void od_copy_32x32_8_sse2(unsigned char *_dst, int _dstride,
   const unsigned char *_src, int _sstride) {
   int i;
   for (i = 0; i < 4; i++) {
@@ -131,7 +131,7 @@ void od_copy_32x32_sse2(unsigned char *_dst, int _dstride,
   "movdqu " _regd ",48(%[dst]) \n\t" \
   "lea (%[dst],%[dstride]),%[dst]\n\t" \
 
-void od_copy_64x64_sse2(unsigned char *_dst, int _dstride,
+void od_copy_64x64_8_sse2(unsigned char *_dst, int _dstride,
   const unsigned char *_src, int _sstride) {
   int i;
   for (i = 0; i < 16; i++) {

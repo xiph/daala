@@ -64,11 +64,11 @@ void od_bin_fdct8x8_avx2(od_coeff *y, int ystride,
  const od_coeff *x, int xstride);
 void od_bin_idct8x8_avx2(od_coeff *x, int xstride,
  const od_coeff *y, int ystride);
-void od_copy_16x16_sse2(unsigned char *_dst, int _dstride,
+void od_copy_16x16_8_sse2(unsigned char *_dst, int _dstride,
  const unsigned char *_src, int _sstride);
-void od_copy_32x32_sse2(unsigned char *_dst, int _dstride,
+void od_copy_32x32_8_sse2(unsigned char *_dst, int _dstride,
  const unsigned char *_src, int _sstride);
-void od_copy_64x64_sse2(unsigned char *_dst, int _dstride,
+void od_copy_64x64_8_sse2(unsigned char *_dst, int _dstride,
  const unsigned char *_src, int _sstride);
 void od_filter_dering_direction_4x4_sse2(int16_t *y, int ystride,
  int16_t *in, int threshold, int dir);

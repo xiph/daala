@@ -28,7 +28,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 typedef void (*od_copy_nxn_func)(unsigned char *_dst, int _dstride,
  const unsigned char *_src, int _sstride);
 
-extern const od_copy_nxn_func OD_COPY_NXN_C[OD_LOG_COPYBSIZE_MAX + 1];
+extern const od_copy_nxn_func OD_COPY_NXN_8_C[OD_LOG_COPYBSIZE_MAX + 1];
+extern const od_copy_nxn_func OD_COPY_NXN_16_C[OD_LOG_COPYBSIZE_MAX + 1];
 void od_copy_nxm(unsigned char *_dst, int _dstride,
  const unsigned char *_src, int _sstride, int _log_n, int _log_m);
 #endif

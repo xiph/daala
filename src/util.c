@@ -32,8 +32,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "util.h"
 #include "x86/x86int.h"
 
-#define OD_COPY_C(_blk_sz) \
-void od_copy_##_blk_sz##x##_blk_sz##_c(unsigned char *_dst, int _dstride, \
+#define OD_COPY8_C(_blk_sz) \
+void od_copy_##_blk_sz##x##_blk_sz##_8_c(unsigned char *_dst, int _dstride, \
  const unsigned char *_src, int _sstride) { \
   int y; \
   for (y = 0; y < _blk_sz; y++) { \
@@ -43,23 +43,52 @@ void od_copy_##_blk_sz##x##_blk_sz##_c(unsigned char *_dst, int _dstride, \
   } \
 } \
 
-OD_COPY_C(2)
-OD_COPY_C(4)
-OD_COPY_C(8)
-OD_COPY_C(16)
-OD_COPY_C(32)
-OD_COPY_C(64)
+#define OD_COPY16_C(_blk_sz) \
+void od_copy_##_blk_sz##x##_blk_sz##_16_c(unsigned char *_dst, int _dstride, \
+ const unsigned char *_src, int _sstride) { \
+  int y; \
+  for (y = 0; y < _blk_sz; y++) { \
+    memcpy(_dst, _src, _blk_sz << 1); \
+    _dst += _dstride; \
+    _src += _sstride; \
+  } \
+} \
 
-const od_copy_nxn_func OD_COPY_NXN_C[OD_LOG_COPYBSIZE_MAX + 1] = {
+OD_COPY8_C(2)
+OD_COPY8_C(4)
+OD_COPY8_C(8)
+OD_COPY8_C(16)
+OD_COPY8_C(32)
+OD_COPY8_C(64)
+
+OD_COPY16_C(2)
+OD_COPY16_C(4)
+OD_COPY16_C(8)
+OD_COPY16_C(16)
+OD_COPY16_C(32)
+OD_COPY16_C(64)
+
+const od_copy_nxn_func OD_COPY_NXN_8_C[OD_LOG_COPYBSIZE_MAX + 1] = {
   NULL,
-  od_copy_2x2_c,
-  od_copy_4x4_c,
-  od_copy_8x8_c,
-  od_copy_16x16_c,
-  od_copy_32x32_c,
-  od_copy_64x64_c
+  od_copy_2x2_8_c,
+  od_copy_4x4_8_c,
+  od_copy_8x8_8_c,
+  od_copy_16x16_8_c,
+  od_copy_32x32_8_c,
+  od_copy_64x64_8_c
 };
 
+const od_copy_nxn_func OD_COPY_NXN_16_C[OD_LOG_COPYBSIZE_MAX + 1] = {
+  NULL,
+  od_copy_2x2_16_c,
+  od_copy_4x4_16_c,
+  od_copy_8x8_16_c,
+  od_copy_16x16_16_c,
+  od_copy_32x32_16_c,
+  od_copy_64x64_16_c
+};
+
+/*This will work for 8 or 16 bit, but 16 bit copies must add one to _log_n.*/
 void od_copy_nxm(unsigned char *_dst, int _dstride,
  const unsigned char *_src, int _sstride, int _log_n, int _log_m) {
   int j;
