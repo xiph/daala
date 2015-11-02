@@ -37,7 +37,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "dct.h"
 #include "intra.h"
 #include "partition.h"
-#include "pvq.h"
+#include "pvq_decoder.h"
 #include "block_size.h"
 #include "tf.h"
 #include "state.h"

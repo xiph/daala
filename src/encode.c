@@ -41,7 +41,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "intra.h"
 #include "logging.h"
 #include "partition.h"
-#include "pvq.h"
+#include "pvq_encoder.h"
 #include "block_size.h"
 #include "logging.h"
 #include "tf.h"

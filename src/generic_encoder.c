@@ -33,6 +33,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "entdec.h"
 #include "logging.h"
 #include "odintrin.h"
+#include "pvq_encoder.h"
 
 /** Encodes a value from 0 to N-1 (with N up to 16) based on a cdf and adapts
  * the cdf accordingly.
