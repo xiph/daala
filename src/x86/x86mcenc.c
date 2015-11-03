@@ -27,6 +27,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #endif
 
 #include "x86enc.h"
+#include "x86int.h"
 
 #if defined(OD_X86ASM)
 
@@ -121,27 +122,34 @@ int32_t od_mc_compute_sad8_8x8_sse(const unsigned char *src,
   return ret;
 }
 
-/*Handle one 16x16 block with dxstride == 1.*/
-int32_t od_mc_compute_sad8_16x16_sse2(const unsigned char *src,
- int systride, const unsigned char *ref, int dystride){
+/*Handle one nxn block with dxstride == 1 where n is 2^ln and n >= 16.*/
+OD_SIMD_INLINE int32_t od_mc_compute_sad8_nxn_sse2(const int ln,
+ const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride) {
   const unsigned char *srow;
   const unsigned char *drow;
   int32_t ret;
+  int n;
   int i;
+  int j;
+  n = 1 << ln;
+  OD_ASSERT(n >= 16);
   srow = src;
   drow = ref;
   __asm__ __volatile__(
     "pxor %xmm2, %xmm2\n\t"
   );
-  for (i = 0; i < 16; i++) {
-    __asm__ __volatile__(
-      "movdqu (%[drow]), %%xmm1\n"
-      "movdqu (%[srow]), %%xmm0\n"
-      "psadbw %%xmm1, %%xmm0\n"
-      "paddq %%xmm0, %%xmm2\n"
-      :
-      : [srow]"r"(srow), [drow]"r"(drow)
-    );
+  for (i = 0; i < n; i++) {
+    for (j = 0; j < n; j += 16) {
+      __asm__ __volatile__(
+        "movdqu (%[drow]), %%xmm1\n"
+        "movdqu (%[srow]), %%xmm0\n"
+        "psadbw %%xmm1, %%xmm0\n"
+        "paddq %%xmm0, %%xmm2\n"
+        :
+        : [srow]"r"(srow + j), [drow]"r"(drow + j)
+      );
+    }
     srow += systride;
     drow += dystride;
   }
@@ -153,54 +161,27 @@ int32_t od_mc_compute_sad8_16x16_sse2(const unsigned char *src,
     : [ret]"=r"(ret)
   );
 # if defined(OD_CHECKASM)
-  od_mc_compute_sad8_check(src, systride, ref, dystride, 16, 16, ret);
+  od_mc_compute_sad8_check(src, systride, ref, dystride, n, n, ret);
 # endif
   return ret;
 }
 
+/*Handle one 16x16 block with dxstride == 1.*/
+int32_t od_mc_compute_sad8_16x16_sse2(const unsigned char *src,
+ int systride, const unsigned char *ref, int dystride) {
+  return od_mc_compute_sad8_nxn_sse2(4, src, systride, ref, dystride);
+}
+
 /*Handle one 32x32 block with dxstride == 1.*/
 int32_t od_mc_compute_sad8_32x32_sse2(const unsigned char *src,
- int systride, const unsigned char *ref, int dystride){
-  const unsigned char *srow;
-  const unsigned char *drow;
-  int32_t ret;
-  int i;
-  srow = src;
-  drow = ref;
-  __asm__ __volatile__(
-    "pxor %xmm2, %xmm2\n\t"
-  );
-  for (i = 0; i < 32; i++) {
-    __asm__ __volatile__(
-      "movdqu (%[drow]), %%xmm1\n"
-      "movdqu (%[srow]), %%xmm0\n"
-      "psadbw %%xmm1, %%xmm0\n"
-      "paddq %%xmm0, %%xmm2\n"
-      :
-      : [srow]"r"(srow), [drow]"r"(drow)
-    );
-    __asm__ __volatile__(
-      "movdqu 16(%[drow]), %%xmm1\n"
-      "movdqu 16(%[srow]), %%xmm0\n"
-      "psadbw %%xmm1, %%xmm0\n"
-      "paddq %%xmm0, %%xmm2\n"
-      :
-      : [srow]"r"(srow), [drow]"r"(drow)
-    );
-    srow += systride;
-    drow += dystride;
-  }
-  __asm__ __volatile__(
-    "movdqa %%xmm2, %%xmm0\n"
-    "punpckhqdq %%xmm2, %%xmm0\n"
-    "paddq %%xmm2, %%xmm0\n"
-    "movd %%xmm0, %[ret]\n"
-    : [ret]"=r"(ret)
-  );
-# if defined(OD_CHECKASM)
-  od_mc_compute_sad8_check(src, systride, ref, dystride, 32, 32, ret);
-# endif
-  return ret;
+ int systride, const unsigned char *ref, int dystride) {
+  return od_mc_compute_sad8_nxn_sse2(5, src, systride, ref, dystride);
+}
+
+/*Handle one 64x64 block with dxstride == 1.*/
+int32_t od_mc_compute_sad8_64x64_sse2(const unsigned char *src,
+ int systride, const unsigned char *ref, int dystride) {
+  return od_mc_compute_sad8_nxn_sse2(6, src, systride, ref, dystride);
 }
 
 #endif

@@ -148,6 +148,8 @@ void od_enc_opt_vtbl_init_c(od_enc_ctx *enc) {
       od_mc_compute_sad16_16x16_c;
     enc->opt_vtbl.mc_compute_sad_32x32 =
       od_mc_compute_sad16_32x32_c;
+    enc->opt_vtbl.mc_compute_sad_64x64 =
+      od_mc_compute_sad16_64x64_c;
     enc->opt_vtbl.mc_compute_satd_4x4 =
       od_mc_compute_satd16_4x4_c;
     enc->opt_vtbl.mc_compute_satd_8x8 =
@@ -168,6 +170,8 @@ void od_enc_opt_vtbl_init_c(od_enc_ctx *enc) {
       od_mc_compute_sad8_16x16_c;
     enc->opt_vtbl.mc_compute_sad_32x32 =
       od_mc_compute_sad8_32x32_c;
+    enc->opt_vtbl.mc_compute_sad_64x64 =
+      od_mc_compute_sad8_64x64_c;
     enc->opt_vtbl.mc_compute_satd_4x4 =
       od_mc_compute_satd8_4x4_c;
     enc->opt_vtbl.mc_compute_satd_8x8 =

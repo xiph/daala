@@ -1366,6 +1366,11 @@ int32_t od_mc_compute_sad8_32x32_c(const unsigned char *src, int systride,
   return od_mc_compute_sad8_c(src, systride, ref, dystride, 32, 32);
 }
 
+int32_t od_mc_compute_sad8_64x64_c(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride) {
+  return od_mc_compute_sad8_c(src, systride, ref, dystride, 64, 64);
+}
+
 int32_t od_mc_compute_sad16_c(const unsigned char *src, int systride,
  const unsigned char *ref, int dystride, int w, int h) {
   int i;
@@ -1400,6 +1405,11 @@ int32_t od_mc_compute_sad16_16x16_c(const unsigned char *src, int systride,
 int32_t od_mc_compute_sad16_32x32_c(const unsigned char *src, int systride,
  const unsigned char *ref, int dystride) {
   return od_mc_compute_sad16_c(src, systride, ref, dystride, 32, 32);
+}
+
+int32_t od_mc_compute_sad16_64x64_c(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride) {
+  return od_mc_compute_sad16_c(src, systride, ref, dystride, 64, 64);
 }
 
 static void od_mc_hadamard_1d(int32_t *diff,
@@ -1657,6 +1667,10 @@ static int32_t od_enc_sad(od_enc_ctx *enc, const unsigned char *p,
   }
   if (w == 32 && h == 32) {
     return (*enc->opt_vtbl.mc_compute_sad_32x32)(src, iplane->ystride,
+     p, pystride);
+  }
+  if (w == 64 && h == 64) {
+    return (*enc->opt_vtbl.mc_compute_sad_64x64)(src, iplane->ystride,
      p, pystride);
   }
   /*Default C implementation.*/

@@ -67,6 +67,8 @@ struct od_enc_opt_vtbl {
    int systride, const unsigned char *ref, int dystride);
   int32_t (*mc_compute_sad_32x32)(const unsigned char *src,
    int systride, const unsigned char *ref, int dystride);
+  int32_t (*mc_compute_sad_64x64)(const unsigned char *src,
+   int systride, const unsigned char *ref, int dystride);
   int32_t (*mc_compute_satd_4x4)(const unsigned char *src,
    int systride, const unsigned char *ref, int dystride);
   int32_t (*mc_compute_satd_8x8)(const unsigned char *src,
@@ -157,6 +159,8 @@ int32_t od_mc_compute_sad8_16x16_c(const unsigned char *src, int systride,
  const unsigned char *ref, int dystride);
 int32_t od_mc_compute_sad8_32x32_c(const unsigned char *src, int systride,
  const unsigned char *ref, int dystride);
+int32_t od_mc_compute_sad8_64x64_c(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride);
 int32_t od_mc_compute_sad8_c(const unsigned char *src, int systride,
  const unsigned char *ref, int dystride, int w, int h);
 int32_t od_mc_compute_satd8_4x4_c(const unsigned char *src, int systride,
@@ -176,6 +180,8 @@ int32_t od_mc_compute_sad16_8x8_c(const unsigned char *src, int systride,
 int32_t od_mc_compute_sad16_16x16_c(const unsigned char *src, int systride,
  const unsigned char *ref, int dystride);
 int32_t od_mc_compute_sad16_32x32_c(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride);
+int32_t od_mc_compute_sad16_64x64_c(const unsigned char *src, int systride,
  const unsigned char *ref, int dystride);
 int32_t od_mc_compute_sad16_c(const unsigned char *src, int systride,
  const unsigned char *ref, int dystride, int w, int h);
