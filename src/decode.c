@@ -987,6 +987,7 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
       }
     }
   }
+  OD_ACCOUNTING_SET_LOCATION(dec, OD_ACCT_FRAME, 0, 0, 0);
   for (pli = 0; pli < nplanes; pli++) {
     dec->coded_quantizer[pli] = od_ec_dec_uint(&dec->ec,
       OD_N_CODED_QUANTIZERS, "quantizer");
