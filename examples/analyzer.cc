@@ -817,6 +817,7 @@ void TestPanel::setShowNoRef(bool show_noref) {
 void TestPanel::computeBitsPerPixel() {
   int i, j;
   double bpp_total;
+  int totals_q3[MAX_SYMBOL_TYPES] = {0};
   for (j = 0; j < dd.getFrameHeight(); j++) {
     for (i = 0; i < dd.getFrameWidth(); i++) {
       bpp_q3[j*dd.getFrameWidth() + i] = 0;
@@ -826,6 +827,7 @@ void TestPanel::computeBitsPerPixel() {
   for (i = 0; i < acct->nb_syms; i++) {
     od_acct_symbol *s;
     s = &acct->syms[i];
+    totals_q3[s->id] += s->bits_q3;
     switch (s->layer) {
       case 0:
       case 1:
@@ -907,8 +909,22 @@ void TestPanel::computeBitsPerPixel() {
       }
     }
   }
-  fprintf(stderr, "nb_syms = %i\n", acct->nb_syms);
-  fprintf(stderr, "bpp_total = %lf\n", bpp_total);
+  fprintf(stderr, "=== Frame: %-3i ==========================\n", dd.frame - 1);
+  j = 0;
+  /* Find max total. */
+  for (i = 1; i < acct->dict.nb_str; i++) {
+    if (totals_q3[i] > totals_q3[j]) {
+      j = i;
+    }
+  }
+  for (i = 0; i < acct->dict.nb_str; i++) {
+    if (i == j) fprintf(stderr, "\033[1;31m");
+    fprintf(stderr, "%20s = %10.3f %5.2f %%\n", acct->dict.str[i],
+     (float)totals_q3[i]/8, totals_q3[i]/bpp_total*100);
+    if (i == j) fprintf(stderr, "\033[0m");
+  }
+  fprintf(stderr, "%20s = %10.3i\n", "nb_syms", acct->nb_syms);
+  fprintf(stderr, "%20s = %10.3f\n", "bpp_total", (float)bpp_total/8);
 }
 void TestPanel::refresh() {
   computeBitsPerPixel();
