@@ -462,7 +462,7 @@ TestPanel::TestPanel(wxWindow *parent, const wxString &path) : wxPanel(parent),
  pixels(NULL), zoom(0), bsize(NULL), bsize_len(0), show_blocks(false),
  flags(NULL), flags_len(0), show_skip(false), show_noref(false),
  show_padding(false), show_dering(false), acct(NULL), show_bits(false),
- show_bits_filter(""), bpp_q3(NULL), dering(NULL), dering_len(0),
+ show_bits_filter(_T("")), bpp_q3(NULL), dering(NULL), dering_len(0),
  plane_mask(OD_ALL_MASK),
  path(path) {
 }
@@ -842,10 +842,10 @@ void TestPanel::computeBitsPerPixel() {
     s = &acct->syms[i];
     bits_total += s->bits_q3;
     /* Filter */
-    wxString key(acct->dict.str[s->id]);
+    wxString key(acct->dict.str[s->id], wxConvUTF8);
     if (show_bits_filter.length()) {
       bool filter = false;
-      wxStringTokenizer tokenizer(show_bits_filter, ",");
+      wxStringTokenizer tokenizer(show_bits_filter, _T(","));
       while (tokenizer.HasMoreTokens()) {
         wxString token = tokenizer.GetNextToken();
         if (key.Find(token) >= 0) {
