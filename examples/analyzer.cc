@@ -30,6 +30,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <string.h>
 #include <wx/wx.h>
 #include <wx/dcbuffer.h>
+#include <wx/tokenzr.h>
 
 #include <ogg/ogg.h>
 
@@ -329,6 +330,7 @@ private:
 
   od_accounting *acct;
   bool show_bits;
+  wxString show_bits_filter;
   double *bpp_q3;
 
   unsigned char *dering;
@@ -359,6 +361,7 @@ public:
   bool nextFrame();
   void refresh();
   bool gotoFrame();
+  void filterBits();
   void restart();
 
   int getZoom() const;
@@ -405,6 +408,7 @@ public:
   void onFilter(wxCommandEvent &event);
   void onPaddingChange(wxCommandEvent &event);
   void onBitsChange(wxCommandEvent &event);
+  void onFilterBits(wxCommandEvent &event);
   void onYChange(wxCommandEvent &event);
   void onUChange(wxCommandEvent &event);
   void onVChange(wxCommandEvent &event);
@@ -422,6 +426,7 @@ enum {
   wxID_SHOW_NOREF,
   wxID_SHOW_PADDING,
   wxID_SHOW_BITS,
+  wxID_FILTER_BITS,
   wxID_SHOW_DERING,
   wxID_SHOW_Y,
   wxID_SHOW_U,
@@ -442,6 +447,7 @@ BEGIN_EVENT_TABLE(TestFrame, wxFrame)
   EVT_MENU(wxID_SHOW_NOREF, TestFrame::onFilter)
   EVT_MENU(wxID_SHOW_PADDING, TestFrame::onPaddingChange)
   EVT_MENU(wxID_SHOW_BITS, TestFrame::onBitsChange)
+  EVT_MENU(wxID_FILTER_BITS, TestFrame::onFilterBits)
   EVT_MENU(wxID_SHOW_DERING, TestFrame::onFilter)
   EVT_MENU(wxID_SHOW_Y, TestFrame::onYChange)
   EVT_MENU(wxID_SHOW_U, TestFrame::onUChange)
@@ -456,7 +462,8 @@ TestPanel::TestPanel(wxWindow *parent, const wxString &path) : wxPanel(parent),
  pixels(NULL), zoom(0), bsize(NULL), bsize_len(0), show_blocks(false),
  flags(NULL), flags_len(0), show_skip(false), show_noref(false),
  show_padding(false), show_dering(false), acct(NULL), show_bits(false),
- bpp_q3(NULL), dering(NULL), dering_len(0), plane_mask(OD_ALL_MASK),
+ show_bits_filter(""), bpp_q3(NULL), dering(NULL), dering_len(0),
+ plane_mask(OD_ALL_MASK),
  path(path) {
 }
 
@@ -817,16 +824,38 @@ void TestPanel::setShowNoRef(bool show_noref) {
 void TestPanel::computeBitsPerPixel() {
   int i, j;
   double bpp_total;
+  double bits_total;
   int totals_q3[MAX_SYMBOL_TYPES] = {0};
   for (j = 0; j < dd.getFrameHeight(); j++) {
     for (i = 0; i < dd.getFrameWidth(); i++) {
       bpp_q3[j*dd.getFrameWidth() + i] = 0;
     }
   }
+  if (show_bits_filter.length()) {
+    fprintf(stderr, "Filtering: %s\n",
+     (const char*)show_bits_filter.mb_str());
+  }
   bpp_total = 0;
+  bits_total = 0;
   for (i = 0; i < acct->nb_syms; i++) {
     od_acct_symbol *s;
     s = &acct->syms[i];
+    bits_total += s->bits_q3;
+    /* Filter */
+    wxString key(acct->dict.str[s->id]);
+    if (show_bits_filter.length()) {
+      bool filter = false;
+      wxStringTokenizer tokenizer(show_bits_filter, ",");
+      while (tokenizer.HasMoreTokens()) {
+        wxString token = tokenizer.GetNextToken();
+        if (key.Find(token) >= 0) {
+          filter = true;
+        }
+      }
+      if (!filter) {
+        continue;
+      }
+    }
     totals_q3[s->id] += s->bits_q3;
     switch (s->layer) {
       case 0:
@@ -912,19 +941,24 @@ void TestPanel::computeBitsPerPixel() {
   fprintf(stderr, "=== Frame: %-3i ==========================\n", dd.frame - 1);
   j = 0;
   /* Find max total. */
-  for (i = 1; i < acct->dict.nb_str; i++) {
+  for (i = 0; i < acct->dict.nb_str; i++) {
     if (totals_q3[i] > totals_q3[j]) {
       j = i;
     }
   }
-  for (i = 0; i < acct->dict.nb_str; i++) {
-    if (i == j) fprintf(stderr, "\033[1;31m");
-    fprintf(stderr, "%20s = %10.3f %5.2f %%\n", acct->dict.str[i],
-     (float)totals_q3[i]/8, totals_q3[i]/bpp_total*100);
-    if (i == j) fprintf(stderr, "\033[0m");
+  if (bits_total) {
+    for (i = 0; i < acct->dict.nb_str; i++) {
+      if (totals_q3[i]) {
+        if (i == j) fprintf(stderr, "\033[1;31m");
+        fprintf(stderr, "%20s = %10.3f %5.2f %%\n", acct->dict.str[i],
+         (float)totals_q3[i]/8, (float)totals_q3[i]/bits_total*100);
+        if (i == j) fprintf(stderr, "\033[0m");
+      }
+    }
+    fprintf(stderr, "%20s = %10.3f\n", "bits_total", (float)bits_total/8);
+    fprintf(stderr, "%20s = %10.3i\n", "nb_syms", acct->nb_syms);
+    fprintf(stderr, "%20s = %10.3f\n", "bpp_total", (float)bpp_total/8);
   }
-  fprintf(stderr, "%20s = %10.3i\n", "nb_syms", acct->nb_syms);
-  fprintf(stderr, "%20s = %10.3f\n", "bpp_total", (float)bpp_total/8);
 }
 void TestPanel::refresh() {
   computeBitsPerPixel();
@@ -972,6 +1006,16 @@ bool TestPanel::gotoFrame() {
   }
   refresh();
   return toReturn;
+}
+
+void TestPanel::filterBits() {
+  wxTextEntryDialog dlg(this,
+   _T("Filter: \"skip,pvq\" or \"\" to disable filter."));
+  dlg.SetValue(show_bits_filter);
+  if (dlg.ShowModal() == wxID_OK) {
+    show_bits_filter = dlg.GetValue();
+    refresh();
+  }
 }
 
 void TestPanel::restart() {
@@ -1053,6 +1097,8 @@ TestFrame::TestFrame() : wxFrame(NULL, wxID_ANY, _T("Daala Stream Analyzer"),
    _("Show padding area"));
   viewMenu->AppendCheckItem(wxID_SHOW_BITS, _T("Bit &Accounting\tCtrl-A"),
    _("Show bit accounting"));
+  viewMenu->Append(wxID_FILTER_BITS, _T("&Filter Bits\tCtrl-F"),
+   _("Filter bit accounting"));
   viewMenu->AppendCheckItem(wxID_SHOW_DERING, _T("&Deringing\tCtrl-D"),
    _("Show deringing filter"));
   viewMenu->AppendSeparator();
@@ -1141,6 +1187,11 @@ void TestFrame::onPaddingChange(wxCommandEvent &WXUNUSED(event)) {
 void TestFrame::onBitsChange(wxCommandEvent &WXUNUSED(event)) {
   panel->setShowBits(GetMenuBar()->IsChecked(wxID_SHOW_BITS));
   panel->render();
+  panel->Refresh(false);
+}
+
+void TestFrame::onFilterBits(wxCommandEvent &WXUNUSED(event)) {
+  panel->filterBits();
   panel->Refresh(false);
 }
 
