@@ -614,7 +614,7 @@ struct od_mb_enc_ctx {
 typedef struct od_mb_enc_ctx od_mb_enc_ctx;
 
 static void od_encode_compute_pred(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
- od_coeff *pred, int bs, int pli, int bx, int by) {
+ od_coeff *pred, const od_coeff *d, int bs, int pli, int bx, int by) {
   int n;
   int xdec;
   int w;
@@ -631,6 +631,10 @@ static void od_encode_compute_pred(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
   if (ctx->is_keyframe) {
     if (pli == 0 || OD_DISABLE_CFL || ctx->use_haar_wavelet) {
       OD_CLEAR(pred, n*n);
+      if (pli == 0 && !ctx->use_haar_wavelet) {
+        od_hv_intra_pred(pred, d, w, bx, by, enc->state.bsize,
+         enc->state.bstride, bs);
+      }
     }
     else {
       for (y = 0; y < n; y++) {
@@ -1043,11 +1047,7 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int bs,
       od_apply_qm(md + bo, w, md + bo, w, bs, xdec, 0, qm);
     }
   }
-  od_encode_compute_pred(enc, ctx, pred, bs, pli, bx, by);
-  if (ctx->is_keyframe && pli == 0 && !ctx->use_haar_wavelet) {
-    od_hv_intra_pred(pred, d, w, bx, by, enc->state.bsize,
-     enc->state.bstride, bs);
-  }
+  od_encode_compute_pred(enc, ctx, pred, d, bs, pli, bx, by);
 #if defined(OD_OUTPUT_PRED)
   for (zzi = 0; zzi < (n*n); zzi++) preds[zzi] = pred[zzi];
 #endif

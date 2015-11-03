@@ -293,7 +293,7 @@ struct od_mb_dec_ctx {
 typedef struct od_mb_dec_ctx od_mb_dec_ctx;
 
 static void od_decode_compute_pred(daala_dec_ctx *dec, od_mb_dec_ctx *ctx,
- od_coeff *pred, int bs, int pli, int bx, int by) {
+ od_coeff *pred, const od_coeff *d, int bs, int pli, int bx, int by) {
   int n;
   int xdec;
   int w;
@@ -310,6 +310,10 @@ static void od_decode_compute_pred(daala_dec_ctx *dec, od_mb_dec_ctx *ctx,
   if (ctx->is_keyframe) {
     if (pli == 0 || OD_DISABLE_CFL || ctx->use_haar_wavelet) {
       OD_CLEAR(pred, n*n);
+      if (pli == 0 && !ctx->use_haar_wavelet) {
+        od_hv_intra_pred(pred, d, w, bx, by, dec->state.bsize,
+         dec->state.bstride, bs);
+      }
     }
     else {
       od_coeff *l;
@@ -545,11 +549,7 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int bs,
       od_apply_qm(md + bo, w, md + bo, w, bs, xdec, 0, qm);
     }
   }
-  od_decode_compute_pred(dec, ctx, pred, bs, pli, bx, by);
-  if (ctx->is_keyframe && pli == 0 && !ctx->use_haar_wavelet) {
-    od_hv_intra_pred(pred, d, w, bx, by, dec->state.bsize,
-     dec->state.bstride, bs);
-  }
+  od_decode_compute_pred(dec, ctx, pred, d, bs, pli, bx, by);
   if (ctx->use_haar_wavelet) {
     int i;
     int j;

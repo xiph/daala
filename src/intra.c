@@ -34,10 +34,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "tf.h"
 #include "state.h"
 
-void od_hv_intra_pred(od_coeff *pred, od_coeff *d, int w, int bx, int by,
+void od_hv_intra_pred(od_coeff *pred, const od_coeff *d, int w, int bx, int by,
  unsigned char *bsize, int bstride, int bs) {
   int i;
-  od_coeff *t;
+  const od_coeff *t;
   double g1;
   double g2;
   int top;
