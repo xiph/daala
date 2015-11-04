@@ -198,7 +198,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
        larger gain. We need to wait for itheta because in the !nodesync case
        it depends on max_theta, which depends on the gain. */
     id = od_decode_cdf_adapt(ec, &adapt->pvq.pvq_gaintheta_cdf[cdf_ctx][0],
-     8 + (8 - !is_keyframe)*has_skip, adapt->pvq.pvq_gaintheta_increment,
+     8 + 7*has_skip, adapt->pvq.pvq_gaintheta_increment,
      "pvq:gaintheta");
     if (!is_keyframe && id >= 10) id++;
     if (is_keyframe && id >= 8) id++;
