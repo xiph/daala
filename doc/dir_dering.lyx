@@ -315,7 +315,283 @@ s_{d}=\sum_{k\in\mathrm{block},d}\frac{1}{N_{d,k}}\left(\sum_{p\in P_{d,k}}x_{p}
 \end_layout
 
 \begin_layout Section
-Directional Filter
+Conditional Replacement Filter
+\end_layout
+
+\begin_layout Standard
+Just like the median filter and the bilateral filter, the conditional replacemen
+t filter is designed to remove noise without sharp blurring edges.
+ However, it is simpler to compute and is easier to vectorize than the median
+ filter of the bilateral filter.
+ A regular linear filter with 
+\begin_inset Formula $\left(2M+1\right)$
+\end_inset
+
+ taps is defined as
+\begin_inset Formula 
+\begin{equation}
+y\left(n\right)=\frac{1}{W}\sum_{k=-M}^{k=M}w_{k}x\left(n+k\right)\ ,\label{eq:linear-filter}
+\end{equation}
+
+\end_inset
+
+where 
+\begin_inset Formula $W=\sum_{k=-M}^{M}w_{k}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+The main difference between a regular filter and the conditional replacement
+ filter is that for each tap, if 
+\begin_inset Formula $x\left(n+k\right)$
+\end_inset
+
+differs from 
+\begin_inset Formula $x\left(n\right)$
+\end_inset
+
+ by more than a threshold 
+\begin_inset Formula $T$
+\end_inset
+
+, then we use 
+\begin_inset Formula $x\left(n\right)$
+\end_inset
+
+ instead for the tap.
+ The filter computation is illustrated in Fig.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:Conditional-filter-computation"
+
+\end_inset
+
+ and an example is shown in Fig.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:Conditional-filter-example"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+centering{
+\end_layout
+
+\end_inset
+
+
+\begin_inset Graphics
+	filename crf_def.eps
+	width 60col%
+
+\end_inset
+
+
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Conditional replacement filter computation
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:Conditional-filter-computation"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+centering{
+\end_layout
+
+\end_inset
+
+
+
+\begin_inset Graphics
+	filename crf_orig.eps
+	lyxscale 60
+	width 40col%
+
+\end_inset
+
+
+\begin_inset Graphics
+	filename crf_noisy.eps
+	lyxscale 60
+	width 40col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\begin_inset Graphics
+	filename crf_linear.eps
+	lyxscale 60
+	width 40col%
+
+\end_inset
+
+
+\begin_inset Graphics
+	filename crf_out.eps
+	lyxscale 60
+	width 40col%
+
+\end_inset
+
+
+\lang english
+
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Conditional replacement filter example.
+ Up-left: original signal, up-right: noisy signal, bottom-left: filtered
+ with 7-tap linear filter, bottom-right: filtered with 7-tap conditional
+ replacement filter.
+ 
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:Conditional-filter-example"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Through alegbraic simplifications, the filter definition can be written
+ in terms of the differences 
+\begin_inset Formula $x\left(n+k\right)-x\left(n\right)$
+\end_inset
+
+, which yields
+\begin_inset Formula 
+\begin{equation}
+y\left(n\right)=x\left(n\right)+\frac{1}{W}\sum_{k=-M,k\neq0}^{k=M}w_{k}f\left(x\left(n+k\right)-x\left(n\right),T\right)\ ,\label{eq:conditional-replacement-diff}
+\end{equation}
+
+\end_inset
+
+with the threshold function 
+\begin_inset Formula 
+\begin{equation}
+f\left(d,T\right)=\left\{ \begin{array}{ll}
+d & ,\left|d\right|<T\\
+0 & ,\mathrm{otherwise}
+\end{array}\right.\ .\label{eq:threshold-function}
+\end{equation}
+
+\end_inset
+
+The advantage of this formulation is that the normalization by 
+\begin_inset Formula $\frac{1}{W}$
+\end_inset
+
+ can be approximated without causing any bias, even when 
+\begin_inset Formula $W$
+\end_inset
+
+ is not a power of two.
+\end_layout
+
+\begin_layout Subsection
+Directional Filtering
 \end_layout
 
 \begin_layout Standard
@@ -323,7 +599,7 @@ The directional filter for pixel
 \begin_inset Formula $\left(i,j\right)$
 \end_inset
 
- is defined as the 7-tap non-linear filter 
+ is defined as the 7-tap conditional replacement filter 
 \begin_inset Formula 
 \begin{gather}
 y\left(i,j\right)=x\left(i,j\right)+\frac{1}{W}\sum_{k=1}^{3}w_{k}\left[f\left(x\left(i,j\right)-x\left(i+\left\lfloor kd_{y}\right\rfloor ,j+\left\lfloor kd_{x}\right\rfloor \right),T_{d}\right)\right.\nonumber \\
@@ -348,22 +624,8 @@ where
 \begin_inset Formula $T_{d}$
 \end_inset
 
- is the filtering threshold for the block, and 
-\begin_inset Formula $f\left(d,T_{d}\right)$
-\end_inset
-
- is defined as
-\begin_inset Formula 
-\begin{equation}
-f\left(d,T\right)=\left\{ \begin{array}{ll}
-d & ,\left|d\right|<T_{d}\\
-0 & ,\mathrm{otherwise}
-\end{array}\right.\ .\label{eq:threshold-function}
-\end{equation}
-
-\end_inset
-
-The direction parameters are shown in Table
+ is the filtering threshold for the block.
+ The direction parameters are shown in Table
 \begin_inset space ~
 \end_inset
 
@@ -750,8 +1012,65 @@ name "tab:Direction-parameters"
 
 \end_layout
 
-\begin_layout Section
+\begin_layout Subsection
 Second Stage Filter
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename crf_direction.eps
+	width 40col%
+
+\end_inset
+
+
+\begin_inset Graphics
+	filename crf_across.eps
+	width 40col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Filtering along the direction (left) and filtering across the direction
+ (right)
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:Filtering-along-across"
+
+\end_inset
+
+.
+ 
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard

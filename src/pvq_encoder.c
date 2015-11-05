@@ -739,8 +739,7 @@ int od_pvq_encode(daala_enc_ctx *enc,
       skip_dir |= tmp << i;
     }
   }
-  if (!is_keyframe && theta[0] == 0 && qg[0] == 0 && skip_rest) nb_bands = 0;
-  if (is_keyframe && theta[0] == -1 && qg[0] == 0 && skip_rest) nb_bands = 0;
+  if (theta[0] == skip_theta_value && qg[0] == 0 && skip_rest) nb_bands = 0;
   for (i = 0; i < nb_bands; i++) {
     if (i == 0 || (!skip_rest && !(skip_dir & (1 << ((i - 1)%3))))) {
       pvq_encode_partition(&enc->ec, qg[i], theta[i], max_theta[i], y + off[i],
