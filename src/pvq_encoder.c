@@ -685,13 +685,16 @@ int od_pvq_encode(daala_enc_ctx *enc,
   for (i = 0; i < nb_bands; i++) size[i] = off[i+1] - off[i];
   skip_diff = 0;
   flip = 0;
+  /*If we are coding a choma block of a keyframe, we are doing CfL.*/
   if (pli != 0 && is_keyframe) {
     double xy;
     xy = 0;
-    for (i = 1; i < 16; i++) xy += ref[i]*(double)in[i];
+    /*Compute the dot-product of the first band of chroma with the luma ref.*/
+    for (i = off[0]; i < off[1]; i++) xy += ref[i]*(double)in[i];
+    /*If cos(theta) < 0, then |theta| > pi/2 and we should negate the ref.*/
     if (xy < 0) {
       flip = 1;
-      for(i = 1; i < off[nb_bands]; i++) ref[i] = -ref[i];
+      for(i = off[0]; i < off[nb_bands]; i++) ref[i] = -ref[i];
     }
   }
   for (i = 0; i < nb_bands; i++) {
