@@ -825,6 +825,9 @@ void TestPanel::computeBitsPerPixel() {
   int i, j;
   double bpp_total;
   double bits_total;
+  double bits_filtered;
+  static double last_bits_total;
+  static double last_bits_filtered;
   int totals_q3[MAX_SYMBOL_TYPES] = {0};
   for (j = 0; j < dd.getFrameHeight(); j++) {
     for (i = 0; i < dd.getFrameWidth(); i++) {
@@ -837,6 +840,7 @@ void TestPanel::computeBitsPerPixel() {
   }
   bpp_total = 0;
   bits_total = 0;
+  bits_filtered = 0;
   for (i = 0; i < acct->nb_syms; i++) {
     od_acct_symbol *s;
     s = &acct->syms[i];
@@ -856,6 +860,7 @@ void TestPanel::computeBitsPerPixel() {
         continue;
       }
     }
+    bits_filtered += s->bits_q3;
     totals_q3[s->id] += s->bits_q3;
     switch (s->layer) {
       case 0:
@@ -940,7 +945,9 @@ void TestPanel::computeBitsPerPixel() {
       }
     }
   }
-  fprintf(stderr, "=== Frame: %-3i ==========================\n", dd.frame - 1);
+  fprintf(stderr,
+   "=== Frame: %-3i ============= Bits  Total %%   Filt %% ====\n",
+    dd.frame - 1);
   j = 0;
   /* Find max total. */
   for (i = 0; i < acct->dict.nb_str; i++) {
@@ -952,14 +959,22 @@ void TestPanel::computeBitsPerPixel() {
     for (i = 0; i < acct->dict.nb_str; i++) {
       if (totals_q3[i]) {
         if (i == j) fprintf(stderr, "\033[1;31m");
-        fprintf(stderr, "%20s = %10.3f %5.2f %%\n", acct->dict.str[i],
-         (float)totals_q3[i]/8, (float)totals_q3[i]/bits_total*100);
+        fprintf(stderr, "%20s = %10.3f  %5.2f %%  %5.2f %%\n",
+         acct->dict.str[i], (float)totals_q3[i]/8,
+          (float)totals_q3[i]/bits_total*100,
+           (float)totals_q3[i]/bits_filtered*100);
         if (i == j) fprintf(stderr, "\033[0m");
       }
     }
-    fprintf(stderr, "%20s = %10.3f\n", "bits_total", (float)bits_total/8);
+    fprintf(stderr, "%20s = %10.3f\n",
+     "bits_total", (float)bits_total/8);
+    fprintf(stderr, "%20s = %10.3f %6.2f %%   delta: %+.3f\n", "bits_filtered",
+     bits_filtered/8, bits_filtered/bits_total*100, (bits_filtered -
+      last_bits_filtered)/8);
     fprintf(stderr, "%20s = %10.3i\n", "nb_syms", acct->nb_syms);
     fprintf(stderr, "%20s = %10.3f\n", "bpp_total", (float)bpp_total/8);
+    last_bits_filtered = bits_filtered;
+    last_bits_total = bits_total;
   }
 }
 void TestPanel::refresh() {
