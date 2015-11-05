@@ -1023,13 +1023,22 @@ sideways false
 status open
 
 \begin_layout Plain Layout
-
-\end_layout
+\begin_inset ERT
+status open
 
 \begin_layout Plain Layout
+
+
+\backslash
+centering{
+\end_layout
+
+\end_inset
+
+
 \begin_inset Graphics
 	filename crf_direction.eps
-	width 40col%
+	width 23col%
 
 \end_inset
 
@@ -1037,6 +1046,17 @@ status open
 \begin_inset Graphics
 	filename crf_across.eps
 	width 40col%
+
+\end_inset
+
+
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+}
+\end_layout
 
 \end_inset
 
