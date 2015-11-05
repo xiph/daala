@@ -1113,11 +1113,11 @@ TestFrame::TestFrame() : wxFrame(NULL, wxID_ANY, _T("Daala Stream Analyzer"),
   mb->Append(viewMenu, _T("&View"));
 
   playbackMenu = new wxMenu();
-  playbackMenu->Append(wxID_NEXT_FRAME, _T("Next frame\t."),
+  playbackMenu->Append(wxID_NEXT_FRAME, _T("Next frame\tCtrl-."),
    _("Go to next frame"));
-  playbackMenu->Append(wxID_RESTART, _T("&Restart\tr"),
+  playbackMenu->Append(wxID_RESTART, _T("&Restart\tCtrl-R"),
    _("Set video to frame 0"));
-  playbackMenu->Append(wxID_GOTO_FRAME, _T("Jump to Frame\tj"),
+  playbackMenu->Append(wxID_GOTO_FRAME, _T("Jump to Frame\tCtrl-J"),
    _("Go to frame number"));
   mb->Append(playbackMenu, _T("&Playback"));
 
