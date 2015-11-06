@@ -114,6 +114,10 @@ struct od_state_opt_vtbl{
   od_dct_func_2d fdct_2d[OD_NBSIZES + 1];
   od_dct_func_2d idct_2d[OD_NBSIZES + 1];
   od_copy_nxn_func od_copy_nxn[OD_LOG_COPYBSIZE_MAX + 1];
+  void (*od_coeff_to_ref_buf)(od_state *state,
+   unsigned char *dst, int dst_xstride, int dst_ystride,
+   od_coeff *src, int src_ystride, int lossless_p,
+   int w, int h);
 };
 
 # if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
@@ -253,7 +257,7 @@ void od_ref_buf_to_coeff(od_state *state,
  int w, int h);
 void od_ref_plane_to_coeff(od_state *state, od_coeff *dst, int lossless_p,
  od_img *src, int pli);
-void od_coeff_to_ref_buf(od_state *state,
+void od_coeff_to_ref_buf_c(od_state *state,
  unsigned char *dst, int dst_xstride, int dst_ystride,
  od_coeff *src, int src_ystride, int lossless_p,
  int w, int h);
