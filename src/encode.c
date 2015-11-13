@@ -422,7 +422,7 @@ int daala_encode_ctl(daala_enc_ctx *enc, int req, void *buf, size_t buf_sz) {
       *(int *)buf = enc->complexity;
       return OD_SUCCESS;
     }
-    case OD_SET_MC_USE_CHROMA:
+    case OD_SET_MC_CHROMA:
     {
       int mc_use_chroma;
       OD_RETURN_CHECK(enc, OD_EFAULT);
@@ -437,21 +437,21 @@ int daala_encode_ctl(daala_enc_ctx *enc, int req, void *buf, size_t buf_sz) {
       }
       return OD_SUCCESS;
     }
-    case OD_SET_MC_USE_SATD: {
+    case OD_SET_MC_SATD: {
       OD_RETURN_CHECK(enc, OD_EFAULT);
       OD_RETURN_CHECK(buf, OD_EFAULT);
       OD_RETURN_CHECK(buf_sz == sizeof(enc->use_satd), OD_EINVAL);
       enc->use_satd = !!*(const int *)buf;
       return OD_SUCCESS;
     }
-    case OD_SET_USE_ACTIVITY_MASKING: {
+    case OD_SET_ACTIVITY_MASKING: {
       OD_RETURN_CHECK(enc, OD_EFAULT);
       OD_RETURN_CHECK(buf, OD_EFAULT);
       OD_RETURN_CHECK(buf_sz == sizeof(enc->use_activity_masking), OD_EINVAL);
       enc->use_activity_masking = !!*(const int *)buf;
       return OD_SUCCESS;
     }
-    case OD_SET_USE_DERING: {
+    case OD_SET_DERING: {
       OD_RETURN_CHECK(enc, OD_EFAULT);
       OD_RETURN_CHECK(buf, OD_EFAULT);
       OD_RETURN_CHECK(buf_sz == sizeof(enc->use_dering), OD_EINVAL);
