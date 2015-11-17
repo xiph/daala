@@ -36,7 +36,6 @@ int daala_encode_flush_header(daala_enc_ctx *_enc, daala_comment *_dc,
   switch (_enc->packet_state) {
     case OD_PACKET_INFO_HDR:
     {
-      int pli;
       oggbyte_reset(&_enc->obb);
       oggbyte_write1(&_enc->obb, 0x80);
       oggbyte_writecopy(&_enc->obb, "daala", 5);
@@ -54,15 +53,7 @@ int daala_encode_flush_header(daala_enc_ctx *_enc, daala_comment *_dc,
       oggbyte_write4(&_enc->obb, info->frame_duration);
       OD_ASSERT(info->keyframe_granule_shift < 32);
       oggbyte_write1(&_enc->obb, info->keyframe_granule_shift);
-      OD_ASSERT(info->bitdepth_mode >= OD_BITDEPTH_MODE_8
-       && info->bitdepth_mode <= OD_BITDEPTH_MODE_12);
-      oggbyte_write1(&_enc->obb, info->bitdepth_mode);
-      OD_ASSERT((info->nplanes >= 1) && (info->nplanes <= OD_NPLANES_MAX));
-      oggbyte_write1(&_enc->obb, info->nplanes);
-      for (pli = 0; pli < info->nplanes; ++pli) {
-        oggbyte_write1(&_enc->obb, info->plane_info[pli].xdec);
-        oggbyte_write1(&_enc->obb, info->plane_info[pli].ydec);
-      }
+      oggbyte_write1(&_enc->obb, info->pix_fmt_code);
       _op->b_o_s = 1;
     }
     break;

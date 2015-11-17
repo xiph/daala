@@ -140,6 +140,14 @@ int daala_encode_packet_out(daala_enc_ctx *enc,
 /**Frees an allocated encoder instance.
  * \param enc A #daala_enc_ctx handle.*/
 void daala_encode_free(daala_enc_ctx *enc);
+/**Sets the info details (bit depth code, x/y dec, planes, etc.) from
+ * a pixel format code
+ * \retval 0 Success
+ * \retval 1 Error, pixel format code is invalid **/
+int daala_set_pix_info(daala_info *info, unsigned char code);
+/**Takes a string and outputs a pixel format code
+ * \retval 255 Error, pixel format is invalid **/
+unsigned char daala_lookup_pix_fmt(const char *name);
 /*@}*/
 
 /** \defgroup encctlcodes Configuration keys for the encoder ctl interface.

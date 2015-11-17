@@ -78,6 +78,7 @@ src_libdaalabase_la_SOURCES = \
 	src/generic_code.c \
 	src/generic_decoder.c \
 	src/info.c \
+	src/infoutils.c \
 	src/intra.c \
 	src/laplace_decoder.c \
 	src/laplace_tables.c \

@@ -61,6 +61,7 @@ struct av_input{
   int video_cur_img;
   int video_depth;
   int video_swapendian;
+  int daala_pix_fmt_code;
 };
 
 #define SWAP(a, b)  do {a ^= b; b ^= a; a ^= b;} while(0)
@@ -369,6 +370,7 @@ static void id_y4m_file(av_input *avin, const char *file, FILE *test) {
      avin->video_chroma_type);
     exit(1);
   }
+  avin->daala_pix_fmt_code = daala_lookup_pix_fmt(avin->video_chroma_type);
   img = &avin->video_img;
   img->nplanes = avin->video_nplanes;
   img->width = avin->video_pic_w;
@@ -855,6 +857,7 @@ int main(int argc, char **argv) {
   di.nplanes = avin.video_nplanes;
   memcpy(di.plane_info, avin.video_plane_info,
    di.nplanes*sizeof(*di.plane_info));
+  di.pix_fmt_code = avin.daala_pix_fmt_code;
   di.keyframe_rate = video_keyframe_rate;
   /*TODO: Other crap.*/
   dd = daala_encode_create(&di);
