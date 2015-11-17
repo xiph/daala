@@ -175,8 +175,9 @@ struct od_mv_est_ctx {
   int thresh2_offs[OD_NMVBSIZES];
   /*The weights used to produce the accelerated MV predictor.*/
   int32_t mvapw[2][2];
-  /*Flags indicating which halfpel MVs have already been tested during the initial
-     BMA search. Valid halfpel MVs must be in the range -OD_MC_SEARCH_RANGE*2 to
+  /*Flags indicating which halfpel MVs have already been tested during the
+     initial BMA search.
+    Valid halfpel coordinates must be in the range -OD_MC_SEARCH_RANGE*2 to
      OD_MC_SEARCH_RANGE*2, this determines the size of this cache.*/
   unsigned char hit_cache[OD_MC_SEARCH_RANGE*2*2][OD_MC_SEARCH_RANGE*2*2];
   /*The flag used by the current EPZS search iteration.*/
