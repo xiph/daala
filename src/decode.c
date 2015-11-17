@@ -693,9 +693,6 @@ static void od_decode_haar_dc_level(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int 
   }
   ln = bsi - xdec + 2;
   x[0] = ctx->d[pli][(by << ln)*w + (bx << ln)];
-  x[1] = ctx->d[pli][(by << ln)*w + ((bx + 1) << ln)];
-  x[2] = ctx->d[pli][((by + 1) << ln)*w + (bx << ln)];
-  x[3] = ctx->d[pli][((by + 1) << ln)*w + ((bx + 1) << ln)];
   for (i = 1; i < 4; i++) {
     int quant;
     quant = generic_decode(&dec->ec, &dec->state.adapt.model_dc[pli], -1,
