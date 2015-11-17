@@ -32,7 +32,6 @@ void od_cdf_init(uint16_t *cdf, int ncdfs, int nsyms, int val, int first) {
   int i;
   int j;
   for (i = 0; i < ncdfs; i++) {
-    cdf[i*nsyms] = first;
     for (j = 0; j < nsyms; j++) {
       cdf[i*nsyms + j] = val*j + first;
     }
