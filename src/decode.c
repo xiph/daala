@@ -506,7 +506,71 @@ static void od_wavelet_unquantize(daala_dec_ctx *dec, int ln, od_coeff *pred,
   }
 }
 
-static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int bs,
+static void od_block_decode_haar(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int bs,
+ int pli, int bx, int by) {
+  int i, j, n;
+  int xdec;
+  int w;
+  int bo;
+  int frame_width;
+  od_coeff *c;
+  od_coeff *d;
+  od_coeff *md;
+  od_coeff *mc;
+  od_coeff pred[OD_BSIZE_MAX*OD_BSIZE_MAX];
+  od_coeff predt[OD_BSIZE_MAX*OD_BSIZE_MAX];
+  int lossless;
+  int quant;
+  int dc_quant;
+  OD_ASSERT(bs >= 0 && bs < OD_NBSIZES);
+  n = 1 << (bs + 2);
+  lossless = (dec->quantizer[pli] == 0);
+  bx <<= bs;
+  by <<= bs;
+  xdec = dec->output_img.planes[pli].xdec;
+  frame_width = dec->state.frame_width;
+  w = frame_width >> xdec;
+  bo = (by << 2)*w + (bx << 2);
+  c = ctx->c;
+  d = ctx->d[pli];
+  md = ctx->md;
+  mc = ctx->mc;
+  if (!ctx->is_keyframe) {
+    od_haar(md + bo, w, mc + bo, w, bs + 2);
+  }
+  od_decode_compute_pred(dec, ctx, pred, d, bs, pli, bx, by);
+  for (i = 0; i < n; i++) {
+    for (j = 0; j < n; j++) {
+      predt[i*n + j] = pred[i*n + j];
+    }
+  }
+  quant = OD_MAXI(1, dec->quantizer[pli]);
+  if (lossless) dc_quant = 1;
+  else {
+    dc_quant = OD_MAXI(1, quant*
+     dec->state.pvq_qm_q4[pli][od_qm_get_index(bs, 0)] >> 4);
+  }
+  od_wavelet_unquantize(dec, bs + 2, pred, predt, dec->quantizer[pli], pli);
+  if (!ctx->is_keyframe) {
+    if (pred[0]) {
+      pred[0] = generic_decode(&dec->ec, &dec->state.adapt.model_dc[pli], -1,
+       &dec->state.adapt.ex_dc[pli][bs][0], 2, "dc:mag");
+      if (pred[0]) pred[0] *= od_ec_dec_bits(&dec->ec, 1, "dc:sign") ? -1 : 1;
+    }
+    pred[0] = pred[0]*dc_quant + predt[0];
+  }
+  else {
+    pred[0] = d[bo];
+  }
+  for (i = 0; i < n; i++) {
+    for (j = 0; j < n; j++) {
+      d[bo + i*w + j] = pred[i*n + j];
+    }
+  }
+  od_haar_inv(c + bo, w, d + bo, w, bs + 2);
+}
+
+static void od_block_decode_pvq(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int bs,
  int pli, int bx, int by, int skip) {
   int n;
   int xdec;
@@ -523,6 +587,7 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int bs,
   int quant;
   int dc_quant;
   int use_activity_masking;
+  unsigned int flags;
   const int *qm;
   OD_ASSERT(bs >= 0 && bs < OD_NBSIZES);
   n = 1 << (bs + 2);
@@ -541,52 +606,28 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int bs,
   mc = ctx->mc;
   /*Apply forward transform to MC predictor.*/
   if (!ctx->is_keyframe) {
-    if (ctx->use_haar_wavelet) {
-      od_haar(md + bo, w, mc + bo, w, bs + 2);
-    }
-    else {
-      (*dec->state.opt_vtbl.fdct_2d[bs])(md + bo, w, mc + bo, w);
-      od_apply_qm(md + bo, w, md + bo, w, bs, xdec, 0, qm);
-    }
+    (*dec->state.opt_vtbl.fdct_2d[bs])(md + bo, w, mc + bo, w);
+    od_apply_qm(md + bo, w, md + bo, w, bs, xdec, 0, qm);
   }
   od_decode_compute_pred(dec, ctx, pred, d, bs, pli, bx, by);
-  if (ctx->use_haar_wavelet) {
-    int i;
-    int j;
-    for (i = 0; i < n; i++) {
-      for (j = 0; j < n; j++) {
-        predt[i*n + j] = pred[i*n + j];
-      }
-    }
-  }
-  else {
-    /*Safely initialize d since some coeffs are skipped by PVQ.*/
-    od_init_skipped_coeffs(d, pred, ctx->is_keyframe, bo, n, w);
-    od_raster_to_coding_order(predt,  n, &pred[0], n);
-  }
+  od_init_skipped_coeffs(d, pred, ctx->is_keyframe, bo, n, w);
+  od_raster_to_coding_order(predt,  n, &pred[0], n);
   quant = OD_MAXI(1, dec->quantizer[pli]);
   if (lossless) dc_quant = 1;
   else {
     dc_quant = OD_MAXI(1, quant*
      dec->state.pvq_qm_q4[pli][od_qm_get_index(bs, 0)] >> 4);
   }
-  if (ctx->use_haar_wavelet) {
-    od_wavelet_unquantize(dec, bs + 2, pred, predt, dec->quantizer[pli], pli);
-  }
-  else {
-    unsigned int flags;
-    od_pvq_decode(dec, predt, pred, quant, pli, bs,
-     OD_PVQ_BETA[use_activity_masking][pli][bs], OD_ROBUST_STREAM,
-     ctx->is_keyframe, &flags, skip);
-    if (pli == 0 && dec->user_flags != NULL) {
-      dec->user_flags[by*dec->user_fstride + bx] = flags;
-    }
+
+  od_pvq_decode(dec, predt, pred, quant, pli, bs,
+    OD_PVQ_BETA[use_activity_masking][pli][bs], OD_ROBUST_STREAM,
+    ctx->is_keyframe, &flags, skip);
+  if (pli == 0 && dec->user_flags != NULL) {
+    dec->user_flags[by*dec->user_fstride + bx] = flags;
   }
   if (!ctx->is_keyframe) {
-    int has_dc_skip;
-    has_dc_skip = !ctx->is_keyframe && !ctx->use_haar_wavelet;
-    if (!has_dc_skip || pred[0]) {
-      pred[0] = has_dc_skip + generic_decode(&dec->ec,
+    if (pred[0]) {
+      pred[0] = !ctx->is_keyframe + generic_decode(&dec->ec,
        &dec->state.adapt.model_dc[pli], -1,
        &dec->state.adapt.ex_dc[pli][bs][0], 2, "dc:mag");
       if (pred[0]) pred[0] *= od_ec_dec_bits(&dec->ec, 1, "dc:sign") ? -1 : 1;
@@ -596,26 +637,10 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int bs,
   else {
     pred[0] = d[bo];
   }
-  if (ctx->use_haar_wavelet) {
-    int i;
-    int j;
-    for (i = 0; i < n; i++) {
-      for (j = 0; j < n; j++) {
-        d[bo + i*w + j] = pred[i*n + j];
-      }
-    }
-  }
-  else {
-    od_coding_order_to_raster(&d[bo], w, pred, n);
-  }
-  if (ctx->use_haar_wavelet) {
-    od_haar_inv(c + bo, w, d + bo, w, bs + 2);
-  }
-  else {
-    od_apply_qm(d + bo, w, d + bo, w, bs, xdec, 1, qm);
-    /*Apply the inverse transform.*/
-    (*dec->state.opt_vtbl.idct_2d[bs])(c + bo, w, d + bo, w);
-  }
+  od_coding_order_to_raster(&d[bo], w, pred, n);
+  od_apply_qm(d + bo, w, d + bo, w, bs, xdec, 1, qm);
+  /*Apply the inverse transform.*/
+  (*dec->state.opt_vtbl.idct_2d[bs])(c + bo, w, d + bo, w);
 }
 
 #if !OD_DISABLE_HAAR_DC
@@ -806,7 +831,10 @@ static void od_decode_recursive(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
        dec->state.adapt.skip_cdf[2*bsi + (pli != 0)], 4,
        dec->state.adapt.skip_increment, "skip");
     }
-    od_block_decode(dec, ctx, bs, pli, bx, by, skip);
+    if (ctx->use_haar_wavelet)
+      od_block_decode_haar(dec, ctx, bs, pli, bx, by);
+    else
+      od_block_decode_pvq(dec, ctx, bs, pli, bx, by, skip);
     for (i = 0; i < 1 << bs; i++) {
       for (j = 0; j < 1 << bs; j++) {
         dec->state.bskip[pli][((by << bs) + i)*dec->state.skip_stride
