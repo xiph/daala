@@ -262,6 +262,8 @@ static int od_state_ref_imgs_init(od_state *state, int nrefs) {
   /*TODO: Check for overflow before allocating.*/
   frame_buf_width = state->frame_width + (OD_BUFFER_PADDING << 1);
   frame_buf_height = state->frame_height + (OD_BUFFER_PADDING << 1);
+  /*Reserve space for the motion comp buffers.*/
+  data_sz += OD_MVBSIZE_MAX*OD_MVBSIZE_MAX*reference_bytes*5;
   for (pli = 0; pli < info->nplanes; pli++) {
     /*Reserve space for this plane in nrefs reference images.*/
     plane_buf_width = frame_buf_width >> info->plane_info[pli].xdec;
@@ -272,6 +274,11 @@ static int od_state_ref_imgs_init(od_state *state, int nrefs) {
     (unsigned char *)od_aligned_malloc(data_sz, 32);
   if (OD_UNLIKELY(!ref_img_data)) {
     return OD_EFAULT;
+  }
+  /*Fill in the motion comp buffers.*/
+  for (imgi = 0; imgi < 5; imgi++) {
+    state->mc_buf[imgi] = ref_img_data;
+    ref_img_data += OD_MVBSIZE_MAX*OD_MVBSIZE_MAX*reference_bytes;
   }
   /*Fill in the reference image structures.*/
   for (imgi = 0; imgi < nrefs; imgi++) {
@@ -759,6 +766,7 @@ int od_state_dump_yuv(od_state *state, od_img *img, const char *tag) {
   FILE *fp;
   int pic_width;
   int pic_height;
+  int x;
   int y;
   int pli;
   int needs_header;
@@ -821,8 +829,17 @@ int od_state_dump_yuv(od_state *state, od_img *img, const char *tag) {
     xstride = img->planes[pli].xstride;
     ystride = img->planes[pli].ystride;
     for (y = 0; y < (pic_height + ydec) >> ydec; y++) {
-      if (xstride>1) {
-        OD_ASSERT(0);
+      if (xstride > 1) {
+        for (x = 0; x < (pic_width + xdec) >> xdec; x++) {
+          int value;
+          value = *((int16_t *)(img->planes[pli].data + ystride*y + xstride*x))
+           + (1 << img->planes[pli].bitdepth - 9)
+           >> (img->planes[pli].bitdepth - 8);
+          if (fputc(OD_CLAMP255(value), fp) == EOF) {
+            fprintf(stderr, "Error writing to \"%s\".\n", fname);
+            return OD_EFAULT;
+          }
+        }
       }
       else {
         if (fwrite(img->planes[pli].data + ystride*y,
@@ -1222,6 +1239,7 @@ void od_coeff_to_ref_buf(od_state *state,
   }
   else {
     /*The references are running at greater than 8 bits, implying FPR.
+      An FPR reference must run at full depth (8 + OD_COEFF_SHIFT).
       The transforms and coefficients may be operating at any supported
        bit depth (8, 10 or 12) */
     coeff_shift = lossless_p

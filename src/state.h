@@ -163,7 +163,7 @@ struct od_adapt_ctx {
 struct od_state{
   od_adapt_ctx        adapt;
   daala_info          info;
-  OD_ALIGN16(unsigned char mc_buf[5][OD_MVBSIZE_MAX*OD_MVBSIZE_MAX]);
+  unsigned char  *mc_buf[5];
   od_state_opt_vtbl   opt_vtbl;
   uint32_t        cpu_flags;
   int32_t         frame_width;

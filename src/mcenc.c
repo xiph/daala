@@ -2265,8 +2265,8 @@ static int32_t od_mv_est_sad(od_mv_est_ctx *est,
   int xstride;
   state = &est->enc->state;
   xstride = est->enc->input_img.planes[0].xstride;
-  od_state_pred_block_from_setup(state, state->mc_buf[4], OD_MVBSIZE_MAX,
-   0, vx, vy, oc, s, log_mvb_sz);
+  od_state_pred_block_from_setup(state, state->mc_buf[4],
+   OD_MVBSIZE_MAX*xstride, 0, vx, vy, oc, s, log_mvb_sz);
   ret = est->compute_distortion(est->enc, state->mc_buf[4],
    OD_MVBSIZE_MAX*xstride, xstride,
    0, vx << OD_LOG_MVBSIZE_MIN, vy << OD_LOG_MVBSIZE_MIN,
@@ -2274,8 +2274,8 @@ static int32_t od_mv_est_sad(od_mv_est_ctx *est,
   if (est->flags & OD_MC_USE_CHROMA) {
     int pli;
     for (pli = 1; pli < est->enc->input_img.nplanes; pli++) {
-      od_state_pred_block_from_setup(state, state->mc_buf[4], OD_MVBSIZE_MAX,
-       pli, vx, vy, oc, s, log_mvb_sz);
+      od_state_pred_block_from_setup(state, state->mc_buf[4],
+       OD_MVBSIZE_MAX*xstride, pli, vx, vy, oc, s, log_mvb_sz);
       ret += est->compute_distortion(est->enc, state->mc_buf[4],
        OD_MVBSIZE_MAX*xstride, xstride,
        pli, vx << OD_LOG_MVBSIZE_MIN, vy << OD_LOG_MVBSIZE_MIN,
