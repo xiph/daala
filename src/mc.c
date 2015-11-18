@@ -202,6 +202,143 @@ void od_mc_predict1fmv8_c(od_state *state, unsigned char *dst,
   }
 }
 
+/*Form the prediction given by one fixed motion vector (16-bit deep for FPR).
+  dst: The destination buffer (xstride must be 2).
+  src: The source buffer (xstride must be 2).
+  systride: The byte offset between source pixel rows.
+  mvx: The X component of the motion vector.
+  mvy: The Y component of the motion vector.
+  log_xblk_sz: The log base 2 of the horizontal block dimension.
+  log_yblk_sz: The log base 2 of the vertical block dimension.*/
+/*TODO: this code does not currently special-case the boundaries of the buffer.
+  It simply assumes there's sufficient extra padding to not cause a bounds
+   overrun.
+  For now, we add the extra padding, but we should eventually add
+   special-casing to the code to avoid the additional ~useless buffer
+   overhead. */
+void od_mc_predict1fmv16_c(od_state *state, unsigned char *dst,
+ const unsigned char *src, int systride, int32_t mvx, int32_t mvy,
+ int log_xblk_sz, int log_yblk_sz) {
+  int mvxf;
+  int mvyf;
+  int xblk_sz;
+  int yblk_sz;
+  int xstride;
+  int i;
+  int j;
+  /*Pointer to the start of an image block in local buffer (defined
+     below, buff[]), where the buffer contans the top and bottom apron
+     area of the image block.
+    Used as output for 1st stage horizontal filtering then as input for
+     2nd stage vertical filtering.*/
+  int32_t *buff_p;
+  /*A pointer to input row for both 1st and 2nd stage filtering*/
+  const unsigned char *src_p;
+  unsigned char *dst_p;
+  /*1D filter chosen for the current fractional position of x mv.*/
+  const int16_t *fx;
+  const int16_t *fy;
+  /*2D buffer to store the result of 1st stage (i.e. horizontal) 1D filtering
+     of a block. The 1st stage filtering requires to output results for
+     top and bottom aprons of input image block, because the 2nd stage
+     filtering (i.e vertical) requires support region on those apron pixels.
+    The size of the buffer is :
+     wxh = OD_MVBSIZE_MAX x (OD_MVBSIZE_MAX + OD_SUBPEL_BUFF_APRON_SZ).*/
+  int32_t buff[(OD_MVBSIZE_MAX + OD_SUBPEL_BUFF_APRON_SZ) *OD_MVBSIZE_MAX];
+  int32_t sum;
+  int k;
+  xblk_sz = 1 << log_xblk_sz;
+  yblk_sz = 1 << log_yblk_sz;
+  xstride = 2;
+  src_p = src + (mvx >> 3)*xstride + (mvy >> 3)*systride;
+  dst_p = dst;
+  /*Fetch LSB 3 bits, i.e. fractional MV.*/
+  mvxf = mvx & 0x07;
+  mvyf = mvy & 0x07;
+  /*Check whether mvxf and mvyf are in the range [0...7],
+     i.e. downto 1/8 precision.*/
+  OD_ASSERT(mvxf <= 7);
+  fx = OD_SUBPEL_FILTER_SET[mvxf];
+  OD_ASSERT(mvyf <= 7);
+  fy = OD_SUBPEL_FILTER_SET[mvyf];
+  /*MC with subpel MV?*/
+  if (mvxf || mvyf) {
+    buff_p = buff;
+    src_p -= systride*OD_SUBPEL_TOP_APRON_SZ;
+    /*1st stage 1D filtering, Horizontal.*/
+    /*The 8-bit code shifts the unsigned range to signed for purposes of
+       avoiding overflow and rounding.
+      That avoidant rounding behavior gave a .5% RD improvement (!).
+      I've implemented it the same way here (for purposes of truncation
+       testing), but the simpler non-shifted version may work as well at
+       full-precision in the long run. */
+    if (mvxf) {
+      for (j = -OD_SUBPEL_TOP_APRON_SZ;
+       j < yblk_sz + OD_SUBPEL_BOTTOM_APRON_SZ; j++) {
+        for (i = 0; i < xblk_sz; i++) {
+          sum = 0;
+          for (k = 0; k < OD_SUBPEL_FILTER_TAP_SIZE; k++) {
+            sum += ((int16_t *)src_p)[i + k - OD_SUBPEL_TOP_APRON_SZ]*fx[k];
+          }
+          /*FPR references must run at full depth (8 + OD_COEFF_SHIFT).*/
+          buff_p[i] = sum - (128 << OD_COEFF_SHIFT + OD_SUBPEL_COEFF_SCALE);
+        }
+        src_p += systride;
+        buff_p += xblk_sz;
+      }
+    }
+    /*The mvx is in integer position.*/
+    else {
+      for (j = -OD_SUBPEL_TOP_APRON_SZ;
+       j < yblk_sz + OD_SUBPEL_BOTTOM_APRON_SZ; j++) {
+        for (i = 0; i < xblk_sz; i++) {
+          buff_p[i] = ((int16_t *)src_p)[i]
+           - (128 << OD_COEFF_SHIFT) << OD_SUBPEL_COEFF_SCALE;
+        }
+        src_p += systride;
+        buff_p += xblk_sz;
+      }
+    }
+    /*2nd stage 1D filtering, Vertical.*/
+    buff_p = buff + xblk_sz*OD_SUBPEL_TOP_APRON_SZ;
+    /*buff_p contents are currently scaled up by OD_SUBPEL_COEFF_SCALE
+      and centered on 0.*/
+    if (mvyf) {
+      for (j = 0; j < yblk_sz; j++) {
+        for (i = 0; i < xblk_sz; i++) {
+          sum = 0;
+          for (k = 0; k < OD_SUBPEL_FILTER_TAP_SIZE; k++) {
+            sum += buff_p[i + (k - OD_SUBPEL_TOP_APRON_SZ)*xblk_sz] * fy[k];
+          }
+          ((int16_t *)dst_p)[i] = (sum
+           + (1 << OD_SUBPEL_COEFF_SCALE2 >> 1) >> OD_SUBPEL_COEFF_SCALE2)
+           + (128 << OD_COEFF_SHIFT);
+        }
+        buff_p += xblk_sz;
+        dst_p += xblk_sz*xstride;
+      }
+    }
+    /*The mvy is in integer position.*/
+    else {
+      for (j = 0; j < yblk_sz; j++) {
+        for (i = 0; i < xblk_sz; i++) {
+          ((int16_t *)dst_p)[i] = (buff_p[i]
+           + (1 << OD_SUBPEL_COEFF_SCALE >> 1) >> OD_SUBPEL_COEFF_SCALE)
+           + (128 << OD_COEFF_SHIFT);
+        }
+        buff_p += xblk_sz;
+        dst_p += xblk_sz*xstride;
+      }
+    }
+  }
+  /*MC with full-pel MV, i.e. integer position.*/
+  else {
+    OD_ASSERT(log_xblk_sz == log_yblk_sz);
+    (*state->opt_vtbl.od_copy_nxn[log_xblk_sz])(dst_p, xblk_sz << 1, src_p,
+     systride);
+  }
+}
+
 static void od_mc_predict1fmv(od_state *state, unsigned char *dst,
  const unsigned char *src, int systride, int32_t mvx, int32_t mvy,
  int log_xblk_sz, int log_yblk_sz) {
@@ -239,6 +376,33 @@ void od_mc_blend_full8_c(unsigned char *dst, int dystride,
   }
 }
 
+void od_mc_blend_full16_c(unsigned char *dst, int dystride,
+ const unsigned char *src[4], int log_xblk_sz, int log_yblk_sz) {
+  int log_blk_sz2;
+  int xblk_sz;
+  int yblk_sz;
+  int round;
+  int i;
+  int j;
+  xblk_sz = 1 << log_xblk_sz;
+  yblk_sz = 1 << log_yblk_sz;
+  log_blk_sz2 = log_xblk_sz + log_yblk_sz;
+  round = 1 << (log_blk_sz2 - 1);
+  for (j = 0; j < yblk_sz; j++) {
+    for (i = 0; i < xblk_sz; i++) {
+      int32_t a;
+      int32_t b;
+      a = ((int16_t *)(src[0]))[j*xblk_sz + i];
+      b = ((int16_t *)(src[3]))[j*xblk_sz + i];
+      a = (a << log_xblk_sz) + (((int16_t *)(src[1]))[j*xblk_sz + i] - a)*i;
+      b = (b << log_xblk_sz) + (((int16_t *)(src[2]))[j*xblk_sz + i] - b)*i;
+      ((int16_t *)dst)[i] =
+       (a << log_yblk_sz) + (b - a)*j + round >> log_blk_sz2;
+    }
+    dst += dystride;
+  }
+}
+
 /*Perform normal bilinear blending.*/
 static void od_mc_blend_full(od_state *state, unsigned char *dst,
  int dystride, const unsigned char *src[4], int log_xblk_sz, int log_yblk_sz) {
@@ -265,199 +429,6 @@ void od_state_mvs_clear(od_state *state) {
     }
   }
 }
-#if 0
-/*Perform multiresolution bilinear blending.*/
-void od_mc_blend_multi8_c(unsigned char *dst, int dystride,
- const unsigned char *src[4], int log_xblk_sz, int log_yblk_sz) {
-  const unsigned char *p;
-  unsigned char *dst0;
-  ptrdiff_t o;
-  ptrdiff_t o0;
-  int ll[4];
-  int lh;
-  int hl;
-  int hh;
-  int a;
-  int b;
-  int c;
-  int d;
-  int log_blk_sz2;
-  int xblk_sz;
-  int yblk_sz;
-  int xblk_sz_2;
-  int yblk_sz_2;
-  int i;
-  int j;
-  xblk_sz = 1 << log_xblk_sz;
-  yblk_sz = 1 << log_yblk_sz;
-  log_blk_sz2 = log_xblk_sz + log_yblk_sz;
-  o0 = 0;
-  dst0 = dst;
-  /*Perform multiresolution blending.*/
-  xblk_sz_2 = xblk_sz >> 1;
-  yblk_sz_2 = yblk_sz >> 1;
-  for (j = 1; j < yblk_sz_2; j += 2) {
-    o = o0;
-    dst = dst0;
-    /*Upper-left quadrant.*/
-    for (i = 1; i < xblk_sz_2; i += 2) {
-      p = src[0] + o;
-      /*Forward Haar wavelet.*/
-      ll[0] = p[0] + p[1];
-      lh = p[0] - p[1];
-      hl = (p + xblk_sz)[0] + (p + xblk_sz)[1];
-      hh = (p + xblk_sz)[0] - (p + xblk_sz)[1];
-      c = ll[0] - hl;
-      ll[0] += hl;
-      hl = c;
-      /*No need to finish the transform; we'd just invert it later.*/
-      p = src[1] + o;
-      ll[1] = p[0] + p[1] + (p + xblk_sz)[0] + (p + xblk_sz)[1];
-      p = src[2] + o;
-      ll[2] = p[0] + p[1] + (p + xblk_sz)[0] + (p + xblk_sz)[1];
-      p = src[3] + o;
-      ll[3] = p[0] + p[1] + (p + xblk_sz)[0] + (p + xblk_sz)[1];
-      /*LL blending.*/
-      a = (ll[0] << log_xblk_sz) + (ll[1] - ll[0])*i;
-      b = (ll[3] << log_xblk_sz) + (ll[2] - ll[3])*i;
-      a = (int)((((int32_t)a << log_yblk_sz) +
-       (int32_t)(b - a)*j) >> log_blk_sz2);
-      /*Inverse Haar wavelet.*/
-      c = (a - hl + 1) >> 1;
-      a = (a + hl + 1) >> 1;
-      d = (c - hh + 1) >> 1;
-      c = (c + hh + 1) >> 1;
-      b = (a - lh + 1) >> 1;
-      a = (a + lh + 1) >> 1;
-      dst[0] = OD_CLAMP255(a);
-      dst[1] = OD_CLAMP255(b);
-      (dst + dystride)[0] = OD_CLAMP255(c);
-      (dst + dystride)[1] = OD_CLAMP255(d);
-      o += 2;
-      dst += 2;
-    }
-    /*Upper-right quadrant.*/
-    for (; i < xblk_sz; i += 2) {
-      p = src[0] + o;
-      ll[0] = p[0] + p[1] + (p + xblk_sz)[0] + (p + xblk_sz)[1];
-      p = src[1] + o;
-      /*Forward Haar wavelet.*/
-      ll[1] = p[0] + p[1];
-      lh = p[0] - p[1];
-      hl = (p + xblk_sz)[0] + (p + xblk_sz)[1];
-      hh = (p + xblk_sz)[0] - (p + xblk_sz)[1];
-      c = ll[1] - hl;
-      ll[1] += hl;
-      hl = c;
-      /*No need to finish the transform; we'd just invert it later.*/
-      p = src[2] + o;
-      ll[2] = p[0] + p[1] + (p + xblk_sz)[0] + (p + xblk_sz)[1];
-      p = src[3] + o;
-      ll[3] = p[0] + p[1] + (p + xblk_sz)[0] + (p + xblk_sz)[1];
-      /*LL blending.*/
-      a = (ll[0] << log_xblk_sz) + (ll[1] - ll[0])*i;
-      b = (ll[3] << log_xblk_sz) + (ll[2] - ll[3])*i;
-      a = (int)((((int32_t)a << log_yblk_sz)
-       + (int32_t)(b - a)*j) >> log_blk_sz2);
-      /*Inverse Haar wavelet.*/
-      c = (a - hl + 1) >> 1;
-      a = (a + hl + 1) >> 1;
-      d = (c - hh + 1) >> 1;
-      c = (c + hh + 1) >> 1;
-      b = (a - lh + 1) >> 1;
-      a = (a + lh + 1) >> 1;
-      dst[0] = OD_CLAMP255(a);
-      dst[1] = OD_CLAMP255(b);
-      (dst + dystride)[0] = OD_CLAMP255(c);
-      (dst + dystride)[1] = OD_CLAMP255(d);
-      o += 2;
-      dst += 2;
-    }
-    o0 += xblk_sz << 1;
-    dst0 += dystride << 1;
-  }
-  for (; j < yblk_sz; j += 2) {
-    o = o0;
-    dst = dst0;
-    /*Lower-left quadrant.*/
-    for (i = 1; i < xblk_sz_2; i += 2) {
-      p = src[0] + o;
-      ll[0] = p[0] + p[1] + (p + xblk_sz)[0] + (p + xblk_sz)[1];
-      p = src[1] + o;
-      ll[1] = p[0] + p[1] + (p + xblk_sz)[0] + (p + xblk_sz)[1];
-      p = src[2] + o;
-      ll[2] = p[0] + p[1] + (p + xblk_sz)[0] + (p + xblk_sz)[1];
-      p = src[3] + o;
-      /*Forward Haar wavelet.*/
-      ll[3] = p[0] + p[1];
-      lh = p[0] - p[1];
-      hl = (p + xblk_sz)[0] + (p + xblk_sz)[1];
-      hh = (p + xblk_sz)[0] - (p + xblk_sz)[1];
-      c = ll[3] - hl;
-      ll[3] += hl;
-      hl = c;
-      /*No need to finish the transform; we'd just invert it later.*/
-      /*LL blending.*/
-      a = (ll[0] << log_xblk_sz) + (ll[1] - ll[0])*i;
-      b = (ll[3] << log_xblk_sz) + (ll[2] - ll[3])*i;
-      a = (int)(((int32_t)a << log_yblk_sz)
-       + (int32_t)(b - a)*j >> log_blk_sz2);
-      /*Inverse Haar wavelet.*/
-      c = (a - hl + 1) >> 1;
-      a = (a + hl + 1) >> 1;
-      d = (c - hh + 1) >> 1;
-      c = (c + hh + 1) >> 1;
-      b = (a - lh + 1) >> 1;
-      a = (a + lh + 1) >> 1;
-      dst[0] = OD_CLAMP255(a);
-      dst[1] = OD_CLAMP255(b);
-      (dst + dystride)[0] = OD_CLAMP255(c);
-      (dst + dystride)[1] = OD_CLAMP255(d);
-      o += 2;
-      dst += 2;
-    }
-    /*Lower-right quadrant.*/
-    for (; i < xblk_sz; i += 2) {
-      p = src[0] + o;
-      ll[0] = p[0] + p[1] + (p + xblk_sz)[0] + (p + xblk_sz)[1];
-      p = src[1] + o;
-      ll[1] = p[0] + p[1] + (p + xblk_sz)[0] + (p + xblk_sz)[1];
-      p = src[2] + o;
-      /*Forward Haar wavelet.*/
-      ll[2] = p[0] + p[1];
-      lh = p[0] - p[1];
-      hl = (p + xblk_sz)[0] + (p + xblk_sz)[1];
-      hh = (p + xblk_sz)[0] - (p + xblk_sz)[1];
-      c = ll[2] - hl;
-      ll[2] += hl;
-      hl = c;
-      /*No need to finish the transform; we'd just invert it later.*/
-      p = src[3] + o;
-      ll[3] = p[0] + p[1] + (p + xblk_sz)[0] + (p + xblk_sz)[1];
-      /*LL blending.*/
-      a = (ll[0] << log_xblk_sz) + (ll[1] - ll[0])*i;
-      b = (ll[3] << log_xblk_sz) + (ll[2] - ll[3])*i;
-      a = (int)((((int32_t)a << log_yblk_sz)
-       + (int32_t)(b - a)*j) >> log_blk_sz2);
-      /*Inverse Haar wavelet.*/
-      c = (a - hl + 1) >> 1;
-      a = (a + hl + 1) >> 1;
-      d = (c - hh + 1) >> 1;
-      c = (c + hh + 1) >> 1;
-      b = (a - lh + 1) >> 1;
-      a = (a + lh + 1) >> 1;
-      dst[0] = OD_CLAMP255(a);
-      dst[1] = OD_CLAMP255(b);
-      (dst + dystride)[0] = OD_CLAMP255(c);
-      (dst + dystride)[1] = OD_CLAMP255(d);
-      o += 2;
-      dst += 2;
-    }
-    o0 += xblk_sz << 1;
-    dst0 += dystride << 1;
-  }
-}
-#else
 
 /*Perform multiresolution bilinear blending.*/
 void od_mc_blend_multi8_c(unsigned char *dst, int dystride,
@@ -763,7 +734,322 @@ void od_mc_blend_multi8_c(unsigned char *dst, int dystride,
    (((src[2] + o + xblk_sz)[i2 + 1] << log_blk_sz2) + d - h + round) >>
    log_blk_sz2);
 }
-#endif
+
+void od_mc_blend_multi16_c(unsigned char *dst, int dystride,
+ const unsigned char *src[4], int log_xblk_sz, int log_yblk_sz) {
+  const int16_t *src16;
+  int32_t src_ll[4][8][8];
+  int32_t dst_ll[8][8];
+  const int16_t *p;
+  ptrdiff_t o;
+  int32_t a;
+  int32_t b;
+  int32_t c;
+  int32_t d;
+  int32_t e;
+  int32_t f;
+  int32_t g;
+  int32_t h;
+  int log_blk_sz2;
+  int xblk_sz;
+  int yblk_sz;
+  int xblk_sz_2;
+  int yblk_sz_2;
+  int xblk_sz_4;
+  int yblk_sz_4;
+  int round;
+  int i;
+  int i2;
+  int j;
+  int j2;
+  int k;
+  xblk_sz = 1 << log_xblk_sz;
+  yblk_sz = 1 << log_yblk_sz;
+  /*Perform multiresolution blending.*/
+  xblk_sz_2 = xblk_sz >> 1;
+  yblk_sz_2 = yblk_sz >> 1;
+  log_blk_sz2 = log_xblk_sz + log_yblk_sz;
+  round = 1 << (log_blk_sz2 - 1);
+  /*Compute the low-pass band for each src block.*/
+  for (k = 0; k < 4; k++) {
+    int32_t lh[4][8];
+    p = (int16_t *)(src[k]);
+    src_ll[k][0][0] = p[0];
+    for (i = 1; i < xblk_sz_2; i++) {
+      i2 = i << 1;
+      src_ll[k][0][i] = (p[i2 - 1] + 2*p[i2] + p[i2+1] + 2) >> 2;
+    }
+    p += xblk_sz;
+    lh[1][0] = p[0] << 2;
+    for (i = 1; i < xblk_sz_2; i++) {
+      i2 = i << 1;
+      lh[1][i] = p[i2-1] + 2*p[i2] + p[i2+1];
+    }
+    p += xblk_sz;
+    for (j = 1; j < yblk_sz_2; j++) {
+      j2 = j << 1 & 3;
+      lh[j2][0] = p[0] << 2;
+      for (i = 1; i < xblk_sz_2; i++) {
+        i2 = i << 1;
+        lh[j2][i] = p[i2 - 1] + 2*p[i2] + p[i2 + 1];
+      }
+      p += xblk_sz;
+      lh[j2 + 1][0] = p[0] << 2;
+      for (i = 1; i < xblk_sz_2; i++) {
+        i2 = i << 1;
+        lh[j2 + 1][i] = p[i2 - 1] + 2*p[i2] + p[i2 + 1];
+      }
+      p += xblk_sz;
+      for (i = 0; i < xblk_sz_2; i++) {
+        src_ll[k][j][i] =
+         (lh[(j2 - 1) & 3][i] + 2*lh[j2][i] + lh[j2 + 1][i] + 8) >> 4;
+      }
+    }
+  }
+  /*Blend the low-pass bands.*/
+  for (j = 0; j < xblk_sz_2; j++) {
+    for (i = 0; i < xblk_sz_2; i++) {
+      a = (src_ll[0][j][i] << (log_xblk_sz - 1))
+       + (src_ll[1][j][i] - src_ll[0][j][i])*i;
+      b = (src_ll[3][j][i] << (log_xblk_sz - 1))
+       + (src_ll[2][j][i] - src_ll[3][j][i])*i;
+      dst_ll[j][i] = (a << (log_yblk_sz - 1)) + (b - a)*j;
+    }
+  }
+  /*Perform the high-pass filtering for each quadrant.*/
+  xblk_sz_4 = xblk_sz >> 2;
+  yblk_sz_4 = yblk_sz >> 2;
+  o = 0;
+  for (j = 0; j < yblk_sz_4; j++) {
+    /*Upper-left quadrant.*/
+    src16 = (int16_t *)(src[0]);
+    for (i = 0; i < xblk_sz_4; i++) {
+      i2 = i << 1;
+      a = dst_ll[j][i] << 2;
+      b = (dst_ll[j][i] + dst_ll[j][i + 1]) << 1;
+      c = (dst_ll[j][i] + dst_ll[j + 1][i]) << 1;
+      d = dst_ll[j][i] + dst_ll[j][i + 1]
+       + dst_ll[j + 1][i] + dst_ll[j + 1][i + 1];
+      e = src_ll[0][j][i] << log_blk_sz2;
+      f = (src_ll[0][j][i] + src_ll[0][j][i + 1]) << (log_blk_sz2 - 1);
+      g = (src_ll[0][j][i] + src_ll[0][j + 1][i]) << (log_blk_sz2 - 1);
+      h = (src_ll[0][j][i] + src_ll[0][j][i + 1]
+       + src_ll[0][j + 1][i] + src_ll[0][j + 1][i + 1]) << (log_blk_sz2 - 2);
+      ((int16_t *)dst)[i2] =
+       (((src16 + o)[i2] << log_blk_sz2) + a - e + round) >> log_blk_sz2;
+      ((int16_t *)dst)[i2 + 1] =
+       (((src16 + o)[i2 + 1] <<log_blk_sz2) + b - f + round) >> log_blk_sz2;
+      ((int16_t *)(dst + dystride))[i2] =
+       (((src16 + o + xblk_sz)[i2] << log_blk_sz2) + c - g + round) >>
+       log_blk_sz2;
+      ((int16_t *)(dst + dystride))[i2 + 1] =
+       (((src16 + o + xblk_sz)[i2 + 1] << log_blk_sz2) + d - h + round) >>
+       log_blk_sz2;
+    }
+    /*Upper-right quadrant.*/
+    src16 = (int16_t *)(src[1]);
+    for (; i < xblk_sz_2 - 1; i++) {
+      i2 = i << 1;
+      a = dst_ll[j][i] << 2;
+      b = (dst_ll[j][i] + dst_ll[j][i + 1]) << 1;
+      c = (dst_ll[j][i] + dst_ll[j + 1][i]) << 1;
+      d = dst_ll[j][i] + dst_ll[j][i + 1]
+       + dst_ll[j + 1][i] + dst_ll[j + 1][i + 1];
+      e = src_ll[1][j][i] << log_blk_sz2;
+      f = (src_ll[1][j][i] + src_ll[1][j][i + 1]) << (log_blk_sz2 - 1);
+      g = (src_ll[1][j][i] + src_ll[1][j + 1][i]) << (log_blk_sz2 - 1);
+      h = (src_ll[1][j][i] + src_ll[1][j][i + 1]
+       + src_ll[1][j + 1][i] + src_ll[1][j + 1][i + 1]) << (log_blk_sz2 - 2);
+      ((int16_t *)dst)[i2] =
+       (((src16 + o)[i2] << log_blk_sz2) + a - e + round) >> log_blk_sz2;
+      ((int16_t *)dst)[i2 + 1] =
+       (((src16 + o)[i2 + 1] << log_blk_sz2) + b - f + round) >> log_blk_sz2;
+      ((int16_t *)(dst + dystride))[i2] =
+       (((src16 + o + xblk_sz)[i2] << log_blk_sz2) + c - g + round) >>
+       log_blk_sz2;
+      ((int16_t *)(dst + dystride))[i2 + 1] =
+       (((src16 + o + xblk_sz)[i2 + 1] << log_blk_sz2) + d - h + round) >>
+       log_blk_sz2;
+    }
+    /*Upper-right quadrant, last column.*/
+    i2 = i << 1;
+    a = dst_ll[j][i] << 2;
+    b = (3*dst_ll[j][i] - dst_ll[j][i - 1]) << 1;
+    c = (dst_ll[j][i] + dst_ll[j + 1][i]) << 1;
+    d = 3*(dst_ll[j][i] + dst_ll[j + 1][i])
+     - (dst_ll[j][i - 1] + dst_ll[j + 1][i - 1]);
+    e = src_ll[1][j][i] << log_blk_sz2;
+    f = (3*src_ll[1][j][i] - src_ll[1][j][i - 1]) << (log_blk_sz2 - 1);
+    g = (src_ll[1][j][i] + src_ll[1][j+1][i]) << (log_blk_sz2 - 1);
+    h = (3*(src_ll[1][j][i] + src_ll[1][j + 1][i])
+     - (src_ll[1][j][i - 1] + src_ll[1][j + 1][i - 1])) << (log_blk_sz2 - 2);
+    ((int16_t *)dst)[i2] =
+     (((src16 + o)[i2] << log_blk_sz2) + a - e + round) >> log_blk_sz2;
+    ((int16_t *)dst)[i2 + 1] =
+     (((src16 + o)[i2 + 1] << log_blk_sz2) + b - f + round) >> log_blk_sz2;
+    ((int16_t *)(dst + dystride))[i2] =
+     (((src16 + o + xblk_sz)[i2]<< log_blk_sz2) + c - g + round) >>
+     log_blk_sz2;
+    ((int16_t *)(dst + dystride))[i2 + 1] =
+     (((src16 + o + xblk_sz)[i2 + 1] << log_blk_sz2) + d - h + round) >>
+     log_blk_sz2;
+    o += xblk_sz << 1;
+    dst += dystride << 1;
+  }
+  for (; j < yblk_sz_2 - 1; j++) {
+    /*Lower-left quadrant.*/
+    src16 = (int16_t *)(src[3]);
+    for (i = 0; i < xblk_sz_4; i++) {
+      i2 = i << 1;
+      a = dst_ll[j][i] << 2;
+      b = (dst_ll[j][i] + dst_ll[j][i + 1]) << 1;
+      c = (dst_ll[j][i] + dst_ll[j + 1][i]) << 1;
+      d = (dst_ll[j][i] + dst_ll[j][i + 1]
+       + dst_ll[j + 1][i] + dst_ll[j + 1][i + 1]);
+      e = src_ll[3][j][i] << log_blk_sz2;
+      f = (src_ll[3][j][i] + src_ll[3][j][i + 1]) << (log_blk_sz2 - 1);
+      g = (src_ll[3][j][i] + src_ll[3][j + 1][i]) << (log_blk_sz2 - 1);
+      h = (src_ll[3][j][i] + src_ll[3][j][i + 1]
+       + src_ll[3][j + 1][i] + src_ll[3][j + 1][i + 1]) << (log_blk_sz2 - 2);
+      ((int16_t *)dst)[i2] =
+       (((src16 + o)[i2] << log_blk_sz2) + a - e + round) >> log_blk_sz2;
+      ((int16_t *)dst)[i2 + 1] =
+       (((src16 + o)[i2 + 1] << log_blk_sz2) + b - f + round) >> log_blk_sz2;
+      ((int16_t *)(dst + dystride))[i2] =
+       (((src16 + o + xblk_sz)[i2] << log_blk_sz2) + c - g + round) >>
+       log_blk_sz2;
+      ((int16_t *)(dst + dystride))[i2 + 1] =
+       (((src16 + o + xblk_sz)[i2 + 1] << log_blk_sz2) + d - h + round) >>
+       log_blk_sz2;
+    }
+    /*Lower-right quadrant.*/
+    src16 = (int16_t *)(src[2]);
+    for (; i < xblk_sz_2 - 1; i++) {
+      i2 = i << 1;
+      a = dst_ll[j][i] << 2;
+      b = (dst_ll[j][i] + dst_ll[j][i + 1]) << 1;
+      c = (dst_ll[j][i] + dst_ll[j + 1][i]) << 1;
+      d = dst_ll[j][i] + dst_ll[j][i + 1]
+       + dst_ll[j + 1][i] + dst_ll[j + 1][i + 1];
+      e = src_ll[2][j][i] << log_blk_sz2;
+      f = (src_ll[2][j][i] + src_ll[2][j][i + 1]) << (log_blk_sz2 - 1);
+      g = (src_ll[2][j][i] + src_ll[2][j + 1][i]) << (log_blk_sz2 - 1);
+      h = (src_ll[2][j][i] + src_ll[2][j][i + 1]
+       + src_ll[2][j + 1][i] + src_ll[2][j + 1][i + 1]) << (log_blk_sz2 - 2);
+      ((int16_t *)dst)[i2] =
+       (((src16 + o)[i2] << log_blk_sz2) + a - e + round) >> log_blk_sz2;
+      ((int16_t *)dst)[i2+1] =
+       (((src16 + o)[i2 + 1] << log_blk_sz2) + b - f + round) >> log_blk_sz2;
+      ((int16_t *)(dst + dystride))[i2] =
+       (((src16 + o + xblk_sz)[i2] << log_blk_sz2) + c - g + round) >>
+       log_blk_sz2;
+      ((int16_t *)(dst + dystride))[i2 + 1] =
+       (((src16 + o + xblk_sz)[i2 + 1] << log_blk_sz2) + d - h + round) >>
+       log_blk_sz2;
+    }
+    /*Lower-right quadrant, last column.*/
+    i2 = i << 1;
+    a = dst_ll[j][i] << 2;
+    b = (3*dst_ll[j][i] - dst_ll[j][i - 1]) << 1;
+    c = (dst_ll[j][i] + dst_ll[j + 1][i]) << 1;
+    d = 3*(dst_ll[j][i] + dst_ll[j + 1][i])
+     - (dst_ll[j][i - 1] + dst_ll[j + 1][i - 1]);
+    e = src_ll[2][j][i] << log_blk_sz2;
+    f = (3*src_ll[2][j][i] - src_ll[2][j][i - 1]) << (log_blk_sz2 - 1);
+    g = (src_ll[2][j][i] + src_ll[2][j + 1][i]) << (log_blk_sz2 - 1);
+    h = (3*(src_ll[2][j][i] + src_ll[2][j + 1][i])
+     - (src_ll[2][j][i - 1] + src_ll[2][j + 1][i - 1])) << (log_blk_sz2 - 2);
+    ((int16_t *)dst)[i2] =
+     (((src16 + o)[i2] << log_blk_sz2) + a - e + round) >> log_blk_sz2;
+    ((int16_t *)dst)[i2 + 1] =
+     (((src16 + o)[i2 + 1] << log_blk_sz2) + b - f + round) >> log_blk_sz2;
+    ((int16_t *)(dst + dystride))[i2] =
+     (((src16 + o + xblk_sz)[i2] << log_blk_sz2) + c - g + round) >>
+     log_blk_sz2;
+    ((int16_t *)(dst + dystride))[i2 + 1] =
+     (((src16 + o + xblk_sz)[i2 + 1] << log_blk_sz2) + d - h + round) >>
+     log_blk_sz2;
+    o += xblk_sz << 1;
+    dst += dystride << 1;
+  }
+  /*Lower-left quadrant, last row.*/
+  src16 = (int16_t *)(src[3]);
+  for (i = 0; i < xblk_sz_4; i++) {
+    i2 = i << 1;
+    a = dst_ll[j][i] << 2;
+    b = (dst_ll[j][i] + dst_ll[j][i+1]) << 1;
+    c = (3*dst_ll[j][i] - dst_ll[j - 1][i]) << 1;
+    d = 3*(dst_ll[j][i] + dst_ll[j][i + 1])
+     - (dst_ll[j - 1][i] + dst_ll[j - 1][i + 1]);
+    e = src_ll[3][j][i] << log_blk_sz2;
+    f = (src_ll[3][j][i] + src_ll[3][j][i + 1]) << (log_blk_sz2 - 1);
+    g = (3*src_ll[3][j][i] - src_ll[3][j - 1][i]) << (log_blk_sz2 - 1);
+    h = (3*(src_ll[3][j][i] + src_ll[3][j][i + 1])
+     - (src_ll[3][j - 1][i] + src_ll[3][j - 1][i + 1])) << (log_blk_sz2 - 2);
+    ((int16_t *)dst)[i2] =
+     (((src16 + o)[i2] << log_blk_sz2) + a - e + round) >> log_blk_sz2;
+    ((int16_t *)dst)[i2 + 1] =
+     (((src16 + o)[i2 + 1] << log_blk_sz2) + b - f + round) >> log_blk_sz2;
+    ((int16_t *)(dst + dystride))[i2] =
+     (((src16 + o + xblk_sz)[i2] << log_blk_sz2) + c - g + round) >>
+     log_blk_sz2;
+    ((int16_t *)(dst + dystride))[i2 + 1] =
+     (((src16 + o + xblk_sz)[i2 + 1] << log_blk_sz2) + d - h + round) >>
+     log_blk_sz2;
+  }
+  /*Lower-right quadrant, last row.*/
+  src16 = (int16_t *)(src[2]);
+  for (; i < xblk_sz_2 - 1; i++) {
+    i2 = i << 1;
+    a = dst_ll[j][i] << 2;
+    b = (dst_ll[j][i] + dst_ll[j][i + 1]) << 1;
+    c = (3*dst_ll[j][i] - dst_ll[j - 1][i]) << 1;
+    d = 3*(dst_ll[j][i] + dst_ll[j][i + 1])
+     - (dst_ll[j - 1][i] + dst_ll[j - 1][i + 1]);
+    e = src_ll[2][j][i] << log_blk_sz2;
+    f = (src_ll[2][j][i] + src_ll[2][j][i + 1]) << (log_blk_sz2 - 1);
+    g = (3*src_ll[2][j][i] - src_ll[2][j - 1][i]) << (log_blk_sz2 - 1);
+    h = (3*(src_ll[2][j][i] + src_ll[2][j][i + 1])
+     - (src_ll[2][j - 1][i] + src_ll[2][j - 1][i + 1])) << (log_blk_sz2 - 2);
+    ((int16_t *)dst)[i2] =
+     (((src16 + o)[i2] << log_blk_sz2) + a - e + round) >> log_blk_sz2;
+    ((int16_t *)dst)[i2+1] =
+     (((src16 + o)[i2 + 1] << log_blk_sz2) + b - f + round) >> log_blk_sz2;
+    ((int16_t *)(dst + dystride))[i2] =
+     (((src16 + o + xblk_sz)[i2] << log_blk_sz2) + c - g + round) >>
+     log_blk_sz2;
+    ((int16_t *)(dst + dystride))[i2 + 1] =
+     (((src16 + o + xblk_sz)[i2 + 1] << log_blk_sz2) + d - h + round) >>
+     log_blk_sz2;
+  }
+  /*Lower-right quadrant, last row and column.*/
+  i2 = i << 1;
+  a = dst_ll[j][i] << 2;
+  b = (3*dst_ll[j][i] - dst_ll[j][i-1]) << 1;
+  c = (3*dst_ll[j][i] - dst_ll[j-1][i]) << 1;
+  d = 9*dst_ll[j][i] - 3*(dst_ll[j - 1][i] + dst_ll[j][i - 1])
+   + dst_ll[j - 1][i - 1];
+  e = src_ll[2][j][i] << log_blk_sz2;
+  f = (3*src_ll[2][j][i] - src_ll[2][j][i - 1]) << (log_blk_sz2 - 1);
+  g = (3*src_ll[2][j][i] - src_ll[2][j - 1][i]) << (log_blk_sz2 - 1);
+  h = (9*src_ll[2][j][i] - 3*(src_ll[2][j][i - 1] + src_ll[2][j - 1][i])
+   + src_ll[2][j - 1][i - 1]) << (log_blk_sz2 - 2);
+  ((int16_t *)dst)[i2] =
+   (((src16 + o)[i2] << log_blk_sz2) + a - e + round) >> log_blk_sz2;
+  ((int16_t *)dst)[i2+1] =
+   (((src16 + o)[i2 + 1] << log_blk_sz2) + b - f + round) >> log_blk_sz2;
+  ((int16_t *)(dst + dystride))[i2] =
+   (((src16 + o + xblk_sz)[i2]<<log_blk_sz2) + c - g + round) >> log_blk_sz2;
+  ((int16_t *)(dst + dystride))[i2 + 1] =
+   (((src16 + o + xblk_sz)[i2 + 1] << log_blk_sz2) + d - h + round) >>
+   log_blk_sz2;
+}
+
+static void od_mc_blend_multi(od_state *state, unsigned char *dst,
+ int dystride, const unsigned char *src[4], int log_xblk_sz, int log_yblk_sz) {
+  (*state->opt_vtbl.mc_blend_multi)(dst, dystride, src,
+   log_xblk_sz, log_yblk_sz);
+}
 
 static void od_mc_setup_s_split(int s0[4], int dsdi[4], int dsdj[4],
  int ddsdidj[4], int oc, int s, int log_xblk_sz, int log_yblk_sz) {
@@ -862,6 +1148,55 @@ void od_mc_blend_full_split8_c(unsigned char *dst, int dystride,
   }
 }
 
+void od_mc_blend_full_split16_c(unsigned char *dst, int dystride,
+ const unsigned char *src[4], int oc, int s,
+ int log_xblk_sz, int log_yblk_sz) {
+  int sw[4];
+  int s0[4];
+  int dsdi[4];
+  int dsdj[4];
+  int ddsdidj[4];
+  int xblk_sz;
+  int yblk_sz;
+  int log_blk_sz2p1;
+  int round;
+  int i;
+  int j;
+  int k;
+  xblk_sz = 1 << log_xblk_sz;
+  yblk_sz = 1 << log_yblk_sz;
+  /*The block is too small; perform normal blending.*/
+  log_blk_sz2p1 = log_xblk_sz + log_yblk_sz + 1;
+  round = 1 << (log_blk_sz2p1 - 1);
+  od_mc_setup_s_split(s0, dsdi, dsdj, ddsdidj,
+   oc, s, log_xblk_sz, log_yblk_sz);
+  /*LOOP VECTORIZES.*/
+  for (k = 0; k < 4; k++) sw[k] = s0[k];
+  for (j = 0; j < yblk_sz; j++) {
+    for (i = 0; i < xblk_sz; i++) {
+      int32_t a;
+      int32_t b;
+      int32_t c;
+      int32_t d;
+      a = ((int16_t *)src[0])[j*xblk_sz + i];
+      b = (((int16_t *)src[1])[j*xblk_sz + i] - a)*sw[1];
+      c = (((int16_t *)src[2])[j*xblk_sz + i] - a)*sw[2];
+      d = (((int16_t *)src[3])[j*xblk_sz + i] - a)*sw[3];
+      ((int16_t *)dst)[i] = (a << log_blk_sz2p1)
+       + b + c + d + round >> log_blk_sz2p1;
+      /*LOOP VECTORIZES.*/
+      for (k = 0; k < 4; k++) sw[k] += dsdi[k];
+    }
+    dst += dystride;
+    /*LOOP VECTORIZES.*/
+    for (k = 0; k < 4; k++) {
+      s0[k] += dsdj[k];
+      sw[k] = s0[k];
+      dsdi[k] += ddsdidj[k];
+    }
+  }
+}
+
 /*Perform normal blending with bilinear weights modified for unsplit edges.*/
 void od_mc_blend_full_split(od_state *state, unsigned char *dst,
  int dystride, const unsigned char *src[4], int oc, int s,
@@ -870,1168 +1205,6 @@ void od_mc_blend_full_split(od_state *state, unsigned char *dst,
    log_xblk_sz, log_yblk_sz);
 }
 
-#if 0
-/*There are other ways to implement multiresolution blending for the modified
-   bilinear weights, but using a table lookup to select which predictor to
-   draw the high-frequency coefficients from moves all the complexity into the
-   tables, and leaves the code dead simple.*/
-
-/*The MV from which to use the high-frequency coefficients for a 2x2 LL band.*/
-static const unsigned char OD_MC_SIDXS_22[3][4][4] = {
-  {
-    {
-      /*Corner: 0; split: none*/
-      0, 0,
-      0, 2
-    },
-    {
-      /*Corner: 1; split: none*/
-      1, 1,
-      3, 1
-    },
-    {
-      /*Corner: 2; split: none*/
-      0, 2,
-      2, 2
-    },
-    {
-      /*Corner: 3; split: none*/
-      3, 1,
-      3, 3
-    }
-  },
-  {
-    {
-      /*Corner: 0; split: 1*/
-      0, 1,
-      0, 2
-    },
-    {
-      /*Corner: 1; split: 2*/
-      1, 1,
-      3, 2
-    },
-    {
-      /*Corner: 2; split: 3*/
-      0, 2,
-      3, 2
-    },
-    {
-      /*Corner: 3; split: 0*/
-      1, 1,
-      3, 2
-    }
-  },
-  {
-    {
-      /*Corner: 0; split: 3*/
-      0, 0,
-      3, 2
-    },
-    {
-      /*Corner: 1; split: 0*/
-      0, 1,
-      3, 1
-    },
-    {
-      /*Corner: 2; split: 1*/
-      0, 1,
-      2, 2
-    },
-    {
-      /*Corner: 3; split: 2*/
-      3, 1,
-      3, 2
-    }
-  }
-};
-
-/*The MV from which to use the high-frequency coefficients for a 2x4 LL band.*/
-static const unsigned char OD_MC_SIDXS_24[3][4][8] = {
-  {
-    {
-      /*Corner: 0; split: none*/
-      0, 0, 0, 0,
-      0, 0, 2, 2
-    },
-    {
-      /*Corner: 1; split: none*/
-      1, 1, 1, 1,
-      3, 3, 1, 1
-    },
-    {
-      /*Corner: 2; split: none*/
-      0, 0, 2, 2,
-      2, 2, 2, 2
-    },
-    {
-      /*Corner: 3; split: none*/
-      3, 3, 1, 1,
-      3, 3, 3, 3
-    }
-  },
-  {
-    {
-      /*Corner: 0; split: 1*/
-      0, 0, 1, 1,
-      0, 0, 2, 2
-    },
-    {
-      /*Corner: 1; split: 2*/
-      1, 1, 1, 1,
-      3, 3, 2, 2
-    },
-    {
-      /*Corner: 2; split: 3*/
-      0, 0, 2, 2,
-      3, 3, 2, 2
-    },
-    {
-      /*Corner: 3; split: 0*/
-      1, 1, 1, 1,
-      3, 3, 2, 2
-    }
-  },
-  {
-    {
-      /*Corner: 0; split: 3*/
-      0, 0, 0, 0,
-      3, 3, 2, 2
-    },
-    {
-      /*Corner: 1; split: 0*/
-      0, 0, 1, 1,
-      3, 3, 1, 1
-    },
-    {
-      /*Corner: 2; split: 1*/
-      0, 0, 1, 1,
-      2, 2, 2, 2
-    },
-    {
-      /*Corner: 3; split: 2*/
-      3, 3, 1, 1,
-      3, 3, 2, 2
-    }
-  }
-};
-
-/*The MV from which to use the high-frequency coefficients for a 2x8 LL band.*/
-static const unsigned char OD_MC_SIDXS_28[3][4][16] = {
-  {
-    {
-      /*Corner: 0; split: none*/
-      0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 2, 2, 2, 2
-    },
-    {
-      /*Corner: 1; split: none*/
-      1, 1, 1, 1, 1, 1, 1, 1,
-      3, 3, 3, 3, 1, 1, 1, 1
-    },
-    {
-      /*Corner: 2; split: none*/
-      0, 0, 0, 0, 2, 2, 2, 2,
-      2, 2, 2, 2, 2, 2, 2, 2
-    },
-    {
-      /*Corner: 3; split: none*/
-      3, 3, 3, 3, 1, 1, 1, 1,
-      3, 3, 3, 3, 3, 3, 3, 3
-    }
-  },
-  {
-    {
-      /*Corner: 0; split: 1*/
-      0, 0, 0, 0, 1, 1, 1, 1,
-      0, 0, 0, 0, 2, 2, 2, 2
-    },
-    {
-      /*Corner: 1; split: 2*/
-      1, 1, 1, 1, 1, 1, 1, 1,
-      3, 3, 3, 3, 2, 2, 2, 2
-    },
-    {
-      /*Corner: 2; split: 3*/
-      0, 0, 0, 0, 2, 2, 2, 2,
-      3, 3, 3, 3, 2, 2, 2, 2
-    },
-    {
-      /*Corner: 3; split: 0*/
-      1, 1, 1, 1, 1, 1, 1, 1,
-      3, 3, 3, 3, 2, 2, 2, 2
-    }
-  },
-  {
-    {
-      /*Corner: 0; split: 3*/
-      0, 0, 0, 0, 0, 0, 0, 0,
-      3, 3, 3, 3, 2, 2, 2, 2
-    },
-    {
-      /*Corner: 1; split: 0*/
-      0, 0, 0, 0, 1, 1, 1, 1,
-      3, 3, 3, 3, 1, 1, 1, 1
-    },
-    {
-      /*Corner: 2; split: 1*/
-      0, 0, 0, 0, 1, 1, 1, 1,
-      2, 2, 2, 2, 2, 2, 2, 2
-    },
-    {
-      /*Corner: 3; split: 2*/
-      3, 3, 3, 3, 1, 1, 1, 1,
-      3, 3, 3, 3, 2, 2, 2, 2
-    }
-  }
-};
-
-/*The MV from which to use the high-frequency coefficients for a 4x2 LL band.*/
-static const unsigned char OD_MC_SIDXS_42[3][4][8] = {
-  {
-    {
-      /*Corner: 0; split: none*/
-      0, 0,
-      0, 0,
-      0, 2,
-      0, 2
-    },
-    {
-      /*Corner: 1; split: none*/
-      1, 1,
-      1, 1,
-      3, 1,
-      3, 1
-    },
-    {
-      /*Corner: 2; split: none*/
-      0, 2,
-      0, 2,
-      2, 2,
-      2, 2
-    },
-    {
-      /*Corner: 3; split: none*/
-      3, 1,
-      3, 1,
-      3, 3,
-      3, 3
-    }
-  },
-  {
-    {
-      /*Corner: 0; split: 1*/
-      0, 1,
-      0, 1,
-      0, 2,
-      0, 2
-    },
-    {
-      /*Corner: 1; split: 2*/
-      1, 1,
-      1, 1,
-      3, 2,
-      3, 2
-    },
-    {
-      /*Corner: 2; split: 3*/
-      0, 2,
-      0, 2,
-      3, 2,
-      3, 2
-    },
-    {
-      /*Corner: 3; split: 0*/
-      1, 1,
-      1, 1,
-      3, 2,
-      3, 2
-    }
-  },
-  {
-    {
-      /*Corner: 0; split: 3*/
-      0, 0,
-      0, 0,
-      3, 2,
-      3, 2
-    },
-    {
-      /*Corner: 1; split: 0*/
-      0, 1,
-      0, 1,
-      3, 1,
-      3, 1
-    },
-    {
-      /*Corner: 2; split: 1*/
-      0, 1,
-      0, 1,
-      2, 2,
-      2, 2
-    },
-    {
-      /*Corner: 3; split: 2*/
-      3, 1,
-      3, 1,
-      3, 2,
-      3, 2
-    }
-  }
-};
-
-/*The MV from which to use the high-frequency coefficients for a 4x4 LL band.*/
-static const unsigned char OD_MC_SIDXS_44[3][4][16] = {
-  {
-    {
-      /*Corner: 0; split: none*/
-      0, 0, 0, 0,
-      0, 0, 0, 0,
-      0, 0, 2, 2,
-      0, 0, 2, 2
-    },
-    {
-      /*Corner: 1; split: none*/
-      1, 1, 1, 1,
-      1, 1, 1, 1,
-      3, 3, 1, 1,
-      3, 3, 1, 1
-    },
-    {
-      /*Corner: 2; split: none*/
-      0, 0, 2, 2,
-      0, 0, 2, 2,
-      2, 2, 2, 2,
-      2, 2, 2, 2
-    },
-    {
-      /*Corner: 3; split: none*/
-      3, 3, 1, 1,
-      3, 3, 1, 1,
-      3, 3, 3, 3,
-      3, 3, 3, 3
-    }
-  },
-  {
-    {
-      /*Corner: 0; split: 1*/
-      0, 0, 1, 1,
-      0, 0, 1, 1,
-      0, 0, 2, 2,
-      0, 0, 2, 2
-    },
-    {
-      /*Corner: 1; split: 2*/
-      1, 1, 1, 1,
-      1, 1, 1, 1,
-      3, 3, 2, 2,
-      3, 3, 2, 2
-    },
-    {
-      /*Corner: 2; split: 3*/
-      0, 0, 2, 2,
-      0, 0, 2, 2,
-      3, 3, 2, 2,
-      3, 3, 2, 2
-    },
-    {
-      /*Corner: 3; split: 0*/
-      1, 1, 1, 1,
-      1, 1, 1, 1,
-      3, 3, 2, 2,
-      3, 3, 2, 2
-    }
-  },
-  {
-    {
-      /*Corner: 0; split: 3*/
-      0, 0, 0, 0,
-      0, 0, 0, 0,
-      3, 3, 2, 2,
-      3, 3, 2, 2
-    },
-    {
-      /*Corner: 1; split: 0*/
-      0, 0, 1, 1,
-      0, 0, 1, 1,
-      3, 3, 1, 1,
-      3, 3, 1, 1
-    },
-    {
-      /*Corner: 2; split: 1*/
-      0, 0, 1, 1,
-      0, 0, 1, 1,
-      2, 2, 2, 2,
-      2, 2, 2, 2
-    },
-    {
-      /*Corner: 3; split: 2*/
-      3, 3, 1, 1,
-      3, 3, 1, 1,
-      3, 3, 2, 2,
-      3, 3, 2, 2
-    }
-  }
-};
-
-/*The MV from which to use the high-frequency coefficients for a 4x8 LL band.*/
-static const unsigned char OD_MC_SIDXS_48[3][4][32] = {
-  {
-    {
-      /*Corner: 0; split: none*/
-      0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 2,
-      0, 0, 0, 0, 0, 2, 2, 2,
-      0, 0, 0, 2, 2, 2, 2, 2
-    },
-    {
-      /*Corner: 1; split: none*/
-      1, 1, 1, 1, 1, 1, 1, 1,
-      3, 1, 1, 1, 1, 1, 1, 1,
-      3, 3, 3, 1, 1, 1, 1, 1,
-      3, 3, 3, 3, 3, 1, 1, 1
-    },
-    {
-      /*Corner: 2; split: none*/
-      0, 0, 0, 0, 0, 2, 2, 2,
-      0, 0, 0, 2, 2, 2, 2, 2,
-      0, 2, 2, 2, 2, 2, 2, 2,
-      2, 2, 2, 2, 2, 2, 2, 2
-    },
-    {
-      /*Corner: 3; split: none*/
-      3, 3, 3, 1, 1, 1, 1, 1,
-      3, 3, 3, 3, 3, 1, 1, 1,
-      3, 3, 3, 3, 3, 3, 3, 1,
-      3, 3, 3, 3, 3, 3, 3, 3
-    }
-  },
-  {
-    {
-      /*Corner: 0; split: 1*/
-      0, 0, 0, 0, 1, 1, 1, 1,
-      0, 0, 0, 0, 0, 1, 1, 1,
-      0, 0, 0, 0, 2, 2, 2, 2,
-      0, 0, 0, 2, 2, 2, 2, 2
-    },
-    {
-      /*Corner: 1; split: 2*/
-      1, 1, 1, 1, 1, 1, 1, 1,
-      3, 1, 1, 1, 1, 1, 1, 1,
-      3, 3, 3, 3, 2, 2, 2, 2,
-      3, 3, 3, 3, 2, 2, 2, 2
-    },
-    {
-      /*Corner: 2; split: 3*/
-      0, 0, 0, 0, 0, 2, 2, 2,
-      0, 0, 0, 0, 2, 2, 2, 2,
-      3, 3, 3, 2, 2, 2, 2, 2,
-      3, 3, 3, 3, 2, 2, 2, 2
-    },
-    {
-      /*Corner: 3; split: 0*/
-      1, 1, 1, 1, 1, 1, 1, 1,
-      3, 1, 1, 1, 1, 1, 1, 1,
-      3, 3, 3, 3, 2, 2, 2, 2,
-      3, 3, 3, 3, 2, 2, 2, 2
-    }
-  },
-  {
-    {
-      /*Corner: 0; split: 3*/
-      0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 2,
-      3, 3, 3, 3, 2, 2, 2, 2,
-      3, 3, 3, 3, 2, 2, 2, 2
-    },
-    {
-      /*Corner: 1; split: 0*/
-      0, 0, 0, 0, 1, 1, 1, 1,
-      0, 0, 0, 1, 1, 1, 1, 1,
-      3, 3, 3, 3, 1, 1, 1, 1,
-      3, 3, 3, 3, 3, 1, 1, 1
-    },
-    {
-      /*Corner: 2; split: 1*/
-      0, 0, 0, 0, 1, 1, 1, 1,
-      0, 0, 0, 0, 1, 1, 1, 1,
-      0, 2, 2, 2, 2, 2, 2, 2,
-      2, 2, 2, 2, 2, 2, 2, 2
-    },
-    {
-      /*Corner: 3; split: 2*/
-      3, 3, 3, 1, 1, 1, 1, 1,
-      3, 3, 3, 3, 1, 1, 1, 1,
-      3, 3, 3, 3, 3, 2, 2, 2,
-      3, 3, 3, 3, 2, 2, 2, 2
-    }
-  }
-};
-
-/*The MV from which to use the high-frequency coefficients for an 8x2 LL
-  band.*/
-static const unsigned char OD_MC_SIDXS_82[3][4][16] = {
-  {
-    {
-      /*Corner: 0; split: none*/
-      0, 0,
-      0, 0,
-      0, 0,
-      0, 0,
-      0, 2,
-      0, 2,
-      0, 2,
-      0, 2
-    },
-    {
-      /*Corner: 1; split: none*/
-      1, 1,
-      1, 1,
-      1, 1,
-      1, 1,
-      3, 1,
-      3, 1,
-      3, 1,
-      3, 1
-    },
-    {
-      /*Corner: 2; split: none*/
-      0, 2,
-      0, 2,
-      0, 2,
-      0, 2,
-      2, 2,
-      2, 2,
-      2, 2,
-      2, 2
-    },
-    {
-      /*Corner: 3; split: none*/
-      3, 1,
-      3, 1,
-      3, 1,
-      3, 1,
-      3, 3,
-      3, 3,
-      3, 3,
-      3, 3
-    }
-  },
-  {
-    {
-      /*Corner: 0; split: 1*/
-      0, 1,
-      0, 1,
-      0, 1,
-      0, 1,
-      0, 2,
-      0, 2,
-      0, 2,
-      0, 2
-    },
-    {
-      /*Corner: 1; split: 2*/
-      1, 1,
-      1, 1,
-      1, 1,
-      1, 1,
-      3, 2,
-      3, 2,
-      3, 2,
-      3, 2
-    },
-    {
-      /*Corner: 2; split: 3*/
-      0, 2,
-      0, 2,
-      0, 2,
-      0, 2,
-      3, 2,
-      3, 2,
-      3, 2,
-      3, 2
-    },
-    {
-      /*Corner: 3; split: 0*/
-      1, 1,
-      1, 1,
-      1, 1,
-      1, 1,
-      3, 2,
-      3, 2,
-      3, 2,
-      3, 2
-    }
-  },
-  {
-    {
-      /*Corner: 0; split: 3*/
-      0, 0,
-      0, 0,
-      0, 0,
-      0, 0,
-      3, 2,
-      3, 2,
-      3, 2,
-      3, 2
-    },
-    {
-      /*Corner: 1; split: 0*/
-      0, 1,
-      0, 1,
-      0, 1,
-      0, 1,
-      3, 1,
-      3, 1,
-      3, 1,
-      3, 1
-    },
-    {
-      /*Corner: 2; split: 1*/
-      0, 1,
-      0, 1,
-      0, 1,
-      0, 1,
-      0, 1,
-      2, 2,
-      2, 2,
-      2, 2
-    },
-    {
-      /*Corner: 3; split: 2*/
-      3, 1,
-      3, 1,
-      3, 1,
-      3, 1,
-      3, 2,
-      3, 2,
-      3, 2,
-      3, 2
-    }
-  }
-};
-
-/*The MV from which to use the high-frequency coefficients for an 8x4 LL
-  band.*/
-static const unsigned char OD_MC_SIDXS_84[3][4][32] = {
-  {
-    {
-      /*Corner: 0; split: none*/
-      0, 0, 0, 0,
-      0, 0, 0, 0,
-      0, 0, 0, 0,
-      0, 0, 0, 2,
-      0, 0, 0, 2,
-      0, 0, 2, 2,
-      0, 0, 2, 2,
-      0, 2, 2, 2
-    },
-    {
-      /*Corner: 1; split: none*/
-      1, 1, 1, 1,
-      1, 1, 1, 1,
-      1, 1, 1, 1,
-      3, 1, 1, 1,
-      3, 1, 1, 1,
-      3, 3, 1, 1,
-      3, 3, 1, 1,
-      3, 3, 3, 1
-    },
-    {
-      /*Corner: 2; split: none*/
-      0, 0, 0, 2,
-      0, 0, 2, 2,
-      0, 0, 2, 2,
-      0, 2, 2, 2,
-      0, 2, 2, 2,
-      2, 2, 2, 2,
-      2, 2, 2, 2,
-      2, 2, 2, 2
-    },
-    {
-      /*Corner: 3; split: none*/
-      3, 1, 1, 1,
-      3, 3, 1, 1,
-      3, 3, 1, 1,
-      3, 3, 3, 1,
-      3, 3, 3, 1,
-      3, 3, 3, 3,
-      3, 3, 3, 3,
-      3, 3, 3, 3
-    }
-  },
-  {
-    {
-      /*Corner: 0; split: 1*/
-      0, 0, 1, 1,
-      0, 0, 1, 1,
-      0, 0, 1, 1,
-      0, 0, 1, 1,
-      0, 0, 2, 2,
-      0, 0, 2, 2,
-      0, 0, 2, 2,
-      0, 2, 2, 2
-    },
-    {
-      /*Corner: 1; split: 2*/
-      1, 1, 1, 1,
-      1, 1, 1, 1,
-      1, 1, 1, 1,
-      3, 1, 1, 1,
-      3, 3, 1, 2,
-      3, 3, 2, 2,
-      3, 3, 2, 2,
-      3, 3, 2, 2
-    },
-    {
-      /*Corner: 2; split: 3*/
-      0, 0, 0, 2,
-      0, 0, 2, 2,
-      0, 0, 2, 2,
-      0, 0, 2, 2,
-      3, 3, 2, 2,
-      3, 3, 2, 2,
-      3, 3, 2, 2,
-      3, 3, 2, 2
-    },
-    {
-      /*Corner: 3; split: 0*/
-      1, 1, 1, 1,
-      1, 1, 1, 1,
-      1, 1, 1, 1,
-      3, 1, 1, 1,
-      3, 3, 1, 2,
-      3, 3, 2, 2,
-      3, 3, 2, 2,
-      3, 3, 2, 2
-    }
-  },
-  {
-    {
-      /*Corner: 0; split: 3*/
-      0, 0, 0, 0,
-      0, 0, 0, 0,
-      0, 0, 0, 0,
-      0, 0, 0, 2,
-      3, 0, 2, 2,
-      3, 3, 2, 2,
-      3, 3, 2, 2,
-      3, 3, 2, 2
-    },
-    {
-      /*Corner: 1; split: 0*/
-      0, 0, 1, 1,
-      0, 0, 1, 1,
-      0, 0, 1, 1,
-      0, 0, 1, 1,
-      3, 3, 1, 1,
-      3, 3, 1, 1,
-      3, 3, 1, 1,
-      3, 3, 3, 1
-    },
-    {
-      /*Corner: 2; split: 1*/
-      0, 0, 1, 1,
-      0, 0, 1, 1,
-      0, 0, 1, 1,
-      0, 0, 2, 1,
-      0, 2, 2, 2,
-      2, 2, 2, 2,
-      2, 2, 2, 2,
-      2, 2, 2, 2
-    },
-    {
-      /*Corner: 3; split: 2*/
-      3, 1, 1, 1,
-      3, 3, 1, 1,
-      3, 3, 1, 1,
-      3, 3, 1, 1,
-      3, 3, 2, 2,
-      3, 3, 2, 2,
-      3, 3, 2, 2,
-      3, 3, 2, 2
-    }
-  }
-};
-
-/*The MV from which to use the high-frequency coefficients for an 8x8 LL
-  band.*/
-static const unsigned char OD_MC_SIDXS_88[3][4][64] = {
-  {
-    {
-      /*Corner: 0; split: none*/
-      0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 2,
-      0, 0, 0, 0, 0, 2, 2, 2,
-      0, 0, 0, 0, 2, 2, 2, 2,
-      0, 0, 0, 0, 2, 2, 2, 2,
-      0, 0, 0, 2, 2, 2, 2, 2
-    },
-    {
-      /*Corner: 1; split: none*/
-      1, 1, 1, 1, 1, 1, 1, 1,
-      1, 1, 1, 1, 1, 1, 1, 1,
-      1, 1, 1, 1, 1, 1, 1, 1,
-      3, 1, 1, 1, 1, 1, 1, 1,
-      3, 3, 3, 1, 1, 1, 1, 1,
-      3, 3, 3, 3, 1, 1, 1, 1,
-      3, 3, 3, 3, 1, 1, 1, 1,
-      3, 3, 3, 3, 3, 1, 1, 1
-    },
-    {
-      /*Corner: 2; split: none*/
-      0, 0, 0, 0, 0, 2, 2, 2,
-      0, 0, 0, 0, 2, 2, 2, 2,
-      0, 0, 0, 0, 2, 2, 2, 2,
-      0, 0, 0, 2, 2, 2, 2, 2,
-      0, 2, 2, 2, 2, 2, 2, 2,
-      2, 2, 2, 2, 2, 2, 2, 2,
-      2, 2, 2, 2, 2, 2, 2, 2,
-      2, 2, 2, 2, 2, 2, 2, 2
-    },
-    {
-      /*Corner: 3; split: none*/
-      3, 3, 3, 1, 1, 1, 1, 1,
-      3, 3, 3, 3, 1, 1, 1, 1,
-      3, 3, 3, 3, 1, 1, 1, 1,
-      3, 3, 3, 3, 3, 1, 1, 1,
-      3, 3, 3, 3, 3, 3, 3, 1,
-      3, 3, 3, 3, 3, 3, 3, 3,
-      3, 3, 3, 3, 3, 3, 3, 3,
-      3, 3, 3, 3, 3, 3, 3, 3
-    }
-  },
-  {
-    {
-      /*Corner: 0; split: 1*/
-      0, 0, 0, 0, 1, 1, 1, 1,
-      0, 0, 0, 0, 1, 1, 1, 1,
-      0, 0, 0, 0, 1, 1, 1, 1,
-      0, 0, 0, 0, 0, 1, 1, 1,
-      0, 0, 0, 0, 2, 2, 2, 2,
-      0, 0, 0, 0, 2, 2, 2, 2,
-      0, 0, 0, 2, 2, 2, 2, 2,
-      0, 0, 0, 2, 2, 2, 2, 2
-    },
-    {
-      /*Corner: 1; split: 2*/
-      1, 1, 1, 1, 1, 1, 1, 1,
-      1, 1, 1, 1, 1, 1, 1, 1,
-      1, 1, 1, 1, 1, 1, 1, 1,
-      3, 3, 1, 1, 1, 1, 1, 1,
-      3, 3, 3, 3, 1, 2, 2, 2,
-      3, 3, 3, 3, 2, 2, 2, 2,
-      3, 3, 3, 3, 2, 2, 2, 2,
-      3, 3, 3, 3, 2, 2, 2, 2
-    },
-    {
-      /*Corner: 2; split: 3*/
-      0, 0, 0, 0, 0, 2, 2, 2,
-      0, 0, 0, 0, 0, 2, 2, 2,
-      0, 0, 0, 0, 2, 2, 2, 2,
-      0, 0, 0, 0, 2, 2, 2, 2,
-      3, 3, 3, 2, 2, 2, 2, 2,
-      3, 3, 3, 3, 2, 2, 2, 2,
-      3, 3, 3, 3, 2, 2, 2, 2,
-      3, 3, 3, 3, 2, 2, 2, 2
-    },
-    {
-      /*Corner: 3; split: 0*/
-      1, 1, 1, 1, 1, 1, 1, 1,
-      1, 1, 1, 1, 1, 1, 1, 1,
-      1, 1, 1, 1, 1, 1, 1, 1,
-      3, 3, 1, 1, 1, 1, 1, 1,
-      3, 3, 3, 3, 1, 2, 2, 2,
-      3, 3, 3, 3, 2, 2, 2, 2,
-      3, 3, 3, 3, 2, 2, 2, 2,
-      3, 3, 3, 3, 2, 2, 2, 2
-    }
-  },
-  {
-    {
-      /*Corner: 0; split: 3*/
-      0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 2, 2,
-      3, 3, 3, 0, 2, 2, 2, 2,
-      3, 3, 3, 3, 2, 2, 2, 2,
-      3, 3, 3, 3, 2, 2, 2, 2,
-      3, 3, 3, 3, 2, 2, 2, 2
-    },
-    {
-      /*Corner: 1; split: 0*/
-      0, 0, 0, 0, 1, 1, 1, 1,
-      0, 0, 0, 0, 1, 1, 1, 1,
-      0, 0, 0, 0, 1, 1, 1, 1,
-      0, 0, 0, 1, 1, 1, 1, 1,
-      3, 3, 3, 3, 1, 1, 1, 1,
-      3, 3, 3, 3, 1, 1, 1, 1,
-      3, 3, 3, 3, 3, 1, 1, 1,
-      3, 3, 3, 3, 3, 1, 1, 1
-    },
-    {
-      /*Corner: 2; split: 1*/
-      0, 0, 0, 0, 1, 1, 1, 1,
-      0, 0, 0, 0, 1, 1, 1, 1,
-      0, 0, 0, 0, 1, 1, 1, 1,
-      0, 0, 0, 0, 2, 1, 1, 1,
-      0, 0, 2, 2, 2, 2, 2, 2,
-      2, 2, 2, 2, 2, 2, 2, 2,
-      2, 2, 2, 2, 2, 2, 2, 2,
-      2, 2, 2, 2, 2, 2, 2, 2
-    },
-    {
-      /*Corner: 3; split: 2*/
-      3, 3, 3, 1, 1, 1, 1, 1,
-      3, 3, 3, 1, 1, 1, 1, 1,
-      3, 3, 3, 3, 1, 1, 1, 1,
-      3, 3, 3, 3, 1, 1, 1, 1,
-      3, 3, 3, 3, 3, 2, 2, 2,
-      3, 3, 3, 3, 2, 2, 2, 2,
-      3, 3, 3, 3, 2, 2, 2, 2,
-      3, 3, 3, 3, 2, 2, 2, 2
-    }
-  }
-};
-
-/*The MV from which to use the high-frequency coefficients, indexed by:
-   [log_yblk_sz - 2][log_xblk_sz - 2]
-   [!!s3 << 1 | !!s1][oc][j << (log_xblk_sz - 1) | i].*/
-static const unsigned char *OD_MC_SIDXS[3][3][3][4] = {
-  {
-    {
-      {
-        OD_MC_SIDXS_22[0][0], OD_MC_SIDXS_22[0][1],
-        OD_MC_SIDXS_22[0][2], OD_MC_SIDXS_22[0][3]
-      },
-      {
-        OD_MC_SIDXS_22[1][0], OD_MC_SIDXS_22[1][1],
-        OD_MC_SIDXS_22[1][2], OD_MC_SIDXS_22[1][3]
-      },
-      {
-        OD_MC_SIDXS_22[2][0], OD_MC_SIDXS_22[2][1],
-        OD_MC_SIDXS_22[2][2], OD_MC_SIDXS_22[2][3]
-      }
-    },
-    {
-      {
-        OD_MC_SIDXS_24[0][0], OD_MC_SIDXS_24[0][1],
-        OD_MC_SIDXS_24[0][2], OD_MC_SIDXS_24[0][3]
-      },
-      {
-        OD_MC_SIDXS_24[1][0], OD_MC_SIDXS_24[1][1],
-        OD_MC_SIDXS_24[1][2], OD_MC_SIDXS_24[1][3]
-      },
-      {
-        OD_MC_SIDXS_24[2][0], OD_MC_SIDXS_24[2][1],
-        OD_MC_SIDXS_24[2][2], OD_MC_SIDXS_24[2][3]
-      }
-    },
-    {
-      {
-        OD_MC_SIDXS_28[0][0], OD_MC_SIDXS_28[0][1],
-        OD_MC_SIDXS_28[0][2], OD_MC_SIDXS_28[0][3]
-      },
-      {
-        OD_MC_SIDXS_28[1][0], OD_MC_SIDXS_28[1][1],
-        OD_MC_SIDXS_28[1][2], OD_MC_SIDXS_28[1][3]
-      },
-      {
-        OD_MC_SIDXS_28[2][0], OD_MC_SIDXS_28[2][1],
-        OD_MC_SIDXS_28[2][2], OD_MC_SIDXS_28[2][3]
-      }
-    }
-  },
-  {
-    {
-      {
-        OD_MC_SIDXS_42[0][0], OD_MC_SIDXS_42[0][1],
-        OD_MC_SIDXS_42[0][2], OD_MC_SIDXS_42[0][3]
-      },
-      {
-        OD_MC_SIDXS_42[1][0], OD_MC_SIDXS_42[1][1],
-        OD_MC_SIDXS_42[1][2], OD_MC_SIDXS_42[1][3]
-      },
-      {
-        OD_MC_SIDXS_42[2][0], OD_MC_SIDXS_42[2][1],
-        OD_MC_SIDXS_42[2][2], OD_MC_SIDXS_42[2][3]
-      }
-    },
-    {
-      {
-        OD_MC_SIDXS_44[0][0], OD_MC_SIDXS_44[0][1],
-        OD_MC_SIDXS_44[0][2], OD_MC_SIDXS_44[0][3]
-      },
-      {
-        OD_MC_SIDXS_44[1][0], OD_MC_SIDXS_44[1][1],
-        OD_MC_SIDXS_44[1][2], OD_MC_SIDXS_44[1][3]
-      },
-      {
-        OD_MC_SIDXS_44[2][0], OD_MC_SIDXS_44[2][1],
-        OD_MC_SIDXS_44[2][2], OD_MC_SIDXS_44[2][3]
-      }
-    },
-    {
-      {
-        OD_MC_SIDXS_48[0][0], OD_MC_SIDXS_48[0][1],
-        OD_MC_SIDXS_48[0][2], OD_MC_SIDXS_48[0][3]
-      },
-      {
-        OD_MC_SIDXS_48[1][0], OD_MC_SIDXS_48[1][1],
-        OD_MC_SIDXS_48[1][2], OD_MC_SIDXS_48[1][3]
-      },
-      {
-        OD_MC_SIDXS_48[2][0], OD_MC_SIDXS_48[2][1],
-        OD_MC_SIDXS_48[2][2], OD_MC_SIDXS_48[2][3]
-      }
-    }
-  },
-  {
-    {
-      {
-        OD_MC_SIDXS_82[0][0], OD_MC_SIDXS_82[0][1],
-        OD_MC_SIDXS_82[0][2], OD_MC_SIDXS_82[0][3]
-      },
-      {
-        OD_MC_SIDXS_82[1][0], OD_MC_SIDXS_82[1][1],
-        OD_MC_SIDXS_82[1][2], OD_MC_SIDXS_82[1][3]
-      },
-      {
-        OD_MC_SIDXS_82[2][0], OD_MC_SIDXS_82[2][1],
-        OD_MC_SIDXS_82[2][2], OD_MC_SIDXS_82[2][3]
-      }
-    },
-    {
-      {
-        OD_MC_SIDXS_84[0][0], OD_MC_SIDXS_84[0][1],
-        OD_MC_SIDXS_84[0][2], OD_MC_SIDXS_84[0][3]
-      },
-      {
-        OD_MC_SIDXS_84[1][0], OD_MC_SIDXS_84[1][1],
-        OD_MC_SIDXS_84[1][2], OD_MC_SIDXS_84[1][3]
-      },
-      {
-        OD_MC_SIDXS_84[2][0], OD_MC_SIDXS_84[2][1],
-        OD_MC_SIDXS_84[2][2], OD_MC_SIDXS_84[2][3]
-      }
-    },
-    {
-      {
-        OD_MC_SIDXS_88[0][0], OD_MC_SIDXS_88[0][1],
-        OD_MC_SIDXS_88[0][2], OD_MC_SIDXS_88[0][3]
-      },
-      {
-        OD_MC_SIDXS_88[1][0], OD_MC_SIDXS_88[1][1],
-        OD_MC_SIDXS_88[1][2], OD_MC_SIDXS_88[1][3]
-      },
-      {
-        OD_MC_SIDXS_88[2][0], OD_MC_SIDXS_88[2][1],
-        OD_MC_SIDXS_88[2][2], OD_MC_SIDXS_88[2][3]
-      }
-    }
-  }
-};
-
-/*Perform multiresolution blending with bilinear weights modified for unsplit
-   edges.*/
-void od_mc_blend_multi_split8_c(unsigned char *dst, int dystride,
- const unsigned char *src[4], int oc, int s,
- int log_xblk_sz, int log_yblk_sz) {
-  const unsigned char *p;
-  const unsigned char *sidx0;
-  const unsigned char *sidx;
-  unsigned char *dst0;
-  ptrdiff_t o;
-  ptrdiff_t o0;
-  int ll[4];
-  int lh;
-  int hl;
-  int hh;
-  int sw[4];
-  int s0[4];
-  int dsdi[4];
-  int dsdj[4];
-  int ddsdidj[4];
-  int xblk_sz;
-  int yblk_sz;
-  int log_blk_sz2m1;
-  int round;
-  int i;
-  int j;
-  int k;
-  /*Perform multiresolution blending.*/
-  xblk_sz = 1 << log_xblk_sz;
-  yblk_sz = 1 << log_yblk_sz;
-  o0 = 0;
-  dst0 = dst;
-  log_blk_sz2m1 = log_xblk_sz + log_yblk_sz - 1;
-  round = 1 << (log_blk_sz2m1 - 1);
-  od_mc_setup_s_split(s0, dsdi, dsdj, ddsdidj, oc, s,
-   log_xblk_sz - 1, log_yblk_sz - 1);
-  sidx0 = OD_MC_SIDXS[log_yblk_sz - 2][log_xblk_sz - 2][s][oc];
-  for (k = 0; k < 4; k++) sw[k] = s0[k];
-  for (j = 1; j < yblk_sz; j += 2) {
-    o = o0;
-    dst = dst0;
-    sidx = sidx0;
-    /*Upper-left quadrant.*/
-    for (i = 1; i < xblk_sz; i += 2) {
-      int a;
-      int b;
-      int c;
-      int d;
-      k = *sidx++;
-      p = src[k] + o;
-      /*Forward Haar wavelet.*/
-      ll[k] = p[0] + p[1];
-      lh = p[0] - p[1];
-      hl = (p + xblk_sz)[0] + (p + xblk_sz)[1];
-      hh = (p + xblk_sz)[0] - (p + xblk_sz)[1];
-      c = ll[k] - hl;
-      ll[k] += hl;
-      hl = c;
-      /*No need to finish the transform; we'd just invert it later.*/
-      p = src[(k + 1) & 3] + o;
-      ll[(k + 1) & 3] = p[0] + p[1] + (p + xblk_sz)[0] + (p + xblk_sz)[1];
-      p = src[(k + 2)&3] + o;
-      ll[(k + 2) & 3] = p[0] + p[1] + (p + xblk_sz)[0] + (p + xblk_sz)[1];
-      p = src[(k + 3) & 3] + o;
-      ll[(k + 3) & 3] = p[0] + p[1] + (p + xblk_sz)[0] + (p + xblk_sz)[1];
-      /*LL blending.*/
-      a = ll[0];
-      b = (ll[1] - a)*sw[1];
-      c = (ll[2] - a)*sw[2];
-      d = (ll[3] - a)*sw[3];
-      a = (int)(((a << log_blk_sz2m1) + b + c + d + round) >> log_blk_sz2m1);
-      /*Inverse Haar wavelet.*/
-      c = (a - hl + 1) >> 1;
-      a = (a + hl + 1) >> 1;
-      d = (c - hh + 1) >> 1;
-      c = (c + hh + 1) >> 1;
-      b = (a - lh + 1) >> 1;
-      a = (a + lh + 1) >> 1;
-      dst[0] = OD_CLAMP255(a);
-      dst[1] = OD_CLAMP255(b);
-      (dst + dystride)[0] = OD_CLAMP255(c);
-      (dst + dystride)[1] = OD_CLAMP255(d);
-      o += 2;
-      dst += 2;
-      for (k = 0; k < 4; k++) sw[k] += dsdi[k];
-    }
-    o0 += xblk_sz << 1;
-    dst0 += dystride << 1;
-    sidx0 += xblk_sz >> 1;
-    for (k = 0; k < 4; k++) {
-      s0[k] += dsdj[k];
-      sw[k] = s0[k];
-      dsdi[k] += ddsdidj[k];
-    }
-  }
-}
-#else
 /*Sets up a second set of image pointers based on the given split state to
    properly shift weight from one image to another.*/
 static void od_mc_setup_split_ptrs(const unsigned char *drc[4],
@@ -2385,12 +1558,372 @@ void od_mc_blend_multi_split8_c(unsigned char *dst, int dystride,
    + (drc[2] + o + xblk_sz)[i2 + 1]) << (log_blk_sz2 - 1))
    + d - h + round) >> log_blk_sz2);
 }
-#endif
 
-static void od_mc_blend_multi(od_state *state, unsigned char *dst,
- int dystride, const unsigned char *src[4], int log_xblk_sz, int log_yblk_sz) {
-  (*state->opt_vtbl.mc_blend_multi)(dst, dystride, src,
-   log_xblk_sz, log_yblk_sz);
+void od_mc_blend_multi_split16_c(unsigned char *dst, int dystride,
+ const unsigned char *src[4], int oc, int s,
+ int log_xblk_sz, int log_yblk_sz) {
+  const int16_t *src16;
+  const int16_t *drc16;
+  int32_t src_ll[4][8][8];
+  int32_t dst_ll[8][8];
+  const unsigned char *drc[4];
+  const int16_t *p;
+  const int16_t *q;
+  ptrdiff_t o;
+  int a;
+  int b;
+  int c;
+  int d;
+  int e;
+  int f;
+  int g;
+  int h;
+  int log_blk_sz2;
+  int xblk_sz;
+  int yblk_sz;
+  int xblk_sz_2;
+  int yblk_sz_2;
+  int xblk_sz_4;
+  int yblk_sz_4;
+  int round;
+  int i;
+  int i2;
+  int j;
+  int j2;
+  int k;
+  xblk_sz = 1 << log_xblk_sz;
+  yblk_sz = 1 << log_yblk_sz;
+  od_mc_setup_split_ptrs(drc, src, oc, s);
+  /*Perform multiresolution blending.*/
+  xblk_sz_2 = xblk_sz >> 1;
+  yblk_sz_2 = yblk_sz >> 1;
+  log_blk_sz2 = log_xblk_sz + log_yblk_sz;
+  round = 1 << (log_blk_sz2 - 1);
+  /*Compute the low-pass band for each src block.*/
+  for (k = 0; k < 4; k++) {
+    int32_t lh[4][8];
+    p = (int16_t *)(src[k]);
+    q = (int16_t *)(drc[k]);
+    src_ll[k][0][0] = (p[0] + q[0] + 1) >> 1;
+    for (i = 1; i < xblk_sz_2; i++) {
+      i2 = i << 1;
+      src_ll[k][0][i] = (p[i2 - 1] + q[i2 - 1]
+       + 2*(p[i2] + q[i2]) + p[i2 + 1] + q[i2 + 1] + 4) >> 3;
+    }
+    p += xblk_sz;
+    q += xblk_sz;
+    lh[1][0] = (p[0] + q[0]) << 2;
+    for (i = 1; i < xblk_sz_2; i++) {
+      i2 = i << 1;
+      lh[1][i] = p[i2 - 1] + q[i2 - 1]
+       + 2*(p[i2] + q[i2]) + p[i2 + 1] + q[i2 + 1];
+    }
+    p += xblk_sz;
+    q += xblk_sz;
+    for (j = 1; j < yblk_sz_2; j++) {
+      j2 = j << 1 & 3;
+      lh[j2][0] = (p[0] + q[0]) << 2;
+      for (i = 1; i < xblk_sz_2; i++) {
+        i2 = i << 1;
+        lh[j2][i] = p[i2-1] + q[i2-1] +
+         2*(p[i2] + q[i2]) + p[i2 + 1] + q[i2 + 1];
+      }
+      p += xblk_sz;
+      q += xblk_sz;
+      lh[j2 + 1][0] = p[0] << 2;
+      for (i = 1; i < xblk_sz_2; i++) {
+        i2 = i << 1;
+        lh[j2 + 1][i] = p[i2 - 1] + q[i2 - 1]
+         + 2*(p[i2] + q[i2]) + p[i2 + 1] + q[i2 + 1];
+      }
+      p += xblk_sz;
+      q += xblk_sz;
+      for (i = 0; i < xblk_sz_2; i++) {
+        src_ll[k][j][i] =
+         (lh[(j2 - 1) & 3][i] + 2*lh[j2][i] + lh[j2 + 1][i] + 16) >> 5;
+      }
+    }
+  }
+  /*Blend the low-pass bands.*/
+  for (j = 0; j < xblk_sz_2; j++) {
+    for (i = 0; i < xblk_sz_2; i++) {
+      a = (src_ll[0][j][i] << (log_xblk_sz - 1))
+       + (src_ll[1][j][i] - src_ll[0][j][i])*i;
+      b = (src_ll[3][j][i] << (log_xblk_sz - 1))
+       + (src_ll[2][j][i] - src_ll[3][j][i])*i;
+      dst_ll[j][i] = (a << (log_yblk_sz - 1)) + (b - a)*j;
+    }
+  }
+  /*Perform the high-pass filtering for each quadrant.*/
+  xblk_sz_4 = xblk_sz >> 2;
+  yblk_sz_4 = yblk_sz >> 2;
+  o = 0;
+  for (j = 0; j < yblk_sz_4; j++) {
+    /*Upper-left quadrant.*/
+    src16 = (int16_t *)(src[0]);
+    drc16 = (int16_t *)(drc[0]);
+    for (i = 0; i < xblk_sz_4; i++) {
+      i2 = i << 1;
+      a = dst_ll[j][i] << 2;
+      b = (dst_ll[j][i] +dst_ll[j][i + 1]) << 1;
+      c = (dst_ll[j][i] +dst_ll[j + 1][i]) << 1;
+      d = dst_ll[j][i] + dst_ll[j][i + 1]
+       + dst_ll[j + 1][i] + dst_ll[j + 1][i + 1];
+      e = src_ll[0][j][i] << log_blk_sz2;
+      f = (src_ll[0][j][i] + src_ll[0][j][i + 1]) << (log_blk_sz2 - 1);
+      g = (src_ll[0][j][i] + src_ll[0][j + 1][i]) << (log_blk_sz2 - 1);
+      h = (src_ll[0][j][i] + src_ll[0][j][i + 1]
+       + src_ll[0][j + 1][i] + src_ll[0][j + 1][i + 1]) << (log_blk_sz2 - 2);
+      ((int16_t *)dst)[i2] =
+       ((((src16 + o)[i2] + (drc16 + o)[i2]) << (log_blk_sz2 - 1))
+       + a - e + round) >> log_blk_sz2;
+      ((int16_t *)dst)[i2+1] =
+       ((((src16 + o)[i2 + 1] + (drc16 + o)[i2 + 1]) << (log_blk_sz2 - 1))
+       + b - f + round) >> log_blk_sz2;
+      ((int16_t *)(dst + dystride))[i2] =
+       ((((src16 + o + xblk_sz)[i2]
+       + (drc16 + o + xblk_sz)[i2]) << (log_blk_sz2 - 1))
+       + c - g + round) >> log_blk_sz2;
+      ((int16_t *)(dst + dystride))[i2 + 1] =
+       ((((src16 + o + xblk_sz)[i2 + 1]
+       + (drc16 + o + xblk_sz)[i2 + 1]) << (log_blk_sz2 - 1))
+       + d - h + round) >> log_blk_sz2;
+    }
+    /*Upper-right quadrant.*/
+    src16 = (int16_t *)(src[1]);
+    drc16 = (int16_t *)(drc[1]);
+    for (; i < xblk_sz_2 - 1; i++) {
+      i2 = i << 1;
+      a = dst_ll[j][i] << 2;
+      b = (dst_ll[j][i] + dst_ll[j][i + 1]) << 1;
+      c = (dst_ll[j][i] + dst_ll[j + 1][i]) << 1;
+      d = dst_ll[j][i] + dst_ll[j][i + 1]
+       + dst_ll[j + 1][i] + dst_ll[j + 1][i + 1];
+      e = src_ll[1][j][i] << log_blk_sz2;
+      f = (src_ll[1][j][i] + src_ll[1][j][i + 1]) << (log_blk_sz2 - 1);
+      g = (src_ll[1][j][i] + src_ll[1][j + 1][i]) << (log_blk_sz2 - 1);
+      h = (src_ll[1][j][i] + src_ll[1][j][i + 1]
+       + src_ll[1][j + 1][i] + src_ll[1][j + 1][i + 1]) << (log_blk_sz2 - 2);
+      ((int16_t *)dst)[i2] =
+       ((((src16 + o)[i2] + (drc16 + o)[i2]) << (log_blk_sz2 - 1))
+       + a - e + round) >> log_blk_sz2;
+      ((int16_t *)dst)[i2 + 1] =
+       ((((src16 + o)[i2 + 1] + (drc16 + o)[i2 + 1]) << (log_blk_sz2 - 1))
+       + b - f + round) >> log_blk_sz2;
+      ((int16_t *)(dst + dystride))[i2] =
+       ((((src16 + o + xblk_sz)[i2]
+       + (drc16 + o + xblk_sz)[i2]) << (log_blk_sz2 - 1))
+       + c - g + round) >> log_blk_sz2;
+      ((int16_t *)(dst + dystride))[i2 + 1] =
+       ((((src16 + o + xblk_sz)[i2 + 1]
+       + (drc16 + o + xblk_sz)[i2 + 1]) << (log_blk_sz2 - 1))
+       + d - h + round) >> log_blk_sz2;
+    }
+    /*Upper-right quadrant, last column.*/
+    i2 = i << 1;
+    a = dst_ll[j][i] << 2;
+    b = (3*dst_ll[j][i] - dst_ll[j][i - 1]) << 1;
+    c = (dst_ll[j][i] + dst_ll[j + 1][i]) << 1;
+    d = 3*(dst_ll[j][i] + dst_ll[j + 1][i])
+     - (dst_ll[j][i - 1] + dst_ll[j + 1][i - 1]);
+    e = src_ll[1][j][i] << log_blk_sz2;
+    f = (3*src_ll[1][j][i] - src_ll[1][j][i - 1]) << (log_blk_sz2 - 1);
+    g = (src_ll[1][j][i] + src_ll[1][j + 1][i]) << (log_blk_sz2 - 1);
+    h = (3*(src_ll[1][j][i] + src_ll[1][j + 1][i])
+     - (src_ll[1][j][i - 1] + src_ll[1][j + 1][i - 1])) << (log_blk_sz2 - 2);
+    ((int16_t *)dst)[i2] =
+     ((((src16 + o)[i2] + (drc16 + o)[i2]) << (log_blk_sz2 - 1))
+     + a - e + round) >> log_blk_sz2;
+    ((int16_t *)dst)[i2 + 1] =
+     ((((src16 + o)[i2 + 1] + (drc16 + o)[i2 + 1]) << (log_blk_sz2 - 1))
+     + b - f + round) >> log_blk_sz2;
+    ((int16_t *)(dst + dystride))[i2] =
+     ((((src16 + o + xblk_sz)[i2]
+     + (drc16 + o + xblk_sz)[i2]) << (log_blk_sz2 - 1))
+     + c - g + round) >> log_blk_sz2;
+    ((int16_t *)(dst + dystride))[i2 + 1] =
+     ((((src16 + o + xblk_sz)[i2 + 1]
+     + (drc16 + o + xblk_sz)[i2 + 1]) << (log_blk_sz2 - 1))
+     + d - h + round) >> log_blk_sz2;
+    o += xblk_sz << 1;
+    dst += dystride << 1;
+  }
+  for (; j < yblk_sz_2 - 1; j++) {
+    /*Lower-left quadrant.*/
+    src16 = (int16_t *)(src[3]);
+    drc16 = (int16_t *)(drc[3]);
+    for (i = 0; i < xblk_sz_4; i++) {
+      i2 = i << 1;
+      a = dst_ll[j][i] << 2;
+      b = (dst_ll[j][i] + dst_ll[j][i + 1]) << 1;
+      c = (dst_ll[j][i] + dst_ll[j + 1][i]) << 1;
+      d = dst_ll[j][i] + dst_ll[j][i + 1]
+       + dst_ll[j + 1][i] + dst_ll[j + 1][i + 1];
+      e = src_ll[3][j][i] << log_blk_sz2;
+      f = (src_ll[3][j][i] + src_ll[3][j][i + 1]) << (log_blk_sz2 - 1);
+      g = (src_ll[3][j][i] + src_ll[3][j + 1][i]) << (log_blk_sz2 - 1);
+      h = (src_ll[3][j][i] + src_ll[3][j][i + 1]
+       + src_ll[3][j + 1][i] + src_ll[3][j + 1][i + 1]) << (log_blk_sz2 - 2);
+      ((int16_t *)dst)[i2] =
+       ((((src16 + o)[i2] + (drc16 + o)[i2]) << (log_blk_sz2 - 1))
+       + a - e + round) >> log_blk_sz2;
+      ((int16_t *)dst)[i2+1] =
+       ((((src16 + o)[i2 + 1] + (drc16 + o)[i2 + 1]) << (log_blk_sz2 - 1))
+       + b - f + round) >> log_blk_sz2;
+      ((int16_t *)(dst + dystride))[i2] =
+       ((((src16 + o + xblk_sz)[i2]
+       + (drc16 + o + xblk_sz)[i2]) << (log_blk_sz2 - 1))
+       + c - g + round) >> log_blk_sz2;
+      ((int16_t *)(dst + dystride))[i2 + 1] =
+       ((((src16 + o + xblk_sz)[i2 + 1]
+       + (drc16 + o + xblk_sz)[i2 + 1]) << (log_blk_sz2 - 1))
+       + d - h + round) >> log_blk_sz2;
+    }
+    /*Lower-right quadrant.*/
+    src16 = (int16_t *)(src[2]);
+    drc16 = (int16_t *)(drc[2]);
+    for (; i < xblk_sz_2 - 1; i++) {
+      i2 = i << 1;
+      a = dst_ll[j][i] << 2;
+      b = (dst_ll[j][i] + dst_ll[j][i + 1]) << 1;
+      c = (dst_ll[j][i] + dst_ll[j + 1][i]) << 1;
+      d = dst_ll[j][i] + dst_ll[j][i + 1]
+       + dst_ll[j + 1][i] + dst_ll[j + 1][i + 1];
+      e = src_ll[2][j][i] << log_blk_sz2;
+      f = (src_ll[2][j][i] + src_ll[2][j][i + 1]) << (log_blk_sz2 - 1);
+      g = (src_ll[2][j][i] + src_ll[2][j + 1][i]) << (log_blk_sz2 - 1);
+      h = (src_ll[2][j][i] + src_ll[2][j][i + 1]
+       + src_ll[2][j + 1][i] + src_ll[2][j + 1][i + 1]) << (log_blk_sz2 - 2);
+      ((int16_t *)dst)[i2] =
+       ((((src16 + o)[i2] + (drc16 + o)[i2]) << (log_blk_sz2 - 1))
+       + a - e + round) >> log_blk_sz2;
+      ((int16_t *)dst)[i2 + 1] =
+       ((((src16 + o)[i2 + 1] + (drc16 + o)[i2 + 1]) << (log_blk_sz2 - 1))
+       + b - f + round) >> log_blk_sz2;
+      ((int16_t *)(dst + dystride))[i2] =
+       ((((src16 + o + xblk_sz)[i2]
+       + (drc16 + o + xblk_sz)[i2]) << (log_blk_sz2 - 1))
+       + c - g + round) >> log_blk_sz2;
+      ((int16_t *)(dst + dystride))[i2 + 1] =
+       ((((src16 + o + xblk_sz)[i2 + 1]
+       + (drc16 + o + xblk_sz)[i2 + 1]) << (log_blk_sz2 - 1))
+       + d - h + round) >> log_blk_sz2;
+    }
+    /*Lower-right quadrant, last column.*/
+    i2 = i << 1;
+    a = dst_ll[j][i] << 2;
+    b = (3*dst_ll[j][i] - dst_ll[j][i - 1]) << 1;
+    c = (dst_ll[j][i] + dst_ll[j + 1][i]) << 1;
+    d = 3*(dst_ll[j][i] + dst_ll[j + 1][i])
+     - (dst_ll[j][i - 1] + dst_ll[j + 1][i - 1]);
+    e = src_ll[2][j][i] << log_blk_sz2;
+    f = (3*src_ll[2][j][i] - src_ll[2][j][i - 1]) << (log_blk_sz2 - 1);
+    g = (src_ll[2][j][i] + src_ll[2][j+1][i]) << (log_blk_sz2 - 1);
+    h = (3*(src_ll[2][j][i] + src_ll[2][j + 1][i])
+     - (src_ll[2][j][i - 1] + src_ll[2][j + 1][i - 1])) << (log_blk_sz2 - 2);
+    ((int16_t *)dst)[i2] =
+     ((((src16 + o)[i2] + (drc16 + o)[i2 + 1]) << (log_blk_sz2 - 1))
+     + a - e + round) >> log_blk_sz2;
+    ((int16_t *)dst)[i2 + 1] =
+     ((((src16 + o)[i2 + 1] + (drc16 + o)[i2]) << (log_blk_sz2 - 1))
+     + b - f + round) >> log_blk_sz2;
+    ((int16_t *)(dst + dystride))[i2] =
+     ((((src16 + o + xblk_sz)[i2] +
+     (drc16 + o + xblk_sz)[i2]) << (log_blk_sz2 - 1))
+     + c - g + round) >> log_blk_sz2;
+    ((int16_t *)(dst + dystride))[i2 + 1] =
+     ((((src16 + o + xblk_sz)[i2 + 1]
+     + (drc16 + o + xblk_sz)[i2 + 1]) << (log_blk_sz2 - 1))
+     + d - h + round) >> log_blk_sz2;
+    o += xblk_sz << 1;
+    dst += dystride << 1;
+  }
+  /*Lower-left quadrant, last row.*/
+  src16 = (int16_t *)(src[3]);
+  drc16 = (int16_t *)(drc[3]);
+  for (i = 0; i < xblk_sz_4; i++) {
+    i2 = i << 1;
+    a = dst_ll[j][i] << 2;
+    b = (dst_ll[j][i] + dst_ll[j][i + 1]) << 1;
+    c = (3*dst_ll[j][i] - dst_ll[j - 1][i]) << 1;
+    d = 3*(dst_ll[j][i] + dst_ll[j][i + 1])
+     - (dst_ll[j - 1][i] + dst_ll[j - 1][i + 1]);
+    e = src_ll[3][j][i] << log_blk_sz2;
+    f = (src_ll[3][j][i] + src_ll[3][j][i + 1]) << (log_blk_sz2 - 1);
+    g = (3*src_ll[3][j][i] - src_ll[3][j - 1][i]) << (log_blk_sz2 - 1);
+    h = (3*(src_ll[3][j][i] + src_ll[3][j][i + 1])
+     - (src_ll[3][j - 1][i] + src_ll[3][j - 1][i + 1])) << (log_blk_sz2 - 2);
+    ((int16_t *)dst)[i2] =
+     ((((src16 + o)[i2] + (drc16 + o)[i2]) << (log_blk_sz2 - 1))
+     + a - e + round) >> log_blk_sz2;
+    ((int16_t *)dst)[i2+1] =
+     ((((src16 + o)[i2 + 1] + (drc16 + o)[i2 + 1]) << (log_blk_sz2 - 1))
+     + b - f + round) >> log_blk_sz2;
+    ((int16_t *)(dst + dystride))[i2] =
+     ((((src16 + o + xblk_sz)[i2]
+     + (drc16 + o + xblk_sz)[i2]) << (log_blk_sz2 - 1))
+     + c - g + round) >> log_blk_sz2;
+    ((int16_t *)(dst + dystride))[i2 + 1] =
+     ((((src16 + o + xblk_sz)[i2 + 1]
+     + (drc16 + o + xblk_sz)[i2 + 1]) << (log_blk_sz2 - 1))
+     + d - h + round) >> log_blk_sz2;
+  }
+  /*Lower-right quadrant, last row.*/
+  src16 = (int16_t *)(src[2]);
+  drc16 = (int16_t *)(drc[2]);
+  for (; i < xblk_sz_2 - 1; i++) {
+    i2 = i << 1;
+    a = dst_ll[j][i] << 2;
+    b = (dst_ll[j][i] + dst_ll[j][i + 1]) << 1;
+    c = (3*dst_ll[j][i] - dst_ll[j - 1][i]) << 1;
+    d = 3*(dst_ll[j][i] + dst_ll[j][i + 1])
+     - (dst_ll[j - 1][i] + dst_ll[j - 1][i + 1]);
+    e = src_ll[2][j][i] << log_blk_sz2;
+    f = (src_ll[2][j][i] + src_ll[2][j][i + 1]) << (log_blk_sz2 - 1);
+    g = (3*src_ll[2][j][i] - src_ll[2][j - 1][i]) << (log_blk_sz2 - 1);
+    h = (3*(src_ll[2][j][i] + src_ll[2][j][i + 1])
+     - (src_ll[2][j - 1][i] + src_ll[2][j - 1][i + 1])) << (log_blk_sz2 - 2);
+    ((int16_t *)dst)[i2] =
+     ((((src16 + o)[i2] + (drc16 + o)[i2]) << (log_blk_sz2 - 1))
+     + a - e + round) >> log_blk_sz2;
+    ((int16_t *)dst)[i2 + 1] =
+     ((((src16 + o)[i2 + 1] + (drc16 + o)[i2 + 1]) << (log_blk_sz2 - 1))
+     + b - f + round) >> log_blk_sz2;
+    ((int16_t *)(dst + dystride))[i2] =
+     ((((src16 + o + xblk_sz)[i2]
+     + (drc16 + o + xblk_sz)[i2]) << (log_blk_sz2 - 1))
+     + c - g + round) >> log_blk_sz2;
+    ((int16_t *)(dst + dystride))[i2 + 1] =
+     ((((src16 + o + xblk_sz)[i2 + 1] +
+     (drc16 + o + xblk_sz)[i2 + 1]) << (log_blk_sz2 - 1))
+     + d - h + round) >>log_blk_sz2;
+  }
+  /*Lower-right quadrant, last row and column.*/
+  i2 = i << 1;
+  a = dst_ll[j][i] << 2;
+  b = (3*dst_ll[j][i] - dst_ll[j][i - 1]) << 1;
+  c = (3*dst_ll[j][i] - dst_ll[j - 1][i]) << 1;
+  d = 9*dst_ll[j][i] - 3*(dst_ll[j - 1][i]
+   + dst_ll[j][i - 1]) + dst_ll[j - 1][i - 1];
+  e = src_ll[2][j][i] << log_blk_sz2;
+  f = (3*src_ll[2][j][i] - src_ll[2][j][i - 1]) << (log_blk_sz2 - 1);
+  g = (3*src_ll[2][j][i] - src_ll[2][j - 1][i]) << (log_blk_sz2 - 1);
+  h = (9*src_ll[2][j][i] - 3*(src_ll[2][j][i - 1] + src_ll[2][j - 1][i])
+   + src_ll[2][j - 1][i - 1]) << (log_blk_sz2 - 2);
+  ((int16_t *)dst)[i2] =
+   ((((src16 + o)[i2] + (drc16 + o)[i2]) << (log_blk_sz2 - 1))
+   + a - e + round) >> log_blk_sz2;
+  ((int16_t *)dst)[i2 + 1] =
+   ((((src16 + o)[i2 + 1] + (drc16 + o)[i2 + 1]) << (log_blk_sz2 - 1))
+   + b - f + round) >> log_blk_sz2;
+  ((int16_t *)(dst + dystride))[i2] =
+   ((((src16 + o + xblk_sz)[i2]
+   + (drc16 + o + xblk_sz)[i2]) << (log_blk_sz2 - 1))
+   + c - g + round) >> log_blk_sz2;
+  ((int16_t *)(dst + dystride))[i2 + 1] =
+   ((((src16 + o + xblk_sz)[i2 + 1]
+   + (drc16 + o + xblk_sz)[i2 + 1]) << (log_blk_sz2 - 1))
+   + d - h + round) >> log_blk_sz2;
 }
 
 void od_mc_blend_multi_split(od_state *state, unsigned char *dst,

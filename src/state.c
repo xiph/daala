@@ -316,13 +316,11 @@ void od_restore_fpu(od_state *state) {
 
 void od_state_opt_vtbl_init_c(od_state *state) {
   if (state->full_precision_references) {
-    OD_ASSERT(0);
-    /*Incoming:
-      state->opt_vtbl.mc_predict1fmv = od_mc_predict1fmv16_c;
-      state->opt_vtbl.mc_blend_full = od_mc_blend_full16_c;
-      state->opt_vtbl.mc_blend_full_split = od_mc_blend_full_split16_c;
-      state->opt_vtbl.mc_blend_multi = od_mc_blend_multi16_c;
-      state->opt_vtbl.mc_blend_multi_split = od_mc_blend_multi_split16_c;*/
+    state->opt_vtbl.mc_predict1fmv = od_mc_predict1fmv16_c;
+    state->opt_vtbl.mc_blend_full = od_mc_blend_full16_c;
+    state->opt_vtbl.mc_blend_full_split = od_mc_blend_full_split16_c;
+    state->opt_vtbl.mc_blend_multi = od_mc_blend_multi16_c;
+    state->opt_vtbl.mc_blend_multi_split = od_mc_blend_multi_split16_c;
     OD_COPY(state->opt_vtbl.od_copy_nxn,
      OD_COPY_NXN_16_C, OD_LOG_COPYBSIZE_MAX + 1);
   }

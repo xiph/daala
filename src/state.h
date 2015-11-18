@@ -280,6 +280,19 @@ void od_mc_blend_multi8_c(unsigned char *_dst, int _dystride,
 void od_mc_blend_multi_split8_c(unsigned char *_dst, int _dystride,
  const unsigned char *_src[4], int _c, int _s, int _log_xblk_sz,
  int _log_yblk_sz);
+void od_mc_predict1fmv16_c(od_state *state, unsigned char *_dst,
+ const unsigned char *_src, int _systride, int32_t _mvx, int32_t _mvy,
+ int _log_xblk_sz, int _log_yblk_sz);
+void od_mc_blend_full16_c(unsigned char *_dst, int _dystride,
+ const unsigned char *_src[4], int _log_xblk_sz, int _log_yblk_sz);
+void od_mc_blend_full_split16_c(unsigned char *_dst, int _dystride,
+ const unsigned char *_src[4], int _c, int _s, int _log_xblk_sz,
+ int _log_yblk_sz);
+void od_mc_blend_multi16_c(unsigned char *_dst, int _dystride,
+ const unsigned char *_src[4], int _log_xblk_sz, int _log_yblk_sz);
+void od_mc_blend_multi_split16_c(unsigned char *_dst, int _dystride,
+ const unsigned char *_src[4], int _c, int _s, int _log_xblk_sz,
+ int _log_yblk_sz);
 void od_restore_fpu(od_state *state);
 
 void od_state_opt_vtbl_init_c(od_state *_state);
