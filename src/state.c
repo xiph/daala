@@ -840,6 +840,10 @@ int od_state_dump_yuv(od_state *state, od_img *img, const char *tag) {
 # include <png.h>
 # include <zlib.h>
 
+#define OD_SRCVAL_TO_8FP(pli,x) (img->planes[pli].bitdepth == 8 ? \
+  ((float)p[(pli)][(x)]) : \
+  (((int16_t *)p[(pli)])[(x)]*(1.0F/(1 << img->planes[pli].bitdepth - 8))))
+
 /*Dump a PNG of the reconstructed image, or a reference frame.*/
 int od_state_dump_img(od_state *state, od_img *img, const char *tag) {
   png_structp png;
@@ -898,10 +902,10 @@ int od_state_dump_img(od_state *state, od_img *img, const char *tag) {
       unsigned gval;
       unsigned bval;
       /*This is intentionally slow and very accurate.*/
-      yval = (p[0][0] - 16)*(1.0F/219);
+      yval = (OD_SRCVAL_TO_8FP(0, 0) - 16)*(1.0F/219);
       if (nplanes >= 3) {
-        cbval = (p[1][0] - 128)*(2*(1 - 0.114F)/224);
-        crval = (p[2][0] - 128)*(2*(1 - 0.299F)/224);
+        cbval = (OD_SRCVAL_TO_8FP(1, 0) - 128)*(2*(1 - 0.114F)/224);
+        crval = (OD_SRCVAL_TO_8FP(2, 0) - 128)*(2*(1 - 0.299F)/224);
       }
       else cbval = crval = 0;
       rval = OD_CLAMPI(0, (int)(65535*(yval + crval) + 0.5F), 65535);
