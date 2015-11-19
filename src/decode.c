@@ -768,14 +768,11 @@ static void od_decode_recursive(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
     skip = od_decode_cdf_adapt(&dec->ec,
      dec->state.adapt.skip_cdf[2*bsi + (pli != 0)], 4 + (bsi > 0),
      dec->state.adapt.skip_increment, "skip");
-    /*Save superblock skip value for use by CLP filter.*/
-    if (bsi == OD_NBSIZES - 1) {
-      dec->state.sb_skip_flags[by*dec->state.nhsb + bx] = skip == 2 &&
-       !ctx->is_keyframe;
 #if OD_SIGNAL_Q_SCALING
+    if (bsi == OD_NBSIZES - 1) {
       od_decode_quantizer_scaling(dec, bx, by, skip == 2);
-#endif
     }
+#endif
     if (skip < 4) obs = bsi;
     else obs = -1;
   }
@@ -1031,8 +1028,21 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
         int c;
         int up;
         int left;
-        if (state->sb_skip_flags[sby*nhsb + sbx]) {
-          state->dering_flags[sby*nhsb + sbx] = 0;
+        int i;
+        int j;
+        unsigned char *bskip;
+        state->dering_flags[sby*nhsb + sbx] = 0;
+        bskip = dec->state.bskip[0] +
+         (sby << 3)*dec->state.skip_stride +
+         (sbx << 3);
+        for (j = 0; j < 1 << 3; j++) {
+          for (i = 0; i < 1 << 3; i++) {
+            if (!bskip[j*dec->state.skip_stride + i]) {
+              state->dering_flags[sby*nhsb + sbx] = 1;
+            }
+          }
+        }
+        if (!state->dering_flags[sby*nhsb + sbx]) {
           continue;
         }
         up = 0;

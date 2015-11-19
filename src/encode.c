@@ -2288,7 +2288,6 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
   int frame_width;
   int nhsb;
   int nvsb;
-  int skipped;
   od_state *state;
   od_img *rec;
   state = &enc->state;
@@ -2372,13 +2371,8 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
           mbctx->q_scaling =
            od_compute_superblock_q_scaling(enc, c_orig, OD_BSIZE_MAX);
         }
-        skipped = od_encode_recursive(enc, mbctx, pli, sbx, sby,
-         OD_NBSIZES - 1, xdec, ydec, rdo_only, hgrad, vgrad);
-        /*Save superblock skip value for use by CLP filter.*/
-        if (pli == 0) {
-          enc->state.sb_skip_flags[sby*nhsb + sbx] = skipped &&
-           !mbctx->is_keyframe;
-        }
+        od_encode_recursive(enc, mbctx, pli, sbx, sby, OD_NBSIZES - 1, xdec,
+         ydec, rdo_only, hgrad, vgrad);
       }
     }
   }
@@ -2435,8 +2429,21 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
         double filtered_rate;
         double unfiltered_rate;
         int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS];
-        if (state->sb_skip_flags[sby*nhsb + sbx]) {
-          state->dering_flags[sby*nhsb + sbx] = 0;
+        int i;
+        int j;
+        unsigned char *bskip;
+        state->dering_flags[sby*nhsb + sbx] = 0;
+        bskip = enc->state.bskip[0] +
+         (sby << 3)*enc->state.skip_stride +
+         (sbx << 3);
+        for (j = 0; j < 1 << 3; j++) {
+          for (i = 0; i < 1 << 3; i++) {
+            if (!bskip[j*enc->state.skip_stride + i]) {
+              state->dering_flags[sby*nhsb + sbx] = 1;
+            }
+          }
+        }
+        if (!state->dering_flags[sby*nhsb + sbx]) {
           continue;
         }
         pli = 0;

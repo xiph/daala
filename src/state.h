@@ -222,7 +222,6 @@ struct od_state{
   /*Array of flags to enable the dering filter per block.
     1 to enable (default), 0 to disable.*/
   unsigned char *dering_flags;
-  unsigned char *sb_skip_flags;
   /*This provides context for the quantizer CDF.*/
   unsigned char *sb_q_scaling;
 };
