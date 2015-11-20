@@ -1026,7 +1026,7 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int bs,
   d = ctx->d[pli];
   md = ctx->md;
   mc = ctx->mc;
-  lossless = (enc->state.quantizer[pli] == 0);
+  lossless = OD_LOSSLESS(enc, pli);
   c_orig = enc->block_c_orig;
   mc_orig = enc->block_mc_orig;
   has_late_skip_rdo = !ctx->is_keyframe && !ctx->use_haar_wavelet && bs > 0;
@@ -1211,7 +1211,7 @@ static void od_compute_dcts(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
   od_coeff *d;
   const int *qm;
   qm = ctx->qm == OD_HVS_QM ? OD_QM8_Q4_HVS : OD_QM8_Q4_FLAT;
-  lossless = (enc->state.quantizer[pli] == 0);
+  lossless = OD_LOSSLESS(enc, pli);
   d = ctx->d[pli];
   w = enc->state.frame_width >> xdec;
   /*This code assumes 4:4:4 or 4:2:0 input.*/
@@ -1302,7 +1302,7 @@ static void od_quantize_haar_dc_sb(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
   w = enc->state.frame_width >> xdec;
   /*This code assumes 4:4:4 or 4:2:0 input.*/
   OD_ASSERT(xdec == ydec);
-  if (enc->state.quantizer[pli] == 0) dc_quant = 1;
+  if (OD_LOSSLESS(enc, pli)) dc_quant = 1;
   else {
     dc_quant = OD_MAXI(1, enc->state.quantizer[pli]*OD_DC_RES[pli] >> 4);
   }
@@ -1349,11 +1349,11 @@ static void od_quantize_haar_dc_level(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
   int dc_quant;
   int w;
   w = enc->state.frame_width >> xdec;
-  if (enc->state.quantizer[pli] == 0) dc_quant = 1;
+  if (OD_LOSSLESS(enc, pli)) dc_quant = 1;
   else {
     dc_quant = OD_MAXI(1, enc->state.quantizer[pli]*OD_DC_RES[pli] >> 4);
   }
-  if (enc->state.quantizer[pli] == 0) ac_quant[0] = ac_quant[1] = 1;
+  if (OD_LOSSLESS(enc, pli)) ac_quant[0] = ac_quant[1] = 1;
   else {
     ac_quant[0] = (dc_quant*OD_DC_QM[bsi - xdec][0] + 8) >> 4;
     ac_quant[1] = (dc_quant*OD_DC_QM[bsi - xdec][1] + 8) >> 4;
@@ -2300,14 +2300,14 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
     ydec = enc->input_img.planes[pli].ydec;
     w = frame_width >> xdec;
     od_ref_plane_to_coeff(state, state->ctmp[pli],
-     state->quantizer[pli] == 0, &enc->input_img, pli);
+     OD_LOSSLESS(enc, pli), &enc->input_img, pli);
     if (!mbctx->use_haar_wavelet) {
       od_apply_prefilter_frame_sbs(state->ctmp[pli],
        w, nhsb, nvsb, xdec, ydec);
     }
     if (!mbctx->is_keyframe) {
       od_ref_plane_to_coeff(state,
-       state->mctmp[pli], state->quantizer[pli] == 0, rec, pli);
+       state->mctmp[pli], OD_LOSSLESS(enc, pli), rec, pli);
       if (!mbctx->use_haar_wavelet) {
         od_apply_prefilter_frame_sbs(state->mctmp[pli], w, nhsb, nvsb, xdec,
          ydec);
@@ -2379,7 +2379,7 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
     /*Dump the lapped frame (before the postfilter has been applied)*/
     for (pli = 0; pli < nplanes; pli++) {
       od_coeff_to_ref_plane(state, rec, pli,
-       state->ctmp[pli], state->quantizer[pli] == 0);
+       state->ctmp[pli], OD_LOSSLESS(enc, pli));
     }
     od_state_dump_img(&enc->state, rec, "lapped");
   }
@@ -2548,7 +2548,7 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
     }
     if (!rdo_only) {
       od_coeff_to_ref_plane(state, rec, pli,
-       state->ctmp[pli], state->quantizer[pli] == 0);
+       state->ctmp[pli], OD_LOSSLESS(enc, pli));
     }
   }
 }

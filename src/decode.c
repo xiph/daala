@@ -526,7 +526,7 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int bs,
   const int *qm;
   OD_ASSERT(bs >= 0 && bs < OD_NBSIZES);
   n = 1 << (bs + 2);
-  lossless = (dec->state.quantizer[pli] == 0);
+  lossless = OD_LOSSLESS(dec, pli);
   use_activity_masking = ctx->use_activity_masking;
   qm = ctx->qm == OD_HVS_QM ? OD_QM8_Q4_HVS : OD_QM8_Q4_FLAT;
   bx <<= bs;
@@ -637,7 +637,7 @@ static void od_decode_haar_dc_sb(daala_dec_ctx *dec, od_mb_dec_ctx *ctx,
   w = dec->state.frame_width >> xdec;
   /*This code assumes 4:4:4 or 4:2:0 input.*/
   OD_ASSERT(xdec == ydec);
-  if (dec->state.quantizer[pli] == 0) dc_quant = 1;
+  if (OD_LOSSLESS(dec, pli)) dc_quant = 1;
   else {
     dc_quant = OD_MAXI(1, dec->state.quantizer[pli]*OD_DC_RES[pli] >> 4);
   }
@@ -683,11 +683,11 @@ static void od_decode_haar_dc_level(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int 
   int dc_quant;
   int w;
   w = dec->state.frame_width >> xdec;
-  if (dec->state.quantizer[pli] == 0) dc_quant = 1;
+  if (OD_LOSSLESS(dec, pli)) dc_quant = 1;
   else {
     dc_quant = OD_MAXI(1, dec->state.quantizer[pli]*OD_DC_RES[pli] >> 4);
   }
-  if (dec->state.quantizer[pli] == 0) ac_quant[0] = ac_quant[1] = 1;
+  if (OD_LOSSLESS(dec, pli)) ac_quant[0] = ac_quant[1] = 1;
   else {
     ac_quant[0] = (dc_quant*OD_DC_QM[bsi - xdec][0] + 8) >> 4;
     ac_quant[1] = (dc_quant*OD_DC_QM[bsi - xdec][1] + 8) >> 4;
@@ -973,7 +973,7 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
       w = frame_width >> xdec;
       /*Collect the image data needed for this plane.*/
       od_ref_plane_to_coeff(state,
-       state->mctmp[pli], dec->state.quantizer[pli] == 0, rec, pli);
+       state->mctmp[pli], OD_LOSSLESS(dec, pli), rec, pli);
       if (!mbctx->use_haar_wavelet) {
         od_apply_prefilter_frame_sbs(state->mctmp[pli], w, nhsb, nvsb, xdec,
          ydec);
@@ -1110,7 +1110,7 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
     /*Move/scale/shift reconstructed data values from transform
       storage back into the SELF reference frame.*/
     od_coeff_to_ref_plane(state, rec, pli,
-     state->ctmp[pli], dec->state.quantizer[pli] == 0);
+     state->ctmp[pli], OD_LOSSLESS(dec, pli));
   }
 }
 

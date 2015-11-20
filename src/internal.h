@@ -107,6 +107,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
   For example, an OD_QUALITY_SHIFT of (4) specifies the quality parameter is
    in Q4 format.*/
 # define OD_QUALITY_SHIFT (4)
+# define OD_LOSSLESS(_ctx, _pli) (_ctx->state.quantizer[_pli] == 0)
 
 # if defined(OD_ENABLE_ASSERTIONS)
 #  if OD_GNUC_PREREQ(2, 5, 0)
