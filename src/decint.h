@@ -37,8 +37,6 @@ struct daala_dec_ctx {
   od_state state;
   oggbyte_buffer obb;
   od_ec_dec ec;
-  int coded_quantizer[OD_NPLANES_MAX];
-  int quantizer[OD_NPLANES_MAX];
   int packet_state;
   /*User provided buffer for storing per frame block size information. These
    are set via daala_decode_ctl with OD_DECCTL_SET_BSIZE_BUFFER.*/

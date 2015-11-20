@@ -1026,7 +1026,7 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int bs,
   d = ctx->d[pli];
   md = ctx->md;
   mc = ctx->mc;
-  lossless = (enc->quantizer[pli] == 0);
+  lossless = (enc->state.quantizer[pli] == 0);
   c_orig = enc->block_c_orig;
   mc_orig = enc->block_mc_orig;
   has_late_skip_rdo = !ctx->is_keyframe && !ctx->use_haar_wavelet && bs > 0;
@@ -1081,7 +1081,7 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int bs,
   }
   /* Lossless encoding uses an actual quantizer of 1, but is signalled
      with a 'quantizer' of 0. */
-  quant = OD_MAXI(1, enc->quantizer[pli]);
+  quant = OD_MAXI(1, enc->state.quantizer[pli]);
   if (lossless) dc_quant = quant;
   else {
     dc_quant = OD_MAXI(1, quant*
@@ -1098,7 +1098,7 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int bs,
   }
   if (ctx->use_haar_wavelet) {
     skip = od_wavelet_quantize(enc, bs + 2, scalar_out, dblock, predt,
-     enc->quantizer[pli], pli);
+     enc->state.quantizer[pli], pli);
   }
   else {
     skip = od_pvq_encode(enc, predt, dblock, scalar_out, quant, pli, bs,
@@ -1170,7 +1170,7 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int bs,
       for (j = 0; j < n; j++) c_noskip[n*i + j] = c[bo + i*w + j];
     }
     dist_noskip = od_compute_dist(enc, c_orig, c_noskip, n, bs);
-    lambda = od_bs_rdo_lambda(enc->quantizer[pli]);
+    lambda = od_bs_rdo_lambda(enc->state.quantizer[pli]);
     rate_noskip = od_ec_enc_tell_frac(&enc->ec) - tell;
     dist_skip = od_compute_dist(enc, c_orig, mc_orig, n, bs);
     rate_skip = (1 << OD_BITRES)*od_encode_cdf_cost(2,
@@ -1211,7 +1211,7 @@ static void od_compute_dcts(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
   od_coeff *d;
   const int *qm;
   qm = ctx->qm == OD_HVS_QM ? OD_QM8_Q4_HVS : OD_QM8_Q4_FLAT;
-  lossless = (enc->quantizer[pli] == 0);
+  lossless = (enc->state.quantizer[pli] == 0);
   d = ctx->d[pli];
   w = enc->state.frame_width >> xdec;
   /*This code assumes 4:4:4 or 4:2:0 input.*/
@@ -1302,9 +1302,9 @@ static void od_quantize_haar_dc_sb(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
   w = enc->state.frame_width >> xdec;
   /*This code assumes 4:4:4 or 4:2:0 input.*/
   OD_ASSERT(xdec == ydec);
-  if (enc->quantizer[pli] == 0) dc_quant = 1;
+  if (enc->state.quantizer[pli] == 0) dc_quant = 1;
   else {
-    dc_quant = OD_MAXI(1, enc->quantizer[pli]*OD_DC_RES[pli] >> 4);
+    dc_quant = OD_MAXI(1, enc->state.quantizer[pli]*OD_DC_RES[pli] >> 4);
   }
   nhsb = enc->state.nhsb;
   sb_dc_mem = enc->state.sb_dc_mem[pli];
@@ -1349,11 +1349,11 @@ static void od_quantize_haar_dc_level(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
   int dc_quant;
   int w;
   w = enc->state.frame_width >> xdec;
-  if (enc->quantizer[pli] == 0) dc_quant = 1;
+  if (enc->state.quantizer[pli] == 0) dc_quant = 1;
   else {
-    dc_quant = OD_MAXI(1, enc->quantizer[pli]*OD_DC_RES[pli] >> 4);
+    dc_quant = OD_MAXI(1, enc->state.quantizer[pli]*OD_DC_RES[pli] >> 4);
   }
-  if (enc->quantizer[pli] == 0) ac_quant[0] = ac_quant[1] = 1;
+  if (enc->state.quantizer[pli] == 0) ac_quant[0] = ac_quant[1] = 1;
   else {
     ac_quant[0] = (dc_quant*OD_DC_QM[bsi - xdec][0] + 8) >> 4;
     ac_quant[1] = (dc_quant*OD_DC_QM[bsi - xdec][1] + 8) >> 4;
@@ -1528,7 +1528,7 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
     skip_split &= od_encode_recursive(enc, ctx, pli, 2*bx + 1, 2*by + 1,
      bsi - 1, xdec, ydec, rdo_only, hgrad, vgrad);
     skip_block = skip_split;
-    od_postfilter_split(ctx->c + bo, w, bs, f, enc->coded_quantizer[pli],
+    od_postfilter_split(ctx->c + bo, w, bs, f, enc->state.coded_quantizer[pli],
      &enc->state.bskip[pli][(by << bs)*enc->state.skip_stride + (bx << bs)],
      enc->state.skip_stride);
     if (rdo_only && bsi <= OD_LIMIT_BSIZE_MAX) {
@@ -1543,7 +1543,7 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
       rate_split = od_ec_enc_tell_frac(&enc->ec) - tell;
       dist_split = od_compute_dist(enc, c_orig, split, n, bs);
       dist_nosplit = od_compute_dist(enc, c_orig, nosplit, n, bs);
-      lambda = od_bs_rdo_lambda(enc->quantizer[pli]);
+      lambda = od_bs_rdo_lambda(enc->state.quantizer[pli]);
       if (skip_split || dist_nosplit + lambda*rate_nosplit < dist_split
        + lambda*rate_split) {
         /* This rollback call leaves the entropy coder in an inconsistent state
@@ -2097,7 +2097,7 @@ static void od_predict_frame(daala_enc_ctx *enc) {
    Hopefully when we fix that, we can remove the limit.*/
   od_mv_est(enc->mvest,
    OD_MAXI((4640000 + (((1 << OD_COEFF_SHIFT) - 1) >> 1) >> OD_COEFF_SHIFT)*
-   enc->quantizer[0] >> (23 - OD_LAMBDA_SCALE), 40));
+   enc->state.quantizer[0] >> (23 - OD_LAMBDA_SCALE), 40));
   od_state_mc_predict(&enc->state,
    enc->state.ref_imgs + enc->state.ref_imgi[OD_FRAME_SELF]);
   /*Do edge extension here because the block-size analysis needs to read
@@ -2149,7 +2149,7 @@ static void od_split_superblocks(daala_enc_ctx *enc, int is_keyframe) {
       state_bsize = &state->bsize[i*4*state->bstride + j*4];
       od_split_superblock(enc->bs, bimg + j*OD_BSIZE_MAX, istride,
        is_keyframe ? NULL : rimg + j*OD_BSIZE_MAX, rstride, bsize,
-       enc->quantizer[0]);
+       state->quantizer[0]);
       /* Grab the 4x4 information returned from `od_split_superblock` in bsize
          and store it in the od_state bsize. */
       for (k = 0; k < 4; k++) {
@@ -2291,22 +2291,23 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
   nvsb = state->nvsb;
   rec = state->ref_imgs + state->ref_imgi[OD_FRAME_SELF];
   for (pli = 0; pli < nplanes; pli++) {
-    od_ec_enc_uint(&enc->ec, enc->coded_quantizer[pli], OD_N_CODED_QUANTIZERS);
+    od_ec_enc_uint(&enc->ec, state->coded_quantizer[pli],
+     OD_N_CODED_QUANTIZERS);
   }
   for (pli = 0; pli < nplanes; pli++) {
     /*Collect the image data needed for this plane.*/
     xdec = enc->input_img.planes[pli].xdec;
     ydec = enc->input_img.planes[pli].ydec;
     w = frame_width >> xdec;
-    od_ref_plane_to_coeff(state, state->ctmp[pli], enc->quantizer[pli] == 0,
-     &enc->input_img, pli);
+    od_ref_plane_to_coeff(state, state->ctmp[pli],
+     state->quantizer[pli] == 0, &enc->input_img, pli);
     if (!mbctx->use_haar_wavelet) {
       od_apply_prefilter_frame_sbs(state->ctmp[pli],
        w, nhsb, nvsb, xdec, ydec);
     }
     if (!mbctx->is_keyframe) {
       od_ref_plane_to_coeff(state,
-       state->mctmp[pli], enc->quantizer[pli] == 0, rec, pli);
+       state->mctmp[pli], state->quantizer[pli] == 0, rec, pli);
       if (!mbctx->use_haar_wavelet) {
         od_apply_prefilter_frame_sbs(state->mctmp[pli], w, nhsb, nvsb, xdec,
          ydec);
@@ -2359,7 +2360,7 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
             }
           }
         }
-        if (pli == 0 && enc->quantizer[pli] != 0) {
+        if (pli == 0 && state->quantizer[pli] != 0) {
           mbctx->q_scaling =
            od_compute_superblock_q_scaling(enc, c_orig, OD_BSIZE_MAX);
         }
@@ -2378,7 +2379,7 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
     /*Dump the lapped frame (before the postfilter has been applied)*/
     for (pli = 0; pli < nplanes; pli++) {
       od_coeff_to_ref_plane(state, rec, pli,
-       state->ctmp[pli], enc->quantizer[pli] == 0);
+       state->ctmp[pli], state->quantizer[pli] == 0);
     }
     od_state_dump_img(&enc->state, rec, "lapped");
   }
@@ -2389,11 +2390,11 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
     w = frame_width >> xdec;
     if (!mbctx->use_haar_wavelet) {
       od_apply_postfilter_frame_sbs(state->ctmp[pli], w, nhsb, nvsb, xdec,
-       ydec, enc->coded_quantizer[pli], &enc->state.bskip[pli][0],
+       ydec, state->coded_quantizer[pli], &enc->state.bskip[pli][0],
        enc->state.skip_stride);
     }
   }
-  if (!rdo_only && enc->quantizer[0] > 0) {
+  if (!rdo_only && state->quantizer[0] > 0) {
     /* We copy ctmp to dtmp so we can use it as an unmodified input
        and avoid filtering some pixels twice. */
     for (pli = 0; pli < nplanes; pli++) {
@@ -2438,8 +2439,8 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
         ln = OD_LOG_BSIZE_MAX - xdec;
         n = 1 << ln;
         od_dering(state, buf, OD_BSIZE_MAX, &state->etmp[pli][(sby << ln)*w +
-         (sbx << ln)], w, ln, sbx, sby, nhsb, nvsb, enc->quantizer[0], xdec,
-         dir, pli, &enc->state.bskip[pli]
+         (sbx << ln)], w, ln, sbx, sby, nhsb, nvsb, state->quantizer[0],
+         xdec, dir, pli, &enc->state.bskip[pli]
          [(sby << (OD_NBSIZES - 1 - ydec))*enc->state.skip_stride
          + (sbx << (OD_NBSIZES - 1 - xdec))], enc->state.skip_stride);
         xstride = enc->input_img.planes[pli].xstride;
@@ -2491,7 +2492,7 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
         c = (up << 1) + left;
         filtered_rate = od_encode_cdf_cost(1, state->adapt.clpf_cdf[c], 2);
         unfiltered_rate = od_encode_cdf_cost(0, state->adapt.clpf_cdf[c], 2);
-        q2 = enc->quantizer[0] * enc->quantizer[0];
+        q2 = state->quantizer[0] * state->quantizer[0];
         filtered = (filtered_error + OD_PVQ_LAMBDA*q2*filtered_rate) <
          (unfiltered_error + OD_PVQ_LAMBDA*q2*unfiltered_rate);
         /*When use_dering is 0, force the deringing filter off.*/
@@ -2515,8 +2516,8 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
             n = 1 << ln;
             od_dering(state, buf, OD_BSIZE_MAX,
              &state->etmp[pli][(sby << ln)*w +
-             (sbx << ln)], w, ln, sbx, sby, nhsb, nvsb, enc->quantizer[pli],
-             xdec, dir, pli, &enc->state.bskip[pli]
+             (sbx << ln)], w, ln, sbx, sby, nhsb, nvsb,
+             state->quantizer[pli], xdec, dir, pli, &enc->state.bskip[pli]
              [(sby << (OD_NBSIZES - 1 - ydec))*enc->state.skip_stride
              + (sbx << (OD_NBSIZES - 1 - xdec))], enc->state.skip_stride);
             output = &state->ctmp[pli][(sby << ln)*w + (sbx << ln)];
@@ -2534,20 +2535,20 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
     xdec = enc->input_img.planes[pli].xdec;
     ydec = enc->input_img.planes[pli].ydec;
     w = frame_width >> xdec;
-    if (!rdo_only && enc->quantizer[0] > 0) {
+    if (!rdo_only && state->quantizer[0] > 0) {
       for (sby = 0; sby < nvsb; sby++) {
         for (sbx = 0; sbx < nhsb; sbx++) {
           if (mbctx->is_keyframe) {
             od_smooth_recursive(state->ctmp[pli], enc->state.bsize,
              enc->state.bstride, sbx, sby, OD_NBSIZES - 1, w, xdec, ydec,
-             OD_BLOCK_32X32, enc->quantizer[pli], pli);
+             OD_BLOCK_32X32, state->quantizer[pli], pli);
           }
         }
       }
     }
     if (!rdo_only) {
       od_coeff_to_ref_plane(state, rec, pli,
-       state->ctmp[pli], enc->quantizer[pli] == 0);
+       state->ctmp[pli], state->quantizer[pli] == 0);
     }
   }
 }
@@ -2740,17 +2741,17 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   od_ec_encode_bool_q15(&enc->ec, mbctx.use_haar_wavelet, 16384);
   od_ec_encode_bool_q15(&enc->ec, mbctx.is_golden_frame, 16384);
   for (pli = 0; pli < nplanes; pli++) {
-    enc->coded_quantizer[pli] =
+    enc->state.coded_quantizer[pli] =
      od_quantizer_to_codedquantizer(
       od_quantizer_from_quality(enc->quality[pli]));
-    enc->quantizer[pli] =
-     od_codedquantizer_to_quantizer(enc->coded_quantizer[pli]);
+    enc->state.quantizer[pli] =
+     od_codedquantizer_to_quantizer(enc->state.coded_quantizer[pli]);
   }
   if (mbctx.is_keyframe) {
     for (pli = 0; pli < nplanes; pli++) {
       int i;
       int q;
-      q = enc->quantizer[pli];
+      q = enc->state.quantizer[pli];
       if (q <= OD_DEFAULT_QMS[use_masking][0][pli].interp_q << OD_COEFF_SHIFT) {
         od_interp_qm(&enc->state.pvq_qm_q4[pli][0], q,
          &OD_DEFAULT_QMS[use_masking][0][pli], NULL);
@@ -2778,10 +2779,11 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     /*Boost the keyframe quality slightly (one coded quantizer
       step is the minimum possible).*/
     if ((mbctx.is_keyframe || mbctx.is_golden_frame)
-     && enc->coded_quantizer[pli] != 0) {
-      enc->coded_quantizer[pli] = OD_MAXI(1, enc->coded_quantizer[pli] - 1);
-      enc->quantizer[pli] =
-       od_codedquantizer_to_quantizer(enc->coded_quantizer[pli]);
+     && enc->state.coded_quantizer[pli] != 0) {
+      enc->state.coded_quantizer[pli] =
+       OD_MAXI(1, enc->state.coded_quantizer[pli] - 1);
+      enc->state.quantizer[pli] =
+       od_codedquantizer_to_quantizer(enc->state.coded_quantizer[pli]);
     }
   }
   OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO, "is_keyframe=%d", mbctx.is_keyframe));
