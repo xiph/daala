@@ -234,10 +234,10 @@ void od_post_filter4(od_coeff _x[4], const od_coeff _y[4]) {
   t[2] -= (t[3]*OD_FILTER_PARAMS4_3+32)>>6;
   t[3] -= (t[2]*OD_FILTER_PARAMS4_2+32)>>6;
 #if OD_FILTER_PARAMS4_1 != 64
-  t[3] = (t[3]<<6)/OD_FILTER_PARAMS4_1;
+  t[3] = (t[3]*(1 << 6))/OD_FILTER_PARAMS4_1;
 #endif
 #if OD_FILTER_PARAMS4_0 != 64
-  t[2] = (t[2]<<6)/OD_FILTER_PARAMS4_0;
+  t[2] = (t[2]*(1 << 6))/OD_FILTER_PARAMS4_0;
 #endif
   t[0] += t[3]>>1;
   _x[0] = (od_coeff)t[0];

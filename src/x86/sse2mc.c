@@ -438,17 +438,17 @@ void od_mc_predict1fmv8_sse2(od_state *state, unsigned char *dst,
            < buff + sizeof(buff));
           /*Load input coeffs from each row, 8 shorts at one time.*/
           row0_src = _mm_loadu_si128((__m128i *)
-           (buff_p + i + ((0 - OD_SUBPEL_TOP_APRON_SZ) << log_xblk_sz)));
+           (buff_p + i + ((0 - OD_SUBPEL_TOP_APRON_SZ)*(1 << log_xblk_sz))));
           row1_src = _mm_loadu_si128((__m128i *)
-           (buff_p + i + ((1 - OD_SUBPEL_TOP_APRON_SZ) << log_xblk_sz)));
+           (buff_p + i + ((1 - OD_SUBPEL_TOP_APRON_SZ)*(1 << log_xblk_sz))));
           row2_src = _mm_loadu_si128((__m128i *)
-           (buff_p + i + ((2 - OD_SUBPEL_TOP_APRON_SZ) << log_xblk_sz)));
+           (buff_p + i + ((2 - OD_SUBPEL_TOP_APRON_SZ)*(1 << log_xblk_sz))));
           row3_src = _mm_loadu_si128((__m128i *)
-           (buff_p + i + ((3 - OD_SUBPEL_TOP_APRON_SZ) << log_xblk_sz)));
+           (buff_p + i + ((3 - OD_SUBPEL_TOP_APRON_SZ)*(1 << log_xblk_sz))));
           row4_src = _mm_loadu_si128((__m128i *)
-           (buff_p + i + ((4 - OD_SUBPEL_TOP_APRON_SZ) << log_xblk_sz)));
+           (buff_p + i + ((4 - OD_SUBPEL_TOP_APRON_SZ)*(1 << log_xblk_sz))));
           row5_src = _mm_loadu_si128((__m128i *)
-           (buff_p + i + ((5 - OD_SUBPEL_TOP_APRON_SZ) << log_xblk_sz)));
+           (buff_p + i + ((5 - OD_SUBPEL_TOP_APRON_SZ)*(1 << log_xblk_sz))));
           /*Row 0 and 1 together.*/
           row01_lo = _mm_unpacklo_epi16(row0_src, row1_src);
           row01_hi = _mm_unpackhi_epi16(row0_src, row1_src);

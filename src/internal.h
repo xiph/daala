@@ -101,6 +101,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # define OD_SIGNAL_Q_SCALING (1)
 
 # define OD_COEFF_SHIFT (4)
+# define OD_COEFF_SCALE (1 << OD_COEFF_SHIFT)
 /*OD_QUALITY_SHIFT specifies the number of fractional bits in a
    passed in 'quality' parameter.
   For example, an OD_QUALITY_SHIFT of (4) specifies the quality parameter is

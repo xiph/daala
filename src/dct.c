@@ -3334,7 +3334,7 @@ static void ieee1180_test_block(long sumerrs[OD_BSIZE_MAX][OD_BSIZE_MAX],
   n = 1 << (OD_LOG_BSIZE0 + bszi);
   for (i = 0; i < n; i++) {
     for (j = 0; j < n; j++) {
-      block[i][j] = ieee1180_rand(l, h)*sign << OD_COEFF_SHIFT;
+      block[i][j] = ieee1180_rand(l, h)*sign*OD_COEFF_SCALE;
     }
   }
   /*Modification of IEEE1180: use our integerized DCT, not a true DCT.*/
@@ -3343,7 +3343,7 @@ static void ieee1180_test_block(long sumerrs[OD_BSIZE_MAX][OD_BSIZE_MAX],
      are always in range with our integerized DCT).*/
   for (i = 0; i < n; i++) {
     for (j = 0; j < n; j++) {
-      floatcoefs[i][j] = refcoefs[i][j]/(double)(1 << OD_COEFF_SHIFT);
+      floatcoefs[i][j] = refcoefs[i][j]/(double)OD_COEFF_SCALE;
     }
   }
   for (i = 0; i < n; i++) idct(floatcoefs[i], bszi, floatcoefs[i]);
@@ -3578,7 +3578,7 @@ static void check_bias(int bszi) {
     od_coeff x2[OD_BSIZE_MAX];
     od_coeff y[OD_BSIZE_MAX];
     od_coeff y2[OD_BSIZE_MAX];
-    for (j = 0; j < n; j++) x[j] = ieee1180_rand(255, 255) << OD_COEFF_SHIFT;
+    for (j = 0; j < n; j++) x[j] = ieee1180_rand(255, 255)*OD_COEFF_SCALE;
     (*OD_FDCT_1D[bszi])(y, x, 1);
     for (j = 0; j < n; j++) facc[j] += y[j];
     (*OD_IDCT_1D[bszi])(x2, 1, y);
@@ -3598,7 +3598,7 @@ static void check_bias(int bszi) {
     }
     for (j = 0; j < n; j++) x[j] = OD_COEFF_UNSCALE(x[j]);
     for (j = 0; j < n; j++) {
-      y2[j] = y[j] + (ieee1180_rand(1, 1) << OD_COEFF_SHIFT);
+      y2[j] = y[j] + (ieee1180_rand(1, 1)*OD_COEFF_SCALE);
     }
     (*OD_IDCT_1D[bszi])(x2, 1, y2);
     for (j = 0; j < n; j++) {
@@ -3606,8 +3606,8 @@ static void check_bias(int bszi) {
       rtacc[j] += x2[j] - x[j];
     }
     for (j = 0; j < n; j++) {
-      y2[j] = (y[j] + ((y[j] < 0 ? -4 : 4) << OD_COEFF_SHIFT))/
-       (8 << OD_COEFF_SHIFT) << (3 + OD_COEFF_SHIFT);
+      y2[j] = (y[j] + ((y[j] < 0 ? -4 : 4)*OD_COEFF_SCALE))/
+       (8 << OD_COEFF_SHIFT)*(1 << (3 + OD_COEFF_SHIFT));
     }
     (*OD_IDCT_1D[bszi])(x2, 1, y2);
     for (j = 0; j < n; j++) {
@@ -3615,7 +3615,7 @@ static void check_bias(int bszi) {
       q8acc[j] += x2[j] - x[j];
     }
     for (j = 0; j < n; j++) {
-      y2[j] = (y[j] + (((y[j] < 0 ? -7 : 7) << OD_COEFF_SHIFT)/2))/
+      y2[j] = (y[j] + (((y[j] < 0 ? -7 : 7)*OD_COEFF_SCALE)/2))/
        (7 << OD_COEFF_SHIFT)*(7 << OD_COEFF_SHIFT);
     }
     (*OD_IDCT_1D[bszi])(x2, 1, y2);
@@ -3711,7 +3711,7 @@ static void dynamic_range(int bszi) {
       for (u = 0; u < n; u++) {
         for (v = 0; v < n; v++) {
           basis2[u][v][i][j] =
-           x[u + (n >> 1)][v + (n >> 1)]/(256.0*(1 << OD_COEFF_SHIFT));
+           x[u + (n >> 1)][v + (n >> 1)]/(256.0*OD_COEFF_SCALE);
         }
       }
     }
@@ -3721,14 +3721,14 @@ static void dynamic_range(int bszi) {
       od_coeff x[OD_BSIZE_MAX*2][OD_BSIZE_MAX*2];
       for (i = 0; i < n*2; i++) {
         for (j = 0; j < n*2; j++) {
-          x[i][j] = (basis2[u][v][i][j] < 0 ? -255 : 255) << OD_COEFF_SHIFT;
+          x[i][j] = (basis2[u][v][i][j] < 0 ? -255 : 255)*OD_COEFF_SCALE;
         }
       }
       od_bin_fxform_2d(x, bszi);
       max2[u][v] = x[u + (n >> 1)][v + (n >> 1)];
       for (i = 0; i < n*2; i++) {
         for (j = 0; j < n*2; j++) {
-          x[i][j] = (basis2[u][v][i][j] > 0 ? -255 : 255) << OD_COEFF_SHIFT;
+          x[i][j] = (basis2[u][v][i][j] > 0 ? -255 : 255)*OD_COEFF_SCALE;
         }
       }
       od_bin_fxform_2d(x, bszi);
@@ -3766,7 +3766,7 @@ static void check_transform(int bszi) {
     OD_FDCT_1D[bszi](y, x, 1);
     OD_IDCT_1D[bszi](x2, 1, y);
     for (j = 0; j < n; j++) {
-      basis[i][j] = y[j]/(256.0*(1 << OD_COEFF_SHIFT));
+      basis[i][j] = y[j]/(256.0*OD_COEFF_SCALE);
     }
     for (j = 0; j < n; j++) {
       if (x[j] != x2[j]) {

@@ -2244,7 +2244,7 @@ static int32_t od_mv_est_bma_sad(od_mv_est_ctx *est,
      + (bx >> iplane->xdec)*iplane->xstride;
     (*state->opt_vtbl.mc_predict1fmv)
      (state, state->mc_buf[4], ref_img, iplane->ystride,
-     mvx << (2 - iplane->xdec), mvy << (2 - iplane->ydec),
+     mvx*(1 << (2 - iplane->xdec)), mvy*(1 << (2 - iplane->ydec)),
      log_mvb_sz + OD_LOG_MVBSIZE_MIN - iplane->xdec,
      log_mvb_sz + OD_LOG_MVBSIZE_MIN - iplane->ydec);
     /*Then, calculate SAD between a target block and the subpel interpolated
@@ -2482,10 +2482,10 @@ static int od_mv_est_get_boundary_case(od_mv_limits *limits,
   int mvxmax;
   int mvymin;
   int mvymax;
-  mvxmin = limits->xmin << (3 - mv_res);
-  mvxmax = limits->xmax << (3 - mv_res);
-  mvymin = limits->ymin << (3 - mv_res);
-  mvymax = limits->ymax << (3 - mv_res);
+  mvxmin = limits->xmin*(1 << (3 - mv_res));
+  mvxmax = limits->xmax*(1 << (3 - mv_res));
+  mvymin = limits->ymin*(1 << (3 - mv_res));
+  mvymax = limits->ymax*(1 << (3 - mv_res));
   return (dx - dsz < mvxmin) | (dx + dsz > mvxmax) << 1 |
    (dy - dsz < mvymin) << 2 | (dy + dsz > mvymax) << 3;
 }
@@ -2561,10 +2561,10 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy,
    "(%i, %i): Search range: [%i, %i]x[%i, %i]",
    bx, by, limits.xmin, limits.ymin, limits.xmax, limits.ymax));
   /*Halfpel MVs limits.*/
-  mvxmin = limits.xmin << 1;
-  mvxmax = limits.xmax << 1;
-  mvymin = limits.ymin << 1;
-  mvymax = limits.ymax << 1;
+  mvxmin = limits.xmin*2;
+  mvxmax = limits.xmax*2;
+  mvymin = limits.ymin*2;
+  mvymax = limits.ymax*2;
   /*For the purposes of the BMA search, we match against a block of size
      mvb_sz << LOG_MVBSIZE_MIN centered on the current grid point:
 
@@ -2908,8 +2908,8 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy,
   if (must_update || (best_cost < previous_cost)) {
     OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
      "Found a better SAD then previous best."));
-    mvg->mv[0] = best_vec[0] << 2;
-    mvg->mv[1] = best_vec[1] << 2;
+    mvg->mv[0] = best_vec[0]*4;
+    mvg->mv[1] = best_vec[1]*4;
     mvg->ref = ref;
     mvg->valid = 1;
     mv->bma_sad = best_sad;
@@ -3754,8 +3754,8 @@ static void od_mv_est_init_du(od_mv_est_ctx *est, int vx, int vy) {
   dec->dd = 0;
   /*Subtract off the error before decimation.*/
   for (di = 0; di < nerrdom; di++) {
-    dvx = vx + (errdom[di].dx << dlev);
-    dvy = vy + (errdom[di].dy << dlev);
+    dvx = vx + (errdom[di].dx*(1 << dlev));
+    dvy = vy + (errdom[di].dy*(1 << dlev));
     if (dvx >= 0 && dvy >= 0 && dvx < nhmvbs && dvy < nvmvbs) {
       int mvb_sz;
       log_mvb_sz = errdom[di].log_mvb_sz + dlev;
@@ -3784,9 +3784,9 @@ static void od_mv_est_init_du(od_mv_est_ctx *est, int vx, int vy) {
   /*Decimate the vertices in the merging domain.
     Also sum up the rate changes while we do it.*/
   for (di = 0;; di++) {
-    dvx = vx + (mergedom[di][0] << dlev);
+    dvx = vx + (mergedom[di][0]*(1 << dlev));
     if (dvx < 0 || dvx > nhmvbs) continue;
-    dvy = vy + (mergedom[di][1] << dlev);
+    dvy = vy + (mergedom[di][1]*(1 << dlev));
     if (dvy < 0 || dvy > nvmvbs) continue;
     if (OD_MC_LEVEL[dvy & OD_MVB_MASK][dvx & OD_MVB_MASK] > est->level_max) {
       continue;
@@ -3804,8 +3804,8 @@ static void od_mv_est_init_du(od_mv_est_ctx *est, int vx, int vy) {
    "Decimated vertices in merging domain."));
   /*Add in the error after decimation.*/
   for (di = 0; di < nerrdom; di++) {
-    dvx = vx + (errdom[di].dx << dlev);
-    dvy = vy + (errdom[di].dy << dlev);
+    dvx = vx + (errdom[di].dx*(1 << dlev));
+    dvy = vy + (errdom[di].dy*(1 << dlev));
     if (dvx >= 0 && dvy >= 0 && dvx < nhmvbs && dvy < nvmvbs) {
       log_mvb_sz = errdom[di].log_mvb_sz + dlev;
       if (log_mvb_sz < log_mvb_sz_min) continue;
@@ -3849,9 +3849,9 @@ static void od_mv_est_init_du(od_mv_est_ctx *est, int vx, int vy) {
    "Total merging error: %i", dec->dd));
   /*Restore the vertices in the merging domain.*/
   for (di = 0;; di++) {
-    dvx = vx + (mergedom[di][0] << dlev);
+    dvx = vx + (mergedom[di][0]*(1 << dlev));
     if (dvx < 0 || dvx > nhmvbs) continue;
-    dvy = vy + (mergedom[di][1] << dlev);
+    dvy = vy + (mergedom[di][1]*(1 << dlev));
     if (dvy < 0 || dvy > nvmvbs) continue;
     if (OD_MC_LEVEL[dvy & OD_MVB_MASK][dvx & OD_MVB_MASK] > est->level_max) {
       continue;
@@ -3977,9 +3977,9 @@ static void od_mv_est_decimate(od_mv_est_ctx *est) {
       int log_mvb_sz;
       int mask;
       /*Don't decimate vertices outside of the mesh.*/
-      vx = dec->vx + (mergedom[di][0] << dlev);
+      vx = dec->vx + (mergedom[di][0]*(1 << dlev));
       if (vx < 0 || vx > nhmvbs) continue;
-      vy = dec->vy + (mergedom[di][1] << dlev);
+      vy = dec->vy + (mergedom[di][1]*(1 << dlev));
       if (vy < 0 || vy > nvmvbs) continue;
       merge = est->mvs[vy] + vx;
       /*Don't decimate vertices that have already been decimated.*/
@@ -4028,12 +4028,12 @@ static void od_mv_est_decimate(od_mv_est_ctx *est) {
           int cx;
           int cy;
           int s;
-          cx = vx + (OD_CDX[k] << log_mvb_sz);
+          cx = vx + (OD_CDX[k]*(1 << log_mvb_sz));
           if (cx < 0 || cx > nhmvbs) continue;
-          cy = vy + (OD_CDY[k] << log_mvb_sz);
+          cy = vy + (OD_CDY[k]*(1 << log_mvb_sz));
           if (cy < 0 || cy > nvmvbs) continue;
-          bx = vx + (OD_ERRDOM6[k].dx << log_mvb_sz);
-          by = vy + (OD_ERRDOM6[k].dy << log_mvb_sz);
+          bx = vx + (OD_ERRDOM6[k].dx*(1 << log_mvb_sz));
+          by = vy + (OD_ERRDOM6[k].dy*(1 << log_mvb_sz));
           block = est->mvs[by] + bx;
           by >>= log_mvb_sz;
           bx >>= log_mvb_sz;
@@ -5141,8 +5141,8 @@ static int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
     nsites = pattern_nsites[b];
     for (sitei = 0, site = 4;; sitei++) {
       cstate = dp_node[0].states + sitei;
-      cstate->mv[0] = curx + (OD_SITE_DX[site] << log_dsz);
-      cstate->mv[1] = cury + (OD_SITE_DY[site] << log_dsz);
+      cstate->mv[0] = curx + (OD_SITE_DX[site]*(1 << log_dsz));
+      cstate->mv[1] = cury + (OD_SITE_DY[site]*(1 << log_dsz));
       cstate->prevsi = -1;
       mvg->mv[0] = cstate->mv[0];
       mvg->mv[1] = cstate->mv[1];
@@ -5198,8 +5198,8 @@ static int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
       nsites = pattern_nsites[b];
       for (sitei = 0, site = 4;; sitei++) {
         cstate = dp_node[1].states + sitei;
-        cstate->mv[0] = curx + (OD_SITE_DX[site] << log_dsz);
-        cstate->mv[1] = cury + (OD_SITE_DY[site] << log_dsz);
+        cstate->mv[0] = curx + (OD_SITE_DX[site]*(1 << log_dsz));
+        cstate->mv[1] = cury + (OD_SITE_DY[site]*(1 << log_dsz));
         best_si = 0;
         best_dr = dp_node[0].states[0].dr;
         best_dd = dp_node[0].states[0].dd;
@@ -5217,7 +5217,7 @@ static int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
           dr = pstate->dr + cstate->dr;
           dd = pstate->dd + od_mv_dp_get_sad_change(est,
            dp_node + 1, block_sads[si]);
-          cost = dr*est->lambda + (dd << OD_ERROR_SCALE);
+          cost = dr*est->lambda + (dd*(1 << OD_ERROR_SCALE));
           OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
            "State: %2i (%7g, %7g) P.State: %i  dr: %3i  dd: %6i  dopt: %7i",
            sitei, 0.125*cstate->mv[0], 0.125*cstate->mv[1],
@@ -5747,8 +5747,8 @@ static int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
     nsites = pattern_nsites[b];
     for (sitei = 0, site = 4;; sitei++) {
       cstate = dp_node[0].states + sitei;
-      cstate->mv[0] = curx + (OD_SITE_DX[site] << log_dsz);
-      cstate->mv[1] = cury + (OD_SITE_DY[site] << log_dsz);
+      cstate->mv[0] = curx + (OD_SITE_DX[site]*(1 << log_dsz));
+      cstate->mv[1] = cury + (OD_SITE_DY[site]*(1 << log_dsz));
       cstate->prevsi = -1;
       mvg->mv[0] = cstate->mv[0];
       mvg->mv[1] = cstate->mv[1];
@@ -5803,8 +5803,8 @@ static int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
       nsites = pattern_nsites[b];
       for (sitei = 0, site = 4;; sitei++) {
         cstate = dp_node[1].states + sitei;
-        cstate->mv[0] = curx + (OD_SITE_DX[site] << log_dsz);
-        cstate->mv[1] = cury + (OD_SITE_DY[site] << log_dsz);
+        cstate->mv[0] = curx + (OD_SITE_DX[site]*(1 << log_dsz));
+        cstate->mv[1] = cury + (OD_SITE_DY[site]*(1 << log_dsz));
         best_si = 0;
         best_dr = dp_node[0].states[0].dr;
         best_dd = dp_node[0].states[0].dd;
@@ -6240,7 +6240,7 @@ void od_mv_est(od_mv_est_ctx *est, int lambda) {
     With a SAD error metric like we use, the square root of 6000 would be a
      more appropriate value, however that gives a PSNR improvement of less than
      0.01 dB, and requires almost twice as many iterations to achieve.*/
-  cost_thresh = -nhmvbs*nvmvbs << OD_ERROR_SCALE;
+  cost_thresh = -nhmvbs*nvmvbs*(1 << OD_ERROR_SCALE);
   complexity = est->enc->complexity;
   if (complexity >= OD_MC_SQUARE_REFINEMENT_COMPLEXITY) {
     pattern_nsites = OD_SQUARE_NSITES;
