@@ -197,11 +197,14 @@ int daala_decode_ctl(daala_dec_ctx *dec, int req, void *buf, size_t buf_sz) {
     }
 #endif
     case OD_DECCTL_SET_DERING_BUFFER : {
+      int nhdr;
+      int nvdr;
       OD_RETURN_CHECK(dec, OD_EFAULT);
       OD_RETURN_CHECK(buf, OD_EFAULT);
+      nhdr = dec->state.frame_width >> (OD_LOG_DERING_GRID + OD_LOG_BSIZE0);
+      nvdr = dec->state.frame_height >> (OD_LOG_DERING_GRID + OD_LOG_BSIZE0);
       OD_RETURN_CHECK(
-       buf_sz == sizeof(unsigned char)*dec->state.nvsb*dec->state.nhsb,
-       OD_EINVAL);
+       buf_sz == sizeof(unsigned char)*nvdr*nhdr, OD_EINVAL);
       dec->user_dering = (unsigned char *)buf;
       return OD_SUCCESS;
     }
@@ -946,6 +949,8 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
   int frame_width;
   int nvsb;
   int nhsb;
+  int nhdr;
+  int nvdr;
   od_state *state;
   od_img *rec;
   state = &dec->state;
@@ -1011,6 +1016,8 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
        dec->state.skip_stride);
     }
   }
+  nhdr = state->frame_width >> (OD_LOG_DERING_GRID + OD_LOG_BSIZE0);
+  nvdr = state->frame_height >> (OD_LOG_DERING_GRID + OD_LOG_BSIZE0);
   if (dec->state.quantizer[0] > 0) {
     for (pli = 0; pli < nplanes; pli++) {
       int i;
@@ -1022,8 +1029,8 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
         state->etmp[pli][i] = state->ctmp[pli][i];
       }
     }
-    for (sby = 0; sby < nvsb; sby++) {
-      for (sbx = 0; sbx < nhsb; sbx++) {
+    for (sby = 0; sby < nvdr; sby++) {
+      for (sbx = 0; sbx < nhdr; sbx++) {
         int filtered;
         int c;
         int up;
@@ -1031,32 +1038,32 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
         int i;
         int j;
         unsigned char *bskip;
-        state->dering_flags[sby*nhsb + sbx] = 0;
+        state->dering_flags[sby*nhdr + sbx] = 0;
         bskip = dec->state.bskip[0] +
-         (sby << 3)*dec->state.skip_stride +
-         (sbx << 3);
-        for (j = 0; j < 1 << 3; j++) {
-          for (i = 0; i < 1 << 3; i++) {
+         (sby << OD_LOG_DERING_GRID)*dec->state.skip_stride +
+         (sbx << OD_LOG_DERING_GRID);
+        for (j = 0; j < 1 << OD_LOG_DERING_GRID; j++) {
+          for (i = 0; i < 1 << OD_LOG_DERING_GRID; i++) {
             if (!bskip[j*dec->state.skip_stride + i]) {
-              state->dering_flags[sby*nhsb + sbx] = 1;
+              state->dering_flags[sby*nhdr + sbx] = 1;
             }
           }
         }
-        if (!state->dering_flags[sby*nhsb + sbx]) {
+        if (!state->dering_flags[sby*nhdr + sbx]) {
           continue;
         }
         up = 0;
         if (sby > 0) {
-          up = state->dering_flags[(sby - 1)*nhsb + sbx];
+          up = state->dering_flags[(sby - 1)*nhdr + sbx];
         }
         left = 0;
         if (sbx > 0) {
-          left = state->dering_flags[sby*nhsb + (sbx - 1)];
+          left = state->dering_flags[sby*nhdr + (sbx - 1)];
         }
         c = (up << 1) + left;
         filtered = od_decode_cdf_adapt(&dec->ec, state->adapt.clpf_cdf[c], 2,
          state->adapt.clpf_increment, "clp");
-        state->dering_flags[sby*nhsb + sbx] = filtered;
+        state->dering_flags[sby*nhdr + sbx] = filtered;
         if (filtered) {
           for (pli = 0; pli < nplanes; pli++) {
             int16_t buf[OD_BSIZE_MAX*OD_BSIZE_MAX];
@@ -1067,23 +1074,23 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
             xdec = dec->output_img.planes[pli].xdec;
             ydec = dec->output_img.planes[pli].ydec;
             w = frame_width >> xdec;
-            ln = OD_LOG_BSIZE_MAX - xdec;
+            ln = OD_LOG_DERING_GRID + OD_LOG_BSIZE0 - xdec;
             n = 1 << ln;
             OD_ASSERT(xdec == ydec);
             /*buf is used for output so that we don't use filtered pixels in
               the input to the filter, but because we look past block edges,
               we do this anyway on the edge pixels. Unfortunately, this limits
               potential parallelism.*/
-            od_dering(state, buf, OD_BSIZE_MAX,
+            od_dering(state, buf, n,
              &state->etmp[pli][(sby << ln)*w +
-             (sbx << ln)], w, ln, sbx, sby, nhsb, nvsb,
+             (sbx << ln)], w, ln, sbx, sby, nhdr, nvdr,
              dec->state.quantizer[pli], xdec, dir, pli, &dec->state.bskip[pli]
-             [(sby << (OD_NBSIZES - 1 - ydec))*dec->state.skip_stride
-             + (sbx << (OD_NBSIZES - 1 - xdec))], dec->state.skip_stride);
+             [(sby << (OD_LOG_DERING_GRID - ydec))*dec->state.skip_stride
+             + (sbx << (OD_LOG_DERING_GRID - xdec))], dec->state.skip_stride);
             output = &state->ctmp[pli][(sby << ln)*w + (sbx << ln)];
             for (y = 0; y < n; y++) {
               for (x = 0; x < n; x++) {
-                output[y*w + x] = buf[y*OD_BSIZE_MAX + x];
+                output[y*w + x] = buf[y*n+ x];
               }
             }
           }
@@ -1091,17 +1098,17 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
       }
     }
     if (dec->user_dering != NULL) {
-      for (sby = 0; sby < nvsb; sby++) {
-        for (sbx = 0; sbx < nhsb; sbx++) {
-          dec->user_dering[sby*nhsb + sbx] =
-           state->dering_flags[sby*nhsb + sbx];
+      for (sby = 0; sby < nvdr; sby++) {
+        for (sbx = 0; sbx < nhdr; sbx++) {
+          dec->user_dering[sby*nhdr + sbx] =
+           state->dering_flags[sby*nhdr + sbx];
         }
       }
     }
   }
   else {
     if (dec->user_dering != NULL) {
-      OD_CLEAR(dec->user_dering, nhsb*nvsb);
+      OD_CLEAR(dec->user_dering, nhdr*nvdr);
     }
   }
   for (pli = 0; pli < nplanes; pli++) {

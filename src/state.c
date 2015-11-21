@@ -462,9 +462,15 @@ static int od_state_init_impl(od_state *state, const daala_info *info) {
   state->dump_tags = 0;
   state->dump_files = 0;
 #endif
-  state->dering_flags = (unsigned char *)malloc(state->nhsb * state->nvsb);
-  if (OD_UNLIKELY(!state->dering_flags)) {
-    return OD_EFAULT;
+  {
+    int nhdr;
+    int nvdr;
+    nhdr = state->frame_width >> (OD_LOG_DERING_GRID + OD_LOG_BSIZE0);
+    nvdr = state->frame_height >> (OD_LOG_DERING_GRID + OD_LOG_BSIZE0);
+    state->dering_flags = (unsigned char *)malloc(nhdr * nvdr);
+    if (OD_UNLIKELY(!state->dering_flags)) {
+      return OD_EFAULT;
+    }
   }
   state->sb_q_scaling = (unsigned char *)malloc(state->nhsb * state->nvsb);
   if (OD_UNLIKELY(!state->sb_q_scaling)) {

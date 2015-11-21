@@ -44,6 +44,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 /*The maximum length of the side of a block.*/
 # define OD_BSIZE_MAX  (1 << OD_LOG_BSIZE0 + OD_NBSIZES - 1)
 
+#define OD_BLOCK_32X32 (3)
+
+/*The deringing filter is applied on 8x8 blocks, but it's application
+   is signaled on a 32x32 grid.*/
+# define OD_LOG_DERING_GRID (OD_BLOCK_32X32)
+
 # define OD_MAXI(a, b) ((a) ^ (((a) ^ (b)) & -((b) > (a))))
 # define OD_MINI(a, b) ((a) ^ (((b) ^ (a)) & -((b) < (a))))
 # define OD_CLAMPI(a, b, c) (OD_MAXI(a, OD_MINI(b, c)))
@@ -480,6 +486,8 @@ bool TestPanel::open(const wxString &path) {
   }
   int nhsb = dd.getFrameWidth() >> OD_LOG_BSIZE0 + OD_NBSIZES - 1;
   int nvsb = dd.getFrameHeight() >> OD_LOG_BSIZE0 + OD_NBSIZES - 1;
+  int nhdr = dd.getFrameWidth() >> (OD_LOG_DERING_GRID + OD_LOG_BSIZE0);
+  int nvdr = dd.getFrameHeight() >> (OD_LOG_DERING_GRID + OD_LOG_BSIZE0);
   bsize_len = sizeof(*bsize)*nhsb*4*nvsb*4;
   bsize = (unsigned char *)malloc(bsize_len);
   if (bsize == NULL) {
@@ -518,7 +526,7 @@ bool TestPanel::open(const wxString &path) {
     close();
     return false;
   }
-  dering_len = nhsb*nvsb;
+  dering_len = nhdr*nvdr;
   dering = (unsigned char *)malloc(dering_len);
   if (!dd.setDeringFlagsBuffer(dering, dering_len)) {
     fprintf(stderr,"Could not set dering flags buffer\n");
@@ -597,6 +605,7 @@ void TestPanel::render() {
   double maxval=0;
   double norm;
   int nhsb = dd.getFrameWidth() >> OD_LOG_BSIZE0 + OD_NBSIZES - 1;
+  int nhdr = dd.getFrameWidth() >> (OD_LOG_DERING_GRID + OD_LOG_BSIZE0);
   for (int j = 0; j < getDecodeHeight(); j++) {
     for (int i = 0; i < getDecodeWidth(); i++) {
       double bpp = bpp_q3[j*dd.getFrameWidth() + i];
@@ -690,9 +699,9 @@ void TestPanel::render() {
       if (show_dering) {
         int sbx;
         int sby;
-        sbx = i >> OD_LOG_BSIZE0 + OD_NBSIZES - 1;
-        sby = j >> OD_LOG_BSIZE0 + OD_NBSIZES - 1;
-        if (dering[sby*nhsb + sbx]) {
+        sbx = i >> (OD_LOG_DERING_GRID + OD_LOG_BSIZE0);
+        sby = j >> (OD_LOG_DERING_GRID + OD_LOG_BSIZE0);
+        if (dering[sby*nhdr + sbx]) {
           yval = 0;
         }
       }

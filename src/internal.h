@@ -65,6 +65,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # define OD_LOG_MVBSIZE_MIN (3)
 # define OD_MVBSIZE_MIN (1 << OD_LOG_MVBSIZE_MIN)
 
+/*The deringing filter is applied on 8x8 blocks, but it's application
+   is signaled on a 32x32 grid.*/
+# define OD_LOG_DERING_GRID (OD_BLOCK_32X32)
+
 /*The log of the maximum length of the side of a block that
    has optimized copy variants.*/
 # define OD_LOG_COPYBSIZE_MAX (6)
