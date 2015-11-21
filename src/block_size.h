@@ -29,9 +29,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # include "../include/daala/daala_integer.h"
 # include "entenc.h"
 
-# define OD_BLOCK_SIZE4x4(bsize, bstride, bx, by)\
-   ((bsize)[((by)>>1)*(bstride) + ((bx)>>1)])
-# define OD_BLOCK_SIZE8x8(bsize, bstride, bx, by)\
+# define OD_BLOCK_SIZE4x4(bsize, bstride, bx, by) \
+   OD_BLOCK_SIZE8x8(bsize, bstride, (bx) >> 1, (by) >> 1)
+# define OD_BLOCK_SIZE8x8(bsize, bstride, bx, by) \
    ((bsize)[(by)*(bstride) + (bx)])
 
 /*Possible block sizes, note that OD_BLOCK_NXN = log2(N) - 2.*/
