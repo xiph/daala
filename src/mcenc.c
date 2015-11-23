@@ -2920,9 +2920,9 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy,
 #if defined(OD_ENABLE_ASSERTIONS) || defined(OD_ENABLE_LOGGING)
     {
       OD_ASSERT(mvg->mv[0] <= mvxmax << 2);
-      OD_ASSERT(mvg->mv[0] >= mvxmin << 2);
+      OD_ASSERT(mvg->mv[0] >= mvxmin*(1 << 2));
       OD_ASSERT(mvg->mv[1] <= mvymax << 2);
-      OD_ASSERT(mvg->mv[1] >= mvymin << 2);
+      OD_ASSERT(mvg->mv[1] >= mvymin*(1 << 2));
       mv->mv_rate = od_mv_est_bits(est, vx, vy, 2);
       if (mv->mv_rate != best_rate) {
         OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_ERR,
@@ -3954,7 +3954,7 @@ static void od_mv_est_decimate(od_mv_est_ctx *est) {
     /*Stop if we've fully decimated the mesh, or if this decimation would not
        improve R-D performance at the current lambda.*/
     if (dec == NULL
-     || dec->dr*est->lambda + (dec->dd << OD_ERROR_SCALE) > 0) {
+     || dec->dr*est->lambda + (dec->dd*(1 << OD_ERROR_SCALE)) > 0) {
       break;
     }
     level = OD_MC_LEVEL[dec->vy & OD_MVB_MASK][dec->vx & OD_MVB_MASK];
@@ -5269,7 +5269,7 @@ static int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
         dr = pstate->dr;
         dd = pstate->dd + od_mv_dp_get_sad_change(est,
          dp_node + 1, block_sads[si]);
-        cost = dr*est->lambda + (dd << OD_ERROR_SCALE);
+        cost = dr*est->lambda + (dd*(1 << OD_ERROR_SCALE));
         OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
          "State: --  P.State: %i  dr: %3i  dd: %6i  dopt: %7i",
          si, dr, dd, cost));
@@ -5285,7 +5285,7 @@ static int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
       dp_node[1].nblocks = 0;
       for (si = 0; si < dp_node[0].nstates; si++) {
         pstate = dp_node[0].states + si;
-        cost = pstate->dr*est->lambda + (pstate->dd << OD_ERROR_SCALE);
+        cost = pstate->dr*est->lambda + (pstate->dd*(1 << OD_ERROR_SCALE));
         if (cost < best_cost) {
           best_si = si;
           best_cost = cost;
@@ -5822,7 +5822,7 @@ static int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
           dr = pstate->dr + cstate->dr;
           dd = pstate->dd + od_mv_dp_get_sad_change(est,
            dp_node + 1, block_sads[si]);
-          cost = dr*est->lambda + (dd << OD_ERROR_SCALE);
+          cost = dr*est->lambda + (dd*(1 << OD_ERROR_SCALE));
           OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
            "State: %2i  P.State: %i  dr: %3i  dd: %6i  dopt: %7i",
            sitei, si, dr, dd, cost));
@@ -5874,7 +5874,7 @@ static int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
         dr = pstate->dr;
         dd = pstate->dd + od_mv_dp_get_sad_change(est,
          dp_node + 1, block_sads[si]);
-        cost = dr*est->lambda + (dd << OD_ERROR_SCALE);
+        cost = dr*est->lambda + (dd*(1 << OD_ERROR_SCALE));
         OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
          "State: --  P.State: %i  dr: %3i  dd: %6i  dopt: %7i",
          si, dr, dd, cost));
@@ -5891,7 +5891,7 @@ static int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
       for (si = 0; si < dp_node[0].nstates; si++) {
         dp_node[1].nblocks = 0;
         pstate = dp_node[0].states + si;
-        cost = pstate->dr*est->lambda + (pstate->dd << OD_ERROR_SCALE);
+        cost = pstate->dr*est->lambda + (pstate->dd*(1 << OD_ERROR_SCALE));
         if (best_si < 0 || cost < best_cost) {
           best_si = si;
           best_cost = cost;
