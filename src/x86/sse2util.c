@@ -170,7 +170,7 @@ void od_coeff_to_ref_buf_check(od_state *state,
       if (dst_xstride == 1 ? tmp[x] != dst[x] :
        ((int16_t *)tmp)[x] != ((int16_t *)dst)[x]) {
         fprintf(stderr, "od_coeff_to_ref_buf_sse2 check failed.\n");
-        OD_ASSERT(false);
+        OD_ASSERT(0);
         free(_tmp);
         return;
       }
