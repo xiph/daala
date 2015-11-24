@@ -248,7 +248,7 @@ void od_coeff_to_ref_buf_sse2(od_state *state,
     coeff_shift = lossless_p
      ? OD_COEFF_SHIFT - (state->info.bitdepth_mode - OD_BITDEPTH_MODE_8)*2
      : 0;
-    round = _mm_set1_epi16(1 << 8 + OD_COEFF_SHIFT >> 1);
+    round = _mm_set1_epi16(1 << (8 + OD_COEFF_SHIFT) >> 1);
     for (y = 0; y < h; y++) {
       for (x = 0; x < w; x += 16) {
         a = _mm_packs_epi32(
