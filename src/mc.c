@@ -281,7 +281,7 @@ void od_mc_predict1fmv16_c(od_state *state, unsigned char *dst,
             sum += ((int16_t *)src_p)[i + k - OD_SUBPEL_TOP_APRON_SZ]*fx[k];
           }
           /*FPR references must run at full depth (8 + OD_COEFF_SHIFT).*/
-          buff_p[i] = sum - (128 << OD_COEFF_SHIFT + OD_SUBPEL_COEFF_SCALE);
+          buff_p[i] = sum - (128 << (OD_COEFF_SHIFT + OD_SUBPEL_COEFF_SCALE));
         }
         src_p += systride;
         buff_p += xblk_sz;
@@ -310,8 +310,8 @@ void od_mc_predict1fmv16_c(od_state *state, unsigned char *dst,
           for (k = 0; k < OD_SUBPEL_FILTER_TAP_SIZE; k++) {
             sum += buff_p[i + (k - OD_SUBPEL_TOP_APRON_SZ)*xblk_sz] * fy[k];
           }
-          ((int16_t *)dst_p)[i] = (sum
-           + (1 << OD_SUBPEL_COEFF_SCALE2 >> 1) >> OD_SUBPEL_COEFF_SCALE2)
+          ((int16_t *)dst_p)[i] = ((sum
+           + (1 << OD_SUBPEL_COEFF_SCALE2 >> 1)) >> OD_SUBPEL_COEFF_SCALE2)
            + (128 << OD_COEFF_SHIFT);
         }
         buff_p += xblk_sz;
@@ -322,8 +322,8 @@ void od_mc_predict1fmv16_c(od_state *state, unsigned char *dst,
     else {
       for (j = 0; j < yblk_sz; j++) {
         for (i = 0; i < xblk_sz; i++) {
-          ((int16_t *)dst_p)[i] = (buff_p[i]
-           + (1 << OD_SUBPEL_COEFF_SCALE >> 1) >> OD_SUBPEL_COEFF_SCALE)
+          ((int16_t *)dst_p)[i] = ((buff_p[i]
+           + (1 << OD_SUBPEL_COEFF_SCALE >> 1)) >> OD_SUBPEL_COEFF_SCALE)
            + (128 << OD_COEFF_SHIFT);
         }
         buff_p += xblk_sz;
@@ -397,7 +397,7 @@ void od_mc_blend_full16_c(unsigned char *dst, int dystride,
       a = (a*(1 << log_xblk_sz)) + (((int16_t *)(src[1]))[j*xblk_sz + i] - a)*i;
       b = (b*(1 << log_xblk_sz)) + (((int16_t *)(src[2]))[j*xblk_sz + i] - b)*i;
       ((int16_t *)dst)[i] =
-       (a*(1 << log_yblk_sz)) + (b - a)*j + round >> log_blk_sz2;
+       ((a*(1 << log_yblk_sz)) + (b - a)*j + round) >> log_blk_sz2;
     }
     dst += dystride;
   }
@@ -1182,8 +1182,8 @@ void od_mc_blend_full_split16_c(unsigned char *dst, int dystride,
       b = (((int16_t *)src[1])[j*xblk_sz + i] - a)*sw[1];
       c = (((int16_t *)src[2])[j*xblk_sz + i] - a)*sw[2];
       d = (((int16_t *)src[3])[j*xblk_sz + i] - a)*sw[3];
-      ((int16_t *)dst)[i] = (a*(1 << log_blk_sz2p1))
-       + b + c + d + round >> log_blk_sz2p1;
+      ((int16_t *)dst)[i] = ((a*(1 << log_blk_sz2p1))
+       + b + c + d + round) >> log_blk_sz2p1;
       /*LOOP VECTORIZES.*/
       for (k = 0; k < 4; k++) sw[k] += dsdi[k];
     }
