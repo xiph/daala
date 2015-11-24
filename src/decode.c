@@ -301,7 +301,7 @@ static void od_decode_compute_pred(daala_dec_ctx *dec, od_mb_dec_ctx *ctx,
   int y;
   int x;
   OD_ASSERT(bs >= 0 && bs < OD_NBSIZES);
-  n = 1 << bs + OD_LOG_BSIZE0;
+  n = 1 << (bs + OD_LOG_BSIZE0);
   xdec = dec->output_img.planes[pli].xdec;
   w = dec->state.frame_width >> xdec;
   bo = (by << OD_LOG_BSIZE0)*w + (bx << OD_LOG_BSIZE0);
