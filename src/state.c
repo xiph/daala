@@ -165,7 +165,7 @@ void od_img_plane_copy(od_img* dst, od_img* src, int pli) {
           dnshift = src_plane->bitdepth - dst_plane->bitdepth;
           for (x = 0; x < w; x++) {
             *(int16_t *)dst_ptr = OD_CLAMPI(0,
-             *(int16_t *)src_ptr + (1 << dnshift >> 1) >> dnshift,
+             (*(int16_t *)src_ptr + (1 << dnshift >> 1)) >> dnshift,
              (1 << dst_plane->bitdepth) - 1);
             src_ptr += src_xstride;
             dst_ptr += dst_xstride;
@@ -178,8 +178,8 @@ void od_img_plane_copy(od_img* dst, od_img* src, int pli) {
         dnshift = src_plane->bitdepth - 8;
         OD_ASSERT(dst_plane->bitdepth == 8);
         for (x = 0; x < w; x++) {
-          *dst_ptr = OD_CLAMP255(*(int16_t *)src_ptr
-           + (1 << dnshift >> 1) >> dnshift);
+          *dst_ptr = OD_CLAMP255((*(int16_t *)src_ptr
+           + (1 << dnshift >> 1)) >> dnshift);
           src_ptr += src_xstride;
           dst_ptr += dst_xstride;
         }
@@ -833,8 +833,8 @@ int od_state_dump_yuv(od_state *state, od_img *img, const char *tag) {
       if (xstride > 1) {
         for (x = 0; x < (pic_width + xdec) >> xdec; x++) {
           int value;
-          value = *((int16_t *)(img->planes[pli].data + ystride*y + xstride*x))
-           + (1 << img->planes[pli].bitdepth - 9)
+          value = (*((int16_t *)(img->planes[pli].data + ystride*y + xstride*x))
+           + (1 << (img->planes[pli].bitdepth - 9)))
            >> (img->planes[pli].bitdepth - 8);
           if (fputc(OD_CLAMP255(value), fp) == EOF) {
             fprintf(stderr, "Error writing to \"%s\".\n", fname);
@@ -1086,8 +1086,8 @@ static void od_img_plane_edge_ext(od_img_plane *dst_p,
   dst_data = dst_p->data;
 
   OD_ASSERT((horz_padding&1) == 0);
-  OD_ASSERT(xstride == 1 && dst_p->bitdepth == 8
-   || xstride == 2 && dst_p->bitdepth > 8);
+  OD_ASSERT((xstride == 1 && dst_p->bitdepth == 8)
+   || (xstride == 2 && dst_p->bitdepth > 8));
   /*Left side.*/
   for (y = 0; y < plane_height; y++) {
     dst = dst_data + ystride*y;
@@ -1166,7 +1166,7 @@ void od_ref_buf_to_coeff(od_state *state,
      OD_COEFF_SHIFT;
     for (y = 0; y < h; y++) {
       for (x = 0; x < w; x++) {
-        dst[x] = src[x] - 128 << coeff_shift;
+        dst[x] = (src[x] - 128) << coeff_shift;
       }
       dst += dst_ystride;
       src += src_ystride;
@@ -1181,8 +1181,8 @@ void od_ref_buf_to_coeff(od_state *state,
      0;
     for (y = 0; y < h; y++) {
       for (x = 0; x < w; x++) {
-        dst[x] = ((int16_t *)src)[x] - (1 << 8 + OD_COEFF_SHIFT >> 1)
-         + (1 << coeff_shift >> 1) >> coeff_shift;
+        dst[x] = (((int16_t *)src)[x] - (1 << (8 + OD_COEFF_SHIFT) >> 1)
+         + (1 << coeff_shift >> 1)) >> coeff_shift;
       }
       dst += dst_ystride;
       src += src_ystride;
@@ -1232,7 +1232,8 @@ void od_coeff_to_ref_buf_c(od_state *state,
     for (y = 0; y < h; y++) {
       for (x = 0; x < w; x++) {
         *(dst + x) =
-         OD_CLAMP255((src[x] + (1 << coeff_shift >> 1) >> coeff_shift) + 128);
+         OD_CLAMP255(((src[x] + (1 << coeff_shift >> 1)) >> coeff_shift) +
+         128);
       }
       dst += dst_ystride;
       src += src_ystride;
@@ -1249,7 +1250,7 @@ void od_coeff_to_ref_buf_c(od_state *state,
     for (y = 0; y < h; y++) {
       for (x = 0; x < w; x++) {
         ((int16_t *)dst)[x] =
-         (src[x] << coeff_shift) + (1 << 8 + OD_COEFF_SHIFT >> 1);
+         (src[x] << coeff_shift) + (1 << (8 + OD_COEFF_SHIFT) >> 1);
       }
       dst += dst_ystride;
       src += src_ystride;
