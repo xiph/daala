@@ -1384,7 +1384,7 @@ int32_t od_mc_compute_sad16_c(const unsigned char *src, int systride,
     src += systride;
     ref += dystride;
   }
-  return ret + (1 << OD_COEFF_SHIFT >> 1) >> OD_COEFF_SHIFT;
+  return (ret + (1 << OD_COEFF_SHIFT >> 1)) >> OD_COEFF_SHIFT;
 }
 
 int32_t od_mc_compute_sad16_4x4_c(const unsigned char *src, int systride,
@@ -1485,7 +1485,7 @@ static int32_t od_mc_compute_satd8(int32_t *work, int ln,
   od_mc_hadamard_1d(work, n, 1, n);
   satd = 0;
   for (i = 0; i < n*n; i++) satd += abs(work[i]);
-  return satd + (1 << ln >> 1) >> ln;
+  return (satd + (1 << ln >> 1)) >> ln;
 }
 
 static int32_t od_mc_compute_satd16(int32_t *work, int ln,
@@ -1512,7 +1512,7 @@ static int32_t od_mc_compute_satd16(int32_t *work, int ln,
   od_mc_hadamard_1d(work, n, 1, n);
   satd = 0;
   for (i = 0; i < n*n; i++) satd += abs(work[i]);
-  return satd + (1 << ln + OD_COEFF_SHIFT >> 1) >> ln + OD_COEFF_SHIFT;
+  return (satd + (1 << (ln + OD_COEFF_SHIFT) >> 1)) >> (ln + OD_COEFF_SHIFT);
 }
 
 /*Perform SATD on 8x8 blocks within src and ref then sum the results of
