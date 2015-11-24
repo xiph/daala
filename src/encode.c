@@ -637,7 +637,7 @@ static void od_encode_compute_pred(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
   int y;
   int x;
   OD_ASSERT(bs >= 0 && bs < OD_NBSIZES);
-  n = 1 << bs + OD_LOG_BSIZE0;
+  n = 1 << (bs + OD_LOG_BSIZE0);
   xdec = enc->input_img.planes[pli].xdec;
   w = enc->state.frame_width >> xdec;
   bo = (by << OD_LOG_BSIZE0)*w + (bx << OD_LOG_BSIZE0);
@@ -2096,7 +2096,7 @@ static void od_predict_frame(daala_enc_ctx *enc) {
     predict unpredictable areas when lambda is too small.
    Hopefully when we fix that, we can remove the limit.*/
   od_mv_est(enc->mvest,
-   OD_MAXI((4640000 + (((1 << OD_COEFF_SHIFT) - 1) >> 1) >> OD_COEFF_SHIFT)*
+   OD_MAXI(((4640000 + (((1 << OD_COEFF_SHIFT) - 1) >> 1)) >> OD_COEFF_SHIFT)*
    enc->state.quantizer[0] >> (23 - OD_LAMBDA_SCALE), 40));
   od_state_mc_predict(&enc->state,
    enc->state.ref_imgs + enc->state.ref_imgi[OD_FRAME_SELF]);
@@ -2190,8 +2190,8 @@ static void od_encode_mvs(daala_enc_ctx *enc, int num_refs) {
   mv_res = enc->state.mv_res;
   OD_ASSERT(0 <= mv_res && mv_res < 3);
   od_ec_enc_uint(&enc->ec, mv_res, 3);
-  width = (mvimg->width + 32) << (3 - mv_res) + 1; /* delta mvx range */
-  height = (mvimg->height + 32) << (3 - mv_res) + 1;/* delta mvy range */
+  width = (mvimg->width + 32) << ((3 - mv_res) + 1); /* delta mvx range */
+  height = (mvimg->height + 32) << ((3 - mv_res) + 1);/* delta mvy range */
   grid = enc->state.mv_grid;
   /*Code the motion vectors and flags. At each level, the MVs are zero
     outside of the frame, so don't code them.*/
@@ -2334,7 +2334,7 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
         mbctx->l = state->lbuf[pli];
         xdec = enc->input_img.planes[pli].xdec;
         ydec = enc->input_img.planes[pli].ydec;
-        if (pli == 0 || rdo_only && mbctx->is_keyframe) {
+        if (pli == 0 || (rdo_only && mbctx->is_keyframe)) {
           for (i = 0; i < OD_BSIZE_MAX; i++) {
             for (j = 0; j < OD_BSIZE_MAX; j++) {
               c_orig[i*OD_BSIZE_MAX + j] =
