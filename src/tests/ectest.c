@@ -78,7 +78,7 @@ int main(int _argc,char **_argv){
       od_ec_enc_rollback(&enc,&enc_bak);
       od_ec_enc_bits(&enc,i,ftb);
       ptr=od_ec_enc_done(&enc,&ptr_sz);
-      if(ptr_sz!=(unsigned)ftb+7>>3){
+      if (ptr_sz != ((unsigned)ftb + 7) >> 3) {
         fprintf(stderr,"Used %li bytes to encode %i bits directly.\n",
          (long)ptr_sz,ftb);
         ret=EXIT_FAILURE;
@@ -201,7 +201,7 @@ int main(int _argc,char **_argv){
       else data[j]=rand()%ft;
       od_ec_enc_uint(&enc,data[j],ft);
       tell[j+1]=od_ec_enc_tell_frac(&enc);
-      if(rand()&7==0){
+      if ((rand() & 7) == 0) {
         od_ec_enc_checkpoint(&enc_bak,&enc);
         od_ec_enc_uint(&enc,rand()&1?0:ft-1,ft);
         od_ec_enc_rollback(&enc,&enc_bak);
@@ -218,10 +218,10 @@ int main(int _argc,char **_argv){
        (unsigned)od_ec_enc_tell(&enc),tell_bits,seed);
       ret=EXIT_FAILURE;
     }
-    if(tell_bits+7>>3<ptr_sz){
+    if (((tell_bits + 7) >> 3) < ptr_sz) {
       fprintf(stderr,"od_ec_enc_tell() lied: "
        "there's %i bytes instead of %i (Random seed: %u).\n",
-       ptr_sz,tell_bits+7>>3,seed);
+       ptr_sz, (tell_bits + 7) >> 3, seed);
       ret=EXIT_FAILURE;
     }
     od_ec_dec_init(&dec,ptr,ptr_sz);
@@ -268,13 +268,17 @@ int main(int _argc,char **_argv){
     for(j=0;j<sz;j++){
       data[j]=rand()/((RAND_MAX>>1)+1);
       ftbs[j]=(rand()%15)+1;
-      fz[j]=rand()%32766>>15-ftbs[j];
+      fz[j] = (rand() % 32766) >> (15 - ftbs[j]);
       fz[j]=OD_MAXI(fz[j],1);
       enc_method[j]=rand()&1;
       switch(enc_method[j]){
         case 0:{
-          if(rand()&1)od_ec_encode_bool_q15(&enc,data[j],fz[j]<<15-ftbs[j]);
-          else od_ec_encode_bool(&enc,data[j],fz[j]<<15-ftbs[j],32768);
+          if (rand() & 1) {
+            od_ec_encode_bool_q15(&enc, data[j], fz[j] << (15 - ftbs[j]));
+          }
+          else {
+            od_ec_encode_bool(&enc, data[j], fz[j] << (15 - ftbs[j]), 32768);
+          }
         }break;
         case 1:{
           uint16_t cdf[2];
@@ -286,10 +290,10 @@ int main(int _argc,char **_argv){
       tell[j+1]=od_ec_enc_tell_frac(&enc);
     }
     ptr=od_ec_enc_done(&enc,&ptr_sz);
-    if(od_ec_enc_tell(&enc)+7U>>3<ptr_sz){
+    if (((od_ec_enc_tell(&enc) + 7U) >> 3) < ptr_sz) {
       fprintf(stderr,"od_ec_enc_tell() lied: "
        "there's %i bytes instead of %i (Random seed: %u).\n",
-       ptr_sz,od_ec_enc_tell(&enc)+7>>3,seed);
+       ptr_sz, (od_ec_enc_tell(&enc) + 7) >> 3, seed);
       ret=EXIT_FAILURE;
     }
     od_ec_dec_init(&dec,ptr,ptr_sz);
@@ -304,8 +308,13 @@ int main(int _argc,char **_argv){
       dec_method=rand()&1;
       switch(dec_method){
         case 0:{
-          if(rand()&1)sym=od_ec_decode_bool_q15(&dec,fz[j]<<15-ftbs[j], "test");
-          else sym=od_ec_decode_bool(&dec,fz[j]<<15-ftbs[j],32768, "test");
+          if (rand() & 1) {
+            sym = od_ec_decode_bool_q15(&dec, fz[j] << (15 - ftbs[j]), "test");
+          }
+          else {
+            sym = od_ec_decode_bool(&dec, fz[j]<< (15 - ftbs[j]), 32768,
+             "test");
+          }
         }break;
         case 1:{
           uint16_t cdf[2];
