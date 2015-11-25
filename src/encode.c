@@ -64,10 +64,10 @@ static const unsigned char OD_LUMA_QM_Q4[2][OD_QM_SIZE] = {
    magnitude compensation is done here for inter (Haar DC doesn't need it).
    Masking disabled: */
  {
-  27, 16,
-  23, 16, 16, 16,
-  19, 16, 16, 16, 16, 16,
-  17, 16, 16, 16, 16, 16, 16, 16
+  21, 16,
+  18, 16, 16, 16,
+  17, 16, 16, 16, 16, 16,
+  16, 16, 16, 16, 16, 16, 16, 16
  },
 /* The non-flat AC coefficients compensate for the non-linear scaling caused
    by activity masking. The values are currently hand-tuned so that the rate
@@ -75,10 +75,10 @@ static const unsigned char OD_LUMA_QM_Q4[2][OD_QM_SIZE] = {
    on intra.
    Masking enabled: */
  {
-  27, 16,
-  23, 18, 28, 32,
-  19, 14, 20, 20, 28, 32,
-  17, 11, 16, 14, 16, 16, 23, 28
+  21, 16,
+  18, 18, 28, 32,
+  17, 14, 20, 20, 28, 32,
+  16, 11, 16, 14, 16, 16, 23, 28
  }
 };
 
