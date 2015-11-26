@@ -102,6 +102,7 @@ void generic_encode(od_ec_enc *enc, generic_encoder *model, int x, int max,
        to Laplacian for large values. We should probably have an adaptive
        estimate instead. Note: The 2* is a kludge that's not fully understood
        yet. */
+    OD_ASSERT(*ex_q16 < INT_MAX >> 1);
     e = ((2**ex_q16 >> 8) + (1 << shift >> 1)) >> shift;
     decay = OD_MAXI(2, OD_MINI(254, 256*e/(e + 256)));
     /* Encode the tail of the distribution assuming exponential decay. */

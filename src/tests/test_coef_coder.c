@@ -37,6 +37,7 @@
 
 #define EC_BUF_SIZE (32)
 #define MAX_VECTORS 10000
+#define MAX_K (65536 >> 1)
 
 typedef struct od_pvq_test_adapt_ctx od_pvq_test_adapt_ctx;
 
@@ -117,7 +118,7 @@ void pvq_coder_bitstreams(int n, int type){
   pvq_adapt.mean_count_q8 = 100*4;
   pvq_adapt.mean_count_ex_q8 = 256*4;
   od_ec_dec_init(&dec, buf, buf_sz);
-  for (i = 0; i < 65535; i++) {
+  for (i = 0; i < MAX_K - 1; i++) {
     od_coeff y[MAXN];
     adapt[OD_ADAPT_K_Q8] = pvq_adapt.mean_k_q8;
     adapt[OD_ADAPT_SUM_EX_Q8] = pvq_adapt.mean_sum_ex_q8;
@@ -155,7 +156,7 @@ int run_pvq(od_coeff *X,int len,int N,int fuzz){
   uint32_t   buf_sz;
   int *Ki;
   generic_encoder model;
-  int EK=65536;
+  int EK = MAX_K;
   int bits_used;
 
   Ki = (int *)malloc(sizeof(*Ki)*len);
@@ -219,7 +220,7 @@ int run_pvq(od_coeff *X,int len,int N,int fuzz){
   pvq_adapt.mean_count_ex_q8=256*4;
   od_ec_dec_init(&dec, buf, buf_sz);
   generic_model_init(&model);
-  EK=65536;
+  EK = MAX_K;
 
   for (i=0;i<len;i++)
   {
@@ -344,28 +345,28 @@ void test_pvq_huge(int N) {
   X = (od_coeff *)malloc(sizeof(*X)*N*len);
   for (i = 0; i < N; i++) {
     for (j = 0; j < N; j++) {
-      X[i*N + j] = (j == i)*65535;
+      X[i*N + j] = (j == i)*(MAX_K - 1);
     }
   }
   for (i = 0; i<N; i++) {
     for (j = 0; j<N; j++) {
-      X[(i + N)*N + j] = (j == i)*-65536;
+      X[(i + N)*N + j] = (j == i)*-(MAX_K);
     }
   }
   for (i = 0; i<N; i++) {
     for (j = 0; j<N; j++) {
-      X[(i + N*2)*N + j] = (j == i)*-65535;
+      X[(i + N*2)*N + j] = (j == i)*-(MAX_K - 1);
     }
   }
   for (i = 0; i<N; i++) {
     for (j = 0; j<N; j++) {
-      X[(i + N*3)*N + j] = (j == i)*65534;
+      X[(i + N*3)*N + j] = (j == i)*(MAX_K - 2);
     }
   }
   bits = run_pvq(X, len, N, 0);
   fprintf(stderr,
-   "Coded %d dim, 65536 pulses with %f bits/sample (%1.4f bits/vector)\n",
-   N,bits/(float)(len)/N,bits/(float)(len));
+   "Coded %d dim, %d pulses with %f bits/sample (%1.4f bits/vector)\n",
+   N, MAX_K, bits/(float)(len)/N, bits/(float)(len));
   run_pvq(X, len, N, 1);
   free(X);
 }
@@ -424,7 +425,6 @@ int main(int argc, char **argv){
     for (i=2; i<18; i++) test_pvq_basic(i);
     test_pvq_basic(64);
     test_pvq_basic(128);
-    test_pvq_basic(256);
     for (i=2; i<18; i++) test_pvq_huge(i);
     test_pvq_huge(64);
 #ifdef FAILING_TESTS
@@ -435,15 +435,6 @@ int main(int argc, char **argv){
     test_pvq_sequence(10000,128,.03);
     test_pvq_sequence(10000,128,.1);
     test_pvq_sequence(10000,128,.3);
-    test_pvq_sequence(10000,128,1.);
-    test_pvq_sequence(10000,128,3);
-    test_pvq_sequence(10000,128,10);
-    test_pvq_sequence(10000,128,30);
-    test_pvq_sequence(10000,128,100);
-    test_pvq_sequence(10000,128,300);
-    test_pvq_sequence(10000,128,1000);
-    test_pvq_sequence(10000,128,3000);
-    test_pvq_sequence(10000,128,6000);
 
     test_pvq_sequence(10000,16,.03);
     test_pvq_sequence(10000,16,.1);
@@ -452,12 +443,6 @@ int main(int argc, char **argv){
     test_pvq_sequence(10000,16,3);
     test_pvq_sequence(10000,16,10);
     test_pvq_sequence(10000,16,30);
-    test_pvq_sequence(10000,16,100);
-    test_pvq_sequence(10000,16,300);
-    test_pvq_sequence(10000,16,1000);
-    test_pvq_sequence(10000,16,3000);
-    test_pvq_sequence(10000,16,10000);
-    test_pvq_sequence(10000,16,30000);
   }
   return 0;
 }
