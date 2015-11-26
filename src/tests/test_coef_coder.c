@@ -426,23 +426,14 @@ int main(int argc, char **argv){
     test_pvq_basic(64);
     test_pvq_basic(128);
     for (i=2; i<18; i++) test_pvq_huge(i);
-    test_pvq_huge(64);
 #ifdef FAILING_TESTS
     /*Currently failing due to signed integer overflow in expectation.*/
     test_pvq_huge(128);
     test_pvq_huge(256);
 #endif
     test_pvq_sequence(10000,128,.03);
-    test_pvq_sequence(10000,128,.1);
-    test_pvq_sequence(10000,128,.3);
-
     test_pvq_sequence(10000,16,.03);
     test_pvq_sequence(10000,16,.1);
-    test_pvq_sequence(10000,16,.3);
-    test_pvq_sequence(10000,16,1.);
-    test_pvq_sequence(10000,16,3);
-    test_pvq_sequence(10000,16,10);
-    test_pvq_sequence(10000,16,30);
   }
   return 0;
 }
