@@ -24,7 +24,7 @@
 
 MAKEDEPEND = $(CC) -MM
 CINCLUDE = `pkg-config ogg libpng --cflags`
-CFLAGS = -Wall -Wno-parentheses -Wno-overlength-strings -Wno-long-long -Wshadow
+CFLAGS = -Wall -Wno-overlength-strings -Wno-long-long -Wshadow
 CFLAGS += -std=c89 -pedantic -fopenmp
 CFLAGS += -O3
 CFLAGS += -g
