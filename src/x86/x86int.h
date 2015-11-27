@@ -78,8 +78,4 @@ void od_filter_dering_orthogonal_4x4_sse2(int16_t *y, int ystride,
  int16_t *in, int16_t *x, int xstride, int threshold, int dir);
 void od_filter_dering_orthogonal_8x8_sse2(int16_t *y, int ystride,
  int16_t *in, int16_t *x, int xstride, int threshold, int dir);
-void od_coeff_to_ref_buf_sse2(od_state *state,
- unsigned char *dst, int dst_xstride, int dst_ystride,
- od_coeff *src, int src_ystride, int lossless_p,
- int w, int h);
 #endif

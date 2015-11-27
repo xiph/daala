@@ -41,11 +41,6 @@ void od_state_opt_vtbl_init_x86(od_state *_state){
   _state->cpu_flags=od_cpu_flags_get();
   if(_state->full_precision_references) {
     /*No 16 bit assembly as yet, but it will go here.*/
-    if (_state->cpu_flags&OD_CPU_X86_SSE2) {
-#if defined(OD_SSE2_INTRINSICS)
-      _state->opt_vtbl.od_coeff_to_ref_buf = od_coeff_to_ref_buf_sse2;
-#endif
-    }
   }
   else {
     /*8 bit assembly for those functions that work directly on 8-bit
@@ -60,7 +55,6 @@ void od_state_opt_vtbl_init_x86(od_state *_state){
       _state->opt_vtbl.od_copy_nxn[4] = od_copy_16x16_8_sse2;
       _state->opt_vtbl.od_copy_nxn[5] = od_copy_32x32_8_sse2;
       _state->opt_vtbl.od_copy_nxn[6] = od_copy_64x64_8_sse2;
-      _state->opt_vtbl.od_coeff_to_ref_buf = od_coeff_to_ref_buf_sse2;
 #endif
     }
   }

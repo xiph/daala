@@ -340,7 +340,6 @@ void od_state_opt_vtbl_init_c(od_state *state) {
   state->opt_vtbl.restore_fpu = od_restore_fpu_c;
   OD_COPY(state->opt_vtbl.fdct_2d, OD_FDCT_2D_C, OD_NBSIZES + 1);
   OD_COPY(state->opt_vtbl.idct_2d, OD_IDCT_2D_C, OD_NBSIZES + 1);
-  state->opt_vtbl.od_coeff_to_ref_buf = od_coeff_to_ref_buf_c;
 }
 
 static void od_state_opt_vtbl_init(od_state *state) {
@@ -1207,7 +1206,7 @@ void od_ref_plane_to_coeff(od_state *state, od_coeff *dst, int lossless_p,
 
 /*General purpose coefficient block to reference od_img block
   conversion routine.*/
-void od_coeff_to_ref_buf_c(od_state *state,
+void od_coeff_to_ref_buf(od_state *state,
  unsigned char *dst, int dst_xstride, int dst_ystride,
  od_coeff *src, int src_ystride, int lossless_p,
  int w, int h) {
@@ -1269,8 +1268,8 @@ void od_coeff_to_ref_plane(od_state *state, od_img *dst, int pli,
   h = dst->height >> ydec;
   dst_xstride = iplane->xstride;
   dst_ystride = iplane->ystride;
-  (*state->opt_vtbl.od_coeff_to_ref_buf)(state, iplane->data,
-   dst_xstride, dst_ystride, src, w, lossless_p, w, h);
+  od_coeff_to_ref_buf(state, iplane->data, dst_xstride, dst_ystride,
+   src, w, lossless_p, w, h);
 }
 
 void od_init_skipped_coeffs(od_coeff *d, od_coeff *pred, int is_keyframe,
