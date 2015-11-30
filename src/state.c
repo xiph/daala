@@ -60,12 +60,14 @@ const int OD_HAAR_QM[2][OD_LOG_BSIZE_MAX] = {
 
 void *od_aligned_malloc(size_t _sz,size_t _align) {
   unsigned char *p;
-  if (_align - 1 > UCHAR_MAX || (_align&_align-1) || _sz > ~(size_t)0-_align)
+  if (_align - 1 > UCHAR_MAX || (_align & (_align - 1))
+   || _sz > ~(size_t)0 - _align) {
     return NULL;
+  }
   p = (unsigned char *)malloc(_sz + _align);
   if (p != NULL) {
     int offs;
-    offs = ((p-(unsigned char *)0) - 1 & _align - 1);
+    offs = ((p - (unsigned char *)0) - 1) & (_align - 1);
     p[offs] = offs;
     p += offs+1;
   }
