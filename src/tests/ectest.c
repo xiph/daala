@@ -46,7 +46,7 @@ int main(int _argc,char **_argv){
   /*Trigger resize during termination.*/
   for(ft=2;ft<1024;ft++){
     for(i=0;i<ft;i++){
-      od_ec_enc_init(&enc,ft+i&1);
+      od_ec_enc_init(&enc, (ft + i)&1);
       od_ec_enc_uint(&enc,i,ft);
       nbits=od_ec_enc_tell_frac(&enc);
       ptr=od_ec_enc_done(&enc,&ptr_sz);
@@ -72,7 +72,7 @@ int main(int _argc,char **_argv){
   /*Raw bits only w/ resize*/
   for(ftb=1;ftb<17;ftb++){
     for(i=0;i<(1<<ftb);i++){
-      od_ec_enc_init(&enc,ftb+i&1);
+      od_ec_enc_init(&enc, (ftb + i)&1);
       od_ec_enc_checkpoint(&enc_bak,&enc);
       od_ec_enc_bits(&enc,i,ftb);
       od_ec_enc_rollback(&enc,&enc_bak);
