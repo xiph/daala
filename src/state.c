@@ -69,7 +69,7 @@ void *od_aligned_malloc(size_t _sz,size_t _align) {
     int offs;
     offs = ((p - (unsigned char *)0) - 1) & (_align - 1);
     p[offs] = offs;
-    p += offs+1;
+    p += offs + 1;
   }
   return p;
 }
