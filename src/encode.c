@@ -102,6 +102,26 @@ static const unsigned char OD_CHROMA_QM_Q4[2][OD_QM_SIZE] = {
  }
 };
 
+static const unsigned char OD_CHROMA_LQ_QM_Q4[2][OD_QM_SIZE] = {
+/* Chroma quantization is different because of the reduced lapping.
+   FIXME: Use the same matrix as luma for 4:4:4.
+   Masking disabled: */
+ {
+  7, 5,
+  6, 5, 5, 5,
+  5, 5, 5, 5, 5, 5,
+  4, 5, 5, 5, 5, 5, 5, 5
+ },
+/* The AC part is flat for chroma because it has no activity masking.
+   Masking enabled: */
+ {
+  7, 5,
+  6, 5, 5, 5,
+  5, 5, 5, 5, 5, 5,
+  4, 5, 5, 5, 5, 5, 5, 5
+ }
+};
+
 typedef struct od_qm_entry {
   int interp_q;
   int scale_q8;
@@ -117,8 +137,8 @@ static const od_qm_entry OD_DEFAULT_QMS[2][3][OD_NPLANES_MAX] = {
    {4, 448, OD_CHROMA_QM_Q4[OD_MASKING_DISABLED]},
    {4, 320, OD_CHROMA_QM_Q4[OD_MASKING_DISABLED]}},
   {{318, 256, OD_LUMA_QM_Q4[OD_MASKING_DISABLED]},
-   {318, 140, OD_CHROMA_QM_Q4[OD_MASKING_DISABLED]},
-   {318, 100, OD_CHROMA_QM_Q4[OD_MASKING_DISABLED]}},
+   {318, 448, OD_CHROMA_LQ_QM_Q4[OD_MASKING_DISABLED]},
+   {318, 320, OD_CHROMA_LQ_QM_Q4[OD_MASKING_DISABLED]}},
   {{0, 0, NULL},
    {0, 0, NULL},
    {0, 0, NULL}}},
@@ -127,8 +147,8 @@ static const od_qm_entry OD_DEFAULT_QMS[2][3][OD_NPLANES_MAX] = {
    {4, 448, OD_CHROMA_QM_Q4[OD_MASKING_ENABLED]},
    {4, 320, OD_CHROMA_QM_Q4[OD_MASKING_ENABLED]}},
   {{318, 256, OD_LUMA_QM_Q4[OD_MASKING_ENABLED]},
-   {318, 140, OD_CHROMA_QM_Q4[OD_MASKING_ENABLED]},
-   {318, 100, OD_CHROMA_QM_Q4[OD_MASKING_ENABLED]}},
+   {318, 448, OD_CHROMA_LQ_QM_Q4[OD_MASKING_ENABLED]},
+   {318, 320, OD_CHROMA_LQ_QM_Q4[OD_MASKING_ENABLED]}},
   {{0, 0, NULL},
    {0, 0, NULL},
    {0, 0, NULL}}}
