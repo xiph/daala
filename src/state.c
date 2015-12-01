@@ -1162,7 +1162,7 @@ void od_ref_buf_to_coeff(od_state *state,
      OD_COEFF_SHIFT;
     for (y = 0; y < h; y++) {
       for (x = 0; x < w; x++) {
-        dst[x] = (src[x] - 128) << coeff_shift;
+        dst[x] = (src[x] - 128)*(1 << coeff_shift);
       }
       dst += dst_ystride;
       src += src_ystride;
@@ -1246,7 +1246,7 @@ void od_coeff_to_ref_buf(od_state *state,
     for (y = 0; y < h; y++) {
       for (x = 0; x < w; x++) {
         ((int16_t *)dst)[x] =
-         (src[x] << coeff_shift) + (1 << (8 + OD_COEFF_SHIFT) >> 1);
+         (src[x]*(1 << coeff_shift)) + (1 << (8 + OD_COEFF_SHIFT) >> 1);
       }
       dst += dst_ystride;
       src += src_ystride;
