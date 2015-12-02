@@ -274,8 +274,8 @@ static void od_decode_mv(daala_dec_ctx *dec, int num_refs, od_mv_grid_pt *mvg,
   }
   if (ox && od_ec_dec_bits(&dec->ec, 1, "mv:sign:x")) ox = -ox;
   if (oy && od_ec_dec_bits(&dec->ec, 1, "mv:sign:y")) oy = -oy;
-  mvg->mv[0] = (pred[0] + ox) << mv_res;
-  mvg->mv[1] = (pred[1] + oy) << mv_res;
+  mvg->mv[0] = (pred[0] + ox)*(1 << mv_res);
+  mvg->mv[1] = (pred[1] + oy)*(1 << mv_res);
 }
 
 /*Block-level decoder context information.
