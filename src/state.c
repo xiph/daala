@@ -449,6 +449,9 @@ static int od_state_init_impl(od_state *state, const daala_info *info) {
     else state->lbuf[pli] = state->ltmp[pli] = NULL;
     state->bskip[pli] = (unsigned char *)malloc(sizeof(*state->bskip)*
      state->nhsb*state->nvsb<<(2*(OD_NBSIZES-1) - xdec - ydec));
+    if (OD_UNLIKELY(!state->bskip[pli])) {
+      return OD_EFAULT;
+    }
   }
   state->bsize = (unsigned char *)malloc(
    sizeof(*state->bsize)*(state->nhsb + 2)*4*(state->nvsb + 2)*4);
