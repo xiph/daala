@@ -118,9 +118,10 @@ void od_bilinear_smooth(od_coeff *x, int ln, int stride, int q, int pli);
 void od_smooth_recursive(od_coeff *c, unsigned char *bsize, int bstride,
  int bx, int by, int bsi, int w, int xdec, int ydec, int min_bs,
   int quantizer, int pli);
-void od_prefilter_split(od_coeff *c0, int stride, int bs, int f);
+void od_prefilter_split(od_coeff *c0, int stride, int bs, int f, int hfilter,
+ int vfilter);
 void od_postfilter_split(od_coeff *c0, int stride, int bs, int f, int q,
- unsigned char *skip, int skip_stride);
+ unsigned char *skip, int skip_stride, int hfilter, int vfilter);
 void od_apply_prefilter_frame_sbs(od_coeff *c, int stride, int nhsb, int nvsb,
  int xdec, int ydec);
 void od_apply_postfilter_frame_sbs(od_coeff *c, int stride, int nhsb, int nvsb,

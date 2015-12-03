@@ -1483,29 +1483,34 @@ void od_thor_deblock_row8(od_coeff *c0, int stride, int q) {
 #define OD_BLOCK_SIZE4x4_DEC(bsize, bstride, bx, by, dec) \
  OD_MAXI(OD_BLOCK_SIZE4x4(bsize, bstride, bx, by), dec)
 
-void od_prefilter_split(od_coeff *c0, int stride, int bs, int f) {
+void od_prefilter_split(od_coeff *c0, int stride, int bs, int f, int hfilter,
+ int vfilter) {
 #if OD_DEBLOCKING
 #else
   int i;
   int j;
   od_coeff *c;
-  c = c0 + ((2 << bs) - (2 << f))*stride;
-  for (j = 0; j < 4 << bs; j++) {
-    int k;
-    od_coeff t[4 << OD_NBSIZES];
-    for (k = 0; k < 4 << f; k++) t[k] = c[stride*k + j];
-    (*OD_PRE_FILTER[f])(t, t);
-    for (k = 0; k < 4 << f; k++) c[stride*k + j] = t[k];
+  if (hfilter) {
+    c = c0 + ((2 << bs) - (2 << f))*stride;
+    for (j = 0; j < 4 << bs; j++) {
+      int k;
+      od_coeff t[4 << OD_NBSIZES];
+      for (k = 0; k < 4 << f; k++) t[k] = c[stride*k + j];
+      (*OD_PRE_FILTER[f])(t, t);
+      for (k = 0; k < 4 << f; k++) c[stride*k + j] = t[k];
+    }
   }
-  c = c0 + (2 << bs) - (2 << f);
-  for (i = 0; i < 4 << bs; i++) {
-    (*OD_PRE_FILTER[f])(c + i*stride, c + i*stride);
+  if (vfilter) {
+    c = c0 + (2 << bs) - (2 << f);
+    for (i = 0; i < 4 << bs; i++) {
+      (*OD_PRE_FILTER[f])(c + i*stride, c + i*stride);
+    }
   }
 #endif
 }
 
 void od_postfilter_split(od_coeff *c0, int stride, int bs, int f, int q,
- unsigned char *skip, int skip_stride) {
+ unsigned char *skip, int skip_stride, int hfilter, int vfilter) {
   int i;
   od_coeff *c;
 #if OD_DEBLOCKING
@@ -1529,17 +1534,21 @@ void od_postfilter_split(od_coeff *c0, int stride, int bs, int f, int q,
   (void)q;
   (void)skip;
   (void)skip_stride;
-  c = c0 + (2 << bs) - (2 << f);
-  for (i = 0; i < 4 << bs; i++) {
-    (*OD_POST_FILTER[f])(c + i*stride, c + i*stride);
+  if (vfilter) {
+    c = c0 + (2 << bs) - (2 << f);
+    for (i = 0; i < 4 << bs; i++) {
+      (*OD_POST_FILTER[f])(c + i*stride, c + i*stride);
+    }
   }
-  c = c0 + ((2 << bs) - (2 << f))*stride;
-  for (j = 0; j < 4 << bs; j++) {
-    int k;
-    od_coeff t[4 << OD_NBSIZES];
-    for (k = 0; k < 4 << f; k++) t[k] = c[stride*k + j];
-    (*OD_POST_FILTER[f])(t, t);
-    for (k = 0; k < 4 << f; k++) c[stride*k + j] = t[k];
+  if (hfilter) {
+    c = c0 + ((2 << bs) - (2 << f))*stride;
+    for (j = 0; j < 4 << bs; j++) {
+      int k;
+      od_coeff t[4 << OD_NBSIZES];
+      for (k = 0; k < 4 << f; k++) t[k] = c[stride*k + j];
+      (*OD_POST_FILTER[f])(t, t);
+      for (k = 0; k < 4 << f; k++) c[stride*k + j] = t[k];
+    }
   }
 #endif
 }

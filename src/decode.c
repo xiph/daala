@@ -837,11 +837,15 @@ static void od_decode_recursive(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
   else {
     int f;
     int bo;
+    int hfilter;
+    int vfilter;
     bs = bsi - xdec;
     f = OD_FILT_SIZE(bs - 1, xdec);
     bo = (by << (OD_LOG_BSIZE0 + bs))*w + (bx << (OD_LOG_BSIZE0 + bs));
+    hfilter = (bx + 1) << (OD_LOG_BSIZE0 + bs) <= dec->state.info.pic_width;
+    vfilter = (by + 1) << (OD_LOG_BSIZE0 + bs) <= dec->state.info.pic_height;
     if (!ctx->is_keyframe) {
-      od_prefilter_split(ctx->mc + bo, w, bs, f);
+      od_prefilter_split(ctx->mc + bo, w, bs, f, hfilter, vfilter);
     }
     if (ctx->is_keyframe) {
       od_decode_haar_dc_level(dec, ctx, pli, 2*bx, 2*by, bsi - 1, xdec, &hgrad,
@@ -859,7 +863,7 @@ static void od_decode_recursive(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
     bo = (by << (OD_LOG_BSIZE0 + bs))*w + (bx << (OD_LOG_BSIZE0 + bs));
     od_postfilter_split(ctx->c + bo, w, bs, f, dec->state.coded_quantizer[pli],
      &dec->state.bskip[pli][(by << bs)*dec->state.skip_stride + (bx << bs)],
-     dec->state.skip_stride);
+     dec->state.skip_stride, hfilter, vfilter);
   }
 }
 

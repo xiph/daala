@@ -1312,10 +1312,14 @@ static void od_compute_dcts(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int pli,
   }
   else {
     int f;
+    int hfilter;
+    int vfilter;
     bs = bsi - xdec;
     f = OD_FILT_SIZE(bs - 1, xdec);
     bo = (by << (OD_LOG_BSIZE0 + bs))*w + (bx << (OD_LOG_BSIZE0 + bs));
-    od_prefilter_split(ctx->c + bo, w, bs, f);
+    hfilter = (bx + 1) << (OD_LOG_BSIZE0 + bs) <= enc->state.info.pic_width;
+    vfilter = (by + 1) << (OD_LOG_BSIZE0 + bs) <= enc->state.info.pic_height;
+    od_prefilter_split(ctx->c + bo, w, bs, f, hfilter, vfilter);
     bsi--;
     bx <<= 1;
     by <<= 1;
@@ -1538,6 +1542,8 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
     od_coeff *split;
     int rate_nosplit;
     int rate_split;
+    int hfilter;
+    int vfilter;
     c_orig = enc->c_orig[bsi - 1];
     mc_orig = enc->mc_orig[bsi - 1];
     nosplit = enc->nosplit[bsi - 1];
@@ -1582,8 +1588,12 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
       }
     }
     f = OD_FILT_SIZE(bs - 1, xdec);
-    od_prefilter_split(ctx->c + bo, w, bs, f);
-    if (!ctx->is_keyframe) od_prefilter_split(ctx->mc + bo, w, bs, f);
+    hfilter = (bx + 1) << (OD_LOG_BSIZE0 + bs) <= enc->state.info.pic_width;
+    vfilter = (by + 1) << (OD_LOG_BSIZE0 + bs) <= enc->state.info.pic_height;
+    od_prefilter_split(ctx->c + bo, w, bs, f, hfilter, vfilter);
+    if (!ctx->is_keyframe) {
+      od_prefilter_split(ctx->mc + bo, w, bs, f, hfilter, vfilter);
+    }
     skip_split = 1;
     if (pli == 0) {
       /* Code the "split this block" symbol (4). */
@@ -1611,7 +1621,7 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
     skip_block = skip_split;
     od_postfilter_split(ctx->c + bo, w, bs, f, enc->state.coded_quantizer[pli],
      &enc->state.bskip[pli][(by << bs)*enc->state.skip_stride + (bx << bs)],
-     enc->state.skip_stride);
+     enc->state.skip_stride, hfilter, vfilter);
     if (rdo_only && bsi <= OD_LIMIT_BSIZE_MAX) {
       int i;
       int j;

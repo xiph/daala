@@ -35,7 +35,7 @@ int main(int argc, char *argv[]) {
             OD_IDCT_2D_C[ln](x1, OD_BASIS_SIZE, x1, OD_BASIS_SIZE);
           }
         }
-        od_postfilter_split(&x0[n*OD_BASIS_SIZE + n], OD_BASIS_SIZE, ln + 1, 0, 0, 0, 0);
+        od_postfilter_split(&x0[n*OD_BASIS_SIZE + n], OD_BASIS_SIZE, ln + 1, 0, 0, 0, 0, 1, 1);
         x1 = &x0[n - 2];
         x2 = &x0[3*n - 2];
         for (l = 0; l < 4*n; l++) {
