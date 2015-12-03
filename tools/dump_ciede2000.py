@@ -34,7 +34,7 @@ def process_pair(ref, recons):
     # Yang Yang, Jun Ming and Nenghai Yu, 2012
     # http://dx.doi.org/10.1155/2012/273723
     dE = color.deltaE_ciede2000(ref_lab, recons_lab, kL=0.65, kC=1.0, kH=4.0)
-    scores.append(20. * np.log10(dE.mean()))
+    scores.append(45. - 20. * np.log10(dE.mean()))
     print('%08d: %2.4f' % (ref.count, scores[-1]))
 
 
