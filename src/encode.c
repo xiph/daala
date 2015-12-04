@@ -2416,6 +2416,10 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
      OD_N_CODED_QUANTIZERS);
   }
   for (pli = 0; pli < nplanes; pli++) {
+    int pic_width;
+    int pic_height;
+    int plane_width;
+    int plane_height;
     /*Collect the image data needed for this plane.*/
     xdec = enc->input_img[enc->curr_frame].planes[pli].xdec;
     ydec = enc->input_img[enc->curr_frame].planes[pli].ydec;
@@ -2432,6 +2436,26 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
       if (!mbctx->use_haar_wavelet) {
         od_apply_prefilter_frame_sbs(state->mctmp[pli], w, nhsb, nvsb, xdec,
          ydec);
+      }
+    }
+    pic_width = enc->state.info.pic_width >> xdec;
+    pic_height = enc->state.info.pic_height >> ydec;
+    plane_width = enc->state.frame_width >> xdec;
+    plane_height = enc->state.frame_height >> ydec;
+    /* To avoid wasting bits on padding, we make the input padding identical
+       to the reference. That way there's no extra information to code there.
+       Even better would be to also avoid taking padding into account in the
+       distortion computation. */
+    if (!mbctx->is_keyframe) {
+      for (x = pic_width; x < plane_width; x++) {
+        for (y = 0; y < plane_height; y++) {
+          state->ctmp[pli][y*w + x] = state->mctmp[pli][y*w + x];
+        }
+      }
+      for (y = pic_height; y < plane_height; y++) {
+        for (x = 0; x < plane_width; x++) {
+          state->ctmp[pli][y*w + x] = state->mctmp[pli][y*w + x];
+        }
       }
     }
   }
