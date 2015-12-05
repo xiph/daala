@@ -2798,7 +2798,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     if ((mbctx.is_keyframe || mbctx.is_golden_frame)
      && enc->state.coded_quantizer[pli] != 0) {
       enc->state.coded_quantizer[pli] =
-       OD_MAXI(1, enc->state.coded_quantizer[pli] - 2);
+       OD_MAXI(1, enc->state.coded_quantizer[pli] - 3);
       enc->state.quantizer[pli] =
        od_codedquantizer_to_quantizer(enc->state.coded_quantizer[pli]);
     }
