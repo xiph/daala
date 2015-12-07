@@ -130,7 +130,7 @@ void od_mc_predict1fmv8_c(od_state *state, unsigned char *dst,
   mvxf = mvx & 0x07;
   mvyf = mvy & 0x07;
   /*Check whether mvxf and mvyf are in the range [0...7],
-     i.e. downto 1/8 precision.*/
+     i.e. down to 1/8 precision.*/
   OD_ASSERT(mvxf <= 7);
   fx = OD_SUBPEL_FILTER_SET[mvxf];
   OD_ASSERT(mvyf <= 7);
@@ -256,7 +256,7 @@ void od_mc_predict1fmv16_c(od_state *state, unsigned char *dst,
   mvxf = mvx & 0x07;
   mvyf = mvy & 0x07;
   /*Check whether mvxf and mvyf are in the range [0...7],
-     i.e. downto 1/8 precision.*/
+     i.e. down to 1/8 precision.*/
   OD_ASSERT(mvxf <= 7);
   fx = OD_SUBPEL_FILTER_SET[mvxf];
   OD_ASSERT(mvyf <= 7);
