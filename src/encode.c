@@ -2682,7 +2682,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   od_mb_enc_ctx mbctx;
   od_img *ref_img;
   if (enc == NULL || img == NULL) return OD_EFAULT;
-  if (enc->packet_state == OD_PACKET_DONE) return OD_EINVAL;
   /*Check the input image dimensions to make sure they're compatible with the
      declared video size.*/
   nplanes = enc->state.info.nplanes;
@@ -2896,10 +2895,10 @@ static void daala_encoder_check(daala_enc_ctx *ctx, od_img *img,
 }
 #endif
 
-int daala_encode_packet_out(daala_enc_ctx *enc, int last, daala_packet *op) {
+int daala_encode_packet_out(daala_enc_ctx *enc, daala_packet *op) {
   uint32_t nbytes;
   if (enc == NULL || op == NULL) return OD_EFAULT;
-  else if (enc->packet_state <= 0 || enc->packet_state == OD_PACKET_DONE) {
+  else if (enc->packet_state <= 0) {
     return 0;
   }
   op->packet = od_ec_enc_done(&enc->ec, &nbytes);
@@ -2907,11 +2906,10 @@ int daala_encode_packet_out(daala_enc_ctx *enc, int last, daala_packet *op) {
   OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO, "Output Bytes: %ld (%ld Kbits)",
    op->bytes, op->bytes*8/1024));
   op->b_o_s = 0;
-  op->e_o_s = last;
+  op->e_o_s = 0;
   op->packetno = 0;
   op->granulepos = enc->state.cur_time;
-  if (last) enc->packet_state = OD_PACKET_DONE;
-  else enc->packet_state = OD_PACKET_EMPTY;
+  enc->packet_state = OD_PACKET_EMPTY;
 
 #if defined(OD_ENCODER_CHECK)
   /*Compare reconstructed frame against decoded frame.*/

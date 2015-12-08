@@ -55,10 +55,10 @@ typedef struct daala_enc_ctx daala_enc_ctx;
  * The basic steps are:
  * - Fill in a #daala_info structure with details on the format of the video
  *    you wish to encode.
- * - Allocate a #daala_enc_ctx handle with daala_encode_alloc().
+ * - Allocate a #daala_enc_ctx handle with daala_encode_create().
  * - Perform any additional encoder configuration required with
  *    daala_encode_ctl().
- * - Repeatedly call daala_encode_flusheader() to retrieve all the header
+ * - Repeatedly call daala_encode_flush_header() to retrieve all the header
  *    packets.
  * - For each uncompressed frame:
  *   - Submit the compressed frame via daala_encode_img_in().
@@ -123,9 +123,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration);
  *        manner.
  *       However, this may be changed in the future.
  * \param enc A #daala_enc_ctx handle.
- * \param last Set this flag to a non-zero value if no more uncompressed
- *              frames will be submitted.
- *             This ensures that a proper EOS flag is set on the last packet.
  * \param dp A <tt>daala_packet</tt> structure to fill.
  *           All of the elements of this structure will be set, including a
  *            pointer to the video data.
@@ -135,8 +132,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration);
  * \retval 0 No packet was produced, and no more encoded video data
  *            remains.
  * \retval OD_EFAULT \a enc or \a op was <tt>NULL</tt>.*/
-int daala_encode_packet_out(daala_enc_ctx *enc,
- int last, daala_packet *dp);
+int daala_encode_packet_out(daala_enc_ctx *enc, daala_packet *dp);
 /**Frees an allocated encoder instance.
  * \param enc A #daala_enc_ctx handle.*/
 void daala_encode_free(daala_enc_ctx *enc);
