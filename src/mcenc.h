@@ -30,7 +30,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 /*The maximum search range for BMA in fullpel units. Also controls hit cache
    size.*/
-#define OD_MC_SEARCH_RANGE (64)
+#define OD_MC_SEARCH_RANGE (128)
 
 typedef struct od_mv_limits od_mv_limits;
 typedef struct od_mv_node od_mv_node;
@@ -57,7 +57,12 @@ struct od_mv_limits {
 struct od_mv_node {
   /*The historical motion vectors for EPZS^2, stored at full-pel resolution.
     Indexed by [time][reference_type][component].*/
+  /*reference_type : OD_FRAME_GOLD, OD_FRAME_PREV.*/
+  /*component : x, y, time in display order. */
+  /*Note: At present, bma_mvs keeps track of P frame's BMA MVs.*/
   int bma_mvs[3][2][2];
+  /*BMA mv of the mv node at the current frame.*/
+  int bma_mv_curr[2];
   /*The current estimated rate of this MV.*/
   unsigned mv_rate:16;
   /*The current size of the block with this MV at its upper-left.*/
@@ -71,6 +76,9 @@ struct od_mv_node {
   /*The SAD for BMA predictor centered on this node.
     Used for the dynamic thresholds of the initial EPZS^2 pass.*/
   int32_t bma_sad;
+  /*In case B frame is used, bma_sad of P will be overwritten,
+     so bma_sad is saved from the most recent P frame here.*/
+  int32_t bma_sad_p;
   /*The location of this node in the grid.*/
   int vx;
   int vy;
@@ -156,6 +164,9 @@ struct od_mv_est_ctx {
   od_sad4 **sad_cache[OD_LOG_MVB_DELTA0];
   /*The state of the MV mesh specific to the encoder.*/
   od_mv_node **mvs;
+  /*Timing of BMA history in display order*/
+  /*[time].*/
+  int bma_history_time[3];
   /*A temporary copy of the decoder-side MV grid used to save-and-restore the
      MVs when attempting sub-pel refinement.*/
   od_mv_grid_pt **refine_grid;

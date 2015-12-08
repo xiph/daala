@@ -184,11 +184,19 @@ int daala_decode_ctl(daala_dec_ctx *dec,
  * \param dec A #daala_dec_ctx handle.*/
 void daala_decode_free(daala_dec_ctx *dec);
 /**Retrieves decoded video data frames.
- * \param dec A #daala_dec_ctx handle.
+ * \param dec A #daala_dec_ctx handle.*/
+int daala_decode_packet_in(daala_dec_ctx *dec, const daala_packet *dp);
+/**Outputs the next available decoded image frame.
  * \param img A buffer to receive the decoded image data.
- * \param dp An incoming Daala packet.*/
-int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
- const daala_packet *dp);
+ * \param dp An incoming Daala packet.
+ * \return A positive value 1 means an output image was available
+ *          and was placed in \a img.
+ * \retval 1 An decoded image was available and was placed in \a img.
+ * \retval 0 No image was available, so the contents of \a img were left
+ *            unchanged.
+ * \retval OD_EFAULT One of \a dec or \a img was <tt>NULL</tt>.*/
+int daala_decode_img_out(daala_dec_ctx *dec, od_img *img);
+
 /*@}*/
 
 /** \defgroup decctlcodes Configuration keys for the decoder ctl interface.

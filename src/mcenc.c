@@ -1624,7 +1624,7 @@ static int32_t od_enc_sad(od_enc_ctx *enc, const unsigned char *p,
   int w;
   int h;
   state = &enc->state;
-  iplane = enc->input_img.planes + pli;
+  iplane = enc->input_img[enc->curr_frame].planes + pli;
   /*Compute the block dimensions in the target image plane.*/
   x >>= iplane->xdec;
   y >>= iplane->ydec;
@@ -1693,7 +1693,7 @@ static int32_t od_enc_satd(od_enc_ctx *enc, const unsigned char *p,
   int w;
   int h;
   state = &enc->state;
-  iplane = enc->input_img.planes + pli;
+  iplane = enc->input_img[enc->curr_frame].planes + pli;
   /*Compute the block dimensions in the target image plane.*/
   x >>= iplane->xdec;
   y >>= iplane->ydec;
@@ -2157,14 +2157,21 @@ static int od_mv_est_cand_bits(od_mv_est_ctx *est, int equal_mvs,
   id = OD_MINI(abs(oy), 3)*4 + OD_MINI(abs(ox), 3);
   cost += ((ox != 0) + (oy != 0))*sign_cost;
   cost += est->mv_small_rate_est[equal_mvs][id];
+  /*FIXME: We need to further verify this quick fix. While this worked with
+     the use of B frame giving 0.8% rate reduction, but did not verify
+     its impact for P frame. I will do that and report back here.*/
   if (abs(ox) >= 3) {
     cost += OD_MV_GE3_EST_RATE[OD_MINI(abs(ox) - 3, 255)];
+    /*If mvx >= (32 << mv_res) full pels, then add 1/8 bit
+       per each position, i.e. 1/8 pel << mv_res.*/
+    if (abs(ox) > 255) cost += abs(ox) - 255;
   }
   if (abs(oy) >= 3) {
     cost += OD_MV_GE3_EST_RATE[OD_MINI(abs(oy) - 3, 255)];
+    if (abs(oy) > 255) cost += abs(oy) - 255;
   }
   if (ref_pred != ref) {
-    cost += 2 << OD_BITRES;
+    cost += 1 << OD_BITRES;
   }
   return cost;
 }
@@ -2178,14 +2185,17 @@ static int od_mv_est_bits(od_mv_est_ctx *est, int vx, int vy, int mv_res) {
   int mv_rate;
   int ref_pred;
   od_mv_grid_pt *mvg;
+  int *mv;
   state = &est->enc->state;
   mvg = state->mv_grid[vy] + vx;
   equal_mvs = od_state_get_predictor(state, pred, vx, vy,
    OD_MC_LEVEL[vy & OD_MVB_MASK][vx & OD_MVB_MASK], mv_res, mvg->ref);
   ref_pred = od_mc_get_ref_predictor(state,  vx, vy,
    OD_MC_LEVEL[vy & OD_MVB_MASK][vx & OD_MVB_MASK]);
+  if (mvg->ref == OD_FRAME_NEXT) mv = mvg->mv1;
+  else mv = mvg->mv;
   mv_rate = od_mv_est_cand_bits(est, equal_mvs,
-   mvg->mv[0] >> mv_res, mvg->mv[1] >> mv_res, pred[0], pred[1],
+   mv[0] >> mv_res, mv[1] >> mv_res, pred[0], pred[1],
    mvg->ref, ref_pred);
   return mv_rate;
 }
@@ -2264,7 +2274,7 @@ static int32_t od_mv_est_sad(od_mv_est_ctx *est,
   int32_t ret;
   int xstride;
   state = &est->enc->state;
-  xstride = est->enc->input_img.planes[0].xstride;
+  xstride = est->enc->input_img[est->enc->curr_frame].planes[0].xstride;
   od_state_pred_block_from_setup(state, state->mc_buf[4],
    OD_MVBSIZE_MAX*xstride, 0, vx, vy, oc, s, log_mvb_sz);
   ret = est->compute_distortion(est->enc, state->mc_buf[4],
@@ -2273,7 +2283,8 @@ static int32_t od_mv_est_sad(od_mv_est_ctx *est,
    log_mvb_sz + OD_LOG_MVBSIZE_MIN);
   if (est->flags & OD_MC_USE_CHROMA) {
     int pli;
-    for (pli = 1; pli < est->enc->input_img.nplanes; pli++) {
+    for (pli = 1; pli < est->enc->input_img[est->enc->curr_frame].nplanes;
+     pli++) {
       od_state_pred_block_from_setup(state, state->mc_buf[4],
        OD_MVBSIZE_MAX*xstride, pli, vx, vy, oc, s, log_mvb_sz);
       ret += est->compute_distortion(est->enc, state->mc_buf[4],
@@ -2407,9 +2418,16 @@ void od_mv_est_check_rd_state(od_mv_est_ctx *est, int mv_res) {
          "Failure at node (%i, %i): mv_rate should be %i (is %i)",
          vx, vy, mv_rate, mv->mv_rate));
         OD_MV_EST_LOG_PRED(est, vx, vy, mv_res);
-        OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_WARN,
-         "MV was: (%i, %i)@%i", mvg->mv[0] >> mv_res,
-         mvg->mv[1] >> mv_res, mvg->ref));
+        if (mvg->ref == OD_FRAME_NEXT) {
+          OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_WARN,
+           "MV was: (%i, %i)@%i", mvg->mv1[0] >> mv_res,
+           mvg->mv1[1] >> mv_res, mvg->ref));
+        }
+        else {
+          OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_WARN,
+           "MV was: (%i, %i)@%i", mvg->mv[0] >> mv_res,
+           mvg->mv[1] >> mv_res, mvg->ref));
+        }
         OD_ASSERT(mv_rate == mv->mv_rate);
       }
     }
@@ -2524,6 +2542,13 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy,
   int pred[2];
   int ci;
   int previous_cost;
+  int frame_type;
+  int ref2;
+  float mv_scaler;
+  int curr_display_order;
+  int prev_display_order;
+  int prev_prev_display_order;
+  int bma_time_index;
 #if defined(OD_DUMP_IMAGES) && defined(OD_ANIMATE)
   int animating;
   int x0;
@@ -2537,6 +2562,7 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy,
   log_mvb_sz = (OD_MC_LEVEL_MAX - level) >> 1;
   mvb_sz = 1 << log_mvb_sz;
   mvg = state->mv_grid[vy] + vx;
+  frame_type = state->frame_type;
 #if defined(OD_DUMP_IMAGES) && defined(OD_ANIMATE)
   animating = daala_granule_basetime(state, state->cur_time) == ANI_FRAME;
   if (animating) {
@@ -2596,6 +2622,7 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy,
   candy = OD_CLAMPI(mvymin, pred[1], mvymax);
   ref_pred = od_mc_get_ref_predictor(state, vx, vy, level);
   /*Find additional candidates.*/
+  /*TODO: if backward pred, use ZERO_NODE with ref = 2.*/
   if (level == 0) {
     if (vy >= mvb_sz) {
       cneighbors[0] = vx >= mvb_sz ?
@@ -2642,11 +2669,25 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy,
     }
   }
   /*Spatially correlated predictors (from the current frame):*/
-  for (ci = 0; ci < ncns; ci++) {
-    cands[ci][0] = OD_CLAMPI(mvxmin, cneighbors[ci]->bma_mvs[0][ref][0],
-     mvxmax);
-    cands[ci][1] = OD_CLAMPI(mvymin, cneighbors[ci]->bma_mvs[0][ref][1],
-     mvymax);
+  if (frame_type == OD_B_FRAME) {
+    ref2 = OD_FRAME_PREV;
+  }
+  else ref2 = ref;
+  if (frame_type == OD_P_FRAME) {
+    for (ci = 0; ci < ncns; ci++) {
+      cands[ci][0] = OD_CLAMPI(mvxmin, cneighbors[ci]->bma_mvs[0][ref2][0],
+       mvxmax);
+      cands[ci][1] = OD_CLAMPI(mvymin, cneighbors[ci]->bma_mvs[0][ref2][1],
+       mvymax);
+    }
+  }
+  else {
+    for (ci = 0; ci < ncns; ci++) {
+      cands[ci][0] = OD_CLAMPI(mvxmin, cneighbors[ci]->bma_mv_curr[0],
+       mvxmax);
+      cands[ci][1] = OD_CLAMPI(mvymin, cneighbors[ci]->bma_mv_curr[1],
+       mvymax);
+    }
   }
   od_mv_est_clear_hit_cache(est);
 #if defined(OD_DUMP_IMAGES) && defined(OD_ANIMATE)
@@ -2666,12 +2707,25 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy,
   best_vec[1] = candy;
   OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
    "Threshold: %i", est->thresh1[log_mvb_sz]));
+  /*TODO: adjust the BMA thresholds if B-frame is used, i.e. P frame's MV
+    will introduce much larger MC error if B-frames are used.*/
   if (best_sad > est->thresh1[log_mvb_sz]) {
     int32_t sad;
     int32_t cost;
     int rate;
     /*Compute the early termination threshold for set B.*/
-    t2 = mv->bma_sad;
+    /*FIXME: For B frame, SAD of previous frame is not stored.
+      More precisely, for the 1st B frame in P1B..BP2, we have SAD from P2
+       but that should be properly scaled based on time distance which is
+       not done here. For the 2nd B frames and more, SAD of previous
+       B frame is not stored.
+      Hence, we use the 0 for the initial value of t2 for now.
+      This can be improved later, but this ways gives me ~0.15% rate
+       reduction.*/
+    if (state->frame_type == OD_P_FRAME) t2 = mv->bma_sad_p;
+    else t2 = 0;
+    /*TODO: If B-frame, need to check whether cneighbors[ci] has
+       the same ref.*/
     for (ci = 0; ci < ncns; ci++) {
       int log_cnb_sz;
       int clevel;
@@ -2686,10 +2740,26 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy,
     }
     t2 = t2 + (t2 >> OD_MC_THRESH2_SCALE_BITS) + est->thresh2_offs[log_mvb_sz];
     /*Constant velocity predictor:*/
-    cands[ncns][0] =
-     OD_CLAMPI(mvxmin, mv->bma_mvs[1][ref][0], mvxmax);
-    cands[ncns][1] =
-     OD_CLAMPI(mvymin, mv->bma_mvs[1][ref][1], mvymax);
+    if (frame_type == OD_B_FRAME) {
+      curr_display_order = est->enc->curr_display_order;
+      prev_display_order = est->bma_history_time[0];
+      prev_prev_display_order = est->bma_history_time[1];
+      if (ref == OD_FRAME_PREV) {
+        mv_scaler = (curr_display_order - prev_prev_display_order)/
+         (float)(prev_display_order - prev_prev_display_order);
+      }
+      else {
+        mv_scaler = - (prev_display_order - curr_display_order)/
+         (float)(prev_display_order - prev_prev_display_order);
+      }
+    }
+    else mv_scaler = 1.0F;
+    if (frame_type == OD_P_FRAME) bma_time_index = 1;
+    else bma_time_index = 0;
+    cands[ncns][0] = OD_CLAMPI(mvxmin,
+     (int)(mv_scaler*mv->bma_mvs[bma_time_index][ref2][0]), mvxmax);
+    cands[ncns][1] = OD_CLAMPI(mvymin,
+     (int)(mv_scaler*mv->bma_mvs[bma_time_index][ref2][1]), mvymax);
     ncns++;
     /*Zero predictor.*/
     cands[ncns][0] = 0;
@@ -2729,18 +2799,22 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy,
     if (best_sad > t2) {
       /*Constant velocity predictors from the previous frame:*/
       for (ci = 0; ci < 4; ci++) {
-        cands[ci][0] =
-         OD_CLAMPI(mvxmin, pneighbors[ci]->bma_mvs[1][ref][0], mvxmax);
-        cands[ci][1] =
-         OD_CLAMPI(mvymin, pneighbors[ci]->bma_mvs[1][ref][1], mvymax);
+        cands[ci][0] = OD_CLAMPI(mvxmin, (int)(mv_scaler*
+         pneighbors[ci]->bma_mvs[bma_time_index][ref2][0]), mvxmax);
+        cands[ci][1] = OD_CLAMPI(mvymin, (int)(mv_scaler*
+         pneighbors[ci]->bma_mvs[bma_time_index][ref2][1]), mvymax);
       }
       /*The constant acceleration predictor:*/
-      cands[4][0] = OD_CLAMPI(mvxmin,
-       OD_DIV_ROUND_POW2(mv->bma_mvs[1][ref][0]*est->mvapw[ref][0]
-       - mv->bma_mvs[2][ref][0]*est->mvapw[ref][1], 15, 0x4000), mvxmax);
-      cands[4][1] = OD_CLAMPI(mvymin,
-       OD_DIV_ROUND_POW2(mv->bma_mvs[1][ref][1]*est->mvapw[ref][0]
-       - mv->bma_mvs[2][ref][1]*est->mvapw[ref][1], 15, 0x4000), mvymax);
+      cands[4][0] = OD_CLAMPI(mvxmin, (int)(mv_scaler*
+       OD_DIV_ROUND_POW2(mv->bma_mvs[bma_time_index][ref2][0]*
+       est->mvapw[ref2][0]
+       - mv->bma_mvs[bma_time_index + 1][ref2][0]*est->mvapw[ref2][1],
+       15, 0x4000)), mvxmax);
+      cands[4][1] = OD_CLAMPI(mvymin, (int)(mv_scaler*
+       OD_DIV_ROUND_POW2(mv->bma_mvs[bma_time_index][ref2][1]*
+       est->mvapw[ref2][0]
+       - mv->bma_mvs[bma_time_index + 1][ref2][1]*est->mvapw[ref2][1],
+       15, 0x4000)), mvymax);
       /*Examine the candidates in Set C.*/
       for (ci = 0; ci < 5; ci++) {
         candx = cands[ci][0];
@@ -2901,28 +2975,51 @@ static void od_mv_est_init_mv(od_mv_est_ctx *est, int ref, int vx, int vy,
     od_state_dump_img(state, &est->enc->vis_img, iter_label);
   }
 #endif
-  mv->bma_mvs[0][ref][0] = best_vec[0];
-  mv->bma_mvs[0][ref][1] = best_vec[1];
+  if (state->frame_type == OD_P_FRAME) {
+    mv->bma_mvs[0][ref][0] = best_vec[0];
+    mv->bma_mvs[0][ref][1] = best_vec[1];
+  }
+  else {
+    mv->bma_mv_curr[0] = best_vec[0];
+    mv->bma_mv_curr[1] = best_vec[1];
+  }
   /*previous_cost is our previous best cost from a previous pass of phase 1.*/
   previous_cost = (mv->bma_sad << OD_ERROR_SCALE) + mv->mv_rate*est->lambda;
   if (must_update || (best_cost < previous_cost)) {
     OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
      "Found a better SAD then previous best."));
-    mvg->mv[0] = best_vec[0]*4;
-    mvg->mv[1] = best_vec[1]*4;
+    if (ref == OD_FRAME_NEXT) {
+      mvg->mv1[0] = best_vec[0]*4;
+      mvg->mv1[1] = best_vec[1]*4;
+    }
+    else {
+      mvg->mv[0] = best_vec[0]*4;
+      mvg->mv[1] = best_vec[1]*4;
+    }
     mvg->ref = ref;
     mvg->valid = 1;
     mv->bma_sad = best_sad;
+    if (state->frame_type == OD_P_FRAME) {
+      mv->bma_sad_p = best_sad;
+    }
     mv->mv_rate = best_rate;
     OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
      "Initialized MV (%2i, %2i): (%3i, %3i), SAD: %i, ref: %i",
      vx, vy, best_vec[0], best_vec[1], best_sad, ref));
 #if defined(OD_ENABLE_ASSERTIONS) || defined(OD_ENABLE_LOGGING)
     {
-      OD_ASSERT(mvg->mv[0] <= mvxmax << 2);
-      OD_ASSERT(mvg->mv[0] >= mvxmin*(1 << 2));
-      OD_ASSERT(mvg->mv[1] <= mvymax << 2);
-      OD_ASSERT(mvg->mv[1] >= mvymin*(1 << 2));
+      if (ref == OD_FRAME_NEXT) {
+        OD_ASSERT(mvg->mv1[0] <= mvxmax << 2);
+        OD_ASSERT(mvg->mv1[0] >= mvxmin*(1 << 2));
+        OD_ASSERT(mvg->mv1[1] <= mvymax << 2);
+        OD_ASSERT(mvg->mv1[1] >= mvymin*(1 << 2));
+      }
+      else {
+        OD_ASSERT(mvg->mv[0] <= mvxmax << 2);
+        OD_ASSERT(mvg->mv[0] >= mvxmin*(1 << 2));
+        OD_ASSERT(mvg->mv[1] <= mvymax << 2);
+        OD_ASSERT(mvg->mv[1] >= mvymin*(1 << 2));
+      }
       mv->mv_rate = od_mv_est_bits(est, vx, vy, 2);
       if (mv->mv_rate != best_rate) {
         OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_ERR,
@@ -2946,11 +3043,15 @@ static void od_mv_est_init_mvs(od_mv_est_ctx *est, int ref, int must_update) {
   nhmvbs = state->nhmvbs;
   nvmvbs = state->nvmvbs;
   /*Move the motion vector predictors back a frame.*/
-  for (vy = 0; vy <= nvmvbs; vy++) {
-    for (vx = 0; vx <= nhmvbs; vx++) {
-      od_mv_node *mv;
-      mv = est->mvs[vy] + vx;
-      OD_MOVE(mv->bma_mvs + 1, mv->bma_mvs + 0, 2);
+  if (state->frame_type == OD_P_FRAME && ref == OD_FRAME_PREV) {
+    OD_MOVE(est->bma_history_time + 1, est->bma_history_time + 0, 2);
+    est->bma_history_time[0] = est->enc->curr_display_order;
+    for (vy = 0; vy <= nvmvbs; vy++) {
+      for (vx = 0; vx <= nhmvbs; vx++) {
+        od_mv_node *mv;
+        mv = est->mvs[vy] + vx;
+        OD_MOVE(mv->bma_mvs + 1, mv->bma_mvs + 0, 2);
+      }
     }
   }
   /*We initialize MVs a MVB at a time for cache coherency.
@@ -3872,7 +3973,7 @@ static void od_mv_est_init_dus(od_mv_est_ctx *est) {
   int nvmvbs;
   int log_mvb_sz;
   int level;
-  int vx; 
+  int vx;
   int vy;
   state = &est->enc->state;
   nhmvbs = state->nhmvbs;
@@ -4465,11 +4566,20 @@ static int od_mv_dp_get_rate_change(od_mv_est_ctx *est, od_mv_dp_node *dp,
       /*Restore the state for this MV itself.*/
       pred_dp->mv->mv_rate = pred_dp->states[pred_si].mv_rate;
       mvg = pred_dp->mvg;
-      mvg->mv[0] = pred_dp->states[pred_si].mv[0];
-      mvg->mv[1] = pred_dp->states[pred_si].mv[1];
-      OD_LOG_PARTIAL((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
-       "(%i, %i: %i)->(%i , %i) ",
-       pred_dp->mv->vx, pred_dp->mv->vy, pred_si, mvg->mv[0], mvg->mv[1]));
+      if (mvg->ref == OD_FRAME_NEXT) {
+        mvg->mv1[0] = pred_dp->states[pred_si].mv[0];
+        mvg->mv1[1] = pred_dp->states[pred_si].mv[1];
+        OD_LOG_PARTIAL((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
+         "(%i, %i: %i)->(%i , %i) ",
+         pred_dp->mv->vx, pred_dp->mv->vy, pred_si, mvg->mv1[0], mvg->mv1[1]));
+      }
+      else {
+        mvg->mv[0] = pred_dp->states[pred_si].mv[0];
+        mvg->mv[1] = pred_dp->states[pred_si].mv[1];
+        OD_LOG_PARTIAL((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
+         "(%i, %i: %i)->(%i , %i) ",
+         pred_dp->mv->vx, pred_dp->mv->vy, pred_si, mvg->mv[0], mvg->mv[1]));
+      }
       /*Restore the state for the MVs this one predicted.*/
       for (pi = 0; pi < pred_dp->npred_changeable; pi++) {
         pred_dp->predicted_mvs[pi]->mv_rate =
@@ -4498,9 +4608,16 @@ static int od_mv_dp_get_rate_change(od_mv_est_ctx *est, od_mv_dp_node *dp,
      "Calculated predicted mv_rate of %i for (%i, %i)",
      pred_mv_rates[pi], mv->vx, mv->vy));
     OD_MV_EST_LOG_PRED(est, mv->vx, mv->vy, mv_res);
-    OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
-     "MV was: (%i, %i)",
-     mvg->mv[0] >> mv_res, mvg->mv[1] >> mv_res));
+    if (mvg->ref == OD_FRAME_NEXT) {
+      OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
+       "MV was: (%i, %i)",
+       mvg->mv1[0] >> mv_res, mvg->mv1[1] >> mv_res));
+    }
+    else {
+      OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
+       "MV was: (%i, %i)",
+       mvg->mv[0] >> mv_res, mvg->mv[1] >> mv_res));
+    }
     OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
      "Predicted MV (%i, %i) rate: %i - %i = %i", mv->vx, mv->vy,
      pred_mv_rates[pi], mv->mv_rate, pred_mv_rates[pi] - mv->mv_rate));
@@ -4687,8 +4804,14 @@ static void od_mv_dp_row_init(od_mv_est_ctx *est,
   state = &est->enc->state;
   dp->mv = est->mvs[vy] + vx;
   dp->mvg = state->mv_grid[vy] + vx;
-  dp->original_mv[0] = dp->mvg->mv[0];
-  dp->original_mv[1] = dp->mvg->mv[1];
+  if (dp->mvg->ref == OD_FRAME_NEXT) {
+    dp->original_mv[0] = dp->mvg->mv1[0];
+    dp->original_mv[1] = dp->mvg->mv1[1];
+  }
+  else {
+    dp->original_mv[0] = dp->mvg->mv[0];
+    dp->original_mv[1] = dp->mvg->mv[1];
+  }
   dp->original_mv_rate = dp->mv->mv_rate;
   nhmvbs = state->nhmvbs;
   nvmvbs = state->nvmvbs;
@@ -5019,8 +5142,14 @@ static void od_mv_dp_restore_row_state(od_mv_dp_node *dp) {
     /*Restore the state for this MV itself.*/
     dp->mv->mv_rate = dp->original_mv_rate;
     mvg = dp->mvg;
-    mvg->mv[0] = dp->original_mv[0];
-    mvg->mv[1] = dp->original_mv[1];
+    if (mvg->ref == OD_FRAME_NEXT) {
+      mvg->mv1[0] = dp->original_mv[0];
+      mvg->mv1[1] = dp->original_mv[1];
+    }
+    else {
+      mvg->mv[0] = dp->original_mv[0];
+      mvg->mv[1] = dp->original_mv[1];
+    }
     for (pi = 0; pi < dp->npred_changeable; pi++) {
       /*Restore the state for the MVs this one predicted.*/
       dp->predicted_mvs[pi]->mv_rate = dp->original_mv_rates[pi];
@@ -5060,8 +5189,14 @@ static void od_mv_dp_install_row_state(od_mv_dp_node *dp, int prevsi) {
      dp->mv->vx, dp->mv->vy, dp->states[si].mv_rate));
     dp->mv->mv_rate = dp->states[si].mv_rate;
     mvg = dp->mvg;
-    mvg->mv[0] = dp->states[si].mv[0];
-    mvg->mv[1] = dp->states[si].mv[1];
+    if (mvg->ref == OD_FRAME_NEXT) {
+      mvg->mv1[0] = dp->states[si].mv[0];
+      mvg->mv1[1] = dp->states[si].mv[1];
+    }
+    else {
+      mvg->mv[0] = dp->states[si].mv[0];
+      mvg->mv[1] = dp->states[si].mv[1];
+    }
     /*Install the new block SADs.*/
     for (bi = 0; bi < dp->nblocks; bi++) {
       dp->blocks[bi]->sad = dp->states[si].block_sads[bi];
@@ -5128,8 +5263,14 @@ static int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
     log_mvb_sz = (OD_MC_LEVEL_MAX - level) >> 1;
     mvb_sz = 1 << log_mvb_sz;
     mvg = grid + vx;
-    curx = mvg->mv[0];
-    cury = mvg->mv[1];
+    if (mvg->ref == OD_FRAME_NEXT) {
+      curx = mvg->mv1[0];
+      cury = mvg->mv1[1];
+    }
+    else {
+      curx = mvg->mv[0];
+      cury = mvg->mv[1];
+    }
     dp_node = est->dp_nodes;
     od_mv_dp_row_init(est, dp_node, vx, vy, NULL);
     od_mv_dp_first_row_block_setup(est, dp_node, vx, vy);
@@ -5144,8 +5285,14 @@ static int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
       cstate->mv[0] = curx + (OD_SITE_DX[site]*(1 << log_dsz));
       cstate->mv[1] = cury + (OD_SITE_DY[site]*(1 << log_dsz));
       cstate->prevsi = -1;
-      mvg->mv[0] = cstate->mv[0];
-      mvg->mv[1] = cstate->mv[1];
+      if (mvg->ref == OD_FRAME_NEXT) {
+        mvg->mv1[0] = cstate->mv[0];
+        mvg->mv1[1] = cstate->mv[1];
+      }
+      else {
+        mvg->mv[0] = cstate->mv[0];
+        mvg->mv[1] = cstate->mv[1];
+      }
       cstate->dr = od_mv_dp_get_rate_change(est, dp_node,
        &cstate->mv_rate, cstate->pred_mv_rates, -1, mv_res);
       cstate->dd = od_mv_dp_get_sad_change(est, dp_node,
@@ -5181,14 +5328,26 @@ static int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
       log_mvb_sz = (OD_MC_LEVEL_MAX - level) >> 1;
       mvb_sz = 1 << log_mvb_sz;
       mvg = grid + vx;
-      curx = mvg->mv[0];
-      cury = mvg->mv[1];
+      if (mvg->ref == OD_FRAME_NEXT) {
+        curx = mvg->mv1[0];
+        cury = mvg->mv1[1];
+      }
+      else {
+        curx = mvg->mv[0];
+        cury = mvg->mv[1];
+      }
       od_mv_dp_row_init(est, dp_node + 1, vx, vy, dp_node);
       od_mv_dp_prev_row_block_setup(est, dp_node + 1, vx, vy);
       OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG, "TESTING block SADs:"));
       if (od_logging_active(OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG)) {
-        pmvg->mv[0] = dp_node[0].original_mv[0];
-        pmvg->mv[1] = dp_node[0].original_mv[1];
+        if (pmvg->ref == OD_FRAME_NEXT) {
+          pmvg->mv1[0] = dp_node[0].original_mv[0];
+          pmvg->mv1[1] = dp_node[0].original_mv[1];
+        }
+        else {
+          pmvg->mv[0] = dp_node[0].original_mv[0];
+          pmvg->mv[1] = dp_node[0].original_mv[1];
+        }
         od_mv_dp_get_sad_change(est, dp_node + 1, block_sads[0]);
       }
       /*Compute the set of states for this node.*/
@@ -5204,8 +5363,14 @@ static int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
         best_dr = dp_node[0].states[0].dr;
         best_dd = dp_node[0].states[0].dd;
         best_cost = INT_MAX;
-        mvg->mv[0] = cstate->mv[0];
-        mvg->mv[1] = cstate->mv[1];
+        if (mvg->ref == OD_FRAME_NEXT) {
+          mvg->mv1[0] = cstate->mv[0];
+          mvg->mv1[1] = cstate->mv[1];
+        }
+        else {
+          mvg->mv[0] = cstate->mv[0];
+          mvg->mv[1] = cstate->mv[1];
+        }
         for (si = 0; si < dp_node[0].nstates; si++) {
           pstate = dp_node[0].states + si;
           /*Get the rate change for this state using previous state si.
@@ -5257,14 +5422,26 @@ static int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
       od_mv_dp_last_row_block_setup(est, dp_node + 1, dp_node[0].mv->vx, vy);
       OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG, "TESTING block SADs:"));
       if (od_logging_active(OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG)) {
-        pmvg->mv[0] = dp_node[0].original_mv[0];
-        pmvg->mv[1] = dp_node[0].original_mv[1];
+        if (pmvg->ref == OD_FRAME_NEXT) {
+          pmvg->mv1[0] = dp_node[0].original_mv[0];
+          pmvg->mv1[1] = dp_node[0].original_mv[1];
+        }
+        else {
+          pmvg->mv[0] = dp_node[0].original_mv[0];
+          pmvg->mv[1] = dp_node[0].original_mv[1];
+        }
         od_mv_dp_get_sad_change(est, dp_node + 1, block_sads[0]);
       }
       for (si = 0; si < dp_node[0].nstates; si++) {
         pstate = dp_node[0].states + si;
-        pmvg->mv[0] = pstate->mv[0];
-        pmvg->mv[1] = pstate->mv[1];
+        if (pmvg->ref == OD_FRAME_NEXT) {
+          pmvg->mv1[0] = pstate->mv[0];
+          pmvg->mv1[1] = pstate->mv[1];
+        }
+        else {
+          pmvg->mv[0] = pstate->mv[0];
+          pmvg->mv[1] = pstate->mv[1];
+        }
         /*Test against the state with a following edge.*/
         dr = pstate->dr;
         dd = pstate->dd + od_mv_dp_get_sad_change(est,
@@ -5346,8 +5523,14 @@ static void od_mv_dp_col_init(od_mv_est_ctx *est,
   state = &est->enc->state;
   dp->mv = est->mvs[vy] + vx;
   dp->mvg = state->mv_grid[vy] + vx;
-  dp->original_mv[0] = dp->mvg->mv[0];
-  dp->original_mv[1] = dp->mvg->mv[1];
+  if (dp->mvg->ref == OD_FRAME_NEXT) {
+    dp->original_mv[0] = dp->mvg->mv1[0];
+    dp->original_mv[1] = dp->mvg->mv1[1];
+  }
+  else {
+    dp->original_mv[0] = dp->mvg->mv[0];
+    dp->original_mv[1] = dp->mvg->mv[1];
+  }
   dp->original_mv_rate = dp->mv->mv_rate;
   nhmvbs = state->nhmvbs;
   nvmvbs = state->nvmvbs;
@@ -5632,8 +5815,14 @@ static void od_mv_dp_restore_col_state(od_mv_dp_node *dp) {
     /*Restore the state for this MV itself.*/
     dp->mv->mv_rate = dp->original_mv_rate;
     mvg = dp->mvg;
-    mvg->mv[0] = dp->original_mv[0];
-    mvg->mv[1] = dp->original_mv[1];
+    if (mvg->ref == OD_FRAME_NEXT) {
+      mvg->mv1[0] = dp->original_mv[0];
+      mvg->mv1[1] = dp->original_mv[1];
+    }
+    else {
+      mvg->mv[0] = dp->original_mv[0];
+      mvg->mv[1] = dp->original_mv[1];
+    }
     for (pi = 0; pi < dp->npred_changeable; pi++) {
       /*Restore the state for the MVs this one predicted.*/
       dp->predicted_mvs[pi]->mv_rate = dp->original_mv_rates[pi];
@@ -5668,8 +5857,14 @@ static void od_mv_dp_install_col_state(od_mv_dp_node *dp, int prevsi) {
     /*Install the state for this MV itself.*/
     dp->mv->mv_rate = dp->states[si].mv_rate;
     mvg = dp->mvg;
-    mvg->mv[0] = dp->states[si].mv[0];
-    mvg->mv[1] = dp->states[si].mv[1];
+    if (mvg->ref == OD_FRAME_NEXT) {
+      mvg->mv1[0] = dp->states[si].mv[0];
+      mvg->mv1[1] = dp->states[si].mv[1];
+    }
+    else {
+      mvg->mv[0] = dp->states[si].mv[0];
+      mvg->mv[1] = dp->states[si].mv[1];
+    }
     /*Install the new block SADs.*/
     for (bi = 0; bi < dp->nblocks; bi++) {
       dp->blocks[bi]->sad = dp->states[si].block_sads[bi];
@@ -5732,8 +5927,14 @@ static int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
     log_mvb_sz = (OD_MC_LEVEL_MAX - level) >> 1;
     mvb_sz = 1 << log_mvb_sz;
     mvg = grid[vy] + vx;
-    curx = mvg->mv[0];
-    cury = mvg->mv[1];
+    if (mvg->ref == OD_FRAME_NEXT) {
+      curx = mvg->mv1[0];
+      cury = mvg->mv1[1];
+    }
+    else {
+      curx = mvg->mv[0];
+      cury = mvg->mv[1];
+    }
     dp_node = est->dp_nodes;
     od_mv_dp_col_init(est, dp_node, vx, vy, NULL);
     od_mv_dp_first_col_block_setup(est, dp_node, vx, vy);
@@ -5750,8 +5951,14 @@ static int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
       cstate->mv[0] = curx + (OD_SITE_DX[site]*(1 << log_dsz));
       cstate->mv[1] = cury + (OD_SITE_DY[site]*(1 << log_dsz));
       cstate->prevsi = -1;
-      mvg->mv[0] = cstate->mv[0];
-      mvg->mv[1] = cstate->mv[1];
+      if (mvg->ref == OD_FRAME_NEXT) {
+        mvg->mv1[0] = cstate->mv[0];
+        mvg->mv1[1] = cstate->mv[1];
+      }
+      else {
+        mvg->mv[0] = cstate->mv[0];
+        mvg->mv[1] = cstate->mv[1];
+      }
       cstate->dr = od_mv_dp_get_rate_change(est, dp_node,
        &cstate->mv_rate, cstate->pred_mv_rates, -1, mv_res);
       cstate->dd = od_mv_dp_get_sad_change(est, dp_node,
@@ -5786,14 +5993,25 @@ static int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
       log_mvb_sz = (OD_MC_LEVEL_MAX - level) >> 1;
       mvb_sz = 1 << log_mvb_sz;
       mvg = grid[vy] + vx;
-      curx = mvg->mv[0];
-      cury = mvg->mv[1];
-      od_mv_dp_col_init(est, dp_node + 1, vx, vy, dp_node);
+      if (mvg->ref == OD_FRAME_NEXT) {
+        curx = mvg->mv1[0];
+        cury = mvg->mv1[1];
+      }
+      else {
+        curx = mvg->mv[0];
+        cury = mvg->mv[1];
+      }      od_mv_dp_col_init(est, dp_node + 1, vx, vy, dp_node);
       od_mv_dp_prev_col_block_setup(est, dp_node + 1, vx, vy);
       OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG, "TESTING block SADs:"));
       if (od_logging_active(OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG)) {
-        pmvg->mv[0] = dp_node[0].original_mv[0];
-        pmvg->mv[1] = dp_node[0].original_mv[1];
+        if (pmvg->ref == OD_FRAME_NEXT) {
+          pmvg->mv1[0] = dp_node[0].original_mv[0];
+          pmvg->mv1[1] = dp_node[0].original_mv[1];
+        }
+        else {
+          pmvg->mv[0] = dp_node[0].original_mv[0];
+          pmvg->mv[1] = dp_node[0].original_mv[1];
+        }
         od_mv_dp_get_sad_change(est, dp_node + 1, block_sads[0]);
       }
       /*Compute the set of states for this node.*/
@@ -5809,8 +6027,14 @@ static int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
         best_dr = dp_node[0].states[0].dr;
         best_dd = dp_node[0].states[0].dd;
         best_cost = INT_MAX;
-        mvg->mv[0] = cstate->mv[0];
-        mvg->mv[1] = cstate->mv[1];
+        if (mvg->ref == OD_FRAME_NEXT) {
+          mvg->mv1[0] = cstate->mv[0];
+          mvg->mv1[1] = cstate->mv[1];
+        }
+        else {
+          mvg->mv[0] = cstate->mv[0];
+          mvg->mv[1] = cstate->mv[1];
+        }
         for (si = 0; si < dp_node[0].nstates; si++) {
           pstate = dp_node[0].states + si;
           /*Get the rate change for this state using previous state si.
@@ -5862,14 +6086,26 @@ static int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
       od_mv_dp_last_col_block_setup(est, dp_node + 1, vx, dp_node[0].mv->vy);
       OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG, "TESTING block SADs:"));
       if (od_logging_active(OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG)) {
-        pmvg->mv[0] = dp_node[0].original_mv[0];
-        pmvg->mv[1] = dp_node[0].original_mv[1];
+        if (pmvg->ref == OD_FRAME_NEXT) {
+          pmvg->mv1[0] = dp_node[0].original_mv[0];
+          pmvg->mv1[1] = dp_node[0].original_mv[1];
+        }
+        else {
+          pmvg->mv[0] = dp_node[0].original_mv[0];
+          pmvg->mv[1] = dp_node[0].original_mv[1];
+        }
         od_mv_dp_get_sad_change(est, dp_node + 1, block_sads[0]);
       }
       for (si = 0; si < dp_node[0].nstates; si++) {
         pstate = dp_node[0].states + si;
-        pmvg->mv[0] = pstate->mv[0];
-        pmvg->mv[1] = pstate->mv[1];
+        if (pmvg->ref == OD_FRAME_NEXT) {
+          pmvg->mv1[0] = pstate->mv[0];
+          pmvg->mv1[1] = pstate->mv[1];
+        }
+        else {
+          pmvg->mv[0] = pstate->mv[0];
+          pmvg->mv[1] = pstate->mv[1];
+        }
         /*Test against the state with a following edge.*/
         dr = pstate->dr;
         dd = pstate->dd + od_mv_dp_get_sad_change(est,
@@ -5985,6 +6221,7 @@ void od_mv_est_update_bma_mvs(od_mv_est_ctx *est) {
       od_mv_grid_pt *mvg;
       od_mv_node *mv;
       mvg = state->mv_grid[vy] + vx;
+      OD_ASSERT(mvg->ref == OD_FRAME_GOLD || mvg->ref == OD_FRAME_PREV);
       if (!mvg->valid) continue;
       mv = est->mvs[vy] + vx;
       mv->bma_mvs[0][mvg->ref][0] = OD_DIV_POW2_RE(mvg->mv[0], 2);
@@ -6144,7 +6381,9 @@ void od_mv_subpel_refine(od_mv_est_ctx *est, int cost_thresh) {
       best_mv_res = mv_res;
     }
   }
-  od_mv_est_update_bma_mvs(est);
+  if (state->frame_type == OD_P_FRAME) {
+    od_mv_est_update_bma_mvs(est);
+  }
   od_state_set_mv_res(state, best_mv_res);
 }
 
@@ -6163,15 +6402,28 @@ void od_mv_est(od_mv_est_ctx *est, int lambda) {
   int pli;
   int i;
   int j;
+  int frame_type;
   use_satd = est->enc->use_satd;
   state = &est->enc->state;
   nhmvbs = state->nhmvbs;
   nvmvbs = state->nvmvbs;
-  iplane = est->enc->input_img.planes + 0;
+  iplane = est->enc->input_img[est->enc->curr_frame].planes + 0;
+  frame_type = state->frame_type;
   /*Sanitize user parameters*/
   est->level_min = OD_MINI(est->enc->params.mv_level_min,
    est->enc->params.mv_level_max);
   est->level_max = est->enc->params.mv_level_max;
+  /*FIXME: below two scalers for lamda when B frame is used needs to be
+     further verified since the motion vector cost table OD_MV_GE3_EST_RATE[]
+     is corrected.*/
+  if (est->enc->b_frames) {
+    if (frame_type == OD_P_FRAME) {
+      lambda = (int) ((float)lambda * 1.30);
+    }
+    if (frame_type == OD_B_FRAME) {
+      lambda = (int) ((float)lambda * 1.30);
+    }
+  }
   /*Rate estimations. Note that this does not depend on the previous frame: at
      this point, the probabilities have been reset by od_adapt_ctx_reset.*/
   for (i = 0; i < 5; i++) {
@@ -6193,8 +6445,9 @@ void od_mv_est(od_mv_est_ctx *est, int lambda) {
   /*If we're using the chroma planes, then our distortions will be larger.
     Compensate by increasing lambda and the termination thresholds.*/
   if (est->flags & OD_MC_USE_CHROMA) {
-    for (pli = 1; pli < est->enc->input_img.nplanes; pli++) {
-      iplane = est->enc->input_img.planes + pli;
+    for (pli = 1; pli < est->enc->input_img[est->enc->curr_frame].nplanes;
+     pli++) {
+      iplane = est->enc->input_img[est->enc->curr_frame].planes + pli;
       est->lambda +=
        lambda >> (iplane->xdec + iplane->ydec + OD_MC_CHROMA_SCALE);
       for (log_mvb_sz = 0; log_mvb_sz < OD_NMVBSIZES; log_mvb_sz++) {
@@ -6225,10 +6478,18 @@ void od_mv_est(od_mv_est_ctx *est, int lambda) {
   /*Use SAD for stages here after.*/
   est->compute_distortion = od_enc_sad;
   od_mv_est_init_mvs(est, OD_FRAME_PREV, 1);
-  /* At very high lambdas, the signaling overhead of multiref is too high. */
-  if (lambda < 150) {
-    if (state->ref_imgi[OD_FRAME_GOLD] >= 0) {
-      od_mv_est_init_mvs(est, OD_FRAME_GOLD, 0);
+  if (est->enc->state.frame_type == OD_P_FRAME) {
+    /*At very high lambdas, the signaling overhead of multiref is too high.*/
+    if (lambda < 150) {
+      if (state->ref_imgi[OD_FRAME_GOLD] >= 0) {
+        od_mv_est_init_mvs(est, OD_FRAME_GOLD, 0);
+      }
+    }
+  }
+  else {
+    /*Backward prediction.*/
+    if (state->ref_imgi[OD_FRAME_NEXT] >= 0) {
+      od_mv_est_init_mvs(est, OD_FRAME_NEXT, 0);
     }
   }
   od_mv_est_decimate(est);

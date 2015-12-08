@@ -102,6 +102,7 @@ struct daala_enc_ctx{
   int use_satd;
   int qm;
   int use_haar_wavelet;
+  int b_frames;
   od_mv_est_ctx *mvest;
   od_params_ctx params;
 #if defined(OD_ENCODER_CHECK)
@@ -124,14 +125,51 @@ struct daala_enc_ctx{
   od_coeff block_mc_orig[OD_BSIZE_MAX*OD_BSIZE_MAX];
   od_coeff block_c_noskip[OD_BSIZE_MAX*OD_BSIZE_MAX];
   /* Buffer for the input frame, scaled to reference resolution. */
-  od_img input_img;
+  od_img input_img[1 + OD_MAX_B_FRAMES];
   unsigned char *input_img_data;
+  /** Frame delay. */
+  int frame_delay;
+  /** Frame counter in encoding order. */
+  int64_t enc_order_count;
+  /** Frame counter in displaying order. */
+  int64_t display_order_count;
+  /** Displaying order of current frame being encoded. */
+  int64_t curr_display_order;
+  /** Current input frame pointer of in_imgs[]. */
+  int curr_frame;
+  /** Tail pointer of in_imgs[]. */
+  int in_buff_ptr;
+  /** Head pointer of in_imgs[]. */
+  int in_buff_head;
+  /** # of frames left in buffer to encode. */
+  int frames_in_buff;
+  /** Keep the display order of frames in input image buffer. */
+  int in_imgs_id[1 + OD_MAX_B_FRAMES];
+  /** Number of I or P frames encoded so far, starting from zero. */
+  unsigned int ip_frame_count;
+#if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
+  unsigned char *output_img_data;
+  /** Output images buffer, used as circular queue. */
+  od_img output_img[2];
+  /** Tail pointer of out_imgs[]. */
+  int out_buff_ptr;
+  /** Head pointer of out_imgs[]. */
+  int out_buff_head;
+  /** Current decoded frame pointer of out_imgs[]. */
+  int curr_dec_frame;
+  /** Current output frame pointer of out_imgs[]. */
+  int curr_dec_output;
+  /** # of frames left in output buffer to display. */
+  int frames_in_out_buff;
+  /** Keep the display order of frames in output image buffers. */
+  int out_imgs_id[2];
+#endif
 #if defined(OD_DUMP_IMAGES)
   od_img vis_img;
   od_img tmp_vis_img;
   unsigned char *upsample_line_buf[8];
 # if defined(OD_ANIMATE)
-  int                 ani_iter;
+  int ani_iter;
 # endif
 #endif
 };

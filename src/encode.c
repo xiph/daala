@@ -212,7 +212,14 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
   int plane_buf_height;
   int reference_bytes;
   int reference_bits;
+#if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
+  size_t out_data_sz;
+  unsigned char *output_img_data;
+  int output_bytes;
+  int output_bits;
+#endif
   int ret;
+  int imgi;
 #if defined(OD_DUMP_BSIZE_DIST)
   char dist_fname[1024];
   const char *suf;
@@ -238,18 +245,29 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
   enc->params.mv_level_min = 0;
   enc->params.mv_level_max = 4;
   enc->bs = (od_block_size_comp *)malloc(sizeof(*enc->bs));
+  enc->b_frames = 0;
   data_sz = 0;
   reference_bytes = enc->state.full_precision_references ? 2 : 1;
   reference_bits =
    enc->state.full_precision_references ? 8 + OD_COEFF_SHIFT : 8;
+#if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
+  out_data_sz = 0;
+  output_bits = 8 + (info->bitdepth_mode - OD_BITDEPTH_MODE_8)*2;
+  output_bytes = output_bits > 8 ? 2 : 1;
+#endif
   /*TODO: Check for overflow before allocating.*/
   frame_buf_width = enc->state.frame_width + (OD_BUFFER_PADDING << 1);
   frame_buf_height = enc->state.frame_height + (OD_BUFFER_PADDING << 1);
   for (pli = 0; pli < info->nplanes; pli++) {
     plane_buf_width = frame_buf_width >> info->plane_info[pli].xdec;
     plane_buf_height = frame_buf_height >> info->plane_info[pli].ydec;
-    /*Reserve space for input plane buffer */
-    data_sz += plane_buf_width*plane_buf_height*reference_bytes;
+    /*Reserve space for input plane buffer.*/
+    data_sz += plane_buf_width*plane_buf_height*(1 + OD_MAX_B_FRAMES)
+     *reference_bytes;
+#if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
+    /*Reserve space for output plane buffer.*/
+    out_data_sz += plane_buf_width*plane_buf_height*2*output_bytes;
+#endif
 #if defined(OD_DUMP_IMAGES)
     /*Reserve space for this plane in 1 visualization image.*/
     data_sz += plane_buf_width*plane_buf_height << 2;
@@ -267,25 +285,56 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
     return OD_EFAULT;
   }
   /*Fill in the input img structure.*/
-  img = &enc->input_img;
-  img->nplanes = info->nplanes;
-  img->width = enc->state.frame_width;
-  img->height = enc->state.frame_height;
-  for (pli = 0; pli < img->nplanes; pli++) {
-    plane_buf_width = frame_buf_width >> info->plane_info[pli].xdec;
-    plane_buf_height = frame_buf_height >> info->plane_info[pli].ydec;
-    iplane = img->planes + pli;
-    iplane->xdec = info->plane_info[pli].xdec;
-    iplane->ydec = info->plane_info[pli].ydec;
-    iplane->bitdepth = reference_bits;
-    /*Internal buffers are always planar.*/
-    iplane->xstride = reference_bytes;
-    iplane->ystride = plane_buf_width*iplane->xstride;
-    iplane->data = input_img_data
-     + iplane->xstride*(OD_BUFFER_PADDING >> info->plane_info[pli].xdec)
-     + iplane->ystride*(OD_BUFFER_PADDING >> info->plane_info[pli].ydec);
-    input_img_data += plane_buf_height*iplane->ystride;
+  for (imgi = 0; imgi < (1 + OD_MAX_B_FRAMES); imgi++) {
+    img = enc->input_img + imgi;
+    img->nplanes = info->nplanes;
+    img->width = enc->state.frame_width;
+    img->height = enc->state.frame_height;
+    for (pli = 0; pli < img->nplanes; pli++) {
+      plane_buf_width = frame_buf_width >> info->plane_info[pli].xdec;
+      plane_buf_height = frame_buf_height >> info->plane_info[pli].ydec;
+      iplane = img->planes + pli;
+      iplane->xdec = info->plane_info[pli].xdec;
+      iplane->ydec = info->plane_info[pli].ydec;
+      iplane->bitdepth = reference_bits;
+      /*Internal buffers are always planar.*/
+      iplane->xstride = reference_bytes;
+      iplane->ystride = plane_buf_width*iplane->xstride;
+      iplane->data = input_img_data
+       + iplane->xstride*(OD_BUFFER_PADDING >> info->plane_info[pli].xdec)
+       + iplane->ystride*(OD_BUFFER_PADDING >> info->plane_info[pli].ydec);
+      input_img_data += plane_buf_height*iplane->ystride;
+    }
   }
+#if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
+  enc->output_img_data = output_img_data =
+    (unsigned char *)od_aligned_malloc(out_data_sz, 32);
+  if (OD_UNLIKELY(!output_img_data)) {
+    return OD_EFAULT;
+  }
+  /*Fill in the output img structure.*/
+  for (imgi = 0; imgi < 2; imgi++) {
+    img = enc->output_img + imgi;
+    img->nplanes = info->nplanes;
+    img->width = enc->state.frame_width;
+    img->height = enc->state.frame_height;
+    for (pli = 0; pli < img->nplanes; pli++) {
+      plane_buf_width = frame_buf_width >> info->plane_info[pli].xdec;
+      plane_buf_height = frame_buf_height >> info->plane_info[pli].ydec;
+      iplane = img->planes + pli;
+      iplane->xdec = info->plane_info[pli].xdec;
+      iplane->ydec = info->plane_info[pli].ydec;
+      iplane->bitdepth = output_bits;
+      /*At this moment, our output is always planar.*/
+      iplane->xstride = output_bytes;
+      iplane->ystride = plane_buf_width*iplane->xstride;
+      iplane->data = output_img_data
+       + iplane->xstride*(OD_BUFFER_PADDING >> info->plane_info[pli].xdec)
+       + iplane->ystride*(OD_BUFFER_PADDING >> info->plane_info[pli].ydec);
+      output_img_data += plane_buf_height*iplane->ystride*output_bytes;
+    }
+  }
+#endif
 #if defined(OD_DUMP_IMAGES)
   /*Fill in the line buffers.*/
   {
@@ -330,6 +379,16 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
     iplane->ystride = plane_buf_width;
   }
 #endif
+  enc->in_buff_ptr = -1;
+  enc->in_buff_head = 0;
+  enc->curr_frame = 0;
+  enc->frames_in_buff = 0;
+  enc->enc_order_count = 0;
+  enc->display_order_count = 0;
+  enc->ip_frame_count = 0;
+  for (i = 0; i < 1 + OD_MAX_B_FRAMES; i++) {
+    enc->in_imgs_id[i] = -1;
+  }
 #if defined(OD_ENCODER_CHECK)
   enc->dec = daala_decode_create(info, NULL);
 #endif
@@ -358,6 +417,9 @@ static void od_enc_clear(od_enc_ctx *enc) {
   od_ec_enc_clear(&enc->ec);
   oggbyte_writeclear(&enc->obb);
   od_aligned_free(enc->input_img_data);
+#if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
+  od_aligned_free(enc->output_img_data);
+#endif
   od_state_clear(&enc->state);
 }
 
@@ -515,6 +577,16 @@ int daala_encode_ctl(daala_enc_ctx *enc, int req, void *buf, size_t buf_sz) {
       enc->params.mv_level_max = mv_level_max;
       return OD_SUCCESS;
     }
+    case OD_SET_B_FRAMES: {
+      int b_frames;
+      OD_RETURN_CHECK(enc, OD_EFAULT);
+      OD_RETURN_CHECK(buf, OD_EFAULT);
+      OD_RETURN_CHECK(buf_sz == sizeof(enc->b_frames), OD_EINVAL);
+      b_frames = *(const int *)buf;
+      if (b_frames < 0 || b_frames > OD_MAX_B_FRAMES) return OD_EINVAL;
+      enc->b_frames = b_frames;
+      return OD_SUCCESS;
+    }
     default: return OD_EIMPL;
   }
 }
@@ -630,6 +702,7 @@ struct od_mb_enc_ctx {
   int qm;
   int use_haar_wavelet;
   int is_golden_frame;
+  int frame_type;
   int q_scaling;
 };
 typedef struct od_mb_enc_ctx od_mb_enc_ctx;
@@ -644,7 +717,7 @@ static void od_encode_compute_pred(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
   int x;
   OD_ASSERT(bs >= 0 && bs < OD_NBSIZES);
   n = 1 << (bs + OD_LOG_BSIZE0);
-  xdec = enc->input_img.planes[pli].xdec;
+  xdec = enc->input_img[enc->curr_frame].planes[pli].xdec;
   w = enc->state.frame_width >> xdec;
   bo = (by << OD_LOG_BSIZE0)*w + (bx << OD_LOG_BSIZE0);
   /*We never use tf on the chroma planes, but if we do it will blow up, which
@@ -1023,7 +1096,7 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int bs,
   n = 1 << (bs + 2);
   bx <<= bs;
   by <<= bs;
-  xdec = enc->input_img.planes[pli].xdec;
+  xdec = enc->input_img[enc->curr_frame].planes[pli].xdec;
   frame_width = enc->state.frame_width;
   use_masking = enc->use_activity_masking;
   w = frame_width >> xdec;
@@ -1602,20 +1675,30 @@ static void od_encode_mv(daala_enc_ctx *enc, int num_refs, od_mv_grid_pt *mvg,
   int oy;
   int id;
   int equal_mvs;
-  int ref_pred;
+  OD_ASSERT(mvg->ref != OD_BIDIR_PRED);
   if (num_refs > 1) {
     /* Code reference index. */
-    ref_pred = od_mc_get_ref_predictor(&enc->state, vx, vy, level);
+    int ref_pred;
+    int ref_offset;
+    ref_offset = (enc->state.frame_type == OD_B_FRAME) ? 1 : 0;
+    ref_pred = od_mc_get_ref_predictor(&enc->state, vx, vy, level)
+     - ref_offset;
     OD_ASSERT(ref_pred >= 0);
     OD_ASSERT(ref_pred < num_refs);
-    OD_ASSERT(mvg->ref < num_refs);
-    od_encode_cdf_adapt(&enc->ec, mvg->ref,
+    OD_ASSERT((mvg->ref - ref_offset) < num_refs);
+    od_encode_cdf_adapt(&enc->ec, mvg->ref - ref_offset,
      enc->state.adapt.mv_ref_cdf[ref_pred], num_refs, 256);
   }
   equal_mvs = od_state_get_predictor(&enc->state, pred, vx, vy, level,
    mv_res, mvg->ref);
-  ox = (mvg->mv[0] >> mv_res) - pred[0];
-  oy = (mvg->mv[1] >> mv_res) - pred[1];
+  if (mvg->ref == OD_FRAME_NEXT) {
+    ox = (mvg->mv1[0] >> mv_res) - pred[0];
+    oy = (mvg->mv1[1] >> mv_res) - pred[1];
+  }
+  else {
+    ox = (mvg->mv[0] >> mv_res) - pred[0];
+    oy = (mvg->mv[1] >> mv_res) - pred[1];
+  }
   /*Interleave positive and negative values.*/
   model = &enc->state.adapt.mv_model;
   id = OD_MINI(abs(oy), 3)*4 + OD_MINI(abs(ox), 3);
@@ -1633,11 +1716,14 @@ static void od_encode_mv(daala_enc_ctx *enc, int num_refs, od_mv_grid_pt *mvg,
   if (abs(oy)) od_ec_enc_bits(&enc->ec, oy < 0, 1);
 }
 
+/* Note : Only used for input frames. */
 static void od_img_copy_pad(daala_enc_ctx *enc, od_img *img) {
   od_state *state;
   int pli;
   int nplanes;
   state = &enc->state;
+  OD_ASSERT(enc->in_buff_ptr >= 0 &&
+   enc->in_buff_ptr < 1 + enc->b_frames);
   nplanes = img->nplanes;
   /* Copy and pad the image. */
   for (pli = 0; pli < nplanes; pli++) {
@@ -1649,11 +1735,11 @@ static void od_img_copy_pad(daala_enc_ctx *enc, od_img *img) {
     ydec = img->planes[pli].ydec;
     plane_width = ((state->info.pic_width + (1 << xdec) - 1) >> xdec);
     plane_height = ((state->info.pic_height + (1 << ydec) - 1) >> ydec);
-    od_img_plane_copy_pad(&enc->input_img,
+    od_img_plane_copy_pad(&enc->input_img[enc->in_buff_ptr],
      state->frame_width >> xdec, state->frame_height >> ydec,
      img, plane_width, plane_height, pli);
   }
-  od_img_edge_ext(&enc->input_img);
+  od_img_edge_ext(enc->input_img + enc->in_buff_ptr);
 }
 
 #if defined(OD_DUMP_IMAGES)
@@ -1664,6 +1750,7 @@ static void od_img_copy_pad(daala_enc_ctx *enc, od_img *img) {
 static const unsigned char OD_YCbCr_BORDER[3] = {113, 72, 137};
 static const unsigned char OD_YCbCr_EDGE[3] = {41, 240, 110};
 static const unsigned char OD_YCbCr_MV[3] = {81, 90, 240};
+static const unsigned char OD_YCbCr_MV1[3] = {81, 0, 0};
 
 #define OD_SRCVAL_TO_8(x) (siplane->bitdepth == 8 ? src[(x)] : \
  (((int16_t *)src)[(x)] + (1 << siplane->bitdepth - 9) \
@@ -1955,14 +2042,29 @@ static void od_state_draw_mvs_block(daala_enc_ctx *enc,
        + vx + (dxp[k] << log_mvb_sz);
     }
     for (k = 0; k < 4; k++) {
+      int *mv;
+      const unsigned char *color;
       x0 = ((vx + (dxp[k] << log_mvb_sz)) << (OD_LOG_MVBSIZE_MIN + 1))
        + (OD_BUFFER_PADDING << 1);
       y0 = ((vy + (dyp[k] << log_mvb_sz)) << (OD_LOG_MVBSIZE_MIN + 1))
        + (OD_BUFFER_PADDING << 1);
       /*od_img_draw_point(&enc->vis_img, x0, y0, OD_YCbCr_MV);*/
+      if (grid[k]->ref == OD_FRAME_NEXT) {
+        mv = grid[k]->mv1;
+        color = OD_YCbCr_MV1;
+      }
+      else {
+        mv = grid[k]->mv;
+        color = OD_YCbCr_MV;
+      }
       od_img_draw_line(&enc->vis_img, x0, y0,
-       x0 + OD_DIV_ROUND_POW2(grid[k]->mv[0], 2, 2),
-       y0 + OD_DIV_ROUND_POW2(grid[k]->mv[1], 2, 2), OD_YCbCr_MV);
+       x0 + OD_DIV_ROUND_POW2(mv[0], 2, 2),
+       y0 + OD_DIV_ROUND_POW2(mv[1], 2, 2), color);
+      if (grid[k]->ref == OD_BIDIR_PRED) {
+        od_img_draw_line(&enc->vis_img, x0, y0,
+         x0 + OD_DIV_ROUND_POW2(grid[k]->mv1[0], 2, 2),
+         y0 + OD_DIV_ROUND_POW2(grid[k]->mv1[1], 2, 2), OD_YCbCr_MV1);
+      }
     }
   }
 }
@@ -2008,7 +2110,7 @@ void od_encode_fill_vis(od_enc_ctx *enc) {
   /*Upsample the input image, as well, and subtract it to get a difference
      image.*/
   ref_img = &enc->tmp_vis_img;
-  od_img_upsample8(enc, ref_img, &enc->input_img);
+  od_img_upsample8(enc, ref_img, &enc->input_img[enc->curr_frame]);
   xdec = state->info.plane_info[0].xdec;
   ydec = state->info.plane_info[0].ydec;
   for (y = 0; y < ref_img->height; y++) {
@@ -2080,7 +2182,7 @@ static void od_img_dump_padded(daala_enc_ctx *enc) {
   info = &state->info;
   nplanes = info->nplanes;
   /*Modify the image offsets to include the padding.*/
-  *&img = enc->input_img;
+  *&img = *(enc->input_img + enc->curr_frame);
   for (pli = 0; pli < nplanes; pli++) {
     img.planes[pli].data -=
      img.planes[pli].ystride*(OD_BUFFER_PADDING>>info->plane_info[pli].ydec)
@@ -2126,7 +2228,7 @@ static void od_split_superblocks(daala_enc_ctx *enc, int is_keyframe) {
   int m;
   od_state *state;
   state = &enc->state;
-  OD_ASSERT(enc->input_img.planes[0].xstride == 1);
+  OD_ASSERT(enc->input_img[enc->curr_frame].planes[0].xstride == 1);
   OD_ASSERT(state->ref_imgs[state->ref_imgi[OD_FRAME_SELF]].
    planes[0].xstride == 1);
   nhsb = state->nhsb;
@@ -2135,8 +2237,9 @@ static void od_split_superblocks(daala_enc_ctx *enc, int is_keyframe) {
   /* Allocate a blockSizeComp for scratch space and then calculate the block
      sizes eventually store them in bsize. */
   od_log_matrix_uchar(OD_LOG_GENERIC, OD_LOG_INFO, "bimg ",
-   enc->input_img.planes[0].data - 16*enc->input_img.planes[0].ystride - 16,
-   enc->input_img.planes[0].ystride, (nvsb + 1)*32);
+   enc->input_img[enc->curr_frame].planes[0].data
+   - 16*enc->input_img[enc->curr_frame].planes[0].ystride - 16,
+   enc->input_img[enc->curr_frame].planes[0].ystride, (nvsb + 1)*32);
   for (i = 0; i < nvsb; i++) {
     unsigned char *bimg;
     unsigned char *rimg;
@@ -2144,10 +2247,10 @@ static void od_split_superblocks(daala_enc_ctx *enc, int is_keyframe) {
     int rstride;
     int bstride;
     bstride = state->bstride;
-    istride = enc->input_img.planes[0].ystride;
+    istride = enc->input_img[enc->curr_frame].planes[0].ystride;
     rstride = is_keyframe ? 0 :
      state->ref_imgs[state->ref_imgi[OD_FRAME_SELF]].planes[0].ystride;
-    bimg = enc->input_img.planes[0].data
+    bimg = enc->input_img[enc->curr_frame].planes[0].data
      + i*istride*OD_BSIZE_MAX;
     rimg = state->ref_imgs[state->ref_imgi[OD_FRAME_SELF]].planes[0].data
      + i*rstride*OD_BSIZE_MAX;
@@ -2304,11 +2407,11 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
   }
   for (pli = 0; pli < nplanes; pli++) {
     /*Collect the image data needed for this plane.*/
-    xdec = enc->input_img.planes[pli].xdec;
-    ydec = enc->input_img.planes[pli].ydec;
+    xdec = enc->input_img[enc->curr_frame].planes[pli].xdec;
+    ydec = enc->input_img[enc->curr_frame].planes[pli].ydec;
     w = frame_width >> xdec;
     od_ref_plane_to_coeff(state, state->ctmp[pli],
-     OD_LOSSLESS(enc, pli), &enc->input_img, pli);
+     OD_LOSSLESS(enc, pli), &enc->input_img[enc->curr_frame], pli);
     if (!mbctx->use_haar_wavelet) {
       od_apply_prefilter_frame_sbs(state->ctmp[pli],
        w, nhsb, nvsb, xdec, ydec);
@@ -2340,8 +2443,8 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
         mbctx->mc = state->mctmp[pli];
         mbctx->md = state->mdtmp[pli];
         mbctx->l = state->lbuf[pli];
-        xdec = enc->input_img.planes[pli].xdec;
-        ydec = enc->input_img.planes[pli].ydec;
+        xdec = enc->input_img[enc->curr_frame].planes[pli].xdec;
+        ydec = enc->input_img[enc->curr_frame].planes[pli].ydec;
         if (pli == 0 || (rdo_only && mbctx->is_keyframe)) {
           for (i = 0; i < OD_BSIZE_MAX; i++) {
             for (j = 0; j < OD_BSIZE_MAX; j++) {
@@ -2388,8 +2491,8 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
   }
 #endif
   for (pli = 0; pli < nplanes; pli++) {
-    xdec = enc->input_img.planes[pli].xdec;
-    ydec = enc->input_img.planes[pli].ydec;
+    xdec = enc->input_img[enc->curr_frame].planes[pli].xdec;
+    ydec = enc->input_img[enc->curr_frame].planes[pli].ydec;
     w = frame_width >> xdec;
     if (!mbctx->use_haar_wavelet) {
       od_apply_postfilter_frame_sbs(state->ctmp[pli], w, nhsb, nvsb, xdec,
@@ -2405,8 +2508,8 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
     for (pli = 0; pli < nplanes; pli++) {
       int i;
       int size;
-      xdec = enc->input_img.planes[pli].xdec;
-      ydec = enc->input_img.planes[pli].ydec;
+      xdec = enc->input_img[enc->curr_frame].planes[pli].xdec;
+      ydec = enc->input_img[enc->curr_frame].planes[pli].ydec;
       size = nvsb*nhsb*OD_BSIZE_MAX*OD_BSIZE_MAX >> xdec >> ydec;
       for (i = 0; i < size; i++) {
         state->etmp[pli][i] = state->ctmp[pli][i];
@@ -2452,8 +2555,8 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
           continue;
         }
         pli = 0;
-        xdec = enc->input_img.planes[pli].xdec;
-        ydec = enc->input_img.planes[pli].ydec;
+        xdec = enc->input_img[enc->curr_frame].planes[pli].xdec;
+        ydec = enc->input_img[enc->curr_frame].planes[pli].ydec;
         w = frame_width >> xdec;
         OD_ASSERT(xdec == ydec);
         ln = OD_LOG_DERING_GRID + OD_LOG_BSIZE0 - xdec;
@@ -2463,9 +2566,9 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
          xdec, dir, pli, &enc->state.bskip[pli]
          [(sby << (OD_LOG_DERING_GRID - ydec))*enc->state.skip_stride
          + (sbx << (OD_LOG_DERING_GRID - xdec))], enc->state.skip_stride);
-        xstride = enc->input_img.planes[pli].xstride;
-        ystride = enc->input_img.planes[pli].ystride;
-        input = (unsigned char *)&enc->input_img.planes[pli].
+        xstride = enc->input_img[enc->curr_frame].planes[pli].xstride;
+        ystride = enc->input_img[enc->curr_frame].planes[pli].ystride;
+        input = (unsigned char *)&enc->input_img[enc->curr_frame].planes[pli].
          data[(sby << ln)*ystride + (sbx << ln)*xstride];
         output = &state->ctmp[pli][(sby << ln)*w + (sbx << ln)];
         unfiltered_error = 0;
@@ -2528,8 +2631,8 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
             }
           }
           for (pli = 1; pli < nplanes; pli++) {
-            xdec = enc->input_img.planes[pli].xdec;
-            ydec = enc->input_img.planes[pli].ydec;
+            xdec = enc->input_img[enc->curr_frame].planes[pli].xdec;
+            ydec = enc->input_img[enc->curr_frame].planes[pli].ydec;
             w = frame_width >> xdec;
             ln = OD_LOG_DERING_GRID + OD_LOG_BSIZE0 - xdec;
             n = 1 << ln;
@@ -2550,8 +2653,8 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
     }
   }
   for (pli = 0; pli < nplanes; pli++) {
-    xdec = enc->input_img.planes[pli].xdec;
-    ydec = enc->input_img.planes[pli].ydec;
+    xdec = enc->input_img[enc->curr_frame].planes[pli].xdec;
+    ydec = enc->input_img[enc->curr_frame].planes[pli].ydec;
     w = frame_width >> xdec;
     if (!rdo_only && state->quantizer[0] > 0) {
       for (sby = 0; sby < nvsb; sby++) {
@@ -2594,10 +2697,10 @@ static void od_dump_frame_metrics(daala_enc_ctx *enc) {
     int x;
     int y;
     enc_sqerr = 0;
-    data = enc->input_img.planes[pli].data;
-    ystride = enc->input_img.planes[pli].ystride;
-    xdec = enc->input_img.planes[pli].xdec;
-    ydec = enc->input_img.planes[pli].ydec;
+    data = enc->input_img[enc->curr_frame].planes[pli].data;
+    ystride = enc->input_img[enc->curr_frame].planes[pli].ystride;
+    xdec = enc->input_img[enc->curr_frame].planes[pli].xdec;
+    ydec = enc->input_img[enc->curr_frame].planes[pli].ydec;
     w = frame_width >> xdec;
     h = frame_height >> ydec;
     npixels = w*h;
@@ -2670,7 +2773,76 @@ static void od_split_superblocks_rdo(daala_enc_ctx *enc,
   od_encode_rollback(enc, &rbuf);
 }
 
-int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
+static int od_enc_pop_input_buff_head(daala_enc_ctx *enc) {
+  int head;
+  OD_ASSERT(enc->frames_in_buff > 0);
+  head = enc->in_buff_head;
+  /*Update the head of in_buff[].*/
+  enc->in_buff_head = (head + 1) % enc->frame_delay;
+  enc->frames_in_buff -= 1;
+  return head;
+}
+
+static int od_enc_pop_input_buff_tail(daala_enc_ctx *enc) {
+  int tail;
+  OD_ASSERT(enc->frames_in_buff > 0);
+  tail = enc->in_buff_ptr;
+  /*Update the tail of in_buff[].*/
+  enc->in_buff_ptr = (tail - 1 + enc->frame_delay) % enc->frame_delay;
+  enc->frames_in_buff -= 1;
+  return tail;
+}
+
+/*Update all buffer pointers related to in_imgs[].*/
+static void od_enc_push_input_buff_tail(daala_enc_ctx *enc, od_img *img) {
+  enc->frames_in_buff += 1;
+  OD_ASSERT(enc->frames_in_buff <= enc->frame_delay);
+  enc->in_buff_ptr = (enc->in_buff_ptr + 1) % enc->frame_delay;
+  OD_ASSERT(enc->in_buff_ptr >= 0 &&
+   enc->in_buff_ptr < enc->frame_delay);
+  enc->in_imgs_id[enc->in_buff_ptr] = enc->display_order_count;
+  enc->display_order_count += 1;
+  if (enc->frames_in_buff == 1) {
+    enc->in_buff_head = enc->in_buff_ptr;
+  }
+  od_img_copy_pad(enc, img);
+}
+
+/*As an example, if # of B frames = 2,
+   assume encoding order is : I0 P1 B2 B3 P4 B5 B6 P7 ...*/
+/*Note: Must be called ONCE and ONLY ONCE before encoding each frame.*/
+static int od_enc_determine_frame_type(daala_enc_ctx *enc) {
+  int frame_type;
+  int idx_in_gop;
+  int idx_in_pbb;
+  od_state *state;
+  state = &enc->state;
+  idx_in_gop = enc->enc_order_count % state->info.keyframe_rate;
+  /* Not the 1st frame?*/
+  if (enc->enc_order_count != 0) {
+    idx_in_pbb = (idx_in_gop - 1) % (enc->b_frames + 1);
+    /*If open GOP with B frames > 0, encoding order and display order of
+       I frame is different (except the 1st I frame),
+       so encoder order with idx_in_gop == 0 means it is B frame
+       and I frame in that case is located b_frames earlier.*/
+    if (((enc->b_frames && !OD_CLOSED_GOP) &&
+     (idx_in_gop == (state->info.keyframe_rate - enc->b_frames))) ||
+     /*Or (if there is no B frame or close GOP), then encoder order with
+       idx_in_gop == 0 means it is I frame.*/
+     ((enc->b_frames == 0 || OD_CLOSED_GOP) && (idx_in_gop == 0)))
+      frame_type = OD_I_FRAME;
+    else if (idx_in_pbb == 0) frame_type = OD_P_FRAME;
+    else frame_type = OD_B_FRAME;
+  }
+  else {
+    /*1st frame.*/
+    frame_type = OD_I_FRAME;
+  }
+  return frame_type;
+}
+
+int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration,
+ int end_of_input, int *input_frames_left_encoder_buffer) {
   int refi;
   int nplanes;
   int pli;
@@ -2681,7 +2853,10 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   int use_masking;
   od_mb_enc_ctx mbctx;
   od_img *ref_img;
-  if (enc == NULL || img == NULL) return OD_EFAULT;
+  int frame_type;
+  if (enc == NULL || img == NULL || input_frames_left_encoder_buffer == NULL) {
+    return OD_EFAULT;
+  }
   if (enc->packet_state == OD_PACKET_DONE) return OD_EINVAL;
   /*Check the input image dimensions to make sure they're compatible with the
      declared video size.*/
@@ -2692,6 +2867,28 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
      || img->planes[pli].ydec != enc->state.info.plane_info[pli].ydec) {
       return OD_EINVAL;
     }
+  }
+  enc->frame_delay = enc->b_frames + 1;
+#if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
+  enc->curr_dec_output = -1;
+#endif
+  /*Buffer the input frames up to frame delay.*/
+  if (!end_of_input && (enc->b_frames == 0 ||
+   enc->frames_in_buff < enc->frame_delay)) {
+    od_enc_push_input_buff_tail(enc, img);
+#if defined(OD_DUMP_IMAGES)
+  if (od_logging_active(OD_LOG_GENERIC, OD_LOG_DEBUG)) {
+    od_img_dump_padded(enc);
+  }
+#endif
+  }
+  /*If buffer is not filled as required, don't proceed to encoding.*/
+  if (!end_of_input && enc->frames_in_buff < enc->frame_delay) {
+    return OD_SUCCESS;
+  }
+  if (end_of_input && enc->frames_in_buff <= 0) {
+    *input_frames_left_encoder_buffer = 0;
+    return OD_SUCCESS;
   }
   use_masking = enc->use_activity_masking;
   frame_width = enc->state.frame_width;
@@ -2706,34 +2903,64 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       return OD_EINVAL;
     }
   }
-  od_img_copy_pad(enc, img);
-
-#if defined(OD_DUMP_IMAGES)
-  if (od_logging_active(OD_LOG_GENERIC, OD_LOG_DEBUG)) {
-    od_img_dump_padded(enc);
+  /*Determine a frame type.*/
+  frame_type = od_enc_determine_frame_type(enc);
+  /*If P frame or I with open GOP, the input frame is at the tail of
+    input frame buffer, otherwise input frame is at the head.*/
+  if (enc->b_frames > 0) {
+    if (frame_type == OD_P_FRAME ||
+     (!OD_CLOSED_GOP && frame_type == OD_I_FRAME &&
+     enc->enc_order_count != 0)) {
+      enc->curr_frame = od_enc_pop_input_buff_tail(enc);
+    }
+    else enc->curr_frame = od_enc_pop_input_buff_head(enc);
   }
-#endif
+  else {
+    enc->curr_frame = 0;
+    enc->frames_in_buff -= 1;
+  }
+  enc->curr_display_order = enc->in_imgs_id[enc->curr_frame];
   /* Check if the frame should be a keyframe. */
-  mbctx.is_keyframe = (enc->state.cur_time %
-   (enc->state.info.keyframe_rate) == 0) ? 1 : 0;
-  mbctx.is_golden_frame = (enc->state.cur_time %
-   (OD_GOLDEN_FRAME_INTERVAL) == 0) ? 1 : 0;
+  mbctx.is_keyframe = (frame_type == OD_I_FRAME) ? 1 : 0;
+  /* B-frame cannot be a Golden frame.*/
+  mbctx.is_golden_frame = (enc->ip_frame_count %
+   (OD_GOLDEN_FRAME_INTERVAL/(enc->b_frames + 1)) == 0)
+   && (frame_type != OD_B_FRAME) ? 1 : 0;
   if (enc->state.ref_imgi[OD_FRAME_GOLD] < 0) {
     mbctx.is_golden_frame = 1;
   }
-  /*Update the buffer state.*/
-  if (enc->state.ref_imgi[OD_FRAME_SELF] >= 0) {
+  /*Update the reference buffer state.*/
+  if (enc->b_frames != 0 && frame_type == OD_P_FRAME) {
     enc->state.ref_imgi[OD_FRAME_PREV] =
-     enc->state.ref_imgi[OD_FRAME_SELF];
+     enc->state.ref_imgi[OD_FRAME_NEXT];
   }
+#if OD_CLOSED_GOP
+  if (frame_type == OD_I_FRAME) {
+    int imgi;
+    /*Mark all of the reference frames are not available.*/
+    for (imgi = 0; imgi < 4; imgi++) enc->state.ref_imgi[imgi] = -1;
+  }
+#endif
   /*Select a free buffer to use for this reference frame.*/
   for (refi = 0; refi == enc->state.ref_imgi[OD_FRAME_GOLD]
    || refi == enc->state.ref_imgi[OD_FRAME_PREV]
    || refi == enc->state.ref_imgi[OD_FRAME_NEXT]; refi++);
   enc->state.ref_imgi[OD_FRAME_SELF] = refi;
   /*We must be a keyframe if we don't have a reference.*/
-  mbctx.is_keyframe |= !(enc->state.ref_imgi[OD_FRAME_PREV] >= 0);
-  mbctx.num_refs = mbctx.is_keyframe ? 0 : OD_MAX_CODED_REFS;
+  if (enc->state.ref_imgi[OD_FRAME_PREV] < 0) {
+    mbctx.is_keyframe = 1;
+    frame_type = OD_I_FRAME;
+  }
+#if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
+  enc->curr_dec_frame = od_state_push_output_buff_tail(&enc->state);
+  /*Let output buffer know which input frame in display order it was.*/
+  enc->out_imgs_id[enc->curr_dec_frame] = enc->curr_display_order;
+#endif
+  mbctx.frame_type = frame_type;
+  enc->state.frame_type = frame_type;
+  /*TODO : Try golden frame as additional reference to
+     the forward prediction of B-frame.*/
+  mbctx.num_refs = (frame_type != OD_I_FRAME) ? OD_MAX_CODED_REFS : 0;
   /* FIXME: This should be dynamic */
   mbctx.use_activity_masking = enc->use_activity_masking;
   mbctx.qm = enc->qm;
@@ -2747,8 +2974,12 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   od_ec_encode_bool_q15(&enc->ec, 0, 16384);
   /*Code the keyframe bit.*/
   od_ec_encode_bool_q15(&enc->ec, mbctx.is_keyframe, 16384);
-  /* Code the number of references. */
+  /*If not I frame, code the bit to tell whether it is P or B frame.*/
   if (!mbctx.is_keyframe) {
+    od_ec_encode_bool_q15(&enc->ec, frame_type == OD_B_FRAME, 16384);
+  }
+  /*Code the number of references.*/
+  if (frame_type != OD_I_FRAME) {
     od_ec_enc_uint(&enc->ec, mbctx.num_refs - 1, OD_MAX_CODED_REFS);
   }
   /*Code whether or not activity masking is being used.*/
@@ -2803,17 +3034,31 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
       enc->state.quantizer[pli] =
        od_codedquantizer_to_quantizer(enc->state.coded_quantizer[pli]);
     }
+    if (frame_type == OD_B_FRAME && enc->state.coded_quantizer[pli] != 0) {
+      int delta_frame_qp;
+      if (enc->b_frames > 1)
+        delta_frame_qp = 4;
+      else
+        delta_frame_qp = 2;
+      enc->state.coded_quantizer[pli] = OD_MINI(OD_N_CODED_QUANTIZERS - 2,
+       enc->state.coded_quantizer[pli] + delta_frame_qp);
+      enc->state.quantizer[pli] =
+       od_codedquantizer_to_quantizer(enc->state.coded_quantizer[pli]);
+    }
   }
   OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO, "is_keyframe=%d", mbctx.is_keyframe));
   /*TODO: Increment frame count.*/
   od_adapt_ctx_reset(&enc->state.adapt, mbctx.is_keyframe);
   if (!mbctx.is_keyframe) {
+    int num_refs;
+    num_refs = mbctx.num_refs;
     od_predict_frame(enc);
-    od_encode_mvs(enc, mbctx.num_refs);
+    od_encode_mvs(enc, num_refs);
   }
   if (mbctx.use_haar_wavelet) {
     od_state_init_superblock_split(&enc->state, OD_BLOCK_32X32);
-  } else {
+  }
+  else {
     /* Enable block size RDO for all but complexity 0 and 1. We might want to
        revise that choice if we get a better open-loop block size algorithm. */
     od_state_init_superblock_split(&enc->state, OD_LIMIT_BSIZE_MIN);
@@ -2821,25 +3066,87 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
     else od_split_superblocks(enc, mbctx.is_keyframe);
   }
   od_encode_coefficients(enc, &mbctx, OD_ENCODE_REAL);
+  enc->packet_state = OD_PACKET_READY;
   ref_img = enc->state.ref_imgs + enc->state.ref_imgi[OD_FRAME_SELF];
+  if (frame_type != OD_B_FRAME) {
+    OD_ASSERT(ref_img);
+    od_img_edge_ext(ref_img);
+  }
 #if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
-  /*Dump YUV*/
-  od_state_dump_yuv(&enc->state, ref_img, "out");
+  od_img_copy(enc->output_img + enc->curr_dec_frame, ref_img);
 #endif
 #if defined(OD_LOGGING_ENABLED)
   od_dump_frame_metrics(enc);
 #endif
-  enc->packet_state = OD_PACKET_READY;
-  od_img_edge_ext(ref_img);
+#if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
+  if (enc->b_frames == 0 || frame_type == OD_B_FRAME ||
+   (frame_type == OD_I_FRAME && enc->enc_order_count == 0)) {
+    enc->curr_dec_output = od_state_pop_output_buff_tail(&enc->state);
+    enc->out_imgs_id[enc->curr_dec_output] = -1;
+  }
+  else if ((frame_type == OD_P_FRAME || frame_type == OD_I_FRAME) &&
+   enc->state.frames_in_out_buff == 2) {
+    enc->curr_dec_output = od_state_pop_output_buff_head(&enc->state);
+    enc->out_imgs_id[enc->curr_dec_output] = -1;
+  }
+  /*Last frame (and it is either P or I (with open GOP)) in the sequence?*/
+  else if (enc->frames_in_buff == 0 && enc->state.frames_in_out_buff > 0) {
+    enc->curr_dec_output = od_state_pop_output_buff_head(&enc->state);
+    enc->out_imgs_id[enc->curr_dec_output] = -1;
+  }
+  /*Dump YUV*/
+  if (enc->curr_dec_output >= 0) {
+    od_state_dump_yuv(&enc->state,
+     enc->output_img + enc->curr_dec_output, "out");
+  }
+  /*Flush the output frame buffer.*/
+  /*If all the frames are encoded but a frame, which will be either P or I,
+     is left in a output buffer, then emit it.*/
+  if (enc->frames_in_buff <= 0 && enc->state.frames_in_out_buff == 1) {
+    enc->curr_dec_output = od_state_pop_output_buff_head(&enc->state);
+    enc->out_imgs_id[enc->curr_dec_output] = -1;
+    if (enc->curr_dec_output >= 0) {
+      od_state_dump_yuv(&enc->state,
+       enc->output_img + enc->curr_dec_output, "out");
+    }
+  }
+#endif
+  /*Update the reference buffer state.*/
   if (mbctx.is_golden_frame) {
     enc->state.ref_imgi[OD_FRAME_GOLD] =
      enc->state.ref_imgi[OD_FRAME_SELF];
+  }
+  /*B frames cannot be a reference frame.*/
+  if (enc->b_frames == 0) {
+    enc->state.ref_imgi[OD_FRAME_PREV] =
+     enc->state.ref_imgi[OD_FRAME_SELF];
+  }
+  else {
+    if (frame_type != OD_B_FRAME) {
+      /*1st P frame in closed GOP or 1st P in the sequence with open GOP?*/
+      if (enc->state.ref_imgi[OD_FRAME_PREV] < 0 &&
+       enc->state.ref_imgi[OD_FRAME_NEXT] < 0) {
+        /*Only previous reference frame (i.e. I frame) is available.*/
+        enc->state.ref_imgi[OD_FRAME_PREV] =
+         enc->state.ref_imgi[OD_FRAME_SELF];
+        enc->state.ref_imgi[OD_FRAME_NEXT] =
+         enc->state.ref_imgi[OD_FRAME_SELF];
+      }
+      else {
+        /*Update two reference frames.*/
+        enc->state.ref_imgi[OD_FRAME_PREV] =
+         enc->state.ref_imgi[OD_FRAME_NEXT];
+        enc->state.ref_imgi[OD_FRAME_NEXT] =
+         enc->state.ref_imgi[OD_FRAME_SELF];
+      }
+    }
   }
 #if defined(OD_DUMP_IMAGES)
   /*Dump reference frame.*/
   /*od_state_dump_img(&enc->state,
    enc->state.ref_img + enc->state.ref_imigi[OD_FRAME_SELF], "ref");*/
 #endif
+  *input_frames_left_encoder_buffer = enc->frames_in_buff;
   if (enc->state.info.frame_duration == 0) enc->state.cur_time += duration;
   else enc->state.cur_time += enc->state.info.frame_duration;
 #if defined(OD_DUMP_BSIZE_DIST)
@@ -2852,6 +3159,12 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   }
   fprintf(enc->bsize_dist_file, "\n");
 #endif
+  OD_ASSERT(mbctx.is_keyframe == (frame_type == OD_I_FRAME));
+  enc->in_imgs_id[enc->curr_frame] = -1;
+  ++enc->enc_order_count;
+  if (frame_type == OD_I_FRAME || frame_type == OD_P_FRAME) {
+    ++enc->ip_frame_count;
+  }
   return 0;
 }
 

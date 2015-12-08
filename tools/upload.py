@@ -373,8 +373,8 @@ class AbstractRpcServer(object):
     # whether it is necessary.
     # Skip this check for Django, we need a 401 to get the login
     # URL (could be anywhere...).
-    #if not self.authenticated:
-    #  self._Authenticate()
+    if not self.authenticated:
+      self._Authenticate()
 
     old_timeout = socket.getdefaulttimeout()
     socket.setdefaulttimeout(timeout)

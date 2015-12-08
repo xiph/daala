@@ -48,9 +48,18 @@ struct daala_dec_ctx {
   int user_fstride;
   od_mv_grid_pt *user_mv_grid;
   od_img *user_mc_img;
-  /*Buffer for the output frame, bitdepth equal to declared video depth.*/
-  od_img output_img;
+  /*Buffer for the output frames, bitdepth equal to declared video depth.*/
+  od_img output_img[2];
   unsigned char *output_img_data;
+  /*Frame counter in decoding order.*/
+  int64_t dec_order_count;
+  /*Current decoded frame pointer of out_imgs[].*/
+  int curr_dec_frame;
+  /*Current output frame pointer of out_imgs[].*/
+  int curr_dec_output;
+  /*Keep the display order of frames in output image buffers.*/
+  int out_imgs_id[2];
+  int last_frame_decoded;
 #if OD_ACCOUNTING
   int acct_enabled;
   od_accounting_internal acct;

@@ -108,12 +108,19 @@ int daala_encode_flush_header(daala_enc_ctx *enc,
  * \param duration The duration to display the frame for, in timebase units.
  *                 If a non-zero frame duration was specified in the header,
  *                  then this parameter is ignored.
+ * \param last_frame Set this flag to a non-zero value if no more uncompressed
+ *              frames will be submitted.
+ *             This ensures that a proper EOS flag is set on the last packet.
+ *              as well as processing the delayed frames.
+ * \param input_frames_left_encoder_buffer Returns one if encoding is not
+ *  finished. This tells whether last packet is finished or not.
  * \retval 0 Success.
  * \retval OD_EFAULT \a enc or \a img was <tt>NULL</tt>.
  * \retval OD_EINVAL The image size does not match the frame size the encoder
  *                   was initialized with, or encoding has already
  *                    completed.*/
-int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration);
+int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration,
+ int last_frame, int *input_frames_left_encoder_buffer);
 /**Retrieves encoded video data packets.
  * This should be called repeatedly after each frame is submitted to flush any
  *  encoded packets, until it returns 0.
@@ -123,8 +130,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration);
  *        manner.
  *       However, this may be changed in the future.
  * \param enc A #daala_enc_ctx handle.
- * \param last Set this flag to a non-zero value if no more uncompressed
- *              frames will be submitted.
  *             This ensures that a proper EOS flag is set on the last packet.
  * \param dp A <tt>daala_packet</tt> structure to fill.
  *           All of the elements of this structure will be set, including a
@@ -203,7 +208,11 @@ void daala_encode_free(daala_enc_ctx *enc);
  * \param[in]  _buf <tt>int</tt>: 0 to disable the use of SATD (the default),
  *                   a non-zero value otherwise. */
 #define OD_SET_MC_SATD 4108
-
+/** Number of B frames used by encoder.
+ * \param[in]  _buf <tt>int</tt>: The number of B frames.
+ *                  Values must lie in the range 0...OD_MAX_B_FRAMES,
+ *                  inclusive. */
+#define OD_SET_B_FRAMES 4110
 /*@}*/
 
 # if OD_GNUC_PREREQ(4, 0, 0)

@@ -410,7 +410,7 @@ static void od_mc_blend_full(od_state *state, unsigned char *dst,
    log_xblk_sz, log_yblk_sz);
 }
 
-/* Pulled aut of mcenc so it can be used in decoder as well. */
+/* Pulled out of mcenc so it can be used in decoder as well. */
 /* maybe call od_mv */
 void od_state_mvs_clear(od_state *state) {
   int vx;
@@ -426,6 +426,8 @@ void od_state_mvs_clear(od_state *state) {
       grid[vx].valid = 0;
       grid[vx].mv[0] = 0;
       grid[vx].mv[1] = 0;
+      grid[vx].mv1[0] = 0;
+      grid[vx].mv1[1] = 0;
     }
   }
 }
@@ -2032,12 +2034,13 @@ void od_mc_predict(od_state *state, unsigned char *dst,
 }
 
 int od_mc_get_ref_predictor(od_state *state, int vx, int vy, int level) {
-  static const od_mv_grid_pt ZERO_GRID_PT = { {0, 0}, 1, OD_FRAME_PREV};
+  static const od_mv_grid_pt ZERO_GRID_PT
+   = { {0, 0}, {0, 0}, 1, OD_FRAME_PREV};
   int mvb_sz;
   const od_mv_grid_pt *cneighbors[4];
   int ncns;
   int ci;
-  int hist[2] = {0, 0};
+  int hist[4] = {0, 0, 0, 0};
   int max_count = 0;
   int max_ref = OD_FRAME_PREV;
   ncns = 4;
@@ -2076,7 +2079,12 @@ int od_mc_get_ref_predictor(od_state *state, int vx, int vy, int level) {
   }
   for (ci = 0; ci < ncns; ci++) {
     int ref = cneighbors[ci]->ref;
-    OD_ASSERT(ref < 2);
+    if (state->frame_type != OD_B_FRAME) {
+      OD_ASSERT(ref < 2);
+    }
+    else {
+      OD_ASSERT(ref < 4);
+    }
     hist[ref]++;
     if (hist[ref] > max_count) {
       max_ref = ref;
@@ -2116,27 +2124,32 @@ static void od_compute_median(int pred[2], int (*neighbors)[2], int n,
 /*Gets the predictor for a given MV node at the given MV resolution.*/
 int od_state_get_predictor(od_state *state,
  int pred[2], int vx, int vy, int level, int mv_res, int ref) {
-  static const od_mv_grid_pt ZERO_GRID_PT = { {0, 0}, 1, OD_FRAME_PREV};
+  static const od_mv_grid_pt ZERO_GRID_PT0 =
+   { {0, 0}, {0, 0}, 1, OD_FRAME_PREV};
+  od_mv_grid_pt zero_grid_pt;
   const od_mv_grid_pt *cneighbors[4];
   int a[4][2];
   int equal_mvs;
   int mvb_sz;
   int ncns;
   int ci;
+  int mv[2];
   int an;
+  memcpy(&zero_grid_pt, &ZERO_GRID_PT0, sizeof(od_mv_grid_pt));
+  if (ref == OD_FRAME_NEXT) zero_grid_pt.ref = OD_FRAME_NEXT;
   ncns = 4;
   mvb_sz = 1 << ((OD_MC_LEVEL_MAX - level) >> 1);
   if (level == 0) {
     if (vy >= mvb_sz) {
       cneighbors[0] = vx >= mvb_sz ?
-       state->mv_grid[vy - mvb_sz] + vx - mvb_sz : &ZERO_GRID_PT;
+       state->mv_grid[vy - mvb_sz] + vx - mvb_sz : &zero_grid_pt;
       cneighbors[1] = state->mv_grid[vy - mvb_sz] + vx;
       cneighbors[2] = vx + mvb_sz <= state->nhmvbs ?
-       state->mv_grid[vy - mvb_sz] + vx + mvb_sz : &ZERO_GRID_PT;
+       state->mv_grid[vy - mvb_sz] + vx + mvb_sz : &zero_grid_pt;
     }
-    else cneighbors[2] = cneighbors[1] = cneighbors[0] = &ZERO_GRID_PT;
+    else cneighbors[2] = cneighbors[1] = cneighbors[0] = &zero_grid_pt;
     cneighbors[3] = vx >= mvb_sz ?
-     state->mv_grid[vy] + vx - mvb_sz : &ZERO_GRID_PT;
+     state->mv_grid[vy] + vx - mvb_sz : &zero_grid_pt;
   }
   else {
     if (level & 1) {
@@ -2147,9 +2160,9 @@ int od_state_get_predictor(od_state *state,
     }
     else {
       cneighbors[0] = vy >= mvb_sz ?
-       state->mv_grid[vy - mvb_sz] + vx : &ZERO_GRID_PT;
+       state->mv_grid[vy - mvb_sz] + vx : &zero_grid_pt;
       cneighbors[1] = vx >= mvb_sz ?
-       state->mv_grid[vy] + vx - mvb_sz : &ZERO_GRID_PT;
+       state->mv_grid[vy] + vx - mvb_sz : &zero_grid_pt;
       /*NOTE: Only one of these candidates can be excluded at a time, so
          there will always be at least 3.*/
       if (vx > 0 && vx + mvb_sz > ((vx + OD_MVB_MASK) & ~OD_MVB_MASK)) ncns--;
@@ -2161,8 +2174,14 @@ int od_state_get_predictor(od_state *state,
   an = 0;
   for (ci = 0; ci < ncns; ci++) {
     if (cneighbors[ci]->ref == ref) {
-      a[an][0] = cneighbors[ci]->mv[0];
-      a[an][1] = cneighbors[ci]->mv[1];
+      if (ref == OD_FRAME_NEXT) {
+        a[an][0] = cneighbors[ci]->mv1[0];
+        a[an][1] = cneighbors[ci]->mv1[1];
+      }
+      else {
+        a[an][0] = cneighbors[ci]->mv[0];
+        a[an][1] = cneighbors[ci]->mv[1];
+      }
       an++;
     }
 #if defined(OD_ENABLE_LOGGING)
@@ -2177,8 +2196,16 @@ int od_state_get_predictor(od_state *state,
   od_compute_median(pred, a, an, mv_res);
   equal_mvs = 0;
   for (ci = 0; ci < ncns; ci++) {
-    if (pred[0] == OD_DIV_POW2_RE(cneighbors[ci]->mv[0], mv_res) &&
-     pred[1] == OD_DIV_POW2_RE(cneighbors[ci]->mv[1], mv_res)) {
+    if (cneighbors[ci]->ref == OD_FRAME_NEXT) {
+      mv[0] = cneighbors[ci]->mv1[0];
+      mv[1] = cneighbors[ci]->mv1[1];
+    }
+    else {
+      mv[0] = cneighbors[ci]->mv[0];
+      mv[1] = cneighbors[ci]->mv[1];
+    }
+    if (pred[0] == OD_DIV_POW2_RE(mv[0], mv_res) &&
+     pred[1] == OD_DIV_POW2_RE(mv[1], mv_res)) {
       equal_mvs++;
     }
   }
@@ -2208,9 +2235,15 @@ int od_mv_split_flag_ctx(od_mv_grid_pt **grid, int vx, int vy,int level) {
   split1 = vx >= 2*mvb_sz ? grid[vy][vx - 2*mvb_sz].valid : 0;
   split2 = vy >= 2*mvb_sz ? grid[vy - 2*mvb_sz][vx].valid : 0;
   same1 = v1 != NULL && v2 != NULL
-   && (v1->mv[0] == v2->mv[0]) && (v1->mv[1] == v2->mv[1]);
+   && ((v1->ref == OD_FRAME_NEXT ? v1->mv1[0] : v1->mv[0])
+   == (v2->ref == OD_FRAME_NEXT ? v2->mv1[0] : v2->mv[0]))
+   && ((v1->ref == OD_FRAME_NEXT ? v1->mv1[1] : v1->mv[1])
+   == (v2->ref == OD_FRAME_NEXT ? v2->mv1[1] : v2->mv[1]));
   same2 = v2 != NULL
-   && (v2->mv[0] == v3->mv[0]) && (v2->mv[1] == v3->mv[1]);
+   && ((v2->ref == OD_FRAME_NEXT ? v2->mv1[0] : v2->mv[0])
+   == (v3->ref == OD_FRAME_NEXT ? v3->mv1[0] : v3->mv[0]))
+   && ((v2->ref == OD_FRAME_NEXT ? v2->mv1[1] : v2->mv[1])
+   == (v3->ref == OD_FRAME_NEXT ? v3->mv1[1] : v3->mv[1]));
   return 3*(split1 + split2) + same1 + same2;
 }
 

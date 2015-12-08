@@ -57,6 +57,17 @@ extern const int OD_HAAR_QM[2][OD_LOG_BSIZE_MAX];
 # define OD_FRAME_NEXT (2)
 /*The current frame.*/
 # define OD_FRAME_SELF (3)
+
+/*Frame types.*/
+# define OD_I_FRAME (0)
+# define OD_P_FRAME (1)
+# define OD_B_FRAME (2)
+
+/*Prediction modes.*/
+# define OD_FORWARD_PRED (1)
+# define OD_BACKWARD_PRED (2)
+# define OD_BIDIR_PRED (3)
+
 # define OD_FRAME_MAX  (3)
 
 /*Constants for the packet state machine common between encoder and decoder.*/
@@ -172,6 +183,16 @@ struct od_state{
   /** Pointers to the ref images so one can move them around without coping
       them. */
   od_img              ref_imgs[OD_FRAME_MAX+1];
+  /* ----------------------------------------------------- */
+  /** I,P,B frame type of current frame. */
+  int frame_type;
+  /** Tail pointer of out_imgs[]. */
+  int out_buff_ptr;
+  /** Head pointer of out_imgs[]. */
+  int out_buff_head;
+  /** # of frames left in output buffer to display. */
+  int frames_in_out_buff;
+  /* ----------------------------------------------------- */
   unsigned char *ref_img_data;
   /** Increments by 1 for each frame. */
   int64_t         cur_time;
@@ -244,6 +265,9 @@ void od_state_init_border(od_state *state);
 void od_state_init_superblock_split(od_state *state, unsigned char bsize);
 int od_state_dump_yuv(od_state *state, od_img *img, const char *tag);
 void od_img_edge_ext(od_img* src);
+int od_state_push_output_buff_tail(od_state *state);
+int od_state_pop_output_buff_head(od_state *state);
+int od_state_pop_output_buff_tail(od_state *state);
 void od_ref_buf_to_coeff(od_state *state,
  od_coeff *dst, int dst_ystride, int lossless_p,
  unsigned char *src, int src_xstride, int src_ystride,

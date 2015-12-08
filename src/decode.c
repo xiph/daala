@@ -58,6 +58,7 @@ static int od_dec_init(od_dec_ctx *dec, const daala_info *info,
   int output_bits;
   int ret;
   int pli;
+  int imgi;
   (void)setup;
   ret = od_state_init(&dec->state, info);
   if (ret < 0) return ret;
@@ -76,32 +77,36 @@ static int od_dec_init(od_dec_ctx *dec, const daala_info *info,
   for (pli = 0; pli < info->nplanes; pli++) {
     plane_buf_width = frame_buf_width >> info->plane_info[pli].xdec;
     plane_buf_height = frame_buf_height >> info->plane_info[pli].ydec;
-    data_sz += plane_buf_width*plane_buf_height*output_bytes;
+    data_sz += plane_buf_width*plane_buf_height*2*output_bytes;
   }
   dec->output_img_data = output_img_data =
     (unsigned char *)od_aligned_malloc(data_sz, 32);
   if (OD_UNLIKELY(!dec->output_img_data)) {
     return OD_EFAULT;
   }
-  img = &dec->output_img;
-  img->nplanes = info->nplanes;
-  img->width = dec->state.info.pic_width;
-  img->height = dec->state.info.pic_height;
-  for (pli = 0; pli < img->nplanes; pli++) {
-    plane_buf_width = frame_buf_width >> info->plane_info[pli].xdec;
-    plane_buf_height = frame_buf_height >> info->plane_info[pli].ydec;
-    iplane = img->planes + pli;
-    iplane->xdec = info->plane_info[pli].xdec;
-    iplane->ydec = info->plane_info[pli].ydec;
-    iplane->bitdepth = output_bits;
-    /*At this moment, our output is always planar.*/
-    iplane->xstride = output_bytes;
-    iplane->ystride = plane_buf_width*iplane->xstride;
-    iplane->data = output_img_data
-      + iplane->xstride*(OD_BUFFER_PADDING >> info->plane_info[pli].xdec)
-      + iplane->ystride*(OD_BUFFER_PADDING >> info->plane_info[pli].ydec);
-    output_img_data += plane_buf_height*iplane->ystride;
+  for (imgi = 0; imgi < 2; imgi++) {
+    img = dec->output_img + imgi;
+    img->nplanes = info->nplanes;
+    img->width = dec->state.info.pic_width;
+    img->height = dec->state.info.pic_height;
+    for (pli = 0; pli < img->nplanes; pli++) {
+      plane_buf_width = frame_buf_width >> info->plane_info[pli].xdec;
+      plane_buf_height = frame_buf_height >> info->plane_info[pli].ydec;
+      iplane = img->planes + pli;
+      iplane->xdec = info->plane_info[pli].xdec;
+      iplane->ydec = info->plane_info[pli].ydec;
+      iplane->bitdepth = output_bits;
+      /*At this moment, our output is always planar.*/
+      iplane->xstride = output_bytes;
+      iplane->ystride = plane_buf_width*iplane->xstride;
+      iplane->data = output_img_data
+        + iplane->xstride*(OD_BUFFER_PADDING >> info->plane_info[pli].xdec)
+        + iplane->ystride*(OD_BUFFER_PADDING >> info->plane_info[pli].ydec);
+      output_img_data += plane_buf_height*iplane->ystride;
+    }
   }
+  dec->last_frame_decoded = 0;
+  dec->dec_order_count = -1;
 #if OD_ACCOUNTING
   od_accounting_init(&dec->acct);
   dec->acct_enabled = 0;
@@ -246,17 +251,22 @@ static void od_decode_mv(daala_dec_ctx *dec, int num_refs, od_mv_grid_pt *mvg,
   int oy;
   int id;
   int equal_mvs;
-  int ref_pred;
   if (num_refs > 1) {
-    ref_pred = od_mc_get_ref_predictor(&dec->state, vx, vy, level);
+    int ref_pred;
+    int ref_offset;
+    ref_offset = (dec->state.frame_type == OD_B_FRAME) ? 1 : 0;
+    ref_pred = od_mc_get_ref_predictor(&dec->state, vx, vy, level)
+     - ref_offset;
     OD_ASSERT(ref_pred >= 0);
     OD_ASSERT(ref_pred < num_refs);
     mvg->ref = od_decode_cdf_adapt(&dec->ec,
      dec->state.adapt.mv_ref_cdf[ref_pred], num_refs, 256,
-     "mv:ref");
-  } else {
+     "mv:ref") + ref_offset;
+  }
+  else {
     mvg->ref = OD_FRAME_PREV;
   }
+  OD_ASSERT(mvg->ref != OD_BIDIR_PRED);
   equal_mvs = od_state_get_predictor(&dec->state, pred, vx, vy, level,
    mv_res, mvg->ref);
   model = &dec->state.adapt.mv_model;
@@ -274,8 +284,14 @@ static void od_decode_mv(daala_dec_ctx *dec, int num_refs, od_mv_grid_pt *mvg,
   }
   if (ox && od_ec_dec_bits(&dec->ec, 1, "mv:sign:x")) ox = -ox;
   if (oy && od_ec_dec_bits(&dec->ec, 1, "mv:sign:y")) oy = -oy;
-  mvg->mv[0] = (pred[0] + ox)*(1 << mv_res);
-  mvg->mv[1] = (pred[1] + oy)*(1 << mv_res);
+  if (mvg->ref == OD_FRAME_NEXT) {
+    mvg->mv1[0] = (pred[0] + ox)*(1 << mv_res);;
+    mvg->mv1[1] = (pred[1] + oy)*(1 << mv_res);;
+  }
+  else {
+    mvg->mv[0] = (pred[0] + ox)*(1 << mv_res);;
+    mvg->mv[1] = (pred[1] + oy)*(1 << mv_res);;
+  }
 }
 
 /*Block-level decoder context information.
@@ -305,7 +321,7 @@ static void od_decode_compute_pred(daala_dec_ctx *dec, od_mb_dec_ctx *ctx,
   int x;
   OD_ASSERT(bs >= 0 && bs < OD_NBSIZES);
   n = 1 << (bs + OD_LOG_BSIZE0);
-  xdec = dec->output_img.planes[pli].xdec;
+  xdec = dec->output_img[dec->curr_dec_frame].planes[pli].xdec;
   w = dec->state.frame_width >> xdec;
   bo = (by << OD_LOG_BSIZE0)*w + (bx << OD_LOG_BSIZE0);
   /*We never use tf on the chroma planes, but if we do it will blow up, which
@@ -534,7 +550,7 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int bs,
   qm = ctx->qm == OD_HVS_QM ? OD_QM8_Q4_HVS : OD_QM8_Q4_FLAT;
   bx <<= bs;
   by <<= bs;
-  xdec = dec->output_img.planes[pli].xdec;
+  xdec = dec->output_img[dec->curr_dec_frame].planes[pli].xdec;
   frame_width = dec->state.frame_width;
   w = frame_width >> xdec;
   bo = (by << 2)*w + (bx << 2);
@@ -862,6 +878,9 @@ static void od_dec_mv_unpack(daala_dec_ctx *dec, int num_refs) {
   od_mv_grid_pt **grid;
   uint16_t *cdf;
   OD_ASSERT(dec->state.ref_imgi[OD_FRAME_PREV] >= 0);
+  if (dec->state.frame_type == OD_B_FRAME) {
+    OD_ASSERT(dec->state.ref_imgi[OD_FRAME_NEXT] >= 0);
+  }
   od_state_mvs_clear(&dec->state);
   nhmvbs = dec->state.nhmvbs;
   nvmvbs = dec->state.nvmvbs;
@@ -995,8 +1014,8 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
         mbctx->mc = state->mctmp[pli];
         mbctx->md = state->mdtmp[pli];
         mbctx->l = state->lbuf[pli];
-        xdec = dec->output_img.planes[pli].xdec;
-        ydec = dec->output_img.planes[pli].ydec;
+        xdec = dec->output_img[dec->curr_dec_frame].planes[pli].xdec;
+        ydec = dec->output_img[dec->curr_dec_frame].planes[pli].ydec;
         if (mbctx->is_keyframe) {
           od_decode_haar_dc_sb(dec, mbctx, pli, sbx, sby, xdec, ydec,
            sby > 0 && sbx < nhsb - 1, &hgrad, &vgrad);
@@ -1007,8 +1026,8 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
     }
   }
   for (pli = 0; pli < nplanes; pli++) {
-    xdec = dec->output_img.planes[pli].xdec;
-    ydec = dec->output_img.planes[pli].ydec;
+    xdec = dec->output_img[dec->curr_dec_frame].planes[pli].xdec;
+    ydec = dec->output_img[dec->curr_dec_frame].planes[pli].ydec;
     w = frame_width >> xdec;
     if (!mbctx->use_haar_wavelet) {
       od_apply_postfilter_frame_sbs(state->ctmp[pli], w, nhsb, nvsb, xdec,
@@ -1022,8 +1041,8 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
     for (pli = 0; pli < nplanes; pli++) {
       int i;
       int size;
-      xdec = dec->output_img.planes[pli].xdec;
-      ydec = dec->output_img.planes[pli].ydec;
+      xdec = dec->output_img[dec->curr_dec_frame].planes[pli].xdec;
+      ydec = dec->output_img[dec->curr_dec_frame].planes[pli].ydec;
       size = nvsb*nhsb*OD_BSIZE_MAX*OD_BSIZE_MAX >> xdec >> ydec;
       for (i = 0; i < size; i++) {
         state->etmp[pli][i] = state->ctmp[pli][i];
@@ -1071,8 +1090,8 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
             int ln;
             int n;
             int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS];
-            xdec = dec->output_img.planes[pli].xdec;
-            ydec = dec->output_img.planes[pli].ydec;
+            xdec = dec->output_img[dec->curr_dec_frame].planes[pli].xdec;
+            ydec = dec->output_img[dec->curr_dec_frame].planes[pli].ydec;
             w = frame_width >> xdec;
             ln = OD_LOG_DERING_GRID + OD_LOG_BSIZE0 - xdec;
             n = 1 << ln;
@@ -1112,8 +1131,8 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
     }
   }
   for (pli = 0; pli < nplanes; pli++) {
-    xdec = dec->output_img.planes[pli].xdec;
-    ydec = dec->output_img.planes[pli].ydec;
+    xdec = dec->output_img[dec->curr_dec_frame].planes[pli].xdec;
+    ydec = dec->output_img[dec->curr_dec_frame].planes[pli].ydec;
     w = frame_width >> xdec;
     if (dec->state.quantizer[0] > 0) {
       for (sby = 0; sby < nvsb; sby++) {
@@ -1133,14 +1152,19 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
   }
 }
 
-int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
- const daala_packet *op) {
+int daala_decode_packet_in(daala_dec_ctx *dec, const daala_packet *op) {
   int refi;
   od_mb_dec_ctx mbctx;
   od_img *ref_img;
-  if (dec == NULL || img == NULL || op == NULL) return OD_EFAULT;
+  int frame_type;
+  dec->curr_dec_output = -1;
+  if (dec == NULL || op == NULL) return OD_EFAULT;
   if (dec->packet_state != OD_PACKET_DATA) return OD_EINVAL;
-  if (op->e_o_s) dec->packet_state = OD_PACKET_DONE;
+  if (op->e_o_s) {
+    dec->packet_state = OD_PACKET_DONE;
+    dec->last_frame_decoded = 1;
+  }
+  ++dec->dec_order_count;
   od_ec_dec_init(&dec->ec, op->packet, op->bytes);
 #if OD_ACCOUNTING
   if (dec->acct_enabled) {
@@ -1152,8 +1176,20 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
   OD_ACCOUNTING_SET_LOCATION(dec, OD_ACCT_FRAME, 0, 0, 0);
   /*Read the packet type bit.*/
   if (od_ec_decode_bool_q15(&dec->ec, 16384, "flags")) return OD_EBADPACKET;
+  dec->curr_dec_frame = od_state_push_output_buff_tail(&dec->state);
+  dec->out_imgs_id[dec->curr_dec_frame] = dec->dec_order_count;
   mbctx.is_keyframe = od_ec_decode_bool_q15(&dec->ec, 16384, "flags");
-  if (!mbctx.is_keyframe) {
+  if (mbctx.is_keyframe) frame_type = OD_I_FRAME;
+  else {
+    if (od_ec_decode_bool_q15(&dec->ec, 16384, "flags")) {
+      frame_type = OD_B_FRAME;
+    }
+    else {
+      frame_type = OD_P_FRAME;
+    }
+  }
+  dec->state.frame_type = frame_type;
+  if (frame_type != OD_I_FRAME) {
     mbctx.num_refs = od_ec_dec_uint(&dec->ec, OD_MAX_CODED_REFS, "flags") + 1;
   } else {
     mbctx.num_refs = 0;
@@ -1173,11 +1209,17 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
       }
     }
   }
-  /*Update the buffer state.*/
-  if (dec->state.ref_imgi[OD_FRAME_SELF] >= 0) {
-    dec->state.ref_imgi[OD_FRAME_PREV] =
-     dec->state.ref_imgi[OD_FRAME_SELF];
+  /*Update the reference buffer state.*/
+  if (frame_type == OD_P_FRAME) {
+    dec->state.ref_imgi[OD_FRAME_PREV] = dec->state.ref_imgi[OD_FRAME_NEXT];
   }
+#if OD_CLOSED_GOP
+  if (frame_type == OD_I_FRAME) {
+    int imgi;
+    /*Mark all of the reference frames are not available.*/
+    for (imgi = 0; imgi < 4; imgi++) dec->state.ref_imgi[imgi] = -1;
+  }
+#endif
   if (!mbctx.is_keyframe) {
     /*If there have been no reference frames, and we need one,
        initialize one.*/
@@ -1193,7 +1235,9 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
   dec->state.ref_imgi[OD_FRAME_SELF] = refi;
   od_adapt_ctx_reset(&dec->state.adapt, mbctx.is_keyframe);
   if (!mbctx.is_keyframe) {
-    od_dec_mv_unpack(dec, mbctx.num_refs);
+    int num_refs;
+    num_refs = mbctx.num_refs;
+    od_dec_mv_unpack(dec, num_refs);
     od_state_mc_predict(&dec->state,
      dec->state.ref_imgs + dec->state.ref_imgi[OD_FRAME_SELF]);
     if (dec->user_mc_img != NULL) {
@@ -1214,19 +1258,69 @@ int daala_decode_packet_in(daala_dec_ctx *dec, od_img *img,
     }
   }
   ref_img = dec->state.ref_imgs + dec->state.ref_imgi[OD_FRAME_SELF];
+  od_img_copy(dec->output_img + dec->curr_dec_frame, ref_img);
   OD_ASSERT(ref_img);
-#if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
-  /*Dump YUV*/
-  od_state_dump_yuv(&dec->state, ref_img, "out");
-#endif
   od_img_edge_ext(ref_img);
-  /*Return decoded frame.*/
-  od_img_copy(&dec->output_img, ref_img);
-  *img = dec->output_img;
-  dec->state.cur_time++;
   if (mbctx.is_golden_frame) {
     dec->state.ref_imgi[OD_FRAME_GOLD] =
      dec->state.ref_imgi[OD_FRAME_SELF];
   }
+  /*B frames cannot be a reference frame.*/
+  if (frame_type != OD_B_FRAME) {
+    /*1st P frame in closed GOP or 1st P in the sequence with open GOP?*/
+    if (dec->state.ref_imgi[OD_FRAME_PREV] < 0 &&
+     dec->state.ref_imgi[OD_FRAME_NEXT] < 0) {
+      /*Only previous reference frame (i.e. I frame) is available.*/
+      dec->state.ref_imgi[OD_FRAME_PREV] =
+       dec->state.ref_imgi[OD_FRAME_SELF];
+      dec->state.ref_imgi[OD_FRAME_NEXT] =
+       dec->state.ref_imgi[OD_FRAME_SELF];
+    }
+    else {
+      /*Update two reference frames.*/
+      dec->state.ref_imgi[OD_FRAME_PREV] =
+       dec->state.ref_imgi[OD_FRAME_NEXT];
+      dec->state.ref_imgi[OD_FRAME_NEXT] =
+       dec->state.ref_imgi[OD_FRAME_SELF];
+    }
+  }
   return 0;
+}
+
+int daala_decode_img_out(daala_dec_ctx *dec, od_img *img) {
+  int frame_ready;
+  int frame_type;
+  if (dec == NULL || img == NULL) return OD_EFAULT;
+  frame_ready = 0;
+  frame_type = dec->state.frame_type;
+  if (dec->state.frames_in_out_buff <= 0) {
+    return frame_ready;
+  }
+  /*Determine output frame in output buffer.*/
+  if (frame_type == OD_B_FRAME ||
+   (frame_type == OD_I_FRAME && dec->dec_order_count == 0)) {
+    dec->curr_dec_output = od_state_pop_output_buff_tail(&dec->state);
+  }
+  else if ((frame_type == OD_P_FRAME || frame_type == OD_I_FRAME) &&
+   dec->state.frames_in_out_buff == 2) {
+    dec->curr_dec_output = od_state_pop_output_buff_head(&dec->state);
+  }
+  else if (dec->last_frame_decoded && dec->state.frames_in_out_buff > 0) {
+    dec->curr_dec_output = od_state_pop_output_buff_head(&dec->state);
+  }
+  if (dec->curr_dec_output >= 0) {
+    frame_ready = 1;
+    dec->out_imgs_id[dec->curr_dec_output] = -1;
+#if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
+  /*Dump YUV*/
+    od_state_dump_yuv(&dec->state,
+     dec->output_img + dec->curr_dec_output, "out");
+#endif
+    /*Return decoded frame.*/
+    *img = dec->output_img[dec->curr_dec_output];
+    img->width = dec->state.info.pic_width;
+    img->height = dec->state.info.pic_height;
+    dec->state.cur_time++;
+  }
+  return frame_ready;
 }

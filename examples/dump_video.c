@@ -108,6 +108,7 @@ static void video_write(FILE *outfile, od_img *img, int raw) {
           return;
         }
       }
+      fflush(outfile);
     }
   }
 }
@@ -410,7 +411,7 @@ int main(int argc, char *argv[]) {
     while (daala_p && !videobuf_ready) {
       if (ogg_stream_packetout(&to, &op) > 0) {
         ogg_to_daala_packet(&dp, &op);
-        if (daala_decode_packet_in(dd, &img, &dp) >= 0) {
+        if (daala_decode_packet_in(dd, &dp) >= 0) {
           videobuf_ready = 1;
           frames++;
         }
@@ -426,8 +427,14 @@ int main(int argc, char *argv[]) {
       }
     }
     /* dumpvideo frame, and get new one */
-    else if (outfile) video_write(outfile, &img, raw);
+    else if (outfile && daala_decode_img_out(dd, &img)) {
+      video_write(outfile, &img, raw);
+    }
     videobuf_ready = 0;
+  }
+  /*Flush the output frame buffer of decoder.*/
+  while (!got_sigint && daala_decode_img_out(dd, &img)) {
+    video_write(outfile, &img, raw);
   }
   /* end of decoder loop -- close everything */
   if (daala_p) {

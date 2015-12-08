@@ -355,6 +355,7 @@ static void od_state_opt_vtbl_init(od_state *state) {
 static int od_state_init_impl(od_state *state, const daala_info *info) {
   int nplanes;
   int pli;
+  int i;
   /*First validate the parameters.*/
   if (info == NULL) return OD_EFAULT;
   nplanes = info->nplanes;
@@ -384,7 +385,7 @@ static int od_state_init_impl(od_state *state, const daala_info *info) {
     FIXME: Switch on when FPR SIMD lands.*/
   state->full_precision_references = 0;
   od_state_opt_vtbl_init(state);
-  if (OD_UNLIKELY(od_state_ref_imgs_init(state, 4))) {
+  if (OD_UNLIKELY(od_state_ref_imgs_init(state, OD_FRAME_MAX + 1))) {
     return OD_EFAULT;
   }
   if (OD_UNLIKELY(od_state_mvs_init(state))) {
@@ -476,6 +477,10 @@ static int od_state_init_impl(od_state *state, const daala_info *info) {
     }
   }
   state->sb_q_scaling = (unsigned char *)malloc(state->nhsb * state->nvsb);
+  /*Init frame buffer related variables.*/
+  state->out_buff_ptr = -1;
+  state->out_buff_head = 0;
+  state->frames_in_out_buff = 0;
   if (OD_UNLIKELY(!state->sb_q_scaling)) {
     return OD_EFAULT;
   }
@@ -679,6 +684,7 @@ void od_state_pred_block_from_setup(od_state *state,
   int32_t mvx[4];
   int32_t mvy[4];
   const unsigned char *src[4];
+  const unsigned char *src1[4];
   const int *dxp;
   const int *dyp;
   int x;
@@ -692,10 +698,20 @@ void od_state_pred_block_from_setup(od_state *state,
   dxp = OD_VERT_SETUP_DX[oc][s];
   dyp = OD_VERT_SETUP_DY[oc][s];
   for (k = 0; k < 4; k++) {
+    int mvx_;
+    int mvy_;
     grid[k] = state->mv_grid[vy + (dyp[k]*(1 << log_mvb_sz))]
      + vx + (dxp[k]*(1 << log_mvb_sz));
-    mvx[k] = (int32_t)OD_DIV_POW2_RE(grid[k]->mv[0], xdec);
-    mvy[k] = (int32_t)OD_DIV_POW2_RE(grid[k]->mv[1], ydec);
+    if (grid[k]->ref == OD_FRAME_NEXT) {
+      mvx_ = grid[k]->mv1[0];
+      mvy_ = grid[k]->mv1[1];
+    }
+    else {
+      mvx_ = grid[k]->mv[0];
+      mvy_ = grid[k]->mv[1];
+    }
+    mvx[k] = (int32_t)OD_DIV_POW2_RE(mvx_, xdec);
+    mvy[k] = (int32_t)OD_DIV_POW2_RE(mvy_, ydec);
     iplane = state->ref_imgs[state->ref_imgi[grid[k]->ref]].planes+pli;
     x = vx << (OD_LOG_MVBSIZE_MIN - iplane->xdec);
     y = vy << (OD_LOG_MVBSIZE_MIN - iplane->ydec);
@@ -1144,6 +1160,39 @@ void od_img_edge_ext(od_img* src) {
      src->width >> xdec, src->height >> ydec,
      OD_BUFFER_PADDING >> xdec, OD_BUFFER_PADDING >> ydec);
   }
+}
+
+/*Add a decoded frame at the tail of a output buffer.*/
+/*Note: Call this function to get output buffer pointer.*/
+int od_state_push_output_buff_tail(od_state *state) {
+  OD_ASSERT(state->frames_in_out_buff < 2);
+  /*Increase the tail pointer.*/
+  state->out_buff_ptr = (state->out_buff_ptr + 1 + 2) & 1;
+  state->frames_in_out_buff += 1;
+  if (state->frames_in_out_buff == 1) {
+    state->out_buff_head = state->out_buff_ptr;
+  }
+  return state->out_buff_ptr;
+}
+
+int od_state_pop_output_buff_head(od_state *state) {
+  int head;
+  OD_ASSERT(state->frames_in_out_buff > 0);
+  head = state->out_buff_head;
+  /*Update the tail of in_buff[].*/
+  state->out_buff_head = (head + 1) & 1;
+  state->frames_in_out_buff -= 1;
+  return head;
+}
+
+int od_state_pop_output_buff_tail(od_state *state) {
+  int tail;
+  OD_ASSERT(state->frames_in_out_buff > 0);
+  tail = state->out_buff_ptr;
+  /*Update the tail of in_buff[].*/
+  state->out_buff_ptr = (tail - 1 + 2) & 1;
+  state->frames_in_out_buff -= 1;
+  return tail;
 }
 
 /*General purpose reference od_img block to coefficient block

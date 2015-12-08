@@ -423,8 +423,10 @@ int player_example_play(player_example *player) {
                 player->width, player->height);
             if (player->texture == NULL) return -1;
           }
-          ret = daala_decode_packet_in(player->dctx, &player->img, &dp);
+          ret = daala_decode_packet_in(player->dctx, &dp);
           if (ret != 0) return -1;
+          if (!daala_decode_img_out(player->dctx, &player->img))
+            continue;
           player->valid = 1;
           if ((player->slow) && (!player->step)) {
             SDL_Delay(420);
@@ -449,6 +451,8 @@ int player_example_play(player_example *player) {
         }
       }
     }
+    /*TODO: How to call daala_decode_img_out() to flush remaining frames in
+       decoder's output buffer (when B frames are used)? */
     if ((player->restart) || (ogg_page_eos(&page))) {
       ret = player_example_daala_stream_clear(player);
       if (ret != 0) return -1;

@@ -235,9 +235,10 @@ bool DaalaDecoder::step() {
   daala_packet dp;
   if (readPacket(&op)) {
     ogg_to_daala_packet(&dp, &op);
-    if (daala_decode_packet_in(dctx, &img, &dp) != 0) {
+    if (daala_decode_packet_in(dctx, &dp) != 0) {
       return false;
     }
+    daala_decode_img_out(dctx, &img);
     frame++;
     return true;
   }

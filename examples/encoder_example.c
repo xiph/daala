@@ -430,87 +430,102 @@ int fetch_and_process_video(av_input *avin, ogg_page *page,
  ogg_stream_state *vo, daala_enc_ctx *dd, int video_ready,
  int *limit, int *skip) {
   daala_packet dp;
+  /*No more input frames to the encoder?*/
+  static int end_of_input = 0;
+  /*All the input frames are encoded?*/
+  static int input_frames_left_encoder_buffer = 0;
   while (!video_ready) {
     size_t ret;
     char frame[6];
     char c;
     int last;
-    if (ogg_stream_pageout(vo, page) > 0) return 1;
-    else if (ogg_stream_eos(vo) || (limit && (*limit) < 0)) return 0;
-    ret = fread(frame, 1, 6, avin->video_infile);
-    if (ret == 6) {
-      od_img *img;
-      int pli;
-      if (memcmp(frame, "FRAME", 5) != 0) {
-        fprintf(stderr, "Loss of framing in YUV input data.\n");
-        exit(1);
-      }
-      if (frame[5] != '\n') {
-        int bi;
-        for (bi = 0; bi < 121; bi++) {
-          if (fread(&c, 1, 1, avin->video_infile) == 1 && c == '\n') break;
-        }
-        if (bi >= 121) {
-          fprintf(stderr, "Error parsing YUV frame header.\n");
+    if (ogg_stream_pageout(vo, page) > 0) {
+      return 1;
+    }
+    else if (ogg_stream_eos(vo)) {
+      return 0;
+    }
+    if (!end_of_input) {
+      ret = fread(frame, 1, 6, avin->video_infile);
+      if (ret == 6) {
+        od_img *img;
+        int pli;
+        if (memcmp(frame, "FRAME", 5) != 0) {
+          fprintf(stderr, "Loss of framing in YUV input data.\n");
           exit(1);
         }
-      }
-      /*Read the frame data.*/
-      img = &avin->video_img;
-      for (pli = 0; pli < img->nplanes; pli++) {
-        od_img_plane *iplane;
-        int bytes;
-        size_t plane_sz;
-        iplane = img->planes + pli;
-        bytes = iplane->bitdepth > 8 ? 2 : 1;
-        plane_sz = ((avin->video_pic_w + (1 << iplane->xdec) - 1)
-         >> iplane->xdec)*((avin->video_pic_h + (1 << iplane->ydec)
-         - 1) >> iplane->ydec)*bytes;
-        ret = fread(iplane->data, 1, plane_sz, avin->video_infile);
-        if (ret != plane_sz) {
-          fprintf(stderr, "Error reading YUV frame data.\n");
-          exit(1);
-        }
-        if (bytes == 2 && avin->video_swapendian) {
-          size_t i;
-          for (i = 0; i < plane_sz; i += 2) {
-            SWAP(iplane->data[i], iplane->data[i + 1]);
+        if (frame[5] != '\n') {
+          int bi;
+          for (bi = 0; bi < 121; bi++) {
+            if (fread(&c, 1, 1, avin->video_infile) == 1 && c == '\n') break;
+          }
+          if (bi >= 121) {
+            fprintf(stderr, "Error parsing YUV frame header.\n");
+            exit(1);
           }
         }
+        /*Read the frame data.*/
+        img = &avin->video_img;
+        for (pli = 0; pli < img->nplanes; pli++) {
+          od_img_plane *iplane;
+          int bytes;
+          size_t plane_sz;
+          iplane = img->planes + pli;
+          bytes = iplane->bitdepth > 8 ? 2 : 1;
+          plane_sz = ((avin->video_pic_w + (1 << iplane->xdec) - 1)
+           >> iplane->xdec)*((avin->video_pic_h + (1 << iplane->ydec)
+           - 1) >> iplane->ydec)*bytes;
+          ret = fread(iplane->data, 1, plane_sz, avin->video_infile);
+          if (ret != plane_sz) {
+            fprintf(stderr, "Error reading YUV frame data.\n");
+            exit(1);
+          }
+          if (bytes == 2 && avin->video_swapendian) {
+            size_t i;
+            for (i = 0; i < plane_sz; i += 2) {
+              SWAP(iplane->data[i], iplane->data[i + 1]);
+            }
+          }
+        }
+        if (skip && (*skip) > 0) {
+          (*skip)--;
+          continue;
+        }
+        if (limit) {
+          end_of_input = (*limit) <= 0;
+          (*limit)--;
+        }
+        else {
+          end_of_input = 0;
+        }
       }
-      if (skip && (*skip) > 0) {
-        (*skip)--;
-        continue;
+      else {
+        end_of_input = 1;
       }
-      if (limit) {
-        last = (*limit) == 0;
-        (*limit)--;
-      }
-      else last = 0;
     }
-    else last = 1;
-    /*Pull the packets from the previous frame, now that we know whether or not
-       we can read the current one.
-      This is used to set the e_o_s bit on the final packet.*/
-    while (daala_encode_packet_out(dd, last, &dp)) {
+    /*Pull the packets from the just encoded frame, now that we know whether
+       or not we can read the current one.
+      This is also used to set the e_o_s bit on the final packet.*/
+    while (daala_encode_packet_out(dd, end_of_input &&
+     !input_frames_left_encoder_buffer, &dp)) {
       ogg_packet op;
-
       daala_to_ogg_packet(&op, &dp);
-
       ogg_stream_packetin(vo, &op);
     }
     /*Submit the current frame for encoding.*/
-    if (!last) daala_encode_img_in(dd, &avin->video_img, 0);
+    daala_encode_img_in(dd, &avin->video_img, 0, end_of_input,
+     &input_frames_left_encoder_buffer);
   }
   return video_ready;
 }
 
-static const char *OPTSTRING = "ho:k:v:V:s:S:l:z:";
+static const char *OPTSTRING = "ho:k:b:v:V:s:S:l:z:";
 
 static const struct option OPTIONS[] = {
   { "help", no_argument, NULL, 'h' },
   { "output", required_argument, NULL, 'o' },
   { "keyframe-rate", required_argument, NULL, 'k' },
+  { "b-frames", required_argument, NULL, 'b' },
   { "video-quality", required_argument, NULL, 'v' },
   { "video-rate-target", required_argument, NULL, 'V' },
   { "serial", required_argument, NULL, 's' },
@@ -543,6 +558,9 @@ static void usage(void) {
    "                                 compressed data is written to.\n"
    "                                 a file named video_file.out.ogv.\n\n"
    "  -k --keyframe-rate <n>         Frequency of keyframes in output.\n\n"
+   "  -b --b-frames <n>              Number of B-frames between two\n"
+   "                                 reference frames. Default 0\n"
+   "                                 (i.e. P frames only). Max 4.\n\n"
    "  -v --video-quality <n>         Daala quality selector from 0 to 511.\n"
    "                                 511 yields the smallest files, but\n"
    "                                 lowest video quality; 1 yields the\n"
@@ -553,7 +571,8 @@ static void usage(void) {
    "                                 as -v gives higher quality for a given\n"
    "                                 bitrate. (Not yet implemented)\n\n"
    "  -s --serial <n>                Specify a serial number for the stream.\n"
-   "  -S --skip <n>                  Number of input frames to skip before encoding.\n"
+   "  -S --skip <n>                  Number of input frames to skip before\n"
+   "                                 encoding.\n\n"
    "  -l --limit <n>                 Maximum number of frames to encode.\n"
    "  -z --complexity <n>            Computational complexity: 0...10\n"
    "                                 Fastest: 0, slowest: 10, default: 7\n"
@@ -625,6 +644,7 @@ int main(int argc, char **argv) {
   int mv_level_max;
   int current_frame_no;
   int output_provided;
+  int b_frames;
   char default_filename[1024];
   clock_t t0;
   clock_t t1;
@@ -659,6 +679,7 @@ int main(int argc, char **argv) {
   mv_level_min = 0;
   mv_level_max = 6;
   output_provided = 0;
+  b_frames = 0;
   while ((c = getopt_long(argc, argv, OPTSTRING, OPTIONS, &loi)) != EOF) {
     switch (c) {
       case 'o': {
@@ -675,6 +696,15 @@ int main(int argc, char **argv) {
         if (video_keyframe_rate < 1 || video_keyframe_rate > 1000) {
           fprintf(stderr,
            "Illegal video keyframe rate (use 1 through 1000)\n");
+          exit(1);
+        }
+        break;
+      }
+      case 'b': {
+        b_frames = atoi(optarg);
+        if (b_frames < 0 || b_frames > 4) {
+          fprintf(stderr,
+           "Illegal number of B frames (use 0 through 4)\n");
           exit(1);
         }
         break;
@@ -874,6 +904,7 @@ int main(int argc, char **argv) {
   daala_encode_ctl(dd, OD_SET_QM, &qm, sizeof(qm));
   daala_encode_ctl(dd, OD_SET_MV_LEVEL_MIN, &mv_level_min, sizeof(mv_level_min));
   daala_encode_ctl(dd, OD_SET_MV_LEVEL_MAX, &mv_level_max, sizeof(mv_level_max));
+  daala_encode_ctl(dd, OD_SET_B_FRAMES, &b_frames, sizeof(b_frames));
   /*Write the bitstream header packets with proper page interleave.*/
   /*The first packet for each logical stream will get its own page
      automatically.*/
@@ -933,7 +964,7 @@ int main(int argc, char **argv) {
     double video_fps = avin.video_fps_n/avin.video_fps_d;
     size_t bytes_written;
     video_ready = fetch_and_process_video(&avin, &video_page, &vo,
-     dd, video_ready, limit >= 0 ? &limit : NULL, skip > 0 ? &skip : NULL);
+     dd, video_ready, limit > -1 ? &limit : NULL, skip > 0 ? &skip : NULL);
     /*TODO: Fetch the next video page.*/
     /*If no more pages are available, we've hit the end of the stream.*/
     if (!video_ready) break;
