@@ -3176,10 +3176,12 @@ static void daala_encoder_check(daala_enc_ctx *ctx, od_img *img,
   od_img dec_img;
   OD_ASSERT(ctx->dec);
 
-  if (daala_decode_packet_in(ctx->dec, &out_img, op) < 0) {
-    fprintf(stderr,"decode failed!\n");
+  if (daala_decode_packet_in(ctx->dec, op) < 0) {
+    fprintf(stderr, "encoder_check: decode failed\n");
     return;
   }
+  /*We won't use out_img after this.*/
+  daala_decode_img_out(ctx->dec, &out_img);
   dec_img = ctx->dec->state.ref_imgs[ctx->dec->state.ref_imgi[OD_FRAME_SELF]];
 
   OD_ASSERT(img->nplanes == dec_img.nplanes);
