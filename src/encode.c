@@ -2200,14 +2200,14 @@ static void od_predict_frame(daala_enc_ctx *enc) {
 #endif
   OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO, "Predicting frame %i:",
    (int)daala_granule_basetime(enc, enc->state.cur_time)));
-  /*4640000 ~= 0.55313 (or sqrt(0.30595)) in Q23.
+  /*2320000 ~= 0.55313 (or sqrt(0.30595)) in Q22.
    The lower bound of 40 is there because we do not yet consider PVQ noref
     flags during the motion search, so we waste far too many bits trying to
     predict unpredictable areas when lambda is too small.
    Hopefully when we fix that, we can remove the limit.*/
   od_mv_est(enc->mvest,
-   OD_MAXI(((4640000 + (((1 << OD_COEFF_SHIFT) - 1) >> 1)) >> OD_COEFF_SHIFT)*
-   enc->state.quantizer[0] >> (23 - OD_LAMBDA_SCALE), 40));
+   OD_MAXI(((2320000 + (((1 << OD_COEFF_SHIFT) - 1) >> 1)) >> OD_COEFF_SHIFT)*
+   enc->state.quantizer[0] >> (22 - OD_LAMBDA_SCALE), 40));
   od_state_mc_predict(&enc->state,
    enc->state.ref_imgs + enc->state.ref_imgi[OD_FRAME_SELF]);
   /*Do edge extension here because the block-size analysis needs to read
