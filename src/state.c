@@ -355,7 +355,6 @@ static void od_state_opt_vtbl_init(od_state *state) {
 static int od_state_init_impl(od_state *state, const daala_info *info) {
   int nplanes;
   int pli;
-  int i;
   /*First validate the parameters.*/
   if (info == NULL) return OD_EFAULT;
   nplanes = info->nplanes;
@@ -684,7 +683,6 @@ void od_state_pred_block_from_setup(od_state *state,
   int32_t mvx[4];
   int32_t mvy[4];
   const unsigned char *src[4];
-  const unsigned char *src1[4];
   const int *dxp;
   const int *dyp;
   int x;
