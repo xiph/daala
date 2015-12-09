@@ -1315,11 +1315,6 @@ int daala_decode_img_out(daala_dec_ctx *dec, od_img *img) {
   if (dec->curr_dec_output >= 0) {
     frame_ready = 1;
     dec->out_imgs_id[dec->curr_dec_output] = -1;
-#if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
-  /*Dump YUV*/
-    od_state_dump_yuv(&dec->state,
-     dec->output_img + dec->curr_dec_output, "out");
-#endif
     /*Return decoded frame.*/
     *img = dec->output_img[dec->curr_dec_output];
     img->width = dec->state.info.pic_width;
