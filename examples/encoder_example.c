@@ -438,7 +438,6 @@ int fetch_and_process_video(av_input *avin, ogg_page *page,
     size_t ret;
     char frame[6];
     char c;
-    int last;
     if (ogg_stream_pageout(vo, page) > 0) {
       return 1;
     }
