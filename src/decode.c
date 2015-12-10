@@ -1317,8 +1317,6 @@ int daala_decode_img_out(daala_dec_ctx *dec, od_img *img) {
     dec->out_imgs_id[dec->curr_dec_output] = -1;
     /*Return decoded frame.*/
     *img = dec->output_img[dec->curr_dec_output];
-    img->width = dec->state.info.pic_width;
-    img->height = dec->state.info.pic_height;
     dec->state.cur_time++;
   }
   return frame_ready;
