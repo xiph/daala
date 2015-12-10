@@ -2196,17 +2196,19 @@ int od_state_get_predictor(od_state *state,
   od_compute_median(pred, a, an, mv_res);
   equal_mvs = 0;
   for (ci = 0; ci < ncns; ci++) {
-    if (cneighbors[ci]->ref == OD_FRAME_NEXT) {
-      mv[0] = cneighbors[ci]->mv1[0];
-      mv[1] = cneighbors[ci]->mv1[1];
-    }
-    else {
-      mv[0] = cneighbors[ci]->mv[0];
-      mv[1] = cneighbors[ci]->mv[1];
-    }
-    if (pred[0] == OD_DIV_POW2_RE(mv[0], mv_res) &&
-     pred[1] == OD_DIV_POW2_RE(mv[1], mv_res)) {
-      equal_mvs++;
+    if (cneighbors[ci]->ref == ref) {
+      if (cneighbors[ci]->ref == OD_FRAME_NEXT) {
+        mv[0] = cneighbors[ci]->mv1[0];
+        mv[1] = cneighbors[ci]->mv1[1];
+      }
+      else {
+        mv[0] = cneighbors[ci]->mv[0];
+        mv[1] = cneighbors[ci]->mv[1];
+      }
+      if (pred[0] == OD_DIV_POW2_RE(mv[0], mv_res) &&
+       pred[1] == OD_DIV_POW2_RE(mv[1], mv_res)) {
+        equal_mvs++;
+      }
     }
   }
   return equal_mvs;
