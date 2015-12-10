@@ -472,17 +472,17 @@ void od_mc_predict1fmv8_sse2(od_state *state, unsigned char *dst,
            < buff + sizeof(buff)/sizeof(buff[0]));
           /*Load input coeffs from each row, 8 shorts at one time.*/
           row0_src = _mm_loadu_si128((__m128i *)
-           (buff_p + i + ((0 - OD_SUBPEL_TOP_APRON_SZ)*(1 << log_xblk_sz))));
+           (buff_p + i + (0 - OD_SUBPEL_TOP_APRON_SZ)*(1 << log_xblk_sz)));
           row1_src = _mm_loadu_si128((__m128i *)
-           (buff_p + i + ((1 - OD_SUBPEL_TOP_APRON_SZ)*(1 << log_xblk_sz))));
+           (buff_p + i + (1 - OD_SUBPEL_TOP_APRON_SZ)*(1 << log_xblk_sz)));
           row2_src = _mm_loadu_si128((__m128i *)
-           (buff_p + i + ((2 - OD_SUBPEL_TOP_APRON_SZ)*(1 << log_xblk_sz))));
+           (buff_p + i + (2 - OD_SUBPEL_TOP_APRON_SZ)*(1 << log_xblk_sz)));
           row3_src = _mm_loadu_si128((__m128i *)
-           (buff_p + i + ((3 - OD_SUBPEL_TOP_APRON_SZ)*(1 << log_xblk_sz))));
+           (buff_p + i + (3 - OD_SUBPEL_TOP_APRON_SZ)*(1 << log_xblk_sz)));
           row4_src = _mm_loadu_si128((__m128i *)
-           (buff_p + i + ((4 - OD_SUBPEL_TOP_APRON_SZ)*(1 << log_xblk_sz))));
+           (buff_p + i + (4 - OD_SUBPEL_TOP_APRON_SZ)*(1 << log_xblk_sz)));
           row5_src = _mm_loadu_si128((__m128i *)
-           (buff_p + i + ((5 - OD_SUBPEL_TOP_APRON_SZ)*(1 << log_xblk_sz))));
+           (buff_p + i + (5 - OD_SUBPEL_TOP_APRON_SZ)*(1 << log_xblk_sz)));
           /*Row 0 and 1 together.*/
           row01_lo = _mm_unpacklo_epi16(row0_src, row1_src);
           row01_hi = _mm_unpackhi_epi16(row0_src, row1_src);
@@ -820,17 +820,17 @@ void od_mc_predict1fmv16_sse2(od_state *state, unsigned char *dst,
            < buff + sizeof(buff)/sizeof(buff[0]));
           /*Load input coeffs from each row, 4 32-bit integers at one time.*/
           row0 = _mm_loadu_si128((__m128i *)
-           (buff_p + i + ((0 - OD_SUBPEL_TOP_APRON_SZ)*(1 << log_xblk_sz))));
+           (buff_p + i + (0 - OD_SUBPEL_TOP_APRON_SZ)*(1 << log_xblk_sz)));
           row1 = _mm_loadu_si128((__m128i *)
-           (buff_p + i + ((1 - OD_SUBPEL_TOP_APRON_SZ)*(1 << log_xblk_sz))));
+           (buff_p + i + (1 - OD_SUBPEL_TOP_APRON_SZ)*(1 << log_xblk_sz)));
           row2 = _mm_loadu_si128((__m128i *)
-           (buff_p + i + ((2 - OD_SUBPEL_TOP_APRON_SZ)*(1 << log_xblk_sz))));
+           (buff_p + i + (2 - OD_SUBPEL_TOP_APRON_SZ)*(1 << log_xblk_sz)));
           row3 = _mm_loadu_si128((__m128i *)
-           (buff_p + i + ((3 - OD_SUBPEL_TOP_APRON_SZ)*(1 << log_xblk_sz))));
+           (buff_p + i + (3 - OD_SUBPEL_TOP_APRON_SZ)*(1 << log_xblk_sz)));
           row4 = _mm_loadu_si128((__m128i *)
-           (buff_p + i + ((4 - OD_SUBPEL_TOP_APRON_SZ)*(1 << log_xblk_sz))));
+           (buff_p + i + (4 - OD_SUBPEL_TOP_APRON_SZ)*(1 << log_xblk_sz)));
           row5 = _mm_loadu_si128((__m128i *)
-           (buff_p + i + ((5 - OD_SUBPEL_TOP_APRON_SZ)*(1 << log_xblk_sz))));
+           (buff_p + i + (5 - OD_SUBPEL_TOP_APRON_SZ)*(1 << log_xblk_sz)));
           /*Multiply each row with the cooresponding filter value.*/
           row0 = od_mm128i_mullo_epi32(row0, _mm_set1_epi32(fy[0]));
           row1 = od_mm128i_mullo_epi32(row1, _mm_set1_epi32(fy[1]));

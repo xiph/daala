@@ -698,8 +698,8 @@ void od_state_pred_block_from_setup(od_state *state,
   for (k = 0; k < 4; k++) {
     int mvx_;
     int mvy_;
-    grid[k] = state->mv_grid[vy + (dyp[k]*(1 << log_mvb_sz))]
-     + vx + (dxp[k]*(1 << log_mvb_sz));
+    grid[k] = state->mv_grid[vy + dyp[k]*(1 << log_mvb_sz)]
+     + vx + dxp[k]*(1 << log_mvb_sz);
     if (grid[k]->ref == OD_FRAME_NEXT) {
       mvx_ = grid[k]->mv1[0];
       mvy_ = grid[k]->mv1[1];
@@ -1296,7 +1296,7 @@ void od_coeff_to_ref_buf(od_state *state,
     for (y = 0; y < h; y++) {
       for (x = 0; x < w; x++) {
         ((int16_t *)dst)[x] =
-          OD_CLAMPFPR((src[x]*(1 << coeff_shift)) + (128 << OD_COEFF_SHIFT));
+          OD_CLAMPFPR(src[x]*(1 << coeff_shift) + (128 << OD_COEFF_SHIFT));
       }
       dst += dst_ystride;
       src += src_ystride;

@@ -3598,7 +3598,7 @@ static void check_bias(int bszi) {
     }
     for (j = 0; j < n; j++) x[j] = OD_COEFF_UNSCALE(x[j]);
     for (j = 0; j < n; j++) {
-      y2[j] = y[j] + (ieee1180_rand(1, 1)*OD_COEFF_SCALE);
+      y2[j] = y[j] + ieee1180_rand(1, 1)*OD_COEFF_SCALE;
     }
     (*OD_IDCT_1D[bszi])(x2, 1, y2);
     for (j = 0; j < n; j++) {
@@ -3606,7 +3606,7 @@ static void check_bias(int bszi) {
       rtacc[j] += x2[j] - x[j];
     }
     for (j = 0; j < n; j++) {
-      y2[j] = (y[j] + ((y[j] < 0 ? -4 : 4)*OD_COEFF_SCALE))/
+      y2[j] = (y[j] + (y[j] < 0 ? -4 : 4)*OD_COEFF_SCALE)/
        (8 << OD_COEFF_SHIFT)*(1 << (3 + OD_COEFF_SHIFT));
     }
     (*OD_IDCT_1D[bszi])(x2, 1, y2);
@@ -3615,7 +3615,7 @@ static void check_bias(int bszi) {
       q8acc[j] += x2[j] - x[j];
     }
     for (j = 0; j < n; j++) {
-      y2[j] = (y[j] + (((y[j] < 0 ? -7 : 7)*OD_COEFF_SCALE)/2))/
+      y2[j] = (y[j] + (y[j] < 0 ? -7 : 7)*OD_COEFF_SCALE/2)/
        (7 << OD_COEFF_SHIFT)*(7 << OD_COEFF_SHIFT);
     }
     (*OD_IDCT_1D[bszi])(x2, 1, y2);

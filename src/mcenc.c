@@ -3855,8 +3855,8 @@ static void od_mv_est_init_du(od_mv_est_ctx *est, int vx, int vy) {
   dec->dd = 0;
   /*Subtract off the error before decimation.*/
   for (di = 0; di < nerrdom; di++) {
-    dvx = vx + (errdom[di].dx*(1 << dlev));
-    dvy = vy + (errdom[di].dy*(1 << dlev));
+    dvx = vx + errdom[di].dx*(1 << dlev);
+    dvy = vy + errdom[di].dy*(1 << dlev);
     if (dvx >= 0 && dvy >= 0 && dvx < nhmvbs && dvy < nvmvbs) {
       int mvb_sz;
       log_mvb_sz = errdom[di].log_mvb_sz + dlev;
@@ -3885,9 +3885,9 @@ static void od_mv_est_init_du(od_mv_est_ctx *est, int vx, int vy) {
   /*Decimate the vertices in the merging domain.
     Also sum up the rate changes while we do it.*/
   for (di = 0;; di++) {
-    dvx = vx + (mergedom[di][0]*(1 << dlev));
+    dvx = vx + mergedom[di][0]*(1 << dlev);
     if (dvx < 0 || dvx > nhmvbs) continue;
-    dvy = vy + (mergedom[di][1]*(1 << dlev));
+    dvy = vy + mergedom[di][1]*(1 << dlev);
     if (dvy < 0 || dvy > nvmvbs) continue;
     if (OD_MC_LEVEL[dvy & OD_MVB_MASK][dvx & OD_MVB_MASK] > est->level_max) {
       continue;
@@ -3905,8 +3905,8 @@ static void od_mv_est_init_du(od_mv_est_ctx *est, int vx, int vy) {
    "Decimated vertices in merging domain."));
   /*Add in the error after decimation.*/
   for (di = 0; di < nerrdom; di++) {
-    dvx = vx + (errdom[di].dx*(1 << dlev));
-    dvy = vy + (errdom[di].dy*(1 << dlev));
+    dvx = vx + errdom[di].dx*(1 << dlev);
+    dvy = vy + errdom[di].dy*(1 << dlev);
     if (dvx >= 0 && dvy >= 0 && dvx < nhmvbs && dvy < nvmvbs) {
       log_mvb_sz = errdom[di].log_mvb_sz + dlev;
       if (log_mvb_sz < log_mvb_sz_min) continue;
@@ -3950,9 +3950,9 @@ static void od_mv_est_init_du(od_mv_est_ctx *est, int vx, int vy) {
    "Total merging error: %i", dec->dd));
   /*Restore the vertices in the merging domain.*/
   for (di = 0;; di++) {
-    dvx = vx + (mergedom[di][0]*(1 << dlev));
+    dvx = vx + mergedom[di][0]*(1 << dlev);
     if (dvx < 0 || dvx > nhmvbs) continue;
-    dvy = vy + (mergedom[di][1]*(1 << dlev));
+    dvy = vy + mergedom[di][1]*(1 << dlev);
     if (dvy < 0 || dvy > nvmvbs) continue;
     if (OD_MC_LEVEL[dvy & OD_MVB_MASK][dvx & OD_MVB_MASK] > est->level_max) {
       continue;
@@ -4129,12 +4129,12 @@ static void od_mv_est_decimate(od_mv_est_ctx *est) {
           int cx;
           int cy;
           int s;
-          cx = vx + (OD_CDX[k]*(1 << log_mvb_sz));
+          cx = vx + OD_CDX[k]*(1 << log_mvb_sz);
           if (cx < 0 || cx > nhmvbs) continue;
-          cy = vy + (OD_CDY[k]*(1 << log_mvb_sz));
+          cy = vy + OD_CDY[k]*(1 << log_mvb_sz);
           if (cy < 0 || cy > nvmvbs) continue;
-          bx = vx + (OD_ERRDOM6[k].dx*(1 << log_mvb_sz));
-          by = vy + (OD_ERRDOM6[k].dy*(1 << log_mvb_sz));
+          bx = vx + OD_ERRDOM6[k].dx*(1 << log_mvb_sz);
+          by = vy + OD_ERRDOM6[k].dy*(1 << log_mvb_sz);
           block = est->mvs[by] + bx;
           by >>= log_mvb_sz;
           bx >>= log_mvb_sz;
@@ -5282,8 +5282,8 @@ static int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
     nsites = pattern_nsites[b];
     for (sitei = 0, site = 4;; sitei++) {
       cstate = dp_node[0].states + sitei;
-      cstate->mv[0] = curx + (OD_SITE_DX[site]*(1 << log_dsz));
-      cstate->mv[1] = cury + (OD_SITE_DY[site]*(1 << log_dsz));
+      cstate->mv[0] = curx + OD_SITE_DX[site]*(1 << log_dsz);
+      cstate->mv[1] = cury + OD_SITE_DY[site]*(1 << log_dsz);
       cstate->prevsi = -1;
       if (mvg->ref == OD_FRAME_NEXT) {
         mvg->mv1[0] = cstate->mv[0];
@@ -5357,8 +5357,8 @@ static int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
       nsites = pattern_nsites[b];
       for (sitei = 0, site = 4;; sitei++) {
         cstate = dp_node[1].states + sitei;
-        cstate->mv[0] = curx + (OD_SITE_DX[site]*(1 << log_dsz));
-        cstate->mv[1] = cury + (OD_SITE_DY[site]*(1 << log_dsz));
+        cstate->mv[0] = curx + OD_SITE_DX[site]*(1 << log_dsz);
+        cstate->mv[1] = cury + OD_SITE_DY[site]*(1 << log_dsz);
         best_si = 0;
         best_dr = dp_node[0].states[0].dr;
         best_dd = dp_node[0].states[0].dd;
@@ -5382,7 +5382,7 @@ static int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
           dr = pstate->dr + cstate->dr;
           dd = pstate->dd + od_mv_dp_get_sad_change(est,
            dp_node + 1, block_sads[si]);
-          cost = dr*est->lambda + (dd*(1 << OD_ERROR_SCALE));
+          cost = dr*est->lambda + dd*(1 << OD_ERROR_SCALE);
           OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
            "State: %2i (%7g, %7g) P.State: %i  dr: %3i  dd: %6i  dopt: %7i",
            sitei, 0.125*cstate->mv[0], 0.125*cstate->mv[1],
@@ -5446,7 +5446,7 @@ static int32_t od_mv_est_refine_row(od_mv_est_ctx *est,
         dr = pstate->dr;
         dd = pstate->dd + od_mv_dp_get_sad_change(est,
          dp_node + 1, block_sads[si]);
-        cost = dr*est->lambda + (dd*(1 << OD_ERROR_SCALE));
+        cost = dr*est->lambda + dd*(1 << OD_ERROR_SCALE);
         OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
          "State: --  P.State: %i  dr: %3i  dd: %6i  dopt: %7i",
          si, dr, dd, cost));
@@ -5948,8 +5948,8 @@ static int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
     nsites = pattern_nsites[b];
     for (sitei = 0, site = 4;; sitei++) {
       cstate = dp_node[0].states + sitei;
-      cstate->mv[0] = curx + (OD_SITE_DX[site]*(1 << log_dsz));
-      cstate->mv[1] = cury + (OD_SITE_DY[site]*(1 << log_dsz));
+      cstate->mv[0] = curx + OD_SITE_DX[site]*(1 << log_dsz);
+      cstate->mv[1] = cury + OD_SITE_DY[site]*(1 << log_dsz);
       cstate->prevsi = -1;
       if (mvg->ref == OD_FRAME_NEXT) {
         mvg->mv1[0] = cstate->mv[0];
@@ -6021,8 +6021,8 @@ static int32_t od_mv_est_refine_col(od_mv_est_ctx *est,
       nsites = pattern_nsites[b];
       for (sitei = 0, site = 4;; sitei++) {
         cstate = dp_node[1].states + sitei;
-        cstate->mv[0] = curx + (OD_SITE_DX[site]*(1 << log_dsz));
-        cstate->mv[1] = cury + (OD_SITE_DY[site]*(1 << log_dsz));
+        cstate->mv[0] = curx + OD_SITE_DX[site]*(1 << log_dsz);
+        cstate->mv[1] = cury + OD_SITE_DY[site]*(1 << log_dsz);
         best_si = 0;
         best_dr = dp_node[0].states[0].dr;
         best_dd = dp_node[0].states[0].dd;
