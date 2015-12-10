@@ -873,7 +873,7 @@ int od_state_dump_yuv(od_state *state, od_img *img, const char *tag) {
 
 #define OD_SRCVAL_TO_8FP(pli,x) (img->planes[pli].bitdepth == 8 ? \
   ((float)p[(pli)][(x)]) : \
-  (((int16_t *)p[(pli)])[(x)]*(1.0F/(1 << img->planes[pli].bitdepth - 8))))
+  (((int16_t *)p[(pli)])[(x)]*(1.0F/(1 << (img->planes[pli].bitdepth - 8)))))
 
 /*Dump a PNG of the reconstructed image, or a reference frame.*/
 int od_state_dump_img(od_state *state, od_img *img, const char *tag) {
