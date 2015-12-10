@@ -66,7 +66,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #define OD_MAXI(_a,_b)      ((_a)>(_b)?(_a):(_b))
 #define OD_CLAMPI(_a,_b,_c) (OD_MAXI(_a,OD_MINI(_b,_c)))
 #define OD_SIGNMASK(_a)     (-((_a)<0))
-#define OD_FLIPSIGNI(_a,_b) ((_a)+OD_SIGNMASK(_b)^OD_SIGNMASK(_b))
+#define OD_FLIPSIGNI(_a,_b) (((_a) + OD_SIGNMASK(_b)) ^ OD_SIGNMASK(_b))
 #define OD_DIV_ROUND(_x,_y) (((_x)+OD_FLIPSIGNI((_y)>>1,_x))/(_y))
 #define OD_CLAMP255(_x)     ((unsigned char)((((_x)<0)-1)&((_x)|-((_x)>255))))
 
@@ -238,9 +238,9 @@ static int calc_y(int32_t _r,int32_t _g,int32_t _b,int _cb,int _cr){
   chroma_r=4490222169144LL*_cr;
   chroma_g=-534117096223LL*_cb-1334761232047LL*_cr;
   chroma_b=5290866304968LL*_cb;
-  r_res=_r*9745792000LL-chroma_r+4096>>13;
-  g_res=_g*9745792000LL-chroma_g+4096>>13;
-  b_res=_b*9745792000LL-chroma_b+4096>>13;
+  r_res = (_r*9745792000LL - chroma_r + 4096) >> 13;
+  g_res = (_g*9745792000LL - chroma_g + 4096) >> 13;
+  b_res = (_b*9745792000LL - chroma_b + 4096) >> 13;
   /*Take the floor here instead of rounding; we'll consider both possible
      values.*/
   yn=1063*r_res+3576*g_res+361*b_res;
@@ -558,8 +558,8 @@ static int read_png(img_plane _ycbcr[3],FILE *_fin){
     _ycbcr[0].width=(int)width;
     _ycbcr[0].height=(int)height;
     _ycbcr[0].stride=(int)width;
-    _ycbcr[1].width=(int)(width+hshift>>hshift);
-    _ycbcr[1].height=(int)(height+vshift>>vshift);
+    _ycbcr[1].width = (int)((width + hshift) >> hshift);
+    _ycbcr[1].height = (int)((height + vshift) >> vshift);
     _ycbcr[1].stride=_ycbcr[1].width;
     _ycbcr[2].width=_ycbcr[1].width;
     _ycbcr[2].stride=_ycbcr[1].stride;

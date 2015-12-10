@@ -165,17 +165,17 @@ int main(int _argc,char *_argv[]){
     }
   }
   if(strncmp(chroma,"420",3)==0){
-    c_w=y_w+1>>1;
-    c_h=y_h+1>>1;
+    c_w = (y_w + 1) >> 1;
+    c_h = (y_h + 1) >> 1;
     have_chroma=1;
   }
   else if(strncmp(chroma,"411",3)==0){
-    c_w=y_w+3>>2;
+    c_w = (y_w + 3) >> 2;
     c_h=y_h;
     have_chroma=1;
   }
   else if(strcmp(chroma,"422")==0){
-    c_w=y_w+1>>1;
+    c_w = (y_w + 1) >> 1;
     c_h=y_h;
     have_chroma=1;
   }
@@ -243,8 +243,8 @@ int main(int _argc,char *_argv[]){
     if(have_chroma)in_u=in_v=in_f;
     if(have_alpha)in_a=in_f;
   }
-  if(in_y==NULL||have_chroma&&(in_u==NULL||in_v==NULL)||
-   have_alpha&&in_a==NULL){
+  if(in_y == NULL || (have_chroma && (in_u == NULL || in_v == NULL)) ||
+   (have_alpha && in_a == NULL)){
     fprintf(stderr,"Error opening input file(s).\n");
     return -1;
   }
@@ -303,8 +303,8 @@ int main(int _argc,char *_argv[]){
         if(have_chroma)in_u=in_v=in_f;
         if(have_alpha)in_a=in_f;
       }
-      if(in_y==NULL||have_chroma&&(in_u==NULL||in_v==NULL)||
-       have_alpha&&in_a==NULL){
+      if(in_y == NULL || (have_chroma && (in_u == NULL || in_v == NULL)) ||
+       (have_alpha && in_a == NULL)){
         break;
       }
     }

@@ -686,8 +686,8 @@ static int y4m_input_open_impl(y4m_input *_y4m,FILE *_fin){
    ((_y4m->pic_h+_y4m->dst_c_dec_v-1)/_y4m->dst_c_dec_v);
   _y4m->dst_buf_sz*=xstride;
   /*Scale the picture size up to a multiple of 16.*/
-  _y4m->frame_w=_y4m->pic_w+15&~0xF;
-  _y4m->frame_h=_y4m->pic_h+15&~0xF;
+  _y4m->frame_w = (_y4m->pic_w + 15) & ~0xF;
+  _y4m->frame_h = (_y4m->pic_h + 15) & ~0xF;
   /*Force the offsets to be even so that chroma samples line up like we
      expect.*/
   _y4m->pic_x=(_y4m->frame_w-_y4m->pic_w)>>1&~1;

@@ -179,12 +179,12 @@ int main(int _argc,char *_argv[]){
       ydec=pli&&!(info1.pixel_fmt&2);
       plsqerr[pli]=0;
       plnpixels[pli]=0;
-      for(y1=info1.pic_y>>ydec,y2=info2.pic_y>>ydec;
-       y1<info1.pic_y+info1.pic_h+ydec>>ydec;y1++,y2++){
+      for (y1 = info1.pic_y >> ydec, y2 = info2.pic_y >> ydec;
+       y1 < (info1.pic_y + info1.pic_h + ydec) >> ydec; y1++, y2++) {
         int x1;
         int x2;
-        for(x1=info1.pic_x>>xdec,x2=info2.pic_x>>xdec;
-         x1<info1.pic_x+info1.pic_w+xdec>>xdec;x1++,x2++){
+        for (x1 = info1.pic_x >> xdec, x2 = info2.pic_x >> xdec;
+         x1 < (info1.pic_x + info1.pic_w + xdec) >> xdec; x1++, x2++) {
           int d;
           d=*(f1[pli].data+y1*f1[pli].stride+x1)-
            *(f2[pli].data+y2*f2[pli].stride+x2);

@@ -150,7 +150,7 @@ static double calc_ssim(const unsigned char *_src,int _systride,
         memset(&m,0,sizeof(m));
         for(k=k_min;k<k_max;k++){
           unsigned window;
-          buf=lines[y+1-vkernel_sz+k&line_mask]+x;
+          buf = lines[(y + 1 - vkernel_sz + k) & line_mask] + x;
           window=vkernel[k];
           m.mux+=window*buf->mux;
           m.muy+=window*buf->muy;

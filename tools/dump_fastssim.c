@@ -55,8 +55,8 @@ static void fs_ctx_init(fs_ctx *_ctx,int _w,int _h,int _nlevels){
   int            lw;
   int            lh;
   int            l;
-  lw=_w+1>>1;
-  lh=_h+1>>1;
+  lw = (_w + 1) >> 1;
+  lh = (_h + 1) >> 1;
   data_size=_nlevels*sizeof(fs_level)+2*(lw+8)*8*sizeof(*_ctx->col_buf);
   for(l=0;l<_nlevels;l++){
     size_t im_size;
@@ -68,15 +68,15 @@ static void fs_ctx_init(fs_ctx *_ctx,int _w,int _h,int _nlevels){
     level_size+=im_size;
     level_size*=sizeof(*_ctx->level[l].ssim);
     data_size+=level_size;
-    lw=lw+1>>1;
-    lh=lh+1>>1;
+    lw = (lw + 1) >> 1;
+    lh = (lh + 1) >> 1;
   }
   data=(unsigned char *)malloc(data_size);
   _ctx->level=(fs_level *)data;
   _ctx->nlevels=_nlevels;
   data+=_nlevels*sizeof(*_ctx->level);
-  lw=_w+1>>1;
-  lh=_h+1>>1;
+  lw = (_w + 1) >> 1;
+  lh = (_h + 1) >> 1;
   for(l=0;l<_nlevels;l++){
     size_t im_size;
     size_t level_size;
@@ -92,8 +92,8 @@ static void fs_ctx_init(fs_ctx *_ctx,int _w,int _h,int _nlevels){
     data+=level_size;
     _ctx->level[l].ssim=(double *)data;
     data+=im_size*sizeof(*_ctx->level[l].ssim);
-    lw=lw+1>>1;
-    lh=lh+1>>1;
+    lw = (lw + 1) >> 1;
+    lh = (lh + 1) >> 1;
   }
   _ctx->col_buf=(unsigned *)data;
 }
@@ -233,8 +233,8 @@ static void fs_apply_luminance(fs_ctx *_ctx,int _l){
   do{ \
     unsigned gx; \
     unsigned gy; \
-    gx=gx_buf[(j+(_joffs)&7)*stride+i+(_ioffs)]; \
-    gy=gy_buf[(j+(_joffs)&7)*stride+i+(_ioffs)]; \
+    gx = gx_buf[((j + (_joffs)) & 7)*stride + i + (_ioffs)]; \
+    gy = gy_buf[((j + (_joffs)) & 7)*stride + i + (_ioffs)]; \
     col_sums_gx2[(_col)]=gx*(double)gx; \
     col_sums_gy2[(_col)]=gy*(double)gy; \
     col_sums_gxgy[(_col)]=gx*(double)gy; \
@@ -245,8 +245,8 @@ static void fs_apply_luminance(fs_ctx *_ctx,int _l){
   do{ \
     unsigned gx; \
     unsigned gy; \
-    gx=gx_buf[(j+(_joffs)&7)*stride+i+(_ioffs)]; \
-    gy=gy_buf[(j+(_joffs)&7)*stride+i+(_ioffs)]; \
+    gx = gx_buf[((j + (_joffs)) & 7)*stride + i + (_ioffs)]; \
+    gy = gy_buf[((j + (_joffs)) & 7)*stride + i + (_ioffs)]; \
     col_sums_gx2[(_col)]+=gx*(double)gx; \
     col_sums_gy2[(_col)]+=gy*(double)gy; \
     col_sums_gxgy[(_col)]+=gx*(double)gy; \
@@ -257,8 +257,8 @@ static void fs_apply_luminance(fs_ctx *_ctx,int _l){
   do{ \
     unsigned gx; \
     unsigned gy; \
-    gx=gx_buf[(j+(_joffs)&7)*stride+i+(_ioffs)]; \
-    gy=gy_buf[(j+(_joffs)&7)*stride+i+(_ioffs)]; \
+    gx = gx_buf[((j + (_joffs)) & 7)*stride + i + (_ioffs)]; \
+    gy = gy_buf[((j + (_joffs)) & 7)*stride + i + (_ioffs)]; \
     col_sums_gx2[(_col)]-=gx*(double)gx; \
     col_sums_gy2[(_col)]-=gy*(double)gy; \
     col_sums_gxgy[(_col)]-=gx*(double)gy; \
@@ -531,7 +531,7 @@ int main(int _argc,char *_argv[]){
   gssim[0]=gssim[1]=gssim[2]=0;
   /*We just use a simple weighting to get a single full-color score.
     In reality the CSF for chroma is not the same as luma.*/
-  cweight=0.25*(4>>!(info1.pixel_fmt&1)+!(info1.pixel_fmt&2));
+  cweight = 0.25*(4 >> (!(info1.pixel_fmt & 1) + !(info1.pixel_fmt & 2)));
   for(frameno=0;;frameno++){
     video_input_ycbcr f1;
     video_input_ycbcr f2;
@@ -566,8 +566,8 @@ int main(int _argc,char *_argv[]){
        f1[pli].stride,
        f2[pli].data+(info2.pic_y>>ydec)*f2[pli].stride+(info2.pic_x>>xdec),
        f2[pli].stride,
-       (info1.pic_x+info1.pic_w+xdec>>xdec)-(info1.pic_x>>xdec),
-       (info1.pic_y+info1.pic_h+ydec>>ydec)-(info1.pic_y>>ydec));
+       ((info1.pic_x + info1.pic_w + xdec) >> xdec) - (info1.pic_x >> xdec),
+       ((info1.pic_y + info1.pic_h + ydec) >> ydec) - (info1.pic_y >> ydec));
       gssim[pli]+=ssim[pli];
     }
     if(!summary_only){

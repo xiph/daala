@@ -205,7 +205,7 @@ int main(void) {
   od_color colors[3*OD_NBSIZES - 1];
   int ncolors;
   fp = fopen("zigzags.html", "w");
-  width = C_SZ*(OD_BSIZE_MAX + (1 << OD_NBSIZES - 1));
+  width = C_SZ*(OD_BSIZE_MAX + (1 << (OD_NBSIZES - 1)));
   fprintf(fp, HEADER, width, width);
   ncolors = 3*OD_NBSIZES - 1;
   mode_colors(colors, ncolors);

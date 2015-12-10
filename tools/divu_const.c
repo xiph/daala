@@ -52,7 +52,7 @@ int main(int argc, char *argv[]) {
         unsigned long long r;
         int m;
         m = OD_LOG2(d);
-        t = (1UL << m + NBITS)/d;
+        t = (1UL << (m + NBITS))/d;
         r = (t*d + d) & ((1UL << NBITS) - 1);
         if (r <= 1UL << m) {
           printf(" {0x%llX,         0},", t + 1);
