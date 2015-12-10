@@ -2241,28 +2241,11 @@ int od_mv_split_flag_ctx(od_mv_grid_pt **grid, int vx, int vy,int level) {
    == (v2->ref == OD_FRAME_NEXT ? v2->mv1[0] : v2->mv[0]))
    && ((v1->ref == OD_FRAME_NEXT ? v1->mv1[1] : v1->mv[1])
    == (v2->ref == OD_FRAME_NEXT ? v2->mv1[1] : v2->mv[1]));
-  if (v1 != NULL && v2 != NULL && v1->ref == v2->ref) {
-    if (v1->ref == OD_FRAME_PREV) {
-      same1 = (v1->mv[0] == v2->mv[0]) && (v1->mv[1] == v2->mv[1]);
-    }
-    else {
-      same1 = (v1->mv1[0] == v2->mv1[0]) && (v1->mv1[1] == v2->mv1[1]);
-    }
-  }
-  else {
-    same1 = 0;
-  }
-  if (v2 != NULL && v3 != NULL && v2->ref == v3->ref) {
-    if (v2->ref == OD_FRAME_PREV) {
-      same2 = (v2->mv[0] == v3->mv[0]) && (v2->mv[1] == v3->mv[1]);
-    }
-    else {
-      same2 =(v2->mv1[0] == v3->mv1[0]) && (v2->mv1[1] == v3->mv1[1]);
-    }
-  }
-  else {
-    same2 = 0;
-  }
+  same2 = v2 != NULL
+   && ((v2->ref == OD_FRAME_NEXT ? v2->mv1[0] : v2->mv[0])
+   == (v3->ref == OD_FRAME_NEXT ? v3->mv1[0] : v3->mv[0]))
+   && ((v2->ref == OD_FRAME_NEXT ? v2->mv1[1] : v2->mv[1])
+   == (v3->ref == OD_FRAME_NEXT ? v3->mv1[1] : v3->mv[1]));
   return 3*(split1 + split2) + same1 + same2;
 }
 
