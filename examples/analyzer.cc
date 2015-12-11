@@ -41,8 +41,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # define OD_LOG_BSIZE0 (2)
 /*There are 4 block sizes total (4x4, 8x8, 16x16, 32x32).*/
 # define OD_NBSIZES    (4)
+/*The log of the maximum length of the side of a block.*/
+# define OD_LOG_BSIZE_MAX (OD_LOG_BSIZE0 + OD_NBSIZES - 1)
 /*The maximum length of the side of a block.*/
-# define OD_BSIZE_MAX  (1 << OD_LOG_BSIZE0 + OD_NBSIZES - 1)
+# define OD_BSIZE_MAX     (1 << OD_LOG_BSIZE_MAX)
 /*The maximum number of quad tree levels when splitting a super block.*/
 # define OD_MAX_SB_SPLITS (OD_NBSIZES - 1)
 
@@ -495,8 +497,8 @@ bool TestPanel::open(const wxString &path) {
   if (!setZoom(MIN_ZOOM)) {
     return false;
   }
-  int nhsb = dd.getFrameWidth() >> OD_LOG_BSIZE0 + OD_NBSIZES - 1;
-  int nvsb = dd.getFrameHeight() >> OD_LOG_BSIZE0 + OD_NBSIZES - 1;
+  int nhsb = dd.getFrameWidth() >> OD_LOG_BSIZE_MAX;
+  int nvsb = dd.getFrameHeight() >> OD_LOG_BSIZE_MAX;
   int nhdr = dd.getFrameWidth() >> (OD_LOG_DERING_GRID + OD_LOG_BSIZE0);
   int nvdr = dd.getFrameHeight() >> (OD_LOG_DERING_GRID + OD_LOG_BSIZE0);
   bsize_len = sizeof(*bsize)*nhsb*OD_BSIZE_GRID*nvsb*OD_BSIZE_GRID;
@@ -615,7 +617,7 @@ void TestPanel::render() {
   unsigned char *p_row = pixels;
   double maxval=0;
   double norm;
-  int nhsb = dd.getFrameWidth() >> OD_LOG_BSIZE0 + OD_NBSIZES - 1;
+  int nhsb = dd.getFrameWidth() >> OD_LOG_BSIZE_MAX;
   int nhdr = dd.getFrameWidth() >> (OD_LOG_DERING_GRID + OD_LOG_BSIZE0);
   for (int j = 0; j < getDecodeHeight(); j++) {
     for (int i = 0; i < getDecodeWidth(); i++) {
@@ -643,9 +645,9 @@ void TestPanel::render() {
       pmask = plane_mask;
       if (show_skip || show_noref) {
         unsigned char d = OD_BLOCK_SIZE4x4(bsize, bstride, i >> 2, j >> 2);
-        int band = getBand(i & ((1 << d + 2) - 1), j & ((1 << d + 2) - 1));
-        int bx = i & ~((1 << d + 2) - 1);
-        int by = j & ~((1 << d + 2) - 1);
+        int band = getBand(i & ((1 << (d + 2)) - 1), j & ((1 << (d + 2)) - 1));
+        int bx = i & ~((1 << (d + 2)) - 1);
+        int by = j & ~((1 << (d + 2)) - 1);
         unsigned int flag = flags[fstride*(by >> 2) + (bx >> 2)];
         cbval = 128;
         crval = 128;
@@ -653,7 +655,7 @@ void TestPanel::render() {
         if (band >= 0) {
           /*R: U=84, V=255, B: U=255, V=107, G: U=43, V=21*/
           bool skip = (flag >> 2*band)&1;
-          bool noref = (flag >> 2*band + 1)&1;
+          bool noref = (flag >> (2*band + 1)) & 1;
           if (skip && show_skip && noref && show_noref) {
             cbval = 43;
             crval = 21;
@@ -718,7 +720,7 @@ void TestPanel::render() {
       }
       if (show_blocks) {
         unsigned char d = OD_BLOCK_SIZE4x4(bsize, bstride, i >> 2, j >> 2);
-        int mask = (1 << d + OD_LOG_BSIZE0) - 1;
+        int mask = (1 << (d + OD_LOG_BSIZE0)) - 1;
         if (!(i & mask) || !(j & mask)) {
           yval = block_edge_luma(yval);
           cbval = (cbval + 128) >> 1;
