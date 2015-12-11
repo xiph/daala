@@ -74,7 +74,7 @@ int main(int _argc, char **_argv) {
   int h[3];
   int long_option_index;
   int c;
-  enum downsamplers ds_algo;
+  int ds_algo;
 
   ds_algo = BOX_DOWNSAMPLER;
   while ((c = getopt_long(_argc, _argv, optstring, long_options,
