@@ -176,8 +176,14 @@ switch_table.c \
 logging.c \
 info.c \
 mc.c \
+partition.c \
 pvq.c \
-state.c
+state.c \
+zigzag4.c \
+zigzag8.c \
+zigzag16.c \
+zigzag32.c \
+zigzag64.c
 
 US_LDFLAGS = `pkg-config ogg libpng --libs` -lm
 
