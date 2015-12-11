@@ -235,16 +235,19 @@ bool DaalaDecoder::step() {
   //fprintf(stderr, "reading frame %i\n", frame);
   ogg_packet op;
   daala_packet dp;
-  if (readPacket(&op)) {
-    ogg_to_daala_packet(&dp, &op);
-    if (daala_decode_packet_in(dctx, &dp) != 0) {
+  while (!daala_decode_img_out(dctx, &img)) {
+    if (!readPacket(&op)) {
+      /* Reached end of file */
       return false;
     }
-    daala_decode_img_out(dctx, &img);
-    frame++;
-    return true;
+    ogg_to_daala_packet(&dp, &op);
+    if (daala_decode_packet_in(dctx, &dp) != OD_SUCCESS) {
+      /* Error decoding packet. */
+      return false;
+    }
   }
-  return false;
+  frame++;
+  return true;
 }
 
 void DaalaDecoder::restart() {

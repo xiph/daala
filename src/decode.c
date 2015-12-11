@@ -1161,7 +1161,6 @@ int daala_decode_packet_in(daala_dec_ctx *dec, const daala_packet *op) {
   od_mb_dec_ctx mbctx;
   od_img *ref_img;
   int frame_type;
-  dec->curr_dec_output = -1;
   if (dec == NULL || op == NULL) return OD_EFAULT;
   if (dec->packet_state != OD_PACKET_DATA) return OD_EINVAL;
   if (op->e_o_s) {
@@ -1295,32 +1294,36 @@ int daala_decode_packet_in(daala_dec_ctx *dec, const daala_packet *op) {
 }
 
 int daala_decode_img_out(daala_dec_ctx *dec, od_img *img) {
-  int frame_ready;
-  int frame_type;
+  int curr_dec_output;
   if (dec == NULL || img == NULL) return OD_EFAULT;
-  frame_ready = 0;
-  frame_type = dec->state.frame_type;
-  if (dec->state.frames_in_out_buff <= 0) {
-    return frame_ready;
+  curr_dec_output = -1;
+  switch (dec->state.frames_in_out_buff) {
+    case 1 : {
+      /* If it is the first frame or the last frame. */
+      if (dec->dec_order_count == 0 || dec->last_frame_decoded) {
+        curr_dec_output = od_state_pop_output_buff_head(&dec->state);
+      }
+      break;
+    }
+    case 2 : {
+      switch (dec->state.frame_type) {
+        case OD_I_FRAME :
+        case OD_P_FRAME : {
+          curr_dec_output = od_state_pop_output_buff_head(&dec->state);
+          break;
+        }
+        case OD_B_FRAME : {
+          curr_dec_output = od_state_pop_output_buff_tail(&dec->state);
+          break;
+        }
+      }
+    }
   }
-  /*Determine output frame in output buffer.*/
-  if (frame_type == OD_B_FRAME ||
-   (frame_type == OD_I_FRAME && dec->dec_order_count == 0)) {
-    dec->curr_dec_output = od_state_pop_output_buff_tail(&dec->state);
-  }
-  else if ((frame_type == OD_P_FRAME || frame_type == OD_I_FRAME) &&
-   dec->state.frames_in_out_buff == 2) {
-    dec->curr_dec_output = od_state_pop_output_buff_head(&dec->state);
-  }
-  else if (dec->last_frame_decoded && dec->state.frames_in_out_buff > 0) {
-    dec->curr_dec_output = od_state_pop_output_buff_head(&dec->state);
-  }
-  if (dec->curr_dec_output >= 0) {
-    frame_ready = 1;
-    dec->out_imgs_id[dec->curr_dec_output] = -1;
-    /*Return decoded frame.*/
-    *img = dec->output_img[dec->curr_dec_output];
+  if (curr_dec_output >= 0) {
+    dec->out_imgs_id[curr_dec_output] = -1;
+    *img = dec->output_img[curr_dec_output];
     dec->state.cur_time++;
+    return 1;
   }
-  return frame_ready;
+  return 0;
 }
