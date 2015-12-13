@@ -331,7 +331,7 @@ void od_init_qm(int16_t *x, int16_t *x_inv, const int *qm) {
           }
           /*Convert to fit in 16 bits.*/
           y[i*(4 << bs) + j] = (int16_t)OD_MINI(OD_QM_SCALE_MAX,
-           (int16_t)floor(.5 + mag*OD_QM_SCALE));
+           (int32_t)floor(.5 + mag*OD_QM_SCALE));
           y_inv[i*(4 << bs) + j] = (int16_t)floor(.5
            + OD_QM_SCALE*OD_QM_INV_SCALE/(double)y[i*(4 << bs) + j]);
         }
