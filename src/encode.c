@@ -2503,7 +2503,7 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
             }
           }
         }
-        if (pli == 0 && state->quantizer[pli] != 0) {
+        if (pli == 0 && !OD_LOSSLESS(enc, pli)) {
           mbctx->q_scaling =
            od_compute_superblock_q_scaling(enc, c_orig, OD_BSIZE_MAX);
         }
