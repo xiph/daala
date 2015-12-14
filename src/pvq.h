@@ -59,9 +59,9 @@ extern const uint16_t LAPLACE_OFFSET[];
 #define OD_QM_SCALE_1 (1./OD_QM_SCALE_MAX)
 #define OD_QM_INV_SCALE (1 << 12)
 #define OD_QM_INV_SCALE_1 (1./OD_QM_INV_SCALE)
-#define OD_QM_BSIZE (OD_BSIZE_MAX*OD_BSIZE_MAX)
-/*FIXME: Use less space for smaller block sizes.*/
-#define OD_QM_BUFFER_SIZE (OD_NBSIZES*2*OD_QM_BSIZE)
+#define OD_QM_OFFSET(bs) ((((1 << 2*bs) - 1) << 2*OD_LOG_BSIZE0)/3)
+#define OD_QM_STRIDE (OD_QM_OFFSET(OD_NBSIZES))
+#define OD_QM_BUFFER_SIZE (2*OD_QM_STRIDE)
 
 /* Largest PVQ partition is half the coefficients of largest block size. */
 #define MAXN (OD_BSIZE_MAX*OD_BSIZE_MAX/2)

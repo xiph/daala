@@ -487,8 +487,7 @@ static int od_state_init_impl(od_state *state, const daala_info *info) {
   if (OD_UNLIKELY(!state->qm)) {
     return OD_EFAULT;
   }
-  state->qm_inv = (int16_t *)malloc(OD_NBSIZES*2*OD_BSIZE_MAX*
-   OD_BSIZE_MAX*sizeof(state->qm_inv[0]));
+  state->qm_inv = (int16_t *)malloc(OD_QM_BUFFER_SIZE*sizeof(state->qm_inv[0]));
   if (OD_UNLIKELY(!state->qm_inv)) {
     return OD_EFAULT;
   }
