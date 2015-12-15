@@ -3207,6 +3207,7 @@ static void daala_encoder_check(daala_enc_ctx *ctx, od_img *img,
   od_img out_img;
   od_img dec_img;
   OD_ASSERT(ctx->dec);
+
   if (daala_decode_packet_in(ctx->dec, op) < 0) {
     fprintf(stderr, "encoder_check: decode failed\n");
     return;
@@ -3214,6 +3215,7 @@ static void daala_encoder_check(daala_enc_ctx *ctx, od_img *img,
   /*We won't use out_img after this.*/
   daala_decode_img_out(ctx->dec, &out_img);
   dec_img = ctx->dec->state.ref_imgs[ctx->dec->state.ref_imgi[OD_FRAME_SELF]];
+
   OD_ASSERT(img->nplanes == dec_img.nplanes);
   for (pli = 0; pli < img->nplanes; pli++) {
     int plane_width;
@@ -3226,10 +3228,10 @@ static void daala_encoder_check(daala_enc_ctx *ctx, od_img *img,
     OD_ASSERT(img->planes[pli].xstride == dec_img.planes[pli].xstride);
     OD_ASSERT(img->planes[pli].ystride == dec_img.planes[pli].ystride);
 
-    xdec = img->planes[pli].xdec;
-    ydec = img->planes[pli].ydec;
-    plane_width = img->width >> xdec;
-    plane_height = img->height >> ydec;
+    xdec = dec_img.planes[pli].xdec;
+    ydec = dec_img.planes[pli].ydec;
+    plane_width = ctx->dec->state.frame_width >> xdec;
+    plane_height = ctx->dec->state.frame_height >> ydec;
     for (i = 0; i < plane_height; i++) {
       if (memcmp(img->planes[pli].data + img->planes[pli].ystride * i,
        dec_img.planes[pli].data + dec_img.planes[pli].ystride * i,
