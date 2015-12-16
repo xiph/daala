@@ -789,7 +789,7 @@ static void od_decode_recursive(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
      dec->state.adapt.skip_increment, "skip");
 #if OD_SIGNAL_Q_SCALING
     if (bsi == OD_NBSIZES - 1) {
-      od_decode_quantizer_scaling(dec, bx, by, skip == 2);
+      od_decode_quantizer_scaling(dec, bx, by, skip == 0);
     }
 #endif
     if (skip < 4) obs = bsi;
@@ -829,7 +829,7 @@ static void od_decode_recursive(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
     for (i = 0; i < 1 << bs; i++) {
       for (j = 0; j < 1 << bs; j++) {
         dec->state.bskip[pli][((by << bs) + i)*dec->state.skip_stride
-         + (bx << bs) + j] = (skip == 2) && !ctx->is_keyframe;
+         + (bx << bs) + j] = (skip == 0) && !ctx->is_keyframe;
       }
     }
 

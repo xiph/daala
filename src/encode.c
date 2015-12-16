@@ -1265,13 +1265,13 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int bs,
     lambda = od_bs_rdo_lambda(enc->state.quantizer[pli]);
     rate_noskip = od_ec_enc_tell_frac(&enc->ec) - tell;
     dist_skip = od_compute_dist(enc, c_orig, mc_orig, n, bs, pli);
-    rate_skip = (1 << OD_BITRES)*od_encode_cdf_cost(2,
+    rate_skip = (1 << OD_BITRES)*od_encode_cdf_cost(0,
      enc->state.adapt.skip_cdf[2*bs + (pli != 0)],
      4 + (pli == 0 && bs > 0));
     if (dist_skip + lambda*rate_skip < dist_noskip + lambda*rate_noskip) {
       od_encode_rollback(enc, &pre_encode_buf);
       /* Code the "skip this block" symbol (2). */
-      od_encode_cdf_adapt(&enc->ec, 2,
+      od_encode_cdf_adapt(&enc->ec, 0,
        enc->state.adapt.skip_cdf[2*bs + (pli != 0)], 4 + (pli == 0 && bs > 0),
        enc->state.adapt.skip_increment);
 #if OD_SIGNAL_Q_SCALING
