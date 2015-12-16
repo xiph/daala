@@ -1643,11 +1643,9 @@ static int32_t od_enc_sad(od_enc_ctx *enc, const unsigned char *p,
     p += clipy*pystride;
     y += clipy;
   }
-  clipw = ((state->info.pic_width + (1 << iplane->xdec) - 1) >> iplane->xdec)
-   - x;
+  clipw = OD_PLANE_SZ(state->info.pic_width, iplane->xdec) - x;
   w = OD_MINI(w, clipw);
-  cliph = ((state->info.pic_height + (1 << iplane->ydec) - 1) >> iplane->ydec)
-   - y;
+  cliph = OD_PLANE_SZ(state->info.pic_height, iplane->ydec) - y;
   h = OD_MINI(h, cliph);
   /*OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
    "[%i, %i]x[%i, %i]", x, y, w, h));*/
@@ -1712,11 +1710,9 @@ static int32_t od_enc_satd(od_enc_ctx *enc, const unsigned char *p,
     p += clipy*pystride;
     y += clipy;
   }
-  clipw = ((state->info.pic_width + (1 << iplane->xdec) - 1) >> iplane->xdec)
-   - x;
+  clipw = OD_PLANE_SZ(state->info.pic_width, iplane->xdec) - x;
   w = OD_MINI(w, clipw);
-  cliph = ((state->info.pic_height + (1 << iplane->ydec) - 1) >> iplane->ydec)
-   - y;
+  cliph = OD_PLANE_SZ(state->info.pic_height, iplane->ydec) - y;
   h = OD_MINI(h, cliph);
   /*OD_LOG((OD_LOG_MOTION_ESTIMATION, OD_LOG_DEBUG,
    "[%i, %i]x[%i, %i]", x, y, w, h));*/

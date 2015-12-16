@@ -1750,8 +1750,8 @@ static void od_img_copy_pad(daala_enc_ctx *enc, od_img *img) {
     int ydec;
     xdec = img->planes[pli].xdec;
     ydec = img->planes[pli].ydec;
-    plane_width = ((state->info.pic_width + (1 << xdec) - 1) >> xdec);
-    plane_height = ((state->info.pic_height + (1 << ydec) - 1) >> ydec);
+    plane_width = OD_PLANE_SZ(state->info.pic_width, xdec);
+    plane_height = OD_PLANE_SZ(state->info.pic_height, ydec);
     od_img_plane_copy_pad(&enc->input_img[enc->in_buff_ptr],
      state->frame_width >> xdec, state->frame_height >> ydec,
      img, plane_width, plane_height, pli);

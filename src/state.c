@@ -128,10 +128,10 @@ void od_img_plane_copy(od_img* dst, od_img* src, int pli) {
   src_ydec = src_plane->ydec;
   dst_data = dst_plane->data;
   src_data = src_plane->data;
-  dst_plane_width = ((dst->width + (1 << dst_xdec) - 1) >> dst_xdec);
-  dst_plane_height = ((dst->height + (1 << dst_ydec) - 1) >> dst_ydec);
-  src_plane_width = ((src->width + (1 << src_xdec) - 1) >> src_xdec);
-  src_plane_height = ((src->height + (1 << src_ydec) - 1) >> src_ydec);
+  dst_plane_width = OD_PLANE_SZ(dst->width, dst_xdec);
+  dst_plane_height = OD_PLANE_SZ(dst->height, dst_ydec);
+  src_plane_width = OD_PLANE_SZ(src->width, src_xdec);
+  src_plane_height = OD_PLANE_SZ(src->height, src_ydec);
   w = OD_MINI(dst_plane_width, src_plane_width);
   h = OD_MINI(dst_plane_height, src_plane_height);
   for (y = 0; y < h; y++) {
