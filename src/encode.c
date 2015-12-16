@@ -1036,7 +1036,7 @@ static double od_compute_dist_8x8(daala_enc_ctx *enc, od_coeff *x, od_coeff *y,
 }
 
 static double od_compute_dist(daala_enc_ctx *enc, od_coeff *x, od_coeff *y,
- int n, int bs) {
+ int n, int bs, int pli) {
   int i;
   double sum;
   sum = 0;
@@ -1058,7 +1058,10 @@ static double od_compute_dist(daala_enc_ctx *enc, od_coeff *x, od_coeff *y,
        distortion value. We tried a half-dozen values and picked the one where
        we liked the ntt-short1 curves best. The tuning is approximate since
        the different metrics go in different directions. */
-    sum *= 1.7;
+    /*Start interpolation at coded_quantizer 1.7=f(36) and end it at 1.2=f(47)*/
+    sum *= enc->state.coded_quantizer[pli] >= 47 ? 1.2 :
+     enc->state.coded_quantizer[pli] <= 36 ? 1.7 :
+     1.7 + (1.2 - 1.7)*(enc->state.coded_quantizer[pli] - 36)/(47 - 36);
   }
   return sum;
 }
@@ -1258,10 +1261,10 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int bs,
     for (i = 0; i < n; i++) {
       for (j = 0; j < n; j++) c_noskip[n*i + j] = c[bo + i*w + j];
     }
-    dist_noskip = od_compute_dist(enc, c_orig, c_noskip, n, bs);
+    dist_noskip = od_compute_dist(enc, c_orig, c_noskip, n, bs, pli);
     lambda = od_bs_rdo_lambda(enc->state.quantizer[pli]);
     rate_noskip = od_ec_enc_tell_frac(&enc->ec) - tell;
-    dist_skip = od_compute_dist(enc, c_orig, mc_orig, n, bs);
+    dist_skip = od_compute_dist(enc, c_orig, mc_orig, n, bs, pli);
     rate_skip = (1 << OD_BITRES)*od_encode_cdf_cost(2,
      enc->state.adapt.skip_cdf[2*bs + (pli != 0)],
      4 + (pli == 0 && bs > 0));
@@ -1636,8 +1639,8 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
         for (j = 0; j < n; j++) split[n*i + j] = ctx->c[bo + i*w + j];
       }
       rate_split = od_ec_enc_tell_frac(&enc->ec) - tell;
-      dist_split = od_compute_dist(enc, c_orig, split, n, bs);
-      dist_nosplit = od_compute_dist(enc, c_orig, nosplit, n, bs);
+      dist_split = od_compute_dist(enc, c_orig, split, n, bs, pli);
+      dist_nosplit = od_compute_dist(enc, c_orig, nosplit, n, bs, pli);
       lambda = od_bs_rdo_lambda(enc->state.quantizer[pli]);
       if (skip_split || dist_nosplit + lambda*rate_nosplit < dist_split
        + lambda*rate_split) {
@@ -2637,8 +2640,8 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
               buf32[y*n + x] = buf[y*n + x];
             }
           }
-          unfiltered_error = od_compute_dist(enc, orig, out, n, 3);
-          filtered_error = od_compute_dist(enc, orig, buf32, n, 3);
+          unfiltered_error = od_compute_dist(enc, orig, out, n, 3, pli);
+          filtered_error = od_compute_dist(enc, orig, buf32, n, 3, pli);
         }
 #endif
         up = 0;
