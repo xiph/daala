@@ -6381,9 +6381,6 @@ void od_mv_subpel_refine(od_mv_est_ctx *est, int cost_thresh) {
       best_mv_res = mv_res;
     }
   }
-  if (state->frame_type == OD_P_FRAME) {
-    od_mv_est_update_bma_mvs(est);
-  }
   od_state_set_mv_res(state, best_mv_res);
 }
 
@@ -6493,56 +6490,64 @@ void od_mv_est(od_mv_est_ctx *est, int lambda) {
     }
   }
   od_mv_est_decimate(est);
-  /*This threshold is somewhat arbitrary.
-    Chen and Willson use 6000 (with SSD as an error metric).
-    We would like something more dependent on the frame size.
-    For CIF, there are a maximum of 6992 vertices in the mesh, which is pretty
-     close to 6000.
-    With a SAD error metric like we use, the square root of 6000 would be a
-     more appropriate value, however that gives a PSNR improvement of less than
-     0.01 dB, and requires almost twice as many iterations to achieve.*/
-  cost_thresh = -nhmvbs*nvmvbs*(1 << OD_ERROR_SCALE);
   complexity = est->enc->complexity;
-  if (complexity >= OD_MC_SQUARE_REFINEMENT_COMPLEXITY) {
-    pattern_nsites = OD_SQUARE_NSITES;
-    pattern = OD_SQUARE_SITES;
-  }
-  else {
-    /*This speeds up each iteration by over 3x compared to a square pattern.*/
-    pattern_nsites = OD_DIAMOND_NSITES;
-    pattern = OD_DIAMOND_SITES;
-  }
-  do {
-    dcost = 0;
-    /*Logarithmic (telescoping) search.
-      This is 3x more expensive than basic refinement, but can help escape
-       local minima.*/
-    if (complexity >= OD_MC_LOGARITHMIC_REFINEMENT_COMPLEXITY) {
-      dcost += od_mv_est_refine(est, 5, 2, pattern_nsites, pattern);
-      dcost += od_mv_est_refine(est, 4, 2, pattern_nsites, pattern);
+  if (complexity >= OD_MC_REFINEMENT_COMPLEXITY) {
+    /*This threshold is somewhat arbitrary.
+      Chen and Willson use 6000 (with SSD as an error metric).
+      We would like something more dependent on the frame size.
+      For CIF, there are a maximum of 6992 vertices in the mesh, which is
+       pretty close to 6000.
+      With a SAD error metric like we use, the square root of 6000 would be a
+       more appropriate value, however that gives a PSNR improvement of less
+       than 0.01 dB, and requires almost twice as many iterations to achieve.*/
+    cost_thresh = -nhmvbs*nvmvbs*(1 << OD_ERROR_SCALE);
+    if (complexity >= OD_MC_SQUARE_REFINEMENT_COMPLEXITY) {
+      pattern_nsites = OD_SQUARE_NSITES;
+      pattern = OD_SQUARE_SITES;
     }
-    dcost += od_mv_est_refine(est, 3, 2, pattern_nsites, pattern);
-  }
-  while (dcost < cost_thresh);
-  if (use_satd) {
-    /* The two #defines below apply to sub-pel ME only. */
-# define OD_ME_SATD_THRESH_SCALE (0.7) /* 1.0 means the same as SAD. */
+    else {
+      /*This speeds up each iteration by over 3x compared to a square
+         pattern.*/
+      pattern_nsites = OD_DIAMOND_NSITES;
+      pattern = OD_DIAMOND_SITES;
+    }
+    do {
+      dcost = 0;
+      /*Logarithmic (telescoping) search.
+        This is 3x more expensive than basic refinement, but can help escape
+         local minima.*/
+      if (complexity >= OD_MC_LOGARITHMIC_REFINEMENT_COMPLEXITY) {
+        dcost += od_mv_est_refine(est, 5, 2, pattern_nsites, pattern);
+        dcost += od_mv_est_refine(est, 4, 2, pattern_nsites, pattern);
+      }
+      dcost += od_mv_est_refine(est, 3, 2, pattern_nsites, pattern);
+    }
+    while (dcost < cost_thresh);
+    if (use_satd) {
+      /*The two #defines below apply to sub-pel ME only.*/
+      /*1.0 means the same as SAD.*/
+# define OD_ME_SATD_THRESH_SCALE (0.7)
 # define OD_ME_SATD_LAMBDA_SCALE (0.6)
-    est->compute_distortion = od_enc_satd;/* Use SATD from this stage. */
-    est->lambda = (int)(est->lambda*OD_ME_SATD_LAMBDA_SCALE);
-    cost_thresh = (int)(cost_thresh*OD_ME_SATD_THRESH_SCALE);
-    /* Reset sad values for each ME block since those are used as base
-        when measuring the change in ME error in the next stage. */
-    {
-      int vx;
-      int vy;
-      for (vy = 0; vy < nvmvbs; vy += OD_MVB_DELTA0) {
-        for (vx = 0; vx < nhmvbs; vx += OD_MVB_DELTA0) {
-          od_mv_est_reset_rd_block_state(est, vx, vy, OD_LOG_MVB_DELTA0);
+      /*Use SATD from this stage.*/
+      est->compute_distortion = od_enc_satd;
+      est->lambda = (int)(est->lambda*OD_ME_SATD_LAMBDA_SCALE);
+      cost_thresh = (int)(cost_thresh*OD_ME_SATD_THRESH_SCALE);
+      /*Reset SAD values for each ME block since those are used as base
+         when measuring the change in ME error in the next stage.*/
+      {
+        int vx;
+        int vy;
+        for (vy = 0; vy < nvmvbs; vy += OD_MVB_DELTA0) {
+          for (vx = 0; vx < nhmvbs; vx += OD_MVB_DELTA0) {
+            od_mv_est_reset_rd_block_state(est, vx, vy, OD_LOG_MVB_DELTA0);
+          }
         }
       }
     }
+    od_mv_subpel_refine(est, cost_thresh);
+    /*We only need to do this when refinement runs.
+      Otherwise they remain unchanged since od_mv_est_init_mv().*/
+    if (frame_type == OD_P_FRAME) od_mv_est_update_bma_mvs(est);
   }
-  od_mv_subpel_refine(est, cost_thresh);
   od_restore_fpu(state);
 }

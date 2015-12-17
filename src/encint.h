@@ -48,6 +48,8 @@ typedef struct od_rollback_buffer od_rollback_buffer;
    \lambda*R.*/
 # define OD_ERROR_SCALE        (OD_LAMBDA_SCALE + OD_BITRES)
 
+/*The complexity setting where we enable MV refinement.*/
+# define OD_MC_REFINEMENT_COMPLEXITY (5)
 /*The complexity setting where we enable a square pattern in basic (fullpel)
    MV refinement.*/
 # define OD_MC_SQUARE_REFINEMENT_COMPLEXITY (8)
