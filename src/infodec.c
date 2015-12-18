@@ -180,6 +180,7 @@ int daala_decode_header_in(daala_info *info,
        || info->bitdepth_mode > OD_BITDEPTH_MODE_12) {
         return OD_EBADHEADER;
       }
+      info->full_precision_references = oggbyte_read1(&obb);
       info->nplanes = oggbyte_read1(&obb);
       if ((info->nplanes < 1) || (info->nplanes > OD_NPLANES_MAX)) {
         return OD_EBADHEADER;

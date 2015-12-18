@@ -151,7 +151,7 @@ static int od_quantizer_from_quality(int quality) {
 }
 
 void od_enc_opt_vtbl_init_c(od_enc_ctx *enc) {
-  if (enc->state.full_precision_references) {
+  if (enc->state.info.full_precision_references) {
     enc->opt_vtbl.mc_compute_sad_4x4 =
       od_mc_compute_sad16_4x4_c;
     enc->opt_vtbl.mc_compute_sad_8x8 =
@@ -256,9 +256,9 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
   enc->b_frames = 0;
   enc->frame_delay = enc->b_frames + 1;
   data_sz = 0;
-  reference_bytes = enc->state.full_precision_references ? 2 : 1;
+  reference_bytes = enc->state.info.full_precision_references ? 2 : 1;
   reference_bits =
-   enc->state.full_precision_references ? 8 + OD_COEFF_SHIFT : 8;
+   enc->state.info.full_precision_references ? 8 + OD_COEFF_SHIFT : 8;
 #if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
   out_data_sz = 0;
   output_bits = 8 + (info->bitdepth_mode - OD_BITDEPTH_MODE_8)*2;

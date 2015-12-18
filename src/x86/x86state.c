@@ -39,7 +39,7 @@ static void od_restore_fpu_mmx(void){
 void od_state_opt_vtbl_init_x86(od_state *_state){
   od_state_opt_vtbl_init_c(_state);
   _state->cpu_flags=od_cpu_flags_get();
-  if(_state->full_precision_references) {
+  if (_state->info.full_precision_references) {
     /*No 16 bit assembly as yet, but it will go here.*/
     if (_state->cpu_flags&OD_CPU_X86_SSE2) {
 #if defined(OD_SSE2_INTRINSICS)

@@ -252,8 +252,9 @@ static int od_state_ref_imgs_init(od_state *state, int nrefs) {
   data_sz = 0;
   /*Reference bit depth is constant over the lifetime of od_state, and by
     extension, an encode or decode ctx.*/
-  reference_bytes = state->full_precision_references ? 2 : 1;
-  reference_bits = state->full_precision_references ? 8 + OD_COEFF_SHIFT : 8;
+  reference_bytes = state->info.full_precision_references ? 2 : 1;
+  reference_bits = state->info.full_precision_references ? 8 +
+   OD_COEFF_SHIFT : 8;
   /*TODO: Check for overflow before allocating.*/
   frame_buf_width = state->frame_width + (OD_BUFFER_PADDING << 1);
   frame_buf_height = state->frame_height + (OD_BUFFER_PADDING << 1);
@@ -317,7 +318,7 @@ void od_restore_fpu(od_state *state) {
 }
 
 void od_state_opt_vtbl_init_c(od_state *state) {
-  if (state->full_precision_references) {
+  if (state->info.full_precision_references) {
     state->opt_vtbl.mc_predict1fmv = od_mc_predict1fmv16_c;
     state->opt_vtbl.mc_blend_full = od_mc_blend_full16_c;
     state->opt_vtbl.mc_blend_full_split = od_mc_blend_full_split16_c;
@@ -355,6 +356,7 @@ static void od_state_opt_vtbl_init(od_state *state) {
 static int od_state_init_impl(od_state *state, const daala_info *info) {
   int nplanes;
   int pli;
+  OD_CLEAR(state, 1);
   /*First validate the parameters.*/
   if (info == NULL) return OD_EFAULT;
   nplanes = info->nplanes;
@@ -366,7 +368,11 @@ static int od_state_init_impl(od_state *state, const daala_info *info) {
    || info->bitdepth_mode > OD_BITDEPTH_MODE_12) {
     return OD_EINVAL;
   }
-  OD_CLEAR(state, 1);
+  /*FPR must be on for high-depth.*/
+  if (info->bitdepth_mode != OD_BITDEPTH_MODE_8
+   && !info->full_precision_references) {
+    return OD_EINVAL;
+  }
   OD_COPY(&state->info, info, 1);
   /*Frame size is a multiple of a super block.*/
   state->frame_width = (info->pic_width + (OD_BSIZE_MAX - 1)) &
@@ -375,14 +381,6 @@ static int od_state_init_impl(od_state *state, const daala_info *info) {
    ~(OD_BSIZE_MAX - 1);
   state->nhmvbs = state->frame_width >> OD_LOG_MVBSIZE_MIN;
   state->nvmvbs = state->frame_height >> OD_LOG_MVBSIZE_MIN;
-  /*The master switch; once FPR is ready to go, this can be set to always-on,
-     or on only when encoding high-depth.
-    FPR must be on for high-depth, including lossless high-depth.
-    When FPR is on for 8-bit or 10-bit content, lossless frames are still
-     stored with 8 + OD_COEFF_SHIFT bit depth to allow streams with mixed lossy
-     and lossless frames.
-    FIXME: Switch on when FPR SIMD lands.*/
-  state->full_precision_references = 0;
   od_state_opt_vtbl_init(state);
   if (OD_UNLIKELY(od_state_ref_imgs_init(state, OD_FRAME_MAX + 1))) {
     return OD_EFAULT;

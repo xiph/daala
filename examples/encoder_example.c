@@ -539,6 +539,8 @@ static const struct option OPTIONS[] = {
   { "no-activity-masking", no_argument, NULL, 0 },
   { "dering", no_argument, NULL, 0 },
   { "no-dering", no_argument, NULL, 0 },
+  { "fpr", no_argument, NULL, 0 },
+  { "no-fpr", no_argument, NULL, 0 },
   { "qm", required_argument, NULL, 0 },
   { "mv-res-min", required_argument, NULL, 0 },
   { "mv-level-min", required_argument, NULL, 0 },
@@ -585,6 +587,8 @@ static void usage(void) {
    "                                 be used in quantization.\n"
    "     --[no-]dering               Enable (default) or disable the dering\n"
    "                                 postprocessing filter.\n"
+   "     --[no-]fpr                  Disable (default) or enable full \n"
+   "                                 precision references.\n"
    "     --qm <n>                    Select quantization matrix\n"
    "                                 0 => flat, 1 => hvs (default)\n"
    "                                 --activity-masking is implied by default.\n"
@@ -637,6 +641,7 @@ int main(int argc, char **argv) {
   int mc_use_satd;
   int use_activity_masking;
   int use_dering;
+  int use_fpr;
   int qm;
   int mv_res_min;
   int mv_level_min;
@@ -673,6 +678,7 @@ int main(int argc, char **argv) {
   mc_use_satd = 1;
   use_activity_masking = 1;
   use_dering = 1;
+  use_fpr = 0;
   qm = 1;
   mv_res_min = 0;
   mv_level_min = 0;
@@ -783,6 +789,12 @@ int main(int argc, char **argv) {
         else if (strcmp(OPTIONS[loi].name, "no-dering") == 0) {
           use_dering = 0;
         }
+        else if (strcmp(OPTIONS[loi].name, "fpr") == 0) {
+          use_fpr = 1;
+        }
+        else if (strcmp(OPTIONS[loi].name, "no-fpr") == 0) {
+          use_fpr = 0;
+        }
         else if (strcmp(OPTIONS[loi].name, "mv-res-min") == 0) {
           mv_res_min = atoi(optarg);
           if (mv_res_min < 0 || mv_res_min > 2) {
@@ -881,6 +893,7 @@ int main(int argc, char **argv) {
   di.frame_duration = 1;
   di.pixel_aspect_numerator = avin.video_par_n;
   di.pixel_aspect_denominator = avin.video_par_d;
+  di.full_precision_references = use_fpr;
   di.nplanes = avin.video_nplanes;
   memcpy(di.plane_info, avin.video_plane_info,
    di.nplanes*sizeof(*di.plane_info));

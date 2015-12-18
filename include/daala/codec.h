@@ -219,6 +219,14 @@ struct daala_info {
   /** bitdepth_mode is one of the three OD_BITDEPTH_MODE_X choices allowed
    * above. */
   int bitdepth_mode;
+  /**FPR must be on for high-depth, including lossless high-depth.
+     When FPR is on for 8-bit or 10-bit content, lossless frames are still
+      stored in reference buffers (and input buffers) with 8 + OD_COEFF_SHIFT
+      bit depth to allow streams with mixed lossy and lossless frames. Having a
+      mix of reference buffers stored in 10-bit and 12-bit precisions would be
+      a disaster, so we keep them all at 12-bit internally.
+   */
+  int full_precision_references;
   int nplanes;
   daala_plane_info plane_info[OD_NPLANES_MAX];
    /** key frame rate defined how often a key frame is emitted by encoder in

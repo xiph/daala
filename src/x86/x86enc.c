@@ -36,7 +36,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 void od_enc_opt_vtbl_init_x86(od_enc_ctx *enc) {
   od_enc_opt_vtbl_init_c(enc);
 #if defined(OD_GCC_INLINE_ASSEMBLY)
-  if (enc->state.full_precision_references) {
+  if (enc->state.info.full_precision_references) {
     /*16-bit routines will go here.*/
   }
   else{
