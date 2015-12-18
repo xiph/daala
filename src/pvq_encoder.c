@@ -681,6 +681,11 @@ int od_pvq_encode(daala_enc_ctx *enc,
   int skip_theta_value;
   const unsigned char *pvq_qm;
   double dc_rate;
+#if !OD_SIGNAL_Q_SCALING
+  OD_UNUSED(q_scaling);
+  OD_UNUSED(bx);
+  OD_UNUSED(by);
+#endif
   pvq_qm = &enc->state.pvq_qm_q4[pli][0];
   exg = &enc->state.adapt.pvq.pvq_exg[pli][bs][0];
   ext = enc->state.adapt.pvq.pvq_ext + bs*PVQ_MAX_PARTITIONS;
