@@ -80,9 +80,7 @@ static const unsigned char OD_LUMA_QM_Q4[2][OD_QM_SIZE] = {
   18, 18, 28, 32,
   17, 14, 20, 20, 28, 32,
   16, 11, 14, 14, 17, 17, 22, 28,
-  /*TODO - The quality of these 64x64 AM quantization constants is not known
-     and should be retuned by JM.*/
-  16, 8, 12, 11, 12, 12, 15, 15, 19, 23
+  16,  8, 12, 11, 12, 12, 15, 15, 19, 23
  }
 };
 
