@@ -2853,7 +2853,8 @@ static void od_enc_push_input_buff_tail(daala_enc_ctx *enc, od_img *img) {
 
 /*As an example, if # of B frames = 2,
    assume encoding order is : I0 P1 B2 B3 P4 B5 B6 P7 ...*/
-/*Note: Must be called ONCE and ONLY ONCE before encoding each frame.*/
+/*Note: Should be called before encoding a frame.
+  It has no side effects and may be called more than once.*/
 static int od_enc_determine_frame_type(daala_enc_ctx *enc) {
   int frame_type;
   int idx_in_gop;
