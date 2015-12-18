@@ -534,63 +534,6 @@ void od_state_clear(od_state *state) {
   free(state->qm_inv);
 }
 
-/*Probabilities that a motion vector is not coded given two neighbors and the
-  consistency of the nearby motion field. Which MVs are used varies by
-  level due to the grid geometry, but critically, we never look at MVs in
-  blocks to our right or below.
-
-  This data was compiled from video-subset1-short using
-  tools/collect_mvf_ec.sh and tools/mv_ec_stats.jl:
-
-  LEVEL 1:
-   Probabilties:
-    [30512 31715 32546
-     19755 22768 25170
-     8822 11180 13710]
-   Totals:
-    [2865820 1304318 1970291
-     844820 196641 65383
-     311051 50215 11931]
-  LEVEL 2:
-   Probabilties:
-    [15025 11377 11630
-     11771 13799 17357
-     9106 12384 14943]
-   Totals:
-    [429074 69682 11586
-     329998 44923 6228
-     104242 9983 978]
-  LEVEL 3:
-   Probabilties:
-    [20517 21744 24679
-     12351 12900 16429
-     8029 9085 12245]
-   Totals:
-    [188607 29632 5623
-     145680 24551 3265
-     44420 6687 867]
-  LEVEL 4:
-   Probabilties:
-    [9803 8953 10887
-     11962 12496 18801
-     11424 17400 24094]
-   Totals:
-    [107908 10753 1833
-     51862 4492 671
-     7260 371 68]
-
-  These statistics should be regenerated if the number of levels or the size
-   of the levels change.*/
-
-static const uint16_t OD_MV_SPLIT_FLAG_PROBZ_Q15[OD_MC_LEVEL_MAX][9] = {
-  { 30512, 31715, 32546, 19755, 22768, 25170, 8822, 11180, 13710 },
-  { 15025, 11377, 11630, 11771, 13799, 17357, 9106, 12384, 14943 },
-  { 20517, 21744, 24679, 12351, 12900, 16429, 8029, 9085, 12245 },
-  { 9803, 8953, 10887, 11962, 12496, 18801, 11424, 17400, 24094 },
-  { 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384 },
-  { 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384 }
-};
-
 void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe) {
   int i;
   int level;
@@ -606,10 +549,8 @@ void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe) {
   state->split_flag_increment = 128;
   for (level = 0; level < OD_MC_LEVEL_MAX; level++) {
     for (i = 0; i < 9; i++) {
-      state->split_flag_cdf[level][i][0] = (uint16_t)(
-       (uint32_t)OD_MV_SPLIT_FLAG_PROBZ_Q15[level][i]*
-       (state->split_flag_increment >> 1) >> 15);
-      state->split_flag_cdf[level][i][1] = state->split_flag_increment >> 1;
+      state->split_flag_cdf[level][i][0] = state->split_flag_increment >> 1;
+      state->split_flag_cdf[level][i][1] = state->split_flag_increment;
     }
   }
   state->haar_coeff_increment = 128;
