@@ -108,19 +108,12 @@ int daala_encode_flush_header(daala_enc_ctx *enc,
  * \param duration The duration to display the frame for, in timebase units.
  *                 If a non-zero frame duration was specified in the header,
  *                  then this parameter is ignored.
- * \param last_frame Set this flag to a non-zero value if no more uncompressed
- *              frames will be submitted.
- *             This ensures that a proper EOS flag is set on the last packet.
- *              as well as processing the delayed frames.
- * \param input_frames_left_encoder_buffer Returns one if encoding is not
- *  finished. This tells whether last packet is finished or not.
  * \retval 0 Success.
  * \retval OD_EFAULT \a enc or \a img was <tt>NULL</tt>.
  * \retval OD_EINVAL The image size does not match the frame size the encoder
  *                   was initialized with, or encoding has already
  *                    completed.*/
-int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration,
- int last_frame, int *input_frames_left_encoder_buffer);
+int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration);
 /**Retrieves encoded video data packets.
  * This should be called repeatedly after each frame is submitted to flush any
  *  encoded packets, until it returns 0.
@@ -140,8 +133,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration,
  * \retval 0 No packet was produced, and no more encoded video data
  *            remains.
  * \retval OD_EFAULT \a enc or \a op was <tt>NULL</tt>.*/
-int daala_encode_packet_out(daala_enc_ctx *enc,
- int last, daala_packet *dp);
+int daala_encode_packet_out(daala_enc_ctx *enc, int last, daala_packet *dp);
 /**Frees an allocated encoder instance.
  * \param enc A #daala_enc_ctx handle.*/
 void daala_encode_free(daala_enc_ctx *enc);

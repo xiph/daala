@@ -488,14 +488,10 @@ static int fetch(av_input *avin, int *limit, int *skip) {
 }
 
 int fetch_and_process_video(av_input *avin, ogg_page *page,
- ogg_stream_state *vo, daala_enc_ctx *dd, int video_ready,
- int *limit, int *skip) {
-  daala_packet dp;
-  /*No more input frames to the encoder?*/
-  static int end_of_input = 0;
-  /*All the input frames are encoded?*/
-  static int input_frames_left_encoder_buffer = 0;
-  while (!video_ready) {
+ ogg_stream_state *vo, daala_enc_ctx *dd, int *limit, int *skip) {
+  for (;;) {
+    int end_of_input;
+    daala_packet dp;
     if (ogg_stream_pageout(vo, page) > 0) {
       return 1;
     }
@@ -503,20 +499,18 @@ int fetch_and_process_video(av_input *avin, ogg_page *page,
       return 0;
     }
     end_of_input = fetch(avin, limit, skip);
-    /*Pull the packets from the just encoded frame, now that we know whether
-       or not we can read the current one.
-      This is also used to set the e_o_s bit on the final packet.*/
-    while (daala_encode_packet_out(dd, end_of_input &&
-     !input_frames_left_encoder_buffer, &dp)) {
+    while (daala_encode_packet_out(dd, end_of_input, &dp)) {
       ogg_packet op;
       daala_to_ogg_packet(&op, &dp);
       ogg_stream_packetin(vo, &op);
     }
-    /*Submit the current frame for encoding.*/
-    daala_encode_img_in(dd, &avin->video_img, 0, end_of_input,
-     &input_frames_left_encoder_buffer);
+    if (!end_of_input) {
+      if (daala_encode_img_in(dd, &avin->video_img, 0)) {
+        fprintf(stderr, "Error adding input frame to encoder.\n");
+        exit(1);
+      }
+    }
   }
-  return video_ready;
 }
 
 static const char *OPTSTRING = "ho:k:b:v:V:s:S:l:z:";
@@ -630,7 +624,6 @@ int main(int argc, char **argv) {
   double video_kbps;
   int video_q;
   int video_keyframe_rate;
-  int video_ready;
   int pli;
   int fixedserial;
   int serial;
@@ -969,18 +962,17 @@ int main(int argc, char **argv) {
   /*Setup complete.
      Main compression loop.*/
   fprintf(stderr, "Compressing...\n");
-  video_ready = 0;
   t0 = clock();
   for (;;) {
     ogg_page video_page;
     double video_time;
     double video_fps = avin.video_fps_n/avin.video_fps_d;
     size_t bytes_written;
-    video_ready = fetch_and_process_video(&avin, &video_page, &vo,
-     dd, video_ready, limit > -1 ? &limit : NULL, skip > 0 ? &skip : NULL);
-    /*TODO: Fetch the next video page.*/
     /*If no more pages are available, we've hit the end of the stream.*/
-    if (!video_ready) break;
+    if (!fetch_and_process_video(&avin, &video_page, &vo, dd,
+     limit > -1 ? &limit : NULL, skip > 0 ? &skip : NULL)) {
+      break;
+    }
     video_time = daala_granule_time(dd, ogg_page_granulepos(&video_page));
     bytes_written =
      fwrite(video_page.header, 1, video_page.header_len, outfile);
@@ -996,7 +988,6 @@ int main(int argc, char **argv) {
     }
     fflush(outfile);
     video_bytesout += bytes_written;
-    video_ready = 0;
     if (video_time == -1) continue;
     video_kbps = video_bytesout*8*0.001/video_time;
     time_base = video_time;

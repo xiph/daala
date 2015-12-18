@@ -203,6 +203,170 @@ static void od_enc_opt_vtbl_init(od_enc_ctx *enc) {
 #endif
 }
 
+static int od_input_queue_init(od_input_queue *this, od_enc_ctx *enc) {
+  od_state *state;
+  daala_info *info;
+  int pli;
+  int imgi;
+  size_t data_sz;
+  int frame_buf_width;
+  int frame_buf_height;
+  unsigned char *input_img_data;
+  int input_bits;
+  int input_bytes;
+  state = &enc->state;
+  info = &state->info;
+  /* Pad the input image further to have a border of OD_BUFFER_PADDING. */
+  frame_buf_width = state->frame_width + (OD_BUFFER_PADDING << 1);
+  frame_buf_height = state->frame_height + (OD_BUFFER_PADDING << 1);
+  /* Compute the memory requirements for input frames. */
+  input_bits = info->full_precision_references ? 8 + OD_COEFF_SHIFT : 8;
+  input_bytes = info->full_precision_references ? 2 : 1;
+  data_sz = 0;
+  for (pli = 0; pli < info->nplanes; pli++) {
+    data_sz += OD_MAX_REORDER*(frame_buf_width >> info->plane_info[pli].xdec)*
+     (frame_buf_height >> info->plane_info[pli].ydec)*input_bytes;
+  }
+  this->input_img_data = input_img_data =
+   (unsigned char *)od_aligned_malloc(data_sz, 32);
+  if (OD_UNLIKELY(!input_img_data)) {
+    return OD_EFAULT;
+  }
+  /*Fill in the input img structure.*/
+  for (imgi = 0; imgi < OD_MAX_REORDER; imgi++) {
+    od_img *img;
+    img = &this->images[imgi];
+    img->nplanes = info->nplanes;
+    img->width = state->frame_width;
+    img->height = state->frame_height;
+    for (pli = 0; pli < img->nplanes; pli++) {
+      od_img_plane *iplane;
+      int plane_buf_width;
+      int plane_buf_height;
+      iplane = &img->planes[pli];
+      iplane->xdec = info->plane_info[pli].xdec;
+      iplane->ydec = info->plane_info[pli].ydec;
+      plane_buf_width = frame_buf_width >> iplane->xdec;
+      plane_buf_height = frame_buf_height >> iplane->ydec;
+      iplane->bitdepth = input_bits;
+      /*Internal buffers are always planar.*/
+      iplane->xstride = input_bytes;
+      iplane->ystride = plane_buf_width*iplane->xstride;
+      iplane->data = input_img_data
+       + iplane->xstride*(OD_BUFFER_PADDING >> iplane->xdec)
+       + iplane->ystride*(OD_BUFFER_PADDING >> iplane->ydec);
+      input_img_data += plane_buf_height*iplane->ystride;
+    }
+  }
+  this->input_head = 0;
+  this->input_size = 0;
+  this->encode_head = 0;
+  this->encode_size = 0;
+  this->keyframe_rate = info->keyframe_rate;
+  this->frame_delay = enc->b_frames + 1;
+  /*Set last_keyframe to keyframe_rate - 1 so the next frame (the first one
+     added) will be a keyframe.*/
+  this->last_keyframe = this->keyframe_rate - 1;
+  this->end_of_input = 0;
+  this->frame_number = 0;
+  return OD_SUCCESS;
+}
+
+static void od_input_queue_clear(od_input_queue *this) {
+  od_aligned_free(this->input_img_data);
+}
+
+static void od_img_copy_pad(od_img *dst, od_img *img);
+
+static int od_input_queue_add(od_input_queue *this, od_img *img,
+ int duration) {
+  int index;
+  OD_RETURN_CHECK(this, OD_EFAULT);
+  OD_RETURN_CHECK(img, OD_EFAULT);
+  OD_RETURN_CHECK(duration >= 0, OD_EINVAL);
+  /* If we have reached the end of input, adding a frame is an error. */
+  OD_RETURN_CHECK(!this->end_of_input, OD_EINVAL);
+  /* If the input buffer is full, adding a frame is an error. */
+  OD_RETURN_CHECK(this->input_size < OD_MAX_REORDER, OD_EINVAL);
+  index = OD_REORDER_INDEX(this->input_head + this->input_size);
+  od_img_copy_pad(&this->images[index], img);
+  this->duration[index] = duration;
+  this->input_size++;
+  return OD_SUCCESS;
+}
+
+void od_input_queue_batch(od_input_queue *this, int frames) {
+  od_input_frame frame;
+  int i;
+  int index;
+  OD_ASSERT(frames);
+  OD_ASSERT(frames <= this->frame_delay);
+  OD_ASSERT(this->last_keyframe + frames <= this->keyframe_rate);
+  OD_ASSERT(this->input_size >= frames);
+  OD_ASSERT(OD_MAX_REORDER - this->encode_size >= frames);
+  /* Queue the last frame first */
+  index = OD_REORDER_INDEX(this->input_head + frames - 1);
+  frame.img = &this->images[index];
+  frame.duration = this->duration[index];
+  frame.type = OD_P_FRAME;
+  if (this->last_keyframe + frames == this->keyframe_rate) {
+    frame.type = OD_I_FRAME;
+    this->last_keyframe = -1;
+  }
+  frame.number = this->frame_number + frames - 1;
+  this->frames[OD_REORDER_INDEX(this->encode_head + this->encode_size)] =
+   frame;
+  this->encode_size++;
+  /*TODO add closed_gop to od_input_queue and add code to insert an extra
+     P-frame before the I-frame.*/
+  for (i = 1; i < frames; i++) {
+    index = OD_REORDER_INDEX(this->input_head + i - 1);
+    frame.img = &this->images[index];
+    frame.duration = this->duration[index];
+    frame.type = OD_B_FRAME;
+    frame.number = this->frame_number + i - 1;
+    this->frames[OD_REORDER_INDEX(this->encode_head + this->encode_size)] =
+     frame;
+    this->encode_size++;
+  }
+  this->last_keyframe += frames;
+  this->input_head = OD_REORDER_INDEX(this->input_head + frames);
+  this->input_size -= frames;
+  this->frame_number += frames;
+}
+
+od_input_frame *od_input_queue_next(od_input_queue *this, int *last) {
+  /* If the encode queue is empty and there are input frames pending. */
+  if (this->encode_size == 0 && this->input_size > 0) {
+    /* If a keyframe should appear in the queued input frames */
+    if (this->last_keyframe + this->input_size >= this->keyframe_rate) {
+      /* Queue for encoding frames through keyframe up to frame_delay */
+      od_input_queue_batch(this,
+       OD_MINI(this->keyframe_rate - this->last_keyframe, this->frame_delay));
+    }
+    /* If at least frame_delay input frames are queued */
+    else if (this->input_size >= this->frame_delay) {
+      /* Queue for encoding exactly frame_delay input frames */
+      od_input_queue_batch(this, this->frame_delay);
+    }
+    /* If we have reached the end of input */
+    else if (this->end_of_input) {
+      /* Queue for encoding remaining input frames up to frame_delay */
+      od_input_queue_batch(this, OD_MINI(this->input_size, this->frame_delay));
+    }
+  }
+  if (this->encode_size > 0) {
+    od_input_frame *input_frame;
+    input_frame = &this->frames[this->encode_head];
+    this->encode_head = (this->encode_head + 1) % OD_MAX_REORDER;
+    this->encode_size--;
+    *last =
+     this->encode_size == 0 && this->end_of_input && this->input_size == 0;
+    return input_frame;
+  }
+  return NULL;
+}
+
 static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
   int i;
   int pli;
@@ -247,6 +411,7 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
   enc->bs = (od_block_size_comp *)malloc(sizeof(*enc->bs));
   enc->b_frames = 0;
   enc->frame_delay = enc->b_frames + 1;
+  od_input_queue_init(&enc->input_queue, enc);
   data_sz = 0;
   reference_bytes = enc->state.info.full_precision_references ? 2 : 1;
   reference_bits =
@@ -345,17 +510,9 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
     iplane->ystride = plane_buf_width;
   }
 #endif
-  enc->in_buff_ptr = -1;
-  enc->in_buff_head = 0;
   enc->curr_frame = 0;
   enc->curr_img = NULL;
-  enc->frames_in_buff = 0;
-  enc->enc_order_count = 0;
-  enc->display_order_count = 0;
   enc->ip_frame_count = 0;
-  for (i = 0; i < 1 + OD_MAX_B_FRAMES; i++) {
-    enc->in_imgs_id[i] = -1;
-  }
 #if defined(OD_ENCODER_CHECK)
   enc->dec = daala_decode_create(info, NULL);
 #endif
@@ -383,6 +540,7 @@ static void od_enc_clear(od_enc_ctx *enc) {
   od_mv_est_free(enc->mvest);
   od_ec_enc_clear(&enc->ec);
   oggbyte_writeclear(&enc->obb);
+  od_input_queue_clear(&enc->input_queue);
   od_aligned_free(enc->input_img_data);
 #if defined(OD_DUMP_RECONS)
   od_output_queue_clear(&enc->out);
@@ -557,6 +715,7 @@ int daala_encode_ctl(daala_enc_ctx *enc, int req, void *buf, size_t buf_sz) {
       if (b_frames < 0 || b_frames > OD_MAX_B_FRAMES) return OD_EINVAL;
       enc->b_frames = b_frames;
       enc->frame_delay = enc->b_frames + 1;
+      enc->input_queue.frame_delay = enc->frame_delay;
       return OD_SUCCESS;
     }
     default: return OD_EIMPL;
@@ -2762,77 +2921,6 @@ static void od_split_superblocks_rdo(daala_enc_ctx *enc,
   od_encode_rollback(enc, &rbuf);
 }
 
-static int od_enc_pop_input_buff_head(daala_enc_ctx *enc) {
-  int head;
-  OD_ASSERT(enc->frames_in_buff > 0);
-  head = enc->in_buff_head;
-  /*Update the head of in_buff[].*/
-  enc->in_buff_head = (head + 1) % enc->frame_delay;
-  enc->frames_in_buff -= 1;
-  return head;
-}
-
-static int od_enc_pop_input_buff_tail(daala_enc_ctx *enc) {
-  int tail;
-  OD_ASSERT(enc->frames_in_buff > 0);
-  tail = enc->in_buff_ptr;
-  /*Update the tail of in_buff[].*/
-  enc->in_buff_ptr = (tail - 1 + enc->frame_delay) % enc->frame_delay;
-  enc->frames_in_buff -= 1;
-  return tail;
-}
-
-/*Update all buffer pointers related to in_imgs[].*/
-static void od_enc_push_input_buff_tail(daala_enc_ctx *enc, od_img *img) {
-  enc->frames_in_buff += 1;
-  OD_ASSERT(enc->frames_in_buff <= enc->frame_delay);
-  enc->in_buff_ptr = (enc->in_buff_ptr + 1) % enc->frame_delay;
-  OD_ASSERT(enc->in_buff_ptr >= 0 &&
-   enc->in_buff_ptr < enc->frame_delay);
-  enc->in_imgs_id[enc->in_buff_ptr] = enc->display_order_count;
-  enc->display_order_count += 1;
-  if (enc->frames_in_buff == 1) {
-    enc->in_buff_head = enc->in_buff_ptr;
-  }
-  OD_ASSERT(enc->in_buff_ptr >= 0 &&
-   enc->in_buff_ptr < 1 + enc->b_frames);
-  od_img_copy_pad(&enc->input_img[enc->in_buff_ptr], img);
-}
-
-/*As an example, if # of B frames = 2,
-   assume encoding order is : I0 P1 B2 B3 P4 B5 B6 P7 ...*/
-/*Note: Should be called before encoding a frame.
-  It has no side effects and may be called more than once.*/
-static int od_enc_determine_frame_type(daala_enc_ctx *enc) {
-  int frame_type;
-  int idx_in_gop;
-  int idx_in_pbb;
-  od_state *state;
-  state = &enc->state;
-  idx_in_gop = enc->enc_order_count % state->info.keyframe_rate;
-  /* Not the 1st frame?*/
-  if (enc->enc_order_count != 0) {
-    idx_in_pbb = (idx_in_gop - 1) % (enc->b_frames + 1);
-    /*If open GOP with B frames > 0, encoding order and display order of
-       I frame is different (except the 1st I frame),
-       so encoder order with idx_in_gop == 0 means it is B frame
-       and I frame in that case is located b_frames earlier.*/
-    if (((enc->b_frames && !OD_CLOSED_GOP) &&
-     (idx_in_gop == (state->info.keyframe_rate - enc->b_frames))) ||
-     /*Or (if there is no B frame or close GOP), then encoder order with
-       idx_in_gop == 0 means it is I frame.*/
-     ((enc->b_frames == 0 || OD_CLOSED_GOP) && (idx_in_gop == 0)))
-      frame_type = OD_I_FRAME;
-    else if (idx_in_pbb == 0) frame_type = OD_P_FRAME;
-    else frame_type = OD_B_FRAME;
-  }
-  else {
-    /*1st frame.*/
-    frame_type = OD_I_FRAME;
-  }
-  return frame_type;
-}
-
 /*This function can only return an error code if the enc or img parameters
    are NULL (should it be void then?).*/
 static int od_encode_frame(daala_enc_ctx *enc, od_img *img, int frame_type,
@@ -3061,18 +3149,15 @@ static int od_encode_frame(daala_enc_ctx *enc, od_img *img, int frame_type,
   fprintf(enc->bsize_dist_file, "\n");
 #endif
   OD_ASSERT(mbctx.is_keyframe == (frame_type == OD_I_FRAME));
-  ++enc->enc_order_count;
   if (frame_type == OD_I_FRAME || frame_type == OD_P_FRAME) {
     ++enc->ip_frame_count;
   }
   return OD_SUCCESS;
 }
 
-int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration,
- int end_of_input, int *input_frames_left_encoder_buffer) {
+int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   daala_info *info;
   int pli;
-  int frame_type;
   OD_RETURN_CHECK(enc, OD_EFAULT);
   OD_RETURN_CHECK(img, OD_EFAULT);
   OD_RETURN_CHECK(duration >= 0, OD_EINVAL);
@@ -3087,49 +3172,18 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration,
     OD_RETURN_CHECK(img->planes[pli].ydec == info->plane_info[pli].ydec,
      OD_EINVAL);
   }
-  if (input_frames_left_encoder_buffer == NULL) {
-    return OD_EFAULT;
+  /*Add the img input frame to the input_queue.
+    The only way this can fail is if more than OD_MAX_REORDER frames are
+     queued before daala_encode_packet_out is called.*/
+  if (od_input_queue_add(&enc->input_queue, img, duration)) {
+    return OD_EINVAL;
   }
-  if (enc->packet_state == OD_PACKET_DONE) return OD_EINVAL;
-  /*Buffer the input frames up to frame delay.*/
-  if (!end_of_input && (enc->b_frames == 0 ||
-   enc->frames_in_buff < enc->frame_delay)) {
-    od_enc_push_input_buff_tail(enc, img);
 #if defined(OD_DUMP_IMAGES)
   if (od_logging_active(OD_LOG_GENERIC, OD_LOG_DEBUG)) {
     od_img_dump_padded(enc);
   }
 #endif
-  }
-  /*If buffer is not filled as required, don't proceed to encoding.*/
-  if (!end_of_input && enc->frames_in_buff < enc->frame_delay) {
-    return OD_SUCCESS;
-  }
-  if (end_of_input && enc->frames_in_buff <= 0) {
-    *input_frames_left_encoder_buffer = 0;
-    return OD_SUCCESS;
-  }
-  /*Determine a frame type.*/
-  frame_type = od_enc_determine_frame_type(enc);
-  /*If P frame or I with open GOP, the input frame is at the tail of
-    input frame buffer, otherwise input frame is at the head.*/
-  if (enc->b_frames > 0) {
-    if (frame_type == OD_P_FRAME ||
-     (!OD_CLOSED_GOP && frame_type == OD_I_FRAME &&
-     enc->enc_order_count != 0)) {
-      enc->curr_frame = od_enc_pop_input_buff_tail(enc);
-    }
-    else enc->curr_frame = od_enc_pop_input_buff_head(enc);
-  }
-  else {
-    enc->curr_frame = 0;
-    enc->frames_in_buff -= 1;
-  }
-  *input_frames_left_encoder_buffer = enc->frames_in_buff;
-  od_encode_frame(enc, &enc->input_img[enc->curr_frame], frame_type, duration,
-   enc->in_imgs_id[enc->curr_frame]);
-  enc->in_imgs_id[enc->curr_frame] = -1;
-  return 0;
+  return OD_SUCCESS;
 }
 
 #if defined(OD_ENCODER_CHECK)
@@ -3176,9 +3230,26 @@ static void daala_encoder_check(daala_enc_ctx *ctx, od_img *img,
 #endif
 
 int daala_encode_packet_out(daala_enc_ctx *enc, int last, daala_packet *op) {
+  od_input_frame *input_frame;
   uint32_t nbytes;
-  if (enc == NULL || op == NULL) return OD_EFAULT;
-  else if (enc->packet_state <= 0 || enc->packet_state == OD_PACKET_DONE) {
+  OD_RETURN_CHECK(enc, OD_EFAULT);
+  OD_RETURN_CHECK(op, OD_EFAULT);
+  /*If the last frame has been reached, set the end_of_input flag in the
+     input_queue so that it does not wait until frame_delay input frames
+     have been queued before batching frames for encoding.*/
+  if (last) {
+    enc->input_queue.end_of_input = 1;
+  }
+  /*Request the next frame to encode.
+    This will return NULL if less than frame_delay input frames have been
+     queued and end_of_input has not been reached.*/
+  input_frame = od_input_queue_next(&enc->input_queue, &last);
+  if (input_frame == NULL) {
+    return 0;
+  }
+  if (od_encode_frame(enc, input_frame->img, input_frame->type,
+   input_frame->duration, input_frame->number)) {
+    printf("error encoding frame\n");
     return 0;
   }
   op->packet = od_ec_enc_done(&enc->ec, &nbytes);
@@ -3191,12 +3262,10 @@ int daala_encode_packet_out(daala_enc_ctx *enc, int last, daala_packet *op) {
   op->granulepos = enc->state.cur_time;
   if (last) enc->packet_state = OD_PACKET_DONE;
   else enc->packet_state = OD_PACKET_EMPTY;
-
 #if defined(OD_ENCODER_CHECK)
   /*Compare reconstructed frame against decoded frame.*/
   daala_encoder_check(enc,
    enc->state.ref_imgs + enc->state.ref_imgi[OD_FRAME_SELF], op);
 #endif
-
   return 1;
 }

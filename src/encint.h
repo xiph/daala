@@ -30,6 +30,8 @@ typedef struct od_params_ctx od_params_ctx;
 typedef struct od_mv_est_ctx od_mv_est_ctx;
 typedef struct od_enc_opt_vtbl od_enc_opt_vtbl;
 typedef struct od_rollback_buffer od_rollback_buffer;
+typedef struct od_input_queue od_input_queue;
+typedef struct od_input_frame od_input_frame;
 
 # include "../include/daala/daaladec.h"
 # include "../include/daala/daalaenc.h"
@@ -91,6 +93,38 @@ struct od_params_ctx {
   int mv_level_max;
 };
 
+struct od_input_frame {
+  od_img *img;
+  int duration;
+  int type;
+  int number;
+  /* TODO add reference info */
+};
+
+struct od_input_queue {
+  unsigned char *input_img_data;
+
+  /* Circular queue of frame input images in display order. */
+  od_img images[OD_MAX_REORDER];
+  int duration[OD_MAX_REORDER];
+  int input_head;
+  int input_size;
+
+  /* Circular queue of frame indeces in encode order. */
+  od_input_frame frames[OD_MAX_REORDER];
+  int encode_head;
+  int encode_size;
+
+  /* Input queue parameters */
+  int keyframe_rate;
+  int frame_delay;
+
+  /* Input queue state */
+  int frame_number;
+  int last_keyframe;
+  int end_of_input;
+};
+
 struct daala_enc_ctx{
   od_state state;
   od_enc_opt_vtbl opt_vtbl;
@@ -126,6 +160,11 @@ struct daala_enc_ctx{
   od_coeff block_c_orig[OD_BSIZE_MAX*OD_BSIZE_MAX];
   od_coeff block_mc_orig[OD_BSIZE_MAX*OD_BSIZE_MAX];
   od_coeff block_c_noskip[OD_BSIZE_MAX*OD_BSIZE_MAX];
+  /* This structure manages reordering the input frames from display order
+      to encode order.
+     It currently supports in order B-frames with a periodic out of order
+      P-frame specified by enc->b_frames.*/
+  od_input_queue input_queue;
   /* A pointer to the currently encoding image. */
   od_img *curr_img;
   /* Buffer for the input frame, scaled to reference resolution. */
@@ -133,22 +172,10 @@ struct daala_enc_ctx{
   unsigned char *input_img_data;
   /** Frame delay. */
   int frame_delay;
-  /** Frame counter in encoding order. */
-  int64_t enc_order_count;
-  /** Frame counter in displaying order. */
-  int64_t display_order_count;
   /** Displaying order of current frame being encoded. */
   int64_t curr_display_order;
   /** Current input frame pointer of in_imgs[]. */
   int curr_frame;
-  /** Tail pointer of in_imgs[]. */
-  int in_buff_ptr;
-  /** Head pointer of in_imgs[]. */
-  int in_buff_head;
-  /** # of frames left in buffer to encode. */
-  int frames_in_buff;
-  /** Keep the display order of frames in input image buffer. */
-  int in_imgs_id[1 + OD_MAX_B_FRAMES];
   /** Number of I or P frames encoded so far, starting from zero. */
   unsigned int ip_frame_count;
 #if defined(OD_DUMP_RECONS)
