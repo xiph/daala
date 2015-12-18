@@ -254,6 +254,7 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
   enc->params.mv_level_max = 4;
   enc->bs = (od_block_size_comp *)malloc(sizeof(*enc->bs));
   enc->b_frames = 0;
+  enc->frame_delay = enc->b_frames + 1;
   data_sz = 0;
   reference_bytes = enc->state.full_precision_references ? 2 : 1;
   reference_bits =
@@ -597,6 +598,7 @@ int daala_encode_ctl(daala_enc_ctx *enc, int req, void *buf, size_t buf_sz) {
       b_frames = *(const int *)buf;
       if (b_frames < 0 || b_frames > OD_MAX_B_FRAMES) return OD_EINVAL;
       enc->b_frames = b_frames;
+      enc->frame_delay = enc->b_frames + 1;
       return OD_SUCCESS;
     }
     default: return OD_EIMPL;
@@ -2909,7 +2911,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration,
       return OD_EINVAL;
     }
   }
-  enc->frame_delay = enc->b_frames + 1;
 #if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
   enc->curr_dec_output = -1;
 #endif
