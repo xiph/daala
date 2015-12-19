@@ -3002,6 +3002,12 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration,
   /*TODO : Try golden frame as additional reference to
      the forward prediction of B-frame.*/
   mbctx.num_refs = (frame_type != OD_I_FRAME) ? OD_MAX_CODED_REFS : 0;
+  /* When coding a P-frame following a keyframe or a golden frame, we don't
+     need two references since they'd be the same. */
+  if (frame_type == OD_P_FRAME &&
+   enc->state.ref_imgi[OD_FRAME_GOLD] == enc->state.ref_imgi[OD_FRAME_PREV]) {
+    mbctx.num_refs = 1;
+  }
   /* FIXME: This should be dynamic */
   mbctx.use_activity_masking = enc->use_activity_masking;
   mbctx.qm = enc->qm;
