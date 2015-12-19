@@ -187,7 +187,7 @@ void od_encode_rollback(daala_enc_ctx *enc, const od_rollback_buffer *rbuf);
 
 od_mv_est_ctx *od_mv_est_alloc(od_enc_ctx *enc);
 void od_mv_est_free(od_mv_est_ctx *est);
-void od_mv_est(od_mv_est_ctx *est, int lambda);
+void od_mv_est(od_mv_est_ctx *est, int lambda, int num_refs);
 
 int32_t od_mc_compute_sad8_4x4_c(const unsigned char *src, int systride,
  const unsigned char *ref, int dystride);

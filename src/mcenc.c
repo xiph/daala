@@ -6384,7 +6384,7 @@ void od_mv_subpel_refine(od_mv_est_ctx *est, int cost_thresh) {
   od_state_set_mv_res(state, best_mv_res);
 }
 
-void od_mv_est(od_mv_est_ctx *est, int lambda) {
+void od_mv_est(od_mv_est_ctx *est, int lambda, int num_refs) {
   od_state *state;
   od_img_plane *iplane;
   int32_t dcost;
@@ -6478,7 +6478,7 @@ void od_mv_est(od_mv_est_ctx *est, int lambda) {
   if (est->enc->state.frame_type == OD_P_FRAME) {
     /*At very high lambdas, the signaling overhead of multiref is too high.*/
     if (lambda < 150) {
-      if (state->ref_imgi[OD_FRAME_GOLD] >= 0) {
+      if (state->ref_imgi[OD_FRAME_GOLD] >= 0 && num_refs > 1) {
         od_mv_est_init_mvs(est, OD_FRAME_GOLD, 0);
       }
     }

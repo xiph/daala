@@ -2211,7 +2211,7 @@ static void od_img_dump_padded(daala_enc_ctx *enc) {
 }
 #endif
 
-static void od_predict_frame(daala_enc_ctx *enc) {
+static void od_predict_frame(daala_enc_ctx *enc, int num_refs) {
 #if defined(OD_DUMP_IMAGES) && defined(OD_ANIMATE)
   enc->ani_iter = 0;
 #endif
@@ -2224,7 +2224,7 @@ static void od_predict_frame(daala_enc_ctx *enc) {
    Hopefully when we fix that, we can remove the limit.*/
   od_mv_est(enc->mvest,
    OD_MAXI(((2320000 + (((1 << OD_COEFF_SHIFT) - 1) >> 1)) >> OD_COEFF_SHIFT)*
-   enc->state.quantizer[0] >> (22 - OD_LAMBDA_SCALE), 40));
+   enc->state.quantizer[0] >> (22 - OD_LAMBDA_SCALE), 40), num_refs);
   od_state_mc_predict(&enc->state,
    enc->state.ref_imgs + enc->state.ref_imgi[OD_FRAME_SELF]);
   /*Do edge extension here because the block-size analysis needs to read
@@ -3093,7 +3093,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration,
   if (!mbctx.is_keyframe) {
     int num_refs;
     num_refs = mbctx.num_refs;
-    od_predict_frame(enc);
+    od_predict_frame(enc, mbctx.num_refs);
     od_encode_mvs(enc, num_refs);
   }
   if (mbctx.use_haar_wavelet) {
