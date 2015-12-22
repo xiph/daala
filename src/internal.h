@@ -124,7 +124,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
    in Q4 format.*/
 # define OD_QUALITY_SHIFT (4)
 # define OD_LOSSLESS(_ctx, _pli) (_ctx->state.quantizer[_pli] == 0)
-# define OD_PLANE_SZ(_dim, _dec) ((_dim + (1 << _dec) - 1) >> _dec)
+# define OD_PLANE_SZ(_dim, _dec) (((_dim) + (1 << (_dec)) - 1) >> (_dec))
 
 # if defined(OD_ENABLE_ASSERTIONS)
 #  if OD_GNUC_PREREQ(2, 5, 0)
