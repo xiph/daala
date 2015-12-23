@@ -426,6 +426,67 @@ static void id_file(av_input *avin, const char *file) {
   }
 }
 
+static int fetch(av_input *avin, int *limit, int *skip) {
+  for (;;) {
+    size_t ret;
+    char frame[6];
+    od_img *img;
+    int pli;
+    ret = fread(frame, 1, 6, avin->video_infile);
+    if (ret != 6) {
+      return 1;
+    }
+    if (memcmp(frame, "FRAME", 5) != 0) {
+      fprintf(stderr, "Loss of framing in YUV input data.\n");
+      exit(1);
+    }
+    if (frame[5] != '\n') {
+      int bi;
+      char c;
+      for (bi = 0; bi < 121; bi++) {
+        if (fread(&c, 1, 1, avin->video_infile) == 1 && c == '\n') break;
+      }
+      if (bi >= 121) {
+        fprintf(stderr, "Error parsing YUV frame header.\n");
+        exit(1);
+      }
+    }
+    /*Read the frame data.*/
+    img = &avin->video_img;
+    for (pli = 0; pli < img->nplanes; pli++) {
+      od_img_plane *iplane;
+      int bytes;
+      size_t plane_sz;
+      iplane = &img->planes[pli];
+      bytes = iplane->bitdepth > 8 ? 2 : 1;
+      plane_sz = ((avin->video_pic_w + iplane->xdec) >> iplane->xdec)*
+       ((avin->video_pic_h + iplane->ydec) >> iplane->ydec)*bytes;
+      ret = fread(iplane->data, 1, plane_sz, avin->video_infile);
+      if (ret != plane_sz) {
+        fprintf(stderr, "Error reading YUV frame data.\n");
+        exit(1);
+      }
+      if (bytes == 2 && avin->video_swapendian) {
+        size_t i;
+        for (i = 0; i < plane_sz; i += 2) {
+          SWAP(iplane->data[i], iplane->data[i + 1]);
+        }
+      }
+    }
+    if (skip && (*skip) > 0) {
+      (*skip)--;
+      continue;
+    }
+    if (limit) {
+      if (*limit <= 0) {
+        return 1;
+      }
+      (*limit)--;
+    }
+    return 0;
+  }
+}
+
 int fetch_and_process_video(av_input *avin, ogg_page *page,
  ogg_stream_state *vo, daala_enc_ctx *dd, int video_ready,
  int *limit, int *skip) {
@@ -435,73 +496,13 @@ int fetch_and_process_video(av_input *avin, ogg_page *page,
   /*All the input frames are encoded?*/
   static int input_frames_left_encoder_buffer = 0;
   while (!video_ready) {
-    size_t ret;
-    char frame[6];
-    char c;
     if (ogg_stream_pageout(vo, page) > 0) {
       return 1;
     }
-    else if (ogg_stream_eos(vo)) {
+    if (ogg_stream_eos(vo)) {
       return 0;
     }
-    if (!end_of_input) {
-      ret = fread(frame, 1, 6, avin->video_infile);
-      if (ret == 6) {
-        od_img *img;
-        int pli;
-        if (memcmp(frame, "FRAME", 5) != 0) {
-          fprintf(stderr, "Loss of framing in YUV input data.\n");
-          exit(1);
-        }
-        if (frame[5] != '\n') {
-          int bi;
-          for (bi = 0; bi < 121; bi++) {
-            if (fread(&c, 1, 1, avin->video_infile) == 1 && c == '\n') break;
-          }
-          if (bi >= 121) {
-            fprintf(stderr, "Error parsing YUV frame header.\n");
-            exit(1);
-          }
-        }
-        /*Read the frame data.*/
-        img = &avin->video_img;
-        for (pli = 0; pli < img->nplanes; pli++) {
-          od_img_plane *iplane;
-          int bytes;
-          size_t plane_sz;
-          iplane = img->planes + pli;
-          bytes = iplane->bitdepth > 8 ? 2 : 1;
-          plane_sz = ((avin->video_pic_w + (1 << iplane->xdec) - 1)
-           >> iplane->xdec)*((avin->video_pic_h + (1 << iplane->ydec)
-           - 1) >> iplane->ydec)*bytes;
-          ret = fread(iplane->data, 1, plane_sz, avin->video_infile);
-          if (ret != plane_sz) {
-            fprintf(stderr, "Error reading YUV frame data.\n");
-            exit(1);
-          }
-          if (bytes == 2 && avin->video_swapendian) {
-            size_t i;
-            for (i = 0; i < plane_sz; i += 2) {
-              SWAP(iplane->data[i], iplane->data[i + 1]);
-            }
-          }
-        }
-        if (skip && (*skip) > 0) {
-          (*skip)--;
-          continue;
-        }
-        if (limit) {
-          end_of_input = (*limit) <= 0;
-          (*limit)--;
-        }
-        else {
-          end_of_input = 0;
-        }
-      }
-      else {
-        end_of_input = 1;
-      }
-    }
+    end_of_input = fetch(avin, limit, skip);
     /*Pull the packets from the just encoded frame, now that we know whether
        or not we can read the current one.
       This is also used to set the e_o_s bit on the final packet.*/
