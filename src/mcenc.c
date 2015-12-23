@@ -1624,7 +1624,7 @@ static int32_t od_enc_sad(od_enc_ctx *enc, const unsigned char *p,
   int w;
   int h;
   state = &enc->state;
-  iplane = enc->input_img[enc->curr_frame].planes + pli;
+  iplane = &enc->curr_img->planes[pli];
   /*Compute the block dimensions in the target image plane.*/
   x >>= iplane->xdec;
   y >>= iplane->ydec;
@@ -1691,7 +1691,7 @@ static int32_t od_enc_satd(od_enc_ctx *enc, const unsigned char *p,
   int w;
   int h;
   state = &enc->state;
-  iplane = enc->input_img[enc->curr_frame].planes + pli;
+  iplane = &enc->curr_img->planes[pli];
   /*Compute the block dimensions in the target image plane.*/
   x >>= iplane->xdec;
   y >>= iplane->ydec;
@@ -2270,7 +2270,7 @@ static int32_t od_mv_est_sad(od_mv_est_ctx *est,
   int32_t ret;
   int xstride;
   state = &est->enc->state;
-  xstride = est->enc->input_img[est->enc->curr_frame].planes[0].xstride;
+  xstride = est->enc->curr_img->planes[0].xstride;
   od_state_pred_block_from_setup(state, state->mc_buf[4],
    OD_MVBSIZE_MAX*xstride, 0, vx, vy, oc, s, log_mvb_sz);
   ret = est->compute_distortion(est->enc, state->mc_buf[4],
@@ -2279,7 +2279,7 @@ static int32_t od_mv_est_sad(od_mv_est_ctx *est,
    log_mvb_sz + OD_LOG_MVBSIZE_MIN);
   if (est->flags & OD_MC_USE_CHROMA) {
     int pli;
-    for (pli = 1; pli < est->enc->input_img[est->enc->curr_frame].nplanes;
+    for (pli = 1; pli < est->enc->curr_img->nplanes;
      pli++) {
       od_state_pred_block_from_setup(state, state->mc_buf[4],
        OD_MVBSIZE_MAX*xstride, pli, vx, vy, oc, s, log_mvb_sz);
@@ -6400,7 +6400,7 @@ void od_mv_est(od_mv_est_ctx *est, int lambda, int num_refs) {
   state = &est->enc->state;
   nhmvbs = state->nhmvbs;
   nvmvbs = state->nvmvbs;
-  iplane = est->enc->input_img[est->enc->curr_frame].planes + 0;
+  iplane = &est->enc->curr_img->planes[0];
   frame_type = state->frame_type;
   /*Sanitize user parameters*/
   est->level_min = OD_MINI(est->enc->params.mv_level_min,
@@ -6438,9 +6438,8 @@ void od_mv_est(od_mv_est_ctx *est, int lambda, int num_refs) {
   /*If we're using the chroma planes, then our distortions will be larger.
     Compensate by increasing lambda and the termination thresholds.*/
   if (est->flags & OD_MC_USE_CHROMA) {
-    for (pli = 1; pli < est->enc->input_img[est->enc->curr_frame].nplanes;
-     pli++) {
-      iplane = est->enc->input_img[est->enc->curr_frame].planes + pli;
+    for (pli = 1; pli < est->enc->curr_img->nplanes; pli++) {
+      iplane = &est->enc->curr_img->planes[pli];
       est->lambda +=
        lambda >> (iplane->xdec + iplane->ydec + OD_MC_CHROMA_SCALE);
       for (log_mvb_sz = 0; log_mvb_sz < OD_NMVBSIZES; log_mvb_sz++) {

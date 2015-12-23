@@ -126,6 +126,8 @@ struct daala_enc_ctx{
   od_coeff block_c_orig[OD_BSIZE_MAX*OD_BSIZE_MAX];
   od_coeff block_mc_orig[OD_BSIZE_MAX*OD_BSIZE_MAX];
   od_coeff block_c_noskip[OD_BSIZE_MAX*OD_BSIZE_MAX];
+  /* A pointer to the currently encoding image. */
+  od_img *curr_img;
   /* Buffer for the input frame, scaled to reference resolution. */
   od_img input_img[1 + OD_MAX_B_FRAMES];
   unsigned char *input_img_data;
