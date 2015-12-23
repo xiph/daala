@@ -169,6 +169,36 @@ struct od_adapt_ctx {
   int q_increment;
 };
 
+typedef struct od_output_frame od_output_frame;
+
+struct od_output_frame {
+  od_img *img;
+  int number;
+};
+
+typedef struct od_output_queue od_output_queue;
+
+struct od_output_queue {
+  unsigned char *output_img_data;
+
+  /* Circular queue of frame images in decode order. */
+  od_img images[OD_MAX_REORDER];
+  int decode_index;
+  int decode_used[OD_MAX_REORDER];
+
+  /* Circular queue of frame indices in output order. */
+  od_output_frame frames[OD_MAX_REORDER];
+  int output_index;
+  int output_used[OD_MAX_REORDER];
+};
+
+int od_output_queue_init(od_output_queue *out, od_state *state);
+void od_output_queue_clear(od_output_queue *out);
+int od_output_queue_add(od_output_queue *out, od_img *img, int number);
+#define od_output_queue_has_next(out) \
+ ((out)->output_used[(out)->output_index])
+od_output_frame *od_output_queue_next(od_output_queue *out);
+
 struct od_state{
   od_adapt_ctx        adapt;
   daala_info          info;

@@ -110,6 +110,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # define OD_MAX_B_FRAMES (4)
 # define OD_CLOSED_GOP (0)
 
+# define OD_MAX_REORDER (16)
+
+# if (OD_MAX_REORDER & (OD_MAX_REORDER - 1))
+#  error "OD_MAX_REORDER must be a power of two."
+# endif
+
+# define OD_REORDER_INDEX(idx) ((idx)&(OD_MAX_REORDER - 1))
+
 # define OD_ROBUST_STREAM (1)
 
 # define OD_USE_HAAR_WAVELET (0)

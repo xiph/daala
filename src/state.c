@@ -1109,6 +1109,105 @@ void od_img_edge_ext(od_img* src) {
   }
 }
 
+int od_output_queue_init(od_output_queue *this, od_state *state) {
+  daala_info *info;
+  int pli;
+  int imgi;
+  size_t data_sz;
+  int frame_width;
+  int frame_height;
+  unsigned char *output_img_data;
+  int output_bits;
+  int output_bytes;
+  info = &state->info;
+  /* Compute the memory requirements for output frames. */
+  output_bits = 8 + (info->bitdepth_mode - OD_BITDEPTH_MODE_8)*2;
+  output_bytes = output_bits > 8 ? 2 : 1;
+  data_sz = 0;
+  frame_width = state->frame_width;
+  frame_height = state->frame_height;
+  for (pli = 0; pli < info->nplanes; pli++) {
+    data_sz += OD_MAX_REORDER*(frame_width >> info->plane_info[pli].xdec)*
+     (frame_height >> info->plane_info[pli].ydec)*output_bytes;
+  }
+  this->output_img_data = output_img_data =
+   (unsigned char *)od_aligned_malloc(data_sz, 32);
+  if (OD_UNLIKELY(!output_img_data)) {
+    return OD_EFAULT;
+  }
+  /* Fill in the output img structure. */
+  for (imgi = 0; imgi < OD_MAX_REORDER; imgi++) {
+    od_img *img;
+    img = &this->images[imgi];
+    img->nplanes = info->nplanes;
+    img->width = state->frame_width;
+    img->height = state->frame_height;
+    for (pli = 0; pli < img->nplanes; pli++) {
+      int plane_width;
+      int plane_height;
+      od_img_plane *iplane;
+      iplane = &img->planes[pli];
+      iplane->xdec = info->plane_info[pli].xdec;
+      iplane->ydec = info->plane_info[pli].ydec;
+      plane_width = frame_width >> iplane->xdec;
+      plane_height = frame_height >> iplane->ydec;
+      iplane->bitdepth = output_bits;
+      iplane->xstride = output_bytes;
+      iplane->ystride = plane_width*iplane->xstride;
+      iplane->data = output_img_data;
+      output_img_data += plane_height*iplane->ystride;
+    }
+    this->decode_used[imgi] = 0;
+    this->output_used[imgi] = 0;
+  }
+  this->decode_index = 0;
+  this->output_index = 0;
+  return OD_SUCCESS;
+}
+
+void od_output_queue_clear(od_output_queue *this) {
+  od_aligned_free(this->output_img_data);
+}
+
+int od_output_queue_add(od_output_queue *this, od_img *img, int number) {
+  od_output_frame frame;
+  int index;
+  OD_RETURN_CHECK(this, OD_EFAULT);
+  OD_RETURN_CHECK(img, OD_EFAULT);
+  OD_RETURN_CHECK(number >= 0, OD_EINVAL);
+  /* Add the decoded frame to the decode queue. */
+  index = this->decode_index;
+  OD_ASSERT(!this->decode_used[index]);
+  this->decode_used[index] = 1;
+  od_img_copy(&this->images[index], img);
+  this->decode_index = OD_REORDER_INDEX(index + 1);
+  /* Construct the od_output_frame struct. */
+  frame.img = &this->images[index];
+  frame.number = number;
+  /* Insert it into the output queue in the correct order. */
+  index = OD_REORDER_INDEX(number);
+  OD_ASSERT(!this->output_used[index]);
+  this->output_used[index] = 1;
+  this->frames[index] = frame;
+  return OD_SUCCESS;
+}
+
+od_output_frame *od_output_queue_next(od_output_queue *this) {
+  OD_ASSERT(this);
+  if (this->output_used[this->output_index]) {
+    int index;
+    od_output_frame *frame;
+    index = this->output_index;
+    this->output_used[index] = 0;
+    this->output_index = OD_REORDER_INDEX(index + 1);
+    frame = &this->frames[index];
+    index = frame->img - this->images;
+    this->decode_used[index] = 0;
+    return frame;
+  }
+  return NULL;
+}
+
 /*Add a decoded frame at the tail of a output buffer.*/
 /*Note: Call this function to get output buffer pointer.*/
 int od_state_push_output_buff_tail(od_state *state) {

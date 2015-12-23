@@ -150,21 +150,7 @@ struct daala_enc_ctx{
   /** Number of I or P frames encoded so far, starting from zero. */
   unsigned int ip_frame_count;
 #if defined(OD_DUMP_RECONS)
-  unsigned char *output_img_data;
-  /** Output images buffer, used as circular queue. */
-  od_img output_img[2];
-  /** Tail pointer of out_imgs[]. */
-  int out_buff_ptr;
-  /** Head pointer of out_imgs[]. */
-  int out_buff_head;
-  /** Current decoded frame pointer of out_imgs[]. */
-  int curr_dec_frame;
-  /** Current output frame pointer of out_imgs[]. */
-  int curr_dec_output;
-  /** # of frames left in output buffer to display. */
-  int frames_in_out_buff;
-  /** Keep the display order of frames in output image buffers. */
-  int out_imgs_id[2];
+  od_output_queue out;
 #endif
 #if defined(OD_DUMP_IMAGES)
   od_img vis_img;
