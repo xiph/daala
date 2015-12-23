@@ -149,7 +149,7 @@ struct daala_enc_ctx{
   int in_imgs_id[1 + OD_MAX_B_FRAMES];
   /** Number of I or P frames encoded so far, starting from zero. */
   unsigned int ip_frame_count;
-#if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
+#if defined(OD_DUMP_RECONS)
   unsigned char *output_img_data;
   /** Output images buffer, used as circular queue. */
   od_img output_img[2];

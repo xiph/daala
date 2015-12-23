@@ -216,7 +216,7 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
   int plane_buf_height;
   int reference_bytes;
   int reference_bits;
-#if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
+#if defined(OD_DUMP_RECONS)
   size_t out_data_sz;
   unsigned char *output_img_data;
   int output_bytes;
@@ -257,7 +257,7 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
   reference_bytes = enc->state.info.full_precision_references ? 2 : 1;
   reference_bits =
    enc->state.info.full_precision_references ? 8 + OD_COEFF_SHIFT : 8;
-#if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
+#if defined(OD_DUMP_RECONS)
   out_data_sz = 0;
   output_bits = 8 + (info->bitdepth_mode - OD_BITDEPTH_MODE_8)*2;
   output_bytes = output_bits > 8 ? 2 : 1;
@@ -271,7 +271,7 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
     /*Reserve space for input plane buffer.*/
     data_sz += plane_buf_width*plane_buf_height*(1 + OD_MAX_B_FRAMES)
      *reference_bytes;
-#if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
+#if defined(OD_DUMP_RECONS)
     /*Reserve space for output plane buffer.*/
     out_data_sz += plane_buf_width*plane_buf_height*2*output_bytes;
 #endif
@@ -313,7 +313,7 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
       input_img_data += plane_buf_height*iplane->ystride;
     }
   }
-#if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
+#if defined(OD_DUMP_RECONS)
   enc->output_img_data = output_img_data =
     (unsigned char *)od_aligned_malloc(out_data_sz, 32);
   if (OD_UNLIKELY(!output_img_data)) {
@@ -424,7 +424,7 @@ static void od_enc_clear(od_enc_ctx *enc) {
   od_ec_enc_clear(&enc->ec);
   oggbyte_writeclear(&enc->obb);
   od_aligned_free(enc->input_img_data);
-#if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
+#if defined(OD_DUMP_RECONS)
   od_aligned_free(enc->output_img_data);
 #endif
   od_state_clear(&enc->state);
@@ -2910,7 +2910,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration,
       return OD_EINVAL;
     }
   }
-#if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
+#if defined(OD_DUMP_RECONS)
   enc->curr_dec_output = -1;
 #endif
   /*Buffer the input frames up to frame delay.*/
@@ -2992,7 +2992,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration,
     mbctx.is_keyframe = 1;
     frame_type = OD_I_FRAME;
   }
-#if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
+#if defined(OD_DUMP_RECONS)
   enc->curr_dec_frame = od_state_push_output_buff_tail(&enc->state);
   /*Let output buffer know which input frame in display order it was.*/
   enc->out_imgs_id[enc->curr_dec_frame] = enc->curr_display_order;
@@ -3119,13 +3119,13 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration,
     OD_ASSERT(ref_img);
     od_img_edge_ext(ref_img);
   }
-#if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
+#if defined(OD_DUMP_RECONS)
   od_img_copy(enc->output_img + enc->curr_dec_frame, ref_img);
 #endif
 #if defined(OD_LOGGING_ENABLED)
   od_dump_frame_metrics(enc);
 #endif
-#if defined(OD_DUMP_IMAGES) || defined(OD_DUMP_RECONS)
+#if defined(OD_DUMP_RECONS)
   if (enc->b_frames == 0 || frame_type == OD_B_FRAME ||
    (frame_type == OD_I_FRAME && enc->enc_order_count == 0)) {
     enc->curr_dec_output = od_state_pop_output_buff_tail(&enc->state);
