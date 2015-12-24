@@ -1692,30 +1692,19 @@ static void od_encode_mv(daala_enc_ctx *enc, int num_refs, od_mv_grid_pt *mvg,
   if (abs(oy)) od_ec_enc_bits(&enc->ec, oy < 0, 1);
 }
 
-/* Note : Only used for input frames. */
-static void od_img_copy_pad(daala_enc_ctx *enc, od_img *img) {
-  od_state *state;
+static void od_img_copy_pad(od_img *dst, od_img *img) {
   int pli;
-  int nplanes;
-  state = &enc->state;
-  OD_ASSERT(enc->in_buff_ptr >= 0 &&
-   enc->in_buff_ptr < 1 + enc->b_frames);
-  nplanes = img->nplanes;
+  OD_ASSERT(dst->nplanes == img->nplanes);
   /* Copy and pad the image. */
-  for (pli = 0; pli < nplanes; pli++) {
-    int plane_width;
-    int plane_height;
+  for (pli = 0; pli < img->nplanes; pli++) {
     int xdec;
     int ydec;
     xdec = img->planes[pli].xdec;
     ydec = img->planes[pli].ydec;
-    plane_width = OD_PLANE_SZ(state->info.pic_width, xdec);
-    plane_height = OD_PLANE_SZ(state->info.pic_height, ydec);
-    od_img_plane_copy_pad(&enc->input_img[enc->in_buff_ptr],
-     state->frame_width >> xdec, state->frame_height >> ydec,
-     img, plane_width, plane_height, pli);
+    od_img_plane_copy_pad(dst, dst->width >> xdec, dst->height >> ydec,
+     img, (img->width + xdec) >> xdec, (img->height + ydec) >> ydec, pli);
   }
-  od_img_edge_ext(enc->input_img + enc->in_buff_ptr);
+  od_img_edge_ext(dst);
 }
 
 #if defined(OD_DUMP_IMAGES)
@@ -2805,7 +2794,9 @@ static void od_enc_push_input_buff_tail(daala_enc_ctx *enc, od_img *img) {
   if (enc->frames_in_buff == 1) {
     enc->in_buff_head = enc->in_buff_ptr;
   }
-  od_img_copy_pad(enc, img);
+  OD_ASSERT(enc->in_buff_ptr >= 0 &&
+   enc->in_buff_ptr < 1 + enc->b_frames);
+  od_img_copy_pad(&enc->input_img[enc->in_buff_ptr], img);
 }
 
 /*As an example, if # of B frames = 2,
@@ -2846,6 +2837,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration,
  int end_of_input, int *input_frames_left_encoder_buffer) {
   int refi;
   int nplanes;
+  daala_info *info;
   int pli;
   int frame_width;
   int frame_height;
@@ -2855,20 +2847,25 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration,
   od_mb_enc_ctx mbctx;
   od_img *ref_img;
   int frame_type;
-  if (enc == NULL || img == NULL || input_frames_left_encoder_buffer == NULL) {
+  OD_RETURN_CHECK(enc, OD_EFAULT);
+  OD_RETURN_CHECK(img, OD_EFAULT);
+  OD_RETURN_CHECK(duration >= 0, OD_EINVAL);
+  /* Verify that the image matches the encoder parameters */
+  info = &enc->state.info;
+  OD_RETURN_CHECK(img->width == info->pic_width, OD_EINVAL);
+  OD_RETURN_CHECK(img->height == info->pic_height, OD_EINVAL);
+  OD_RETURN_CHECK(img->nplanes == info->nplanes, OD_EINVAL);
+  for (pli = 0; pli < img->nplanes; pli++) {
+    OD_RETURN_CHECK(img->planes[pli].xdec == info->plane_info[pli].xdec,
+     OD_EINVAL);
+    OD_RETURN_CHECK(img->planes[pli].ydec == info->plane_info[pli].ydec,
+     OD_EINVAL);
+  }
+  if (input_frames_left_encoder_buffer == NULL) {
     return OD_EFAULT;
   }
   if (enc->packet_state == OD_PACKET_DONE) return OD_EINVAL;
-  /*Check the input image dimensions to make sure they're compatible with the
-     declared video size.*/
   nplanes = enc->state.info.nplanes;
-  if (img->nplanes != nplanes) return OD_EINVAL;
-  for (pli = 0; pli < nplanes; pli++) {
-    if (img->planes[pli].xdec != enc->state.info.plane_info[pli].xdec
-     || img->planes[pli].ydec != enc->state.info.plane_info[pli].ydec) {
-      return OD_EINVAL;
-    }
-  }
   /*Buffer the input frames up to frame delay.*/
   if (!end_of_input && (enc->b_frames == 0 ||
    enc->frames_in_buff < enc->frame_delay)) {
