@@ -2833,72 +2833,22 @@ static int od_enc_determine_frame_type(daala_enc_ctx *enc) {
   return frame_type;
 }
 
-int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration,
- int end_of_input, int *input_frames_left_encoder_buffer) {
+/*This function can only return an error code if the enc or img parameters
+   are NULL (should it be void then?).*/
+static int od_encode_frame(daala_enc_ctx *enc, od_img *img, int frame_type,
+ int duration, int frame_number) {
   int refi;
   int nplanes;
-  daala_info *info;
   int pli;
   int use_masking;
   od_mb_enc_ctx mbctx;
   od_img *ref_img;
-  int frame_type;
   OD_RETURN_CHECK(enc, OD_EFAULT);
   OD_RETURN_CHECK(img, OD_EFAULT);
-  OD_RETURN_CHECK(duration >= 0, OD_EINVAL);
-  /* Verify that the image matches the encoder parameters */
-  info = &enc->state.info;
-  OD_RETURN_CHECK(img->width == info->pic_width, OD_EINVAL);
-  OD_RETURN_CHECK(img->height == info->pic_height, OD_EINVAL);
-  OD_RETURN_CHECK(img->nplanes == info->nplanes, OD_EINVAL);
-  for (pli = 0; pli < img->nplanes; pli++) {
-    OD_RETURN_CHECK(img->planes[pli].xdec == info->plane_info[pli].xdec,
-     OD_EINVAL);
-    OD_RETURN_CHECK(img->planes[pli].ydec == info->plane_info[pli].ydec,
-     OD_EINVAL);
-  }
-  if (input_frames_left_encoder_buffer == NULL) {
-    return OD_EFAULT;
-  }
-  if (enc->packet_state == OD_PACKET_DONE) return OD_EINVAL;
   nplanes = enc->state.info.nplanes;
-  /*Buffer the input frames up to frame delay.*/
-  if (!end_of_input && (enc->b_frames == 0 ||
-   enc->frames_in_buff < enc->frame_delay)) {
-    od_enc_push_input_buff_tail(enc, img);
-#if defined(OD_DUMP_IMAGES)
-  if (od_logging_active(OD_LOG_GENERIC, OD_LOG_DEBUG)) {
-    od_img_dump_padded(enc);
-  }
-#endif
-  }
-  /*If buffer is not filled as required, don't proceed to encoding.*/
-  if (!end_of_input && enc->frames_in_buff < enc->frame_delay) {
-    return OD_SUCCESS;
-  }
-  if (end_of_input && enc->frames_in_buff <= 0) {
-    *input_frames_left_encoder_buffer = 0;
-    return OD_SUCCESS;
-  }
   use_masking = enc->use_activity_masking;
-  /*Determine a frame type.*/
-  frame_type = od_enc_determine_frame_type(enc);
-  /*If P frame or I with open GOP, the input frame is at the tail of
-    input frame buffer, otherwise input frame is at the head.*/
-  if (enc->b_frames > 0) {
-    if (frame_type == OD_P_FRAME ||
-     (!OD_CLOSED_GOP && frame_type == OD_I_FRAME &&
-     enc->enc_order_count != 0)) {
-      enc->curr_frame = od_enc_pop_input_buff_tail(enc);
-    }
-    else enc->curr_frame = od_enc_pop_input_buff_head(enc);
-  }
-  else {
-    enc->curr_frame = 0;
-    enc->frames_in_buff -= 1;
-  }
-  enc->curr_display_order = enc->in_imgs_id[enc->curr_frame];
-  enc->curr_img = &enc->input_img[enc->curr_frame];
+  enc->curr_img = img;
+  enc->curr_display_order = frame_number;
   /* Check if the frame should be a keyframe. */
   mbctx.is_keyframe = (frame_type == OD_I_FRAME) ? 1 : 0;
   /* B-frame cannot be a Golden frame.*/
@@ -3053,7 +3003,7 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration,
     od_img_edge_ext(ref_img);
   }
 #if defined(OD_DUMP_RECONS)
-  od_output_queue_add(&enc->out, ref_img, enc->curr_display_order);
+  od_output_queue_add(&enc->out, ref_img, frame_number);
   while (od_output_queue_has_next(&enc->out)) {
     od_output_frame *frame;
     frame = od_output_queue_next(&enc->out);
@@ -3098,7 +3048,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration,
   /*od_state_dump_img(&enc->state,
    enc->state.ref_img + enc->state.ref_imigi[OD_FRAME_SELF], "ref");*/
 #endif
-  *input_frames_left_encoder_buffer = enc->frames_in_buff;
   if (enc->state.info.frame_duration == 0) enc->state.cur_time += duration;
   else enc->state.cur_time += enc->state.info.frame_duration;
 #if defined(OD_DUMP_BSIZE_DIST)
@@ -3112,11 +3061,76 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration,
   fprintf(enc->bsize_dist_file, "\n");
 #endif
   OD_ASSERT(mbctx.is_keyframe == (frame_type == OD_I_FRAME));
-  enc->in_imgs_id[enc->curr_frame] = -1;
   ++enc->enc_order_count;
   if (frame_type == OD_I_FRAME || frame_type == OD_P_FRAME) {
     ++enc->ip_frame_count;
   }
+  return OD_SUCCESS;
+}
+
+int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration,
+ int end_of_input, int *input_frames_left_encoder_buffer) {
+  daala_info *info;
+  int pli;
+  int frame_type;
+  OD_RETURN_CHECK(enc, OD_EFAULT);
+  OD_RETURN_CHECK(img, OD_EFAULT);
+  OD_RETURN_CHECK(duration >= 0, OD_EINVAL);
+  /* Verify that the image matches the encoder parameters */
+  info = &enc->state.info;
+  OD_RETURN_CHECK(img->width == info->pic_width, OD_EINVAL);
+  OD_RETURN_CHECK(img->height == info->pic_height, OD_EINVAL);
+  OD_RETURN_CHECK(img->nplanes == info->nplanes, OD_EINVAL);
+  for (pli = 0; pli < img->nplanes; pli++) {
+    OD_RETURN_CHECK(img->planes[pli].xdec == info->plane_info[pli].xdec,
+     OD_EINVAL);
+    OD_RETURN_CHECK(img->planes[pli].ydec == info->plane_info[pli].ydec,
+     OD_EINVAL);
+  }
+  if (input_frames_left_encoder_buffer == NULL) {
+    return OD_EFAULT;
+  }
+  if (enc->packet_state == OD_PACKET_DONE) return OD_EINVAL;
+  /*Buffer the input frames up to frame delay.*/
+  if (!end_of_input && (enc->b_frames == 0 ||
+   enc->frames_in_buff < enc->frame_delay)) {
+    od_enc_push_input_buff_tail(enc, img);
+#if defined(OD_DUMP_IMAGES)
+  if (od_logging_active(OD_LOG_GENERIC, OD_LOG_DEBUG)) {
+    od_img_dump_padded(enc);
+  }
+#endif
+  }
+  /*If buffer is not filled as required, don't proceed to encoding.*/
+  if (!end_of_input && enc->frames_in_buff < enc->frame_delay) {
+    return OD_SUCCESS;
+  }
+  if (end_of_input && enc->frames_in_buff <= 0) {
+    *input_frames_left_encoder_buffer = 0;
+    return OD_SUCCESS;
+  }
+  /*Determine a frame type.*/
+  frame_type = od_enc_determine_frame_type(enc);
+  /*If P frame or I with open GOP, the input frame is at the tail of
+    input frame buffer, otherwise input frame is at the head.*/
+  if (enc->b_frames > 0) {
+    if (frame_type == OD_P_FRAME ||
+     (!OD_CLOSED_GOP && frame_type == OD_I_FRAME &&
+     enc->enc_order_count != 0)) {
+      enc->curr_frame = od_enc_pop_input_buff_tail(enc);
+    }
+    else enc->curr_frame = od_enc_pop_input_buff_head(enc);
+  }
+  else {
+    enc->curr_frame = 0;
+    enc->frames_in_buff -= 1;
+  }
+  enc->curr_display_order = enc->in_imgs_id[enc->curr_frame];
+  enc->curr_img = &enc->input_img[enc->curr_frame];
+  *input_frames_left_encoder_buffer = enc->frames_in_buff;
+  od_encode_frame(enc, &enc->input_img[enc->curr_frame], frame_type, duration,
+   enc->curr_display_order);
+  enc->in_imgs_id[enc->curr_frame] = -1;
   return 0;
 }
 
