@@ -2839,10 +2839,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration,
   int nplanes;
   daala_info *info;
   int pli;
-  int frame_width;
-  int frame_height;
-  int pic_width;
-  int pic_height;
   int use_masking;
   od_mb_enc_ctx mbctx;
   od_img *ref_img;
@@ -2885,18 +2881,6 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration,
     return OD_SUCCESS;
   }
   use_masking = enc->use_activity_masking;
-  frame_width = enc->state.frame_width;
-  frame_height = enc->state.frame_height;
-  pic_width = enc->state.info.pic_width;
-  pic_height = enc->state.info.pic_height;
-  if (img->width != frame_width || img->height != frame_height) {
-    /*The buffer does not match the frame size.
-      Check to see if it matches the picture size.*/
-    if (img->width != pic_width || img->height != pic_height) {
-      /*It doesn't; we don't know how to handle it yet.*/
-      return OD_EINVAL;
-    }
-  }
   /*Determine a frame type.*/
   frame_type = od_enc_determine_frame_type(enc);
   /*If P frame or I with open GOP, the input frame is at the tail of
