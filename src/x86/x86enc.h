@@ -50,4 +50,15 @@ int32_t od_mc_compute_satd8_32x32_sse2(const unsigned char *src, int systride,
 int32_t od_mc_compute_satd8_64x64_sse2(const unsigned char *src, int systride,
  const unsigned char *ref, int dystride);
 
+int32_t od_mc_compute_satd16_4x4_sse2(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride);
+int32_t od_mc_compute_satd16_8x8_sse2(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride);
+int32_t od_mc_compute_satd16_16x16_sse2(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride);
+int32_t od_mc_compute_satd16_32x32_sse2(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride);
+int32_t od_mc_compute_satd16_64x64_sse2(const unsigned char *src, int systride,
+ const unsigned char *ref, int dystride);
+
 #endif
