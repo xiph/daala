@@ -725,17 +725,6 @@ static void od_mc_predict1fmv16_horizontal_64x64(int32_t *buff_p,
 typedef void (*od_mc_predict1fmv16_horizontal_fixed_func)(int32_t *buff_p,
  const unsigned char *src_p, int systride, int mvxf, int mvyf);
 
-/*Found in this thread:
-   https://software.intel.com/en-us/forums/intel-c-compiler/topic/288768*/
-OD_SIMD_INLINE __m128i od_mm128i_mullo_epi32(const __m128i a, const __m128i b) {
-  __m128i prod0;
-  __m128i prod1;
-  prod0 = _mm_mul_epu32(a, b);
-  prod1 = _mm_mul_epu32(_mm_srli_si128(a, 4), _mm_srli_si128(b, 4));
-  return _mm_unpacklo_epi32(_mm_shuffle_epi32(prod0, _MM_SHUFFLE(0, 0, 2, 0)),
-   _mm_shuffle_epi32(prod1, _MM_SHUFFLE(0, 0, 2, 0)));
-}
-
 void od_mc_predict1fmv16_sse2(od_state *state, unsigned char *dst,
  const unsigned char *src, int systride, int32_t mvx, int32_t mvy,
  int log_xblk_sz, int log_yblk_sz) {
@@ -793,6 +782,18 @@ void od_mc_predict1fmv16_sse2(od_state *state, unsigned char *dst,
     /*2nd stage 1D filtering, Vertical.*/
     buff_p = buff + xblk_sz*OD_SUBPEL_TOP_APRON_SZ;
     if (mvyf) {
+      __m128i fy0;
+      __m128i fy1;
+      __m128i fy2;
+      __m128i fy3;
+      __m128i fy4;
+      __m128i fy5;
+      fy0 = _mm_set1_epi32(fy[0]);
+      fy1 = _mm_set1_epi32(fy[1]);
+      fy2 = _mm_set1_epi32(fy[2]);
+      fy3 = _mm_set1_epi32(fy[3]);
+      fy4 = _mm_set1_epi32(fy[4]);
+      fy5 = _mm_set1_epi32(fy[5]);
       for (j = 0; j < yblk_sz; j++) {
         for (i = 0; i < xblk_sz; i += 4) {
           __m128i row0;
@@ -801,9 +802,8 @@ void od_mc_predict1fmv16_sse2(od_state *state, unsigned char *dst,
           __m128i row3;
           __m128i row4;
           __m128i row5;
-          __m128i sums01;
-          __m128i sums23;
-          __m128i sums45;
+          __m128i sums_even;
+          __m128i sums_odd;
           __m128i sums;
           __m128i out;
           OD_ASSERT((buff_p + i + ((0 - OD_SUBPEL_TOP_APRON_SZ)*xblk_sz) + 15)
@@ -831,19 +831,33 @@ void od_mc_predict1fmv16_sse2(od_state *state, unsigned char *dst,
            (buff_p + i + (4 - OD_SUBPEL_TOP_APRON_SZ)*(1 << log_xblk_sz)));
           row5 = _mm_loadu_si128((__m128i *)
            (buff_p + i + (5 - OD_SUBPEL_TOP_APRON_SZ)*(1 << log_xblk_sz)));
-          /*Multiply each row with the cooresponding filter value.*/
-          row0 = od_mm128i_mullo_epi32(row0, _mm_set1_epi32(fy[0]));
-          row1 = od_mm128i_mullo_epi32(row1, _mm_set1_epi32(fy[1]));
-          row2 = od_mm128i_mullo_epi32(row2, _mm_set1_epi32(fy[2]));
-          row3 = od_mm128i_mullo_epi32(row3, _mm_set1_epi32(fy[3]));
-          row4 = od_mm128i_mullo_epi32(row4, _mm_set1_epi32(fy[4]));
-          row5 = od_mm128i_mullo_epi32(row5, _mm_set1_epi32(fy[5]));
-          /*Sum together all the products.*/
-          sums01 = _mm_add_epi32(row0, row1);
-          sums23 = _mm_add_epi32(row2, row3);
-          sums45 = _mm_add_epi32(row4, row5);
-          sums = _mm_add_epi32(sums01, sums23);
-          sums = _mm_add_epi32(sums, sums45);
+          /*Multiply each row with the cooresponding filter value and add
+             the products together.
+            Products and product sums are split into even and odd groups due
+             the use of _mm_mul_epu32.*/
+          sums_even = _mm_mul_epu32(row0, fy0);
+          sums_odd = _mm_mul_epu32(_mm_srli_si128(row0, 4), fy0);
+          sums_even = _mm_add_epi32(sums_even, _mm_mul_epu32(row1, fy1));
+          sums_odd = _mm_add_epi32(sums_odd,
+           _mm_mul_epu32(_mm_srli_si128(row1, 4), fy1));
+          sums_even = _mm_add_epi32(sums_even, _mm_mul_epu32(row2, fy2));
+          sums_odd = _mm_add_epi32(sums_odd,
+           _mm_mul_epu32(_mm_srli_si128(row2, 4), fy2));
+          sums_even = _mm_add_epi32(sums_even, _mm_mul_epu32(row3, fy3));
+          sums_odd = _mm_add_epi32(sums_odd,
+           _mm_mul_epu32(_mm_srli_si128(row3, 4), fy3));
+          sums_even = _mm_add_epi32(sums_even, _mm_mul_epu32(row4, fy4));
+          sums_odd = _mm_add_epi32(sums_odd,
+           _mm_mul_epu32(_mm_srli_si128(row4, 4), fy4));
+          sums_even = _mm_add_epi32(sums_even, _mm_mul_epu32(row5, fy5));
+          sums_odd = _mm_add_epi32(sums_odd,
+           _mm_mul_epu32(_mm_srli_si128(row5, 4), fy5));
+          /*Combine the even and odd product sums.
+            Found in this thread:
+             software.intel.com/en-us/forums/intel-c-compiler/topic/288768*/
+          sums = _mm_unpacklo_epi32(
+           _mm_shuffle_epi32(sums_even, _MM_SHUFFLE(0, 0, 2, 0)),
+           _mm_shuffle_epi32(sums_odd, _MM_SHUFFLE(0, 0, 2, 0)));
           /*Scale down while rounding and recenter.*/
           sums = _mm_add_epi32(sums,
            _mm_set1_epi32((1 << OD_SUBPEL_COEFF_SCALE2 >> 1) +
