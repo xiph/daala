@@ -633,7 +633,7 @@ int main(int argc, char **argv) {
   int video_ready;
   int pli;
   int fixedserial;
-  unsigned int serial;
+  int serial;
   int skip;
   int limit;
   int complexity;
@@ -730,7 +730,7 @@ int main(int argc, char **argv) {
         break;
       }
       case 's': {
-        if (sscanf(optarg, "%u", &serial) != 1) {
+        if (sscanf(optarg, "%i", &serial) != 1) {
           serial = 0;
         }
         else {
