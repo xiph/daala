@@ -3125,11 +3125,9 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration,
     enc->curr_frame = 0;
     enc->frames_in_buff -= 1;
   }
-  enc->curr_display_order = enc->in_imgs_id[enc->curr_frame];
-  enc->curr_img = &enc->input_img[enc->curr_frame];
   *input_frames_left_encoder_buffer = enc->frames_in_buff;
   od_encode_frame(enc, &enc->input_img[enc->curr_frame], frame_type, duration,
-   enc->curr_display_order);
+   enc->in_imgs_id[enc->curr_frame]);
   enc->in_imgs_id[enc->curr_frame] = -1;
   return 0;
 }
