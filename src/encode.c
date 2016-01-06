@@ -369,19 +369,7 @@ od_input_frame *od_input_queue_next(od_input_queue *this, int *last) {
 
 static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
   int i;
-  int pli;
-  od_img *img;
-  od_img_plane *iplane;
-  size_t data_sz;
-  unsigned char *input_img_data;
-  int frame_buf_width;
-  int frame_buf_height;
-  int plane_buf_width;
-  int plane_buf_height;
-  int reference_bytes;
-  int reference_bits;
   int ret;
-  int imgi;
 #if defined(OD_DUMP_BSIZE_DIST)
   char dist_fname[1024];
   const char *suf;
@@ -412,23 +400,27 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
   enc->b_frames = 0;
   enc->frame_delay = enc->b_frames + 1;
   od_input_queue_init(&enc->input_queue, enc);
-  data_sz = 0;
-  reference_bytes = enc->state.info.full_precision_references ? 2 : 1;
-  reference_bits =
-   enc->state.info.full_precision_references ? 8 + OD_COEFF_SHIFT : 8;
 #if defined(OD_DUMP_RECONS)
   od_output_queue_init(&enc->out, &enc->state);
 #endif
+#if defined(OD_DUMP_IMAGES)
+  {
+  int pli;
+  od_img *img;
+  od_img_plane *iplane;
+  size_t data_sz;
+  unsigned char *dump_img_data;
+  int frame_buf_width;
+  int frame_buf_height;
+  int plane_buf_width;
+  int plane_buf_height;
+  data_sz = 0;
   /*TODO: Check for overflow before allocating.*/
   frame_buf_width = enc->state.frame_width + (OD_BUFFER_PADDING << 1);
   frame_buf_height = enc->state.frame_height + (OD_BUFFER_PADDING << 1);
   for (pli = 0; pli < info->nplanes; pli++) {
     plane_buf_width = frame_buf_width >> info->plane_info[pli].xdec;
     plane_buf_height = frame_buf_height >> info->plane_info[pli].ydec;
-    /*Reserve space for input plane buffer.*/
-    data_sz += plane_buf_width*plane_buf_height*(1 + OD_MAX_B_FRAMES)
-     *reference_bytes;
-#if defined(OD_DUMP_IMAGES)
     /*Reserve space for this plane in 1 visualization image.*/
     data_sz += plane_buf_width*plane_buf_height << 2;
     /*Reserve space for this plane in 1 temporary image used to obtain
@@ -437,43 +429,16 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
     /*Reserve space for the line buffer in the up-sampler.*/
     /*Upsampler is vis-only and always runs at 8 bits.*/
     data_sz += (frame_buf_width << 1) * 8;
-#endif
   }
-  enc->input_img_data = input_img_data =
+  enc->dump_img_data = dump_img_data =
     (unsigned char *)od_aligned_malloc(data_sz, 32);
-  if (OD_UNLIKELY(!input_img_data)) {
+  if (OD_UNLIKELY(!dump_img_data)) {
     return OD_EFAULT;
   }
-  /*Fill in the input img structure.*/
-  for (imgi = 0; imgi < (1 + OD_MAX_B_FRAMES); imgi++) {
-    img = enc->input_img + imgi;
-    img->nplanes = info->nplanes;
-    img->width = enc->state.frame_width;
-    img->height = enc->state.frame_height;
-    for (pli = 0; pli < img->nplanes; pli++) {
-      plane_buf_width = frame_buf_width >> info->plane_info[pli].xdec;
-      plane_buf_height = frame_buf_height >> info->plane_info[pli].ydec;
-      iplane = img->planes + pli;
-      iplane->xdec = info->plane_info[pli].xdec;
-      iplane->ydec = info->plane_info[pli].ydec;
-      iplane->bitdepth = reference_bits;
-      /*Internal buffers are always planar.*/
-      iplane->xstride = reference_bytes;
-      iplane->ystride = plane_buf_width*iplane->xstride;
-      iplane->data = input_img_data
-       + iplane->xstride*(OD_BUFFER_PADDING >> info->plane_info[pli].xdec)
-       + iplane->ystride*(OD_BUFFER_PADDING >> info->plane_info[pli].ydec);
-      input_img_data += plane_buf_height*iplane->ystride;
-    }
-  }
-#if defined(OD_DUMP_IMAGES)
   /*Fill in the line buffers.*/
-  {
-    int y;
-    for (y = 0; y < 8; y++) {
-      enc->upsample_line_buf[y] = input_img_data + (OD_BUFFER_PADDING << 1);
-      input_img_data += frame_buf_width << 1;
-    }
+  for (i = 0; i < 8; i++) {
+    enc->upsample_line_buf[i] = dump_img_data + (OD_BUFFER_PADDING << 1);
+    dump_img_data += frame_buf_width << 1;
   }
   /*Fill in the visualization image structure.*/
   img = &enc->vis_img;
@@ -484,8 +449,8 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
     iplane = img->planes + pli;
     plane_buf_width = img->width >> info->plane_info[pli].xdec;
     plane_buf_height = img->height >> info->plane_info[pli].ydec;
-    iplane->data = input_img_data;
-    input_img_data += plane_buf_width*plane_buf_height;
+    iplane->data = dump_img_data;
+    dump_img_data += plane_buf_width*plane_buf_height;
     iplane->xdec = info->plane_info[pli].xdec;
     iplane->ydec = info->plane_info[pli].ydec;
     iplane->bitdepth = 8;
@@ -501,13 +466,14 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
     iplane = img->planes + pli;
     plane_buf_width = img->width >> info->plane_info[pli].xdec;
     plane_buf_height = img->height >> info->plane_info[pli].ydec;
-    iplane->data = input_img_data;
-    input_img_data += plane_buf_width*plane_buf_height;
+    iplane->data = dump_img_data;
+    dump_img_data += plane_buf_width*plane_buf_height;
     iplane->xdec = info->plane_info[pli].xdec;
     iplane->ydec = info->plane_info[pli].ydec;
     iplane->bitdepth = 8;
     iplane->xstride = 1;
     iplane->ystride = plane_buf_width;
+  }
   }
 #endif
   enc->curr_frame = 0;
@@ -541,7 +507,9 @@ static void od_enc_clear(od_enc_ctx *enc) {
   od_ec_enc_clear(&enc->ec);
   oggbyte_writeclear(&enc->obb);
   od_input_queue_clear(&enc->input_queue);
-  od_aligned_free(enc->input_img_data);
+#if defined(OD_DUMP_IMAGES)
+  od_aligned_free(enc->dump_img_data);
+#endif
 #if defined(OD_DUMP_RECONS)
   od_output_queue_clear(&enc->out);
 #endif
@@ -712,7 +680,7 @@ int daala_encode_ctl(daala_enc_ctx *enc, int req, void *buf, size_t buf_sz) {
       OD_RETURN_CHECK(buf, OD_EFAULT);
       OD_RETURN_CHECK(buf_sz == sizeof(enc->b_frames), OD_EINVAL);
       b_frames = *(const int *)buf;
-      if (b_frames < 0 || b_frames > OD_MAX_B_FRAMES) return OD_EINVAL;
+      if (b_frames < 0 || b_frames > OD_MAX_REORDER - 1) return OD_EINVAL;
       enc->b_frames = b_frames;
       enc->frame_delay = enc->b_frames + 1;
       enc->input_queue.frame_delay = enc->frame_delay;

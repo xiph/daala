@@ -167,9 +167,6 @@ struct daala_enc_ctx{
   od_input_queue input_queue;
   /* A pointer to the currently encoding image. */
   od_img *curr_img;
-  /* Buffer for the input frame, scaled to reference resolution. */
-  od_img input_img[1 + OD_MAX_B_FRAMES];
-  unsigned char *input_img_data;
   /** Frame delay. */
   int frame_delay;
   /** Displaying order of current frame being encoded. */
@@ -182,6 +179,7 @@ struct daala_enc_ctx{
   od_output_queue out;
 #endif
 #if defined(OD_DUMP_IMAGES)
+  unsigned char *dump_img_data;
   od_img vis_img;
   od_img tmp_vis_img;
   unsigned char *upsample_line_buf[8];
