@@ -47,9 +47,9 @@ struct daala_dec_ctx {
   unsigned int *user_flags;
   int user_fstride;
   od_mv_grid_pt *user_mv_grid;
-  od_img *user_mc_img;
+  daala_image *user_mc_img;
   /*Buffer for the output frames, bitdepth equal to declared video depth.*/
-  od_img output_img[2];
+  daala_image output_img[2];
   unsigned char *output_img_data;
   /*Frame counter in decoding order.*/
   int64_t dec_order_count;

@@ -38,8 +38,8 @@ extern "C" {
 #define OD_DECCTL_SET_BSIZE_BUFFER (7001)
 #define OD_DECCTL_SET_FLAGS_BUFFER (7003)
 #define OD_DECCTL_SET_MV_BUFFER    (7005)
-/** Copy the motion compensated reference into a user supplied od_img.
- * \param[in]  <tt>od_img*</tt>: Pointer to the user supplied od_img.
+/** Copy the motion compensated reference into a user supplied daala_image.
+ * \param[in]  <tt>daala_image*</tt>: Pointer to the user supplied daala_image.
  *              Image must be allocated by the caller, and must be the
  *              same format as the decoder output images. */
 #define OD_DECCTL_SET_MC_IMG       (7007)
@@ -195,7 +195,7 @@ int daala_decode_packet_in(daala_dec_ctx *dec, const daala_packet *dp);
  * \retval 0 No image was available, so the contents of \a img were left
  *            unchanged.
  * \retval OD_EFAULT One of \a dec or \a img was <tt>NULL</tt>.*/
-int daala_decode_img_out(daala_dec_ctx *dec, od_img *img);
+int daala_decode_img_out(daala_dec_ctx *dec, daala_image *img);
 
 /*@}*/
 

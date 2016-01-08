@@ -89,9 +89,9 @@ void od_aligned_free(void *_ptr) {
   Note that this copy performs clamping as it's only used for copying into
    and out of the codec, not for internal reference->reference copies.
   Does not touch any padding/border/unintersected area.*/
-void od_img_plane_copy(od_img* dst, od_img* src, int pli) {
-  od_img_plane *dst_plane;
-  od_img_plane *src_plane;
+void od_img_plane_copy(daala_image* dst, daala_image* src, int pli) {
+  daala_image_plane *dst_plane;
+  daala_image_plane *src_plane;
   unsigned char *dst_data;
   unsigned char *src_data;
   int dst_xstride;
@@ -216,11 +216,11 @@ void od_img_plane_copy(od_img* dst, od_img* src, int pli) {
   }
 }
 
-/*This is a smart copy that copies the intersection of the two od_img
+/*This is a smart copy that copies the intersection of the two daala_image
    and performs any needed bitdepth conversion.
   Does not touch any padding/border/unintersected area, nor unintersected
    planes.*/
-void od_img_copy(od_img* dst, od_img* src) {
+void od_img_copy(daala_image* dst, daala_image* src) {
   int pli;
   for (pli = 0; pli < OD_MINI(dst->nplanes, src->nplanes); pli++) {
     od_img_plane_copy(dst, src, pli);
@@ -235,8 +235,8 @@ void od_img_copy(od_img* dst, od_img* src) {
    appropriate factor on the appropriate sides.*/
 static int od_state_ref_imgs_init(od_state *state, int nrefs) {
   daala_info *info;
-  od_img *img;
-  od_img_plane *iplane;
+  daala_image *img;
+  daala_image_plane *iplane;
   unsigned char *ref_img_data;
   size_t data_sz;
   int frame_buf_width;
@@ -627,7 +627,7 @@ const int *const OD_VERT_SETUP_DY[4][4] = {
 void od_state_pred_block_from_setup(od_state *state,
  unsigned char *buf, int ystride, int pli,
  int vx, int vy, int oc, int s, int log_mvb_sz) {
-  od_img_plane *iplane;
+  daala_image_plane *iplane;
   od_mv_grid_pt *grid[4];
   int32_t mvx[4];
   int32_t mvy[4];
@@ -677,7 +677,7 @@ void od_state_pred_block(od_state *state,
   half_mvb_sz = 1 << log_mvb_sz >> 1;
   if (log_mvb_sz > 0
    && state->mv_grid[vy + half_mvb_sz][vx + half_mvb_sz].valid) {
-    od_img_plane *iplane;
+    daala_image_plane *iplane;
     int half_xblk_sz;
     int half_yblk_sz;
     iplane = state->ref_imgs[state->ref_imgi[OD_FRAME_PREV]].planes + pli;
@@ -721,7 +721,7 @@ void od_state_pred_block(od_state *state,
   }
 }
 
-int od_state_dump_yuv(od_state *state, od_img *img, const char *tag) {
+int od_state_dump_yuv(od_state *state, daala_image *img, const char *tag) {
   static const char *CHROMA_TAGS[4] = {
     " C420jpeg", "", " C422jpeg", " C444"
   };
@@ -825,7 +825,7 @@ int od_state_dump_yuv(od_state *state, od_img *img, const char *tag) {
   (((int16_t *)p[(pli)])[(x)]*(1.0F/(1 << (img->planes[pli].bitdepth - 8)))))
 
 /*Dump a PNG of the reconstructed image, or a reference frame.*/
-int od_state_dump_img(od_state *state, od_img *img, const char *tag) {
+int od_state_dump_img(od_state *state, daala_image *img, const char *tag) {
   png_structp png;
   png_infop info;
   png_bytep *data;
@@ -928,7 +928,7 @@ int od_state_dump_img(od_state *state, od_img *img, const char *tag) {
 }
 #endif
 
-void od_state_mc_predict(od_state *state, od_img *img_dst) {
+void od_state_mc_predict(od_state *state, daala_image *img_dst) {
   int nhmvbs;
   int nvmvbs;
   int pli;
@@ -939,7 +939,7 @@ void od_state_mc_predict(od_state *state, od_img *img_dst) {
   for (vy = 0; vy < nvmvbs; vy += OD_MVB_DELTA0) {
     for (vx = 0; vx < nhmvbs; vx += OD_MVB_DELTA0) {
       for (pli = 0; pli < img_dst->nplanes; pli++) {
-        od_img_plane *iplane_dst;
+        daala_image_plane *iplane_dst;
         int blk_x;
         int blk_y;
         int xstride;
@@ -1035,7 +1035,7 @@ double daala_granule_time(void *encdec, int64_t granpos) {
 /*This is used on internal and thus planar buffers only.
   We can assume depth == 8 implies xstride == 1 and depth > 8 implies
    xstride == 2.*/
-static void od_img_plane_edge_ext(od_img_plane *dst_p,
+static void od_img_plane_edge_ext(daala_image_plane *dst_p,
  int plane_width, int plane_height, int horz_padding, int vert_padding) {
   ptrdiff_t xstride;
   ptrdiff_t ystride;
@@ -1096,7 +1096,7 @@ static void od_img_plane_edge_ext(od_img_plane *dst_p,
   }
 }
 
-void od_img_edge_ext(od_img* src) {
+void od_img_edge_ext(daala_image* src) {
   int pli;
   for (pli = 0; pli < src->nplanes; pli++) {
     int xdec;
@@ -1137,7 +1137,7 @@ int od_output_queue_init(od_output_queue *this, od_state *state) {
   }
   /* Fill in the output img structure. */
   for (imgi = 0; imgi < OD_MAX_REORDER; imgi++) {
-    od_img *img;
+    daala_image *img;
     img = &this->images[imgi];
     img->nplanes = info->nplanes;
     img->width = state->frame_width;
@@ -1145,7 +1145,7 @@ int od_output_queue_init(od_output_queue *this, od_state *state) {
     for (pli = 0; pli < img->nplanes; pli++) {
       int plane_width;
       int plane_height;
-      od_img_plane *iplane;
+      daala_image_plane *iplane;
       iplane = &img->planes[pli];
       iplane->xdec = info->plane_info[pli].xdec;
       iplane->ydec = info->plane_info[pli].ydec;
@@ -1169,7 +1169,7 @@ void od_output_queue_clear(od_output_queue *this) {
   od_aligned_free(this->output_img_data);
 }
 
-int od_output_queue_add(od_output_queue *this, od_img *img, int number) {
+int od_output_queue_add(od_output_queue *this, daala_image *img, int number) {
   od_output_frame frame;
   int index;
   OD_RETURN_CHECK(this, OD_EFAULT);
@@ -1241,7 +1241,7 @@ int od_state_pop_output_buff_tail(od_state *state) {
   return tail;
 }
 
-/*General purpose reference od_img block to coefficient block
+/*General purpose reference daala_image block to coefficient block
   conversion routine.*/
 void od_ref_buf_to_coeff(od_state *state,
  od_coeff *dst, int dst_ystride, int lossless_p,
@@ -1287,8 +1287,8 @@ void od_ref_buf_to_coeff(od_state *state,
 /*Convenience version of the general reference->coeff copying routine
    for a whole-visible-buffer copy.*/
 void od_ref_plane_to_coeff(od_state *state, od_coeff *dst, int lossless_p,
- od_img *src, int pli) {
-  od_img_plane *iplane;
+ daala_image *src, int pli) {
+  daala_image_plane *iplane;
   int xdec;
   int ydec;
   int h;
@@ -1306,7 +1306,7 @@ void od_ref_plane_to_coeff(od_state *state, od_coeff *dst, int lossless_p,
    iplane->data, src_xstride, src_ystride, w, h);
 }
 
-/*General purpose coefficient block to reference od_img block
+/*General purpose coefficient block to reference daala_image block
   conversion routine.*/
 void od_coeff_to_ref_buf(od_state *state,
  unsigned char *dst, int dst_xstride, int dst_ystride,
@@ -1354,9 +1354,9 @@ void od_coeff_to_ref_buf(od_state *state,
 
 /*Convenience version of the general coeff->reference copying routine
    for a whole-visible-buffer copy.*/
-void od_coeff_to_ref_plane(od_state *state, od_img *dst, int pli,
+void od_coeff_to_ref_plane(od_state *state, daala_image *dst, int pli,
  od_coeff *src, int lossless_p) {
-  od_img_plane *iplane;
+  daala_image_plane *iplane;
   int xdec;
   int ydec;
   int h;

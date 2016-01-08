@@ -91,7 +91,7 @@ private:
   bool readPacket(ogg_packet *packet);
   bool readHeaders();
 public:
-  od_img img;
+  daala_image img;
   int frame;
 
   DaalaDecoder();
@@ -609,7 +609,7 @@ ogg_int64_t block_edge_luma(ogg_int64_t yval) {
 }
 
 void TestPanel::render() {
-  od_img *img = &dd.img;
+  daala_image *img = &dd.img;
   /* Assume both chroma planes are decimated the same */
   int xdec = img->planes[1].xdec;
   int ydec = img->planes[1].ydec;
@@ -1082,7 +1082,7 @@ void TestPanel::onMouseMotion(wxMouseEvent& event) {
   int col = mouse_x/zoom;
   if (row >= 0 && col >= 0 && row < getDecodeHeight()
    && col < getDecodeWidth()) {
-    const od_img_plane *planes = dd.img.planes;
+    const daala_image_plane *planes = dd.img.planes;
     /* Assume both chroma planes are decimated the same */
     int xdec = planes[1].xdec;
     int ydec = planes[1].ydec;

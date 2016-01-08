@@ -49,7 +49,7 @@ void od_state_opt_vtbl_init_x86(od_state *_state){
   }
   else {
     /*8 bit assembly for those functions that work directly on 8-bit
-      od_img and reference buffers.*/
+      daala_image and reference buffers.*/
     if (_state->cpu_flags&OD_CPU_X86_SSE2) {
 #if defined(OD_GCC_INLINE_ASSEMBLY)
       _state->opt_vtbl.mc_blend_full = od_mc_blend_full8_sse2;

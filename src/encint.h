@@ -94,7 +94,7 @@ struct od_params_ctx {
 };
 
 struct od_input_frame {
-  od_img *img;
+  daala_image *img;
   int duration;
   int type;
   int number;
@@ -105,7 +105,7 @@ struct od_input_queue {
   unsigned char *input_img_data;
 
   /* Circular queue of frame input images in display order. */
-  od_img images[OD_MAX_REORDER];
+  daala_image images[OD_MAX_REORDER];
   int duration[OD_MAX_REORDER];
   int input_head;
   int input_size;
@@ -166,7 +166,7 @@ struct daala_enc_ctx{
       P-frame specified by enc->b_frames.*/
   od_input_queue input_queue;
   /* A pointer to the currently encoding image. */
-  od_img *curr_img;
+  daala_image *curr_img;
   /** Frame delay. */
   int frame_delay;
   /** Displaying order of current frame being encoded. */
@@ -180,8 +180,8 @@ struct daala_enc_ctx{
 #endif
 #if defined(OD_DUMP_IMAGES)
   unsigned char *dump_img_data;
-  od_img vis_img;
-  od_img tmp_vis_img;
+  daala_image vis_img;
+  daala_image tmp_vis_img;
   unsigned char *upsample_line_buf[8];
 # if defined(OD_ANIMATE)
   int ani_iter;
@@ -250,7 +250,7 @@ void od_enc_opt_vtbl_init_c(od_enc_ctx *enc);
 
 # if defined(OD_DUMP_IMAGES)
 void od_encode_fill_vis(daala_enc_ctx *enc);
-void od_img_draw_line(od_img *img, int x0, int y0, int x1, int y1,
+void daala_image_draw_line(daala_image *img, int x0, int y0, int x1, int y1,
  const unsigned char ycbcr[3]);
 void od_state_draw_mvs(daala_enc_ctx *enc);
 # endif

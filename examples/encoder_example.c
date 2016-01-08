@@ -57,7 +57,7 @@ struct av_input{
   char video_chroma_type[16];
   int video_nplanes;
   daala_plane_info video_plane_info[OD_NPLANES_MAX];
-  od_img video_img;
+  daala_image video_img;
   int video_cur_img;
   int video_depth;
   int video_swapendian;
@@ -171,7 +171,7 @@ static int y4m_parse_tags(av_input *avin, char *tags) {
 }
 
 static void id_y4m_file(av_input *avin, const char *file, FILE *test) {
-  od_img *img;
+  daala_image *img;
   unsigned char buf[128];
   int ret;
   int pli;
@@ -374,7 +374,7 @@ static void id_y4m_file(av_input *avin, const char *file, FILE *test) {
   img->width = avin->video_pic_w;
   img->height = avin->video_pic_h;
   for (pli = 0; pli < img->nplanes; pli++) {
-    od_img_plane *iplane;
+    daala_image_plane *iplane;
     iplane = img->planes + pli;
     iplane->xdec = avin->video_plane_info[pli].xdec;
     iplane->ydec = avin->video_plane_info[pli].ydec;
@@ -430,7 +430,7 @@ static int fetch(av_input *avin, int *limit, int *skip) {
   for (;;) {
     size_t ret;
     char frame[6];
-    od_img *img;
+    daala_image *img;
     int pli;
     ret = fread(frame, 1, 6, avin->video_infile);
     if (ret != 6) {
@@ -454,7 +454,7 @@ static int fetch(av_input *avin, int *limit, int *skip) {
     /*Read the frame data.*/
     img = &avin->video_img;
     for (pli = 0; pli < img->nplanes; pli++) {
-      od_img_plane *iplane;
+      daala_image_plane *iplane;
       int bytes;
       size_t plane_sz;
       iplane = &img->planes[pli];

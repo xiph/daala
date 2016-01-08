@@ -87,7 +87,7 @@ static void sigint_handler(int signal) {
 }
 
 /*Write out the planar YUV frame, uncropped.*/
-static void video_write(FILE *outfile, od_img *img, int raw) {
+static void video_write(FILE *outfile, daala_image *img, int raw) {
   int pli;
   int i;
   if (outfile) {
@@ -173,7 +173,7 @@ int main(int argc, char *argv[]) {
   daala_comment dc;
   daala_setup_info *ds;
   daala_dec_ctx *dd;
-  od_img img;
+  daala_image img;
   const char *optstring = "o:r";
   struct option options [] = {
    { "output", required_argument, NULL, 'o' },

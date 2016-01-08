@@ -51,7 +51,7 @@ typedef struct {
   ogg_stream_state os;
   daala_dec_ctx *dctx;
   SDL_Texture *texture;
-  od_img img;
+  daala_image img;
   int width;
   int height;
   int done;
@@ -89,7 +89,7 @@ enum {
 };
 
 static void img_to_rgb(player_example *player, SDL_Texture *tex,
- const od_img *img, int plane_mask);
+ const daala_image *img, int plane_mask);
 static int next_plane(int plane_mask);
 static void wait_to_refresh(uint32_t *previous_ticks, uint32_t ms_per_frame);
 
@@ -587,7 +587,7 @@ void build_yuv_to_rgb_table(player_example *player) {
 }
 
 void img_to_rgb(player_example *player, SDL_Texture *texture,
- const od_img *img, int plane_mask) {
+ const daala_image *img, int plane_mask) {
   unsigned char *y_row;
   unsigned char *cb_row;
   unsigned char *cr_row;
@@ -620,7 +620,7 @@ void img_to_rgb(player_example *player, SDL_Texture *texture,
     exit(1);
   }
   /*The texture memory is only allocated for the cropped frame.  The
-    od_img is rounded up to superblock. */
+    daala_image is rounded up to superblock. */
   if(SDL_QueryTexture(texture, NULL, NULL, &width, &height)){
     fprintf(stderr, "Couldn't query video texture!");
     exit(1);

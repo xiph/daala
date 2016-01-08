@@ -234,13 +234,13 @@ static int od_input_queue_init(od_input_queue *this, od_enc_ctx *enc) {
   }
   /*Fill in the input img structure.*/
   for (imgi = 0; imgi < OD_MAX_REORDER; imgi++) {
-    od_img *img;
+    daala_image *img;
     img = &this->images[imgi];
     img->nplanes = info->nplanes;
     img->width = state->frame_width;
     img->height = state->frame_height;
     for (pli = 0; pli < img->nplanes; pli++) {
-      od_img_plane *iplane;
+      daala_image_plane *iplane;
       int plane_buf_width;
       int plane_buf_height;
       iplane = &img->planes[pli];
@@ -276,9 +276,9 @@ static void od_input_queue_clear(od_input_queue *this) {
   od_aligned_free(this->input_img_data);
 }
 
-static void od_img_copy_pad(od_img *dst, od_img *img);
+static void daala_image_copy_pad(daala_image *dst, daala_image *img);
 
-static int od_input_queue_add(od_input_queue *this, od_img *img,
+static int od_input_queue_add(od_input_queue *this, daala_image *img,
  int duration) {
   int index;
   OD_RETURN_CHECK(this, OD_EFAULT);
@@ -289,7 +289,7 @@ static int od_input_queue_add(od_input_queue *this, od_img *img,
   /* If the input buffer is full, adding a frame is an error. */
   OD_RETURN_CHECK(this->input_size < OD_MAX_REORDER, OD_EINVAL);
   index = OD_REORDER_INDEX(this->input_head + this->input_size);
-  od_img_copy_pad(&this->images[index], img);
+  daala_image_copy_pad(&this->images[index], img);
   this->duration[index] = duration;
   this->input_size++;
   return OD_SUCCESS;
@@ -406,8 +406,8 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
 #if defined(OD_DUMP_IMAGES)
   {
   int pli;
-  od_img *img;
-  od_img_plane *iplane;
+  daala_image *img;
+  daala_image_plane *iplane;
   size_t data_sz;
   unsigned char *dump_img_data;
   int frame_buf_width;
@@ -700,10 +700,10 @@ void od_encode_rollback(daala_enc_ctx *enc, const od_rollback_buffer *rbuf) {
   OD_COPY(&enc->state.adapt, &rbuf->adapt, 1);
 }
 
-static void od_img_plane_copy_pad(od_img *dst,
- int plane_width, int plane_height, od_img *src,
+static void od_img_plane_copy_pad(daala_image *dst,
+ int plane_width, int plane_height, daala_image *src,
  int pic_width, int pic_height, int pli) {
-  od_img_plane *dst_p;
+  daala_image_plane *dst_p;
   unsigned char *dst_data;
   int dst_xstride;
   int dst_ystride;
@@ -1820,7 +1820,7 @@ static void od_encode_mv(daala_enc_ctx *enc, int num_refs, od_mv_grid_pt *mvg,
   if (abs(oy)) od_ec_enc_bits(&enc->ec, oy < 0, 1);
 }
 
-static void od_img_copy_pad(od_img *dst, od_img *img) {
+static void daala_image_copy_pad(daala_image *dst, daala_image *img) {
   int pli;
   OD_ASSERT(dst->nplanes == img->nplanes);
   /* Copy and pad the image. */
@@ -1852,12 +1852,12 @@ static const unsigned char OD_YCbCr_MV1[3] = {81, 0, 0};
 /*Upsamples the reconstructed image (any depth) to an 8-bit reference image.
   Output img is 2x larger in both horizontal and vertical dimensions.
   TODO: Pipeline with reconstruction.*/
-static void od_img_upsample8(daala_enc_ctx *enc, od_img *dimg,
- const od_img *simg) {
+static void daala_image_upsample8(daala_enc_ctx *enc, daala_image *dimg,
+ const daala_image *simg) {
   int pli;
   for (pli = 0; pli < simg->nplanes; pli++) {
-    const od_img_plane *siplane;
-    od_img_plane *diplane;
+    const daala_image_plane *siplane;
+    daala_image_plane *diplane;
     const unsigned char *src;
     unsigned char *dst;
     int xpad;
@@ -1988,7 +1988,7 @@ static void od_img_upsample8(daala_enc_ctx *enc, od_img *dimg,
   }
 }
 
-static void od_img_draw_point(od_img *img, int x, int y,
+static void daala_image_draw_point(daala_image *img, int x, int y,
  const unsigned char ycbcr[3]) {
   if (x < 0 || y < 0 || x >= img->width || y >= img->height) return;
   *(img->planes[0].data + img->planes[0].ystride*(y >> img->planes[0].ydec)
@@ -2001,7 +2001,7 @@ static void od_img_draw_point(od_img *img, int x, int y,
   }
 }
 
-void od_img_draw_line(od_img *img,
+void daala_image_draw_line(daala_image *img,
  int x0, int y0, int x1, int y1, const unsigned char ycbcr[3]) {
   int p0[2];
   int p1[2];
@@ -2021,7 +2021,7 @@ void od_img_draw_line(od_img *img,
   derr = dx[1 - steep];
   step[0] = ((p0[0] < p1[0]) << 1) - 1;
   step[1] = ((p0[1] < p1[1]) << 1) - 1;
-  od_img_draw_point(img, p0[0], p0[1], ycbcr);
+  daala_image_draw_point(img, p0[0], p0[1], ycbcr);
   while (p0[steep] != p1[steep]) {
     p0[steep] += step[steep];
     err += derr;
@@ -2029,7 +2029,7 @@ void od_img_draw_line(od_img *img,
       p0[1 - steep] += step[1 - steep];
       err -= dx[steep];
     }
-    od_img_draw_point(img, p0[0], p0[1], ycbcr);
+    daala_image_draw_point(img, p0[0], p0[1], ycbcr);
   }
 }
 
@@ -2054,17 +2054,17 @@ static void od_state_draw_mv_grid_block(daala_enc_ctx *enc,
     mvb_sz = 1 << log_mvb_sz;
     x0 = (vx << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_BUFFER_PADDING << 1);
     y0 = (vy << (OD_LOG_MVBSIZE_MIN + 1)) + (OD_BUFFER_PADDING << 1);
-    od_img_draw_line(&enc->vis_img, x0, y0,
+    daala_image_draw_line(&enc->vis_img, x0, y0,
      x0 + (mvb_sz << (OD_LOG_MVBSIZE_MIN + 1)), y0, OD_YCbCr_EDGE);
-    od_img_draw_line(&enc->vis_img,
+    daala_image_draw_line(&enc->vis_img,
      x0 + (mvb_sz << (OD_LOG_MVBSIZE_MIN + 1)), y0,
      x0 + (mvb_sz << (OD_LOG_MVBSIZE_MIN + 1)),
      y0 + (mvb_sz << (OD_LOG_MVBSIZE_MIN + 1)), OD_YCbCr_EDGE);
-    od_img_draw_line(&enc->vis_img,
+    daala_image_draw_line(&enc->vis_img,
      x0, y0 + (mvb_sz << (OD_LOG_MVBSIZE_MIN + 1)),
      x0 + (mvb_sz << (OD_LOG_MVBSIZE_MIN + 1)),
      y0 + (mvb_sz << (OD_LOG_MVBSIZE_MIN + 1)), OD_YCbCr_EDGE);
-    od_img_draw_line(&enc->vis_img, x0, y0,
+    daala_image_draw_line(&enc->vis_img, x0, y0,
      x0, y0 + (mvb_sz << (OD_LOG_MVBSIZE_MIN + 1)), OD_YCbCr_EDGE);
   }
 }
@@ -2141,7 +2141,7 @@ static void od_state_draw_mvs_block(daala_enc_ctx *enc,
        + (OD_BUFFER_PADDING << 1);
       y0 = ((vy + (dyp[k] << log_mvb_sz)) << (OD_LOG_MVBSIZE_MIN + 1))
        + (OD_BUFFER_PADDING << 1);
-      /*od_img_draw_point(&enc->vis_img, x0, y0, OD_YCbCr_MV);*/
+      /*daala_image_draw_point(&enc->vis_img, x0, y0, OD_YCbCr_MV);*/
       if (grid[k]->ref == OD_FRAME_NEXT) {
         mv = grid[k]->mv1;
         color = OD_YCbCr_MV1;
@@ -2150,11 +2150,11 @@ static void od_state_draw_mvs_block(daala_enc_ctx *enc,
         mv = grid[k]->mv;
         color = OD_YCbCr_MV;
       }
-      od_img_draw_line(&enc->vis_img, x0, y0,
+      daala_image_draw_line(&enc->vis_img, x0, y0,
        x0 + OD_DIV_ROUND_POW2(mv[0], 2, 2),
        y0 + OD_DIV_ROUND_POW2(mv[1], 2, 2), color);
       if (grid[k]->ref == OD_BIDIR_PRED) {
-        od_img_draw_line(&enc->vis_img, x0, y0,
+        daala_image_draw_line(&enc->vis_img, x0, y0,
          x0 + OD_DIV_ROUND_POW2(grid[k]->mv1[0], 2, 2),
          y0 + OD_DIV_ROUND_POW2(grid[k]->mv1[1], 2, 2), OD_YCbCr_MV1);
       }
@@ -2180,8 +2180,8 @@ void od_state_draw_mvs(daala_enc_ctx *enc) {
 
 void od_encode_fill_vis(od_enc_ctx *enc) {
   od_state *state;
-  od_img *img;
-  od_img *ref_img;
+  daala_image *img;
+  daala_image *ref_img;
   int pli;
   int xdec;
   int ydec;
@@ -2198,12 +2198,12 @@ void od_encode_fill_vis(od_enc_ctx *enc) {
     img->planes[pli].data += (border >> img->planes[pli].xdec)
      + img->planes[pli].ystride*(border >> img->planes[pli].ydec);
   }
-  od_img_upsample8(enc, img,
+  daala_image_upsample8(enc, img,
    state->ref_imgs + state->ref_imgi[OD_FRAME_SELF]);
   /*Upsample the input image, as well, and subtract it to get a difference
      image.*/
   ref_img = &enc->tmp_vis_img;
-  od_img_upsample8(enc, ref_img, enc->curr_img);
+  daala_image_upsample8(enc, ref_img, enc->curr_img);
   xdec = state->info.plane_info[0].xdec;
   ydec = state->info.plane_info[0].ydec;
   for (y = 0; y < ref_img->height; y++) {
@@ -2245,30 +2245,30 @@ void od_encode_fill_vis(od_enc_ctx *enc) {
     memset(img->planes[pli].data, 128, (img->height >> img->planes[pli].ydec)*
      (img->width >> img->planes[pli].xdec));
   }
-  od_img_draw_line(img, border - 1, border - 1,
+  daala_image_draw_line(img, border - 1, border - 1,
    img->width - border, border - 1, OD_YCbCr_BORDER);
-  od_img_draw_line(img, border - 2, border - 2,
+  daala_image_draw_line(img, border - 2, border - 2,
    img->width - border + 1, border - 2, OD_YCbCr_BORDER);
-  od_img_draw_line(img, img->width - border, border - 1,
+  daala_image_draw_line(img, img->width - border, border - 1,
    img->width - border, img->height - border, OD_YCbCr_BORDER);
-  od_img_draw_line(img, img->width - border + 1, border - 2,
+  daala_image_draw_line(img, img->width - border + 1, border - 2,
    img->width - border + 1, img->height - border + 1, OD_YCbCr_BORDER);
-  od_img_draw_line(img, border - 1, img->height - border,
+  daala_image_draw_line(img, border - 1, img->height - border,
    img->width - border, img->height - border, OD_YCbCr_BORDER);
-  od_img_draw_line(img, border - 2, img->height - border + 1,
+  daala_image_draw_line(img, border - 2, img->height - border + 1,
    img->width - border + 1, img->height - border + 1, OD_YCbCr_BORDER);
-  od_img_draw_line(img, border - 1, border - 1,
+  daala_image_draw_line(img, border - 1, border - 1,
    border - 1, img->height - border, OD_YCbCr_BORDER);
-  od_img_draw_line(img, border - 2, border - 2,
+  daala_image_draw_line(img, border - 2, border - 2,
    border - 2, img->height - border + 1, OD_YCbCr_BORDER);
   od_state_draw_mv_grid(enc);
   od_state_draw_mvs(enc);
 }
 
-static void od_img_dump_padded(daala_enc_ctx *enc) {
+static void daala_image_dump_padded(daala_enc_ctx *enc) {
   od_state *state;
   daala_info *info;
-  od_img img;
+  daala_image img;
   int nplanes;
   int pli;
   state = &enc->state;
@@ -2378,7 +2378,7 @@ static void od_encode_mvs(daala_enc_ctx *enc, int num_refs) {
   int nvmvbs;
   int vx;
   int vy;
-  od_img *mvimg;
+  daala_image *mvimg;
   int width;
   int height;
   int mv_res;
@@ -2485,7 +2485,7 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
   int nhsb;
   int nvsb;
   od_state *state;
-  od_img *rec;
+  daala_image *rec;
   state = &enc->state;
   nplanes = state->info.nplanes;
   if (rdo_only) nplanes = 1;
@@ -2891,14 +2891,14 @@ static void od_split_superblocks_rdo(daala_enc_ctx *enc,
 
 /*This function can only return an error code if the enc or img parameters
    are NULL (should it be void then?).*/
-static int od_encode_frame(daala_enc_ctx *enc, od_img *img, int frame_type,
+static int od_encode_frame(daala_enc_ctx *enc, daala_image *img, int frame_type,
  int duration, int frame_number) {
   int refi;
   int nplanes;
   int pli;
   int use_masking;
   od_mb_enc_ctx mbctx;
-  od_img *ref_img;
+  daala_image *ref_img;
   OD_RETURN_CHECK(enc, OD_EFAULT);
   OD_RETURN_CHECK(img, OD_EFAULT);
   nplanes = enc->state.info.nplanes;
@@ -3124,7 +3124,7 @@ static int od_encode_frame(daala_enc_ctx *enc, od_img *img, int frame_type,
   return OD_SUCCESS;
 }
 
-int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
+int daala_encode_img_in(daala_enc_ctx *enc, daala_image *img, int duration) {
   daala_info *info;
   int pli;
   OD_RETURN_CHECK(enc, OD_EFAULT);
@@ -3149,18 +3149,18 @@ int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration) {
   }
 #if defined(OD_DUMP_IMAGES)
   if (od_logging_active(OD_LOG_GENERIC, OD_LOG_DEBUG)) {
-    od_img_dump_padded(enc);
+    daala_image_dump_padded(enc);
   }
 #endif
   return OD_SUCCESS;
 }
 
 #if defined(OD_ENCODER_CHECK)
-static void daala_encoder_check(daala_enc_ctx *ctx, od_img *img,
+static void daala_encoder_check(daala_enc_ctx *ctx, daala_image *img,
  daala_packet *op) {
   int pli;
-  od_img out_img;
-  od_img dec_img;
+  daala_image out_img;
+  daala_image dec_img;
   OD_ASSERT(ctx->dec);
 
   if (daala_decode_packet_in(ctx->dec, op) < 0) {

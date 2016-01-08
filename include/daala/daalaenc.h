@@ -113,7 +113,7 @@ int daala_encode_flush_header(daala_enc_ctx *enc,
  * \retval OD_EINVAL The image size does not match the frame size the encoder
  *                   was initialized with, or encoding has already
  *                    completed.*/
-int daala_encode_img_in(daala_enc_ctx *enc, od_img *img, int duration);
+int daala_encode_img_in(daala_enc_ctx *enc, daala_image *img, int duration);
 /**Retrieves encoded video data packets.
  * This should be called repeatedly after each frame is submitted to flush any
  *  encoded packets, until it returns 0.

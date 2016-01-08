@@ -46,8 +46,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 static int od_dec_init(od_dec_ctx *dec, const daala_info *info,
  const daala_setup_info *setup) {
-  od_img *img;
-  od_img_plane *iplane;
+  daala_image *img;
+  daala_image_plane *iplane;
   size_t data_sz;
   unsigned char *output_img_data;
   int frame_buf_width;
@@ -180,7 +180,7 @@ int daala_decode_ctl(daala_dec_ctx *dec, int req, void *buf, size_t buf_sz) {
     case OD_DECCTL_SET_MC_IMG : {
       OD_RETURN_CHECK(dec, OD_EFAULT);
       OD_RETURN_CHECK(buf, OD_EFAULT);
-      OD_RETURN_CHECK((buf_sz == sizeof(od_img)), OD_EINVAL);
+      OD_RETURN_CHECK((buf_sz == sizeof(daala_image)), OD_EINVAL);
       dec->user_mc_img = buf;
       return OD_SUCCESS;
     }
@@ -217,7 +217,7 @@ int daala_decode_ctl(daala_dec_ctx *dec, int req, void *buf, size_t buf_sz) {
   }
 }
 
-static void od_dec_blank_img(od_img *img) {
+static void od_dec_blank_img(daala_image *img) {
   int pli;
   int frame_buf_height;
   frame_buf_height = img->height + (OD_BUFFER_PADDING << 1);
@@ -872,7 +872,7 @@ static void od_dec_mv_unpack(daala_dec_ctx *dec, int num_refs) {
   int nvmvbs;
   int vx;
   int vy;
-  od_img *img;
+  daala_image *img;
   int width;
   int height;
   int mv_res;
@@ -975,7 +975,7 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
   int nhdr;
   int nvdr;
   od_state *state;
-  od_img *rec;
+  daala_image *rec;
   state = &dec->state;
   /*Initialize the data needed for each plane.*/
   nplanes = state->info.nplanes;
@@ -1159,7 +1159,7 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
 int daala_decode_packet_in(daala_dec_ctx *dec, const daala_packet *op) {
   int refi;
   od_mb_dec_ctx mbctx;
-  od_img *ref_img;
+  daala_image *ref_img;
   int frame_type;
   if (dec == NULL || op == NULL) return OD_EFAULT;
   if (dec->packet_state != OD_PACKET_DATA) return OD_EINVAL;
@@ -1293,7 +1293,7 @@ int daala_decode_packet_in(daala_dec_ctx *dec, const daala_packet *op) {
   return 0;
 }
 
-int daala_decode_img_out(daala_dec_ctx *dec, od_img *img) {
+int daala_decode_img_out(daala_dec_ctx *dec, daala_image *img) {
   int curr_dec_output;
   if (dec == NULL || img == NULL) return OD_EFAULT;
   curr_dec_output = -1;

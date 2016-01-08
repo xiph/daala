@@ -124,8 +124,8 @@ extern "C" {
 /**The maximum number of color planes allowed in a single frame.*/
 # define OD_NPLANES_MAX (4)
 
-typedef struct od_img_plane od_img_plane;
-typedef struct od_img od_img;
+typedef struct daala_image_plane daala_image_plane;
+typedef struct daala_image daala_image;
 typedef struct daala_plane_info daala_plane_info;
 typedef struct daala_info daala_info;
 typedef struct daala_comment daala_comment;
@@ -143,7 +143,7 @@ const char *daala_version_string(void);
 int daala_log_init(void);
 
 /** Representation of a single component within an image or frame. */
-struct od_img_plane {
+struct daala_image_plane {
   /** Image data is stored as an unsigned octet type whether it's
       actually 8 bit or a multi-byte depth. */
   unsigned char *data;
@@ -172,9 +172,9 @@ struct od_img_plane {
 };
 
 /** Representation of an image or video frame. */
-struct od_img {
+struct daala_image {
   /** Typical 3 planes for Y, Cb, and  Cr. Can have a 4th plane for alpha */
-  od_img_plane planes[OD_NPLANES_MAX];
+  daala_image_plane planes[OD_NPLANES_MAX];
   /** Number of planes (1 for greyscale, 3 for YCbCr, 4 for YCbCr+Alpha ) */
   int nplanes;
   /** Width and height in pixels */

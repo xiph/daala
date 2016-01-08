@@ -41,7 +41,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 static void usage(char **_argv) {
   fprintf(stderr, "Usage: %s <input> <output>\n"
    "    <input> must be a YUV4MPEG file.\n"
-   "    <output> will be <input> upsampled using od_img_upsample8.\n"
+   "    <output> will be <input> upsampled using daala_image_upsample8.\n"
    , _argv[0]);
 }
 
@@ -50,7 +50,7 @@ static const char *CHROMA_TAGS[4] = { " C420jpeg", "", " C422jpeg", " C444" };
 /*Upsamples the reconstructed image to a reference image.
   Forked version of code once used by the encoder, but is now only used
    in conditionally compiled visualization output.*/
-void upsample8(od_img *dimg, const od_img *simg) {
+void upsample8(daala_image *dimg, const daala_image *simg) {
   int i;
   int pli;
   unsigned char *line_buf[8];
@@ -65,8 +65,8 @@ void upsample8(od_img *dimg, const od_img *simg) {
     line_buf[i] = line_buf[i-1] + (buf_width << 1);
   }
   for (pli = 0; pli < simg->nplanes; pli++) {
-    const od_img_plane *siplane;
-    od_img_plane *diplane;
+    const daala_image_plane *siplane;
+    daala_image_plane *diplane;
     const unsigned char *src;
     unsigned char *dst;
     int xpad;
@@ -230,13 +230,13 @@ int main(int _argc, char **_argv) {
     video_input_ycbcr in;
     int ret = 0;
     char tag[5];
-    od_img *simg = &state.ref_imgs[1];
-    od_img *dimg = &state.ref_imgs[0];
+    daala_image *simg = &state.ref_imgs[1];
+    daala_image *dimg = &state.ref_imgs[0];
     int x, y;
     ret = video_input_fetch_frame(&vid, in, tag);
     if (ret == 0) break;
     for (pli = 0; pli < 3; pli++) {
-      od_img_plane *siplane = simg->planes + pli;
+      daala_image_plane *siplane = simg->planes + pli;
       unsigned char *src = siplane->data;
       int src_stride = siplane->ystride;
       int plane_width = simg->width >> xdec[pli];
@@ -248,7 +248,7 @@ int main(int _argc, char **_argv) {
           src[y*src_stride + x] = in[pli].data[cy*in[pli].stride + cx];
         }
       }
-      /*From od_img_plane_copy_pad8*/
+      /*From daala_image_plane_copy_pad8*/
       /*Right side.*/
       for (x = w[pli]; x < plane_width; x++) {
         src = siplane->data + x - 1;
@@ -271,7 +271,7 @@ int main(int _argc, char **_argv) {
     upsample8(dimg, simg);
     fprintf(fout, "FRAME\n");
     for (pli = 0; pli < 3; pli++) {
-      od_img_plane *diplane = dimg->planes + pli;
+      daala_image_plane *diplane = dimg->planes + pli;
       unsigned char *dst = diplane->data;
       for (y = 0; y < 2*h[pli]; y++) {
         if (fwrite(dst + diplane->ystride*y, 2*w[pli], 1, fout) < 1) {

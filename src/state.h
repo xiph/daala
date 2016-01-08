@@ -172,7 +172,7 @@ struct od_adapt_ctx {
 typedef struct od_output_frame od_output_frame;
 
 struct od_output_frame {
-  od_img *img;
+  daala_image *img;
   int number;
 };
 
@@ -182,7 +182,7 @@ struct od_output_queue {
   unsigned char *output_img_data;
 
   /* Circular queue of frame images in decode order. */
-  od_img images[OD_MAX_REORDER];
+  daala_image images[OD_MAX_REORDER];
   int decode_index;
   int decode_used[OD_MAX_REORDER];
 
@@ -194,7 +194,7 @@ struct od_output_queue {
 
 int od_output_queue_init(od_output_queue *out, od_state *state);
 void od_output_queue_clear(od_output_queue *out);
-int od_output_queue_add(od_output_queue *out, od_img *img, int number);
+int od_output_queue_add(od_output_queue *out, daala_image *img, int number);
 #define od_output_queue_has_next(out) \
  ((out)->output_used[(out)->output_index])
 od_output_frame *od_output_queue_next(od_output_queue *out);
@@ -211,7 +211,7 @@ struct od_state{
   int                 ref_imgi[OD_FRAME_MAX+1];
   /** Pointers to the ref images so one can move them around without coping
       them. */
-  od_img              ref_imgs[OD_FRAME_MAX+1];
+  daala_image         ref_imgs[OD_FRAME_MAX+1];
   /* ----------------------------------------------------- */
   /** I,P,B frame type of current frame. */
   int frame_type;
@@ -286,19 +286,19 @@ void od_aligned_free(void *_ptr);
 int od_state_init(od_state *_state, const daala_info *_info);
 void od_state_clear(od_state *_state);
 
-void od_img_plane_copy(od_img *dest, od_img *src, int pli);
-void od_img_copy(od_img *dest, od_img *src);
+void od_img_plane_copy(daala_image *dest, daala_image *src, int pli);
+void od_img_copy(daala_image *dest, daala_image *src);
 void od_adapt_ctx_reset(od_adapt_ctx *state, int is_keyframe);
 void od_state_set_mv_res(od_state *state, int mv_res);
 void od_state_pred_block_from_setup(od_state *state, unsigned char *buf,
  int ystride, int pli, int vx, int vy, int c, int s, int log_mvb_sz);
 void od_state_pred_block(od_state *state, unsigned char *buf,
  int ystride, int xstride, int pli, int vx, int vy, int log_mvb_sz);
-void od_state_mc_predict(od_state *state, od_img *dst);
+void od_state_mc_predict(od_state *state, daala_image *dst);
 void od_state_init_border(od_state *state);
 void od_state_init_superblock_split(od_state *state, unsigned char bsize);
-int od_state_dump_yuv(od_state *state, od_img *img, const char *tag);
-void od_img_edge_ext(od_img* src);
+int od_state_dump_yuv(od_state *state, daala_image *img, const char *tag);
+void od_img_edge_ext(daala_image* src);
 int od_state_push_output_buff_tail(od_state *state);
 int od_state_pop_output_buff_head(od_state *state);
 int od_state_pop_output_buff_tail(od_state *state);
@@ -307,15 +307,15 @@ void od_ref_buf_to_coeff(od_state *state,
  unsigned char *src, int src_xstride, int src_ystride,
  int w, int h);
 void od_ref_plane_to_coeff(od_state *state, od_coeff *dst, int lossless_p,
- od_img *src, int pli);
+ daala_image *src, int pli);
 void od_coeff_to_ref_buf(od_state *state,
  unsigned char *dst, int dst_xstride, int dst_ystride,
  od_coeff *src, int src_ystride, int lossless_p,
  int w, int h);
-void od_coeff_to_ref_plane(od_state *state, od_img *dst, int pli,
+void od_coeff_to_ref_plane(od_state *state, daala_image *dst, int pli,
  od_coeff *src, int lossless_p);
 # if defined(OD_DUMP_IMAGES)
-int od_state_dump_img(od_state *state, od_img *img, const char *tag);
+int od_state_dump_img(od_state *state, daala_image *img, const char *tag);
 # endif
 void od_init_skipped_coeffs(od_coeff *d, od_coeff *pred, int is_keyframe,
  int bo, int n, int w);
