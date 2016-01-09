@@ -222,24 +222,24 @@ AS_IF([test "$enable_asm" = "yes" -a "$cpu_x86" = "true"], [
    ], [enable_sse2_intrinsics=no]
   )
 ],[
-  AS_IF([test "enable_asm" = "avx2"], [
+  AS_IF([test "$enable_asm" = "avx2"], [
     enable_avx2_intrinsics=yes
     enable_asm=sse41
   ])
-  AS_IF([test "enable_asm" = "sse41"], [
-    enable_sse2_intrinsics=yes
+  AS_IF([test "$enable_asm" = "sse41"], [
+    enable_sse41_intrinsics=yes
     enable_asm=sse2
   ])
-  AS_IF([test "enable_asm" = "sse2"], [
-    enable_sse41_intrinsics=yes
+  AS_IF([test "$enable_asm" = "sse2"], [
+    enable_sse2_intrinsics=yes
     enable_asm=x86
   ])
-  AS_IF([test "enable_asm" = "x86"], [
+  AS_IF([test "$enable_asm" = "x86"], [
     enable_gcc_inline_assembly=yes
     enable_asm=yes
   ])
 ])
-AS_IF([test "enable_asm" = "arm"], [
+AS_IF([test "$enable_asm" = "arm"], [
   enable_asm=yes
 ])
 AS_IF([test "$enable_asm" = "yes" -a "$cpu_arm" = "true"], [
