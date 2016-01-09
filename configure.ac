@@ -172,7 +172,8 @@ AM_CONDITIONAL([HAVE_DOXYGEN], [test "$HAVE_DOXYGEN" = "yes"])
 AM_CONDITIONAL([HAVE_FIG2DEV], [test "$HAVE_FIG2DEV" = "yes"])
 
 AC_ARG_ENABLE([asm],
-  AS_HELP_STRING([--disable-asm], [Do not compile assembly versions]),,
+  AS_HELP_STRING([--enable-asm], [Enable assembly optimizations: arm, x86, sse2,
+                                 sse41, avx2, no. Default: yes (autodetect).]),,
   [enable_asm=yes]
 )
 
@@ -191,10 +192,7 @@ esac
 TMP_CFLAGS="$CFLAGS"
 
 AS_IF([test "$enable_asm" = "yes" -a "$cpu_x86" = "true"], [
-  AC_DEFINE([OD_X86ASM], [1], [Enable asm optimisations])
   enable_gcc_inline_assembly=yes
-  AC_DEFINE([OD_GCC_INLINE_ASSEMBLY], [1],
-   [Enable gcc inline assembly optimisations])
   CFLAGS="$CFLAGS -msse2"
   AC_TRY_LINK([
 #include <xmmintrin.h>
@@ -202,8 +200,6 @@ AS_IF([test "$enable_asm" = "yes" -a "$cpu_x86" = "true"], [
     return _mm_cvtsi128_si32(_mm_setzero_si128());
    ], [
     enable_sse2_intrinsics=yes
-    AC_DEFINE([OD_SSE2_INTRINSICS], [1],
-     [Enable SSE2 intrinsics optimisations])
     CFLAGS="$CFLAGS -msse4.1"
     AC_TRY_LINK([
 #include <smmintrin.h>
@@ -212,8 +208,6 @@ AS_IF([test "$enable_asm" = "yes" -a "$cpu_x86" = "true"], [
        _mm_setzero_si128()));
      ], [
        enable_sse41_intrinsics=yes
-       AC_DEFINE([OD_SSE41_INTRINSICS], [1],
-        [Enable SSE4.1 intrinsics optimisations])
        CFLAGS="$CFLAGS -mavx2"
        AC_TRY_LINK([
 #include <immintrin.h>
@@ -221,33 +215,69 @@ AS_IF([test "$enable_asm" = "yes" -a "$cpu_x86" = "true"], [
         return _mm_cvtsi128_si32(_mm_broadcastb_epi8(_mm_setzero_si128()));
        ], [
          enable_avx2_intrinsics=yes
-         AC_DEFINE([OD_AVX2_INTRINSICS], [1],
-          [Enable AVX2 intrinsics optimisations])
        ], [enable_avx2_intrinsics=no]
       )
      ], [enable_sse41_intrinsics=no]
     )
    ], [enable_sse2_intrinsics=no]
   )
+],[
+  AS_IF([test "enable_asm" = "avx2"], [
+    enable_avx2_intrinsics=yes
+    enable_asm=sse41
+  ])
+  AS_IF([test "enable_asm" = "sse41"], [
+    enable_sse2_intrinsics=yes
+    enable_asm=sse2
+  ])
+  AS_IF([test "enable_asm" = "sse2"], [
+    enable_sse41_intrinsics=yes
+    enable_asm=x86
+  ])
+  AS_IF([test "enable_asm" = "x86"], [
+    enable_gcc_inline_assembly=yes
+    enable_asm=yes
+  ])
+])
+AS_IF([test "enable_asm" = "arm"], [
+  enable_asm=yes
+])
+AS_IF([test "$enable_asm" = "yes" -a "$cpu_arm" = "true"], [
+  enable_arm_assembly=yes
 ])
 CFLAGS="$TMP_CFLAGS"
-AM_CONDITIONAL([ENABLE_X86ASM],
- [test "$enable_asm" = "yes" -a "$cpu_x86" = "true"])
-AM_CONDITIONAL([ENABLE_GCC_INLINE_ASSEMBLY],
- [test "$enable_asm" = "yes" -a "$cpu_x86" = "true" -a "$enable_gcc_inline_assembly" = "yes"])
-AM_CONDITIONAL([ENABLE_SSE2_INTRINSICS],
- [test "$enable_asm" = "yes" -a "$cpu_x86" = "true" -a "$enable_sse2_intrinsics" = "yes"])
-AM_CONDITIONAL([ENABLE_SSE41_INTRINSICS],
- [test "$enable_asm" = "yes" -a "$cpu_x86" = "true" -a "$enable_sse41_intrinsics" = "yes"])
-AM_CONDITIONAL([ENABLE_AVX2_INTRINSICS],
- [test "$enable_asm" = "yes" -a "$cpu_x86" = "true" -a "$enable_avx2_intrinsics" = "yes"])
-AM_CONDITIONAL([ENABLE_ARMASM],
- [test "$enable_asm" = "yes" -a "$cpu_arm" = "true"])
 
-AS_IF([test "$enable_asm" = "yes" -a "$cpu_arm" = "true"], [
+AS_IF([test "$enable_gcc_inline_assembly" = "yes"], [
+  AC_DEFINE([OD_X86ASM], [1], [Enable asm optimisations])
+  AC_DEFINE([OD_GCC_INLINE_ASSEMBLY], [1],
+   [Enable gcc inline assembly optimisations])
+])
+AS_IF([test "$enable_sse2_intrinsics" = "yes"], [
+  AC_DEFINE([OD_SSE2_INTRINSICS], [1], [Enable SSE2 intrinsics optimisations])
+])
+AS_IF([test "$enable_sse41_intrinsics" = "yes"], [
+  AC_DEFINE([OD_SSE41_INTRINSICS], [1], [Enable SSE4.1 intrinsics optimisations])
+])
+AS_IF([test "$enable_avx2_intrinsics" = "yes"], [
+  AC_DEFINE([OD_AVX2_INTRINSICS], [1], [Enable AVX2 intrinsics optimisations])
+])
+AS_IF([test "$enable_arm_assembly" = "yes"], [
   AC_DEFINE([OD_ARMASM], [1], [Enable ARM asm optimisations])
   AC_DEFINE([OD_ARM_MAY_HAVE_NEON], [1], [Enable ARM NEON optimisations])
 ])
+
+AM_CONDITIONAL([ENABLE_X86ASM],
+ [test "$enable_gcc_inline_assembly" = "yes"])
+AM_CONDITIONAL([ENABLE_GCC_INLINE_ASSEMBLY],
+ [test "$enable_gcc_inline_assembly" = "yes"])
+AM_CONDITIONAL([ENABLE_SSE2_INTRINSICS],
+ [test "$enable_sse2_intrinsics" = "yes"])
+AM_CONDITIONAL([ENABLE_SSE41_INTRINSICS],
+ [test "$enable_sse41_intrinsics" = "yes"])
+AM_CONDITIONAL([ENABLE_AVX2_INTRINSICS],
+ [test "$enable_avx2_intrinsics" = "yes"])
+AM_CONDITIONAL([ENABLE_ARMASM],
+ [test "$enable_arm_assembly" = "yes"])
 
 AC_ARG_ENABLE([encoder-check],
   AS_HELP_STRING([--enable-encoder-check], [Compare reconstructed frames]),,
