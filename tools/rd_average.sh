@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 if [ $# == 0 ]; then
   echo "usage: OUTPUT=<label> $0 *.out"

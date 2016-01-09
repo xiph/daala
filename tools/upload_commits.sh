@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 #
 # USAGE: upload_commits.sh <num_commits> [<upload.py ARGS>]
 # NOTE: -y and --send_mail are automatically passed to upload.py

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # Creates and updates the package_version information used by configure.ac
 # (or other makefiles).  When run inside a git repository it will use the

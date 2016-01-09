@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 set -e
 
 while getopts 's:v:bk:d:E:D:y:n:' OPTIONS; do

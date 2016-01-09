@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 set -e
 
 CODECS="<daala|vp8|vp9|x264|x265|libjpeg|mozjpeg|theora>"
