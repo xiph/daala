@@ -3010,26 +3010,27 @@ static int od_encode_frame(daala_enc_ctx *enc, od_img *img, int frame_type,
       }
     }
   }
+  /*Modulate frame QP.*/
   for (pli = 0; pli < nplanes; pli++) {
-    /*Boost the keyframe quality slightly (one coded quantizer
-      step is the minimum possible).*/
-    if ((mbctx.is_keyframe || mbctx.is_golden_frame)
-     && enc->state.coded_quantizer[pli] != 0) {
-      enc->state.coded_quantizer[pli] =
-       OD_MAXI(1, enc->state.coded_quantizer[pli] - 3);
-      enc->state.quantizer[pli] =
-       od_codedquantizer_to_quantizer(enc->state.coded_quantizer[pli]);
-    }
-    if (frame_type == OD_B_FRAME && enc->state.coded_quantizer[pli] != 0) {
-      int delta_frame_qp;
-      if (enc->b_frames > 1)
-        delta_frame_qp = 4;
-      else
-        delta_frame_qp = 2;
-      enc->state.coded_quantizer[pli] = OD_MINI(OD_N_CODED_QUANTIZERS - 2,
-       enc->state.coded_quantizer[pli] + delta_frame_qp);
-      enc->state.quantizer[pli] =
-       od_codedquantizer_to_quantizer(enc->state.coded_quantizer[pli]);
+    if (enc->state.coded_quantizer[pli] != 0) {
+      if (frame_type == OD_I_FRAME || mbctx.is_golden_frame) {
+        enc->state.coded_quantizer[pli] = OD_MAXI(1,
+         enc->state.coded_quantizer[pli] + OD_DQP_I);
+        enc->state.quantizer[pli] =
+         od_codedquantizer_to_quantizer(enc->state.coded_quantizer[pli]);
+      }
+      if (frame_type == OD_P_FRAME && !mbctx.is_golden_frame) {
+        enc->state.coded_quantizer[pli] = OD_MINI(OD_N_CODED_QUANTIZERS - 2,
+         (int)(enc->state.coded_quantizer[pli]*OD_MQP_P) + OD_DQP_P);
+        enc->state.quantizer[pli] =
+         od_codedquantizer_to_quantizer(enc->state.coded_quantizer[pli]);
+      }
+      if (frame_type == OD_B_FRAME) {
+        enc->state.coded_quantizer[pli] = OD_MINI(OD_N_CODED_QUANTIZERS - 2,
+         (int)(enc->state.coded_quantizer[pli]*OD_MQP_B) + OD_DQP_B);
+        enc->state.quantizer[pli] =
+         od_codedquantizer_to_quantizer(enc->state.coded_quantizer[pli]);
+      }
     }
   }
   OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO, "is_keyframe=%d", mbctx.is_keyframe));
