@@ -36,6 +36,8 @@ int main(int _argc,char *_argv[]){
   int            y_h;
   int            c_w;
   int            c_h;
+  int            bitdepth;
+  int            xstride;
   char           ip;
   int            fps_n;
   int            fps_d;
@@ -102,6 +104,7 @@ int main(int _argc,char *_argv[]){
      "                   mono\n"
      " -an<pixel aspect numerator>\n"
      " -ad<pixel aspect denominator>\n"
+     " -b<bitdepth>\n"
      " Note: Most common frame sizes do not use square pixels:\n"
      "  Name  Width  Height  -an   -ad\n"
      "        720    576     128   117\n"
@@ -123,6 +126,7 @@ int main(int _argc,char *_argv[]){
   ip='p';
   par_n=128;
   par_d=117;
+  bitdepth=8;
   chroma="420jpeg";
   for(argi=2;argi<_argc;argi++){
     if(_argv[argi][0]!='-'){
@@ -134,6 +138,7 @@ int main(int _argc,char *_argv[]){
       case 'd':frame_digits=atoi(_argv[argi]+2);break;
       case 'w':y_w=atoi(_argv[argi]+2);break;
       case 'h':y_h=atoi(_argv[argi]+2);break;
+      case 'b':bitdepth=atoi(_argv[argi]+2);break;
       case 'i':ip=_argv[argi][2];break;
       case 'c':chroma=_argv[argi]+2;break;
       case 'f':{
@@ -258,22 +263,38 @@ int main(int _argc,char *_argv[]){
   fprintf(out_y4m,"YUV4MPEG2 W%i H%i F%i:%i I%c A%i:%i",
    y_w,y_h,fps_n,fps_d,ip,par_n,par_d);
   if(strcmp(chroma,"420jpeg")!=0)fprintf(out_y4m," C%s",chroma);
+  switch(bitdepth){
+    case 8:{
+      xstride=1;
+      break;
+    }
+    case 10:{
+      fprintf(out_y4m,"p10");
+      xstride=2;
+      break;
+    }
+    default:{
+      fprintf(stderr,"Unsupported bit depth.\n");
+      return -1;
+      break;
+    }
+  }
   fprintf(out_y4m,"\n");
-  buf=(unsigned char *)malloc((size_t)(y_w*y_h));
+  buf=(unsigned char *)malloc((size_t)(y_w*xstride*y_h));
   for(;;){
-    if(fread(buf,y_w,y_h,in_y)<(size_t)y_h)break;
+    if(fread(buf,y_w*xstride,y_h,in_y)<(size_t)y_h)break;
     fprintf(out_y4m,"FRAME\n");
-    CHECK_IO(fwrite,buf,y_w,y_h,out_y4m);
+    CHECK_IO(fwrite,buf,y_w*xstride,y_h,out_y4m);
 
     if(have_chroma){
-      CHECK_IO(fread,buf,c_w,c_h,in_u);
-      CHECK_IO(fwrite,buf,c_w,c_h,out_y4m);
-      CHECK_IO(fread,buf,c_w,c_h,in_v);
-      CHECK_IO(fwrite,buf,c_w,c_h,out_y4m);
+      CHECK_IO(fread,buf,c_w*xstride,c_h,in_u);
+      CHECK_IO(fwrite,buf,c_w*xstride,c_h,out_y4m);
+      CHECK_IO(fread,buf,c_w*xstride,c_h,in_v);
+      CHECK_IO(fwrite,buf,c_w*xstride,c_h,out_y4m);
     }
     if(have_alpha){
-      CHECK_IO(fread,buf,y_w,y_h,in_a);
-      CHECK_IO(fwrite,buf,y_w,y_h,out_y4m);
+      CHECK_IO(fread,buf,y_w*xstride,y_h,in_a);
+      CHECK_IO(fwrite,buf,y_w*xstride,y_h,out_y4m);
     }
     if(frame_digits>0){
       frame_num++;
