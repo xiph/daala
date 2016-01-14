@@ -1846,8 +1846,8 @@ static const unsigned char OD_YCbCr_MV[3] = {81, 90, 240};
 static const unsigned char OD_YCbCr_MV1[3] = {81, 0, 0};
 
 #define OD_SRCVAL_TO_8(x) (siplane->bitdepth == 8 ? src[(x)] : \
- (((int16_t *)src)[(x)] + (1 << siplane->bitdepth - 9) \
- >> siplane->bitdepth - 8))
+ ((((int16_t *)src)[(x)] + (1 << (siplane->bitdepth - 9))) \
+ >> (siplane->bitdepth - 8)))
 
 /*Upsamples the reconstructed image (any depth) to an 8-bit reference image.
   Output img is 2x larger in both horizontal and vertical dimensions.
