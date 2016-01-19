@@ -1135,20 +1135,6 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
     }
   }
   for (pli = 0; pli < nplanes; pli++) {
-    xdec = dec->output_img[dec->curr_dec_frame].planes[pli].xdec;
-    ydec = dec->output_img[dec->curr_dec_frame].planes[pli].ydec;
-    w = frame_width >> xdec;
-    if (dec->state.quantizer[0] > 0) {
-      for (sby = 0; sby < nvsb; sby++) {
-        for (sbx = 0; sbx < nhsb; sbx++) {
-          if (mbctx->is_keyframe) {
-            od_smooth_recursive(state->ctmp[pli], dec->state.bsize,
-             dec->state.bstride, sbx, sby, OD_NBSIZES - 1, w, xdec, ydec,
-             OD_BLOCK_32X32, dec->state.quantizer[pli], pli);
-          }
-        }
-      }
-    }
     /*Move/scale/shift reconstructed data values from transform
       storage back into the SELF reference frame.*/
     od_coeff_to_ref_plane(state, rec, pli,

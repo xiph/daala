@@ -2768,22 +2768,8 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
       }
     }
   }
-  for (pli = 0; pli < nplanes; pli++) {
-    xdec = enc->curr_img->planes[pli].xdec;
-    ydec = enc->curr_img->planes[pli].ydec;
-    w = frame_width >> xdec;
-    if (!rdo_only && state->quantizer[0] > 0) {
-      for (sby = 0; sby < nvsb; sby++) {
-        for (sbx = 0; sbx < nhsb; sbx++) {
-          if (mbctx->is_keyframe) {
-            od_smooth_recursive(state->ctmp[pli], enc->state.bsize,
-             enc->state.bstride, sbx, sby, OD_NBSIZES - 1, w, xdec, ydec,
-             OD_BLOCK_32X32, state->quantizer[pli], pli);
-          }
-        }
-      }
-    }
-    if (!rdo_only) {
+  if (!rdo_only) {
+    for (pli = 0; pli < nplanes; pli++) {
       od_coeff_to_ref_plane(state, rec, pli,
        state->ctmp[pli], OD_LOSSLESS(enc, pli));
     }

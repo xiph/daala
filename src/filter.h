@@ -114,10 +114,6 @@ void od_filter_dering_orthogonal_c(int16_t *y, int ystride, int16_t *in,
  int16_t *x, int xstride, int ln, int threshold, int dir);
 void od_clpf(od_coeff *y, int ystride, od_coeff *x, int xstride, int ln,
  int sbx, int sby, int nhsb, int nvsb);
-void od_bilinear_smooth(od_coeff *x, int ln, int stride, int q, int pli);
-void od_smooth_recursive(od_coeff *c, unsigned char *bsize, int bstride,
- int bx, int by, int bsi, int w, int xdec, int ydec, int min_bs,
-  int quantizer, int pli);
 void od_prefilter_split(od_coeff *c0, int stride, int bs, int f, int hfilter,
  int vfilter);
 void od_postfilter_split(od_coeff *c0, int stride, int bs, int f, int q,
