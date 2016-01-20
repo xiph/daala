@@ -56,7 +56,7 @@ extern const uint16_t LAPLACE_OFFSET[];
 
 #define OD_QM_SCALE (1 << 15)
 #define OD_QM_SCALE_MAX (OD_QM_SCALE - 1)
-#define OD_QM_SCALE_1 (1./OD_QM_SCALE_MAX)
+#define OD_QM_SCALE_1 (1./OD_QM_SCALE)
 #define OD_QM_INV_SCALE (1 << 12)
 #define OD_QM_INV_SCALE_1 (1./OD_QM_INV_SCALE)
 #define OD_QM_OFFSET(bs) ((((1 << 2*bs) - 1) << 2*OD_LOG_BSIZE0)/3)
