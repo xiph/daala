@@ -218,6 +218,16 @@ static void pvq_decode_partition(od_ec_dec *ec,
     itheta = (id >> 1) - 1;
     *noref = (itheta == -1);
   }
+  /* The CfL flip bit is only decoded on the first band that has noref=0. */
+  if (cfl->allow_flip && !*noref) {
+    int flip;
+    int i;
+    flip = od_ec_dec_bits(ec, 1, "cfl:flip");
+    if (flip) {
+      for (i = 0; i < cfl->nb_coeffs; i++) cfl->ref[i] = -cfl->ref[i];
+    }
+    cfl->allow_flip = 0;
+  }
   if (qg > 0) {
     int tmp;
     tmp = *exg;
@@ -268,16 +278,6 @@ static void pvq_decode_partition(od_ec_dec *ec,
     od_decode_pvq_codeword(ec, &adapt->pvq.pvq_codeword_ctx, y, n, k, *noref, bs);
   } else {
     OD_CLEAR(y, n);
-  }
-  /* The CfL flip bit is only decoded on the first band that has noref=0. */
-  if (cfl->allow_flip && !*noref) {
-    int flip;
-    int i;
-    flip = od_ec_dec_bits(ec, 1, "cfl:flip");
-    if (flip) {
-      for (i = 0; i < cfl->nb_coeffs; i++) cfl->ref[i] = -cfl->ref[i];
-    }
-    cfl->allow_flip = 0;
   }
   if (*skip) {
     if (*skip == OD_PVQ_SKIP_COPY) OD_COPY(out, ref, n);

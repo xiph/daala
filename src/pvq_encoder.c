@@ -530,6 +530,8 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
  * @param [in]     code_skip  whether the "skip rest" flag is allowed
  * @param [in]     skip_rest  when set, we skip all higher bands
  * @param [in]     bs         log of the block size minus two
+ * @param [in]     encode_flip whether we need to encode the CfL flip flag now
+ * @param [in]     flip       value of the CfL flip flag
  */
 static void pvq_encode_partition(od_ec_enc *ec,
                                  int qg,
@@ -547,7 +549,9 @@ static void pvq_encode_partition(od_ec_enc *ec,
                                  int is_keyframe,
                                  int code_skip,
                                  int skip_rest,
-                                 int bs) {
+                                 int bs,
+                                 int encode_flip,
+                                 int flip) {
   int noref;
   int id;
   noref = (theta == -1);
@@ -564,6 +568,13 @@ static void pvq_encode_partition(od_ec_enc *ec,
      larger gain and theta values. For noref, theta = -1. */
   od_encode_cdf_adapt(ec, id, &adapt->pvq.pvq_gaintheta_cdf[cdf_ctx][0],
    8 + 7*code_skip, adapt->pvq.pvq_gaintheta_increment);
+  if (encode_flip) {
+    /* We could eventually do some smarter entropy coding here, but it would
+       have to be good enough to overcome the overhead of the entropy coder.
+       An early attempt using a "toogle" flag with simple adaptation wasn't
+       worth the trouble. */
+    od_ec_enc_bits(ec, flip, 1);
+  }
   if (qg > 0) {
     int tmp;
     tmp = *exg;
@@ -757,27 +768,22 @@ int od_pvq_encode(daala_enc_ctx *enc,
   }
   if (theta[0] == skip_theta_value && qg[0] == 0 && skip_rest) nb_bands = 0;
   for (i = 0; i < nb_bands; i++) {
+    int encode_flip;
+    /* Encode CFL flip bit just after the first time it's used. */
+    encode_flip = pli != 0 && is_keyframe && theta[i] != -1 && !cfl_encoded;
     if (i == 0 || (!skip_rest && !(skip_dir & (1 << ((i - 1)%3))))) {
       pvq_encode_partition(&enc->ec, qg[i], theta[i], max_theta[i], y + off[i],
        size[i], k[i], model, &enc->state.adapt, exg + i, ext + i,
        robust || is_keyframe, (pli != 0)*OD_NBSIZES*PVQ_MAX_PARTITIONS
        + bs*PVQ_MAX_PARTITIONS + i, is_keyframe, i == 0 && (i < nb_bands - 1),
-       skip_rest, bs);
+       skip_rest, bs, encode_flip, flip);
     }
     if (i == 0 && !skip_rest && bs > 0) {
       od_encode_cdf_adapt(&enc->ec, skip_dir,
        &enc->state.adapt.pvq.pvq_skip_dir_cdf[(pli != 0) + 2*(bs - 1)][0], 7,
        enc->state.adapt.pvq.pvq_skip_dir_increment);
     }
-    /* Encode CFL flip bit just after the first time it's used. */
-    if (pli!=0 && is_keyframe && theta[i] != -1 && !cfl_encoded) {
-      /* We could eventually do some smarter entropy coding here, but it would
-         have to be good enough to overcome the overhead of the entropy coder.
-         An early attempt using a "toogle" flag with simple adaptation wasn't
-         worth the trouble. */
-      od_ec_enc_bits(&enc->ec, flip, 1);
-      cfl_encoded = 1;
-    }
+    if (encode_flip) cfl_encoded = 1;
   }
   tell = od_ec_enc_tell_frac(&enc->ec) - tell;
   /* Account for the rate of skipping the AC, based on the same DC decision
