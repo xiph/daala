@@ -1054,40 +1054,43 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
     }
     for (sby = 0; sby < nvdr; sby++) {
       for (sbx = 0; sbx < nhdr; sbx++) {
-        int filtered;
+        int level;
         int c;
-        int up;
-        int left;
         int i;
         int j;
         unsigned char *bskip;
-        state->dering_flags[sby*nhdr + sbx] = 0;
+        state->dering_level[sby*nhdr + sbx] = 0;
         bskip = dec->state.bskip[0] +
          (sby << OD_LOG_DERING_GRID)*dec->state.skip_stride +
          (sbx << OD_LOG_DERING_GRID);
         for (j = 0; j < 1 << OD_LOG_DERING_GRID; j++) {
           for (i = 0; i < 1 << OD_LOG_DERING_GRID; i++) {
             if (!bskip[j*dec->state.skip_stride + i]) {
-              state->dering_flags[sby*nhdr + sbx] = 1;
+              state->dering_level[sby*nhdr + sbx] = 1;
             }
           }
         }
-        if (!state->dering_flags[sby*nhdr + sbx]) {
+        if (!state->dering_level[sby*nhdr + sbx]) {
           continue;
         }
-        up = 0;
-        if (sby > 0) {
-          up = state->dering_flags[(sby - 1)*nhdr + sbx];
+        if (mbctx->is_keyframe) {
+          int left;
+          int up;
+          left = up = 0;
+          if (sby > 0) {
+            left = up = state->dering_level[(sby - 1)*nhdr + sbx];
+          }
+          if (sbx > 0) {
+            left = state->dering_level[sby*nhdr + (sbx - 1)];
+            if (sby == 0) up = left;
+          }
+          c = up + left;
         }
-        left = 0;
-        if (sbx > 0) {
-          left = state->dering_flags[sby*nhdr + (sbx - 1)];
-        }
-        c = (up << 1) + left;
-        filtered = od_decode_cdf_adapt(&dec->ec, state->adapt.clpf_cdf[c], 2,
-         state->adapt.clpf_increment, "clp");
-        state->dering_flags[sby*nhdr + sbx] = filtered;
-        if (filtered) {
+        else c = 0;
+        level = od_decode_cdf_adapt(&dec->ec, state->adapt.clpf_cdf[c],
+         OD_DERING_LEVELS, state->adapt.clpf_increment, "clp");
+        state->dering_level[sby*nhdr + sbx] = level;
+        if (level) {
           for (pli = 0; pli < nplanes; pli++) {
             int16_t buf[OD_BSIZE_MAX*OD_BSIZE_MAX];
             od_coeff *output;
@@ -1109,7 +1112,8 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
              (sbx << ln)], w, ln, sbx, sby, nhdr, nvdr,
              dec->state.quantizer[pli], xdec, dir, pli, &dec->state.bskip[pli]
              [(sby << (OD_LOG_DERING_GRID - ydec))*dec->state.skip_stride
-             + (sbx << (OD_LOG_DERING_GRID - xdec))], dec->state.skip_stride);
+             + (sbx << (OD_LOG_DERING_GRID - xdec))], dec->state.skip_stride,
+             OD_DERING_GAIN_TABLE[level]*(pli == 0 ? 1 : 0.6));
             output = &state->ctmp[pli][(sby << ln)*w + (sbx << ln)];
             for (y = 0; y < n; y++) {
               for (x = 0; x < n; x++) {
@@ -1124,7 +1128,7 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
       for (sby = 0; sby < nvdr; sby++) {
         for (sbx = 0; sbx < nhdr; sbx++) {
           dec->user_dering[sby*nhdr + sbx] =
-           state->dering_flags[sby*nhdr + sbx];
+           state->dering_level[sby*nhdr + sbx];
         }
       }
     }

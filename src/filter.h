@@ -34,6 +34,9 @@ typedef int32_t od_coeff;
 /*There are 4 filter sizes total (4-point, 8-point, 16-point and 32-point).*/
 # define OD_NFILTER_SIZES (4)
 
+#define OD_DERING_LEVELS (6)
+extern const double OD_DERING_GAIN_TABLE[OD_DERING_LEVELS];
+
 /*This is the strength reduced version of ((_a)/(1 << (_b))).
   This will not work for _b == 0, however currently this is only used for
    b == 1 anyway.*/
@@ -107,7 +110,7 @@ extern const int OD_FILT_SIZE[OD_NBSIZES];
 void od_dering(struct od_state *state, int16_t *y, int ystride, int16_t *x,
  int xstride, int ln, int sbx, int sby, int nhsb, int nvsb, int q, int xdec,
  int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS], int pli, unsigned char *bskip,
- int skip_stride);
+ int skip_stride, double gain);
 void od_filter_dering_direction_c(int16_t *y, int ystride, int16_t *in,
  int ln, int threshold, int dir);
 void od_filter_dering_orthogonal_c(int16_t *y, int ystride, int16_t *in,

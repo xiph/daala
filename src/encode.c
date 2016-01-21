@@ -2639,35 +2639,29 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
         int n;
         int16_t buf[OD_BSIZE_MAX*OD_BSIZE_MAX];
         od_coeff orig[OD_BSIZE_MAX*OD_BSIZE_MAX];
-        double unfiltered_error;
-        double filtered_error;
+        double dist;
         int ystride;
         int xstride;
         unsigned char *input;
         od_coeff *output;
-        int filtered;
-        int up;
-        int left;
         int c;
-        int q2;
-        double filtered_rate;
-        double unfiltered_rate;
         int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS];
         int i;
         int j;
         unsigned char *bskip;
-        state->dering_flags[sby*nhdr + sbx] = 0;
+        int best_gi;
+        state->dering_level[sby*nhdr + sbx] = 0;
         bskip = enc->state.bskip[0] +
          (sby << OD_LOG_DERING_GRID)*enc->state.skip_stride +
          (sbx << OD_LOG_DERING_GRID);
         for (j = 0; j < 1 << OD_LOG_DERING_GRID; j++) {
           for (i = 0; i < 1 << OD_LOG_DERING_GRID; i++) {
             if (!bskip[j*enc->state.skip_stride + i]) {
-              state->dering_flags[sby*nhdr + sbx] = 1;
+              state->dering_level[sby*nhdr + sbx] = 1;
             }
           }
         }
-        if (!state->dering_flags[sby*nhdr + sbx]) {
+        if (!state->dering_level[sby*nhdr + sbx]) {
           continue;
         }
         pli = 0;
@@ -2677,86 +2671,93 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
         OD_ASSERT(xdec == ydec);
         ln = OD_LOG_DERING_GRID + OD_LOG_BSIZE0 - xdec;
         n = 1 << ln;
-        od_dering(state, buf, n, &state->etmp[pli][(sby << ln)*w +
-         (sbx << ln)], w, ln, sbx, sby, nhdr, nvdr, state->quantizer[0],
-         xdec, dir, pli, &enc->state.bskip[pli]
-         [(sby << (OD_LOG_DERING_GRID - ydec))*enc->state.skip_stride
-         + (sbx << (OD_LOG_DERING_GRID - xdec))], enc->state.skip_stride);
         xstride = enc->curr_img->planes[pli].xstride;
         ystride = enc->curr_img->planes[pli].ystride;
         input = (unsigned char *)&enc->curr_img->planes[pli].
          data[(sby << ln)*ystride + (sbx << ln)*xstride];
         output = &state->ctmp[pli][(sby << ln)*w + (sbx << ln)];
-        unfiltered_error = 0;
-        filtered_error = 0;
         od_ref_buf_to_coeff(state, orig, n, 0, input, xstride, ystride, n, n);
-#if 0
-        /* Optimize deringing for PSNR. */
-        for (y = 0; y < n; y++) {
-          for (x = 0; x < n; x++) {
-            od_coeff r;
-            od_coeff p;
-            od_coeff o;
-            r = orig[y*OD_BSIZE_MAX + x];
-            p = buf[y*OD_BSIZE_MAX + x];
-            filtered_error += (r - p)*(double)(r - p);
-            o = output[y*w + x];
-            unfiltered_error += (r - o)*(double)(r - o);
+        /* Only keyframes have enough superblocks to be worth having a
+           context. Attempts to use the neighbours for non-keyframes have
+           been a regression so far. */
+        if (mbctx->is_keyframe) {
+          int left;
+          int up;
+          left = up = 0;
+          if (sby > 0) {
+            left = up = state->dering_level[(sby - 1)*nhdr + sbx];
           }
+          if (sbx > 0) {
+            left = state->dering_level[sby*nhdr + (sbx - 1)];
+            if (sby == 0) up = left;
+          }
+          c = up + left;
         }
-#else
-        /* Optimize deringing for the block size decision metric. */
-        {
+        else c = 0;
+        best_gi = 0;
+        /*When use_dering is 0, force the deringing filter off.*/
+        if (enc->use_dering) {
+          int gi;
+          double best_dist;
+          int q2;
+          double lambda;
           od_coeff out[OD_BSIZE_MAX*OD_BSIZE_MAX];
-          od_coeff buf32[OD_BSIZE_MAX*OD_BSIZE_MAX];
+          q2 = state->quantizer[0] * state->quantizer[0];
+          /* Deringing seems to benefit from a lower lambda -- possibly to
+             avoid local minima. Tested only a handful of lambdas so far. */
+          lambda = 0.67*OD_PVQ_LAMBDA*q2;
           for (y = 0; y < n; y++) {
             for (x = 0; x < n; x++) {
               out[y*n + x] = output[y*w + x];
-              buf32[y*n + x] = buf[y*n + x];
             }
           }
-          unfiltered_error = od_compute_dist(enc, orig, out, n, 3, pli);
-          filtered_error = od_compute_dist(enc, orig, buf32, n, 3, pli);
-        }
-#endif
-        up = 0;
-        if (sby > 0) {
-          up = state->dering_flags[(sby - 1)*nhdr + sbx];
-        }
-        left = 0;
-        if (sbx > 0) {
-          left = state->dering_flags[sby*nhdr + (sbx - 1)];
-        }
-        c = (up << 1) + left;
-        filtered_rate = od_encode_cdf_cost(1, state->adapt.clpf_cdf[c], 2);
-        unfiltered_rate = od_encode_cdf_cost(0, state->adapt.clpf_cdf[c], 2);
-        q2 = state->quantizer[0] * state->quantizer[0];
-        filtered = (filtered_error + OD_PVQ_LAMBDA*q2*filtered_rate) <
-         (unfiltered_error + OD_PVQ_LAMBDA*q2*unfiltered_rate);
-        /*When use_dering is 0, force the deringing filter off.*/
-        if (!enc->use_dering) {
-          filtered = 0;
-        }
-        state->dering_flags[sby*nhdr + sbx] = filtered;
-        od_encode_cdf_adapt(&enc->ec, filtered, state->adapt.clpf_cdf[c], 2,
-         state->adapt.clpf_increment);
-        if (filtered) {
-          for (y = 0; y < n; y++) {
-            for (x = 0; x < n; x++) {
-              output[y*w + x] = buf[y*n + x];
+          dist = od_compute_dist(enc, orig, out, n, 3, pli);
+          best_dist = dist
+           + lambda*od_encode_cdf_cost(0, state->adapt.clpf_cdf[c],
+           OD_DERING_LEVELS);
+          for (gi = 1; gi < OD_DERING_LEVELS; gi++) {
+            od_dering(state, buf, n, &state->etmp[pli][(sby << ln)*w +
+             (sbx << ln)], w, ln, sbx, sby, nhdr, nvdr, state->quantizer[0],
+             xdec, dir, pli, &enc->state.bskip[pli]
+             [(sby << (OD_LOG_DERING_GRID - ydec))*enc->state.skip_stride
+             + (sbx << (OD_LOG_DERING_GRID - xdec))], enc->state.skip_stride,
+             OD_DERING_GAIN_TABLE[gi]);
+            /* Optimize deringing for the block size decision metric. */
+            {
+              od_coeff buf32[OD_BSIZE_MAX*OD_BSIZE_MAX];
+              for (y = 0; y < n; y++) {
+                for (x = 0; x < n; x++) {
+                  buf32[y*n + x] = buf[y*n + x];
+                }
+              }
+              dist = od_compute_dist(enc, orig, buf32, n, 3, pli)
+               + lambda*od_encode_cdf_cost(gi, state->adapt.clpf_cdf[c],
+               OD_DERING_LEVELS);
+            }
+            if (dist < best_dist) {
+              best_dist = dist;
+              best_gi = gi;
             }
           }
-          for (pli = 1; pli < nplanes; pli++) {
+        }
+        state->dering_level[sby*nhdr + sbx] = best_gi;
+        od_encode_cdf_adapt(&enc->ec, best_gi, state->adapt.clpf_cdf[c],
+         OD_DERING_LEVELS, state->adapt.clpf_increment);
+        if (best_gi) {
+          for (pli = 0; pli < nplanes; pli++) {
             xdec = enc->curr_img->planes[pli].xdec;
             ydec = enc->curr_img->planes[pli].ydec;
             w = frame_width >> xdec;
             ln = OD_LOG_DERING_GRID + OD_LOG_BSIZE0 - xdec;
             n = 1 << ln;
+            /* For now we just reduce the threshold on chroma by a fixed
+               amount, but we should make this adaptive. */
             od_dering(state, buf, n, &state->etmp[pli][(sby << ln)*w +
              (sbx << ln)], w, ln, sbx, sby, nhdr, nvdr,
              state->quantizer[pli], xdec, dir, pli, &enc->state.bskip[pli]
              [(sby << (OD_LOG_DERING_GRID - ydec))*enc->state.skip_stride
-             + (sbx << (OD_LOG_DERING_GRID - xdec))], enc->state.skip_stride);
+             + (sbx << (OD_LOG_DERING_GRID - xdec))], enc->state.skip_stride,
+             OD_DERING_GAIN_TABLE[best_gi]*(pli==0 ? 1 : 0.6));
             output = &state->ctmp[pli][(sby << ln)*w + (sbx << ln)];
             for (y = 0; y < n; y++) {
               for (x = 0; x < n; x++) {

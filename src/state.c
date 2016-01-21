@@ -468,8 +468,8 @@ static int od_state_init_impl(od_state *state, const daala_info *info) {
     int nvdr;
     nhdr = state->frame_width >> (OD_LOG_DERING_GRID + OD_LOG_BSIZE0);
     nvdr = state->frame_height >> (OD_LOG_DERING_GRID + OD_LOG_BSIZE0);
-    state->dering_flags = (unsigned char *)malloc(nhdr * nvdr);
-    if (OD_UNLIKELY(!state->dering_flags)) {
+    state->dering_level = (unsigned char *)malloc(nhdr * nvdr);
+    if (OD_UNLIKELY(!state->dering_level)) {
       return OD_EFAULT;
     }
   }
@@ -526,7 +526,7 @@ void od_state_clear(od_state *state) {
   }
   free(state->bsize);
   for (pli = 0; pli < 3; pli++) free(state->bskip[pli]);
-  free(state->dering_flags);
+  free(state->dering_level);
   free(state->sb_q_scaling);
   free(state->qm);
   free(state->qm_inv);

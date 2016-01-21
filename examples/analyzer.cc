@@ -49,10 +49,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # define OD_MAX_SB_SPLITS (OD_NBSIZES - 1)
 
 #define OD_BLOCK_32X32 (3)
+#define OD_BLOCK_64X64 (4)
 
 /*The deringing filter is applied on 8x8 blocks, but it's application
    is signaled on a 32x32 grid.*/
-# define OD_LOG_DERING_GRID (OD_BLOCK_32X32)
+# define OD_LOG_DERING_GRID (OD_BLOCK_64X64)
 
 /*The superblock resolution of the block size array.  Because four 4x4 blocks
    and one 8x8 can be resolved with a single entry, this is the maximum number

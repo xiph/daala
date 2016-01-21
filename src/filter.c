@@ -1642,6 +1642,10 @@ void od_apply_postfilter_frame_sbs(od_coeff *c0, int stride, int nhsb,
 #endif
 }
 
+const double OD_DERING_GAIN_TABLE[OD_DERING_LEVELS] = {
+  0, 0.5, 0.707, 1, 1.41, 2
+};
+
 /* Detect direction. 0 means 45-degree up-right, 2 is horizontal, and so on.
    The search minimizes the weighted variance along all the lines in a
    particular direction, i.e. the squared error between the input and a
@@ -1832,7 +1836,7 @@ static void od_compute_thresh(int thresh[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS],
 void od_dering(od_state *state, int16_t *y, int ystride, int16_t *x, int
  xstride, int ln, int sbx, int sby, int nhsb, int nvsb, int q, int xdec,
  int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS],
- int pli, unsigned char *bskip, int skip_stride) {
+ int pli, unsigned char *bskip, int skip_stride, double gain) {
   int i;
   int j;
   int n;
@@ -1870,7 +1874,7 @@ void od_dering(od_state *state, int16_t *y, int ystride, int16_t *x, int
      value here comes from observing that on ntt-short, the best threshold for
      -v 5 appeared to be around 0.5*q, while the best threshold for -v 400
      was 0.25*q, i.e. 1-log(.5/.25)/log(400/5) = 0.84182 */
-  threshold = 1.0*pow(q, 0.84182);
+  threshold = gain*pow(q, 0.84182);
   if (pli == 0) {
     for (by = 0; by < nvb; by++) {
       for (bx = 0; bx < nhb; bx++) {
