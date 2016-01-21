@@ -32,7 +32,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "decint.h"
 #include "entdec.h"
 #include "entcode.h"
-#include "logging.h"
 #include "pvq_decoder.h"
 #include "partition.h"
 

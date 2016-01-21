@@ -30,7 +30,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "partition.h"
 #include <stdlib.h>
 #include <stdio.h>
-#include "logging.h"
 #include <math.h>
 #include <string.h>
 #include "filter.h"
@@ -376,7 +375,6 @@ int od_compute_householder(double *r, int n, double gr, int *sign) {
       m = i;
     }
   }
-  OD_LOG((OD_LOG_PVQ, OD_LOG_DEBUG, "max r: %f %f %d", maxr, r[m], m));
   s = r[m] > 0 ? 1 : -1;
   /* This turns r into a Householder reflection vector that would reflect
    * the original r[] to e_m */

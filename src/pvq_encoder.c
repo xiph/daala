@@ -29,7 +29,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <stdlib.h>
 #include <stdio.h>
 #include "internal.h"
-#include "logging.h"
 #include "entenc.h"
 #include "entcode.h"
 #include "filter.h"
