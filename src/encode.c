@@ -311,7 +311,9 @@ void od_input_queue_batch(od_input_queue *this, int frames) {
   frame.type = OD_P_FRAME;
   if (this->last_keyframe + frames == this->keyframe_rate) {
     frame.type = OD_I_FRAME;
-    this->last_keyframe = -1;
+    /* Set the last_keyframe to -frames so that it will be zero when it is
+        incremented by frames below. */
+    this->last_keyframe = -frames;
   }
   frame.number = this->frame_number + frames - 1;
   this->frames[OD_REORDER_INDEX(this->encode_head + this->encode_size)] =
