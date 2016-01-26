@@ -123,6 +123,7 @@ struct od_input_queue {
   int frame_number;
   int last_keyframe;
   int end_of_input;
+  int closed_gop;
 };
 
 struct daala_enc_ctx{

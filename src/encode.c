@@ -265,6 +265,8 @@ static int od_input_queue_init(od_input_queue *this, od_enc_ctx *enc) {
   this->encode_size = 0;
   this->keyframe_rate = info->keyframe_rate;
   this->frame_delay = enc->b_frames + 1;
+  /* TODO: add a way to toggle closed_gop flag from encoder_example.c */
+  this->closed_gop = OD_CLOSED_GOP;
   /*Set last_keyframe to keyframe_rate - 1 so the next frame (the first one
      added) will be a keyframe.*/
   this->last_keyframe = this->keyframe_rate - 1;
@@ -320,8 +322,6 @@ void od_input_queue_batch(od_input_queue *this, int frames) {
   this->frames[OD_REORDER_INDEX(this->encode_head + this->encode_size)] =
    frame;
   this->encode_size++;
-  /*TODO add closed_gop to od_input_queue and add code to insert an extra
-     P-frame before the I-frame.*/
   for (i = 1; i < frames; i++) {
     index = OD_REORDER_INDEX(this->input_head + i - 1);
     frame.img = &this->images[index];
@@ -339,13 +339,22 @@ void od_input_queue_batch(od_input_queue *this, int frames) {
 }
 
 od_input_frame *od_input_queue_next(od_input_queue *this, int *last) {
+  OD_ASSERT(0 <= this->last_keyframe);
+  OD_ASSERT(this->last_keyframe < this->keyframe_rate);
   /* If the encode queue is empty and there are input frames pending. */
   if (this->encode_size == 0 && this->input_size > 0) {
+    int next_keyframe;
+    /* Compute the number of frames before the next keyframe.
+       If closed_gop == 1, we subtract 1 so that calling od_input_queue_batch
+        will insert a P-frame right before the next I-frame.
+       The call to OD_MAXI handles the edge case where both keyframe_rate == 1
+        and closed_gop == 1. */
+    next_keyframe =
+     OD_MAXI(this->keyframe_rate - this->last_keyframe - this->closed_gop, 1);
     /* If a keyframe should appear in the queued input frames */
-    if (this->last_keyframe + this->input_size >= this->keyframe_rate) {
-      /* Queue for encoding frames through keyframe up to frame_delay */
-      od_input_queue_batch(this,
-       OD_MINI(this->keyframe_rate - this->last_keyframe, this->frame_delay));
+    if (this->input_size >= next_keyframe) {
+      /* Queue frames through the next keyframe up to frame_delay */
+      od_input_queue_batch(this, OD_MINI(next_keyframe, this->frame_delay));
     }
     /* If at least frame_delay input frames are queued */
     else if (this->input_size >= this->frame_delay) {
