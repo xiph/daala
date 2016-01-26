@@ -1108,7 +1108,7 @@ void od_img_edge_ext(daala_image* src) {
   }
 }
 
-int od_output_queue_init(od_output_queue *this, od_state *state) {
+int od_output_queue_init(od_output_queue *out, od_state *state) {
   daala_info *info;
   int pli;
   int imgi;
@@ -1129,7 +1129,7 @@ int od_output_queue_init(od_output_queue *this, od_state *state) {
     data_sz += OD_MAX_REORDER*(frame_width >> info->plane_info[pli].xdec)*
      (frame_height >> info->plane_info[pli].ydec)*output_bytes;
   }
-  this->output_img_data = output_img_data =
+  out->output_img_data = output_img_data =
    (unsigned char *)od_aligned_malloc(data_sz, 32);
   if (OD_UNLIKELY(!output_img_data)) {
     return OD_EFAULT;
@@ -1137,7 +1137,7 @@ int od_output_queue_init(od_output_queue *this, od_state *state) {
   /* Fill in the output img structure. */
   for (imgi = 0; imgi < OD_MAX_REORDER; imgi++) {
     daala_image *img;
-    img = &this->images[imgi];
+    img = &out->images[imgi];
     img->nplanes = info->nplanes;
     img->width = state->frame_width;
     img->height = state->frame_height;
@@ -1156,52 +1156,52 @@ int od_output_queue_init(od_output_queue *this, od_state *state) {
       iplane->data = output_img_data;
       output_img_data += plane_height*iplane->ystride;
     }
-    this->decode_used[imgi] = 0;
-    this->output_used[imgi] = 0;
+    out->decode_used[imgi] = 0;
+    out->output_used[imgi] = 0;
   }
-  this->decode_index = 0;
-  this->output_index = 0;
+  out->decode_index = 0;
+  out->output_index = 0;
   return OD_SUCCESS;
 }
 
-void od_output_queue_clear(od_output_queue *this) {
-  od_aligned_free(this->output_img_data);
+void od_output_queue_clear(od_output_queue *out) {
+  od_aligned_free(out->output_img_data);
 }
 
-int od_output_queue_add(od_output_queue *this, daala_image *img, int number) {
+int od_output_queue_add(od_output_queue *out, daala_image *img, int number) {
   od_output_frame frame;
   int index;
-  OD_RETURN_CHECK(this, OD_EFAULT);
+  OD_RETURN_CHECK(out, OD_EFAULT);
   OD_RETURN_CHECK(img, OD_EFAULT);
   OD_RETURN_CHECK(number >= 0, OD_EINVAL);
   /* Add the decoded frame to the decode queue. */
-  index = this->decode_index;
-  OD_ASSERT(!this->decode_used[index]);
-  this->decode_used[index] = 1;
-  od_img_copy(&this->images[index], img);
-  this->decode_index = OD_REORDER_INDEX(index + 1);
+  index = out->decode_index;
+  OD_ASSERT(!out->decode_used[index]);
+  out->decode_used[index] = 1;
+  od_img_copy(&out->images[index], img);
+  out->decode_index = OD_REORDER_INDEX(index + 1);
   /* Construct the od_output_frame struct. */
-  frame.img = &this->images[index];
+  frame.img = &out->images[index];
   frame.number = number;
   /* Insert it into the output queue in the correct order. */
   index = OD_REORDER_INDEX(number);
-  OD_ASSERT(!this->output_used[index]);
-  this->output_used[index] = 1;
-  this->frames[index] = frame;
+  OD_ASSERT(!out->output_used[index]);
+  out->output_used[index] = 1;
+  out->frames[index] = frame;
   return OD_SUCCESS;
 }
 
-od_output_frame *od_output_queue_next(od_output_queue *this) {
-  OD_ASSERT(this);
-  if (this->output_used[this->output_index]) {
+od_output_frame *od_output_queue_next(od_output_queue *out) {
+  OD_ASSERT(out);
+  if (out->output_used[out->output_index]) {
     int index;
     od_output_frame *frame;
-    index = this->output_index;
-    this->output_used[index] = 0;
-    this->output_index = OD_REORDER_INDEX(index + 1);
-    frame = &this->frames[index];
-    index = frame->img - this->images;
-    this->decode_used[index] = 0;
+    index = out->output_index;
+    out->output_used[index] = 0;
+    out->output_index = OD_REORDER_INDEX(index + 1);
+    frame = &out->frames[index];
+    index = frame->img - out->images;
+    out->decode_used[index] = 0;
     return frame;
   }
   return NULL;

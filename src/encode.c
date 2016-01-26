@@ -204,7 +204,7 @@ static void od_enc_opt_vtbl_init(od_enc_ctx *enc) {
 #endif
 }
 
-static int od_input_queue_init(od_input_queue *this, od_enc_ctx *enc) {
+static int od_input_queue_init(od_input_queue *in, od_enc_ctx *enc) {
   od_state *state;
   daala_info *info;
   int pli;
@@ -228,7 +228,7 @@ static int od_input_queue_init(od_input_queue *this, od_enc_ctx *enc) {
     data_sz += OD_MAX_REORDER*(frame_buf_width >> info->plane_info[pli].xdec)*
      (frame_buf_height >> info->plane_info[pli].ydec)*input_bytes;
   }
-  this->input_img_data = input_img_data =
+  in->input_img_data = input_img_data =
    (unsigned char *)od_aligned_malloc(data_sz, 32);
   if (OD_UNLIKELY(!input_img_data)) {
     return OD_EFAULT;
@@ -236,7 +236,7 @@ static int od_input_queue_init(od_input_queue *this, od_enc_ctx *enc) {
   /*Fill in the input img structure.*/
   for (imgi = 0; imgi < OD_MAX_REORDER; imgi++) {
     daala_image *img;
-    img = &this->images[imgi];
+    img = &in->images[imgi];
     img->nplanes = info->nplanes;
     img->width = state->frame_width;
     img->height = state->frame_height;
@@ -259,90 +259,88 @@ static int od_input_queue_init(od_input_queue *this, od_enc_ctx *enc) {
       input_img_data += plane_buf_height*iplane->ystride;
     }
   }
-  this->input_head = 0;
-  this->input_size = 0;
-  this->encode_head = 0;
-  this->encode_size = 0;
-  this->keyframe_rate = info->keyframe_rate;
-  this->frame_delay = enc->b_frames + 1;
+  in->input_head = 0;
+  in->input_size = 0;
+  in->encode_head = 0;
+  in->encode_size = 0;
+  in->keyframe_rate = info->keyframe_rate;
+  in->frame_delay = enc->b_frames + 1;
   /* TODO: add a way to toggle closed_gop flag from encoder_example.c */
-  this->closed_gop = OD_CLOSED_GOP;
+  in->closed_gop = OD_CLOSED_GOP;
   /*Set last_keyframe to keyframe_rate - 1 so the next frame (the first one
      added) will be a keyframe.*/
-  this->last_keyframe = this->keyframe_rate - 1;
-  this->end_of_input = 0;
-  this->frame_number = 0;
+  in->last_keyframe = in->keyframe_rate - 1;
+  in->end_of_input = 0;
+  in->frame_number = 0;
   return OD_SUCCESS;
 }
 
-static void od_input_queue_clear(od_input_queue *this) {
-  od_aligned_free(this->input_img_data);
+static void od_input_queue_clear(od_input_queue *in) {
+  od_aligned_free(in->input_img_data);
 }
 
 static void daala_image_copy_pad(daala_image *dst, daala_image *img);
 
-static int od_input_queue_add(od_input_queue *this, daala_image *img,
+static int od_input_queue_add(od_input_queue *in, daala_image *img,
  int duration) {
   int index;
-  OD_RETURN_CHECK(this, OD_EFAULT);
+  OD_RETURN_CHECK(in, OD_EFAULT);
   OD_RETURN_CHECK(img, OD_EFAULT);
   OD_RETURN_CHECK(duration >= 0, OD_EINVAL);
   /* If we have reached the end of input, adding a frame is an error. */
-  OD_RETURN_CHECK(!this->end_of_input, OD_EINVAL);
+  OD_RETURN_CHECK(!in->end_of_input, OD_EINVAL);
   /* If the input buffer is full, adding a frame is an error. */
-  OD_RETURN_CHECK(this->input_size < OD_MAX_REORDER, OD_EINVAL);
-  index = OD_REORDER_INDEX(this->input_head + this->input_size);
-  daala_image_copy_pad(&this->images[index], img);
-  this->duration[index] = duration;
-  this->input_size++;
+  OD_RETURN_CHECK(in->input_size < OD_MAX_REORDER, OD_EINVAL);
+  index = OD_REORDER_INDEX(in->input_head + in->input_size);
+  daala_image_copy_pad(&in->images[index], img);
+  in->duration[index] = duration;
+  in->input_size++;
   return OD_SUCCESS;
 }
 
-void od_input_queue_batch(od_input_queue *this, int frames) {
+void od_input_queue_batch(od_input_queue *in, int frames) {
   od_input_frame frame;
   int i;
   int index;
   OD_ASSERT(frames);
-  OD_ASSERT(frames <= this->frame_delay);
-  OD_ASSERT(this->last_keyframe + frames <= this->keyframe_rate);
-  OD_ASSERT(this->input_size >= frames);
-  OD_ASSERT(OD_MAX_REORDER - this->encode_size >= frames);
+  OD_ASSERT(frames <= in->frame_delay);
+  OD_ASSERT(in->last_keyframe + frames <= in->keyframe_rate);
+  OD_ASSERT(in->input_size >= frames);
+  OD_ASSERT(OD_MAX_REORDER - in->encode_size >= frames);
   /* Queue the last frame first */
-  index = OD_REORDER_INDEX(this->input_head + frames - 1);
-  frame.img = &this->images[index];
-  frame.duration = this->duration[index];
+  index = OD_REORDER_INDEX(in->input_head + frames - 1);
+  frame.img = &in->images[index];
+  frame.duration = in->duration[index];
   frame.type = OD_P_FRAME;
-  if (this->last_keyframe + frames == this->keyframe_rate) {
+  if (in->last_keyframe + frames == in->keyframe_rate) {
     frame.type = OD_I_FRAME;
     /* Set the last_keyframe to -frames so that it will be zero when it is
         incremented by frames below. */
-    this->last_keyframe = -frames;
+    in->last_keyframe = -frames;
   }
-  frame.number = this->frame_number + frames - 1;
-  this->frames[OD_REORDER_INDEX(this->encode_head + this->encode_size)] =
-   frame;
-  this->encode_size++;
+  frame.number = in->frame_number + frames - 1;
+  in->frames[OD_REORDER_INDEX(in->encode_head + in->encode_size)] = frame;
+  in->encode_size++;
   for (i = 1; i < frames; i++) {
-    index = OD_REORDER_INDEX(this->input_head + i - 1);
-    frame.img = &this->images[index];
-    frame.duration = this->duration[index];
+    index = OD_REORDER_INDEX(in->input_head + i - 1);
+    frame.img = &in->images[index];
+    frame.duration = in->duration[index];
     frame.type = OD_B_FRAME;
-    frame.number = this->frame_number + i - 1;
-    this->frames[OD_REORDER_INDEX(this->encode_head + this->encode_size)] =
-     frame;
-    this->encode_size++;
+    frame.number = in->frame_number + i - 1;
+    in->frames[OD_REORDER_INDEX(in->encode_head + in->encode_size)] = frame;
+    in->encode_size++;
   }
-  this->last_keyframe += frames;
-  this->input_head = OD_REORDER_INDEX(this->input_head + frames);
-  this->input_size -= frames;
-  this->frame_number += frames;
+  in->last_keyframe += frames;
+  in->input_head = OD_REORDER_INDEX(in->input_head + frames);
+  in->input_size -= frames;
+  in->frame_number += frames;
 }
 
-od_input_frame *od_input_queue_next(od_input_queue *this, int *last) {
-  OD_ASSERT(0 <= this->last_keyframe);
-  OD_ASSERT(this->last_keyframe < this->keyframe_rate);
+od_input_frame *od_input_queue_next(od_input_queue *in, int *last) {
+  OD_ASSERT(0 <= in->last_keyframe);
+  OD_ASSERT(in->last_keyframe < in->keyframe_rate);
   /* If the encode queue is empty and there are input frames pending. */
-  if (this->encode_size == 0 && this->input_size > 0) {
+  if (in->encode_size == 0 && in->input_size > 0) {
     int next_keyframe;
     /* Compute the number of frames before the next keyframe.
        If closed_gop == 1, we subtract 1 so that calling od_input_queue_batch
@@ -350,30 +348,29 @@ od_input_frame *od_input_queue_next(od_input_queue *this, int *last) {
        The call to OD_MAXI handles the edge case where both keyframe_rate == 1
         and closed_gop == 1. */
     next_keyframe =
-     OD_MAXI(this->keyframe_rate - this->last_keyframe - this->closed_gop, 1);
+     OD_MAXI(in->keyframe_rate - in->last_keyframe - in->closed_gop, 1);
     /* If a keyframe should appear in the queued input frames */
-    if (this->input_size >= next_keyframe) {
+    if (in->input_size >= next_keyframe) {
       /* Queue frames through the next keyframe up to frame_delay */
-      od_input_queue_batch(this, OD_MINI(next_keyframe, this->frame_delay));
+      od_input_queue_batch(in, OD_MINI(next_keyframe, in->frame_delay));
     }
     /* If at least frame_delay input frames are queued */
-    else if (this->input_size >= this->frame_delay) {
+    else if (in->input_size >= in->frame_delay) {
       /* Queue for encoding exactly frame_delay input frames */
-      od_input_queue_batch(this, this->frame_delay);
+      od_input_queue_batch(in, in->frame_delay);
     }
     /* If we have reached the end of input */
-    else if (this->end_of_input) {
+    else if (in->end_of_input) {
       /* Queue for encoding remaining input frames up to frame_delay */
-      od_input_queue_batch(this, OD_MINI(this->input_size, this->frame_delay));
+      od_input_queue_batch(in, OD_MINI(in->input_size, in->frame_delay));
     }
   }
-  if (this->encode_size > 0) {
+  if (in->encode_size > 0) {
     od_input_frame *input_frame;
-    input_frame = &this->frames[this->encode_head];
-    this->encode_head = (this->encode_head + 1) % OD_MAX_REORDER;
-    this->encode_size--;
-    *last =
-     this->encode_size == 0 && this->end_of_input && this->input_size == 0;
+    input_frame = &in->frames[in->encode_head];
+    in->encode_head = (in->encode_head + 1) % OD_MAX_REORDER;
+    in->encode_size--;
+    *last = in->encode_size == 0 && in->end_of_input && in->input_size == 0;
     return input_frame;
   }
   return NULL;
