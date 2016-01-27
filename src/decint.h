@@ -51,12 +51,12 @@ struct daala_dec_ctx {
   /*Buffer for the output frames, bitdepth equal to declared video depth.*/
   daala_image output_img[2];
   unsigned char *output_img_data;
-  /*Frame counter in decoding order.*/
-  int64_t dec_order_count;
   /*Current decoded frame pointer of out_imgs[].*/
   int curr_dec_frame;
-  /*Keep the display order of frames in output image buffers.*/
-  int last_frame_decoded;
+  /*These flags hold the output state of the decoder and are used to infer
+     the display order in daala_decode_img_out.*/
+  int first_frame;
+  int last_frame;
 #if OD_ACCOUNTING
   int acct_enabled;
   od_accounting_internal acct;

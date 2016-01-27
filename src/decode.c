@@ -105,8 +105,8 @@ static int od_dec_init(od_dec_ctx *dec, const daala_info *info,
       output_img_data += plane_buf_height*iplane->ystride;
     }
   }
-  dec->last_frame_decoded = 0;
-  dec->dec_order_count = -1;
+  dec->first_frame = 1;
+  dec->last_frame = 0;
 #if OD_ACCOUNTING
   od_accounting_init(&dec->acct);
   dec->acct_enabled = 0;
@@ -1155,9 +1155,8 @@ int daala_decode_packet_in(daala_dec_ctx *dec, const daala_packet *op) {
   if (dec->packet_state != OD_PACKET_DATA) return OD_EINVAL;
   if (op->e_o_s) {
     dec->packet_state = OD_PACKET_DONE;
-    dec->last_frame_decoded = 1;
+    dec->last_frame = 1;
   }
-  ++dec->dec_order_count;
   od_ec_dec_init(&dec->ec, op->packet, op->bytes);
 #if OD_ACCOUNTING
   if (dec->acct_enabled) {
@@ -1289,8 +1288,9 @@ int daala_decode_img_out(daala_dec_ctx *dec, daala_image *img) {
   switch (dec->state.frames_in_out_buff) {
     case 1 : {
       /* If it is the first frame or the last frame. */
-      if (dec->dec_order_count == 0 || dec->last_frame_decoded) {
+      if (dec->first_frame || dec->last_frame) {
         curr_dec_output = od_state_pop_output_buff_head(&dec->state);
+        dec->first_frame = 0;
       }
       break;
     }
