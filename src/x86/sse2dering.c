@@ -33,7 +33,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #if defined(OD_X86ASM)
 #include <emmintrin.h>
-#include "../filter.h"
+#include "../dering.h"
 
 #if defined(OD_CHECKASM)
 void od_filter_dering_direction_check(int16_t *y, int ystride, int16_t *in,

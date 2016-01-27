@@ -122,6 +122,7 @@ accounting.c \
 entcode.c \
 entdec.c \
 filter.c \
+dering.c \
 generic_code.c \
 generic_decoder.c \
 info.c \
@@ -147,7 +148,7 @@ zigzag32.c \
 zigzag64.c \
 $(if $(findstring -DOD_X86ASM,${CFLAGS}), \
 x86/cpu.c \
-x86/sse2filter.c \
+x86/sse2dering.c \
 x86/sse2mc.c \
 x86/sse2util.c \
 x86/x86state.c \

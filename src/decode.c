@@ -34,6 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "decint.h"
 #include "generic_code.h"
 #include "filter.h"
+#include "dering.h"
 #include "dct.h"
 #include "intra.h"
 #include "partition.h"

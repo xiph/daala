@@ -13,6 +13,7 @@ noinst_HEADERS = \
 	src/block_size_enc.h \
 	src/dct.h \
 	src/decint.h \
+	src/dering.h \
 	src/encint.h \
 	src/entcode.h \
 	src/entdec.h \
@@ -74,6 +75,7 @@ src_libdaalabase_la_SOURCES = \
 	src/accounting.c \
 	src/entcode.c \
 	src/entdec.c \
+	src/dering.c \
 	src/filter.c \
 	src/generic_code.c \
 	src/generic_decoder.c \
@@ -99,7 +101,7 @@ src_libdaalabase_la_SOURCES = \
 	$(src_dct_SOURCES)
 if ENABLE_X86ASM
 src_libdaalabase_la_SOURCES += \
-	src/x86/sse2filter.c \
+	src/x86/sse2dering.c \
 	src/x86/sse2mc.c \
 	src/x86/sse2util.c \
 	src/x86/x86state.c
@@ -345,7 +347,8 @@ tools_upsample_SOURCES = \
 	tools/upsample.c
 if ENABLE_X86ASM
 tools_upsample_SOURCES += \
-	src/x86/sse2filter.c \
+	src/dering.c \
+	src/x86/sse2dering.c \
 	src/x86/sse2mc.c \
 	src/x86/sse2util.c \
 	src/x86/x86state.c

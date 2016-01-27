@@ -35,6 +35,7 @@ typedef struct od_adapt_ctx      od_adapt_ctx;
 # include "dct.h"
 # include "mc.h"
 # include "filter.h"
+# include "dering.h"
 # include "pvq.h"
 # include "generic_code.h"
 # include "util.h"
