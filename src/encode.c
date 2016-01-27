@@ -478,7 +478,6 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
   }
   }
 #endif
-  enc->curr_frame = 0;
   enc->curr_img = NULL;
   enc->ip_frame_count = 0;
 #if defined(OD_ENCODER_CHECK)

@@ -171,8 +171,6 @@ struct daala_enc_ctx{
   int frame_delay;
   /** Displaying order of current frame being encoded. */
   int64_t curr_display_order;
-  /** Current input frame pointer of in_imgs[]. */
-  int curr_frame;
   /** Number of I or P frames encoded so far, starting from zero. */
   unsigned int ip_frame_count;
 #if defined(OD_DUMP_RECONS)
