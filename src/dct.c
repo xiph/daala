@@ -8596,99 +8596,103 @@ static void check_bias(int bszi) {
 
 # if defined(OD_DCT_CHECK_OVERFLOW)
 
+/* Largest filter size used is 4-point. */
+#  define OD_MAX_FILT_SIZE (0)
+
 static void od_bin_fxform_2d(od_coeff x[OD_BSIZE_MAX*2][OD_BSIZE_MAX*2],
- int bszi) {
+ int bszi, int f) {
   od_coeff y[OD_BSIZE_MAX*2];
   int u;
   int v;
   int n;
-  int f;
+  int fn;
+  int o;
   n = 1 << (OD_LOG_BSIZE0 + bszi);
-  /*Test with all filters up to OD_MAX_FILT_SIZE.*/
-  for (f = 0; f <= OD_MINI(bszi, OD_MAX_FILT_SIZE); f++) {
-    int fn;
-    int o;
-    fn = 1 << (OD_LOG_BSIZE0 + f);
-    o = (n >> 1) - (fn >> 1);
-    /*Perform pre-filtering.*/
-    for (v = 0; v < n*2; v++) {
-      for (u = 0; u < n*2; u++) y[u] = x[u][v];
-      (*OD_PRE_FILTER[f])(y + o, y + o);
-      (*OD_PRE_FILTER[f])(y + n + o, y + n + o);
-      for (u = 0; u < n*2; u++) x[u][v] = y[u];
-    }
-    for (u = 0; u < n*2; u++) {
-      (*OD_PRE_FILTER[f])(x[u] + o, x[u] + o);
-      (*OD_PRE_FILTER[f])(x[u] + n + o, x[u] + n + o);
-    }
-    /*Perform DCT.*/
-    for (u = n >> 1; u < n*3 >> 1; u++) {
-      (*OD_FDCT_1D[bszi])(x[u] + (n >> 1), x[u] + (n >> 1), 1);
-    }
-    for (v = n >> 1; v < n*3 >> 1; v++) {
-      for (u = n >> 1; u < n*3 >> 1; u++) y[u] = x[u][v];
-      (*OD_FDCT_1D[bszi])(y + (n >> 1), y + (n >> 1), 1);
-      for (u = n >> 1; u < n*3 >> 1; u++) x[u][v] = y[u];
-    }
+  fn = 1 << (OD_LOG_BSIZE0 + f);
+  o = (n >> 1) - (fn >> 1);
+  /*Perform pre-filtering.*/
+  for (v = 0; v < n*2; v++) {
+    for (u = 0; u < n*2; u++) y[u] = x[u][v];
+    (*OD_PRE_FILTER[f])(y + o, y + o);
+    (*OD_PRE_FILTER[f])(y + n + o, y + n + o);
+    for (u = 0; u < n*2; u++) x[u][v] = y[u];
+  }
+  for (u = 0; u < n*2; u++) {
+    (*OD_PRE_FILTER[f])(x[u] + o, x[u] + o);
+    (*OD_PRE_FILTER[f])(x[u] + n + o, x[u] + n + o);
+  }
+  /*Perform DCT.*/
+  for (u = n >> 1; u < n*3 >> 1; u++) {
+    (*OD_FDCT_1D[bszi])(x[u] + (n >> 1), x[u] + (n >> 1), 1);
+  }
+  for (v = n >> 1; v < n*3 >> 1; v++) {
+    for (u = n >> 1; u < n*3 >> 1; u++) y[u] = x[u][v];
+    (*OD_FDCT_1D[bszi])(y + (n >> 1), y + (n >> 1), 1);
+    for (u = n >> 1; u < n*3 >> 1; u++) x[u][v] = y[u];
   }
 }
 
 static void dynamic_range(int bszi) {
-  static double
-   basis2[OD_BSIZE_MAX][OD_BSIZE_MAX][OD_BSIZE_MAX*2][OD_BSIZE_MAX*2];
-  od_coeff min2[OD_BSIZE_MAX][OD_BSIZE_MAX];
-  od_coeff max2[OD_BSIZE_MAX][OD_BSIZE_MAX];
-  int i;
-  int j;
-  int u;
-  int v;
-  int n;
-  n = 1 << (OD_LOG_BSIZE0 + bszi);
-  for (i = 0; i < n*2; i++) {
-    for (j = 0; j < n*2; j++) {
-      od_coeff x[OD_BSIZE_MAX*2][OD_BSIZE_MAX*2];
-      /*Generate impulse.*/
-      for (u = 0; u < n*2; u++) {
-        for (v = 0; v < n*2; v++) {
-          x[u][v] = (u == i && v == j) << (8 + OD_COEFF_SHIFT);
+  int f;
+  /*Test with all filters up to OD_MAX_FILT_SIZE.*/
+  for (f = 0; f <= OD_MINI(bszi, OD_MAX_FILT_SIZE); f++) {
+    static double
+     basis2[OD_BSIZE_MAX][OD_BSIZE_MAX][OD_BSIZE_MAX*2][OD_BSIZE_MAX*2];
+    od_coeff min2[OD_BSIZE_MAX][OD_BSIZE_MAX];
+    od_coeff max2[OD_BSIZE_MAX][OD_BSIZE_MAX];
+    int i;
+    int j;
+    int u;
+    int v;
+    int n;
+    n = 1 << (OD_LOG_BSIZE0 + bszi);
+    for (i = 0; i < n*2; i++) {
+      for (j = 0; j < n*2; j++) {
+        od_coeff x[OD_BSIZE_MAX*2][OD_BSIZE_MAX*2];
+        /*Generate impulse.*/
+        for (u = 0; u < n*2; u++) {
+          for (v = 0; v < n*2; v++) {
+            x[u][v] = (u == i && v == j) << (8 + OD_COEFF_SHIFT);
+          }
         }
-      }
-      od_bin_fxform_2d(x, bszi);
-      /*Retrieve basis elements.*/
-      for (u = 0; u < n; u++) {
-        for (v = 0; v < n; v++) {
-          basis2[u][v][i][j] =
-           x[u + (n >> 1)][v + (n >> 1)]/(256.0*OD_COEFF_SCALE);
+        od_bin_fxform_2d(x, bszi, f);
+        /*Retrieve basis elements.*/
+        for (u = 0; u < n; u++) {
+          for (v = 0; v < n; v++) {
+            basis2[u][v][i][j] =
+             x[u + (n >> 1)][v + (n >> 1)]/(256.0*OD_COEFF_SCALE);
+          }
         }
       }
     }
-  }
-  for (u = 0; u < n; u++) {
-    for (v = 0; v < n; v++) {
-      od_coeff x[OD_BSIZE_MAX*2][OD_BSIZE_MAX*2];
-      for (i = 0; i < n*2; i++) {
-        for (j = 0; j < n*2; j++) {
-          x[i][j] = (basis2[u][v][i][j] < 0 ? -255 : 255)*OD_COEFF_SCALE;
+    for (u = 0; u < n; u++) {
+      for (v = 0; v < n; v++) {
+        od_coeff x[OD_BSIZE_MAX*2][OD_BSIZE_MAX*2];
+        for (i = 0; i < n*2; i++) {
+          for (j = 0; j < n*2; j++) {
+            x[i][j] = (basis2[u][v][i][j] < 0 ? -255 : 255)*OD_COEFF_SCALE;
+          }
         }
-      }
-      od_bin_fxform_2d(x, bszi);
-      max2[u][v] = x[u + (n >> 1)][v + (n >> 1)];
-      for (i = 0; i < n*2; i++) {
-        for (j = 0; j < n*2; j++) {
-          x[i][j] = (basis2[u][v][i][j] > 0 ? -255 : 255)*OD_COEFF_SCALE;
+        od_bin_fxform_2d(x, bszi, f);
+        max2[u][v] = x[u + (n >> 1)][v + (n >> 1)];
+        for (i = 0; i < n*2; i++) {
+          for (j = 0; j < n*2; j++) {
+            x[i][j] = (basis2[u][v][i][j] > 0 ? -255 : 255)*OD_COEFF_SCALE;
+          }
         }
+        od_bin_fxform_2d(x, bszi, f);
+        min2[u][v] = x[u + (n >> 1)][v + (n >> 1)];
       }
-      od_bin_fxform_2d(x, bszi);
-      min2[u][v] = x[u + (n >> 1)][v + (n >> 1)];
     }
-  }
-  printf("2-D scaled, prefiltered ranges:\n");
-  for (u = 0; u < n; u++) {
-    printf(" Min %2i:", u);
-    for (v = 0; v < n; v++) printf(" %7i", min2[u][v]);
-    printf("\n Max %2i:", u);
-    for (v = 0; v < n; v++) printf(" %7i", max2[u][v]);
-    printf("\n");
+    printf("2-D scaled, prefiltered ranges (filter size = %i):\n",
+     1 << (OD_LOG_BSIZE0 + f));
+    for (u = 0; u < n; u++) {
+      printf(" Min %2i:", u);
+      for (v = 0; v < n; v++) printf(" %7i", min2[u][v]);
+      printf("\n Max %2i:", u);
+      for (v = 0; v < n; v++) printf(" %7i", max2[u][v]);
+      printf("\n");
+    }
   }
 }
 
