@@ -39,7 +39,7 @@ extern const double OD_DERING_GAIN_TABLE[OD_DERING_LEVELS];
 #define OD_FILT_BORDER (3)
 #define OD_FILT_BSTRIDE (OD_BSIZE_MAX + 2*OD_FILT_BORDER)
 
-extern const int direction_offsets_table[8][3];
+extern const int OD_DIRECTION_OFFSETS_TABLE[8][3];
 
 void od_dering(struct od_state *state, int16_t *y, int ystride, int16_t *x,
  int xstride, int ln, int sbx, int sby, int nhsb, int nvsb, int q, int xdec,

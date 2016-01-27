@@ -44,7 +44,7 @@ void od_filter_dering_direction_offsets(int *offset, int dir, int bstride) {
 }
 
 int main(int argc, char **argv) {
-  printf("int direction_offsets_table[8][3] = {\n");
+  printf("int OD_DIRECTION_OFFSETS_TABLE[8][3] = {\n");
   int offset[3];
   for (int dir = 0; dir < 8; dir++) {
     int k;

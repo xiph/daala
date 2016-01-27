@@ -43,7 +43,7 @@ const od_filter_dering_orthogonal_func
 };
 
 /* Generated from gen_filter_tables.c. */
-const int direction_offsets_table[8][3] = {
+const int OD_DIRECTION_OFFSETS_TABLE[8][3] = {
   {-1*OD_FILT_BSTRIDE + 1, -2*OD_FILT_BSTRIDE + 2, -3*OD_FILT_BSTRIDE + 3  },
   { 0*OD_FILT_BSTRIDE + 1, -1*OD_FILT_BSTRIDE + 2, -1*OD_FILT_BSTRIDE + 3  },
   { 0*OD_FILT_BSTRIDE + 1,  0*OD_FILT_BSTRIDE + 2,  0*OD_FILT_BSTRIDE + 3  },
@@ -141,8 +141,10 @@ void od_filter_dering_direction_c(int16_t *y, int ystride, int16_t *in,
       for (k = 0; k < 3; k++) {
         od_coeff p0;
         od_coeff p1;
-        p0 = in[i*OD_FILT_BSTRIDE + j + direction_offsets_table[dir][k]] - xx;
-        p1 = in[i*OD_FILT_BSTRIDE + j - direction_offsets_table[dir][k]] - xx;
+        p0 = in[i*OD_FILT_BSTRIDE + j + OD_DIRECTION_OFFSETS_TABLE[dir][k]]
+         - xx;
+        p1 = in[i*OD_FILT_BSTRIDE + j - OD_DIRECTION_OFFSETS_TABLE[dir][k]]
+         - xx;
         if (abs(p0) < threshold) sum += taps[k]*p0;
         if (abs(p1) < threshold) sum += taps[k]*p1;
       }
@@ -214,7 +216,7 @@ void od_filter_dering_orthogonal_8x8_c(int16_t *y, int ystride, int16_t *in,
 /* This table approximates x^0.16 with the index being log2(x). It is clamped
    to [-.5, 3]. The table is computed as:
    round(256*min(3, max(.5, 1.08*(sqrt(2)*2.^([0:17]+8)/256/256).^.16))) */
-static int16_t od_thresh_table_q8[18] = {
+static const int16_t OD_THRESH_TABLE_Q8[18] = {
   128, 134, 150, 168, 188, 210, 234, 262,
   292, 327, 365, 408, 455, 509, 569, 635,
   710, 768,
@@ -239,7 +241,7 @@ static void od_compute_thresh(int thresh[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS],
          entire superblock to determine the threshold. */
       v1 = OD_MINI(32767, var[by][bx] >> 6);
       v2 = OD_MINI(32767, sb_var/(OD_BSIZE_MAX*OD_BSIZE_MAX));
-      thresh[by][bx] = threshold*od_thresh_table_q8[OD_CLAMPI(0,
+      thresh[by][bx] = threshold*OD_THRESH_TABLE_Q8[OD_CLAMPI(0,
        OD_ILOG(v1*v2) - 9, 17)] >> 8;
     }
   }
