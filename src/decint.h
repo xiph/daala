@@ -49,8 +49,6 @@ struct daala_dec_ctx {
   od_mv_grid_pt *user_mv_grid;
   daala_image *user_mc_img;
   od_output_queue out;
-  /* A pointer to the currently decoding image. */
-  daala_image *curr_img;
 #if OD_ACCOUNTING
   int acct_enabled;
   od_accounting_internal acct;

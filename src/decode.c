@@ -58,7 +58,6 @@ static int od_dec_init(od_dec_ctx *dec, const daala_info *info,
   dec->user_mc_img = NULL;
   dec->user_dering = NULL;
   od_output_queue_init(&dec->out, &dec->state);
-  dec->curr_img = &dec->out.images[0];
 #if OD_ACCOUNTING
   od_accounting_init(&dec->acct);
   dec->acct_enabled = 0;
@@ -273,7 +272,7 @@ static void od_decode_compute_pred(daala_dec_ctx *dec, od_mb_dec_ctx *ctx,
   int x;
   OD_ASSERT(bs >= 0 && bs < OD_NBSIZES);
   n = 1 << (bs + OD_LOG_BSIZE0);
-  xdec = dec->curr_img->planes[pli].xdec;
+  xdec = dec->state.info.plane_info[pli].xdec;
   w = dec->state.frame_width >> xdec;
   bo = (by << OD_LOG_BSIZE0)*w + (bx << OD_LOG_BSIZE0);
   /*We never use tf on the chroma planes, but if we do it will blow up, which
@@ -500,7 +499,7 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int bs,
   use_activity_masking = ctx->use_activity_masking;
   bx <<= bs;
   by <<= bs;
-  xdec = dec->curr_img->planes[pli].xdec;
+  xdec = dec->state.info.plane_info[pli].xdec;
   frame_width = dec->state.frame_width;
   w = frame_width >> xdec;
   bo = (by << 2)*w + (bx << 2);
@@ -970,8 +969,8 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
         mbctx->mc = state->mctmp[pli];
         mbctx->md = state->mdtmp[pli];
         mbctx->l = state->lbuf[pli];
-        xdec = dec->curr_img->planes[pli].xdec;
-        ydec = dec->curr_img->planes[pli].ydec;
+        xdec = dec->state.info.plane_info[pli].xdec;
+        ydec = dec->state.info.plane_info[pli].ydec;
         if (mbctx->is_keyframe) {
           od_decode_haar_dc_sb(dec, mbctx, pli, sbx, sby, xdec, ydec,
            sby > 0 && sbx < nhsb - 1, &hgrad, &vgrad);
@@ -982,8 +981,8 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
     }
   }
   for (pli = 0; pli < nplanes; pli++) {
-    xdec = dec->curr_img->planes[pli].xdec;
-    ydec = dec->curr_img->planes[pli].ydec;
+    xdec = dec->state.info.plane_info[pli].xdec;
+    ydec = dec->state.info.plane_info[pli].ydec;
     w = frame_width >> xdec;
     if (!mbctx->use_haar_wavelet) {
       od_apply_postfilter_frame_sbs(state->ctmp[pli], w, nhsb, nvsb, xdec,
@@ -997,8 +996,8 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
     for (pli = 0; pli < nplanes; pli++) {
       int i;
       int size;
-      xdec = dec->curr_img->planes[pli].xdec;
-      ydec = dec->curr_img->planes[pli].ydec;
+      xdec = dec->state.info.plane_info[pli].xdec;
+      ydec = dec->state.info.plane_info[pli].ydec;
       size = nvsb*nhsb*OD_BSIZE_MAX*OD_BSIZE_MAX >> xdec >> ydec;
       for (i = 0; i < size; i++) {
         state->etmp[pli][i] = state->ctmp[pli][i];
@@ -1049,8 +1048,8 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
             int ln;
             int n;
             int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS];
-            xdec = dec->curr_img->planes[pli].xdec;
-            ydec = dec->curr_img->planes[pli].ydec;
+            xdec = dec->state.info.plane_info[pli].xdec;
+            ydec = dec->state.info.plane_info[pli].ydec;
             w = frame_width >> xdec;
             ln = OD_LOG_DERING_GRID + OD_LOG_BSIZE0 - xdec;
             n = 1 << ln;
