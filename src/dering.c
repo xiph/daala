@@ -132,14 +132,14 @@ void od_filter_dering_direction_c(int16_t *y, int ystride, int16_t *in,
   static const int taps[3] = {3, 2, 2};
   for (i = 0; i < 1 << ln; i++) {
     for (j = 0; j < 1 << ln; j++) {
-      od_coeff sum;
-      od_coeff xx;
-      od_coeff yy;
+      int16_t sum;
+      int16_t xx;
+      int16_t yy;
       xx = in[i*OD_FILT_BSTRIDE + j];
       sum= 0;
       for (k = 0; k < 3; k++) {
-        od_coeff p0;
-        od_coeff p1;
+        int16_t p0;
+        int16_t p1;
         p0 = in[i*OD_FILT_BSTRIDE + j + OD_DIRECTION_OFFSETS_TABLE[dir][k]]
          - xx;
         p1 = in[i*OD_FILT_BSTRIDE + j - OD_DIRECTION_OFFSETS_TABLE[dir][k]]
@@ -173,10 +173,10 @@ void od_filter_dering_orthogonal_c(int16_t *y, int ystride, int16_t *in,
   else offset = 1;
   for (i = 0; i < 1 << ln; i++) {
     for (j = 0; j < 1 << ln; j++) {
-      od_coeff athresh;
-      od_coeff yy;
-      od_coeff sum;
-      od_coeff p;
+      int16_t athresh;
+      int16_t yy;
+      int16_t sum;
+      int16_t p;
       /* Deringing orthogonal to the direction uses a tighter threshold
          because we want to be conservative. We've presumably already
          achieved some deringing, so the amount of change is expected
