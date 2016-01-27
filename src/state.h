@@ -299,9 +299,6 @@ void od_state_init_border(od_state *state);
 void od_state_init_superblock_split(od_state *state, unsigned char bsize);
 int od_state_dump_yuv(od_state *state, daala_image *img, const char *tag);
 void od_img_edge_ext(daala_image* src);
-int od_state_push_output_buff_tail(od_state *state);
-int od_state_pop_output_buff_head(od_state *state);
-int od_state_pop_output_buff_tail(od_state *state);
 void od_ref_buf_to_coeff(od_state *state,
  od_coeff *dst, int dst_ystride, int lossless_p,
  unsigned char *src, int src_xstride, int src_ystride,

@@ -47,19 +47,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 static int od_dec_init(od_dec_ctx *dec, const daala_info *info,
  const daala_setup_info *setup) {
-  daala_image *img;
-  daala_image_plane *iplane;
-  size_t data_sz;
-  unsigned char *output_img_data;
-  int frame_buf_width;
-  int frame_buf_height;
-  int plane_buf_width;
-  int plane_buf_height;
-  int output_bytes;
-  int output_bits;
   int ret;
-  int pli;
-  int imgi;
   (void)setup;
   ret = od_state_init(&dec->state, info);
   if (ret < 0) return ret;
@@ -69,45 +57,8 @@ static int od_dec_init(od_dec_ctx *dec, const daala_info *info,
   dec->user_mv_grid = NULL;
   dec->user_mc_img = NULL;
   dec->user_dering = NULL;
-  data_sz = 0;
-  output_bits = 8 + (info->bitdepth_mode - OD_BITDEPTH_MODE_8)*2;
-  output_bytes = output_bits > 8 ? 2 : 1;
-  /*TODO: Check for overflow before allocating.*/
-  frame_buf_width = dec->state.frame_width + (OD_BUFFER_PADDING << 1);
-  frame_buf_height = dec->state.frame_height + (OD_BUFFER_PADDING << 1);
-  for (pli = 0; pli < info->nplanes; pli++) {
-    plane_buf_width = frame_buf_width >> info->plane_info[pli].xdec;
-    plane_buf_height = frame_buf_height >> info->plane_info[pli].ydec;
-    data_sz += plane_buf_width*plane_buf_height*2*output_bytes;
-  }
-  dec->output_img_data = output_img_data =
-    (unsigned char *)od_aligned_malloc(data_sz, 32);
-  if (OD_UNLIKELY(!dec->output_img_data)) {
-    return OD_EFAULT;
-  }
-  for (imgi = 0; imgi < 2; imgi++) {
-    img = dec->output_img + imgi;
-    img->nplanes = info->nplanes;
-    img->width = dec->state.info.pic_width;
-    img->height = dec->state.info.pic_height;
-    for (pli = 0; pli < img->nplanes; pli++) {
-      plane_buf_width = frame_buf_width >> info->plane_info[pli].xdec;
-      plane_buf_height = frame_buf_height >> info->plane_info[pli].ydec;
-      iplane = img->planes + pli;
-      iplane->xdec = info->plane_info[pli].xdec;
-      iplane->ydec = info->plane_info[pli].ydec;
-      iplane->bitdepth = output_bits;
-      /*At this moment, our output is always planar.*/
-      iplane->xstride = output_bytes;
-      iplane->ystride = plane_buf_width*iplane->xstride;
-      iplane->data = output_img_data
-        + iplane->xstride*(OD_BUFFER_PADDING >> info->plane_info[pli].xdec)
-        + iplane->ystride*(OD_BUFFER_PADDING >> info->plane_info[pli].ydec);
-      output_img_data += plane_buf_height*iplane->ystride;
-    }
-  }
-  dec->first_frame = 1;
-  dec->last_frame = 0;
+  od_output_queue_init(&dec->out, &dec->state);
+  dec->curr_img = &dec->out.images[0];
 #if OD_ACCOUNTING
   od_accounting_init(&dec->acct);
   dec->acct_enabled = 0;
@@ -119,8 +70,8 @@ static void od_dec_clear(od_dec_ctx *dec) {
 #if OD_ACCOUNTING
   od_accounting_clear(&dec->acct);
 #endif
-  od_aligned_free(dec->output_img_data);
   od_state_clear(&dec->state);
+  od_output_queue_clear(&dec->out);
 }
 
 daala_dec_ctx *daala_decode_create(const daala_info *info,
@@ -1151,13 +1102,12 @@ int daala_decode_packet_in(daala_dec_ctx *dec, const daala_packet *op) {
   int refi;
   od_mb_dec_ctx mbctx;
   daala_image *ref_img;
+  int frame_number;
   int frame_type;
-  int curr_dec_frame;
   if (dec == NULL || op == NULL) return OD_EFAULT;
   if (dec->packet_state != OD_PACKET_DATA) return OD_EINVAL;
   if (op->e_o_s) {
     dec->packet_state = OD_PACKET_DONE;
-    dec->last_frame = 1;
   }
   od_ec_dec_init(&dec->ec, op->packet, op->bytes);
 #if OD_ACCOUNTING
@@ -1170,8 +1120,6 @@ int daala_decode_packet_in(daala_dec_ctx *dec, const daala_packet *op) {
   OD_ACCOUNTING_SET_LOCATION(dec, OD_ACCT_FRAME, 0, 0, 0);
   /*Read the packet type bit.*/
   if (od_ec_decode_bool_q15(&dec->ec, 16384, "flags")) return OD_EBADPACKET;
-  curr_dec_frame = od_state_push_output_buff_tail(&dec->state);
-  dec->curr_img = &dec->output_img[curr_dec_frame];
   mbctx.is_keyframe = od_ec_decode_bool_q15(&dec->ec, 16384, "flags");
   if (mbctx.is_keyframe) frame_type = OD_I_FRAME;
   else {
@@ -1188,6 +1136,7 @@ int daala_decode_packet_in(daala_dec_ctx *dec, const daala_packet *op) {
   } else {
     mbctx.num_refs = 0;
   }
+  frame_number = od_ec_dec_uint(&dec->ec, OD_MAX_REORDER, "flags");
   mbctx.use_activity_masking = od_ec_decode_bool_q15(&dec->ec, 16384, "flags");
   mbctx.qm = od_ec_decode_bool_q15(&dec->ec, 16384, "flags");
   /*TODO: Cache the previous qm value to avoid calling this every packet.*/
@@ -1255,7 +1204,7 @@ int daala_decode_packet_in(daala_dec_ctx *dec, const daala_packet *op) {
     }
   }
   ref_img = dec->state.ref_imgs + dec->state.ref_imgi[OD_FRAME_SELF];
-  od_img_copy(dec->curr_img, ref_img);
+  od_output_queue_add(&dec->out, ref_img, frame_number);
   OD_ASSERT(ref_img);
   od_img_edge_ext(ref_img);
   if (mbctx.is_golden_frame) {
@@ -1285,34 +1234,12 @@ int daala_decode_packet_in(daala_dec_ctx *dec, const daala_packet *op) {
 }
 
 int daala_decode_img_out(daala_dec_ctx *dec, daala_image *img) {
-  int curr_dec_output;
-  if (dec == NULL || img == NULL) return OD_EFAULT;
-  curr_dec_output = -1;
-  switch (dec->state.frames_in_out_buff) {
-    case 1 : {
-      /* If it is the first frame or the last frame. */
-      if (dec->first_frame || dec->last_frame) {
-        curr_dec_output = od_state_pop_output_buff_head(&dec->state);
-        dec->first_frame = 0;
-      }
-      break;
-    }
-    case 2 : {
-      switch (dec->state.frame_type) {
-        case OD_I_FRAME :
-        case OD_P_FRAME : {
-          curr_dec_output = od_state_pop_output_buff_head(&dec->state);
-          break;
-        }
-        case OD_B_FRAME : {
-          curr_dec_output = od_state_pop_output_buff_tail(&dec->state);
-          break;
-        }
-      }
-    }
-  }
-  if (curr_dec_output >= 0) {
-    *img = dec->output_img[curr_dec_output];
+  if (od_output_queue_has_next(&dec->out)) {
+    od_output_frame *frame;
+    frame = od_output_queue_next(&dec->out);
+    *img = *frame->img;
+    img->width = dec->state.info.pic_width;
+    img->height = dec->state.info.pic_height;
     dec->state.cur_time++;
     return 1;
   }

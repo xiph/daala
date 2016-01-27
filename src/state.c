@@ -1209,39 +1209,6 @@ od_output_frame *od_output_queue_next(od_output_queue *this) {
   return NULL;
 }
 
-/*Add a decoded frame at the tail of a output buffer.*/
-/*Note: Call this function to get output buffer pointer.*/
-int od_state_push_output_buff_tail(od_state *state) {
-  OD_ASSERT(state->frames_in_out_buff < 2);
-  /*Increase the tail pointer.*/
-  state->out_buff_ptr = (state->out_buff_ptr + 1 + 2) & 1;
-  state->frames_in_out_buff += 1;
-  if (state->frames_in_out_buff == 1) {
-    state->out_buff_head = state->out_buff_ptr;
-  }
-  return state->out_buff_ptr;
-}
-
-int od_state_pop_output_buff_head(od_state *state) {
-  int head;
-  OD_ASSERT(state->frames_in_out_buff > 0);
-  head = state->out_buff_head;
-  /*Update the tail of in_buff[].*/
-  state->out_buff_head = (head + 1) & 1;
-  state->frames_in_out_buff -= 1;
-  return head;
-}
-
-int od_state_pop_output_buff_tail(od_state *state) {
-  int tail;
-  OD_ASSERT(state->frames_in_out_buff > 0);
-  tail = state->out_buff_ptr;
-  /*Update the tail of in_buff[].*/
-  state->out_buff_ptr = (tail - 1 + 2) & 1;
-  state->frames_in_out_buff -= 1;
-  return tail;
-}
-
 /*General purpose reference daala_image block to coefficient block
   conversion routine.*/
 void od_ref_buf_to_coeff(od_state *state,

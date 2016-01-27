@@ -2957,6 +2957,9 @@ static int od_encode_frame(daala_enc_ctx *enc, daala_image *img, int frame_type,
   if (frame_type != OD_I_FRAME) {
     od_ec_enc_uint(&enc->ec, mbctx.num_refs - 1, OD_MAX_CODED_REFS);
   }
+  /*Code the frame number for now*/
+  od_ec_enc_uint(&enc->ec, OD_REORDER_INDEX(enc->curr_display_order),
+   OD_MAX_REORDER);
   /*Code whether or not activity masking is being used.*/
   od_ec_encode_bool_q15(&enc->ec, mbctx.use_activity_masking, 16384);
   /*Code whether flat or hvs quantization matrices are being used.
