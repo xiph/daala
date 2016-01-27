@@ -2718,9 +2718,9 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
            + lambda*od_encode_cdf_cost(0, state->adapt.clpf_cdf[c],
            OD_DERING_LEVELS);
           for (gi = 1; gi < OD_DERING_LEVELS; gi++) {
-            od_dering(state, buf, n, &state->etmp[pli][(sby << ln)*w +
-             (sbx << ln)], w, ln, sbx, sby, nhdr, nvdr, state->quantizer[0],
-             xdec, dir, pli, &enc->state.bskip[pli]
+            od_dering(&state->opt_vtbl.dering, buf, n, &state->etmp[pli]
+             [(sby << ln)*w + (sbx << ln)], w, ln, sbx, sby, nhdr, nvdr,
+             state->quantizer[0], xdec, dir, pli, &enc->state.bskip[pli]
              [(sby << (OD_LOG_DERING_GRID - ydec))*enc->state.skip_stride
              + (sbx << (OD_LOG_DERING_GRID - xdec))], enc->state.skip_stride,
              OD_DERING_GAIN_TABLE[gi]);
@@ -2754,8 +2754,8 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
             n = 1 << ln;
             /* For now we just reduce the threshold on chroma by a fixed
                amount, but we should make this adaptive. */
-            od_dering(state, buf, n, &state->etmp[pli][(sby << ln)*w +
-             (sbx << ln)], w, ln, sbx, sby, nhdr, nvdr,
+            od_dering(&state->opt_vtbl.dering, buf, n, &state->etmp[pli]
+             [(sby << ln)*w + (sbx << ln)], w, ln, sbx, sby, nhdr, nvdr,
              state->quantizer[pli], xdec, dir, pli, &enc->state.bskip[pli]
              [(sby << (OD_LOG_DERING_GRID - ydec))*enc->state.skip_stride
              + (sbx << (OD_LOG_DERING_GRID - xdec))], enc->state.skip_stride,

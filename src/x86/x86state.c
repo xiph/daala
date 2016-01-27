@@ -69,9 +69,9 @@ void od_state_opt_vtbl_init_x86(od_state *_state){
     _state->opt_vtbl.idct_2d[0] = od_bin_idct4x4_sse2;
     _state->opt_vtbl.fdct_2d[1] = od_bin_fdct8x8_sse2;
     _state->opt_vtbl.idct_2d[1] = od_bin_idct8x8_sse2;
-    OD_COPY(_state->opt_vtbl.filter_dering_direction,
+    OD_COPY(_state->opt_vtbl.dering.filter_dering_direction,
      OD_DERING_DIRECTION_SSE2, OD_DERINGSIZES);
-    OD_COPY(_state->opt_vtbl.filter_dering_orthogonal,
+    OD_COPY(_state->opt_vtbl.dering.filter_dering_orthogonal,
      OD_DERING_ORTHOGONAL_SSE2, OD_DERINGSIZES);
 #endif
 #if defined(OD_SSE41_INTRINSICS)
