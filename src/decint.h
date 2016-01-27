@@ -48,11 +48,11 @@ struct daala_dec_ctx {
   int user_fstride;
   od_mv_grid_pt *user_mv_grid;
   daala_image *user_mc_img;
+  /* A pointer to the currently decoding image. */
+  daala_image *curr_img;
   /*Buffer for the output frames, bitdepth equal to declared video depth.*/
   daala_image output_img[2];
   unsigned char *output_img_data;
-  /*Current decoded frame pointer of out_imgs[].*/
-  int curr_dec_frame;
   /*These flags hold the output state of the decoder and are used to infer
      the display order in daala_decode_img_out.*/
   int first_frame;
