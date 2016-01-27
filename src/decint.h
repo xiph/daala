@@ -56,7 +56,6 @@ struct daala_dec_ctx {
   /*Current decoded frame pointer of out_imgs[].*/
   int curr_dec_frame;
   /*Keep the display order of frames in output image buffers.*/
-  int out_imgs_id[2];
   int last_frame_decoded;
 #if OD_ACCOUNTING
   int acct_enabled;

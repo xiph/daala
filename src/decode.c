@@ -1170,7 +1170,6 @@ int daala_decode_packet_in(daala_dec_ctx *dec, const daala_packet *op) {
   /*Read the packet type bit.*/
   if (od_ec_decode_bool_q15(&dec->ec, 16384, "flags")) return OD_EBADPACKET;
   dec->curr_dec_frame = od_state_push_output_buff_tail(&dec->state);
-  dec->out_imgs_id[dec->curr_dec_frame] = dec->dec_order_count;
   mbctx.is_keyframe = od_ec_decode_bool_q15(&dec->ec, 16384, "flags");
   if (mbctx.is_keyframe) frame_type = OD_I_FRAME;
   else {
@@ -1310,7 +1309,6 @@ int daala_decode_img_out(daala_dec_ctx *dec, daala_image *img) {
     }
   }
   if (curr_dec_output >= 0) {
-    dec->out_imgs_id[curr_dec_output] = -1;
     *img = dec->output_img[curr_dec_output];
     dec->state.cur_time++;
     return 1;
