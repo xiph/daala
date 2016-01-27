@@ -8596,8 +8596,9 @@ static void check_bias(int bszi) {
 
 # if defined(OD_DCT_CHECK_OVERFLOW)
 
-/* Largest filter size used is 4-point. */
-#  define OD_MAX_FILT_SIZE (0)
+/* Test up to 8-point filters to avoid a redesign if we want to turn them back
+    on. */
+#  define OD_MAX_FILT_SIZE (1)
 
 static void od_bin_fxform_2d(od_coeff x[OD_BSIZE_MAX*2][OD_BSIZE_MAX*2],
  int bszi, int f) {
