@@ -35,6 +35,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <string.h>
 #include "../include/daala/codec.h"
 
+/* This way we know we've included the Daala version of odintrin.h */
+#define DAALA_ODINTRIN (1)
+
 # if !defined(M_PI)
 #  define M_PI      (3.1415926535897932384626433832795)
 # endif

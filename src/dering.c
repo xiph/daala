@@ -27,6 +27,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #endif
 
 #include <stdlib.h>
+#include <math.h>
 #include "dering.h"
 
 const od_dering_opt_vtbl OD_DERING_VTBL_C = {

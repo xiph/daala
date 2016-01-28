@@ -25,7 +25,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #if !defined(_dering_H)
 # define _dering_H (1)
 
-# include "filter.h"
+# include "odintrin.h"
+
+# if defined(DAALA_ODINTRIN)
+#  include "filter.h"
+# endif
 
 #define OD_DERINGSIZES (2)
 
