@@ -29,16 +29,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <stdlib.h>
 #include "dering.h"
 
-const od_filter_dering_direction_func
- OD_DERING_DIRECTION_C[OD_DERINGSIZES] = {
-  od_filter_dering_direction_4x4_c,
-  od_filter_dering_direction_8x8_c
-};
-
-const od_filter_dering_orthogonal_func
- OD_DERING_ORTHOGONAL_C[OD_DERINGSIZES] = {
-  od_filter_dering_orthogonal_4x4_c,
-  od_filter_dering_orthogonal_8x8_c
+const od_dering_opt_vtbl OD_DERING_VTBL_C = {
+  {od_filter_dering_direction_4x4_c, od_filter_dering_direction_8x8_c},
+  {od_filter_dering_orthogonal_4x4_c, od_filter_dering_orthogonal_8x8_c}
 };
 
 /* Generated from gen_filter_tables.c. */
@@ -246,7 +239,7 @@ static void od_compute_thresh(int thresh[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS],
   }
 }
 
-void od_dering(od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
+void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
  const int16_t *x, int xstride, int ln, int sbx, int sby, int nhsb, int nvsb,
  int q, int xdec, int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS], int pli,
  unsigned char *bskip, int skip_stride, double gain) {
