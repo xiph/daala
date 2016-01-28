@@ -165,6 +165,7 @@ US_LOCAL_CSOURCES = \
 vidinput.c \
 y4m_input.c \
 upsample.c \
+dering.c \
 filter.c \
 util.c
 
