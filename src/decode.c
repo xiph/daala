@@ -1064,7 +1064,8 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
              dec->state.quantizer[pli], xdec, dir, pli, &dec->state.bskip[pli]
              [(sby << (OD_LOG_DERING_GRID - ydec))*dec->state.skip_stride
              + (sbx << (OD_LOG_DERING_GRID - xdec))], dec->state.skip_stride,
-             OD_DERING_GAIN_TABLE[level]*(pli == 0 ? 1 : 0.6));
+             OD_DERING_GAIN_TABLE[level]*(pli == 0 ? 1 : 0.6),
+             OD_DERING_CHECK_OVERLAP);
             output = &state->ctmp[pli][(sby << ln)*w + (sbx << ln)];
             for (y = 0; y < n; y++) {
               for (x = 0; x < n; x++) {

@@ -33,6 +33,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #define OD_DERINGSIZES (2)
 
+#define OD_DERING_NO_CHECK_OVERLAP (0)
+#define OD_DERING_CHECK_OVERLAP (1)
+
 #define OD_DERING_LEVELS (6)
 extern const double OD_DERING_GAIN_TABLE[OD_DERING_LEVELS];
 
@@ -58,7 +61,7 @@ typedef struct od_dering_opt_vtbl od_dering_opt_vtbl;
 void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
  const int16_t *x, int xstride, int ln, int sbx, int sby, int nhsb, int nvsb,
  int q, int xdec, int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS], int pli,
- unsigned char *bskip, int skip_stride, double gain);
+ unsigned char *bskip, int skip_stride, double gain, int overlap);
 void od_filter_dering_direction_c(int16_t *y, int ystride, const int16_t *in,
  int ln, int threshold, int dir);
 void od_filter_dering_orthogonal_c(int16_t *y, int ystride, const int16_t *in,

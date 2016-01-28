@@ -243,7 +243,7 @@ static void od_compute_thresh(int thresh[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS],
 void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
  const int16_t *x, int xstride, int ln, int sbx, int sby, int nhsb, int nvsb,
  int q, int xdec, int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS], int pli,
- unsigned char *bskip, int skip_stride, double gain) {
+ unsigned char *bskip, int skip_stride, double gain, int overlap) {
   int i;
   int j;
   int n;
@@ -306,10 +306,14 @@ void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
       int xend;
       int yend;
       int skip;
-      xstart = (sbx == 0) ? 0 : -1;
-      ystart = (sby == 0) ? 0 : -1;
-      xend = (2 >> xdec) + (sbx != nhsb - 1);
-      yend = (2 >> xdec) + (sby != nvsb - 1);
+      xstart = ystart = 0;
+      xend = yend = (2 >> xdec);
+      if (overlap) {
+        xstart -= (sbx != 0);
+        ystart -= (sby != 0);
+        xend += (sbx != nhsb - 1);
+        yend += (sby != nvsb - 1);
+      }
       skip = 1;
       /* We look at whether the current block and its 4x4 surrounding (due to
          lapping) are skipped to avoid filtering the same content multiple
