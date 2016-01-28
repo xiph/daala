@@ -763,6 +763,7 @@ int od_state_dump_yuv(od_state *state, daala_image *img, const char *tag) {
     fp = fopen(fname, "wb");
   }
 #endif
+  OD_ASSERT(fp);
   pic_width = state->info.pic_width;
   pic_height = state->info.pic_height;
   OD_ASSERT(img->nplanes != 2);
