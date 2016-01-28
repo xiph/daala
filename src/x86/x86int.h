@@ -74,11 +74,11 @@ void od_copy_32x32_8_sse2(unsigned char *_dst, int _dstride,
 void od_copy_64x64_8_sse2(unsigned char *_dst, int _dstride,
  const unsigned char *_src, int _sstride);
 void od_filter_dering_direction_4x4_sse2(int16_t *y, int ystride,
- int16_t *in, int threshold, int dir);
+ const int16_t *in, int threshold, int dir);
 void od_filter_dering_direction_8x8_sse2(int16_t *y, int ystride,
- int16_t *in, int threshold, int dir);
+ const int16_t *in, int threshold, int dir);
 void od_filter_dering_orthogonal_4x4_sse2(int16_t *y, int ystride,
- int16_t *in, int16_t *x, int xstride, int threshold, int dir);
+ const int16_t *in, const int16_t *x, int xstride, int threshold, int dir);
 void od_filter_dering_orthogonal_8x8_sse2(int16_t *y, int ystride,
- int16_t *in, int16_t *x, int xstride, int threshold, int dir);
+ const int16_t *in, const int16_t *x, int xstride, int threshold, int dir);
 #endif
