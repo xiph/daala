@@ -255,6 +255,7 @@ int main(int _argc,char *_argv[]){
     int ret1;
     int ret2;
     int pli;
+    int nplanes;
     ret1=video_input_fetch_frame(&vid1,f1,tag1);
     ret2=video_input_fetch_frame(&vid2,f2,tag2);
     if(ret1==0&&ret2==0)break;
@@ -270,7 +271,8 @@ int main(int _argc,char *_argv[]){
       break;
     }
     /*Okay, we got one frame from each.*/
-    for(pli=0;pli<3;pli++){
+    nplanes = luma_only ? 1 : 3;
+    for(pli=0;pli<nplanes;pli++){
       int xdec;
       int ydec;
       xdec=pli&&!(info1.pixel_fmt&1);
