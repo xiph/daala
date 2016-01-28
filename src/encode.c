@@ -818,7 +818,7 @@ static void od_encode_compute_pred(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
   int x;
   OD_ASSERT(bs >= 0 && bs < OD_NBSIZES);
   n = 1 << (bs + OD_LOG_BSIZE0);
-  xdec = enc->curr_img->planes[pli].xdec;
+  xdec = enc->state.info.plane_info[pli].xdec;
   w = enc->state.frame_width >> xdec;
   bo = (by << OD_LOG_BSIZE0)*w + (bx << OD_LOG_BSIZE0);
   /*We never use tf on the chroma planes, but if we do it will blow up, which
@@ -1198,7 +1198,7 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int bs,
   n = 1 << (bs + 2);
   bx <<= bs;
   by <<= bs;
-  xdec = enc->curr_img->planes[pli].xdec;
+  xdec = enc->state.info.plane_info[pli].xdec;
   frame_width = enc->state.frame_width;
   use_masking = enc->use_activity_masking;
   w = frame_width >> xdec;
@@ -2505,8 +2505,8 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
     int plane_width;
     int plane_height;
     /*Collect the image data needed for this plane.*/
-    xdec = enc->curr_img->planes[pli].xdec;
-    ydec = enc->curr_img->planes[pli].ydec;
+    xdec = state->info.plane_info[pli].xdec;
+    ydec = state->info.plane_info[pli].ydec;
     w = frame_width >> xdec;
     od_ref_plane_to_coeff(state, state->ctmp[pli],
      OD_LOSSLESS(enc, pli), enc->curr_img, pli);
@@ -2561,8 +2561,8 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
         mbctx->mc = state->mctmp[pli];
         mbctx->md = state->mdtmp[pli];
         mbctx->l = state->lbuf[pli];
-        xdec = enc->curr_img->planes[pli].xdec;
-        ydec = enc->curr_img->planes[pli].ydec;
+        xdec = state->info.plane_info[pli].xdec;
+        ydec = state->info.plane_info[pli].ydec;
         if (pli == 0 || (rdo_only && mbctx->is_keyframe)) {
           for (i = 0; i < OD_BSIZE_MAX; i++) {
             for (j = 0; j < OD_BSIZE_MAX; j++) {
@@ -2609,8 +2609,8 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
   }
 #endif
   for (pli = 0; pli < nplanes; pli++) {
-    xdec = enc->curr_img->planes[pli].xdec;
-    ydec = enc->curr_img->planes[pli].ydec;
+    xdec = state->info.plane_info[pli].xdec;
+    ydec = state->info.plane_info[pli].ydec;
     w = frame_width >> xdec;
     if (!mbctx->use_haar_wavelet) {
       od_apply_postfilter_frame_sbs(state->ctmp[pli], w, nhsb, nvsb, xdec,
@@ -2626,8 +2626,8 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
     for (pli = 0; pli < nplanes; pli++) {
       int i;
       int size;
-      xdec = enc->curr_img->planes[pli].xdec;
-      ydec = enc->curr_img->planes[pli].ydec;
+      xdec = enc->state.info.plane_info[pli].xdec;
+      ydec = enc->state.info.plane_info[pli].ydec;
       size = nvsb*nhsb*OD_BSIZE_MAX*OD_BSIZE_MAX >> xdec >> ydec;
       for (i = 0; i < size; i++) {
         state->etmp[pli][i] = state->ctmp[pli][i];
@@ -2667,8 +2667,8 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
           continue;
         }
         pli = 0;
-        xdec = enc->curr_img->planes[pli].xdec;
-        ydec = enc->curr_img->planes[pli].ydec;
+        xdec = enc->state.info.plane_info[pli].xdec;
+        ydec = enc->state.info.plane_info[pli].ydec;
         w = frame_width >> xdec;
         OD_ASSERT(xdec == ydec);
         ln = OD_LOG_DERING_GRID + OD_LOG_BSIZE0 - xdec;
@@ -2747,8 +2747,8 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
          OD_DERING_LEVELS, state->adapt.clpf_increment);
         if (best_gi) {
           for (pli = 0; pli < nplanes; pli++) {
-            xdec = enc->curr_img->planes[pli].xdec;
-            ydec = enc->curr_img->planes[pli].ydec;
+            xdec = state->info.plane_info[pli].xdec;
+            ydec = state->info.plane_info[pli].ydec;
             w = frame_width >> xdec;
             ln = OD_LOG_DERING_GRID + OD_LOG_BSIZE0 - xdec;
             n = 1 << ln;
@@ -2804,8 +2804,8 @@ static void od_dump_frame_metrics(daala_enc_ctx *enc) {
     enc_sqerr = 0;
     data = enc->curr_img->planes[pli].data;
     ystride = enc->curr_img->planes[pli].ystride;
-    xdec = enc->curr_img->planes[pli].xdec;
-    ydec = enc->curr_img->planes[pli].ydec;
+    xdec = state->info.plane_info[pli].xdec;
+    ydec = state->info.plane_info[pli].ydec;
     w = frame_width >> xdec;
     h = frame_height >> ydec;
     npixels = w*h;

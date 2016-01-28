@@ -2279,8 +2279,7 @@ static int32_t od_mv_est_sad(od_mv_est_ctx *est,
    log_mvb_sz + OD_LOG_MVBSIZE_MIN);
   if (est->flags & OD_MC_USE_CHROMA) {
     int pli;
-    for (pli = 1; pli < est->enc->curr_img->nplanes;
-     pli++) {
+    for (pli = 1; pli < state->info.nplanes; pli++) {
       od_state_pred_block_from_setup(state, state->mc_buf[4],
        OD_MVBSIZE_MAX*xstride, pli, vx, vy, oc, s, log_mvb_sz);
       ret += est->compute_distortion(est->enc, state->mc_buf[4],
@@ -6438,7 +6437,7 @@ void od_mv_est(od_mv_est_ctx *est, int lambda, int num_refs) {
   /*If we're using the chroma planes, then our distortions will be larger.
     Compensate by increasing lambda and the termination thresholds.*/
   if (est->flags & OD_MC_USE_CHROMA) {
-    for (pli = 1; pli < est->enc->curr_img->nplanes; pli++) {
+    for (pli = 1; pli < state->info.nplanes; pli++) {
       iplane = &est->enc->curr_img->planes[pli];
       est->lambda +=
        lambda >> (iplane->xdec + iplane->ydec + OD_MC_CHROMA_SCALE);
