@@ -242,12 +242,11 @@ static void od_compute_thresh(int thresh[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS],
 
 void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
  const int16_t *x, int xstride, int ln, int sbx, int sby, int nhsb, int nvsb,
- int q, int xdec, int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS], int pli,
- unsigned char *bskip, int skip_stride, double gain, int overlap) {
+ int xdec, int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS], int pli,
+ unsigned char *bskip, int skip_stride, int threshold, int overlap) {
   int i;
   int j;
   int n;
-  int threshold;
   int bx;
   int by;
   int16_t inbuf[OD_DERING_INBUF_SIZE];
@@ -273,15 +272,6 @@ void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
       in[i*OD_FILT_BSTRIDE + j] = x[i*xstride + j];
     }
   }
-  /* The threshold is meant to be the estimated amount of ringing for a given
-     quantizer. Ringing is mostly proportional to the quantizer, but we
-     use an exponent slightly smaller than unity because as quantization
-     becomes coarser, the relative effect of quantization becomes slightly
-     smaller as many unquantized coefficients are already close to zero. The
-     value here comes from observing that on ntt-short, the best threshold for
-     -v 5 appeared to be around 0.5*q, while the best threshold for -v 400
-     was 0.25*q, i.e. 1-log(.5/.25)/log(400/5) = 0.84182 */
-  threshold = gain*pow(q, 0.84182);
   if (pli == 0) {
     for (by = 0; by < nvb; by++) {
       for (bx = 0; bx < nhb; bx++) {

@@ -60,8 +60,8 @@ typedef struct od_dering_opt_vtbl od_dering_opt_vtbl;
 
 void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
  const int16_t *x, int xstride, int ln, int sbx, int sby, int nhsb, int nvsb,
- int q, int xdec, int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS], int pli,
- unsigned char *bskip, int skip_stride, double gain, int overlap);
+ int xdec, int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS], int pli,
+ unsigned char *bskip, int skip_stride, int threshold, int overlap);
 void od_filter_dering_direction_c(int16_t *y, int ystride, const int16_t *in,
  int ln, int threshold, int dir);
 void od_filter_dering_orthogonal_c(int16_t *y, int ystride, const int16_t *in,

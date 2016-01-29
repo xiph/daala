@@ -998,6 +998,8 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
   nhdr = state->frame_width >> (OD_LOG_DERING_GRID + OD_LOG_BSIZE0);
   nvdr = state->frame_height >> (OD_LOG_DERING_GRID + OD_LOG_BSIZE0);
   if (dec->state.quantizer[0] > 0) {
+    double base_threshold;
+    base_threshold = pow(state->quantizer[0], 0.84182);
     for (pli = 0; pli < nplanes; pli++) {
       int i;
       int size;
@@ -1053,12 +1055,15 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
             int ln;
             int n;
             int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS];
+            int threshold;
             xdec = dec->state.info.plane_info[pli].xdec;
             ydec = dec->state.info.plane_info[pli].ydec;
             w = frame_width >> xdec;
             ln = OD_LOG_DERING_GRID + OD_LOG_BSIZE0 - xdec;
             n = 1 << ln;
             OD_ASSERT(xdec == ydec);
+            threshold = (int)(OD_DERING_GAIN_TABLE[level]*base_threshold*
+             (pli==0 ? 1 : 0.6));
             /*buf is used for output so that we don't use filtered pixels in
               the input to the filter, but because we look past block edges,
               we do this anyway on the edge pixels. Unfortunately, this limits
@@ -1066,11 +1071,10 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
             od_dering(&state->opt_vtbl.dering, buf, n,
              &state->etmp[pli][(sby << ln)*w +
              (sbx << ln)], w, ln, sbx, sby, nhdr, nvdr,
-             dec->state.quantizer[pli], xdec, dir, pli, &dec->state.bskip[pli]
+             xdec, dir, pli, &dec->state.bskip[pli]
              [(sby << (OD_LOG_DERING_GRID - ydec))*dec->state.skip_stride
              + (sbx << (OD_LOG_DERING_GRID - xdec))], dec->state.skip_stride,
-             OD_DERING_GAIN_TABLE[level]*(pli == 0 ? 1 : 0.6),
-             OD_DERING_CHECK_OVERLAP);
+             threshold, OD_DERING_CHECK_OVERLAP);
             output = &state->ctmp[pli][(sby << ln)*w + (sbx << ln)];
             for (y = 0; y < n; y++) {
               for (x = 0; x < n; x++) {

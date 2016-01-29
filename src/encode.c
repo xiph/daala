@@ -2621,6 +2621,16 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
   if (!rdo_only && state->quantizer[0] > 0) {
     int nhdr;
     int nvdr;
+    double base_threshold;
+    /* The threshold is meant to be the estimated amount of ringing for a given
+       quantizer. Ringing is mostly proportional to the quantizer, but we
+       use an exponent slightly smaller than unity because as quantization
+       becomes coarser, the relative effect of quantization becomes slightly
+       smaller as many unquantized coefficients are already close to zero. The
+       value here comes from observing that on ntt-short, the best threshold
+       for -v 5 appeared to be around 0.5*q, while the best threshold for
+       -v 400 was 0.25*q, i.e. 1-log(.5/.25)/log(400/5) = 0.84182 */
+    base_threshold = pow(state->quantizer[0], 0.84182);
     /* We copy ctmp to dtmp so we can use it as an unmodified input
        and avoid filtering some pixels twice. */
     for (pli = 0; pli < nplanes; pli++) {
@@ -2704,6 +2714,7 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
           int q2;
           double lambda;
           od_coeff out[OD_BSIZE_MAX*OD_BSIZE_MAX];
+          int threshold;
           q2 = state->quantizer[0] * state->quantizer[0];
           /* Deringing seems to benefit from a lower lambda -- possibly to
              avoid local minima. Tested only a handful of lambdas so far. */
@@ -2718,12 +2729,13 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
            + lambda*od_encode_cdf_cost(0, state->adapt.clpf_cdf[c],
            OD_DERING_LEVELS);
           for (gi = 1; gi < OD_DERING_LEVELS; gi++) {
+            threshold = (int)(OD_DERING_GAIN_TABLE[gi]*base_threshold);
             od_dering(&state->opt_vtbl.dering, buf, n, &state->etmp[pli]
              [(sby << ln)*w + (sbx << ln)], w, ln, sbx, sby, nhdr, nvdr,
-             state->quantizer[0], xdec, dir, pli, &enc->state.bskip[pli]
+             xdec, dir, pli, &enc->state.bskip[pli]
              [(sby << (OD_LOG_DERING_GRID - ydec))*enc->state.skip_stride
              + (sbx << (OD_LOG_DERING_GRID - xdec))], enc->state.skip_stride,
-             OD_DERING_GAIN_TABLE[gi], OD_DERING_CHECK_OVERLAP);
+             threshold, OD_DERING_CHECK_OVERLAP);
             /* Optimize deringing for the block size decision metric. */
             {
               od_coeff buf32[OD_BSIZE_MAX*OD_BSIZE_MAX];
@@ -2747,20 +2759,22 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
          OD_DERING_LEVELS, state->adapt.clpf_increment);
         if (best_gi) {
           for (pli = 0; pli < nplanes; pli++) {
+            int threshold;
             xdec = state->info.plane_info[pli].xdec;
             ydec = state->info.plane_info[pli].ydec;
             w = frame_width >> xdec;
             ln = OD_LOG_DERING_GRID + OD_LOG_BSIZE0 - xdec;
             n = 1 << ln;
+            threshold = (int)(OD_DERING_GAIN_TABLE[best_gi]*base_threshold*
+             (pli==0 ? 1 : 0.6));
             /* For now we just reduce the threshold on chroma by a fixed
                amount, but we should make this adaptive. */
             od_dering(&state->opt_vtbl.dering, buf, n, &state->etmp[pli]
              [(sby << ln)*w + (sbx << ln)], w, ln, sbx, sby, nhdr, nvdr,
-             state->quantizer[pli], xdec, dir, pli, &enc->state.bskip[pli]
+             xdec, dir, pli, &enc->state.bskip[pli]
              [(sby << (OD_LOG_DERING_GRID - ydec))*enc->state.skip_stride
              + (sbx << (OD_LOG_DERING_GRID - xdec))], enc->state.skip_stride,
-             OD_DERING_GAIN_TABLE[best_gi]*(pli==0 ? 1 : 0.6),
-             OD_DERING_CHECK_OVERLAP);
+             threshold, OD_DERING_CHECK_OVERLAP);
             output = &state->ctmp[pli][(sby << ln)*w + (sbx << ln)];
             for (y = 0; y < n; y++) {
               for (x = 0; x < n; x++) {
