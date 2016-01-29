@@ -49,6 +49,7 @@ static int od_dec_init(od_dec_ctx *dec, const daala_info *info,
  const daala_setup_info *setup) {
   int ret;
   (void)setup;
+  memset(dec, 0, sizeof(*dec));
   ret = od_state_init(&dec->state, info);
   if (ret < 0) return ret;
   dec->packet_state = OD_PACKET_DATA;
@@ -57,7 +58,10 @@ static int od_dec_init(od_dec_ctx *dec, const daala_info *info,
   dec->user_mv_grid = NULL;
   dec->user_mc_img = NULL;
   dec->user_dering = NULL;
-  od_output_queue_init(&dec->out, &dec->state);
+  ret = od_output_queue_init(&dec->out, &dec->state);
+  if (OD_UNLIKELY(ret < 0)) {
+    return ret;
+  }
 #if OD_ACCOUNTING
   od_accounting_init(&dec->acct);
   dec->acct_enabled = 0;
@@ -79,6 +83,7 @@ daala_dec_ctx *daala_decode_create(const daala_info *info,
   if (info == NULL) return NULL;
   dec = (od_dec_ctx *)malloc(sizeof(*dec));
   if (od_dec_init(dec, info, setup) < 0) {
+    od_dec_clear(dec);
     free(dec);
     return NULL;
   }
