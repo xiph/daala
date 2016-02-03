@@ -345,19 +345,27 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   int cfl_enabled;
   int skip;
   double gain_weight;
+  od_coeff rnd;
+  int16_t x16[MAXN];
+  int16_t r16[MAXN];
+  int bshift;
+  bshift = OD_BLOCK_SHIFTS[bs];
+  rnd = 1 << ((OD_QM_SHIFT - 1) + bshift);
   lambda = OD_PVQ_LAMBDA;
   /* Give more weight to gain error when calculating the total distortion. */
   gain_weight = 1.4;
   OD_ASSERT(n > 1);
   corr = 0;
   for (i = 0; i < n; i++) {
+    x16[i] = (x0[i]*qm[i] + rnd) >> (OD_QM_SHIFT + bshift);
+    r16[i] = (r0[i]*qm[i] + rnd) >> (OD_QM_SHIFT + bshift);
     x[i] = x0[i]*qm[i]*OD_QM_SCALE_1;
     r[i] = r0[i]*qm[i]*OD_QM_SCALE_1;
     corr += x[i]*r[i];
   }
   cfl_enabled = is_keyframe && pli != 0 && !OD_DISABLE_CFL;
-  cg  = od_pvq_compute_gain(x0, n, q0, &g, beta, qm);
-  cgr = od_pvq_compute_gain(r0, n, q0, &gr, beta, qm);
+  cg  = od_pvq_compute_gain(x16, n, q0, &g, beta, bshift);
+  cgr = od_pvq_compute_gain(r16, n, q0, &gr, beta, bshift);
   if (cfl_enabled) cgr = 1;
   /* gain_offset is meant to make sure one of the quantized gains has
      exactly the same gain as the reference. */

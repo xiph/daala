@@ -34,6 +34,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <string.h>
 #include "filter.h"
 
+const uint8_t OD_BLOCK_SHIFTS[OD_NBSIZES] = {0, 1, 2, 3, 4};
+
 /*These tables were generated using compute_basis.c. If OD_FILT_SIZE is
    changed, they have to be regenerated.*/
 static const double MAG4[] = {
@@ -451,15 +453,16 @@ double od_gain_expand(double cg, int q0, double beta) {
  * @param [in]      qm     QM with magnitude compensation
  * @return                 quantized/companded gain
  */
-double od_pvq_compute_gain(od_coeff *x, int n, int q0, double *g, double beta,
- const int16_t *qm){
+double od_pvq_compute_gain(int16_t *x, int n, int q0, double *g, double beta,
+ int bshift){
   int i;
-  double acc=0;
+  int32_t acc;
+  acc = 0;
   for (i = 0; i < n; i++) {
-    acc += x[i]*(double)x[i]*qm[i]*OD_QM_SCALE_1*
-     qm[i]*OD_QM_SCALE_1;
+    acc += x[i]*(int32_t)x[i];
   }
   *g = sqrt(acc);
+  *g = *g * (1 << bshift);
   /* Normalize gain by quantization step size and apply companding
      (if ACTIVITY != 1). */
   return od_gain_compand(*g, q0, beta);
