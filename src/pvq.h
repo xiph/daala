@@ -54,8 +54,10 @@ extern const uint16_t LAPLACE_OFFSET[];
 /* Maximum size for coding a PVQ band. */
 #define OD_MAX_PVQ_SIZE (128)
 
-#define OD_QM_SCALE (1 << 15)
-#define OD_QM_SCALE_MAX (OD_QM_SCALE - 1)
+#define OD_QM_SHIFT (11)
+#define OD_QM_SCALE (1 << OD_QM_SHIFT)
+#define OD_QM_RND (1 << (OD_QM_SHIFT - 1))
+#define OD_QM_SCALE_MAX 32767
 #define OD_QM_SCALE_1 (1./OD_QM_SCALE)
 #define OD_QM_INV_SCALE (1 << 12)
 #define OD_QM_INV_SCALE_1 (1./OD_QM_INV_SCALE)
