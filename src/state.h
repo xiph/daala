@@ -235,14 +235,15 @@ struct od_state{
   int                 nvsb;
   /** Each 8x8 block of pixels in the image (+ one superblock of
       padding on each side) has a corresponding byte in this array, and
-      every 32x32 superblock is represented by 16 (4 by 4) entries
-      ((4 * 8) * (4 * 8) == 32 * 32) that encode the block size decisions
+      every 64x64 superblock is represented by 64 (8 by 8) entries
+      ((8 * 8) * (8 * 8) == 64 * 64) that encode the block size decisions
       for the superblock. The entry format is:
       - 0 means the 8x8 block has been split into 4x4 blocks
       - 1 means the 8x8 block is an 8x8 block
       - 2 means the 8x8 block is part of a 16x16 block
       - 3 means the 8x8 block is part of a 32x32 block.
-      The padding is filled as though it consisted of 32x32 blocks.
+      - 4 means the 8x8 block is part of a 64x64 block.
+      The padding is filled as though it consisted of 64x64 blocks.
 
       E.g., `state->bsize[j * state->bstride + i]` accesses the i'th 8x8
       block in the j'th row of 8x8 blocks.
