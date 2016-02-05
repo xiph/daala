@@ -376,7 +376,7 @@ int od_vector_log_mag(const od_coeff *x, int n) {
  * @param [out]     sign   sign of reflection
  * @return                 dimension number to which reflection aligns
  **/
-int od_compute_householder(double *r, int n, double gr, int *sign) {
+int od_compute_householder(int16_t *r, int n, double gr, int *sign, int shift) {
   int m;
   int i;
   int s;
@@ -394,7 +394,7 @@ int od_compute_householder(double *r, int n, double gr, int *sign) {
   s = r[m] > 0 ? 1 : -1;
   /* This turns r into a Householder reflection vector that would reflect
    * the original r[] to e_m */
-  r[m] += gr*s;
+  r[m] += floor(.5 + gr*s / (double)(1 << shift));
   *sign = s;
   return m;
 }
@@ -406,14 +406,14 @@ int od_compute_householder(double *r, int n, double gr, int *sign) {
  * @param [in]      r      reflection
  * @param [in]      n      number of dimensions in x,r
  */
-void od_apply_householder(double *x, const double *r, int n) {
+void od_apply_householder(double *x, const int16_t *r, int n) {
   int i;
   double proj;
   double proj_1;
   double l2r;
   l2r = 0;
   for (i = 0; i < n; i++) {
-    l2r += r[i]*r[i];
+    l2r += r[i]*(int32_t)r[i];
   }
   /* Apply Householder reflection */
   proj = 0;
@@ -565,7 +565,7 @@ int od_pvq_compute_k(double qcg, int itheta, double theta, int noref, int n,
  * @param [in]      qm_inv  inverse of the QM with magnitude compensation
  */
 void od_pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,
- const double *r, int n, int noref, double g, double theta, int m, int s,
+ const int16_t *r16, int n, int noref, double g, double theta, int m, int s,
  const int16_t *qm_inv) {
   int i;
   int yy;
@@ -592,7 +592,7 @@ void od_pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,
     x[m] = -s*g*cos(theta);
     for (i = m; i < nn; i++)
       x[i+1] = ypulse[i]*scale;
-    od_apply_householder(x, r, n);
+    od_apply_householder(x, r16, n);
     for (i = 0; i < n; i++) {
       xcoeff[i] = (od_coeff)floor(.5 + (x[i]*(qm_inv[i]*OD_QM_INV_SCALE_1)));
     }

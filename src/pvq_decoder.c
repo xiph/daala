@@ -100,19 +100,16 @@ static int neg_deinterleave(int x, int ref) {
  * @param [in]      qm      QM with magnitude compensation
  * @param [in]      qm_inv  Inverse of QM with magnitude compensation
  */
-static void pvq_synthesis(od_coeff *xcoeff, od_coeff *ypulse, od_coeff *ref,
+static void pvq_synthesis(od_coeff *xcoeff, od_coeff *ypulse, int16_t *r16,
  int n, double gr, int noref, double g, double theta, const int16_t *qm,
- const int16_t *qm_inv) {
-  int i;
+ const int16_t *qm_inv, int shift) {
   int s;
   int m;
-  double r[MAXN];
   /* Sign of the Householder reflection vector */
   s = 0;
-  if (!noref) for (i = 0; i < n; i++) r[i] = ref[i]*qm[i]*OD_QM_SCALE_1;
   /* Direction of the Householder reflection vector */
-  m = noref ? 0 : od_compute_householder(r, n, gr, &s);
-  od_pvq_synthesis_partial(xcoeff, ypulse, r, n, noref, g, theta, m, s,
+  m = noref ? 0 : od_compute_householder(r16, n, gr, &s, shift);
+  od_pvq_synthesis_partial(xcoeff, ypulse, r16, n, noref, g, theta, m, s,
    qm_inv);
 }
 
@@ -295,8 +292,8 @@ static void pvq_decode_partition(od_ec_dec *ec,
   else {
     double g;
     g = od_gain_expand(qg + gain_offset, q0, beta);
-    pvq_synthesis(out, y, ref, n, gr, *noref, g, theta, qm,
-     qm_inv);
+    pvq_synthesis(out, y, ref16, n, gr, *noref, g, theta, qm,
+     qm_inv, rshift);
   }
   *skip = !!*skip;
 }

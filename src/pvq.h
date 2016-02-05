@@ -115,10 +115,10 @@ int od_qm_get_index(int bs, int band);
 extern const double *const OD_PVQ_BETA[2][OD_NPLANES_MAX][OD_NBSIZES + 1];
 
 void od_init_qm(int16_t *x, int16_t *x_inv, const int *qm);
-int od_compute_householder(double *r, int n, double gr, int *sign);
-void od_apply_householder(double *x, const double *r, int n);
+int od_compute_householder(int16_t *r, int n, double gr, int *sign, int shift);
+void od_apply_householder(double *x, const int16_t *r, int n);
 void od_pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,
-                                  const double *r, int n,
+                                  const int16_t *r, int n,
                                   int noref, double g,
                                   double theta, int m, int s,
                                   const int16_t *qm_inv);

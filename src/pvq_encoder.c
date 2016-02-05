@@ -413,8 +413,8 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   if (n <= OD_MAX_PVQ_SIZE && !od_vector_is_null(r0, n) && corr > 0) {
     /* Perform theta search only if prediction is useful. */
     theta = acos(corr);
-    m = od_compute_householder(r, n, gr, &s);
-    od_apply_householder(x, r, n);
+    m = od_compute_householder(r16, n, gr, &s, rshift);
+    od_apply_householder(x, r16, n);
     for (i = m; i < n - 1; i++) x[i] = x[i + 1];
     /* Search for the best gain within a reasonable range. */
     for (i = OD_MAXI(1, (int)floor(cg-gain_offset) - 1);
@@ -512,7 +512,7 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   else {
     if (noref) gain_offset = 0;
     g = od_gain_expand(qg + gain_offset, q0, beta);
-    od_pvq_synthesis_partial(out, y, r, n, noref, g, theta, m, s,
+    od_pvq_synthesis_partial(out, y, r16, n, noref, g, theta, m, s,
      qm_inv);
   }
   *vk = k;
