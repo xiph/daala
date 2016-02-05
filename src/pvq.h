@@ -108,6 +108,8 @@ struct od_pvq_adapt_ctx {
 
 void od_adapt_pvq_ctx_reset(od_pvq_adapt_ctx *state, int is_keyframe);
 
+int od_vector_log_mag(const od_coeff *x, int n);
+
 int od_qm_get_index(int bs, int band);
 
 extern const double *const OD_PVQ_BETA[2][OD_NPLANES_MAX][OD_NBSIZES + 1];
@@ -123,8 +125,8 @@ void od_pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,
 
 double od_gain_expand(double cg, int q0, double beta);
 
-double od_pvq_compute_gain(od_coeff *x, int n, int q0, double *g, double beta,
- const int16_t *qm);
+double od_pvq_compute_gain(const int16_t *x, int n, int q0, double *g,
+ double beta, int bshift);
 int od_pvq_compute_max_theta(double qcg, double beta);
 double od_pvq_compute_theta(int t, int max_theta);
 int od_pvq_compute_k(double qcg, int itheta, double theta, int noref, int n,
