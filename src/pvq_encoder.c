@@ -315,7 +315,6 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   double g;
   double gr;
   double x[MAXN];
-  double r[MAXN];
   od_coeff y_tmp[MAXN];
   int i;
   /* Number of pulses. */
@@ -367,8 +366,7 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
     x16[i] = (x0[i]*qm[i] + xrnd) >> (OD_QM_SHIFT + xshift);
     r16[i] = (r0[i]*qm[i] + rrnd) >> (OD_QM_SHIFT + rshift);
     x[i] = x0[i]*qm[i]*OD_QM_SCALE_1;
-    r[i] = r0[i]*qm[i]*OD_QM_SCALE_1;
-    corr += x[i]*r[i];
+    corr += x16[i]*(int32_t)r16[i];
   }
   cfl_enabled = is_keyframe && pli != 0 && !OD_DISABLE_CFL;
   cg  = od_pvq_compute_gain(x16, n, q0, &g, beta, xshift);
@@ -392,7 +390,7 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   best_qtheta = 0;
   m = 0;
   s = 1;
-  corr = corr/(1e-100 + g*gr);
+  corr = corr/(1e-100 + g*gr / (1 << xshift << rshift));
   corr = OD_MAXF(OD_MINF(corr, 1.), -1.);
   if (is_keyframe) skip_dist = gain_weight*cg*cg;
   else skip_dist = gain_weight*(cg - cgr)*(cg - cgr) + cgr*cg*(2 - 2*corr);
