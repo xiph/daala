@@ -360,7 +360,7 @@ int od_vector_log_mag(const od_coeff *x, int n) {
     tmp = x[i] >> 8;
     sum += tmp*(int32_t)tmp;
   }
-  return 8 + (1 + OD_ILOG(n + sum))/2;
+  return 8 + 1 + OD_ILOG(n + sum)/2;
 }
 
 /** Computes Householder reflection that aligns the reference r to the
