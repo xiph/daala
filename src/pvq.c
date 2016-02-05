@@ -351,6 +351,18 @@ int od_qm_get_index(int bs, int band) {
   return bs*(bs + 1) + band - band/3;
 }
 
+int od_vector_log_mag(const od_coeff *x, int n) {
+  int i;
+  int32_t sum;
+  sum = 0;
+  for (i = 0; i < n; i++) {
+    int16_t tmp;
+    tmp = x[i] >> 8;
+    sum += tmp*(int32_t)tmp;
+  }
+  return 8 + (1 + OD_ILOG(n + sum))/2;
+}
+
 /** Computes Householder reflection that aligns the reference r to the
  *  dimension in r with the greatest absolute value. The reflection
  *  vector is returned in r.

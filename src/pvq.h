@@ -110,6 +110,8 @@ struct od_pvq_adapt_ctx {
 
 void od_adapt_pvq_ctx_reset(od_pvq_adapt_ctx *state, int is_keyframe);
 
+int od_vector_log_mag(const od_coeff *x, int n);
+
 int od_qm_get_index(int bs, int band);
 
 extern const double *const OD_PVQ_BETA[2][OD_NPLANES_MAX][OD_NBSIZES + 1];

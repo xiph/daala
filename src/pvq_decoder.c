@@ -185,7 +185,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
   int i;
   int16_t ref16[MAXN];
   od_coeff rnd;
-  int bshift;
+  int rshift;
   theta = 0;
   gr = 0;
   gain_offset = 0;
@@ -237,10 +237,10 @@ static void pvq_decode_partition(od_ec_dec *ec,
     OD_IIR_DIADIC(*exg, qg << 16, 2);
   }
   *skip = 0;
-  bshift = OD_BLOCK_SHIFTS[bs];
-  rnd = 1 << ((OD_QM_SHIFT - 1) + bshift);
+  rshift = OD_MAXI(0, od_vector_log_mag(ref, n) - 15);
+  rnd = 1 << ((OD_QM_SHIFT - 1) + rshift);
   for (i = 0; i < n; i++) {
-    ref16[i] = (ref[i]*qm[i] + rnd) >> (OD_QM_SHIFT + bshift);
+    ref16[i] = (ref[i]*qm[i] + rnd) >> (OD_QM_SHIFT + rshift);
   }
   if(!*noref){
     /* we have a reference; compute its gain */
@@ -248,7 +248,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
     int icgr;
     int cfl_enabled;
     cfl_enabled = pli != 0 && is_keyframe && !OD_DISABLE_CFL;
-    cgr = od_pvq_compute_gain(ref16, n, q0, &gr, beta, bshift);
+    cgr = od_pvq_compute_gain(ref16, n, q0, &gr, beta, rshift);
     if (cfl_enabled) cgr = 1;
     icgr = (int)floor(.5+cgr);
     /* quantized gain is interleave encoded when there's a reference;
