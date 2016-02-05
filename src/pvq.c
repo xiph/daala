@@ -433,7 +433,8 @@ void od_apply_householder(double *x, const int16_t *r, int n) {
  * @param [in]      r      reflection
  * @param [in]      n      number of dimensions in x,r
  */
-void od_apply_householder16(double *out, int16_t *x, const int16_t *r, int n) {
+void od_apply_householder16(int16_t *out, const int16_t *x, const int16_t *r,
+ int n) {
   int i;
   double proj;
   double proj_1;
@@ -449,7 +450,7 @@ void od_apply_householder16(double *out, int16_t *x, const int16_t *r, int n) {
   }
   proj_1 = proj*2./(1e-100 + l2r);
   for (i = 0; i < n; i++) {
-    out[i] = x[i] - r[i]*proj_1;
+    out[i] = floor(.5 + x[i] - r[i]*proj_1);
   }
 }
 

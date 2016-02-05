@@ -117,7 +117,7 @@ static void od_fill_dynamic_rqrt_table(double *table, const int table_size,
  *                          gain units)
  * @return                  cosine distance between x and y (between 0 and 1)
  */
-static double pvq_search_rdo_double(const double *xcoeff, int n, int k,
+static double pvq_search_rdo_double(const int16_t *xcoeff, int n, int k,
  od_coeff *ypulse, double g2) {
   int i, j;
   double xy;
@@ -409,7 +409,7 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
     noref = 0;
   }
   if (n <= OD_MAX_PVQ_SIZE && !od_vector_is_null(r0, n) && corr > 0) {
-    double xr[MAXN];
+    int16_t xr[MAXN];
     /* Perform theta search only if prediction is useful. */
     theta = acos(corr);
     m = od_compute_householder(r16, n, gr, &s, rshift);
@@ -464,8 +464,6 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
      H/V prediction is unreliable. */
   if (n <= OD_MAX_PVQ_SIZE &&
    ((is_keyframe && pli == 0) || corr < .5 || cg < 2.)) {
-    double x1[MAXN];
-    for (i = 0; i < n; i++) x1[i] = x0[i]*qm[i]*OD_QM_SCALE_1;
     /* Search for the best gain (haven't determined reasonable range yet). */
     for (i = OD_MAXI(1, (int)floor(cg)); i <= ceil(cg); i++) {
       double cos_dist;
@@ -473,7 +471,7 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
       double qcg;
       qcg = i;
       k = od_pvq_compute_k(qcg, -1, -1, 1, n, beta, robust || is_keyframe);
-      cos_dist = pvq_search_rdo_double(x1, n, k, y_tmp, qcg*cg);
+      cos_dist = pvq_search_rdo_double(x16, n, k, y_tmp, qcg*cg);
       /* See Jmspeex' Journal of Dubious Theoretical Results. */
       dist = gain_weight*(qcg - cg)*(qcg - cg) + qcg*cg*(2 - 2*cos_dist);
       /* Do approximate RDO. */
