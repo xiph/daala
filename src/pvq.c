@@ -426,6 +426,33 @@ void od_apply_householder(double *x, const int16_t *r, int n) {
   }
 }
 
+/** Applies Householder reflection from compute_householder(). The
+ * reflection is its own inverse.
+ *
+ * @param [in,out]  x      vector to be reflected
+ * @param [in]      r      reflection
+ * @param [in]      n      number of dimensions in x,r
+ */
+void od_apply_householder16(double *out, int16_t *x, const int16_t *r, int n) {
+  int i;
+  double proj;
+  double proj_1;
+  double l2r;
+  l2r = 0;
+  for (i = 0; i < n; i++) {
+    l2r += r[i]*(int32_t)r[i];
+  }
+  /* Apply Householder reflection */
+  proj = 0;
+  for (i = 0; i < n; i++) {
+    proj += r[i]*(int32_t)x[i];
+  }
+  proj_1 = proj*2./(1e-100 + l2r);
+  for (i = 0; i < n; i++) {
+    out[i] = x[i] - r[i]*proj_1;
+  }
+}
+
 /** Gain companding: raises gain to the power 1/beta for activity masking.
  *
  * @param [in]  g     real (uncompanded) gain
