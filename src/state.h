@@ -137,14 +137,14 @@ struct od_adapt_ctx {
   /* Support for PVQ encode/decode */
   od_pvq_adapt_ctx pvq;
   /* Motion vectors */
-  generic_encoder     mv_model;
-  uint16_t        mv_ref_cdf[5][16];
-  int                 mv_ex[OD_MC_NLEVELS];
-  int                 mv_ey[OD_MC_NLEVELS];
-  uint16_t        mv_small_cdf[5][16];
-  int                 mv_small_increment;
-  uint16_t        split_flag_cdf[OD_MC_LEVEL_MAX][9][2];
-  int                 split_flag_increment;
+  generic_encoder mv_model;
+  uint16_t mv_ref_cdf[5][16];
+  int mv_ex[OD_MC_NLEVELS];
+  int mv_ey[OD_MC_NLEVELS];
+  uint16_t mv_small_cdf[5][16];
+  int mv_small_increment;
+  uint16_t split_flag_cdf[OD_MC_LEVEL_MAX][9][2];
+  int split_flag_increment;
 
   generic_encoder model_dc[OD_NPLANES_MAX];
 
