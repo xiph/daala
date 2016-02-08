@@ -600,21 +600,31 @@ void od_pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,
   int nn;
   int gshift;
   int grnd;
+  int qshift;
+  int qrnd;
   OD_ASSERT(g != 0);
   nn = n-(!noref); /* when noref==0, vector in is sized n-1 */
   yy = 0;
   for (i = 0; i < nn; i++)
     yy += ypulse[i]*(int32_t)ypulse[i];
+  /* Shift required for the magnitude of the pre-qm synthesis to be guaranteed
+     to fit in 16 bits. In practice, the range will be 8192-16384 after scaling
+     most of the time. */
   gshift = OD_MAXI(0, OD_ILOG(g) - 14);
   grnd = 1 << gshift >> 1;
+  /* scale is in Q(16-gshift) so that x[]*scale has a norm that fits in 16
+     bits. */
   if (yy == 0) scale = 0;
   else scale = (int32_t)floor(.5 + g*((1 << 16 >> gshift)/sqrt(yy)));
+  /* Shift to apply after multiplying by the inverse QM, taking into account
+     gshift. */
+  qshift = OD_QM_INV_SHIFT - gshift;
+  qrnd = 1 << qshift >> 1;
   if (noref) {
     for (i = 0; i < n; i++) {
       int32_t x;
-      x = OD_MULT16_32_Q16(ypulse[i], scale) << gshift;
-      xcoeff[i] = (od_coeff)floor(.5
-       + x*(qm_inv[i]*OD_QM_INV_SCALE_1));
+      x = OD_MULT16_32_Q16(ypulse[i], scale);
+      xcoeff[i] = (x*qm_inv[i] + qrnd) >> qshift;
     }
   }
   else{
@@ -627,8 +637,7 @@ void od_pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,
       x[i+1] = OD_MULT16_32_Q16(ypulse[i], scale);
     od_apply_householder(x, r16, n);
     for (i = 0; i < n; i++) {
-      xcoeff[i] = (od_coeff)floor(.5 + (x[i]*(1 << gshift)
-       *(qm_inv[i]*OD_QM_INV_SCALE_1)));
+      xcoeff[i] = ((int32_t)floor(.5 + x[i])*qm_inv[i] + qrnd) >> qshift;
     }
   }
 }
