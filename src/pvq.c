@@ -402,38 +402,12 @@ int od_compute_householder(int16_t *r, int n, int32_t gr, int *sign, int shift) 
 /** Applies Householder reflection from compute_householder(). The
  * reflection is its own inverse.
  *
- * @param [in,out]  x      vector to be reflected
+ * @param [out]     out    reflected vector
+ * @param [in]      x      vector to be reflected
  * @param [in]      r      reflection
  * @param [in]      n      number of dimensions in x,r
  */
-void od_apply_householder(double *x, const int16_t *r, int n) {
-  int i;
-  double proj;
-  double proj_1;
-  double l2r;
-  l2r = 0;
-  for (i = 0; i < n; i++) {
-    l2r += r[i]*(int32_t)r[i];
-  }
-  /* Apply Householder reflection */
-  proj = 0;
-  for (i = 0; i < n; i++) {
-    proj += r[i]*x[i];
-  }
-  proj_1 = proj*2./(1e-100 + l2r);
-  for (i = 0; i < n; i++) {
-    x[i] -= r[i]*proj_1;
-  }
-}
-
-/** Applies Householder reflection from compute_householder(). The
- * reflection is its own inverse.
- *
- * @param [in,out]  x      vector to be reflected
- * @param [in]      r      reflection
- * @param [in]      n      number of dimensions in x,r
- */
-void od_apply_householder16(int16_t *out, const int16_t *x, const int16_t *r,
+void od_apply_householder(int16_t *out, const int16_t *x, const int16_t *r,
  int n) {
   int i;
   double proj;
@@ -635,7 +609,7 @@ void od_pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,
     x[m] = floor(.5 - s*((g + grnd) >> gshift)*cos(theta));
     for (i = m; i < nn; i++)
       x[i+1] = OD_MULT16_32_Q16(ypulse[i], scale);
-    od_apply_householder16(x, x, r16, n);
+    od_apply_householder(x, x, r16, n);
     for (i = 0; i < n; i++) {
       xcoeff[i] = (x[i]*qm_inv[i] + qrnd) >> qshift;
     }

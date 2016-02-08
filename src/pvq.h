@@ -117,8 +117,7 @@ extern const double *const OD_PVQ_BETA[2][OD_NPLANES_MAX][OD_NBSIZES + 1];
 
 void od_init_qm(int16_t *x, int16_t *x_inv, const int *qm);
 int od_compute_householder(int16_t *r, int n, int32_t gr, int *sign, int shift);
-void od_apply_householder(double *x, const int16_t *r, int n);
-void od_apply_householder16(int16_t *out, const int16_t *x, const int16_t *r,
+void od_apply_householder(int16_t *out, const int16_t *x, const int16_t *r,
  int n);
 void od_pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,
                                   const int16_t *r, int n,

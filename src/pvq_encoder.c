@@ -413,7 +413,7 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
     /* Perform theta search only if prediction is useful. */
     theta = acos(corr);
     m = od_compute_householder(r16, n, gr, &s, rshift);
-    od_apply_householder16(xr, x16, r16, n);
+    od_apply_householder(xr, x16, r16, n);
     for (i = m; i < n - 1; i++) xr[i] = xr[i + 1];
     /* Search for the best gain within a reasonable range. */
     for (i = OD_MAXI(1, (int)floor(cg-gain_offset) - 1);
