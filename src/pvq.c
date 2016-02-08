@@ -628,16 +628,16 @@ void od_pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,
     }
   }
   else{
-    double x[MAXN];
+    int16_t x[MAXN];
     scale = (int32_t)floor(.5 + scale*sin(theta));
     for (i = 0; i < m; i++)
       x[i] = OD_MULT16_32_Q16(ypulse[i], scale);
-    x[m] = -s*((g + grnd) >> gshift)*cos(theta);
+    x[m] = floor(.5 - s*((g + grnd) >> gshift)*cos(theta));
     for (i = m; i < nn; i++)
       x[i+1] = OD_MULT16_32_Q16(ypulse[i], scale);
-    od_apply_householder(x, r16, n);
+    od_apply_householder16(x, x, r16, n);
     for (i = 0; i < n; i++) {
-      xcoeff[i] = ((int32_t)floor(.5 + x[i])*qm_inv[i] + qrnd) >> qshift;
+      xcoeff[i] = (x[i]*qm_inv[i] + qrnd) >> qshift;
     }
   }
 }
