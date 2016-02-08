@@ -29,6 +29,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <stdlib.h>
 #include <stdio.h>
 #include "internal.h"
+#include "block_size.h"
 #include "entenc.h"
 #include "entcode.h"
 #include "filter.h"
@@ -36,6 +37,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "partition.h"
 
 #define OD_PVQ_RATE_APPROX (0)
+/*Shift to ensure that the upper bound (i.e. for the max blocksize) of the
+   dot-product of the 1st band of chroma with the luma ref doesn't overflow.*/
+#define OD_CFL_FLIP_SHIFT (OD_LIMIT_BSIZE_MAX + 0)
 
 static void od_encode_pvq_codeword(od_ec_enc *ec, od_pvq_codeword_ctx *adapt,
  const od_coeff *in, int n, int k, int noref, int bs) {
@@ -723,11 +727,11 @@ int od_pvq_encode(daala_enc_ctx *enc,
   flip = 0;
   /*If we are coding a chroma block of a keyframe, we are doing CfL.*/
   if (pli != 0 && is_keyframe) {
-    double xy;
+    int32_t xy;
     xy = 0;
     /*Compute the dot-product of the first band of chroma with the luma ref.*/
     for (i = off[0]; i < off[1]; i++) {
-      xy += ref[i]*qm[i]*OD_QM_SCALE_1*(double)in[i]*qm[i]*OD_QM_SCALE_1;
+      xy += (ref[i] >> OD_CFL_FLIP_SHIFT)*(in[i] >> OD_CFL_FLIP_SHIFT);
     }
     /*If cos(theta) < 0, then |theta| > pi/2 and we should negate the ref.*/
     if (xy < 0) {
