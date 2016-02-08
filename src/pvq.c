@@ -474,13 +474,13 @@ static double od_gain_compand(double g, int q0, double beta) {
  * @return            g^beta
  */
 double od_gain_expand(double cg, int q0, double beta) {
-  if (beta == 1) return cg*q0;
+  if (beta == 1) return floor(.5 + cg*q0);
   else if (beta == 1.5) {
     cg *= q0*OD_COMPAND_SCALE_1;
-    return OD_COMPAND_SCALE*cg*sqrt(cg);
+    return floor(.5 + OD_COMPAND_SCALE*cg*sqrt(cg));
   }
   else {
-    return OD_COMPAND_SCALE*pow(cg*q0*OD_COMPAND_SCALE_1, beta);
+    return floor(.5 + OD_COMPAND_SCALE*pow(cg*q0*OD_COMPAND_SCALE_1, beta));
   }
 }
 
@@ -503,8 +503,7 @@ double od_pvq_compute_gain(const int16_t *x, int n, int q0, double *g,
   for (i = 0; i < n; i++) {
     acc += x[i]*(int32_t)x[i];
   }
-  *g = sqrt(acc);
-  *g = *g*(1 << bshift);
+  *g = floor(.5 + sqrt(acc)*(1 << bshift));
   /* Normalize gain by quantization step size and apply companding
      (if ACTIVITY != 1). */
   return od_gain_compand(*g, q0, beta);
