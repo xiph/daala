@@ -314,7 +314,6 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
  const int16_t *qm_inv) {
   int32_t g;
   int32_t gr;
-  double x[MAXN];
   od_coeff y_tmp[MAXN];
   int i;
   /* Number of pulses. */
@@ -365,7 +364,6 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   for (i = 0; i < n; i++) {
     x16[i] = (x0[i]*qm[i] + xrnd) >> (OD_QM_SHIFT + xshift);
     r16[i] = (r0[i]*qm[i] + rrnd) >> (OD_QM_SHIFT + rshift);
-    x[i] = x0[i]*qm[i]*OD_QM_SCALE_1;
     corr += x16[i]*(int32_t)r16[i];
   }
   cfl_enabled = is_keyframe && pli != 0 && !OD_DISABLE_CFL;
