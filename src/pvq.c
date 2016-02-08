@@ -596,32 +596,39 @@ void od_pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,
  const int16_t *qm_inv) {
   int i;
   int yy;
-  double scale;
+  int32_t scale;
   int nn;
+  int gshift;
+  int grnd;
   OD_ASSERT(g != 0);
   nn = n-(!noref); /* when noref==0, vector in is sized n-1 */
   yy = 0;
   for (i = 0; i < nn; i++)
     yy += ypulse[i]*(int32_t)ypulse[i];
+  gshift = OD_MAXI(0, OD_ILOG(g) - 14);
+  grnd = 1 << gshift >> 1;
   if (yy == 0) scale = 0;
-  else scale = g/sqrt(yy);
+  else scale = (int32_t)floor(.5 + g*((1 << 16 >> gshift)/sqrt(yy)));
   if (noref) {
     for (i = 0; i < n; i++) {
+      int32_t x;
+      x = OD_MULT16_32_Q16(ypulse[i], scale) << gshift;
       xcoeff[i] = (od_coeff)floor(.5
-       + (ypulse[i]*scale)*(qm_inv[i]*OD_QM_INV_SCALE_1));
+       + x*(qm_inv[i]*OD_QM_INV_SCALE_1));
     }
   }
   else{
     double x[MAXN];
-    scale *= sin(theta);
+    scale = (int32_t)floor(.5 + scale*sin(theta));
     for (i = 0; i < m; i++)
-      x[i] = ypulse[i]*scale;
-    x[m] = -s*g*cos(theta);
+      x[i] = OD_MULT16_32_Q16(ypulse[i], scale);
+    x[m] = -s*((g + grnd) >> gshift)*cos(theta);
     for (i = m; i < nn; i++)
-      x[i+1] = ypulse[i]*scale;
+      x[i+1] = OD_MULT16_32_Q16(ypulse[i], scale);
     od_apply_householder(x, r16, n);
     for (i = 0; i < n; i++) {
-      xcoeff[i] = (od_coeff)floor(.5 + (x[i]*(qm_inv[i]*OD_QM_INV_SCALE_1)));
+      xcoeff[i] = (od_coeff)floor(.5 + (x[i]*(1 << gshift)
+       *(qm_inv[i]*OD_QM_INV_SCALE_1)));
     }
   }
 }
