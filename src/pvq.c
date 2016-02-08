@@ -376,25 +376,28 @@ int od_vector_log_mag(const od_coeff *x, int n) {
  * @param [out]     sign   sign of reflection
  * @return                 dimension number to which reflection aligns
  **/
-int od_compute_householder(int16_t *r, int n, int32_t gr, int *sign, int shift) {
+int od_compute_householder(int16_t *r, int n, int32_t gr, int *sign,
+ int shift) {
   int m;
   int i;
   int s;
-  double maxr;
+  int16_t maxr;
+  int32_t rnd;
+  rnd = 1 << shift >> 1;
   /* Pick component with largest magnitude. Not strictly
    * necessary, but it helps numerical stability */
   m = 0;
   maxr = 0;
   for (i = 0; i < n; i++) {
-    if (fabs(r[i]) > maxr) {
-      maxr = fabs(r[i]);
+    if (abs(r[i]) > maxr) {
+      maxr = abs(r[i]);
       m = i;
     }
   }
   s = r[m] > 0 ? 1 : -1;
   /* This turns r into a Householder reflection vector that would reflect
    * the original r[] to e_m */
-  r[m] += floor(.5 + gr*s / (double)(1 << shift));
+  r[m] += (gr*s + rnd) >> shift;
   *sign = s;
   return m;
 }
