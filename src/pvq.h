@@ -115,19 +115,19 @@ int od_qm_get_index(int bs, int band);
 extern const double *const OD_PVQ_BETA[2][OD_NPLANES_MAX][OD_NBSIZES + 1];
 
 void od_init_qm(int16_t *x, int16_t *x_inv, const int *qm);
-int od_compute_householder(int16_t *r, int n, double gr, int *sign, int shift);
+int od_compute_householder(int16_t *r, int n, int32_t gr, int *sign, int shift);
 void od_apply_householder(double *x, const int16_t *r, int n);
 void od_apply_householder16(int16_t *out, const int16_t *x, const int16_t *r,
  int n);
 void od_pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,
                                   const int16_t *r, int n,
-                                  int noref, double g,
+                                  int noref, int32_t g,
                                   double theta, int m, int s,
                                   const int16_t *qm_inv);
 
-double od_gain_expand(double cg, int q0, double beta);
+int32_t od_gain_expand(double cg, int q0, double beta);
 
-double od_pvq_compute_gain(const int16_t *x, int n, int q0, double *g,
+double od_pvq_compute_gain(const int16_t *x, int n, int q0, int32_t *g,
  double beta, int bshift);
 int od_pvq_compute_max_theta(double qcg, double beta);
 double od_pvq_compute_theta(int t, int max_theta);

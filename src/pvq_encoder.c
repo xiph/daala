@@ -312,8 +312,8 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
  double beta, double *skip_diff, int robust, int is_keyframe, int pli,
  const od_adapt_ctx *adapt, int bs, const int16_t *qm,
  const int16_t *qm_inv) {
-  double g;
-  double gr;
+  int32_t g;
+  int32_t gr;
   double x[MAXN];
   od_coeff y_tmp[MAXN];
   int i;
@@ -390,7 +390,7 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   best_qtheta = 0;
   m = 0;
   s = 1;
-  corr = corr/(1e-100 + g*gr / (1 << xshift << rshift));
+  corr = corr/(1e-100 + g*(double)gr / (1 << xshift << rshift));
   corr = OD_MAXF(OD_MINF(corr, 1.), -1.);
   if (is_keyframe) skip_dist = gain_weight*cg*cg;
   else skip_dist = gain_weight*(cg - cgr)*(cg - cgr) + cgr*cg*(2 - 2*corr);

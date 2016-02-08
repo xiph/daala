@@ -376,7 +376,7 @@ int od_vector_log_mag(const od_coeff *x, int n) {
  * @param [out]     sign   sign of reflection
  * @return                 dimension number to which reflection aligns
  **/
-int od_compute_householder(int16_t *r, int n, double gr, int *sign, int shift) {
+int od_compute_householder(int16_t *r, int n, int32_t gr, int *sign, int shift) {
   int m;
   int i;
   int s;
@@ -473,14 +473,14 @@ static double od_gain_compand(double g, int q0, double beta) {
  * @param [in]  beta  activity masking beta param (exponent)
  * @return            g^beta
  */
-double od_gain_expand(double cg, int q0, double beta) {
-  if (beta == 1) return floor(.5 + cg*q0);
+int32_t od_gain_expand(double cg, int q0, double beta) {
+  if (beta == 1) return (int32_t)floor(.5 + cg*q0);
   else if (beta == 1.5) {
     cg *= q0*OD_COMPAND_SCALE_1;
-    return floor(.5 + OD_COMPAND_SCALE*cg*sqrt(cg));
+    return (int32_t)floor(.5 + OD_COMPAND_SCALE*cg*sqrt(cg));
   }
   else {
-    return floor(.5 + OD_COMPAND_SCALE*pow(cg*q0*OD_COMPAND_SCALE_1, beta));
+    return (int32_t)floor(.5 + OD_COMPAND_SCALE*pow(cg*q0*OD_COMPAND_SCALE_1, beta));
   }
 }
 
@@ -495,7 +495,7 @@ double od_gain_expand(double cg, int q0, double beta) {
  * @param [in]      qm     QM with magnitude compensation
  * @return                 quantized/companded gain
  */
-double od_pvq_compute_gain(const int16_t *x, int n, int q0, double *g,
+double od_pvq_compute_gain(const int16_t *x, int n, int q0, int32_t *g,
  double beta, int bshift) {
   int i;
   int32_t acc;
@@ -503,7 +503,7 @@ double od_pvq_compute_gain(const int16_t *x, int n, int q0, double *g,
   for (i = 0; i < n; i++) {
     acc += x[i]*(int32_t)x[i];
   }
-  *g = floor(.5 + sqrt(acc)*(1 << bshift));
+  *g = (int32_t)floor(.5 + sqrt(acc)*(1 << bshift));
   /* Normalize gain by quantization step size and apply companding
      (if ACTIVITY != 1). */
   return od_gain_compand(*g, q0, beta);
@@ -592,7 +592,7 @@ int od_pvq_compute_k(double qcg, int itheta, double theta, int noref, int n,
  * @param [in]      qm_inv  inverse of the QM with magnitude compensation
  */
 void od_pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,
- const int16_t *r16, int n, int noref, double g, double theta, int m, int s,
+ const int16_t *r16, int n, int noref, int32_t g, double theta, int m, int s,
  const int16_t *qm_inv) {
   int i;
   int yy;
