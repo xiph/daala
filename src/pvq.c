@@ -413,9 +413,9 @@ int od_compute_householder(int16_t *r, int n, int32_t gr, int *sign,
 void od_apply_householder(int16_t *out, const int16_t *x, const int16_t *r,
  int n) {
   int i;
-  double proj;
+  int32_t proj;
   double proj_1;
-  double l2r;
+  int32_t l2r;
   l2r = 0;
   for (i = 0; i < n; i++) {
     l2r += r[i]*(int32_t)r[i];
