@@ -366,8 +366,8 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
      vector can fit in 16 bits.
      This shift value *is* normative, and has to match the decoder. */
   rshift = OD_MAXI(0, od_vector_log_mag(r0, n) - 14);
-  xrnd = 1 << ((OD_QM_SHIFT - 1) + xshift);
-  rrnd = 1 << ((OD_QM_SHIFT - 1) + rshift);
+  xrnd = 1 << (OD_QM_SHIFT + xshift) >> 1;
+  rrnd = 1 << (OD_QM_SHIFT + rshift) >> 1;
   for (i = 0; i < n; i++) {
     x16[i] = (x0[i]*qm[i] + xrnd) >> (OD_QM_SHIFT + xshift);
     r16[i] = (r0[i]*qm[i] + rrnd) >> (OD_QM_SHIFT + rshift);
