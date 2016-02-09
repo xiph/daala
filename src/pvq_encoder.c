@@ -442,10 +442,10 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
            that's the factor by which cos_dist is multiplied to get the
            distortion metric. */
         cos_dist = pvq_search_rdo_double(xr, n - 1, k, y_tmp,
-         qcg*cg*sin(theta)*sin(qtheta));
+         qcg*cg*od_pvq_sin(theta)*od_pvq_sin(qtheta));
         /* See Jmspeex' Journal of Dubious Theoretical Results. */
-        dist_theta = 2 - 2*cos(theta - qtheta)
-         + sin(theta)*sin(qtheta)*(2 - 2*cos_dist);
+        dist_theta = 2 - 2*od_pvq_cos(theta - qtheta)
+         + od_pvq_sin(theta)*od_pvq_sin(qtheta)*(2 - 2*cos_dist);
         dist = gain_weight*(qcg - cg)*(qcg - cg) + qcg*cg*dist_theta;
         /* Do approximate RDO. */
         cost = dist + lambda*od_pvq_rate(i, icgr, j, ts, adapt, y_tmp, k, n,

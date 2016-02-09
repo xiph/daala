@@ -64,6 +64,11 @@ extern const uint16_t LAPLACE_OFFSET[];
 #define OD_QM_STRIDE (OD_QM_OFFSET(OD_NBSIZES))
 #define OD_QM_BUFFER_SIZE (2*OD_QM_STRIDE)
 
+#define OD_THETA_SCALE (16384*2./M_PI)
+#define OD_THETA_SCALE_1 (1./OD_THETA_SCALE)
+#define OD_TRIG_SCALE (16384)
+#define OD_TRIG_SCALE_1 (1./OD_TRIG_SCALE)
+
 /* Largest PVQ partition is half the coefficients of largest block size. */
 #define MAXN (OD_BSIZE_MAX*OD_BSIZE_MAX/2)
 
@@ -107,6 +112,8 @@ struct od_pvq_adapt_ctx {
 
 void od_adapt_pvq_ctx_reset(od_pvq_adapt_ctx *state, int is_keyframe);
 
+double od_pvq_sin(double x);
+double od_pvq_cos(double x);
 int od_vector_log_mag(const od_coeff *x, int n);
 
 int od_qm_get_index(int bs, int band);

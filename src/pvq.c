@@ -349,6 +349,24 @@ int od_qm_get_index(int bs, int band) {
   return bs*(bs + 1) + band - band/3;
 }
 
+/* Approximates sin(x) for 0 <= x < pi. */
+double od_pvq_sin(double x) {
+  int x16;
+  int ret;
+  x16 = (int)floor(.5 + OD_THETA_SCALE*x);
+  ret = (int)floor(.5 + OD_TRIG_SCALE*sin(OD_THETA_SCALE_1*x16));
+  return ret*OD_TRIG_SCALE_1;
+}
+
+/* Approximates cos(x) for -pi < x < pi. */
+double od_pvq_cos(double x) {
+  int x16;
+  int ret;
+  x16 = (int)floor(.5 + OD_THETA_SCALE*fabs(x));
+  ret = (int)floor(.5 + OD_TRIG_SCALE*cos(OD_THETA_SCALE_1*x16));
+  return ret*OD_TRIG_SCALE_1;
+}
+
 /* Computes an upper-bound on the number of bits required to store the L2 norm
    of a vector (excluding sign). */
 int od_vector_log_mag(const od_coeff *x, int n) {
@@ -543,7 +561,7 @@ int od_pvq_compute_k(double qcg, int itheta, double theta, int noref, int n,
       return OD_MAXI(1, (int)floor(.5 + (itheta - .2)*sqrt((n + 2)/2)));
     }
     else {
-      return OD_MAXI(1, (int)floor(.5 + (qcg*sin(theta) - .2)*
+      return OD_MAXI(1, (int)floor(.5 + (qcg*od_pvq_sin(theta) - .2)*
        sqrt((n + 2)/2)/beta));
     }
   }
@@ -608,13 +626,13 @@ void od_pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,
   }
   else{
     int16_t x[MAXN];
-    scale = (int32_t)floor(.5 + scale*sin(theta));
+    scale = (int32_t)floor(.5 + scale*od_pvq_sin(theta));
     /* The following multiply doesn't round, but it's probably OK since
        the Householder reflection is likely to undo most of the resulting
        bias. */
     for (i = 0; i < m; i++)
       x[i] = OD_MULT16_32_Q16(ypulse[i], scale);
-    x[m] = floor(.5 - s*((g + grnd) >> gshift)*cos(theta));
+    x[m] = floor(.5 - s*((g + grnd) >> gshift)*od_pvq_cos(theta));
     for (i = m; i < nn; i++)
       x[i+1] = OD_MULT16_32_Q16(ypulse[i], scale);
     od_apply_householder(x, x, r16, n);
