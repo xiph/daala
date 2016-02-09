@@ -416,7 +416,7 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   if (n <= OD_MAX_PVQ_SIZE && !od_vector_is_null(r0, n) && corr > 0) {
     int16_t xr[MAXN];
     /* Perform theta search only if prediction is useful. */
-    theta = acos(corr);
+    theta = floor(.5 + OD_THETA_SCALE*acos(corr));
     m = od_compute_householder(r16, n, gr, &s, rshift);
     od_apply_householder(xr, x16, r16, n);
     for (i = m; i < n - 1; i++) xr[i] = xr[i + 1];
@@ -431,8 +431,9 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
       /* Set angular resolution (in ra) to match the encoded gain */
       ts = od_pvq_compute_max_theta(qcg, beta);
       /* Search for the best angle within a reasonable range. */
-      for (j = OD_MAXI(0, (int)floor(.5+theta*2/M_PI*ts) - 2);
-       j <= OD_MINI(ts-1, (int)ceil(theta*2/M_PI*ts)); j++) {
+      for (j = OD_MAXI(0, (int)floor(.5 + theta*OD_THETA_SCALE_1*2/M_PI*ts)
+       - 2); j <= OD_MINI(ts - 1, (int)ceil(theta*OD_THETA_SCALE_1*2/M_PI*ts));
+       j++) {
         double cos_dist;
         double cost;
         double dist_theta;

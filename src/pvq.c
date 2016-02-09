@@ -351,19 +351,15 @@ int od_qm_get_index(int bs, int band) {
 
 /* Approximates sin(x) for 0 <= x < pi. */
 double od_pvq_sin(double x) {
-  int x16;
   int ret;
-  x16 = (int)floor(.5 + OD_THETA_SCALE*x);
-  ret = (int)floor(.5 + OD_TRIG_SCALE*sin(OD_THETA_SCALE_1*x16));
+  ret = (int)floor(.5 + OD_TRIG_SCALE*sin(OD_THETA_SCALE_1*x));
   return ret*OD_TRIG_SCALE_1;
 }
 
 /* Approximates cos(x) for -pi < x < pi. */
 double od_pvq_cos(double x) {
-  int x16;
   int ret;
-  x16 = (int)floor(.5 + OD_THETA_SCALE*fabs(x));
-  ret = (int)floor(.5 + OD_TRIG_SCALE*cos(OD_THETA_SCALE_1*x16));
+  ret = (int)floor(.5 + OD_TRIG_SCALE*cos(OD_THETA_SCALE_1*fabs(x)));
   return ret*OD_TRIG_SCALE_1;
 }
 
@@ -525,8 +521,10 @@ int od_pvq_compute_max_theta(double qcg, double beta){
  * @return                     decoded theta value
  */
 double od_pvq_compute_theta(int t, int max_theta) {
-  if (max_theta != 0) return OD_MINI(t, max_theta - 1)*.5*M_PI/max_theta;
-  return 0;
+  if (max_theta != 0) {
+    return floor(.5 + OD_THETA_SCALE*OD_MINI(t, max_theta - 1)*.5*M_PI/max_theta);
+  }
+  else return 0;
 }
 
 /** Compute the number of pulses used for PVQ encoding a vector from
