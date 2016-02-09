@@ -29,6 +29,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <stdio.h>
 #include <string.h>
 #include <wx/wx.h>
+#include <wx/cmdline.h>
 #include <wx/dcbuffer.h>
 #include <wx/tokenzr.h>
 
@@ -1304,14 +1305,26 @@ class TestApp : public wxApp {
 private:
   TestFrame *frame;
 public:
-  bool OnInit();
+  void OnInitCmdLine(wxCmdLineParser &parser);
+  bool OnCmdLineParsed(wxCmdLineParser &parser);
 };
 
-bool TestApp::OnInit() {
+static const wxCmdLineEntryDesc CMD_LINE_DESC [] = {
+  { wxCMD_LINE_PARAM, NULL, NULL, _("input.ogg"), wxCMD_LINE_VAL_STRING,
+   wxCMD_LINE_PARAM_OPTIONAL },
+  { wxCMD_LINE_NONE }
+};
+
+void TestApp::OnInitCmdLine(wxCmdLineParser &parser) {
+  parser.SetDesc(CMD_LINE_DESC);
+  parser.SetSwitchChars(_T("-"));
+}
+
+bool TestApp::OnCmdLineParsed(wxCmdLineParser &parser) {
   frame = new TestFrame();
   frame->Show();
-  if (argc >= 2) {
-    return frame->open(wxString(argv[1]));
+  if (parser.GetParamCount() > 0) {
+    return frame->open(parser.GetParam(0));
   }
   return true;
 }
