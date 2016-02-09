@@ -354,10 +354,13 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   gain_weight = 1.4;
   OD_ASSERT(n > 1);
   corr = 0;
-  /* Shift needed to make x fit in 16 bits even after rotation. */
+  /* Shift needed to make x fit in 16 bits even after rotation.
+     This shift value is not normative (it can be changed without breaking
+     the bitstream) */
   xshift = OD_MAXI(0, od_vector_log_mag(x0, n) - 15);
   /* Shift needed to make the reference fit in 15 bits, so that the Householder
-     vector can fit in 16 bits. */
+     vector can fit in 16 bits.
+     This shift value *is* normative, and has to match the decoder. */
   rshift = OD_MAXI(0, od_vector_log_mag(r0, n) - 14);
   xrnd = 1 << ((OD_QM_SHIFT - 1) + xshift);
   rrnd = 1 << ((OD_QM_SHIFT - 1) + rshift);

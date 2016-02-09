@@ -600,6 +600,8 @@ void od_pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,
   if (noref) {
     for (i = 0; i < n; i++) {
       int32_t x;
+      /* This multiply doesn't round, so it introduces some bias.
+         It would be nice (but not critical) to fix this. */
       x = OD_MULT16_32_Q16(ypulse[i], scale);
       xcoeff[i] = (x*qm_inv[i] + qrnd) >> qshift;
     }
@@ -607,6 +609,9 @@ void od_pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,
   else{
     int16_t x[MAXN];
     scale = (int32_t)floor(.5 + scale*sin(theta));
+    /* The following multiply doesn't round, but it's probably OK since
+       the Householder reflection is likely to undo most of the resulting
+       bias. */
     for (i = 0; i < m; i++)
       x[i] = OD_MULT16_32_Q16(ypulse[i], scale);
     x[m] = floor(.5 - s*((g + grnd) >> gshift)*cos(theta));
