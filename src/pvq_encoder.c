@@ -336,10 +336,10 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   int s;
   /* Dimension on which Householder reflects. */
   int m;
-  double theta;
+  int32_t theta;
   double corr;
   int best_k;
-  double best_qtheta;
+  int32_t best_qtheta;
   double gain_offset;
   int noref;
   double lambda;
@@ -416,7 +416,7 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   if (n <= OD_MAX_PVQ_SIZE && !od_vector_is_null(r0, n) && corr > 0) {
     int16_t xr[MAXN];
     /* Perform theta search only if prediction is useful. */
-    theta = floor(.5 + OD_THETA_SCALE*acos(corr));
+    theta = (int32_t)floor(.5 + OD_THETA_SCALE*acos(corr));
     m = od_compute_householder(r16, n, gr, &s, rshift);
     od_apply_householder(xr, x16, r16, n);
     for (i = m; i < n - 1; i++) xr[i] = xr[i + 1];
@@ -437,7 +437,7 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
         double cos_dist;
         double cost;
         double dist_theta;
-        double qtheta = od_pvq_compute_theta(j, ts);
+        int32_t qtheta = od_pvq_compute_theta(j, ts);
         k = od_pvq_compute_k(qcg, j, qtheta, 0, n, beta, robust || is_keyframe);
         /* PVQ search, using a gain of qcg*cg*sin(theta)*sin(qtheta) since
            that's the factor by which cos_dist is multiplied to get the

@@ -350,16 +350,16 @@ int od_qm_get_index(int bs, int band) {
 }
 
 /* Approximates sin(x) for 0 <= x < pi. */
-double od_pvq_sin(double x) {
+double od_pvq_sin(int32_t x) {
   int ret;
   ret = (int)floor(.5 + OD_TRIG_SCALE*sin(OD_THETA_SCALE_1*x));
   return ret*OD_TRIG_SCALE_1;
 }
 
 /* Approximates cos(x) for -pi < x < pi. */
-double od_pvq_cos(double x) {
+double od_pvq_cos(int32_t x) {
   int ret;
-  ret = (int)floor(.5 + OD_TRIG_SCALE*cos(OD_THETA_SCALE_1*fabs(x)));
+  ret = (int)floor(.5 + OD_TRIG_SCALE*cos(OD_THETA_SCALE_1*abs(x)));
   return ret*OD_TRIG_SCALE_1;
 }
 
@@ -520,9 +520,10 @@ int od_pvq_compute_max_theta(double qcg, double beta){
  * @param [in]      max_theta  maximum theta value
  * @return                     decoded theta value
  */
-double od_pvq_compute_theta(int t, int max_theta) {
+int32_t od_pvq_compute_theta(int t, int max_theta) {
   if (max_theta != 0) {
-    return floor(.5 + OD_THETA_SCALE*OD_MINI(t, max_theta - 1)*.5*M_PI/max_theta);
+    return (int32_t)floor(.5 + OD_THETA_SCALE*OD_MINI(t, max_theta - 1)*
+     .5*M_PI/max_theta);
   }
   else return 0;
 }
@@ -540,7 +541,7 @@ double od_pvq_compute_theta(int t, int max_theta) {
  * @param [in]      nodesync   do not use info that depend on the reference
  * @return                     number of pulses to use for coding
  */
-int od_pvq_compute_k(double qcg, int itheta, double theta, int noref, int n,
+int od_pvq_compute_k(double qcg, int itheta, int32_t theta, int noref, int n,
  double beta, int nodesync) {
   if (noref) {
     if (qcg == 0) return 0;
@@ -585,7 +586,7 @@ int od_pvq_compute_k(double qcg, int itheta, double theta, int noref, int n,
  * @param [in]      qm_inv  inverse of the QM with magnitude compensation
  */
 void od_pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,
- const int16_t *r16, int n, int noref, int32_t g, double theta, int m, int s,
+ const int16_t *r16, int n, int noref, int32_t g, int32_t theta, int m, int s,
  const int16_t *qm_inv) {
   int i;
   int yy;

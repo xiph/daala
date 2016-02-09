@@ -101,7 +101,7 @@ static int neg_deinterleave(int x, int ref) {
  * @param [in]      qm_inv  Inverse of QM with magnitude compensation
  */
 static void pvq_synthesis(od_coeff *xcoeff, od_coeff *ypulse, int16_t *r16,
- int n, int32_t gr, int noref, int32_t g, double theta, const int16_t *qm_inv,
+ int n, int32_t gr, int noref, int32_t g, int32_t theta, const int16_t *qm_inv,
  int shift) {
   int s;
   int m;
@@ -172,7 +172,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
   double qcg;
   int max_theta;
   int itheta;
-  double theta;
+  int32_t theta;
   int32_t gr;
   double gain_offset;
   od_coeff y[MAXN];

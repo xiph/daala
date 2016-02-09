@@ -112,8 +112,8 @@ struct od_pvq_adapt_ctx {
 
 void od_adapt_pvq_ctx_reset(od_pvq_adapt_ctx *state, int is_keyframe);
 
-double od_pvq_sin(double x);
-double od_pvq_cos(double x);
+double od_pvq_sin(int32_t x);
+double od_pvq_cos(int32_t x);
 int od_vector_log_mag(const od_coeff *x, int n);
 
 int od_qm_get_index(int bs, int band);
@@ -127,7 +127,7 @@ void od_apply_householder(int16_t *out, const int16_t *x, const int16_t *r,
 void od_pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,
                                   const int16_t *r, int n,
                                   int noref, int32_t g,
-                                  double theta, int m, int s,
+                                  int32_t theta, int m, int s,
                                   const int16_t *qm_inv);
 
 int32_t od_gain_expand(double cg, int q0, double beta);
@@ -135,8 +135,8 @@ int32_t od_gain_expand(double cg, int q0, double beta);
 double od_pvq_compute_gain(const int16_t *x, int n, int q0, int32_t *g,
  double beta, int bshift);
 int od_pvq_compute_max_theta(double qcg, double beta);
-double od_pvq_compute_theta(int t, int max_theta);
-int od_pvq_compute_k(double qcg, int itheta, double theta, int noref, int n,
+int32_t od_pvq_compute_theta(int t, int max_theta);
+int od_pvq_compute_k(double qcg, int itheta, int32_t theta, int noref, int n,
  double beta, int nodesync);
 
 int od_vector_is_null(const od_coeff *x, int len);
