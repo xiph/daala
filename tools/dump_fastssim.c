@@ -13,6 +13,10 @@
 #endif
 #include "getopt.h"
 
+/*Implements the FastSSIM algorithm, see:
+  Chen, Ming-Jun, and Alan C. Bovik. "Fast structural similarity index
+   algorithm." Journal of Real-Time Image Processing 6.4 (2011): 281-287.*/
+
 const char *optstring = "cfrs";
 const struct option options[]={
   {"show-chroma",no_argument,NULL,'c'},
@@ -196,6 +200,10 @@ static void fs_apply_luminance(fs_ctx *_ctx,int _l){
     for(i=0;i<w;i++)col_sums_y[i]+=im2[j1offs+i];
   }
   ssim=_ctx->level[_l].ssim;
+  /*4096 is a normalization constant for the luminance term.
+    See Section 3 of the FastSSIM paper, "The luminance term in Fast SSIM
+     utilizes an 8x8 square window."
+    mux and muy are the sum of 64 values: 64*64 == 4096.*/
   c1=(double)(SSIM_C1*4096*(1<<4*_l));
   for(j=0;j<h;j++){
     unsigned mux;
@@ -313,6 +321,8 @@ static void fs_calc_structure(fs_ctx *_ctx,int _l){
   stride=w+8;
   gy_buf=gx_buf+8*stride;
   memset(gx_buf,0,2*8*stride*sizeof(*gx_buf));
+  /*104 is the sum of the "8x8 integer approximation to Gaussian window" in
+     Fig. 3 of the FastSSIM paper.*/
   c2=SSIM_C2*(1<<4*_l)*16*104;
   for(j=0;j<h+4;j++){
     if(j<h-1){
