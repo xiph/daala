@@ -452,10 +452,10 @@ void od_apply_householder(int16_t *out, const int16_t *x, const int16_t *r,
  * @param [in]  beta  activity masking beta param (exponent)
  * @return            g^(1/beta)
  */
-static double od_gain_compand(int32_t g, int q0, double beta) {
-  if (beta == 1) return floor(.5 + OD_CGAIN_SCALE*g/(double)q0);
+static int32_t od_gain_compand(int32_t g, int q0, double beta) {
+  if (beta == 1) return (int32_t)floor(.5 + OD_CGAIN_SCALE*g/(double)q0);
   else {
-    return floor(.5 + OD_CGAIN_SCALE*
+    return (int32_t)floor(.5 + OD_CGAIN_SCALE*
      OD_COMPAND_SCALE*pow(g*OD_COMPAND_SCALE_1, 1./beta)/(double)q0);
   }
 }
@@ -467,7 +467,7 @@ static double od_gain_compand(int32_t g, int q0, double beta) {
  * @param [in]  beta  activity masking beta param (exponent)
  * @return            g^beta
  */
-int32_t od_gain_expand(double cg0, int q0, double beta) {
+int32_t od_gain_expand(int32_t cg0, int q0, double beta) {
   double cg;
   cg = cg0 * OD_CGAIN_SCALE_1;
   if (beta == 1) return (int32_t)floor(.5 + cg*q0);
@@ -492,7 +492,7 @@ int32_t od_gain_expand(double cg0, int q0, double beta) {
  * @param [in]      qm     QM with magnitude compensation
  * @return                 quantized/companded gain
  */
-double od_pvq_compute_gain(const int16_t *x, int n, int q0, int32_t *g,
+int32_t od_pvq_compute_gain(const int16_t *x, int n, int q0, int32_t *g,
  double beta, int bshift) {
   int i;
   int32_t acc;
@@ -512,7 +512,7 @@ double od_pvq_compute_gain(const int16_t *x, int n, int q0, int32_t *g,
  * @param [in]      beta   activity masking beta param
  * @return                 max theta value
  */
-int od_pvq_compute_max_theta(double qcg, double beta){
+int od_pvq_compute_max_theta(int32_t qcg, double beta){
   /* Set angular resolution (in ra) to match the encoded gain */
   int ts = (int)floor(.5 + qcg*OD_CGAIN_SCALE_1*M_PI/(2*beta));
   /* Special case for low gains -- will need to be tuned anyway */
@@ -547,7 +547,7 @@ int32_t od_pvq_compute_theta(int t, int max_theta) {
  * @param [in]      nodesync   do not use info that depend on the reference
  * @return                     number of pulses to use for coding
  */
-int od_pvq_compute_k(double qcg, int itheta, int32_t theta, int noref, int n,
+int od_pvq_compute_k(int32_t qcg, int itheta, int32_t theta, int noref, int n,
  double beta, int nodesync) {
   if (noref) {
     if (qcg == 0) return 0;

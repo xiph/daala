@@ -169,12 +169,12 @@ static void pvq_decode_partition(od_ec_dec *ec,
                                  const int16_t *qm,
                                  const int16_t *qm_inv) {
   int k;
-  double qcg;
+  int32_t qcg;
   int max_theta;
   int itheta;
   int32_t theta;
   int32_t gr;
-  double gain_offset;
+  int32_t gain_offset;
   od_coeff y[MAXN];
   int qg;
   int nodesync;
@@ -243,7 +243,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
   }
   if(!*noref){
     /* we have a reference; compute its gain */
-    double cgr;
+    int32_t cgr;
     int icgr;
     int cfl_enabled;
     cfl_enabled = pli != 0 && is_keyframe && !OD_DISABLE_CFL;

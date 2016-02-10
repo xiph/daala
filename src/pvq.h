@@ -133,13 +133,13 @@ void od_pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,
                                   int32_t theta, int m, int s,
                                   const int16_t *qm_inv);
 
-int32_t od_gain_expand(double cg, int q0, double beta);
+int32_t od_gain_expand(int32_t cg, int q0, double beta);
 
-double od_pvq_compute_gain(const int16_t *x, int n, int q0, int32_t *g,
+int32_t od_pvq_compute_gain(const int16_t *x, int n, int q0, int32_t *g,
  double beta, int bshift);
-int od_pvq_compute_max_theta(double qcg, double beta);
+int od_pvq_compute_max_theta(int32_t qcg, double beta);
 int32_t od_pvq_compute_theta(int t, int max_theta);
-int od_pvq_compute_k(double qcg, int itheta, int32_t theta, int noref, int n,
+int od_pvq_compute_k(int32_t qcg, int itheta, int32_t theta, int noref, int n,
  double beta, int nodesync);
 
 int od_vector_is_null(const od_coeff *x, int len);
