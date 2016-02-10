@@ -3198,7 +3198,8 @@ static void daala_encoder_check(daala_enc_ctx *ctx, daala_image *img,
       if (memcmp(img->planes[pli].data + img->planes[pli].ystride * i,
        dec_img.planes[pli].data + dec_img.planes[pli].ystride * i,
        plane_width)) {
-         fprintf(stderr, "Pixel mismatch in row:%d, plane:%d\n", i, pli);
+        fprintf(stderr, "Pixel mismatch in frame:%d, row:%d, plane:%d\n",
+         (int)ctx->curr_display_order, i, pli);
       }
     }
   }
