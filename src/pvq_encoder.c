@@ -379,8 +379,8 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   if (cfl_enabled) cgr = OD_CGAIN_SCALE;
   /* gain_offset is meant to make sure one of the quantized gains has
      exactly the same gain as the reference. */
-  icgr = (int)floor(.5 + cgr*OD_CGAIN_SCALE_1);
-  gain_offset = cgr - icgr*OD_CGAIN_SCALE;
+  icgr = (cgr + OD_CGAIN_RND) >> OD_CGAIN_SHIFT;
+  gain_offset = cgr - (icgr << OD_CGAIN_SHIFT);
   /* Start search with null case: gain=0, no pulse. */
   qg = 0;
   dist = gain_weight*cg*cg*OD_CGAIN_SCALE_2;
@@ -427,13 +427,13 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
     od_apply_householder(xr, x16, r16, n);
     for (i = m; i < n - 1; i++) xr[i] = xr[i + 1];
     /* Search for the best gain within a reasonable range. */
-    for (i = OD_MAXI(1, (int)floor((cg - gain_offset)*OD_CGAIN_SCALE_1) - 1);
+    for (i = OD_MAXI(1, ((cg - gain_offset) >> OD_CGAIN_SHIFT) - 1);
      i <= (int)ceil((cg - gain_offset)*OD_CGAIN_SCALE_1); i++) {
       int j;
       int32_t qcg;
       int ts;
       /* Quantized companded gain */
-      qcg = i*OD_CGAIN_SCALE + gain_offset;
+      qcg = (i << OD_CGAIN_SHIFT) + gain_offset;
       /* Set angular resolution (in ra) to match the encoded gain */
       ts = od_pvq_compute_max_theta(qcg, beta);
       /* Search for the best angle within a reasonable range. */
@@ -476,14 +476,14 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
      correlation. The only exception is luma on a keyframe because
      H/V prediction is unreliable. */
   if (n <= OD_MAX_PVQ_SIZE &&
-   ((is_keyframe && pli == 0) || corr < .5 || cg < 2.*OD_CGAIN_SCALE)) {
+   ((is_keyframe && pli == 0) || corr < .5 || cg < 2 << OD_CGAIN_SHIFT)) {
     /* Search for the best gain (haven't determined reasonable range yet). */
-    for (i = OD_MAXI(1, (int)floor(cg*OD_CGAIN_SCALE_1));
+    for (i = OD_MAXI(1, cg >> OD_CGAIN_SHIFT);
      i <= ceil(cg*OD_CGAIN_SCALE_1); i++) {
       double cos_dist;
       double cost;
       int32_t qcg;
-      qcg = i*OD_CGAIN_SCALE;
+      qcg = i << OD_CGAIN_SHIFT;
       k = od_pvq_compute_k(qcg, -1, -1, 1, n, beta, robust || is_keyframe);
       cos_dist = pvq_search_rdo_double(x16, n, k, y_tmp,
        qcg*(double)cg*OD_CGAIN_SCALE_2);
@@ -525,7 +525,7 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   }
   else {
     if (noref) gain_offset = 0;
-    g = od_gain_expand(qg*OD_CGAIN_SCALE + gain_offset, q0, beta);
+    g = od_gain_expand((qg << OD_CGAIN_SHIFT) + gain_offset, q0, beta);
     od_pvq_synthesis_partial(out, y, r16, n, noref, g, theta, m, s,
      qm_inv);
   }

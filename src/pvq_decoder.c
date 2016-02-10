@@ -249,7 +249,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
     cfl_enabled = pli != 0 && is_keyframe && !OD_DISABLE_CFL;
     cgr = od_pvq_compute_gain(ref16, n, q0, &gr, beta, rshift);
     if (cfl_enabled) cgr = OD_CGAIN_SCALE;
-    icgr = (int)floor(.5 + cgr*OD_CGAIN_SCALE_1);
+    icgr = (cgr + OD_CGAIN_RND) >> OD_CGAIN_SHIFT;
     /* quantized gain is interleave encoded when there's a reference;
        deinterleave it now */
     if (is_keyframe) qg = neg_deinterleave(qg, icgr);
@@ -258,8 +258,8 @@ static void pvq_decode_partition(od_ec_dec *ec,
       if (qg == 0) *skip = (icgr ? OD_PVQ_SKIP_ZERO : OD_PVQ_SKIP_COPY);
     }
     if (qg == icgr && itheta == 0 && !cfl_enabled) *skip = OD_PVQ_SKIP_COPY;
-    gain_offset = cgr - icgr*OD_CGAIN_SCALE;
-    qcg = qg*OD_CGAIN_SCALE + gain_offset;
+    gain_offset = cgr - (icgr << OD_CGAIN_SHIFT);
+    qcg = (qg << OD_CGAIN_SHIFT) + gain_offset;
     /* read and decode first-stage PVQ error theta */
     max_theta = od_pvq_compute_max_theta(qcg, beta);
     if (itheta > 1 && (nodesync || max_theta > 3)) {
@@ -274,7 +274,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
   else{
     itheta = 0;
     if (!is_keyframe) qg++;
-    qcg = qg*OD_CGAIN_SCALE;
+    qcg = qg << OD_CGAIN_SHIFT;
     if (qg == 0) *skip = OD_PVQ_SKIP_ZERO;
   }
 
