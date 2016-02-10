@@ -452,7 +452,7 @@ void od_apply_householder(int16_t *out, const int16_t *x, const int16_t *r,
  * @param [in]  beta  activity masking beta param (exponent)
  * @return            g^(1/beta)
  */
-static double od_gain_compand(double g, int q0, double beta) {
+static double od_gain_compand(int32_t g, int q0, double beta) {
   if (beta == 1) return floor(.5 + OD_CGAIN_SCALE*g/(double)q0);
   else {
     return floor(.5 + OD_CGAIN_SCALE*
