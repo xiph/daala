@@ -376,14 +376,14 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   cfl_enabled = is_keyframe && pli != 0 && !OD_DISABLE_CFL;
   cg  = od_pvq_compute_gain(x16, n, q0, &g, beta, xshift);
   cgr = od_pvq_compute_gain(r16, n, q0, &gr, beta, rshift);
-  if (cfl_enabled) cgr = 1;
+  if (cfl_enabled) cgr = OD_CGAIN_SCALE;
   /* gain_offset is meant to make sure one of the quantized gains has
      exactly the same gain as the reference. */
-  icgr = (int)floor(.5+cgr);
-  gain_offset = cgr-icgr;
+  icgr = (int)floor(.5 + cgr*OD_CGAIN_SCALE_1);
+  gain_offset = cgr - icgr*OD_CGAIN_SCALE;
   /* Start search with null case: gain=0, no pulse. */
   qg = 0;
-  dist = gain_weight*cg*cg;
+  dist = gain_weight*cg*cg*OD_CGAIN_SCALE_2;
   best_dist = dist;
   best_cost = dist + lambda*od_pvq_rate(0, 0, -1, 0, adapt, NULL, 0, n,
    is_keyframe, pli, bs);
@@ -397,14 +397,18 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   s = 1;
   corr = corr/(1e-100 + g*(double)gr / (1 << xshift << rshift));
   corr = OD_MAXF(OD_MINF(corr, 1.), -1.);
-  if (is_keyframe) skip_dist = gain_weight*cg*cg;
-  else skip_dist = gain_weight*(cg - cgr)*(cg - cgr) + cgr*cg*(2 - 2*corr);
+  if (is_keyframe) skip_dist = gain_weight*cg*cg*OD_CGAIN_SCALE_2;
+  else {
+    skip_dist = gain_weight*(cg - cgr)*(cg - cgr) + cgr*cg*(2 - 2*corr);
+    skip_dist *= OD_CGAIN_SCALE_2;
+  }
   if (!is_keyframe) {
     /* noref, gain=0 isn't allowed, but skip is allowed. */
     double scgr;
     scgr = OD_MAXF(0,gain_offset);
     if (icgr == 0) {
       best_dist = gain_weight*(cg - scgr)*(cg - scgr) + scgr*cg*(2 - 2*corr);
+      best_dist *= OD_CGAIN_SCALE_2;
     }
     best_cost = best_dist + lambda*od_pvq_rate(0, icgr, 0, 0, adapt, NULL,
      0, n, is_keyframe, pli, bs);
@@ -421,13 +425,13 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
     od_apply_householder(xr, x16, r16, n);
     for (i = m; i < n - 1; i++) xr[i] = xr[i + 1];
     /* Search for the best gain within a reasonable range. */
-    for (i = OD_MAXI(1, (int)floor(cg-gain_offset) - 1);
-     i <= (int)ceil(cg-gain_offset); i++) {
+    for (i = OD_MAXI(1, (int)floor((cg - gain_offset)*OD_CGAIN_SCALE_1) - 1);
+     i <= (int)ceil((cg - gain_offset)*OD_CGAIN_SCALE_1); i++) {
       int j;
       double qcg;
       int ts;
       /* Quantized companded gain */
-      qcg = i+gain_offset;
+      qcg = i*OD_CGAIN_SCALE + gain_offset;
       /* Set angular resolution (in ra) to match the encoded gain */
       ts = od_pvq_compute_max_theta(qcg, beta);
       /* Search for the best angle within a reasonable range. */
@@ -443,11 +447,12 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
            that's the factor by which cos_dist is multiplied to get the
            distortion metric. */
         cos_dist = pvq_search_rdo_double(xr, n - 1, k, y_tmp,
-         qcg*cg*od_pvq_sin(theta)*od_pvq_sin(qtheta));
+         qcg*cg*od_pvq_sin(theta)*od_pvq_sin(qtheta)*OD_CGAIN_SCALE_2);
         /* See Jmspeex' Journal of Dubious Theoretical Results. */
         dist_theta = 2 - 2*od_pvq_cos(theta - qtheta)
          + od_pvq_sin(theta)*od_pvq_sin(qtheta)*(2 - 2*cos_dist);
         dist = gain_weight*(qcg - cg)*(qcg - cg) + qcg*cg*dist_theta;
+        dist *= OD_CGAIN_SCALE_2;
         /* Do approximate RDO. */
         cost = dist + lambda*od_pvq_rate(i, icgr, j, ts, adapt, y_tmp, k, n,
          is_keyframe, pli, bs);
@@ -469,17 +474,20 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
      correlation. The only exception is luma on a keyframe because
      H/V prediction is unreliable. */
   if (n <= OD_MAX_PVQ_SIZE &&
-   ((is_keyframe && pli == 0) || corr < .5 || cg < 2.)) {
+   ((is_keyframe && pli == 0) || corr < .5 || cg < 2.*OD_CGAIN_SCALE)) {
     /* Search for the best gain (haven't determined reasonable range yet). */
-    for (i = OD_MAXI(1, (int)floor(cg)); i <= ceil(cg); i++) {
+    for (i = OD_MAXI(1, (int)floor(cg*OD_CGAIN_SCALE_1));
+     i <= ceil(cg*OD_CGAIN_SCALE_1); i++) {
       double cos_dist;
       double cost;
       double qcg;
-      qcg = i;
+      qcg = i*OD_CGAIN_SCALE;
       k = od_pvq_compute_k(qcg, -1, -1, 1, n, beta, robust || is_keyframe);
-      cos_dist = pvq_search_rdo_double(x16, n, k, y_tmp, qcg*cg);
+      cos_dist = pvq_search_rdo_double(x16, n, k, y_tmp,
+       qcg*cg*OD_CGAIN_SCALE_2);
       /* See Jmspeex' Journal of Dubious Theoretical Results. */
       dist = gain_weight*(qcg - cg)*(qcg - cg) + qcg*cg*(2 - 2*cos_dist);
+      dist *= OD_CGAIN_SCALE_2;
       /* Do approximate RDO. */
       cost = dist + lambda*od_pvq_rate(i, 0, -1, 0, adapt, y_tmp, k, n,
        is_keyframe, pli, bs);
@@ -514,7 +522,7 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   }
   else {
     if (noref) gain_offset = 0;
-    g = od_gain_expand(qg + gain_offset, q0, beta);
+    g = od_gain_expand(qg*OD_CGAIN_SCALE + gain_offset, q0, beta);
     od_pvq_synthesis_partial(out, y, r16, n, noref, g, theta, m, s,
      qm_inv);
   }

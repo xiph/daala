@@ -453,9 +453,9 @@ void od_apply_householder(int16_t *out, const int16_t *x, const int16_t *r,
  * @return            g^(1/beta)
  */
 static double od_gain_compand(double g, int q0, double beta) {
-  if (beta == 1) return OD_CGAIN_SCALE_1*floor(.5 + OD_CGAIN_SCALE*g/(double)q0);
+  if (beta == 1) return floor(.5 + OD_CGAIN_SCALE*g/(double)q0);
   else {
-    return OD_CGAIN_SCALE_1*floor(.5 + OD_CGAIN_SCALE*
+    return floor(.5 + OD_CGAIN_SCALE*
      OD_COMPAND_SCALE*pow(g*OD_COMPAND_SCALE_1, 1./beta)/(double)q0);
   }
 }
@@ -467,14 +467,17 @@ static double od_gain_compand(double g, int q0, double beta) {
  * @param [in]  beta  activity masking beta param (exponent)
  * @return            g^beta
  */
-int32_t od_gain_expand(double cg, int q0, double beta) {
+int32_t od_gain_expand(double cg0, int q0, double beta) {
+  double cg;
+  cg = cg0 * OD_CGAIN_SCALE_1;
   if (beta == 1) return (int32_t)floor(.5 + cg*q0);
   else if (beta == 1.5) {
     cg *= q0*OD_COMPAND_SCALE_1;
     return (int32_t)floor(.5 + OD_COMPAND_SCALE*cg*sqrt(cg));
   }
   else {
-    return (int32_t)floor(.5 + OD_COMPAND_SCALE*pow(cg*q0*OD_COMPAND_SCALE_1, beta));
+    return (int32_t)floor(.5 + OD_COMPAND_SCALE*pow(cg*q0*OD_COMPAND_SCALE_1,
+     beta));
   }
 }
 
@@ -511,9 +514,9 @@ double od_pvq_compute_gain(const int16_t *x, int n, int q0, int32_t *g,
  */
 int od_pvq_compute_max_theta(double qcg, double beta){
   /* Set angular resolution (in ra) to match the encoded gain */
-  int ts = (int)floor(.5 + qcg*M_PI/(2*beta));
+  int ts = (int)floor(.5 + qcg*OD_CGAIN_SCALE_1*M_PI/(2*beta));
   /* Special case for low gains -- will need to be tuned anyway */
-  if (qcg < 1.4) ts = 1;
+  if (qcg < 1.4*OD_CGAIN_SCALE) ts = 1;
   return ts;
 }
 
@@ -548,8 +551,11 @@ int od_pvq_compute_k(double qcg, int itheta, int32_t theta, int noref, int n,
  double beta, int nodesync) {
   if (noref) {
     if (qcg == 0) return 0;
-    if (n == 15 && qcg == 1 && beta > 1.25) return 1;
-    else return OD_MAXI(1, (int)floor(.5 + (qcg - .2)*sqrt((n+3)/2)/beta));
+    if (n == 15 && qcg == OD_CGAIN_SCALE && beta > 1.25) return 1;
+    else {
+      return OD_MAXI(1, (int)floor(.5 + (qcg*OD_CGAIN_SCALE_1 - .2)*
+       sqrt((n + 3)/2)/beta));
+    }
   }
   else {
     if (itheta == 0) return 0;
@@ -563,8 +569,8 @@ int od_pvq_compute_k(double qcg, int itheta, int32_t theta, int noref, int n,
       return OD_MAXI(1, (int)floor(.5 + (itheta - .2)*sqrt((n + 2)/2)));
     }
     else {
-      return OD_MAXI(1, (int)floor(.5 + (qcg*od_pvq_sin(theta) - .2)*
-       sqrt((n + 2)/2)/beta));
+      return OD_MAXI(1, (int)floor(.5 + (qcg*OD_CGAIN_SCALE_1*od_pvq_sin(theta)
+       - .2)*sqrt((n + 2)/2)/beta));
     }
   }
 }

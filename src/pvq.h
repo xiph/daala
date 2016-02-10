@@ -70,6 +70,7 @@ extern const uint16_t LAPLACE_OFFSET[];
 #define OD_TRIG_SCALE_1 (1./OD_TRIG_SCALE)
 #define OD_CGAIN_SCALE (256.)
 #define OD_CGAIN_SCALE_1 (1./OD_CGAIN_SCALE)
+#define OD_CGAIN_SCALE_2 (OD_CGAIN_SCALE_1*OD_CGAIN_SCALE_1)
 
 /* Largest PVQ partition is half the coefficients of largest block size. */
 #define MAXN (OD_BSIZE_MAX*OD_BSIZE_MAX/2)
