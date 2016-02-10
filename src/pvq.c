@@ -441,7 +441,7 @@ void od_apply_householder(int16_t *out, const int16_t *x, const int16_t *r,
   }
   proj_1 = proj*2./(1e-100 + l2r);
   for (i = 0; i < n; i++) {
-    out[i] = floor(.5 + x[i] - r[i]*proj_1);
+    out[i] = (int16_t)floor(.5 + x[i] - r[i]*proj_1);
   }
 }
 
@@ -640,7 +640,7 @@ void od_pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,
        bias. */
     for (i = 0; i < m; i++)
       x[i] = OD_MULT16_32_Q16(ypulse[i], scale);
-    x[m] = floor(.5 - s*((g + grnd) >> gshift)*od_pvq_cos(theta));
+    x[m] = (int16_t)floor(.5 - s*((g + grnd) >> gshift)*od_pvq_cos(theta));
     for (i = m; i < nn; i++)
       x[i+1] = OD_MULT16_32_Q16(ypulse[i], scale);
     od_apply_householder(x, x, r16, n);
