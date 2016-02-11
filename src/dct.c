@@ -4919,13 +4919,6 @@ void od_bin_idct64x64(od_coeff *x, int xstride,
   for (i = 0; i < 64; i++) od_bin_idct64(x + i, xstride, z + 64*i);
 }
 
-# if defined(OD_DCT_CHECK_OVERFLOW)
-
-int od_dct_check_min[388];
-int od_dct_check_max[388];
-
-#endif
-
 #if defined(OD_CHECKASM)
 # include <stdio.h>
 
@@ -8596,13 +8589,39 @@ static void check_bias(int bszi) {
 
 # if defined(OD_DCT_CHECK_OVERFLOW)
 
+/*The total number of overflow checks we do.
+  TODO: If we arranged the indices of these checks a bit better, we could save
+   a bunch of work in dynamic_range().*/
+#  define OD_DCT_NCHECK_OVERFLOW (388)
+/*The overflow checks in the following ranges apply to the pre-/post- filters,
+   and not the DCTs themselves.*/
+#  define OD_FILTER_CHECK_OVERFLOW_MIN (51)
+#  define OD_FILTER_CHECK_OVERFLOW_MAX (133)
+
+od_coeff od_dct_check_min[OD_DCT_NCHECK_OVERFLOW];
+od_coeff od_dct_check_max[OD_DCT_NCHECK_OVERFLOW];
+
 /* Test up to 8-point filters to avoid a redesign if we want to turn them back
     on. */
 #  define OD_MAX_FILT_SIZE (1)
 
+static void od_bin_prefilter_columns_2d(
+ od_coeff x[OD_BSIZE_MAX*2][OD_BSIZE_MAX*2], int n, int f, int o) {
+  od_coeff y[OD_BSIZE_MAX*2];
+  int u;
+  int v;
+  /*Perform pre-filtering.*/
+  for (v = 0; v < n*2; v++) {
+    for (u = 0; u < n*2; u++) y[u] = x[u][v];
+    (*OD_PRE_FILTER[f])(y + o, y + o);
+    (*OD_PRE_FILTER[f])(y + n + o, y + n + o);
+    for (u = 0; u < n*2; u++) x[u][v] = y[u];
+  }
+}
+
 static void od_bin_fxform_2d(od_coeff x[OD_BSIZE_MAX*2][OD_BSIZE_MAX*2],
  int bszi, int f) {
-  od_coeff y[OD_BSIZE_MAX*2];
+  od_coeff y[OD_BSIZE_MAX];
   int u;
   int v;
   int n;
@@ -8612,12 +8631,7 @@ static void od_bin_fxform_2d(od_coeff x[OD_BSIZE_MAX*2][OD_BSIZE_MAX*2],
   fn = 1 << (OD_LOG_BSIZE0 + f);
   o = (n >> 1) - (fn >> 1);
   /*Perform pre-filtering.*/
-  for (v = 0; v < n*2; v++) {
-    for (u = 0; u < n*2; u++) y[u] = x[u][v];
-    (*OD_PRE_FILTER[f])(y + o, y + o);
-    (*OD_PRE_FILTER[f])(y + n + o, y + n + o);
-    for (u = 0; u < n*2; u++) x[u][v] = y[u];
-  }
+  od_bin_prefilter_columns_2d(x, n, f, o);
   for (u = 0; u < n*2; u++) {
     (*OD_PRE_FILTER[f])(x[u] + o, x[u] + o);
     (*OD_PRE_FILTER[f])(x[u] + n + o, x[u] + n + o);
@@ -8627,9 +8641,9 @@ static void od_bin_fxform_2d(od_coeff x[OD_BSIZE_MAX*2][OD_BSIZE_MAX*2],
     (*OD_FDCT_1D[bszi])(x[u] + (n >> 1), x[u] + (n >> 1), 1);
   }
   for (v = n >> 1; v < n*3 >> 1; v++) {
-    for (u = n >> 1; u < n*3 >> 1; u++) y[u] = x[u][v];
-    (*OD_FDCT_1D[bszi])(y + (n >> 1), y + (n >> 1), 1);
-    for (u = n >> 1; u < n*3 >> 1; u++) x[u][v] = y[u];
+    for (u = n >> 1; u < n*3 >> 1; u++) y[u - (n >> 1)] = x[u][v];
+    (*OD_FDCT_1D[bszi])(y, y, 1);
+    for (u = n >> 1; u < n*3 >> 1; u++) x[u][v] = y[u - (n >> 1)];
   }
 }
 
@@ -8639,31 +8653,132 @@ static void dynamic_range(int bszi) {
   for (f = 0; f <= OD_MINI(bszi, OD_MAX_FILT_SIZE); f++) {
     static double
      basis2[OD_BSIZE_MAX][OD_BSIZE_MAX][OD_BSIZE_MAX*2][OD_BSIZE_MAX*2];
+    static int8_t check_basis[OD_DCT_NCHECK_OVERFLOW][OD_BSIZE_MAX*2 + 1]
+     [OD_BSIZE_MAX*2][OD_BSIZE_MAX*2];
+    od_coeff old_check_min[OD_DCT_NCHECK_OVERFLOW];
+    od_coeff old_check_max[OD_DCT_NCHECK_OVERFLOW];
     od_coeff min2[OD_BSIZE_MAX][OD_BSIZE_MAX];
     od_coeff max2[OD_BSIZE_MAX][OD_BSIZE_MAX];
     int i;
     int j;
+    int k;
     int u;
     int v;
     int n;
+    memcpy(old_check_min, od_dct_check_min, sizeof(od_dct_check_min));
+    memcpy(old_check_max, od_dct_check_max, sizeof(od_dct_check_max));
     n = 1 << (OD_LOG_BSIZE0 + bszi);
     for (i = 0; i < n*2; i++) {
       for (j = 0; j < n*2; j++) {
         od_coeff x[OD_BSIZE_MAX*2][OD_BSIZE_MAX*2];
+        od_coeff y[OD_BSIZE_MAX];
+        int fn;
+        int o;
         /*Generate impulse.*/
         for (u = 0; u < n*2; u++) {
           for (v = 0; v < n*2; v++) {
             x[u][v] = (u == i && v == j) << (8 + OD_COEFF_SHIFT);
           }
         }
-        od_bin_fxform_2d(x, bszi, f);
-        /*Retrieve basis elements.*/
+        memset(od_dct_check_min, 0, sizeof(od_dct_check_min));
+        memset(od_dct_check_max, 0, sizeof(od_dct_check_max));
+        fn = 1 << (OD_LOG_BSIZE0 + f);
+        o = (n >> 1) - (fn >> 1);
+        od_bin_prefilter_columns_2d(x, n, f, o);
+        /*Retrieve basis elements for each row filter overflow check.
+          Exactly one filter should have a non-zero response.*/
+        for (k = OD_FILTER_CHECK_OVERFLOW_MIN;
+         k < OD_FILTER_CHECK_OVERFLOW_MAX; k++) {
+          check_basis[j][n*2][i][j] =
+           (int8_t)(od_dct_check_min[k] < -od_dct_check_max[k] ? -1 : 1);
+        }
+        /*Prefilter rows.*/
+        for (u = 0; u < n*2; u++) {
+          memset(od_dct_check_min, 0, sizeof(od_dct_check_min));
+          memset(od_dct_check_max, 0, sizeof(od_dct_check_max));
+          (*OD_PRE_FILTER[f])(x[u] + o, x[u] + o);
+          (*OD_PRE_FILTER[f])(x[u] + n + o, x[u] + n + o);
+          /*Retrieve basis elements for each column filter overflow check.
+            We compute a separate basis for each column to ensure that each
+             check only has one non-zero input, which guarantees we get a
+             basis from a consistent set of inputs (though in practice this
+             probably does not matter).*/
+          for (k = OD_FILTER_CHECK_OVERFLOW_MIN;
+           k < OD_FILTER_CHECK_OVERFLOW_MAX; k++) {
+            check_basis[k][u][i][j] =
+             (int8_t)(od_dct_check_min[k] < -od_dct_check_max[k] ? -1 : 1);
+          }
+        }
+        /*Transform rows.*/
+        for (u = n >> 1; u < n*3 >> 1; u++) {
+          memset(od_dct_check_min, 0, sizeof(od_dct_check_min));
+          memset(od_dct_check_max, 0, sizeof(od_dct_check_max));
+          (*OD_FDCT_1D[bszi])(x[u] + (n >> 1), x[u] + (n >> 1), 1);
+          /*Retrieve basis elements for each row transform overflow check.*/
+          for (k = 0; k < OD_FILTER_CHECK_OVERFLOW_MIN; k++) {
+            check_basis[k][u][i][j] =
+             (int8_t)(od_dct_check_min[k] < -od_dct_check_max[k] ? -1 : 1);
+          }
+          for (k = OD_FILTER_CHECK_OVERFLOW_MAX;
+           k < OD_DCT_NCHECK_OVERFLOW; k++) {
+            check_basis[k][u][i][j] =
+             (int8_t)(od_dct_check_min[k] < -od_dct_check_max[k] ? -1 : 1);
+          }
+        }
+        /*Transform columns.*/
+        for (v = n >> 1; v < n*3 >> 1; v++) {
+          memset(od_dct_check_min, 0, sizeof(od_dct_check_min));
+          memset(od_dct_check_max, 0, sizeof(od_dct_check_max));
+          for (u = n >> 1; u < n*3 >> 1; u++) y[u - (n >> 1)] = x[u][v];
+          (*OD_FDCT_1D[bszi])(y, y, 1);
+          for (u = n >> 1; u < n*3 >> 1; u++) x[u][v] = y[u - (n >> 1)];
+          /*Retrieve basis elements for each column transform overflow
+             check.*/
+          for (k = 0; k < OD_FILTER_CHECK_OVERFLOW_MIN; k++) {
+            check_basis[k][n + v - (n >> 1)][i][j] =
+             (int8_t)(od_dct_check_min[k] < -od_dct_check_max[k] ? -1 : 1);
+          }
+          for (k = OD_FILTER_CHECK_OVERFLOW_MAX;
+           k < OD_DCT_NCHECK_OVERFLOW; k++) {
+            check_basis[k][n + v - (n >> 1)][i][j] =
+             (int8_t)(od_dct_check_min[k] < -od_dct_check_max[k] ? -1 : 1);
+          }
+        }
+        /*Retrieve output basis elements.*/
         for (u = 0; u < n; u++) {
           for (v = 0; v < n; v++) {
             basis2[u][v][i][j] =
              x[u + (n >> 1)][v + (n >> 1)]/(256.0*OD_COEFF_SCALE);
           }
         }
+      }
+    }
+    /*We don't bother to update old_check_min/old_check_max while doing the
+       transforms above, because the ones we're about to do should strictly
+       exceed anything they encounter.*/
+    memcpy(od_dct_check_min, old_check_min, sizeof(od_dct_check_min));
+    memcpy(od_dct_check_max, old_check_max, sizeof(od_dct_check_max));
+    /*Maximize/minimize each overflow check.*/
+    for (k = 0; k < OD_DCT_NCHECK_OVERFLOW; k++) {
+      int filter_k;
+      filter_k = (k >= OD_FILTER_CHECK_OVERFLOW_MIN
+       && k < OD_FILTER_CHECK_OVERFLOW_MAX);
+      for (u = 0; u < 2*n + filter_k; u++) {
+        od_coeff x[OD_BSIZE_MAX*2][OD_BSIZE_MAX*2];
+        for (i = 0; i < n*2; i++) {
+          for (j = 0; j < n*2; j++) {
+            x[i][j] =
+             (check_basis[k][u][i][j] < 0 ? -255 : 255)*OD_COEFF_SCALE;
+          }
+        }
+        od_bin_fxform_2d(x, bszi, f);
+        for (i = 0; i < n*2; i++) {
+          for (j = 0; j < n*2; j++) {
+            x[i][j] =
+             (check_basis[k][u][i][j] > 0 ? -255 : 255)*OD_COEFF_SCALE;
+          }
+        }
+        od_bin_fxform_2d(x, bszi, f);
       }
     }
     for (u = 0; u < n; u++) {

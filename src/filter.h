@@ -95,8 +95,8 @@ void od_apply_filter_vsplit(od_coeff *c0, int stride, int inv, int bs, int f);
 # if defined(OD_DCT_CHECK_OVERFLOW)
 #  include <stdio.h>
 
-extern int od_dct_check_min[];
-extern int od_dct_check_max[];
+extern od_coeff od_dct_check_min[];
+extern od_coeff od_dct_check_max[];
 
 #  define OD_DCT_OVERFLOW_CHECK(val, scale, offset, idx) \
   do { \
