@@ -311,8 +311,8 @@ static double od_pvq_rate(int qg, int icgr, int theta, int ts,
  * @param [in]     qm_inv    Inverse of QM with magnitude compensation
  * @return         gain      index of the quatized gain
 */
-static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
- od_coeff *y, int *itheta, int *max_theta, int *vk,
+static int pvq_theta(od_coeff *out, const od_coeff *x0, const od_coeff *r0,
+ int n, int q0, od_coeff *y, int *itheta, int *max_theta, int *vk,
  double beta, double *skip_diff, int robust, int is_keyframe, int pli,
  const od_adapt_ctx *adapt, int bs, const int16_t *qm,
  const int16_t *qm_inv) {
@@ -688,7 +688,7 @@ void od_encode_quantizer_scaling(daala_enc_ctx *enc, int q_scaling,
  */
 int od_pvq_encode(daala_enc_ctx *enc,
                    od_coeff *ref,
-                   od_coeff *in,
+                   const od_coeff *in,
                    od_coeff *out,
                    int q0,
                    int pli,
