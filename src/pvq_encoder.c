@@ -421,14 +421,15 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
   }
   if (n <= OD_MAX_PVQ_SIZE && !od_vector_is_null(r0, n) && corr > 0) {
     int16_t xr[MAXN];
+    int gain_bound;
+    gain_bound = (cg - gain_offset) >> OD_CGAIN_SHIFT;
     /* Perform theta search only if prediction is useful. */
     theta = (int32_t)floor(.5 + OD_THETA_SCALE*acos(corr));
     m = od_compute_householder(r16, n, gr, &s, rshift);
     od_apply_householder(xr, x16, r16, n);
     for (i = m; i < n - 1; i++) xr[i] = xr[i + 1];
     /* Search for the best gain within a reasonable range. */
-    for (i = OD_MAXI(1, ((cg - gain_offset) >> OD_CGAIN_SHIFT) - 1);
-     i <= (int)ceil((cg - gain_offset)*OD_CGAIN_SCALE_1); i++) {
+    for (i = OD_MAXI(1, gain_bound - 1); i <= gain_bound + 1; i++) {
       int j;
       int32_t qcg;
       int ts;
@@ -477,9 +478,10 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
      H/V prediction is unreliable. */
   if (n <= OD_MAX_PVQ_SIZE &&
    ((is_keyframe && pli == 0) || corr < .5 || cg < 2 << OD_CGAIN_SHIFT)) {
+    int gain_bound;
+    gain_bound = cg >> OD_CGAIN_SHIFT;
     /* Search for the best gain (haven't determined reasonable range yet). */
-    for (i = OD_MAXI(1, cg >> OD_CGAIN_SHIFT);
-     i <= ceil(cg*OD_CGAIN_SCALE_1); i++) {
+    for (i = OD_MAXI(1, gain_bound); i <= gain_bound + 1; i++) {
       double cos_dist;
       double cost;
       int32_t qcg;
