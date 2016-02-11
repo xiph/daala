@@ -117,8 +117,8 @@ struct od_pvq_adapt_ctx {
 
 void od_adapt_pvq_ctx_reset(od_pvq_adapt_ctx *state, int is_keyframe);
 
-double od_pvq_sin(int32_t x);
-double od_pvq_cos(int32_t x);
+int16_t od_pvq_sin(int32_t x);
+int16_t od_pvq_cos(int32_t x);
 int od_vector_log_mag(const od_coeff *x, int n);
 
 int od_qm_get_index(int bs, int band);

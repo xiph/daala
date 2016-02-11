@@ -444,16 +444,19 @@ static int pvq_theta(od_coeff *out, od_coeff *x0, od_coeff *r0, int n, int q0,
         double cos_dist;
         double cost;
         double dist_theta;
+        double sin_prod;
         int32_t qtheta = od_pvq_compute_theta(j, ts);
         k = od_pvq_compute_k(qcg, j, qtheta, 0, n, beta, robust || is_keyframe);
+        sin_prod = od_pvq_sin(theta)*OD_TRIG_SCALE_1*od_pvq_sin(qtheta)*
+         OD_TRIG_SCALE_1;
         /* PVQ search, using a gain of qcg*cg*sin(theta)*sin(qtheta) since
            that's the factor by which cos_dist is multiplied to get the
            distortion metric. */
         cos_dist = pvq_search_rdo_double(xr, n - 1, k, y_tmp,
-         qcg*(double)cg*od_pvq_sin(theta)*od_pvq_sin(qtheta)*OD_CGAIN_SCALE_2);
+         qcg*(double)cg*sin_prod*OD_CGAIN_SCALE_2);
         /* See Jmspeex' Journal of Dubious Theoretical Results. */
-        dist_theta = 2 - 2*od_pvq_cos(theta - qtheta)
-         + od_pvq_sin(theta)*od_pvq_sin(qtheta)*(2 - 2*cos_dist);
+        dist_theta = 2 - 2.*od_pvq_cos(theta - qtheta)*OD_TRIG_SCALE_1
+         + sin_prod*(2 - 2*cos_dist);
         dist = gain_weight*(qcg - cg)*(qcg - cg) + qcg*(double)cg*dist_theta;
         dist *= OD_CGAIN_SCALE_2;
         /* Do approximate RDO. */
