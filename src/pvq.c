@@ -26,6 +26,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # include "config.h"
 #endif
 
+#include "odintrin.h"
 #include "pvq.h"
 #include "partition.h"
 #include <stdlib.h>
@@ -349,16 +350,48 @@ int od_qm_get_index(int bs, int band) {
   return bs*(bs + 1) + band - band/3;
 }
 
-/* Approximates sin(x) for 0 <= x < pi. */
-int16_t od_pvq_sin(int32_t x) {
-  return (int16_t)OD_MINI(32767,
-   (int32_t)floor(.5 + OD_TRIG_SCALE*sin(OD_THETA_SCALE_1*x)));
+/*See celt/mathops.c in Opus and tools/cos_search.c.*/
+static int16_t od_pvq_cos_pi_2(int16_t x)
+{
+  int16_t x2;
+  x2 = OD_MULT16_16_Q15(x, x);
+  return OD_MINI(32767, (1073758164 - x*x + x2*(-7654 + OD_MULT16_16_Q16(x2,
+   16573 + OD_MULT16_16_Q16(-2529, x2)))) >> 15);
 }
 
-/* Approximates cos(x) for -pi < x < pi. */
+/*Approximates cos(x) for -pi < x < pi.
+  Input is in OD_THETA_SCALE.*/
 int16_t od_pvq_cos(int32_t x) {
-  return (int16_t)OD_MINI(32767,
-   (int32_t)floor(.5 + OD_TRIG_SCALE*cos(OD_THETA_SCALE_1*abs(x))));
+  /*Wrap x around by masking, since cos is periodic.*/
+  x = x & 0x0001ffff;
+  if (x > (1 << 16)) {
+    x = (1 << 17) - x;
+  }
+  if (x & 0x00007fff) {
+    if (x < (1 << 15)) {
+       return od_pvq_cos_pi_2((int16_t)x);
+    }
+    else {
+      return -od_pvq_cos_pi_2((int16_t)(65536 - x));
+    }
+  }
+  else {
+    if (x & 0x0000ffff) {
+      return 0;
+    }
+    else if (x & 0x0001ffff) {
+      return -32767;
+    }
+    else {
+      return 32767;
+    }
+  }
+}
+
+/*Approximates sin(x) for 0 <= x < pi.
+  Input is in OD_THETA_SCALE.*/
+int16_t od_pvq_sin(int32_t x) {
+  return od_pvq_cos(32768 - x);
 }
 
 /* Computes an upper-bound on the number of bits required to store the L2 norm

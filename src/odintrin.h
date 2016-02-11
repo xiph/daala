@@ -146,6 +146,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
   (((x) + (((1 << (shift)) + ((x) >> (shift) & 1) - 1) >> 1)) >> (shift))
 /* Multiplies 16-bit a by 32-bit b and keeps bits [16:47]. */
 # define OD_MULT16_32_Q16(a, b) ((int16_t)(a)*(int64_t)(int32_t)(b) >> 16)
+/*16x16 multiplication where the result fits in 16 bits, without rounding.*/
+# define OD_MULT16_16_Q15(a,b) \
+  (((int16_t)(a)*((int32_t)(int16_t)(b))) >> 15)
+/*16x16 multiplication where the result fits in 16 bits, without rounding.*/
+# define OD_MULT16_16_Q16(a,b) \
+  ((((int16_t)(a))*((int32_t)(int16_t)(b))) >> 16)
+
 /*Count leading zeros.
   This macro should only be used for implementing od_ilog(), if it is defined.
   All other code should use OD_ILOG() instead.*/
