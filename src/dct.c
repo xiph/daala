@@ -8647,14 +8647,21 @@ static void od_bin_fxform_2d(od_coeff x[OD_BSIZE_MAX*2][OD_BSIZE_MAX*2],
   }
 }
 
+/*Sets the i'th bit stored in a byte array.*/
+#  define OD_SET_BIT(array, i, val) ((array)[(i) >> 3] = \
+ (uint8_t)(((array)[(i) >> 3] & ~(1 << ((i) & 7))) | (!!(val) << ((i) & 7))))
+
+/*Retrieves the i'th bit stored in a byte array.*/
+#  define OD_GET_BIT(array, i) ((array)[(i) >> 3] >> ((i) & 7) & 1)
+
 static void dynamic_range(int bszi) {
   int f;
   /*Test with all filters up to OD_MAX_FILT_SIZE.*/
   for (f = 0; f <= OD_MINI(bszi, OD_MAX_FILT_SIZE); f++) {
     static double
      basis2[OD_BSIZE_MAX][OD_BSIZE_MAX][OD_BSIZE_MAX*2][OD_BSIZE_MAX*2];
-    static int8_t check_basis[OD_DCT_NCHECK_OVERFLOW][OD_BSIZE_MAX*2 + 1]
-     [OD_BSIZE_MAX*2][OD_BSIZE_MAX*2];
+    static uint8_t check_basis[OD_DCT_NCHECK_OVERFLOW][OD_BSIZE_MAX*2 + 1]
+     [OD_BSIZE_MAX*2][(OD_BSIZE_MAX*2 + 7)/8];
     od_coeff old_check_min[OD_DCT_NCHECK_OVERFLOW];
     od_coeff old_check_max[OD_DCT_NCHECK_OVERFLOW];
     od_coeff min2[OD_BSIZE_MAX][OD_BSIZE_MAX];
@@ -8689,8 +8696,8 @@ static void dynamic_range(int bszi) {
           Exactly one filter should have a non-zero response.*/
         for (k = OD_FILTER_CHECK_OVERFLOW_MIN;
          k < OD_FILTER_CHECK_OVERFLOW_MAX; k++) {
-          check_basis[j][n*2][i][j] =
-           (int8_t)(od_dct_check_min[k] < -od_dct_check_max[k] ? -1 : 1);
+          OD_SET_BIT(check_basis[j][n*2][i], j,
+           od_dct_check_min[k] < -od_dct_check_max[k]);
         }
         /*Prefilter rows.*/
         for (u = 0; u < n*2; u++) {
@@ -8705,8 +8712,8 @@ static void dynamic_range(int bszi) {
              probably does not matter).*/
           for (k = OD_FILTER_CHECK_OVERFLOW_MIN;
            k < OD_FILTER_CHECK_OVERFLOW_MAX; k++) {
-            check_basis[k][u][i][j] =
-             (int8_t)(od_dct_check_min[k] < -od_dct_check_max[k] ? -1 : 1);
+            OD_SET_BIT(check_basis[k][u][i], j,
+             od_dct_check_min[k] < -od_dct_check_max[k]);
           }
         }
         /*Transform rows.*/
@@ -8716,13 +8723,13 @@ static void dynamic_range(int bszi) {
           (*OD_FDCT_1D[bszi])(x[u] + (n >> 1), x[u] + (n >> 1), 1);
           /*Retrieve basis elements for each row transform overflow check.*/
           for (k = 0; k < OD_FILTER_CHECK_OVERFLOW_MIN; k++) {
-            check_basis[k][u][i][j] =
-             (int8_t)(od_dct_check_min[k] < -od_dct_check_max[k] ? -1 : 1);
+            OD_SET_BIT(check_basis[k][u][i], j,
+             od_dct_check_min[k] < -od_dct_check_max[k]);
           }
           for (k = OD_FILTER_CHECK_OVERFLOW_MAX;
            k < OD_DCT_NCHECK_OVERFLOW; k++) {
-            check_basis[k][u][i][j] =
-             (int8_t)(od_dct_check_min[k] < -od_dct_check_max[k] ? -1 : 1);
+            OD_SET_BIT(check_basis[k][u][i], j,
+             od_dct_check_min[k] < -od_dct_check_max[k]);
           }
         }
         /*Transform columns.*/
@@ -8735,13 +8742,13 @@ static void dynamic_range(int bszi) {
           /*Retrieve basis elements for each column transform overflow
              check.*/
           for (k = 0; k < OD_FILTER_CHECK_OVERFLOW_MIN; k++) {
-            check_basis[k][n + v - (n >> 1)][i][j] =
-             (int8_t)(od_dct_check_min[k] < -od_dct_check_max[k] ? -1 : 1);
+            OD_SET_BIT(check_basis[k][n + v - (n >> 1)][i], j,
+             od_dct_check_min[k] < -od_dct_check_max[k]);
           }
           for (k = OD_FILTER_CHECK_OVERFLOW_MAX;
            k < OD_DCT_NCHECK_OVERFLOW; k++) {
-            check_basis[k][n + v - (n >> 1)][i][j] =
-             (int8_t)(od_dct_check_min[k] < -od_dct_check_max[k] ? -1 : 1);
+            OD_SET_BIT(check_basis[k][n + v - (n >> 1)][i], j,
+             od_dct_check_min[k] < -od_dct_check_max[k]);
           }
         }
         /*Retrieve output basis elements.*/
@@ -8768,14 +8775,14 @@ static void dynamic_range(int bszi) {
         for (i = 0; i < n*2; i++) {
           for (j = 0; j < n*2; j++) {
             x[i][j] =
-             (check_basis[k][u][i][j] < 0 ? -255 : 255)*OD_COEFF_SCALE;
+             (OD_GET_BIT(check_basis[k][u][i], j) ? -255 : 255)*OD_COEFF_SCALE;
           }
         }
         od_bin_fxform_2d(x, bszi, f);
         for (i = 0; i < n*2; i++) {
           for (j = 0; j < n*2; j++) {
             x[i][j] =
-             (check_basis[k][u][i][j] > 0 ? -255 : 255)*OD_COEFF_SCALE;
+             (OD_GET_BIT(check_basis[k][u][i], j) ? 255 : -255)*OD_COEFF_SCALE;
           }
         }
         od_bin_fxform_2d(x, bszi, f);
