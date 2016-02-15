@@ -351,12 +351,14 @@ int od_qm_get_index(int bs, int band) {
 
 /* Approximates sin(x) for 0 <= x < pi. */
 int16_t od_pvq_sin(int32_t x) {
-  return (int16_t)floor(.5 + OD_TRIG_SCALE*sin(OD_THETA_SCALE_1*x));
+  return (int16_t)OD_MINI(32767,
+   (int32_t)floor(.5 + OD_TRIG_SCALE*sin(OD_THETA_SCALE_1*x)));
 }
 
 /* Approximates cos(x) for -pi < x < pi. */
 int16_t od_pvq_cos(int32_t x) {
-  return (int16_t)floor(.5 + OD_TRIG_SCALE*cos(OD_THETA_SCALE_1*abs(x)));
+  return (int16_t)OD_MINI(32767,
+   (int32_t)floor(.5 + OD_TRIG_SCALE*cos(OD_THETA_SCALE_1*abs(x))));
 }
 
 /* Computes an upper-bound on the number of bits required to store the L2 norm

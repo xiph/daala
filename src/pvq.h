@@ -66,7 +66,7 @@ extern const uint16_t LAPLACE_OFFSET[];
 
 #define OD_THETA_SCALE (16384*2./M_PI)
 #define OD_THETA_SCALE_1 (1./OD_THETA_SCALE)
-#define OD_TRIG_SCALE (16384)
+#define OD_TRIG_SCALE (32768)
 #define OD_TRIG_SCALE_1 (1./OD_TRIG_SCALE)
 #define OD_CGAIN_SHIFT (8)
 #define OD_CGAIN_SCALE (1 << OD_CGAIN_SHIFT)
