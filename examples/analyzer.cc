@@ -486,7 +486,7 @@ TestPanel::TestPanel(wxWindow *parent, const wxString &path) : wxPanel(parent),
  pixels(NULL), zoom(0), bsize(NULL), bsize_len(0), show_blocks(false),
  flags(NULL), flags_len(0), show_skip(false), show_noref(false),
  show_padding(false), show_dering(false), acct(NULL), show_bits(false),
- show_bits_filter(_T("")), bpp_q3(NULL), dering(NULL), dering_len(0),
+ show_bits_filter(_("")), bpp_q3(NULL), dering(NULL), dering_len(0),
  plane_mask(OD_ALL_MASK),
  path(path) {
 }
@@ -879,7 +879,7 @@ void TestPanel::computeBitsPerPixel() {
     wxString key(acct->dict.str[s->id], wxConvUTF8);
     if (show_bits_filter.length()) {
       bool filter = false;
-      wxStringTokenizer tokenizer(show_bits_filter, _T(","));
+      wxStringTokenizer tokenizer(show_bits_filter, _(","));
       while (tokenizer.HasMoreTokens()) {
         wxString token = tokenizer.GetNextToken();
         if (key.Find(token) >= 0) {
@@ -1011,7 +1011,7 @@ void TestPanel::refresh() {
   computeBitsPerPixel();
   render();
   ((TestFrame *)GetParent())->SetTitle(path +
-   wxString::Format(wxT(" (%d,%d) Frame %d - Daala Stream Analyzer"),
+   wxString::Format(_(" (%d,%d) Frame %d - Daala Stream Analyzer"),
    dd.getWidth(), dd.getHeight(), dd.getRunningFrameCount()-1));
 }
 bool TestPanel::nextFrame() {
@@ -1026,7 +1026,7 @@ bool TestPanel::nextFrame() {
 bool TestPanel::gotoFrame() {
   bool toReturn;
   int nframe;
-  wxTextEntryDialog dlg(this, _T("Jump to which frame?"));
+  wxTextEntryDialog dlg(this, _("Jump to which frame?"));
   dlg.SetTextValidator(wxFILTER_NUMERIC);
   if (dlg.ShowModal() == wxID_OK) {
     nframe = wxAtoi(dlg.GetValue());
@@ -1046,7 +1046,7 @@ bool TestPanel::gotoFrame() {
   while (nframe >= dd.frame) {
     toReturn = dd.step();
     if (!toReturn) {
-      wxMessageBox(_T("Error: Video doesn't have that many frames"));
+      wxMessageBox(_("Error: Video doesn't have that many frames"));
       restart();
       return false;
 	}
@@ -1057,7 +1057,7 @@ bool TestPanel::gotoFrame() {
 
 void TestPanel::filterBits() {
   wxTextEntryDialog dlg(this,
-   _T("Filter: \"skip,pvq\" or \"\" to disable filter."));
+   _("Filter: \"skip,pvq\" or \"\" to disable filter."));
   dlg.SetValue(show_bits_filter);
   if (dlg.ShowModal() == wxID_OK) {
     show_bits_filter = dlg.GetValue();
@@ -1093,18 +1093,18 @@ void TestPanel::onMouseMotion(wxMouseEvent& event) {
     ogg_int64_t y = planes[0].data[planes[0].ystride*row + col];
     ogg_int64_t cb = planes[1].data[cb_stride*(row >> ydec) + (col >> xdec)];
     ogg_int64_t cr = planes[2].data[cr_stride*(row >> ydec) + (col >> xdec)];
-    parent->SetStatusText(wxString::Format(wxT("Y:%lld,U:%lld,V:%lld"),
+    parent->SetStatusText(wxString::Format(_("Y:%lld,U:%lld,V:%lld"),
      y, cb, cr), 1);
   } else {
-    parent->SetStatusText(wxString::Format(wxT("")), 1);
+    parent->SetStatusText(wxString::Format(_("")), 1);
   }
-  parent->SetStatusText(wxString::Format(wxT("X:%d,Y:%d"),
+  parent->SetStatusText(wxString::Format(_("X:%d,Y:%d"),
    col, row), 2);
 }
 
 void TestPanel::onMouseLeaveWindow(wxMouseEvent& event) {
   TestFrame *parent = static_cast<TestFrame*>(GetParent());
-  parent->SetStatusText(wxString::Format(wxT("")), 1);
+  parent->SetStatusText(wxString::Format(_("")), 1);
 }
 
 void TestPanel::onPaint(wxPaintEvent &) {
@@ -1118,57 +1118,57 @@ void TestPanel::onIdle(wxIdleEvent &) {
   /*wxMilliSleep(input.video_fps_n*1000/input.video_fps_n);*/
 }
 
-TestFrame::TestFrame() : wxFrame(NULL, wxID_ANY, _T("Daala Stream Analyzer"),
+TestFrame::TestFrame() : wxFrame(NULL, wxID_ANY, _("Daala Stream Analyzer"),
  wxDefaultPosition, wxDefaultSize, wxDEFAULT_FRAME_STYLE), panel(NULL) {
   wxMenuBar *mb = new wxMenuBar();
 
   fileMenu = new wxMenu();
-  fileMenu->Append(wxID_OPEN, _T("&Open...\tCtrl-O"), _T("Open daala file"));
-  fileMenu->Append(wxID_CLOSE, _T("&Close\tCtrl-W"), _T("Close daala file"));
+  fileMenu->Append(wxID_OPEN, _("&Open...\tCtrl-O"), _("Open daala file"));
+  fileMenu->Append(wxID_CLOSE, _("&Close\tCtrl-W"), _("Close daala file"));
   fileMenu->Enable(wxID_CLOSE, false);
-  fileMenu->Append(wxID_EXIT, _T("E&xit\tCtrl-Q"), _T("Quit this program"));
-  mb->Append(fileMenu, _T("&File"));
+  fileMenu->Append(wxID_EXIT, _("E&xit\tCtrl-Q"), _("Quit this program"));
+  mb->Append(fileMenu, _("&File"));
 
   viewMenu = new wxMenu();
-  viewMenu->Append(wxID_ZOOM_IN, _T("Zoom-In\tCtrl-+"),
-   _T("Double image size"));
-  viewMenu->Append(wxID_ZOOM_OUT, _T("Zoom-Out\tCtrl--"),
-   _T("Half image size"));
-  viewMenu->AppendCheckItem(wxID_SHOW_BLOCKS, _T("&Blocks\tCtrl-B"),
+  viewMenu->Append(wxID_ZOOM_IN, _("Zoom-In\tCtrl-+"),
+   _("Double image size"));
+  viewMenu->Append(wxID_ZOOM_OUT, _("Zoom-Out\tCtrl--"),
+   _("Half image size"));
+  viewMenu->AppendCheckItem(wxID_SHOW_BLOCKS, _("&Blocks\tCtrl-B"),
    _("Show block sizes"));
-  viewMenu->AppendCheckItem(wxID_SHOW_SKIP, _T("&Skip\tCtrl-S"),
+  viewMenu->AppendCheckItem(wxID_SHOW_SKIP, _("&Skip\tCtrl-S"),
    _("Show skip bands"));
-  viewMenu->AppendCheckItem(wxID_SHOW_NOREF, _T("&No-Ref\tCtrl-N"),
+  viewMenu->AppendCheckItem(wxID_SHOW_NOREF, _("&No-Ref\tCtrl-N"),
    _("Show no-ref bands"));
-  viewMenu->AppendCheckItem(wxID_SHOW_PADDING, _T("&Padding\tCtrl-P"),
+  viewMenu->AppendCheckItem(wxID_SHOW_PADDING, _("&Padding\tCtrl-P"),
    _("Show padding area"));
-  viewMenu->AppendCheckItem(wxID_SHOW_BITS, _T("Bit &Accounting\tCtrl-A"),
+  viewMenu->AppendCheckItem(wxID_SHOW_BITS, _("Bit &Accounting\tCtrl-A"),
    _("Show bit accounting"));
-  viewMenu->Append(wxID_FILTER_BITS, _T("&Filter Bits\tCtrl-F"),
+  viewMenu->Append(wxID_FILTER_BITS, _("&Filter Bits\tCtrl-F"),
    _("Filter bit accounting"));
-  viewMenu->AppendCheckItem(wxID_SHOW_DERING, _T("&Deringing\tCtrl-D"),
+  viewMenu->AppendCheckItem(wxID_SHOW_DERING, _("&Deringing\tCtrl-D"),
    _("Show deringing filter"));
   viewMenu->AppendSeparator();
-  viewMenu->AppendCheckItem(wxID_SHOW_Y, _T("&Y plane\tCtrl-Y"),
+  viewMenu->AppendCheckItem(wxID_SHOW_Y, _("&Y plane\tCtrl-Y"),
    _("Show Y plane"));
-  viewMenu->AppendCheckItem(wxID_SHOW_U, _T("&U plane\tCtrl-U"),
+  viewMenu->AppendCheckItem(wxID_SHOW_U, _("&U plane\tCtrl-U"),
    _("Show U plane"));
-  viewMenu->AppendCheckItem(wxID_SHOW_V, _T("&V plane\tCtrl-V"),
+  viewMenu->AppendCheckItem(wxID_SHOW_V, _("&V plane\tCtrl-V"),
    _("Show V plane"));
-  mb->Append(viewMenu, _T("&View"));
+  mb->Append(viewMenu, _("&View"));
 
   playbackMenu = new wxMenu();
-  playbackMenu->Append(wxID_NEXT_FRAME, _T("Next frame\tCtrl-."),
+  playbackMenu->Append(wxID_NEXT_FRAME, _("Next frame\tCtrl-."),
    _("Go to next frame"));
-  playbackMenu->Append(wxID_RESTART, _T("&Restart\tCtrl-R"),
+  playbackMenu->Append(wxID_RESTART, _("&Restart\tCtrl-R"),
    _("Set video to frame 0"));
-  playbackMenu->Append(wxID_GOTO_FRAME, _T("Jump to Frame\tCtrl-J"),
+  playbackMenu->Append(wxID_GOTO_FRAME, _("Jump to Frame\tCtrl-J"),
    _("Go to frame number"));
-  mb->Append(playbackMenu, _T("&Playback"));
+  mb->Append(playbackMenu, _("&Playback"));
 
   wxMenu *helpMenu=new wxMenu();
-  helpMenu->Append(wxID_ABOUT, _T("&About...\tF1"), _T("Show about dialog"));
-  mb->Append(helpMenu, _T("&Help"));
+  helpMenu->Append(wxID_ABOUT, _("&About...\tF1"), _("Show about dialog"));
+  mb->Append(helpMenu, _("&Help"));
 
   SetMenuBar(mb);
   mb->EnableTop(1, false);
@@ -1177,15 +1177,15 @@ TestFrame::TestFrame() : wxFrame(NULL, wxID_ANY, _T("Daala Stream Analyzer"),
   CreateStatusBar(3);
   int status_widths[3] = {-1, 130, 100};
   SetStatusWidths(3, status_widths);
-  SetStatusText(_T("another day, another daala"));
+  SetStatusText(_("another day, another daala"));
   GetMenuBar()->Check(wxID_SHOW_Y, true);
   GetMenuBar()->Check(wxID_SHOW_U, true);
   GetMenuBar()->Check(wxID_SHOW_V, true);
 }
 
 void TestFrame::onOpen(wxCommandEvent& WXUNUSED(event)) {
-  wxFileDialog openFileDialog(this, _T("Open file"), wxEmptyString,
-   wxEmptyString, _T("Daala files (*.ogv)|*.ogv"),
+  wxFileDialog openFileDialog(this, _("Open file"), wxEmptyString,
+   wxEmptyString, _("Daala files (*.ogv)|*.ogv"),
    wxFD_OPEN | wxFD_FILE_MUST_EXIST);
   if (openFileDialog.ShowModal() != wxID_CANCEL) {
     open(openFileDialog.GetPath());
@@ -1279,14 +1279,14 @@ void TestFrame::onRestart(wxCommandEvent &WXUNUSED(event)) {
 }
 
 void TestFrame::onAbout(wxCommandEvent& WXUNUSED(event)) {
-  wxMessageBox(_T("This program is a bitstream analyzer for Daala."), _T("About"), wxOK | wxICON_INFORMATION, this);
+  wxMessageBox(_("This program is a bitstream analyzer for Daala."), _("About"), wxOK | wxICON_INFORMATION, this);
 }
 
 bool TestFrame::open(const wxString &path) {
   panel = new TestPanel(this, path);
   if (panel->open(path)) {
     Fit();
-    SetStatusText(_T("loaded file: ") + path);
+    SetStatusText(_("loaded file: ") + path);
     fileMenu->Enable(wxID_OPEN, false);
     viewMenu->Enable(wxID_SHOW_PADDING, panel->hasPadding());
     GetMenuBar()->EnableTop(1, true);
@@ -1296,7 +1296,7 @@ bool TestFrame::open(const wxString &path) {
   else {
     delete panel;
     panel = NULL;
-    SetStatusText(_T("error loading file") + path);
+    SetStatusText(_("error loading file") + path);
     return false;
   }
 }
@@ -1317,7 +1317,7 @@ static const wxCmdLineEntryDesc CMD_LINE_DESC [] = {
 
 void TestApp::OnInitCmdLine(wxCmdLineParser &parser) {
   parser.SetDesc(CMD_LINE_DESC);
-  parser.SetSwitchChars(_T("-"));
+  parser.SetSwitchChars(_("-"));
 }
 
 bool TestApp::OnCmdLineParsed(wxCmdLineParser &parser) {
