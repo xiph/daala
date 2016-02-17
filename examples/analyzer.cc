@@ -1310,6 +1310,9 @@ public:
 };
 
 static const wxCmdLineEntryDesc CMD_LINE_DESC [] = {
+  { wxCMD_LINE_SWITCH, _("h"), _("help"),
+   _("Display this help and exit."), wxCMD_LINE_VAL_NONE,
+   wxCMD_LINE_OPTION_HELP },
   { wxCMD_LINE_PARAM, NULL, NULL, _("input.ogg"), wxCMD_LINE_VAL_STRING,
    wxCMD_LINE_PARAM_OPTIONAL },
   { wxCMD_LINE_NONE }
