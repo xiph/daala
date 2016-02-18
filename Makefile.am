@@ -210,6 +210,7 @@ tools_TARGETS = \
 	tools/gen_cdf \
 	tools/compute_basis \
 	tools/compute_haar_basis \
+	tools/cos_search \
 	tools/gen_laplace_tables \
 	tools/daalainfo \
 	tools/dump_ssim \
@@ -431,6 +432,11 @@ tools_compute_haar_basis_SOURCES = \
 	src/internal.c
 tools_compute_haar_basis_CFLAGS = $(OGG_CFLAGS)
 tools_compute_haar_basis_LDADD = $(OGG_LIBS) $(LIBM)
+
+# cos_search
+tools_cos_search_SOURCES = \
+	tools/cos_search.c
+tools_cos_search_LDADD = $(LIBM)
 
 # gen_laplace_tables
 tools_gen_laplace_tables_SOURCES = \
