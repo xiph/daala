@@ -2628,6 +2628,8 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
     int nhdr;
     int nvdr;
     double base_threshold;
+    int nblocks;
+    nblocks = 1 << (OD_LOG_DERING_GRID - OD_BLOCK_8X8);
     /* The threshold is meant to be the estimated amount of ringing for a given
        quantizer. Ringing is mostly proportional to the quantizer, but we
        use an exponent slightly smaller than unity because as quantization
@@ -2737,8 +2739,8 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
           for (gi = 1; gi < OD_DERING_LEVELS; gi++) {
             threshold = (int)(OD_DERING_GAIN_TABLE[gi]*base_threshold);
             od_dering(&state->opt_vtbl.dering, buf, n, &state->etmp[pli]
-             [(sby << ln)*w + (sbx << ln)], w, ln, sbx, sby, nhdr, nvdr,
-             xdec, dir, pli, &enc->state.bskip[pli]
+             [(sby << ln)*w + (sbx << ln)], w, nblocks, nblocks, sbx, sby,
+             nhdr, nvdr, xdec, dir, pli, &enc->state.bskip[pli]
              [(sby << (OD_LOG_DERING_GRID - ydec))*enc->state.skip_stride
              + (sbx << (OD_LOG_DERING_GRID - xdec))], enc->state.skip_stride,
              threshold, OD_DERING_CHECK_OVERLAP);
@@ -2776,8 +2778,8 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
             /* For now we just reduce the threshold on chroma by a fixed
                amount, but we should make this adaptive. */
             od_dering(&state->opt_vtbl.dering, buf, n, &state->etmp[pli]
-             [(sby << ln)*w + (sbx << ln)], w, ln, sbx, sby, nhdr, nvdr,
-             xdec, dir, pli, &enc->state.bskip[pli]
+             [(sby << ln)*w + (sbx << ln)], w, nblocks, nblocks, sbx, sby,
+             nhdr, nvdr, xdec, dir, pli, &enc->state.bskip[pli]
              [(sby << (OD_LOG_DERING_GRID - ydec))*enc->state.skip_stride
              + (sbx << (OD_LOG_DERING_GRID - xdec))], enc->state.skip_stride,
              threshold, OD_DERING_CHECK_OVERLAP);

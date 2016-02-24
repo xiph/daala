@@ -999,6 +999,8 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
   nvdr = state->frame_height >> (OD_LOG_DERING_GRID + OD_LOG_BSIZE0);
   if (dec->state.quantizer[0] > 0) {
     double base_threshold;
+    int nblocks;
+    nblocks = 1 << (OD_LOG_DERING_GRID - OD_BLOCK_8X8);
     base_threshold = pow(state->quantizer[0], 0.84182);
     for (pli = 0; pli < nplanes; pli++) {
       int i;
@@ -1070,7 +1072,7 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
               potential parallelism.*/
             od_dering(&state->opt_vtbl.dering, buf, n,
              &state->etmp[pli][(sby << ln)*w +
-             (sbx << ln)], w, ln, sbx, sby, nhdr, nvdr,
+             (sbx << ln)], w, nblocks, nblocks, sbx, sby, nhdr, nvdr,
              xdec, dir, pli, &dec->state.bskip[pli]
              [(sby << (OD_LOG_DERING_GRID - ydec))*dec->state.skip_stride
              + (sbx << (OD_LOG_DERING_GRID - xdec))], dec->state.skip_stride,

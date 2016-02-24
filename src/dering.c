@@ -241,33 +241,28 @@ static void od_compute_thresh(int thresh[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS],
 }
 
 void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
- const int16_t *x, int xstride, int ln, int sbx, int sby, int nhsb, int nvsb,
- int xdec, int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS], int pli,
+ const int16_t *x, int xstride, int nhb, int nvb, int sbx, int sby, int nhsb,
+ int nvsb, int xdec, int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS], int pli,
  unsigned char *bskip, int skip_stride, int threshold, int overlap) {
   int i;
   int j;
-  int n;
   int bx;
   int by;
   int16_t inbuf[OD_DERING_INBUF_SIZE];
   int16_t *in;
-  int nhb;
-  int nvb;
   int bsize;
   int varsum = 0;
   int32_t var[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS];
   int thresh[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS];
-  n = 1 << ln;
   bsize = 3 - xdec;
-  nhb = nvb = n >> bsize;
   in = inbuf + OD_FILT_BORDER*OD_FILT_BSTRIDE + OD_FILT_BORDER;
   /* We avoid filtering the pixels for which some of the pixels to average
      are outside the frame. We could change the filter instead, but it would
      add special cases for any future vectorization. */
   for (i = 0; i < OD_DERING_INBUF_SIZE; i++) inbuf[i] = OD_DERING_VERY_LARGE;
-  for (i = -OD_FILT_BORDER*(sby != 0); i < n
+  for (i = -OD_FILT_BORDER*(sby != 0); i < (nvb << bsize)
    + OD_FILT_BORDER*(sby != nvsb - 1); i++) {
-    for (j = -OD_FILT_BORDER*(sbx != 0); j < n
+    for (j = -OD_FILT_BORDER*(sbx != 0); j < (nhb << bsize)
      + OD_FILT_BORDER*(sbx != nhsb - 1); j++) {
       in[i*OD_FILT_BSTRIDE + j] = x[i*xstride + j];
     }
@@ -291,11 +286,12 @@ void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
   }
   for (by = 0; by < nvb; by++) {
     for (bx = 0; bx < nhb; bx++) {
+      int skip;
+# if defined(DAALA_ODINTRIN)
       int xstart;
       int ystart;
       int xend;
       int yend;
-      int skip;
       xstart = ystart = 0;
       xend = yend = (2 >> xdec);
       if (overlap) {
@@ -314,6 +310,9 @@ void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
            + (bx << 1 >> xdec) + j];
         }
       }
+#else
+      skip = bskip[by*skip_stride + bx];
+#endif
       if (skip) thresh[by][bx] = 0;
     }
   }
@@ -325,8 +324,8 @@ void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
        thresh[by][bx], dir[by][bx]);
     }
   }
-  for (i = 0; i < n; i++) {
-    for (j = 0; j < n; j++) {
+  for (i = 0; i < nvb << bsize; i++) {
+    for (j = 0; j < nhb << bsize; j++) {
       in[i*OD_FILT_BSTRIDE + j] = y[i*ystride + j];
     }
   }
