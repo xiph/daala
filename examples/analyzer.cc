@@ -1299,7 +1299,8 @@ void TestFrame::onRestart(wxCommandEvent &WXUNUSED(event)) {
 }
 
 void TestFrame::onAbout(wxCommandEvent& WXUNUSED(event)) {
-  wxMessageBox(_("This program is a bitstream analyzer for Daala."), _("About"), wxOK | wxICON_INFORMATION, this);
+  wxMessageBox(_("This program is a bitstream analyzer for Daala."),
+   _("About"), wxOK | wxICON_INFORMATION, this);
 }
 
 bool TestFrame::open(const wxString &path) {
