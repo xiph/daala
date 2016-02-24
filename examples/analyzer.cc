@@ -541,6 +541,11 @@ bool TestPanel::open(const wxString &path) {
   if (bit_accounting) {
     bpp_q3 =
      (double *)malloc(sizeof(*bpp_q3)*dd.getFrameWidth()*dd.getFrameHeight());
+    if (bpp_q3 == NULL) {
+      fprintf(stderr, "Could not allocate memory for bit accounting\n");
+      close();
+      return false;
+    }
     if (!dd.setAccountingEnabled(true)) {
       fprintf(stderr, "Could not enable accounting\n");
       close();
