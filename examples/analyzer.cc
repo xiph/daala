@@ -75,6 +75,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # define OD_BLOCK_SIZE4x4(bsize, bstride, bx, by) \
  ((bsize)[((by) >> 1)*(bstride) + ((bx) >> 1)])
 
+/*Command line flag to enable bit accounting*/
+# define OD_BIT_ACCOUNTING_SWITCH "a"
+
 class DaalaDecoder {
 private:
   FILE *input;
@@ -353,6 +356,7 @@ private:
   bool show_dering;
 
   od_accounting *acct;
+  const bool bit_accounting;
   bool show_bits;
   wxString show_bits_filter;
   double *bpp_q3;
@@ -376,7 +380,8 @@ private:
   int getBand(int x, int y) const;
   void computeBitsPerPixel();
 public:
-  TestPanel(wxWindow *parent, const wxString &path);
+  TestPanel(wxWindow *parent, const wxString &path,
+    const bool bit_accounting);
   ~TestPanel();
 
   bool open(const wxString &path);
@@ -421,8 +426,9 @@ private:
   wxMenu *fileMenu;
   wxMenu *viewMenu;
   wxMenu *playbackMenu;
+  const bool bit_accounting;
 public:
-  TestFrame();
+  TestFrame(const bool bit_accounting);
 
   void onOpen(wxCommandEvent &event);
   void onClose(wxCommandEvent &event);
@@ -482,13 +488,13 @@ BEGIN_EVENT_TABLE(TestFrame, wxFrame)
   EVT_MENU(wxID_ABOUT, TestFrame::onAbout)
 END_EVENT_TABLE()
 
-TestPanel::TestPanel(wxWindow *parent, const wxString &path) : wxPanel(parent),
- pixels(NULL), zoom(0), bsize(NULL), bsize_len(0), show_blocks(false),
- flags(NULL), flags_len(0), show_skip(false), show_noref(false),
- show_padding(false), show_dering(false), acct(NULL), show_bits(false),
- show_bits_filter(_("")), bpp_q3(NULL), dering(NULL), dering_len(0),
- plane_mask(OD_ALL_MASK),
- path(path) {
+TestPanel::TestPanel(wxWindow *parent, const wxString &path,
+ const bool bit_accounting) : wxPanel(parent), pixels(NULL), zoom(0),
+ bsize(NULL), bsize_len(0), show_blocks(false), flags(NULL), flags_len(0),
+ show_skip(false), show_noref(false), show_padding(false), show_dering(false),
+ acct(NULL), show_bits(false), show_bits_filter(_("")), bpp_q3(NULL),
+ dering(NULL), dering_len(0), plane_mask(OD_ALL_MASK), path(path),
+ bit_accounting(bit_accounting) {
 }
 
 TestPanel::~TestPanel() {
@@ -532,17 +538,19 @@ bool TestPanel::open(const wxString &path) {
     close();
     return false;
   }
-  bpp_q3 =
-   (double *)malloc(sizeof(*bpp_q3)*dd.getFrameWidth()*dd.getFrameHeight());
-  if (!dd.setAccountingEnabled(true)) {
-    fprintf(stderr, "Could not enable accounting\n");
-    close();
-    return false;
-  }
-  if (!dd.getAccountingStruct(&acct)) {
-    fprintf(stderr,"Could not get accounting struct\n");
-    close();
-    return false;
+  if (bit_accounting) {
+    bpp_q3 =
+     (double *)malloc(sizeof(*bpp_q3)*dd.getFrameWidth()*dd.getFrameHeight());
+    if (!dd.setAccountingEnabled(true)) {
+      fprintf(stderr, "Could not enable accounting\n");
+      close();
+      return false;
+    }
+    if (!dd.getAccountingStruct(&acct)) {
+      fprintf(stderr,"Could not get accounting struct\n");
+      close();
+      return false;
+    }
   }
   dering_len = nhdr*nvdr;
   dering = (unsigned char *)malloc(dering_len);
@@ -623,17 +631,20 @@ void TestPanel::render() {
   unsigned char *cb_row = img->planes[1].data;
   unsigned char *cr_row = img->planes[2].data;
   unsigned char *p_row = pixels;
-  double maxval=0;
   double norm;
   int nhsb = dd.getFrameWidth() >> OD_LOG_BSIZE_MAX;
   int nhdr = dd.getFrameWidth() >> (OD_LOG_DERING_GRID + OD_LOG_BSIZE0);
-  for (int j = 0; j < getDecodeHeight(); j++) {
-    for (int i = 0; i < getDecodeWidth(); i++) {
-      double bpp = bpp_q3[j*dd.getFrameWidth() + i];
-      if (bpp > maxval) maxval = bpp;
+  if (show_bits) {
+    double maxval = 0;
+    for (int j = 0; j < getDecodeHeight(); j++) {
+      for (int i = 0; i < getDecodeWidth(); i++) {
+        double bpp = bpp_q3[j*dd.getFrameWidth() + i];
+        if (bpp > maxval) maxval = bpp;
+      }
     }
+    norm = 1./(1e-4+maxval);
   }
-  norm = 1./(1e-4+maxval);
+
   for (int j = 0; j < getDecodeHeight(); j++) {
     unsigned char *y = y_row;
     unsigned char *cb = cb_row;
@@ -1008,7 +1019,9 @@ void TestPanel::computeBitsPerPixel() {
   }
 }
 void TestPanel::refresh() {
-  computeBitsPerPixel();
+  if (bit_accounting) {
+    computeBitsPerPixel();
+  }
   render();
   ((TestFrame *)GetParent())->SetTitle(path +
    wxString::Format(_(" (%d,%d) Frame %d - Daala Stream Analyzer"),
@@ -1069,8 +1082,10 @@ void TestPanel::restart() {
   dd.restart();
   dd.setBlockSizeBuffer(bsize, bsize_len);
   dd.setBandFlagsBuffer(flags, flags_len);
-  dd.setAccountingEnabled(true);
-  dd.getAccountingStruct(&acct);
+  if (bit_accounting) {
+    dd.setAccountingEnabled(true);
+    dd.getAccountingStruct(&acct);
+  }
   dd.setDeringFlagsBuffer(dering, dering_len);
   nextFrame();
 }
@@ -1118,8 +1133,9 @@ void TestPanel::onIdle(wxIdleEvent &) {
   /*wxMilliSleep(input.video_fps_n*1000/input.video_fps_n);*/
 }
 
-TestFrame::TestFrame() : wxFrame(NULL, wxID_ANY, _("Daala Stream Analyzer"),
- wxDefaultPosition, wxDefaultSize, wxDEFAULT_FRAME_STYLE), panel(NULL) {
+TestFrame::TestFrame(const bool bit_accounting) : wxFrame(NULL, wxID_ANY,
+ _("Daala Stream Analyzer"), wxDefaultPosition, wxDefaultSize,
+ wxDEFAULT_FRAME_STYLE), panel(NULL), bit_accounting(bit_accounting) {
   wxMenuBar *mb = new wxMenuBar();
 
   fileMenu = new wxMenu();
@@ -1181,6 +1197,10 @@ TestFrame::TestFrame() : wxFrame(NULL, wxID_ANY, _("Daala Stream Analyzer"),
   GetMenuBar()->Check(wxID_SHOW_Y, true);
   GetMenuBar()->Check(wxID_SHOW_U, true);
   GetMenuBar()->Check(wxID_SHOW_V, true);
+  if (!bit_accounting) {
+    GetMenuBar()->Enable(wxID_SHOW_BITS, false);
+    GetMenuBar()->Enable(wxID_FILTER_BITS, false);
+  }
 }
 
 void TestFrame::onOpen(wxCommandEvent& WXUNUSED(event)) {
@@ -1283,7 +1303,7 @@ void TestFrame::onAbout(wxCommandEvent& WXUNUSED(event)) {
 }
 
 bool TestFrame::open(const wxString &path) {
-  panel = new TestPanel(this, path);
+  panel = new TestPanel(this, path, bit_accounting);
   if (panel->open(path)) {
     Fit();
     SetStatusText(_("loaded file: ") + path);
@@ -1313,6 +1333,9 @@ static const wxCmdLineEntryDesc CMD_LINE_DESC [] = {
   { wxCMD_LINE_SWITCH, _("h"), _("help"),
    _("Display this help and exit."), wxCMD_LINE_VAL_NONE,
    wxCMD_LINE_OPTION_HELP },
+  { wxCMD_LINE_SWITCH, OD_BIT_ACCOUNTING_SWITCH, _("bit-accounting"),
+   _("Enable bit accounting"), wxCMD_LINE_VAL_NONE,
+   wxCMD_LINE_PARAM_OPTIONAL },
   { wxCMD_LINE_PARAM, NULL, NULL, _("input.ogg"), wxCMD_LINE_VAL_STRING,
    wxCMD_LINE_PARAM_OPTIONAL },
   { wxCMD_LINE_NONE }
@@ -1324,7 +1347,7 @@ void TestApp::OnInitCmdLine(wxCmdLineParser &parser) {
 }
 
 bool TestApp::OnCmdLineParsed(wxCmdLineParser &parser) {
-  frame = new TestFrame();
+  frame = new TestFrame(parser.Found(OD_BIT_ACCOUNTING_SWITCH));
   frame->Show();
   if (parser.GetParamCount() > 0) {
     return frame->open(parser.GetParam(0));
