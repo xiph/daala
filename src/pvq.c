@@ -606,6 +606,33 @@ int od_pvq_compute_k(int32_t qcg, int itheta, int32_t theta, int noref, int n,
   }
 }
 
+#define OD_RSQRT_INSHIFT 16
+#define OD_RSQRT_OUTSHIFT 14
+/** Reciprocal sqrt approximation where the input is in the range [0.25,1) in
+     Q16 and the output is in the range (1.0, 2.0] in Q14).*/
+static int32_t od_rsqrt_norm(int32_t t)
+{
+   return (int32_t)floor(.5 +
+    (1 << OD_RSQRT_OUTSHIFT)*(1.0/sqrt(t/(double)(1 << OD_RSQRT_INSHIFT))));
+}
+
+static int32_t od_rsqrt(int32_t x, int *rsqrt_shift)
+{
+   int k;
+   int s;
+   int32_t t;
+   k = (OD_ILOG(x) - 1) >> 1;
+   /*t is x in the range [0.25, 1) in Q16, or x*2^(-s).*/
+   s = 2*k - OD_RSQRT_OUTSHIFT;
+   t = OD_VSHR(x, s);
+   /*We want to express od_rsqrt() in terms of od_rsqrt_norm(), which is
+      defined as (2^OUTSHIFT)/sqrt(t*(2^-INSHIFT)) with t=x*(2^-s).
+     This simplifies to 2^(OUTSHIFT+(INSHIFT/2)+(s/2))/sqrt(x), so the caller
+      needs to shift right by OUTSHIFT + INSHIFT/2 + s/2.*/
+   *rsqrt_shift = OD_RSQRT_OUTSHIFT + ((s + OD_RSQRT_INSHIFT) >> 1);
+   return od_rsqrt_norm(t);
+}
+
 /** Synthesizes one parition of coefficient values from a PVQ-encoded
  * vector.  This 'partial' version is called by the encode loop where
  * the Householder reflection has already been computed and there's no
@@ -646,10 +673,17 @@ void od_pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,
      most of the time. */
   gshift = OD_MAXI(0, OD_ILOG(g) - 14);
   grnd = 1 << gshift >> 1;
-  /* scale is in Q(16-gshift) so that x[]*scale has a norm that fits in 16
-     bits. */
+  /*scale is g/sqrt(yy) in Q(16-gshift) so that x[]*scale has a norm that fits
+     in 16 bits.*/
   if (yy == 0) scale = 0;
-  else scale = (int32_t)floor(.5 + g*((1 << 16 >> gshift)/sqrt(yy)));
+  else {
+    int rsqrt_shift;
+    int32_t rsqrt;
+    int64_t tmp;
+    rsqrt = od_rsqrt(yy, &rsqrt_shift);
+    tmp = rsqrt*(int64_t)g;
+    scale = OD_VSHR_ROUND(tmp, rsqrt_shift + gshift - 16);
+  }
   /* Shift to apply after multiplying by the inverse QM, taking into account
      gshift. */
   qshift = OD_QM_INV_SHIFT - gshift;
