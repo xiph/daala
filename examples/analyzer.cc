@@ -78,6 +78,20 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 /*Command line flag to enable bit accounting*/
 # define OD_BIT_ACCOUNTING_SWITCH "a"
 
+#define OD_DERING_LEVELS (6)
+static const char *const OD_DERING_COLOR_NAMES[OD_DERING_LEVELS] = {
+  "Green", "Light Blue", "Blue", "Gray", "Pink", "Red"
+};
+static const double OD_DERING_GAIN_TABLE[OD_DERING_LEVELS] = {
+  0, 0.5, 0.707, 1, 1.41, 2
+};
+static const unsigned char OD_DERING_CR[] = {
+  96, 92, 119, 128, 160, 255
+};
+static const unsigned char OD_DERING_CB[] = {
+  96, 255, 160, 128, 128, 128
+};
+
 class DaalaDecoder {
 private:
   FILE *input;
@@ -738,9 +752,8 @@ void TestPanel::render() {
         int sby;
         sbx = i >> (OD_LOG_DERING_GRID + OD_LOG_BSIZE0);
         sby = j >> (OD_LOG_DERING_GRID + OD_LOG_BSIZE0);
-        if (dering[sby*nhdr + sbx]) {
-          yval = 0;
-        }
+        crval = OD_DERING_CR[dering[sby*nhdr + sbx]];
+        cbval = OD_DERING_CB[dering[sby*nhdr + sbx]];
       }
       if (show_blocks) {
         unsigned char d = OD_BLOCK_SIZE4x4(bsize, bstride, i >> 2, j >> 2);
@@ -848,6 +861,14 @@ void TestPanel::setShowBits(bool show_bits) {
 
 void TestPanel::setShowDering(bool show_dering) {
   this->show_dering = show_dering;
+  if (show_dering) {
+    fprintf(stderr, "Dering Colormap: ");
+    for (int c = 0; c < OD_DERING_LEVELS; c++) {
+      fprintf(stderr, "%s -> %0.3f ", OD_DERING_COLOR_NAMES[c],
+        OD_DERING_GAIN_TABLE[c]);
+    }
+    fprintf(stderr, "\n");
+  }
 }
 
 void TestPanel::setShowPlane(bool show_plane, int mask) {
