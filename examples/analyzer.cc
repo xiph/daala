@@ -368,6 +368,8 @@ private:
   bool show_noref;
   bool show_padding;
   bool show_dering;
+  int nhsb;
+  int nhdr;
 
   od_accounting *acct;
   const bool bit_accounting;
@@ -522,9 +524,9 @@ bool TestPanel::open(const wxString &path) {
   if (!setZoom(MIN_ZOOM)) {
     return false;
   }
-  int nhsb = dd.getFrameWidth() >> OD_LOG_BSIZE_MAX;
+  nhsb = dd.getFrameWidth() >> OD_LOG_BSIZE_MAX;
   int nvsb = dd.getFrameHeight() >> OD_LOG_BSIZE_MAX;
-  int nhdr = dd.getFrameWidth() >> (OD_LOG_DERING_GRID + OD_LOG_BSIZE0);
+  nhdr = dd.getFrameWidth() >> (OD_LOG_DERING_GRID + OD_LOG_BSIZE0);
   int nvdr = dd.getFrameHeight() >> (OD_LOG_DERING_GRID + OD_LOG_BSIZE0);
   bsize_len = sizeof(*bsize)*nhsb*OD_BSIZE_GRID*nvsb*OD_BSIZE_GRID;
   bsize = (unsigned char *)malloc(bsize_len);
@@ -651,8 +653,6 @@ void TestPanel::render() {
   unsigned char *cr_row = img->planes[2].data;
   unsigned char *p_row = pixels;
   double norm;
-  int nhsb = dd.getFrameWidth() >> OD_LOG_BSIZE_MAX;
-  int nhdr = dd.getFrameWidth() >> (OD_LOG_DERING_GRID + OD_LOG_BSIZE0);
   if (show_bits) {
     double maxval = 0;
     for (int j = 0; j < getDecodeHeight(); j++) {
@@ -1135,17 +1135,29 @@ void TestPanel::onMouseMotion(wxMouseEvent& event) {
     ogg_int64_t cb = planes[1].data[cb_stride*(row >> ydec) + (col >> xdec)];
     ogg_int64_t cr = planes[2].data[cr_stride*(row >> ydec) + (col >> xdec)];
     parent->SetStatusText(wxString::Format(_("Y:%lld,U:%lld,V:%lld"),
-     y, cb, cr), 1);
+     y, cb, cr), 2);
+    if (show_dering) {
+      int sbx;
+      int sby;
+      sbx = col >> (OD_LOG_DERING_GRID + OD_LOG_BSIZE0);
+      sby = row >> (OD_LOG_DERING_GRID + OD_LOG_BSIZE0);
+
+      parent->SetStatusText(wxString::Format(_("Dering:%0.3f"),
+       OD_DERING_GAIN_TABLE[dering[sby*nhdr + sbx]]), 1);
+    }
+    else {
+      parent->SetStatusText(_(""), 1);
+    }
   } else {
     parent->SetStatusText(wxString::Format(_("")), 1);
   }
   parent->SetStatusText(wxString::Format(_("X:%d,Y:%d"),
-   col, row), 2);
+   col, row), 3);
 }
 
 void TestPanel::onMouseLeaveWindow(wxMouseEvent& event) {
   TestFrame *parent = static_cast<TestFrame*>(GetParent());
-  parent->SetStatusText(wxString::Format(_("")), 1);
+  parent->SetStatusText(wxString::Format(_("")), 3);
 }
 
 void TestPanel::onPaint(wxPaintEvent &) {
@@ -1216,9 +1228,9 @@ TestFrame::TestFrame(const bool bit_accounting) : wxFrame(NULL, wxID_ANY,
   mb->EnableTop(1, false);
   mb->EnableTop(2, false);
 
-  CreateStatusBar(3);
-  int status_widths[3] = {-1, 130, 100};
-  SetStatusWidths(3, status_widths);
+  CreateStatusBar(4);
+  int status_widths[4] = {-1, 80, 130, 110};
+  SetStatusWidths(4, status_widths);
   SetStatusText(_("another day, another daala"));
   GetMenuBar()->Check(wxID_SHOW_Y, true);
   GetMenuBar()->Check(wxID_SHOW_U, true);
