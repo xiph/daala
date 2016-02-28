@@ -1372,7 +1372,7 @@ static const wxCmdLineEntryDesc CMD_LINE_DESC [] = {
   { wxCMD_LINE_SWITCH, _("h"), _("help"),
    _("Display this help and exit."), wxCMD_LINE_VAL_NONE,
    wxCMD_LINE_OPTION_HELP },
-  { wxCMD_LINE_SWITCH, OD_BIT_ACCOUNTING_SWITCH, _("bit-accounting"),
+  { wxCMD_LINE_SWITCH, _(OD_BIT_ACCOUNTING_SWITCH), _("bit-accounting"),
    _("Enable bit accounting"), wxCMD_LINE_VAL_NONE,
    wxCMD_LINE_PARAM_OPTIONAL },
   { wxCMD_LINE_PARAM, NULL, NULL, _("input.ogg"), wxCMD_LINE_VAL_STRING,
@@ -1386,7 +1386,7 @@ void TestApp::OnInitCmdLine(wxCmdLineParser &parser) {
 }
 
 bool TestApp::OnCmdLineParsed(wxCmdLineParser &parser) {
-  frame = new TestFrame(parser.Found(OD_BIT_ACCOUNTING_SWITCH));
+  frame = new TestFrame(parser.Found(_(OD_BIT_ACCOUNTING_SWITCH)));
   frame->Show();
   if (parser.GetParamCount() > 0) {
     return frame->open(parser.GetParam(0));
