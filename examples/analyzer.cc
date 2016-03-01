@@ -39,44 +39,44 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "daala/daaladec.h"
 
 /*Smallest blocks are 4x4*/
-# define OD_LOG_BSIZE0 (2)
+#define OD_LOG_BSIZE0 (2)
 /*There are 5 block sizes total (4x4, 8x8, 16x16, 32x32 and 64x64).*/
-# define OD_NBSIZES    (5)
+#define OD_NBSIZES (5)
 /*The log of the maximum length of the side of a block.*/
-# define OD_LOG_BSIZE_MAX (OD_LOG_BSIZE0 + OD_NBSIZES - 1)
+#define OD_LOG_BSIZE_MAX (OD_LOG_BSIZE0 + OD_NBSIZES - 1)
 /*The maximum length of the side of a block.*/
-# define OD_BSIZE_MAX     (1 << OD_LOG_BSIZE_MAX)
+#define OD_BSIZE_MAX (1 << OD_LOG_BSIZE_MAX)
 /*The maximum number of quad tree levels when splitting a super block.*/
-# define OD_MAX_SB_SPLITS (OD_NBSIZES - 1)
+#define OD_MAX_SB_SPLITS (OD_NBSIZES - 1)
 
-#define OD_BLOCK_32X32 (3)
+/*Note that OD_BLOCK_NXN = log2(N) - 2.*/
 #define OD_BLOCK_64X64 (4)
 
 /*The deringing filter is applied on 8x8 blocks, but it's application
-   is signaled on a 32x32 grid.*/
-# define OD_LOG_DERING_GRID (OD_BLOCK_64X64)
+   is signaled on a 64x64 grid.*/
+#define OD_LOG_DERING_GRID (OD_BLOCK_64X64)
 
 /*The superblock resolution of the block size array.  Because four 4x4 blocks
    and one 8x8 can be resolved with a single entry, this is the maximum number
    of 8x8 blocks that can lie along a superblock edge.*/
-# define OD_BSIZE_GRID (1 << (OD_MAX_SB_SPLITS - 1))
+#define OD_BSIZE_GRID (1 << (OD_MAX_SB_SPLITS - 1))
 
 /*The number of 4x4 blocks that lie along a superblock edge.*/
-# define OD_FLAGS_GRID (1 << OD_MAX_SB_SPLITS)
+#define OD_FLAGS_GRID (1 << OD_MAX_SB_SPLITS)
 
-# define OD_MAXI(a, b) ((a) ^ (((a) ^ (b)) & -((b) > (a))))
-# define OD_MINI(a, b) ((a) ^ (((b) ^ (a)) & -((b) < (a))))
-# define OD_CLAMPI(a, b, c) (OD_MAXI(a, OD_MINI(b, c)))
+#define OD_MAXI(a, b) ((a) ^ (((a) ^ (b)) & -((b) > (a))))
+#define OD_MINI(a, b) ((a) ^ (((b) ^ (a)) & -((b) < (a))))
+#define OD_CLAMPI(a, b, c) (OD_MAXI(a, OD_MINI(b, c)))
 
-# define OD_SIGNMASK(a) (-((a) < 0))
-# define OD_FLIPSIGNI(a, b) (((a) + OD_SIGNMASK(b)) ^ OD_SIGNMASK(b))
-# define OD_DIV_ROUND(x, y) (((x) + OD_FLIPSIGNI((y) >> 1, x))/(y))
+#define OD_SIGNMASK(a) (-((a) < 0))
+#define OD_FLIPSIGNI(a, b) (((a) + OD_SIGNMASK(b)) ^ OD_SIGNMASK(b))
+#define OD_DIV_ROUND(x, y) (((x) + OD_FLIPSIGNI((y) >> 1, x))/(y))
 
-# define OD_BLOCK_SIZE4x4(bsize, bstride, bx, by) \
+#define OD_BLOCK_SIZE4x4(bsize, bstride, bx, by) \
  ((bsize)[((by) >> 1)*(bstride) + ((bx) >> 1)])
 
 /*Command line flag to enable bit accounting*/
-# define OD_BIT_ACCOUNTING_SWITCH "a"
+#define OD_BIT_ACCOUNTING_SWITCH "a"
 
 #define OD_DERING_LEVELS (6)
 static const char *const OD_DERING_COLOR_NAMES[OD_DERING_LEVELS] = {
