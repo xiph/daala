@@ -224,6 +224,7 @@ bool DaalaDecoder::open(const wxString &path) {
   ogg_sync_init(&oy);
   input = fopen(path.mb_str(), "rb");
   if (input == NULL) {
+    fprintf(stderr, "Could not find file '%s'.\n", path.mb_str().data());
     return false;
   }
   this->path = path;
@@ -239,13 +240,13 @@ void DaalaDecoder::close() {
   if (dsi) {
     daala_setup_free(dsi);
     dsi = NULL;
+    ogg_stream_clear(&os);
   }
   if (dctx) {
     daala_decode_free(dctx);
     dctx = NULL;
   }
   ogg_sync_clear(&oy);
-  ogg_stream_clear(&os);
   daala_info_clear(&di);
   daala_comment_clear(&dc);
 }
