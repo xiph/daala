@@ -637,7 +637,8 @@ int od_rdo_quant(od_coeff x, int q, double delta0) {
   threshold = 128 + OD_CLAMPI(0, (int)(256*OD_PVQ_LAMBDA*delta0/2), 128);
   if (abs(x) < q*threshold/256) {
     return 0;
-  } else {
+  }
+  else {
     return OD_DIV_R0(x, q);
   }
 }

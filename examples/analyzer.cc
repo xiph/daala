@@ -772,7 +772,8 @@ void TestPanel::render() {
       }
       if (pmask & OD_LUMA_MASK) {
         yval -= 16;
-      } else {
+      }
+      else {
         yval = 128;
       }
       cbval = ((pmask & OD_CB_MASK) >> 1) * (cbval - 128);
@@ -874,7 +875,8 @@ void TestPanel::setShowDering(bool show_dering) {
 void TestPanel::setShowPlane(bool show_plane, int mask) {
   if (show_plane) {
     plane_mask |= mask;
-  } else {
+  }
+  else {
     plane_mask &= ~mask;
   }
 }

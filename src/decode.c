@@ -1144,7 +1144,8 @@ int daala_decode_packet_in(daala_dec_ctx *dec, const daala_packet *op) {
   dec->state.frame_type = frame_type;
   if (frame_type != OD_I_FRAME) {
     mbctx.num_refs = od_ec_dec_uint(&dec->ec, OD_MAX_CODED_REFS, "flags") + 1;
-  } else {
+  }
+  else {
     mbctx.num_refs = 0;
   }
   frame_number = od_ec_dec_uint(&dec->ec, OD_MAX_REORDER, "flags");

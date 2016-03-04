@@ -490,7 +490,8 @@ int main(int argc, char *argv[]) {
        "r to restart\nl to loop\ns for slow\n. to step\nspace to pause\n"
        "p to switch planes\nq to quit");
       exit(1);
-    } else if ((argc == 2)
+    }
+    else if ((argc == 2)
             && memcmp(argv[1], "--version", 9) == 0
             && strlen(argv[1]) == strlen("--version")) {
       fprintf(stderr, "%s\n", daala_version_string());
@@ -649,7 +650,8 @@ void img_to_rgb(player_example *player, SDL_Texture *texture,
         rval = player->rval_table[*y][*cr];
         gval = player->gval_table[*y][*cb][*cr];
         bval = player->bval_table[*y][*cb];
-      } else {
+      }
+      else {
         yval = (plane_mask & OD_LUMA_MASK) * (*y - 16)
          + (((plane_mask & OD_LUMA_MASK) ^ OD_LUMA_MASK) << 7);
         cbval = ((plane_mask & OD_CB_MASK) >> 1) * (*cb - 128);
