@@ -1153,10 +1153,15 @@ void TestPanel::onMouseMotion(wxMouseEvent& event) {
       parent->SetStatusText(wxString::Format(_("Dering:%0.3f"),
        OD_DERING_GAIN_TABLE[dering[sby*nhdr + sbx]]), 1);
     }
+    else if (show_bits) {
+      parent->SetStatusText(wxString::Format(_("bpp:%0.1f"),
+       bpp_q3[row*dd.getFrameWidth() + col]), 1);
+    }
     else {
       parent->SetStatusText(_(""), 1);
     }
-  } else {
+  }
+  else {
     parent->SetStatusText(wxString::Format(_("")), 1);
   }
   parent->SetStatusText(wxString::Format(_("X:%d,Y:%d"),
