@@ -27,7 +27,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #endif
 
 #include "entdec.h"
-#include "accounting.h"
+#if OD_ACCOUNTING
+# include "accounting.h"
+#endif
 
 /*A range decoder.
   This is an entropy decoder based upon \cite{Mar79}, which is itself a
@@ -85,7 +87,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
   }*/
 
 #if OD_ACCOUNTING
-# define OD_PROCESS_ACCOUNTING(dec, str) od_process_accounting(dec, str)
 # define od_ec_dec_normalize(dec, dif, rng, ret, str) od_ec_dec_normalize_(dec, dif, rng, ret, str)
 static void od_process_accounting(od_ec_dec *dec, char *str) {
   if (dec->acct != NULL) {
@@ -97,7 +98,6 @@ static void od_process_accounting(od_ec_dec *dec, char *str) {
   }
 }
 #else
-# define OD_PROCESS_ACCOUNTING(dec, str) do {} while(0)
 # define od_ec_dec_normalize(dec, dif, rng, ret, str) od_ec_dec_normalize_(dec, dif, rng, ret)
 #endif
 
@@ -148,7 +148,9 @@ static int od_ec_dec_normalize_(od_ec_dec *dec,
   dec->dif = dif << d;
   dec->rng = rng << d;
   if (dec->cnt < 0) od_ec_dec_refill(dec);
-  OD_PROCESS_ACCOUNTING(dec, acc_str);
+#if OD_ACCOUNTING
+  od_process_accounting(dec, acc_str);
+#endif
   return ret;
 }
 
@@ -563,7 +565,9 @@ uint32_t od_ec_dec_bits_(od_ec_dec *dec, unsigned ftb OD_ACC_STR) {
   available -= ftb;
   dec->end_window = window;
   dec->nend_bits = available;
-  OD_PROCESS_ACCOUNTING(dec, acc_str);
+#if OD_ACCOUNTING
+  od_process_accounting(dec, acc_str);
+#endif
   return ret;
 }
 

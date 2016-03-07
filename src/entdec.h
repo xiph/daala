@@ -26,7 +26,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # define _entdec_H (1)
 # include <limits.h>
 # include "entcode.h"
+#if OD_ACCOUNTING
 # include "accounting.h"
+#endif
 
 typedef struct od_ec_dec od_ec_dec;
 

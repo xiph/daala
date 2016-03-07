@@ -58,6 +58,13 @@ struct daala_dec_ctx {
   unsigned char *user_dering;
 };
 
+# if OD_ACCOUNTING
+#  define OD_ACCOUNTING_SET_LOCATION(dec, layer, level, x, y) \
+  od_accounting_set_location(&(dec)->acct, layer, level, x, y)
+# else
+#  define OD_ACCOUNTING_SET_LOCATION(dec, layer, level, x, y)
+# endif
+
 /*Stub for the daala_setup_info.*/
 struct daala_setup_info {
   unsigned char dummy;
