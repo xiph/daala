@@ -235,7 +235,7 @@ static void od_compute_thresh(int thresh[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS],
       v1 = OD_MINI(32767, var[by][bx] >> 6);
       v2 = OD_MINI(32767, sb_var/(OD_BSIZE_MAX*OD_BSIZE_MAX));
       thresh[by][bx] = threshold*OD_THRESH_TABLE_Q8[OD_CLAMPI(0,
-       OD_ILOG(v1*v2) - 9, 17)] >> 8;
+       OD_ILOG(v1*v2) - 10, 17)] >> 8;
     }
   }
 }
