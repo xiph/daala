@@ -576,6 +576,11 @@ bool TestPanel::open(const wxString &path) {
   }
   dering_len = nhdr*nvdr;
   dering = (unsigned char *)malloc(dering_len);
+  if (dering == NULL) {
+    fprintf(stderr,"Could not allocate memory for deringing buffer\n");
+    close();
+    return false;
+  }
   if (!dd.setDeringFlagsBuffer(dering, dering_len)) {
     fprintf(stderr,"Could not set dering flags buffer\n");
     close();
