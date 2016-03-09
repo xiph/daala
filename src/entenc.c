@@ -548,7 +548,7 @@ unsigned char *od_ec_enc_done(od_ec_enc *enc, uint32_t *nbytes) {
   {
     uint32_t tell;
     /* Don't count the 1 bit we lose to raw bits as overhead. */
-    tell = od_ec_enc_tell_frac(enc)/8.-1;
+    tell = od_ec_enc_tell(enc) - 1;
     fprintf(stderr, "overhead: %f%%\n", 100*(tell-enc->entropy)/enc->entropy);
     fprintf(stderr, "efficiency: %f bits/symbol\n",
      (double)tell/enc->nb_symbols);
