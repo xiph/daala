@@ -155,13 +155,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 /*Shift x right by shift (without rounding) or left by -shift if shift
   is negative.*/
 # define OD_VSHR(x, shift) \
-  (shift) > 0 ? (int32_t)((x) >> (shift)) \
-  : (int32_t)((x) << -(shift))
+  ((shift) > 0 ? (int32_t)((x) >> (shift)) \
+  : (int32_t)((x) << -(shift)))
 /*Shift x right by shift (with rounding) or left by -shift if shift
   is negative.*/
 # define OD_VSHR_ROUND(x, shift) \
-  (shift) > 0 ? (int32_t)(((x) + (1 << (shift) >> 1)) >> (shift)) \
-  : (int32_t)((x) << -(shift))
+  ((shift) > 0 ? (int32_t)(((x) + (1 << (shift) >> 1)) >> (shift)) \
+  : (int32_t)((x) << -(shift)))
 
 /*Count leading zeros.
   This macro should only be used for implementing od_ilog(), if it is defined.
