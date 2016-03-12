@@ -84,10 +84,11 @@ int od_codedquantizer_to_quantizer(int cq) {
    << OD_COEFF_SHIFT >> 4);
 }
 
-/*Maps a quantizer to the largest coded quantizer with a mapped value
-   less than or equal to the one passed in, except for values between 0
+/*Maps a quantizer to the coded quantizer with a mapped value
+   closest to the one passed in, except for values between 0
    (lossless) and the minimum lossy quantizer, in which case the
-   minimum lossy quantizer is returned.*/
+   minimum lossy quantizer is returned.
+  In the event of a tie, we return the smaller cq.*/
 int od_quantizer_to_codedquantizer(int q){
   if (q == 0) {
     return 0;
@@ -110,7 +111,16 @@ int od_quantizer_to_codedquantizer(int q){
         lo = mid;
       }
     }
+    /*lo maps to the largest quantizer less than or equal to q.
+      hi maps to either the smallest quantizer greater than q, or one past
+      the end of the quantizers array.*/
+    if(hi < OD_N_CODED_QUANTIZERS) {
+      int lodist;
+      int hidist;
+      lodist = q - OD_CODED_QUANTIZER_MAP_Q4[lo];
+      hidist = OD_CODED_QUANTIZER_MAP_Q4[hi] - q;
+      if (lodist > hidist) return hi;
+    }
     return lo;
   }
 }
-
