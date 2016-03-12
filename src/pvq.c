@@ -609,11 +609,33 @@ int od_pvq_compute_k(int32_t qcg, int itheta, int32_t theta, int noref, int n,
 #define OD_RSQRT_INSHIFT 16
 #define OD_RSQRT_OUTSHIFT 14
 /** Reciprocal sqrt approximation where the input is in the range [0.25,1) in
-     Q16 and the output is in the range (1.0, 2.0] in Q14).*/
+     Q16 and the output is in the range (1.0, 2.0] in Q14).
+    Error is always within +/1 of round(1/sqrt(t))*/
 static int32_t od_rsqrt_norm(int32_t t)
 {
-   return (int32_t)floor(.5 +
-    (1 << OD_RSQRT_OUTSHIFT)*(1.0/sqrt(t/(double)(1 << OD_RSQRT_INSHIFT))));
+  int16_t n;
+  int32_t r;
+  int32_t r2;
+  int32_t ry;
+  int32_t y;
+  /* Range of n is [-16384,32767] ([-0.5,1) in Q15).*/
+  n = t - 32768;
+  /*Get a rough initial guess for the root.
+    The optimal minimax quadratic approximation (using relative error) is
+     r = 1.437799046117536+n*(-0.823394375837328+n*0.4096419668459485).
+    Coefficients here, and the final result r, are Q14.*/
+  r = (23565 + OD_MULT16_16_Q15(n, (-13481 + OD_MULT16_16_Q15(n, 6711))));
+  /*We want y = t*r*r-1 in Q15, but t is 32-bit Q16 and r is Q14.
+    We can compute the result from n and r using Q15 multiplies with some
+     adjustment, carefully done to avoid overflow.*/
+  r2 = r*r;
+  y = (((r2 >> 15)*n + r2) >> 12) - 131077;
+  ry = r*y;
+  /*Apply a 2nd-order Householder iteration: r += r*y*(y*0.375-0.5).
+    This yields the Q14 reciprocal square root of the Q16 t, with a maximum
+     relative error of 1.04956E-4, a (relative) RMSE of 2.80979E-5, and a peak
+     absolute error of 2.26591/16384.*/
+  return r + ((((ry >> 16)*(3*y) >> 3) - ry) >> 18);
 }
 
 static int32_t od_rsqrt(int32_t x, int *rsqrt_shift)
