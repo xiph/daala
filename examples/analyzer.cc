@@ -452,6 +452,7 @@ public:
   void onQuit(wxCommandEvent &event);
   void onZoomIn(wxCommandEvent &event);
   void onZoomOut(wxCommandEvent &event);
+  void onActualSize(wxCommandEvent &event);
   void onFilter(wxCommandEvent &event);
   void onPaddingChange(wxCommandEvent &event);
   void onBitsChange(wxCommandEvent &event);
@@ -480,7 +481,8 @@ enum {
   wxID_SHOW_V,
   wxID_NEXT_FRAME,
   wxID_GOTO_FRAME,
-  wxID_RESTART
+  wxID_RESTART,
+  wxID_ACTUAL_SIZE
 };
 
 BEGIN_EVENT_TABLE(TestFrame, wxFrame)
@@ -489,6 +491,7 @@ BEGIN_EVENT_TABLE(TestFrame, wxFrame)
   EVT_MENU(wxID_EXIT, TestFrame::onQuit)
   EVT_MENU(wxID_ZOOM_IN, TestFrame::onZoomIn)
   EVT_MENU(wxID_ZOOM_OUT, TestFrame::onZoomOut)
+  EVT_MENU(wxID_ACTUAL_SIZE, TestFrame::onActualSize)
   EVT_MENU(wxID_SHOW_BLOCKS, TestFrame::onFilter)
   EVT_MENU(wxID_SHOW_SKIP, TestFrame::onFilter)
   EVT_MENU(wxID_SHOW_NOREF, TestFrame::onFilter)
@@ -1201,6 +1204,8 @@ TestFrame::TestFrame(const bool bit_accounting) : wxFrame(NULL, wxID_ANY,
    _("Double image size"));
   viewMenu->Append(wxID_ZOOM_OUT, _("Zoom-Out\tCtrl--"),
    _("Half image size"));
+  viewMenu->Append(wxID_ACTUAL_SIZE, _("Actual size\tCtrl-0"),
+   _("Actual size of the frame"));
   viewMenu->AppendCheckItem(wxID_SHOW_BLOCKS, _("&Blocks\tCtrl-B"),
    _("Show block sizes"));
   viewMenu->AppendCheckItem(wxID_SHOW_SKIP, _("&Skip\tCtrl-S"),
@@ -1245,6 +1250,7 @@ TestFrame::TestFrame(const bool bit_accounting) : wxFrame(NULL, wxID_ANY,
   int status_widths[4] = {-1, 80, 130, 110};
   SetStatusWidths(4, status_widths);
   SetStatusText(_("another day, another daala"));
+  GetMenuBar()->Enable(wxID_ACTUAL_SIZE, false);
   GetMenuBar()->Check(wxID_SHOW_Y, true);
   GetMenuBar()->Check(wxID_SHOW_U, true);
   GetMenuBar()->Check(wxID_SHOW_V, true);
@@ -1272,6 +1278,7 @@ void TestFrame::onQuit(wxCommandEvent &WXUNUSED(event)) {
 
 void TestFrame::onZoomIn(wxCommandEvent &WXUNUSED(event)) {
   if (panel->setZoom(panel->getZoom() + 1)) {
+    GetMenuBar()->Enable(wxID_ACTUAL_SIZE, true);
     Fit();
     panel->render();
     panel->Refresh();
@@ -1280,6 +1287,16 @@ void TestFrame::onZoomIn(wxCommandEvent &WXUNUSED(event)) {
 
 void TestFrame::onZoomOut(wxCommandEvent &WXUNUSED(event)) {
   if (panel->setZoom(panel->getZoom() - 1)) {
+    GetMenuBar()->Enable(wxID_ACTUAL_SIZE, panel->getZoom() != MIN_ZOOM);
+    Fit();
+    panel->render();
+    panel->Refresh();
+  }
+}
+
+void TestFrame::onActualSize(wxCommandEvent &WXUNUSED(event)) {
+  if (panel->setZoom(MIN_ZOOM)) {
+    GetMenuBar()->Enable(wxID_ACTUAL_SIZE, false);
     Fit();
     panel->render();
     panel->Refresh();
