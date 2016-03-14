@@ -501,7 +501,11 @@ static int32_t od_gain_compand(int32_t g, int q0, double beta) {
 int32_t od_gain_expand(int32_t cg0, int q0, double beta) {
   double cg;
   cg = cg0 * OD_CGAIN_SCALE_1;
-  if (beta == 1) return (int32_t)floor(.5 + cg*q0);
+  if (beta == 1) {
+    /*The multiply fits into 28 bits because the expanded gain has a range from
+       0 to 2^20.*/
+    return OD_SHR_ROUND(cg0*q0, OD_CGAIN_SHIFT);
+  }
   else if (beta == 1.5) {
     cg *= q0*OD_COMPAND_SCALE_1;
     return (int32_t)floor(.5 + OD_COMPAND_SCALE*cg*sqrt(cg));

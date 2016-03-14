@@ -152,6 +152,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 /*16x16 multiplication where the result fits in 16 bits, without rounding.*/
 # define OD_MULT16_16_Q16(a,b) \
   ((((int16_t)(a))*((int32_t)(int16_t)(b))) >> 16)
+/*Shift x right by shift (with rounding)*/
+# define OD_SHR_ROUND(x, shift) \
+  ((int32_t)(((x) + (1 << (shift) >> 1)) >> (shift)))
 /*Shift x right by shift (without rounding) or left by -shift if shift
   is negative.*/
 # define OD_VSHR(x, shift) \
