@@ -173,6 +173,8 @@ static double calc_ssim(const unsigned char *_src,int _systride,
   }
   free(line_buf);
   free(lines);
+  free(vkernel);
+  free(hkernel);
   return ssim/ssimw;
 }
 
