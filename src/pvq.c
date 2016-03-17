@@ -284,7 +284,8 @@ void od_adapt_pvq_ctx_reset(od_pvq_adapt_ctx *state, int is_keyframe) {
   OD_CDFS_INIT(state->pvq_gaintheta_cdf, state->pvq_gaintheta_increment >> 2);
   state->pvq_skip_dir_increment = 128;
   OD_CDFS_INIT(state->pvq_skip_dir_cdf, state->pvq_skip_dir_increment >> 2);
-
+  ctx->pvq_split_increment = 128;
+  OD_CDFS_INIT(ctx->pvq_split_cdf, ctx->pvq_split_increment >> 1);
 }
 
 /* QMs are arranged from smallest to largest blocksizes, first for
@@ -340,6 +341,30 @@ void od_init_qm(int16_t *x, int16_t *x_inv, const int *qm) {
       od_raster_to_coding_order_16(x1_inv, 4 << bs, y_inv, 4 << bs);
     }
   }
+}
+
+/* Maps each possible size (n) in the split k-tokenizer to a different value.
+   Possible values of n are:
+   2, 3, 4, 7, 8, 14, 15, 16, 31, 32, 63, 64, 127, 128
+   Since we don't care about the order (even in the bit-stream) the simplest
+   ordering (implemented here) is:
+   14, 2, 3, 4, 7, 8, 15, 16, 31, 32, 63, 64, 127, 128 */
+int od_pvq_size_ctx(int n) {
+  int logn;
+  int odd;
+  logn = OD_ILOG(n - 1);
+  odd = n & 1;
+  return 2*logn - 1 - odd - 7*(n == 14);
+}
+
+/* Maps a length n to a context for the (k=1, n<=16) coder, with a special
+   case when n is the original length (orig_length=1) of the vector (i.e. we
+   haven't split it yet). For orig_length=0, we use the same mapping as
+   od_pvq_size_ctx() up to n=16. When orig_length=1, we map lengths
+   7, 8, 14, 15 to contexts 8 to 11. */
+int od_pvq_k1_ctx(int n, int orig_length) {
+  if (orig_length) return 8 + 2*(n > 8) + (n & 1);
+  else return od_pvq_size_ctx(n);
 }
 
 /* Indexing for the packed quantization matrices. */

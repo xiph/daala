@@ -36,36 +36,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "partition.h"
 
 static void od_decode_pvq_codeword(od_ec_dec *ec, od_pvq_codeword_ctx *ctx,
- od_coeff *y, int n, int k, int noref, int bs) {
-  if (k == 1 && n < 16) {
-    int cdf_id;
-    int pos;
-    cdf_id = 2*(n == 15) + !noref;
-    OD_CLEAR(y, n);
-    pos = od_decode_cdf_adapt(ec, ctx->pvq_k1_cdf[cdf_id], n - !noref,
-     ctx->pvq_k1_increment, "pvq:k1");
-    y[pos] = 1;
-    if (od_ec_dec_bits(ec, 1, "pvq:k1")) y[pos] = -y[pos];
-  }
-  else {
-    int speed = 5;
-    int *pvq_adapt;
-    int adapt_curr[OD_NSB_ADAPT_CTXS] = { 0 };
-    pvq_adapt = ctx->pvq_adapt + 4*(2*bs + noref);
-    laplace_decode_vector(ec, y, n - !noref, k, adapt_curr,
-     pvq_adapt, "pvq:ktok");
-    if (adapt_curr[OD_ADAPT_K_Q8] > 0) {
-      pvq_adapt[OD_ADAPT_K_Q8] += (256*adapt_curr[OD_ADAPT_K_Q8]
-       - pvq_adapt[OD_ADAPT_K_Q8]) >> speed;
-      pvq_adapt[OD_ADAPT_SUM_EX_Q8] += (adapt_curr[OD_ADAPT_SUM_EX_Q8]
-       - pvq_adapt[OD_ADAPT_SUM_EX_Q8]) >> speed;
-    }
-    if (adapt_curr[OD_ADAPT_COUNT_Q8] > 0) {
-      pvq_adapt[OD_ADAPT_COUNT_Q8] += (adapt_curr[OD_ADAPT_COUNT_Q8]
-       - pvq_adapt[OD_ADAPT_COUNT_Q8]) >> speed;
-      pvq_adapt[OD_ADAPT_COUNT_EX_Q8] += (adapt_curr[OD_ADAPT_COUNT_EX_Q8]
-       - pvq_adapt[OD_ADAPT_COUNT_EX_Q8]) >> speed;
-    }
+ od_coeff *y, int n, int k) {
+  int i;
+  od_decode_band_pvq_splits(ec, ctx, y, n, k, 0);
+  for (i = 0; i < n; i++) {
+    if (y[i] && od_ec_dec_bits(ec, 1, "pvq:sign")) y[i] = -y[i];
   }
 }
 
@@ -139,7 +114,6 @@ typedef struct {
  * @param [in]     cdf_ctx selects which cdf context to use
  * @param [in,out] skip_rest whether to skip further bands in each direction
  * @param [in]     band    index of the band being decoded
- * @param [in]     bs      log of the block size minus 2
  * @param [in]     band    index of the band being decoded
  * @param [out]    skip    skip flag with range [0,1]
  * @param [in]     qm      QM with magnitude compensation
@@ -164,7 +138,6 @@ static void pvq_decode_partition(od_ec_dec *ec,
                                  int has_skip,
                                  int *skip_rest,
                                  int band,
-                                 int bs,
                                  int *skip,
                                  const int16_t *qm,
                                  const int16_t *qm_inv) {
@@ -291,7 +264,8 @@ static void pvq_decode_partition(od_ec_dec *ec,
   k = od_pvq_compute_k(qcg, itheta, theta, *noref, n, beta, nodesync);
   if (k != 0) {
     /* when noref==0, y is actually size n-1 */
-    od_decode_pvq_codeword(ec, &adapt->pvq.pvq_codeword_ctx, y, n, k, *noref, bs);
+    od_decode_pvq_codeword(ec, &adapt->pvq.pvq_codeword_ctx, y, n - !*noref,
+     k);
   }
   else {
     OD_CLEAR(y, n);
@@ -379,7 +353,7 @@ void od_pvq_decode(daala_dec_ctx *dec,
        model, &dec->state.adapt, exg + i, ext + i, ref + off[i], out + off[i],
        &noref[i], beta[i], robust, is_keyframe, pli,
        (pli != 0)*OD_NBSIZES*PVQ_MAX_PARTITIONS + bs*PVQ_MAX_PARTITIONS + i,
-       &cfl, i == 0 && (i < nb_bands - 1), skip_rest, i, bs, &skip[i],
+       &cfl, i == 0 && (i < nb_bands - 1), skip_rest, i, &skip[i],
        qm + off[i], qm_inv + off[i]);
       if (i == 0 && !skip_rest[0] && bs > 0) {
         int skip_dir;

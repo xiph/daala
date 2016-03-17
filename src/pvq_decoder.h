@@ -30,6 +30,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # include "entdec.h"
 # include "decint.h"
 
+void od_decode_band_pvq_splits(od_ec_dec *ec, od_pvq_codeword_ctx *adapt,
+ od_coeff *y, int n, int k, int level);
+
 #if OD_ACCOUNTING
 # define laplace_decode_special(dec, decay, max, str) laplace_decode_special_(dec, decay, max, str)
 # define laplace_decode(dec, ex_q8, k, str) laplace_decode_(dec, ex_q8, k, str)

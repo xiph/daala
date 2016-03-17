@@ -30,6 +30,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # include "entenc.h"
 # include "encint.h"
 
+void od_encode_band_pvq_splits(od_ec_enc *ec, od_pvq_codeword_ctx *adapt,
+ const int *y, int n, int k, int level);
+
 void laplace_encode_special(od_ec_enc *enc, int x, unsigned decay, int max);
 void laplace_encode(od_ec_enc *enc, int x, int ex_q8, int k);
 void laplace_encode_vector(od_ec_enc *enc, const od_coeff *y, int n, int k,

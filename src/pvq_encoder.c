@@ -42,44 +42,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #define OD_CFL_FLIP_SHIFT (OD_LIMIT_BSIZE_MAX + 0)
 
 static void od_encode_pvq_codeword(od_ec_enc *ec, od_pvq_codeword_ctx *adapt,
- const od_coeff *in, int n, int k, int noref, int bs) {
-  if (k == 1 && n < 16) {
-    int cdf_id;
-    int i;
-    int pos;
-    cdf_id = 2*(n == 15) + !noref;
-    pos = 32;
-    for (i = 0; i < n - !noref; i++) {
-      if (in[i]) {
-        pos = i;
-        break;
-      }
-    }
-    OD_ASSERT(pos < n - !noref);
-    od_encode_cdf_adapt(ec, pos, adapt->pvq_k1_cdf[cdf_id], n - !noref,
-     adapt->pvq_k1_increment);
-    od_ec_enc_bits(ec, in[pos] < 0, 1);
-  }
-  else {
-    int speed = 5;
-    int *pvq_adapt;
-    int adapt_curr[OD_NSB_ADAPT_CTXS] = { 0 };
-    pvq_adapt = adapt->pvq_adapt + 4*(2*bs + noref);
-    laplace_encode_vector(ec, in, n - !noref, k, adapt_curr,
-     pvq_adapt);
-    if (adapt_curr[OD_ADAPT_K_Q8] > 0) {
-      pvq_adapt[OD_ADAPT_K_Q8] += (256*adapt_curr[OD_ADAPT_K_Q8]
-       - pvq_adapt[OD_ADAPT_K_Q8]) >> speed;
-      pvq_adapt[OD_ADAPT_SUM_EX_Q8] += (adapt_curr[OD_ADAPT_SUM_EX_Q8]
-       - pvq_adapt[OD_ADAPT_SUM_EX_Q8]) >> speed;
-    }
-    if (adapt_curr[OD_ADAPT_COUNT_Q8] > 0) {
-      pvq_adapt[OD_ADAPT_COUNT_Q8] += (adapt_curr[OD_ADAPT_COUNT_Q8]
-       - pvq_adapt[OD_ADAPT_COUNT_Q8]) >> speed;
-      pvq_adapt[OD_ADAPT_COUNT_EX_Q8] += (adapt_curr[OD_ADAPT_COUNT_EX_Q8]
-       - pvq_adapt[OD_ADAPT_COUNT_EX_Q8]) >> speed;
-    }
-  }
+ const od_coeff *in, int n, int k) {
+  int i;
+  od_encode_band_pvq_splits(ec, adapt, in, n, k, 0);
+  for (i = 0; i < n; i++) if (in[i]) od_ec_enc_bits(ec, in[i] < 0, 1);
 }
 
 /* Computes 1/sqrt(i) using a table for small values. */
@@ -250,7 +216,7 @@ int od_vector_is_null(const od_coeff *x, int len) {
 
 static double od_pvq_rate(int qg, int icgr, int theta, int ts,
  const od_adapt_ctx *adapt, const od_coeff *y0, int k, int n,
- int is_keyframe, int pli, int bs) {
+ int is_keyframe, int pli) {
   double rate;
 #if OD_PVQ_RATE_APPROX
   /* Estimates the number of bits it will cost to encode K pulses in
@@ -267,7 +233,7 @@ static double od_pvq_rate(int qg, int icgr, int theta, int ts,
     od_ec_enc_init(&ec, 1000);
     OD_COPY(&cd, &adapt->pvq.pvq_codeword_ctx, 1);
     tell = od_ec_enc_tell_frac(&ec);
-    od_encode_pvq_codeword(&ec, &cd, y0, n, k, theta == -1, bs);
+    od_encode_pvq_codeword(&ec, &cd, y0, n - (theta != -1), k);
     rate = (od_ec_enc_tell_frac(&ec)-tell)/8.;
     od_ec_enc_clear(&ec);
   }
@@ -306,7 +272,6 @@ static double od_pvq_rate(int qg, int icgr, int theta, int ts,
  * @param [in]     is_keyframe whether we're encoding a keyframe
  * @param [in]     pli       plane index
  * @param [in]     adapt     probability adaptation context
- * @param [in]     bs        log of the block size minus two
  * @param [in]     qm        QM with magnitude compensation
  * @param [in]     qm_inv    Inverse of QM with magnitude compensation
  * @return         gain      index of the quatized gain
@@ -314,7 +279,7 @@ static double od_pvq_rate(int qg, int icgr, int theta, int ts,
 static int pvq_theta(od_coeff *out, const od_coeff *x0, const od_coeff *r0,
  int n, int q0, od_coeff *y, int *itheta, int *max_theta, int *vk,
  double beta, double *skip_diff, int robust, int is_keyframe, int pli,
- const od_adapt_ctx *adapt, int bs, const int16_t *qm,
+ const od_adapt_ctx *adapt, const int16_t *qm,
  const int16_t *qm_inv) {
   od_val32 g;
   od_val32 gr;
@@ -399,7 +364,7 @@ static int pvq_theta(od_coeff *out, const od_coeff *x0, const od_coeff *r0,
   dist = gain_weight*cg*cg*OD_CGAIN_SCALE_2;
   best_dist = dist;
   best_cost = dist + lambda*od_pvq_rate(0, 0, -1, 0, adapt, NULL, 0, n,
-   is_keyframe, pli, bs);
+   is_keyframe, pli);
   noref = 1;
   best_k = 0;
   *itheta = -1;
@@ -426,7 +391,7 @@ static int pvq_theta(od_coeff *out, const od_coeff *x0, const od_coeff *r0,
       best_dist *= OD_CGAIN_SCALE_2;
     }
     best_cost = best_dist + lambda*od_pvq_rate(0, icgr, 0, 0, adapt, NULL,
-     0, n, is_keyframe, pli, bs);
+     0, n, is_keyframe, pli);
     best_qtheta = 0;
     *itheta = 0;
     *max_theta = 0;
@@ -475,7 +440,7 @@ static int pvq_theta(od_coeff *out, const od_coeff *x0, const od_coeff *r0,
         dist *= OD_CGAIN_SCALE_2;
         /* Do approximate RDO. */
         cost = dist + lambda*od_pvq_rate(i, icgr, j, ts, adapt, y_tmp, k, n,
-         is_keyframe, pli, bs);
+         is_keyframe, pli);
         if (cost < best_cost) {
           best_cost = cost;
           best_dist = dist;
@@ -513,7 +478,7 @@ static int pvq_theta(od_coeff *out, const od_coeff *x0, const od_coeff *r0,
       dist *= OD_CGAIN_SCALE_2;
       /* Do approximate RDO. */
       cost = dist + lambda*od_pvq_rate(i, 0, -1, 0, adapt, y_tmp, k, n,
-       is_keyframe, pli, bs);
+       is_keyframe, pli);
       if (cost <= best_cost) {
         best_cost = cost;
         best_dist = dist;
@@ -577,7 +542,6 @@ static int pvq_theta(od_coeff *out, const od_coeff *x0, const od_coeff *r0,
  * @param [in]     is_keyframe whether we're encoding a keyframe
  * @param [in]     code_skip  whether the "skip rest" flag is allowed
  * @param [in]     skip_rest  when set, we skip all higher bands
- * @param [in]     bs         log of the block size minus two
  * @param [in]     encode_flip whether we need to encode the CfL flip flag now
  * @param [in]     flip       value of the CfL flip flag
  */
@@ -597,7 +561,6 @@ static void pvq_encode_partition(od_ec_enc *ec,
                                  int is_keyframe,
                                  int code_skip,
                                  int skip_rest,
-                                 int bs,
                                  int encode_flip,
                                  int flip) {
   int noref;
@@ -636,7 +599,8 @@ static void pvq_encode_partition(od_ec_enc *ec,
      &tmp, 2);
     OD_IIR_DIADIC(*ext, theta << 16, 2);
   }
-  od_encode_pvq_codeword(ec, &adapt->pvq.pvq_codeword_ctx, in, n, k, theta == -1, bs);
+  od_encode_pvq_codeword(ec, &adapt->pvq.pvq_codeword_ctx, in,
+   n - (theta != -1), k);
 }
 
 /** Quantizes a scalar with rate-distortion optimization (RDO)
@@ -783,7 +747,7 @@ int od_pvq_encode(daala_enc_ctx *enc,
     qg[i] = pvq_theta(out + off[i], in + off[i], ref + off[i], size[i],
      q, y + off[i], &theta[i], &max_theta[i],
      &k[i], beta[i], &skip_diff, robust, is_keyframe, pli, &enc->state.adapt,
-     bs, qm + off[i], qm_inv + off[i]);
+     qm + off[i], qm_inv + off[i]);
   }
   od_encode_checkpoint(enc, &buf);
   if (is_keyframe) out[0] = 0;
@@ -830,7 +794,7 @@ int od_pvq_encode(daala_enc_ctx *enc,
        size[i], k[i], model, &enc->state.adapt, exg + i, ext + i,
        robust || is_keyframe, (pli != 0)*OD_NBSIZES*PVQ_MAX_PARTITIONS
        + bs*PVQ_MAX_PARTITIONS + i, is_keyframe, i == 0 && (i < nb_bands - 1),
-       skip_rest, bs, encode_flip, flip);
+       skip_rest, encode_flip, flip);
     }
     if (i == 0 && !skip_rest && bs > 0) {
       od_encode_cdf_adapt(&enc->ec, skip_dir,
