@@ -54,23 +54,37 @@ extern const uint16_t LAPLACE_OFFSET[];
 /* Maximum size for coding a PVQ band. */
 #define OD_MAX_PVQ_SIZE (128)
 
+#if defined(OD_FLOAT_PVQ)
+#define OD_QM_SHIFT (15)
+#else
 #define OD_QM_SHIFT (11)
+#endif
 #define OD_QM_SCALE (1 << OD_QM_SHIFT)
-#define OD_QM_RND (1 << OD_QM_SHIFT >> 1)
+#if defined(OD_FLOAT_PVQ)
+#define OD_QM_SCALE_1 (1./OD_QM_SCALE)
+#endif
 #define OD_QM_SCALE_MAX 32767
 #define OD_QM_INV_SHIFT (12)
 #define OD_QM_INV_SCALE (1 << OD_QM_INV_SHIFT)
+#if defined(OD_FLOAT_PVQ)
+#define OD_QM_INV_SCALE_1 (1./OD_QM_INV_SCALE)
+#endif
 #define OD_QM_OFFSET(bs) ((((1 << 2*bs) - 1) << 2*OD_LOG_BSIZE0)/3)
 #define OD_QM_STRIDE (OD_QM_OFFSET(OD_NBSIZES))
 #define OD_QM_BUFFER_SIZE (2*OD_QM_STRIDE)
 
+#if !defined(OD_FLOAT_PVQ)
 #define OD_THETA_SCALE (32768*2./M_PI)
-#define OD_THETA_SCALE_1 (1./OD_THETA_SCALE)
 #define OD_TRIG_SCALE (32768)
-#define OD_TRIG_SCALE_1 (1./OD_TRIG_SCALE)
 #define OD_CGAIN_SHIFT (8)
 #define OD_CGAIN_SCALE (1 << OD_CGAIN_SHIFT)
-#define OD_CGAIN_RND (1 << OD_CGAIN_SHIFT >> 1)
+#else
+#define OD_THETA_SCALE (1)
+#define OD_TRIG_SCALE (1)
+#define OD_CGAIN_SCALE (1)
+#endif
+#define OD_THETA_SCALE_1 (1./OD_THETA_SCALE)
+#define OD_TRIG_SCALE_1 (1./OD_TRIG_SCALE)
 #define OD_CGAIN_SCALE_1 (1./OD_CGAIN_SCALE)
 #define OD_CGAIN_SCALE_2 (OD_CGAIN_SCALE_1*OD_CGAIN_SCALE_1)
 
@@ -117,32 +131,33 @@ struct od_pvq_adapt_ctx {
 
 void od_adapt_pvq_ctx_reset(od_pvq_adapt_ctx *state, int is_keyframe);
 
-int16_t od_pvq_sin(int32_t x);
-int16_t od_pvq_cos(int32_t x);
+od_val16 od_pvq_sin(od_val32 x);
+od_val16 od_pvq_cos(od_val32 x);
+#if !defined(OD_FLOAT_PVQ)
 int od_vector_log_mag(const od_coeff *x, int n);
+#endif
 
 int od_qm_get_index(int bs, int band);
 
 extern const double *const OD_PVQ_BETA[2][OD_NPLANES_MAX][OD_NBSIZES + 1];
 
 void od_init_qm(int16_t *x, int16_t *x_inv, const int *qm);
-int od_compute_householder(int16_t *r, int n, int32_t gr, int *sign, int shift);
-void od_apply_householder(int16_t *out, const int16_t *x, const int16_t *r,
+int od_compute_householder(od_val16 *r, int n, od_val32 gr, int *sign,
+ int shift);
+void od_apply_householder(od_val16 *out, const od_val16 *x, const od_val16 *r,
  int n);
 void od_pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,
-                                  const int16_t *r, int n,
-                                  int noref, int32_t g,
-                                  int32_t theta, int m, int s,
+                                  const od_val16 *r, int n,
+                                  int noref, od_val32 g,
+                                  od_val32 theta, int m, int s,
                                   const int16_t *qm_inv);
-
-int32_t od_gain_expand(int32_t cg, int q0, double beta);
-
-int32_t od_pvq_compute_gain(const int16_t *x, int n, int q0, int32_t *g,
+od_val32 od_gain_expand(od_val32 cg, int q0, double beta);
+od_val32 od_pvq_compute_gain(const od_val16 *x, int n, int q0, od_val32 *g,
  double beta, int bshift);
-int od_pvq_compute_max_theta(int32_t qcg, double beta);
-int32_t od_pvq_compute_theta(int t, int max_theta);
-int od_pvq_compute_k(int32_t qcg, int itheta, int32_t theta, int noref, int n,
- double beta, int nodesync);
+int od_pvq_compute_max_theta(od_val32 qcg, double beta);
+od_val32 od_pvq_compute_theta(int t, int max_theta);
+int od_pvq_compute_k(od_val32 qcg, int itheta, od_val32 theta, int noref,
+ int n, double beta, int nodesync);
 
 int od_vector_is_null(const od_coeff *x, int len);
 int od_qm_offset(int bs, int xydec);

@@ -100,8 +100,8 @@ static int neg_deinterleave(int x, int ref) {
  * @param [in]      qm      QM with magnitude compensation
  * @param [in]      qm_inv  Inverse of QM with magnitude compensation
  */
-static void pvq_synthesis(od_coeff *xcoeff, od_coeff *ypulse, int16_t *r16,
- int n, int32_t gr, int noref, int32_t g, int32_t theta, const int16_t *qm_inv,
+static void pvq_synthesis(od_coeff *xcoeff, od_coeff *ypulse, od_val16 *r16,
+ int n, od_val32 gr, int noref, od_val32 g, od_val32 theta, const int16_t *qm_inv,
  int shift) {
   int s;
   int m;
@@ -169,19 +169,18 @@ static void pvq_decode_partition(od_ec_dec *ec,
                                  const int16_t *qm,
                                  const int16_t *qm_inv) {
   int k;
-  int32_t qcg;
+  od_val32 qcg;
   int max_theta;
   int itheta;
-  int32_t theta;
-  int32_t gr;
-  int32_t gain_offset;
+  od_val32 theta;
+  od_val32 gr;
+  od_val32 gain_offset;
   od_coeff y[MAXN];
   int qg;
   int nodesync;
   int id;
   int i;
-  int16_t ref16[MAXN];
-  od_coeff rnd;
+  od_val16 ref16[MAXN];
   int rshift;
   theta = 0;
   gr = 0;
@@ -234,22 +233,33 @@ static void pvq_decode_partition(od_ec_dec *ec,
     OD_IIR_DIADIC(*exg, qg << 16, 2);
   }
   *skip = 0;
+#if defined(OD_FLOAT_PVQ)
+  rshift = 0;
+#else
   /* Shift needed to make the reference fit in 15 bits, so that the Householder
      vector can fit in 16 bits. */
   rshift = OD_MAXI(0, od_vector_log_mag(ref, n) - 14);
-  rnd = 1 << (OD_QM_SHIFT + rshift) >> 1;
+#endif
   for (i = 0; i < n; i++) {
-    ref16[i] = (ref[i]*qm[i] + rnd) >> (OD_QM_SHIFT + rshift);
+#if defined(OD_FLOAT_PVQ)
+    ref16[i] = ref[i]*qm[i]*OD_QM_SCALE_1;
+#else
+    ref16[i] = OD_SHR_ROUND(ref[i]*qm[i], OD_QM_SHIFT + rshift);
+#endif
   }
   if(!*noref){
     /* we have a reference; compute its gain */
-    int32_t cgr;
+    od_val32 cgr;
     int icgr;
     int cfl_enabled;
     cfl_enabled = pli != 0 && is_keyframe && !OD_DISABLE_CFL;
     cgr = od_pvq_compute_gain(ref16, n, q0, &gr, beta, rshift);
     if (cfl_enabled) cgr = OD_CGAIN_SCALE;
-    icgr = (cgr + OD_CGAIN_RND) >> OD_CGAIN_SHIFT;
+#if defined(OD_FLOAT_PVQ)
+    icgr = (int)floor(.5 + cgr);
+#else
+    icgr = OD_SHR_ROUND(cgr, OD_CGAIN_SHIFT);
+#endif
     /* quantized gain is interleave encoded when there's a reference;
        deinterleave it now */
     if (is_keyframe) qg = neg_deinterleave(qg, icgr);
@@ -258,8 +268,8 @@ static void pvq_decode_partition(od_ec_dec *ec,
       if (qg == 0) *skip = (icgr ? OD_PVQ_SKIP_ZERO : OD_PVQ_SKIP_COPY);
     }
     if (qg == icgr && itheta == 0 && !cfl_enabled) *skip = OD_PVQ_SKIP_COPY;
-    gain_offset = cgr - (icgr << OD_CGAIN_SHIFT);
-    qcg = (qg << OD_CGAIN_SHIFT) + gain_offset;
+    gain_offset = cgr - OD_SHL(icgr, OD_CGAIN_SHIFT);
+    qcg = OD_SHL(qg, OD_CGAIN_SHIFT) + gain_offset;
     /* read and decode first-stage PVQ error theta */
     max_theta = od_pvq_compute_max_theta(qcg, beta);
     if (itheta > 1 && (nodesync || max_theta > 3)) {
@@ -274,7 +284,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
   else{
     itheta = 0;
     if (!is_keyframe) qg++;
-    qcg = qg << OD_CGAIN_SHIFT;
+    qcg = OD_SHL(qg, OD_CGAIN_SHIFT);
     if (qg == 0) *skip = OD_PVQ_SKIP_ZERO;
   }
 
@@ -291,7 +301,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
     else OD_CLEAR(out, n);
   }
   else {
-    int32_t g;
+    od_val32 g;
     g = od_gain_expand(qcg, q0, beta);
     pvq_synthesis(out, y, ref16, n, gr, *noref, g, theta, qm_inv, rshift);
   }

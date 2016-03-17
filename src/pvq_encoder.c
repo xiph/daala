@@ -121,7 +121,7 @@ static void od_fill_dynamic_rqrt_table(double *table, const int table_size,
  *                          gain units)
  * @return                  cosine distance between x and y (between 0 and 1)
  */
-static double pvq_search_rdo_double(const int16_t *xcoeff, int n, int k,
+static double pvq_search_rdo_double(const od_val16 *xcoeff, int n, int k,
  od_coeff *ypulse, double g2) {
   int i, j;
   double xy;
@@ -316,15 +316,15 @@ static int pvq_theta(od_coeff *out, const od_coeff *x0, const od_coeff *r0,
  double beta, double *skip_diff, int robust, int is_keyframe, int pli,
  const od_adapt_ctx *adapt, int bs, const int16_t *qm,
  const int16_t *qm_inv) {
-  int32_t g;
-  int32_t gr;
+  od_val32 g;
+  od_val32 gr;
   od_coeff y_tmp[MAXN];
   int i;
   /* Number of pulses. */
   int k;
   /* Companded gain of x and reference, normalized to q. */
-  int32_t cg;
-  int32_t cgr;
+  od_val32 cg;
+  od_val32 cgr;
   int icgr;
   int qg;
   /* Best RDO cost (D + lamdba*R) so far. */
@@ -336,28 +336,27 @@ static int pvq_theta(od_coeff *out, const od_coeff *x0, const od_coeff *r0,
   int s;
   /* Dimension on which Householder reflects. */
   int m;
-  int32_t theta;
+  od_val32 theta;
   double corr;
   int best_k;
-  int32_t best_qtheta;
-  int32_t gain_offset;
+  od_val32 best_qtheta;
+  od_val32 gain_offset;
   int noref;
   double lambda;
   double skip_dist;
   int cfl_enabled;
   int skip;
   double gain_weight;
-  int16_t x16[MAXN];
-  int16_t r16[MAXN];
+  od_val16 x16[MAXN];
+  od_val16 r16[MAXN];
   int xshift;
   int rshift;
-  int xrnd;
-  int rrnd;
   lambda = OD_PVQ_LAMBDA;
   /* Give more weight to gain error when calculating the total distortion. */
   gain_weight = 1.4;
   OD_ASSERT(n > 1);
   corr = 0;
+#if !defined(OD_FLOAT_PVQ)
   /* Shift needed to make x fit in 16 bits even after rotation.
      This shift value is not normative (it can be changed without breaking
      the bitstream) */
@@ -366,12 +365,22 @@ static int pvq_theta(od_coeff *out, const od_coeff *x0, const od_coeff *r0,
      vector can fit in 16 bits.
      This shift value *is* normative, and has to match the decoder. */
   rshift = OD_MAXI(0, od_vector_log_mag(r0, n) - 14);
-  xrnd = 1 << (OD_QM_SHIFT + xshift) >> 1;
-  rrnd = 1 << (OD_QM_SHIFT + rshift) >> 1;
+#else
+  xshift = 0;
+  rshift = 0;
+#endif
   for (i = 0; i < n; i++) {
-    x16[i] = (x0[i]*qm[i] + xrnd) >> (OD_QM_SHIFT + xshift);
-    r16[i] = (r0[i]*qm[i] + rrnd) >> (OD_QM_SHIFT + rshift);
-    corr += x16[i]*(int32_t)r16[i];
+#if defined(OD_FLOAT_PVQ)
+    /*This causes a slight metrics change from the original float PVQ code,
+       where the qm was applied in the accumulation in od_pvq_compute_gain and
+       the vectors were od_coeffs, not od_val16 (i.e. double).*/
+    x16[i] = x0[i]*qm[i]*OD_QM_SCALE_1;
+    r16[i] = r0[i]*qm[i]*OD_QM_SCALE_1;
+#else
+    x16[i] = OD_SHR_ROUND(x0[i]*qm[i], OD_QM_SHIFT + xshift);
+    r16[i] = OD_SHR_ROUND(r0[i]*qm[i], OD_QM_SHIFT + rshift);
+#endif
+    corr += OD_MULT16_16(x16[i], r16[i]);
   }
   cfl_enabled = is_keyframe && pli != 0 && !OD_DISABLE_CFL;
   cg  = od_pvq_compute_gain(x16, n, q0, &g, beta, xshift);
@@ -379,8 +388,12 @@ static int pvq_theta(od_coeff *out, const od_coeff *x0, const od_coeff *r0,
   if (cfl_enabled) cgr = OD_CGAIN_SCALE;
   /* gain_offset is meant to make sure one of the quantized gains has
      exactly the same gain as the reference. */
-  icgr = (cgr + OD_CGAIN_RND) >> OD_CGAIN_SHIFT;
-  gain_offset = cgr - (icgr << OD_CGAIN_SHIFT);
+#if defined(OD_FLOAT_PVQ)
+  icgr = (int)floor(.5 + cgr);
+#else
+  icgr = OD_SHR_ROUND(cgr, OD_CGAIN_SHIFT);
+#endif
+  gain_offset = cgr - OD_SHL(icgr, OD_CGAIN_SHIFT);
   /* Start search with null case: gain=0, no pulse. */
   qg = 0;
   dist = gain_weight*cg*cg*OD_CGAIN_SCALE_2;
@@ -395,7 +408,7 @@ static int pvq_theta(od_coeff *out, const od_coeff *x0, const od_coeff *r0,
   best_qtheta = 0;
   m = 0;
   s = 1;
-  corr = corr/(1e-100 + g*(double)gr / (1 << xshift << rshift));
+  corr = corr/(1e-100 + g*(double)gr/OD_SHL(1, xshift + rshift));
   corr = OD_MAXF(OD_MINF(corr, 1.), -1.);
   if (is_keyframe) skip_dist = gain_weight*cg*cg*OD_CGAIN_SCALE_2;
   else {
@@ -405,7 +418,7 @@ static int pvq_theta(od_coeff *out, const od_coeff *x0, const od_coeff *r0,
   }
   if (!is_keyframe) {
     /* noref, gain=0 isn't allowed, but skip is allowed. */
-    int32_t scgr;
+    od_val32 scgr;
     scgr = OD_MAXF(0,gain_offset);
     if (icgr == 0) {
       best_dist = gain_weight*(cg - scgr)*(cg - scgr)
@@ -420,21 +433,21 @@ static int pvq_theta(od_coeff *out, const od_coeff *x0, const od_coeff *r0,
     noref = 0;
   }
   if (n <= OD_MAX_PVQ_SIZE && !od_vector_is_null(r0, n) && corr > 0) {
-    int16_t xr[MAXN];
+    od_val16 xr[MAXN];
     int gain_bound;
-    gain_bound = (cg - gain_offset) >> OD_CGAIN_SHIFT;
+    gain_bound = OD_SHR(cg - gain_offset, OD_CGAIN_SHIFT);
     /* Perform theta search only if prediction is useful. */
-    theta = (int32_t)floor(.5 + OD_THETA_SCALE*acos(corr));
+    theta = OD_ROUND32(OD_THETA_SCALE*acos(corr));
     m = od_compute_householder(r16, n, gr, &s, rshift);
     od_apply_householder(xr, x16, r16, n);
     for (i = m; i < n - 1; i++) xr[i] = xr[i + 1];
     /* Search for the best gain within a reasonable range. */
     for (i = OD_MAXI(1, gain_bound - 1); i <= gain_bound + 1; i++) {
       int j;
-      int32_t qcg;
+      od_val32 qcg;
       int ts;
       /* Quantized companded gain */
-      qcg = (i << OD_CGAIN_SHIFT) + gain_offset;
+      qcg = OD_SHL(i, OD_CGAIN_SHIFT) + gain_offset;
       /* Set angular resolution (in ra) to match the encoded gain */
       ts = od_pvq_compute_max_theta(qcg, beta);
       /* Search for the best angle within a reasonable range. */
@@ -445,7 +458,8 @@ static int pvq_theta(od_coeff *out, const od_coeff *x0, const od_coeff *r0,
         double cost;
         double dist_theta;
         double sin_prod;
-        int32_t qtheta = od_pvq_compute_theta(j, ts);
+        od_val32 qtheta;
+        qtheta = od_pvq_compute_theta(j, ts);
         k = od_pvq_compute_k(qcg, j, qtheta, 0, n, beta, robust || is_keyframe);
         sin_prod = od_pvq_sin(theta)*OD_TRIG_SCALE_1*od_pvq_sin(qtheta)*
          OD_TRIG_SCALE_1;
@@ -480,15 +494,16 @@ static int pvq_theta(od_coeff *out, const od_coeff *x0, const od_coeff *r0,
      correlation. The only exception is luma on a keyframe because
      H/V prediction is unreliable. */
   if (n <= OD_MAX_PVQ_SIZE &&
-   ((is_keyframe && pli == 0) || corr < .5 || cg < 2 << OD_CGAIN_SHIFT)) {
+   ((is_keyframe && pli == 0) || corr < .5
+   || cg < (od_val32)(OD_SHL(2, OD_CGAIN_SHIFT)))) {
     int gain_bound;
-    gain_bound = cg >> OD_CGAIN_SHIFT;
+    gain_bound = OD_SHR(cg, OD_CGAIN_SHIFT);
     /* Search for the best gain (haven't determined reasonable range yet). */
     for (i = OD_MAXI(1, gain_bound); i <= gain_bound + 1; i++) {
       double cos_dist;
       double cost;
-      int32_t qcg;
-      qcg = i << OD_CGAIN_SHIFT;
+      od_val32 qcg;
+      qcg = OD_SHL(i, OD_CGAIN_SHIFT);
       k = od_pvq_compute_k(qcg, -1, -1, 1, n, beta, robust || is_keyframe);
       cos_dist = pvq_search_rdo_double(x16, n, k, y_tmp,
        qcg*(double)cg*OD_CGAIN_SCALE_2);
@@ -530,7 +545,7 @@ static int pvq_theta(od_coeff *out, const od_coeff *x0, const od_coeff *r0,
   }
   else {
     if (noref) gain_offset = 0;
-    g = od_gain_expand((qg << OD_CGAIN_SHIFT) + gain_offset, q0, beta);
+    g = od_gain_expand(OD_SHL(qg, OD_CGAIN_SHIFT) + gain_offset, q0, beta);
     od_pvq_synthesis_partial(out, y, r16, n, noref, g, theta, m, s,
      qm_inv);
   }
@@ -745,11 +760,15 @@ int od_pvq_encode(daala_enc_ctx *enc,
   flip = 0;
   /*If we are coding a chroma block of a keyframe, we are doing CfL.*/
   if (pli != 0 && is_keyframe) {
-    int32_t xy;
+    od_val32 xy;
     xy = 0;
     /*Compute the dot-product of the first band of chroma with the luma ref.*/
     for (i = off[0]; i < off[1]; i++) {
+#if defined(OD_FLOAT_PVQ)
+      xy += ref[i]*qm[i]*OD_QM_SCALE_1*(double)in[i]*qm[i]*OD_QM_SCALE_1;
+#else
       xy += (ref[i] >> OD_CFL_FLIP_SHIFT)*(in[i] >> OD_CFL_FLIP_SHIFT);
+#endif
     }
     /*If cos(theta) < 0, then |theta| > pi/2 and we should negate the ref.*/
     if (xy < 0) {

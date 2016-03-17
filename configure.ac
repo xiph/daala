@@ -258,6 +258,14 @@ AS_IF([test "$enable_encoder_check" = "yes"], [
 ])
 AM_CONDITIONAL([ENCODER_CHECK], [test "$enable_encoder_check" = "yes"])
 
+AC_ARG_ENABLE([float-pvq],
+  AS_HELP_STRING([--enable-float-pvq], [Enable double precision PVQ]),,
+  [enable_float_pvq=no])
+
+AS_IF([test "$enable_float_pvq" = "yes"], [
+  AC_DEFINE([OD_FLOAT_PVQ], [1], [Enable double precision PVQ])
+])
+
 AC_ARG_ENABLE([dct-check-overflow],
   AS_HELP_STRING([--enable-dct-check-overflow], [Check for DCT overflow]),,
   [enable_dct_check_overflow=no])
@@ -380,6 +388,7 @@ AC_MSG_NOTICE([
     MC Animation  ................ ${enable_mc_animate}
     Reconstructed video dumping .. ${enable_dump_recons}
     Check encoder ................ ${enable_encoder_check}
+    Float PVQ .................... ${enable_float_pvq}
     Check DCT overflow............ ${enable_dct_check_overflow}
     Check assembly................ ${enable_check_asm}
     Bit accounting ............... ${enable_accounting}

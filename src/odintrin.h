@@ -144,14 +144,27 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 /*Divides a x by (1 << (shift)), rounding towards even numbers.*/
 # define OD_DIV_POW2_RE(x, shift) \
   (((x) + (((1 << (shift)) + ((x) >> (shift) & 1) - 1) >> 1)) >> (shift))
-/* Multiplies 16-bit a by 32-bit b and keeps bits [16:47]. */
-# define OD_MULT16_32_Q16(a, b) ((int16_t)(a)*(int64_t)(int32_t)(b) >> 16)
-/*16x16 multiplication where the result fits in 16 bits, without rounding.*/
-# define OD_MULT16_16_Q15(a,b) \
-  (((int16_t)(a)*((int32_t)(int16_t)(b))) >> 15)
-/*16x16 multiplication where the result fits in 16 bits, without rounding.*/
-# define OD_MULT16_16_Q16(a,b) \
-  ((((int16_t)(a))*((int32_t)(int16_t)(b))) >> 16)
+#if defined(OD_FLOAT_PVQ)
+typedef double od_val16;
+typedef double od_val32;
+# define OD_ROUND16(x) (x)
+# define OD_ROUND32(x) (x)
+# define OD_SHL(x, shift) (x)
+# define OD_SHR(x, shift) (x)
+# define OD_SHR_ROUND(x, shift) (x)
+# define OD_ABS(x) (fabs(x))
+# define OD_MULT16_16(a, b) ((a)*(b))
+# define OD_MULT16_32_Q16(a, b) ((a)*(b))
+#else
+typedef int16_t od_val16;
+typedef int32_t od_val32;
+# define OD_ROUND16(x) (int16_t)(floor(.5 + (x)))
+# define OD_ROUND32(x) (int32_t)(floor(.5 + (x)))
+/*Shift x left by shift*/
+# define OD_SHL(a, shift) ((int32_t)((uint32_t)(a) << (shift)))
+/*Shift x right by shift (without rounding)*/
+# define OD_SHR(x, shift) \
+  ((int32_t)((x) >> (shift)))
 /*Shift x right by shift (with rounding)*/
 # define OD_SHR_ROUND(x, shift) \
   ((int32_t)(((x) + (1 << (shift) >> 1)) >> (shift)))
@@ -165,6 +178,20 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # define OD_VSHR_ROUND(x, shift) \
   ((shift) > 0 ? (int32_t)(((x) + (1 << (shift) >> 1)) >> (shift)) \
   : (int32_t)((x) << -(shift)))
+# define OD_ABS(x) (abs(x))
+/* (od_val32)(od_val16) gives TI compiler a hint that it's 16x16->32 multiply */
+/** 16x16 multiplication where the result fits in 32 bits */
+# define OD_MULT16_16(a, b) \
+ (((od_val32)(od_val16)(a))*((od_val32)(od_val16)(b)))
+/* Multiplies 16-bit a by 32-bit b and keeps bits [16:47]. */
+# define OD_MULT16_32_Q16(a, b) ((int16_t)(a)*(int64_t)(int32_t)(b) >> 16)
+/*16x16 multiplication where the result fits in 16 bits, without rounding.*/
+# define OD_MULT16_16_Q15(a,b) \
+  (((int16_t)(a)*((int32_t)(int16_t)(b))) >> 15)
+/*16x16 multiplication where the result fits in 16 bits, without rounding.*/
+# define OD_MULT16_16_Q16(a,b) \
+  ((((int16_t)(a))*((int32_t)(int16_t)(b))) >> 16)
+#endif
 
 /*Count leading zeros.
   This macro should only be used for implementing od_ilog(), if it is defined.
