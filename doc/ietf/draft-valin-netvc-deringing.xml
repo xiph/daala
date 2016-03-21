@@ -13,7 +13,7 @@
 <?rfc inline="yes"?>
 <?rfc compact="yes"?>
 <?rfc subcompact="no"?>
-<rfc category="std" docName="draft-valin-netvc-deringing-00"
+<rfc category="std" docName="draft-valin-netvc-deringing-01"
      ipr="noDerivativesTrust200902">
   <front>
     <title abbrev="Deringing">Directional Deringing Filter</title>
@@ -33,16 +33,20 @@
  </author>
 
 
-    <date day="16" month="October" year="2015" />
+    <date day="21" month="March" year="2016" />
 
     <abstract>
-      <t>This document describes a deringing filter that takes into account the direction of edges and patterns being filtered. The filter works by identifying the direction of each block and then adaptively filtering along the identified direction. In a second pass, the blocks are also filtered in a different direction, with more conservative thresholds to avoid blurring edges.</t>
+      <t>This document describes a deringing filter that takes into account the direction of edges and patterns being filtered. The filter works by identifying the direction of each block and then adaptively filtering along the identified direction. In a second pass, the blocks are also filtered in a different direction, with more conservative thresholds to avoid blurring edges. The
+      proposed deringing filter is shown to improve the quality of both Daala
+      and the Alliance for Open Media (AOM) video codec.</t>
     </abstract>
   </front>
 
   <middle>
     <section title="Introduction">
-      <t>This document describes a deringing filter that takes into account the direction of edges and patterns being filtered. The filter works by identifying the direction of each block and then adaptively filtering along the identified direction. In a second pass, the blocks are also filtered in a different direction, with more conservative thresholds to avoid blurring edges.</t>
+      <t>This document describes a deringing filter that takes into account the direction of edges and patterns being filtered. The filter works by identifying the direction of each block and then adaptively filtering along the identified direction. In a second pass, the blocks are also filtered in a different direction, with more conservative thresholds to avoid blurring edges. The
+      deringing filter is implemented for both Daala and the Alliance for Open
+      Media (AOM) codec.</t>
     </section>
 
     <section title="Direction Search">
@@ -134,11 +138,11 @@ y(i,j)=x(i,j)+---*\ w_k*| f| x(i,j)-x(i+floor(k*d_y),j+floor(k*d_x), T|
         <ttcol align="center">Direction</ttcol>
         <ttcol align="center">d_x</ttcol>
         <ttcol align="center">d_y</ttcol>
-        <c>0</c> <c>0</c> <c>1</c>
+        <c>0</c> <c>1</c> <c>0</c>
         <c>1</c> <c>0</c> <c>1</c>
         <c>2</c> <c>0</c> <c>1</c>
         <c>3</c> <c>0</c> <c>1</c>
-        <c>4</c> <c>0</c> <c>1</c>
+        <c>4</c> <c>1</c> <c>0</c>
         <c>5</c> <c>1</c> <c>0</c>
         <c>6</c> <c>1</c> <c>0</c>
         <c>7</c> <c>1</c> <c>0</c>
@@ -146,18 +150,20 @@ y(i,j)=x(i,j)+---*\ w_k*| f| x(i,j)-x(i+floor(k*d_y),j+floor(k*d_x), T|
     </section>
 
     <section title="Setting Thresholds">
-      <t>The thresholds T and T_2 must be set high enough to smooth out ringing artefacts, but low enough to avoid blurring important details in the image. Although the ringing is roughly proportional to the quantization step size Q, as the quantizer increases the error grows slightly less than linearly because the unquantized coefficients become very small compared to Q. As a starting point for determining the thresholds, we use a power model of the form T_0=alpha_1*Q^beta}, with beta=0.842 in Daala, and where alpha_1 depends on the input scaling.</t>
+      <t>The thresholds T and T_2 must be set high enough to smooth out ringing artefacts, but low enough to avoid blurring important details in the image. Although the ringing is roughly proportional to the quantization step size Q, as the quantizer increases the error grows slightly less than linearly because the unquantized coefficients become very small compared to Q. As a starting point for determining the thresholds, Daala uses a power model of the form T_0=level*alpha_1*Q^beta, with beta=0.842, and where alpha_1 depends on the input scaling. The level is a threshold adjustment coded for each superblock (64x64). In the AOM codec, a global threshold is selected by the
+      encoder instead of using a function of the quantizer, so T_0=level*global_level.
+      </t>
 
       <t>Another factor that affects the optimal filtering threshold is the presence of strong directional edges/patterns. These can be estimated from the s_d parameters computed in the direction search as delta=s_(d_opt)-s_(d_ortho), where d_ortho=d_opt+4 (mod 8). We compute the direction filtering threshold for each block as 
 <figure align="center">
 <artwork align="center"><![CDATA[
-           /  1      /                            1/6  \ \
-T = T_0*max| ---, min| 3, alpha_2*(delta*delta_sb)     | |,
-           \  2      \                                 / /
+           /  1      /                   1/6  \ \
+T = T_0*max| ---, min| 3, alpha_2*(delta)     | |,
+           \  2      \                        / /
 ]]></artwork>
 </figure>
 
-  where delta_sb is the average of the delta values over the entire superblock and alpha_2 also depends on the input scaling. For the second filter, we use a more conservative threshold that depends on the amount of change caused by the directional filter.
+  where alpha_2 also depends on the input scaling. For the second filter, we use a more conservative threshold that depends on the amount of change caused by the directional filter.
   
 <figure align="center">
 <artwork align="center"><![CDATA[
@@ -172,13 +178,40 @@ T_2(i,j) = min| T, --- + |y(i,j)-x(i,j)| |.
     </section>
 
     <section title="Superblock Filtering">
-      <t>The filtering is applied one superblock at a time, conditional on a flag coded in the bit-stream. This binary flag is the only information coded in the bitstream by the deringing filter. The flag is only coded for superblocks that are not skipped and it is entropy-coded based on the neighbour values.</t>
+
+      <t>The filtering is applied one superblock at a time, in a way that depends
+        on the level. In Daala, the level can take one of 6 values: 0, 0.5, 0.7, 1.0,
+        1.4, 2.0, where a level of zero disables the deringing filter for the current
+        superblock. The level is the only information coded in the bitstream by the
+        deringing filter. On keyframes, it is entropy-coded based on the neighbor
+        values. On inter-predicted frames, the level is only coded for superblocks that
+        are not skipped and is entropy-coded based on a single adapted probability
+        distribution (no context from the neighbors). Superblocks where no level is
+        coded have deringing disabled. Similarly, any skipped block within a superblock
+        has deringing disabled, even if it is signaled enabled for the superblock.</t>
+      <t>The
+        level of the deringing filter in AOM is handled similarly, except that only
+        four levels are currently available and there is no entropy coding yet. 
+      </t>
 
       <t>The deringing process sometimes reads pixels that lie outside of the superblock being processed. When these pixels belong to another superblock, the filtering always uses the unfiltered pixel values -- even for the second stage filter -- so that no dependency is added between the superblocks. This makes it possible -- in theory -- to filter all superblocks in parallel. When the pixels used for a filter lie outside of the viewable image, we set f(d,T)=0.</t>
     </section>
 
     <section title="Results">
       <t>The deringing filter described here has been implemented for the Daala <xref target="Daala-website"/> codec. It is available from the Daala Git repository <xref target="Daala-Git"/>. We tested the deringing filter on the Are We Compressed Yet <xref target="AWCY"/> ntt-short1 set over the 0.025 bit/pixel to 0.1 bit/pixel range, corresponding to a 1080p30 bitrate of 1.5 Mbit/s to 6 Mbit/s. The Bjontegaard-delta <xref target="I-D.daede-netvc-testing"/> rate reduction over that range was 6.5% for PSNR, 4.7% for PSNR-HVS, 5.6% for SSIM and -6.0% (regression) for FAST-SSIM. Visual inspection confirmed that the quality is indeed improved, despite the regression in the FAST-SSIM result.
+      </t>
+
+      <t>In AOM for the ntt-short1 set, the medium bitrate (0.02 to 0.06 bit/pixel) 
+        Bjontegaard-delta improvement is 2.5% for PSNR, 1.5% for PSNR-HVS, 1.5% for
+        SSIM, and -3.8% (regression) on FAST-SSIM. The high bitrate (0.06 to
+        0.2 bit/pixel) Bjontegaard-delta improvement is 2.0% for PSNR, 0.8% for
+        PSNR-HVS, 1.3% for SSIM, and -3.1% (regression) on FAST-SSIM.</t>
+
+      <t>The smaller
+        improvement for AOM compared to Daala may be due to the newly integrated
+        code not being mature, but also to the fact that some features in Daala
+        tend to cause more ringing. These features include lapped transforms,        quantization matrices, perceptual vector quantization, overlapped
+        block motion compensation (OBMC), and activity masking.
       </t>
     </section>
 
@@ -229,13 +262,13 @@ T_2(i,j) = min| T, --- + |y(i,j)-x(i,j)| |.
         <seriesInfo name="Xiph.Org Foundation" value=""/>
     </reference>
 
-    <reference anchor="Deringing-Note" target="http://jmvalin.ca/notes/dir_dering.pdf">
+    <reference anchor="Deringing-Note" target="http://arxiv.org/abs/1602.05975">
       <front>
-        <title>Directional Deringing Filter</title>
+        <title>The Daala Directional Deringing Filter</title>
         <author initials="JM." surname="Valin" fullname="Jean-Marc Valin"><organization/></author>
         <date/>
       </front>
-        <seriesInfo name="Xiph.Org Foundation" value=""/>
+        <seriesInfo name="arXiv:1602.05975 [cs.MM]" value=""/>
     </reference>
 
     </references>
