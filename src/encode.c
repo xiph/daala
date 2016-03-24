@@ -2920,12 +2920,10 @@ static int od_encode_frame(daala_enc_ctx *enc, daala_image *img, int frame_type,
   /* Check if the frame should be a keyframe. */
   mbctx.is_keyframe = (frame_type == OD_I_FRAME) ? 1 : 0;
   /* B-frame cannot be a Golden frame.*/
-  mbctx.is_golden_frame = (enc->ip_frame_count %
-   (OD_GOLDEN_FRAME_INTERVAL/(enc->b_frames + 1)) == 0)
-   && (frame_type != OD_B_FRAME) ? 1 : 0;
-  if (enc->state.ref_imgi[OD_FRAME_GOLD] < 0) {
-    mbctx.is_golden_frame = 1;
-  }
+  /* For now, all keyframes are also golden frames */
+  mbctx.is_golden_frame = mbctx.is_keyframe ||
+    ((enc->ip_frame_count % (OD_GOLDEN_FRAME_INTERVAL/(enc->b_frames + 1)) == 0)
+     && (frame_type != OD_B_FRAME));
   /*Update the reference buffer state.*/
   if (enc->b_frames != 0 && frame_type == OD_P_FRAME) {
     enc->state.ref_imgi[OD_FRAME_PREV] =
@@ -2945,8 +2943,8 @@ static int od_encode_frame(daala_enc_ctx *enc, daala_image *img, int frame_type,
   enc->state.ref_imgi[OD_FRAME_SELF] = refi;
   /*We must be a keyframe if we don't have a reference.*/
   if (enc->state.ref_imgi[OD_FRAME_PREV] < 0) {
-    mbctx.is_keyframe = 1;
-    frame_type = OD_I_FRAME;
+    OD_ASSERT(mbctx.is_keyframe);
+    OD_ASSERT(frame_type == OD_I_FRAME);
   }
   mbctx.frame_type = frame_type;
   enc->state.frame_type = frame_type;
