@@ -541,6 +541,7 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
 #endif
   enc->curr_img = NULL;
   enc->ip_frame_count = 0;
+  enc->curr_coding_order = 0;
 #if defined(OD_ENCODER_CHECK)
   enc->dec = daala_decode_create(info, NULL);
 #endif
