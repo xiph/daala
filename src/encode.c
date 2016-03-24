@@ -298,6 +298,60 @@ static int od_input_queue_add(od_input_queue *in, daala_image *img,
   return OD_SUCCESS;
 }
 
+/*Closed form version of frame determination code.
+  Used by rate control to predict frame types and subtypes into the future.
+  No side effects, may be called any number of times.*/
+int od_frame_type(daala_enc_ctx *enc, int64_t coding_frame_count,
+                  int *is_golden, int64_t *ip_count){
+  int frame_type;
+  if (coding_frame_count == 0) {
+    *is_golden = 1;
+    *ip_count = 0;
+    frame_type = OD_I_FRAME;
+  }
+  else {
+    int keyrate = enc->input_queue.keyframe_rate;
+    if (enc->input_queue.closed_gop) {
+      int ip_per_gop;
+      int gop_n;
+      int gop_i;
+      ip_per_gop = (keyrate + enc->frame_delay - 2)/enc->frame_delay + 1;
+      gop_n = coding_frame_count/keyrate;
+      gop_i = coding_frame_count - gop_n*keyrate;
+      *ip_count = gop_n * ip_per_gop + (gop_i > 0) +
+       (gop_i + enc->frame_delay - 2)/enc->frame_delay;
+      frame_type = gop_i == 0 ? OD_I_FRAME :
+        (gop_i - 1) % enc->frame_delay == 0 ? OD_P_FRAME : OD_B_FRAME;
+    }
+    else {
+      int ip_per_gop;
+      int gop_n;
+      int gop_i;
+      ip_per_gop = (keyrate + enc->frame_delay - 1)/enc->frame_delay;
+      gop_n = (coding_frame_count - 1)/keyrate;
+      gop_i = coding_frame_count - gop_n*keyrate - 1;
+      *ip_count = (coding_frame_count > 0) + gop_n * ip_per_gop +
+       (gop_i + enc->frame_delay - 1)/enc->frame_delay;
+      frame_type = coding_frame_count == 0 ? OD_I_FRAME :
+       gop_i % enc->frame_delay != 0 ? OD_B_FRAME :
+       gop_i / enc->frame_delay < ip_per_gop-1 ? OD_P_FRAME : OD_I_FRAME;
+      /*One pseudo-non-closed-form caveat:
+        Once we've seen end-of-input, the batched frame determination code
+         suppresses the last open-GOP's I-frame (since it would only be
+         useful for the next GOP, which doesn't exist).
+        Handle that case here.*/
+      if(frame_type == OD_I_FRAME &&
+       enc->input_queue.end_of_input &&
+       enc->input_queue.input_size == 0)
+        frame_type = OD_P_FRAME;
+    }
+  }
+  *is_golden = *ip_count %
+   (OD_GOLDEN_FRAME_INTERVAL/(enc->b_frames + 1)) == 0 &&
+   frame_type != OD_B_FRAME ? 1 : frame_type == OD_I_FRAME;
+  return frame_type;
+}
+
 void od_input_queue_batch(od_input_queue *in, int frames) {
   od_input_frame frame;
   int i;
@@ -2904,7 +2958,7 @@ static void od_split_superblocks_rdo(daala_enc_ctx *enc,
 /*This function can only return an error code if the enc or img parameters
    are NULL (should it be void then?).*/
 static int od_encode_frame(daala_enc_ctx *enc, daala_image *img, int frame_type,
- int duration, int frame_number) {
+ int duration, int display_frame_number) {
   int refi;
   int nplanes;
   int pli;
@@ -2916,7 +2970,7 @@ static int od_encode_frame(daala_enc_ctx *enc, daala_image *img, int frame_type,
   nplanes = enc->state.info.nplanes;
   use_masking = enc->use_activity_masking;
   enc->curr_img = img;
-  enc->curr_display_order = frame_number;
+  enc->curr_display_order = display_frame_number;
   /* Check if the frame should be a keyframe. */
   mbctx.is_keyframe = (frame_type == OD_I_FRAME) ? 1 : 0;
   /* B-frame cannot be a Golden frame.*/
@@ -2924,6 +2978,18 @@ static int od_encode_frame(daala_enc_ctx *enc, daala_image *img, int frame_type,
   mbctx.is_golden_frame = mbctx.is_keyframe ||
     ((enc->ip_frame_count % (OD_GOLDEN_FRAME_INTERVAL/(enc->b_frames + 1)) == 0)
      && (frame_type != OD_B_FRAME));
+  /*Verify the closed-form solution matches the batched solution*/
+  {
+    int closed_form_type;
+    int closed_form_golden;
+    int64_t closed_form_ip_count;
+    closed_form_type =
+     od_frame_type(enc, enc->curr_coding_order, &closed_form_golden,
+     &closed_form_ip_count);
+    OD_ASSERT(closed_form_type == frame_type);
+    OD_ASSERT(closed_form_ip_count == enc->ip_frame_count);
+    OD_ASSERT(closed_form_golden == mbctx.is_golden_frame);
+  }
   /*Update the reference buffer state.*/
   if (enc->b_frames != 0 && frame_type == OD_P_FRAME) {
     enc->state.ref_imgi[OD_FRAME_PREV] =
@@ -3073,7 +3139,7 @@ static int od_encode_frame(daala_enc_ctx *enc, daala_image *img, int frame_type,
     od_img_edge_ext(ref_img);
   }
 #if defined(OD_DUMP_RECONS)
-  od_output_queue_add(&enc->out, ref_img, frame_number);
+  od_output_queue_add(&enc->out, ref_img, display_frame_number);
   while (od_output_queue_has_next(&enc->out)) {
     od_output_frame *frame;
     frame = od_output_queue_next(&enc->out);
@@ -3131,6 +3197,7 @@ static int od_encode_frame(daala_enc_ctx *enc, daala_image *img, int frame_type,
   fprintf(enc->bsize_dist_file, "\n");
 #endif
   OD_ASSERT(mbctx.is_keyframe == (frame_type == OD_I_FRAME));
+  ++enc->curr_coding_order;
   if (frame_type == OD_I_FRAME || frame_type == OD_P_FRAME) {
     ++enc->ip_frame_count;
   }

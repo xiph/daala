@@ -172,8 +172,10 @@ struct daala_enc_ctx{
   int frame_delay;
   /** Displaying order of current frame being encoded. */
   int64_t curr_display_order;
+  /** Coding order of current frame being encoded. */
+  int64_t curr_coding_order;
   /** Number of I or P frames encoded so far, starting from zero. */
-  unsigned int ip_frame_count;
+  int64_t ip_frame_count;
 #if defined(OD_DUMP_RECONS)
   od_output_queue out;
 #endif
@@ -194,6 +196,8 @@ struct od_rollback_buffer {
   od_adapt_ctx adapt;
 };
 
+int od_frame_type(daala_enc_ctx *enc, int64_t coding_frame_count,
+ int *is_golden, int64_t *ip_count);
 void od_encode_checkpoint(const daala_enc_ctx *enc, od_rollback_buffer *rbuf);
 void od_encode_rollback(daala_enc_ctx *enc, const od_rollback_buffer *rbuf);
 
