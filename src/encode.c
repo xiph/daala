@@ -2987,6 +2987,7 @@ static int od_encode_frame(daala_enc_ctx *enc, daala_image *img, int frame_type,
     closed_form_type =
      od_frame_type(enc, enc->curr_coding_order, &closed_form_golden,
      &closed_form_ip_count);
+    (void)closed_form_type;
     OD_ASSERT(closed_form_type == frame_type);
     OD_ASSERT(closed_form_ip_count == enc->ip_frame_count);
     OD_ASSERT(closed_form_golden == mbctx.is_golden_frame);
