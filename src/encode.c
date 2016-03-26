@@ -332,7 +332,7 @@ int od_frame_type(daala_enc_ctx *enc, int64_t coding_frame_count,
       gop_i = coding_frame_count - gop_n*keyrate - 1;
       *ip_count = (coding_frame_count > 0) + gop_n * ip_per_gop +
        (gop_i + enc->frame_delay - 1)/enc->frame_delay;
-      frame_type = coding_frame_count == 0 ? OD_I_FRAME :
+      frame_type =
        gop_i % enc->frame_delay != 0 ? OD_B_FRAME :
        gop_i / enc->frame_delay < ip_per_gop-1 ? OD_P_FRAME : OD_I_FRAME;
       /*One pseudo-non-closed-form caveat:
