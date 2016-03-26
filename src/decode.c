@@ -1047,8 +1047,8 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
           c = up + left;
         }
         else c = 0;
-        level = od_decode_cdf_adapt(&dec->ec, state->adapt.clpf_cdf[c],
-         OD_DERING_LEVELS, state->adapt.clpf_increment, "clp");
+        level = od_decode_cdf_adapt(&dec->ec, state->adapt.dering_cdf[c],
+         OD_DERING_LEVELS, state->adapt.dering_increment, "dering");
         state->dering_level[sby*nhdr + sbx] = level;
         if (level) {
           for (pli = 0; pli < nplanes; pli++) {

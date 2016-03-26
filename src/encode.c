@@ -2789,7 +2789,7 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
           }
           dist = od_compute_dist(enc, orig, out, n, 3, pli);
           best_dist = dist
-           + lambda*od_encode_cdf_cost(0, state->adapt.clpf_cdf[c],
+           + lambda*od_encode_cdf_cost(0, state->adapt.dering_cdf[c],
            OD_DERING_LEVELS);
           for (gi = 1; gi < OD_DERING_LEVELS; gi++) {
             threshold = (int)(OD_DERING_GAIN_TABLE[gi]*base_threshold);
@@ -2808,7 +2808,7 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
                 }
               }
               dist = od_compute_dist(enc, orig, buf32, n, 3, pli)
-               + lambda*od_encode_cdf_cost(gi, state->adapt.clpf_cdf[c],
+               + lambda*od_encode_cdf_cost(gi, state->adapt.dering_cdf[c],
                OD_DERING_LEVELS);
             }
             if (dist < best_dist) {
@@ -2818,8 +2818,8 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
           }
         }
         state->dering_level[sby*nhdr + sbx] = best_gi;
-        od_encode_cdf_adapt(&enc->ec, best_gi, state->adapt.clpf_cdf[c],
-         OD_DERING_LEVELS, state->adapt.clpf_increment);
+        od_encode_cdf_adapt(&enc->ec, best_gi, state->adapt.dering_cdf[c],
+         OD_DERING_LEVELS, state->adapt.dering_increment);
         if (best_gi) {
           for (pli = 0; pli < nplanes; pli++) {
             int threshold;
