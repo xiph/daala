@@ -501,6 +501,38 @@ static od_val32 od_gain_compand(od_val32 g, int q0, double beta) {
   }
 }
 
+#if !defined(OD_FLOAT_PVQ)
+#define OD_SQRT_INSHIFT 16
+#define OD_SQRT_OUTSHIFT 15
+static int32_t od_sqrt_norm(int32_t x)
+{
+  return OD_ROUND32((1 << OD_SQRT_OUTSHIFT)*
+   sqrt(x/(double)(1 << OD_SQRT_INSHIFT)));
+}
+
+static int32_t od_sqrt(int32_t x, int *sqrt_shift)
+{
+  int k;
+  int s;
+  int32_t t;
+  if (x == 0) {
+    *sqrt_shift = 0;
+     return 0;
+  }
+  OD_ASSERT(x < (1 << 30));
+  k = ((OD_ILOG(x) - 1) >> 1);
+  /*s = log2(x) - 2*(OUTSHIFT - INSHIFT/2)*/
+  s = 2*(k - (OD_SQRT_OUTSHIFT - (OD_SQRT_INSHIFT >> 1)));
+  t = OD_VSHR(x, s);
+  /*We want to express od_sqrt() in terms of od_sqrt_norm(), which is
+     defined as (2^OUTSHIFT)*sqrt(t*(2^-INSHIFT)) with t=x*(2^-s).
+    This simplifies to 2^(OUTSHIFT-(INSHIFT/2)-(s/2))*sqrt(x), so the caller
+     needs to shift right by OUTSHIFT - INSHIFT/2 - s/2.*/
+  *sqrt_shift = OD_SQRT_OUTSHIFT - ((s + OD_SQRT_INSHIFT) >> 1);
+  return od_sqrt_norm(t);
+}
+#endif
+
 /** Gain expanding: raises gain to the power beta for activity masking.
  *
  * @param [in]  cg    companded gain
@@ -509,18 +541,38 @@ static od_val32 od_gain_compand(od_val32 g, int q0, double beta) {
  * @return            g^beta
  */
 od_val32 od_gain_expand(od_val32 cg0, int q0, double beta) {
-  double cg;
-  cg = cg0 * OD_CGAIN_SCALE_1;
   if (beta == 1) {
     /*The multiply fits into 28 bits because the expanded gain has a range from
        0 to 2^20.*/
     return OD_SHR_ROUND(cg0*q0, OD_CGAIN_SHIFT);
   }
   else if (beta == 1.5) {
+#if defined(OD_FLOAT_PVQ)
+    double cg;
+    cg = cg0*OD_CGAIN_SCALE_1;
     cg *= q0*OD_COMPAND_SCALE_1;
     return OD_ROUND32(OD_COMPAND_SCALE*cg*sqrt(cg));
+#else
+    int32_t irt;
+    int64_t tmp;
+    int sqrt_inshift;
+    int sqrt_outshift;
+    /*cg0 is in Q(OD_CGAIN_SHIFT) and we need to divide it by
+       2^OD_COMPAND_SHIFT.*/
+    irt = od_sqrt(cg0*q0, &sqrt_outshift);
+    sqrt_inshift = (OD_CGAIN_SHIFT + OD_COMPAND_SHIFT) >> 1;
+    /*tmp is in Q(OD_CGAIN_SHIFT + OD_COMPAND_SHIFT).*/
+    tmp = cg0*q0*(int64_t)irt;
+    /*Expanded gain must be in Q(OD_COMPAND_SHIFT), thus OD_COMPAND_SHIFT is
+       not included here.*/
+    return OD_VSHR_ROUND(tmp, OD_CGAIN_SHIFT + sqrt_outshift + sqrt_inshift);
+#endif
   }
   else {
+    /*Expanded gain must be in Q(OD_COMPAND_SHIFT), hence the multiply by
+       OD_COMPAND_SCALE.*/
+    double cg;
+    cg = cg0*OD_CGAIN_SCALE_1;
     return OD_ROUND32(OD_COMPAND_SCALE*pow(cg*q0*OD_COMPAND_SCALE_1, beta));
   }
 }

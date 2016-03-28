@@ -91,7 +91,8 @@ extern const uint16_t LAPLACE_OFFSET[];
 /* Largest PVQ partition is half the coefficients of largest block size. */
 #define MAXN (OD_BSIZE_MAX*OD_BSIZE_MAX/2)
 
-#define OD_COMPAND_SCALE (256 << OD_COEFF_SHIFT)
+#define OD_COMPAND_SHIFT (8 + OD_COEFF_SHIFT)
+#define OD_COMPAND_SCALE (1 << OD_COMPAND_SHIFT)
 #define OD_COMPAND_SCALE_1 (1./OD_COMPAND_SCALE)
 
 #define OD_QM_SIZE (OD_NBSIZES*(OD_NBSIZES + 1))
