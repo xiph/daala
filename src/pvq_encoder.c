@@ -371,11 +371,11 @@ static int pvq_theta(od_coeff *out, const od_coeff *x0, const od_coeff *r0,
 #endif
   for (i = 0; i < n; i++) {
 #if defined(OD_FLOAT_PVQ)
-    /*This causes a slight metrics change from the original float PVQ code,
+    /*This is slightly different from the original float PVQ code,
        where the qm was applied in the accumulation in od_pvq_compute_gain and
        the vectors were od_coeffs, not od_val16 (i.e. double).*/
-    x16[i] = x0[i]*qm[i]*OD_QM_SCALE_1;
-    r16[i] = r0[i]*qm[i]*OD_QM_SCALE_1;
+    x16[i] = x0[i]*(double)qm[i]*OD_QM_SCALE_1;
+    r16[i] = r0[i]*(double)qm[i]*OD_QM_SCALE_1;
 #else
     x16[i] = OD_SHR_ROUND(x0[i]*qm[i], OD_QM_SHIFT + xshift);
     r16[i] = OD_SHR_ROUND(r0[i]*qm[i], OD_QM_SHIFT + rshift);
@@ -765,7 +765,8 @@ int od_pvq_encode(daala_enc_ctx *enc,
     /*Compute the dot-product of the first band of chroma with the luma ref.*/
     for (i = off[0]; i < off[1]; i++) {
 #if defined(OD_FLOAT_PVQ)
-      xy += ref[i]*qm[i]*OD_QM_SCALE_1*(double)in[i]*qm[i]*OD_QM_SCALE_1;
+      xy += ref[i]*(double)qm[i]*OD_QM_SCALE_1*
+       (double)in[i]*(double)qm[i]*OD_QM_SCALE_1;
 #else
       xy += (ref[i] >> OD_CFL_FLIP_SHIFT)*(in[i] >> OD_CFL_FLIP_SHIFT);
 #endif
