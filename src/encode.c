@@ -449,6 +449,7 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
   }
   enc->complexity = 7;
   enc->use_activity_masking = 1;
+  enc->use_dering = 1;
   enc->qm = OD_HVS_QM;
   od_init_qm(enc->state.qm, enc->state.qm_inv,
    enc->qm == OD_HVS_QM ? OD_QM8_Q4_HVS : OD_QM8_Q4_FLAT);
