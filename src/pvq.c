@@ -533,7 +533,7 @@ od_val32 od_gain_expand(od_val32 cg0, int q0, double beta) {
  * @param [in]      q0     quantizer
  * @param [out]     g      raw gain
  * @param [in]      beta   activity masking beta param
- * @param [in]      qm     QM with magnitude compensation
+ * @param [in]      bshift shift to be applied to raw gain
  * @return                 quantized/companded gain
  */
 od_val32 od_pvq_compute_gain(const od_val16 *x, int n, int q0, od_val32 *g,
