@@ -1421,7 +1421,7 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int bs,
      4 + (pli == 0 && bs > 0));
     if (dist_skip + lambda*rate_skip < dist_noskip + lambda*rate_noskip) {
       od_encode_rollback(enc, &pre_encode_buf);
-      /* Code the "skip this block" symbol (2). */
+      /* Code the "skip this block" symbol (0). */
       od_encode_cdf_adapt(&enc->ec, 0,
        enc->state.adapt.skip_cdf[2*bs + (pli != 0)], 4 + (pli == 0 && bs > 0),
        enc->state.adapt.skip_increment);
