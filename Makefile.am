@@ -297,11 +297,7 @@ tools_block_size_analysis_SOURCES = \
 	tools/vidinput.c \
 	tools/y4m_input.c \
 	$(src_dct_SOURCES) \
-	src/generic_encoder.c \
-	src/generic_code.c \
-	src/laplace_encoder.c \
 	src/logging.c \
-	src/laplace_tables.c \
 	src/entcode.c \
 	src/entenc.c \
 	src/filter.c \

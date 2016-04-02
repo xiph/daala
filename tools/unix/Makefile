@@ -104,11 +104,7 @@ PSNRHVS_TARGET:=dump_psnrhvs
 BSIZE_LOCAL_CSOURCES = \
 block_size_analysis.c \
 block_size_enc.c \
-generic_encoder.c \
-generic_code.c \
-laplace_encoder.c \
 logging.c \
-laplace_tables.c \
 vidinput.c \
 y4m_input.c \
 dct.c \
