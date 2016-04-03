@@ -273,18 +273,18 @@ int main(int _argc,char **_argv){
       enc_method[j]=rand()&1;
       switch(enc_method[j]){
         case 0:{
-          if (rand() & 1) {
-            od_ec_encode_bool_q15(&enc, data[j], fz[j] << (15 - ftbs[j]));
-          }
-          else {
-            od_ec_encode_bool(&enc, data[j], fz[j] << (15 - ftbs[j]), 32768);
-          }
+          od_ec_encode_bool_q15(&enc, data[j], fz[j] << (15 - ftbs[j]));
         }break;
         case 1:{
           uint16_t cdf[2];
           cdf[0]=fz[j];
           cdf[1]=1U<<ftbs[j];
-          od_ec_encode_cdf_unscaled_dyadic(&enc,data[j],cdf,2,ftbs[j]);
+          if (ftbs[j] == 15 && (rand() & 1)) {
+            od_ec_encode_cdf_q15(&enc, data[j], cdf, 2);
+          }
+          else {
+            od_ec_encode_cdf_unscaled_dyadic(&enc, data[j], cdf, 2, ftbs[j]);
+          }
         }break;
       }
       tell[j+1]=od_ec_enc_tell_frac(&enc);
@@ -308,19 +308,19 @@ int main(int _argc,char **_argv){
       dec_method=rand()&1;
       switch(dec_method){
         case 0:{
-          if (rand() & 1) {
-            sym = od_ec_decode_bool_q15(&dec, fz[j] << (15 - ftbs[j]), "test");
-          }
-          else {
-            sym = od_ec_decode_bool(&dec, fz[j]<< (15 - ftbs[j]), 32768,
-             "test");
-          }
+          sym = od_ec_decode_bool_q15(&dec, fz[j] << (15 - ftbs[j]), "test");
         }break;
         case 1:{
           uint16_t cdf[2];
           cdf[0]=fz[j];
           cdf[1]=1U<<ftbs[j];
-          sym=od_ec_decode_cdf_unscaled_dyadic(&dec,cdf,2,ftbs[j], "test");
+          if (ftbs[j] == 15 && (rand() & 1)) {
+            sym = od_ec_decode_cdf_q15(&dec, cdf, 2, "test");
+          }
+          else {
+            sym = od_ec_decode_cdf_unscaled_dyadic(&dec,
+             cdf, 2, ftbs[j], "test");
+          }
         }break;
       }
       if(sym!=data[j]){

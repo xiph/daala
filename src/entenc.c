@@ -211,7 +211,12 @@ static void od_ec_encode(od_ec_enc *enc,
 #endif
 }
 
-/*Equivalent to od_ec_encode() with ft == 32768.
+/*Encodes a symbol given its frequency in Q15.
+  This is like od_ec_encode() when ft == 32768, but is simpler and has lower
+   overhead.
+  Symbols encoded with this function cannot be properly decoded with
+   od_ec_decode(), and must be decoded with one of the equivalent _q15()
+   functions instead.
   fl: The cumulative frequency of all symbols that come before the one to be
        encoded.
   fh: The cumulative frequency of all symbols up to and including the one to
@@ -219,7 +224,6 @@ static void od_ec_encode(od_ec_enc *enc,
 static void od_ec_encode_q15(od_ec_enc *enc, unsigned fl, unsigned fh) {
   od_ec_window l;
   unsigned r;
-  unsigned d;
   unsigned u;
   unsigned v;
   OD_ASSERT(fl < fh);
@@ -227,19 +231,8 @@ static void od_ec_encode_q15(od_ec_enc *enc, unsigned fl, unsigned fh) {
   l = enc->low;
   r = enc->rng;
   OD_ASSERT(32768U <= r);
-  d = r - 32768U;
-  OD_ASSERT(d < 32768U);
-#if OD_EC_REDUCED_OVERHEAD
-  {
-    unsigned e;
-    e = OD_SUBSATU(2*d, 32768U);
-    u = fl + OD_MINI(fl, e) + OD_MINI(OD_SUBSATU(fl, e) >> 1, d);
-    v = fh + OD_MINI(fh, e) + OD_MINI(OD_SUBSATU(fh, e) >> 1, d);
-  }
-#else
-  u = fl + OD_MINI(fl, d);
-  v = fh + OD_MINI(fh, d);
-#endif
+  u = fl * (uint32_t)r >> 15;
+  v = fh * (uint32_t)r >> 15;
   r = v - u;
   l += u;
   od_ec_enc_normalize(enc, l, r);
@@ -310,9 +303,14 @@ void od_ec_encode_bool(od_ec_enc *enc, int val, unsigned fz, unsigned ft) {
 #endif
 }
 
-/*Equivalent to od_ec_encode_bool() with ft == 32768.
+/*Encode a bit that has an fz probability of being a zero in Q15.
+  This is a simpler, lower overhead version of od_ec_encode_bool() for use when
+   ft == 32768.
+  Symbols encoded with this function cannot be properly decoded with
+   od_ec_decode(), and must be decoded with one of the equivalent _q15()
+   functions instead.
   val: The value to encode (0 or 1).
-  fz: The probability that _val is zero, scaled by 32768.*/
+  fz: The probability that val is zero, scaled by 32768.*/
 void od_ec_encode_bool_q15(od_ec_enc *enc, int val, unsigned fz) {
   od_ec_window l;
   unsigned r;
@@ -322,17 +320,7 @@ void od_ec_encode_bool_q15(od_ec_enc *enc, int val, unsigned fz) {
   l = enc->low;
   r = enc->rng;
   OD_ASSERT(32768U <= r);
-#if OD_EC_REDUCED_OVERHEAD
-  {
-    unsigned d;
-    unsigned e;
-    d = r - 32768U;
-    e = OD_SUBSATU(2*d, 32768U);
-    v = fz + OD_MINI(fz, e) + OD_MINI(OD_SUBSATU(fz, e) >> 1, d);
-  }
-#else
-  v = fz + OD_MINI(fz, r - 32768U);
-#endif
+  v = fz * (uint32_t)r >> 15;
   if (val) l += v;
   r = val ? r - v : v;
   od_ec_enc_normalize(enc, l, r);
@@ -357,7 +345,12 @@ void od_ec_encode_cdf(od_ec_enc *enc, int s,
   od_ec_encode(enc, s > 0 ? cdf[s - 1] : 0, cdf[s], cdf[nsyms - 1]);
 }
 
-/*Equivalent to od_ec_encode_cdf() with cdf[nsyms - 1] == 32768U.
+/*Encodes a symbol given a cumulative distribution function (CDF) table in Q15.
+  This is a simpler, lower overhead version of od_ec_encode_cdf() for use when
+   cdf[nsyms - 1] == 32768.
+  Symbols encoded with this function cannot be properly decoded with
+   od_ec_decode(), and must be decoded with one of the equivalent _q15()
+   functions instead.
   s: The index of the symbol to encode.
   cdf: The CDF, such that symbol s falls in the range
         [s > 0 ? cdf[s - 1] : 0, cdf[s]).
@@ -389,7 +382,8 @@ void od_ec_encode_cdf_unscaled(od_ec_enc *enc, int s,
   od_ec_encode_unscaled(enc, s > 0 ? cdf[s - 1] : 0, cdf[s], cdf[nsyms - 1]);
 }
 
-/*Equivalent to od_ec_encode_cdf() with cdf[nsyms - 1] == 1 << ftb.
+/*Equivalent to od_ec_encode_cdf_q15() with the cdf scaled by
+   (1 << (15 - ftb)).
   s: The index of the symbol to encode.
   cdf: The CDF, such that symbol s falls in the range
         [s > 0 ? cdf[s - 1] : 0, cdf[s]).
