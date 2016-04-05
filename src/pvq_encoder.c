@@ -664,7 +664,8 @@ void od_encode_quantizer_scaling(daala_enc_ctx *enc, int q_scaling,
  * @param [in]     by      y-coordinate of this block
  * @param [in]     qm      QM with magnitude compensation
  * @param [in]     qm_inv  Inverse of QM with magnitude compensation
- * @return         Returns 1 if the AC coefficients are skipped, zero otherwise
+ * @return         Returns 1 if both DC and AC coefficients are skipped,
+ *                 zero otherwise
  */
 int od_pvq_encode(daala_enc_ctx *enc,
                    od_coeff *ref,
