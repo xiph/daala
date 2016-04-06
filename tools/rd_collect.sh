@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-CODECS="<daala|vp8|vp9|x264|x265|libjpeg|mozjpeg|theora>"
+CODECS="<daala|vp8|vp9|x264|x265|libjpeg|mozjpeg|theora|webp>"
 
 if [ $# == 0 ]; then
   echo "usage: DAALA_ROOT=<build_dir> $0 $CODECS *.y4m"
@@ -193,6 +193,34 @@ case $CODEC in
     fi
 
     export RD_COLLECT_SUB=$(dirname $0)/rd_collect_theora.sh
+    ;;
+  webp)
+    if [ -z $WEBP_ROOT ] || [ ! -d $WEBP_ROOT ]; then
+      echo "Please set WEBP_ROOT to the location of your webp checkout"
+      exit 1
+    fi
+
+    if [ -z "$CWEBP" ]; then
+      export CWEBP=$WEBP_ROOT/examples/cwebp
+    fi
+
+    if [ -z "$DWEBP" ]; then
+      export DWEBP=$WEBP_ROOT/examples/dwebp
+    fi
+
+    if [ ! -x "$CWEBP" ]; then
+      echo "Executable not found CWEBP=$CWEBP"
+      echo "Do you have the right WEBP_ROOT=$WEBP_ROOT"
+      exit 1
+    fi
+
+    if [ ! -x "$DWEBP" ]; then
+      echo "Executable not found DWEBP=$DWEBP"
+      echo "Do you have the right WEBP_ROOT=$WEBP_ROOT"
+      exit 1
+    fi
+
+    export RD_COLLECT_SUB=$(dirname $0)/rd_collect_webp.sh
     ;;
   *)
     echo "Unknown codec: $CODEC"
