@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-CODECS="<daala|vp8|vp9|x264|x265|libjpeg|mozjpeg|theora|webp>"
+CODECS="<daala|vp8|vp9|vp10|x264|x265|libjpeg|mozjpeg|theora|webp>"
 
 if [ $# == 0 ]; then
   echo "usage: DAALA_ROOT=<build_dir> $0 $CODECS *.y4m"
@@ -51,7 +51,7 @@ case $CODEC in
 
     export RD_COLLECT_SUB=$(dirname "$0")/rd_collect_daala.sh
     ;;
-  vp8 | vp9)
+  vp8 | vp9 | vp10)
     if [ -z $LIBVPX_ROOT ] || [ ! -d $LIBVPX_ROOT ]; then
       echo "Please set LIBVPX_ROOT to the location of your libvpx git clone"
       exit 1
