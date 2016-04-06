@@ -16,7 +16,14 @@ WIDTH=$(head -1 $FILE | cut -d\  -f 2 | tr -d 'W')
 HEIGHT=$(head -1 $FILE | cut -d\  -f 3 | tr -d 'H')
 
 RANGE=$(seq 1 63)
-QSTR="-y --min-q=\$x --max-q=\$x"
+case $CODEC in
+vp8)
+  QSTR="--end-usage=cq --cq-level=\$x"
+  ;;
+vp9)
+  QSTR="--end-usage=q --cq-level=\$x"
+  ;;
+esac
 
 for x in $RANGE; do
   $VPXENC --codec=$CODEC --good --cpu-used=0 --ivf $(echo $QSTR | sed 's/\$x/'$x'/g') -o $BASENAME.ivf $FILE 2> $BASENAME-$x-enc.out
