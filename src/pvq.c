@@ -702,13 +702,14 @@ int od_pvq_compute_k(od_val32 qcg, int itheta, od_val32 theta, int noref, int n,
 /** Reciprocal sqrt approximation where the input is in the range [0.25,1) in
      Q16 and the output is in the range (1.0, 2.0] in Q14).
     Error is always within +/1 of round(1/sqrt(t))*/
-static int32_t od_rsqrt_norm(int32_t t)
+static int16_t od_rsqrt_norm(int16_t t)
 {
   int16_t n;
   int32_t r;
   int32_t r2;
   int32_t ry;
   int32_t y;
+  int32_t ret;
   /* Range of n is [-16384,32767] ([-0.5,1) in Q15).*/
   n = t - 32768;
   /*Get a rough initial guess for the root.
@@ -726,14 +727,16 @@ static int32_t od_rsqrt_norm(int32_t t)
     This yields the Q14 reciprocal square root of the Q16 t, with a maximum
      relative error of 1.04956E-4, a (relative) RMSE of 2.80979E-5, and a peak
      absolute error of 2.26591/16384.*/
-  return r + ((((ry >> 16)*(3*y) >> 3) - ry) >> 18);
+  ret = r + ((((ry >> 16)*(3*y) >> 3) - ry) >> 18);
+  OD_ASSERT(ret >= 16384 && ret < 32768);
+  return (int16_t)ret;
 }
 
-static int32_t od_rsqrt(int32_t x, int *rsqrt_shift)
+static int16_t od_rsqrt(int32_t x, int *rsqrt_shift)
 {
    int k;
    int s;
-   int32_t t;
+   int16_t t;
    k = (OD_ILOG(x) - 1) >> 1;
    /*t is x in the range [0.25, 1) in Q16, or x*2^(-s).*/
    s = 2*k - OD_RSQRT_OUTSHIFT;
@@ -794,7 +797,8 @@ void od_pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,
 #else
   else {
     int rsqrt_shift;
-    int32_t rsqrt;
+    int16_t rsqrt;
+    /*FIXME: should be < int64_t*/
     int64_t tmp;
     rsqrt = od_rsqrt(yy, &rsqrt_shift);
     tmp = rsqrt*(int64_t)g;
