@@ -58,17 +58,22 @@ const double OD_DERING_GAIN_TABLE[OD_DERING_LEVELS] = {
    in a particular direction. Since each direction have the same sum(x^2) term,
    that term is never computed. See Section 2, step 2, of:
    http://jmvalin.ca/notes/intra_paint.pdf */
-static int od_dir_find8(const int16_t *img, int stride, int32_t *var) {
+static int od_dir_find8(const od_dering_in *img, int stride, int32_t *var,
+    int coeff_shift) {
   int i;
-  int cost[8] = {0};
+  int32_t cost[8] = {0};
   int partial[8][15] = {{0}};
-  int best_cost = 0;
+  int32_t best_cost = 0;
   int best_dir = 0;
+  /* Instead of dividing by n between 2 and 8, we multiply by 3*5*7*8/n.
+     The output is then 840 times larger, but we don't care for finding
+     the max. */
+  static const int div_table[] = {0, 840, 420, 280, 210, 168, 140, 120, 105};
   for (i = 0; i < 8; i++) {
     int j;
     for (j = 0; j < 8; j++) {
       int x;
-      x = img[i*stride + j] >> OD_COEFF_SHIFT;
+      x = img[i*stride + j] >> coeff_shift;
       partial[0][i + j] += x;
       partial[1][i + j/2] += x;
       partial[2][i] += x;
@@ -80,25 +85,28 @@ static int od_dir_find8(const int16_t *img, int stride, int32_t *var) {
     }
   }
   for (i = 0; i < 8; i++) {
-    cost[2] += partial[2][i]*partial[2][i] >> 3;
-    cost[6] += partial[6][i]*partial[6][i] >> 3;
+    cost[2] += partial[2][i]*partial[2][i];
+    cost[6] += partial[6][i]*partial[6][i];
   }
+  cost[2] *= div_table[8];
+  cost[6] *= div_table[8];
   for (i = 0; i < 7; i++) {
-    cost[0] += OD_DIVU_SMALL(partial[0][i]*partial[0][i], i + 1)
-     + OD_DIVU_SMALL(partial[0][14 - i]*partial[0][14 - i], i + 1);
-    cost[4] += OD_DIVU_SMALL(partial[4][i]*partial[4][i], i + 1)
-     + OD_DIVU_SMALL(partial[4][14 - i]*partial[4][14 - i], i + 1);
+    cost[0] += (partial[0][i]*partial[0][i]
+     + partial[0][14 - i]*partial[0][14 - i])*div_table[i + 1];
+    cost[4] += (partial[4][i]*partial[4][i]
+     + partial[4][14 - i]*partial[4][14 - i])*div_table[i + 1];
   }
-  cost[0] += partial[0][7]*partial[0][8 - 1] >> 3;
-  cost[4] += partial[4][7]*partial[4][8 - 1] >> 3;
+  cost[0] += partial[0][7]*partial[0][7]*div_table[8];
+  cost[4] += partial[4][7]*partial[4][7]*div_table[8];
   for (i = 1; i < 8; i += 2) {
     int j;
     for (j = 0; j < 4 + 1; j++) {
-      cost[i] += partial[i][3 + j]*partial[i][3 + j] >> 3;
+      cost[i] += partial[i][3 + j]*partial[i][3 + j];
     }
+    cost[i] *= div_table[8];
     for (j = 0; j < 4 - 1; j++) {
-      cost[i] += OD_DIVU_SMALL(partial[i][j]*partial[i][j], 2*j + 2)
-       + OD_DIVU_SMALL(partial[i][10 - j]*partial[i][10 - j], 2*j + 2);
+      cost[i] += (partial[i][j]*partial[i][j]
+       + partial[i][10 - j]*partial[i][10 - j])*div_table[2*j + 2];
     }
   }
   for (i = 0; i < 8; i++) {
@@ -110,6 +118,9 @@ static int od_dir_find8(const int16_t *img, int stride, int32_t *var) {
   /* Difference between the optimal variance and the variance along the
      orthogonal direction. Again, the sum(x^2) terms cancel out. */
   *var = best_cost - cost[(best_dir + 4) & 7];
+  /* We'd normally divide by 840, but dividing by 1024 is close enough
+     for what we're going to do with this. */
+  *var >>= 10;
   return best_dir;
 }
 
@@ -123,7 +134,7 @@ void od_filter_dering_direction_c(int16_t *y, int ystride, const int16_t *in,
   int i;
   int j;
   int k;
-  static const int taps[3] = {3, 2, 2};
+  static const int taps[3] = {3, 2, 1};
   for (i = 0; i < 1 << ln; i++) {
     for (j = 0; j < 1 << ln; j++) {
       int16_t sum;
@@ -159,11 +170,11 @@ void od_filter_dering_direction_8x8_c(int16_t *y, int ystride,
 
 /* Smooth in the direction orthogonal to what was detected. */
 void od_filter_dering_orthogonal_c(int16_t *y, int ystride, const int16_t *in,
- const int16_t *x, int xstride, int ln, int threshold, int dir) {
+ const od_dering_in *x, int xstride, int ln, int threshold, int dir) {
   int i;
   int j;
   int offset;
-  if (dir <= 4) offset = OD_FILT_BSTRIDE;
+  if (dir > 0 && dir < 4) offset = OD_FILT_BSTRIDE;
   else offset = 1;
   for (i = 0; i < 1 << ln; i++) {
     for (j = 0; j < 1 << ln; j++) {
@@ -197,12 +208,14 @@ void od_filter_dering_orthogonal_c(int16_t *y, int ystride, const int16_t *in,
 }
 
 void od_filter_dering_orthogonal_4x4_c(int16_t *y, int ystride,
- const int16_t *in, const int16_t *x, int xstride, int threshold, int dir) {
+ const int16_t *in, const od_dering_in *x, int xstride, int threshold,
+ int dir) {
   od_filter_dering_orthogonal_c(y, ystride, in, x, xstride, 2, threshold, dir);
 }
 
 void od_filter_dering_orthogonal_8x8_c(int16_t *y, int ystride,
- const int16_t *in, const int16_t *x, int xstride, int threshold, int dir) {
+ const int16_t *in, const od_dering_in *x, int xstride, int threshold,
+ int dir) {
   od_filter_dering_orthogonal_c(y, ystride, in, x, xstride, 3, threshold, dir);
 }
 
@@ -223,27 +236,24 @@ static const int16_t OD_THRESH_TABLE_Q8[18] = {
    to blur. */
 static void od_compute_thresh(int thresh[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS],
  int threshold, int32_t var[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS],
- int32_t sb_var, int nhb, int nvb) {
+ int nhb, int nvb) {
   int bx;
   int by;
   for (by = 0; by < nvb; by++) {
     for (bx = 0; bx < nhb; bx++) {
       int v1;
-      int v2;
-      /* We use both the variance of 8x8 blocks and the variance of the
-         entire superblock to determine the threshold. */
+      /* We use the variance of 8x8 blocks to adjust the threshold. */
       v1 = OD_MINI(32767, var[by][bx] >> 6);
-      v2 = OD_MINI(32767, sb_var/(OD_BSIZE_MAX*OD_BSIZE_MAX));
-      thresh[by][bx] = threshold*OD_THRESH_TABLE_Q8[OD_CLAMPI(0,
-       OD_ILOG(v1*v2) - 10, 17)] >> 8;
+      thresh[by][bx] = (threshold*OD_THRESH_TABLE_Q8[OD_ILOG(v1)] + 128) >> 8;
     }
   }
 }
 
 void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
- const int16_t *x, int xstride, int nhb, int nvb, int sbx, int sby, int nhsb,
- int nvsb, int xdec, int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS], int pli,
- unsigned char *bskip, int skip_stride, int threshold, int overlap) {
+ const od_dering_in *x, int xstride, int nhb, int nvb, int sbx, int sby,
+ int nhsb, int nvsb, int xdec, int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS],
+ int pli, unsigned char *bskip, int skip_stride, int threshold, int overlap,
+ int coeff_shift) {
   int i;
   int j;
   int bx;
@@ -251,7 +261,6 @@ void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
   int16_t inbuf[OD_DERING_INBUF_SIZE];
   int16_t *in;
   int bsize;
-  int varsum = 0;
   int32_t var[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS];
   int thresh[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS];
   bsize = 3 - xdec;
@@ -271,11 +280,10 @@ void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
     for (by = 0; by < nvb; by++) {
       for (bx = 0; bx < nhb; bx++) {
         dir[by][bx] = od_dir_find8(&x[8*by*xstride + 8*bx], xstride,
-         &var[by][bx]);
-        varsum += var[by][bx];
+         &var[by][bx], coeff_shift);
       }
     }
-    od_compute_thresh(thresh, threshold, var, varsum, nhb, nvb);
+    od_compute_thresh(thresh, threshold, var, nhb, nvb);
   }
   else {
     for (by = 0; by < nvb; by++) {
@@ -311,6 +319,7 @@ void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
         }
       }
 #else
+      (void)overlap;
       skip = bskip[by*skip_stride + bx];
 #endif
       if (skip) thresh[by][bx] = 0;

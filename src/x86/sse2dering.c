@@ -89,7 +89,7 @@ void od_filter_dering_direction_4x4_sse2(int16_t *y, int ystride,
  const int16_t *in, int threshold, int dir) {
   int i;
   int k;
-  static const int taps[3] = {3, 2, 2};
+  static const int taps[3] = {3, 2, 1};
   __m128i sum;
   __m128i p;
   __m128i cmp;
@@ -133,7 +133,7 @@ void od_filter_dering_direction_8x8_sse2(int16_t *y, int ystride,
  const int16_t *in, int threshold, int dir) {
   int i;
   int k;
-  static const int taps[3] = {3, 2, 2};
+  static const int taps[3] = {3, 2, 1};
   __m128i sum;
   __m128i p;
   __m128i cmp;
@@ -209,7 +209,7 @@ void od_filter_dering_orthogonal_4x4_sse2(int16_t *y, int ystride,
   __m128i row;
   __m128i sum;
   __m128i thresh;
-  if (dir <= 4) offset = OD_FILT_BSTRIDE;
+  if (dir > 0 && dir < 4) offset = OD_FILT_BSTRIDE;
   else offset = 1;
   for (i = 0; i < 4; i++) {
     sum = _mm_set1_epi16(0);
@@ -260,7 +260,7 @@ void od_filter_dering_orthogonal_8x8_sse2(int16_t *y, int ystride,
   __m128i row;
   __m128i sum;
   __m128i thresh;
-  if (dir <= 4) offset = OD_FILT_BSTRIDE;
+  if (dir > 0 && dir < 4) offset = OD_FILT_BSTRIDE;
   else offset = 1;
   for (i = 0; i < 8; i++) {
     sum = _mm_set1_epi16(0);

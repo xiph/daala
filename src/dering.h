@@ -1,5 +1,5 @@
 /*Daala video codec
-Copyright (c) 2003-2010 Daala project contributors.  All rights reserved.
+Copyright (c) 2014-2016 Daala project contributors.  All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -22,6 +22,7 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
+
 #if !defined(_dering_H)
 # define _dering_H (1)
 
@@ -29,6 +30,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 # if defined(DAALA_ODINTRIN)
 #  include "filter.h"
+typedef int16_t od_dering_in;
 # endif
 
 #define OD_DERINGSIZES (2)
@@ -49,7 +51,8 @@ extern const int OD_DIRECTION_OFFSETS_TABLE[8][3];
 typedef void (*od_filter_dering_direction_func)(int16_t *y, int ystride,
  const int16_t *in, int threshold, int dir);
 typedef void (*od_filter_dering_orthogonal_func)(int16_t *y, int ystride,
- const int16_t *in, const int16_t *x, int xstride, int threshold, int dir);
+ const int16_t *in, const od_dering_in *x, int xstride, int threshold,
+ int dir);
 
 struct od_dering_opt_vtbl {
   od_filter_dering_direction_func filter_dering_direction[OD_DERINGSIZES];
@@ -59,13 +62,14 @@ typedef struct od_dering_opt_vtbl od_dering_opt_vtbl;
 
 
 void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
- const int16_t *x, int xstride, int nvb, int nhb, int sbx, int sby, int nhsb,
- int nvsb, int xdec, int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS], int pli,
- unsigned char *bskip, int skip_stride, int threshold, int overlap);
+ const od_dering_in *x, int xstride, int nvb, int nhb, int sbx, int sby,
+ int nhsb, int nvsb, int xdec, int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS],
+ int pli, unsigned char *bskip, int skip_stride, int threshold, int overlap,
+ int coeff_shift);
 void od_filter_dering_direction_c(int16_t *y, int ystride, const int16_t *in,
  int ln, int threshold, int dir);
 void od_filter_dering_orthogonal_c(int16_t *y, int ystride, const int16_t *in,
- const int16_t *x, int xstride, int ln, int threshold, int dir);
+ const od_dering_in *x, int xstride, int ln, int threshold, int dir);
 
 extern const od_dering_opt_vtbl OD_DERING_VTBL_C;
 
@@ -74,8 +78,10 @@ void od_filter_dering_direction_4x4_c(int16_t *y, int ystride,
 void od_filter_dering_direction_8x8_c(int16_t *y, int ystride,
  const int16_t *in, int threshold, int dir);
 void od_filter_dering_orthogonal_4x4_c(int16_t *y, int ystride,
- const int16_t *in, const int16_t *x, int xstride, int threshold, int dir);
+ const int16_t *in, const od_dering_in *x, int xstride, int threshold,
+ int dir);
 void od_filter_dering_orthogonal_8x8_c(int16_t *y, int ystride,
- const int16_t *in, const int16_t *x, int xstride, int threshold, int dir);
+ const int16_t *in, const od_dering_in *x, int xstride, int threshold,
+ int dir);
 
 #endif
