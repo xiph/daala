@@ -466,6 +466,7 @@ public:
   void onAbout(wxCommandEvent &event);
 
   bool open(const wxString &path);
+  bool setZoom(int zoom);
 };
 
 enum {
@@ -1250,7 +1251,6 @@ TestFrame::TestFrame(const bool bit_accounting) : wxFrame(NULL, wxID_ANY,
   int status_widths[4] = {-1, 80, 130, 110};
   SetStatusWidths(4, status_widths);
   SetStatusText(_("another day, another daala"));
-  GetMenuBar()->Enable(wxID_ACTUAL_SIZE, false);
   GetMenuBar()->Check(wxID_SHOW_Y, true);
   GetMenuBar()->Check(wxID_SHOW_U, true);
   GetMenuBar()->Check(wxID_SHOW_V, true);
@@ -1277,30 +1277,28 @@ void TestFrame::onQuit(wxCommandEvent &WXUNUSED(event)) {
 }
 
 void TestFrame::onZoomIn(wxCommandEvent &WXUNUSED(event)) {
-  if (panel->setZoom(panel->getZoom() + 1)) {
-    GetMenuBar()->Enable(wxID_ACTUAL_SIZE, true);
-    Fit();
-    panel->render();
-    panel->Refresh();
-  }
+  setZoom(panel->getZoom() + 1);
 }
 
 void TestFrame::onZoomOut(wxCommandEvent &WXUNUSED(event)) {
-  if (panel->setZoom(panel->getZoom() - 1)) {
-    GetMenuBar()->Enable(wxID_ACTUAL_SIZE, panel->getZoom() != MIN_ZOOM);
-    Fit();
-    panel->render();
-    panel->Refresh();
-  }
+  setZoom(panel->getZoom() - 1);
 }
 
 void TestFrame::onActualSize(wxCommandEvent &WXUNUSED(event)) {
-  if (panel->setZoom(MIN_ZOOM)) {
-    GetMenuBar()->Enable(wxID_ACTUAL_SIZE, false);
+  setZoom(MIN_ZOOM);
+}
+
+bool TestFrame::setZoom(int zoom) {
+  if (panel->setZoom(zoom)) {
+    GetMenuBar()->Enable(wxID_ACTUAL_SIZE, zoom != MIN_ZOOM);
+    GetMenuBar()->Enable(wxID_ZOOM_IN, zoom != MAX_ZOOM);
+    GetMenuBar()->Enable(wxID_ZOOM_OUT, zoom != MIN_ZOOM);
     Fit();
     panel->render();
     panel->Refresh();
+    return true;
   }
+  return false;
 }
 
 void TestFrame::onFilter(wxCommandEvent &WXUNUSED(event)) {
@@ -1374,7 +1372,11 @@ void TestFrame::onAbout(wxCommandEvent& WXUNUSED(event)) {
 bool TestFrame::open(const wxString &path) {
   panel = new TestPanel(this, path, bit_accounting);
   if (panel->open(path)) {
+    GetMenuBar()->Enable(wxID_ACTUAL_SIZE, false);
+    GetMenuBar()->Enable(wxID_ZOOM_IN, true);
+    GetMenuBar()->Enable(wxID_ZOOM_OUT, false);
     Fit();
+    panel->Refresh();
     SetStatusText(_("loaded file: ") + path);
     fileMenu->Enable(wxID_OPEN, false);
     viewMenu->Enable(wxID_SHOW_PADDING, panel->hasPadding());
