@@ -49,25 +49,28 @@
 #include <signal.h>
 #include "vidinput.h"
 
-const char *optstring = "fsy";
+const char *optstring = "fsya";
 struct option options [] = {
   {"frame-type",no_argument,NULL,'f'},
   {"summary",no_argument,NULL,'s'},
   {"luma-only",no_argument,NULL,'y'},
+  {"frame-averaged",no_argument,NULL,'a'},
   {NULL,0,NULL,0}
 };
 
 static int show_frame_type;
 static int summary_only;
 static int luma_only;
+static int frame_averaged;
 
 static void usage(char *_argv[]){
   fprintf(stderr,"Usage: %s [options] <video1> <video2>\n"
    "    <video1> and <video2> must be YUV4MPEG files.\n\n"
    "    Options:\n\n"
-   "      -f --frame-type Show frame type and QI value for each Theora frame.\n"
-   "      -s --summary    Only output the summary line.\n"
-   "      -y --luma-only  Only output values for the luma channel.\n",_argv[0]);
+   "      -f --frame-type     Show QI value for each frame.\n"
+   "      -s --summary        Only output the summary line.\n"
+   "      -y --luma-only      Only output values for the luma channel.\n"
+   "      -a --frame-averaged Average frame PSNR values together",_argv[0]);
 }
 
 int main(int _argc,char *_argv[]){
@@ -79,6 +82,8 @@ int main(int _argc,char *_argv[]){
   int64_t  gnpixels;
   int64_t  gplsqerr[3];
   int64_t  gplnpixels[3];
+  double psnrsum;
+  double plpsnrsum[3];
   int          frameno;
   FILE        *fin;
   int          long_option_index;
@@ -96,6 +101,7 @@ int main(int _argc,char *_argv[]){
       case 'f':show_frame_type=1;break;
       case 's':summary_only=1;break;
       case 'y':luma_only=1;break;
+      case 'a':frame_averaged=1;break;
       default:usage(_argv);break;
     }
   }
@@ -143,6 +149,10 @@ int main(int _argc,char *_argv[]){
   }
   gsqerr=gplsqerr[0]=gplsqerr[1]=gplsqerr[2]=0;
   gnpixels=gplnpixels[0]=gplnpixels[1]=gplnpixels[2]=0;
+  psnrsum = 0;
+  plpsnrsum[0] = 0;
+  plpsnrsum[1] = 0;
+  plpsnrsum[2] = 0;
   for(frameno=0;;frameno++){
     video_input_ycbcr f1;
     video_input_ycbcr f2;
@@ -150,6 +160,8 @@ int main(int _argc,char *_argv[]){
     long            plnpixels[3];
     int64_t     sqerr;
     long            npixels;
+    double plpsnr[3];
+    double psnr;
     int             ret1;
     int             ret2;
     int             pli;
@@ -198,22 +210,25 @@ int main(int _argc,char *_argv[]){
       gplsqerr[pli]+=plsqerr[pli];
       npixels+=plnpixels[pli];
       gplnpixels[pli]+=plnpixels[pli];
+      plpsnr[pli] =
+       10*(log10(255*255)+log10(plnpixels[pli])-log10(plsqerr[pli]));
     }
+    psnr = 10*(log10(255*255)+log10(npixels)-log10(sqerr));
     if(!summary_only){
       if(!luma_only){
         printf("%08i: %-7G  (Y': %-7G  Cb: %-7G  Cr: %-7G)\n",frameno,
-         10*(log10(255*255)+log10(npixels)-log10(sqerr)),
-         10*(log10(255*255)+log10(plnpixels[0])-log10(plsqerr[0])),
-         10*(log10(255*255)+log10(plnpixels[1])-log10(plsqerr[1])),
-         10*(log10(255*255)+log10(plnpixels[2])-log10(plsqerr[2])));
+         psnr,plpsnr[0],plpsnr[1],plpsnr[2]);
       }
       else{
-        printf("%08i: %-7G\n",frameno,
-         10*(log10(255*255)+log10(plnpixels[0])-log10(plsqerr[0])));
+        printf("%08i: %-7G\n",frameno,plpsnr[0]);
       }
     }
     gsqerr+=sqerr;
     gnpixels+=npixels;
+    psnrsum+=psnr;
+    plpsnrsum[0]+=plpsnr[0];
+    plpsnrsum[1]+=plpsnr[1];
+    plpsnrsum[2]+=plpsnr[2];
   }
   if(!luma_only){
     printf("Total: %-7G  (Y': %-7G  Cb: %-7G  Cr: %-7G)\n",
@@ -225,6 +240,16 @@ int main(int _argc,char *_argv[]){
   else{
     printf("Total: %-7G\n",
      10*(log10(255*255)+log10(gplnpixels[0])-log10(gplsqerr[0])));
+  }
+  if(frame_averaged){
+    if(!luma_only){
+      printf("Frame-averaged: %-7G  (Y': %-7G  Cb: %-7G  Cr: %-7G)\n",
+       psnrsum/frameno,plpsnrsum[0]/frameno,plpsnrsum[1]/frameno,
+       plpsnrsum[2]/frameno);
+    }
+    else{
+      printf("Frame-averaged: %-7G\n",plpsnrsum[0]/frameno);
+    }
   }
   video_input_close(&vid1);
   video_input_close(&vid2);
