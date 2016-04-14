@@ -222,7 +222,8 @@ tools_TARGETS = \
 	tools/yuv2yuv4mpeg \
 	tools/dump_psnr \
 	tools/vq_train \
-	tools/draw_zigzags
+	tools/draw_zigzags \
+	tools/dump_msssim
 
 noinst_HEADERS += \
 	tools/cholesky.h \
@@ -274,6 +275,14 @@ tools_dump_ssim_SOURCES = \
 	tools/dump_ssim.c
 tools_dump_ssim_CFLAGS = $(OGG_CFLAGS)
 tools_dump_ssim_LDADD = $(OGG_LIBS) $(LIBM)
+
+# dump_msssim
+tools_dump_msssim_SOURCES = \
+	tools/vidinput.c \
+	tools/y4m_input.c \
+	tools/dump_msssim.c
+tools_dump_msssim_CFLAGS = $(OGG_CFLAGS)
+tools_dump_msssim_LDADD = $(OGG_LIBS) $(LIBM)
 
 # dump_fastssim
 tools_dump_fastssim_SOURCES = \
