@@ -40,6 +40,33 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
  *
  * @param [in,out] enc   range encoder
  * @param [in]     val   variable being encoded
+ * @param [in,out] cdf   CDF of the variable (Q15)
+ * @param [in]     n     number of values possible
+ * @param [in,out] count number of symbols encoded with that cdf so far
+ * @param [in]     rate  adaptation rate shift (smaller is faster)
+ */
+void od_encode_cdf_adapt_q15(od_ec_enc *ec, int val, uint16_t *cdf, int n,
+ int *count, int rate) {
+  int i;
+  if (*count == 0) {
+    /* On the first call, we normalize the cdf to (32768 - n). This should
+       eventually be moved to the state init, but for now it makes it much
+       easier to experiment and convert symbols to the Q15 adaptation.*/
+    int ft;
+    ft = cdf[n - 1];
+    for (i = 0; i < n; i++) {
+      cdf[i] = cdf[i]*32768/ft;
+    }
+  }
+  od_ec_encode_cdf_q15(ec, val, cdf, n);
+  od_cdf_adapt_q15(val, cdf, n, count, rate);
+}
+
+/** Encodes a value from 0 to N-1 (with N up to 16) based on a cdf and adapts
+ * the cdf accordingly.
+ *
+ * @param [in,out] enc   range encoder
+ * @param [in]     val   variable being encoded
  * @param [in]     cdf   CDF of the variable (Q15)
  * @param [in]     n     number of values possible
  * @param [in]     increment adaptation speed (Q15)

@@ -32,9 +32,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #if OD_ACCOUNTING
 # define generic_decode(dec, model, max, ex_q16, integration, str) generic_decode_(dec, model, max, ex_q16, integration, str)
+# define od_decode_cdf_adapt_q15(ec, cdf, n, count, rate, str) od_decode_cdf_adapt_q15_(ec, cdf, n, count, rate, str)
 # define od_decode_cdf_adapt(ec, cdf, n, increment, str) od_decode_cdf_adapt_(ec, cdf, n, increment, str)
 #else
 # define generic_decode(dec, model, max, ex_q16, integration, str) generic_decode_(dec, model, max, ex_q16, integration)
+# define od_decode_cdf_adapt_q15(ec, cdf, n, count, rate, str) od_decode_cdf_adapt_q15_(ec, cdf, n, count, rate)
 # define od_decode_cdf_adapt(ec, cdf, n, increment, str) od_decode_cdf_adapt_(ec, cdf, n, increment)
 #endif
 
@@ -63,6 +65,11 @@ void generic_model_init(generic_encoder *model);
 
 void od_cdf_init(uint16_t *cdf, int ncdfs, int nsyms, int val, int first);
 
+void od_cdf_adapt_q15(int val, uint16_t *cdf, int n, int *count, int rate);
+
+void od_encode_cdf_adapt_q15(od_ec_enc *ec, int val, uint16_t *cdf, int n,
+ int *count, int rate);
+
 void od_encode_cdf_adapt(od_ec_enc *ec, int val, uint16_t *cdf, int n,
  int increment);
 
@@ -75,6 +82,9 @@ double generic_encode_cost(generic_encoder *model, int x, int max,
  int *ex_q16);
 
 double od_encode_cdf_cost(int val, uint16_t *cdf, int n);
+
+int od_decode_cdf_adapt_q15_(od_ec_dec *ec, uint16_t *cdf, int n,
+ int *count, int rate OD_ACC_STR);
 
 int generic_decode_(od_ec_dec *dec, generic_encoder *model, int max,
  int *ex_q16, int integration OD_ACC_STR);

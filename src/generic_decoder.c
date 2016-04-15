@@ -38,6 +38,32 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
  * the cdf accordingly.
  *
  * @param [in,out] enc   range encoder
+ * @param [in,out] cdf   CDF of the variable (Q15)
+ * @param [in]     n     number of values possible
+ * @param [in,out] count number of symbols encoded with that cdf so far
+ * @param [in]     rate  adaptation rate shift (smaller is faster)
+ * @return decoded variable
+ */
+int od_decode_cdf_adapt_q15_(od_ec_dec *ec, uint16_t *cdf, int n,
+ int *count, int rate OD_ACC_STR) {
+  int val;
+  int i;
+  if (*count == 0) {
+    int ft;
+    ft = cdf[n - 1];
+    for (i = 0; i < n; i++) {
+      cdf[i] = cdf[i]*32768/ft;
+    }
+  }
+  val = od_ec_decode_cdf_q15(ec, cdf, n, acc_str);
+  od_cdf_adapt_q15(val, cdf, n, count, rate);
+  return val;
+}
+
+/** Decodes a value from 0 to N-1 (with N up to 16) based on a cdf and adapts
+ * the cdf accordingly.
+ *
+ * @param [in,out] enc   range encoder
  * @param [in]     cdf   CDF of the variable (Q15)
  * @param [in]     n     number of values possible
  * @param [in]     increment adaptation speed (Q15)

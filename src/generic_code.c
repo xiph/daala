@@ -38,6 +38,40 @@ void od_cdf_init(uint16_t *cdf, int ncdfs, int nsyms, int val, int first) {
   }
 }
 
+/** Adapts a Q15 cdf after encoding/decoding a symbol. The total frequency
+    count on input and output (cdf[n - 1]) must be equal to (32768 - n)
+    so that we can add a floor probability of 1. */
+void od_cdf_adapt_q15(int val, uint16_t *cdf, int n, int *count, int rate) {
+  int i;
+  *count = OD_MINI(*count + 1, 1 << rate);
+  OD_ASSERT(cdf[n - 1] == 32768);
+  /* Remove probability floor for adaptation. */
+  for (i = 0; i < n; i++) cdf[i] -= (i + 1);
+  if (*count >= 1 << rate) {
+    /* Steady-state adaptation based on a simple IIR with dyadic rate. */
+    for (i = 0; i < n; i++) {
+      int tmp;
+      tmp = (32768 - n)*(i >= val);
+      cdf[i] -= ((cdf[i] - tmp) + (1 << rate >> 1)) >> rate;
+    }
+  }
+  else {
+    int alpha;
+    /* Initial adaptation for the first symbols. The adaptation rate is
+       computed to be equivalent to what od_{en,de}code_cdf_adapt() does
+       when the initial cdf is set to increment/4. */
+    alpha = 4*32768/(n + 4**count);
+    for (i = 0; i < n; i++) {
+      int tmp;
+      tmp = (32768 - n)*(i >= val);
+      cdf[i] -= ((cdf[i] - tmp)*alpha + 16384) >> 15;
+    }
+  }
+  /* Add back the probability floor. */
+  for (i = 0; i < n; i++) cdf[i] += (i + 1);
+  OD_ASSERT(cdf[n - 1] == 32768);
+}
+
 /** Initializes the cdfs and freq counts for a model.
  *
  * @param [out] model model being initialized
