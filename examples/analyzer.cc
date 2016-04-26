@@ -1310,15 +1310,15 @@ void TestFrame::onFilter(wxCommandEvent &WXUNUSED(event)) {
   panel->Refresh(false);
 }
 
-void TestFrame::onPaddingChange(wxCommandEvent &WXUNUSED(event)) {
-  panel->setShowPadding(GetMenuBar()->IsChecked(wxID_SHOW_PADDING));
+void TestFrame::onPaddingChange(wxCommandEvent &event) {
+  panel->setShowPadding(event.IsChecked());
   Fit();
   panel->render();
   panel->Refresh();
 }
 
-void TestFrame::onBitsChange(wxCommandEvent &WXUNUSED(event)) {
-  panel->setShowBits(GetMenuBar()->IsChecked(wxID_SHOW_BITS));
+void TestFrame::onBitsChange(wxCommandEvent &event) {
+  panel->setShowBits(event.IsChecked());
   panel->render();
   panel->Refresh(false);
 }
@@ -1328,22 +1328,22 @@ void TestFrame::onFilterBits(wxCommandEvent &WXUNUSED(event)) {
   panel->Refresh(false);
 }
 
-void TestFrame::onYChange(wxCommandEvent &WXUNUSED(event)) {
-  panel->setShowPlane(GetMenuBar()->IsChecked(wxID_SHOW_Y), OD_LUMA_MASK);
+void TestFrame::onYChange(wxCommandEvent &event) {
+  panel->setShowPlane(event.IsChecked(), OD_LUMA_MASK);
   Fit();
   panel->render();
   panel->Refresh();
 }
 
-void TestFrame::onUChange(wxCommandEvent &WXUNUSED(event)) {
-  panel->setShowPlane(GetMenuBar()->IsChecked(wxID_SHOW_U), OD_CB_MASK);
+void TestFrame::onUChange(wxCommandEvent &event) {
+  panel->setShowPlane(event.IsChecked(), OD_CB_MASK);
   Fit();
   panel->render();
   panel->Refresh();
 }
 
-void TestFrame::onVChange(wxCommandEvent &WXUNUSED(event)) {
-  panel->setShowPlane(GetMenuBar()->IsChecked(wxID_SHOW_V), OD_CR_MASK);
+void TestFrame::onVChange(wxCommandEvent &event) {
+  panel->setShowPlane(event.IsChecked(), OD_CR_MASK);
   Fit();
   panel->render();
   panel->Refresh();
