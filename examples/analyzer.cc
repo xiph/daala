@@ -1193,6 +1193,12 @@ TestFrame::TestFrame(const bool bit_accounting) : wxFrame(NULL, wxID_ANY,
  wxDEFAULT_FRAME_STYLE), panel(NULL), bit_accounting(bit_accounting) {
   wxMenuBar *mb = new wxMenuBar();
 
+  wxAcceleratorEntry entries[2];
+  entries[0].Set(wxACCEL_CTRL, (int)'=', wxID_ZOOM_IN);
+  entries[1].Set(wxACCEL_CTRL|wxACCEL_SHIFT, (int)'-', wxID_ZOOM_OUT);
+  wxAcceleratorTable accel(2, entries);
+  this->SetAcceleratorTable(accel);
+
   fileMenu = new wxMenu();
   fileMenu->Append(wxID_OPEN, _("&Open...\tCtrl-O"), _("Open daala file"));
   fileMenu->Append(wxID_CLOSE, _("&Close\tCtrl-W"), _("Close daala file"));
