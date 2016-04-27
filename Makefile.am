@@ -324,6 +324,7 @@ tools_downsample_LDADD = $(THEORA_LIBS) $(OGG_LIBS) $(PNG_LIBS)
 # upsample
 tools_upsample_SOURCES = \
 	$(src_dct_SOURCES) \
+	src/dering.c \
 	src/filter.c \
 	src/generic_code.c \
 	src/switch_table.c \
@@ -344,7 +345,6 @@ tools_upsample_SOURCES = \
 	tools/upsample.c
 if ENABLE_X86ASM
 tools_upsample_SOURCES += \
-	src/dering.c \
 	src/x86/sse2dering.c \
 	src/x86/sse2mc.c \
 	src/x86/sse2util.c \
