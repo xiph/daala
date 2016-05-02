@@ -1213,20 +1213,23 @@ TestFrame::TestFrame(const bool bit_accounting) : wxFrame(NULL, wxID_ANY,
    _("Half image size"));
   viewMenu->Append(wxID_ACTUAL_SIZE, _("Actual size\tCtrl-0"),
    _("Actual size of the frame"));
+  viewMenu->AppendSeparator();
+  viewMenu->AppendCheckItem(wxID_SHOW_PADDING, _("&Padding\tCtrl-P"),
+   _("Show padding area"));
   viewMenu->AppendCheckItem(wxID_SHOW_BLOCKS, _("&Blocks\tCtrl-B"),
    _("Show block sizes"));
   viewMenu->AppendCheckItem(wxID_SHOW_SKIP, _("&Skip\tCtrl-S"),
-   _("Show skip bands"));
+   _("Show skip bands overlay"));
   viewMenu->AppendCheckItem(wxID_SHOW_NOREF, _("&No-Ref\tCtrl-N"),
-   _("Show no-ref bands"));
-  viewMenu->AppendCheckItem(wxID_SHOW_PADDING, _("&Padding\tCtrl-P"),
-   _("Show padding area"));
+   _("Show no-ref bands overlay"));
+  viewMenu->AppendSeparator();
+  viewMenu->AppendCheckItem(wxID_SHOW_DERING, _("&Deringing\tCtrl-D"),
+   _("Show deringing filter"));
+  viewMenu->AppendSeparator();
   viewMenu->AppendCheckItem(wxID_SHOW_BITS, _("Bit &Accounting\tCtrl-A"),
    _("Show bit accounting"));
   viewMenu->Append(wxID_FILTER_BITS, _("&Filter Bits\tCtrl-F"),
    _("Filter bit accounting"));
-  viewMenu->AppendCheckItem(wxID_SHOW_DERING, _("&Deringing\tCtrl-D"),
-   _("Show deringing filter"));
   viewMenu->AppendSeparator();
   viewMenu->AppendCheckItem(wxID_SHOW_Y, _("&Y plane\tCtrl-Y"),
    _("Show Y plane"));
