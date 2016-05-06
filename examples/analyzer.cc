@@ -1302,7 +1302,7 @@ bool TestFrame::setZoom(int zoom) {
     GetMenuBar()->Enable(wxID_ACTUAL_SIZE, zoom != MIN_ZOOM);
     GetMenuBar()->Enable(wxID_ZOOM_IN, zoom != MAX_ZOOM);
     GetMenuBar()->Enable(wxID_ZOOM_OUT, zoom != MIN_ZOOM);
-    Fit();
+    SetClientSize(panel->GetSize());
     panel->render();
     panel->Refresh();
     return true;
@@ -1321,7 +1321,7 @@ void TestFrame::onFilter(wxCommandEvent &WXUNUSED(event)) {
 
 void TestFrame::onPaddingChange(wxCommandEvent &event) {
   panel->setShowPadding(event.IsChecked());
-  Fit();
+  SetClientSize(panel->GetSize());
   panel->render();
   panel->Refresh();
 }
@@ -1339,21 +1339,21 @@ void TestFrame::onFilterBits(wxCommandEvent &WXUNUSED(event)) {
 
 void TestFrame::onYChange(wxCommandEvent &event) {
   panel->setShowPlane(event.IsChecked(), OD_LUMA_MASK);
-  Fit();
+  SetClientSize(panel->GetSize());
   panel->render();
   panel->Refresh();
 }
 
 void TestFrame::onUChange(wxCommandEvent &event) {
   panel->setShowPlane(event.IsChecked(), OD_CB_MASK);
-  Fit();
+  SetClientSize(panel->GetSize());
   panel->render();
   panel->Refresh();
 }
 
 void TestFrame::onVChange(wxCommandEvent &event) {
   panel->setShowPlane(event.IsChecked(), OD_CR_MASK);
-  Fit();
+  SetClientSize(panel->GetSize());
   panel->render();
   panel->Refresh();
 }
@@ -1384,7 +1384,7 @@ bool TestFrame::open(const wxString &path) {
     GetMenuBar()->Enable(wxID_ACTUAL_SIZE, false);
     GetMenuBar()->Enable(wxID_ZOOM_IN, true);
     GetMenuBar()->Enable(wxID_ZOOM_OUT, false);
-    Fit();
+    SetClientSize(panel->GetSize());
     panel->Refresh();
     SetStatusText(_("loaded file: ") + path);
     fileMenu->Enable(wxID_OPEN, false);
