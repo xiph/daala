@@ -52,6 +52,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 /*Note that OD_BLOCK_NXN = log2(N) - 2.*/
 #define OD_BLOCK_64X64 (4)
 
+/*Largest motion compensation partition sizes are 64x64.*/
+# define OD_LOG_MVBSIZE_MAX (6)
+# define OD_MVBSIZE_MAX (1 << OD_LOG_MVBSIZE_MAX)
+/*Smallest motion compensation partition sizes are 8x8.*/
+# define OD_LOG_MVBSIZE_MIN (3)
+# define OD_MVBSIZE_MIN (1 << OD_LOG_MVBSIZE_MIN)
+
 /*The deringing filter is applied on 8x8 blocks, but it's application
    is signaled on a 64x64 grid.*/
 #define OD_LOG_DERING_GRID (OD_BLOCK_64X64)
@@ -92,6 +99,19 @@ static const unsigned char OD_DERING_CB[] = {
   96, 255, 160, 128, 128, 128
 };
 
+struct od_mv_grid_pt {
+  /*The x, y offsets of the motion vector in units of 1/8th pixels.*/
+  int mv[2];
+  /*The motion vector for backward prediction.*/
+  int mv1[2];
+  /*Whether or not this MV actually has a valid value.*/
+  unsigned valid:1;
+  /*The ref image that this MV points into.*/
+  /*For P frame, 0:golden frame, 1:previous frame. */
+  /*For B frame, 1:previous frame, 2:next frame, 3:both frames.*/
+  unsigned ref:3;
+};
+
 class DaalaDecoder {
 private:
   FILE *input;
@@ -128,11 +148,15 @@ public:
   int getFrameHeight() const;
   int getRunningFrameCount() const;
 
+  int getNHMVBS() const;
+  int getNVMVBS() const;
+
   bool setBlockSizeBuffer(unsigned char *buf, size_t buf_sz);
   bool setBandFlagsBuffer(unsigned int *buf, size_t buf_sz);
   bool setAccountingEnabled(bool enable);
   bool getAccountingStruct(od_accounting **acct);
   bool setDeringFlagsBuffer(unsigned char *buf, size_t buf_sz);
+  bool setMVBuffer(od_mv_grid_pt *buf, size_t buf_sz);
 };
 
 static void ogg_to_daala_packet(daala_packet *dp, ogg_packet *op) {
@@ -297,6 +321,14 @@ int DaalaDecoder::getRunningFrameCount() const {
   return frame;
 }
 
+int DaalaDecoder::getNHMVBS() const {
+  return getFrameWidth() >> OD_LOG_MVBSIZE_MIN;
+}
+
+int DaalaDecoder::getNVMVBS() const {
+  return getFrameHeight() >> OD_LOG_MVBSIZE_MIN;
+}
+
 bool DaalaDecoder::setBlockSizeBuffer(unsigned char *buf, size_t buf_sz) {
   if (dctx == NULL) {
     return false;
@@ -339,6 +371,17 @@ bool DaalaDecoder::setDeringFlagsBuffer(unsigned char *buf, size_t buf_sz) {
    OD_SUCCESS;
 }
 
+bool DaalaDecoder::setMVBuffer(od_mv_grid_pt *buf, size_t buf_sz) {
+  if (dctx == NULL) {
+    return false;
+  }
+  /* We set this buffer to zero because the first frame is an I-frame and has
+     no motion vectors, yet we allow you to enable MV block visualization. */
+  memset(buf, 0, buf_sz);
+  return daala_decode_ctl(dctx, OD_DECCTL_SET_MV_BUFFER, buf, buf_sz) ==
+   OD_SUCCESS;
+}
+
 #define MIN_ZOOM (1)
 #define MAX_ZOOM (4)
 
@@ -361,6 +404,7 @@ private:
   unsigned int bsize_len;
   int bstride;
   bool show_blocks;
+  bool show_motion;
 
   unsigned int *flags;
   unsigned int flags_len;
@@ -380,6 +424,9 @@ private:
 
   unsigned char *dering;
   unsigned int dering_len;
+
+  od_mv_grid_pt *mv;
+  unsigned int mv_len;
 
   int plane_mask;
   const wxString path;
@@ -415,6 +462,7 @@ public:
   bool setZoom(int zoom);
 
   void setShowBlocks(bool show_blocks);
+  void setShowMotion(bool show_motion);
   void setShowSkip(bool show_skip);
   void setShowNoRef(bool show_noref);
   void setShowPadding(bool show_padding);
@@ -455,6 +503,7 @@ public:
   void onZoomOut(wxCommandEvent &event);
   void onActualSize(wxCommandEvent &event);
   void onToggleViewMenuCheckBox(wxCommandEvent &event);
+  void onToggleBlocks(wxCommandEvent &event);
   void onResetAndToggleViewMenuCheckBox(wxCommandEvent &event);
   void onFilterBits(wxCommandEvent &event);
   void onViewReset(wxCommandEvent &event);
@@ -470,6 +519,7 @@ public:
 
 enum {
   wxID_SHOW_BLOCKS = 6000,
+  wxID_SHOW_MOTION,
   wxID_SHOW_SKIP,
   wxID_SHOW_NOREF,
   wxID_SHOW_PADDING,
@@ -493,7 +543,8 @@ BEGIN_EVENT_TABLE(TestFrame, wxFrame)
   EVT_MENU(wxID_ZOOM_IN, TestFrame::onZoomIn)
   EVT_MENU(wxID_ZOOM_OUT, TestFrame::onZoomOut)
   EVT_MENU(wxID_ACTUAL_SIZE, TestFrame::onActualSize)
-  EVT_MENU(wxID_SHOW_BLOCKS, TestFrame::onToggleViewMenuCheckBox)
+  EVT_MENU(wxID_SHOW_BLOCKS, TestFrame::onToggleBlocks)
+  EVT_MENU(wxID_SHOW_MOTION, TestFrame::onToggleBlocks)
   EVT_MENU(wxID_SHOW_SKIP, TestFrame::onResetAndToggleViewMenuCheckBox)
   EVT_MENU(wxID_SHOW_NOREF, TestFrame::onResetAndToggleViewMenuCheckBox)
   EVT_MENU(wxID_SHOW_PADDING, TestFrame::onToggleViewMenuCheckBox)
@@ -512,11 +563,11 @@ END_EVENT_TABLE()
 
 TestPanel::TestPanel(wxWindow *parent, const wxString &path,
  const bool bit_accounting) : wxPanel(parent), pixels(NULL), zoom(0),
- bsize(NULL), bsize_len(0), show_blocks(false), flags(NULL), flags_len(0),
- show_skip(false), show_noref(false), show_padding(false), show_dering(false),
- acct(NULL), show_bits(false), show_bits_filter(_("")), bpp_q3(NULL),
- dering(NULL), dering_len(0), plane_mask(OD_ALL_MASK), path(path),
- bit_accounting(bit_accounting) {
+ bsize(NULL), bsize_len(0), show_blocks(false), show_motion(false),
+ flags(NULL), flags_len(0), show_skip(false), show_noref(false),
+ show_padding(false), show_dering(false), acct(NULL), show_bits(false),
+ show_bits_filter(_("")), bpp_q3(NULL), dering(NULL), dering_len(0),
+ plane_mask(OD_ALL_MASK), path(path), bit_accounting(bit_accounting) {
 }
 
 TestPanel::~TestPanel() {
@@ -591,6 +642,13 @@ bool TestPanel::open(const wxString &path) {
     close();
     return false;
   }
+  mv_len = sizeof(od_mv_grid_pt)*(dd.getNHMVBS() + 1)*(dd.getNVMVBS() + 1);
+  mv = (od_mv_grid_pt *)malloc(mv_len);
+  if (!dd.setMVBuffer(mv, mv_len)) {
+    fprintf(stderr,"Could not set mv buffer\n");
+    close();
+    return false;
+  }
   if (!nextFrame()) {
     close();
     return false;
@@ -611,6 +669,8 @@ void TestPanel::close() {
   bpp_q3 = NULL;
   free(dering);
   dering = NULL;
+  free(mv);
+  mv = NULL;
 }
 
 int TestPanel::getDecodeWidth() const {
@@ -776,6 +836,25 @@ void TestPanel::render() {
           pmask = OD_ALL_MASK;
         }
       }
+      if (show_motion) {
+        int mask = ~(OD_MVBSIZE_MIN - 1);
+        int b = OD_LOG_MVBSIZE_MIN;
+        while (i == (i & mask) || j == (j & mask)) {
+          mask <<= 1;
+          int mid_step = 1 << b++;
+          int row = ((i & mask) + mid_step) >> OD_LOG_MVBSIZE_MIN;
+          int col = ((j & mask) + mid_step) >> OD_LOG_MVBSIZE_MIN;
+          int index = col * (dd.getNHMVBS() + 1) + row;
+          if (mv[index].valid) {
+            yval = block_edge_luma(yval);
+            cbval = 255;
+            break;
+          }
+          if (b > OD_LOG_MVBSIZE_MAX) {
+            break;
+          }
+        }
+      }
       if (i == dd.getWidth() || j == dd.getHeight()) {
         /* Display a checkerboard pattern at the padding edge */
         yval = 255 * ((i + j) & 1);
@@ -853,6 +932,10 @@ bool TestPanel::setZoom(int z) {
 
 void TestPanel::setShowBlocks(bool show_blocks) {
   this->show_blocks = show_blocks;
+}
+
+void TestPanel::setShowMotion(bool show_motion) {
+  this->show_motion = show_motion;
 }
 
 void TestPanel::setShowSkip(bool show_skip) {
@@ -1136,6 +1219,7 @@ void TestPanel::restart() {
     dd.getAccountingStruct(&acct);
   }
   dd.setDeringFlagsBuffer(dering, dering_len);
+  dd.setMVBuffer(mv, mv_len);
   nextFrame();
 }
 
@@ -1225,10 +1309,14 @@ TestFrame::TestFrame(const bool bit_accounting) : wxFrame(NULL, wxID_ANY,
   viewMenu->Append(wxID_ACTUAL_SIZE, _("Actual size\tCtrl-0"),
    _("Actual size of the frame"));
   viewMenu->AppendSeparator();
+  viewMenu->AppendCheckItem(wxID_SHOW_MOTION,
+   _("&MC Blocks\tCtrl-M"),
+   _("Show motion-compensation block sizes"));
+  viewMenu->AppendCheckItem(wxID_SHOW_BLOCKS, _("&Transform Blocks\tCtrl-B"),
+   _("Show transform block sizes"));
+  viewMenu->AppendSeparator();
   viewMenu->AppendCheckItem(wxID_SHOW_PADDING, _("&Padding\tCtrl-P"),
    _("Show padding area"));
-  viewMenu->AppendCheckItem(wxID_SHOW_BLOCKS, _("&Blocks\tCtrl-B"),
-   _("Show block sizes"));
   viewMenu->AppendCheckItem(wxID_SHOW_SKIP, _("&Skip\tCtrl-S"),
    _("Show skip bands overlay"));
   viewMenu->AppendCheckItem(wxID_SHOW_NOREF, _("&No-Ref\tCtrl-N"),
@@ -1325,6 +1413,12 @@ bool TestFrame::setZoom(int zoom) {
   return false;
 }
 
+void TestFrame::onToggleBlocks(wxCommandEvent &event) {
+  GetMenuBar()->Check(wxID_SHOW_BLOCKS, false);
+  GetMenuBar()->Check(wxID_SHOW_MOTION, false);
+  onToggleViewMenuCheckBox(event);
+}
+
 void TestFrame::onToggleViewMenuCheckBox(wxCommandEvent &event) {
   GetMenuBar()->Check(event.GetId(), event.IsChecked());
   updateViewMenu();
@@ -1348,6 +1442,7 @@ void TestFrame::onResetAndToggleViewMenuCheckBox(wxCommandEvent &event) {
 
 void TestFrame::updateViewMenu() {
   panel->setShowBlocks(GetMenuBar()->IsChecked(wxID_SHOW_BLOCKS));
+  panel->setShowMotion(GetMenuBar()->IsChecked(wxID_SHOW_MOTION));
   panel->setShowSkip(GetMenuBar()->IsChecked(wxID_SHOW_SKIP));
   panel->setShowNoRef(GetMenuBar()->IsChecked(wxID_SHOW_NOREF));
   panel->setShowPadding(GetMenuBar()->IsChecked(wxID_SHOW_PADDING));
@@ -1365,6 +1460,7 @@ void TestFrame::onViewReset(wxCommandEvent &WXUNUSED(event)) {
   GetMenuBar()->Check(wxID_SHOW_BITS, false);
   GetMenuBar()->Check(wxID_SHOW_DERING, false);
   GetMenuBar()->Check(wxID_SHOW_BLOCKS, false);
+  GetMenuBar()->Check(wxID_SHOW_MOTION, false);
   GetMenuBar()->Check(wxID_SHOW_PADDING, false);
   GetMenuBar()->Check(wxID_SHOW_NOREF, false);
   GetMenuBar()->Check(wxID_SHOW_SKIP, false);
