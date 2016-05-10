@@ -152,7 +152,7 @@ struct daala_enc_ctx{
   oggbyte_buffer obb;
   od_ec_enc ec;
   int packet_state;
-  int quality[OD_NPLANES_MAX];
+  int quality;
   int complexity;
   int use_activity_masking;
   int use_dering;

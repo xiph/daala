@@ -500,7 +500,7 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int bs,
   int use_activity_masking;
   OD_ASSERT(bs >= 0 && bs < OD_NBSIZES);
   n = 1 << (bs + 2);
-  lossless = OD_LOSSLESS(dec, pli);
+  lossless = OD_LOSSLESS(dec);
   use_activity_masking = ctx->use_activity_masking;
   bx <<= bs;
   by <<= bs;
@@ -536,7 +536,7 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int bs,
     od_init_skipped_coeffs(d, pred, ctx->is_keyframe, bo, n, w);
     od_raster_to_coding_order(predt,  n, &pred[0], n);
   }
-  quant = OD_MAXI(1, dec->state.quantizer[pli]);
+  quant = OD_MAXI(1, dec->state.quantizer);
   if (lossless) dc_quant = 1;
   else {
     dc_quant = OD_MAXI(1, quant*
@@ -544,7 +544,7 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int bs,
   }
   if (ctx->use_haar_wavelet) {
     od_wavelet_unquantize(dec, bs + 2, pred, predt,
-     dec->state.quantizer[pli], pli);
+     dec->state.quantizer, pli);
   }
   else {
     unsigned int flags;
@@ -612,9 +612,9 @@ static void od_decode_haar_dc_sb(daala_dec_ctx *dec, od_mb_dec_ctx *ctx,
   w = dec->state.frame_width >> xdec;
   /*This code assumes 4:4:4 or 4:2:0 input.*/
   OD_ASSERT(xdec == ydec);
-  if (OD_LOSSLESS(dec, pli)) dc_quant = 1;
+  if (OD_LOSSLESS(dec)) dc_quant = 1;
   else {
-    dc_quant = OD_MAXI(1, dec->state.quantizer[pli]*
+    dc_quant = OD_MAXI(1, dec->state.quantizer*
      dec->state.pvq_qm_q4[pli][od_qm_get_index(OD_NBSIZES - 1, 0)] >> 4);
   }
   nhsb = dec->state.nhsb;
@@ -659,12 +659,12 @@ static void od_decode_haar_dc_level(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int 
   int dc_quant;
   int w;
   w = dec->state.frame_width >> xdec;
-  if (OD_LOSSLESS(dec, pli)) dc_quant = 1;
+  if (OD_LOSSLESS(dec)) dc_quant = 1;
   else {
-    dc_quant = OD_MAXI(1, dec->state.quantizer[pli]*
+    dc_quant = OD_MAXI(1, dec->state.quantizer*
      dec->state.pvq_qm_q4[pli][od_qm_get_index(OD_NBSIZES - 1, 0)] >> 4);
   }
-  if (OD_LOSSLESS(dec, pli)) ac_quant[0] = ac_quant[1] = 1;
+  if (OD_LOSSLESS(dec)) ac_quant[0] = ac_quant[1] = 1;
   else {
     ac_quant[0] = (dc_quant*OD_DC_QM[bsi - xdec][0] + 8) >> 4;
     ac_quant[1] = (dc_quant*OD_DC_QM[bsi - xdec][1] + 8) >> 4;
@@ -817,7 +817,7 @@ static void od_decode_recursive(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int pli,
      hgrad, vgrad);
     bs = bsi - xdec;
     bo = (by << (OD_LOG_BSIZE0 + bs))*w + (bx << (OD_LOG_BSIZE0 + bs));
-    od_postfilter_split(ctx->c + bo, w, bs, f, dec->state.coded_quantizer[pli],
+    od_postfilter_split(ctx->c + bo, w, bs, f, dec->state.coded_quantizer,
      &dec->state.bskip[pli][(by << bs)*dec->state.skip_stride + (bx << bs)],
      dec->state.skip_stride, hfilter, vfilter);
   }
@@ -940,14 +940,12 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
   frame_width = state->frame_width;
   rec = state->ref_imgs + state->ref_imgi[OD_FRAME_SELF];
   OD_ACCOUNTING_SET_LOCATION(dec, OD_ACCT_FRAME, 0, 0, 0);
-  /* Map our quantizers; we potentially need them to know what reference
+  /* Map our quantizer; we potentially need it to know what reference
      resolution we're working at. */
-  for (pli = 0; pli < nplanes; pli++) {
-    dec->state.coded_quantizer[pli] = od_ec_dec_uint(&dec->ec,
-     OD_N_CODED_QUANTIZERS, "quantizer");
-    dec->state.quantizer[pli] =
-     od_codedquantizer_to_quantizer(dec->state.coded_quantizer[pli]);
-  }
+  dec->state.coded_quantizer =
+   od_ec_dec_uint(&dec->ec, OD_N_CODED_QUANTIZERS, "quantizer");
+  dec->state.quantizer =
+   od_codedquantizer_to_quantizer(dec->state.coded_quantizer);
   /*Apply the prefilter to the motion-compensated reference.*/
   if (!mbctx->is_keyframe) {
     for (pli = 0; pli < nplanes; pli++) {
@@ -956,7 +954,7 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
       w = frame_width >> xdec;
       /*Collect the image data needed for this plane.*/
       od_ref_plane_to_coeff(state,
-       state->mctmp[pli], OD_LOSSLESS(dec, pli), rec, pli);
+       state->mctmp[pli], OD_LOSSLESS(dec), rec, pli);
       if (!mbctx->use_haar_wavelet) {
         od_apply_prefilter_frame_sbs(state->mctmp[pli], w, nhsb, nvsb, xdec,
          ydec);
@@ -991,17 +989,17 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
     w = frame_width >> xdec;
     if (!mbctx->use_haar_wavelet) {
       od_apply_postfilter_frame_sbs(state->ctmp[pli], w, nhsb, nvsb, xdec,
-       ydec, dec->state.coded_quantizer[pli], &dec->state.bskip[pli][0],
+       ydec, dec->state.coded_quantizer, &dec->state.bskip[pli][0],
        dec->state.skip_stride);
     }
   }
   nhdr = state->frame_width >> (OD_LOG_DERING_GRID + OD_LOG_BSIZE0);
   nvdr = state->frame_height >> (OD_LOG_DERING_GRID + OD_LOG_BSIZE0);
-  if (dec->state.quantizer[0] > 0) {
+  if (dec->state.quantizer > 0) {
     double base_threshold;
     int nblocks;
     nblocks = 1 << (OD_LOG_DERING_GRID - OD_BLOCK_8X8);
-    base_threshold = pow(state->quantizer[0], 0.84182);
+    base_threshold = pow(state->quantizer, 0.84182);
     for (pli = 0; pli < nplanes; pli++) {
       int i;
       int size;
@@ -1105,7 +1103,7 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
     /*Move/scale/shift reconstructed data values from transform
       storage back into the SELF reference frame.*/
     od_coeff_to_ref_plane(state, rec, pli,
-     state->ctmp[pli], OD_LOSSLESS(dec, pli));
+     state->ctmp[pli], OD_LOSSLESS(dec));
   }
 }
 

@@ -267,8 +267,10 @@ struct od_state{
   od_coeff *mdtmp[OD_NPLANES_MAX];
   od_coeff *ltmp[OD_NPLANES_MAX];
   od_coeff *lbuf[OD_NPLANES_MAX];
-  int quantizer[OD_NPLANES_MAX];
-  int coded_quantizer[OD_NPLANES_MAX];
+  /** The quantizer field is the actual value used for quantization. */
+  int quantizer;
+  /** The coded_quantizer is the quantizer index coded to the bitstream. */
+  int coded_quantizer;
   unsigned char pvq_qm_q4[OD_NPLANES_MAX][OD_QM_SIZE];
   /*Array of flags to enable the dering filter per block.
     1 to enable (default), 0 to disable.*/
