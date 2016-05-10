@@ -109,7 +109,7 @@ void od_free_2d(void *_ptr){
 
 static void usage(const char *_argv0){
   fprintf(stderr,
-   "Usage: %s [options] <input>\n\n"
+   "Usage: %s [options] -o <filename.png> <input.y4m>\n\n"
    "The <input> argument uses C printf format to represent a list of files,\n"
    "  i.e. file-%%05d.png to look for files file00001.png to file99999.png.\n\n"
    "Options: \n\n"
