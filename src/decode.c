@@ -995,7 +995,7 @@ static void od_decode_coefficients(od_dec_ctx *dec, od_mb_dec_ctx *mbctx) {
   }
   nhdr = state->frame_width >> (OD_LOG_DERING_GRID + OD_LOG_BSIZE0);
   nvdr = state->frame_height >> (OD_LOG_DERING_GRID + OD_LOG_BSIZE0);
-  if (dec->state.quantizer > 0) {
+  if (!OD_LOSSLESS(dec)) {
     double base_threshold;
     int nblocks;
     nblocks = 1 << (OD_LOG_DERING_GRID - OD_BLOCK_8X8);

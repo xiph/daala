@@ -2728,7 +2728,7 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
        enc->state.skip_stride);
     }
   }
-  if (!rdo_only && state->quantizer > 0) {
+  if (!rdo_only && !OD_LOSSLESS(enc)) {
     int nhdr;
     int nvdr;
     double base_threshold;
@@ -3080,7 +3080,7 @@ static int od_encode_frame(daala_enc_ctx *enc, daala_image *img, int frame_type,
   /* Use Haar for lossless since 1) it's more efficient than the DCT and 2)
      PVQ isn't lossless. We only look at luma quality based on the assumption
      that it's silly to have just some planes be lossless. */
-  mbctx.use_haar_wavelet = enc->use_haar_wavelet || enc->quality == 0;
+  mbctx.use_haar_wavelet = enc->use_haar_wavelet || OD_LOSSLESS(enc);
   /*Initialize the entropy coder.*/
   od_ec_enc_reset(&enc->ec);
   /*Write a bit to mark this as a data packet.*/
