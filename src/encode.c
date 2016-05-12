@@ -563,6 +563,7 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
     return OD_EFAULT;
   }
 #endif
+  od_enc_rc_init(enc, -1);
   return 0;
 }
 
@@ -749,6 +750,61 @@ int daala_encode_ctl(daala_enc_ctx *enc, int req, void *buf, size_t buf_sz) {
       enc->frame_delay = enc->b_frames + 1;
       enc->input_queue.frame_delay = enc->frame_delay;
       return OD_SUCCESS;
+    }
+    case OD_SET_BITRATE:
+    {
+      long bitrate;
+      OD_RETURN_CHECK(enc, OD_EFAULT);
+      OD_RETURN_CHECK(buf, OD_EFAULT);
+      OD_RETURN_CHECK(buf_sz == sizeof(bitrate), OD_EINVAL);
+      bitrate = *(long *)buf;
+      if (bitrate <= 0) {
+        return OD_EINVAL;
+      }
+      return od_enc_rc_init(enc, bitrate);
+    }
+    case OD_SET_RATE_FLAGS:
+    {
+      int set;
+      OD_RETURN_CHECK(enc, OD_EFAULT);
+      OD_RETURN_CHECK(buf, OD_EFAULT);
+      OD_RETURN_CHECK(buf_sz == sizeof(set), OD_EINVAL);
+      if (enc->rc.target_bitrate <= 0) {
+        return OD_EINVAL;
+      }
+      set = *(int *)buf;
+      enc->rc.drop_frames = set & OD_RATECTL_DROP_FRAMES;
+      enc->rc.cap_overflow = set & OD_RATECTL_CAP_OVERFLOW;
+      enc->rc.cap_underflow = set & OD_RATECTL_CAP_UNDERFLOW;
+      return OD_SUCCESS;
+    }
+    case OD_SET_RATE_BUFFER:
+    {
+      int set;
+      int ret;
+      OD_RETURN_CHECK(enc, OD_EFAULT);
+      OD_RETURN_CHECK(buf, OD_EFAULT);
+      OD_RETURN_CHECK(buf_sz == sizeof(set), OD_EINVAL);
+      if (enc->rc.target_bitrate <= 0) {
+        return OD_EINVAL;
+      }
+      set = *(int *)buf;
+      enc->rc.reservoir_frame_delay = set;
+      ret = od_enc_rc_resize(enc);
+      *(int *)buf = enc->rc.reservoir_frame_delay;
+      return ret;
+    }
+    case OD_2PASS_OUT:
+    {
+      OD_RETURN_CHECK(enc, OD_EFAULT);
+      OD_RETURN_CHECK(buf, OD_EFAULT);
+      OD_RETURN_CHECK(buf_sz == sizeof(unsigned char *), OD_EINVAL);
+      return od_enc_rc_2pass_out(enc,(unsigned char **)buf);
+    }
+    case OD_2PASS_IN:
+    {
+      OD_RETURN_CHECK(enc, OD_EFAULT);
+      return od_enc_rc_2pass_in(enc, buf, buf_sz);
     }
     default: return OD_EIMPL;
   }

@@ -32,6 +32,7 @@ typedef struct od_enc_opt_vtbl od_enc_opt_vtbl;
 typedef struct od_rollback_buffer od_rollback_buffer;
 typedef struct od_input_queue od_input_queue;
 typedef struct od_input_frame od_input_frame;
+typedef struct od_rc_state od_rc_state;
 
 # include "../include/daala/daaladec.h"
 # include "../include/daala/daalaenc.h"
@@ -83,6 +84,25 @@ struct od_enc_opt_vtbl {
    int systride, const unsigned char *ref, int dystride);
   int32_t (*mc_compute_satd_64x64)(const unsigned char *src,
    int systride, const unsigned char *ref, int dystride);
+};
+
+/*Rate control setup and working state information.*/
+struct od_rc_state {
+  /*The target bit-rate in bits per second.*/
+  long target_bitrate;
+  /*The number of frames over which to distribute the reservoir usage.*/
+  int reservoir_frame_delay;
+  /*Will we drop frames to meet bitrate target?*/
+  unsigned char drop_frames;
+  /*Do we respect the maximum reservoir fullness?*/
+  unsigned char cap_overflow;
+  /*Can the reservoir go negative?*/
+  unsigned char cap_underflow;
+  /*Two-pass mode state.
+    0 => 1-pass encoding.
+    1 => 1st pass of 2-pass encoding.
+    2 => 2nd pass of 2-pass encoding.*/
+  int twopass_state;
 };
 
 /*Unsanitized user parameters*/
@@ -176,6 +196,8 @@ struct daala_enc_ctx{
   int64_t curr_coding_order;
   /** Number of I or P frames encoded so far, starting from zero. */
   int64_t ip_frame_count;
+  /** Setup and state used to drive rate control. */
+  od_rc_state rc;
 #if defined(OD_DUMP_RECONS)
   od_output_queue out;
 #endif
@@ -204,6 +226,16 @@ void od_encode_rollback(daala_enc_ctx *enc, const od_rollback_buffer *rbuf);
 od_mv_est_ctx *od_mv_est_alloc(od_enc_ctx *enc);
 void od_mv_est_free(od_mv_est_ctx *est);
 void od_mv_est(od_mv_est_ctx *est, int lambda, int num_refs);
+
+int od_enc_rc_init(od_enc_ctx *enc, long bitrate);
+int od_enc_rc_resize(od_enc_ctx *enc);
+void od_enc_rc_clear(od_enc_ctx *enc);
+void od_enc_rc_select_quantizers_and_lambdas(od_enc_ctx *enc,
+ int is_golden_frame, int frame_type);
+int od_enc_rc_update_state(od_enc_ctx *enc, long bits,
+ int is_golden_frame, int frame_type, int droppable);
+int od_enc_rc_2pass_out(od_enc_ctx *enc, unsigned char **buf);
+int od_enc_rc_2pass_in(od_enc_ctx *enc, unsigned char *buf, size_t bytes);
 
 int32_t od_mc_compute_sad8_4x4_c(const unsigned char *src, int systride,
  const unsigned char *ref, int dystride);
