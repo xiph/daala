@@ -271,7 +271,7 @@ struct od_state{
   int quantizer;
   /** The coded_quantizer is the quantizer index coded to the bitstream. */
   int coded_quantizer;
-  unsigned char pvq_qm_q4[OD_NPLANES_MAX][OD_QM_SIZE];
+  unsigned char pvq_qm_q6[OD_NPLANES_MAX][OD_QM_SIZE];
   /*Array of flags to enable the dering filter per block.
     1 to enable (default), 0 to disable.*/
   unsigned char *dering_level;

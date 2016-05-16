@@ -329,7 +329,7 @@ void od_pvq_decode(daala_dec_ctx *dec,
     noref[i] = 0;
     skip[i] = 1;
   }
-  pvq_qm = &dec->state.pvq_qm_q4[pli][0];
+  pvq_qm = &dec->state.pvq_qm_q6[pli][0];
   exg = &dec->state.adapt.pvq.pvq_exg[pli][bs][0];
   ext = dec->state.adapt.pvq.pvq_ext + bs*PVQ_MAX_PARTITIONS;
   model = dec->state.adapt.pvq.pvq_param_model;
@@ -348,7 +348,7 @@ void od_pvq_decode(daala_dec_ctx *dec,
     cfl.allow_flip = pli != 0 && is_keyframe;
     for (i = 0; i < nb_bands; i++) {
       int q;
-      q = OD_MAXI(1, q0*pvq_qm[od_qm_get_index(bs, i + 1)] >> 4);
+      q = OD_MAXI(1, q0*pvq_qm[od_qm_get_index(bs, i + 1)] >> 6);
       pvq_decode_partition(&dec->ec, q, size[i],
        model, &dec->state.adapt, exg + i, ext + i, ref + off[i], out + off[i],
        &noref[i], beta[i], robust, is_keyframe, pli,

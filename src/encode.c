@@ -60,16 +60,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #define OD_GOLDEN_FRAME_INTERVAL 10
 
-static const unsigned char OD_LUMA_QM_Q4[2][OD_QM_SIZE] = {
-/* Flat quantization for PSNR. The DC component isn't 16 because the DC
+static const unsigned char OD_LUMA_QM_Q6[2][OD_QM_SIZE] = {
+/* Flat quantization for PSNR. The DC component isn't 64 because the DC
    magnitude compensation is done here for inter (Haar DC doesn't need it).
    Masking disabled: */
  {
-  21, 16,
-  18, 16, 16, 16,
-  17, 16, 16, 16, 16, 16,
-  16, 16, 16, 16, 16, 16, 16, 16,
-  16, 16, 16, 16, 16, 16, 16, 16, 16, 16
+  84, 64,
+  73, 64, 64, 64,
+  68, 64, 64, 64, 64, 64,
+  66, 64, 64, 64, 64, 64, 64, 64,
+  65, 64, 64, 64, 64, 64, 64, 64, 64, 64
  },
 /* The non-flat AC coefficients compensate for the non-linear scaling caused
    by activity masking. The values are currently hand-tuned so that the rate
@@ -77,63 +77,63 @@ static const unsigned char OD_LUMA_QM_Q4[2][OD_QM_SIZE] = {
    on intra.
    Masking enabled: */
  {
-  21, 16,
-  18, 18, 28, 32,
-  17, 14, 20, 20, 28, 32,
-  16, 11, 14, 14, 17, 17, 22, 28,
-  16,  8, 12, 11, 12, 12, 15, 15, 19, 23
+  84, 64,
+  73, 72, 112, 128,
+  68, 56,  80,  80, 112, 128,
+  66, 44,  56,  56,  68,  68, 88, 112,
+  65, 32,  48,  44,  48,  48, 60,  60, 76, 92
  }
 };
 
-static const unsigned char OD_CHROMA_QM_Q4[2][OD_QM_SIZE] = {
+static const unsigned char OD_CHROMA_QM_Q6[2][OD_QM_SIZE] = {
 /* Chroma quantization is different because of the reduced lapping.
    FIXME: Use the same matrix as luma for 4:4:4.
    Masking disabled: */
  {
-  21, 16,
-  18, 16, 16, 16,
-  17, 16, 16, 16, 16, 16,
-  16, 16, 16, 16, 16, 16, 16, 16,
-  16, 16, 16, 16, 16, 16, 16, 16, 16, 16
+  84, 64,
+  73, 64, 64, 64,
+  68, 64, 64, 64, 64, 64,
+  66, 64, 64, 64, 64, 64, 64, 64,
+  65, 64, 64, 64, 64, 64, 64, 64, 64, 64
  },
 /* The AC part is flat for chroma because it has no activity masking.
    Masking enabled: */
  {
-  21, 16,
-  18, 16, 16, 16,
-  17, 16, 16, 16, 16, 16,
-  16, 16, 16, 16, 16, 16, 16, 16,
-  16, 16, 16, 16, 16, 16, 16, 16, 16, 16
+  84, 64,
+  73, 64, 64, 64,
+  68, 64, 64, 64, 64, 64,
+  66, 64, 64, 64, 64, 64, 64, 64,
+  65, 64, 64, 64, 64, 64, 64, 64, 64, 64
  }
 };
 
 typedef struct od_qm_entry {
   int interp_q;
   int scale_q8;
-  const unsigned char *qm_q4;
+  const unsigned char *qm_q6;
 } od_qm_entry;
 
-/* No interpolation, always use od_flat_qm_q4, but use a different scale for
+/* No interpolation, always use od_flat_qm_q6, but use a different scale for
    each plane.
    FIXME: Add interpolation and properly tune chroma. */
 static const od_qm_entry OD_DEFAULT_QMS[2][3][OD_NPLANES_MAX] = {
  /* Masking disabled */
- {{{4, 256, OD_LUMA_QM_Q4[OD_MASKING_DISABLED]},
-   {4, 448, OD_CHROMA_QM_Q4[OD_MASKING_DISABLED]},
-   {4, 320, OD_CHROMA_QM_Q4[OD_MASKING_DISABLED]}},
-  {{318, 256, OD_LUMA_QM_Q4[OD_MASKING_DISABLED]},
-   {318, 140, OD_CHROMA_QM_Q4[OD_MASKING_DISABLED]},
-   {318, 100, OD_CHROMA_QM_Q4[OD_MASKING_DISABLED]}},
+ {{{4, 256, OD_LUMA_QM_Q6[OD_MASKING_DISABLED]},
+   {4, 448, OD_CHROMA_QM_Q6[OD_MASKING_DISABLED]},
+   {4, 320, OD_CHROMA_QM_Q6[OD_MASKING_DISABLED]}},
+  {{318, 256, OD_LUMA_QM_Q6[OD_MASKING_DISABLED]},
+   {318, 140, OD_CHROMA_QM_Q6[OD_MASKING_DISABLED]},
+   {318, 100, OD_CHROMA_QM_Q6[OD_MASKING_DISABLED]}},
   {{0, 0, NULL},
    {0, 0, NULL},
    {0, 0, NULL}}},
  /* Masking enabled */
- {{{4, 256, OD_LUMA_QM_Q4[OD_MASKING_ENABLED]},
-   {4, 448, OD_CHROMA_QM_Q4[OD_MASKING_ENABLED]},
-   {4, 320, OD_CHROMA_QM_Q4[OD_MASKING_ENABLED]}},
-  {{318, 256, OD_LUMA_QM_Q4[OD_MASKING_ENABLED]},
-   {318, 140, OD_CHROMA_QM_Q4[OD_MASKING_ENABLED]},
-   {318, 100, OD_CHROMA_QM_Q4[OD_MASKING_ENABLED]}},
+ {{{4, 256, OD_LUMA_QM_Q6[OD_MASKING_ENABLED]},
+   {4, 448, OD_CHROMA_QM_Q6[OD_MASKING_ENABLED]},
+   {4, 320, OD_CHROMA_QM_Q6[OD_MASKING_ENABLED]}},
+  {{318, 256, OD_LUMA_QM_Q6[OD_MASKING_ENABLED]},
+   {318, 140, OD_CHROMA_QM_Q6[OD_MASKING_ENABLED]},
+   {318, 100, OD_CHROMA_QM_Q6[OD_MASKING_ENABLED]}},
   {{0, 0, NULL},
    {0, 0, NULL},
    {0, 0, NULL}}}
@@ -1376,7 +1376,7 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int bs,
   if (lossless) dc_quant = quant;
   else {
     dc_quant = OD_MAXI(1, quant*
-     enc->state.pvq_qm_q4[pli][od_qm_get_index(bs, 0)] >> 4);
+     enc->state.pvq_qm_q6[pli][od_qm_get_index(bs, 0)] >> 6);
   }
   /* This quantization may be overridden in the PVQ code for full RDO. */
   if (!ctx->is_keyframe) {
@@ -1596,7 +1596,7 @@ static void od_quantize_haar_dc_sb(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
   if (OD_LOSSLESS(enc)) dc_quant = 1;
   else {
     dc_quant = OD_MAXI(1, enc->state.quantizer*
-     enc->state.pvq_qm_q4[pli][od_qm_get_index(OD_NBSIZES - 1, 0)] >> 4);
+     enc->state.pvq_qm_q6[pli][od_qm_get_index(OD_NBSIZES - 1, 0)] >> 6);
   }
   nhsb = enc->state.nhsb;
   sb_dc_mem = enc->state.sb_dc_mem[pli];
@@ -1644,7 +1644,7 @@ static void od_quantize_haar_dc_level(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
   if (OD_LOSSLESS(enc)) dc_quant = 1;
   else {
     dc_quant = OD_MAXI(1, enc->state.quantizer*
-     enc->state.pvq_qm_q4[pli][od_qm_get_index(OD_NBSIZES - 1, 0)] >> 4);
+     enc->state.pvq_qm_q6[pli][od_qm_get_index(OD_NBSIZES - 1, 0)] >> 6);
   }
   if (OD_LOSSLESS(enc)) ac_quant[0] = ac_quant[1] = 1;
   else {
@@ -2960,18 +2960,18 @@ static void od_dump_frame_metrics(daala_enc_ctx *enc) {
 static void od_interp_qm(unsigned char *out, int q, const od_qm_entry *entry1,
   const od_qm_entry *entry2) {
   int i;
-  if (entry2 == NULL || entry2->qm_q4 == NULL
+  if (entry2 == NULL || entry2->qm_q6 == NULL
    || q < entry1->interp_q << OD_COEFF_SHIFT) {
     /* Use entry1. */
     for (i = 0; i < OD_QM_SIZE; i++) {
-      out[i] = OD_MINI(255, entry1->qm_q4[i]*entry1->scale_q8 >> 8);
+      out[i] = OD_MINI(255, entry1->qm_q6[i]*entry1->scale_q8 >> 8);
     }
   }
-  else if (entry1 == NULL || entry1->qm_q4 == NULL
+  else if (entry1 == NULL || entry1->qm_q6 == NULL
    || q > entry2->interp_q << OD_COEFF_SHIFT) {
     /* Use entry2. */
     for (i = 0; i < OD_QM_SIZE; i++) {
-      out[i] = OD_MINI(255, entry2->qm_q4[i]*entry2->scale_q8 >> 8);
+      out[i] = OD_MINI(255, entry2->qm_q6[i]*entry2->scale_q8 >> 8);
     }
   }
   else {
@@ -2984,8 +2984,8 @@ static void od_interp_qm(unsigned char *out, int q, const od_qm_entry *entry1,
     const unsigned char *m2;
     int q1;
     int q2;
-    m1 = entry1->qm_q4;
-    m2 = entry2->qm_q4;
+    m1 = entry1->qm_q6;
+    m2 = entry2->qm_q6;
     q1 = entry1->interp_q << OD_COEFF_SHIFT;
     q2 = entry2->interp_q << OD_COEFF_SHIFT;
     x = (log(q)-log(q1))/(log(q2)-log(q1));
@@ -3139,17 +3139,17 @@ static int od_encode_frame(daala_enc_ctx *enc, daala_image *img, int frame_type,
       int q;
       q = gop_quantizer;
       if (q <= OD_DEFAULT_QMS[use_masking][0][pli].interp_q << OD_COEFF_SHIFT) {
-        od_interp_qm(&enc->state.pvq_qm_q4[pli][0], q,
+        od_interp_qm(&enc->state.pvq_qm_q6[pli][0], q,
          &OD_DEFAULT_QMS[use_masking][0][pli], NULL);
       }
       else {
         i = 0;
-        while (OD_DEFAULT_QMS[use_masking][i + 1][pli].qm_q4 != NULL &&
+        while (OD_DEFAULT_QMS[use_masking][i + 1][pli].qm_q6 != NULL &&
          q > OD_DEFAULT_QMS[use_masking][i + 1][pli].interp_q
          << OD_COEFF_SHIFT) {
           i++;
         }
-        od_interp_qm(&enc->state.pvq_qm_q4[pli][0], q,
+        od_interp_qm(&enc->state.pvq_qm_q6[pli][0], q,
          &OD_DEFAULT_QMS[use_masking][i][pli],
          &OD_DEFAULT_QMS[use_masking][i + 1][pli]);
       }
@@ -3157,7 +3157,7 @@ static int od_encode_frame(daala_enc_ctx *enc, daala_image *img, int frame_type,
     for (pli = 0; pli < nplanes; pli++) {
       int i;
       for (i = 0; i < OD_QM_SIZE; i++) {
-        od_ec_enc_bits(&enc->ec, enc->state.pvq_qm_q4[pli][i], 8);
+        od_ec_enc_bits(&enc->ec, enc->state.pvq_qm_q6[pli][i], 8);
       }
     }
   }
