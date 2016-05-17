@@ -102,7 +102,7 @@ static double pvq_search_rdo_double(const od_val16 *xcoeff, int n, int k,
   double delta_rate;
   xx = xy = yy = 0;
   for (j = 0; j < n; j++) {
-    x[j] = fabs(xcoeff[j]);
+    x[j] = fabs((float)xcoeff[j]);
     xx += x[j]*x[j];
   }
   norm_1 = 1./sqrt(1e-30 + xx);

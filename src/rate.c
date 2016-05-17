@@ -32,15 +32,19 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 static void od_enc_rc_reset(od_enc_ctx *enc) {
   /* Stub to establish API */
+  (void)enc;
 }
 
 int od_enc_rc_resize(od_enc_ctx *enc) {
   /* Stub to establish API */
+  (void)enc;
   return OD_EIMPL;
 }
 
 int od_enc_rc_init(od_enc_ctx *enc, long bitrate) {
-  od_rc_state *rc = &enc->rc;
+  od_rc_state *rc;
+  (void)enc;
+  rc = &enc->rc;
   if(rc->target_bitrate > 0){
     /*State has already been initialized; rather than reinitialize,
       adjust the buffering for the new target rate. */
@@ -70,20 +74,31 @@ int od_enc_rc_init(od_enc_ctx *enc, long bitrate) {
 
 void od_enc_rc_clear(od_enc_ctx *enc) {
   /*No-op until we get to two-pass support.*/
+  (void)enc;
 }
 
 void od_enc_rc_select_quantizers_and_lambdas(od_enc_ctx *enc,
  int is_golden_frame, int frame_type) {
   /* Stub to establish API */
+  (void)enc;
+  (void)is_golden_frame;
+  (void)frame_type;
 }
 
 int od_enc_rc_update_state(od_enc_ctx *enc, long bits,
  int is_golden_frame, int frame_type, int droppable) {
+  (void)enc;
+  (void)bits;
+  (void)is_golden_frame;
+  (void)frame_type;
+  (void)droppable;
   /* Stub to establish API */
   return OD_EIMPL;
 }
 
 int od_enc_rc_2pass_out(od_enc_ctx *enc, unsigned char **buf) {
+  (void)enc;
+  (void)buf;
   if (enc->rc.target_bitrate <= 0 ||
    (enc->state.cur_time >=0 && enc->rc.twopass_state != 1)) {
     return OD_EINVAL;
@@ -93,6 +108,9 @@ int od_enc_rc_2pass_out(od_enc_ctx *enc, unsigned char **buf) {
 }
 
 int od_enc_rc_2pass_in(od_enc_ctx *enc, unsigned char *buf, size_t bytes) {
+  (void)enc;
+  (void)buf;
+  (void)bytes;
   if(enc->rc.target_bitrate <=0 ||
    (enc->state.cur_time >= 0 && enc->rc.twopass_state != 2)) {
     return OD_EINVAL;
