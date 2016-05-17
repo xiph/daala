@@ -198,7 +198,10 @@ typedef int32_t od_val32;
   All other code should use OD_ILOG() instead.*/
 # if defined(_MSC_VER)
 #  include <intrin.h>
-#  if !defined(snprintf)
+/*Visual Studio 2015 (version "14" and _MSC_VER == 1900) finally provides
+   proper support for snprintf() in stdio.h.
+  Only #define snprintf with versions earlier than VS2015.*/
+#  if _MSC_VER < 1900 && !defined(snprintf)
 #   define snprintf _snprintf
 #  endif
 /*In _DEBUG mode this is not an intrinsic by default.*/
