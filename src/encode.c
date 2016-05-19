@@ -466,6 +466,7 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
 #endif
 #if defined(OD_DUMP_IMAGES)
   {
+  int i;
   int pli;
   daala_image *img;
   daala_image_plane *iplane;
