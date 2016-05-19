@@ -3086,7 +3086,7 @@ static int od_encode_frame(daala_enc_ctx *enc, daala_image *img, int frame_type,
   gop_quantizer = enc->state.quantizer =
    od_codedquantizer_to_quantizer(enc->state.coded_quantizer);
   /*Modulate frame QP.*/
-  if (enc->state.coded_quantizer != 0) {
+  if (!OD_LOSSLESS(enc)) {
     if (frame_type == OD_I_FRAME || mbctx.is_golden_frame) {
       enc->state.coded_quantizer =
        OD_MAXI(1, enc->state.coded_quantizer + OD_DQP_I);
