@@ -408,6 +408,7 @@ public:
   void refresh();
   bool gotoFrame();
   void filterBits();
+  void resetFilterBits();
   void restart();
 
   int getZoom() const;
@@ -456,11 +457,11 @@ public:
   void onShowBlocks(wxCommandEvent &event);
   void onFilter(wxCommandEvent &event);
   void onPaddingChange(wxCommandEvent &event);
-  void onBitsChange(wxCommandEvent &event);
   void onFilterBits(wxCommandEvent &event);
   void onYChange(wxCommandEvent &event);
   void onUChange(wxCommandEvent &event);
   void onVChange(wxCommandEvent &event);
+  void onViewReset(wxCommandEvent &event);
   void onNextFrame(wxCommandEvent &event);
   void onGotoFrame(wxCommandEvent &event);
   void onRestart(wxCommandEvent &event);
@@ -468,6 +469,7 @@ public:
 
   bool open(const wxString &path);
   bool setZoom(int zoom);
+  void updateViewMenu();
 };
 
 enum {
@@ -481,6 +483,7 @@ enum {
   wxID_SHOW_Y,
   wxID_SHOW_U,
   wxID_SHOW_V,
+  wxID_VIEW_RESET,
   wxID_NEXT_FRAME,
   wxID_GOTO_FRAME,
   wxID_RESTART,
@@ -498,12 +501,13 @@ BEGIN_EVENT_TABLE(TestFrame, wxFrame)
   EVT_MENU(wxID_SHOW_SKIP, TestFrame::onFilter)
   EVT_MENU(wxID_SHOW_NOREF, TestFrame::onFilter)
   EVT_MENU(wxID_SHOW_PADDING, TestFrame::onPaddingChange)
-  EVT_MENU(wxID_SHOW_BITS, TestFrame::onBitsChange)
+  EVT_MENU(wxID_SHOW_BITS, TestFrame::onFilter)
   EVT_MENU(wxID_FILTER_BITS, TestFrame::onFilterBits)
   EVT_MENU(wxID_SHOW_DERING, TestFrame::onFilter)
   EVT_MENU(wxID_SHOW_Y, TestFrame::onYChange)
   EVT_MENU(wxID_SHOW_U, TestFrame::onUChange)
   EVT_MENU(wxID_SHOW_V, TestFrame::onVChange)
+  EVT_MENU(wxID_VIEW_RESET, TestFrame::onViewReset)
   EVT_MENU(wxID_NEXT_FRAME, TestFrame::onNextFrame)
   EVT_MENU(wxID_GOTO_FRAME, TestFrame::onGotoFrame)
   EVT_MENU(wxID_RESTART, TestFrame::onRestart)
@@ -1107,6 +1111,10 @@ bool TestPanel::gotoFrame() {
   return toReturn;
 }
 
+void TestPanel::resetFilterBits() {
+  show_bits_filter = _("");
+}
+
 void TestPanel::filterBits() {
   wxTextEntryDialog dlg(this,
    _("Filter: \"skip,pvq\" or \"\" to disable filter."));
@@ -1238,6 +1246,10 @@ TestFrame::TestFrame(const bool bit_accounting) : wxFrame(NULL, wxID_ANY,
    _("Show U plane"));
   viewMenu->AppendCheckItem(wxID_SHOW_V, _("&V plane\tCtrl-V"),
    _("Show V plane"));
+  viewMenu->AppendSeparator();
+  viewMenu->Append(wxID_VIEW_RESET, _("Reset view\tBACK"),
+    _("Reset view settings"));
+
   mb->Append(viewMenu, _("&View"));
 
   playbackMenu = new wxMenu();
@@ -1317,7 +1329,8 @@ void TestFrame::onShowBlocks(wxCommandEvent &event) {
   panel->Refresh(false);
 }
 
-void TestFrame::onFilter(wxCommandEvent &WXUNUSED(event)) {
+void TestFrame::updateViewMenu() {
+  panel->setShowBits(GetMenuBar()->IsChecked(wxID_SHOW_BITS));
   panel->setShowSkip(GetMenuBar()->IsChecked(wxID_SHOW_SKIP));
   panel->setShowNoRef(GetMenuBar()->IsChecked(wxID_SHOW_NOREF));
   panel->setShowDering(GetMenuBar()->IsChecked(wxID_SHOW_DERING));
@@ -1325,17 +1338,29 @@ void TestFrame::onFilter(wxCommandEvent &WXUNUSED(event)) {
   panel->Refresh(false);
 }
 
+void TestFrame::onViewReset(wxCommandEvent &WXUNUSED(event)) {
+  GetMenuBar()->Check(wxID_SHOW_BITS, false);
+  GetMenuBar()->Check(wxID_SHOW_DERING, false);
+  GetMenuBar()->Check(wxID_SHOW_BLOCKS, false);
+  GetMenuBar()->Check(wxID_SHOW_PADDING, false);
+  GetMenuBar()->Check(wxID_SHOW_NOREF, false);
+  GetMenuBar()->Check(wxID_SHOW_SKIP, false);
+  GetMenuBar()->Check(wxID_SHOW_Y, true);
+  GetMenuBar()->Check(wxID_SHOW_U, true);
+  GetMenuBar()->Check(wxID_SHOW_V, true);
+  panel->setShowBlocks(false);
+  panel->setShowPadding(false);
+  panel->resetFilterBits();
+  panel->setShowPlane(true, OD_LUMA_MASK | OD_CB_MASK | OD_CR_MASK);
+  SetClientSize(panel->GetSize());
+  updateViewMenu();
+}
+
 void TestFrame::onPaddingChange(wxCommandEvent &event) {
   panel->setShowPadding(event.IsChecked());
   SetClientSize(panel->GetSize());
   panel->render();
   panel->Refresh();
-}
-
-void TestFrame::onBitsChange(wxCommandEvent &event) {
-  panel->setShowBits(event.IsChecked());
-  panel->render();
-  panel->Refresh(false);
 }
 
 void TestFrame::onFilterBits(wxCommandEvent &WXUNUSED(event)) {
@@ -1405,6 +1430,17 @@ bool TestFrame::open(const wxString &path) {
     SetStatusText(_("error loading file") + path);
     return false;
   }
+}
+
+void TestFrame::onFilter(wxCommandEvent &event) {
+  GetMenuBar()->Check(wxID_SHOW_BITS, false);
+  GetMenuBar()->Check(wxID_SHOW_DERING, false);
+  if(event.GetId() != wxID_SHOW_NOREF && event.GetId() != wxID_SHOW_SKIP) {
+    GetMenuBar()->Check(wxID_SHOW_NOREF, false);
+    GetMenuBar()->Check(wxID_SHOW_SKIP, false);
+  }
+  GetMenuBar()->Check(event.GetId(), event.IsChecked());
+  updateViewMenu();
 }
 
 class TestApp : public wxApp {
