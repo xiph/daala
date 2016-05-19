@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-CODECS="<daala|vp8|vp9|vp10|x264|x265|libjpeg|mozjpeg|theora|webp>"
+CODECS="<daala|av1|vp8|vp9|vp10|x264|x265|libjpeg|mozjpeg|theora|webp>"
 
 if [ $# == 0 ]; then
   echo "usage: DAALA_ROOT=<build_dir> $0 $CODECS *.y4m"
@@ -50,6 +50,34 @@ case $CODEC in
     fi
 
     export RD_COLLECT_SUB=$(dirname "$0")/rd_collect_daala.sh
+    ;;
+  av1)
+    if [ -z $AOM_ROOT ] || [ ! -d $AOM_ROOT ]; then
+      echo "Please set AOM_ROOT to the location of your aom git clone"
+      exit 1
+    fi
+
+    if [ -z "$AOMENC" ]; then
+      export AOMENC=$AOM_ROOT/aomenc
+    fi
+
+    if [ -z "$AOMDEC" ]; then
+      export AOMDEC=$AOM_ROOT/aomdec
+    fi
+
+    if [ ! -x "$AOMENC" ]; then
+      echo "Executable not found AOMENC=$AOMENC"
+      echo "Do you have the right AOM_ROOT=$AOM_ROOT"
+      exit 1
+    fi
+
+    if [ ! -x "$AOMDEC" ]; then
+      echo "Executable not found AOMDEC=$AOMDEC"
+      echo "Do you have the right AOM_ROOT=$AOM_ROOT"
+      exit 1
+    fi
+
+    export RD_COLLECT_SUB=$(dirname $0)/rd_collect_aom.sh
     ;;
   vp8 | vp9 | vp10)
     if [ -z $LIBVPX_ROOT ] || [ ! -d $LIBVPX_ROOT ]; then
