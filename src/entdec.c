@@ -407,7 +407,7 @@ int od_ec_decode_cdf_unscaled_dyadic_(od_ec_dec *dec,
   unsigned u;
   unsigned v;
   int ret;
-  (void)nsyms;
+  OD_UNUSED(nsyms);
   dif = dec->dif;
   r = dec->rng;
   OD_ASSERT(dif >> (OD_EC_WINDOW_SIZE - 16) < r);

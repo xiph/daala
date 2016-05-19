@@ -613,8 +613,6 @@ void daala_encode_free(daala_enc_ctx *enc) {
 }
 
 int daala_encode_ctl(daala_enc_ctx *enc, int req, void *buf, size_t buf_sz) {
-  (void)buf;
-  (void)buf_sz;
   switch (req) {
     case OD_SET_QUANT:
     {
@@ -1589,7 +1587,7 @@ static void od_quantize_haar_dc_sb(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
   od_coeff sb_dc_pred;
   od_coeff sb_dc_curr;
   od_coeff *sb_dc_mem;
-  (void)ydec;
+  OD_UNUSED(ydec);
   d = ctx->d[pli];
   w = enc->state.frame_width >> xdec;
   /*This code assumes 4:4:4 or 4:2:0 input.*/
@@ -2577,9 +2575,9 @@ static void od_encode_mvs(daala_enc_ctx *enc, int num_refs) {
 /* FIXME: add a real scaling calculation */
 static int od_compute_superblock_q_scaling(daala_enc_ctx *enc, od_coeff *x,
  int stride) {
-  (void)enc;
-  (void)x;
-  (void)stride;
+  OD_UNUSED(enc);
+  OD_UNUSED(x);
+  OD_UNUSED(stride);
   return 0;
 }
 
@@ -3037,7 +3035,7 @@ static int od_encode_frame(daala_enc_ctx *enc, daala_image *img, int frame_type,
     closed_form_type =
      od_frame_type(enc, enc->curr_coding_order, &closed_form_golden,
      &closed_form_ip_count);
-    (void)closed_form_type;
+    OD_UNUSED(closed_form_type);
     OD_ASSERT(closed_form_type == frame_type);
     OD_ASSERT(closed_form_ip_count == enc->ip_frame_count);
     OD_ASSERT(closed_form_golden == mbctx.is_golden_frame);

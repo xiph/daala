@@ -48,7 +48,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 static int od_dec_init(od_dec_ctx *dec, const daala_info *info,
  const daala_setup_info *setup) {
   int ret;
-  (void)setup;
+  OD_UNUSED(setup);
   memset(dec, 0, sizeof(*dec));
   ret = od_state_init(&dec->state, info);
   if (ret < 0) return ret;
@@ -98,9 +98,6 @@ void daala_decode_free(daala_dec_ctx *dec) {
 }
 
 int daala_decode_ctl(daala_dec_ctx *dec, int req, void *buf, size_t buf_sz) {
-  (void)dec;
-  (void)buf;
-  (void)buf_sz;
   switch (req) {
     case OD_DECCTL_SET_BSIZE_BUFFER : {
       OD_RETURN_CHECK(dec, OD_EFAULT);
@@ -607,7 +604,7 @@ static void od_decode_haar_dc_sb(daala_dec_ctx *dec, od_mb_dec_ctx *ctx,
   od_coeff sb_dc_pred;
   od_coeff sb_dc_curr;
   od_coeff *sb_dc_mem;
-  (void)ydec;
+  OD_UNUSED(ydec);
   d = ctx->d[pli];
   w = dec->state.frame_width >> xdec;
   /*This code assumes 4:4:4 or 4:2:0 input.*/

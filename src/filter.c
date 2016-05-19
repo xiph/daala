@@ -1504,9 +1504,9 @@ void od_postfilter_split(od_coeff *c0, int stride, int bs, int f, int q,
   }
 #else
   int j;
-  (void)q;
-  (void)skip;
-  (void)skip_stride;
+  OD_UNUSED(q);
+  OD_UNUSED(skip);
+  OD_UNUSED(skip_stride);
   if (vfilter) {
     c = c0 + (2 << bs) - (2 << f);
     for (i = 0; i < 4 << bs; i++) {
@@ -1593,9 +1593,9 @@ void od_apply_postfilter_frame_sbs(od_coeff *c0, int stride, int nhsb,
   int j;
   int f;
   od_coeff *c;
-  (void)q;
-  (void)skip;
-  (void)skip_stride;
+  OD_UNUSED(q);
+  OD_UNUSED(skip);
+  OD_UNUSED(skip_stride);
   f = OD_FILT_SIZE(OD_NBSIZES - 1, xdec);
   c = c0 + (OD_BSIZE_MAX >> ydec) - (2 << f);
   for (sbx = 1; sbx < nhsb; sbx++) {
