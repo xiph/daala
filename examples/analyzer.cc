@@ -453,6 +453,7 @@ public:
   void onZoomIn(wxCommandEvent &event);
   void onZoomOut(wxCommandEvent &event);
   void onActualSize(wxCommandEvent &event);
+  void onShowBlocks(wxCommandEvent &event);
   void onFilter(wxCommandEvent &event);
   void onPaddingChange(wxCommandEvent &event);
   void onBitsChange(wxCommandEvent &event);
@@ -493,7 +494,7 @@ BEGIN_EVENT_TABLE(TestFrame, wxFrame)
   EVT_MENU(wxID_ZOOM_IN, TestFrame::onZoomIn)
   EVT_MENU(wxID_ZOOM_OUT, TestFrame::onZoomOut)
   EVT_MENU(wxID_ACTUAL_SIZE, TestFrame::onActualSize)
-  EVT_MENU(wxID_SHOW_BLOCKS, TestFrame::onFilter)
+  EVT_MENU(wxID_SHOW_BLOCKS, TestFrame::onShowBlock)
   EVT_MENU(wxID_SHOW_SKIP, TestFrame::onFilter)
   EVT_MENU(wxID_SHOW_NOREF, TestFrame::onFilter)
   EVT_MENU(wxID_SHOW_PADDING, TestFrame::onPaddingChange)
@@ -1308,6 +1309,12 @@ bool TestFrame::setZoom(int zoom) {
     return true;
   }
   return false;
+}
+
+void TestFrame::onShowBlocks(wxCommandEvent &event) {
+  panel->setShowBlocks(event.IsChecked());
+  panel->render();
+  panel->Refresh(false);
 }
 
 void TestFrame::onFilter(wxCommandEvent &WXUNUSED(event)) {
