@@ -1318,7 +1318,6 @@ void TestFrame::onShowBlocks(wxCommandEvent &event) {
 }
 
 void TestFrame::onFilter(wxCommandEvent &WXUNUSED(event)) {
-  panel->setShowBlocks(GetMenuBar()->IsChecked(wxID_SHOW_BLOCKS));
   panel->setShowSkip(GetMenuBar()->IsChecked(wxID_SHOW_SKIP));
   panel->setShowNoRef(GetMenuBar()->IsChecked(wxID_SHOW_NOREF));
   panel->setShowDering(GetMenuBar()->IsChecked(wxID_SHOW_DERING));
