@@ -8658,8 +8658,8 @@ static void dynamic_range(int bszi) {
   int f;
   /*Test with all filters up to OD_MAX_FILT_SIZE.*/
   for (f = 0; f <= OD_MINI(bszi, OD_MAX_FILT_SIZE); f++) {
-    static double
-     basis2[OD_BSIZE_MAX][OD_BSIZE_MAX][OD_BSIZE_MAX*2][OD_BSIZE_MAX*2];
+    static int8_t
+     basis_pol[OD_BSIZE_MAX][OD_BSIZE_MAX][OD_BSIZE_MAX*2][OD_BSIZE_MAX*2];
     static uint8_t check_basis[OD_DCT_NCHECK_OVERFLOW][OD_BSIZE_MAX*2 + 1]
      [OD_BSIZE_MAX*2][(OD_BSIZE_MAX*2 + 7)/8];
     od_coeff old_check_min[OD_DCT_NCHECK_OVERFLOW];
@@ -8754,8 +8754,9 @@ static void dynamic_range(int bszi) {
         /*Retrieve output basis elements.*/
         for (u = 0; u < n; u++) {
           for (v = 0; v < n; v++) {
-            basis2[u][v][i][j] =
-             x[u + (n >> 1)][v + (n >> 1)]/(256.0*OD_COEFF_SCALE);
+            od_coeff xtmp = x[u + (n >> 1)][v + (n >> 1)];
+            basis_pol[u][v][i][j] =
+             xtmp < 0 ? -1 : (xtmp > 0 ? 1 : 0);
           }
         }
       }
@@ -8793,14 +8794,14 @@ static void dynamic_range(int bszi) {
         od_coeff x[OD_BSIZE_MAX*2][OD_BSIZE_MAX*2];
         for (i = 0; i < n*2; i++) {
           for (j = 0; j < n*2; j++) {
-            x[i][j] = (basis2[u][v][i][j] < 0 ? -255 : 255)*OD_COEFF_SCALE;
+            x[i][j] = (basis_pol[u][v][i][j] < 0 ? -255 : 255)*OD_COEFF_SCALE;
           }
         }
         od_bin_fxform_2d(x, bszi, f);
         max2[u][v] = x[u + (n >> 1)][v + (n >> 1)];
         for (i = 0; i < n*2; i++) {
           for (j = 0; j < n*2; j++) {
-            x[i][j] = (basis2[u][v][i][j] > 0 ? -255 : 255)*OD_COEFF_SCALE;
+            x[i][j] = (basis_pol[u][v][i][j] > 0 ? -255 : 255)*OD_COEFF_SCALE;
           }
         }
         od_bin_fxform_2d(x, bszi, f);
