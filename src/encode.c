@@ -1648,8 +1648,8 @@ static void od_quantize_haar_dc_level(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
   }
   if (OD_LOSSLESS(enc)) ac_quant[0] = ac_quant[1] = 1;
   else {
-    ac_quant[0] = (dc_quant*OD_DC_QM[bsi - xdec][0] + 8) >> 4;
-    ac_quant[1] = (dc_quant*OD_DC_QM[bsi - xdec][1] + 8) >> 4;
+    ac_quant[0] = (dc_quant*OD_DC_QM[bsi - xdec][0] + 32) >> 6;
+    ac_quant[1] = (dc_quant*OD_DC_QM[bsi - xdec][1] + 32) >> 6;
   }
   ln = bsi - xdec + 2;
   x[0] = ctx->d[pli][(by << ln)*w + (bx << ln)];

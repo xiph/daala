@@ -86,8 +86,8 @@ int main(int argc, char *argv[]) {
   for (ln = 0; ln < OD_NBSIZES - 1; ln++) {
     int hv_quant;
     int diag_quant;
-    hv_quant = (int)(OD_BASIS_PULSE/sqrt(sum[ln][1])*16 + 0.5);
-    diag_quant = (int)(OD_BASIS_PULSE/sqrt(sum[ln][3])*16 + 0.5);
+    hv_quant = (int)(OD_BASIS_PULSE/sqrt(sum[ln][1])*64 + 0.5);
+    diag_quant = (int)(OD_BASIS_PULSE/sqrt(sum[ln][3])*64 + 0.5);
     printf("%s{%i, %i}", ln > 0 ? ", " : "  ", hv_quant, diag_quant);
   }
   printf("\n};\n");

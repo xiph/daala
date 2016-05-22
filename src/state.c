@@ -42,11 +42,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
    for horizontal/vertical. Right is for diagonal. */
 #if OD_DISABLE_FILTER || OD_DEBLOCKING
 const od_coeff OD_DC_QM[OD_NBSIZES - 1][2] = {
-  {16, 16}, {16, 16}, {16, 16}, {16, 16}
+  {64, 64}, {64, 64}, {64, 64}, {64, 64}
 };
 #else
 const od_coeff OD_DC_QM[OD_NBSIZES - 1][2] = {
-  {21, 25}, {18, 20}, {17, 18}, {17, 17}
+  {86, 100}, {73, 78}, {68, 71}, {66, 67}
 };
 #endif
 
