@@ -513,12 +513,13 @@ int fetch_and_process_video(av_input *avin, ogg_page *page,
   }
 }
 
-static const char *OPTSTRING = "ho:k:b:v:V:s:S:l:z:";
+static const char *OPTSTRING = "ho:k:b:v:V:s:S:l:z:d:";
 
 static const struct option OPTIONS[] = {
   { "help", no_argument, NULL, 'h' },
   { "output", required_argument, NULL, 'o' },
   { "keyframe-rate", required_argument, NULL, 'k' },
+  { "buf-delay",required_argument,NULL,'d'},
   { "b-frames", required_argument, NULL, 'b' },
   { "video-quality", required_argument, NULL, 'v' },
   { "video-rate-target", required_argument, NULL, 'V' },
@@ -526,6 +527,7 @@ static const struct option OPTIONS[] = {
   { "skip", required_argument, NULL, 'S' },
   { "limit", required_argument, NULL, 'l' },
   { "complexity", required_argument, NULL, 'z' },
+  { "soft-target",no_argument,NULL,0},
   { "mc-use-chroma", no_argument, NULL, 0 },
   { "no-mc-use-chroma", no_argument, NULL, 0 },
   { "mc-use-satd", no_argument, NULL, 0 },
@@ -562,10 +564,26 @@ static void usage(void) {
    "                                 lowest video quality; 1 yields the\n"
    "                                 highest quality, but large files;\n"
    "                                 0 is lossless.\n\n"
-   "  -V --video-rate-target <n>     bitrate target for Daala video;\n"
+   "  -V --video-rate-target <n>     bitrate target for Daala video in kbps;\n"
    "                                 use -v and not -V if at all possible,\n"
    "                                 as -v gives higher quality for a given\n"
-   "                                 bitrate. (Not yet implemented)\n\n"
+   "                                 bitrate.\n\n"
+   "  -d --buf-delay <n>             Buffer delay (in frames). Longer delays\n"
+   "                                 allow smoother rate adaptation and\n"
+   "                                 provide better overall quality, but\n"
+   "                                 require more client side buffering and\n"
+   "                                 add latency. The default value is the\n"
+   "                                 keyframe interval for one-pass encoding\n"
+   "                                 (or somewhat larger if --soft-target is\n"
+   "                                 used) and the total remaining length of\n"
+   "                                 the video for two-pass encoding.\n\n"
+   "     --soft-target               Use a large reservoir and treat the\n"
+   "                                 rate as a soft target; rate control is\n"
+   "                                 less strict but resulting quality is\n"
+   "                                 usually higher/smoother overall. Soft\n"
+   "                                 target also allows an optional -v\n"
+   "                                 setting to specify a minimum allowed\n"
+   "                                 quality.\n\n"
    "  -s --serial <n>                Specify a serial number for the stream.\n"
    "  -S --skip <n>                  Number of input frames to skip before\n"
    "                                 encoding.\n\n"
@@ -622,7 +640,10 @@ int main(int argc, char **argv) {
   int loi;
   int ret;
   double video_kbps;
+  int soft_target;
+  int buf_delay;
   int video_q;
+  long video_r;
   int video_keyframe_rate;
   int pli;
   int fixedserial;
@@ -661,7 +682,10 @@ int main(int argc, char **argv) {
   avin.video_par_n = -1;
   avin.video_par_d = -1;
   /* Set default options */
-  video_q = 10;
+  video_q = -1;
+  video_r = -1;
+  buf_delay = -1;
+  soft_target = 0;
   video_keyframe_rate = 256;
   video_bytesout = 0;
   fixedserial = 0;
@@ -717,9 +741,19 @@ int main(int argc, char **argv) {
         break;
       }
       case 'V': {
-        fprintf(stderr,
-         "Target video bitrate is not yet implemented, use -v instead.\n");
-        exit(1);
+        video_r = (long)floor(atof(optarg)*1000.f + .5f);
+        if (video_r <= 0) {
+          fprintf(stderr,"Illegal video bitrate (choose > 0 please)\n");
+          exit(1);
+        }
+        break;
+      }
+      case 'd': {
+        buf_delay = atoi(optarg);
+        if (buf_delay <= 0) {
+          fprintf(stderr,"Illegal buffer delay\n");
+          exit(1);
+        }
         break;
       }
       case 's': {
@@ -759,7 +793,10 @@ int main(int argc, char **argv) {
         break;
       }
       case 0: {
-        if (strcmp(OPTIONS[loi].name, "mc-use-chroma") == 0) {
+        if (strcmp(OPTIONS[loi].name, "soft-target") == 0) {
+          soft_target = 1;
+        }
+        else if (strcmp(OPTIONS[loi].name, "mc-use-chroma") == 0) {
           mc_use_chroma = 1;
         }
         else if (strcmp(OPTIONS[loi].name, "no-mc-use-chroma") == 0) {
@@ -834,6 +871,23 @@ int main(int argc, char **argv) {
       }
       case 'h':
       default: usage(); break;
+    }
+  }
+  if (soft_target) {
+    if (video_r <= 0){
+      fprintf(stderr,
+       "Soft rate target (--soft-target) requested without a bitrate (-V).\n");
+      exit(1);
+    }
+  }
+  if (video_q == -1) {
+    if (video_r > 0) {
+      /*Rate control uses -v as a minimum quality below which the
+         encoder won't dip */
+      video_q = 512;
+    }
+    else {
+      video_q = 10;
     }
   }
   /*Assume anything following the options must be a file name.*/
@@ -911,6 +965,49 @@ int main(int argc, char **argv) {
   daala_encode_ctl(dd, OD_SET_MV_LEVEL_MIN, &mv_level_min, sizeof(mv_level_min));
   daala_encode_ctl(dd, OD_SET_MV_LEVEL_MAX, &mv_level_max, sizeof(mv_level_max));
   daala_encode_ctl(dd, OD_SET_B_FRAMES, &b_frames, sizeof(b_frames));
+  if (video_r > 0) {
+    /*Account for the Ogg page overhead.
+      This is 1 byte per 255 for lacing values, plus 26 bytes per 4096
+       bytes for the page header, plus approximately 1/2 byte per packet
+       (not accounted for here).*/
+    video_r = (int)(64870*(int64_t)video_r>>16);
+    if (daala_encode_ctl(dd, OD_SET_BITRATE, &video_r, sizeof(video_r)) !=
+        OD_SUCCESS) {
+      fprintf(stderr, "Unable to enable bitrate management.\n");
+      exit(1);
+    }
+  }
+  if (soft_target) {
+    /*Reverse the default rate control flags to favor a 'long time' strategy.*/
+    int arg = OD_RATECTL_CAP_UNDERFLOW;
+    if (daala_encode_ctl(dd, OD_SET_RATE_FLAGS, &arg,
+     sizeof(arg)) != OD_SUCCESS) {
+      fprintf(stderr,"Could not set encoder flags for --soft-target\n");
+      exit(1);
+    }
+    if (buf_delay < 0) {
+      if ((video_keyframe_rate*7 >> 1) > 5*avin.video_fps_n/avin.video_fps_d) {
+        arg = video_keyframe_rate*7 >> 1;
+      }
+      else {
+        arg = 5*avin.video_fps_n/avin.video_fps_d;
+      }
+      if (daala_encode_ctl(dd, OD_SET_RATE_BUFFER, &arg,\
+       sizeof(arg)) != OD_SUCCESS) {
+        fprintf(stderr,
+         "Could not set rate control buffer for --soft-target\n");
+        exit(1);
+      }
+    }
+  }
+  /*Now we can set the buffer delay if the user requested a non-default
+     value.*/
+  if (buf_delay >= 0) {
+    if (daala_encode_ctl(dd,OD_SET_RATE_BUFFER, &buf_delay,
+     sizeof(buf_delay)) != OD_SUCCESS) {
+      fprintf(stderr,"Warning: could not set desired buffer delay.\n");
+    }
+  }
   /*Write the bitstream header packets with proper page interleave.*/
   /*The first packet for each logical stream will get its own page
      automatically.*/
