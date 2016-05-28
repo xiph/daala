@@ -454,13 +454,9 @@ public:
   void onZoomIn(wxCommandEvent &event);
   void onZoomOut(wxCommandEvent &event);
   void onActualSize(wxCommandEvent &event);
-  void onShowBlocks(wxCommandEvent &event);
-  void onFilter(wxCommandEvent &event);
-  void onPaddingChange(wxCommandEvent &event);
+  void onToggleViewMenuCheckBox(wxCommandEvent &event);
+  void onResetAndToggleViewMenuCheckBox(wxCommandEvent &event);
   void onFilterBits(wxCommandEvent &event);
-  void onYChange(wxCommandEvent &event);
-  void onUChange(wxCommandEvent &event);
-  void onVChange(wxCommandEvent &event);
   void onViewReset(wxCommandEvent &event);
   void onNextFrame(wxCommandEvent &event);
   void onGotoFrame(wxCommandEvent &event);
@@ -497,16 +493,16 @@ BEGIN_EVENT_TABLE(TestFrame, wxFrame)
   EVT_MENU(wxID_ZOOM_IN, TestFrame::onZoomIn)
   EVT_MENU(wxID_ZOOM_OUT, TestFrame::onZoomOut)
   EVT_MENU(wxID_ACTUAL_SIZE, TestFrame::onActualSize)
-  EVT_MENU(wxID_SHOW_BLOCKS, TestFrame::onShowBlocks)
-  EVT_MENU(wxID_SHOW_SKIP, TestFrame::onFilter)
-  EVT_MENU(wxID_SHOW_NOREF, TestFrame::onFilter)
-  EVT_MENU(wxID_SHOW_PADDING, TestFrame::onPaddingChange)
-  EVT_MENU(wxID_SHOW_BITS, TestFrame::onFilter)
+  EVT_MENU(wxID_SHOW_BLOCKS, TestFrame::onToggleViewMenuCheckBox)
+  EVT_MENU(wxID_SHOW_SKIP, TestFrame::onResetAndToggleViewMenuCheckBox)
+  EVT_MENU(wxID_SHOW_NOREF, TestFrame::onResetAndToggleViewMenuCheckBox)
+  EVT_MENU(wxID_SHOW_PADDING, TestFrame::onToggleViewMenuCheckBox)
+  EVT_MENU(wxID_SHOW_BITS, TestFrame::onResetAndToggleViewMenuCheckBox)
   EVT_MENU(wxID_FILTER_BITS, TestFrame::onFilterBits)
-  EVT_MENU(wxID_SHOW_DERING, TestFrame::onFilter)
-  EVT_MENU(wxID_SHOW_Y, TestFrame::onYChange)
-  EVT_MENU(wxID_SHOW_U, TestFrame::onUChange)
-  EVT_MENU(wxID_SHOW_V, TestFrame::onVChange)
+  EVT_MENU(wxID_SHOW_DERING, TestFrame::onResetAndToggleViewMenuCheckBox)
+  EVT_MENU(wxID_SHOW_Y, TestFrame::onResetAndToggleViewMenuCheckBox)
+  EVT_MENU(wxID_SHOW_U, TestFrame::onResetAndToggleViewMenuCheckBox)
+  EVT_MENU(wxID_SHOW_V, TestFrame::onResetAndToggleViewMenuCheckBox)
   EVT_MENU(wxID_VIEW_RESET, TestFrame::onViewReset)
   EVT_MENU(wxID_NEXT_FRAME, TestFrame::onNextFrame)
   EVT_MENU(wxID_GOTO_FRAME, TestFrame::onGotoFrame)
@@ -1329,17 +1325,38 @@ bool TestFrame::setZoom(int zoom) {
   return false;
 }
 
-void TestFrame::onShowBlocks(wxCommandEvent &event) {
-  panel->setShowBlocks(event.IsChecked());
-  panel->render();
-  panel->Refresh(false);
+void TestFrame::onToggleViewMenuCheckBox(wxCommandEvent &event) {
+  GetMenuBar()->Check(event.GetId(), event.IsChecked());
+  updateViewMenu();
+}
+
+void TestFrame::onResetAndToggleViewMenuCheckBox(wxCommandEvent &event) {
+  GetMenuBar()->Check(wxID_SHOW_BITS, false);
+  GetMenuBar()->Check(wxID_SHOW_DERING, false);
+  int id = event.GetId();
+  if (id != wxID_SHOW_NOREF && id != wxID_SHOW_SKIP) {
+    GetMenuBar()->Check(wxID_SHOW_NOREF, false);
+    GetMenuBar()->Check(wxID_SHOW_SKIP, false);
+  }
+  if (id != wxID_SHOW_Y && id != wxID_SHOW_U && id != wxID_SHOW_V) {
+    GetMenuBar()->Check(wxID_SHOW_Y, true);
+    GetMenuBar()->Check(wxID_SHOW_U, true);
+    GetMenuBar()->Check(wxID_SHOW_V, true);
+  }
+  onToggleViewMenuCheckBox(event);
 }
 
 void TestFrame::updateViewMenu() {
-  panel->setShowBits(GetMenuBar()->IsChecked(wxID_SHOW_BITS));
+  panel->setShowBlocks(GetMenuBar()->IsChecked(wxID_SHOW_BLOCKS));
   panel->setShowSkip(GetMenuBar()->IsChecked(wxID_SHOW_SKIP));
   panel->setShowNoRef(GetMenuBar()->IsChecked(wxID_SHOW_NOREF));
+  panel->setShowPadding(GetMenuBar()->IsChecked(wxID_SHOW_PADDING));
+  panel->setShowBits(GetMenuBar()->IsChecked(wxID_SHOW_BITS));
   panel->setShowDering(GetMenuBar()->IsChecked(wxID_SHOW_DERING));
+  panel->setShowPlane(GetMenuBar()->IsChecked(wxID_SHOW_Y), OD_LUMA_MASK);
+  panel->setShowPlane(GetMenuBar()->IsChecked(wxID_SHOW_U), OD_CB_MASK);
+  panel->setShowPlane(GetMenuBar()->IsChecked(wxID_SHOW_V), OD_CR_MASK);
+  SetClientSize(panel->GetSize());
   panel->render();
   panel->Refresh(false);
 }
@@ -1354,45 +1371,13 @@ void TestFrame::onViewReset(wxCommandEvent &WXUNUSED(event)) {
   GetMenuBar()->Check(wxID_SHOW_Y, true);
   GetMenuBar()->Check(wxID_SHOW_U, true);
   GetMenuBar()->Check(wxID_SHOW_V, true);
-  panel->setShowBlocks(false);
-  panel->setShowPadding(false);
   panel->resetFilterBits();
-  panel->setShowPlane(true, OD_LUMA_MASK | OD_CB_MASK | OD_CR_MASK);
-  SetClientSize(panel->GetSize());
   updateViewMenu();
-}
-
-void TestFrame::onPaddingChange(wxCommandEvent &event) {
-  panel->setShowPadding(event.IsChecked());
-  SetClientSize(panel->GetSize());
-  panel->render();
-  panel->Refresh();
 }
 
 void TestFrame::onFilterBits(wxCommandEvent &WXUNUSED(event)) {
   panel->filterBits();
   panel->Refresh(false);
-}
-
-void TestFrame::onYChange(wxCommandEvent &event) {
-  panel->setShowPlane(event.IsChecked(), OD_LUMA_MASK);
-  SetClientSize(panel->GetSize());
-  panel->render();
-  panel->Refresh();
-}
-
-void TestFrame::onUChange(wxCommandEvent &event) {
-  panel->setShowPlane(event.IsChecked(), OD_CB_MASK);
-  SetClientSize(panel->GetSize());
-  panel->render();
-  panel->Refresh();
-}
-
-void TestFrame::onVChange(wxCommandEvent &event) {
-  panel->setShowPlane(event.IsChecked(), OD_CR_MASK);
-  SetClientSize(panel->GetSize());
-  panel->render();
-  panel->Refresh();
 }
 
 void TestFrame::onNextFrame(wxCommandEvent &WXUNUSED(event)) {
@@ -1436,17 +1421,6 @@ bool TestFrame::open(const wxString &path) {
     SetStatusText(_("error loading file") + path);
     return false;
   }
-}
-
-void TestFrame::onFilter(wxCommandEvent &event) {
-  GetMenuBar()->Check(wxID_SHOW_BITS, false);
-  GetMenuBar()->Check(wxID_SHOW_DERING, false);
-  if(event.GetId() != wxID_SHOW_NOREF && event.GetId() != wxID_SHOW_SKIP) {
-    GetMenuBar()->Check(wxID_SHOW_NOREF, false);
-    GetMenuBar()->Check(wxID_SHOW_SKIP, false);
-  }
-  GetMenuBar()->Check(event.GetId(), event.IsChecked());
-  updateViewMenu();
 }
 
 class TestApp : public wxApp {
