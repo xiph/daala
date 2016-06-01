@@ -739,8 +739,9 @@ static int16_t od_rsqrt(int32_t x, int *rsqrt_shift)
    int s;
    int16_t t;
    k = (OD_ILOG(x) - 1) >> 1;
-   /*t is x in the range [0.25, 1) in Q16, or x*2^(-s).*/
-   s = 2*k - OD_RSQRT_OUTSHIFT;
+  /*t is x in the range [0.25, 1) in QINSHIFT, or x*2^(-s).
+    Shift by log2(x) - log2(0.25*(1 << INSHIFT)) to ensure 0.25 lower bound.*/
+   s = 2*k - (OD_RSQRT_INSHIFT - 2);
    t = OD_VSHR(x, s);
    /*We want to express od_rsqrt() in terms of od_rsqrt_norm(), which is
       defined as (2^OUTSHIFT)/sqrt(t*(2^-INSHIFT)) with t=x*(2^-s).
