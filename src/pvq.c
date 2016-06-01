@@ -529,10 +529,12 @@ static od_val32 od_gain_compand(od_val32 g, int q0, double beta) {
 #if !defined(OD_FLOAT_PVQ)
 #define OD_SQRT_INSHIFT 16
 #define OD_SQRT_OUTSHIFT 15
-static int32_t od_sqrt_norm(int32_t x)
+static int16_t od_rsqrt_norm(int16_t x);
+
+static int16_t od_sqrt_norm(int32_t x)
 {
-  return OD_ROUND32((1 << OD_SQRT_OUTSHIFT)*
-   sqrt(x/(double)(1 << OD_SQRT_INSHIFT)));
+  OD_ASSERT(x < 65536);
+  return OD_MINI(OD_SHR_ROUND(x*od_rsqrt_norm(x), OD_SQRT_OUTSHIFT), 32767);
 }
 
 static int32_t od_sqrt(int32_t x, int *sqrt_shift)
@@ -713,6 +715,7 @@ static int16_t od_rsqrt_norm(int16_t t)
   int32_t ret;
   /* Range of n is [-16384,32767] ([-0.5,1) in Q15).*/
   n = t - 32768;
+  OD_ASSERT(n >= -16384);
   /*Get a rough initial guess for the root.
     The optimal minimax quadratic approximation (using relative error) is
      r = 1.437799046117536+n*(-0.823394375837328+n*0.4096419668459485).
