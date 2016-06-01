@@ -546,8 +546,9 @@ static int32_t od_sqrt(int32_t x, int *sqrt_shift)
   }
   OD_ASSERT(x < (1 << 30));
   k = ((OD_ILOG(x) - 1) >> 1);
-  /*s = log2(x) - 2*(OUTSHIFT - INSHIFT/2)*/
-  s = 2*(k - (OD_SQRT_OUTSHIFT - (OD_SQRT_INSHIFT >> 1)));
+  /*t is x in the range [0.25, 1) in QINSHIFT, or x*2^(-s).
+    Shift by log2(x) - log2(0.25*(1 << INSHIFT)) to ensure 0.25 lower bound.*/
+  s = 2*k - (OD_SQRT_INSHIFT - 2);
   t = OD_VSHR(x, s);
   /*We want to express od_sqrt() in terms of od_sqrt_norm(), which is
      defined as (2^OUTSHIFT)*sqrt(t*(2^-INSHIFT)) with t=x*(2^-s).
