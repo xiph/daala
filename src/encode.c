@@ -1267,11 +1267,6 @@ static double od_compute_dist(daala_enc_ctx *enc, od_coeff *x, od_coeff *y,
   return sum;
 }
 
-/* Computes block size RDO lambda (for 1/8 bits) from the quantizer. */
-static double od_bs_rdo_lambda(int q) {
-  return OD_PVQ_LAMBDA*(1./(1 << OD_BITRES))*q*q;
-}
-
 /* Returns 1 if the block is skipped, zero otherwise. */
 static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int bs,
  int pli, int bx, int by, int rdo_only) {
@@ -1463,7 +1458,7 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int bs,
       for (j = 0; j < n; j++) c_noskip[n*i + j] = c[bo + i*w + j];
     }
     dist_noskip = od_compute_dist(enc, c_orig, c_noskip, n, bs);
-    lambda = od_bs_rdo_lambda(enc->state.quantizer);
+    lambda = enc->bs_rdo_lambda;
     rate_noskip = od_ec_enc_tell_frac(&enc->ec) - tell;
     dist_skip = od_compute_dist(enc, c_orig, mc_orig, n, bs);
     rate_skip = (1 << OD_BITRES)*od_encode_cdf_cost(0,
@@ -1674,7 +1669,7 @@ static void od_quantize_haar_dc_level(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
      -1, &enc->state.adapt.ex_dc[pli][bsi][i-1]);
     /* Count cost of sign bit. */
     if (quant == 0) cost += 1;
-    if (q*q - 2*q*(x[i] - quant*q) + q*q*OD_PVQ_LAMBDA*cost < 0) quant++;
+    if (q*q - 2*q*(x[i] - quant*q) + q*q*enc->pvq_norm_lambda*cost < 0) quant++;
 #else
     quant = OD_DIV_R0(x[i], q);
 #endif
@@ -1842,7 +1837,7 @@ static int od_encode_recursive(daala_enc_ctx *enc, od_mb_enc_ctx *ctx,
       rate_split = od_ec_enc_tell_frac(&enc->ec) - tell;
       dist_split = od_compute_dist(enc, c_orig, split, n, bs);
       dist_nosplit = od_compute_dist(enc, c_orig, nosplit, n, bs);
-      lambda = od_bs_rdo_lambda(enc->state.quantizer);
+      lambda = enc->bs_rdo_lambda;
       if (skip_split || dist_nosplit + lambda*rate_nosplit < dist_split
        + lambda*rate_split) {
         /* This rollback call leaves the entropy coder in an inconsistent state
@@ -2407,14 +2402,7 @@ static void od_predict_frame(daala_enc_ctx *enc, int num_refs) {
 #endif
   OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO, "Predicting frame %i:",
    (int)daala_granule_basetime(enc, enc->state.cur_time)));
-  /*2320000 ~= 0.55313 (or sqrt(0.30595)) in Q22.
-   The lower bound of 40 is there because we do not yet consider PVQ noref
-    flags during the motion search, so we waste far too many bits trying to
-    predict unpredictable areas when lambda is too small.
-   Hopefully when we fix that, we can remove the limit.*/
-  od_mv_est(enc->mvest,
-   OD_MAXI(((2320000 + (((1 << OD_COEFF_SHIFT) - 1) >> 1)) >> OD_COEFF_SHIFT)*
-   enc->state.quantizer >> (22 - OD_LAMBDA_SCALE), 40), num_refs);
+  od_mv_est(enc->mvest, enc->mv_rdo_lambda, num_refs);
   od_state_mc_predict(&enc->state,
    enc->state.ref_imgs + enc->state.ref_imgi[OD_FRAME_SELF]);
   /*Do edge extension here because the block-size analysis needs to read
@@ -2822,23 +2810,16 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
         if (enc->use_dering) {
           int gi;
           double best_dist;
-          int q2;
-          double lambda;
           od_coeff out[OD_BSIZE_MAX*OD_BSIZE_MAX];
           int threshold;
-          q2 = state->quantizer * state->quantizer;
-          /* Deringing seems to benefit from a lower lambda -- possibly to
-             avoid local minima. Tested only a handful of lambdas so far. */
-          lambda = 0.67*OD_PVQ_LAMBDA*q2;
           for (y = 0; y < n; y++) {
             for (x = 0; x < n; x++) {
               out[y*n + x] = output[y*w + x];
             }
           }
           dist = od_compute_dist(enc, orig, out, n, 3);
-          best_dist = dist
-           + lambda*od_encode_cdf_cost(0, state->adapt.dering_cdf[c],
-           OD_DERING_LEVELS);
+          best_dist = dist + enc->dering_lambda*
+           od_encode_cdf_cost(0, state->adapt.dering_cdf[c], OD_DERING_LEVELS);
           for (gi = 1; gi < OD_DERING_LEVELS; gi++) {
             threshold = (int)(OD_DERING_GAIN_TABLE[gi]*base_threshold);
             od_dering(&state->opt_vtbl.dering, buf, n, &state->etmp[pli]
@@ -2856,8 +2837,8 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
                 }
               }
               dist = od_compute_dist(enc, orig, buf32, n, 3)
-               + lambda*od_encode_cdf_cost(gi, state->adapt.dering_cdf[c],
-               OD_DERING_LEVELS);
+               + enc->dering_lambda*od_encode_cdf_cost(gi,
+               state->adapt.dering_cdf[c], OD_DERING_LEVELS);
             }
             if (dist < best_dist) {
               best_dist = dist;
@@ -3161,6 +3142,10 @@ static int od_encode_frame(daala_enc_ctx *enc, daala_image *img, int frame_type,
       }
     }
   }
+  /*At the moment, the below is in fact only setting lambdas from the
+     quantizer we just chose.*/
+  od_enc_rc_select_quantizers_and_lambdas(enc, mbctx.is_golden_frame,
+   frame_type);
   OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO, "is_keyframe=%d", mbctx.is_keyframe));
   /*TODO: Increment frame count.*/
   od_adapt_ctx_reset(&enc->state.adapt, mbctx.is_keyframe);

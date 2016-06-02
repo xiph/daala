@@ -79,8 +79,32 @@ void od_enc_rc_clear(od_enc_ctx *enc) {
 
 void od_enc_rc_select_quantizers_and_lambdas(od_enc_ctx *enc,
  int is_golden_frame, int frame_type) {
-  /* Stub to establish API */
-  OD_UNUSED(enc);
+  /*For now, use the quantizer selected by legacy code.*/
+  enc->target_quantizer = enc->state.quantizer;
+  /*Generate encoding lambdas from target and actual quantizers.*/
+  /*Motion estimation normalized lambda is 2320000 ~= 0.55313
+     (or sqrt(0.30595)) in Q22.
+    The lower bound of 40 is there because we do not yet consider PVQ noref
+     flags during the motion search, so we waste far too many bits trying to
+     predict unpredictable areas when lambda is too small.
+    Hopefully when we fix that, we can remove the limit.*/
+  enc->mv_rdo_lambda =
+   OD_MAXI(((2320000 + (((1 << OD_COEFF_SHIFT) - 1) >> 1)) >> OD_COEFF_SHIFT)*
+   enc->target_quantizer >> (22 - OD_LAMBDA_SCALE), 40);
+  /*We need a normalized PVQ lambda based on the target (not actual) quantizer
+     for use within PVQ after we've already performed quantization.*/
+  enc->pvq_norm_lambda = OD_PVQ_LAMBDA;
+  /*The PVQ RDO lambda is used for RDO calculations involving unquantized
+     data.*/
+  enc->pvq_rdo_lambda = OD_PVQ_LAMBDA*
+   enc->target_quantizer*enc->target_quantizer;
+  /*The blocksize RDO lambda is calculated from the PVQ RDO lambda.*/
+  enc->bs_rdo_lambda = OD_PVQ_LAMBDA*(1./(1 << OD_BITRES))*
+    enc->target_quantizer*enc->target_quantizer;
+  /*The deringing filter uses yet another adjusted lambda*/
+  enc->dering_lambda = 0.67*OD_PVQ_LAMBDA*
+    enc->target_quantizer*enc->target_quantizer;
+
   OD_UNUSED(is_golden_frame);
   OD_UNUSED(frame_type);
 }

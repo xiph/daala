@@ -160,6 +160,23 @@ struct daala_enc_ctx{
   int qm;
   int use_haar_wavelet;
   int b_frames;
+  /*The quantizer value we wish we could use if we were able to
+     code any possible quantizer value to the stream.
+    This value is not used in any quantization, but it is used to
+     compute lambda values for RDO decisions.*/
+  int target_quantizer;
+  /*Motion estimation RDO lambda.*/
+  int mv_rdo_lambda;
+  /*The blocksize RDO lambda.*/
+  double bs_rdo_lambda;
+  /*The PVQ RDO lambda is used for RDO calculations involving unquantized
+     data.*/
+  double pvq_rdo_lambda;
+  /*Normalized PVQ lambda for use where we've already performed
+     quantization.*/
+  double pvq_norm_lambda;
+  /*The deringing filter RDO lambda.*/
+  double dering_lambda;
   od_mv_est_ctx *mvest;
   od_params_ctx params;
 #if defined(OD_ENCODER_CHECK)
