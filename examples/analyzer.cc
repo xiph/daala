@@ -1112,7 +1112,10 @@ bool TestPanel::gotoFrame() {
 }
 
 void TestPanel::resetFilterBits() {
-  show_bits_filter = _("");
+  if (!show_bits_filter.IsEmpty()) {
+    show_bits_filter = _("");
+    computeBitsPerPixel();
+  }
 }
 
 void TestPanel::filterBits() {
