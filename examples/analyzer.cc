@@ -1123,8 +1123,11 @@ void TestPanel::filterBits() {
    _("Filter: \"skip,pvq\" or \"\" to disable filter."));
   dlg.SetValue(show_bits_filter);
   if (dlg.ShowModal() == wxID_OK) {
-    show_bits_filter = dlg.GetValue();
-    refresh();
+    wxString new_bits_filter = dlg.GetValue();
+    if (!show_bits_filter.IsSameAs(new_bits_filter)) {
+      show_bits_filter = new_bits_filter;
+      refresh();
+    }
   }
 }
 
