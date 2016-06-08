@@ -202,6 +202,10 @@ static void id_y4m_file(av_input *avin, const char *file, FILE *test) {
     fprintf(stderr, "Interlaced input is not currently supported.\n");
     exit(1);
   }
+  if (avin->video_fps_d <= 0) {
+    fprintf(stderr, "FPS denominator must be > 0.\n");
+    exit(1);
+  }
   avin->video_infile = test;
   avin->has_video = 1;
   fprintf(stderr, "File '%s' is %ix%i %0.03f fps %s video.\n",
