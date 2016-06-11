@@ -60,7 +60,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 #define OD_GOLDEN_FRAME_INTERVAL 10
 
-static const unsigned char OD_LUMA_QM_Q6[2][OD_QM_SIZE] = {
+static const unsigned char OD_LUMA_QM_Q6[4][OD_QM_SIZE] = {
 /* Flat quantization for PSNR. The DC component isn't 64 because the DC
    magnitude compensation is done here for inter (Haar DC doesn't need it).
    Masking disabled: */
@@ -78,10 +78,24 @@ static const unsigned char OD_LUMA_QM_Q6[2][OD_QM_SIZE] = {
    Masking enabled: */
  {
   84, 64,
-  73, 77, 130, 133,
-  68, 59,  88,  88, 107, 109,
-  66, 45,  68,  63,  72,  72, 87, 112,
-  65, 36,  56,  49,  53,  52, 59,  60, 76, 92
+  73, 96, 163, 152,
+  68, 72, 122, 106, 126, 121,
+  66, 66, 113, 85, 90, 80, 98, 112,
+  65, 157, 267, 111, 82, 63, 66, 60, 76, 92
+ },
+ {
+  84, 64,
+  73, 77, 117, 125,
+  68, 58, 88, 84, 100, 109,
+  66, 45, 67, 59, 69, 70, 84, 112,
+  65, 35, 54, 46, 50, 46, 55, 60, 76, 92
+ },
+ {
+  84, 64,
+  73, 65, 93, 111,
+  68, 54, 72, 79, 88, 141,
+  66, 41, 59, 60, 67, 66, 74, 112,
+  65, 31, 47, 44, 49, 54, 59, 60, 76, 92
  }
 };
 
@@ -116,7 +130,7 @@ typedef struct od_qm_entry {
 /* No interpolation, always use od_flat_qm_q6, but use a different scale for
    each plane.
    FIXME: Add interpolation and properly tune chroma. */
-static const od_qm_entry OD_DEFAULT_QMS[2][3][OD_NPLANES_MAX] = {
+static const od_qm_entry OD_DEFAULT_QMS[2][4][OD_NPLANES_MAX] = {
  /* Masking disabled */
  {{{4, 256, OD_LUMA_QM_Q6[OD_MASKING_DISABLED]},
    {4, 448, OD_CHROMA_QM_Q6[OD_MASKING_DISABLED]},
@@ -126,14 +140,20 @@ static const od_qm_entry OD_DEFAULT_QMS[2][3][OD_NPLANES_MAX] = {
    {318, 92, OD_CHROMA_QM_Q6[OD_MASKING_DISABLED]}},
   {{0, 0, NULL},
    {0, 0, NULL},
+   {0, 0, NULL}},
+  {{0, 0, NULL},
+   {0, 0, NULL},
    {0, 0, NULL}}},
  /* Masking enabled */
  {{{4, 256, OD_LUMA_QM_Q6[OD_MASKING_ENABLED]},
    {4, 448, OD_CHROMA_QM_Q6[OD_MASKING_ENABLED]},
    {4, 320, OD_CHROMA_QM_Q6[OD_MASKING_ENABLED]}},
-  {{318, 256, OD_LUMA_QM_Q6[OD_MASKING_ENABLED]},
-   {318, 129, OD_CHROMA_QM_Q6[OD_MASKING_ENABLED]},
-   {318, 92, OD_CHROMA_QM_Q6[OD_MASKING_ENABLED]}},
+  {{37, 256, OD_LUMA_QM_Q6[OD_MASKING_ENABLED+1]},
+   {37, 244, OD_CHROMA_QM_Q6[OD_MASKING_ENABLED]},
+   {37, 174, OD_CHROMA_QM_Q6[OD_MASKING_ENABLED]}},
+  {{318, 256, OD_LUMA_QM_Q6[OD_MASKING_ENABLED+2]},
+   {318, 124, OD_CHROMA_QM_Q6[OD_MASKING_ENABLED]},
+   {318, 89, OD_CHROMA_QM_Q6[OD_MASKING_ENABLED]}},
   {{0, 0, NULL},
    {0, 0, NULL},
    {0, 0, NULL}}}
