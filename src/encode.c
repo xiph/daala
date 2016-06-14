@@ -1326,7 +1326,7 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int bs,
     skip = od_pvq_encode(enc, predt, dblock, scalar_out, quant, pli, bs,
      OD_PVQ_BETA[use_masking][pli][bs], OD_ROBUST_STREAM, ctx->is_keyframe,
      ctx->q_scaling, bx, by, enc->state.qm + off, enc->state.qm_inv
-     + off);
+     + off, rdo_only && enc->complexity < 5 ? 1 : 0);
   }
   if (!ctx->is_keyframe) {
     int has_dc_skip;
