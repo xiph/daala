@@ -217,29 +217,27 @@ int od_vector_is_null(const od_coeff *x, int len) {
 
 static double od_pvq_rate(int qg, int icgr, int theta, int ts,
  const od_adapt_ctx *adapt, const od_coeff *y0, int k, int n,
- int is_keyframe, int pli) {
+ int is_keyframe, int pli, int speed) {
   double rate;
-#if OD_PVQ_RATE_APPROX
-  /* Estimates the number of bits it will cost to encode K pulses in
-     N dimensions based on experimental data for bitrate vs K. */
-  rate = n*OD_LOG2(1+log(n*2)*k/n);
-  OD_UNUSED(adapt);
-  OD_UNUSED(y0);
-  OD_UNUSED(bs);
-#else
-  if (k > 0){
-    od_ec_enc ec;
-    od_pvq_codeword_ctx cd;
-    int tell;
-    od_ec_enc_init(&ec, 1000);
-    OD_COPY(&cd, &adapt->pvq.pvq_codeword_ctx, 1);
-    tell = od_ec_enc_tell_frac(&ec);
-    od_encode_pvq_codeword(&ec, &cd, y0, n - (theta != -1), k);
-    rate = (od_ec_enc_tell_frac(&ec)-tell)/8.;
-    od_ec_enc_clear(&ec);
+  if (speed > 0) {
+    /* Estimates the number of bits it will cost to encode K pulses in
+       N dimensions based on experimental data for bitrate vs K. */
+    rate = n*OD_LOG2(1+log(n*2)*k/n);
   }
-  else rate = 0;
-#endif
+  else {
+    if (k > 0){
+      od_ec_enc ec;
+      od_pvq_codeword_ctx cd;
+      int tell;
+      od_ec_enc_init(&ec, 1000);
+      OD_COPY(&cd, &adapt->pvq.pvq_codeword_ctx, 1);
+      tell = od_ec_enc_tell_frac(&ec);
+      od_encode_pvq_codeword(&ec, &cd, y0, n - (theta != -1), k);
+      rate = (od_ec_enc_tell_frac(&ec)-tell)/8.;
+      od_ec_enc_clear(&ec);
+    }
+    else rate = 0;
+  }
   if (qg > 0 && theta >= 0) {
     /* Approximate cost of entropy-coding theta */
     rate += .9*OD_LOG2(ts);
@@ -276,13 +274,14 @@ static double od_pvq_rate(int qg, int icgr, int theta, int ts,
  * @param [in]     qm        QM with magnitude compensation
  * @param [in]     qm_inv    Inverse of QM with magnitude compensation
  * @param [in] pvq_norm_lambda enc->pvq_norm_lambda for quantized RDO
+ * @param [in]     speed     Make search faster by making approximations
  * @return         gain      index of the quatized gain
 */
 static int pvq_theta(od_coeff *out, const od_coeff *x0, const od_coeff *r0,
  int n, int q0, od_coeff *y, int *itheta, int *max_theta, int *vk,
  od_val16 beta, double *skip_diff, int robust, int is_keyframe, int pli,
  const od_adapt_ctx *adapt, const int16_t *qm,
- const int16_t *qm_inv, double pvq_norm_lambda) {
+ const int16_t *qm_inv, double pvq_norm_lambda, int speed) {
   od_val32 g;
   od_val32 gr;
   od_coeff y_tmp[MAXN];
@@ -364,7 +363,7 @@ static int pvq_theta(od_coeff *out, const od_coeff *x0, const od_coeff *r0,
   dist = gain_weight*cg*cg*OD_CGAIN_SCALE_2;
   best_dist = dist;
   best_cost = dist + pvq_norm_lambda*od_pvq_rate(0, 0, -1, 0, adapt, NULL, 0,
-   n, is_keyframe, pli);
+   n, is_keyframe, pli, speed);
   noref = 1;
   best_k = 0;
   *itheta = -1;
@@ -391,7 +390,7 @@ static int pvq_theta(od_coeff *out, const od_coeff *x0, const od_coeff *r0,
       best_dist *= OD_CGAIN_SCALE_2;
     }
     best_cost = best_dist + pvq_norm_lambda*od_pvq_rate(0, icgr, 0, 0, adapt,
-     NULL, 0, n, is_keyframe, pli);
+     NULL, 0, n, is_keyframe, pli, speed);
     best_qtheta = 0;
     *itheta = 0;
     *max_theta = 0;
@@ -440,7 +439,7 @@ static int pvq_theta(od_coeff *out, const od_coeff *x0, const od_coeff *r0,
         dist *= OD_CGAIN_SCALE_2;
         /* Do approximate RDO. */
         cost = dist + pvq_norm_lambda*od_pvq_rate(i, icgr, j, ts, adapt, y_tmp,
-         k, n, is_keyframe, pli);
+         k, n, is_keyframe, pli, speed);
         if (cost < best_cost) {
           best_cost = cost;
           best_dist = dist;
@@ -478,7 +477,7 @@ static int pvq_theta(od_coeff *out, const od_coeff *x0, const od_coeff *r0,
       dist *= OD_CGAIN_SCALE_2;
       /* Do approximate RDO. */
       cost = dist + pvq_norm_lambda*od_pvq_rate(i, 0, -1, 0, adapt, y_tmp, k,
-       n, is_keyframe, pli);
+       n, is_keyframe, pli, speed);
       if (cost <= best_cost) {
         best_cost = cost;
         best_dist = dist;
@@ -665,6 +664,7 @@ void od_encode_quantizer_scaling(daala_enc_ctx *enc, int q_scaling,
  * @param [in]     by      y-coordinate of this block
  * @param [in]     qm      QM with magnitude compensation
  * @param [in]     qm_inv  Inverse of QM with magnitude compensation
+ * @param [in]     speed   Make search faster by making approximations
  * @return         Returns 1 if both DC and AC coefficients are skipped,
  *                 zero otherwise
  */
@@ -682,7 +682,8 @@ int od_pvq_encode(daala_enc_ctx *enc,
                    int bx,
                    int by,
                    const int16_t *qm,
-                   const int16_t *qm_inv){
+                   const int16_t *qm_inv,
+                   int speed){
   int theta[PVQ_MAX_PARTITIONS];
   int max_theta[PVQ_MAX_PARTITIONS];
   int qg[PVQ_MAX_PARTITIONS];
@@ -754,7 +755,8 @@ int od_pvq_encode(daala_enc_ctx *enc,
     qg[i] = pvq_theta(out + off[i], in + off[i], ref + off[i], size[i],
      q, y + off[i], &theta[i], &max_theta[i],
      &k[i], beta[i], &skip_diff, robust, is_keyframe, pli,
-     &enc->state.adapt, qm + off[i], qm_inv + off[i], enc->pvq_norm_lambda);
+     &enc->state.adapt, qm + off[i], qm_inv + off[i], enc->pvq_norm_lambda,
+     speed);
   }
   od_encode_checkpoint(enc, &buf);
   if (is_keyframe) out[0] = 0;
