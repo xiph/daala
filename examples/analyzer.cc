@@ -601,13 +601,13 @@ bool TestPanel::open(const wxString &path) {
   flags = (unsigned int *)malloc(flags_len);
   if (flags == NULL) {
     flags_len = 0;
-    fprintf(stderr,"Could not allocate memory\n");
+    fprintf(stderr, "Could not allocate memory\n");
     close();
     return false;
   }
   fstride = nhsb*OD_FLAGS_GRID;
   if (!dd.setBandFlagsBuffer(flags, flags_len)) {
-    fprintf(stderr,"Could not set flags buffer\n");
+    fprintf(stderr, "Could not set flags buffer\n");
     close();
     return false;
   }
@@ -625,7 +625,7 @@ bool TestPanel::open(const wxString &path) {
       return false;
     }
     if (!dd.getAccountingStruct(&acct)) {
-      fprintf(stderr,"Could not get accounting struct\n");
+      fprintf(stderr, "Could not get accounting struct\n");
       close();
       return false;
     }
@@ -633,19 +633,19 @@ bool TestPanel::open(const wxString &path) {
   dering_len = nhdr*nvdr;
   dering = (unsigned char *)malloc(dering_len);
   if (dering == NULL) {
-    fprintf(stderr,"Could not allocate memory for deringing buffer\n");
+    fprintf(stderr, "Could not allocate memory for deringing buffer\n");
     close();
     return false;
   }
   if (!dd.setDeringFlagsBuffer(dering, dering_len)) {
-    fprintf(stderr,"Could not set dering flags buffer\n");
+    fprintf(stderr, "Could not set dering flags buffer\n");
     close();
     return false;
   }
   mv_len = sizeof(od_mv_grid_pt)*(dd.getNHMVBS() + 1)*(dd.getNVMVBS() + 1);
   mv = (od_mv_grid_pt *)malloc(mv_len);
   if (!dd.setMVBuffer(mv, mv_len)) {
-    fprintf(stderr,"Could not set mv buffer\n");
+    fprintf(stderr, "Could not set mv buffer\n");
     close();
     return false;
   }
@@ -1184,7 +1184,7 @@ bool TestPanel::gotoFrame() {
       wxMessageBox(_("Error: Video doesn't have that many frames"));
       restart();
       return false;
-	}
+    }
   }
   refresh();
   return toReturn;
