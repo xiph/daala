@@ -219,24 +219,30 @@ static double od_pvq_rate(int qg, int icgr, int theta, int ts,
  const od_adapt_ctx *adapt, const od_coeff *y0, int k, int n,
  int is_keyframe, int pli, int speed) {
   double rate;
-  if (speed > 0) {
+  if (k == 0) rate = 0;
+  else if (speed > 0) {
+    int i;
+    int sum;
+    double f;
+    /* Compute "center of mass" of the pulse vector. */
+    sum = 0;
+    for (i = 0; i < n - (theta != -1); i++) sum += i*abs(y0[i]);
+    f = sum/(double)(k*n);
     /* Estimates the number of bits it will cost to encode K pulses in
-       N dimensions based on experimental data for bitrate vs K. */
-    rate = n*OD_LOG2(1+log(n*2)*k/n);
+       N dimensions based on hand-tuned fit for bitrate vs K, N and
+       "center of mass". */
+    rate = (1 + .4*f)*n*OD_LOG2(1 + OD_MAXF(0, log(n*2*(1*f + .025))*k/n)) + 3;
   }
   else {
-    if (k > 0){
-      od_ec_enc ec;
-      od_pvq_codeword_ctx cd;
-      int tell;
-      od_ec_enc_init(&ec, 1000);
-      OD_COPY(&cd, &adapt->pvq.pvq_codeword_ctx, 1);
-      tell = od_ec_enc_tell_frac(&ec);
-      od_encode_pvq_codeword(&ec, &cd, y0, n - (theta != -1), k);
-      rate = (od_ec_enc_tell_frac(&ec)-tell)/8.;
-      od_ec_enc_clear(&ec);
-    }
-    else rate = 0;
+    od_ec_enc ec;
+    od_pvq_codeword_ctx cd;
+    int tell;
+    od_ec_enc_init(&ec, 1000);
+    OD_COPY(&cd, &adapt->pvq.pvq_codeword_ctx, 1);
+    tell = od_ec_enc_tell_frac(&ec);
+    od_encode_pvq_codeword(&ec, &cd, y0, n - (theta != -1), k);
+    rate = (od_ec_enc_tell_frac(&ec)-tell)/8.;
+    od_ec_enc_clear(&ec);
   }
   if (qg > 0 && theta >= 0) {
     /* Approximate cost of entropy-coding theta */
