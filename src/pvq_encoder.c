@@ -86,10 +86,12 @@ static void od_fill_dynamic_rqrt_table(double *table, const int table_size,
  * @param [out]     g2      multiplier for the distortion (typically squared
  *                          gain units)
  * @param [in] pvq_norm_lambda enc->pvq_norm_lambda for quantized RDO
+ * @param [in]      prev_k  number of pulses already in ypulse that we should
+ *                          reuse for the search (or 0 for a new search)
  * @return                  cosine distance between x and y (between 0 and 1)
  */
 static double pvq_search_rdo_double(const od_val16 *xcoeff, int n, int k,
- od_coeff *ypulse, double g2, double pvq_norm_lambda) {
+ od_coeff *ypulse, double g2, double pvq_norm_lambda, int prev_k) {
   int i, j;
   double xy;
   double yy;
@@ -109,22 +111,33 @@ static double pvq_search_rdo_double(const od_val16 *xcoeff, int n, int k,
   norm_1 = 1./sqrt(1e-30 + xx);
   lambda = pvq_norm_lambda/(1e-30 + g2);
   i = 0;
-  if (k > 2) {
+  if (prev_k > 0 && prev_k <= k) {
+    /* We reuse pulses from a previous search so we don't have to search them
+       again. */
+    for (j = 0; j < n; j++) {
+      ypulse[j] = abs(ypulse[j]);
+      xy += x[j]*ypulse[j];
+      yy += ypulse[j]*ypulse[j];
+      i += ypulse[j];
+    }
+  }
+  else if (k > 2) {
     double l1_norm;
     double l1_inv;
     l1_norm = 0;
     for (j = 0; j < n; j++) l1_norm += x[j];
     l1_inv = 1./OD_MAXF(l1_norm, 1e-100);
     for (j = 0; j < n; j++) {
-      ypulse[j] = OD_MAXI(0, (int)floor(k*x[j]*l1_inv));
+      double tmp;
+      tmp = k*x[j]*l1_inv;
+      ypulse[j] = OD_MAXI(0, (int)floor(tmp));
       xy += x[j]*ypulse[j];
       yy += ypulse[j]*ypulse[j];
       i += ypulse[j];
     }
   }
-  else {
-    for (j = 0; j < n; j++) ypulse[j] = 0;
-  }
+  else OD_CLEAR(ypulse, n);
+
   /* Only use RDO on the last few pulses. This not only saves CPU, but using
      RDO on all pulses actually makes the results worse for reasons I don't
      fully understand. */
@@ -404,11 +417,13 @@ static int pvq_theta(od_coeff *out, const od_coeff *x0, const od_coeff *r0,
   if (n <= OD_MAX_PVQ_SIZE && !od_vector_is_null(r0, n) && corr > 0) {
     od_val16 xr[MAXN];
     int gain_bound;
+    int prev_k;
     gain_bound = OD_SHR(cg - gain_offset, OD_CGAIN_SHIFT);
     /* Perform theta search only if prediction is useful. */
     theta = OD_ROUND32(OD_THETA_SCALE*acos(corr));
     m = od_compute_householder(r16, n, gr, &s, rshift);
     od_apply_householder(xr, x16, r16, n);
+    prev_k = 0;
     for (i = m; i < n - 1; i++) xr[i] = xr[i + 1];
     /* Search for the best gain within a reasonable range. */
     for (i = OD_MAXI(1, gain_bound - 1); i <= gain_bound + 1; i++) {
@@ -436,7 +451,9 @@ static int pvq_theta(od_coeff *out, const od_coeff *x0, const od_coeff *r0,
            that's the factor by which cos_dist is multiplied to get the
            distortion metric. */
         cos_dist = pvq_search_rdo_double(xr, n - 1, k, y_tmp,
-         qcg*(double)cg*sin_prod*OD_CGAIN_SCALE_2, pvq_norm_lambda);
+         qcg*(double)cg*sin_prod*OD_CGAIN_SCALE_2, pvq_norm_lambda,
+         prev_k);
+        prev_k = k;
         /* See Jmspeex' Journal of Dubious Theoretical Results. */
         dist_theta = 2 - 2.*od_pvq_cos(theta - qtheta)*OD_TRIG_SCALE_1
          + sin_prod*(2 - 2*cos_dist);
@@ -466,7 +483,9 @@ static int pvq_theta(od_coeff *out, const od_coeff *x0, const od_coeff *r0,
    ((is_keyframe && pli == 0) || corr < .5
    || cg < (od_val32)(OD_SHL(2, OD_CGAIN_SHIFT)))) {
     int gain_bound;
+    int prev_k;
     gain_bound = OD_SHR(cg, OD_CGAIN_SHIFT);
+    prev_k = 0;
     /* Search for the best gain (haven't determined reasonable range yet). */
     for (i = OD_MAXI(1, gain_bound); i <= gain_bound + 1; i++) {
       double cos_dist;
@@ -475,7 +494,8 @@ static int pvq_theta(od_coeff *out, const od_coeff *x0, const od_coeff *r0,
       qcg = OD_SHL(i, OD_CGAIN_SHIFT);
       k = od_pvq_compute_k(qcg, -1, -1, 1, n, beta, robust || is_keyframe);
       cos_dist = pvq_search_rdo_double(x16, n, k, y_tmp,
-       qcg*(double)cg*OD_CGAIN_SCALE_2, pvq_norm_lambda);
+       qcg*(double)cg*OD_CGAIN_SCALE_2, pvq_norm_lambda, prev_k);
+      prev_k = k;
       /* See Jmspeex' Journal of Dubious Theoretical Results. */
       dist = gain_weight*(qcg - cg)*(qcg - cg)
        + qcg*(double)cg*(2 - 2*cos_dist);
