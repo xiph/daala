@@ -436,6 +436,7 @@ static int pvq_theta(od_coeff *out, const od_coeff *x0, const od_coeff *r0,
     pvq_search_item items[20];
     int idx;
     int nitems;
+    double cos_dist;
     idx = 0;
     gain_bound = OD_SHR(cg - gain_offset, OD_CGAIN_SHIFT);
     /* Perform theta search only if prediction is useful. */
@@ -474,6 +475,7 @@ static int pvq_theta(od_coeff *out, const od_coeff *x0, const od_coeff *r0,
       }
     }
     nitems = idx;
+    cos_dist = 0;
     /* Sort PVQ search candidates in ascending order of pulses K so that
        we can reuse all the previously searched pulses across searches. */
     qsort(items, nitems, sizeof(items[0]),
@@ -483,7 +485,6 @@ static int pvq_theta(od_coeff *out, const od_coeff *x0, const od_coeff *r0,
       int j;
       od_val32 qcg;
       int ts;
-      double cos_dist;
       double cost;
       double dist_theta;
       double sin_prod;
@@ -502,8 +503,14 @@ static int pvq_theta(od_coeff *out, const od_coeff *x0, const od_coeff *r0,
       /* PVQ search, using a gain of qcg*cg*sin(theta)*sin(qtheta) since
          that's the factor by which cos_dist is multiplied to get the
          distortion metric. */
-      cos_dist = pvq_search_rdo_double(xr, n - 1, k, y_tmp,
-       qcg*(double)cg*sin_prod*OD_CGAIN_SCALE_2, pvq_norm_lambda, prev_k);
+      if (k == 0) {
+        cos_dist = 0;
+        OD_CLEAR(y_tmp, n-1);
+      }
+      else if (k != prev_k) {
+        cos_dist = pvq_search_rdo_double(xr, n - 1, k, y_tmp,
+         qcg*(double)cg*sin_prod*OD_CGAIN_SCALE_2, pvq_norm_lambda, prev_k);
+      }
       prev_k = k;
       /* See Jmspeex' Journal of Dubious Theoretical Results. */
       dist_theta = 2 - 2.*od_pvq_cos(theta - qtheta)*OD_TRIG_SCALE_1
