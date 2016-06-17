@@ -328,6 +328,7 @@ static int pvq_theta(od_coeff *out, const od_coeff *x0, const od_coeff *r0,
   int qg;
   /* Best RDO cost (D + lamdba*R) so far. */
   double best_cost;
+  double dist0;
   /* Distortion (D) that corresponds to the best RDO cost. */
   double best_dist;
   double dist;
@@ -429,6 +430,7 @@ static int pvq_theta(od_coeff *out, const od_coeff *x0, const od_coeff *r0,
     *max_theta = 0;
     noref = 0;
   }
+  dist0 = best_dist;
   if (n <= OD_MAX_PVQ_SIZE && !od_vector_is_null(r0, n) && corr > 0) {
     od_val16 xr[MAXN];
     int gain_bound;
@@ -498,6 +500,14 @@ static int pvq_theta(od_coeff *out, const od_coeff *x0, const od_coeff *r0,
       /* Search for the best angle within a reasonable range. */
       qtheta = items[idx].qtheta;
       k = items[idx].k;
+      /* Compute the minimal possible distortion by not taking the PVQ
+         cos_dist into account. */
+      dist_theta = 2 - 2.*od_pvq_cos(theta - qtheta)*OD_TRIG_SCALE_1;
+      dist = gain_weight*(qcg - cg)*(qcg - cg) + qcg*(double)cg*dist_theta;
+      dist *= OD_CGAIN_SCALE_2;
+      /* If we have no hope of beating skip (including a 1-bit worst-case
+         penalty), stop now. */
+      if (dist > dist0 + 1.0*pvq_norm_lambda && k != 0) continue;
       sin_prod = od_pvq_sin(theta)*OD_TRIG_SCALE_1*od_pvq_sin(qtheta)*
        OD_TRIG_SCALE_1;
       /* PVQ search, using a gain of qcg*cg*sin(theta)*sin(qtheta) since
@@ -550,6 +560,11 @@ static int pvq_theta(od_coeff *out, const od_coeff *x0, const od_coeff *r0,
       od_val32 qcg;
       qcg = OD_SHL(i, OD_CGAIN_SHIFT);
       k = od_pvq_compute_k(qcg, -1, -1, 1, n, beta, robust || is_keyframe);
+      /* Compute the minimal possible distortion by not taking the PVQ
+         cos_dist into account. */
+      dist = gain_weight*(qcg - cg)*(qcg - cg);
+      dist *= OD_CGAIN_SCALE_2;
+      if (dist > dist0 && k != 0) continue;
       cos_dist = pvq_search_rdo_double(x16, n, k, y_tmp,
        qcg*(double)cg*OD_CGAIN_SCALE_2, pvq_norm_lambda, prev_k);
       prev_k = k;
