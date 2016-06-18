@@ -139,16 +139,6 @@ static const od_qm_entry OD_DEFAULT_QMS[2][3][OD_NPLANES_MAX] = {
    {0, 0, NULL}}}
 };
 
-/*TODO: This makes little sense with the coded quantizer mapping
-   changes, but that's a problem for later.
-  Maintain current quality setting handling both here and in the
-   encode_ctl.*/
-static int od_quantizer_from_quality(int quality) {
-  return quality == 0 ? 0 :
-   (quality << OD_COEFF_SHIFT >> OD_QUALITY_SHIFT) +
-   (1 << OD_COEFF_SHIFT >> 1);
-}
-
 void od_enc_opt_vtbl_init_c(od_enc_ctx *enc) {
   if (enc->state.info.full_precision_references) {
     enc->opt_vtbl.mc_compute_sad_4x4 =
@@ -2993,7 +2983,6 @@ static int od_encode_frame(daala_enc_ctx *enc, daala_image *img, int frame_type,
   int nplanes;
   int pli;
   int use_masking;
-  int gop_quantizer;
   od_mb_enc_ctx mbctx;
   daala_image *ref_img;
   OD_RETURN_CHECK(enc, OD_EFAULT);
@@ -3004,6 +2993,7 @@ static int od_encode_frame(daala_enc_ctx *enc, daala_image *img, int frame_type,
   enc->curr_display_order = display_frame_number;
   /* Check if the frame should be a keyframe. */
   mbctx.is_keyframe = (frame_type == OD_I_FRAME) ? 1 : 0;
+  OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO, "is_keyframe=%d", mbctx.is_keyframe));
   /* B-frame cannot be a Golden frame.*/
   /* For now, all keyframes are also golden frames */
   mbctx.is_golden_frame = mbctx.is_keyframe ||
@@ -3055,37 +3045,12 @@ static int od_encode_frame(daala_enc_ctx *enc, daala_image *img, int frame_type,
    enc->state.ref_imgi[OD_FRAME_GOLD] == enc->state.ref_imgi[OD_FRAME_PREV]) {
     mbctx.num_refs = 1;
   }
+  /*Quantizer and lambdas determined by rate control code.*/
+  od_enc_rc_select_quantizers_and_lambdas(enc, mbctx.is_golden_frame,
+   frame_type);
   /* FIXME: This should be dynamic */
   mbctx.use_activity_masking = enc->use_activity_masking;
-  /*Quantizers must be initialized before using OD_LOSSLESS().*/
   mbctx.qm = enc->qm;
-  enc->state.coded_quantizer =
-   od_quantizer_to_codedquantizer(od_quantizer_from_quality(enc->quality));
-  /*Don't modulate gop_quantizer because we'll use the same QMs for every
-     frame until the next keyframe.*/
-  gop_quantizer = enc->state.quantizer =
-   od_codedquantizer_to_quantizer(enc->state.coded_quantizer);
-  /*Modulate frame QP.*/
-  if (!OD_LOSSLESS(enc)) {
-    if (frame_type == OD_I_FRAME || mbctx.is_golden_frame) {
-      enc->state.coded_quantizer =
-       OD_MAXI(1, enc->state.coded_quantizer + OD_DQP_I);
-      enc->state.quantizer =
-       od_codedquantizer_to_quantizer(enc->state.coded_quantizer);
-    }
-    if (frame_type == OD_P_FRAME && !mbctx.is_golden_frame) {
-      enc->state.coded_quantizer = OD_MINI(OD_N_CODED_QUANTIZERS - 2,
-       (int)(enc->state.coded_quantizer*OD_MQP_P) + OD_DQP_P);
-      enc->state.quantizer =
-       od_codedquantizer_to_quantizer(enc->state.coded_quantizer);
-    }
-    if (frame_type == OD_B_FRAME) {
-      enc->state.coded_quantizer = OD_MINI(OD_N_CODED_QUANTIZERS - 2,
-       (int)(enc->state.coded_quantizer*OD_MQP_B) + OD_DQP_B);
-      enc->state.quantizer =
-       od_codedquantizer_to_quantizer(enc->state.coded_quantizer);
-    }
-  }
   /* Use Haar for lossless since 1) it's more efficient than the DCT and 2)
      PVQ isn't lossless. We only look at luma quality based on the assumption
      that it's silly to have just some planes be lossless. */
@@ -3118,7 +3083,7 @@ static int od_encode_frame(daala_enc_ctx *enc, daala_image *img, int frame_type,
     for (pli = 0; pli < nplanes; pli++) {
       int i;
       int q;
-      q = gop_quantizer;
+      q = enc->rc.base_quantizer;
       if (q <= OD_DEFAULT_QMS[use_masking][0][pli].interp_q << OD_COEFF_SHIFT) {
         od_interp_qm(&enc->state.pvq_qm_q4[pli][0], q,
          &OD_DEFAULT_QMS[use_masking][0][pli], NULL);
@@ -3142,12 +3107,6 @@ static int od_encode_frame(daala_enc_ctx *enc, daala_image *img, int frame_type,
       }
     }
   }
-  /*At the moment, the below is in fact only setting lambdas from the
-     quantizer we just chose.*/
-  od_enc_rc_select_quantizers_and_lambdas(enc, mbctx.is_golden_frame,
-   frame_type);
-  OD_LOG((OD_LOG_ENCODER, OD_LOG_INFO, "is_keyframe=%d", mbctx.is_keyframe));
-  /*TODO: Increment frame count.*/
   od_adapt_ctx_reset(&enc->state.adapt, mbctx.is_keyframe);
   if (!mbctx.is_keyframe) {
     int num_refs;

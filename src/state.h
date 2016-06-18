@@ -59,17 +59,22 @@ extern const int OD_HAAR_QM[2][OD_LOG_BSIZE_MAX];
 /*The current frame.*/
 # define OD_FRAME_SELF (3)
 
+# define OD_FRAME_MAX  (3)
+
 /*Frame types.*/
 # define OD_I_FRAME (0)
 # define OD_P_FRAME (1)
 # define OD_B_FRAME (2)
 
+/*Frame subtypes that need to be tracked separately by rate control.
+  Keep these contiguous with but past the end of the main frame types above.*/
+# define OD_GOLDEN_P_FRAME (3)
+# define OD_FRAME_NSUBTYPES (4)
+
 /*Prediction modes.*/
 # define OD_FORWARD_PRED (1)
 # define OD_BACKWARD_PRED (2)
 # define OD_BIDIR_PRED (3)
-
-# define OD_FRAME_MAX  (3)
 
 /*Constants for the packet state machine common between encoder and decoder.*/
 

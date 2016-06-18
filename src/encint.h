@@ -63,6 +63,14 @@ typedef struct od_rc_state od_rc_state;
    refinement.*/
 # define OD_MC_SQUARE_SUBPEL_REFINEMENT_COMPLEXITY (10)
 
+/*Constants for frame QP modulation.*/
+# define OD_MQP_I (1.00)
+# define OD_MQP_P (1.05)
+# define OD_MQP_B (1.1)
+# define OD_DQP_I (-2)
+# define OD_DQP_P (0)
+# define OD_DQP_B (1)
+
 struct od_enc_opt_vtbl {
   int32_t (*mc_compute_sad_4x4)(const unsigned char *src,
    int systride, const unsigned char *ref, int dystride);
@@ -98,6 +106,9 @@ struct od_rc_state {
   unsigned char cap_overflow;
   /*Can the reservoir go negative?*/
   unsigned char cap_underflow;
+  /*The full-precision, unmodulated quantizer upon which
+    our modulated quantizers are based.*/
+  int base_quantizer;
   /*Two-pass mode state.
     0 => 1-pass encoding.
     1 => 1st pass of 2-pass encoding.
@@ -163,7 +174,8 @@ struct daala_enc_ctx{
   /*The quantizer value we wish we could use if we were able to
      code any possible quantizer value to the stream.
     This value is not used in any quantization, but it is used to
-     compute lambda values for RDO decisions.*/
+     compute lambda values for RDO decisions.
+    It is computed by modulating the base_quantizer.*/
   int target_quantizer;
   /*Motion estimation RDO lambda.*/
   int mv_rdo_lambda;

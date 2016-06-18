@@ -106,12 +106,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 # define OD_DEBLOCKING (0)
 # define OD_DISABLE_CFL (0)
 # define OD_CLOSED_GOP (0)
-/*Constants for frame QP modulation.*/
-# define OD_MQP_P (1.05)
-# define OD_MQP_B (1.1)
-# define OD_DQP_I (-2)
-# define OD_DQP_P (0)
-# define OD_DQP_B (1)
 
 # define OD_MAX_REORDER (16)
 
