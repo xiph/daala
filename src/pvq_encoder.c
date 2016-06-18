@@ -156,7 +156,7 @@ static double pvq_search_rdo_double(const od_val16 *xcoeff, int n, int k,
     yy = yy + 2*ypulse[pos] + 1;
     ypulse[pos]++;
   }
-  /* Search last pulses with RDO. Distortion is D = (x-y)^2 = x^2 - x*y + y^2
+  /* Search last pulses with RDO. Distortion is D = (x-y)^2 = x^2 - 2*x*y + y^2
      and since x^2 and y^2 are constant, we just maximize x*y, plus a
      lambda*rate term. Note that since x and y aren't normalized here,
      we need to divide by sqrt(x^2)*sqrt(y^2). */
