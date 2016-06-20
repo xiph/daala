@@ -992,6 +992,7 @@ void TestPanel::computeBitsPerPixel() {
   static double last_bits_total;
   static double last_bits_filtered;
   int totals_q3[MAX_SYMBOL_TYPES] = {0};
+  int sym_count[MAX_SYMBOL_TYPES] = {0};
   for (j = 0; j < dd.getFrameHeight(); j++) {
     for (i = 0; i < dd.getFrameWidth(); i++) {
       bpp_q3[j*dd.getFrameWidth() + i] = 0;
@@ -1025,6 +1026,7 @@ void TestPanel::computeBitsPerPixel() {
     }
     bits_filtered += s->bits_q3;
     totals_q3[s->id] += s->bits_q3;
+    sym_count[s->id]++;
     switch (s->layer) {
       case 0:
       case 1:
@@ -1122,10 +1124,10 @@ void TestPanel::computeBitsPerPixel() {
     for (i = 0; i < acct->dict.nb_str; i++) {
       if (totals_q3[i]) {
         if (i == j) fprintf(stderr, "\033[1;31m");
-        fprintf(stderr, "%20s = %10.3f  %5.2f %%  %5.2f %%\n",
+        fprintf(stderr, "%20s = %10.3f  %5.2f %%  %5.2f %% (%f bit/symbol)\n",
          acct->dict.str[i], (float)totals_q3[i]/8,
           (float)totals_q3[i]/bits_total*100,
-           (float)totals_q3[i]/bits_filtered*100);
+           (float)totals_q3[i]/bits_filtered*100, (float)totals_q3[i]/8/sym_count[i]);
         if (i == j) fprintf(stderr, "\033[0m");
       }
     }
