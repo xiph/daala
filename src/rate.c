@@ -66,7 +66,7 @@ static int od_ilog64(int64_t v){
   v |= v >> 32;
   ret = (int)v & 1;
   v = (v >> 1) + 1;
-  ret += OD_DEBRUIJN_IDX64[v * 0x218A392CD3D5DBF >> 58 & 0x3F];
+  ret += OD_DEBRUIJN_IDX64[v*UINT64_C(0x218A392CD3D5DBF) >> 58 & 0x3F];
   return ret;
 }
 
@@ -106,7 +106,7 @@ static int64_t od_bexp64(int64_t logq57){
       z -= (OD_ATANH_LOG2[i] + mask) ^ mask;
       /*Repeat iteration 4.*/
       if (i >= 3) break;
-      z <<= 1;
+      z *= 2;
     }
     for (;; i++) {
       mask = -(z < 0);
@@ -114,12 +114,12 @@ static int64_t od_bexp64(int64_t logq57){
       z -= (OD_ATANH_LOG2[i] + mask) ^ mask;
       /*Repeat iteration 13.*/
       if (i >= 12) break;
-      z <<= 1;
+      z *= 2;
     }
     for(; i < 32; i++){
       mask = -(z < 0);
       w += ((w >> (i + 1)) + mask) ^ mask;
-      z = (z - ((OD_ATANH_LOG2[i] + mask) ^ mask)) << 1;
+      z = (z - ((OD_ATANH_LOG2[i] + mask) ^ mask))*2;
     }
     wlo = 0;
     /*Skip the remaining iterations unless we really require that much
