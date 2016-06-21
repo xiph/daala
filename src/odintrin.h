@@ -54,6 +54,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #  define M_LOG2E (1.4426950408889634073599246810019)
 # endif
 
+# if !defined(M_LN2)
+#  define M_LN2 (0.69314718055994530941723212145818)
+# endif
+
 /*Some specific platforms may have optimized intrinsic or inline assembly
    versions of these functions which can substantially improve performance.
   We define macros for them to allow easy incorporation of these non-ANSI
@@ -240,6 +244,7 @@ static __inline int od_bsr(unsigned long x) {
 # endif
 
 # define OD_LOG2(x) (M_LOG2E*log(x))
+# define OD_EXP2(x) (exp(M_LN2*(x)))
 
 /*Swaps two integers a and b if a > b.*/
 /*#define OD_SORT2I(a, b) \

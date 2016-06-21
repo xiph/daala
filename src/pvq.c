@@ -511,6 +511,49 @@ void od_apply_householder(od_val16 *out, const od_val16 *x, const od_val16 *r,
   }
 }
 
+#if !defined(OD_FLOAT_PVQ)
+#define OD_EXP2_INSHIFT 15
+#define OD_EXP2_OUTSHIFT 16
+#define OD_EXP2_INSCALE_1 (1./(1 << OD_EXP2_INSHIFT))
+#define OD_EXP2_OUTSCALE (1 << OD_EXP2_OUTSHIFT)
+static int32_t od_exp2(int32_t x)
+{
+  /*FIXME: replace with int approximation.*/
+  return OD_ROUND32(OD_EXP2_OUTSCALE*OD_EXP2(x*OD_EXP2_INSCALE_1));
+}
+
+#define OD_LOG2_INSHIFT 15
+#define OD_LOG2_OUTSHIFT 15
+#define OD_LOG2_INSCALE_1 (1./(1 << OD_LOG2_INSHIFT))
+#define OD_LOG2_OUTSCALE (1 << OD_LOG2_OUTSHIFT)
+static int16_t od_log2(int32_t x)
+{
+  /*FIXME: replace with int approximation.*/
+  return OD_ROUND32(OD_LOG2_OUTSCALE*OD_LOG2(x*OD_LOG2_INSCALE_1));
+}
+
+static int32_t od_pow(int32_t x, double beta)
+{
+  int32_t t;
+  int xshift;
+  int log2_x;
+  /*FIXME: this is double for now due to multiplication by 1/beta.*/
+  double logr;
+  /*FIXME: this conditional is to avoid doing log2(0).*/
+  if (x == 0)
+    return 0;
+  log2_x = (OD_ILOG(x) - 1);
+  xshift = log2_x - OD_LOG2_INSHIFT;
+  /*t should be in range [1.0, 2.0] in Q(OD_LOG2_INSHIFT).*/
+  t = OD_VSHR(x, xshift);
+  /*log2(g/OD_COMPAND_SCALE) = log2(x) - OD_COMPAND_SHIFT in
+     Q(OD_LOG2_OUTSHIFT).*/
+  logr = od_log2(t) + (log2_x - OD_COMPAND_SHIFT)*OD_LOG2_OUTSCALE;
+  logr = beta*logr;
+  return od_exp2(OD_ROUND32(logr));
+}
+#endif
+
 /** Gain companding: raises gain to the power 1/beta for activity masking.
  *
  * @param [in]  g     real (uncompanded) gain
@@ -521,8 +564,15 @@ void od_apply_householder(od_val16 *out, const od_val16 *x, const od_val16 *r,
 static od_val32 od_gain_compand(od_val32 g, int q0, double beta) {
   if (beta == 1) return OD_ROUND32(OD_CGAIN_SCALE*g/(double)q0);
   else {
+#if defined(OD_FLOAT_PVQ)
     return OD_ROUND32(OD_CGAIN_SCALE*OD_COMPAND_SCALE*pow(g*OD_COMPAND_SCALE_1,
      1./beta)/(double)q0);
+#else
+    int32_t expr;
+    expr = od_pow(g, 1./beta);
+    expr <<= OD_CGAIN_SHIFT + OD_COMPAND_SHIFT - OD_EXP2_OUTSHIFT;
+    return (expr + (q0 >> 1))/q0;
+#endif
   }
 }
 
