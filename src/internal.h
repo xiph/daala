@@ -223,6 +223,7 @@ ptrdiff_t oggbyte_bytes_left(oggbyte_buffer *_b);
 int od_ilog(uint32_t _v);
 void **od_malloc_2d(size_t _height, size_t _width, size_t _sz);
 void **od_calloc_2d(size_t _height, size_t _width, size_t _sz);
+void od_zero_2d(void **buf, size_t height, size_t width, size_t sz);
 void od_free_2d(void *_ptr);
 
 # define OD_DIVU_DMAX (1024)

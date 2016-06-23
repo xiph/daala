@@ -58,8 +58,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #define OD_MASKING_DISABLED 0
 #define OD_MASKING_ENABLED 1
 
-#define OD_GOLDEN_FRAME_INTERVAL 10
-
 static const unsigned char OD_LUMA_QM_Q4[2][OD_QM_SIZE] = {
 /* Flat quantization for PSNR. The DC component isn't 16 because the DC
    magnitude compensation is done here for inter (Haar DC doesn't need it).
@@ -286,60 +284,6 @@ static int od_input_queue_add(od_input_queue *in, daala_image *img,
   in->duration[index] = duration;
   in->input_size++;
   return OD_SUCCESS;
-}
-
-/*Closed form version of frame determination code.
-  Used by rate control to predict frame types and subtypes into the future.
-  No side effects, may be called any number of times.*/
-int od_frame_type(daala_enc_ctx *enc, int64_t coding_frame_count,
-                  int *is_golden, int64_t *ip_count){
-  int frame_type;
-  if (coding_frame_count == 0) {
-    *is_golden = 1;
-    *ip_count = 0;
-    frame_type = OD_I_FRAME;
-  }
-  else {
-    int keyrate = enc->input_queue.keyframe_rate;
-    if (enc->input_queue.closed_gop) {
-      int ip_per_gop;
-      int gop_n;
-      int gop_i;
-      ip_per_gop = (keyrate + enc->frame_delay - 2)/enc->frame_delay + 1;
-      gop_n = coding_frame_count/keyrate;
-      gop_i = coding_frame_count - gop_n*keyrate;
-      *ip_count = gop_n * ip_per_gop + (gop_i > 0) +
-       (gop_i + enc->frame_delay - 2)/enc->frame_delay;
-      frame_type = gop_i == 0 ? OD_I_FRAME :
-        (gop_i - 1) % enc->frame_delay == 0 ? OD_P_FRAME : OD_B_FRAME;
-    }
-    else {
-      int ip_per_gop;
-      int gop_n;
-      int gop_i;
-      ip_per_gop = (keyrate + enc->frame_delay - 1)/enc->frame_delay;
-      gop_n = (coding_frame_count - 1)/keyrate;
-      gop_i = coding_frame_count - gop_n*keyrate - 1;
-      *ip_count = (coding_frame_count > 0) + gop_n * ip_per_gop +
-       (gop_i + enc->frame_delay - 1)/enc->frame_delay;
-      frame_type =
-       gop_i % enc->frame_delay != 0 ? OD_B_FRAME :
-       gop_i / enc->frame_delay < ip_per_gop-1 ? OD_P_FRAME : OD_I_FRAME;
-      /*One pseudo-non-closed-form caveat:
-        Once we've seen end-of-input, the batched frame determination code
-         suppresses the last open-GOP's I-frame (since it would only be
-         useful for the next GOP, which doesn't exist).
-        Handle that case here.*/
-      if(frame_type == OD_I_FRAME &&
-       enc->input_queue.end_of_input &&
-       enc->input_queue.input_size == 0)
-        frame_type = OD_P_FRAME;
-    }
-  }
-  *is_golden = *ip_count %
-   (OD_GOLDEN_FRAME_INTERVAL/(enc->b_frames + 1)) == 0 &&
-   frame_type != OD_B_FRAME ? 1 : frame_type == OD_I_FRAME;
-  return frame_type;
 }
 
 void od_input_queue_batch(od_input_queue *in, int frames) {
@@ -2975,6 +2919,17 @@ static void od_split_superblocks_rdo(daala_enc_ctx *enc,
   od_encode_rollback(enc, &rbuf);
 }
 
+static void od_enc_drop_frame(daala_enc_ctx *enc){
+  /*Use the previous frame's reconstruction image.*/
+  od_img_copy(enc->state.ref_imgs + enc->state.ref_imgi[OD_FRAME_SELF],
+   enc->state.ref_imgs + enc->state.ref_imgi[OD_FRAME_PREV]);
+  /*Zero the MV state.*/
+  od_zero_2d((void **)enc->state.mv_grid, enc->state.nvmvbs + 1,
+   enc->state.nhmvbs + 1, sizeof(**enc->state.mv_grid));
+  /*Clear encoder state so that we emit a nil packet*/
+  od_ec_enc_reset(&enc->ec);
+}
+
 /*This function can only return an error code if the enc or img parameters
    are NULL (should it be void then?).*/
 static int od_encode_frame(daala_enc_ctx *enc, daala_image *img, int frame_type,
@@ -2999,19 +2954,6 @@ static int od_encode_frame(daala_enc_ctx *enc, daala_image *img, int frame_type,
   mbctx.is_golden_frame = mbctx.is_keyframe ||
     ((enc->ip_frame_count % (OD_GOLDEN_FRAME_INTERVAL/(enc->b_frames + 1)) == 0)
      && (frame_type != OD_B_FRAME));
-  /*Verify the closed-form solution matches the batched solution*/
-  {
-    int closed_form_type;
-    int closed_form_golden;
-    int64_t closed_form_ip_count;
-    closed_form_type =
-     od_frame_type(enc, enc->curr_coding_order, &closed_form_golden,
-     &closed_form_ip_count);
-    OD_UNUSED(closed_form_type);
-    OD_ASSERT(closed_form_type == frame_type);
-    OD_ASSERT(closed_form_ip_count == enc->ip_frame_count);
-    OD_ASSERT(closed_form_golden == mbctx.is_golden_frame);
-  }
   /*Update the reference buffer state.*/
   if (enc->b_frames != 0 && frame_type == OD_P_FRAME) {
     enc->state.ref_imgi[OD_FRAME_PREV] =
@@ -3125,6 +3067,35 @@ static int od_encode_frame(daala_enc_ctx *enc, daala_image *img, int frame_type,
     else od_split_superblocks(enc, mbctx.is_keyframe);
   }
   od_encode_coefficients(enc, &mbctx, OD_ENCODE_REAL);
+  /*Perform rate mangement update here before we flush anything to output
+     buffers.
+    We may need to press the panic button and drop the frame to avoid busting
+     rate budget constraints.*/
+  if (enc->rc.target_bitrate > 0) {
+    /*Right now, droppability is computed very simply.
+      If we're using B frames, only B frames are droppable.
+      If we're using only I and P frames, only P frames are droppable.
+      Eventually this should be smarter and both allow dropping anything not
+       used as a reference, as well as references + dependent frames when
+       needed.*/
+    int droppable;
+    droppable = 0;
+    if (enc->b_frames > 0) {
+      if (frame_type == OD_B_FRAME) {
+        droppable = 1;
+      }
+    }
+    else{
+      if (frame_type == OD_P_FRAME) {
+        droppable = 1;
+      }
+    }
+    if (od_enc_rc_update_state(enc, od_ec_enc_tell(&enc->ec),
+     mbctx.is_golden_frame, frame_type, droppable)) {
+      /*Nonzero return indicates we busted budget on a droppable frame.*/
+      od_enc_drop_frame (enc);
+    }
+  }
   enc->packet_state = OD_PACKET_READY;
   ref_img = enc->state.ref_imgs + enc->state.ref_imgi[OD_FRAME_SELF];
   if (frame_type != OD_B_FRAME) {
