@@ -10,7 +10,9 @@
 LCOV_PATH=/opt/lcov/bin
 LCOV=${LCOV_PATH}/lcov
 GENHTML=${LCOV_PATH}/genhtml
-VIDEOS=/usr/local/share/videos
+if [ -z "$VIDEOS" ]; then
+  VIDEOS=/usr/local/share/videos
+fi
 
 cd unix && rm -Rf objs
 make clean

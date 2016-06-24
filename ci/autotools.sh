@@ -2,7 +2,9 @@
 # continuous integration test script
 # run this from the top-level source directory
 
-VIDEOS=/usr/local/share/videos
+if [ -z "$VIDEOS"]; then
+  VIDEOS=/usr/local/share/videos
+fi
 
 ./autogen.sh
 CFLAGS='-O2 -g' ./configure --enable-assertions --enable-check-asm --enable-logging --enable-accounting
