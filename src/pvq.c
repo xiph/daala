@@ -647,11 +647,21 @@ od_val32 od_gain_expand(od_val32 cg0, int q0, double beta) {
 #endif
   }
   else {
+#if defined(OD_FLOAT_PVQ)
     /*Expanded gain must be in Q(OD_COMPAND_SHIFT), hence the multiply by
        OD_COMPAND_SCALE.*/
     double cg;
     cg = cg0*OD_CGAIN_SCALE_1;
     return OD_ROUND32(OD_COMPAND_SCALE*pow(cg*q0*OD_COMPAND_SCALE_1, beta));
+#else
+    int32_t expr;
+    int32_t cg;
+    cg = OD_SHR_ROUND(cg0*q0, OD_CGAIN_SHIFT);
+    expr = od_pow(cg, beta);
+    /*Expanded gain must be in Q(OD_COMPAND_SHIFT), hence the subtraction by
+       OD_COMPAND_SHIFT.*/
+    return OD_SHR_ROUND(expr, OD_EXP2_OUTSHIFT - OD_COMPAND_SHIFT);
+#endif
   }
 }
 
