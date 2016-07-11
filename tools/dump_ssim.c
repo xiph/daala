@@ -65,19 +65,19 @@ static int gaussian_filter_init(unsigned **_kernel,double _sigma,int _max_len){
 typedef struct ssim_moments ssim_moments;
 
 struct ssim_moments{
-  unsigned mux;
-  unsigned muy;
-  unsigned x2;
-  unsigned xy;
-  unsigned y2;
-  unsigned w;
+  int64_t mux;
+  int64_t muy;
+  int64_t x2;
+  int64_t xy;
+  int64_t y2;
+  int64_t w;
 };
 
-#define SSIM_C1 (255*255*0.01*0.01)
-#define SSIM_C2 (255*255*0.03*0.03)
+#define SSIM_K1 (0.01*0.01)
+#define SSIM_K2 (0.03*0.03)
 
 static double calc_ssim(const unsigned char *_src,int _systride,
- const unsigned char *_dst,int _dystride,double _par,int _w,int _h){
+ const unsigned char *_dst,int _dystride,double _par,int depth,int _w,int _h){
   ssim_moments  *line_buf;
   ssim_moments **lines;
   double         ssim;
@@ -93,6 +93,8 @@ static double calc_ssim(const unsigned char *_src,int _systride,
   int            line_mask;
   int            x;
   int            y;
+  int            samplemax;
+  samplemax = (1 << depth) - 1;
   vkernel_sz=gaussian_filter_init(&vkernel,_h*(1.5/256),_w<_h?_w:_h);
   vkernel_offs=vkernel_sz>>1;
   for(line_sz=1,log_line_sz=0;line_sz<vkernel_sz;line_sz<<=1,log_line_sz++);
@@ -100,7 +102,8 @@ static double calc_ssim(const unsigned char *_src,int _systride,
   lines=(ssim_moments **)malloc(line_sz*sizeof(*lines));
   lines[0]=line_buf=(ssim_moments *)malloc(line_sz*_w*sizeof(*line_buf));
   for(y=1;y<line_sz;y++)lines[y]=lines[y-1]+_w;
-  hkernel_sz=gaussian_filter_init(&hkernel,_h*(1.5/256)/_par,_w<_h?_w:_h);
+  hkernel_sz=gaussian_filter_init(&hkernel,_h*(1.5/256)/_par,
+   _w<_h?_w:_h);
   hkernel_offs=hkernel_sz>>1;
   ssim=0;
   ssimw=0;
@@ -118,11 +121,18 @@ static double calc_ssim(const unsigned char *_src,int _systride,
         k_max=x+hkernel_offs-_w+1<=0?
          hkernel_sz:hkernel_sz-(x+hkernel_offs-_w+1);
         for(k=k_min;k<k_max;k++){
-          unsigned s;
-          unsigned d;
-          unsigned window;
-          s=_src[x-hkernel_offs+k];
-          d=_dst[x-hkernel_offs+k];
+          signed s;
+          signed d;
+          signed window;
+          if (depth > 8) {
+            s = _src[(x-hkernel_offs+k)*2] +
+             (_src[(x-hkernel_offs+k)*2 + 1] << 8);
+            d = _dst[(x-hkernel_offs+k)*2] +
+             (_dst[(x-hkernel_offs+k)*2 + 1] << 8);
+          } else {
+            s=_src[(x-hkernel_offs+k)];
+            d=_dst[(x-hkernel_offs+k)];
+          }
           window=hkernel[k];
           m.mux+=window*s;
           m.muy+=window*d;
@@ -149,7 +159,7 @@ static double calc_ssim(const unsigned char *_src,int _systride,
         double       w;
         memset(&m,0,sizeof(m));
         for(k=k_min;k<k_max;k++){
-          unsigned window;
+          signed window;
           buf = lines[(y + 1 - vkernel_sz + k) & line_mask] + x;
           window=vkernel[k];
           m.mux+=window*buf->mux;
@@ -160,8 +170,8 @@ static double calc_ssim(const unsigned char *_src,int _systride,
           m.w+=window*buf->w;
         }
         w=m.w;
-        c1=SSIM_C1*w*w;
-        c2=SSIM_C2*w*w;
+        c1=samplemax*samplemax*SSIM_K1*w*w;
+        c2=samplemax*samplemax*SSIM_K2*w*w;
         mx2=m.mux*(double)m.mux;
         mxy=m.mux*(double)m.muy;
         my2=m.muy*(double)m.muy;
@@ -212,6 +222,7 @@ int main(int _argc,char *_argv[]){
   FILE              *fin;
   int                long_option_index;
   int                c;
+  int                xstride;
 #ifdef _WIN32
   /*We need to set stdin/stdout to binary mode on windows.
     Beware the evil ifdef.
@@ -262,6 +273,14 @@ int main(int _argc,char *_argv[]){
     fprintf(stderr,"Pixel formats do not match.\n");
     exit(EXIT_FAILURE);
   }
+  if(info1.depth!=info2.depth){
+    fprintf(stderr,"Depth does not match.\n");
+    exit(1);
+  }
+  if(info1.depth > 16){
+    fprintf(stderr,"Sample depths above 16 are not supported.\n");
+    exit(1);
+  }
   if((info1.pic_x&!(info1.pixel_fmt&1))!=(info2.pic_x&!(info2.pixel_fmt&1))||
    (info1.pic_y&!(info1.pixel_fmt&2))!=(info2.pic_y&!(info2.pixel_fmt&2))){
     fprintf(stderr,"Chroma subsampling offsets do not match.\n");
@@ -276,6 +295,7 @@ int main(int _argc,char *_argv[]){
    info2.par_n*(int64_t)info1.par_d){
     fprintf(stderr,"Warning: aspect ratios do not match.\n");
   }
+  xstride = info1.depth > 8 ? 2 : 1;
   par=info1.par_n>0&&info2.par_d>0?
    info1.par_n/(double)info2.par_d:1;
   gssim[0]=gssim[1]=gssim[2]=0;
@@ -314,11 +334,14 @@ int main(int _argc,char *_argv[]){
       xdec=pli&&!(info1.pixel_fmt&1);
       ydec=pli&&!(info1.pixel_fmt&2);
       ssim[pli]=calc_ssim(
-       f1[pli].data+(info1.pic_y>>ydec)*f1[pli].stride+(info1.pic_x>>xdec),
+       f1[pli].data + (info1.pic_y >> ydec)*f1[pli].stride +
+        (info1.pic_x*xstride >> xdec),
        f1[pli].stride,
-       f2[pli].data+(info2.pic_y>>ydec)*f2[pli].stride+(info2.pic_x>>xdec),
+       f2[pli].data + (info2.pic_y >> ydec)*f2[pli].stride +
+        (info2.pic_x*xstride >> xdec),
        f2[pli].stride,
-       par,((info1.pic_x+info1.pic_w+xdec)>>xdec)-(info1.pic_x>>xdec),
+       par,info1.depth,
+       ((info1.pic_x+info1.pic_w+xdec)>>xdec)-(info1.pic_x>>xdec),
        ((info1.pic_y+info1.pic_h+ydec)>>ydec)-(info1.pic_y>>ydec));
       gssim[pli]+=ssim[pli];
     }
