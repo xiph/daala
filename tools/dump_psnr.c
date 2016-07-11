@@ -82,6 +82,7 @@ int main(int _argc,char *_argv[]){
   int64_t  gnpixels;
   int64_t  gplsqerr[3];
   int64_t  gplnpixels[3];
+  int samplemax;
   double psnrsum;
   double plpsnrsum[3];
   int          frameno;
@@ -134,6 +135,14 @@ int main(int _argc,char *_argv[]){
     fprintf(stderr,"Pixel formats do not match.\n");
     exit(1);
   }
+  if(info1.depth!=info2.depth){
+    fprintf(stderr,"Depth does not match.\n");
+    exit(1);
+  }
+  if(info1.depth > 16){
+    fprintf(stderr,"Sample depths above 16 are not supported.\n");
+    exit(1);
+  }
   if((info1.pic_x&!(info1.pixel_fmt&1))!=(info2.pic_x&!(info2.pixel_fmt&1))||
    (info1.pic_y&!(info1.pixel_fmt&2))!=(info2.pic_y&!(info2.pixel_fmt&2))){
     fprintf(stderr,"Chroma subsampling offsets do not match.\n");
@@ -147,6 +156,7 @@ int main(int _argc,char *_argv[]){
    info2.par_n*(int64_t)info1.par_d){
     fprintf(stderr,"Warning: aspect ratios do not match.\n");
   }
+  samplemax = (1 << info1.depth) - 1;
   gsqerr=gplsqerr[0]=gplsqerr[1]=gplsqerr[2]=0;
   gnpixels=gplnpixels[0]=gplnpixels[1]=gplnpixels[2]=0;
   psnrsum = 0;
@@ -200,8 +210,15 @@ int main(int _argc,char *_argv[]){
         for (x1 = info1.pic_x >> xdec, x2 = info2.pic_x >> xdec;
          x1 < (info1.pic_x + info1.pic_w + xdec) >> xdec; x1++, x2++) {
           int d;
-          d=*(f1[pli].data+y1*f1[pli].stride+x1)-
-           *(f2[pli].data+y2*f2[pli].stride+x2);
+          if (info1.depth > 8) {
+            d=*(f1[pli].data+y1*f1[pli].stride + x1*2) +
+             (*(f1[pli].data+y1*f1[pli].stride + x1*2 + 1) << 8) -
+             *(f2[pli].data+y2*f2[pli].stride + x2*2) -
+             (*(f2[pli].data+y2*f2[pli].stride + x2*2 + 1) << 8);
+          } else {
+            d=*(f1[pli].data+y1*f1[pli].stride+x1)-
+             *(f2[pli].data+y2*f2[pli].stride+x2);
+          }
           plsqerr[pli]+=d*d;
           plnpixels[pli]++;
         }
@@ -211,9 +228,10 @@ int main(int _argc,char *_argv[]){
       npixels+=plnpixels[pli];
       gplnpixels[pli]+=plnpixels[pli];
       plpsnr[pli] =
-       10*(log10(255*255)+log10(plnpixels[pli])-log10(plsqerr[pli]));
+       10*(log10(samplemax*samplemax) +
+        log10(plnpixels[pli]) - log10(plsqerr[pli]));
     }
-    psnr = 10*(log10(255*255)+log10(npixels)-log10(sqerr));
+    psnr = 10*(log10(samplemax*samplemax) + log10(npixels) - log10(sqerr));
     if(!summary_only){
       if(!luma_only){
         printf("%08i: %-7G  (Y': %-7G  Cb: %-7G  Cr: %-7G)\n",frameno,
@@ -232,14 +250,14 @@ int main(int _argc,char *_argv[]){
   }
   if(!luma_only){
     printf("Total: %-7G  (Y': %-7G  Cb: %-7G  Cr: %-7G)\n",
-     10*(log10(255*255)+log10(gnpixels)-log10(gsqerr)),
-     10*(log10(255*255)+log10(gplnpixels[0])-log10(gplsqerr[0])),
-     10*(log10(255*255)+log10(gplnpixels[1])-log10(gplsqerr[1])),
-     10*(log10(255*255)+log10(gplnpixels[2])-log10(gplsqerr[2])));
+     10*(log10(samplemax*samplemax)+log10(gnpixels)-log10(gsqerr)),
+     10*(log10(samplemax*samplemax)+log10(gplnpixels[0])-log10(gplsqerr[0])),
+     10*(log10(samplemax*samplemax)+log10(gplnpixels[1])-log10(gplsqerr[1])),
+     10*(log10(samplemax*samplemax)+log10(gplnpixels[2])-log10(gplsqerr[2])));
   }
   else{
     printf("Total: %-7G\n",
-     10*(log10(255*255)+log10(gplnpixels[0])-log10(gplsqerr[0])));
+     10*(log10(samplemax*samplemax)+log10(gplnpixels[0])-log10(gplsqerr[0])));
   }
   if(frame_averaged){
     if(!luma_only){
