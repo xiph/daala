@@ -33,15 +33,15 @@ static int show_chroma;
 typedef struct fs_level fs_level;
 typedef struct fs_ctx   fs_ctx;
 
-#define SSIM_C1 (255*255*0.01*0.01)
-#define SSIM_C2 (255*255*0.03*0.03)
+#define SSIM_K1 (0.01*0.01)
+#define SSIM_K2 (0.03*0.03)
 
 #define FS_MINI(_a,_b) ((_a)<(_b)?(_a):(_b))
 #define FS_MAXI(_a,_b) ((_a)>(_b)?(_a):(_b))
 
 struct fs_level{
-  uint16_t *im1;
-  uint16_t *im2;
+  int32_t *im1;
+  int32_t *im2;
   double       *ssim;
   int           w;
   int           h;
@@ -50,10 +50,11 @@ struct fs_level{
 struct fs_ctx{
   fs_level *level;
   int       nlevels;
+  int depth;
   unsigned *col_buf;
 };
 
-static void fs_ctx_init(fs_ctx *_ctx,int _w,int _h,int _nlevels){
+static void fs_ctx_init(fs_ctx *_ctx,int _w,int _h,int _depth,int _nlevels){
   unsigned char *data;
   size_t         data_size;
   int            lw;
@@ -78,6 +79,7 @@ static void fs_ctx_init(fs_ctx *_ctx,int _w,int _h,int _nlevels){
   data=(unsigned char *)malloc(data_size);
   _ctx->level=(fs_level *)data;
   _ctx->nlevels=_nlevels;
+  _ctx->depth = _depth;
   data+=_nlevels*sizeof(*_ctx->level);
   lw = (_w + 1) >> 1;
   lh = (_h + 1) >> 1;
@@ -91,7 +93,7 @@ static void fs_ctx_init(fs_ctx *_ctx,int _w,int _h,int _nlevels){
     level_size+=sizeof(*_ctx->level[l].ssim)-1;
     level_size/=sizeof(*_ctx->level[l].ssim);
     level_size*=sizeof(*_ctx->level[l].ssim);
-    _ctx->level[l].im1=(uint16_t *)data;
+    _ctx->level[l].im1=(int32_t *)data;
     _ctx->level[l].im2=_ctx->level[l].im1+im_size;
     data+=level_size;
     _ctx->level[l].ssim=(double *)data;
@@ -107,10 +109,10 @@ static void fs_ctx_clear(fs_ctx *_ctx){
 }
 
 static void fs_downsample_level(fs_ctx *_ctx,int _l){
-  const uint16_t *src1;
-  const uint16_t *src2;
-  uint16_t       *dst1;
-  uint16_t       *dst2;
+  const int32_t *src1;
+  const int32_t *src2;
+  int32_t       *dst1;
+  int32_t       *dst2;
   int                 w2;
   int                 h2;
   int                 w;
@@ -144,9 +146,10 @@ static void fs_downsample_level(fs_ctx *_ctx,int _l){
 }
 
 static void fs_downsample_level0(fs_ctx *_ctx,const unsigned char *_src1,
- int _s1ystride,const unsigned char *_src2,int _s2ystride,int _w,int _h){
-  uint16_t *dst1;
-  uint16_t *dst2;
+ int _s1ystride,const unsigned char *_src2,int _s2ystride,int _w,int _h,
+ int depth){
+  int32_t *dst1;
+  int32_t *dst2;
   int           w;
   int           h;
   int           i;
@@ -165,10 +168,23 @@ static void fs_downsample_level0(fs_ctx *_ctx,const unsigned char *_src1,
       int i1;
       i0=2*i;
       i1=FS_MINI(i0+1,_w-1);
-      dst1[j*w+i]=_src1[j0*_s1ystride+i0]+_src1[j0*_s1ystride+i1]
-       +_src1[j1*_s1ystride+i0]+_src1[j1*_s1ystride+i1];
-      dst2[j*w+i]=_src2[j0*_s2ystride+i0]+_src2[j0*_s2ystride+i1]
-       +_src2[j1*_s2ystride+i0]+_src2[j1*_s2ystride+i1];
+      if (depth > 8) {
+        dst1[j*w + i] =
+         _src1[j0*_s1ystride + i0*2] + (_src1[j0*_s1ystride + i0*2 + 1] << 8) +
+         _src1[j0*_s1ystride + i1*2] + (_src1[j0*_s1ystride + i1*2 + 1] << 8) +
+         _src1[j1*_s1ystride + i0*2] + (_src1[j1*_s1ystride + i0*2 + 1] << 8) +
+         _src1[j1*_s1ystride + i1*2] + (_src1[j1*_s1ystride + i1*2 + 1] << 8);
+        dst2[j*w + i] =
+         _src2[j0*_s2ystride + i0*2] + (_src2[j0*_s2ystride + i0*2 + 1] << 8) +
+         _src2[j0*_s2ystride + i1*2] + (_src2[j0*_s2ystride + i1*2 + 1] << 8) +
+         _src2[j1*_s2ystride + i0*2] + (_src2[j1*_s2ystride + i0*2 + 1] << 8) +
+         _src2[j1*_s2ystride + i1*2] + (_src2[j1*_s2ystride + i1*2 + 1] << 8);
+      } else {
+        dst1[j*w+i]=_src1[j0*_s1ystride+i0]+_src1[j0*_s1ystride+i1]
+         +_src1[j1*_s1ystride+i0]+_src1[j1*_s1ystride+i1];
+        dst2[j*w+i]=_src2[j0*_s2ystride+i0]+_src2[j0*_s2ystride+i1]
+         +_src2[j1*_s2ystride+i0]+_src2[j1*_s2ystride+i1];
+      }
     }
   }
 }
@@ -176,8 +192,8 @@ static void fs_downsample_level0(fs_ctx *_ctx,const unsigned char *_src1,
 static void fs_apply_luminance(fs_ctx *_ctx,int _l){
   unsigned     *col_sums_x;
   unsigned     *col_sums_y;
-  uint16_t *im1;
-  uint16_t *im2;
+  int32_t *im1;
+  int32_t *im2;
   double       *ssim;
   double        c1;
   int           w;
@@ -186,6 +202,7 @@ static void fs_apply_luminance(fs_ctx *_ctx,int _l){
   int           j1offs;
   int           i;
   int           j;
+  int samplemax;
   w=_ctx->level[_l].w;
   h=_ctx->level[_l].h;
   col_sums_x=_ctx->col_buf;
@@ -200,11 +217,12 @@ static void fs_apply_luminance(fs_ctx *_ctx,int _l){
     for(i=0;i<w;i++)col_sums_y[i]+=im2[j1offs+i];
   }
   ssim=_ctx->level[_l].ssim;
+  samplemax = (1 << _ctx->depth) - 1;
   /*4096 is a normalization constant for the luminance term.
     See Section 3 of the FastSSIM paper, "The luminance term in Fast SSIM
      utilizes an 8x8 square window."
     mux and muy are the sum of 64 values: 64*64 == 4096.*/
-  c1=(double)(SSIM_C1*4096*(1<<4*_l));
+  c1=(double)(samplemax*samplemax*SSIM_K1*4096*(1<<4*_l));
   for(j=0;j<h;j++){
     unsigned mux;
     unsigned muy;
@@ -298,8 +316,8 @@ static void fs_apply_luminance(fs_ctx *_ctx,int _l){
   while(0)
 
 static void fs_calc_structure(fs_ctx *_ctx,int _l){
-  uint16_t *im1;
-  uint16_t *im2;
+  int32_t *im1;
+  int32_t *im2;
   unsigned     *gx_buf;
   unsigned     *gy_buf;
   double       *ssim;
@@ -312,6 +330,7 @@ static void fs_calc_structure(fs_ctx *_ctx,int _l){
   int           h;
   int           i;
   int           j;
+  int samplemax;
   w=_ctx->level[_l].w;
   h=_ctx->level[_l].h;
   im1=_ctx->level[_l].im1;
@@ -321,9 +340,10 @@ static void fs_calc_structure(fs_ctx *_ctx,int _l){
   stride=w+8;
   gy_buf=gx_buf+8*stride;
   memset(gx_buf,0,2*8*stride*sizeof(*gx_buf));
+  samplemax = (1 << _ctx->depth) - 1;
   /*104 is the sum of the "8x8 integer approximation to Gaussian window" in
      Fig. 3 of the FastSSIM paper.*/
-  c2=SSIM_C2*(1<<4*_l)*16*104;
+  c2=samplemax*samplemax*SSIM_K2*(1<<4*_l)*16*104;
   for(j=0;j<h+4;j++){
     if(j<h-1){
       for(i=0;i<w-1;i++){
@@ -423,13 +443,13 @@ static double fs_average(fs_ctx *_ctx,int _l){
 }
 
 double calc_ssim(const unsigned char *_src,int _systride,
- const unsigned char *_dst,int _dystride,int _w,int _h){
+ const unsigned char *_dst,int _dystride,int depth,int _w,int _h){
   fs_ctx ctx;
   double ret;
   int    l;
   ret=1;
-  fs_ctx_init(&ctx,_w,_h,FS_NLEVELS);
-  fs_downsample_level0(&ctx,_src,_systride,_dst,_dystride,_w,_h);
+  fs_ctx_init(&ctx,_w,_h,depth,FS_NLEVELS);
+  fs_downsample_level0(&ctx,_src,_systride,_dst,_dystride,_w,_h, depth);
   for(l=0;l<FS_NLEVELS-1;l++){
     fs_calc_structure(&ctx,l);
     ret*=fs_average(&ctx,l);
@@ -530,6 +550,14 @@ int main(int _argc,char *_argv[]){
     fprintf(stderr,"Chroma subsampling offsets do not match.\n");
     exit(EXIT_FAILURE);
   }
+  if(info1.depth!=info2.depth){
+    fprintf(stderr,"Depth does not match.\n");
+    exit(EXIT_FAILURE);
+  }
+  if(info1.depth > 16){
+    fprintf(stderr,"Sample depths above 16 are not supported.\n");
+    exit(EXIT_FAILURE);
+  }
   if(info1.fps_n*(int64_t)info2.fps_d!=
    info2.fps_n*(int64_t)info1.fps_d){
     fprintf(stderr,"Warning: framerates do not match.\n");
@@ -571,13 +599,18 @@ int main(int _argc,char *_argv[]){
     for(pli=0;pli<nplanes;pli++){
       int xdec;
       int ydec;
+      int xstride;
       xdec=pli&&!(info1.pixel_fmt&1);
       ydec=pli&&!(info1.pixel_fmt&2);
+      xstride = depth > 8 ? 2 : 1;
       ssim[pli]=calc_ssim(
-       f1[pli].data+(info1.pic_y>>ydec)*f1[pli].stride+(info1.pic_x>>xdec),
+       f1[pli].data+(info1.pic_y>>ydec)*f1[pli].stride +
+        (info1.pic_x>>xdec)*xstride,
        f1[pli].stride,
-       f2[pli].data+(info2.pic_y>>ydec)*f2[pli].stride+(info2.pic_x>>xdec),
+       f2[pli].data+(info2.pic_y>>ydec)*f2[pli].stride +
+        (info2.pic_x>>xdec)*xstride,
        f2[pli].stride,
+       info1.depth,
        ((info1.pic_x + info1.pic_w + xdec) >> xdec) - (info1.pic_x >> xdec),
        ((info1.pic_y + info1.pic_h + ydec) >> ydec) - (info1.pic_y >> ydec));
       gssim[pli]+=ssim[pli];
