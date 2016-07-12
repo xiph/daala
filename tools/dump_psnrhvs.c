@@ -60,7 +60,7 @@ float csf_cr420[8][8]={{2.03871978502, 2.62502345193, 1.26180942886, 1.110197898
                        {0.593906509971, 0.802254508198, 0.706020324706, 0.587716619023, 0.478717061273, 0.393021669543, 0.330555063063, 0.285345396658}};
 
 static double calc_psnrhvs(const unsigned char *_src,int _systride,
- const unsigned char *_dst,int _dystride,double _par,int _w,int _h, int _step, float _csf[8][8]){
+ const unsigned char *_dst,int _dystride,double _par,int depth, int _w,int _h, int _step, float _csf[8][8]){
   float    ret;
   od_coeff dct_s[8*8];
   od_coeff dct_d[8*8];
@@ -68,6 +68,7 @@ static double calc_psnrhvs(const unsigned char *_src,int _systride,
   int pixels;
   int x;
   int y;
+  int32_t samplemax;
   (void)_par;
   ret=pixels=0;
   /*In the PSNR-HVS-M paper[1] the authors describe the construction of
@@ -105,8 +106,15 @@ static double calc_psnrhvs(const unsigned char *_src,int _systride,
       for(i=0;i<8;i++){
         for(j=0;j<8;j++){
           int sub=((i&12)>>2)+((j&12)>>1);
-          dct_s[i*8+j]=_src[(y+i)*_systride+(j+x)];
-          dct_d[i*8+j]=_dst[(y+i)*_dystride+(j+x)];
+          if (depth > 8) {
+            dct_s[i*8+j]=_src[(y+i)*_systride+(j+x)*2] +
+              (_src[(y+i)*_systride+(j+x)*2 + 1] << 8);
+            dct_d[i*8+j]=_dst[(y+i)*_dystride+(j+x)*2] +
+              (_dst[(y+i)*_dystride+(j+x)*2 + 1] << 8);
+          } else {
+            dct_s[i*8+j]=_src[(y+i)*_systride+(j+x)];
+            dct_d[i*8+j]=_dst[(y+i)*_dystride+(j+x)];
+          }
           s_gmean+=dct_s[i*8+j];
           d_gmean+=dct_d[i*8+j];
           s_means[sub]+=dct_s[i*8+j];
@@ -150,7 +158,9 @@ static double calc_psnrhvs(const unsigned char *_src,int _systride,
       }
     }
   }
-  ret/=pixels;
+  ret /= pixels;
+  samplemax = (1 << depth) - 1;
+  ret /= samplemax*samplemax;
   return ret;
 }
 
@@ -164,7 +174,7 @@ static void usage(char *_argv[]){
 }
 
 static double convert_score_db(double _score,double _weight){
-  return 10*(log10(255*255)-log10(_weight*_score));
+  return 10*(-1*log10(_weight*_score));
 }
 
 int main(int _argc,char *_argv[]){
@@ -179,6 +189,7 @@ int main(int _argc,char *_argv[]){
   FILE *fin;
   int long_option_index;
   int c;
+  int xstride;
 #ifdef _WIN32
   /*We need to set stdin/stdout to binary mode on windows.
     Beware the evil ifdef.
@@ -232,6 +243,14 @@ int main(int _argc,char *_argv[]){
     fprintf(stderr,"Chroma subsampling offsets do not match.\n");
     exit(EXIT_FAILURE);
   }
+  if(info1.depth!=info2.depth){
+    fprintf(stderr,"Depth does not match.\n");
+    exit(1);
+  }
+  if(info1.depth > 16){
+    fprintf(stderr,"Sample depths above 16 are not supported.\n");
+    exit(1);
+  }
   if(info1.fps_n*(int64_t)info2.fps_d!=
    info2.fps_n*(int64_t)info1.fps_d){
     fprintf(stderr,"Warning: framerates do not match.\n");
@@ -240,6 +259,7 @@ int main(int _argc,char *_argv[]){
    info2.par_n*(int64_t)info1.par_d){
     fprintf(stderr,"Warning: aspect ratios do not match.\n");
   }
+  xstride = info1.depth > 8 ? 2 : 1;
   par=info1.par_n>0&&info2.par_d>0?
    info1.par_n/(double)info2.par_d:1;
   gssim[0]=gssim[1]=gssim[2]=0;
@@ -278,11 +298,14 @@ int main(int _argc,char *_argv[]){
       xdec=pli&&!(info1.pixel_fmt&1);
       ydec=pli&&!(info1.pixel_fmt&2);
       ssim[pli]=calc_psnrhvs(
-       f1[pli].data+(info1.pic_y>>ydec)*f1[pli].stride+(info1.pic_x>>xdec),
+       f1[pli].data+(info1.pic_y>>ydec)*f1[pli].stride +
+        (info1.pic_x>>xdec)*xstride,
        f1[pli].stride,
-       f2[pli].data+(info2.pic_y>>ydec)*f2[pli].stride+(info2.pic_x>>xdec),
+       f2[pli].data+(info2.pic_y>>ydec)*f2[pli].stride +
+        (info2.pic_x>>xdec)*xstride,
        f2[pli].stride,
-       par,((info1.pic_x+info1.pic_w+xdec)>>xdec)-(info1.pic_x>>xdec),
+       par,info1.depth,
+       ((info1.pic_x+info1.pic_w+xdec)>>xdec)-(info1.pic_x>>xdec),
        ((info1.pic_y+info1.pic_h+ydec)>>ydec)-(info1.pic_y>>ydec),7,pli==0?csf_y:pli==1?csf_cb420:csf_cr420);
       gssim[pli]+=ssim[pli];
     }
