@@ -512,7 +512,6 @@ void od_state_clear(od_state *state) {
 #endif
   od_free_2d(state->mv_grid);
   od_aligned_free(state->ref_img_data);
-  state->bsize -= OD_BSIZE_GRID*state->bstride + OD_BSIZE_GRID;
   for (pli = 0; pli < state->info.nplanes; pli++) {
     free(state->sb_dc_mem[pli]);
     free(state->ltmp[pli]);
@@ -522,7 +521,10 @@ void od_state_clear(od_state *state) {
     free(state->mctmp[pli]);
     free(state->mdtmp[pli]);
   }
-  free(state->bsize);
+  if (state->bsize) {
+    state->bsize -= OD_BSIZE_GRID*state->bstride + OD_BSIZE_GRID;
+    free(state->bsize);
+  }
   for (pli = 0; pli < 3; pli++) free(state->bskip[pli]);
   free(state->dering_level);
   free(state->sb_q_scaling);
