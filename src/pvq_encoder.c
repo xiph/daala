@@ -734,7 +734,12 @@ int od_pvq_encode(daala_enc_ctx *enc,
       xy += ref[i]*(double)qm[i]*OD_QM_SCALE_1*
        (double)in[i]*(double)qm[i]*OD_QM_SCALE_1;
 #else
-      xy += (ref[i] >> OD_CFL_FLIP_SHIFT)*(in[i] >> OD_CFL_FLIP_SHIFT);
+      od_val32 rq;
+      od_val32 inq;
+      rq = ref[i]*qm[i];
+      inq = in[i]*qm[i];
+      xy += OD_SHR(rq*(int64_t)inq, OD_SHL(OD_QM_SHIFT + OD_CFL_FLIP_SHIFT,
+       1));
 #endif
     }
     /*If cos(theta) < 0, then |theta| > pi/2 and we should negate the ref.*/
