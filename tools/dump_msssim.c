@@ -225,23 +225,48 @@ static void downsample_2x(int32_t *_src1,
   They don't add up to 1 due to rounding done in the paper. */
 static const double WEIGHT[] = {0.0448, 0.2856, 0.3001, 0.2363, 0.1333};
 
-static double calc_msssim(int32_t *_src,int _systride,
- int32_t *_dst,int _dystride,int _w,int _h, int max) {
+static double calc_msssim(uint8_t *src,int systride,
+ uint8_t *dst,int dystride,int w,int h, int depth, int max) {
   int i;
   double ssim[5];
   double cs[5];
   double overall_msssim;
+  int32_t *c1;
+  int32_t *c2;
+  int x;
+  int y;
   i = 0;
-  calc_ssim(_src, _systride, _dst, _dystride, _w, _h, max, &ssim[i], &cs[i]);
+  c1 = malloc(w*h*sizeof(*c1));
+  c2 = malloc(w*h*sizeof(*c2));
+  if (depth > 8) {
+    for(y = 0; y < h; y++) {
+      for (x = 0; x < w; x++) {
+        c1[y*w + x] = src[y*systride + x*2]
+         + (src[y*systride + x*2 + 1] << 8);
+        c2[y*w + x] = dst[y*dystride + x*2]
+         + (dst[y*dystride + x*2 + 1] << 8);
+      }
+    }
+  } else {
+    for(y = 0; y < h; y++) {
+      for (x = 0; x < w; x++) {
+        c1[y*w + x] = src[y*systride + x];
+        c2[y*w + x] = dst[y*dystride + x];
+      }
+    }
+  }
+  calc_ssim(c1, w, c2, w, w, h, max, &ssim[i], &cs[i]);
   for (i = 1; i < 5; i++) {
-    downsample_2x(_src, _systride, _dst, _dystride, _w, _h);
-    _w >>= 1;
-    _h >>= 1;
+    downsample_2x(c1, w, c2, w, w, h);
+    w >>= 1;
+    h >>= 1;
     max *= 4;
-    calc_ssim(_src, _systride, _dst, _dystride, _w, _h, max, &ssim[i], &cs[i]);
+    calc_ssim(c1, w, c2, w, w, h, max, &ssim[i], &cs[i]);
   }
   overall_msssim = pow(cs[0],WEIGHT[0])*pow(cs[1],WEIGHT[1])*
    pow(cs[2],WEIGHT[2])*pow(cs[3],WEIGHT[3])*pow(ssim[4],WEIGHT[4]);
+  free(c1);
+  free(c2);
   return overall_msssim;
 }
 
@@ -278,8 +303,7 @@ int main(int _argc,char *_argv[]){
   FILE              *fin;
   int                long_option_index;
   int                c;
-  int                max;
-  max = 255;
+  int                samplemax;
 #ifdef _WIN32
   /*We need to set stdin/stdout to binary mode on windows.
     Beware the evil ifdef.
@@ -335,6 +359,14 @@ int main(int _argc,char *_argv[]){
     fprintf(stderr,"Chroma subsampling offsets do not match.\n");
     exit(EXIT_FAILURE);
   }
+  if(info1.depth!=info2.depth){
+    fprintf(stderr,"Depth does not match.\n");
+    exit(EXIT_FAILURE);
+  }
+  if(info1.depth > 16){
+    fprintf(stderr,"Sample depths above 16 are not supported.\n");
+    exit(EXIT_FAILURE);
+  }
   if(info1.fps_n*(int64_t)info2.fps_d!=
    info2.fps_n*(int64_t)info1.fps_d){
     fprintf(stderr,"Warning: framerates do not match.\n");
@@ -344,6 +376,7 @@ int main(int _argc,char *_argv[]){
    info2.par_n*(int64_t)info1.par_d){
     fprintf(stderr,"Warning: aspect ratios do not match.\n");
   }
+  samplemax = (1 << info1.depth) - 1;
   gssim[0]=gssim[1]=gssim[2]=0;
   /*We just use a simple weighting to get a single full-color score.
     In reality the CSF for chroma is not the same as luma.*/
@@ -377,30 +410,21 @@ int main(int _argc,char *_argv[]){
     for(pli=0;pli<nplanes;pli++){
       int xdec;
       int ydec;
-      int32_t *c1;
-      int32_t *c2;
-      int w;
-      int h;
-      int x;
-      int y;
+      int xstride;
+      xstride = info1.depth > 8 ? 2 : 1;
       xdec=pli&&!(info1.pixel_fmt&1);
       ydec=pli&&!(info1.pixel_fmt&2);
-      w = ((info1.pic_x+info1.pic_w+xdec)>>xdec)-(info1.pic_x>>xdec);
-      h = ((info1.pic_y+info1.pic_h+ydec)>>ydec)-(info1.pic_y>>ydec);
-      c1 = malloc(w*h*sizeof(*c1));
-      c2 = malloc(w*h*sizeof(*c2));
-      for(y = 0; y < h; y++) {
-        for (x = 0; x < w; x++) {
-          c1[y*w + x] = f1[pli].data[((info1.pic_y >> ydec) + y)*f1[pli].stride
-           + (info1.pic_x>>xdec) + x];
-          c2[y*w + x] = f2[pli].data[((info2.pic_y >> ydec) + y)*f2[pli].stride
-           + (info2.pic_x>>xdec) + x];
-        }
-      }
-      ssim[pli]=calc_msssim(c1, w, c2, w, w, h, max);
+      ssim[pli]=calc_msssim(
+       f1[pli].data + (info1.pic_y >> ydec)*f1[pli].stride +
+        (info1.pic_x*xstride >> xdec),
+       f1[pli].stride,
+       f2[pli].data + (info2.pic_y >> ydec)*f2[pli].stride +
+        (info2.pic_x*xstride >> xdec),
+       f2[pli].stride,
+       ((info1.pic_x+info1.pic_w+xdec)>>xdec)-(info1.pic_x>>xdec),
+       ((info1.pic_y+info1.pic_h+ydec)>>ydec)-(info1.pic_y>>ydec),
+       info1.depth, samplemax);
       gssim[pli]+=ssim[pli];
-      free(c1);
-      free(c2);
     }
     if(!summary_only){
       if(show_frame_type)printf("%s%s",tag1,tag2);
