@@ -464,6 +464,7 @@ int od_compute_householder(od_val16 *r, int n, od_val32 gr, int *sign,
   int i;
   int s;
   od_val16 maxr;
+  OD_UNUSED(shift);
   /* Pick component with largest magnitude. Not strictly
    * necessary, but it helps numerical stability */
   m = 0;
@@ -680,6 +681,7 @@ od_val32 od_pvq_compute_gain(const od_val16 *x, int n, int q0, od_val32 *g,
  double beta, int bshift) {
   int i;
   od_val32 acc;
+  OD_UNUSED(bshift);
   acc = 0;
   for (i = 0; i < n; i++) {
     acc += x[i]*(od_val32)x[i];
@@ -859,6 +861,8 @@ void od_pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,
   else {
     scale = g/sqrt(yy);
   }
+  OD_UNUSED(gshift);
+  OD_UNUSED(qshift);
 #else
   else {
     int rsqrt_shift;
