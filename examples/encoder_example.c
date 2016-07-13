@@ -922,7 +922,6 @@ int main(int argc, char **argv) {
     srand(time(NULL));
     serial = rand();
   }
-  ogg_stream_init(&vo, serial);
   daala_info_init(&di);
   di.pic_width = avin.video_pic_w;
   di.pic_height = avin.video_pic_h;
@@ -962,6 +961,11 @@ int main(int argc, char **argv) {
   di.keyframe_rate = video_keyframe_rate;
   /*TODO: Other crap.*/
   dd = daala_encode_create(&di);
+  if (!dd) {
+    fprintf(stderr, "Failed to create encoder.\n");
+    io_cleanup(&avin, outfile);
+    exit(1);
+  }
   daala_comment_init(&dc);
   /*Set up encoder.*/
   daala_encode_ctl(dd, OD_SET_QUANT, &video_q, sizeof(video_q));
@@ -1029,6 +1033,7 @@ int main(int argc, char **argv) {
     fprintf(stderr, "Internal Daala library error.\n");
     exit(1);
   }
+  ogg_stream_init(&vo, serial);
   daala_to_ogg_packet(&op, &dp);
   ogg_stream_packetin(&vo, &op);
   if (ogg_stream_pageout(&vo, &og) != 1) {
