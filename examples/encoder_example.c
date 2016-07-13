@@ -170,6 +170,17 @@ static int y4m_parse_tags(av_input *avin, char *tags) {
   return 0;
 }
 
+static void io_cleanup(av_input *avin, FILE *outfile) {
+  int pli;
+  for (pli = 0; pli < avin->video_img.nplanes; pli++) {
+    _ogg_free(avin->video_img.planes[pli].data);
+  }
+  if (outfile != NULL && outfile != stdout) fclose(outfile);
+  if (avin->video_infile != NULL && avin->video_infile != stdin) {
+    fclose(avin->video_infile);
+  }
+}
+
 static void id_y4m_file(av_input *avin, const char *file, FILE *test) {
   daala_image *img;
   unsigned char buf[128];
@@ -649,7 +660,6 @@ int main(int argc, char **argv) {
   int video_q;
   long video_r;
   int video_keyframe_rate;
-  int pli;
   int fixedserial;
   int serial;
   int skip;
@@ -1111,13 +1121,7 @@ int main(int argc, char **argv) {
   ogg_stream_clear(&vo);
   daala_encode_free(dd);
   daala_comment_clear(&dc);
-  for (pli = 0; pli < avin.video_img.nplanes; pli++) {
-    _ogg_free(avin.video_img.planes[pli].data);
-  }
-  if (outfile != NULL && outfile != stdout) fclose(outfile);
+  io_cleanup(&avin, outfile);
   fprintf(stderr, "\r    \ndone.\n\r");
-  if (avin.video_infile != NULL && avin.video_infile != stdin) {
-    fclose(avin.video_infile);
-  }
   return 0;
 }
