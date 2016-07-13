@@ -563,18 +563,21 @@ static int32_t od_pow(int32_t x, double beta)
  * @return            g^(1/beta)
  */
 static od_val32 od_gain_compand(od_val32 g, int q0, double beta) {
+#if defined(OD_FLOAT_PVQ)
   if (beta == 1) return OD_ROUND32(OD_CGAIN_SCALE*g/(double)q0);
   else {
-#if defined(OD_FLOAT_PVQ)
     return OD_ROUND32(OD_CGAIN_SCALE*OD_COMPAND_SCALE*pow(g*OD_COMPAND_SCALE_1,
      1./beta)/(double)q0);
+  }
 #else
+  if (beta == 1) return (OD_CGAIN_SCALE*g + (q0 >> 1))/q0;
+  else {
     int32_t expr;
     expr = od_pow(g, 1./beta);
     expr <<= OD_CGAIN_SHIFT + OD_COMPAND_SHIFT - OD_EXP2_OUTSHIFT;
     return (expr + (q0 >> 1))/q0;
-#endif
   }
+#endif
 }
 
 #if !defined(OD_FLOAT_PVQ)
