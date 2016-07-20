@@ -723,6 +723,7 @@ od_val32 od_pvq_compute_theta(int t, int max_theta) {
   else return 0;
 }
 
+#define OD_ITHETA_SHIFT 15
 /** Compute the number of pulses used for PVQ encoding a vector from
  * available metrics (encode and decode side)
  *
@@ -765,7 +766,17 @@ int od_pvq_compute_k(od_val32 qcg, int itheta, od_val32 theta, int noref, int n,
        distributed within a band so at low gain the number of dimensions that
        are likely to have a pulse is less than n. */
     if (nodesync) {
+#if defined(OD_FLOAT_PVQ)
       return OD_MAXI(1, (int)floor(.5 + (itheta - .2)*sqrt((n + 2)/2)));
+#else
+      od_val32 rt;
+      int sqrt_outshift;
+      rt = od_sqrt((n + 2)/2, &sqrt_outshift);
+      /*FIXME: get rid of 64-bit mul.*/
+      return OD_MAXI(1, OD_VSHR_ROUND(((OD_SHL(itheta, OD_ITHETA_SHIFT)
+       - OD_QCONST32(.2, OD_ITHETA_SHIFT)))*(int64_t)rt,
+       sqrt_outshift + OD_ITHETA_SHIFT));
+#endif
     }
     else {
       return OD_MAXI(1, (int)floor(.5 + (qcg*OD_CGAIN_SCALE_1*
