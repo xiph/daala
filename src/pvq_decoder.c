@@ -215,7 +215,7 @@ static void pvq_decode_partition(od_ec_dec *ec,
 #endif
   for (i = 0; i < n; i++) {
 #if defined(OD_FLOAT_PVQ)
-    ref16[i] = ref[i]*qm[i]*OD_QM_SCALE_1;
+    ref16[i] = ref[i]*(double)qm[i]*OD_QM_SCALE_1;
 #else
     ref16[i] = OD_SHR_ROUND(ref[i]*qm[i], OD_QM_SHIFT + rshift);
 #endif
