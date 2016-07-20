@@ -591,7 +591,7 @@ static int16_t od_sqrt_norm(int32_t x)
   return OD_MINI(OD_SHR_ROUND(x*od_rsqrt_norm(x), OD_SQRT_OUTSHIFT), 32767);
 }
 
-static int32_t od_sqrt(int32_t x, int *sqrt_shift)
+static int16_t od_sqrt(int32_t x, int *sqrt_shift)
 {
   int k;
   int s;
