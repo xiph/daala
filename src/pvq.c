@@ -684,12 +684,22 @@ od_val32 od_pvq_compute_gain(const od_val16 *x, int n, int q0, od_val32 *g,
  double beta, int bshift) {
   int i;
   od_val32 acc;
+#if !defined(OD_FLOAT_PVQ)
+  od_val32 irt;
+  int sqrt_shift;
+#else
   OD_UNUSED(bshift);
+#endif
   acc = 0;
   for (i = 0; i < n; i++) {
     acc += x[i]*(od_val32)x[i];
   }
-  *g = OD_ROUND32(sqrt(acc)*OD_SHL(1, bshift));
+#if defined(OD_FLOAT_PVQ)
+  *g = sqrt(acc);
+#else
+  irt = od_sqrt(acc, &sqrt_shift);
+  *g = OD_VSHR_ROUND(irt, sqrt_shift - bshift);
+#endif
   /* Normalize gain by quantization step size and apply companding
      (if ACTIVITY != 1). */
   return od_gain_compand(*g, q0, beta);
