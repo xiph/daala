@@ -742,8 +742,18 @@ int od_pvq_compute_k(od_val32 qcg, int itheta, od_val32 theta, int noref, int n,
     if (qcg == 0) return 0;
     if (n == 15 && qcg == OD_CGAIN_SCALE && beta > 1.25) return 1;
     else {
+#if defined(OD_FLOAT_PVQ)
       return OD_MAXI(1, (int)floor(.5 + (qcg*OD_CGAIN_SCALE_1 - .2)*
        sqrt((n + 3)/2)/beta));
+#else
+      od_val32 rt;
+      int sqrt_shift;
+      rt = od_sqrt((n + 3) >> 1, &sqrt_shift);
+      /*FIXME: get rid of 64-bit mul.*/
+      return OD_MAXI(1, OD_SHR_ROUND((int64_t)((qcg
+       - (int64_t)OD_QCONST32(.2, OD_CGAIN_SHIFT))*rt/beta),
+       OD_CGAIN_SHIFT + sqrt_shift));
+#endif
     }
   }
   else {

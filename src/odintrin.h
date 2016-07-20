@@ -162,6 +162,8 @@ typedef double od_val32;
 #else
 typedef int16_t od_val16;
 typedef int32_t od_val32;
+/** Compile-time conversion of float constant to 32-bit value */
+# define OD_QCONST32(x, bits) ((od_val32)(.5 + (x)*(((od_val32)1) << (bits))))
 # define OD_ROUND16(x) (int16_t)(floor(.5 + (x)))
 # define OD_ROUND32(x) (int32_t)(floor(.5 + (x)))
 /*Shift x left by shift*/
