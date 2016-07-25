@@ -166,9 +166,9 @@ static void ycbcr_to_rgb(png_bytep *_image,const video_input_info *_info,
     As an added bonus, it's dead simple.*/
   for(j=0;j<height;j++){
     int dc;
-    y=y_row+_info->pic_x;
-    cb=cb_row+(pic_x>>hshift);
-    cr=cr_row+(pic_x>>hshift);
+    y=y_row+_info->pic_x*xstride;
+    cb=cb_row+(pic_x>>hshift)*xstride;
+    cr=cr_row+(pic_x>>hshift)*xstride;
     for(i=0;i<6*width;){
       int64_t  yval;
       int64_t  cbval;

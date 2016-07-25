@@ -777,12 +777,12 @@ static int y4m_input_fetch_frame(y4m_input *_y4m,FILE *_fin,
   _ycbcr[0].width=_y4m->frame_w;
   _ycbcr[0].height=_y4m->frame_h;
   _ycbcr[0].stride=_y4m->pic_w*xstride;
-  _ycbcr[0].data=_y4m->dst_buf-_y4m->pic_x-_y4m->pic_y*_y4m->pic_w;
+  _ycbcr[0].data=_y4m->dst_buf-(_y4m->pic_x+_y4m->pic_y*_y4m->pic_w)*xstride;
   _ycbcr[1].width=frame_c_w;
   _ycbcr[1].height=frame_c_h;
   _ycbcr[1].stride=c_w*xstride;
-  _ycbcr[1].data=_y4m->dst_buf+pic_sz-(_y4m->pic_x/_y4m->dst_c_dec_h)-
-   (_y4m->pic_y/_y4m->dst_c_dec_v)*c_w;
+  _ycbcr[1].data=_y4m->dst_buf+pic_sz-((_y4m->pic_x/_y4m->dst_c_dec_h)+
+   (_y4m->pic_y/_y4m->dst_c_dec_v)*c_w)*xstride;
   _ycbcr[2].width=frame_c_w;
   _ycbcr[2].height=frame_c_h;
   _ycbcr[2].stride=c_w*xstride;
