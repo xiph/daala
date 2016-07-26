@@ -713,7 +713,12 @@ od_val32 od_pvq_compute_gain(const od_val16 *x, int n, int q0, od_val32 *g,
  */
 int od_pvq_compute_max_theta(od_val32 qcg, double beta){
   /* Set angular resolution (in ra) to match the encoded gain */
+#if defined(OD_FLOAT_PVQ)
   int ts = (int)floor(.5 + qcg*OD_CGAIN_SCALE_1*M_PI/(2*beta));
+#else
+  int ts = OD_SHR_ROUND((int)floor(.5 + qcg*OD_QCONST32(M_PI,
+   OD_CGAIN_SHIFT)/(2*beta)), OD_CGAIN_SHIFT << 1);
+#endif
   /* Special case for low gains -- will need to be tuned anyway */
   if (qcg < 1.4*OD_CGAIN_SCALE) ts = 1;
   return ts;
