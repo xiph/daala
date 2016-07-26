@@ -602,7 +602,7 @@ int main(int _argc,char *_argv[]){
       int xstride;
       xdec=pli&&!(info1.pixel_fmt&1);
       ydec=pli&&!(info1.pixel_fmt&2);
-      xstride = depth > 8 ? 2 : 1;
+      xstride = info1.depth > 8 ? 2 : 1;
       ssim[pli]=calc_ssim(
        f1[pli].data+(info1.pic_y>>ydec)*f1[pli].stride +
         (info1.pic_x>>xdec)*xstride,
