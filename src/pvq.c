@@ -514,13 +514,31 @@ void od_apply_householder(od_val16 *out, const od_val16 *x, const od_val16 *r,
 
 #if !defined(OD_FLOAT_PVQ)
 #define OD_EXP2_INSHIFT 15
-#define OD_EXP2_OUTSHIFT 16
-#define OD_EXP2_INSCALE_1 (1./(1 << OD_EXP2_INSHIFT))
-#define OD_EXP2_OUTSCALE (1 << OD_EXP2_OUTSHIFT)
+#define OD_EXP2_FRACSHIFT 15
+#define OD_EXP2_OUTSHIFT 15
+static const int32_t OD_EXP2_C[5] = {32768, 22709, 7913, 1704, 443};
+/*Output is [1.0, 2.0) in Q(OD_EXP2_FRACSHIFT).
+  It does not include the integer offset, which is added in od_exp2 after the
+   final shift).*/
+static int32_t od_exp2_frac(int32_t x)
+{
+  return OD_MULT16_16_Q15(x, (OD_EXP2_C[1] + OD_MULT16_16_Q15(x,
+   (OD_EXP2_C[2] + OD_MULT16_16_Q15(x, (OD_EXP2_C[3]
+   + OD_MULT16_16_Q15(x, OD_EXP2_C[4])))))));
+}
+
+/** Base-2 exponential approximation (2^x) with Q15 input and output.*/
 static int32_t od_exp2(int32_t x)
 {
-  /*FIXME: replace with int approximation.*/
-  return OD_ROUND32(OD_EXP2_OUTSCALE*OD_EXP2(x*OD_EXP2_INSCALE_1));
+  int integer;
+  int32_t frac;
+  integer = x >> OD_EXP2_INSHIFT;
+  if (integer > 14)
+    return 0x7f000000;
+  else if (integer < -15)
+    return 0;
+  frac = od_exp2_frac(x - OD_SHL(integer, OD_EXP2_INSHIFT));
+  return OD_VSHR_ROUND(OD_EXP2_C[0] + frac, -integer) + 1;
 }
 
 #define OD_LOG2_INSHIFT 15
