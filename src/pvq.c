@@ -545,15 +545,15 @@ static int32_t od_exp2(int32_t x)
 #define OD_LOG2_OUTSHIFT 15
 #define OD_LOG2_INSCALE_1 (1./(1 << OD_LOG2_INSHIFT))
 #define OD_LOG2_OUTSCALE (1 << OD_LOG2_OUTSHIFT)
-static int16_t od_log2(int32_t x)
+static int16_t od_log2(int16_t x)
 {
   /*FIXME: replace with int approximation.*/
-  return OD_ROUND32(OD_LOG2_OUTSCALE*OD_LOG2(x*OD_LOG2_INSCALE_1));
+  return OD_ROUND32(OD_LOG2_OUTSCALE*OD_LOG2(1.0 + x*OD_LOG2_INSCALE_1));
 }
 
 static int32_t od_pow(int32_t x, double beta)
 {
-  int32_t t;
+  int16_t t;
   int xshift;
   int log2_x;
   /*FIXME: this is double for now due to multiplication by 1/beta.*/
@@ -563,8 +563,8 @@ static int32_t od_pow(int32_t x, double beta)
     return 0;
   log2_x = (OD_ILOG(x) - 1);
   xshift = log2_x - OD_LOG2_INSHIFT;
-  /*t should be in range [1.0, 2.0] in Q(OD_LOG2_INSHIFT).*/
-  t = OD_VSHR(x, xshift);
+  /*t should be in range [0.0, 1.0[ in Q(OD_LOG2_INSHIFT).*/
+  t = OD_VSHR(x, xshift) - (1 << OD_LOG2_INSHIFT);
   /*log2(g/OD_COMPAND_SCALE) = log2(x) - OD_COMPAND_SHIFT in
      Q(OD_LOG2_OUTSHIFT).*/
   logr = od_log2(t) + (log2_x - OD_COMPAND_SHIFT)*OD_LOG2_OUTSCALE;
