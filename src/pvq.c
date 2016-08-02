@@ -738,7 +738,7 @@ int od_pvq_compute_max_theta(od_val32 qcg, double beta){
    OD_CGAIN_SHIFT)/(2*beta)), OD_CGAIN_SHIFT*2);
 #endif
   /* Special case for low gains -- will need to be tuned anyway */
-  if (qcg < 1.4*OD_CGAIN_SCALE) ts = 1;
+  if (qcg < OD_QCONST32(1.4, OD_CGAIN_SHIFT)) ts = 1;
   return ts;
 }
 

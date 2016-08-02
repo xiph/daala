@@ -151,6 +151,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #if defined(OD_FLOAT_PVQ)
 typedef double od_val16;
 typedef double od_val32;
+# define OD_QCONST32(x, bits) (x)
 # define OD_ROUND16(x) (x)
 # define OD_ROUND32(x) (x)
 # define OD_SHL(x, shift) (x)
