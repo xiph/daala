@@ -177,13 +177,11 @@ typedef int32_t od_val32;
 /*Shift x right by shift (without rounding) or left by -shift if shift
   is negative.*/
 # define OD_VSHR(x, shift) \
-  ((shift) > 0 ? (int32_t)((x) >> (shift)) \
-  : (int32_t)((x) << -(shift)))
+  (((shift) > 0) ? OD_SHR(x, shift) : OD_SHL(x, -(shift)))
 /*Shift x right by shift (with rounding) or left by -shift if shift
   is negative.*/
 # define OD_VSHR_ROUND(x, shift) \
-  ((shift) > 0 ? (int32_t)(((x) + (1 << (shift) >> 1)) >> (shift)) \
-  : (int32_t)((x) << -(shift)))
+  (((shift) > 0) ? OD_SHR_ROUND(x, shift) : OD_SHL(x, -(shift)))
 # define OD_ABS(x) (abs(x))
 /* (od_val32)(od_val16) gives TI compiler a hint that it's 16x16->32 multiply */
 /** 16x16 multiplication where the result fits in 32 bits */
