@@ -483,6 +483,15 @@ int od_compute_householder(od_val16 *r, int n, od_val32 gr, int *sign,
   return m;
 }
 
+#define OD_RCP_INSHIFT 15
+#define OD_RCP_OUTSHIFT 14
+static od_val16 od_rcp(od_val16 x)
+{
+  /*FIXME: replace with int approximation.*/
+  return OD_MINI(32767, (od_val32)floor(.5
+   + (1 << OD_RCP_OUTSHIFT)*(1./(x/(double)(1 << OD_RCP_INSHIFT)))));
+}
+
 /** Applies Householder reflection from compute_householder(). The
  * reflection is its own inverse.
  *
@@ -495,8 +504,17 @@ void od_apply_householder(od_val16 *out, const od_val16 *x, const od_val16 *r,
  int n) {
   int i;
   od_val32 proj;
-  double proj_1;
+  od_val16 proj_1;
   od_val32 l2r;
+#if !defined(OD_FLOAT_PVQ)
+  od_val16 proj_norm;
+  od_val16 l2r_norm;
+  od_val16 rcp;
+  int proj_shift;
+  int l2r_shift;
+  int outshift;
+#endif
+  /*FIXME: Can we get l2r and/or l2r_shift from an earlier computation?*/
   l2r = 0;
   for (i = 0; i < n; i++) {
     l2r += OD_MULT16_16(r[i], r[i]);
@@ -506,10 +524,45 @@ void od_apply_householder(od_val16 *out, const od_val16 *x, const od_val16 *r,
   for (i = 0; i < n; i++) {
     proj += OD_MULT16_16(r[i], x[i]);
   }
+#if defined(OD_FLOAT_PVQ)
   proj_1 = proj*2./(1e-100 + l2r);
   for (i = 0; i < n; i++) {
-    out[i] = OD_ROUND16(x[i] - r[i]*proj_1);
+    out[i] = x[i] - r[i]*proj_1;
   }
+#else
+  /*l2r_norm is [0.5, 1.0[ in Q15.*/
+  l2r_shift = (OD_ILOG(l2r) - 1) - 14;
+  l2r_norm = OD_VSHR_ROUND(l2r, l2r_shift);
+  rcp = od_rcp(l2r_norm);
+  proj_shift = (OD_ILOG(abs(proj)) - 1) - 14;
+  /*proj_norm is [0.5, 1.0[ in Q15.*/
+  proj_norm = OD_VSHR_ROUND(proj, proj_shift);
+  proj_1 = OD_MULT16_16_Q15(proj_norm, rcp);
+  /*The proj*2. in the float code becomes -1 in the final outshift.
+    The sign of l2r_shift is positive since we're taking the reciprocal of
+     l2r_norm and this is a right shift.*/
+  outshift = OD_MINI(30, OD_RCP_OUTSHIFT - proj_shift - 1 + l2r_shift);
+  if (outshift >= 0) {
+    for (i = 0; i < n; i++) {
+      int32_t tmp;
+      tmp = OD_MULT16_16(r[i], proj_1);
+      tmp = OD_SHR_ROUND(tmp, outshift);
+      out[i] = x[i] - tmp;
+    }
+  }
+  else {
+    /*FIXME: Can we make this case impossible?
+      Right now, if r[] is all zeros except for 1, 2, or 3 ones, and
+       if x[] is all zeros except for large values at the same position as the
+       ones in r[], then we can end up with a shift of -1.*/
+    for (i = 0; i < n; i++) {
+      int32_t tmp;
+      tmp = OD_MULT16_16(r[i], proj_1);
+      tmp = OD_SHL(tmp, -outshift);
+      out[i] = x[i] - tmp;
+    }
+  }
+#endif
 }
 
 #if !defined(OD_FLOAT_PVQ)
