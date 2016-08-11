@@ -750,8 +750,12 @@ int od_pvq_compute_max_theta(od_val32 qcg, double beta){
  */
 od_val32 od_pvq_compute_theta(int t, int max_theta) {
   if (max_theta != 0) {
-    return OD_ROUND32(OD_THETA_SCALE*OD_MINI(t, max_theta - 1)*
-     .5*M_PI/max_theta);
+#if defined(OD_FLOAT_PVQ)
+    return OD_MINI(t, max_theta - 1)*.5*M_PI/max_theta;
+#else
+    return (OD_MAX_THETA_SCALE*OD_MINI(t, max_theta - 1)
+     + (max_theta >> 1))/max_theta;
+#endif
   }
   else return 0;
 }

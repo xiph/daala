@@ -74,7 +74,9 @@ extern const uint16_t LAPLACE_OFFSET[];
 #define OD_QM_BUFFER_SIZE (2*OD_QM_STRIDE)
 
 #if !defined(OD_FLOAT_PVQ)
-#define OD_THETA_SCALE (32768*2./M_PI)
+#define OD_THETA_SHIFT (15)
+#define OD_THETA_SCALE ((1 << OD_THETA_SHIFT)*2./M_PI)
+#define OD_MAX_THETA_SCALE (1 << OD_THETA_SHIFT)
 #define OD_TRIG_SCALE (32768)
 #define OD_CGAIN_SHIFT (8)
 #define OD_CGAIN_SCALE (1 << OD_CGAIN_SHIFT)
