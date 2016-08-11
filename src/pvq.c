@@ -483,6 +483,7 @@ int od_compute_householder(od_val16 *r, int n, od_val32 gr, int *sign,
   return m;
 }
 
+#if !defined(OD_FLOAT_PVQ)
 #define OD_RCP_INSHIFT 15
 #define OD_RCP_OUTSHIFT 14
 static od_val16 od_rcp(od_val16 x)
@@ -491,6 +492,7 @@ static od_val16 od_rcp(od_val16 x)
   return OD_MINI(32767, (od_val32)floor(.5
    + (1 << OD_RCP_OUTSHIFT)*(1./(x/(double)(1 << OD_RCP_INSHIFT)))));
 }
+#endif
 
 /** Applies Householder reflection from compute_householder(). The
  * reflection is its own inverse.
