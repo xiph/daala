@@ -40,9 +40,11 @@ static void usage(char **_argv) {
   fprintf(stderr, "Usage: %s [options] <input> <output>\n"
    "    <input> must be a YUV4MPEG file.\n\n"
    "    Options:\n\n"
+   "      --plane <n>        Plane to preserve, all other planes will\n"
+   "                         be blanked, default = 0\n"
    "      --output-mono-y4m  Output as a 4:0:0 YUV4MPEG instead of keeping\n"
    "                         the original subsampling and blanking the\n"
-   "                         chroma planes.\n",
+   "                         other planes (only implemented for --plane 0).\n",
    _argv[0]);
 }
 
@@ -51,6 +53,7 @@ static const char *CHROMA_TAGS[4] = { " C420jpeg", "", " C422jpeg", " C444" };
 int main(int _argc, char **_argv) {
   const char *optstring = "";
   const struct option long_options[] = {
+    { "plane", required_argument, NULL, 0 },
     { "output-mono-y4m", no_argument, NULL, 0 },
     { NULL, 0, NULL, 0 }
   };
@@ -68,8 +71,10 @@ int main(int _argc, char **_argv) {
   int long_option_index;
   int c;
   int output_mono_y4m;
+  int preserved_plane;
 
   output_mono_y4m = 0;
+  preserved_plane = 0;
   while ((c = getopt_long(_argc, _argv, optstring, long_options,
    &long_option_index)) != EOF) {
     switch (c) {
@@ -77,6 +82,9 @@ int main(int _argc, char **_argv) {
         if (strcmp(long_options[long_option_index].name,
          "output-mono-y4m") == 0) {
           output_mono_y4m = 1;
+        } else if (strcmp(long_options[long_option_index].name,
+         "plane") == 0) {
+          preserved_plane = atoi(optarg);
         }
         break;
       }
@@ -88,6 +96,10 @@ int main(int _argc, char **_argv) {
   }
   if (optind+2 != _argc) {
     usage(_argv);
+    exit(EXIT_FAILURE);
+  }
+  if (output_mono_y4m && preserved_plane != 0) {
+    fprintf(stderr, "--output-mono-y4m is only supported for plane 0.\n");
     exit(EXIT_FAILURE);
   }
   fin = strcmp(_argv[optind], "-") == 0 ? stdin : fopen(_argv[optind], "rb");
@@ -122,21 +134,23 @@ int main(int _argc, char **_argv) {
     char tag[5];
     unsigned char *src;
     int src_stride;
-    int y;
+    int i;
     ret = video_input_fetch_frame(&vid, in, tag);
     if (ret == 0) break;
-    src = in[0].data;
-    src_stride = in[0].stride;
     fprintf(fout, "FRAME\n");
-    for (y = 0; y < h[0]; y++) {
-      if (fwrite(src + (y + info.pic_y)*src_stride + info.pic_x, w[0], 1,
-       fout) < 1) {
-        fprintf(stderr, "Error writing to output.\n");
-        return EXIT_FAILURE;
-      }
-    }
-    if (!output_mono_y4m) {
-      for (pli = 1; pli < 3; pli++) {
+
+    for (pli = 0; pli < 3; pli++) {
+      src = in[pli].data;
+      src_stride = in[pli].stride;
+      if (pli == preserved_plane) {
+        for (i = 0; i < h[pli]; i++) {
+          if (fwrite(src + (i + (info.pic_y >> ydec[pli]))*src_stride +
+           (info.pic_x >> xdec[pli]), w[pli], 1, fout) < 1) {
+            fprintf(stderr, "Error writing to output.\n");
+            return EXIT_FAILURE;
+          }
+        }
+      } else if (!output_mono_y4m) {
         if (fwrite(blank, w[pli]*h[pli], 1, fout) < 1) {
           fprintf(stderr, "Error writing to output.\n");
           return EXIT_FAILURE;
