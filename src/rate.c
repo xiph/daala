@@ -31,7 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "encint.h"
 #include "quantizer.h"
 
-#define OD_Q57(v) ((int64_t)(v) << 57)
+#define OD_Q57(v) ((int64_t)((uint64_t)(v) << 57))
 #define OD_F_Q45(v) ((int64_t)(((v)*((int64_t)1 << 45))))
 #define OD_F_Q12(v) ((int32_t)(((v)*((int32_t)1 << 12))))
 
