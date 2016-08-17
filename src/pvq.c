@@ -620,8 +620,9 @@ static int32_t od_exp2(int32_t x)
 #define OD_LOG2_OUTSCALE (1 << OD_LOG2_OUTSHIFT)
 static int16_t od_log2(int16_t x)
 {
-  /*FIXME: replace with int approximation.*/
-  return OD_ROUND32(OD_LOG2_OUTSCALE*OD_LOG2(1.0 + x*OD_LOG2_INSCALE_1));
+  return x + OD_MULT16_16_Q15(x, (14482 + OD_MULT16_16_Q15(x, (-23234
+   + OD_MULT16_16_Q15(x, (13643 + OD_MULT16_16_Q15(x, (-6403
+   + OD_MULT16_16_Q15(x, 1515)))))))));
 }
 
 static int32_t od_pow(int32_t x, double beta)
