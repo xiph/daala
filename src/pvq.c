@@ -488,9 +488,27 @@ int od_compute_householder(od_val16 *r, int n, od_val32 gr, int *sign,
 #define OD_RCP_OUTSHIFT 14
 static od_val16 od_rcp(od_val16 x)
 {
-  /*FIXME: replace with int approximation.*/
-  return OD_MINI(32767, (od_val32)floor(.5
-   + (1 << OD_RCP_OUTSHIFT)*(1./(x/(double)(1 << OD_RCP_INSHIFT)))));
+  int i;
+  od_val16 n;
+  od_val16 r;
+  i = OD_ILOG(x) - 1;
+  /*n is Q15 with range [0,1).*/
+  n = OD_VSHR_ROUND(x, i - OD_RCP_INSHIFT) - (1 << OD_RCP_INSHIFT);
+  /*Start with a linear approximation:
+    r = 1.8823529411764706-0.9411764705882353*n.
+    The coefficients and the result are Q14 in the range [15420,30840].*/
+  r = 30840 + OD_MULT16_16_Q15(-15420, n);
+  /*Perform two Newton iterations:
+    r -= r*((r*n)-1.Q15)
+       = r*((r*n)+(r-1.Q15)).*/
+  r = r - OD_MULT16_16_Q15(r, (OD_MULT16_16_Q15(r, n) + r - 32768));
+  /*We subtract an extra 1 in the second iteration to avoid overflow; it also
+     neatly compensates for truncation error in the rest of the process.*/
+  r = r - (1 + OD_MULT16_16_Q15(r, OD_MULT16_16_Q15(r, n) + r - 32768));
+  /*r is now the Q15 solution to 2/(n+1), with a maximum relative error
+     of 7.05346E-5, a (relative) RMSE of 2.14418E-5, and a peak absolute
+     error of 1.24665/32768.*/
+  return OD_VSHR_ROUND(r, i - OD_RCP_OUTSHIFT);
 }
 #endif
 
