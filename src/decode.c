@@ -53,6 +53,7 @@ static int od_dec_init(od_dec_ctx *dec, const daala_info *info,
   ret = od_state_init(&dec->state, info);
   if (ret < 0) return ret;
   dec->packet_state = OD_PACKET_DATA;
+  dec->last_qm = -1;
   dec->user_bsize = NULL;
   dec->user_flags = NULL;
   dec->user_mv_grid = NULL;
@@ -1146,9 +1147,11 @@ int daala_decode_packet_in(daala_dec_ctx *dec, const daala_packet *op) {
   frame_number = od_ec_dec_uint(&dec->ec, OD_MAX_REORDER, "flags");
   mbctx.use_activity_masking = od_ec_decode_bool_q15(&dec->ec, 16384, "flags");
   mbctx.qm = od_ec_decode_bool_q15(&dec->ec, 16384, "flags");
-  /*TODO: Cache the previous qm value to avoid calling this every packet.*/
-  od_init_qm(dec->state.qm, dec->state.qm_inv,
-   mbctx.qm == OD_HVS_QM ? OD_QM8_Q4_HVS : OD_QM8_Q4_FLAT);
+  if (mbctx.qm != dec->last_qm) {
+    od_init_qm(dec->state.qm, dec->state.qm_inv,
+     mbctx.qm == OD_HVS_QM ? OD_QM8_Q4_HVS : OD_QM8_Q4_FLAT);
+    dec->last_qm = mbctx.qm;
+  }
   mbctx.use_haar_wavelet = od_ec_decode_bool_q15(&dec->ec, 16384, "flags");
   mbctx.is_golden_frame = od_ec_decode_bool_q15(&dec->ec, 16384, "flags");
   if (mbctx.is_keyframe) {

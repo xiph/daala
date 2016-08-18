@@ -38,6 +38,8 @@ struct daala_dec_ctx {
   oggbyte_buffer obb;
   od_ec_dec ec;
   int packet_state;
+  /*Previously signaled QM, cached here to avoid redundant initializations.*/
+  int last_qm;
   /*User provided buffer for storing per frame block size information. These
    are set via daala_decode_ctl with OD_DECCTL_SET_BSIZE_BUFFER.*/
   unsigned char *user_bsize;
