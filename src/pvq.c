@@ -201,33 +201,46 @@ const int OD_QM8_Q4_HVS[] = {
    beta = 1 / (1 - alpha), so when beta is 1, alpha is 0 and activity
    masking is disabled. When beta is 1.5, activity masking is used. Note that
    activity masking is neither used for 4x4 blocks nor for chroma. */
+#define OD_BETA(b) OD_QCONST32(b, OD_BETA_SHIFT)
+static const od_val16 OD_PVQ_BETA4_LUMA[1] = {OD_BETA(1.)};
+static const od_val16 OD_PVQ_BETA8_LUMA[4] = {OD_BETA(1.), OD_BETA(1.),
+ OD_BETA(1.), OD_BETA(1.)};
+static const od_val16 OD_PVQ_BETA16_LUMA[7] = {OD_BETA(1.), OD_BETA(1.),
+ OD_BETA(1.), OD_BETA(1.), OD_BETA(1.), OD_BETA(1.), OD_BETA(1.)};
+static const od_val16 OD_PVQ_BETA32_LUMA[10] = {OD_BETA(1.), OD_BETA(1.),
+ OD_BETA(1.), OD_BETA(1.), OD_BETA(1.), OD_BETA(1.), OD_BETA(1.), OD_BETA(1.),
+ OD_BETA(1.), OD_BETA(1.)};
+static const od_val16 OD_PVQ_BETA64_LUMA[13] = {OD_BETA(1.), OD_BETA(1.),
+ OD_BETA(1.), OD_BETA(1.), OD_BETA(1.), OD_BETA(1.), OD_BETA(1.), OD_BETA(1.),
+ OD_BETA(1.), OD_BETA(1.), OD_BETA(1.), OD_BETA(1.), OD_BETA(1.)};
 
-static const double OD_PVQ_BETA4_LUMA[1] = {1.};
-static const double OD_PVQ_BETA8_LUMA[4] = {1., 1., 1., 1.};
-static const double OD_PVQ_BETA16_LUMA[7] = {1., 1., 1., 1., 1., 1., 1.};
-static const double OD_PVQ_BETA32_LUMA[10] = {1., 1., 1., 1., 1., 1., 1.,
- 1., 1., 1.};
-static const double OD_PVQ_BETA64_LUMA[13] = {1., 1., 1., 1., 1., 1., 1.,
- 1., 1., 1., 1., 1., 1.};
+static const od_val16 OD_PVQ_BETA4_LUMA_MASKING[1] = {OD_BETA(1.)};
+static const od_val16 OD_PVQ_BETA8_LUMA_MASKING[4] = {OD_BETA(1.5),
+ OD_BETA(1.5), OD_BETA(1.5), OD_BETA(1.5)};
+static const od_val16 OD_PVQ_BETA16_LUMA_MASKING[7] = {OD_BETA(1.5),
+ OD_BETA(1.5), OD_BETA(1.5), OD_BETA(1.5), OD_BETA(1.5), OD_BETA(1.5),
+ OD_BETA(1.5)};
+static const od_val16 OD_PVQ_BETA32_LUMA_MASKING[10] = {OD_BETA(1.5),
+ OD_BETA(1.5), OD_BETA(1.5), OD_BETA(1.5), OD_BETA(1.5), OD_BETA(1.5),
+ OD_BETA(1.5), OD_BETA(1.5), OD_BETA(1.5), OD_BETA(1.5)};
+static const od_val16 OD_PVQ_BETA64_LUMA_MASKING[13] = {OD_BETA(1.5),
+ OD_BETA(1.5), OD_BETA(1.5), OD_BETA(1.5), OD_BETA(1.5), OD_BETA(1.5),
+ OD_BETA(1.5), OD_BETA(1.5), OD_BETA(1.5), OD_BETA(1.5), OD_BETA(1.5),
+ OD_BETA(1.5), OD_BETA(1.5)};
 
-static const double OD_PVQ_BETA4_LUMA_MASKING[1] = {1.};
-static const double OD_PVQ_BETA8_LUMA_MASKING[4] = {1.5, 1.5, 1.5, 1.5};
-static const double OD_PVQ_BETA16_LUMA_MASKING[7] = {1.5, 1.5, 1.5, 1.5, 1.5,
- 1.5, 1.5};
-static const double OD_PVQ_BETA32_LUMA_MASKING[10] = {1.5, 1.5, 1.5, 1.5,
- 1.5, 1.5, 1.5, 1.5, 1.5, 1.5};
-static const double OD_PVQ_BETA64_LUMA_MASKING[13] = {1.5, 1.5, 1.5, 1.5,
- 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5};
+static const od_val16 OD_PVQ_BETA4_CHROMA[1] = {OD_BETA(1.)};
+static const od_val16 OD_PVQ_BETA8_CHROMA[4] = {OD_BETA(1.), OD_BETA(1.),
+ OD_BETA(1.), OD_BETA(1.)};
+static const od_val16 OD_PVQ_BETA16_CHROMA[7] = {OD_BETA(1.), OD_BETA(1.),
+ OD_BETA(1.), OD_BETA(1.), OD_BETA(1.), OD_BETA(1.), OD_BETA(1.)};
+static const od_val16 OD_PVQ_BETA32_CHROMA[10] = {OD_BETA(1.), OD_BETA(1.),
+ OD_BETA(1.), OD_BETA(1.), OD_BETA(1.), OD_BETA(1.), OD_BETA(1.), OD_BETA(1.),
+ OD_BETA(1.), OD_BETA(1.)};
+static const od_val16 OD_PVQ_BETA64_CHROMA[13] = {OD_BETA(1.), OD_BETA(1.),
+ OD_BETA(1.), OD_BETA(1.), OD_BETA(1.), OD_BETA(1.), OD_BETA(1.), OD_BETA(1.),
+ OD_BETA(1.), OD_BETA(1.), OD_BETA(1.), OD_BETA(1.), OD_BETA(1.)};
 
-static const double OD_PVQ_BETA4_CHROMA[1] = {1.};
-static const double OD_PVQ_BETA8_CHROMA[4] = {1., 1., 1., 1.};
-static const double OD_PVQ_BETA16_CHROMA[7] = {1., 1., 1., 1., 1., 1., 1.};
-static const double OD_PVQ_BETA32_CHROMA[10] = {1., 1., 1., 1., 1., 1., 1.,
- 1., 1., 1.};
-static const double OD_PVQ_BETA64_CHROMA[13] = {1., 1., 1., 1., 1., 1., 1.,
- 1., 1., 1., 1., 1., 1.};
-
-const double *const OD_PVQ_BETA[2][OD_NPLANES_MAX][OD_NBSIZES + 1] = {
+const od_val16 *const OD_PVQ_BETA[2][OD_NPLANES_MAX][OD_NBSIZES + 1] = {
  {{OD_PVQ_BETA4_LUMA, OD_PVQ_BETA8_LUMA,
    OD_PVQ_BETA16_LUMA, OD_PVQ_BETA32_LUMA,
    OD_PVQ_BETA64_LUMA},

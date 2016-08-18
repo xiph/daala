@@ -51,7 +51,7 @@ void laplace_decode_vector_(od_ec_dec *dec, od_coeff *y, int n, int k,
 
 
 void od_pvq_decode(daala_dec_ctx *dec, od_coeff *ref, od_coeff *out, int q0,
- int pli, int bs, const double *beta, int robust, int is_keyframe,
+ int pli, int bs, const od_val16 *beta, int robust, int is_keyframe,
  unsigned int *flags, int block_skip, const int16_t *qm,
  const int16_t *qm_inv);
 

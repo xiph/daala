@@ -78,9 +78,12 @@ extern const uint16_t LAPLACE_OFFSET[];
 #define OD_THETA_SCALE ((1 << OD_THETA_SHIFT)*2./M_PI)
 #define OD_MAX_THETA_SCALE (1 << OD_THETA_SHIFT)
 #define OD_TRIG_SCALE (32768)
+#define OD_BETA_SHIFT (12)
+#define OD_BETA_SCALE_1 (1./(1 << OD_BETA_SHIFT))
 #define OD_CGAIN_SHIFT (8)
 #define OD_CGAIN_SCALE (1 << OD_CGAIN_SHIFT)
 #else
+#define OD_BETA_SCALE_1 (1.)
 #define OD_THETA_SCALE (1)
 #define OD_TRIG_SCALE (1)
 #define OD_CGAIN_SCALE (1)
@@ -146,7 +149,7 @@ int od_vector_log_mag(const od_coeff *x, int n);
 
 int od_qm_get_index(int bs, int band);
 
-extern const double *const OD_PVQ_BETA[2][OD_NPLANES_MAX][OD_NBSIZES + 1];
+extern const od_val16 *const OD_PVQ_BETA[2][OD_NPLANES_MAX][OD_NBSIZES + 1];
 
 void od_init_qm(int16_t *x, int16_t *x_inv, const int *qm);
 int od_compute_householder(od_val16 *r, int n, od_val32 gr, int *sign,

@@ -675,7 +675,7 @@ int od_pvq_encode(daala_enc_ctx *enc,
                    int q0,
                    int pli,
                    int bs,
-                   const double *beta,
+                   const od_val16 *beta,
                    int robust,
                    int is_keyframe,
                    int q_scaling,
@@ -753,8 +753,8 @@ int od_pvq_encode(daala_enc_ctx *enc,
     q = OD_MAXI(1, q0*pvq_qm[od_qm_get_index(bs, i + 1)] >> 4);
     qg[i] = pvq_theta(out + off[i], in + off[i], ref + off[i], size[i],
      q, y + off[i], &theta[i], &max_theta[i],
-     &k[i], beta[i], &skip_diff, robust, is_keyframe, pli, &enc->state.adapt,
-     qm + off[i], qm_inv + off[i], enc->pvq_norm_lambda);
+     &k[i], beta[i]*OD_BETA_SCALE_1, &skip_diff, robust, is_keyframe, pli,
+     &enc->state.adapt, qm + off[i], qm_inv + off[i], enc->pvq_norm_lambda);
   }
   od_encode_checkpoint(enc, &buf);
   if (is_keyframe) out[0] = 0;
