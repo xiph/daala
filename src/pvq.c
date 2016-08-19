@@ -667,7 +667,7 @@ static int32_t od_pow(int32_t x, double beta)
  * @param [in]  beta  activity masking beta param (exponent)
  * @return            g^(1/beta)
  */
-static od_val32 od_gain_compand(od_val32 g, int q0, double beta) {
+static od_val32 od_gain_compand(od_val32 g, int q0, od_val16 beta) {
 #if defined(OD_FLOAT_PVQ)
   if (beta == 1) return OD_ROUND32(OD_CGAIN_SCALE*g/(double)q0);
   else {
@@ -675,10 +675,10 @@ static od_val32 od_gain_compand(od_val32 g, int q0, double beta) {
      1./beta)/(double)q0);
   }
 #else
-  if (beta == 1) return (OD_CGAIN_SCALE*g + (q0 >> 1))/q0;
+  if (beta == OD_BETA(1)) return (OD_CGAIN_SCALE*g + (q0 >> 1))/q0;
   else {
     int32_t expr;
-    expr = od_pow(g, 1./beta);
+    expr = od_pow(g, 1./(beta*OD_BETA_SCALE_1));
     expr <<= OD_CGAIN_SHIFT + OD_COMPAND_SHIFT - OD_EXP2_OUTSHIFT;
     return (expr + (q0 >> 1))/q0;
   }
@@ -727,13 +727,13 @@ static int16_t od_sqrt(int32_t x, int *sqrt_shift)
  * @param [in]  beta  activity masking beta param (exponent)
  * @return            g^beta
  */
-od_val32 od_gain_expand(od_val32 cg0, int q0, double beta) {
-  if (beta == 1) {
+od_val32 od_gain_expand(od_val32 cg0, int q0, od_val16 beta) {
+  if (beta == OD_BETA(1)) {
     /*The multiply fits into 28 bits because the expanded gain has a range from
        0 to 2^20.*/
     return OD_SHR_ROUND(cg0*q0, OD_CGAIN_SHIFT);
   }
-  else if (beta == 1.5) {
+  else if (beta == OD_BETA(1.5)) {
 #if defined(OD_FLOAT_PVQ)
     double cg;
     cg = cg0*OD_CGAIN_SCALE_1;
@@ -766,7 +766,7 @@ od_val32 od_gain_expand(od_val32 cg0, int q0, double beta) {
     int32_t expr;
     int32_t cg;
     cg = OD_SHR_ROUND(cg0*q0, OD_CGAIN_SHIFT);
-    expr = od_pow(cg, beta);
+    expr = od_pow(cg, beta*OD_BETA_SCALE_1);
     /*Expanded gain must be in Q(OD_COMPAND_SHIFT), hence the subtraction by
        OD_COMPAND_SHIFT.*/
     return OD_SHR_ROUND(expr, OD_EXP2_OUTSHIFT - OD_COMPAND_SHIFT);
@@ -786,7 +786,7 @@ od_val32 od_gain_expand(od_val32 cg0, int q0, double beta) {
  * @return                 quantized/companded gain
  */
 od_val32 od_pvq_compute_gain(const od_val16 *x, int n, int q0, od_val32 *g,
- double beta, int bshift) {
+ od_val16 beta, int bshift) {
   int i;
   od_val32 acc;
 #if !defined(OD_FLOAT_PVQ)
@@ -816,13 +816,13 @@ od_val32 od_pvq_compute_gain(const od_val16 *x, int n, int q0, od_val32 *g,
  * @param [in]      beta   activity masking beta param
  * @return                 max theta value
  */
-int od_pvq_compute_max_theta(od_val32 qcg, double beta){
+int od_pvq_compute_max_theta(od_val32 qcg, od_val16 beta){
   /* Set angular resolution (in ra) to match the encoded gain */
 #if defined(OD_FLOAT_PVQ)
   int ts = (int)floor(.5 + qcg*OD_CGAIN_SCALE_1*M_PI/(2*beta));
 #else
   int ts = OD_SHR_ROUND((int)floor(.5 + qcg*OD_QCONST32(M_PI,
-   OD_CGAIN_SHIFT)/(2*beta)), OD_CGAIN_SHIFT*2);
+   OD_CGAIN_SHIFT)/(2*beta*OD_BETA_SCALE_1)), OD_CGAIN_SHIFT*2);
 #endif
   /* Special case for low gains -- will need to be tuned anyway */
   if (qcg < OD_QCONST32(1.4, OD_CGAIN_SHIFT)) ts = 1;
@@ -862,10 +862,12 @@ od_val32 od_pvq_compute_theta(int t, int max_theta) {
  * @return                     number of pulses to use for coding
  */
 int od_pvq_compute_k(od_val32 qcg, int itheta, od_val32 theta, int noref, int n,
- double beta, int nodesync) {
+ od_val16 beta, int nodesync) {
   if (noref) {
     if (qcg == 0) return 0;
-    if (n == 15 && qcg == OD_CGAIN_SCALE && beta > 1.25) return 1;
+    if (n == 15 && qcg == OD_CGAIN_SCALE && beta > OD_BETA(1.25)) {
+      return 1;
+    }
     else {
 #if defined(OD_FLOAT_PVQ)
       return OD_MAXI(1, (int)floor(.5 + (qcg*OD_CGAIN_SCALE_1 - .2)*
@@ -876,7 +878,7 @@ int od_pvq_compute_k(od_val32 qcg, int itheta, od_val32 theta, int noref, int n,
       rt = od_sqrt((n + 3) >> 1, &sqrt_shift);
       /*FIXME: get rid of 64-bit mul.*/
       return OD_MAXI(1, OD_SHR_ROUND((int64_t)((qcg
-       - (int64_t)OD_QCONST32(.2, OD_CGAIN_SHIFT))*rt/beta),
+       - (int64_t)OD_QCONST32(.2, OD_CGAIN_SHIFT))*rt/(beta*OD_BETA_SCALE_1)),
        OD_CGAIN_SHIFT + sqrt_shift));
 #endif
     }
@@ -904,7 +906,8 @@ int od_pvq_compute_k(od_val32 qcg, int itheta, od_val32 theta, int noref, int n,
     }
     else {
       return OD_MAXI(1, (int)floor(.5 + (qcg*OD_CGAIN_SCALE_1*
-       od_pvq_sin(theta)*OD_TRIG_SCALE_1 - .2)*sqrt((n + 2)/2)/beta));
+       od_pvq_sin(theta)*OD_TRIG_SCALE_1 - .2)*sqrt((n
+       + 2)/2)/(beta*OD_BETA_SCALE_1)));
     }
   }
 }

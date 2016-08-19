@@ -280,7 +280,7 @@ static double od_pvq_rate(int qg, int icgr, int theta, int ts,
 */
 static int pvq_theta(od_coeff *out, const od_coeff *x0, const od_coeff *r0,
  int n, int q0, od_coeff *y, int *itheta, int *max_theta, int *vk,
- double beta, double *skip_diff, int robust, int is_keyframe, int pli,
+ od_val16 beta, double *skip_diff, int robust, int is_keyframe, int pli,
  const od_adapt_ctx *adapt, const int16_t *qm,
  const int16_t *qm_inv, double pvq_norm_lambda) {
   od_val32 g;
@@ -753,7 +753,7 @@ int od_pvq_encode(daala_enc_ctx *enc,
     q = OD_MAXI(1, q0*pvq_qm[od_qm_get_index(bs, i + 1)] >> 4);
     qg[i] = pvq_theta(out + off[i], in + off[i], ref + off[i], size[i],
      q, y + off[i], &theta[i], &max_theta[i],
-     &k[i], beta[i]*OD_BETA_SCALE_1, &skip_diff, robust, is_keyframe, pli,
+     &k[i], beta[i], &skip_diff, robust, is_keyframe, pli,
      &enc->state.adapt, qm + off[i], qm_inv + off[i], enc->pvq_norm_lambda);
   }
   od_encode_checkpoint(enc, &buf);
