@@ -48,6 +48,7 @@ parser = argparse.ArgumentParser(description='Submit test to arewecompressedyet.
 parser.add_argument('-branch',default=None)
 parser.add_argument('-prefix',default=None)
 parser.add_argument('-master',action='store_true',default=False)
+parser.add_argument('-set',default='objective-1-fast')
 args = parser.parse_args()
 
 if args.branch is None:
@@ -66,5 +67,5 @@ is_master = args.master
 run_id = user+'-'+date_short+'-'+short
 
 print(GetTime(), 'Creating run '+run_id)
-r = requests.post("https://arewecompressedyet.com/submit/job", {'run_id': run_id, 'commit': commit, 'master': is_master, 'key': key})
+r = requests.post("https://arewecompressedyet.com/submit/job", {'run_id': run_id, 'commit': commit, 'master': is_master, 'key': key, 'task': args.set})
 print(GetTime(), r)
