@@ -638,13 +638,12 @@ static int16_t od_log2(int16_t x)
    + OD_MULT16_16_Q15(x, 1515)))))))));
 }
 
-static int32_t od_pow(int32_t x, double beta)
+static int32_t od_pow(int32_t x, od_val16 beta)
 {
   int16_t t;
   int xshift;
   int log2_x;
-  /*FIXME: this is double for now due to multiplication by 1/beta.*/
-  double logr;
+  od_val32 logr;
   /*FIXME: this conditional is to avoid doing log2(0).*/
   if (x == 0)
     return 0;
@@ -655,8 +654,8 @@ static int32_t od_pow(int32_t x, double beta)
   /*log2(g/OD_COMPAND_SCALE) = log2(x) - OD_COMPAND_SHIFT in
      Q(OD_LOG2_OUTSHIFT).*/
   logr = od_log2(t) + (log2_x - OD_COMPAND_SHIFT)*OD_LOG2_OUTSCALE;
-  logr = beta*logr;
-  return od_exp2(OD_ROUND32(logr));
+  logr = OD_MULT16_32_QBETA(beta, logr);
+  return od_exp2(logr);
 }
 #endif
 
@@ -678,7 +677,8 @@ static od_val32 od_gain_compand(od_val32 g, int q0, od_val16 beta) {
   if (beta == OD_BETA(1)) return (OD_CGAIN_SCALE*g + (q0 >> 1))/q0;
   else {
     int32_t expr;
-    expr = od_pow(g, 1./(beta*OD_BETA_SCALE_1));
+    /*FIXME: This is 1/beta in Q(BETA_SHIFT), should use od_rcp() instead.*/
+    expr = od_pow(g, OD_ROUND16((1 << (2*OD_BETA_SHIFT))/(double)beta));
     expr <<= OD_CGAIN_SHIFT + OD_COMPAND_SHIFT - OD_EXP2_OUTSHIFT;
     return (expr + (q0 >> 1))/q0;
   }
@@ -766,7 +766,7 @@ od_val32 od_gain_expand(od_val32 cg0, int q0, od_val16 beta) {
     int32_t expr;
     int32_t cg;
     cg = OD_SHR_ROUND(cg0*q0, OD_CGAIN_SHIFT);
-    expr = od_pow(cg, beta*OD_BETA_SCALE_1);
+    expr = od_pow(cg, beta);
     /*Expanded gain must be in Q(OD_COMPAND_SHIFT), hence the subtraction by
        OD_COMPAND_SHIFT.*/
     return OD_SHR_ROUND(expr, OD_EXP2_OUTSHIFT - OD_COMPAND_SHIFT);

@@ -80,6 +80,9 @@ extern const uint16_t LAPLACE_OFFSET[];
 #define OD_TRIG_SCALE (32768)
 #define OD_BETA_SHIFT (12)
 #define OD_BETA_SCALE_1 (1./(1 << OD_BETA_SHIFT))
+/*Multiplies 16-bit a by 32-bit b and keeps bits [16:64-OD_BETA_SHIFT-1].*/
+#define OD_MULT16_32_QBETA(a, b) \
+ ((int16_t)(a)*(int64_t)(int32_t)(b) >> OD_BETA_SHIFT)
 #define OD_CGAIN_SHIFT (8)
 #define OD_CGAIN_SCALE (1 << OD_CGAIN_SHIFT)
 #else
