@@ -852,13 +852,13 @@ od_val32 od_pvq_compute_theta(int t, int max_theta) {
  * available metrics (encode and decode side)
  *
  * @param [in]      qcg        quantized companded gain value
- * @param [in]      itheta     quantizized PVQ error angle theta
+ * @param [in]      itheta     quantized PVQ error angle theta
  * @param [in]      theta      PVQ error angle theta
  * @param [in]      noref      indicates present or lack of reference
  *                             (prediction)
  * @param [in]      n          number of elements to be coded
  * @param [in]      beta       activity masking beta param
- * @param [in]      nodesync   do not use info that depend on the reference
+ * @param [in]      nodesync   do not use info that depends on the reference
  * @return                     number of pulses to use for coding
  */
 int od_pvq_compute_k(od_val32 qcg, int itheta, od_val32 theta, int noref, int n,
