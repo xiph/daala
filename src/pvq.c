@@ -810,6 +810,19 @@ od_val32 od_pvq_compute_gain(const od_val16 *x, int n, int q0, od_val32 *g,
   return od_gain_compand(*g, q0, beta);
 }
 
+static od_val16 od_beta_rcp(od_val16 beta){
+  if (beta == OD_BETA(1.))
+    return OD_BETA(1.);
+  else if (beta == OD_BETA(1.5))
+    return OD_BETA(1./1.5);
+  else {
+    od_val16 rcp_beta;
+    /*Shift by 1 less, transposing beta to range [.5, .75] and thus < 32768.*/
+    rcp_beta = od_rcp(beta << (OD_RCP_INSHIFT - 1 - OD_BETA_SHIFT));
+    return OD_SHR_ROUND(rcp_beta, OD_RCP_OUTSHIFT + 1 - OD_BETA_SHIFT);
+  }
+}
+
 /** Compute theta quantization range from quantized/companded gain
  *
  * @param [in]      qcg    quantized companded gain value
@@ -821,8 +834,8 @@ int od_pvq_compute_max_theta(od_val32 qcg, od_val16 beta){
 #if defined(OD_FLOAT_PVQ)
   int ts = (int)floor(.5 + qcg*OD_CGAIN_SCALE_1*M_PI/(2*beta));
 #else
-  int ts = OD_SHR_ROUND((int)floor(.5 + qcg*OD_QCONST32(M_PI,
-   OD_CGAIN_SHIFT)/(2*beta*OD_BETA_SCALE_1)), OD_CGAIN_SHIFT*2);
+  int ts = OD_SHR_ROUND(qcg*OD_MULT16_16_QBETA(OD_QCONST32(M_PI/2,
+   OD_CGAIN_SHIFT), od_beta_rcp(beta)), OD_CGAIN_SHIFT*2);
 #endif
   /* Special case for low gains -- will need to be tuned anyway */
   if (qcg < OD_QCONST32(1.4, OD_CGAIN_SHIFT)) ts = 1;
