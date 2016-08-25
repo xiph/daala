@@ -599,6 +599,19 @@ void od_apply_householder(od_val16 *out, const od_val16 *x, const od_val16 *r,
 }
 
 #if !defined(OD_FLOAT_PVQ)
+static od_val16 od_beta_rcp(od_val16 beta){
+  if (beta == OD_BETA(1.))
+    return OD_BETA(1.);
+  else if (beta == OD_BETA(1.5))
+    return OD_BETA(1./1.5);
+  else {
+    od_val16 rcp_beta;
+    /*Shift by 1 less, transposing beta to range [.5, .75] and thus < 32768.*/
+    rcp_beta = od_rcp(beta << (OD_RCP_INSHIFT - 1 - OD_BETA_SHIFT));
+    return OD_SHR_ROUND(rcp_beta, OD_RCP_OUTSHIFT + 1 - OD_BETA_SHIFT);
+  }
+}
+
 #define OD_EXP2_INSHIFT 15
 #define OD_EXP2_FRACSHIFT 15
 #define OD_EXP2_OUTSHIFT 15
@@ -677,8 +690,7 @@ static od_val32 od_gain_compand(od_val32 g, int q0, od_val16 beta) {
   if (beta == OD_BETA(1)) return (OD_CGAIN_SCALE*g + (q0 >> 1))/q0;
   else {
     int32_t expr;
-    /*FIXME: This is 1/beta in Q(BETA_SHIFT), should use od_rcp() instead.*/
-    expr = od_pow(g, OD_ROUND16((1 << (2*OD_BETA_SHIFT))/(double)beta));
+    expr = od_pow(g, od_beta_rcp(beta));
     expr <<= OD_CGAIN_SHIFT + OD_COMPAND_SHIFT - OD_EXP2_OUTSHIFT;
     return (expr + (q0 >> 1))/q0;
   }
@@ -808,19 +820,6 @@ od_val32 od_pvq_compute_gain(const od_val16 *x, int n, int q0, od_val32 *g,
   /* Normalize gain by quantization step size and apply companding
      (if ACTIVITY != 1). */
   return od_gain_compand(*g, q0, beta);
-}
-
-static od_val16 od_beta_rcp(od_val16 beta){
-  if (beta == OD_BETA(1.))
-    return OD_BETA(1.);
-  else if (beta == OD_BETA(1.5))
-    return OD_BETA(1./1.5);
-  else {
-    od_val16 rcp_beta;
-    /*Shift by 1 less, transposing beta to range [.5, .75] and thus < 32768.*/
-    rcp_beta = od_rcp(beta << (OD_RCP_INSHIFT - 1 - OD_BETA_SHIFT));
-    return OD_SHR_ROUND(rcp_beta, OD_RCP_OUTSHIFT + 1 - OD_BETA_SHIFT);
-  }
 }
 
 /** Compute theta quantization range from quantized/companded gain
