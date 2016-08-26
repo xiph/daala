@@ -209,6 +209,7 @@ tools_TARGETS = \
 	tools/trans2d \
 	tools/trans_gain \
 	tools/gen_cdf \
+	tools/gen_sqrt_tbl \
 	tools/compute_basis \
 	tools/compute_haar_basis \
 	tools/cos_search \
@@ -420,6 +421,11 @@ tools_gen_cdf_SOURCES = \
 	tools/gen_cdf.c
 tools_gen_cdf_CFLAGS = $(OGG_CFLAGS) $(PNG_CFLAGS)
 tools_gen_cdf_LDADD = $(OGG_LIBS) $(PNG_LIBS) $(LIBM)
+
+# gen_sqrt_tbl
+tools_gen_sqrt_tbl_SOURCES = \
+	tools/gen_sqrt_tbl.c
+tools_gen_sqrt_tbl_LDADD = $(LIBM)
 
 # compute_basis
 tools_compute_basis_SOURCES = \

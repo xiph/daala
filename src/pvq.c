@@ -859,6 +859,8 @@ od_val32 od_pvq_compute_theta(int t, int max_theta) {
   else return 0;
 }
 
+#define OD_SQRT_TBL_SHIFT (10)
+
 #define OD_ITHETA_SHIFT 15
 /** Compute the number of pulses used for PVQ encoding a vector from
  * available metrics (encode and decode side)
@@ -875,6 +877,14 @@ od_val32 od_pvq_compute_theta(int t, int max_theta) {
  */
 int od_pvq_compute_k(od_val32 qcg, int itheta, od_val32 theta, int noref, int n,
  od_val16 beta, int nodesync) {
+#if !defined(OD_FLOAT_PVQ)
+  /*Lookup table for sqrt(n+3/2) and sqrt(n+2/2) in Q10.
+    Real max values are 32792 and 32784, but clamped to stay within 16 bits.
+    Update with tools/gen_sqrt_tbl if needed.*/
+  static const od_val16 od_sqrt_table[2][13] = {
+   {0, 0, 0, 0, 2290, 2985, 4222, 0, 8256, 0, 16416, 0, 32767},
+   {0, 0, 0, 0, 2401, 3072, 4284, 0, 8287, 0, 16432, 0, 32767}};
+#endif
   if (noref) {
     if (qcg == 0) return 0;
     if (n == 15 && qcg == OD_CGAIN_SCALE && beta > OD_BETA(1.25)) {
@@ -886,13 +896,13 @@ int od_pvq_compute_k(od_val32 qcg, int itheta, od_val32 theta, int noref, int n,
        sqrt((n + 3)/2)/beta));
 #else
       od_val16 rt;
-      int sqrt_shift;
-      rt = od_sqrt((n + 3) >> 1, &sqrt_shift);
+      OD_ASSERT(OD_ILOG(n + 1) < 13);
+      rt = od_sqrt_table[1][OD_ILOG(n + 1)];
       /*FIXME: get rid of 64-bit mul.*/
       return OD_MAXI(1, OD_SHR_ROUND((int64_t)((qcg
        - (int64_t)OD_QCONST32(.2, OD_CGAIN_SHIFT))*
        OD_MULT16_16_QBETA(od_beta_rcp(beta), rt)), OD_CGAIN_SHIFT
-       + sqrt_shift));
+       + OD_SQRT_TBL_SHIFT));
 #endif
     }
   }
@@ -908,13 +918,13 @@ int od_pvq_compute_k(od_val32 qcg, int itheta, od_val32 theta, int noref, int n,
 #if defined(OD_FLOAT_PVQ)
       return OD_MAXI(1, (int)floor(.5 + (itheta - .2)*sqrt((n + 2)/2)));
 #else
-      od_val32 rt;
-      int sqrt_outshift;
-      rt = od_sqrt((n + 2)/2, &sqrt_outshift);
+      od_val16 rt;
+      OD_ASSERT(OD_ILOG(n + 1) < 13);
+      rt = od_sqrt_table[0][OD_ILOG(n + 1)];
       /*FIXME: get rid of 64-bit mul.*/
       return OD_MAXI(1, OD_VSHR_ROUND(((OD_SHL(itheta, OD_ITHETA_SHIFT)
        - OD_QCONST32(.2, OD_ITHETA_SHIFT)))*(int64_t)rt,
-       sqrt_outshift + OD_ITHETA_SHIFT));
+       OD_SQRT_TBL_SHIFT + OD_ITHETA_SHIFT));
 #endif
     }
     else {
