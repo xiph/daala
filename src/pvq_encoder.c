@@ -283,7 +283,9 @@ typedef struct {
 } pvq_search_item;
 
 int items_compare(pvq_search_item *a, pvq_search_item *b) {
-  return a->k - b->k;
+  /* Break ties in K with gain to ensure a stable sort.
+     Otherwise, the order depends on qsort implementation. */
+  return a->k == b->k ? a->gain - b->gain : a->k - b->k;
 }
 
 /** Perform PVQ quantization with prediction, trying several
