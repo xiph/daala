@@ -954,6 +954,12 @@ int main(int argc, char **argv) {
   di.frame_duration = 1;
   di.pixel_aspect_numerator = avin.video_par_n;
   di.pixel_aspect_denominator = avin.video_par_d;
+
+  if (avin.video_depth > 8) {
+    /*For videos with the depth > 8, always full precision will be enabled.*/
+    use_fpr = 1;
+  }
+
   di.full_precision_references = use_fpr;
   di.nplanes = avin.video_nplanes;
   memcpy(di.plane_info, avin.video_plane_info,
