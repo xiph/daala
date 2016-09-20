@@ -93,16 +93,18 @@ static void video_write(FILE *outfile, daala_image *img, int raw) {
   if (outfile) {
     if (!raw) fprintf(outfile, "FRAME\n");
     for (pli = 0; pli < img->nplanes; pli++) {
+      const daala_image_plane *iplane;
       int plane_width;
       int plane_height;
       int xdec;
       int ydec;
-      xdec = img->planes[pli].xdec;
-      ydec = img->planes[pli].ydec;
-      plane_width = (img->width + (1 << xdec) - 1) >> xdec;
+      iplane = img->planes + pli;
+      xdec = iplane->xdec;
+      ydec = iplane->ydec;
+      plane_width = ((img->width + (1 << xdec) - 1) >> xdec)*iplane->xstride;
       plane_height = (img->height + (1 << ydec) - 1) >> ydec;
       for (i = 0; i < plane_height; i++) {
-        if (fwrite(img->planes[pli].data + img->planes[pli].ystride*i, 1,
+        if (fwrite(iplane->data + iplane->ystride*i, 1,
          plane_width, outfile) < (size_t)plane_width) {
           fprintf(stderr, "Error writing yuv frame");
           return;
@@ -349,8 +351,8 @@ int main(int argc, char *argv[]) {
   /*Either way, we're done with the codec setup data.*/
   daala_setup_free(ds);
   if (!raw && outfile) {
-    static const char *CHROMA_TYPES[5] = {
-      "420jpeg", NULL, "422jpeg", "444", "mono"
+    static const char *CHROMA_TYPES[6] = {
+      "420jpeg", NULL, "422jpeg", "444", "444p10", "mono"
     };
     pic_width = di.pic_width;
     pic_height = di.pic_height;
@@ -366,13 +368,18 @@ int main(int argc, char *argv[]) {
         pix_fmt = 2;
       }
       else if (di.plane_info[1].xdec == 0 && di.plane_info[1].ydec == 0) {
-        pix_fmt = 3;
+        if (di.bitdepth_mode == OD_BITDEPTH_MODE_10) {
+          pix_fmt = 4;
+        }
+        else {
+          pix_fmt = 3;
+        }
       }
     }
     else {
-      pix_fmt = 4;
+      pix_fmt = 5;
     }
-    if (pix_fmt >= 5 || pix_fmt == 1) {
+    if (pix_fmt >= 6 || pix_fmt == 1) {
       fprintf(stderr, "Unknown pixel format: %i\n", pix_fmt);
       exit(1);
     }
