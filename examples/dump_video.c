@@ -351,8 +351,8 @@ int main(int argc, char *argv[]) {
   /*Either way, we're done with the codec setup data.*/
   daala_setup_free(ds);
   if (!raw && outfile) {
-    static const char *CHROMA_TYPES[6] = {
-      "420jpeg", NULL, "422jpeg", "444", "444p10", "mono"
+    static const char *CHROMA_TYPES[7] = {
+      "420jpeg", NULL, "422jpeg", "444", "444p10", "420p10", "mono"
     };
     pic_width = di.pic_width;
     pic_height = di.pic_height;
@@ -362,7 +362,12 @@ int main(int argc, char *argv[]) {
       /*calculate pixel_fmt based on the xdec & ydec values from one of the
         chroma planes.*/
       if (di.plane_info[1].xdec == 1 && di.plane_info[1].ydec == 1) {
-        pix_fmt = 0;
+        if (di.bitdepth_mode == OD_BITDEPTH_MODE_10) {
+          pix_fmt = 5;
+        }
+        else {
+          pix_fmt = 0;
+        }
       }
       else if (di.plane_info[1].xdec == 1 && di.plane_info[1].ydec == 0) {
         pix_fmt = 2;
@@ -377,9 +382,9 @@ int main(int argc, char *argv[]) {
       }
     }
     else {
-      pix_fmt = 5;
+      pix_fmt = 6;
     }
-    if (pix_fmt >= 6 || pix_fmt == 1) {
+    if (pix_fmt >= 7 || pix_fmt == 1) {
       fprintf(stderr, "Unknown pixel format: %i\n", pix_fmt);
       exit(1);
     }
