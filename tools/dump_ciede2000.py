@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 from collections import deque
 import sys
 import numpy as np
@@ -15,11 +15,13 @@ box2 = np.ones((2, 2))
 
 
 def decode_y4m_buffer(frame):
-    W, H, buf = frame.headers['W'], frame.headers['H'], frame.buffer
-    A, div2 = W * H, (H // 2, W // 2)
-    Y = (np.ndarray((H, W), 'uint8', buf) - 16.) / 219.
-    Cb = (np.ndarray(div2, 'uint8', buf, A) - 128.) / 224.
-    Cr = (np.ndarray(div2, 'uint8', buf, A + A // 4) - 128.) / 224.
+    W, H, C, buf = frame.headers['W'], frame.headers['H'], frame.headers['C'], frame.buffer
+    A, div2, dtype, scale = W * H, (H // 2, W // 2), 'uint8', 1.
+    if C.endswith('p10'):
+        dtype, scale, A = 'uint16', 4., A * 2
+    Y = (np.ndarray((H, W), dtype, buf) - 16. * scale) / (219. * scale)
+    Cb = (np.ndarray(div2, dtype, buf, A) - 128. * scale) / (224. * scale)
+    Cr = (np.ndarray(div2, dtype, buf, A + A // 4) - 128. * scale) / (224. * scale)
     YCbCr444 = np.dstack((Y, np.kron(Cb, box2), np.kron(Cr, box2)))
     return np.dot(YCbCr444, yuv2rgb.T)
 
@@ -53,12 +55,18 @@ def process_recons(frame):
     if ref_frames:
         process_pair(ref_frames.popleft(), recons_frames.popleft())
 
+class Reader(y4m.Reader):
+    def _frame_size(self):
+        pixels = super()._frame_size()
+        if self._stream_headers['C'].endswith('p10'):
+            return 2 * pixels
+        return pixels
 
 def main(args):
     OPENING = 'Opening %s...'
     BLOCK_SIZE = 4 * 1024 * 1024
-    ref_parser = y4m.Reader(process_ref)
-    recons_parser = y4m.Reader(process_recons)
+    ref_parser = Reader(process_ref)
+    recons_parser = Reader(process_recons)
     print(OPENING % args[1])
     with open(args[1], 'r') as ref:
         print(OPENING % args[2])
@@ -68,12 +76,14 @@ def main(args):
             except:
                 ref_buf, recons_buf = ref, recons
             while True:
-                data = ref_buf.read(BLOCK_SIZE)
-                if not data: break
-                ref_parser.decode(data)
-                data = recons_buf.read(BLOCK_SIZE)
-                if not data: break
-                recons_parser.decode(data)
+                if not ref_frames:
+                    data = ref_buf.read(BLOCK_SIZE)
+                    if not data: break
+                    ref_parser.decode(data)
+                if not recons_frames:
+                    data = recons_buf.read(BLOCK_SIZE)
+                    if not data: break
+                    recons_parser.decode(data)
     print('Total: %2.4f' % np.array(scores).mean())
 
 
