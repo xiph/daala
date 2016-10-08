@@ -234,7 +234,7 @@ extern uint32_t OD_DIVU_SMALL_CONSTS[OD_DIVU_DMAX][2];
 # define OD_DIVU_SMALL(_x, _d) \
   ((uint32_t)((OD_DIVU_SMALL_CONSTS[(_d)-1][0]* \
   (unsigned long long)(_x)+OD_DIVU_SMALL_CONSTS[(_d)-1][1])>>32)>> \
-  (OD_ILOG(_d)-1))
+  (OD_ILOG_NZ(_d)-1))
 
 # define OD_DIVU(_x, _d) \
   (((_d) < OD_DIVU_DMAX)?(OD_DIVU_SMALL((_x),(_d))):((_x)/(_d)))
