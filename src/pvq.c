@@ -330,24 +330,42 @@ void od_init_qm(int16_t *x, int16_t *x_inv, const int *qm) {
       x1_inv = x_inv + off;
       for (i = 0; i < 4 << bs; i++) {
         for (j = 0; j < 4 << bs; j++) {
-          double mag;
+          /*This will ultimately be clamped to fit in 16 bits.*/
+          od_val32 mag;
+          int16_t ytmp;
 #if OD_DEBLOCKING || OD_DISABLE_FILTER
-          mag = 1.0;
+          mag = OD_QM_SCALE;
 #else
-          mag = OD_BASIS_MAG[xydec][bs][i]*OD_BASIS_MAG[xydec][bs][j];
+          /*FIXME: Do this rounding when generating OD_BASIS_MAG.*/
+          mag = (od_val32)floor(.5 + OD_QM_SCALE*OD_BASIS_MAG[xydec][bs][i]*
+           OD_BASIS_MAG[xydec][bs][j]);
 #endif
           if (i == 0 && j == 0) {
-            mag = 1.0;
+            mag = OD_QM_SCALE;
           }
           else {
+#if defined(OD_FLOAT_PVQ)
             mag /= 0.0625*qm[(i << 1 >> bs)*8 + (j << 1 >> bs)];
+#else
+            int qmv;
+            qmv = qm[(i << 1 >> bs)*8 + (j << 1 >> bs)];
+            mag *= 16;
+            mag = (mag + (qmv >> 1))/qmv;
+#endif
             OD_ASSERT(mag > 0.0);
           }
           /*Convert to fit in 16 bits.*/
+#if defined(OD_FLOAT_PVQ)
           y[i*(4 << bs) + j] = (int16_t)OD_MINI(OD_QM_SCALE_MAX,
            (int32_t)floor(.5 + mag*OD_QM_SCALE));
           y_inv[i*(4 << bs) + j] = (int16_t)floor(.5
            + OD_QM_SCALE*OD_QM_INV_SCALE/(double)y[i*(4 << bs) + j]);
+#else
+          y[i*(4 << bs) + j] = (int16_t)OD_MINI(OD_QM_SCALE_MAX, mag);
+          ytmp = y[i*(4 << bs) + j];
+          y_inv[i*(4 << bs) + j] = (int16_t)((OD_QM_SCALE*OD_QM_INV_SCALE
+           + (ytmp >> 1))/ytmp);
+#endif
         }
       }
       od_raster_to_coding_order_16(x1, 4 << bs, y, 4 << bs);
