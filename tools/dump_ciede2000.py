@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 from collections import deque
 import sys
 import numpy as np
@@ -57,7 +57,7 @@ def process_recons(frame):
 
 class Reader(y4m.Reader):
     def _frame_size(self):
-        pixels = super()._frame_size()
+        pixels = super(Reader, self)._frame_size()
         if self._stream_headers['C'].endswith('p10'):
             return 2 * pixels
         return pixels
