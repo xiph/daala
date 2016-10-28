@@ -70,6 +70,10 @@ typedef unsigned __int64 uint64_t;
 typedef size_t uintptr_t;
 #endif
 
+#if !defined(UINT64_C)
+#define UINT64_C(u) (u##ULL)
+#endif
+
 #else
 
 /* Most platforms have the C99 standard integer types. */
