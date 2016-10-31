@@ -2,7 +2,7 @@
 <!DOCTYPE rfc SYSTEM 'rfc2629.dtd'>
 <?rfc toc="yes" symrefs="yes" ?>
 
-<rfc ipr="trust200902" category="info" docName="draft-terriberry-netvc-codingtools-00">
+<rfc ipr="trust200902" category="info" docName="draft-terriberry-netvc-codingtools-01">
 
 <front>
 <title abbrev="Coding Tools">Coding Tools for a Next Generation Video Codec</title>
@@ -20,9 +20,23 @@
 <email>tterribe@xiph.org</email>
 </address>
 </author>
+<author initials="N.E." surname="Egge" fullname="Nathan E. Egge">
+<organization>Mozilla Corporation</organization>
+<address>
+<postal>
+<street>331 E. Evelyn Avenue</street>
+<city>Mountain View</city>
+<region>CA</region>
+<code>94041</code>
+<country>USA</country>
+</postal>
+<phone>+1 650 903-0800</phone>
+<email>negge@xiph.org</email>
+</address>
+</author>
 
-<date day="2" month="June" year="2015"/>
-<area>RAI</area>
+<date day="31" month="October" year="2016"/>
+<area>ART</area>
 <workgroup>netvc</workgroup>
 
 <abstract>
@@ -260,60 +274,142 @@ Linear interpolation between these pre-computed values can improve accuracy, at
 </t>
 <t>
 Change the frequency count update mechanism so that ft is constant.
-For example, let
-<figure align="center">
-<artwork align="center"><![CDATA[
-        k-1
-        __
-fl[k] = \  f[i]
-        /_
-        i=0
-]]></artwork>
-</figure>
- be the cumulative frequency of all symbol values less than k and
-<figure align="center">
-<artwork align="center"><![CDATA[
-          ( 0, k <= i
-e[i][k] = <
-          ( 1, k > i
-]]></artwork>
-</figure>
- be the elementary change in the cumulative frequency count fl[k] caused by
- adding 1 to f[i].
-Then one possible update formula after decoding the value i is
-<figure align="center">
-<artwork align="center"><![CDATA[
-fl[k]' = fl[k] - floor(D*fl[k]) + k + F*e[i][k]
-]]></artwork>
-</figure>
- where D is a negative power of two chosen such that
- floor(D*ft)&nbsp;==&nbsp;(N&nbsp;+&nbsp;F)&nbsp;.
-This ensures that ft&nbsp;==&nbsp;fl[N]&nbsp;==&nbsp;fl[N]' is a constant.
-This requires O(N) operations, but the arithmetic is very simple (given the
- freedom to choose D and F, and to some extent N), and trivially
- parallelizable, in SIMD or otherwise.
-The downside is the addition of the value k at each step.
-This is necessary to ensure that the probability of an individual symbol
- (fl[k+1]&nbsp;-&nbsp;fl[k]) is never reduced to zero.
-However it is equivalent to mixing in a uniform distribution with counts that
- are otherwise an exponential moving average.
-That means that ft and F must be sufficiently large, or there will be an
- adverse impact on coding efficiency.
-The upside is that F*e[i] may be replaced by any monotonically non-decreasing
- vector whose Nth element is F.
-That is, instead of just incrementing the probability of symbol i, it can
- increase the probability of values that are highly correlated with i.
-E.g., this allows decoding value i to apply a small probability increase
- to the neighboring values (i&nbsp;-&nbsp;1) and (i&nbsp;+&nbsp;1), in addition
- to a large probability increase to the value i.
-This may help, for example, in motion vector coding, and is much more sensible
- than the approach taken with binary context modeling, which often does things
- like "increase the probability of all even values when decoding a 6" because
- the same context is always used to code the least significant bit.
+This approach is described in the next section.
 </t>
 </list>
 </t>
 </section>
+<section anchor="dyadic_adaptation" title="Dyadic Adaptation">
+<t>
+The goal with context adaptation using dyadic probabilities is to maintain
+ the invariant that the probabilities all sum to a power of two before and
+ after adaptation.
+This can be achieved with a special update function that blends the cumulative
+ probabilities of the current context with a cumulative distribution function
+ where the coded symbol has probability 1.
+</t>
+<t>
+Suppose we have model for a given context that codes 8 symbols with the
+ following probabilities:
+<figure align="center">
+<artwork align="center"><![CDATA[
++------+------+------+------+------+------+------+------+
+| p[0] | p[1] | p[2] | p[3] | p[4] | p[5] | p[6] | p[7] |
++------+------+------+------+------+------+------+------+
+|  1/8 |  1/8 | 3/16 | 1/16 | 1/16 | 3/16 |  1/8 |  1/8 |
++------+------+------+------+------+------+------+------+
+]]></artwork>
+</figure>
+Then the cumulative distribution function is:
+<figure align="center">
+<artwork align="left"><![CDATA[
+   CDF
+
+ 1  +                                                +------+
+    |                                                |
+    |                                         +------+
+    |                                         |
+3/4 +                                  +------+
+    |                                  |
+    |                                  |
+    |                           +------+
+1/2 +                    +------+
+    |             +------+
+    |             |
+    |             |
+1/4 +      +------+
+    |      |
+    +------+
+    |
+ 0  +------+------+------+------+------+------+------+------+ Bin
+     fl[1]  fl[2]  fl[3]  fl[4]  fl[5]  fl[6]  fl[7]  fl[8]
+]]></artwork>
+</figure>
+Suppose we code symbol 3 and wish to update the context model so that this
+ symbol is now more likely.
+This can be done by blending the CDF for the current context with a CDF
+ that has symbol 3 with likelihood 1.
+<figure align="center">
+<artwork align="left"><![CDATA[
+   CDF
+
+ 1  +                    +----------------------------------+
+    |                    |
+    |                    |
+    |                    |
+ 0  +------+------+------+------+------+------+------+------+ Bin
+     fl[1]  fl[2]  fl[3]  fl[4]  fl[5]  fl[6]  fl[7]  fl[8]
+]]></artwork>
+</figure>
+Given an adaptation rate g between 0 and 1, and assuming ft = 2^4 = 16, what
+ we are computing is:
+<figure align="center">
+<artwork align="center"><![CDATA[
++------+------+------+------+------+------+------+------+
+|   2  |   4  |   7  |   8  |   9  |  12  |  14  |  16  |  * (1 - g)
++------+------+------+------+------+------+------+------+
+
+                            +
+
++------+------+------+------+------+------+------+------+
+|   0  |   0  |   0  |  16  |  16  |  16  |  16  |  16  |  * g
++------+------+------+------+------+------+------+------+
+]]></artwork>
+</figure>
+In order to prevent the probability of any one symbol from going to zero, the
+ blending functions above and below the coded symbol are adjusted so that no
+ adjacent cumulative probabilities are the same.
+</t>
+<t>
+Let M be the alphabet size and 1/2^r be the adaptation rate:
+</t>
+<t>
+<figure align="center">
+<artwork align="center"><![CDATA[
+        ( fl[i] - floor((fl[i] + 2^r - i - 1)/2^r), i <= coded symbol
+fl[i] = <
+        ( fl[i] - floor((fl[i] + M - i - ft)/2^r),  i > coded symbol
+]]></artwork>
+</figure>
+Applying these formulas to the example CDF where M = 8 with adaptation rate
+ 1/2^16 gives the updated CDF:
+<figure align="center">
+<artwork align="center"><![CDATA[
++------+------+------+------+------+------+------+------+
+|   1  |   3  |   6  |   9  |  10  |  13  |  15  |  16  |
++------+------+------+------+------+------+------+------+
+]]></artwork>
+</figure>
+Looking at the graph of the CDF we see that the likelihood for symbol 3
+ has gone up from 1/16 to 3/16, dropping the likelihood of all other symbols
+ to make room.
+<figure align="center">
+<artwork align="left"><![CDATA[
+   CDF
+
+ 1  +                                                +------+
+    |                                         +------+
+    |                                         |
+    |                                  +------+
+3/4 +                                  |
+    |                                  |
+    |                           +------+
+    |                    +------+
+1/2 +                    |
+    |                    |
+    |             +------+
+    |             |
+1/4 +             |
+    |      +------+
+    |      |
+    +------+
+ 0  +------+------+------+------+------+------+------+------+ Bin
+     fl[1]  fl[2]  fl[3]  fl[4]  fl[5]  fl[6]  fl[7]  fl[8]
+]]></artwork>
+</figure>
+</t>
+</section>
+
 <section title="Simplified Partition Function">
 <t>
 Rather than changing the context modeling, the other approach is to change the
@@ -412,6 +508,120 @@ Overall, it makes it more likely that the compression gains from
  overhead, increasing the number of symbols that can be usefully modeled.
 It is an open question whether or not these benefits are worth the increase
  in computational complexity.
+</t>
+</section>
+</section>
+
+
+<section title="Context Adaptation">
+<t>
+The dyadic adaptation scheme described in&nbsp;<xref target="dyadic_adaptation"/>
+ implements a low-complexity IIR filter for the steady-state case where we only
+ want to adapt the context CDF as fast as the 1/2^r adaptation rate.
+In many cases, for example when coding symbols at the start of a video frame, only
+ a limited number of symbols have been seen per context.
+Using this steady-state adaptation scheme risks adapting too slowly and spending
+ too many bits to code symbols with incorrect probability estimates.
+In other video codecs, this problem is reduced by either implicitly or explicitly
+ allowing for mechanisms to set the initial probability models for a given
+ context.
+</t>
+<section title="Implicit Adaptation">
+<t>
+One implicit way to use default probabilities is to simply require as a
+ normative part of the decoder that some specific CDFs are used to initialize
+ each context.
+A representative set of inputs is run through the encoder and a frequency based
+ probability model is computed and reloaded at the start of every frame.
+This has the advantage of having zero bitstream overhead and is optimal for
+ certain stationary symbols.
+However for other non-stationary symbols, or highly content dependent contexts
+ where the sample input is not representative, this can be worse than starting
+ with a flat distribution as it now takes even longer to adapt to the
+ steady-state.
+Moreover the amount of hardware area required to store initial probability
+ tables for each context goes up with the number of contexts in the codec.
+</t>
+<t>
+Another implicit way to deal with poor initial probabilities is through backward
+ adaptation based on the probability estimates from the previous frame.
+After decoding a frame, the adapted CDFs for each context are simply kept as-is
+ and not reset to their defaults.
+This has the advantage of having no bitstream overhead, and tracking to certain
+ content types closely as we expect frames with similar content at similar rates,
+ to have well correlated CDFs.
+However, this only works when we know there will be no bitstream errors due to
+ the transport layer, e.g., TCP or HTTP.
+In low delay use cases (video on demand, live streaming, video conferencing),
+ implicit backwards adaptation is avoided as it risks desynchronizing the
+ entropy decoder state and permanently losing the video stream.
+</t>
+</section>
+<section title="Explicit Adaptation">
+<t>
+For codecs that include the ability to update the probability models in the
+ bitstream, it is possible to explicitly signal a starting CDF.
+The previously described implicit backwards adaptation is now possible by
+ simply explicitly coding a probability update for each frame.
+However, the cost of signaling the updated CDF must be overcome by the
+ savings from coding with the updated CDF.
+Blindly updating all contexts per frame may work at high rates where the size
+ of the CDFs is small relative to the coded symbol data.
+However at low rates, the benefit of using more accurate CDFs is quickly
+ overcome by the cost of coding them, which increases with the number of
+ contexts.
+</t>
+<t>
+More sophisticated encoders can compute the cost of coding a probability update
+ for a given context, and compare it to the size reduction achieved by coding
+ symbols with this context.
+Here all symbols for a given frame (or tile) are buffered and not serialized by
+ the entropy coder until the end of the frame (or tile) is reached.
+Once the end of the entropy segment has been reached, the cost in bits for
+ coding symbols with both the default probabilities and the proposed updated
+ probabilities can be measured and compared.
+However, note that with the symbols already buffered, rather than consider the
+ context probabilities from the previous frame, a simple frequency based
+ probability model can be computed and measured.
+Because this probability model is computed based on the symbols we are about
+ to code this technique is called forward adaptation.
+If the cost in bits to signal and code with this new probability model is less
+ than that of using the default then it is used.
+This has the advantage of only ever coding a probability update if it is an
+ improvement and producing a bitstream that is robust to errors, but
+ requires an entire entropy segments worth of symbols be cached.
+</t>
+</section>
+<section anchor="early_adaptation" title="Early Adaptation">
+<t>
+We would like to take advantage of the low-cost multi-symbol CDF adaptation
+ described in&nbsp;<xref target="dyadic_adaptation"/> without in the broadest set
+ of use cases.
+This means the initial probability adaptation scheme should support low-delay,
+ error-resilient streams that efficiently implemented in both hardware and
+ software.
+We propose an early adaptation scheme that supports this goal.
+</t>
+<t>
+At the beginning of a frame (or tile), all CDFs are initialized to a flat
+ distribution.
+For a given multi-symbol context with M potential symbols, assume that the
+ initial dyadic CDF is initialized so that each symbol has probability 1/M.
+For the first M coded symbols, the CDF is updated as follows:
+<figure align="center">
+<artwork align="center"><![CDATA[
+a[c,M] = ft/(M + c)
+
+        ( fl[i] - floor((fl[i] - i)*a/ft),          i <= coded symbol
+fl[i] = <
+        ( fl[i] - floor((fl[i] + M - i - ft)*a/ft), i > coded symbol
+  ]]></artwork>
+</figure>
+where c goes from 0 to M-1 and is the running count of the number of symbols
+ coded with this CDF.
+Note that for a fixed CDF precision (ft is always a power of two) and a
+ maximum number of possible symbols M, the values of a[c,M] can be stored
+ in a M*(M+1)/2 element table, which is 136 entries when M = 16.
 </t>
 </section>
 </section>
