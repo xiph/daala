@@ -235,7 +235,9 @@ static double calc_msssim(uint8_t *src,int systride,
   int32_t *c2;
   int x;
   int y;
+  int cstride;
   i = 0;
+  cstride = w;
   c1 = malloc(w*h*sizeof(*c1));
   c2 = malloc(w*h*sizeof(*c2));
   if (depth > 8) {
@@ -255,13 +257,13 @@ static double calc_msssim(uint8_t *src,int systride,
       }
     }
   }
-  calc_ssim(c1, w, c2, w, w, h, max, &ssim[i], &cs[i]);
+  calc_ssim(c1, cstride, c2, cstride, w, h, max, &ssim[i], &cs[i]);
   for (i = 1; i < 5; i++) {
-    downsample_2x(c1, w, c2, w, w, h);
+    downsample_2x(c1, cstride, c2, cstride, w, h);
     w >>= 1;
     h >>= 1;
     max *= 4;
-    calc_ssim(c1, w, c2, w, w, h, max, &ssim[i], &cs[i]);
+    calc_ssim(c1, cstride, c2, cstride, w, h, max, &ssim[i], &cs[i]);
   }
   overall_msssim = pow(cs[0],WEIGHT[0])*pow(cs[1],WEIGHT[1])*
    pow(cs[2],WEIGHT[2])*pow(cs[3],WEIGHT[3])*pow(ssim[4],WEIGHT[4]);
