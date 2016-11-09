@@ -68,7 +68,7 @@ static double od_custom_rsqrt_dynamic_table(const double* table,
 }
 
 /*Fills tables used in od_custom_rsqrt_dynamic_table for a given start.*/
-static void od_fill_dynamic_rqrt_table(double *table, const int table_size,
+static void od_fill_dynamic_rsqrt_table(double *table, const int table_size,
  const double start) {
   int i;
   for (i = 0; i < table_size; i++)
@@ -183,7 +183,7 @@ static double pvq_search_rdo_double(const od_val16 *xcoeff, int n, int k,
     /*Fill the small rsqrt lookup table with inputs relative to yy.
       Specifically, the table of n values is filled with
        rsqrt(yy + 1), rsqrt(yy + 2 + 1) .. rsqrt(yy + 2*(n-1) + 1).*/
-    od_fill_dynamic_rqrt_table(rsqrt_table, rsqrt_table_size, yy);
+    od_fill_dynamic_rsqrt_table(rsqrt_table, rsqrt_table_size, yy);
     for (j = 0; j < n; j++) {
       double tmp_xy;
       double tmp_yy;
