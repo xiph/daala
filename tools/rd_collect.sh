@@ -20,6 +20,12 @@ if [ -z $DAALA_ROOT ]; then
   DAALA_ROOT=.
 fi
 
+if [ -z $TOOLS_ROOT ]; then
+  TOOLS_ROOT=$DAALA_ROOT
+fi
+
+export EXTRA_OPTS=$EXTRA_OPTS
+
 if [ ! -d $DAALA_ROOT ]; then
   echo "Please set DAALA_ROOT to the location of your daala git clone"
   exit 1
@@ -33,18 +39,22 @@ case $CODEC in
       exit 1
     fi
 
-    if ((! grep -Fxq "#define OD_DUMP_IMAGES 1" "$DAALA_ROOT/config.h") &&
-        (! grep -Fxq "#define OD_DUMP_RECONS 1" "$DAALA_ROOT/config.h")); then
-      echo "Video dumping not enabled, re-run configure with --enable-dump-recons"
-      exit 1
-    fi
-
     if [ -z "$ENCODER_EXAMPLE" ]; then
       export ENCODER_EXAMPLE=$DAALA_ROOT/examples/encoder_example
     fi
 
     if [ ! -x "$ENCODER_EXAMPLE" ]; then
       echo "Executable not found ENCODER_EXAMPLE=$ENCODER_EXAMPLE"
+      echo "Do you have the right DAALA_ROOT=$DAALA_ROOT"
+      exit 1
+    fi
+
+    if [ -z "$DUMP_VIDEO" ]; then
+      export DUMP_VIDEO=$DAALA_ROOT/examples/dump_video
+    fi
+
+    if [ ! -x "$DUMP_VIDEO" ]; then
+      echo "Executable not found DUMP_VIDEO=$DUMP_VIDEO"
       echo "Do you have the right DAALA_ROOT=$DAALA_ROOT"
       exit 1
     fi
@@ -297,72 +307,72 @@ fi
 # TODO refactor these out of the daala project into a metrics project
 
 if [ -z "$YUV2YUV4MPEG" ]; then
-  export YUV2YUV4MPEG=$DAALA_ROOT/tools/yuv2yuv4mpeg
+  export YUV2YUV4MPEG=$TOOLS_ROOT/tools/yuv2yuv4mpeg
 fi
 
 if [ -z "$Y4M2PNG" ]; then
-  export Y4M2PNG=$DAALA_ROOT/tools/y4m2png
+  export Y4M2PNG=$TOOLS_ROOT/tools/y4m2png
 fi
 
 if [ -z "$PNG2Y4M" ]; then
-  export PNG2Y4M=$DAALA_ROOT/tools/png2y4m
+  export PNG2Y4M=$TOOLS_ROOT/tools/png2y4m
 fi
 
 if [ -z "$DUMP_PSNR" ]; then
-  export DUMP_PSNR=$DAALA_ROOT/tools/dump_psnr
+  export DUMP_PSNR=$TOOLS_ROOT/tools/dump_psnr
 fi
 
 if [ -z "$DUMP_PSNRHVS" ]; then
-  export DUMP_PSNRHVS=$DAALA_ROOT/tools/dump_psnrhvs
+  export DUMP_PSNRHVS=$TOOLS_ROOT/tools/dump_psnrhvs
 fi
 
 if [ -z "$DUMP_SSIM" ]; then
-  export DUMP_SSIM=$DAALA_ROOT/tools/dump_ssim
+  export DUMP_SSIM=$TOOLS_ROOT/tools/dump_ssim
 fi
 
 if [ -z "$DUMP_FASTSSIM" ]; then
-  export DUMP_FASTSSIM=$DAALA_ROOT/tools/dump_fastssim
+  export DUMP_FASTSSIM=$TOOLS_ROOT/tools/dump_fastssim
 fi
 
 if [ ! -x "$YUV2YUV4MPEG" ]; then
   echo "Executable not found YUV2YUV4MPEG=$YUV2YUV4MPEG"
-  echo "Do you have the right DAALA_ROOT=$DAALA_ROOT"
+  echo "Do you have the right TOOLS_ROOT=$TOOLS_ROOT"
   exit 1
 fi
 
 if [ ! -x "$Y4M2PNG" ]; then
   echo "Executable not found Y4M2PNG=$Y4M2PNG"
-  echo "Do you have the right DAALA_ROOT=$DAALA_ROOT"
+  echo "Do you have the right TOOLS_ROOT=$TOOLS_ROOT"
   exit 1
 fi
 
 if [ ! -x "$PNG2Y4M" ]; then
   echo "Executable not found PNG2Y4M=$PNG2Y4M"
-  echo "Do you have the right DAALA_ROOT=$DAALA_ROOT"
+  echo "Do you have the right TOOLS_ROOT=$TOOLS_ROOT"
   exit 1
 fi
 
 if [ ! -x "$DUMP_PSNR" ]; then
   echo "Executable not found DUMP_PSNR=$DUMP_PSNR"
-  echo "Do you have the right DAALA_ROOT=$DAALA_ROOT"
+  echo "Do you have the right TOOLS_ROOT=$TOOLS_ROOT"
   exit 1
 fi
 
 if [ ! -x "$DUMP_PSNRHVS" ]; then
   echo "Executable not found DUMP_PSNRHVS=$DUMP_PSNRHVS"
-  echo "Do you have the right DAALA_ROOT=$DAALA_ROOT"
+  echo "Do you have the right TOOLS_ROOT=$TOOLS_ROOT"
   exit 1
 fi
 
 if [ ! -x "$DUMP_SSIM" ]; then
   echo "Executable not found DUMP_FASTSSIM=$DUMP_SSIM"
-  echo "Do you have the right DAALA_ROOT=$DAALA_ROOT"
+  echo "Do you have the right TOOLS_ROOT=$TOOLS_ROOT"
   exit 1
 fi
 
 if [ ! -x "$DUMP_FASTSSIM" ]; then
   echo "Executable not found DUMP_FASTSSIM=$DUMP_FASTSSIM"
-  echo "Do you have the right DAALA_ROOT=$DAALA_ROOT"
+  echo "Do you have the right TOOLS_ROOT=$TOOLS_ROOT"
   exit 1
 fi
 
