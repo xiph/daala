@@ -308,6 +308,12 @@ int od_qm_offset(int bs, int xydec)
     return xydec*OD_QM_STRIDE + OD_QM_OFFSET(bs);
 }
 
+#if defined(OD_FLOAT_PVQ)
+#define OD_DEFAULT_MAG 1.0
+#else
+#define OD_DEFAULT_MAG OD_QM_SCALE
+#endif
+
 /* Initialize the quantization matrix with the magnitude compensation applied.
    We need to compensate for the magnitude because lapping causes some basis
    functions to be smaller, so they would end up being quantized too finely
@@ -334,14 +340,14 @@ void od_init_qm(int16_t *x, int16_t *x_inv, const int *qm) {
           od_val32 mag;
           int16_t ytmp;
 #if OD_DEBLOCKING || OD_DISABLE_FILTER
-          mag = OD_QM_SCALE;
+          mag = OD_DEFAULT_MAG;
 #else
           /*FIXME: Do this rounding when generating OD_BASIS_MAG.*/
-          mag = (od_val32)floor(.5 + OD_QM_SCALE*OD_BASIS_MAG[xydec][bs][i]*
+          mag = (od_val32)floor(.5 + OD_DEFAULT_MAG*OD_BASIS_MAG[xydec][bs][i]*
            OD_BASIS_MAG[xydec][bs][j]);
 #endif
           if (i == 0 && j == 0) {
-            mag = OD_QM_SCALE;
+            mag = OD_DEFAULT_MAG;
           }
           else {
 #if defined(OD_FLOAT_PVQ)
