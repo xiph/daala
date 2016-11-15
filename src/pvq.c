@@ -705,10 +705,10 @@ static int32_t od_pow(int32_t x, od_val16 beta)
  */
 static od_val32 od_gain_compand(od_val32 g, int q0, od_val16 beta) {
 #if defined(OD_FLOAT_PVQ)
-  if (beta == 1) return OD_ROUND32(OD_CGAIN_SCALE*g/(double)q0);
+  if (beta == 1) return OD_CGAIN_SCALE*g/(double)q0;
   else {
-    return OD_ROUND32(OD_CGAIN_SCALE*OD_COMPAND_SCALE*pow(g*OD_COMPAND_SCALE_1,
-     1./beta)/(double)q0);
+    return OD_CGAIN_SCALE*OD_COMPAND_SCALE*pow(g*OD_COMPAND_SCALE_1,
+     1./beta)/(double)q0;
   }
 #else
   if (beta == OD_BETA(1)) return (OD_CGAIN_SCALE*g + (q0 >> 1))/q0;
@@ -774,7 +774,7 @@ od_val32 od_gain_expand(od_val32 cg0, int q0, od_val16 beta) {
     double cg;
     cg = cg0*OD_CGAIN_SCALE_1;
     cg *= q0*OD_COMPAND_SCALE_1;
-    return OD_ROUND32(OD_COMPAND_SCALE*cg*sqrt(cg));
+    return OD_COMPAND_SCALE*cg*sqrt(cg);
 #else
     int32_t irt;
     int64_t tmp;
@@ -797,7 +797,7 @@ od_val32 od_gain_expand(od_val32 cg0, int q0, od_val16 beta) {
        OD_COMPAND_SCALE.*/
     double cg;
     cg = cg0*OD_CGAIN_SCALE_1;
-    return OD_ROUND32(OD_COMPAND_SCALE*pow(cg*q0*OD_COMPAND_SCALE_1, beta));
+    return OD_COMPAND_SCALE*pow(cg*q0*OD_COMPAND_SCALE_1, beta);
 #else
     int32_t expr;
     int32_t cg;
