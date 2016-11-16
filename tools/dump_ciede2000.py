@@ -20,9 +20,14 @@ def decode_y4m_buffer(frame):
     if C.endswith('p10'):
         dtype, scale, A = 'uint16', 4., A * 2
     Y = (np.ndarray((H, W), dtype, buf) - 16. * scale) / (219. * scale)
-    Cb = (np.ndarray(div2, dtype, buf, A) - 128. * scale) / (224. * scale)
-    Cr = (np.ndarray(div2, dtype, buf, A + A // 4) - 128. * scale) / (224. * scale)
-    YCbCr444 = np.dstack((Y, np.kron(Cb, box2), np.kron(Cr, box2)))
+    if C.startswith('420'):
+        Cb = (np.ndarray(div2, dtype, buf, A) - 128. * scale) / (224. * scale)
+        Cr = (np.ndarray(div2, dtype, buf, A + A // 4) - 128. * scale) / (224. * scale)
+        YCbCr444 = np.dstack((Y, np.kron(Cb, box2), np.kron(Cr, box2)))
+    else:
+        Cb = (np.ndarray((H, W), dtype, buf, A) - 128. * scale) / (224. * scale)
+        Cr = (np.ndarray((H, W), dtype, buf, A * 2) - 128. * scale) / (224. * scale)
+        YCbCr444 = np.dstack((Y, Cb, Cr))
     return np.dot(YCbCr444, yuv2rgb.T)
 
 
@@ -57,7 +62,14 @@ def process_recons(frame):
 
 class Reader(y4m.Reader):
     def _frame_size(self):
-        pixels = super(Reader, self)._frame_size()
+        area = self._stream_headers['W'] * self._stream_headers['H']
+        C = self._stream_headers['C']
+        if C.startswith('420'):
+            pixels = area * 3 // 2
+        elif C.startswith('444'):
+            pixels = area * 3
+        else:
+            raise Exception('Unknown pixel format: %s' % C)
         if self._stream_headers['C'].endswith('p10'):
             return 2 * pixels
         return pixels
