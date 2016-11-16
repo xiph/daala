@@ -343,7 +343,7 @@ void od_init_qm(int16_t *x, int16_t *x_inv, const int *qm) {
           mag = OD_DEFAULT_MAG;
 #else
           /*FIXME: Do this rounding when generating OD_BASIS_MAG.*/
-          mag = (od_val32)floor(.5 + OD_DEFAULT_MAG*OD_BASIS_MAG[xydec][bs][i]*
+          mag = OD_ROUND32(OD_DEFAULT_MAG*OD_BASIS_MAG[xydec][bs][i]*
            OD_BASIS_MAG[xydec][bs][j]);
 #endif
           if (i == 0 && j == 0) {
