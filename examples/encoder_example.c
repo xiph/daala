@@ -217,6 +217,11 @@ static void id_y4m_file(av_input *avin, const char *file, FILE *test) {
     fprintf(stderr, "FPS denominator must be > 0.\n");
     exit(1);
   }
+  if (avin->video_pic_w <= 0 || avin->video_pic_h <= 0) {
+    fprintf(stderr, "Invalid picture size: %dx%d\n",
+     avin->video_pic_w, avin->video_pic_h);
+    exit(1);
+  }
   avin->video_infile = test;
   avin->has_video = 1;
   fprintf(stderr, "File '%s' is %ix%i %0.03f fps %s video.\n",
