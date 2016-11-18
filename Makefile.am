@@ -224,7 +224,8 @@ tools_TARGETS = \
 	tools/dump_psnr \
 	tools/vq_train \
 	tools/draw_zigzags \
-	tools/dump_msssim
+  tools/dump_msssim \
+  tools/y4m2yuv
 
 noinst_HEADERS += \
 	tools/cholesky.h \
@@ -482,6 +483,14 @@ tools_yuv2yuv4mpeg_SOURCES = \
 	tools/yuv2yuv4mpeg.c
 tools_yuv2yuv4mpeg_CFLAGS =
 tools_yuv2yuv4mpeg_LDADD =
+
+# y4m2yuv
+tools_y4m2yuv_SOURCES = \
+  tools/vidinput.c \
+  tools/y4m_input.c \
+  tools/y4m2yuv.c
+tools_y4m2yuv_CFLAGS =
+tools_y4m2yuv_LDADD =
 
 # vq_train
 tools_vq_train_SOURCES = \
