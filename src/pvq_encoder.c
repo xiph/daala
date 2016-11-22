@@ -103,6 +103,7 @@ static double pvq_search_rdo_double(const od_val16 *xcoeff, int n, int k,
   double norm_1;
   int rdo_pulses;
   double delta_rate;
+  double accel_rate;
   xx = xy = yy = 0;
   for (j = 0; j < n; j++) {
     x[j] = fabs((float)xcoeff[j]);
@@ -145,6 +146,21 @@ static double pvq_search_rdo_double(const od_val16 *xcoeff, int n, int k,
   /* Rough assumption for now, the last position costs about 3 bits more than
      the first. */
   delta_rate = 3./n;
+  accel_rate = 0.;
+  /* Quadratic fit of rate for a lone pulse.
+     Trained on subset3, like the following pseudocode:
+     rate = od_pvq_rate.where(k=1).group_by(n, pos).mean()
+     polyfit(pos, rate, deg=2, w=sqrt(exp2(-rate))) */
+  if (k == 1) {
+    if (n == 15) {
+      accel_rate = -8./n;
+      delta_rate = 4.5/n - accel_rate;
+    }
+    else if (n == 8) {
+      accel_rate = 5.7/n;
+      delta_rate = 9.3/n - accel_rate;
+    }
+  }
   /* Search one pulse at a time */
   for (; i < k - rdo_pulses; i++) {
     int pos;
@@ -191,7 +207,7 @@ static double pvq_search_rdo_double(const od_val16 *xcoeff, int n, int k,
       /*Calculate rsqrt(yy + 2*ypulse[j] + 1) using an optimized method.*/
       tmp_yy = od_custom_rsqrt_dynamic_table(rsqrt_table, rsqrt_table_size,
        yy, ypulse[j]);
-      tmp_xy = 2*tmp_xy*norm_1*tmp_yy - lambda*j*delta_rate;
+      tmp_xy = 2*tmp_xy*norm_1*tmp_yy - lambda*j*(delta_rate + j*accel_rate);
       if (j == 0 || tmp_xy > best_cost) {
         best_cost = tmp_xy;
         pos = j;
