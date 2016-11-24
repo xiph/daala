@@ -15,14 +15,17 @@ box2 = np.ones((2, 2))
 
 
 def decode_y4m_buffer(frame):
-    W, H, C, buf = frame.headers['W'], frame.headers['H'], frame.headers['C'], frame.buffer
-    A, div2, dtype, scale = W * H, (H // 2, W // 2), 'uint8', 1.
+    W, H = frame.headers['W'], frame.headers['H']
+    Wdiv2, Hdiv2 = W // 2, H // 2
+    C, buf = frame.headers['C'], frame.buffer
+    A, Adiv2, div2 = W * H, Hdiv2 * Wdiv2, (Hdiv2, Wdiv2)
+    dtype, scale = 'uint8', 1.
     if C.endswith('p10'):
         dtype, scale, A = 'uint16', 4., A * 2
     Y = (np.ndarray((H, W), dtype, buf) - 16. * scale) / (219. * scale)
     if C.startswith('420'):
         Cb = (np.ndarray(div2, dtype, buf, A) - 128. * scale) / (224. * scale)
-        Cr = (np.ndarray(div2, dtype, buf, A + A // 4) - 128. * scale) / (224. * scale)
+        Cr = (np.ndarray(div2, dtype, buf, A + Adiv2) - 128. * scale) / (224. * scale)
         YCbCr444 = np.dstack((Y, np.kron(Cb, box2), np.kron(Cr, box2)))
     else:
         Cb = (np.ndarray((H, W), dtype, buf, A) - 128. * scale) / (224. * scale)
