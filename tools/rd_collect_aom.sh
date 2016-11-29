@@ -15,7 +15,7 @@ echo $BASENAME
 WIDTH=$(head -1 $FILE | cut -d\  -f 2 | tr -d 'W')
 HEIGHT=$(head -1 $FILE | cut -d\  -f 3 | tr -d 'H')
 
-RANGE=$(seq 1 63)
+RANGE="20 32 43 55 63"
 case $CODEC in
 av1)
   QSTR="--end-usage=q --cq-level=\$x"
