@@ -1122,13 +1122,12 @@ static double od_compute_dist_8x8(daala_enc_ctx *enc, od_coeff *x, od_coeff *y,
     for (j = 0; j < 3; j++) {
       int varx;
       int vary;
-      double diff;
       varx = od_compute_var_4x4(x + 2*i*stride + 2*j, stride);
       vary = od_compute_var_4x4(y + 2*i*stride + 2*j, stride);
       min_var = OD_MINI(min_var, varx);
       mean_var += 1./(1 + varx);
-      diff = sqrt(varx) - sqrt(vary);
-      vardist += diff*diff;
+      /*The cast to (double) is to avoid an overflow before the sqrt.*/
+      vardist += varx - 2*sqrt(varx*(double)vary) + vary;
     }
   }
   /* We use a different variance statistic depending on whether activity
