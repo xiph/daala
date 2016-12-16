@@ -1041,17 +1041,21 @@ void od_pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,
   int yy;
   od_val32 scale;
   int nn;
+#if !defined(OD_FLOAT_PVQ)
   int gshift;
   int qshift;
+#endif
   OD_ASSERT(g != 0);
   nn = n-(!noref); /* when noref==0, vector in is sized n-1 */
   yy = 0;
   for (i = 0; i < nn; i++)
     yy += ypulse[i]*(int32_t)ypulse[i];
+#if !defined(OD_FLOAT_PVQ)
   /* Shift required for the magnitude of the pre-qm synthesis to be guaranteed
      to fit in 16 bits. In practice, the range will be 8192-16384 after scaling
      most of the time. */
   gshift = OD_MAXI(0, OD_ILOG(g) - 14);
+#endif
   /*scale is g/sqrt(yy) in Q(16-gshift) so that x[]*scale has a norm that fits
      in 16 bits.*/
   if (yy == 0) scale = 0;
@@ -1059,8 +1063,6 @@ void od_pvq_synthesis_partial(od_coeff *xcoeff, const od_coeff *ypulse,
   else {
     scale = g/sqrt(yy);
   }
-  OD_UNUSED(gshift);
-  OD_UNUSED(qshift);
 #else
   else {
     int rsqrt_shift;
