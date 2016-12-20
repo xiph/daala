@@ -195,6 +195,8 @@ static void pvq_decode_partition(od_ec_dec *ec,
     int flip;
     flip = od_ec_dec_bits(ec, 1, "cfl:flip");
     if (flip) {
+      /* Flip the sign of all coeffs in this band and all subsequent bands
+       * until the end of the block. */
       for (i = 0; i < cfl->nb_coeffs; i++) cfl->ref[i] = -cfl->ref[i];
     }
     cfl->allow_flip = 0;
@@ -344,6 +346,8 @@ void od_pvq_decode(daala_dec_ctx *dec,
   else {
     for (i = 0; i < nb_bands; i++) size[i] = off[i+1] - off[i];
     cfl.ref = ref;
+    /* Number of coefficients in the current band and all subsequent bands in
+     * the block */
     cfl.nb_coeffs = off[nb_bands];
     cfl.allow_flip = pli != 0 && is_keyframe;
     for (i = 0; i < nb_bands; i++) {

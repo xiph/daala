@@ -864,6 +864,8 @@ int od_pvq_encode(daala_enc_ctx *enc,
     /*If cos(theta) < 0, then |theta| > pi/2 and we should negate the ref.*/
     if (xy < 0) {
       flip = 1;
+      /*Flip the sign of all the coeff in this band and all subsequent bands
+       *until the end of the block.*/
       for(i = off[0]; i < off[nb_bands]; i++) ref[i] = -ref[i];
     }
   }
