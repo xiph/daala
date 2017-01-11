@@ -281,7 +281,8 @@ static void pvq_decode_partition(od_ec_dec *ec,
     g = od_gain_expand(qcg, q0, beta);
     pvq_synthesis(out, y, ref16, n, gr, *noref, g, theta, qm_inv, rshift);
   }
-  *skip = !!*skip;
+  /* If OD_PVQ_SKIP_ZERO or OD_PVQ_SKIP_COPY, set skip to 1 for visualization */
+  if (*skip) *skip = 1;
 }
 
 /** Decodes a coefficient block (except for DC) encoded using PVQ
