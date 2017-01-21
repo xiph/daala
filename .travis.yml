@@ -1,0 +1,12 @@
+language: c
+before_install:
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install autoconf automake libtool libogg libpng libjpeg check sdl2; fi
+os:
+  - linux
+  - osx
+compiler:
+  - gcc
+  - clang
+script:
+  - ./autogen.sh && ./configure && make && make tools
