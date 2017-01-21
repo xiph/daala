@@ -10,3 +10,4 @@ compiler:
   - clang
 script:
   - ./autogen.sh && ./configure && make && make tools
+ 
