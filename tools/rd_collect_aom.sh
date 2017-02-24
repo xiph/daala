@@ -18,12 +18,12 @@ HEIGHT=$(head -1 $FILE | cut -d\  -f 3 | tr -d 'H')
 RANGE="20 32 43 55 63"
 case $CODEC in
 av1)
-  QSTR="--end-usage=q --cq-level=\$x"
+  QSTR="--ivf --frame-parallel=0 --tile-columns=0 --auto-alt-ref=2 --cpu-used=0 --passes=2 --threads=1 --kf-min-dist=1000 --kf-max-dist=1000 --lag-in-frames=25 --end-usage=q --cq-level=\$x"
   ;;
 esac
 
 for x in $RANGE; do
-  $AOMENC --codec=$CODEC --good --cpu-used=0 --ivf $(echo $QSTR | sed 's/\$x/'$x'/g') -o $BASENAME.ivf $FILE 2> $BASENAME-$x-enc.out
+  $AOMENC --codec=$CODEC $(echo $QSTR | sed 's/\$x/'$x'/g') -o $BASENAME.ivf $FILE 2> $BASENAME-$x-enc.out
   $AOMDEC --codec=$CODEC -o $BASENAME.y4m $BASENAME.ivf
   SIZE=$(wc -c $BASENAME.ivf | awk '{ print $1 }')
   $DUMP_PSNR $FILE $BASENAME.y4m > $BASENAME-$x-psnr.out 2> /dev/null
