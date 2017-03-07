@@ -496,10 +496,12 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int bs,
   int quant;
   int dc_quant;
   int use_activity_masking;
+  int is_keyframe;
   OD_ASSERT(bs >= 0 && bs < OD_NBSIZES);
   n = 1 << (bs + 2);
   lossless = OD_LOSSLESS(dec);
   use_activity_masking = ctx->use_activity_masking;
+  is_keyframe = ctx->is_keyframe;
   bx <<= bs;
   by <<= bs;
   xdec = dec->state.info.plane_info[pli].xdec;
@@ -511,7 +513,7 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int bs,
   md = ctx->md;
   mc = ctx->mc;
   /*Apply forward transform to MC predictor.*/
-  if (!ctx->is_keyframe) {
+  if (!is_keyframe) {
     if (ctx->use_haar_wavelet) {
       od_haar(md + bo, w, mc + bo, w, bs + 2);
     }
@@ -531,7 +533,7 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int bs,
   }
   else {
     /*Safely initialize d since some coeffs are skipped by PVQ.*/
-    od_init_skipped_coeffs(d, pred, ctx->is_keyframe, bo, n, w);
+    od_init_skipped_coeffs(d, pred, is_keyframe, bo, n, w);
     od_raster_to_coding_order(predt,  n, &pred[0], n);
   }
   quant = OD_MAXI(1, dec->state.quantizer);
@@ -547,19 +549,22 @@ static void od_block_decode(daala_dec_ctx *dec, od_mb_dec_ctx *ctx, int bs,
   else {
     unsigned int flags;
     int off;
+    int nodesync;
+    /*We always use the robust bitstream for keyframes to avoid having
+      PVQ and entropy decoding depending on each other, hurting parallelism.*/
+    nodesync = OD_ROBUST_STREAM || is_keyframe;
     off = od_qm_offset(bs, xdec);
     od_pvq_decode(dec, predt, pred, quant, pli, bs,
-     OD_PVQ_BETA[use_activity_masking][pli][bs], OD_ROBUST_STREAM,
-     ctx->is_keyframe, &flags, skip, dec->state.qm + off,
-     dec->state.qm_inv + off);
+     OD_PVQ_BETA[use_activity_masking][pli][bs], nodesync, is_keyframe,
+     &flags, skip, dec->state.qm + off, dec->state.qm_inv + off);
 
     if (pli == 0 && dec->user_flags != NULL) {
       dec->user_flags[by*dec->user_fstride + bx] = flags;
     }
   }
-  if (!ctx->is_keyframe) {
+  if (!is_keyframe) {
     int has_dc_skip;
-    has_dc_skip = !ctx->is_keyframe && !ctx->use_haar_wavelet;
+    has_dc_skip = !is_keyframe && !ctx->use_haar_wavelet;
     if (!has_dc_skip || pred[0]) {
       pred[0] = has_dc_skip + generic_decode(&dec->ec,
        &dec->state.adapt.model_dc[pli], -1,

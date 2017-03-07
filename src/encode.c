@@ -1233,6 +1233,7 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int bs,
   int bo;
   int frame_width;
   int use_masking;
+  int is_keyframe;
   od_coeff *c;
   od_coeff *d;
   od_coeff *md;
@@ -1265,6 +1266,7 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int bs,
   xdec = enc->state.info.plane_info[pli].xdec;
   frame_width = enc->state.frame_width;
   use_masking = enc->use_activity_masking;
+  is_keyframe = ctx->is_keyframe;
   w = frame_width >> xdec;
   bo = (by << 2)*w + (bx << 2);
   c = ctx->c;
@@ -1274,7 +1276,7 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int bs,
   lossless = OD_LOSSLESS(enc);
   c_orig = enc->block_c_orig;
   mc_orig = enc->block_mc_orig;
-  has_late_skip_rdo = !ctx->is_keyframe && !ctx->use_haar_wavelet && bs > 0;
+  has_late_skip_rdo = !is_keyframe && !ctx->use_haar_wavelet && bs > 0;
   if (has_late_skip_rdo) {
     for (i = 0; i < n; i++) {
       for (j = 0; j < n; j++) c_orig[n*i + j] = c[bo + i*w + j];
@@ -1287,21 +1289,21 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int bs,
   }
   /* Apply forward transform. */
   if (ctx->use_haar_wavelet) {
-    if (rdo_only || !ctx->is_keyframe) {
+    if (rdo_only || !is_keyframe) {
       od_haar(d + bo, w, c + bo, w, bs + 2);
     }
-    if (!ctx->is_keyframe) {
+    if (!is_keyframe) {
       od_haar(md + bo, w, mc + bo, w, bs + 2);
     }
   }
   else {
-    if (rdo_only || !ctx->is_keyframe) {
+    if (rdo_only || !is_keyframe) {
       int quantized_dc;
       quantized_dc = d[bo];
       (*enc->state.opt_vtbl.fdct_2d[bs])(d + bo, w, c + bo, w);
-      if (ctx->is_keyframe) d[bo] = quantized_dc;
+      if (is_keyframe) d[bo] = quantized_dc;
     }
-    if (!ctx->is_keyframe) {
+    if (!is_keyframe) {
       (*enc->state.opt_vtbl.fdct_2d[bs])(md + bo, w, mc + bo, w);
     }
   }
@@ -1331,7 +1333,7 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int bs,
      enc->state.pvq_qm_q4[pli][od_qm_get_index(bs, 0)] >> 4);
   }
   /* This quantization may be overridden in the PVQ code for full RDO. */
-  if (!ctx->is_keyframe) {
+  if (!is_keyframe) {
     if (abs(dblock[0] - predt[0]) < dc_quant*141/256) { /* 0.55 */
       scalar_out[0] = 0;
     }
@@ -1345,15 +1347,19 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int bs,
   }
   else {
     int off;
+    int nodesync;
+    /*We always use the robust bitstream for keyframes to avoid having
+      PVQ and entropy decoding depending on each other, hurting parallelism.*/
+    nodesync = OD_ROBUST_STREAM || is_keyframe;
     off = od_qm_offset(bs, xdec);
     skip = od_pvq_encode(enc, predt, dblock, scalar_out, quant, pli, bs,
-     OD_PVQ_BETA[use_masking][pli][bs], OD_ROBUST_STREAM, ctx->is_keyframe,
-     ctx->q_scaling, bx, by, enc->state.qm + off, enc->state.qm_inv
-     + off, rdo_only && enc->complexity < 5 ? 1 : 0);
+     OD_PVQ_BETA[use_masking][pli][bs], nodesync, is_keyframe, ctx->q_scaling,
+     bx, by, enc->state.qm + off, enc->state.qm_inv + off,
+     rdo_only && enc->complexity < 5 ? 1 : 0);
   }
-  if (!ctx->is_keyframe) {
+  if (!is_keyframe) {
     int has_dc_skip;
-    has_dc_skip = !ctx->is_keyframe && !ctx->use_haar_wavelet;
+    has_dc_skip = !is_keyframe && !ctx->use_haar_wavelet;
     if (!has_dc_skip || scalar_out[0]) {
       generic_encode(&enc->ec, &enc->state.adapt.model_dc[pli],
        abs(scalar_out[0]) - has_dc_skip, -1,
@@ -1378,7 +1384,7 @@ static int od_block_encode(daala_enc_ctx *enc, od_mb_enc_ctx *ctx, int bs,
   }
   else {
     /*Safely initialize d since some coeffs are skipped by PVQ.*/
-    od_init_skipped_coeffs(d, pred, ctx->is_keyframe, bo, n, w);
+    od_init_skipped_coeffs(d, pred, is_keyframe, bo, n, w);
     od_coding_order_to_raster(&d[bo], w, scalar_out, n);
   }
   /*Apply the inverse transform.*/
