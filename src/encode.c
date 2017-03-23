@@ -2560,10 +2560,6 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
   rec = state->ref_imgs + state->ref_imgi[OD_FRAME_SELF];
   od_ec_enc_uint(&enc->ec, state->coded_quantizer, OD_N_CODED_QUANTIZERS);
   for (pli = 0; pli < nplanes; pli++) {
-    int pic_width;
-    int pic_height;
-    int plane_width;
-    int plane_height;
     /*Collect the image data needed for this plane.*/
     xdec = state->info.plane_info[pli].xdec;
     ydec = state->info.plane_info[pli].ydec;
@@ -2575,22 +2571,24 @@ static void od_encode_coefficients(daala_enc_ctx *enc, od_mb_enc_ctx *mbctx,
        w, nhsb, nvsb, xdec, ydec);
     }
     if (!mbctx->is_keyframe) {
+      int pic_width;
+      int pic_height;
+      int plane_width;
+      int plane_height;
       od_ref_plane_to_coeff(state,
        state->mctmp[pli], OD_LOSSLESS(enc), rec, pli);
       if (!mbctx->use_haar_wavelet) {
         od_apply_prefilter_frame_sbs(state->mctmp[pli], w, nhsb, nvsb, xdec,
          ydec);
       }
-    }
-    pic_width = enc->state.info.pic_width >> xdec;
-    pic_height = enc->state.info.pic_height >> ydec;
-    plane_width = enc->state.frame_width >> xdec;
-    plane_height = enc->state.frame_height >> ydec;
-    /* To avoid wasting bits on padding, we make the input padding identical
-       to the reference. That way there's no extra information to code there.
-       Even better would be to also avoid taking padding into account in the
-       distortion computation. */
-    if (!mbctx->is_keyframe) {
+      pic_width = enc->state.info.pic_width >> xdec;
+      pic_height = enc->state.info.pic_height >> ydec;
+      plane_width = enc->state.frame_width >> xdec;
+      plane_height = enc->state.frame_height >> ydec;
+      /* To avoid wasting bits on padding, we make the input padding identical
+         to the reference. That way there's no extra information to code there.
+         Even better would be to also avoid taking padding into account in the
+         distortion computation. */
       for (x = pic_width; x < plane_width; x++) {
         for (y = 0; y < plane_height; y++) {
           state->ctmp[pli][y*w + x] = state->mctmp[pli][y*w + x];
