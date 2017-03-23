@@ -1,0 +1,24 @@
+language: c
+
+compiler:
+  - gcc
+  - clang
+
+os:
+  - linux
+  - osx
+
+env:
+  - CONFIG=""
+  - CONFIG="--enable-assertions"
+  - CONFIG="--enable-assertions --enable-check-asm"
+  - CONFIG="--enable-assertions --enable-encoder-check"
+  - CONFIG="--enable-assertions --enable-float-pvq"
+  - CONFIG="--enable-assertions --enable-dct-check-overflow"
+  - CONFIG="--enable-assertions --enable-accounting"
+  - CONFIG="--enable-assertions --enable-ec-accounting"
+
+script:
+  - ./autogen.sh
+  - ./configure $CONFIG
+  - make distcheck
