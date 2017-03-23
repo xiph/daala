@@ -8,15 +8,21 @@ os:
   - linux
   - osx
 
+before_install:
+    - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update       ; fi
+    - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install check; fi
+    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get -qq update; fi
+    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get install -y check; fi
+
 env:
-  - CONFIG=""
-  - CONFIG="--enable-assertions"
-  - CONFIG="--enable-assertions --enable-check-asm"
-  - CONFIG="--enable-assertions --enable-encoder-check"
-  - CONFIG="--enable-assertions --enable-float-pvq"
-  - CONFIG="--enable-assertions --enable-dct-check-overflow"
-  - CONFIG="--enable-assertions --enable-accounting"
-  - CONFIG="--enable-assertions --enable-ec-accounting"
+  - CONFIG="--disable-examples --disable-player --disable-tools"
+  - CONFIG="--disable-examples --disable-player --disable-tools --enable-assertions"
+  - CONFIG="--disable-examples --disable-player --disable-tools --enable-assertions --enable-check-asm"
+  - CONFIG="--disable-examples --disable-player --disable-tools --enable-assertions --enable-encoder-check"
+  - CONFIG="--disable-examples --disable-player --disable-tools --enable-assertions --enable-float-pvq"
+  - CONFIG="--disable-examples --disable-player --disable-tools --enable-assertions --enable-dct-check-overflow"
+  - CONFIG="--disable-examples --disable-player --disable-tools --enable-assertions --enable-accounting"
+  - CONFIG="--disable-examples --disable-player --disable-tools --enable-assertions --enable-ec-accounting"
 
 script:
   - ./autogen.sh
