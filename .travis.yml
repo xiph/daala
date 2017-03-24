@@ -27,4 +27,4 @@ env:
 script:
   - ./autogen.sh
   - ./configure $CONFIG
-  - make distcheck
+  - make check
