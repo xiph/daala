@@ -2,7 +2,7 @@
 <!DOCTYPE rfc SYSTEM 'rfc2629.dtd'>
 <?rfc toc="yes" symrefs="yes" ?>
 
-<rfc ipr="trust200902" category="info" docName="draft-terriberry-netvc-codingtools-01">
+<rfc ipr="trust200902" category="info" docName="draft-terriberry-netvc-codingtools-02">
 
 <front>
 <title abbrev="Coding Tools">Coding Tools for a Next Generation Video Codec</title>
@@ -35,7 +35,7 @@
 </address>
 </author>
 
-<date day="31" month="October" year="2016"/>
+<date day="24" month="April" year="2017"/>
 <area>ART</area>
 <workgroup>netvc</workgroup>
 
@@ -62,8 +62,8 @@ This draft documents some of the tools we have been working on for inclusion in
  such a codec.
 This is early work, and the performance of some of these tools (especially in
  relation to other approaches) is not yet fully known.
-Nevertheless, it still serves to outline some possibilities an eventual working
- group, if formed, could consider.
+Nevertheless, it still serves to outline some possibilities that NETVC could
+ consider.
 </t>
 
 </section>
@@ -412,106 +412,108 @@ Looking at the graph of the CDF we see that the likelihood for symbol 3
 
 <section title="Simplified Partition Function">
 <t>
-Rather than changing the context modeling, the other approach is to change the
- function used to partition the set of valid code points so that it does not
- need a division, even when ft is not a power of two.
 Let the range of valid code points in the current arithmetic coder state be
  [L,&nbsp;L&nbsp;+&nbsp;R), where L is the lower bound of the range and R is
  the number of valid code points.
-Assume that ft&nbsp;&lt;=&nbsp;R&nbsp;&lt;&nbsp;2*ft (this is easy to enforce
- with the normal rescaling operations used with frequency counts).
-Then one possible partition function is
-<figure align="center">
-<artwork align="center"><![CDATA[
-r[k] = fl[k] + min(fl[k], R - ft)
-]]></artwork>
-</figure>
- so that the new range after coding symbol k is
- [L&nbsp;+&nbsp;r[k],&nbsp;L&nbsp;+&nbsp;r[k+1]).
-</t>
-<t>
-This is a variation of the partition function proposed
- by&nbsp;<xref target="SM98"/>.
-The size of the new partition (r[k+1]&nbsp;-&nbsp;r[k]) is no longer truly
- proportional to R*p[k].
-This partition function counts values of fl[k] smaller than R&nbsp;-&nbsp;ft
- double compared to values larger than R&nbsp;-&nbsp;ft.
-This over-estimates the probability of symbols at the start of the alphabet
- and underestimates the probability of symbols at the end of the alphabet.
-The amount of the range allocated to a symbol can be off by up to a factor of
- 2 compared to its fair share, implying a peak error as large as one bit per
- symbol.
-However, if the probabilities are accurate and the symbols being coded are
- independent, the average inefficiency introduced will be as low as
- log2(log2(e)*2/e)&nbsp;~=&nbsp;0.0861 bits per symbol.
-This error can, of course, be reduced by coding fewer symbols with larger
- alphabets.
-In practice the overhead is roughly equal to the overhead introduced by other
- approximate arithmetic coders like H.264's CABAC.
-However, probabilities near one-half tend to have the most overhead.
-In fact, probabilities in the range of 40% to 60% for a binary symbol may not
- be worth modeling, since the compression gains may be entirely countered
- by the added overhead, making it cheaper and faster to code such values as
- raw bits.
-This problem is partially alleviated by using larger alphabets.
-</t>
-<section title="Reduced-Overhead Partition Function">
-<t>
-A slightly more complicated partition function can reduce the overhead while
- still avoiding the division.
-This is done by splitting things into two cases:
-<list>
-<t>
-Case 1: <![CDATA[R - ft > ft - (R - ft)]]><vspace blankLines="1"/>
-That is, we have more values that are double-counted than single-counted.
-In this case, we still double-count the first 2*R&nbsp;-&nbsp;3*ft values,
- but after that we alternate between single-counting and double-counting
- for the rest.
-</t>
-<t>
-Case 2: <![CDATA[R - ft < ft - (R - ft)]]><vspace blankLines="1"/>
-That is, we have more values that are single-counted than double-counted.
-In this case, we alternate between single-counting and double-counting for
- the first 2*(R&nbsp;-&nbsp;ft) values, and single-count the rest.
-</t>
-</list>
-For two equiprobable symbols in different places in the alphabet, this
- reduces the maximum ratio of over-estimation to under-estimation from 2:1
- for the previous partition function to either 4:3 or 3:2 (for each of the
- two cases above, respectively), assuming symbol probabilities significantly
- greater than the minimum possible.
-That reduces the worst-case per-symbol overhead from 1 bit to 0.58 bits.
-</t>
-<t>
-The resulting reduced-overhead partition function is
+The goal of the arithmetic coder is to partition this interval proportional to
+ the probability of each symbol.
+When using dyadic probabilities, the partition point in the range corresponding
+ to a given CDF value can be determined via
 </t>
 <figure align="center">
 <artwork align="center"><![CDATA[
-   e = max(2*R - 3*ft, 0)
-r[k] = fl[k] + min(fl[k], e) + min(max(fl[k] - e, 0) >> 1, R - ft)
+               fl[k]*R
+u[k] = floor ( ------- )
+                 ft
 ]]></artwork>
 </figure>
 <t>
-Here, e is a value that is greater than 0 in case 1, and 0 in case 2.
-This function is about three times as expensive to evaluate as the
- high-overhead version, but still an order of magnitude cheaper than a
- division, since it is composed of very simple operations.
+Since ft is a power of two, this may be implemented using a right shift by T
+ bits in place of the division:
 </t>
+<figure align="center">
+<artwork align="center"><![CDATA[
+u[k] = (fl[k]*R) >> T
+]]></artwork>
+</figure>
 <t>
-In practice it reduces the overhead by about 0.3% of the total bitrate.
-It also tends to produce R values with a more uniform distribution compared
- to the high-overhead version, which tends to have peaks in the distribution
- of R at specific values (see <xref target="SM98"/> for a discussion of this
- effect).
-Overall, it makes it more likely that the compression gains from
- probabilities near one-half are not eliminated by the approximation
- overhead, increasing the number of symbols that can be usefully modeled.
-It is an open question whether or not these benefits are worth the increase
- in computational complexity.
+The latency of the multiply still dominates the hardware timing.
+However, we can reduce this latency by using a smaller multiply, at the cost of
+ some accuracy in the partition.
+We cannot, in general, reduce the size of fl[k], since this might send a
+ probability to zero (i.e., cause u[k] to have the same value as u[k+1]).
+On the other hand, we know that the top bit of R is always 1, since it gets
+ renormalized with every symbol that is encoded.
+Suppose R contains 16 bits and that T is at least 8.
+Then we can greatly reduce the size of the multiply by using the formula
+</t>
+<figure align="center">
+<artwork align="center"><![CDATA[
+       ( (fl[k]*(R >> 8)) >> (T - 8), 0 <= k < M
+u[k] = <
+       ( R,                           k == M
+]]></artwork>
+</figure>
+<t>
+The special case for k&nbsp;==&nbsp;M is required because, with the general
+ formula, u[M] no longer exactly equals R.
+Without the special case we would waste some amount of code space and require
+ the decoder to check for invalid streams.
+This special case slightly inflates the probability of the last symbol.
+Unfortunately, in codecs the usual convention is that the last symbol is the
+ least probable, while the first symbol (e.g., 0) is the most probable.
+That maximizes the coding overhead introduced by this approximation error.
+To minimize it, we instead add all of the accumulated error to the first symbol
+ by using a variation of the above update formula:
+</t>
+<figure align="center">
+<artwork align="center"><![CDATA[
+       ( 0,                                        k == 0
+u[k] = <
+       ( R - (((ft - fl[k])*(R >> 8)) >> (T - 8)), 0 < k <= M
+]]></artwork>
+</figure>
+<t>
+This also aids the software decoder search, since it can prime the search loop
+ with the special case, instead of needing to check for it on every iteration
+ of the loop.
+It is easier to incorporate into a SIMD search as well.
+It does, however, add two subtractions.
+Since the encoder always operates on the difference between two partition
+ points, the first subtraction (involving R) can be eliminated.
+Similar optimizations can eliminate this subtraction in the decoder by flipping
+ its internal state (measuring the distance of the encoder output from the top
+ of the range instead of the bottom).
+To avoid the other subtraction, we can simply use "inverse CDFs" that natively
+ store ifl[k]&nbsp;=&nbsp;(ft&nbsp;-&nbsp;fl[k]) instead of fl[k].
+This produces the following partition function:
+</t>
+<figure align="center">
+<artwork align="center"><![CDATA[
+           ( R,                            k == 0
+R - u[k] = <
+           ( (ifl[k]*(R >> 8)) >> (T - 8), 0 < k <= M
+]]></artwork>
+</figure>
+<t>
+The reduction in hardware latency can be as much as 20%, and the impact on area
+ is even larger.
+The overall software complexity overhead is minimal, and the coding efficiency
+ overhead due to the approximation is about 0.02%.
+We could have achieved the same efficiency by leaving the special case on the
+ last symbol and reversing the alphabet instead of inverting the probabilities.
+However, reversing the alphabet at runtime would have required an extra
+ subtraction (or more general re-ordering requires a table lookup).
+That may be avoidable in some cases, but only by propagating the reordering
+ alphabet outside of the entropy coding machinery, requiring changes to every
+ coding tool and potentially leading to confusion.
+CDFs, on the other hand, are already a somewhat abstract representation of the
+ underlying probabilities used for computational efficiency reasons.
+Generalizing these to "inverse CDFs" is a straightforward change that only
+ affects probability initialization and adaptation, without impacting the
+ design of other coding tools.
 </t>
 </section>
-</section>
-
 
 <section title="Context Adaptation">
 <t>
@@ -1274,17 +1276,6 @@ Thanks to Nathan Egge, Gregory Maxwell, and Jean-Marc Valin for their
 <seriesInfo
  name="Proc. of the 12th Pacific Conference on Computer Graphics and Applications (PG'04)"
  value="pp. 371--380"/>
-</reference>
-
-<reference anchor="SM98">
-<front>
-<title>Piecewise Integer Mapping for Arithmetic Coding</title>
-<author initials="L." surname="Stuiver" fullname="Lang Stuiver"/>
-<author initials="A." surname="Moffat" fullname="Alistair Moffat"/>
-<date month="March/April" year="1998"/>
-</front>
-<seriesInfo name="Proc. of the 17th IEEE Data Compression Conference (DCC'98)"
- value="pp. 1--10"/>
 </reference>
 
 <reference anchor="TSSRM08">
