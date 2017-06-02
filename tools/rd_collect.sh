@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-CODECS="<daala|av1|vp8|vp9|x264|x265|libjpeg|mozjpeg|theora|webp|bpg>"
+CODECS="<daala|av1|av1-rt|vp8|vp9|x264|x265|libjpeg|mozjpeg|theora|webp|bpg>"
 
 if [ $# == 0 ]; then
   echo "usage: DAALA_ROOT=<build_dir> $0 $CODECS *.y4m"
@@ -61,7 +61,7 @@ case $CODEC in
 
     export RD_COLLECT_SUB=$(dirname "$0")/rd_collect_daala.sh
     ;;
-  av1)
+  av1 | av1-rt)
     if [ -z $AOM_ROOT ] || [ ! -d $AOM_ROOT ]; then
       echo "Please set AOM_ROOT to the location of your aom git clone"
       exit 1
