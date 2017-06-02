@@ -389,4 +389,4 @@ if [ -z "$CORES" ]; then
   #echo "CORES not set, using $CORES"
 fi
 
-find -L $@ -type f -name "*.y4m" -print0 | xargs -0 -n1 -P$CORES $RD_COLLECT_SUB
+find -L "$@" -type f -name "*.y4m" -print0 | xargs -0 -n1 -P$CORES $RD_COLLECT_SUB
