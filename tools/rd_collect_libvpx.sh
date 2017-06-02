@@ -2,7 +2,7 @@
 set -e
 
 if [ -z $RD_COLLECT_SUB ]; then
-  echo "Please use: $(dirname $0)/rd_collect.sh <vp8|vp9|vp10> *.y4m"
+  echo "Please use: $(dirname $0)/rd_collect.sh <vp8|vp9> *.y4m"
   exit 1
 fi
 
@@ -20,7 +20,7 @@ case $CODEC in
 vp8)
   QSTR="--end-usage=cq --cq-level=\$x"
   ;;
-vp9 | vp10)
+vp9)
   QSTR="--end-usage=q --cq-level=\$x"
   ;;
 esac
