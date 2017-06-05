@@ -334,6 +334,10 @@ if [ -z "$DUMP_FASTSSIM" ]; then
   export DUMP_FASTSSIM=$TOOLS_ROOT/tools/dump_fastssim
 fi
 
+if [ -z "$DUMP_CIEDE" ]; then
+  export DUMP_CIEDE=$(dirname $0)/dump_ciede2000.py
+fi
+
 if [ ! -x "$YUV2YUV4MPEG" ]; then
   echo "Executable not found YUV2YUV4MPEG=$YUV2YUV4MPEG"
   echo "Do you have the right TOOLS_ROOT=$TOOLS_ROOT"

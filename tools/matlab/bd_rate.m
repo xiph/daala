@@ -80,6 +80,7 @@ chdir(pin(1:(length(pin)-length(program_name))));
 [psnrhvs_rate,psnrhvs_dsnr]=bjontegaard([rate1,rd1(:,5)],[rate2,rd2(:,5)],t,min_bpp,max_bpp);
 [ssim_rate,ssim_dsnr]=bjontegaard([rate1,rd1(:,6)],[rate2,rd2(:,6)],t,min_bpp,max_bpp);
 [fastssim_rate,fastssim_dsnr]=bjontegaard([rate1,rd1(:,7)],[rate2,rd2(:,7)],t,min_bpp,max_bpp);
+[ciede_rate,ciede_dsnr]=bjontegaard([rate1,rd1(:,8)],[rate2,rd2(:,8)],t,min_bpp,max_bpp);
 
 if ((min_bpp != 0) || (max_bpp != Inf))
   printf("          DSNR (dB)\n");
@@ -87,10 +88,12 @@ if ((min_bpp != 0) || (max_bpp != Inf))
   printf(" PSNRHVS %0.5f\n",psnrhvs_dsnr);
   printf("    SSIM %0.5f\n",ssim_dsnr);
   printf("FASTSSIM %0.5f\n",fastssim_dsnr);
+  printf("   CIEDE %0.5f\n",ciede_dsnr);
 else 
   printf("           RATE (%%)  DSNR (dB)\n");
   printf("    PSNR %0.5f  %0.5f\n",psnr_rate,psnr_dsnr);
   printf(" PSNRHVS %0.5f  %0.5f\n",psnrhvs_rate,psnrhvs_dsnr);
   printf("    SSIM %0.5f  %0.5f\n",ssim_rate,ssim_dsnr);
   printf("FASTSSIM %0.5f  %0.5f\n",fastssim_rate,fastssim_dsnr);
+  printf("   CIEDE %0.5f  %0.5f\n",ciede_rate,ciede_dsnr);
 endif

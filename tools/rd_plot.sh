@@ -36,6 +36,7 @@ for FILE in "$@"; do
   PSNRHVS="$PSNRHVS $PREFIX '$FILE' using (\$3*8/\$2):5 with lines title '${BASENAME%.*} (PSNR-HVS)'"
   SSIM="$SSIM $PREFIX '$FILE' using (\$3*8/\$2):6 with lines title '${BASENAME%.*} (SSIM)'"
   FASTSSIM="$FASTSSIM $PREFIX '$FILE' using (\$3*8/\$2):7 with lines title '${BASENAME%.*} (FAST SSIM)'"
+  CIEDE="$CIEDE $PREFIX '$FILE' using (\$3*8/\$2):8 with lines title '${BASENAME%.*} (CIEDE2000)'"
   PREFIX=","
 done
 
@@ -47,3 +48,5 @@ SUFFIX="ssim.png"
 $GNUPLOT -e "$CMDS set output \"$IMAGE$SUFFIX\"; plot $SSIM;"     2> /dev/null
 SUFFIX="fastssim.png"
 $GNUPLOT -e "$CMDS set output \"$IMAGE$SUFFIX\"; plot $FASTSSIM;" 2> /dev/null
+SUFFIX="ciede2000.png"
+$GNUPLOT -e "$CMDS set output \"$IMAGE$SUFFIX\"; plot $CIEDE;" 2> /dev/null
