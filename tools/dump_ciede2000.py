@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+
 from collections import deque
 import sys
 import numpy as np
@@ -13,6 +14,10 @@ yuv2rgb = np.array([
 # Simple box filter
 box2 = np.ones((2, 2))
 
+
+def usage():
+    print("Usage: %s <video1> <video2>\n"
+            "    <video1> and <video2> must be YUV4MPEG files.\n\n" %  __file__);
 
 def decode_y4m_buffer(frame):
     W, H = frame.headers['W'], frame.headers['H']
@@ -78,6 +83,10 @@ class Reader(y4m.Reader):
         return pixels
 
 def main(args):
+    if len(args) != 3:
+        usage()
+        sys.exit(0)
+
     OPENING = 'Opening %s...'
     BLOCK_SIZE = 4 * 1024 * 1024
     ref_parser = Reader(process_ref)

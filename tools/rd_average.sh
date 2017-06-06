@@ -16,4 +16,19 @@ if [ -e "$TOTAL" ]; then
   exit 1
 fi
 
-awk '{size[$1]+=$2;bytes[$1]+=$3;psnr[$1]+=$2*$4;psnrhvs[$1]+=$2*$5;ssim[$1]+=$2*$6;fastssim[$1]+=$2*$7;ciede[$1]+=$2*$8;}END{for(i in size)print i,size[i],bytes[i],psnr[i]/size[i],psnrhvs[i]/size[i],ssim[i]/size[i],fastssim[i]/size[i],ciede[i]/size[i];}' $@ | sort -n > $TOTAL
+IFS=' ' read -r VALUES <<< "$(head -n 1 $1)"
+VALUES=($VALUES)
+NUM_VALUES=${#VALUES[@]}
+CIEDE_ROW=8
+
+AWK_SUM='size[$1]+=$2;bytes[$1]+=$3;psnr[$1]+=$2*$4;psnrhvs[$1]+=$2*$5;ssim[$1]+=$2*$6;fastssim[$1]+=$2*$7;'
+AWK_DIV='psnr[i]/size[i],psnrhvs[i]/size[i],ssim[i]/size[i],fastssim[i]/size[i]'
+
+if [ $NUM_VALUES -ge $CIEDE_ROW ]; then
+  AWK_SUM+='ciede[$1]+=$2*$8;'
+  AWK_DIV+=',ciede[i]/size[i]'
+fi
+
+AWK_CMD="{$AWK_SUM}END{for(i in size)print i,size[i],bytes[i],$AWK_DIV;}"
+
+awk "$AWK_CMD" $@ | sort -n > $TOTAL

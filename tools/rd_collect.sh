@@ -380,6 +380,19 @@ if [ ! -x "$DUMP_FASTSSIM" ]; then
   exit 1
 fi
 
+set +e
+temp=$($DUMP_CIEDE)
+if [ $? -ne 0 ]; then
+  echo "Warning Python dependencies not found. CIEDE2000 will not be computed."
+  echo "Required Python dependencies are: numpy, skimage and y4m."
+  if [ "$(uname -s)" = "Darwin" ]; then
+    DUMP_CIEDE=/usr/bin/true
+  else
+    DUMP_CIEDE=/bin/true
+  fi
+fi
+set -e
+
 if [ -z "$CORES" ]; then
   if [ "$(uname -s)" = "Darwin" ]; then
     CORES=$(sysctl -n hw.ncpu)

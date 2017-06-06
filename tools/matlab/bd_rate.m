@@ -3,6 +3,8 @@
 warning("off","Octave:nested-functions-coerced");
 warning("on","Octave:missing-semicolon");
 
+CIEDE_ROW = 8;
+
 args=argv();
 
 if size(args,1)!=2
@@ -70,6 +72,13 @@ endswitch
 rd1=load("-ascii",args{1});
 rd2=load("-ascii",args{2});
 
+[~, num_val_1] = size(rd1);
+[~, num_val_2] = size(rd2);
+if num_val_1 ~= num_val_2
+  printf("Number of metrics does not match.")
+  return
+end
+
 rd1=flipud(sortrows(rd1,1));
 rd2=flipud(sortrows(rd2,1));
 
@@ -79,16 +88,29 @@ rate2=rd2(:,3)*8./rd2(:,2);
 pin = program_invocation_name;
 chdir(pin(1:(length(pin)-length(program_name))));
 
-[psnr_rate,psnr_dsnr]=bjontegaard([rate1,rd1(:,4)],[rate2,rd2(:,4)],t,min_bpp,max_bpp);
-[psnrhvs_rate,psnrhvs_dsnr]=bjontegaard([rate1,rd1(:,5)],[rate2,rd2(:,5)],t,min_bpp,max_bpp);
-[ssim_rate,ssim_dsnr]=bjontegaard([rate1,rd1(:,6)],[rate2,rd2(:,6)],t,min_bpp,max_bpp);
-[fastssim_rate,fastssim_dsnr]=bjontegaard([rate1,rd1(:,7)],[rate2,rd2(:,7)],t,min_bpp,max_bpp);
-[ciede_rate,ciede_dsnr]=bjontegaard([rate1,rd1(:,8)],[rate2,rd2(:,8)],t,min_bpp,max_bpp);
+[psnr_rate,psnr_dsnr]=bjontegaard([rate1,rd1(:,4)],[rate2,rd2(:,4)],t,...
+ min_bpp,max_bpp);
+[psnrhvs_rate,psnrhvs_dsnr]=bjontegaard([rate1,rd1(:,5)],[rate2,rd2(:,5)],...
+ t,min_bpp,max_bpp);
+[ssim_rate,ssim_dsnr]=bjontegaard([rate1,rd1(:,6)],[rate2,rd2(:,6)],t,...
+ min_bpp,max_bpp);
+[fastssim_rate,fastssim_dsnr]=bjontegaard([rate1,rd1(:,7)],[rate2,rd2(:,7)]...
+ ,t,min_bpp,max_bpp);
 
-if (strcmpi(REPORT, "awcy"))
-  printf("    PSNR | PSNR HVS |    SSIM | MS SSIM | CIEDE 2000\n")
-  printf("%8.4f |%9.4f |%8.4f |%8.4f |%11.4f\n", psnr_rate, psnrhvs_rate, ...
-   ssim_rate, fastssim_rate, ciede_rate)
+if num_val_1 >= 8
+  [ciede_rate,ciede_dsnr]=bjontegaard([rate1,rd1(:,8)],[rate2,rd2(:,8)],t,...
+   min_bpp,max_bpp);
+endif
+
+if (strcmpi(REPORT,"awcy"))
+  header = "    PSNR | PSNR HVS |    SSIM | MS SSIM";
+  values = sprintf("%8.4f |%9.4f |%8.4f |%8.4f",psnr_rate,psnrhvs_rate,...
+   ssim_rate,fastssim_rate);
+  if num_val_1 >= CIEDE_ROW
+    header = sprintf("%s | CIEDE 2000",header);
+    values = sprintf("%s |%11.4f", values,ciede_rate);
+  endif
+  printf("%s\n%s\n",header,values)
 else
   if ((min_bpp != 0) || (max_bpp != Inf))
     printf("          DSNR (dB)\n");
@@ -96,13 +118,17 @@ else
     printf(" PSNRHVS %0.5f\n",psnrhvs_dsnr);
     printf("    SSIM %0.5f\n",ssim_dsnr);
     printf("FASTSSIM %0.5f\n",fastssim_dsnr);
-    printf("   CIEDE %0.5f\n",ciede_dsnr);
+    if num_val_1 >= CIEDE_ROW
+      printf("   CIEDE %0.5f\n",ciede_dsnr);
+    endif
   else
     printf("           RATE (%%)  DSNR (dB)\n");
     printf("    PSNR %0.5f  %0.5f\n",psnr_rate,psnr_dsnr);
     printf(" PSNRHVS %0.5f  %0.5f\n",psnrhvs_rate,psnrhvs_dsnr);
     printf("    SSIM %0.5f  %0.5f\n",ssim_rate,ssim_dsnr);
     printf("FASTSSIM %0.5f  %0.5f\n",fastssim_rate,fastssim_dsnr);
-    printf("   CIEDE %0.5f  %0.5f\n",ciede_rate,ciede_dsnr);
+    if num_val_1 >= CIEDE_ROW
+      printf("   CIEDE %0.5f  %0.5f\n",ciede_rate,ciede_dsnr);
+    endif
   endif
 endif
