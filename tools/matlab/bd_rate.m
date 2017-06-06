@@ -8,11 +8,14 @@ args=argv();
 if size(args,1)!=2
   printf("usage: ./bd_rate.sh <RD-1.out> <RD-2.out>\n");
   printf("influential environment variables:\n");
+  printf("REPORT: if set to \"awcy\", the format will be the same as the ACWY text report.");
   printf("TYPE: piecewise-linear or cubic-polyfit\n");
   printf("MIN_BPP, MAX_BPP: Bounds, in bits per pixel, for curve integration.\n");
   printf("              Ignore rate %% if this range is small.\n");
   return
 end
+
+REPORT=getenv("REPORT");
 
 TYPE=getenv("TYPE");
 if strcmp(TYPE,"")
@@ -82,18 +85,24 @@ chdir(pin(1:(length(pin)-length(program_name))));
 [fastssim_rate,fastssim_dsnr]=bjontegaard([rate1,rd1(:,7)],[rate2,rd2(:,7)],t,min_bpp,max_bpp);
 [ciede_rate,ciede_dsnr]=bjontegaard([rate1,rd1(:,8)],[rate2,rd2(:,8)],t,min_bpp,max_bpp);
 
-if ((min_bpp != 0) || (max_bpp != Inf))
-  printf("          DSNR (dB)\n");
-  printf("    PSNR %0.5f\n",psnr_dsnr);
-  printf(" PSNRHVS %0.5f\n",psnrhvs_dsnr);
-  printf("    SSIM %0.5f\n",ssim_dsnr);
-  printf("FASTSSIM %0.5f\n",fastssim_dsnr);
-  printf("   CIEDE %0.5f\n",ciede_dsnr);
-else 
-  printf("           RATE (%%)  DSNR (dB)\n");
-  printf("    PSNR %0.5f  %0.5f\n",psnr_rate,psnr_dsnr);
-  printf(" PSNRHVS %0.5f  %0.5f\n",psnrhvs_rate,psnrhvs_dsnr);
-  printf("    SSIM %0.5f  %0.5f\n",ssim_rate,ssim_dsnr);
-  printf("FASTSSIM %0.5f  %0.5f\n",fastssim_rate,fastssim_dsnr);
-  printf("   CIEDE %0.5f  %0.5f\n",ciede_rate,ciede_dsnr);
+if (strcmpi(REPORT, "awcy"))
+  printf("    PSNR | PSNR HVS |    SSIM | MS SSIM | CIEDE 2000\n")
+  printf("%8.4f |%9.4f |%8.4f |%8.4f |%11.4f\n", psnr_rate, psnrhvs_rate, ...
+   ssim_rate, fastssim_rate, ciede_rate)
+else
+  if ((min_bpp != 0) || (max_bpp != Inf))
+    printf("          DSNR (dB)\n");
+    printf("    PSNR %0.5f\n",psnr_dsnr);
+    printf(" PSNRHVS %0.5f\n",psnrhvs_dsnr);
+    printf("    SSIM %0.5f\n",ssim_dsnr);
+    printf("FASTSSIM %0.5f\n",fastssim_dsnr);
+    printf("   CIEDE %0.5f\n",ciede_dsnr);
+  else
+    printf("           RATE (%%)  DSNR (dB)\n");
+    printf("    PSNR %0.5f  %0.5f\n",psnr_rate,psnr_dsnr);
+    printf(" PSNRHVS %0.5f  %0.5f\n",psnrhvs_rate,psnrhvs_dsnr);
+    printf("    SSIM %0.5f  %0.5f\n",ssim_rate,ssim_dsnr);
+    printf("FASTSSIM %0.5f  %0.5f\n",fastssim_rate,fastssim_dsnr);
+    printf("   CIEDE %0.5f  %0.5f\n",ciede_rate,ciede_dsnr);
+  endif
 endif
