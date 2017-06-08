@@ -27,7 +27,7 @@ av1-rt)
 esac
 
 for x in $RANGE; do
-  $AOMENC --codec=$CODEC $(echo $QSTR | sed 's/\$x/'$x'/g') -o $BASENAME.ivf $FILE 2> $BASENAME-$x-enc.out
+  $AOMENC --codec=$CODEC $EXTRA_OPTS $(echo $QSTR | sed 's/\$x/'$x'/g') -o $BASENAME.ivf $FILE 2> $BASENAME-$x-enc.out
   $AOMDEC --codec=$CODEC -o $BASENAME.y4m $BASENAME.ivf
   SIZE=$(wc -c $BASENAME.ivf | awk '{ print $1 }')
   $DUMP_PSNR $FILE $BASENAME.y4m > $BASENAME-$x-psnr.out 2> /dev/null
