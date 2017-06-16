@@ -268,7 +268,11 @@ int main(int argc, char *argv[]) {
   /* Only interested in Daala streams */
   while (!stateflag) {
     int ret = buffer_data(infile, &oy);
-    if (ret == 0) break;
+    if (ret == 0) {
+      /* Input file is empty.*/
+      fprintf(stderr, "End of file while searching for codec headers.\n");
+      exit(1);
+    }
     while (ogg_sync_pageout(&oy, &og) > 0) {
       int got_packet;
       ogg_stream_state test;
