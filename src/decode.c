@@ -1249,6 +1249,7 @@ int daala_decode_packet_in(daala_dec_ctx *dec, const daala_packet *op) {
 }
 
 int daala_decode_img_out(daala_dec_ctx *dec, daala_image *img) {
+  if (dec == NULL || img == NULL) return OD_EFAULT;
   if (od_output_queue_has_next(&dec->out)) {
     od_output_frame *frame;
     frame = od_output_queue_next(&dec->out);
