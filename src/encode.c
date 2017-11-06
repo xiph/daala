@@ -495,6 +495,7 @@ static int od_enc_init(od_enc_ctx *enc, const daala_info *info) {
     return OD_EFAULT;
   }
 #endif
+  OD_CLEAR(&enc->rc, 1);
   od_enc_rc_init(enc, -1);
   return 0;
 }
