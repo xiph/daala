@@ -801,6 +801,7 @@ int od_state_dump_yuv(od_state *state, daala_image *img, const char *tag) {
            >> (img->planes[pli].bitdepth - 8);
           if (fputc(OD_CLAMP255(value), fp) == EOF) {
             fprintf(stderr, "Error writing to \"%s\".\n", fname);
+            fclose(fp);
             return OD_EFAULT;
           }
         }
@@ -809,11 +810,13 @@ int od_state_dump_yuv(od_state *state, daala_image *img, const char *tag) {
         if (fwrite(img->planes[pli].data + ystride*y,
                    (pic_width + xdec) >> xdec, 1, fp) < 1) {
           fprintf(stderr, "Error writing to \"%s\".\n", fname);
+          fclose(fp);
           return OD_EFAULT;
         }
       }
     }
   }
+  fclose(fp);
   return 0;
 }
 
