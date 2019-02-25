@@ -26,7 +26,7 @@ def decode_y4m_buffer(frame):
     A, Adiv2, div2 = W * H, Hdiv2 * Wdiv2, (Hdiv2, Wdiv2)
     dtype, scale = 'uint8', 1.
     if C.endswith('p10'):
-        dtype, scale, A = 'uint16', 4., A * 2
+        dtype, scale, A, Adiv2 = 'uint16', 4., A * 2, Adiv2 * 2
     Y = (np.ndarray((H, W), dtype, buf) - 16. * scale) / (219. * scale)
     if C.startswith('420'):
         Cb = (np.ndarray(div2, dtype, buf, A) - 128. * scale) / (224. * scale)
