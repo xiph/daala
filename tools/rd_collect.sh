@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-CODECS="<daala|av1|av1-rt|vp8|vp9|x264|x265|libjpeg|mozjpeg|theora|webp|bpg>"
+CODECS="<daala|av1|av1-rt|vp8|vp9|x264|x265|libjpeg|mozjpeg|theora|webp|bpg|rav1e>"
 
 if [ $# == 0 ]; then
   echo "usage: DAALA_ROOT=<build_dir> $0 $CODECS *.y4m"
@@ -288,6 +288,24 @@ case $CODEC in
 
     export CORES=1
     export RD_COLLECT_SUB=$(dirname $0)/rd_collect_bpg.sh
+    ;;
+  rav1e)
+    if [ -z $RAV1E_ROOT ] || [ ! -d $RAV1E_ROOT ]; then
+      echo "Please set RAV1E_ROOT to the location of your rav1e git clone"
+      exit 1
+    fi
+
+    if [ -z "$RAV1E" ]; then
+      export RAV1E="$RAV1E_ROOT/target/release/rav1e"
+    fi
+
+    if [ ! -x "$RAV1E" ]; then
+      echo "Executable not found RAV1E=$RAV1E"
+      echo "Do you have the right RAV1E_ROOT=$RAV1E_ROOT"
+      exit 1
+    fi
+
+    export RD_COLLECT_SUB=$(dirname $0)/rd_collect_rav1e.sh
     ;;
   *)
     echo "Unknown codec: $CODEC"
