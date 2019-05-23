@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-CODECS="<daala|av1|av1-rt|vp8|vp9|x264|x265|libjpeg|mozjpeg|theora|webp|bpg|rav1e>"
+CODECS="<daala|av1|av1-rt|vp8|vp9|x264|x265|libjpeg|mozjpeg|theora|webp|bpg|rav1e|svt-av1>"
 
 if [ $# == 0 ]; then
   echo "usage: DAALA_ROOT=<build_dir> $0 $CODECS *.y4m"
@@ -306,6 +306,24 @@ case $CODEC in
     fi
 
     export RD_COLLECT_SUB=$(dirname $0)/rd_collect_rav1e.sh
+    ;;
+  svt-av1)
+    if [ -z $SVTAV1_ROOT ] || [ ! -d $SVTAV1_ROOT ]; then
+      echo "Please set SVTAV1_ROOT to the location of your SVT-AV1 git clone"
+      exit 1
+    fi
+
+    if [ -z "$SVTAV1" ]; then
+      export SVTAV1="$SVTAV1_ROOT/Bin/Release/SvtAv1EncApp"
+    fi
+
+    if [ ! -x "$SVTAV1" ]; then
+      echo "Executable not found SVTAV1=$SVTAV1"
+      echo "Do you have the right SVTAV1_ROOT=$SVTAV1_ROOT"
+      exit 1
+    fi
+
+    export RD_COLLECT_SUB=$(dirname $0)/rd_collect_svtav1.sh
     ;;
   *)
     echo "Unknown codec: $CODEC"
