@@ -18,10 +18,10 @@ HEIGHT=$(head -1 $FILE | cut -d\  -f 3 | tr -d 'H')
 RANGE="20 32 43 55 63"
 case $CODEC in
 av1)
-  QSTR="--ivf --frame-parallel=0 --tile-columns=0 --auto-alt-ref=2 --cpu-used=0 --passes=2 --threads=1 --kf-min-dist=1000 --kf-max-dist=1000 --lag-in-frames=25 --end-usage=q --cq-level=\$x"
+  QSTR="--ivf --frame-parallel=0 --tile-columns=0 --auto-alt-ref=2 --passes=2 --threads=1 --kf-min-dist=1000 --kf-max-dist=1000 --lag-in-frames=25 --end-usage=q --cq-level=\$x"
   ;;
 av1-rt)
-  QSTR="--ivf --frame-parallel=0 --tile-columns=0 --cpu-used=0 --passes=1 --threads=1 --kf-min-dist=1000 --kf-max-dist=1000 --lag-in-frames=0 --end-usage=q --cq-level=\$x"
+  QSTR="--ivf --frame-parallel=0 --tile-columns=0 --passes=1 --threads=1 --kf-min-dist=1000 --kf-max-dist=1000 --lag-in-frames=0 --end-usage=q --cq-level=\$x"
   CODEC="av1"
   ;;
 esac
