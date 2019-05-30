@@ -2,7 +2,7 @@
 set -e
 
 if [ -z $RD_COLLECT_SUB ]; then
-  echo "Please use: $(dirname $0)/rd_collect.sh av1 *.y4m"
+  echo "Please use: $(dirname $0)/rd_collect.sh libaom *.y4m"
   exit 1
 fi
 
@@ -17,10 +17,10 @@ WIDTH=$(head -1 $FILE | cut -d\  -f 2 | tr -d 'W')
 HEIGHT=$(head -1 $FILE | cut -d\  -f 3 | tr -d 'H')
 
 case $CODEC in
-av1)
+libaom)
   QSTR="--ivf --frame-parallel=0 --tile-columns=0 --auto-alt-ref=2 --passes=2 --threads=1 --kf-min-dist=1000 --kf-max-dist=1000 --lag-in-frames=25 --end-usage=q --cq-level=\$x"
   ;;
-av1-rt)
+libaom-rt)
   QSTR="--ivf --frame-parallel=0 --tile-columns=0 --passes=1 --threads=1 --kf-min-dist=1000 --kf-max-dist=1000 --lag-in-frames=0 --end-usage=q --cq-level=\$x"
   ;;
 esac

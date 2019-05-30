@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-CODECS="<daala|av1|av1-rt|vp8|vp9|x264|x265|libjpeg|mozjpeg|theora|webp|bpg|rav1e|svt-av1>"
+CODECS="<daala|libaom|libaom-rt|vp8|vp9|x264|x265|libjpeg|mozjpeg|theora|webp|bpg|rav1e|svt-av1>"
 
 if [ $# == 0 ]; then
   echo "usage: DAALA_ROOT=<build_dir> $0 $CODECS *.y4m"
@@ -65,7 +65,7 @@ case $CODEC in
 
     export RD_COLLECT_SUB=$(dirname "$0")/rd_collect_daala.sh
     ;;
-  av1 | av1-rt)
+  libaom | libaom-rt)
     if [ -z $AOM_ROOT ] || [ ! -d $AOM_ROOT ]; then
       echo "Please set AOM_ROOT to the location of your aom git clone"
       exit 1
@@ -95,7 +95,7 @@ case $CODEC in
       QPS="20 32 43 55 63"
     fi
 
-    export RD_COLLECT_SUB=$(dirname $0)/rd_collect_aom.sh
+    export RD_COLLECT_SUB=$(dirname $0)/rd_collect_libaom.sh
     ;;
   vp8 | vp9)
     if [ -z $LIBVPX_ROOT ] || [ ! -d $LIBVPX_ROOT ]; then
@@ -455,7 +455,7 @@ if [ -z "$CORES" ]; then
 fi
 
 case $CODEC in
-  av1 | av1-rt | daala | rav1e | svt-av1)
+  libaom | libaom-rt | daala | rav1e | svt-av1)
     FILES=$(find -L "$@" -type f -name "*.y4m")
     for f in $FILES; do for q in $QPS; do printf "%s\0" $f $q; done; done | xargs -0 -n2 -P$CORES $RD_COLLECT_SUB
     for f in $FILES; do cat $(basename $f)-*.out | sort -n > $(basename $f)-$CODEC.out && rm $(basename $f)-$CODEC-*.out; done
