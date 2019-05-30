@@ -458,7 +458,7 @@ case $CODEC in
   libaom | libaom-rt | daala | rav1e | svt-av1)
     FILES=$(find -L "$@" -type f -name "*.y4m")
     for f in $FILES; do for q in $QPS; do printf "%s\0" $f $q; done; done | xargs -0 -n2 -P$CORES $RD_COLLECT_SUB
-    for f in $FILES; do cat $(basename $f)-*.out | sort -n > $(basename $f)-$CODEC.out && rm $(basename $f)-$CODEC-*.out; done
+    for f in $FILES; do cat $(basename $f)-$CODEC-*.out | sort -n > $(basename $f)-$CODEC.out && rm $(basename $f)-$CODEC-*.out; done
     ;;
   *)
     find -L "$@" -type f -name "*.y4m" -print0 | xargs -0 -n1 -P$CORES $RD_COLLECT_SUB
