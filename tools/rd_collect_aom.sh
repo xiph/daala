@@ -22,12 +22,11 @@ av1)
   ;;
 av1-rt)
   QSTR="--ivf --frame-parallel=0 --tile-columns=0 --passes=1 --threads=1 --kf-min-dist=1000 --kf-max-dist=1000 --lag-in-frames=0 --end-usage=q --cq-level=\$x"
-  CODEC="av1"
   ;;
 esac
 
-$AOMENC --codec=$CODEC $EXTRA_OPTS $(echo $QSTR | sed 's/\$x/'$QP'/g') -o $BASENAME.ivf $FILE 2> $BASENAME-enc.out
-$AOMDEC --codec=$CODEC -o $BASENAME.y4m $BASENAME.ivf
+$AOMENC $EXTRA_OPTS $(echo $QSTR | sed 's/\$x/'$QP'/g') -o $BASENAME.ivf $FILE 2> $BASENAME-enc.out
+$AOMDEC -o $BASENAME.y4m $BASENAME.ivf
 SIZE=$(wc -c $BASENAME.ivf | awk '{ print $1 }')
 $DUMP_PSNR $FILE $BASENAME.y4m > $BASENAME-psnr.out 2> /dev/null
 FRAMES=$(cat $BASENAME-psnr.out | grep ^0 | wc -l)
