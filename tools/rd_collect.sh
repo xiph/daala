@@ -354,7 +354,10 @@ case $CODEC in
       exit 1
     fi
 
-    export CORES=1
+    if [ -z "$QPS" ]; then
+      QPS=$(seq 1 51)
+    fi
+
     export RD_COLLECT_SUB=$(dirname $0)/rd_collect_bpg.sh
     ;;
   rav1e)
