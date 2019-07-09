@@ -27,7 +27,7 @@ IFS=' ' read -r VALUES <<< "$(head -n 1 $2)"
 VALUES=($VALUES)
 NUM_VALUES_2=${#VALUES[@]}
 
-CIEDE_ROW=8
+CIEDE_ROW=9
 
 if [ $NUM_VALUES_1 != $NUM_VALUES_2 ]; then
   echo "Number of metrics in out files don't match"
@@ -36,18 +36,19 @@ fi
 
 N1=$(cat $1 | wc -l)
 N2=$(cat $2 | wc -l)
+
 AREA1=$(cut -d\  -f 2 $1 | xargs | sed 's/ /,/g')
 AREA2=$(cut -d\  -f 2 $2 | xargs | sed 's/ /,/g')
 SIZE1=$(cut -d\  -f 3 $1 | xargs | sed 's/ /,/g')
 SIZE2=$(cut -d\  -f 3 $2 | xargs | sed 's/ /,/g')
-PSNR1=$(cut -d\  -f 4 $1 | xargs | sed 's/ /,/g')
-PSNR2=$(cut -d\  -f 4 $2 | xargs | sed 's/ /,/g')
-PSNRHVS1=$(cut -d\  -f 5 $1 | xargs | sed 's/ /,/g')
-PSNRHVS2=$(cut -d\  -f 5 $2 | xargs | sed 's/ /,/g')
-SSIM1=$(cut -d\  -f 6 $1 | xargs | sed 's/ /,/g')
-SSIM2=$(cut -d\  -f 6 $2 | xargs | sed 's/ /,/g')
-FASTSSIM1=$(cut -d\  -f 7 $1 | xargs | sed 's/ /,/g')
-FASTSSIM2=$(cut -d\  -f 7 $2 | xargs | sed 's/ /,/g')
+PSNR1=$(cut -d\  -f 5 $1 | xargs | sed 's/ /,/g')
+PSNR2=$(cut -d\  -f 5 $2 | xargs | sed 's/ /,/g')
+PSNRHVS1=$(cut -d\  -f 6 $1 | xargs | sed 's/ /,/g')
+PSNRHVS2=$(cut -d\  -f 6 $2 | xargs | sed 's/ /,/g')
+SSIM1=$(cut -d\  -f 7 $1 | xargs | sed 's/ /,/g')
+SSIM2=$(cut -d\  -f 7 $2 | xargs | sed 's/ /,/g')
+FASTSSIM1=$(cut -d\  -f 8 $1 | xargs | sed 's/ /,/g')
+FASTSSIM2=$(cut -d\  -f 8 $2 | xargs | sed 's/ /,/g')
 
 PSNR_RATE=$($BJONTEGAARD 0 $N1 $AREA1 $SIZE1 $PSNR1 $N2 $AREA2 $SIZE2 $PSNR2)
 PSNR_DSNR=$($BJONTEGAARD 1 $N1 $AREA1 $SIZE1 $PSNR1 $N2 $AREA2 $SIZE2 $PSNR2)
@@ -65,8 +66,8 @@ echo "    SSIM" $(echo $SSIM_RATE     | cut -d\  -f 3) $(echo $SSIM_DSNR     | c
 echo "FASTSSIM" $(echo $FASTSSIM_RATE | cut -d\  -f 3) $(echo $FASTSSIM_DSNR | cut -d\  -f 3)
 
 if [ $NUM_VALUES_1 -ge $CIEDE_ROW ]; then
-  CIEDE1=$(cut -d\  -f 8 $1 | xargs | sed 's/ /,/g')
-  CIEDE2=$(cut -d\  -f 8 $2 | xargs | sed 's/ /,/g')
+  CIEDE1=$(cut -d\  -f 9 $1 | xargs | sed 's/ /,/g')
+  CIEDE2=$(cut -d\  -f 9 $2 | xargs | sed 's/ /,/g')
   CIEDE_RATE=$($BJONTEGAARD 0 $N1 $AREA1 $SIZE1 $CIEDE1 $N2 $AREA2 $SIZE2 $CIEDE2)
   CIEDE_DSNR=$($BJONTEGAARD 1 $N1 $AREA1 $SIZE1 $CIEDE1 $N2 $AREA2 $SIZE2 $CIEDE2)
   echo "   CIEDE" $(echo $CIEDE_RATE    | cut -d\  -f 3) $(echo $CIEDE_DSNR    | cut -d\  -f 3)

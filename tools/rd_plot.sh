@@ -32,11 +32,11 @@ CMDS="$CMDS set key bot right;"
 
 for FILE in "$@"; do
   BASENAME=$(basename $FILE)
-  PSNR="$PSNR $PREFIX '$FILE' using (\$3*8/\$2):4 with lines title '${BASENAME%.*} (PSNR)'"
-  PSNRHVS="$PSNRHVS $PREFIX '$FILE' using (\$3*8/\$2):5 with lines title '${BASENAME%.*} (PSNR-HVS)'"
-  SSIM="$SSIM $PREFIX '$FILE' using (\$3*8/\$2):6 with lines title '${BASENAME%.*} (SSIM)'"
-  FASTSSIM="$FASTSSIM $PREFIX '$FILE' using (\$3*8/\$2):7 with lines title '${BASENAME%.*} (FAST SSIM)'"
-  CIEDE="$CIEDE $PREFIX '$FILE' using (\$3*8/\$2):8 with lines title '${BASENAME%.*} (CIEDE2000)'"
+  PSNR="$PSNR $PREFIX '$FILE' using (\$3*8/\$2):5 with lines title '${BASENAME%.*} (PSNR)'"
+  PSNRHVS="$PSNRHVS $PREFIX '$FILE' using (\$3*8/\$2):6 with lines title '${BASENAME%.*} (PSNR-HVS)'"
+  SSIM="$SSIM $PREFIX '$FILE' using (\$3*8/\$2):7 with lines title '${BASENAME%.*} (SSIM)'"
+  FASTSSIM="$FASTSSIM $PREFIX '$FILE' using (\$3*8/\$2):8 with lines title '${BASENAME%.*} (FAST SSIM)'"
+  CIEDE="$CIEDE $PREFIX '$FILE' using (\$3*8/\$2):9 with lines title '${BASENAME%.*} (CIEDE2000)'"
   PREFIX=","
 done
 
