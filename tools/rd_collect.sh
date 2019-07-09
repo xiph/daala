@@ -366,6 +366,10 @@ if [ -z "$Y4M2PNG" ]; then
   export Y4M2PNG=$TOOLS_ROOT/tools/y4m2png
 fi
 
+if [ -z "$Y4M2YUV" ]; then
+  export Y4M2YUV=$TOOLS_ROOT/tools/y4m2yuv
+fi
+
 if [ -z "$PNG2Y4M" ]; then
   export PNG2Y4M=$TOOLS_ROOT/tools/png2y4m
 fi
@@ -398,6 +402,12 @@ fi
 
 if [ ! -x "$Y4M2PNG" ]; then
   echo "Executable not found Y4M2PNG=$Y4M2PNG"
+  echo "Do you have the right TOOLS_ROOT=$TOOLS_ROOT"
+  exit 1
+fi
+
+if [ ! -x "$Y4M2YUV" ]; then
+  echo "Executable not found Y4M2YUV=$Y4M2YUV"
   echo "Do you have the right TOOLS_ROOT=$TOOLS_ROOT"
   exit 1
 fi
