@@ -97,7 +97,35 @@ case $CODEC in
 
     export RD_COLLECT_SUB=$(dirname $0)/rd_collect_libaom.sh
     ;;
-  vp8 | vp9)
+  vp8)
+    if [ -z $LIBVPX_ROOT ] || [ ! -d $LIBVPX_ROOT ]; then
+      echo "Please set LIBVPX_ROOT to the location of your libvpx git clone"
+      exit 1
+    fi
+
+    if [ -z "$VPXENC" ]; then
+      export VPXENC=$LIBVPX_ROOT/vpxenc
+    fi
+
+    if [ -z "$VPXDEC" ]; then
+      export VPXDEC=$LIBVPX_ROOT/vpxdec
+    fi
+
+    if [ ! -x "$VPXENC" ]; then
+      echo "Executable not found VPXENC=$VPXENC"
+      echo "Do you have the right LIBVPX_ROOT=$LIBVPX_ROOT"
+      exit 1
+    fi
+
+    if [ ! -x "$VPXDEC" ]; then
+      echo "Executable not found VPXDEC=$VPXDEC"
+      echo "Do you have the right LIBVPX_ROOT=$LIBVPX_ROOT"
+      exit 1
+    fi
+
+    export RD_COLLECT_SUB=$(dirname $0)/rd_collect_libvpx.sh
+    ;;
+  vp9)
     if [ -z $LIBVPX_ROOT ] || [ ! -d $LIBVPX_ROOT ]; then
       echo "Please set LIBVPX_ROOT to the location of your libvpx git clone"
       exit 1
