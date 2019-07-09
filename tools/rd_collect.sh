@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-CODECS="<daala|libaom|libaom-rt|vp8|vp9|x264|x265|libjpeg|mozjpeg|theora|webp|bpg|rav1e|svt-av1>"
+CODECS="<daala|libaom|libaom-rt|vp8|vp9|x264|x265|libjpeg|mozjpeg|theora|webp|bpg|rav1e|svt-av1|vtm>"
 
 if [ $# == 0 ]; then
   echo "usage: DAALA_ROOT=<build_dir> $0 $CODECS *.y4m"
@@ -404,6 +404,28 @@ case $CODEC in
 
     export RD_COLLECT_SUB=$(dirname $0)/rd_collect_svtav1.sh
     ;;
+  vtm)
+    if [ -z $VTM_ROOT ] || [ ! -d $VTM_ROOT ]; then
+      echo "Please set VTM_ROOT to the location of your VTM git clone"
+      exit 1
+    fi
+
+    if [ -z "$VTM" ]; then
+      export VTM="$VTM_ROOT/bin/EncoderAppStatic"
+    fi
+
+    if [ ! -x "$VTM" ]; then
+      echo "Executable not found VTM=$VTM"
+      echo "Do you have the right VTM_ROOT=$VTM_ROOT"
+      exit 1
+    fi
+
+    if [ -z "$QPS" ]; then
+      QPS="20 32 43 55 63"
+    fi
+
+    export RD_COLLECT_SUB=$(dirname $0)/rd_collect_vtm.sh
+    ;;
   *)
     echo "Unknown codec: $CODEC"
     exit 1
@@ -527,12 +549,6 @@ if [ -z "$CORES" ]; then
   #echo "CORES not set, using $CORES"
 fi
 
-case $CODEC in
-  libaom | libaom-rt | daala | rav1e | svt-av1 | vp8 | vp9 | x264 | x265 | jpeg | mozjpeg | theora | webp)
-    FILES=$(find -L "$@" -type f -name "*.y4m")
-    for f in $FILES; do for q in $QPS; do printf "%s\0" $f $q; done; done | xargs -0 -n2 -P$CORES $RD_COLLECT_SUB
-    for f in $FILES; do cat $(basename $f)-$CODEC-*.out | sort -n > $(basename $f)-$CODEC.out && rm $(basename $f)-$CODEC-*.out; done
-    ;;
-  *)
-    find -L "$@" -type f -name "*.y4m" -print0 | xargs -0 -n1 -P$CORES $RD_COLLECT_SUB
-esac
+FILES=$(find -L "$@" -type f -name "*.y4m")
+for f in $FILES; do for q in $QPS; do printf "%s\0" $f $q; done; done | xargs -0 -n2 -P$CORES $RD_COLLECT_SUB
+for f in $FILES; do cat $(basename $f)-$CODEC-*.out | sort -n > $(basename $f)-$CODEC.out && rm $(basename $f)-$CODEC-*.out; done
