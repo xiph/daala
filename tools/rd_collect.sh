@@ -177,6 +177,10 @@ case $CODEC in
       exit 1
     fi
 
+    if [ -z "$QPS" ]; then
+      QPS=$(seq 1 51)
+    fi
+
     export RD_COLLECT_SUB=$(dirname $0)/rd_collect_x264.sh
     ;;
   x265)
@@ -501,7 +505,7 @@ if [ -z "$CORES" ]; then
 fi
 
 case $CODEC in
-  libaom | libaom-rt | daala | rav1e | svt-av1 | vp8 | vp9)
+  libaom | libaom-rt | daala | rav1e | svt-av1 | vp8 | vp9 | x264)
     FILES=$(find -L "$@" -type f -name "*.y4m")
     for f in $FILES; do for q in $QPS; do printf "%s\0" $f $q; done; done | xargs -0 -n2 -P$CORES $RD_COLLECT_SUB
     for f in $FILES; do cat $(basename $f)-$CODEC-*.out | sort -n > $(basename $f)-$CODEC.out && rm $(basename $f)-$CODEC-*.out; done
