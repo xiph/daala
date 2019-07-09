@@ -262,7 +262,7 @@ int main(int _argc,char *_argv[]){
   /*Start output.*/
   fprintf(out_y4m,"YUV4MPEG2 W%i H%i F%i:%i I%c A%i:%i",
    y_w,y_h,fps_n,fps_d,ip,par_n,par_d);
-  if(strcmp(chroma,"420jpeg")!=0)fprintf(out_y4m," C%s",chroma);
+  fprintf(out_y4m," C%s",chroma);
   switch(bitdepth){
     case 8:{
       xstride=1;
