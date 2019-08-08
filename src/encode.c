@@ -818,7 +818,7 @@ static void od_img_plane_copy_pad(daala_image *dst,
           dst_data[x] = (2*uppercase_c + uppercase_l + uppercase_r + 2) >> 2;
         }
       }
-      else{
+      else {
         for (x = 0; x < plane_width; x++) {
           uint16_t uppercase_l;
           uint16_t uppercase_c;
@@ -3113,7 +3113,7 @@ static int od_encode_frame(daala_enc_ctx *enc, daala_image *img, int frame_type,
         droppable = 1;
       }
     }
-    else{
+    else {
       if (frame_type == OD_P_FRAME) {
         droppable = 1;
       }

@@ -411,7 +411,8 @@ int main(int argc, char **argv){
     fprintf(stderr, "Coded file with %f bits/sample (%f bits/vector)\n",bits/(float)len/N,bits/(float)len);
     fclose(file);
     free(X);
-  } else {
+  }
+  else {
     int i;
     int j;
     fprintf(stderr, "Testing random bitstreams\n");

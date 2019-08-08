@@ -1058,7 +1058,8 @@ static void od_img_plane_edge_ext(daala_image_plane *dst_p,
       for (x = 1; x <= horz_padding; x++) {
         (dst - x)[0] = dst[0];
       }
-    }else{
+    }
+    else {
       for (x = 1; x <= horz_padding; x++) {
         (dst - (x << 1))[0] = dst[0];
         (dst - (x << 1))[1] = dst[1];
@@ -1072,7 +1073,8 @@ static void od_img_plane_edge_ext(daala_image_plane *dst_p,
       for (x = 1; x <= horz_padding; x++) {
         dst[x] = dst[0];
       }
-    }else{
+    }
+    else {
       for (x = 1; x <= horz_padding; x++) {
         (dst + (x << 1))[0] = dst[0];
         (dst + (x << 1))[1] = dst[1];
@@ -1353,7 +1355,8 @@ void od_init_skipped_coeffs(od_coeff *d, od_coeff *pred, int is_keyframe,
         if (i || j) d[bo + i*w + j] = 0;
       }
     }
-  } else {
+  }
+  else {
     for (i = 0; i < n; i++) {
       for (j = 0; j < n; j++) {
         d[bo + i*w + j] = pred[i*n + j];
