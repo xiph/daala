@@ -297,8 +297,8 @@ int main(int _argc,char *_argv[]){
     exit(EXIT_FAILURE);
   }
   xstride = info1.depth > 8 ? 2 : 1;
-  par=info1.par_n>0&&info2.par_d>0?
-   info1.par_n/(double)info2.par_d:1;
+  par=info1.par_n>0&&info1.par_d>0?
+   info1.par_n/(double)info1.par_d:1;
   gssim[0]=gssim[1]=gssim[2]=0;
   /*We just use a simple weighting to get a single full-color score.
     In reality the CSF for chroma is not the same as luma.*/
