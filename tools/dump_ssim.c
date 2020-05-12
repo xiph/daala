@@ -293,7 +293,8 @@ int main(int _argc,char *_argv[]){
   }
   if(info1.par_n*(int64_t)info2.par_d!=
    info2.par_n*(int64_t)info1.par_d){
-    fprintf(stderr,"Warning: aspect ratios do not match.\n");
+    fprintf(stderr,"Error: aspect ratios do not match.\n");
+    exit(EXIT_FAILURE);
   }
   xstride = info1.depth > 8 ? 2 : 1;
   par=info1.par_n>0&&info2.par_d>0?
