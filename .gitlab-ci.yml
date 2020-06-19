@@ -22,6 +22,7 @@ unix:
   before_script:
     - apt-get update &&
       apt-get install -y libogg-dev libsdl2-dev
+        check
   script:
     - make -C unix
     - make -C unix check
