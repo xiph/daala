@@ -4,19 +4,6 @@ default:
   # Image from https://hub.docker.com/_/gcc/ based on Debian
   image: gcc:9
 
-autoconf:
-  stage: build
-  before_script:
-    - apt-get update &&
-      apt-get install -y libogg-dev libjpeg-dev libpng-dev
-        libsdl2-gfx-dev check
-  script:
-    - ./autogen.sh
-    - ./configure
-    - make
-    - make tools
-    - make distcheck
-
 unix:
   stage: build
   before_script:
@@ -26,3 +13,98 @@ unix:
   script:
     - make -C unix
     - make -C unix check
+
+.autotools:
+  stage: build
+  before_script:
+    - apt-get update &&
+      apt-get install -y libogg-dev libjpeg-dev libpng-dev
+        libsdl2-gfx-dev check
+    - ./autogen.sh
+  script:
+    - ./configure
+    - make
+    - make tools
+    - make distcheck
+
+autotools:
+  extends: .autotools
+  script:
+    - ./configure
+    - make
+    - make check
+
+distcheck:
+  extends: .autotools
+  script:
+    - ./configure
+    - make distcheck
+
+tools:
+  extends: .autotools
+  script:
+    - ./configure
+    - make tools
+
+minimal:
+  extends: .autotools
+  script:
+    - ./configure
+        --disable-examples --disable-player --disable-tools --disable-doc
+    - make check
+
+assert:
+  extends: .autotools
+  script:
+    - ./configure
+        --disable-examples --disable-player --disable-tools --disable-doc
+        --enable-assertions
+    - make check
+
+check-asm:
+  extends: .autotools
+  script:
+    - ./configure
+        --disable-examples --disable-player --disable-tools --disable-doc
+        --enable-assertions --enable-check-asm
+    - make check
+
+encoder-check:
+  extends: .autotools
+  script:
+    - ./configure
+        --disable-examples --disable-player --disable-tools --disable-doc
+        --enable-assertions --enable-encoder-check
+    - make check
+
+float-pvq:
+  extends: .autotools
+  script:
+    - ./configure
+        --disable-examples --disable-player --disable-tools --disable-doc
+        --enable-assertions --enable-float-pvq
+    - make check
+
+dct-overflow:
+  extends: .autotools
+  script:
+    - ./configure
+        --disable-examples --disable-player --disable-tools --disable-doc
+        --enable-assertions --enable-dct-check-overflow
+    - make check
+
+accounting:
+  extends: .autotools
+  script:
+    - ./configure
+        --disable-examples --disable-player --disable-tools --disable-doc
+        --enable-assertions --enable-accounting
+    - make check
+
+ec-accounting:
+  extends: .autotools
+  script:
+    - ./configure
+        --disable-examples --disable-player --disable-tools --disable-doc
+        --enable-assertions --enable-ec-accounting
+    - make check
