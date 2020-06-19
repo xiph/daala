@@ -1,0 +1,27 @@
+default:
+  tags:
+    - docker
+  # Image from https://hub.docker.com/_/gcc/ based on Debian
+  image: gcc:9
+
+autoconf:
+  stage: build
+  before_script:
+    - apt-get update &&
+      apt-get install -y libogg-dev libjpeg-dev libpng-dev
+        libsdl2-gfx-dev check
+  script:
+    - ./autogen.sh
+    - ./configure
+    - make
+    - make tools
+    - make distcheck
+
+unix:
+  stage: build
+  before_script:
+    - apt-get update &&
+      apt-get install -y libogg-dev libsdl2-dev
+  script:
+    - make -C unix
+    - make -C unix check
