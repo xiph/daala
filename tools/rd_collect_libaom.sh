@@ -18,10 +18,10 @@ HEIGHT=$(head -1 $FILE | cut -d\  -f 3 | tr -d 'H')
 
 case $CODEC in
 libaom)
-  QSTR="--ivf --frame-parallel=0 --tile-columns=0 --auto-alt-ref=2 --passes=2 --threads=1 --kf-min-dist=1000 --kf-max-dist=1000 --lag-in-frames=25 --end-usage=q --cq-level=\$x"
+  QSTR="--ivf --frame-parallel=0 --auto-alt-ref=2 --passes=2 --threads=1 --kf-min-dist=1000 --kf-max-dist=1000 --lag-in-frames=25 --end-usage=q --cq-level=\$x"
   ;;
 libaom-rt)
-  QSTR="--ivf --frame-parallel=0 --tile-columns=0 --passes=1 --threads=1 --kf-min-dist=1000 --kf-max-dist=1000 --lag-in-frames=0 --end-usage=q --cq-level=\$x"
+  QSTR="--ivf --frame-parallel=0 --passes=1 --threads=1 --kf-min-dist=1000 --kf-max-dist=1000 --lag-in-frames=0 --end-usage=q --cq-level=\$x"
   ;;
 esac
 
