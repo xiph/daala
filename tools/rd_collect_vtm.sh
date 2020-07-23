@@ -15,7 +15,7 @@ echo $BASENAME
 
 WIDTH=$(head -1 $FILE | cut -d\  -f 2 | tr -d 'W')
 HEIGHT=$(head -1 $FILE | cut -d\  -f 3 | tr -d 'H')
-FRAMES=$(grep FRAME $FILE | wc -l)
+FRAMES=$(grep --binary-files=text FRAME $FILE | wc -l)
 FPS=$(ffmpeg -i $FILE 2>&1 | sed -n "s/.*, \(.*\) fp.*/\1/p")
 
 QSTR="-wdt $WIDTH -hgt $HEIGHT -f $FRAMES -fr $FPS -c $VTM_ROOT/cfg/encoder_randomaccess_vtm.cfg -q $QP --OutputBitDepth=8"
