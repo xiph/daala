@@ -23,7 +23,7 @@ QSTR="-wdt $WIDTH -hgt $HEIGHT -f $FRAMES -fr $FPS -c $VTM_ROOT/cfg/encoder_rand
 ENCTIME=$BASENAME-enctime.out
 TIMER='time -v --output='"$ENCTIME"
 $Y4M2YUV -o $BASENAME.yuv $FILE
-$TIMER $VTM $EXTRA_OPTS $QSTR -o $BASENAME-out.yuv -b $BASENAME.vvc -i $BASENAME.yuv > $BASENAME-enc.out
+$TIMER $VTM $QSTR $EXTRA_OPTS -o $BASENAME-out.yuv -b $BASENAME.vvc -i $BASENAME.yuv > $BASENAME-enc.out
 $YUV2YUV4MPEG $BASENAME-out -w$WIDTH -h$HEIGHT
 SIZE=$(wc -c $BASENAME.vvc | awk '{ print $1 }')
 $DUMP_PSNR $FILE $BASENAME-out.y4m > $BASENAME-psnr.out 2> /dev/null
