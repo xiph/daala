@@ -27,7 +27,7 @@ esac
 
 ENCTIME=$BASENAME-enctime.out
 TIMER='time -v --output='"$ENCTIME"
-$TIMER $AOMENC $EXTRA_OPTS $(echo $QSTR | sed 's/\$x/'$QP'/g') -o $BASENAME.ivf $FILE 2> $BASENAME-enc.out
+$TIMER $AOMENC $(echo $QSTR | sed 's/\$x/'$QP'/g') $EXTRA_OPTS -o $BASENAME.ivf $FILE 2> $BASENAME-enc.out
 $AOMDEC -o $BASENAME.y4m $BASENAME.ivf
 SIZE=$(wc -c $BASENAME.ivf | awk '{ print $1 }')
 $DUMP_PSNR $FILE $BASENAME.y4m > $BASENAME-psnr.out 2> /dev/null
