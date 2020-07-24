@@ -21,7 +21,7 @@ QSTR="-lp 1 -q \$x"
 export LD_LIBRARY_PATH=$(dirname "$SVTAV1")
 ENCTIME=$BASENAME-enctime.out
 TIMER='time -v --output='"$ENCTIME"
-$TIMER $SVTAV1 $EXTRA_OPTS $(echo $QSTR | sed 's/\$x/'$QP'/g') -o $BASENAME.yuv -b $BASENAME.ivf -i $FILE 2> $BASENAME-enc.out > /dev/null
+$TIMER $SVTAV1 $(echo $QSTR | sed 's/\$x/'$QP'/g') $EXTRA_OPTS -o $BASENAME.yuv -b $BASENAME.ivf -i $FILE 2> $BASENAME-enc.out > /dev/null
 $YUV2YUV4MPEG $BASENAME -w$WIDTH -h$HEIGHT -an0 -ad0 -c420mpeg2
 SIZE=$(wc -c $BASENAME.ivf | awk '{ print $1 }')
 $DUMP_PSNR $FILE $BASENAME.y4m > $BASENAME-psnr.out 2> /dev/null
