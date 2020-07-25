@@ -121,10 +121,14 @@ static void fs_downsample_level(fs_ctx *_ctx,int _l){
   int                 j;
   w=_ctx->level[_l].w;
   h=_ctx->level[_l].h;
+  w = (w >> 1) << 1;
+  h = (h >> 1) << 1;
   dst1=_ctx->level[_l].im1;
   dst2=_ctx->level[_l].im2;
   w2=_ctx->level[_l-1].w;
   h2=_ctx->level[_l-1].h;
+  w2 = (w2 >> 1) << 1;
+  h2 = (h2 >> 1) << 1;
   src1=_ctx->level[_l-1].im1;
   src2=_ctx->level[_l-1].im2;
   for(j=0;j<h;j++){
@@ -241,7 +245,7 @@ static void fs_apply_luminance(fs_ctx *_ctx,int _l){
         i0=FS_MAXI(0,i-4);
         i1=FS_MINI(i+4,w-1);
         mux+=col_sums_x[i1]-col_sums_x[i0];
-        muy+=col_sums_x[i1]-col_sums_x[i0];
+        muy+=col_sums_y[i1]-col_sums_y[i0];
       }
     }
     if(j+1<h){
