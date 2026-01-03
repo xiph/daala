@@ -282,7 +282,7 @@ void player_example_handle_event(player_example *player, SDL_Event *event) {
         case SDLK_f: {
           player->fullscreen = !player->fullscreen;
           SDL_SetWindowFullscreen(player->screen,
-              player->fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
+              player->fullscreen ? SDL_WINDOW_FULLSCREEN : 0);
           img_to_rgb(player, player->texture, &player->img, player->plane_mask);
           player_example_display_frame(player);
           break;
