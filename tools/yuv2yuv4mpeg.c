@@ -276,7 +276,6 @@ int main(int _argc,char *_argv[]){
     default:{
       fprintf(stderr,"Unsupported bit depth.\n");
       return -1;
-      break;
     }
   }
   fprintf(out_y4m,"\n");
