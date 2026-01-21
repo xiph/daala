@@ -280,11 +280,38 @@ void player_example_handle_event(player_example *player, SDL_Event *event) {
           break;
         }
         case SDLK_f: {
+  
+	  // store the original aspect ratio for reference 
+	  int width = event->window.data1;
+  	  int height = event->window.data2;
+  	  const float ASPECT_RATIO = (float)width/(float)height;
+	  float aspectRatio;
+
           player->fullscreen = !player->fullscreen;
-          SDL_SetWindowFullscreen(player->screen,
-              player->fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
+	  SDL_SetWindowFullscreen(player->screen,
+              player->fullscreen ? SDL_WINDOW_FULLSCREEN : 0);
           img_to_rgb(player, player->texture, &player->img, player->plane_mask);
-          player_example_display_frame(player);
+          
+	  // calculate the aspectRatio after the player->screen has been modified
+	  width = player->width;
+	  height = player->height;
+  	  aspectRatio = (float)width/(float)height;
+          
+	  // compare and rectify, to maintain the original aspect ratio
+	  if(aspectRatio != ASPECT_RATIO) {
+            if(aspectRatio > ASPECT_RATIO) {
+              height = (1.f / ASPECT_RATIO) * width; 
+            }
+            else {
+              width = ASPECT_RATIO * height; 
+            }
+            printf("Setting window size to %d, %d, aspect ratio: %f\n", 
+                    width, height, (float)width/(float)height);
+          }
+          player->width = width;
+          player->height = height;
+	  
+	  player_example_display_frame(player);
           break;
         }
         default: break;
@@ -294,7 +321,7 @@ void player_example_handle_event(player_example *player, SDL_Event *event) {
     case SDL_WINDOWEVENT: {
       switch (event->window.event) {
         case SDL_WINDOWEVENT_RESIZED: {
-          player_example_display_frame(player);
+	  player_example_display_frame(player);
           break;
         }
         default: break;
